@@ -1,0 +1,183 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 214 25% 5%;
+    --foreground: 210 20% 92%;
+    --card: 215 22% 10%;
+    --card-foreground: 210 20% 92%;
+    --primary: 165 100% 42%;
+    --primary-foreground: 215 25% 5%;
+    --secondary: 215 20% 14%;
+    --secondary-foreground: 210 20% 75%;
+    --muted: 215 20% 16%;
+    --muted-foreground: 215 15% 55%;
+    --accent: 43 95% 56%;
+    --accent-foreground: 215 25% 5%;
+    --border: 215 18% 18%;
+    --input: 215 18% 14%;
+    --ring: 165 100% 42%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * { @apply border-border box-border; }
+
+  html {
+    font-size: 120%; /* Global upscale — makes all rem-based text 20% larger */
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    @apply bg-wm-black text-wm-text font-sans antialiased;
+    overflow: hidden;
+    font-size: 1rem;
+  }
+
+  /* Ensure minimum readable size on small labels throughout the app */
+  span, p, div, button, td, th, li {
+    min-font-size: 11px; /* non-standard but signals intent; actual enforcement via tailwind classes */
+  }
+
+  #__next, [data-nextjs-scroll-focus-boundary] {
+    height: 100%;
+    width: 100%;
+  }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #252D38; border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: #364152; }
+  ::-webkit-scrollbar-corner { background: transparent; }
+}
+
+@layer utilities {
+  /* Colors */
+  .text-green  { color: #00D4AA; }
+  .text-red    { color: #FF4D6A; }
+  .text-gold   { color: #F0B429; }
+  .bg-green    { background-color: #00D4AA; }
+  .bg-red      { background-color: #FF4D6A; }
+
+  /* Glass panel */
+  .glass {
+    background: rgba(22, 27, 34, 0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(37, 45, 56, 0.9);
+  }
+
+  /* Order flow bubbles */
+  .of-bubble {
+    @apply rounded-full text-[9px] font-bold flex items-center justify-center select-none pointer-events-none leading-none;
+    min-width: 26px;
+    height: 18px;
+    padding: 0 4px;
+    letter-spacing: -0.3px;
+  }
+  .of-bubble-buy  { @apply of-bubble; background: #00D4AA; color: #070A0F; }
+  .of-bubble-sell { @apply of-bubble; background: #FF4D6A; color: #ffffff; }
+
+  /* Ladder rows */
+  .ladder-row {
+    @apply flex items-center text-[10px] font-mono border-b border-wm-border/20;
+    height: 20px;
+  }
+
+  /* Shimmer skeleton */
+  .skeleton {
+    @apply bg-wm-surface rounded animate-pulse;
+  }
+
+  /* Gradient text */
+  .gradient-text-green {
+    background: linear-gradient(135deg, #00D4AA, #4FA3E0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .gradient-text-gold {
+    background: linear-gradient(135deg, #F0B429, #FF8C00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Premium glow effects */
+  .glow-green { box-shadow: 0 0 16px rgba(0,212,170,0.25); }
+  .glow-gold  { box-shadow: 0 0 16px rgba(240,180,41,0.25); }
+  .glow-red   { box-shadow: 0 0 16px rgba(255,77,106,0.25); }
+}
+
+/* Ticker tape animation */
+.ticker-wrap { overflow: hidden; white-space: nowrap; }
+.ticker-inner { display: inline-flex; animation: ticker 60s linear infinite; }
+.ticker-inner:hover { animation-play-state: paused; }
+@keyframes ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Chart canvas fill */
+#tv-chart-container,
+#tv-chart-container > div,
+#tv-chart-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* Custom range slider */
+input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; }
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #00D4AA;
+  cursor: pointer;
+  margin-top: -4px;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height: 4px;
+  background: #252D38;
+  border-radius: 2px;
+}
+
+/* Music wave animation */
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.4); }
+  50%       { transform: scaleY(1.0); }
+}
+.music-wave span {
+  display: inline-block;
+  width: 3px;
+  background: #00D4AA;
+  border-radius: 2px;
+  animation: wave 0.8s ease-in-out infinite;
+}
+.music-wave span:nth-child(2) { animation-delay: 0.15s; }
+.music-wave span:nth-child(3) { animation-delay: 0.30s; }
+.music-wave span:nth-child(4) { animation-delay: 0.45s; }
+
+/* Pulse rings */
+@keyframes ping-slow { 75%,100% { transform: scale(1.8); opacity: 0; } }
+.animate-ping-slow { animation: ping-slow 2s cubic-bezier(0,0,0.2,1) infinite; }
+
+/* Fullscreen: ensure dark background and proper z-index stacking */
+:fullscreen, :-webkit-full-screen, :-moz-full-screen {
+  background: #070A0F !important;
+}
+:fullscreen .bg-wm-black,
+:-webkit-full-screen .bg-wm-black {
+  background: #070A0F !important;
+}

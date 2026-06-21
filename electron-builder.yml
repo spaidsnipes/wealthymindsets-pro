@@ -1,0 +1,86 @@
+# WealthyMindsets Pro — electron-builder configuration
+# Generates distributable desktop apps for Windows, macOS, Linux
+
+appId: com.wealthymindsets.pro
+productName: WealthyMindsets Pro
+copyright: "Copyright © 2025 WealthyMindsets LLC"
+
+# Source for bundled app
+directories:
+  buildResources: electron/resources
+  output: dist-electron
+
+# What to include in the package
+files:
+  - .next/**/*
+  - public/**/*
+  - node_modules/**/*
+  - electron/**/*
+  - package.json
+  - next.config.ts
+
+# Extra resources copied alongside the app
+extraResources:
+  - from: ".next/standalone"
+    to: "app"
+    filter:
+      - "**/*"
+
+# ── macOS ────────────────────────────────────────────────────
+mac:
+  category: public.app-category.finance
+  icon: public/icons/icon-512x512.png
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  darkModeSupport: true
+  hardenedRuntime: false
+
+dmg:
+  title: "WealthyMindsets Pro"
+  background: electron/resources/dmg-background.png
+  icon: public/icons/icon-512x512.png
+  contents:
+    - x: 410
+      y: 150
+      type: link
+      path: /Applications
+    - x: 130
+      y: 150
+      type: file
+
+# ── Windows ──────────────────────────────────────────────────
+win:
+  icon: public/icons/icon-512x512.png
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: "WealthyMindsets Pro"
+  installerIcon: public/icons/icon-512x512.png
+  uninstallerIcon: public/icons/icon-512x512.png
+  installerHeaderIcon: public/icons/icon-512x512.png
+
+# ── Linux ────────────────────────────────────────────────────
+linux:
+  icon: public/icons/icon-512x512.png
+  category: Finance
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+
+# ── Publishing (GitHub Releases) ────────────────────────────
+publish:
+  provider: github
+  releaseType: release
