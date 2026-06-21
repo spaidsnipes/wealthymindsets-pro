@@ -255,35 +255,35 @@ export function DOMPanel({ symbol }: { symbol: string }) {
   const bidPct  = Math.round(totBid / Math.max(1, totBid + totAsk) * 100);
 
   return (
-    <div className="border-l border-wm-border flex flex-col shrink-0" style={{ width:176, background:"#0A0B10", fontSize:10 }}>
+    <div className="border-l border-wm-border flex flex-col shrink-0" style={{ width:230, background:"#0A0B10", fontSize:13 }}>
       {/* Header */}
-      <div className="flex items-center gap-2 px-2 shrink-0" style={{ height:30, borderBottom:"1px solid rgba(30,32,48,0.8)" }}>
-        <span style={{ fontSize:9, fontWeight:700, color:"#4A5070", letterSpacing:1, textTransform:"uppercase" }}>DOM</span>
+      <div className="flex items-center gap-2 px-2.5 shrink-0" style={{ height:38, borderBottom:"1px solid rgba(30,32,48,0.8)" }}>
+        <span style={{ fontSize:12, fontWeight:800, color:"#5A6080", letterSpacing:1.2, textTransform:"uppercase" }}>DOM</span>
         {crypto && (
-          <span style={{ fontSize:7, color: realConnected ? "#00C076" : "#F0B429", marginLeft:2 }}>
+          <span style={{ fontSize:10, fontWeight:700, color: realConnected ? "#00C076" : "#F0B429", marginLeft:2 }}>
             {realConnected ? "● LIVE" : "○ REST"}
           </span>
         )}
-        <span style={{ marginLeft:"auto", fontFamily:"monospace", fontWeight:700, fontSize:11,
+        <span style={{ marginLeft:"auto", fontFamily:"monospace", fontWeight:800, fontSize:16,
           color: (liveBar?.close ?? 0) >= (liveBar?.open ?? 0) ? "#00C076" : "#FF4D67" }}>
           {center.toFixed(dp)}
         </span>
       </div>
 
       {/* Bid/Ask ratio bar */}
-      <div className="flex items-center gap-1 px-2 shrink-0" style={{ height:18, borderBottom:"1px solid rgba(30,32,48,0.5)" }}>
-        <span style={{ color:"#00C076", fontSize:8, fontWeight:600 }}>{bidPct}%</span>
-        <div style={{ flex:1, height:3, borderRadius:2, overflow:"hidden", background:"rgba(255,77,103,0.2)" }}>
-          <div style={{ height:"100%", borderRadius:2, background:"#00C076", width:`${bidPct}%`, transition:"width 0.4s" }} />
+      <div className="flex items-center gap-1.5 px-2.5 shrink-0" style={{ height:24, borderBottom:"1px solid rgba(30,32,48,0.5)" }}>
+        <span style={{ color:"#00C076", fontSize:11, fontWeight:700 }}>{bidPct}%</span>
+        <div style={{ flex:1, height:5, borderRadius:3, overflow:"hidden", background:"rgba(255,77,103,0.2)" }}>
+          <div style={{ height:"100%", borderRadius:3, background:"#00C076", width:`${bidPct}%`, transition:"width 0.4s" }} />
         </div>
-        <span style={{ color:"#FF4D67", fontSize:8, fontWeight:600 }}>{100-bidPct}%</span>
+        <span style={{ color:"#FF4D67", fontSize:11, fontWeight:700 }}>{100-bidPct}%</span>
       </div>
 
       {/* Column headers */}
-      <div className="flex shrink-0" style={{ height:18, borderBottom:"1px solid rgba(30,32,48,0.6)" }}>
-        <div style={{ flex:1, textAlign:"right", paddingRight:4, fontSize:8, fontWeight:600, color:"rgba(255,77,103,0.7)", display:"flex", alignItems:"center", justifyContent:"flex-end" }}>ASK</div>
-        <div style={{ width:60, textAlign:"center", fontSize:8, fontWeight:600, color:"#4A5070", display:"flex", alignItems:"center", justifyContent:"center" }}>PRICE</div>
-        <div style={{ flex:1, textAlign:"left", paddingLeft:4, fontSize:8, fontWeight:600, color:"rgba(0,192,118,0.7)", display:"flex", alignItems:"center" }}>BID</div>
+      <div className="flex shrink-0" style={{ height:24, borderBottom:"1px solid rgba(30,32,48,0.6)" }}>
+        <div style={{ flex:1, textAlign:"right", paddingRight:6, fontSize:11, fontWeight:700, color:"rgba(255,77,103,0.75)", display:"flex", alignItems:"center", justifyContent:"flex-end" }}>ASK</div>
+        <div style={{ width:78, textAlign:"center", fontSize:11, fontWeight:700, color:"#5A6080", display:"flex", alignItems:"center", justifyContent:"center" }}>PRICE</div>
+        <div style={{ flex:1, textAlign:"left", paddingLeft:6, fontSize:11, fontWeight:700, color:"rgba(0,192,118,0.75)", display:"flex", alignItems:"center" }}>BID</div>
       </div>
 
       {/* DOM levels */}
@@ -291,12 +291,12 @@ export function DOMPanel({ symbol }: { symbol: string }) {
         {levels.map((lvl, i) => {
           const isAtPrice = Math.abs(lvl.price - center) < tick * 0.6;
           const sz = lvl.bidSize || lvl.askSize;
-          const barW = Math.round((sz / maxSize) * 38);
+          const barW = Math.round((sz / maxSize) * 48);
 
           return (
             <div key={i} className="flex items-center relative"
               style={{
-                height: 16,
+                height: 22,
                 borderBottom: "1px solid rgba(30,32,48,0.25)",
                 background: isAtPrice ? "rgba(240,180,41,0.07)" : i % 2 === 0 ? "rgba(255,255,255,0.008)" : "transparent",
               }}>
@@ -304,27 +304,27 @@ export function DOMPanel({ symbol }: { symbol: string }) {
               {!lvl.isBid && sz > 0 && (
                 <div style={{
                   position:"absolute", top:2, bottom:2, borderRadius:2,
-                  width: barW, right: 60,
+                  width: barW, right: 78,
                   background: lvl.isWall ? "rgba(255,77,103,0.35)" : "rgba(255,77,103,0.12)",
                 }} />
               )}
 
-              <div style={{ flex:1, textAlign:"right", paddingRight:4, fontFamily:"monospace", fontSize:9,
+              <div style={{ flex:1, textAlign:"right", paddingRight:6, fontFamily:"monospace", fontSize:13, fontWeight:600,
                 color: lvl.isWall && !lvl.isBid ? "#FF6B7A" : "#FF4D67",
                 opacity: !lvl.isBid && sz > 0 ? 1 : 0, position:"relative", zIndex:2 }}>
                 {!lvl.isBid && sz > 0 ? sz : ""}
               </div>
 
               <div style={{
-                width:60, textAlign:"center", fontFamily:"monospace", fontSize:9, fontWeight: isAtPrice ? 700 : 500,
-                color: isAtPrice ? "#F0B429" : "#4A5580",
+                width:78, textAlign:"center", fontFamily:"monospace", fontSize:13, fontWeight: isAtPrice ? 800 : 600,
+                color: isAtPrice ? "#F0B429" : "#6A72A0",
                 background: isAtPrice ? "rgba(240,180,41,0.08)" : "transparent",
                 position:"relative", zIndex:2,
               }}>
                 {lvl.price.toFixed(dp)}
               </div>
 
-              <div style={{ flex:1, textAlign:"left", paddingLeft:4, fontFamily:"monospace", fontSize:9,
+              <div style={{ flex:1, textAlign:"left", paddingLeft:6, fontFamily:"monospace", fontSize:13, fontWeight:600,
                 color:"#00C076",
                 opacity: lvl.isBid && sz > 0 ? 1 : 0, position:"relative", zIndex:2 }}>
                 {lvl.isBid && sz > 0 ? sz : ""}
@@ -333,7 +333,7 @@ export function DOMPanel({ symbol }: { symbol: string }) {
               {lvl.isBid && sz > 0 && (
                 <div style={{
                   position:"absolute", top:2, bottom:2, borderRadius:2,
-                  width: barW, left: 60,
+                  width: barW, left: 78,
                   background: lvl.isWall ? "rgba(0,192,118,0.35)" : "rgba(0,192,118,0.12)",
                 }} />
               )}

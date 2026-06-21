@@ -639,6 +639,33 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const barsRef       = useRef<Bar[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // ── Big-Trade Bubble engine state (🫧 floating bubbles) ───────
+  type Bubble = {
+    id:      number;
+    x:       number;   // current canvas px
+    y:       number;   // current canvas px (floats upward → decreases)
+    baseR:   number;   // target radius (∝ order size)
+    r:       number;   // current radius (eases up on spawn, shrinks on pop)
+    vy:      number;   // upward velocity px/frame
+    drift:   number;   // gentle horizontal sway
+    phase:   number;   // sway phase
+    side:    "buy" | "sell";
+    value:   number;   // order size (signed by side for display)
+    born:    number;   // timestamp ms
+    life:    number;   // ms to live
+    popping: boolean;  // currently in pop animation
+    popT:    number;   // 0→1 pop progress
+    anchorTime: number; // bar time (unix s) for re-anchoring x on scroll
+    anchorPrice: number; // price for re-anchoring y baseline
+  };
+  const bubblesRef    = useRef<Bubble[]>([]);
+  const bubbleSpawnRef = useRef<Set<string>>(new Set()); // dedupe spawns per bar-key
+  const bubbleIdRef    = useRef(0);
+  const bubbleHoverRef = useRef<number | null>(null);     // hovered bubble id
+  const [bubbleTip, setBubbleTip] = useState<
+    { x: number; y: number; side: "buy" | "sell"; value: number; text: string } | null
+  >(null);
+
   // ── Drawing state ─────────────────────────────────────────────
   // All drawings store logical price/time coords so they stay anchored when chart scrolls.
   type LogicalPt = { price: number; time: number }; // time = unix seconds (LightweightCharts UTCTimestamp)
@@ -3025,6 +3052,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         });
         const avgLevVol = totalLevCount > 0 ? totalLevVol / totalLevCount : 1;
 
+        // ── Pass A: draw candle bodies/wicks + detect big trades → spawn bubbles ──
+        const recentCut = visibleBars.length > 50 ? visibleBars[visibleBars.length - 50].time : 0;
         visibleBars.forEach(c => {
           const rawCx = chart.timeScale().timeToCoordinate(c.time as any);
           if (rawCx == null || rawCx < -colW || rawCx > W + colW) return;
@@ -3043,7 +3072,6 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const x     = cx - halfW;
           const isBull = c.close >= c.open;
           const bodyColor = isBull ? "rgba(0,229,204,0.90)" : "rgba(123,108,247,0.90)";
-          const dimColor  = isBull ? "rgba(0,229,204,0.45)" : "rgba(123,108,247,0.45)";
 
           // Candle body (solid fill)
           ctx.fillStyle = bodyColor;
@@ -3064,62 +3092,130 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const pocIdx = levels.reduce((mi, l, i, a) => l.total > a[mi].total ? i : mi, 0);
           const poc    = levels[pocIdx];
 
-          // Only draw circle if this level is significantly larger than average
+          // Only treat as a "big trade" if significantly larger than average
           if (poc.total < avgLevVol * 1.8) return;
+          // Only spawn bubbles for recent bars (avoid a swarm of historical bubbles)
+          if ((c.time as number) < (recentCut as number)) return;
 
-          const pocY   = Math.round(yH + (pocIdx + 0.5) * rowH);
-          const maxR   = Math.min(halfW * 0.85, 18);
-          const minR   = 5;
-          // Scale radius by how much bigger than average
-          const scale  = Math.min(1, (poc.total / avgLevVol - 1.8) / 3);
-          const radius = Math.round(minR + (maxR - minR) * scale);
+          const pocY  = Math.round(yH + (pocIdx + 0.5) * rowH);
+          // Bubble radius scales with order size (∝ how big the trade is)
+          const scale = Math.min(1, (poc.total / avgLevVol - 1.8) / 3);
+          const baseR = Math.round(14 + scale * 30); // 14 → 44 px
+          const side: "buy" | "sell" = poc.ask >= poc.bid ? "buy" : "sell";
+          const value = side === "buy" ? Math.round(poc.total) : -Math.round(poc.total);
 
-          const askDom  = poc.ask >= poc.bid;
-          const circleColor = askDom ? "#69FFDA" : "#CE93D8";
-          const glowColor   = askDom ? "rgba(105,255,218,0.25)" : "rgba(206,147,216,0.25)";
-
-          // Glow ring
-          ctx.beginPath();
-          ctx.arc(cx, pocY, radius + 4, 0, Math.PI * 2);
-          ctx.fillStyle = glowColor;
-          ctx.fill();
-
-          // Main circle
-          ctx.beginPath();
-          ctx.arc(cx, pocY, radius, 0, Math.PI * 2);
-          ctx.fillStyle = circleColor;
-          ctx.fill();
-
-          // Inner dark center for large circles
-          if (radius >= 9) {
-            ctx.beginPath();
-            ctx.arc(cx, pocY, radius * 0.45, 0, Math.PI * 2);
-            ctx.fillStyle = "rgba(10,14,28,0.75)";
-            ctx.fill();
-            // Volume text inside
-            if (radius >= 12) {
-              ctx.fillStyle = circleColor; ctx.font = `bold ${Math.max(9, Math.min(13, radius - 3))}px monospace`;
-              ctx.textAlign = "center"; ctx.textBaseline = "middle";
-              ctx.fillText(fmtV(poc.total), cx, pocY);
-            }
-          }
-
-          // Delta badge below candle
-          if (showBadges) {
-            const netDelta = levels.reduce((s, l) => s + l.ask - l.bid, 0);
-            const isPos = netDelta >= 0;
-            const dLbl  = (isPos ? "+" : "") + fmtV(netDelta);
-            const bW = Math.max(colW, 26), bH = 12;
-            ctx.fillStyle = isPos ? "rgba(0,229,204,0.90)" : "rgba(123,108,247,0.90)";
-            ctx.beginPath();
-            if (ctx.roundRect) ctx.roundRect(cx - bW/2, yL + 2, bW, bH, 2);
-            else ctx.rect(cx - bW/2, yL + 2, bW, bH);
-            ctx.fill();
-            ctx.fillStyle = "#fff"; ctx.font = "bold 11px monospace";
-            ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText(dLbl, cx, yL + 2 + bH / 2);
+          // Spawn once per bar (dedupe by bar time). Cap active bubbles.
+          const key = String(c.time);
+          if (!bubbleSpawnRef.current.has(key) && bubblesRef.current.length < 44) {
+            bubbleSpawnRef.current.add(key);
+            bubblesRef.current.push({
+              id:    ++bubbleIdRef.current,
+              x:     cx,
+              y:     pocY,
+              baseR,
+              r:     baseR * 0.3,        // grows in
+              vy:    0.35 + scale * 0.5, // bigger = rises a touch faster
+              drift: (Math.random() - 0.5) * 0.25,
+              phase: Math.random() * Math.PI * 2,
+              side,
+              value,
+              born:  performance.now(),
+              life:  6500 + scale * 3500,
+              popping: false,
+              popT:  0,
+              anchorTime:  c.time as number,
+              anchorPrice: poc.priceLevel,
+            });
           }
         });
+
+        // Keep the dedupe set from growing unbounded
+        if (bubbleSpawnRef.current.size > 400) bubbleSpawnRef.current = new Set();
+
+        // ── Pass B: update + draw all active bubbles (🫧 float upward) ──
+        const nowMs = performance.now();
+        const bubbles = bubblesRef.current;
+        // Re-anchor x to the bar (so bubbles track horizontal scroll) and advance physics
+        for (const b of bubbles) {
+          const ax = chart.timeScale().timeToCoordinate(b.anchorTime as any);
+          if (ax != null) b.x = ax + Math.sin(b.phase + nowMs / 700) * 6 + b.drift * ((nowMs - b.born) / 16);
+          b.y -= b.vy;                                  // float upward
+          // ease radius in toward baseR
+          if (!b.popping && b.r < b.baseR) b.r += (b.baseR - b.r) * 0.12;
+          const age = nowMs - b.born;
+          if (age > b.life && !b.popping) { b.popping = true; }
+        }
+        // Pop smaller bubbles when a noticeably larger bubble overlaps them
+        for (let i = 0; i < bubbles.length; i++) {
+          for (let j = 0; j < bubbles.length; j++) {
+            if (i === j) continue;
+            const a = bubbles[i], s = bubbles[j];
+            if (s.popping || a.popping) continue;
+            if (a.baseR > s.baseR * 1.35) {
+              const dx = a.x - s.x, dy = a.y - s.y;
+              if (Math.hypot(dx, dy) < a.r + s.r * 0.5) s.popping = true;
+            }
+          }
+        }
+        // Advance pop animations + cull dead bubbles
+        bubblesRef.current = bubbles.filter(b => {
+          if (b.popping) { b.popT += 0.08; if (b.popT >= 1) return false; }
+          if (b.y < -60) return false; // floated off top
+          return true;
+        });
+
+        // Draw bubbles (glossy translucent spheres)
+        const hoverId = bubbleHoverRef.current;
+        for (const b of bubblesRef.current) {
+          const buy = b.side === "buy";
+          // soft neon green for buyers, soft neon red for sellers
+          const core = buy ? "0,230,150" : "255,70,90";
+          // pop animation: expand + fade
+          const popR = b.popping ? b.r * (1 + b.popT * 0.7) : b.r;
+          const alpha = b.popping ? (1 - b.popT) * 0.9 : 0.9;
+          const isHover = hoverId === b.id;
+
+          ctx.save();
+          // outer glow
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, popR + 5, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${core},${0.16 * alpha})`;
+          ctx.fill();
+          // glossy body — radial gradient
+          const g = ctx.createRadialGradient(b.x - popR * 0.35, b.y - popR * 0.4, popR * 0.1, b.x, b.y, popR);
+          g.addColorStop(0,   `rgba(255,255,255,${0.55 * alpha})`);
+          g.addColorStop(0.25,`rgba(${core},${0.42 * alpha})`);
+          g.addColorStop(1,   `rgba(${core},${0.12 * alpha})`);
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, popR, 0, Math.PI * 2);
+          ctx.fillStyle = g;
+          ctx.fill();
+          // rim
+          ctx.lineWidth = isHover ? 2.5 : 1.5;
+          ctx.strokeStyle = `rgba(${core},${(isHover ? 1 : 0.7) * alpha})`;
+          ctx.stroke();
+          // top-left gloss highlight
+          ctx.beginPath();
+          ctx.arc(b.x - popR * 0.32, b.y - popR * 0.36, popR * 0.18, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,255,${0.6 * alpha})`;
+          ctx.fill();
+          // order size number, centered
+          if (!b.popping && b.r >= 13) {
+            const lbl = fmtV(Math.abs(b.value));
+            ctx.fillStyle = `rgba(255,255,255,${0.96 * alpha})`;
+            ctx.font = `bold ${Math.max(10, Math.min(16, b.r * 0.55))}px Inter, monospace`;
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.shadowColor = `rgba(${core},0.9)`; ctx.shadowBlur = 6;
+            ctx.fillText(lbl, b.x, b.y);
+            ctx.shadowBlur = 0;
+          }
+          ctx.restore();
+        }
+      } else if (bubblesRef.current.length) {
+        // Left big-trades mode → clear bubbles + tooltip
+        bubblesRef.current = [];
+        bubbleSpawnRef.current = new Set();
+        bubbleHoverRef.current = null;
       }
 
       /* ══════════════════════════════════════════════════════
@@ -3545,6 +3641,39 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     renderDrawings();
   }, [renderDrawings]);
 
+  // ── Big-Trade bubble hover hit-test → comic speech-bubble tooltip ──
+  // Attached to the chart wrapper so it fires in cursor mode without blocking
+  // chart panning (drawing tools keep their own handler on drawCanvas).
+  const handleOverlayMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const bubbles = bubblesRef.current;
+    if (!bubbles.length) {
+      if (bubbleHoverRef.current !== null) { bubbleHoverRef.current = null; setBubbleTip(null); }
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    // topmost first (last drawn = end of array)
+    let hit: typeof bubbles[number] | null = null;
+    for (let i = bubbles.length - 1; i >= 0; i--) {
+      const b = bubbles[i];
+      if (b.popping) continue;
+      if (Math.hypot(mx - b.x, my - b.y) <= b.r + 2) { hit = b; break; }
+    }
+    if (hit) {
+      if (bubbleHoverRef.current !== hit.id) {
+        bubbleHoverRef.current = hit.id;
+        setBubbleTip({
+          x: hit.x, y: hit.y - hit.r,
+          side: hit.side, value: hit.value,
+          text: hit.side === "buy" ? "Aggressive buying absorbed" : "Aggressive selling absorbed",
+        });
+      }
+    } else if (bubbleHoverRef.current !== null) {
+      bubbleHoverRef.current = null;
+      setBubbleTip(null);
+    }
+  }, []);
+
   // Clear drawings on clearTrigger change
   useEffect(() => {
     if (clearTrigger > 0) {
@@ -3696,8 +3825,73 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       </div>
 
       {/* ── Chart + canvas overlay ───────────────────────── */}
-      <div style={{ flex:1, position:"relative", minHeight:0 }} onContextMenu={handleContextMenu}>
+      <div style={{ flex:1, position:"relative", minHeight:0 }} onContextMenu={handleContextMenu}
+        onMouseMove={handleOverlayMouseMove}
+        onMouseLeave={() => { bubbleHoverRef.current = null; setBubbleTip(null); }}>
         <div ref={containerRef} style={{ width:"100%", height:"100%" }} />
+
+        {/* ── Big-Trade comic speech-bubble tooltip (🫧 hover) ─────── */}
+        {bubbleTip && (() => {
+          const buy   = bubbleTip.side === "buy";
+          const accent = buy ? "#00E696" : "#FF465A";
+          const sign   = bubbleTip.value >= 0 ? "+" : "−";
+          const absVal = Math.abs(bubbleTip.value).toLocaleString("en-US");
+          // clamp within view
+          const left = Math.max(70, Math.min((wrapRef.current?.clientWidth ?? 800) - 70, bubbleTip.x));
+          const top  = Math.max(54, bubbleTip.y - 14);
+          return (
+            <div style={{
+              position: "absolute", left, top, transform: "translate(-50%, -100%)",
+              zIndex: 60, pointerEvents: "none",
+            }}>
+              <div style={{
+                position: "relative",
+                background: "#0E1322",
+                border: `2.5px solid ${accent}`,
+                borderRadius: 14,
+                padding: "8px 12px 9px",
+                minWidth: 132,
+                boxShadow: `0 6px 22px rgba(0,0,0,0.55), 0 0 16px ${accent}55`,
+                fontFamily: "Inter, system-ui, sans-serif",
+              }}>
+                {/* Header: WM "W" logo + label */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    width: 20, height: 20, borderRadius: 6,
+                    background: `linear-gradient(135deg, ${accent}, ${accent}99)`,
+                    color: "#06080F", fontWeight: 900, fontSize: 13, lineHeight: 1,
+                    boxShadow: `0 0 8px ${accent}88`,
+                  }}>W</span>
+                  <span style={{ color: accent, fontWeight: 800, fontSize: 11, letterSpacing: 0.3 }}>
+                    absorbed
+                  </span>
+                </div>
+                {/* Signed size — the headline number from the sketch */}
+                <div style={{ color: "#fff", fontWeight: 900, fontSize: 18, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+                  {sign}{absVal}
+                </div>
+                {/* Plain-English explanation */}
+                <div style={{ color: "#9AA3BF", fontWeight: 600, fontSize: 9.5, marginTop: 3, maxWidth: 168 }}>
+                  {bubbleTip.text} at this level
+                </div>
+                {/* Comic tail pointer */}
+                <div style={{
+                  position: "absolute", bottom: -9, left: "50%", transform: "translateX(-50%)",
+                  width: 0, height: 0,
+                  borderLeft: "9px solid transparent", borderRight: "9px solid transparent",
+                  borderTop: `10px solid ${accent}`,
+                }} />
+                <div style={{
+                  position: "absolute", bottom: -5, left: "50%", transform: "translateX(-50%)",
+                  width: 0, height: 0,
+                  borderLeft: "6px solid transparent", borderRight: "6px solid transparent",
+                  borderTop: "7px solid #0E1322",
+                }} />
+              </div>
+            </div>
+          );
+        })()}
         {/* Cover TradingView watermark with WM branding */}
         <div
           title="WealthyMindsets Pro"
