@@ -643,27 +643,60 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   type Bubble = {
     id:      number;
     x:       number;   // current canvas px
-    y:       number;   // current canvas px (floats upward → decreases)
+    y:       number;   // current canvas px
+    vx:      number;   // velocity px/frame
+    vy:      number;   // velocity px/frame
     baseR:   number;   // target radius (∝ order size)
     r:       number;   // current radius (eases up on spawn, shrinks on pop)
-    vy:      number;   // upward velocity px/frame
-    drift:   number;   // gentle horizontal sway
-    phase:   number;   // sway phase
+    phase:   number;   // wobble / orbit phase
+    big:     boolean;  // true = the main big-trade bubble (persists at level)
     side:    "buy" | "sell";
     value:   number;   // order size (signed by side for display)
     born:    number;   // timestamp ms
-    life:    number;   // ms to live
-    popping: boolean;  // currently in pop animation
+    life:    number;   // ms to live (big bubbles auto-refresh)
+    popping: boolean;  // currently in pop / absorb animation
     popT:    number;   // 0→1 pop progress
-    anchorTime: number; // bar time (unix s) for re-anchoring x on scroll
-    anchorPrice: number; // price for re-anchoring y baseline
+    anchorTime: number; // bar time (unix s) → home X re-anchor on scroll
+    anchorPrice: number; // price → home Y re-anchor on scroll/zoom
     absorbedBy?: number; // id of bubble that absorbed this one (pop pulls toward it)
     absorbFlash?: number; // 0→1 swell flash when this bubble absorbs another
   };
   const bubblesRef    = useRef<Bubble[]>([]);
-  const bubbleSpawnRef = useRef<Set<string>>(new Set()); // dedupe spawns per bar-key
+  const bubbleSpawnRef = useRef<Set<string>>(new Set()); // dedupe main spawns per bar-key
   const bubbleIdRef    = useRef(0);
   const bubbleHoverRef = useRef<number | null>(null);     // hovered bubble id
+  const bubbleSpawnTickRef = useRef(0);                   // throttle continuous companion spawns
+  // Lazy Web-Audio context for the water-bubble "absorb" sound
+  const audioCtxRef    = useRef<AudioContext | null>(null);
+  const lastBloopRef   = useRef(0);
+  const playBloop = useCallback((big: boolean) => {
+    try {
+      const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
+      if (!Ctx) return;
+      if (!audioCtxRef.current) audioCtxRef.current = new Ctx();
+      const ac = audioCtxRef.current;
+      if (ac.state === "suspended") ac.resume();
+      const now = ac.currentTime;
+      // throttle so a burst of absorbs doesn't machine-gun
+      if (performance.now() - lastBloopRef.current < 45) return;
+      lastBloopRef.current = performance.now();
+      // "bloop": quick downward pitch sweep through a lowpass = watery bubble pop
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      const lp = ac.createBiquadFilter();
+      lp.type = "lowpass"; lp.frequency.value = 1100;
+      osc.type = "sine";
+      const f0 = big ? 320 : 520 + Math.random() * 180;
+      osc.frequency.setValueAtTime(f0, now);
+      osc.frequency.exponentialRampToValueAtTime(f0 * 0.45, now + 0.12);
+      const peak = big ? 0.12 : 0.06;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(peak, now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+      osc.connect(lp); lp.connect(gain); gain.connect(ac.destination);
+      osc.start(now); osc.stop(now + 0.18);
+    } catch { /* audio not available */ }
+  }, []);
   const [bubbleTip, setBubbleTip] = useState<
     { x: number; y: number; side: "buy" | "sell"; value: number; text: string } | null
   >(null);
@@ -3041,6 +3074,35 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
          pink/magenta = bid dominant.
       ══════════════════════════════════════════════════════ */
       if (effectiveFP === "big-trades") {
+        // Factory for a small companion bubble (spawned around a big trade so it gets absorbed)
+        const makeCompanion = (
+          hx: number, hy: number, bigR: number, side: "buy" | "sell",
+          bigVal: number, aTime: number, aPrice: number, bornAt: number
+        ): Bubble => {
+          const cr = bigR * (0.18 + Math.random() * 0.24); // much smaller than the big one
+          const ang = Math.random() * Math.PI * 2;
+          const dd  = bigR * (1.1 + Math.random() * 1.3);
+          return {
+            id:    ++bubbleIdRef.current,
+            x:     hx + Math.cos(ang) * dd,
+            y:     hy + Math.sin(ang) * dd,
+            vx:    (Math.random() - 0.5) * 0.6,
+            vy:    (Math.random() - 0.5) * 0.6,
+            baseR: cr,
+            r:     cr * 0.4,
+            phase: Math.random() * Math.PI * 2,
+            big:   false,
+            side,
+            value: Math.max(1, Math.round(Math.abs(bigVal) * (0.08 + Math.random() * 0.2))) * (side === "buy" ? 1 : -1),
+            born:  bornAt,
+            life:  4200 + Math.random() * 3000,
+            popping: false,
+            popT:  0,
+            anchorTime:  aTime,
+            anchorPrice: aPrice,
+          };
+        };
+
         // First pass: compute average level volume across all visible bars
         let totalLevVol = 0, totalLevCount = 0;
         visibleBars.forEach(c => {
@@ -3114,44 +3176,26 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             // Main big-trade bubble
             bubblesRef.current.push({
               id:    ++bubbleIdRef.current,
-              x:     cx,
-              y:     pocY,
+              x:     cx,  y: pocY,  vx: 0, vy: 0,
               baseR,
               r:     baseR * 0.3,        // grows in
-              vy:    0.35 + scale * 0.5, // bigger = rises a touch faster
-              drift: (Math.random() - 0.5) * 0.25,
               phase: Math.random() * Math.PI * 2,
+              big:   true,               // the persistent big-trade bubble at this level
               side,
               value,
               born:  now0,
-              life:  6500 + scale * 3500,
+              life:  Infinity,           // big bubbles linger at their key level
               popping: false,
               popT:  0,
               anchorTime:  c.time as number,
               anchorPrice: poc.priceLevel,
             });
-            // 2–3 small companion bubbles so the big one visibly absorbs them
+            // small companion bubbles so the big one visibly absorbs them
             const companions = 2 + Math.floor(scale * 2);
             for (let k = 0; k < companions; k++) {
-              const cr = baseR * (0.22 + Math.random() * 0.26); // much smaller
-              bubblesRef.current.push({
-                id:    ++bubbleIdRef.current,
-                x:     cx + (Math.random() - 0.5) * baseR * 1.4,
-                y:     pocY + (Math.random() - 0.2) * baseR * 1.2,
-                baseR: cr,
-                r:     cr * 0.4,
-                vy:    0.5 + Math.random() * 0.6, // rise faster → drift up into the big one
-                drift: (Math.random() - 0.5) * 0.4,
-                phase: Math.random() * Math.PI * 2,
-                side,
-                value: Math.round(value * (0.1 + Math.random() * 0.25)),
-                born:  now0 + k * 120,
-                life:  5000 + Math.random() * 2500,
-                popping: false,
-                popT:  0,
-                anchorTime:  c.time as number,
-                anchorPrice: poc.priceLevel,
-              });
+              bubblesRef.current.push(
+                makeCompanion(cx, pocY, baseR, side, value, c.time as number, poc.priceLevel, now0 + k * 120)
+              );
             }
           }
         });
@@ -3159,18 +3203,59 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // Keep the dedupe set from growing unbounded
         if (bubbleSpawnRef.current.size > 400) bubbleSpawnRef.current = new Set();
 
-        // ── Pass B: update + draw all active bubbles (🫧 float upward) ──
+        // ── Pass B: update + draw all active bubbles (🫧 float around key levels) ──
         const nowMs = performance.now();
         const bubbles = bubblesRef.current;
-        // Re-anchor x to the bar (so bubbles track horizontal scroll) and advance physics
+
+        // Continuous companion spawning — keeps each big bubble fed with small
+        // bubbles to absorb so the x-ray stays alive (throttled).
+        if (nowMs - bubbleSpawnTickRef.current > 520 && bubbles.length < 64) {
+          bubbleSpawnTickRef.current = nowMs;
+          const bigs = bubbles.filter(b => b.big && !b.popping);
+          if (bigs.length) {
+            const bg = bigs[Math.floor(Math.random() * bigs.length)];
+            const hx = chart.timeScale().timeToCoordinate(bg.anchorTime as any);
+            const hy = srs.priceToCoordinate(bg.anchorPrice);
+            if (hx != null && hy != null) {
+              bubblesRef.current.push(
+                makeCompanion(hx, hy, bg.baseR, bg.side, bg.value, bg.anchorTime, bg.anchorPrice, nowMs)
+              );
+            }
+          }
+        }
+
+        // Physics: spring each bubble toward its anchored key level so they
+        // float AROUND the level (buoyant bob) instead of drifting off-screen.
         for (const b of bubbles) {
-          const ax = chart.timeScale().timeToCoordinate(b.anchorTime as any);
-          if (ax != null) b.x = ax + Math.sin(b.phase + nowMs / 700) * 6 + b.drift * ((nowMs - b.born) / 16);
-          b.y -= b.vy;                                  // float upward
+          const hx = chart.timeScale().timeToCoordinate(b.anchorTime as any);
+          const hy = srs.priceToCoordinate(b.anchorPrice);
+          if (hx == null || hy == null) { b.popping = b.popping || true; continue; }
+          // buoyant target: bob gently above the level
+          const bob = Math.sin(b.phase + nowMs / 900) * (b.big ? 5 : 9);
+          const homeX = hx + Math.cos(b.phase + nowMs / 1300) * (b.big ? 3 : 11);
+          const homeY = hy + bob - (b.big ? 4 : 14);
+          // spring toward home (small bubbles looser so they roam, big ones anchored)
+          const k = b.big ? 0.020 : 0.010;
+          b.vx += (homeX - b.x) * k;
+          b.vy += (homeY - b.y) * k;
+          // small bubbles are gently drawn toward the nearest big bubble at the same level → absorbed
+          if (!b.big) {
+            let near: typeof b | null = null, nd = 1e9;
+            for (const o of bubbles) {
+              if (!o.big || o.popping) continue;
+              if (o.anchorTime !== b.anchorTime) continue;
+              const d = Math.hypot(o.x - b.x, o.y - b.y);
+              if (d < nd) { nd = d; near = o; }
+            }
+            if (near) { b.vx += (near.x - b.x) * 0.006; b.vy += (near.y - b.y) * 0.006; }
+          }
+          // integrate + damping
+          b.vx *= 0.90; b.vy *= 0.90;
+          b.x += b.vx; b.y += b.vy;
           // ease radius in toward baseR
           if (!b.popping && b.r < b.baseR) b.r += (b.baseR - b.r) * 0.12;
           const age = nowMs - b.born;
-          if (age > b.life && !b.popping) { b.popping = true; }
+          if (age > b.life && !b.popping) { b.popping = true; } // big bubbles have Infinite life
         }
         // ABSORB: a noticeably larger bubble that overlaps a smaller one swallows it —
         // the smaller pops, the larger grows (gains the absorbed size) and gets tugged toward it.
@@ -3190,6 +3275,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 a.baseR = Math.min(66, grown);
                 a.value += (a.value >= 0 ? 1 : -1) * Math.abs(s.value) * 0.5;
                 a.absorbFlash = 1;          // brief swell flash on the absorber
+                playBloop(a.baseR > 40);    // water-bubble "bloop" on absorb
               }
             }
           }
@@ -3207,7 +3293,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             }
             if (b.popT >= 1) return false;
           }
-          if (b.y < -60) return false; // floated off top
+          // cull if its anchor scrolled off-screen
+          const hx = chart.timeScale().timeToCoordinate(b.anchorTime as any);
+          if (hx == null || hx < -80 || hx > W + 80) return false;
           return true;
         });
 
@@ -3275,10 +3363,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           ctx.fillStyle = `rgba(255,255,255,${0.4 * alpha})`;
           ctx.fill();
 
-          // order size number, centered (only on stable, large-enough bubbles)
-          if (!b.popping && b.r >= 14) {
-            const lbl = fmtV(Math.abs(Math.round(b.value)));
-            ctx.font = `bold ${Math.max(10, Math.min(16, b.r * 0.5))}px Inter, monospace`;
+          // order size number, centered.
+          // While being absorbed the number shrinks toward 0 as it's swallowed.
+          const beingAbsorbed = b.popping && b.absorbedBy != null;
+          const showNum = (!b.popping && b.r >= 13) || (beingAbsorbed && b.r >= 10);
+          if (showNum) {
+            const shrink = beingAbsorbed ? (1 - b.popT) : 1;       // value counts down to 0
+            const numVal = Math.abs(Math.round(b.value * shrink));
+            const lbl = fmtV(numVal);
+            const fontPx = Math.max(8, Math.min(16, Rx * 0.5)) * (beingAbsorbed ? Math.max(0.4, 1 - b.popT * 0.7) : 1);
+            ctx.font = `bold ${fontPx}px Inter, monospace`;
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.shadowColor = "rgba(0,0,0,0.85)"; ctx.shadowBlur = 4;
             ctx.fillStyle = `rgba(255,255,255,${0.97 * alpha})`;
