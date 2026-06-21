@@ -5,6 +5,8 @@ import { AnimatePresence } from "framer-motion";
 import { Camera, Activity, BookOpen, ChevronDown, Plus, Bell, Trash2 } from "lucide-react";
 import { ChartToolbar } from "./ChartToolbar";
 import { MainChart } from "./MainChart";
+import { IndicatorSettingsModal } from "./IndicatorSettingsModal";
+import { isConfigurable, type IndicatorSettings, type IndicatorParams } from "./indicatorConfig";
 import { VolumeProfileLadder } from "./VolumeProfileLadder";
 import { DOMPanel } from "./DOMPanel";
 import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
@@ -111,6 +113,8 @@ export function ChartsDashboard() {
 
   // ── Indicators / session ────────────────────────────────────
   const [activeInds, setActiveInds] = useState<Set<string>>(() => new Set<string>(lsGet<string[]>("wm_activeInds", [])));
+  const [indSettings, setIndSettings] = useState<IndicatorSettings>(() => lsGet<IndicatorSettings>("wm_indSettings", {}));
+  const [indSettingsFor, setIndSettingsFor] = useState<string | null>(null); // which indicator's settings modal is open
   const [extHours,   setExtHours]   = useState(false);
   const [sessionVPOpen, setSessionVPOpen] = useState(false);
   const [markovOpen, setMarkovOpen] = useState(false);
@@ -155,6 +159,7 @@ export function ChartsDashboard() {
 
   // ── Persist key state to localStorage ───────────────────────
   useEffect(() => { lsSet("wm_activeInds",   [...activeInds]); },  [activeInds]);
+  useEffect(() => { lsSet("wm_indSettings",  indSettings); },      [indSettings]);
   useEffect(() => { lsSet("wm_footprint",    footprintType); },    [footprintType]);
   useEffect(() => { lsSet("wm_fp_enabled", footprintEnabled); }, [footprintEnabled]);
   useEffect(() => { lsSet("wm_candleType",   candleType); },       [candleType]);
@@ -365,6 +370,7 @@ export function ChartsDashboard() {
             pineActive={!!pineOutput}
             initialActiveInds={activeInds}
             onActiveIndsChange={setActiveInds}
+            onIndicatorSettings={(name) => setIndSettingsFor(name)}
             onExtHoursChange={setExtHours}
             onAlerts={() => setAlertsOpen(o => !o)}
             alertsActive={alertsOpen}
@@ -747,6 +753,7 @@ export function ChartsDashboard() {
                       drawingsVisible={drawingsVisible}
                       clearTrigger={clearTrigger}
                       activeInds={activeInds}
+                      indSettings={indSettings}
                       extendedHours={extHours}
                       alertLevels={alertLevels}
                       chartSettings={chartSettings}
@@ -919,6 +926,16 @@ export function ChartsDashboard() {
 
       {pnlOpen && <PnLStatsPanel onClose={() => setPnlOpen(false)} />}
       {brokerOpen && <BrokerConnectPanel onClose={() => setBrokerOpen(false)} />}
+      <AnimatePresence>
+        {indSettingsFor && (
+          <IndicatorSettingsModal
+            name={indSettingsFor}
+            settings={indSettings}
+            onChange={(name, params: IndicatorParams) => setIndSettings(prev => ({ ...prev, [name]: params }))}
+            onClose={() => setIndSettingsFor(null)}
+          />
+        )}
+      </AnimatePresence>
       <AnimatePresence>
         {tradeOpen && (
           <AlpacaTradingPanel

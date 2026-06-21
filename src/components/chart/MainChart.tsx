@@ -14,6 +14,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import type { FootprintType, CandleType } from "./ChartsDashboard";
+import { resolveParams, type IndicatorSettings } from "./indicatorConfig";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import type { PineOutput } from "@/lib/pine/types";
 import * as IND from "./indicators";
@@ -67,6 +68,19 @@ function normalizeSym(sym: string): string {
   return aliases[u] ?? u;
 }
 function getBase(sym: string) { return SYMBOL_BASE[normalizeSym(sym)] ?? SYMBOL_BASE[sym.toUpperCase()] ?? 100; }
+
+/* ── Color helper: hex (or rgb/rgba passthrough) → rgba string ─────── */
+function hexToRgba(color: string, alpha = 1): string {
+  if (!color) return `rgba(0,0,0,${alpha})`;
+  if (color.startsWith("rgb")) return color; // already rgb/rgba
+  let h = color.replace("#", "").trim();
+  if (h.length === 3) h = h.split("").map(c => c + c).join("");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  if ([r, g, b].some(n => isNaN(n))) return `rgba(0,0,0,${alpha})`;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
 /* ── FIXED: all values in seconds, uniform ──────────────── */
 function getIntervalSec(tf: string): number {
@@ -436,6 +450,7 @@ interface Props {
   drawingsVisible?:boolean;
   clearTrigger?:   number;
   activeInds?:     Set<string>;
+  indSettings?:    IndicatorSettings;
   extendedHours?:  boolean;
   // New features
   alertLevels?:    number[];
@@ -621,7 +636,7 @@ function computeMomentum(closes: number[], period=10): number[] {
 /* ── Component ──────────────────────────────────────────── */
 export function MainChart({ symbol, timeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, onBarsReady,
   drawingTool = "cursor", drawingColor = "#00D4AA", magnetActive = false, lockDrawings = false,
-  drawingsVisible = true, clearTrigger = 0, activeInds, extendedHours,
+  drawingsVisible = true, clearTrigger = 0, activeInds, indSettings, extendedHours,
   alertLevels = [], chartSettings, replayActive = false, replayBars,
   compareSymbol, onPriceAtCursor, onOHLCAtCursor,
   fixedVPActive = false, sessionVPActive = false,
@@ -1354,6 +1369,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
     const closes = bars.map(b => b.close);
     const inds   = activeInds ?? new Set<string>();
+    // Per-indicator custom params (length / mult / color) merged with defaults
+    const ip = (name: string) => resolveParams(name, indSettings);
 
     // Helper: overlay line on main price scale
     const addLine = (vals: number[], color: string, width = 1, style = 0, lastVal = false) => {
@@ -1403,7 +1420,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // ── VWAP ─────────────────────────────────────────────────
     if (inds.has("VWAP") || inds.has("VWAP Bands")) {
       const vwapVals = IND.vwap(bars);
-      addLine(vwapVals, "#F0B429", 2);
+      addLine(vwapVals, ip("VWAP").color ?? "#F0B429", 2);
       if (inds.has("VWAP Bands")) {
         let cumSqDev = 0, cumVol = 0;
         const vwapVals2 = IND.vwap(bars);
@@ -1453,7 +1470,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     ];
     MA_CFG.forEach(({ name, p, c, fn }) => {
       if (!inds.has(name)) return;
-      addLine(fn(closes, p), c, 1);
+      const cp = ip(name);                       // custom length/color override
+      addLine(fn(closes, cp.length ?? p), cp.color ?? c, 1);
     });
     if (inds.has("ALMA"))            addLine(IND.alma(closes),      "#E879F9", 1);
     if (inds.has("T3 Moving Average"))addLine(IND.t3(closes),       "#FCD34D", 1);
@@ -1467,14 +1485,18 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
     // ── Channels / Bands ─────────────────────────────────────
     if (inds.has("Bollinger Bands")) {
-      const bb = IND.bollingerBands(closes);
-      addLine(bb.upper, "rgba(79,163,224,0.7)", 1); addLine(bb.mid, "rgba(79,163,224,1)", 1); addLine(bb.lower, "rgba(79,163,224,0.7)", 1);
+      const cp = ip("Bollinger Bands");
+      const bb = IND.bollingerBands(closes, cp.length ?? 20, cp.mult ?? 2);
+      const col = cp.color ?? "#4FA3E0";
+      addLine(bb.upper, hexToRgba(col, 0.7), 1); addLine(bb.mid, hexToRgba(col, 1), 1); addLine(bb.lower, hexToRgba(col, 0.7), 1);
     }
     if (inds.has("Bollinger Band Width")) { setupScale("bbw"); addOsc(IND.bbWidth(closes), "#4FA3E0", "bbw"); }
     if (inds.has("BB Width"))             { setupScale("bbw2"); addOsc(IND.bbWidth(closes), "#4FA3E0", "bbw2"); }
     if (inds.has("Keltner Channel")) {
-      const kc = IND.keltner(bars);
-      addLine(kc.upper, "rgba(139,92,246,0.7)", 1); addLine(kc.mid, "rgba(139,92,246,1)", 1); addLine(kc.lower, "rgba(139,92,246,0.7)", 1);
+      const cp = ip("Keltner Channel");
+      const kc = IND.keltner(bars, cp.length ?? 20, cp.mult ?? 2);
+      const col = cp.color ?? "#8B5CF6";
+      addLine(kc.upper, hexToRgba(col, 0.7), 1); addLine(kc.mid, hexToRgba(col, 1), 1); addLine(kc.lower, hexToRgba(col, 0.7), 1);
     }
     if (inds.has("KC Width")) { setupScale("kcw"); addOsc(IND.kcWidth(bars), "#8B5CF6", "kcw"); }
     if (inds.has("Donchian Channel")) {
@@ -1549,8 +1571,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
     // ── RSI family ───────────────────────────────────────────
     if (inds.has("RSI")) {
+      const cp = ip("RSI");
       setupScale("rsi", 0.75, 0.05);
-      addOsc(IND.rsi(closes), "#8B5CF6", "rsi", 2);
+      addOsc(IND.rsi(closes, cp.length ?? 14), cp.color ?? "#8B5CF6", "rsi", 2);
       refLine(70, "rsi", "rgba(255,77,103,0.25)"); refLine(30, "rsi", "rgba(0,192,118,0.25)"); refLine(50, "rsi", "rgba(255,255,255,0.1)");
     }
     if (inds.has("ConnorsRSI")) {
@@ -2217,7 +2240,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       indSeriesRef.current.forEach(s => { try { c.removeSeries(s); } catch {} });
       indSeriesRef.current = [];
     };
-  }, [activeInds, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeInds, indSettings, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Alert level lines ──────────────────────────────────── */
   const alertSeriesRef = useRef<any[]>([]);
@@ -3135,7 +3158,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const bodyH = Math.max(2, Math.abs(yC - yO));
           const x     = cx - halfW;
           const isBull = c.close >= c.open;
-          const bodyColor = isBull ? "rgba(0,229,204,0.90)" : "rgba(123,108,247,0.90)";
+          // Green for buyers / red for sellers (match the bubble color scheme)
+          const bodyColor = isBull
+            ? (chartSettings?.candleUp   ? hexToRgba(chartSettings.candleUp,   0.92) : "rgba(0,200,118,0.92)")
+            : (chartSettings?.candleDown ? hexToRgba(chartSettings.candleDown, 0.92) : "rgba(255,77,103,0.92)");
 
           // Candle body (solid fill)
           ctx.fillStyle = bodyColor;

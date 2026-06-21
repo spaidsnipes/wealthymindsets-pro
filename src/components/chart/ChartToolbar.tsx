@@ -10,6 +10,7 @@ import {
 import { WMSmartMoneyIcon } from "@/components/ui/WMLogo";
 import { clsx } from "clsx";
 import { ChartLayoutManager, type ChartLayout } from "./ChartLayoutManager";
+import { isConfigurable } from "./indicatorConfig";
 
 /* ══════════════════════════════════════════════════════════════
    SYMBOL CATALOGUE  (100+ symbols across 5 categories)
@@ -450,6 +451,7 @@ interface ChartToolbarProps {
   pineActive?:         boolean;
   initialActiveInds?:  Set<string>;
   onActiveIndsChange?: (inds: Set<string>) => void;
+  onIndicatorSettings?: (name: string) => void;
   onExtHoursChange?:   (v: boolean) => void;
   // New props
   onAlerts?:           () => void;
@@ -502,7 +504,7 @@ export function ChartToolbar({
   symbol, setSymbol, timeframe, setTimeframe,
   onSmartMoney, onPnL, onDOM, onPineScript, onCommunity,
   smartMoneyActive, pineActive,
-  initialActiveInds, onActiveIndsChange, onExtHoursChange,
+  initialActiveInds, onActiveIndsChange, onIndicatorSettings, onExtHoursChange,
   onAlerts, alertsActive, onSettings,
   onReplay, replayActive, onCompare, compareActive,
   chartLayout = "1", onLayoutChange,
@@ -924,6 +926,17 @@ export function ChartToolbar({
 
                     {/* category badge */}
                     <span className="text-[11px] text-wm-text-dim shrink-0 hidden group-hover:block">{ind.cat}</span>
+
+                    {/* settings gear — only for configurable indicators */}
+                    {isConfigurable(ind.name) && onIndicatorSettings && (
+                      <button
+                        onClick={e => { e.stopPropagation(); onIndicatorSettings(ind.name); }}
+                        title="Indicator settings"
+                        className={clsx("shrink-0 transition-colors", on ? "text-wm-blue hover:text-wm-text" : "text-wm-text-dim hover:text-wm-text")}
+                      >
+                        <Settings size={11} />
+                      </button>
+                    )}
 
                     {/* favorite star */}
                     <button
