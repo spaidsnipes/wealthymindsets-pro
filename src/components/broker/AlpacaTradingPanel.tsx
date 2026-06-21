@@ -79,10 +79,15 @@ const fmtTime = (iso: string) => {
 export function AlpacaTradingPanel({
   onClose,
   defaultSymbol = "AAPL",
+  onSwitchBroker,
 }: {
   onClose: () => void;
   defaultSymbol?: string;
+  onSwitchBroker?: () => void;
 }) {
+  const [disconnected, setDisconnected] = useState<boolean>(
+    () => typeof window !== "undefined" && localStorage.getItem("wm_alpaca_disconnected") === "1"
+  );
   const [account,   setAccount]   = useState<AlpacaAccount | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [orders,    setOrders]    = useState<Order[]>([]);
@@ -130,10 +135,22 @@ export function AlpacaTradingPanel({
   }, []);
 
   useEffect(() => {
+    if (disconnected) { setLoading(false); return; }
     loadAccount();
     loadPositions();
     loadOrders();
-  }, [loadAccount, loadPositions, loadOrders]);
+  }, [loadAccount, loadPositions, loadOrders, disconnected]);
+
+  const disconnect = () => {
+    localStorage.setItem("wm_alpaca_disconnected", "1");
+    setDisconnected(true);
+    setAccount(null); setPositions([]); setOrders([]);
+  };
+  const reconnect = () => {
+    localStorage.removeItem("wm_alpaca_disconnected");
+    setDisconnected(false);
+    setLoading(true);
+  };
 
   const refresh = () => {
     setLoading(true);
@@ -312,8 +329,35 @@ export function AlpacaTradingPanel({
         {/* ── Tab content ── */}
         <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
 
+          {/* ─── DISCONNECTED STATE ─── */}
+          {disconnected && (
+            <div className="p-6 flex flex-col items-center justify-center text-center gap-4" style={{ minHeight: 320 }}>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "rgba(255,77,103,0.12)", border: "1.5px solid rgba(255,77,103,0.4)" }}>
+                <X size={26} className="text-wm-red" />
+              </div>
+              <div>
+                <div className="text-sm font-black text-wm-text">Alpaca Disconnected</div>
+                <div className="text-[11px] text-wm-text-dim mt-1 max-w-[260px]">
+                  Your Alpaca account is disconnected. Reconnect to resume trading, or switch to a different broker.
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 w-full max-w-[240px]">
+                <button onClick={reconnect}
+                  className="w-full py-2.5 rounded-xl font-bold text-[12px] bg-wm-green/20 text-wm-green border border-wm-green/40 hover:bg-wm-green/30 transition-all">
+                  Reconnect Alpaca
+                </button>
+                {onSwitchBroker && (
+                  <button onClick={() => { onClose(); onSwitchBroker(); }}
+                    className="w-full py-2.5 rounded-xl font-bold text-[12px] bg-wm-surface text-wm-text border border-wm-border hover:border-wm-blue/50 transition-all">
+                    Switch Broker →
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* ─── TRADE TAB ─── */}
-          {activeTab === "trade" && (
+          {!disconnected && activeTab === "trade" && (
             <div className="p-4 space-y-3">
               {/* Symbol */}
               <div>
@@ -484,7 +528,7 @@ export function AlpacaTradingPanel({
           )}
 
           {/* ─── POSITIONS TAB ─── */}
-          {activeTab === "positions" && (
+          {!disconnected && activeTab === "positions" && (
             <div className="p-3 space-y-2">
               {positions.length === 0 ? (
                 <div className="text-center py-12 text-wm-text-dim text-[12px]">
@@ -521,7 +565,7 @@ export function AlpacaTradingPanel({
           )}
 
           {/* ─── ORDERS TAB ─── */}
-          {activeTab === "orders" && (
+          {!disconnected && activeTab === "orders" && (
             <div className="p-3 space-y-2">
               {orders.length === 0 ? (
                 <div className="text-center py-12 text-wm-text-dim text-[12px]">
@@ -568,7 +612,7 @@ export function AlpacaTradingPanel({
           )}
 
           {/* ─── ACCOUNT TAB ─── */}
-          {activeTab === "account" && account && (
+          {!disconnected && activeTab === "account" && account && (
             <div className="p-4 space-y-3">
               <div className="rounded-xl border border-wm-border bg-wm-card p-4 space-y-3">
                 <div className="flex items-center gap-2 mb-1">
@@ -592,6 +636,20 @@ export function AlpacaTradingPanel({
                     <span className="font-bold text-wm-text">{val}</span>
                   </div>
                 ))}
+              </div>
+
+              {/* Disconnect + Switch Broker */}
+              <div className="flex gap-2">
+                <button onClick={disconnect}
+                  className="flex-1 py-2.5 rounded-xl font-bold text-[12px] bg-wm-red/15 text-wm-red border border-wm-red/40 hover:bg-wm-red/25 transition-all">
+                  Disconnect
+                </button>
+                {onSwitchBroker && (
+                  <button onClick={() => { onClose(); onSwitchBroker(); }}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-[12px] bg-wm-surface text-wm-text border border-wm-border hover:border-wm-blue/50 transition-all">
+                    Switch Broker →
+                  </button>
+                )}
               </div>
 
               <div className="text-[10px] text-wm-text-dim text-center space-y-1">

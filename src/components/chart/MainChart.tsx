@@ -918,8 +918,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       const isLine        = candleType === "line";
       const isArea        = candleType === "area";
       const isHollow      = candleType === "hollow";
-      const isVolCnl      = candleType === "volume-candles" || candleType === "vp-candles";
-      const isRenko       = candleType === "renko" || candleType === "range-bars";
+      const isVolCnl      = candleType === "volume-candles";
+      const isVPCandles   = candleType === "vp-candles";
+      const isRenko       = candleType === "renko";
+      const isRangeBars   = candleType === "range-bars";
       const isBars        = candleType === "bars";
       const isHlcBars     = candleType === "hlc-bars";
       const isBaseline    = candleType === "baseline";
@@ -1029,71 +1031,128 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         });
         cs.setData(displayData as any);
       } else if (isVolCnl) {
-        // Volume Candles — body opacity scales with relative volume (low vol = dim, high vol = vivid)
+        // Volume Candles — green/red body, OPACITY scales with relative volume
+        const upC = chartSettings?.candleUp ?? "#00C076", downC = chartSettings?.candleDown ?? "#FF4D67";
         cs = chart.addCandlestickSeries({
-          upColor:          "#00E5CC",
-          downColor:        "#7B6CF7",
-          borderUpColor:    "#00E5CC",
-          borderDownColor:  "#7B6CF7",
-          wickUpColor:      "#00E5CC",
-          wickDownColor:    "#7B6CF7",
-          priceLineVisible: true,
-          priceLineColor:   "#F0B429",
-          lastValueVisible: true,
+          upColor: upC, downColor: downC, borderUpColor: upC, borderDownColor: downC,
+          wickUpColor: upC, wickDownColor: downC,
+          priceLineVisible: true, priceLineColor: "#F0B429", lastValueVisible: true,
         });
-        // Color each bar individually with volume-scaled opacity
         const maxVol = Math.max(1, ...displayData.map(b => b.volume));
         const minVol = Math.min(...displayData.map(b => b.volume));
         const volRange = maxVol - minVol || 1;
         const volData = displayData.map(b => {
-          const frac   = (b.volume - minVol) / volRange; // 0=lowest vol, 1=highest vol
+          const frac   = (b.volume - minVol) / volRange;
           const alpha  = Math.round((0.25 + frac * 0.70) * 255).toString(16).padStart(2, "0");
           const isBull = b.close >= b.open;
-          return {
-            ...b,
-            color:       isBull ? `#00E5CC${alpha}` : `#7B6CF7${alpha}`,
-            borderColor: isBull ? `#00E5CC` : `#7B6CF7`,
-            wickColor:   isBull ? `#00E5CC` : `#7B6CF7`,
-          };
+          return { ...b, color: (isBull ? upC : downC) + alpha, borderColor: isBull ? upC : downC, wickColor: isBull ? upC : downC };
         });
         cs.setData(volData as any);
+      } else if (isVPCandles) {
+        // VP Candles — green/red, but HIGH-VOLUME (value-area / POC) bars get a GOLD border
+        // to mark volume-profile significance. Distinct from plain Volume Candles.
+        const upC = chartSettings?.candleUp ?? "#00C076", downC = chartSettings?.candleDown ?? "#FF4D67";
+        cs = chart.addCandlestickSeries({
+          upColor: upC, downColor: downC, borderUpColor: upC, borderDownColor: downC,
+          wickUpColor: upC, wickDownColor: downC,
+          priceLineVisible: true, priceLineColor: "#F0B429", lastValueVisible: true,
+        });
+        const vols = [...displayData.map(b => b.volume)].sort((a, b) => a - b);
+        const pocThreshold = vols[Math.floor(vols.length * 0.8)] ?? Infinity; // top 20% = POC bars
+        const vpData = displayData.map(b => {
+          const isBull = b.close >= b.open;
+          const isPOC  = b.volume >= pocThreshold;
+          return {
+            ...b,
+            color:       isBull ? upC : downC,
+            borderColor: isPOC ? "#F0B429" : (isBull ? upC : downC), // gold border on POC bars
+            wickColor:   isBull ? upC : downC,
+          };
+        });
+        cs.setData(vpData as any);
       } else if (isOrderflow) {
-        // Order Flow Candles — body uses background color (hollow appearance) so footprint
-        // canvas overlay is visible. "transparent" breaks LWC's internal color parser → use bgColor.
+        // Order Flow Candles — hollow body (footprint cells show through) but a CRISP
+        // green/red border so the candle stays sharp, not blurry.
         const bgOF = chartSettings?.background ?? "#0B0E1A";
+        const upC = chartSettings?.candleUp ?? "#00C076", downC = chartSettings?.candleDown ?? "#FF4D67";
         cs = chart.addCandlestickSeries({
           upColor:          bgOF,
           downColor:        bgOF,
-          borderUpColor:    bgOF,
-          borderDownColor:  bgOF,
-          wickUpColor:      "#00E5CC",
-          wickDownColor:    "#7B6CF7",
+          borderUpColor:    upC,
+          borderDownColor:  downC,
+          borderVisible:    true,
+          wickUpColor:      upC,
+          wickDownColor:    downC,
           priceLineVisible: true,
           priceLineColor:   "#F0B429",
           lastValueVisible: true,
         });
         cs.setData(displayData as any);
       } else if (isRenko) {
-        // Simplified renko — only show bars where close crossed brick boundary
-        if (!displayData.length) { cs = chart.addCandlestickSeries({}); cs.setData([]); }
+        // RENKO — fixed-size bricks, a new brick only when price moves one brick
+        // (time-independent). Bricks are filled green/red blocks (no wicks).
+        const upC = chartSettings?.candleUp ?? "#00C076", downC = chartSettings?.candleDown ?? "#FF4D67";
         const brickSize  = base * 0.001;
         let lastBrick    = Math.floor((displayData[0]?.close ?? base) / brickSize) * brickSize;
         const renkoData: any[] = [];
         displayData.forEach(b => {
-          if (b.close >= lastBrick + brickSize) {
-            renkoData.push({ time: b.time, open: lastBrick, high: lastBrick + brickSize, low: lastBrick, close: lastBrick + brickSize });
+          while (b.close >= lastBrick + brickSize) {
+            renkoData.push({ time: b.time, open: lastBrick, high: lastBrick + brickSize, low: lastBrick, close: lastBrick + brickSize, color: upC, borderColor: upC, wickColor: upC });
             lastBrick += brickSize;
-          } else if (b.close <= lastBrick - brickSize) {
-            renkoData.push({ time: b.time, open: lastBrick, high: lastBrick, low: lastBrick - brickSize, close: lastBrick - brickSize });
+          }
+          while (b.close <= lastBrick - brickSize) {
+            renkoData.push({ time: b.time, open: lastBrick, high: lastBrick, low: lastBrick - brickSize, close: lastBrick - brickSize, color: downC, borderColor: downC, wickColor: downC });
             lastBrick -= brickSize;
           }
         });
-        cs = chart.addCandlestickSeries({
-          upColor:"#00E5CC", downColor:"#7B6CF7", borderUpColor:"#00E5CC",
-          borderDownColor:"#7B6CF7", wickUpColor:"#00E5CC", wickDownColor:"#7B6CF7",
-          priceLineVisible:true, priceLineColor:"#F0B429", lastValueVisible:true,
+        // LWC requires strictly-increasing unique times — bump duplicates forward
+        let lastT = -Infinity;
+        const renkoClean = renkoData.map(r => {
+          let t = r.time as number;
+          if (t <= lastT) t = lastT + 0.001;
+          lastT = t;
+          return { ...r, time: t };
         });
-        if (renkoData.length) cs.setData(renkoData as any);
+        cs = chart.addCandlestickSeries({
+          upColor: upC, downColor: downC, borderUpColor: upC, borderDownColor: downC,
+          wickUpColor: upC, wickDownColor: downC, borderVisible: true,
+          priceLineVisible: true, priceLineColor: "#F0B429", lastValueVisible: true,
+        });
+        if (renkoClean.length) cs.setData(renkoClean as any);
+      } else if (isRangeBars) {
+        // RANGE BARS — each bar spans a FIXED price range; a new bar opens once price
+        // travels one full range from the prior bar's open. Distinct from Renko (which
+        // snaps to a grid). Green/red by direction, keeps real timestamps + wicks.
+        const upC = chartSettings?.candleUp ?? "#00C076", downC = chartSettings?.candleDown ?? "#FF4D67";
+        const rangeSize = base * 0.0015;
+        const rbData: any[] = [];
+        let cur: { time: number; open: number; high: number; low: number; close: number } | null = null;
+        displayData.forEach(b => {
+          if (!cur) { cur = { time: b.time as number, open: b.open, high: b.high, low: b.low, close: b.close }; }
+          cur.high = Math.max(cur.high, b.high);
+          cur.low  = Math.min(cur.low,  b.low);
+          cur.close = b.close;
+          if (cur.high - cur.low >= rangeSize) {
+            const isBull = cur.close >= cur.open;
+            rbData.push({ ...cur, color: isBull ? upC : downC, borderColor: isBull ? upC : downC, wickColor: isBull ? upC : downC });
+            cur = null;
+          }
+        });
+        if (cur) { const c = cur as { time:number;open:number;high:number;low:number;close:number }; const isBull = c.close >= c.open; rbData.push({ ...c, color: isBull ? upC : downC, borderColor: isBull ? upC : downC, wickColor: isBull ? upC : downC }); }
+        // ensure strictly-increasing unique timestamps
+        let lastRT = -Infinity;
+        const rbClean = rbData.map(r => {
+          let t = r.time as number;
+          if (t <= lastRT) t = lastRT + 0.001;
+          lastRT = t;
+          return { ...r, time: t };
+        });
+        cs = chart.addCandlestickSeries({
+          upColor: upC, downColor: downC, borderUpColor: upC, borderDownColor: downC,
+          wickUpColor: upC, wickDownColor: downC, borderVisible: true,
+          priceLineVisible: true, priceLineColor: "#F0B429", lastValueVisible: true,
+        });
+        if (rbClean.length) cs.setData(rbClean as any);
       } else if (isComingSoon) {
         // 3-Line Break / Kagi / Point & Figure — render as line for now with label
         cs = chart.addLineSeries({
@@ -2445,7 +2504,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
-      if (!footprintEnabled) return; // footprint is off, canvas stays clear
+      // NOTE: do NOT early-return when footprint is off — the WM Fixed/Session VP
+      // overlays are independent of order-flow footprint and must still render.
+      // Footprint MODE blocks below are gated via effectiveFP instead.
       ctx.imageSmoothingEnabled = false; // crisp pixel-aligned rendering
 
       const chart = chartRef.current;
@@ -2551,8 +2612,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
          so they're visible at any zoom level
       ═══════════════════════════════════════════════════════ */
 
-      // Order Flow Candles forces bid-ask footprint regardless of setting
-      const effectiveFP: FootprintType = candleType === "orderflow-candles" ? "bid-ask" : footprintType;
+      // Order Flow Candles forces bid-ask footprint regardless of setting.
+      // When footprint is disabled, resolve to a non-matching mode so NO footprint
+      // block renders — but the VP overlay further below still draws.
+      const effectiveFP: FootprintType = !footprintEnabled
+        ? ("__off__" as FootprintType)
+        : (candleType === "orderflow-candles" ? "bid-ask" : footprintType);
 
       // Helper: draw a rounded-rectangle
       const rr = (x: number, y: number, w: number, h: number, r: number) => {

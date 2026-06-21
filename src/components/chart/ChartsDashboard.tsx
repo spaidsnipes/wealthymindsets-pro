@@ -969,6 +969,7 @@ export function ChartsDashboard() {
           <AlpacaTradingPanel
             onClose={() => setTradeOpen(false)}
             defaultSymbol={symbol}
+            onSwitchBroker={() => setBrokerOpen(true)}
           />
         )}
       </AnimatePresence>

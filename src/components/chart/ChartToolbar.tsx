@@ -1032,40 +1032,54 @@ export function ChartToolbar({
         </button>
       )}
 
-      {/* ══ Alerts ══════════════════════════════════════════ */}
-      {onAlerts && (
-        <button onClick={onAlerts}
-          className={clsx(
-            "flex items-center gap-1 px-2 h-6 rounded text-[11px] transition-colors shrink-0 border",
-            alertsActive
-              ? "bg-wm-gold/20 text-wm-gold border-wm-gold/40"
-              : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border-transparent"
-          )}
-          title="Price Alerts">
-          <Bell size={10} /> Alerts
-        </button>
-      )}
-
       <div className="ml-auto" />
 
-      {/* ══ Layout Manager ════════════════════════════════ */}
-      {onLayoutChange && (
-        <ChartLayoutManager layout={chartLayout} onLayoutChange={onLayoutChange} />
-      )}
+      {/* ══ Pinned right cluster — always visible, never clipped ══════
+          (sticky so it stays put even when the middle toolbar overflows) */}
+      <div
+        className="flex items-center gap-1 shrink-0 pl-1.5 h-full"
+        style={{ position: "sticky", right: 0, background: "#0D0E14", borderLeft: "1px solid #1E2030", zIndex: 5 }}
+      >
+        {/* Alerts */}
+        {onAlerts && (
+          <button onClick={onAlerts}
+            className={clsx(
+              "flex items-center gap-1 px-2 h-6 rounded text-[11px] transition-colors shrink-0 border",
+              alertsActive
+                ? "bg-wm-gold/20 text-wm-gold border-wm-gold/40"
+                : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border-transparent"
+            )}
+            title="Price Alerts">
+            <Bell size={10} /> Alerts
+          </button>
+        )}
 
-      {/* ══ Settings ════════════════════════════════════════ */}
-      {onSettings && (
-        <button onClick={onSettings}
-          className="p-1.5 rounded hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors shrink-0 border border-transparent hover:border-wm-border"
-          title="Chart Settings">
-          <Settings size={13} />
+        {/* Layout Manager */}
+        {onLayoutChange && (
+          <ChartLayoutManager layout={chartLayout} onLayoutChange={onLayoutChange} />
+        )}
+
+        {/* Settings */}
+        {onSettings && (
+          <button onClick={onSettings}
+            className="p-1.5 rounded hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors shrink-0 border border-transparent hover:border-wm-border"
+            title="Chart Settings">
+            <Settings size={13} />
+          </button>
+        )}
+
+        {/* Smart Money Signals — the WealthyMindsets "W" button */}
+        <button onClick={onSmartMoney}
+          className="flex items-center gap-1 px-1.5 h-6 rounded shrink-0 border transition-colors"
+          style={{
+            borderColor: smartMoneyActive ? "rgba(0,212,170,0.5)" : "rgba(34,34,34,0.8)",
+            background: smartMoneyActive ? "rgba(0,212,170,0.12)" : "transparent",
+          }}
+          title="Smart Money Signals">
+          <WMSmartMoneyIcon size={20} active={smartMoneyActive} />
+          <span className="text-[11px] font-bold" style={{ color: smartMoneyActive ? "#00D4AA" : "#8B95A5" }}>Signals</span>
         </button>
-      )}
-
-      {/* ══ Smart Money ═════════════════════════════════════ */}
-      <button onClick={onSmartMoney} className="mr-1 shrink-0" title="Smart Money Tools">
-        <WMSmartMoneyIcon size={22} active={smartMoneyActive} />
-      </button>
+      </div>
 
     </div>
   );
