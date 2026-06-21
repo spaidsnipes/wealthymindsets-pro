@@ -154,6 +154,14 @@ export function ChartsDashboard() {
   const [settingsOpen,   setSettingsOpen]   = useState(false);
   const [chartSettings,  setChartSettings]  = useState<ChartSettings>(DEFAULT_CHART_SETTINGS);
 
+  // ── WM Neon vs Original layout theme ────────────────────────
+  const [theme, setTheme] = useState<"original" | "neon">(() => lsGet("wm_theme", "original") as "original" | "neon");
+  useEffect(() => { lsSet("wm_theme", theme); }, [theme]);
+  // When Neon is active, override the canvas chart colors (candles stay red/green)
+  const effChartSettings: ChartSettings = theme === "neon"
+    ? { ...chartSettings, background: "#02060A", gridColor: "rgba(47,243,255,0.07)", crosshairColor: "#2ff3ff" }
+    : chartSettings;
+
   // ── NEW: Layout ─────────────────────────────────────────────
   const [chartLayout, setChartLayout] = useState<ChartLayout>(() => lsGet("wm_chartLayout", "1") as ChartLayout);
 
@@ -306,8 +314,10 @@ export function ChartsDashboard() {
 
   return (
     <div
-      style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden", background:"#0D0E14" }}
+      className={theme === "neon" ? "wm-neon" : undefined}
+      style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden", background: theme === "neon" ? "#02060a" : "#0D0E14" }}
     >
+      {theme === "neon" && <div className="wm-neon-scan" />}
       {/* Hidden context tag for SpaidBot to read current chart state */}
       <span
         id="wm-chart-context"
@@ -346,6 +356,24 @@ export function ChartsDashboard() {
             whiteSpace: "nowrap", flexShrink: 0,
           }}>{tab}</button>
         ))}
+
+        {/* ── Layout theme toggle (top-right) ── */}
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, paddingRight: 14, flexShrink: 0 }}>
+          <button
+            className={`wm-theme-toggle ${theme === "original" ? "is-neon" : ""}`}
+            onClick={() => setTheme("original")}
+            title="Clean, professional TradingView-style layout"
+          >
+            ◻ Original
+          </button>
+          <button
+            className={`wm-theme-toggle ${theme === "neon" ? "is-neon" : ""}`}
+            onClick={() => setTheme("neon")}
+            title="WM Neon — Tron × Matrix × Star Wars aesthetic"
+          >
+            ⬢ WM Neon
+          </button>
+        </div>
       </div>
 
       {/* ── Main row ─────────────────────────────────────────── */}
@@ -756,7 +784,7 @@ export function ChartsDashboard() {
                       indSettings={indSettings}
                       extendedHours={extHours}
                       alertLevels={alertLevels}
-                      chartSettings={chartSettings}
+                      chartSettings={effChartSettings}
                       replayActive={replayActive}
                       compareSymbol={compareSymbol}
                       fixedVPActive={fixedVPActive}
@@ -779,7 +807,7 @@ export function ChartsDashboard() {
                         footprintType={footprintType}
                         footprintEnabled={footprintEnabled}
                         candleType={candleType}
-                        chartSettings={chartSettings}
+                        chartSettings={effChartSettings}
                       />
                     </div>
                   )}
@@ -787,10 +815,10 @@ export function ChartsDashboard() {
                   {chartLayout === "4" && (
                     <>
                       <div style={{ width:"50%", flexShrink:0, borderTop:"1px solid #1E2030", display:"flex", overflow:"hidden", minHeight:0 }}>
-                        <MainChart symbol={symbol} timeframe="5m" footprintType={footprintType} footprintEnabled={footprintEnabled} candleType={candleType} chartSettings={chartSettings} />
+                        <MainChart symbol={symbol} timeframe="5m" footprintType={footprintType} footprintEnabled={footprintEnabled} candleType={candleType} chartSettings={effChartSettings} />
                       </div>
                       <div style={{ width:"50%", flexShrink:0, borderTop:"1px solid #1E2030", borderLeft:"1px solid #1E2030", display:"flex", overflow:"hidden", minHeight:0 }}>
-                        <MainChart symbol={symbol} timeframe="15m" footprintType={footprintType} footprintEnabled={footprintEnabled} candleType={candleType} chartSettings={chartSettings} />
+                        <MainChart symbol={symbol} timeframe="15m" footprintType={footprintType} footprintEnabled={footprintEnabled} candleType={candleType} chartSettings={effChartSettings} />
                       </div>
                     </>
                   )}

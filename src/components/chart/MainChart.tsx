@@ -3235,7 +3235,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
         // Continuous companion spawning — keeps each big bubble fed with small
         // bubbles to absorb so the x-ray stays alive (throttled).
-        if (nowMs - bubbleSpawnTickRef.current > 520 && bubbles.length < 64) {
+        if (nowMs - bubbleSpawnTickRef.current > 950 && bubbles.length < 56) {
           bubbleSpawnTickRef.current = nowMs;
           const bigs = bubbles.filter(b => b.big && !b.popping);
           if (bigs.length) {
@@ -3256,12 +3256,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const hx = chart.timeScale().timeToCoordinate(b.anchorTime as any);
           const hy = srs.priceToCoordinate(b.anchorPrice);
           if (hx == null || hy == null) { b.popping = b.popping || true; continue; }
-          // buoyant target: bob gently above the level
-          const bob = Math.sin(b.phase + nowMs / 900) * (b.big ? 5 : 9);
-          const homeX = hx + Math.cos(b.phase + nowMs / 1300) * (b.big ? 3 : 11);
-          const homeY = hy + bob - (b.big ? 4 : 14);
+          // buoyant target: bob gently above the level (slow, readable motion)
+          const bob = Math.sin(b.phase + nowMs / 1600) * (b.big ? 4 : 7);
+          const homeX = hx + Math.cos(b.phase + nowMs / 2400) * (b.big ? 3 : 9);
+          const homeY = hy + bob - (b.big ? 4 : 12);
           // spring toward home (small bubbles looser so they roam, big ones anchored)
-          const k = b.big ? 0.020 : 0.010;
+          const k = b.big ? 0.012 : 0.006;
           b.vx += (homeX - b.x) * k;
           b.vy += (homeY - b.y) * k;
           // small bubbles are gently drawn toward the nearest big bubble at the same level → absorbed
@@ -3273,10 +3273,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               const d = Math.hypot(o.x - b.x, o.y - b.y);
               if (d < nd) { nd = d; near = o; }
             }
-            if (near) { b.vx += (near.x - b.x) * 0.006; b.vy += (near.y - b.y) * 0.006; }
+            if (near) { b.vx += (near.x - b.x) * 0.0035; b.vy += (near.y - b.y) * 0.0035; }
           }
-          // integrate + damping
-          b.vx *= 0.90; b.vy *= 0.90;
+          // integrate + damping (higher damping = calmer, slower drift)
+          b.vx *= 0.93; b.vy *= 0.93;
           b.x += b.vx; b.y += b.vy;
           // ease radius in toward baseR
           if (!b.popping && b.r < b.baseR) b.r += (b.baseR - b.r) * 0.12;

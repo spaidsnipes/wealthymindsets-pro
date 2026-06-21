@@ -181,3 +181,73 @@ input[type=range]::-webkit-slider-runnable-track {
 :-webkit-full-screen .bg-wm-black {
   background: #070A0F !important;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   WM NEON LAYOUT — Tron × Matrix × Star Wars skin
+   Scoped under .wm-neon so the Original layout is untouched.
+   Candlesticks stay red/green (rendered on canvas, not themed here).
+══════════════════════════════════════════════════════════════ */
+.wm-neon {
+  --neon-cyan:    #2ff3ff;
+  --neon-blue:    #1e9bff;
+  --neon-magenta: #ff3df0;
+  --neon-purple:  #9d5bff;
+  --neon-green:   #21f3a3;
+  position: relative;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(31,155,255,0.10), transparent 45%),
+    radial-gradient(circle at 85% 100%, rgba(255,61,240,0.08), transparent 45%),
+    #02060a !important;
+}
+/* Subtle Tron grid behind everything */
+.wm-neon::before {
+  content: "";
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(47,243,255,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(47,243,255,0.05) 1px, transparent 1px);
+  background-size: 38px 38px;
+  mask-image: linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.15));
+}
+/* Surfaces → deep space black-blue */
+.wm-neon .bg-wm-black   { background-color: #02060a !important; }
+.wm-neon .bg-wm-dark    { background-color: #04101a !important; }
+.wm-neon .bg-wm-surface { background-color: rgba(10,28,44,0.65) !important; }
+.wm-neon .bg-wm-card    { background-color: rgba(8,22,36,0.78) !important; backdrop-filter: blur(2px); }
+/* Borders → glowing cyan */
+.wm-neon .border-wm-border,
+.wm-neon [class*="border-wm-border"] {
+  border-color: rgba(47,243,255,0.28) !important;
+}
+/* Accent text glow */
+.wm-neon .text-wm-green { color: var(--neon-green) !important; text-shadow: 0 0 7px rgba(33,243,163,0.55); }
+.wm-neon .text-wm-blue  { color: var(--neon-cyan)  !important; text-shadow: 0 0 7px rgba(47,243,255,0.5); }
+.wm-neon .text-wm-purple{ color: var(--neon-purple)!important; text-shadow: 0 0 7px rgba(157,91,255,0.5); }
+.wm-neon .text-wm-gold  { color: #ffd34d !important; text-shadow: 0 0 7px rgba(255,211,77,0.5); }
+.wm-neon .text-wm-text  { color: #d8f6ff !important; }
+/* Buttons / active chips get a neon ring */
+.wm-neon button { transition: box-shadow .2s, border-color .2s; }
+.wm-neon .bg-wm-green\/20, .wm-neon .bg-wm-blue\/20, .wm-neon .bg-wm-purple\/20 {
+  box-shadow: 0 0 10px rgba(47,243,255,0.18), inset 0 0 8px rgba(47,243,255,0.08);
+}
+/* Scanline shimmer overlay */
+.wm-neon-scan {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: repeating-linear-gradient(180deg, rgba(47,243,255,0.025) 0px, rgba(47,243,255,0.025) 1px, transparent 1px, transparent 4px);
+  mix-blend-mode: screen; opacity: 0.5;
+}
+/* Neon toggle button */
+.wm-theme-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 24px; padding: 0 10px; border-radius: 6px; font-size: 11px; font-weight: 800;
+  letter-spacing: 0.4px; cursor: pointer; white-space: nowrap;
+  border: 1px solid #2a3550; background: #11151f; color: #8B95A5;
+  transition: all .2s;
+}
+.wm-theme-toggle.is-neon {
+  border-color: rgba(47,243,255,0.6);
+  background: linear-gradient(135deg, rgba(31,155,255,0.18), rgba(255,61,240,0.14));
+  color: #d8f6ff;
+  box-shadow: 0 0 14px rgba(47,243,255,0.4), inset 0 0 10px rgba(47,243,255,0.12);
+  text-shadow: 0 0 8px rgba(47,243,255,0.6);
+}
