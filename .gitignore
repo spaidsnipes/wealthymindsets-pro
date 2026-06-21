@@ -1,1 +1,24 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+
+# Env — NEVER commit (contains API keys)
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Vercel
 .vercel
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/
