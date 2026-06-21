@@ -63,10 +63,18 @@ function toYFInterval(tf: string): { interval: string; range: string } {
     "1h":  { interval: "60m", range: "60d" },
     "2h":  { interval: "60m", range: "60d" },
     "4h":  { interval: "60m", range: "60d" },
-    "D":   { interval: "1d",  range: "2y"  },
-    "W":   { interval: "1wk", range: "5y"  },
+    "D":   { interval: "1d",  range: "5y"   },
+    "W":   { interval: "1wk", range: "10y"  },
+    "M":   { interval: "1mo", range: "max"  },
+    // Long-range bar intervals — Yahoo's coarsest interval is 3mo, so these
+    // best-effort to monthly/quarterly bars over the maximum available history.
+    "3M":  { interval: "3mo", range: "max"  },
+    "6M":  { interval: "3mo", range: "max"  },
+    "1Y":  { interval: "1mo", range: "max"  },
+    "3Y":  { interval: "1mo", range: "max"  },
+    "5Y":  { interval: "1mo", range: "max"  },
   };
-  return map[tf] ?? { interval: "1m", range: "1d" };
+  return map[tf] ?? { interval: "1d", range: "5y" };
 }
 
 const CACHE = new Map<string, { data: unknown; ts: number }>();
@@ -93,7 +101,7 @@ export async function GET(request: Request) {
   const rawSym = (searchParams.get("sym") ?? "NQ1!").toUpperCase();
   const type   = searchParams.get("type") ?? "quote";   // "quote" | "candles"
   const tf     = searchParams.get("tf")   ?? "1m";
-  const bars   = Math.min(500, parseInt(searchParams.get("bars") ?? "300", 10));
+  const bars   = Math.min(3000, parseInt(searchParams.get("bars") ?? "300", 10));
 
   const yfSym  = toYFSym(rawSym);
 

@@ -758,6 +758,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // Scale mode buttons
   const [logScale, setLogScale] = useState(false);
   const [pctMode, setPctMode] = useState(false);
+  // Auto-scale: when OFF the user can freely drag the price axis up/down to see
+  // higher/lower price levels (TradingView-style). When ON the chart auto-fits.
+  const [autoScale, setAutoScale] = useState(true);
 
   const base = getBase(symbol);
 
@@ -888,12 +891,19 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         .then(j => (j?.price ?? 0) as number)
         .catch(() => 0);
 
+      // Bar count scales with timeframe so higher timeframes pull years of history
+      // (e.g. Daily → 1200 bars ≈ 5y, Weekly/Monthly → full available history).
+      const barCount = ["D"].includes(timeframe) ? 1300
+                     : ["W"].includes(timeframe) ? 600
+                     : ["M","3M","6M","1Y","3Y","5Y"].includes(timeframe) ? 400
+                     : 500;
+
       // Priority: 1) Alpaca (if key set), 2) Finnhub, 3) Yahoo, 4) Finnhub REST, 5) Polygon, 6) synthetic
-      const alpacaData   = await fetchAlpacaCandles(symbol, timeframe, 300);
-      const fhDirectData = alpacaData ? null : await fetchFinnhubCandlesDirect(symbol, timeframe, 300);
-      const yahooData    = (alpacaData || fhDirectData) ? null : await fetchYahooCandles(symbol, timeframe, 300);
-      const finnhubData  = (alpacaData || fhDirectData || yahooData) ? null : await fetchFinnhubCandles(symbol, timeframe, 300);
-      const polyData     = (alpacaData || fhDirectData || yahooData || finnhubData) ? null : await fetchPolygonOHLCV(symbol, timeframe, 300);
+      const alpacaData   = await fetchAlpacaCandles(symbol, timeframe, barCount);
+      const fhDirectData = alpacaData ? null : await fetchFinnhubCandlesDirect(symbol, timeframe, barCount);
+      const yahooData    = (alpacaData || fhDirectData) ? null : await fetchYahooCandles(symbol, timeframe, barCount);
+      const finnhubData  = (alpacaData || fhDirectData || yahooData) ? null : await fetchFinnhubCandles(symbol, timeframe, barCount);
+      const polyData     = (alpacaData || fhDirectData || yahooData || finnhubData) ? null : await fetchPolygonOHLCV(symbol, timeframe, barCount);
       const realData     = alpacaData ?? fhDirectData ?? yahooData ?? finnhubData ?? polyData;
 
       // Real spot price (from parallel fetch above)
@@ -2329,16 +2339,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     })();
   }, [alertLevels, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── Log / pct scale mode ────────────────────────────────── */
+  /* ── Log / pct / auto scale mode ─────────────────────────── */
   useEffect(() => {
     if (!chartRef.current) return;
     try {
       chartRef.current.priceScale("right").applyOptions({
         mode: logScale ? 1 : pctMode ? 2 : 0, // 0=Normal 1=Logarithmic 2=Percentage
-        autoScale: true,
+        autoScale,  // respect the user's auto/manual choice
       });
     } catch {}
-  }, [logScale, pctMode, ready]);
+  }, [logScale, pctMode, autoScale, ready]);
 
   /* ── Apply chart settings ────────────────────────────────── */
   useEffect(() => {
@@ -3620,7 +3630,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         case "f": case "F": toggleFullscreen(); break;
         case "l": case "L": setLogScale(v => !v); break;
         case "p": case "P": setPctMode(v => !v); break;
-        case "a": case "A": try { chartRef.current?.priceScale("right").applyOptions({ autoScale:true }); } catch {} break;
+        case "a": case "A": setAutoScale(v => !v); break;
         case "d": case "D": setDataWindowOpen(v => !v); break;
         // Delete key: remove the most recently added drawing
         case "Delete": {
@@ -4208,7 +4218,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           position:"absolute", right: 64, top: 8, display:"flex", flexDirection:"column", gap: 3, zIndex: 50,
         }}>
           {[
-            { label: "A", title: "Auto scale", active: true, onClick: () => { try { chartRef.current?.priceScale("right").applyOptions({ autoScale: true }); } catch {} } },
+            { label: "A", title: autoScale ? "Auto scale ON — click for manual (drag price axis to pan up/down)" : "Manual scale — drag price axis up/down; click to re-fit", active: autoScale, onClick: () => setAutoScale(v => !v) },
             { label: "%", title: "Percentage mode", active: pctMode, onClick: () => setPctMode(v => !v) },
             { label: "L", title: "Log scale",       active: logScale, onClick: () => setLogScale(v => !v) },
           ].map(btn => (
