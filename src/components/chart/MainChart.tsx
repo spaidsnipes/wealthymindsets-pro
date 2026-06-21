@@ -657,6 +657,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     popT:    number;   // 0→1 pop progress
     anchorTime: number; // bar time (unix s) for re-anchoring x on scroll
     anchorPrice: number; // price for re-anchoring y baseline
+    absorbedBy?: number; // id of bubble that absorbed this one (pop pulls toward it)
+    absorbFlash?: number; // 0→1 swell flash when this bubble absorbs another
   };
   const bubblesRef    = useRef<Bubble[]>([]);
   const bubbleSpawnRef = useRef<Set<string>>(new Set()); // dedupe spawns per bar-key
@@ -3106,8 +3108,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
           // Spawn once per bar (dedupe by bar time). Cap active bubbles.
           const key = String(c.time);
-          if (!bubbleSpawnRef.current.has(key) && bubblesRef.current.length < 44) {
+          if (!bubbleSpawnRef.current.has(key) && bubblesRef.current.length < 60) {
             bubbleSpawnRef.current.add(key);
+            const now0 = performance.now();
+            // Main big-trade bubble
             bubblesRef.current.push({
               id:    ++bubbleIdRef.current,
               x:     cx,
@@ -3119,13 +3123,36 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               phase: Math.random() * Math.PI * 2,
               side,
               value,
-              born:  performance.now(),
+              born:  now0,
               life:  6500 + scale * 3500,
               popping: false,
               popT:  0,
               anchorTime:  c.time as number,
               anchorPrice: poc.priceLevel,
             });
+            // 2–3 small companion bubbles so the big one visibly absorbs them
+            const companions = 2 + Math.floor(scale * 2);
+            for (let k = 0; k < companions; k++) {
+              const cr = baseR * (0.22 + Math.random() * 0.26); // much smaller
+              bubblesRef.current.push({
+                id:    ++bubbleIdRef.current,
+                x:     cx + (Math.random() - 0.5) * baseR * 1.4,
+                y:     pocY + (Math.random() - 0.2) * baseR * 1.2,
+                baseR: cr,
+                r:     cr * 0.4,
+                vy:    0.5 + Math.random() * 0.6, // rise faster → drift up into the big one
+                drift: (Math.random() - 0.5) * 0.4,
+                phase: Math.random() * Math.PI * 2,
+                side,
+                value: Math.round(value * (0.1 + Math.random() * 0.25)),
+                born:  now0 + k * 120,
+                life:  5000 + Math.random() * 2500,
+                popping: false,
+                popT:  0,
+                anchorTime:  c.time as number,
+                anchorPrice: poc.priceLevel,
+              });
+            }
           }
         });
 
@@ -3145,67 +3172,116 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const age = nowMs - b.born;
           if (age > b.life && !b.popping) { b.popping = true; }
         }
-        // Pop smaller bubbles when a noticeably larger bubble overlaps them
+        // ABSORB: a noticeably larger bubble that overlaps a smaller one swallows it —
+        // the smaller pops, the larger grows (gains the absorbed size) and gets tugged toward it.
         for (let i = 0; i < bubbles.length; i++) {
           for (let j = 0; j < bubbles.length; j++) {
             if (i === j) continue;
             const a = bubbles[i], s = bubbles[j];
             if (s.popping || a.popping) continue;
-            if (a.baseR > s.baseR * 1.35) {
+            if (a.baseR > s.baseR * 1.3) {
               const dx = a.x - s.x, dy = a.y - s.y;
-              if (Math.hypot(dx, dy) < a.r + s.r * 0.5) s.popping = true;
+              const dist = Math.hypot(dx, dy);
+              if (dist < a.r + s.r * 0.55) {
+                s.popping = true;
+                s.absorbedBy = a.id;        // pop pulls toward the absorber
+                // absorber grows by area-equivalent of the swallowed bubble (capped)
+                const grown = Math.sqrt(a.baseR * a.baseR + s.baseR * s.baseR * 0.55);
+                a.baseR = Math.min(66, grown);
+                a.value += (a.value >= 0 ? 1 : -1) * Math.abs(s.value) * 0.5;
+                a.absorbFlash = 1;          // brief swell flash on the absorber
+              }
             }
           }
         }
         // Advance pop animations + cull dead bubbles
+        const byId = new Map(bubbles.map(b => [b.id, b]));
         bubblesRef.current = bubbles.filter(b => {
-          if (b.popping) { b.popT += 0.08; if (b.popT >= 1) return false; }
+          if (b.absorbFlash && b.absorbFlash > 0) b.absorbFlash = Math.max(0, b.absorbFlash - 0.07);
+          if (b.popping) {
+            b.popT += 0.09;
+            // absorbed bubbles slide toward the bubble that swallowed them
+            if (b.absorbedBy != null) {
+              const a = byId.get(b.absorbedBy);
+              if (a) { b.x += (a.x - b.x) * 0.22; b.y += (a.y - b.y) * 0.22; }
+            }
+            if (b.popT >= 1) return false;
+          }
           if (b.y < -60) return false; // floated off top
           return true;
         });
 
-        // Draw bubbles (glossy translucent spheres)
+        // Draw bubbles — real water-bubble look: transparent glassy body,
+        // bright iridescent rim, specular highlights, gentle wobble.
         const hoverId = bubbleHoverRef.current;
         for (const b of bubblesRef.current) {
           const buy = b.side === "buy";
-          // soft neon green for buyers, soft neon red for sellers
-          const core = buy ? "0,230,150" : "255,70,90";
-          // pop animation: expand + fade
-          const popR = b.popping ? b.r * (1 + b.popT * 0.7) : b.r;
-          const alpha = b.popping ? (1 - b.popT) * 0.9 : 0.9;
+          // soft neon green for buyers, soft neon red for sellers (rim/tint only — body stays glassy)
+          const core = buy ? "70,235,170" : "255,90,110";
           const isHover = hoverId === b.id;
 
+          // gentle squash/stretch wobble so they feel alive like real bubbles
+          const t = nowMs / 520 + b.phase;
+          const wob = b.popping ? 1 : 1 + Math.sin(t) * 0.05;
+          const swell = b.absorbFlash ? 1 + b.absorbFlash * 0.22 : 1;
+          const baseR = b.r * swell;
+          const rx = baseR * wob;
+          const ry = baseR / wob;
+          // pop animation: expand outward + fade (absorbed ones shrink as they slide in)
+          const popScale = b.popping ? (b.absorbedBy != null ? 1 - b.popT * 0.6 : 1 + b.popT * 0.8) : 1;
+          const alpha = b.popping ? (1 - b.popT) : 1;
+          const Rx = rx * popScale, Ry = ry * popScale;
+
           ctx.save();
-          // outer glow
+
+          // outer halo (soft tinted glow)
           ctx.beginPath();
-          ctx.arc(b.x, b.y, popR + 5, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${core},${0.16 * alpha})`;
+          ctx.ellipse(b.x, b.y, Rx + 4, Ry + 4, 0, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${core},${0.10 * alpha})`;
           ctx.fill();
-          // glossy body — radial gradient
-          const g = ctx.createRadialGradient(b.x - popR * 0.35, b.y - popR * 0.4, popR * 0.1, b.x, b.y, popR);
-          g.addColorStop(0,   `rgba(255,255,255,${0.55 * alpha})`);
-          g.addColorStop(0.25,`rgba(${core},${0.42 * alpha})`);
-          g.addColorStop(1,   `rgba(${core},${0.12 * alpha})`);
+
+          // glassy body: transparent center → faint tint → brighter near the rim
+          const g = ctx.createRadialGradient(b.x, b.y, Rx * 0.2, b.x, b.y, Rx);
+          g.addColorStop(0,    `rgba(${core},${0.03 * alpha})`);   // see-through middle
+          g.addColorStop(0.72, `rgba(${core},${0.06 * alpha})`);
+          g.addColorStop(0.93, `rgba(${core},${0.22 * alpha})`);   // tint gathers at edge
+          g.addColorStop(1,    `rgba(255,255,255,${0.30 * alpha})`); // bright rim light
           ctx.beginPath();
-          ctx.arc(b.x, b.y, popR, 0, Math.PI * 2);
+          ctx.ellipse(b.x, b.y, Rx, Ry, 0, 0, Math.PI * 2);
           ctx.fillStyle = g;
           ctx.fill();
-          // rim
-          ctx.lineWidth = isHover ? 2.5 : 1.5;
-          ctx.strokeStyle = `rgba(${core},${(isHover ? 1 : 0.7) * alpha})`;
-          ctx.stroke();
-          // top-left gloss highlight
+
+          // bright thin membrane rim (the signature of a water bubble)
           ctx.beginPath();
-          ctx.arc(b.x - popR * 0.32, b.y - popR * 0.36, popR * 0.18, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255,255,255,${0.6 * alpha})`;
+          ctx.ellipse(b.x, b.y, Rx - 0.6, Ry - 0.6, 0, 0, Math.PI * 2);
+          ctx.lineWidth = isHover ? 2.4 : 1.6;
+          ctx.strokeStyle = `rgba(255,255,255,${(isHover ? 0.95 : 0.78) * alpha})`;
+          ctx.stroke();
+          // faint colored inner ring for iridescence
+          ctx.beginPath();
+          ctx.ellipse(b.x, b.y, Rx - 2.4, Ry - 2.4, 0, 0, Math.PI * 2);
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = `rgba(${core},${0.5 * alpha})`;
+          ctx.stroke();
+
+          // big specular highlight (top-left) — crescent-ish bright spot
+          ctx.beginPath();
+          ctx.ellipse(b.x - Rx * 0.34, b.y - Ry * 0.38, Rx * 0.22, Ry * 0.16, -0.5, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,255,${0.85 * alpha})`;
           ctx.fill();
-          // order size number, centered
-          if (!b.popping && b.r >= 13) {
-            const lbl = fmtV(Math.abs(b.value));
-            ctx.fillStyle = `rgba(255,255,255,${0.96 * alpha})`;
-            ctx.font = `bold ${Math.max(10, Math.min(16, b.r * 0.55))}px Inter, monospace`;
+          // small secondary highlight (bottom-right)
+          ctx.beginPath();
+          ctx.ellipse(b.x + Rx * 0.4, b.y + Ry * 0.42, Rx * 0.08, Ry * 0.08, 0, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,255,${0.4 * alpha})`;
+          ctx.fill();
+
+          // order size number, centered (only on stable, large-enough bubbles)
+          if (!b.popping && b.r >= 14) {
+            const lbl = fmtV(Math.abs(Math.round(b.value)));
+            ctx.font = `bold ${Math.max(10, Math.min(16, b.r * 0.5))}px Inter, monospace`;
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.shadowColor = `rgba(${core},0.9)`; ctx.shadowBlur = 6;
+            ctx.shadowColor = "rgba(0,0,0,0.85)"; ctx.shadowBlur = 4;
+            ctx.fillStyle = `rgba(255,255,255,${0.97 * alpha})`;
             ctx.fillText(lbl, b.x, b.y);
             ctx.shadowBlur = 0;
           }
