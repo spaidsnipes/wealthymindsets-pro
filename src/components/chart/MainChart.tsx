@@ -2677,14 +2677,21 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // overlays stable instead of flashing off when live ticks arrive.
       const liveBars = barsRef.current.length ? barsRef.current : candles;
 
-      // Determine visible bar range from chart time scale
+      // Determine visible bar range from chart time scale.
+      // ROOT-CAUSE FIX: when the user scrolls/pans the chart RIGHT into the empty
+      // space past the last bar (very common, and auto-scroll does it on every new
+      // bar), visRange.from can exceed the data length, making slice() return [].
+      // Previously the whole draw function then `return`ed → the Volume Profile
+      // (and footprint) VANISHED on interaction. Now we clamp the range and always
+      // fall back to recent bars so there is ALWAYS something to render.
       let visibleBars: Bar[];
       try {
         const visRange = chartRef.current!.timeScale().getVisibleLogicalRange();
         if (visRange) {
-          const from = Math.max(0, Math.floor(visRange.from) - 2);
-          const to   = Math.min(liveBars.length - 1, Math.ceil(visRange.to) + 2);
-          visibleBars = liveBars.slice(from, to + 1);
+          const lastIdx = liveBars.length - 1;
+          const from = Math.max(0, Math.min(lastIdx, Math.floor(visRange.from) - 2));
+          const to   = Math.max(0, Math.min(lastIdx, Math.ceil(visRange.to) + 2));
+          visibleBars = from <= to ? liveBars.slice(from, to + 1) : [];
         } else {
           visibleBars = liveBars.slice(-120);
         }
@@ -2692,7 +2699,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         visibleBars = liveBars.slice(-120);
       }
 
-      if (visibleBars.length === 0) return;
+      // Never bail the whole draw on an empty slice — fall back to recent bars so
+      // the VP / footprint stay on screen even when scrolled into empty space.
+      if (visibleBars.length === 0) visibleBars = liveBars.slice(-120);
+      if (visibleBars.length === 0) return; // truly no data yet
 
       /* ═══════════════════════════════════════════════════════
          FOOTPRINT MODES — all draw at full candle height (high→low)
