@@ -1296,14 +1296,38 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   useEffect(() => {
     if (!liveBar || !candleRef.current || !volRef.current || !ready) return;
 
-    const bar: Bar = {
-      time:   Math.floor(liveBar.time) as any,
-      open:   liveBar.open,
-      high:   liveBar.high,
-      low:    liveBar.low,
-      close:  liveBar.close,
-      volume: liveBar.volume,
-    };
+    const price   = liveBar.close;
+    const prevBars = barsRef.current;
+    const lastBar  = prevBars[prevBars.length - 1];
+
+    // CRITICAL: the data provider's last/forming candle may carry an intraday
+    // timestamp AHEAD of our computed bar-boundary (e.g. Yahoo's current 30m bar
+    // is stamped 00:08, not 00:00). If we call series.update() with a time that's
+    // BEHIND the last bar, LWC throws and the price silently never updates → frozen.
+    // So: if our live time isn't strictly after the last bar, fold the live price
+    // INTO the last bar (update its high/low/close), keeping a valid ascending time.
+    let bar: Bar;
+    let t = Math.floor(liveBar.time);
+    if (lastBar && t <= lastBar.time) {
+      t = lastBar.time; // update the current forming candle in place
+      bar = {
+        time:   t as any,
+        open:   lastBar.open,
+        high:   Math.max(lastBar.high, price),
+        low:    Math.min(lastBar.low, price),
+        close:  price,
+        volume: Math.max(lastBar.volume, liveBar.volume || 0),
+      };
+    } else {
+      bar = {
+        time:   t as any,
+        open:   liveBar.open,
+        high:   liveBar.high,
+        low:    liveBar.low,
+        close:  price,
+        volume: liveBar.volume,
+      };
+    }
 
     try {
       candleRef.current.update(bar as any);
@@ -1313,15 +1337,20 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         color: bar.close >= bar.open ? "rgba(0,212,170,0.20)" : "rgba(255,77,106,0.20)",
       } as any);
     } catch {
-      // LW can throw on duplicate times in some edge cases — safe to ignore
+      // last-resort: if update still rejects, force the price onto the visible
+      // last candle so the chart never stays frozen
+      try {
+        if (lastBar) candleRef.current.update({ ...lastBar, close: price, high: Math.max(lastBar.high, price), low: Math.min(lastBar.low, price) } as any);
+      } catch {}
     }
 
-    setLastPrice(bar.close);
+    setLastPrice(price);
     setCandles(prev => {
       const last = prev[prev.length - 1];
       if (last?.time === bar.time) {
         const next = [...prev];
         next[next.length - 1] = bar;
+        barsRef.current = next;
         return next;
       }
       const next = [...prev, bar];
