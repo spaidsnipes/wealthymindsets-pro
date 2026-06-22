@@ -159,7 +159,17 @@ export function ChartsDashboard() {
   useEffect(() => { lsSet("wm_theme", theme); }, [theme]);
   // When Neon is active, override the canvas chart colors (candles stay red/green)
   const effChartSettings: ChartSettings = theme === "neon"
-    ? { ...chartSettings, background: "#02060A", gridColor: "rgba(47,243,255,0.07)", crosshairColor: "#2ff3ff" }
+    ? {
+        ...chartSettings,
+        background: "#02060A",
+        gridColor: "rgba(47,243,255,0.07)",
+        crosshairColor: "#2ff3ff",
+        neon: true,
+        // Neon green/red candles (keeps the green/red scheme, electric tone)
+        candleUp:  "#00FFA3", candleDown: "#FF2E63",
+        borderUp:  "#39FFB0", borderDown: "#FF4D7A",
+        wickUp:    "#00FFC6", wickDown:   "#FF6B8A",
+      }
     : chartSettings;
 
   // ── NEW: Layout ─────────────────────────────────────────────

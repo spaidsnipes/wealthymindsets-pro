@@ -469,6 +469,7 @@ interface Props {
     candleUp?: string; candleDown?: string;
     wickUp?: string; wickDown?: string;
     borderUp?: string; borderDown?: string;
+    neon?: boolean;
   };
   replayActive?:   boolean;
   replayBars?:     Bar[];
@@ -1211,10 +1212,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         borderColor:  "transparent",
       });
 
+      const volUp   = chartSettings?.neon ? "rgba(0,255,163,0.55)" : "rgba(0,212,170,0.20)";
+      const volDown = chartSettings?.neon ? "rgba(255,46,99,0.55)"  : "rgba(255,77,106,0.20)";
       vs.setData(data.map(c => ({
         time:  c.time,
         value: c.volume,
-        color: c.close >= c.open ? "rgba(0,212,170,0.20)" : "rgba(255,77,106,0.20)",
+        color: c.close >= c.open ? volUp : volDown,
       })) as any);
 
       // Show ~40 bars by default — gives ~22px/bar on 900px canvas, footprint cells visible
@@ -1345,7 +1348,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       volRef.current.update({
         time:  bar.time,
         value: bar.volume,
-        color: bar.close >= bar.open ? "rgba(0,212,170,0.20)" : "rgba(255,77,106,0.20)",
+        color: bar.close >= bar.open
+          ? (chartSettings?.neon ? "rgba(0,255,163,0.55)" : "rgba(0,212,170,0.20)")
+          : (chartSettings?.neon ? "rgba(255,46,99,0.55)"  : "rgba(255,77,106,0.20)"),
       } as any);
     } catch {
       // last-resort: if update still rejects, force the price onto the visible
@@ -1572,9 +1577,19 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       } catch { return null; }
     };
 
-    // Helper: sub-pane oscillator
-    const setupScale = (id: string, top = 0.78, bot = 0.02) => {
-      try { chart.priceScale(id).applyOptions({ scaleMargins: { top, bottom: bot }, borderColor: "transparent" }); } catch {}
+    // Helper: sub-pane oscillator — each unique oscillator gets its OWN stacked
+    // band at the BOTTOM (TradingView-style), above the volume zone, so RSI /
+    // Stoch RSI / CVD / MACD don't pile on top of each other or the candles.
+    const oscSlotMap = new Map<string, number>();
+    let oscNext = 0;
+    const VOL_ZONE = 0.18;   // bottom 18% reserved for volume bars
+    const PANE_H   = 0.15;   // each oscillator pane height
+    const setupScale = (id: string, _top?: number, _bot?: number) => {
+      let slot = oscSlotMap.get(id);
+      if (slot === undefined) { slot = oscNext++; oscSlotMap.set(id, slot); }
+      const bottom = VOL_ZONE + slot * PANE_H;
+      const top    = Math.max(0.26, 1 - VOL_ZONE - (slot + 1) * PANE_H);
+      try { chart.priceScale(id).applyOptions({ scaleMargins: { top, bottom: Math.min(bottom, 0.7) }, borderColor: "transparent" }); } catch {}
     };
     const addOsc = (vals: number[], color: string, scaleId: string, width = 1) => {
       try {
@@ -2711,19 +2726,25 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         }
       }
 
+      // Read the LIVE bar array from the ref each frame (not the `candles` state)
+      // so the continuous RAF loop always has the latest data WITHOUT the effect
+      // being torn down on every tick. This is what keeps the VP / footprint
+      // overlays stable instead of flashing off when live ticks arrive.
+      const liveBars = barsRef.current.length ? barsRef.current : candles;
+
       // Determine visible bar range from chart time scale
       let visibleBars: Bar[];
       try {
         const visRange = chartRef.current!.timeScale().getVisibleLogicalRange();
         if (visRange) {
           const from = Math.max(0, Math.floor(visRange.from) - 2);
-          const to   = Math.min(candles.length - 1, Math.ceil(visRange.to) + 2);
-          visibleBars = candles.slice(from, to + 1);
+          const to   = Math.min(liveBars.length - 1, Math.ceil(visRange.to) + 2);
+          visibleBars = liveBars.slice(from, to + 1);
         } else {
-          visibleBars = candles.slice(-120);
+          visibleBars = liveBars.slice(-120);
         }
       } catch {
-        visibleBars = candles.slice(-120);
+        visibleBars = liveBars.slice(-120);
       }
 
       if (visibleBars.length === 0) return;
@@ -3653,15 +3674,17 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const isPOC = price === pocPrice;
           const askRatio = tot > 0 ? vol.ask / tot : 0.5;
 
+          const neon = chartSettings?.neon;
           if (isPOC) {
-            ctx.fillStyle = "rgba(240,180,41,0.80)";
+            ctx.fillStyle = neon ? "rgba(255,224,77,0.92)" : "rgba(240,180,41,0.80)";
             ctx.fillRect(vpRight - barW, rowY, barW, rowH);
           } else {
             const askW = Math.round(barW * askRatio);
             const bidW = barW - askW;
-            ctx.fillStyle = `rgba(0,229,204,${0.28 + askRatio * 0.35})`;
+            // ask = green, bid = red — neon-bright when neon theme is on
+            ctx.fillStyle = neon ? `rgba(0,255,163,${0.45 + askRatio * 0.45})` : `rgba(0,229,204,${0.28 + askRatio * 0.35})`;
             ctx.fillRect(vpRight - barW, rowY, askW, rowH);
-            ctx.fillStyle = `rgba(123,108,247,${0.28 + (1-askRatio)*0.35})`;
+            ctx.fillStyle = neon ? `rgba(255,46,99,${0.45 + (1-askRatio)*0.45})` : `rgba(123,108,247,${0.28 + (1-askRatio)*0.35})`;
             ctx.fillRect(vpRight - barW + askW, rowY, bidW, rowH);
           }
           if (isPOC) {
@@ -3703,7 +3726,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     };
     rafId = requestAnimationFrame(loop);
     return () => { running = false; cancelAnimationFrame(rafId); };
-  }, [candles, footprintType, footprintEnabled, candleType, ready, rangeVer, getBarFootprint, extendedHours, timeframe, fixedVPActive, sessionVPActive]);
+    // NOTE: `candles` intentionally NOT a dep — the RAF loop reads barsRef.current
+    // each frame, so it stays alive across live ticks (was rebuilding 4x/sec on
+    // crypto, which made the VP/footprint flash off). Re-runs only on real config
+    // changes below.
+  }, [footprintType, footprintEnabled, candleType, ready, rangeVer, getBarFootprint, extendedHours, timeframe, fixedVPActive, sessionVPActive]);
 
   /* ── Derived display values ─────────────────────────────── */
   const change    = ticker.change ?? (lastPrice - openPrice);

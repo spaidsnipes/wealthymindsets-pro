@@ -24,6 +24,7 @@ export interface ChartSettings {
   wickDown: string;
   borderUp: string;
   borderDown: string;
+  neon?: boolean;   // WM Neon theme active → neon candle/VP/volume coloring
   showPositions: boolean;
   showPnL: boolean;
 }
