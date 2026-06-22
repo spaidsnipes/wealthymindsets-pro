@@ -785,6 +785,7 @@ export function ChartsDashboard() {
                       pineOutput={pineOutput}
                       onBarsReady={handleBarsReady}
                       drawingTool={drawingTool}
+                      onDrawingComplete={() => setDrawingTool("cursor")}
                       drawingColor={drawingColor}
                       magnetActive={magnetActive}
                       lockDrawings={lockActive}

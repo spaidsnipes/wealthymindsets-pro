@@ -451,6 +451,7 @@ interface Props {
   drawingColor?:   string;
   magnetActive?:   boolean;
   lockDrawings?:   boolean;
+  onDrawingComplete?: () => void;   // fired after a drawing is placed → return to cursor
   drawingsVisible?:boolean;
   clearTrigger?:   number;
   activeInds?:     Set<string>;
@@ -641,6 +642,7 @@ function computeMomentum(closes: number[], period=10): number[] {
 /* ── Component ──────────────────────────────────────────── */
 export function MainChart({ symbol, timeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, onBarsReady,
   drawingTool = "cursor", drawingColor = "#00D4AA", magnetActive = false, lockDrawings = false,
+  onDrawingComplete,
   drawingsVisible = true, clearTrigger = 0, activeInds, indSettings, extendedHours,
   alertLevels = [], chartSettings, replayActive = false, replayBars,
   compareSymbol, onPriceAtCursor, onOHLCAtCursor,
@@ -3703,6 +3705,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.altKey || e.ctrlKey || e.metaKey) return;
       switch (e.key) {
+        // Escape always exits drawing mode → mouse returns to normal chart use
+        case "Escape": { inProgressRef.current = null; renderDrawings(); onDrawingComplete?.(); break; }
         case "f": case "F": toggleFullscreen(); break;
         case "l": case "L": setLogScale(v => !v); break;
         case "p": case "P": setPctMode(v => !v); break;
@@ -3964,7 +3968,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       }
       inProgressRef.current = { type: resolvedType as any, p1: lp, p2: lp, color };
     }
-  }, [drawingTool, drawingColor, lockDrawings, renderDrawings, pixelToLogical]);
+    // If this click committed a drawing immediately (no drag in progress), return
+    // to the normal cursor so the mouse isn't stuck in drawing mode.
+    if (!inProgressRef.current) onDrawingComplete?.();
+  }, [drawingTool, drawingColor, lockDrawings, renderDrawings, pixelToLogical, logicalToPixel, onDrawingComplete]);
 
   const handleDrawMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!inProgressRef.current) return;
@@ -3986,7 +3993,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     drawingsRef.current.push(inProgressRef.current);
     inProgressRef.current = null;
     renderDrawings();
-  }, [renderDrawings]);
+    // Return to normal cursor so the mouse isn't stuck in drawing mode.
+    onDrawingComplete?.();
+  }, [renderDrawings, onDrawingComplete]);
 
   // ── Big-Trade bubble hover hit-test → comic speech-bubble tooltip ──
   // Attached to the chart wrapper so it fires in cursor mode without blocking
