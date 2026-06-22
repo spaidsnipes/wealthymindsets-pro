@@ -45,7 +45,7 @@ export interface MarketState {
   recentTicks: Tick[];
   orderBook:   { bids: OrderBookLevel[]; asks: OrderBookLevel[] };
   connected:   boolean;
-  source:      "polygon" | "finnhub" | "synthetic" | "yahoo" | "alpaca";
+  source:      "polygon" | "finnhub" | "synthetic" | "yahoo" | "alpaca" | "binance";
   latency:     number; // ms to last update
 }
 
@@ -205,6 +205,101 @@ function tryFinnhub(
   ws.onclose = () => onStatus(false);
 
   return () => ws.close();
+}
+
+/* ── Binance WebSocket adapter (real-time crypto, public, no key) ──────
+ * IMPORTANT: binance.com is geo-blocked in the US ("restricted location").
+ * We use the US-compliant **Binance.US** gateway, which serves US clients and
+ * uses the identical @trade stream format:
+ *   wss://stream.binance.us:9443/ws/<sym>@trade
+ * Every executed trade → a real tick. Auto-reconnects with backoff.
+ ───────────────────────────────────────────────────────────────────── */
+const BINANCE_WS_HOST = "wss://stream.binance.us:9443";
+const BINANCE_PAIR: Record<string, string> = {
+  BTC: "btcusdt", ETH: "ethusdt", SOL: "solusdt", BNB: "bnbusdt",
+  XRP: "xrpusdt", DOGE: "dogeusdt", ADA: "adausdt", AVAX: "avaxusdt",
+  LINK: "linkusdt", DOT: "dotusdt", LTC: "ltcusdt", ATOM: "atomusdt",
+  UNI: "uniusdt", MATIC: "maticusdt", BTCUSD: "btcusdt", ETHUSD: "ethusdt",
+  SOLUSD: "solusdt",
+};
+
+function binancePair(symbol: string): string | null {
+  return BINANCE_PAIR[symbol.toUpperCase()] ?? null;
+}
+
+function tryBinance(
+  symbol:   string,
+  onTick:   (t: Tick, isReal: boolean) => void,
+  onStatus: (connected: boolean) => void,
+): (() => void) | null {
+  const pair = binancePair(symbol);
+  if (!pair) return null;
+
+  let ws: WebSocket | null = null;
+  let closed = false;
+  let retry = 0;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const connect = () => {
+    if (closed) return;
+    try {
+      // Combined stream: @bookTicker (frequent best bid/ask → drives live price
+      // ~1×/sec even on lower-volume US pairs) + @trade (real size/side when
+      // trades print) + @ticker (24h change %).
+      ws = new WebSocket(`${BINANCE_WS_HOST}/stream?streams=${pair}@bookTicker/${pair}@trade/${pair}@ticker`);
+    } catch {
+      scheduleReconnect();
+      return;
+    }
+
+    ws.onopen = () => { retry = 0; onStatus(true); };
+
+    let lastPx = 0;
+    ws.onmessage = (ev) => {
+      try {
+        const frame = JSON.parse(ev.data as string);
+        const m = frame.data ?? frame;       // combined stream wraps payload in .data
+        if (m.b && m.a) {
+          // @bookTicker: best bid (b) / ask (a) → mid price, frequent
+          const mid = (parseFloat(m.b) + parseFloat(m.a)) / 2;
+          if (mid > 0) {
+            const side: "buy" | "sell" = mid >= lastPx ? "buy" : "sell";
+            lastPx = mid;
+            onTick({ price: mid, size: 0.01, side, time: Date.now() }, true);
+          }
+        } else if (m.e === "trade" && m.p) {
+          // @trade: real executed trade (size + aggressor side)
+          const price = parseFloat(m.p);
+          if (price > 0) {
+            lastPx = price;
+            onTick({ price, size: parseFloat(m.q) || 0.01, side: m.m ? "sell" : "buy", time: m.T ?? Date.now() }, true);
+          }
+        } else if (m.e === "24hrTicker" && m.c) {
+          // @ticker: carries last price + 24h change % (used for the day-change display)
+          const price = parseFloat(m.c);
+          if (price > 0) { lastPx = price; onTick({ price, size: 0.01, side: "buy", time: Date.now() }, true); }
+        }
+      } catch { /* ignore malformed frame */ }
+    };
+
+    ws.onerror = () => { onStatus(false); };
+    ws.onclose = () => { onStatus(false); if (!closed) scheduleReconnect(); };
+  };
+
+  const scheduleReconnect = () => {
+    if (closed) return;
+    retry = Math.min(retry + 1, 6);
+    const delay = Math.min(1000 * 2 ** retry, 15000); // 2s,4s,…,15s cap
+    reconnectTimer = setTimeout(connect, delay);
+  };
+
+  connect();
+
+  return () => {
+    closed = true;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    try { ws?.close(); } catch {}
+  };
 }
 
 /* ── Main hook ──────────────────────────────────────────── */
@@ -463,12 +558,24 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // NOTE: Polygon key is known-invalid — skip it entirely to avoid blocking Finnhub WS
     const finnhubKey  = process.env.NEXT_PUBLIC_FINNHUB_KEY ?? "d8efu9hr01qth3ch5f20d8efu9hr01qth3ch5f2g";
 
-    // Finnhub WS — skip for futures (not supported) and start immediately
+    // Identify instrument class
     const isFuture = symbol.endsWith("1!") || symbol.includes("=F");
-    const isCrypto = ["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC"].includes(symbol.toUpperCase());
-    const fhWsSym  = isCrypto ? `BINANCE:${symbol.toUpperCase()}USDT` : symbol.toUpperCase();
+    const isCrypto = binancePair(symbol) != null;
 
-    const finhCleanup = (!isFuture && finnhubKey)
+    // ── CRYPTO: real-time Binance WebSocket (public, no key, 24/7) ──
+    // This is the primary live feed for BTC/ETH/etc. — true tick-by-tick.
+    const binanceCleanup = isCrypto
+      ? tryBinance(symbol, processTick, (ok) => {
+          if (ok) {
+            hasRealDataRef.current = true;
+            setState(p => ({ ...p, source: "binance", connected: true }));
+          }
+        })
+      : null;
+
+    // ── STOCKS/ETFs: Finnhub WS (skip for futures + crypto) ──
+    const fhWsSym = symbol.toUpperCase();
+    const finhCleanup = (!isFuture && !isCrypto && finnhubKey)
       ? tryFinnhub(fhWsSym, finnhubKey, processTick, (ok) => {
           if (ok) {
             hasRealDataRef.current = true;
@@ -515,6 +622,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     document.addEventListener("visibilitychange", onVisibleWS);
 
     if (finhCleanup) cleanupFns.current.push(finhCleanup);
+    if (binanceCleanup) cleanupFns.current.push(binanceCleanup);
 
     return () => {
       clearInterval(restRefresh);

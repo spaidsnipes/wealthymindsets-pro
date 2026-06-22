@@ -1388,12 +1388,17 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     if (!ready) return;
     let alive = true;
 
+    // Crypto is driven live by the Binance.US WebSocket (useWebSocket) — skip the
+    // REST poller for it so the two don't fight over the last candle.
+    const upSym = symbol.toUpperCase();
+    const isCrypto = ["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","ATOM","UNI","MATIC","BTCUSD","ETHUSD","SOLUSD"].includes(upSym);
+    if (isCrypto) return;
+
     const quoteUrl = (sym: string) => {
       const up = sym.toUpperCase();
       const isFut = up.endsWith("1!") || up.includes("=F");
-      const isCry = ["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","BTCUSD","ETHUSD"].includes(up);
-      // Futures + crypto → Yahoo (entitled/live). Stocks → Finnhub (real quote), Yahoo fallback handled by route.
-      return (!isFut && !isCry)
+      // Futures → Yahoo (entitled/live). Stocks → Finnhub (real quote), Yahoo fallback handled by route.
+      return !isFut
         ? `/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`
         : `/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`;
     };
