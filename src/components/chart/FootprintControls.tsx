@@ -1,8 +1,36 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { clsx } from "clsx";
+import { Volume2, VolumeX } from "lucide-react";
 import type { FootprintType } from "./ChartsDashboard";
+
+/* Big-Trades bubble sound on/off (default ON). playBloop() in MainChart reads
+   the same localStorage flag, so this just persists the user's choice. */
+function BubbleSoundToggle() {
+  const [on, setOn] = useState<boolean>(
+    () => typeof window === "undefined" || localStorage.getItem("wm_bubble_sound") !== "off"
+  );
+  const toggle = () => {
+    const next = !on;
+    setOn(next);
+    try { localStorage.setItem("wm_bubble_sound", next ? "on" : "off"); } catch {}
+  };
+  return (
+    <button
+      onClick={toggle}
+      title={on ? "Bubble sounds: ON — click to mute" : "Bubble sounds: OFF — click to enable"}
+      className={clsx(
+        "flex items-center gap-1 px-2 h-5 rounded text-[11px] font-bold tracking-wide transition-all shrink-0 ml-1 border",
+        on
+          ? "bg-wm-green/15 text-wm-green border-wm-green/40"
+          : "text-wm-text-dim hover:text-wm-text border-wm-border"
+      )}
+    >
+      {on ? <Volume2 size={11} /> : <VolumeX size={11} />} Sound
+    </button>
+  );
+}
 
 const FOOTPRINT_TYPES: { id: FootprintType; label: string; desc: string }[] = [
   { id: "bid-ask",            label: "Bid × Ask",    desc: "Bid/ask split cells per price level — order flow footprint" },
@@ -54,6 +82,9 @@ export function FootprintControls({
           {label}
         </button>
       ))}
+
+      {/* Big-Trades bubble sound toggle (shown when Big Trades is the active mode) */}
+      {enabled && active === "big-trades" && <BubbleSoundToggle />}
     </>
   );
 }

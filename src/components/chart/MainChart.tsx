@@ -691,6 +691,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const lastBloopRef   = useRef(0);
   const playBloop = useCallback((big: boolean) => {
     try {
+      // User toggle — Big Trades / bubble sounds (default ON)
+      if (typeof window !== "undefined" && localStorage.getItem("wm_bubble_sound") === "off") return;
       const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
       if (!Ctx) return;
       if (!audioCtxRef.current) audioCtxRef.current = new Ctx();
@@ -4279,18 +4281,32 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
         {/* ── Scale buttons (right side) ───────────────── */}
         <div style={{
-          position:"absolute", right: 64, top: 8, display:"flex", flexDirection:"column", gap: 3, zIndex: 50,
+          position:"absolute", right: 64, top: 8, display:"flex", flexDirection:"column", gap: 3, zIndex: 50, alignItems:"flex-end",
         }}>
+          {/* Clear Auto/Lock toggle — when LOCKED, drag the price axis up/down freely */}
+          <button
+            onClick={() => setAutoScale(v => !v)}
+            title={autoScale
+              ? "Auto Scale ON — chart auto-fits price. Click to LOCK, then drag the price axis up/down to see higher/lower prices."
+              : "Scale LOCKED — drag the price axis (right side) up/down to pan, or scroll to zoom. Click to re-enable Auto Scale."}
+            style={{
+              height: 22, padding: "0 8px", borderRadius: 4, fontSize: 9.5, fontWeight: 800, cursor: "pointer",
+              letterSpacing: 0.4, whiteSpace: "nowrap",
+              background: autoScale ? "rgba(0,200,118,0.18)" : "rgba(240,180,41,0.20)",
+              border: `1px solid ${autoScale ? "rgba(0,200,118,0.5)" : "rgba(240,180,41,0.6)"}`,
+              color: autoScale ? "#00C076" : "#F0B429",
+            }}>
+            {autoScale ? "● AUTO" : "🔒 LOCK"}
+          </button>
           {[
-            { label: "A", title: autoScale ? "Auto scale ON — click for manual (drag price axis to pan up/down)" : "Manual scale — drag price axis up/down; click to re-fit", active: autoScale, onClick: () => setAutoScale(v => !v) },
             { label: "%", title: "Percentage mode", active: pctMode, onClick: () => setPctMode(v => !v) },
             { label: "L", title: "Log scale",       active: logScale, onClick: () => setLogScale(v => !v) },
           ].map(btn => (
             <button key={btn.label} onClick={btn.onClick} title={btn.title} style={{
               width: 22, height: 22, borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer",
-              background: btn.active && btn.label !== "A" ? "rgba(47,128,237,0.2)" : "rgba(20,24,36,0.85)",
-              border: `1px solid ${btn.active && btn.label !== "A" ? "rgba(47,128,237,0.5)" : "#263050"}`,
-              color: btn.active && btn.label !== "A" ? "#2F80ED" : "#8896BE",
+              background: btn.active ? "rgba(47,128,237,0.2)" : "rgba(20,24,36,0.85)",
+              border: `1px solid ${btn.active ? "rgba(47,128,237,0.5)" : "#263050"}`,
+              color: btn.active ? "#2F80ED" : "#8896BE",
             }}>
               {btn.label}
             </button>

@@ -139,9 +139,12 @@ export function VolumeProfileLadder({ symbol }: { symbol: string }) {
   // Keep liveBarRef current without adding liveBar to rebuildProfile deps
   useEffect(() => { liveBarRef.current = liveBar; }, [liveBar]);
 
-  // Reset stable center when symbol changes
+  // Reset stable center when symbol changes. CRITICAL: also clear the stale
+  // liveBar ref — otherwise the first rebuild re-anchors the whole ladder to the
+  // PREVIOUS symbol's price (e.g. TSLA ladder showing NQ's ~30,000 levels).
   useEffect(() => {
     vpCenterRef.current = null;
+    liveBarRef.current  = null;
     tickAccRef.current  = new Map();
   }, [symbol]);
 
@@ -177,6 +180,12 @@ export function VolumeProfileLadder({ symbol }: { symbol: string }) {
 
     // Always snap center to nearest tick — ensures grid is tick-aligned
     const snapped = Math.round(rawPrice / tick) * tick;
+    // Self-heal: if the center is wildly off the live price (>12%, e.g. left over
+    // from a previous symbol), hard-reset so the ladder can't show wrong levels.
+    if (vpCenterRef.current !== null && rawPrice > 0 &&
+        Math.abs(vpCenterRef.current - rawPrice) / rawPrice > 0.12) {
+      vpCenterRef.current = null;
+    }
     if (vpCenterRef.current === null) {
       // First run: initialize to snapped price
       vpCenterRef.current = snapped;
