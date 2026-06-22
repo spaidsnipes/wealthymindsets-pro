@@ -1237,7 +1237,6 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       }
 
       chartRef.current  = chart;
-      if (typeof window !== "undefined") (window as any).__wmChart = chart;
       candleRef.current = cs;
       volRef.current    = vs;
       barsRef.current   = data;
@@ -3363,7 +3362,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const scale = Math.min(1, (poc.total / avgLevVol - 1.8) / 3);
           const baseR = Math.round(14 + scale * 30); // 14 → 44 px
           const side: "buy" | "sell" = poc.ask >= poc.bid ? "buy" : "sell";
-          const value = side === "buy" ? Math.round(poc.total) : -Math.round(poc.total);
+          // Show NOTIONAL dollar size (volume × price), not raw volume — otherwise
+          // crypto (volume in coins, e.g. 5 BTC) shows a meaningless "5" while
+          // stocks/futures show "11k". Notional is consistent + meaningful on every
+          // asset class (BTC: 5 × $64k = "$320k"; AAPL/NQ scale the same way).
+          const notional = poc.total * (poc.priceLevel || c.close || 1);
+          const value = (side === "buy" ? 1 : -1) * Math.round(notional);
 
           // Spawn once per bar (dedupe by bar time). Cap active bubbles.
           const key = String(c.time);
@@ -3381,7 +3385,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               side,
               value,
               born:  now0,
-              life:  Infinity,           // big bubbles linger at their key level
+              life:  9000,               // linger ~9s at the level then refresh (not forever)
               popping: false,
               popT:  0,
               anchorTime:  c.time as number,
@@ -3470,7 +3474,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 // absorber grows by area-equivalent of the swallowed bubble (capped)
                 const grown = Math.sqrt(a.baseR * a.baseR + s.baseR * s.baseR * 0.55);
                 a.baseR = Math.min(66, grown);
-                a.value += (a.value >= 0 ? 1 : -1) * Math.abs(s.value) * 0.5;
+                // NOTE: do NOT accumulate value here. Big bubbles have a long life
+                // and absorb a new companion every ~second, so "value += ..." would
+                // compound unbounded into garbage like 19,646,512,705,155M. The
+                // bubble's number stays its own (real) trade notional; only the
+                // RADIUS grows to show it's absorbing.
                 a.absorbFlash = 1;          // brief swell flash on the absorber
                 playBloop(a.baseR > 40);    // water-bubble "bloop" on absorb
               }
