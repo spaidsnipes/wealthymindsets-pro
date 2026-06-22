@@ -251,3 +251,64 @@ input[type=range]::-webkit-slider-runnable-track {
   box-shadow: 0 0 14px rgba(47,243,255,0.4), inset 0 0 10px rgba(47,243,255,0.12);
   text-shadow: 0 0 8px rgba(47,243,255,0.6);
 }
+
+/* ══════════════════════════════════════════════════════════════
+   WM NEON — AGGRESSIVE PASS: make EVERY element match the glowing
+   "WM Neon" button. Targets the exact inline hex colors used across
+   the charts page (stylesheet !important overrides inline styles).
+══════════════════════════════════════════════════════════════ */
+/* Deep neon blue-black backgrounds (toolbars, panels, cards, dropdowns) */
+.wm-neon [style*="#0D0E14"],
+.wm-neon [style*="#131520"],
+.wm-neon [style*="#0A0B10"],
+.wm-neon [style*="#141824"],
+.wm-neon [style*="#0B0E1A"],
+.wm-neon [style*="#13151F"],
+.wm-neon [style*="#161616"],
+.wm-neon [style*="#111111"],
+.wm-neon [style*="#0A0A0A"] {
+  background-color: #04111f !important;
+}
+/* Glowing cyan borders everywhere a dark border hex was used */
+.wm-neon [style*="#1E2030"],
+.wm-neon [style*="#263050"],
+.wm-neon [style*="#222"],
+.wm-neon [style*="#252"] {
+  border-color: rgba(47,243,255,0.40) !important;
+}
+/* Every bordered container picks up the button's faint outer glow */
+.wm-neon [style*="border"] {
+  box-shadow: 0 0 9px rgba(47,243,255,0.07), inset 0 0 6px rgba(47,243,255,0.03);
+}
+/* Buttons glow like the WM Neon button, brighter on hover/active */
+.wm-neon button {
+  border-color: rgba(47,243,255,0.30) !important;
+  transition: box-shadow .18s, border-color .18s, background-color .18s;
+}
+.wm-neon button:hover {
+  border-color: rgba(47,243,255,0.7) !important;
+  box-shadow: 0 0 12px rgba(47,243,255,0.35), inset 0 0 8px rgba(47,243,255,0.08) !important;
+  color: #d8f6ff !important;
+}
+/* Inputs / selects → glassy neon */
+.wm-neon input, .wm-neon select, .wm-neon textarea {
+  background-color: rgba(6,20,36,0.7) !important;
+  border-color: rgba(47,243,255,0.30) !important;
+  color: #d8f6ff !important;
+}
+.wm-neon input:focus, .wm-neon select:focus {
+  border-color: rgba(47,243,255,0.7) !important;
+  box-shadow: 0 0 10px rgba(47,243,255,0.3) !important;
+}
+/* Bright/white text gets a subtle cyan glow for the sci-fi feel */
+.wm-neon [style*="#E2E8F0"],
+.wm-neon [style*="#E8EDF3"],
+.wm-neon [style*="#fff"],
+.wm-neon [style*="#FFF"],
+.wm-neon [style*="#ffffff"] {
+  text-shadow: 0 0 7px rgba(47,243,255,0.35);
+}
+/* Side rail / left nav + watchlist edges glow */
+.wm-neon aside, .wm-neon nav {
+  box-shadow: inset -1px 0 0 rgba(47,243,255,0.18);
+}
