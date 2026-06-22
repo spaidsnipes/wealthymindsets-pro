@@ -302,6 +302,82 @@ function tryBinance(
   };
 }
 
+/* ── Coinbase WebSocket adapter (real-time crypto, US, no key) ─────────
+ * wss://ws-feed.exchange.coinbase.com — `ticker` channel pushes on every
+ * match (real trade). Higher US volume than Binance.US → ~4 ticks/sec on BTC
+ * (measured 33 updates / 8s vs Binance.US 6). This is the primary crypto feed.
+ ───────────────────────────────────────────────────────────────────── */
+const COINBASE_PRODUCT: Record<string, string> = {
+  BTC: "BTC-USD", ETH: "ETH-USD", SOL: "SOL-USD", BNB: "BNB-USD",
+  XRP: "XRP-USD", DOGE: "DOGE-USD", ADA: "ADA-USD", AVAX: "AVAX-USD",
+  LINK: "LINK-USD", DOT: "DOT-USD", LTC: "LTC-USD", ATOM: "ATOM-USD",
+  UNI: "UNI-USD", MATIC: "MATIC-USD", BTCUSD: "BTC-USD", ETHUSD: "ETH-USD",
+  SOLUSD: "SOL-USD",
+};
+
+function coinbaseProduct(symbol: string): string | null {
+  return COINBASE_PRODUCT[symbol.toUpperCase()] ?? null;
+}
+
+function tryCoinbase(
+  symbol:   string,
+  onTick:   (t: Tick, isReal: boolean) => void,
+  onStatus: (connected: boolean) => void,
+): (() => void) | null {
+  const product = coinbaseProduct(symbol);
+  if (!product) return null;
+
+  let ws: WebSocket | null = null;
+  let closed = false;
+  let retry = 0;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const connect = () => {
+    if (closed) return;
+    try {
+      ws = new WebSocket("wss://ws-feed.exchange.coinbase.com");
+    } catch { scheduleReconnect(); return; }
+
+    ws.onopen = () => {
+      retry = 0;
+      ws?.send(JSON.stringify({ type: "subscribe", product_ids: [product], channels: ["ticker"] }));
+      onStatus(true);
+    };
+
+    ws.onmessage = (ev) => {
+      try {
+        const m = JSON.parse(ev.data as string);
+        if (m.type === "ticker" && m.price) {
+          const price = parseFloat(m.price);
+          if (price > 0) {
+            // Coinbase `side` is the maker side; aggressor is the opposite.
+            const side: "buy" | "sell" = m.side === "sell" ? "buy" : "sell";
+            onTick({ price, size: parseFloat(m.last_size) || 0.01, side, time: Date.now() }, true);
+          }
+        }
+      } catch { /* ignore */ }
+    };
+
+    ws.onerror = () => { onStatus(false); };
+    ws.onclose = () => { onStatus(false); if (!closed) scheduleReconnect(); };
+  };
+
+  const scheduleReconnect = () => {
+    if (closed) return;
+    retry = Math.min(retry + 1, 6);
+    const delay = Math.min(1000 * 2 ** retry, 15000);
+    reconnectTimer = setTimeout(connect, delay);
+  };
+
+  connect();
+
+  return () => {
+    closed = true;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    try { ws?.close(); } catch {}
+  };
+}
+
 /* ── Main hook ──────────────────────────────────────────── */
 export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe: string }) {
   const base      = getBasePrice(symbol);
@@ -562,16 +638,31 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     const isFuture = symbol.endsWith("1!") || symbol.includes("=F");
     const isCrypto = binancePair(symbol) != null;
 
-    // ── CRYPTO: real-time Binance WebSocket (public, no key, 24/7) ──
-    // This is the primary live feed for BTC/ETH/etc. — true tick-by-tick.
-    const binanceCleanup = isCrypto
-      ? tryBinance(symbol, processTick, (ok) => {
-          if (ok) {
-            hasRealDataRef.current = true;
-            setState(p => ({ ...p, source: "binance", connected: true }));
-          }
-        })
-      : null;
+    // ── CRYPTO: real-time WebSocket (US-compliant, no key, 24/7) ──
+    // Primary = Coinbase (highest US volume, ~4 ticks/sec). Binance.US is kept
+    // as an automatic fallback if Coinbase fails to connect.
+    let cryptoCleanup: (() => void) | null = null;
+    let cryptoFallback: (() => void) | null = null;
+    if (isCrypto) {
+      let gotCoinbase = false;
+      cryptoCleanup = tryCoinbase(symbol, processTick, (ok) => {
+        if (ok) {
+          gotCoinbase = true;
+          hasRealDataRef.current = true;
+          setState(p => ({ ...p, source: "binance" /* "live" badge */, connected: true }));
+        }
+      });
+      // If Coinbase hasn't connected within 4s, spin up Binance.US too.
+      setTimeout(() => {
+        if (!gotCoinbase && !cryptoFallback) {
+          cryptoFallback = tryBinance(symbol, processTick, (ok) => {
+            if (ok) { hasRealDataRef.current = true; setState(p => ({ ...p, source: "binance", connected: true })); }
+          });
+          if (cryptoFallback) cleanupFns.current.push(cryptoFallback);
+        }
+      }, 4000);
+    }
+    const binanceCleanup = cryptoCleanup;
 
     // ── STOCKS/ETFs: Finnhub WS (skip for futures + crypto) ──
     const fhWsSym = symbol.toUpperCase();
