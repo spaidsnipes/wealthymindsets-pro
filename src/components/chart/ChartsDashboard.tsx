@@ -452,10 +452,10 @@ export function ChartsDashboard() {
                 }}
               />
               {/* WM VP Indicator buttons */}
-              <div className="flex items-center gap-1 px-2 border-l border-wm-border/50 h-full">
+              <div className="flex items-center gap-1 px-2 border-l border-wm-border/50 h-full shrink-0">
                 <button
                   onClick={() => setFixedVPActive(v => !v)}
-                  className="flex items-center gap-1 px-2 h-5 rounded text-[12px] font-bold transition-all border"
+                  className="flex items-center gap-1 px-2 h-5 rounded text-[12px] font-bold transition-all border shrink-0 whitespace-nowrap"
                   style={{
                     background: fixedVPActive ? "rgba(240,180,41,0.15)" : "#131520",
                     borderColor: fixedVPActive ? "rgba(240,180,41,0.5)" : "#1E2030",
@@ -467,7 +467,7 @@ export function ChartsDashboard() {
                 </button>
                 <button
                   onClick={() => setSessionVPChart(v => !v)}
-                  className="flex items-center gap-1 px-2 h-5 rounded text-[12px] font-bold transition-all border"
+                  className="flex items-center gap-1 px-2 h-5 rounded text-[12px] font-bold transition-all border shrink-0 whitespace-nowrap"
                   style={{
                     background: sessionVPChart ? "rgba(139,92,246,0.15)" : "#131520",
                     borderColor: sessionVPChart ? "rgba(139,92,246,0.5)" : "#1E2030",
