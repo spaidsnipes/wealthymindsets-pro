@@ -1376,6 +1376,69 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     }
   }, [liveBar, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* ── DIRECT live-price poller (guaranteed chart movement) ──────
+   * Decisive, self-contained: polls the real quote every 2.5s and forces the
+   * price onto the visible last candle using THAT candle's own timestamp — so
+   * series.update() can never be rejected for "older than last bar". This is
+   * independent of the websocket/tick chain, so even if that path stalls, the
+   * chart still tracks live price. Futures use Yahoo ES=F (the only entitled
+   * live source); stocks/crypto resolve to their best source server-side.
+   ───────────────────────────────────────────────────────────── */
+  useEffect(() => {
+    if (!ready) return;
+    let alive = true;
+
+    const quoteUrl = (sym: string) => {
+      const up = sym.toUpperCase();
+      const isFut = up.endsWith("1!") || up.includes("=F");
+      const isCry = ["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","BTCUSD","ETHUSD"].includes(up);
+      // Futures + crypto → Yahoo (entitled/live). Stocks → Finnhub (real quote), Yahoo fallback handled by route.
+      return (!isFut && !isCry)
+        ? `/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`
+        : `/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`;
+    };
+
+    const poll = async () => {
+      try {
+        const j = await fetch(quoteUrl(symbol), { cache: "no-store" }).then(r => r.json());
+        const price: number = j?.price ?? j?.c ?? 0;
+        if (!alive || !(price > 0) || !candleRef.current) return;
+
+        const bars = barsRef.current;
+        const last = bars[bars.length - 1];
+        if (!last) return;
+
+        // Roll a new bar if the current wall-clock bar boundary has passed the
+        // last bar; otherwise update the last candle in place. Either way the
+        // time is guaranteed >= last bar's time → update() never throws.
+        const sec      = getIntervalSec(timeframe);
+        const boundary = Math.floor(Date.now() / 1000 / sec) * sec;
+        let updated: Bar;
+        if (boundary > (last.time as number)) {
+          updated = { time: boundary as any, open: price, high: price, low: price, close: price, volume: 0 };
+          barsRef.current = [...bars, updated];
+        } else {
+          updated = {
+            time:   last.time,
+            open:   last.open,
+            high:   Math.max(last.high, price),
+            low:    Math.min(last.low, price),
+            close:  price,
+            volume: last.volume,
+          };
+          barsRef.current = [...bars.slice(0, -1), updated];
+        }
+        try { candleRef.current.update(updated as any); } catch {}
+        setLastPrice(price);
+      } catch { /* network hiccup — try again next tick */ }
+    };
+
+    poll();
+    const id = setInterval(poll, 2500);
+    return () => { alive = false; clearInterval(id); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol, timeframe, ready]);
+
   /* ── Pine Script series ─────────────────────────────────── */
   useEffect(() => {
     if (!ready || !chartRef.current || !pineOutput) return;
