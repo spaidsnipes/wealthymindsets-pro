@@ -84,6 +84,18 @@ type RealQuote = { price: number; change: number; changePct: number; source: str
 
 async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
   const upper = sym.toUpperCase();
+
+  // Per-exchange crypto (e.g. "BTC.COINBASE") → that exchange's quote
+  const exMatch = upper.match(/^([A-Z]{2,6})\.(COINBASE|KRAKEN|BITSTAMP|BINANCEUS|GEMINI)$/);
+  if (exMatch) {
+    try {
+      const ex = exMatch[2].toLowerCase();
+      const j = await fetch(`/api/exchange?ex=${ex}&coin=${exMatch[1]}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      if ((j?.price ?? 0) > 0) return { price: j.price, change: j.change ?? 0, changePct: j.changePct ?? 0, source: "binance" };
+    } catch {}
+    return null;
+  }
+
   const isFutures = FUTURES_SET.has(upper) || upper.endsWith("1!");
   const isCrypto  = CRYPTO_SET.has(upper);
   const isForex   = upper.includes("/");

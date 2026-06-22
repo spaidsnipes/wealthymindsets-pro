@@ -174,6 +174,18 @@ const ALL_SYMBOLS: SymbolEntry[] = [
   { sym:"ATOM",    name:"Cosmos",                 cat:"Crypto" },
   { sym:"UNI",     name:"Uniswap",                cat:"Crypto" },
   { sym:"AAVE",    name:"Aave",                   cat:"Crypto" },
+  // ── Per-exchange BTC (labeled so you always know which exchange) ──
+  { sym:"BTC.COINBASE",  name:"Bitcoin · Coinbase",   cat:"Crypto" },
+  { sym:"BTC.KRAKEN",    name:"Bitcoin · Kraken",     cat:"Crypto" },
+  { sym:"BTC.BITSTAMP",  name:"Bitcoin · Bitstamp",   cat:"Crypto" },
+  { sym:"BTC.BINANCEUS", name:"Bitcoin · Binance.US", cat:"Crypto" },
+  { sym:"BTC.GEMINI",    name:"Bitcoin · Gemini",     cat:"Crypto" },
+  // ── Per-exchange ETH ──
+  { sym:"ETH.COINBASE",  name:"Ethereum · Coinbase",   cat:"Crypto" },
+  { sym:"ETH.KRAKEN",    name:"Ethereum · Kraken",     cat:"Crypto" },
+  { sym:"ETH.BITSTAMP",  name:"Ethereum · Bitstamp",   cat:"Crypto" },
+  { sym:"ETH.BINANCEUS", name:"Ethereum · Binance.US", cat:"Crypto" },
+  { sym:"ETH.GEMINI",    name:"Ethereum · Gemini",     cat:"Crypto" },
   { sym:"FIL",     name:"Filecoin",               cat:"Crypto" },
   { sym:"ICP",     name:"Internet Computer",      cat:"Crypto" },
   { sym:"ARB",     name:"Arbitrum",               cat:"Crypto" },

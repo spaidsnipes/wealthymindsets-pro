@@ -15,6 +15,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import type { FootprintType, CandleType } from "./ChartsDashboard";
 import { resolveParams, type IndicatorSettings } from "./indicatorConfig";
+import { parseExchangeSymbol } from "@/lib/exchanges";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import type { PineOutput } from "@/lib/pine/types";
 import * as IND from "./indicators";
@@ -59,7 +60,10 @@ const SYMBOL_BASE: Record<string, number> = {
 
 // Normalize common aliases → canonical symbol used throughout the app
 function normalizeSym(sym: string): string {
-  const u = sym.toUpperCase();
+  let u = sym.toUpperCase();
+  // Strip per-exchange suffix: "BTC.COINBASE" → "BTC"
+  const dot = u.indexOf(".");
+  if (dot > 0 && /COINBASE|KRAKEN|BITSTAMP|BINANCEUS|GEMINI/.test(u.slice(dot + 1))) u = u.slice(0, dot);
   const aliases: Record<string, string> = {
     BTCUSD: "BTC", ETHUSD: "ETH", SOLUSD: "SOL", BNBUSD: "BNB",
     XRPUSD: "XRP", DOGEUSD: "DOGE", ADAUSD: "ADA", AVAXUSD: "AVAX",
@@ -898,13 +902,20 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                      : ["M","3M","6M","1Y","3Y","5Y"].includes(timeframe) ? 400
                      : 500;
 
-      // Priority: 1) Alpaca (if key set), 2) Finnhub, 3) Yahoo, 4) Finnhub REST, 5) Polygon, 6) synthetic
-      const alpacaData   = await fetchAlpacaCandles(symbol, timeframe, barCount);
-      const fhDirectData = alpacaData ? null : await fetchFinnhubCandlesDirect(symbol, timeframe, barCount);
-      const yahooData    = (alpacaData || fhDirectData) ? null : await fetchYahooCandles(symbol, timeframe, barCount);
-      const finnhubData  = (alpacaData || fhDirectData || yahooData) ? null : await fetchFinnhubCandles(symbol, timeframe, barCount);
-      const polyData     = (alpacaData || fhDirectData || yahooData || finnhubData) ? null : await fetchPolygonOHLCV(symbol, timeframe, barCount);
-      const realData     = alpacaData ?? fhDirectData ?? yahooData ?? finnhubData ?? polyData;
+      // Per-exchange crypto (e.g. "BTC.COINBASE") → that exchange's real candles
+      const exParsed = parseExchangeSymbol(symbol);
+      const exchangeData = exParsed
+        ? await fetch(`/api/exchange?ex=${exParsed.exchange}&coin=${exParsed.coin}&type=candles&tf=${timeframe}&bars=${barCount}`, { cache: "no-store" })
+            .then(r => r.json()).then(j => Array.isArray(j?.candles) && j.candles.length ? j.candles as Bar[] : null).catch(() => null)
+        : null;
+
+      // Priority: 0) Exchange-specific, 1) Alpaca, 2) Finnhub, 3) Yahoo, 4) Finnhub REST, 5) Polygon, 6) synthetic
+      const alpacaData   = exchangeData ? null : await fetchAlpacaCandles(symbol, timeframe, barCount);
+      const fhDirectData = (exchangeData || alpacaData) ? null : await fetchFinnhubCandlesDirect(symbol, timeframe, barCount);
+      const yahooData    = (exchangeData || alpacaData || fhDirectData) ? null : await fetchYahooCandles(symbol, timeframe, barCount);
+      const finnhubData  = (exchangeData || alpacaData || fhDirectData || yahooData) ? null : await fetchFinnhubCandles(symbol, timeframe, barCount);
+      const polyData     = (exchangeData || alpacaData || fhDirectData || yahooData || finnhubData) ? null : await fetchPolygonOHLCV(symbol, timeframe, barCount);
+      const realData     = exchangeData ?? alpacaData ?? fhDirectData ?? yahooData ?? finnhubData ?? polyData;
 
       // Real spot price (from parallel fetch above)
       const spotPrice = await spotFetch;
@@ -1388,13 +1399,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     if (!ready) return;
     let alive = true;
 
-    // Crypto is driven live by the Binance.US WebSocket (useWebSocket) — skip the
-    // REST poller for it so the two don't fight over the last candle.
     const upSym = symbol.toUpperCase();
-    const isCrypto = ["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","ATOM","UNI","MATIC","BTCUSD","ETHUSD","SOLUSD"].includes(upSym);
-    if (isCrypto) return;
+    const exSym = parseExchangeSymbol(symbol);
+
+    // Plain crypto (no exchange suffix) is driven by the Coinbase WS — skip poller.
+    const isPlainCrypto = !exSym && ["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","ATOM","UNI","MATIC","BTCUSD","ETHUSD","SOLUSD"].includes(upSym);
+    if (isPlainCrypto) return;
 
     const quoteUrl = (sym: string) => {
+      // Per-exchange crypto → that exchange's live quote
+      if (exSym) return `/api/exchange?ex=${exSym.exchange}&coin=${exSym.coin}&type=quote`;
       const up = sym.toUpperCase();
       const isFut = up.endsWith("1!") || up.includes("=F");
       // Futures → Yahoo (entitled/live). Stocks → Finnhub (real quote), Yahoo fallback handled by route.
