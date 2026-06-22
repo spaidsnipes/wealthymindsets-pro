@@ -3297,30 +3297,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const cx = Math.round(rawCx);
           const rawYH = srs.priceToCoordinate(c.high);
           const rawYL = srs.priceToCoordinate(c.low);
-          const rawYO = srs.priceToCoordinate(c.open);
-          const rawYC = srs.priceToCoordinate(c.close);
-          if (rawYH == null || rawYL == null || rawYO == null || rawYC == null) return;
+          if (rawYH == null || rawYL == null) return;
           const yH = Math.round(rawYH);
           const yL = Math.round(rawYL);
-          const yO = Math.round(rawYO);
-          const yC = Math.round(rawYC);
-          const bodyY = Math.min(yO, yC);
-          const bodyH = Math.max(2, Math.abs(yC - yO));
-          const x     = cx - halfW;
-          const isBull = c.close >= c.open;
-          // Green for buyers / red for sellers (match the bubble color scheme)
-          const bodyColor = isBull
-            ? (chartSettings?.candleUp   ? hexToRgba(chartSettings.candleUp,   0.92) : "rgba(0,200,118,0.92)")
-            : (chartSettings?.candleDown ? hexToRgba(chartSettings.candleDown, 0.92) : "rgba(255,77,103,0.92)");
-
-          // Candle body (solid fill)
-          ctx.fillStyle = bodyColor;
-          ctx.fillRect(x, bodyY, colW, bodyH);
-
-          // Wicks
-          ctx.strokeStyle = bodyColor; ctx.lineWidth = 1; ctx.setLineDash([]);
-          if (yH < bodyY) { ctx.beginPath(); ctx.moveTo(cx + 0.5, yH); ctx.lineTo(cx + 0.5, bodyY); ctx.stroke(); }
-          if (yL > bodyY + bodyH) { ctx.beginPath(); ctx.moveTo(cx + 0.5, bodyY + bodyH); ctx.lineTo(cx + 0.5, yL); ctx.stroke(); }
+          // NOTE: do NOT redraw candle bodies/wicks here — the real Lightweight
+          // Charts candlestick series already renders them underneath. Drawing a
+          // second set on the canvas was causing the "overlapping/doubled" candles
+          // in Big Trades mode (and wasted render time). We only overlay bubbles.
 
           // Find "big trade" — highest volume level
           const fullH  = Math.max(2, yL - yH);
