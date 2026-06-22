@@ -1237,6 +1237,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       }
 
       chartRef.current  = chart;
+      if (typeof window !== "undefined") (window as any).__wmChart = chart;
       candleRef.current = cs;
       volRef.current    = vs;
       barsRef.current   = data;
@@ -1528,21 +1529,33 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // band at the BOTTOM (TradingView-style), above the volume zone, so RSI /
     // Stoch RSI / CVD / MACD don't pile on top of each other or the candles.
     const oscSlotMap = new Map<string, number>();
+    const oscMargins = new Map<string, { top: number; bottom: number }>();
     let oscNext = 0;
     const VOL_ZONE = 0.18;   // bottom 18% reserved for volume bars
     const PANE_H   = 0.15;   // each oscillator pane height
     const setupScale = (id: string, _top?: number, _bot?: number) => {
       let slot = oscSlotMap.get(id);
       if (slot === undefined) { slot = oscNext++; oscSlotMap.set(id, slot); }
-      const bottom = VOL_ZONE + slot * PANE_H;
+      const bottom = Math.min(0.7, VOL_ZONE + slot * PANE_H);
       const top    = Math.max(0.26, 1 - VOL_ZONE - (slot + 1) * PANE_H);
-      try { chart.priceScale(id).applyOptions({ scaleMargins: { top, bottom: Math.min(bottom, 0.7) }, borderColor: "transparent" }); } catch {}
+      oscMargins.set(id, { top, bottom });
+      // The price scale may not exist until a series is attached to it, so this
+      // first attempt can no-op. applyMargins() re-applies after the series is
+      // created (in addOsc/addOscHist) — that's what actually makes it stick.
+      try { chart.priceScale(id).applyOptions({ scaleMargins: { top, bottom }, borderColor: "transparent" }); } catch {}
+    };
+    // Re-apply the stored bottom-pane margins once the scale truly exists.
+    const applyMargins = (id: string) => {
+      const m = oscMargins.get(id);
+      if (!m) return;
+      try { chart.priceScale(id).applyOptions({ scaleMargins: m, borderColor: "transparent" }); } catch {}
     };
     const addOsc = (vals: number[], color: string, scaleId: string, width = 1) => {
       try {
         const s = chart.addLineSeries({ color, lineWidth: width, priceScaleId: scaleId, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false });
         s.setData(bars.map((b, i) => ({ time: b.time as any, value: vals[i] })).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
+        applyMargins(scaleId);   // ← scale now exists → margins stick (fixes RSI/etc. sprawling over candles)
         return s;
       } catch { return null; }
     };
@@ -1551,6 +1564,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         const s = chart.addHistogramSeries({ priceScaleId: scaleId, priceLineVisible: false, lastValueVisible: false });
         s.setData(bars.map((b, i) => ({ time: b.time as any, value: vals[i], color: Array.isArray(colors) ? colors[i] : colors })).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
+        applyMargins(scaleId);
         return s;
       } catch { return null; }
     };
@@ -2374,6 +2388,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         });
       } catch {}
     }
+
+    // ── Reserve candle space for the oscillator stack (TradingView-style) ──
+    // In LWC v4's single pane, non-overlapping bottom panes require the main
+    // candle area to make room below it. Push the candle scale's bottom margin
+    // down by however many oscillator panes are active so they never overlap the
+    // candles. When no oscillators are active, restore the default.
+    try {
+      const candleBottom = oscNext > 0 ? Math.min(0.72, VOL_ZONE + oscNext * PANE_H) : 0.25;
+      chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.06, bottom: candleBottom } });
+    } catch {}
 
     // Cleanup so React Strict Mode doesn't orphan series
     return () => {
