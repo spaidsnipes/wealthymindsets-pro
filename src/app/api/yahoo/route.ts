@@ -110,7 +110,7 @@ export async function GET(request: Request) {
       /* ── Current quote ──────────────────────────────────── */
       // Use 5d/1d range to guarantee ≥2 daily bars so we can derive prevClose for futures
       const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym)}?interval=1d&range=5d`;
-      const json = await yfFetch(url, 8_000) as any;
+      const json = await yfFetch(url, 2_000) as any; // 2s cache → near-live polled quotes
       const result = json?.chart?.result?.[0];
       const meta   = result?.meta;
       if (!meta) return NextResponse.json({ error: "No data" }, { status: 404 });

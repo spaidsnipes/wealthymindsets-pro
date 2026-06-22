@@ -45,7 +45,7 @@ export interface MarketState {
   recentTicks: Tick[];
   orderBook:   { bids: OrderBookLevel[]; asks: OrderBookLevel[] };
   connected:   boolean;
-  source:      "polygon" | "finnhub" | "synthetic";
+  source:      "polygon" | "finnhub" | "synthetic" | "yahoo" | "alpaca";
   latency:     number; // ms to last update
 }
 
@@ -80,25 +80,34 @@ function getBasePrice(sym: string) {
 const FUTURES_SET = new Set(["NQ1!","ES1!","RTY1!","YM1!","GC1!","SI1!","CL1!","NG1!","ZB1!","ZN1!","ZF1!","ZT1!","HG1!","MNQ1!","MES1!","MYM1!","M2K1!","MGC1!","MCL1!","VX1!"]);
 const CRYPTO_SET  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","ATOM","UNI"]);
 
-async function fetchRealPrice(sym: string, _polygonKey: string): Promise<number | null> {
+type RealQuote = { price: number; change: number; changePct: number; source: string };
+
+async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
   const upper = sym.toUpperCase();
   const isFutures = FUTURES_SET.has(upper) || upper.endsWith("1!");
   const isCrypto  = CRYPTO_SET.has(upper);
   const isForex   = upper.includes("/");
 
+  const mk = (j: any, source: string): RealQuote | null => {
+    const price = j?.price ?? j?.c ?? 0;
+    if (!(price > 0)) return null;
+    // prefer explicit change fields; otherwise derive from open/prevClose
+    const prev  = j?.prevClose ?? j?.pc ?? j?.open ?? price;
+    const change    = j?.change    ?? +(price - prev).toFixed(4);
+    const changePct = j?.changePct ?? (prev > 0 ? +((price - prev) / prev * 100).toFixed(4) : 0);
+    return { price, change, changePct, source };
+  };
+
   // ── Stocks & ETFs: Alpaca first (if key set), then Finnhub ──────────────
   if (!isFutures && !isForex) {
-    // Try Alpaca (real-time IEX feed, stocks + crypto)
     try {
       const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(upper)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-      if ((j?.price ?? 0) > 0) return j.price as number;
+      const q = mk(j, "alpaca"); if (q) return q;
     } catch {}
-
-    // Fallback to Finnhub for stocks/ETFs
     if (!isCrypto) {
       try {
         const j = await fetch(`/api/finnhub?sym=${encodeURIComponent(upper)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-        if ((j?.price ?? 0) > 0) return j.price as number;
+        const q = mk(j, "finnhub"); if (q) return q;
       } catch {}
     }
   }
@@ -106,7 +115,7 @@ async function fetchRealPrice(sym: string, _polygonKey: string): Promise<number 
   // ── Futures + Crypto + final fallback: Yahoo Finance proxy ──────────────
   try {
     const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-    if ((j?.price ?? 0) > 0) return j.price as number;
+    const q = mk(j, "yahoo"); if (q) return q;
   } catch {}
 
   return null;
@@ -468,28 +477,28 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         })
       : null;
 
-    // ── REST polling every 5s — primary price anchor (replaces synthetic drift) ──
+    // ── REST polling — REAL price drives the live bar (no faked movement) ──
     const doRestFetch = () => {
-      fetchRealPrice(symbol, "").then(realPrice => {
-        if (realPrice && realPrice > 0) {
-          const prevBase = baseRef.current;
-          baseRef.current  = realPrice;
-          priceRef.current = realPrice;
-          bookRef.current  = buildBook(realPrice);
-          hasRealDataRef.current = true;
-          // Restart synthetic engine anchored to real market price (much tighter drift)
-          startSynthetic(realPrice);
-          setState(prev2 => {
-            const change    = +(realPrice - prevBase).toFixed(4);
-            const changePct = prevBase > 0 ? +(change / prevBase * 100).toFixed(4) : 0;
-            return {
-              ...prev2,
-              source: prev2.source === "synthetic" ? "finnhub" : prev2.source,
-              ticker: { price: realPrice, change, changePct, volume: prev2.ticker.volume },
-              orderBook: bookRef.current,
-            };
-          });
-        }
+      fetchRealQuote(symbol).then(q => {
+        if (!q) return;
+        const realPrice = q.price;
+        const prevPrice = priceRef.current;
+        priceRef.current = realPrice;
+        bookRef.current  = buildBook(realPrice);
+        hasRealDataRef.current = true;
+        // CRITICAL FIX: feed the real price through processTick so the LIVE BAR
+        // (barRef → chart candles) actually updates. Previously only the ticker
+        // updated and the candles stayed frozen.
+        const side: "buy" | "sell" = realPrice >= prevPrice ? "buy" : "sell";
+        processTick({ price: realPrice, size: 1, side, time: Date.now() }, true);
+        // Real day change comes straight from the quote (not a per-poll delta).
+        setState(prev2 => ({
+          ...prev2,
+          source: q.source as MarketState["source"],
+          connected: true,
+          ticker: { price: realPrice, change: q.change, changePct: q.changePct, volume: prev2.ticker.volume },
+          orderBook: bookRef.current,
+        }));
       });
     };
 
