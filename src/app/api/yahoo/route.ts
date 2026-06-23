@@ -47,7 +47,13 @@ const YF_MAP: Record<string, string> = {
 };
 
 function toYFSym(sym: string): string {
-  return YF_MAP[sym.toUpperCase()] ?? sym.toUpperCase();
+  const up = sym.toUpperCase();
+  if (YF_MAP[up]) return YF_MAP[up];
+  // Forex pairs: Yahoo uses the "EURUSD=X" format (no slash).
+  // Handles "EUR/USD", "GBP/JPY", and also bare 6-letter pairs like "EURUSD".
+  if (up.includes("/")) return `${up.replace("/", "")}=X`;
+  if (/^(EUR|GBP|USD|JPY|AUD|NZD|CAD|CHF|CNH)(USD|JPY|EUR|GBP|AUD|NZD|CAD|CHF|CNH)$/.test(up)) return `${up}=X`;
+  return up;
 }
 
 /* ── Interval mapping ──────────────────────────────────────── */
