@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { X, Settings, Info, BarChart2, TrendingUp, Sliders } from "lucide-react";
 
 export interface ChartSettings {
@@ -133,6 +133,7 @@ const TABS: { id: Tab; icon: React.ReactNode; label: string }[] = [
 
 export function ChartSettingsModal({ open, onClose, symbol, settings, onSettingsChange }: Props) {
   const [tab, setTab] = useState<Tab>("chart");
+  const dragControls = useDragControls();
   const s = settings;
   const set = (patch: Partial<ChartSettings>) => onSettingsChange({ ...s, ...patch });
 
@@ -152,13 +153,17 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
           />
 
           <motion.div
+            drag
+            dragControls={dragControls}
+            dragListener={false}
+            dragMomentum={false}
+            dragElastic={0}
             initial={{ opacity: 0, scale: 0.95, y: -20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             transition={{ duration: 0.18 }}
             style={{
-              position: "fixed", top: "50%", left: "50%",
-              transform: "translate(-50%, -50%)",
+              position: "fixed", top: 64, left: "calc(50% - 260px)",
               width: 520, maxHeight: "80vh",
               background: "#0B0E1A",
               border: "1px solid #263050",
@@ -168,8 +173,12 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
               boxShadow: "0 24px 64px rgba(0,0,0,0.7)",
             }}
           >
-            {/* Header */}
-            <div style={{
+            {/* Header — drag handle (grab to move the panel anywhere) */}
+            <div
+              onPointerDown={(e) => dragControls.start(e)}
+              title="Drag to move this panel"
+              style={{
+              cursor: "move", userSelect: "none",
               display: "flex", alignItems: "center", justifyContent: "space-between",
               padding: "14px 18px", borderBottom: "1px solid #263050", flexShrink: 0,
             }}>
