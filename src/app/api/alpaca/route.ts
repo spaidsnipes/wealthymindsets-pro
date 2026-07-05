@@ -54,11 +54,21 @@ function toAlpacaTF(tf: string): { timeframe: string; daysBack: number } {
     "15m": { timeframe: "15Min", daysBack: 30  },
     "30m": { timeframe: "30Min", daysBack: 60  },
     "1h":  { timeframe: "1Hour", daysBack: 90  },
+    "2h":  { timeframe: "2Hour", daysBack: 120 },
     "4h":  { timeframe: "4Hour", daysBack: 180 },
-    "D":   { timeframe: "1Day",  daysBack: 730 },
-    "W":   { timeframe: "1Week", daysBack: 1825 },
+    "D":   { timeframe: "1Day",  daysBack: 2000 },
+    "W":   { timeframe: "1Week", daysBack: 3650 },
+    // Monthly & multi-month/year period selectors → monthly candles spanning
+    // years. Alpaca's largest bucket is 1Month; without these entries they fell
+    // through to the "1Min" default, which is why Monthly showed minute bars.
+    "M":   { timeframe: "1Month", daysBack: 5475 },   // ~15y
+    "3M":  { timeframe: "1Month", daysBack: 7300 },
+    "6M":  { timeframe: "1Month", daysBack: 7300 },
+    "1Y":  { timeframe: "1Month", daysBack: 7300 },
+    "3Y":  { timeframe: "1Month", daysBack: 7300 },
+    "5Y":  { timeframe: "1Month", daysBack: 7300 },
   };
-  return map[tf] ?? { timeframe: "1Min", daysBack: 2 };
+  return map[tf] ?? { timeframe: "1Day", daysBack: 2000 };
 }
 
 const CRYPTO_SYMS = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","MATIC","UNI","ATOM"]);
@@ -77,7 +87,9 @@ export async function GET(request: Request) {
   const rawSym = (searchParams.get("sym") ?? "").toUpperCase();
   const type   = searchParams.get("type") ?? "quote";
   const tf     = searchParams.get("tf") ?? "1m";
-  const bars   = Math.min(500, parseInt(searchParams.get("bars") ?? "300", 10));
+  // Cap raised to 5000 so Daily/Weekly/Monthly can return multi-year history
+  // (500 capped Daily to <2y — the user could never see their full 5 years).
+  const bars   = Math.min(5000, parseInt(searchParams.get("bars") ?? "300", 10));
 
   // Futures → not supported
   if (rawSym && isFuturesSym(rawSym)) {
@@ -125,6 +137,16 @@ export async function GET(request: Request) {
         low       = json?.dailyBar?.l     ?? price;
         volume    = json?.dailyBar?.v     ?? 0;
         prevClose = json?.prevDailyBar?.c ?? price;
+
+        // STALENESS GUARD: Alpaca's free IEX feed does NOT receive pre/post-market
+        // trades, so outside regular hours its "latestTrade" is stuck on the prior
+        // session close (e.g. TSLA 375 while the live pre-market is 369). When the
+        // last trade is older than ~3 min, treat Alpaca as stale and 404 so the
+        // caller falls through to Yahoo (which includes pre/post-market prices).
+        const tradeTs = json?.latestTrade?.t ? Date.parse(json.latestTrade.t) : 0;
+        if (tradeTs && Date.now() - tradeTs > 3 * 60_000) {
+          return NextResponse.json({ error: "Alpaca quote stale (extended hours) — use Yahoo", stale: true }, { status: 404 });
+        }
       }
 
       if (!price) return NextResponse.json({ error: "No data from Alpaca" }, { status: 404 });
@@ -154,11 +176,16 @@ export async function GET(request: Request) {
       let rawBars: any[] = [];
 
       if (crypto) {
-        // Crypto: sort=asc is fine, use start/end range
+        // Crypto: MUST use sort=desc then reverse — with sort=asc+limit Alpaca
+        // returns the OLDEST bars in the window and hits the limit before
+        // reaching the present, so intraday history ends hours/days ago while
+        // the live bar sits at "now" → a huge empty gap in the middle of the
+        // chart. sort=desc grabs the MOST RECENT `limit` bars (reaching today),
+        // then we reverse to chronological order — identical to the stocks path.
         const cryptoSym = toCryptoSym(rawSym);
-        const url = `${DATA_BASE}/v1beta3/crypto/us/bars?symbols=${encodeURIComponent(cryptoSym)}&timeframe=${timeframe}&start=${start}&end=${end}&limit=${bars}&sort=asc`;
+        const url = `${DATA_BASE}/v1beta3/crypto/us/bars?symbols=${encodeURIComponent(cryptoSym)}&timeframe=${timeframe}&start=${start}&end=${end}&limit=${bars}&sort=desc`;
         const json = await alpacaFetch(url, 20_000, false) as any;
-        rawBars = json?.bars?.[cryptoSym] ?? [];
+        rawBars = (json?.bars?.[cryptoSym] ?? []).slice().reverse();
       } else {
         if (!ALPACA_KEY || !ALPACA_SECRET) {
           return NextResponse.json({ candles: [], error: "Alpaca keys not set" }, { status: 503 });

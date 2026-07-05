@@ -96,20 +96,66 @@ function detectTags(item: { category: string; related: string; headline: string 
   return [...new Set(tags)].slice(0, 5);
 }
 
+type FinnhubRaw = {
+  id: number; datetime: number; headline: string; summary: string;
+  source: string; related: string; category: string; image: string; url: string;
+};
+
+/* ── User-supplied API keys (stored in localStorage `wm_api_keys`) ────────── */
+type ApiKeys = { newsapi?: string; xbearer?: string };
+function readApiKeys(): ApiKeys {
+  if (typeof window === "undefined") return {};
+  try { return JSON.parse(localStorage.getItem("wm_api_keys") || "{}") as ApiKeys; }
+  catch { return {}; }
+}
+
 async function fetchFinnhubNews(): Promise<NewsItem[]> {
   try {
-    const res = await fetch(
-      `https://finnhub.io/api/v1/news?category=general&token=${FINNHUB_KEY}`,
-      { cache: "no-store" }
-    );
-    if (!res.ok) throw new Error("Finnhub news failed");
-    const raw: Array<{
-      id: number; datetime: number; headline: string; summary: string;
-      source: string; related: string; category: string; image: string; url: string;
-    }> = await res.json();
+    const keys = readApiKeys();
+    const rssHeaders: Record<string, string> = {};
+    if (keys.newsapi) rssHeaders["x-newsapi-key"] = keys.newsapi;
+    if (keys.xbearer) rssHeaders["x-x-bearer"]    = keys.xbearer;
+    // Finnhub's "general" feed only carries Reuters/CNBC/Bloomberg. Pulling the
+    // other categories (crypto, forex, merger) brings in CoinDesk, MarketWatch,
+    // SEC-style filings and more, so the source filter actually has data to show.
+    const cats = ["general", "crypto", "forex", "merger"];
+    const [finnhubArrs, rssRaw] = await Promise.all([
+      Promise.all(
+        cats.map(c =>
+          fetch(`https://finnhub.io/api/v1/news?category=${c}&token=${FINNHUB_KEY}`, { cache: "no-store" })
+            .then(r => (r.ok ? r.json() : []))
+            .catch(() => [])
+        )
+      ),
+      // Real publisher RSS feeds (WSJ, MarketWatch, CNBC, CoinDesk, Seeking
+      // Alpha, Benzinga, WatcherGuru, SEC, Reuters, Bloomberg) so every curated
+      // source button actually loads live content, not just the Finnhub wires.
+      fetch(`/api/news-rss`, { cache: "no-store", headers: rssHeaders })
+        .then(r => (r.ok ? r.json() : { items: [] }))
+        .then((j: { items?: { id: string; source: string; headline: string; summary: string; url: string; datetime: number }[] }) =>
+          (j.items ?? []).map(it => ({
+            id: it.id, datetime: it.datetime, headline: it.headline,
+            summary: it.summary, source: it.source, related: "", category: "", image: "", url: it.url,
+          }) as unknown as FinnhubRaw))
+        .catch(() => [] as FinnhubRaw[]),
+    ]);
+
+    // Merge Finnhub + RSS, dedupe by id (fall back to url/headline).
+    const seen = new Set<string>();
+    const raw: FinnhubRaw[] = [];
+    for (const arr of [...(finnhubArrs as FinnhubRaw[][]), rssRaw]) {
+      for (const item of arr) {
+        const key = String(item.id || item.url || item.headline);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        raw.push(item);
+      }
+    }
+    if (raw.length === 0) throw new Error("Finnhub news failed");
+    raw.sort((a, b) => b.datetime - a.datetime);
 
     const now = Date.now();
-    return raw.slice(0, 60).map((item, i) => {
+    return raw.slice(0, 120).map((item, i) => {
       const ageMs = now - item.datetime * 1000;
       const ageMin = Math.floor(ageMs / 60_000);
       const ageHr  = Math.floor(ageMs / 3_600_000);
@@ -276,6 +322,25 @@ const SOURCES = [
   "Seeking Alpha", "Truth Social", "SEC Filing",
 ];
 const FILTERS = ["All", "Breaking", "High Impact", "Bullish", "Bearish", "Neutral", "Macro", "Crypto", "Earnings", "Whales"];
+
+/* Case-insensitive, substring-tolerant source match so a filter button like
+   "X / Twitter" or "WSJ" still matches feed values like "twitter.com" or
+   "The Wall Street Journal". */
+function sourceMatches(source: string, filter: string): boolean {
+  const s = source.toLowerCase();
+  const f = filter.toLowerCase();
+  if (s === f || s.includes(f) || f.includes(s)) return true;
+  const aliases: Record<string, string[]> = {
+    "wsj": ["wall street", "wsj"],
+    "x / twitter": ["twitter", "x.com", "@"],
+    "sec filing": ["sec", "filing", "edgar"],
+    "marketwatch": ["marketwatch", "market watch"],
+    "seeking alpha": ["seeking", "alpha"],
+    "truth social": ["truth"],
+    "coindesk": ["coindesk", "coin desk"],
+  };
+  return (aliases[f] ?? []).some(a => s.includes(a));
+}
 
 /* ── Live stream channel config ─────────────────────────── */
 const LIVE_STREAMS = [
@@ -460,7 +525,95 @@ function LiveNewsPlayer() {
   );
 }
 
+/* ── Connect API Keys modal ─────────────────────────────────
+   Users paste their OWN keys here. Stored locally in the browser
+   (localStorage `wm_api_keys`) and sent only to this app's own
+   /api/news-rss proxy. We never see, log, or transmit them anywhere
+   else. NewsAPI.org (free 100 req/day) unlocks full WSJ / Bloomberg /
+   Reuters / etc.; an X (Twitter) Bearer token unlocks raw cashtag
+   timelines. */
+function ApiKeysModal({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: () => void }) {
+  const [newsapi, setNewsapi] = useState("");
+  const [xbearer, setXbearer] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    const k = readApiKeys();
+    setNewsapi(k.newsapi || "");
+    setXbearer(k.xbearer || "");
+  }, [open]);
+
+  if (!open) return null;
+
+  const save = () => {
+    const payload: ApiKeys = {};
+    if (newsapi.trim()) payload.newsapi = newsapi.trim();
+    if (xbearer.trim()) payload.xbearer = xbearer.trim();
+    localStorage.setItem("wm_api_keys", JSON.stringify(payload));
+    onSaved();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-2xl border border-wm-border bg-wm-dark p-5 shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-sm font-bold text-wm-text">Connect API Keys</h2>
+          <button onClick={onClose} className="text-wm-text-dim hover:text-wm-text text-lg leading-none">×</button>
+        </div>
+        <p className="text-[11px] text-wm-text-muted leading-relaxed mb-4">
+          Add your own keys to unlock personalized, full-text news. Keys are stored
+          only in <span className="font-mono text-wm-text">this browser</span> and sent
+          only to this app&apos;s own news proxy — never shared or logged.
+        </p>
+
+        <label className="block text-[11px] font-semibold text-wm-text-muted mb-1">
+          NewsAPI.org key <span className="text-wm-text-dim font-normal">— unlocks WSJ, Bloomberg, Reuters &amp; more</span>
+        </label>
+        <input
+          value={newsapi}
+          onChange={e => setNewsapi(e.target.value)}
+          type="password"
+          placeholder="Paste your NewsAPI.org key"
+          className="w-full mb-1 bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-[12px] text-wm-text outline-none focus:border-wm-gold/50"
+        />
+        <a href="https://newsapi.org/register" target="_blank" rel="noopener noreferrer"
+          className="text-[10px] text-wm-blue hover:underline">Get a free key (100 req/day) →</a>
+
+        <label className="block text-[11px] font-semibold text-wm-text-muted mt-4 mb-1">
+          X (Twitter) Bearer token <span className="text-wm-text-dim font-normal">— unlocks live X market chatter</span>
+        </label>
+        <input
+          value={xbearer}
+          onChange={e => setXbearer(e.target.value)}
+          type="password"
+          placeholder="Paste your X API Bearer token"
+          className="w-full mb-1 bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-[12px] text-wm-text outline-none focus:border-wm-gold/50"
+        />
+        <a href="https://developer.x.com/en/portal/dashboard" target="_blank" rel="noopener noreferrer"
+          className="text-[10px] text-wm-blue hover:underline">Get an X API token →</a>
+
+        <div className="flex items-center gap-2 mt-5">
+          <button onClick={save}
+            className="flex-1 px-3 py-2 rounded-lg text-[12px] font-bold bg-wm-gold/20 text-wm-gold border border-wm-gold/40 hover:bg-wm-gold/30 transition-all">
+            Save Keys
+          </button>
+          <button
+            onClick={() => { localStorage.removeItem("wm_api_keys"); setNewsapi(""); setXbearer(""); onSaved(); }}
+            className="px-3 py-2 rounded-lg text-[12px] font-semibold text-wm-text-muted border border-wm-border hover:text-wm-text transition-all">
+            Clear
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function NewsPage() {
+  const [showKeys,     setShowKeys]     = useState(false);
   const [news,         setNews]         = useState<NewsItem[]>([]);
   const [sourceFilter, setSourceFilter] = useState("All Sources");
   const [tagFilter,    setTagFilter]    = useState("All");
@@ -496,8 +649,20 @@ export default function NewsPage() {
     return () => clearInterval(interval);
   }, [liveMode, loadNews]);
 
+  // ALWAYS show the full curated source list (user requirement: restore every
+  // source, never silently drop a publisher). We still append any live feed
+  // sources that aren't covered by a curated label so nothing is missed.
+  const liveSources = Array.from(new Set(news.map(n => n.source).filter(Boolean)));
+  const extras = liveSources.filter(ls => !SOURCES.some(c => c !== "All Sources" && sourceMatches(ls, c)));
+  const sourceButtons = [...SOURCES, ...extras];
+  // Track which curated sources actually have ≥1 live article, so we can dim
+  // (not remove) the ones the free feed isn't currently carrying.
+  const sourcesWithArticles = new Set(
+    SOURCES.filter(c => c === "All Sources" || news.some(n => sourceMatches(n.source, c)))
+  );
+
   const filtered = news.filter(n => {
-    if (sourceFilter !== "All Sources" && n.source !== sourceFilter) return false;
+    if (sourceFilter !== "All Sources" && !sourceMatches(n.source, sourceFilter)) return false;
     if (tagFilter === "Breaking"   && !n.breaking)                    return false;
     if (tagFilter === "High Impact"&& n.impact !== "high")            return false;
     if (tagFilter === "Bullish"    && n.sentiment?.label !== "Bullish") return false;
@@ -515,6 +680,8 @@ export default function NewsPage() {
 
   return (
     <div className="flex flex-col h-full bg-wm-black overflow-hidden">
+
+      <ApiKeysModal open={showKeys} onClose={() => setShowKeys(false)} onSaved={loadNews} />
 
       {/* ── Topbar ─────────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-4 py-2.5 border-b border-wm-border bg-wm-dark shrink-0">
@@ -550,6 +717,13 @@ export default function NewsPage() {
             <Zap size={10} /> {liveMode ? "AUTO-REFRESH" : "PAUSED"}
           </button>
 
+          <button
+            onClick={() => setShowKeys(true)}
+            className="flex items-center gap-1 px-2 h-6 rounded text-[10px] font-semibold border border-wm-gold/40 bg-wm-gold/10 text-wm-gold hover:bg-wm-gold/20 transition-all"
+          >
+            🔑 Connect API Keys
+          </button>
+
           {FILTERS.map(f => (
             <button
               key={f}
@@ -572,20 +746,34 @@ export default function NewsPage() {
 
       {/* ── Source filter ───────────────────────────────────── */}
       <div className="flex gap-1.5 px-4 py-2 border-b border-wm-border overflow-x-auto shrink-0" style={{ scrollbarWidth: "none" }}>
-        {SOURCES.map(s => (
-          <button
-            key={s}
-            onClick={() => setSourceFilter(s)}
-            className={clsx(
-              "px-2.5 py-1 rounded-full text-[10px] font-medium whitespace-nowrap transition-all border shrink-0",
-              sourceFilter === s
-                ? "bg-wm-gold/15 text-wm-gold border-wm-gold/30"
-                : "bg-wm-surface border-wm-border text-wm-text-muted hover:text-wm-text"
-            )}
-          >
-            {s}
-          </button>
-        ))}
+        {sourceButtons.map(s => {
+          const hasArticles = sourcesWithArticles.has(s) || !SOURCES.includes(s);
+          // Sources that a user API key can unlock (NewsAPI or X token).
+          const keyUnlockable = ["WSJ", "Bloomberg", "Reuters", "X / Twitter", "TipRanks"].includes(s);
+          return (
+            <button
+              key={s}
+              onClick={() => hasArticles ? setSourceFilter(s) : setShowKeys(true)}
+              title={hasArticles ? undefined : keyUnlockable ? `Connect your API key to unlock ${s}` : `Limited access — no live ${s} articles right now`}
+              className={clsx(
+                "px-2.5 py-1 rounded-full text-[10px] font-medium whitespace-nowrap transition-all border shrink-0 flex items-center gap-1",
+                sourceFilter === s
+                  ? "bg-wm-gold/15 text-wm-gold border-wm-gold/30"
+                  : hasArticles
+                    ? "bg-wm-surface border-wm-border text-wm-text-muted hover:text-wm-text"
+                    : "bg-wm-surface/40 border-wm-border/40 text-wm-text-dim hover:text-wm-text-muted"
+              )}
+            >
+              {s}
+              {hasArticles && s !== "All Sources" && (
+                <span className="w-1 h-1 rounded-full bg-wm-green" />
+              )}
+              {!hasArticles && keyUnlockable && (
+                <span className="text-[8px]" title="Connect API key">🔑</span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Live News Video Player ──────────────────────────── */}

@@ -1,5 +1,5 @@
 /**
- * Pine Script v5 Engine — Type Definitions
+ * Pine Script v6 Engine — Type Definitions
  * Supports the core subset needed for indicator development.
  */
 

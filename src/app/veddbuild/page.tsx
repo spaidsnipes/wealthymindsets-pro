@@ -77,18 +77,41 @@ export default function VeddBuildPage() {
         </div>
         <div className="ml-auto flex items-center gap-3">
           <a
-            href="https://veddbuild.com"
+            href="https://vedd.com"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all hover:opacity-90 active:scale-95"
             style={{ background: "linear-gradient(135deg, #4FA3E0 0%, #8B5CF6 100%)", boxShadow: "0 0 12px rgba(79,163,224,0.35)" }}
           >
             <ExternalLink size={11} />
-            Visit veddbuild.com
+            Open Vedd App
           </a>
           <span className={`w-2 h-2 rounded-full ${pulse ? "bg-wm-green" : "bg-wm-green/50"} transition-colors`} />
           <span className="text-[10px] text-wm-green font-semibold">COMMUNITY LIVE</span>
         </div>
+      </div>
+
+      {/* ── Vedd app hero / description ────────────────────── */}
+      <div
+        className="shrink-0 px-4 py-3 border-b border-wm-border flex items-center gap-4"
+        style={{ background: "linear-gradient(135deg, rgba(79,163,224,0.10), rgba(139,92,246,0.06))" }}
+      >
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-black text-wm-text mb-0.5">Vedd — Faith-Driven Trading & Mindset</p>
+          <p className="text-[11px] text-wm-text-muted leading-relaxed">
+            Vedd is where the community trades with purpose: daily devotions, live forex setups built on the CLC Rule,
+            and a mindset library that keeps discipline over emotion. Tap in to grow your trading and your faith together.
+          </p>
+        </div>
+        <a
+          href="https://vedd.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-white transition-all hover:opacity-90 active:scale-95"
+          style={{ background: "linear-gradient(135deg, #4FA3E0 0%, #8B5CF6 100%)", boxShadow: "0 0 16px rgba(79,163,224,0.4)" }}
+        >
+          Go to vedd.com <ExternalLink size={12} />
+        </a>
       </div>
 
       {/* ── Stats strip ────────────────────────────────────── */}

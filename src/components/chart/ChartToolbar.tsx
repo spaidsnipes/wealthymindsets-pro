@@ -5,12 +5,13 @@ import {
   Search, ChevronDown,
   LayoutGrid, Clock, DollarSign, BarChart2, Plug2,
   X, ChevronRight, Star, Check, Bell, Settings,
-  Play, GitMerge,
+  Play, GitMerge, HelpCircle,
 } from "lucide-react";
 import { WMSmartMoneyIcon } from "@/components/ui/WMLogo";
 import { clsx } from "clsx";
-import { ChartLayoutManager, type ChartLayout } from "./ChartLayoutManager";
+import { type ChartLayout } from "./ChartLayoutManager";
 import { isConfigurable } from "./indicatorConfig";
+import { getIndicatorInfo } from "./indicatorDescriptions";
 
 /* ══════════════════════════════════════════════════════════════
    SYMBOL CATALOGUE  (100+ symbols across 5 categories)
@@ -533,6 +534,7 @@ export function ChartToolbar({
     new Set(["VWAP","RSI","MACD","Bollinger Bands","Volume"])
   );
   const [showFavsOnly,   setShowFavsOnly]  = useState(false);
+  const [descOpen,       setDescOpen]      = useState<Set<string>>(new Set());
   const [liveSymbols,    setLiveSymbols]   = useState<SymbolEntry[]>([]);
   const [liveSearching,  setLiveSearching] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -893,7 +895,7 @@ export function ChartToolbar({
                           ? "bg-wm-green/25 text-wm-green border-wm-green/50"
                           : "bg-wm-green/20 text-wm-green border-wm-green/40"
                         : isOF
-                          ? "bg-wm-green/10 text-wm-green border-wm-green/30 hover:bg-wm-green/20"
+                          ? "text-wm-green/70 hover:text-wm-green hover:bg-wm-surface border-transparent"
                           : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border-transparent"
                     )}>
                     {isOF ? "⚡ Order Flow" : c}
@@ -912,8 +914,10 @@ export function ChartToolbar({
               ) : filteredInds.map(ind => {
                 const on  = activeInds.has(ind.name);
                 const fav = favorites.has(ind.name);
+                const showDesc = descOpen.has(ind.name);
                 return (
-                  <div key={ind.name}
+                  <React.Fragment key={ind.name}>
+                  <div
                     onClick={() => toggleIndicator(ind.name)}
                     className="flex items-center gap-2.5 px-3 py-2 hover:bg-wm-surface/60 cursor-pointer transition-colors group border-b border-wm-border/20"
                   >
@@ -939,6 +943,22 @@ export function ChartToolbar({
                     {/* category badge */}
                     <span className="text-[11px] text-wm-text-dim shrink-0 hidden group-hover:block">{ind.cat}</span>
 
+                    {/* description "?" — opens an info panel below the row */}
+                    <button
+                      onClick={e => {
+                        e.stopPropagation();
+                        setDescOpen(prev => {
+                          const next = new Set(prev);
+                          next.has(ind.name) ? next.delete(ind.name) : next.add(ind.name);
+                          return next;
+                        });
+                      }}
+                      title="Show description"
+                      className={clsx("shrink-0 transition-colors", showDesc ? "text-wm-blue" : "text-wm-text-dim hover:text-wm-blue")}
+                    >
+                      <HelpCircle size={11} />
+                    </button>
+
                     {/* settings gear — only for configurable indicators */}
                     {isConfigurable(ind.name) && onIndicatorSettings && (
                       <button
@@ -958,6 +978,35 @@ export function ChartToolbar({
                       <Star size={11} fill={fav ? "currentColor" : "none"} />
                     </button>
                   </div>
+
+                  {/* Expanded description panel — opened by the "?" button.
+                      Rich TradingView-style sections (Definition / Calculation /
+                      How to use / What to look for / Summary). */}
+                  {showDesc && (() => {
+                    const info = getIndicatorInfo(ind.name, ind.cat, ind.desc);
+                    const Section = ({ label, body }: { label: string; body: string }) => (
+                      <div className="mb-2.5 last:mb-0">
+                        <div className="text-[9px] font-bold uppercase tracking-wider text-wm-blue mb-0.5">{label}</div>
+                        <p className="text-[11px] text-wm-text-muted leading-relaxed">{body}</p>
+                      </div>
+                    );
+                    return (
+                      <div className="px-4 py-3 bg-wm-surface/40 border-b border-wm-blue/30 max-h-[320px] overflow-y-auto"
+                        style={{ borderLeft: "2px solid #4FA3E0" }}>
+                        <div className="flex items-center gap-2 mb-2 sticky top-0">
+                          <HelpCircle size={12} className="text-wm-blue shrink-0" />
+                          <span className="text-[12px] font-bold text-wm-text">{ind.name}</span>
+                          <span className="text-[9px] text-wm-text-dim px-1.5 py-0.5 rounded bg-wm-surface">{ind.cat}</span>
+                        </div>
+                        <Section label="Definition"        body={info.definition} />
+                        <Section label="Calculation"       body={info.calculation} />
+                        <Section label="How to use"        body={info.howToUse} />
+                        <Section label="What to look for"  body={info.whatToLookFor} />
+                        <Section label="Summary"           body={info.summary} />
+                      </div>
+                    );
+                  })()}
+                  </React.Fragment>
                 );
               })}
             </div>
@@ -1066,10 +1115,7 @@ export function ChartToolbar({
           </button>
         )}
 
-        {/* Layout Manager */}
-        {onLayoutChange && (
-          <ChartLayoutManager layout={chartLayout} onLayoutChange={onLayoutChange} />
-        )}
+        {/* Layout Manager moved to the left tool strip (LeftSidebar) */}
 
         {/* Settings */}
         {onSettings && (

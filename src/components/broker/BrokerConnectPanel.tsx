@@ -534,16 +534,25 @@ function BrokerCard({ broker }: { broker: Broker }) {
             </div>
           </div>
         ) : (
-          <div className="flex gap-2">
+          <div className="space-y-2">
             <a href={broker.signInUrl} target="_blank" rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-bold transition-all hover:brightness-110"
-              style={{ background:`${broker.color}22`, color:broker.color, border:`1px solid ${broker.color}40` }}>
-              <ExternalLink size={11} /> Sign In
+              className="w-full flex items-center justify-center gap-1.5 h-9 rounded-xl text-[12px] font-bold transition-all hover:brightness-110"
+              style={{ background:`linear-gradient(135deg,${broker.color}33,${broker.color}22)`, color:broker.color, border:`1px solid ${broker.color}50` }}>
+              <ExternalLink size={12} /> Connect {broker.name}
             </a>
-            <a href={broker.signUpUrl} target="_blank" rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-bold bg-wm-surface border border-wm-border text-wm-text-muted hover:text-wm-text hover:border-wm-border/80 transition-all">
-              <ExternalLink size={11} /> Open Account
-            </a>
+            <div className="flex gap-1.5">
+              <a href={broker.signInUrl} target="_blank" rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-[10px] font-semibold text-wm-text-muted hover:text-wm-text bg-wm-surface border border-wm-border transition-all hover:brightness-110">
+                <ExternalLink size={9} /> Log In
+              </a>
+              <a href={broker.signUpUrl} target="_blank" rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-[10px] font-semibold text-wm-text-muted hover:text-wm-text bg-wm-surface border border-wm-border transition-all hover:brightness-110">
+                <ExternalLink size={9} /> Open Account
+              </a>
+            </div>
+            <div className="text-[9px] text-wm-text-dim leading-snug px-0.5">
+              Opens {broker.name}&apos;s login. {broker.name} has no public API-key access — trade on their platform, or connect an API-key broker (Alpaca, Coinbase) to trade inside WealthyMindsets.
+            </div>
           </div>
         )}
       </div>

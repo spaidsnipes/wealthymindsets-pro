@@ -94,15 +94,17 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
     const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
     if (j?.price > 0 && j.source === "alpaca") return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0 };
   } catch {}
-  try {
-    const j = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-    if (j?.price > 0) return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0 };
-  } catch {}
+  // Yahoo BEFORE Finnhub — Yahoo includes pre/post-market (matches TradingView);
+  // Finnhub free is regular-hours-only and goes stale outside RTH.
   try {
     const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
     const price = j?.price ?? 0;
     const prev  = j?.prevClose ?? price;
     if (price > 0) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0 };
+  } catch {}
+  try {
+    const j = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+    if (j?.price > 0) return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0 };
   } catch {}
   return null;
 }
@@ -160,21 +162,52 @@ export function TickerTape() {
   const router   = useRouter();
   const pathname = usePathname();
 
-  // Custom symbol list (persisted to localStorage)
-  const [customSyms, setCustomSyms] = useState<string[]>(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem("wm-tape-symbols") ?? "null");
-      return stored ?? TAPE_SYMBOLS.map(t => t.sym);
-    } catch { return TAPE_SYMBOLS.map(t => t.sym); }
-  });
+  // Custom symbol list (persisted to localStorage).
+  // HYDRATION-SAFE: the first render MUST match the server HTML, so we seed with
+  // the deterministic default list and load the localStorage override in an
+  // after-mount effect below. Reading localStorage in the initializer caused a
+  // server/client text mismatch (React #418) for users with a customized tape.
+  const [customSyms, setCustomSyms] = useState<string[]>(() => TAPE_SYMBOLS.map(t => t.sym));
+  const [hydrated, setHydrated]   = useState(false);
   const [editOpen, setEditOpen]   = useState(false);
   const [addInput, setAddInput]   = useState("");
   const editRef = useRef<HTMLDivElement>(null);
 
-  // Persist custom symbols
+  // HYDRATION-SAFE: seed with deterministic base prices so the first client
+  // render matches the server HTML exactly. The window-cache fast-path (which
+  // is non-deterministic vs SSR and caused React #418) runs in the after-mount
+  // effect below.
+  const [tickers, setTickers] = useState<TickerState[]>(() =>
+    TAPE_SYMBOLS.map(t => ({ sym: t.sym, poly: t.poly, base: t.base, price: t.base, chg: 0, pct: 0, up: true, _open: t.base }))
+  );
+
+  // After mount (client only): pull the persisted symbol list + cached prices.
   useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("wm-tape-symbols") ?? "null");
+      if (Array.isArray(stored) && stored.length) setCustomSyms(stored);
+    } catch {}
+    try {
+      const w = (window as any).__wmTicker as Record<string, any> | undefined;
+      const wAge = w?._ts ? Date.now() - w._ts : Infinity;
+      if (w && Object.keys(w).length > 0 && wAge < 30_000) {
+        setTickers(TAPE_SYMBOLS.map(t => {
+          const p = w[t.sym.toUpperCase()];
+          return p && p.price > 0
+            ? { sym: t.sym, poly: t.poly, base: t.base, price: p.price, chg: p.chg, pct: p.pct, up: p.chg >= 0, _open: t.base }
+            : { sym: t.sym, poly: t.poly, base: t.base, price: t.base, chg: 0, pct: 0, up: true, _open: t.base };
+        }));
+      }
+    } catch {}
+    setHydrated(true);
+  }, []);
+
+  // Persist custom symbols (skip the initial pre-hydration default so we don't
+  // clobber the stored list before the after-mount load runs).
+  useEffect(() => {
+    if (!hydrated) return;
     try { localStorage.setItem("wm-tape-symbols", JSON.stringify(customSyms)); } catch {}
-  }, [customSyms]);
+  }, [customSyms, hydrated]);
 
   // Close edit panel on outside click
   useEffect(() => {
@@ -189,32 +222,6 @@ export function TickerTape() {
   const activeTapeSymbols = customSyms
     .map(sym => TAPE_SYMBOLS.find(t => t.sym === sym))
     .filter((t): t is typeof TAPE_SYMBOLS[0] => t !== undefined);
-
-  // Initialize prices — priority: 1) window cache (HMR-safe), 2) localStorage, 3) seeds
-  // window.__wmTicker survives module re-evaluation so HMR gets correct prices instantly
-  const [tickers, setTickers] = useState<TickerState[]>(() => {
-    // Merge function: pick best price from a map
-    const merge = (priceMap: Record<string, { price: number; chg: number; pct: number }>) =>
-      TAPE_SYMBOLS.map(t => {
-        const p = priceMap[t.sym.toUpperCase()];
-        return p && p.price > 0
-          ? { sym: t.sym, poly: t.poly, base: t.base, price: p.price, chg: p.chg, pct: p.pct, up: p.chg >= 0, _open: t.base }
-          : { sym: t.sym, poly: t.poly, base: t.base, price: t.base, chg: 0, pct: 0, up: true, _open: t.base };
-      });
-
-    const CACHE_TTL = 30_000; // 30s only — never show stale change%
-    // Clear old localStorage cache on init (prevents stale day-change from persisting)
-    try { localStorage.removeItem("wm-ticker-prices"); } catch {}
-    // 1) window cache (fastest — survives HMR module re-eval, 30s TTL)
-    try {
-      const w = (window as any).__wmTicker as Record<string, any> | undefined;
-      const wAge = w?._ts ? Date.now() - w._ts : Infinity;
-      if (w && Object.keys(w).length > 0 && wAge < CACHE_TTL) return merge(w);
-    } catch {}
-
-    // 3) Seeds fallback
-    return TAPE_SYMBOLS.map(t => ({ sym: t.sym, poly: t.poly, base: t.base, price: t.base, chg: 0, pct: 0, up: true, _open: t.base }));
-  });
 
   /* ── Yahoo REST fetch on mount + every 10s ────────────── */
   useEffect(() => {
@@ -376,12 +383,12 @@ export function TickerTape() {
                 </button>
               </div>
               <datalist id="tape-syms-list">
-                {ALL_TAPE_SYMS.filter(s => TAPE_SYMBOLS.some(t => t.sym === s)).map(s => (
+                {ALL_TAPE_SYMS.map(s => (
                   <option key={s} value={s} />
                 ))}
               </datalist>
               <div className="text-[9px] text-wm-text-dim mt-1 px-1">
-                Available: {TAPE_SYMBOLS.map(t => t.sym).join(", ")}
+                Type any ticker (stocks, futures, crypto, forex) and press Enter.
               </div>
             </div>
           </div>

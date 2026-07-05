@@ -196,10 +196,10 @@ export default function AIBotPage() {
             <Bot size={16} className="text-white" />
           </div>
           <div>
-            <div className="text-sm font-black text-wm-text">WM AI Trading Bot</div>
+            <div className="text-sm font-black text-wm-text">WM AI Trading Bot <span className="text-[8px] font-bold px-1.5 py-0.5 rounded align-middle" style={{ background:"rgba(240,180,41,0.18)", color:"#F0B429" }}>DEMO</span></div>
             <div className="text-[9px] text-wm-text-dim flex items-center gap-1">
-              <span className={`w-1.5 h-1.5 rounded-full ${running ? "bg-wm-green animate-pulse" : "bg-wm-text-dim"}`}/>
-              {running ? "Live — Scanning markets" : "Paused"}
+              <span className={`w-1.5 h-1.5 rounded-full ${running ? "bg-wm-gold animate-pulse" : "bg-wm-text-dim"}`}/>
+              {running ? "Demo — Simulated signals" : "Paused"}
             </div>
           </div>
         </div>
@@ -262,6 +262,15 @@ export default function AIBotPage() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* ── Demo disclaimer ───────────────────────────────────── */}
+      <div className="flex items-center gap-2 px-4 py-1.5 border-b border-wm-border shrink-0"
+        style={{ background:"rgba(240,180,41,0.07)" }}>
+        <AlertCircle size={12} style={{ color:"#F0B429" }} className="shrink-0" />
+        <span className="text-[10px] text-wm-gold font-semibold">
+          Simulated signals for demonstration only — not live trade recommendations or financial advice. Do not trade real money based on these.
+        </span>
       </div>
 
       {/* ── Main content ──────────────────────────────────────── */}

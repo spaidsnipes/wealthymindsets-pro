@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Pine Script v5 Code Editor
+ * Pine Script v6 Code Editor
  * Textarea-based editor with:
  *  - Syntax highlighting overlay (no extra packages)
  *  - Line numbers
@@ -13,33 +13,73 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 
 /* ── Token colors ───────────────────────────────────────────── */
-const KEYWORDS    = /\b(if|else|for|while|switch|case|break|continue|return|var|varip|float|int|bool|string|color|series|array|true|false|na|and|or|not|import|export|method|type|by|to)\b/g;
-const TA_FUNCS    = /\b(ta\.(sma|ema|rsi|macd|bb|atr|stoch|rma|wma|hma|dema|tema|cci|mfi|vwap|obv|roc|change|mom|crossover|crossunder|rising|falling|highest|lowest|stdev|variance|sum|barssince|valuewhen|supertrend|donchian|keltner|williamsr)|math\.(abs|ceil|floor|round|sqrt|pow|log|exp|max|min|sign|sin|cos|tan|pi|e|phi)|input\.(float|int|bool|string|color|source)|str\.(tostring|format|length|substring|contains|startswith|endswith|replace|split))\b/g;
-const PLOT_FUNCS  = /\b(plot|plotshape|plotarrow|plotbar|plotcandle|bgcolor|hline|label\.|line\.|box\.|table\.|indicator|strategy|library)\b/g;
-const BUILTINS    = /\b(open|high|low|close|volume|hl2|hlc3|ohlc4|bar_index|bar_count|time|timenow|dayofweek|dayofmonth|hour|minute|second|month|year|weekofyear|syminfo\.\w+|timeframe\.\w+|strategy\.\w+|nz|na|fixnan|float|int|bool|str|array)\b/g;
-const COLOR_CONST = /\b(color\.(green|red|blue|yellow|orange|purple|white|black|gray|silver|lime|teal|aqua|navy|fuchsia|maroon|olive|new|rgb|from_gradient))\b/g;
-const NUMBERS     = /\b(\d+\.?\d*(?:e[+-]?\d+)?)\b/g;
-const STRINGS     = /(['"])((?:\\.|(?!\1)[^\\])*)\1/g;
-const COMMENTS    = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g;
-const OPERATORS   = /(\+|-|\*|\/|%|\^|:=|==|!=|<=|>=|<|>|=|\?|:)/g;
+const esc = (s: string) => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
+/**
+ * Single-pass tokenizer highlighter.
+ * A sequential regex-replace approach corrupts the HTML: later passes match
+ * plain words ("string", "color", "plot") that appear INSIDE the class names
+ * of spans inserted by earlier passes, injecting nested tags and breaking the
+ * markup (it then renders as literal `<span ...>` text). This scanner consumes
+ * comments/strings first as whole tokens and only classifies bare identifiers,
+ * so no inserted markup is ever re-scanned.
+ */
 function highlight(code: string): string {
-  // Order matters — later replacements don't touch already-marked spans
-  const escape = (s: string) => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  const esc    = escape(code);
+  let out = "";
+  let i = 0;
+  const n = code.length;
+  const wrap = (cls: string, txt: string) => `<span class="${cls}">${esc(txt)}</span>`;
 
-  // We use a tokenizer-lite approach: replace in order with unique markers
-  // then wrap markers in spans
-  return esc
-    .replace(COMMENTS, m => `<span class="pine-comment">${m}</span>`)
-    .replace(STRINGS,  m => `<span class="pine-string">${m}</span>`)
-    .replace(COLOR_CONST, m => `<span class="pine-color-const">${m}</span>`)
-    .replace(TA_FUNCS,    m => `<span class="pine-ta">${m}</span>`)
-    .replace(PLOT_FUNCS,  m => `<span class="pine-plot">${m}</span>`)
-    .replace(BUILTINS,    m => `<span class="pine-builtin">${m}</span>`)
-    .replace(KEYWORDS,    m => `<span class="pine-keyword">${m}</span>`)
-    .replace(NUMBERS,     m => `<span class="pine-number">${m}</span>`)
-    .replace(OPERATORS,   m => `<span class="pine-op">${m}</span>`);
+  const KW = new Set("if else for while switch case break continue return var varip float int bool string color series array true false na and or not import export method type by to".split(" "));
+
+  while (i < n) {
+    const c = code[i];
+
+    // Line comment
+    if (c === "/" && code[i + 1] === "/") {
+      let j = i; while (j < n && code[j] !== "\n") j++;
+      out += wrap("pine-comment", code.slice(i, j)); i = j; continue;
+    }
+    // Block comment
+    if (c === "/" && code[i + 1] === "*") {
+      let j = i + 2; while (j < n && !(code[j] === "*" && code[j + 1] === "/")) j++;
+      j = Math.min(n, j + 2);
+      out += wrap("pine-comment", code.slice(i, j)); i = j; continue;
+    }
+    // String
+    if (c === '"' || c === "'") {
+      let j = i + 1; while (j < n && code[j] !== c) { if (code[j] === "\\") j++; j++; }
+      j = Math.min(n, j + 1);
+      out += wrap("pine-string", code.slice(i, j)); i = j; continue;
+    }
+    // Number
+    if (/\d/.test(c) || (c === "." && /\d/.test(code[i + 1] || ""))) {
+      let j = i; while (j < n && /[\d.]/.test(code[j])) j++;
+      if (code[j] === "e" || code[j] === "E") { j++; if (code[j] === "+" || code[j] === "-") j++; while (j < n && /\d/.test(code[j])) j++; }
+      out += wrap("pine-number", code.slice(i, j)); i = j; continue;
+    }
+    // Identifier (with dotted namespace: ta.sma, color.green)
+    if (/[a-zA-Z_]/.test(c)) {
+      let j = i; while (j < n && /[\w]/.test(code[j])) j++;
+      while (code[j] === "." && /[\w]/.test(code[j + 1] || "")) { j++; while (j < n && /[\w]/.test(code[j])) j++; }
+      const word = code.slice(i, j);
+      let cls = "";
+      if (/^color\./.test(word))                              cls = "pine-color-const";
+      else if (/^(ta|math|input|str|request|array|matrix|map|syminfo|timeframe|strategy)\./.test(word)) cls = "pine-ta";
+      else if (/^(plot|plotshape|plotarrow|plotbar|plotcandle|bgcolor|hline|fill|indicator|strategy|library|alertcondition|alert)$/.test(word)) cls = "pine-plot";
+      else if (/^(open|high|low|close|volume|hl2|hlc3|ohlc4|bar_index|bar_count|time|timenow|nz|na|fixnan)$/.test(word)) cls = "pine-builtin";
+      else if (KW.has(word))                                  cls = "pine-keyword";
+      out += cls ? wrap(cls, word) : esc(word);
+      i = j; continue;
+    }
+    // Operators
+    if ("+-*/%^<>=!?:".includes(c)) {
+      out += wrap("pine-op", c); i++; continue;
+    }
+    // Anything else (whitespace, brackets, commas)
+    out += esc(c); i++;
+  }
+  return out;
 }
 
 /* ── Autocomplete suggestions ───────────────────────────────── */

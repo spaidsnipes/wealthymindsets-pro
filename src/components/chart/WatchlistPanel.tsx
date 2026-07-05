@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X, Plus, ChevronLeft, ChevronRight, TrendingUp, TrendingDown } from "lucide-react";
+import { Search, X, Plus, TrendingUp, TrendingDown, LayoutGrid, List } from "lucide-react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 
 const DEFAULT_SYMBOLS = [
@@ -76,15 +76,16 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
         return;
       }
 
-      // Stocks/ETFs → Alpaca (if key set) → Finnhub → Yahoo
+      // Stocks/ETFs → Alpaca (real-time RTH; 404s when stale) → Yahoo (pre/post
+      // market, matches TradingView) → Finnhub (regular-hours-only fallback).
       const alpacaJ = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
       if ((alpacaJ?.price ?? 0) > 0) { result[up] = { price: alpacaJ.price, change: alpacaJ.change ?? 0, changePct: alpacaJ.changePct ?? 0 }; return; }
 
-      const fhJ = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if (fhJ?.price > 0) { result[up] = { price: fhJ.price, change: fhJ.change ?? 0, changePct: fhJ.changePct ?? 0 }; return; }
-
       const yhJ = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if (yhJ?.price > 0) result[up] = { price: yhJ.price, change: yhJ.change ?? 0, changePct: yhJ.changePct ?? 0 };
+      if (yhJ?.price > 0) { result[up] = { price: yhJ.price, change: yhJ.change ?? 0, changePct: yhJ.changePct ?? 0 }; return; }
+
+      const fhJ = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
+      if (fhJ?.price > 0) result[up] = { price: fhJ.price, change: fhJ.change ?? 0, changePct: fhJ.changePct ?? 0 };
     } catch {}
   }));
   return result;
@@ -128,15 +129,108 @@ function Sparkline({ data, up }: { data: number[]; up: boolean }) {
 interface Props {
   open: boolean;
   onToggle: () => void;
+  gridView?: boolean;
+  onGridViewChange?: (v: boolean) => void;
 }
 
-export function WatchlistPanel({ open, onToggle }: Props) {
+export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Props) {
   const { activeSymbol, setActiveSymbol } = useActiveSymbol();
-  const [symbols, setSymbols] = useState<string[]>(DEFAULT_SYMBOLS);
+  // ── Named custom watchlists (persisted) ──────────────────────
+  const [lists, setLists] = useState<Record<string, string[]>>(() => {
+    if (typeof window === "undefined") return { "My Watchlist": DEFAULT_SYMBOLS };
+    try {
+      const raw = localStorage.getItem("wm_watchlists");
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p && typeof p === "object" && Object.keys(p).length) {
+          // Dedupe any symbols that were persisted before the dedupe-on-add fix.
+          const cleaned: Record<string, string[]> = {};
+          for (const k of Object.keys(p)) {
+            cleaned[k] = Array.isArray(p[k]) ? Array.from(new Set(p[k])) : p[k];
+          }
+          return cleaned;
+        }
+      }
+    } catch {}
+    return { "My Watchlist": DEFAULT_SYMBOLS };
+  });
+  const [activeList, setActiveList] = useState<string>(() => {
+    if (typeof window === "undefined") return "My Watchlist";
+    try { return localStorage.getItem("wm_active_watchlist") || "My Watchlist"; } catch { return "My Watchlist"; }
+  });
+  const [showLists, setShowLists] = useState(false);
+  const listMenuRef = useRef<HTMLDivElement>(null);
+  // Active list's symbols (falls back to default if the active name is missing)
+  const symbols = lists[activeList] ?? lists[Object.keys(lists)[0]] ?? DEFAULT_SYMBOLS;
+  const setSymbols = (updater: string[] | ((prev: string[]) => string[])) => {
+    setLists(prev => {
+      const cur = prev[activeList] ?? DEFAULT_SYMBOLS;
+      const next = typeof updater === "function" ? (updater as (p: string[]) => string[])(cur) : updater;
+      return { ...prev, [activeList]: next };
+    });
+  };
+  // Persist lists + active selection
+  useEffect(() => { try { localStorage.setItem("wm_watchlists", JSON.stringify(lists)); } catch {} }, [lists]);
+  useEffect(() => { try { localStorage.setItem("wm_active_watchlist", activeList); } catch {} }, [activeList]);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (listMenuRef.current && !listMenuRef.current.contains(e.target as Node)) setShowLists(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const createList = () => {
+    const name = (typeof window !== "undefined" ? window.prompt("Name your new watchlist:") : "")?.trim();
+    if (!name) return;
+    setLists(prev => prev[name] ? prev : { ...prev, [name]: [] });
+    setActiveList(name);
+    setShowLists(false);
+  };
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const exportLists = () => {
+    try {
+      const blob = new Blob([JSON.stringify(lists, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "wm-watchlists.json"; a.click();
+      URL.revokeObjectURL(url);
+    } catch {}
+  };
+  const importLists = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result));
+        if (parsed && typeof parsed === "object") {
+          const cleaned: Record<string, string[]> = {};
+          for (const k of Object.keys(parsed)) {
+            if (Array.isArray(parsed[k])) cleaned[k] = Array.from(new Set(parsed[k].map((s: any) => String(s).toUpperCase())));
+          }
+          if (Object.keys(cleaned).length) {
+            setLists(prev => ({ ...prev, ...cleaned }));
+            setActiveList(Object.keys(cleaned)[0]);
+          }
+        }
+      } catch {}
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+  const deleteList = (name: string) => {
+    setLists(prev => {
+      if (Object.keys(prev).length <= 1) return prev; // keep at least one
+      const next = { ...prev }; delete next[name];
+      if (activeList === name) setActiveList(Object.keys(next)[0]);
+      return next;
+    });
+  };
+
   const [items, setItems] = useState<WatchItem[]>([]);
   const [search, setSearch] = useState("");
   const [addInput, setAddInput] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [addResults, setAddResults] = useState<{ sym: string; label: string }[]>([]);
+  const addTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Right-click context menu
   const [ctxMenu, setCtxMenu] = useState<{ sym: string; x: number; y: number } | null>(null);
@@ -249,14 +343,36 @@ export function WatchlistPanel({ open, onToggle }: Props) {
     !search || i.sym.toLowerCase().includes(search.toLowerCase())
   );
 
-  const addSymbol = () => {
-    const sym = addInput.trim().toUpperCase();
-    if (sym && !symbols.includes(sym)) {
-      setSymbols(prev => [...prev, sym]);
+  const addSymbol = (explicit?: string) => {
+    const sym = (explicit ?? addInput).trim().toUpperCase();
+    if (sym) {
+      // Dedupe against CURRENT state inside the updater, not a stale closure.
+      setSymbols(prev => prev.includes(sym) ? prev : [...prev, sym]);
     }
     setAddInput("");
+    setAddResults([]);
     setShowAdd(false);
+    setSearch(""); // clear filter so the newly added symbol is always visible
   };
+
+  // Live symbol search (matches main chart search: debounced Finnhub lookup)
+  useEffect(() => {
+    if (addTimerRef.current) clearTimeout(addTimerRef.current);
+    const q = addInput.trim();
+    if (!showAdd || q.length < 1) { setAddResults([]); return; }
+    addTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/finnhub?q=${encodeURIComponent(q)}&type=search`, { cache: "no-store" });
+        const json = await res.json();
+        const live = (json.results ?? [])
+          .filter((r: any) => r.sym && r.name)
+          .slice(0, 10)
+          .map((r: any) => ({ sym: r.sym, label: r.name }));
+        setAddResults(live);
+      } catch { setAddResults([]); }
+    }, 250);
+    return () => { if (addTimerRef.current) clearTimeout(addTimerRef.current); };
+  }, [addInput, showAdd]);
 
   const removeSymbol = (sym: string) => {
     setSymbols(prev => prev.filter(s => s !== sym));
@@ -291,18 +407,78 @@ export function WatchlistPanel({ open, onToggle }: Props) {
               borderBottom: "1px solid #1E2030",
               flexShrink: 0,
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#E2E8F0" }}>
-                  Watchlists
-                </span>
-                <span style={{ fontSize: 10, color: "#8B8FA8" }}>▼</span>
+              <div ref={listMenuRef} style={{ display: "flex", alignItems: "center", gap: 4, position: "relative" }}>
+                <button
+                  onClick={() => setShowLists(v => !v)}
+                  title="Switch or create a custom watchlist"
+                  style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                >
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {activeList}
+                  </span>
+                  <span style={{ fontSize: 10, color: "#8B8FA8", transform: showLists ? "rotate(180deg)" : "none" }}>▼</span>
+                </button>
+                {showLists && (
+                  <div style={{
+                    position: "absolute", top: 24, left: 0, zIndex: 9999, width: 210,
+                    background: "#0C0F1A", border: "1px solid #252a3a", borderRadius: 8,
+                    boxShadow: "0 14px 40px rgba(0,0,0,0.7)", overflow: "hidden", padding: 4,
+                  }}>
+                    {Object.keys(lists).map(name => (
+                      <div key={name} style={{ display: "flex", alignItems: "center" }}>
+                        <button
+                          onClick={() => { setActiveList(name); setShowLists(false); }}
+                          style={{
+                            flex: 1, textAlign: "left", padding: "7px 9px", borderRadius: 5, border: "none", cursor: "pointer",
+                            fontSize: 12, fontWeight: name === activeList ? 800 : 600,
+                            color: name === activeList ? "#00D4AA" : "#cdd6e8",
+                            background: name === activeList ? "rgba(0,212,170,0.1)" : "transparent",
+                          }}
+                        >{name} <span style={{ color: "#6A7290", fontWeight: 500 }}>({(lists[name]||[]).length})</span></button>
+                        {Object.keys(lists).length > 1 && (
+                          <button onClick={() => deleteList(name)} title="Delete list"
+                            style={{ background: "none", border: "none", cursor: "pointer", color: "#FF4D67", fontSize: 13, padding: "0 6px" }}>×</button>
+                        )}
+                      </div>
+                    ))}
+                    <button onClick={createList}
+                      style={{ width: "100%", textAlign: "left", padding: "7px 9px", marginTop: 2, borderRadius: 5,
+                        border: "1px dashed #2a3550", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#4FA3E0", background: "none" }}>
+                      ＋ New watchlist
+                    </button>
+                    {/* Import / Export — Moomoo "Manage Watchlists" parity */}
+                    <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                      <button onClick={exportLists}
+                        style={{ flex: 1, padding: "6px 8px", borderRadius: 5, border: "1px solid #252a3a",
+                          cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#cdd6e8", background: "none" }}>
+                        ⤓ Export
+                      </button>
+                      <button onClick={() => importInputRef.current?.click()}
+                        style={{ flex: 1, padding: "6px 8px", borderRadius: 5, border: "1px solid #252a3a",
+                          cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#cdd6e8", background: "none" }}>
+                        ⤒ Import
+                      </button>
+                      <input ref={importInputRef} type="file" accept="application/json" style={{ display: "none" }}
+                        onChange={importLists} />
+                    </div>
+                  </div>
+                )}
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button style={{ background: "none", border: "none", cursor: "pointer", color: "#4A5070", fontSize: 12 }}>⊞</button>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button onClick={() => onGridViewChange?.(true)} title="Grid view — live mini-chart cards"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: gridView ? "#00D4AA" : "#4A5070", display: "flex", padding: 0 }}>
+                  <LayoutGrid size={12} />
+                </button>
+                <button onClick={() => onGridViewChange?.(false)} title="List view"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: !gridView ? "#00D4AA" : "#4A5070", display: "flex", padding: 0 }}>
+                  <List size={12} />
+                </button>
+                <button onClick={createList} title="Create new watchlist"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#4A5070", fontSize: 13 }}>⊞</button>
                 <button
                   onClick={() => setShowAdd(v => !v)}
                   style={{ color: "#8B8FA8", background: "none", border: "none", cursor: "pointer", padding: 2, borderRadius: 4 }}
-                  title="Add symbol"
+                  title="Add symbol to this watchlist"
                 >
                   <Plus size={12} />
                 </button>
@@ -343,21 +519,47 @@ export function WatchlistPanel({ open, onToggle }: Props) {
                   initial={{ height: 0 }}
                   animate={{ height: 36 }}
                   exit={{ height: 0 }}
-                  style={{ overflow: "hidden", borderBottom: "1px solid #1E2030", flexShrink: 0 }}
+                  // overflow must stay visible so the search-results dropdown
+                  // (absolutely positioned below the input) isn't clipped by the
+                  // 36px-tall animated container.
+                  style={{ overflow: "visible", borderBottom: "1px solid #1E2030", flexShrink: 0, position: "relative", zIndex: 300 }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", position: "relative" }}>
                     <input
                       autoFocus
                       value={addInput}
-                      onChange={e => setAddInput(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter") addSymbol(); if (e.key === "Escape") { setShowAdd(false); setAddInput(""); }}}
-                      placeholder="Add symbol…"
+                      onChange={e => setAddInput(e.target.value.toUpperCase())}
+                      onKeyDown={e => { if (e.key === "Enter") addSymbol(addResults[0]?.sym); if (e.key === "Escape") { setShowAdd(false); setAddInput(""); setAddResults([]); }}}
+                      placeholder="Search symbol…"
                       style={{
                         flex: 1, background: "#131520", border: "1px solid #1E2030", borderRadius: 4,
                         color: "#E2E8F0", fontSize: 11, padding: "3px 7px", outline: "none",
                       }}
                     />
-                    <button onClick={addSymbol} style={{ color: "#FF8C00", background: "none", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>+</button>
+                    <button onClick={() => addSymbol()} style={{ color: "#FF8C00", background: "none", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>+</button>
+                    {addResults.length > 0 && (
+                      <div style={{
+                        position: "absolute", top: "100%", left: 8, right: 8, zIndex: 400,
+                        background: "#0C0E16", border: "1px solid #1E2030", borderRadius: 6,
+                        marginTop: 2, maxHeight: 220, overflowY: "auto", boxShadow: "0 14px 40px rgba(0,0,0,0.7)",
+                      }}>
+                        {addResults.map(r => (
+                          <button key={r.sym}
+                            onClick={() => addSymbol(r.sym)}
+                            style={{
+                              display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%",
+                              textAlign: "left", padding: "6px 9px", background: "none", border: "none",
+                              cursor: "pointer", borderBottom: "1px solid #15171F",
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.background = "#151826")}
+                            onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                          >
+                            <span style={{ color: "#E2E8F0", fontSize: 11, fontWeight: 700 }}>{r.sym}</span>
+                            <span style={{ color: "#6B7280", fontSize: 9, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{r.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -494,34 +696,7 @@ export function WatchlistPanel({ open, onToggle }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Toggle button — RIGHT side of watchlist, between watchlist and chart */}
-      <button
-        onClick={onToggle}
-        style={{
-          width: 18,
-          background: "#0D0E14",
-          borderRight: "1px solid #1E2030",
-          borderLeft: open ? "1px solid #1E2030" : "none",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          color: "#4A5070",
-          flexShrink: 0,
-          gap: 3,
-          transition: "color 0.15s",
-        }}
-        onMouseEnter={e => (e.currentTarget.style.color = "#00D4AA")}
-        onMouseLeave={e => (e.currentTarget.style.color = "#4A5070")}
-        title={open ? "Collapse watchlist" : "Expand watchlist"}
-      >
-        {open ? <ChevronLeft size={11} /> : <ChevronRight size={11} />}
-        <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, writingMode: "vertical-rl", color: "inherit", textTransform: "uppercase" }}>
-          {open ? "Hide" : "List"}
-        </span>
-      </button>
+      {/* Collapse/expand toggle moved to the LeftSidebar tool strip. */}
     </div>
   );
 }

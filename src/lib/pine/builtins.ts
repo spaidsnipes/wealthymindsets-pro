@@ -1,5 +1,5 @@
 /**
- * Pine Script v5 Built-in Technical Analysis Functions
+ * Pine Script v6 Built-in Technical Analysis Functions
  * Implements ta.*, math.*, str.* namespaces
  */
 
@@ -335,6 +335,113 @@ export function roc(series: (number | null)[], length = 9): (number | null)[] {
   });
 }
 
+/* ── True Range (per-bar, no smoothing) ────────────────────── */
+export function trueRange(
+  closeS: (number | null)[], highS: (number | null)[], lowS: (number | null)[], handleNaN = true
+): (number | null)[] {
+  return closeS.map((_, i) => {
+    const h = highS[i], l = lowS[i], pc = i > 0 ? closeS[i - 1] : null;
+    if (h == null || l == null) return null;
+    if (pc == null) return handleNaN ? (h as number) - (l as number) : null;
+    return Math.max(
+      (h as number) - (l as number),
+      Math.abs((h as number) - (pc as number)),
+      Math.abs((l as number) - (pc as number)),
+    );
+  });
+}
+
+/* ── Cumulative sum ────────────────────────────────────────── */
+export function cum(series: (number | null)[]): (number | null)[] {
+  let acc = 0;
+  return series.map(v => { if (v == null) return acc || null; acc += v as number; return acc; });
+}
+
+/* ── Linear regression (endpoint of the fitted line) ───────── */
+export function linreg(series: (number | null)[], length: number, offset = 0): (number | null)[] {
+  return series.map((_, i) => {
+    if (i < length - 1) return null;
+    const sl = series.slice(i - length + 1, i + 1);
+    if (sl.some(v => v == null)) return null;
+    const n = length;
+    let sx = 0, sy = 0, sxy = 0, sxx = 0;
+    for (let j = 0; j < n; j++) {
+      const x = j, y = sl[j] as number;
+      sx += x; sy += y; sxy += x * y; sxx += x * x;
+    }
+    const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx || 1);
+    const intercept = (sy - slope * sx) / n;
+    return intercept + slope * (n - 1 - offset);
+  });
+}
+
+/* ── Percent rank of current value over lookback ───────────── */
+export function percentrank(series: (number | null)[], length: number): (number | null)[] {
+  return series.map((v, i) => {
+    if (v == null || i < length) return null;
+    const sl = series.slice(i - length, i).filter(x => x != null) as number[];
+    if (!sl.length) return null;
+    const below = sl.filter(x => x < (v as number)).length;
+    return (below / sl.length) * 100;
+  });
+}
+
+/* ── Median over lookback ──────────────────────────────────── */
+export function median(series: (number | null)[], length: number): (number | null)[] {
+  return series.map((_, i) => {
+    if (i < length - 1) return null;
+    const sl = (series.slice(i - length + 1, i + 1).filter(v => v != null) as number[]).sort((a, b) => a - b);
+    if (!sl.length) return null;
+    const m = Math.floor(sl.length / 2);
+    return sl.length % 2 ? sl[m] : (sl[m - 1] + sl[m]) / 2;
+  });
+}
+
+/* ── Pivot high / low (leftbars/rightbars fractal) ─────────── */
+export function pivot(series: (number | null)[], left: number, right: number, high: boolean): (number | null)[] {
+  const out: (number | null)[] = new Array(series.length).fill(null);
+  for (let i = left; i < series.length - right; i++) {
+    const c = series[i];
+    if (c == null) continue;
+    let isPivot = true;
+    for (let j = i - left; j <= i + right; j++) {
+      if (j === i) continue;
+      const o = series[j];
+      if (o == null) { isPivot = false; break; }
+      if (high ? (o as number) > (c as number) : (o as number) < (c as number)) { isPivot = false; break; }
+    }
+    // Pine reports the pivot `right` bars later (confirmation delay)
+    if (isPivot) out[i + right] = c as number;
+  }
+  return out;
+}
+
+/* ── Parabolic SAR ─────────────────────────────────────────── */
+export function sar(
+  highS: (number | null)[], lowS: (number | null)[], start = 0.02, inc = 0.02, max = 0.2
+): (number | null)[] {
+  const out: (number | null)[] = new Array(highS.length).fill(null);
+  if (highS.length < 2) return out;
+  let uptrend = true;
+  let af = start;
+  let ep = highS[0] as number;
+  let sarV = lowS[0] as number;
+  for (let i = 1; i < highS.length; i++) {
+    const h = highS[i] as number, l = lowS[i] as number;
+    if (h == null || l == null) { out[i] = sarV; continue; }
+    sarV = sarV + af * (ep - sarV);
+    if (uptrend) {
+      if (l < sarV) { uptrend = false; sarV = ep; ep = l; af = start; }
+      else if (h > ep) { ep = h; af = Math.min(max, af + inc); }
+    } else {
+      if (h > sarV) { uptrend = true; sarV = ep; ep = h; af = start; }
+      else if (l < ep) { ep = l; af = Math.min(max, af + inc); }
+    }
+    out[i] = sarV;
+  }
+  return out;
+}
+
 /* ── Math namespace ────────────────────────────────────────── */
 export const mathFns = {
   abs:   (x: number) => Math.abs(x),
@@ -388,6 +495,7 @@ export const ta = {
   sma, ema, wma, hma, rma, dema, tema,
   rsi, macd, stoch, bb, keltner, atr, cci,
   williamsr, mfi, vwap, obv, supertrend, donchian, roc,
+  tr: trueRange, cum, linreg, percentrank, median, pivot, sar,
   lowest:  (series: (number | null)[], len: number) => series.map((_, i) =>
     i < len - 1 ? null : Math.min(...(series.slice(i - len + 1, i + 1).filter(v => v != null) as number[]))),
   highest: (series: (number | null)[], len: number) => series.map((_, i) =>

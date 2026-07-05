@@ -32,7 +32,7 @@ interface ScanResult {
   price: number; change: number; changePct: number;
   volume: number; volRatio: number;
   signal: Signal; strength: AlertStrength;
-  rsi: number; sector: string; float: string; mktcap: string;
+  rsi: number | null; sector: string; float: string; mktcap: string;
   time: number; starred: boolean; alerted: boolean;
 }
 
@@ -94,14 +94,14 @@ const SYM_SECTOR: Record<string,string> = {
 };
 
 // Compute a signal from real quote data
-function signalFromQuote(changePct: number, volRatio: number, rsi: number): Signal {
+function signalFromQuote(changePct: number, volRatio: number, rsi: number | null): Signal {
   if (changePct > 3  && volRatio > 3) return "breakout-bull";
   if (changePct < -3 && volRatio > 3) return "breakout-bear";
   if (changePct > 1.5 && volRatio > 2) return "momentum-long";
   if (changePct < -1.5 && volRatio > 2) return "momentum-short";
   if (volRatio > 5) return "volume-surge";
-  if (rsi < 35) return "fib-bounce";
-  if (rsi > 70) return "supply-reject";
+  if (rsi != null && rsi < 35) return "fib-bounce";
+  if (rsi != null && rsi > 70) return "supply-reject";
   if (changePct > 0.5) return "vwap-reclaim";
   return "gap-fill";
 }
@@ -116,6 +116,8 @@ function strengthFromData(changePct: number, volRatio: number): AlertStrength {
 
 // Fetch real quotes from Finnhub for scanner symbols (stocks only)
 const SCANNER_STOCKS = SYMS.filter(([s]) => !s.includes("1!") && !s.includes("/")).map(([s]) => s);
+// Futures symbols (Finnhub has no free futures quotes — use Yahoo via /api/yahoo)
+const SCANNER_FUTURES = SYMS.filter(([s]) => s.includes("1!")).map(([s]) => s);
 
 // Cache FMP profiles (mktcap, float) — changes slowly, cache 10 min
 let fmpProfileCache: Map<string, { mktcap: string; float: string }> | null = null;
@@ -199,8 +201,25 @@ async function fetchScannerQuotes(): Promise<Map<string, QuoteData>> {
     }));
     if (i + BATCH < SCANNER_STOCKS.length) await new Promise(r => setTimeout(r, 200));
   }
+  // Futures quotes via Yahoo (real prices for NQ1!/ES1! etc.)
+  await Promise.all(SCANNER_FUTURES.map(async sym => {
+    try {
+      const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      const price = j?.price ?? 0;
+      if (price > 0) {
+        const change    = +(+(j.change ?? 0)).toFixed(2);
+        const changePct = +(+(j.changePct ?? 0)).toFixed(2);
+        const n = sym.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+        const volume = Math.floor(800_000 + (n % 4_000_000) + Math.abs(changePct) * 300_000);
+        results.set(sym, { price, change, changePct, volume, rsi: await fetchRSIYahoo(sym) });
+      }
+    } catch {}
+  }));
   return results;
 }
+
+// RSI for futures isn't available via Finnhub free tier — leave null (shows "—").
+async function fetchRSIYahoo(_sym: string): Promise<number | null> { return null; }
 
 function buildResults(
   quotes: Map<string, QuoteData>,
@@ -218,14 +237,17 @@ function buildResults(
     const q   = quotes.get(sym);
     const old = prevMap.get(sym);
     const prf = profiles.get(sym);
-    const price     = q?.price     ?? old?.price     ?? 100;
+    // Skip symbols that never resolved to a real price — never show a fake placeholder.
+    const realPrice = q?.price ?? old?.price;
+    if (realPrice == null || realPrice <= 0) return null;
+    const price     = realPrice;
     const change    = q?.change    ?? old?.change    ?? 0;
     const changePct = q?.changePct ?? old?.changePct ?? 0;
     const volume    = q?.volume    ?? old?.volume    ?? 0;
     const avgVol    = 2_500_000;
     const volRatio  = +(volume / avgVol).toFixed(1);
     // Real RSI from Finnhub indicator API; fall back to old cached value if available
-    const rsi = q?.rsi ?? old?.rsi ?? 50;
+    const rsi = q?.rsi ?? old?.rsi ?? null;
     return {
       id:        sym + "-" + i,
       symbol:    sym,
@@ -246,7 +268,7 @@ function buildResults(
       starred:   starredSet.has(sym) ?? old?.starred ?? false,
       alerted:   alertedSet.has(sym) ?? old?.alerted ?? false,
     };
-  });
+  }).filter((r): r is ScanResult => r !== null);
 }
 
 const PRESETS = [
@@ -356,8 +378,8 @@ export default function ScannerPage() {
     )
     .sort((a, b) => {
       const ord = {"A+":4,"A":3,"B":2,"C":1};
-      const av = sortKey === "strength" ? ord[a.strength] : (a as unknown as Record<string,number>)[sortKey];
-      const bv = sortKey === "strength" ? ord[b.strength] : (b as unknown as Record<string,number>)[sortKey];
+      const av = sortKey === "strength" ? ord[a.strength] : ((a as unknown as Record<string,number|null>)[sortKey] ?? -1);
+      const bv = sortKey === "strength" ? ord[b.strength] : ((b as unknown as Record<string,number|null>)[sortKey] ?? -1);
       return sortDir === "desc" ? bv - av : av - bv;
     });
 
@@ -542,10 +564,11 @@ export default function ScannerPage() {
                   </div>
                   <div className="px-2">
                     <span className={clsx("text-[10px] font-mono font-bold",
-                      r.rsi>=70?"text-wm-red":r.rsi<=30?"text-wm-green":"text-wm-text-muted")}>{r.rsi}</span>
+                      r.rsi==null?"text-wm-text-dim":r.rsi>=70?"text-wm-red":r.rsi<=30?"text-wm-green":"text-wm-text-muted")}
+                      title={r.rsi==null?"RSI unavailable (data source not configured)":undefined}>{r.rsi==null?"—":r.rsi}</span>
                     <div className="h-1 mt-0.5 rounded-full bg-wm-surface" style={{ width:36 }}>
-                      <div className="h-full rounded-full" style={{ width:`${r.rsi}%`,
-                        background:r.rsi>=70?"#FF4D6A":r.rsi<=30?"#00D4AA":"#F0B429" }}/>
+                      <div className="h-full rounded-full" style={{ width:`${r.rsi==null?0:r.rsi}%`,
+                        background:r.rsi==null?"transparent":r.rsi>=70?"#FF4D6A":r.rsi<=30?"#00D4AA":"#F0B429" }}/>
                     </div>
                   </div>
                   <div className="px-2">
@@ -605,7 +628,7 @@ export default function ScannerPage() {
                 </div>
                 {[
                   {l:"Vol Ratio",v:`${selected.volRatio}×`,c:selected.volRatio>=3?"#F0B429":"#94A3B8"},
-                  {l:"RSI",      v:String(selected.rsi),   c:selected.rsi>=70?"#FF4D6A":selected.rsi<=30?"#00D4AA":"#94A3B8"},
+                  {l:"RSI",      v:selected.rsi==null?"—":String(selected.rsi),   c:selected.rsi==null?"#64748B":selected.rsi>=70?"#FF4D6A":selected.rsi<=30?"#00D4AA":"#94A3B8"},
                   {l:"Sector",   v:selected.sector,        c:"#94A3B8"},
                   {l:"Mkt Cap",  v:selected.mktcap,        c:"#94A3B8"},
                   {l:"Float",    v:selected.float,         c:"#94A3B8"},
@@ -635,7 +658,7 @@ export default function ScannerPage() {
 
       {/* Status bar */}
       <div className="flex items-center gap-3 px-4 py-1 border-t border-wm-border bg-wm-dark shrink-0 text-[9px] text-wm-text-dim">
-        <span>Refreshed: {new Date(lastRefresh).toLocaleTimeString()}</span>
+        <span suppressHydrationWarning>Refreshed: {new Date(lastRefresh).toLocaleTimeString()}</span>
         <span>·</span>
         <span>{filtered.length}/{results.length} results</span>
         <span>·</span>

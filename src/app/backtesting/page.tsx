@@ -11,40 +11,11 @@ import { Play, Square, RotateCcw, TrendingUp, TrendingDown, BarChart2, Zap, Down
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { SymbolSearch } from "@/components/ui/SymbolSearch";
+import { fetchBars, runRealBacktest, type BTTrade, type BTResult } from "@/lib/backtest/engine";
 
 /* ── Types ──────────────────────────────────────────────── */
-interface Trade {
-  id:      number;
-  date:    string;
-  symbol:  string;
-  side:    "long" | "short";
-  entry:   number;
-  exit:    number;
-  pnl:     number;
-  pct:     number;
-  result:  "win" | "loss" | "be";
-  bars:    number;          // bars held
-  signal:  string;
-}
-
-interface BacktestResult {
-  trades:        Trade[];
-  totalPnl:      number;
-  winRate:       number;
-  avgWin:        number;
-  avgLoss:       number;
-  profitFactor:  number;
-  maxDrawdown:   number;
-  maxDrawdownPct:number;
-  sharpe:        number;
-  totalTrades:   number;
-  wins:          number;
-  losses:        number;
-  bestTrade:     number;
-  worstTrade:    number;
-  avgBarsHeld:   number;
-  equity:        { t: number; v: number }[];
-}
+type Trade = BTTrade;
+type BacktestResult = BTResult;
 
 const SYMBOLS = ["NQ1!", "ES1!", "AAPL", "TSLA", "NVDA", "BTC", "SPY", "GC1!"];
 const STRATEGIES = [
@@ -62,79 +33,6 @@ const DATE_RANGES = [
   { label: "6 Months", days: 180 },
   { label: "1 Year",   days: 365 },
 ];
-
-/* ── Simulation ─────────────────────────────────────────── */
-function runBacktest(symbol: string, strategyId: string, tf: string, days: number): BacktestResult {
-  const seed   = symbol.length + strategyId.length + days;
-  const rng    = (n: number) => Math.abs(Math.sin(seed * n * 9301 + 49297) % 1);
-  const N      = Math.floor(days * (tf === "1m" ? 390 : tf === "5m" ? 78 : tf === "15m" ? 26 : tf === "1h" ? 6.5 : 1));
-  const trades: Trade[] = [];
-  let equity   = 100_000;
-  const equityCurve: { t: number; v: number }[] = [{ t: 0, v: equity }];
-
-  let tId = 0;
-  for (let i = 0; i < Math.min(N, 400); i++) {
-    if (rng(i + 1) < 0.08) {
-      tId++;
-      const isLong   = rng(i + 2) > 0.45;
-      const baseMove = rng(i + 3) * 0.025;
-      const winProb  = strategyId === "clc" ? 0.62 : strategyId === "vwap" ? 0.58 : strategyId === "wyckoff" ? 0.60 : 0.54;
-      const won      = rng(i + 4) < winProb;
-      const moveSign = (isLong ? 1 : -1) * (won ? 1 : -1);
-      const pct      = moveSign * (won ? baseMove * 2.5 : -baseMove * 1.0);
-      const pnl      = equity * Math.abs(pct) * moveSign;
-      const entryDate = new Date(Date.now() - (days - i / N * days) * 86_400_000);
-      equity += pnl;
-      trades.push({
-        id: tId, date: entryDate.toLocaleDateString(),
-        symbol, side: isLong ? "long" : "short",
-        entry: 100 + rng(i + 5) * 50,
-        exit:  100 + rng(i + 5) * 50 * (1 + pct),
-        pnl:   +pnl.toFixed(2),
-        pct:   +(pct * 100).toFixed(2),
-        result: pnl > 100 ? "win" : pnl < -100 ? "loss" : "be",
-        bars:  Math.floor(1 + rng(i + 6) * 12),
-        signal: STRATEGIES.find(s => s.id === strategyId)?.label ?? strategyId,
-      });
-      equityCurve.push({ t: i, v: +equity.toFixed(2) });
-    }
-  }
-
-  const wins   = trades.filter(t => t.result === "win");
-  const losses = trades.filter(t => t.result === "loss");
-  const totalPnl = equity - 100_000;
-
-  // Max drawdown
-  let peak = 100_000, maxDD = 0;
-  equityCurve.forEach(({ v }) => {
-    if (v > peak) peak = v;
-    const dd = (peak - v) / peak;
-    if (dd > maxDD) maxDD = dd;
-  });
-
-  const avgWin  = wins.length   ? wins.reduce((s, t) => s + t.pnl, 0) / wins.length : 0;
-  const avgLoss = losses.length ? losses.reduce((s, t) => s + t.pnl, 0) / losses.length : 0;
-  const pf      = losses.length && avgLoss ? Math.abs(avgWin * wins.length / (avgLoss * losses.length)) : 99;
-
-  return {
-    trades,
-    totalPnl:       +totalPnl.toFixed(2),
-    winRate:        trades.length ? +(wins.length / trades.length * 100).toFixed(1) : 0,
-    avgWin:         +avgWin.toFixed(2),
-    avgLoss:        +avgLoss.toFixed(2),
-    profitFactor:   +pf.toFixed(2),
-    maxDrawdown:    +(maxDD * 100_000).toFixed(2),
-    maxDrawdownPct: +(maxDD * 100).toFixed(1),
-    sharpe:         +(1.5 + rng(7) * 1.8).toFixed(2),
-    totalTrades:    trades.length,
-    wins:           wins.length,
-    losses:         losses.length,
-    bestTrade:      trades.length ? Math.max(...trades.map(t => t.pnl)) : 0,
-    worstTrade:     trades.length ? Math.min(...trades.map(t => t.pnl)) : 0,
-    avgBarsHeld:    trades.length ? +(trades.reduce((s, t) => s + t.bars, 0) / trades.length).toFixed(1) : 0,
-    equity:         equityCurve,
-  };
-}
 
 /* ── Mini equity chart ───────────────────────────────────── */
 function EquityChart({ data }: { data: { t: number; v: number }[] }) {
@@ -335,26 +233,42 @@ export default function BacktestingPage() {
   const [result,    setResult]    = useState<BacktestResult | null>(null);
   const [tradeTab,  setTradeTab]  = useState<"all"|"wins"|"losses">("all");
   const [mainTab,   setMainTab]   = useState<"backtest"|"walkforward">("backtest");
+  const [error,     setError]     = useState<string | null>(null);
 
-  const run = useCallback(() => {
+  const run = useCallback(async () => {
     setRunning(true);
     setProgress(0);
     setResult(null);
+    setError(null);
 
-    // Simulate progress ticks
+    // Progress ticks while the real fetch + simulation run.
     let p = 0;
     const iv = setInterval(() => {
-      p += Math.random() * 15;
-      setProgress(Math.min(p, 95));
-      if (p >= 95) clearInterval(iv);
-    }, 80);
+      p += Math.random() * 12;
+      setProgress(Math.min(p, 92));
+      if (p >= 92) clearInterval(iv);
+    }, 90);
 
-    setTimeout(() => {
+    try {
+      const bars = await fetchBars(symbol, tf);
+      if (bars.length < 50) {
+        throw new Error(`Only ${bars.length} bars returned for ${symbol} @ ${tf}. Try a higher timeframe or a different symbol.`);
+      }
+      const r = runRealBacktest(bars, symbol, strategy.id, strategy.label);
+      // Note when Yahoo's intraday window couldn't cover the requested range.
+      const approxDaysCovered = (bars[bars.length - 1].time - bars[0].time) / 86_400;
+      if (approxDaysCovered < dateRange.days * 0.6) {
+        r.meta.rangeNote = `Yahoo intraday history is range-limited at ${tf}; covered ~${Math.round(approxDaysCovered)}d of the requested ${dateRange.days}d.`;
+      }
       clearInterval(iv);
       setProgress(100);
-      const r = runBacktest(symbol, strategy.id, tf, dateRange.days);
-      setTimeout(() => { setResult(r); setRunning(false); }, 200);
-    }, 1400);
+      setResult(r);
+    } catch (e) {
+      clearInterval(iv);
+      setError(e instanceof Error ? e.message : "Backtest failed — could not load data.");
+    } finally {
+      setRunning(false);
+    }
   }, [symbol, strategy, tf, dateRange]);
 
   const shownTrades = result
@@ -394,10 +308,20 @@ export default function BacktestingPage() {
           ))}
         </div>
         <div className="flex items-center gap-1 text-[10px] text-wm-text-dim">
-          <Zap size={10} className="text-wm-gold" /> Synthetic data — connect live feed for real results
+          <Zap size={10} className="text-wm-green" /> Live data — real Yahoo OHLCV bars
         </div>
         {result && mainTab === "backtest" && (
-          <button className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs text-wm-text-muted hover:text-wm-text bg-wm-surface border border-wm-border transition-colors">
+          <button onClick={() => {
+            const header = "id,date,symbol,side,entry,exit,pnl,pct,result,bars,signal";
+            const rows = result.trades.map(t => [t.id,t.date,t.symbol,t.side,t.entry,t.exit,t.pnl,t.pct,t.result,t.bars,t.signal].join(","));
+            const csv = [header, ...rows].join("\n");
+            const blob = new Blob([csv], { type:"text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = `backtest-${symbol}-${strategy.id}-${tf}.csv`;
+            a.click(); URL.revokeObjectURL(url);
+          }}
+            className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs text-wm-text-muted hover:text-wm-text bg-wm-surface border border-wm-border transition-colors">
             <Download size={11} /> Export
           </button>
         )}
@@ -485,7 +409,7 @@ export default function BacktestingPage() {
           </button>
 
           {result && (
-            <button onClick={() => { setResult(null); setProgress(0); }}
+            <button onClick={() => { setResult(null); setProgress(0); setError(null); }}
               className="flex items-center justify-center gap-2 py-2 rounded-lg text-xs text-wm-text-muted hover:text-wm-text bg-wm-surface border border-wm-border transition-colors">
               <RotateCcw size={12} /> Reset
             </button>
@@ -496,10 +420,20 @@ export default function BacktestingPage() {
         <div className="flex-1 overflow-y-auto p-4">
 
           {/* Progress bar */}
+          {error && !running && (
+            <div className="mb-6 flex items-start gap-2 px-4 py-3 rounded-xl bg-wm-red/10 border border-wm-red/30">
+              <AlertTriangle size={14} className="text-wm-red shrink-0 mt-0.5" />
+              <div>
+                <div className="text-xs font-bold text-wm-red">Backtest failed</div>
+                <div className="text-[11px] text-wm-text-muted mt-0.5">{error}</div>
+              </div>
+            </div>
+          )}
+
           {running && (
             <div className="mb-6">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-wm-text-muted">Simulating {dateRange.label.toLowerCase()} of {tf} bars...</span>
+                <span className="text-xs text-wm-text-muted">Fetching real {tf} bars for {symbol} & running strategy...</span>
                 <span className="text-xs font-mono text-wm-green">{Math.round(progress)}%</span>
               </div>
               <div className="h-1.5 bg-wm-surface rounded-full overflow-hidden">
@@ -527,10 +461,23 @@ export default function BacktestingPage() {
             {result && (
               <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }}>
 
+                {/* ── Data provenance ── */}
+                <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 rounded-lg bg-wm-surface/40 border border-wm-border text-[10px] text-wm-text-dim">
+                  <span className="flex items-center gap-1 text-wm-green font-bold"><CheckCircle size={11} /> Real data</span>
+                  <span><span className="text-wm-text-muted font-mono">{result.meta.barCount.toLocaleString()}</span> bars</span>
+                  <span><span className="text-wm-text-muted font-mono">{result.meta.fromDate}</span> → <span className="text-wm-text-muted font-mono">{result.meta.toDate}</span></span>
+                  <span>{symbol} · {tf} · {strategy.label}</span>
+                  {result.meta.rangeNote && (
+                    <span className="flex items-center gap-1 text-wm-gold w-full mt-0.5">
+                      <AlertTriangle size={10} /> {result.meta.rangeNote}
+                    </span>
+                  )}
+                </div>
+
                 {/* ── Key metrics ── */}
                 <div className="grid grid-cols-4 gap-3 mb-5">
                   {[
-                    { l:"Total P&L",     v: `${result.totalPnl >= 0 ? "+" : ""}$${Math.abs(result.totalPnl).toLocaleString()}`, good: result.totalPnl >= 0 },
+                    { l:"Total P&L",     v: `${result.totalPnl >= 0 ? "+" : "−"}$${Math.abs(result.totalPnl).toLocaleString()}`, good: result.totalPnl >= 0 },
                     { l:"Win Rate",      v: `${result.winRate}%`, good: result.winRate >= 50 },
                     { l:"Profit Factor", v: result.profitFactor.toFixed(2), good: result.profitFactor >= 1 },
                     { l:"Sharpe Ratio",  v: result.sharpe.toFixed(2), good: result.sharpe >= 1 },

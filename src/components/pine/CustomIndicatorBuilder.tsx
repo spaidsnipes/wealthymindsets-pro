@@ -2,7 +2,7 @@
 
 /**
  * Custom Indicator Builder
- * Full Pine Script v5 editor with:
+ * Full Pine Script v6 editor with:
  *  - Live preview (runs interpreter on chart data)
  *  - Save / Load / Share / Delete
  *  - Community library of starter templates
@@ -27,7 +27,7 @@ const TEMPLATES: { name: string; desc: string; category: string; code: string }[
     name: "Triple EMA Ribbon",
     desc: "Three EMAs forming a trend ribbon — fast, mid, slow",
     category: "Trend",
-    code: `//@version=5
+    code: `//@version=6
 indicator("Triple EMA Ribbon", overlay=true)
 
 fast = input.int(8,  "Fast EMA")
@@ -50,7 +50,7 @@ bgcolor(isBull ? color.new(color.green, 95) : color.new(color.red, 95))`,
     name: "RSI + Divergence",
     desc: "RSI with overbought/oversold signals",
     category: "Momentum",
-    code: `//@version=5
+    code: `//@version=6
 indicator("RSI + Divergence", overlay=false)
 
 len = input.int(14, "RSI Length")
@@ -76,7 +76,7 @@ plotshape(ta.crossover(rsiVal,  os) and rsiVal < 40, "OS Signal", shape.triangle
     name: "VWAP + Bands",
     desc: "VWAP with 1σ and 2σ standard deviation bands",
     category: "Volume",
-    code: `//@version=5
+    code: `//@version=6
 indicator("VWAP + Bands", overlay=true)
 
 mult1 = input.float(1.0, "Band 1 Mult")
@@ -95,7 +95,7 @@ plot(vwapVal - mult2 * dev, "-2σ", color=color.blue,   linewidth=1)`,
     name: "Supertrend",
     desc: "ATR-based dynamic support/resistance",
     category: "Trend",
-    code: `//@version=5
+    code: `//@version=6
 indicator("Supertrend", overlay=true)
 
 factor    = input.float(3.0, "Factor")
@@ -124,7 +124,7 @@ plotshape(dir == -1 and dir[1] == 1, "Sell", shape.triangledown, location.aboveb
     name: "Bollinger Band Squeeze",
     desc: "Detect BB squeeze and expansion — Momentum signal",
     category: "Volatility",
-    code: `//@version=5
+    code: `//@version=6
 indicator("BB Squeeze", overlay=false)
 
 length = input.int(20,  "BB Length")
@@ -150,7 +150,7 @@ hline(0, "Zero", color.gray, linestyle=line.style_dashed)`,
     name: "MACD Signal",
     desc: "Classic MACD histogram with cross signals",
     category: "Momentum",
-    code: `//@version=5
+    code: `//@version=6
 indicator("MACD Signal", overlay=false)
 
 fast   = input.int(12, "Fast")
@@ -172,7 +172,7 @@ plotshape(ta.crossunder(macdLine, sigLine), "Sell", shape.triangledown, location
     name: "Smart Money Zones",
     desc: "Detects potential order blocks and fair value gaps",
     category: "Smart Money",
-    code: `//@version=5
+    code: `//@version=6
 indicator("Smart Money Zones", overlay=true)
 
 obLen  = input.int(3, "OB Lookback")
@@ -197,7 +197,7 @@ bgcolor(bullFVG ? color.new(color.green, 90) : bearFVG ? color.new(color.red, 90
     name: "CLC Rule Signal",
     desc: "Context + Location + Confirmation entry signal",
     category: "Smart Money",
-    code: `//@version=5
+    code: `//@version=6
 indicator("CLC Rule Signal", overlay=true)
 
 // Context: trending above VWAP
@@ -326,7 +326,7 @@ export function CustomIndicatorBuilder({ onClose, bars, onAddToChart, activeCode
           </div>
           <span className="text-sm font-bold text-wm-text">Custom Indicator Builder</span>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-wm-green/20 text-wm-green border border-wm-green/30 font-semibold">
-            Pine Script v5
+            Pine Script v6
           </span>
 
           <div className="flex gap-1 ml-4">

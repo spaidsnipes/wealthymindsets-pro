@@ -113,9 +113,10 @@ export function StockInfoPanel({ symbol }: Props) {
     const up = symbol.toUpperCase();
     const isFutures = up.endsWith("1!") || up.includes("=F");
     const isCrypto  = ["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC"].includes(up);
-    const url = (!isFutures && !isCrypto)
-      ? `/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`
-      : `/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`;
+    // Yahoo for everything — it includes pre/post-market (matches TradingView);
+    // Finnhub free is regular-hours-only and goes stale outside RTH.
+    void isFutures; void isCrypto;
+    const url = `/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`;
     fetch(url, { cache: "no-store" }).then(r => r.json()).then(j => {
       if (j?.price > 0) setRealOHLC({
         open:      j.open      ?? j.price,

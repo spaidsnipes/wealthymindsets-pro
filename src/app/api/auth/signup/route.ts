@@ -18,8 +18,9 @@ export async function POST(req: Request) {
     const jwt = signJWT({ sub: user.id, email: user.email, profileComplete: false });
     const res = NextResponse.json({ ok: true });
     setAuthCookie(res.cookies, jwt);
-    // Fire-and-forget welcome email — don't block response on email delivery
-    sendWelcomeEmail(email, firstName).catch(() => {});
+    // Fire-and-forget welcome email — don't block response on email delivery.
+    // Log failures so delivery problems (e.g. Resend test-mode / missing domain) are diagnosable.
+    sendWelcomeEmail(email, firstName).catch((e) => console.error("[signup] welcome email failed:", e));
     return res;
   }
 
@@ -34,6 +35,6 @@ export async function POST(req: Request) {
   const jwt = signJWT({ sub: id, email: email.toLowerCase(), profileComplete: false });
   const res = NextResponse.json({ ok: true });
   setAuthCookie(res.cookies, jwt);
-  sendWelcomeEmail(email, firstName).catch(() => {});
+  sendWelcomeEmail(email, firstName).catch((e) => console.error("[signup] welcome email failed:", e));
   return res;
 }

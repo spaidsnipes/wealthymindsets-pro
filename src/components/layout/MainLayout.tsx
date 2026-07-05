@@ -9,7 +9,8 @@ import {
   Users, ShoppingBag, Globe, User, ChevronLeft, ChevronRight,
   Bell, Settings, Search, Zap, BookOpen, FlaskConical, TrendingUp,
   X, Check, Moon, Sun, Volume2, VolumeX, Eye, EyeOff,
-  Palette, Monitor, Keyboard, Shield, RefreshCw, Trash2, Radio, Copy,
+  Palette, Monitor, Keyboard, Shield, RefreshCw, Trash2, Radio, Copy, Heart,
+  Tv, Handshake,
 } from "lucide-react";
 import { WMLogo } from "@/components/ui/WMLogo";
 import { TickerTape } from "@/components/layout/TickerTape";
@@ -476,6 +477,40 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
   const [fomoDetect,  setFomoDetect]  = useState(true);
   const [inAppNotifs, setInAppNotifs] = useState(true);
   const [twoFactor,   setTwoFactor]   = useState(false);
+  const [chartTheme,  setChartTheme]  = useState("green-red");
+  const [fontSize,    setFontSize]    = useState("medium");
+
+  // Load persisted settings on mount so the panel reflects saved state
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("wm_settings");
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (typeof s.darkMode === "boolean") setDarkMode(s.darkMode);
+      if (typeof s.soundOn === "boolean") setSoundOn(s.soundOn);
+      if (typeof s.showPnl === "boolean") setShowPnl(s.showPnl);
+      if (s.defaultTF) setDefaultTF(s.defaultTF);
+      if (s.defSym) setDefSym(s.defSym);
+      if (s.chartTheme) setChartTheme(s.chartTheme);
+      if (s.fontSize) setFontSize(s.fontSize);
+      if (typeof s.priceAlert === "boolean") setPriceAlert(s.priceAlert);
+      if (typeof s.newsAlert === "boolean") setNewsAlert(s.newsAlert);
+      if (typeof s.wrAlert === "boolean") setWrAlert(s.wrAlert);
+      if (typeof s.autoSave === "boolean") setAutoSave(s.autoSave);
+      if (typeof s.paperWarn === "boolean") setPaperWarn(s.paperWarn);
+      if (typeof s.confirmOrders === "boolean") setConfirmOrders(s.confirmOrders);
+      if (typeof s.overtrading === "boolean") setOvertrading(s.overtrading);
+      if (typeof s.fomoDetect === "boolean") setFomoDetect(s.fomoDetect);
+      if (typeof s.inAppNotifs === "boolean") setInAppNotifs(s.inAppNotifs);
+      if (typeof s.twoFactor === "boolean") setTwoFactor(s.twoFactor);
+    } catch {}
+  }, []);
+
+  // Apply font size live to the document so the choice has visible effect
+  useEffect(() => {
+    const px = fontSize === "small" ? "14px" : fontSize === "large" ? "18px" : "16px";
+    document.documentElement.style.fontSize = px;
+  }, [fontSize]);
 
   const Toggle = ({ on, set }: { on: boolean; set: (v:boolean)=>void }) => (
     <button
@@ -563,17 +598,20 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
                 <Toggle on={soundOn} set={setSoundOn} />
               </Row>
               <Row label="Chart Theme" sub="Candle color scheme">
-                <select className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none">
-                  <option>Green/Red (Default)</option>
-                  <option>Blue/Orange</option>
-                  <option>Monochrome</option>
+                <select value={chartTheme} onChange={e => setChartTheme(e.target.value)}
+                  className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none">
+                  <option value="green-red">Green/Red (Default)</option>
+                  <option value="blue-purple">Royal Blue/Purple</option>
+                  <option value="blue-orange">Blue/Yellow</option>
+                  <option value="mono">Monochrome</option>
                 </select>
               </Row>
               <Row label="Font Size" sub="Chart label and UI text size">
-                <select className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none">
-                  <option>Small</option>
-                  <option>Medium (Default)</option>
-                  <option>Large</option>
+                <select value={fontSize} onChange={e => setFontSize(e.target.value)}
+                  className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none">
+                  <option value="small">Small</option>
+                  <option value="medium">Medium (Default)</option>
+                  <option value="large">Large</option>
                 </select>
               </Row>
             </div>
@@ -581,18 +619,26 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
 
           {tab === "trading" && (
             <div>
-              <Row label="Default Symbol" sub="Symbol loaded when opening Charts">
-                <select
-                  value={defSym} onChange={e => setDefSym(e.target.value)}
-                  className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none">
-                  {["NQ1!","ES1!","BTC","AAPL","SPY","GC1!","TSLA"].map(s => <option key={s}>{s}</option>)}
-                </select>
+              <Row label="Default Symbol" sub="Symbol loaded when opening Charts — type any ticker">
+                <>
+                  <input
+                    list="wm-defsym-list"
+                    value={defSym}
+                    onChange={e => setDefSym(e.target.value.toUpperCase())}
+                    placeholder="Search symbol…"
+                    className="w-28 bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none focus:border-wm-blue uppercase" />
+                  <datalist id="wm-defsym-list">
+                    {["NQ1!","ES1!","BTC","ETH","AAPL","SPY","GC1!","TSLA","NVDA","MSFT","QQQ","EUR/USD","XAU/USD"].map(s => <option key={s} value={s} />)}
+                  </datalist>
+                </>
               </Row>
               <Row label="Default Timeframe" sub="Timeframe loaded on chart open">
                 <select
                   value={defaultTF} onChange={e => setDefaultTF(e.target.value)}
                   className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none">
-                  {["1t","5t","1m","3m","5m","15m","1h","4h","D"].map(t => <option key={t}>{t}</option>)}
+                  <option value="last">Last Used</option>
+                  <option value="none">None</option>
+                  {["1t","5t","1m","3m","5m","15m","1h","4h","D"].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </Row>
               <Row label="Auto-save Journal" sub="Prompt to log trades when session ends">
@@ -685,10 +731,11 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
           <button
             onClick={() => {
               localStorage.setItem("wm_settings", JSON.stringify({
-                darkMode, soundOn, showPnl, defaultTF, defSym,
+                darkMode, soundOn, showPnl, defaultTF, defSym, chartTheme, fontSize,
                 priceAlert, newsAlert, wrAlert, autoSave, paperWarn,
                 confirmOrders, overtrading, fomoDetect, inAppNotifs, twoFactor,
               }));
+              window.dispatchEvent(new CustomEvent("wm-settings-changed"));
               onClose();
             }}
             className="w-full py-2 rounded-xl text-sm font-bold text-wm-black transition-all hover:opacity-90"
@@ -717,11 +764,14 @@ const NAV_TOP = [
   { href: "/ai-bot",      icon: Zap,           label: "AI Bot"     },
 ];
 const NAV_BOTTOM = [
-  { href: "/lounge",      icon: Users,         label: "Lounge"     },
-  { href: "/radio",       icon: Radio,         label: "WM Radio"   },
-  { href: "/creator",     icon: Globe,         label: "Creator"    },
-  { href: "/shop",        icon: ShoppingBag,   label: "Shop"       },
-  { href: "/profile",     icon: User,          label: "Profile"    },
+  { href: "/morning-prep", icon: Sun,           label: "Morning Prep" },
+  { href: "/lounge",       icon: Users,         label: "Lounge"       },
+  { href: "/tv",           icon: Tv,            label: "WM TV"        },
+  { href: "/radio",        icon: Radio,         label: "WM Radio"     },
+  { href: "/creator",      icon: Globe,         label: "Creator"      },
+  { href: "/partnerships", icon: Handshake,     label: "Partnerships" },
+  { href: "/shop",         icon: ShoppingBag,   label: "Shop"         },
+  { href: "/profile",      icon: User,          label: "Profile"      },
 ];
 /* Legacy — kept for any code that may reference NAV_ITEMS */
 const NAV_ITEMS = [
@@ -731,6 +781,48 @@ const NAV_ITEMS = [
 ];
 
 /* ── Main Layout ─────────────────────────────────────────── */
+/* ── Header live P&L badge ───────────────────────────────── */
+function HeaderPnL() {
+  const [show, setShow] = useState(false);
+  const [pnl,  setPnl]  = useState<number | null>(null);
+
+  useEffect(() => {
+    const read = () => {
+      try {
+        const s = JSON.parse(localStorage.getItem("wm_settings") || "{}");
+        // showPnl defaults to true in the panel; treat missing as on
+        setShow(s.showPnl === undefined ? true : !!s.showPnl);
+        const paper = JSON.parse(localStorage.getItem("wm_paper_state") || "null");
+        if (paper && Array.isArray(paper.trades)) {
+          const realized = paper.trades.reduce(
+            (acc: number, t: { pnl?: number }) => acc + (t.pnl ?? 0), 0);
+          setPnl(realized);
+        } else { setPnl(null); }
+      } catch { setShow(false); }
+    };
+    read();
+    window.addEventListener("wm-settings-changed", read);
+    const iv = setInterval(read, 4000);
+    return () => { window.removeEventListener("wm-settings-changed", read); clearInterval(iv); };
+  }, []);
+
+  if (!show) return null;
+  const val = pnl ?? 0;
+  const up = val >= 0;
+  return (
+    <div
+      className="flex items-center gap-1 px-2 py-0.5 rounded-lg border mr-1"
+      style={{ borderColor: up ? "rgba(0,212,170,0.4)" : "rgba(255,77,77,0.4)" }}
+      title="Realized paper-trading P&L"
+    >
+      <span className="text-[9px] text-wm-text-dim font-semibold">P&L</span>
+      <span className={clsx("text-[11px] font-bold font-mono", up ? "text-wm-green" : "text-wm-red")}>
+        {up ? "+" : "-"}${Math.abs(val).toLocaleString("en-US", { maximumFractionDigits: 2 })}
+      </span>
+    </div>
+  );
+}
+
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const [brokerOpen,    setBrokerOpen]    = useState(false);
   const [searchOpen,    setSearchOpen]    = useState(false);
@@ -746,11 +838,26 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => { setMounted(true); }, []);
 
-  // Skip shell on auth pages
-  const PUBLIC_AUTH_PATHS = ["/login", "/signup"];
-  if (PUBLIC_AUTH_PATHS.some(p => pathname.startsWith(p))) {
-    return <>{children}</>;
-  }
+  // ── Global settings applier ─────────────────────────────────
+  // Reads wm_settings and applies app-wide visual settings (light/dark
+  // theme + base font size) on mount and whenever Settings is saved.
+  useEffect(() => {
+    const apply = () => {
+      try {
+        const raw = localStorage.getItem("wm_settings");
+        const s = raw ? JSON.parse(raw) : {};
+        // Dark mode: when explicitly false → light theme class on <html>
+        const dark = s.darkMode !== false;
+        document.documentElement.classList.toggle("wm-light", !dark);
+        // Base font size
+        const fs = s.fontSize === "small" ? "14px" : s.fontSize === "large" ? "18px" : "16px";
+        document.documentElement.style.fontSize = fs;
+      } catch {}
+    };
+    apply();
+    window.addEventListener("wm-settings-changed", apply);
+    return () => window.removeEventListener("wm-settings-changed", apply);
+  }, []);
 
   // Keyboard shortcut: Ctrl+K / Cmd+K → open search
   useEffect(() => {
@@ -768,6 +875,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
+
+  // Skip shell on auth pages — MUST be after all hooks to keep hook order stable
+  const PUBLIC_AUTH_PATHS = ["/login", "/signup"];
+  if (PUBLIC_AUTH_PATHS.some(p => pathname.startsWith(p))) {
+    return <>{children}</>;
+  }
 
   return (
     <div
@@ -791,6 +904,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
         {/* Right controls */}
         <div className="flex items-center gap-1 shrink-0">
+          {/* Live P&L (toggled by Settings → Show P&L in header) */}
+          <HeaderPnL />
+
           {/* Search — opens modal */}
           <button
             onClick={() => setSearchOpen(true)}

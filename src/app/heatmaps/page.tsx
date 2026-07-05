@@ -248,7 +248,7 @@ const SECTORS: Sector[] = [
 ];
 
 // Only the periods our /api/heatmap endpoint actually supports
-const TIMEFRAMES = ["1D","1W","1M","3M","6M","YTD","1Y"];
+const TIMEFRAMES = ["1D","1W","1M","3M","6M","1Y","5Y"];
 const VIEWS = ["S&P 500", "World", "Full", "ETFs", "Markov", "VP"];
 
 /* ═══════════════════════════════════════════════════════════
@@ -538,7 +538,7 @@ function seededRand(sym: string, salt: number): number {
 }
 
 const HM_CACHE_PREFIX = "wm_heatmap_";
-const HM_CACHE_TTL = { "1D": 60_000, "1W": 300_000, "1M": 600_000, "3M": 900_000, "6M": 900_000, "YTD": 900_000, "1Y": 900_000 } as Record<string, number>;
+const HM_CACHE_TTL = { "1D": 60_000, "1W": 300_000, "1M": 600_000, "3M": 900_000, "6M": 900_000, "YTD": 900_000, "1Y": 900_000, "5Y": 1_800_000 } as Record<string, number>;
 
 function useLivePct(tf: string) {
   // Initialize from localStorage cache so we never show blank zeros on revisit

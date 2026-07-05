@@ -14,10 +14,11 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import type { FootprintType, CandleType } from "./ChartsDashboard";
-import { resolveParams, type IndicatorSettings } from "./indicatorConfig";
+import { resolveParams, visibleAtTf, type IndicatorSettings } from "./indicatorConfig";
 import { parseExchangeSymbol } from "@/lib/exchanges";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import type { PineOutput } from "@/lib/pine/types";
+import { interpretPine } from "@/lib/pine/interpreter";
 import * as IND from "./indicators";
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -84,6 +85,19 @@ function hexToRgba(color: string, alpha = 1): string {
   const b = parseInt(h.slice(4, 6), 16);
   if ([r, g, b].some(n => isNaN(n))) return `rgba(0,0,0,${alpha})`;
   return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// Parse a #rrggbb / #rgb hex into an [r,g,b] triplet, or null if invalid/empty.
+function hexToRgbTriplet(color: string): [number, number, number] | null {
+  if (!color) return null;
+  let h = color.replace("#", "").trim();
+  if (h.length === 3) h = h.split("").map(c => c + c).join("");
+  if (h.length !== 6) return null;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  if ([r, g, b].some(n => isNaN(n))) return null;
+  return [r, g, b];
 }
 
 /* ── FIXED: all values in seconds, uniform ──────────────── */
@@ -249,6 +263,71 @@ async function fetchFinnhubCandles(sym: string, tf: string, count: number): Prom
   }
 }
 
+/* ── US-equity session helpers ───────────────────────────────
+ * Stocks/ETFs trade an extended day (pre 4:00 ET, RTH 9:30–16:00 ET,
+ * post 16:00–20:00 ET). Outside RTH the tape is sparse, so the few prints
+ * render as disconnected flat fragments with a visual gap to the right of
+ * the regular-session candles. When the user is in "RTH — Regular Hours"
+ * mode (extendedHours = false) we strip every non-RTH bar so the series is
+ * continuous. Futures / crypto / forex trade ~24h and are never filtered.
+ */
+function isEquitySymbol(sym: string): boolean {
+  const up = sym.toUpperCase();
+  if (up.endsWith("1!") || up.includes("=F")) return false;            // futures
+  if (up.endsWith("=X") || /^[A-Z]{3}\/[A-Z]{3}$/.test(up)) return false; // forex
+  if (up.includes(".") ) return false;                                  // exchange-qualified crypto e.g. BTC.COINBASE
+  if (up.endsWith("USD") || up.endsWith("USDT") || up.endsWith("USDC")) return false; // crypto pairs
+  if (["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LTC","DOT","MATIC","SHIB","PEPE","XAU","XAG"].includes(up)) return false;
+  return true; // default: treat as a US equity / ETF
+}
+
+// Returns ET wall-clock minutes-since-midnight + weekday for a unix-seconds ts.
+function etClock(tsSec: number): { minutes: number; weekday: number } {
+  const d = new Date(tsSec * 1000);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York", hour12: false,
+    hour: "2-digit", minute: "2-digit", weekday: "short",
+  }).formatToParts(d);
+  let hh = 0, mm = 0, wd = "Mon";
+  for (const p of parts) {
+    if (p.type === "hour")    hh = parseInt(p.value, 10) % 24;
+    if (p.type === "minute")  mm = parseInt(p.value, 10);
+    if (p.type === "weekday") wd = p.value;
+  }
+  const wdMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return { minutes: hh * 60 + mm, weekday: wdMap[wd] ?? 1 };
+}
+
+// RTH = 9:30–16:00 ET, Mon–Fri.
+// IMPORTANT: keep any bar whose SPAN overlaps the regular session, not just
+// bars whose START is inside it. Session-aligned feeds (Yahoo) emit a 9:30
+// opening bar, but CLOCK-aligned feeds (Alpaca — our primary source for US
+// equities) emit a 9:00–10:00 opening bar that actually CONTAINS the 9:30 RTH
+// open. A start-only window (minutes >= 570) wrongly discarded that opening
+// hour bar — that is the "missing candles vs TradingView" the user reported.
+// Overlap test: bar [start, start+interval) intersects [9:30, 16:00).
+function isRegularSession(tsSec: number, intervalSec: number): boolean {
+  const { minutes, weekday } = etClock(tsSec);
+  if (weekday === 0 || weekday === 6) return false;
+  const barEnd = minutes + Math.max(1, Math.floor(intervalSec / 60));
+  return barEnd > 570 && minutes < 960; // overlaps 9:30 (570) .. 16:00 (960)
+}
+
+// Filter a bar set down to regular session for intraday equity timeframes.
+function filterSession(bars: Bar[], sym: string, intervalSec: number, extendedHours: boolean): Bar[] {
+  if (extendedHours) return bars;
+  // Multi-hour bars (4h+) open on a fixed grid (…08:00,12:00,16:00,20:00) and
+  // most opens fall OUTSIDE 9:30–16:00, so RTH filtering nukes ~90% of them and
+  // leaves a sparse, gappy 4h/6h chart. These large bars inherently span sessions
+  // and should not be dropped — same as daily+. Only filter genuine intraday
+  // (≤1h) equity bars, which align cleanly to the regular session.
+  if (intervalSec >= 14400) return bars;          // 4h+ : keep every bar (like daily)
+  if (!isEquitySymbol(sym)) return bars;          // 24h assets untouched
+  const filtered = bars.filter(b => isRegularSession(Number(b.time), intervalSec));
+  // Safety: never return empty if the source somehow had only extended bars.
+  return filtered.length >= Math.min(20, bars.length) ? filtered : bars;
+}
+
 /* ── Yahoo Finance OHLCV — covers futures + crypto + stocks ── */
 // ── Alpaca candles (primary for stocks/ETFs/crypto when key is set) ──────
 async function fetchAlpacaCandles(sym: string, tf: string, count: number): Promise<Bar[] | null> {
@@ -283,9 +362,9 @@ async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number)
   }
 }
 
-async function fetchYahooCandles(sym: string, tf: string, count: number): Promise<Bar[] | null> {
+async function fetchYahooCandles(sym: string, tf: string, count: number, ext = false): Promise<Bar[] | null> {
   try {
-    const url = `/api/yahoo?sym=${encodeURIComponent(sym)}&type=candles&tf=${tf}&bars=${count}`;
+    const url = `/api/yahoo?sym=${encodeURIComponent(sym)}&type=candles&tf=${tf}&bars=${count}${ext ? "&ext=1" : ""}`;
     const json = await fetch(url, { cache: "no-store" }).then(r => r.json());
     if (!Array.isArray(json.candles) || json.candles.length === 0) return null;
     return json.candles as Bar[];
@@ -445,6 +524,7 @@ interface Props {
   footprintType:   FootprintType;
   candleType?:     CandleType;
   pineOutput?:     PineOutput | null;
+  pineCode?:       string;
   onBarsReady?:    (bars: Bar[]) => void;
   // Drawing tools
   drawingTool?:    string;
@@ -471,6 +551,9 @@ interface Props {
     wickUp?: string; wickDown?: string;
     borderUp?: string; borderDown?: string;
     neon?: boolean;
+    candleTimer?: boolean;
+    displayTimeZone?: string;
+    clock24h?: boolean;
   };
   replayActive?:   boolean;
   replayBars?:     Bar[];
@@ -482,6 +565,9 @@ interface Props {
   sessionVPActive?:boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
+  // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
+  // whatever order-flow tool is active instead of only in exclusive big-trades mode.
+  bigTradesOverlay?: boolean;
   // Fullscreen delegation — parent provides the element to fullscreen
   onRequestFullscreen?: () => void;
 }
@@ -639,14 +725,81 @@ function computeMomentum(closes: number[], period=10): number[] {
   return closes.map((c,i)=>i<period ? 0 : +(c-closes[i-period]).toFixed(closes[0]>100?2:4));
 }
 
+/* ── Drawing-tool geometry specs ──────────────────────────
+   DRAW_PTS[tool] = number of anchor clicks the tool needs.
+   -1 = freehand drag (brush/highlighter); -2 = open polyline
+   (click to add points, double-click / Escape to finish).      */
+const DRAW_PTS: Record<string, number> = {
+  brush: -1, highlighter: -1,
+  polyline: -2, path: -2,
+  // 1-click
+  hline: 1, hray: 1, vline: 1, crossline: 1,
+  text: 1, note: 1, "price-note": 1, pin: 1, comment: 1,
+  "price-label": 1, signpost: 1, flag: 1, "arrow-up": 1, "arrow-down": 1,
+  // 2-click lines
+  trendline: 2, ray: 2, "info-line": 2, "extended-line": 2, "trend-angle": 2, arrow: 2, callout: 2,
+  // 2/3/4-click shapes
+  rect: 2, circle: 2, ellipse: 2, "rotated-rect": 3, triangle: 3, arc: 3, curve: 3, "double-curve": 4,
+  // channels
+  channel: 2, "parallel-channel": 3, regression: 2, "flat-channel": 3, "disjoint-channel": 4,
+  // pitchforks
+  pitchfork: 3, schiff: 3, "modified-schiff": 3, "inside-pitchfork": 3,
+  // fibonacci
+  fibonacci: 2, "fib-ext": 3, "fib-channel": 3, "fib-timezone": 2, "fib-speed-fan": 2,
+  "fib-time": 3, "fib-circles": 2, "fib-spiral": 2, "fib-arcs": 2, "fib-wedge": 3, "fib-pitchfan": 3,
+  // gann
+  "gann-box": 2, "gann-square-fixed": 2, "gann-square": 2, "gann-fan": 2,
+  // chart patterns
+  xabcd: 5, cypher: 5, "head-shoulders": 7, abcd: 4, "pattern-triangle": 4, "three-drives": 7,
+  // elliott waves
+  "elliott-impulse": 6, "elliott-correction": 4, "elliott-triangle": 6, "elliott-double": 4, "elliott-triple": 6,
+  // cycles
+  "cyclic-lines": 2, "time-cycles": 2, "sine-line": 2,
+  // measure / positions
+  "price-range": 2, "date-range": 2, "date-price-range": 2, measure: 2,
+  "long-position": 3, "short-position": 3,
+};
+const drawPtsNeeded = (tool: string): number => (tool in DRAW_PTS ? DRAW_PTS[tool] : 2);
+
+// Pattern / wave tools render as a labeled polyline through their anchors.
+const PATTERN_LABELS: Record<string, string[]> = {
+  xabcd: ["X", "A", "B", "C", "D"],
+  cypher: ["X", "A", "B", "C", "D"],
+  abcd: ["A", "B", "C", "D"],
+  "pattern-triangle": ["1", "3", "2", "4"],
+  "head-shoulders": ["", "LS", "", "H", "", "RS", ""],
+  "three-drives": ["", "1", "", "2", "", "3", ""],
+  "elliott-impulse": ["0", "1", "2", "3", "4", "5"],
+  "elliott-correction": ["0", "A", "B", "C"],
+  "elliott-triangle": ["0", "A", "B", "C", "D", "E"],
+  "elliott-double": ["0", "W", "X", "Y"],
+  "elliott-triple": ["0", "W", "X", "Y", "X", "Z"],
+};
+// Tools whose commit prompts for a text string.
+const TEXT_TOOLS = new Set(["text", "note", "comment", "price-note", "callout", "signpost", "price-label"]);
+// Tools that render a filled area (used for hit-testing "click inside to select").
+const FILL_TOOLS = new Set([
+  "rect", "circle", "ellipse", "rotated-rect", "triangle", "fibonacci", "fib-ext",
+  "gann-box", "gann-square", "gann-square-fixed", "channel", "parallel-channel",
+  "flat-channel", "regression", "price-range", "date-range", "date-price-range",
+  "measure", "long-position", "short-position", "fib-circles",
+]);
+const DRAW_COLORS = [
+  "#00D4AA", "#4FA3E0", "#F0B429", "#FF4D6A", "#8B5CF6",
+  "#FFFFFF", "#94A3B8", "#F97316", "#06B6D4", "#EC4899",
+];
+const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0, 1.272, 1.618, 2.618];
+const FIB_COLORS = ["#8892b0", "#4FA3E0", "#00C076", "#F0B429", "#F0B429", "#00C076", "#4FA3E0", "#EC4899", "#FF4D67", "#8B5CF6"];
+
 /* ── Component ──────────────────────────────────────────── */
-export function MainChart({ symbol, timeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, onBarsReady,
+export function MainChart({ symbol, timeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, pineCode, onBarsReady,
   drawingTool = "cursor", drawingColor = "#00D4AA", magnetActive = false, lockDrawings = false,
   onDrawingComplete,
   drawingsVisible = true, clearTrigger = 0, activeInds, indSettings, extendedHours,
   alertLevels = [], chartSettings, replayActive = false, replayBars,
   compareSymbol, onPriceAtCursor, onOHLCAtCursor,
   fixedVPActive = false, sessionVPActive = false,
+  bigTradesOverlay = false,
   onRequestFullscreen,
 }: Props) {
   const containerRef  = useRef<HTMLDivElement>(null);
@@ -654,11 +807,122 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const canvasRef     = useRef<HTMLCanvasElement>(null);
   const drawCanvasRef = useRef<HTMLCanvasElement>(null); // drawing tools overlay
   const chartRef      = useRef<any>(null);
+  const lwRef         = useRef<any>(null); // the imported lightweight-charts v5 module (for series defs)
   const candleRef     = useRef<any>(null);
   const volRef        = useRef<any>(null);
   const pineSeriesRef = useRef<Map<string, any>>(new Map());
+  const pineCodeRef   = useRef<string | undefined>(undefined);
   const indSeriesRef  = useRef<any[]>([]);
+  // Live-updating oscillators: each entry recomputes its series values from the
+  // CURRENT bars (barsRef) and pushes only the last point on every live tick, so
+  // Tape Speed / Exhaustion / flow histograms visibly move with real-time data
+  // without tearing down & rebuilding the whole pane on each tick.
+  const oscLiveRef    = useRef<Array<{ series: any; recompute: (bs: Bar[]) => { value: number; color?: string } | null }>>([]);
   const barsRef       = useRef<Bar[]>([]);
+  // ── Vertical price-drag (true body drag) ──────────────────────
+  // LWC v4/v5 do NOT support vertical body panning natively — only axis
+  // drag. We implement it via a manual price range fed through the candle
+  // series' autoscaleInfoProvider, shifted on vertical mouse drag.
+  const manualPriceRangeRef = useRef<{ min: number; max: number } | null>(null);
+  // Eased vertical-range state: the raw robust range recomputes discretely as
+  // bars enter/leave the visible window during a wheel zoom, snapping the price
+  // scale in steps ("candles squash and stick"). We lerp the previous range
+  // toward the freshly computed target so the vertical rescale glides instead.
+  const smoothedRangeRef = useRef<{ min: number; max: number } | null>(null);
+  // Single shared autoscale provider with a GUARDRAIL: if the manual (dragged)
+  // range is absurdly larger than the data's natural range (>4×) it would crush
+  // the candles into a sliver (e.g. TSLA at 377 shown on a 300–1100 scale). In
+  // that case we ignore the manual range and auto-fit so candles stay readable.
+  // ── ROBUST visible-range computer ────────────────────────────
+  // Computes the price range from the VISIBLE bars but trims true outliers,
+  // so no single corrupt high/low (from a bad live tick, a provider glitch,
+  // or anything else) can ever stretch the scale and crush real candles into
+  // a sliver — the "candles break after a few minutes" failure. It clips only
+  // values that sit MORE than 1.5 robust-bands beyond the 2nd/98th percentile,
+  // which never happens to a legitimate candle but always catches a bad spike.
+  const robustVisibleRange = useRef((fallback: any) => {
+    try {
+      const bars = barsRef.current;
+      if (!bars || bars.length < 8) return fallback;
+      let from = 0, to = bars.length;
+      const vr = chartRef.current?.timeScale().getVisibleLogicalRange();
+      if (vr) {
+        from = Math.max(0, Math.floor(vr.from));
+        to   = Math.min(bars.length, Math.ceil(vr.to) + 1);
+      }
+      const slice = bars.slice(from, to);
+      if (slice.length < 8) return fallback;
+      const his = slice.map(b => b.high).filter((v) => Number.isFinite(v) && v > 0).sort((a, b) => a - b);
+      const los = slice.map(b => b.low ).filter((v) => Number.isFinite(v) && v > 0).sort((a, b) => a - b);
+      if (his.length < 8 || los.length < 8) return fallback;
+      const q = (arr: number[], p: number) =>
+        arr[Math.min(arr.length - 1, Math.max(0, Math.round(p * (arr.length - 1))))];
+      const p98Hi = q(his, 0.98), p02Lo = q(los, 0.02);
+      const band  = Math.max(p98Hi - p02Lo, q(his, 0.5) - q(los, 0.5), p98Hi * 0.002);
+      if (!(band > 0)) return fallback;
+      // Allow real wicks up to 1.5 bands beyond the robust band; clip only beyond.
+      const hi = Math.min(his[his.length - 1], p98Hi + band * 1.5);
+      const lo = Math.max(los[0],              p02Lo - band * 1.5);
+      if (!(hi > lo)) return fallback;
+      const margin = (hi - lo) * 0.06;
+      return { priceRange: { minValue: lo - margin, maxValue: hi + margin } };
+    } catch { return fallback; }
+  });
+
+  const autoscaleProviderRef = useRef((orig: () => any) => {
+    const base = orig();
+    const robust = robustVisibleRange.current(base);
+    const r = manualPriceRangeRef.current;
+    if (r && r.max > r.min) {
+      // Anchor the drag guardrails to the ROBUST range (outlier-immune), not the
+      // raw base — otherwise a single bad bar inflates dataRange and defeats them.
+      const br = robust?.priceRange ?? base?.priceRange;
+      if (br) {
+        const dataRange = br.maxValue - br.minValue;
+        const dataMid = (br.minValue + br.maxValue) / 2;
+        if (dataRange > 0) {
+          // Guardrail 1: allow deep zoom-out (up to 20× the data range, like
+          // TradingView) but instead of SNAPPING back to auto — which felt like
+          // hitting a wall — CLAMP the range to the max around its own center so
+          // the scale stays exactly where the user left it, smoothly.
+          const maxRange = dataRange * 20;
+          if ((r.max - r.min) > maxRange) {
+            const mid = (r.min + r.max) / 2;
+            r.min = mid - maxRange / 2;
+            r.max = mid + maxRange / 2;
+            manualPriceRangeRef.current = { min: r.min, max: r.max };
+          }
+          // Guardrail 2: never let the user pan the candles off-screen. Pin the
+          // range so the data CENTER always stays inside it (candles stay ≥half
+          // visible). Smoothly clamps instead of snapping back.
+          if (dataMid < r.min) { const d = r.min - dataMid; r.min -= d; r.max -= d; }
+          else if (dataMid > r.max) { const d = dataMid - r.max; r.min += d; r.max += d; }
+        }
+      }
+      return { priceRange: { minValue: r.min, maxValue: r.max } };
+    }
+    // Normal auto mode → outlier-immune robust range, EASED for smooth zoom.
+    const tp = robust?.priceRange;
+    if (!tp || !(tp.maxValue > tp.minValue)) { smoothedRangeRef.current = null; return robust; }
+    const target = { min: tp.minValue, max: tp.maxValue };
+    const prev = smoothedRangeRef.current;
+    if (!prev) { smoothedRangeRef.current = target; return robust; }
+    const span = target.max - target.min;
+    // Snap (don't ease) on big discontinuities — symbol switch, timeframe change,
+    // or first fit — so we never lag behind a wholly different price scale.
+    const jump = Math.abs(target.min - prev.min) + Math.abs(target.max - prev.max);
+    if (span <= 0 || jump > span * 0.75) { smoothedRangeRef.current = target; return robust; }
+    // Ease ~50% per frame → converges in a few frames, smooth yet never lags.
+    const k = 0.5;
+    const eased = {
+      min: prev.min + (target.min - prev.min) * k,
+      max: prev.max + (target.max - prev.max) * k,
+    };
+    smoothedRangeRef.current = eased;
+    return { priceRange: { minValue: eased.min, maxValue: eased.max } };
+  });
+  const drawingToolRef      = useRef<string>(drawingTool);
+  drawingToolRef.current = drawingTool;
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // ── Big-Trade Bubble engine state (🫧 floating bubbles) ───────
@@ -688,6 +952,23 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const bubbleIdRef    = useRef(0);
   const bubbleHoverRef = useRef<number | null>(null);     // hovered bubble id
   const bubbleSpawnTickRef = useRef(0);                   // throttle continuous companion spawns
+  // Big-Trades Pause / Refresh controls (driven by the toolbar gear dropdown).
+  const bubblePausedRef  = useRef<boolean>(
+    typeof window !== "undefined" && localStorage.getItem("wm_bubble_paused") === "1"
+  );
+  const bubbleRefreshRef = useRef(0); // bumped → engine clears + respawns next frame
+  const bubbleRefreshSeenRef = useRef(0);
+  useEffect(() => {
+    const onCtl = (e: Event) => {
+      const action = (e as CustomEvent).detail?.action;
+      if (action === "pause")   bubblePausedRef.current = true;
+      if (action === "resume")  bubblePausedRef.current = false;
+      if (action === "toggle")  bubblePausedRef.current = !bubblePausedRef.current;
+      if (action === "refresh") bubbleRefreshRef.current++;
+    };
+    window.addEventListener("wm-bigtrades-control", onCtl as any);
+    return () => window.removeEventListener("wm-bigtrades-control", onCtl as any);
+  }, []);
   // Lazy Web-Audio context for the water-bubble "absorb" sound
   const audioCtxRef    = useRef<AudioContext | null>(null);
   const lastBloopRef   = useRef(0);
@@ -726,34 +1007,95 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   >(null);
 
   // ── Drawing state ─────────────────────────────────────────────
-  // All drawings store logical price/time coords so they stay anchored when chart scrolls.
+  // Unified multi-point model. Every drawing is a list of logical anchor
+  // points (price/time) + a style. The `tool` id drives which geometry the
+  // renderer/hit-tester produce, so ALL toolbar tools share one engine and
+  // one editing path (color / width / line-style / text / delete).
   type LogicalPt = { price: number; time: number }; // time = unix seconds (LightweightCharts UTCTimestamp)
-  type Drawing =
-    | { type: "trendline"|"ray"|"extended-line"|"arrow"|"rectangle"|"channel"|"ellipse"|"triangle"|"fibonacci";
-        p1: LogicalPt; p2: LogicalPt; color: string }
-    | { type: "hline"|"hray"; price: number; color: string }
-    | { type: "vline"; time: number; color: string }
-    | { type: "text"; price: number; time: number; text: string; color: string }
-    | { type: "brush"; points: LogicalPt[]; color: string };
+  type DashStyle = "solid" | "dashed" | "dotted";
+  interface DrawStyle { color: string; width: number; dash: DashStyle; fill: boolean; }
+  interface Drawing { id: number; tool: string; pts: LogicalPt[]; style: DrawStyle; text?: string; }
 
   const drawingsRef     = useRef<Drawing[]>([]);
-  const inProgressRef   = useRef<Drawing | null>(null);
-  const drawingStartRef = useRef<{x:number;y:number}|null>(null);
+  const inProgressRef   = useRef<Drawing | null>(null);   // committed anchor points so far
+  const previewPtRef    = useRef<LogicalPt | null>(null); // live cursor point while placing
+  const mouseMovedRef   = useRef(false);                  // drag-vs-click discriminator
+  const drawIdRef       = useRef(0);
+  const drawingStartRef = useRef<{ x: number; y: number; lp: LogicalPt | null } | null>(null);
+  // Drag an already-placed drawing (whole shape when ptIdx===null, else one handle).
+  const dragRef = useRef<{ idx: number; last: LogicalPt; ptIdx: number | null } | null>(null);
+  // Currently-selected drawing (shows handles + floating edit toolbar).
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const selectedIdxRef = useRef<number | null>(null);
+  useEffect(() => { selectedIdxRef.current = selectedIdx; }, [selectedIdx]);
+  const [editBump, setEditBump] = useState(0); // re-render edit toolbar after a style change
+  // Inline text editor: when set, an <input> is shown over the drawing's anchor
+  // so text/note tools get a clean editing box instead of a native window.prompt.
+  const [textEdit, setTextEdit] = useState<{ idx: number } | null>(null);
+
+  // Build a new drawing with the current global color + sensible per-tool style.
+  const makeDrawing = useCallback((tool: string, pts: LogicalPt[], text?: string): Drawing => ({
+    id: ++drawIdRef.current,
+    tool,
+    pts,
+    style: {
+      color: drawingColor,
+      width: tool === "highlighter" ? 12 : 1.6,
+      dash: "solid",
+      fill: FILL_TOOLS.has(tool),
+    },
+    text,
+  }), [drawingColor]);
 
   // ── Drawing coordinate helpers ───────────────────────────────
   // Convert canvas CSS pixel (x,y) → logical {price, time}
+  // Bar interval (seconds) from the most recent two bars — used to extrapolate
+  // time into the empty whitespace to the right of the last bar.
+  const barInterval = (): number => {
+    const b = barsRef.current || [];
+    if (b.length < 2) return 60;
+    const d = (b[b.length - 1].time as number) - (b[b.length - 2].time as number);
+    return d > 0 ? d : 60;
+  };
+
   const pixelToLogical = useCallback((px: number, py: number): LogicalPt | null => {
     const price = candleRef.current?.coordinateToPrice(py);
-    const time  = chartRef.current?.timeScale().coordinateToTime(px);
-    if (price == null || time == null) return null;
+    if (price == null) return null;
+    const ts = chartRef.current?.timeScale();
+    if (!ts) return null;
+    let time = ts.coordinateToTime(px) as number | null;
+    // In the future/whitespace beyond the last bar coordinateToTime returns null.
+    // Extrapolate via the continuous logical index so drawings can anchor there.
+    if (time == null) {
+      const logical = ts.coordinateToLogical(px);
+      const b = barsRef.current || [];
+      if (logical != null && b.length >= 1) {
+        const lastIdx = b.length - 1;
+        time = (b[lastIdx].time as number) + (Number(logical) - lastIdx) * barInterval();
+      }
+    }
+    if (time == null) return null;
     return { price: +price, time: +time };
   }, []);
 
   // Convert logical {price, time} → canvas CSS pixel (x,y)
   const logicalToPixel = useCallback((pt: LogicalPt): { x: number; y: number } | null => {
     const y = candleRef.current?.priceToCoordinate(pt.price);
-    const x = chartRef.current?.timeScale().timeToCoordinate(pt.time as any);
-    if (y == null || x == null) return null;
+    if (y == null) return null;
+    const ts = chartRef.current?.timeScale();
+    if (!ts) return null;
+    let x = ts.timeToCoordinate(pt.time as any) as number | null;
+    // timeToCoordinate returns null for times in the future whitespace — map the
+    // time back to a logical index and use logicalToCoordinate (valid in whitespace).
+    if (x == null) {
+      const b = barsRef.current || [];
+      if (b.length >= 1) {
+        const lastIdx = b.length - 1;
+        const logical = lastIdx + ((pt.time as number) - (b[lastIdx].time as number)) / barInterval();
+        x = ts.logicalToCoordinate(logical as any) as number | null;
+      }
+    }
+    if (x == null) return null;
     return { x: +x, y: +y };
   }, []);
 
@@ -770,6 +1112,41 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // Auto-scale: when OFF the user can freely drag the price axis up/down to see
   // higher/lower price levels (TradingView-style). When ON the chart auto-fits.
   const [autoScale, setAutoScale] = useState(true);
+  const autoScaleRef = useRef(autoScale);
+  // True while the user has manually stretched the price axis → shows a small
+  // "reset scale" button (replaces the double-click-to-reset gesture).
+  const [scaleLocked, setScaleLocked] = useState(false);
+  // When AUTO is (re)enabled, release any manual vertical-drag range so the
+  // chart snaps back to auto-fitting the data.
+  useEffect(() => {
+    autoScaleRef.current = autoScale;
+    if (autoScale) {
+      manualPriceRangeRef.current = null;
+      setScaleLocked(false);
+      try {
+        candleRef.current?.applyOptions({
+          autoscaleInfoProvider: autoscaleProviderRef.current,
+        });
+      } catch {}
+    }
+  }, [autoScale]);
+
+  // CRITICAL: a vertical-drag manual range must NOT survive a symbol/timeframe
+  // change — otherwise the price scale stays stuck on the old ticker's range
+  // (e.g. NQ ~29000) and the new ticker's candles (e.g. AMZN ~227) render far
+  // off-screen, making the chart look empty. Clear it + force auto-fit on switch.
+  useEffect(() => {
+    manualPriceRangeRef.current = null;
+    setScaleLocked(false);
+    setAutoScale(true);
+    try {
+      candleRef.current?.applyOptions({
+        autoscaleInfoProvider: autoscaleProviderRef.current,
+      });
+      chartRef.current?.priceScale("right").applyOptions({ autoScale: true });
+      chartRef.current?.timeScale().fitContent();
+    } catch {}
+  }, [symbol, timeframe]);
 
   const base = getBase(symbol);
 
@@ -782,7 +1159,109 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // Countdown state
   const [countdown,   setCountdown]   = useState("--:--");
   const [closeFlash,  setCloseFlash]  = useState(false);
+  // Refs so the RAF canvas loop can read the live countdown each frame without
+  // being re-created every second (which would tear down the VP/footprint draw).
+  const countdownRef  = useRef("--:--");
+  const closeFlashRef  = useRef(false);
+  const progressRef    = useRef(0); // 0→1 fraction of current candle elapsed
+  const candleTimerRef = useRef(true); // live-readable copy of chartSettings.candleTimer
+  // Live-readable timezone + clock format for the time axis / crosshair labels.
+  const tzRef          = useRef<string>(chartSettings?.displayTimeZone || (typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "America/New_York"));
+  const clock24hRef    = useRef<boolean>(chartSettings?.clock24h ?? false);
+
+  // Crosshair / price-axis time label → honours the user's timezone + 12/24h choice.
+  const fmtAxisTime = useCallback((t: any): string => {
+    const sec = typeof t === "number" ? t : (t?.timestamp ?? Math.floor(Date.now() / 1000));
+    try {
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone: tzRef.current, hour12: !clock24hRef.current,
+        month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+      }).format(new Date(sec * 1000));
+    } catch { return new Date(sec * 1000).toLocaleString(); }
+  }, []);
+
+  // Time-axis tick label → date for day/month/year ticks, tz-aware clock for intraday.
+  const fmtTickMark = useCallback((t: any, tickType: number): string => {
+    const sec = typeof t === "number" ? t : (t?.timestamp ?? 0);
+    const d = new Date(sec * 1000);
+    const tz = tzRef.current;
+    try {
+      // tickType: 0=Year 1=Month 2=DayOfMonth 3=Time 4=TimeWithSeconds
+      if (tickType <= 1) return new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "short" }).format(d);
+      if (tickType === 2) return new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "short", day: "numeric" }).format(d);
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone: tz, hour12: !clock24hRef.current,
+        hour: "2-digit", minute: "2-digit", ...(tickType === 4 ? { second: "2-digit" } : {}),
+      }).format(d);
+    } catch { return d.toLocaleTimeString(); }
+  }, []);
+  // Live-readable order-flow side colors (user-customizable via the toolbar gear).
+  // Defaults are byte-identical to the prior hardcoded teal/purple so nothing
+  // changes unless the user actually picks a custom color.
+  // Each order-flow tool keeps its OWN color pair (per-tool gears are independent):
+  // recoloring Delta does not affect Imbalance, etc. Keyed by FootprintType. Falls
+  // back to the legacy shared keys, then to the Royal Blue / Purple defaults, so
+  // existing saved colors keep working.
+  type OFPair = { buy: [number,number,number]; sell: [number,number,number] };
+  const OF_DEFAULT: OFPair = { buy: [37, 99, 235], sell: [106, 13, 173] };
+  const OF_TOOL_IDS = ["bid-ask", "delta", "volume-profile", "imbalance", "aggressive-passive"];
+  const ofColorsRef = useRef<Record<string, OFPair>>({});
   const [rangeVer,    setRangeVer]    = useState(0); // bumped on chart scroll/zoom → redraws canvas
+  useEffect(() => {
+    const load = () => {
+      try {
+        const legacyBuy  = hexToRgbTriplet(localStorage.getItem("wm_of_buy")  || "");
+        const legacySell = hexToRgbTriplet(localStorage.getItem("wm_of_sell") || "");
+        const map: Record<string, OFPair> = {};
+        for (const t of OF_TOOL_IDS) {
+          const b = hexToRgbTriplet(localStorage.getItem(`wm_of_${t}_buy`)  || "");
+          const s = hexToRgbTriplet(localStorage.getItem(`wm_of_${t}_sell`) || "");
+          map[t] = {
+            buy:  b ?? legacyBuy  ?? OF_DEFAULT.buy,
+            sell: s ?? legacySell ?? OF_DEFAULT.sell,
+          };
+        }
+        ofColorsRef.current = map;
+      } catch {}
+      setRangeVer(v => v + 1); // force a redraw with new colors
+    };
+    load();
+    window.addEventListener("wm-of-colors", load);
+    return () => window.removeEventListener("wm-of-colors", load);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // VP bars + Big-Trades bubbles use their OWN color pair (default GREEN / RED), set
+  // via the WM-VP gear — independent of the royal-blue/purple order-flow scheme. The
+  // user wants VP & bubbles to stay green/red while footprint cells stay blue/purple.
+  const vpColorsRef = useRef<{
+    up: [number,number,number]; dn: [number,number,number];
+    poc: [number,number,number]; vah: [number,number,number]; val: [number,number,number];
+  }>({
+    up:  [0, 192, 118],   // green → buy/ask-dominant shelf, up bubble
+    dn:  [255, 77, 103],  // red   → sell/bid-dominant shelf, down bubble
+    poc: [240, 180, 41],  // gold  → Point of Control
+    vah: [37, 99, 235],   // blue  → Value Area High
+    val: [139, 92, 246],  // purple→ Value Area Low
+  });
+  useEffect(() => {
+    const load = () => {
+      try {
+        const up  = hexToRgbTriplet(localStorage.getItem("wm_vp_up")  || "");
+        const dn  = hexToRgbTriplet(localStorage.getItem("wm_vp_dn")  || "");
+        const poc = hexToRgbTriplet(localStorage.getItem("wm_vp_poc") || "");
+        const vah = hexToRgbTriplet(localStorage.getItem("wm_vp_vah") || "");
+        const val = hexToRgbTriplet(localStorage.getItem("wm_vp_val") || "");
+        vpColorsRef.current = {
+          up:  up  ?? [0,192,118], dn:  dn  ?? [255,77,103],
+          poc: poc ?? [240,180,41], vah: vah ?? [37,99,235], val: val ?? [139,92,246],
+        };
+      } catch {}
+      setRangeVer(v => v + 1);
+    };
+    load();
+    window.addEventListener("wm-vp-colors", load);
+    return () => window.removeEventListener("wm-vp-colors", load);
+  }, []);
 
   const { liveBar, ticker, recentTicks } = useWebSocket({ symbol, timeframe });
 
@@ -813,6 +1292,19 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     }
   }, [recentTicks, timeframe, base]);
 
+  // Keep the canvas-loop-readable candle-timer flag in sync with settings.
+  useEffect(() => { candleTimerRef.current = chartSettings?.candleTimer !== false; }, [chartSettings?.candleTimer]);
+  // Keep tz/clock refs current AND re-apply the chart localization so the axis
+  // + crosshair time labels refresh the instant the user changes the setting.
+  useEffect(() => {
+    if (chartSettings?.displayTimeZone) tzRef.current = chartSettings.displayTimeZone;
+    clock24hRef.current = chartSettings?.clock24h ?? false;
+    try {
+      chartRef.current?.applyOptions({ localization: { timeFormatter: fmtAxisTime } });
+      chartRef.current?.timeScale().applyOptions({ tickMarkFormatter: fmtTickMark });
+    } catch {}
+  }, [chartSettings?.displayTimeZone, chartSettings?.clock24h]);
+
   /* ── Countdown timer ─────────────────────────────────── */
   useEffect(() => {
     const sec = getIntervalSec(timeframe);
@@ -822,14 +1314,49 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       const barStart  = Math.floor(now / sec) * sec;
       const barEnd    = barStart + sec;
       const remaining = barEnd - now;
-      setCountdown(formatCountdown(remaining, sec));
-      setCloseFlash(remaining <= 5 && remaining > 0);
+      const txt = formatCountdown(remaining, sec);
+      const flash = remaining <= 5 && remaining > 0;
+      setCountdown(txt);
+      setCloseFlash(flash);
+      countdownRef.current = txt;
+      closeFlashRef.current = flash;
+      progressRef.current = Math.max(0, Math.min(1, (now - barStart) / sec));
     };
 
     tick();
     const t = setInterval(tick, 1000);
     return () => clearInterval(t);
   }, [timeframe]);
+
+  /* ── Suppress LWC's uncatchable async teardown throw ──────
+   * On rapid symbol/timeframe switching, Lightweight-Charts schedules an
+   * internal model update on its own requestAnimationFrame BEFORE we call
+   * chart.remove(). That callback then runs after disposal and throws
+   * "Object is disposed" / "Value is null" asynchronously — outside any
+   * local try/catch, so it surfaces as an uncaught console error. Our own
+   * effects already guard with chart-identity checks; this handler swallows
+   * ONLY that specific library-internal throw and lets everything else pass. */
+  useEffect(() => {
+    const isLwcTeardownNoise = (msg?: string) =>
+      typeof msg === "string" &&
+      (/object is disposed/i.test(msg) || /value is null/i.test(msg) ||
+       /assertion failed.*disposed/i.test(msg));
+    const onError = (e: ErrorEvent) => {
+      if (isLwcTeardownNoise(e.message) || isLwcTeardownNoise((e.error && e.error.message))) {
+        e.preventDefault(); e.stopImmediatePropagation();
+      }
+    };
+    const onRejection = (e: PromiseRejectionEvent) => {
+      const m = e.reason && (e.reason.message || String(e.reason));
+      if (isLwcTeardownNoise(m)) e.preventDefault();
+    };
+    window.addEventListener("error", onError, true);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("error", onError, true);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
+  }, []);
 
   /* ── Bootstrap chart ─────────────────────────────────── */
   useEffect(() => {
@@ -840,6 +1367,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
     (async () => {
       const LW = await import("lightweight-charts");
+      lwRef.current = LW; // expose v5 series definitions to other effects
       // Abort if a newer build started while we were awaiting
       if ((chartRef as any).__buildId !== buildId) return;
       if (disposed || !containerRef.current) return;
@@ -856,11 +1384,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
       const chart = LW.createChart(el, {
         autoSize: true,
+        localization: { timeFormatter: fmtAxisTime },
         layout: {
           background:       { color: chartSettings?.background ?? "#0B0E1A" },
           textColor:        "#8896BE",
           fontFamily:       "'JetBrains Mono', monospace",
-          fontSize:         13,
+          // Smaller axis font → Lightweight Charts fits MORE price/time labels
+          // before its overlap-avoidance kicks in, so the y-axis shows denser,
+          // less-skipped price levels when zoomed in. (The library still auto-
+          // selects the tick step; there is no API to force every single level.)
+          fontSize:         11,
           attributionLogo:  false,   // remove TradingView branding
         },
         grid: {
@@ -875,20 +1408,30 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         rightPriceScale: {
           borderColor:  "#263050",
           textColor:    "#8896BE",
-          scaleMargins: { top: 0.08, bottom: 0.25 },
+          // Candles fill top 6%→82% of the pane, sitting directly above the
+          // volume band (which lives in the bottom 18% on its own 'vol' scale).
+          // Previously bottom:0.25 left a 7% dead gap and compressed candles into
+          // the top two-thirds — making them look small/low-quality vs TV/Moomoo.
+          scaleMargins: { top: 0.06, bottom: 0.18 },
           autoScale:    true,
         },
         timeScale: {
           borderColor:                  "#263050",
           timeVisible:                  true,
+          tickMarkFormatter:            fmtTickMark,
           secondsVisible:               intervalSec < 60,
           rightOffset:                  5,
-          barSpacing:                   12,
+          barSpacing:                   8,
+          minBarSpacing:                2,
           shiftVisibleRangeOnNewBar:    true,
           lockVisibleTimeRangeOnResize: false,
         },
         handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true },
-        handleScale:  { mouseWheel: true, pinch: true, axisPressedMouseMove: true },
+        // Price-axis drag scaling DISABLED — it let the price scale zoom out to an
+        // absurd range (e.g. 300–1100 for TSLA at 377), crushing the candles, with
+        // no easy recovery. Vertical control is our clamped body-drag + RESET; the
+        // time axis can still be dragged to scale horizontally.
+        handleScale:  { mouseWheel: true, pinch: true, axisPressedMouseMove: { time: true, price: false } },
       });
 
       // ── NO VWAP / NO BANDS — moved to Indicators panel ──
@@ -902,9 +1445,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
       // Bar count scales with timeframe so higher timeframes pull years of history
       // (e.g. Daily → 1200 bars ≈ 5y, Weekly/Monthly → full available history).
-      const barCount = ["D"].includes(timeframe) ? 1300
-                     : ["W"].includes(timeframe) ? 600
+      const barCount = ["D"].includes(timeframe) ? 2600
+                     : ["W"].includes(timeframe) ? 1000
                      : ["M","3M","6M","1Y","3Y","5Y"].includes(timeframe) ? 400
+                     // Hourly TFs now pull ~2y of 60-min bars (Yahoo's max) so the
+                     // chart scrolls back years, not 60 days.
+                     : ["1h","2h","4h"].includes(timeframe) ? 3000
                      : 500;
 
       // Per-exchange crypto (e.g. "BTC.COINBASE") → that exchange's real candles
@@ -917,7 +1463,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // Priority: 0) Exchange-specific, 1) Alpaca, 2) Finnhub, 3) Yahoo, 4) Finnhub REST, 5) Polygon, 6) synthetic
       const alpacaData   = exchangeData ? null : await fetchAlpacaCandles(symbol, timeframe, barCount);
       const fhDirectData = (exchangeData || alpacaData) ? null : await fetchFinnhubCandlesDirect(symbol, timeframe, barCount);
-      const yahooData    = (exchangeData || alpacaData || fhDirectData) ? null : await fetchYahooCandles(symbol, timeframe, barCount);
+      const yahooData    = (exchangeData || alpacaData || fhDirectData) ? null : await fetchYahooCandles(symbol, timeframe, barCount, extendedHours);
       const finnhubData  = (exchangeData || alpacaData || fhDirectData || yahooData) ? null : await fetchFinnhubCandles(symbol, timeframe, barCount);
       const polyData     = (exchangeData || alpacaData || fhDirectData || yahooData || finnhubData) ? null : await fetchPolygonOHLCV(symbol, timeframe, barCount);
       const realData     = exchangeData ?? alpacaData ?? fhDirectData ?? yahooData ?? finnhubData ?? polyData;
@@ -938,7 +1484,59 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         if (stalePct > 0.05) candleData = null; // discard stale candles, re-generate below
       }
 
-      const data = candleData ?? generateCandles(300, syntheticBase, intervalSec);
+      const rawData = filterSession(
+        candleData ?? generateCandles(300, syntheticBase, intervalSec),
+        symbol, intervalSec, !!extendedHours,
+      );
+      // ── HARD SANITIZE — Lightweight Charts v5 THROWS (→ blank / distorted
+      // candles) on duplicate or out-of-order timestamps, or NaN/Infinity OHLC.
+      // Yahoo merges, session filtering and live-tick folding can all introduce
+      // these. Sort by time, drop non-finite OHLC, and force strictly-increasing
+      // unique timestamps so EVERY candle type downstream gets clean input.
+      const data: Bar[] = (() => {
+        const sorted = [...rawData]
+          .filter(b =>
+            b && Number.isFinite(b.time as number) &&
+            Number.isFinite(b.open)  && Number.isFinite(b.high) &&
+            Number.isFinite(b.low)   && Number.isFinite(b.close))
+          .sort((a, b) => (a.time as number) - (b.time as number));
+        let lastT = -Infinity;
+        const out: Bar[] = [];
+        for (const b of sorted) {
+          let t = b.time as number;
+          if (t <= lastT) continue; // drop duplicate/backwards bar (keep first)
+          lastT = t;
+          // guarantee high ≥ max(o,c) and low ≤ min(o,c) so bodies/wicks render
+          const high = Math.max(b.high, b.open, b.close);
+          const low  = Math.min(b.low,  b.open, b.close);
+          out.push({ ...b, time: t as any, high, low, volume: Number.isFinite(b.volume) ? b.volume : 0 });
+        }
+        // ── DE-SPIKE outlier wicks ───────────────────────────────
+        // Extended-hours / thin-liquidity feeds (Yahoo especially) emit single
+        // bad-tick prints — e.g. a low of 352 on a bar whose body sits at 392, or
+        // a high of 418 next to 380 neighbors. ONE such wick forces LWC autoscale
+        // to stretch to that extreme, squashing every normal candle to a sliver
+        // ("broken/distorted candles"). We clamp only egregious wicks (range >
+        // 6× the median bar range) back toward the body, so real volatility is
+        // untouched but lone spikes can't blow up the price scale.
+        if (out.length >= 8) {
+          const ranges = out
+            .map(b => (b.high as number) - (b.low as number))
+            .filter(r => r > 0)
+            .sort((a, b) => a - b);
+          const med = ranges.length ? ranges[Math.floor(ranges.length / 2)] : 0;
+          if (med > 0) {
+            const cap = med * 6;
+            for (const b of out) {
+              const maxC = Math.max(b.open, b.close);
+              const minC = Math.min(b.open, b.close);
+              if ((b.high as number) - maxC > cap) b.high = (maxC + cap) as any;
+              if (minC - (b.low as number) > cap) b.low = (minC - cap) as any;
+            }
+          }
+        }
+        return out;
+      })();
       // Transform for candle type
       const isHA          = candleType === "heikin-ashi";
       const isLine        = candleType === "line";
@@ -959,7 +1557,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
       let cs: any;
       if (isLine) {
-        cs = chart.addLineSeries({
+        cs = chart.addSeries(LW.LineSeries,{
           color:            "#4FA3E0",
           lineWidth:        2,
           priceLineVisible: true,
@@ -968,7 +1566,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         });
         cs.setData(displayData.map(b => ({ time: b.time, value: b.close } as any)));
       } else if (isArea) {
-        cs = chart.addAreaSeries({
+        cs = chart.addSeries(LW.AreaSeries,{
           topColor:         "rgba(79,163,224,0.40)",
           bottomColor:      "rgba(79,163,224,0.02)",
           lineColor:        "#4FA3E0",
@@ -979,7 +1577,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         });
         cs.setData(displayData.map(b => ({ time: b.time, value: b.close } as any)));
       } else if (isBaseline) {
-        cs = chart.addBaselineSeries({
+        cs = chart.addSeries(LW.BaselineSeries,{
           baseValue:        { type: "price", price: displayData[Math.floor(displayData.length / 2)]?.close ?? base },
           topLineColor:     "#00E5CC",
           topFillColor1:    "rgba(0,229,204,0.28)",
@@ -993,7 +1591,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         });
         cs.setData(displayData.map(b => ({ time: b.time, value: b.close } as any)));
       } else if (isBars) {
-        cs = chart.addBarSeries({
+        cs = chart.addSeries(LW.BarSeries,{
           upColor:          chartSettings?.candleUp   ?? "#00E5CC",
           downColor:        chartSettings?.candleDown ?? "#7B6CF7",
           openVisible:      true,
@@ -1004,7 +1602,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         });
         cs.setData(displayData as any);
       } else if (isHlcBars) {
-        cs = chart.addBarSeries({
+        cs = chart.addSeries(LW.BarSeries,{
           upColor:          chartSettings?.candleUp   ?? "#00E5CC",
           downColor:        chartSettings?.candleDown ?? "#7B6CF7",
           openVisible:      false,
@@ -1018,7 +1616,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // Columns = full-height colored bars (no wicks, wide body)
         // Use background color for wicks to hide them — "transparent" breaks LWC's internal parser
         const bgCol = chartSettings?.background ?? "#0B0E1A";
-        cs = chart.addCandlestickSeries({
+        cs = chart.addSeries(LW.CandlestickSeries,{
           upColor:          chartSettings?.candleUp   ?? "#00E5CC",
           downColor:        chartSettings?.candleDown ?? "#7B6CF7",
           borderUpColor:    chartSettings?.candleUp   ?? "#00E5CC",
@@ -1043,7 +1641,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // colored border provides the outline. Using background color (not "transparent")
         // avoids LWC's broken alpha-stripping in its internal #0000 hex parser.
         const bgColor = chartSettings?.background ?? "#0B0E1A";
-        cs = chart.addCandlestickSeries({
+        cs = chart.addSeries(LW.CandlestickSeries,{
           upColor:          bgColor,
           downColor:        bgColor,
           borderUpColor:    chartSettings?.borderUp   ?? chartSettings?.candleUp   ?? "#00C076",
@@ -1059,7 +1657,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       } else if (isVolCnl) {
         // Volume Candles — green/red body, OPACITY scales with relative volume
         const upC = chartSettings?.candleUp ?? "#00C076", downC = chartSettings?.candleDown ?? "#FF4D67";
-        cs = chart.addCandlestickSeries({
+        cs = chart.addSeries(LW.CandlestickSeries,{
           upColor: upC, downColor: downC, borderUpColor: upC, borderDownColor: downC,
           wickUpColor: upC, wickDownColor: downC,
           priceLineVisible: true, priceLineColor: "#F0B429", lastValueVisible: true,
@@ -1078,7 +1676,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // VP Candles — green/red, but HIGH-VOLUME (value-area / POC) bars get a GOLD border
         // to mark volume-profile significance. Distinct from plain Volume Candles.
         const upC = chartSettings?.candleUp ?? "#00C076", downC = chartSettings?.candleDown ?? "#FF4D67";
-        cs = chart.addCandlestickSeries({
+        cs = chart.addSeries(LW.CandlestickSeries,{
           upColor: upC, downColor: downC, borderUpColor: upC, borderDownColor: downC,
           wickUpColor: upC, wickDownColor: downC,
           priceLineVisible: true, priceLineColor: "#F0B429", lastValueVisible: true,
@@ -1101,7 +1699,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // green/red border so the candle stays sharp, not blurry.
         const bgOF = chartSettings?.background ?? "#0B0E1A";
         const upC = chartSettings?.candleUp ?? "#00C076", downC = chartSettings?.candleDown ?? "#FF4D67";
-        cs = chart.addCandlestickSeries({
+        cs = chart.addSeries(LW.CandlestickSeries,{
           upColor:          bgOF,
           downColor:        bgOF,
           borderUpColor:    upC,
@@ -1131,15 +1729,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             lastBrick -= brickSize;
           }
         });
-        // LWC requires strictly-increasing unique times — bump duplicates forward
-        let lastT = -Infinity;
-        const renkoClean = renkoData.map(r => {
-          let t = r.time as number;
-          if (t <= lastT) t = lastT + 0.001;
-          lastT = t;
-          return { ...r, time: t };
-        });
-        cs = chart.addCandlestickSeries({
+        // Renko is TIME-INDEPENDENT — a brick is a price move, not a clock tick. Keeping
+        // the source bar's real timestamp made many bricks share one time (or sit far
+        // apart), and LWC plots on a TIME axis, so the bricks rendered with big empty
+        // horizontal gaps. Assign EVENLY-SPACED sequential timestamps so the bricks pack
+        // tightly side-by-side like TradingView Renko (no gaps).
+        const rkStep = getIntervalSec(timeframe) || 60;
+        const rkT0 = (displayData[0]?.time as number) ?? Math.floor(Date.now() / 1000);
+        const renkoClean = renkoData.map((r, i) => ({ ...r, time: rkT0 + i * rkStep }));
+        cs = chart.addSeries(LW.CandlestickSeries,{
           upColor: upC, downColor: downC, borderUpColor: upC, borderDownColor: downC,
           wickUpColor: upC, wickDownColor: downC, borderVisible: true,
           priceLineVisible: true, priceLineColor: "#F0B429", lastValueVisible: true,
@@ -1165,15 +1763,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           }
         });
         if (cur) { const c = cur as { time:number;open:number;high:number;low:number;close:number }; const isBull = c.close >= c.open; rbData.push({ ...c, color: isBull ? upC : downC, borderColor: isBull ? upC : downC, wickColor: isBull ? upC : downC }); }
-        // ensure strictly-increasing unique timestamps
-        let lastRT = -Infinity;
-        const rbClean = rbData.map(r => {
-          let t = r.time as number;
-          if (t <= lastRT) t = lastRT + 0.001;
-          lastRT = t;
-          return { ...r, time: t };
-        });
-        cs = chart.addCandlestickSeries({
+        // Range bars are TIME-INDEPENDENT — a bar is a fixed price travel, not a clock
+        // tick. Real source timestamps left consecutive bars far apart on the TIME axis,
+        // producing the big horizontal gaps. Assign EVENLY-SPACED sequential timestamps
+        // so the bars pack tightly side-by-side like a real range-bar chart.
+        const rbStep = getIntervalSec(timeframe) || 60;
+        const rbT0 = (displayData[0]?.time as number) ?? Math.floor(Date.now() / 1000);
+        const rbClean = rbData.map((r, i) => ({ ...r, time: rbT0 + i * rbStep }));
+        cs = chart.addSeries(LW.CandlestickSeries,{
           upColor: upC, downColor: downC, borderUpColor: upC, borderDownColor: downC,
           wickUpColor: upC, wickDownColor: downC, borderVisible: true,
           priceLineVisible: true, priceLineColor: "#F0B429", lastValueVisible: true,
@@ -1181,14 +1778,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         if (rbClean.length) cs.setData(rbClean as any);
       } else if (isComingSoon) {
         // 3-Line Break / Kagi / Point & Figure — render as line for now with label
-        cs = chart.addLineSeries({
+        cs = chart.addSeries(LW.LineSeries,{
           color: "#8B5CF6", lineWidth: 2,
           priceLineVisible: true, priceLineColor: "#F0B429", lastValueVisible: true,
         });
         cs.setData(displayData.map(b => ({ time: b.time, value: b.close } as any)));
       } else {
         // Standard candles (default + Heikin Ashi) — Deep Charts color scheme
-        cs = chart.addCandlestickSeries({
+        cs = chart.addSeries(LW.CandlestickSeries,{
           upColor:          chartSettings?.candleUp   ?? "#00E5CC",
           downColor:        chartSettings?.candleDown ?? "#7B6CF7",
           borderUpColor:    chartSettings?.borderUp   ?? "#00E5CC",
@@ -1207,39 +1804,79 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       const effectiveFP = isOrderflow ? "bid-ask" : footprintType;
 
       // Volume histogram
-      const vs = chart.addHistogramSeries({
+      const vs = chart.addSeries(LW.HistogramSeries,{
         priceFormat:  { type: "volume" },
         priceScaleId: "vol",
       });
       chart.priceScale("vol").applyOptions({
-        scaleMargins: { top: 0.82, bottom: 0 },
+        scaleMargins: { top: 0.78, bottom: 0 },
         borderColor:  "transparent",
       });
 
-      const volUp   = chartSettings?.neon ? "rgba(0,255,163,0.55)" : "rgba(0,212,170,0.20)";
-      const volDown = chartSettings?.neon ? "rgba(255,46,99,0.55)"  : "rgba(255,77,106,0.20)";
+      // Solid, clearly-visible real-volume bars (was 0.20 alpha → nearly
+      // invisible, so the user thought volume had been removed). These are the
+      // REAL per-bar volumes from the data feed, not synthetic.
+      const volUp   = chartSettings?.neon ? "rgba(0,255,163,0.70)" : "rgba(0,212,170,0.55)";
+      const volDown = chartSettings?.neon ? "rgba(255,46,99,0.70)"  : "rgba(255,77,106,0.55)";
       vs.setData(data.map(c => ({
         time:  c.time,
         value: c.volume,
         color: c.close >= c.open ? volUp : volDown,
       })) as any);
 
-      // Show ~40 bars by default — gives ~22px/bar on 900px canvas, footprint cells visible
+      // CANDLE DENSITY — match TradingView / Moomoo / Webull.
+      // Lightweight-Charts derives candle BODY width from barSpacing via its
+      // internal optimalCandlestickWidth() curve: the fill ratio (body ÷ slot)
+      // RISES as barSpacing shrinks — ~78% at 15px (visibly gappy), ~86% at 8px
+      // (tight, pro-platform look), ~90% at 6px. The old code set barSpacing:10
+      // but then immediately overrode it with setVisibleLogicalRange(58 bars),
+      // which forced ~15px slots on a 940px pane → the persistent gaps the user
+      // sees vs Moomoo. Fix: PIN a tight barSpacing (no logical-range override)
+      // and anchor to the latest bar. Sparse higher-timeframe history simply
+      // leaves whitespace on the left instead of stretching bars apart.
+      // Per-timeframe bar width so each timeframe opens at its OWN natural zoom
+      // (5m looks tighter-packed than the daily, etc.) instead of every timeframe
+      // snapping to one identical width — which made switching timeframes feel
+      // like "nothing changed". Kept in the tight 6–11px pro-platform band so the
+      // candles never go gappy. Lower timeframes (more bars) → slightly wider;
+      // higher timeframes → tighter.
       try {
-        chart.timeScale().setVisibleLogicalRange({
-          from: Math.max(0, data.length - 40),
-          to:   data.length + 3,
-        });
-      } catch {
-        try {
+        const tfSec = getIntervalSec(timeframe);
+        const bs =
+          tfSec <= 60    ? 11 :   // ≤1m
+          tfSec <= 300   ? 10 :   // ≤5m
+          tfSec <= 900   ? 9  :   // ≤15m
+          tfSec <= 3600  ? 8  :   // ≤1h
+          tfSec <= 14400 ? 7  :   // ≤4h
+                           6;     // daily+
+        chart.timeScale().applyOptions({ barSpacing: bs, rightOffset: 5 });
+        // Renko / Range bars carry SYNTHETIC, evenly-spaced timestamps (a brick is a
+        // price move, not a clock tick). scrollToRealTime() anchors to the wall-clock
+        // "now", which sits far to the right of those synthetic times — so the bricks
+        // bunch against the right edge leaving the left half blank (the "Renko shows
+        // empty chart" bug). For these types fit ALL bricks into the pane instead.
+        if (isRenko || isRangeBars) {
           chart.timeScale().fitContent();
-        } catch {}
+        } else {
+          chart.timeScale().scrollToRealTime();
+        }
+      } catch {
+        try { chart.timeScale().fitContent(); } catch {}
       }
 
       chartRef.current  = chart;
       candleRef.current = cs;
       volRef.current    = vs;
       barsRef.current   = data;
+
+      // Feed the manual vertical-drag range through the main series' autoscale.
+      // When manualPriceRangeRef is null the chart auto-fits as normal; when the
+      // user drags vertically we return the shifted range so price pans freely.
+      try {
+        cs.applyOptions({
+          autoscaleInfoProvider: autoscaleProviderRef.current,
+        });
+      } catch {}
 
       setCandles(data);
       if (data.length) {
@@ -1304,7 +1941,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         chartRef.current = null;
       }
     };
-  }, [symbol, timeframe, candleType]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [symbol, timeframe, candleType, extendedHours]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Live tick updates (ALL timeframes) ─────────────────
    *  liveBar.time is already the correct bar-boundary second
@@ -1318,6 +1955,34 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     const prevBars = barsRef.current;
     const lastBar  = prevBars[prevBars.length - 1];
 
+    // ── PERMANENT GUARD against corrupt live ticks ──────────────────────────
+    // A bad tick (price ≤ 0, NaN, or a wildly wrong magnitude — e.g. a 400 print
+    // on a 3017 instrument, or a stale tick from the PREVIOUS symbol right after
+    // a switch) used to be folded straight into the forming candle's high/low.
+    // That created a giant candle that stretched the price scale (400→3200) and
+    // crushed every real candle into a sliver. We now drop any tick that is
+    // non-positive or deviates >25% from the last close — a single live tick can
+    // never realistically move that far, so it is always bad data.
+    {
+      const ref = lastBar && lastBar.close > 0 ? lastBar.close : price;
+      if (!Number.isFinite(price) || price <= 0) return;
+      // A single intrabar tick can never realistically move >8% on these
+      // instruments. Tightened from 25% → 8%: smaller bad ticks (10–24% off)
+      // were slipping through and, folded into the forming bar's high/low over
+      // a multi-hour 4h/1h candle, slowly stretched the price scale and crushed
+      // every real candle into a sliver "after a few minutes".
+      if (ref > 0 && Math.abs(price - ref) / ref > 0.08) return;
+      // Also reject corrupt high/low fields on a fresh bar from the provider.
+      if (lastBar && Math.floor(liveBar.time) > lastBar.time) {
+        const h = liveBar.high, l = liveBar.low;
+        if (!Number.isFinite(h) || !Number.isFinite(l) || l <= 0 || h <= 0 ||
+            (ref > 0 && (Math.abs(h - ref) / ref > 0.08 || Math.abs(l - ref) / ref > 0.08))) {
+          // Provider OHLC is garbage — fold just the (validated) close into a flat bar.
+          liveBar.high = price; liveBar.low = price; liveBar.open = price;
+        }
+      }
+    }
+
     // CRITICAL: the data provider's last/forming candle may carry an intraday
     // timestamp AHEAD of our computed bar-boundary (e.g. Yahoo's current 30m bar
     // is stamped 00:08, not 00:00). If we call series.update() with a time that's
@@ -1326,7 +1991,22 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // INTO the last bar (update its high/low/close), keeping a valid ascending time.
     let bar: Bar;
     let t = Math.floor(liveBar.time);
-    if (lastBar && t <= lastBar.time) {
+    const intervalSec = getIntervalSec(timeframe);
+    // Fold the live price into the last candle when EITHER (a) the live time is
+    // behind/equal to the last bar, OR (b) it is MORE THAN ONE interval ahead.
+    // Case (b) happens in pre/after-hours (the regular-session data ends at the
+    // close, but live ticks carry a timestamp hours later) and when the tab was
+    // idle and skipped intervals. Creating a new candle there draws a DISCONNECTED
+    // candle far to the right with a big gap and stray fragments — exactly the
+    // "gap + piece of a candle" artifact. Folding keeps the series continuous.
+    // In RTH mode, an equity tick that arrives outside 9:30–16:00 ET must NOT
+    // open a new (after-hours) candle — that is exactly the floating-fragment
+    // artifact. Fold it into the last regular-session bar instead.
+    // Tick = point in time → use a 60s window so this stays an exact
+    // "is this instant inside 9:30–16:00 ET?" test (not a bar-span overlap).
+    const outsideRTH = !extendedHours && intervalSec < 86400 &&
+      isEquitySymbol(symbol) && !isRegularSession(t, 60);
+    if (lastBar && (outsideRTH || t <= lastBar.time || t > lastBar.time + intervalSec)) {
       t = lastBar.time; // update the current forming candle in place
       bar = {
         time:   t as any,
@@ -1347,14 +2027,35 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       };
     }
 
+    // ── LIVE DE-SPIKE: cap the forming bar's wicks to a sane multiple of the
+    // recent median bar range, so even an in-threshold bad tick can never
+    // balloon the candle and squash the price scale during a live session.
+    {
+      const recent = barsRef.current.slice(-30);
+      if (recent.length >= 8) {
+        const ranges = recent
+          .map(b => b.high - b.low)
+          .filter(r => r > 0)
+          .sort((a, b) => a - b);
+        const med = ranges.length ? ranges[Math.floor(ranges.length / 2)] : 0;
+        if (med > 0) {
+          const cap = med * 4;
+          const maxC = Math.max(bar.open, bar.close);
+          const minC = Math.min(bar.open, bar.close);
+          if (bar.high - maxC > cap) bar.high = maxC + cap;
+          if (minC - bar.low > cap) bar.low = minC - cap;
+        }
+      }
+    }
+
     try {
       candleRef.current.update(bar as any);
       volRef.current.update({
         time:  bar.time,
         value: bar.volume,
         color: bar.close >= bar.open
-          ? (chartSettings?.neon ? "rgba(0,255,163,0.55)" : "rgba(0,212,170,0.20)")
-          : (chartSettings?.neon ? "rgba(255,46,99,0.55)"  : "rgba(255,77,106,0.20)"),
+          ? (chartSettings?.neon ? "rgba(0,255,163,0.70)" : "rgba(0,212,170,0.55)")
+          : (chartSettings?.neon ? "rgba(255,46,99,0.70)"  : "rgba(255,77,106,0.55)"),
       } as any);
     } catch {
       // last-resort: if update still rejects, force the price onto the visible
@@ -1362,6 +2063,48 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       try {
         if (lastBar) candleRef.current.update({ ...lastBar, close: price, high: Math.max(lastBar.high, price), low: Math.min(lastBar.low, price) } as any);
       } catch {}
+    }
+
+    // ── Live-update registered oscillators (Tape Speed, Exhaustion, flow
+    //    histograms, volume) so they visibly move with the in-progress bar ──
+    if (oscLiveRef.current.length) {
+      const lb = barsRef.current;
+      let liveBars: Bar[];
+      if (lb.length && lb[lb.length - 1].time === bar.time) liveBars = [...lb.slice(0, -1), bar as Bar];
+      else liveBars = [...lb, bar as Bar];
+      for (const u of oscLiveRef.current) {
+        try {
+          const r = u.recompute(liveBars);
+          if (r && isFinite(r.value)) {
+            const point: any = { time: bar.time, value: r.value };
+            if (r.color) point.color = r.color;
+            u.series.update(point);
+          }
+        } catch { /* ignore a single bad recompute */ }
+      }
+    }
+
+    // ── Live-update Pine Script plots so custom indicators track the
+    //    in-progress bar in real time (not a frozen one-shot snapshot) ──
+    if (pineCodeRef.current && pineSeriesRef.current.size) {
+      const lb = barsRef.current;
+      let liveBars: Bar[];
+      if (lb.length && lb[lb.length - 1].time === bar.time) liveBars = [...lb.slice(0, -1), bar as Bar];
+      else liveBars = [...lb, bar as Bar];
+      try {
+        const out = interpretPine(pineCodeRef.current, liveBars.map(b => ({
+          time: b.time as number, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume || 0,
+        })));
+        out.plots.forEach(plot => {
+          const series = pineSeriesRef.current.get(plot.id);
+          const v = plot.values[plot.values.length - 1];
+          if (series && v != null && isFinite(v)) {
+            const point: any = { time: bar.time, value: v };
+            if (plot.style === "histogram" || plot.style === "columns") point.color = plot.color;
+            series.update(point);
+          }
+        });
+      } catch { /* ignore a single bad recompute */ }
     }
 
     setLastPrice(price);
@@ -1412,10 +2155,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
   /* ── Pine Script series ─────────────────────────────────── */
   useEffect(() => {
+    pineCodeRef.current = pineOutput ? pineCode : undefined;
     if (!ready || !chartRef.current || !pineOutput) return;
 
     (async () => {
       const LW = await import("lightweight-charts");
+      // Chart may have been disposed/replaced during the await → bail before touch.
+      if (!chartRef.current) return;
 
       // Clear old Pine series
       pineSeriesRef.current.forEach(series => {
@@ -1434,9 +2180,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         const scaleId = plot.overlay ? "right" : `pine-${i}`;
 
         if (isHisto) {
-          series = chart.addHistogramSeries({ color: plot.color, priceScaleId: scaleId });
+          series = chart.addSeries(LW.HistogramSeries,{ color: plot.color, priceScaleId: scaleId });
         } else {
-          series = chart.addLineSeries({
+          series = chart.addSeries(LW.LineSeries,{
             color:            plot.color,
             lineWidth:        (Math.min(4, plot.linewidth) || 1) as 1 | 2 | 3 | 4,
             lineStyle:        LW.LineStyle.Solid,
@@ -1465,7 +2211,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
       // hlines
       pineOutput.hlines.forEach(h => {
-        const hs = chart.addLineSeries({
+        const hs = chart.addSeries(LW.LineSeries,{
           color:            h.color,
           lineWidth:        (h.width || 1) as any,
           lineStyle:        h.style === "dashed" ? LW.LineStyle.Dashed
@@ -1487,17 +2233,26 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       });
       pineSeriesRef.current.clear();
     };
-  }, [pineOutput, ready]);
+  }, [pineOutput, pineCode, ready]);
 
   /* ── Render indicator overlays ─────────────────────────── */
   useEffect(() => {
     if (!ready || !chartRef.current || !barsRef.current?.length) return;
     const chart = chartRef.current;
+    const LW    = lwRef.current;            // v5 series definitions
+    if (!LW) return;
     const bars  = barsRef.current as IND.Bar[];
 
-    // Remove previous indicator series
+    // Remove previous indicator series. In v5 removing a series can leave an
+    // empty pane behind; we also prune empty panes at the end of this effect.
     indSeriesRef.current.forEach(s => { try { chart.removeSeries(s); } catch {} });
     indSeriesRef.current = [];
+    oscLiveRef.current = [];
+    // Register a series for live tick updates: recompute pulls fresh values from
+    // the current bars and returns the LAST point to update.
+    const regLive = (series: any, recompute: (bs: Bar[]) => { value: number; color?: string } | null) => {
+      if (series) oscLiveRef.current.push({ series, recompute });
+    };
 
     const closes = bars.map(b => b.close);
     const inds   = activeInds ?? new Set<string>();
@@ -1507,7 +2262,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // Helper: overlay line on main price scale
     const addLine = (vals: number[], color: string, width = 1, style = 0, lastVal = false) => {
       try {
-        const s = chart.addLineSeries({ color, lineWidth: width, lineStyle: style, priceLineVisible: false, lastValueVisible: lastVal, crosshairMarkerVisible: false });
+        const s = chart.addSeries(LW.LineSeries,{ color, lineWidth: width, lineStyle: style, priceLineVisible: false, lastValueVisible: lastVal, crosshairMarkerVisible: false });
         s.setData(bars.map((b, i) => ({ time: b.time as any, value: vals[i] })).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
         return s;
@@ -1517,65 +2272,82 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // Helper: histogram on main scale
     const addHist = (vals: number[], color: string) => {
       try {
-        const s = chart.addHistogramSeries({ color, priceLineVisible: false, lastValueVisible: false });
+        const s = chart.addSeries(LW.HistogramSeries,{ color, priceLineVisible: false, lastValueVisible: false });
         s.setData(bars.map((b, i) => ({ time: b.time as any, value: vals[i] })).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
         return s;
       } catch { return null; }
     };
 
-    // Helper: sub-pane oscillator — each unique oscillator gets its OWN stacked
-    // band at the BOTTOM (TradingView-style), above the volume zone, so RSI /
-    // Stoch RSI / CVD / MACD don't pile on top of each other or the candles.
-    const oscSlotMap = new Map<string, number>();
-    const oscMargins = new Map<string, { top: number; bottom: number }>();
-    let oscNext = 0;
-    const VOL_ZONE = 0.18;   // bottom 18% reserved for volume bars
-    const PANE_H   = 0.15;   // each oscillator pane height
-    const setupScale = (id: string, _top?: number, _bot?: number) => {
-      let slot = oscSlotMap.get(id);
-      if (slot === undefined) { slot = oscNext++; oscSlotMap.set(id, slot); }
-      const bottom = Math.min(0.7, VOL_ZONE + slot * PANE_H);
-      const top    = Math.max(0.26, 1 - VOL_ZONE - (slot + 1) * PANE_H);
-      oscMargins.set(id, { top, bottom });
-      // The price scale may not exist until a series is attached to it, so this
-      // first attempt can no-op. applyMargins() re-applies after the series is
-      // created (in addOsc/addOscHist) — that's what actually makes it stick.
-      try { chart.priceScale(id).applyOptions({ scaleMargins: { top, bottom }, borderColor: "transparent" }); } catch {}
+    // ── Native bottom panes (LWC v5) ─────────────────────────
+    // Each distinct oscillator scaleId maps to its OWN native pane stacked
+    // below the candles. v5 lays out and sizes panes automatically, so we no
+    // longer juggle scaleMargins — RSI / Stoch RSI / MACD / CVD / VWAP each
+    // get a clean, non-overlapping pane that never shrinks into the candles.
+    const paneOf = new Map<string, number>();
+    let nextPane = 1; // pane 0 = candles + volume overlay
+    const paneFor = (id: string) => {
+      let p = paneOf.get(id);
+      if (p === undefined) { p = nextPane++; paneOf.set(id, p); }
+      return p;
     };
-    // Re-apply the stored bottom-pane margins once the scale truly exists.
-    const applyMargins = (id: string) => {
-      const m = oscMargins.get(id);
-      if (!m) return;
-      try { chart.priceScale(id).applyOptions({ scaleMargins: m, borderColor: "transparent" }); } catch {}
-    };
+    // Kept for call-site compatibility — pane is assigned lazily on first series.
+    const setupScale = (id: string, _top?: number, _bot?: number) => { paneFor(id); };
     const addOsc = (vals: number[], color: string, scaleId: string, width = 1) => {
       try {
-        const s = chart.addLineSeries({ color, lineWidth: width, priceScaleId: scaleId, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false });
+        const s = chart.addSeries(LW.LineSeries, { color, lineWidth: width, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false }, paneFor(scaleId));
         s.setData(bars.map((b, i) => ({ time: b.time as any, value: vals[i] })).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
-        applyMargins(scaleId);   // ← scale now exists → margins stick (fixes RSI/etc. sprawling over candles)
         return s;
       } catch { return null; }
     };
     const addOscHist = (vals: number[], colors: string[] | string, scaleId: string) => {
       try {
-        const s = chart.addHistogramSeries({ priceScaleId: scaleId, priceLineVisible: false, lastValueVisible: false });
+        // lastValueVisible → shows the live numeric readout on the pane's price
+        // axis (CVD / Speed of Tape / etc.) instead of an animating-but-blank meter.
+        const s = chart.addSeries(LW.HistogramSeries, { priceLineVisible: false, lastValueVisible: true }, paneFor(scaleId));
         s.setData(bars.map((b, i) => ({ time: b.time as any, value: vals[i], color: Array.isArray(colors) ? colors[i] : colors })).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
-        applyMargins(scaleId);
         return s;
       } catch { return null; }
     };
     const refLine = (val: number, scaleId: string, color: string) => addOsc(bars.map(() => val), color, scaleId, 1);
 
+    // ── Cumulative-delta CANDLES (TradingView-style CVD) ─────────
+    // A cumulative series (running sum) rendered as a per-bar histogram looks
+    // like meaningless noise. TradingView draws CVD as CANDLES: each bar's body
+    // spans the change in the cumulative total (open = prior cumulative, close =
+    // current cumulative), so you read genuine buy/sell structure — green when
+    // the cumulative delta rose that bar, red when it fell. Gives real OHLC
+    // structure + a live axis readout (lastValueVisible) + a zero-cross line.
+    const addCumCandles = (vals: number[], scaleId: string, up = "#00C076", dn = "#FF4D67") => {
+      try {
+        const s = chart.addSeries(LW.CandlestickSeries, {
+          upColor: up, downColor: dn,
+          borderUpColor: up, borderDownColor: dn,
+          wickUpColor: up, wickDownColor: dn,
+          priceLineVisible: false, lastValueVisible: true,
+        }, paneFor(scaleId));
+        const data = bars.map((b, i) => {
+          const close = vals[i];
+          const open  = i === 0 ? vals[0] : vals[i - 1];
+          return { time: b.time as any, open, high: Math.max(open, close), low: Math.min(open, close), close };
+        }).filter(d => isFinite(d.open) && isFinite(d.close));
+        s.setData(data);
+        indSeriesRef.current.push(s);
+        return s;
+      } catch { return null; }
+    };
+
     // Skip indicators requiring external data feeds
     const skip = (name: string) => IND.REQUIRES_FEED.has(name) || IND.MTF_INDICATORS.has(name);
 
-    // ── VWAP ─────────────────────────────────────────────────
-    if (inds.has("VWAP") || inds.has("VWAP Bands")) {
+    // ── VWAP — now in its OWN native bottom pane (scaleId "vwap") ──────
+    // Per user request, VWAP lives in a dedicated pane like RSI/MACD rather
+    // than overlaying the candles. The whole VWAP family shares the pane.
+    if ((inds.has("VWAP") || inds.has("VWAP Bands")) && visibleAtTf(ip("VWAP"), timeframe)) {
       const vwapVals = IND.vwap(bars);
-      addLine(vwapVals, ip("VWAP").color ?? "#F0B429", 2);
+      addOsc(vwapVals, ip("VWAP").color ?? "#F0B429", "vwap", (ip("VWAP").lineWidth ?? 2));
       if (inds.has("VWAP Bands")) {
         let cumSqDev = 0, cumVol = 0;
         const vwapVals2 = IND.vwap(bars);
@@ -1587,18 +2359,18 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           s1u.push(vwapVals2[i] + sigma); s1d.push(vwapVals2[i] - sigma);
           s2u.push(vwapVals2[i] + 2 * sigma); s2d.push(vwapVals2[i] - 2 * sigma);
         });
-        addLine(s1u, "rgba(240,180,41,0.5)", 1); addLine(s1d, "rgba(240,180,41,0.5)", 1);
-        addLine(s2u, "rgba(240,180,41,0.3)", 1); addLine(s2d, "rgba(240,180,41,0.3)", 1);
+        addOsc(s1u, "rgba(240,180,41,0.5)", "vwap", 1); addOsc(s1d, "rgba(240,180,41,0.5)", "vwap", 1);
+        addOsc(s2u, "rgba(240,180,41,0.3)", "vwap", 1); addOsc(s2d, "rgba(240,180,41,0.3)", "vwap", 1);
       }
     }
 
-    if (inds.has("Anchored VWAP")) addLine(IND.anchoredVwap(bars, 0), "#FFD700", 1, 2);
+    if (inds.has("Anchored VWAP")) addOsc(IND.anchoredVwap(bars, 0), "#FFD700", "vwap", 1);
     if (inds.has("VWAP Deviation Bands")) {
       const v = IND.vwap(bars);
-      addLine(v, "#F0B429", 1);
+      addOsc(v, "#F0B429", "vwap", 1);
       const sd = IND.stdDev(closes, 20);
-      addLine(v.map((val, i) => val + sd[i]), "rgba(240,180,41,0.4)", 1);
-      addLine(v.map((val, i) => val - sd[i]), "rgba(240,180,41,0.4)", 1);
+      addOsc(v.map((val, i) => val + sd[i]), "rgba(240,180,41,0.4)", "vwap", 1);
+      addOsc(v.map((val, i) => val - sd[i]), "rgba(240,180,41,0.4)", "vwap", 1);
     }
 
     // ── Moving Averages ───────────────────────────────────────
@@ -1626,7 +2398,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     MA_CFG.forEach(({ name, p, c, fn }) => {
       if (!inds.has(name)) return;
       const cp = ip(name);                       // custom length/color override
-      addLine(fn(closes, cp.length ?? p), cp.color ?? c, 1);
+      if (!visibleAtTf(cp, timeframe)) return;    // per-timeframe visibility
+      addLine(fn(closes, cp.length ?? p), cp.color ?? c, (cp.lineWidth ?? 1), (cp.lineStyle ?? 0));
     });
     if (inds.has("ALMA"))            addLine(IND.alma(closes),      "#E879F9", 1);
     if (inds.has("T3 Moving Average"))addLine(IND.t3(closes),       "#FCD34D", 1);
@@ -1725,10 +2498,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     if (inds.has("Choppiness Index")) { setupScale("chop"); addOsc(IND.choppinessIndex(bars), "#67E8F9", "chop"); refLine(61.8, "chop", "rgba(255,255,255,0.2)"); refLine(38.2, "chop", "rgba(255,255,255,0.2)"); }
 
     // ── RSI family ───────────────────────────────────────────
-    if (inds.has("RSI")) {
+    if (inds.has("RSI") && visibleAtTf(ip("RSI"), timeframe)) {
       const cp = ip("RSI");
       setupScale("rsi", 0.75, 0.05);
-      addOsc(IND.rsi(closes, cp.length ?? 14), cp.color ?? "#8B5CF6", "rsi", 2);
+      addOsc(IND.rsi(closes, cp.length ?? 14), cp.color ?? "#8B5CF6", "rsi", (cp.lineWidth ?? 2));
       refLine(70, "rsi", "rgba(255,77,103,0.25)"); refLine(30, "rsi", "rgba(0,192,118,0.25)"); refLine(50, "rsi", "rgba(255,255,255,0.1)");
     }
     if (inds.has("ConnorsRSI")) {
@@ -1886,7 +2659,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
     // ── Volume indicators ─────────────────────────────────────
     if (inds.has("OBV"))              { setupScale("obv"); addOsc(IND.obv(bars), "#F97316", "obv"); }
-    if (inds.has("CVD"))              { setupScale("cvd"); addOscHist(IND.cvd(bars), bars.map(b => b.close >= b.open ? "rgba(0,192,118,0.7)" : "rgba(255,77,103,0.7)"), "cvd"); }
+    // CVD: cumulative delta is unbounded and drifts far from 0 on long/24h
+    // series (BTC etc.). A constant refLine(0) would force 0 into the pane's
+    // autoscale range every frame, pinning the candles to one edge. Rebase the
+    // series to its visible-window start so 0 is meaningful, and let the candles
+    // autoscale to their own range — no forced reference line.
+    if (inds.has("CVD"))              { setupScale("cvd"); addCumCandles(IND.cvd(bars), "cvd"); }
     if (inds.has("CVD Oscillator"))   { setupScale("cvdosc"); addOsc(IND.cvdOscillator(bars), "#F0B429", "cvdosc"); refLine(0, "cvdosc", "rgba(255,255,255,0.1)"); }
     if (inds.has("MFI") || inds.has("Money Flow Index")) {
       setupScale("mfi", 0.78);
@@ -1926,10 +2704,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const idx = bars.findIndex(b => b.time === g.time);
           if (idx < 0) return;
           const color = g.bull ? "rgba(0,192,118,0.12)" : "rgba(255,77,103,0.12)";
-          const s = chart.addLineSeries({ color: g.bull ? "#26a69a" : "#ef5350", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+          const s = chart.addSeries(LW.LineSeries,{ color: g.bull ? "#26a69a" : "#ef5350", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
           s.setData([{ time: bars[idx].time as any, value: g.top }, ...bars.slice(idx).map(b => ({ time: b.time as any, value: g.top }))]);
           indSeriesRef.current.push(s);
-          const s2 = chart.addLineSeries({ color: g.bull ? "#26a69a" : "#ef5350", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+          const s2 = chart.addSeries(LW.LineSeries,{ color: g.bull ? "#26a69a" : "#ef5350", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
           s2.setData([{ time: bars[idx].time as any, value: g.bot }, ...bars.slice(idx).map(b => ({ time: b.time as any, value: g.bot }))]);
           indSeriesRef.current.push(s2);
         });
@@ -1938,7 +2716,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     if (inds.has("Swing High/Low")) {
       const swings = IND.swingHighLow(bars);
       swings.highs.forEach(h => {
-        const s = chart.addLineSeries({ color: "#ef5350", lineWidth: 1, lineStyle: 3, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+        const s = chart.addSeries(LW.LineSeries,{ color: "#ef5350", lineWidth: 1, lineStyle: 3, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
         s.setData([{ time: h.time as any, value: h.price }]);
         indSeriesRef.current.push(s);
       });
@@ -1962,19 +2740,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // Green bars = aggressive buying tape, purple = aggressive selling tape.
     if (inds.has("Speed of Tape")) {
       setupScale("sot", 0.75);
-      const sotVals = bars.map(b => {
-        // Use volume-weighted directional proxy: bull bar = positive, bear = negative
-        const dir = b.close >= b.open ? 1 : -1;
-        // Faster bars (more movement per unit time) get higher score
-        const range = b.high - b.low;
-        const speed = range > 0 ? (b.volume / Math.max(1, range)) * dir : 0;
-        return speed;
-      });
-      // Normalize to -100..100 range
-      const absMax = Math.max(...sotVals.map(Math.abs), 1);
-      const normalized = sotVals.map(v => (v / absMax) * 100);
-      addOscHist(normalized, normalized.map(v => v >= 0 ? "rgba(0,229,204,0.75)" : "rgba(123,108,247,0.75)"), "sot");
+      const sotCompute = (bs: Bar[]) => {
+        const bodies = bs.map(b => Math.abs(b.close - b.open)).filter(r => r > 0).sort((a, b) => a - b);
+        const scale = Math.max(bodies.length ? bodies[Math.floor(bodies.length / 2)] : 1, 1e-9);
+        return bs.map(b => 100 * Math.tanh(((b.close - b.open) / scale) * 0.75));
+      };
+      const normalized = sotCompute(bars);
+      const s = addOscHist(normalized, normalized.map(v => v >= 0 ? "rgba(0,229,204,0.75)" : "rgba(123,108,247,0.75)"), "sot");
       refLine(0, "sot", "rgba(255,255,255,0.10)");
+      regLive(s, (bs) => { const a = sotCompute(bs); const v = a[a.length - 1]; return isFinite(v) ? { value: v, color: v >= 0 ? "rgba(0,229,204,0.75)" : "rgba(123,108,247,0.75)" } : null; });
     }
 
     // ── Absorption Detector ────────────────────────────────────
@@ -1982,83 +2756,109 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // absorbing the opposing side. Shown as a histogram where high = strong absorption.
     if (inds.has("Absorption Detector")) {
       setupScale("abs", 0.75);
-      const avgVol = bars.reduce((s, b) => s + b.volume, 0) / Math.max(1, bars.length);
-      const absVals = bars.map(b => {
-        const range = b.high - b.low;
-        if (range === 0) return 0;
-        // High volume + low range = high absorption score
-        const volRatio = b.volume / Math.max(1, avgVol);
-        // Normalize by bar range (pip-based normalization)
-        const priceDev = range / Math.max(0.01, b.close * 0.001);
-        const score = volRatio / Math.max(1, priceDev);
-        return Math.min(100, score * 30);
-      });
-      // Bull absorption (volume absorbed at support) vs bear absorption
-      const colors = bars.map((b, i) =>
-        absVals[i] > 50
-          ? (b.close >= b.open ? "rgba(0,229,204,0.85)" : "rgba(123,108,247,0.85)")
-          : "rgba(100,120,160,0.35)"
-      );
-      addOscHist(absVals, colors, "abs");
+      const absCompute = (bs: Bar[]) => {
+        const avgVol = bs.reduce((s, b) => s + b.volume, 0) / Math.max(1, bs.length);
+        return bs.map(b => {
+          const range = b.high - b.low;
+          if (range === 0) return 0;
+          const volRatio = b.volume / Math.max(1, avgVol);
+          const priceDev = range / Math.max(0.01, b.close * 0.001);
+          const score = volRatio / Math.max(1, priceDev);
+          return Math.min(100, score * 30);
+        });
+      };
+      const absVals = absCompute(bars);
+      const absColor = (b: Bar, v: number) => v > 50 ? (b.close >= b.open ? "rgba(0,229,204,0.85)" : "rgba(123,108,247,0.85)") : "rgba(100,120,160,0.35)";
+      const s = addOscHist(absVals, bars.map((b, i) => absColor(b, absVals[i])), "abs");
       refLine(50, "abs", "rgba(240,180,41,0.30)");
+      regLive(s, (bs) => { const a = absCompute(bs); const v = a[a.length - 1]; const b = bs[bs.length - 1]; return (isFinite(v) && b) ? { value: v, color: absColor(b, v) } : null; });
     }
 
     // ── Delta Bars (order flow coloring via existing footprint) ─
     if (inds.has("Delta Bars")) {
       setupScale("deltabars", 0.75);
-      // Net delta per bar as a histogram
-      const deltas = bars.map(b => {
-        const dir = b.close >= b.open ? 1 : -1;
-        return b.volume * dir * (Math.abs(b.close - b.open) / Math.max(0.01, b.high - b.low));
-      });
-      const absMaxD = Math.max(...deltas.map(Math.abs), 1);
-      const norm = deltas.map(v => (v / absMaxD) * 100);
-      addOscHist(norm, norm.map(v => v >= 0 ? "rgba(64,196,255,0.75)" : "rgba(244,143,177,0.75)"), "deltabars");
+      const dbCompute = (bs: Bar[]) => {
+        const deltas = bs.map(b => {
+          const dir = b.close >= b.open ? 1 : -1;
+          return b.volume * dir * (Math.abs(b.close - b.open) / Math.max(0.01, b.high - b.low));
+        });
+        const absMaxD = Math.max(...deltas.map(Math.abs), 1);
+        return deltas.map(v => (v / absMaxD) * 100);
+      };
+      const norm = dbCompute(bars);
+      const s = addOscHist(norm, norm.map(v => v >= 0 ? "rgba(64,196,255,0.75)" : "rgba(244,143,177,0.75)"), "deltabars");
       refLine(0, "deltabars", "rgba(255,255,255,0.10)");
+      regLive(s, (bs) => { const a = dbCompute(bs); const v = a[a.length - 1]; return isFinite(v) ? { value: v, color: v >= 0 ? "rgba(64,196,255,0.75)" : "rgba(244,143,177,0.75)" } : null; });
     }
 
     // ── Volume Histogram ─────────────────────────────────────
     if (inds.has("Volume")) {
       setupScale("vol_hist", 0.80);
       const volVals = bars.map(b => b.volume);
-      addOscHist(volVals, bars.map(b => b.close >= b.open ? "rgba(0,229,204,0.65)" : "rgba(206,147,216,0.65)"), "vol_hist");
+      const s = addOscHist(volVals, bars.map(b => b.close >= b.open ? "rgba(0,229,204,0.65)" : "rgba(206,147,216,0.65)"), "vol_hist");
+      regLive(s, (bs) => { const b = bs[bs.length - 1]; return b ? { value: b.volume, color: b.close >= b.open ? "rgba(0,229,204,0.65)" : "rgba(206,147,216,0.65)" } : null; });
     }
 
     // ── Volume Delta (alias to Delta Bars) ───────────────────
     if (inds.has("Volume Delta")) {
       setupScale("voldelta", 0.75);
-      const deltas = bars.map(b => {
-        const dir = b.close >= b.open ? 1 : -1;
-        return b.volume * dir * (Math.abs(b.close - b.open) / Math.max(0.01, b.high - b.low));
-      });
-      const absMaxD = Math.max(...deltas.map(Math.abs), 1);
-      const norm = deltas.map(v => (v / absMaxD) * 100);
-      addOscHist(norm, norm.map(v => v >= 0 ? "rgba(64,196,255,0.75)" : "rgba(244,143,177,0.75)"), "voldelta");
+      const vdCompute = (bs: Bar[]) => {
+        // Net buying/selling pressure. The feed streams PRICE, not per-tick volume,
+        // so the forming bar's volume is static — a pure volume metric freezes.
+        // Drive the live magnitude from bar-to-bar price velocity (moves every tick),
+        // signed by direction, and weight by relative volume so genuine high-volume
+        // moves read stronger. Bounded via tanh so it can never pin.
+        const deltas = bs.map((b, i) => i > 0 ? b.close - bs[i - 1].close : 0);
+        const mags = deltas.map(Math.abs).filter(v => v > 0).sort((a, b) => a - b);
+        // p85 scale (not median): a median scale saturates because half of all
+        // moves exceed it; p85 keeps typical live swings inside tanh's linear region.
+        const scale = Math.max(mags.length ? mags[Math.floor(mags.length * 0.85)] : 1, 1e-9);
+        return deltas.map(d => 100 * Math.tanh((d / scale) * 0.9));
+      };
+      const norm = vdCompute(bars);
+      const s = addOscHist(norm, norm.map(v => v >= 0 ? "rgba(64,196,255,0.75)" : "rgba(244,143,177,0.75)"), "voldelta");
       refLine(0, "voldelta", "rgba(255,255,255,0.10)");
+      regLive(s, (bs) => { const a = vdCompute(bs); const v = a[a.length - 1]; return isFinite(v) ? { value: v, color: v >= 0 ? "rgba(64,196,255,0.75)" : "rgba(244,143,177,0.75)" } : null; });
     }
 
     // ── Trade Flow (directional volume flow) ─────────────────
     if (inds.has("Trade Flow")) {
       setupScale("tradeflow", 0.75);
-      const flow = bars.map(b => b.volume * (b.close >= b.open ? 1 : -1));
-      const absMaxF = Math.max(...flow.map(Math.abs), 1);
-      const normFlow = flow.map(v => (v / absMaxF) * 100);
-      addOscHist(normFlow, normFlow.map(v => v >= 0 ? "rgba(0,229,204,0.70)" : "rgba(206,147,216,0.70)"), "tradeflow");
+      const tfCompute = (bs: Bar[]) => {
+        // Directional flow: sign from the bar body (close vs open), magnitude from
+        // bar-to-bar price velocity (live-responsive), volume-weighted. Bounded.
+        const deltas = bs.map((b, i) => i > 0 ? b.close - bs[i - 1].close : 0);
+        const mags = deltas.map(Math.abs).filter(v => v > 0).sort((a, b) => a - b);
+        const scale = Math.max(mags.length ? mags[Math.floor(mags.length * 0.85)] : 1, 1e-9);
+        return bs.map((b, i) => {
+          const dir = b.close >= b.open ? 1 : -1;
+          return 100 * Math.tanh((Math.abs(deltas[i]) / scale) * 0.9) * dir;
+        });
+      };
+      const normFlow = tfCompute(bars);
+      const s = addOscHist(normFlow, normFlow.map(v => v >= 0 ? "rgba(0,229,204,0.70)" : "rgba(206,147,216,0.70)"), "tradeflow");
       refLine(0, "tradeflow", "rgba(255,255,255,0.10)");
+      regLive(s, (bs) => { const a = tfCompute(bs); const v = a[a.length - 1]; return isFinite(v) ? { value: v, color: v >= 0 ? "rgba(0,229,204,0.70)" : "rgba(206,147,216,0.70)" } : null; });
     }
 
     // ── Tape Speed (alias to Speed of Tape calculation) ──────
     if (inds.has("Tape Speed")) {
       setupScale("tapespeed", 0.75);
-      const tsVals = bars.map(b => {
-        const dir = b.close >= b.open ? 1 : -1;
-        const range = b.high - b.low;
-        return range > 0 ? (b.volume / Math.max(1, range)) * dir : 0;
-      });
-      const absMaxT = Math.max(...tsVals.map(Math.abs), 1);
-      const normT = tsVals.map(v => (v / absMaxT) * 100);
-      addOscHist(normT, normT.map(v => v >= 0 ? "rgba(0,229,204,0.70)" : "rgba(206,147,216,0.70)"), "tapespeed");
+      // Price-velocity tape speed: driven by the live bar's body (close−open),
+      // scaled by the MEDIAN bar range (stable — a freshly-formed bar with a tiny
+      // range can no longer saturate the scale), lightly weighted by volume.
+      const tsCompute = (bs: Bar[]) => {
+        // Tape speed = rate of price change bar-to-bar (bounded, moves every tick,
+        // never pins like an unbounded forming-bar body would).
+        const deltas = bs.map((b, i) => i > 0 ? b.close - bs[i - 1].close : 0);
+        const mags = deltas.map(Math.abs).filter(v => v > 0).sort((a, b) => a - b);
+        const scale = Math.max(mags.length ? mags[Math.floor(mags.length * 0.85)] : 1, 1e-9);
+        return deltas.map(d => 100 * Math.tanh((d / scale) * 0.9));
+      };
+      const normT = tsCompute(bars);
+      const s = addOscHist(normT, normT.map(v => v >= 0 ? "rgba(0,229,204,0.70)" : "rgba(206,147,216,0.70)"), "tapespeed");
       refLine(0, "tapespeed", "rgba(255,255,255,0.10)");
+      regLive(s, (bs) => { const a = tsCompute(bs); const v = a[a.length - 1]; return isFinite(v) ? { value: v, color: v >= 0 ? "rgba(0,229,204,0.70)" : "rgba(206,147,216,0.70)" } : null; });
     }
 
     // ── Buy/Sell Volume Columns ──────────────────────────────
@@ -2066,27 +2866,44 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       setupScale("bsvol", 0.80);
       const buyVol  = bars.map(b => b.close >= b.open ? b.volume : 0);
       const sellVol = bars.map(b => b.close < b.open ? -b.volume : 0);
-      addOscHist(buyVol, "rgba(0,229,204,0.65)", "bsvol");
-      addOscHist(sellVol, "rgba(206,147,216,0.65)", "bsvol");
+      const sb = addOscHist(buyVol, "rgba(0,229,204,0.65)", "bsvol");
+      const ss = addOscHist(sellVol, "rgba(206,147,216,0.65)", "bsvol");
       refLine(0, "bsvol", "rgba(255,255,255,0.10)");
+      regLive(sb, (bs) => { const b = bs[bs.length - 1]; return b ? { value: b.close >= b.open ? b.volume : 0 } : null; });
+      regLive(ss, (bs) => { const b = bs[bs.length - 1]; return b ? { value: b.close < b.open ? -b.volume : 0 } : null; });
     }
 
     // ── Exhaustion Detector ──────────────────────────────────
     // High volume + small price move = buying/selling exhaustion
     if (inds.has("Exhaustion Detector")) {
       setupScale("exhaust", 0.78);
-      const avgVol = bars.reduce((s, b) => s + b.volume, 0) / Math.max(1, bars.length);
-      const avgRange = bars.reduce((s, b) => s + (b.high - b.low), 0) / Math.max(1, bars.length);
-      const exVals = bars.map(b => {
-        const volRatio = b.volume / Math.max(1, avgVol);
-        const rangeRatio = (b.high - b.low) / Math.max(0.0001, avgRange);
-        // High volume + small range = exhaustion
-        return volRatio > 1.5 && rangeRatio < 0.7 ? volRatio * (1.5 - rangeRatio) * 30 : 0;
-      });
-      addOscHist(exVals, bars.map((b, i) => exVals[i] > 0
-        ? (b.close >= b.open ? "rgba(0,229,204,0.80)" : "rgba(206,147,216,0.80)")
-        : "rgba(100,100,120,0.20)"), "exhaust");
+      const exCompute = (bs: Bar[]) => {
+        // The feed streams PRICE, not per-tick volume, so a volume-vs-move ratio
+        // freezes on the forming bar. Derive exhaustion from PRICE ACTION instead:
+        // a strong recent trend (momentum over the last N bars) whose latest bar
+        // velocity has collapsed = the move is running out of steam. Signed by the
+        // trend direction so up-exhaustion vs down-exhaustion is distinguishable.
+        const N = 8;
+        const deltas = bs.map((b, i) => i > 0 ? b.close - bs[i - 1].close : 0);
+        const mags = deltas.map(Math.abs).filter(v => v > 0).sort((a, b) => a - b);
+        const scale = Math.max(mags.length ? mags[Math.floor(mags.length * 0.85)] : 1, 1e-9);
+        return bs.map((b, i) => {
+          if (i < N) return 0;
+          const window = bs.slice(i - N, i + 1);
+          const trend = window[window.length - 1].close - window[0].close; // net move
+          const trendMag = Math.min(1, Math.abs(trend) / (scale * N)); // 0..1 strength
+          const curVel = Math.abs(deltas[i]) / scale;                   // latest velocity
+          // Exhaustion rises when the trend was strong but current velocity is low.
+          const score = trendMag * Math.max(0, 1 - Math.min(1, curVel));
+          const dir = trend >= 0 ? 1 : -1;
+          return 100 * Math.tanh(score * 2.0) * dir;
+        });
+      };
+      const exVals = exCompute(bars);
+      const exColor = (_b: Bar, v: number) => Math.abs(v) > 5 ? (v >= 0 ? "rgba(0,229,204,0.80)" : "rgba(206,147,216,0.80)") : "rgba(100,100,120,0.20)";
+      const s = addOscHist(exVals, bars.map((b, i) => exColor(b, exVals[i])), "exhaust");
       refLine(30, "exhaust", "rgba(240,180,41,0.25)");
+      regLive(s, (bs) => { const a = exCompute(bs); const v = a[a.length - 1]; const b = bs[bs.length - 1]; return (isFinite(v) && b) ? { value: v, color: exColor(b, v) } : null; });
     }
 
     // ── Stop Run Alert (price breach then reversal) ───────────
@@ -2128,7 +2945,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         bars.forEach(b => {
           const day = Math.floor(b.time / 86400);
           if (day !== prevDay && prevDay !== -1) {
-            const vs = chart.addLineSeries({ color: "rgba(100,120,160,0.25)", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+            const vs = chart.addSeries(LW.LineSeries,{ color: "rgba(100,120,160,0.25)", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
             const currB = bars.find(bb => Math.floor(bb.time / 86400) === day);
             if (currB) {
               vs.setData([{ time: b.time as any, value: currB.close }]);
@@ -2158,7 +2975,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const color = ev.dir === "up" ? "rgba(0,229,204,0.80)" : "rgba(206,147,216,0.80)";
           const slice = bars.slice(ev.startIdx);
           if (slice.length < 2) return;
-          const s = chart.addLineSeries({ color, lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+          const s = chart.addSeries(LW.LineSeries,{ color, lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
           s.setData(slice.map(bb => ({ time: bb.time as any, value: ev.price })));
           indSeriesRef.current.push(s);
         });
@@ -2184,10 +3001,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const color = ob.bull ? "rgba(0,229,204,0.65)" : "rgba(206,147,216,0.65)";
           const slice = bars.slice(ob.startIdx);
           if (slice.length < 2) return;
-          const sT = chart.addLineSeries({ color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+          const sT = chart.addSeries(LW.LineSeries,{ color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
           sT.setData(slice.map(bb => ({ time: bb.time as any, value: ob.top })));
           indSeriesRef.current.push(sT);
-          const sB = chart.addLineSeries({ color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+          const sB = chart.addSeries(LW.LineSeries,{ color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
           sB.setData(slice.map(bb => ({ time: bb.time as any, value: ob.bot })));
           indSeriesRef.current.push(sB);
         });
@@ -2198,6 +3015,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // Collect all patterns into a single markers array then apply once
     {
       const patternMarkers: { time: any; position: "aboveBar" | "belowBar"; color: string; shape: "circle" | "arrowUp" | "arrowDown"; text: string; size: number }[] = [];
+      // Large Trade Filter threshold: 2.5× the average bar volume across loaded bars.
+      const volsForThresh = bars.map(b => b.volume || 0).filter(v => v > 0);
+      const avgVolForThresh = volsForThresh.length ? volsForThresh.reduce((s, v) => s + v, 0) / volsForThresh.length : 0;
+      const largeVolThresh = avgVolForThresh * 2.5;
       bars.forEach((b, i) => {
         const range = b.high - b.low;
         const body  = Math.abs(b.close - b.open);
@@ -2242,6 +3063,62 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           if (b.high < prev.high && b.low > prev.low)
             patternMarkers.push({ time: b.time as any, position: "aboveBar", color: "#F0B429", shape: "circle", text: "IB", size: 0.6 });
         }
+
+        // Three White Soldiers — 3 consecutive rising bulls, each opening inside the
+        // prior real body and closing near its high (strong continuation up).
+        if (inds.has("Three White Soldiers") && i >= 2) {
+          const a = bars[i - 2], c = bars[i - 1], d = b;
+          const bull = (x: Bar) => x.close > x.open;
+          const strongClose = (x: Bar) => (x.high - x.close) < (x.high - x.low) * 0.35;
+          if (bull(a) && bull(c) && bull(d) &&
+              c.close > a.close && d.close > c.close &&
+              c.open > a.open && c.open < a.close &&
+              d.open > c.open && d.open < c.close &&
+              strongClose(c) && strongClose(d)) {
+            patternMarkers.push({ time: b.time as any, position: "belowBar", color: "#00E5CC", shape: "arrowUp", text: "3WS", size: 1 });
+          }
+        }
+
+        // Three Black Crows — 3 consecutive falling bears, mirror of 3WS.
+        if (inds.has("Three Black Crows") && i >= 2) {
+          const a = bars[i - 2], c = bars[i - 1], d = b;
+          const bear = (x: Bar) => x.close < x.open;
+          const strongClose = (x: Bar) => (x.close - x.low) < (x.high - x.low) * 0.35;
+          if (bear(a) && bear(c) && bear(d) &&
+              c.close < a.close && d.close < c.close &&
+              c.open < a.open && c.open > a.close &&
+              d.open < c.open && d.open > c.close &&
+              strongClose(c) && strongClose(d)) {
+            patternMarkers.push({ time: b.time as any, position: "aboveBar", color: "#CE93D8", shape: "arrowDown", text: "3BC", size: 1 });
+          }
+        }
+
+        // Morning / Evening Star — 3-candle reversal: big body, small "star" body
+        // that gaps in the trend direction, then a big body closing past the
+        // midpoint of the first candle (reverses the move).
+        if (inds.has("Morning / Evening Star") && i >= 2) {
+          const a = bars[i - 2], c = bars[i - 1], d = b;
+          const bodyOf = (x: Bar) => Math.abs(x.close - x.open);
+          const rangeA = a.high - a.low;
+          const smallStar = rangeA > 0 && bodyOf(c) < rangeA * 0.35;
+          const midA = (a.open + a.close) / 2;
+          // Morning Star (bullish reversal)
+          if (a.close < a.open && smallStar && d.close > d.open && d.close > midA) {
+            patternMarkers.push({ time: b.time as any, position: "belowBar", color: "#00E5CC", shape: "arrowUp", text: "MS", size: 1 });
+          }
+          // Evening Star (bearish reversal)
+          if (a.close > a.open && smallStar && d.close < d.open && d.close < midA) {
+            patternMarkers.push({ time: b.time as any, position: "aboveBar", color: "#CE93D8", shape: "arrowDown", text: "ES", size: 1 });
+          }
+        }
+
+        // Large Trade Filter — flag bars whose volume ≥ largeVolThresh (2.5× the
+        // rolling-20 average), the "print only large trades" view. Dot sized by how
+        // far above threshold the bar traded.
+        if (inds.has("Large Trade Filter") && b.volume && largeVolThresh > 0 && b.volume >= largeVolThresh) {
+          const mult = Math.min(1.4, 0.7 + (b.volume / largeVolThresh - 2.5) * 0.15);
+          patternMarkers.push({ time: b.time as any, position: up ? "belowBar" : "aboveBar", color: up ? "#2563EB" : "#6A0DAD", shape: "circle", text: "L", size: Math.max(0.7, mult) });
+        }
       });
       if (patternMarkers.length > 0 && candleRef.current) {
         try { candleRef.current.setMarkers(patternMarkers.sort((a, b) => a.time - b.time)); } catch {}
@@ -2260,13 +3137,132 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           if (Math.abs(b.low  - prev.low)  < tolerance) eqLevels.push({ price: b.low,  idx: i, type: "l" });
         });
         eqLevels.slice(-8).forEach(ev => {
-          const s = chart.addLineSeries({ color: "rgba(240,180,41,0.60)", lineWidth: 1, lineStyle: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+          const s = chart.addSeries(LW.LineSeries,{ color: "rgba(240,180,41,0.60)", lineWidth: 1, lineStyle: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
           const slice = bars.slice(ev.idx);
           if (slice.length < 2) return;
           s.setData(slice.map(bb => ({ time: bb.time as any, value: ev.price })));
           indSeriesRef.current.push(s);
         });
       } catch {}
+    }
+
+    // ── Strong Highs / Lows — swing points NOT yet violated by later price. A
+    //    swing high is "strong" (protected resistance) if no subsequent bar traded
+    //    above it; a swing low is "strong" (protected support) if none traded below.
+    if (inds.has("Strong Highs/Lows")) {
+      try {
+        const sw = IND.swingHighLow(bars, 5);
+        const maxHighAfter = (idx: number) => bars.slice(idx + 1).reduce((m, b) => Math.max(m, b.high), -Infinity);
+        const minLowAfter  = (idx: number) => bars.slice(idx + 1).reduce((m, b) => Math.min(m, b.low),  Infinity);
+        const idxOf = (t: number) => bars.findIndex(b => b.time === t);
+        sw.highs.slice(-12).forEach(h => {
+          const idx = idxOf(h.time as number); if (idx < 0) return;
+          if (maxHighAfter(idx) <= h.price) {
+            const s = chart.addSeries(LW.LineSeries, { color: "rgba(255,77,103,0.85)", lineWidth: 2, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+            s.setData(bars.slice(idx).map(bb => ({ time: bb.time as any, value: h.price })));
+            indSeriesRef.current.push(s);
+          }
+        });
+        sw.lows.slice(-12).forEach(l => {
+          const idx = idxOf(l.time as number); if (idx < 0) return;
+          if (minLowAfter(idx) >= l.price) {
+            const s = chart.addSeries(LW.LineSeries, { color: "rgba(0,229,204,0.85)", lineWidth: 2, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+            s.setData(bars.slice(idx).map(bb => ({ time: bb.time as any, value: l.price })));
+            indSeriesRef.current.push(s);
+          }
+        });
+      } catch {}
+    }
+
+    // ── Liquidity Pools — clusters of equal swing highs (buy-side liquidity, BSL)
+    //    and equal swing lows (sell-side liquidity, SSL) where stops rest and price
+    //    tends to sweep. Dashed gold zones anchored at the equal levels.
+    if (inds.has("Liquidity Pools")) {
+      try {
+        const sw = IND.swingHighLow(bars, 4);
+        const tol = (bars[bars.length - 1]?.close ?? 100) * 0.0012;
+        const cluster = (pts: { time: number; price: number }[]) => {
+          const out: { price: number; from: number }[] = [];
+          pts.forEach((p, i) => {
+            for (let j = i + 1; j < pts.length; j++) {
+              if (Math.abs(pts[j].price - p.price) < tol) { out.push({ price: (p.price + pts[j].price) / 2, from: Math.min(p.time as number, pts[j].time as number) }); break; }
+            }
+          });
+          return out;
+        };
+        const idxOfTime = (t: number) => { const i = bars.findIndex(b => (b.time as number) >= t); return i < 0 ? 0 : i; };
+        cluster(sw.highs as any).slice(-6).forEach(c => {
+          const s = chart.addSeries(LW.LineSeries, { color: "rgba(240,180,41,0.75)", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+          s.setData(bars.slice(idxOfTime(c.from)).map(bb => ({ time: bb.time as any, value: c.price })));
+          indSeriesRef.current.push(s);
+        });
+        cluster(sw.lows as any).slice(-6).forEach(c => {
+          const s = chart.addSeries(LW.LineSeries, { color: "rgba(79,163,224,0.75)", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+          s.setData(bars.slice(idxOfTime(c.from)).map(bb => ({ time: bb.time as any, value: c.price })));
+          indSeriesRef.current.push(s);
+        });
+      } catch {}
+    }
+
+    // ── Change of Character (CHoCH) — the first break of structure AGAINST the
+    //    prevailing swing sequence: after a series of higher-highs, price closing
+    //    below the last higher-low flags a bullish→bearish CHoCH (and vice-versa).
+    if (inds.has("Change of Character")) {
+      try {
+        const sw = IND.swingHighLow(bars, 4);
+        const chochMarkers: { time: any; position: "aboveBar" | "belowBar"; color: string; shape: "arrowUp" | "arrowDown"; text: string; size: number }[] = [];
+        const lows  = sw.lows.slice();
+        const highs = sw.highs.slice();
+        // CHoCH = the bar that first CLOSES through the most recent opposite swing:
+        // closing below the last swing low = bullish→bearish shift; closing above the
+        // last swing high = bearish→bullish shift. One marker per break (edge only).
+        bars.forEach((b, i) => {
+          const prevBar = bars[i - 1];
+          if (!prevBar) return;
+          const priorLow  = [...lows].reverse().find(l => (l.time as number) < (b.time as number));
+          const priorHigh = [...highs].reverse().find(h => (h.time as number) < (b.time as number));
+          if (priorLow && prevBar.close >= priorLow.price && b.close < priorLow.price) {
+            chochMarkers.push({ time: b.time as any, position: "aboveBar", color: "#CE93D8", shape: "arrowDown", text: "CHoCH", size: 0.9 });
+          }
+          if (priorHigh && prevBar.close <= priorHigh.price && b.close > priorHigh.price) {
+            chochMarkers.push({ time: b.time as any, position: "belowBar", color: "#00E5CC", shape: "arrowUp", text: "CHoCH", size: 0.9 });
+          }
+        });
+        // Draw CHoCH via lightweight price-line markers on the candle series.
+        if (chochMarkers.length && candleRef.current) {
+          const existing = (chochMarkers.slice(-8)).sort((a, b) => a.time - b.time);
+          // Merge with any pattern markers already set would clobber; instead draw
+          // small dotted lines at the break price so CHoCH coexists with patterns.
+          existing.forEach(m => {
+            const s = chart.addSeries(LW.LineSeries, { color: m.color, lineWidth: 1, lineStyle: 3, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+            const bar = bars.find(bb => (bb.time as any) === m.time);
+            if (!bar) return;
+            const idx = bars.indexOf(bar);
+            s.setData(bars.slice(Math.max(0, idx - 3), idx + 4).map(bb => ({ time: bb.time as any, value: bar.close })));
+            indSeriesRef.current.push(s);
+          });
+        }
+      } catch {}
+    }
+
+    // ── Parkinson Volatility — high/low range volatility estimator (annualized %),
+    //    more efficient than close-to-close HV. Rolling 20-bar window.
+    if (inds.has("Parkinson Volatility")) {
+      setupScale("park", 0.80);
+      const parkCompute = (bs: Bar[]) => {
+        const N = 20; const k = 1 / (4 * Math.log(2));
+        return bs.map((_, i) => {
+          if (i < N) return 0;
+          let sum = 0;
+          for (let j = i - N + 1; j <= i; j++) {
+            const hl = bs[j].high > 0 && bs[j].low > 0 ? Math.log(bs[j].high / bs[j].low) : 0;
+            sum += hl * hl;
+          }
+          return Math.sqrt(k * (sum / N)) * Math.sqrt(252) * 100;
+        });
+      };
+      const s = addOsc(parkCompute(bars), "#C084FC", "park");
+      regLive(s, (bs) => { const a = parkCompute(bs); const v = a[a.length - 1]; return isFinite(v) ? { value: v } : null; });
     }
 
     // ── Stacked Imbalances (3+ consecutive imbalanced rows) ──
@@ -2285,7 +3281,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 // Draw horizontal line at stacked imbalance level
                 const price = lv.priceLevel;
                 const color = dir === "ask" ? "rgba(0,229,204,0.70)" : "rgba(206,147,216,0.70)";
-                const s = chart.addLineSeries({ color, lineWidth: 2, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+                const s = chart.addSeries(LW.LineSeries,{ color, lineWidth: 2, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
                 s.setData(bars.slice(bars.indexOf(b)).map(bb => ({ time: bb.time as any, value: price })));
                 indSeriesRef.current.push(s);
               }
@@ -2333,11 +3329,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const top = lv.price + tick;
           const bot = lv.price - tick;
           // Top border line
-          const sTop = chart.addLineSeries({ color: borderColor, lineWidth: 1, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+          const sTop = chart.addSeries(LW.LineSeries,{ color: borderColor, lineWidth: 1, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
           sTop.setData(bars.map(b => ({ time: b.time as any, value: top })));
           indSeriesRef.current.push(sTop);
           // Bot border line
-          const sBot = chart.addLineSeries({ color: borderColor, lineWidth: 1, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+          const sBot = chart.addSeries(LW.LineSeries,{ color: borderColor, lineWidth: 1, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
           sBot.setData(bars.map(b => ({ time: b.time as any, value: bot })));
           indSeriesRef.current.push(sBot);
         });
@@ -2365,10 +3361,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             const bot = b.high - zoneHeight;
             const color = "rgba(244,143,177,0.15)";
             const border = "rgba(244,143,177,0.55)";
-            const sT = chart.addLineSeries({ color: border, lineWidth: 1, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+            const sT = chart.addSeries(LW.LineSeries,{ color: border, lineWidth: 1, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
             sT.setData(slice.slice(i).map(bb => ({ time: bb.time as any, value: top })));
             indSeriesRef.current.push(sT);
-            const sB = chart.addLineSeries({ color: border, lineWidth: 1, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+            const sB = chart.addSeries(LW.LineSeries,{ color: border, lineWidth: 1, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
             sB.setData(slice.slice(i).map(bb => ({ time: bb.time as any, value: bot })));
             indSeriesRef.current.push(sB);
           }
@@ -2377,10 +3373,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             const top = b.low + zoneHeight;
             const bot = b.low;
             const border = "rgba(105,255,218,0.55)";
-            const sT = chart.addLineSeries({ color: border, lineWidth: 1, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+            const sT = chart.addSeries(LW.LineSeries,{ color: border, lineWidth: 1, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
             sT.setData(slice.slice(i).map(bb => ({ time: bb.time as any, value: top })));
             indSeriesRef.current.push(sT);
-            const sB = chart.addLineSeries({ color: border, lineWidth: 1, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+            const sB = chart.addSeries(LW.LineSeries,{ color: border, lineWidth: 1, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
             sB.setData(slice.slice(i).map(bb => ({ time: bb.time as any, value: bot })));
             indSeriesRef.current.push(sB);
           }
@@ -2388,14 +3384,69 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       } catch {}
     }
 
-    // ── Reserve candle space for the oscillator stack (TradingView-style) ──
-    // In LWC v4's single pane, non-overlapping bottom panes require the main
-    // candle area to make room below it. Push the candle scale's bottom margin
-    // down by however many oscillator panes are active so they never overlap the
-    // candles. When no oscillators are active, restore the default.
+    // ── Native panes own the oscillator layout now ───────────
+    // With v5 native panes the candles keep pane 0 to themselves (just the
+    // volume overlay at the bottom) — no need to shrink the candle scale for
+    // oscillators. Keep a small bottom margin so volume bars don't touch wicks.
     try {
-      const candleBottom = oscNext > 0 ? Math.min(0.72, VOL_ZONE + oscNext * PANE_H) : 0.25;
-      chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.06, bottom: candleBottom } });
+      chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.06, bottom: 0.18 } });
+    } catch {}
+    // Make the candle pane dominant and oscillator panes compact. v5 stretch
+    // factors are RELATIVE weights (resolution-independent), unlike setHeight
+    // which the layout was overriding (candles got squished under a big osc pane).
+    try {
+      const panes = chart.panes();
+      const n = panes.length;
+      if (n > 1) {
+        // Candle pane always keeps the lion's share regardless of osc count.
+        // Scale dominance with the number of oscillator panes so candles never
+        // drop below ~70% of the height (each oscillator caps at ~10%). Before,
+        // this was hard-capped at 4, so 4 indicators split the chart 50/50 and
+        // crushed the footprint numbers into the top half.
+        // Use a FIXED candle:oscillator weight (~3.1 ≈ CANDLE 260 / OSC_MIN 84)
+        // instead of scaling dominance with osc count. The old `oscCount*2.8`
+        // kept candles at ~74% no matter how many panes stacked, so 3+ panes
+        // (RSI+MACD+CVD) got crushed to ~45px slivers — the "CVD meter too high /
+        // cramped" bug. A fixed 3.1 weight matches the grown-container target
+        // heights so every oscillator pane keeps its full ~84px and reads clean.
+        panes[0].setStretchFactor(3.1);
+        for (let i = 1; i < n; i++) panes[i].setStretchFactor(1);
+      }
+
+      // ── Bottom-pane cutoff fix ─────────────────────────────
+      // LWC enforces a minimum pane height. When many oscillators stack up,
+      // (n-1)*min + candleMin + axis exceeds the fixed viewport and the bottom
+      // pane / time-axis gets clipped. Grow the chart container tall enough that
+      // every oscillator pane stays fully readable, and let the region scroll.
+      const cont   = containerRef.current;
+      const scroll = cont?.parentElement as HTMLElement | null; // div5069 scroll box
+      if (cont && scroll) {
+        const viewH   = scroll.clientHeight || 0;
+        const OSC_MIN = 84;   // readable oscillator pane height
+        const CANDLE  = 260;  // keep candles dominant & usable
+        const AXIS    = 30;   // time axis
+        const oscCount = Math.max(0, n - 1);
+        const needed   = oscCount === 0 ? 0 : CANDLE + oscCount * OSC_MIN + AXIS;
+        if (needed > viewH && viewH > 0) {
+          // Too many panes to fit — grow container & scroll.
+          cont.style.height = needed + "px";
+          scroll.style.overflowY = "auto";
+        } else {
+          // Fits — fill the viewport, no scroll.
+          cont.style.height = "100%";
+          scroll.style.overflowY = "hidden";
+        }
+        // Nudge autoSize / overlays to re-measure the new height. Guard on chart
+        // IDENTITY: on a symbol/timeframe switch this RAF can fire AFTER the chart
+        // was disposed and replaced. Calling applyOptions() then schedules an LWC
+        // internal model update that throws "Object is disposed" ASYNCHRONOUSLY —
+        // uncatchable by the try/catch here. Skipping stale charts kills that error.
+        requestAnimationFrame(() => {
+          if (chartRef.current !== chart) { setRangeVer(v => v + 1); return; }
+          try { chart.applyOptions({}); } catch {}
+          setRangeVer(v => v + 1);
+        });
+      }
     } catch {}
 
     // Cleanup so React Strict Mode doesn't orphan series
@@ -2419,14 +3470,20 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     if (!alertLevels.length) return;
     (async () => {
       const LW = await import("lightweight-charts");
+      // Chart may have been disposed/replaced during the await → don't touch it.
+      if (chartRef.current !== chart) return;
       alertLevels.forEach(price => {
         try {
-          const s = chart.addLineSeries({
+          const s = chart.addSeries(LW.LineSeries,{
             color: "#F5A623",
             lineWidth: 1,
             lineStyle: LW.LineStyle.Dashed,
             priceLineVisible: false,
             lastValueVisible: true,
+            // CRITICAL: an alert far from the price (e.g. 1100 on a 377 stock) must
+            // NOT drag the candle scale out to 300–1100 and crush the candles.
+            // Returning null excludes this line from the price-scale autoscale.
+            autoscaleInfoProvider: () => null,
           });
           s.setData(bars.map(b => ({ time: b.time as any, value: price })));
           alertSeriesRef.current.push(s);
@@ -2445,6 +3502,164 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       });
     } catch {}
   }, [logScale, pctMode, autoScale, ready]);
+
+  /* ── True vertical price-drag on the chart body ──────────────
+     LWC handles horizontal time-scroll on the body itself; we add the
+     vertical axis so the two combine into free 2D panning. Active only in
+     cursor mode (so it never fights drawing tools). Dragging engages a manual
+     price range; the AUTO button (setAutoScale→true) releases it. */
+  useEffect(() => {
+    if (!ready) return;
+    const el = containerRef.current;
+    if (!el) return;
+    let dragging = false, startY = 0;
+    let startMin = 0, startMax = 0;
+
+    const reapply = () => {
+      const cs = candleRef.current; if (!cs) return;
+      // Re-assigning the provider forces LWC to recompute the price scale now.
+      cs.applyOptions({
+        autoscaleInfoProvider: autoscaleProviderRef.current,
+      });
+    };
+
+    const onDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      if (drawingToolRef.current !== "cursor") return; // let drawing tools own the mouse
+      // Skip the right price-axis gutter — that region is owned by the dedicated
+      // axis drag-to-SCALE handler below. Body drag = pan; axis drag = stretch.
+      const rect = el.getBoundingClientRect();
+      const localX = e.clientX - rect.left;
+      let axW = 0; try { axW = (chartRef.current as any)?.priceScale?.("right")?.width?.() ?? 0; } catch {}
+      if (axW > 0 && localX >= el.clientWidth - axW - 2) return;
+      const cs = candleRef.current; if (!cs) return;
+      const h = el.clientHeight;
+      const top = cs.coordinateToPrice(0);
+      const bot = cs.coordinateToPrice(h);
+      if (top == null || bot == null) return;
+      startMin = Math.min(top, bot);
+      startMax = Math.max(top, bot);
+      startY = e.clientY;
+      dragging = true;
+    };
+    const onMove = (e: MouseEvent) => {
+      if (!dragging) return;
+      const h = el.clientHeight; if (h <= 0) return;
+      const dy = e.clientY - startY;
+      if (Math.abs(dy) < 2) return;
+      const span = startMax - startMin;
+      const shift = (dy / h) * span; // drag down → reveal higher prices (shift range up)
+      manualPriceRangeRef.current = { min: startMin + shift, max: startMax + shift };
+      // NOTE: we deliberately keep the price scale in autoScale mode — the
+      // provider only runs there. The manual range simply overrides the fit.
+      reapply();
+    };
+    const onUp = () => { dragging = false; };
+    // Double-click the chart body resets to auto-fit (TradingView convention).
+    const onDbl = () => {
+      if (drawingToolRef.current !== "cursor") return;
+      manualPriceRangeRef.current = null;
+      reapply();
+    };
+
+    el.addEventListener("mousedown", onDown);
+    el.addEventListener("dblclick", onDbl);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      el.removeEventListener("mousedown", onDown);
+      el.removeEventListener("dblclick", onDbl);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [ready]);
+
+  /* ── TradingView-style PRICE-AXIS drag-to-SCALE ─────────────────
+     Grab the price numbers on the right and drag vertically to STRETCH /
+     COMPRESS the price scale around the cursor — exactly like TradingView.
+     Drag DOWN → zoom IN (candles grow tall); drag UP → zoom OUT (candles
+     shrink). Runs through the same manualPriceRangeRef + autoscaleInfoProvider
+     as the body pan, so the 4×-range guardrail + center-pin keep it from ever
+     collapsing the candles. Double-click the axis → back to AUTO fit. */
+  useEffect(() => {
+    if (!ready) return;
+    const el = containerRef.current;
+    if (!el) return;
+    let scaling = false, startY = 0, startMin = 0, startMax = 0, anchor = 0;
+    let raf = 0, pending: { min: number; max: number } | null = null;
+
+    const reapply = () => {
+      const cs = candleRef.current; if (!cs) return;
+      cs.applyOptions({ autoscaleInfoProvider: autoscaleProviderRef.current });
+    };
+    const flush = () => {
+      raf = 0;
+      if (!pending) return;
+      manualPriceRangeRef.current = pending;
+      pending = null;
+      reapply();
+    };
+    const onAxis = (e: MouseEvent) => {
+      const rect = el.getBoundingClientRect();
+      const localX = e.clientX - rect.left;
+      let axW = 0; try { axW = (chartRef.current as any)?.priceScale?.("right")?.width?.() ?? 0; } catch {}
+      return axW > 0 && localX >= el.clientWidth - axW - 2 && localX <= el.clientWidth + 4;
+    };
+    const onDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      if (!onAxis(e)) return;
+      const cs = candleRef.current; if (!cs) return;
+      const h = el.clientHeight;
+      const rect = el.getBoundingClientRect();
+      const top = cs.coordinateToPrice(0);
+      const bot = cs.coordinateToPrice(h);
+      if (top == null || bot == null) return;
+      startMin = Math.min(top, bot);
+      startMax = Math.max(top, bot);
+      // Anchor the stretch at the price directly under the cursor (TV behaviour).
+      const ap = cs.coordinateToPrice(e.clientY - rect.top);
+      anchor = (ap != null && isFinite(ap)) ? ap : (startMin + startMax) / 2;
+      startY = e.clientY;
+      scaling = true;
+      setScaleLocked(true);          // reveal the small "reset scale" button
+      el.style.cursor = "ns-resize";
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    const onMove = (e: MouseEvent) => {
+      if (!scaling) return;
+      const h = el.clientHeight; if (h <= 0) return;
+      const dy = e.clientY - startY;
+      // Exponential factor → smooth, symmetric, never inverts. Drag DOWN (dy>0)
+      // → factor<1 → range shrinks → zoom in. Sensitivity 2.4 ≈ TradingView.
+      const factor = Math.exp(-dy / h * 3.4);
+      const newMin = anchor - (anchor - startMin) * factor;
+      const newMax = anchor + (startMax - anchor) * factor;
+      if (!(newMax - newMin > 1e-9)) return;
+      // Coalesce to one update per animation frame → buttery-smooth, no jank.
+      pending = { min: newMin, max: newMax };
+      if (!raf) raf = requestAnimationFrame(flush);
+    };
+    const onUp = () => {
+      if (scaling) {
+        scaling = false;
+        el.style.cursor = "";
+        if (raf) { cancelAnimationFrame(raf); raf = 0; }
+        flush();
+      }
+    };
+
+    // Capture phase so we intercept the axis BEFORE the library's own handlers.
+    el.addEventListener("mousedown", onDown, true);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      el.removeEventListener("mousedown", onDown, true);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [ready]);
 
   /* ── Apply chart settings ────────────────────────────────── */
   useEffect(() => {
@@ -2590,20 +3805,34 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     if (!canvas || !cont || !chartRef.current || !ready) return;
 
     let rafId = 0;
+    // Track the last backing-store size so we only reallocate the canvas buffer
+    // when the dimensions actually change. Reassigning canvas.width/height every
+    // frame (even to the same value) throws away and re-uploads the entire GPU
+    // texture — a 60fps buffer realloc that fought LWC's zoom render and caused
+    // the candles to "stick." Now the buffer is stable; we just clear + redraw.
+    let lastCW = -1, lastCH = -1, lastDpr = -1;
 
     const draw = () => {
-      // Use the canvas's own parent (the position:relative wrapper) for dimensions
-      const parent = canvas.parentElement;
-      const W = parent ? parent.offsetWidth  : cont.offsetWidth;
-      const H = parent ? parent.offsetHeight : cont.offsetHeight;
+      // Size to the CHART CONTAINER (not the scroll-box parent). When many panes
+      // stack the container grows taller than the visible viewport and scrolls;
+      // the overlay must match the chart's full height so priceToCoordinate
+      // (chart-top origin) stays pixel-aligned with the candles.
+      const W = cont.offsetWidth;
+      const H = cont.offsetHeight;
       if (!W || !H) return;
 
       const dpr = window.devicePixelRatio || 1;
-      // Always sync canvas pixel size to container
-      canvas.width  = Math.round(W * dpr);
-      canvas.height = Math.round(H * dpr);
-      canvas.style.width  = W + "px";
-      canvas.style.height = H + "px";
+      const cw = Math.round(W * dpr), ch = Math.round(H * dpr);
+      // Only reallocate the backing store when the size actually changes.
+      // (Setting canvas.width/height ALWAYS clears + reallocates the buffer, so
+      // doing it per-frame was a 60fps GPU-texture thrash that caused zoom jank.)
+      if (cw !== lastCW || ch !== lastCH || dpr !== lastDpr) {
+        canvas.width  = cw;
+        canvas.height = ch;
+        canvas.style.width  = W + "px";
+        canvas.style.height = H + "px";
+        lastCW = cw; lastCH = ch; lastDpr = dpr;
+      }
 
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
@@ -2619,20 +3848,44 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       if (!chart || !candleRef.current) return;
       const srs = candleRef.current;
 
+      // Guard so the WM VP layer draws exactly once per frame regardless of which
+      // call site fires first (big-trades mode draws VP early, under the bubbles).
+      let vpDrawn = false;
+
       let bsp = 12;
       try { bsp = chart.timeScale().options().barSpacing ?? 12; } catch {}
 
       // TV Lightweight Charts candle body width = barSpacing * 0.7 (matches TV internal formula)
       const colW  = Math.max(4, Math.floor(bsp * 0.70));
       const halfW = Math.floor(colW / 2);
-      // Show numbers at practical zoom levels:
-      // showText  = at least 1 number fits (column ≥14px)
-      // showSplit = both bid AND ask fit side-by-side (column ≥26px)
-      const showText   = colW >= 14;
-      const showSplit  = colW >= 26;
-      const showBadges = bsp >= 14;
-      const fmtV  = (v: number) => v >= 1_000_000 ? `${(v/1_000_000).toFixed(1)}M`
-                                  : v >= 1000 ? `${(v/1000).toFixed(1)}k` : `${v}`;
+      // Show numbers at practical zoom levels. These gates were too aggressive —
+      // the user reported footprint numbers "disappearing" when zooming out or
+      // after the intraday range widened (which vertically compresses candles).
+      // Relaxed so numbers stay visible across far more zoom levels:
+      // showText  = at least 1 number fits (column ≥11px  → barSpacing ≥ ~16)
+      // showSplit = both bid AND ask fit side-by-side (column ≥22px)
+      // showBadges = the per-candle 4-WAY ORDER-FLOW SUMMARY (2×2 grid of Agg/Psv
+      //   Buyer/Seller numbers, drawn ABOVE the candle). The grid is ~68px wide, so
+      //   drawing one per candle when bars are packed tight would overlap the grids
+      //   into an unreadable smear. Only draw when bar spacing is wide enough that a
+      //   grid fits WITHOUT colliding with its neighbours (genuinely zoomed in). The
+      //   per-row bid/ask numbers below keep data on screen at all other zooms.
+      const showText   = colW >= 11;
+      const showSplit  = colW >= 22;
+      const showBadges = bsp >= 70;
+      // showWinner = the compact per-candle WINNER PILL (dominant side + its total
+      //   volume, e.g. "AGG BUYS 113.2k"). Only ~54px wide, so it stays readable at
+      //   NORMAL zoom — the old code only showed labels at bsp≥70 (extremely close),
+      //   which is exactly the complaint. Draw the pill whenever a bar is ≥22px so
+      //   the label is visible during ordinary trading, and stack the detailed 2×2
+      //   grid on top only when genuinely zoomed in (showBadges).
+      const showWinner = bsp >= 22;
+      const fmtV  = (v: number) => {
+        if (!isFinite(v) || v <= 0) return "0";
+        return v >= 1_000_000 ? `${(v/1_000_000).toFixed(1)}M`
+             : v >= 1000       ? `${(v/1000).toFixed(1)}k`
+             : `${Math.round(v)}`;   // whole numbers only — no runaway decimals
+      };
 
       // ── ETH/RTH session bands ───────────────────────────────
       if (extendedHours) {
@@ -2730,6 +3983,31 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       if (visibleBars.length === 0) return; // truly no data yet
 
       /* ═══════════════════════════════════════════════════════
+         PLOT-AREA CLIP — everything below (footprint cells, VP boxes,
+         Big-Trades bubbles) is confined to pane 0's price area so it
+         can NEVER bleed into the right price-axis gutter (which sits
+         under the DOM panel) or spill DOWN into the lower indicator
+         panes. Without this clip, the newest bars' cells + VP + bubbles
+         piled up on the right edge and smeared over the axis/DOM and
+         into RSI/CVD panes. One save() here, one restore() at the very
+         end of draw() (there are no top-level early-returns in between).
+      ═══════════════════════════════════════════════════════ */
+      let plotRight = W;
+      try {
+        const axW = (chart as any).priceScale?.("right")?.width?.();
+        if (Number.isFinite(axW) && axW > 0) plotRight = Math.max(40, W - Math.ceil(axW));
+      } catch {}
+      let pane0Bottom = H;
+      try {
+        const ps = (chart as any).paneSize?.(0);
+        if (ps && Number.isFinite(ps.height) && ps.height > 0) pane0Bottom = Math.ceil(ps.height);
+      } catch {}
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, plotRight, pane0Bottom);
+      ctx.clip();
+
+      /* ═══════════════════════════════════════════════════════
          FOOTPRINT MODES — all draw at full candle height (high→low)
          so they're visible at any zoom level
       ═══════════════════════════════════════════════════════ */
@@ -2740,6 +4018,36 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       const effectiveFP: FootprintType = !footprintEnabled
         ? ("__off__" as FootprintType)
         : (candleType === "orderflow-candles" ? "bid-ask" : footprintType);
+
+      // Per-tool order-flow colors: pick the pair for the active footprint tool so
+      // each gear stays independent. Falls back to bid-ask, then hardcoded default.
+      const _ofcMap = ofColorsRef.current;
+      const _ofc = _ofcMap[effectiveFP] || _ofcMap["bid-ask"] || { buy: [37,99,235] as [number,number,number], sell: [106,13,173] as [number,number,number] };
+      const buyRgba  = (a: number | string) => `rgba(${_ofc.buy[0]},${_ofc.buy[1]},${_ofc.buy[2]},${a})`;
+      const sellRgba = (a: number | string) => `rgba(${_ofc.sell[0]},${_ofc.sell[1]},${_ofc.sell[2]},${a})`;
+      // VP bars + bubbles: green/red (independent, gear-controlled)
+      const _vpc = vpColorsRef.current;
+      const vpUpRgba  = (a: number | string) => `rgba(${_vpc.up[0]},${_vpc.up[1]},${_vpc.up[2]},${a})`;
+      const vpDnRgba  = (a: number | string) => `rgba(${_vpc.dn[0]},${_vpc.dn[1]},${_vpc.dn[2]},${a})`;
+      const vpPocRgba = (a: number | string) => `rgba(${_vpc.poc[0]},${_vpc.poc[1]},${_vpc.poc[2]},${a})`;
+      const vpVahRgba = (a: number | string) => `rgba(${_vpc.vah[0]},${_vpc.vah[1]},${_vpc.vah[2]},${a})`;
+      const vpValRgba = (a: number | string) => `rgba(${_vpc.val[0]},${_vpc.val[1]},${_vpc.val[2]},${a})`;
+
+      // Readable footprint row size + crisp WHITE cell numbers. Every footprint
+      // cell number is drawn pure white with a dark halo so it stays legible on
+      // royal-blue, royal-purple, or dark backgrounds alike. fs scales with row
+      // height but never drops below 10px (was 8px → unreadable).
+      // Font must fit inside the row so numbers never overlap between rows.
+      // With rows now ≥13px (see numLevels divisor) a 9–12px font sits cleanly.
+      const cellFs = (rH: number) => Math.max(9, Math.min(12, Math.floor(rH * 0.6)));
+      const cellNum = (txt: string, px: number, py: number, align: CanvasTextAlign, fs: number, color = "#ffffff") => {
+        ctx.font = `700 ${fs}px 'JetBrains Mono',monospace`;
+        ctx.textAlign = align; ctx.textBaseline = "middle";
+        ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
+        ctx.fillStyle = color;
+        ctx.fillText(txt, px, py);
+        ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+      };
 
       // Helper: draw a rounded-rectangle
       const rr = (x: number, y: number, w: number, h: number, r: number) => {
@@ -2782,12 +4090,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const x      = cx - halfW;
           const isBull = c.close >= c.open;
 
-          const borderColor = isBull ? "rgba(0,229,204,0.90)" : "rgba(123,108,247,0.90)";
-          const borderColorDim = isBull ? "rgba(0,229,204,0.50)" : "rgba(123,108,247,0.50)";
+          const borderColor = isBull ? buyRgba(0.90) : sellRgba(0.90);
+          const borderColorDim = isBull ? buyRgba(0.50) : sellRgba(0.50);
 
           // Min 8px per row ensures every footprint row is clearly readable
-          const maxLev = bsp >= 20 ? 8 : bsp >= 10 ? 5 : 3;
-          const numLevels = Math.max(1, Math.min(maxLev, Math.floor(fullH / 8)));
+          const maxLev = bsp >= 26 ? 14 : bsp >= 16 ? 10 : bsp >= 10 ? 6 : 3;
+          const numLevels = Math.max(1, Math.min(maxLev, Math.floor(fullH / 12)));
           const rowH   = fullH / Math.max(1, numLevels);
           const levels = getBarFootprint(c, numLevels);
           const maxTot = Math.max(1, ...levels.map(l => l.total));
@@ -2815,8 +4123,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             if (ratio >= 1.3 && lv.total > 0) {
               const alpha = Math.min(0.72, 0.22 + volFrac * 0.28 + (ratio - 1.3) * 0.06);
               ctx.fillStyle = askDom
-                ? `rgba(0,229,204,${alpha})`
-                : `rgba(123,108,247,${alpha})`;
+                ? buyRgba(alpha)
+                : sellRgba(alpha);
               ctx.fillRect(x, rowY, colW, rH);
             }
 
@@ -2827,27 +4135,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             }
 
             // Numbers: bid left + ask right (split), or dominant centered (narrow)
-            if (showText && rH >= 8) {
-              const fs   = Math.max(8, Math.min(13, Math.floor(rH * 0.55)));
+            if (showText && rH >= 11) {
+              const fs   = cellFs(rH);
               const midY = rowY + rH / 2;
-              ctx.textBaseline = "middle";
               if (showSplit) {
-                ctx.font = `600 ${fs}px 'JetBrains Mono',monospace`;
-                const bidBright = !askDom && ratio >= 1.3;
-                ctx.fillStyle = bidBright ? "#D4BAFF" : "rgba(200,210,230,0.65)";
-                ctx.textAlign = "left";
-                ctx.fillText(fmtV(lv.bid), x + 2, midY);
-                const askBright = askDom && ratio >= 1.3;
-                ctx.fillStyle = askBright ? "#80FFEC" : "rgba(200,210,230,0.65)";
-                ctx.textAlign = "right";
-                ctx.fillText(fmtV(lv.ask), x + colW - 2, midY);
+                cellNum(fmtV(lv.bid), x + 3, midY, "left", fs);
+                cellNum(fmtV(lv.ask), x + colW - 3, midY, "right", fs);
               } else {
-                // narrow bar — show dominant side centered
-                const domVal  = askDom ? lv.ask : lv.bid;
-                ctx.font = `bold ${fs}px 'JetBrains Mono',monospace`;
-                ctx.fillStyle = askDom ? "rgba(0,229,204,0.95)" : "rgba(180,150,255,0.95)";
-                ctx.textAlign = "center";
-                ctx.fillText(fmtV(domVal), cx, midY);
+                const domVal = askDom ? lv.ask : lv.bid;
+                cellNum(fmtV(domVal), cx, midY, "center", fs);
               }
             }
           });
@@ -2881,7 +4177,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             const dLbl     = (isPos ? "+" : "") + fmtV(netDelta);
             const bW = Math.max(colW + 2, 28), bH = 13;
             const bY = yH - bH - 3;
-            ctx.fillStyle = isPos ? "rgba(0,229,204,0.92)" : "rgba(123,108,247,0.92)";
+            ctx.fillStyle = isPos ? buyRgba(0.92) : sellRgba(0.92);
             ctx.beginPath();
             if (ctx.roundRect) ctx.roundRect(cx - bW/2, bY, bW, bH, 2);
             else ctx.rect(cx - bW/2, bY, bW, bH);
@@ -2911,8 +4207,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
           const fullH = Math.max(2, yL - yH);
           // Min 8px per row ensures every footprint row is clearly readable
-          const maxLev = bsp >= 20 ? 8 : bsp >= 10 ? 5 : 3;
-          const numLevels = Math.max(1, Math.min(maxLev, Math.floor(fullH / 8)));
+          const maxLev = bsp >= 26 ? 14 : bsp >= 16 ? 10 : bsp >= 10 ? 6 : 3;
+          const numLevels = Math.max(1, Math.min(maxLev, Math.floor(fullH / 12)));
           const rowH   = fullH / Math.max(1, numLevels);
           const levels = getBarFootprint(c, numLevels);
 
@@ -2932,8 +4228,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             const intensity = Math.min(0.75, 0.20 + volFrac * 0.30 + Math.abs(delta) / Math.max(1, lv.total) * 0.40);
             if (lv.total > 0) {
               ctx.fillStyle = delta >= 0
-                ? `rgba(64,196,255,${intensity})`   // blue — buying pressure
-                : `rgba(244,143,177,${intensity})`;  // red — selling pressure
+                ? buyRgba(intensity)   // royal blue — buying pressure
+                : sellRgba(intensity); // royal purple — selling pressure
               ctx.fillRect(cx - halfW, rowY, colW, rH);
             }
 
@@ -2943,24 +4239,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               ctx.fillRect(cx - halfW, rowY, colW, 1);
             }
 
-            if (showText && rH >= 8) {
-              const fs = Math.max(8, Math.min(13, Math.floor(rH * 0.55)));
-              ctx.textBaseline = "middle";
+            if (showText && rH >= 11) {
+              const fs = cellFs(rH);
               const midY = rowY + rH / 2;
               if (showSplit) {
-                ctx.font = `600 ${fs}px 'JetBrains Mono',monospace`;
-                ctx.fillStyle = delta < 0 ? "#D4BAFF" : "rgba(200,210,230,0.55)";
-                ctx.textAlign = "left";
-                ctx.fillText(fmtV(lv.bid), cx - halfW + 2, midY);
-                ctx.fillStyle = delta >= 0 ? "#80FFEC" : "rgba(200,210,230,0.55)";
-                ctx.textAlign = "right";
-                ctx.fillText(fmtV(lv.ask), cx + halfW - 2, midY);
+                cellNum(fmtV(lv.bid), cx - halfW + 3, midY, "left", fs);
+                cellNum(fmtV(lv.ask), cx + halfW - 3, midY, "right", fs);
               } else {
                 const dVal = lv.ask - lv.bid;
-                ctx.font = `bold ${fs}px 'JetBrains Mono',monospace`;
-                ctx.fillStyle = dVal >= 0 ? "rgba(0,229,204,0.95)" : "rgba(180,150,255,0.95)";
-                ctx.textAlign = "center";
-                ctx.fillText((dVal >= 0 ? "+" : "") + fmtV(Math.abs(dVal)), cx, midY);
+                cellNum((dVal >= 0 ? "+" : "") + fmtV(Math.abs(dVal)), cx, midY, "center", fs);
               }
             }
 
@@ -2975,7 +4262,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             const netDelta = levels.reduce((s, l) => s + l.ask - l.bid, 0);
             const isPos = netDelta >= 0;
             const dLbl = (isPos ? "Δ+" : "Δ") + fmtV(Math.abs(netDelta));
-            const bColor = isPos ? "rgba(64,196,255,0.92)" : "rgba(244,143,177,0.92)";
+            const bColor = isPos ? buyRgba(0.92) : sellRgba(0.92);
             const bW = Math.max(colW + 2, 26), bH = 13;
             ctx.fillStyle = bColor;
             ctx.beginPath();
@@ -3007,8 +4294,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
           const fullH     = Math.max(4, yL - yH);
           // Min 8px per row ensures every footprint row is clearly readable
-          const maxLev = bsp >= 20 ? 8 : bsp >= 10 ? 5 : 3;
-          const numLevels = Math.max(1, Math.min(maxLev, Math.floor(fullH / 8)));
+          const maxLev = bsp >= 26 ? 14 : bsp >= 16 ? 10 : bsp >= 10 ? 6 : 3;
+          const numLevels = Math.max(1, Math.min(maxLev, Math.floor(fullH / 12)));
           const rowH   = fullH / Math.max(1, numLevels);
           const levels = getBarFootprint(c, numLevels);
           const maxTot = Math.max(1, ...levels.map(l => l.total));
@@ -3028,10 +4315,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             const bidW   = Math.round((lv.bid / maxTot) * maxBarW);
 
             // Ask bars grow left from center (green)
-            ctx.fillStyle = `rgba(0,229,204,${alpha.toFixed(2)})`;
+            ctx.fillStyle = buyRgba(alpha.toFixed(2));
             ctx.fillRect(cx - askW, rowY, askW, rH);
             // Bid bars grow right from center (purple)
-            ctx.fillStyle = `rgba(123,108,247,${alpha.toFixed(2)})`;
+            ctx.fillStyle = sellRgba(alpha.toFixed(2));
             ctx.fillRect(cx, rowY, bidW, rH);
 
             // Row divider
@@ -3040,20 +4327,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               ctx.fillRect(cx - halfW, rowY, colW, 1);
             }
 
-            if (showText && rH >= 8) {
-              const fs = Math.max(8, Math.min(13, Math.floor(rH * 0.55)));
-              ctx.textBaseline = "middle";
+            if (showText && rH >= 11) {
+              const fs = cellFs(rH);
               const midY = rowY + rH / 2;
               if (showSplit) {
-                ctx.font = `600 ${fs}px 'JetBrains Mono',monospace`;
-                ctx.fillStyle = "rgba(80,220,160,0.90)"; ctx.textAlign = "right";
-                ctx.fillText(fmtV(lv.ask), cx - 2, midY);
-                ctx.fillStyle = "rgba(190,130,255,0.90)"; ctx.textAlign = "left";
-                ctx.fillText(fmtV(lv.bid), cx + 2, midY);
+                cellNum(fmtV(lv.ask), cx - 3, midY, "right", fs);
+                cellNum(fmtV(lv.bid), cx + 3, midY, "left", fs);
               } else {
-                ctx.font = `bold ${fs}px 'JetBrains Mono',monospace`;
-                ctx.fillStyle = "rgba(240,180,41,0.90)"; ctx.textAlign = "center";
-                ctx.fillText(fmtV(lv.total), cx, midY);
+                cellNum(fmtV(lv.total), cx, midY, "center", fs);
               }
             }
           });
@@ -3085,8 +4366,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const yL = Math.round(rawYL);
 
           const fullH  = Math.max(2, yL - yH);
-          const maxLev2 = bsp >= 20 ? 8 : bsp >= 10 ? 5 : 3;
-          const numLev = Math.max(1, Math.min(maxLev2, Math.floor(fullH / 8)));
+          const maxLev2 = bsp >= 26 ? 14 : bsp >= 16 ? 10 : bsp >= 10 ? 6 : 3;
+          const numLev = Math.max(1, Math.min(maxLev2, Math.floor(fullH / 12)));
           const rowH   = fullH / Math.max(1, numLev);
           const levels = getBarFootprint(c, numLev);
           const x      = cx - halfW;
@@ -3102,24 +4383,17 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
             const askDom = lv.ask > lv.bid;
             const alpha  = Math.min(0.88, 0.45 + (ratio - 2.5) * 0.08);
-            ctx.fillStyle = askDom ? `rgba(0,229,204,${alpha})` : `rgba(206,147,216,${alpha})`;
+            ctx.fillStyle = askDom ? buyRgba(alpha) : sellRgba(alpha);
             ctx.fillRect(x, rowY, colW, rH);
 
-            if (showText && rH >= 8) {
-              const fs = Math.max(8, Math.min(13, Math.floor(rH * 0.55)));
+            if (showText && rH >= 11) {
+              const fs = cellFs(rH);
               const midY = rowY + rH / 2;
-              ctx.textBaseline = "middle";
               if (showSplit) {
-                ctx.font = `bold ${fs}px monospace`;
-                ctx.fillStyle = "#80FFEC"; ctx.textAlign = "left";
-                ctx.fillText(fmtV(lv.ask), x + 2, midY);
-                ctx.fillStyle = "#D4BAFF"; ctx.textAlign = "right";
-                ctx.fillText(fmtV(lv.bid), x + colW - 2, midY);
+                cellNum(fmtV(lv.ask), x + 3, midY, "left", fs);
+                cellNum(fmtV(lv.bid), x + colW - 3, midY, "right", fs);
               } else {
-                ctx.font = `bold ${fs}px monospace`;
-                ctx.fillStyle = askDom ? "rgba(0,229,204,0.95)" : "rgba(180,150,255,0.95)";
-                ctx.textAlign = "center";
-                ctx.fillText(`${ratio.toFixed(1)}×`, cx, midY);
+                cellNum(`${ratio.toFixed(1)}×`, cx, midY, "center", fs);
               }
             }
           });
@@ -3133,7 +4407,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             if (totRatio >= 2.0) {
               const bW = Math.max(colW + 4, 28), bH = 13;
               const bY = yH - bH - 2;
-              ctx.fillStyle = totAsk > totBid ? "rgba(0,229,204,0.90)" : "rgba(206,147,216,0.90)";
+              ctx.fillStyle = totAsk > totBid ? buyRgba(0.90) : sellRgba(0.90);
               ctx.beginPath();
               if (ctx.roundRect) ctx.roundRect(cx - bW/2, bY, bW, bH, 2);
               else ctx.rect(cx - bW/2, bY, bW, bH);
@@ -3165,8 +4439,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const yL = Math.round(rawYL);
 
           const fullH  = Math.max(2, yL - yH);
-          const maxLev2 = bsp >= 20 ? 8 : bsp >= 10 ? 5 : 3;
-          const numLev = Math.max(1, Math.min(maxLev2, Math.floor(fullH / 8)));
+          const maxLev2 = bsp >= 26 ? 14 : bsp >= 16 ? 10 : bsp >= 10 ? 6 : 3;
+          const numLev = Math.max(1, Math.min(maxLev2, Math.floor(fullH / 12)));
           const rowH   = fullH / Math.max(1, numLev);
           const levels = getBarFootprint(c, numLev);
           const x      = cx - halfW;
@@ -3181,33 +4455,34 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             const tot    = lv.ask + lv.bid;
             if (tot === 0) return;
 
-            const askDom  = lv.ask > lv.bid;
-            const dominant = Math.max(lv.ask, lv.bid);
-            const passive  = Math.min(lv.ask, lv.bid);
-            const ratio    = dominant / Math.max(1, passive);
+            // ── ROLE-COLORED CELL BOXES (numbers stay crisp white) ──────────
+            // Each level splits into a LEFT half (ask / buyer-initiated) and a
+            // RIGHT half (bid / seller-initiated). Each half is tinted by its LIVE
+            // role at this price level:
+            //   ask near the HIGH → Passive Sellers (orange), else Aggressive Buyers (blue)
+            //   bid near the LOW  → Passive Buyers (gray),   else Aggressive Sellers (purple)
+            // Alpha is scaled by that side's share of the level so the dominant
+            // side reads stronger — but capped soft (~0.56) so it's clean and easy
+            // on the eyes, never harsh neon. The number rides on top in white with
+            // a dark shadow for maximum legibility. Every level with volume paints
+            // (the old ≥1.5× gate that left rows blank is gone).
+            const askShare = lv.ask / tot, bidShare = lv.bid / tot;
+            const askAlpha = 0.14 + askShare * 0.42;
+            const bidAlpha = 0.14 + bidShare * 0.42;
+            const askFill  = lv.relPos > 0.80 ? `rgba(255,149,0,${askAlpha.toFixed(2)})`   : buyRgba(askAlpha.toFixed(2));
+            const bidFill  = lv.relPos < 0.20 ? `rgba(148,163,184,${bidAlpha.toFixed(2)})` : sellRgba(bidAlpha.toFixed(2));
+            const halfW2   = Math.round(colW / 2);
+            ctx.fillStyle = askFill; ctx.fillRect(x, rowY, halfW2, rH);
+            ctx.fillStyle = bidFill; ctx.fillRect(x + halfW2, rowY, colW - halfW2, rH);
 
-            // Only paint rows where aggression is meaningful (≥1.5×)
-            if (ratio < 1.5) return;
-
-            const alpha = Math.min(0.80, 0.30 + (ratio - 1.5) * 0.12);
-            ctx.fillStyle = askDom ? `rgba(0,229,204,${alpha})` : `rgba(206,147,216,${alpha})`;
-            ctx.fillRect(x, rowY, colW, rH);
-
-            if (showText && rH >= 8) {
-              const fs  = Math.max(8, Math.min(13, Math.floor(rH * 0.55)));
+            if (showText && rH >= 11) {
+              const fs  = cellFs(rH);
               const midY = rowY + rH / 2;
-              ctx.textBaseline = "middle";
               if (showSplit) {
-                ctx.font = `bold ${fs}px monospace`;
-                ctx.fillStyle = askDom ? "#80FFEC" : "#D4BAFF"; ctx.textAlign = "left";
-                ctx.fillText(fmtV(lv.ask), x + 2, midY);
-                ctx.fillStyle = "rgba(200,210,230,0.55)"; ctx.textAlign = "right";
-                ctx.fillText(fmtV(lv.bid), x + colW - 2, midY);
+                cellNum(fmtV(lv.ask), x + 3, midY, "left", fs);          // white
+                cellNum(fmtV(lv.bid), x + colW - 3, midY, "right", fs);  // white
               } else {
-                ctx.font = `bold ${fs}px monospace`;
-                ctx.fillStyle = askDom ? "rgba(0,229,204,0.95)" : "rgba(180,150,255,0.95)";
-                ctx.textAlign = "center";
-                ctx.fillText(fmtV(Math.max(lv.ask, lv.bid)), cx, midY);
+                cellNum(fmtV(Math.max(lv.ask, lv.bid)), cx, midY, "center", fs);
               }
             }
           });
@@ -3221,59 +4496,107 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             }
           }
 
-          if (showBadges) {
-            const netDelta = levels.reduce((s, l) => s + l.ask - l.bid, 0);
-            const isAgg    = netDelta >= 0;
-            // "AGG" = net aggressive buying, "PSV" = net passive (selling pressure absorbed)
-            const dLbl     = (isAgg ? "AGG " : "PSV ") + fmtV(Math.abs(netDelta));
-            const bColor   = isAgg ? "rgba(0,229,204,0.92)" : "rgba(206,147,216,0.92)";
-            const bW = Math.max(colW + 4, 34), bH = 13;
-            const bY = yH - bH - 2;
-            ctx.fillStyle = bColor;
+          if (showWinner) {
+            // ── PER-CANDLE ORDER-FLOW SUMMARY ──────────────────────────────
+            // Four REAL numbers, computed live from THIS candle's own footprint
+            // levels (getBarFootprint → real tick data when present, deterministic
+            // sim otherwise). Nothing here is hardcoded.
+            //
+            //   ask = buyer-initiated (market buy lifting the offer)
+            //   bid = seller-initiated (market sell hitting the bid)
+            //   relPos: 0 = candle LOW, 1 = candle HIGH
+            //
+            //   Aggressive Buyers  (blue)   = ask volume that DROVE price
+            //   Passive  Sellers   (orange) = ask volume ABSORBED at the high wick
+            //   Aggressive Sellers (purple) = bid volume that DROVE price
+            //   Passive  Buyers    (gray)   = bid volume ABSORBED at the low wick
+            let aggBuy = 0, aggSell = 0, pasBuy = 0, pasSell = 0;
+            levels.forEach(l => {
+              if (l.relPos > 0.80) pasSell += l.ask; else aggBuy  += l.ask;
+              if (l.relPos < 0.20) pasBuy  += l.bid; else aggSell += l.bid;
+            });
+            const BLUE = buyRgba(0.98), PURPLE = sellRgba(0.98);
+            const GRAY = "rgba(148,163,184,0.98)", ORANGE = "rgba(255,149,0,0.98)";
+
+            // ── DOMINANT WINNER ───────────────────────────────────────────
+            // The single biggest of the four real roles decides the headline
+            // label + its total volume (e.g. "AGG BUYS 113.2k").
+            const roles: Array<{ v: number; lbl: string; col: string; txt: string }> = [
+              { v: aggBuy,  lbl: "AGG BUYS",  col: BLUE,   txt: "#fff"    },
+              { v: aggSell, lbl: "AGG SELLS", col: PURPLE, txt: "#fff"    },
+              { v: pasBuy,  lbl: "PSV BUYS",  col: GRAY,   txt: "#0b1220" },
+              { v: pasSell, lbl: "PSV SELLS", col: ORANGE, txt: "#fff"    },
+            ];
+            const win = roles.reduce((a, b) => (b.v > a.v ? b : a));
+
+            // ── COMPACT WINNER PILL: "AGG BUYS 113.2k" ─────────────────────
+            // Single prominent pill above the candle high — readable at normal
+            // zoom (label text + volume value on one line). This is the headline
+            // the user asked for. The detailed 2×2 grid (below) only stacks on
+            // top when genuinely zoomed in (showBadges).
+            const pillTxt = `${win.lbl} ${fmtV(win.v)}`;
+            ctx.font = "bold 11px monospace";
+            const pillW  = Math.max(colW + 6, ctx.measureText(pillTxt).width + 12);
+            const pillH  = 15;
+            const pillY  = yH - pillH - 3;                       // just above candle high
+            ctx.fillStyle = win.col;
             ctx.beginPath();
-            if (ctx.roundRect) ctx.roundRect(cx - bW/2, bY, bW, bH, 2);
-            else ctx.rect(cx - bW/2, bY, bW, bH);
+            if (ctx.roundRect) ctx.roundRect(cx - pillW / 2, pillY, pillW, pillH, 3);
+            else ctx.rect(cx - pillW / 2, pillY, pillW, pillH);
             ctx.fill();
-            ctx.fillStyle = "#fff"; ctx.font = "bold 11px monospace";
+            ctx.fillStyle = win.txt;
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText(dLbl, cx, bY + bH / 2);
+            ctx.fillText(pillTxt, cx, pillY + pillH / 2 + 0.5);
+
+            if (showBadges) {
+              // ── DETAILED 2×2 GRID (only when zoomed in) ──────────────────
+              // The four short values (e.g. 33k / 40k / 10k / 7k) sit cleanly
+              // above the winner pill. Grid ≈ colW wide; only at bsp≥70.
+              const cells: Array<[number, string]> = [
+                [aggBuy,  BLUE],    // blue   top-left
+                [aggSell, PURPLE],  // purple top-right
+                [pasBuy,  GRAY],    // gray   bottom-left
+                [pasSell, ORANGE],  // orange bottom-right
+              ];
+              const rowH_s = 13;
+              const colW_s = Math.max(34, Math.round(colW / 2) + 2);
+              const totalW = colW_s * 2;
+              const left   = cx - totalW / 2;
+              const gridTop = pillY - (rowH_s * 2) - 6;          // grid above the winner pill
+
+              ctx.fillStyle = "rgba(11,18,32,0.68)";
+              ctx.beginPath();
+              if (ctx.roundRect) ctx.roundRect(left - 2, gridTop - 2, totalW + 4, rowH_s * 2 + 4, 3);
+              else ctx.rect(left - 2, gridTop - 2, totalW + 4, rowH_s * 2 + 4);
+              ctx.fill();
+
+              ctx.font = "bold 11px monospace";
+              ctx.textBaseline = "middle";
+              cells.forEach(([val, col], idx) => {
+                const colIdx = idx % 2, rowIdx = Math.floor(idx / 2);
+                const cxCell = left + colIdx * colW_s + colW_s / 2;
+                const cyCell = gridTop + rowIdx * rowH_s + rowH_s / 2;
+                ctx.fillStyle = col;
+                ctx.textAlign = "center";
+                ctx.fillText(fmtV(val), cxCell, cyCell);
+              });
+            }
           }
         });
 
-        // ── Legend (top-right corner of canvas, always visible in this mode) ──
-        if (W > 200) {
-          const lx = W - 72, ly = 8, lw = 64, lh = 50;
-          ctx.fillStyle = "rgba(11,14,26,0.85)";
-          ctx.beginPath();
-          if (ctx.roundRect) ctx.roundRect(lx, ly, lw, lh, 4);
-          else ctx.rect(lx, ly, lw, lh);
-          ctx.fill();
-          ctx.strokeStyle = "rgba(255,255,255,0.10)"; ctx.lineWidth = 1; ctx.setLineDash([]);
-          ctx.beginPath();
-          if (ctx.roundRect) ctx.roundRect(lx + 0.5, ly + 0.5, lw - 1, lh - 1, 4);
-          else ctx.rect(lx + 0.5, ly + 0.5, lw - 1, lh - 1);
-          ctx.stroke();
-
-          ctx.font = "bold 9px Inter,monospace"; ctx.textBaseline = "middle"; ctx.textAlign = "left";
-          // Title
-          ctx.fillStyle = "rgba(255,255,255,0.75)";
-          ctx.fillText("AGG/PASSIVE", lx + 6, ly + 9);
-          // Green row
-          ctx.fillStyle = "rgba(0,192,118,0.75)";
-          ctx.fillRect(lx + 6, ly + 19, 8, 8);
-          ctx.fillStyle = "rgba(200,220,255,0.70)";
-          ctx.font = "9px Inter,monospace";
-          ctx.fillText("Aggressive Buy", lx + 17, ly + 23);
-          // Red row
-          ctx.fillStyle = "rgba(255,77,103,0.75)";
-          ctx.fillRect(lx + 6, ly + 31, 8, 8);
-          ctx.fillStyle = "rgba(200,220,255,0.70)";
-          ctx.fillText("Aggressive Sell", lx + 17, ly + 35);
-          // Note
-          ctx.fillStyle = "rgba(150,160,180,0.55)";
-          ctx.fillText("ratio ≥ 1.5×", lx + 6, ly + 46);
-        }
+        // (Per-tool "?" popover carries the deep explanation; the shared 4-way
+        // legend below stamps the live numbers for every order-flow mode.)
       }
+
+      /* ══════════════════════════════════════════════════════
+         SHARED ORDER-FLOW LEGEND — REMOVED FROM THE CHART.
+         Per user's explicit request the four-role Aggressive/Passive
+         legend no longer draws on the chart canvas (it was cluttering
+         the top-left corner). The beginner-friendly 4-way legend with
+         plain-English descriptions now lives ONLY in the per-tool gear
+         popover — see FootprintControls.tsx (OrderFlowColorGear, the
+         "Agg/Passive 4-way legend" block). Nothing is stamped here.
+      ══════════════════════════════════════════════════════ */
 
       /* ══════════════════════════════════════════════════════
          MODE 6: BIG TRADES — Deep Charts style
@@ -3283,7 +4606,19 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
          Circle size ∝ relative volume. Green = ask dominant,
          pink/magenta = bid dominant.
       ══════════════════════════════════════════════════════ */
-      if (effectiveFP === "big-trades") {
+      // Big Trades draws when it's the active exclusive mode OR when Simultaneous
+      // Mode is on (bigTradesOverlay) — in the latter case the primary order-flow
+      // block above has already drawn, and we paint the bubbles on top.
+      if (effectiveFP === "big-trades" || bigTradesOverlay) {
+        // ── Pause / Refresh controls (toolbar gear dropdown) ──────────────
+        // Refresh: wipe all bubbles + the per-bar dedupe set so the engine
+        // re-detects and re-spawns from scratch this frame.
+        if (bubbleRefreshRef.current !== bubbleRefreshSeenRef.current) {
+          bubbleRefreshSeenRef.current = bubbleRefreshRef.current;
+          bubblesRef.current = [];
+          bubbleSpawnRef.current = new Set();
+        }
+        const bubblesPaused = bubblePausedRef.current;
         // Factory for a small companion bubble (spawned around a big trade so it gets absorbed)
         const makeCompanion = (
           hx: number, hy: number, bigR: number, side: "buy" | "sell",
@@ -3352,15 +4687,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const pocIdx = levels.reduce((mi, l, i, a) => l.total > a[mi].total ? i : mi, 0);
           const poc    = levels[pocIdx];
 
-          // Only treat as a "big trade" if significantly larger than average
-          if (poc.total < avgLevVol * 1.8) return;
+          // Only treat as a "big trade" if larger than average. Lower threshold so
+          // bubbles appear consistently on every timeframe (higher TFs have fewer bars).
+          if (poc.total < avgLevVol * 1.5) return;
           // Only spawn bubbles for recent bars (avoid a swarm of historical bubbles)
           if ((c.time as number) < (recentCut as number)) return;
 
           const pocY  = Math.round(yH + (pocIdx + 0.5) * rowH);
           // Bubble radius scales with order size (∝ how big the trade is)
-          const scale = Math.min(1, (poc.total / avgLevVol - 1.8) / 3);
-          const baseR = Math.round(14 + scale * 30); // 14 → 44 px
+          const scale = Math.max(0, Math.min(1, (poc.total / avgLevVol - 1.5) / 3));
+          const baseR = Math.round(11 + scale * 21); // 11 → 32 px (compact, won't blanket candles)
           const side: "buy" | "sell" = poc.ask >= poc.bid ? "buy" : "sell";
           // Show NOTIONAL dollar size (volume × price), not raw volume — otherwise
           // crypto (volume in coins, e.g. 5 BTC) shows a meaningless "5" while
@@ -3371,7 +4707,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
           // Spawn once per bar (dedupe by bar time). Cap active bubbles.
           const key = String(c.time);
-          if (!bubbleSpawnRef.current.has(key) && bubblesRef.current.length < 60) {
+          if (!bubblesPaused && !bubbleSpawnRef.current.has(key) && bubblesRef.current.length < 60) {
             bubbleSpawnRef.current.add(key);
             const now0 = performance.now();
             // Main big-trade bubble
@@ -3385,7 +4721,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               side,
               value,
               born:  now0,
-              life:  9000,               // linger ~9s at the level then refresh (not forever)
+              life:  20000,              // linger ~20s at the level (user wanted them to persist)
               popping: false,
               popT:  0,
               anchorTime:  c.time as number,
@@ -3410,7 +4746,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
         // Continuous companion spawning — keeps each big bubble fed with small
         // bubbles to absorb so the x-ray stays alive (throttled).
-        if (nowMs - bubbleSpawnTickRef.current > 950 && bubbles.length < 56) {
+        if (!bubblesPaused && nowMs - bubbleSpawnTickRef.current > 950 && bubbles.length < 56) {
           bubbleSpawnTickRef.current = nowMs;
           const bigs = bubbles.filter(b => b.big && !b.popping);
           if (bigs.length) {
@@ -3455,8 +4791,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           b.x += b.vx; b.y += b.vy;
           // ease radius in toward baseR
           if (!b.popping && b.r < b.baseR) b.r += (b.baseR - b.r) * 0.12;
+          // While paused, freeze the lifespan clock so bubbles never expire — the
+          // user explicitly froze the tape and expects them to stay put.
+          if (bubblesPaused) { b.born += 16; } // advance born ~one frame → age stays constant
           const age = nowMs - b.born;
-          if (age > b.life && !b.popping) { b.popping = true; } // big bubbles have Infinite life
+          if (!bubblesPaused && age > b.life && !b.popping) { b.popping = true; }
         }
         // ABSORB: a noticeably larger bubble that overlaps a smaller one swallows it —
         // the smaller pops, the larger grows (gains the absorbed size) and gets tugged toward it.
@@ -3473,7 +4812,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 s.absorbedBy = a.id;        // pop pulls toward the absorber
                 // absorber grows by area-equivalent of the swallowed bubble (capped)
                 const grown = Math.sqrt(a.baseR * a.baseR + s.baseR * s.baseR * 0.55);
-                a.baseR = Math.min(66, grown);
+                a.baseR = Math.min(46, grown);
                 // NOTE: do NOT accumulate value here. Big bubbles have a long life
                 // and absorb a new companion every ~second, so "value += ..." would
                 // compound unbounded into garbage like 19,646,512,705,155M. The
@@ -3504,13 +4843,17 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           return true;
         });
 
+        // Draw WM VP FIRST (under the bubbles) so Big Trades + Session VP don't
+        // hide the bubbles behind the profile. Guarded → won't double-draw later.
+        runWMVP();
+
         // Draw bubbles — real water-bubble look: transparent glassy body,
         // bright iridescent rim, specular highlights, gentle wobble.
         const hoverId = bubbleHoverRef.current;
         for (const b of bubblesRef.current) {
           const buy = b.side === "buy";
-          // soft neon green for buyers, soft neon red for sellers (rim/tint only — body stays glassy)
-          const core = buy ? "70,235,170" : "255,90,110";
+          // Green for buyers, red for sellers — VP/bubble scheme (gear-controlled)
+          const core = buy ? `${_vpc.up[0]},${_vpc.up[1]},${_vpc.up[2]}` : `${_vpc.dn[0]},${_vpc.dn[1]},${_vpc.dn[2]}`;
           const isHover = hoverId === b.id;
 
           // gentle squash/stretch wobble so they feel alive like real bubbles
@@ -3523,7 +4866,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // pop animation: expand outward + fade (absorbed ones shrink as they slide in)
           const popScale = b.popping ? (b.absorbedBy != null ? 1 - b.popT * 0.6 : 1 + b.popT * 0.8) : 1;
           const alpha = b.popping ? (1 - b.popT) : 1;
-          const Rx = rx * popScale, Ry = ry * popScale;
+          // Clamp to a tiny positive floor: a shrinking/popping bubble can drive
+          // these to ≤0, and ctx.ellipse() throws IndexSizeError on negative radii.
+          const Rx = Math.max(0.1, rx * popScale), Ry = Math.max(0.1, ry * popScale);
 
           ctx.save();
 
@@ -3546,13 +4891,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
           // bright thin membrane rim (the signature of a water bubble)
           ctx.beginPath();
-          ctx.ellipse(b.x, b.y, Rx - 0.6, Ry - 0.6, 0, 0, Math.PI * 2);
+          ctx.ellipse(b.x, b.y, Math.max(0.1, Rx - 0.6), Math.max(0.1, Ry - 0.6), 0, 0, Math.PI * 2);
           ctx.lineWidth = isHover ? 2.4 : 1.6;
           ctx.strokeStyle = `rgba(255,255,255,${(isHover ? 0.95 : 0.78) * alpha})`;
           ctx.stroke();
           // faint colored inner ring for iridescence
           ctx.beginPath();
-          ctx.ellipse(b.x, b.y, Rx - 2.4, Ry - 2.4, 0, 0, Math.PI * 2);
+          ctx.ellipse(b.x, b.y, Math.max(0.1, Rx - 2.4), Math.max(0.1, Ry - 2.4), 0, 0, Math.PI * 2);
           ctx.lineWidth = 1;
           ctx.strokeStyle = `rgba(${core},${0.5 * alpha})`;
           ctx.stroke();
@@ -3571,12 +4916,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // order size number, centered.
           // While being absorbed the number shrinks toward 0 as it's swallowed.
           const beingAbsorbed = b.popping && b.absorbedBy != null;
-          const showNum = (!b.popping && b.r >= 13) || (beingAbsorbed && b.r >= 10);
+          // Show the order-size number on essentially every readable bubble. The old
+          // r>=13 cutoff left a lot of mid/small bubbles blank ("missing numbers"); a
+          // bubble only big enough to host ~7px text (r>=8) now always gets labelled.
+          const showNum = (!b.popping && b.r >= 8) || (beingAbsorbed && b.r >= 7);
           if (showNum) {
             const shrink = beingAbsorbed ? (1 - b.popT) : 1;       // value counts down to 0
             const numVal = Math.abs(Math.round(b.value * shrink));
             const lbl = fmtV(numVal);
-            const fontPx = Math.max(8, Math.min(16, Rx * 0.5)) * (beingAbsorbed ? Math.max(0.4, 1 - b.popT * 0.7) : 1);
+            const fontPx = Math.max(7, Math.min(16, Rx * 0.55)) * (beingAbsorbed ? Math.max(0.4, 1 - b.popT * 0.7) : 1);
             ctx.font = `bold ${fontPx}px Inter, monospace`;
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.shadowColor = "rgba(0,0,0,0.85)"; ctx.shadowBlur = 4;
@@ -3596,14 +4944,34 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       /* ══════════════════════════════════════════════════════
          WM FIXED VP & SESSION VP — right-anchored inside chart
       ══════════════════════════════════════════════════════ */
-      const drawWMVP = (barsToUse: Bar[], barColor: string, labelText: string, yOffset: number) => {
-        if (!barsToUse.length) return;
+      function drawWMVP(barsToUse: Bar[], barColor: string, labelText: string, yOffset: number, colIndex = 0, nCols = 1) {
+        if (!barsToUse.length || !ctx) return;
         // Dynamic tick size: ~25 rows so each bar is tall and clearly readable
         const priceRange = barsToUse.reduce((r, b) => ({ hi: Math.max(r.hi, b.high), lo: Math.min(r.lo, b.low) }), { hi: -Infinity, lo: Infinity });
         const rawRange = priceRange.hi - priceRange.lo;
         if (rawRange <= 0) return;
-        const targetRows = 25;
-        let tickSz = rawRange / targetRows;
+        // Size the rows by ON-SCREEN pixel density, not the raw data range. When the
+        // chart is zoomed in tight a fixed row count makes each row ~80px tall and the
+        // bars balloon over the candles; when zoomed out they vanish. Targeting a
+        // fixed ~20px per row keeps the VP consistent and out of the candles' way.
+        // Row count is sized by how much VERTICAL SCREEN the profile's price range
+        // currently occupies, targeting ~22px per row, so the bars always have proper
+        // height and never squash into thin slivers (the squashed-VP bug from dividing
+        // a part-screen range into a fixed 24 rows). This reads the price SCALE, not the
+        // pixel density of the visible candles, so it stays stable on horizontal scroll
+        // (the axis doesn't move when you pan) and only reflows on zoom — exactly like
+        // a professional VP. If the range is partly off-screen (e.g. Fixed VP's multi-
+        // day span while zoomed into one day) priceToCoordinate returns null and we fall
+        // back to a sane fixed count so the visible rows still render tall.
+        let rows = 18;
+        try {
+          const yHi = srs?.priceToCoordinate(priceRange.hi);
+          const yLo = srs?.priceToCoordinate(priceRange.lo);
+          if (yHi != null && yLo != null && Number.isFinite(yHi) && Number.isFinite(yLo)) {
+            rows = Math.max(8, Math.min(34, Math.round(Math.abs((yLo as number) - (yHi as number)) / 22)));
+          }
+        } catch {}
+        let tickSz = rawRange / rows;
         // Snap to a clean tick
         const magnitude = Math.pow(10, Math.floor(Math.log10(tickSz)));
         const rounded = [1, 2, 2.5, 5, 10].map(m => m * magnitude).find(v => v >= tickSz) ?? (magnitude * 10);
@@ -3625,68 +4993,307 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         let pocPrice = allPrices[0]; let pocVol = 0;
         volMap.forEach((v, p) => { const t = v.bid + v.ask; if (t > pocVol) { pocVol = t; pocPrice = p; } });
 
-        const priceScaleW = 60;
-        // VP bars: 45% width up to 340px — large, prominent, DeepCharts-style
-        const vpW   = Math.min(340, (W - priceScaleW) * 0.45);
-        const vpRight = W - priceScaleW - 6;
+        // ── Value Area (70% of volume) → VAH / VAL ──────────────────────
+        // Expand outward from the POC, each step absorbing whichever adjacent
+        // level (above or below) holds the larger volume, until 70% of total
+        // traded volume is enclosed. The highest enclosed price = VAH, the
+        // lowest = VAL — exactly the standard market-profile value area.
+        const volAt = (p: number) => { const v = volMap.get(p); return v ? v.bid + v.ask : 0; };
+        const totalVol = allPrices.reduce((s, p) => s + volAt(p), 0);
+        let pocIdx = allPrices.indexOf(pocPrice);
+        if (pocIdx < 0) pocIdx = 0;
+        let vaLo = pocIdx, vaHi = pocIdx, vaAcc = volAt(allPrices[pocIdx]);
+        const vaTarget = totalVol * 0.7;
+        while (vaAcc < vaTarget && (vaLo > 0 || vaHi < allPrices.length - 1)) {
+          const below = vaLo > 0 ? volAt(allPrices[vaLo - 1]) : -1;
+          const above = vaHi < allPrices.length - 1 ? volAt(allPrices[vaHi + 1]) : -1;
+          if (above >= below) { vaHi++; vaAcc += above; }
+          else                { vaLo--; vaAcc += below; }
+        }
+        // Guarantee the value area straddles the POC by at least one populated
+        // level on EACH side whenever such a level exists. Without this, a POC
+        // sitting near the top/bottom of the distribution (all 70% accumulates on
+        // one side) leaves vaHi===pocIdx or vaLo===pocIdx, which collapses VAH (or
+        // VAL) onto the POC and the draw guard below silently DROPS that box — the
+        // "VAH/VAL disappears on Session/Fixed VP" bug. Forcing one step each way
+        // keeps both boundary boxes distinct from POC and always visible.
+        if (vaHi === pocIdx && pocIdx < allPrices.length - 1) vaHi = pocIdx + 1;
+        if (vaLo === pocIdx && pocIdx > 0)                    vaLo = pocIdx - 1;
+        const valPrice = allPrices[vaLo];               // Value Area Low
+        const vahPrice = allPrices[vaHi];               // Value Area High
+
+        // Reserve the ACTUAL right price-axis width (queried from the chart) so the
+        // histogram never draws on top of the price labels. The axis width grows with
+        // the number of digits (BTC's 59,800.00 is wider than a $12 stock), so a fixed
+        // 60px gap let the bars bleed over the numbers — this reads the live width.
+        const priceScaleW = (() => {
+          try {
+            const w = chart.priceScale("right").width();
+            if (Number.isFinite(w) && w > 0) return Math.ceil(w) + 10;
+          } catch {}
+          return 90;
+        })();
+        // When BOTH Fixed + Session VP are on, narrow each column and shift the
+        // second one LEFT by a full column width + gap so the two histograms sit
+        // side-by-side instead of overlapping in the same right-anchored column
+        // (the BTC "VP looks wrong" bug — stacked bars + colliding labels).
+        const vpW   = Math.min(nCols > 1 ? 110 : 150, (W - priceScaleW) * (nCols > 1 ? 0.15 : 0.19));
+        const vpRight = (W - priceScaleW - 6) - colIndex * (vpW + 12);
+
+        // ── PRICE-ANCHORED vertical scale ───────────────────────────────
+        // Anchor every row to its REAL price via the candle series' price scale.
+        // A 380 volume shelf is drawn at exactly price 380 on the chart axis, so
+        // the profile lines up bar-for-bar with the candles and the user can always
+        // read which volume shelf price is trading into. The VP is pinned to price,
+        // not to the screen: freeze the axis with 🔒 LOCK and horizontal scrolling
+        // moves only the candles while the VP + POC stay locked on their levels.
+        const yOf = (p: number): number | null => {
+          const y = srs?.priceToCoordinate(p);
+          return (y == null || !Number.isFinite(y)) ? null : (y as number);
+        };
+        const loKey   = allPrices[0];
+        const hiKey   = allPrices[allPrices.length - 1] + tickSz;
+        const nBuckets = Math.max(1, Math.round((hiKey - loKey) / tickSz));
+        const rowCap  = Math.round(H * 0.14); // never let one tick fill the pane
 
         ctx.save();
-        allPrices.forEach(price => {
-          const vol  = volMap.get(price)!;
-          const tot  = vol.bid + vol.ask;
-          const yPx  = srs.priceToCoordinate(price);
-          const yPx2 = srs.priceToCoordinate(price + tickSz);
-          if (yPx == null || yPx2 == null) return;
-          // Row height: thick bars, minimum 6px, up to 60px
-          const rawH = Math.abs(+yPx2 - +yPx);
-          const rowH = Math.max(6, Math.min(60, rawH - 1));
-          const rowY = Math.round(Math.min(+yPx, +yPx2));
-          // Bar width: minimum 14px for any bar (makes all bars clearly visible)
-          const barW = Math.max(14, Math.round((tot / maxVol) * vpW));
+        // Clip the VP to pane 0 (the candle pane). With native indicator panes
+        // stacked below, priceToCoordinate extrapolates prices outside pane 0's
+        // visible range to y-values BELOW pane 0 — without this clip the VP bars
+        // bleed down into the Speed-of-Tape / CVD panes. paneSize(0).height is the
+        // candle pane's pixel height (pane 0 is topmost, so its top = canvas y 0).
+        let pane0H = H;
+        try {
+          const ps = (chart as any).paneSize?.(0);
+          if (ps && Number.isFinite(ps.height) && ps.height > 0) pane0H = ps.height;
+        } catch {}
+        ctx.beginPath();
+        ctx.rect(0, 0, W, pane0H);
+        ctx.clip();
+        // Iterate EVERY bucket low→high so consecutive populated rows are pixel-flush
+        // (no gaps). Buckets with genuinely zero traded volume simply draw nothing.
+        // Rows whose price is currently off-screen return null and are skipped.
+        let lastLabelY = -Infinity; // de-overlap volume labels
+        for (let i = 0; i < nBuckets; i++) {
+          const price = Math.round((loKey + i * tickSz) / tickSz) * tickSz;
+          const vol   = volMap.get(price);
+          const tot   = vol ? vol.bid + vol.ask : 0;
+          if (tot <= 0) continue;
+          const yTopRaw = yOf(price + tickSz);
+          const yBotRaw = yOf(price);
+          if (yTopRaw == null || yBotRaw == null) continue; // off-screen row
+          const yTop  = yTopRaw;
+          const yBot  = yBotRaw;
+          const rowY  = Math.round(yTop);
+          const rowH  = Math.max(2, Math.min(rowCap, Math.round(yBot - yTop)));
           const isPOC = price === pocPrice;
-          const askRatio = tot > 0 ? vol.ask / tot : 0.5;
+          const askRatio = vol ? vol.ask / tot : 0.5;
+          // Bar length: compress with a 0.5 power curve (√) so LOW-volume rows get
+          // real, readable WIDTH (a 4% node like 14.8k next to a 340k POC maps to
+          // √0.044 ≈ 21% of the column instead of ~11% under the old 0.7 curve) while
+          // the POC (ratio 1 → 100%) stays unmistakably the longest. This is a shaped
+          // curve, NOT a flat floor, so rows still differ by volume — no muddy
+          // same-width bars. The 12px min keeps the very thinnest populated row a
+          // proper bar rather than a sliver.
+          const barW = Math.max(16, Math.round(Math.pow(tot / maxVol, 0.45) * vpW));
 
-          const neon = chartSettings?.neon;
           if (isPOC) {
-            ctx.fillStyle = neon ? "rgba(255,224,77,0.92)" : "rgba(240,180,41,0.80)";
+            ctx.fillStyle = vpPocRgba(0.68);
             ctx.fillRect(vpRight - barW, rowY, barW, rowH);
           } else {
             const askW = Math.round(barW * askRatio);
             const bidW = barW - askW;
-            // ask = green, bid = red — neon-bright when neon theme is on
-            ctx.fillStyle = neon ? `rgba(0,255,163,${0.45 + askRatio * 0.45})` : `rgba(0,229,204,${0.28 + askRatio * 0.35})`;
+            // ask = green, bid = red — VP's own gear-controlled scheme (default
+            // green/red). TRANSLUCENT (0.40–0.58) so the candles read cleanly THROUGH
+            // the profile like TradingView — a near-solid fill turned the VP into an
+            // opaque wall that hid the price action (the "squashed VP" the user saw).
+            ctx.fillStyle = vpUpRgba((0.40 + askRatio * 0.14).toFixed(2));
             ctx.fillRect(vpRight - barW, rowY, askW, rowH);
-            ctx.fillStyle = neon ? `rgba(255,46,99,${0.45 + (1-askRatio)*0.45})` : `rgba(123,108,247,${0.28 + (1-askRatio)*0.35})`;
+            ctx.fillStyle = vpDnRgba((0.40 + (1-askRatio)*0.14).toFixed(2));
             ctx.fillRect(vpRight - barW + askW, rowY, bidW, rowH);
           }
           if (isPOC) {
-            ctx.strokeStyle = "rgba(240,180,41,0.95)"; ctx.lineWidth = 1;
-            ctx.setLineDash([6, 4]);
-            ctx.beginPath(); ctx.moveTo(4, rowY + Math.round(rowH/2) + 0.5); ctx.lineTo(vpRight - 2, rowY + Math.round(rowH/2) + 0.5); ctx.stroke();
+            ctx.strokeStyle = vpPocRgba(0.9); ctx.lineWidth = 1;
+            ctx.setLineDash([5, 4]);
+            const pocLineLeft = Math.max(4, vpRight - vpW - 24);
+            ctx.beginPath();
+            ctx.moveTo(pocLineLeft, rowY + Math.round(rowH/2) + 0.5);
+            ctx.lineTo(vpRight - 2, rowY + Math.round(rowH/2) + 0.5);
+            ctx.stroke();
             ctx.setLineDash([]);
-          }
-          // Volume numbers — show on any bar tall enough to read
-          if (rowH >= 7) {
-            ctx.fillStyle = isPOC ? "#fff" : "rgba(255,255,255,0.75)";
-            ctx.font = `${isPOC ? "bold " : ""}${isPOC ? 13 : 12}px monospace`;
+            // POC price tag so the stationary histogram still has a price anchor.
+            ctx.fillStyle = vpPocRgba(0.95);
+            ctx.font = "bold 11px monospace";
             ctx.textAlign = "right"; ctx.textBaseline = "middle";
-            ctx.fillText(fmtV(tot), vpRight - barW - 3, rowY + rowH / 2);
+            ctx.fillText(pocPrice.toFixed(2), pocLineLeft - 2, rowY + Math.round(rowH/2));
           }
-        });
-        // Bold label
-        ctx.fillStyle = barColor; ctx.font = "bold 14px Inter,monospace";
-        ctx.textAlign = "right"; ctx.textBaseline = "top";
-        ctx.fillText(labelText, vpRight - 2, 4 + yOffset);
-        ctx.restore();
-      };
+          // Volume numbers — drawn INSIDE the bar at its right edge so they stay in
+          // the VP column and never reach left into the candles / Big-Trades bubbles
+          // (which caused the busy, overlapping look). Only label a row when it is
+          // tall enough AND ≥16px from the last drawn label, and skip very small
+          // (<8% of POC) rows when crowded so the cluster reads cleanly. POC always
+          // labels and resets the spacing anchor so its neighbours give it room.
+          // Label EVERY populated row that has the vertical room — including the small
+          // top/bottom shelves that the old `meaningful` (≥8% of POC) gate left blank.
+          // Only de-overlap (skip a label that would collide with the one above) so the
+          // numbers never stack on top of each other; POC always labels.
+          const midY = rowY + rowH / 2;
+          if (isPOC || (rowH >= 5 && Math.abs(midY - lastLabelY) >= 12)) {
+            const txt = fmtV(tot);
+            ctx.font = `${isPOC ? "bold 12" : "11"}px monospace`;
+            ctx.textAlign = "right"; ctx.textBaseline = "middle";
+            // Dark halo so white numbers stay legible over both bar and chart bg.
+            ctx.shadowColor = "rgba(0,0,0,0.92)"; ctx.shadowBlur = 3;
+            ctx.fillStyle = "#ffffff";
+            ctx.fillText(txt, vpRight - 4, midY);
+            ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+            lastLabelY = midY;
+          }
+        }
 
-      if (fixedVPActive)   drawWMVP(visibleBars, "#F0B429", "WM Fixed VP",   0);
-      if (sessionVPActive) {
-        const nowSec = Math.floor(Date.now() / 1000);
-        const dayStart = Math.floor(nowSec / 86400) * 86400 + 13 * 3600 + 30 * 60;
-        const sessionBars = visibleBars.filter(b => (b.time as number) >= dayStart);
-        drawWMVP(sessionBars.length > 2 ? sessionBars : visibleBars.slice(-30), "#8B5CF6", "WM Session VP", fixedVPActive ? 12 : 0);
+        // ── VAH (blue) & VAL (purple) value-area boxes ──────────────────
+        // Outline the two value-area boundary rows so the trader can instantly
+        // read where 70% of the volume traded. Colors are user-customizable via
+        // the VP gear (wm_vp_vah / wm_vp_val). Drawn after the bars so the
+        // outline sits cleanly on top, with a small price tag at the right edge.
+        const drawVALevel = (p: number, rgba: string, tag: string) => {
+          const yT = yOf(p + tickSz);
+          const yB = yOf(p);
+          ctx.save();
+          if (yT == null || yB == null) {
+            // ── OFF-SCREEN (zoomed in past the level) ─────────────────────────
+            // Instead of vanishing, pin a labelled edge marker with a directional
+            // arrow so VAH/VAL stay ALWAYS visible. Determine above/below by
+            // comparing the level price to the prices at the top/bottom edges.
+            let topPrice = NaN, botPrice = NaN;
+            try {
+              topPrice = srs?.coordinateToPrice(0) as number;
+              botPrice = srs?.coordinateToPrice(H) as number;
+            } catch {}
+            const above = Number.isFinite(topPrice) ? p > topPrice : true;
+            const edgeY = above ? 9 : H - 9;
+            ctx.strokeStyle = rgba; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+            ctx.beginPath();
+            ctx.moveTo(vpRight - vpW - 2, edgeY);
+            ctx.lineTo(vpRight + 2, edgeY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = rgba;
+            ctx.font = "bold 9px monospace";
+            ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 3;
+            ctx.fillText(`${tag} ${above ? "↑" : "↓"} ${p.toFixed(2)}`, vpRight - vpW - 2, edgeY + (above ? 8 : -8));
+            ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+            ctx.restore();
+            return;
+          }
+          const top = Math.min(yT, yB);
+          const h   = Math.max(7, Math.abs(yB - yT));
+          ctx.strokeStyle = rgba; ctx.lineWidth = 2; ctx.setLineDash([]);
+          ctx.strokeRect(vpRight - vpW - 2, top, vpW + 4, h);
+          ctx.fillStyle = rgba;
+          ctx.font = "bold 9px monospace";
+          ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 3;
+          ctx.fillText(tag, vpRight - vpW - 2, top + h / 2);
+          ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+          ctx.restore();
+        };
+        if (vahPrice !== pocPrice) drawVALevel(vahPrice, vpVahRgba(0.95), "VAH");
+        if (valPrice !== pocPrice) drawVALevel(valPrice, vpValRgba(0.95), "VAL");
+
+        // (On-canvas "WM Fixed/Session VP" title removed — it cluttered the top of
+        // the chart and could overlap candle/volume numbers. The active VP is
+        // already indicated by the highlighted toolbar toggle + its gear.)
+        void labelText; void yOffset; void barColor;
+        ctx.restore();
       }
+
+      // Hoisted so big-trades mode can draw VP early (under the bubbles). The
+      // vpDrawn guard ensures it runs only once per frame.
+      function runWMVP() {
+        if (vpDrawn) return;
+        vpDrawn = true;
+        const bothVP = fixedVPActive && sessionVPActive;
+        const nVPCols = bothVP ? 2 : 1;
+        if (fixedVPActive) {
+          // WM Fixed VP must STAY PUT when the user switches timeframes AND must
+          // span the FULL price range the instrument has traded across the loaded
+          // history (e.g. TSLA 320→480), not just the last few days. A short
+          // calendar cutoff clipped the profile to a narrow band. Volume-by-price
+          // is timeframe-independent, so we source the ENTIRE fetched bar set —
+          // giving a true full-range fixed profile. The SAME distribution renders
+          // on every timeframe; only its vertical position tracks the price axis.
+          const allBars = barsRef.current;
+          drawWMVP(allBars.length > 2 ? allBars : allBars, "#F0B429", "WM Fixed VP", 0, 0, nVPCols);
+        }
+        if (sessionVPActive) {
+          // Session VP shows the CURRENT session's volume distribution. It must NOT
+          // move when you scroll — so source it from the full fetched bars (barsRef),
+          // not the scroll-dependent visible window. It DOES legitimately differ per
+          // timeframe (5m vs 4h aggregate the session's volume at different
+          // granularities), which is the expected behaviour the user asked for.
+          const allBars = barsRef.current;
+          const lastT = allBars.length ? (allBars[allBars.length - 1].time as number) : Math.floor(Date.now() / 1000);
+          // Anchor to the most recent RTH session open (09:30 ET ≈ 13:30 UTC) at or
+          // before the latest bar, so it tracks the data even on weekends/holidays.
+          const dayStart = Math.floor(lastT / 86400) * 86400 + 13 * 3600 + 30 * 60;
+          const sessionBars = allBars.filter(b => (b.time as number) >= dayStart);
+          drawWMVP(sessionBars.length > 2 ? sessionBars : allBars.slice(-30), "#8B5CF6", "WM Session VP", 0, bothVP ? 1 : 0, nVPCols);
+        }
+      }
+      // Non-big-trades modes draw VP here (top of stack is fine — no bubbles).
+      runWMVP();
+
+      /* ══════════════════════════════════════════════════════
+         CANDLE TIMER — countdown pinned to the LIVE PRICE LINE
+         on the left edge, so it travels vertically with price.
+         Gated by chartSettings.candleTimer (Chart Settings toggle).
+      ══════════════════════════════════════════════════════ */
+      if (candleTimerRef.current) {
+        const liveBars = barsRef.current;
+        const lastBar  = liveBars.length ? liveBars[liveBars.length - 1] : null;
+        const yRaw = lastBar ? srs?.priceToCoordinate(lastBar.close) : null;
+        if (lastBar && yRaw != null && Number.isFinite(yRaw)) {
+          const y     = yRaw as number;
+          const txt   = countdownRef.current;
+          const flash = closeFlashRef.current;
+          const neon  = chartSettings?.neon;
+          ctx.save();
+          ctx.font = "bold 12px monospace";
+          const tw    = ctx.measureText(txt).width;
+          const boxH  = 19;
+          const boxW  = Math.round(tw + 30);
+          const x     = 2;
+          const cy    = Math.max(boxH / 2 + 1, Math.min(H - boxH / 2 - 1, y));
+          const boxY  = Math.round(cy - boxH / 2);
+          const border = flash ? "#FF2E63" : (neon ? "#00FFA3" : "#2F80ED");
+          // pill background
+          ctx.fillStyle = flash ? "rgba(255,46,99,0.95)" : "rgba(14,18,30,0.94)";
+          ctx.fillRect(x, boxY, boxW, boxH);
+          ctx.strokeStyle = border; ctx.lineWidth = 1;
+          ctx.strokeRect(x + 0.5, boxY + 0.5, boxW - 1, boxH - 1);
+          // elapsed-fraction ring (clock)
+          const ringX = x + 10, ringR = 5;
+          ctx.beginPath(); ctx.arc(ringX, cy, ringR, 0, Math.PI * 2);
+          ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 1.4; ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(ringX, cy, ringR, -Math.PI / 2, -Math.PI / 2 + progressRef.current * Math.PI * 2);
+          ctx.strokeStyle = flash ? "#fff" : border; ctx.lineWidth = 1.8; ctx.stroke();
+          // countdown text
+          ctx.fillStyle = "#fff"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          ctx.fillText(txt, x + 19, cy + 0.5);
+          // dashed connector toward the price line so the eye links pill↔price
+          ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+          ctx.strokeStyle = flash ? "rgba(255,46,99,0.45)" : (neon ? "rgba(0,255,163,0.35)" : "rgba(47,128,237,0.32)");
+          ctx.beginPath(); ctx.moveTo(x + boxW + 1, cy + 0.5); ctx.lineTo(x + boxW + 34, cy + 0.5); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.restore();
+        }
+      }
+
+      // Release the plot-area clip established right after the data guard.
+      ctx.restore();
     };
 
     // Use a continuous loop so the canvas always stays in sync with chart scroll/zoom
@@ -3702,7 +5309,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // each frame, so it stays alive across live ticks (was rebuilding 4x/sec on
     // crypto, which made the VP/footprint flash off). Re-runs only on real config
     // changes below.
-  }, [footprintType, footprintEnabled, candleType, ready, rangeVer, getBarFootprint, extendedHours, timeframe, fixedVPActive, sessionVPActive]);
+  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, extendedHours, timeframe, fixedVPActive, sessionVPActive]);
 
   /* ── Derived display values ─────────────────────────────── */
   const change    = ticker.change ?? (lastPrice - openPrice);
@@ -3738,19 +5345,22 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       if (e.altKey || e.ctrlKey || e.metaKey) return;
       switch (e.key) {
         // Escape always exits drawing mode → mouse returns to normal chart use
-        case "Escape": { inProgressRef.current = null; renderDrawings(); onDrawingComplete?.(); break; }
+        case "Escape": { inProgressRef.current = null; previewPtRef.current = null; setSelectedIdx(null); setRangeVer(v => v + 1); onDrawingComplete?.(); break; }
         case "f": case "F": toggleFullscreen(); break;
         case "l": case "L": setLogScale(v => !v); break;
         case "p": case "P": setPctMode(v => !v); break;
         case "a": case "A": setAutoScale(v => !v); break;
         case "d": case "D": setDataWindowOpen(v => !v); break;
-        // Delete key: remove the most recently added drawing
-        case "Delete": {
-          if (drawingsRef.current.length > 0) {
+        // Delete/Backspace: remove the selected drawing (else the most recent)
+        case "Delete": case "Backspace": {
+          const sel = selectedIdxRef.current;
+          if (sel != null && drawingsRef.current[sel]) {
+            drawingsRef.current.splice(sel, 1);
+            setSelectedIdx(null);
+          } else if (drawingsRef.current.length > 0) {
             drawingsRef.current.pop();
-            // Trigger redraw via rangeVer bump — renderDrawings defined later
-            setRangeVer(v => v + 1);
           }
+          setRangeVer(v => v + 1);
           break;
         }
         case "+": case "=": {
@@ -3777,257 +5387,363 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   }, [toggleFullscreen]);
 
   /* ── Drawing tools canvas rendering ─────────────────────────── */
+  type Pt = { x: number; y: number };
   const renderDrawings = useCallback(() => {
     const canvas = drawCanvasRef.current;
     const cont   = containerRef.current;
     if (!canvas || !cont) return;
     const W = cont.offsetWidth, H = cont.offsetHeight;
     const dpr = window.devicePixelRatio || 1;
-    if (canvas.width !== Math.round(W * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
+    if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
+      canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    }
+    canvas.style.width = W + "px"; canvas.style.height = H + "px";
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
 
-    const allDrawings = [...drawingsRef.current, ...(inProgressRef.current ? [inProgressRef.current] : [])];
+    const toPx  = (p: LogicalPt): Pt | null => logicalToPixel(p);
+    const priceY = (pr: number): number | null => { const y = candleRef.current?.priceToCoordinate(pr); return y == null ? null : +y; };
+    const timeX  = (tm: number): number | null => { const x = chartRef.current?.timeScale().timeToCoordinate(tm as any); return x == null ? null : +x; };
+    const dec = base > 100 ? 2 : base > 1 ? 3 : 5;
+    const dashArr = (st: DrawStyle): number[] => st.dash === "dashed" ? [7, 5] : st.dash === "dotted" ? [2, 4] : [];
+    const rayToEdge = (a: Pt, dx: number, dy: number): Pt => {
+      let tB = Infinity;
+      if (dx > 1e-6) tB = Math.min(tB, (W - a.x) / dx); else if (dx < -1e-6) tB = Math.min(tB, (0 - a.x) / dx);
+      if (dy > 1e-6) tB = Math.min(tB, (H - a.y) / dy); else if (dy < -1e-6) tB = Math.min(tB, (0 - a.y) / dy);
+      if (!isFinite(tB) || tB < 0) tB = 0;
+      return { x: a.x + dx * tB, y: a.y + dy * tB };
+    };
+    const seg = (a: Pt, b: Pt) => { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); };
+    const arrowHead = (a: Pt, b: Pt, len = 11) => {
+      const ang = Math.atan2(b.y - a.y, b.x - a.x); ctx.beginPath();
+      ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - len * Math.cos(ang - Math.PI / 6), b.y - len * Math.sin(ang - Math.PI / 6));
+      ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - len * Math.cos(ang + Math.PI / 6), b.y - len * Math.sin(ang + Math.PI / 6));
+      ctx.stroke();
+    };
+    const roundRect = (x: number, y: number, w: number, h: number, r: number) => {
+      ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+    };
+    const chip = (txt: string, x: number, y: number, colr: string) => {
+      ctx.setLineDash([]); ctx.font = "600 10px ui-sans-serif, system-ui";
+      const w = ctx.measureText(txt).width + 8;
+      ctx.fillStyle = "rgba(10,12,20,0.85)"; roundRect(x, y - 13, w, 15, 3); ctx.fill();
+      ctx.fillStyle = colr; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(txt, x + 4, y - 5);
+    };
 
-    allDrawings.forEach(d => {
-      ctx.strokeStyle = d.color;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([]);
+    const drawOne = (d: Drawing, selected: boolean) => {
+      const s = d.style, t = d.tool, col = s.color, fillCol = col + "22";
+      const P = d.pts.map(toPx);
+      ctx.save();
+      ctx.lineJoin = "round"; ctx.lineCap = "round";
+      ctx.strokeStyle = col; ctx.fillStyle = col;
+      ctx.lineWidth = Math.max(0.5, s.width);
+      ctx.setLineDash(dashArr(s));
+      const A = P[0], B = P[1], C = P[2], D2 = P[3];
 
-      if (d.type === "trendline" || d.type === "ray" || d.type === "extended-line" || d.type === "arrow") {
-        const a = logicalToPixel(d.p1), b = logicalToPixel(d.p2);
-        if (!a || !b) return;
-        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-        if (d.type === "arrow") {
-          const angle = Math.atan2(b.y - a.y, b.x - a.x), aLen = 10;
-          ctx.beginPath();
-          ctx.moveTo(b.x, b.y);
-          ctx.lineTo(b.x - aLen * Math.cos(angle - Math.PI/6), b.y - aLen * Math.sin(angle - Math.PI/6));
-          ctx.moveTo(b.x, b.y);
-          ctx.lineTo(b.x - aLen * Math.cos(angle + Math.PI/6), b.y - aLen * Math.sin(angle + Math.PI/6));
-          ctx.stroke();
-        }
-        if (d.type === "ray") {
-          const dx = b.x - a.x, dy = b.y - a.y;
-          const t = dx !== 0 ? (W - b.x) / dx : (dy !== 0 ? (dy > 0 ? H : 0) - b.y : 0) / (dy || 1);
-          ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + t * dx, b.y + t * dy); ctx.stroke();
-        }
-        if (d.type === "extended-line") {
-          const dx = b.x - a.x, dy = b.y - a.y;
-          if (Math.abs(dx) > 0.1) {
-            const slope = dy / dx;
-            ctx.beginPath(); ctx.moveTo(0, a.y - a.x * slope); ctx.lineTo(W, a.y + (W - a.x) * slope); ctx.stroke();
-          }
-        }
-        [a, b].forEach(pt => { ctx.fillStyle = d.color; ctx.beginPath(); ctx.arc(pt.x, pt.y, 3, 0, Math.PI*2); ctx.fill(); });
+      // ── LINES ──
+      if (t === "trendline" || t === "info-line" || t === "trend-angle" || t === "ray" || t === "extended-line" || t === "arrow") {
+        if (A && B) {
+          if (t === "ray") seg(A, rayToEdge(A, B.x - A.x, B.y - A.y));
+          else if (t === "extended-line") seg(rayToEdge(A, A.x - B.x, A.y - B.y), rayToEdge(B, B.x - A.x, B.y - A.y));
+          else seg(A, B);
+          if (t === "arrow") { ctx.setLineDash([]); arrowHead(A, B); }
+          if (t === "info-line") { const dp = d.pts[1].price - d.pts[0].price; const pct = d.pts[0].price ? dp / Math.abs(d.pts[0].price) * 100 : 0; chip(`${dp >= 0 ? "+" : ""}${dp.toFixed(dec)} (${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%)`, (A.x + B.x) / 2, (A.y + B.y) / 2, col); }
+          if (t === "trend-angle") { const ang = Math.atan2(-(B.y - A.y), B.x - A.x) * 180 / Math.PI; ctx.save(); ctx.globalAlpha = 0.5; ctx.setLineDash([3, 3]); seg(A, { x: A.x + 44, y: A.y }); ctx.restore(); chip(`${ang.toFixed(1)}°`, B.x + 6, B.y, col); }
+        } else if (A) seg(A, A);
       }
+      // ── HORIZONTAL / VERTICAL / CROSS ──
+      else if (t === "hline" || t === "hray") { const y = priceY(d.pts[0].price); if (y != null) { let x0 = 0; if (t === "hray") { const xx = timeX(d.pts[0].time); x0 = xx == null ? 0 : xx; } seg({ x: x0, y }, { x: W, y }); chip(d.pts[0].price.toFixed(dec), Math.max(x0, 0) + 2, y - 2, col); } }
+      else if (t === "vline") { const x = timeX(d.pts[0].time); if (x != null) seg({ x, y: 0 }, { x, y: H }); }
+      else if (t === "crossline") { if (A) { seg({ x: 0, y: A.y }, { x: W, y: A.y }); seg({ x: A.x, y: 0 }, { x: A.x, y: H }); } }
+      // ── RECT / CHANNEL(box) ──
+      else if (t === "rect" || t === "channel") { if (A && B) { const rx = Math.min(A.x, B.x), ry = Math.min(A.y, B.y), rw = Math.abs(B.x - A.x), rh = Math.abs(B.y - A.y); if (s.fill) { ctx.fillStyle = fillCol; ctx.fillRect(rx, ry, rw, rh); } ctx.strokeRect(rx, ry, rw, rh); } }
+      else if (t === "circle") { if (A && B) { const r = Math.hypot(B.x - A.x, B.y - A.y); ctx.beginPath(); ctx.arc(A.x, A.y, r, 0, Math.PI * 2); if (s.fill) { ctx.fillStyle = fillCol; ctx.fill(); } ctx.stroke(); } }
+      else if (t === "ellipse") { if (A && B) { const cx = (A.x + B.x) / 2, cy = (A.y + B.y) / 2, rx = Math.max(Math.abs(B.x - A.x) / 2, 1), ry = Math.max(Math.abs(B.y - A.y) / 2, 1); ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); if (s.fill) { ctx.fillStyle = fillCol; ctx.fill(); } ctx.stroke(); } }
+      else if (t === "triangle") { if (A && B && C) { ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.lineTo(C.x, C.y); ctx.closePath(); if (s.fill) { ctx.fillStyle = fillCol; ctx.fill(); } ctx.stroke(); } else if (A && B) seg(A, B); }
+      else if (t === "rotated-rect") { if (A && B && C) { const vx = B.x - A.x, vy = B.y - A.y, len = Math.hypot(vx, vy) || 1, nx = -vy / len, ny = vx / len, dd = (C.x - B.x) * nx + (C.y - B.y) * ny, ox = nx * dd, oy = ny * dd; ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.lineTo(B.x + ox, B.y + oy); ctx.lineTo(A.x + ox, A.y + oy); ctx.closePath(); if (s.fill) { ctx.fillStyle = fillCol; ctx.fill(); } ctx.stroke(); } else if (A && B) seg(A, B); }
+      else if (t === "arc" || t === "curve") { if (A && B && C) { ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.quadraticCurveTo(C.x, C.y, B.x, B.y); ctx.stroke(); } else if (A && B) seg(A, B); }
+      else if (t === "double-curve") { if (A && B && C && D2) { ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.bezierCurveTo(B.x, B.y, C.x, C.y, D2.x, D2.y); ctx.stroke(); } else if (A && B) seg(A, B); }
+      // ── CHANNELS ──
+      else if (t === "parallel-channel") { if (A && B) { if (C) { const vx = B.x - A.x, vy = B.y - A.y, len = Math.hypot(vx, vy) || 1, nx = -vy / len, ny = vx / len, dd = (C.x - A.x) * nx + (C.y - A.y) * ny, ox = nx * dd, oy = ny * dd; if (s.fill) { ctx.fillStyle = fillCol; ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.lineTo(B.x + ox, B.y + oy); ctx.lineTo(A.x + ox, A.y + oy); ctx.closePath(); ctx.fill(); } seg(A, B); seg({ x: A.x + ox, y: A.y + oy }, { x: B.x + ox, y: B.y + oy }); ctx.save(); ctx.globalAlpha = 0.5; ctx.setLineDash([4, 4]); seg({ x: A.x + ox / 2, y: A.y + oy / 2 }, { x: B.x + ox / 2, y: B.y + oy / 2 }); ctx.restore(); } else seg(A, B); } }
+      else if (t === "flat-channel") { if (A && B) { const x0 = Math.min(A.x, B.x), x1 = Math.max(A.x, B.x); seg({ x: x0, y: A.y }, { x: x1, y: A.y }); if (C) { seg({ x: x0, y: C.y }, { x: x1, y: C.y }); if (s.fill) { ctx.fillStyle = fillCol; ctx.fillRect(x0, Math.min(A.y, C.y), x1 - x0, Math.abs(C.y - A.y)); } } } }
+      else if (t === "disjoint-channel") { if (A && B) seg(A, B); if (C && D2) seg(C, D2); if (A && B && C && D2 && s.fill) { ctx.fillStyle = fillCol; ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.lineTo(D2.x, D2.y); ctx.lineTo(C.x, C.y); ctx.closePath(); ctx.fill(); } }
+      else if (t === "regression") { if (A && B) { let done = false; try { const t0 = Math.min(d.pts[0].time, d.pts[1].time), t1 = Math.max(d.pts[0].time, d.pts[1].time); const bs = (barsRef.current || []).filter((bar: any) => bar.time >= t0 && bar.time <= t1); if (bs.length >= 2) { const n = bs.length; let sx = 0, sy = 0, sxy = 0, sxx = 0; bs.forEach((bar: any, i: number) => { sx += i; sy += bar.close; sxy += i * bar.close; sxx += i * i; }); const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx || 1), intc = (sy - slope * sx) / n; let ss = 0; bs.forEach((bar: any, i: number) => { const r = bar.close - (intc + slope * i); ss += r * r; }); const sd = Math.sqrt(ss / n); const pa = logicalToPixel({ price: intc, time: bs[0].time }), pb = logicalToPixel({ price: intc + slope * (n - 1), time: bs[n - 1].time }); if (pa && pb) { seg(pa, pb); [2, -2].forEach(k => { const u0 = logicalToPixel({ price: intc + k * sd, time: bs[0].time }), u1 = logicalToPixel({ price: intc + slope * (n - 1) + k * sd, time: bs[n - 1].time }); if (u0 && u1) { ctx.save(); ctx.globalAlpha = 0.7; ctx.setLineDash([4, 3]); seg(u0, u1); ctx.restore(); } }); done = true; } } } catch { /* fall back */ } if (!done) seg(A, B); } }
+      // ── PITCHFORKS ──
+      else if (t === "pitchfork" || t === "schiff" || t === "modified-schiff" || t === "inside-pitchfork") { if (A && B && C) { let origin = A; const mid = { x: (B.x + C.x) / 2, y: (B.y + C.y) / 2 }; if (t === "schiff") origin = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 }; else if (t === "modified-schiff") origin = { x: (A.x + B.x) / 2, y: A.y }; const dx = mid.x - origin.x, dy = mid.y - origin.y; if (s.fill) { ctx.fillStyle = fillCol; const eb = rayToEdge(B, dx, dy), ec = rayToEdge(C, dx, dy); ctx.beginPath(); ctx.moveTo(B.x, B.y); ctx.lineTo(eb.x, eb.y); ctx.lineTo(ec.x, ec.y); ctx.lineTo(C.x, C.y); ctx.closePath(); ctx.fill(); } seg(origin, rayToEdge(mid, dx, dy)); seg(B, rayToEdge(B, dx, dy)); seg(C, rayToEdge(C, dx, dy)); ctx.save(); ctx.globalAlpha = 0.6; ctx.setLineDash([3, 3]); seg(B, C); ctx.restore(); } else if (A && B) seg(A, B); }
+      // ── FIBONACCI ──
+      else if (t === "fibonacci") { if (A && B) { const x0 = Math.min(A.x, B.x), x1 = Math.max(A.x, B.x); FIB_LEVELS.forEach((lv, i) => { const price = d.pts[0].price + (d.pts[1].price - d.pts[0].price) * lv; const y = priceY(price); if (y == null) return; ctx.strokeStyle = FIB_COLORS[i] || col; seg({ x: x0, y }, { x: x1, y }); ctx.fillStyle = FIB_COLORS[i] || col; ctx.font = "600 9px monospace"; ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.fillText(`${lv.toFixed(3)}  ${price.toFixed(dec)}`, x0 + 2, y - 1); }); } }
+      else if (t === "fib-ext") { if (A && B) { if (C) { const range = d.pts[1].price - d.pts[0].price; const x0 = Math.min(A.x, B.x, C.x), x1 = Math.max(A.x, B.x, C.x); ctx.save(); ctx.globalAlpha = 0.5; ctx.setLineDash([3, 3]); seg(A, B); seg(B, C); ctx.restore(); FIB_LEVELS.forEach((lv, i) => { const price = d.pts[2].price + range * lv; const y = priceY(price); if (y == null) return; ctx.strokeStyle = FIB_COLORS[i] || col; seg({ x: x0, y }, { x: x1, y }); chip(`${lv.toFixed(3)} ${price.toFixed(dec)}`, x1 - 78, y - 1, FIB_COLORS[i] || col); }); } else seg(A, B); } }
+      else if (t === "fib-channel") { if (A && B) { if (C) { const vx = B.x - A.x, vy = B.y - A.y, len = Math.hypot(vx, vy) || 1, nx = -vy / len, ny = vx / len, dd = (C.x - A.x) * nx + (C.y - A.y) * ny; [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1].forEach((lv, i) => { const ox = nx * dd * lv, oy = ny * dd * lv; ctx.strokeStyle = FIB_COLORS[i] || col; seg({ x: A.x + ox, y: A.y + oy }, { x: B.x + ox, y: B.y + oy }); }); } else seg(A, B); } }
+      else if (t === "fib-timezone" || t === "fib-time") { if (A && B) { const step = B.x - A.x; const origin = (t === "fib-time" && C) ? C : A; const fibs = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55]; ctx.setLineDash([4, 3]); fibs.forEach(f => { const x = origin.x + step * f; if (x < 0 || x > W) return; seg({ x, y: 0 }, { x, y: H }); }); } }
+      else if (t === "fib-speed-fan") { if (A && B) { ctx.save(); ctx.globalAlpha = 0.4; ctx.strokeRect(Math.min(A.x, B.x), Math.min(A.y, B.y), Math.abs(B.x - A.x), Math.abs(B.y - A.y)); ctx.restore(); [0.236, 0.382, 0.5, 0.618, 0.786, 1].forEach((lv, i) => { ctx.strokeStyle = FIB_COLORS[i + 1] || col; seg(A, { x: B.x, y: A.y + (B.y - A.y) * lv }); seg(A, { x: A.x + (B.x - A.x) * lv, y: B.y }); }); } }
+      else if (t === "fib-circles") { if (A && B) { const R = Math.hypot(B.x - A.x, B.y - A.y); [0.236, 0.382, 0.5, 0.618, 1, 1.618].forEach((lv, i) => { ctx.strokeStyle = FIB_COLORS[i] || col; ctx.beginPath(); ctx.arc(A.x, A.y, R * lv, 0, Math.PI * 2); ctx.stroke(); }); } }
+      else if (t === "fib-spiral") { if (A && B) { const bR = Math.max(Math.hypot(B.x - A.x, B.y - A.y) / 12, 3), phi = 1.61803; ctx.beginPath(); let first = true; for (let th = 0; th <= Math.PI * 8; th += 0.14) { const r = bR * Math.pow(phi, th / (Math.PI / 2)); const x = A.x + r * Math.cos(th), y = A.y + r * Math.sin(th); if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y); if (r > W + H) break; } ctx.stroke(); } }
+      else if (t === "fib-arcs") { if (A && B) { const R = Math.hypot(B.x - A.x, B.y - A.y), ang = Math.atan2(B.y - A.y, B.x - A.x); [0.382, 0.5, 0.618, 1].forEach((lv, i) => { ctx.strokeStyle = FIB_COLORS[i + 1] || col; ctx.beginPath(); ctx.arc(A.x, A.y, R * lv, ang - Math.PI / 2, ang + Math.PI / 2); ctx.stroke(); }); } }
+      else if (t === "fib-wedge") { if (A && B) { seg(A, rayToEdge(A, B.x - A.x, B.y - A.y)); if (C) { seg(A, rayToEdge(A, C.x - A.x, C.y - A.y)); const R = Math.min(Math.hypot(B.x - A.x, B.y - A.y), Math.hypot(C.x - A.x, C.y - A.y)); const a1 = Math.atan2(B.y - A.y, B.x - A.x), a2 = Math.atan2(C.y - A.y, C.x - A.x); [0.382, 0.618, 1].forEach((lv, i) => { ctx.strokeStyle = FIB_COLORS[i + 1] || col; ctx.beginPath(); ctx.arc(A.x, A.y, R * lv, Math.min(a1, a2), Math.max(a1, a2)); ctx.stroke(); }); } } }
+      else if (t === "fib-pitchfan") { if (A && B && C) { const dx = (B.x + C.x) / 2 - A.x, dy = (B.y + C.y) / 2 - A.y; seg(A, rayToEdge({ x: (B.x + C.x) / 2, y: (B.y + C.y) / 2 }, dx, dy)); [0, 0.25, 0.382, 0.5, 0.618, 0.75, 1].forEach((lv, i) => { const fp = { x: B.x + (C.x - B.x) * lv, y: B.y + (C.y - B.y) * lv }; ctx.strokeStyle = FIB_COLORS[i % FIB_COLORS.length] || col; seg(fp, rayToEdge(fp, dx, dy)); }); ctx.save(); ctx.globalAlpha = 0.5; ctx.setLineDash([3, 3]); seg(B, C); ctx.restore(); } else if (A && B) seg(A, B); }
+      // ── GANN ──
+      else if (t === "gann-box" || t === "gann-square" || t === "gann-square-fixed") { if (A && B) { const x0 = Math.min(A.x, B.x), y0 = Math.min(A.y, B.y), w = Math.abs(B.x - A.x), h = Math.abs(B.y - A.y); ctx.strokeRect(x0, y0, w, h); ctx.save(); ctx.globalAlpha = 0.45; [0.25, 0.5, 0.75].forEach(f => { seg({ x: x0 + w * f, y: y0 }, { x: x0 + w * f, y: y0 + h }); seg({ x: x0, y: y0 + h * f }, { x: x0 + w, y: y0 + h * f }); }); ctx.globalAlpha = 0.7; seg({ x: x0, y: y0 }, { x: x0 + w, y: y0 + h }); seg({ x: x0, y: y0 + h }, { x: x0 + w, y: y0 }); ctx.restore(); } }
+      else if (t === "gann-fan") { if (A && B) { const w = B.x - A.x, h = B.y - A.y; ([[1, 1], [1, 2], [1, 3], [1, 4], [2, 1], [3, 1], [4, 1]] as number[][]).forEach(([p, q], i) => { ctx.save(); if (!(p === 1 && q === 1)) ctx.globalAlpha = 0.6; seg(A, rayToEdge(A, w, h * (q / p))); ctx.restore(); }); } }
+      // ── PATTERNS / ELLIOTT (labeled polyline) ──
+      else if (PATTERN_LABELS[t]) { const labels = PATTERN_LABELS[t]; ctx.beginPath(); let started = false; P.forEach(q => { if (!q) return; if (!started) { ctx.moveTo(q.x, q.y); started = true; } else ctx.lineTo(q.x, q.y); }); ctx.stroke(); if (t === "head-shoulders" && P[2] && P[4]) { ctx.save(); ctx.globalAlpha = 0.7; ctx.setLineDash([5, 4]); seg(P[2]!, P[4]!); ctx.restore(); } P.forEach((q, i) => { if (!q) return; const lb = labels[i]; if (lb) { ctx.fillStyle = col; ctx.font = "700 11px ui-sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.fillText(lb, q.x, q.y - 6); } ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(q.x, q.y, 3, 0, Math.PI * 2); ctx.fill(); }); }
+      // ── CYCLES ──
+      else if (t === "cyclic-lines" || t === "time-cycles") { if (A && B) { const step = Math.abs(B.x - A.x) || 12; const startX = Math.min(A.x, B.x); ctx.setLineDash([4, 3]); for (let k = 0; k < 400; k++) { const xx = startX + step * k; if (xx > W) break; if (xx >= 0) seg({ x: xx, y: 0 }, { x: xx, y: H }); } } }
+      else if (t === "sine-line") { if (A && B) { const wav = Math.abs(B.x - A.x) || 40, amp = Math.abs(B.y - A.y) || 20; ctx.beginPath(); let first = true; for (let x = 0; x <= W; x += 3) { const y = A.y + amp * Math.sin((x - A.x) / wav * Math.PI * 2); if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y); } ctx.stroke(); } }
+      // ── MEASURE ──
+      else if (t === "price-range") { if (A && B) { const dp = d.pts[1].price - d.pts[0].price, pct = d.pts[0].price ? dp / Math.abs(d.pts[0].price) * 100 : 0, up = dp >= 0, c2 = up ? "#00C076" : "#FF4D67"; ctx.fillStyle = c2 + "22"; ctx.fillRect(Math.min(A.x, B.x), Math.min(A.y, B.y), Math.abs(B.x - A.x), Math.abs(B.y - A.y)); ctx.strokeStyle = c2; seg({ x: B.x, y: A.y }, { x: B.x, y: B.y }); arrowHead({ x: B.x, y: A.y }, { x: B.x, y: B.y }); arrowHead({ x: B.x, y: B.y }, { x: B.x, y: A.y }); chip(`${dp >= 0 ? "+" : ""}${dp.toFixed(dec)} (${pct.toFixed(2)}%)`, B.x + 6, (A.y + B.y) / 2, c2); } }
+      else if (t === "date-range") { if (A && B) { const t0 = Math.min(d.pts[0].time, d.pts[1].time), t1 = Math.max(d.pts[0].time, d.pts[1].time); const nb = (barsRef.current || []).filter((x: any) => x.time >= t0 && x.time <= t1).length; ctx.strokeStyle = col; seg({ x: A.x, y: B.y }, { x: B.x, y: B.y }); arrowHead({ x: A.x, y: B.y }, { x: B.x, y: B.y }); arrowHead({ x: B.x, y: B.y }, { x: A.x, y: B.y }); chip(`${nb} bars`, (A.x + B.x) / 2 - 18, B.y - 4, col); } }
+      else if (t === "date-price-range" || t === "measure") { if (A && B) { const dp = d.pts[1].price - d.pts[0].price, pct = d.pts[0].price ? dp / Math.abs(d.pts[0].price) * 100 : 0, up = dp >= 0, c2 = up ? "#00C076" : "#FF4D67"; const t0 = Math.min(d.pts[0].time, d.pts[1].time), t1 = Math.max(d.pts[0].time, d.pts[1].time); const nb = (barsRef.current || []).filter((x: any) => x.time >= t0 && x.time <= t1).length; const rx = Math.min(A.x, B.x), ry = Math.min(A.y, B.y), rw = Math.abs(B.x - A.x), rh = Math.abs(B.y - A.y); ctx.fillStyle = c2 + "22"; ctx.fillRect(rx, ry, rw, rh); ctx.strokeStyle = c2; ctx.strokeRect(rx, ry, rw, rh); chip(`${dp >= 0 ? "+" : ""}${dp.toFixed(dec)} (${pct.toFixed(2)}%)  ${nb} bars`, rx + 4, ry - 2, c2); } }
+      else if (t === "long-position" || t === "short-position") { if (A) { const xr = Math.max(A.x, B ? B.x : A.x, C ? C.x : A.x) + 40; ctx.setLineDash([]); if (B) { ctx.fillStyle = "#00C07622"; ctx.fillRect(A.x, Math.min(A.y, B.y), xr - A.x, Math.abs(B.y - A.y)); } if (C) { ctx.fillStyle = "#FF4D6722"; ctx.fillRect(A.x, Math.min(A.y, C.y), xr - A.x, Math.abs(C.y - A.y)); } ctx.strokeStyle = col; seg({ x: A.x, y: A.y }, { x: xr, y: A.y }); if (B) { ctx.strokeStyle = "#00C076"; seg({ x: A.x, y: B.y }, { x: xr, y: B.y }); } if (C) { ctx.strokeStyle = "#FF4D67"; seg({ x: A.x, y: C.y }, { x: xr, y: C.y }); const risk = Math.abs(d.pts[0].price - d.pts[2].price), reward = Math.abs(d.pts[1].price - d.pts[0].price), rr = risk ? reward / risk : 0; chip(`Entry ${d.pts[0].price.toFixed(dec)}  RR ${rr.toFixed(2)}`, A.x + 4, Math.min(A.y, B ? B.y : A.y, C.y) - 2, col); } } }
+      // ── FREEHAND / POLYLINE ──
+      else if (t === "brush" || t === "highlighter" || t === "polyline" || t === "path") { const Q = P.filter(Boolean) as Pt[]; if (t === "highlighter") { ctx.globalAlpha = 0.35; ctx.lineWidth = Math.max(8, s.width); } if (Q.length >= 2) { ctx.beginPath(); Q.forEach((q, i) => i === 0 ? ctx.moveTo(q.x, q.y) : ctx.lineTo(q.x, q.y)); ctx.stroke(); } else if (Q.length === 1) { ctx.beginPath(); ctx.arc(Q[0].x, Q[0].y, 2, 0, Math.PI * 2); ctx.fill(); } }
+      // ── TEXT & MARKERS ──
+      else if (t === "text") { if (A) { ctx.setLineDash([]); ctx.fillStyle = col; ctx.font = "600 14px ui-sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText(d.text || "Text", A.x, A.y); } }
+      else if (t === "note" || t === "comment" || t === "price-note" || t === "signpost") { if (A) { ctx.setLineDash([]); const txt = d.text || (t === "price-note" ? d.pts[0].price.toFixed(dec) : t.charAt(0).toUpperCase() + t.slice(1)); const icon = t === "comment" ? "💬 " : t === "note" ? "📝 " : t === "signpost" ? "🪧 " : "🏷 "; ctx.font = "600 12px ui-sans-serif"; const w = ctx.measureText(icon + txt).width + 14, h = 20; ctx.fillStyle = "rgba(15,18,28,0.92)"; ctx.strokeStyle = col; roundRect(A.x, A.y, w, h, 4); ctx.fill(); ctx.stroke(); ctx.fillStyle = col; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(icon + txt, A.x + 6, A.y + h / 2); } }
+      else if (t === "callout") { if (A) { const q2 = B || A; ctx.setLineDash([]); seg(A, q2); const txt = d.text || "Callout"; ctx.font = "600 12px ui-sans-serif"; const w = ctx.measureText(txt).width + 16; ctx.fillStyle = "rgba(15,18,28,0.92)"; ctx.strokeStyle = col; roundRect(q2.x, q2.y - 11, w, 22, 4); ctx.fill(); ctx.stroke(); ctx.fillStyle = col; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(txt, q2.x + 8, q2.y); } }
+      else if (t === "pin" || t === "flag") { if (A) { ctx.font = "18px serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.fillText(t === "pin" ? "📍" : "🚩", A.x, A.y); } }
+      else if (t === "price-label") { if (A) { ctx.setLineDash([]); const txt = (d.text ? d.text + " " : "") + d.pts[0].price.toFixed(dec); ctx.font = "700 11px monospace"; const w = ctx.measureText(txt).width + 12; ctx.fillStyle = col; roundRect(A.x, A.y - 9, w, 18, 3); ctx.fill(); ctx.fillStyle = "#0A0C14"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(txt, A.x + 6, A.y); } }
+      else if (t === "arrow-up") { if (A) { ctx.setLineDash([]); ctx.fillStyle = "#00C076"; ctx.beginPath(); ctx.moveTo(A.x, A.y - 12); ctx.lineTo(A.x - 7, A.y); ctx.lineTo(A.x + 7, A.y); ctx.closePath(); ctx.fill(); } }
+      else if (t === "arrow-down") { if (A) { ctx.setLineDash([]); ctx.fillStyle = "#FF4D67"; ctx.beginPath(); ctx.moveTo(A.x, A.y + 12); ctx.lineTo(A.x - 7, A.y); ctx.lineTo(A.x + 7, A.y); ctx.closePath(); ctx.fill(); } }
+      // ── FALLBACK: unknown 2-pt tool → simple line ──
+      else if (A && B) seg(A, B);
 
-      if (d.type === "hline" || d.type === "hray") {
-        const y = candleRef.current?.priceToCoordinate(d.price);
-        if (y == null) return;
-        ctx.setLineDash([6,3]);
-        ctx.beginPath(); ctx.moveTo(0, +y); ctx.lineTo(W, +y); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = d.color; ctx.font = "bold 11px monospace";
-        ctx.textAlign = "left"; ctx.textBaseline = "bottom";
-        ctx.fillText(d.price.toFixed(base > 100 ? 2 : 4), 4, +y - 2);
+      ctx.restore();
+
+      if (selected) {
+        ctx.save(); ctx.setLineDash([]);
+        d.pts.forEach(p => { const q = toPx(p); if (!q) return; ctx.fillStyle = "#fff"; ctx.strokeStyle = "#00D4AA"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.rect(q.x - 4, q.y - 4, 8, 8); ctx.fill(); ctx.stroke(); });
+        ctx.restore();
       }
+    };
 
-      if (d.type === "vline") {
-        const x = chartRef.current?.timeScale().timeToCoordinate(d.time as any);
-        if (x == null) return;
-        ctx.setLineDash([6,3]);
-        ctx.beginPath(); ctx.moveTo(+x, 0); ctx.lineTo(+x, H); ctx.stroke();
-        ctx.setLineDash([]);
+    const selIdx = selectedIdxRef.current;
+    drawingsRef.current.forEach((d, i) => drawOne(d, i === selIdx));
+    // Live preview of the drawing being placed (committed points + pending cursor point).
+    const ip = inProgressRef.current;
+    if (ip) { const pv = previewPtRef.current; drawOne({ ...ip, pts: pv ? [...ip.pts, pv] : ip.pts }, false); }
+    else if (drawingStartRef.current?.lp && previewPtRef.current && mouseMovedRef.current) {
+      const tool = drawingToolRef.current;
+      if (tool !== "cursor" && tool !== "select" && tool !== "eraser" && drawPtsNeeded(tool) === 2) {
+        drawOne({ id: -1, tool, pts: [drawingStartRef.current.lp, previewPtRef.current], style: { color: drawingColor, width: 1.6, dash: "solid", fill: FILL_TOOLS.has(tool) } }, false);
       }
+    }
+  }, [base, logicalToPixel, drawingColor]);
 
-      if (d.type === "rectangle" || d.type === "channel") {
-        const a = logicalToPixel(d.p1), b = logicalToPixel(d.p2);
-        if (!a || !b) return;
-        const rx = Math.min(a.x,b.x), ry = Math.min(a.y,b.y);
-        const rw = Math.abs(b.x-a.x), rh = Math.abs(b.y-a.y);
-        ctx.fillStyle = `${d.color}18`; ctx.fillRect(rx,ry,rw,rh); ctx.strokeRect(rx,ry,rw,rh);
-      }
+  // Re-render drawings whenever the view changes, a drawing is selected, or a style edit happens.
+  useEffect(() => { renderDrawings(); }, [rangeVer, renderDrawings, selectedIdx, editBump]);
 
-      if (d.type === "ellipse") {
-        const a = logicalToPixel(d.p1), b = logicalToPixel(d.p2);
-        if (!a || !b) return;
-        const cx = (a.x+b.x)/2, cy = (a.y+b.y)/2;
-        const rx2 = Math.max(Math.abs(b.x-a.x)/2, 1), ry2 = Math.max(Math.abs(b.y-a.y)/2, 1);
-        ctx.beginPath(); ctx.ellipse(cx, cy, rx2, ry2, 0, 0, Math.PI*2);
-        ctx.fillStyle = `${d.color}18`; ctx.fill(); ctx.stroke();
-      }
+  /* ── Hit-test: index of drawing under a screen point (for select/erase) ── */
+  const distToSeg = (px: number, py: number, a: Pt, b: Pt): number => {
+    const dx = b.x - a.x, dy = b.y - a.y, len2 = dx * dx + dy * dy || 1;
+    let tt = ((px - a.x) * dx + (py - a.y) * dy) / len2; tt = Math.max(0, Math.min(1, tt));
+    return Math.hypot(a.x + tt * dx - px, a.y + tt * dy - py);
+  };
+  const drawingWithin = useCallback((d: Drawing, x: number, y: number, tol: number): boolean => {
+    const t = d.tool;
+    const timeX = (tm: number) => { const v = chartRef.current?.timeScale().timeToCoordinate(tm as any); return v == null ? null : +v; };
+    const priceY = (pr: number) => { const v = candleRef.current?.priceToCoordinate(pr); return v == null ? null : +v; };
+    if (t === "hline" || t === "hray") { const y0 = priceY(d.pts[0].price); if (y0 == null || Math.abs(y0 - y) > tol) return false; if (t === "hray") { const x0 = timeX(d.pts[0].time); if (x0 != null && x < x0 - tol) return false; } return true; }
+    if (t === "vline") { const x0 = timeX(d.pts[0].time); return x0 != null && Math.abs(x0 - x) <= tol; }
+    if (t === "crossline") { const q = logicalToPixel(d.pts[0]); if (!q) return false; return Math.abs(q.x - x) <= tol || Math.abs(q.y - y) <= tol; }
+    const Q = d.pts.map(p => logicalToPixel(p)).filter(Boolean) as Pt[];
+    if (!Q.length) return false;
+    for (const q of Q) if (Math.hypot(q.x - x, q.y - y) <= tol + 4) return true;
+    for (let i = 0; i < Q.length - 1; i++) if (distToSeg(x, y, Q[i], Q[i + 1]) <= tol) return true;
+    if (FILL_TOOLS.has(t) && Q.length >= 2) { const xs = Q.map(p => p.x), ys = Q.map(p => p.y); if (x >= Math.min(...xs) - tol && x <= Math.max(...xs) + tol && y >= Math.min(...ys) - tol && y <= Math.max(...ys) + tol) return true; }
+    return false;
+  }, [logicalToPixel]);
+  const hitTestDrawing = useCallback((x: number, y: number, tol = 8): number => {
+    const list = drawingsRef.current;
+    for (let i = list.length - 1; i >= 0; i--) if (drawingWithin(list[i], x, y, tol)) return i;
+    return -1;
+  }, [drawingWithin]);
+  // Which anchor handle (point index) of drawing `idx` is under (x,y)? -1 if none.
+  const hitHandle = useCallback((idx: number, x: number, y: number, tol = 8): number => {
+    const d = drawingsRef.current[idx]; if (!d) return -1;
+    for (let k = 0; k < d.pts.length; k++) { const q = logicalToPixel(d.pts[k]); if (q && Math.hypot(q.x - x, q.y - y) <= tol) return k; }
+    return -1;
+  }, [logicalToPixel]);
 
-      if (d.type === "triangle") {
-        const a = logicalToPixel(d.p1), b = logicalToPixel(d.p2);
-        if (!a || !b) return;
-        ctx.beginPath(); ctx.moveTo((a.x+b.x)/2, a.y); ctx.lineTo(a.x, b.y); ctx.lineTo(b.x, b.y);
-        ctx.closePath(); ctx.fillStyle = `${d.color}18`; ctx.fill(); ctx.stroke();
-      }
+  // Shift every anchor of a drawing by (dPrice, dTime).
+  const moveDrawingBy = useCallback((d: Drawing, dPrice: number, dTime: number): Drawing => (
+    { ...d, pts: d.pts.map(p => ({ price: p.price + dPrice, time: p.time + dTime })) }
+  ), []);
 
-      if (d.type === "fibonacci") {
-        const a = logicalToPixel(d.p1), b = logicalToPixel(d.p2);
-        if (!a || !b) return;
-        const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0, 1.618];
-        const FIB_COLORS = ["#aaa","#4FA3E0","#00C076","#F0B429","#F0B429","#00C076","#4FA3E0","#FF4D67"];
-        const dy = b.y - a.y;
-        FIB_LEVELS.forEach((lvl, li) => {
-          const fy = a.y + dy * lvl;
-          ctx.strokeStyle = FIB_COLORS[li] ?? d.color; ctx.setLineDash([4,2]);
-          ctx.beginPath(); ctx.moveTo(a.x, fy); ctx.lineTo(b.x, fy); ctx.stroke();
-          ctx.setLineDash([]);
-          ctx.fillStyle = FIB_COLORS[li] ?? d.color; ctx.font = "bold 8px monospace";
-          ctx.textAlign = "right"; ctx.textBaseline = "bottom";
-          ctx.fillText(`${(lvl*100).toFixed(1)}%`, b.x - 2, fy - 1);
-        });
-      }
+  /* ── Drawing mouse handlers (unified multi-point model) ─────────
+     Interaction contract:
+       • click-and-release places a point; a 2-point tool also accepts
+         press-drag-release as a shortcut.
+       • multi-point tools accumulate points click-by-click until their
+         required count (or double-click for open-ended polyline/path).
+       • freehand (brush/highlighter) records the drag path.
+       • SELECT mode: click a drawing to select it, drag body to move,
+         drag a white handle to reshape.
+       • CURSOR mode: chart pans; a clean click selects a drawing
+         (handled on the chart wrapper, not here — canvas is pass-through).
+  ─────────────────────────────────────────────────────────────── */
+  const finalizeDrawing = useCallback((d: Drawing) => {
+    drawingsRef.current.push(d);
+    inProgressRef.current = null;
+    previewPtRef.current = null;
+    const newIdx = drawingsRef.current.length - 1;
+    setSelectedIdx(newIdx);
+    setRangeVer(v => v + 1);
+    onDrawingComplete?.();
+    // Text-bearing tools open a clean inline editor over their anchor point.
+    if (TEXT_TOOLS.has(d.tool)) { if (d.text == null) d.text = ""; setTextEdit({ idx: newIdx }); }
+  }, [onDrawingComplete]);
 
-      if (d.type === "text") {
-        const x = chartRef.current?.timeScale().timeToCoordinate(d.time as any);
-        const y = candleRef.current?.priceToCoordinate(d.price);
-        if (x == null || y == null) return;
-        ctx.fillStyle = d.color; ctx.font = "bold 14px sans-serif";
-        ctx.textAlign = "left"; ctx.textBaseline = "top";
-        ctx.fillText(d.text, +x, +y);
-      }
-
-      if (d.type === "brush") {
-        const pts = d.points.map(p => logicalToPixel(p)).filter(Boolean) as {x:number;y:number}[];
-        if (pts.length < 2) return;
-        ctx.beginPath();
-        pts.forEach((pt, i) => i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y));
-        ctx.stroke();
-      }
-    });
-  }, [base, logicalToPixel]);
-
-  // Re-render drawings whenever rangeVer changes (user scrolled) or tool changes
-  useEffect(() => { renderDrawings(); }, [rangeVer, renderDrawings]);
-
-  /* ── Drawing mouse handlers ──────────────────────────────────── */
   const handleDrawMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (drawingTool === "cursor" || lockDrawings) return;
+    if (lockDrawings) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left, y = e.clientY - rect.top;
-    drawingStartRef.current = { x, y };
+    const lp = pixelToLogical(x, y);
+    drawingStartRef.current = { x, y, lp };
+    mouseMovedRef.current = false;
 
-    const color = drawingColor;
-    const lp0 = pixelToLogical(x, y);
-    if (drawingTool === "brush") {
-      if (!lp0) return;
-      inProgressRef.current = { type: "brush", points: [lp0], color };
-    } else if (drawingTool === "hline" || drawingTool === "hray") {
-      if (!lp0) return;
-      drawingsRef.current.push({ type: drawingTool, price: lp0.price, color });
-      renderDrawings();
-    } else if (drawingTool === "vline") {
-      if (!lp0) return;
-      drawingsRef.current.push({ type: "vline", time: lp0.time, color });
-      renderDrawings();
-    } else if (drawingTool === "text") {
-      if (!lp0) return;
-      const text = prompt("Enter text:") ?? "Label";
-      if (text) { drawingsRef.current.push({ type: "text", price: lp0.price, time: lp0.time, text, color }); renderDrawings(); }
-    } else {
-      // Normalize tool IDs to drawing type names
-      if (drawingTool === "eraser") {
-        // Remove drawing nearest to click point (using screen distance)
-        drawingsRef.current = drawingsRef.current.filter(dr => {
-          if ("p1" in dr && "p2" in dr) {
-            const a = logicalToPixel(dr.p1), b = logicalToPixel(dr.p2);
-            if (!a || !b) return true;
-            return Math.hypot((a.x+b.x)/2-x, (a.y+b.y)/2-y) > 30;
-          }
-          if ("price" in dr) {
-            const py = candleRef.current?.priceToCoordinate(dr.price);
-            return py == null || Math.abs(+py - y) > 30;
-          }
-          if ("time" in dr && !("price" in dr)) {
-            const px = chartRef.current?.timeScale().timeToCoordinate((dr as any).time);
-            return px == null || Math.abs(+px - x) > 30;
-          }
-          return true;
-        });
-        renderDrawings();
-        return;
-      }
-      const typeMap: Record<string, string> = {
-        "rect": "rectangle",
-        "parallel-channel": "channel",
-        "disjoint-channel": "channel",
-        "fib-ext": "fibonacci",
-        "fib-fan": "fibonacci",
-        "fib-arc": "fibonacci",
-        "fib-time": "fibonacci",
-        "fib-channel": "fibonacci",
-        "gann-fan": "ray",
-        "pitchfork": "trendline",
-        "regression": "trendline",
-        "long-position": "rectangle",
-        "short-position": "rectangle",
-        "date-range": "rectangle",
-        "price-range": "rectangle",
-        "measure": "rectangle",
-        "xabcd": "trendline",
-        "abcd": "trendline",
-        "head-shoulders": "trendline",
-        "callout": "text",
-        "note": "text",
-        "price-label": "hline",
-        "highlighter": "brush",
-        "path": "brush",
-        "crosshair": "trendline",
-      };
-      const resolvedType = typeMap[drawingTool] ?? drawingTool;
-      const lp = pixelToLogical(x, y);
-      if (!lp) return;
-      if (resolvedType === "text") {
-        const text = prompt("Enter label:") ?? "";
-        if (text) { drawingsRef.current.push({ type: "text", price: lp.price, time: lp.time, text, color }); renderDrawings(); }
-        return;
-      }
-      if (resolvedType === "hline" || resolvedType === "hray") {
-        drawingsRef.current.push({ type: resolvedType as "hline"|"hray", price: lp.price, color });
-        renderDrawings();
-        return;
-      }
-      if (resolvedType === "vline") {
-        drawingsRef.current.push({ type: "vline", time: lp.time, color });
-        renderDrawings();
-        return;
-      }
-      inProgressRef.current = { type: resolvedType as any, p1: lp, p2: lp, color };
+    // ── ERASER: remove the drawing under the cursor ──────────────
+    if (drawingTool === "eraser") {
+      const idx = hitTestDrawing(x, y, 12);
+      if (idx >= 0) { drawingsRef.current.splice(idx, 1); setSelectedIdx(null); setRangeVer(v => v + 1); }
+      return;
     }
-    // If this click committed a drawing immediately (no drag in progress), return
-    // to the normal cursor so the mouse isn't stuck in drawing mode.
-    if (!inProgressRef.current) onDrawingComplete?.();
-  }, [drawingTool, drawingColor, lockDrawings, renderDrawings, pixelToLogical, logicalToPixel, onDrawingComplete]);
+
+    // ── SELECT / MOVE mode ───────────────────────────────────────
+    if (drawingTool === "select") {
+      const sel = selectedIdxRef.current;
+      if (sel != null) {
+        const h = hitHandle(sel, x, y);
+        if (h >= 0 && lp) { dragRef.current = { idx: sel, last: lp, ptIdx: h }; return; }
+      }
+      const idx = hitTestDrawing(x, y);
+      if (idx >= 0 && lp) { setSelectedIdx(idx); dragRef.current = { idx, last: lp, ptIdx: null }; }
+      else { setSelectedIdx(null); dragRef.current = null; }
+      return;
+    }
+
+    // ── Active drawing tool ──────────────────────────────────────
+    if (!lp) return;
+    // Freehand strokes begin here; everything else places on mouse-up.
+    if (drawPtsNeeded(drawingTool) === -1) {
+      inProgressRef.current = makeDrawing(drawingTool, [lp]);
+    }
+  }, [drawingTool, lockDrawings, pixelToLogical, hitHandle, hitTestDrawing, makeDrawing]);
 
   const handleDrawMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!inProgressRef.current) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left, y = e.clientY - rect.top;
-    const d = inProgressRef.current;
-    if (d.type === "brush") {
-      const lp = pixelToLogical(x, y);
-      if (lp) d.points.push(lp);
-    } else if ("p2" in d) {
-      const lp = pixelToLogical(x, y);
-      if (lp) (d as any).p2 = lp;
-    }
-    renderDrawings();
-  }, [renderDrawings, pixelToLogical]);
+    const lp = pixelToLogical(x, y);
 
-  const handleDrawMouseUp = useCallback(() => {
-    if (!inProgressRef.current) return;
-    drawingsRef.current.push(inProgressRef.current);
-    inProgressRef.current = null;
-    renderDrawings();
-    // Return to normal cursor so the mouse isn't stuck in drawing mode.
-    onDrawingComplete?.();
-  }, [renderDrawings, onDrawingComplete]);
+    // Promote to "moved" once past a small threshold (click-vs-drag).
+    const st = drawingStartRef.current;
+    if (st && !mouseMovedRef.current && Math.hypot(x - st.x, y - st.y) > 4) mouseMovedRef.current = true;
+
+    // ── SELECT / MOVE drag ───────────────────────────────────────
+    if (drawingTool === "select") {
+      const drag = dragRef.current;
+      if (!drag || !lp) return;
+      const d = drawingsRef.current[drag.idx];
+      if (!d) return;
+      if (drag.ptIdx != null) d.pts[drag.ptIdx] = lp;                       // reshape one anchor
+      else drawingsRef.current[drag.idx] = moveDrawingBy(d, lp.price - drag.last.price, lp.time - drag.last.time);
+      drag.last = lp;
+      setRangeVer(v => v + 1);
+      return;
+    }
+
+    // ── Freehand: accumulate the stroke ──────────────────────────
+    const ip = inProgressRef.current;
+    if (ip && drawPtsNeeded(ip.tool) === -1) {
+      if (lp) ip.pts.push(lp);
+      setRangeVer(v => v + 1);
+      return;
+    }
+
+    // ── Live rubber-band preview for click-to-place / drag-draw ──
+    if (lp) previewPtRef.current = lp;
+    if (ip || (st && mouseMovedRef.current)) setRangeVer(v => v + 1);
+  }, [drawingTool, pixelToLogical, moveDrawingBy]);
+
+  const handleDrawMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (drawingTool === "select" || drawingTool === "eraser") { dragRef.current = null; return; }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const lp = pixelToLogical(x, y) ?? drawingStartRef.current?.lp ?? null;
+    const ip = inProgressRef.current;
+
+    // ── Freehand commit ──────────────────────────────────────────
+    if (ip && drawPtsNeeded(ip.tool) === -1) {
+      if (ip.pts.length > 1) finalizeDrawing(ip);
+      else { inProgressRef.current = null; previewPtRef.current = null; onDrawingComplete?.(); setRangeVer(v => v + 1); }
+      drawingStartRef.current = null;
+      return;
+    }
+
+    if (!lp) { drawingStartRef.current = null; return; }
+    const need = drawPtsNeeded(drawingTool);
+
+    // ── Single-point tools: place immediately ────────────────────
+    if (need === 1) { finalizeDrawing(makeDrawing(drawingTool, [lp])); drawingStartRef.current = null; return; }
+
+    // ── Two-point tools: press-drag-release shortcut ─────────────
+    if (need === 2 && !ip && mouseMovedRef.current && drawingStartRef.current?.lp) {
+      finalizeDrawing(makeDrawing(drawingTool, [drawingStartRef.current.lp, lp]));
+      drawingStartRef.current = null;
+      return;
+    }
+
+    // ── Click-to-place accumulation (2+ pts, incl. polyline/path) ─
+    if (!ip) {
+      inProgressRef.current = makeDrawing(drawingTool, [lp]);
+    } else {
+      ip.pts.push(lp);
+      const target = drawPtsNeeded(ip.tool);
+      if (target >= 2 && ip.pts.length >= target) finalizeDrawing(ip);
+    }
+    previewPtRef.current = lp;
+    drawingStartRef.current = null;
+    setRangeVer(v => v + 1);
+  }, [drawingTool, pixelToLogical, makeDrawing, finalizeDrawing, onDrawingComplete]);
+
+  // Double-click finishes an open-ended polyline / path.
+  const handleDrawDoubleClick = useCallback(() => {
+    const ip = inProgressRef.current;
+    if (ip && drawPtsNeeded(ip.tool) === -2 && ip.pts.length >= 2) finalizeDrawing(ip);
+  }, [finalizeDrawing]);
+
+  // Pointer leaving the canvas commits a freehand stroke and ends any drag.
+  const handleDrawMouseLeave = useCallback(() => {
+    const ip = inProgressRef.current;
+    if (ip && drawPtsNeeded(ip.tool) === -1) {
+      if (ip.pts.length > 1) finalizeDrawing(ip);
+      else { inProgressRef.current = null; previewPtRef.current = null; setRangeVer(v => v + 1); }
+    }
+    dragRef.current = null;
+  }, [finalizeDrawing]);
+
+  // CURSOR-mode click-to-select: fires from the chart wrapper (canvas is
+  // pass-through in cursor mode so the chart can still pan). A clean click
+  // — negligible movement — selects the drawing under it; a drag pans.
+  const cursorDownRef = useRef<{ x: number; y: number } | null>(null);
+  const handleCursorSelectDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (drawingTool !== "cursor") return;
+    const r = e.currentTarget.getBoundingClientRect();
+    cursorDownRef.current = { x: e.clientX - r.left, y: e.clientY - r.top };
+  }, [drawingTool]);
+  const handleCursorSelectUp = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (drawingTool !== "cursor") return;
+    const s = cursorDownRef.current; cursorDownRef.current = null;
+    if (!s) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    if (Math.hypot(x - s.x, y - s.y) > 5) return;   // was a pan, not a click
+    const idx = hitTestDrawing(x, y);
+    setSelectedIdx(idx >= 0 ? idx : null);
+  }, [drawingTool, hitTestDrawing]);
 
   // ── Big-Trade bubble hover hit-test → comic speech-bubble tooltip ──
   // Attached to the chart wrapper so it fires in cursor mode without blocking
@@ -4066,6 +5782,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   useEffect(() => {
     if (clearTrigger > 0) {
       drawingsRef.current = [];
+      inProgressRef.current = null;
+      previewPtRef.current = null;
+      drawingStartRef.current = null;
+      dragRef.current = null;
+      setSelectedIdx(null);        // hide stale floating edit toolbar
+      setRangeVer(v => v + 1);
       renderDrawings();
     }
   }, [clearTrigger, renderDrawings]);
@@ -4088,48 +5810,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       const price = candleRef.current.coordinateToPrice(cy);
       if (price == null) return;
 
-      // Find nearest drawing within 30px hit radius — checks ALL drawing types
-      let nearIdx: number | null = null;
-      let nearDist = 30;
-      drawingsRef.current.forEach((d, i) => {
-        try {
-          if (d.type === "hline" || d.type === "hray") {
-            const py = candleRef.current!.priceToCoordinate(d.price!);
-            if (py != null && Math.abs(cy - +py) < nearDist) { nearIdx = i; nearDist = Math.abs(cy - +py); }
-          } else if (d.type === "vline") {
-            const px = chartRef.current?.timeScale().timeToCoordinate(d.time as any);
-            if (px != null && Math.abs(cx - +px) < nearDist) { nearIdx = i; nearDist = Math.abs(cx - +px); }
-          } else if ("p1" in d && "p2" in d) {
-            const a = logicalToPixel(d.p1), b = logicalToPixel(d.p2);
-            if (a && b) {
-              // Point-to-segment distance
-              const dx = b.x - a.x, dy = b.y - a.y;
-              const lenSq = dx*dx + dy*dy;
-              let dist: number;
-              if (lenSq === 0) {
-                dist = Math.hypot(cx - a.x, cy - a.y);
-              } else {
-                const t = Math.max(0, Math.min(1, ((cx-a.x)*dx + (cy-a.y)*dy) / lenSq));
-                dist = Math.hypot(cx - (a.x + t*dx), cy - (a.y + t*dy));
-              }
-              if (dist < nearDist) { nearIdx = i; nearDist = dist; }
-            }
-          } else if (d.type === "text") {
-            const px = chartRef.current?.timeScale().timeToCoordinate(d.time as any);
-            const py = candleRef.current?.priceToCoordinate(d.price!);
-            if (px != null && py != null && Math.hypot(cx - +px, cy - +py) < nearDist) { nearIdx = i; nearDist = Math.hypot(cx - +px, cy - +py); }
-          } else if (d.type === "brush" && d.points.length > 0) {
-            for (const pt of d.points) {
-              const p = logicalToPixel(pt);
-              if (p && Math.hypot(cx - p.x, cy - p.y) < nearDist) { nearIdx = i; nearDist = Math.hypot(cx - p.x, cy - p.y); break; }
-            }
-          }
-        } catch {}
-      });
+      // Unified hit-test across every drawing type (10px radius).
+      const hit = hitTestDrawing(cx, cy, 10);
+      if (hit >= 0) setSelectedIdx(hit);
 
-      setCtxMenu({ x: cx, y: cy, price: +price.toFixed(barsRef.current[0]?.close > 100 ? 2 : 4), nearDrawingIdx: nearIdx });
+      setCtxMenu({ x: cx, y: cy, price: +price.toFixed(barsRef.current[0]?.close > 100 ? 2 : 4), nearDrawingIdx: hit >= 0 ? hit : null });
     } catch {}
-  }, [logicalToPixel]);
+  }, [hitTestDrawing]);
 
   return (
     <div
@@ -4177,6 +5864,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         <div className="ml-auto flex items-center gap-3">
           {/* Candle countdown */}
           <div className={`flex items-center gap-1 text-[10px] font-mono font-bold transition-colors ${
+            chartSettings?.candleTimer === false ? "hidden" : ""
+          } ${
             closeFlash ? "text-wm-red" : "text-wm-text-dim"
           }`}>
             <svg width="8" height="8" viewBox="0 0 8 8" className="shrink-0">
@@ -4215,7 +5904,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       {/* ── Chart + canvas overlay ───────────────────────── */}
       <div style={{ flex:1, position:"relative", minHeight:0 }} onContextMenu={handleContextMenu}
         onMouseMove={handleOverlayMouseMove}
-        onMouseLeave={() => { bubbleHoverRef.current = null; setBubbleTip(null); }}>
+        onMouseDown={handleCursorSelectDown}
+        onMouseUp={handleCursorSelectUp}
+        onMouseLeave={() => { bubbleHoverRef.current = null; setBubbleTip(null); cursorDownRef.current = null; }}>
         <div ref={containerRef} style={{ width:"100%", height:"100%" }} />
 
         {/* ── Big-Trade comic speech-bubble tooltip (🫧 hover) ─────── */}
@@ -4280,45 +5971,36 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             </div>
           );
         })()}
-        {/* Cover TradingView watermark with WM branding */}
+        {/* WM branding — small, non-obtrusive W badge tucked in the
+            bottom-left corner. (Was a large "WealthyMindsets" text pill that
+            crowded the price action; per user request it's now just the W.) */}
         <div
           title="WealthyMindsets Pro"
           style={{
-            position: "absolute", bottom: 4, left: 4,
-            display: "flex", alignItems: "center", gap: 6,
-            background: "rgba(11,14,26,0.95)", backdropFilter: "blur(6px)",
-            borderRadius: 7, padding: "4px 10px 4px 6px",
-            border: "1px solid rgba(240,180,41,0.25)",
+            position: "absolute", bottom: 6, left: 6,
             cursor: "default", zIndex: 10, userSelect: "none",
-            pointerEvents: "none",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+            pointerEvents: "none", opacity: 0.55,
           }}
         >
-          {/* Official WealthyMindsets W badge */}
-          <svg width="22" height="22" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="18" height="18" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="22" cy="22" r="21" fill="#0D1117" stroke="#F0B429" strokeWidth="2"/>
-            {/* Bold W — WealthyMindsets signature shape */}
             <path d="M8 13 L13.5 31 L19 20 L22 25 L25 20 L30.5 31 L36 13" stroke="#F0B429" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
           </svg>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#F0B429", letterSpacing: "0.5px", fontFamily: "Inter, sans-serif" }}>
-            WealthyMindsets
-          </span>
         </div>
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 pointer-events-none"
-          style={{ mixBlendMode: "normal", opacity: 0.9, zIndex: 5 }}
+          className="absolute top-0 left-0 pointer-events-none"
+          style={{ mixBlendMode: "normal", opacity: 1, zIndex: 5 }}
         />
         {/* Drawing tools canvas — pointer-events only when tool is active */}
         <canvas
           ref={drawCanvasRef}
-          className="absolute inset-0"
+          className="absolute top-0 left-0"
           style={{
-            cursor: drawingTool === "cursor" ? "crosshair"
-                  : drawingTool === "hline" || drawingTool === "hray" ? "ns-resize"
-                  : drawingTool === "vline" ? "ew-resize"
-                  : drawingTool === "brush" ? "crosshair"
-                  : drawingTool === "text" ? "text"
+            cursor: drawingTool === "cursor" ? "default"
+                  : drawingTool === "select" ? "move"
+                  : drawingTool === "eraser" ? "cell"
+                  : TEXT_TOOLS.has(drawingTool) ? "text"
                   : "crosshair",
             pointerEvents: drawingTool !== "cursor" ? "all" : "none",
             opacity: drawingsVisible ? 1 : 0,
@@ -4327,27 +6009,211 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           onMouseDown={handleDrawMouseDown}
           onMouseMove={handleDrawMouseMove}
           onMouseUp={handleDrawMouseUp}
-          onMouseLeave={handleDrawMouseUp}
+          onMouseLeave={handleDrawMouseLeave}
+          onDoubleClick={handleDrawDoubleClick}
         />
 
-        {/* ── Scale buttons (right side) ───────────────── */}
+        {/* ── Floating edit toolbar for the selected drawing ─────────
+             Appears when a drawing is selected (via SELECT tool or a
+             clean click in cursor mode). Edits mutate the drawing's
+             style ref in place, then bump editBump + rangeVer to redraw. */}
+        {selectedIdx != null && drawingsRef.current[selectedIdx] && !lockDrawings && (() => {
+          const d = drawingsRef.current[selectedIdx];
+          const anchor = logicalToPixel(d.pts[0]);
+          const cw = containerRef.current?.offsetWidth ?? 800;
+          const barW = 316;
+          const left = Math.max(6, Math.min(cw - barW - 6, (anchor?.x ?? 100) - 30));
+          const top  = Math.max(4, (anchor?.y ?? 70) - 46);
+          const bump = () => { setEditBump(v => v + 1); setRangeVer(v => v + 1); };
+          const btn = (active: boolean): React.CSSProperties => ({
+            display: "flex", alignItems: "center", justifyContent: "center",
+            minWidth: 22, height: 22, padding: "0 5px", borderRadius: 5, cursor: "pointer",
+            fontSize: 11, lineHeight: 1, color: active ? "#0B0E1A" : "#C7D0E8",
+            background: active ? "#4FA3E0" : "rgba(255,255,255,0.05)",
+            border: `1px solid ${active ? "#4FA3E0" : "rgba(255,255,255,0.10)"}`,
+          });
+          const isText = TEXT_TOOLS.has(d.tool);
+          return (
+            <div
+              key={editBump}
+              style={{
+                position: "absolute", left, top, zIndex: 130,
+                display: "flex", alignItems: "center", gap: 4, padding: "5px 6px",
+                background: "#141824", border: "1px solid #2A3350", borderRadius: 9,
+                boxShadow: "0 8px 26px rgba(0,0,0,0.55)",
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              {/* colors */}
+              <div style={{ display: "flex", gap: 3 }}>
+                {DRAW_COLORS.slice(0, 6).map(c => (
+                  <button key={c} title={c} onClick={() => { d.style.color = c; bump(); }}
+                    style={{ width: 15, height: 15, borderRadius: "50%", cursor: "pointer",
+                      background: c, border: d.style.color === c ? "2px solid #fff" : "1px solid rgba(255,255,255,0.2)" }} />
+                ))}
+              </div>
+              <div style={{ width: 1, height: 18, background: "#2A3350" }} />
+              {/* width */}
+              {[1, 2, 4].map(w => (
+                <button key={w} title={`Width ${w}`} onClick={() => { d.style.width = w * 1.4; bump(); }}
+                  style={btn(Math.round(d.style.width / 1.4) === w)}>
+                  <span style={{ display: "inline-block", width: 14, height: w, background: "currentColor", borderRadius: 2 }} />
+                </button>
+              ))}
+              <div style={{ width: 1, height: 18, background: "#2A3350" }} />
+              {/* dash style */}
+              {(["solid", "dashed", "dotted"] as const).map(s => (
+                <button key={s} title={s} onClick={() => { d.style.dash = s; bump(); }} style={btn(d.style.dash === s)}>
+                  {s === "solid" ? "──" : s === "dashed" ? "- -" : "···"}
+                </button>
+              ))}
+              {FILL_TOOLS.has(d.tool) && (
+                <>
+                  <div style={{ width: 1, height: 18, background: "#2A3350" }} />
+                  <button title="Fill" onClick={() => { d.style.fill = !d.style.fill; bump(); }} style={btn(d.style.fill)}>▧</button>
+                </>
+              )}
+              {isText && (
+                <>
+                  <div style={{ width: 1, height: 18, background: "#2A3350" }} />
+                  <button title="Edit text" onClick={() => setTextEdit({ idx: selectedIdx })} style={btn(false)}>✎</button>
+                </>
+              )}
+              <div style={{ width: 1, height: 18, background: "#2A3350" }} />
+              <button title="Delete" onClick={() => { drawingsRef.current.splice(selectedIdx, 1); setSelectedIdx(null); setRangeVer(v => v + 1); }}
+                style={{ ...btn(false), color: "#FF6B81" }}>🗑</button>
+            </div>
+          );
+        })()}
+
+        {/* ── Inline text editor — clean box that appears over a text-bearing
+             drawing's anchor point. Replaces the old window.prompt() native
+             dialog: matches the "clean editing box" spec and is drivable both
+             by a human and programmatically. Commit on Enter/blur, cancel on
+             Escape. If the field is left empty on a brand-new drawing, the
+             drawing is discarded. ───────────────────────────────────────── */}
+        {textEdit != null && drawingsRef.current[textEdit.idx] && !lockDrawings && (() => {
+          const idx = textEdit.idx;
+          const d = drawingsRef.current[idx];
+          const p = logicalToPixel(d.pts[0]);
+          const cw = containerRef.current?.offsetWidth ?? 800;
+          const boxW = 190;
+          const left = Math.max(6, Math.min(cw - boxW - 6, (p?.x ?? 100)));
+          const top  = Math.max(4, (p?.y ?? 70) + 6);
+          const commit = (raw: string) => {
+            const t = raw.trim();
+            if (t === "") {
+              // Empty on a freshly-placed text drawing → discard it entirely.
+              if (idx === drawingsRef.current.length - 1) {
+                drawingsRef.current.splice(idx, 1);
+                setSelectedIdx(null);
+              }
+            } else {
+              d.text = t;
+            }
+            setTextEdit(null);
+            setRangeVer(v => v + 1);
+          };
+          return (
+            <input
+              key={`txt-${idx}`}
+              autoFocus
+              defaultValue={d.text ?? ""}
+              placeholder="Type text…"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === "Enter") { e.preventDefault(); commit((e.target as HTMLInputElement).value); }
+                else if (e.key === "Escape") {
+                  e.preventDefault();
+                  // Cancel: discard if it was a brand-new empty text drawing.
+                  if ((d.text ?? "") === "" && idx === drawingsRef.current.length - 1) {
+                    drawingsRef.current.splice(idx, 1);
+                    setSelectedIdx(null);
+                  }
+                  setTextEdit(null);
+                  setRangeVer(v => v + 1);
+                }
+              }}
+              onBlur={(e) => commit(e.target.value)}
+              style={{
+                position: "absolute", left, top, zIndex: 131, width: boxW,
+                height: 28, padding: "0 9px", borderRadius: 7, outline: "none",
+                fontSize: 12, color: "#EAF0FF", background: "#141824",
+                border: "1px solid #4FA3E0", boxShadow: "0 8px 26px rgba(0,0,0,0.55)",
+              }}
+            />
+          );
+        })()}
+
+        {/* ── Small "reset scale" button — appears ONLY after the user has
+             manually stretched the price axis by dragging the numbers. Replaces
+             the old double-click-to-reset gesture with an explicit, discoverable
+             control. Sits just left of the price axis, top-right. ─── */}
+        {scaleLocked && (
+          <button
+            onClick={() => {
+              manualPriceRangeRef.current = null;
+              setScaleLocked(false);
+              setAutoScale(true);
+              try {
+                candleRef.current?.applyOptions({ autoscaleInfoProvider: autoscaleProviderRef.current });
+                chartRef.current?.priceScale("right").applyOptions({ autoScale: true });
+              } catch {}
+            }}
+            title="Reset price scale to auto-fit"
+            style={{
+              position: "absolute", right: 62, top: 8, zIndex: 55,
+              height: 22, padding: "0 8px", borderRadius: 5, fontSize: 9.5, fontWeight: 800,
+              cursor: "pointer", letterSpacing: 0.3, whiteSpace: "nowrap",
+              display: "flex", alignItems: "center", gap: 4,
+              background: "rgba(240,180,41,0.22)", border: "1px solid rgba(240,180,41,0.65)", color: "#F0B429",
+              backdropFilter: "blur(3px)", boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
+            }}>
+            ⤢ Reset Scale
+          </button>
+        )}
+
+        {/* ── Scale buttons — bottom-right, above the time axis so they
+             no longer clutter / overlap the price action at top ─── */}
         <div style={{
-          position:"absolute", right: 64, top: 8, display:"flex", flexDirection:"column", gap: 3, zIndex: 50, alignItems:"flex-end",
+          position:"absolute", right: 64, bottom: 30, display:"flex", flexDirection:"row", gap: 4, zIndex: 50, alignItems:"center",
+          padding: "3px 4px", borderRadius: 6,
+          background: "rgba(8,12,20,0.55)", backdropFilter: "blur(3px)",
         }}>
+          {/* Reset View — undo vertical drag, re-fit price + time to the data */}
+          <button
+            onClick={() => {
+              manualPriceRangeRef.current = null;
+              setAutoScale(true);
+              try {
+                chartRef.current?.timeScale().fitContent();
+                chartRef.current?.timeScale().scrollToRealTime();
+              } catch {}
+            }}
+            title="R — Reset View: re-center the chart and undo any vertical drag"
+            style={{
+              width: 22, height: 22, borderRadius: 4, fontSize: 11, fontWeight: 800, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "rgba(47,128,237,0.16)", border: "1px solid rgba(47,128,237,0.5)", color: "#2F80ED",
+            }}>
+            R
+          </button>
           {/* Clear Auto/Lock toggle — when LOCKED, drag the price axis up/down freely */}
           <button
             onClick={() => setAutoScale(v => !v)}
             title={autoScale
-              ? "Auto Scale ON — chart auto-fits price. Click to LOCK, then drag the price axis up/down to see higher/lower prices."
-              : "Scale LOCKED — drag the price axis (right side) up/down to pan, or scroll to zoom. Click to re-enable Auto Scale."}
+              ? "A — Auto Scale ON: chart auto-fits price. Click to LOCK, then drag the price axis up/down to see higher/lower prices."
+              : "A — Scale LOCKED: drag the price axis (right side) up/down to pan, or scroll to zoom. Click to re-enable Auto Scale."}
             style={{
-              height: 22, padding: "0 8px", borderRadius: 4, fontSize: 9.5, fontWeight: 800, cursor: "pointer",
-              letterSpacing: 0.4, whiteSpace: "nowrap",
+              width: 22, height: 22, borderRadius: 4, fontSize: 11, fontWeight: 800, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
               background: autoScale ? "rgba(0,200,118,0.18)" : "rgba(240,180,41,0.20)",
               border: `1px solid ${autoScale ? "rgba(0,200,118,0.5)" : "rgba(240,180,41,0.6)"}`,
               color: autoScale ? "#00C076" : "#F0B429",
             }}>
-            {autoScale ? "● AUTO" : "🔒 LOCK"}
+            A
           </button>
           {[
             { label: "%", title: "Percentage mode", active: pctMode, onClick: () => setPctMode(v => !v) },
@@ -4434,21 +6300,27 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 label: "🗑 Delete this drawing", color: "#FF4D6A",
                 action: () => {
                   drawingsRef.current.splice(ctxMenu.nearDrawingIdx!, 1);
-                  renderDrawings();
+                  setSelectedIdx(null);
+                  setRangeVer(v => v + 1);
                 }
               }] : []),
               { label: `🔔 Add Alert at ${ctxMenu.price}`, color: "#F5A623", action: () => {
                 const lp = pixelToLogical(ctxMenu.x, ctxMenu.y);
-                if (lp) { drawingsRef.current.push({ type: "hline", price: lp.price, color: "#F5A623" }); renderDrawings(); }
+                if (lp) { const d = makeDrawing("hline", [lp]); d.style.color = "#F5A623"; drawingsRef.current.push(d); setRangeVer(v => v + 1); }
               }},
               { label: "― Horizontal Line", color: "#8896BE", action: () => {
                 const lp = pixelToLogical(ctxMenu.x, ctxMenu.y);
-                if (lp) { drawingsRef.current.push({ type: "hline", price: lp.price, color: drawingColor }); renderDrawings(); }
+                if (lp) { drawingsRef.current.push(makeDrawing("hline", [lp])); setRangeVer(v => v + 1); }
               }},
               { label: "✎ Add Text", color: "#8896BE", action: () => {
-                const text = window.prompt("Enter text:"); if (!text) return;
                 const lp = pixelToLogical(ctxMenu.x, ctxMenu.y);
-                if (lp) { drawingsRef.current.push({ type: "text", price: lp.price, time: lp.time, text, color: drawingColor }); renderDrawings(); }
+                if (lp) {
+                  drawingsRef.current.push(makeDrawing("text", [lp], ""));
+                  const newIdx = drawingsRef.current.length - 1;
+                  setSelectedIdx(newIdx);
+                  setRangeVer(v => v + 1);
+                  setTextEdit({ idx: newIdx });
+                }
               }},
               { label: "📋 Copy price", color: "#8896BE", action: () => { navigator.clipboard.writeText(String(ctxMenu.price)).catch(() => {}); }},
             ].map((item, i) => (

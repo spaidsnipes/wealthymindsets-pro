@@ -34,8 +34,15 @@ export default function ProfilePage() {
   const [showLaunchCoin, setShowLaunchCoin] = useState(false);
   const [newCoin, setNewCoin] = useState({ name: "", symbol: "", supply: 1000000, feeRate: 300, category: "Trading" });
   const [editMode, setEditMode] = useState(false);
-  // Check URL for setup param without useSearchParams (avoids Suspense requirement)
-  const [setupMode, setSetupMode] = useState(() => typeof window !== "undefined" && window.location.search.includes("setup=1"));
+  // Setup/onboarding only for genuinely-new users. A saved profile in
+  // localStorage is authoritative — we must NOT drop into the empty setup form
+  // just because the auth guard appended ?setup=1 (profileComplete doesn't
+  // always survive a refresh), otherwise the profile appears to "reset".
+  const [setupMode, setSetupMode] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try { if (localStorage.getItem("wm-profile")) return false; } catch {}
+    return window.location.search.includes("setup=1");
+  });
   const [bgColor, setBgColor] = useState("#070A0F");
   const fileRef = useRef<HTMLInputElement>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -202,8 +209,8 @@ export default function ProfilePage() {
   // ── Setup / onboarding modal ─────────────────────────────────
   if (setupMode) {
     return (
-      <div className="flex flex-col h-full bg-wm-black items-center justify-center p-6">
-        <div className="w-full max-w-md glass rounded-2xl p-6 space-y-5">
+      <div className="flex flex-col h-full bg-wm-black items-center p-6 overflow-y-auto">
+        <div className="w-full max-w-md glass rounded-2xl p-6 space-y-5 my-auto shrink-0">
           <div className="text-center">
             <div className="text-3xl mb-2">👋</div>
             <h2 className="text-xl font-black text-wm-text">Set Up Your Profile</h2>

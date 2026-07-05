@@ -6,7 +6,7 @@
  * Falls back to Black-Scholes synthetic chain when FMP returns no data.
  */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { X, TrendingUp, RefreshCw, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 import { clsx } from "clsx";
@@ -47,6 +47,39 @@ function fmtExp(d: string): string {
   const [, mm, dd] = d.split("-");
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   return `${months[+mm - 1]} ${+dd} '${d.slice(2, 4)}`;
+}
+
+// Generate realistic FUTURE expiries (the nearest Fridays + monthlies) from today,
+// so the synthetic fallback never shows stale/expired dates.
+function genSyntheticExpiries(): { label: string; dte: number }[] {
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // Next Friday (weekday 5)
+  const firstFri = new Date(today);
+  const delta = (5 - firstFri.getDay() + 7) % 7 || 7; // always at least next Friday
+  firstFri.setDate(firstFri.getDate() + delta);
+  const out: { label: string; dte: number }[] = [];
+  const seen = new Set<string>();
+  // 4 weekly Fridays, then monthly (3rd Friday) for the next several months
+  for (let i = 0; i < 4; i++) {
+    const d = new Date(firstFri);
+    d.setDate(d.getDate() + i * 7);
+    const label = `${months[d.getMonth()]} ${d.getDate()} '${String(d.getFullYear()).slice(2)}`;
+    const dte = Math.round((d.getTime() - today.getTime()) / 86400000);
+    if (!seen.has(label)) { seen.add(label); out.push({ label, dte }); }
+  }
+  for (let m = 1; m <= 6; m++) {
+    const dt = new Date(today.getFullYear(), today.getMonth() + m, 1);
+    // 3rd Friday of that month
+    const firstDay = dt.getDay();
+    const thirdFri = 1 + ((5 - firstDay + 7) % 7) + 14;
+    dt.setDate(thirdFri);
+    const label = `${months[dt.getMonth()]} ${dt.getDate()} '${String(dt.getFullYear()).slice(2)}`;
+    const dte = Math.round((dt.getTime() - today.getTime()) / 86400000);
+    if (!seen.has(label)) { seen.add(label); out.push({ label, dte }); }
+  }
+  return out;
 }
 
 function buildChain(contracts: FMPContract[], spot: number, expiry: string): OptionRow[] {
@@ -137,6 +170,14 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
   const [dataSource, setDataSource] = useState<"fmp"|"synthetic">("synthetic");
   const [allContracts, setAllContracts] = useState<FMPContract[]>([]);
 
+  // Keep latest price in a ref so the network fetch does NOT re-run on every
+  // live price tick (that caused setLoading(true) to fire repeatedly → blink).
+  const priceRef = useRef(price);
+  priceRef.current = price;
+  // Round price for chain-math dependencies so sub-dollar ticks don't churn the
+  // table on every poll. Cents-level moves still update via the live ticker.
+  const priceKey = Math.round(price * 100) / 100;
+
   // Fetch all contracts for this symbol from FMP
   const fetchContracts = useCallback(async () => {
     setLoading(true);
@@ -157,21 +198,23 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
       const firstExp = expDates[0] ?? "";
       setExpiry(fmtExp(firstExp));
       // Build chain for first expiry
-      const rows = buildChain(contracts, price, firstExp);
-      setChain(rows.length ? rows : generateChain(price, 14));
+      const p = priceRef.current;
+      const rows = buildChain(contracts, p, firstExp);
+      setChain(rows.length ? rows : generateChain(p, 14));
       setDataSource(rows.length ? "fmp" : "synthetic");
     } catch (e) {
       // Fallback to synthetic
       setError(String(e));
       setDataSource("synthetic");
-      const defaultExps = ["Jun 20 '25","Jun 27 '25","Jul 18 '25","Jul 25 '25","Aug 15 '25","Sep 19 '25","Dec 19 '25"];
-      setExpirations(defaultExps);
-      setExpiry(defaultExps[0]);
-      setChain(generateChain(price, 1));
+      const synExps = genSyntheticExpiries();
+      setExpirations(synExps.map(e => e.label));
+      setExpiry(synExps[0].label);
+      setChain(generateChain(priceRef.current, synExps[0].dte));
     } finally {
       setLoading(false);
     }
-  }, [symbol, price]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol]);
 
   useEffect(() => { fetchContracts(); }, [fetchContracts]);
 
@@ -181,16 +224,14 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
     if (dataSource === "fmp" && allContracts.length) {
       // Find the ISO date for this label
       const isoDate = allContracts.find(c => fmtExp(c.expirationDate) === expiry)?.expirationDate ?? "";
-      const rows = buildChain(allContracts, price, isoDate);
+      const rows = buildChain(allContracts, priceKey, isoDate);
       if (rows.length) { setChain(rows); return; }
     }
-    // Synthetic fallback: compute DTE
-    const dteFallback: Record<string, number> = {
-      "Jun 20 '25": 1, "Jun 27 '25": 8, "Jul 18 '25": 29, "Jul 25 '25": 36,
-      "Aug 15 '25": 57, "Sep 19 '25": 92, "Dec 19 '25": 183,
-    };
-    setChain(generateChain(price, dteFallback[expiry] ?? 14));
-  }, [expiry, allContracts, price, dataSource]);
+    // Synthetic fallback: compute DTE from the dynamically generated expiries
+    const dteFallback: Record<string, number> = {};
+    for (const e of genSyntheticExpiries()) dteFallback[e.label] = e.dte;
+    setChain(generateChain(priceKey, dteFallback[expiry] ?? 14));
+  }, [expiry, allContracts, priceKey, dataSource]);
 
   const atm = chain.find(r => r.itm === "atm");
 

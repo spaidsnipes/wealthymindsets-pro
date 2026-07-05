@@ -63,7 +63,8 @@ async function fetch1D(syms: string[]): Promise<Record<string, number>> {
 // ── Multi-day: fetch daily chart for one sym, return pct change over daysBack ─
 async function fetchDayOffset(sym: string, daysBack: number): Promise<number | null> {
   const yfSym = toYF(sym);
-  const range = daysBack <= 10 ? "1mo" : daysBack <= 70 ? "3mo" : daysBack <= 140 ? "6mo" : "2y";
+  const range = daysBack <= 10 ? "1mo" : daysBack <= 70 ? "3mo" : daysBack <= 140 ? "6mo"
+              : daysBack <= 260 ? "2y" : "5y";
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym)}?interval=1d&range=${range}`;
   try {
     const json = await yfGet(url) as { chart?: { result?: { meta?: { regularMarketPrice?: number }; indicators?: { quote?: { close?: (number | null)[] }[] } }[] } };
@@ -83,13 +84,12 @@ async function fetchDayOffset(sym: string, daysBack: number): Promise<number | n
 // ── Multi-day: parallel fetch in chunks (Yahoo is lenient, no API key needed) ─
 async function fetchMultiDay(syms: string[], daysBack: number): Promise<Record<string, number>> {
   const results: Record<string, number> = {};
-  const CHUNK = 25; // parallel within chunk, sequential between chunks
+  const CHUNK = 50; // higher parallelism — Yahoo tolerates it; halves first-load latency
   for (let i = 0; i < syms.length; i += CHUNK) {
     const batch = syms.slice(i, i + CHUNK);
     const vals  = await Promise.all(batch.map(s => fetchDayOffset(s, daysBack)));
     batch.forEach((s, j) => { if (vals[j] != null) results[s] = vals[j]!; });
-    // Small yield between chunks — avoids overwhelming Yahoo
-    if (i + CHUNK < syms.length) await new Promise(r => setTimeout(r, 50));
+    if (i + CHUNK < syms.length) await new Promise(r => setTimeout(r, 20));
   }
   return results;
 }
@@ -103,6 +103,7 @@ function daysForPeriod(period: string): number {
     case "6M":  return 126;
     case "YTD": return Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 86_400_000);
     case "1Y":  return 252;
+    case "5Y":  return 1260;
     default:    return 5;
   }
 }
@@ -120,9 +121,21 @@ export async function GET(request: Request) {
   const cacheKey = `heatmap:${period}:${syms.slice(0, 5).join(",")}:${syms.length}`;
 
   try {
-    const results = await withCache(cacheKey, ttl, async () =>
-      period === "1D" ? fetch1D(syms) : fetchMultiDay(syms, daysForPeriod(period))
-    );
+    const results = await withCache(cacheKey, ttl, async () => {
+      // 1D primary path: Yahoo's v7 batch quote endpoint now returns
+      // "Unauthorized", which silently produced all +0.00% tiles. Fall back to
+      // the still-working v8 chart endpoint (prev close → current) when v7 is
+      // empty so 1D actually shows real performance.
+      if (period === "1D") {
+        let r: Record<string, number> = {};
+        try { r = await fetch1D(syms); } catch { r = {}; }
+        if (Object.keys(r).length === 0) {
+          r = await fetchMultiDay(syms, 1);
+        }
+        return r;
+      }
+      return fetchMultiDay(syms, daysForPeriod(period));
+    });
     return NextResponse.json({ period, results });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });

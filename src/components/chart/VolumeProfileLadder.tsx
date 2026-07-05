@@ -79,6 +79,11 @@ function generateProfile(base: number, levels = 36, volMultiplier = 1): Level[] 
     else if (hi < raws.length - 1) { hi++; vaVol += totals[hi]; }
     else break;
   }
+  // Guarantee the value area straddles the POC by ≥1 level on each side so the
+  // VAH/VAL markers never collapse onto the POC and vanish — mirrors the on-canvas
+  // VP fix so both representations behave identically.
+  if (lo === pocIdx && pocIdx > 0)               lo--;
+  if (hi === pocIdx && pocIdx < raws.length - 1) hi++;
 
   return raws.map((r, i) => ({
     price:  r.price,
@@ -114,16 +119,19 @@ export function VolumeProfileLadder({ symbol }: { symbol: string }) {
   // Ref to latest liveBar — lets rebuildProfile read it without being a dep
   const liveBarRef  = useRef<typeof liveBar | null>(null);
 
-  const { recentTicks, liveBar } = useWebSocket({ symbol, timeframe: "1m" });
+  const { recentTicks, liveBar, ticker } = useWebSocket({ symbol, timeframe: "1m" });
+  // Latest live price (ticker first — most reliable) for anchoring the VP center.
+  const liveTickerRef = useRef(0);
+  useEffect(() => { if (ticker?.price && ticker.price > 0) liveTickerRef.current = ticker.price; }, [ticker]);
 
   // Fetch real spot price at mount to anchor VP at correct price level
   useEffect(() => {
     const up = symbol.toUpperCase();
     const isFutures = up.endsWith("1!") || up.includes("=F");
     const isCrypto  = ["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC"].includes(up);
-    const url = (!isFutures && !isCrypto)
-      ? `/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`
-      : `/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`;
+    // Yahoo for everything — includes pre/post-market (matches TradingView).
+    void isFutures; void isCrypto;
+    const url = `/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`;
     fetch(url, { cache: "no-store" })
       .then(r => r.json())
       .then(j => {
@@ -175,15 +183,17 @@ export function VolumeProfileLadder({ symbol }: { symbol: string }) {
   // Rebuild profile from accumulated ticks + synthetic fill
   const rebuildProfile = useCallback(() => {
     const base    = getBase(symbol);
-    const tick    = getTickSize(base);
-    const rawPrice = liveBarRef.current?.close ?? base;
+    // Anchor to the LIVE ticker price first (reliable), then live bar, then seed.
+    const rawPrice = liveTickerRef.current > 0 ? liveTickerRef.current
+                   : (liveBarRef.current?.close ?? base);
+    const tick    = getTickSize(rawPrice);
 
     // Always snap center to nearest tick — ensures grid is tick-aligned
     const snapped = Math.round(rawPrice / tick) * tick;
-    // Self-heal: if the center is wildly off the live price (>12%, e.g. left over
-    // from a previous symbol), hard-reset so the ladder can't show wrong levels.
+    // Self-heal: if the center drifts >4% off the live price (e.g. a stale seed
+    // like TSLA 405 vs live 376 = 7.7%), hard-reset so the ladder re-anchors.
     if (vpCenterRef.current !== null && rawPrice > 0 &&
-        Math.abs(vpCenterRef.current - rawPrice) / rawPrice > 0.12) {
+        Math.abs(vpCenterRef.current - rawPrice) / rawPrice > 0.04) {
       vpCenterRef.current = null;
     }
     if (vpCenterRef.current === null) {
@@ -233,6 +243,10 @@ export function VolumeProfileLadder({ symbol }: { symbol: string }) {
       else if (hi < merged.length-1)         { hi++; vaVol += merged[hi].total; }
       else break;
     }
+    // Straddle POC by ≥1 level each side (matches the on-canvas VP) so VAH/VAL
+    // markers never collapse onto POC and disappear.
+    if (lo === pocIdx && pocIdx > 0)                lo--;
+    if (hi === pocIdx && pocIdx < merged.length-1)  hi++;
     setLevels(merged.map((l,i) => ({
       ...l, pct: l.total/maxTot,
       isPOC: i===pocIdx, isVAH: i===lo, isVAL: i===hi, inVA: i>=lo&&i<=hi,
@@ -248,6 +262,17 @@ export function VolumeProfileLadder({ symbol }: { symbol: string }) {
     tickRef.current = setInterval(rebuildProfile, interval);
     return () => { if (tickRef.current) clearInterval(tickRef.current); };
   }, [rebuildProfile]);
+
+  // Re-anchor IMMEDIATELY when the live price drifts from the ladder center —
+  // without this the Full Day VP sits on the stale seed (e.g. TSLA 405) for up
+  // to 60s before the next interval rebuild. Only fires on meaningful drift, so
+  // it doesn't churn the (intentionally stable) full-day profile every tick.
+  useEffect(() => {
+    const p = ticker?.price ?? 0;
+    if (p <= 0) return;
+    const c = vpCenterRef.current;
+    if (c === null || Math.abs(c - p) / p > 0.04) rebuildProfile();
+  }, [ticker?.price, rebuildProfile]);
 
   if (!levels.length) return null;
 
@@ -346,10 +371,12 @@ export function VolumeProfileLadder({ symbol }: { symbol: string }) {
           const askW = `${(lvl.ask / lvl.total) * barPct * 100}%`;
           const deltaPos = lvl.delta >= 0;
 
-          // Sqrt-scaled bar: compresses the range so thin rows are visible.
-          // POC (barPct=1) → 100%, mid-range (50%) → 71%, thin rows (5%) → 22%, min 18%.
-          const scaledPct   = Math.sqrt(barPct);
-          const totalBarPct = Math.max(0.18, scaledPct) * 100;
+          // Shaped bar (exponent 0.42): compresses harder than √ so THIN rows read as
+          // proper bars, not sticks. POC (barPct=1) → 100%, mid-range (50%) → 75%,
+          // a 4.4% node (e.g. 14.8k next to a 340k POC) → ~27%, min floor 22%. POC
+          // still maps to the max so rows remain differentiated — no muddy flat bars.
+          const scaledPct   = Math.pow(barPct, 0.42);
+          const totalBarPct = Math.max(0.22, scaledPct) * 100;
           const bidBarPct   = totalBarPct * (lvl.bid / lvl.total);
           const askBarPct   = totalBarPct * (lvl.ask / lvl.total);
 

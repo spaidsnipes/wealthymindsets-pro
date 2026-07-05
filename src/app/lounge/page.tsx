@@ -509,7 +509,8 @@ function CreatePostModal({ onClose, onPost, user }:
    MAIN PAGE
 ══════════════════════════════════════════════════════════════ */
 const LIVE_ROOMS = [
-  { name: "wm-nq-morning",   label: "NQ Morning",    color: "#00D4AA", desc: "Futures & order flow" },
+  { name: "wm-wealthy-mindsets", label: "Wealthy Mindsets", color: "#00FFC2", desc: "The main room — community & live trading" },
+  { name: "wm-nq-morning",   label: "Smart Money Talk", color: "#00D4AA", desc: "Futures & order flow" },
   { name: "wm-crypto-talk",  label: "Crypto Talk",   color: "#F0B429", desc: "BTC, ETH, alts" },
   { name: "wm-beats-vibes",  label: "Beats & Vibes", color: "#8B5CF6", desc: "Music & community" },
   { name: "wm-market-open",  label: "Market Open",   color: "#FF4D6A", desc: "Pre-market & open" },
@@ -534,6 +535,17 @@ export default function LoungePage() {
   const [follows,       setFollows]       = useState<Set<string>>(new Set());
   const [activeRoom,    setActiveRoom]    = useState<string | null>(null);
   const [activeRoomIsHost, setActiveRoomIsHost] = useState(false);
+
+  // Deep-link support: a shared live link (…/lounge?room=<name>) drops the visitor
+  // straight into that room as a viewer. Runs once on mount.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const roomParam = new URLSearchParams(window.location.search).get("room");
+    if (roomParam && LIVE_ROOMS.some(r => r.name === roomParam)) {
+      setActiveRoomIsHost(false);
+      setActiveRoom(roomParam);
+    }
+  }, []);
 
   const myHandle  = user?.handle  ?? user?.email?.split("@")[0] ?? "";
   const myName    = user?.displayName ?? "You";

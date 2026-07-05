@@ -4,6 +4,22 @@
  * editable fields (length / multiplier / colors) and default values.
  */
 
+/** Timeframe groups for per-resolution visibility (TradingView-style). */
+export const TF_GROUPS = ["Seconds", "Minutes", "Hours", "Days", "Weeks", "Months"] as const;
+export type TfGroup = (typeof TF_GROUPS)[number];
+
+/** Map an app timeframe string (e.g. "5m", "1h", "D") to its visibility group. */
+export function tfGroupOf(tf: string): TfGroup {
+  const t = (tf || "").trim();
+  if (t === "M" || /^(3M|6M|1Y|3Y|5Y)$/i.test(t)) return "Months";
+  if (t === "W") return "Weeks";
+  if (t === "D") return "Days";
+  if (/h$/i.test(t)) return "Hours";
+  if (/m$/.test(t)) return "Minutes";
+  if (/s$/i.test(t)) return "Seconds";
+  return "Minutes";
+}
+
 export type IndicatorParams = {
   length?:  number;
   length2?: number;
@@ -11,6 +27,11 @@ export type IndicatorParams = {
   color?:   string;
   color2?:  string;
   color3?:  string;
+  /** Style: line width (1–4) and style (0=solid,1=dotted,2=dashed). */
+  lineWidth?: number;
+  lineStyle?: number;
+  /** Visibility: per-timeframe-group on/off. Absent key ⇒ visible. */
+  visibility?: Partial<Record<TfGroup, boolean>>;
 };
 
 export type IndicatorSettings = Record<string, IndicatorParams>;
@@ -82,4 +103,12 @@ export function resolveParams(name: string, settings?: IndicatorSettings): Indic
 
 export function isConfigurable(name: string): boolean {
   return name in INDICATOR_CONFIG;
+}
+
+/** True if `name` should render at the given timeframe per its visibility map. */
+export function visibleAtTf(params: IndicatorParams | undefined, tf: string): boolean {
+  const v = params?.visibility;
+  if (!v) return true;
+  const g = tfGroupOf(tf);
+  return v[g] !== false;
 }

@@ -104,8 +104,10 @@ export function DOMPanel({ symbol }: { symbol: string }) {
   const dp     = tick < 0.01 ? (tick < 0.0001 ? 6 : 4) : 2;
 
   // Finnhub WebSocket price feed (works for everything)
-  const { liveBar, recentTicks } = useWebSocket({ symbol: sym, timeframe: "1m" });
-  const livePrice = liveBar?.close ?? base;
+  const { liveBar, recentTicks, ticker } = useWebSocket({ symbol: sym, timeframe: "1m" });
+  // Prefer the live ticker price, then the live bar; the hardcoded `base` seed
+  // (e.g. TSLA 405) is only a pre-data placeholder and must never anchor the DOM.
+  const livePrice = (ticker?.price && ticker.price > 0) ? ticker.price : (liveBar?.close ?? base);
 
   const [levels, setLevels] = useState<Level[]>([]);
   const [trades, setTrades] = useState<{ price: number; size: number; side: "buy"|"sell"; time: string }[]>([]);
@@ -231,9 +233,11 @@ export function DOMPanel({ symbol }: { symbol: string }) {
   // ── Non-crypto: synthetic DOM update on price change ────────
   useEffect(() => {
     if (crypto) return;
-    if (liveBar?.close) priceRef.current = liveBar.close;
+    // Anchor to the live price (ticker first, then live bar) — never the stale seed.
+    if (ticker?.price && ticker.price > 0) priceRef.current = ticker.price;
+    else if (liveBar?.close) priceRef.current = liveBar.close;
     setLevels(buildSyntheticDOM(priceRef.current, tick));
-  }, [liveBar, tick, crypto]);
+  }, [liveBar, ticker, tick, crypto]);
 
   // ── Non-crypto: feed Time & Sales from Finnhub WS ticks ────
   useEffect(() => {

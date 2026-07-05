@@ -1,5 +1,5 @@
 /**
- * Pine Script v5 Interpreter
+ * Pine Script v6 Interpreter (v5 compatible)
  * Evaluates a Pine Script string against OHLCV bar data.
  * Returns PlotOutput, HLineOutput, PlotShapeOutput, BgColorOutput for chart rendering.
  *
@@ -57,19 +57,60 @@ function stripComments(src: string): string {
 /* ── Pre-process: evaluate inputs ─────────────────────────── */
 function processInputs(src: string): { src: string; params: Record<string, any> } {
   const params: Record<string, any> = {};
-  // Replace input.* calls with their default values
-  src = src.replace(
-    /(?:input\.|input\s+)(\w+)\s*\([^)]*(?:defval\s*=\s*([^,)]+)|,\s*([^,)]+))?[^)]*\)/g,
-    (match, type, named, positional) => {
-      const def = (named || positional || "").trim();
-      if (type === "float" || type === "int") return def || "14";
-      if (type === "bool") return def || "true";
-      if (type === "string") return def ? `"${def.replace(/^"|"$/g, "")}"` : '"input"';
-      if (type === "color") return def || "color.blue";
-      return def || "14";
+  // Replace input.* (and bare input(...)) calls with their default value.
+  // The default is either the `defval=` named arg or the FIRST positional arg.
+  // We scan for the call head, then consume a balanced-parenthesis argument
+  // list so multi-arg inputs (with commas, nested calls, strings) are handled
+  // correctly — the previous regex greedily swallowed the args and defaulted
+  // every numeric input to 14, collapsing distinct lengths (e.g. fast/slow).
+  let out = "";
+  let i = 0;
+  const n = src.length;
+  const headRe = /(?:input\s*\.\s*(\w+)|input)\s*\(/y;
+  while (i < n) {
+    headRe.lastIndex = i;
+    const m = headRe.exec(src);
+    if (m && m.index === i) {
+      const type = m[1] || "generic";
+      // Find matching close paren for the "(" at end of match
+      let depth = 1, j = headRe.lastIndex;
+      for (; j < n && depth > 0; j++) {
+        const c = src[j];
+        if (c === "(") depth++;
+        else if (c === ")") depth--;
+        else if (c === '"' || c === "'") { const q = c; j++; while (j < n && src[j] !== q) { if (src[j] === "\\") j++; j++; } }
+      }
+      const inner = src.slice(headRe.lastIndex, j - 1);
+      // Split top-level args
+      const args: string[] = [];
+      let cur = "", d = 0;
+      for (let k = 0; k < inner.length; k++) {
+        const c = inner[k];
+        if (c === "(" || c === "[" || c === "{") { d++; cur += c; }
+        else if (c === ")" || c === "]" || c === "}") { d--; cur += c; }
+        else if (c === '"' || c === "'") { const q = c; cur += c; k++; while (k < inner.length && inner[k] !== q) { cur += inner[k]; if (inner[k] === "\\") { k++; cur += inner[k]; } k++; } cur += (inner[k] ?? ""); }
+        else if (c === "," && d === 0) { args.push(cur); cur = ""; }
+        else cur += c;
+      }
+      if (cur.trim()) args.push(cur);
+      // defval= named, else first positional
+      let def = "";
+      const named = args.find(a => /^\s*defval\s*=/.test(a));
+      if (named) def = named.replace(/^\s*defval\s*=/, "").trim();
+      else if (args.length) def = args[0].trim();
+      let repl: string;
+      if (type === "float" || type === "int") repl = def || "14";
+      else if (type === "bool") repl = def || "true";
+      else if (type === "string" || type === "source") repl = def || '"input"';
+      else if (type === "color") repl = def || "color.blue";
+      else repl = def || "0";
+      out += repl;
+      i = j;
+      continue;
     }
-  );
-  return { src, params };
+    out += src[i++];
+  }
+  return { src: out, params };
 }
 
 /* ── Tokenize an expression ─────────────────────────────────── */
@@ -209,7 +250,16 @@ function evalTokens(tokens: Tok[], ctx: ExecContext, barIdx: number): any {
     const closeB = tokens.length - 1;
     const openB  = findMatchingOpen(tokens, closeB, "[", "]");
     const offset = Number(evalTokens(tokens.slice(openB + 1, closeB), ctx, barIdx));
-    const base   = evalTokens(tokens.slice(0, openB), ctx, barIdx);
+    const baseToks = tokens.slice(0, openB);
+    let base: any = evalTokens(baseToks, ctx, barIdx);
+    // History access like close[1], high[2], dir[1] needs the FULL series, but a
+    // bare identifier evaluates to a scalar at barIdx. Resolve the array so
+    // offsets into prior bars work (otherwise `[n]` always returned null and
+    // silently broke FVG/transition/state-machine scripts).
+    if (!Array.isArray(base) && baseToks.length === 1 && baseToks[0].t === "id") {
+      const full = getFullSeries(baseToks[0].v, ctx);
+      if (full.length) base = full;
+    }
     if (Array.isArray(base)) {
       const idx = barIdx - offset;
       return idx >= 0 ? (base[idx] ?? null) : null;
@@ -223,7 +273,7 @@ function evalTokens(tokens: Tok[], ctx: ExecContext, barIdx: number): any {
     const fnName = tokens.slice(0, openP).map(t => t.v).join("");
     const argTokens = splitArgs(tokens.slice(openP + 1, closeP));
     const args = argTokens.map(a => evalTokens(a, ctx, barIdx));
-    return callFunction(fnName, args, ctx, barIdx);
+    return callFunction(fnName, args, ctx, barIdx, argTokens);
   }
   // Single token
   if (tokens.length === 1) {
@@ -318,12 +368,25 @@ function getFullSeries(name: string, ctx: ExecContext): (number | null)[] {
   return [];
 }
 
-function callFunction(name: string, args: any[], ctx: ExecContext, barIdx: number): any {
-  // Resolve series args to full arrays
+function callFunction(name: string, args: any[], ctx: ExecContext, barIdx: number, argTokens?: Tok[][]): any {
+  // Series-aware resolver: when an argument is a single identifier that names a
+  // built-in series (close/high/…) or a user series-variable, return its FULL
+  // array rather than the scalar value at barIdx. This is CRITICAL: bare tokens
+  // like `close` evaluate to a scalar at barIdx, so without this every TA source
+  // (ta.ema/ta.sma/ta.rsi/ta.macd/…) would compute on a constant-filled array
+  // and return ≈ the source value — making all lengths identical and cross
+  // signals never fire. Falls back to the constant-filled array (safe for
+  // scalar/expression sources) so numeric length positions are never corrupted.
   const seriesArg = (idx: number): (number | null)[] => {
+    const at = argTokens?.[idx];
+    if (at && at.length === 1 && at[0].t === "id") {
+      const full = getFullSeries(at[0].v, ctx);
+      if (full.length) return full;
+    }
     const a = args[idx];
     return Array.isArray(a) ? a : Array(barIdx + 1).fill(a);
   };
+  const seriesTok = seriesArg;
   const numArg = (idx: number, def = 14): number => {
     const a = args[idx];
     return a == null ? def : Number(a);
@@ -360,6 +423,64 @@ function callFunction(name: string, args: any[], ctx: ExecContext, barIdx: numbe
       const key = `ta.rsi_${args[0]}_${args[1]}`;
       if (!ctx.vars.has(key)) ctx.vars.set(key, ta.rsi(seriesArg(0), numArg(1)));
       return ctx.vars.get(key)[barIdx] ?? null;
+    }
+    case "ta.dema": case "dema": {
+      const key = `ta.dema_${args[0]}_${args[1]}`;
+      if (!ctx.vars.has(key)) ctx.vars.set(key, ta.dema(seriesArg(0), numArg(1)));
+      return ctx.vars.get(key)[barIdx] ?? null;
+    }
+    case "ta.tema": case "tema": {
+      const key = `ta.tema_${args[0]}_${args[1]}`;
+      if (!ctx.vars.has(key)) ctx.vars.set(key, ta.tema(seriesArg(0), numArg(1)));
+      return ctx.vars.get(key)[barIdx] ?? null;
+    }
+    case "ta.wpr": case "ta.williamsr": case "wpr": {
+      const key = `ta.wpr_${args[0]}`;
+      if (!ctx.vars.has(key)) ctx.vars.set(key, ta.williamsr(ctx.close, ctx.high, ctx.low, numArg(0)));
+      return ctx.vars.get(key)[barIdx] ?? null;
+    }
+    // ── Tuple-returning functions (support both destructuring and direct use) ──
+    case "ta.macd": case "macd": {
+      const key = `ta.macd_${args[0]}_${args[1]}_${args[2]}_${args[3]}`;
+      if (!ctx.vars.has(key)) {
+        const r = ta.macd(seriesArg(0), numArg(1, 12), numArg(2, 26), numArg(3, 9));
+        ctx.vars.set(key, { __pineTuple: [r.macd, r.signal, r.histogram] });
+      }
+      return ctx.vars.get(key);
+    }
+    case "ta.bb": case "bb": {
+      const key = `ta.bb_${args[0]}_${args[1]}_${args[2]}`;
+      if (!ctx.vars.has(key)) {
+        const r = ta.bb(seriesArg(0), numArg(1, 20), numArg(2, 2));
+        // Pine order: [middle, upper, lower]
+        ctx.vars.set(key, { __pineTuple: [r.middle, r.upper, r.lower] });
+      }
+      return ctx.vars.get(key);
+    }
+    case "ta.kc": case "ta.keltner": case "kc": {
+      const key = `ta.kc_${args[0]}_${args[1]}_${args[2]}`;
+      if (!ctx.vars.has(key)) {
+        const r = ta.keltner(ctx.close, ctx.high, ctx.low, numArg(1, 20), numArg(2, 2));
+        ctx.vars.set(key, { __pineTuple: [r.middle, r.upper, r.lower] });
+      }
+      return ctx.vars.get(key);
+    }
+    case "ta.stoch": case "stoch": {
+      // Pine ta.stoch returns a single %K float
+      const key = `ta.stoch_${args[3] ?? 14}`;
+      if (!ctx.vars.has(key)) {
+        const r = ta.stoch(ctx.close, ctx.high, ctx.low, numArg(3, 14), 3);
+        ctx.vars.set(key, r.k);
+      }
+      return ctx.vars.get(key)[barIdx] ?? null;
+    }
+    case "ta.supertrend": case "supertrend": {
+      const key = `ta.supertrend_${args[0]}_${args[1]}`;
+      if (!ctx.vars.has(key)) {
+        const r = ta.supertrend(ctx.close, ctx.high, ctx.low, numArg(0, 3), numArg(1, 10));
+        ctx.vars.set(key, { __pineTuple: [r.trend, r.direction] });
+      }
+      return ctx.vars.get(key);
     }
     case "ta.atr": case "atr": {
       const key = `ta.atr_${args[0]}`;
@@ -402,12 +523,77 @@ function callFunction(name: string, args: any[], ctx: ExecContext, barIdx: numbe
     case "ta.stdev": case "stdev":
       return ta.stdev(seriesArg(0), numArg(1))[barIdx] ?? null;
     case "ta.crossover":  case "crossover":
-      return ta.crossover(seriesArg(0),  seriesArg(1))[barIdx] ?? false;
+      return ta.crossover(seriesTok(0),  seriesTok(1))[barIdx] ?? false;
     case "ta.crossunder": case "crossunder":
-      return ta.crossunder(seriesArg(0), seriesArg(1))[barIdx] ?? false;
-    case "ta.rising":  return ta.rising(seriesArg(0),  numArg(1))[barIdx] ?? false;
-    case "ta.falling": return ta.falling(seriesArg(0), numArg(1))[barIdx] ?? false;
-    case "ta.barssince": return ta.barssince(seriesArg(0) as any)[barIdx] ?? null;
+      return ta.crossunder(seriesTok(0), seriesTok(1))[barIdx] ?? false;
+    case "ta.rising":  return ta.rising(seriesTok(0),  numArg(1))[barIdx] ?? false;
+    case "ta.falling": return ta.falling(seriesTok(0), numArg(1))[barIdx] ?? false;
+    case "ta.barssince": {
+      const key = `ta.barssince_${JSON.stringify(args[0])?.slice(0,40)}`;
+      if (!ctx.vars.has(key)) ctx.vars.set(key, ta.barssince(seriesArg(0).map(v => !!v)));
+      return ctx.vars.get(key)[barIdx] ?? null;
+    }
+    case "ta.valuewhen": case "valuewhen": {
+      const key = `ta.valuewhen_${barIdx}_${args[2] ?? 0}`;
+      if (!ctx.vars.has(key)) ctx.vars.set(key, ta.valuewhen(seriesArg(0).map(v => !!v), seriesArg(1), numArg(2, 0)));
+      return ctx.vars.get(key)[barIdx] ?? null;
+    }
+    // ── True range, cumulative, linreg, pivots, SAR (common in TradingView community scripts) ──
+    case "ta.tr": case "tr": {
+      const key = `ta.tr_${args[0] ?? "d"}`;
+      if (!ctx.vars.has(key)) ctx.vars.set(key, ta.tr(ctx.close, ctx.high, ctx.low, args[0] !== false));
+      return ctx.vars.get(key)[barIdx] ?? null;
+    }
+    case "ta.cum": case "cum": {
+      const key = `ta.cum_${args[0]}`;
+      if (!ctx.vars.has(key)) ctx.vars.set(key, ta.cum(seriesArg(0)));
+      return ctx.vars.get(key)[barIdx] ?? null;
+    }
+    case "ta.linreg": case "linreg": {
+      const key = `ta.linreg_${args[0]}_${args[1]}_${args[2]}`;
+      if (!ctx.vars.has(key)) ctx.vars.set(key, ta.linreg(seriesArg(0), numArg(1, 14), numArg(2, 0)));
+      return ctx.vars.get(key)[barIdx] ?? null;
+    }
+    case "ta.percentrank": case "percentrank": {
+      const key = `ta.pr_${args[0]}_${args[1]}`;
+      if (!ctx.vars.has(key)) ctx.vars.set(key, ta.percentrank(seriesArg(0), numArg(1, 14)));
+      return ctx.vars.get(key)[barIdx] ?? null;
+    }
+    case "ta.median": case "median": {
+      const key = `ta.median_${args[0]}_${args[1]}`;
+      if (!ctx.vars.has(key)) ctx.vars.set(key, ta.median(seriesArg(0), numArg(1, 14)));
+      return ctx.vars.get(key)[barIdx] ?? null;
+    }
+    case "ta.pivothigh": case "pivothigh": {
+      // ta.pivothigh([source], left, right) — source defaults to high
+      const hasSrc = args.length >= 3;
+      const src    = hasSrc ? seriesArg(0) : ctx.high;
+      const left   = hasSrc ? numArg(1, 5) : numArg(0, 5);
+      const right  = hasSrc ? numArg(2, 5) : numArg(1, 5);
+      const key = `ta.pvh_${hasSrc}_${left}_${right}`;
+      if (!ctx.vars.has(key)) ctx.vars.set(key, ta.pivot(src, left, right, true));
+      return ctx.vars.get(key)[barIdx] ?? null;
+    }
+    case "ta.pivotlow": case "pivotlow": {
+      const hasSrc = args.length >= 3;
+      const src    = hasSrc ? seriesArg(0) : ctx.low;
+      const left   = hasSrc ? numArg(1, 5) : numArg(0, 5);
+      const right  = hasSrc ? numArg(2, 5) : numArg(1, 5);
+      const key = `ta.pvl_${hasSrc}_${left}_${right}`;
+      if (!ctx.vars.has(key)) ctx.vars.set(key, ta.pivot(src, left, right, false));
+      return ctx.vars.get(key)[barIdx] ?? null;
+    }
+    case "ta.sar": case "sar": {
+      const key = `ta.sar_${args[0]}_${args[1]}_${args[2]}`;
+      if (!ctx.vars.has(key)) ctx.vars.set(key, ta.sar(ctx.high, ctx.low, numArg(0, 0.02), numArg(1, 0.02), numArg(2, 0.2)));
+      return ctx.vars.get(key)[barIdx] ?? null;
+    }
+    case "ta.cross": case "cross": {
+      const a = seriesTok(0), b = seriesTok(1);
+      const over  = ta.crossover(a, b)[barIdx];
+      const under = ta.crossunder(a, b)[barIdx];
+      return !!over || !!under;
+    }
     // Math namespace
     case "math.abs":   case "abs":   return Math.abs(numArg(0));
     case "math.ceil":  case "ceil":  return Math.ceil(numArg(0));
@@ -419,6 +605,10 @@ function callFunction(name: string, args: any[], ctx: ExecContext, barIdx: numbe
     case "math.exp":   case "exp":   return Math.exp(numArg(0));
     case "math.max":   case "max":   return Math.max(...args.map(Number));
     case "math.min":   case "min":   return Math.min(...args.map(Number));
+    case "math.avg":   case "avg":   return args.length ? args.map(Number).reduce((a,b)=>a+b,0)/args.length : NaN;
+    case "math.todegrees": return numArg(0) * 180 / Math.PI;
+    case "math.toradians": return numArg(0) * Math.PI / 180;
+    case "math.round_to_mintick": return numArg(0);
     case "math.sign":  case "sign":  return Math.sign(numArg(0));
     case "math.sin":   case "sin":   return Math.sin(numArg(0));
     case "math.cos":   case "cos":   return Math.cos(numArg(0));
@@ -443,6 +633,21 @@ function callFunction(name: string, args: any[], ctx: ExecContext, barIdx: numbe
     case "input.string":case "input.source": return args[0] ?? "close";
     case "input.color": return args[0] ?? "#4FA3E0";
     case "input":       return args[0] ?? 0;
+    // request.security(symbol, timeframe, expression, ...) — client-side we
+    // cannot fetch a different timeframe's history, so we approximate the
+    // higher-timeframe value with the expression evaluated on the CURRENT
+    // series. This lets MTF scripts (e.g. multi-timeframe EMAs) plot cleanly
+    // instead of returning null/flat lines. HONEST LIMITATION: the plotted
+    // value tracks the current chart timeframe, not the literal HTF bar.
+    case "request.security": case "security":
+      return args[2] ?? args[args.length - 1] ?? null;
+    // Label / line / table / alert primitives — accepted as no-ops so scripts
+    // that create labels/alerts still run and plot their series.
+    case "label.new": case "line.new": case "box.new": case "table.new":
+    case "label.set_text": case "label.set_xy": case "label.delete":
+    case "line.delete": case "alertcondition": case "alert":
+      return null;
+    case "timeframe.period": return "";
     // Array
     case "array.new_float": return Array(numArg(0, 0)).fill(numArg(1, 0));
     case "array.size": return Array.isArray(args[0]) ? args[0].length : 0;
@@ -457,8 +662,11 @@ function execLine(line: string, ctx: ExecContext, barIdx: number): void {
   line = line.trim();
   if (!line) return;
 
-  // indicator() declaration
-  const indMatch = line.match(/^indicator\s*\(([^)]*)\)/);
+  // Version directive (//@version=4|5|6) — accepted, no-op for the interpreter
+  if (/^\/\/@version\s*=/.test(line)) return;
+
+  // indicator() / strategy() declaration (strategy treated as indicator for plotting)
+  const indMatch = line.match(/^(?:indicator|strategy)\s*\(([^)]*)\)/);
   if (indMatch) {
     const args = indMatch[1];
     const titleM = args.match(/title\s*=\s*["']([^"']+)["']/) || args.match(/["']([^"']+)["']/);
@@ -471,24 +679,39 @@ function execLine(line: string, ctx: ExecContext, barIdx: number): void {
   }
 
   // plot() call
+  //   Pine positional order: plot(series, title, color, linewidth, style, ...)
+  //   Real TradingView scripts pass title/color positionally, so we resolve
+  //   named-args first then fall back to positional slots. Each plot is keyed
+  //   to a STABLE id (its title, or the source line if untitled) so it's created
+  //   exactly once — never re-created per bar (which caused "Plot N" label spam).
   const plotMatch = line.match(/^plot\s*\((.+)\)$/s);
   if (plotMatch) {
     const plotArgs = parseNamedArgs(plotMatch[1]);
-    const seriesExpr = plotArgs[0] || plotArgs["series"] || "";
-    const titleStr   = plotArgs["title"] ? String(evalExpr(plotArgs["title"], ctx, barIdx)) : `Plot ${ctx.plotCount + 1}`;
-    const colorStr   = plotArgs["color"] ? String(evalExpr(plotArgs["color"], ctx, barIdx)) : DEFAULT_COLORS[ctx.plotCount % DEFAULT_COLORS.length];
-    const styleStr   = plotArgs["style"]  ? String(plotArgs["style"]).replace(/plot\.style_/, "").replace(/style\./, "") : "line";
-    const lwStr      = plotArgs["linewidth"] ? Number(evalExpr(plotArgs["linewidth"], ctx, barIdx)) : 1;
-    const displayStr = plotArgs["display"];
+    const pick = (named: string, pos: number) => plotArgs[named] ?? plotArgs[pos];
+    const seriesExpr = plotArgs["series"] ?? plotArgs[0] ?? "";
+    const titleRaw   = pick("title", 1);
+    const colorRaw   = pick("color", 2);
+    const lwRaw      = pick("linewidth", 3);
+    const styleRaw   = pick("style", 4);
 
-    // Get or create the series array
-    let existingPlot = ctx.plots.find(p => p.title === titleStr.replace(/["']/g, ""));
+    // Stable identity for this plot call-site
+    const titleStr = titleRaw != null
+      ? String(evalExpr(titleRaw, ctx, barIdx) ?? titleRaw).replace(/["']/g, "")
+      : "";
+    const stableId = titleStr || `__plot@${plotMatch[1].trim()}`;
+
+    const colorStr   = colorRaw != null ? String(evalExpr(colorRaw, ctx, barIdx)) : DEFAULT_COLORS[ctx.plotCount % DEFAULT_COLORS.length];
+    const styleStr   = styleRaw != null ? String(styleRaw).replace(/plot\.style_/, "").replace(/style\./, "") : "line";
+    const lwStr      = lwRaw != null ? Number(evalExpr(lwRaw, ctx, barIdx)) || 1 : 1;
+
+    // Get or create the series (matched by stable id — once per call-site)
+    let existingPlot = ctx.plots.find(p => p.id === stableId);
     if (!existingPlot) {
       existingPlot = {
-        id: titleStr,
-        title: titleStr.replace(/["']/g, ""),
+        id: stableId,
+        title: titleStr || `Plot ${ctx.plotCount + 1}`,
         values: new Array(ctx.close.length).fill(null),
-        color: colorFromPine(colorStr.replace(/["']/g, "")),
+        color: colorFromPine((colorStr || "").replace(/["']/g, "")),
         style: styleStr as any,
         linewidth: lwStr,
         overlay: ctx.overlay,
@@ -502,38 +725,44 @@ function execLine(line: string, ctx: ExecContext, barIdx: number): void {
     return;
   }
 
-  // hline()
+  // hline()  —  positional: hline(price, title, color, linestyle, linewidth)
   const hlineMatch = line.match(/^hline\s*\((.+)\)$/);
   if (hlineMatch) {
     const hArgs = parseNamedArgs(hlineMatch[1]);
-    const price = Number(evalExpr(hArgs[0] || hArgs["price"] || "0", ctx, barIdx));
+    const hpick = (named: string, pos: number) => hArgs[named] ?? hArgs[pos];
+    const price = Number(evalExpr(hArgs["price"] ?? hArgs[0] ?? "0", ctx, barIdx));
     if (barIdx === 0) {
+      const colorRaw = hpick("color", 2);
+      const styleRaw = hpick("linestyle", 3);
+      const lwRaw    = hpick("linewidth", 4);
       ctx.hlines.push({
         price,
-        color: colorFromPine(String(evalExpr(hArgs["color"] || '"gray"', ctx, barIdx))),
-        style: (hArgs["linestyle"] || "solid").replace(/line\.style_|linestyle\./,"") as any,
-        width: Number(hArgs["linewidth"] || 1),
-        title: String(hArgs["title"] || "").replace(/["']/g,""),
+        color: colorFromPine(String(evalExpr(colorRaw ?? '"gray"', ctx, barIdx))),
+        style: String(styleRaw || "solid").replace(/line\.style_|linestyle\./,"") as any,
+        width: Number(lwRaw || 1),
+        title: String(hpick("title", 1) || "").replace(/["']/g,""),
       });
     }
     return;
   }
 
-  // plotshape()
+  // plotshape()  —  positional: plotshape(series, title, style, location, color, ...)
   const shapeMatch = line.match(/^plotshape\s*\((.+)\)$/s);
   if (shapeMatch) {
     const sArgs = parseNamedArgs(shapeMatch[1]);
-    const cond  = evalExpr(sArgs[0] || sArgs["series"] || "false", ctx, barIdx);
-    const titleStr = (sArgs["title"] || `"Shape${ctx.shapes.length}"`).replace(/["']/g,"");
+    const spick = (named: string, pos: number) => sArgs[named] ?? sArgs[pos];
+    const cond  = evalExpr(sArgs["series"] ?? sArgs[0] ?? "false", ctx, barIdx);
+    const titleStr = String(spick("title", 1) || `"Shape${ctx.shapes.length}"`).replace(/["']/g,"");
     let shape = ctx.shapes.find(s => s.title === titleStr);
     if (!shape) {
+      const colorRaw = spick("color", 4);
       shape = {
         title: titleStr,
         bars:  [],
-        color: colorFromPine(String(sArgs["color"] || "#00D4AA").replace(/["']/g,"")),
-        style: "circle",
-        location: sArgs["location"]?.replace(/location\./,"") as any ?? "abovebar",
-        text:  String(sArgs["text"] || "").replace(/["']/g,""),
+        color: colorFromPine(String(colorRaw != null ? (evalExpr(colorRaw, ctx, barIdx) ?? colorRaw) : "#00D4AA").replace(/["']/g,"")),
+        style: String(spick("style", 2) || "circle").replace(/shape\./,"") as any,
+        location: String(spick("location", 3) || "abovebar").replace(/location\./,"") as any,
+        text:  String(spick("text", 6) || "").replace(/["']/g,""),
       };
       ctx.shapes.push(shape);
     }
@@ -552,6 +781,28 @@ function execLine(line: string, ctx: ExecContext, barIdx: number): void {
       ctx.bgColors[0].bars.push(barIdx);
       ctx.bgColors[0].colors.push(colorFromPine(String(colorVal).replace(/["']/g,"")));
     }
+    return;
+  }
+
+  // Tuple destructuring: [macdLine, sigLine, hist] = ta.macd(...)
+  const destMatch = line.match(/^\[\s*([\w\s,]+?)\s*\]\s*=\s*(.+)$/s);
+  if (destMatch) {
+    const names = destMatch[1].split(",").map(s => s.trim()).filter(Boolean);
+    const val = evalExpr(destMatch[2], ctx, barIdx);
+    const parts: any[] = val && (val as any).__pineTuple
+      ? (val as any).__pineTuple
+      : (Array.isArray(val) ? val : []);
+    names.forEach((nm, k) => {
+      const series = parts[k];
+      if (Array.isArray(series)) ctx.vars.set(nm, series);
+      else {
+        // scalar member — build per-bar array
+        let arr = ctx.vars.get(nm);
+        if (!Array.isArray(arr)) arr = new Array(ctx.close.length).fill(null);
+        arr[barIdx] = series ?? null;
+        ctx.vars.set(nm, arr);
+      }
+    });
     return;
   }
 
@@ -582,7 +833,16 @@ function parseNamedArgs(argsStr: string): Record<string | number, string> {
     const c = i < argsStr.length ? argsStr[i] : ",";
     if (c === "(" || c === "[" || c === "{") { depth++; current += c; }
     else if (c === ")" || c === "]" || c === "}") { depth--; current += c; }
-    else if (c === "=" && depth === 0 && inKey && current.trim() && !current.includes("=")) {
+    // Named-arg separator: a STANDALONE `=` whose left side is a bare identifier.
+    // Must NOT match the `=` inside `==`, `<=`, `>=`, `!=`, `:=` — otherwise a
+    // positional condition like `dir == 1 and dir[1] == -1` is mis-read as a
+    // named arg `dir`, shifting every following positional (title/color/…) and
+    // silently breaking plot/plotshape signals.
+    else if (
+      c === "=" && depth === 0 && inKey &&
+      argsStr[i + 1] !== "=" &&
+      /^\s*[a-zA-Z_]\w*\s*$/.test(current)
+    ) {
       currentKey = current.trim();
       current = "";
       inKey = false;
@@ -703,9 +963,19 @@ export function validatePine(script: string): { line: number; msg: string }[] {
     "ta.stoch","ta.cci","ta.mfi","ta.vwap","ta.obv","ta.roc","ta.change","ta.mom",
     "ta.crossover","ta.crossunder","ta.rising","ta.falling","ta.highest","ta.lowest",
     "ta.stdev","ta.barssince","ta.sum","sma","ema","rsi","rma","wma","hma",
-    "math.abs","math.ceil","math.floor","math.round","math.sqrt","math.pow",
-    "math.max","math.min","math.log","math.exp","input","input.float","input.int",
+    "ta.dema","ta.tema","ta.wpr","ta.williamsr","ta.kc","ta.keltner","ta.supertrend",
+    "ta.variance","dema","tema","supertrend","stoch","macd","bb",
+    "ta.tr","ta.cum","ta.linreg","ta.percentrank","ta.median","ta.pivothigh","ta.pivotlow",
+    "ta.sar","ta.cross","ta.valuewhen","tr","cum","linreg","percentrank","median",
+    "pivothigh","pivotlow","sar","cross","valuewhen","ta.donchian","donchian",
+    "math.abs","math.ceil","math.floor","math.round","math.sqrt","math.pow","math.sign",
+    "math.max","math.min","math.log","math.exp","math.sin","math.cos","math.tan",
+    "math.avg","math.todegrees","math.toradians","math.round_to_mintick","avg","plotcandle","plotbar","fill",
+    "input","input.float","input.int","color.new","color.rgb","str.tostring","str.format",
     "input.bool","input.string","input.color","input.source","nz","na","float","int","bool",
+    "fixnan","alertcondition","alert","array.new_float","array.get","array.size",
+    "request.security","security","label.new","line.new","box.new","table.new",
+    "label.set_text","label.set_xy","label.delete","line.delete","timeframe.period",
   ]);
   for (let i = 0; i < lines.length; i++) {
     const t = lines[i].trim();

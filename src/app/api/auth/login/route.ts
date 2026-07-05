@@ -53,19 +53,29 @@ export async function POST(req: Request) {
 
     if (data.error) return NextResponse.json({ error: data.error.message ?? "Invalid credentials" }, { status: 401 });
 
-    // Preserve profileComplete from previous session cookie if possible
+    // Restore profile from Supabase user_metadata (durable across devices), then
+    // fall back to the previous session cookie for anything not yet persisted.
+    const meta = data.user.user_metadata ?? {};
     const prevToken = getAuthToken(req);
     const prevPayload = prevToken ? verifyJWT(prevToken) : null;
-    const profileComplete = prevPayload?.sub === data.user.id ? (prevPayload?.profileComplete ?? false) : false;
+    const prev = prevPayload?.sub === data.user.id ? prevPayload : null;
+
+    const displayName = meta.displayName ?? prev?.displayName;
+    const handle      = meta.handle      ?? prev?.handle;
+    const avatar      = meta.avatar      ?? prev?.avatar;
+    const bio         = meta.bio         ?? prev?.bio;
+    // Complete if EITHER source says so, or a display name already exists —
+    // this stops the "forced back into setup on every login" behaviour.
+    const profileComplete = !!(meta.profileComplete ?? prev?.profileComplete ?? displayName);
 
     const jwt = signJWT({
       sub:  data.user.id,
       email: data.user.email,
-      displayName:  data.user.user_metadata?.displayName,
-      handle:       data.user.user_metadata?.handle,
-      avatar:       data.user.user_metadata?.avatar,
-      bio:          data.user.user_metadata?.bio,
-      profileComplete: profileComplete ?? (!!data.user.user_metadata?.displayName),
+      displayName,
+      handle,
+      avatar,
+      bio,
+      profileComplete,
     });
     const res = NextResponse.json({ ok: true });
     setAuthCookie(res.cookies, jwt);

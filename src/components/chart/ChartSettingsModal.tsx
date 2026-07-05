@@ -25,8 +25,11 @@ export interface ChartSettings {
   borderUp: string;
   borderDown: string;
   neon?: boolean;   // WM Neon theme active → neon candle/VP/volume coloring
+  candleTimer: boolean; // show the candlestick countdown on the live price line
   showPositions: boolean;
   showPnL: boolean;
+  displayTimeZone: string; // IANA tz for the time axis + crosshair (e.g. "America/New_York")
+  clock24h: boolean;       // true = 24h military time, false = 12h AM/PM clock
 }
 
 export const DEFAULT_CHART_SETTINGS: ChartSettings = {
@@ -49,9 +52,35 @@ export const DEFAULT_CHART_SETTINGS: ChartSettings = {
   wickDown: "#FF4D67",
   borderUp: "#00C076",
   borderDown: "#FF4D67",
+  candleTimer: true,
   showPositions: true,
   showPnL: true,
+  // Default to the user's actual local timezone (detected at runtime), 24h off.
+  displayTimeZone: (typeof Intl !== "undefined" && Intl.DateTimeFormat().resolvedOptions().timeZone) || "America/New_York",
+  clock24h: false,
 };
+
+// Common IANA timezones for the chart-settings dropdown (broker-style list).
+export const TIMEZONE_OPTIONS: { value: string; label: string }[] = [
+  { value: "America/New_York",    label: "New York (ET)" },
+  { value: "America/Chicago",     label: "Chicago (CT)" },
+  { value: "America/Denver",      label: "Denver (MT)" },
+  { value: "America/Los_Angeles", label: "Los Angeles (PT)" },
+  { value: "America/Anchorage",   label: "Anchorage (AKT)" },
+  { value: "Pacific/Honolulu",    label: "Honolulu (HT)" },
+  { value: "America/Sao_Paulo",   label: "São Paulo (BRT)" },
+  { value: "Europe/London",       label: "London (GMT/BST)" },
+  { value: "Europe/Berlin",       label: "Frankfurt (CET)" },
+  { value: "Europe/Moscow",       label: "Moscow (MSK)" },
+  { value: "Asia/Dubai",          label: "Dubai (GST)" },
+  { value: "Asia/Kolkata",        label: "Mumbai (IST)" },
+  { value: "Asia/Singapore",      label: "Singapore (SGT)" },
+  { value: "Asia/Hong_Kong",      label: "Hong Kong (HKT)" },
+  { value: "Asia/Shanghai",       label: "Shanghai (CST)" },
+  { value: "Asia/Tokyo",          label: "Tokyo (JST)" },
+  { value: "Australia/Sydney",    label: "Sydney (AET)" },
+  { value: "UTC",                 label: "UTC" },
+];
 
 type Tab = "symbol" | "chart" | "scales" | "trading";
 
@@ -252,6 +281,13 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   {s.gridVisible && <ColorSwatch value={s.gridColor} onChange={v => set({ gridColor: v })} label="Grid color" />}
 
                   <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#4A5580", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Candle Timer</div>
+                  <Toggle value={s.candleTimer} onChange={v => set({ candleTimer: v })} label="Show candlestick timer" />
+                  <p style={{ fontSize: 11, color: "#8896BE", margin: "4px 0 0", lineHeight: 1.5 }}>
+                    Live countdown to the current candle&apos;s close, pinned to the price line on the left edge. Flashes red in the final 5 seconds.
+                  </p>
+
+                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
                   <div style={{ fontSize: 10, fontWeight: 700, color: "#4A5580", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Crosshair</div>
                   <Toggle value={s.crosshairVisible} onChange={v => set({ crosshairVisible: v })} label="Show crosshair" />
                   {s.crosshairVisible && (
@@ -279,6 +315,41 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <div style={{ fontSize: 10, fontWeight: 700, color: "#4A5580", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Scales</div>
                   <Toggle value={s.priceScaleVisible} onChange={v => set({ priceScaleVisible: v })} label="Show price scale" />
                   <Toggle value={s.timeScaleVisible} onChange={v => set({ timeScaleVisible: v })} label="Show time scale" />
+
+                  {/* ── Timezone + clock format ───────────────────────────── */}
+                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#4A5580", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Time Zone &amp; Clock</div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
+                    <span style={{ fontSize: 12, color: "#8896BE" }}>Time zone</span>
+                    <select
+                      value={s.displayTimeZone}
+                      onChange={e => set({ displayTimeZone: e.target.value })}
+                      style={{
+                        fontSize: 11, padding: "4px 8px", borderRadius: 4, cursor: "pointer",
+                        background: "#141824", border: "1px solid #263050", color: "#C7D0E8", maxWidth: 180,
+                      }}
+                    >
+                      {TIMEZONE_OPTIONS.map(tz => (
+                        <option key={tz.value} value={tz.value}>{tz.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
+                    <span style={{ fontSize: 12, color: "#8896BE" }}>Clock format</span>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      {([["12-hour", false], ["24-hour", true]] as const).map(([lbl, val]) => (
+                        <button key={lbl} onClick={() => set({ clock24h: val })} style={{
+                          fontSize: 10, padding: "3px 10px", borderRadius: 4, cursor: "pointer",
+                          background: s.clock24h === val ? "rgba(47,128,237,0.2)" : "#141824",
+                          border: `1px solid ${s.clock24h === val ? "rgba(47,128,237,0.5)" : "#263050"}`,
+                          color: s.clock24h === val ? "#2F80ED" : "#8896BE",
+                        }}>
+                          {lbl}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {s.priceScaleVisible && (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
                       <span style={{ fontSize: 12, color: "#8896BE" }}>Price scale position</span>

@@ -312,3 +312,38 @@ input[type=range]::-webkit-slider-runnable-track {
 .wm-neon aside, .wm-neon nav {
   box-shadow: inset -1px 0 0 rgba(47,243,255,0.18);
 }
+
+/* ══════════════════════════════════════════════════════════════
+   WM LIGHT MODE — applied to <html> when Dark Mode is toggled OFF.
+   Remaps the fixed wm-* surface/text colors to a clean light palette.
+   Chart candles render on canvas and keep their own colors.
+══════════════════════════════════════════════════════════════ */
+.wm-light body { background-color: #f4f6fa !important; }
+.wm-light .bg-wm-black   { background-color: #f4f6fa !important; }
+.wm-light .bg-wm-dark    { background-color: #ffffff !important; }
+.wm-light .bg-wm-surface { background-color: #eef1f6 !important; }
+.wm-light .bg-wm-card    { background-color: #ffffff !important; }
+.wm-light .border-wm-border,
+.wm-light [class*="border-wm-border"] {
+  border-color: rgba(15,23,42,0.12) !important;
+}
+.wm-light .text-wm-text      { color: #0f172a !important; }
+.wm-light .text-wm-text-muted { color: #334155 !important; }
+.wm-light .text-wm-text-dim  { color: #64748b !important; }
+.wm-light .text-wm-green { color: #0e9f6e !important; }
+.wm-light .text-wm-blue  { color: #2563eb !important; }
+.wm-light .text-wm-purple{ color: #7c3aed !important; }
+.wm-light .text-wm-gold  { color: #b8860b !important; }
+.wm-light .text-wm-red   { color: #dc2626 !important; }
+/* Inline dark hex backgrounds → light surfaces */
+.wm-light [style*="#0D0E14"],
+.wm-light [style*="#131520"],
+.wm-light [style*="#0A0B10"],
+.wm-light [style*="#141824"],
+.wm-light [style*="#0B0E1A"],
+.wm-light [style*="#13151F"],
+.wm-light [style*="#161616"],
+.wm-light [style*="#111111"],
+.wm-light [style*="#0A0A0A"] {
+  background-color: #ffffff !important;
+}

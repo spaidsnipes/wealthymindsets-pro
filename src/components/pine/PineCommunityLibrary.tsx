@@ -45,7 +45,7 @@ const COMMUNITY_SCRIPTS: CommunityScript[] = [
     stars: 847, forks: 312, views: 14280, featured: true, verified: true,
     updatedDays: 2,
     preview: "#00D4AA",
-    code: `//@version=5
+    code: `//@version=6
 indicator("CLC Rule Signal v3", overlay=true, shorttitle="CLC")
 
 // ── Inputs ─────────────────────────────────────────────
@@ -80,7 +80,7 @@ hline(midpoint, "Midpoint", color.gray, linestyle=hline.style_dashed)`,
     stars: 623, forks: 198, views: 9840, featured: true, verified: true,
     updatedDays: 5,
     preview: "#F0B429",
-    code: `//@version=5
+    code: `//@version=6
 indicator("VWAP Bands Pro", overlay=true, shorttitle="VWAP+")
 
 // ── VWAP calculation ────────────────────────────────────
@@ -125,7 +125,7 @@ plot(vwap - stdev*mult3, "-3σ", color=color.new(#8B5CF6, 40), linewidth=1)`,
     stars: 1204, forks: 481, views: 28400, featured: true, verified: true,
     updatedDays: 1,
     preview: "#8B5CF6",
-    code: `//@version=5
+    code: `//@version=6
 indicator("Smart Money Concepts", overlay=true, max_bars_back=500, shorttitle="SMC")
 
 showOB  = input.bool(true, "Show Order Blocks")
@@ -165,7 +165,7 @@ plotshape(bos_bear, "BOS Bearish", shape.labeldown, location.abovebar, #FF4D6A, 
     stars: 589, forks: 203, views: 11200, featured: false, verified: true,
     updatedDays: 8,
     preview: "#4FA3E0",
-    code: `//@version=5
+    code: `//@version=6
 indicator("Wyckoff Phase Detector", overlay=true, shorttitle="Wyckoff")
 
 length = input.int(50, "Phase Lookback")
@@ -196,7 +196,7 @@ hline(mid,     "Midpoint",   color.gray,  linestyle=hline.style_dotted)`,
     stars: 432, forks: 156, views: 7840, featured: false, verified: true,
     updatedDays: 12,
     preview: "#FF4D6A",
-    code: `//@version=5
+    code: `//@version=6
 indicator("CVD Delta Divergence", overlay=false, shorttitle="CVD Div")
 
 // ── CVD calculation ─────────────────────────────────────
@@ -232,7 +232,7 @@ plotshape(bearDiv, "Bear Div", shape.arrowdown, location.top,    #FF4D6A, size=s
     stars: 778, forks: 267, views: 16200, featured: true, verified: false,
     updatedDays: 4,
     preview: "#F0B429",
-    code: `//@version=5
+    code: `//@version=6
 indicator("TTM Squeeze Pro", overlay=false, shorttitle="SQZ")
 
 length  = input.int(20, "BB/KC Length")
@@ -276,7 +276,7 @@ plotshape(sqzOff, "SQZ Off", shape.circle, location.bottom, color.gray,  size=si
     stars: 541, forks: 189, views: 9100, featured: false, verified: true,
     updatedDays: 20,
     preview: "#8B5CF6",
-    code: `//@version=5
+    code: `//@version=6
 indicator("RSI Divergence Pro", overlay=false, shorttitle="RSI Div")
 
 rsiLen = input.int(14, "RSI Length")
@@ -314,7 +314,7 @@ plotshape(bearDiv, "Bear Div", shape.triangledown, location.top,    #FF4D6A, siz
     stars: 394, forks: 128, views: 6200, featured: false, verified: false,
     updatedDays: 31,
     preview: "#4FA3E0",
-    code: `//@version=5
+    code: `//@version=6
 indicator("Dark Pool Print Detector", overlay=true, shorttitle="DP")
 
 threshold = input.float(2.5, "Volume Spike Threshold (x avg)")

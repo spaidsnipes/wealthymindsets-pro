@@ -167,3 +167,31 @@ export async function supabaseGetUser(accessToken: string) {
   });
   return res.json();
 }
+
+/**
+ * Persist profile fields to the Supabase user's `user_metadata` via the admin
+ * API. THIS is what makes a profile survive logout/login on any device: the
+ * login route rebuilds the JWT from `user_metadata`, so if we only ever wrote
+ * the profile into the JWT cookie (as the old code did) it vanished the moment
+ * the cookie was reissued at the next sign-in. Requires the service role key.
+ * Returns true on success.
+ */
+export async function supabaseUpdateUserMetadata(
+  userId: string,
+  metadata: Record<string, unknown>
+): Promise<boolean> {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey || !userId) return false;
+  try {
+    const res = await fetch(`${SB_URL()}/auth/v1/admin/users/${userId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+      },
+      body: JSON.stringify({ user_metadata: metadata }),
+    });
+    return res.ok;
+  } catch { return false; }
+}

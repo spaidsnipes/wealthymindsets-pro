@@ -2,10 +2,12 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
-import { Camera, Activity, BookOpen, ChevronDown, Plus, Bell, Trash2 } from "lucide-react";
+import { Camera, Activity, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings } from "lucide-react";
 import { ChartToolbar } from "./ChartToolbar";
 import { MainChart } from "./MainChart";
+import { WatchlistGrid } from "./WatchlistGrid";
 import { IndicatorSettingsModal } from "./IndicatorSettingsModal";
+import { AssetClassSwitcher } from "./AssetClassSwitcher";
 import { isConfigurable, type IndicatorSettings, type IndicatorParams } from "./indicatorConfig";
 import { VolumeProfileLadder } from "./VolumeProfileLadder";
 import { DOMPanel } from "./DOMPanel";
@@ -14,11 +16,13 @@ import { PnLStatsPanel } from "./PnLStatsPanel";
 import { BrokerConnectPanel } from "@/components/broker/BrokerConnectPanel";
 import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
 import { FootprintControls } from "./FootprintControls";
+import { SchemePresets } from "./SchemePresets";
 import { OptionsChain } from "./OptionsChain";
 import { FearGreedWidget } from "./FearGreedWidget";
 import { CustomIndicatorBuilder } from "@/components/pine/CustomIndicatorBuilder";
 import { PineCommunityLibrary } from "@/components/pine/PineCommunityLibrary";
 import { DrawingToolsPanel } from "./DrawingToolsPanel";
+import { LeftDrawingSidebar } from "./LeftDrawingSidebar";
 import { MarkovPanel } from "./MarkovPanel";
 import { WMSessionVP } from "./WMSessionVP";
 import { WatchlistPanel } from "./WatchlistPanel";
@@ -29,14 +33,116 @@ import { BarReplayControls, type ReplaySpeed } from "./BarReplayControls";
 import { ErrorBoundary, SafePanel } from "@/components/ui/ErrorBoundary";
 import { StockInfoPanel } from "./StockInfoPanel";
 import { BottomIndexBar } from "./BottomIndexBar";
+import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
+import { interpretPine } from "@/lib/pine/interpreter";
 import type { PineOutput } from "@/lib/pine/types";
 import type { OHLCVBar } from "@/lib/pine/types";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
+
+// ── WM VP / Session VP color gear ───────────────────────────────────────────
+// Popover that recolors ONLY the Volume-Profile bars + Big-Trades bubbles (their
+// own scheme, stored in localStorage wm_vp_up/wm_vp_dn). It no longer touches the
+// candle bodies — candle colors live in the app-wide Settings, per the user's
+// request that each gear stay scoped to its own target. Offers the shared named
+// schemes plus full custom pickers.
+function VPColorGear() {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  // Panel uses position:fixed anchored to the button, because the toolbar is an
+  // overflow-x-auto scroll container — an absolutely-positioned dropdown would be
+  // CLIPPED by that scroll box (the bug where the panel opened but stayed invisible).
+  const [coords, setCoords] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const toggle = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setCoords({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
+    }
+    setOpen(o => !o);
+  };
+  const [vpUp, setVpUp] = useState("#00C076");
+  const [vpDn, setVpDn] = useState("#FF4D67");
+  const [poc, setPoc]   = useState("#F0B429");
+  const [vah, setVah]   = useState("#2563EB");
+  const [val, setVal]   = useState("#8B5CF6");
+  useEffect(() => {
+    try {
+      setVpUp(localStorage.getItem("wm_vp_up") || "#00C076");
+      setVpDn(localStorage.getItem("wm_vp_dn") || "#FF4D67");
+      setPoc(localStorage.getItem("wm_vp_poc") || "#F0B429");
+      setVah(localStorage.getItem("wm_vp_vah") || "#2563EB");
+      setVal(localStorage.getItem("wm_vp_val") || "#8B5CF6");
+    } catch {}
+  }, [open]);
+  const applyVp = (up: string, dn: string) => {
+    setVpUp(up); setVpDn(dn);
+    try {
+      localStorage.setItem("wm_vp_up", up);
+      localStorage.setItem("wm_vp_dn", dn);
+      window.dispatchEvent(new Event("wm-vp-colors"));
+    } catch {}
+  };
+  const applyLevel = (key: "poc" | "vah" | "val", v: string) => {
+    if (key === "poc") setPoc(v); else if (key === "vah") setVah(v); else setVal(v);
+    try {
+      localStorage.setItem(`wm_vp_${key}`, v);
+      window.dispatchEvent(new Event("wm-vp-colors"));
+    } catch {}
+  };
+  const field = (label: string, val: string, set: (v: string) => void) => (
+    <label className="flex items-center justify-between gap-2 text-[11px] text-wm-text-dim">
+      <span>{label}</span>
+      <input type="color" value={val} onChange={e => set(e.target.value)}
+        className="w-7 h-6 rounded cursor-pointer bg-transparent border border-wm-border" />
+    </label>
+  );
+  return (
+    <div className="shrink-0">
+      <button
+        ref={btnRef}
+        onClick={toggle}
+        title="Volume Profile & candle colors"
+        className="flex items-center justify-center w-5 h-5 rounded border transition-all"
+        style={{
+          background: open ? "rgba(0,192,118,0.15)" : "#131520",
+          borderColor: open ? "rgba(0,192,118,0.5)" : "#1E2030",
+          color: open ? "#00C076" : "#8B8FA8",
+        }}
+      >
+        <Settings size={12} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[59]" onClick={() => setOpen(false)} />
+          <div
+            style={{ position: "fixed", top: coords.top, right: coords.right }}
+            className="z-[60] w-56 rounded-lg border border-wm-border bg-wm-surface p-3 shadow-2xl flex flex-col gap-3">
+            <div className="text-[11px] font-bold text-wm-text">Volume Profile bars</div>
+            <div className="text-[10px] text-wm-text-dim -mt-1">Colors only the VP bars — candle colors live in Settings.</div>
+            <SchemePresets onApply={(up, dn) => applyVp(up, dn)} />
+            <div className="h-px bg-wm-border" />
+            {field("Up / Ask", vpUp, v => applyVp(v, vpDn))}
+            {field("Down / Bid", vpDn, v => applyVp(vpUp, v))}
+            <div className="h-px bg-wm-border" />
+            <div className="text-[11px] font-bold text-wm-text">Value-area levels</div>
+            <div className="text-[10px] text-wm-text-dim -mt-1">POC line, VAH box & VAL box colors.</div>
+            {field("POC (Point of Control)", poc, v => applyLevel("poc", v))}
+            {field("VAH box (Value Area High)", vah, v => applyLevel("vah", v))}
+            {field("VAL box (Value Area Low)", val, v => applyLevel("val", v))}
+            <button onClick={() => { applyVp("#00C076", "#FF4D67"); applyLevel("poc", "#F0B429"); applyLevel("vah", "#2563EB"); applyLevel("val", "#8B5CF6"); }}
+              className="mt-1 px-2 py-1 rounded text-[10px] font-semibold border border-wm-border text-wm-text-dim hover:text-wm-text">
+              Reset all VP colors
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 interface Strategy {
   id:         string;
@@ -86,11 +192,34 @@ export function ChartsDashboard() {
   const [pineBuilderOpen, setPineBuilderOpen] = useState(false);
   const [footprintType,   setFootprintType]   = useState<FootprintType>(() => lsGet("wm_footprint", "bid-ask") as FootprintType);
   const [footprintEnabled, setFootprintEnabled] = useState<boolean>(() => lsGet("wm_fp_enabled", true) as boolean);
+  // Big Trades "Simultaneous Mode": when ON, Big Trades bubbles overlay on top of
+  // the active order-flow tool instead of replacing it. `bigTradesOverlay` tracks
+  // whether the overlay is currently toggled on (only meaningful while simul ON).
+  const [bigTradesSimul,   setBigTradesSimul]   = useState<boolean>(
+    () => typeof window !== "undefined" && localStorage.getItem("wm_bigtrades_simul") === "1"
+  );
+  const [bigTradesOverlay, setBigTradesOverlay] = useState<boolean>(false);
   const [candleType,      setCandleType]      = useState<CandleType>(() => lsGet("wm_candleType", "candles") as CandleType);
   const symbol    = activeSymbol;
   const setSymbol = setActiveSymbol;
+  // ── App settings (from Settings panel) ──────────────────────
+  function readAppSettings(): Record<string, unknown> {
+    if (typeof window === "undefined") return {};
+    try { return JSON.parse(localStorage.getItem("wm_settings") || "{}"); } catch { return {}; }
+  }
+  const [appSettings, setAppSettings] = useState<Record<string, unknown>>(() => readAppSettings());
+  useEffect(() => {
+    const h = () => setAppSettings(readAppSettings());
+    window.addEventListener("wm-settings-changed", h);
+    return () => window.removeEventListener("wm-settings-changed", h);
+  }, []);
+
   const [timeframe,       setTimeframe]       = useState<string>(() => {
-    const stored = lsGet("wm_timeframe", "5m") as string;
+    const settings = (() => { try { return JSON.parse(localStorage.getItem("wm_settings") || "{}"); } catch { return {}; } })();
+    const defTF = settings.defaultTF as string | undefined;
+    let stored = lsGet("wm_timeframe", "5m") as string;
+    // Honor a configured Default Timeframe (unless "last"=use last used, "none"=ignore)
+    if (defTF && defTF !== "last" && defTF !== "none") stored = defTF;
     // Reject all sub-minute timeframes — they have no data outside market hours
     const subMinute = ["1t","5t","30t","1s","2s","3s","5s","10s","15s","30s"];
     return subMinute.includes(stored) ? "5m" : stored;
@@ -115,20 +244,27 @@ export function ChartsDashboard() {
   const [activeInds, setActiveInds] = useState<Set<string>>(() => new Set<string>(lsGet<string[]>("wm_activeInds", [])));
   const [indSettings, setIndSettings] = useState<IndicatorSettings>(() => lsGet<IndicatorSettings>("wm_indSettings", {}));
   const [indSettingsFor, setIndSettingsFor] = useState<string | null>(null); // which indicator's settings modal is open
-  const [extHours,   setExtHours]   = useState(false);
+  // Default to Extended Hours so intraday equity candle COUNT matches Moomoo /
+  // Webull (which show pre-market + after-hours bars by default). RTH-only mode
+  // strips those bars, which is what made TSLA look like it was "missing" the
+  // last few hourly candles vs. those platforms.
+  const [extHours,   setExtHours]   = useState<boolean>(() => lsGet("wm_extHours", true) as boolean);
   const [sessionVPOpen, setSessionVPOpen] = useState(false);
   const [markovOpen, setMarkovOpen] = useState(false);
 
   // ── WM VP indicators (draw ON chart canvas) ─────────────────
-  const [fixedVPActive,   setFixedVPActive]   = useState(false);
-  const [sessionVPChart,  setSessionVPChart]  = useState(false);
+  const [fixedVPActive,   setFixedVPActive]   = useState<boolean>(() => lsGet("wm_fixedVP", false) as boolean);
+  const [sessionVPChart,  setSessionVPChart]  = useState<boolean>(() => lsGet("wm_sessionVP", false) as boolean);
 
   // ── NEW: Watchlist ──────────────────────────────────────────
   const [watchlistOpen, setWatchlistOpen] = useState(true);
+  // Moomoo-style grid view (mini-chart cards) vs single chart
+  const [gridView, setGridView] = useState(false);
+  const [gridRefresh, setGridRefresh] = useState(0);
 
   // ── NEW: Alerts ─────────────────────────────────────────────
   const [alertsOpen,   setAlertsOpen]   = useState(false);
-  const [alertLevels,  setAlertLevels]  = useState<number[]>([]);
+  const [allAlerts,    setAllAlerts]    = useState<PriceAlert[]>([]);
   const [currentPrice, setCurrentPrice] = useState(0);
 
   // ── Strategies ──────────────────────────────────────────────
@@ -147,16 +283,66 @@ export function ChartsDashboard() {
   }, []);
 
   const handleAlertsChange = useCallback((alerts: PriceAlert[]) => {
-    setAlertLevels(alerts.filter(a => !a.triggered).map(a => a.price));
+    setAllAlerts(alerts);
   }, []);
+
+  // Only draw alert lines for the CURRENT symbol — otherwise an alert on another
+  // symbol (e.g. a 1100-level futures alert) leaks onto every chart and, being a
+  // line on the price scale, drags the scale out and crushes the candles.
+  const alertLevels = React.useMemo(
+    () => allAlerts.filter(a => !a.triggered && a.symbol?.toUpperCase() === symbol.toUpperCase()).map(a => a.price),
+    [allAlerts, symbol],
+  );
 
   // ── NEW: Chart settings ─────────────────────────────────────
   const [settingsOpen,   setSettingsOpen]   = useState(false);
-  const [chartSettings,  setChartSettings]  = useState<ChartSettings>(DEFAULT_CHART_SETTINGS);
+  const [chartSettings,  setChartSettings]  = useState<ChartSettings>(
+    () => ({ ...DEFAULT_CHART_SETTINGS, ...lsGet<Partial<ChartSettings>>("wm_chartSettings", {}) }),
+  );
+  // Persist chart settings (candle colors, grid, etc.) so a refresh keeps them.
+  useEffect(() => { lsSet("wm_chartSettings", chartSettings); }, [chartSettings]);
 
   // ── WM Neon vs Original layout theme ────────────────────────
-  const [theme, setTheme] = useState<"original" | "neon">(() => lsGet("wm_theme", "original") as "original" | "neon");
-  useEffect(() => { lsSet("wm_theme", theme); }, [theme]);
+  // HYDRATION-SAFE: must start as the SSR default ("original") so the first
+  // client render matches the server HTML. Reading wm_theme in the initializer
+  // made the root <div> render className="wm-neon" + a scan child on the client
+  // while the server rendered the plain layout → React #418 hydration mismatch.
+  // We load the stored theme in an after-mount effect instead.
+  const [theme, setTheme] = useState<"original" | "neon">("original");
+  const [themeHydrated, setThemeHydrated] = useState(false);
+  useEffect(() => {
+    const stored = lsGet("wm_theme", "original") as "original" | "neon";
+    if (stored !== "original") setTheme(stored);
+    setThemeHydrated(true);
+  }, []);
+  // Persist only after the stored theme has loaded, so the pre-hydration default
+  // can't overwrite the saved value before the load effect runs.
+  useEffect(() => { if (themeHydrated) lsSet("wm_theme", theme); }, [theme, themeHydrated]);
+  // Chart Theme (from Settings panel) → candle color scheme override
+  const chartThemeColors = (() => {
+    switch (appSettings.chartTheme as string) {
+      case "blue-orange":
+        return {
+          candleUp: "#2563EB", candleDown: "#F59E0B",
+          borderUp: "#3B82F6", borderDown: "#FBBF24",
+          wickUp:   "#60A5FA", wickDown:   "#FCD34D",
+        };
+      case "blue-purple":
+        return {
+          candleUp: "#2563EB", candleDown: "#6A0DAD",
+          borderUp: "#3B82F6", borderDown: "#8B2FC9",
+          wickUp:   "#60A5FA", wickDown:   "#A855F7",
+        };
+      case "mono":
+        return {
+          candleUp: "#E5E7EB", candleDown: "#6B7280",
+          borderUp: "#F3F4F6", borderDown: "#9CA3AF",
+          wickUp:   "#D1D5DB", wickDown:   "#9CA3AF",
+        };
+      default: return null; // green-red = use chartSettings defaults
+    }
+  })();
+
   // When Neon is active, override the canvas chart colors (candles stay red/green)
   const effChartSettings: ChartSettings = theme === "neon"
     ? {
@@ -170,7 +356,9 @@ export function ChartsDashboard() {
         borderUp:  "#39FFB0", borderDown: "#FF4D7A",
         wickUp:    "#00FFC6", wickDown:   "#FF6B8A",
       }
-    : chartSettings;
+    : chartThemeColors
+      ? { ...chartSettings, ...chartThemeColors }
+      : chartSettings;
 
   // ── NEW: Layout ─────────────────────────────────────────────
   const [chartLayout, setChartLayout] = useState<ChartLayout>(() => lsGet("wm_chartLayout", "1") as ChartLayout);
@@ -180,9 +368,23 @@ export function ChartsDashboard() {
   useEffect(() => { lsSet("wm_indSettings",  indSettings); },      [indSettings]);
   useEffect(() => { lsSet("wm_footprint",    footprintType); },    [footprintType]);
   useEffect(() => { lsSet("wm_fp_enabled", footprintEnabled); }, [footprintEnabled]);
+  // Sync Big Trades Simultaneous Mode when toggled from the gear popover.
+  useEffect(() => {
+    const onSimul = (e: Event) => {
+      const on = !!(e as CustomEvent).detail?.on;
+      setBigTradesSimul(on);
+      // Leaving simul mode clears the standalone overlay so state stays coherent.
+      if (!on) setBigTradesOverlay(false);
+    };
+    window.addEventListener("wm-bigtrades-simul", onSimul);
+    return () => window.removeEventListener("wm-bigtrades-simul", onSimul);
+  }, []);
   useEffect(() => { lsSet("wm_candleType",   candleType); },       [candleType]);
   useEffect(() => { lsSet("wm_timeframe",    timeframe); },        [timeframe]);
   useEffect(() => { lsSet("wm_chartLayout",  chartLayout); },      [chartLayout]);
+  useEffect(() => { lsSet("wm_extHours",     extHours); },         [extHours]);
+  useEffect(() => { lsSet("wm_fixedVP",      fixedVPActive); },    [fixedVPActive]);
+  useEffect(() => { lsSet("wm_sessionVP",    sessionVPChart); },   [sessionVPChart]);
 
   // ── NEW: Bar replay ─────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -294,6 +496,27 @@ export function ChartsDashboard() {
     setPineBuilderOpen(false);
   }, []);
 
+  // ── Live-update the active Pine indicator as new bars stream in ──
+  // Recompute the script against the latest chartBars whenever they change
+  // (new candle, symbol switch, timeframe switch) so a custom indicator
+  // "always updates" like a native one instead of freezing on the bars it
+  // was first added with.
+  useEffect(() => {
+    if (!pineCode || chartBars.length === 0) return;
+    let cancelled = false;
+    const id = setTimeout(() => {
+      try {
+        const out = interpretPine(pineCode, chartBars);
+        if (!cancelled) setPineOutput(out);
+      } catch { /* keep last good output */ }
+    }, 120);
+    return () => { cancelled = true; clearTimeout(id); };
+    // Rebuild the full plot set only when a NEW bar closes (length changes).
+    // Intra-bar live movement is handled smoothly inside MainChart via
+    // series.update(), so we avoid tearing down/rebuilding series every tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartBars.length, pineCode]);
+
   const handleCommunityImport = useCallback((code: string, _title: string) => {
     setPineCode(code);
     setCommunityOpen(false);
@@ -322,6 +545,23 @@ export function ChartsDashboard() {
     }
   }, [symbol, timeframe, snapping]);
 
+  // HYDRATION GATE — permanent fix for React #418.
+  // This dashboard seeds many states from localStorage (theme, timeframe,
+  // candleType, footprint, active indicators, VP toggles, chart settings…), so
+  // the client's first render diverges from the server HTML for any user who has
+  // customized anything → hydration mismatch. Since the chart is a browser-only
+  // tool with no useful SSR, we render an identical placeholder on the server AND
+  // the client's first paint (mounted=false on both → they match), then swap in
+  // the real dashboard after mount. One gate covers every localStorage-derived
+  // value at once and prevents the whole class of bug from ever recurring.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted) {
+    return (
+      <div style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden", background:"#0D0E14" }} />
+    );
+  }
+
   return (
     <div
       className={theme === "neon" ? "wm-neon" : undefined}
@@ -340,6 +580,8 @@ export function ChartsDashboard() {
         gap: 0, paddingLeft: 16, background: "#0D0E14", flexShrink: 0, overflowX: "auto",
         scrollbarWidth: "none",
       }}>
+        {/* Asset class switcher (Stocks / Crypto / Futures / Forex / Indices / Metals) */}
+        <AssetClassSwitcher symbol={symbol} onSelect={setSymbol} />
         {/* Symbol + live price */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 16, flexShrink: 0 }}>
           <span style={{ color: "#E2E8F0", fontWeight: 700, fontSize: 14 }}>{symbol}</span>
@@ -389,8 +631,24 @@ export function ChartsDashboard() {
       {/* ── Main row ─────────────────────────────────────────── */}
       <div style={{ flex:1, display:"flex", overflow:"hidden", minHeight:0 }}>
 
+        {/* Left tool strip (TradingView-style): watchlist toggle, layout,
+            publish idea, record video, speak your mind, screenshot, screen rec */}
+        <LeftSidebar
+          watchlistOpen={watchlistOpen}
+          onToggleWatchlist={() => setWatchlistOpen(v => !v)}
+          chartLayout={chartLayout}
+          onLayoutChange={setChartLayout}
+          captureRef={fullscreenRef}
+          symbol={symbol}
+        />
+
         {/* Watchlist (left side, MooMoo places it left of chart) */}
-        <WatchlistPanel open={watchlistOpen} onToggle={() => setWatchlistOpen(v => !v)} />
+        <WatchlistPanel
+          open={watchlistOpen}
+          onToggle={() => setWatchlistOpen(v => !v)}
+          gridView={gridView}
+          onGridViewChange={(v) => { setGridView(v); if (v) setGridRefresh(k => k + 1); }}
+        />
 
         {/* Center: toolbar + chart area — fullscreen target includes all controls */}
         <div ref={fullscreenRef} style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0 }}>
@@ -422,9 +680,12 @@ export function ChartsDashboard() {
           />
 
           {/* ── Extra controls bar (Footprint, candle type, etc.) ── */}
-          <div className="flex items-center justify-between border-b shrink-0"
+          {/* overflow-x-auto so the toolbar NEVER clips a control (the WM Session VP
+              button was being cut off by the candle dropdown when the row exceeded the
+              viewport) — it scrolls horizontally instead of hiding items. */}
+          <div className="flex items-center justify-between border-b shrink-0 overflow-x-auto overflow-y-hidden"
             style={{ height: 30, background: "#0D0E14", borderColor: "#1E2030" }}>
-            <div className="flex items-center">
+            <div className="flex items-center shrink-0">
               {/* Drawing tools dropdown — lives in the secondary toolbar */}
               <div className="flex items-center px-2 border-r border-wm-border/50 h-full" style={{ gap: 4 }}>
                 <DrawingToolsPanel
@@ -444,11 +705,28 @@ export function ChartsDashboard() {
               <FootprintControls
                 active={footprintType}
                 enabled={footprintEnabled}
+                bigTradesOverlay={bigTradesSimul && bigTradesOverlay}
                 onDisable={() => setFootprintEnabled(false)}
                 onChange={(t) => {
-                  // clicking any mode always enables and switches to that mode
-                  setFootprintEnabled(true);
-                  setFootprintType(t);
+                  // Big Trades in Simultaneous Mode is an INDEPENDENT overlay: clicking
+                  // it toggles the overlay on/off WITHOUT disturbing the active order-flow
+                  // tool (Delta, Bid×Ask, Imbalance, Agg/Passive, Vol Profile).
+                  if (t === "big-trades" && bigTradesSimul) {
+                    setBigTradesOverlay(v => !v);
+                    return;
+                  }
+                  // Re-clicking the mode that's already active toggles it OFF, so each
+                  // order-flow button (incl. Big Trades in exclusive mode) is a reliable
+                  // on/off toggle. Otherwise switch to / enable the clicked mode.
+                  if (footprintEnabled && footprintType === t) {
+                    setFootprintEnabled(false);
+                  } else {
+                    setFootprintEnabled(true);
+                    setFootprintType(t);
+                    // Switching to a non-big-trades exclusive tool clears any leftover
+                    // overlay so the two states never fight.
+                    if (t !== "big-trades") setBigTradesOverlay(false);
+                  }
                 }}
               />
               {/* WM VP Indicator buttons */}
@@ -477,10 +755,11 @@ export function ChartsDashboard() {
                 >
                   WM Session VP
                 </button>
+                <VPColorGear />
               </div>
             </div>
 
-            <div className="flex items-center gap-1 px-2">
+            <div className="flex items-center gap-1 px-2 shrink-0">
               <select
                 value={candleType}
                 onChange={e => setCandleType(e.target.value as CandleType)}
@@ -764,7 +1043,22 @@ export function ChartsDashboard() {
 
             {/* Chart + VP ladder (snapshot target) */}
             <div ref={chartWrapRef} style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0, position:"relative" }}>
-              <div style={{ flex:1, display:"flex", overflow:"hidden" }}>
+              {gridView && <WatchlistGrid refreshKey={gridRefresh} timeframe={timeframe} />}
+              <div style={{ flex:1, display: gridView ? "none" : "flex", overflow:"hidden" }}>
+                {/* TradingView-style persistent left drawing rail */}
+                <LeftDrawingSidebar
+                  activeTool={drawingTool}
+                  onToolChange={setDrawingTool}
+                  onClearAll={() => setClearTrigger(t => t + 1)}
+                  color={drawingColor}
+                  onColorChange={setDrawingColor}
+                  magnetActive={magnetActive}
+                  onMagnetToggle={() => setMagnetActive(v => !v)}
+                  lockActive={lockActive}
+                  onLockToggle={() => setLockActive(v => !v)}
+                  visible={drawingsVisible}
+                  onVisToggle={() => setDrawingsVisible(v => !v)}
+                />
                 <div style={{
                   flex: 1, display:"flex", overflow:"hidden",
                   ...(chartLayout === "2h" ? { flexDirection: "row" } :
@@ -780,9 +1074,10 @@ export function ChartsDashboard() {
                       symbol={symbol}
                       timeframe={timeframe}
                       footprintType={footprintType}
-                      footprintEnabled={footprintEnabled}
+                      footprintEnabled={footprintEnabled} bigTradesOverlay={bigTradesSimul && bigTradesOverlay}
                       candleType={candleType}
                       pineOutput={pineOutput}
+                      pineCode={pineCode}
                       onBarsReady={handleBarsReady}
                       drawingTool={drawingTool}
                       onDrawingComplete={() => setDrawingTool("cursor")}
@@ -816,7 +1111,7 @@ export function ChartsDashboard() {
                         symbol={compareSymbol || symbol}
                         timeframe={timeframe}
                         footprintType={footprintType}
-                        footprintEnabled={footprintEnabled}
+                        footprintEnabled={footprintEnabled} bigTradesOverlay={bigTradesSimul && bigTradesOverlay}
                         candleType={candleType}
                         chartSettings={effChartSettings}
                       />
@@ -826,10 +1121,10 @@ export function ChartsDashboard() {
                   {chartLayout === "4" && (
                     <>
                       <div style={{ width:"50%", flexShrink:0, borderTop:"1px solid #1E2030", display:"flex", overflow:"hidden", minHeight:0 }}>
-                        <MainChart symbol={symbol} timeframe="5m" footprintType={footprintType} footprintEnabled={footprintEnabled} candleType={candleType} chartSettings={effChartSettings} />
+                        <MainChart symbol={symbol} timeframe="5m" footprintType={footprintType} footprintEnabled={footprintEnabled} bigTradesOverlay={bigTradesSimul && bigTradesOverlay} candleType={candleType} chartSettings={effChartSettings} />
                       </div>
                       <div style={{ width:"50%", flexShrink:0, borderTop:"1px solid #1E2030", borderLeft:"1px solid #1E2030", display:"flex", overflow:"hidden", minHeight:0 }}>
-                        <MainChart symbol={symbol} timeframe="15m" footprintType={footprintType} footprintEnabled={footprintEnabled} candleType={candleType} chartSettings={effChartSettings} />
+                        <MainChart symbol={symbol} timeframe="15m" footprintType={footprintType} footprintEnabled={footprintEnabled} bigTradesOverlay={bigTradesSimul && bigTradesOverlay} candleType={candleType} chartSettings={effChartSettings} />
                       </div>
                     </>
                   )}
@@ -1025,166 +1320,215 @@ export function ChartsDashboard() {
   );
 }
 
-/* ── Fundamentals / Info Tab Panel ──────────────────────────────────────── */
+/* ── Fundamentals / Info Tab Panel ──────────────────────────────────────────
+   Renders REAL per-symbol fundamentals from the FMP proxy (/api/fmp). When the
+   data is unavailable — no FMP key configured, a non-equity symbol (crypto /
+   futures / forex), or an API error — it shows an honest "unavailable" state
+   instead of fabricated placeholder data. (Previously every symbol rendered the
+   SAME static Apple figures, which is dangerous in a real trading app.) */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const FMP_PATHS: Record<string, Record<string, string>> = {
+  Profile:            { profile: "/v3/profile/%S" },
+  Valuation:          { profile: "/v3/profile/%S", ratios: "/v3/ratios-ttm/%S", km: "/v3/key-metrics-ttm/%S" },
+  Financials:         { inc: "/v3/income-statement/%S?period=quarter&limit=5" },
+  "Corporate Actions":{ div: "/v3/historical-price-full/stock_dividend/%S", split: "/v3/historical-price-full/stock_split/%S" },
+  Shareholders:       { profile: "/v3/profile/%S", inst: "/v3/institutional-holder/%S" },
+  ETFs:               { profile: "/v3/profile/%S", etf: "/v3/etf-info?symbol=%S" },
+};
+
+function fmtBig(n?: number): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  const a = Math.abs(n);
+  if (a >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
+  if (a >= 1e9)  return `$${(n / 1e9).toFixed(2)}B`;
+  if (a >= 1e6)  return `$${(n / 1e6).toFixed(1)}M`;
+  if (a >= 1e3)  return `$${(n / 1e3).toFixed(1)}K`;
+  return `$${n.toFixed(2)}`;
+}
+const fmtX   = (n?: number) => (n == null || !Number.isFinite(n)) ? "—" : `${n.toFixed(1)}×`;
+const fmtPct = (n?: number) => (n == null || !Number.isFinite(n)) ? "—" : `${(n * 100).toFixed(2)}%`;
+const fmtShares = (n?: number) => {
+  if (n == null || !Number.isFinite(n)) return "—";
+  const a = Math.abs(n);
+  if (a >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
+  if (a >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  if (a >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
+  return `${n}`;
+};
+
 function FundamentalsTabPanel({ symbol, tab, onBack }: { symbol: string; tab: string; onBack: () => void }) {
   const base = symbol.toUpperCase();
+  const [loading, setLoading] = useState(true);
+  const [d, setD] = useState<Record<string, any>>({});
+  const [hasData, setHasData] = useState(false);
 
-  const sections: Record<string, React.ReactNode> = {
-    "ETFs": (
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:12 }}>
-        {[
-          { label:"Fund Type", value:"Exchange Traded Fund" },
-          { label:"Inception Date", value:"Jan 22, 1993" },
-          { label:"AUM", value:"$432.5B" },
-          { label:"Expense Ratio", value:"0.0945%" },
-          { label:"Avg Volume (30d)", value:"82.4M" },
-          { label:"NAV", value:"$587.32" },
-          { label:"Premium/Discount", value:"+0.02%" },
-          { label:"Holdings Count", value:"503" },
-          { label:"Dividend Yield", value:"1.24%" },
-          { label:"Ex-Dividend Date", value:"Mar 21, 2025" },
-          { label:"Beta (5Y)", value:"1.00" },
-          { label:"Index Tracked", value:"S&P 500" },
-        ].map(r => (
-          <div key={r.label} style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:6, padding:"10px 12px" }}>
-            <div style={{ fontSize:10, color:"#6B7094", marginBottom:2 }}>{r.label}</div>
-            <div style={{ fontSize:13, fontWeight:600, color:"#E2E8F0" }}>{r.value}</div>
+  useEffect(() => {
+    let cancelled = false;
+    const map = FMP_PATHS[tab];
+    if (!map) { setLoading(false); setHasData(false); return; }
+    setLoading(true); setHasData(false); setD({});
+    const keys = Object.keys(map);
+    Promise.all(keys.map(async k => {
+      try {
+        const path = map[k].replace(/%S/g, base);
+        const res = await fetch(`/api/fmp?path=${encodeURIComponent(path)}`);
+        const j: any = await res.json();
+        if (!res.ok || j?.error || j?.["Error Message"]) return [k, null] as const;
+        const empty = Array.isArray(j) ? j.length === 0 : (j && typeof j === "object" && Object.keys(j).length === 0);
+        return [k, empty ? null : j] as const;
+      } catch { return [k, null] as const; }
+    })).then(entries => {
+      if (cancelled) return;
+      const obj: Record<string, any> = {};
+      let any = false;
+      entries.forEach(([k, v]) => { obj[k] = v; if (v) any = true; });
+      setD(obj); setHasData(any); setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [base, tab]);
+
+  const Card = ({ label, value }: { label: string; value: React.ReactNode }) => (
+    <div style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:6, padding:"10px 12px" }}>
+      <div style={{ fontSize:10, color:"#6B7094", marginBottom:2 }}>{label}</div>
+      <div style={{ fontSize:13, fontWeight:600, color:"#E2E8F0" }}>{value}</div>
+    </div>
+  );
+
+  function renderTab(): React.ReactNode {
+    if (tab === "Profile") {
+      const p = d.profile?.[0]; if (!p) return null;
+      return (
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+          <div style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:8, padding:16 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:"#E2E8F0", marginBottom:8 }}>Company Overview — {p.companyName ?? base}</div>
+            <p style={{ fontSize:12, color:"#B0B8D0", lineHeight:1.7, margin:0 }}>{p.description ?? "No description available."}</p>
           </div>
-        ))}
-      </div>
-    ),
-    "Financials": (
-      <div style={{ overflowX:"auto" }}>
-        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
-          <thead>
-            <tr style={{ background:"#0F1119", color:"#6B7094" }}>
-              {["Metric","Q4 2024","Q3 2024","Q2 2024","Q1 2024","FY 2023"].map(h => (
-                <th key={h} style={{ padding:"8px 12px", textAlign:"left", borderBottom:"1px solid #1E2030", fontWeight:500 }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              ["Revenue","$124.3B","$118.4B","$112.2B","$106.7B","$439.0B"],
-              ["Gross Profit","$71.4B","$68.2B","$64.8B","$61.3B","$253.1B"],
-              ["Operating Income","$48.6B","$46.1B","$43.4B","$40.7B","$168.5B"],
-              ["Net Income","$38.5B","$36.9B","$34.2B","$31.8B","$134.0B"],
-              ["EPS (diluted)","$2.46","$2.34","$2.18","$2.02","$8.53"],
-              ["Free Cash Flow","$29.3B","$28.4B","$26.1B","$24.8B","$103.2B"],
-            ].map((row, i) => (
-              <tr key={i} style={{ background: i % 2 ? "#0D0E14" : "#141824" }}>
-                {row.map((cell, j) => (
-                  <td key={j} style={{ padding:"7px 12px", color: j === 0 ? "#B0B8D0" : "#E2E8F0", borderBottom:"1px solid #1E2030" }}>{cell}</td>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:12 }}>
+            <Card label="CEO" value={p.ceo ?? "—"} />
+            <Card label="Founded (IPO)" value={p.ipoDate ?? "—"} />
+            <Card label="Employees" value={p.fullTimeEmployees ? Number(p.fullTimeEmployees).toLocaleString() : "—"} />
+            <Card label="Headquarters" value={[p.city, p.state, p.country].filter(Boolean).join(", ") || "—"} />
+            <Card label="Sector" value={p.sector ?? "—"} />
+            <Card label="Industry" value={p.industry ?? "—"} />
+            <Card label="Exchange" value={p.exchangeShortName ?? p.exchange ?? "—"} />
+            <Card label="ISIN" value={p.isin ?? "—"} />
+          </div>
+        </div>
+      );
+    }
+    if (tab === "Valuation") {
+      const p = d.profile?.[0], r = d.ratios?.[0], k = d.km?.[0];
+      if (!p && !r && !k) return null;
+      const range = p?.range ? String(p.range).split("-") : null;
+      return (
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:12 }}>
+          <Card label="Market Cap" value={fmtBig(p?.mktCap)} />
+          <Card label="P/E Ratio (TTM)" value={fmtX(r?.peRatioTTM)} />
+          <Card label="PEG Ratio" value={r?.pegRatioTTM != null ? r.pegRatioTTM.toFixed(2) : "—"} />
+          <Card label="P/S Ratio" value={fmtX(r?.priceToSalesRatioTTM)} />
+          <Card label="P/B Ratio" value={fmtX(r?.priceToBookRatioTTM)} />
+          <Card label="EV / EBITDA" value={fmtX(k?.enterpriseValueOverEBITDATTM)} />
+          <Card label="EV / Revenue" value={fmtX(k?.evToSalesTTM)} />
+          <Card label="Price / FCF" value={fmtX(r?.priceToFreeCashFlowsRatioTTM)} />
+          <Card label="Enterprise Value" value={fmtBig(k?.enterpriseValueTTM)} />
+          <Card label="Beta" value={p?.beta != null ? Number(p.beta).toFixed(2) : "—"} />
+          <Card label="52W High" value={range ? `$${range[1]}` : "—"} />
+          <Card label="52W Low" value={range ? `$${range[0]}` : "—"} />
+        </div>
+      );
+    }
+    if (tab === "Financials") {
+      const inc: any[] = d.inc ?? []; if (!inc.length) return null;
+      const cols = inc.slice(0, 5);
+      const rows: [string, (q: any) => React.ReactNode][] = [
+        ["Revenue", q => fmtBig(q.revenue)],
+        ["Gross Profit", q => fmtBig(q.grossProfit)],
+        ["Operating Income", q => fmtBig(q.operatingIncome)],
+        ["Net Income", q => fmtBig(q.netIncome)],
+        ["EPS (diluted)", q => q.epsdiluted != null ? `$${Number(q.epsdiluted).toFixed(2)}` : "—"],
+      ];
+      return (
+        <div style={{ overflowX:"auto" }}>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+            <thead>
+              <tr style={{ background:"#0F1119", color:"#6B7094" }}>
+                {["Metric", ...cols.map(c => c.date ?? c.period)].map((h, i) => (
+                  <th key={i} style={{ padding:"8px 12px", textAlign:"left", borderBottom:"1px solid #1E2030", fontWeight:500 }}>{h}</th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    ),
-    "Valuation": (
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:12 }}>
-        {[
-          { label:"Market Cap", value:"$3.42T" },
-          { label:"P/E Ratio (TTM)", value:"32.8×" },
-          { label:"Forward P/E", value:"28.4×" },
-          { label:"PEG Ratio", value:"1.62" },
-          { label:"P/S Ratio", value:"8.74×" },
-          { label:"P/B Ratio", value:"46.2×" },
-          { label:"EV / EBITDA", value:"24.6×" },
-          { label:"EV / Revenue", value:"9.1×" },
-          { label:"Price / FCF", value:"35.4×" },
-          { label:"Enterprise Value", value:"$3.36T" },
-          { label:"52W High", value:"$260.10" },
-          { label:"52W Low", value:"$164.08" },
-        ].map(r => (
-          <div key={r.label} style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:6, padding:"10px 12px" }}>
-            <div style={{ fontSize:10, color:"#6B7094", marginBottom:2 }}>{r.label}</div>
-            <div style={{ fontSize:13, fontWeight:600, color:"#E2E8F0" }}>{r.value}</div>
-          </div>
-        ))}
-      </div>
-    ),
-    "Corporate Actions": (
-      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-        {[
-          { type:"Dividend", date:"Mar 21, 2025", amount:"$0.25/share", status:"Declared" },
-          { type:"Stock Split", date:"Jun 10, 2024", amount:"10:1", status:"Completed" },
-          { type:"Buyback", date:"Q1 2025", amount:"$90B authorized", status:"Active" },
-          { type:"Dividend", date:"Dec 15, 2024", amount:"$0.25/share", status:"Paid" },
-          { type:"Acquisition", date:"Nov 2024", amount:"undisclosed", status:"Completed" },
-        ].map((a, i) => (
-          <div key={i} style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:6, padding:"10px 14px", display:"flex", alignItems:"center", gap:16 }}>
-            <span style={{ background:"rgba(79,163,224,0.15)", color:"#4FA3E0", padding:"2px 8px", borderRadius:4, fontSize:10, fontWeight:600, minWidth:90, textAlign:"center" }}>{a.type}</span>
-            <span style={{ color:"#B0B8D0", fontSize:12, minWidth:90 }}>{a.date}</span>
-            <span style={{ color:"#E2E8F0", fontSize:12, flex:1 }}>{a.amount}</span>
-            <span style={{ color: a.status === "Active" ? "#00C076" : a.status === "Declared" ? "#F0B429" : "#6B7094", fontSize:11 }}>{a.status}</span>
-          </div>
-        ))}
-      </div>
-    ),
-    "Shareholders": (
-      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:8 }}>
-          {[
-            { label:"Institutional Ownership", value:"58.4%" },
-            { label:"Insider Ownership", value:"0.02%" },
-            { label:"Short Float", value:"0.71%" },
-          ].map(r => (
-            <div key={r.label} style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:6, padding:"10px 12px" }}>
-              <div style={{ fontSize:10, color:"#6B7094", marginBottom:2 }}>{r.label}</div>
-              <div style={{ fontSize:16, fontWeight:700, color:"#E2E8F0" }}>{r.value}</div>
+            </thead>
+            <tbody>
+              {rows.map(([label, fn], i) => (
+                <tr key={i} style={{ background: i % 2 ? "#0D0E14" : "#141824" }}>
+                  <td style={{ padding:"7px 12px", color:"#B0B8D0", borderBottom:"1px solid #1E2030" }}>{label}</td>
+                  {cols.map((q, j) => (
+                    <td key={j} style={{ padding:"7px 12px", color:"#E2E8F0", borderBottom:"1px solid #1E2030" }}>{fn(q)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+    if (tab === "Corporate Actions") {
+      const divs: any[] = d.div?.historical ?? [];
+      const splits: any[] = d.split?.historical ?? [];
+      const items = [
+        ...divs.slice(0, 6).map(x => ({ type:"Dividend", date:x.date, amount:`$${Number(x.dividend ?? x.adjDividend ?? 0).toFixed(2)}/share`, status:"Paid" })),
+        ...splits.slice(0, 6).map(x => ({ type:"Stock Split", date:x.date, amount:`${x.numerator}:${x.denominator}`, status:"Completed" })),
+      ].sort((a, b) => (a.date < b.date ? 1 : -1));
+      if (!items.length) return null;
+      return (
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {items.map((a, i) => (
+            <div key={i} style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:6, padding:"10px 14px", display:"flex", alignItems:"center", gap:16 }}>
+              <span style={{ background:"rgba(79,163,224,0.15)", color:"#4FA3E0", padding:"2px 8px", borderRadius:4, fontSize:10, fontWeight:600, minWidth:90, textAlign:"center" }}>{a.type}</span>
+              <span style={{ color:"#B0B8D0", fontSize:12, minWidth:90 }}>{a.date}</span>
+              <span style={{ color:"#E2E8F0", fontSize:12, flex:1 }}>{a.amount}</span>
+              <span style={{ color:"#6B7094", fontSize:11 }}>{a.status}</span>
             </div>
           ))}
         </div>
-        {[
-          { name:"Vanguard Group", shares:"1.28B", pct:"8.46%", change:"+0.3%" },
-          { name:"BlackRock Inc.", shares:"1.14B", pct:"7.55%", change:"+0.1%" },
-          { name:"Berkshire Hathaway", shares:"915M", pct:"6.05%", change:"0.0%" },
-          { name:"State Street Corp.", shares:"576M", pct:"3.81%", change:"-0.2%" },
-          { name:"Fidelity Investments", shares:"312M", pct:"2.06%", change:"+0.5%" },
-          { name:"JP Morgan Asset Mgmt", shares:"287M", pct:"1.90%", change:"+0.1%" },
-        ].map((h, i) => (
-          <div key={i} style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:6, padding:"8px 14px", display:"grid", gridTemplateColumns:"1fr auto auto auto", gap:16, alignItems:"center" }}>
-            <span style={{ color:"#E2E8F0", fontSize:12 }}>{h.name}</span>
-            <span style={{ color:"#B0B8D0", fontSize:12 }}>{h.shares} shares</span>
-            <span style={{ color:"#8B5CF6", fontSize:12, fontWeight:600 }}>{h.pct}</span>
-            <span style={{ color: h.change.startsWith("+") ? "#00C076" : h.change === "0.0%" ? "#6B7094" : "#FF4D67", fontSize:12 }}>{h.change}</span>
-          </div>
-        ))}
-      </div>
-    ),
-    "Profile": (
-      <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-        <div style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:8, padding:16 }}>
-          <div style={{ fontSize:14, fontWeight:700, color:"#E2E8F0", marginBottom:8 }}>Company Overview — {base}</div>
-          <p style={{ fontSize:12, color:"#B0B8D0", lineHeight:1.7, margin:0 }}>
-            {base} is a leading publicly traded company operating across multiple business segments.
-            The company delivers products and services to consumers and enterprises globally,
-            with significant investments in research, development, and capital markets activity.
-            Headquartered in the United States, it ranks among the top holdings of major institutional investors.
-          </p>
-        </div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:12 }}>
-          {[
-            { label:"CEO", value:"Tim Cook" },
-            { label:"Founded", value:"1976" },
-            { label:"Employees", value:"161,000" },
-            { label:"Headquarters", value:"Cupertino, CA" },
-            { label:"Sector", value:"Technology" },
-            { label:"Industry", value:"Consumer Electronics" },
-            { label:"Exchange", value:"NASDAQ" },
-            { label:"ISIN", value:"US0378331005" },
-          ].map(r => (
-            <div key={r.label} style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:6, padding:"10px 12px" }}>
-              <div style={{ fontSize:10, color:"#6B7094", marginBottom:2 }}>{r.label}</div>
-              <div style={{ fontSize:13, fontWeight:600, color:"#E2E8F0" }}>{r.value}</div>
+      );
+    }
+    if (tab === "Shareholders") {
+      const holders: any[] = d.inst ?? []; if (!holders.length) return null;
+      const top = holders.slice(0, 12);
+      return (
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {top.map((h, i) => (
+            <div key={i} style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:6, padding:"8px 14px", display:"grid", gridTemplateColumns:"1fr auto auto", gap:16, alignItems:"center" }}>
+              <span style={{ color:"#E2E8F0", fontSize:12 }}>{h.holder}</span>
+              <span style={{ color:"#B0B8D0", fontSize:12 }}>{fmtShares(h.shares)} shares</span>
+              <span style={{ color: (h.change ?? 0) >= 0 ? "#00C076" : "#FF4D67", fontSize:12 }}>{h.change != null ? `${h.change >= 0 ? "+" : ""}${fmtShares(h.change)}` : "—"}</span>
             </div>
           ))}
         </div>
-      </div>
-    ),
-  };
+      );
+    }
+    if (tab === "ETFs") {
+      const p = d.profile?.[0];
+      const etf = Array.isArray(d.etf) ? d.etf[0] : d.etf;
+      if (!p?.isEtf && !etf) return null; // not an ETF → honest unavailable
+      return (
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:12 }}>
+          <Card label="Fund Name" value={etf?.name ?? p?.companyName ?? "—"} />
+          <Card label="Expense Ratio" value={etf?.expenseRatio != null ? `${(etf.expenseRatio * 100).toFixed(2)}%` : "—"} />
+          <Card label="AUM" value={fmtBig(etf?.aum ?? p?.mktCap)} />
+          <Card label="Avg Volume" value={p?.volAvg ? Number(p.volAvg).toLocaleString() : "—"} />
+          <Card label="NAV" value={etf?.nav != null ? `$${etf.nav}` : (p?.price != null ? `$${p.price}` : "—")} />
+          <Card label="Holdings Count" value={etf?.holdingsCount ?? "—"} />
+          <Card label="Asset Class" value={etf?.assetClass ?? "—"} />
+          <Card label="Domicile" value={etf?.domicile ?? p?.country ?? "—"} />
+        </div>
+      );
+    }
+    return null;
+  }
+
+  const body = loading ? null : renderTab();
 
   return (
     <div style={{ flex:1, overflow:"auto", background:"#0D0E14", padding:16 }}>
@@ -1194,10 +1538,21 @@ function FundamentalsTabPanel({ symbol, tab, onBack }: { symbol: string; tab: st
         </button>
         <span style={{ fontSize:14, fontWeight:700, color:"#E2E8F0" }}>{base} — {tab}</span>
       </div>
-      {sections[tab] ?? (
-        <div style={{ color:"#6B7094", fontSize:13 }}>Data for {tab} coming soon.</div>
+      {loading ? (
+        <div style={{ color:"#6B7094", fontSize:13, padding:"24px 4px" }}>Loading {tab.toLowerCase()} data…</div>
+      ) : (body && hasData) ? body : (
+        <div style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:8, padding:"20px 18px", maxWidth:560 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:"#E2E8F0", marginBottom:6 }}>No {tab.toLowerCase()} data for {base}</div>
+          <p style={{ fontSize:12, color:"#8896BE", lineHeight:1.6, margin:0 }}>
+            Fundamental data isn&apos;t available for this symbol. {base} may not be an equity
+            (crypto, futures, forex and indices have no company fundamentals), or the
+            fundamentals data provider is not configured. This panel shows real data only —
+            it will never display placeholder figures.
+          </p>
+        </div>
       )}
     </div>
   );
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 

@@ -49,6 +49,13 @@ const YF_MAP: Record<string, string> = {
 function toYFSym(sym: string): string {
   const up = sym.toUpperCase();
   if (YF_MAP[up]) return YF_MAP[up];
+  // Precious-metals spot (XAUUSD = gold, XAGUSD = silver, etc.) — Yahoo has no
+  // spot FX ticker for these, so map to the nearest continuous futures contract.
+  const metal = up.replace("/", "");
+  if (metal === "XAUUSD" || metal === "XAU") return "GC=F"; // gold
+  if (metal === "XAGUSD" || metal === "XAG") return "SI=F"; // silver
+  if (metal === "XPTUSD") return "PL=F"; // platinum
+  if (metal === "XPDUSD") return "PA=F"; // palladium
   // Forex pairs: Yahoo uses the "EURUSD=X" format (no slash).
   // Handles "EUR/USD", "GBP/JPY", and also bare 6-letter pairs like "EURUSD".
   if (up.includes("/")) return `${up.replace("/", "")}=X`;
@@ -66,9 +73,11 @@ function toYFInterval(tf: string): { interval: string; range: string } {
     "10m": { interval: "15m", range: "5d"  },   // YF has no 10m
     "15m": { interval: "15m", range: "60d" },
     "30m": { interval: "30m", range: "60d" },
-    "1h":  { interval: "60m", range: "60d" },
-    "2h":  { interval: "60m", range: "60d" },
-    "4h":  { interval: "60m", range: "60d" },
+    // Hourly: Yahoo serves up to ~2y of 60-minute bars — pull the full window so
+    // the chart scrolls back years instead of stopping at 60 days.
+    "1h":  { interval: "60m", range: "730d" },
+    "2h":  { interval: "60m", range: "730d" },
+    "4h":  { interval: "60m", range: "730d" },
     "D":   { interval: "1d",  range: "5y"   },
     "W":   { interval: "1wk", range: "10y"  },
     "M":   { interval: "1mo", range: "max"  },
@@ -113,27 +122,58 @@ export async function GET(request: Request) {
 
   try {
     if (type === "quote") {
-      /* ── Current quote ──────────────────────────────────── */
-      // Use 5d/1d range to guarantee ≥2 daily bars so we can derive prevClose for futures
-      const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym)}?interval=1d&range=5d`;
-      const json = await yfFetch(url, 2_000) as any; // 2s cache → near-live polled quotes
-      const result = json?.chart?.result?.[0];
-      const meta   = result?.meta;
-      if (!meta) return NextResponse.json({ error: "No data" }, { status: 404 });
+      /* ── Current quote — TRUE real-time incl. pre/post-market ──────────────
+         meta.regularMarketPrice is STALE outside regular hours (it stays at the
+         prior session close, e.g. TSLA 375 while the live pre-market is 369).
+         To match TradingView we pull a 1-minute intraday series WITH
+         includePrePost=true and use the most recent traded candle as the price.
+         The daily meta is still used as a fallback + for prevClose. */
+      const dayUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym)}?interval=1d&range=5d`;
+      const intraUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym)}?interval=1m&range=1d&includePrePost=true`;
 
-      const price = meta.regularMarketPrice ?? meta.previousClose ?? 0;
-      const open  = meta.regularMarketOpen  ?? price;
-      const high  = meta.regularMarketDayHigh ?? price;
-      const low   = meta.regularMarketDayLow  ?? price;
+      const [dayJson, intraJson] = await Promise.all([
+        yfFetch(dayUrl, 5_000).catch(() => null) as Promise<any>,
+        yfFetch(intraUrl, 2_000).catch(() => null) as Promise<any>,   // 2s cache → near-live
+      ]);
 
-      // ALWAYS derive prevClose from the actual daily candle closes — more reliable
-      // than meta.previousClose which can be stale or split-adjusted incorrectly.
-      const closes: (number | null)[] = result?.indicators?.quote?.[0]?.close ?? [];
+      const dayRes = dayJson?.chart?.result?.[0];
+      const meta   = dayRes?.meta;
+
+      // Most-recent live price from the intraday (pre/post-aware) series.
+      let livePrice = 0, liveHigh = 0, liveLow = 0, liveOpen = 0;
+      const ir = intraJson?.chart?.result?.[0];
+      if (ir?.timestamp?.length) {
+        const q = ir.indicators?.quote?.[0] ?? {};
+        const cl: (number|null)[] = q.close ?? [];
+        const hi: (number|null)[] = q.high  ?? [];
+        const lo: (number|null)[] = q.low   ?? [];
+        const op: (number|null)[] = q.open  ?? [];
+        for (let i = cl.length - 1; i >= 0; i--) {
+          if (cl[i] != null && (cl[i] as number) > 0) { livePrice = cl[i] as number; break; }
+        }
+        const validHi = hi.filter((v): v is number => v != null && v > 0);
+        const validLo = lo.filter((v): v is number => v != null && v > 0);
+        const firstOp = op.find((v): v is number => v != null && v > 0);
+        if (validHi.length) liveHigh = Math.max(...validHi);
+        if (validLo.length) liveLow  = Math.min(...validLo);
+        if (firstOp) liveOpen = firstOp;
+      }
+
+      if (!meta && !livePrice) return NextResponse.json({ error: "No data" }, { status: 404 });
+
+      // Live price preferred; fall back to regular-market meta.
+      const price = livePrice || meta?.regularMarketPrice || meta?.previousClose || 0;
+      const open  = liveOpen  || meta?.regularMarketOpen   || price;
+      const high  = Math.max(liveHigh || 0, meta?.regularMarketDayHigh || 0) || price;
+      const low   = (liveLow && meta?.regularMarketDayLow) ? Math.min(liveLow, meta.regularMarketDayLow)
+                  : (liveLow || meta?.regularMarketDayLow || price);
+
+      // prevClose from daily closes (yesterday's close), for change vs prior session.
+      const closes: (number | null)[] = dayRes?.indicators?.quote?.[0]?.close ?? [];
       const validCloses = closes.filter((c): c is number => c != null && c > 0);
-      // Last close in the array is today's partial (intraday), second-to-last is yesterday's close
       let prevClose = validCloses.length >= 2
         ? validCloses[validCloses.length - 2]
-        : (meta.chartPreviousClose ?? meta.previousClose ?? price);
+        : (meta?.chartPreviousClose ?? meta?.previousClose ?? price);
       if (!prevClose || prevClose <= 0) prevClose = price;
 
       return NextResponse.json({
@@ -152,7 +192,10 @@ export async function GET(request: Request) {
     if (type === "candles") {
       /* ── OHLCV candle array ──────────────────────────────── */
       const { interval, range } = toYFInterval(tf);
-      const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym)}?interval=${interval}&range=${range}`;
+      // includePrePost=true returns pre-market (4:00) + after-hours (20:00) bars
+      // so the chart can show extended trading hours when the user enables them.
+      const ext  = searchParams.get("ext") === "1";
+      const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym)}?interval=${interval}&range=${range}${ext ? "&includePrePost=true" : ""}`;
       const json = await yfFetch(url, 30_000) as any;
       const result = json?.chart?.result?.[0];
       if (!result) return NextResponse.json({ candles: [] });

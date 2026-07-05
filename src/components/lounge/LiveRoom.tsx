@@ -13,7 +13,7 @@ import {
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { Track, RoomEvent } from "livekit-client";
-import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Users, Hand, Check, X, Eye, Maximize2, Minimize2 } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Users, Hand, Check, X, Eye, Maximize2, Minimize2, Share2, Copy, Mail, MessageSquare, Twitter, Instagram } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 /* ─── Data message types sent over LiveKit data channel ─── */
@@ -24,6 +24,71 @@ type DataMsg =
   | { type: "REQUEST_CANCEL"; identity: string };
 
 const MAX_SPEAKERS = 4;
+
+/* ══════════════════════════════════════════════════════════════
+   SHARE MENU — generates a shareable deep-link to this live room and
+   offers copy / SMS / email / X / native-share (covers Instagram +
+   in-app on mobile). The link routes back into /lounge with ?room= so
+   any follower who opens it lands straight in the live room.
+══════════════════════════════════════════════════════════════ */
+function ShareLiveMenu({ roomName, roomLabel, color }: { roomName: string; roomLabel: string; color: string }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const shareUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/lounge?room=${encodeURIComponent(roomName)}`
+      : `/lounge?room=${encodeURIComponent(roomName)}`;
+  const shareText = `🔴 I'm live now in ${roomLabel} on WealthyMindsets — come watch & trade with me:`;
+
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch {}
+  };
+  const nativeShare = async () => {
+    // Web Share API opens the OS share sheet (Instagram, Messages, etc. on mobile).
+    const nav = navigator as Navigator & { share?: (d: { title: string; text: string; url: string }) => Promise<void> };
+    if (nav.share) { try { await nav.share({ title: `${roomLabel} — Live`, text: shareText, url: shareUrl }); return; } catch {} }
+    copy(); // fallback: copy so it can be pasted into Instagram/anywhere
+  };
+  const enc = encodeURIComponent;
+  const targets: { icon: React.ReactNode; label: string; onClick: () => void }[] = [
+    { icon: <Copy size={13} />,          label: copied ? "Copied!" : "Copy link", onClick: copy },
+    { icon: <MessageSquare size={13} />, label: "Text (SMS)",  onClick: () => window.open(`sms:?&body=${enc(shareText + " " + shareUrl)}`, "_blank") },
+    { icon: <Mail size={13} />,          label: "Email",       onClick: () => window.open(`mailto:?subject=${enc(roomLabel + " — Live on WealthyMindsets")}&body=${enc(shareText + "\n\n" + shareUrl)}`, "_blank") },
+    { icon: <Twitter size={13} />,       label: "X / Twitter", onClick: () => window.open(`https://twitter.com/intent/tweet?text=${enc(shareText)}&url=${enc(shareUrl)}`, "_blank", "noopener,noreferrer") },
+    { icon: <Instagram size={13} />,     label: "Instagram",   onClick: nativeShare },
+    { icon: <Users size={13} />,         label: "Share sheet", onClick: nativeShare },
+  ];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        title="Share this live room"
+        className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded transition-all border"
+        style={{ background: `${color}18`, color, borderColor: `${color}45` }}
+      >
+        <Share2 size={12} /> Share
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[210]" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 mt-1 w-52 rounded-lg border border-wm-border bg-wm-surface shadow-2xl p-2 z-[220]">
+            <div className="text-[9px] font-black text-wm-text-muted uppercase tracking-widest mb-1.5 px-1">Share live link</div>
+            <div className="flex items-center gap-1 mb-2 px-1">
+              <input readOnly value={shareUrl} className="flex-1 min-w-0 bg-wm-bg/60 border border-wm-border rounded px-2 py-1 text-[10px] text-wm-text-dim truncate" />
+            </div>
+            {targets.map(t => (
+              <button key={t.label} onClick={() => { t.onClick(); if (t.label !== "Copy link") setOpen(false); }}
+                className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-[11px] text-wm-text hover:bg-wm-bg/60 transition-colors">
+                {t.icon} {t.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 /* ══════════════════════════════════════════════════════════════
    VIDEO TILE
@@ -443,6 +508,9 @@ export default function LiveRoom({ roomName, roomLabel, color, userName, isHost,
           <span className="text-[8px] px-1.5 py-0.5 rounded font-bold text-wm-yellow bg-wm-yellow/15 border border-wm-yellow/30">HOST</span>
         )}
         <div className="ml-auto flex items-center gap-1.5">
+          {/* Share is available as soon as the room exists so a host can invite
+              followers even before/while going live. */}
+          <ShareLiveMenu roomName={roomName} roomLabel={roomLabel} color={color} />
           <button onClick={() => setFullscreen(f => !f)}
             className="text-wm-text-dim hover:text-wm-text transition-colors p-1 rounded hover:bg-wm-surface"
             title={fullscreen ? "Minimize" : "Full Screen"}>

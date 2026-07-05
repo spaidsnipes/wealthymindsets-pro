@@ -8,8 +8,10 @@
  *
  * Optimizations:
  *  - Message batching: accumulates ticks and flushes in RAF (requestAnimationFrame)
- *  - Heartbeat monitoring: detects stale connections and triggers reconnect
- *  - Exponential backoff reconnection (1s → 2s → 4s → max 30s)
+ *  - Stale-socket watchdog: crypto feeds that go >25s silent on an OPEN socket
+ *    are force-closed to trigger reconnect (catches half-dead sockets where
+ *    onclose never fires)
+ *  - Exponential backoff reconnection (2s → 4s → … → max 15s)
  *  - Ref-based hot path: no setState on every tick (only flush buffer)
  *  - Adaptive tick rate: speeds up during high-volatility periods
  */
@@ -110,8 +112,17 @@ async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
     return { price, change, changePct, source };
   };
 
-  // ── Stocks & ETFs: Alpaca first (if key set), then Finnhub ──────────────
+  // ── Stocks & ETFs: Yahoo FIRST. Yahoo's intraday series uses includePrePost,
+  // so it reflects the CONSOLIDATED last price (the number Moomoo/TradingView
+  // show) in both regular AND extended hours. Alpaca's free IEX feed only sees
+  // IEX's own thin prints — which match in RTH but diverge by dollars in
+  // pre/post-market (e.g. TSLA 377 on IEX vs 380.89 consolidated). So Yahoo is
+  // the accurate primary; Alpaca/Finnhub are fallbacks only if Yahoo fails. ───
   if (!isFutures && !isForex) {
+    try {
+      const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      const q = mk(j, "yahoo"); if (q) return q;
+    } catch {}
     try {
       const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(upper)}&type=quote`, { cache: "no-store" }).then(r => r.json());
       const q = mk(j, "alpaca"); if (q) return q;
@@ -163,29 +174,54 @@ function tryPolygon(
 
   // Map symbol → Polygon channel (simplified)
   const channel = symbol.includes("/") ? `C.${symbol.replace("/", "")}` : `T.${symbol}`;
-  const ws = new WebSocket(`wss://socket.polygon.io/stocks`);
 
-  ws.onopen = () => {
-    ws.send(JSON.stringify({ action: "auth", params: apiKey }));
-  };
-  ws.onmessage = (ev) => {
+  let ws: WebSocket | null = null;
+  let closed = false;
+  let retry = 0;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const connect = () => {
+    if (closed) return;
     try {
-      const msgs = JSON.parse(ev.data as string);
-      for (const m of msgs) {
-        if (m.ev === "authenticated") {
-          ws.send(JSON.stringify({ action: "subscribe", params: channel }));
-          onStatus(true);
-        }
-        if (m.ev === "T") {
-          onTick({ price: m.p, size: m.s, side: m.c?.[0] === 1 ? "buy" : "sell", time: m.t }, true);
-        }
-      }
-    } catch {}
-  };
-  ws.onerror = () => onStatus(false);
-  ws.onclose = () => onStatus(false);
+      ws = new WebSocket(`wss://socket.polygon.io/stocks`);
+    } catch { scheduleReconnect(); return; }
 
-  return () => ws.close();
+    ws.onopen = () => {
+      retry = 0;
+      ws?.send(JSON.stringify({ action: "auth", params: apiKey }));
+    };
+    ws.onmessage = (ev) => {
+      try {
+        const msgs = JSON.parse(ev.data as string);
+        for (const m of msgs) {
+          if (m.ev === "authenticated") {
+            ws?.send(JSON.stringify({ action: "subscribe", params: channel }));
+            onStatus(true);
+          }
+          if (m.ev === "T") {
+            onTick({ price: m.p, size: m.s, side: m.c?.[0] === 1 ? "buy" : "sell", time: m.t }, true);
+          }
+        }
+      } catch {}
+    };
+    ws.onerror = () => { onStatus(false); };
+    ws.onclose = () => { onStatus(false); if (!closed) scheduleReconnect(); };
+  };
+
+  const scheduleReconnect = () => {
+    if (closed) return;
+    retry = Math.min(retry + 1, 6);
+    const delay = Math.min(1000 * 2 ** retry, 15000);
+    reconnectTimer = setTimeout(connect, delay);
+  };
+
+  connect();
+
+  return () => {
+    closed = true;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    try { ws?.close(); } catch {}
+  };
 }
 
 /* ── Finnhub WebSocket adapter ──────────────────────────── */
@@ -197,26 +233,50 @@ function tryFinnhub(
 ): (() => void) | null {
   if (!apiKey || apiKey === "YOUR_KEY") return null;
 
-  const ws = new WebSocket(`wss://ws.finnhub.io?token=${apiKey}`);
+  let ws: WebSocket | null = null;
+  let closed = false;
+  let retry = 0;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-  ws.onopen = () => {
-    ws.send(JSON.stringify({ type: "subscribe", symbol }));
-    onStatus(true);
-  };
-  ws.onmessage = (ev) => {
+  const connect = () => {
+    if (closed) return;
     try {
-      const msg = JSON.parse(ev.data as string);
-      if (msg.type === "trade" && msg.data?.length) {
-        for (const t of msg.data) {
-          onTick({ price: t.p, size: t.v, side: "buy", time: t.t }, true);
-        }
-      }
-    } catch {}
-  };
-  ws.onerror = () => onStatus(false);
-  ws.onclose = () => onStatus(false);
+      ws = new WebSocket(`wss://ws.finnhub.io?token=${apiKey}`);
+    } catch { scheduleReconnect(); return; }
 
-  return () => ws.close();
+    ws.onopen = () => {
+      retry = 0;
+      ws?.send(JSON.stringify({ type: "subscribe", symbol }));
+      onStatus(true);
+    };
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data as string);
+        if (msg.type === "trade" && msg.data?.length) {
+          for (const t of msg.data) {
+            onTick({ price: t.p, size: t.v, side: "buy", time: t.t }, true);
+          }
+        }
+      } catch {}
+    };
+    ws.onerror = () => { onStatus(false); };
+    ws.onclose = () => { onStatus(false); if (!closed) scheduleReconnect(); };
+  };
+
+  const scheduleReconnect = () => {
+    if (closed) return;
+    retry = Math.min(retry + 1, 6);
+    const delay = Math.min(1000 * 2 ** retry, 15000);
+    reconnectTimer = setTimeout(connect, delay);
+  };
+
+  connect();
+
+  return () => {
+    closed = true;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    try { ws?.close(); } catch {}
+  };
 }
 
 /* ── Binance WebSocket adapter (real-time crypto, public, no key) ──────
@@ -251,9 +311,12 @@ function tryBinance(
   let closed = false;
   let retry = 0;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastMsgAt = Date.now();
+  let watchdog: ReturnType<typeof setInterval> | null = null;
 
   const connect = () => {
     if (closed) return;
+    lastMsgAt = Date.now();
     try {
       // Combined stream: @bookTicker (frequent best bid/ask → drives live price
       // ~1×/sec even on lower-volume US pairs) + @trade (real size/side when
@@ -268,6 +331,7 @@ function tryBinance(
 
     let lastPx = 0;
     ws.onmessage = (ev) => {
+      lastMsgAt = Date.now();
       try {
         const frame = JSON.parse(ev.data as string);
         const m = frame.data ?? frame;       // combined stream wraps payload in .data
@@ -307,9 +371,20 @@ function tryBinance(
 
   connect();
 
+  // Stale-socket watchdog: crypto feeds tick multiple times/sec, so >25s of
+  // silence on an OPEN socket means it's half-dead (onclose never fired).
+  // Force-close it → onclose triggers the backoff reconnect.
+  watchdog = setInterval(() => {
+    if (closed) return;
+    if (ws && ws.readyState === WebSocket.OPEN && Date.now() - lastMsgAt > 25_000) {
+      try { ws.close(); } catch {}
+    }
+  }, 10_000);
+
   return () => {
     closed = true;
     if (reconnectTimer) clearTimeout(reconnectTimer);
+    if (watchdog) clearInterval(watchdog);
     try { ws?.close(); } catch {}
   };
 }
@@ -343,9 +418,12 @@ function tryCoinbase(
   let closed = false;
   let retry = 0;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastMsgAt = Date.now();
+  let watchdog: ReturnType<typeof setInterval> | null = null;
 
   const connect = () => {
     if (closed) return;
+    lastMsgAt = Date.now();
     try {
       ws = new WebSocket("wss://ws-feed.exchange.coinbase.com");
     } catch { scheduleReconnect(); return; }
@@ -357,6 +435,7 @@ function tryCoinbase(
     };
 
     ws.onmessage = (ev) => {
+      lastMsgAt = Date.now();
       try {
         const m = JSON.parse(ev.data as string);
         if (m.type === "ticker" && m.price) {
@@ -383,9 +462,18 @@ function tryCoinbase(
 
   connect();
 
+  // Stale-socket watchdog (see tryBinance): force-reconnect a silent OPEN socket.
+  watchdog = setInterval(() => {
+    if (closed) return;
+    if (ws && ws.readyState === WebSocket.OPEN && Date.now() - lastMsgAt > 25_000) {
+      try { ws.close(); } catch {}
+    }
+  }, 10_000);
+
   return () => {
     closed = true;
     if (reconnectTimer) clearTimeout(reconnectTimer);
+    if (watchdog) clearInterval(watchdog);
     try { ws?.close(); } catch {}
   };
 }
@@ -397,6 +485,10 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   // Hot path refs — no re-render on every tick
   const priceRef   = useRef(base);
   const baseRef    = useRef(base);
+  // Real prior-session close (from the quote), used for the day-change %. Without
+  // this, change was computed against the hardcoded seed (e.g. TSLA 405 = a close
+  // from days ago) and showed a bogus −7% on a flat day. 0 until first quote.
+  const prevCloseRef = useRef(0);
   const barRef     = useRef<OHLCVBar | null>(null);
   const tickBuf    = useRef<Tick[]>([]);      // batched buffer
   const bookRef    = useRef(buildBook(base));
@@ -453,12 +545,15 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
     setState(prev => {
       const newVol = prev.ticker.volume + ticks.reduce((s, t) => s + t.size, 0);
+      // Day-change is vs the REAL prior close (from the quote) — NOT the hardcoded
+      // seed, which produced bogus % (e.g. −7% on a flat day for TSLA).
+      const ref = prevCloseRef.current > 0 ? prevCloseRef.current : baseRef.current;
       return {
         ...prev,
         ticker: {
           price,
-          change:    +(price - baseRef.current).toFixed(2),
-          changePct: +((price - baseRef.current) / baseRef.current * 100).toFixed(2),
+          change:    +(price - ref).toFixed(2),
+          changePct: ref > 0 ? +((price - ref) / ref * 100).toFixed(2) : 0,
           volume:    newVol,
         },
         liveBar:     barRef.current ? { ...barRef.current } : null,
@@ -491,6 +586,16 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     }
     // If we have real data, ignore synthetic ticks
     if (!isReal && hasRealDataRef.current) return;
+
+    // ── Source-level corrupt-tick guard ────────────────────────────────────
+    // Reject only definitively-bad prints (non-positive / NaN) here — a wrong
+    // magnitude would poison barRef.low/high via Math.min/Math.max. We do NOT
+    // do a deviation check at this layer because the seed can be a stale
+    // hardcoded value far from the real price (that would freeze the chart).
+    // The magnitude/deviation check lives in MainChart against lastBar.close,
+    // which is reliably refetched per symbol.
+    if (!Number.isFinite(tick.price) || tick.price <= 0) return;
+
     priceRef.current = tick.price;
     tickBuf.current.push(tick);
 
@@ -624,6 +729,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     const b = getBasePrice(symbol);
     baseRef.current  = b;
     priceRef.current = b;
+    prevCloseRef.current = 0; // cleared on symbol change; repopulated by the next quote
     barRef.current   = null;
     bookRef.current  = buildBook(b);
     retryCount.current = 0;
@@ -700,6 +806,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         // (barRef → chart candles) actually updates. Previously only the ticker
         // updated and the candles stayed frozen.
         const side: "buy" | "sell" = realPrice >= prevPrice ? "buy" : "sell";
+        // Capture the REAL prior close so flush() computes the correct day-change.
+        if (Number.isFinite(q.change)) prevCloseRef.current = realPrice - q.change;
         processTick({ price: realPrice, size: 1, side, time: Date.now() }, true);
         // Real day change comes straight from the quote (not a per-poll delta).
         setState(prev2 => ({
