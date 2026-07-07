@@ -4923,21 +4923,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             .sort((a, z) => z.lv.total - a.lv.total)
             .slice(0, 6);
 
-          for (const { lv, i } of ranked) {
+          ranked.forEach(({ lv, i }, rankIdx) => {
             // Dedupe per (bar, price level) → each level owns ONE persistent bubble.
             const key = String(c.time) + ":" + lv.priceLevel;
-            if (bubbleSpawnRef.current.has(key)) continue;
+            if (bubbleSpawnRef.current.has(key)) return;
             bubbleSpawnRef.current.add(key);
 
-            // Radius is accurate to trade size (area ∝ size → radius ∝ √size),
-            // bounded AND clamped to the row height so multiple bubbles per candle
-            // never blanket each other and each stays separated + readable.
+            // Radius is accurate to trade size (area ∝ size → radius ∝ √size).
+            // Stored zoom-independently so every deployment/user sees identical sizes.
             const ratio = lv.total / barMean;
-            // Volume → radius is zoom-independent (every user sees the same size encoding).
-            // Screen rowH only caps overlap when levels are visually tight.
-            const volR  = Math.round(9 + Math.sqrt(Math.max(0, ratio - 1)) * 11);
-            const rCap  = Math.max(10, Math.min(28, rowH * 0.82));
-            const baseR = Math.round(Math.max(9, Math.min(28, volR, rCap)));
+            const baseR = Math.round(Math.max(9, Math.min(28, 9 + Math.sqrt(Math.max(0, ratio - 1)) * 11)));
             // Green = buyers aggressive (ask ≥ bid), red = sellers aggressive.
             const side: "buy" | "sell" = lv.ask >= lv.bid ? "buy" : "sell";
             // Keep signed NOTIONAL for the tooltip headline; the on-bubble label is
@@ -4966,12 +4961,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               born:  (c.time as number) * 1000 + i,
               anchorTime:  c.time as number,
               anchorPrice: lv.priceLevel,
-              levelIdx: i,
+              levelIdx: rankIdx,
               siblingN: ranked.length,
             });
             // soft "bloop" only for the biggest prints (throttled + respects Sound toggle).
             playBloop(baseR > 24);
-          }
+          });
         });
 
         // Keep the dedupe set from growing unbounded
@@ -4991,7 +4986,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const bob   = Math.sin(b.phase + nowMs / 1600) * 3;
           const sibN  = b.siblingN ?? 1;
           const lvlIx = b.levelIdx ?? 0;
-          const spread = sibN > 1 ? Math.min(18, Math.max(9, b.baseR * 0.58)) : 0;
+          const spread = sibN > 1 ? Math.min(20, Math.max(10, b.baseR * 0.62)) : 0;
           const offX  = sibN > 1 ? (lvlIx - (sibN - 1) / 2) * spread : 0;
           const homeX = hx + offX + Math.cos(b.phase + nowMs / 2400) * 2;
           const homeY = hy + bob - 3;
@@ -5881,7 +5876,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // ── ERASER: remove the drawing under the cursor ──────────────
     if (drawingTool === "eraser") {
       const idx = hitTestDrawing(x, y, 12);
-      if (idx >= 0) { drawingsRef.current.splice(idx, 1); setSelectedIdx(null); setRangeVer(v => v + 1); }
+      if (idx >= 0) { drawingsRef.current.splice(idx, 1); setSelectedIdx(null); scheduleDrawRender(); setRangeVer(v => v + 1); }
       return;
     }
 
@@ -5904,7 +5899,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     if (drawPtsNeeded(drawingTool) === -1) {
       inProgressRef.current = makeDrawing(drawingTool, [lp]);
     }
-  }, [drawingTool, lockDrawings, pixelToLogical, hitHandle, hitTestDrawing, makeDrawing]);
+  }, [drawingTool, lockDrawings, pixelToLogical, hitHandle, hitTestDrawing, makeDrawing, scheduleDrawRender]);
 
   const handleDrawMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();

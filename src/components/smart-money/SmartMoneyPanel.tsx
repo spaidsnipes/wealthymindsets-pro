@@ -431,7 +431,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
       exit={{ x: "100%" }}
       transition={{ type: "spring", stiffness: 350, damping: 35 }}
       className="border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden min-h-0 h-full"
-      style={{ width: "min(19rem, 28vw)", maxWidth: "100%" }}
+      style={{ width: "min(19rem, 28vw)", maxWidth: "100%", maxHeight: "100dvh" }}
     >
       {/* Header */}
       <div className="flex items-center gap-1.5 px-2 py-2 border-b border-wm-border bg-wm-card shrink-0">
