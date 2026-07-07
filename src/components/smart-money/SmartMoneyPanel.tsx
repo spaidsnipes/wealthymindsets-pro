@@ -855,7 +855,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-medium text-wm-text-muted truncate">{sig.name}</span>
+                          <span className="text-[10px] font-medium text-wm-text-muted break-words leading-snug">{sig.name}</span>
                           {sig.bullish !== null && (
                             sig.bullish
                               ? <TrendingUp size={9} className="text-wm-green shrink-0" />

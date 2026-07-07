@@ -4878,7 +4878,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // overlay bubbles.
 
           const fullH  = Math.max(2, yL - yH);
-          const numLev = Math.max(1, Math.min(bsp >= 20 ? 8 : bsp >= 10 ? 5 : 3, Math.floor(fullH / 8)));
+          // Zoom-independent level count: derived from the bar's PRICE span, NOT pixel
+          // height. Using fullH caused numLev→1 when zoomed out ("one bubble per candle")
+          // and made footprints differ across users at different zoom levels.
+          const minTick  = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
+          const priceSpan = Math.max(minTick, c.high - c.low);
+          const numLev = Math.max(6, Math.min(10, Math.ceil(priceSpan / (minTick * 2.5)) || 6));
           const levels = getBarFootprint(c, numLev);
           if (levels.length === 0) return;
           const rowH = fullH / Math.max(1, numLev);
@@ -4899,11 +4904,24 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
           // Rank levels by volume; keep the most significant few so several bubbles
           // sit at DIFFERENT prices on the SAME candle yet stay clearly readable.
-          const ranked = levels
+          const byVol = levels
             .map((lv, i) => ({ lv, i }))
-            .filter(o => o.lv.total >= barMean * 1.12)
+            .filter(o => o.lv.total >= barMean * 1.06)
+            .sort((a, z) => z.lv.total - a.lv.total);
+
+          // Always include top buy-dominant AND top sell-dominant levels so both
+          // aggressive sides show on the same candle when they exist.
+          const pickMap = new Map<number, { lv: typeof levels[0]; i: number }>();
+          for (const o of byVol.slice(0, 5)) pickMap.set(o.lv.priceLevel, o);
+          const topBuy  = [...levels].map((lv, i) => ({ lv, i })).filter(o => o.lv.ask >= o.lv.bid)
+            .sort((a, z) => z.lv.total - a.lv.total)[0];
+          const topSell = [...levels].map((lv, i) => ({ lv, i })).filter(o => o.lv.bid > o.lv.ask)
+            .sort((a, z) => z.lv.total - a.lv.total)[0];
+          if (topBuy)  pickMap.set(topBuy.lv.priceLevel, topBuy);
+          if (topSell) pickMap.set(topSell.lv.priceLevel, topSell);
+          const ranked = [...pickMap.values()]
             .sort((a, z) => z.lv.total - a.lv.total)
-            .slice(0, 5);
+            .slice(0, 6);
 
           for (const { lv, i } of ranked) {
             // Dedupe per (bar, price level) → each level owns ONE persistent bubble.
@@ -4915,9 +4933,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             // bounded AND clamped to the row height so multiple bubbles per candle
             // never blanket each other and each stays separated + readable.
             const ratio = lv.total / barMean;
-            const rMin  = Math.max(7, Math.min(11, rowH * 0.40));
-            const rMax  = Math.max(rMin + 2, Math.min(28, rowH * 0.88));
-            const baseR = Math.round(Math.max(rMin, Math.min(rMax, 7 + Math.sqrt(Math.max(0, ratio - 1)) * 11)));
+            // Volume → radius is zoom-independent (every user sees the same size encoding).
+            // Screen rowH only caps overlap when levels are visually tight.
+            const volR  = Math.round(9 + Math.sqrt(Math.max(0, ratio - 1)) * 11);
+            const rCap  = Math.max(10, Math.min(28, rowH * 0.82));
+            const baseR = Math.round(Math.max(9, Math.min(28, volR, rCap)));
             // Green = buyers aggressive (ask ≥ bid), red = sellers aggressive.
             const side: "buy" | "sell" = lv.ask >= lv.bid ? "buy" : "sell";
             // Keep signed NOTIONAL for the tooltip headline; the on-bubble label is
@@ -4969,8 +4989,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const hy = srs.priceToCoordinate(b.anchorPrice);
           if (hx == null || hy == null) continue; // off-screen → culled below
           const bob   = Math.sin(b.phase + nowMs / 1600) * 3;
-          const spread = b.siblingN > 1 ? Math.min(16, Math.max(8, b.baseR * 0.55)) : 0;
-          const offX  = b.siblingN > 1 ? (b.levelIdx - (b.siblingN - 1) / 2) * spread : 0;
+          const sibN  = b.siblingN ?? 1;
+          const lvlIx = b.levelIdx ?? 0;
+          const spread = sibN > 1 ? Math.min(18, Math.max(9, b.baseR * 0.58)) : 0;
+          const offX  = sibN > 1 ? (lvlIx - (sibN - 1) / 2) * spread : 0;
           const homeX = hx + offX + Math.cos(b.phase + nowMs / 2400) * 2;
           const homeY = hy + bob - 3;
           b.vx += (homeX - b.x) * 0.012;
@@ -5773,6 +5795,17 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     }
   }, [base, logicalToPixel, drawingStyle, getBarFootprint]);
 
+  // Lightweight RAF repaint for drawings ONLY — avoids bumping rangeVer (which
+  // re-runs the heavy footprint/bubble canvas) on every mousemove during draw/drag.
+  const drawRafRef = useRef(0);
+  const scheduleDrawRender = useCallback(() => {
+    if (drawRafRef.current) return;
+    drawRafRef.current = requestAnimationFrame(() => {
+      drawRafRef.current = 0;
+      renderDrawings();
+    });
+  }, [renderDrawings]);
+
   // Re-render drawings whenever the view changes, a drawing is selected, or a style edit happens.
   useEffect(() => { renderDrawings(); }, [rangeVer, renderDrawings, selectedIdx, editBump]);
 
@@ -5891,7 +5924,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       if (drag.ptIdx != null) d.pts[drag.ptIdx] = lp;                       // reshape one anchor
       else drawingsRef.current[drag.idx] = moveDrawingBy(d, lp.price - drag.last.price, lp.time - drag.last.time);
       drag.last = lp;
-      setRangeVer(v => v + 1);
+      scheduleDrawRender();
       return;
     }
 
@@ -5899,14 +5932,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     const ip = inProgressRef.current;
     if (ip && drawPtsNeeded(ip.tool) === -1) {
       if (lp) ip.pts.push(lp);
-      setRangeVer(v => v + 1);
+      scheduleDrawRender();
       return;
     }
 
     // ── Live rubber-band preview for click-to-place / drag-draw ──
     if (lp) previewPtRef.current = lp;
-    if (ip || (st && mouseMovedRef.current)) setRangeVer(v => v + 1);
-  }, [drawingTool, pixelToLogical, moveDrawingBy]);
+    if (ip || (st && mouseMovedRef.current)) scheduleDrawRender();
+  }, [drawingTool, pixelToLogical, moveDrawingBy, scheduleDrawRender]);
 
   const handleDrawMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (drawingTool === "select" || drawingTool === "eraser") { dragRef.current = null; return; }
@@ -6110,7 +6143,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     <div
       ref={wrapRef}
       style={{ display:"flex", flexDirection:"column", flex:1, overflow:"hidden", minWidth:0,
-               background: chartSettings?.background ?? "#0B0E1A" }}
+               background: chartSettings?.background ?? "#0B0E1A", touchAction:"none" }}
     >
 
       {/* ── OHLCV strip ─────────────────────────────────── */}
