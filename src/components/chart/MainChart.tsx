@@ -1350,14 +1350,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     return () => window.removeEventListener("wm-vp-colors", load);
   }, []);
 
-  const { liveBar, ticker, recentTicks, source: marketSource } = useWebSocket({ symbol, timeframe });
+  const { liveBar, ticker, recentTicks, tapeSource } = useWebSocket({ symbol, timeframe });
 
   // ── Tick accumulator: REAL aggressor tape only (no synthetic / quote-poll noise) ──
   // Map<barTime, Map<priceRounded, {bid, ask}>>
   const tickAccRef = useRef<Map<number, Map<number, { bid: number; ask: number }>>>(new Map());
   const processedTicksRef = useRef<Set<string>>(new Set());
-  const marketSourceRef = useRef(marketSource);
-  useEffect(() => { marketSourceRef.current = marketSource; }, [marketSource]);
+  const tapeSourceRef = useRef(tapeSource);
+  useEffect(() => { tapeSourceRef.current = tapeSource; }, [tapeSource]);
   // Late-bound ref so magnet snap can read footprint levels after getBarFootprint is defined.
   const footprintSnapRef = useRef<(bar: Bar, n: number) => Array<{ priceLevel: number; total: number }>>(() => []);
 
@@ -1374,7 +1374,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   }, [symbol]);
 
   useEffect(() => {
-    if (!recentTicks?.length || !hasRealAggressorTape(marketSource)) return;
+    if (!recentTicks?.length || !hasRealAggressorTape(tapeSource ?? "")) return;
     const intervalSec = getIntervalSec(timeframe);
     const minTick = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
     const minLot  = minBigTradeLot(base);
@@ -1400,11 +1400,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         ask: existing.ask + (tick.side === "buy"  ? tick.size : 0),
       });
     });
-    if (tickAccRef.current.size > 200) {
+    if (tickAccRef.current.size > 400) {
       const oldest = [...tickAccRef.current.keys()].sort((a, b) => a - b)[0];
       tickAccRef.current.delete(oldest);
     }
-  }, [recentTicks, timeframe, base, marketSource]);
+  }, [recentTicks, timeframe, base, tapeSource]);
 
   // Keep the canvas-loop-readable candle-timer flag in sync with settings.
   useEffect(() => { candleTimerRef.current = chartSettings?.candleTimer !== false; }, [chartSettings?.candleTimer]);
@@ -4922,7 +4922,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           bubbleSpawnRef.current = new Set();
         }
         const bubblesPaused = bubblePausedRef.current;
-        const realTape = hasRealAggressorTape(marketSourceRef.current);
+        const realTape = hasRealAggressorTape(tapeSourceRef.current ?? "");
 
         // No real aggressor tape → never show synthetic/demo bubbles.
         if (!realTape) {

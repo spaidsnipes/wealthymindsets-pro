@@ -48,6 +48,8 @@ export interface MarketState {
   orderBook:   { bids: OrderBookLevel[]; asks: OrderBookLevel[] };
   connected:   boolean;
   source:      "polygon" | "finnhub" | "synthetic" | "yahoo" | "alpaca" | "binance";
+  /** Aggressor tape feed — set only by trade WebSockets, never downgraded by REST quotes. */
+  tapeSource:  "polygon" | "finnhub" | "alpaca" | "binance" | null;
   latency:     number; // ms to last update
 }
 
@@ -508,6 +510,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   // Latency tracking
   const lastUpdateRef = useRef(Date.now());
 
+  const tapeSourceRef = useRef<MarketState["tapeSource"]>(null);
+
   const [state, setState] = useState<MarketState>({
     ticker:      { price: base, change: 0, changePct: 0, volume: 0 },
     liveBar:     null,
@@ -515,6 +519,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     orderBook:   { bids: [], asks: [] },   // built client-side in useEffect to avoid hydration mismatch
     connected:   false,
     source:      "synthetic",
+    tapeSource:  null,
     latency:     0,
   });
 
@@ -741,6 +746,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     retryCount.current = 0;
     hasRealDataRef.current = false;
 
+    tapeSourceRef.current = null;
+
     setState({
       ticker:      { price: b, change: 0, changePct: 0, volume: 0 },
       liveBar:     null,
@@ -748,6 +755,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       orderBook:   bookRef.current,
       connected:   true,
       source:      "synthetic",
+      tapeSource:  null,
       latency:     0,
     });
 
@@ -773,14 +781,19 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         if (ok) {
           gotCoinbase = true;
           hasRealDataRef.current = true;
-          setState(p => ({ ...p, source: "binance" /* "live" badge */, connected: true }));
+          tapeSourceRef.current = "binance";
+          setState(p => ({ ...p, source: "binance" /* "live" badge */, tapeSource: "binance", connected: true }));
         }
       });
       // If Coinbase hasn't connected within 4s, spin up Binance.US too.
       setTimeout(() => {
         if (!gotCoinbase && !cryptoFallback) {
           cryptoFallback = tryBinance(symbol, processTick, (ok) => {
-            if (ok) { hasRealDataRef.current = true; setState(p => ({ ...p, source: "binance", connected: true })); }
+            if (ok) {
+              hasRealDataRef.current = true;
+              tapeSourceRef.current = "binance";
+              setState(p => ({ ...p, source: "binance", tapeSource: "binance", connected: true }));
+            }
           });
           if (cryptoFallback) cleanupFns.current.push(cryptoFallback);
         }
@@ -794,7 +807,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       ? tryFinnhub(fhWsSym, finnhubKey, processTick, (ok) => {
           if (ok) {
             hasRealDataRef.current = true;
-            setState(p => ({ ...p, source: "finnhub", connected: true }));
+            tapeSourceRef.current = "finnhub";
+            setState(p => ({ ...p, source: "finnhub", tapeSource: "finnhub", connected: true }));
           }
         })
       : null;
@@ -816,9 +830,12 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         if (Number.isFinite(q.change)) prevCloseRef.current = realPrice - q.change;
         processTick({ price: realPrice, size: 1, side, time: Date.now() }, true);
         // Real day change comes straight from the quote (not a per-poll delta).
+        const tape = tapeSourceRef.current;
         setState(prev2 => ({
           ...prev2,
-          source: q.source as MarketState["source"],
+          // REST quote is for price display only — never downgrade an active aggressor tape feed.
+          source: tape ?? (q.source as MarketState["source"]),
+          tapeSource: tape,
           connected: true,
           ticker: { price: realPrice, change: q.change, changePct: q.changePct, volume: prev2.ticker.volume },
           orderBook: bookRef.current,
