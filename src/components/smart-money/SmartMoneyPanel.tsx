@@ -869,7 +869,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
                           {sig.value}
                         </div>
                         {sig.description && (
-                          <div className="text-[9px] text-wm-text-dim leading-tight">{sig.description}</div>
+                          <div className="text-[9px] text-wm-text-dim leading-tight break-words">{sig.description}</div>
                         )}
                       </div>
                     </div>

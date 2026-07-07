@@ -4863,7 +4863,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         //   exact price. Fully deterministic: getBarFootprint() + per-bar
         //   normalization → every user sees identical bubbles & prices regardless
         //   of their zoom/pan. No Math.random() anywhere in this path. ────────────
-        const recentCut = visibleBars.length > 60 ? visibleBars[visibleBars.length - 60].time : 0;
+        // Spawn on every bar currently in the visible window (≤120 bars). Bubbles
+        // persist until their bar scrolls off-screen — no arbitrary 60-bar cap that
+        // made history look like "one bubble per candle" when panning back.
         visibleBars.forEach(c => {
           const rawCx = chart.timeScale().timeToCoordinate(c.time as any);
           if (rawCx == null || rawCx < -colW || rawCx > W + colW) return;
@@ -4888,10 +4890,6 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           if (levels.length === 0) return;
           const rowH = fullH / Math.max(1, numLev);
 
-          // Only spawn on recent bars (bounded initial fill; already-spawned bubbles
-          // persist until their bar scrolls off-screen so historical absorption stays
-          // visible when price returns to that level).
-          if ((c.time as number) < (recentCut as number)) return;
           if (bubblesPaused) return;
 
           // Per-bar mean level volume — deterministic & zoom-independent, so it is
@@ -5025,8 +5023,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         const hoverId = bubbleHoverRef.current;
         for (const b of bubblesRef.current) {
           const buy = b.side === "buy";
-          // Green for buyers, red for sellers — VP/bubble scheme (gear-controlled)
-          const core = buy ? `${_vpc.up[0]},${_vpc.up[1]},${_vpc.up[2]}` : `${_vpc.dn[0]},${_vpc.dn[1]},${_vpc.dn[2]}`;
+          // Green = aggressive buy, red = aggressive sell — boosted contrast so both
+          // are unmistakable when several bubbles share one candle.
+          const core = buy ? "0,212,170" : "255,77,106";
           const isHover = hoverId === b.id;
 
           // gentle squash/stretch wobble so they feel alive like real bubbles
@@ -5937,7 +5936,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   }, [drawingTool, pixelToLogical, moveDrawingBy, scheduleDrawRender]);
 
   const handleDrawMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (drawingTool === "select" || drawingTool === "eraser") { dragRef.current = null; return; }
+    if (drawingTool === "select" || drawingTool === "eraser") {
+      if (dragRef.current) scheduleDrawRender();
+      dragRef.current = null;
+      return;
+    }
 
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left, y = e.clientY - rect.top;
@@ -5976,7 +5979,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     previewPtRef.current = lp;
     drawingStartRef.current = null;
     setRangeVer(v => v + 1);
-  }, [drawingTool, pixelToLogical, makeDrawing, finalizeDrawing, onDrawingComplete]);
+  }, [drawingTool, pixelToLogical, makeDrawing, finalizeDrawing, onDrawingComplete, scheduleDrawRender]);
 
   // Double-click finishes an open-ended polyline / path.
   const handleDrawDoubleClick = useCallback(() => {
@@ -6312,7 +6315,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         <canvas
           ref={drawCanvasRef}
           className="absolute top-0 left-0"
-          style={{
+            style={{
             cursor: drawingTool === "cursor" ? "default"
                   : drawingTool === "select" ? "move"
                   : drawingTool === "eraser" ? "cell"
@@ -6321,6 +6324,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             pointerEvents: drawingTool !== "cursor" ? "all" : "none",
             opacity: drawingsVisible ? 1 : 0,
             zIndex: 10,
+            willChange: drawingTool !== "cursor" ? "contents" : "auto",
           }}
           onMouseDown={handleDrawMouseDown}
           onMouseMove={handleDrawMouseMove}
