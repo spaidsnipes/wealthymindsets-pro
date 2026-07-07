@@ -21,6 +21,8 @@ import type { PineOutput } from "@/lib/pine/types";
 import { interpretPine } from "@/lib/pine/interpreter";
 import * as IND from "./indicators";
 import { computeDeltaVP, type DeltaVPLevel } from "@/lib/deltaVP";
+import type { DrawingStyle } from "./DrawingToolsPanel";
+import { DEFAULT_DRAWING_STYLE } from "./DrawingToolsPanel";
 
 /* ── Types ─────────────────────────────────────────────── */
 interface Bar {
@@ -522,7 +524,7 @@ interface Props {
   onBarsReady?:    (bars: Bar[]) => void;
   // Drawing tools
   drawingTool?:    string;
-  drawingColor?:   string;
+  drawingStyle?:   DrawingStyle;
   magnetActive?:   boolean;
   lockDrawings?:   boolean;
   onDrawingComplete?: () => void;   // fired after a drawing is placed → return to cursor
@@ -791,7 +793,7 @@ const FIB_COLORS = ["#8892b0", "#4FA3E0", "#00C076", "#F0B429", "#F0B429", "#00C
 
 /* ── Component ──────────────────────────────────────────── */
 export function MainChart({ symbol, timeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, pineCode, onBarsReady,
-  drawingTool = "cursor", drawingColor = "#00D4AA", magnetActive = false, lockDrawings = false,
+  drawingTool = "cursor", drawingStyle = DEFAULT_DRAWING_STYLE, magnetActive = false, lockDrawings = false,
   onDrawingComplete,
   drawingsVisible = true, clearTrigger = 0, activeInds, indSettings, extendedHours,
   alertLevels = [], chartSettings, replayActive = false, replayBars,
@@ -949,6 +951,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     born:    number;   // performance.now() at spawn (newest-N cap ordering)
     anchorTime: number; // bar time (unix s) → home X re-anchor on scroll
     anchorPrice: number; // price → home Y re-anchor on scroll/zoom
+    levelIdx:  number;   // rank within the candle (for horizontal stagger)
+    siblingN:  number;   // how many bubbles share this candle
   };
   const bubblesRef    = useRef<Bubble[]>([]);
   const bubbleSpawnRef = useRef<Set<string>>(new Set()); // dedupe spawns per bar-key
@@ -1027,7 +1031,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // one editing path (color / width / line-style / text / delete).
   type LogicalPt = { price: number; time: number }; // time = unix seconds (LightweightCharts UTCTimestamp)
   type DashStyle = "solid" | "dashed" | "dotted";
-  interface DrawStyle { color: string; width: number; dash: DashStyle; fill: boolean; }
+  interface DrawStyle { color: string; width: number; dash: DashStyle; fill: boolean; opacity: number; }
   interface Drawing { id: number; tool: string; pts: LogicalPt[]; style: DrawStyle; text?: string; }
 
   const drawingsRef     = useRef<Drawing[]>([]);
@@ -1053,13 +1057,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     tool,
     pts,
     style: {
-      color: drawingColor,
-      width: tool === "highlighter" ? 12 : 1.6,
-      dash: "solid",
+      color: drawingStyle.color,
+      width: tool === "highlighter" ? 12 : drawingStyle.width,
+      dash: drawingStyle.dash,
+      opacity: drawingStyle.opacity / 100,
       fill: FILL_TOOLS.has(tool),
     },
     text,
-  }), [drawingColor]);
+  }), [drawingStyle]);
 
   // ── Drawing persistence (Tier-2 #6) ──────────────────────────
   // Drawings are stored as absolute {price, time} anchors, so they survive a
@@ -1084,6 +1089,59 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     return d > 0 ? d : 60;
   };
 
+  const snapLogical = useCallback((price: number, time: number): { price: number; time: number } => {
+    if (!magnetActive) return { price, time };
+    const symBase = getBase(symbol);
+    const dp = symBase > 100 ? 2 : 4;
+    const minTick = symBase > 10_000 ? 0.25 : symBase > 1_000 ? 0.25 : symBase > 100 ? 0.01 : 0.0001;
+    const bars = barsRef.current || [];
+    const iv = barInterval();
+    const candidates: number[] = [+(Math.round(price / minTick) * minTick).toFixed(dp)];
+
+    let bar: Bar | undefined;
+    for (const b of bars) {
+      if (Math.abs((b.time as number) - time) <= iv * 0.55) { bar = b; break; }
+    }
+    if (!bar && bars.length) {
+      bar = bars.reduce((best, b) =>
+        Math.abs((b.time as number) - time) < Math.abs((best.time as number) - time) ? b : best,
+      );
+    }
+    if (bar) {
+      candidates.push(bar.open, bar.high, bar.low, bar.close);
+      const realData = tickAccRef.current.get(bar.time);
+      if (realData) {
+        let sum = 0, n = 0;
+        for (const rt of realData.values()) { sum += rt.bid + rt.ask; n++; }
+        const mean = sum / Math.max(1, n);
+        for (const [px, rt] of realData) {
+          if (rt.bid + rt.ask >= mean * 0.85) candidates.push(px);
+        }
+      } else {
+        const levels = footprintSnapRef.current(bar, 12);
+        const mean = levels.reduce((s, l) => s + l.total, 0) / Math.max(1, levels.length);
+        for (const lv of levels) {
+          if (lv.total >= mean * 0.85) candidates.push(lv.priceLevel);
+        }
+      }
+    }
+
+    const priceTol = Math.max(minTick * 6, Math.abs(price) * 0.0025);
+    let bestP = price, bestD = Infinity;
+    for (const c of candidates) {
+      const d = Math.abs(c - price);
+      if (d < bestD && d <= priceTol) { bestD = d; bestP = c; }
+    }
+
+    let bestT = time, bestTd = Infinity;
+    for (const b of bars) {
+      const d = Math.abs((b.time as number) - time);
+      if (d < bestTd && d <= iv * 0.45) { bestTd = d; bestT = b.time as number; }
+    }
+
+    return { price: +bestP.toFixed(dp), time: +bestT };
+  }, [magnetActive, symbol]);
+
   const pixelToLogical = useCallback((px: number, py: number): LogicalPt | null => {
     const price = candleRef.current?.coordinateToPrice(py);
     if (price == null) return null;
@@ -1101,8 +1159,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       }
     }
     if (time == null) return null;
-    return { price: +price, time: +time };
-  }, []);
+    const snapped = snapLogical(+price, +time);
+    return { price: snapped.price, time: snapped.time };
+  }, [snapLogical]);
 
   // Convert logical {price, time} → canvas CSS pixel (x,y)
   const logicalToPixel = useCallback((pt: LogicalPt): { x: number; y: number } | null => {
@@ -1296,6 +1355,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // ── Tick accumulator: tracks bid/ask volume by price level per bar ──
   // Map<barTime, Map<priceRounded, {bid, ask}>>
   const tickAccRef = useRef<Map<number, Map<number, { bid: number; ask: number }>>>(new Map());
+  // Late-bound ref so magnet snap can read footprint levels after getBarFootprint is defined.
+  const footprintSnapRef = useRef<(bar: Bar, n: number) => Array<{ priceLevel: number; total: number }>>(() => []);
   useEffect(() => {
     if (!recentTicks?.length) return;
     const intervalSec = getIntervalSec(timeframe);
@@ -3959,6 +4020,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
     return levels;
   }, [base]);
+  footprintSnapRef.current = (bar, n) => getBarFootprint(bar, n).map(l => ({ priceLevel: l.priceLevel, total: l.total }));
 
   /* ── Canvas order-flow / footprint overlay ──────────────────
    *  Draws directly on a canvas overlaid on LW chart.
@@ -4853,8 +4915,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             // bounded AND clamped to the row height so multiple bubbles per candle
             // never blanket each other and each stays separated + readable.
             const ratio = lv.total / barMean;
-            const rMax  = Math.max(13, Math.min(30, rowH * 0.94));
-            const baseR = Math.round(Math.max(13, Math.min(rMax, 12 + Math.sqrt(Math.max(0, ratio - 1)) * 12)));
+            const rMin  = Math.max(7, Math.min(11, rowH * 0.40));
+            const rMax  = Math.max(rMin + 2, Math.min(28, rowH * 0.88));
+            const baseR = Math.round(Math.max(rMin, Math.min(rMax, 7 + Math.sqrt(Math.max(0, ratio - 1)) * 11)));
             // Green = buyers aggressive (ask ≥ bid), red = sellers aggressive.
             const side: "buy" | "sell" = lv.ask >= lv.bid ? "buy" : "sell";
             // Keep signed NOTIONAL for the tooltip headline; the on-bubble label is
@@ -4883,6 +4946,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               born:  (c.time as number) * 1000 + i,
               anchorTime:  c.time as number,
               anchorPrice: lv.priceLevel,
+              levelIdx: i,
+              siblingN: ranked.length,
             });
             // soft "bloop" only for the biggest prints (throttled + respects Sound toggle).
             playBloop(baseR > 24);
@@ -4903,9 +4968,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const hx = chart.timeScale().timeToCoordinate(b.anchorTime as any);
           const hy = srs.priceToCoordinate(b.anchorPrice);
           if (hx == null || hy == null) continue; // off-screen → culled below
-          const bob   = Math.sin(b.phase + nowMs / 1600) * 4;
-          const homeX = hx + Math.cos(b.phase + nowMs / 2400) * 3;
-          const homeY = hy + bob - 4;
+          const bob   = Math.sin(b.phase + nowMs / 1600) * 3;
+          const spread = b.siblingN > 1 ? Math.min(16, Math.max(8, b.baseR * 0.55)) : 0;
+          const offX  = b.siblingN > 1 ? (b.levelIdx - (b.siblingN - 1) / 2) * spread : 0;
+          const homeX = hx + offX + Math.cos(b.phase + nowMs / 2400) * 2;
+          const homeY = hy + bob - 3;
           b.vx += (homeX - b.x) * 0.012;
           b.vy += (homeY - b.y) * 0.012;
           b.vx *= 0.93; b.vy *= 0.93;
@@ -4997,19 +5064,20 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // EXACT PRICE label, centered — the price where this aggressive trade
           // printed (e.g. "417.17"), NOT the notional. Deterministic anchorPrice →
           // every user sees the same price on the same bubble.
-          if (b.r >= 9) {
+          if (b.r >= 7) {
             const p = b.anchorPrice;
             const lbl = p >= 10000 ? Math.round(p).toString()
                       : p >= 100   ? p.toFixed(2)
                       : p >= 1     ? p.toFixed(2)
                       :              p.toFixed(4);
-            const fontPx = Math.max(8, Math.min(14, Rx * 0.5));
+            const fontPx = Math.max(8, Math.min(13, Rx * 0.48));
             ctx.font = `bold ${fontPx}px Inter, monospace`;
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 4;
+            ctx.lineWidth = Math.max(2, fontPx * 0.22);
+            ctx.strokeStyle = "rgba(0,0,0,0.88)";
+            ctx.strokeText(lbl, b.x, b.y);
             ctx.fillStyle = "rgba(255,255,255,0.99)";
             ctx.fillText(lbl, b.x, b.y);
-            ctx.shadowBlur = 0;
           }
           ctx.restore();
         }
@@ -5516,6 +5584,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       const s = d.style, t = d.tool, col = s.color, fillCol = col + "22";
       const P = d.pts.map(toPx);
       ctx.save();
+      if (s.opacity != null && s.opacity < 1) ctx.globalAlpha = s.opacity;
       ctx.lineJoin = "round"; ctx.lineCap = "round";
       ctx.strokeStyle = col; ctx.fillStyle = col;
       ctx.lineWidth = Math.max(0.5, s.width);
@@ -5681,8 +5750,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       ctx.restore();
 
       if (selected) {
-        ctx.save(); ctx.setLineDash([]);
-        d.pts.forEach(p => { const q = toPx(p); if (!q) return; ctx.fillStyle = "#fff"; ctx.strokeStyle = "#00D4AA"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.rect(q.x - 4, q.y - 4, 8, 8); ctx.fill(); ctx.stroke(); });
+        ctx.save(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+        const HS = 6;
+        d.pts.forEach(p => { const q = toPx(p); if (!q) return; ctx.fillStyle = "#fff"; ctx.strokeStyle = "#00D4AA"; ctx.lineWidth = 2; ctx.beginPath(); ctx.rect(q.x - HS, q.y - HS, HS * 2, HS * 2); ctx.fill(); ctx.stroke(); });
         ctx.restore();
       }
     };
@@ -5695,10 +5765,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     else if (drawingStartRef.current?.lp && previewPtRef.current && mouseMovedRef.current) {
       const tool = drawingToolRef.current;
       if (tool !== "cursor" && tool !== "select" && tool !== "eraser" && drawPtsNeeded(tool) === 2) {
-        drawOne({ id: -1, tool, pts: [drawingStartRef.current.lp, previewPtRef.current], style: { color: drawingColor, width: 1.6, dash: "solid", fill: FILL_TOOLS.has(tool) } }, false);
+        drawOne({ id: -1, tool, pts: [drawingStartRef.current.lp, previewPtRef.current], style: {
+          color: drawingStyle.color, width: drawingStyle.width, dash: drawingStyle.dash,
+          opacity: drawingStyle.opacity / 100, fill: FILL_TOOLS.has(tool),
+        } }, false);
       }
     }
-  }, [base, logicalToPixel, drawingColor, getBarFootprint]);
+  }, [base, logicalToPixel, drawingStyle, getBarFootprint]);
 
   // Re-render drawings whenever the view changes, a drawing is selected, or a style edit happens.
   useEffect(() => { renderDrawings(); }, [rangeVer, renderDrawings, selectedIdx, editBump]);
@@ -5729,7 +5802,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     return -1;
   }, [drawingWithin]);
   // Which anchor handle (point index) of drawing `idx` is under (x,y)? -1 if none.
-  const hitHandle = useCallback((idx: number, x: number, y: number, tol = 8): number => {
+  const hitHandle = useCallback((idx: number, x: number, y: number, tol = 10): number => {
     const d = drawingsRef.current[idx]; if (!d) return -1;
     for (let k = 0; k < d.pts.length; k++) { const q = logicalToPixel(d.pts[k]); if (q && Math.hypot(q.x - x, q.y - y) <= tol) return k; }
     return -1;
@@ -5978,7 +6051,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     try {
       const raw = localStorage.getItem(drawStorageKey());
       const arr = raw ? (JSON.parse(raw) as Drawing[]) : [];
-      drawingsRef.current = Array.isArray(arr) ? arr : [];
+      drawingsRef.current = Array.isArray(arr)
+        ? arr.map(d => ({ ...d, style: { ...d.style, opacity: d.style?.opacity ?? 1 } }))
+        : [];
       drawIdRef.current = drawingsRef.current.reduce((m, d) => Math.max(m, d.id || 0), 0);
       lastSavedDrawRef.current = raw ?? "";
     } catch {
@@ -6267,9 +6342,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               </div>
               <div style={{ width: 1, height: 18, background: "#2A3350" }} />
               {/* width */}
-              {[1, 2, 4].map(w => (
-                <button key={w} title={`Width ${w}`} onClick={() => { d.style.width = w * 1.4; bump(); }}
-                  style={btn(Math.round(d.style.width / 1.4) === w)}>
+              {[1, 2, 3, 4].map(w => (
+                <button key={w} title={`Width ${w}px`} onClick={() => { d.style.width = w; bump(); }}
+                  style={btn(Math.round(d.style.width) === w)}>
                   <span style={{ display: "inline-block", width: 14, height: w, background: "currentColor", borderRadius: 2 }} />
                 </button>
               ))}
@@ -6280,6 +6355,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                   {s === "solid" ? "──" : s === "dashed" ? "- -" : "···"}
                 </button>
               ))}
+              <div style={{ width: 1, height: 18, background: "#2A3350" }} />
+              <input
+                type="range" min={10} max={100} step={5}
+                title="Opacity"
+                value={Math.round((d.style.opacity ?? 1) * 100)}
+                onChange={e => { d.style.opacity = Number(e.target.value) / 100; bump(); }}
+                style={{ width: 52, accentColor: "#4FA3E0" }}
+              />
               {FILL_TOOLS.has(d.tool) && d.tool !== "delta-vp" && (
                 <>
                   <div style={{ width: 1, height: 18, background: "#2A3350" }} />
