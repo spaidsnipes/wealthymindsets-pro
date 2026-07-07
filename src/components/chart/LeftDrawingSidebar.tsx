@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   MousePointer2, Move, Minus, TrendingUp, MoveHorizontal, MoveVertical,
   Ruler, Square, Circle, Triangle, Type, Pencil, Eraser, Trash2,
   Magnet, Lock, Eye, EyeOff, ArrowUpRight, Columns2,
 } from "lucide-react";
-import type { DrawingTool } from "./DrawingToolsPanel";
+import type { DrawingTool, DrawingStyle } from "./DrawingToolsPanel";
+import { DrawingStylePopover, isStyleCapableTool } from "./DrawingToolsPanel";
 
 interface Item { id: DrawingTool; label: string; icon: React.ReactNode; }
 
@@ -39,14 +40,12 @@ const GROUPS: { items: Item[] }[] = [
   ]},
 ];
 
-const COLORS = ["#00D4AA","#4FA3E0","#F0B429","#FF4D6A","#8B5CF6","#FFFFFF","#F97316","#06B6D4"];
-
 interface Props {
   activeTool:     DrawingTool;
   onToolChange:   (t: DrawingTool) => void;
   onClearAll:     () => void;
-  color:          string;
-  onColorChange:  (c: string) => void;
+  style:          DrawingStyle;
+  onStyleChange:  (patch: Partial<DrawingStyle>) => void;
   magnetActive:   boolean;
   onMagnetToggle: () => void;
   lockActive:     boolean;
@@ -57,12 +56,32 @@ interface Props {
 
 export function LeftDrawingSidebar({
   activeTool, onToolChange, onClearAll,
-  color, onColorChange,
+  style, onStyleChange,
   magnetActive, onMagnetToggle,
   lockActive, onLockToggle,
   visible, onVisToggle,
 }: Props) {
-  const [showColors, setShowColors] = useState(false);
+  const [styleOpen, setStyleOpen] = useState(false);
+  const [stylePos, setStylePos]   = useState<{ left: number; top: number } | null>(null);
+  const railRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (styleOpen && railRef.current) {
+      const r = railRef.current.getBoundingClientRect();
+      setStylePos({ left: r.right + 6, top: r.top + 8 });
+    }
+  }, [styleOpen]);
+
+  const pickTool = (id: DrawingTool, el: HTMLElement) => {
+    onToolChange(id);
+    if (isStyleCapableTool(id)) {
+      const r = el.getBoundingClientRect();
+      setStylePos({ left: r.right + 6, top: r.top });
+      setStyleOpen(true);
+    } else {
+      setStyleOpen(false);
+    }
+  };
 
   const btn = (active: boolean, activeColor = "#00D4AA"): React.CSSProperties => ({
     width: 30, height: 30, borderRadius: 6, display: "flex", alignItems: "center",
@@ -73,17 +92,23 @@ export function LeftDrawingSidebar({
   });
 
   return (
-    <div style={{
-      display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-      width: 40, flexShrink: 0, padding: "6px 0",
-      background: "#0D0E14", borderRight: "1px solid #1E2030",
-      overflowY: "auto", position: "relative", zIndex: 30,
-    }}>
+    <div
+      ref={railRef}
+      style={{
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+        width: 40, flexShrink: 0, padding: "6px 0",
+        background: "#0D0E14", borderRight: "1px solid #1E2030",
+        overflowY: "auto", position: "relative", zIndex: 30,
+      }}
+    >
       {GROUPS.map((g, gi) => (
         <React.Fragment key={gi}>
           {gi > 0 && <div style={{ width: 22, height: 1, background: "#1E2030", margin: "3px 0" }} />}
           {g.items.map(it => (
-            <button key={it.id} title={it.label} onClick={() => onToolChange(it.id)}
+            <button
+              key={it.id}
+              title={it.label}
+              onClick={e => pickTool(it.id, e.currentTarget)}
               style={btn(activeTool === it.id)}
               onMouseEnter={e => { if (activeTool !== it.id) (e.currentTarget as HTMLElement).style.color = "#E2E8F0"; }}
               onMouseLeave={e => { if (activeTool !== it.id) (e.currentTarget as HTMLElement).style.color = "#8B8FA8"; }}
@@ -94,25 +119,18 @@ export function LeftDrawingSidebar({
 
       <div style={{ width: 22, height: 1, background: "#1E2030", margin: "3px 0" }} />
 
-      {/* Color swatch */}
-      <div style={{ position: "relative" }}>
-        <button title="Drawing color" onClick={() => setShowColors(v => !v)}
-          style={{ width: 22, height: 22, borderRadius: 5, background: color, border: "2px solid rgba(255,255,255,0.25)", cursor: "pointer" }} />
-        {showColors && (
-          <div style={{
-            position: "absolute", left: "calc(100% + 6px)", top: 0, zIndex: 9999,
-            background: "#0D0E14", border: "1px solid #1E2030", borderRadius: 8, padding: 8,
-            display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.7)",
-          }}>
-            {COLORS.map(c => (
-              <button key={c} onClick={() => { onColorChange(c); setShowColors(false); }}
-                style={{ width: 20, height: 20, borderRadius: 4, background: c, border: "none",
-                  cursor: "pointer", outline: color === c ? "2px solid white" : "none", outlineOffset: 2 }} />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Style swatch — opens line/width/color/opacity dropdown */}
+      <button
+        title="Drawing style"
+        onClick={() => setStyleOpen(v => !v)}
+        style={{
+          width: 22, height: 22, borderRadius: 5,
+          background: style.color,
+          border: `2px solid ${styleOpen ? "#4FA3E0" : "rgba(255,255,255,0.25)"}`,
+          cursor: "pointer",
+          opacity: style.opacity / 100,
+        }}
+      />
 
       <button title="Magnet — snap to price" onClick={onMagnetToggle} style={btn(magnetActive, "#4FA3E0")}><Magnet size={14} /></button>
       <button title="Lock drawings" onClick={onLockToggle} style={btn(lockActive, "#F0B429")}><Lock size={14} /></button>
@@ -123,6 +141,15 @@ export function LeftDrawingSidebar({
         onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#FF4D6A"}
         onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "#8B8FA8"}
       ><Trash2 size={14} /></button>
+
+      {styleOpen && stylePos && typeof document !== "undefined" && (
+        <DrawingStylePopover
+          style={style}
+          onChange={onStyleChange}
+          anchor={stylePos}
+          onClose={() => setStyleOpen(false)}
+        />
+      )}
     </div>
   );
 }

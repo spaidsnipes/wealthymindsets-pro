@@ -209,12 +209,134 @@ const COLORS = [
   "#FFFFFF","#94A3B8","#F97316","#06B6D4","#EC4899",
 ];
 
+export type DashStyle = "solid" | "dashed" | "dotted";
+
+export interface DrawingStyle {
+  color:   string;
+  width:   number;      // 1–4 px
+  dash:    DashStyle;
+  opacity: number;      // 0–100
+}
+
+export const DEFAULT_DRAWING_STYLE: DrawingStyle = {
+  color: "#00D4AA", width: 2, dash: "solid", opacity: 100,
+};
+
+/** Tools that expose line/brush/text styling (not cursor / select / eraser). */
+export function isStyleCapableTool(t: DrawingTool): boolean {
+  return t !== "cursor" && t !== "select" && t !== "eraser" && t !== "crosshair";
+}
+
+interface StylePopoverProps {
+  style:    DrawingStyle;
+  onChange: (patch: Partial<DrawingStyle>) => void;
+  anchor:   { left: number; top: number };
+  onClose:  () => void;
+}
+
+export function DrawingStylePopover({ style, onChange, anchor, onClose }: StylePopoverProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (ref.current?.contains(e.target as Node)) return;
+      onClose();
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [onClose]);
+
+  const row: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, marginBottom: 8 };
+  const lbl: React.CSSProperties = { fontSize: 9, fontWeight: 700, color: "#8B8FA8", width: 52, flexShrink: 0, letterSpacing: "0.06em" };
+  const chip = (active: boolean): React.CSSProperties => ({
+    minWidth: 28, height: 24, padding: "0 6px", borderRadius: 5, cursor: "pointer",
+    fontSize: 10, fontWeight: 700, color: active ? "#0B0E1A" : "#C7D0E8",
+    background: active ? "#4FA3E0" : "rgba(255,255,255,0.05)",
+    border: `1px solid ${active ? "#4FA3E0" : "rgba(255,255,255,0.10)"}`,
+  });
+
+  return createPortal(
+    <div
+      ref={ref}
+      style={{
+        position: "fixed", left: anchor.left, top: anchor.top, zIndex: 99999,
+        background: "#0D0E14", border: "1px solid #1E2030", borderRadius: 10,
+        padding: "10px 12px", width: 220,
+        boxShadow: "0 12px 40px rgba(0,0,0,0.8)",
+      }}
+      onMouseDown={e => e.stopPropagation()}
+    >
+      <div style={{ fontSize: 9, fontWeight: 800, color: "#E2E8F0", letterSpacing: "0.1em", marginBottom: 8 }}>
+        STYLE
+      </div>
+
+      {/* Line style */}
+      <div style={row}>
+        <span style={lbl}>LINE</span>
+        <div style={{ display: "flex", gap: 4 }}>
+          {(["solid", "dashed", "dotted"] as const).map(s => (
+            <button key={s} title={s} onClick={() => onChange({ dash: s })} style={chip(style.dash === s)}>
+              {s === "solid" ? "──" : s === "dashed" ? "- -" : "···"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Thickness */}
+      <div style={row}>
+        <span style={lbl}>WIDTH</span>
+        <div style={{ display: "flex", gap: 4 }}>
+          {[1, 2, 3, 4].map(w => (
+            <button key={w} title={`${w}px`} onClick={() => onChange({ width: w })} style={chip(style.width === w)}>
+              <span style={{ display: "inline-block", width: 14, height: w, background: "currentColor", borderRadius: 2 }} />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Color swatches + native picker */}
+      <div style={{ ...row, alignItems: "flex-start" }}>
+        <span style={{ ...lbl, marginTop: 4 }}>COLOR</span>
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 5, marginBottom: 6 }}>
+            {COLORS.map(c => (
+              <button key={c} onClick={() => onChange({ color: c })}
+                style={{ width: 20, height: 20, borderRadius: 4, background: c, border: "none", cursor: "pointer",
+                  outline: style.color === c ? "2px solid white" : "none", outlineOffset: 2 }} />
+            ))}
+          </div>
+          <input
+            type="color"
+            value={style.color.length === 7 ? style.color : "#00D4AA"}
+            onChange={e => onChange({ color: e.target.value })}
+            style={{ width: "100%", height: 24, border: "1px solid #1E2030", borderRadius: 5, cursor: "pointer", background: "transparent" }}
+          />
+        </div>
+      </div>
+
+      {/* Opacity */}
+      <div style={{ ...row, marginBottom: 0 }}>
+        <span style={lbl}>OPACITY</span>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6 }}>
+          <input
+            type="range" min={10} max={100} step={5}
+            value={style.opacity}
+            onChange={e => onChange({ opacity: Number(e.target.value) })}
+            style={{ flex: 1, accentColor: "#4FA3E0" }}
+          />
+          <span style={{ fontSize: 9, fontWeight: 700, color: "#C7D0E8", width: 28, textAlign: "right" }}>{style.opacity}%</span>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 interface Props {
   activeTool:     DrawingTool;
   onToolChange:   (t: DrawingTool) => void;
   onClearAll:     () => void;
-  color:          string;
-  onColorChange:  (c: string) => void;
+  style:          DrawingStyle;
+  onStyleChange:  (patch: Partial<DrawingStyle>) => void;
   magnetActive:   boolean;
   onMagnetToggle: () => void;
   lockActive:     boolean;
@@ -225,20 +347,20 @@ interface Props {
 
 export function DrawingToolsPanel({
   activeTool, onToolChange, onClearAll,
-  color, onColorChange,
+  style, onStyleChange,
   magnetActive, onMagnetToggle,
   lockActive, onLockToggle,
   visible, onVisToggle,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [showColors, setShowColors] = useState(false);
+  const [showStyle, setShowStyle] = useState(false);
   const [query, setQuery] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const colorRef = useRef<HTMLButtonElement>(null);
+  const styleRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(null);
-  const [colorPos, setColorPos] = useState<{ left: number; top: number } | null>(null);
+  const [stylePos, setStylePos] = useState<{ left: number; top: number } | null>(null);
 
   // Anchor portal dropdowns to their triggers with fixed coords so they
   // escape the toolbar's `overflow` clipping.
@@ -249,23 +371,23 @@ export function DrawingToolsPanel({
     }
   }, [open]);
   useEffect(() => {
-    if (showColors && colorRef.current) {
-      const r = colorRef.current.getBoundingClientRect();
-      setColorPos({ left: r.left, top: r.bottom + 6 });
+    if (showStyle && styleRef.current) {
+      const r = styleRef.current.getBoundingClientRect();
+      setStylePos({ left: r.left, top: r.bottom + 6 });
     }
-  }, [showColors]);
+  }, [showStyle]);
 
   useEffect(() => {
-    if (!open && !showColors) return;
+    if (!open && !showStyle) return;
     const handler = (e: MouseEvent) => {
       const t = e.target as Node;
       if (wrapRef.current?.contains(t) || menuRef.current?.contains(t)) return;
       setOpen(false);
-      setShowColors(false);
+      setShowStyle(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [open, showColors]);
+  }, [open, showStyle]);
 
   const activeLabel = (() => {
     if (activeTool === "cursor") return "Draw";
@@ -284,14 +406,19 @@ export function DrawingToolsPanel({
         .filter(g => g.tools.length)
     : TOOL_GROUPS;
 
-  const pick = (id: DrawingTool) => { onToolChange(id); setOpen(false); setQuery(""); };
+  const pick = (id: DrawingTool) => {
+    onToolChange(id);
+    setOpen(false);
+    setQuery("");
+    if (isStyleCapableTool(id)) setShowStyle(true);
+  };
 
   return (
     <div ref={wrapRef} style={{ display: "flex", alignItems: "center", gap: 4, position: "relative", zIndex: 200 }}>
       {/* ── Main trigger ── */}
       <button
         ref={triggerRef}
-        onClick={() => { setOpen(o => !o); setShowColors(false); }}
+        onClick={() => { setOpen(o => !o); setShowStyle(false); }}
         style={{
           display: "flex", alignItems: "center", gap: 5,
           height: 26, padding: "0 10px",
@@ -308,12 +435,16 @@ export function DrawingToolsPanel({
         <ChevronDown size={10} style={{ opacity: 0.6, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
       </button>
 
-      {/* ── Color swatch ── */}
+      {/* ── Style swatch (opens line/width/color/opacity dropdown) ── */}
       <button
-        ref={colorRef}
-        onClick={() => { setShowColors(v => !v); setOpen(false); }}
-        style={{ width: 20, height: 20, borderRadius: 4, flexShrink: 0, background: color, border: "2px solid rgba(255,255,255,0.2)", cursor: "pointer" }}
-        title="Drawing Color"
+        ref={styleRef}
+        onClick={() => { setShowStyle(v => !v); setOpen(false); }}
+        style={{
+          width: 20, height: 20, borderRadius: 4, flexShrink: 0,
+          background: style.color, border: "2px solid rgba(255,255,255,0.2)", cursor: "pointer",
+          opacity: style.opacity / 100,
+        }}
+        title="Drawing style"
       />
 
       {/* ── Utility buttons ── */}
@@ -324,18 +455,15 @@ export function DrawingToolsPanel({
       </button>
       <button onClick={onClearAll}     title="Clear all drawings"   style={utilBtnStyle(false, "#FF4D6A", true)}><Trash2 size={11} /></button>
 
-      {/* ── Color picker (portal) ── */}
-      {showColors && colorPos && typeof document !== "undefined" && createPortal(
-        <div ref={menuRef} style={{
-          position: "fixed", top: colorPos.top, left: colorPos.left, zIndex: 99999,
-          background: "#0D0E14", border: "1px solid #1E2030", borderRadius: 8, padding: 10,
-          boxShadow: "0 8px 24px rgba(0,0,0,0.7)", display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6,
-        }}>
-          {COLORS.map(c => (
-            <button key={c} onClick={() => { onColorChange(c); setShowColors(false); }}
-              style={{ width: 20, height: 20, borderRadius: 4, background: c, border: "none", cursor: "pointer", outline: color === c ? "2px solid white" : "none", outlineOffset: 2 }} />
-          ))}
-        </div>, document.body)}
+      {/* ── Style dropdown (portal) ── */}
+      {showStyle && stylePos && typeof document !== "undefined" && (
+        <DrawingStylePopover
+          style={style}
+          onChange={onStyleChange}
+          anchor={stylePos}
+          onClose={() => setShowStyle(false)}
+        />
+      )}
 
       {/* ── Main dropdown (portal) ── */}
       {open && menuPos && typeof document !== "undefined" && createPortal(

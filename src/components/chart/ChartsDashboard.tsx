@@ -20,7 +20,7 @@ import { OptionsChain } from "./OptionsChain";
 import { FearGreedWidget } from "./FearGreedWidget";
 import { CustomIndicatorBuilder } from "@/components/pine/CustomIndicatorBuilder";
 import { PineCommunityLibrary } from "@/components/pine/PineCommunityLibrary";
-import { DrawingToolsPanel } from "./DrawingToolsPanel";
+import { DrawingToolsPanel, DEFAULT_DRAWING_STYLE, type DrawingStyle } from "./DrawingToolsPanel";
 import { LeftDrawingSidebar } from "./LeftDrawingSidebar";
 import { MarkovPanel } from "./MarkovPanel";
 import { WMSessionVP } from "./WMSessionVP";
@@ -232,7 +232,10 @@ export function ChartsDashboard() {
 
   // ── Drawing tools ───────────────────────────────────────────
   const [drawingTool,     setDrawingTool]     = useState<DrawingTool>("cursor");
-  const [drawingColor,    setDrawingColor]    = useState("#00D4AA");
+  const [drawingStyle,    setDrawingStyle]    = useState<DrawingStyle>(DEFAULT_DRAWING_STYLE);
+  const patchDrawingStyle = useCallback((patch: Partial<DrawingStyle>) => {
+    setDrawingStyle(prev => ({ ...prev, ...patch }));
+  }, []);
   const [magnetActive,    setMagnetActive]    = useState(false);
   const [lockActive,      setLockActive]      = useState(false);
   const [drawingsVisible, setDrawingsVisible] = useState(true);
@@ -692,8 +695,8 @@ export function ChartsDashboard() {
                   activeTool={drawingTool}
                   onToolChange={setDrawingTool}
                   onClearAll={() => setClearTrigger(t => t + 1)}
-                  color={drawingColor}
-                  onColorChange={setDrawingColor}
+                  style={drawingStyle}
+                  onStyleChange={patchDrawingStyle}
                   magnetActive={magnetActive}
                   onMagnetToggle={() => setMagnetActive(v => !v)}
                   lockActive={lockActive}
@@ -1063,8 +1066,8 @@ export function ChartsDashboard() {
                   activeTool={drawingTool}
                   onToolChange={setDrawingTool}
                   onClearAll={() => setClearTrigger(t => t + 1)}
-                  color={drawingColor}
-                  onColorChange={setDrawingColor}
+                  style={drawingStyle}
+                  onStyleChange={patchDrawingStyle}
                   magnetActive={magnetActive}
                   onMagnetToggle={() => setMagnetActive(v => !v)}
                   lockActive={lockActive}
@@ -1120,7 +1123,7 @@ export function ChartsDashboard() {
                       onBarsReady={handleBarsReady}
                       drawingTool={drawingTool}
                       onDrawingComplete={() => setDrawingTool("cursor")}
-                      drawingColor={drawingColor}
+                      drawingStyle={drawingStyle}
                       magnetActive={magnetActive}
                       lockDrawings={lockActive}
                       drawingsVisible={drawingsVisible}
