@@ -301,7 +301,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
       .map(([idx, v]) => ({ price: lo + (idx + 0.5) * width, delta: v.buy - v.sell, vol: v.buy + v.sell }))
       .filter(l => l.vol > 0)
       .sort((a, b) => b.price - a.price);            // top of book first
-  }, [recentTicks]);
+  }, [recentTicks, realTape, livePrice]);
   const maxAbsDelta = deltaLevels.reduce((m, l) => Math.max(m, Math.abs(l.delta)), 0);
 
   // Derived directly from the SAME `flow` snapshot the Delta Domination card
