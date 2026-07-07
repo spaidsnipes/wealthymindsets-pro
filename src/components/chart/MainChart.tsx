@@ -20,6 +20,7 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import type { PineOutput } from "@/lib/pine/types";
 import { interpretPine } from "@/lib/pine/interpreter";
 import * as IND from "./indicators";
+import { computeDeltaVP, type DeltaVPLevel } from "@/lib/deltaVP";
 
 /* ── Types ─────────────────────────────────────────────── */
 interface Bar {
@@ -29,13 +30,6 @@ interface Bar {
   low:    number;
   close:  number;
   volume: number;
-}
-
-interface OrderFlowBubble {
-  price: number;
-  vol:   number;
-  side:  "buy" | "sell";
-  time:  number;
 }
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
@@ -568,6 +562,8 @@ interface Props {
   // Big Trades Simultaneous Mode — when true, draw Big Trades bubbles ON TOP of
   // whatever order-flow tool is active instead of only in exclusive big-trades mode.
   bigTradesOverlay?: boolean;
+  // Paper positions — render open paper-trade entries as horizontal lines w/ live P&L
+  paperTradesVisible?: boolean;
   // Fullscreen delegation — parent provides the element to fullscreen
   onRequestFullscreen?: () => void;
 }
@@ -758,6 +754,8 @@ const DRAW_PTS: Record<string, number> = {
   // measure / positions
   "price-range": 2, "date-range": 2, "date-price-range": 2, measure: 2,
   "long-position": 3, "short-position": 3,
+  // order flow
+  "delta-vp": 2,
 };
 const drawPtsNeeded = (tool: string): number => (tool in DRAW_PTS ? DRAW_PTS[tool] : 2);
 
@@ -782,7 +780,7 @@ const FILL_TOOLS = new Set([
   "rect", "circle", "ellipse", "rotated-rect", "triangle", "fibonacci", "fib-ext",
   "gann-box", "gann-square", "gann-square-fixed", "channel", "parallel-channel",
   "flat-channel", "regression", "price-range", "date-range", "date-price-range",
-  "measure", "long-position", "short-position", "fib-circles",
+  "measure", "long-position", "short-position", "fib-circles", "delta-vp",
 ]);
 const DRAW_COLORS = [
   "#00D4AA", "#4FA3E0", "#F0B429", "#FF4D6A", "#8B5CF6",
@@ -800,6 +798,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   compareSymbol, onPriceAtCursor, onOHLCAtCursor,
   fixedVPActive = false, sessionVPActive = false,
   bigTradesOverlay = false,
+  paperTradesVisible = true,
   onRequestFullscreen,
 }: Props) {
   const containerRef  = useRef<HTMLDivElement>(null);
@@ -809,10 +808,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const chartRef      = useRef<any>(null);
   const lwRef         = useRef<any>(null); // the imported lightweight-charts v5 module (for series defs)
   const candleRef     = useRef<any>(null);
+  const markersPluginRef = useRef<any>(null); // v5 createSeriesMarkers plugin (setMarkers moved off ISeriesApi)
+  const pineMarkersPluginRef = useRef<any>(null); // v5 markers plugin dedicated to Pine plotshape/plotchar output
   const volRef        = useRef<any>(null);
   const pineSeriesRef = useRef<Map<string, any>>(new Map());
   const pineCodeRef   = useRef<string | undefined>(undefined);
   const indSeriesRef  = useRef<any[]>([]);
+  // Open paper-trade position lines (native IPriceLine on the candle series) +
+  // the position each line represents, so we can refresh the live-P&L title on tick.
+  const paperLinesRef = useRef<Array<{ line: any; qty: number; avgPx: number }>>([]);
   // Live-updating oscillators: each entry recomputes its series values from the
   // CURRENT bars (barsRef) and pushes only the last point on every live tick, so
   // Tape Speed / Exhaustion / flow histograms visibly move with real-time data
@@ -926,45 +930,55 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // ── Big-Trade Bubble engine state (🫧 floating bubbles) ───────
+  // One bubble = one real big trade. Radius is fixed at spawn and encodes the
+  // TRUE trade size (bigger order → bigger bubble). Bubbles NEVER merge, never
+  // fade, and never pop — they persist at their level until the bar scrolls off
+  // screen or the user's max-visible cap drops the oldest.
   type Bubble = {
     id:      number;
     x:       number;   // current canvas px
     y:       number;   // current canvas px
     vx:      number;   // velocity px/frame
     vy:      number;   // velocity px/frame
-    baseR:   number;   // target radius (∝ order size)
-    r:       number;   // current radius (eases up on spawn, shrinks on pop)
-    phase:   number;   // wobble / orbit phase
-    big:     boolean;  // true = the main big-trade bubble (persists at level)
+    baseR:   number;   // target radius (∝ order size) — fixed once at spawn
+    r:       number;   // current radius (eases up to baseR on spawn only)
+    phase:   number;   // wobble / bob phase
+    big:     boolean;  // kept for compat; every bubble is now a real trade
     side:    "buy" | "sell";
-    value:   number;   // order size (signed by side for display)
-    born:    number;   // timestamp ms
-    life:    number;   // ms to live (big bubbles auto-refresh)
-    popping: boolean;  // currently in pop / absorb animation
-    popT:    number;   // 0→1 pop progress
+    value:   number;   // notional (signed by side for display)
+    born:    number;   // performance.now() at spawn (newest-N cap ordering)
     anchorTime: number; // bar time (unix s) → home X re-anchor on scroll
     anchorPrice: number; // price → home Y re-anchor on scroll/zoom
-    absorbedBy?: number; // id of bubble that absorbed this one (pop pulls toward it)
-    absorbFlash?: number; // 0→1 swell flash when this bubble absorbs another
   };
   const bubblesRef    = useRef<Bubble[]>([]);
-  const bubbleSpawnRef = useRef<Set<string>>(new Set()); // dedupe main spawns per bar-key
+  const bubbleSpawnRef = useRef<Set<string>>(new Set()); // dedupe spawns per bar-key
   const bubbleIdRef    = useRef(0);
   const bubbleHoverRef = useRef<number | null>(null);     // hovered bubble id
-  const bubbleSpawnTickRef = useRef(0);                   // throttle continuous companion spawns
-  // Big-Trades Pause / Refresh controls (driven by the toolbar gear dropdown).
+  // Big-Trades Pause / Refresh + max-visible controls (toolbar gear dropdown).
   const bubblePausedRef  = useRef<boolean>(
     typeof window !== "undefined" && localStorage.getItem("wm_bubble_paused") === "1"
+  );
+  // Max bubbles to keep on screen. "All" (default) = effectively uncapped so the
+  // user sees every big trade; a numeric choice keeps only the newest N.
+  const bubbleMaxRef = useRef<number>(
+    typeof window !== "undefined"
+      ? (parseInt(localStorage.getItem("wm_bubble_max") || "", 10) || 9999)
+      : 9999
   );
   const bubbleRefreshRef = useRef(0); // bumped → engine clears + respawns next frame
   const bubbleRefreshSeenRef = useRef(0);
   useEffect(() => {
     const onCtl = (e: Event) => {
-      const action = (e as CustomEvent).detail?.action;
+      const detail = (e as CustomEvent).detail || {};
+      const action = detail.action;
       if (action === "pause")   bubblePausedRef.current = true;
       if (action === "resume")  bubblePausedRef.current = false;
       if (action === "toggle")  bubblePausedRef.current = !bubblePausedRef.current;
       if (action === "refresh") bubbleRefreshRef.current++;
+      if (action === "setMax") {
+        const v = Number(detail.value);
+        bubbleMaxRef.current = Number.isFinite(v) && v > 0 ? v : 9999;
+      }
     };
     window.addEventListener("wm-bigtrades-control", onCtl as any);
     return () => window.removeEventListener("wm-bigtrades-control", onCtl as any);
@@ -1046,6 +1060,18 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     },
     text,
   }), [drawingColor]);
+
+  // ── Drawing persistence (Tier-2 #6) ──────────────────────────
+  // Drawings are stored as absolute {price, time} anchors, so they survive a
+  // refresh and re-anchor on any timeframe. Scope the key to the signed-in user
+  // (from the AuthContext session cache) + symbol so each symbol keeps its own
+  // drawings and they don't leak between accounts sharing a browser.
+  const lastSavedDrawRef = useRef<string>("");
+  const drawStorageKey = useCallback(() => {
+    let uid = "anon";
+    try { uid = JSON.parse(localStorage.getItem("wm_session_v1") || "{}")?.id || "anon"; } catch {}
+    return `wm_draw:v1:${uid}:${symbol}`;
+  }, [symbol]);
 
   // ── Drawing coordinate helpers ───────────────────────────────
   // Convert canvas CSS pixel (x,y) → logical {price, time}
@@ -1154,7 +1180,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const [lastPrice, setLastPrice] = useState(base);
   const [openPrice, setOpenPrice] = useState(base);
   const [ready,     setReady]     = useState(false);
-  const [bubbles,   setBubbles]   = useState<OrderFlowBubble[]>([]);
+  // Bumped whenever paper state may have changed (another tab writes wm_paper_state,
+  // or the window regains focus after the user placed a trade on /paper) → re-read.
+  const [paperNonce, setPaperNonce] = useState(0);
 
   // Countdown state
   const [countdown,   setCountdown]   = useState("--:--");
@@ -1866,6 +1894,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
       chartRef.current  = chart;
       candleRef.current = cs;
+      markersPluginRef.current = null; // fresh series → re-attach markers plugin on next update
       volRef.current    = vs;
       barsRef.current   = data;
 
@@ -2125,18 +2154,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     if (barsRef.current.length) {
       onBarsReady?.(barsRef.current);
     }
-
-    // Generate order-flow bubble (~40% of ticks)
-    if (Math.random() > 0.60) {
-      const side      = bar.close > bar.open ? "buy" : "sell";
-      const range     = bar.high - bar.low;
-      const bubbleVol = Math.floor(bar.volume * (0.25 + Math.random() * 0.55));
-      // Place bubble INSIDE the candle body at a realistic price level
-      const price = side === "buy"
-        ? bar.low  + range * (0.15 + Math.random() * 0.35)
-        : bar.high - range * (0.15 + Math.random() * 0.35);
-      setBubbles(prev => [{ price, vol: bubbleVol, side, time: bar.time }, ...prev.slice(0, 15)]);
-    }
+    // NOTE: Big-Trade bubbles are NOT generated here. They are spawned
+    // deterministically from getBarFootprint() price levels inside the canvas
+    // render loop (Pass A, big-trades mode) so every user sees identical
+    // bubbles/prices. No Math.random() in the rendered bubble path.
   }, [liveBar, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── DIRECT live-price poller (guaranteed chart movement) ──────
@@ -2224,6 +2245,66 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         hs.setData(bars.map(b => ({ time: b.time as any, value: h.price })));
         pineSeriesRef.current.set(`hline-${h.title}`, hs);
       });
+
+      // ── plotshape / plotchar markers (buy/sell triangles, arrows, flags) ──
+      // v5 markers support only circle|square|arrowUp|arrowDown, so Pine's
+      // directional shapes (triangleup/arrowup/labelup ↔ triangledown/…) map to
+      // arrowUp/arrowDown — the correct buy/sell semantics — and non-directional
+      // shapes (cross/xcross/flag) fall back to square. Rendered via a dedicated
+      // markers plugin so they coexist with the candle-pattern markers plugin.
+      const shapeMarkerShape = (st: string): "circle" | "square" | "arrowUp" | "arrowDown" => {
+        if (st === "triangleup" || st === "arrowup" || st === "labelup")   return "arrowUp";
+        if (st === "triangledown" || st === "arrowdown" || st === "labeldown") return "arrowDown";
+        if (st === "circle") return "circle";
+        return "square";
+      };
+      const shapeMarkerPos = (loc: string, st: string): "aboveBar" | "belowBar" => {
+        if (loc === "abovebar" || loc === "top")    return "aboveBar";
+        if (loc === "belowbar" || loc === "bottom") return "belowBar";
+        return (st.indexOf("down") >= 0) ? "aboveBar" : "belowBar";
+      };
+      const shapeMarkers: { time: any; position: "aboveBar" | "belowBar"; color: string; shape: "circle" | "square" | "arrowUp" | "arrowDown"; text: string; size: number }[] = [];
+      (pineOutput.shapes || []).forEach(sh => {
+        (sh.bars || []).forEach(bi => {
+          const b = bars[bi];
+          if (!b) return;
+          shapeMarkers.push({
+            time: b.time as any,
+            position: shapeMarkerPos(sh.location, sh.style),
+            color: sh.color,
+            shape: shapeMarkerShape(sh.style),
+            text: sh.text || sh.title || "",
+            size: 1,
+          });
+        });
+      });
+      shapeMarkers.sort((a, b) => (a.time as number) - (b.time as number));
+      let markersApplied = false;
+      if (candleRef.current) {
+        try {
+          if (!pineMarkersPluginRef.current) {
+            pineMarkersPluginRef.current = LW.createSeriesMarkers(candleRef.current, shapeMarkers);
+          } else {
+            pineMarkersPluginRef.current.setMarkers(shapeMarkers);
+          }
+          markersApplied = true;
+        } catch { /* series may be mid-teardown */ }
+      }
+      // Harmless diagnostic snapshot of the last Pine render (plot/hline/marker
+      // counts). No PII; useful for verifying custom-indicator rendering.
+      // Dev-only — never ships to production.
+      if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
+        (window as unknown as { __wmPineRender?: unknown }).__wmPineRender = {
+          plots: pineOutput.plots.length,
+          hlines: pineOutput.hlines.length,
+          shapes: (pineOutput.shapes || []).length,
+          markers: shapeMarkers.length,
+          markerShapes: shapeMarkers.map(m => m.shape),
+          markerPositions: shapeMarkers.map(m => m.position),
+          markersApplied,
+          ts: Date.now(),
+        };
+      }
     })();
 
     // Return cleanup so Strict Mode double-fire doesn't orphan Pine series
@@ -2232,6 +2313,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         try { chartRef.current?.removeSeries(series); } catch {}
       });
       pineSeriesRef.current.clear();
+      // Clear Pine plotshape markers (empty array) so they don't linger when the
+      // script is removed or swapped. Keep the plugin instance for reuse.
+      try { pineMarkersPluginRef.current?.setMarkers([]); } catch {}
     };
   }, [pineOutput, pineCode, ready]);
 
@@ -3120,8 +3204,18 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           patternMarkers.push({ time: b.time as any, position: up ? "belowBar" : "aboveBar", color: up ? "#2563EB" : "#6A0DAD", shape: "circle", text: "L", size: Math.max(0.7, mult) });
         }
       });
-      if (patternMarkers.length > 0 && candleRef.current) {
-        try { candleRef.current.setMarkers(patternMarkers.sort((a, b) => a.time - b.time)); } catch {}
+      // v5: markers live on a plugin (createSeriesMarkers), not ISeriesApi.setMarkers.
+      // Create the plugin once per series, then update it — and clear (empty array)
+      // when no patterns are active so stale markers don't linger.
+      if (candleRef.current) {
+        const sorted = patternMarkers.sort((a, b) => a.time - b.time);
+        try {
+          if (!markersPluginRef.current) {
+            markersPluginRef.current = LW.createSeriesMarkers(candleRef.current, sorted);
+          } else {
+            markersPluginRef.current.setMarkers(sorted);
+          }
+        } catch {}
       }
     }
 
@@ -3491,6 +3585,88 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       });
     })();
   }, [alertLevels, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── Paper-trade position lines (native price lines + live P&L) ──────
+   * Reads the local paper-trading blotter (wm_paper_state), finds OPEN
+   * positions for THIS symbol, and draws a TradingView-style horizontal
+   * entry line with a live-updating P&L label. Read-only: this only
+   * VISUALISES paper state — it never places, modifies, or closes a trade. */
+  const pnlLabel = (qty: number, avgPx: number, lp: number) => {
+    const pnl = (lp - avgPx) * qty;               // qty is signed (+long / -short)
+    const s = pnl >= 0 ? "+" : "-";
+    return { up: pnl >= 0, text: `${qty > 0 ? "LONG" : "SHORT"} ${Math.abs(qty)} · ${s}$${Math.abs(pnl).toLocaleString("en-US", { maximumFractionDigits: 2 })}` };
+  };
+  useEffect(() => {
+    const series = candleRef.current;
+    if (!series || !paperTradesVisible) return;
+
+    let positions: Array<{ symbol: string; qty: number; avgPx: number }> = [];
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("wm_paper_state") : null;
+      if (raw) positions = (JSON.parse(raw).positions || []);
+    } catch { positions = []; }
+
+    const norm = (s: string) => (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const bse  = (s: string) => norm(s).replace(/(USDT|USDC|USD|PERP)$/, "");
+    const tgt = norm(symbol), tgtB = bse(symbol);
+    const mine = positions.filter(p => p.qty !== 0 && (norm(p.symbol) === tgt || bse(p.symbol) === tgtB));
+    if (!mine.length) return;
+
+    const lp = lastPrice > 0 ? lastPrice
+      : (barsRef.current.length ? barsRef.current[barsRef.current.length - 1].close : 0);
+
+    mine.forEach(p => {
+      const { up, text } = pnlLabel(p.qty, p.avgPx, lp);
+      try {
+        const line = series.createPriceLine({
+          price: p.avgPx,
+          color: up ? "#00D4AA" : "#FF4D6A",
+          lineWidth: 2,
+          lineStyle: 0,               // solid
+          axisLabelVisible: true,
+          title: text,
+        });
+        paperLinesRef.current.push({ line, qty: p.qty, avgPx: p.avgPx });
+      } catch {}
+    });
+
+    // Dev-only diagnostic readback (never ships to production).
+    if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
+      (window as unknown as { __wmPaperLines?: unknown }).__wmPaperLines = {
+        symbol, count: paperLinesRef.current.length,
+        titles: mine.map(p => pnlLabel(p.qty, p.avgPx, lp).text),
+        lp, ts: Date.now(),
+      };
+    }
+
+    return () => {
+      paperLinesRef.current.forEach(({ line }) => { try { series.removePriceLine(line); } catch {} });
+      paperLinesRef.current = [];
+    };
+  }, [symbol, paperTradesVisible, ready, paperNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Refresh each open-position line's live-P&L label on every price tick,
+   * without tearing the lines down and rebuilding them. */
+  useEffect(() => {
+    if (!paperLinesRef.current.length || !(lastPrice > 0)) return;
+    paperLinesRef.current.forEach(({ line, qty, avgPx }) => {
+      const { up, text } = pnlLabel(qty, avgPx, lastPrice);
+      try { line.applyOptions({ title: text, color: up ? "#00D4AA" : "#FF4D6A" }); } catch {}
+    });
+  }, [lastPrice]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Re-read paper state when another tab writes wm_paper_state, or when the
+   * window regains focus after the user placed a trade elsewhere in the app. */
+  useEffect(() => {
+    const bump = () => setPaperNonce(n => n + 1);
+    const onStorage = (e: StorageEvent) => { if (e.key === "wm_paper_state") bump(); };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", bump);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", bump);
+    };
+  }, []);
 
   /* ── Log / pct / auto scale mode ─────────────────────────── */
   useEffect(() => {
@@ -4619,50 +4795,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           bubbleSpawnRef.current = new Set();
         }
         const bubblesPaused = bubblePausedRef.current;
-        // Factory for a small companion bubble (spawned around a big trade so it gets absorbed)
-        const makeCompanion = (
-          hx: number, hy: number, bigR: number, side: "buy" | "sell",
-          bigVal: number, aTime: number, aPrice: number, bornAt: number
-        ): Bubble => {
-          const cr = bigR * (0.18 + Math.random() * 0.24); // much smaller than the big one
-          const ang = Math.random() * Math.PI * 2;
-          const dd  = bigR * (1.1 + Math.random() * 1.3);
-          return {
-            id:    ++bubbleIdRef.current,
-            x:     hx + Math.cos(ang) * dd,
-            y:     hy + Math.sin(ang) * dd,
-            vx:    (Math.random() - 0.5) * 0.6,
-            vy:    (Math.random() - 0.5) * 0.6,
-            baseR: cr,
-            r:     cr * 0.4,
-            phase: Math.random() * Math.PI * 2,
-            big:   false,
-            side,
-            value: Math.max(1, Math.round(Math.abs(bigVal) * (0.08 + Math.random() * 0.2))) * (side === "buy" ? 1 : -1),
-            born:  bornAt,
-            life:  4200 + Math.random() * 3000,
-            popping: false,
-            popT:  0,
-            anchorTime:  aTime,
-            anchorPrice: aPrice,
-          };
-        };
 
-        // First pass: compute average level volume across all visible bars
-        let totalLevVol = 0, totalLevCount = 0;
-        visibleBars.forEach(c => {
-          const rawYH = srs.priceToCoordinate(c.high);
-          const rawYL = srs.priceToCoordinate(c.low);
-          if (rawYH == null || rawYL == null) return;
-          const fullH = Math.max(2, Math.round(rawYL) - Math.round(rawYH));
-          const numLev = Math.max(1, Math.min(bsp >= 20 ? 8 : bsp >= 10 ? 5 : 3, Math.floor(fullH / 8)));
-          const lvls = getBarFootprint(c, numLev);
-          lvls.forEach(lv => { totalLevVol += lv.total; totalLevCount++; });
-        });
-        const avgLevVol = totalLevCount > 0 ? totalLevVol / totalLevCount : 1;
-
-        // ── Pass A: draw candle bodies/wicks + detect big trades → spawn bubbles ──
-        const recentCut = visibleBars.length > 50 ? visibleBars[visibleBars.length - 50].time : 0;
+        // ── Pass A: detect big trades at EVERY significant price level → spawn
+        //   MULTIPLE bubbles per candle, one per level, each anchored to its own
+        //   exact price. Fully deterministic: getBarFootprint() + per-bar
+        //   normalization → every user sees identical bubbles & prices regardless
+        //   of their zoom/pan. No Math.random() anywhere in this path. ────────────
+        const recentCut = visibleBars.length > 60 ? visibleBars[visibleBars.length - 60].time : 0;
         visibleBars.forEach(c => {
           const rawCx = chart.timeScale().timeToCoordinate(c.time as any);
           if (rawCx == null || rawCx < -colW || rawCx > W + colW) return;
@@ -4673,182 +4812,132 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const yH = Math.round(rawYH);
           const yL = Math.round(rawYL);
           // NOTE: do NOT redraw candle bodies/wicks here — the real Lightweight
-          // Charts candlestick series already renders them underneath. Drawing a
-          // second set on the canvas was causing the "overlapping/doubled" candles
-          // in Big Trades mode (and wasted render time). We only overlay bubbles.
+          // Charts candlestick series already renders them underneath. We only
+          // overlay bubbles.
 
-          // Find "big trade" — highest volume level
           const fullH  = Math.max(2, yL - yH);
           const numLev = Math.max(1, Math.min(bsp >= 20 ? 8 : bsp >= 10 ? 5 : 3, Math.floor(fullH / 8)));
           const levels = getBarFootprint(c, numLev);
           if (levels.length === 0) return;
           const rowH = fullH / Math.max(1, numLev);
 
-          const pocIdx = levels.reduce((mi, l, i, a) => l.total > a[mi].total ? i : mi, 0);
-          const poc    = levels[pocIdx];
-
-          // Only treat as a "big trade" if larger than average. Lower threshold so
-          // bubbles appear consistently on every timeframe (higher TFs have fewer bars).
-          if (poc.total < avgLevVol * 1.5) return;
-          // Only spawn bubbles for recent bars (avoid a swarm of historical bubbles)
+          // Only spawn on recent bars (bounded initial fill; already-spawned bubbles
+          // persist until their bar scrolls off-screen so historical absorption stays
+          // visible when price returns to that level).
           if ((c.time as number) < (recentCut as number)) return;
+          if (bubblesPaused) return;
 
-          const pocY  = Math.round(yH + (pocIdx + 0.5) * rowH);
-          // Bubble radius scales with order size (∝ how big the trade is)
-          const scale = Math.max(0, Math.min(1, (poc.total / avgLevVol - 1.5) / 3));
-          const baseR = Math.round(11 + scale * 21); // 11 → 32 px (compact, won't blanket candles)
-          const side: "buy" | "sell" = poc.ask >= poc.bid ? "buy" : "sell";
-          // Show NOTIONAL dollar size (volume × price), not raw volume — otherwise
-          // crypto (volume in coins, e.g. 5 BTC) shows a meaningless "5" while
-          // stocks/futures show "11k". Notional is consistent + meaningful on every
-          // asset class (BTC: 5 × $64k = "$320k"; AAPL/NQ scale the same way).
-          const notional = poc.total * (poc.priceLevel || c.close || 1);
-          const value = (side === "buy" ? 1 : -1) * Math.round(notional);
+          // Per-bar mean level volume — deterministic & zoom-independent, so it is
+          // identical for every user. A level is a "big trade" when it stands out
+          // vs its own bar's average (volume concentration), which is exactly where
+          // real absorption happens. This gives each candle its own key levels.
+          let barSum = 0;
+          for (const lv of levels) barSum += lv.total;
+          const barMean = barSum / levels.length;
 
-          // Spawn once per bar (dedupe by bar time). Cap active bubbles.
-          const key = String(c.time);
-          if (!bubblesPaused && !bubbleSpawnRef.current.has(key) && bubblesRef.current.length < 60) {
+          // Rank levels by volume; keep the most significant few so several bubbles
+          // sit at DIFFERENT prices on the SAME candle yet stay clearly readable.
+          const ranked = levels
+            .map((lv, i) => ({ lv, i }))
+            .filter(o => o.lv.total >= barMean * 1.12)
+            .sort((a, z) => z.lv.total - a.lv.total)
+            .slice(0, 5);
+
+          for (const { lv, i } of ranked) {
+            // Dedupe per (bar, price level) → each level owns ONE persistent bubble.
+            const key = String(c.time) + ":" + lv.priceLevel;
+            if (bubbleSpawnRef.current.has(key)) continue;
             bubbleSpawnRef.current.add(key);
-            const now0 = performance.now();
-            // Main big-trade bubble
+
+            // Radius is accurate to trade size (area ∝ size → radius ∝ √size),
+            // bounded AND clamped to the row height so multiple bubbles per candle
+            // never blanket each other and each stays separated + readable.
+            const ratio = lv.total / barMean;
+            const rMax  = Math.max(13, Math.min(30, rowH * 0.94));
+            const baseR = Math.round(Math.max(13, Math.min(rMax, 12 + Math.sqrt(Math.max(0, ratio - 1)) * 12)));
+            // Green = buyers aggressive (ask ≥ bid), red = sellers aggressive.
+            const side: "buy" | "sell" = lv.ask >= lv.bid ? "buy" : "sell";
+            // Keep signed NOTIONAL for the tooltip headline; the on-bubble label is
+            // the exact PRICE (drawn from anchorPrice at render time).
+            const notional = lv.total * (lv.priceLevel || c.close || 1);
+            const value = (side === "buy" ? 1 : -1) * Math.round(notional);
+            // Deterministic wobble phase (NO Math.random) so every user animates alike.
+            const sph   = Math.sin(c.time * 0.017 + lv.priceLevel * 0.531 + i * 1.7) * 43758.5453;
+            const phase = (sph - Math.floor(sph)) * Math.PI * 2;
+            // Initial Y = the EXACT price coordinate of this level (no inversion, no
+            // spawn "jump") — Pass B then springs it to the same anchored price.
+            const rawLevY = srs.priceToCoordinate(lv.priceLevel);
+            const levY  = rawLevY == null ? Math.round(yH + (numLev - i - 0.5) * rowH) : Math.round(rawLevY);
+
             bubblesRef.current.push({
               id:    ++bubbleIdRef.current,
-              x:     cx,  y: pocY,  vx: 0, vy: 0,
+              x:     cx,  y: levY,  vx: 0, vy: 0,
               baseR,
-              r:     baseR * 0.3,        // grows in
-              phase: Math.random() * Math.PI * 2,
-              big:   true,               // the persistent big-trade bubble at this level
+              r:     baseR * 0.35,       // eases up to full size on spawn
+              phase,
+              big:   true,
               side,
               value,
-              born:  now0,
-              life:  20000,              // linger ~20s at the level (user wanted them to persist)
-              popping: false,
-              popT:  0,
+              // born = bar-recency (unix-s ×1000 + level idx) so the newest-N cap
+              // keeps the most recent price action, not just whatever spawned last.
+              born:  (c.time as number) * 1000 + i,
               anchorTime:  c.time as number,
-              anchorPrice: poc.priceLevel,
+              anchorPrice: lv.priceLevel,
             });
-            // small companion bubbles so the big one visibly absorbs them
-            const companions = 2 + Math.floor(scale * 2);
-            for (let k = 0; k < companions; k++) {
-              bubblesRef.current.push(
-                makeCompanion(cx, pocY, baseR, side, value, c.time as number, poc.priceLevel, now0 + k * 120)
-              );
-            }
+            // soft "bloop" only for the biggest prints (throttled + respects Sound toggle).
+            playBloop(baseR > 24);
           }
         });
 
         // Keep the dedupe set from growing unbounded
         if (bubbleSpawnRef.current.size > 400) bubbleSpawnRef.current = new Set();
 
-        // ── Pass B: update + draw all active bubbles (🫧 float around key levels) ──
+        // ── Pass B: update + draw all active bubbles (🫧 hover at key levels) ──
         const nowMs = performance.now();
         const bubbles = bubblesRef.current;
 
-        // Continuous companion spawning — keeps each big bubble fed with small
-        // bubbles to absorb so the x-ray stays alive (throttled).
-        if (!bubblesPaused && nowMs - bubbleSpawnTickRef.current > 950 && bubbles.length < 56) {
-          bubbleSpawnTickRef.current = nowMs;
-          const bigs = bubbles.filter(b => b.big && !b.popping);
-          if (bigs.length) {
-            const bg = bigs[Math.floor(Math.random() * bigs.length)];
-            const hx = chart.timeScale().timeToCoordinate(bg.anchorTime as any);
-            const hy = srs.priceToCoordinate(bg.anchorPrice);
-            if (hx != null && hy != null) {
-              bubblesRef.current.push(
-                makeCompanion(hx, hy, bg.baseR, bg.side, bg.value, bg.anchorTime, bg.anchorPrice, nowMs)
-              );
-            }
-          }
-        }
-
-        // Physics: spring each bubble toward its anchored key level so they
-        // float AROUND the level (buoyant bob) instead of drifting off-screen.
+        // Physics: spring each bubble toward its anchored key level so it floats
+        // gently AT the level (buoyant bob). No lifespan, no expiry — a bubble
+        // never fades or pops; it persists until its bar scrolls off screen.
         for (const b of bubbles) {
           const hx = chart.timeScale().timeToCoordinate(b.anchorTime as any);
           const hy = srs.priceToCoordinate(b.anchorPrice);
-          if (hx == null || hy == null) { b.popping = b.popping || true; continue; }
-          // buoyant target: bob gently above the level (slow, readable motion)
-          const bob = Math.sin(b.phase + nowMs / 1600) * (b.big ? 4 : 7);
-          const homeX = hx + Math.cos(b.phase + nowMs / 2400) * (b.big ? 3 : 9);
-          const homeY = hy + bob - (b.big ? 4 : 12);
-          // spring toward home (small bubbles looser so they roam, big ones anchored)
-          const k = b.big ? 0.012 : 0.006;
-          b.vx += (homeX - b.x) * k;
-          b.vy += (homeY - b.y) * k;
-          // small bubbles are gently drawn toward the nearest big bubble at the same level → absorbed
-          if (!b.big) {
-            let near: typeof b | null = null, nd = 1e9;
-            for (const o of bubbles) {
-              if (!o.big || o.popping) continue;
-              if (o.anchorTime !== b.anchorTime) continue;
-              const d = Math.hypot(o.x - b.x, o.y - b.y);
-              if (d < nd) { nd = d; near = o; }
-            }
-            if (near) { b.vx += (near.x - b.x) * 0.0035; b.vy += (near.y - b.y) * 0.0035; }
-          }
-          // integrate + damping (higher damping = calmer, slower drift)
+          if (hx == null || hy == null) continue; // off-screen → culled below
+          const bob   = Math.sin(b.phase + nowMs / 1600) * 4;
+          const homeX = hx + Math.cos(b.phase + nowMs / 2400) * 3;
+          const homeY = hy + bob - 4;
+          b.vx += (homeX - b.x) * 0.012;
+          b.vy += (homeY - b.y) * 0.012;
           b.vx *= 0.93; b.vy *= 0.93;
           b.x += b.vx; b.y += b.vy;
-          // ease radius in toward baseR
-          if (!b.popping && b.r < b.baseR) b.r += (b.baseR - b.r) * 0.12;
-          // While paused, freeze the lifespan clock so bubbles never expire — the
-          // user explicitly froze the tape and expects them to stay put.
-          if (bubblesPaused) { b.born += 16; } // advance born ~one frame → age stays constant
-          const age = nowMs - b.born;
-          if (!bubblesPaused && age > b.life && !b.popping) { b.popping = true; }
+          if (b.r < b.baseR) b.r += (b.baseR - b.r) * 0.12; // ease up on spawn
         }
-        // ABSORB: a noticeably larger bubble that overlaps a smaller one swallows it —
-        // the smaller pops, the larger grows (gains the absorbed size) and gets tugged toward it.
-        for (let i = 0; i < bubbles.length; i++) {
-          for (let j = 0; j < bubbles.length; j++) {
-            if (i === j) continue;
-            const a = bubbles[i], s = bubbles[j];
-            if (s.popping || a.popping) continue;
-            if (a.baseR > s.baseR * 1.3) {
-              const dx = a.x - s.x, dy = a.y - s.y;
-              const dist = Math.hypot(dx, dy);
-              if (dist < a.r + s.r * 0.55) {
-                s.popping = true;
-                s.absorbedBy = a.id;        // pop pulls toward the absorber
-                // absorber grows by area-equivalent of the swallowed bubble (capped)
-                const grown = Math.sqrt(a.baseR * a.baseR + s.baseR * s.baseR * 0.55);
-                a.baseR = Math.min(46, grown);
-                // NOTE: do NOT accumulate value here. Big bubbles have a long life
-                // and absorb a new companion every ~second, so "value += ..." would
-                // compound unbounded into garbage like 19,646,512,705,155M. The
-                // bubble's number stays its own (real) trade notional; only the
-                // RADIUS grows to show it's absorbing.
-                a.absorbFlash = 1;          // brief swell flash on the absorber
-                playBloop(a.baseR > 40);    // water-bubble "bloop" on absorb
-              }
-            }
-          }
-        }
-        // Advance pop animations + cull dead bubbles
-        const byId = new Map(bubbles.map(b => [b.id, b]));
-        bubblesRef.current = bubbles.filter(b => {
-          if (b.absorbFlash && b.absorbFlash > 0) b.absorbFlash = Math.max(0, b.absorbFlash - 0.07);
-          if (b.popping) {
-            b.popT += 0.09;
-            // absorbed bubbles slide toward the bubble that swallowed them
-            if (b.absorbedBy != null) {
-              const a = byId.get(b.absorbedBy);
-              if (a) { b.x += (a.x - b.x) * 0.22; b.y += (a.y - b.y) * 0.22; }
-            }
-            if (b.popT >= 1) return false;
-          }
-          // cull if its anchor scrolled off-screen
+
+        // Cull only bubbles whose anchor bar scrolled off-screen (freeing the
+        // dedupe key so it re-spawns on pan-back). Then enforce the user's
+        // max-visible cap by keeping the NEWEST N — never fade the rest out.
+        const survivors: Bubble[] = [];
+        for (const b of bubbles) {
           const hx = chart.timeScale().timeToCoordinate(b.anchorTime as any);
-          if (hx == null || hx < -80 || hx > W + 80) return false;
-          return true;
-        });
+          if (hx == null || hx < -80 || hx > W + 80) {
+            // free this level's dedupe key so it re-spawns on pan-back
+            bubbleSpawnRef.current.delete(String(b.anchorTime) + ":" + b.anchorPrice);
+            continue;
+          }
+          survivors.push(b);
+        }
+        const cap = bubbleMaxRef.current;
+        bubblesRef.current = survivors.length > cap
+          ? survivors.sort((a, z) => z.born - a.born).slice(0, cap)
+          : survivors;
 
         // Draw WM VP FIRST (under the bubbles) so Big Trades + Session VP don't
         // hide the bubbles behind the profile. Guarded → won't double-draw later.
         runWMVP();
 
         // Draw bubbles — real water-bubble look: transparent glassy body,
-        // bright iridescent rim, specular highlights, gentle wobble.
+        // bright iridescent rim, specular highlights, gentle wobble. Fully
+        // opaque and always present (no fade, no pop).
         const hoverId = bubbleHoverRef.current;
         for (const b of bubblesRef.current) {
           const buy = b.side === "buy";
@@ -4858,32 +4947,24 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
           // gentle squash/stretch wobble so they feel alive like real bubbles
           const t = nowMs / 520 + b.phase;
-          const wob = b.popping ? 1 : 1 + Math.sin(t) * 0.05;
-          const swell = b.absorbFlash ? 1 + b.absorbFlash * 0.22 : 1;
-          const baseR = b.r * swell;
-          const rx = baseR * wob;
-          const ry = baseR / wob;
-          // pop animation: expand outward + fade (absorbed ones shrink as they slide in)
-          const popScale = b.popping ? (b.absorbedBy != null ? 1 - b.popT * 0.6 : 1 + b.popT * 0.8) : 1;
-          const alpha = b.popping ? (1 - b.popT) : 1;
-          // Clamp to a tiny positive floor: a shrinking/popping bubble can drive
-          // these to ≤0, and ctx.ellipse() throws IndexSizeError on negative radii.
-          const Rx = Math.max(0.1, rx * popScale), Ry = Math.max(0.1, ry * popScale);
+          const wob = 1 + Math.sin(t) * 0.05;
+          const Rx = Math.max(0.1, b.r * wob);
+          const Ry = Math.max(0.1, b.r / wob);
 
           ctx.save();
 
           // outer halo (soft tinted glow)
           ctx.beginPath();
           ctx.ellipse(b.x, b.y, Rx + 4, Ry + 4, 0, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${core},${0.10 * alpha})`;
+          ctx.fillStyle = `rgba(${core},0.10)`;
           ctx.fill();
 
           // glassy body: transparent center → faint tint → brighter near the rim
           const g = ctx.createRadialGradient(b.x, b.y, Rx * 0.2, b.x, b.y, Rx);
-          g.addColorStop(0,    `rgba(${core},${0.03 * alpha})`);   // see-through middle
-          g.addColorStop(0.72, `rgba(${core},${0.06 * alpha})`);
-          g.addColorStop(0.93, `rgba(${core},${0.22 * alpha})`);   // tint gathers at edge
-          g.addColorStop(1,    `rgba(255,255,255,${0.30 * alpha})`); // bright rim light
+          g.addColorStop(0,    `rgba(${core},0.04)`);   // see-through middle
+          g.addColorStop(0.72, `rgba(${core},0.08)`);
+          g.addColorStop(0.93, `rgba(${core},0.26)`);   // tint gathers at edge
+          g.addColorStop(1,    `rgba(255,255,255,0.32)`); // bright rim light
           ctx.beginPath();
           ctx.ellipse(b.x, b.y, Rx, Ry, 0, 0, Math.PI * 2);
           ctx.fillStyle = g;
@@ -4892,43 +4973,41 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // bright thin membrane rim (the signature of a water bubble)
           ctx.beginPath();
           ctx.ellipse(b.x, b.y, Math.max(0.1, Rx - 0.6), Math.max(0.1, Ry - 0.6), 0, 0, Math.PI * 2);
-          ctx.lineWidth = isHover ? 2.4 : 1.6;
-          ctx.strokeStyle = `rgba(255,255,255,${(isHover ? 0.95 : 0.78) * alpha})`;
+          ctx.lineWidth = isHover ? 2.6 : 1.7;
+          ctx.strokeStyle = `rgba(255,255,255,${isHover ? 0.98 : 0.82})`;
           ctx.stroke();
           // faint colored inner ring for iridescence
           ctx.beginPath();
           ctx.ellipse(b.x, b.y, Math.max(0.1, Rx - 2.4), Math.max(0.1, Ry - 2.4), 0, 0, Math.PI * 2);
           ctx.lineWidth = 1;
-          ctx.strokeStyle = `rgba(${core},${0.5 * alpha})`;
+          ctx.strokeStyle = `rgba(${core},0.55)`;
           ctx.stroke();
 
           // big specular highlight (top-left) — crescent-ish bright spot
           ctx.beginPath();
           ctx.ellipse(b.x - Rx * 0.34, b.y - Ry * 0.38, Rx * 0.22, Ry * 0.16, -0.5, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255,255,255,${0.85 * alpha})`;
+          ctx.fillStyle = "rgba(255,255,255,0.85)";
           ctx.fill();
           // small secondary highlight (bottom-right)
           ctx.beginPath();
           ctx.ellipse(b.x + Rx * 0.4, b.y + Ry * 0.42, Rx * 0.08, Ry * 0.08, 0, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255,255,255,${0.4 * alpha})`;
+          ctx.fillStyle = "rgba(255,255,255,0.4)";
           ctx.fill();
 
-          // order size number, centered.
-          // While being absorbed the number shrinks toward 0 as it's swallowed.
-          const beingAbsorbed = b.popping && b.absorbedBy != null;
-          // Show the order-size number on essentially every readable bubble. The old
-          // r>=13 cutoff left a lot of mid/small bubbles blank ("missing numbers"); a
-          // bubble only big enough to host ~7px text (r>=8) now always gets labelled.
-          const showNum = (!b.popping && b.r >= 8) || (beingAbsorbed && b.r >= 7);
-          if (showNum) {
-            const shrink = beingAbsorbed ? (1 - b.popT) : 1;       // value counts down to 0
-            const numVal = Math.abs(Math.round(b.value * shrink));
-            const lbl = fmtV(numVal);
-            const fontPx = Math.max(7, Math.min(16, Rx * 0.55)) * (beingAbsorbed ? Math.max(0.4, 1 - b.popT * 0.7) : 1);
+          // EXACT PRICE label, centered — the price where this aggressive trade
+          // printed (e.g. "417.17"), NOT the notional. Deterministic anchorPrice →
+          // every user sees the same price on the same bubble.
+          if (b.r >= 9) {
+            const p = b.anchorPrice;
+            const lbl = p >= 10000 ? Math.round(p).toString()
+                      : p >= 100   ? p.toFixed(2)
+                      : p >= 1     ? p.toFixed(2)
+                      :              p.toFixed(4);
+            const fontPx = Math.max(8, Math.min(14, Rx * 0.5));
             ctx.font = `bold ${fontPx}px Inter, monospace`;
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.shadowColor = "rgba(0,0,0,0.85)"; ctx.shadowBlur = 4;
-            ctx.fillStyle = `rgba(255,255,255,${0.97 * alpha})`;
+            ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 4;
+            ctx.fillStyle = "rgba(255,255,255,0.99)";
             ctx.fillText(lbl, b.x, b.y);
             ctx.shadowBlur = 0;
           }
@@ -5460,6 +5539,95 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       else if (t === "crossline") { if (A) { seg({ x: 0, y: A.y }, { x: W, y: A.y }); seg({ x: A.x, y: 0 }, { x: A.x, y: H }); } }
       // ── RECT / CHANNEL(box) ──
       else if (t === "rect" || t === "channel") { if (A && B) { const rx = Math.min(A.x, B.x), ry = Math.min(A.y, B.y), rw = Math.abs(B.x - A.x), rh = Math.abs(B.y - A.y); if (s.fill) { ctx.fillStyle = fillCol; ctx.fillRect(rx, ry, rw, rh); } ctx.strokeRect(rx, ry, rw, rh); } }
+      // ── DELTA + VOLUME PROFILE BOX (order flow) ──
+      // Left column = per-price DELTA profile (buy−sell), right column = VOLUME
+      // profile (ask=green / bid=red, POC=gold). Aggregated from getBarFootprint —
+      // REAL tick data where captured, deterministic bar-structure sim elsewhere
+      // (the identical source the shipped WM Fixed/Session VP draws from). Numbers
+      // on every row: signed delta at the center gutter, total volume at the edge.
+      else if (t === "delta-vp") {
+        if (A && B) {
+          const rx = Math.min(A.x, B.x), ry = Math.min(A.y, B.y);
+          const rw = Math.abs(B.x - A.x), rh = Math.abs(B.y - A.y);
+          ctx.save();
+          ctx.setLineDash([]);
+          ctx.fillStyle = col + "0E"; ctx.fillRect(rx, ry, rw, rh);
+          ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.strokeRect(rx, ry, rw, rh);
+
+          const pLo = Math.min(d.pts[0].price, d.pts[1].price);
+          const pHi = Math.max(d.pts[0].price, d.pts[1].price);
+          const tLo = Math.min(d.pts[0].time, d.pts[1].time);
+          const tHi = Math.max(d.pts[0].time, d.pts[1].time);
+          const bs  = (barsRef.current || []).filter((x: Bar) => x.time >= tLo && x.time <= tHi);
+          const nBins = Math.max(6, Math.min(40, Math.round(rh / 22)));
+          const levels: DeltaVPLevel[] = [];
+          for (const b of bs) for (const l of getBarFootprint(b, 14)) levels.push({ priceLevel: l.priceLevel, bid: l.bid, ask: l.ask });
+          const dvp = computeDeltaVP(levels, pLo, pHi, nBins);
+          const fmtN = (v: number) => { const a = Math.abs(v); return a >= 1000 ? (a / 1000).toFixed(a >= 10000 ? 0 : 1) + "k" : String(Math.round(a)); };
+
+          if (dvp.rows.length && rw > 56 && rh > 26) {
+            const midX = rx + Math.round(rw * 0.5);
+            const gap = 3;
+            const leftW  = (midX - rx) - gap;
+            const rightW = (rx + rw - midX) - gap;
+            ctx.save();
+            ctx.beginPath(); ctx.rect(rx, ry, rw, rh); ctx.clip();
+            for (const row of dvp.rows) {
+              const yT = priceY(row.hiPrice), yB = priceY(row.loPrice);
+              if (yT == null || yB == null) continue;
+              const rowTop = Math.min(yT, yB);
+              const rowH   = Math.max(2, Math.abs(yB - yT) - 1);
+              if (rowTop + rowH < ry - 1 || rowTop > ry + rh + 1) continue;
+              const midY  = rowTop + rowH / 2;
+              const isPOC = row.price === dvp.pocPrice;
+
+              // RIGHT — volume profile, grows rightward from the gutter
+              const volFrac = dvp.maxVolume ? row.volume / dvp.maxVolume : 0;
+              const vBarW   = Math.max(3, Math.round(Math.pow(volFrac, 0.7) * (rightW - 2)));
+              const vx0     = midX + gap;
+              if (isPOC) { ctx.fillStyle = "rgba(240,180,41,0.85)"; ctx.fillRect(vx0, rowTop, vBarW, rowH); }
+              else {
+                const askW = Math.round(vBarW * (row.volume ? row.buy / row.volume : 0.5));
+                ctx.fillStyle = "rgba(0,192,118,0.58)"; ctx.fillRect(vx0, rowTop, askW, rowH);
+                ctx.fillStyle = "rgba(255,77,103,0.58)"; ctx.fillRect(vx0 + askW, rowTop, vBarW - askW, rowH);
+              }
+
+              // LEFT — delta profile, grows leftward from the gutter
+              const dFrac = dvp.maxAbsDelta ? Math.abs(row.delta) / dvp.maxAbsDelta : 0;
+              const dBarW = Math.max(2, Math.round(Math.pow(dFrac, 0.7) * (leftW - 2)));
+              const up    = row.delta >= 0;
+              ctx.fillStyle = up ? "rgba(0,212,170,0.72)" : "rgba(255,77,106,0.72)";
+              ctx.fillRect(midX - gap - dBarW, rowTop, dBarW, rowH);
+
+              // numbers — signed delta at the gutter, volume at the right edge
+              if (rowH >= 9) {
+                ctx.font = "10px monospace"; ctx.textBaseline = "middle";
+                ctx.shadowColor = "rgba(0,0,0,0.92)"; ctx.shadowBlur = 3;
+                ctx.textAlign = "right"; ctx.fillStyle = up ? "#25E8BE" : "#FF6B82";
+                ctx.fillText(`${up ? "+" : "−"}${fmtN(row.delta)}`, midX - gap - 2, midY);
+                ctx.fillStyle = "#EAF0F6";
+                ctx.fillText(fmtN(row.volume), rx + rw - 3, midY);
+                ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+              }
+            }
+            ctx.restore();
+
+            // center gutter divider + column captions + totals header
+            ctx.strokeStyle = col + "66"; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+            ctx.beginPath(); ctx.moveTo(midX, ry); ctx.lineTo(midX, ry + rh); ctx.stroke(); ctx.setLineDash([]);
+            const netUp = dvp.totalDelta >= 0;
+            chip(`Delta+VP  net ${netUp ? "+" : "−"}${fmtN(dvp.totalDelta)}  vol ${fmtN(dvp.totalVolume)}`, rx + 2, ry - 3, col);
+            ctx.font = "9px ui-sans-serif"; ctx.textBaseline = "top";
+            ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 2; ctx.fillStyle = "#8B95A5"; ctx.textAlign = "center";
+            if (leftW  > 26) ctx.fillText("DELTA",  (rx + midX) / 2, ry + 2);
+            if (rightW > 26) ctx.fillText("VOLUME", (midX + rx + rw) / 2, ry + 2);
+            ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+          } else {
+            chip("Delta+VP — draw a wider box over bars", rx + 2, ry - 3, col);
+          }
+          ctx.restore();
+        }
+      }
       else if (t === "circle") { if (A && B) { const r = Math.hypot(B.x - A.x, B.y - A.y); ctx.beginPath(); ctx.arc(A.x, A.y, r, 0, Math.PI * 2); if (s.fill) { ctx.fillStyle = fillCol; ctx.fill(); } ctx.stroke(); } }
       else if (t === "ellipse") { if (A && B) { const cx = (A.x + B.x) / 2, cy = (A.y + B.y) / 2, rx = Math.max(Math.abs(B.x - A.x) / 2, 1), ry = Math.max(Math.abs(B.y - A.y) / 2, 1); ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); if (s.fill) { ctx.fillStyle = fillCol; ctx.fill(); } ctx.stroke(); } }
       else if (t === "triangle") { if (A && B && C) { ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.lineTo(C.x, C.y); ctx.closePath(); if (s.fill) { ctx.fillStyle = fillCol; ctx.fill(); } ctx.stroke(); } else if (A && B) seg(A, B); }
@@ -5530,7 +5698,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         drawOne({ id: -1, tool, pts: [drawingStartRef.current.lp, previewPtRef.current], style: { color: drawingColor, width: 1.6, dash: "solid", fill: FILL_TOOLS.has(tool) } }, false);
       }
     }
-  }, [base, logicalToPixel, drawingColor]);
+  }, [base, logicalToPixel, drawingColor, getBarFootprint]);
 
   // Re-render drawings whenever the view changes, a drawing is selected, or a style edit happens.
   useEffect(() => { renderDrawings(); }, [rangeVer, renderDrawings, selectedIdx, editBump]);
@@ -5760,16 +5928,26 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     let hit: typeof bubbles[number] | null = null;
     for (let i = bubbles.length - 1; i >= 0; i--) {
       const b = bubbles[i];
-      if (b.popping) continue;
       if (Math.hypot(mx - b.x, my - b.y) <= b.r + 2) { hit = b; break; }
     }
     if (hit) {
       if (bubbleHoverRef.current !== hit.id) {
         bubbleHoverRef.current = hit.id;
+        // Plain-English, honest label — e.g. "12.4M aggressive sell orders at this
+        // level". Never "absorbed"; this is one real print's aggressor size.
+        const av = Math.abs(hit.value);
+        const vstr = av >= 1_000_000 ? `${(av / 1_000_000).toFixed(1)}M`
+                   : av >= 1000       ? `${(av / 1000).toFixed(1)}k`
+                   : `${Math.round(av)}`;
+        const p = hit.anchorPrice;
+        const pstr = p >= 10000 ? Math.round(p).toString()
+                   : p >= 100   ? p.toFixed(2)
+                   : p >= 1     ? p.toFixed(2)
+                   :              p.toFixed(4);
         setBubbleTip({
           x: hit.x, y: hit.y - hit.r,
           side: hit.side, value: hit.value,
-          text: hit.side === "buy" ? "Aggressive buying absorbed" : "Aggressive selling absorbed",
+          text: `${vstr} aggressive ${hit.side === "buy" ? "buy" : "sell"} orders at ${pstr}`,
         });
       }
     } else if (bubbleHoverRef.current !== null) {
@@ -5791,6 +5969,41 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       renderDrawings();
     }
   }, [clearTrigger, renderDrawings]);
+
+  // Load persisted drawings for the current user+symbol (Tier-2 #6). Runs on
+  // mount and whenever the symbol changes, replacing the in-memory set and
+  // forcing a repaint once the price/time scales are ready.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(drawStorageKey());
+      const arr = raw ? (JSON.parse(raw) as Drawing[]) : [];
+      drawingsRef.current = Array.isArray(arr) ? arr : [];
+      drawIdRef.current = drawingsRef.current.reduce((m, d) => Math.max(m, d.id || 0), 0);
+      lastSavedDrawRef.current = raw ?? "";
+    } catch {
+      drawingsRef.current = [];
+      lastSavedDrawRef.current = "";
+    }
+    setSelectedIdx(null);
+    setRangeVer(v => v + 1); // repaint once scales exist
+  }, [drawStorageKey]);
+
+  // Debounced autosave: rangeVer bumps on every drawing mutation (place, drag,
+  // delete, style/text edit, clear). We coalesce writes and skip no-ops so pure
+  // pan/zoom (which also bumps rangeVer) never thrashes localStorage.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const t = setTimeout(() => {
+      try {
+        const payload = JSON.stringify(drawingsRef.current);
+        if (payload === lastSavedDrawRef.current) return;
+        localStorage.setItem(drawStorageKey(), payload);
+        lastSavedDrawRef.current = payload;
+      } catch { /* quota / serialization — non-fatal */ }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [rangeVer, drawStorageKey]);
 
   // Hide/show drawings
   useEffect(() => {
@@ -5943,16 +6156,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                     boxShadow: `0 0 8px ${accent}88`,
                   }}>W</span>
                   <span style={{ color: accent, fontWeight: 800, fontSize: 11, letterSpacing: 0.3 }}>
-                    absorbed
+                    {buy ? "AGGRESSIVE BUY" : "AGGRESSIVE SELL"}
                   </span>
                 </div>
-                {/* Signed size — the headline number from the sketch */}
+                {/* Exact aggressor notional — the headline number */}
                 <div style={{ color: "#fff", fontWeight: 900, fontSize: 18, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
                   {sign}{absVal}
                 </div>
-                {/* Plain-English explanation */}
-                <div style={{ color: "#9AA3BF", fontWeight: 600, fontSize: 9.5, marginTop: 3, maxWidth: 168 }}>
-                  {bubbleTip.text} at this level
+                {/* Plain-English explanation — e.g. "12.4M aggressive sell orders at this level" */}
+                <div style={{ color: "#9AA3BF", fontWeight: 600, fontSize: 9.5, marginTop: 3, maxWidth: 172 }}>
+                  {bubbleTip.text}
                 </div>
                 {/* Comic tail pointer */}
                 <div style={{
@@ -6067,7 +6280,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                   {s === "solid" ? "──" : s === "dashed" ? "- -" : "···"}
                 </button>
               ))}
-              {FILL_TOOLS.has(d.tool) && (
+              {FILL_TOOLS.has(d.tool) && d.tool !== "delta-vp" && (
                 <>
                   <div style={{ width: 1, height: 18, background: "#2A3350" }} />
                   <button title="Fill" onClick={() => { d.style.fill = !d.style.fill; bump(); }} style={btn(d.style.fill)}>▧</button>

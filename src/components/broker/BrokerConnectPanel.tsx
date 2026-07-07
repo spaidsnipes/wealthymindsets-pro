@@ -309,6 +309,22 @@ interface AccountInfo {
   error?: string;
 }
 
+/**
+ * A broker counts as connected only when its credentials were VERIFIED against
+ * the broker API (we stamp `wm_broker_verified_<id>` on a successful handshake).
+ * Requiring the verified marker — not just the presence of a key string — is
+ * what clears the false "already connected" state: a typo'd/revoked key, or a
+ * key left over from the old write-before-validate flow, no longer reads as
+ * connected until it actually validates.
+ */
+function brokerConnected(id: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return !!localStorage.getItem(`wm_broker_key_${id}`)
+        && !!localStorage.getItem(`wm_broker_verified_${id}`);
+  } catch { return false; }
+}
+
 function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => void }) {
   const api = broker.apiSupport!;
   const [key,    setKey]    = useState(() => localStorage.getItem(`wm_broker_key_${broker.id}`) ?? "");
@@ -317,30 +333,47 @@ function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => v
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [error,   setError]   = useState("");
 
-  const isConnected = !!localStorage.getItem(`wm_broker_key_${broker.id}`);
+  const isConnected = brokerConnected(broker.id);
 
   const connect = async () => {
     if (!key.trim()) { setError(`${api.keyLabel} is required`); return; }
     setLoading(true); setError(""); setAccount(null);
     try {
-      localStorage.setItem(`wm_broker_key_${broker.id}`, key.trim());
-      if (secret.trim()) localStorage.setItem(`wm_broker_secret_${broker.id}`, secret.trim());
-
-      // Save to unified broker keys store so SpaidBot can access them
-      try {
-        const allKeys = JSON.parse(localStorage.getItem("wm-broker-keys") ?? "{}") as Record<string, { key: string; secret: string }>;
-        allKeys[broker.id] = { key: key.trim(), secret: secret.trim() };
-        localStorage.setItem("wm-broker-keys", JSON.stringify(allKeys));
-      } catch {}
-
+      // Validate the credentials with the broker FIRST. Nothing is persisted and
+      // nothing reads as "connected" until the API confirms a real handshake.
       const res  = await fetch(api.endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: key.trim(), secret: secret.trim() }),
       });
-      const json = await res.json() as AccountInfo;
-      if (json.error) { setError(json.error); }
-      else { setAccount(json); }
+      const json = await res.json().catch(() => ({ error: "Bad response from broker" })) as AccountInfo;
+
+      if (!res.ok || json.error) {
+        // Failed validation — scrub any stale credentials so nothing lingers as
+        // falsely "connected".
+        localStorage.removeItem(`wm_broker_key_${broker.id}`);
+        localStorage.removeItem(`wm_broker_secret_${broker.id}`);
+        localStorage.removeItem(`wm_broker_verified_${broker.id}`);
+        try {
+          const allKeys = JSON.parse(localStorage.getItem("wm-broker-keys") ?? "{}") as Record<string, unknown>;
+          delete allKeys[broker.id];
+          localStorage.setItem("wm-broker-keys", JSON.stringify(allKeys));
+        } catch {}
+        setError(json.error || `Connection failed (HTTP ${res.status})`);
+        setLoading(false);
+        return;
+      }
+
+      // Verified — now (and only now) persist credentials + the verified marker.
+      localStorage.setItem(`wm_broker_key_${broker.id}`, key.trim());
+      if (secret.trim()) localStorage.setItem(`wm_broker_secret_${broker.id}`, secret.trim());
+      localStorage.setItem(`wm_broker_verified_${broker.id}`, String(Date.now()));
+      try {
+        const allKeys = JSON.parse(localStorage.getItem("wm-broker-keys") ?? "{}") as Record<string, { key: string; secret: string }>;
+        allKeys[broker.id] = { key: key.trim(), secret: secret.trim() };
+        localStorage.setItem("wm-broker-keys", JSON.stringify(allKeys));
+      } catch {}
+      setAccount(json);
     } catch (e) {
       setError(String(e));
     }
@@ -350,6 +383,7 @@ function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => v
   const disconnect = () => {
     localStorage.removeItem(`wm_broker_key_${broker.id}`);
     localStorage.removeItem(`wm_broker_secret_${broker.id}`);
+    localStorage.removeItem(`wm_broker_verified_${broker.id}`);
     try {
       const allKeys = JSON.parse(localStorage.getItem("wm-broker-keys") ?? "{}") as Record<string, unknown>;
       delete allKeys[broker.id];
@@ -455,9 +489,7 @@ function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => v
 /* ── Broker Card ────────────────────────────────────────── */
 function BrokerCard({ broker }: { broker: Broker }) {
   const [showApiModal, setShowApiModal] = useState(false);
-  const isConnected = broker.apiSupport
-    ? !!localStorage.getItem(`wm_broker_key_${broker.id}`)
-    : false;
+  const isConnected = broker.apiSupport ? brokerConnected(broker.id) : false;
 
   return (
     <>

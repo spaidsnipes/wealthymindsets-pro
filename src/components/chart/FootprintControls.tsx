@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { clsx } from "clsx";
-import { Volume2, VolumeX, Settings, RefreshCw, Pause, Play, RotateCcw, HelpCircle, X } from "lucide-react";
+import { Volume2, VolumeX, Settings, Layers, Pause, Play, RotateCcw, HelpCircle, X } from "lucide-react";
 import type { FootprintType } from "./ChartsDashboard";
 import { getIndicatorInfo } from "./indicatorDescriptions";
 import { SchemePresets } from "./SchemePresets";
@@ -89,7 +89,22 @@ function BigTradesControls() {
   const [simul, setSimul] = useState<boolean>(
     () => typeof window !== "undefined" && localStorage.getItem("wm_bigtrades_simul") === "1"
   );
+  // Max bubbles to show. 0 = "All" (default) → the engine keeps every big trade.
+  const [maxN, setMaxN] = useState<number>(
+    () => (typeof window === "undefined" ? 0 : (parseInt(localStorage.getItem("wm_bubble_max") || "0", 10) || 0))
+  );
   const btnRef = useRef<HTMLButtonElement>(null);
+
+  const setBubbleMax = (n: number) => {
+    setMaxN(n);
+    try { localStorage.setItem("wm_bubble_max", String(n)); } catch {}
+    // n === 0 ("All") → send a huge cap so nothing is dropped.
+    try {
+      window.dispatchEvent(new CustomEvent("wm-bigtrades-control", {
+        detail: { action: "setMax", value: n > 0 ? n : 9999 },
+      }));
+    } catch {}
+  };
 
   const toggleSimul = () => {
     const next = !simul; setSimul(next);
@@ -106,12 +121,12 @@ function BigTradesControls() {
     try { localStorage.setItem("wm_bubble_paused", next ? "1" : "0"); } catch {}
     emitBigTradesControl(next ? "pause" : "resume");
   };
-  const refresh = () => emitBigTradesControl("refresh");
   const reset = () => {
-    // Restore defaults: sound ON, resumed, exclusive mode, and clear current bubbles.
+    // Restore defaults: sound ON, resumed, exclusive mode, All bubbles, and a fresh respawn.
     setSound(true);   try { localStorage.setItem("wm_bubble_sound", "on"); } catch {}
     setPaused(false); try { localStorage.setItem("wm_bubble_paused", "0"); } catch {}
     setSimul(false);  try { localStorage.setItem("wm_bigtrades_simul", "0"); } catch {}
+    setBubbleMax(0);  // "All"
     try { window.dispatchEvent(new CustomEvent("wm-bigtrades-simul", { detail: { on: false } })); } catch {}
     emitBigTradesControl("resume");
     emitBigTradesControl("refresh");
@@ -159,12 +174,29 @@ function BigTradesControls() {
               {paused ? "PAUSED" : "LIVE"}
             </span>
           </button>
-          <button
-            onClick={refresh}
-            className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-[12px] text-wm-text hover:bg-wm-bg/60"
-          >
-            <RefreshCw size={13} /> Refresh bubbles
-          </button>
+          {/* Bubbles shown — how many big-trade bubbles to keep on screen. "All"
+              (default) shows every big trade; a number keeps only the newest N. */}
+          <div className="px-2 pt-1.5 pb-1">
+            <div className="flex items-center gap-1.5 text-[12px] text-wm-text mb-1.5">
+              <Layers size={13} /> Bubbles shown
+            </div>
+            <div className="grid grid-cols-4 gap-1">
+              {([["All", 0], ["25", 25], ["50", 50], ["75", 75], ["100", 100], ["150", 150], ["200", 200]] as [string, number][]).map(([lbl, n]) => (
+                <button
+                  key={n}
+                  onClick={() => setBubbleMax(n)}
+                  className={clsx(
+                    "px-1.5 py-1 rounded text-[11px] font-bold border transition-colors",
+                    maxN === n
+                      ? "bg-wm-green/20 text-wm-green border-wm-green/50"
+                      : "text-wm-text-dim border-wm-border hover:text-wm-text hover:border-wm-text-dim/40"
+                  )}
+                >
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          </div>
           {/* Simultaneous Mode — when ON, Big Trades bubbles overlay ON TOP of
               whatever other order-flow tool is active (Delta, Bid×Ask, Imbalance,
               Agg/Passive, Vol Profile). When OFF, selecting Big Trades runs it

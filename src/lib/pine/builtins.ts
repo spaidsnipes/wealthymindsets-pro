@@ -30,23 +30,21 @@ export function sma(series: (number | null)[], length: number): (number | null)[
 }
 
 export function ema(series: (number | null)[], length: number): (number | null)[] {
+  // TradingView `ta.ema` (pine_ema): alpha = 2/(length+1); the series is SEEDED
+  // with the FIRST non-na source value — NOT an SMA — then
+  //   ema := alpha*src + (1-alpha)*ema[1]
+  // so it yields a value on EVERY bar from the first. Seeding with an SMA (the
+  // prior behavior) diverged on the early bars and shifted crossover timing,
+  // breaking identity with TradingView. An interior na carries the last value
+  // forward (our OHLCV feed is contiguous, so this path is not normally taken).
   const k = 2 / (length + 1);
   const out: (number | null)[] = [];
   let prev: number | null = null;
   for (let i = 0; i < series.length; i++) {
     const v = series[i];
-    if (v == null) { out.push(null); continue; }
-    if (prev == null) {
-      // Seed with SMA of first `length` bars
-      if (i < length - 1) { out.push(null); continue; }
-      const seed = series.slice(i - length + 1, i + 1);
-      if (seed.some(s => s == null)) { out.push(null); continue; }
-      prev = (seed as number[]).reduce((a, b) => a + b, 0) / length;
-      out.push(prev);
-    } else {
-      prev = v * k + prev * (1 - k);
-      out.push(prev);
-    }
+    if (v == null) { out.push(prev); continue; }
+    prev = prev == null ? v : v * k + prev * (1 - k);
+    out.push(prev);
   }
   return out;
 }
@@ -512,12 +510,15 @@ export const ta = {
     const mean = sl.reduce((a, b) => a + b, 0) / len;
     return sl.reduce((a, b) => a + (b - mean) ** 2, 0) / len;
   }),
+  // TradingView semantics — ta.crossover(s1,s2): s1 was <= s2 on the previous
+  // bar AND is strictly > s2 on the current bar. ta.crossunder is the mirror.
+  // (The previous impl used `<`/`>=`, which fires on the wrong bar at equality.)
   crossover:  (a: (number | null)[], b: (number | null)[]) => a.map((v, i) =>
     i === 0 || v == null || b[i] == null || a[i-1] == null || b[i-1] == null
-      ? false : (a[i-1] as number) < (b[i-1] as number) && (v as number) >= (b[i] as number)),
+      ? false : (a[i-1] as number) <= (b[i-1] as number) && (v as number) > (b[i] as number)),
   crossunder: (a: (number | null)[], b: (number | null)[]) => a.map((v, i) =>
     i === 0 || v == null || b[i] == null || a[i-1] == null || b[i-1] == null
-      ? false : (a[i-1] as number) > (b[i-1] as number) && (v as number) <= (b[i] as number)),
+      ? false : (a[i-1] as number) >= (b[i-1] as number) && (v as number) < (b[i] as number)),
   rising:  (series: (number | null)[], len: number) => series.map((v, i) => {
     if (v == null || i < len) return false;
     for (let j = 1; j <= len; j++) {

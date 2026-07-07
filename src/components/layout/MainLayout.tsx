@@ -832,7 +832,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const [mounted,       setMounted]       = useState(false);
   const pathname = usePathname();
   const router   = useRouter();
-  const { user, signOut } = useAuth();
+  const { user, signOut, signOutAllDevices } = useAuth();
 
   const unreadCount = INITIAL_NOTIFS.filter(n => !n.read).length;
 
@@ -995,6 +995,18 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                     >
                       <span>🚪</span> Sign Out
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm("Log out of WealthyMindsets Pro on ALL devices? Every other signed-in device will be signed out at its next check.")) return;
+                        setProfileOpen(false);
+                        await signOutAllDevices();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[11px] transition-colors text-left text-wm-text-muted hover:text-wm-text"
+                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <span>🔒</span> Log out all devices
                     </button>
                   </div>
                 </div>

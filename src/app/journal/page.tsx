@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
+import { FabioInsights } from "@/components/fabio/FabioInsights";
 
 /* ── Emoji palette ───────────────────────────────────────── */
 const EMOJIS = [
@@ -1155,6 +1156,9 @@ Trade the system, trust the process, winners every day 🚀`,
                 style={{ background:"linear-gradient(135deg,#00D4AA,#4FA3E0)" }}>
                 + Log New Trade
               </button>
+              <div style={{ width: "100%", maxWidth: 460, marginTop: 8 }}>
+                <FabioInsights variant="inline" surface="journal" title="WM Playbook — Before You Trade" limit={3} />
+              </div>
             </div>
           )}
 

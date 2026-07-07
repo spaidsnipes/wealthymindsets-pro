@@ -80,6 +80,71 @@ const PAPER_KEY = "wm_paper_state";
 
 function uid() { return Math.random().toString(36).slice(2,9); }
 
+/**
+ * Pure position-fill reducer with correct long/short realized-P&L accounting.
+ *
+ * Returns the next positions array, the blotter `trade` (carrying realized P&L
+ * only on reducing/closing fills), and the `cashDelta`. Cash already embodies
+ * realized P&L via double-entry: you pay `qty*px` to buy and receive `qty*px`
+ * to sell, so realized profit is the net of those cash flows — it must NOT be
+ * added to cash a second time. `trade.pnl` is purely for the blotter/stats.
+ *
+ * Handles: open, add (same direction), partial close, full close, and reversal
+ * (close all + open the leftover on the opposite side at the fill price).
+ */
+function applyFill(
+  positions: Position[],
+  ord: Order,
+  fillPx: number,
+): { positions: Position[]; trade: Trade; cashDelta: number; realized: number } {
+  const signedQty = ord.side === "buy" ? ord.qty : -ord.qty; // signed fill size
+  const cashDelta = -signedQty * fillPx;                     // pay to buy, receive to sell
+  const trade: Trade = {
+    id: uid(), symbol: ord.symbol, side: ord.side,
+    qty: ord.qty, px: fillPx, ts: Date.now(),
+  };
+
+  const idx = positions.findIndex(p => p.symbol === ord.symbol);
+  if (idx === -1 || positions[idx].qty === 0) {
+    // Brand-new position — opening only, no realized P&L
+    const next = idx === -1
+      ? [...positions, { symbol: ord.symbol, qty: signedQty, avgPx: fillPx, unrealPnl: 0, marketPx: fillPx }]
+      : positions.map((p, i) => i === idx ? { ...p, qty: signedQty, avgPx: fillPx, marketPx: fillPx } : p);
+    return { positions: next, trade, cashDelta, realized: 0 };
+  }
+
+  const pos = positions[idx];
+  const sameDir = Math.sign(signedQty) === Math.sign(pos.qty);
+  let realized = 0;
+  let newPos: Position | null;
+
+  if (sameDir) {
+    // Adding to the position → volume-weighted average, no realized P&L
+    const newQty = pos.qty + signedQty;
+    const newAvg = (pos.avgPx * pos.qty + fillPx * signedQty) / newQty;
+    newPos = { ...pos, qty: newQty, avgPx: newAvg, marketPx: fillPx };
+  } else {
+    // Opposite direction → reduce / close / reverse. Book realized P&L on the
+    // portion that offsets the existing position: (exit-entry)*closed*dir.
+    const closeQty = Math.min(Math.abs(signedQty), Math.abs(pos.qty));
+    realized = closeQty * (fillPx - pos.avgPx) * Math.sign(pos.qty);
+    const newQty = pos.qty + signedQty;
+    if (newQty === 0) {
+      newPos = null;                                            // fully closed
+    } else if (Math.sign(newQty) === Math.sign(pos.qty)) {
+      newPos = { ...pos, qty: newQty, marketPx: fillPx };       // partial close, avg unchanged
+    } else {
+      newPos = { ...pos, qty: newQty, avgPx: fillPx, marketPx: fillPx }; // reversal: leftover opens fresh
+    }
+  }
+
+  if (realized !== 0) trade.pnl = realized;
+  const next = newPos
+    ? positions.map((p, i) => (i === idx ? newPos! : p))
+    : positions.filter((_, i) => i !== idx);
+  return { positions: next, trade, cashDelta, realized };
+}
+
 function loadPaperState() {
   try {
     const raw = localStorage.getItem(PAPER_KEY);
@@ -826,6 +891,13 @@ export default function PaperTradingPage() {
   const [botLog,      setBotLog]      = useState<{ ts:number; msg:string; side:OrderSide }[]>([]);
   const botHist = useRef<Record<string,number[]>>({});
 
+  // Latest positions mirror (read inside the fill effect without stale closures)
+  // and a guard that guarantees each order fills exactly once, even if the
+  // effect re-runs (StrictMode / concurrent re-invoke).
+  const posRef    = useRef<Position[]>(positions);
+  useEffect(() => { posRef.current = positions; }, [positions]);
+  const filledRef = useRef<Set<string>>(new Set());
+
   // Update unrealized P&L whenever prices change
   const updatedPositions = positions.map(pos => ({
     ...pos,
@@ -842,7 +914,8 @@ export default function PaperTradingPage() {
     const g   = blackScholes(uPx, op.strike, t, underlyingIV(op.underlying), op.type==="call");
     return s + g.price * op.qty * OPT_MULTIPLIER;
   }, 0);
-  const totalEquity = cash + updatedPositions.reduce((s,p) => s + Math.abs(p.qty)*p.marketPx, 0) + optionsMark;
+  // Signed market value: a long adds +qty*px, a short subtracts (you owe it).
+  const totalEquity = cash + updatedPositions.reduce((s,p) => s + p.qty*p.marketPx, 0) + optionsMark;
   const totalRealPnl = trades.reduce((s,t) => s + (t.pnl ?? 0), 0);
   const dayPnl = totalRealPnl + totalUnreal;
 
@@ -866,12 +939,17 @@ export default function PaperTradingPage() {
     return () => clearInterval(iv);
   }, [totalEquity]);
 
-  // Process pending orders when price crosses limit/stop
+  // Process pending orders when price crosses limit/stop.
+  // Fills are computed purely, applied once (filledRef guards against any
+  // re-invoke), then committed with pure functional updaters — no side effects
+  // inside a setState updater, so cash/positions/trades never double-apply.
   useEffect(() => {
-    setOrders(prev => prev.map(ord => {
-      if (ord.status !== "pending") return ord;
-      const px = prices[ord.symbol] ?? 100;
+    const pend = orders.filter(o => o.status === "pending" && !filledRef.current.has(o.id));
+    if (pend.length === 0) return;
 
+    const fills: { ord: Order; fillPx: number }[] = [];
+    for (const ord of pend) {
+      const px = prices[ord.symbol] ?? 100;
       let fill = false;
       if (ord.type === "market") fill = true;
       else if (ord.type === "limit") {
@@ -882,14 +960,34 @@ export default function PaperTradingPage() {
         const triggered = ord.side==="buy" ? px >= (ord.stopPx??px) : px <= (ord.stopPx??px);
         if (triggered) fill = ord.side==="buy" ? px <= (ord.limitPx??px) : px >= (ord.limitPx??px);
       }
+      if (!fill) continue;
+      filledRef.current.add(ord.id);            // exactly-once guard
+      fills.push({ ord, fillPx: ord.limitPx ?? px });
+    }
+    if (fills.length === 0) return;
 
-      if (!fill) return ord;
-      // Execute fill
-      const fillPx = ord.limitPx ?? px;
-      executeFill(ord, fillPx);
-      return { ...ord, status:"filled", fillPx };
-    }));
-  }, [prices]);
+    // Apply every fill to a working copy (correct long/short realized P&L).
+    let work = posRef.current;
+    let cashDelta = 0;
+    const newTrades: Trade[] = [];
+    const wins: string[] = [];
+    for (const { ord, fillPx } of fills) {
+      const r = applyFill(work, ord, fillPx);
+      work = r.positions;
+      cashDelta += r.cashDelta;
+      newTrades.push(r.trade);
+      if (r.realized > 0) wins.push(ord.symbol);
+    }
+    posRef.current = work;                       // keep mirror in lockstep
+
+    const fillPxById = new Map(fills.map(f => [f.ord.id, f.fillPx]));
+    setPositions(work);
+    setCash(c => c + cashDelta);
+    setTrades(t => [...newTrades.reverse(), ...t]);
+    setOrders(prev => prev.map(o => fillPxById.has(o.id)
+      ? { ...o, status:"filled", fillPx: fillPxById.get(o.id)! } : o));
+    wins.forEach(sym => earnWMS(25, `📈 Paper trade win on ${sym}`));
+  }, [prices, orders, earnWMS]);
 
   // AI bot: evaluate a simple momentum / mean-reversion signal on an
   // interval and auto-submit PAPER orders through the same flow.
@@ -934,40 +1032,6 @@ export default function PaperTradingPage() {
     }, 3000);
     return () => clearInterval(iv);
   }, [botRunning, botStrategy, prices, botLog]);
-
-  const executeFill = useCallback((ord: Order, fillPx: number) => {
-    const side = ord.side;
-    const qty  = side==="buy" ? ord.qty : -ord.qty;
-
-    // Record trade
-    const trade: Trade = { id:uid(), symbol:ord.symbol, side, qty:ord.qty, px:fillPx, ts:Date.now() };
-
-    setPositions(prev => {
-      const idx = prev.findIndex(p => p.symbol===ord.symbol);
-      if (idx === -1) {
-        // New position
-        return [...prev, { symbol:ord.symbol, qty, avgPx:fillPx, unrealPnl:0, marketPx:fillPx }];
-      }
-      const pos = prev[idx];
-      const newQty = pos.qty + qty;
-      if (newQty === 0) {
-        // Position closed
-        const pnl = (fillPx - pos.avgPx) * pos.qty;
-        trade.pnl = pnl;
-        setTrades(t => [{ ...trade }, ...t]);
-        setCash(c => c + Math.abs(pos.qty)*fillPx + (side==="sell"?-1:1)*0);
-        // Reward WM$ for paper trading wins
-        if (pnl > 0) earnWMS(25, `📈 Paper trade win on ${ord.symbol}`);
-        return prev.filter((_,i)=>i!==idx);
-      }
-      // Partial / add to position
-      const newAvg = (pos.avgPx*pos.qty + fillPx*qty) / newQty;
-      return prev.map((p,i) => i===idx ? { ...p, qty:newQty, avgPx:Math.abs(newAvg) } : p);
-    });
-
-    setCash(c => c - (side==="buy"?1:-1) * ord.qty * fillPx);
-    if (!trade.pnl) setTrades(t => [trade, ...t]);
-  }, []);
 
   const handleOrder = (ord: Order) => {
     setOrders(prev => [ord, ...prev]);
@@ -1024,6 +1088,7 @@ export default function PaperTradingPage() {
     setOptionPositions([]); setBotRunning(false); setBotLog([]);
     setEquity([{ ts:Date.now(), equity:STARTING_CASH }]);
     setResetKey(k=>k+1);
+    filledRef.current.clear(); posRef.current = [];
     try { localStorage.removeItem(PAPER_KEY); } catch {}
   };
 

@@ -163,7 +163,7 @@ function SplitRow({ leftLabel, leftVal, rightLabel, rightVal }: {
 }
 
 /* ── Main ─────────────────────────────────────────────────── */
-export function MarkovPanel({ symbol, onClose }: { symbol: string; onClose: () => void }) {
+export function MarkovPanel({ symbol, dayRet: realDayRet, onClose }: { symbol: string; dayRet?: number | null; onClose: () => void }) {
   const [st, setSt] = useState<MarkovState>(() => computeState(symbol));
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -172,6 +172,23 @@ export function MarkovPanel({ symbol, onClose }: { symbol: string; onClose: () =
     timer.current = setInterval(() => setSt(computeState(symbol)), 30_000);
     return () => { if (timer.current) clearInterval(timer.current); };
   }, [symbol]);
+
+  // ── Real market data overrides the model's placeholder day-return ──────────
+  // When the live ticker has a price, REGIME + DAY RET + PHASE reflect the ACTUAL
+  // tape (real % move). The transition matrix, edge, markets and signal remain an
+  // illustrative statistical model — surfaced honestly via the MODEL badge +
+  // disclaimer below, never presented as a live prediction.
+  const hasRealRet = typeof realDayRet === "number" && Number.isFinite(realDayRet);
+  const dayRet  = hasRealRet ? +(realDayRet as number).toFixed(2) : st.dayRet;
+  const regime: Regime = hasRealRet
+    ? (dayRet > 1.5 ? "BULL" : dayRet < -1.5 ? "BEAR" : "SIDE")
+    : st.regime;
+  const phase: WyckoffPhase = hasRealRet
+    ? (regime === "BULL" && dayRet > 3  ? "MARKUP" :
+       regime === "BULL"                ? "ACCUM"  :
+       regime === "BEAR" && dayRet < -3 ? "MKDN"   :
+       regime === "BEAR"                ? "DIST"   : "REACCUM")
+    : st.phase;
 
   const priceStr = (v: number) => v > 1000
     ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -198,8 +215,9 @@ export function MarkovPanel({ symbol, onClose }: { symbol: string; onClose: () =
           <span className="text-[11px] font-black text-wm-text tracking-wide">Markov Pro v2</span>
           <span
             className="text-[9px] px-1.5 py-0.5 rounded font-black border"
-            style={{ background: "rgba(139,92,246,0.15)", color: "#8B5CF6", borderColor: "rgba(139,92,246,0.35)" }}
-          >LIVE</span>
+            style={{ background: "rgba(240,180,41,0.13)", color: "#F0B429", borderColor: "rgba(240,180,41,0.35)" }}
+            title="Transition matrix, edge & signal are an illustrative statistical model — not a live data feed"
+          >MODEL</span>
         </div>
         <button onClick={onClose} className="text-wm-text-dim hover:text-wm-text transition-colors p-0.5">
           <X size={12} />
@@ -208,14 +226,24 @@ export function MarkovPanel({ symbol, onClose }: { symbol: string; onClose: () =
 
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
 
+        {/* ── Honesty note: what's live vs modeled ──────── */}
+        <div className="px-2.5 py-1.5 border-b border-wm-border" style={{ background: "rgba(240,180,41,0.06)" }}>
+          <p className="text-[9px] leading-snug" style={{ color: "#B08A3C" }}>
+            <span className="font-black" style={{ color: "#F0B429" }}>MODEL · </span>
+            {hasRealRet
+              ? "REGIME & DAY RET are live from the tape. Transition matrix, edge, markets & signal are an illustrative statistical model — not live predictions."
+              : "Illustrative statistical model — not live predictions. Live tape not yet connected for this symbol."}
+          </p>
+        </div>
+
         {/* ── REGIME header block ───────────────────────── */}
         <div className="px-2.5 pt-2 pb-1.5 border-b border-wm-border bg-wm-surface/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-wm-text-dim font-semibold uppercase tracking-widest">REGIME:</span>
-              <RegimeChip r={st.regime} />
+              <RegimeChip r={regime} />
               <span className="text-wm-border">│</span>
-              <span className="text-[11px] font-black" style={{ color: "#F0B429" }}>{st.phase}</span>
+              <span className="text-[11px] font-black" style={{ color: "#F0B429" }}>{phase}</span>
             </div>
             <span
               className="text-[11px] font-black px-2 py-0.5 rounded"
@@ -234,12 +262,12 @@ export function MarkovPanel({ symbol, onClose }: { symbol: string; onClose: () =
           />
           <SplitRow
             leftLabel="PDL"   leftVal={priceStr(st.pdl)}
-            rightLabel={symbol} rightVal={<RegimeChip r={st.regime} />}
+            rightLabel={symbol} rightVal={<RegimeChip r={regime} />}
           />
           <SplitRow
             leftLabel="DAY RET"  leftVal={
-              <span style={{ color: st.dayRet >= 0 ? "#00D4AA" : "#FF4D6A" }}>
-                {st.dayRet >= 0 ? "+" : ""}{st.dayRet}%
+              <span style={{ color: dayRet >= 0 ? "#00D4AA" : "#FF4D6A" }}>
+                {dayRet >= 0 ? "+" : ""}{dayRet}%{hasRealRet ? "" : " ·model"}
               </span>
             }
             rightLabel="EDGE"   rightVal={
@@ -396,8 +424,8 @@ export function MarkovPanel({ symbol, onClose }: { symbol: string; onClose: () =
 
       {/* ── Footer ───────────────────────────────────────── */}
       <div className="px-2.5 py-1 border-t border-wm-border shrink-0 flex items-center justify-between">
-        <span className="text-[9px] text-wm-text-dim">Markov Pro v2 · {symbol}</span>
-        <span className="w-1.5 h-1.5 rounded-full bg-wm-green animate-pulse" />
+        <span className="text-[9px] text-wm-text-dim">Markov Pro v2 · model · {symbol}</span>
+        <span className="text-[9px] text-wm-text-dim">recompute 30s</span>
       </div>
     </motion.div>
   );

@@ -18,6 +18,9 @@ export async function POST(req: Request) {
     handle:          (updates.handle as string) ?? payload.handle,
     avatar:          (updates.avatar as string) ?? payload.avatar,
     bio:             (updates.bio as string) ?? payload.bio,
+    botName:         (updates.botName as string) ?? payload.botName,
+    timezone:        (updates.timezone as string) ?? payload.timezone,
+    bgColor:         (updates.bgColor as string) ?? payload.bgColor,
     profileComplete: (updates.profileComplete as boolean) ?? payload.profileComplete,
   };
 
@@ -33,6 +36,9 @@ export async function POST(req: Request) {
       handle:          newPayload.handle,
       avatar:          newPayload.avatar,
       bio:             newPayload.bio,
+      botName:         newPayload.botName,
+      timezone:        newPayload.timezone,
+      bgColor:         newPayload.bgColor,
       profileComplete: newPayload.profileComplete,
     });
   }

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import {
   MousePointer2, Move, Minus, TrendingUp, MoveHorizontal, MoveVertical,
   Ruler, Square, Circle, Triangle, Type, Pencil, Eraser, Trash2,
-  Magnet, Lock, Eye, EyeOff, ArrowUpRight,
+  Magnet, Lock, Eye, EyeOff, ArrowUpRight, Columns2,
 } from "lucide-react";
 import type { DrawingTool } from "./DrawingToolsPanel";
 
@@ -28,6 +28,9 @@ const GROUPS: { items: Item[] }[] = [
     { id: "rect",      label: "Rectangle",       icon: <Square size={15} /> },
     { id: "ellipse",   label: "Ellipse",         icon: <Circle size={15} /> },
     { id: "triangle",  label: "Triangle",        icon: <Triangle size={15} /> },
+  ]},
+  { items: [
+    { id: "delta-vp",  label: "Delta + VP Box",  icon: <Columns2 size={15} /> },
   ]},
   { items: [
     { id: "text",      label: "Text",            icon: <Type size={15} /> },

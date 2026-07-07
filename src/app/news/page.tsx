@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
+import { FabioInsights } from "@/components/fabio/FabioInsights";
 
 /* ── Types ─────────────────────────────────────────────── */
 interface NewsItem {
@@ -781,6 +782,7 @@ export default function NewsPage() {
 
       {/* ── News feed ───────────────────────────────────────── */}
       <div className="flex-1 overflow-auto p-4 space-y-3">
+        <FabioInsights variant="inline" surface="news" title="WM Playbook — Reading the Tape Today" limit={2} />
         {loading && (
           <div className="space-y-3">
             {[1,2,3,4].map(i => (

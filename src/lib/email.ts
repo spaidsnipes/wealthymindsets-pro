@@ -14,11 +14,28 @@ function getResend(): Resend {
   return _resend;
 }
 
-// Use your verified Resend domain. Until verified, Resend sends from
-// onboarding@resend.dev in test mode. Swap to no-reply@wealthymindsets.com
-// once the domain is verified in the Resend dashboard.
+// Sender identity. Resend requires a VERIFIED domain to deliver to arbitrary
+// recipients. Until RESEND_FROM_EMAIL is set to a verified-domain address
+// (e.g. "WealthyMindsets Pro <no-reply@wealthymindsets.info>"), we fall back to
+// onboarding@resend.dev — which Resend TEST MODE only delivers to the Resend
+// account owner's own inbox. That is the root cause of "sign-up emails never
+// reach new users": the code is fine, the sender is unconfigured.
 const FROM = process.env.RESEND_FROM_EMAIL ?? "WealthyMindsets Pro <onboarding@resend.dev>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://wealthymindsets-pro.vercel.app";
+
+// True while still on the Resend test sender — surfaced loudly in logs so a
+// missing RESEND_FROM_EMAIL can never fail silently again.
+const USING_TEST_SENDER = /onboarding@resend\.dev/i.test(FROM);
+
+/** Diagnostic snapshot of email config — safe to log (contains no secrets). */
+export function emailConfigStatus() {
+  return {
+    hasApiKey:       !!process.env.RESEND_API_KEY,
+    from:            FROM,
+    usingTestSender: USING_TEST_SENDER,
+    appUrl:          APP_URL,
+  };
+}
 
 /* ─────────────────────────────────────────────────────────────
    Shared design tokens (inlined for email client compat)
@@ -457,9 +474,50 @@ Not you? Secure your account: ${securityUrl}
    SEND FUNCTIONS
 ───────────────────────────────────────────────────────────── */
 
+export type EmailSendResult = { ok: boolean; id: string | null; error: string | null };
+
+/**
+ * Single choke-point for every outbound email.
+ *
+ * Resend's SDK RESOLVES (it does NOT throw) with `{ data: null, error }` on
+ * failure — so callers that only wrapped the call in try/catch silently
+ * swallowed real delivery errors: wrong sender, unverified domain, or the
+ * test-mode "you can only send to your own address" restriction. This surfaces
+ * every outcome in the server logs and returns a normalized result so callers
+ * can react (e.g. show the user "check your spam / email not configured").
+ */
+async function deliver(
+  kind: string,
+  payload: { from: string; to: string[]; subject: string; html: string; text: string },
+): Promise<EmailSendResult> {
+  if (!process.env.RESEND_API_KEY) {
+    console.error(`[email:${kind}] NOT SENT — RESEND_API_KEY is not set in this environment`);
+    return { ok: false, id: null, error: "RESEND_API_KEY missing" };
+  }
+  if (USING_TEST_SENDER) {
+    console.warn(
+      `[email:${kind}] Using Resend TEST sender (${FROM}). In test mode Resend only ` +
+      `delivers to the Resend account owner — set RESEND_FROM_EMAIL to a verified-` +
+      `domain address (e.g. no-reply@wealthymindsets.info) so real users get mail.`,
+    );
+  }
+  try {
+    const { data, error } = await getResend().emails.send(payload);
+    if (error) {
+      console.error(`[email:${kind}] send FAILED`, { to: payload.to, from: payload.from, error });
+      return { ok: false, id: null, error: (error as { message?: string }).message ?? String(error) };
+    }
+    console.log(`[email:${kind}] sent`, { to: payload.to, id: data?.id ?? null });
+    return { ok: true, id: data?.id ?? null, error: null };
+  } catch (e) {
+    console.error(`[email:${kind}] threw`, e);
+    return { ok: false, id: null, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 export async function sendWelcomeEmail(to: string, firstName?: string) {
   const { html, text } = buildWelcomeEmail(firstName ?? "", to);
-  return getResend().emails.send({
+  return deliver("welcome", {
     from:    FROM,
     to:      [to],
     subject: "Welcome to WealthyMindsets Pro — You're In 🚀",
@@ -470,7 +528,7 @@ export async function sendWelcomeEmail(to: string, firstName?: string) {
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   const { html, text } = buildPasswordResetEmail(to, resetUrl);
-  return getResend().emails.send({
+  return deliver("password-reset", {
     from:    FROM,
     to:      [to],
     subject: "Reset your WealthyMindsets Pro password",
@@ -481,7 +539,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
 
 export async function sendVerificationEmail(to: string, verifyUrl: string) {
   const { html, text } = buildVerificationEmail(to, verifyUrl);
-  return getResend().emails.send({
+  return deliver("verification", {
     from:    FROM,
     to:      [to],
     subject: "Verify your WealthyMindsets Pro email",
@@ -495,7 +553,7 @@ export async function sendLoginAlertEmail(
   details: { ip?: string; location?: string; device?: string; time: string },
 ) {
   const { html, text } = buildLoginAlertEmail(to, details);
-  return getResend().emails.send({
+  return deliver("login-alert", {
     from:    FROM,
     to:      [to],
     subject: "New sign-in to your WealthyMindsets Pro account",

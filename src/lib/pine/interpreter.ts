@@ -31,6 +31,7 @@ interface ExecContext {
   hl2:    number[];
   hlc3:   number[];
   ohlc4:  number[];
+  time:   number[];   // unix seconds per bar — enables MTF request.security resampling
   // User variables (scalar or series array)
   vars:   Map<string, any>;
   // Outputs
@@ -368,20 +369,114 @@ function getFullSeries(name: string, ctx: ExecContext): (number | null)[] {
   return [];
 }
 
+/* ── Multi-timeframe request.security support ──────────────────
+ * Pine's request.security(sym, tf, expr) re-evaluates `expr` in the context of
+ * a HIGHER timeframe. We honor this faithfully by RESAMPLING the loaded
+ * current-timeframe bars into the requested resolution, re-running the source
+ * expression on that resampled series, then mapping each higher-TF value back
+ * onto the current bars (each bar takes the value of the HTF bucket it belongs
+ * to). This turns MTF scripts (e.g. an EMA plotted across 1H/4H/D) from a stack
+ * of IDENTICAL current-TF values into genuinely distinct per-timeframe values.
+ *
+ * HONEST LIMITATION: the HTF series is built from the bars already loaded on the
+ * chart, so a resolution needing more history than the current window holds
+ * (e.g. a Monthly EMA from a 1H chart) will be approximate. Same-or-lower
+ * resolutions fall back to the current-series value. */
+function pineResolutionMinutes(res: string): number {
+  const s = String(res ?? "").trim().toUpperCase();
+  if (!s) return 0;
+  if (/^\d+$/.test(s)) return parseInt(s, 10);          // "60","240" → minutes
+  const m = s.match(/^(\d*)\s*([SDWM])$/);              // "D","1D","W","3M","30S"
+  if (m) {
+    const n = m[1] ? parseInt(m[1], 10) : 1;
+    switch (m[2]) {
+      case "S": return n / 60;
+      case "D": return n * 1440;
+      case "W": return n * 10080;
+      case "M": return n * 43200;                        // ~30-day month
+    }
+  }
+  return 0;
+}
+function inferTfMinutes(time: number[]): number {
+  if (!time || time.length < 3) return 0;
+  const diffs: number[] = [];
+  for (let i = 1; i < time.length; i++) { const d = time[i] - time[i - 1]; if (d > 0) diffs.push(d); }
+  if (!diffs.length) return 0;
+  diffs.sort((a, b) => a - b);
+  return diffs[Math.floor(diffs.length / 2)] / 60;       // median spacing → minutes
+}
+function htfSecuritySeries(exprTok: Tok[], ctx: ExecContext, reqMin: number): (number | null)[] {
+  const N = ctx.close.length;
+  const out: (number | null)[] = new Array(N).fill(null);
+  const bucketSec = Math.max(1, Math.round(reqMin * 60));
+  const T = ctx.time, O = ctx.open, H = ctx.high, L = ctx.low, C = ctx.close, V = ctx.volume;
+  // Aggregate current bars into HTF OHLCV buckets keyed by bucket-start time.
+  const bT: number[] = [], bO: number[] = [], bH: number[] = [], bL: number[] = [], bC: number[] = [], bV: number[] = [];
+  let cur = NaN;
+  for (let i = 0; i < N; i++) {
+    const t = T[i]; if (!isFinite(t)) continue;
+    const b = Math.floor(t / bucketSec) * bucketSec;
+    if (b !== cur) { cur = b; bT.push(b); bO.push(O[i]); bH.push(H[i]); bL.push(L[i]); bC.push(C[i]); bV.push(V[i] || 0); }
+    else { const j = bC.length - 1; if (H[i] > bH[j]) bH[j] = H[i]; if (L[i] < bL[j]) bL[j] = L[i]; bC[j] = C[i]; bV[j] += (V[i] || 0); }
+  }
+  const M = bC.length;
+  if (M === 0) return out;
+  // HTF sub-context (fresh vars so nested ta.* caches don't collide with current TF).
+  const htf: ExecContext = {
+    ...ctx,
+    open: bO, high: bH, low: bL, close: bC, volume: bV, time: bT,
+    hl2:  bH.map((h, i) => (h + bL[i]) / 2),
+    hlc3: bH.map((h, i) => (h + bL[i] + bC[i]) / 3),
+    ohlc4:bO.map((o, i) => (o + bH[i] + bL[i] + bC[i]) / 4),
+    vars: new Map(),
+  };
+  const htfVals: (number | null)[] = new Array(M).fill(null);
+  for (let j = 0; j < M; j++) {
+    const v = evalTokens(exprTok, htf, j);
+    htfVals[j] = typeof v === "number" ? v : (v == null ? null : Number(v));
+  }
+  // Map each current bar to its containing HTF bucket's value.
+  let j = 0;
+  for (let i = 0; i < N; i++) {
+    const bStart = Math.floor(T[i] / bucketSec) * bucketSec;
+    while (j + 1 < M && bT[j + 1] <= bStart) j++;
+    out[i] = htfVals[j] ?? null;
+  }
+  return out;
+}
+
 function callFunction(name: string, args: any[], ctx: ExecContext, barIdx: number, argTokens?: Tok[][]): any {
-  // Series-aware resolver: when an argument is a single identifier that names a
-  // built-in series (close/high/…) or a user series-variable, return its FULL
-  // array rather than the scalar value at barIdx. This is CRITICAL: bare tokens
-  // like `close` evaluate to a scalar at barIdx, so without this every TA source
-  // (ta.ema/ta.sma/ta.rsi/ta.macd/…) would compute on a constant-filled array
-  // and return ≈ the source value — making all lengths identical and cross
-  // signals never fire. Falls back to the constant-filled array (safe for
-  // scalar/expression sources) so numeric length positions are never corrupted.
+  // Stable per-call-site cache key built from the ARGUMENT EXPRESSION TEXT.
+  // (The previous keys embedded `${args[0]}` — the runtime SCALAR of the source
+  // at barIdx — which changed every bar, forcing a full recompute per bar and,
+  // worse, colliding when two different sources happened to share a scalar value
+  // (e.g. ta.ema(high,20) returning ta.ema(low,20)'s cached series). Keying on
+  // the source *expression* is stable across bars and unique per call-site.)
+  const argKey = (argTokens && argTokens.length)
+    ? argTokens.map(a => a.map(t => t.v).join("")).join(",")
+    : args.map(a => String(a)).join(",");
+  // Series-aware resolver. A bare identifier naming a built-in series (close/…)
+  // or a user series-variable returns its FULL array. ANY other expression is
+  // evaluated as a SERIES across every bar, so inline forms like
+  //   ta.crossover(ta.ema(close,9), ta.ema(close,20))
+  // or a compound condition resolve to a real per-bar series instead of a
+  // constant-filled array (the old fallback, which made inline TA sources flat
+  // and cross signals never fire). Nested TA calls are memoized via argKey, so
+  // this stays ~O(n) per source. Bottoms out at the scalar fill for literals.
   const seriesArg = (idx: number): (number | null)[] => {
     const at = argTokens?.[idx];
     if (at && at.length === 1 && at[0].t === "id") {
       const full = getFullSeries(at[0].v, ctx);
       if (full.length) return full;
+    }
+    if (at && at.length) {
+      const out: (number | null)[] = new Array(ctx.close.length).fill(null);
+      for (let i = 0; i < ctx.close.length; i++) {
+        const val = evalTokens(at, ctx, i);
+        out[i] = typeof val === "number" ? val : (val == null ? null : Number(val));
+      }
+      return out;
     }
     const a = args[idx];
     return Array.isArray(a) ? a : Array(barIdx + 1).fill(a);
@@ -393,44 +488,59 @@ function callFunction(name: string, args: any[], ctx: ExecContext, barIdx: numbe
   };
 
   switch (name) {
+    // request.security(sym, tf, expr) — resolve the source expression against a
+    // resampled HIGHER-timeframe series (faithful MTF), memoized per call-site.
+    case "request.security": case "security": {
+      const reqMin  = pineResolutionMinutes(String(args[1] ?? ""));
+      const curMin  = inferTfMinutes(ctx.time);
+      const exprTok = argTokens?.[2];
+      // No expr / unknown or same-or-lower resolution → current-series value.
+      if (!exprTok || !reqMin || !curMin || reqMin <= curMin || ctx.time.length < 3) {
+        return args[2] ?? args[args.length - 1] ?? null;
+      }
+      const key = `security|${reqMin}|${argKey}`;
+      if (!ctx.vars.has(key)) ctx.vars.set(key, htfSecuritySeries(exprTok, ctx, reqMin));
+      const ser = ctx.vars.get(key) as (number | null)[];
+      return ser[barIdx] ?? null;
+    }
     // Cached TA calls (compute on full series, cache result, return value at barIdx)
     case "ta.sma": case "sma": {
-      const key = `ta.sma_${args[0]}_${args[1]}`;
+      const key = `ta.sma|${argKey}`;
       if (!ctx.vars.has(key)) ctx.vars.set(key, ta.sma(seriesArg(0), numArg(1)));
       return ctx.vars.get(key)[barIdx] ?? null;
     }
     case "ta.ema": case "ema": {
-      const key = `ta.ema_${args[0]}_${args[1]}`;
+      const key = `ta.ema|${argKey}`;
       if (!ctx.vars.has(key)) ctx.vars.set(key, ta.ema(seriesArg(0), numArg(1)));
       return ctx.vars.get(key)[barIdx] ?? null;
     }
     case "ta.wma": case "wma": {
-      const key = `ta.wma_${args[0]}_${args[1]}`;
+      const key = `ta.wma|${argKey}`;
       if (!ctx.vars.has(key)) ctx.vars.set(key, ta.wma(seriesArg(0), numArg(1)));
       return ctx.vars.get(key)[barIdx] ?? null;
     }
     case "ta.hma": case "hma": {
-      const key = `ta.hma_${args[0]}_${args[1]}`;
+      const key = `ta.hma|${argKey}`;
       if (!ctx.vars.has(key)) ctx.vars.set(key, ta.hma(seriesArg(0), numArg(1)));
       return ctx.vars.get(key)[barIdx] ?? null;
     }
     case "ta.rma": case "rma": {
-      const key = `ta.rma_${args[0]}_${args[1]}`;
+      const key = `ta.rma|${argKey}`;
       if (!ctx.vars.has(key)) ctx.vars.set(key, ta.rma(seriesArg(0), numArg(1)));
       return ctx.vars.get(key)[barIdx] ?? null;
     }
     case "ta.rsi": case "rsi": {
-      const key = `ta.rsi_${args[0]}_${args[1]}`;
+      const key = `ta.rsi|${argKey}`;
       if (!ctx.vars.has(key)) ctx.vars.set(key, ta.rsi(seriesArg(0), numArg(1)));
       return ctx.vars.get(key)[barIdx] ?? null;
     }
     case "ta.dema": case "dema": {
-      const key = `ta.dema_${args[0]}_${args[1]}`;
+      const key = `ta.dema|${argKey}`;
       if (!ctx.vars.has(key)) ctx.vars.set(key, ta.dema(seriesArg(0), numArg(1)));
       return ctx.vars.get(key)[barIdx] ?? null;
     }
     case "ta.tema": case "tema": {
-      const key = `ta.tema_${args[0]}_${args[1]}`;
+      const key = `ta.tema|${argKey}`;
       if (!ctx.vars.has(key)) ctx.vars.set(key, ta.tema(seriesArg(0), numArg(1)));
       return ctx.vars.get(key)[barIdx] ?? null;
     }
@@ -441,7 +551,7 @@ function callFunction(name: string, args: any[], ctx: ExecContext, barIdx: numbe
     }
     // ── Tuple-returning functions (support both destructuring and direct use) ──
     case "ta.macd": case "macd": {
-      const key = `ta.macd_${args[0]}_${args[1]}_${args[2]}_${args[3]}`;
+      const key = `ta.macd|${argKey}`;
       if (!ctx.vars.has(key)) {
         const r = ta.macd(seriesArg(0), numArg(1, 12), numArg(2, 26), numArg(3, 9));
         ctx.vars.set(key, { __pineTuple: [r.macd, r.signal, r.histogram] });
@@ -449,7 +559,7 @@ function callFunction(name: string, args: any[], ctx: ExecContext, barIdx: numbe
       return ctx.vars.get(key);
     }
     case "ta.bb": case "bb": {
-      const key = `ta.bb_${args[0]}_${args[1]}_${args[2]}`;
+      const key = `ta.bb|${argKey}`;
       if (!ctx.vars.has(key)) {
         const r = ta.bb(seriesArg(0), numArg(1, 20), numArg(2, 2));
         // Pine order: [middle, upper, lower]
@@ -458,7 +568,7 @@ function callFunction(name: string, args: any[], ctx: ExecContext, barIdx: numbe
       return ctx.vars.get(key);
     }
     case "ta.kc": case "ta.keltner": case "kc": {
-      const key = `ta.kc_${args[0]}_${args[1]}_${args[2]}`;
+      const key = `ta.kc|${argKey}`;
       if (!ctx.vars.has(key)) {
         const r = ta.keltner(ctx.close, ctx.high, ctx.low, numArg(1, 20), numArg(2, 2));
         ctx.vars.set(key, { __pineTuple: [r.middle, r.upper, r.lower] });
@@ -506,7 +616,7 @@ function callFunction(name: string, args: any[], ctx: ExecContext, barIdx: numbe
       return ctx.vars.get("ta.obv")[barIdx] ?? null;
     }
     case "ta.roc": case "roc": {
-      const key = `ta.roc_${args[0]}_${args[1]}`;
+      const key = `ta.roc|${argKey}`;
       if (!ctx.vars.has(key)) ctx.vars.set(key, ta.roc(seriesArg(0), numArg(1, 9)));
       return ctx.vars.get(key)[barIdx] ?? null;
     }
@@ -529,12 +639,12 @@ function callFunction(name: string, args: any[], ctx: ExecContext, barIdx: numbe
     case "ta.rising":  return ta.rising(seriesTok(0),  numArg(1))[barIdx] ?? false;
     case "ta.falling": return ta.falling(seriesTok(0), numArg(1))[barIdx] ?? false;
     case "ta.barssince": {
-      const key = `ta.barssince_${JSON.stringify(args[0])?.slice(0,40)}`;
+      const key = `ta.barssince|${argKey}`;
       if (!ctx.vars.has(key)) ctx.vars.set(key, ta.barssince(seriesArg(0).map(v => !!v)));
       return ctx.vars.get(key)[barIdx] ?? null;
     }
     case "ta.valuewhen": case "valuewhen": {
-      const key = `ta.valuewhen_${barIdx}_${args[2] ?? 0}`;
+      const key = `ta.valuewhen|${argKey}`;
       if (!ctx.vars.has(key)) ctx.vars.set(key, ta.valuewhen(seriesArg(0).map(v => !!v), seriesArg(1), numArg(2, 0)));
       return ctx.vars.get(key)[barIdx] ?? null;
     }
@@ -545,22 +655,22 @@ function callFunction(name: string, args: any[], ctx: ExecContext, barIdx: numbe
       return ctx.vars.get(key)[barIdx] ?? null;
     }
     case "ta.cum": case "cum": {
-      const key = `ta.cum_${args[0]}`;
+      const key = `ta.cum|${argKey}`;
       if (!ctx.vars.has(key)) ctx.vars.set(key, ta.cum(seriesArg(0)));
       return ctx.vars.get(key)[barIdx] ?? null;
     }
     case "ta.linreg": case "linreg": {
-      const key = `ta.linreg_${args[0]}_${args[1]}_${args[2]}`;
+      const key = `ta.linreg|${argKey}`;
       if (!ctx.vars.has(key)) ctx.vars.set(key, ta.linreg(seriesArg(0), numArg(1, 14), numArg(2, 0)));
       return ctx.vars.get(key)[barIdx] ?? null;
     }
     case "ta.percentrank": case "percentrank": {
-      const key = `ta.pr_${args[0]}_${args[1]}`;
+      const key = `ta.pr|${argKey}`;
       if (!ctx.vars.has(key)) ctx.vars.set(key, ta.percentrank(seriesArg(0), numArg(1, 14)));
       return ctx.vars.get(key)[barIdx] ?? null;
     }
     case "ta.median": case "median": {
-      const key = `ta.median_${args[0]}_${args[1]}`;
+      const key = `ta.median|${argKey}`;
       if (!ctx.vars.has(key)) ctx.vars.set(key, ta.median(seriesArg(0), numArg(1, 14)));
       return ctx.vars.get(key)[barIdx] ?? null;
     }
@@ -875,10 +985,11 @@ export function interpretPine(script: string, bars: OHLCVBar[]): PineOutput {
     const hl2S    = bars.map(b => (b.high + b.low) / 2);
     const hlc3S   = bars.map(b => (b.high + b.low + b.close) / 3);
     const ohlc4S  = bars.map(b => (b.open + b.high + b.low + b.close) / 4);
+    const timeS   = bars.map(b => b.time);
 
     const ctx: ExecContext = {
       open: openS, high: highS, low: lowS, close: closeS, volume: volS,
-      hl2: hl2S, hlc3: hlc3S, ohlc4: ohlc4S,
+      hl2: hl2S, hlc3: hlc3S, ohlc4: ohlc4S, time: timeS,
       vars: new Map(),
       plots: [], shapes: [], hlines: [], bgColors: [],
       plotCount: 0,

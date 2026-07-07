@@ -19,6 +19,9 @@ export interface WMUser {
   handle?:        string;
   avatar?:        string;        // data URL or remote URL
   bio?:           string;
+  botName?:       string;        // durable, follows the account
+  timezone?:      string;
+  bgColor?:       string;        // profile background color pref
   profileComplete: boolean;
   verified?:      boolean;       // blue checkmark
   ceo?:           boolean;       // WM core team crown badge
@@ -30,6 +33,7 @@ interface AuthState {
   signUp:     (email: string, password: string) => Promise<{ error?: string }>;
   signIn:     (email: string, password: string) => Promise<{ error?: string }>;
   signOut:    () => Promise<void>;
+  signOutAllDevices: () => Promise<void>;
   updateProfile: (data: Partial<WMUser>) => Promise<{ error?: string }>;
   refreshUser: () => Promise<void>;
 }
@@ -39,6 +43,7 @@ const AuthContext = createContext<AuthState>({
   signUp: async () => ({}),
   signIn:  async () => ({}),
   signOut: async () => {},
+  signOutAllDevices: async () => {},
   updateProfile: async () => ({}),
   refreshUser: async () => {},
 });
@@ -161,6 +166,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.replace("/login");
   }, [router]);
 
+  // Revoke every session everywhere (bumps the server-side session epoch), then
+  // sign out locally. Other devices drop at their next /api/auth/me poll.
+  const signOutAllDevices = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout-all", { method: "POST", credentials: "include" });
+    } catch { /* still clear locally below */ }
+    writeCachedUser(null);
+    setUser(null);
+    router.replace("/login");
+  }, [router]);
+
   const updateProfile = useCallback(async (updates: Partial<WMUser>) => {
     const res = await fetch("/api/auth/update-profile", {
       method: "POST",
@@ -175,7 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, updateProfile, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, signOutAllDevices, updateProfile, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -33,6 +33,8 @@ export type DrawingTool =
   // measure & positions
   | "price-range" | "date-range" | "date-price-range" | "measure"
   | "long-position" | "short-position"
+  // order flow
+  | "delta-vp"
   // brushes
   | "brush" | "highlighter"
   // arrows
@@ -148,6 +150,12 @@ const TOOL_GROUPS: ToolGroup[] = [
     tools: [
       { id: "long-position",  label: "Long Position",  icon: "▲", desc: "Entry / stop / target with risk-reward zones." },
       { id: "short-position", label: "Short Position", icon: "▼", desc: "Short setup with risk-reward zones." },
+    ],
+  },
+  {
+    label: "Order Flow", color: "#00D4AA",
+    tools: [
+      { id: "delta-vp", label: "Delta + VP Box", icon: "⧉", desc: "Draw a box: left = per-level delta profile (green buy / red sell), right = volume profile bars with POC. Numbers on every row." },
     ],
   },
   {

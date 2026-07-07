@@ -52,18 +52,42 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData>(EMPTY_PROFILE);
   const [editProfile, setEditProfile] = useState<ProfileData>(EMPTY_PROFILE);
 
-  // Seed profile from auth user when available
+  // Seed profile from the auth user (the ACCOUNT) so it follows the user across
+  // devices/logins — not just this browser's localStorage. Only non-empty
+  // account values overwrite, so a fresh unsaved local edit is never clobbered
+  // by a stale /api/auth/me poll. On a brand-new device (no local profile yet)
+  // we also RESTORE localStorage from the account and leave setup, so the saved
+  // profile — including bot name + prefs — reappears instead of an empty form.
   useEffect(() => {
     if (!user) return;
-    const fromAuth: Partial<ProfileData> = {
-      name:   user.displayName ?? "",
-      handle: user.handle ?? "",
-      bio:    user.bio ?? "",
-      email:  user.email,
-    };
+    const fromAuth: Partial<ProfileData> = { email: user.email };
+    if (user.displayName) fromAuth.name = user.displayName;
+    if (user.handle)      fromAuth.handle = user.handle;
+    if (user.bio)         fromAuth.bio = user.bio;
+    if (user.botName)     fromAuth.botName = user.botName;
+    if (user.timezone)    fromAuth.timezone = user.timezone;
     setProfile(p => ({ ...p, ...fromAuth }));
     setEditProfile(p => ({ ...p, ...fromAuth }));
-    if (user.avatar) setAvatarUrl(user.avatar);
+    if (user.avatar)  setAvatarUrl(user.avatar);
+    if (user.bgColor) setBgColor(user.bgColor);
+
+    try {
+      const hasLocal = !!localStorage.getItem("wm-profile");
+      if (!hasLocal && user.profileComplete && user.displayName) {
+        const restored: ProfileData = {
+          name:     user.displayName,
+          handle:   user.handle ?? "",
+          bio:      user.bio ?? "",
+          email:    user.email,
+          timezone: user.timezone ?? "America/New_York",
+          botName:  user.botName ?? "SpaidBot",
+        };
+        localStorage.setItem("wm-profile", JSON.stringify(restored));
+        if (user.avatar)  localStorage.setItem("wm-profile-avatar", user.avatar);
+        if (user.bgColor) localStorage.setItem("wm-profile-bg", user.bgColor);
+        setSetupMode(false);
+      }
+    } catch {}
   }, [user]);
 
   // Load everything from localStorage on mount
@@ -158,6 +182,9 @@ export default function ProfilePage() {
       handle:          saved.handle,
       bio:             saved.bio,
       avatar:          avatarUrl ?? undefined,
+      botName:         saved.botName,
+      timezone:        saved.timezone,
+      bgColor:         bgColor,
       profileComplete: true,
     });
     setEditMode(false);

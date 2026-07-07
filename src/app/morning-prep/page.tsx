@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import { FabioInsights } from "@/components/fabio/FabioInsights";
 
 /* ══════════════════════════════════════════════════════════════
    Morning Prep — a focused space for building discipline through
@@ -125,6 +126,7 @@ export default function MorningPrepPage() {
 
       {/* ── Feed ── */}
       <div className="max-w-3xl mx-auto px-6 py-6 space-y-4">
+        <FabioInsights variant="inline" surface="morning" title="WM Playbook — Today's Focus" limit={3} />
         {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <Coffee size={40} style={{ color: "#4A5070" }} className="mb-4" />

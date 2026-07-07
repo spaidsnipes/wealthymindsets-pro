@@ -2,14 +2,13 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
-import { Camera, Activity, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings } from "lucide-react";
+import { Camera, Activity, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target } from "lucide-react";
 import { ChartToolbar } from "./ChartToolbar";
 import { MainChart } from "./MainChart";
 import { WatchlistGrid } from "./WatchlistGrid";
 import { IndicatorSettingsModal } from "./IndicatorSettingsModal";
 import { AssetClassSwitcher } from "./AssetClassSwitcher";
 import { isConfigurable, type IndicatorSettings, type IndicatorParams } from "./indicatorConfig";
-import { VolumeProfileLadder } from "./VolumeProfileLadder";
 import { DOMPanel } from "./DOMPanel";
 import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
 import { PnLStatsPanel } from "./PnLStatsPanel";
@@ -187,7 +186,6 @@ export function ChartsDashboard() {
   const [pnlOpen,         setPnlOpen]         = useState(false);
   const [brokerOpen,      setBrokerOpen]      = useState(false);
   const [tradeOpen,       setTradeOpen]       = useState(false);
-  const [domOpen,         setDomOpen]         = useState(true);
   const [optionsOpen,     setOptionsOpen]     = useState(false);
   const [pineBuilderOpen, setPineBuilderOpen] = useState(false);
   const [footprintType,   setFootprintType]   = useState<FootprintType>(() => lsGet("wm_footprint", "bid-ask") as FootprintType);
@@ -251,6 +249,8 @@ export function ChartsDashboard() {
   const [extHours,   setExtHours]   = useState<boolean>(() => lsGet("wm_extHours", true) as boolean);
   const [sessionVPOpen, setSessionVPOpen] = useState(false);
   const [markovOpen, setMarkovOpen] = useState(false);
+  // Show open paper-trade positions as horizontal entry lines w/ live P&L on the chart.
+  const [paperTradesOn, setPaperTradesOn] = useState(true);
 
   // ── WM VP indicators (draw ON chart canvas) ─────────────────
   const [fixedVPActive,   setFixedVPActive]   = useState<boolean>(() => lsGet("wm_fixedVP", false) as boolean);
@@ -659,7 +659,7 @@ export function ChartsDashboard() {
             timeframe={timeframe}   setTimeframe={setTimeframe}
             onSmartMoney={() => setSmartMoneyOpen(o => !o)}
             onPnL={() => setTradeOpen(true)}
-            onDOM={() => setDomOpen(o => !o)}
+            onDOM={() => setVpDomOpen(o => !o)}
             onPineScript={() => setPineBuilderOpen(true)}
             onCommunity={() => setCommunityOpen(true)}
             smartMoneyActive={smartMoneyOpen}
@@ -850,6 +850,19 @@ export function ChartsDashboard() {
                 title="Markov Regime Panel"
               >
                 <Activity size={10} /> Markov
+              </button>
+
+              <button
+                onClick={() => setPaperTradesOn(o => !o)}
+                className={`flex items-center gap-1 px-2 h-6 rounded text-[12px] font-semibold border transition-all`}
+                style={{
+                  background: paperTradesOn ? "rgba(0,212,170,0.15)" : "#131520",
+                  borderColor: paperTradesOn ? "rgba(0,212,170,0.45)" : "#1E2030",
+                  color: paperTradesOn ? "#00D4AA" : "#8B8FA8",
+                }}
+                title="Show open paper positions on chart (entry line + live P&L)"
+              >
+                <Target size={10} /> Positions
               </button>
 
               <button
@@ -1066,9 +1079,35 @@ export function ChartsDashboard() {
                       chartLayout === "4"  ? { flexDirection: "row", flexWrap: "wrap" as const } :
                       {}),
                 }}>
-                  <div style={{ flex: 1, display:"flex", overflow:"hidden", minWidth:0, minHeight:0,
+                  <div style={{ flex: 1, display:"flex", overflow:"hidden", minWidth:0, minHeight:0, position:"relative",
                     ...(chartLayout === "4" ? { width: "50%", flexShrink: 0 } : {}),
                   }}>
+                    {/* ── Regime + live daily % HUD (top-center overlay) ─────────────
+                         REAL data only: regime is classified from the live ticker's
+                         daily % (same ±1.5% thresholds as the Markov state model), and
+                         the % is the actual day return — nothing fabricated here. */}
+                    {(() => {
+                      const p = Number.isFinite(ticker.changePct) ? ticker.changePct : 0;
+                      const reg = p > 1.5 ? "BULL" : p < -1.5 ? "BEAR" : "SIDE";
+                      const rc = reg === "BULL" ? "#00D4AA" : reg === "BEAR" ? "#FF4D6A" : "#F0B429";
+                      const pc = p >= 0 ? "#00D4AA" : "#FF4D6A";
+                      return (
+                        <div style={{
+                          position:"absolute", top:8, left:"50%", transform:"translateX(-50%)",
+                          zIndex:40, pointerEvents:"none",
+                          display:"flex", alignItems:"center", gap:6,
+                          background:"rgba(11,13,20,0.82)", backdropFilter:"blur(4px)",
+                          border:`1px solid ${rc}55`, borderRadius:6, padding:"3px 9px",
+                        }}>
+                          <span style={{ fontSize:9, fontWeight:800, color:"#5A6486", letterSpacing:"0.08em" }}>REGIME</span>
+                          <span style={{ fontSize:11, fontWeight:900, color:rc, letterSpacing:"0.04em" }}>{reg}</span>
+                          <span style={{ width:1, height:10, background:"#2A3048" }} />
+                          <span style={{ fontSize:10.5, fontWeight:800, color:pc, fontFamily:"monospace" }}>
+                            {p >= 0 ? "+" : ""}{p.toFixed(2)}% today
+                          </span>
+                        </div>
+                      );
+                    })()}
                     <ErrorBoundary>
                     <MainChart
                       symbol={symbol}
@@ -1095,6 +1134,7 @@ export function ChartsDashboard() {
                       compareSymbol={compareSymbol}
                       fixedVPActive={fixedVPActive}
                       sessionVPActive={sessionVPChart}
+                      paperTradesVisible={paperTradesOn}
                       onRequestFullscreen={handleRequestFullscreen}
                     />
                     </ErrorBoundary>
@@ -1114,6 +1154,7 @@ export function ChartsDashboard() {
                         footprintEnabled={footprintEnabled} bigTradesOverlay={bigTradesSimul && bigTradesOverlay}
                         candleType={candleType}
                         chartSettings={effChartSettings}
+                        paperTradesVisible={paperTradesOn}
                       />
                     </div>
                   )}
@@ -1130,46 +1171,16 @@ export function ChartsDashboard() {
                   )}
                 </div>
 
-                {/* VP + DOM collapsible right panel */}
-                {vpDomOpen && (
-                  <>
-                    <VolumeProfileLadder symbol={symbol} />
-
-                    {/* ── Collapse strip between VP and DOM ── */}
-                    <button
-                      onClick={() => setDomOpen(v => !v)}
-                      title={domOpen ? "Collapse DOM ladder" : "Expand DOM ladder"}
-                      style={{
-                        width: 14, flexShrink: 0,
-                        background: "#0A0B10",
-                        borderLeft: "1px solid #1E2030",
-                        borderRight: "1px solid #1E2030",
-                        display: "flex", flexDirection: "column",
-                        alignItems: "center", justifyContent: "center",
-                        cursor: "pointer", gap: 3,
-                      }}
-                    >
-                      <span style={{
-                        fontSize: 10,
-                        color: domOpen ? "#4A5070" : "#4FA3E0",
-                        transform: domOpen ? "rotate(180deg)" : "none",
-                        transition: "transform 0.2s",
-                        lineHeight: 1,
-                      }}>›</span>
-                      <span style={{
-                        fontSize: 6, color: "#4A5070", letterSpacing: 0.4,
-                        writingMode: "vertical-rl", textOrientation: "mixed",
-                        textTransform: "uppercase", fontWeight: 700,
-                      }}>DOM</span>
-                    </button>
-
-                    {domOpen && <DOMPanel symbol={symbol} />}
-                  </>
-                )}
-                {/* VP+DOM outer collapse toggle */}
+                {/* DOM ladder — collapsible right panel. The large stationary
+                    Volume Profile panel was REMOVED per spec; only the compact
+                    Session VP + the on-chart Fixed VP remain (both draw at the top
+                    of the chart). This also frees ~340px so Smart Money + the DOM
+                    ladder are fully visible on full screen with no cutoffs. */}
+                {vpDomOpen && <DOMPanel symbol={symbol} />}
+                {/* DOM collapse toggle */}
                 <button
                   onClick={() => setVpDomOpen(v => !v)}
-                  title={vpDomOpen ? "Collapse VP & DOM panel" : "Expand VP & DOM panel"}
+                  title={vpDomOpen ? "Collapse DOM ladder" : "Expand DOM ladder"}
                   style={{
                     width: 20, flexShrink: 0,
                     background: "#0D0E14",
@@ -1190,7 +1201,7 @@ export function ChartsDashboard() {
                     fontSize: 7, color: "#4A5070", letterSpacing: 0.5,
                     writingMode: "vertical-rl", textOrientation: "mixed",
                     textTransform: "uppercase", fontWeight: 700,
-                  }}>VP / DOM</span>
+                  }}>DOM</span>
                 </button>
               </div>
 
@@ -1216,7 +1227,7 @@ export function ChartsDashboard() {
 
             {/* Markov panel */}
             <AnimatePresence>
-              {markovOpen && <MarkovPanel symbol={symbol} onClose={() => setMarkovOpen(false)} />}
+              {markovOpen && <MarkovPanel symbol={symbol} dayRet={ticker.price > 0 ? ticker.changePct : null} onClose={() => setMarkovOpen(false)} />}
             </AnimatePresence>
 
             {/* DOM panel is now inside VP+DOM collapsible block above */}

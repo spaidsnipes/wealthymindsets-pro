@@ -64,6 +64,9 @@ export async function POST(req: Request) {
     const handle      = meta.handle      ?? prev?.handle;
     const avatar      = meta.avatar      ?? prev?.avatar;
     const bio         = meta.bio         ?? prev?.bio;
+    const botName     = meta.botName     ?? prev?.botName;
+    const timezone    = meta.timezone    ?? prev?.timezone;
+    const bgColor     = meta.bgColor     ?? prev?.bgColor;
     // Complete if EITHER source says so, or a display name already exists —
     // this stops the "forced back into setup on every login" behaviour.
     const profileComplete = !!(meta.profileComplete ?? prev?.profileComplete ?? displayName);
@@ -75,6 +78,9 @@ export async function POST(req: Request) {
       handle,
       avatar,
       bio,
+      botName,
+      timezone,
+      bgColor,
       profileComplete,
     });
     const res = NextResponse.json({ ok: true });
@@ -100,6 +106,9 @@ export async function POST(req: Request) {
     handle:          prev?.handle,
     avatar:          prev?.avatar,
     bio:             prev?.bio,
+    botName:         prev?.botName,
+    timezone:        prev?.timezone,
+    bgColor:         prev?.bgColor,
     profileComplete: prev?.profileComplete ?? false,
   });
   const res = NextResponse.json({ ok: true });

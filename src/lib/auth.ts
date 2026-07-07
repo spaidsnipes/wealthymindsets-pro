@@ -20,6 +20,11 @@ export interface JWTPayload {
   handle?:         string;
   avatar?:         string;
   bio?:            string;
+  // Durable prefs — persisted so the bot name + display settings follow the
+  // ACCOUNT (Supabase user_metadata), not just one browser's localStorage.
+  botName?:        string;
+  timezone?:       string;
+  bgColor?:        string;
   profileComplete: boolean;
   iat:             number;
   exp:             number;
@@ -194,4 +199,44 @@ export async function supabaseUpdateUserMetadata(
     });
     return res.ok;
   } catch { return false; }
+}
+
+/* ── Session revocation ("log out all devices") ──────────────
+   JWTs here are stateless: once issued they're valid until their 30-day exp,
+   with no server-side session table to delete. To revoke every device we keep
+   a per-user `sessionEpoch` (unix seconds) in Supabase user_metadata. Any JWT
+   whose `iat` predates the stored epoch is treated as revoked at the next
+   /api/auth/me check. "Log out all devices" simply bumps the epoch to now.     */
+
+/** Fetch a single user by id via the admin API. Returns the raw GoTrue user. */
+export async function supabaseGetUserById(userId: string): Promise<Record<string, unknown> | null> {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey || !userId) return null;
+  try {
+    const res = await fetch(`${SB_URL()}/auth/v1/admin/users/${userId}`, {
+      headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+/** Current revocation epoch for a user (0 = never revoked). */
+export async function supabaseGetSessionEpoch(userId: string): Promise<number> {
+  const u = await supabaseGetUserById(userId);
+  const meta = (u?.user_metadata ?? {}) as Record<string, unknown>;
+  const se = meta.sessionEpoch;
+  return typeof se === "number" ? se : 0;
+}
+
+/** Bump the revocation epoch to now → invalidates every previously-issued JWT. */
+export async function supabaseBumpSessionEpoch(userId: string): Promise<boolean> {
+  const u = await supabaseGetUserById(userId);
+  if (!u) return false;
+  const existing = (u.user_metadata ?? {}) as Record<string, unknown>;
+  // Read-modify-write so we never clobber displayName/handle/avatar/etc.
+  return supabaseUpdateUserMetadata(userId, {
+    ...existing,
+    sessionEpoch: Math.floor(Date.now() / 1000),
+  });
 }

@@ -557,9 +557,15 @@ export function ChartToolbar({
         name: r.name ?? r.description,
         cat:  r.type === "Crypto" ? "Crypto" : r.type === "Forex" ? "Forex" : r.type === "ETF" ? "ETFs" : "Stocks",
       })).filter((r: SymbolEntry) => r.sym && r.name);
-      // Deduplicate with local results (local takes priority)
-      const localSyms = new Set(ALL_SYMBOLS.map(s => s.sym));
-      const freshOnly = results.filter(r => !localSyms.has(r.sym));
+      // Deduplicate against local results (local takes priority) AND within the
+      // Finnhub set itself — Finnhub returns the same symbol on multiple exchanges,
+      // which otherwise produces duplicate React keys + duplicate visible rows.
+      const seen = new Set(ALL_SYMBOLS.map(s => s.sym));
+      const freshOnly = results.filter(r => {
+        if (seen.has(r.sym)) return false;
+        seen.add(r.sym);
+        return true;
+      });
       setLiveSymbols(freshOnly);
     } catch { /* network error — silently fail */ }
     finally { setLiveSearching(false); }
@@ -738,8 +744,8 @@ export function ChartToolbar({
                           Global results (Finnhub)
                         </div>
                       )}
-                      {liveSymbols.map(s => (
-                        <SymbolRow key={`live-${s.sym}`} s={s} symbol={symbol} onSelect={() => { setSymbol(s.sym); setSymbolOpen(false); setSymbolSearch(""); setSymCat("All"); }} />
+                      {liveSymbols.map((s, i) => (
+                        <SymbolRow key={`live-${s.sym}-${i}`} s={s} symbol={symbol} onSelect={() => { setSymbol(s.sym); setSymbolOpen(false); setSymbolSearch(""); setSymCat("All"); }} />
                       ))}
                     </>
                   )}
@@ -861,7 +867,7 @@ export function ChartToolbar({
                     if (e.key === "Enter" && filteredInds.length > 0) { toggleIndicator(filteredInds[0].name); }
                     if (e.key === "Tab" && filteredInds.length > 0) { e.preventDefault(); setIndSearch(filteredInds[0].name); }
                   }}
-                  placeholder="Search 300+ indicators…  ↵ toggle top match"
+                  placeholder={`Search ${INDICATORS.length} indicators…  ↵ toggle top match`}
                   className="flex-1 bg-transparent text-[11px] text-wm-text outline-none placeholder-wm-text-dim"
                   style={{ caretColor: "#00D4AA" }}
                 />
