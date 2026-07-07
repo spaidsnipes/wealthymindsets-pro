@@ -1350,23 +1350,49 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     return () => window.removeEventListener("wm-vp-colors", load);
   }, []);
 
-  const { liveBar, ticker, recentTicks } = useWebSocket({ symbol, timeframe });
+  const { liveBar, ticker, recentTicks, source: marketSource } = useWebSocket({ symbol, timeframe });
 
-  // ── Tick accumulator: tracks bid/ask volume by price level per bar ──
+  // ── Tick accumulator: REAL aggressor tape only (no synthetic / quote-poll noise) ──
   // Map<barTime, Map<priceRounded, {bid, ask}>>
   const tickAccRef = useRef<Map<number, Map<number, { bid: number; ask: number }>>>(new Map());
+  const processedTicksRef = useRef<Set<string>>(new Set());
+  const marketSourceRef = useRef(marketSource);
+  useEffect(() => { marketSourceRef.current = marketSource; }, [marketSource]);
   // Late-bound ref so magnet snap can read footprint levels after getBarFootprint is defined.
   const footprintSnapRef = useRef<(bar: Bar, n: number) => Array<{ priceLevel: number; total: number }>>(() => []);
+
+  const hasRealAggressorTape = (src: string) =>
+    src === "finnhub" || src === "polygon" || src === "alpaca" || src === "binance";
+
+  const minBigTradeLot = (symBase: number) =>
+    symBase > 10_000 ? 2 : symBase > 100 ? 15 : symBase > 1 ? 0.05 : 0.001;
+
+  // Reset accumulator on symbol change — prevents cross-symbol contamination.
   useEffect(() => {
-    if (!recentTicks?.length) return;
+    tickAccRef.current = new Map();
+    processedTicksRef.current = new Set();
+  }, [symbol]);
+
+  useEffect(() => {
+    if (!recentTicks?.length || !hasRealAggressorTape(marketSource)) return;
     const intervalSec = getIntervalSec(timeframe);
     const minTick = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
+    const minLot  = minBigTradeLot(base);
+    const dp      = base > 100 ? 2 : 4;
+
     recentTicks.forEach(tick => {
-      const barTime = Math.floor(tick.time / 1000 / intervalSec) * intervalSec;
-      const priceLevel = Math.round(tick.price / minTick) * minTick;
-      if (!tickAccRef.current.has(barTime)) {
-        tickAccRef.current.set(barTime, new Map());
+      if (!Number.isFinite(tick.price) || tick.price <= 0) return;
+      if (!Number.isFinite(tick.size)  || tick.size  < minLot) return;
+      const dedupeKey = `${tick.time}|${tick.price}|${tick.size}|${tick.side}`;
+      if (processedTicksRef.current.has(dedupeKey)) return;
+      processedTicksRef.current.add(dedupeKey);
+      if (processedTicksRef.current.size > 8000) {
+        processedTicksRef.current = new Set([...processedTicksRef.current].slice(-4000));
       }
+
+      const barTime = Math.floor(tick.time / 1000 / intervalSec) * intervalSec;
+      const priceLevel = +(Math.round(tick.price / minTick) * minTick).toFixed(dp);
+      if (!tickAccRef.current.has(barTime)) tickAccRef.current.set(barTime, new Map());
       const lvlMap = tickAccRef.current.get(barTime)!;
       const existing = lvlMap.get(priceLevel) ?? { bid: 0, ask: 0 };
       lvlMap.set(priceLevel, {
@@ -1374,12 +1400,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         ask: existing.ask + (tick.side === "buy"  ? tick.size : 0),
       });
     });
-    // Keep only last 200 bars in memory
     if (tickAccRef.current.size > 200) {
-      const oldest = [...tickAccRef.current.keys()].sort()[0];
+      const oldest = [...tickAccRef.current.keys()].sort((a, b) => a - b)[0];
       tickAccRef.current.delete(oldest);
     }
-  }, [recentTicks, timeframe, base]);
+  }, [recentTicks, timeframe, base, marketSource]);
 
   // Keep the canvas-loop-readable candle-timer flag in sync with settings.
   useEffect(() => { candleTimerRef.current = chartSettings?.candleTimer !== false; }, [chartSettings?.candleTimer]);
@@ -2215,10 +2240,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     if (barsRef.current.length) {
       onBarsReady?.(barsRef.current);
     }
-    // NOTE: Big-Trade bubbles are NOT generated here. They are spawned
-    // deterministically from getBarFootprint() price levels inside the canvas
-    // render loop (Pass A, big-trades mode) so every user sees identical
-    // bubbles/prices. No Math.random() in the rendered bubble path.
+    // NOTE: Big-Trade bubbles spawn in the canvas loop (Pass A) from tickAccRef
+    // ONLY — real aggressor tape, never synthetic footprint. No bubble without
+    // a qualifying large trade at that price level on that bar.
   }, [liveBar, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── DIRECT live-price poller (guaranteed chart movement) ──────
@@ -4020,6 +4044,47 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
     return levels;
   }, [base]);
+
+  /** Big-trade bubbles: REAL tick accumulator ONLY — never synthetic footprint. */
+  const getRealBigTradeLevels = useCallback((bar: Bar): Array<{
+    priceLevel: number; bid: number; ask: number; total: number;
+  }> => {
+    const barTime = bar.time as number;
+    const realData = tickAccRef.current.get(barTime);
+    if (!realData || realData.size === 0) return [];
+
+    const dp = base > 100 ? 2 : 4;
+    const minLot = minBigTradeLot(base);
+    const levels: Array<{ priceLevel: number; bid: number; ask: number; total: number }> = [];
+    for (const [px, rt] of realData) {
+      const total = rt.bid + rt.ask;
+      if (total < minLot) continue;
+      levels.push({
+        priceLevel: +Number(px).toFixed(dp),
+        bid: rt.bid,
+        ask: rt.ask,
+        total,
+      });
+    }
+    if (levels.length === 0) return [];
+
+    const barMean = levels.reduce((s, l) => s + l.total, 0) / levels.length;
+    const threshold = Math.max(minLot, barMean * 1.35);
+
+    const pickMap = new Map<number, typeof levels[0]>();
+    for (const l of levels.filter(x => x.total >= threshold).sort((a, z) => z.total - a.total).slice(0, 5)) {
+      pickMap.set(l.priceLevel, l);
+    }
+    const topBuy = levels.filter(l => l.ask >= l.bid && l.ask >= minLot)
+      .sort((a, z) => z.ask - a.ask)[0];
+    const topSell = levels.filter(l => l.bid > l.ask && l.bid >= minLot)
+      .sort((a, z) => z.bid - a.bid)[0];
+    if (topBuy  && topBuy.total  >= minLot) pickMap.set(topBuy.priceLevel, topBuy);
+    if (topSell && topSell.total >= minLot) pickMap.set(topSell.priceLevel, topSell);
+
+    return [...pickMap.values()].sort((a, z) => z.total - a.total).slice(0, 6);
+  }, [base]);
+
   footprintSnapRef.current = (bar, n) => getBarFootprint(bar, n).map(l => ({ priceLevel: l.priceLevel, total: l.total }));
 
   /* ── Canvas order-flow / footprint overlay ──────────────────
@@ -4857,115 +4922,63 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           bubbleSpawnRef.current = new Set();
         }
         const bubblesPaused = bubblePausedRef.current;
+        const realTape = hasRealAggressorTape(marketSourceRef.current);
 
-        // ── Pass A: detect big trades at EVERY significant price level → spawn
-        //   MULTIPLE bubbles per candle, one per level, each anchored to its own
-        //   exact price. Fully deterministic: getBarFootprint() + per-bar
-        //   normalization → every user sees identical bubbles & prices regardless
-        //   of their zoom/pan. No Math.random() anywhere in this path. ────────────
-        // Spawn on every bar currently in the visible window (≤120 bars). Bubbles
-        // persist until their bar scrolls off-screen — no arbitrary 60-bar cap that
-        // made history look like "one bubble per candle" when panning back.
+        // No real aggressor tape → never show synthetic/demo bubbles.
+        if (!realTape) {
+          if (bubblesRef.current.length) {
+            bubblesRef.current = [];
+            bubbleSpawnRef.current = new Set();
+            bubbleHoverRef.current = null;
+          }
+        } else if (!bubblesPaused) {
+        // ── Pass A: spawn ONLY from real tick-accumulator levels (tickAccRef).
+        //   No getBarFootprint() synthetic fallback. No bubble if the bar has no
+        //   qualifying large aggressive trade at that price level. ────────────────
         visibleBars.forEach(c => {
           const rawCx = chart.timeScale().timeToCoordinate(c.time as any);
           if (rawCx == null || rawCx < -colW || rawCx > W + colW) return;
           const cx = Math.round(rawCx);
-          const rawYH = srs.priceToCoordinate(c.high);
-          const rawYL = srs.priceToCoordinate(c.low);
-          if (rawYH == null || rawYL == null) return;
-          const yH = Math.round(rawYH);
-          const yL = Math.round(rawYL);
-          // NOTE: do NOT redraw candle bodies/wicks here — the real Lightweight
-          // Charts candlestick series already renders them underneath. We only
-          // overlay bubbles.
 
-          const fullH  = Math.max(2, yL - yH);
-          // Zoom-independent level count: derived from the bar's PRICE span, NOT pixel
-          // height. Using fullH caused numLev→1 when zoomed out ("one bubble per candle")
-          // and made footprints differ across users at different zoom levels.
-          const minTick  = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
-          const priceSpan = Math.max(minTick, c.high - c.low);
-          const numLev = Math.max(6, Math.min(10, Math.ceil(priceSpan / (minTick * 2.5)) || 6));
-          const levels = getBarFootprint(c, numLev);
-          if (levels.length === 0) return;
-          const rowH = fullH / Math.max(1, numLev);
+          const ranked = getRealBigTradeLevels(c);
+          if (ranked.length === 0) return;
 
-          if (bubblesPaused) return;
+          const barMean = ranked.reduce((s, lv) => s + lv.total, 0) / ranked.length;
 
-          // Per-bar mean level volume — deterministic & zoom-independent, so it is
-          // identical for every user. A level is a "big trade" when it stands out
-          // vs its own bar's average (volume concentration), which is exactly where
-          // real absorption happens. This gives each candle its own key levels.
-          let barSum = 0;
-          for (const lv of levels) barSum += lv.total;
-          const barMean = barSum / levels.length;
-
-          // Rank levels by volume; keep the most significant few so several bubbles
-          // sit at DIFFERENT prices on the SAME candle yet stay clearly readable.
-          const byVol = levels
-            .map((lv, i) => ({ lv, i }))
-            .filter(o => o.lv.total >= barMean * 1.06)
-            .sort((a, z) => z.lv.total - a.lv.total);
-
-          // Always include top buy-dominant AND top sell-dominant levels so both
-          // aggressive sides show on the same candle when they exist.
-          const pickMap = new Map<number, { lv: typeof levels[0]; i: number }>();
-          for (const o of byVol.slice(0, 5)) pickMap.set(o.lv.priceLevel, o);
-          const topBuy  = [...levels].map((lv, i) => ({ lv, i })).filter(o => o.lv.ask >= o.lv.bid)
-            .sort((a, z) => z.lv.total - a.lv.total)[0];
-          const topSell = [...levels].map((lv, i) => ({ lv, i })).filter(o => o.lv.bid > o.lv.ask)
-            .sort((a, z) => z.lv.total - a.lv.total)[0];
-          if (topBuy)  pickMap.set(topBuy.lv.priceLevel, topBuy);
-          if (topSell) pickMap.set(topSell.lv.priceLevel, topSell);
-          const ranked = [...pickMap.values()]
-            .sort((a, z) => z.lv.total - a.lv.total)
-            .slice(0, 6);
-
-          ranked.forEach(({ lv, i }, rankIdx) => {
-            // Dedupe per (bar, price level) → each level owns ONE persistent bubble.
+          ranked.forEach((lv, rankIdx) => {
             const key = String(c.time) + ":" + lv.priceLevel;
             if (bubbleSpawnRef.current.has(key)) return;
             bubbleSpawnRef.current.add(key);
 
-            // Radius is accurate to trade size (area ∝ size → radius ∝ √size).
-            // Stored zoom-independently so every deployment/user sees identical sizes.
-            const ratio = lv.total / barMean;
+            const ratio = lv.total / Math.max(1, barMean);
             const baseR = Math.round(Math.max(9, Math.min(28, 9 + Math.sqrt(Math.max(0, ratio - 1)) * 11)));
-            // Green = buyers aggressive (ask ≥ bid), red = sellers aggressive.
             const side: "buy" | "sell" = lv.ask >= lv.bid ? "buy" : "sell";
-            // Keep signed NOTIONAL for the tooltip headline; the on-bubble label is
-            // the exact PRICE (drawn from anchorPrice at render time).
-            const notional = lv.total * (lv.priceLevel || c.close || 1);
-            const value = (side === "buy" ? 1 : -1) * Math.round(notional);
-            // Deterministic wobble phase (NO Math.random) so every user animates alike.
-            const sph   = Math.sin(c.time * 0.017 + lv.priceLevel * 0.531 + i * 1.7) * 43758.5453;
+            const value = (side === "buy" ? 1 : -1) * Math.round(lv.total);
+            const sph   = Math.sin((c.time as number) * 0.017 + lv.priceLevel * 0.531 + rankIdx * 1.7) * 43758.5453;
             const phase = (sph - Math.floor(sph)) * Math.PI * 2;
-            // Initial Y = the EXACT price coordinate of this level (no inversion, no
-            // spawn "jump") — Pass B then springs it to the same anchored price.
             const rawLevY = srs.priceToCoordinate(lv.priceLevel);
-            const levY  = rawLevY == null ? Math.round(yH + (numLev - i - 0.5) * rowH) : Math.round(rawLevY);
+            if (rawLevY == null) return;
+            const levY = Math.round(rawLevY);
 
             bubblesRef.current.push({
               id:    ++bubbleIdRef.current,
               x:     cx,  y: levY,  vx: 0, vy: 0,
               baseR,
-              r:     baseR * 0.35,       // eases up to full size on spawn
+              r:     baseR * 0.35,
               phase,
               big:   true,
               side,
               value,
-              // born = bar-recency (unix-s ×1000 + level idx) so the newest-N cap
-              // keeps the most recent price action, not just whatever spawned last.
-              born:  (c.time as number) * 1000 + i,
+              born:  (c.time as number) * 1000 + rankIdx,
               anchorTime:  c.time as number,
               anchorPrice: lv.priceLevel,
               levelIdx: rankIdx,
               siblingN: ranked.length,
             });
-            // soft "bloop" only for the biggest prints (throttled + respects Sound toggle).
             playBloop(baseR > 24);
           });
         });
+        }
 
         // Keep the dedupe set from growing unbounded
         if (bubbleSpawnRef.current.size > 400) bubbleSpawnRef.current = new Set();
@@ -5472,7 +5485,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // each frame, so it stays alive across live ticks (was rebuilding 4x/sec on
     // crypto, which made the VP/footprint flash off). Re-runs only on real config
     // changes below.
-  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, extendedHours, timeframe, fixedVPActive, sessionVPActive]);
+  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, extendedHours, timeframe, fixedVPActive, sessionVPActive]);
 
   /* ── Derived display values ─────────────────────────────── */
   const change    = ticker.change ?? (lastPrice - openPrice);
@@ -6051,7 +6064,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         setBubbleTip({
           x: hit.x, y: hit.y - hit.r,
           side: hit.side, value: hit.value,
-          text: `${vstr} aggressive ${hit.side === "buy" ? "buy" : "sell"} orders at ${pstr}`,
+          text: `${vstr} ${base > 100 ? "shares" : "vol"} aggressive ${hit.side === "buy" ? "buy" : "sell"} at ${pstr}`,
         });
       }
     } else if (bubbleHoverRef.current !== null) {

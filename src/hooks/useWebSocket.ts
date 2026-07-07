@@ -237,6 +237,7 @@ function tryFinnhub(
   let closed = false;
   let retry = 0;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastTradePx = 0;
 
   const connect = () => {
     if (closed) return;
@@ -254,7 +255,12 @@ function tryFinnhub(
         const msg = JSON.parse(ev.data as string);
         if (msg.type === "trade" && msg.data?.length) {
           for (const t of msg.data) {
-            onTick({ price: t.p, size: t.v, side: "buy", time: t.t }, true);
+            const px = Number(t.p);
+            const sz = Number(t.v);
+            if (!Number.isFinite(px) || px <= 0 || !Number.isFinite(sz) || sz <= 0) continue;
+            const side: "buy" | "sell" = px >= lastTradePx ? "buy" : "sell";
+            lastTradePx = px;
+            onTick({ price: px, size: sz, side, time: t.t }, true);
           }
         }
       } catch {}
