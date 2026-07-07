@@ -430,10 +430,11 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
       animate={{ x: 0 }}
       exit={{ x: "100%" }}
       transition={{ type: "spring", stiffness: 350, damping: 35 }}
-      className="w-96 border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden"
+      className="border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden min-h-0 h-full"
+      style={{ width: "min(19rem, 28vw)", maxWidth: "100%" }}
     >
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-wm-border bg-wm-card shrink-0">
+      <div className="flex items-center gap-1.5 px-2 py-2 border-b border-wm-border bg-wm-card shrink-0">
         <WMLogo size={24} showGlow />
         <div className="flex-1">
           <div className="text-xs font-bold text-wm-gold">Smart Money Tools</div>
@@ -456,7 +457,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
       </div>
 
       {/* Confluence score — real 0-100 from independent lenses */}
-      <div className="px-3 py-2 border-b border-wm-border shrink-0">
+      <div className="px-2 py-1.5 border-b border-wm-border shrink-0">
         <div className="flex items-center justify-between mb-1">
           <span className="text-[10px] text-wm-text-muted">Confluence Score</span>
           <span className="text-[11px] font-black tabular-nums" style={{ color: scoreColor }}>
@@ -492,8 +493,8 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
       </div>
 
       {/* ── DELTA DOMINATION (the tug-of-war) ─────────────────────────────── */}
-      <div className="mx-3 my-2 p-2.5 rounded-lg bg-wm-surface border border-wm-border shrink-0">
-        <div className="flex items-center gap-1.5 mb-2">
+      <div className="mx-2 my-1.5 p-2 rounded-lg bg-wm-surface border border-wm-border shrink-0">
+        <div className="flex items-center gap-1.5 mb-1.5">
           <Swords size={11} className="text-wm-gold" />
           <span className="text-[10px] font-bold text-wm-text">DELTA DOMINATION</span>
           <span className="text-[9px] text-wm-text-dim">· who's winning?</span>
@@ -604,7 +605,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
 
       {/* ── SMART MONEY DELTA — the fire signal + one-click paper trade ─────── */}
       <div className={clsx(
-        "mx-3 my-2 p-2.5 rounded-lg border shrink-0",
+        "mx-2 my-1.5 p-2 rounded-lg border shrink-0",
         smdFired && smdLong  ? "bg-wm-green/10 border-wm-green/30" :
         smdFired && !smdLong ? "bg-wm-red/10 border-wm-red/30" :
         flow.hasFlow         ? "bg-wm-gold/5 border-wm-gold/25" :
@@ -695,7 +696,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
       </div>
 
       {/* ── WM DELTA BUBBLES — live net delta at each price level ───────────── */}
-      <div className="mx-3 my-2 p-2.5 rounded-lg border border-wm-border bg-wm-surface shrink-0">
+      <div className="mx-2 my-1.5 p-2 rounded-lg border border-wm-border bg-wm-surface shrink-0">
         <div className="flex items-center gap-1.5 mb-2">
           <Droplets size={11} className="text-wm-blue" />
           <span className="text-[10px] font-bold text-wm-text">WM DELTA BUBBLES</span>
@@ -748,7 +749,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           of printing a fake "Real buying on tape / ENTRY CONFIRMED". Gated on the
           SAME flow.hasFlow the DD card + order-flow signals use, so they agree. */}
       <div className={clsx(
-        "mx-3 my-2 p-2.5 rounded-lg border shrink-0",
+        "mx-2 my-1.5 p-2 rounded-lg border shrink-0",
         flow.hasFlow
           ? "bg-gradient-to-r from-wm-green/10 to-wm-blue/5 border-wm-green/25"
           : "bg-wm-surface border-wm-border"
@@ -791,7 +792,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
 
       {/* ── WM PLAYBOOK — context-aware notes folded natively into Smart Money ── */}
       {playbook.length > 0 && (
-        <div className="mx-3 mb-2 p-2.5 rounded-lg bg-wm-card border border-wm-border shrink-0">
+        <div className="mx-2 mb-1.5 p-2 rounded-lg bg-wm-card border border-wm-border shrink-0">
           <div className="flex items-center gap-1.5 mb-2">
             <Eye size={11} className="text-wm-blue" />
             <span className="text-[10px] font-bold text-wm-text">WM PLAYBOOK</span>
@@ -815,7 +816,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
       )}
 
       {/* Sections */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         {SECTIONS.map(sec => {
           const open = openSections.has(sec.key);
           const sectionSignals = signals.slice(sec.from, sec.to);
@@ -862,7 +863,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
                           )}
                         </div>
                         <div
-                          className="text-[10px] font-semibold truncate"
+                          className="text-[10px] font-semibold break-words leading-snug"
                           style={{ color: SIGNAL_COLOR[sig.strength] }}
                         >
                           {sig.value}
@@ -880,7 +881,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
         })}
 
         {/* Wyckoff schematic detail */}
-        <div className="mx-3 my-3 p-2.5 rounded-lg bg-wm-surface border border-wm-border">
+        <div className="mx-2 my-2 p-2 rounded-lg bg-wm-surface border border-wm-border">
           <div className="text-[10px] font-bold text-wm-blue mb-2">Wyckoff Accumulation Schematic</div>
           <div className="flex flex-col gap-1">
             {[
@@ -919,7 +920,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
 
       {/* Live alert */}
       <div
-        className="mx-3 mb-2 mt-1 p-2 rounded-lg border shrink-0 animate-pulse"
+        className="mx-2 mb-1.5 mt-1 p-1.5 rounded-lg border shrink-0 animate-pulse"
         style={{ borderColor: "rgba(0,212,170,0.35)", background: "rgba(0,212,170,0.06)" }}
       >
         <div className="flex items-center gap-1.5">
