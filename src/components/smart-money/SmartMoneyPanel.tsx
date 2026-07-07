@@ -226,13 +226,29 @@ function computeConfluence(price: number, f: Flow): Confluence {
   };
 }
 
+const hasRealAggressorTape = (src: string | null) =>
+  src === "finnhub" || src === "polygon" || src === "alpaca" || src === "binance";
+
+const minAggressorLot = (price: number) =>
+  price > 10_000 ? 2 : price > 100 ? 15 : price > 1 ? 0.05 : 0.001;
+
 export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symbol: string }) {
-  const { ticker, recentTicks, liveBar } = useWebSocket({ symbol, timeframe: "1m" });
+  const { ticker, recentTicks, liveBar, tapeSource } = useWebSocket({ symbol, timeframe: "1m" });
   const livePrice = ticker.price > 0 ? ticker.price : 0;
+  const realTape = hasRealAggressorTape(tapeSource);
 
   // ── Build the REAL order-flow snapshot from live ticks + the live 1m bar ────
   const flow: Flow = React.useMemo(() => {
-    const ticks = Array.isArray(recentTicks) ? recentTicks : [];
+    if (!realTape) {
+      return {
+        haveData: false, hasFlow: false, vwap: livePrice || 0, cvd: 0,
+        askVol: 0, bidVol: 0, imbRatio: 100, askDom: true,
+        candleUp: liveBar ? Number(liveBar.close) >= Number(liveBar.open) : true,
+      };
+    }
+    const minLot = minAggressorLot(livePrice || 100);
+    const ticks = (Array.isArray(recentTicks) ? recentTicks : [])
+      .filter(t => (Number(t?.size) || 0) >= minLot);
     let askVol = 0, bidVol = 0, pv = 0, vol = 0;
     for (const t of ticks) {
       const size = Number(t?.size) || 0;
@@ -253,7 +269,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
       askDom: askVol >= bidVol,
       candleUp,
     };
-  }, [recentTicks, liveBar, livePrice]);
+  }, [recentTicks, liveBar, livePrice, realTape]);
 
   // ── WM DELTA BUBBLES — live net delta at each price level ────────────────────
   // Buckets the SAME real aggressor ticks the flow snapshot reads into price
@@ -261,8 +277,10 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
   // that level, red = sellers; bubble size scales with how lopsided it was. No
   // tape → no bubbles (we never invent levels). Honest by construction.
   const deltaLevels = React.useMemo(() => {
+    if (!realTape) return [] as { price: number; delta: number; vol: number }[];
+    const minLot = minAggressorLot(livePrice || 100);
     const ticks = Array.isArray(recentTicks) ? recentTicks : [];
-    const clean = ticks.filter(t => (Number(t?.size) || 0) > 0 && (Number(t?.price) || 0) > 0);
+    const clean = ticks.filter(t => (Number(t?.size) || 0) >= minLot && (Number(t?.price) || 0) > 0);
     if (clean.length === 0) return [] as { price: number; delta: number; vol: number }[];
     let lo = Infinity, hi = -Infinity;
     for (const t of clean) { const p = Number(t.price); if (p < lo) lo = p; if (p > hi) hi = p; }
