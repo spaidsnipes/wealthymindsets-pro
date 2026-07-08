@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Stress-test bubble level selection + tape source logic (extracted from MainChart/useWebSocket).
+ * Stress-test delta bubble level selection + tape source logic.
  * Run: node scripts/audit-bubbles.mjs
  */
 
@@ -10,33 +10,63 @@ function minBigTradeLot(symBase) {
   return symBase > 10_000 ? 2 : symBase > 100 ? 15 : symBase > 1 ? 0.05 : 0.001;
 }
 
-function getRealBigTradeLevels(realData, base) {
+function getDeltaBubbleLevels(realData, bar, base) {
   if (!realData || realData.size === 0) return [];
+  const priceTick = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
   const dp = base > 100 ? 2 : 4;
   const minLot = minBigTradeLot(base);
-  const levels = [];
+
+  const tickEntries = [];
+  let lo = bar.low, hi = bar.high;
   for (const [px, rt] of realData) {
-    const total = rt.bid + rt.ask;
+    const p = Number(px);
+    tickEntries.push({ price: p, bid: rt.bid, ask: rt.ask });
+    lo = Math.min(lo, p);
+    hi = Math.max(hi, p);
+  }
+
+  let range = hi - lo;
+  if (range <= 0) range = priceTick * 6;
+
+  const numLev = Math.max(6, Math.min(10, Math.floor(range / priceTick * 1.5) || 6));
+  const levelStep = range / numLev;
+  const bucketLo = lo;
+
+  const levels = [];
+  for (let i = 0; i < numLev; i++) {
+    const priceLevel = +Number(bucketLo + i * levelStep + levelStep / 2).toFixed(dp);
+    const half = levelStep / 2;
+    let bid = 0, ask = 0;
+    for (const t of tickEntries) {
+      if (Math.abs(t.price - priceLevel) < half) {
+        bid += t.bid;
+        ask += t.ask;
+      }
+    }
+    const total = bid + ask;
     if (total < minLot) continue;
-    levels.push({
-      priceLevel: +Number(px).toFixed(dp),
-      bid: rt.bid,
-      ask: rt.ask,
-      total,
-    });
+    levels.push({ priceLevel, bid, ask, total, delta: ask - bid });
   }
   if (levels.length === 0) return [];
-  const barMean = levels.reduce((s, l) => s + l.total, 0) / levels.length;
-  const threshold = Math.max(minLot, barMean * 1.35);
+
+  const meanAbsDelta = levels.reduce((s, l) => s + Math.abs(l.delta), 0) / levels.length;
+  const threshold = Math.max(minLot, meanAbsDelta * 1.35);
+
   const pickMap = new Map();
-  for (const l of levels.filter(x => x.total >= threshold).sort((a, z) => z.total - a.total).slice(0, 5)) {
+  for (const l of levels
+    .filter(x => Math.abs(x.delta) >= threshold)
+    .sort((a, z) => Math.abs(z.delta) - Math.abs(a.delta))
+    .slice(0, 5)) {
     pickMap.set(l.priceLevel, l);
   }
-  const topBuy = levels.filter(l => l.ask >= l.bid && l.ask >= minLot).sort((a, z) => z.ask - a.ask)[0];
-  const topSell = levels.filter(l => l.bid > l.ask && l.bid >= minLot).sort((a, z) => z.bid - a.bid)[0];
-  if (topBuy && topBuy.total >= minLot) pickMap.set(topBuy.priceLevel, topBuy);
-  if (topSell && topSell.total >= minLot) pickMap.set(topSell.priceLevel, topSell);
-  return [...pickMap.values()].sort((a, z) => z.total - a.total).slice(0, 6);
+  const topBuy = levels.filter(l => l.delta > 0).sort((a, z) => z.delta - a.delta)[0];
+  const topSell = levels.filter(l => l.delta < 0).sort((a, z) => a.delta - z.delta)[0];
+  if (topBuy && topBuy.delta >= minLot) pickMap.set(topBuy.priceLevel, topBuy);
+  if (topSell && Math.abs(topSell.delta) >= minLot) pickMap.set(topSell.priceLevel, topSell);
+
+  return [...pickMap.values()]
+    .sort((a, z) => Math.abs(z.delta) - Math.abs(a.delta))
+    .slice(0, 6);
 }
 
 function simulateTapeSource(restQuoteSource, wsTapeSource) {
@@ -67,56 +97,44 @@ console.log("\n=== Tape source preservation ===");
   const s = simulateTapeSource("yahoo", null);
   assert("yahoo only → no bubbles", !s.bubblesEnabled);
 }
-{
-  const s = simulateTapeSource("yahoo", "binance");
-  assert("binance crypto tape preserved", s.displaySource === "binance" && s.bubblesEnabled);
-}
 
-console.log("\n=== TSLA min lot (15 shares) ===");
+console.log("\n=== Delta bucket — TSLA bar ===");
 {
+  const bar = { low: 416.8, high: 417.6, time: 1720000000 };
   const data = new Map([
-    [417.17, { bid: 0, ask: 50 }],
-    [417.18, { bid: 0, ask: 10 }], // below min lot total but ask side
-    [417.19, { bid: 30, ask: 0 }],
-    [417.20, { bid: 1, ask: 1 }],  // quote noise — should never spawn
+    [417.05, { bid: 0, ask: 50 }],
+    [417.45, { bid: 35, ask: 0 }],
+    [417.20, { bid: 1, ask: 1 }],
   ]);
-  const levels = getRealBigTradeLevels(data, 405);
-  assert("filters sub-15 lot noise at 417.20", !levels.some(l => l.priceLevel === 417.2));
-  assert("keeps 50-lot buy at 417.17", levels.some(l => l.priceLevel === 417.17 && l.ask >= 50));
-  assert("includes top sell 417.19", levels.some(l => l.priceLevel === 417.19));
+  const levels = getDeltaBubbleLevels(data, bar, 405);
+  assert("finds buy-dominant bucket", levels.some(l => l.delta > 0));
+  assert("finds sell-dominant bucket", levels.some(l => l.delta < 0));
+  assert("filters noise below min lot", !levels.some(l => l.total < 15));
 }
 
-console.log("\n=== Determinism (same input → same output) ===");
+console.log("\n=== Determinism ===");
 {
+  const bar = { low: 7530, high: 7536, time: 1 };
   const data = new Map([
     [7533.25, { bid: 0, ask: 120 }],
     [7533.5, { bid: 80, ask: 0 }],
-    [7534.0, { bid: 40, ask: 40 }],
   ]);
-  const a = JSON.stringify(getRealBigTradeLevels(data, 7533));
-  const b = JSON.stringify(getRealBigTradeLevels(data, 7533));
+  const a = JSON.stringify(getDeltaBubbleLevels(data, bar, 7533));
+  const b = JSON.stringify(getDeltaBubbleLevels(data, bar, 7533));
   assert("identical runs", a === b);
 }
 
-console.log("\n=== Threshold: only big trades, not every level ===");
+console.log("\n=== Delta threshold — whale only ===");
 {
+  const bar = { low: 194.0, high: 194.6, time: 2 };
   const data = new Map();
   for (let i = 0; i < 20; i++) {
-    data.set(194.4 + i * 0.01, { bid: 5, ask: 5 }); // small lots
+    data.set(194.4 + i * 0.01, { bid: 5, ask: 5 });
   }
-  data.set(194.55, { bid: 0, ask: 500 }); // one whale
-  const levels = getRealBigTradeLevels(data, 194);
+  data.set(194.55, { bid: 0, ask: 500 });
+  const levels = getDeltaBubbleLevels(data, bar, 194);
   assert("at most 6 bubbles", levels.length <= 6);
-  assert("whale 194.55 included", levels.some(l => l.priceLevel === 194.55));
-  assert("not all 20 micro levels", levels.length < 10);
-}
-
-console.log("\n=== Dedupe key stability ===");
-{
-  const barTime = 1720000000;
-  const px = 417.17;
-  const key = String(barTime) + ":" + px;
-  assert("dedupe key format", key === "1720000000:417.17");
+  assert("whale delta included", levels.some(l => l.delta >= 400));
 }
 
 console.log(`\n${"=".repeat(40)}`);

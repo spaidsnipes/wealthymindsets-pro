@@ -4045,44 +4045,73 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     return levels;
   }, [base]);
 
-  /** Big-trade bubbles: REAL tick accumulator ONLY — never synthetic footprint. */
-  const getRealBigTradeLevels = useCallback((bar: Bar): Array<{
-    priceLevel: number; bid: number; ask: number; total: number;
+  /**
+   * Delta bubbles: bucket REAL tick-acc levels across the candle range (6–10 bins),
+   * net aggressive buy vs sell per bin. Still tickAccRef-only — no synthetic footprint.
+   */
+  const getDeltaBubbleLevels = useCallback((bar: Bar): Array<{
+    priceLevel: number; bid: number; ask: number; total: number; delta: number;
   }> => {
     const barTime = bar.time as number;
     const realData = tickAccRef.current.get(barTime);
     if (!realData || realData.size === 0) return [];
 
+    const priceTick = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
     const dp = base > 100 ? 2 : 4;
     const minLot = minBigTradeLot(base);
-    const levels: Array<{ priceLevel: number; bid: number; ask: number; total: number }> = [];
+
+    const tickEntries: Array<{ price: number; bid: number; ask: number }> = [];
+    let lo = bar.low, hi = bar.high;
     for (const [px, rt] of realData) {
-      const total = rt.bid + rt.ask;
+      const p = Number(px);
+      tickEntries.push({ price: p, bid: rt.bid, ask: rt.ask });
+      lo = Math.min(lo, p);
+      hi = Math.max(hi, p);
+    }
+
+    let range = hi - lo;
+    if (range <= 0) range = priceTick * 6;
+
+    const numLev = Math.max(6, Math.min(10, Math.floor(range / priceTick * 1.5) || 6));
+    const levelStep = range / numLev;
+    const bucketLo = lo;
+
+    const levels: Array<{ priceLevel: number; bid: number; ask: number; total: number; delta: number }> = [];
+    for (let i = 0; i < numLev; i++) {
+      const priceLevel = +(bucketLo + i * levelStep + levelStep / 2).toFixed(dp);
+      const half = levelStep / 2;
+      let bid = 0, ask = 0;
+      for (const t of tickEntries) {
+        if (Math.abs(t.price - priceLevel) < half) {
+          bid += t.bid;
+          ask += t.ask;
+        }
+      }
+      const total = bid + ask;
       if (total < minLot) continue;
-      levels.push({
-        priceLevel: +Number(px).toFixed(dp),
-        bid: rt.bid,
-        ask: rt.ask,
-        total,
-      });
+      const delta = ask - bid; // aggressive buy − aggressive sell
+      levels.push({ priceLevel, bid, ask, total, delta });
     }
     if (levels.length === 0) return [];
 
-    const barMean = levels.reduce((s, l) => s + l.total, 0) / levels.length;
-    const threshold = Math.max(minLot, barMean * 1.35);
+    const meanAbsDelta = levels.reduce((s, l) => s + Math.abs(l.delta), 0) / levels.length;
+    const threshold = Math.max(minLot, meanAbsDelta * 1.35);
 
     const pickMap = new Map<number, typeof levels[0]>();
-    for (const l of levels.filter(x => x.total >= threshold).sort((a, z) => z.total - a.total).slice(0, 5)) {
+    for (const l of levels
+      .filter(x => Math.abs(x.delta) >= threshold)
+      .sort((a, z) => Math.abs(z.delta) - Math.abs(a.delta))
+      .slice(0, 5)) {
       pickMap.set(l.priceLevel, l);
     }
-    const topBuy = levels.filter(l => l.ask >= l.bid && l.ask >= minLot)
-      .sort((a, z) => z.ask - a.ask)[0];
-    const topSell = levels.filter(l => l.bid > l.ask && l.bid >= minLot)
-      .sort((a, z) => z.bid - a.bid)[0];
-    if (topBuy  && topBuy.total  >= minLot) pickMap.set(topBuy.priceLevel, topBuy);
-    if (topSell && topSell.total >= minLot) pickMap.set(topSell.priceLevel, topSell);
+    const topBuy = levels.filter(l => l.delta > 0).sort((a, z) => z.delta - a.delta)[0];
+    const topSell = levels.filter(l => l.delta < 0).sort((a, z) => a.delta - z.delta)[0];
+    if (topBuy && topBuy.delta >= minLot) pickMap.set(topBuy.priceLevel, topBuy);
+    if (topSell && Math.abs(topSell.delta) >= minLot) pickMap.set(topSell.priceLevel, topSell);
 
-    return [...pickMap.values()].sort((a, z) => z.total - a.total).slice(0, 6);
+    return [...pickMap.values()]
+      .sort((a, z) => Math.abs(z.delta) - Math.abs(a.delta))
+      .slice(0, 6);
   }, [base]);
 
   footprintSnapRef.current = (bar, n) => getBarFootprint(bar, n).map(l => ({ priceLevel: l.priceLevel, total: l.total }));
@@ -4932,28 +4961,24 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             bubbleHoverRef.current = null;
           }
         } else if (!bubblesPaused) {
-        // ── Pass A: spawn ONLY from real tick-accumulator levels (tickAccRef).
-        //   No getBarFootprint() synthetic fallback. No bubble if the bar has no
-        //   qualifying large aggressive trade at that price level. ────────────────
+        // ── Pass A: delta-bucket bubbles from real tickAccRef (no synthetic footprint).
         visibleBars.forEach(c => {
           const rawCx = chart.timeScale().timeToCoordinate(c.time as any);
           if (rawCx == null || rawCx < -colW || rawCx > W + colW) return;
           const cx = Math.round(rawCx);
 
-          const ranked = getRealBigTradeLevels(c);
+          const ranked = getDeltaBubbleLevels(c);
           if (ranked.length === 0) return;
-
-          const barMean = ranked.reduce((s, lv) => s + lv.total, 0) / ranked.length;
 
           ranked.forEach((lv, rankIdx) => {
             const key = String(c.time) + ":" + lv.priceLevel;
             if (bubbleSpawnRef.current.has(key)) return;
             bubbleSpawnRef.current.add(key);
 
-            const ratio = lv.total / Math.max(1, barMean);
-            const baseR = Math.round(Math.max(9, Math.min(28, 9 + Math.sqrt(Math.max(0, ratio - 1)) * 11)));
-            const side: "buy" | "sell" = lv.ask >= lv.bid ? "buy" : "sell";
-            const value = (side === "buy" ? 1 : -1) * Math.round(lv.total);
+            const absDelta = Math.abs(lv.delta);
+            const baseR = Math.round(Math.max(9, Math.min(28, 8 + Math.sqrt(absDelta) * 0.8)));
+            const side: "buy" | "sell" = lv.delta >= 0 ? "buy" : "sell";
+            const value = (side === "buy" ? 1 : -1) * Math.round(absDelta);
             const sph   = Math.sin((c.time as number) * 0.017 + lv.priceLevel * 0.531 + rankIdx * 1.7) * 43758.5453;
             const phase = (sph - Math.floor(sph)) * Math.PI * 2;
             const rawLevY = srs.priceToCoordinate(lv.priceLevel);
@@ -5485,7 +5510,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // each frame, so it stays alive across live ticks (was rebuilding 4x/sec on
     // crypto, which made the VP/footprint flash off). Re-runs only on real config
     // changes below.
-  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, extendedHours, timeframe, fixedVPActive, sessionVPActive]);
+  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getDeltaBubbleLevels, extendedHours, timeframe, fixedVPActive, sessionVPActive]);
 
   /* ── Derived display values ─────────────────────────────── */
   const change    = ticker.change ?? (lastPrice - openPrice);
