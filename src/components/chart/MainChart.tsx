@@ -956,9 +956,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     anchorPrice: number; // price → home Y re-anchor on scroll/zoom
     levelIdx:  number;   // rank within the candle (for horizontal stagger)
     siblingN:  number;   // how many bubbles share this candle
+    kind:      "big-trade" | "delta";
+    spawnKey:  string;   // dedupe + cull key (bt: / dt: prefixes)
   };
-  const bubblesRef    = useRef<Bubble[]>([]);
-  const bubbleSpawnRef = useRef<Set<string>>(new Set()); // dedupe spawns per bar-key
+  const bubblesRef    = useRef<Bubble[]>([]);           // Big Trades — individual large prints
+  const bubbleSpawnRef = useRef<Set<string>>(new Set());
+  const deltaBubblesRef = useRef<Bubble[]>([]);       // Delta mode — net delta per zone
+  const deltaBubbleSpawnRef = useRef<Set<string>>(new Set());
   const bubbleIdRef    = useRef(0);
   const bubbleHoverRef = useRef<number | null>(null);     // hovered bubble id
   // Big-Trades Pause / Refresh + max-visible controls (toolbar gear dropdown).
@@ -4045,9 +4049,49 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     return levels;
   }, [base]);
 
+  /** Big Trades ONLY — individual large aggressive prints at exact tick prices. */
+  const getRealBigTradeLevels = useCallback((bar: Bar): Array<{
+    priceLevel: number; bid: number; ask: number; total: number;
+  }> => {
+    const barTime = bar.time as number;
+    const realData = tickAccRef.current.get(barTime);
+    if (!realData || realData.size === 0) return [];
+
+    const dp = base > 100 ? 2 : 4;
+    const minLot = minBigTradeLot(base);
+    const levels: Array<{ priceLevel: number; bid: number; ask: number; total: number }> = [];
+    for (const [px, rt] of realData) {
+      const total = rt.bid + rt.ask;
+      if (total < minLot) continue;
+      levels.push({
+        priceLevel: +Number(px).toFixed(dp),
+        bid: rt.bid,
+        ask: rt.ask,
+        total,
+      });
+    }
+    if (levels.length === 0) return [];
+
+    const barMean = levels.reduce((s, l) => s + l.total, 0) / levels.length;
+    const threshold = Math.max(minLot, barMean * 1.35);
+
+    const pickMap = new Map<number, typeof levels[0]>();
+    for (const l of levels.filter(x => x.total >= threshold).sort((a, z) => z.total - a.total).slice(0, 5)) {
+      pickMap.set(l.priceLevel, l);
+    }
+    const topBuy = levels.filter(l => l.ask >= l.bid && l.ask >= minLot)
+      .sort((a, z) => z.ask - a.ask)[0];
+    const topSell = levels.filter(l => l.bid > l.ask && l.bid >= minLot)
+      .sort((a, z) => z.bid - a.bid)[0];
+    if (topBuy  && topBuy.total  >= minLot) pickMap.set(topBuy.priceLevel, topBuy);
+    if (topSell && topSell.total >= minLot) pickMap.set(topSell.priceLevel, topSell);
+
+    return [...pickMap.values()].sort((a, z) => z.total - a.total).slice(0, 8);
+  }, [base]);
+
   /**
-   * Delta bubbles: bucket REAL tick-acc levels across the candle range (6–10 bins),
-   * net aggressive buy vs sell per bin. Still tickAccRef-only — no synthetic footprint.
+   * Delta Bubbles ONLY — net aggressive delta per price zone (6–10 bins).
+   * Separate from Big Trades; still tickAccRef-only, no synthetic footprint.
    */
   const getDeltaBubbleLevels = useCallback((bar: Bar): Array<{
     priceLevel: number; bid: number; ask: number; total: number; delta: number;
@@ -4609,6 +4653,129 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       }
 
       /* ══════════════════════════════════════════════════════
+         WM DELTA BUBBLES — separate from Big Trades.
+         Net aggressive delta per price zone; only in delta footprint mode.
+      ══════════════════════════════════════════════════════ */
+      if (effectiveFP === "delta") {
+        const realTapeD = hasRealAggressorTape(tapeSourceRef.current ?? "");
+        if (!realTapeD) {
+          if (deltaBubblesRef.current.length) {
+            deltaBubblesRef.current = [];
+            deltaBubbleSpawnRef.current = new Set();
+          }
+        } else if (!bubblePausedRef.current) {
+          visibleBars.forEach(c => {
+            const rawCx = chart.timeScale().timeToCoordinate(c.time as any);
+            if (rawCx == null || rawCx < -colW || rawCx > W + colW) return;
+            const cx = Math.round(rawCx);
+            const ranked = getDeltaBubbleLevels(c);
+            if (ranked.length === 0) return;
+            ranked.forEach((lv, rankIdx) => {
+              const spawnKey = `dt:${c.time}:${lv.priceLevel}`;
+              if (deltaBubbleSpawnRef.current.has(spawnKey)) return;
+              deltaBubbleSpawnRef.current.add(spawnKey);
+              const absDelta = Math.abs(lv.delta);
+              const baseR = Math.round(Math.max(9, Math.min(26, 8 + Math.sqrt(absDelta) * 0.8)));
+              const side: "buy" | "sell" = lv.delta >= 0 ? "buy" : "sell";
+              const sph = Math.sin((c.time as number) * 0.023 + lv.priceLevel * 0.417 + rankIdx * 2.1) * 43758.5453;
+              const phase = (sph - Math.floor(sph)) * Math.PI * 2;
+              const rawLevY = srs.priceToCoordinate(lv.priceLevel);
+              if (rawLevY == null) return;
+              deltaBubblesRef.current.push({
+                id: ++bubbleIdRef.current,
+                x: cx, y: Math.round(rawLevY), vx: 0, vy: 0,
+                baseR, r: baseR * 0.35, phase, big: false,
+                side,
+                value: (side === "buy" ? 1 : -1) * Math.round(absDelta),
+                born: (c.time as number) * 1000 + rankIdx + 500,
+                anchorTime: c.time as number,
+                anchorPrice: lv.priceLevel,
+                levelIdx: rankIdx,
+                siblingN: ranked.length,
+                kind: "delta",
+                spawnKey,
+              });
+            });
+          });
+        }
+        if (deltaBubbleSpawnRef.current.size > 400) deltaBubbleSpawnRef.current = new Set();
+
+        const nowDelta = performance.now();
+        for (const b of deltaBubblesRef.current) {
+          const hx = chart.timeScale().timeToCoordinate(b.anchorTime as any);
+          const hy = srs.priceToCoordinate(b.anchorPrice);
+          if (hx == null || hy == null) continue;
+          const bob = Math.sin(b.phase + nowDelta / 1600) * 3;
+          const sibN = b.siblingN ?? 1;
+          const lvlIx = b.levelIdx ?? 0;
+          const spread = sibN > 1 ? Math.min(28, Math.max(14, b.baseR * 0.75)) : 0;
+          const offX = sibN > 1 ? (lvlIx - (sibN - 1) / 2) * spread : 0;
+          const homeX = hx + offX + Math.cos(b.phase + nowDelta / 2400) * 2;
+          const homeY = hy + bob - 3;
+          b.vx += (homeX - b.x) * 0.012; b.vy += (homeY - b.y) * 0.012;
+          b.vx *= 0.93; b.vy *= 0.93;
+          b.x += b.vx; b.y += b.vy;
+          if (b.r < b.baseR) b.r += (b.baseR - b.r) * 0.12;
+        }
+        const deltaSurvivors: Bubble[] = [];
+        for (const b of deltaBubblesRef.current) {
+          const hx = chart.timeScale().timeToCoordinate(b.anchorTime as any);
+          if (hx == null || hx < -80 || hx > W + 80) {
+            deltaBubbleSpawnRef.current.delete(b.spawnKey);
+            continue;
+          }
+          deltaSurvivors.push(b);
+        }
+        deltaBubblesRef.current = deltaSurvivors;
+
+        const hoverIdD = bubbleHoverRef.current;
+        for (const b of deltaBubblesRef.current) {
+          const buy = b.side === "buy";
+          const core = buy ? "34,197,94" : "239,68,68";
+          const isHover = hoverIdD === b.id;
+          const t = nowDelta / 520 + b.phase;
+          const wob = 1 + Math.sin(t) * 0.05;
+          const Rx = Math.max(0.1, b.r * wob);
+          const Ry = Math.max(0.1, b.r / wob);
+          ctx.save();
+          ctx.beginPath();
+          ctx.ellipse(b.x, b.y, Rx + 4, Ry + 4, 0, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${core},0.10)`;
+          ctx.fill();
+          const g = ctx.createRadialGradient(b.x, b.y, Rx * 0.2, b.x, b.y, Rx);
+          g.addColorStop(0, `rgba(${core},0.04)`);
+          g.addColorStop(0.72, `rgba(${core},0.08)`);
+          g.addColorStop(0.93, `rgba(${core},0.26)`);
+          g.addColorStop(1, `rgba(255,255,255,0.32)`);
+          ctx.beginPath();
+          ctx.ellipse(b.x, b.y, Rx, Ry, 0, 0, Math.PI * 2);
+          ctx.fillStyle = g;
+          ctx.fill();
+          ctx.beginPath();
+          ctx.ellipse(b.x, b.y, Math.max(0.1, Rx - 0.6), Math.max(0.1, Ry - 0.6), 0, 0, Math.PI * 2);
+          ctx.lineWidth = isHover ? 2.6 : 1.7;
+          ctx.strokeStyle = `rgba(255,255,255,${isHover ? 0.98 : 0.82})`;
+          ctx.stroke();
+          if (b.r >= 7) {
+            const p = b.anchorPrice;
+            const lbl = p >= 100 ? p.toFixed(2) : p >= 1 ? p.toFixed(2) : p.toFixed(4);
+            const fontPx = Math.max(8, Math.min(13, Rx * 0.48));
+            ctx.font = `bold ${fontPx}px Inter, monospace`;
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.lineWidth = Math.max(2, fontPx * 0.22);
+            ctx.strokeStyle = "rgba(0,0,0,0.88)";
+            ctx.strokeText(lbl, b.x, b.y);
+            ctx.fillStyle = "rgba(255,255,255,0.99)";
+            ctx.fillText(lbl, b.x, b.y);
+          }
+          ctx.restore();
+        }
+      } else if (deltaBubblesRef.current.length) {
+        deltaBubblesRef.current = [];
+        deltaBubbleSpawnRef.current = new Set();
+      }
+
+      /* ══════════════════════════════════════════════════════
          MODE 3: VOLUME PROFILE — horizontal VP bars per bar
          Full candle height, bid left / ask right split bars,
          bid/ask numbers at each row, gold POC line
@@ -4961,24 +5128,26 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             bubbleHoverRef.current = null;
           }
         } else if (!bubblesPaused) {
-        // ── Pass A: delta-bucket bubbles from real tickAccRef (no synthetic footprint).
+        // ── Pass A: Big Trades — individual large prints at EXACT tick prices.
         visibleBars.forEach(c => {
           const rawCx = chart.timeScale().timeToCoordinate(c.time as any);
           if (rawCx == null || rawCx < -colW || rawCx > W + colW) return;
           const cx = Math.round(rawCx);
 
-          const ranked = getDeltaBubbleLevels(c);
+          const ranked = getRealBigTradeLevels(c);
           if (ranked.length === 0) return;
 
-          ranked.forEach((lv, rankIdx) => {
-            const key = String(c.time) + ":" + lv.priceLevel;
-            if (bubbleSpawnRef.current.has(key)) return;
-            bubbleSpawnRef.current.add(key);
+          const barMean = ranked.reduce((s, lv) => s + lv.total, 0) / ranked.length;
 
-            const absDelta = Math.abs(lv.delta);
-            const baseR = Math.round(Math.max(9, Math.min(28, 8 + Math.sqrt(absDelta) * 0.8)));
-            const side: "buy" | "sell" = lv.delta >= 0 ? "buy" : "sell";
-            const value = (side === "buy" ? 1 : -1) * Math.round(absDelta);
+          ranked.forEach((lv, rankIdx) => {
+            const spawnKey = `bt:${c.time}:${lv.priceLevel}`;
+            if (bubbleSpawnRef.current.has(spawnKey)) return;
+            bubbleSpawnRef.current.add(spawnKey);
+
+            const ratio = lv.total / Math.max(1, barMean);
+            const baseR = Math.round(Math.max(9, Math.min(28, 9 + Math.sqrt(Math.max(0, ratio - 1)) * 11)));
+            const side: "buy" | "sell" = lv.ask >= lv.bid ? "buy" : "sell";
+            const value = (side === "buy" ? 1 : -1) * Math.round(lv.total);
             const sph   = Math.sin((c.time as number) * 0.017 + lv.priceLevel * 0.531 + rankIdx * 1.7) * 43758.5453;
             const phase = (sph - Math.floor(sph)) * Math.PI * 2;
             const rawLevY = srs.priceToCoordinate(lv.priceLevel);
@@ -4999,6 +5168,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               anchorPrice: lv.priceLevel,
               levelIdx: rankIdx,
               siblingN: ranked.length,
+              kind: "big-trade",
+              spawnKey,
             });
             playBloop(baseR > 24);
           });
@@ -5022,7 +5193,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const bob   = Math.sin(b.phase + nowMs / 1600) * 3;
           const sibN  = b.siblingN ?? 1;
           const lvlIx = b.levelIdx ?? 0;
-          const spread = sibN > 1 ? Math.min(20, Math.max(10, b.baseR * 0.62)) : 0;
+          const spread = sibN > 1 ? Math.min(28, Math.max(14, b.baseR * 0.75)) : 0;
           const offX  = sibN > 1 ? (lvlIx - (sibN - 1) / 2) * spread : 0;
           const homeX = hx + offX + Math.cos(b.phase + nowMs / 2400) * 2;
           const homeY = hy + bob - 3;
@@ -5041,7 +5212,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const hx = chart.timeScale().timeToCoordinate(b.anchorTime as any);
           if (hx == null || hx < -80 || hx > W + 80) {
             // free this level's dedupe key so it re-spawns on pan-back
-            bubbleSpawnRef.current.delete(String(b.anchorTime) + ":" + b.anchorPrice);
+            bubbleSpawnRef.current.delete(b.spawnKey ?? `bt:${b.anchorTime}:${b.anchorPrice}`);
             continue;
           }
           survivors.push(b);
@@ -5510,7 +5681,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // each frame, so it stays alive across live ticks (was rebuilding 4x/sec on
     // crypto, which made the VP/footprint flash off). Re-runs only on real config
     // changes below.
-  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getDeltaBubbleLevels, extendedHours, timeframe, fixedVPActive, sessionVPActive]);
+  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, fixedVPActive, sessionVPActive]);
 
   /* ── Derived display values ─────────────────────────────── */
   const change    = ticker.change ?? (lastPrice - openPrice);
@@ -6059,7 +6230,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // Attached to the chart wrapper so it fires in cursor mode without blocking
   // chart panning (drawing tools keep their own handler on drawCanvas).
   const handleOverlayMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const bubbles = bubblesRef.current;
+    const bubbles = [...bubblesRef.current, ...deltaBubblesRef.current];
     if (!bubbles.length) {
       if (bubbleHoverRef.current !== null) { bubbleHoverRef.current = null; setBubbleTip(null); }
       return;
