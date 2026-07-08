@@ -289,6 +289,25 @@ export function ChartsDashboard() {
     setAllAlerts(alerts);
   }, []);
 
+  const createAlertAtPrice = useCallback((price: number) => {
+    if (!price || !Number.isFinite(price)) return;
+    const ref = currentPrice > 0 ? currentPrice : price;
+    const type: PriceAlert["type"] = price >= ref ? "above" : "below";
+    const alert: PriceAlert = {
+      id: `alert-${Date.now()}`,
+      symbol,
+      price,
+      type,
+      triggered: false,
+      createdAt: Date.now(),
+    };
+    setAllAlerts(prev => {
+      const next = [...prev, alert];
+      try { localStorage.setItem("wm_price_alerts", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, [symbol, currentPrice]);
+
   // Only draw alert lines for the CURRENT symbol — otherwise an alert on another
   // symbol (e.g. a 1100-level futures alert) leaks onto every chart and, being a
   // line on the price scale, drags the scale out and crushes the candles.
@@ -1123,6 +1142,7 @@ export function ChartsDashboard() {
                       onBarsReady={handleBarsReady}
                       drawingTool={drawingTool}
                       onDrawingComplete={() => setDrawingTool("cursor")}
+                      onCreatePriceAlert={createAlertAtPrice}
                       drawingStyle={drawingStyle}
                       magnetActive={magnetActive}
                       lockDrawings={lockActive}

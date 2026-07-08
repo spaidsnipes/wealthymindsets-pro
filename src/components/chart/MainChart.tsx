@@ -21,8 +21,9 @@ import type { PineOutput } from "@/lib/pine/types";
 import { interpretPine } from "@/lib/pine/interpreter";
 import * as IND from "./indicators";
 import { computeDeltaVP, type DeltaVPLevel } from "@/lib/deltaVP";
-import type { DrawingStyle } from "./DrawingToolsPanel";
-import { DEFAULT_DRAWING_STYLE } from "./DrawingToolsPanel";
+import type { DrawingStyle, LogicalPt, DrawStyle, ChartDrawing } from "@/types/chart";
+import { DEFAULT_DRAWING_STYLE } from "@/types/chart";
+import { showAlertToast } from "./AlertsPanel";
 
 /* ── Types ─────────────────────────────────────────────── */
 interface Bar {
@@ -528,6 +529,7 @@ interface Props {
   magnetActive?:   boolean;
   lockDrawings?:   boolean;
   onDrawingComplete?: () => void;   // fired after a drawing is placed → return to cursor
+  onCreatePriceAlert?: (price: number) => void;
   drawingsVisible?:boolean;
   clearTrigger?:   number;
   activeInds?:     Set<string>;
@@ -794,6 +796,7 @@ const FIB_COLORS = ["#8892b0", "#4FA3E0", "#00C076", "#F0B429", "#F0B429", "#00C
 /* ── Component ──────────────────────────────────────────── */
 export function MainChart({ symbol, timeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, pineCode, onBarsReady,
   drawingTool = "cursor", drawingStyle = DEFAULT_DRAWING_STYLE, magnetActive = false, lockDrawings = false,
+  onCreatePriceAlert,
   onDrawingComplete,
   drawingsVisible = true, clearTrigger = 0, activeInds, indSettings, extendedHours,
   alertLevels = [], chartSettings, replayActive = false, replayBars,
@@ -1029,10 +1032,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // points (price/time) + a style. The `tool` id drives which geometry the
   // renderer/hit-tester produce, so ALL toolbar tools share one engine and
   // one editing path (color / width / line-style / text / delete).
-  type LogicalPt = { price: number; time: number }; // time = unix seconds (LightweightCharts UTCTimestamp)
-  type DashStyle = "solid" | "dashed" | "dotted";
-  interface DrawStyle { color: string; width: number; dash: DashStyle; fill: boolean; opacity: number; }
-  interface Drawing { id: number; tool: string; pts: LogicalPt[]; style: DrawStyle; text?: string; }
+  type Drawing = ChartDrawing;
 
   const drawingsRef     = useRef<Drawing[]>([]);
   const inProgressRef   = useRef<Drawing | null>(null);   // committed anchor points so far
@@ -5780,7 +5780,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
       if (selected) {
         ctx.save(); ctx.setLineDash([]); ctx.globalAlpha = 1;
-        const HS = 6;
+        const HS = 12;
         d.pts.forEach(p => { const q = toPx(p); if (!q) return; ctx.fillStyle = "#fff"; ctx.strokeStyle = "#00D4AA"; ctx.lineWidth = 2; ctx.beginPath(); ctx.rect(q.x - HS, q.y - HS, HS * 2, HS * 2); ctx.fill(); ctx.stroke(); });
         ctx.restore();
       }
@@ -6337,6 +6337,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             pointerEvents: drawingTool !== "cursor" ? "all" : "none",
             opacity: drawingsVisible ? 1 : 0,
             zIndex: 10,
+            touchAction: "none",
             willChange: drawingTool !== "cursor" ? "contents" : "auto",
           }}
           onMouseDown={handleDrawMouseDown}
@@ -6636,22 +6637,35 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               </span>
             </div>
             {[
-              // Delete nearest drawing if cursor is close to one
-              ...(ctxMenu.nearDrawingIdx !== null ? [{
-                label: "🗑 Delete this drawing", color: "#FF4D6A",
+              ...(ctxMenu.nearDrawingIdx !== null ? [
+                {
+                  label: "🎨 Edit style", color: "#4FA3E0",
+                  action: () => {
+                    setSelectedIdx(ctxMenu.nearDrawingIdx);
+                    setEditBump(v => v + 1);
+                    scheduleDrawRender();
+                  },
+                },
+                {
+                  label: "🗑 Delete this drawing", color: "#FF4D6A",
+                  action: () => {
+                    drawingsRef.current.splice(ctxMenu.nearDrawingIdx!, 1);
+                    setSelectedIdx(null);
+                    scheduleDrawRender();
+                    setRangeVer(v => v + 1);
+                  },
+                },
+              ] : []),
+              {
+                label: `🔔 Add Alert at ${ctxMenu.price}`, color: "#F5A623",
                 action: () => {
-                  drawingsRef.current.splice(ctxMenu.nearDrawingIdx!, 1);
-                  setSelectedIdx(null);
-                  setRangeVer(v => v + 1);
-                }
-              }] : []),
-              { label: `🔔 Add Alert at ${ctxMenu.price}`, color: "#F5A623", action: () => {
-                const lp = pixelToLogical(ctxMenu.x, ctxMenu.y);
-                if (lp) { const d = makeDrawing("hline", [lp]); d.style.color = "#F5A623"; drawingsRef.current.push(d); setRangeVer(v => v + 1); }
-              }},
+                  onCreatePriceAlert?.(ctxMenu.price);
+                  showAlertToast({ id: `ctx-${Date.now()}`, text: `Alert queued at ${ctxMenu.price}` });
+                },
+              },
               { label: "― Horizontal Line", color: "#8896BE", action: () => {
                 const lp = pixelToLogical(ctxMenu.x, ctxMenu.y);
-                if (lp) { drawingsRef.current.push(makeDrawing("hline", [lp])); setRangeVer(v => v + 1); }
+                if (lp) { drawingsRef.current.push(makeDrawing("hline", [lp])); scheduleDrawRender(); setRangeVer(v => v + 1); }
               }},
               { label: "✎ Add Text", color: "#8896BE", action: () => {
                 const lp = pixelToLogical(ctxMenu.x, ctxMenu.y);
@@ -6659,6 +6673,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                   drawingsRef.current.push(makeDrawing("text", [lp], ""));
                   const newIdx = drawingsRef.current.length - 1;
                   setSelectedIdx(newIdx);
+                  scheduleDrawRender();
                   setRangeVer(v => v + 1);
                   setTextEdit({ idx: newIdx });
                 }

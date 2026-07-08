@@ -6,45 +6,14 @@ import {
   Trash2, Magnet, Lock, Eye, EyeOff,
   ChevronDown, Pen,
 } from "lucide-react";
+import type { DrawingTool, DrawingStyle, DashStyle } from "@/types/chart";
+import {
+  DEFAULT_DRAWING_STYLE,
+  isStyleCapableTool,
+} from "@/types/chart";
 
-/* Every id here maps 1:1 to a real renderer branch in MainChart.tsx
-   (DRAW_PTS / drawOne). Keep this union a SUPERSET of the ids used by
-   LeftDrawingSidebar.tsx and ChartsDashboard.tsx. */
-export type DrawingTool =
-  | "cursor" | "crosshair" | "select" | "eraser"
-  // lines
-  | "trendline" | "ray" | "info-line" | "extended-line" | "trend-angle"
-  | "hline" | "hray" | "vline" | "crossline"
-  // channels
-  | "parallel-channel" | "channel" | "regression" | "flat-channel" | "disjoint-channel"
-  // pitchforks
-  | "pitchfork" | "schiff" | "modified-schiff" | "inside-pitchfork"
-  // fibonacci
-  | "fibonacci" | "fib-ext" | "fib-channel" | "fib-timezone" | "fib-speed-fan"
-  | "fib-time" | "fib-circles" | "fib-spiral" | "fib-arcs" | "fib-wedge" | "fib-pitchfan"
-  // gann
-  | "gann-box" | "gann-square-fixed" | "gann-square" | "gann-fan"
-  // patterns
-  | "xabcd" | "cypher" | "head-shoulders" | "abcd" | "pattern-triangle" | "three-drives"
-  // elliott
-  | "elliott-impulse" | "elliott-correction" | "elliott-triangle" | "elliott-double" | "elliott-triple"
-  // cycles
-  | "cyclic-lines" | "time-cycles" | "sine-line"
-  // measure & positions
-  | "price-range" | "date-range" | "date-price-range" | "measure"
-  | "long-position" | "short-position"
-  // order flow
-  | "delta-vp"
-  // brushes
-  | "brush" | "highlighter"
-  // arrows
-  | "arrow" | "arrow-up" | "arrow-down"
-  // shapes
-  | "rect" | "rotated-rect" | "path" | "circle" | "ellipse" | "polyline"
-  | "triangle" | "arc" | "curve" | "double-curve"
-  // text & notes
-  | "text" | "note" | "price-note" | "pin" | "callout" | "comment"
-  | "price-label" | "signpost" | "flag";
+export type { DrawingTool, DrawingStyle, DashStyle };
+export { DEFAULT_DRAWING_STYLE, isStyleCapableTool };
 
 interface ToolItem { id: DrawingTool; label: string; icon: string; desc: string; }
 interface ToolGroup { label: string; color: string; tools: ToolItem[]; }
@@ -208,24 +177,6 @@ const COLORS = [
   "#00D4AA","#4FA3E0","#F0B429","#FF4D6A","#8B5CF6",
   "#FFFFFF","#94A3B8","#F97316","#06B6D4","#EC4899",
 ];
-
-export type DashStyle = "solid" | "dashed" | "dotted";
-
-export interface DrawingStyle {
-  color:   string;
-  width:   number;      // 1–4 px
-  dash:    DashStyle;
-  opacity: number;      // 0–100
-}
-
-export const DEFAULT_DRAWING_STYLE: DrawingStyle = {
-  color: "#00D4AA", width: 2, dash: "solid", opacity: 100,
-};
-
-/** Tools that expose line/brush/text styling (not cursor / select / eraser). */
-export function isStyleCapableTool(t: DrawingTool): boolean {
-  return t !== "cursor" && t !== "select" && t !== "eraser" && t !== "crosshair";
-}
 
 interface StylePopoverProps {
   style:    DrawingStyle;
