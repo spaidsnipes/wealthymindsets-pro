@@ -229,9 +229,6 @@ function computeConfluence(price: number, f: Flow): Confluence {
 const hasRealAggressorTape = (src: string | null) =>
   src === "finnhub" || src === "polygon" || src === "alpaca" || src === "binance";
 
-const minAggressorLot = (price: number) =>
-  price > 10_000 ? 2 : price > 100 ? 15 : price > 1 ? 0.05 : 0.001;
-
 export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symbol: string }) {
   const { ticker, recentTicks, liveBar, tapeSource } = useWebSocket({ symbol, timeframe: "1m" });
   const livePrice = ticker.price > 0 ? ticker.price : 0;
@@ -246,9 +243,11 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
         candleUp: liveBar ? Number(liveBar.close) >= Number(liveBar.open) : true,
       };
     }
-    const minLot = minAggressorLot(livePrice || 100);
+    // Delta flow uses EVERY real executed trade (tick.trade) with NO lot floor —
+    // the old minAggressorLot filter (≥2 BTC on crypto) discarded ~100% of real
+    // Coinbase flow and starved this whole panel to "NO TAPE". Real trades only.
     const ticks = (Array.isArray(recentTicks) ? recentTicks : [])
-      .filter(t => (Number(t?.size) || 0) >= minLot);
+      .filter(t => t?.trade === true && (Number(t?.size) || 0) > 0);
     let askVol = 0, bidVol = 0, pv = 0, vol = 0;
     for (const t of ticks) {
       const size = Number(t?.size) || 0;
@@ -278,9 +277,11 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
   // tape → no bubbles (we never invent levels). Honest by construction.
   const deltaLevels = React.useMemo(() => {
     if (!realTape) return [] as { price: number; delta: number; vol: number }[];
-    const minLot = minAggressorLot(livePrice || 100);
     const ticks = Array.isArray(recentTicks) ? recentTicks : [];
-    const clean = ticks.filter(t => (Number(t?.size) || 0) >= minLot && (Number(t?.price) || 0) > 0);
+    // Same honest rule as the flow snapshot + the chart's delta engine: every real
+    // executed trade (tick.trade), no lot floor, so bubbles reflect full aggressive
+    // flow per zone on any feed (BTC 0.01Δ or TSLA 50sh alike). Never invent levels.
+    const clean = ticks.filter(t => t?.trade === true && (Number(t?.size) || 0) > 0 && (Number(t?.price) || 0) > 0);
     if (clean.length === 0) return [] as { price: number; delta: number; vol: number }[];
     let lo = Infinity, hi = -Infinity;
     for (const t of clean) { const p = Number(t.price); if (p < lo) lo = p; if (p > hi) hi = p; }
