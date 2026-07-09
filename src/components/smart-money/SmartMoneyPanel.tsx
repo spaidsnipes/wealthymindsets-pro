@@ -511,6 +511,10 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
         </div>
       </div>
 
+      {/* ── SCROLLABLE BODY — header + confluence stay pinned above; everything
+          below scrolls so no section is ever clipped on short viewports ───── */}
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+
       {/* ── DELTA DOMINATION (the tug-of-war) ─────────────────────────────── */}
       <div className="mx-2 my-1.5 p-2 rounded-lg bg-wm-surface border border-wm-border shrink-0">
         <div className="flex items-center gap-1.5 mb-1.5">
@@ -834,8 +838,8 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
         </div>
       )}
 
-      {/* Sections */}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+      {/* Sections (now inside the shared scrollable body above) */}
+      <div>
         {SECTIONS.map(sec => {
           const open = openSections.has(sec.key);
           const sectionSignals = signals.slice(sec.from, sec.to);
@@ -952,6 +956,8 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
             ? `Aggressive ${isBull ? "buyers defending" : "sellers capping"} ${defendPx} on ${symbol}. ${isBull ? "High-conviction long" : "High-conviction short"} setup. CLC confirmed.`
             : `Waiting for live ${symbol} tape — connect a data feed to stream order-flow alerts.`}
         </div>
+      </div>
+      {/* ── end SCROLLABLE BODY ── */}
       </div>
     </motion.div>
   );
