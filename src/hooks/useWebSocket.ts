@@ -24,6 +24,10 @@ export interface Tick {
   size:  number;
   side:  "buy" | "sell";
   time:  number;
+  /** True only for genuine executed trades (not bookTicker/quote/REST/synthetic
+   *  price-direction ticks). Delta Bubbles consume only real trades — this flag
+   *  lets the consumer include full aggressive flow without quote/synthetic noise. */
+  trade?: boolean;
 }
 
 export interface OHLCVBar {
@@ -201,7 +205,7 @@ function tryPolygon(
             onStatus(true);
           }
           if (m.ev === "T") {
-            onTick({ price: m.p, size: m.s, side: m.c?.[0] === 1 ? "buy" : "sell", time: m.t }, true);
+            onTick({ price: m.p, size: m.s, side: m.c?.[0] === 1 ? "buy" : "sell", time: m.t, trade: true }, true);
           }
         }
       } catch {}
@@ -262,7 +266,7 @@ function tryFinnhub(
             if (!Number.isFinite(px) || px <= 0 || !Number.isFinite(sz) || sz <= 0) continue;
             const side: "buy" | "sell" = px >= lastTradePx ? "buy" : "sell";
             lastTradePx = px;
-            onTick({ price: px, size: sz, side, time: t.t }, true);
+            onTick({ price: px, size: sz, side, time: t.t, trade: true }, true);
           }
         }
       } catch {}
@@ -356,7 +360,7 @@ function tryBinance(
           const price = parseFloat(m.p);
           if (price > 0) {
             lastPx = price;
-            onTick({ price, size: parseFloat(m.q) || 0.01, side: m.m ? "sell" : "buy", time: m.T ?? Date.now() }, true);
+            onTick({ price, size: parseFloat(m.q) || 0.01, side: m.m ? "sell" : "buy", time: m.T ?? Date.now(), trade: true }, true);
           }
         } else if (m.e === "24hrTicker" && m.c) {
           // @ticker: carries last price + 24h change % (used for the day-change display)
@@ -451,7 +455,7 @@ function tryCoinbase(
           if (price > 0) {
             // Coinbase `side` is the maker side; aggressor is the opposite.
             const side: "buy" | "sell" = m.side === "sell" ? "buy" : "sell";
-            onTick({ price, size: parseFloat(m.last_size) || 0.01, side, time: Date.now() }, true);
+            onTick({ price, size: parseFloat(m.last_size) || 0.01, side, time: Date.now(), trade: true }, true);
           }
         }
       } catch { /* ignore */ }

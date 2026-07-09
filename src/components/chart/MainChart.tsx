@@ -1360,6 +1360,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // Map<barTime, Map<priceRounded, {bid, ask}>>
   const tickAccRef = useRef<Map<number, Map<number, { bid: number; ask: number }>>>(new Map());
   const processedTicksRef = useRef<Set<string>>(new Set());
+  // ── Delta accumulator: SEPARATE from Big Trades. Captures EVERY real executed
+  // trade (no minLot floor) so net aggressive delta per price zone reflects the
+  // full aggressive flow. Real trades only (tick.trade) — never quote/synthetic. ──
+  const deltaTickAccRef = useRef<Map<number, Map<number, { bid: number; ask: number }>>>(new Map());
+  const deltaProcessedRef = useRef<Set<string>>(new Set());
   const tapeSourceRef = useRef(tapeSource);
   useEffect(() => { tapeSourceRef.current = tapeSource; }, [tapeSource]);
   // Late-bound ref so magnet snap can read footprint levels after getBarFootprint is defined.
@@ -1375,6 +1380,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   useEffect(() => {
     tickAccRef.current = new Map();
     processedTicksRef.current = new Set();
+    deltaTickAccRef.current = new Map();
+    deltaProcessedRef.current = new Set();
   }, [symbol]);
 
   useEffect(() => {
@@ -1407,6 +1414,43 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     if (tickAccRef.current.size > 400) {
       const oldest = [...tickAccRef.current.keys()].sort((a, b) => a - b)[0];
       tickAccRef.current.delete(oldest);
+    }
+  }, [recentTicks, timeframe, base, tapeSource]);
+
+  // ── Delta accumulator population: EVERY real executed trade (tick.trade),
+  //    NO minLot floor → full aggressive flow so net-delta-per-zone reflects
+  //    real buying/selling pressure. Separate from Big Trades (tickAccRef above,
+  //    which stays lot-filtered and untouched). Real trades only — the tick.trade
+  //    flag excludes bookTicker/quote/REST/synthetic price-direction ticks. ──
+  useEffect(() => {
+    if (!recentTicks?.length || !hasRealAggressorTape(tapeSource ?? "")) return;
+    const intervalSec = getIntervalSec(timeframe);
+    const minTick = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
+    const dp      = base > 100 ? 2 : 4;
+
+    recentTicks.forEach(tick => {
+      if (!tick.trade) return;                                  // real executed trades only
+      if (!Number.isFinite(tick.price) || tick.price <= 0) return;
+      if (!Number.isFinite(tick.size)  || tick.size  <= 0) return;
+      const dedupeKey = `${tick.time}|${tick.price}|${tick.size}|${tick.side}`;
+      if (deltaProcessedRef.current.has(dedupeKey)) return;
+      deltaProcessedRef.current.add(dedupeKey);
+      if (deltaProcessedRef.current.size > 12000) {
+        deltaProcessedRef.current = new Set([...deltaProcessedRef.current].slice(-6000));
+      }
+      const barTime = Math.floor(tick.time / 1000 / intervalSec) * intervalSec;
+      const priceLevel = +(Math.round(tick.price / minTick) * minTick).toFixed(dp);
+      if (!deltaTickAccRef.current.has(barTime)) deltaTickAccRef.current.set(barTime, new Map());
+      const lvlMap = deltaTickAccRef.current.get(barTime)!;
+      const existing = lvlMap.get(priceLevel) ?? { bid: 0, ask: 0 };
+      lvlMap.set(priceLevel, {
+        bid: existing.bid + (tick.side === "sell" ? tick.size : 0),
+        ask: existing.ask + (tick.side === "buy"  ? tick.size : 0),
+      });
+    });
+    if (deltaTickAccRef.current.size > 400) {
+      const oldest = [...deltaTickAccRef.current.keys()].sort((a, b) => a - b)[0];
+      deltaTickAccRef.current.delete(oldest);
     }
   }, [recentTicks, timeframe, base, tapeSource]);
 
@@ -4097,12 +4141,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     priceLevel: number; bid: number; ask: number; total: number; delta: number;
   }> => {
     const barTime = bar.time as number;
-    const realData = tickAccRef.current.get(barTime);
+    const realData = deltaTickAccRef.current.get(barTime);
     if (!realData || realData.size === 0) return [];
 
     const priceTick = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
     const dp = base > 100 ? 2 : 4;
-    const minLot = minBigTradeLot(base);
 
     const tickEntries: Array<{ price: number; bid: number; ask: number }> = [];
     let lo = bar.low, hi = bar.high;
@@ -4132,14 +4175,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         }
       }
       const total = bid + ask;
-      if (total < minLot) continue;
+      if (total <= 0) continue;
       const delta = ask - bid; // aggressive buy − aggressive sell
       levels.push({ priceLevel, bid, ask, total, delta });
     }
     if (levels.length === 0) return [];
 
     const meanAbsDelta = levels.reduce((s, l) => s + Math.abs(l.delta), 0) / levels.length;
-    const threshold = Math.max(minLot, meanAbsDelta * 1.35);
+    // Data-relative threshold (no absolute lot floor) so it works on any asset:
+    // BTC (deltas ~0.05 BTC) and stocks (deltas ~50 sh) alike. Above-average zones.
+    const threshold = meanAbsDelta;
 
     const pickMap = new Map<number, typeof levels[0]>();
     for (const l of levels
@@ -4148,10 +4193,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       .slice(0, 5)) {
       pickMap.set(l.priceLevel, l);
     }
+    // Guaranteed buy + sell leaders so every active bar shows both sides.
     const topBuy = levels.filter(l => l.delta > 0).sort((a, z) => z.delta - a.delta)[0];
     const topSell = levels.filter(l => l.delta < 0).sort((a, z) => a.delta - z.delta)[0];
-    if (topBuy && topBuy.delta >= minLot) pickMap.set(topBuy.priceLevel, topBuy);
-    if (topSell && Math.abs(topSell.delta) >= minLot) pickMap.set(topSell.priceLevel, topSell);
+    if (topBuy) pickMap.set(topBuy.priceLevel, topBuy);
+    if (topSell) pickMap.set(topSell.priceLevel, topSell);
 
     return [...pickMap.values()]
       .sort((a, z) => Math.abs(z.delta) - Math.abs(a.delta))
@@ -4670,12 +4716,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             const cx = Math.round(rawCx);
             const ranked = getDeltaBubbleLevels(c);
             if (ranked.length === 0) return;
+            const maxAbsD = Math.max(...ranked.map(l => Math.abs(l.delta)), 1e-9);
             ranked.forEach((lv, rankIdx) => {
               const spawnKey = `dt:${c.time}:${lv.priceLevel}`;
               if (deltaBubbleSpawnRef.current.has(spawnKey)) return;
               deltaBubbleSpawnRef.current.add(spawnKey);
               const absDelta = Math.abs(lv.delta);
-              const baseR = Math.round(Math.max(9, Math.min(26, 8 + Math.sqrt(absDelta) * 0.8)));
+              // Radius normalized to the bar's strongest zone → always visible AND
+              // volume-proportional on any asset (BTC 0.05Δ or stock 500Δ alike).
+              const norm = Math.sqrt(absDelta / maxAbsD);
+              const baseR = Math.round(11 + norm * 14);
               const side: "buy" | "sell" = lv.delta >= 0 ? "buy" : "sell";
               const sph = Math.sin((c.time as number) * 0.023 + lv.priceLevel * 0.417 + rankIdx * 2.1) * 43758.5453;
               const phase = (sph - Math.floor(sph)) * Math.PI * 2;
@@ -4686,7 +4736,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 x: cx, y: Math.round(rawLevY), vx: 0, vy: 0,
                 baseR, r: baseR * 0.35, phase, big: false,
                 side,
-                value: (side === "buy" ? 1 : -1) * Math.round(absDelta),
+                value: (side === "buy" ? 1 : -1) * absDelta,
                 born: (c.time as number) * 1000 + rankIdx + 500,
                 anchorTime: c.time as number,
                 anchorPrice: lv.priceLevel,
@@ -4708,7 +4758,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const bob = Math.sin(b.phase + nowDelta / 1600) * 3;
           const sibN = b.siblingN ?? 1;
           const lvlIx = b.levelIdx ?? 0;
-          const spread = sibN > 1 ? Math.min(28, Math.max(14, b.baseR * 0.75)) : 0;
+          const spread = sibN > 1 ? Math.min(34, Math.max(18, b.baseR)) : 0;
           const offX = sibN > 1 ? (lvlIx - (sibN - 1) / 2) * spread : 0;
           const homeX = hx + offX + Math.cos(b.phase + nowDelta / 2400) * 2;
           const homeY = hy + bob - 3;
@@ -6251,7 +6301,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         const av = Math.abs(hit.value);
         const vstr = av >= 1_000_000 ? `${(av / 1_000_000).toFixed(1)}M`
                    : av >= 1000       ? `${(av / 1000).toFixed(1)}k`
-                   : `${Math.round(av)}`;
+                   : av >= 1          ? `${Math.round(av)}`
+                   : av > 0           ? av.toFixed(av >= 0.1 ? 2 : 4)
+                   : "0";
         const p = hit.anchorPrice;
         const pstr = p >= 10000 ? Math.round(p).toString()
                    : p >= 100   ? p.toFixed(2)
@@ -6442,7 +6494,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const buy   = bubbleTip.side === "buy";
           const accent = buy ? "#00E696" : "#FF465A";
           const sign   = bubbleTip.value >= 0 ? "+" : "−";
-          const absVal = Math.abs(bubbleTip.value).toLocaleString("en-US");
+          const absVal = Math.abs(bubbleTip.value) >= 1
+            ? Math.abs(bubbleTip.value).toLocaleString("en-US", { maximumFractionDigits: 0 })
+            : Math.abs(bubbleTip.value).toLocaleString("en-US", { maximumFractionDigits: 4 });
           // clamp within view
           const left = Math.max(70, Math.min((wrapRef.current?.clientWidth ?? 800) - 70, bubbleTip.x));
           const top  = Math.max(54, bubbleTip.y - 14);
