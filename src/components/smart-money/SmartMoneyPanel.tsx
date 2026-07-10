@@ -23,6 +23,18 @@ interface Signal {
 
 function fmt(n: number, dp = 2) { return n.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp }); }
 
+/** Signed net-delta text. Crypto deltas are fractional (0.02 BTC), so rounding to
+ *  an integer erases them — and JS `Math.round(-0.02)` is negative zero, which
+ *  passes `>= 0` yet prints "-0", producing the nonsense "Δ +-0". Never round
+ *  here; pick precision from magnitude and build the sign from the real value. */
+function fmtDelta(v: number): string {
+  const n = Number.isFinite(v) && !Object.is(v, -0) ? v : 0;
+  const a = Math.abs(n);
+  const dp = a === 0 ? 0 : a >= 1000 ? 0 : a >= 1 ? 2 : 4;
+  const body = a.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: dp });
+  return `${n > 0 ? "+" : n < 0 ? "-" : ""}${body}`;
+}
+
 // Deterministic seeded random — stable for a given price+seed so panel doesn't spin
 function sr(price: number, seed: number): number {
   const n = Math.floor(Math.abs(price) * 100) + seed * 997;
@@ -69,7 +81,7 @@ function generateSignals(symbol: string, price: number, f: Flow): Signal[] {
 
   // ── REAL directional reads ───────────────────────────────────────────────
   const bullBias = biasFromFlow(price, f);          // majority of real signals
-  const cvdVal   = Math.round(f.cvd);               // REAL cumulative delta
+  const cvdVal   = f.cvd;                           // REAL cumulative delta (unrounded)
   const cvdPos   = cvdVal >= 0;
   const askDom   = f.askDom;                         // REAL imbalance side
   const imbRatio = Math.round(f.imbRatio);           // REAL dominant/passive %
@@ -119,7 +131,7 @@ function generateSignals(symbol: string, price: number, f: Flow): Signal[] {
       ? { name: "Delta Divergence", value: cvdPos === f.candleUp ? "Delta confirms price" : "Delta diverges from price", strength: "strong", bullish: cvdPos, description: "Real cumulative delta vs candle direction" }
       : { name: "Delta Divergence", value: "N/A — no aggressor tape", strength: "neutral", bullish: null, description: "Divergence needs per-trade delta, absent from this feed" },
     f.hasFlow
-      ? { name: "CVD (Cumulative Volume Delta)", value: `${cvdPos ? "+" : ""}${cvdVal.toLocaleString()} (${cvdPos ? "rising" : "falling"})`, strength: "strong", bullish: cvdPos, description: "Real aggressive buy volume minus sell volume" }
+      ? { name: "CVD (Cumulative Volume Delta)", value: `${fmtDelta(cvdVal)} (${cvdPos ? "rising" : "falling"})`, strength: "strong", bullish: cvdPos, description: "Real aggressive buy volume minus sell volume" }
       : { name: "CVD (Cumulative Volume Delta)", value: "N/A — no aggressor tape", strength: "neutral", bullish: null, description: "Requires per-trade buy/sell side, absent from this feed" },
     { name: "Footprint Pattern", value: f.hasFlow ? (askDom ? "Buy imbalance stack" : "Sell imbalance stack") : "N/A — no aggressor tape", strength: f.hasFlow ? "moderate" : "neutral", bullish: f.hasFlow ? askDom : null, description: "Aggressor-side stacking from real tick data" },
 
@@ -137,7 +149,7 @@ function generateSignals(symbol: string, price: number, f: Flow): Signal[] {
     // CLC Rule — all three now REAL reads
     { name: "Context", value: aboveVwap ? "Bullish — above VWAP" : "Bearish — below VWAP", strength: "strong", bullish: aboveVwap },
     { name: "Location", value: `Zone ${fmt(demand,dp)}–${fmt(demandH,dp)}`, strength: "neutral", bullish: null, description: "Approximate zone for context, not a measured directional vote" },
-    { name: "Confirmation", value: f.hasFlow ? `Real ${cvdPos?"buying":"selling"} on tape (Δ ${cvdPos?"+":""}${cvdVal.toLocaleString()})` : (aboveVwap ? "Price-confirmed above VWAP (no tape side data)" : "Price-confirmed below VWAP (no tape side data)"), strength: f.hasFlow ? "strong" : "moderate", bullish: f.hasFlow ? cvdPos : aboveVwap },
+    { name: "Confirmation", value: f.hasFlow ? `Real ${cvdPos?"buying":"selling"} on tape (Δ ${fmtDelta(cvdVal)})` : (aboveVwap ? "Price-confirmed above VWAP (no tape side data)" : "Price-confirmed below VWAP (no tape side data)"), strength: f.hasFlow ? "strong" : "moderate", bullish: f.hasFlow ? cvdPos : aboveVwap },
 
     // Entry signals
     { name: "Entry Signal", value: `${bullBias?"LONG":"SHORT"} at ${fmt(entryPx,dp)} (${f.hasFlow ? "order flow" : "VWAP context"})`, strength: f.hasFlow ? "strong" : "moderate", bullish: bullBias, description: f.hasFlow ? "Aligned with real cumulative delta + VWAP context" : "Directional lean from price vs VWAP — no tape side on this feed" },
@@ -193,7 +205,7 @@ function computeConfluence(price: number, f: Flow): Confluence {
     const rel = clampN(f.cvd / totVol, -1, 1);
     sum += 16 * rel;
     lenses.push({ label: "CVD", dir: f.cvd > 0 ? "bull" : f.cvd < 0 ? "bear" : "na",
-      detail: `Δ ${f.cvd >= 0 ? "+" : ""}${Math.round(f.cvd).toLocaleString()} (${Math.round(Math.abs(rel) * 100)}% one-sided)` });
+      detail: `Δ ${fmtDelta(f.cvd)} (${Math.round(Math.abs(rel) * 100)}% one-sided)` });
   } else lenses.push({ label: "CVD", dir: "na", detail: "No aggressor tape on this feed" });
 
   // 3. Aggressor imbalance — only when hasFlow
@@ -366,7 +378,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
   const totAgg   = flow.askVol + flow.bidVol;
   const buyPct   = totAgg > 0 ? Math.round((flow.askVol / totAgg) * 100) : 50;
   const sellPct  = 100 - buyPct;
-  const deltaVal = Math.round(flow.cvd);                       // REAL net delta
+  const deltaVal = flow.cvd;                                   // REAL net delta (unrounded)
   const domSide: "buyers" | "sellers" | "even" | "none" =
     !flow.hasFlow ? "none"
     : buyPct >= 55 ? "buyers"
@@ -409,9 +421,9 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
     : smdKind === "absorption" && smdDir === "LONG"
       ? "Absorption: price is ticking DOWN but buyers dominate the tape. Sellers are getting eaten — high-odds reversal UP."
     : smdDir === "LONG"
-      ? `Domination: buyers control ${buyPct}% of the aggressive tape (Δ +${deltaVal.toLocaleString()}). Momentum is long.`
+      ? `Domination: buyers control ${buyPct}% of the aggressive tape (Δ ${fmtDelta(deltaVal)}). Momentum is long.`
     : smdDir === "SHORT"
-      ? `Domination: sellers control ${sellPct}% of the aggressive tape (Δ ${deltaVal.toLocaleString()}). Momentum is short.`
+      ? `Domination: sellers control ${sellPct}% of the aggressive tape (Δ ${fmtDelta(deltaVal)}). Momentum is short.`
     : "Delta engine ARMED — real tape flowing, but no strong edge yet. Waiting for absorption or one-sided aggression.";
   const smdStopPx = hasPrice ? fmt(livePrice * (smdLong ? 0.992 : 1.008), ddp) : "—"; // <1% stop
   const smdTgtPx  = hasPrice ? fmt(livePrice * (smdLong ? 1.016 : 0.984), ddp) : "—"; // ~2R
@@ -562,9 +574,9 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
               </span>
               <span
                 className="text-[10px] font-bold tabular-nums"
-                style={{ color: deltaVal >= 0 ? "#00D4AA" : "#F6465D" }}
+                style={{ color: deltaVal > 0 ? "#00D4AA" : deltaVal < 0 ? "#F6465D" : "#4A5070" }}
               >
-                Δ {deltaVal >= 0 ? "+" : ""}{deltaVal.toLocaleString()}
+                Δ {fmtDelta(deltaVal)}
               </span>
             </div>
 
@@ -602,7 +614,8 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
         ) : (
           <div className="text-[9px] text-wm-text-dim leading-relaxed">
             No per-trade buy/sell side on this feed yet, so we can't measure the tug-of-war honestly.
-            Delta domination needs aggressor-tagged ticks (crypto + many futures carry them). We won't fake a winner.
+            Delta domination needs aggressor-tagged ticks. Crypto (BTC/ETH/SOL…) carries them 24/7; stocks carry them
+            while the market is open. Futures have no aggressor tape wired up here yet. We won&apos;t fake a winner.
           </div>
         )}
 
@@ -761,7 +774,8 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           </div>
         ) : (
           <p className="text-[9px] text-wm-text-dim leading-relaxed">
-            No per-trade buy/sell tape on this feed yet — bubbles appear the moment real aggressor flow arrives (crypto shows it clearest).
+            No per-trade buy/sell tape on this feed — bubbles appear the moment real aggressor flow arrives.
+            Crypto streams it 24/7; stocks stream it during market hours. Futures carry no aggressor tape here yet.
           </p>
         )}
       </div>
@@ -789,7 +803,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
             { text: `Context: ${isBull ? "Bullish above" : "Bearish below"} VWAP`, ok: hasPrice },
             { text: `Location: ${zoneWord} zone ${zoneLo}–${zoneHi}`, ok: hasPrice },
             flow.hasFlow
-              ? { text: `Confirmation: Real ${deltaVal >= 0 ? "buying" : "selling"} on tape (Δ ${deltaVal >= 0 ? "+" : ""}${deltaVal.toLocaleString()})`, ok: true }
+              ? { text: `Confirmation: Real ${deltaVal >= 0 ? "buying" : "selling"} on tape (Δ ${fmtDelta(deltaVal)})`, ok: true }
               : { text: `Confirmation: Awaiting tape — no aggressor side on this feed`, ok: false },
           ].map((row, i) => (
             <div key={i} className="flex items-center gap-1.5 text-[10px] text-wm-text">
