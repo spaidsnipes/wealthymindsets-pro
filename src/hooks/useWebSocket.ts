@@ -414,6 +414,83 @@ const COINBASE_PRODUCT: Record<string, string> = {
   SOLUSD: "SOL-USD",
 };
 
+/* ───────────────────────────────────────────────────────────────────────────
+   SHARED TAPE HUB — one socket per (feed, symbol), fanned out to every consumer.
+
+   useWebSocket is mounted by ~11 components at once (MainChart, SmartMoneyPanel,
+   DOMPanel, StockInfoPanel, VolumeProfileLadder, WMSessionVP, ChartsDashboard,
+   BottomIndexBar, SymbolInfoHeader, AlertsPanel, ai-bot). Each used to open its
+   OWN socket for the same symbol on the same API key. Measured against prod:
+   26 Finnhub sockets in 12s, and the WS handshake then returns
+
+       HTTP/1.1 429 Too Many Requests
+
+   while REST on the same key is a healthy 200. Finnhub drops the sockets, the
+   reconnect logic storms, Finnhub drops harder, and the retry loop finally gives
+   up — so `recentTicks` never sees a single trade tick and every stock reads
+   "NO TAPE". Crypto only survived because Coinbase tolerates the duplicates.
+
+   Now the FIRST consumer opens the socket; the rest attach to it. The underlying
+   connection is torn down only when the last consumer unmounts.
+─────────────────────────────────────────────────────────────────────────── */
+type TapeTick   = (t: Tick, isReal: boolean) => void;
+type TapeStatus = (ok: boolean) => void;
+
+interface TapeHub {
+  refs: number;
+  cleanup: () => void;
+  tickers: Set<TapeTick>;
+  statuses: Set<TapeStatus>;
+  lastStatus: boolean;
+}
+
+const tapeHubs = new Map<string, TapeHub>();
+
+/** Attach to the shared socket for `key`, opening it if nobody else has.
+ *  Returns an unsubscribe fn, or null if the feed cannot serve this symbol. */
+function joinTape(
+  key: string,
+  connect: (onTick: TapeTick, onStatus: TapeStatus) => (() => void) | null,
+  onTick: TapeTick,
+  onStatus: TapeStatus,
+): (() => void) | null {
+  let hub = tapeHubs.get(key);
+
+  if (!hub) {
+    const tickers  = new Set<TapeTick>();
+    const statuses = new Set<TapeStatus>();
+    const fresh: TapeHub = { refs: 0, cleanup: () => {}, tickers, statuses, lastStatus: false };
+    const cleanup = connect(
+      (t, isReal) => { tickers.forEach(fn => fn(t, isReal)); },
+      (ok)        => { fresh.lastStatus = ok; statuses.forEach(fn => fn(ok)); },
+    );
+    if (!cleanup) return null;              // feed can't serve this symbol
+    fresh.cleanup = cleanup;
+    tapeHubs.set(key, fresh);
+    hub = fresh;
+  }
+
+  hub.tickers.add(onTick);
+  hub.statuses.add(onStatus);
+  hub.refs++;
+  // A consumer that mounts after the socket opened must still learn it is live.
+  if (hub.lastStatus) onStatus(true);
+
+  let released = false;
+  return () => {
+    if (released) return;                   // React may invoke a cleanup twice
+    released = true;
+    const h = tapeHubs.get(key);
+    if (!h) return;
+    h.tickers.delete(onTick);
+    h.statuses.delete(onStatus);
+    if (--h.refs <= 0) {
+      tapeHubs.delete(key);
+      try { h.cleanup(); } catch { /* socket already gone */ }
+    }
+  };
+}
+
 function coinbaseProduct(symbol: string): string | null {
   return COINBASE_PRODUCT[symbol.toUpperCase()] ?? null;
 }
@@ -781,24 +858,34 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     let cryptoFallback: (() => void) | null = null;
     if (isCrypto) {
       let gotCoinbase = false;
-      cryptoCleanup = tryCoinbase(symbol, processTick, (ok) => {
-        if (ok) {
-          gotCoinbase = true;
-          hasRealDataRef.current = true;
-          tapeSourceRef.current = "binance";
-          setState(p => ({ ...p, source: "binance" /* "live" badge */, tapeSource: "binance", connected: true }));
-        }
-      });
+      cryptoCleanup = joinTape(
+        `coinbase:${symbol.toUpperCase()}`,
+        (onTick, onStatus) => tryCoinbase(symbol, onTick, onStatus),
+        processTick,
+        (ok) => {
+          if (ok) {
+            gotCoinbase = true;
+            hasRealDataRef.current = true;
+            tapeSourceRef.current = "binance";
+            setState(p => ({ ...p, source: "binance" /* "live" badge */, tapeSource: "binance", connected: true }));
+          }
+        },
+      );
       // If Coinbase hasn't connected within 4s, spin up Binance.US too.
       setTimeout(() => {
         if (!gotCoinbase && !cryptoFallback) {
-          cryptoFallback = tryBinance(symbol, processTick, (ok) => {
-            if (ok) {
-              hasRealDataRef.current = true;
-              tapeSourceRef.current = "binance";
-              setState(p => ({ ...p, source: "binance", tapeSource: "binance", connected: true }));
-            }
-          });
+          cryptoFallback = joinTape(
+            `binance:${symbol.toUpperCase()}`,
+            (onTick, onStatus) => tryBinance(symbol, onTick, onStatus),
+            processTick,
+            (ok) => {
+              if (ok) {
+                hasRealDataRef.current = true;
+                tapeSourceRef.current = "binance";
+                setState(p => ({ ...p, source: "binance", tapeSource: "binance", connected: true }));
+              }
+            },
+          );
           if (cryptoFallback) cleanupFns.current.push(cryptoFallback);
         }
       }, 4000);
@@ -808,13 +895,18 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // ── STOCKS/ETFs: Finnhub WS (skip for futures + crypto) ──
     const fhWsSym = symbol.toUpperCase();
     const finhCleanup = (!isFuture && !isCrypto && finnhubKey)
-      ? tryFinnhub(fhWsSym, finnhubKey, processTick, (ok) => {
-          if (ok) {
-            hasRealDataRef.current = true;
-            tapeSourceRef.current = "finnhub";
-            setState(p => ({ ...p, source: "finnhub", tapeSource: "finnhub", connected: true }));
-          }
-        })
+      ? joinTape(
+          `finnhub:${fhWsSym}`,
+          (onTick, onStatus) => tryFinnhub(fhWsSym, finnhubKey, onTick, onStatus),
+          processTick,
+          (ok) => {
+            if (ok) {
+              hasRealDataRef.current = true;
+              tapeSourceRef.current = "finnhub";
+              setState(p => ({ ...p, source: "finnhub", tapeSource: "finnhub", connected: true }));
+            }
+          },
+        )
       : null;
 
     // ── REST polling — REAL price drives the live bar (no faked movement) ──
