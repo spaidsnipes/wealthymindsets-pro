@@ -448,6 +448,98 @@ const tapeHubs = new Map<string, TapeHub>();
 
 /** Attach to the shared socket for `key`, opening it if nobody else has.
  *  Returns an unsubscribe fn, or null if the feed cannot serve this symbol. */
+// Cross-tab dedup is only possible where BOTH Web Locks (leader election) and
+// BroadcastChannel (tick fan-out) exist. Otherwise we degrade to one socket
+// per tab (still deduped WITHIN the tab by the refcounted hub).
+const CROSS_TAB =
+  typeof window !== "undefined" &&
+  typeof BroadcastChannel !== "undefined" &&
+  typeof navigator !== "undefined" &&
+  !!(navigator as unknown as { locks?: unknown }).locks;
+
+/* Build the hub for `key`. With cross-tab support, exactly ONE tab (the Web
+   Lock holder) opens the real socket and broadcasts ticks to the others over a
+   BroadcastChannel; every other tab stays passive. THIS is what stops N open
+   tabs from opening N sockets and tripping the Finnhub 429 — the per-tab hub
+   alone could not dedupe across tabs. A 6s heartbeat-loss safety net opens a
+   local socket if a leader ever goes silent, so a tab is never left dataless. */
+function createTapeHub(
+  key: string,
+  connect: (onTick: TapeTick, onStatus: TapeStatus) => (() => void) | null,
+): TapeHub | null {
+  const tickers  = new Set<TapeTick>();
+  const statuses = new Set<TapeStatus>();
+  const hub: TapeHub = { refs: 0, cleanup: () => {}, tickers, statuses, lastStatus: false };
+
+  const fanTick   = (t: Tick, isReal: boolean) => { tickers.forEach(fn => fn(t, isReal)); };
+  const fanStatus = (ok: boolean) => { hub.lastStatus = ok; statuses.forEach(fn => fn(ok)); };
+
+  // Single-tab / unsupported browser: open the socket locally (previous behavior).
+  if (!CROSS_TAB) {
+    const c = connect(fanTick, fanStatus);
+    if (!c) return null;
+    hub.cleanup = c;
+    return hub;
+  }
+
+  const chan = `wm-tape:${key}`;
+  const bc = new BroadcastChannel(chan);
+  let socketCleanup: (() => void) | null = null;   // real socket, when we are leader
+  let safetyCleanup: (() => void) | null = null;    // fallback socket, if leader goes silent
+  let heartbeat: ReturnType<typeof setInterval> | null = null;
+  let watchdog:  ReturnType<typeof setInterval> | null = null;
+  let releaseLock: (() => void) | null = null;
+  let lastLeaderMsg = Date.now();                    // seed = now so a fresh follower waits real silence
+  let torn = false;
+
+  const becomeLeader = () => {
+    if (torn || socketCleanup) return;
+    if (safetyCleanup) { try { safetyCleanup(); } catch { /* */ } safetyCleanup = null; }
+    socketCleanup = connect(
+      (t, isReal) => { fanTick(t, isReal); try { bc.postMessage({ k: "t", t, r: isReal }); } catch { /* */ } },
+      (ok)        => { fanStatus(ok);      try { bc.postMessage({ k: "s", ok }); } catch { /* */ } },
+    );
+    heartbeat = setInterval(() => { try { bc.postMessage({ k: "hb", ok: hub.lastStatus }); } catch { /* */ } }, 2000);
+  };
+
+  bc.onmessage = (e) => {
+    const m = e.data as { k?: string; t?: Tick; r?: boolean; ok?: boolean };
+    lastLeaderMsg = Date.now();
+    if (m?.k === "t" && m.t) fanTick(m.t, !!m.r);
+    else if (m?.k === "s") fanStatus(!!m.ok);
+    else if (m?.k === "hb" && m.ok && !hub.lastStatus) fanStatus(true);
+  };
+
+  // Leader election: the granted callback holds the lock until we resolve it
+  // (on teardown or tab close), at which point another tab is granted and
+  // becomes leader. Exactly one holder at a time.
+  try {
+    (navigator as unknown as { locks: { request: (n: string, o: unknown, f: () => Promise<void>) => Promise<void> } })
+      .locks.request(chan, { mode: "exclusive" }, () =>
+        new Promise<void>((resolve) => { releaseLock = resolve; if (!torn) becomeLeader(); else resolve(); }),
+      ).catch(() => { /* lock rejected; safety net covers us */ });
+  } catch { /* locks unavailable at call time; safety net covers us */ }
+
+  watchdog = setInterval(() => {
+    if (torn || socketCleanup) return;              // leader already has the socket
+    const silent = Date.now() - lastLeaderMsg > 6000;
+    if (silent && !safetyCleanup) safetyCleanup = connect(fanTick, fanStatus);
+    else if (!silent && safetyCleanup) { try { safetyCleanup(); } catch { /* */ } safetyCleanup = null; }
+  }, 3000);
+
+  hub.cleanup = () => {
+    torn = true;
+    if (heartbeat) clearInterval(heartbeat);
+    if (watchdog)  clearInterval(watchdog);
+    try { socketCleanup?.(); } catch { /* */ }
+    try { safetyCleanup?.(); } catch { /* */ }
+    try { bc.close(); } catch { /* */ }
+    releaseLock?.();                                 // hand leadership to another tab
+  };
+
+  return hub;
+}
+
 function joinTape(
   key: string,
   connect: (onTick: TapeTick, onStatus: TapeStatus) => (() => void) | null,
@@ -455,19 +547,11 @@ function joinTape(
   onStatus: TapeStatus,
 ): (() => void) | null {
   let hub = tapeHubs.get(key);
-
   if (!hub) {
-    const tickers  = new Set<TapeTick>();
-    const statuses = new Set<TapeStatus>();
-    const fresh: TapeHub = { refs: 0, cleanup: () => {}, tickers, statuses, lastStatus: false };
-    const cleanup = connect(
-      (t, isReal) => { tickers.forEach(fn => fn(t, isReal)); },
-      (ok)        => { fresh.lastStatus = ok; statuses.forEach(fn => fn(ok)); },
-    );
-    if (!cleanup) return null;              // feed can't serve this symbol
-    fresh.cleanup = cleanup;
-    tapeHubs.set(key, fresh);
-    hub = fresh;
+    const created = createTapeHub(key, connect);
+    if (!created) return null;               // feed can't serve this symbol
+    tapeHubs.set(key, created);
+    hub = created;
   }
 
   hub.tickers.add(onTick);
@@ -478,7 +562,7 @@ function joinTape(
 
   let released = false;
   return () => {
-    if (released) return;                   // React may invoke a cleanup twice
+    if (released) return;                    // React may invoke a cleanup twice
     released = true;
     const h = tapeHubs.get(key);
     if (!h) return;
