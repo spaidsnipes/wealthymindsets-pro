@@ -177,11 +177,14 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
-  const createList = () => {
-    const name = (typeof window !== "undefined" ? window.prompt("Name your new watchlist:") : "")?.trim();
+  const createList = () => { setNewListName(""); setCreatingList(true); };
+  const commitNewList = () => {
+    const name = newListName.trim();
     if (!name) return;
     setLists(prev => prev[name] ? prev : { ...prev, [name]: [] });
     setActiveList(name);
+    setCreatingList(false);
+    setNewListName("");
     setShowLists(false);
   };
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -234,6 +237,15 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Right-click context menu
   const [ctxMenu, setCtxMenu] = useState<{ sym: string; x: number; y: number } | null>(null);
+  // Filter bar state — the "All ▼" and "⇅" controls used to be inert <button>s
+  // with no onClick at all, so neither did anything when clicked.
+  const [viewFilter, setViewFilter] = useState<"all" | "gainers" | "losers">("all");
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [sortMode, setSortMode] = useState<"manual" | "chgDesc" | "chgAsc" | "symAsc">("manual");
+  // Inline new-list naming. Replaces window.prompt(), which Chrome suppresses
+  // after a page opens a few dialogs — making the button look simply dead.
+  const [creatingList, setCreatingList] = useState(false);
+  const [newListName, setNewListName] = useState("");
   const ctxRef = useRef<HTMLDivElement>(null);
 
   // Close context menu on outside click
@@ -339,9 +351,20 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
     return () => { clearInterval(iv); document.removeEventListener("visibilitychange", onVisible); };
   }, [symbols]);
 
-  const filtered = items.filter(i =>
-    !search || i.sym.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = React.useMemo(() => {
+    const rows = items.filter(i => {
+      if (search && !i.sym.toLowerCase().includes(search.toLowerCase())) return false;
+      if (viewFilter === "gainers") return i.changePct > 0;
+      if (viewFilter === "losers")  return i.changePct < 0;
+      return true;
+    });
+    switch (sortMode) {
+      case "chgDesc": return [...rows].sort((a, b) => b.changePct - a.changePct);
+      case "chgAsc":  return [...rows].sort((a, b) => a.changePct - b.changePct);
+      case "symAsc":  return [...rows].sort((a, b) => a.sym.localeCompare(b.sym));
+      default:        return rows;   // "manual" preserves the user's own ordering
+    }
+  }, [items, search, viewFilter, sortMode]);
 
   const addSymbol = (explicit?: string) => {
     const sym = (explicit ?? addInput).trim().toUpperCase();
@@ -441,11 +464,34 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
                         )}
                       </div>
                     ))}
-                    <button onClick={createList}
-                      style={{ width: "100%", textAlign: "left", padding: "7px 9px", marginTop: 2, borderRadius: 5,
-                        border: "1px dashed #2a3550", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#4FA3E0", background: "none" }}>
-                      ＋ New watchlist
-                    </button>
+                    {creatingList ? (
+                      <div style={{ display: "flex", gap: 4, marginTop: 2 }}>
+                        <input
+                          autoFocus
+                          value={newListName}
+                          onChange={e => setNewListName(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") commitNewList();
+                            if (e.key === "Escape") { setCreatingList(false); setNewListName(""); }
+                          }}
+                          placeholder="Name your new watchlist…"
+                          style={{ flex: 1, background: "#131520", border: "1px solid #2a3550", borderRadius: 5,
+                            color: "#E2E8F0", fontSize: 12, padding: "6px 8px", outline: "none" }}
+                        />
+                        <button onClick={commitNewList} disabled={!newListName.trim()}
+                          style={{ padding: "6px 10px", borderRadius: 5, border: "none",
+                            cursor: newListName.trim() ? "pointer" : "not-allowed",
+                            fontSize: 12, fontWeight: 800,
+                            color: newListName.trim() ? "#0B0E1A" : "#4A5070",
+                            background: newListName.trim() ? "#00D4AA" : "#1E2030" }}>Add</button>
+                      </div>
+                    ) : (
+                      <button onClick={createList}
+                        style={{ width: "100%", textAlign: "left", padding: "7px 9px", marginTop: 2, borderRadius: 5,
+                          border: "1px dashed #2a3550", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#4FA3E0", background: "none" }}>
+                        ＋ New watchlist
+                      </button>
+                    )}
                     {/* Import / Export — Moomoo "Manage Watchlists" parity */}
                     <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
                       <button onClick={exportLists}
@@ -490,15 +536,50 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
               height: 28, display: "flex", alignItems: "center", gap: 6,
               padding: "0 8px", borderBottom: "1px solid #1E2030", flexShrink: 0,
             }}>
-              <button style={{
-                display: "flex", alignItems: "center", gap: 3, background: "#131520",
-                border: "1px solid #1E2030", borderRadius: 4, padding: "2px 8px",
-                color: "#8B8FA8", fontSize: 10, cursor: "pointer",
-              }}>
-                All <span>▼</span>
-              </button>
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => setShowFilterMenu(v => !v)}
+                  title="Filter rows: all, gainers only, or losers only"
+                  style={{
+                    display: "flex", alignItems: "center", gap: 3, background: "#131520",
+                    border: "1px solid #1E2030", borderRadius: 4, padding: "2px 8px",
+                    color: viewFilter === "all" ? "#8B8FA8" : "#FF8C00", fontSize: 10, cursor: "pointer",
+                  }}>
+                  {viewFilter === "all" ? "All" : viewFilter === "gainers" ? "Gainers" : "Losers"}{" "}
+                  <span style={{ transform: showFilterMenu ? "rotate(180deg)" : "none" }}>▼</span>
+                </button>
+                {showFilterMenu && (
+                  <div style={{
+                    position: "absolute", top: 22, left: 0, zIndex: 9999, width: 110,
+                    background: "#0C0F1A", border: "1px solid #252a3a", borderRadius: 6,
+                    boxShadow: "0 12px 32px rgba(0,0,0,0.7)", overflow: "hidden", padding: 3,
+                  }}>
+                    {([["all", "All"], ["gainers", "Gainers"], ["losers", "Losers"]] as const).map(([key, lbl]) => (
+                      <button key={key}
+                        onClick={() => { setViewFilter(key); setShowFilterMenu(false); }}
+                        style={{
+                          width: "100%", textAlign: "left", padding: "6px 8px", borderRadius: 4, border: "none",
+                          cursor: "pointer", fontSize: 11, fontWeight: viewFilter === key ? 800 : 600,
+                          color: viewFilter === key ? "#00D4AA" : "#cdd6e8",
+                          background: viewFilter === key ? "rgba(0,212,170,0.1)" : "transparent",
+                        }}>{lbl}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div style={{ flex: 1 }} />
-              <button style={{ background: "none", border: "none", cursor: "pointer", color: "#4A5070", fontSize: 11 }}>⇅</button>
+              <button
+                onClick={() => setSortMode(m => m === "manual" ? "chgDesc" : m === "chgDesc" ? "chgAsc" : m === "chgAsc" ? "symAsc" : "manual")}
+                title={
+                  sortMode === "manual"  ? "Sort: manual order (click to sort by % change ↓)" :
+                  sortMode === "chgDesc" ? "Sort: % change ↓ (click for % change ↑)" :
+                  sortMode === "chgAsc"  ? "Sort: % change ↑ (click for symbol A–Z)" :
+                                           "Sort: symbol A–Z (click to restore manual order)"
+                }
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11,
+                  color: sortMode === "manual" ? "#4A5070" : "#FF8C00" }}>
+                {sortMode === "chgDesc" ? "↓" : sortMode === "chgAsc" ? "↑" : sortMode === "symAsc" ? "A–Z" : "⇅"}
+              </button>
             </div>
 
             {/* Column headers */}

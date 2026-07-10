@@ -560,8 +560,12 @@ export function ChartsDashboard() {
         download: `wm-${symbol}-${timeframe}-${Date.now()}.png`,
       });
       a.click();
-    } catch {
-      alert("Snapshot saved! (install html2canvas for full support)");
+    } catch (err) {
+      // NEVER claim success on failure. html2canvas IS installed; if the capture
+      // throws (tainted canvas, OOM, detached node) the user has to know it
+      // failed rather than go hunting for a PNG that was never written.
+      console.error("[chart snapshot] capture failed:", err);
+      alert(`Chart snapshot failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSnapping(false);
     }
