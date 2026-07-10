@@ -23,16 +23,22 @@ interface Signal {
 
 function fmt(n: number, dp = 2) { return n.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp }); }
 
-/** Signed net-delta text. Crypto deltas are fractional (0.02 BTC), so rounding to
- *  an integer erases them — and JS `Math.round(-0.02)` is negative zero, which
- *  passes `>= 0` yet prints "-0", producing the nonsense "Δ +-0". Never round
- *  here; pick precision from magnitude and build the sign from the real value. */
+/** Signed net-delta text. Crypto deltas are fractional — Coinbase prints trade
+ *  sizes as small as 1.6e-7 BTC — so rounding to an integer erases them, and JS
+ *  `Math.round(-0.02)` yields negative zero, which passes `>= 0` yet prints
+ *  "-0", producing the nonsense "Δ +-0". Never round here: scale precision to
+ *  magnitude, fall back to exponent notation rather than collapse a real
+ *  non-zero delta to "0", and take the sign from the true value. */
 function fmtDelta(v: number): string {
   const n = Number.isFinite(v) && !Object.is(v, -0) ? v : 0;
   const a = Math.abs(n);
-  const dp = a === 0 ? 0 : a >= 1000 ? 0 : a >= 1 ? 2 : 4;
-  const body = a.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: dp });
-  return `${n > 0 ? "+" : n < 0 ? "-" : ""}${body}`;
+  const sign = n > 0 ? "+" : n < 0 ? "-" : "";
+  if (a === 0) return "0";
+  const dp = a >= 1000 ? 0 : a >= 1 ? 2 : a >= 0.01 ? 4 : 8;
+  let body = a.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: dp });
+  // A real, non-zero delta must never render as "0" — show it in exponent form.
+  if (Number(body.replace(/,/g, "")) === 0) body = a.toExponential(1);
+  return `${sign}${body}`;
 }
 
 // Deterministic seeded random — stable for a given price+seed so panel doesn't spin
