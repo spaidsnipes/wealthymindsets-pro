@@ -4025,69 +4025,154 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
    * OHLCV bars. Uses real tick accumulator data when available,
    * falls back to deterministic simulation based on bar structure.
    ─────────────────────────────────────────────────────────── */
+  /* ─────────────────────────────────────────────────────────────────────────
+     FIXED-RESOLUTION BAR PROFILE — the single source of truth for a candle.
+
+     The renderer picks `numLevels` from barSpacing + candle pixel height, so it
+     changes with zoom. Building the volume distribution AT that resolution made
+     the candle's own numbers depend on zoom: the body/wick predicates and the
+     per-level RNG were evaluated at bin positions, so more bins = a different
+     distribution, not merely a finer view of the same one.
+
+     So the profile is built ONCE on a fixed SUB-level grid, independent of zoom.
+     Display bins and the aggressive/passive roles are both derived by aggregating
+     that fixed grid. Zoom then only changes how the same mass is sliced.
+     SUB=120 so the 0.20 / 0.80 role thresholds land exactly on sub-boundaries.
+  ───────────────────────────────────────────────────────────────────────────── */
+  const SUB = 120;
+  const barSubCacheRef = useRef<Map<string, Array<{ bid: number; ask: number }>>>(new Map());
+
+  const getBarSubProfile = useCallback((bar: Bar): Array<{ bid: number; ask: number }> | null => {
+    const range = bar.high - bar.low;
+    if (range <= 0) return null;
+
+    const realData = tickAccRef.current.get(bar.time);
+    const key = `${bar.time}|${bar.high}|${bar.low}|${bar.close}|${bar.volume}|${realData?.size ?? 0}`;
+    const cached = barSubCacheRef.current.get(key);
+    if (cached) return cached;
+
+    const idxOf = (p: number) =>
+      Math.min(SUB - 1, Math.max(0, Math.floor(((p - bar.low) / range) * SUB)));
+    const sub: Array<{ bid: number; ask: number }> =
+      Array.from({ length: SUB }, () => ({ bid: 0, ask: 0 }));
+
+    // ── REAL TAPE: bucket every accumulated tick exactly once. The old code
+    // looked up one rounded price key per display bin, sampling the accumulator
+    // and discarding the rest — so the printed total climbed as you zoomed in.
+    if (realData && realData.size > 0) {
+      let seen = 0;
+      for (const [px, rt] of realData) {
+        const s = sub[idxOf(px)];
+        s.bid += rt.bid; s.ask += rt.ask;
+        seen  += rt.bid + rt.ask;
+      }
+      if (seen > 0) {
+        barSubCacheRef.current.set(key, sub);
+        return sub;   // real tape only — never blended with simulated rows
+      }
+    }
+
+    // ── DETERMINISTIC SIMULATION on the fixed grid, normalized to bar.volume.
+    const isBull   = bar.close >= bar.open;
+    const bodyLow  = Math.min(bar.open, bar.close);
+    const bodyHigh = Math.max(bar.open, bar.close);
+    const target   = Math.max(0, Math.round(bar.volume));
+
+    const w: number[] = [];
+    const askPcts: number[] = [];
+    let wSum = 0;
+    for (let j = 0; j < SUB; j++) {
+      const f     = (j + 0.5) / SUB;              // price fraction, low→high
+      const price = bar.low + f * range;
+      const inBody    = price >= bodyLow && price <= bodyHigh;
+      const nearOpen  = Math.abs(price - bar.open)  / (range + 0.001) < 0.07;
+      const nearClose = Math.abs(price - bar.close) / (range + 0.001) < 0.07;
+      const nearMid   = Math.abs(f - 0.5) < 0.12;
+
+      let volMult = 0.5;
+      if (inBody)                volMult += 2.0;
+      if (nearOpen || nearClose) volMult += 1.2;
+      if (nearMid)               volMult += 0.6;
+      if (f < 0.04 || f > 0.96)  volMult *= 0.2;  // very sparse at the extremes
+
+      // Seeded per (bar, SUB index) — fixed grid ⇒ identical at every zoom.
+      const s1   = Math.sin(bar.time * 0.01337 + j * 19.13) * 43758.5453;
+      const rnd1 = s1 - Math.floor(s1);
+      const s2   = Math.sin(bar.time * 0.00731 + j * 7.41 + bar.volume * 0.001) * 12345.6789;
+      const rnd2 = s2 - Math.floor(s2);
+
+      const weight = Math.max(0, volMult * (0.7 + rnd1 * 0.6));
+      w.push(weight); wSum += weight;
+
+      // ask = buyer-initiated, bid = seller-initiated.
+      let askPct = isBull ? 0.52 + rnd2 * 0.18 : 0.38 + rnd2 * 0.18;
+      if (inBody) askPct = isBull ? askPct + 0.08 : askPct - 0.08;
+      askPcts.push(Math.max(0.1, Math.min(0.9, askPct)));
+    }
+
+    // Largest-remainder allocation ⇒ Σ total === round(bar.volume), exactly.
+    const exact  = w.map(x => (wSum > 0 ? (target * x) / wSum : 0));
+    const totals = exact.map(Math.floor);
+    let short    = target - totals.reduce((a, b) => a + b, 0);
+    const byFrac = exact
+      .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+      .sort((a, b) => b.frac - a.frac);
+    for (let k = 0; k < byFrac.length && short > 0; k++, short--) totals[byFrac[k].i]++;
+
+    for (let j = 0; j < SUB; j++) {
+      const ask = Math.floor(totals[j] * askPcts[j]);
+      sub[j] = { ask, bid: totals[j] - ask };
+    }
+
+    if (barSubCacheRef.current.size > 3000) barSubCacheRef.current.clear();
+    barSubCacheRef.current.set(key, sub);
+    return sub;
+  }, [base]);
+
+  /** Aggressive/passive roles for a candle. Derived from the FIXED sub-profile,
+   *  so these four headline numbers are identical at every zoom level. */
+  const getBarRoles = useCallback((bar: Bar) => {
+    const sub = getBarSubProfile(bar);
+    let aggBuy = 0, aggSell = 0, pasBuy = 0, pasSell = 0;
+    if (!sub) return { aggBuy, aggSell, pasBuy, pasSell };
+    for (let j = 0; j < SUB; j++) {
+      const f = (j + 0.5) / SUB;
+      if (f > 0.80) pasSell += sub[j].ask; else aggBuy  += sub[j].ask;
+      if (f < 0.20) pasBuy  += sub[j].bid; else aggSell += sub[j].bid;
+    }
+    return { aggBuy, aggSell, pasBuy, pasSell };
+  }, [getBarSubProfile]);
+
   const getBarFootprint = useCallback((bar: Bar, numLevels: number): Array<{
     priceLevel: number; bid: number; ask: number; total: number;
     relPos: number; inBody: boolean;
   }> => {
-    const minTick  = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
-    const range    = bar.high - bar.low;
+    const range = bar.high - bar.low;
     if (range <= 0) return [];
-    const step     = Math.max(minTick, range / numLevels);
-    const isBull   = bar.close >= bar.open;
+    const sub = getBarSubProfile(bar);
+    if (!sub) return [];
+
     const bodyLow  = Math.min(bar.open, bar.close);
     const bodyHigh = Math.max(bar.open, bar.close);
     const dp       = base > 100 ? 2 : 4;
+    const binW     = range / numLevels;
 
-    // Check if we have real accumulated tick data for this bar
-    const realData = tickAccRef.current.get(bar.time);
+    // Pure aggregation of the fixed grid. Every sub-level lands in exactly one
+    // display bin, so Σ total is identical for ANY numLevels — i.e. any zoom.
+    const bins = Array.from({ length: numLevels }, () => ({ bid: 0, ask: 0 }));
+    for (let j = 0; j < SUB; j++) {
+      const i = Math.min(numLevels - 1, Math.floor((j * numLevels) / SUB));
+      bins[i].bid += sub[j].bid;
+      bins[i].ask += sub[j].ask;
+    }
+
     const levels: Array<{ priceLevel: number; bid: number; ask: number; total: number; relPos: number; inBody: boolean }> = [];
-
     for (let i = 0; i < numLevels; i++) {
-      const priceLevel = +(bar.low + i * step).toFixed(dp);
+      const priceLevel = +(bar.low + i * binW).toFixed(dp);
       const relPos     = i / Math.max(1, numLevels - 1); // 0=low, 1=high
       const inBody     = priceLevel >= bodyLow && priceLevel <= bodyHigh;
-      const nearOpen   = Math.abs(priceLevel - bar.open)  / (range + 0.001) < 0.07;
-      const nearClose  = Math.abs(priceLevel - bar.close) / (range + 0.001) < 0.07;
-      const nearMid    = Math.abs(relPos - 0.5) < 0.12;
-
-      if (realData) {
-        // Use real tick data — find closest price level
-        const key = Math.round(priceLevel / minTick) * minTick;
-        const rt  = realData.get(+(key.toFixed(dp)));
-        if (rt && (rt.bid + rt.ask) > 0) {
-          levels.push({ priceLevel, bid: rt.bid, ask: rt.ask, total: rt.bid + rt.ask, relPos, inBody });
-          continue;
-        }
-      }
-
-      // Deterministic simulation from bar structure
-      // Volume distribution: concentrated in body, at open/close, sparse at extremes
-      const baseVol = Math.max(1, bar.volume / numLevels);
-      let volMult   = 0.5;
-      if (inBody)               volMult += 2.0;
-      if (nearOpen || nearClose) volMult += 1.2;
-      if (nearMid)               volMult += 0.6;
-      if (relPos < 0.04 || relPos > 0.96) volMult *= 0.2; // very sparse at extremes
-
-      // Seeded random per (bar, level) — consistent across renders
-      const s1   = Math.sin(bar.time * 0.01337 + i * 19.13) * 43758.5453;
-      const rnd1 = s1 - Math.floor(s1);
-      const s2   = Math.sin(bar.time * 0.00731 + i * 7.41 + bar.volume * 0.001) * 12345.6789;
-      const rnd2 = s2 - Math.floor(s2);
-
-      const totalVol = Math.max(1, Math.floor(baseVol * volMult * (0.7 + rnd1 * 0.6)));
-
-      // Bid/ask split: bull candles have more ask volume (buyers aggressive),
-      // bear candles have more bid volume (sellers aggressive)
-      // Convention: ask = buyer-initiated, bid = seller-initiated
-      let askPct = isBull ? 0.52 + rnd2 * 0.18 : 0.38 + rnd2 * 0.18;
-      // Body levels reinforce direction; wick levels more balanced
-      if (inBody) askPct = isBull ? askPct + 0.08 : askPct - 0.08;
-      askPct = Math.max(0.1, Math.min(0.9, askPct));
-
-      const ask = Math.floor(totalVol * askPct);
-      const bid = totalVol - ask;
-      levels.push({ priceLevel, bid, ask, total: totalVol, relPos, inBody });
+      const { bid, ask } = bins[i];
+      levels.push({ priceLevel, bid, ask, total: bid + ask, relPos, inBody });
     }
 
     return levels;
@@ -5059,11 +5144,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             //   Passive  Sellers   (orange) = ask volume ABSORBED at the high wick
             //   Aggressive Sellers (purple) = bid volume that DROVE price
             //   Passive  Buyers    (gray)   = bid volume ABSORBED at the low wick
-            let aggBuy = 0, aggSell = 0, pasBuy = 0, pasSell = 0;
-            levels.forEach(l => {
-              if (l.relPos > 0.80) pasSell += l.ask; else aggBuy  += l.ask;
-              if (l.relPos < 0.20) pasBuy  += l.bid; else aggSell += l.bid;
-            });
+            // Read the roles from the FIXED sub-profile, never from the display
+            // bins: `numLev` changes with zoom, so a relPos>0.80 test against
+            // display bins would re-slice (and re-total) these four numbers every
+            // time the user zoomed. getBarRoles integrates the same fixed grid.
+            const { aggBuy, aggSell, pasBuy, pasSell } = getBarRoles(c);
             const BLUE = buyRgba(0.98), PURPLE = sellRgba(0.98);
             const GRAY = "rgba(148,163,184,0.98)", ORANGE = "rgba(255,149,0,0.98)";
 
