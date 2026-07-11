@@ -4548,6 +4548,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // With rows now ≥13px (see numLevels divisor) a 9–12px font sits cleanly.
       const cellFs = (rH: number) => Math.max(9, Math.min(12, Math.floor(rH * 0.6)));
       const cellNum = (txt: string, px: number, py: number, align: CanvasTextAlign, fs: number, color = "#ffffff") => {
+        // Leave zero-volume rows BLANK like a pro footprint (TradingView/Bookmap).
+        // On crypto, sub-0.005 BTC rows format to "0.00"; painting them turned the
+        // whole profile into a wall of "0.00" that read as broken.
+        if (txt === "0" || txt === "0.00" || txt === "0.0") return;
         ctx.font = `700 ${fs}px 'JetBrains Mono',monospace`;
         ctx.textAlign = align; ctx.textBaseline = "middle";
         ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
