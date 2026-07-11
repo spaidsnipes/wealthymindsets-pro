@@ -561,3 +561,54 @@ export async function sendLoginAlertEmail(
     text,
   });
 }
+
+/**
+ * Extract sign-in metadata from an incoming request for the login-alert email.
+ * Uses Vercel's edge geo/ip headers when present (they only exist in prod),
+ * and falls back gracefully so local dev still produces a sane payload.
+ */
+export function loginAlertDetailsFromRequest(
+  req: Request,
+): { ip?: string; location?: string; device?: string; time: string } {
+  const h = req.headers;
+  const ip =
+    (h.get("x-forwarded-for")?.split(",")[0] ?? "").trim() ||
+    h.get("x-real-ip") ||
+    undefined;
+
+  const city    = h.get("x-vercel-ip-city");
+  const region  = h.get("x-vercel-ip-country-region");
+  const country = h.get("x-vercel-ip-country");
+  const location = [city && decodeURIComponent(city), region, country]
+    .filter(Boolean)
+    .join(", ") || undefined;
+
+  const device = summarizeUserAgent(h.get("user-agent") ?? undefined);
+
+  const time = new Date().toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "America/New_York",
+  }) + " ET";
+
+  return { ip: ip ?? undefined, location, device, time };
+}
+
+/** Turn a raw User-Agent into a short "Browser on OS" label; falls back to the raw string. */
+function summarizeUserAgent(ua?: string): string | undefined {
+  if (!ua) return undefined;
+  const os =
+    /Windows/i.test(ua) ? "Windows" :
+    /iPhone|iPad|iOS/i.test(ua) ? "iOS" :
+    /Android/i.test(ua) ? "Android" :
+    /Mac OS X|Macintosh/i.test(ua) ? "macOS" :
+    /Linux/i.test(ua) ? "Linux" : "";
+  const browser =
+    /Edg\//i.test(ua) ? "Edge" :
+    /OPR\/|Opera/i.test(ua) ? "Opera" :
+    /Chrome\//i.test(ua) ? "Chrome" :
+    /Firefox\//i.test(ua) ? "Firefox" :
+    /Safari\//i.test(ua) ? "Safari" : "";
+  const label = [browser, os].filter(Boolean).join(" on ");
+  return label || ua.slice(0, 80);
+}

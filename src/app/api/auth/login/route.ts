@@ -3,9 +3,46 @@ import {
   verifyPassword, signJWT, setAuthCookie, verifyJWT, getAuthToken,
   userStore, useSupabase, supabaseSignIn,
 } from "@/lib/auth";
+import { sendLoginAlertEmail, loginAlertDetailsFromRequest } from "@/lib/email";
 
 const SB_URL  = () => process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SB_SVC  = () => process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+// Long-lived, httpOnly marker cookie that identifies a browser we've already
+// seen sign in. Absent = a genuinely new device → send the sign-in alert email.
+// Present = returning device → stay quiet so users aren't spammed every login.
+const DEVICE_COOKIE = "wm_device";
+const DEVICE_MAX_AGE = 60 * 60 * 24 * 365 * 2; // 2 years
+
+/**
+ * On sign-in, decide whether this is a new device and, if so, fire the
+ * (fire-and-forget) security alert email and stamp the device cookie on `res`.
+ * Never throws and never blocks the login response.
+ */
+function alertIfNewDevice(req: Request, res: NextResponse, email?: string) {
+  try {
+    const cookieHeader = req.headers.get("cookie") ?? "";
+    const known = new RegExp(`(?:^|;\\s*)${DEVICE_COOKIE}=`).test(cookieHeader);
+    if (known) return; // returning device — no alert
+
+    // Stamp this browser so subsequent logins from it stay quiet.
+    res.cookies.set(DEVICE_COOKIE, crypto.randomUUID(), {
+      httpOnly: true,
+      secure:   process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge:   DEVICE_MAX_AGE,
+      path:     "/",
+    });
+
+    if (!email) return;
+    const details = loginAlertDetailsFromRequest(req);
+    sendLoginAlertEmail(email, details).catch((e) =>
+      console.error("[login] new-device alert email failed:", e),
+    );
+  } catch (e) {
+    console.error("[login] alertIfNewDevice error:", e);
+  }
+}
 
 // Confirm a user's email via admin API so they can immediately sign in.
 // Called when Supabase returns "Email not confirmed" for an existing account.
@@ -85,6 +122,7 @@ export async function POST(req: Request) {
     });
     const res = NextResponse.json({ ok: true });
     setAuthCookie(res.cookies, jwt);
+    alertIfNewDevice(req, res, data.user.email);
     return res;
   }
 
@@ -113,5 +151,6 @@ export async function POST(req: Request) {
   });
   const res = NextResponse.json({ ok: true });
   setAuthCookie(res.cookies, jwt);
+  alertIfNewDevice(req, res, user.email);
   return res;
 }
