@@ -505,7 +505,17 @@ function createTapeHub(
   bc.onmessage = (e) => {
     const m = e.data as { k?: string; t?: Tick; r?: boolean; ok?: boolean };
     lastLeaderMsg = Date.now();
-    if (m?.k === "t" && m.t) fanTick(m.t, !!m.r);
+    if (m?.k === "t" && m.t) {
+      // A real tick PROVES the leader's feed is live. A follower that only ever
+      // sees ticks (the heartbeat can arrive late or be timer-throttled on a
+      // backgrounded leader) must still learn it is connected — otherwise
+      // tapeSource stays null and every tapeSource-gated feature (on-chart WM
+      // Delta Bubbles, the delta footprint, delta accumulation) silently
+      // disables even while price updates. Marking connected on the first tick
+      // makes followers robust and immediate, not dependent on heartbeat timing.
+      if (!hub.lastStatus) fanStatus(true);
+      fanTick(m.t, !!m.r);
+    }
     else if (m?.k === "s") fanStatus(!!m.ok);
     else if (m?.k === "hb" && m.ok && !hub.lastStatus) fanStatus(true);
   };
