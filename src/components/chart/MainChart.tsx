@@ -5650,8 +5650,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // Only de-overlap (skip a label that would collide with the one above) so the
           // numbers never stack on top of each other; POC always labels.
           const midY = rowY + rowH / 2;
-          if (isPOC || (rowH >= 5 && Math.abs(midY - lastLabelY) >= 12)) {
-            const txt = fmtV(tot);
+          const txt = fmtV(tot);
+          // Suppress zero-volume labels (crypto sub-0.005 BTC rows → "0.00") so the
+          // profile isn't a wall of 0.00; the POC still always labels. Bars unaffected.
+          const vpZero = txt === "0" || txt === "0.00" || txt === "0.0";
+          if ((isPOC || (rowH >= 5 && Math.abs(midY - lastLabelY) >= 12)) && (!vpZero || isPOC)) {
             ctx.font = `${isPOC ? "bold 12" : "11"}px monospace`;
             ctx.textAlign = "right"; ctx.textBaseline = "middle";
             // Dark halo so white numbers stay legible over both bar and chart bg.
