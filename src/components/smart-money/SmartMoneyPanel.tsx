@@ -769,7 +769,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
                     />
                   </div>
                   <span className={clsx("text-[9px] font-bold tabular-nums w-16 text-right shrink-0", up ? "text-wm-green" : "text-wm-red")}>
-                    {up ? "+" : ""}{Math.round(lvl.delta).toLocaleString()}
+                    {fmtDelta(lvl.delta)}
                   </span>
                 </div>
               );
