@@ -5165,22 +5165,23 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
             // ── COMPACT WINNER PILL: "AGG BUYS 113.2k" ─────────────────────
             // Single prominent pill above the candle high — readable at normal
-            // zoom (label text + volume value on one line). This is the headline
-            // the user asked for. The detailed 2×2 grid (below) only stacks on
-            // top when genuinely zoomed in (showBadges).
-            const pillTxt = `${win.lbl} ${fmtV(win.v)}`;
-            ctx.font = "bold 11px monospace";
-            const pillW  = Math.max(colW + 6, ctx.measureText(pillTxt).width + 12);
+            // zoom (label text + volume value on one line). Skip flat/empty
+            // candles (win.v === 0) so we never paint a meaningless "AGG BUYS 0".
             const pillH  = 15;
             const pillY  = yH - pillH - 3;                       // just above candle high
-            ctx.fillStyle = win.col;
-            ctx.beginPath();
-            if (ctx.roundRect) ctx.roundRect(cx - pillW / 2, pillY, pillW, pillH, 3);
-            else ctx.rect(cx - pillW / 2, pillY, pillW, pillH);
-            ctx.fill();
-            ctx.fillStyle = win.txt;
-            ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText(pillTxt, cx, pillY + pillH / 2 + 0.5);
+            if (win.v > 0) {
+              const pillTxt = `${win.lbl} ${fmtV(win.v)}`;
+              ctx.font = "bold 11px monospace";
+              const pillW  = Math.max(colW + 6, ctx.measureText(pillTxt).width + 12);
+              ctx.fillStyle = win.col;
+              ctx.beginPath();
+              if (ctx.roundRect) ctx.roundRect(cx - pillW / 2, pillY, pillW, pillH, 3);
+              else ctx.rect(cx - pillW / 2, pillY, pillW, pillH);
+              ctx.fill();
+              ctx.fillStyle = win.txt;
+              ctx.textAlign = "center"; ctx.textBaseline = "middle";
+              ctx.fillText(pillTxt, cx, pillY + pillH / 2 + 0.5);
+            }
 
             if (showBadges) {
               // ── DETAILED 2×2 GRID (only when zoomed in) ──────────────────
