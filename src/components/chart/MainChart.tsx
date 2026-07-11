@@ -5462,27 +5462,20 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         const priceRange = barsToUse.reduce((r, b) => ({ hi: Math.max(r.hi, b.high), lo: Math.min(r.lo, b.low) }), { hi: -Infinity, lo: Infinity });
         const rawRange = priceRange.hi - priceRange.lo;
         if (rawRange <= 0) return;
-        // Size the rows by ON-SCREEN pixel density, not the raw data range. When the
-        // chart is zoomed in tight a fixed row count makes each row ~80px tall and the
-        // bars balloon over the candles; when zoomed out they vanish. Targeting a
-        // fixed ~20px per row keeps the VP consistent and out of the candles' way.
-        // Row count is sized by how much VERTICAL SCREEN the profile's price range
-        // currently occupies, targeting ~22px per row, so the bars always have proper
-        // height and never squash into thin slivers (the squashed-VP bug from dividing
-        // a part-screen range into a fixed 24 rows). This reads the price SCALE, not the
-        // pixel density of the visible candles, so it stays stable on horizontal scroll
-        // (the axis doesn't move when you pan) and only reflows on zoom — exactly like
-        // a professional VP. If the range is partly off-screen (e.g. Fixed VP's multi-
-        // day span while zoomed into one day) priceToCoordinate returns null and we fall
-        // back to a sane fixed count so the visible rows still render tall.
-        let rows = 18;
-        try {
-          const yHi = srs?.priceToCoordinate(priceRange.hi);
-          const yLo = srs?.priceToCoordinate(priceRange.lo);
-          if (yHi != null && yLo != null && Number.isFinite(yHi) && Number.isFinite(yLo)) {
-            rows = Math.max(8, Math.min(34, Math.round(Math.abs((yLo as number) - (yHi as number)) / 22)));
-          }
-        } catch {}
+        // ── STABLE, DATA-ANCHORED bucket grid (fixes squash-on-scroll) ──────
+        // The bucket size MUST derive from the DATA price range only — never from
+        // the live on-screen pixel span. The old code sized `rows` from
+        // priceToCoordinate(hi/lo), i.e. how many pixels the range currently spans.
+        // But the right price axis AUTOSCALES on horizontal PAN (not just zoom), so
+        // that pixel span changed every frame you scrolled → `rows` and `tickSz`
+        // reflowed → the whole histogram RE-BUCKETED as you panned, and the bars
+        // visibly reshaped/compressed. That was the "VP squashing on scroll" bug.
+        // Anchoring the grid to the data means pan/zoom only re-MAPS the same fixed
+        // buckets through priceToCoordinate: the bars slide and scale smoothly with
+        // the axis but never re-bucket. Target ~28 rows; the clean-tick snap below
+        // adapts the effective count to each asset's price magnitude, and rowCap
+        // keeps any single row from ballooning when zoomed in.
+        const rows = 28;
         let tickSz = rawRange / rows;
         // Snap to a clean tick
         const magnitude = Math.pow(10, Math.floor(Math.log10(tickSz)));
@@ -5566,7 +5559,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         const loKey   = allPrices[0];
         const hiKey   = allPrices[allPrices.length - 1] + tickSz;
         const nBuckets = Math.max(1, Math.round((hiKey - loKey) / tickSz));
-        const rowCap  = Math.round(H * 0.14); // never let one tick fill the pane
+        const rowCap  = Math.round(H * 0.22); // never let one tick fill the pane
+                                              // (roomier now that tickSz is data-anchored,
+                                              // so zoomed-in rows stay flush without gaps)
 
         ctx.save();
         // Clip the VP to pane 0 (the candle pane). With native indicator panes
