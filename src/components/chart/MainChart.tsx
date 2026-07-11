@@ -4076,7 +4076,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     const isBull   = bar.close >= bar.open;
     const bodyLow  = Math.min(bar.open, bar.close);
     const bodyHigh = Math.max(bar.open, bar.close);
-    const target   = Math.max(0, Math.round(bar.volume));
+    // Keep NATIVE units (float). Rounding fractional crypto volume (~0.3 BTC) to
+    // an integer zeroed the entire simulated footprint ("AGG BUYS 0"). Aggregation
+    // of the fixed sub-grid still conserves Σ exactly, so zoom-stability holds.
+    const target   = Math.max(0, bar.volume);
 
     const w: number[] = [];
     const askPcts: number[] = [];
@@ -4110,18 +4113,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       askPcts.push(Math.max(0.1, Math.min(0.9, askPct)));
     }
 
-    // Largest-remainder allocation ⇒ Σ total === round(bar.volume), exactly.
-    const exact  = w.map(x => (wSum > 0 ? (target * x) / wSum : 0));
-    const totals = exact.map(Math.floor);
-    let short    = target - totals.reduce((a, b) => a + b, 0);
-    const byFrac = exact
-      .map((v, i) => ({ i, frac: v - Math.floor(v) }))
-      .sort((a, b) => b.frac - a.frac);
-    for (let k = 0; k < byFrac.length && short > 0; k++, short--) totals[byFrac[k].i]++;
-
+    // Proportional FLOAT allocation ⇒ Σ === bar.volume exactly at every zoom.
+    // No integer rounding/flooring, which used to collapse fractional crypto
+    // footprints to zero. Display precision is handled by fmtV, not here.
     for (let j = 0; j < SUB; j++) {
-      const ask = Math.floor(totals[j] * askPcts[j]);
-      sub[j] = { ask, bid: totals[j] - ask };
+      const total = wSum > 0 ? (target * w[j]) / wSum : 0;
+      const ask   = total * askPcts[j];
+      sub[j] = { ask, bid: total - ask };
     }
 
     if (barSubCacheRef.current.size > 3000) barSubCacheRef.current.clear();
@@ -4391,7 +4389,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         if (!isFinite(v) || v <= 0) return "0";
         return v >= 1_000_000 ? `${(v/1_000_000).toFixed(1)}M`
              : v >= 1000       ? `${(v/1000).toFixed(1)}k`
-             : `${Math.round(v)}`;   // whole numbers only — no runaway decimals
+             : v >= 10         ? `${Math.round(v)}`
+             : v >= 1          ? v.toFixed(1)
+             : v.toFixed(2);   // fractional crypto (0.30, 0.05) — never floor to "0"
       };
 
       // ── ETH/RTH session bands ───────────────────────────────
