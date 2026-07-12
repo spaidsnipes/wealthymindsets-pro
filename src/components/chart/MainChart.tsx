@@ -5764,15 +5764,29 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         const bothVP = fixedVPActive && sessionVPActive;
         const nVPCols = bothVP ? 2 : 1;
         if (fixedVPActive) {
-          // WM Fixed VP must STAY PUT when the user switches timeframes AND must
-          // span the FULL price range the instrument has traded across the loaded
-          // history (e.g. TSLA 320→480), not just the last few days. A short
-          // calendar cutoff clipped the profile to a narrow band. Volume-by-price
-          // is timeframe-independent, so we source the ENTIRE fetched bar set —
-          // giving a true full-range fixed profile. The SAME distribution renders
-          // on every timeframe; only its vertical position tracks the price axis.
+          // VISIBLE-RANGE profile (VRVP) — the fix for "the VP shrinks / only shows a
+          // few bars in a thin slice." Sourcing the ENTIRE history meant the price
+          // axis (which autoscales to the VISIBLE candles) mapped the full-history
+          // range through a narrow window, so most of the profile fell off-screen and
+          // what remained looked squashed into a sliver. Sourcing the bars CURRENTLY
+          // IN VIEW makes the histogram span the visible price range, so it always
+          // fills the pane top-to-bottom and updates smoothly as you scroll/zoom —
+          // exactly how TradingView's visible-range VP behaves. Falls back to the full
+          // set if the visible range isn't ready yet.
           const allBars = barsRef.current;
-          drawWMVP(allBars.length > 2 ? allBars : allBars, "#F0B429", "WM Fixed VP", 0, 0, nVPCols);
+          let vpBars = allBars;
+          try {
+            const vr = chart.timeScale().getVisibleRange();
+            if (vr) {
+              const from = vr.from as number, to = vr.to as number;
+              const inView = allBars.filter(b => {
+                const t = b.time as number;
+                return t >= from && t <= to;
+              });
+              if (inView.length > 2) vpBars = inView;
+            }
+          } catch { /* fall back to allBars */ }
+          drawWMVP(vpBars, "#F0B429", "WM Fixed VP", 0, 0, nVPCols);
         }
         if (sessionVPActive) {
           // Session VP shows the CURRENT session's volume distribution. It must NOT
