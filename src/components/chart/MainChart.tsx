@@ -5504,6 +5504,19 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         let pocPrice = allPrices[0]; let pocVol = 0;
         volMap.forEach((v, p) => { const t = v.bid + v.ask; if (t > pocVol) { pocVol = t; pocPrice = p; } });
 
+        // Bar-WIDTH reference = a high PERCENTILE of level volume, NOT the absolute
+        // max. A single anomalous high-volume node — a capitulation/spike-bar low, or
+        // a lone HVN far from price — would otherwise BE maxVol, and every normal
+        // level computes to (typical/outlier)^0.6 ≈ a 3px invisible sliver: the
+        // "profile has only a few bars, the rest are empty/sparse" bug. Scaling to
+        // the ~88th percentile lets the BULK of the profile render with real, readable
+        // width; the few extreme nodes simply clamp at full column width (they stay
+        // the longest, so the POC is still unmistakable). Floored at 12% of maxVol so
+        // a clean, outlier-free profile behaves exactly as before.
+        const volsAsc = Array.from(volMap.values()).map(v => v.bid + v.ask).filter(x => x > 0).sort((a, b) => a - b);
+        const pctlVol = volsAsc.length ? volsAsc[Math.floor((volsAsc.length - 1) * 0.88)] : maxVol;
+        const widthRef = Math.max(pctlVol, maxVol * 0.12);
+
         // Only the N highest-volume levels get a number, so AT MOST 6 labels ever
         // draw — regardless of the profile's shape. A relative "≥30% of POC" gate
         // fails on a FLAT profile (range-bound session): when maxVol ≈ the typical
@@ -5622,7 +5635,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // SAME 16px width, so a run of low-volume buckets stacked into one uniform
           // vertical ribbon while only the POC jutted out — the snaggle-tooth look. A
           // low 3px floor lets the silhouette taper into a real histogram shape.
-          const barW = Math.max(3, Math.round(Math.pow(tot / maxVol, 0.6) * vpW));
+          const barW = Math.max(3, Math.round(Math.pow(Math.min(1, tot / widthRef), 0.6) * vpW));
 
           if (isPOC) {
             ctx.fillStyle = vpPocRgba(0.68);
