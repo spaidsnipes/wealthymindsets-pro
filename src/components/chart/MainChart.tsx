@@ -5508,18 +5508,18 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         let pocPrice = allPrices[0]; let pocVol = 0;
         volMap.forEach((v, p) => { const t = v.bid + v.ask; if (t > pocVol) { pocVol = t; pocPrice = p; } });
 
-        // Bar-WIDTH reference = a high PERCENTILE of level volume, NOT the absolute
-        // max. A single anomalous high-volume node — a capitulation/spike-bar low, or
-        // a lone HVN far from price — would otherwise BE maxVol, and every normal
-        // level computes to (typical/outlier)^0.6 ≈ a 3px invisible sliver: the
-        // "profile has only a few bars, the rest are empty/sparse" bug. Scaling to
-        // the ~88th percentile lets the BULK of the profile render with real, readable
-        // width; the few extreme nodes simply clamp at full column width (they stay
-        // the longest, so the POC is still unmistakable). Floored at 12% of maxVol so
-        // a clean, outlier-free profile behaves exactly as before.
+        // ── Bar-WIDTH reference = 3.5× the MEDIAN populated-level volume ──────────
+        // Rebuilt (was max/percentile/floor-based, which thrashed): a fixed multiple
+        // of the MEDIAN is distribution-INDEPENDENT. The median bar always lands at the
+        // same readable width regardless of zoom, timeframe, or a lone huge POC — the
+        // POC (and any real value-area node above the ref) just clamps to full width,
+        // tails taper toward the baseline. This is what makes it a filled P/b shape at
+        // wide AND tight zoom, instead of a thin stick (max-based, outlier-crushed) or
+        // a muddy block. maxVol is used ONLY as a last-resort guard against an empty
+        // median, never as a scaling floor.
         const volsAsc = Array.from(volMap.values()).map(v => v.bid + v.ask).filter(x => x > 0).sort((a, b) => a - b);
-        const pctlVol = volsAsc.length ? volsAsc[Math.floor((volsAsc.length - 1) * 0.88)] : maxVol;
-        const widthRef = Math.max(pctlVol, maxVol * 0.12);
+        const medVol   = volsAsc.length ? volsAsc[Math.floor(volsAsc.length / 2)] : 0;
+        const widthRef = medVol > 0 ? medVol * 3.5 : (maxVol || 1);
 
         // Only the N highest-volume levels get a number, so AT MOST 6 labels ever
         // draw — regardless of the profile's shape. A relative "≥30% of POC" gate
