@@ -5504,6 +5504,20 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         let pocPrice = allPrices[0]; let pocVol = 0;
         volMap.forEach((v, p) => { const t = v.bid + v.ask; if (t > pocVol) { pocVol = t; pocPrice = p; } });
 
+        // Only the N highest-volume levels get a number, so AT MOST 6 labels ever
+        // draw — regardless of the profile's shape. A relative "≥30% of POC" gate
+        // fails on a FLAT profile (range-bound session): when maxVol ≈ the typical
+        // level, nearly every level clears 30% and the number-wall returns. An
+        // explicit top-N SET is distribution-proof AND tie-proof (a value cutoff
+        // would still let many equal-volume levels through). Clean on peaked + flat.
+        const MAX_VP_LABELS = 6;
+        const topLabelPrices = new Set<number>(
+          Array.from(volMap.entries())
+            .sort((a, b) => (b[1].bid + b[1].ask) - (a[1].bid + a[1].ask))
+            .slice(0, MAX_VP_LABELS)
+            .map(e => e[0]),
+        );
+
         // ── Value Area (70% of volume) → VAH / VAL ──────────────────────
         // Expand outward from the POC, each step absorbing whichever adjacent
         // level (above or below) holds the larger volume, until 70% of total
@@ -5650,7 +5664,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const midY = rowY + rowH / 2;
           const txt = fmtV(tot);
           const vpZero = txt === "0" || txt === "0.00" || txt === "0.0";
-          const majorNode = tot >= 0.30 * maxVol;
+          // In the top-N set (distribution-proof, tie-proof) AND non-trivial vs the
+          // POC, so a flat profile can't wall up and a peaked one skips 0.0x dust.
+          const majorNode = topLabelPrices.has(price) && tot >= 0.12 * maxVol;
           const showLabel = isPOC ||
             (majorNode && !vpZero && rowH >= 5 && Math.abs(midY - lastLabelY) >= 13);
           if (showLabel) {
