@@ -1373,8 +1373,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const hasRealAggressorTape = (src: string) =>
     src === "finnhub" || src === "polygon" || src === "alpaca" || src === "binance";
 
+  // Min single-trade size to count as a "big trade" (real tape only — never
+  // synthetic). BTC was 2 (~$126k/trade): so rare on Coinbase that bubbles almost
+  // never appeared ("Big Trades doesn't work"). 0.5 BTC (~$32k) is still a
+  // substantial single print but common enough that bubbles render reliably.
   const minBigTradeLot = (symBase: number) =>
-    symBase > 10_000 ? 2 : symBase > 100 ? 15 : symBase > 1 ? 0.05 : 0.001;
+    symBase > 10_000 ? 0.5 : symBase > 100 ? 5 : symBase > 1 ? 0.05 : 0.001;
 
   // Reset accumulator on symbol change — prevents cross-symbol contamination.
   useEffect(() => {
