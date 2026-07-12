@@ -1374,11 +1374,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     src === "finnhub" || src === "polygon" || src === "alpaca" || src === "binance";
 
   // Min single-trade size to count as a "big trade" (real tape only — never
-  // synthetic). BTC was 2 (~$126k/trade): so rare on Coinbase that bubbles almost
-  // never appeared ("Big Trades doesn't work"). 0.5 BTC (~$32k) is still a
-  // substantial single print but common enough that bubbles render reliably.
+  // synthetic). Tuned DOWN over several rounds: 2 BTC (~$126k) → 0.5 → 0.15 because
+  // even 0.5 was rare enough that only ~2 bubbles showed. 0.15 BTC (~$10k) is still
+  // a genuine large single print on Coinbase but frequent enough that bubbles render
+  // reliably on live candles. (Bubbles can only mark candles that were LIVE while the
+  // tab was open — historical bars carry no per-trade tape from the free feed.)
   const minBigTradeLot = (symBase: number) =>
-    symBase > 10_000 ? 0.5 : symBase > 100 ? 5 : symBase > 1 ? 0.05 : 0.001;
+    symBase > 10_000 ? 0.15 : symBase > 100 ? 2 : symBase > 1 ? 0.03 : 0.001;
 
   // Reset accumulator on symbol change — prevents cross-symbol contamination.
   useEffect(() => {
