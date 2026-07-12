@@ -5462,25 +5462,31 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         const priceRange = barsToUse.reduce((r, b) => ({ hi: Math.max(r.hi, b.high), lo: Math.min(r.lo, b.low) }), { hi: -Infinity, lo: Infinity });
         const rawRange = priceRange.hi - priceRange.lo;
         if (rawRange <= 0) return;
-        // ── STABLE, DATA-ANCHORED bucket grid (fixes squash-on-scroll) ──────
-        // The bucket size MUST derive from the DATA price range only — never from
-        // the live on-screen pixel span. The old code sized `rows` from
-        // priceToCoordinate(hi/lo), i.e. how many pixels the range currently spans.
-        // But the right price axis AUTOSCALES on horizontal PAN (not just zoom), so
-        // that pixel span changed every frame you scrolled → `rows` and `tickSz`
-        // reflowed → the whole histogram RE-BUCKETED as you panned, and the bars
-        // visibly reshaped/compressed. That was the "VP squashing on scroll" bug.
-        // Anchoring the grid to the data means pan/zoom only re-MAPS the same fixed
-        // buckets through priceToCoordinate: the bars slide and scale smoothly with
-        // the axis but never re-bucket. Target ~28 rows; the clean-tick snap below
-        // adapts the effective count to each asset's price magnitude, and rowCap
-        // keeps any single row from ballooning when zoomed in.
-        const rows = 28;
+        // ── STABLE, DATA-ANCHORED, FINE-GRAINED bucket grid ─────────────────
+        // Two properties this grid MUST have, learned the hard way:
+        //
+        // 1) STABILITY (no squash-on-scroll): the bucket size derives from the DATA
+        //    price range only — never from the live on-screen pixel span. Sizing it
+        //    from priceToCoordinate made the grid re-bucket every frame you panned
+        //    (the price axis autoscales on pan), so the whole histogram reshaped.
+        //    Anchoring to the data means pan/zoom only RE-MAP the same fixed buckets.
+        //
+        // 2) SMOOTHNESS (no "snaggle-tooth"): the tick must be FINE and snapped to the
+        //    NEAREST clean increment — never rounded UP. The old code targeted ~28
+        //    rows and snapped tickSz UP to the next of [1,2,2.5,5,10]·10ⁿ. On an asset
+        //    camping in a tight range that coarse bucket dumped almost all the volume
+        //    into ONE bucket → a single fat POC bar with starved 0.01 slivers around
+        //    it (the "two snaggle teeth + anorexic bars" the user saw). Targeting ~46
+        //    rows and snapping to the NEAREST clean tick keeps the resolution high, so
+        //    volume spreads into a smooth histogram silhouette with a natural POC.
+        const rows = 46;
         let tickSz = rawRange / rows;
-        // Snap to a clean tick
+        // Snap to the NEAREST clean increment (1/2/2.5/5/10 · 10ⁿ) so bucket edges are
+        // still readable prices but the grid never coarsens (nearest, not ceil).
         const magnitude = Math.pow(10, Math.floor(Math.log10(tickSz)));
-        const rounded = [1, 2, 2.5, 5, 10].map(m => m * magnitude).find(v => v >= tickSz) ?? (magnitude * 10);
-        tickSz = rounded;
+        const tickCands = [1, 2, 2.5, 5, 10].map(m => m * magnitude);
+        tickSz = tickCands.reduce((best, v) =>
+          Math.abs(v - tickSz) < Math.abs(best - tickSz) ? v : best, tickCands[0]);
 
         const volMap = new Map<number, { bid: number; ask: number }>();
         barsToUse.forEach(b => {
@@ -5595,14 +5601,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const rowH  = Math.max(2, Math.min(rowCap, Math.round(yBot - yTop)));
           const isPOC = price === pocPrice;
           const askRatio = vol ? vol.ask / tot : 0.5;
-          // Bar length: compress with a 0.5 power curve (√) so LOW-volume rows get
-          // real, readable WIDTH (a 4% node like 14.8k next to a 340k POC maps to
-          // √0.044 ≈ 21% of the column instead of ~11% under the old 0.7 curve) while
-          // the POC (ratio 1 → 100%) stays unmistakably the longest. This is a shaped
-          // curve, NOT a flat floor, so rows still differ by volume — no muddy
-          // same-width bars. The 12px min keeps the very thinnest populated row a
-          // proper bar rather than a sliver.
-          const barW = Math.max(16, Math.round(Math.pow(tot / maxVol, 0.45) * vpW));
+          // Bar length ∝ volume, shaped by a 0.6 power curve: the POC (ratio 1) is the
+          // longest, mid nodes stay clearly readable, and low nodes taper down HONESTLY
+          // toward a tiny 3px nub instead of clamping to a fat 16px floor. That old 16px
+          // floor was the "anorexic bars" problem: it forced every thin bucket to the
+          // SAME 16px width, so a run of low-volume buckets stacked into one uniform
+          // vertical ribbon while only the POC jutted out — the snaggle-tooth look. A
+          // low 3px floor lets the silhouette taper into a real histogram shape.
+          const barW = Math.max(3, Math.round(Math.pow(tot / maxVol, 0.6) * vpW));
 
           if (isPOC) {
             ctx.fillStyle = vpPocRgba(0.68);
