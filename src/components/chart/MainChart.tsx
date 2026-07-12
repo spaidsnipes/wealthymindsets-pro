@@ -5639,7 +5639,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // SAME 16px width, so a run of low-volume buckets stacked into one uniform
           // vertical ribbon while only the POC jutted out — the snaggle-tooth look. A
           // low 3px floor lets the silhouette taper into a real histogram shape.
-          const barW = Math.max(3, Math.round(Math.pow(Math.min(1, tot / widthRef), 0.6) * vpW));
+          // Visible BASELINE + volume-proportional extension. Every populated node
+          // draws at >= baseline (~9% of the column) so LOW-volume nodes are actually
+          // VISIBLE (the user's "low nodes not visible / it's just a stick"), while the
+          // proportional part (up to full width) still makes the POC/value-area the
+          // longest — giving a real FILLED P/b/D silhouette, not slivers and not a
+          // uniform block. widthRef (robust percentile) keeps one outlier from
+          // flattening the proportional term.
+          const vpBaseline = Math.max(6, Math.round(vpW * 0.09));
+          const barW = vpBaseline + Math.round((vpW - vpBaseline) * Math.pow(Math.min(1, tot / widthRef), 0.6));
 
           if (isPOC) {
             ctx.fillStyle = vpPocRgba(0.68);
@@ -5764,14 +5772,24 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         const bothVP = fixedVPActive && sessionVPActive;
         const nVPCols = bothVP ? 2 : 1;
         if (fixedVPActive) {
-          // WM Fixed VP sources the ENTIRE fetched history — a true full-range fixed
-          // profile that stays put across timeframe changes. (A visible-range variant
-          // was tried to "fill the pane" on zoom, but pixel-measurement showed it
-          // spread volume so thin the median bar dropped to ~8px — worse than the
-          // full-range profile's ~62px readable bars. Robust width normalization +
-          // top-N labels give the clean histogram; the range stays full.)
+          // VISIBLE-RANGE buckets — the fix for the "VP turns into a stick when I zoom
+          // in." Sourcing the ENTIRE history made buckets coarse (~$100 apart), so only
+          // ~6 buckets fell inside a zoomed price window, all clustered at the value
+          // area = a stick. Sourcing the bars IN VIEW gives fine buckets over the
+          // visible price range, so the histogram fills the pane at any zoom. (This
+          // only works paired with the visible baseline width below — visible-range
+          // ALONE spread volume too thin; together they make a filled P/b/D shape.)
           const allBars = barsRef.current;
-          drawWMVP(allBars.length > 2 ? allBars : allBars, "#F0B429", "WM Fixed VP", 0, 0, nVPCols);
+          let vpBars = allBars;
+          try {
+            const vr = chart.timeScale().getVisibleRange();
+            if (vr) {
+              const from = vr.from as number, to = vr.to as number;
+              const inView = allBars.filter(b => { const t = b.time as number; return t >= from && t <= to; });
+              if (inView.length > 2) vpBars = inView;
+            }
+          } catch { /* fall back to allBars */ }
+          drawWMVP(vpBars, "#F0B429", "WM Fixed VP", 0, 0, nVPCols);
         }
         if (sessionVPActive) {
           // Session VP shows the CURRENT session's volume distribution. It must NOT
