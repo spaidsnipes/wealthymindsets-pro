@@ -5640,22 +5640,20 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             ctx.textAlign = "right"; ctx.textBaseline = "middle";
             ctx.fillText(pocPrice.toFixed(2), pocLineLeft - 2, rowY + Math.round(rowH/2));
           }
-          // Volume numbers — drawn INSIDE the bar at its right edge so they stay in
-          // the VP column and never reach left into the candles / Big-Trades bubbles
-          // (which caused the busy, overlapping look). Only label a row when it is
-          // tall enough AND ≥16px from the last drawn label, and skip very small
-          // (<8% of POC) rows when crowded so the cluster reads cleanly. POC always
-          // labels and resets the spacing anchor so its neighbours give it room.
-          // Label EVERY populated row that has the vertical room — including the small
-          // top/bottom shelves that the old `meaningful` (≥8% of POC) gate left blank.
-          // Only de-overlap (skip a label that would collide with the one above) so the
-          // numbers never stack on top of each other; POC always labels.
+          // Volume numbers — label ONLY the POC and other MAJOR nodes (≥30% of the
+          // POC volume), NEVER every level. Printing a number on all ~46 rows turned
+          // the profile into a vertical spreadsheet of tiny 0.0x values that buried
+          // the bars — the "wall of numbers" that made the VP look broken. Pro
+          // platforms (TradingView/Sierra) label the POC and let the bar silhouette
+          // carry the rest; VAH/VAL get their own box tags just below. The de-overlap
+          // + zero-suppression still apply to the few major labels that remain.
           const midY = rowY + rowH / 2;
           const txt = fmtV(tot);
-          // Suppress zero-volume labels (crypto sub-0.005 BTC rows → "0.00") so the
-          // profile isn't a wall of 0.00; the POC still always labels. Bars unaffected.
           const vpZero = txt === "0" || txt === "0.00" || txt === "0.0";
-          if ((isPOC || (rowH >= 5 && Math.abs(midY - lastLabelY) >= 12)) && (!vpZero || isPOC)) {
+          const majorNode = tot >= 0.30 * maxVol;
+          const showLabel = isPOC ||
+            (majorNode && !vpZero && rowH >= 5 && Math.abs(midY - lastLabelY) >= 13);
+          if (showLabel) {
             ctx.font = `${isPOC ? "bold 12" : "11"}px monospace`;
             ctx.textAlign = "right"; ctx.textBaseline = "middle";
             // Dark halo so white numbers stay legible over both bar and chart bg.
