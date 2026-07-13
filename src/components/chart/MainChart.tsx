@@ -5485,7 +5485,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         //    it (the "two snaggle teeth + anorexic bars" the user saw). Targeting ~46
         //    rows and snapping to the NEAREST clean tick keeps the resolution high, so
         //    volume spreads into a smooth histogram silhouette with a natural POC.
-        const rows = 46;
+        //
+        // 3) FILL-AT-ZOOM: with the FIXED (full-history) profile, ~46 rows over a wide
+        //    range meant only a handful of buckets fell inside a zoomed price window
+        //    (the "stick"). ~100 rows makes the grid fine enough that a zoomed slice
+        //    still shows a filled column of bars, WITHOUT re-sourcing on scroll (so the
+        //    POC stays stable). Rows clamp to ≥2px and stack contiguously when zoomed out.
+        const rows = 100;
         let tickSz = rawRange / rows;
         // Snap to the NEAREST clean increment (1/2/2.5/5/10 · 10ⁿ) so bucket edges are
         // still readable prices but the grid never coarsens (nearest, not ceil).
@@ -5781,24 +5787,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         const bothVP = fixedVPActive && sessionVPActive;
         const nVPCols = bothVP ? 2 : 1;
         if (fixedVPActive) {
-          // VISIBLE-RANGE buckets — the fix for the "VP turns into a stick when I zoom
-          // in." Sourcing the ENTIRE history made buckets coarse (~$100 apart), so only
-          // ~6 buckets fell inside a zoomed price window, all clustered at the value
-          // area = a stick. Sourcing the bars IN VIEW gives fine buckets over the
-          // visible price range, so the histogram fills the pane at any zoom. (This
-          // only works paired with the visible baseline width below — visible-range
-          // ALONE spread volume too thin; together they make a filled P/b/D shape.)
+          // FULL-HISTORY source — a true FIXED profile. POC/VAH/VAL are computed from
+          // the whole fetched bar set, so they DO NOT move when you scroll or zoom
+          // (the "VAL/VAH/POC jump 396→397→400 on scroll" bug came from a visible-range
+          // variant that recomputed the profile from whatever bars were in view). The
+          // finer bucket grid (rows below) keeps it filled top-to-bottom even zoomed in,
+          // so it no longer collapses to a stick — stability AND fill, not one or other.
           const allBars = barsRef.current;
-          let vpBars = allBars;
-          try {
-            const vr = chart.timeScale().getVisibleRange();
-            if (vr) {
-              const from = vr.from as number, to = vr.to as number;
-              const inView = allBars.filter(b => { const t = b.time as number; return t >= from && t <= to; });
-              if (inView.length > 2) vpBars = inView;
-            }
-          } catch { /* fall back to allBars */ }
-          drawWMVP(vpBars, "#F0B429", "WM Fixed VP", 0, 0, nVPCols);
+          drawWMVP(allBars, "#F0B429", "WM Fixed VP", 0, 0, nVPCols);
         }
         if (sessionVPActive) {
           // Session VP shows the CURRENT session's volume distribution. It must NOT
