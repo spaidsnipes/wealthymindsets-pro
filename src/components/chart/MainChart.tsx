@@ -5534,6 +5534,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             .slice(0, MAX_VP_LABELS)
             .map(e => e[0]),
         );
+        // Label mode (VP gear toggle, persisted): "all" = a number in every bar that
+        // has room (de-overlapped); "key" = only the ~6 highest-volume levels. Default
+        // "all". This is the single knob for the top-6-vs-every-bar preference so it
+        // never has to be re-decided in code.
+        let vpLabelAll = true;
+        try { vpLabelAll = localStorage.getItem("wm_vp_labels") !== "key"; } catch {}
 
         // ── Value Area (70% of volume) → VAH / VAL ──────────────────────
         // Expand outward from the POC, each step absorbing whichever adjacent
@@ -5689,11 +5695,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const midY = rowY + rowH / 2;
           const txt = fmtV(tot);
           const vpZero = txt === "0" || txt === "0.00" || txt === "0.0";
-          // Label only the ~6 highest-volume levels (POC + top set), de-overlapped —
-          // clean TradingView-style, no wall. The filled bar silhouette carries the
-          // rest; VAH/VAL get their own box tags.
-          const showLabel = isPOC ||
-            (topLabelPrices.has(price) && !vpZero && rowH >= 8 && Math.abs(midY - lastLabelY) >= 13);
+          // "all" mode: a number in EVERY bar that has vertical room (de-overlapped so
+          // thin zoomed-out rows never stack into a wall) — shows the real value incl a
+          // literal 0 when that's the truth. "key" mode: only the ~6 highest levels
+          // (clean TradingView look). POC always labels (bold).
+          const hasRoom = rowH >= 8 && Math.abs(midY - lastLabelY) >= 13;
+          const showLabel = isPOC || (hasRoom && (
+            vpLabelAll ? true : (topLabelPrices.has(price) && !vpZero)
+          ));
           if (showLabel) {
             ctx.font = `${isPOC ? "bold 12" : "11"}px monospace`;
             ctx.textAlign = "right"; ctx.textBaseline = "middle";

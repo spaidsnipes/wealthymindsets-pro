@@ -68,6 +68,7 @@ function VPColorGear() {
   const [poc, setPoc]   = useState("#F0B429");
   const [vah, setVah]   = useState("#2563EB");
   const [val, setVal]   = useState("#8B5CF6");
+  const [labelMode, setLabelMode] = useState<"all" | "key">("all");
   useEffect(() => {
     try {
       setVpUp(localStorage.getItem("wm_vp_up") || "#00C076");
@@ -75,8 +76,16 @@ function VPColorGear() {
       setPoc(localStorage.getItem("wm_vp_poc") || "#F0B429");
       setVah(localStorage.getItem("wm_vp_vah") || "#2563EB");
       setVal(localStorage.getItem("wm_vp_val") || "#8B5CF6");
+      setLabelMode(localStorage.getItem("wm_vp_labels") === "key" ? "key" : "all");
     } catch {}
   }, [open]);
+  const applyLabelMode = (m: "all" | "key") => {
+    setLabelMode(m);
+    try {
+      localStorage.setItem("wm_vp_labels", m);
+      window.dispatchEvent(new Event("wm-vp-colors"));
+    } catch {}
+  };
   const applyVp = (up: string, dn: string) => {
     setVpUp(up); setVpDn(dn);
     try {
@@ -126,6 +135,21 @@ function VPColorGear() {
             <div className="h-px bg-wm-border" />
             {field("Up / Ask", vpUp, v => applyVp(v, vpDn))}
             {field("Down / Bid", vpDn, v => applyVp(vpUp, v))}
+            <div className="h-px bg-wm-border" />
+            <div className="text-[11px] font-bold text-wm-text">Bar numbers</div>
+            <div className="flex gap-1">
+              {(["all", "key"] as const).map(m => (
+                <button key={m} onClick={() => applyLabelMode(m)}
+                  className="flex-1 px-2 py-1 rounded text-[10px] font-semibold border transition-all"
+                  style={{
+                    background: labelMode === m ? "rgba(0,192,118,0.15)" : "#131520",
+                    borderColor: labelMode === m ? "rgba(0,192,118,0.5)" : "#1E2030",
+                    color: labelMode === m ? "#00C076" : "#8B8FA8",
+                  }}>
+                  {m === "all" ? "Every bar" : "Key levels"}
+                </button>
+              ))}
+            </div>
             <div className="h-px bg-wm-border" />
             <div className="text-[11px] font-bold text-wm-text">Value-area levels</div>
             <div className="text-[10px] text-wm-text-dim -mt-1">POC line, VAH box & VAL box colors.</div>
