@@ -5523,6 +5523,18 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         const medVol   = volsAsc.length ? volsAsc[Math.floor(volsAsc.length / 2)] : 0;
         const widthRef = medVol > 0 ? medVol * 3.5 : (maxVol || 1);
 
+        // Only the ~6 highest-volume levels get a NUMBER (POC + 5). Per-row labels
+        // turned BTC's fractional volumes into an unreadable wall; TradingView-style
+        // top-N is the clean look. Explicit Set = distribution- and tie-proof (a
+        // value cutoff would let equal-volume levels flood through on a flat profile).
+        const MAX_VP_LABELS = 6;
+        const topLabelPrices = new Set<number>(
+          Array.from(volMap.entries())
+            .sort((a, b) => (b[1].bid + b[1].ask) - (a[1].bid + a[1].ask))
+            .slice(0, MAX_VP_LABELS)
+            .map(e => e[0]),
+        );
+
         // ── Value Area (70% of volume) → VAH / VAL ──────────────────────
         // Expand outward from the POC, each step absorbing whichever adjacent
         // level (above or below) holds the larger volume, until 70% of total
@@ -5677,13 +5689,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const midY = rowY + rowH / 2;
           const txt = fmtV(tot);
           const vpZero = txt === "0" || txt === "0.00" || txt === "0.0";
-          // A volume number in EVERY bar that has the room. Show it on any non-zero row
-          // that is tall enough (>=9px) AND at least 14px below the last drawn number,
-          // so on a fitted profile essentially every bar is labelled, but when zoomed
-          // out to hundreds of thin rows the de-overlap thins the labels instead of
-          // stacking them into an unreadable wall. POC always labels (bold).
+          // Label only the ~6 highest-volume levels (POC + top set), de-overlapped —
+          // clean TradingView-style, no wall. The filled bar silhouette carries the
+          // rest; VAH/VAL get their own box tags.
           const showLabel = isPOC ||
-            (!vpZero && rowH >= 9 && Math.abs(midY - lastLabelY) >= 14);
+            (topLabelPrices.has(price) && !vpZero && rowH >= 8 && Math.abs(midY - lastLabelY) >= 13);
           if (showLabel) {
             ctx.font = `${isPOC ? "bold 12" : "11"}px monospace`;
             ctx.textAlign = "right"; ctx.textBaseline = "middle";
