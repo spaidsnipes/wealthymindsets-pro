@@ -1619,6 +1619,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                      // Hourly TFs now pull ~2y of 60-min bars (Yahoo's max) so the
                      // chart scrolls back years, not 60 days.
                      : ["1h","2h","4h"].includes(timeframe) ? 3000
+                     // Minute TFs were starved at 500 bars — a 5m chart only reached
+                     // back ~6 trading days ("maxes out at Jul 6"). Pull the full
+                     // intraday window the source allows: 1m ≈ Yahoo's ~7-day cap,
+                     // 5m–30m reach weeks→months. Limiter becomes the API, not us.
+                     : ["1m","2m","3m"].includes(timeframe) ? 3000
+                     : ["5m","10m","15m","30m"].includes(timeframe) ? 5000
                      : 500;
 
       // Per-exchange crypto (e.g. "BTC.COINBASE") → that exchange's real candles
