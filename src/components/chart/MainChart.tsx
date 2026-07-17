@@ -5724,11 +5724,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           if (showLabel) {
             ctx.font = `${isPOC ? "bold 12" : "11"}px monospace`;
             ctx.textAlign = "right"; ctx.textBaseline = "middle";
-            // Dark halo so white numbers stay legible over both bar and chart bg.
-            ctx.shadowColor = "rgba(0,0,0,0.92)"; ctx.shadowBlur = 3;
+            // CRISP dark outline (strokeText) instead of a soft shadowBlur halo — the
+            // blur was what made the VP numbers look fuzzy. Stroke keeps them sharp AND
+            // legible over any bar/candle background.
+            ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
+            ctx.strokeText(txt, vpRight - 4, midY);
             ctx.fillStyle = "#ffffff";
             ctx.fillText(txt, vpRight - 4, midY);
-            ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
             lastLabelY = midY;
           }
         }
@@ -5760,12 +5762,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             ctx.lineTo(vpRight + 2, edgeY);
             ctx.stroke();
             ctx.setLineDash([]);
-            ctx.fillStyle = rgba;
             ctx.font = "bold 9px monospace";
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 3;
-            ctx.fillText(`${tag} ${above ? "↑" : "↓"} ${p.toFixed(2)}`, vpRight - vpW - 2, edgeY + (above ? 8 : -8));
-            ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+            const edgeTxt = `${tag} ${above ? "↑" : "↓"} ${p.toFixed(2)}`;
+            ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
+            ctx.strokeText(edgeTxt, vpRight - vpW - 2, edgeY + (above ? 8 : -8));
+            ctx.fillStyle = rgba;
+            ctx.fillText(edgeTxt, vpRight - vpW - 2, edgeY + (above ? 8 : -8));
             ctx.restore();
             return;
           }
@@ -5773,12 +5776,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const h   = Math.max(7, Math.abs(yB - yT));
           ctx.strokeStyle = rgba; ctx.lineWidth = 2; ctx.setLineDash([]);
           ctx.strokeRect(vpRight - vpW - 2, top, vpW + 4, h);
-          ctx.fillStyle = rgba;
           ctx.font = "bold 9px monospace";
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 3;
+          ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
+          ctx.strokeText(tag, vpRight - vpW - 2, top + h / 2);
+          ctx.fillStyle = rgba;
           ctx.fillText(tag, vpRight - vpW - 2, top + h / 2);
-          ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
           ctx.restore();
         };
         if (vahPrice !== pocPrice) drawVALevel(vahPrice, vpVahRgba(0.95), "VAH");
