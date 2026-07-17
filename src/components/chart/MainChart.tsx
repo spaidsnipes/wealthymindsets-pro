@@ -5666,8 +5666,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           if (yTopRaw == null || yBotRaw == null) continue; // off-screen row
           const yTop  = yTopRaw;
           const yBot  = yBotRaw;
+          // Snap BOTH endpoints to integers, then subtract — never round the height
+          // independently. A row's top coordinate yOf(price+tickSz) is the SAME
+          // coordinate as the row above it's bottom, so snapping both makes adjacent
+          // populated rows share the exact boundary pixel = pixel-flush, no hairline
+          // gaps. (round(yTop)+round(yBot-yTop) drifted ±1px → the "spaced-out sticks"
+          // gaps between contiguous VP bars.) Genuinely-empty buckets still draw
+          // nothing, which is the honest gap TradingView shows too.
           const rowY  = Math.round(yTop);
-          const rowH  = Math.max(2, Math.min(rowCap, Math.round(yBot - yTop)));
+          const rowBot = Math.round(yBot);
+          const rowH  = Math.max(2, Math.min(rowCap, rowBot - rowY));
           const isPOC = price === pocPrice;
           const askRatio = vol ? vol.ask / tot : 0.5;
           // Bar length ∝ volume, shaped by a 0.6 power curve: the POC (ratio 1) is the
