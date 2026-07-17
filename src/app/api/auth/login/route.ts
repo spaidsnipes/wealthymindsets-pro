@@ -78,17 +78,28 @@ export async function POST(req: Request) {
 
   /* ── Supabase path ── */
   if (useSupabase()) {
-    let data = await supabaseSignIn(email, password);
-
-    // Auto-confirm unconfirmed users (accounts created before this fix) then retry
-    if (data.error?.message?.toLowerCase().includes("email not confirmed")) {
-      const confirmed = await adminConfirmEmail(email);
-      if (confirmed) {
-        data = await supabaseSignIn(email, password);
+    // Harden: a Supabase outage / paused project / malformed URL used to THROW here
+    // and return a bare 500, which the client showed as "stuck loading — can't sign
+    // in." Wrap it so any transport/config failure returns a clean 503 the login form
+    // can display, instead of hanging the whole app.
+    let data: any;
+    try {
+      data = await supabaseSignIn(email, password);
+      // Auto-confirm unconfirmed users (accounts created before this fix) then retry
+      if (data?.error?.message?.toLowerCase().includes("email not confirmed")) {
+        const confirmed = await adminConfirmEmail(email);
+        if (confirmed) data = await supabaseSignIn(email, password);
       }
+    } catch (e) {
+      console.error("[login] Supabase sign-in threw — auth backend unreachable/misconfigured:", e);
+      return NextResponse.json(
+        { error: "Sign-in service is temporarily unavailable. If this persists, the Supabase project may be paused or an env var changed." },
+        { status: 503 },
+      );
     }
 
-    if (data.error) return NextResponse.json({ error: data.error.message ?? "Invalid credentials" }, { status: 401 });
+    if (data?.error) return NextResponse.json({ error: data.error.message ?? "Invalid credentials" }, { status: 401 });
+    if (!data?.user) return NextResponse.json({ error: "Sign-in service returned an unexpected response." }, { status: 503 });
 
     // Restore profile from Supabase user_metadata (durable across devices), then
     // fall back to the previous session cookie for anything not yet persisted.
