@@ -5660,7 +5660,30 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const price = Math.round((loKey + i * tickSz) / tickSz) * tickSz;
           const vol   = volMap.get(price);
           const tot   = vol ? vol.bid + vol.ask : 0;
-          if (tot <= 0) continue;
+          if (tot <= 0) {
+            // INTERIOR no-trade band → label it "0" (every-bar mode only) so a gap
+            // sitting BETWEEN populated levels (price gapped/rushed through, e.g. an
+            // overnight jump) reads as an explicit zero-volume shelf instead of a
+            // mysterious blank hole — Dave's "big empty space with no labels even for
+            // 0 orders". Honest: 0 IS the real traded volume there. Tails outside the
+            // populated range stay clean; faint + de-overlapped so it never walls up.
+            if (vpLabelAll && price > allPrices[0] && price < allPrices[allPrices.length - 1]) {
+              const zyT = yOf(price + tickSz), zyB = yOf(price);
+              if (zyT != null && zyB != null) {
+                const zy = Math.round((zyT + zyB) / 2);
+                if (Math.abs(zy - lastLabelY) >= 13) {
+                  ctx.font = "11px monospace";
+                  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+                  ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.8)";
+                  ctx.strokeText("0", vpRight - 4, zy);
+                  ctx.fillStyle = "rgba(255,255,255,0.32)";
+                  ctx.fillText("0", vpRight - 4, zy);
+                  lastLabelY = zy;
+                }
+              }
+            }
+            continue;
+          }
           const yTopRaw = yOf(price + tickSz);
           const yBotRaw = yOf(price);
           if (yTopRaw == null || yBotRaw == null) continue; // off-screen row
