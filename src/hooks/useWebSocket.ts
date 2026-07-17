@@ -1045,11 +1045,51 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     const onVisibleWS = () => { if (document.visibilityState === "visible") doRestFetch(); };
     document.addEventListener("visibilitychange", onVisibleWS);
 
+    // ── Alpaca IEX per-trade tape (stocks/ETFs) ─────────────────────────────
+    // REAL executed trades for EVERY US stock, so Big Trades bubbles populate on
+    // all symbols — not just the handful the Finnhub WS happens to serve. Polls
+    // the server proxy (secret stays server-side) every 1.5s for trades since the
+    // last one seen and feeds each as a REAL tick, aggressor side by the uptick
+    // rule. Fully additive + isolated: on any error / missing keys / empty
+    // (extended-hours IEX) it silently no-ops and every existing feed is untouched.
+    let alpacaTradePoll: ReturnType<typeof setInterval> | null = null;
+    if (!isFuture && !isCrypto) {
+      let lastTradeTs = Date.now() - 5_000;
+      let lastTradePx = 0;
+      let inFlight = false;
+      const pollTrades = async () => {
+        if (inFlight || document.visibilityState !== "visible") return;
+        inFlight = true;
+        try {
+          const r = await fetch(`/api/alpaca?type=trades&sym=${encodeURIComponent(symbol)}&since=${lastTradeTs}`, { cache: "no-store" });
+          if (r.ok) {
+            const j = await r.json();
+            const trades: Array<{ p: number; s: number; t: number }> = j?.trades ?? [];
+            let got = false;
+            for (const tr of trades) {
+              if (!Number.isFinite(tr.p) || tr.p <= 0 || !tr.s || tr.t <= lastTradeTs) continue;
+              const side: "buy" | "sell" = lastTradePx && tr.p < lastTradePx ? "sell" : "buy";
+              lastTradePx = tr.p;
+              lastTradeTs = Math.max(lastTradeTs, tr.t);
+              tapeSourceRef.current = "alpaca";
+              processTick({ price: tr.p, size: tr.s, side, time: tr.t }, true);
+              got = true;
+            }
+            if (got) setState(p => (p.tapeSource === "alpaca" ? p : { ...p, source: "alpaca", tapeSource: "alpaca", connected: true }));
+          }
+        } catch { /* network hiccup — next poll retries */ }
+        finally { inFlight = false; }
+      };
+      pollTrades();
+      alpacaTradePoll = setInterval(pollTrades, 1500);
+    }
+
     if (finhCleanup) cleanupFns.current.push(finhCleanup);
     if (binanceCleanup) cleanupFns.current.push(binanceCleanup);
 
     return () => {
       clearInterval(restRefresh);
+      if (alpacaTradePoll) clearInterval(alpacaTradePoll);
       document.removeEventListener("visibilitychange", onVisibleWS);
       cleanupFns.current.forEach(fn => fn());
       if (syntheticRef.current) clearInterval(syntheticRef.current);

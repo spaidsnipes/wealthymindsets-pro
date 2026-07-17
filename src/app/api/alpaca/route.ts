@@ -166,6 +166,37 @@ export async function GET(request: Request) {
       });
     }
 
+    /* ── Recent per-trade tape (drives Big Trades bubbles) ──────
+     * Real executed trades from Alpaca's free IEX feed, for ANY US stock —
+     * this is what lets bubbles populate on every symbol instead of only the
+     * handful the Finnhub WS happens to serve. Secret stays server-side.
+     * `since` (ms) returns only trades after the caller's last-seen trade so
+     * the client can poll incrementally. IEX is a real (if partial) tape and
+     * carries no pre/post-market prints — honest real data, never synthetic. */
+    if (type === "trades") {
+      if (!rawSym) return NextResponse.json({ trades: [] });
+      const sinceMs  = parseInt(searchParams.get("since") ?? "0", 10);
+      const startIso = sinceMs > 0
+        ? new Date(sinceMs + 1).toISOString()
+        : new Date(Date.now() - 30_000).toISOString();
+
+      if (crypto) {
+        const cryptoSym = toCryptoSym(rawSym);
+        const url  = `${DATA_BASE}/v1beta3/crypto/us/trades?symbols=${encodeURIComponent(cryptoSym)}&start=${startIso}&limit=1000&sort=asc`;
+        const json = await alpacaFetch(url, 900, false) as any;
+        const arr: any[] = json?.trades?.[cryptoSym] ?? [];
+        return NextResponse.json({ sym: rawSym, trades: arr.map(t => ({ p: t.p, s: t.s, t: Date.parse(t.t) })), source: "alpaca" });
+      }
+
+      if (!ALPACA_KEY || !ALPACA_SECRET) {
+        return NextResponse.json({ trades: [], error: "Alpaca keys not set" }, { status: 503 });
+      }
+      const url  = `${DATA_BASE}/v2/stocks/${encodeURIComponent(rawSym)}/trades?start=${startIso}&limit=1000&feed=iex&sort=asc`;
+      const json = await alpacaFetch(url, 900, true) as any;
+      const arr: any[] = json?.trades ?? [];
+      return NextResponse.json({ sym: rawSym, trades: arr.map(t => ({ p: t.p, s: t.s, t: Date.parse(t.t) })), source: "alpaca" });
+    }
+
     /* ── Historical candles ─────────────────────────────────── */
     if (type === "candles") {
       if (!rawSym) return NextResponse.json({ candles: [] });
