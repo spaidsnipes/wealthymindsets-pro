@@ -2522,9 +2522,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     };
     // Kept for call-site compatibility — pane is assigned lazily on first series.
     const setupScale = (id: string, _top?: number, _bot?: number) => { paneFor(id); };
-    const addOsc = (vals: number[], color: string, scaleId: string, width = 1) => {
+    const addOsc = (vals: number[], color: string, scaleId: string, width = 1, dashed = false) => {
       try {
-        const s = chart.addSeries(LW.LineSeries, { color, lineWidth: width, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false }, paneFor(scaleId));
+        const s = chart.addSeries(LW.LineSeries, { color, lineWidth: width, lineStyle: dashed ? LW.LineStyle.Dashed : LW.LineStyle.Solid, priceLineVisible: false, lastValueVisible: !dashed, crosshairMarkerVisible: false }, paneFor(scaleId));
         s.setData(bars.map((b, i) => ({ time: b.time as any, value: vals[i] })).filter(d => isFinite(d.value)));
         indSeriesRef.current.push(s);
         return s;
@@ -2540,7 +2540,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         return s;
       } catch { return null; }
     };
-    const refLine = (val: number, scaleId: string, color: string) => addOsc(bars.map(() => val), color, scaleId, 1);
+    const refLine = (val: number, scaleId: string, color: string) => addOsc(bars.map(() => val), color, scaleId, 1, true);
 
     // ── Cumulative-delta CANDLES (TradingView-style CVD) ─────────
     // A cumulative series (running sum) rendered as a per-bar histogram looks
@@ -2893,7 +2893,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // autoscale range every frame, pinning the candles to one edge. Rebase the
     // series to its visible-window start so 0 is meaningful, and let the candles
     // autoscale to their own range — no forced reference line.
-    if (inds.has("CVD"))              { setupScale("cvd"); addCumCandles(IND.cvd(bars), "cvd"); }
+    if (inds.has("CVD"))              { setupScale("cvd"); addCumCandles(IND.cvd(bars), "cvd"); refLine(0, "cvd", "rgba(255,255,255,0.22)"); }
     if (inds.has("CVD Oscillator"))   { setupScale("cvdosc"); addOsc(IND.cvdOscillator(bars), "#F0B429", "cvdosc"); refLine(0, "cvdosc", "rgba(255,255,255,0.1)"); }
     if (inds.has("MFI") || inds.has("Money Flow Index")) {
       setupScale("mfi", 0.78);
