@@ -5794,16 +5794,29 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             ctx.restore();
             return;
           }
-          const top = Math.min(yT, yB);
-          const h   = Math.max(7, Math.abs(yB - yT));
-          ctx.strokeStyle = rgba; ctx.lineWidth = 2; ctx.setLineDash([]);
-          ctx.strokeRect(vpRight - vpW - 2, top, vpW + 4, h);
+          // TradingView-style value-area boundary: a single thin DASHED line across
+          // the profile, NOT a full-width outline box. The box (vpW+4 wide) stacked
+          // directly on the footprint numbers — and doubled when Fixed + Session VP
+          // are both on — is what made the VAH/POC/VAL zone read "muddy". A compact
+          // colored tag WITH the actual price sits just above the line at the
+          // profile's left edge, so it never sits on top of the bars' numbers and the
+          // trader can finally read the exact VAH/VAL value on-screen.
+          const top  = Math.min(yT, yB);
+          const h    = Math.max(7, Math.abs(yB - yT));
+          const midY = Math.round(top + h / 2) + 0.5;
+          ctx.strokeStyle = rgba; ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
+          ctx.beginPath();
+          ctx.moveTo(vpRight - vpW - 2, midY);
+          ctx.lineTo(vpRight - 2, midY);
+          ctx.stroke();
+          ctx.setLineDash([]);
           ctx.font = "bold 9px monospace";
-          ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+          const tagTxt = `${tag} ${p >= 10000 ? Math.round(p).toLocaleString("en-US") : p.toFixed(2)}`;
           ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
-          ctx.strokeText(tag, vpRight - vpW - 2, top + h / 2);
+          ctx.strokeText(tagTxt, vpRight - vpW - 2, midY - 1);
           ctx.fillStyle = rgba;
-          ctx.fillText(tag, vpRight - vpW - 2, top + h / 2);
+          ctx.fillText(tagTxt, vpRight - vpW - 2, midY - 1);
           ctx.restore();
         };
         if (vahPrice !== pocPrice) drawVALevel(vahPrice, vpVahRgba(0.95), "VAH");
