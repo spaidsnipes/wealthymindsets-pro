@@ -1198,6 +1198,18 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // Scale mode buttons
   const [logScale, setLogScale] = useState(false);
   const [pctMode, setPctMode] = useState(false);
+  // Order-flow overlay opacity ("declutter"). Footprint numbers, Big-Trade
+  // bubbles and Volume Profile all draw on the single overlay canvas (canvasRef,
+  // zIndex 5). Candles/volume are native LWC series and drawings live on a
+  // separate canvas above (zIndex 10), so scaling ONLY this canvas's opacity
+  // lets the trader fade the busy order-flow back while price + drawings stay
+  // crisp — the TradingView-clean workflow when annotating a dense chart.
+  // Persisted so the preference survives refresh. Cycles 1 → 0.4 → 0.15 → 1.
+  const [flowOpacity, setFlowOpacity] = useState<number>(() => {
+    if (typeof window === "undefined") return 1;
+    const v = parseFloat(localStorage.getItem("wm_flow_opacity") || "1");
+    return Number.isFinite(v) && v > 0 && v <= 1 ? v : 1;
+  });
   // Auto-scale: when OFF the user can freely drag the price axis up/down to see
   // higher/lower price levels (TradingView-style). When ON the chart auto-fits.
   const [autoScale, setAutoScale] = useState(true);
@@ -6541,6 +6553,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     }
   }, [drawingsVisible]);
 
+  // Apply order-flow "declutter" opacity to the overlay canvas + persist it.
+  // Only the overlay (footprint/bubbles/VP) fades; candles, volume and drawings
+  // are on other layers and stay fully opaque.
+  useEffect(() => {
+    if (canvasRef.current) canvasRef.current.style.opacity = String(flowOpacity);
+    try { localStorage.setItem("wm_flow_opacity", String(flowOpacity)); } catch {}
+  }, [flowOpacity]);
+
   /* ── Right-click context menu handler ──────────────────────── */
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -6734,7 +6754,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         <canvas
           ref={canvasRef}
           className="absolute top-0 left-0 pointer-events-none"
-          style={{ mixBlendMode: "normal", opacity: 1, zIndex: 5 }}
+          style={{ mixBlendMode: "normal", opacity: flowOpacity, zIndex: 5 }}
         />
         {/* Drawing tools canvas — pointer-events only when tool is active */}
         <canvas
@@ -6982,6 +7002,21 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               {btn.label}
             </button>
           ))}
+          {/* Declutter: cycle order-flow overlay opacity (footprint/bubbles/VP)
+              100% → 40% → 15% → 100% so drawings + price read clean over a busy
+              chart, TradingView-style. Dimmed state is highlighted. */}
+          <button
+            onClick={() => setFlowOpacity(o => (o > 0.7 ? 0.4 : o > 0.25 ? 0.15 : 1))}
+            title={`Order-flow overlay opacity: ${Math.round(flowOpacity * 100)}% — click to dim footprint / bubbles / VP so drawings and price stand out (cycles 100 → 40 → 15%)`}
+            style={{
+              height: 22, padding: "0 6px", borderRadius: 4, fontSize: 9, fontWeight: 800, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap",
+              background: flowOpacity < 0.99 ? "rgba(240,180,41,0.20)" : "rgba(20,24,36,0.85)",
+              border: `1px solid ${flowOpacity < 0.99 ? "rgba(240,180,41,0.6)" : "#263050"}`,
+              color: flowOpacity < 0.99 ? "#F0B429" : "#8896BE",
+            }}>
+            ◐ {Math.round(flowOpacity * 100)}%
+          </button>
         </div>
 
         {/* ── Data Window ──────────────────────────────── */}
