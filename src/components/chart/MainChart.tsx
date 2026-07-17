@@ -5508,7 +5508,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
         const volMap = new Map<number, { bid: number; ask: number }>();
         barsToUse.forEach(b => {
-          const lvls = getBarFootprint(b, 10);
+          // Sample each bar at (at least) the display-grid resolution so its volume
+          // fills EVERY bucket across its high–low range. A fixed 10 levels left empty
+          // buckets between the samples on the fine 100-row grid → the "spaced-out
+          // sticks / gaps" look. This distributes the SAME real volume more finely
+          // (never synthetic), capped at the 120-level sub-grid.
+          const nLvls = Math.max(10, Math.min(120, Math.ceil((b.high - b.low) / tickSz) + 2));
+          const lvls = getBarFootprint(b, nLvls);
           lvls.forEach(lv => {
             const key = Math.round(lv.priceLevel / tickSz) * tickSz;
             const ex  = volMap.get(key) ?? { bid: 0, ask: 0 };
