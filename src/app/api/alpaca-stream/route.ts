@@ -61,8 +61,12 @@ export async function GET(request: NextRequest) {
         ws = new WebSocket("wss://stream.data.alpaca.markets/v2/iex");
       } catch (e) { send({ err: "ws construct failed: " + String(e) }); shutdown(); return; }
 
+      let authed = false;
       const authenticate = () => {
         try { ws!.send(JSON.stringify({ action: "auth", key: ALPACA_KEY, secret: ALPACA_SECRET })); } catch { shutdown(); }
+        // If Alpaca goes silent after auth, it's almost always the free plan's
+        // one-connection limit (another socket already holds it). Surface it.
+        setTimeout(() => { if (!authed && !closed) send({ err: "auth timeout — likely Alpaca 1-connection limit (close other tabs/streams)" }); }, 6000);
       };
 
       ws.on("open", () => { send({ st: "open" }); });
@@ -77,6 +81,7 @@ export async function GET(request: NextRequest) {
             send({ st: "connected" });
             authenticate();
           } else if (m?.T === "success" && m?.msg === "authenticated") {
+            authed = true;
             send({ st: "auth" });
             try { ws!.send(JSON.stringify({ action: "subscribe", trades: [sym] })); } catch { shutdown(); }
           } else if (m?.T === "subscription") {
@@ -97,7 +102,7 @@ export async function GET(request: NextRequest) {
       // Heartbeat keeps intermediary proxies from idle-closing the SSE; recycle
       // just before maxDuration so EventSource reconnects cleanly.
       const hb      = setInterval(() => send({ hb: 1 }), 15_000);
-      const recycle = setTimeout(shutdown, 285_000);
+      const recycle = setTimeout(shutdown, 240_000);
       request.signal.addEventListener("abort", () => { clearInterval(hb); clearTimeout(recycle); shutdown(); });
     },
     cancel() {
