@@ -98,8 +98,28 @@ export async function POST(req: Request) {
       );
     }
 
-    if (data?.error) return NextResponse.json({ error: data.error.message ?? "Invalid credentials" }, { status: 401 });
-    if (!data?.user) return NextResponse.json({ error: "Sign-in service returned an unexpected response." }, { status: 503 });
+    // Supabase / GoTrue returns auth errors in DIFFERENT shapes across versions:
+    //   {error:{message}} · {error:"invalid_grant",error_description} ·
+    //   {error_code,msg,code} · {message:"Invalid API key"}
+    // The old code only checked data.error.message, so a modern error response fell
+    // through to a generic "unexpected response" (503) and masked the real cause.
+    // Recognize them all + surface the actual message so a bad API KEY is obvious.
+    if (!data?.user) {
+      const sbErr = data?.error?.message
+        || data?.error_description
+        || (typeof data?.error === "string" ? data.error : null)
+        || data?.msg
+        || data?.message
+        || "Invalid credentials";
+      const low = String(sbErr).toLowerCase();
+      const isKeyIssue = low.includes("api key") || low.includes("apikey") || low.includes("jwt") || low.includes("no api key");
+      return NextResponse.json(
+        isKeyIssue
+          ? { error: `Supabase rejected the API key: "${sbErr}". Check NEXT_PUBLIC_SUPABASE_ANON_KEY / NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in Vercel.` }
+          : { error: sbErr },
+        { status: isKeyIssue ? 503 : 401 },
+      );
+    }
 
     // Restore profile from Supabase user_metadata (durable across devices), then
     // fall back to the previous session cookie for anything not yet persisted.
