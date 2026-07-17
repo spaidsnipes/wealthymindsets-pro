@@ -1054,8 +1054,19 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // the proxy recycles. Aggressor side by uptick rule. Fully additive: on any
     // error / missing keys / quiet (extended-hours IEX) it no-ops and every
     // existing feed is untouched. Never synthetic — real IEX prints only.
+    // Gated OFF by default: Vercel serverless freezes the streaming function ~3s
+    // after start, so the /api/alpaca-stream WS proxy can't sustain the tape on
+    // Vercel (proven: open+connected arrive, then heartbeats/trades stop). The
+    // full client→SSE→Alpaca-WS pipeline is ready — flip this flag ON the moment
+    // there's a host that keeps the socket alive (a paid Alpaca data plan makes
+    // the delayed-REST /api/alpaca?type=trades real-time instead, or an always-on
+    // WS host outside Vercel). Left dormant so it never churns Alpaca's single
+    // free-plan connection slot for nothing.
+    const alpacaStreamOn = (() => {
+      try { return localStorage.getItem("wm_alpaca_stream") === "on"; } catch { return false; }
+    })();
     let alpacaES: EventSource | null = null;
-    if (!isFuture && !isCrypto && typeof EventSource !== "undefined") {
+    if (alpacaStreamOn && !isFuture && !isCrypto && typeof EventSource !== "undefined") {
       let lastPx = 0;
       try {
         alpacaES = new EventSource(`/api/alpaca-stream?sym=${encodeURIComponent(symbol)}`);
