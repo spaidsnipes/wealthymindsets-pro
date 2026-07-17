@@ -48,9 +48,18 @@ export async function GET(request: NextRequest) {
         try { controller.close(); } catch { /* already closed */ }
       };
 
+      // Defeat intermediary/serverless response buffering: an immediate ~2KB
+      // comment padding forces the SSE stream to flush and open right away, and
+      // an instant heartbeat proves to the client the stream is live before any
+      // trade arrives. Without this, Vercel can hold the whole response buffered.
+      try {
+        controller.enqueue(encoder.encode(":" + " ".repeat(2048) + "\n\n"));
+      } catch { /* stream gone */ }
+      send({ hb: 1 });
+
       try {
         ws = new WebSocket("wss://stream.data.alpaca.markets/v2/iex");
-      } catch { shutdown(); return; }
+      } catch (e) { send({ err: "ws construct failed: " + String(e) }); shutdown(); return; }
 
       ws.on("open", () => {
         try { ws!.send(JSON.stringify({ action: "auth", key: ALPACA_KEY, secret: ALPACA_SECRET })); } catch { shutdown(); }
