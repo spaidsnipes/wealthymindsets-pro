@@ -1045,45 +1045,59 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     const onVisibleWS = () => { if (document.visibilityState === "visible") doRestFetch(); };
     document.addEventListener("visibilitychange", onVisibleWS);
 
-    // ── Alpaca real-time IEX per-trade tape (stocks/ETFs) via SSE ───────────
+    // ── Real-time per-trade tape via an always-on external WS proxy ─────────
     // REAL executed trades for EVERY US stock, so Big Trades bubbles populate on
-    // all symbols — not just the handful the Finnhub WS happens to serve. The
-    // server proxy (/api/alpaca-stream) holds the Alpaca websocket (secret stays
-    // server-side) and streams live trades here as SSE. Real-time timestamps, so
-    // each print lands in the correct live bar. EventSource auto-reconnects when
-    // the proxy recycles. Aggressor side by uptick rule. Fully additive: on any
-    // error / missing keys / quiet (extended-hours IEX) it no-ops and every
-    // existing feed is untouched. Never synthetic — real IEX prints only.
-    // Gated OFF by default: Vercel serverless freezes the streaming function ~3s
-    // after start, so the /api/alpaca-stream WS proxy can't sustain the tape on
-    // Vercel (proven: open+connected arrive, then heartbeats/trades stop). The
-    // full client→SSE→Alpaca-WS pipeline is ready — flip this flag ON the moment
-    // there's a host that keeps the socket alive (a paid Alpaca data plan makes
-    // the delayed-REST /api/alpaca?type=trades real-time instead, or an always-on
-    // WS host outside Vercel). Left dormant so it never churns Alpaca's single
-    // free-plan connection slot for nothing.
-    const alpacaStreamOn = (() => {
-      try { return localStorage.getItem("wm_alpaca_stream") === "on"; } catch { return false; }
+    // all symbols — not just the handful the Finnhub WS happens to serve. Vercel
+    // serverless can't host a persistent Alpaca websocket (the function freezes),
+    // so the proxy runs OFF Vercel (e.g. a Railway service) holding the Alpaca IEX
+    // socket and relaying trades. It keeps the Alpaca key/secret — WM only knows
+    // the proxy's public WS URL. Configure via NEXT_PUBLIC_ALPACA_PROXY_URL
+    // (Vercel) or localStorage wm_alpaca_proxy (quick testing). No-op until a URL
+    // is set → zero churn, no regression. Real trades only, never synthetic.
+    //
+    // Protocol the proxy must speak: accept the symbol as `?sym=TSLA` (and/or a
+    // {"action":"subscribe","sym":"TSLA"} message on open), then push trades as
+    // JSON — either {p,s,t} or raw Alpaca {"T":"t","p":..,"s":..,"t":..}. Both are
+    // accepted below. `t` may be ms-epoch or an RFC3339 string.
+    const proxyBase = (() => {
+      try { return (localStorage.getItem("wm_alpaca_proxy") || process.env.NEXT_PUBLIC_ALPACA_PROXY_URL || "").trim(); }
+      catch { return (process.env.NEXT_PUBLIC_ALPACA_PROXY_URL || "").trim(); }
     })();
-    let alpacaES: EventSource | null = null;
-    if (alpacaStreamOn && !isFuture && !isCrypto && typeof EventSource !== "undefined") {
+    let proxyWs: WebSocket | null = null;
+    let proxyRetry: ReturnType<typeof setTimeout> | null = null;
+    let proxyClosed = false;
+    if (proxyBase && !isFuture && !isCrypto && typeof WebSocket !== "undefined") {
       let lastPx = 0;
-      try {
-        alpacaES = new EventSource(`/api/alpaca-stream?sym=${encodeURIComponent(symbol)}`);
-        alpacaES.onmessage = (ev) => {
-          let d: { p?: number; s?: number; t?: number; hb?: number; err?: string };
-          try { d = JSON.parse(ev.data); } catch { return; }
-          if (!d || d.hb || d.err) return;
-          if (!Number.isFinite(d.p) || (d.p as number) <= 0 || !d.s) return;
-          const px = d.p as number;
-          const side: "buy" | "sell" = lastPx && px < lastPx ? "sell" : "buy";
-          lastPx = px;
-          tapeSourceRef.current = "alpaca";
-          processTick({ price: px, size: d.s as number, side, time: d.t || Date.now() }, true);
-          setState(p => (p.tapeSource === "alpaca" ? p : { ...p, source: "alpaca", tapeSource: "alpaca", connected: true }));
+      const connectProxy = () => {
+        if (proxyClosed) return;
+        let url = proxyBase;
+        try { const u = new URL(proxyBase); u.searchParams.set("sym", symbol); url = u.toString(); }
+        catch { url = `${proxyBase}${proxyBase.includes("?") ? "&" : "?"}sym=${encodeURIComponent(symbol)}`; }
+        let sock: WebSocket;
+        try { sock = new WebSocket(url); } catch { proxyRetry = setTimeout(connectProxy, 4000); return; }
+        proxyWs = sock;
+        sock.onopen = () => { try { sock.send(JSON.stringify({ action: "subscribe", sym: symbol, trades: [symbol] })); } catch { /* proxy may not need a subscribe msg */ } };
+        sock.onmessage = (ev) => {
+          let parsed: unknown;
+          try { parsed = JSON.parse(String(ev.data)); } catch { return; }
+          const list = Array.isArray(parsed) ? parsed : [parsed];
+          let got = false;
+          for (const raw of list) {
+            const m = raw as { T?: string; p?: number; s?: number; t?: number | string };
+            if (!m || (m.T && m.T !== "t") || typeof m.p !== "number" || m.p <= 0 || !m.s) continue;
+            const t = typeof m.t === "string" ? Date.parse(m.t) : (m.t || Date.now());
+            const side: "buy" | "sell" = lastPx && m.p < lastPx ? "sell" : "buy";
+            lastPx = m.p;
+            tapeSourceRef.current = "alpaca";
+            processTick({ price: m.p, size: m.s, side, time: t }, true);
+            got = true;
+          }
+          if (got) setState(p => (p.tapeSource === "alpaca" ? p : { ...p, source: "alpaca", tapeSource: "alpaca", connected: true }));
         };
-        alpacaES.onerror = () => { /* EventSource reconnects automatically */ };
-      } catch { alpacaES = null; }
+        sock.onclose = () => { if (!proxyClosed) proxyRetry = setTimeout(connectProxy, 3000); };
+        sock.onerror = () => { try { sock.close(); } catch { /* already closing */ } };
+      };
+      connectProxy();
     }
 
     if (finhCleanup) cleanupFns.current.push(finhCleanup);
@@ -1091,7 +1105,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
     return () => {
       clearInterval(restRefresh);
-      if (alpacaES) { try { alpacaES.close(); } catch { /* */ } }
+      proxyClosed = true;
+      if (proxyRetry) clearTimeout(proxyRetry);
+      if (proxyWs) { try { proxyWs.close(); } catch { /* already closing */ } }
       document.removeEventListener("visibilitychange", onVisibleWS);
       cleanupFns.current.forEach(fn => fn());
       if (syntheticRef.current) clearInterval(syntheticRef.current);
