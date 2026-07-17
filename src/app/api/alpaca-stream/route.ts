@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
       } catch (e) { send({ err: "ws construct failed: " + String(e) }); shutdown(); return; }
 
       ws.on("open", () => {
+        send({ st: "open" });
         try { ws!.send(JSON.stringify({ action: "auth", key: ALPACA_KEY, secret: ALPACA_SECRET })); } catch { shutdown(); }
       });
 
@@ -71,7 +72,10 @@ export async function GET(request: NextRequest) {
         if (!Array.isArray(msgs)) return;
         for (const m of msgs as Array<Record<string, unknown>>) {
           if (m?.T === "success" && m?.msg === "authenticated") {
+            send({ st: "auth" });
             try { ws!.send(JSON.stringify({ action: "subscribe", trades: [sym] })); } catch { shutdown(); }
+          } else if (m?.T === "subscription") {
+            send({ st: "sub", trades: Array.isArray(m?.trades) ? (m.trades as unknown[]).length : 0 });
           } else if (m?.T === "t" && typeof m?.p === "number") {
             send({ p: m.p, s: m.s, t: typeof m.t === "string" ? Date.parse(m.t) : Date.now() });
           } else if (m?.T === "error") {
