@@ -1143,7 +1143,12 @@ export function ChartsDashboard() {
                       const pc = p >= 0 ? "#00D4AA" : "#FF4D6A";
                       return (
                         <div style={{
-                          position:"absolute", top:8, left:"50%", transform:"translateX(-50%)",
+                          // top:36 clears the 28px OHLCV strip above the chart — at top:8
+                          // this centered chip overlapped and covered the "C" close value
+                          // in the OHLC readout when the chart is narrow (DOM + side panels
+                          // open). Sitting just below the strip keeps it TradingView-style
+                          // top-center without colliding with the numbers.
+                          position:"absolute", top:36, left:"50%", transform:"translateX(-50%)",
                           zIndex:40, pointerEvents:"none",
                           display:"flex", alignItems:"center", gap:6,
                           background:"rgba(11,13,20,0.82)", backdropFilter:"blur(4px)",
