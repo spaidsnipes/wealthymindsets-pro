@@ -61,17 +61,22 @@ export async function GET(request: NextRequest) {
         ws = new WebSocket("wss://stream.data.alpaca.markets/v2/iex");
       } catch (e) { send({ err: "ws construct failed: " + String(e) }); shutdown(); return; }
 
-      ws.on("open", () => {
-        send({ st: "open" });
+      const authenticate = () => {
         try { ws!.send(JSON.stringify({ action: "auth", key: ALPACA_KEY, secret: ALPACA_SECRET })); } catch { shutdown(); }
-      });
+      };
+
+      ws.on("open", () => { send({ st: "open" }); });
 
       ws.on("message", (raw: unknown) => {
         let msgs: unknown;
         try { msgs = JSON.parse(String(raw)); } catch { return; }
         if (!Array.isArray(msgs)) return;
         for (const m of msgs as Array<Record<string, unknown>>) {
-          if (m?.T === "success" && m?.msg === "authenticated") {
+          if (m?.T === "success" && m?.msg === "connected") {
+            // Alpaca v2 sends "connected" first; auth AFTER this, not on ws-open.
+            send({ st: "connected" });
+            authenticate();
+          } else if (m?.T === "success" && m?.msg === "authenticated") {
             send({ st: "auth" });
             try { ws!.send(JSON.stringify({ action: "subscribe", trades: [sym] })); } catch { shutdown(); }
           } else if (m?.T === "subscription") {
@@ -79,7 +84,9 @@ export async function GET(request: NextRequest) {
           } else if (m?.T === "t" && typeof m?.p === "number") {
             send({ p: m.p, s: m.s, t: typeof m.t === "string" ? Date.parse(m.t) : Date.now() });
           } else if (m?.T === "error") {
-            send({ err: String(m?.msg ?? "alpaca error") });
+            send({ err: String(m?.msg ?? "alpaca error"), code: m?.code });
+          } else {
+            send({ st: "msg", T: m?.T });
           }
         }
       });
