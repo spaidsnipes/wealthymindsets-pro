@@ -5455,7 +5455,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // every user sees the same price on the same bubble.
           if (b.r >= 7) {
             const p = b.anchorPrice;
-            const lbl = p >= 10000 ? Math.round(p).toString()
+            // Thousands separators on large prices (63813 → "63,813") so the
+            // level reads cleanly like TradingView instead of a wall of digits.
+            const lbl = p >= 10000 ? Math.round(p).toLocaleString("en-US")
                       : p >= 100   ? p.toFixed(2)
                       : p >= 1     ? p.toFixed(2)
                       :              p.toFixed(4);
@@ -6479,7 +6481,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                    : av > 0           ? av.toFixed(av >= 0.1 ? 2 : 4)
                    : "0";
         const p = hit.anchorPrice;
-        const pstr = p >= 10000 ? Math.round(p).toString()
+        const pstr = p >= 10000 ? Math.round(p).toLocaleString("en-US")
                    : p >= 100   ? p.toFixed(2)
                    : p >= 1     ? p.toFixed(2)
                    :              p.toFixed(4);
