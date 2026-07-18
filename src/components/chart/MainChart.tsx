@@ -1063,6 +1063,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // handler (defined earlier) test "is this point on a drawing?" without a dep cycle.
   const drawHitTestRef = useRef<(x: number, y: number) => boolean>(() => false);
   const [editBump, setEditBump] = useState(0); // re-render edit toolbar after a style change
+  // Which of the drawing edit-toolbar dropdowns (color / width / dash) is open.
+  // Cleaner TradingView-style: one compact button per property that opens a popover
+  // instead of a wall of inline swatches/buttons.
+  const [drawPopover, setDrawPopover] = useState<"color" | "width" | "dash" | null>(null);
   // Inline text editor: when set, an <input> is shown over the drawing's anchor
   // so text/note tools get a clean editing box instead of a native window.prompt.
   const [textEdit, setTextEdit] = useState<{ idx: number } | null>(null);
@@ -6895,29 +6899,71 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               }}
               onMouseDown={(e) => e.stopPropagation()}
             >
-              {/* colors */}
-              <div style={{ display: "flex", gap: 3 }}>
-                {DRAW_COLORS.slice(0, 6).map(c => (
-                  <button key={c} title={c} onClick={() => { d.style.color = c; bump(); }}
-                    style={{ width: 15, height: 15, borderRadius: "50%", cursor: "pointer",
-                      background: c, border: d.style.color === c ? "2px solid #fff" : "1px solid rgba(255,255,255,0.2)" }} />
-                ))}
+              {/* Color — swatch button opens a palette + full color wheel dropdown */}
+              <div style={{ position: "relative" }}>
+                <button title="Color" onClick={() => setDrawPopover(p => (p === "color" ? null : "color"))}
+                  style={{ ...btn(drawPopover === "color"), padding: "0 6px", gap: 4 }}>
+                  <span style={{ width: 13, height: 13, borderRadius: "50%", background: d.style.color, border: "1px solid rgba(255,255,255,0.5)" }} />
+                  <span style={{ fontSize: 8, opacity: 0.7 }}>▼</span>
+                </button>
+                {drawPopover === "color" && (
+                  <div style={{ position: "absolute", top: 28, left: 0, zIndex: 140, padding: 8, borderRadius: 8, width: 172,
+                    background: "#0E1322", border: "1px solid #2A3350", boxShadow: "0 8px 26px rgba(0,0,0,0.6)" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
+                      {DRAW_COLORS.map(c => (
+                        <button key={c} title={c} onClick={() => { d.style.color = c; bump(); }}
+                          style={{ width: 18, height: 18, borderRadius: "50%", cursor: "pointer", background: c,
+                            border: d.style.color === c ? "2px solid #fff" : "1px solid rgba(255,255,255,0.2)" }} />
+                      ))}
+                    </div>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#9AA3BF", cursor: "pointer" }}>
+                      <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(d.style.color) ? d.style.color : "#4fa3e0"}
+                        onChange={e => { d.style.color = e.target.value; bump(); }}
+                        style={{ width: 26, height: 22, padding: 0, border: "none", background: "none", cursor: "pointer" }} />
+                      Custom color wheel
+                    </label>
+                  </div>
+                )}
               </div>
               <div style={{ width: 1, height: 18, background: "#2A3350" }} />
-              {/* width */}
-              {[1, 2, 3, 4].map(w => (
-                <button key={w} title={`Width ${w}px`} onClick={() => { d.style.width = w; bump(); }}
-                  style={btn(Math.round(d.style.width) === w)}>
-                  <span style={{ display: "inline-block", width: 14, height: w, background: "currentColor", borderRadius: 2 }} />
+              {/* Line width dropdown */}
+              <div style={{ position: "relative" }}>
+                <button title="Line width" onClick={() => setDrawPopover(p => (p === "width" ? null : "width"))}
+                  style={{ ...btn(drawPopover === "width"), padding: "0 6px", gap: 4 }}>
+                  <span style={{ display: "inline-block", width: 14, height: Math.max(1, Math.round(d.style.width)), background: "currentColor", borderRadius: 2 }} />
+                  <span style={{ fontSize: 8, opacity: 0.7 }}>▼</span>
                 </button>
-              ))}
+                {drawPopover === "width" && (
+                  <div style={{ position: "absolute", top: 28, left: 0, zIndex: 140, padding: 5, borderRadius: 8, display: "flex", gap: 4,
+                    background: "#0E1322", border: "1px solid #2A3350", boxShadow: "0 8px 26px rgba(0,0,0,0.6)" }}>
+                    {[1, 2, 3, 4, 6].map(w => (
+                      <button key={w} title={`${w}px`} onClick={() => { d.style.width = w; bump(); setDrawPopover(null); }}
+                        style={btn(Math.round(d.style.width) === w)}>
+                        <span style={{ display: "inline-block", width: 16, height: w, background: "currentColor", borderRadius: 2 }} />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div style={{ width: 1, height: 18, background: "#2A3350" }} />
-              {/* dash style */}
-              {(["solid", "dashed", "dotted"] as const).map(s => (
-                <button key={s} title={s} onClick={() => { d.style.dash = s; bump(); }} style={btn(d.style.dash === s)}>
-                  {s === "solid" ? "──" : s === "dashed" ? "- -" : "···"}
+              {/* Line style (solid / dashed / dotted) dropdown */}
+              <div style={{ position: "relative" }}>
+                <button title="Line style" onClick={() => setDrawPopover(p => (p === "dash" ? null : "dash"))}
+                  style={{ ...btn(drawPopover === "dash"), padding: "0 6px", gap: 4 }}>
+                  {d.style.dash === "dashed" ? "- -" : d.style.dash === "dotted" ? "···" : "──"}
+                  <span style={{ fontSize: 8, opacity: 0.7 }}>▼</span>
                 </button>
-              ))}
+                {drawPopover === "dash" && (
+                  <div style={{ position: "absolute", top: 28, left: 0, zIndex: 140, padding: 5, borderRadius: 8, display: "flex", gap: 4,
+                    background: "#0E1322", border: "1px solid #2A3350", boxShadow: "0 8px 26px rgba(0,0,0,0.6)" }}>
+                    {(["solid", "dashed", "dotted"] as const).map(s => (
+                      <button key={s} title={s} onClick={() => { d.style.dash = s; bump(); setDrawPopover(null); }} style={btn(d.style.dash === s)}>
+                        {s === "solid" ? "──" : s === "dashed" ? "- -" : "···"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div style={{ width: 1, height: 18, background: "#2A3350" }} />
               <input
                 type="range" min={10} max={100} step={5}
