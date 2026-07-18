@@ -1075,11 +1075,16 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         catch { url = `${proxyBase}${proxyBase.includes("?") ? "&" : "?"}sym=${encodeURIComponent(symbol)}`; }
         let sock: WebSocket;
         try { sock = new WebSocket(url); } catch { proxyRetry = setTimeout(connectProxy, 4000); return; }
+        // The proxy relays Alpaca's frames as BINARY, so the browser delivers them
+        // as ArrayBuffer/Blob — not text. Decode to a string before parsing (the old
+        // JSON.parse(String(ev.data)) turned a Blob into "[object Blob]" and silently
+        // dropped every trade). arraybuffer is synchronously decodable; Blob is the
+        // async fallback.
+        sock.binaryType = "arraybuffer";
         proxyWs = sock;
-        sock.onopen = () => { try { sock.send(JSON.stringify({ action: "subscribe", sym: symbol, trades: [symbol] })); } catch { /* proxy may not need a subscribe msg */ } };
-        sock.onmessage = (ev) => {
+        const handleText = (text: string) => {
           let parsed: unknown;
-          try { parsed = JSON.parse(String(ev.data)); } catch { return; }
+          try { parsed = JSON.parse(text); } catch { return; }
           const list = Array.isArray(parsed) ? parsed : [parsed];
           let got = false;
           for (const raw of list) {
@@ -1093,6 +1098,13 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
             got = true;
           }
           if (got) setState(p => (p.tapeSource === "alpaca" ? p : { ...p, source: "alpaca", tapeSource: "alpaca", connected: true }));
+        };
+        sock.onopen = () => { try { sock.send(JSON.stringify({ action: "subscribe", sym: symbol, trades: [symbol] })); } catch { /* proxy may not need a subscribe msg */ } };
+        sock.onmessage = (ev) => {
+          const d = ev.data as unknown;
+          if (typeof d === "string") handleText(d);
+          else if (d instanceof ArrayBuffer) handleText(new TextDecoder().decode(d));
+          else if (d && typeof (d as Blob).text === "function") (d as Blob).text().then(handleText).catch(() => {});
         };
         sock.onclose = () => { if (!proxyClosed) proxyRetry = setTimeout(connectProxy, 3000); };
         sock.onerror = () => { try { sock.close(); } catch { /* already closing */ } };
