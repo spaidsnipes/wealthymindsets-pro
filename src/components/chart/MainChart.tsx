@@ -1050,6 +1050,18 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const selectedIdxRef = useRef<number | null>(null);
   useEffect(() => { selectedIdxRef.current = selectedIdx; }, [selectedIdx]);
+  // Cursor-mode drawing drag: when the cursor is over a drawing/handle we flip the
+  // draw-canvas to capture pointer events so a drag MOVES the drawing instead of
+  // panning the chart (the "drag shakes the chart" bug). Over empty chart the
+  // canvas stays pass-through so pan/zoom work normally.
+  const [overDrawing, setOverDrawing] = useState(false);
+  const overDrawingRef = useRef(false);
+  const setOver = useCallback((v: boolean) => {
+    if (overDrawingRef.current !== v) { overDrawingRef.current = v; setOverDrawing(v); }
+  }, []);
+  // Filled after hitTestDrawing/hitHandle exist; lets the native vertical-pan
+  // handler (defined earlier) test "is this point on a drawing?" without a dep cycle.
+  const drawHitTestRef = useRef<(x: number, y: number) => boolean>(() => false);
   const [editBump, setEditBump] = useState(0); // re-render edit toolbar after a style change
   // Inline text editor: when set, an <input> is shown over the drawing's anchor
   // so text/note tools get a clean editing box instead of a native window.prompt.
@@ -3863,6 +3875,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // axis drag-to-SCALE handler below. Body drag = pan; axis drag = stretch.
       const rect = el.getBoundingClientRect();
       const localX = e.clientX - rect.left;
+      const localY = e.clientY - rect.top;
+      // On a drawing/handle → the drawing owns this drag (the draw-canvas moves it);
+      // do NOT pan the price scale. This is what stops "dragging a line shakes the
+      // whole chart" in cursor mode.
+      if (drawHitTestRef.current(localX, localY)) return;
       let axW = 0; try { axW = (chartRef.current as any)?.priceScale?.("right")?.width?.() ?? 0; } catch {}
       if (axW > 0 && localX >= el.clientWidth - axW - 2) return;
       const cs = candleRef.current; if (!cs) return;
@@ -6319,6 +6336,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     { ...d, pts: d.pts.map(p => ({ price: p.price + dPrice, time: p.time + dTime })) }
   ), []);
 
+  // Keep the shared "is (x,y) on a draggable drawing?" test current for the native
+  // vertical-pan handler + the hover→capture logic. Cheap; runs each render.
+  drawHitTestRef.current = (x: number, y: number): boolean => {
+    if (lockDrawings) return false;
+    if (hitTestDrawing(x, y) >= 0) return true;
+    const s = selectedIdxRef.current;
+    return s != null && hitHandle(s, x, y) >= 0;
+  };
+
   /* ── Drawing mouse handlers (unified multi-point model) ─────────
      Interaction contract:
        • click-and-release places a point; a 2-point tool also accepts
@@ -6358,8 +6384,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       return;
     }
 
-    // ── SELECT / MOVE mode ───────────────────────────────────────
-    if (drawingTool === "select") {
+    // ── SELECT / MOVE mode — also CURSOR mode, but only reachable here when the
+    //    canvas captured because the pointer was over a drawing (hover flip). So a
+    //    press on a drawing starts a move; a press on empty just clears selection. ─
+    if (drawingTool === "select" || drawingTool === "cursor") {
       const sel = selectedIdxRef.current;
       if (sel != null) {
         const h = hitHandle(sel, x, y);
@@ -6388,8 +6416,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     const st = drawingStartRef.current;
     if (st && !mouseMovedRef.current && Math.hypot(x - st.x, y - st.y) > 4) mouseMovedRef.current = true;
 
-    // ── SELECT / MOVE drag ───────────────────────────────────────
-    if (drawingTool === "select") {
+    // ── SELECT / MOVE drag (also cursor mode via hover-capture) ──
+    if (drawingTool === "select" || drawingTool === "cursor") {
+      // Keep the hover→capture flag current so the canvas releases the instant the
+      // pointer leaves the drawing (otherwise pan/zoom over empty chart would stick).
+      if (drawingTool === "cursor" && !dragRef.current) setOver(drawHitTestRef.current(x, y));
       const drag = dragRef.current;
       if (!drag || !lp) return;
       const d = drawingsRef.current[drag.idx];
@@ -6415,7 +6446,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   }, [drawingTool, pixelToLogical, moveDrawingBy, scheduleDrawRender]);
 
   const handleDrawMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (drawingTool === "select" || drawingTool === "eraser") {
+    if (drawingTool === "select" || drawingTool === "cursor" || drawingTool === "eraser") {
       if (dragRef.current) scheduleDrawRender();
       dragRef.current = null;
       return;
@@ -6500,6 +6531,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // Attached to the chart wrapper so it fires in cursor mode without blocking
   // chart panning (drawing tools keep their own handler on drawCanvas).
   const handleOverlayMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // Cursor-mode: flip the draw-canvas to CAPTURE when hovering a drawing so a drag
+    // moves it instead of panning the chart. Runs before the bubble early-return so
+    // it works even with no bubbles present. (When capture is on, the canvas's own
+    // mousemove keeps this flag current and releases it on leave.)
+    if (drawingToolRef.current === "cursor" && !dragRef.current) {
+      const r0 = e.currentTarget.getBoundingClientRect();
+      setOver(drawHitTestRef.current(e.clientX - r0.left, e.clientY - r0.top));
+    }
     const bubbles = [...bubblesRef.current, ...deltaBubblesRef.current];
     if (!bubbles.length) {
       if (bubbleHoverRef.current !== null) { bubbleHoverRef.current = null; setBubbleTip(null); }
@@ -6812,7 +6851,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                   : drawingTool === "eraser" ? "cell"
                   : TEXT_TOOLS.has(drawingTool) ? "text"
                   : "crosshair",
-            pointerEvents: drawingTool !== "cursor" ? "all" : "none",
+            pointerEvents: drawingTool !== "cursor" ? "all" : (overDrawing ? "all" : "none"),
             opacity: drawingsVisible ? 1 : 0,
             zIndex: 10,
             touchAction: "none",
