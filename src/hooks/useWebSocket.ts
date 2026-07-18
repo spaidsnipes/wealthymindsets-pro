@@ -1059,9 +1059,16 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // {"action":"subscribe","sym":"TSLA"} message on open), then push trades as
     // JSON — either {p,s,t} or raw Alpaca {"T":"t","p":..,"s":..,"t":..}. Both are
     // accepted below. `t` may be ms-epoch or an RFC3339 string.
+    // Default to the live Railway relay so real-time stock trades/bubbles work for
+    // every user out of the box — no env var or localStorage required. Still
+    // overridable via NEXT_PUBLIC_ALPACA_PROXY_URL (Vercel) or wm_alpaca_proxy
+    // (localStorage) if the proxy URL ever changes. The proxy URL is not a secret
+    // (the Alpaca key/secret live only on the Railway service). Fails gracefully to
+    // a no-op if the proxy is ever down.
+    const DEFAULT_PROXY = "wss://aplacawsproxy-production.up.railway.app";
     const proxyBase = (() => {
-      try { return (localStorage.getItem("wm_alpaca_proxy") || process.env.NEXT_PUBLIC_ALPACA_PROXY_URL || "").trim(); }
-      catch { return (process.env.NEXT_PUBLIC_ALPACA_PROXY_URL || "").trim(); }
+      try { return (localStorage.getItem("wm_alpaca_proxy") || process.env.NEXT_PUBLIC_ALPACA_PROXY_URL || DEFAULT_PROXY).trim(); }
+      catch { return (process.env.NEXT_PUBLIC_ALPACA_PROXY_URL || DEFAULT_PROXY).trim(); }
     })();
     let proxyWs: WebSocket | null = null;
     let proxyRetry: ReturnType<typeof setTimeout> | null = null;
