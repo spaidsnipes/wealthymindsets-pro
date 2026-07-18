@@ -769,17 +769,26 @@ export function ChartToolbar({
 
       {/* ══ Timeframes ══════════════════════════════════════ */}
       <div className="flex items-center gap-0.5 shrink-0">
-        {TIMEFRAMES.map(tf => (
+        {TIMEFRAMES.map(tf => {
+          // Tick timeframes have no real intraday history from the free feeds and
+          // no data outside market hours — they fall back to the nearest bars. Mark
+          // them honestly with a "?" + tooltip instead of silently misleading.
+          const limited = tf === "1t" || tf === "5t" || tf === "30t";
+          return (
           <button key={tf} onClick={() => setTimeframe(tf)}
+            title={limited
+              ? `${tf} tick data isn't available for every symbol or outside market hours — the chart falls back to the nearest available bars.`
+              : undefined}
             className={clsx(
               "px-1.5 h-6 rounded text-[11px] font-mono transition-colors",
               tf === timeframe
                 ? "bg-wm-blue/20 text-wm-blue border border-wm-blue/40"
                 : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface"
             )}>
-            {tf}
+            {tf}{limited && <sup className="text-[7px] opacity-60 ml-px">?</sup>}
           </button>
-        ))}
+          );
+        })}
       </div>
 
       <div className="w-px h-5 bg-wm-border mx-0.5 shrink-0" />

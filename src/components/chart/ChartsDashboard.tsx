@@ -733,7 +733,12 @@ export function ChartsDashboard() {
           {/* overflow-x-auto so the toolbar NEVER clips a control (the WM Session VP
               button was being cut off by the candle dropdown when the row exceeded the
               viewport) — it scrolls horizontally instead of hiding items. */}
-          <div className="flex items-center justify-between border-b shrink-0 overflow-x-auto overflow-y-hidden"
+          {/* justify-START (not between): with overflow-x-auto, space-between shoves the
+              candle-type/Markov group to the far-right viewport edge where Markov gets
+              clipped ("cut off"). Natural left flow lets the row scroll cleanly and
+              keeps every control fully reachable. pr-3 gives the last button breathing
+              room so it never sits flush against the clip edge. */}
+          <div className="flex items-center justify-start border-b shrink-0 overflow-x-auto overflow-y-hidden pr-3"
             style={{ height: 30, background: "#0D0E14", borderColor: "#1E2030" }}>
             <div className="flex items-center shrink-0">
               {/* Drawing tools dropdown — lives in the secondary toolbar */}
