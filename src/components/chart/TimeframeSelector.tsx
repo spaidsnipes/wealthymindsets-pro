@@ -40,9 +40,11 @@ const INTERVALS = [
 ];
 
 function TFBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  const isTick = /^\d+t$/.test(label);
   return (
     <button
       onClick={onClick}
+      title={isTick ? "Tick timeframe — synthetic/approximate on the free data tier. Real per-tick history needs a paid data feed." : undefined}
       style={{
         padding: "0 10px",
         height: 28,

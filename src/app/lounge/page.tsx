@@ -223,8 +223,8 @@ function PostCard({ post, myHandle, myName, myAvatar, myColor, onDelete }:
   };
 
   return (
-    <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }}
-      className="glass rounded-xl p-4 hover:border-wm-border/70 transition-all">
+    <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} whileHover={{ y:-2 }}
+      className="glass rounded-xl p-4 hover:border-wm-gold/40 transition-all">
       <div className="flex items-start gap-3">
         <Avatar src={post.user_avatar} name={post.user_name} color={post.user_color} ceo={post.user_ceo} />
 
@@ -294,7 +294,8 @@ function PostCard({ post, myHandle, myName, myAvatar, myColor, onDelete }:
           {post.tags?.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-2">
               {post.tags.map(t=>(
-                <span key={t} className="text-[10px] text-wm-blue cursor-pointer hover:underline">{t}</span>
+                <span key={t} className="text-[10px] px-2 py-0.5 rounded-full cursor-pointer transition-all hover:scale-105"
+                  style={{ background:"rgba(232,185,35,0.12)", color:"#E8B923", border:"1px solid rgba(232,185,35,0.25)" }}>{t}</span>
               ))}
             </div>
           )}
