@@ -88,62 +88,70 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
     <div className="flex-1 min-h-0 overflow-y-auto">
       {/* ── LIVE ON AIR hero ─────────────────────────────── */}
       <div className="relative overflow-hidden" style={{
-        margin: 16, borderRadius: 20, minHeight: 250,
-        background: "radial-gradient(80% 120% at 0% 0%, rgba(232,185,35,0.18), transparent 55%), radial-gradient(90% 120% at 100% 100%, rgba(5,150,105,0.16), transparent 55%), linear-gradient(135deg, rgba(139,92,246,0.10), rgba(13,14,20,0.96))",
-        border: "1px solid rgba(232,185,35,0.28)",
+        margin: 16, borderRadius: 22, minHeight: 300,
+        background: "radial-gradient(70% 95% at 50% 0%, rgba(232,185,35,0.20), transparent 60%)," +
+                    "radial-gradient(85% 100% at 82% 100%, rgba(5,150,105,0.16), transparent 55%)," +
+                    "linear-gradient(160deg, #14100a 0%, #0c0d13 55%, #0a0a06 100%)",
+        border: "1px solid rgba(232,185,35,0.30)", boxShadow: "0 0 54px rgba(232,185,35,0.12)",
       }}>
-        <div className="pointer-events-none absolute inset-0 opacity-[0.06]" style={{ background: "repeating-radial-gradient(circle at 85% 30%, #E8B923 0 1px, transparent 1px 9px)" }} />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 opacity-[0.09]" style={{ backgroundImage: "repeating-linear-gradient(90deg,#E8B923 0 2px, transparent 2px 11px)", WebkitMaskImage: "linear-gradient(to top, black, transparent)", maskImage: "linear-gradient(to top, black, transparent)" }} />
-        <div className="relative z-10 flex flex-col md:flex-row items-center gap-6 p-7">
-          <div className="flex-1">
-            <motion.div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4"
-              style={{ background: "rgba(232,185,35,0.14)", border: "1px solid rgba(232,185,35,0.5)" }}
-              animate={{ boxShadow: ["0 0 14px rgba(232,185,35,0.18)", "0 0 30px rgba(232,185,35,0.42)", "0 0 14px rgba(232,185,35,0.18)"] }}
-              transition={{ duration: 2.2, repeat: Infinity }}>
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[11px] font-black tracking-[0.18em]" style={{ color: "#E8B923" }}>LIVE ON AIR</span>
-            </motion.div>
-            <h1 className="text-[30px] leading-tight font-black text-wm-text mb-1">Wealthy Mindsets TV</h1>
-            <p className="text-[12px] font-semibold mb-3" style={{ color: "#C9A227" }}>Podcasts · live conversations · Black excellence on air since the 1900s</p>
-            <div className="flex items-center gap-4 mb-5">
-              <div className="flex items-center gap-1.5">
-                <Eye size={13} className="text-wm-green" />
-                <span className="text-[13px] font-mono font-black text-wm-text tabular-nums">{watching.toLocaleString()}</span>
-                <span className="text-[11px] text-wm-text-muted">watching now</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-[11px] text-wm-text-muted">{liveCount} channels live</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <motion.button onClick={onOpenLive} whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.03 }}
-                className="flex items-center gap-2 px-5 h-11 rounded-xl text-black text-xs font-black"
-                style={{ background: "linear-gradient(135deg,#E8B923,#059669)", boxShadow: "0 10px 26px rgba(232,185,35,0.3)" }}>
-                <Play size={15} /> Watch Live
-              </motion.button>
-              <motion.button onClick={onOpenPodcast} whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.03 }}
-                className="flex items-center gap-2 px-5 h-11 rounded-xl text-wm-text text-xs font-black"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(232,185,35,0.3)" }}>
-                <Podcast size={15} /> Podcast Stage
-              </motion.button>
-            </div>
-          </div>
-          {/* Studio visual — pulsing on-air ring + equalizer */}
-          <div className="relative shrink-0 hidden sm:block" style={{ width: 210, height: 150 }}>
-            <div className="absolute inset-0 rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(232,185,35,0.16), rgba(5,150,105,0.14))", border: "1px solid rgba(232,185,35,0.3)" }}>
-              <div className="absolute inset-x-0 bottom-0 flex items-end justify-center gap-[3px] p-3" style={{ height: 74 }}>
-                {[14,26,40,22,52,32,44,20,36,48,28,16].map((h,i) => (
-                  <div key={i} style={{ width: 4, height: h, borderRadius: 2, transformOrigin: "bottom", background: i % 2 ? "#059669" : "#E8B923", opacity: 0.85, animation: `wmtv-eq ${(0.7 + (i % 4) * 0.13).toFixed(2)}s ease-in-out ${(i * 0.05).toFixed(2)}s infinite alternate` }} />
-                ))}
-              </div>
-            </div>
-            <motion.div className="absolute inset-0 m-auto w-16 h-16 rounded-full flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg,#E8B923,#059669)", boxShadow: "0 0 30px rgba(232,185,35,0.5)" }}
-              animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 2.4, repeat: Infinity }}>
-              <Play size={24} className="text-black ml-0.5" />
+        {/* vinyl grooves */}
+        <div className="pointer-events-none absolute inset-0 opacity-[0.05]" style={{ background: "repeating-radial-gradient(circle at 85% 25%, #E8B923 0 1px, transparent 1px 10px)" }} />
+        {/* faint studio chart line */}
+        <svg className="pointer-events-none absolute inset-x-0 top-0 w-full opacity-[0.12]" height="120" preserveAspectRatio="none" viewBox="0 0 400 120">
+          <polyline points="0,96 40,84 80,90 120,62 160,72 200,44 240,56 280,30 320,40 360,18 400,26" fill="none" stroke="#E8B923" strokeWidth="2" />
+        </svg>
+
+        <div className="relative z-10 flex flex-col items-center text-center px-6 pt-8 pb-10">
+          {/* glowing arc + LIVE ON AIR badge */}
+          <div className="relative mb-4" style={{ paddingTop: 26 }}>
+            <div className="absolute left-1/2" style={{ top: 0, transform: "translateX(-50%)", width: 168, height: 84, borderTopLeftRadius: 168, borderTopRightRadius: 168, borderTop: "2px solid rgba(232,185,35,0.7)", borderLeft: "2px solid rgba(232,185,35,0.32)", borderRight: "2px solid rgba(232,185,35,0.32)", borderBottom: "none", boxShadow: "0 -6px 26px rgba(232,185,35,0.4)" }} />
+            <motion.div className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl"
+              style={{ background: "linear-gradient(135deg,#E8B923,#c98a12)" }}
+              animate={{ boxShadow: ["0 0 20px rgba(232,185,35,0.4)", "0 0 42px rgba(232,185,35,0.72)", "0 0 20px rgba(232,185,35,0.4)"] }}
+              transition={{ duration: 2, repeat: Infinity }}>
+              <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+              <span className="text-[15px] font-black tracking-[0.2em] text-black">LIVE ON AIR</span>
             </motion.div>
           </div>
+
+          {/* watching pill */}
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full mb-4" style={{ background: "rgba(5,150,105,0.18)", border: "1px solid rgba(5,150,105,0.45)" }}>
+            <Eye size={12} style={{ color: "#34D399" }} />
+            <span className="text-[12px] font-mono font-black tabular-nums" style={{ color: "#34D399" }}>{watching.toLocaleString()}</span>
+            <span className="text-[10px]" style={{ color: "#34D399" }}>watching</span>
+          </div>
+
+          {/* serif title + tagline */}
+          <h1 className="font-black text-wm-text leading-none mb-2" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 46, letterSpacing: 1 }}>WM TV</h1>
+          <p className="font-semibold mb-6" style={{ color: "#E8B923", fontFamily: 'Georgia, serif', fontSize: 14, maxWidth: 460 }}>Podcasts, live conversations &amp; Black excellence on air since the 1900s</p>
+
+          {/* CTAs */}
+          <div className="flex items-center gap-3">
+            <motion.button onClick={onOpenLive} whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.03 }}
+              className="flex items-center gap-2 px-6 h-11 rounded-xl text-black text-xs font-black"
+              style={{ background: "linear-gradient(135deg,#E8B923,#059669)", boxShadow: "0 10px 26px rgba(232,185,35,0.3)" }}>
+              <Play size={15} /> Watch Live
+            </motion.button>
+            <motion.button onClick={onOpenPodcast} whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.03 }}
+              className="flex items-center gap-2 px-6 h-11 rounded-xl text-wm-text text-xs font-black"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(232,185,35,0.3)" }}>
+              <Podcast size={15} /> Podcast Stage
+            </motion.button>
+          </div>
+
+          {/* channels live */}
+          <div className="mt-4 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-[11px] text-wm-text-muted">{liveCount} channels live now</span>
+          </div>
+        </div>
+
+        {/* equalizer floor */}
+        <div className="pointer-events-none absolute inset-x-8 bottom-4 flex items-end justify-between" style={{ height: 44, opacity: 0.35 }}>
+          {Array.from({ length: 60 }).map((_, i) => {
+            const h = Math.min(100, 16 + Math.abs(Math.sin(i * 0.5) + Math.sin(i * 0.2)) * 44);
+            return <div key={i} style={{ width: 3, height: `${h}%`, borderRadius: 2, transformOrigin: "bottom", background: i % 5 === 0 ? "rgba(232,185,35,0.7)" : "rgba(232,185,35,0.28)", animation: `wmtv-eq ${(0.8 + (i % 5) * 0.12).toFixed(2)}s ease-in-out ${(i * 0.03).toFixed(2)}s infinite alternate` }} />;
+          })}
         </div>
       </div>
 
