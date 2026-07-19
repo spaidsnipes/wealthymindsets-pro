@@ -55,9 +55,65 @@ const PRODUCTS = [
     emoji: "🖥️", accent: "#00D4AA",
     details: ["900×400mm", "Non-slip base", "Stitched edges", "WM chart design"],
   },
+  {
+    id: 7, name: "Trading for a Living", price: 49, category: "Books",
+    desc: "The definitive guide to psychology, risk, and discipline for the serious trader.",
+    badge: "BESTSELLER", stars: 4.9, reviews: 1204,
+    colors: ["#8a5a1a", "#E8B923"], emoji: "📗", accent: "#E8B923",
+    details: ["Hardcover, 320 pages", "Psychology + risk", "Signed WM edition", "Ships worldwide"],
+  },
+  {
+    id: 8, name: "The Little Book of Black Success", price: 29, category: "Books",
+    desc: "Wealth, wisdom, and Black excellence in business, arts, and trading culture.",
+    badge: "NEW", stars: 5.0, reviews: 318,
+    colors: ["#0D0E14", "#059669"], emoji: "📘", accent: "#059669",
+    details: ["Hardcover, 180 pages", "WM team foreword", "Cultural essays", "Gift-ready"],
+  },
+  {
+    id: 9, name: "Kente Heritage Print", price: 199, category: "Art",
+    desc: "Museum-grade giclée kente pattern on archival cotton. Numbered, limited run.",
+    badge: "EXCLUSIVE", stars: 4.9, reviews: 76,
+    colors: ["#E8B923", "#059669", "#8B5CF6"], emoji: "🖼️", accent: "#E8B923",
+    details: ["Giclée on cotton", "24×36 in", "Numbered / limited", "Certificate included"],
+  },
+  {
+    id: 10, name: "Order Flow Chart Art", price: 299, category: "Art",
+    desc: "Original abstract of a live order-flow session — gold, emerald, and charcoal.",
+    badge: null, stars: 4.8, reviews: 41,
+    colors: ["#059669", "#E8B923"], emoji: "📈", accent: "#059669",
+    details: ["Hand-finished print", "30×40 in", "Framed option", "Signed"],
+  },
+  {
+    id: 11, name: "WM Grooming Bundle", price: 79, category: "Beauty",
+    desc: "Premium beard + skin ritual set. Shea, gold oil, and a heritage scent.",
+    badge: null, stars: 4.7, reviews: 263,
+    colors: ["#3a2c10", "#F0B429"], emoji: "🧴", accent: "#F0B429",
+    details: ["Beard oil + balm", "Shea butter", "Heritage scent", "Gift box"],
+  },
+  {
+    id: 12, name: "Heritage Beauty Set", price: 59, category: "Beauty",
+    desc: "Luxury skincare essentials in kente-wrapped packaging. Self-care, elevated.",
+    badge: "NEW", stars: 4.8, reviews: 154,
+    colors: ["#8B5CF6", "#E8B923"], emoji: "💄", accent: "#FF6B9D",
+    details: ["Cleanser + serum", "Kente packaging", "Cruelty-free", "All skin types"],
+  },
+  {
+    id: 13, name: "WM Excellence Vinyl", price: 39, category: "Music",
+    desc: "Limited-press vinyl — WM Radio's finest hip-hop, R&B, and smooth jazz cuts.",
+    badge: "LIMITED", stars: 5.0, reviews: 208,
+    colors: ["#0D0E14", "#E8B923"], emoji: "🎵", accent: "#E8B923",
+    details: ["180g heavyweight vinyl", "Gatefold sleeve", "12 tracks", "Numbered press"],
+  },
+  {
+    id: 14, name: "WM Beat Pack Vol. 1", price: 19, category: "Music",
+    desc: "20 royalty-free beats for creators — trap, lo-fi, and soul. Instant download.",
+    badge: null, stars: 4.9, reviews: 512,
+    colors: ["#8B5CF6", "#4FA3E0"], emoji: "💿", accent: "#8B5CF6",
+    details: ["20 beats, WAV + MP3", "Royalty-free", "Trap · lo-fi · soul", "Instant download"],
+  },
 ];
 
-const CATEGORIES = ["All", "Apparel", "Accessories", "Lifestyle"];
+const CATEGORIES = ["All", "Books", "Art", "Music", "Beauty", "Apparel", "Accessories", "Lifestyle"];
 
 interface CartItem { id: number; qty: number; }
 
