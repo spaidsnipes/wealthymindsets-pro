@@ -947,19 +947,32 @@ export default function RadioPage() {
                 <span className="text-[11px] font-black text-wm-text uppercase tracking-widest">Featured Station</span>
               </div>
               <div className="relative rounded-2xl overflow-hidden p-6 flex items-center gap-5"
-                style={{ background:"linear-gradient(135deg, rgba(0,212,170,0.18) 0%, rgba(0,212,170,0.05) 50%, rgba(13,14,20,0.9) 100%)", border:"1px solid rgba(0,212,170,0.25)", boxShadow:"0 0 40px rgba(0,212,170,0.08)" }}>
-                <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl font-black"
-                  style={{ background:"rgba(0,212,170,0.2)", border:"1px solid rgba(0,212,170,0.3)", color:"#00D4AA" }}>W</div>
-                <div className="flex-1">
+                style={{
+                  background: "radial-gradient(120% 130% at 0% 0%, rgba(232,185,35,0.16) 0%, transparent 55%)," +
+                              "radial-gradient(120% 130% at 100% 100%, rgba(5,150,105,0.14) 0%, transparent 55%)," +
+                              "linear-gradient(135deg, rgba(139,92,246,0.08), rgba(13,14,20,0.95))",
+                  border: "1px solid rgba(232,185,35,0.28)", boxShadow: "0 0 44px rgba(232,185,35,0.10)",
+                }}>
+                {/* faint vinyl grooves — cultural texture, very low opacity */}
+                <div className="pointer-events-none absolute inset-0 opacity-[0.06]"
+                  style={{ background: "repeating-radial-gradient(circle at 10% 50%, #E8B923 0 1px, transparent 1px 8px)" }} />
+                {/* Spinning vinyl record avatar */}
+                <div className={`relative z-10 shrink-0 w-20 h-20 rounded-full flex items-center justify-center ${activeStation === "WM Radio" && playing ? "animate-[spin_3.4s_linear_infinite]" : ""}`}
+                  style={{ background: "repeating-radial-gradient(circle, #16130a 0 2px, #0b0a06 2px 4px)", border: "1px solid rgba(232,185,35,0.4)", boxShadow: "0 6px 22px rgba(0,0,0,0.5)" }}>
+                  <div className="rounded-full flex items-center justify-center text-lg font-black"
+                    style={{ width: 30, height: 30, background: "linear-gradient(135deg,#E8B923,#059669)", color: "#0b0a06" }}>W</div>
+                </div>
+                <div className="flex-1 relative z-10">
                   <div className="flex items-center gap-2 mb-1">
                     <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full"
-                      style={{ background:"rgba(255,77,106,0.2)", border:"1px solid rgba(255,77,106,0.4)" }}>
+                      style={{ background:"rgba(5,150,105,0.18)", border:"1px solid rgba(5,150,105,0.45)" }}>
                       <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                      <span style={{ fontSize:8, fontWeight:800, color:"#FF4D6A", letterSpacing:1 }}>LIVE NOW</span>
+                      <span style={{ fontSize:8, fontWeight:800, color:"#34D399", letterSpacing:1 }}>LIVE NOW</span>
                     </div>
                   </div>
-                  <h2 className="text-[22px] font-black text-wm-text mb-1">WM Radio</h2>
-                  <p className="text-[11px] text-wm-text-muted mb-3">The official 24/7 WealthyMindsets station — trading culture, hip-hop, R&B, lo-fi and more</p>
+                  <h2 className="text-[22px] font-black text-wm-text mb-0.5">WM Radio</h2>
+                  <p className="text-[11px] font-semibold mb-1" style={{ color:"#C9A227" }}>Jazz roots → hip-hop → future-forward — Black excellence, 24/7.</p>
+                  <p className="text-[11px] text-wm-text-muted mb-3">The official WealthyMindsets station — trading culture, hip-hop, R&B, lo-fi and more.</p>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1.5">
                       <Users size={11} className="text-wm-text-dim" />
@@ -967,8 +980,8 @@ export default function RadioPage() {
                     </div>
                     <button
                       onClick={() => activeStation === "WM Radio" ? togglePlay() : playStation("wm-main")}
-                      className="flex items-center gap-2 px-5 py-2 rounded-xl font-bold text-[12px] transition-all hover:scale-105"
-                      style={{ background:"linear-gradient(135deg, #00D4AA, #00A896)", color:"#000" }}>
+                      className="flex items-center gap-2 px-5 py-2 rounded-xl font-black text-[12px] transition-all hover:scale-105"
+                      style={{ background:"linear-gradient(135deg, #E8B923, #059669)", color:"#0b0a06", boxShadow:"0 8px 22px rgba(232,185,35,0.28)" }}>
                       {activeStation === "WM Radio" && playing ? <><Pause size={14}/> Pause</> : <><Play size={14} className="ml-0.5"/> Tune In</>}
                     </button>
                   </div>
