@@ -455,56 +455,57 @@ function EpisodeCard({ ep, active, playing, onPlay }: {
 function ArtistCard({ artist }: { artist: Artist }) {
   const [following, setFollowing] = useState(false);
   return (
-    <motion.div whileHover={{ y:-4 }} className="relative p-4 rounded-2xl border border-wm-border/50 bg-wm-card/60 hover:border-wm-border hover:bg-wm-surface/40 transition-all overflow-hidden">
-      {/* colored glow */}
-      <div className="pointer-events-none absolute -top-10 -right-8 w-28 h-28 rounded-full" style={{ background: `radial-gradient(circle, ${artist.color}30, transparent 70%)` }} />
-      {/* Avatar — color ring */}
-      <div className="relative flex items-start gap-3 mb-3">
-        <div className="rounded-2xl p-[2px] shrink-0" style={{ background: `linear-gradient(135deg, ${artist.color}, ${artist.color}55)`, boxShadow: `0 0 14px ${artist.color}44` }}>
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl"
-            style={{ background: `linear-gradient(135deg, ${artist.color}66, ${artist.color}22)`, color: "#fff", border: "2px solid #0D0E14" }}>
-            {artist.avatar}
-          </div>
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[13px] font-black text-wm-text truncate">{artist.name}</span>
-            {artist.verified && <CheckCircle size={11} className="shrink-0 text-wm-green" />}
-            {artist.wm_team && (
-              <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold shrink-0"
-                style={{ background:"rgba(0,212,170,0.15)", color:"#00D4AA", border:"1px solid rgba(0,212,170,0.3)" }}>
-                WM TEAM
-              </span>
-            )}
-          </div>
-          <div className="text-[10px] text-wm-text-muted">{artist.handle}</div>
-          <div className="text-[10px]" style={{ color: artist.color }}>{artist.genre}</div>
-        </div>
+    <motion.div whileHover={{ y:-4 }} className="relative rounded-2xl border border-wm-border/50 bg-wm-card/60 hover:border-wm-border hover:bg-wm-surface/40 transition-all overflow-hidden">
+      {/* Cover header with genre texture */}
+      <div className="relative" style={{ height: 76, background: `radial-gradient(120% 140% at 20% 10%, ${artist.color}55, transparent 60%), linear-gradient(135deg, ${artist.color}44, rgba(11,12,18,0.9))` }}>
+        <div className="pointer-events-none absolute inset-0 opacity-[0.12]" style={{ background: `repeating-radial-gradient(circle at 82% 40%, ${artist.color} 0 1px, transparent 1px 7px)` }} />
+        <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(to top, rgba(11,12,18,0.9), transparent 70%)" }} />
+        {artist.wm_team && (
+          <span className="absolute top-2 right-2 text-[8px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: "rgba(0,212,170,0.2)", color: "#00D4AA", border: "1px solid rgba(0,212,170,0.4)" }}>WM TEAM</span>
+        )}
       </div>
-
-      <p className="text-[10px] text-wm-text-dim leading-relaxed mb-3 line-clamp-2">{artist.bio}</p>
-
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="text-center">
-            <div className="text-[12px] font-black text-wm-text">{artist.tracks}</div>
-            <div className="text-[8px] text-wm-text-dim uppercase tracking-wide">Tracks</div>
+      {/* Body — avatar overlaps cover */}
+      <div className="px-4 pb-4">
+        <div className="flex items-end gap-3" style={{ marginTop: -28 }}>
+          <div className="rounded-2xl p-[2px] shrink-0" style={{ background: `linear-gradient(135deg, ${artist.color}, ${artist.color}55)`, boxShadow: `0 0 14px ${artist.color}55` }}>
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl"
+              style={{ background: `linear-gradient(135deg, ${artist.color}66, ${artist.color}22)`, color: "#fff", border: "2px solid #0D0E14" }}>
+              {artist.avatar}
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-[12px] font-black text-wm-text">{artist.followers}</div>
-            <div className="text-[8px] text-wm-text-dim uppercase tracking-wide">Fans</div>
+          <div className="flex-1 min-w-0 pb-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[13px] font-black text-wm-text truncate">{artist.name}</span>
+              {artist.verified && <CheckCircle size={11} className="shrink-0 text-wm-green" />}
+            </div>
+            <div className="text-[10px]" style={{ color: artist.color }}>{artist.genre}</div>
           </div>
         </div>
-        <button
-          onClick={() => setFollowing(f => !f)}
-          className="px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all"
-          style={following
-            ? { background:"rgba(0,212,170,0.12)", color:"#00D4AA", border:"1px solid rgba(0,212,170,0.3)" }
-            : { background:`${artist.color}22`, color: artist.color, border:`1px solid ${artist.color}40` }
-          }
-        >
-          {following ? "Following ✓" : "Follow"}
-        </button>
+
+        <p className="text-[10px] text-wm-text-dim leading-relaxed my-3 line-clamp-2">{artist.bio}</p>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="text-center">
+              <div className="text-[12px] font-black text-wm-text">{artist.tracks}</div>
+              <div className="text-[8px] text-wm-text-dim uppercase tracking-wide">Tracks</div>
+            </div>
+            <div className="text-center">
+              <div className="text-[12px] font-black text-wm-text">{artist.followers}</div>
+              <div className="text-[8px] text-wm-text-dim uppercase tracking-wide">Fans</div>
+            </div>
+          </div>
+          <button
+            onClick={() => setFollowing(f => !f)}
+            className="px-4 py-1.5 rounded-xl text-[10px] font-black transition-all hover:scale-105"
+            style={following
+              ? { background: "rgba(0,212,170,0.15)", color: "#00D4AA", border: "1px solid rgba(0,212,170,0.4)" }
+              : { background: "linear-gradient(135deg,#E8B923,#059669)", color: "#0b0a06" }
+            }
+          >
+            {following ? "Following ✓" : "Follow"}
+          </button>
+        </div>
       </div>
     </motion.div>
   );
