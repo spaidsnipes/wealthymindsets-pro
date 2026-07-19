@@ -173,32 +173,63 @@ function LiveStage({ channel }: { channel: StageChannel }) {
             onClose={() => setRole(null)}
           />
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-center px-6">
-            <div className="w-16 h-16 rounded-2xl mb-4 flex items-center justify-center" style={{ background: "linear-gradient(135deg, #8B5CF6 0%, #FF4D6A 100%)" }}>
-              {channel.kind === "live" ? <MonitorUp size={28} className="text-white" /> : <Podcast size={28} className="text-white" />}
-            </div>
-            <p className="text-sm font-black text-wm-text mb-1">
-              {channel.kind === "live" ? "Live Room" : "Podcast Stage"}
-            </p>
-            <p className="text-[11px] text-wm-text-muted max-w-sm mx-auto mb-5">
-              {channel.kind === "live"
-                ? "Broadcast your charts and voice to everyone here, or drop in to watch. Up to 4 people can be on video at once."
-                : "Open the mic to the community, or join to listen. Raise a hand to jump on the stage."}
-            </p>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setRole("host")}
-                className="flex items-center gap-2 px-5 h-11 rounded-xl text-white text-xs font-black transition-all hover:opacity-90 active:scale-95"
-                style={{ background: "linear-gradient(135deg, #8B5CF6 0%, #FF4D6A 100%)" }}
+          <div className="h-full flex flex-col items-center justify-center text-center px-6 relative overflow-hidden">
+            {/* Cinematic cultural backdrop — heritage gold + emerald + royal purple
+                glows over a deep base, with faint soundwave grooves at the floor. */}
+            <div className="pointer-events-none absolute inset-0" style={{
+              background:
+                "radial-gradient(58% 52% at 50% 30%, rgba(232,185,35,0.15) 0%, transparent 62%)," +
+                "radial-gradient(66% 58% at 82% 82%, rgba(5,150,105,0.13) 0%, transparent 62%)," +
+                "radial-gradient(60% 52% at 14% 78%, rgba(139,92,246,0.13) 0%, transparent 62%)",
+            }} />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 opacity-[0.07]" style={{
+              backgroundImage: "repeating-linear-gradient(90deg, #E8B923 0 2px, transparent 2px 10px)",
+              WebkitMaskImage: "linear-gradient(to top, black, transparent)",
+              maskImage: "linear-gradient(to top, black, transparent)",
+            }} />
+            <div className="relative z-10 flex flex-col items-center">
+              {/* Studio-ready badge (honest — no fake "live" until someone goes on air) */}
+              <motion.div
+                className="flex items-center gap-2 px-3 py-1 rounded-full mb-5"
+                style={{ background: "rgba(232,185,35,0.10)", border: "1px solid rgba(232,185,35,0.45)" }}
+                animate={{ boxShadow: ["0 0 14px rgba(232,185,35,0.16)", "0 0 26px rgba(232,185,35,0.36)", "0 0 14px rgba(232,185,35,0.16)"] }}
+                transition={{ duration: 2.6, repeat: Infinity }}
               >
-                <Video size={15} /> Go Live
-              </button>
-              <button
-                onClick={() => setRole("viewer")}
-                className="flex items-center gap-2 px-5 h-11 rounded-xl bg-wm-dark border border-wm-border text-wm-text text-xs font-black transition-all hover:border-wm-text-muted active:scale-95"
+                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#059669" }} />
+                <span className="text-[10px] font-black tracking-widest" style={{ color: "#E8B923" }}>STUDIO · READY</span>
+              </motion.div>
+              <motion.div
+                className="w-16 h-16 rounded-2xl mb-4 flex items-center justify-center"
+                style={{ background: "linear-gradient(135deg, #E8B923 0%, #059669 100%)", boxShadow: "0 12px 32px rgba(232,185,35,0.30)" }}
+                animate={{ scale: [1, 1.04, 1] }} transition={{ duration: 3, repeat: Infinity }}
               >
-                <Eye size={15} /> Watch
-              </button>
+                {channel.kind === "live" ? <MonitorUp size={28} className="text-black" /> : <Podcast size={28} className="text-black" />}
+              </motion.div>
+              <p className="text-lg font-black text-wm-text mb-1">
+                {channel.kind === "live" ? "Live Room" : "Podcast Stage"}
+              </p>
+              <p className="text-[11px] font-semibold mb-1" style={{ color: "#C9A227" }}>Trading minds · Creative voices · For the culture</p>
+              <p className="text-[11px] text-wm-text-muted max-w-md mx-auto mb-6">
+                {channel.kind === "live"
+                  ? "Broadcast your charts and voice to the community, or drop in to watch — Black excellence on air since the 1900s. Up to 4 on video at once."
+                  : "Open the mic to the community, or join to listen. Raise a hand to jump on the stage."}
+              </p>
+              <div className="flex items-center gap-3">
+                <motion.button
+                  onClick={() => setRole("host")} whileTap={{ scale: 0.95 }} whileHover={{ scale: 1.03 }}
+                  className="flex items-center gap-2 px-6 h-11 rounded-xl text-black text-xs font-black"
+                  style={{ background: "linear-gradient(135deg, #E8B923 0%, #059669 100%)", boxShadow: "0 8px 24px rgba(232,185,35,0.30)" }}
+                >
+                  <Video size={15} /> Join Stream
+                </motion.button>
+                <motion.button
+                  onClick={() => setRole("viewer")} whileTap={{ scale: 0.95 }} whileHover={{ scale: 1.03 }}
+                  className="flex items-center gap-2 px-6 h-11 rounded-xl text-wm-text text-xs font-black"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(232,185,35,0.30)" }}
+                >
+                  <Eye size={15} /> Watch
+                </motion.button>
+              </div>
             </div>
           </div>
         )}
