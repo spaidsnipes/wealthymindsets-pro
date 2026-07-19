@@ -524,6 +524,113 @@ const SIDEBAR_TAGS: Record<string, string[]> = {
   "Creator Hub":    ["creator","music","beats"],
 };
 
+/* ── Lounge vibe header — MySpace-soul profile hero + stories ──
+   Themed customizable banner (Harlem Nights / Golden Vinyl / Trading /
+   Royal), gold-ring avatar, editable "Current Vibe" status, and a glowing
+   stories row. Theme + vibe persist in localStorage (no DB migration). */
+const LOUNGE_THEMES = [
+  { id: "harlem",  name: "Harlem Nights",  grad: "linear-gradient(120deg, #2a0e1a, #4a1524 45%, #140a10)", accent: "#E8B923" },
+  { id: "vinyl",   name: "Golden Vinyl",   grad: "linear-gradient(120deg, #1c1408, #3d2e10 50%, #0f0c06)", accent: "#E8B923" },
+  { id: "trading", name: "Trading Lounge", grad: "linear-gradient(120deg, #06231c, #0a3a2c 50%, #061512)", accent: "#059669" },
+  { id: "royal",   name: "Royal Purple",   grad: "linear-gradient(120deg, #180e2e, #2e1a4a 50%, #0f0a1a)", accent: "#8B5CF6" },
+];
+
+function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories }: {
+  name: string; handle: string; avatar: string; color: string; ceo: boolean;
+  postCount: number;
+  stories: { handle: string; name: string; avatar: string; color: string; ceo: boolean }[];
+}) {
+  const [themeId, setThemeId] = useState("harlem");
+  const [vibe, setVibe]       = useState("");
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    try {
+      setThemeId(localStorage.getItem("wm_lounge_theme") || "harlem");
+      setVibe(localStorage.getItem("wm_lounge_vibe") || "");
+    } catch {}
+  }, []);
+  const theme = LOUNGE_THEMES.find(t => t.id === themeId) ?? LOUNGE_THEMES[0];
+  const pickTheme = (id: string) => { setThemeId(id); try { localStorage.setItem("wm_lounge_theme", id); } catch {} };
+  const commitVibe = () => { setEditing(false); try { localStorage.setItem("wm_lounge_vibe", vibe.trim()); } catch {} };
+
+  return (
+    <div>
+      {/* ── Themed profile banner ── */}
+      <div className="relative rounded-2xl overflow-hidden border" style={{ borderColor: "rgba(232,185,35,0.22)" }}>
+        <div className="relative" style={{ height: 118, background: theme.grad }}>
+          {/* faint trading chart line */}
+          <svg className="absolute inset-0 w-full h-full opacity-[0.18] pointer-events-none" preserveAspectRatio="none" viewBox="0 0 400 120">
+            <polyline points="0,92 40,80 80,88 120,58 160,70 200,40 240,52 280,26 320,36 360,14 400,22"
+              fill="none" stroke={theme.accent} strokeWidth="2" />
+          </svg>
+          {/* faint vinyl grooves */}
+          <div className="absolute inset-0 opacity-[0.07] pointer-events-none" style={{ background: `repeating-radial-gradient(circle at 88% 28%, ${theme.accent} 0 1px, transparent 1px 9px)` }} />
+          {/* theme switcher */}
+          <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+            {LOUNGE_THEMES.map(t => (
+              <button key={t.id} onClick={() => pickTheme(t.id)} title={t.name} aria-label={t.name}
+                className="w-5 h-5 rounded-full transition-transform hover:scale-110"
+                style={{ background: t.grad, border: `2px solid ${themeId === t.id ? t.accent : "rgba(255,255,255,0.25)"}` }} />
+            ))}
+          </div>
+        </div>
+        {/* identity + vibe */}
+        <div className="relative bg-wm-dark px-4 pb-3">
+          <div className="flex items-end gap-3" style={{ marginTop: -34 }}>
+            <div className="rounded-full p-[3px] shrink-0" style={{ background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}55)`, boxShadow: `0 0 18px ${theme.accent}66` }}>
+              <Avatar src={avatar} name={name} color={color} size={64} ceo={ceo} />
+            </div>
+            <div className="flex-1 min-w-0 pb-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[15px] font-black text-wm-text truncate">{name}</span>
+                {ceo && <VerifiedBadge ceo size={13} />}
+              </div>
+              <div className="text-[11px] text-wm-text-muted">{handle ? `@${handle.replace(/^@/, "")}` : "guest"} · {postCount} post{postCount !== 1 ? "s" : ""}</div>
+            </div>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-[9px] font-black uppercase tracking-widest shrink-0" style={{ color: theme.accent }}>Current Vibe</span>
+            {editing ? (
+              <input autoFocus value={vibe} maxLength={80}
+                onChange={e => setVibe(e.target.value)} onBlur={commitVibe}
+                onKeyDown={e => { if (e.key === "Enter") commitVibe(); }}
+                placeholder="What's the vibe today?"
+                className="flex-1 bg-wm-black border border-wm-border rounded-lg px-2 py-1 text-[12px] text-wm-text outline-none" />
+            ) : (
+              <button onClick={() => setEditing(true)} className="flex-1 text-left text-[12px] italic text-wm-text-muted hover:text-wm-text truncate">
+                {vibe || "Set your vibe… 🎧"}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Stories row ── */}
+      <div className="flex items-center gap-3 overflow-x-auto py-3" style={{ scrollbarWidth: "none" }}>
+        <div className="flex flex-col items-center gap-1 shrink-0">
+          <div className="w-14 h-14 rounded-full flex items-center justify-center relative" style={{ background: "rgba(255,255,255,0.05)", border: "2px dashed rgba(232,185,35,0.5)" }}>
+            <Avatar src={avatar} name={name} color={color} size={46} />
+            <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#E8B923", color: "#0b0a06" }}>
+              <Plus size={12} />
+            </div>
+          </div>
+          <span className="text-[9px] text-wm-text-muted">Your story</span>
+        </div>
+        {stories.map(u => (
+          <div key={u.handle} className="flex flex-col items-center gap-1 shrink-0">
+            <div className="rounded-full p-[2px]" style={{ background: "conic-gradient(from 210deg, #E8B923, #FF6B9D, #8B5CF6, #059669, #E8B923)" }}>
+              <div className="rounded-full p-[2px] bg-wm-dark">
+                <Avatar src={u.avatar} name={u.name} color={u.color} size={44} ceo={u.ceo} />
+              </div>
+            </div>
+            <span className="text-[9px] text-wm-text-muted truncate" style={{ maxWidth: 56 }}>{u.name}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function LoungePage() {
   const { user } = useAuth();
   const [feedTab,       setFeedTab]       = useState<FeedTab>("for-you");
@@ -775,6 +882,11 @@ export default function LoungePage() {
 
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">
+            <LoungeVibeHeader
+              name={myName} handle={myHandle} avatar={myAvatar} color={myColor} ceo={myCeo}
+              postCount={posts.filter(p => p.user_handle === myHandle).length}
+              stories={topPosters}
+            />
             {loading ? (
               Array.from({length:3}).map((_,i) => (
                 <div key={i} className="rounded-xl border border-wm-border bg-wm-dark p-4 animate-pulse">
