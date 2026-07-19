@@ -340,63 +340,49 @@ function TrackRow({ track, idx, active, playing, onPlay, liked, onToggleLike }: 
     <div
       onClick={onPlay}
       className={clsx(
-        "group relative flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-all",
-        active ? "bg-wm-surface" : "hover:bg-wm-surface/50"
+        "group relative flex items-center gap-3 p-2.5 rounded-2xl border cursor-pointer transition-all overflow-hidden",
+        active ? "border-wm-green/50 bg-wm-surface" : "border-wm-border/40 bg-wm-card/50 hover:bg-wm-surface/50 hover:border-wm-border"
       )}
     >
-      {/* colored left accent */}
-      <div className="absolute left-0 top-1.5 bottom-1.5 rounded-full" style={{ width: 3, background: track.color, opacity: active ? 1 : 0.5 }} />
-
-      {/* Index / gold play */}
-      <div className="w-6 shrink-0 flex items-center justify-center">
-        {active && playing ? (
-          <LiveWave color={track.color} />
-        ) : (
-          <>
-            <span className={clsx("text-[11px] font-mono group-hover:hidden", active ? "text-wm-green" : "text-wm-text-dim")}>{idx + 1}</span>
-            <div className="hidden group-hover:flex w-6 h-6 rounded-full items-center justify-center" style={{ background: "linear-gradient(135deg,#E8B923,#059669)" }}>
-              <Play size={11} className="text-black ml-0.5" />
-            </div>
-          </>
-        )}
-      </div>
+      {/* colored side tab */}
+      <div className="shrink-0 rounded-full" style={{ width: 4, height: 42, background: track.color, boxShadow: `0 0 10px ${track.color}66` }} />
 
       {/* Album art */}
-      <div className="w-10 h-10 rounded-lg shrink-0 flex items-center justify-center"
-        style={{ background: `linear-gradient(135deg, ${track.color}55, ${track.color}1f)`, border: `1px solid ${track.color}33` }}>
-        <Music2 size={15} style={{ color: track.color }} />
+      <div className="w-12 h-12 rounded-xl shrink-0 relative overflow-hidden flex items-center justify-center"
+        style={{ background: `linear-gradient(135deg, ${track.color}66, ${track.color}22)`, border: `1px solid ${track.color}33` }}>
+        {active && playing ? <LiveWave color={track.color} /> : <Music2 size={18} style={{ color: track.color }} />}
       </div>
 
-      {/* Title + artist */}
+      {/* Title + sub */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className={clsx("text-[12px] font-bold truncate", active ? "text-wm-green" : "text-wm-text")}>
-            {track.title}
-          </span>
+          <span className={clsx("text-[13px] font-bold truncate", active ? "text-wm-green" : "text-wm-text")}>{track.title}</span>
           {track.new && (
-            <span className="shrink-0 text-[8px] px-1 py-0.5 rounded font-bold"
-              style={{ background: "rgba(0,200,118,0.15)", color: "#00C876" }}>NEW</span>
+            <span className="shrink-0 text-[8px] px-1 py-0.5 rounded font-bold" style={{ background: "rgba(0,200,118,0.15)", color: "#00C876" }}>NEW</span>
           )}
           {track.verified && <CheckCircle size={10} className="shrink-0 text-wm-green" />}
         </div>
-        <div className="text-[10px] text-wm-text-muted truncate">{track.artist} · {track.album}</div>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: `${track.color}20`, color: track.color }}>{track.genre}</span>
+          <span className="text-[10px] text-wm-text-muted truncate">{track.artist} · {track.plays} plays</span>
+        </div>
       </div>
 
-      {/* Genre pill */}
-      <span className="hidden sm:inline-flex items-center justify-center text-[9px] px-2 py-0.5 rounded-full w-20 truncate shrink-0"
-        style={{ background: `${track.color}18`, color: track.color, border: `1px solid ${track.color}30` }}>{track.genre}</span>
-
-      {/* Plays */}
-      <span className="text-[10px] font-mono text-wm-text-dim w-10 text-right shrink-0">{track.plays}</span>
+      {/* Duration */}
+      <span className="hidden sm:block text-[10px] font-mono text-wm-text-dim shrink-0">{fmt(track.duration)}</span>
 
       {/* Like */}
-      <button onClick={e => { e.stopPropagation(); onToggleLike(); }}
-        className="p-1 w-4 mx-2 shrink-0 transition-colors">
-        <Heart size={12} className={liked ? "text-red-500 fill-red-500" : "text-wm-text-dim hover:text-red-500"} />
+      <button onClick={e => { e.stopPropagation(); onToggleLike(); }} className="p-1.5 shrink-0 transition-colors">
+        <Heart size={13} className={liked ? "text-red-500 fill-red-500" : "text-wm-text-dim hover:text-red-500"} />
       </button>
 
-      {/* Duration */}
-      <span className="text-[10px] font-mono text-wm-text-dim w-9 text-right shrink-0">{fmt(track.duration)}</span>
+      {/* Gold play button */}
+      <div className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center transition-all group-hover:scale-110"
+        style={{ background: active ? "linear-gradient(135deg,#E8B923,#059669)" : "rgba(232,185,35,0.16)", border: "1px solid rgba(232,185,35,0.45)" }}>
+        {active && playing
+          ? <Pause size={16} style={{ color: "#0b0a06" }} />
+          : <Play size={16} className="ml-0.5" style={{ color: active ? "#0b0a06" : "#E8B923" }} />}
+      </div>
     </div>
   );
 }
@@ -426,10 +412,8 @@ function EpisodeCard({ ep, active, playing, onPlay }: {
           ) : (
             <Mic size={22} style={{ color: ep.color }} />
           )}
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all" style={{ background: "rgba(0,0,0,0.35)" }}>
-            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg,#E8B923,#059669)" }}>
-              {active && playing ? <Pause size={14} className="text-black" /> : <Play size={14} className="text-black ml-0.5" />}
-            </div>
+          <div className="absolute bottom-1 right-1 w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: "linear-gradient(135deg,#E8B923,#059669)", boxShadow: "0 3px 10px rgba(232,185,35,0.4)" }}>
+            {active && playing ? <Pause size={12} className="text-black" /> : <Play size={12} className="text-black ml-0.5" />}
           </div>
         </div>
 
@@ -1122,15 +1106,7 @@ export default function RadioPage() {
                     See all <ChevronRight size={10}/>
                   </button>
                 </div>
-                <div className="rounded-2xl border border-wm-border/50 overflow-hidden bg-wm-card/40">
-                  <div className="flex items-center px-4 py-2 border-b border-wm-border/40">
-                    <span className="text-[9px] text-wm-text-dim w-6 text-center">#</span>
-                    <span className="text-[9px] text-wm-text-dim flex-1 ml-12">TITLE</span>
-                    <span className="hidden sm:block text-[9px] text-wm-text-dim w-20">GENRE</span>
-                    <span className="text-[9px] text-wm-text-dim w-10 text-right">PLAYS</span>
-                    <span className="text-[9px] text-wm-text-dim w-4 mx-2"></span>
-                    <span className="text-[9px] text-wm-text-dim w-9 text-right">TIME</span>
-                  </div>
+                <div className="space-y-2">
                   {userTracks.slice(0,5).map((t,i) => (
                     <TrackRow key={t.id} track={t} idx={i}
                       active={activeTrackUrl === (uploadedUrls[t.id] ?? TRACK_URLS[t.id] ?? "")}
@@ -1175,16 +1151,28 @@ export default function RadioPage() {
               ))}
             </div>
 
-            {/* Track list */}
-            <div className="rounded-2xl border border-wm-border/50 overflow-hidden bg-wm-card/40">
-              <div className="flex items-center px-4 py-2 border-b border-wm-border/40">
-                <span className="text-[9px] text-wm-text-dim w-6 text-center">#</span>
-                <span className="text-[9px] text-wm-text-dim flex-1 ml-12">TITLE</span>
-                <span className="hidden sm:block text-[9px] text-wm-text-dim w-20">GENRE</span>
-                <span className="text-[9px] text-wm-text-dim w-10 text-right">PLAYS</span>
-                <span className="text-[9px] text-wm-text-dim w-4 mx-2"></span>
-                <span className="text-[9px] text-wm-text-dim w-9 text-right">TIME</span>
+            {/* Featured station card */}
+            <div className="relative rounded-2xl overflow-hidden mb-4 p-4 flex items-center gap-4"
+              style={{ background: "linear-gradient(135deg, rgba(232,185,35,0.10), rgba(13,14,20,0.9))", border: "1px solid rgba(232,185,35,0.25)" }}>
+              <div className="w-12 h-12 rounded-full shrink-0 flex items-center justify-center animate-[spin_5s_linear_infinite]"
+                style={{ background: "repeating-radial-gradient(circle, #141310 0 1.5px, #08080c 1.5px 4px)", border: "1px solid rgba(232,185,35,0.4)" }}>
+                <div className="w-4 h-4 rounded-full" style={{ background: "linear-gradient(135deg,#E8B923,#059669)" }} />
               </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[9px] font-black uppercase tracking-widest text-wm-text-muted">Station</div>
+                <div className="text-[13px] font-black text-wm-text">WM Radio — All Genres</div>
+              </div>
+              <div className="hidden sm:flex items-center gap-[2px]" style={{ height: 30 }}>
+                {Array.from({ length: 34 }).map((_, i) => { const h = Math.min(100, 20 + Math.abs(Math.sin(i * 0.6)) * 80); return <div key={i} style={{ width: 3, height: `${h}%`, borderRadius: 2, background: "rgba(232,185,35,0.6)" }} />; })}
+              </div>
+              <button onClick={() => playStation("wm-main")} className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center transition-transform hover:scale-110"
+                style={{ background: "linear-gradient(135deg,#E8B923,#059669)", boxShadow: "0 4px 14px rgba(232,185,35,0.4)" }}>
+                <Play size={16} className="text-black ml-0.5" />
+              </button>
+            </div>
+
+            {/* Track list */}
+            <div className="space-y-2">
               {filteredTracks.length === 0 ? (
                 <div className="py-12 text-center text-wm-text-dim text-[12px]">No tracks found</div>
               ) : filteredTracks.map((t,i) => (

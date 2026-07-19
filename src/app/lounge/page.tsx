@@ -648,6 +648,14 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
               <Play size={15} style={{ color: theme.accent }} className="shrink-0" />
             </div>
           </div>
+
+          {/* Achievement badges */}
+          <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+            <span className="text-[9px] font-black uppercase tracking-widest shrink-0 mr-1" style={{ color: theme.accent }}>Badges</span>
+            {[{ e: "🏆", c: "#E8B923" }, { e: "🥇", c: "#F0B429" }, { e: "💎", c: "#4FA3E0" }, { e: "🔥", c: "#FF4D6A" }, { e: "📈", c: "#00D4AA" }, { e: "🎧", c: "#8B5CF6" }, { e: "👑", c: "#E8B923" }, { e: "⭐", c: "#F0B429" }].map((b, i) => (
+              <div key={i} className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-[15px]" style={{ background: `${b.c}18`, border: `1px solid ${b.c}40` }}>{b.e}</div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -933,6 +941,32 @@ export default function LoungePage() {
               postCount={posts.filter(p => p.user_handle === myHandle).length}
               stories={topPosters}
             />
+
+            {/* Inline post composer */}
+            {myHandle && (
+              <div className="rounded-2xl border border-wm-border/60 bg-wm-card/50 p-3">
+                <div className="flex items-center gap-3">
+                  <Avatar src={myAvatar} name={myName} color={myColor} size={36} ceo={myCeo} />
+                  <button onClick={() => setShowCreate(true)}
+                    className="flex-1 text-left px-3 py-2 rounded-xl bg-wm-black border border-wm-border text-[12px] text-wm-text-muted hover:text-wm-text transition-colors truncate">
+                    Share a trade idea, drop a track, post for the culture…
+                  </button>
+                  <button onClick={() => setShowCreate(true)}
+                    className="px-4 py-2 rounded-xl text-[11px] font-black shrink-0" style={{ background: "linear-gradient(135deg,#E8B923,#059669)", color: "#0b0a06" }}>
+                    For the Culture
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 mt-2.5">
+                  {[{ icon: <Image size={13} />, label: "Photo", c: "#4FA3E0" }, { icon: <TrendingUp size={13} />, label: "Trading Insights", c: "#00D4AA" }, { icon: <Music size={13} />, label: "Music", c: "#8B5CF6" }].map(b => (
+                    <button key={b.label} onClick={() => setShowCreate(true)}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all hover:scale-105"
+                      style={{ background: `${b.c}14`, color: b.c, border: `1px solid ${b.c}2a` }}>
+                      {b.icon}{b.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {loading ? (
               Array.from({length:3}).map((_,i) => (
                 <div key={i} className="rounded-xl border border-wm-border bg-wm-dark p-4 animate-pulse">
