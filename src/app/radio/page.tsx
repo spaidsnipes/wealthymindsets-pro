@@ -222,44 +222,83 @@ function StationCard({ station, active, onPlay }: {
   active: boolean;
   onPlay: () => void;
 }) {
+  const c = station.color;
+  // Per-bar heights (px) for the equalizer waveform — varied for an organic look.
+  const bars = [12, 22, 30, 17, 34, 25, 14, 28, 20, 32, 18, 26, 15, 23];
   return (
     <motion.div
-      whileHover={{ y: -2 }}
+      whileHover={{ y: -4, boxShadow: `0 14px 36px ${c}33` }}
       onClick={onPlay}
-      className="relative rounded-2xl border cursor-pointer transition-all overflow-hidden group"
+      className="wm-station-card relative rounded-2xl border cursor-pointer overflow-hidden group"
       style={{
         background: active
-          ? `linear-gradient(135deg, ${station.color}22, ${station.color}0a)`
-          : "rgba(20,22,32,0.8)",
-        borderColor: active ? station.color : "rgba(30,32,48,0.8)",
-        boxShadow: active ? `0 0 20px ${station.color}22` : undefined,
+          ? `linear-gradient(135deg, ${c}22, ${c}0a)`
+          : "rgba(20,22,32,0.85)",
+        borderColor: active ? c : "rgba(30,32,48,0.8)",
+        boxShadow: active ? `0 0 26px ${c}30` : undefined,
+        transition: "border-color 0.35s ease",
       }}
     >
-      {/* Live pill */}
-      {station.live && (
-        <div className="absolute top-3 right-3 flex items-center gap-1 px-1.5 py-0.5 rounded-full"
-          style={{ background: "rgba(255,77,106,0.2)", border: "1px solid rgba(255,77,106,0.5)" }}>
-          <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-          <span style={{ fontSize: 8, fontWeight: 800, color: "#FF4D6A", letterSpacing: 1 }}>LIVE</span>
-        </div>
-      )}
+      {/* ── Genre art strip — spinning vinyl + waveform ─────────── */}
+      <div className="relative overflow-hidden" style={{ height: 90,
+        background: `radial-gradient(130% 150% at 12% 15%, ${c}40 0%, transparent 62%), linear-gradient(135deg, ${c}22, rgba(11,12,18,0.92))` }}>
+        {/* faint vinyl grooves — cultural texture, low opacity */}
+        <div className="pointer-events-none absolute inset-0 opacity-[0.11]"
+          style={{ background: `repeating-radial-gradient(circle at 84% 44%, ${c} 0 1px, transparent 1px 7px)` }} />
 
-      <div className="p-4">
-        {/* Avatar */}
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl mb-3"
-          style={{ background: `linear-gradient(135deg, ${station.color}44, ${station.color}22)`, color: station.color }}>
+        {/* Spinning vinyl disc — slow idle, quick when tuned in, medium on hover */}
+        <div className={`absolute -right-6 -top-5 w-[104px] h-[104px] rounded-full ${active ? "animate-[spin_3.6s_linear_infinite]" : "animate-[spin_18s_linear_infinite] group-hover:animate-[spin_7s_linear_infinite]"}`}
+          style={{ background: "repeating-radial-gradient(circle, #14130c 0 2px, #0a0a06 2px 4px)", border: `1px solid ${c}55`, boxShadow: "0 8px 22px rgba(0,0,0,0.5)" }}>
+          <div className="absolute inset-0 m-auto rounded-full" style={{ width: 30, height: 30, background: `linear-gradient(135deg, ${c}, ${c}77)`, boxShadow: `0 0 12px ${c}66` }} />
+          <div className="absolute inset-0 m-auto rounded-full bg-black/85" style={{ width: 6, height: 6 }} />
+        </div>
+
+        {/* Avatar chip */}
+        <div className="absolute left-4 top-3 w-9 h-9 rounded-xl flex items-center justify-center font-black text-[15px] z-10"
+          style={{ background: `linear-gradient(135deg, ${c}66, ${c}22)`, color: "#fff", border: `1px solid ${c}66`, textShadow: "0 1px 3px rgba(0,0,0,0.55)" }}>
           {station.avatar}
         </div>
 
+        {/* Live pill */}
+        {station.live && (
+          <div className="absolute top-3.5 left-1/2 -translate-x-1/2 flex items-center gap-1 px-1.5 py-0.5 rounded-full z-10"
+            style={{ background: "rgba(255,77,106,0.22)", border: "1px solid rgba(255,77,106,0.55)" }}>
+            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            <span style={{ fontSize: 8, fontWeight: 800, color: "#FF4D6A", letterSpacing: 1 }}>LIVE</span>
+          </div>
+        )}
+
+        {/* Equalizer waveform — frozen when idle, dances when tuned in / on hover */}
+        <div className="absolute left-4 bottom-2.5 flex items-end gap-[3px] z-10" style={{ height: 34 }}>
+          {bars.map((h, i) => (
+            <div key={i} data-eq style={{
+              width: 3, height: h, borderRadius: 2, transformOrigin: "bottom",
+              background: c, opacity: active ? 0.92 : 0.5,
+              animation: `wm-eq ${(0.9 + (i % 5) * 0.12).toFixed(2)}s ease-in-out ${(i * 0.06).toFixed(2)}s infinite alternate`,
+              animationPlayState: active ? "running" : "paused",
+            }} />
+          ))}
+        </div>
+
+        {/* Play / Pause — brightens & scales on hover */}
+        <div
+          className="absolute right-3 bottom-3 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 group-hover:scale-110 z-10"
+          style={{ background: c, color: "#0b0a06", boxShadow: `0 6px 18px ${c}77`, opacity: active ? 1 : 0.9 }}>
+          {active ? <Pause size={16} /> : <Play size={16} className="ml-0.5" />}
+        </div>
+      </div>
+
+      {/* ── Body ─────────────────────────────────────────────────── */}
+      <div className="p-4 pt-3">
         <div className="text-[13px] font-black text-wm-text mb-0.5">{station.name}</div>
-        <div className="text-[10px] text-wm-text-muted mb-2">{station.genre}</div>
+        <div className="text-[10px] font-semibold mb-2" style={{ color: c }}>{station.genre} · {station.host}</div>
         <div className="text-[10px] text-wm-text-dim leading-relaxed mb-3 line-clamp-2">{station.desc}</div>
 
         {/* Tags */}
         <div className="flex flex-wrap gap-1 mb-3">
-          {station.tags.slice(0,2).map(t => (
+          {station.tags.slice(0, 3).map(t => (
             <span key={t} className="text-[9px] px-1.5 py-0.5 rounded-full"
-              style={{ background: `${station.color}15`, color: station.color }}>
+              style={{ background: `${c}18`, color: c, border: `1px solid ${c}2a` }}>
               {t}
             </span>
           ))}
@@ -267,22 +306,20 @@ function StationCard({ station, active, onPlay }: {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
-            <Users size={9} className="text-wm-text-dim" />
+            <Users size={10} className="text-wm-text-dim" />
             <span className="text-[10px] font-mono text-wm-text-muted">
               {station.listeners.toLocaleString()}
             </span>
           </div>
           {active ? (
             <div className="flex items-center gap-1.5">
-              <LiveWave color={station.color} />
-              <span style={{ fontSize: 9, color: station.color, fontWeight: 700 }}>TUNED IN</span>
+              <LiveWave color={c} />
+              <span style={{ fontSize: 9, color: c, fontWeight: 800, letterSpacing: 0.5 }}>TUNED IN</span>
             </div>
           ) : (
-            <button className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all group-hover:opacity-100"
-              style={{ background: `${station.color}22`, color: station.color, border: `1px solid ${station.color}40` }}>
-              <Play size={9} className="ml-0.5" />
-              Tune In
-            </button>
+            <span className="flex items-center gap-1 text-[10px] font-bold" style={{ color: c }}>
+              <Play size={9} className="ml-0.5" /> Tune In
+            </span>
           )}
         </div>
       </div>
@@ -957,7 +994,7 @@ export default function RadioPage() {
                 <div className="pointer-events-none absolute inset-0 opacity-[0.06]"
                   style={{ background: "repeating-radial-gradient(circle at 10% 50%, #E8B923 0 1px, transparent 1px 8px)" }} />
                 {/* Spinning vinyl record avatar */}
-                <div className={`relative z-10 shrink-0 w-20 h-20 rounded-full flex items-center justify-center ${activeStation === "WM Radio" && playing ? "animate-[spin_3.4s_linear_infinite]" : ""}`}
+                <div className={`relative z-10 shrink-0 w-20 h-20 rounded-full flex items-center justify-center ${activeStation === "WM Radio" && playing ? "animate-[spin_3.4s_linear_infinite]" : "animate-[spin_18s_linear_infinite]"}`}
                   style={{ background: "repeating-radial-gradient(circle, #16130a 0 2px, #0b0a06 2px 4px)", border: "1px solid rgba(232,185,35,0.4)", boxShadow: "0 6px 22px rgba(0,0,0,0.5)" }}>
                   <div className="rounded-full flex items-center justify-center text-lg font-black"
                     style={{ width: 30, height: 30, background: "linear-gradient(135deg,#E8B923,#059669)", color: "#0b0a06" }}>W</div>
@@ -986,14 +1023,21 @@ export default function RadioPage() {
                     </button>
                   </div>
                 </div>
-                {activeStation === "WM Radio" && playing && (
-                  <div className="flex items-end gap-[3px]" style={{ height:40 }}>
-                    {[1,2,3,4,5,6,7].map(i => (
-                      <div key={i} className="w-[3px] rounded-full"
-                        style={{ background:"#00D4AA", animation:`wm-wave-bar 0.6s ease-in-out ${i*0.08}s infinite alternate`, minHeight:4 }} />
-                    ))}
-                  </div>
-                )}
+                {/* Ambient equalizer — always present (cinematic at rest), dances when live */}
+                <div className="relative z-10 hidden sm:flex items-end gap-[3px] pr-2" style={{ height:46 }}>
+                  {[8,14,22,30,40,32,44,24,36,18,28,14].map((h,i) => {
+                    const on = activeStation === "WM Radio" && playing;
+                    return (
+                      <div key={i} style={{
+                        width:3, height:h, borderRadius:2, transformOrigin:"bottom",
+                        background: i % 2 ? "#059669" : "#E8B923",
+                        opacity: on ? 0.95 : 0.42,
+                        animation:`wm-eq ${(0.7 + (i % 4) * 0.12).toFixed(2)}s ease-in-out ${(i*0.06).toFixed(2)}s infinite alternate`,
+                        animationPlayState: on ? "running" : "paused",
+                      }} />
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -1160,6 +1204,12 @@ export default function RadioPage() {
           from { height: 4px; }
           to   { height: 18px; }
         }
+        @keyframes wm-eq {
+          0%   { transform: scaleY(0.26); }
+          100% { transform: scaleY(1); }
+        }
+        /* Idle station-card waveforms are frozen; they come alive on hover */
+        .wm-station-card:hover [data-eq] { animation-play-state: running !important; }
       `}</style>
     </div>
   );
