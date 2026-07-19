@@ -26,6 +26,19 @@ const EMPTY_PROFILE: ProfileData = {
 interface TradeRow { sym: string; dir: string; entry: string; exit: string; pnl: string; rr: string; date: string; }
 interface LikedTrack { title: string; artist: string; duration: string; }
 
+/* Circle of Excellence — the member's Top 8 (MySpace-soul), seeded from the
+   WM crew for a populated feel, consistent with the community data elsewhere. */
+const CIRCLE_OF_EXCELLENCE = [
+  { name: "SpaidFX",       color: "#00D4AA", avatar: "S" },
+  { name: "WealthQueen",   color: "#8B5CF6", avatar: "W" },
+  { name: "TradeMuse",     color: "#4FA3E0", avatar: "T" },
+  { name: "NQ_Sniper",     color: "#F0B429", avatar: "N" },
+  { name: "GoldRush",      color: "#FF6B9D", avatar: "G" },
+  { name: "ChartFanatics", color: "#FF4D6A", avatar: "C" },
+  { name: "CryptoKing",    color: "#00C853", avatar: "K" },
+  { name: "TapeReader",    color: "#E8B923", avatar: "T" },
+];
+
 export default function ProfilePage() {
   const router = useRouter();
   const [tab, setTab] = useState<"trades" | "music" | "posts" | "coins">("trades");
@@ -323,6 +336,11 @@ export default function ProfilePage() {
           backgroundImage: "repeating-linear-gradient(45deg, #00D4AA 0, #00D4AA 1px, transparent 0, transparent 50%)",
           backgroundSize: "20px 20px",
         }} />
+        {/* cultural texture — faint vinyl grooves + trading-chart line */}
+        <div className="absolute inset-0 pointer-events-none opacity-[0.07]" style={{ background: "repeating-radial-gradient(circle at 90% 28%, #E8B923 0 1px, transparent 1px 9px)" }} />
+        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.14]" preserveAspectRatio="none" viewBox="0 0 400 140">
+          <polyline points="0,112 40,98 80,106 120,74 160,86 200,52 240,64 280,32 320,44 360,18 400,28" fill="none" stroke="#E8B923" strokeWidth="2" />
+        </svg>
 
         <div className="absolute top-3 right-3 flex gap-2 items-center">
           {["#070A0F", "#0D0A1F", "#0A1A0D", "#1A0A0A"].map(c => (
@@ -446,6 +464,27 @@ export default function ProfilePage() {
                 <div className="text-[10px] text-wm-text-dim uppercase tracking-wider">{s.label}</div>
               </div>
             ))}
+          </div>
+
+          {/* Circle of Excellence — Top 8 */}
+          <div className="mt-5">
+            <div className="flex items-center gap-2 mb-2.5">
+              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "#E8B923" }}>Circle of Excellence</span>
+              <span className="text-[10px] text-wm-text-dim">· Top 8</span>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              {CIRCLE_OF_EXCELLENCE.map(m => (
+                <div key={m.name} className="flex flex-col items-center gap-1">
+                  <div className="rounded-full p-[2px]" style={{ background: `linear-gradient(135deg,#E8B923,${m.color})`, boxShadow: "0 0 12px rgba(232,185,35,0.32)" }}>
+                    <div className="w-11 h-11 rounded-full flex items-center justify-center font-black text-white text-sm"
+                      style={{ background: `linear-gradient(135deg,${m.color},${m.color}88)`, border: "2px solid #0D0E14" }}>
+                      {m.avatar}
+                    </div>
+                  </div>
+                  <span className="text-[9px] text-wm-text-muted truncate" style={{ maxWidth: 52 }}>{m.name}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
