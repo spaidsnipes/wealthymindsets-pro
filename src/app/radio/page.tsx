@@ -544,12 +544,14 @@ function RadioPlayer({ now, playing, onToggle, progress, onSeek, volume, onVolum
     <div className="fixed bottom-14 left-0 right-0 z-50 mx-4 mb-2 rounded-2xl border border-wm-border"
       style={{ background: "rgba(13,14,20,0.97)", backdropFilter:"blur(20px)", boxShadow:`0 -4px 40px ${now.color}22` }}>
       <div className="flex items-center gap-4 px-5 py-3">
-        {/* Art */}
-        <div className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center"
-          style={{ background:`linear-gradient(135deg, ${now.color}44, ${now.color}22)` }}>
-          {now.type === "station" ? <Radio size={16} style={{ color:now.color }} /> :
-           now.type === "episode" ? <Mic size={16} style={{ color:now.color }} /> :
-           <Music2 size={16} style={{ color:now.color }} />}
+        {/* Art — spinning vinyl */}
+        <div className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center ${playing ? "animate-[spin_3.4s_linear_infinite]" : ""}`}
+          style={{ background:"repeating-radial-gradient(circle, #141310 0 1.5px, #08080c 1.5px 3.5px)", border:"1px solid rgba(232,185,35,0.4)", boxShadow:"0 3px 12px rgba(0,0,0,0.5)" }}>
+          <div className="rounded-full flex items-center justify-center" style={{ width:15, height:15, background:"linear-gradient(135deg,#E8B923,#c98a12)" }}>
+            {now.type === "station" ? <Radio size={8} style={{ color:"#0b0a06" }} /> :
+             now.type === "episode" ? <Mic size={8} style={{ color:"#0b0a06" }} /> :
+             <Music2 size={8} style={{ color:"#0b0a06" }} />}
+          </div>
         </div>
 
         {/* Info */}
@@ -576,7 +578,7 @@ function RadioPlayer({ now, playing, onToggle, progress, onSeek, volume, onVolum
                 const r = e.currentTarget.getBoundingClientRect();
                 onSeek(Math.floor(((e.clientX - r.left) / r.width) * now.duration));
               }}>
-              <div className="h-full rounded-full" style={{ width:`${pct}%`, background:now.color }} />
+              <div className="h-full rounded-full" style={{ width:`${pct}%`, background:"linear-gradient(90deg,#E8B923,#059669)" }} />
             </div>
             <span className="text-[9px] font-mono text-wm-text-dim shrink-0">{fmt(now.duration)}</span>
           </div>
@@ -989,13 +991,14 @@ export default function RadioPage() {
                 {/* faint vinyl grooves */}
                 <div className="pointer-events-none absolute inset-0 opacity-[0.05]"
                   style={{ background: "repeating-radial-gradient(circle at 80% 50%, #E8B923 0 1px, transparent 1px 10px)" }} />
-                {/* big ambient gold waveform across the hero */}
-                <div className="pointer-events-none absolute inset-x-8 top-1/2 -translate-y-1/2 flex items-center gap-[3px]" style={{ height: 120, opacity: 0.5 }}>
-                  {[20,38,26,52,34,64,40,78,48,90,58,74,44,86,52,96,60,80,46,68,38,56,30,48,26,40,22,34].map((h,i) => {
+                {/* big ambient gold waveform across the hero — thin crisp bars */}
+                <div className="pointer-events-none absolute inset-x-8 top-1/2 -translate-y-1/2 flex items-center justify-between" style={{ height: 132, opacity: 0.45 }}>
+                  {Array.from({ length: 68 }).map((_, i) => {
                     const on = activeStation === "WM Radio" && playing;
-                    return <div key={i} style={{ flex: 1, height: `${h}%`, borderRadius: 2, transformOrigin: "center",
-                      background: i % 4 === 0 ? "rgba(232,185,35,0.72)" : "rgba(232,185,35,0.30)",
-                      animation: `wm-eq ${(0.8 + (i % 5) * 0.14).toFixed(2)}s ease-in-out ${(i * 0.04).toFixed(2)}s infinite alternate`,
+                    const h = Math.min(100, 14 + Math.abs(Math.sin(i * 0.55) + Math.sin(i * 0.17)) * 46 + (i % 4) * 6);
+                    return <div key={i} style={{ width: 3, height: `${h}%`, borderRadius: 2, transformOrigin: "center",
+                      background: i % 5 === 0 ? "rgba(232,185,35,0.75)" : "rgba(232,185,35,0.26)",
+                      animation: `wm-eq ${(0.8 + (i % 5) * 0.13).toFixed(2)}s ease-in-out ${(i * 0.03).toFixed(2)}s infinite alternate`,
                       animationPlayState: on ? "running" : "paused" }} />;
                   })}
                 </div>
