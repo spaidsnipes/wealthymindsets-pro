@@ -1023,20 +1023,27 @@ export default function RadioPage() {
                     </div>
                   </div>
 
-                  {/* Right — gold sunburst + spinning vinyl + play */}
-                  <div className="relative shrink-0 hidden md:flex items-center justify-center" style={{ width: 196, height: 196 }}>
-                    <div className="absolute inset-0 rounded-full animate-[spin_30s_linear_infinite]" style={{
-                      background: "repeating-conic-gradient(from 0deg, rgba(232,185,35,0.55) 0deg 1.3deg, transparent 1.3deg 6deg)",
-                      WebkitMaskImage: "radial-gradient(circle closest-side, transparent 72%, #000 76%, #000 96%, transparent 100%)",
-                      maskImage: "radial-gradient(circle closest-side, transparent 72%, #000 76%, #000 96%, transparent 100%)",
-                    }} />
-                    <div className={`relative rounded-full ${activeStation === "WM Radio" && playing ? "animate-[spin_3.6s_linear_infinite]" : "animate-[spin_20s_linear_infinite]"}`}
-                      style={{ width: 148, height: 148, background: "repeating-radial-gradient(circle, #141310 0 2px, #08080c 2px 5px)", border: "1px solid rgba(232,185,35,0.45)", boxShadow: "0 10px 34px rgba(0,0,0,0.6)" }} />
+                  {/* Right — realistic spinning vinyl record + play */}
+                  <div className="relative shrink-0 hidden md:flex items-center justify-center" style={{ width: 200, height: 200 }}>
+                    <div className={`relative rounded-full ${activeStation === "WM Radio" && playing ? "animate-[spin_3.6s_linear_infinite]" : "animate-[spin_22s_linear_infinite]"}`}
+                      style={{ width: 190, height: 190,
+                        background: "repeating-radial-gradient(circle at 50% 50%, #0a0a0c 0 1px, #17171b 1px 2px, #0a0a0c 2px 3px)",
+                        boxShadow: "0 14px 44px rgba(0,0,0,0.7), inset 0 0 44px rgba(0,0,0,0.6)" }}>
+                      {/* glossy sheen */}
+                      <div className="absolute inset-0 rounded-full pointer-events-none" style={{ background: "linear-gradient(125deg, rgba(255,255,255,0.16) 0%, transparent 32%, transparent 64%, rgba(255,255,255,0.07) 100%)" }} />
+                      {/* faint rainbow sheen */}
+                      <div className="absolute inset-0 rounded-full pointer-events-none" style={{ background: "conic-gradient(from 200deg, transparent 0deg, rgba(80,180,255,0.12) 40deg, rgba(120,255,180,0.10) 90deg, transparent 150deg)" }} />
+                      {/* gold center label + spindle hole */}
+                      <div className="absolute inset-0 m-auto rounded-full flex items-center justify-center" style={{ width: 76, height: 76, background: "radial-gradient(circle at 38% 32%, #f6d576, #E8B923 46%, #a9760c 100%)", boxShadow: "inset 0 0 14px rgba(0,0,0,0.35), 0 0 0 2px rgba(11,10,6,0.5)" }}>
+                        <div className="rounded-full bg-black" style={{ width: 9, height: 9 }} />
+                      </div>
+                    </div>
+                    {/* play button — bottom-right, like the mockup */}
                     <button
                       onClick={() => activeStation === "WM Radio" ? togglePlay() : playStation("wm-main")}
-                      className="absolute rounded-full flex items-center justify-center transition-transform hover:scale-110"
-                      style={{ width: 56, height: 56, background: "rgba(11,10,6,0.72)", border: "2px solid #E8B923", boxShadow: "0 0 22px rgba(232,185,35,0.55)" }}>
-                      {activeStation === "WM Radio" && playing ? <Pause size={22} style={{ color: "#E8B923" }} /> : <Play size={22} className="ml-0.5" style={{ color: "#E8B923" }} />}
+                      className="absolute bottom-0 right-0 rounded-full flex items-center justify-center transition-transform hover:scale-110"
+                      style={{ width: 52, height: 52, background: "linear-gradient(135deg,#E8B923,#059669)", boxShadow: "0 6px 20px rgba(232,185,35,0.5)" }}>
+                      {activeStation === "WM Radio" && playing ? <Pause size={20} style={{ color: "#0b0a06" }} /> : <Play size={20} className="ml-0.5" style={{ color: "#0b0a06" }} />}
                     </button>
                   </div>
                 </div>

@@ -164,7 +164,17 @@ export default function ShopPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-wm-black overflow-hidden">
+    <div className="wm-shop-light flex flex-col h-full overflow-hidden" style={{ background: "radial-gradient(120% 100% at 50% 0%, #f6f1e6 0%, #ece4d3 55%, #dccfb6 100%)" }}>
+      <style>{`
+        .wm-shop-light .text-wm-text { color: #241f14; }
+        .wm-shop-light .text-wm-text-muted { color: #6b6152; }
+        .wm-shop-light .text-wm-text-dim { color: #9a8f7a; }
+        .wm-shop-light .text-wm-black { color: #241f14; }
+        .wm-shop-light .bg-wm-dark { background: rgba(255,255,255,0.6); }
+        .wm-shop-light .border-wm-border { border-color: rgba(0,0,0,0.10); }
+        .wm-shop-light .glass { background: #ffffff; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 8px 24px rgba(120,90,20,0.12); }
+        .wm-shop-light input::placeholder { color: #a99f8c; }
+      `}</style>
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-2.5 border-b border-wm-border bg-wm-dark shrink-0">
         <h1 className="text-sm font-bold text-wm-text">WM Shop</h1>
@@ -237,7 +247,7 @@ export default function ShopPage() {
               className="glass rounded-xl overflow-hidden hover:border-wm-border/80 transition-all group cursor-pointer"
               onClick={() => setDetail(product)}>
               <div className="relative h-44 flex items-center justify-center"
-                style={{ background: "linear-gradient(135deg, #0D1117, #1C2128)" }}>
+                style={{ background: `linear-gradient(135deg, ${product.accent}26, #ffffff)` }}>
                 <span className="text-6xl">{product.emoji}</span>
 
                 {product.badge && (
@@ -283,7 +293,7 @@ export default function ShopPage() {
             </motion.div>
             );
             return showHdr
-              ? [<h2 key={"h-" + product.category} className="col-span-3 text-[13px] font-black text-wm-gold uppercase tracking-widest mt-3">{product.category}</h2>, card]
+              ? [<h2 key={"h-" + product.category} className="col-span-3 text-[17px] font-black uppercase tracking-wider mt-3 mb-1" style={{ color: "#241f14" }}>{product.category}</h2>, card]
               : [card];
           })}
         </div>
