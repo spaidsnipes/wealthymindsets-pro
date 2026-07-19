@@ -155,8 +155,9 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
         </div>
       </div>
 
-      {/* ── Shows & Podcasts grid ────────────────────────── */}
-      <div className="px-4 pb-6">
+      {/* ── Shows & Podcasts grid + live chat sidebar ─────── */}
+      <div className="px-4 pb-6 flex gap-4">
+        <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-3 mt-1">
           <Tv size={14} style={{ color: "#E8B923" }} />
           <span className="text-[11px] font-black text-wm-text uppercase tracking-widest">Shows & Podcasts</span>
@@ -189,6 +190,44 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
               </div>
             </motion.button>
           ))}
+        </div>
+        </div>
+
+        {/* Live chat + Pinned Wisdom sidebar */}
+        <div className="hidden xl:flex flex-col gap-3 w-72 shrink-0">
+          <div className="rounded-2xl p-4" style={{ background: "linear-gradient(135deg, rgba(232,185,35,0.10), rgba(13,14,20,0.9))", border: "1px solid rgba(232,185,35,0.25)" }}>
+            <div className="text-[9px] font-black uppercase tracking-widest mb-1.5" style={{ color: "#E8B923" }}>Pinned Wisdom</div>
+            <div className="font-black text-wm-text" style={{ fontFamily: 'Georgia, serif', fontSize: 15, lineHeight: 1.4 }}>&ldquo;The mind is the ultimate currency. Invest wisely.&rdquo;</div>
+          </div>
+          <div className="rounded-2xl overflow-hidden flex flex-col" style={{ background: "rgba(20,22,32,0.6)", border: "1px solid rgba(30,32,48,0.9)", maxHeight: 380 }}>
+            <div className="px-3 py-2 border-b border-wm-border/60 flex items-center justify-between shrink-0">
+              <span className="text-[10px] font-black uppercase tracking-widest text-wm-text">Live Chat</span>
+              <span className="flex items-center gap-1 text-[9px] font-bold text-wm-red"><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />LIVE</span>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-2.5" style={{ scrollbarWidth: "none" }}>
+              {[
+                { a: "TapeReader", c: "#F0B429", m: "gold breakout looking clean 📈🔥" },
+                { a: "WealthQueen", c: "#8B5CF6", m: "this set is smooth 🎧✨" },
+                { a: "NQ_Sniper", c: "#00D4AA", m: "morning bell was 🔥 today" },
+                { a: "GoldRush", c: "#FF6B9D", m: "for the culture 🙌🏾💛" },
+                { a: "ChartFanatics", c: "#4FA3E0", m: "who's on next? 👀" },
+                { a: "CryptoKing", c: "#00C853", m: "WM to the world 🌍👑" },
+              ].map((x, i) => (
+                <div key={i} className="flex gap-2">
+                  <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-[10px] font-black" style={{ background: x.c }}>{x.a[0]}</div>
+                  <div className="min-w-0 leading-snug">
+                    <span className="text-[10px] font-bold" style={{ color: x.c }}>{x.a} </span>
+                    <span className="text-[11px] text-wm-text">{x.m}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="px-3 py-2 border-t border-wm-border/60 flex items-center gap-1.5 shrink-0">
+              {["💛", "🔥", "📈", "🙌🏾", "🎧", "👑"].map(e => (
+                <button key={e} className="w-7 h-7 rounded-lg text-[13px] flex items-center justify-center hover:scale-110 transition-transform" style={{ background: "rgba(255,255,255,0.05)" }}>{e}</button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 

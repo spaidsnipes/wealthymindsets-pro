@@ -227,7 +227,12 @@ export default function ShopPage() {
           </div>
         )}
         <div className="grid grid-cols-3 gap-4">
-          {products.map((product, i) => (
+          {(cat === "All" && !search
+            ? [...PRODUCTS].sort((a, b) => CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category))
+            : products
+          ).flatMap((product, i, arr) => {
+            const showHdr = cat === "All" && !search && (i === 0 || arr[i - 1].category !== product.category);
+            const card = (
             <motion.div key={product.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
               className="glass rounded-xl overflow-hidden hover:border-wm-border/80 transition-all group cursor-pointer"
               onClick={() => setDetail(product)}>
@@ -276,7 +281,11 @@ export default function ShopPage() {
                 </button>
               </div>
             </motion.div>
-          ))}
+            );
+            return showHdr
+              ? [<h2 key={"h-" + product.category} className="col-span-3 text-[13px] font-black text-wm-gold uppercase tracking-widest mt-3">{product.category}</h2>, card]
+              : [card];
+          })}
         </div>
       </div>
 
