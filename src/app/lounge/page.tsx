@@ -535,6 +535,17 @@ const LOUNGE_THEMES = [
   { id: "royal",   name: "Royal Purple",   grad: "linear-gradient(120deg, #180e2e, #2e1a4a 50%, #0f0a1a)", accent: "#8B5CF6" },
 ];
 
+const LOUNGE_TOP8 = [
+  { name: "SpaidFX",       color: "#00D4AA", avatar: "S" },
+  { name: "WealthQueen",   color: "#8B5CF6", avatar: "W" },
+  { name: "TradeMuse",     color: "#4FA3E0", avatar: "T" },
+  { name: "NQ_Sniper",     color: "#F0B429", avatar: "N" },
+  { name: "GoldRush",      color: "#FF6B9D", avatar: "G" },
+  { name: "ChartFanatics", color: "#FF4D6A", avatar: "C" },
+  { name: "CryptoKing",    color: "#00C853", avatar: "K" },
+  { name: "TapeReader",    color: "#E8B923", avatar: "T" },
+];
+
 function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories }: {
   name: string; handle: string; avatar: string; color: string; ceo: boolean;
   postCount: number;
@@ -557,7 +568,12 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
     <div>
       {/* ── Themed profile banner ── */}
       <div className="relative rounded-2xl overflow-hidden border" style={{ borderColor: "rgba(232,185,35,0.22)" }}>
-        <div className="relative" style={{ height: 118, background: theme.grad }}>
+        <div className="relative" style={{ height: 150, background: theme.grad }}>
+          {/* serif theme title (Harlem Nights / Golden Vinyl / …) */}
+          <div className="absolute inset-x-0 flex flex-col items-center pointer-events-none z-[1]" style={{ top: 24 }}>
+            <span className="text-[8px] font-black uppercase tracking-[0.32em] mb-1" style={{ color: theme.accent }}>WM Lounge</span>
+            <span className="font-black text-white leading-none" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 30, letterSpacing: 1.5, textTransform: "uppercase", textShadow: "0 2px 14px rgba(0,0,0,0.7)" }}>{theme.name}</span>
+          </div>
           {/* faint trading chart line */}
           <svg className="absolute inset-0 w-full h-full opacity-[0.18] pointer-events-none" preserveAspectRatio="none" viewBox="0 0 400 120">
             <polyline points="0,92 40,80 80,88 120,58 160,70 200,40 240,52 280,26 320,36 360,14 400,22"
@@ -601,6 +617,36 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
                 {vibe || "Set your vibe… 🎧"}
               </button>
             )}
+          </div>
+
+          {/* Circle of Excellence — Top 8 + now playing */}
+          <div className="mt-3 flex flex-col lg:flex-row lg:items-end gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: theme.accent }}>Circle of Excellence</span>
+                <span className="text-[9px] text-wm-text-dim">· Top 8</span>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {LOUNGE_TOP8.map(m => (
+                  <div key={m.name} className="rounded-full p-[2px]" title={m.name} style={{ background: `linear-gradient(135deg, ${theme.accent}, ${m.color})` }}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center font-black text-white text-[12px]" style={{ background: `linear-gradient(135deg, ${m.color}, ${m.color}88)`, border: "2px solid #0D0E14" }}>{m.avatar}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* now playing — spinning vinyl + waveform */}
+            <div className="flex items-center gap-2.5 rounded-xl px-3 py-2 shrink-0" style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${theme.accent}33`, minWidth: 210 }}>
+              <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center animate-[spin_4s_linear_infinite]" style={{ background: "repeating-radial-gradient(circle, #141310 0 1.5px, #08080c 1.5px 3.5px)", border: `1px solid ${theme.accent}66` }}>
+                <div className="w-3 h-3 rounded-full" style={{ background: theme.accent }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] font-bold text-wm-text truncate">{theme.name} — Lo-Fi Set</div>
+                <div className="flex items-end gap-[2px] mt-1" style={{ height: 12 }}>
+                  {Array.from({ length: 34 }).map((_, i) => { const h = Math.min(100, 22 + Math.abs(Math.sin(i * 0.6)) * 78); return <div key={i} style={{ flex: 1, height: `${h}%`, borderRadius: 1, background: `${theme.accent}99` }} />; })}
+                </div>
+              </div>
+              <Play size={15} style={{ color: theme.accent }} className="shrink-0" />
+            </div>
           </div>
         </div>
       </div>
