@@ -6,7 +6,7 @@ import {
   Search, ChevronRight, Users, Star,
   TrendingUp, Flame, Plus, Signal,
   CheckCircle, X, Upload,
-  Heart, Clock, Headphones, Volume2, VolumeX,
+  Heart, Headphones, Volume2, VolumeX,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -336,39 +336,41 @@ function TrackRow({ track, idx, active, playing, onPlay, liked, onToggleLike }: 
   liked: boolean;
   onToggleLike: () => void;
 }) {
-  const dp = 2;
-
   return (
     <div
       onClick={onPlay}
       className={clsx(
-        "group flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all",
+        "group relative flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-all",
         active ? "bg-wm-surface" : "hover:bg-wm-surface/50"
       )}
     >
-      {/* Index / play indicator */}
+      {/* colored left accent */}
+      <div className="absolute left-0 top-1.5 bottom-1.5 rounded-full" style={{ width: 3, background: track.color, opacity: active ? 1 : 0.5 }} />
+
+      {/* Index / gold play */}
       <div className="w-6 shrink-0 flex items-center justify-center">
         {active && playing ? (
           <LiveWave color={track.color} />
         ) : (
-          <span className={clsx(
-            "text-[11px] font-mono",
-            active ? "text-wm-green" : "text-wm-text-dim group-hover:hidden"
-          )}>{idx + 1}</span>
+          <>
+            <span className={clsx("text-[11px] font-mono group-hover:hidden", active ? "text-wm-green" : "text-wm-text-dim")}>{idx + 1}</span>
+            <div className="hidden group-hover:flex w-6 h-6 rounded-full items-center justify-center" style={{ background: "linear-gradient(135deg,#E8B923,#059669)" }}>
+              <Play size={11} className="text-black ml-0.5" />
+            </div>
+          </>
         )}
-        <Play size={11} className="hidden group-hover:block text-wm-text ml-0.5" style={{ display: active ? "none" : undefined }} />
       </div>
 
       {/* Album art */}
-      <div className="w-9 h-9 rounded-lg shrink-0 flex items-center justify-center font-black text-sm"
-        style={{ background: `linear-gradient(135deg, ${track.color}44, ${track.color}22)`, color: track.color }}>
-        <Music2 size={14} style={{ color: track.color }} />
+      <div className="w-10 h-10 rounded-lg shrink-0 flex items-center justify-center"
+        style={{ background: `linear-gradient(135deg, ${track.color}55, ${track.color}1f)`, border: `1px solid ${track.color}33` }}>
+        <Music2 size={15} style={{ color: track.color }} />
       </div>
 
       {/* Title + artist */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className={clsx("text-[12px] font-semibold truncate", active ? "text-wm-green" : "text-wm-text")}>
+          <span className={clsx("text-[12px] font-bold truncate", active ? "text-wm-green" : "text-wm-text")}>
             {track.title}
           </span>
           {track.new && (
@@ -380,15 +382,16 @@ function TrackRow({ track, idx, active, playing, onPlay, liked, onToggleLike }: 
         <div className="text-[10px] text-wm-text-muted truncate">{track.artist} · {track.album}</div>
       </div>
 
-      {/* Genre */}
-      <span className="hidden sm:block text-[10px] text-wm-text-dim w-20 truncate">{track.genre}</span>
+      {/* Genre pill */}
+      <span className="hidden sm:inline-flex items-center justify-center text-[9px] px-2 py-0.5 rounded-full w-20 truncate shrink-0"
+        style={{ background: `${track.color}18`, color: track.color, border: `1px solid ${track.color}30` }}>{track.genre}</span>
 
       {/* Plays */}
-      <span className="text-[10px] font-mono text-wm-text-dim w-10 text-right">{track.plays}</span>
+      <span className="text-[10px] font-mono text-wm-text-dim w-10 text-right shrink-0">{track.plays}</span>
 
       {/* Like */}
       <button onClick={e => { e.stopPropagation(); onToggleLike(); }}
-        className="p-1 transition-colors">
+        className="p-1 w-4 mx-2 shrink-0 transition-colors">
         <Heart size={12} className={liked ? "text-red-500 fill-red-500" : "text-wm-text-dim hover:text-red-500"} />
       </button>
 
@@ -408,25 +411,32 @@ function EpisodeCard({ ep, active, playing, onPlay }: {
     <div
       onClick={onPlay}
       className={clsx(
-        "group p-4 rounded-2xl border cursor-pointer transition-all",
+        "group relative p-4 rounded-2xl border cursor-pointer transition-all overflow-hidden",
         active ? "border-wm-green bg-wm-surface" : "border-wm-border/50 hover:border-wm-border bg-wm-card/60 hover:bg-wm-surface/40"
       )}
     >
+      {/* colored left accent */}
+      <div className="absolute left-0 top-4 bottom-4 rounded-full" style={{ width: 3, background: ep.color, opacity: active ? 1 : 0.55 }} />
       <div className="flex gap-3">
-        {/* Artwork */}
-        <div className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center"
-          style={{ background: `linear-gradient(135deg, ${ep.color}40, ${ep.color}18)`, border: `1px solid ${ep.color}30` }}>
+        {/* Artwork + gold play overlay */}
+        <div className="w-14 h-14 rounded-xl flex-shrink-0 relative flex items-center justify-center overflow-hidden"
+          style={{ background: `linear-gradient(135deg, ${ep.color}44, ${ep.color}18)`, border: `1px solid ${ep.color}30` }}>
           {active && playing ? (
             <LiveWave color={ep.color} />
           ) : (
             <Mic size={22} style={{ color: ep.color }} />
           )}
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all" style={{ background: "rgba(0,0,0,0.35)" }}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg,#E8B923,#059669)" }}>
+              {active && playing ? <Pause size={14} className="text-black" /> : <Play size={14} className="text-black ml-0.5" />}
+            </div>
+          </div>
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-[9px] font-bold uppercase tracking-widest"
-              style={{ color: ep.color }}>{ep.show}</span>
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: ep.color }}>{ep.show}</span>
+            <span className="ml-auto text-[9px] font-mono px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "rgba(232,185,35,0.14)", color: "#E8B923", border: "1px solid rgba(232,185,35,0.3)" }}>{fmtMins(ep.duration)}</span>
           </div>
           <div className={clsx("text-[12px] font-bold leading-snug mb-1 line-clamp-2",
             active ? "text-wm-green" : "text-wm-text")}>
@@ -438,10 +448,6 @@ function EpisodeCard({ ep, active, playing, onPlay }: {
             <div className="flex items-center gap-1">
               <Mic size={9} className="text-wm-text-dim" />
               <span className="text-[10px] text-wm-text-dim">{ep.host}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Clock size={9} className="text-wm-text-dim" />
-              <span className="text-[10px] text-wm-text-dim">{fmtMins(ep.duration)}</span>
             </div>
             <div className="flex items-center gap-1">
               <Headphones size={9} className="text-wm-text-dim" />
@@ -465,12 +471,16 @@ function EpisodeCard({ ep, active, playing, onPlay }: {
 function ArtistCard({ artist }: { artist: Artist }) {
   const [following, setFollowing] = useState(false);
   return (
-    <motion.div whileHover={{ y:-2 }} className="p-4 rounded-2xl border border-wm-border/50 bg-wm-card/60 hover:border-wm-border hover:bg-wm-surface/40 transition-all">
-      {/* Avatar */}
-      <div className="flex items-start gap-3 mb-3">
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl shrink-0"
-          style={{ background: `linear-gradient(135deg, ${artist.color}44, ${artist.color}22)`, color: artist.color }}>
-          {artist.avatar}
+    <motion.div whileHover={{ y:-4 }} className="relative p-4 rounded-2xl border border-wm-border/50 bg-wm-card/60 hover:border-wm-border hover:bg-wm-surface/40 transition-all overflow-hidden">
+      {/* colored glow */}
+      <div className="pointer-events-none absolute -top-10 -right-8 w-28 h-28 rounded-full" style={{ background: `radial-gradient(circle, ${artist.color}30, transparent 70%)` }} />
+      {/* Avatar — color ring */}
+      <div className="relative flex items-start gap-3 mb-3">
+        <div className="rounded-2xl p-[2px] shrink-0" style={{ background: `linear-gradient(135deg, ${artist.color}, ${artist.color}55)`, boxShadow: `0 0 14px ${artist.color}44` }}>
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl"
+            style={{ background: `linear-gradient(135deg, ${artist.color}66, ${artist.color}22)`, color: "#fff", border: "2px solid #0D0E14" }}>
+            {artist.avatar}
+          </div>
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
