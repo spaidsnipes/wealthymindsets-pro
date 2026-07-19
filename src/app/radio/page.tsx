@@ -979,65 +979,107 @@ export default function RadioPage() {
           <div>
             {/* Featured Station */}
             <div className="mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <Flame size={14} className="text-wm-green" />
-                <span className="text-[11px] font-black text-wm-text uppercase tracking-widest">Featured Station</span>
-              </div>
-              <div className="relative rounded-2xl overflow-hidden p-6 flex items-center gap-5"
+              <div className="relative rounded-3xl overflow-hidden"
                 style={{
-                  background: "radial-gradient(120% 130% at 0% 0%, rgba(232,185,35,0.16) 0%, transparent 55%)," +
-                              "radial-gradient(120% 130% at 100% 100%, rgba(5,150,105,0.14) 0%, transparent 55%)," +
-                              "linear-gradient(135deg, rgba(139,92,246,0.08), rgba(13,14,20,0.95))",
-                  border: "1px solid rgba(232,185,35,0.28)", boxShadow: "0 0 44px rgba(232,185,35,0.10)",
+                  background: "radial-gradient(95% 130% at 78% 50%, rgba(5,80,58,0.5) 0%, transparent 58%)," +
+                              "radial-gradient(80% 120% at 10% 15%, rgba(232,185,35,0.14) 0%, transparent 55%)," +
+                              "linear-gradient(135deg, #0a1512 0%, #0c0d13 55%, #0a0a06 100%)",
+                  border: "1px solid rgba(232,185,35,0.30)", boxShadow: "0 0 54px rgba(232,185,35,0.12)",
                 }}>
-                {/* faint vinyl grooves — cultural texture, very low opacity */}
-                <div className="pointer-events-none absolute inset-0 opacity-[0.06]"
-                  style={{ background: "repeating-radial-gradient(circle at 10% 50%, #E8B923 0 1px, transparent 1px 8px)" }} />
-                {/* Spinning vinyl record avatar */}
-                <div className={`relative z-10 shrink-0 w-20 h-20 rounded-full flex items-center justify-center ${activeStation === "WM Radio" && playing ? "animate-[spin_3.4s_linear_infinite]" : "animate-[spin_18s_linear_infinite]"}`}
-                  style={{ background: "repeating-radial-gradient(circle, #16130a 0 2px, #0b0a06 2px 4px)", border: "1px solid rgba(232,185,35,0.4)", boxShadow: "0 6px 22px rgba(0,0,0,0.5)" }}>
-                  <div className="rounded-full flex items-center justify-center text-lg font-black"
-                    style={{ width: 30, height: 30, background: "linear-gradient(135deg,#E8B923,#059669)", color: "#0b0a06" }}>W</div>
+                {/* faint vinyl grooves */}
+                <div className="pointer-events-none absolute inset-0 opacity-[0.05]"
+                  style={{ background: "repeating-radial-gradient(circle at 80% 50%, #E8B923 0 1px, transparent 1px 10px)" }} />
+                {/* big ambient gold waveform across the hero */}
+                <div className="pointer-events-none absolute inset-x-8 top-1/2 -translate-y-1/2 flex items-center gap-[3px]" style={{ height: 120, opacity: 0.5 }}>
+                  {[20,38,26,52,34,64,40,78,48,90,58,74,44,86,52,96,60,80,46,68,38,56,30,48,26,40,22,34].map((h,i) => {
+                    const on = activeStation === "WM Radio" && playing;
+                    return <div key={i} style={{ flex: 1, height: `${h}%`, borderRadius: 2, transformOrigin: "center",
+                      background: i % 4 === 0 ? "rgba(232,185,35,0.72)" : "rgba(232,185,35,0.30)",
+                      animation: `wm-eq ${(0.8 + (i % 5) * 0.14).toFixed(2)}s ease-in-out ${(i * 0.04).toFixed(2)}s infinite alternate`,
+                      animationPlayState: on ? "running" : "paused" }} />;
+                  })}
                 </div>
-                <div className="flex-1 relative z-10">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full"
-                      style={{ background:"rgba(5,150,105,0.18)", border:"1px solid rgba(5,150,105,0.45)" }}>
-                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                      <span style={{ fontSize:8, fontWeight:800, color:"#34D399", letterSpacing:1 }}>LIVE NOW</span>
+
+                <div className="relative z-10 flex items-center justify-between gap-6 p-7 sm:p-9" style={{ minHeight: 244 }}>
+                  {/* Left copy */}
+                  <div style={{ maxWidth: 420 }}>
+                    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full mb-3" style={{ background: "rgba(232,185,35,0.14)", border: "1px solid rgba(232,185,35,0.5)" }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                      <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: 2, color: "#E8B923" }}>LIVE</span>
+                    </div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-wm-text-muted mb-1">Featured Station</div>
+                    <h2 className="font-black text-wm-text leading-none mb-2" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 40, letterSpacing: 0.5 }}>WM Radio</h2>
+                    <p className="text-[12px] font-semibold mb-1" style={{ color: "#E8B923" }}>Jazz roots → hip-hop → future-forward</p>
+                    <p className="text-[11px] text-wm-text-muted mb-4" style={{ maxWidth: 360 }}>Black excellence on air, 24/7 — trading culture, hip-hop, R&B, lo-fi and more.</p>
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={() => activeStation === "WM Radio" ? togglePlay() : playStation("wm-main")}
+                        className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[13px] transition-all hover:scale-105"
+                        style={{ background: "linear-gradient(135deg, #E8B923, #059669)", color: "#0b0a06", boxShadow: "0 10px 26px rgba(232,185,35,0.32)" }}>
+                        {activeStation === "WM Radio" && playing ? <><Pause size={15}/> Pause</> : <><Play size={15} className="ml-0.5"/> Tune In</>}
+                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <Users size={12} className="text-wm-text-dim" />
+                        <span className="text-[11px] text-wm-text-muted font-mono">1,842 listening</span>
+                      </div>
                     </div>
                   </div>
-                  <h2 className="text-[22px] font-black text-wm-text mb-0.5">WM Radio</h2>
-                  <p className="text-[11px] font-semibold mb-1" style={{ color:"#C9A227" }}>Jazz roots → hip-hop → future-forward — Black excellence, 24/7.</p>
-                  <p className="text-[11px] text-wm-text-muted mb-3">The official WealthyMindsets station — trading culture, hip-hop, R&B, lo-fi and more.</p>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1.5">
-                      <Users size={11} className="text-wm-text-dim" />
-                      <span className="text-[11px] text-wm-text-muted font-mono">1,842 listening now</span>
-                    </div>
+
+                  {/* Right — gold sunburst + spinning vinyl + play */}
+                  <div className="relative shrink-0 hidden md:flex items-center justify-center" style={{ width: 196, height: 196 }}>
+                    <div className="absolute inset-0 rounded-full animate-[spin_30s_linear_infinite]" style={{
+                      background: "repeating-conic-gradient(from 0deg, rgba(232,185,35,0.55) 0deg 1.3deg, transparent 1.3deg 6deg)",
+                      WebkitMaskImage: "radial-gradient(circle closest-side, transparent 72%, #000 76%, #000 96%, transparent 100%)",
+                      maskImage: "radial-gradient(circle closest-side, transparent 72%, #000 76%, #000 96%, transparent 100%)",
+                    }} />
+                    <div className={`relative rounded-full ${activeStation === "WM Radio" && playing ? "animate-[spin_3.6s_linear_infinite]" : "animate-[spin_20s_linear_infinite]"}`}
+                      style={{ width: 148, height: 148, background: "repeating-radial-gradient(circle, #141310 0 2px, #08080c 2px 5px)", border: "1px solid rgba(232,185,35,0.45)", boxShadow: "0 10px 34px rgba(0,0,0,0.6)" }} />
                     <button
                       onClick={() => activeStation === "WM Radio" ? togglePlay() : playStation("wm-main")}
-                      className="flex items-center gap-2 px-5 py-2 rounded-xl font-black text-[12px] transition-all hover:scale-105"
-                      style={{ background:"linear-gradient(135deg, #E8B923, #059669)", color:"#0b0a06", boxShadow:"0 8px 22px rgba(232,185,35,0.28)" }}>
-                      {activeStation === "WM Radio" && playing ? <><Pause size={14}/> Pause</> : <><Play size={14} className="ml-0.5"/> Tune In</>}
+                      className="absolute rounded-full flex items-center justify-center transition-transform hover:scale-110"
+                      style={{ width: 56, height: 56, background: "rgba(11,10,6,0.72)", border: "2px solid #E8B923", boxShadow: "0 0 22px rgba(232,185,35,0.55)" }}>
+                      {activeStation === "WM Radio" && playing ? <Pause size={22} style={{ color: "#E8B923" }} /> : <Play size={22} className="ml-0.5" style={{ color: "#E8B923" }} />}
                     </button>
                   </div>
                 </div>
-                {/* Ambient equalizer — always present (cinematic at rest), dances when live */}
-                <div className="relative z-10 hidden sm:flex items-end gap-[3px] pr-2" style={{ height:46 }}>
-                  {[8,14,22,30,40,32,44,24,36,18,28,14].map((h,i) => {
-                    const on = activeStation === "WM Radio" && playing;
-                    return (
-                      <div key={i} style={{
-                        width:3, height:h, borderRadius:2, transformOrigin:"bottom",
-                        background: i % 2 ? "#059669" : "#E8B923",
-                        opacity: on ? 0.95 : 0.42,
-                        animation:`wm-eq ${(0.7 + (i % 4) * 0.12).toFixed(2)}s ease-in-out ${(i*0.06).toFixed(2)}s infinite alternate`,
-                        animationPlayState: on ? "running" : "paused",
-                      }} />
-                    );
-                  })}
+              </div>
+            </div>
+
+            {/* Heritage Channels — bold genre tiles */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Signal size={13} className="text-wm-text-muted" />
+                  <span className="text-[11px] font-black text-wm-text uppercase tracking-widest">Heritage Channels</span>
                 </div>
+                <span className="text-[10px] font-mono" style={{ color: "#E8B923" }}>#E8B923</span>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+                {[
+                  { name: "Hip-Hop",     station: "wm-hiphop", from: "#E8B923", to: "#8a6a12" },
+                  { name: "R&B",         station: "wm-rnb",    from: "#8B5CF6", to: "#4c2d99" },
+                  { name: "Smooth Jazz", station: "wm-main",   from: "#059669", to: "#053f31" },
+                  { name: "Lo-Fi",       station: "wm-lofi",   from: "#4FA3E0", to: "#1e5f8f" },
+                  { name: "Soul",        station: "wm-rnb",    from: "#FF6B9D", to: "#a03b62" },
+                  { name: "Afrobeats",   station: "wm-global", from: "#00C853", to: "#067a34" },
+                  { name: "Beats",       station: "wm-beats",  from: "#F0B429", to: "#96700f" },
+                ].map(g => (
+                  <button key={g.name} onClick={() => playStation(g.station)}
+                    className="relative shrink-0 rounded-2xl overflow-hidden group transition-transform hover:scale-[1.03]"
+                    style={{ width: 186, height: 110, background: `linear-gradient(140deg, ${g.from}, ${g.to})`, boxShadow: `0 8px 22px ${g.from}33` }}>
+                    {/* white waveform */}
+                    <div className="absolute inset-x-4 bottom-4 flex items-end gap-[2px]" style={{ height: 40, opacity: 0.9 }}>
+                      {[10,20,32,18,40,26,44,22,36,16,30,24,38,20,28,14,34,18].map((h, j) => (
+                        <div key={j} style={{ flex: 1, height: `${Math.min(100, h * 2.4)}%`, borderRadius: 2, background: "rgba(255,255,255,0.85)" }} />
+                      ))}
+                    </div>
+                    <span className="absolute top-3 left-4 text-white font-black text-[16px]" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.45)" }}>{g.name}</span>
+                    <div className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                      style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.55)" }}>
+                      <Play size={13} className="text-white ml-0.5" />
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
 
