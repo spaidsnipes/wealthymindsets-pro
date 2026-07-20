@@ -1090,12 +1090,26 @@ export function validatePine(script: string): { line: number; msg: string }[] {
     "input","input.float","input.int","color.new","color.rgb","str.tostring","str.format",
     "input.bool","input.string","input.color","input.source","nz","na","float","int","bool",
     "fixnan","alertcondition","alert","array.new_float","array.get","array.size",
+    "array.push","array.pop","array.shift","array.unshift","array.remove","array.clear","array.set",
+    "array.new","array.new_int","array.new_bool","array.new_string","array.new_color",
     "request.security","request.security_lower_tf","security","label.new","line.new","box.new","table.new",
     "label.set_text","label.set_xy","label.delete","line.delete","timeframe.period",
+    "label.set_x","label.set_y","label.set_color","label.set_textcolor","label.set_style",
+    "line.set_x1","line.set_x2","line.set_y1","line.set_y2","line.set_color","line.set_width","line.set_style",
+    "box.set_left","box.set_right","box.set_top","box.set_bottom","box.set_bgcolor","box.set_border_color",
+    "box.set_border_width","box.delete","table.cell","table.clear","table.delete",
+    "matrix.new","matrix.get","matrix.set","matrix.rows","matrix.columns",
   ]);
+  // A declared Pine function is known even when this lightweight preview cannot
+  // execute its block body yet. Report that limitation once via capabilityChecks
+  // instead of flooding the editor with a false "Unknown function" on every call.
+  for (const line of lines) {
+    const declared = line.match(/^\s*(?:method\s+)?([A-Za-z_]\w*)\s*\([^)]*\)\s*=>/);
+    if (declared) KNOWN_FNS.add(declared[1]);
+  }
   for (let i = 0; i < lines.length; i++) {
     const t = lines[i].trim();
-    if (!t || t.startsWith("//")) continue;
+    if (!t || t.startsWith("//") || /^if\s*\(/.test(t)) continue;
     const callM = t.match(/^([\w.]+)\s*\(/);
     if (callM && !KNOWN_FNS.has(callM[1]) && !t.includes(":=") && !t.includes("=")) {
       errors.push({ line: i + 1, msg: `Unknown function: ${callM[1]}` });
