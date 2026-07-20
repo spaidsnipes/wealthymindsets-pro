@@ -5402,7 +5402,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         //    (the "stick"). ~100 rows makes the grid fine enough that a zoomed slice
         //    still shows a filled column of bars, WITHOUT re-sourcing on scroll (so the
         //    POC stays stable). Rows clamp to ≥2px and stack contiguously when zoomed out.
-        const rows = 100;
+        const rows = 160;
         let tickSz = rawRange / rows;
         // Snap to the NEAREST clean increment (1/2/2.5/5/10 · 10ⁿ) so bucket edges are
         // still readable prices but the grid never coarsens (nearest, not ceil).
@@ -5453,7 +5453,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // median, never as a scaling floor.
         const volsAsc = Array.from(volMap.values()).map(v => v.up + v.down).filter(x => x > 0).sort((a, b) => a - b);
         const medVol   = volsAsc.length ? volsAsc[Math.floor(volsAsc.length / 2)] : 0;
-        const widthRef = medVol > 0 ? medVol * 3.5 : (maxVol || 1);
+        const widthRef = medVol > 0 ? medVol * 5 : (maxVol || 1);
 
         // Only the ~6 highest-volume levels get a NUMBER (POC + 5). Per-row labels
         // turned BTC's fractional volumes into an unreadable wall; TradingView-style
@@ -5617,7 +5617,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // longest — giving a real FILLED P/b/D silhouette, not slivers and not a
           // uniform block. widthRef (robust percentile) keeps one outlier from
           // flattening the proportional term.
-          const vpBaseline = Math.max(6, Math.round(vpW * 0.09));
+          const vpBaseline = Math.max(4, Math.round(vpW * 0.07));
           const barW = vpBaseline + Math.round((vpW - vpBaseline) * Math.pow(Math.min(1, tot / widthRef), 0.6));
 
           if (isPOC) {

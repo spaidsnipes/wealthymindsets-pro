@@ -407,7 +407,7 @@ export function FootprintControls({
 }) {
   return (
     <>
-      <span className="text-[11px] text-wm-text-dim uppercase tracking-widest ml-2 mr-1 shrink-0">ORDER FLOW:</span>
+      <span className="text-[10px] text-wm-text-dim uppercase tracking-wider ml-1.5 mr-1 shrink-0">ORDER FLOW:</span>
 
       {/* OFF button — always visible, prominent when active */}
       <button
@@ -429,7 +429,7 @@ export function FootprintControls({
             onClick={() => onChange(id)}
             title={desc}
             className={clsx(
-              "px-2.5 h-5 rounded text-[11px] font-semibold tracking-wide transition-all",
+              "px-1.5 h-5 rounded text-[11px] font-semibold tracking-normal transition-all",
               ((active === id && enabled) || (id === "big-trades" && bigTradesOverlay))
                 ? "bg-wm-green/20 text-wm-green border border-wm-green/50 shadow-[0_0_6px_rgba(0,229,204,0.25)]"
                 : "text-wm-text-dim hover:text-wm-text hover:bg-wm-surface border border-transparent"
