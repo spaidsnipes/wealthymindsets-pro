@@ -64,43 +64,6 @@ interface JournalEntry {
   emojis:    string[];
 }
 
-/* ── Seed data ───────────────────────────────────────────── */
-const SEED: JournalEntry[] = [
-  {
-    id: "1", date: "2025-06-14", symbol: "NQ1!", side: "long",
-    entry: 21_820, exit: 21_894, size: 2, pnl: 2960, pct: 0.34,
-    tags: ["CLC","VWAP reclaim","morning session"],
-    notes: "Waited for VWAP reclaim after gap up. Clean absorption at 21,820. Aggressive buy prints — did NOT wait for candle close per CLC Rule. Held through 1st target, exited at PDH.",
-    mood: "confident", result: "win", starred: true, images: [], voiceSec: 47,
-    setup: "CLC Long — VWAP Reclaim",
-    mistakes: "None — followed the plan exactly.",
-    lessons: "Patience at key levels pays. Aggressive tape entry gave +12 ticks better than candle close.",
-    emojis: ["🔥","✅","🎯"],
-  },
-  {
-    id: "2", date: "2025-06-14", symbol: "TSLA", side: "long",
-    entry: 415.20, exit: 409.80, size: 100, pnl: -540, pct: -1.30,
-    tags: ["chased","FOMO","overextended"],
-    notes: "Chased the breakout above $415 after it already ran 3 points. No absorption signal, just FOMO. Stopped out at HOD break.",
-    mood: "fomo", result: "loss", starred: false, images: [], voiceSec: 0,
-    setup: "Momentum breakout (no confirmation)",
-    mistakes: "Entered without order flow confirmation. Violated rule #1: wait for passive buyers.",
-    lessons: "Never chase. If you missed the move, the next setup is coming.",
-    emojis: ["😤","❌"],
-  },
-  {
-    id: "3", date: "2025-06-13", symbol: "ES1!", side: "short",
-    entry: 5_896.50, exit: 5_881.00, size: 1, pnl: 775, pct: 0.26,
-    tags: ["Wyckoff distribution","supply rejection","EOD"],
-    notes: "Wyckoff distribution Phase C UTAD confirmed. Supply zone 5,897–5,900. Entered on trapped buyers signal. Covered at 5,881 (prior support).",
-    mood: "disciplined", result: "win", starred: true, images: [], voiceSec: 92,
-    setup: "Wyckoff Phase C — Supply Rejection",
-    mistakes: "Covered early — left 10 handles on table.",
-    lessons: "When Wyckoff pattern is clear, hold for full measured move.",
-    emojis: ["💎","📉","🏆"],
-  },
-];
-
 const ALL_TAGS = ["CLC","VWAP reclaim","Wyckoff","dark pool","CVD","absorption","chased","FOMO","breakeven","morning session","supply rejection","EOD","momentum"];
 const SETUPS   = ["CLC Long","CLC Short","VWAP Reclaim","Wyckoff","Dark Pool","CVD Divergence","Absorption","Stop Run","Imbalance","Momentum","Breakout","Reversal"];
 const MOODS: { val: Mood; emoji: string; label: string }[] = [
@@ -122,7 +85,7 @@ function fmtSec(s: number) {
 
 /* ── Waveform bars (visual only) ──────────────────────────── */
 function WaveformBars({ n = 20, color = "#00D4AA" }: { n?: number; color?: string }) {
-  const bars = Array.from({ length: n }, (_, i) => 10 + Math.sin(i * 0.8) * 8 + Math.random() * 6);
+  const bars = Array.from({ length: n }, (_, i) => 10 + Math.sin(i * 0.8) * 8 + ((i * 17) % 7));
   return (
     <svg width={n * 4} height={24} className="shrink-0">
       {bars.map((h, i) => (
@@ -138,12 +101,14 @@ function useVoiceRecorder() {
   const [sec,      setSec]      = useState(0);
   const [memo,     setMemo]     = useState<VoiceMemo | null>(null);
   const [playing,  setPlaying]  = useState(false);
+  const [error,    setError]    = useState("");
   const mediaRef  = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef  = useRef<HTMLAudioElement | null>(null);
 
   const start = useCallback(async () => {
+    setError("");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mr = new MediaRecorder(stream);
@@ -162,10 +127,8 @@ function useVoiceRecorder() {
       setSec(0);
       timerRef.current = setInterval(() => setSec(s => s + 1), 1000);
     } catch {
-      // Mic denied — fall back to mock
-      setState("recording");
-      setSec(0);
-      timerRef.current = setInterval(() => setSec(s => s + 1), 1000);
+      setState("idle");
+      setError("Microphone permission is required to record a real voice memo.");
     }
   }, [sec]);
 
@@ -173,10 +136,6 @@ function useVoiceRecorder() {
     if (timerRef.current) clearInterval(timerRef.current);
     if (mediaRef.current && mediaRef.current.state !== "inactive") {
       mediaRef.current.stop();
-    } else {
-      // mock path
-      setMemo({ blob: new Blob(), url: "", sec });
-      setState("done");
     }
   }, [sec]);
 
@@ -198,14 +157,14 @@ function useVoiceRecorder() {
     if (mediaRef.current && mediaRef.current.state !== "inactive") mediaRef.current.stop();
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     if (memo?.url) URL.revokeObjectURL(memo.url);
-    setState("idle"); setSec(0); setMemo(null); setPlaying(false);
+    setState("idle"); setSec(0); setMemo(null); setPlaying(false); setError("");
   }, [memo]);
 
   useEffect(() => () => {
     if (timerRef.current) clearInterval(timerRef.current);
   }, []);
 
-  return { state, sec, memo, playing, start, stop, togglePlay, reset };
+  return { state, sec, memo, playing, error, start, stop, togglePlay, reset };
 }
 
 /* ── EmojiPicker ─────────────────────────────────────────── */
@@ -274,7 +233,7 @@ function ImageUpload({ images, onChange }: { images: string[]; onChange(imgs: st
 
 /* ── VoiceMemoRow ────────────────────────────────────────── */
 function VoiceMemoRow({ recorder }: { recorder: ReturnType<typeof useVoiceRecorder> }) {
-  const { state, sec, memo, playing, start, stop, togglePlay, reset } = recorder;
+  const { state, sec, memo, playing, error, start, stop, togglePlay, reset } = recorder;
 
   return (
     <div className="flex items-center gap-2">
@@ -308,6 +267,7 @@ function VoiceMemoRow({ recorder }: { recorder: ReturnType<typeof useVoiceRecord
           </button>
         </div>
       )}
+      {error && <span role="alert" className="text-[10px] text-wm-red">{error}</span>}
     </div>
   );
 }
@@ -532,11 +492,11 @@ const JOURNAL_KEY = "wm_journal_entries";
 export default function JournalPage() {
   const { earnWMS } = useWMS();
   const [entries, setEntries] = useState<JournalEntry[]>(() => {
-    if (typeof window === "undefined") return SEED;
+    if (typeof window === "undefined") return [];
     try {
       const saved = JSON.parse(localStorage.getItem(JOURNAL_KEY) ?? "null");
-      return Array.isArray(saved) && saved.length > 0 ? saved : SEED;
-    } catch { return SEED; }
+      return Array.isArray(saved) ? saved : [];
+    } catch { return []; }
   });
   // Persist journal to localStorage whenever entries changes
   useEffect(() => {

@@ -4,7 +4,7 @@
  * Architecture:
  *  1. Tries Polygon.io WebSocket (requires NEXT_PUBLIC_POLYGON_KEY)
  *  2. Falls back to Finnhub WebSocket (requires NEXT_PUBLIC_FINNHUB_KEY)
- *  3. Falls back to high-frequency synthetic tick engine (sub-100ms)
+ *  3. Falls back to observed REST polling when streaming is unavailable
  *
  * Optimizations:
  *  - Message batching: accumulates ticks and flushes in RAF (requestAnimationFrame)
@@ -691,9 +691,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     latency:     0,
   });
 
-  // Interval ref for synthetic engine
-  const syntheticRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Flag: stop synthetic once real ticks arrive
+  // Flag: ignore non-observed ticks once real data arrives
   const hasRealDataRef = useRef(false);
 
   const getIntervalSec = useCallback(() => {
@@ -750,15 +748,10 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
   /* Process an incoming tick (hot path — no setState) */
   const processTick = useCallback((tick: Tick, isReal = false) => {
-    // Stop synthetic engine the first time real data arrives
     if (isReal && !hasRealDataRef.current) {
       hasRealDataRef.current = true;
-      if (syntheticRef.current) {
-        clearInterval(syntheticRef.current);
-        syntheticRef.current = null;
-      }
     }
-    // If we have real data, ignore synthetic ticks
+    // Once observed data is present, ignore any non-observed caller.
     if (!isReal && hasRealDataRef.current) return;
 
     // ── Source-level corrupt-tick guard ────────────────────────────────────
@@ -795,108 +788,11 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     scheduleFlush();
   }, [getIntervalSec, scheduleFlush]);
 
-  /* ── Synthetic engine — ATR-calibrated, instrument-aware ─── */
-  const startSynthetic = useCallback((b: number) => {
-    if (syntheticRef.current) clearInterval(syntheticRef.current);
-
-    const tf = timeframe;
-
-    // ── Minimum tick size per instrument (exchange rules) ─────
-    // NQ/ES/YM: 0.25, stocks: 0.01, forex: 0.0001, crypto varies
-    const minTick = b > 10_000 ? 0.25 : b > 1_000 ? 0.25 : b > 100 ? 0.01 : b > 1 ? 0.0001 : 0.00001;
-
-    // ── Target ATR (average true range) per bar, per instrument ──
-    // These match real-world ranges you'd see on TradingView:
-    //   NQ 1m ≈ 20-40pts | ES 1m ≈ 5-15pts | AAPL 1m ≈ 0.3-0.8pts
-    //   NQ 30m ≈ 80-150pts | ES 30m ≈ 25-50pts | AAPL 30m ≈ 1-3pts
-    //   NQ D ≈ 300-700pts  | ES D ≈ 80-200pts   | AAPL D ≈ 3-8pts
-    const atrTable: Record<string, number> = {
-      "1t":  b > 10_000 ? 3   : b > 1_000 ? 1   : b > 100 ? 0.05  : b > 1 ? 0.0005 : 0.000005,
-      "5t":  b > 10_000 ? 5   : b > 1_000 ? 2   : b > 100 ? 0.08  : b > 1 ? 0.0008 : 0.000008,
-      "30t": b > 10_000 ? 8   : b > 1_000 ? 3   : b > 100 ? 0.12  : b > 1 ? 0.0012 : 0.000012,
-      "1m":  b > 10_000 ? 28  : b > 1_000 ? 9   : b > 100 ? 0.45  : b > 1 ? 0.0030 : 0.000030,
-      "2m":  b > 10_000 ? 38  : b > 1_000 ? 13  : b > 100 ? 0.62  : b > 1 ? 0.0042 : 0.000042,
-      "3m":  b > 10_000 ? 48  : b > 1_000 ? 16  : b > 100 ? 0.78  : b > 1 ? 0.0052 : 0.000052,
-      "5m":  b > 10_000 ? 62  : b > 1_000 ? 21  : b > 100 ? 1.00  : b > 1 ? 0.0068 : 0.000068,
-      "10m": b > 10_000 ? 82  : b > 1_000 ? 28  : b > 100 ? 1.35  : b > 1 ? 0.0090 : 0.000090,
-      "15m": b > 10_000 ? 100 : b > 1_000 ? 34  : b > 100 ? 1.65  : b > 1 ? 0.0110 : 0.000110,
-      "30m": b > 10_000 ? 140 : b > 1_000 ? 48  : b > 100 ? 2.30  : b > 1 ? 0.0155 : 0.000155,
-      "1h":  b > 10_000 ? 200 : b > 1_000 ? 68  : b > 100 ? 3.20  : b > 1 ? 0.0215 : 0.000215,
-      "2h":  b > 10_000 ? 270 : b > 1_000 ? 92  : b > 100 ? 4.30  : b > 1 ? 0.0290 : 0.000290,
-      "4h":  b > 10_000 ? 370 : b > 1_000 ? 125 : b > 100 ? 5.80  : b > 1 ? 0.0390 : 0.000390,
-      "D":   b > 10_000 ? 520 : b > 1_000 ? 175 : b > 100 ? 8.00  : b > 1 ? 0.0540 : 0.000540,
-      "W":   b > 10_000 ? 900 : b > 1_000 ? 310 : b > 100 ? 14.0  : b > 1 ? 0.0950 : 0.000950,
-      "M":   b > 10_000 ?1800 : b > 1_000 ? 600 : b > 100 ? 28.0  : b > 1 ? 0.1900 : 0.001900,
-    };
-    const targetAtr = atrTable[tf] ?? (b * 0.002);
-
-    // ── UI update interval (how often we fire the engine) ─────
-    // Shorter TF = more frequent visual updates (feels live)
-    // Longer TF = infrequent (bar barely moves, like real D/W chart)
-    const tickMs: Record<string, number> = {
-      "1t":80,  "5t":120, "30t":150,
-      "1m":400, "2m":500, "3m":600,  "5m":800,  "10m":1200, "15m":1600, "30m":2500,
-      "1h":4000,"2h":6000,"4h":9000,
-      "D":15000,"W":30000,"M":60000,
-    };
-    const fireMs = tickMs[tf] ?? 400;
-
-    // ── Fires per bar (how many engine ticks in one full bar) ─
-    const tfSecMap: Record<string,number> = {
-      "1t":1,"5t":5,"30t":30,
-      "1m":60,"2m":120,"3m":180,"5m":300,"10m":600,"15m":900,"30m":1800,
-      "1h":3600,"2h":7200,"4h":14400,"D":86400,"W":604800,"M":2592000,
-    };
-    const intervalSec = tfSecMap[tf] ?? 60;
-    const firesPerBar = Math.max(1, (intervalSec * 1000) / fireMs);
-
-    // ── Step size: calibrated so sqrt(firesPerBar)*step ≈ targetAtr
-    // i.e. the random walk produces the right range naturally
-    const rawStep  = targetAtr / Math.sqrt(firesPerBar);
-    // Round to nearest valid tick (minimum 1 tick)
-    const stepTicks = Math.max(1, Math.round(rawStep / minTick));
-    const stepSize  = stepTicks * minTick;
-
-    // ── Precision for toFixed ─────────────────────────────────
-    const dp = b > 1000 ? 2 : b > 1 ? 4 : 6;
-
-    // ── Momentum state — creates trending within bars ─────────
-    let momentum = 0; // range -1..+1; positive = bullish bias
-
-    syntheticRef.current = setInterval(() => {
-      const prev = priceRef.current;
-
-      // Momentum-biased coin flip — 62% chance to continue trend
-      const rand = Math.random();
-      let direction: number;
-      if      (momentum >  0.25) direction = rand < 0.62 ?  1 : -1;
-      else if (momentum < -0.25) direction = rand < 0.62 ? -1 :  1;
-      else                       direction = rand < 0.50 ?  1 : -1;
-
-      const move  = direction * stepSize;
-      const price = +Math.min(b * 1.04, Math.max(b * 0.96, prev + move)).toFixed(dp);
-
-      // Mean-revert momentum if price drifted >2% from seed
-      const drift = (price - b) / b;
-      if (Math.abs(drift) > 0.02) {
-        momentum = momentum * 0.2 - Math.sign(drift) * 0.6;
-      } else {
-        momentum = momentum * 0.55 + direction * 0.45;
-      }
-      momentum = Math.max(-1, Math.min(1, momentum));
-
-      const side: "buy" | "sell" = direction > 0 ? "buy" : "sell";
-      const size = Math.floor(1 + Math.random() * (b > 10_000 ? 25 : 200));
-      processTick({ price, size, side, time: Date.now() });
-    }, fireMs);
-  }, [processTick, timeframe]);
-
   /* ── Mount / symbol change ──────────────────────────────── */
   useEffect(() => {
     // Cleanup previous
     cleanupFns.current.forEach(fn => fn());
     cleanupFns.current = [];
-    if (syntheticRef.current) clearInterval(syntheticRef.current);
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     tickBuf.current = [];
 
@@ -1113,7 +1009,6 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       if (proxyWs) { try { proxyWs.close(); } catch { /* already closing */ } }
       document.removeEventListener("visibilitychange", onVisibleWS);
       cleanupFns.current.forEach(fn => fn());
-      if (syntheticRef.current) clearInterval(syntheticRef.current);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps

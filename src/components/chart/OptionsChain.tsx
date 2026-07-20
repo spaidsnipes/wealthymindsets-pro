@@ -49,39 +49,6 @@ function fmtExp(d: string): string {
   return `${months[+mm - 1]} ${+dd} '${d.slice(2, 4)}`;
 }
 
-// Generate realistic FUTURE expiries (the nearest Fridays + monthlies) from today,
-// so the synthetic fallback never shows stale/expired dates.
-function genSyntheticExpiries(): { label: string; dte: number }[] {
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  // Next Friday (weekday 5)
-  const firstFri = new Date(today);
-  const delta = (5 - firstFri.getDay() + 7) % 7 || 7; // always at least next Friday
-  firstFri.setDate(firstFri.getDate() + delta);
-  const out: { label: string; dte: number }[] = [];
-  const seen = new Set<string>();
-  // 4 weekly Fridays, then monthly (3rd Friday) for the next several months
-  for (let i = 0; i < 4; i++) {
-    const d = new Date(firstFri);
-    d.setDate(d.getDate() + i * 7);
-    const label = `${months[d.getMonth()]} ${d.getDate()} '${String(d.getFullYear()).slice(2)}`;
-    const dte = Math.round((d.getTime() - today.getTime()) / 86400000);
-    if (!seen.has(label)) { seen.add(label); out.push({ label, dte }); }
-  }
-  for (let m = 1; m <= 6; m++) {
-    const dt = new Date(today.getFullYear(), today.getMonth() + m, 1);
-    // 3rd Friday of that month
-    const firstDay = dt.getDay();
-    const thirdFri = 1 + ((5 - firstDay + 7) % 7) + 14;
-    dt.setDate(thirdFri);
-    const label = `${months[dt.getMonth()]} ${dt.getDate()} '${String(dt.getFullYear()).slice(2)}`;
-    const dte = Math.round((dt.getTime() - today.getTime()) / 86400000);
-    if (!seen.has(label)) { seen.add(label); out.push({ label, dte }); }
-  }
-  return out;
-}
-
 function buildChain(contracts: FMPContract[], spot: number, expiry: string): OptionRow[] {
   const calls = new Map<number, FMPContract>();
   const puts  = new Map<number, FMPContract>();
@@ -113,48 +80,6 @@ function buildChain(contracts: FMPContract[], spot: number, expiry: string): Opt
       itm,
     };
   });
-}
-
-// Black-Scholes synthetic fallback when FMP has no data for a symbol
-function generateChain(base: number, dte: number): OptionRow[] {
-  const rows: OptionRow[] = [];
-  const rfr = 0.053;
-  const iv  = 0.22;
-  for (let i = -10; i <= 10; i++) {
-    const tickSize = base > 10_000 ? 25 : base > 1_000 ? 5 : base > 100 ? 1 : 0.5;
-    const strike   = Math.round((base + i * tickSize) / tickSize) * tickSize;
-    const d1       = ((base/strike > 0 ? Math.log(base/strike) : 0) + (rfr + iv*iv/2)*(dte/365)) / (iv*Math.sqrt(dte/365));
-    const absd1    = Math.abs(d1);
-    const callDelta = Math.max(0.01, Math.min(0.99, 0.5 + 0.4*d1/(1+absd1)));
-    const gamma    = Math.max(0.0001, 0.001*Math.exp(-0.5*d1*d1));
-    const theta    = -0.05*base*iv*gamma;
-    const vega     = 0.01*base*Math.sqrt(dte/365);
-    const cMid     = Math.max(0.05, base*iv*Math.sqrt(dte/365)*0.4*Math.exp(-0.5*d1*d1));
-    const pMid     = Math.max(0.05, cMid + strike - base + base*rfr*dte/365);
-    const sp       = cMid*0.04;
-    const sn       = Math.floor(Math.abs(strike)*100) + i*997;
-    const sr1      = Math.abs(Math.sin(sn*12.9898)*43758.5453%1);
-    const sr2      = Math.abs(Math.sin(sn*78.233)*43758.5453%1);
-    const sr3      = Math.abs(Math.sin(sn*37.719)*43758.5453%1);
-    const cIV      = iv+(sr1-0.5)*0.02;
-    const pIV      = iv+(sr2-0.5)*0.025+0.01;
-    const oi       = Math.floor(500+sr3*8000);
-    const vol      = Math.floor(oi*0.1*(0.5+sr1));
-    const itm: "call"|"put"|"atm" = i===0?"atm":i>0?"put":"call";
-    rows.push({
-      strike,
-      cBid:+(cMid-sp).toFixed(2), cAsk:+(cMid+sp).toFixed(2), cLast:+cMid.toFixed(2),
-      cIV, cDelta:+callDelta.toFixed(3), cGamma:+gamma.toFixed(5),
-      cTheta:+theta.toFixed(3), cVega:+vega.toFixed(3),
-      cOI:oi, cVol:vol,
-      pBid:+(pMid-sp).toFixed(2), pAsk:+(pMid+sp).toFixed(2), pLast:+pMid.toFixed(2),
-      pIV, pDelta:+(-(1-callDelta)).toFixed(3), pGamma:+gamma.toFixed(5),
-      pTheta:+theta.toFixed(3), pVega:+vega.toFixed(3),
-      pOI:Math.floor(oi*(0.8+sr2*0.6)), pVol:Math.floor(vol*(0.6+sr3*0.8)),
-      itm,
-    });
-  }
-  return rows;
 }
 
 interface Props { symbol: string; price: number; onClose: () => void; }
