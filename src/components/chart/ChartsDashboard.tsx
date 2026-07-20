@@ -10,7 +10,6 @@ import { IndicatorSettingsModal } from "./IndicatorSettingsModal";
 import { AssetClassSwitcher } from "./AssetClassSwitcher";
 import { isConfigurable, type IndicatorSettings, type IndicatorParams } from "./indicatorConfig";
 import { DOMPanel } from "./DOMPanel";
-import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
 import { PnLStatsPanel } from "./PnLStatsPanel";
 import { BrokerConnectPanel } from "@/components/broker/BrokerConnectPanel";
 import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
@@ -205,7 +204,6 @@ export function ChartsDashboard() {
   }
 
   // ── Core state ──────────────────────────────────────────────
-  const [smartMoneyOpen,  setSmartMoneyOpen]  = useState(false);
   const [pnlOpen,         setPnlOpen]         = useState(false);
   const [brokerOpen,      setBrokerOpen]      = useState(false);
   const [tradeOpen,       setTradeOpen]       = useState(false);
@@ -705,12 +703,10 @@ export function ChartsDashboard() {
           <ChartToolbar
             symbol={symbol}         setSymbol={setSymbol}
             timeframe={timeframe}   setTimeframe={setTimeframe}
-            onSmartMoney={() => setSmartMoneyOpen(o => !o)}
             onPnL={() => setTradeOpen(true)}
             onDOM={() => setVpDomOpen(o => !o)}
             onPineScript={() => setPineBuilderOpen(true)}
             onCommunity={() => setCommunityOpen(true)}
-            smartMoneyActive={smartMoneyOpen}
             pineActive={!!pineOutput}
             initialActiveInds={activeInds}
             onActiveIndsChange={setActiveInds}
@@ -1280,10 +1276,6 @@ export function ChartsDashboard() {
               )}
             </AnimatePresence>
 
-            {/* Smart Money panel */}
-            {smartMoneyOpen && (
-              <SmartMoneyPanel onClose={() => setSmartMoneyOpen(false)} symbol={symbol} />
-            )}
           </div>
 
         </div>

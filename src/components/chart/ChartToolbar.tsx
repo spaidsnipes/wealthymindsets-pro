@@ -7,7 +7,6 @@ import {
   X, ChevronRight, Star, Check, Bell, Settings,
   Play, GitMerge, HelpCircle,
 } from "lucide-react";
-import { WMSmartMoneyIcon } from "@/components/ui/WMLogo";
 import { clsx } from "clsx";
 import { type ChartLayout } from "./ChartLayoutManager";
 import { isConfigurable } from "./indicatorConfig";
@@ -456,12 +455,10 @@ interface ChartToolbarProps {
   setSymbol:           (s: string) => void;
   timeframe:           string;
   setTimeframe:        (t: string) => void;
-  onSmartMoney:        () => void;
   onPnL:               () => void;
   onDOM:               () => void;
   onPineScript:        () => void;
   onCommunity?:        () => void;
-  smartMoneyActive:    boolean;
   pineActive?:         boolean;
   initialActiveInds?:  Set<string>;
   onActiveIndsChange?: (inds: Set<string>) => void;
@@ -516,8 +513,8 @@ function SymbolRow({ s, symbol, onSelect }: { s: SymbolEntry; symbol: string; on
 
 export function ChartToolbar({
   symbol, setSymbol, timeframe, setTimeframe,
-  onSmartMoney, onPnL, onDOM, onPineScript, onCommunity,
-  smartMoneyActive, pineActive,
+  onPnL, onDOM, onPineScript, onCommunity,
+  pineActive,
   initialActiveInds, onActiveIndsChange, onIndicatorSettings, onExtHoursChange,
   onAlerts, alertsActive, onSettings,
   onReplay, replayActive, onCompare, compareActive,
@@ -1133,17 +1130,6 @@ export function ChartToolbar({
           </button>
         )}
 
-        {/* Smart Money Signals — the WealthyMindsets "W" button */}
-        <button onClick={onSmartMoney}
-          className="flex items-center gap-1 px-1.5 h-6 rounded shrink-0 border transition-colors"
-          style={{
-            borderColor: smartMoneyActive ? "rgba(0,212,170,0.5)" : "rgba(34,34,34,0.8)",
-            background: smartMoneyActive ? "rgba(0,212,170,0.12)" : "transparent",
-          }}
-          title="Smart Money Signals">
-          <WMSmartMoneyIcon size={20} active={smartMoneyActive} />
-          <span className="text-[11px] font-bold" style={{ color: smartMoneyActive ? "#00D4AA" : "#8B95A5" }}>Signals</span>
-        </button>
       </div>
 
     </div>
