@@ -38,15 +38,7 @@ const TEXT_CHANNELS: TextChannel[] = [
 
 type ChatMsg = { id: string; author: string; color: string; body: string; ts: number };
 
-const SEED: Record<string, ChatMsg[]> = {
-  "spy-analysis": [
-    { id: "s1", author: "SpaidSnipes", color: "#4FA3E0", body: "SPY holding the VWAP reclaim from the open — watching 548 as the pivot.", ts: Date.now() - 1000 * 60 * 42 },
-    { id: "s2", author: "TapeReader",  color: "#F0B429", body: "Big buy imbalance on the last 5m. Delta flipped green.", ts: Date.now() - 1000 * 60 * 30 },
-  ],
-  general: [
-    { id: "g1", author: "WealthyMindsets", color: "#00D4AA", body: "Welcome to Wealthy Mindsets TV 📺 — jump into the Live Room to screen share or start a podcast.", ts: Date.now() - 1000 * 60 * 120 },
-  ],
-};
+const SEED: Record<string, ChatMsg[]> = {};
 
 /* ── WM TV Home — cinematic "On Air" broadcast-lounge landing ──
    Marquee LIVE ON AIR hero + a grid of shows/podcasts. The "watching"
@@ -56,16 +48,16 @@ const SEED: Record<string, ChatMsg[]> = {
    "Watch Live" click never fabricates an active broadcast. */
 type Show = {
   id: string; title: string; host: string; genre: string; color: string;
-  status: "live" | "replay"; viewers: string; motif: "vinyl" | "kente" | "chart";
+  status: "upcoming"; motif: "vinyl" | "kente" | "chart";
   opens: "live" | "podcast";
 };
 const SHOWS: Show[] = [
-  { id:"morning-bell", title:"Morning Bell Live",      host:"SpaidFX",             genre:"Live Trading Room", color:"#E8B923", status:"live",   viewers:"1.2K", motif:"chart", opens:"live"    },
-  { id:"wm-podcast",   title:"The Wealthy Mindset",    host:"SpaidFX · TradeMuse", genre:"Podcast",           color:"#8B5CF6", status:"live",   viewers:"842",  motif:"vinyl", opens:"podcast" },
-  { id:"culture-cap",  title:"Culture & Capital",      host:"WealthQueen",         genre:"Talk · Interview",  color:"#FF6B9D", status:"replay", viewers:"3.1K", motif:"kente", opens:"podcast" },
-  { id:"order-flow",   title:"Order Flow Masterclass", host:"TradeMuse",           genre:"Education",         color:"#4FA3E0", status:"replay", viewers:"2.4K", motif:"chart", opens:"live"    },
-  { id:"after-hours",  title:"After Hours Lounge",     host:"GoldRush",            genre:"Music · Talk",      color:"#059669", status:"replay", viewers:"1.8K", motif:"kente", opens:"podcast" },
-  { id:"chart-chill",  title:"Chart & Chill",          host:"ChartFanatics",       genre:"Lo-Fi Stream",      color:"#00D4AA", status:"live",   viewers:"967",  motif:"vinyl", opens:"live"    },
+  { id:"morning-bell", title:"Morning Bell",           host:"SpaidFX",             genre:"Trading Room", color:"#E8B923", status:"upcoming", motif:"chart", opens:"live"    },
+  { id:"wm-podcast",   title:"The Wealthy Mindset",    host:"SpaidFX · TradeMuse", genre:"Podcast",      color:"#8B5CF6", status:"upcoming", motif:"vinyl", opens:"podcast" },
+  { id:"culture-cap",  title:"Culture & Capital",      host:"WealthQueen",         genre:"Talk",         color:"#FF6B9D", status:"upcoming", motif:"kente", opens:"podcast" },
+  { id:"order-flow",   title:"Order Flow Masterclass", host:"TradeMuse",           genre:"Education",    color:"#4FA3E0", status:"upcoming", motif:"chart", opens:"live"    },
+  { id:"after-hours",  title:"After Hours Lounge",     host:"GoldRush",            genre:"Music · Talk", color:"#059669", status:"upcoming", motif:"kente", opens:"podcast" },
+  { id:"chart-chill",  title:"Chart & Chill",          host:"ChartFanatics",       genre:"Lo-Fi",        color:"#00D4AA", status:"upcoming", motif:"vinyl", opens:"live"    },
 ];
 
 const TV_HERO_ART = "/images/community/wm-tv-host-studio-v1.png";
@@ -81,13 +73,6 @@ function motifBg(color: string, motif: Show["motif"]): string {
 }
 
 function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpenPodcast: () => void }) {
-  const [watching, setWatching] = useState(2413);
-  useEffect(() => {
-    const t = setInterval(() => setWatching(w => Math.min(3200, Math.max(2050, w + Math.round((Math.random() - 0.45) * 26)))), 2600);
-    return () => clearInterval(t);
-  }, []);
-  const liveCount = SHOWS.filter(s => s.status === "live").length;
-
   return (
     <div className="flex-1 min-h-0 overflow-y-auto">
       {/* ── LIVE ON AIR hero ─────────────────────────────── */}
@@ -106,23 +91,15 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
         </svg>
 
         <div className="relative z-10 flex flex-col items-start text-left px-10 pt-10 pb-12" style={{ maxWidth: 610 }}>
-          {/* glowing arc + LIVE ON AIR badge */}
+          {/* studio-ready badge */}
           <div className="relative mb-4" style={{ paddingTop: 26 }}>
             <div className="absolute left-1/2" style={{ top: 0, transform: "translateX(-50%)", width: 168, height: 84, borderTopLeftRadius: 168, borderTopRightRadius: 168, borderTop: "2px solid rgba(232,185,35,0.7)", borderLeft: "2px solid rgba(232,185,35,0.32)", borderRight: "2px solid rgba(232,185,35,0.32)", borderBottom: "none", boxShadow: "0 -6px 26px rgba(232,185,35,0.4)" }} />
             <motion.div className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl"
               style={{ background: "linear-gradient(135deg,#E8B923,#c98a12)" }}
               animate={{ boxShadow: ["0 0 20px rgba(232,185,35,0.4)", "0 0 42px rgba(232,185,35,0.72)", "0 0 20px rgba(232,185,35,0.4)"] }}
               transition={{ duration: 2, repeat: Infinity }}>
-              <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
-              <span className="text-[15px] font-black tracking-[0.2em] text-black">LIVE ON AIR</span>
+              <span className="text-[15px] font-black tracking-[0.2em] text-black">STUDIO READY</span>
             </motion.div>
-          </div>
-
-          {/* watching pill */}
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full mb-4" style={{ background: "rgba(5,150,105,0.18)", border: "1px solid rgba(5,150,105,0.45)" }}>
-            <Eye size={12} style={{ color: "#34D399" }} />
-            <span className="text-[12px] font-mono font-black tabular-nums" style={{ color: "#34D399" }}>{watching.toLocaleString()}</span>
-            <span className="text-[10px]" style={{ color: "#34D399" }}>watching</span>
           </div>
 
           {/* serif title + tagline */}
@@ -134,7 +111,7 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
             <motion.button onClick={onOpenLive} whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.03 }}
               className="flex items-center gap-2 px-6 h-11 rounded-xl text-black text-xs font-black"
               style={{ background: "linear-gradient(135deg,#E8B923,#059669)", boxShadow: "0 10px 26px rgba(232,185,35,0.3)" }}>
-              <Play size={15} /> Watch Live
+              <Play size={15} /> Open Studio
             </motion.button>
             <motion.button onClick={onOpenPodcast} whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.03 }}
               className="flex items-center gap-2 px-6 h-11 rounded-xl text-wm-text text-xs font-black"
@@ -143,11 +120,7 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
             </motion.button>
           </div>
 
-          {/* channels live */}
-          <div className="mt-4 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-[11px] text-wm-text-muted">{liveCount} channels live now</span>
-          </div>
+          <div className="mt-4 text-[11px] text-wm-text-muted">Live status appears only after a host starts a verified room.</div>
         </div>
 
         {/* equalizer floor */}
@@ -180,13 +153,8 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
               }}>
                 <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(to top, rgba(11,12,18,0.85), transparent 60%)" }} />
                 <div className="absolute top-2.5 left-2.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full"
-                  style={{ background: s.status === "live" ? "rgba(255,77,106,0.9)" : "rgba(0,0,0,0.55)", border: s.status === "live" ? "none" : "1px solid rgba(255,255,255,0.2)" }}>
-                  {s.status === "live" && <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
-                  <span className="text-[8px] font-black tracking-wider text-white">{s.status === "live" ? "LIVE" : "REPLAY"}</span>
-                </div>
-                <div className="absolute top-2.5 right-2.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.55)" }}>
-                  <Eye size={9} className="text-white/80" />
-                  <span className="text-[9px] font-bold text-white/90">{s.viewers}</span>
+                  style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.2)" }}>
+                  <span className="text-[8px] font-black tracking-wider text-white">UPCOMING</span>
                 </div>
                 <div className="absolute right-3 bottom-3 w-9 h-9 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300"
                   style={{ background: s.color, color: "#0b0a06", boxShadow: `0 6px 16px ${s.color}88` }}>
@@ -211,18 +179,11 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
           </div>
           <div className="rounded-2xl overflow-hidden flex flex-col" style={{ background: "rgba(20,22,32,0.6)", border: "1px solid rgba(30,32,48,0.9)", maxHeight: 380 }}>
             <div className="px-3 py-2 border-b border-wm-border/60 flex items-center justify-between shrink-0">
-              <span className="text-[10px] font-black uppercase tracking-widest text-wm-text">Live Chat</span>
-              <span className="flex items-center gap-1 text-[9px] font-bold text-wm-red"><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />LIVE</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-wm-text">Community Chat</span>
+              <span className="text-[9px] font-bold text-wm-text-dim">No active room</span>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2.5" style={{ scrollbarWidth: "none" }}>
-              {[
-                { a: "TapeReader", c: "#F0B429", m: "gold breakout looking clean 📈🔥" },
-                { a: "WealthQueen", c: "#8B5CF6", m: "this set is smooth 🎧✨" },
-                { a: "NQ_Sniper", c: "#00D4AA", m: "morning bell was 🔥 today" },
-                { a: "GoldRush", c: "#FF6B9D", m: "for the culture 🙌🏾💛" },
-                { a: "ChartFanatics", c: "#4FA3E0", m: "who's on next? 👀" },
-                { a: "CryptoKing", c: "#00C853", m: "WM to the world 🌍👑" },
-              ].map((x, i) => (
+              {([] as Array<{ a:string; c:string; m:string }>).map((x, i) => (
                 <div key={i} className="flex gap-2">
                   <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-[10px] font-black" style={{ background: x.c }}>{x.a[0]}</div>
                   <div className="min-w-0 leading-snug">

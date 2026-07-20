@@ -106,20 +106,13 @@ const TIERS: Tier[] = [
 
 /* ── Stats for social proof ───────────────────────────────── */
 const STATS = [
-  { label: "Active Creators",   val: "847",    icon: <Users size={16} /> },
-  { label: "Total Paid Out",    val: "$284K",  icon: <DollarSign size={16} /> },
-  { label: "Avg Monthly Earn",  val: "$1,240", icon: <TrendingUp size={16} /> },
-  { label: "Countries",         val: "38",     icon: <Globe size={16} /> },
+  { label: "Verified Creators", val: "—", icon: <Users size={16} /> },
+  { label: "Verified Payouts",  val: "—", icon: <DollarSign size={16} /> },
+  { label: "Verified Average",  val: "—", icon: <TrendingUp size={16} /> },
+  { label: "Verified Countries",val: "—", icon: <Globe size={16} /> },
 ];
 
-/* ── Top creators leaderboard (synthetic) ─────────────────── */
-const CREATORS = [
-  { rank:1, handle:"@TradingWithMarcus",  tier:"ELITE", earnings:"$4,820/mo",  subs:124, avatar:"🦅" },
-  { rank:2, handle:"@NQFlowQueen",        tier:"ELITE", earnings:"$3,190/mo",  subs:82,  avatar:"👑" },
-  { rank:3, handle:"@SmartMoneyKev",      tier:"PRO",   earnings:"$1,680/mo",  subs:67,  avatar:"🎯" },
-  { rank:4, handle:"@FuturesWithJess",    tier:"PRO",   earnings:"$1,420/mo",  subs:57,  avatar:"⚡" },
-  { rank:5, handle:"@WyckoffWatcher",     tier:"PRO",   earnings:"$990/mo",    subs:40,  avatar:"🌊" },
-];
+const CREATORS: Array<{ rank:number; handle:string; tier:string; earnings:string; subs:number; avatar:string }> = [];
 
 /* ── FAQ ──────────────────────────────────────────────────── */
 const FAQ = [
@@ -357,6 +350,11 @@ export default function CreatorPage() {
                 <span className="text-xs font-black font-mono text-wm-green">{c.earnings}</span>
               </div>
             ))}
+            {CREATORS.length === 0 && (
+              <div className="px-4 py-8 text-center text-xs text-wm-text-dim">
+                No creator earnings have been verified and published yet.
+              </div>
+            )}
           </div>
         </div>
 
@@ -411,7 +409,7 @@ export default function CreatorPage() {
           <Crown size={28} className="text-wm-gold mx-auto mb-3"/>
           <h2 className="text-xl font-black text-wm-text mb-2">Ready to Build Your Empire?</h2>
           <p className="text-xs text-wm-text-muted mb-5 max-w-md mx-auto">
-            Join over 800 creators already earning with WealthyMindsets Pro. Start free, scale to ELITE.
+            Join the creator waitlist. Verified participation and payout statistics will appear only after real program activity exists.
           </p>
           <div className="flex items-center justify-center gap-3">
             <button onClick={() => openWaitlist("basic")}

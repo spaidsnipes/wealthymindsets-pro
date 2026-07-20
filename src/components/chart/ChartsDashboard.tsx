@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
-import { Camera, Activity, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target } from "lucide-react";
+import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target } from "lucide-react";
 import { ChartToolbar } from "./ChartToolbar";
 import { MainChart } from "./MainChart";
 import { WatchlistGrid } from "./WatchlistGrid";
@@ -22,7 +22,6 @@ import { CustomIndicatorBuilder } from "@/components/pine/CustomIndicatorBuilder
 import { PineCommunityLibrary } from "@/components/pine/PineCommunityLibrary";
 import { DrawingToolsPanel, DEFAULT_DRAWING_STYLE, type DrawingStyle } from "./DrawingToolsPanel";
 import { LeftDrawingSidebar } from "./LeftDrawingSidebar";
-import { MarkovPanel } from "./MarkovPanel";
 import { WMSessionVP } from "./WMSessionVP";
 import { WatchlistPanel } from "./WatchlistPanel";
 import { AlertsPanel, type PriceAlert } from "./AlertsPanel";
@@ -275,7 +274,6 @@ export function ChartsDashboard() {
   // last few hourly candles vs. those platforms.
   const [extHours,   setExtHours]   = useState<boolean>(() => lsGet("wm_extHours", true) as boolean);
   const [sessionVPOpen, setSessionVPOpen] = useState(false);
-  const [markovOpen, setMarkovOpen] = useState(false);
   // Show open paper-trade positions as horizontal entry lines w/ live P&L on the chart.
   const [paperTradesOn, setPaperTradesOn] = useState(true);
 
@@ -895,19 +893,6 @@ export function ChartsDashboard() {
               </AnimatePresence>
 
               <button
-                onClick={() => setMarkovOpen(o => !o)}
-                className={`flex items-center gap-1 px-2 h-6 rounded text-[12px] font-semibold border transition-all`}
-                style={{
-                  background: markovOpen ? "rgba(139,92,246,0.15)" : "#131520",
-                  borderColor: markovOpen ? "rgba(139,92,246,0.4)" : "#1E2030",
-                  color: markovOpen ? "#8B5CF6" : "#8B8FA8",
-                }}
-                title="Markov Regime Panel"
-              >
-                <Activity size={10} /> Markov
-              </button>
-
-              <button
                 onClick={() => setPaperTradesOn(o => !o)}
                 className={`flex items-center gap-1 px-2 h-6 rounded text-[12px] font-semibold border transition-all`}
                 style={{
@@ -1286,11 +1271,6 @@ export function ChartsDashboard() {
               />
             </div>
 
-            {/* Markov panel */}
-            <AnimatePresence>
-              {markovOpen && <MarkovPanel symbol={symbol} dayRet={ticker.price > 0 ? ticker.changePct : null} onClose={() => setMarkovOpen(false)} />}
-            </AnimatePresence>
-
             {/* DOM panel is now inside VP+DOM collapsible block above */}
 
             {/* Options chain */}
@@ -1627,4 +1607,3 @@ function FundamentalsTabPanel({ symbol, tab, onBack }: { symbol: string; tab: st
   );
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
-

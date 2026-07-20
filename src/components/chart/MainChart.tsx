@@ -3983,6 +3983,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       }
     }
 
+    // Historical OHLCV does not contain aggressor-side executions at each price.
+    // Without captured real tape, leave the footprint empty.
+    return null;
+
     // ── DETERMINISTIC SIMULATION on the fixed grid, normalized to bar.volume.
     const isBull   = bar.close >= bar.open;
     const bodyLow  = Math.min(bar.open, bar.close);

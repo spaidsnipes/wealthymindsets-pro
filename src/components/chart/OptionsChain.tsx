@@ -3,7 +3,7 @@
 /**
  * Options Chain Panel
  * Real options data via Financial Modeling Prep API (/api/fmp proxy).
- * Falls back to Black-Scholes synthetic chain when FMP returns no data.
+ * Never fabricates contracts when the provider returns no data.
  */
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -167,7 +167,7 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
   const [showGreeks, setShowGreeks] = useState(false);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState<string | null>(null);
-  const [dataSource, setDataSource] = useState<"fmp"|"synthetic">("synthetic");
+  const [dataSource, setDataSource] = useState<"fmp"|"unavailable">("unavailable");
   const [allContracts, setAllContracts] = useState<FMPContract[]>([]);
 
   // Keep latest price in a ref so the network fetch does NOT re-run on every
@@ -200,16 +200,15 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
       // Build chain for first expiry
       const p = priceRef.current;
       const rows = buildChain(contracts, p, firstExp);
-      setChain(rows.length ? rows : generateChain(p, 14));
-      setDataSource(rows.length ? "fmp" : "synthetic");
+      if (!rows.length) throw new Error("No contracts for the selected expiration");
+      setChain(rows);
+      setDataSource("fmp");
     } catch (e) {
-      // Fallback to synthetic
       setError(String(e));
-      setDataSource("synthetic");
-      const synExps = genSyntheticExpiries();
-      setExpirations(synExps.map(e => e.label));
-      setExpiry(synExps[0].label);
-      setChain(generateChain(priceRef.current, synExps[0].dte));
+      setDataSource("unavailable");
+      setExpirations([]);
+      setExpiry("");
+      setChain([]);
     } finally {
       setLoading(false);
     }
@@ -227,10 +226,7 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
       const rows = buildChain(allContracts, priceKey, isoDate);
       if (rows.length) { setChain(rows); return; }
     }
-    // Synthetic fallback: compute DTE from the dynamically generated expiries
-    const dteFallback: Record<string, number> = {};
-    for (const e of genSyntheticExpiries()) dteFallback[e.label] = e.dte;
-    setChain(generateChain(priceKey, dteFallback[expiry] ?? 14));
+    setChain([]);
   }, [expiry, allContracts, priceKey, dataSource]);
 
   const atm = chain.find(r => r.itm === "atm");
@@ -247,9 +243,9 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
       <div className="flex items-center gap-2 px-4 border-b border-wm-border shrink-0" style={{ height: 44 }}>
         <TrendingUp size={13} className="text-wm-green" />
         <span className="text-sm font-bold text-wm-text">{symbol} Options</span>
-        <div className={clsx("flex items-center gap-1 text-[10px]", dataSource === "fmp" ? "text-wm-green" : "text-wm-gold")}>
-          <span className={clsx("w-1.5 h-1.5 rounded-full", dataSource === "fmp" ? "bg-wm-green animate-pulse" : "bg-wm-gold")} />
-          {dataSource === "fmp" ? "LIVE • FMP" : "SYNTHETIC"}
+        <div className={clsx("flex items-center gap-1 text-[10px]", dataSource === "fmp" ? "text-wm-green" : "text-wm-red")}>
+          <span className={clsx("w-1.5 h-1.5 rounded-full", dataSource === "fmp" ? "bg-wm-green animate-pulse" : "bg-wm-red")} />
+          {dataSource === "fmp" ? "LIVE • FMP" : "UNAVAILABLE"}
         </div>
         <span className="text-[10px] font-mono text-wm-text-muted ml-1">
           Spot: <span className="text-wm-text font-bold">{price.toLocaleString("en-US",{minimumFractionDigits:2})}</span>
@@ -278,10 +274,10 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
       </div>
 
       {/* Error banner */}
-      {error && dataSource === "synthetic" && (
-        <div className="flex items-center gap-2 px-4 py-1.5 bg-wm-gold/10 border-b border-wm-gold/20 text-[10px] text-wm-gold shrink-0">
+      {error && dataSource === "unavailable" && (
+        <div className="flex items-center gap-2 px-4 py-1.5 bg-wm-red/10 border-b border-wm-red/20 text-[10px] text-wm-red shrink-0">
           <AlertTriangle size={10} />
-          <span>FMP options unavailable for {symbol} — showing synthetic Black-Scholes model. Error: {error}</span>
+          <span>Real options data is unavailable for {symbol}. No contracts were generated. Error: {error}</span>
         </div>
       )}
 
@@ -315,6 +311,12 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
         {loading ? (
           <div className="flex items-center justify-center h-full text-wm-text-dim text-xs">
             <RefreshCw size={14} className="animate-spin mr-2" /> Loading options data from FMP...
+          </div>
+        ) : chain.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+            <AlertTriangle size={22} className="text-wm-red mb-3" />
+            <div className="text-sm font-bold text-wm-text">Real options chain unavailable</div>
+            <div className="text-[11px] text-wm-text-dim mt-1">Connect a supported options-data provider and refresh. WealthyMindsets will not fabricate contracts.</div>
           </div>
         ) : (
         <table className="w-full text-[10px] border-collapse">
@@ -415,9 +417,7 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
           </span>
         </div>
         <div className="ml-auto text-[9px] text-wm-text-dim italic">
-          {dataSource === "fmp"
-            ? "Real data: Financial Modeling Prep API"
-            : "Synthetic Black-Scholes model — FMP data unavailable for this symbol"}
+          {dataSource === "fmp" ? "Real data: Financial Modeling Prep API" : "No real contracts available"}
         </div>
       </div>
     </motion.div>

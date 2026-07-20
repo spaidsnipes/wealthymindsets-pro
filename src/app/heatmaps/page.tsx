@@ -251,7 +251,7 @@ const SECTORS: Sector[] = [
 const TIMEFRAMES = ["1D","1W","1M","3M","6M","1Y","5Y"];
 // Only expose universes we can currently populate with observed free data.
 // "World" and "Full" previously repeated the S&P dataset under a different label.
-const VIEWS = ["S&P 500", "Markov", "VP"];
+const VIEWS = ["S&P 500", "VP"];
 
 /* ═══════════════════════════════════════════════════════════
    MARKOV REGIME HEATMAP
@@ -495,7 +495,7 @@ function VPHeatmap({ tf }: { tf: string }) {
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     let cancelled = false;
-    const chartTF = tf === "1D" ? "5m" : tf === "1W" ? "30m" : tf === "1M" ? "1h" : tf === "3M" || tf === "6M" ? "4h" : "D";
+    const chartTF = tf === "1D" ? "5m" : tf === "1W" ? "30m" : tf === "1M" ? "1h" : "D";
     setLoading(true);
     Promise.all(VP_SYMBOLS.map(async sym => {
       try {
@@ -544,13 +544,6 @@ function getAllSymbols(): string[] {
     if (!syms.includes(sym)) syms.push(sym);
   });
   return syms;
-}
-
-// High-quality seeded random for sparklines only
-function seededRand(sym: string, salt: number): number {
-  const n = sym.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const v = Math.sin(n * 12.9898 + salt * 78.233) * 43758.5453;
-  return (v - Math.floor(v)) * 2 - 1;
 }
 
 const HM_CACHE_PREFIX = "wm_heatmap_";
@@ -622,28 +615,6 @@ function pctTextColor(pct: number): string {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   MINI SPARKLINE
-═══════════════════════════════════════════════════════════ */
-function Sparkline({ sym, pct, width = 60, height = 18 }: { sym: string; pct: number; width?: number; height?: number }) {
-  const pts = Array.from({ length: 20 }, (_, i) => {
-    const v = seededRand(sym, i * 7 + 1) * 0.5 + pct / 20 * i;
-    return v;
-  });
-  const min = Math.min(...pts);
-  const max = Math.max(...pts);
-  const range = max - min || 1;
-  const coords = pts.map((v, i) =>
-    `${(i / (pts.length - 1)) * width},${height - ((v - min) / range) * height}`
-  ).join(" ");
-  const color = pct >= 0 ? "#00D4AA" : "#FF4D6A";
-  return (
-    <svg width={width} height={height} style={{ display: "block" }}>
-      <polyline points={coords} fill="none" stroke={color} strokeWidth={1.2} />
-    </svg>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
    TOOLTIP — FINVIZ STYLE SECTOR BREAKDOWN LIST
 ═══════════════════════════════════════════════════════════ */
 interface TooltipProps {
@@ -686,7 +657,6 @@ function IndustryTooltip({ industry, pcts, x, y }: TooltipProps) {
         {topStock && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
             <span style={{ fontSize: 15, fontWeight: 900, color: "#fff" }}>{topStock.sym}</span>
-            <Sparkline sym={topStock.sym} pct={topPct} width={80} height={22} />
             <span style={{ fontSize: 13, fontWeight: 700, color: "#8892A0", marginLeft: "auto" }}>
               ${topStock.price.toFixed(2)}
             </span>
@@ -708,7 +678,6 @@ function IndustryTooltip({ industry, pcts, x, y }: TooltipProps) {
               borderBottom: "1px solid #1A2030",
             }}>
               <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", width: 52 }}>{st.sym}</span>
-              <Sparkline sym={st.sym} pct={p} width={60} height={16} />
               <span style={{ fontSize: 12, color: "#8892A0", marginLeft: "auto" }}>
                 ${st.price.toFixed(2)}
               </span>

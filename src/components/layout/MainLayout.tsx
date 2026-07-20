@@ -116,15 +116,7 @@ const ALL_SYMBOLS = [
   { sym:"BONKUSD",label:"Bonk / USD",                cat:"Crypto", aliases:["bonk"] },
 ];
 
-/* ── Sample notifications ────────────────────────────────── */
-const INITIAL_NOTIFS = [
-  { id:1, read:false, time:"2m ago",  icon:"🔥", title:"NQ1! momentum surge",       body:"Aggressive buy prints at 21,850 — CLC setup forming on 5m chart." },
-  { id:2, read:false, time:"8m ago",  icon:"⚠️", title:"Win rate alert",             body:"Your FOMO entries have a 22% win rate this week. Review your rules." },
-  { id:3, read:false, time:"15m ago", icon:"📊", title:"Dark pool activity",         body:"Unusual block prints on NVDA — $480M swept above $875." },
-  { id:4, read:true,  time:"1h ago",  icon:"🎯", title:"Strategy target hit",        body:"ES1! Wyckoff Spring target reached at 5,845 — +22 handles." },
-  { id:5, read:true,  time:"2h ago",  icon:"📰", title:"Fed minutes released",       body:"FOMC minutes showed 2 members favoring rate cut — market reacting." },
-  { id:6, read:true,  time:"4h ago",  icon:"💰", title:"Journal reminder",           body:"You logged 3 trades today. Add your lessons before market close." },
-];
+const INITIAL_NOTIFS: Array<{ id:number; read:boolean; time:string; icon:string; title:string; body:string }> = [];
 
 const CAT_COLOR: Record<string,string> = {
   Futures:"text-wm-gold",  Stock:"text-wm-blue",
@@ -638,7 +630,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
                   className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none">
                   <option value="last">Last Used</option>
                   <option value="none">None</option>
-                  {["1t","5t","1m","3m","5m","15m","1h","4h","D"].map(t => <option key={t} value={t}>{t}</option>)}
+                  {["1m","2m","5m","15m","30m","1h","D","W","M"].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </Row>
               <Row label="Auto-save Journal" sub="Prompt to log trades when session ends">

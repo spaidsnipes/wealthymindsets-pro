@@ -51,7 +51,7 @@ export interface MarketState {
   recentTicks: Tick[];
   orderBook:   { bids: OrderBookLevel[]; asks: OrderBookLevel[] };
   connected:   boolean;
-  source:      "polygon" | "finnhub" | "synthetic" | "yahoo" | "alpaca" | "binance";
+  source:      "polygon" | "finnhub" | "yahoo" | "alpaca" | "binance" | "unavailable";
   /** Aggressor tape feed — set only by trade WebSockets, never downgraded by REST quotes. */
   tapeSource:  "polygon" | "finnhub" | "alpaca" | "binance" | null;
   latency:     number; // ms to last update
@@ -158,15 +158,8 @@ function getTickSize(base: number) {
   return 0.00001;
 }
 
-function buildBook(base: number): { bids: OrderBookLevel[]; asks: OrderBookLevel[] } {
-  const tick = getTickSize(base);
-  const bids: OrderBookLevel[] = [];
-  const asks: OrderBookLevel[] = [];
-  for (let i = 0; i < 12; i++) {
-    bids.push({ price: +(base - (i + 1) * tick).toFixed(5), size: Math.floor(5 + Math.random() * 400), side: "bid" });
-    asks.push({ price: +(base + (i + 1) * tick).toFixed(5), size: Math.floor(5 + Math.random() * 400), side: "ask" });
-  }
-  return { bids, asks };
+function buildBook(): { bids: OrderBookLevel[]; asks: OrderBookLevel[] } {
+  return { bids: [], asks: [] };
 }
 
 /* ── Polygon.io WebSocket adapter ───────────────────────── */
@@ -674,7 +667,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   const prevCloseRef = useRef(0);
   const barRef     = useRef<OHLCVBar | null>(null);
   const tickBuf    = useRef<Tick[]>([]);      // batched buffer
-  const bookRef    = useRef(buildBook(base));
+  const bookRef    = useRef(buildBook());
   const rafRef     = useRef<number>(0);
   const volRef     = useRef(0);
 
@@ -688,12 +681,12 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   const tapeSourceRef = useRef<MarketState["tapeSource"]>(null);
 
   const [state, setState] = useState<MarketState>({
-    ticker:      { price: base, change: 0, changePct: 0, volume: 0 },
+    ticker:      { price: 0, change: 0, changePct: 0, volume: 0 },
     liveBar:     null,
     recentTicks: [],
     orderBook:   { bids: [], asks: [] },   // built client-side in useEffect to avoid hydration mismatch
     connected:   false,
-    source:      "synthetic",
+    source:      "unavailable",
     tapeSource:  null,
     latency:     0,
   });
@@ -723,11 +716,6 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     const now   = Date.now();
     const latency = now - lastUpdateRef.current;
     lastUpdateRef.current = now;
-
-    // Update order book occasionally (every ~10 ticks)
-    if (Math.random() < 0.1) {
-      bookRef.current = buildBook(price);
-    }
 
     setState(prev => {
       const newVol = prev.ticker.volume + ticks.reduce((s, t) => s + t.size, 0);
@@ -917,19 +905,19 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     priceRef.current = b;
     prevCloseRef.current = 0; // cleared on symbol change; repopulated by the next quote
     barRef.current   = null;
-    bookRef.current  = buildBook(b);
+    bookRef.current  = buildBook();
     retryCount.current = 0;
     hasRealDataRef.current = false;
 
     tapeSourceRef.current = null;
 
     setState({
-      ticker:      { price: b, change: 0, changePct: 0, volume: 0 },
+      ticker:      { price: 0, change: 0, changePct: 0, volume: 0 },
       liveBar:     null,
       recentTicks: [],
-      orderBook:   bookRef.current,
-      connected:   true,
-      source:      "synthetic",
+      orderBook:   { bids: [], asks: [] },
+      connected:   false,
+      source:      "unavailable",
       tapeSource:  null,
       latency:     0,
     });
@@ -937,7 +925,6 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // ── Real data strategy ───────────────────────────────────
     // 1. Finnhub WebSocket (stocks/crypto, 15s delayed on free plan)
     // 2. REST polling every 5s (Finnhub for stocks, Yahoo for futures/crypto)
-    // 3. Synthetic drift ONLY as initial placeholder — replaced once real price arrives
     // NOTE: Polygon key is known-invalid — skip it entirely to avoid blocking Finnhub WS
     const finnhubKey  = process.env.NEXT_PUBLIC_FINNHUB_KEY ?? "d8efu9hr01qth3ch5f20d8efu9hr01qth3ch5f2g";
 
@@ -1010,7 +997,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         const realPrice = q.price;
         const prevPrice = priceRef.current;
         priceRef.current = realPrice;
-        bookRef.current  = buildBook(realPrice);
+        bookRef.current  = buildBook();
         hasRealDataRef.current = true;
         // CRITICAL FIX: feed the real price through processTick so the LIVE BAR
         // (barRef → chart candles) actually updates. Previously only the ticker
@@ -1037,9 +1024,6 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     doRestFetch();
     // Poll every 1.5s for real-time price updates (Yahoo/Alpaca handle this rate fine)
     const restRefresh = setInterval(doRestFetch, 1_500);
-
-    // Start synthetic engine as initial placeholder (will be overridden by REST fetch in ~1-2s)
-    startSynthetic(b);
 
     // Fire REST fetch immediately when tab becomes visible (fixes background-tab throttling)
     const onVisibleWS = () => { if (document.visibilityState === "visible") doRestFetch(); };
@@ -1135,17 +1119,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol]);
 
-  // Re-start synthetic when timeframe changes (different tick speed + bar alignment)
+  // A timeframe change starts an empty live bar; only observed ticks may refill it.
   useEffect(() => {
     barRef.current = null;
-    const b = getBasePrice(symbol);
-    // Reset price to seed so new timeframe's historical candles (which anchor
-    // their last bar to `base`) connect seamlessly to the live bar.
-    // Only reset if we have no real data — real feeds keep their live price.
-    if (!hasRealDataRef.current) {
-      priceRef.current = b;
-    }
-    startSynthetic(b);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeframe]);
 

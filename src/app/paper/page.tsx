@@ -269,9 +269,7 @@ function useLivePrices() {
       }));
       if (!alive) return;
       if (Object.keys(pc).length) setPrevCloses(prev => ({ ...prev, ...pc }));
-      // On the very first successful fetch, snap displayed prices straight to
-      // the real quote instead of crawling toward it over ~30s.
-      if (!seeded.current && Object.keys(snap).length) {
+      if (Object.keys(snap).length) {
         seeded.current = true;
         setPrices(prev => ({ ...prev, ...snap }));
       }
@@ -279,24 +277,6 @@ function useLivePrices() {
     refresh();
     const iv = setInterval(refresh, 20_000);
     return () => { alive = false; clearInterval(iv); };
-  }, []);
-
-  useEffect(() => {
-    const iv = setInterval(() => {
-      setPrices(prev => {
-        const next: Record<string,number> = {};
-        for (const [sym, info] of Object.entries(UNIVERSE)) {
-          const cur    = prev[sym] ?? info.base;
-          const anchor = anchors.current[sym] ?? info.base;
-          // Pull 8% toward the real anchor each tick + tiny noise for life.
-          const revert = (anchor - cur) * 0.08;
-          const noise  = (Math.random() - 0.5) * cur * 0.0004;
-          next[sym] = Math.max(info.tick, +(cur + revert + noise).toFixed(sym==="BTC"?0:2));
-        }
-        return next;
-      });
-    }, 800);
-    return () => clearInterval(iv);
   }, []);
 
   return { prices, prevCloses };
@@ -499,26 +479,12 @@ const PRIZE_TIERS = [
   { rank: 5, prize: "$50",   label: "4th–5th",   color: "#00D4AA", icon: "🏅" },
 ];
 
-// Simulated global leaderboard entries (in production, pull from your backend)
-const MOCK_LEADERBOARD = [
-  { name: "TradeMaster_X",   pct: 84.2,  pnl: 84_200,  trades: 127, win: 71 },
-  { name: "WealthBuilder",   pct: 61.5,  pnl: 61_500,  trades: 89,  win: 65 },
-  { name: "NQ_Sniper",       pct: 47.8,  pnl: 47_800,  trades: 203, win: 58 },
-  { name: "GoldDigger99",    pct: 39.1,  pnl: 39_100,  trades: 54,  win: 72 },
-  { name: "CryptoKing_ES",   pct: 31.4,  pnl: 31_400,  trades: 311, win: 54 },
-  { name: "FuturesPhenom",   pct: 28.9,  pnl: 28_900,  trades: 88,  win: 61 },
-  { name: "BullMktVibes",    pct: 22.3,  pnl: 22_300,  trades: 44,  win: 68 },
-  { name: "TeslaTrader",     pct: 19.7,  pnl: 19_700,  trades: 76,  win: 55 },
-  { name: "AlgoAlpha",       pct: 14.2,  pnl: 14_200,  trades: 512, win: 53 },
-  { name: "YoungMindset",    pct: 11.8,  pnl: 11_800,  trades: 33,  win: 60 },
-];
-
 function Leaderboard({ myPct, myPnl, myTrades, myWin }: {
   myPct: number; myPnl: number; myTrades: number; myWin: number;
 }) {
   // Insert "You" into leaderboard at correct rank
   const myEntry = { name: "You ⭐", pct: myPct, pnl: myPnl, trades: myTrades, win: myWin, isMe: true };
-  const board = [...MOCK_LEADERBOARD, myEntry]
+  const board = [myEntry]
     .sort((a, b) => b.pct - a.pct)
     .slice(0, 12);
   const myRank = board.findIndex(e => (e as any).isMe) + 1;

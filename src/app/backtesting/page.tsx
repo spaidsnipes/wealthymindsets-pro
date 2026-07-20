@@ -26,7 +26,7 @@ const STRATEGIES = [
   { id: "cvd",        label: "CVD Divergence",             desc: "Price/volume divergence signals" },
   { id: "darkpool",   label: "Dark Pool Accumulation",     desc: "Off-exchange block trade direction" },
 ];
-const TIMEFRAMES = ["1m","3m","5m","15m","30m","1h","4h","D"];
+const TIMEFRAMES = ["1m","2m","5m","15m","30m","1h","D","W","M"];
 const DATE_RANGES = [
   { label: "1 Month",  days: 30  },
   { label: "3 Months", days: 90  },
