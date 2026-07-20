@@ -62,7 +62,10 @@ const STRENGTH_COLOR: Record<AlertStrength, string> = {
   "A+":"#00D4AA","A":"#4FA3E0","B":"#F0B429","C":"#94A3B8",
 };
 
-const SIGNALS: Signal[] = Object.keys(SIGNAL_META) as Signal[];
+const SIGNALS: Signal[] = [
+  "momentum-long", "momentum-short", "breakout-bull", "breakout-bear",
+  "volume-surge", "vwap-reclaim", "gap-fill", "fib-bounce", "supply-reject",
+];
 const SECTORS = ["Technology","Energy","Financials","Healthcare","Consumer","Industrials","Crypto","Futures","ETF"];
 const STRENGTHS: AlertStrength[] = ["A+","A","B","C"];
 
@@ -78,8 +81,6 @@ const SYMS: [string,string][] = [
   ["SPY","S&P 500 ETF"],["QQQ","Nasdaq 100 ETF"],["IWM","Russell 2000 ETF"],
   ["GLD","Gold ETF"],["TLT","20yr Treasury ETF"],
 ];
-
-const FINNHUB_KEY = "d8efu9hr01qth3ch5f20d8efu9hr01qth3ch5f2g";
 
 // Sector mapping for known symbols
 const SYM_SECTOR: Record<string,string> = {
@@ -156,13 +157,18 @@ async function fetchRSI(sym: string): Promise<number | null> {
   const cached = rsiCache.get(sym);
   if (cached && Date.now() - cached.ts < 300_000) return cached.rsi;
   try {
-    const now  = Math.floor(Date.now() / 1000);
-    const from = now - 40 * 86_400; // 40 days back for 14-period RSI
-    const url  = `https://finnhub.io/api/v1/indicator?symbol=${sym}&resolution=D&indicator=rsi&timeperiod=14&from=${from}&to=${now}&token=${FINNHUB_KEY}`;
-    const json = await fetch(url, { cache: "no-store" }).then(r => r.json());
-    const vals: number[] = json?.technicalAnalysis?.rsi ?? [];
-    if (!vals.length) return null;
-    const rsi = Math.round(vals[vals.length - 1]);
+    const json = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=candles&tf=D&bars=40`, { cache: "no-store" }).then(r => r.json());
+    const closes: number[] = (json?.candles ?? []).map((bar: { close?: number }) => bar.close).filter((value: unknown): value is number => typeof value === "number");
+    if (closes.length < 15) return null;
+    let gains = 0, losses = 0;
+    for (let i = closes.length - 14; i < closes.length; i++) {
+      const change = closes[i] - closes[i - 1];
+      if (change >= 0) gains += change;
+      else losses -= change;
+    }
+    const avgGain = gains / 14;
+    const avgLoss = losses / 14;
+    const rsi = avgLoss === 0 ? 100 : Math.round(100 - (100 / (1 + avgGain / avgLoss)));
     rsiCache.set(sym, { rsi, ts: Date.now() });
     return rsi;
   } catch {
@@ -170,56 +176,37 @@ async function fetchRSI(sym: string): Promise<number | null> {
   }
 }
 
-interface QuoteData { price:number; change:number; changePct:number; volume:number; rsi:number|null }
+interface QuoteData { price:number; change:number; changePct:number; volume:number; avgVolume:number; rsi:number|null }
 
 async function fetchScannerQuotes(): Promise<Map<string, QuoteData>> {
   const results = new Map<string, QuoteData>();
-  // Batch in groups of 3 to respect Finnhub rate limits (30 req/s — each sym = 2 calls: quote + RSI)
-  const BATCH = 3;
-  for (let i = 0; i < SCANNER_STOCKS.length; i += BATCH) {
-    const batch = SCANNER_STOCKS.slice(i, i + BATCH);
+  // Use the app's server-side Yahoo proxy for real pre/post-market price and
+  // actual intraday volume. No client-side vendor key and no fabricated volume.
+  const scannerSymbols = [...SCANNER_STOCKS, ...SCANNER_FUTURES];
+  const BATCH = 6;
+  for (let i = 0; i < scannerSymbols.length; i += BATCH) {
+    const batch = scannerSymbols.slice(i, i + BATCH);
     await Promise.all(batch.map(async sym => {
       try {
         const [quoteJson, rsi] = await Promise.all([
-          fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${FINNHUB_KEY}`, { cache: "no-store" }).then(r => r.json()),
+          fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json()),
           fetchRSI(sym),
         ]);
-        const price = quoteJson?.c ?? 0;
-        const prev  = quoteJson?.pc ?? price;
+        const price = quoteJson?.price ?? 0;
+        const prev  = quoteJson?.prevClose ?? price;
         if (price > 0) {
           const change    = +(price - prev).toFixed(2);
           const changePct = prev > 0 ? +((change / prev) * 100).toFixed(2) : 0;
-          // Finnhub basic quote doesn't include intraday volume.
-          // Use a hash-stable estimate boosted by actual move magnitude.
-          const n = sym.split("").reduce((a,c) => a + c.charCodeAt(0), 0);
-          const baseVol   = 1_500_000 + (n % 8_000_000);
-          const moveBoost = Math.abs(changePct) * 500_000;
-          const volume    = Math.floor(baseVol + moveBoost);
-          results.set(sym, { price, change, changePct, volume, rsi });
+          const volume = Number(quoteJson?.volume ?? 0);
+          const avgVolume = Number(quoteJson?.avgVolume ?? 0);
+          results.set(sym, { price, change, changePct, volume, avgVolume, rsi });
         }
       } catch {}
     }));
-    if (i + BATCH < SCANNER_STOCKS.length) await new Promise(r => setTimeout(r, 200));
+    if (i + BATCH < scannerSymbols.length) await new Promise(r => setTimeout(r, 120));
   }
-  // Futures quotes via Yahoo (real prices for NQ1!/ES1! etc.)
-  await Promise.all(SCANNER_FUTURES.map(async sym => {
-    try {
-      const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-      const price = j?.price ?? 0;
-      if (price > 0) {
-        const change    = +(+(j.change ?? 0)).toFixed(2);
-        const changePct = +(+(j.changePct ?? 0)).toFixed(2);
-        const n = sym.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-        const volume = Math.floor(800_000 + (n % 4_000_000) + Math.abs(changePct) * 300_000);
-        results.set(sym, { price, change, changePct, volume, rsi: await fetchRSIYahoo(sym) });
-      }
-    } catch {}
-  }));
   return results;
 }
-
-// RSI for futures isn't available via Finnhub free tier — leave null (shows "—").
-async function fetchRSIYahoo(_sym: string): Promise<number | null> { return null; }
 
 function buildResults(
   quotes: Map<string, QuoteData>,
@@ -244,8 +231,8 @@ function buildResults(
     const change    = q?.change    ?? old?.change    ?? 0;
     const changePct = q?.changePct ?? old?.changePct ?? 0;
     const volume    = q?.volume    ?? old?.volume    ?? 0;
-    const avgVol    = 2_500_000;
-    const volRatio  = +(volume / avgVol).toFixed(1);
+    const avgVol    = q?.avgVolume ?? 0;
+    const volRatio  = avgVol > 0 ? +(volume / avgVol).toFixed(1) : 0;
     // Real RSI from Finnhub indicator API; fall back to old cached value if available
     const rsi = q?.rsi ?? old?.rsi ?? null;
     return {
@@ -273,11 +260,10 @@ function buildResults(
 
 const PRESETS = [
   { id:"hot",      label:"🔥 Hot Movers",   sigs:["momentum-long","breakout-bull","volume-surge"] as Signal[] },
-  { id:"darkpool", label:"🌑 Dark Pool",     sigs:["dark-pool","options-flow"] as Signal[] },
-  { id:"wyckoff",  label:"⚖ Wyckoff",       sigs:["wyckoff-accum","wyckoff-dist"] as Signal[] },
-  { id:"vwap",     label:"🎯 VWAP",         sigs:["vwap-reclaim","fib-bounce"] as Signal[] },
-  { id:"short",    label:"🩸 Shorts",        sigs:["momentum-short","breakout-bear","supply-reject","cvd-div-bear"] as Signal[] },
-  { id:"earnings", label:"📊 Earnings",      sigs:["earnings-play"] as Signal[] },
+  { id:"volume",   label:"⚡ Real Volume",   sigs:["volume-surge"] as Signal[] },
+  { id:"reclaim",  label:"🎯 Reclaims",      sigs:["vwap-reclaim","fib-bounce"] as Signal[] },
+  { id:"short",    label:"🩸 Shorts",        sigs:["momentum-short","breakout-bear","supply-reject"] as Signal[] },
+  { id:"range",    label:"↩ Range / Gap",    sigs:["gap-fill","fib-bounce","supply-reject"] as Signal[] },
   { id:"all",      label:"📋 All",           sigs:SIGNALS },
 ];
 

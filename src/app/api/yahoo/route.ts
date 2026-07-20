@@ -140,7 +140,7 @@ export async function GET(request: Request) {
       const meta   = dayRes?.meta;
 
       // Most-recent live price from the intraday (pre/post-aware) series.
-      let livePrice = 0, liveHigh = 0, liveLow = 0, liveOpen = 0;
+      let livePrice = 0, liveHigh = 0, liveLow = 0, liveOpen = 0, liveVolume = 0;
       const ir = intraJson?.chart?.result?.[0];
       if (ir?.timestamp?.length) {
         const q = ir.indicators?.quote?.[0] ?? {};
@@ -148,6 +148,7 @@ export async function GET(request: Request) {
         const hi: (number|null)[] = q.high  ?? [];
         const lo: (number|null)[] = q.low   ?? [];
         const op: (number|null)[] = q.open  ?? [];
+        const vo: (number|null)[] = q.volume ?? [];
         for (let i = cl.length - 1; i >= 0; i--) {
           if (cl[i] != null && (cl[i] as number) > 0) { livePrice = cl[i] as number; break; }
         }
@@ -157,6 +158,7 @@ export async function GET(request: Request) {
         if (validHi.length) liveHigh = Math.max(...validHi);
         if (validLo.length) liveLow  = Math.min(...validLo);
         if (firstOp) liveOpen = firstOp;
+        liveVolume = vo.reduce<number>((sum, value) => sum + (value ?? 0), 0);
       }
 
       if (!meta && !livePrice) return NextResponse.json({ error: "No data" }, { status: 404 });
@@ -185,6 +187,8 @@ export async function GET(request: Request) {
         prevClose,
         change:    +(price - prevClose).toFixed(4),
         changePct: prevClose ? +(((price - prevClose) / prevClose) * 100).toFixed(4) : 0,
+        volume:     liveVolume || meta?.regularMarketVolume || 0,
+        avgVolume:  meta?.averageDailyVolume10Day || meta?.averageDailyVolume3Month || 0,
         ts:        Date.now(),
       });
     }

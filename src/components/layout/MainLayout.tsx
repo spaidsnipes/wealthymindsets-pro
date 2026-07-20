@@ -885,12 +885,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{ display: "flex", flexDirection: "column", width: "100vw", height: "100vh", overflow: "hidden" }}
-      className="bg-wm-black"
+      className="bg-wm-black wm-universe"
     >
       {/* ── Top bar ─────────────────────────────────────────── */}
       <header
         style={{ height: 44, flexShrink: 0 }}
-        className="flex items-center px-3 border-b border-wm-border bg-wm-dark z-50"
+        className="flex items-center px-3 border-b border-wm-border bg-wm-dark z-50 wm-shell-header"
       >
         {/* Brand */}
         <div className="flex items-center gap-2 shrink-0" style={{ width: 72 }}>
@@ -1021,7 +1021,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         {/* MooMoo-style 72px icon+label sidebar */}
         <aside style={{
           width: 72, flexShrink: 0,
-          background: "#0D0E14",
+          background: "linear-gradient(180deg,#111018 0%,#0b0b11 55%,#120b0e 100%)",
           borderRight: "1px solid #1E2030",
           display: "flex", flexDirection: "column",
           zIndex: 40, overflow: "hidden",
@@ -1035,15 +1035,15 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                   style={{
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                     gap: 3, height: 58, cursor: "pointer", textDecoration: "none",
-                    background: active ? "rgba(255,140,0,0.08)" : "transparent",
-                    borderLeft: active ? "2px solid #FF8C00" : "2px solid transparent",
+                    background: active ? "linear-gradient(90deg,rgba(232,185,35,.16),rgba(5,150,105,.04))" : "transparent",
+                    borderLeft: active ? "2px solid #E8B923" : "2px solid transparent",
                     transition: "background 0.12s",
                     position: "relative",
                   }}
                   onMouseEnter={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.04)"; }}
                   onMouseLeave={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = "transparent"; }}
                 >
-                  <Icon size={18} style={{ color: active ? "#FF8C00" : "#8B8FA8", flexShrink: 0 }} />
+                  <Icon size={18} style={{ color: active ? "#E8B923" : "#8B8FA8", flexShrink: 0 }} />
                   <span style={{
                     fontSize: 9, fontWeight: active ? 600 : 400,
                     color: active ? "#E2E8F0" : "#8B8FA8",
@@ -1067,14 +1067,14 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                   style={{
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                     gap: 3, height: 54, cursor: "pointer", textDecoration: "none",
-                    background: active ? "rgba(255,140,0,0.08)" : "transparent",
-                    borderLeft: active ? "2px solid #FF8C00" : "2px solid transparent",
+                    background: active ? "linear-gradient(90deg,rgba(232,185,35,.16),rgba(5,150,105,.04))" : "transparent",
+                    borderLeft: active ? "2px solid #E8B923" : "2px solid transparent",
                     transition: "background 0.12s",
                   }}
                   onMouseEnter={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.04)"; }}
                   onMouseLeave={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = "transparent"; }}
                 >
-                  <Icon size={18} style={{ color: active ? "#FF8C00" : "#8B8FA8", flexShrink: 0 }} />
+                  <Icon size={18} style={{ color: active ? "#E8B923" : "#8B8FA8", flexShrink: 0 }} />
                   <span style={{
                     fontSize: 9, fontWeight: active ? 600 : 400,
                     color: active ? "#E2E8F0" : "#8B8FA8",
@@ -1091,7 +1091,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </aside>
 
         {/* Main content */}
-        <main style={{ flex: 1, overflow: "hidden", minWidth: 0, position: "relative", height: "100%" }}>
+        <main className="wm-app-surface" style={{ flex: 1, overflow: "hidden", minWidth: 0, position: "relative", height: "100%" }}>
           {mounted ? (
             <AnimatePresence mode="wait">
               <motion.div

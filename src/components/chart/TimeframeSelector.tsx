@@ -62,6 +62,7 @@ function TFBtn({ label, active, onClick }: { label: string; active: boolean; onC
       onMouseLeave={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.color = "#8B8FA8"; }}
     >
       {label}
+      {isTick && <sup style={{ marginLeft: 2, color: "#E8B923", fontSize: 8, fontWeight: 900 }}>?</sup>}
     </button>
   );
 }

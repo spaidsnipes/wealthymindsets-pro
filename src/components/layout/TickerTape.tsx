@@ -49,6 +49,7 @@ interface TickerState {
   poly:  string | null;
   base:  number;
   _open: number;
+  live:  boolean;
 }
 
 /* ── Multi-source quote fetcher ───────────────────────────────── *
@@ -118,23 +119,13 @@ async function fetchPolygonPrices(): Promise<Record<string, { price:number; chg:
   return results;
 }
 
-/* ── Synthetic random walk for futures / unsupported symbols ── */
-function syntheticTick(prev: TickerState): TickerState {
-  const vol   = prev.base > 10_000 ? 0.0004 : prev.base > 100 ? 0.0006 : 0.001;
-  const delta = (Math.random() - 0.500) * prev.price * vol;
-  const price = +(prev.price + delta).toFixed(prev.price > 100 ? 2 : 4);
-  const chg   = +(price - prev._open).toFixed(2);
-  const pct   = +((chg / prev._open) * 100).toFixed(2);
-  return { ...prev, price, chg, pct, up: chg >= 0 };
-}
-
 /* ── Individual item ───────────────────────────────────────── */
 function TickerItem({ item, onClick, active }: {
   item: TickerState;
   onClick: () => void;
   active: boolean;
 }) {
-  const { sym, price, chg, pct, up } = item;
+  const { sym, price, chg, pct, up, live } = item;
   const dp = price > 10_000 ? 0 : price > 100 ? 2 : price > 1 ? 4 : 6;
   return (
     <button
@@ -142,16 +133,22 @@ function TickerItem({ item, onClick, active }: {
       className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded transition-colors group cursor-pointer ${
         active ? "bg-wm-surface" : "hover:bg-wm-surface/50"
       }`}
-      title={`Click to chart ${sym}`}
+      title={live ? `Click to chart ${sym}` : `${sym}: waiting for a verified market quote`}
     >
       <span className={`text-[11px] font-bold ${active ? "text-wm-green" : "text-wm-text group-hover:text-wm-green"}`}>{sym}</span>
-      <span className="font-mono text-[11px] text-wm-text-muted">
-        {price.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp })}
-      </span>
-      <span className={`flex items-center gap-0.5 font-mono text-[10px] ${up ? "text-wm-green" : "text-wm-red"}`}>
-        {up ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
-        {chg >= 0 ? "+" : ""}{chg.toFixed(dp > 2 ? 4 : 2)} ({pct >= 0 ? "+" : ""}{pct.toFixed(2)}%)
-      </span>
+      {live ? (
+        <>
+          <span className="font-mono text-[11px] text-wm-text-muted">
+            {price.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp })}
+          </span>
+          <span className={`flex items-center gap-0.5 font-mono text-[10px] ${up ? "text-wm-green" : "text-wm-red"}`}>
+            {up ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
+            {chg >= 0 ? "+" : ""}{chg.toFixed(dp > 2 ? 4 : 2)} ({pct >= 0 ? "+" : ""}{pct.toFixed(2)}%)
+          </span>
+        </>
+      ) : (
+        <span className="font-mono text-[10px] text-wm-text-dim">quote pending</span>
+      )}
     </button>
   );
 }
@@ -178,7 +175,7 @@ export function TickerTape() {
   // is non-deterministic vs SSR and caused React #418) runs in the after-mount
   // effect below.
   const [tickers, setTickers] = useState<TickerState[]>(() =>
-    TAPE_SYMBOLS.map(t => ({ sym: t.sym, poly: t.poly, base: t.base, price: t.base, chg: 0, pct: 0, up: true, _open: t.base }))
+    TAPE_SYMBOLS.map(t => ({ sym: t.sym, poly: t.poly, base: t.base, price: t.base, chg: 0, pct: 0, up: true, _open: t.base, live: false }))
   );
 
   // After mount (client only): pull the persisted symbol list + cached prices.
@@ -194,8 +191,8 @@ export function TickerTape() {
         setTickers(TAPE_SYMBOLS.map(t => {
           const p = w[t.sym.toUpperCase()];
           return p && p.price > 0
-            ? { sym: t.sym, poly: t.poly, base: t.base, price: p.price, chg: p.chg, pct: p.pct, up: p.chg >= 0, _open: t.base }
-            : { sym: t.sym, poly: t.poly, base: t.base, price: t.base, chg: 0, pct: 0, up: true, _open: t.base };
+            ? { sym: t.sym, poly: t.poly, base: t.base, price: p.price, chg: p.chg, pct: p.pct, up: p.chg >= 0, _open: t.base, live: true }
+            : { sym: t.sym, poly: t.poly, base: t.base, price: t.base, chg: 0, pct: 0, up: true, _open: t.base, live: false };
         }));
       }
     } catch {}
@@ -233,7 +230,7 @@ export function TickerTape() {
           const key = t.sym.toUpperCase();
           if (live[key] && live[key].price > 0) {
             const { price, chg, pct } = live[key];
-            return { ...t, price, chg, pct, up: chg >= 0 };
+            return { ...t, price, chg, pct, up: chg >= 0, live: true };
           }
           return t;
         });
@@ -252,21 +249,6 @@ export function TickerTape() {
     const onVisible = () => { if (document.visibilityState === "visible") doFetch(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
-  }, []);
-
-  /* ── Synthetic tick ONLY for futures / forex (no free real-time source) ── */
-  useEffect(() => {
-    const id = setInterval(() => {
-      setTickers(prev => prev.map(t => {
-        // Only drift forex (no free real-time source)
-        // Futures and stocks/crypto get real Yahoo prices every 15s — don't overwrite
-        if (t.sym.includes("/")) {
-          return syntheticTick(t as any) as any;
-        }
-        return t;
-      }));
-    }, 500);
-    return () => clearInterval(id);
   }, []);
 
   const handleClick = (sym: string) => {
@@ -303,7 +285,7 @@ export function TickerTape() {
       };
       const base = BASES[s] ?? 100;
       (TAPE_SYMBOLS as any[]).push({ sym: s, poly: s.includes("1!") || s.includes("/") ? null : s, base });
-      setTickers(prev => [...prev, { sym:s, poly: s.includes("1!") || s.includes("/") ? null : s, base, price:base, chg:0, pct:0, up:true, _open:base }]);
+      setTickers(prev => [...prev, { sym:s, poly: s.includes("1!") || s.includes("/") ? null : s, base, price:base, chg:0, pct:0, up:true, _open:base, live:false }]);
     }
     setCustomSyms(prev => [...prev, s]);
   };
