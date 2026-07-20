@@ -5,11 +5,11 @@
  * Basic / PRO / ELITE tiers with revenue sharing and tooling
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Rocket, Crown, Star, Zap, Users, DollarSign, BarChart2,
   CheckCircle2, Lock, ChevronRight, TrendingUp, Award,
-  Sparkles, Globe, Video, Share2, Copy, X, Bell,
+  Sparkles, Globe, X, Bell,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
@@ -41,8 +41,8 @@ const TIERS: Tier[] = [
     border: "rgba(136,150,190,0.3)",
     bg:    "rgba(136,150,190,0.04)",
     icon:  <Star size={18} />,
-    description: "Start building your audience with WM tools and earn referral commissions.",
-    commission:  "10% per referral",
+    description: "Planned entry tier for creators who want to build with WM tools.",
+    commission:  "Proposed: 10% per referral",
     features: [
       "Personal referral link + tracking dashboard",
       "10% commission on referred PRO subscriptions",
@@ -63,7 +63,7 @@ const TIERS: Tier[] = [
     icon:  <Zap size={18} />,
     badge: "POPULAR",
     description: "Serious creators who want higher commissions, co-branded content, and direct promotion.",
-    commission:  "25% recurring per referral",
+    commission:  "Proposed: 25% recurring",
     features: [
       "Everything in Creator Basic",
       "25% recurring commission (monthly)",
@@ -87,7 +87,7 @@ const TIERS: Tier[] = [
     icon:  <Crown size={18} />,
     badge: "ELITE",
     description: "Top-tier creators and educators with established audiences. Maximum revenue & exposure.",
-    commission:  "40% recurring + bonuses",
+    commission:  "Proposed: 40% recurring + bonuses",
     features: [
       "Everything in Creator PRO",
       "40% recurring commission on all referrals",
@@ -116,8 +116,8 @@ const CREATORS: Array<{ rank:number; handle:string; tier:string; earnings:string
 
 /* ── FAQ ──────────────────────────────────────────────────── */
 const FAQ = [
-  { q:"How do I get paid?", a:"Payouts are processed monthly via PayPal, Venmo, CashApp, or bank wire. Minimum payout threshold is $25." },
-  { q:"When do commissions start?", a:"Commissions are credited 7 days after a referred user's payment clears. They're recurring — you earn every month they stay subscribed." },
+  { q:"How do I get paid?", a:"Payments are not active yet. Final payout methods, timing, and thresholds must be published before enrollment opens." },
+  { q:"When do commissions start?", a:"Referral tracking and commissions are not active yet. This page previews a proposed program." },
   { q:"Can I promote on social media?", a:"Yes! You're encouraged to share on YouTube, TikTok, Twitter/X, Instagram, Discord, and any platform you use." },
   { q:"Is there a waitlist for ELITE?", a:"ELITE spots are limited to maintain quality. Join the waitlist below and we'll notify you when a slot opens." },
   { q:"Do I need to be a PRO subscriber?", a:"No — Creator Basic is free. PRO and ELITE tiers include a WM subscription so you get the product you're promoting." },
@@ -131,22 +131,6 @@ export default function CreatorPage() {
   const [email,        setEmail]        = useState("");
   const [handle,       setHandle]       = useState("");
   const [submitted,    setSubmitted]    = useState(false);
-  const [refLink,      setRefLink]      = useState("https://wealthymindsets.pro/ref/YOUR-CODE");
-
-  // Generate a stable ref link based on session
-  useEffect(() => {
-    const stored = localStorage.getItem("wm_creator_ref");
-    if (stored) { setRefLink(stored); return; }
-    const code = `WM-${Math.random().toString(36).slice(2,7).toUpperCase()}`;
-    const link = `https://wealthymindsets.pro/ref/${code}`;
-    localStorage.setItem("wm_creator_ref", link);
-    setRefLink(link);
-  }, []);
-
-  const copyRef = () => {
-    navigator.clipboard.writeText(refLink).then(() => toast.success("Referral link copied!"));
-  };
-
   const openWaitlist = (tierId: string) => {
     setWaitlistTier(tierId);
     setWaitlistOpen(true);
@@ -158,7 +142,7 @@ export default function CreatorPage() {
     if (!email.includes("@")) { toast.error("Enter a valid email"); return; }
     setSubmitted(true);
     localStorage.setItem("wm_creator_waitlist", JSON.stringify({ email, handle, tier: waitlistTier, ts: Date.now() }));
-    toast.success("You're on the waitlist! We'll reach out soon.");
+    toast.success("Interest saved on this device.");
   };
 
   return (
@@ -175,15 +159,15 @@ export default function CreatorPage() {
         <div className="relative max-w-5xl mx-auto px-6 py-16 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border mb-5 text-xs font-bold"
                style={{ borderColor:"rgba(240,180,41,0.4)", background:"rgba(240,180,41,0.08)", color:"#F0B429" }}>
-            <Sparkles size={11}/> WealthyMindsets Creator Program
+            <Sparkles size={11}/> Creator Program Preview · Enrollment Not Connected
           </div>
           <h1 className="text-4xl font-black text-wm-text mb-4 leading-tight">
             Turn Your Audience Into<br/>
             <span style={{ color:"#F0B429" }}>Recurring Revenue</span>
           </h1>
           <p className="text-sm text-wm-text-muted max-w-xl mx-auto mb-8 leading-relaxed">
-            Share WealthyMindsets Pro with your community and earn up to <strong className="text-wm-text">40% recurring commissions</strong> every month.
-            Build a sustainable income stream teaching Smart Money concepts.
+            Preview the proposed WealthyMindsets creator tiers and save your interest locally.
+            Referral tracking, enrollment, billing, and payouts are not connected yet.
           </p>
 
           {/* Stats */}
@@ -197,16 +181,10 @@ export default function CreatorPage() {
             ))}
           </div>
 
-          {/* Your referral link */}
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border bg-wm-dark/60 text-xs font-mono"
                style={{ borderColor:"rgba(79,163,224,0.3)" }}>
             <Globe size={11} className="text-wm-blue shrink-0"/>
-            <span className="text-wm-text-muted truncate max-w-56">{refLink}</span>
-            <button onClick={copyRef}
-              className="flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-bold transition-all text-wm-blue hover:bg-wm-blue/10"
-              style={{ borderColor:"rgba(79,163,224,0.4)" }}>
-              <Copy size={9}/> Copy
-            </button>
+            <span className="text-wm-text-muted">Referral links appear only after a real tracking service is connected.</span>
           </div>
         </div>
       </div>
@@ -216,7 +194,7 @@ export default function CreatorPage() {
         {/* ── Tier cards ─────────────────────────────────────── */}
         <div className="text-center mb-8">
           <h2 className="text-xl font-black text-wm-text">Choose Your Creator Tier</h2>
-          <p className="text-xs text-wm-text-muted mt-1">Upgrade anytime. Downgrade anytime. No contracts.</p>
+          <p className="text-xs text-wm-text-muted mt-1">Proposed tiers and benefits — pricing and terms are not active offers.</p>
         </div>
 
         <div className="grid grid-cols-3 gap-5 mb-12">
@@ -284,7 +262,7 @@ export default function CreatorPage() {
                   style={{ background: tier.id === "basic" ? "rgba(136,150,190,0.12)" : tier.color,
                            color: tier.id === "basic" ? "#8896BE" : tier.id === "elite" ? "#000" : "#fff",
                            border: tier.id === "basic" ? "1px solid rgba(136,150,190,0.3)" : "none" }}>
-                  {tier.id === "basic" ? "Join Free" : `Join ${tier.label}`}
+                  Save interest
                 </button>
               </div>
 
@@ -363,10 +341,10 @@ export default function CreatorPage() {
           <h2 className="text-base font-black text-wm-text mb-5 text-center">How It Works</h2>
           <div className="grid grid-cols-4 gap-4">
             {[
-              { step:"01", title:"Join Free",        desc:"Sign up for Creator Basic — no credit card needed.", color:"#8896BE" },
-              { step:"02", title:"Get Your Link",    desc:"Grab your unique referral link from your dashboard.", color:"#4FA3E0" },
+              { step:"01", title:"Save Interest",    desc:"Save a program preference on this device while enrollment is being built.", color:"#8896BE" },
+              { step:"02", title:"Get Verified",     desc:"Future enrollment will require a real account and referral-tracking service.", color:"#4FA3E0" },
               { step:"03", title:"Share & Promote",  desc:"Post on social, YouTube, Discord, or your community.", color:"#00D4AA" },
-              { step:"04", title:"Earn Monthly",     desc:"Earn recurring commissions every month your referrals stay subscribed.", color:"#F0B429" },
+              { step:"04", title:"Track Honestly",   desc:"Commissions will display only after verified subscription and payout events exist.", color:"#F0B429" },
             ].map(s => (
               <div key={s.step} className="rounded-xl border border-wm-border p-4 text-center bg-wm-dark/40">
                 <div className="text-2xl font-black mb-2" style={{ color: s.color, opacity:0.6 }}>{s.step}</div>
@@ -414,7 +392,7 @@ export default function CreatorPage() {
           <div className="flex items-center justify-center gap-3">
             <button onClick={() => openWaitlist("basic")}
               className="px-6 py-2.5 rounded-xl text-xs font-black bg-wm-green text-wm-black transition-all hover:opacity-90">
-              Start Free Today
+              Save Basic Interest
             </button>
             <button onClick={() => openWaitlist("elite")}
               className="px-6 py-2.5 rounded-xl text-xs font-black border transition-all hover:bg-wm-gold/10"
@@ -442,7 +420,7 @@ export default function CreatorPage() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <div className="text-sm font-black text-wm-text capitalize">Join {waitlistTier} Waitlist</div>
-                  <div className="text-[10px] text-wm-text-dim mt-0.5">We'll reach out within 24–48 hours</div>
+                  <div className="text-[10px] text-wm-text-dim mt-0.5">Saved locally only — this does not submit to WM</div>
                 </div>
                 <button onClick={() => setWaitlistOpen(false)} className="text-wm-text-dim hover:text-wm-text">
                   <X size={16}/>
@@ -452,8 +430,8 @@ export default function CreatorPage() {
               {submitted ? (
                 <div className="text-center py-6">
                   <CheckCircle2 size={36} className="text-wm-green mx-auto mb-3"/>
-                  <div className="text-sm font-black text-wm-text mb-1">You're on the list!</div>
-                  <div className="text-[11px] text-wm-text-muted">We'll contact you at {email} soon.</div>
+                  <div className="text-sm font-black text-wm-text mb-1">Interest saved</div>
+                  <div className="text-[11px] text-wm-text-muted">This preference is stored only in this browser. No application was submitted.</div>
                   <button onClick={() => setWaitlistOpen(false)}
                     className="mt-4 px-6 py-2 rounded-xl text-xs font-black bg-wm-green text-wm-black">
                     Done
@@ -488,7 +466,7 @@ export default function CreatorPage() {
                   <button onClick={submitWaitlist}
                     className="w-full py-2.5 rounded-xl text-xs font-black bg-wm-green text-wm-black hover:opacity-90 transition-all">
                     <Bell size={11} className="inline mr-1.5"/>
-                    Join Waitlist
+                    Save Interest Locally
                   </button>
                 </>
               )}

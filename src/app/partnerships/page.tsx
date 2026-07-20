@@ -16,20 +16,7 @@ type Partner = {
   accent: string;
 };
 
-const PARTNERS: Partner[] = [
-  {
-    name: "VEDD Build",
-    tagline: "Faith-Driven Trading & Mindset",
-    description:
-      "VEDD Build is our featured partner — a faith-driven trading community pairing daily devotions with live forex education built on the CLC Rule (Context · Location · Confirmation). Members grow discipline over emotion through a structured mindset library, live setups, and an accountable community.",
-    url: "https://vedd.com",
-    cta: "Visit vedd.com",
-    tier: "Featured Partner",
-    gradient: "linear-gradient(135deg, #4FA3E0 0%, #8B5CF6 100%)",
-    glow: "0 0 24px rgba(79,163,224,0.35)",
-    accent: "#4FA3E0",
-  },
-];
+const PARTNERS: Partner[] = [];
 
 export default function PartnershipsPage() {
   return (
@@ -44,11 +31,11 @@ export default function PartnershipsPage() {
         </div>
         <div>
           <h1 className="text-sm font-black text-wm-text tracking-wide">Partnerships &amp; Sponsors</h1>
-          <p className="text-[10px] text-wm-text-muted">Trusted partners that power the Wealthy Mindsets community</p>
+          <p className="text-[10px] text-wm-text-muted">Only verified partner records are published here</p>
         </div>
         <div className="ml-auto flex items-center gap-1.5 text-[10px] text-wm-text-muted">
           <ShieldCheck size={12} className="text-wm-green" />
-          Vetted
+          Verification required
         </div>
       </div>
 
@@ -58,9 +45,8 @@ export default function PartnershipsPage() {
         style={{ background: "linear-gradient(135deg, rgba(240,180,41,0.08), rgba(255,77,106,0.05))" }}
       >
         <p className="text-[11px] text-wm-text-muted leading-relaxed max-w-3xl">
-          We partner with a small set of platforms and creators that share our standard for disciplined, education-first
-          trading. Every partnership below is hand-selected — no pay-to-list. Explore what they offer and grow alongside
-          the Wealthy Mindsets community.
+          Partner listings remain hidden until the organization, destination, relationship, and claims have been verified.
+          No unverified endorsement or outbound partner link is shown.
         </p>
       </div>
 
@@ -107,6 +93,13 @@ export default function PartnershipsPage() {
             </div>
           </motion.div>
         ))}
+        {PARTNERS.length === 0 && (
+          <div className="rounded-2xl border border-wm-border bg-wm-dark p-10 text-center">
+            <ShieldCheck size={26} className="mx-auto mb-3 text-wm-gold" />
+            <p className="text-sm font-black text-wm-text">No verified partners published yet</p>
+            <p className="mt-1 text-[11px] text-wm-text-muted">Verified relationships will appear here with an official destination and disclosure.</p>
+          </div>
+        )}
 
         {/* ── Become a partner ─────────────────────────────── */}
         <div className="rounded-2xl border border-dashed border-wm-border bg-wm-dark/50 p-4 flex items-center gap-3">
