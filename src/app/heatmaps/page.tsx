@@ -250,8 +250,10 @@ const SECTORS: Sector[] = [
 // Only the periods our /api/heatmap endpoint actually supports
 const TIMEFRAMES = ["1D","1W","1M","3M","6M","1Y","5Y"];
 // Only expose universes we can currently populate with observed free data.
-// "World" and "Full" previously repeated the S&P dataset under a different label.
-const VIEWS = ["S&P 500", "VP"];
+// "World" and "Full" previously repeated the S&P dataset under a different label,
+// so they stay out. "Markov" is restored: it's an honest regime proxy derived from
+// each sector ETF's REAL period return (see computeMarkovState), not a synthetic model.
+const VIEWS = ["S&P 500", "Markov", "VP"];
 
 /* ═══════════════════════════════════════════════════════════
    MARKOV REGIME HEATMAP

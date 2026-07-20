@@ -2,7 +2,8 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
-import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target } from "lucide-react";
+import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity } from "lucide-react";
+import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
 import { ChartToolbar } from "./ChartToolbar";
 import { MainChart } from "./MainChart";
 import { WatchlistGrid } from "./WatchlistGrid";
@@ -274,6 +275,8 @@ export function ChartsDashboard() {
   const [sessionVPOpen, setSessionVPOpen] = useState(false);
   // Show open paper-trade positions as horizontal entry lines w/ live P&L on the chart.
   const [paperTradesOn, setPaperTradesOn] = useState(true);
+  // Smart Money read-out panel (real order-flow signals; honest N/A for feeds we lack).
+  const [smartMoneyOpen, setSmartMoneyOpen] = useState(false);
 
   // ── WM VP indicators (draw ON chart canvas) ─────────────────
   const [fixedVPActive,   setFixedVPActive]   = useState<boolean>(() => lsGet("wm_fixedVP", false) as boolean);
@@ -889,6 +892,19 @@ export function ChartsDashboard() {
               </AnimatePresence>
 
               <button
+                onClick={() => setSmartMoneyOpen(o => !o)}
+                className={`flex items-center gap-1 px-2 h-6 rounded text-[12px] font-semibold border transition-all`}
+                style={{
+                  background: smartMoneyOpen ? "rgba(139,92,246,0.15)" : "#131520",
+                  borderColor: smartMoneyOpen ? "rgba(139,92,246,0.45)" : "#1E2030",
+                  color: smartMoneyOpen ? "#8B5CF6" : "#8B8FA8",
+                }}
+                title="Smart Money — real order-flow read (VWAP, CVD, imbalance); honest N/A for feeds we don't have"
+              >
+                <Activity size={10} /> Smart Money
+              </button>
+
+              <button
                 onClick={() => setPaperTradesOn(o => !o)}
                 className={`flex items-center gap-1 px-2 h-6 rounded text-[12px] font-semibold border transition-all`}
                 style={{
@@ -1303,6 +1319,7 @@ export function ChartsDashboard() {
       <BottomIndexBar />
 
       {pnlOpen && <PnLStatsPanel onClose={() => setPnlOpen(false)} />}
+      {smartMoneyOpen && <SmartMoneyPanel onClose={() => setSmartMoneyOpen(false)} symbol={symbol} />}
       {brokerOpen && <BrokerConnectPanel onClose={() => setBrokerOpen(false)} />}
       <AnimatePresence>
         {indSettingsFor && (
