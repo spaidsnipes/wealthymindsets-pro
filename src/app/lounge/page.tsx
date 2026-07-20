@@ -536,16 +536,7 @@ const LOUNGE_THEMES = [
   { id: "royal",   name: "Royal Purple",   grad: "linear-gradient(120deg, #180e2e, #2e1a4a 50%, #0f0a1a)", accent: "#8B5CF6" },
 ];
 
-const LOUNGE_TOP8 = [
-  { name: "SpaidFX",       color: "#00D4AA", avatar: "S" },
-  { name: "WealthQueen",   color: "#8B5CF6", avatar: "W" },
-  { name: "TradeMuse",     color: "#4FA3E0", avatar: "T" },
-  { name: "NQ_Sniper",     color: "#F0B429", avatar: "N" },
-  { name: "GoldRush",      color: "#FF6B9D", avatar: "G" },
-  { name: "ChartFanatics", color: "#FF4D6A", avatar: "C" },
-  { name: "CryptoKing",    color: "#00C853", avatar: "K" },
-  { name: "TapeReader",    color: "#E8B923", avatar: "T" },
-];
+const LOUNGE_TOP8: { name: string; color: string; avatar: string }[] = [];
 const LOUNGE_CREATOR_SHEET = "/images/community/wm-radio-creator-grid-v1.png";
 const LOUNGE_CREATOR_POSITIONS = ["0% 0%", "50% 0%", "100% 0%", "0% 100%", "50% 100%", "100% 100%"];
 function loungeCreatorArt(index: number): React.CSSProperties {
@@ -643,7 +634,9 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
                 <span className="text-[9px] text-wm-text-dim">· Top 8</span>
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
-                {LOUNGE_TOP8.map((m, index) => (
+                {LOUNGE_TOP8.length === 0 ? (
+                  <span className="text-[10px] text-wm-text-dim">Add real members to build your Circle of Excellence.</span>
+                ) : LOUNGE_TOP8.map((m, index) => (
                   <div key={m.name} className="rounded-full p-[2px]" title={m.name} style={{ background: `linear-gradient(135deg, ${theme.accent}, ${m.color})` }}>
                     <div className="w-8 h-8 rounded-full" style={{ ...loungeCreatorArt(index), border: "2px solid #0D0E14" }} />
                   </div>
@@ -656,21 +649,18 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
                 <div className="w-3 h-3 rounded-full" style={{ background: theme.accent }} />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[10px] font-bold text-wm-text truncate">{theme.name} — Lo-Fi Set</div>
+                <div className="text-[10px] font-bold text-wm-text truncate">No track selected</div>
                 <div className="flex items-end gap-[2px] mt-1" style={{ height: 12 }}>
                   {Array.from({ length: 34 }).map((_, i) => { const h = Math.min(100, 22 + Math.abs(Math.sin(i * 0.6)) * 78); return <div key={i} style={{ flex: 1, height: `${h}%`, borderRadius: 1, background: `${theme.accent}99` }} />; })}
                 </div>
               </div>
-              <Play size={15} style={{ color: theme.accent }} className="shrink-0" />
             </div>
           </div>
 
           {/* Achievement badges */}
           <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
             <span className="text-[9px] font-black uppercase tracking-widest shrink-0 mr-1" style={{ color: theme.accent }}>Badges</span>
-            {[{ e: "🏆", c: "#E8B923" }, { e: "🥇", c: "#F0B429" }, { e: "💎", c: "#4FA3E0" }, { e: "🔥", c: "#FF4D6A" }, { e: "📈", c: "#00D4AA" }, { e: "🎧", c: "#8B5CF6" }, { e: "👑", c: "#E8B923" }, { e: "⭐", c: "#F0B429" }].map((b, i) => (
-              <div key={i} className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-[15px]" style={{ background: `${b.c}18`, border: `1px solid ${b.c}40` }}>{b.e}</div>
-            ))}
+            <span className="text-[10px] text-wm-text-dim">Earned badges will appear here.</span>
           </div>
         </div>
       </div>

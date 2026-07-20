@@ -91,70 +91,59 @@ interface Artist {
 const STATIONS: Station[] = [
   {
     id:"wm-main", name:"WM Radio", genre:"All Genres", host:"SpaidFX",
-    desc:"The official WealthyMindsets station — trading vibes, hip-hop, R&B, and more. Live 24/7.",
-    color:"#00D4AA", live:true, listeners:1842, avatar:"W",
+    desc:"The official WealthyMindsets station concept. A real stream has not been connected yet.",
+    color:"#00D4AA", live:false, listeners:0, avatar:"W",
     tags:["#Trading","#HipHop","#RnB","#Lofi"],
   },
   {
     id:"wm-hiphop", name:"WM Hip-Hop", genre:"Hip-Hop / Rap", host:"TradeMuse",
     desc:"The hardest bars from the WM community. Trading culture meets street culture.",
-    color:"#F0B429", live:true, listeners:934, avatar:"H",
+    color:"#F0B429", live:false, listeners:0, avatar:"H",
     tags:["#HipHop","#Rap","#Drill","#Trap"],
   },
   {
     id:"wm-lofi", name:"WM Lo-Fi", genre:"Lo-Fi / Chill", host:"WealthQueen",
     desc:"Study beats, chart sessions, late-night lofi. Perfect focus music for traders.",
-    color:"#8B5CF6", live:true, listeners:1207, avatar:"L",
+    color:"#8B5CF6", live:false, listeners:0, avatar:"L",
     tags:["#Lofi","#Chill","#Study","#Beats"],
   },
   {
     id:"wm-rnb", name:"WM R&B", genre:"R&B / Soul", host:"GoldRush",
     desc:"Smooth R&B from WM creators. Vibes for the winners.",
-    color:"#FF6B9D", live:false, listeners:621, avatar:"R",
+    color:"#FF6B9D", live:false, listeners:0, avatar:"R",
     tags:["#RnB","#Soul","#Vibes"],
   },
   {
     id:"wm-beats", name:"WM Beats", genre:"Beats / Instrumentals", host:"ChartFanatics",
     desc:"Pure instrumentals, sample packs, and production from WM producers.",
-    color:"#4FA3E0", live:false, listeners:445, avatar:"B",
+    color:"#4FA3E0", live:false, listeners:0, avatar:"B",
     tags:["#Beats","#Instrumental","#Production"],
   },
   {
     id:"wm-global", name:"WM Global", genre:"World / Afro", host:"Various",
     desc:"International sounds from creators worldwide. Afrobeats, dancehall, reggaeton and more.",
-    color:"#00C853", live:false, listeners:388, avatar:"G",
+    color:"#00C853", live:false, listeners:0, avatar:"G",
     tags:["#Afrobeats","#Dancehall","#World"],
   },
 ];
 
 const TRACKS: Track[] = [
-  { id:1,  title:"Green Candles",     artist:"TradeMuse",    album:"Market Hours",  genre:"Hip-Hop", duration:178, plays:"124K", color:"#00D4AA", liked:true,  verified:true,  new:false },
-  { id:2,  title:"Paper Hands",       artist:"WealthQueen",  album:"Diamond Mind",  genre:"R&B",     duration:222, plays:"98K",  color:"#8B5CF6", liked:false, verified:true,  new:false },
-  { id:3,  title:"Wyckoff Dreams",    artist:"SpaidFX",      album:"Order Flow",    genre:"Trap",    duration:252, plays:"87K",  color:"#4FA3E0", liked:true,  verified:true,  new:false },
-  { id:4,  title:"Diamond Hands",     artist:"NQ_Sniper",    album:"Conviction",    genre:"Drill",   duration:201, plays:"76K",  color:"#F0B429", liked:false, verified:true,  new:true  },
-  { id:5,  title:"Order Flow",        artist:"ChartFanatics",album:"The Setup",     genre:"Lo-fi",   duration:245, plays:"64K",  color:"#FF4D6A", liked:false, verified:false, new:false },
-  { id:6,  title:"Smart Money Moves", artist:"WealthQueen",  album:"Diamond Mind",  genre:"R&B",     duration:198, plays:"59K",  color:"#8B5CF6", liked:true,  verified:true,  new:false },
-  { id:7,  title:"Conviction",        artist:"SpaidFX",      album:"Order Flow",    genre:"Hip-Hop", duration:215, plays:"52K",  color:"#4FA3E0", liked:false, verified:true,  new:true  },
+  { id:1, title:"China", artist:"Randy Music Beat", album:"Archive.org", genre:"Hip-Hop", duration:178, plays:"Archive.org", color:"#00D4AA", liked:false, verified:false, new:false },
+  { id:2, title:"Free Piano Instrumental", artist:"Adi Rambo", album:"Archive.org", genre:"R&B", duration:222, plays:"Archive.org", color:"#8B5CF6", liked:false, verified:false, new:false },
+  { id:3, title:"Garden Flower", artist:"Dontcry & Nokiaa", album:"Archive.org", genre:"Lo-fi", duration:252, plays:"Archive.org", color:"#4FA3E0", liked:false, verified:false, new:false },
+  { id:4, title:"Dark Hip Hop Trap Beat", artist:"Adi Rambo", album:"Archive.org", genre:"Trap", duration:201, plays:"Archive.org", color:"#F0B429", liked:false, verified:false, new:false },
+  { id:5, title:"Watch The Sky", artist:"Brentin Davis", album:"Archive.org", genre:"Ambient", duration:245, plays:"Archive.org", color:"#FF4D6A", liked:false, verified:false, new:false },
+  { id:6, title:"Send Her In Gold", artist:"Brentin Davis", album:"Archive.org", genre:"R&B", duration:198, plays:"Archive.org", color:"#8B5CF6", liked:false, verified:false, new:false },
+  { id:7, title:"Ghost House", artist:"Randy Music Beat", album:"Archive.org", genre:"Hip-Hop", duration:215, plays:"Archive.org", color:"#4FA3E0", liked:false, verified:false, new:false },
 ];
 
-const EPISODES: Episode[] = [
-  { id:1, title:"How I Turned $5K Into $50K Trading NQ Futures",    show:"WM Podcast",      host:"SpaidFX",            desc:"Full breakdown of the exact strategy, risk management, and psychology that drove a 10x return in 11 months trading the E-mini NASDAQ-100.", duration:4920, date:"Jun 14, 2026", plays:"42.3K", color:"#00D4AA", tags:["#NQ","#Futures","#Risk","#Psychology"] },
-  { id:2, title:"The CLC Rule: Finding High-Conviction Entries",     show:"WM Podcast",      host:"SpaidFX & TradeMuse", desc:"We break down the Context-Location-Confirmation rule that separates amateur entries from professional setups. Real trade examples included.",           duration:3780, date:"Jun 10, 2026", plays:"38.7K", color:"#F0B429", tags:["#CLC","#EntryModel","#SmartMoney"] },
-  { id:3, title:"Music & Markets: Building a Brand as a Creator",    show:"Creator Sessions", host:"WealthQueen",         desc:"How I built a 6-figure creator business combining my love of music and trading. The blueprint for other trader-creators.",                          duration:3240, date:"Jun 7, 2026",  plays:"31.2K", color:"#8B5CF6", tags:["#Creator","#Music","#Brand","#Business"] },
-  { id:4, title:"Wyckoff Method Deep Dive: Phases A Through E",      show:"WM Podcast",      host:"NQ_Sniper",           desc:"A masterclass on the Wyckoff Method with real NQ examples. Spring, upthrust, and markup — all explained with chart context.",                    duration:5100, date:"Jun 3, 2026",  plays:"28.4K", color:"#FF4D6A", tags:["#Wyckoff","#Accumulation","#Distribution"] },
-  { id:5, title:"Order Flow 101: Reading Footprint Charts Like a Pro",show:"WM Podcast",     host:"TradeMuse",           desc:"Everything you need to know about order flow — delta, CVD, passive vs aggressive orders, and how to use them for better timing.",                  duration:4320, date:"May 28, 2026", plays:"25.1K", color:"#4FA3E0", tags:["#OrderFlow","#Footprint","#CVD","#Delta"] },
-  { id:6, title:"Beat Making for Traders: Production While You Chart",show:"Creator Sessions",host:"WealthQueen & GoldRush",desc:"We link up in the studio and talk about making music that captures the energy of trading. Tools, workflow, and the creative process.",          duration:2880, date:"May 22, 2026", plays:"19.8K", color:"#FF6B9D", tags:["#Music","#Production","#Creator"] },
-  { id:7, title:"Smart Money Concepts: The Full Breakdown",          show:"WM Podcast",      host:"SpaidFX",            desc:"ICT concepts, order blocks, fair value gaps, and breaker blocks — the complete guide to trading like the institutions.",                          duration:3600, date:"May 15, 2026", plays:"17.2K", color:"#00C853", tags:["#SMC","#ICT","#OrderBlocks","#FVG"] },
-];
+const EPISODES: Episode[] = [];
 
 const ARTISTS: Artist[] = [
-  { id:1, name:"SpaidFX",      handle:"@spaidedfx",     genre:"Hip-Hop / Trap",  tracks:24, followers:"18.4K", color:"#00D4AA", avatar:"S", verified:true,  wm_team:true,  bio:"CEO of WealthyMindsets. Trader, artist, educator. NQ futures specialist." },
-  { id:2, name:"WealthQueen",  handle:"@wealthqueenfx", genre:"R&B / Soul",      tracks:18, followers:"14.2K", color:"#8B5CF6", avatar:"W", verified:true,  wm_team:true,  bio:"R&B singer, trader, and creator. Building wealth through music and markets." },
-  { id:3, name:"TradeMuse",    handle:"@trademuse",     genre:"Lo-fi / Hip-Hop", tracks:31, followers:"12.7K", color:"#4FA3E0", avatar:"T", verified:true,  wm_team:true,  bio:"Lo-fi producer and Hip-Hop artist. Market hours are studio hours." },
-  { id:4, name:"NQ_Sniper",    handle:"@nqsniper",      genre:"Drill / Trap",    tracks:15, followers:"9.8K",  color:"#F0B429", avatar:"N", verified:true,  wm_team:false, bio:"Precision trader and drill artist. I don't miss entries and I don't miss bars." },
-  { id:5, name:"GoldRush",     handle:"@goldrushfx",    genre:"Trap / Afrobeats",tracks:22, followers:"7.3K",  color:"#FF6B9D", avatar:"G", verified:false, wm_team:false, bio:"Gold market trader by day, Afrobeats producer by night. Both are rhythm games." },
-  { id:6, name:"ChartFanatics",handle:"@chartfanatics", genre:"Lo-fi / Ambient", tracks:11, followers:"5.9K",  color:"#FF4D6A", avatar:"C", verified:false, wm_team:false, bio:"Ambient and Lo-fi beats for late-night chart sessions. All original production." },
-  { id:7, name:"CryptoKing",   handle:"@cryptoking",    genre:"Hip-Hop",         tracks:9,  followers:"4.4K",  color:"#00C853", avatar:"K", verified:false, wm_team:false, bio:"BTC maxi and Hip-Hop head. Rapping about the blockchain since 2018." },
+  { id:1, name:"Randy Music Beat", handle:"Archive.org credit", genre:"Hip-Hop", tracks:2, followers:"—", color:"#00D4AA", avatar:"R", verified:false, wm_team:false, bio:"Artist attribution from the linked Archive.org recordings." },
+  { id:2, name:"Adi Rambo", handle:"Archive.org credit", genre:"Hip-Hop / R&B", tracks:2, followers:"—", color:"#8B5CF6", avatar:"A", verified:false, wm_team:false, bio:"Artist attribution from the linked Archive.org recordings." },
+  { id:3, name:"Dontcry & Nokiaa", handle:"Archive.org credit", genre:"Lo-fi", tracks:1, followers:"—", color:"#4FA3E0", avatar:"D", verified:false, wm_team:false, bio:"Artist attribution from the linked Archive.org recording." },
+  { id:4, name:"Brentin Davis", handle:"Archive.org credit", genre:"R&B / Ambient", tracks:2, followers:"—", color:"#F0B429", avatar:"B", verified:false, wm_team:false, bio:"Artist attribution from the linked Archive.org recordings." },
 ];
 
 /* ══════════════════════════════════════════════════════════════
@@ -313,12 +302,7 @@ function StationCard({ station, active, onPlay, artIndex }: {
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1">
-            <Users size={10} className="text-wm-text-dim" />
-            <span className="text-[10px] font-mono text-wm-text-muted">
-              {station.listeners.toLocaleString()}
-            </span>
-          </div>
+          <span className="text-[10px] font-mono text-wm-text-muted">Stream not connected</span>
           {active ? (
             <div className="flex items-center gap-1.5">
               <LiveWave color={c} />
@@ -326,7 +310,7 @@ function StationCard({ station, active, onPlay, artIndex }: {
             </div>
           ) : (
             <span className="flex items-center gap-1 text-[10px] font-bold" style={{ color: c }}>
-              <Play size={9} className="ml-0.5" /> Tune In
+              <Play size={9} className="ml-0.5" /> Coming Soon
             </span>
           )}
         </div>
@@ -373,7 +357,9 @@ function TrackRow({ track, idx, active, playing, onPlay, liked, onToggleLike }: 
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
           <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: `${track.color}20`, color: track.color }}>{track.genre}</span>
-          <span className="text-[10px] text-wm-text-muted truncate">{track.artist} · {track.plays} plays</span>
+          <span className="text-[10px] text-wm-text-muted truncate">
+            {track.artist} · {track.plays === "Archive.org" ? "Archive.org source" : `${track.plays} plays`}
+          </span>
         </div>
       </div>
 
@@ -939,10 +925,10 @@ export default function RadioPage() {
 
           {/* Live badge */}
           <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-            style={{ background:"rgba(255,77,106,0.12)", border:"1px solid rgba(255,77,106,0.35)" }}>
-            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-            <span style={{ fontSize:10, fontWeight:800, color:"#FF4D6A", letterSpacing:0.5 }}>
-              {STATIONS.filter(s=>s.live).reduce((a,s)=>a+s.listeners,0).toLocaleString()} LIVE LISTENERS
+            style={{ background:"rgba(232,185,35,0.10)", border:"1px solid rgba(232,185,35,0.35)" }}>
+            <div className="w-1.5 h-1.5 rounded-full bg-wm-gold" />
+            <span style={{ fontSize:10, fontWeight:800, color:"#E8B923", letterSpacing:0.5 }}>
+              STREAMS NOT CONNECTED
             </span>
           </div>
         </div>
@@ -1010,24 +996,21 @@ export default function RadioPage() {
                   {/* Left copy */}
                   <div style={{ maxWidth: 420 }}>
                     <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full mb-3" style={{ background: "rgba(232,185,35,0.14)", border: "1px solid rgba(232,185,35,0.5)" }}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                      <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: 2, color: "#E8B923" }}>LIVE</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-wm-gold" />
+                      <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: 2, color: "#E8B923" }}>STUDIO PREVIEW</span>
                     </div>
                     <div className="text-[10px] font-black uppercase tracking-[0.3em] text-wm-text-muted mb-1">Featured Station</div>
                     <h2 className="font-black text-wm-text leading-none mb-2" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 40, letterSpacing: 0.5 }}>WM Radio</h2>
                     <p className="text-[12px] font-semibold mb-1" style={{ color: "#E8B923" }}>Jazz roots → hip-hop → future-forward</p>
-                    <p className="text-[11px] text-wm-text-muted mb-4" style={{ maxWidth: 360 }}>Black excellence on air, 24/7 — trading culture, hip-hop, R&B, lo-fi and more.</p>
+                    <p className="text-[11px] text-wm-text-muted mb-4" style={{ maxWidth: 360 }}>A premium home for Black excellence in music and trading culture. The live broadcast stream is not connected yet.</p>
                     <div className="flex items-center gap-4">
                       <button
                         onClick={() => activeStation === "WM Radio" ? togglePlay() : playStation("wm-main")}
                         className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[13px] transition-all hover:scale-105"
                         style={{ background: "linear-gradient(135deg, #E8B923, #059669)", color: "#0b0a06", boxShadow: "0 10px 26px rgba(232,185,35,0.32)" }}>
-                        {activeStation === "WM Radio" && playing ? <><Pause size={15}/> Pause</> : <><Play size={15} className="ml-0.5"/> Tune In</>}
+                        {activeStation === "WM Radio" && playing ? <><Pause size={15}/> Pause</> : <><Play size={15} className="ml-0.5"/> Check Stream</>}
                       </button>
-                      <div className="flex items-center gap-1.5">
-                        <Users size={12} className="text-wm-text-dim" />
-                        <span className="text-[11px] text-wm-text-muted font-mono">1,842 listening</span>
-                      </div>
+                      <span className="text-[11px] text-wm-text-muted font-mono">No live audience data</span>
                     </div>
                   </div>
 
@@ -1207,7 +1190,13 @@ export default function RadioPage() {
         {tab === "podcasts" && (
           <div>
             <div className="space-y-3">
-              {EPISODES
+              {EPISODES.length === 0 ? (
+                <div className="py-14 text-center rounded-2xl border border-wm-border/50 bg-wm-card/40">
+                  <Mic size={22} className="mx-auto mb-2 text-wm-gold" />
+                  <div className="text-sm font-bold text-wm-text">No published podcast episodes yet</div>
+                  <div className="text-[11px] text-wm-text-dim mt-1">Only real uploaded episodes will appear here.</div>
+                </div>
+              ) : EPISODES
                 .filter(e => !search || e.title.toLowerCase().includes(search.toLowerCase()) || e.host.toLowerCase().includes(search.toLowerCase()))
                 .map((ep, index) => (
                   <EpisodeCard key={ep.id} ep={ep} artIndex={index}
@@ -1223,7 +1212,7 @@ export default function RadioPage() {
         {/* ─ ARTISTS ─ */}
         {tab === "artists" && (
           <div>
-            <div className="mb-5">
+            {ARTISTS.some(a => a.wm_team) && <div className="mb-5">
               <div className="flex items-center gap-2 mb-3">
                 <Star size={13} className="text-wm-green" />
                 <span className="text-[11px] font-black text-wm-text uppercase tracking-widest">WM Team</span>
@@ -1231,7 +1220,7 @@ export default function RadioPage() {
               <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
                 {ARTISTS.filter(a => a.wm_team).map((a, index) => <ArtistCard key={a.id} artist={a} artIndex={index} />)}
               </div>
-            </div>
+            </div>}
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Users size={13} className="text-wm-text-muted" />

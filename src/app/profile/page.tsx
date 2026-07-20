@@ -26,18 +26,7 @@ const EMPTY_PROFILE: ProfileData = {
 interface TradeRow { sym: string; dir: string; entry: string; exit: string; pnl: string; rr: string; date: string; }
 interface LikedTrack { title: string; artist: string; duration: string; }
 
-/* Circle of Excellence — the member's Top 8 (MySpace-soul), seeded from the
-   WM crew for a populated feel, consistent with the community data elsewhere. */
-const CIRCLE_OF_EXCELLENCE = [
-  { name: "SpaidFX",       color: "#00D4AA", avatar: "S" },
-  { name: "WealthQueen",   color: "#8B5CF6", avatar: "W" },
-  { name: "TradeMuse",     color: "#4FA3E0", avatar: "T" },
-  { name: "NQ_Sniper",     color: "#F0B429", avatar: "N" },
-  { name: "GoldRush",      color: "#FF6B9D", avatar: "G" },
-  { name: "ChartFanatics", color: "#FF4D6A", avatar: "C" },
-  { name: "CryptoKing",    color: "#00C853", avatar: "K" },
-  { name: "TapeReader",    color: "#E8B923", avatar: "T" },
-];
+const CIRCLE_OF_EXCELLENCE: { name: string; color: string; avatar: string }[] = [];
 const PROFILE_CREATOR_SHEET = "/images/community/wm-radio-creator-grid-v1.png";
 const PROFILE_CREATOR_POSITIONS = ["0% 0%", "50% 0%", "100% 0%", "0% 100%", "50% 100%", "100% 100%"];
 function profileCreatorArt(index: number): React.CSSProperties {
@@ -488,7 +477,9 @@ export default function ProfilePage() {
               <span className="text-[10px] text-wm-text-dim">· Top 8</span>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              {CIRCLE_OF_EXCELLENCE.map((m, index) => (
+              {CIRCLE_OF_EXCELLENCE.length === 0 ? (
+                <span className="text-[10px] text-wm-text-dim">No members added yet.</span>
+              ) : CIRCLE_OF_EXCELLENCE.map((m, index) => (
                 <div key={m.name} className="flex flex-col items-center gap-1">
                   <div className="rounded-full p-[2px]" style={{ background: `linear-gradient(135deg,#E8B923,${m.color})`, boxShadow: "0 0 12px rgba(232,185,35,0.32)" }}>
                     <div className="w-11 h-11 rounded-full" style={{ ...profileCreatorArt(index), border: "2px solid #0D0E14" }} />

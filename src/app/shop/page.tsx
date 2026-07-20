@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ShoppingCart, Star, Heart, Zap, X, Plus, Minus } from "lucide-react";
+import { ShoppingCart, Heart, Info, X, Plus, Minus } from "lucide-react";
 import { clsx } from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -135,7 +135,6 @@ export default function ShopPage() {
   const [cartItems,  setCartItems]  = useState<CartItem[]>([]);
   const [wishlist,   setWishlist]   = useState<number[]>([]);
   const [cartOpen,   setCartOpen]   = useState(false);
-  const [checkoutDone, setCheckoutDone] = useState(false);
   const [detail,     setDetail]     = useState<typeof PRODUCTS[0] | null>(null);
 
   const products = PRODUCTS.filter(p =>
@@ -172,7 +171,7 @@ export default function ShopPage() {
   };
 
   const checkout = () => {
-    setCheckoutDone(true);
+    toast("Checkout is not connected yet. Your concept cart remains saved in this session.", { icon: "ℹ️" });
   };
 
   return (
@@ -191,6 +190,9 @@ export default function ShopPage() {
       <div className="flex items-center gap-3 px-4 py-2.5 border-b border-wm-border bg-wm-dark shrink-0">
         <h1 className="text-xl font-black text-wm-text" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>WM Shop</h1>
         <span className="text-[10px] text-wm-text-muted">Books · art · beauty · music · tools · culture</span>
+        <span className="rounded-full border border-[#8a6a16]/25 bg-[#E8B923]/15 px-2 py-1 text-[9px] font-black tracking-wide text-[#6f5410]">
+          CONCEPT CATALOG · CHECKOUT NOT CONNECTED
+        </span>
         <div className="ml-auto flex items-center gap-3">
           {/* Search */}
           <div className="flex items-center gap-2 bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1">
@@ -265,7 +267,7 @@ export default function ShopPage() {
                 {!productArt(product.id) && <span className="text-6xl">{product.emoji}</span>}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
 
-                <div className="absolute top-2 left-2 px-2.5 py-1 rounded-full text-[10px] font-black bg-[#E8B923] text-[#241f14] shadow">${product.price}</div>
+                <div className="absolute top-2 left-2 px-2.5 py-1 rounded-full text-[10px] font-black bg-[#E8B923] text-[#241f14] shadow">Planned ${product.price}</div>
 
                 <button onClick={e => { e.stopPropagation(); toggleWishlist(product.id); }}
                   className="absolute top-2 right-2 p-1.5 rounded-full bg-wm-surface/80 hover:bg-wm-surface transition-colors">
@@ -282,16 +284,14 @@ export default function ShopPage() {
               <div className="p-3">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <h3 className="text-sm font-bold text-wm-text leading-tight">{product.name}</h3>
-                  {product.badge && <span className="text-[8px] font-black uppercase text-wm-gold">{product.badge}</span>}
+                  <span className="text-[8px] font-black uppercase text-wm-gold">Concept</span>
                 </div>
                 <p className="text-[11px] text-wm-text-muted leading-relaxed mb-2">{product.desc}</p>
-                <div className="flex items-center gap-1 mb-3">
-                  <Star size={10} className="text-wm-gold fill-wm-gold" />
-                  <span className="text-[10px] font-semibold text-wm-gold">{product.stars}</span>
-                  <span className="text-[10px] text-wm-text-dim">({product.reviews})</span>
+                <div className="mb-3 flex items-center gap-1 text-[10px] text-wm-text-dim">
+                  <Info size={10} /> Preview item — inventory and fulfillment are not connected
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-wm-gold">${product.price.toFixed(2)}</span>
+                  <span className="text-xs font-black text-wm-gold">Planned ${product.price.toFixed(2)}</span>
                   <button onClick={e => { e.stopPropagation(); addToCart(product.id, product.name); }} className="text-[10px] font-black text-[#241f14] hover:text-wm-gold">Add to cart →</button>
                 </div>
               </div>
@@ -310,7 +310,7 @@ export default function ShopPage() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] flex items-start justify-end"
             style={{ background: "rgba(0,0,0,0.6)" }}
-            onClick={e => { if (e.target === e.currentTarget) { setCartOpen(false); setCheckoutDone(false); } }}>
+            onClick={e => { if (e.target === e.currentTarget) setCartOpen(false); }}>
             <motion.div initial={{ x: 400 }} animate={{ x: 0 }} exit={{ x: 400 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               className="h-full flex flex-col bg-wm-dark border-l border-wm-border shadow-2xl"
@@ -322,24 +322,14 @@ export default function ShopPage() {
                   <span className="font-black text-wm-text text-sm">Your Cart</span>
                   {cartCount > 0 && <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-wm-gold/20 text-wm-gold">{cartCount} items</span>}
                 </div>
-                <button onClick={() => { setCartOpen(false); setCheckoutDone(false); }}
+                <button onClick={() => setCartOpen(false)}
                   className="p-1.5 rounded-lg hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors">
                   <X size={14} />
                 </button>
               </div>
 
               <div className="flex-1 overflow-y-auto px-4 py-3">
-                {checkoutDone ? (
-                  <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
-                    <div className="text-5xl">🎉</div>
-                    <div className="text-lg font-black text-wm-green">Thank You!</div>
-                    <div className="text-sm text-wm-text-muted">Thank you! Our team will reach out to process your order. Questions? Email shop@wealthymindsets.com</div>
-                    <button onClick={() => { setCartItems([]); setCartOpen(false); setCheckoutDone(false); }}
-                      className="px-4 py-2 rounded-xl bg-wm-green/15 border border-wm-green/30 text-wm-green text-sm font-bold">
-                      Done
-                    </button>
-                  </div>
-                ) : cartItems.length === 0 ? (
+                {cartItems.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full gap-3 text-wm-text-muted">
                     <ShoppingCart size={36} className="opacity-20" />
                     <span className="text-sm">Your cart is empty</span>
@@ -379,19 +369,19 @@ export default function ShopPage() {
                 )}
               </div>
 
-              {!checkoutDone && cartItems.length > 0 && (
+              {cartItems.length > 0 && (
                 <div className="border-t border-wm-border px-5 py-4 shrink-0 space-y-3">
                   <div className="flex justify-between text-sm font-bold text-wm-text">
-                    <span>Total</span>
+                    <span>Planned total</span>
                     <span className="text-wm-gold">${cartTotal.toFixed(2)}</span>
                   </div>
                   <button onClick={checkout}
                     className="w-full py-3 rounded-xl text-sm font-black text-wm-black hover:opacity-90 transition-all"
                     style={{ background: "linear-gradient(135deg, #F0B429, #FF8C00)" }}>
-                    <Zap size={14} className="inline mr-1.5" />
-                    Checkout — ${cartTotal.toFixed(2)}
+                    <Info size={14} className="inline mr-1.5" />
+                    Checkout not connected
                   </button>
-                  <div className="text-center text-[10px] text-wm-text-dim">WealthyMindsets Official Merch</div>
+                  <div className="text-center text-[10px] text-wm-text-dim">Concept catalog only — no payment or order is submitted</div>
                 </div>
               )}
             </motion.div>
@@ -417,23 +407,19 @@ export default function ShopPage() {
                   className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
                   <X size={14} className="text-white" />
                 </button>
-                {detail.badge && (
-                  <div className="absolute top-3 left-3 px-2 py-0.5 rounded text-[9px] font-bold uppercase"
-                    style={{ background: "rgba(240,180,41,0.25)", color: "#F0B429", border: "1px solid rgba(240,180,41,0.4)" }}>
-                    {detail.badge}
-                  </div>
-                )}
+                <div className="absolute top-3 left-3 px-2 py-0.5 rounded text-[9px] font-bold uppercase"
+                  style={{ background: "rgba(240,180,41,0.25)", color: "#F0B429", border: "1px solid rgba(240,180,41,0.4)" }}>
+                  Concept preview
+                </div>
               </div>
               <div className="p-5">
                 <div className="flex items-start justify-between mb-2">
                   <h2 className="text-lg font-black text-wm-text">{detail.name}</h2>
-                  <span className="text-xl font-black text-wm-gold">${detail.price}</span>
+                  <span className="text-xl font-black text-wm-gold">Planned ${detail.price}</span>
                 </div>
                 <p className="text-sm text-wm-text-muted mb-3">{detail.desc}</p>
-                <div className="flex items-center gap-1 mb-3">
-                  <Star size={11} className="text-wm-gold fill-wm-gold" />
-                  <span className="text-xs font-semibold text-wm-gold">{detail.stars}</span>
-                  <span className="text-xs text-wm-text-dim">({detail.reviews} reviews)</span>
+                <div className="mb-3 flex items-center gap-1 text-xs text-wm-text-dim">
+                  <Info size={11} /> Specifications, availability, and fulfillment are not yet verified
                 </div>
                 <ul className="space-y-1 mb-4">
                   {detail.details.map(d => (

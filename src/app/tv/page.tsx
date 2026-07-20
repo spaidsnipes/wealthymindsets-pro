@@ -40,24 +40,20 @@ type ChatMsg = { id: string; author: string; color: string; body: string; ts: nu
 
 const SEED: Record<string, ChatMsg[]> = {};
 
-/* ── WM TV Home — cinematic "On Air" broadcast-lounge landing ──
-   Marquee LIVE ON AIR hero + a grid of shows/podcasts. The "watching"
-   count is community-level social proof (consistent with the Radio
-   listener counts already shipped); the actual Live Room stage stays
-   honest (STUDIO · READY until someone truly goes on air), so a
-   "Watch Live" click never fabricates an active broadcast. */
+/* ── WM TV Home — cinematic broadcast-lounge landing.
+   The actual Live Room stays STUDIO READY until a host starts it. */
 type Show = {
   id: string; title: string; host: string; genre: string; color: string;
   status: "upcoming"; motif: "vinyl" | "kente" | "chart";
   opens: "live" | "podcast";
 };
 const SHOWS: Show[] = [
-  { id:"morning-bell", title:"Morning Bell",           host:"SpaidFX",             genre:"Trading Room", color:"#E8B923", status:"upcoming", motif:"chart", opens:"live"    },
-  { id:"wm-podcast",   title:"The Wealthy Mindset",    host:"SpaidFX · TradeMuse", genre:"Podcast",      color:"#8B5CF6", status:"upcoming", motif:"vinyl", opens:"podcast" },
-  { id:"culture-cap",  title:"Culture & Capital",      host:"WealthQueen",         genre:"Talk",         color:"#FF6B9D", status:"upcoming", motif:"kente", opens:"podcast" },
-  { id:"order-flow",   title:"Order Flow Masterclass", host:"TradeMuse",           genre:"Education",    color:"#4FA3E0", status:"upcoming", motif:"chart", opens:"live"    },
-  { id:"after-hours",  title:"After Hours Lounge",     host:"GoldRush",            genre:"Music · Talk", color:"#059669", status:"upcoming", motif:"kente", opens:"podcast" },
-  { id:"chart-chill",  title:"Chart & Chill",          host:"ChartFanatics",       genre:"Lo-Fi",        color:"#00D4AA", status:"upcoming", motif:"vinyl", opens:"live"    },
+  { id:"morning-bell", title:"Morning Bell",           host:"Host TBD", genre:"Trading Room", color:"#E8B923", status:"upcoming", motif:"chart", opens:"live"    },
+  { id:"wm-podcast",   title:"The Wealthy Mindset",    host:"Host TBD", genre:"Podcast",      color:"#8B5CF6", status:"upcoming", motif:"vinyl", opens:"podcast" },
+  { id:"culture-cap",  title:"Culture & Capital",      host:"Host TBD", genre:"Talk",         color:"#FF6B9D", status:"upcoming", motif:"kente", opens:"podcast" },
+  { id:"order-flow",   title:"Order Flow Masterclass", host:"Host TBD", genre:"Education",    color:"#4FA3E0", status:"upcoming", motif:"chart", opens:"live"    },
+  { id:"after-hours",  title:"After Hours Lounge",     host:"Host TBD", genre:"Music · Talk", color:"#059669", status:"upcoming", motif:"kente", opens:"podcast" },
+  { id:"chart-chill",  title:"Chart & Chill",          host:"Host TBD", genre:"Lo-Fi",        color:"#00D4AA", status:"upcoming", motif:"vinyl", opens:"live"    },
 ];
 
 const TV_HERO_ART = "/images/community/wm-tv-host-studio-v1.png";
@@ -154,7 +150,7 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
                 <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(to top, rgba(11,12,18,0.85), transparent 60%)" }} />
                 <div className="absolute top-2.5 left-2.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full"
                   style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.2)" }}>
-                  <span className="text-[8px] font-black tracking-wider text-white">UPCOMING</span>
+                  <span className="text-[8px] font-black tracking-wider text-white">CONCEPT</span>
                 </div>
                 <div className="absolute right-3 bottom-3 w-9 h-9 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300"
                   style={{ background: s.color, color: "#0b0a06", boxShadow: `0 6px 16px ${s.color}88` }}>
@@ -227,7 +223,7 @@ export default function WMTVPage() {
           <div className="min-w-0">
             <p className="text-xs font-black text-wm-text truncate">Wealthy Mindsets TV</p>
             <p className="text-[9px] text-wm-text-muted flex items-center gap-1">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-wm-red animate-pulse" /> ON AIR · Channel Guide
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-wm-green" /> STUDIO READY · Channel Guide
             </p>
           </div>
         </div>
@@ -242,11 +238,11 @@ export default function WMTVPage() {
           >
             <Sparkles size={13} className="shrink-0" style={{ color: "#E8B923" }} />
             <span className="text-xs font-bold truncate">Featured</span>
-            <span className="ml-auto text-[8px] font-black" style={{ color: "#E8B923" }}>ON AIR</span>
+            <span className="ml-auto text-[8px] font-black" style={{ color: "#E8B923" }}>HOME</span>
           </button>
 
           {/* Live / Voice */}
-          <p className="px-3 pt-3 py-1 text-[9px] font-black uppercase tracking-wider text-wm-text-muted">📺 On Air</p>
+          <p className="px-3 pt-3 py-1 text-[9px] font-black uppercase tracking-wider text-wm-text-muted">📺 Studios</p>
           {STAGE_CHANNELS.map(c => (
             <button
               key={c.id}
@@ -257,7 +253,7 @@ export default function WMTVPage() {
             >
               {c.kind === "live" ? <Radio size={13} className="text-wm-red shrink-0" /> : <Podcast size={13} className="text-wm-purple shrink-0" />}
               <span className="text-xs font-bold truncate">{c.name}</span>
-              {c.kind === "live" && <span className="ml-auto text-[8px] font-black text-wm-red">LIVE</span>}
+              {c.kind === "live" && <span className="ml-auto text-[8px] font-black text-wm-green">READY</span>}
             </button>
           ))}
 
