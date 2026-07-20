@@ -117,29 +117,7 @@ export function useSupabase(): boolean {
 const SB_URL  = () => process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SB_KEY  = () => (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!;
 
-// Admin API — auto-confirms email so users can sign in immediately on any device.
-// Uses service role key which bypasses email confirmation.
 export async function supabaseSignUp(email: string, password: string) {
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (serviceKey) {
-    // Use admin endpoint to create user with email auto-confirmed
-    const res = await fetch(`${SB_URL()}/auth/v1/admin/users`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-      },
-      body: JSON.stringify({ email, password, email_confirm: true }),
-    });
-    const data = await res.json();
-    // Admin API returns { id, email, ... } directly on success (no .user wrapper)
-    // Normalize to { user, error } shape our caller expects
-    if (data.id) return { user: data, error: null };
-    // Handle "User already registered" or other errors
-    return { user: null, error: { message: data.msg ?? data.message ?? "Signup failed" } };
-  }
-  // Fallback: regular signup (email confirmation may be required)
   const res = await fetch(`${SB_URL()}/auth/v1/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: SB_KEY() },
@@ -148,11 +126,11 @@ export async function supabaseSignUp(email: string, password: string) {
   return res.json();
 }
 
-export async function supabaseResetPassword(email: string) {
+export async function supabaseResetPassword(email: string, redirectTo: string) {
   const res = await fetch(`${SB_URL()}/auth/v1/recover`, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: SB_KEY() },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, redirect_to: redirectTo }),
   });
   return res.ok;
 }

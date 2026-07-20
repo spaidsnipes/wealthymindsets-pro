@@ -8,8 +8,8 @@ import { useSearchParams } from "next/navigation";
 
 const FEATURES = [
   { icon: TrendingUp, text: "Professional order flow charts" },
-  { icon: Zap,        text: "AI-powered trading signals" },
-  { icon: Shield,     text: "Real-time smart money tracking" },
+  { icon: Zap,        text: "Live market data with source-aware tools" },
+  { icon: Shield,     text: "Order flow and volume analysis" },
 ];
 
 export default function LoginPageWrapper() {
@@ -57,6 +57,9 @@ function LoginPage() {
         } else {
           setError(result.error);
         }
+      } else if (result.verificationRequired) {
+        setSuccess("Check your email to verify your account, then return here to sign in.");
+        setMode("login");
       }
       return;
     }
@@ -164,7 +167,7 @@ function LoginPage() {
 
         {/* Bottom stats */}
         <div className="relative z-10 p-12 grid grid-cols-3 gap-6">
-          {[["10K+","Members"],["$2.4M","Tracked P&L"],["98%","Uptime"]].map(([val, lbl]) => (
+          {[["Real data","Market tools"],["Private","Trade journal"],["Source-aware","Analytics"]].map(([val, lbl]) => (
             <div key={lbl}>
               <div className="text-[22px] font-black text-white">{val}</div>
               <div className="text-[11px] text-[#5A6575] font-medium">{lbl}</div>

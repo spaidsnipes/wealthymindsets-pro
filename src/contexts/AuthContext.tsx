@@ -30,7 +30,7 @@ export interface WMUser {
 interface AuthState {
   user:       WMUser | null;
   loading:    boolean;
-  signUp:     (email: string, password: string) => Promise<{ error?: string }>;
+  signUp:     (email: string, password: string) => Promise<{ error?: string; verificationRequired?: boolean }>;
   signIn:     (email: string, password: string) => Promise<{ error?: string }>;
   signOut:    () => Promise<void>;
   signOutAllDevices: () => Promise<void>;
@@ -50,7 +50,7 @@ const AuthContext = createContext<AuthState>({
 
 export function useAuth() { return useContext(AuthContext); }
 
-const PUBLIC_PATHS = ["/login", "/signup"];
+const PUBLIC_PATHS = ["/login", "/signup", "/reset-password"];
 
 const SESSION_KEY = "wm_session_v1";
 
@@ -142,6 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     const data = await res.json();
     if (!res.ok) return { error: data.error ?? "Signup failed" };
+    if (data.verificationRequired) return { verificationRequired: true };
     await refreshUser();
     return {};
   }, [refreshUser]);

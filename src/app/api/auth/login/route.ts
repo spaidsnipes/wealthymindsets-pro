@@ -5,9 +5,6 @@ import {
 } from "@/lib/auth";
 import { sendLoginAlertEmail, loginAlertDetailsFromRequest } from "@/lib/email";
 
-const SB_URL  = () => process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SB_SVC  = () => process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
 // Long-lived, httpOnly marker cookie that identifies a browser we've already
 // seen sign in. Absent = a genuinely new device → send the sign-in alert email.
 // Present = returning device → stay quiet so users aren't spammed every login.
@@ -44,34 +41,6 @@ function alertIfNewDevice(req: Request, res: NextResponse, email?: string) {
   }
 }
 
-// Confirm a user's email via admin API so they can immediately sign in.
-// Called when Supabase returns "Email not confirmed" for an existing account.
-async function adminConfirmEmail(email: string): Promise<boolean> {
-  const serviceKey = SB_SVC();
-  if (!serviceKey) return false;
-  try {
-    // Search for user by email
-    const listRes = await fetch(`${SB_URL()}/auth/v1/admin/users?email=${encodeURIComponent(email)}`, {
-      headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
-    });
-    const listData = await listRes.json();
-    const user = listData?.users?.[0];
-    if (!user?.id) return false;
-
-    // Confirm their email
-    const updateRes = await fetch(`${SB_URL()}/auth/v1/admin/users/${user.id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-      },
-      body: JSON.stringify({ email_confirm: true }),
-    });
-    return updateRes.ok;
-  } catch { return false; }
-}
-
 export async function POST(req: Request) {
   const { email, password } = await req.json().catch(() => ({})) as Record<string, string>;
   if (!email || !password) return NextResponse.json({ error: "Email and password required" }, { status: 400 });
@@ -85,11 +54,6 @@ export async function POST(req: Request) {
     let data: any;
     try {
       data = await supabaseSignIn(email, password);
-      // Auto-confirm unconfirmed users (accounts created before this fix) then retry
-      if (data?.error?.message?.toLowerCase().includes("email not confirmed")) {
-        const confirmed = await adminConfirmEmail(email);
-        if (confirmed) data = await supabaseSignIn(email, password);
-      }
     } catch (e) {
       console.error("[login] Supabase sign-in threw — auth backend unreachable/misconfigured:", e);
       return NextResponse.json(
@@ -158,6 +122,12 @@ export async function POST(req: Request) {
   }
 
   /* ── In-memory path ── */
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { error: "Sign-in is unavailable because the account service is not configured." },
+      { status: 503 },
+    );
+  }
   const user = [...userStore.values()].find(u => u.email.toLowerCase() === email.toLowerCase());
   if (!user || !verifyPassword(password, user.passwordHash)) {
     return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });

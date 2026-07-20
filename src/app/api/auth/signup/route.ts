@@ -15,6 +15,12 @@ export async function POST(req: Request) {
     const data = await supabaseSignUp(email, password);
     if (data.error) return NextResponse.json({ error: data.error.message ?? "Signup failed" }, { status: 400 });
     const user = data.user;
+    if (!user?.id) return NextResponse.json({ error: "Signup service returned an invalid response" }, { status: 502 });
+    // Supabase may require email verification and omit a session. Do not create
+    // an application session until the address has actually been verified.
+    if (!data.access_token && !data.session?.access_token) {
+      return NextResponse.json({ ok: true, verificationRequired: true });
+    }
     const jwt = signJWT({ sub: user.id, email: user.email, profileComplete: false });
     const res = NextResponse.json({ ok: true });
     setAuthCookie(res.cookies, jwt);
@@ -25,6 +31,12 @@ export async function POST(req: Request) {
   }
 
   /* ── In-memory path (dev/demo) ── */
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { error: "Signup is unavailable because the account service is not configured." },
+      { status: 503 },
+    );
+  }
   const existing = [...userStore.values()].find(u => u.email.toLowerCase() === email.toLowerCase());
   if (existing) return NextResponse.json({ error: "An account with that email already exists" }, { status: 409 });
 
