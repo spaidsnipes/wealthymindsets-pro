@@ -488,6 +488,11 @@ function StrategyCoach({ entries }: { entries: JournalEntry[] }) {
 
 /* ── Main component ──────────────────────────────────────── */
 const JOURNAL_KEY = "wm_journal_entries";
+const LEGACY_DEMO_TRADES = new Set([
+  "1|2025-06-14|NQ1!",
+  "2|2025-06-14|TSLA",
+  "3|2025-06-13|ES1!",
+]);
 
 export default function JournalPage() {
   const { earnWMS } = useWMS();
@@ -495,7 +500,9 @@ export default function JournalPage() {
     if (typeof window === "undefined") return [];
     try {
       const saved = JSON.parse(localStorage.getItem(JOURNAL_KEY) ?? "null");
-      return Array.isArray(saved) ? saved : [];
+      return Array.isArray(saved)
+        ? saved.filter((e: JournalEntry) => !LEGACY_DEMO_TRADES.has(`${e.id}|${e.date}|${e.symbol}`))
+        : [];
     } catch { return []; }
   });
   // Persist journal to localStorage whenever entries changes

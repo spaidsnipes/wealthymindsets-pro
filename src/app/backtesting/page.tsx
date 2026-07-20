@@ -19,12 +19,10 @@ type BacktestResult = BTResult;
 
 const SYMBOLS = ["NQ1!", "ES1!", "AAPL", "TSLA", "NVDA", "BTC", "SPY", "GC1!"];
 const STRATEGIES = [
-  { id: "clc",        label: "CLC Rule — Order Flow",      desc: "Context + Location + Confirmation" },
+  { id: "clc",        label: "CLC Rule — OHLCV",           desc: "EMA context + ATR location + volume confirmation" },
   { id: "vwap",       label: "VWAP Deviation Fade",        desc: "Mean reversion at ±2σ" },
   { id: "wyckoff",    label: "Wyckoff Spring / UTAD",      desc: "Phase C accumulation/distribution" },
   { id: "momentum",   label: "Breakout Momentum",          desc: "Volume-confirmed range breaks" },
-  { id: "cvd",        label: "CVD Divergence",             desc: "Price/volume divergence signals" },
-  { id: "darkpool",   label: "Dark Pool Accumulation",     desc: "Off-exchange block trade direction" },
 ];
 const TIMEFRAMES = ["1m","2m","5m","15m","30m","1h","D","W","M"];
 const DATE_RANGES = [

@@ -102,7 +102,7 @@ function rollingAvg(vals: number[], i: number, n: number): number {
 
 /* ── Per-strategy entry signal: returns +1 long, -1 short, 0 none ─── */
 function signalAt(strategyId: string, bars: Bar[], i: number, ind: {
-  emaF: number[]; emaS: number[]; atr: number[]; cvd: number[];
+  emaF: number[]; emaS: number[]; atr: number[];
 }): number {
   if (i < 25) return 0;
   const b = bars[i];
@@ -151,23 +151,6 @@ function signalAt(strategyId: string, bars: Bar[], i: number, ind: {
       if (!up && near && !bull && conf) return -1;
       return 0;
     }
-    case "cvd": {
-      // Divergence between price low/high and cumulative volume delta.
-      const pLowNow  = b.low  < rollingMin(bars.map(x => x.low),  i, 10);
-      const pHighNow = b.high > rollingMax(bars.map(x => x.high), i, 10);
-      const cvdUp    = ind.cvd[i] > rollingMin(ind.cvd, i, 10);
-      const cvdDn    = ind.cvd[i] < rollingMax(ind.cvd, i, 10);
-      if (pLowNow && cvdUp)  return 1;  // price LL, CVD HL → bullish divergence
-      if (pHighNow && cvdDn) return -1; // price HH, CVD LH → bearish divergence
-      return 0;
-    }
-    case "darkpool": {
-      // Absorption: tiny-range bar on heavy volume = block accumulation/distribution.
-      const absorb = range < ind.atr[i] * 0.6 && b.volume > avgVol * 2;
-      if (absorb && bull)  return 1;
-      if (absorb && !bull) return -1;
-      return 0;
-    }
     default: {
       void closes;
       return 0;
@@ -186,9 +169,7 @@ export function runRealBacktest(
   const emaF = ema(bars.map(b => b.close), 9);
   const emaS = ema(bars.map(b => b.close), 21);
   const atrA = atr(bars, 14);
-  const cvd: number[] = []; let run = 0;
-  bars.forEach(b => { run += (b.close >= b.open ? 1 : -1) * b.volume; cvd.push(run); });
-  const ind = { emaF, emaS, atr: atrA, cvd };
+  const ind = { emaF, emaS, atr: atrA };
 
   const trades: BTTrade[] = [];
   const equityCurve: { t: number; v: number }[] = [{ t: bars[0]?.time ?? 0, v: START }];

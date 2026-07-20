@@ -29,6 +29,15 @@ async function getLiveVideoId(channelId: string): Promise<string | null> {
     });
 
     const html = await res.text();
+    // A channel /live page can contain IDs for recent/recommended recordings even
+    // when the channel is offline. Never label one of those videos "LIVE".
+    const isLiveNow =
+      /"isLiveNow"\s*:\s*true/.test(html) ||
+      /"isLive"\s*:\s*true/.test(html);
+    if (!isLiveNow) {
+      CACHE.set(channelId, { videoId: null, ts: Date.now() });
+      return null;
+    }
 
     // Method 1: extract from canonical URL in <head>
     const canonicalMatch = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})"/);
