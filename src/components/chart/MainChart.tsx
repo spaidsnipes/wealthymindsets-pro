@@ -5411,27 +5411,28 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         tickSz = tickCands.reduce((best, v) =>
           Math.abs(v - tickSz) < Math.abs(best - tickSz) ? v : best, tickCands[0]);
 
-        const volMap = new Map<number, { bid: number; ask: number }>();
+        // VP is a TOTAL-volume study. Historical OHLCV gives us truthful bar volume
+        // and high/low ranges, but not aggressor-side volume at each price. Spread
+        // each bar's observed volume evenly across only the price buckets it touched.
+        // Bid/ask footprint modes remain tape-only elsewhere.
+        const volMap = new Map<number, number>();
         barsToUse.forEach(b => {
-          // Sample each bar at (at least) the display-grid resolution so its volume
-          // fills EVERY bucket across its high–low range. A fixed 10 levels left empty
-          // buckets between the samples on the fine 100-row grid → the "spaced-out
-          // sticks / gaps" look. This distributes the SAME real volume more finely
-          // (never synthetic), capped at the 120-level sub-grid.
-          const nLvls = Math.max(10, Math.min(120, Math.ceil((b.high - b.low) / tickSz) + 2));
-          const lvls = getBarFootprint(b, nLvls);
-          lvls.forEach(lv => {
-            const key = Math.round(lv.priceLevel / tickSz) * tickSz;
-            const ex  = volMap.get(key) ?? { bid: 0, ask: 0 };
-            volMap.set(key, { bid: ex.bid + lv.bid, ask: ex.ask + lv.ask });
-          });
+          if (!(b.volume > 0) || !(b.high >= b.low)) return;
+          const first = Math.floor(b.low / tickSz);
+          const last = Math.ceil(b.high / tickSz);
+          const touched = Math.max(1, last - first + 1);
+          const perBucket = b.volume / touched;
+          for (let bucket = first; bucket <= last; bucket++) {
+            const key = bucket * tickSz;
+            volMap.set(key, (volMap.get(key) ?? 0) + perBucket);
+          }
         });
         if (volMap.size === 0) return;
         const allPrices = Array.from(volMap.keys()).sort((a, b) => a - b);
-        const maxVol    = Math.max(...Array.from(volMap.values()).map(v => v.bid + v.ask));
+        const maxVol    = Math.max(...volMap.values());
         if (maxVol === 0) return;
         let pocPrice = allPrices[0]; let pocVol = 0;
-        volMap.forEach((v, p) => { const t = v.bid + v.ask; if (t > pocVol) { pocVol = t; pocPrice = p; } });
+        volMap.forEach((v, p) => { if (v > pocVol) { pocVol = v; pocPrice = p; } });
 
         // ── Bar-WIDTH reference = 3.5× the MEDIAN populated-level volume ──────────
         // Rebuilt (was max/percentile/floor-based, which thrashed): a fixed multiple
@@ -5442,7 +5443,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // wide AND tight zoom, instead of a thin stick (max-based, outlier-crushed) or
         // a muddy block. maxVol is used ONLY as a last-resort guard against an empty
         // median, never as a scaling floor.
-        const volsAsc = Array.from(volMap.values()).map(v => v.bid + v.ask).filter(x => x > 0).sort((a, b) => a - b);
+        const volsAsc = Array.from(volMap.values()).filter(x => x > 0).sort((a, b) => a - b);
         const medVol   = volsAsc.length ? volsAsc[Math.floor(volsAsc.length / 2)] : 0;
         const widthRef = medVol > 0 ? medVol * 3.5 : (maxVol || 1);
 
@@ -5453,7 +5454,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         const MAX_VP_LABELS = 6;
         const topLabelPrices = new Set<number>(
           Array.from(volMap.entries())
-            .sort((a, b) => (b[1].bid + b[1].ask) - (a[1].bid + a[1].ask))
+            .sort((a, b) => b[1] - a[1])
             .slice(0, MAX_VP_LABELS)
             .map(e => e[0]),
         );
@@ -5469,7 +5470,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // level (above or below) holds the larger volume, until 70% of total
         // traded volume is enclosed. The highest enclosed price = VAH, the
         // lowest = VAL — exactly the standard market-profile value area.
-        const volAt = (p: number) => { const v = volMap.get(p); return v ? v.bid + v.ask : 0; };
+        const volAt = (p: number) => volMap.get(p) ?? 0;
         const totalVol = allPrices.reduce((s, p) => s + volAt(p), 0);
         let pocIdx = allPrices.indexOf(pocPrice);
         if (pocIdx < 0) pocIdx = 0;
@@ -5549,8 +5550,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         let lastLabelY = -Infinity; // de-overlap volume labels
         for (let i = 0; i < nBuckets; i++) {
           const price = Math.round((loKey + i * tickSz) / tickSz) * tickSz;
-          const vol   = volMap.get(price);
-          const tot   = vol ? vol.bid + vol.ask : 0;
+          const tot   = volMap.get(price) ?? 0;
           if (tot <= 0) {
             // INTERIOR no-trade band → label it "0" (every-bar mode only) so a gap
             // sitting BETWEEN populated levels (price gapped/rushed through, e.g. an
@@ -5591,7 +5591,6 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const rowBot = Math.round(yBot);
           const rowH  = Math.max(2, Math.min(rowCap, rowBot - rowY));
           const isPOC = price === pocPrice;
-          const askRatio = vol ? vol.ask / tot : 0.5;
           // Bar length ∝ volume, shaped by a 0.6 power curve: the POC (ratio 1) is the
           // longest, mid nodes stay clearly readable, and low nodes taper down HONESTLY
           // toward a tiny 3px nub instead of clamping to a fat 16px floor. That old 16px
@@ -5613,16 +5612,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             ctx.fillStyle = vpPocRgba(0.68);
             ctx.fillRect(vpRight - barW, rowY, barW, rowH);
           } else {
-            const askW = Math.round(barW * askRatio);
-            const bidW = barW - askW;
-            // ask = green, bid = red — VP's own gear-controlled scheme (default
-            // green/red). TRANSLUCENT (0.40–0.58) so the candles read cleanly THROUGH
-            // the profile like TradingView — a near-solid fill turned the VP into an
-            // opaque wall that hid the price action (the "squashed VP" the user saw).
-            ctx.fillStyle = vpUpRgba((0.40 + askRatio * 0.14).toFixed(2));
-            ctx.fillRect(vpRight - barW, rowY, askW, rowH);
-            ctx.fillStyle = vpDnRgba((0.40 + (1-askRatio)*0.14).toFixed(2));
-            ctx.fillRect(vpRight - barW + askW, rowY, bidW, rowH);
+            // A single translucent column is the truthful historical display.
+            // Splitting this into green/red would imply bid/ask-at-price data that
+            // OHLCV does not contain.
+            ctx.fillStyle = hexToRgba(barColor, 0.52);
+            ctx.fillRect(vpRight - barW, rowY, barW, rowH);
           }
           if (isPOC) {
             ctx.strokeStyle = vpPocRgba(0.9); ctx.lineWidth = 1;
@@ -5767,12 +5761,23 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // timeframe (5m vs 4h aggregate the session's volume at different
           // granularities), which is the expected behaviour the user asked for.
           const allBars = barsRef.current;
-          const lastT = allBars.length ? (allBars[allBars.length - 1].time as number) : Math.floor(Date.now() / 1000);
-          // Anchor to the most recent RTH session open (09:30 ET ≈ 13:30 UTC) at or
-          // before the latest bar, so it tracks the data even on weekends/holidays.
-          const dayStart = Math.floor(lastT / 86400) * 86400 + 13 * 3600 + 30 * 60;
-          const sessionBars = allBars.filter(b => (b.time as number) >= dayStart);
-          drawWMVP(sessionBars.length > 2 ? sessionBars : allBars.slice(-30), "#8B5CF6", "WM Session VP", 0, bothVP ? 1 : 0, nVPCols);
+          const formatter = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "America/New_York",
+            year: "numeric", month: "2-digit", day: "2-digit",
+            hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+          });
+          const annotated = allBars.map(bar => {
+            const parts = formatter.formatToParts(new Date((bar.time as number) * 1000));
+            const part = (type: Intl.DateTimeFormatPartTypes) =>
+              Number(parts.find(value => value.type === type)?.value ?? 0);
+            const date = `${part("year")}-${String(part("month")).padStart(2, "0")}-${String(part("day")).padStart(2, "0")}`;
+            return { bar, date, minute: part("hour") * 60 + part("minute") };
+          }).filter(item => item.minute >= 570 && item.minute < 960);
+          const latestSession = annotated.at(-1)?.date;
+          const sessionBars = latestSession
+            ? annotated.filter(item => item.date === latestSession).map(item => item.bar)
+            : [];
+          drawWMVP(sessionBars, "#8B5CF6", "WM Session VP", 0, bothVP ? 1 : 0, nVPCols);
         }
       }
       // Non-big-trades modes draw VP here (top of stack is fine — no bubbles).

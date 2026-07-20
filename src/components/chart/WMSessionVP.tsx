@@ -26,6 +26,15 @@ interface SessionLevel {
   delta:  number;
 }
 
+interface Candle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
 type SessionWindow = "RTH" | "ETH" | "24H" | "2D" | "1W" | "1M";
 
 interface SessionWindowConfig {
@@ -51,22 +60,6 @@ interface WMSessionVPProps {
   onClose?:  () => void;
 }
 
-function getTickSize(base: number) {
-  if (base > 10_000) return 5;
-  if (base > 1_000)  return 0.25;
-  if (base > 100)    return 0.1;
-  if (base > 10)     return 0.05;
-  if (base > 1)      return 0.001;
-  return 0.0001;
-}
-
-const SEED_PRICES: Record<string,number> = {
-  "NQ1!": 21_847, "ES1!": 5_892, "RTY1!": 2_184, "YM1!": 43_210,
-  "GC1!": 2_652,  "CL1!": 78.42, "AAPL": 228, "TSLA": 412, "NVDA": 875,
-  "SPY": 589, "QQQ": 513, "BTC": 104_280, "ETH": 3_890,
-};
-function getBase(sym: string) { return SEED_PRICES[sym.toUpperCase()] ?? 100; }
-
 function fmt(n: number): string {
   if (n >= 1000) return `${(n/1000).toFixed(1)}k`;
   return String(n);
@@ -79,35 +72,72 @@ function fmtPrice(p: number): string {
   return p.toFixed(5);
 }
 
-/* Build initial session levels centered on base price */
-function buildSessionLevels(base: number): SessionLevel[] {
-  const tick = getTickSize(base);
-  const levels: SessionLevel[] = [];
-  const count = 40;
-  const half  = Math.floor(count / 2);
+const nyParts = (epochSeconds: number) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date(epochSeconds * 1000));
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find(part => part.type === type)?.value ?? 0);
+  const year = get("year"), month = get("month"), day = get("day");
+  return {
+    date: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+    minute: get("hour") * 60 + get("minute"),
+  };
+};
 
-  for (let i = half; i >= -half; i--) {
-    const price = +(base + i * tick).toFixed(6);
-    // Bell-curve distribution — POC near center
-    const bell  = Math.exp(-0.5 * (i / (half * 0.3)) ** 2);
-    // Seeded so base volumes are stable across re-renders
-    const n = Math.floor(Math.abs(price) * 100) + i * 997;
-    const r1 = Math.abs(Math.sin(n * 12.9898 + i * 78.233) * 43758.5453 % 1);
-    const r2 = Math.abs(Math.sin(n * 37.719  + i * 43.321) * 43758.5453 % 1);
-    const total = Math.floor(100 + bell * 4000 + r1 * 200);
-    const askR  = 0.35 + r2 * 0.4;
-    const ask   = Math.floor(total * askR);
-    const bid   = total - ask;
-    levels.push({ price, bid, ask, total, delta: ask - bid });
+function selectSessionCandles(candles: Candle[], window: SessionWindow): Candle[] {
+  if (!candles.length) return [];
+  const annotated = candles
+    .filter(c => c.volume > 0 && c.high >= c.low)
+    .map(c => ({ candle: c, ...nyParts(c.time) }));
+  if (!annotated.length) return [];
+
+  if (window === "RTH" || window === "ETH" || window === "24H") {
+    const start = window === "RTH" ? 570 : window === "ETH" ? 240 : 0;
+    const end = window === "RTH" ? 960 : window === "ETH" ? 1200 : 1440;
+    const eligible = annotated.filter(x => x.minute >= start && x.minute < end);
+    const latestDate = eligible.at(-1)?.date;
+    return eligible.filter(x => x.date === latestDate).map(x => x.candle);
   }
-  return levels;
+
+  const distinctDates = [...new Set(annotated.map(x => x.date))];
+  const keep = window === "2D" ? 2 : window === "1W" ? 7 : 30;
+  const dates = new Set(distinctDates.slice(-keep));
+  return annotated.filter(x => dates.has(x.date)).map(x => x.candle);
+}
+
+function buildSessionLevels(candles: Candle[]): SessionLevel[] {
+  if (!candles.length) return [];
+  const low = Math.min(...candles.map(c => c.low));
+  const high = Math.max(...candles.map(c => c.high));
+  const range = high - low;
+  if (!(range > 0)) return [];
+
+  const count = 48;
+  const binSize = range / count;
+  const totals = Array.from({ length: count }, () => 0);
+  for (const candle of candles) {
+    const first = Math.max(0, Math.min(count - 1, Math.floor((candle.low - low) / binSize)));
+    const last = Math.max(first, Math.min(count - 1, Math.floor((candle.high - low) / binSize)));
+    const perBin = candle.volume / (last - first + 1);
+    for (let i = first; i <= last; i++) totals[i] += perBin;
+  }
+
+  return totals.map((total, i) => ({
+    price: low + (i + 0.5) * binSize,
+    bid: 0,
+    ask: 0,
+    total,
+    delta: 0,
+  })).reverse();
 }
 
 export function WMSessionVP({ symbol, timeframe, onClose }: WMSessionVPProps) {
-  const base = getBase(symbol);
-  const [levels,        setLevels]        = useState<SessionLevel[]>(() => buildSessionLevels(base));
-  const [showBidAsk,    setShowBidAsk]    = useState(true);
-  const [viewMode,      setViewMode]      = useState<"profile"|"delta">("profile");
+  const [levels,        setLevels]        = useState<SessionLevel[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [hasRealTape,   setHasRealTape]   = useState(false);
   const [sessionPct,    setSessionPct]    = useState(0);
   const [sessionWindow, setSessionWindow] = useState<SessionWindow>("RTH");
   const [winOpen,       setWinOpen]       = useState(false);
@@ -115,28 +145,42 @@ export function WMSessionVP({ symbol, timeframe, onClose }: WMSessionVPProps) {
 
   const { recentTicks } = useWebSocket({ symbol, timeframe });
 
-  /* Reset levels when session window changes */
+  /* Build a truthful bar-derived profile from observed OHLCV. */
   useEffect(() => {
-    setLevels(buildSessionLevels(base));
+    let cancelled = false;
+    setLoading(true);
+    const profileTf = ["1m", "2m", "5m", "15m", "30m", "1h"].includes(timeframe) ? timeframe : "30m";
+    fetch(`/api/yahoo?sym=${encodeURIComponent(symbol)}&type=candles&tf=${profileTf}&bars=3000&ext=1`, { cache: "no-store" })
+      .then(r => r.json())
+      .then(json => {
+        if (cancelled) return;
+        const candles = Array.isArray(json?.candles) ? json.candles as Candle[] : [];
+        setLevels(buildSessionLevels(selectSessionCandles(candles, sessionWindow)));
+      })
+      .catch(() => { if (!cancelled) setLevels([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     tickCountRef.current = 0;
-  }, [sessionWindow, base]);
+    setHasRealTape(false);
+    return () => { cancelled = true; };
+  }, [sessionWindow, symbol, timeframe]);
 
   /* Update session pct based on selected window */
   useEffect(() => {
     const cfg = SESSION_WINDOWS[sessionWindow];
     const calc = () => {
       const now = new Date();
-      const utcH = now.getUTCHours() + now.getUTCMinutes() / 60;
+      const etMinute = nyParts(Math.floor(now.getTime() / 1000)).minute;
       let pct: number;
       if (sessionWindow === "RTH") {
-        pct = Math.max(0, Math.min(100, ((utcH - 13.5) / (20 - 13.5)) * 100));
+        pct = Math.max(0, Math.min(100, ((etMinute - 570) / (960 - 570)) * 100));
       } else if (cfg.lookback > 1) {
         // Multi-day: base on day of week / time in lookback period
         const dayOfWeek = now.getUTCDay(); // 0=Sun
         pct = Math.min(100, (dayOfWeek / Math.min(cfg.lookback, 5)) * 100);
       } else {
-        const start = cfg.startHour, end = cfg.endHour === 24 ? 24 : cfg.endHour;
-        pct = Math.max(0, Math.min(100, ((utcH - start) / (end - start)) * 100));
+        const start = sessionWindow === "ETH" ? 240 : 0;
+        const end = sessionWindow === "ETH" ? 1200 : 1440;
+        pct = Math.max(0, Math.min(100, ((etMinute - start) / (end - start)) * 100));
       }
       setSessionPct(pct);
     };
@@ -148,7 +192,9 @@ export function WMSessionVP({ symbol, timeframe, onClose }: WMSessionVPProps) {
   /* Absorb live ticks into session levels */
   useEffect(() => {
     if (!recentTicks.length) return;
-    const tick = recentTicks[0]; // most recent
+    const tick = recentTicks.find(t => t.trade);
+    if (!tick) return;
+    setHasRealTape(true);
     tickCountRef.current++;
 
     setLevels(prev => {
@@ -160,23 +206,34 @@ export function WMSessionVP({ symbol, timeframe, onClose }: WMSessionVPProps) {
         if (d < minDist) { minDist = d; nearest = i; }
       });
 
-      // Also nudge 1-2 adjacent levels with smaller volume
+      // A real executed trade belongs to one nearest price bin only.
       const updated = prev.map((lvl, i) => {
-        const dist = Math.abs(i - nearest);
-        if (dist > 2) return lvl;
-        const factor = dist === 0 ? 1 : dist === 1 ? 0.4 : 0.15;
-        const addVol = Math.max(1, Math.floor(tick.size * factor));
-        const addBid = tick.side === "sell" ? addVol : Math.floor(addVol * 0.3);
-        const addAsk = tick.side === "buy"  ? addVol : Math.floor(addVol * 0.3);
+        if (i !== nearest) return lvl;
+        const addVol = Math.max(0, tick.size);
+        const addBid = tick.side === "sell" ? addVol : 0;
+        const addAsk = tick.side === "buy" ? addVol : 0;
         const bid    = lvl.bid + addBid;
         const ask    = lvl.ask + addAsk;
-        return { ...lvl, bid, ask, total: bid + ask, delta: ask - bid };
+        return { ...lvl, bid, ask, total: lvl.total + addVol, delta: ask - bid };
       });
       return updated;
     });
   }, [recentTicks]);
 
   /* Recompute VA/POC */
+  if (loading || levels.length === 0) {
+    return (
+      <div className="border-l border-wm-border bg-wm-black shrink-0 flex flex-col items-center justify-center gap-2"
+        style={{ width: 260 }}>
+        <span className="text-[10px] font-black text-wm-purple uppercase tracking-widest">wmSession VP</span>
+        <span className="text-[10px] text-wm-text-dim">
+          {loading ? "Loading real OHLCV…" : "No reported volume for this session"}
+        </span>
+        {onClose && <button onClick={onClose} className="text-[10px] text-wm-text-muted hover:text-wm-text">Close</button>}
+      </div>
+    );
+  }
+
   const maxTotal  = Math.max(...levels.map(l => l.total), 1);
   const pocIdx    = levels.reduce((best, l, i) => l.total > levels[best].total ? i : best, 0);
   const totalVol  = levels.reduce((s, l) => s + l.total, 0);
@@ -237,27 +294,11 @@ export function WMSessionVP({ symbol, timeframe, onClose }: WMSessionVPProps) {
             )}
           </div>
 
-          <button
-            onClick={() => setViewMode(v => v === "profile" ? "delta" : "profile")}
-            className={clsx(
-              "text-[9px] px-1.5 py-0.5 rounded font-bold transition-all border",
-              viewMode === "delta"
-                ? "bg-wm-purple/20 text-wm-purple border-wm-purple/40"
-                : "bg-wm-surface border-wm-border text-wm-text-muted hover:text-wm-text"
-            )}>
-            {viewMode === "profile" ? "B×A" : "Δ"}
-          </button>
-          <button
-            onClick={() => setShowBidAsk(v => !v)}
-            className={clsx(
-              "text-[9px] px-1.5 py-0.5 rounded font-bold transition-all border",
-              showBidAsk
-                ? "bg-wm-blue/20 text-wm-blue border-wm-blue/40"
-                : "bg-wm-surface border-wm-border text-wm-text-muted"
-            )}
-            title="Show bid/ask numbers">
-            #
-          </button>
+          <span
+            className="text-[8px] px-1.5 py-0.5 rounded font-bold border bg-wm-surface border-wm-border text-wm-text-dim"
+            title={hasRealTape ? "Real executed trades are being added live" : "Historical profile uses reported OHLCV total volume"}>
+            {hasRealTape ? "LIVE TAPE +" : "OHLCV"}
+          </span>
           {onClose && (
             <button onClick={onClose}
               className="text-wm-text-dim hover:text-wm-red transition-colors text-[11px] px-1">
@@ -286,18 +327,9 @@ export function WMSessionVP({ symbol, timeframe, onClose }: WMSessionVPProps) {
 
       {/* Column legend */}
       <div className="flex items-center px-2 border-b border-wm-border/60 shrink-0" style={{ height: 20 }}>
-        {viewMode === "profile" ? (
-          <>
-            <span className="text-[10px] font-black text-wm-red w-12 text-left">BID</span>
-            <div className="flex-1 text-center text-[9px] text-wm-text-muted">PRICE</div>
-            <span className="text-[10px] font-black text-wm-green w-12 text-right">ASK</span>
-          </>
-        ) : (
-          <>
-            <div className="flex-1 text-center text-[9px] text-wm-text-muted">PRICE</div>
-            <span className="text-[10px] font-black text-wm-text-muted w-16 text-right">DELTA</span>
-          </>
-        )}
+        <span className="text-[9px] font-black text-wm-purple w-14">VOLUME</span>
+        <div className="flex-1 text-center text-[9px] text-wm-text-muted">PRICE</div>
+        <span className="text-[8px] text-wm-text-dim">BAR-DERIVED</span>
       </div>
 
       {/* Rows */}
@@ -308,7 +340,6 @@ export function WMSessionVP({ symbol, timeframe, onClose }: WMSessionVPProps) {
           const isVAH    = i === lo;
           const isVAL    = i === hi;
           const inVA     = i >= lo && i <= hi;
-          const deltaPos = lvl.delta >= 0;
           const priceStr = fmtPrice(lvl.price);
 
           return (
@@ -328,70 +359,34 @@ export function WMSessionVP({ symbol, timeframe, onClose }: WMSessionVPProps) {
               {isVAH && <div className="absolute inset-x-0 top-0 h-px" style={{ background:"rgba(79,163,224,0.7)" }} />}
               {isVAL && <div className="absolute inset-x-0 bottom-0 h-px" style={{ background:"rgba(79,163,224,0.7)" }} />}
 
-              {viewMode === "profile" ? (
-                <div className="absolute inset-0 flex items-center px-1">
-                  {/* BID number */}
-                  <span className="font-mono text-left shrink-0"
-                    style={{ width:44, fontSize:11, color: isPOC ? "#FF6B7A" : "rgba(255,77,106,0.9)", fontWeight:700 }}>
-                    {showBidAsk ? fmt(lvl.bid) : ""}
-                  </span>
-
-                  {/* Bar area */}
-                  <div className="relative flex-1 rounded-sm overflow-hidden mx-1" style={{ height: 14 }}>
-                    {/* Bid bar (left) */}
-                    <div className="absolute left-0 top-0 bottom-0 transition-all duration-300"
+              <div className="absolute inset-0 flex items-center gap-2 px-2">
+                <span className="font-mono text-right shrink-0 text-[10px] font-bold"
+                  style={{ width: 42, color: isPOC ? "#E8B923" : "#A78BFA" }}>
+                  {fmt(lvl.total)}
+                </span>
+                <div className="relative flex-1 overflow-hidden" style={{ height: 15 }}>
+                  <div className="absolute right-0 inset-y-[1px] rounded-l-sm transition-all duration-300"
+                    style={{
+                      width: `${Math.max(2, barPct * 100)}%`,
+                      background: isPOC
+                        ? "linear-gradient(90deg, rgba(232,185,35,.42), rgba(232,185,35,.94))"
+                        : `linear-gradient(90deg, rgba(139,92,246,.18), rgba(139,92,246,${0.42 + barPct * 0.38}))`,
+                      boxShadow: isPOC ? "0 0 9px rgba(232,185,35,.35)" : "none",
+                    }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="font-mono text-center leading-none"
                       style={{
-                        width:`${(lvl.bid / lvl.total) * barPct * 100}%`,
-                        background: isPOC ? "rgba(139,92,246,0.65)" : `rgba(255,77,106,${0.18 + barPct * 0.5})`,
-                      }}
-                    />
-                    {/* Ask bar (right) */}
-                    <div className="absolute right-0 top-0 bottom-0 transition-all duration-300"
-                      style={{
-                        width:`${(lvl.ask / lvl.total) * barPct * 100}%`,
-                        background: isPOC ? "rgba(139,92,246,0.65)" : `rgba(0,212,170,${0.18 + barPct * 0.5})`,
-                      }}
-                    />
-                    {/* Price label */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="font-mono text-center leading-none"
-                        style={{
-                          fontSize:   10,
-                          color:      isPOC ? "#A78BFA" : inVA ? "#4FA3E0" : "#6B7280",
-                          fontWeight: isPOC ? 900 : 600,
-                        }}>
-                        {priceStr}
-                        {isPOC && " ◄POC"}
-                      </span>
-                    </div>
+                        fontSize: 10,
+                        color: isPOC ? "#F7D879" : inVA ? "#B8CBFF" : "#89909C",
+                        fontWeight: isPOC ? 900 : 600,
+                        textShadow: "0 1px 2px rgba(0,0,0,.9)",
+                      }}>
+                      {priceStr}{isPOC && "  POC"}
+                    </span>
                   </div>
-
-                  {/* ASK number */}
-                  <span className="font-mono text-right shrink-0"
-                    style={{ width:44, fontSize:11, color: isPOC ? "#20FFD0" : "rgba(0,212,170,0.9)", fontWeight:700 }}>
-                    {showBidAsk ? fmt(lvl.ask) : ""}
-                  </span>
                 </div>
-              ) : (
-                /* Delta view */
-                <div className="absolute inset-0 flex items-center px-2">
-                  <span className="font-mono shrink-0 text-[10px] text-wm-text-dim" style={{ width:60 }}>{priceStr}</span>
-                  <div className="relative flex-1 mx-1" style={{ height:12 }}>
-                    <div className="absolute inset-y-0 left-1/2 w-px bg-wm-border" />
-                    <div className="absolute top-0 bottom-0 transition-all duration-300"
-                      style={{
-                        left:   deltaPos ? "50%" : `${50 - Math.abs(lvl.delta)/lvl.total*50}%`,
-                        width:  `${Math.abs(lvl.delta)/lvl.total*50}%`,
-                        background: deltaPos ? "rgba(0,212,170,0.6)" : "rgba(255,77,106,0.6)",
-                      }}
-                    />
-                  </div>
-                  <span className="font-mono font-bold text-right text-[10px] shrink-0"
-                    style={{ width:48, color: deltaPos ? "#00D4AA" : "#FF4D6A" }}>
-                    {deltaPos ? "+" : ""}{fmt(Math.abs(lvl.delta))}
-                  </span>
-                </div>
-              )}
+              </div>
             </div>
           );
         })}
@@ -402,9 +397,7 @@ export function WMSessionVP({ symbol, timeframe, onClose }: WMSessionVPProps) {
         <div className="flex justify-between items-center">
           <span className="text-[9px] font-bold text-wm-purple uppercase tracking-wider">POC</span>
           <span className="text-xs font-mono font-black text-wm-purple">{fmtPrice(pocLevel.price)}</span>
-          {showBidAsk && (
-            <span className="text-[9px] font-mono text-wm-text-dim">{fmt(pocLevel.bid)}B / {fmt(pocLevel.ask)}A</span>
-          )}
+          <span className="text-[9px] font-mono text-wm-text-dim">{fmt(pocLevel.total)} vol</span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-[9px] font-bold text-wm-blue uppercase tracking-wider">VAH</span>
