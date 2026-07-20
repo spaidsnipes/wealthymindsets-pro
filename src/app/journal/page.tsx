@@ -518,7 +518,7 @@ export default function JournalPage() {
   const [lightbox,  setLightbox]  = useState<string | null>(null);
   const [mainTab,   setMainTab]   = useState<"journal"|"coach"|"songs">("journal");
 
-  // AI Strategy Songs state
+  // Local strategy lyric-template state (no AI service is called).
   const [songPrompt,   setSongPrompt]   = useState("");
   const [songStyle,    setSongStyle]    = useState<"hip-hop"|"r&b"|"trap"|"pop"|"motivational"|"drill">("hip-hop");
   const [songTopic,    setSongTopic]    = useState("smart money");
@@ -570,7 +570,7 @@ export default function JournalPage() {
 
   // ── AI Song Generator ────────────────────────────────────
   const SONG_TEMPLATES: Record<string, (topic: string, custom: string) => string> = {
-    "hip-hop": (topic, custom) => `🎤 **[AI Strategy Song — Hip-Hop]**
+    "hip-hop": (topic, custom) => `🎤 **[Strategy Lyric Template — Hip-Hop]**
 **"${topic.toUpperCase()} FLOW"**
 
 [Intro]
@@ -604,10 +604,10 @@ When retail FOMO in, I'm already out
 That's the WealthyMindsets Pro way, no doubt
 
 [Outro]
-WM$ token, creator coins too
-The flywheel spinning — that's the vision coming true 🚀`,
+Local practice points and honest tools too
+The discipline compounding — that's the vision coming true 🚀`,
 
-    "r&b": (topic, custom) => `🎵 **[AI Strategy Song — R&B]**
+    "r&b": (topic, custom) => `🎵 **[Strategy Lyric Template — R&B]**
 **"${topic} (Smooth Money)"**
 
 [Verse 1]
@@ -623,7 +623,7 @@ That's the discipline, that's what sets me free
 [Chorus]
 Smooth money, smart money 💎
 Trading with the tide and not against it, honey
-WM$ in my pocket growing every day
+Practice points track the work I do each day
 ${topic} is the game and I know how to play
 
 [Bridge]
@@ -636,11 +636,11 @@ Distribution coming — I know when to arrange my exit
 Wealthy mindset, wealthy lifestyle
 Growing slow and steady, running my own mile 🌟`,
 
-    "trap": (topic, custom) => `🔊 **[AI Strategy Song — Trap]**
+    "trap": (topic, custom) => `🔊 **[Strategy Lyric Template — Trap]**
 **"${topic.toUpperCase()} SZNS"**
 
 [Intro - Ad libs]
-Slatt, WM$, aye, yeah
+Slatt, WM, aye, yeah
 
 [Verse 1]
 ${custom || `Charts on the screen, I see the ${topic}
@@ -652,8 +652,8 @@ While they panic selling I was calm and running`}
 
 [Chorus]
 ${topic} szns, we up every season 📈
-WM$ stacking, no need for a reason
-Creator coins pumping, the flywheel spinning
+Practice points stacking, discipline the reason
+Creators keep building, the whole team winning
 Wealthy Mindsets Pro — we been always winning
 
 [Verse 2]
@@ -663,10 +663,10 @@ Risk management first, that's the only rule
 Emotional traders just my liquidity pool 😤
 
 [Outro]
-WM$ gang, creator coin lane
-Pre-deployment balance, soon it goes on-chain 🔥`,
+WM community, disciplined lane
+Truth in the product, no fabricated chain 🔥`,
 
-    "motivational": (topic, custom) => `💪 **[AI Strategy Song — Motivational]**
+    "motivational": (topic, custom) => `💪 **[Strategy Lyric Template — Motivational]**
 **"${topic} — The Mindset Anthem"**
 
 [Spoken Intro]
@@ -698,10 +698,10 @@ The wealthy mindset isn't just about the money
 It's showing up with discipline when the market ain't sunny ☀️
 
 [Outro]
-WM$ isn't just a token, it's a way of life
+Wealth isn't a token, it's disciplined life
 Wealthy Mindsets Pro — sharpening the knife 🔪`,
 
-    "drill": (topic, custom) => `😤 **[AI Strategy Song — Drill]**
+    "drill": (topic, custom) => `😤 **[Strategy Lyric Template — Drill]**
 **"${topic} Drill"**
 
 [Verse 1]
@@ -713,7 +713,7 @@ Smart money confirmation, I was on tonight`}
 [Chorus]
 ${topic} drill, we don't miss the fill
 Patience at the level till we get our thrill
-WM$ moving, creator coins real
+WM moving, execution stays real
 Wealthy Mindsets Pro — this is how we feel
 
 [Verse 2]
@@ -724,11 +724,11 @@ Anything less and I'm passing through 🎯
 
 [Outro]
 Journal the trade, review the tape
-WM$ stacking while others escape
-On-chain deployment coming real soon
+Practice points stacking while others escape
+Honest execution coming real soon
 WealthyMindsets Pro taking over the room 🌙`,
 
-    "pop": (topic, custom) => `🎶 **[AI Strategy Song — Pop]**
+    "pop": (topic, custom) => `🎶 **[Strategy Lyric Template — Pop]**
 **"${topic} (Up Only)"**
 
 [Verse 1]
@@ -739,7 +739,7 @@ Practiced the discipline so I'd never fall`}
 
 [Pre-Chorus]
 And now I'm ready, I've put in the time
-WM$ growing, about to climb
+My discipline growing, about to climb
 
 [Chorus]
 Up only in my mindset, up only in my growth 📈
@@ -748,10 +748,10 @@ Wealthy Mindsets Pro — we taking off tonight
 ${topic} in my heart, I know I've got it right
 
 [Verse 2]
-Creator coins launching, the ecosystem's live
-Every fee collected helps the token thrive
-Flywheel spinning faster as more creators join
-WM$ the backbone, the one and only coin 💎
+Creators keep building, the community's live
+Every lesson practiced helps the mindset thrive
+Momentum growing stronger as more creators join
+Truth is the backbone, discipline refined 💎
 
 [Outro]
 Up only, up only, that's the Wealthy Mindset way
@@ -760,7 +760,6 @@ Trade the system, trust the process, winners every day 🚀`,
 
   const generateSong = async () => {
     setSongGenerating(true);
-    await new Promise(r => setTimeout(r, 1800 + Math.random() * 1200));
     const template = SONG_TEMPLATES[songStyle] ?? SONG_TEMPLATES["hip-hop"];
     const lyrics = template(songTopic, songPrompt);
     const title = `${songTopic.split(" ").map(w => w[0].toUpperCase() + w.slice(1)).join(" ")} — ${songStyle.charAt(0).toUpperCase() + songStyle.slice(1)} Mix`;
@@ -772,7 +771,7 @@ Trade the system, trust the process, winners every day 🚀`,
     });
     setActiveSong(newSong.id);
     setSongGenerating(false);
-    earnWMS(100, `🎵 Generated "${title}"`);
+    earnWMS(100, `🎵 Created local lyric template "${title}"`);
   };
 
   const exportCSV = () => {
@@ -867,7 +866,8 @@ Trade the system, trust the process, winners every day 🚀`,
                 <Music size={13} className="text-white"/>
               </div>
               <div>
-                <div className="text-xs font-black text-wm-text">AI Strategy Songs</div>
+                <div className="text-xs font-black text-wm-text">Strategy Lyric Templates</div>
+                <div className="text-[9px] text-wm-text-dim">Generated locally from fixed templates — no AI service is called.</div>
                 <div className="text-[9px] text-[#7C3AED] font-bold">+100 WM$ per song generated</div>
               </div>
             </div>
@@ -876,7 +876,7 @@ Trade the system, trust the process, winners every day 🚀`,
             <div>
               <label className="text-[9px] text-wm-text-dim uppercase tracking-wider block mb-1.5 font-bold">Trading Topic</label>
               <div className="grid grid-cols-2 gap-1">
-                {["smart money","order flow","wyckoff","NQ futures","risk management","discipline","WM$ token","creator coins"].map(t => (
+                {["smart money","order flow","wyckoff","NQ futures","risk management","discipline","trading journal","creator mindset"].map(t => (
                   <button key={t} onClick={() => setSongTopic(t)}
                     className={clsx("px-2 py-1.5 rounded-lg text-[9px] font-bold border transition-all text-left",
                       songTopic === t
