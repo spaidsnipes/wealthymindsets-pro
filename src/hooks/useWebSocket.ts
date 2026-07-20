@@ -975,8 +975,12 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           const list = Array.isArray(parsed) ? parsed : [parsed];
           let got = false;
           for (const raw of list) {
-            const m = raw as { T?: string; p?: number; s?: number; t?: number | string };
-            if (!m || (m.T && m.T !== "t") || typeof m.p !== "number" || m.p <= 0 || !m.s) continue;
+            const m = raw as { T?: string; S?: string; p?: number; s?: number; t?: number | string };
+            // Accept ONLY trades for the current chart symbol. The proxy fans out a
+            // shared subscription set (e.g. AAPL/AMZN/BTC/TSLA) to every client, so
+            // without this another symbol's prints would contaminate this symbol's
+            // delta/CVD/bubbles. No-op when the proxy already scopes per-connection.
+            if (!m || (m.T && m.T !== "t") || (m.S && m.S.toUpperCase() !== symbol.toUpperCase()) || typeof m.p !== "number" || m.p <= 0 || !m.s) continue;
             const t = typeof m.t === "string" ? Date.parse(m.t) : (m.t || Date.now());
             const side: "buy" | "sell" = lastPx && m.p < lastPx ? "sell" : "buy";
             lastPx = m.p;
