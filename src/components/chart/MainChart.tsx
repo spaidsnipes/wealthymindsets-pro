@@ -5415,24 +5415,32 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // and high/low ranges, but not aggressor-side volume at each price. Spread
         // each bar's observed volume evenly across only the price buckets it touched.
         // Bid/ask footprint modes remain tape-only elsewhere.
-        const volMap = new Map<number, number>();
+        const volMap = new Map<number, { up: number; down: number }>();
         barsToUse.forEach(b => {
           if (!(b.volume > 0) || !(b.high >= b.low)) return;
           const first = Math.floor(b.low / tickSz);
           const last = Math.ceil(b.high / tickSz);
           const touched = Math.max(1, last - first + 1);
           const perBucket = b.volume / touched;
+          const isUpBar = b.close >= b.open;
           for (let bucket = first; bucket <= last; bucket++) {
             const key = bucket * tickSz;
-            volMap.set(key, (volMap.get(key) ?? 0) + perBucket);
+            const existing = volMap.get(key) ?? { up: 0, down: 0 };
+            volMap.set(key, {
+              up: existing.up + (isUpBar ? perBucket : 0),
+              down: existing.down + (isUpBar ? 0 : perBucket),
+            });
           }
         });
         if (volMap.size === 0) return;
         const allPrices = Array.from(volMap.keys()).sort((a, b) => a - b);
-        const maxVol    = Math.max(...volMap.values());
+        const maxVol    = Math.max(...Array.from(volMap.values()).map(v => v.up + v.down));
         if (maxVol === 0) return;
         let pocPrice = allPrices[0]; let pocVol = 0;
-        volMap.forEach((v, p) => { if (v > pocVol) { pocVol = v; pocPrice = p; } });
+        volMap.forEach((v, p) => {
+          const total = v.up + v.down;
+          if (total > pocVol) { pocVol = total; pocPrice = p; }
+        });
 
         // ── Bar-WIDTH reference = 3.5× the MEDIAN populated-level volume ──────────
         // Rebuilt (was max/percentile/floor-based, which thrashed): a fixed multiple
@@ -5443,7 +5451,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // wide AND tight zoom, instead of a thin stick (max-based, outlier-crushed) or
         // a muddy block. maxVol is used ONLY as a last-resort guard against an empty
         // median, never as a scaling floor.
-        const volsAsc = Array.from(volMap.values()).filter(x => x > 0).sort((a, b) => a - b);
+        const volsAsc = Array.from(volMap.values()).map(v => v.up + v.down).filter(x => x > 0).sort((a, b) => a - b);
         const medVol   = volsAsc.length ? volsAsc[Math.floor(volsAsc.length / 2)] : 0;
         const widthRef = medVol > 0 ? medVol * 3.5 : (maxVol || 1);
 
@@ -5454,7 +5462,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         const MAX_VP_LABELS = 6;
         const topLabelPrices = new Set<number>(
           Array.from(volMap.entries())
-            .sort((a, b) => b[1] - a[1])
+            .sort((a, b) => (b[1].up + b[1].down) - (a[1].up + a[1].down))
             .slice(0, MAX_VP_LABELS)
             .map(e => e[0]),
         );
@@ -5470,7 +5478,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // level (above or below) holds the larger volume, until 70% of total
         // traded volume is enclosed. The highest enclosed price = VAH, the
         // lowest = VAL — exactly the standard market-profile value area.
-        const volAt = (p: number) => volMap.get(p) ?? 0;
+        const volAt = (p: number) => {
+          const volume = volMap.get(p);
+          return volume ? volume.up + volume.down : 0;
+        };
         const totalVol = allPrices.reduce((s, p) => s + volAt(p), 0);
         let pocIdx = allPrices.indexOf(pocPrice);
         if (pocIdx < 0) pocIdx = 0;
@@ -5550,7 +5561,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         let lastLabelY = -Infinity; // de-overlap volume labels
         for (let i = 0; i < nBuckets; i++) {
           const price = Math.round((loKey + i * tickSz) / tickSz) * tickSz;
-          const tot   = volMap.get(price) ?? 0;
+          const volume = volMap.get(price);
+          const tot = volume ? volume.up + volume.down : 0;
           if (tot <= 0) {
             // INTERIOR no-trade band → label it "0" (every-bar mode only) so a gap
             // sitting BETWEEN populated levels (price gapped/rushed through, e.g. an
@@ -5612,11 +5624,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             ctx.fillStyle = vpPocRgba(0.68);
             ctx.fillRect(vpRight - barW, rowY, barW, rowH);
           } else {
-            // A single translucent column is the truthful historical display.
-            // Splitting this into green/red would imply bid/ask-at-price data that
-            // OHLCV does not contain.
-            ctx.fillStyle = hexToRgba(barColor, 0.52);
-            ctx.fillRect(vpRight - barW, rowY, barW, rowH);
+            // Preserve the original green/red VP design without claiming historical
+            // bid/ask-at-price. The split is observed up-candle vs down-candle volume
+            // contribution in this price bucket; true aggressor flow remains tape-only.
+            const upRatio = volume ? volume.up / tot : 0.5;
+            const upW = Math.round(barW * upRatio);
+            const downW = barW - upW;
+            ctx.fillStyle = vpUpRgba((0.42 + upRatio * 0.13).toFixed(2));
+            ctx.fillRect(vpRight - barW, rowY, upW, rowH);
+            ctx.fillStyle = vpDnRgba((0.42 + (1 - upRatio) * 0.13).toFixed(2));
+            ctx.fillRect(vpRight - barW + upW, rowY, downW, rowH);
           }
           if (isPOC) {
             ctx.strokeStyle = vpPocRgba(0.9); ctx.lineWidth = 1;
