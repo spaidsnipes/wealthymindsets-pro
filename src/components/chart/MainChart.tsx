@@ -4249,67 +4249,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
              : v.toFixed(2);   // fractional crypto (0.30, 0.05) — never floor to "0"
       };
 
-      // ── ETH/RTH session bands ───────────────────────────────
-      if (extendedHours) {
-        // Draw colored vertical bands for each session type
-        // RTH: 9:30–16:00 ET, Pre-market: 4:00–9:30 ET, After-hours: 16:00–20:00 ET
-        const intervalSec2 = getIntervalSec(timeframe);
-        // Only useful for intraday timeframes
-        if (intervalSec2 <= 3600) {
-          const visRange = chart.timeScale().getVisibleRange();
-          if (visRange) {
-            const fromTs = (visRange.from as number);
-            const toTs   = (visRange.to   as number);
-            // Iterate each day in range
-            let dayTs = Math.floor(fromTs / 86400) * 86400;
-            while (dayTs <= toTs + 86400) {
-              // ET = UTC-4 (EDT) or UTC-5 (EST). Use UTC-4 approximation.
-              const etOffset = 4 * 3600; // seconds
-              const dayStartET = dayTs + etOffset; // midnight ET in UTC
-              // Pre-market: 4:00–9:30 ET
-              const preStart  = dayTs + (4  * 3600) - etOffset;
-              const preEnd    = dayTs + (9  * 3600 + 30 * 60) - etOffset;
-              // RTH: 9:30–16:00 ET
-              const rthStart  = preEnd;
-              const rthEnd    = dayTs + (16 * 3600) - etOffset;
-              // After-hours: 16:00–20:00 ET
-              const ahStart   = rthEnd;
-              const ahEnd     = dayTs + (20 * 3600) - etOffset;
-
-              const drawBand = (start: number, end: number, color: string) => {
-                const x1 = chart.timeScale().timeToCoordinate(start as any);
-                const x2 = chart.timeScale().timeToCoordinate(end   as any);
-                if (x1 == null || x2 == null) return;
-                const left  = Math.min(x1, x2);
-                const right = Math.max(x1, x2);
-                if (right < 0 || left > W) return;
-                ctx.fillStyle = color;
-                ctx.fillRect(Math.max(0, left), 0, Math.min(right, W) - Math.max(0, left), H);
-              };
-
-              drawBand(preStart, preEnd, "rgba(255,200,0,0.07)");    // pre-market: gold
-              drawBand(rthStart, rthEnd, "rgba(0,212,170,0.05)");    // RTH: green
-              drawBand(ahStart,  ahEnd,  "rgba(255,140,0,0.07)");    // after-hours: orange
-
-              // Session labels
-              const labelBand = (start: number, label: string, color: string) => {
-                const x = chart.timeScale().timeToCoordinate(start as any);
-                if (x == null || x < 0 || x > W) return;
-                ctx.fillStyle  = color;
-                ctx.font       = "bold 11px sans-serif";
-                ctx.textAlign  = "left";
-                ctx.textBaseline = "top";
-                ctx.fillText(label, x + 3, 4);
-              };
-              labelBand(preStart, "PRE", "rgba(255,200,0,0.85)");
-              labelBand(rthStart, "RTH", "rgba(0,212,170,0.90)");
-              labelBand(ahStart,  "AH",  "rgba(255,140,0,0.85)");
-
-              dayTs += 86400;
-            }
-          }
-        }
-      }
+      // Extended-hours bars remain available through the RTH/ETH selector.
+      // Session shading is intentionally omitted until it is calculated with
+      // DST-aware America/New_York boundaries; a fixed UTC-4 offset mislabeled
+      // winter sessions by one hour.
 
       // Read the LIVE bar array from the ref each frame (not the `candles` state)
       // so the continuous RAF loop always has the latest data WITHOUT the effect

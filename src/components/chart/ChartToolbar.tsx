@@ -313,8 +313,6 @@ const INDICATORS = [
   { cat:"Pivots", name:"Pivot Points Woodie",         desc:"Woodie pivot calculation method" },
   { cat:"Pivots", name:"Pivot Points Demark",         desc:"Tom DeMark conditional pivot method" },
   { cat:"Pivots", name:"Pivot Points CPR",            desc:"Central Pivot Range (CPR) levels" },
-  { cat:"Pivots", name:"Weekly Pivots",               desc:"Weekly high/low/close pivot levels" },
-  { cat:"Pivots", name:"Monthly Pivots",              desc:"Monthly timeframe pivot levels" },
   // ─── Momentum ─────────────────────────────────────────
   { cat:"Momentum", name:"RSI",                      desc:"Relative Strength Index (14)" },
   { cat:"Momentum", name:"ConnorsRSI",               desc:"3-component Connors RSI" },
@@ -394,7 +392,6 @@ const INDICATORS = [
   { cat:"Smart Money", name:"Equal Highs/Lows",      desc:"Double top/bottom liquidity pools" },
   { cat:"Smart Money", name:"Swing High/Low",        desc:"Structural swing point markers" },
   { cat:"Smart Money", name:"VWAP Deviation Bands",  desc:"Key VWAP σ extension levels" },
-  { cat:"Smart Money", name:"Daily Candle Levels",   desc:"Prior day open / high / low / close" },
   // ─── Oscillators ──────────────────────────────────────
   { cat:"Oscillators", name:"Fisher Transform",      desc:"Price mapped to Gaussian distribution" },
   { cat:"Oscillators", name:"Aroon Oscillator",      desc:"Aroon up/down crossover oscillator" },
@@ -425,10 +422,8 @@ const INDICATORS = [
   { cat:"Statistics", name:"Percentile Rank",        desc:"Percentile vs N-bar lookback range" },
   { cat:"Statistics", name:"Linear Regression Slope",desc:"Slope steepness of LR line" },
   // ─── Session Tools ────────────────────────────────────
-  { cat:"Sessions", name:"Pre-Market High/Low",      desc:"Pre-market high and low levels" },
   { cat:"Sessions", name:"Opening Range Breakout",   desc:"First 5/15/30-min range breakout" },
   { cat:"Sessions", name:"Prior Day High/Low",       desc:"Yesterday's high and low levels" },
-  { cat:"Sessions", name:"Prior Week High/Low",      desc:"Last week's high and low levels" },
 ];
 
 /* ══════════════════════════════════════════════════════════════
