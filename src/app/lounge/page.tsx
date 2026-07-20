@@ -530,7 +530,7 @@ const SIDEBAR_TAGS: Record<string, string[]> = {
    Royal), gold-ring avatar, editable "Current Vibe" status, and a glowing
    stories row. Theme + vibe persist in localStorage (no DB migration). */
 const LOUNGE_THEMES = [
-  { id: "harlem",  name: "Harlem Nights",  grad: "linear-gradient(120deg, #2a0e1a, #4a1524 45%, #140a10)", accent: "#E8B923" },
+  { id: "harlem",  name: "Harlem Nights",  grad: "linear-gradient(90deg, rgba(10,7,8,0.25), rgba(10,7,8,0.52))", accent: "#E8B923", image: "/images/community/wm-lounge-harlem-night-v1.png" },
   { id: "vinyl",   name: "Golden Vinyl",   grad: "linear-gradient(120deg, #1c1408, #3d2e10 50%, #0f0c06)", accent: "#E8B923" },
   { id: "trading", name: "Trading Lounge", grad: "linear-gradient(120deg, #06231c, #0a3a2c 50%, #061512)", accent: "#059669" },
   { id: "royal",   name: "Royal Purple",   grad: "linear-gradient(120deg, #180e2e, #2e1a4a 50%, #0f0a1a)", accent: "#8B5CF6" },
@@ -569,11 +569,16 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
     <div>
       {/* ── Themed profile banner ── */}
       <div className="relative rounded-2xl overflow-hidden border" style={{ borderColor: "rgba(232,185,35,0.22)" }}>
-        <div className="relative" style={{ height: 150, background: theme.grad }}>
+        <div className="relative" style={{
+          height: 230,
+          backgroundImage: theme.image ? `${theme.grad}, url("${theme.image}")` : theme.grad,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}>
           {/* serif theme title (Harlem Nights / Golden Vinyl / …) */}
-          <div className="absolute inset-x-0 flex flex-col items-center pointer-events-none z-[1]" style={{ top: 24 }}>
+          <div className="absolute inset-x-0 flex flex-col items-center pointer-events-none z-[1]" style={{ top: 46 }}>
             <span className="text-[8px] font-black uppercase tracking-[0.32em] mb-1" style={{ color: theme.accent }}>WM Lounge</span>
-            <span className="font-black text-white leading-none" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 30, letterSpacing: 1.5, textTransform: "uppercase", textShadow: "0 2px 14px rgba(0,0,0,0.7)" }}>{theme.name}</span>
+            <span className="font-black text-white leading-none" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 48, letterSpacing: 1.5, textTransform: "uppercase", textShadow: "0 3px 22px rgba(0,0,0,0.9)" }}>{theme.name}</span>
           </div>
           {/* faint trading chart line */}
           <svg className="absolute inset-0 w-full h-full opacity-[0.18] pointer-events-none" preserveAspectRatio="none" viewBox="0 0 400 120">
@@ -936,7 +941,7 @@ export default function LoungePage() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">
+          <div className="max-w-5xl mx-auto px-4 py-4 space-y-4">
             <LoungeVibeHeader
               name={myName} handle={myHandle} avatar={myAvatar} color={myColor} ceo={myCeo}
               postCount={posts.filter(p => p.user_handle === myHandle).length}
@@ -958,7 +963,7 @@ export default function LoungePage() {
                   </button>
                 </div>
                 <div className="flex items-center gap-2 mt-2.5">
-                  {[{ icon: <Image size={13} />, label: "Photo", c: "#4FA3E0" }, { icon: <TrendingUp size={13} />, label: "Trading Insights", c: "#00D4AA" }, { icon: <Music size={13} />, label: "Music", c: "#8B5CF6" }].map(b => (
+                  {[{ icon: <Image size={13} />, label: "Photo", c: "#4FA3E0" }, { icon: <TrendingUp size={13} />, label: "Trading Insights", c: "#00D4AA" }, { icon: <Music size={13} />, label: "Music Share", c: "#8B5CF6" }, { icon: <Radio size={13} />, label: "Voice", c: "#E8B923" }].map(b => (
                     <button key={b.label} onClick={() => setShowCreate(true)}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all hover:scale-105"
                       style={{ background: `${b.c}14`, color: b.c, border: `1px solid ${b.c}2a` }}>
@@ -982,11 +987,13 @@ export default function LoungePage() {
                 </div>
               ))
             ) : visiblePosts.length > 0 ? (
-              visiblePosts.map(p => (
-                <PostCard key={p.id} post={p}
-                  myHandle={myHandle} myName={myName} myAvatar={myAvatar} myColor={myColor}
-                  onDelete={id => setPosts(ps => ps.filter(x => x.id !== id))}/>
-              ))
+              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3 items-start">
+                {visiblePosts.map(p => (
+                  <PostCard key={p.id} post={p}
+                    myHandle={myHandle} myName={myName} myAvatar={myAvatar} myColor={myColor}
+                    onDelete={id => setPosts(ps => ps.filter(x => x.id !== id))}/>
+                ))}
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <div className="text-4xl mb-3">

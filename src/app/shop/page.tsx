@@ -114,6 +114,18 @@ const PRODUCTS = [
 ];
 
 const CATEGORIES = ["All", "Books", "Art", "Music", "Beauty", "Apparel", "Accessories", "Lifestyle"];
+const PRODUCT_ART_SHEET = "/images/community/wm-shop-product-grid-v1.png";
+const PRODUCT_ART_POSITIONS = ["0% 0%", "33.333% 0%", "66.666% 0%", "100% 0%", "0% 100%", "33.333% 100%", "66.666% 100%", "100% 100%"];
+
+function productArt(id: number): React.CSSProperties | null {
+  if (id < 7 || id > 14) return null;
+  return {
+    backgroundImage: `url("${PRODUCT_ART_SHEET}")`,
+    backgroundSize: "400% 200%",
+    backgroundPosition: PRODUCT_ART_POSITIONS[id - 7],
+    backgroundRepeat: "no-repeat",
+  };
+}
 
 interface CartItem { id: number; qty: number; }
 
@@ -177,8 +189,8 @@ export default function ShopPage() {
       `}</style>
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-2.5 border-b border-wm-border bg-wm-dark shrink-0">
-        <h1 className="text-sm font-bold text-wm-text">WM Shop</h1>
-        <span className="text-[10px] text-wm-text-muted">Premium merch for the Wealthy Mindsets community</span>
+        <h1 className="text-xl font-black text-wm-text" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>WM Shop</h1>
+        <span className="text-[10px] text-wm-text-muted">Books · art · beauty · music · tools · culture</span>
         <div className="ml-auto flex items-center gap-3">
           {/* Search */}
           <div className="flex items-center gap-2 bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1">
@@ -211,21 +223,23 @@ export default function ShopPage() {
       </div>
 
       {/* Hero banner */}
-      <div className="mx-4 mt-4 rounded-2xl p-6 border border-wm-gold/20 shrink-0 flex items-center gap-6"
-        style={{ background: "linear-gradient(135deg, rgba(240,180,41,0.08) 0%, rgba(0,212,170,0.05) 100%)" }}>
-        <div className="text-5xl">🧥</div>
-        <div>
-          <div className="text-xs font-semibold text-wm-gold uppercase tracking-widest mb-1">Limited Drop</div>
-          <h2 className="text-xl font-black text-wm-text mb-2">W$ Bomber Jacket</h2>
-          <p className="text-sm text-wm-text-muted mb-3">Premium leather-and-wool varsity with embroidered Wealthy Mindsets logo. Only 500 made.</p>
+      <div className="mx-4 mt-4 rounded-3xl p-7 border border-wm-gold/20 shrink-0 flex items-center justify-between gap-8 overflow-hidden relative"
+        style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.92), rgba(240,225,190,0.76))", boxShadow: "0 14px 42px rgba(116,82,18,0.13)" }}>
+        <div className="absolute -right-12 -top-24 w-80 h-80 rounded-full opacity-20" style={{ background: "repeating-radial-gradient(circle,#E8B923 0 1px,transparent 1px 10px)" }} />
+        <div className="relative z-10">
+          <div className="text-xs font-semibold text-wm-gold uppercase tracking-[0.24em] mb-1">Cultural Excellence Marketplace</div>
+          <h2 className="text-3xl font-black text-wm-text mb-2" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>Build wealth. Own culture.</h2>
+          <p className="text-sm text-wm-text-muted mb-4 max-w-xl">Books, original art, creator music, premium grooming, trading tools, and limited WM collections—curated for the community.</p>
           <div className="flex items-center gap-3">
-            <span className="text-2xl font-black text-wm-gold">$189</span>
-            <button onClick={() => addToCart(1, "W$ Bomber Jacket")}
+            <button onClick={() => setCat("Books")}
               className="px-4 py-2 rounded-lg bg-wm-gold text-wm-black text-sm font-bold hover:opacity-90 transition-colors">
-              Shop Now
+              Explore the collection
             </button>
-            <span className="text-xs text-wm-red font-semibold animate-pulse">187 / 500 remaining</span>
+            <span className="text-xs text-wm-text-muted">Independent creators · WM exclusives</span>
           </div>
+        </div>
+        <div className="hidden lg:grid grid-cols-2 gap-2 relative z-10">
+          {["📚","🎨","🎵","✨"].map((icon, i) => <div key={i} className="w-16 h-16 rounded-2xl bg-white/80 border border-black/5 flex items-center justify-center text-3xl shadow-sm">{icon}</div>)}
         </div>
       </div>
 
@@ -236,7 +250,7 @@ export default function ShopPage() {
             No products match "{search}"
           </div>
         )}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
           {(cat === "All" && !search
             ? [...PRODUCTS].sort((a, b) => CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category))
             : products
@@ -246,37 +260,29 @@ export default function ShopPage() {
             <motion.div key={product.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
               className="glass rounded-xl overflow-hidden hover:border-wm-border/80 transition-all group cursor-pointer"
               onClick={() => setDetail(product)}>
-              <div className="relative h-44 flex items-center justify-center"
-                style={{ background: `linear-gradient(135deg, ${product.accent}26, #ffffff)` }}>
-                <span className="text-6xl">{product.emoji}</span>
+              <div className="relative h-52 flex items-center justify-center"
+                style={{ ...(productArt(product.id) ?? { background: `linear-gradient(135deg, ${product.accent}26, #ffffff)` }) }}>
+                {!productArt(product.id) && <span className="text-6xl">{product.emoji}</span>}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
 
-                {product.badge && (
-                  <div className="absolute top-2 left-2 px-2 py-0.5 rounded text-[9px] font-bold uppercase"
-                    style={{
-                      background: product.badge === "HOT" ? "rgba(255,77,106,0.25)" : product.badge === "EXCLUSIVE" ? "rgba(240,180,41,0.25)" : "rgba(0,212,170,0.25)",
-                      color: product.badge === "HOT" ? "#FF4D6A" : product.badge === "EXCLUSIVE" ? "#F0B429" : "#00D4AA",
-                      border: `1px solid ${product.badge === "HOT" ? "rgba(255,77,106,0.4)" : product.badge === "EXCLUSIVE" ? "rgba(240,180,41,0.4)" : "rgba(0,212,170,0.4)"}`,
-                    }}>
-                    {product.badge}
-                  </div>
-                )}
+                <div className="absolute top-2 left-2 px-2.5 py-1 rounded-full text-[10px] font-black bg-[#E8B923] text-[#241f14] shadow">${product.price}</div>
 
                 <button onClick={e => { e.stopPropagation(); toggleWishlist(product.id); }}
                   className="absolute top-2 right-2 p-1.5 rounded-full bg-wm-surface/80 hover:bg-wm-surface transition-colors">
                   <Heart size={13} className={wishlist.includes(product.id) ? "text-wm-red fill-wm-red" : "text-wm-text-muted"} />
                 </button>
 
-                <div className="absolute bottom-2 right-2 flex gap-1">
-                  {product.colors.map(c => (
-                    <div key={c} className="w-3 h-3 rounded-full border border-wm-border/60" style={{ background: c }} />
-                  ))}
-                </div>
+                <button onClick={e => { e.stopPropagation(); addToCart(product.id, product.name); }}
+                  aria-label={`Add ${product.name} to cart`}
+                  className="absolute bottom-3 right-3 w-10 h-10 rounded-full flex items-center justify-center bg-[#E8B923] text-[#241f14] shadow-lg transition-transform hover:scale-110">
+                  <ShoppingCart size={16} />
+                </button>
               </div>
 
               <div className="p-3">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <h3 className="text-sm font-bold text-wm-text leading-tight">{product.name}</h3>
-                  <span className="text-sm font-black text-wm-gold shrink-0">${product.price}</span>
+                  {product.badge && <span className="text-[8px] font-black uppercase text-wm-gold">{product.badge}</span>}
                 </div>
                 <p className="text-[11px] text-wm-text-muted leading-relaxed mb-2">{product.desc}</p>
                 <div className="flex items-center gap-1 mb-3">
@@ -284,16 +290,15 @@ export default function ShopPage() {
                   <span className="text-[10px] font-semibold text-wm-gold">{product.stars}</span>
                   <span className="text-[10px] text-wm-text-dim">({product.reviews})</span>
                 </div>
-                <button onClick={e => { e.stopPropagation(); addToCart(product.id, product.name); }}
-                  className="w-full py-2 rounded-lg text-xs font-bold transition-all hover:opacity-90"
-                  style={{ background: `linear-gradient(135deg, ${product.accent}33, ${product.accent}18)`, color: product.accent, border: `1px solid ${product.accent}40` }}>
-                  Add to Cart
-                </button>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-wm-gold">${product.price.toFixed(2)}</span>
+                  <button onClick={e => { e.stopPropagation(); addToCart(product.id, product.name); }} className="text-[10px] font-black text-[#241f14] hover:text-wm-gold">Add to cart →</button>
+                </div>
               </div>
             </motion.div>
             );
             return showHdr
-              ? [<h2 key={"h-" + product.category} className="col-span-3 text-[17px] font-black uppercase tracking-wider mt-3 mb-1" style={{ color: "#241f14" }}>{product.category}</h2>, card]
+              ? [<h2 key={"h-" + product.category} className="col-span-2 xl:col-span-4 text-[25px] font-black uppercase tracking-wider mt-3 mb-1" style={{ color: "#241f14", fontFamily: 'Georgia, "Times New Roman", serif' }}>{product.category}</h2>, card]
               : [card];
           })}
         </div>

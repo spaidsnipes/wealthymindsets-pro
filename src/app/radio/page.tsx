@@ -32,6 +32,18 @@ interface Station {
   tags:     string[];
 }
 
+const CREATOR_ART_SHEET = "/images/community/wm-radio-creator-grid-v1.png";
+const CREATOR_ART_POSITIONS = ["0% 0%", "50% 0%", "100% 0%", "0% 100%", "50% 100%", "100% 100%"];
+
+function creatorArt(index: number): React.CSSProperties {
+  return {
+    backgroundImage: `url("${CREATOR_ART_SHEET}")`,
+    backgroundSize: "300% 200%",
+    backgroundPosition: CREATOR_ART_POSITIONS[index % CREATOR_ART_POSITIONS.length],
+    backgroundRepeat: "no-repeat",
+  };
+}
+
 interface Track {
   id:       number;
   title:    string;
@@ -217,10 +229,11 @@ const TRACK_URLS: Record<number, string> = {
 /* ══════════════════════════════════════════════════════════════
    SUB-COMPONENTS
 ══════════════════════════════════════════════════════════════ */
-function StationCard({ station, active, onPlay }: {
+function StationCard({ station, active, onPlay, artIndex }: {
   station: Station;
   active: boolean;
   onPlay: () => void;
+  artIndex: number;
 }) {
   const c = station.color;
   // Per-bar heights (px) for the equalizer waveform — varied for an organic look.
@@ -240,8 +253,9 @@ function StationCard({ station, active, onPlay }: {
       }}
     >
       {/* ── Genre art strip — spinning vinyl + waveform ─────────── */}
-      <div className="relative overflow-hidden" style={{ height: 90,
-        background: `radial-gradient(130% 150% at 12% 15%, ${c}40 0%, transparent 62%), linear-gradient(135deg, ${c}22, rgba(11,12,18,0.92))` }}>
+      <div className="relative overflow-hidden" style={{ height: 146, ...creatorArt(artIndex) }}>
+        <div className="pointer-events-none absolute inset-0"
+          style={{ background: `linear-gradient(180deg, rgba(8,8,12,0.02), rgba(8,8,12,0.35) 48%, rgba(8,8,12,0.96)), radial-gradient(circle at 20% 10%, ${c}35, transparent 46%)` }} />
         {/* faint vinyl grooves — cultural texture, low opacity */}
         <div className="pointer-events-none absolute inset-0 opacity-[0.11]"
           style={{ background: `repeating-radial-gradient(circle at 84% 44%, ${c} 0 1px, transparent 1px 7px)` }} />
@@ -253,15 +267,9 @@ function StationCard({ station, active, onPlay }: {
           <div className="absolute inset-0 m-auto rounded-full bg-black/85" style={{ width: 6, height: 6 }} />
         </div>
 
-        {/* Avatar chip */}
-        <div className="absolute left-4 top-3 w-9 h-9 rounded-xl flex items-center justify-center font-black text-[15px] z-10"
-          style={{ background: `linear-gradient(135deg, ${c}66, ${c}22)`, color: "#fff", border: `1px solid ${c}66`, textShadow: "0 1px 3px rgba(0,0,0,0.55)" }}>
-          {station.avatar}
-        </div>
-
         {/* Live pill */}
         {station.live && (
-          <div className="absolute top-3.5 left-1/2 -translate-x-1/2 flex items-center gap-1 px-1.5 py-0.5 rounded-full z-10"
+          <div className="absolute top-3.5 left-3.5 flex items-center gap-1 px-2 py-1 rounded-full z-10"
             style={{ background: "rgba(255,77,106,0.22)", border: "1px solid rgba(255,77,106,0.55)" }}>
             <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
             <span style={{ fontSize: 8, fontWeight: 800, color: "#FF4D6A", letterSpacing: 1 }}>LIVE</span>
@@ -269,11 +277,11 @@ function StationCard({ station, active, onPlay }: {
         )}
 
         {/* Equalizer waveform — frozen when idle, dances when tuned in / on hover */}
-        <div className="absolute left-4 bottom-2.5 flex items-end gap-[3px] z-10" style={{ height: 34 }}>
+        <div className="absolute left-4 right-16 bottom-2.5 flex items-end gap-[2px] z-10" style={{ height: 34 }}>
           {bars.map((h, i) => (
             <div key={i} data-eq style={{
-              width: 3, height: h, borderRadius: 2, transformOrigin: "bottom",
-              background: c, opacity: active ? 0.92 : 0.5,
+              flex: 1, height: h, borderRadius: 2, transformOrigin: "bottom",
+              background: "#fff", opacity: active ? 0.95 : 0.68,
               animation: `wm-eq ${(0.9 + (i % 5) * 0.12).toFixed(2)}s ease-in-out ${(i * 0.06).toFixed(2)}s infinite alternate`,
               animationPlayState: active ? "running" : "paused",
             }} />
@@ -348,9 +356,10 @@ function TrackRow({ track, idx, active, playing, onPlay, liked, onToggleLike }: 
       <div className="shrink-0 rounded-full" style={{ width: 4, height: 42, background: track.color, boxShadow: `0 0 10px ${track.color}66` }} />
 
       {/* Album art */}
-      <div className="w-12 h-12 rounded-xl shrink-0 relative overflow-hidden flex items-center justify-center"
-        style={{ background: `linear-gradient(135deg, ${track.color}66, ${track.color}22)`, border: `1px solid ${track.color}33` }}>
-        {active && playing ? <LiveWave color={track.color} /> : <Music2 size={18} style={{ color: track.color }} />}
+      <div className="w-14 h-14 rounded-xl shrink-0 relative overflow-hidden flex items-center justify-center"
+        style={{ ...creatorArt(idx), border: `1px solid ${track.color}55`, boxShadow: `0 6px 16px ${track.color}22` }}>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+        {active && playing && <div className="relative z-10 rounded-full bg-black/60 px-2 py-1"><LiveWave color="#fff" /></div>}
       </div>
 
       {/* Title + sub */}
@@ -387,8 +396,9 @@ function TrackRow({ track, idx, active, playing, onPlay, liked, onToggleLike }: 
   );
 }
 
-function EpisodeCard({ ep, active, playing, onPlay }: {
+function EpisodeCard({ ep, artIndex, active, playing, onPlay }: {
   ep: Episode;
+  artIndex: number;
   active: boolean;
   playing: boolean;
   onPlay: () => void;
@@ -405,12 +415,13 @@ function EpisodeCard({ ep, active, playing, onPlay }: {
       <div className="absolute left-0 top-4 bottom-4 rounded-full" style={{ width: 3, background: ep.color, opacity: active ? 1 : 0.55 }} />
       <div className="flex gap-3">
         {/* Artwork + gold play overlay */}
-        <div className="w-14 h-14 rounded-xl flex-shrink-0 relative flex items-center justify-center overflow-hidden"
-          style={{ background: `linear-gradient(135deg, ${ep.color}44, ${ep.color}18)`, border: `1px solid ${ep.color}30` }}>
+        <div className="w-20 h-20 rounded-xl flex-shrink-0 relative flex items-center justify-center overflow-hidden"
+          style={{ ...creatorArt(artIndex), border: `1px solid ${ep.color}55` }}>
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to top,rgba(5,5,8,.82),transparent 62%)" }} />
           {active && playing ? (
-            <LiveWave color={ep.color} />
+            <div className="relative z-10"><LiveWave color="#E8B923" /></div>
           ) : (
-            <Mic size={22} style={{ color: ep.color }} />
+            <Mic size={22} className="relative z-10" style={{ color: "#E8B923" }} />
           )}
           <div className="absolute bottom-1 right-1 w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: "linear-gradient(135deg,#E8B923,#059669)", boxShadow: "0 3px 10px rgba(232,185,35,0.4)" }}>
             {active && playing ? <Pause size={12} className="text-black" /> : <Play size={12} className="text-black ml-0.5" />}
@@ -452,12 +463,12 @@ function EpisodeCard({ ep, active, playing, onPlay }: {
   );
 }
 
-function ArtistCard({ artist }: { artist: Artist }) {
+function ArtistCard({ artist, artIndex }: { artist: Artist; artIndex: number }) {
   const [following, setFollowing] = useState(false);
   return (
     <motion.div whileHover={{ y:-4 }} className="relative rounded-2xl border border-wm-border/50 bg-wm-card/60 hover:border-wm-border hover:bg-wm-surface/40 transition-all overflow-hidden">
       {/* Cover header with genre texture */}
-      <div className="relative" style={{ height: 76, background: `radial-gradient(120% 140% at 20% 10%, ${artist.color}55, transparent 60%), linear-gradient(135deg, ${artist.color}44, rgba(11,12,18,0.9))` }}>
+      <div className="relative" style={{ height: 150, ...creatorArt(artIndex) }}>
         <div className="pointer-events-none absolute inset-0 opacity-[0.12]" style={{ background: `repeating-radial-gradient(circle at 82% 40%, ${artist.color} 0 1px, transparent 1px 7px)` }} />
         <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(to top, rgba(11,12,18,0.9), transparent 70%)" }} />
         {artist.wm_team && (
@@ -468,10 +479,7 @@ function ArtistCard({ artist }: { artist: Artist }) {
       <div className="px-4 pb-4">
         <div className="flex items-end gap-3" style={{ marginTop: -28 }}>
           <div className="rounded-2xl p-[2px] shrink-0" style={{ background: `linear-gradient(135deg, ${artist.color}, ${artist.color}55)`, boxShadow: `0 0 14px ${artist.color}55` }}>
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl"
-              style={{ background: `linear-gradient(135deg, ${artist.color}66, ${artist.color}22)`, color: "#fff", border: "2px solid #0D0E14" }}>
-              {artist.avatar}
-            </div>
+            <div className="w-14 h-14 rounded-2xl" style={{ ...creatorArt(artIndex), border: "2px solid #0D0E14" }} />
           </div>
           <div className="flex-1 min-w-0 pb-1">
             <div className="flex items-center gap-1.5">
@@ -1094,17 +1102,17 @@ export default function RadioPage() {
               <span className="text-[11px] font-black text-wm-text uppercase tracking-widest">All Channels</span>
             </div>
             <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
-              {STATIONS.map(s => (
+              {STATIONS.map((s, index) => (
                 <StationCard key={s.id} station={s}
+                  artIndex={index}
                   active={activeStation === s.name}
                   onPlay={() => activeStation === s.name ? togglePlay() : playStation(s.id)}
                 />
               ))}
             </div>
 
-            {/* Recent Tracks */}
-            {userTracks.length > 0 && (
-              <div className="mt-6">
+            {/* Recent Tracks — always visible; community uploads lead when available */}
+            <div className="mt-6">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <TrendingUp size={13} className="text-wm-text-muted" />
@@ -1115,7 +1123,7 @@ export default function RadioPage() {
                   </button>
                 </div>
                 <div className="space-y-2">
-                  {userTracks.slice(0,5).map((t,i) => (
+                  {allTracks.slice(0,5).map((t,i) => (
                     <TrackRow key={t.id} track={t} idx={i}
                       active={activeTrackUrl === (uploadedUrls[t.id] ?? TRACK_URLS[t.id] ?? "")}
                       playing={playing}
@@ -1126,7 +1134,6 @@ export default function RadioPage() {
                   ))}
                 </div>
               </div>
-            )}
           </div>
         )}
 
@@ -1202,8 +1209,8 @@ export default function RadioPage() {
             <div className="space-y-3">
               {EPISODES
                 .filter(e => !search || e.title.toLowerCase().includes(search.toLowerCase()) || e.host.toLowerCase().includes(search.toLowerCase()))
-                .map(ep => (
-                  <EpisodeCard key={ep.id} ep={ep}
+                .map((ep, index) => (
+                  <EpisodeCard key={ep.id} ep={ep} artIndex={index}
                     active={activeEpTitle === ep.title}
                     playing={playing}
                     onPlay={() => activeEpTitle === ep.title ? togglePlay() : playEpisode(ep.id)}
@@ -1222,7 +1229,7 @@ export default function RadioPage() {
                 <span className="text-[11px] font-black text-wm-text uppercase tracking-widest">WM Team</span>
               </div>
               <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
-                {ARTISTS.filter(a => a.wm_team).map(a => <ArtistCard key={a.id} artist={a} />)}
+                {ARTISTS.filter(a => a.wm_team).map((a, index) => <ArtistCard key={a.id} artist={a} artIndex={index} />)}
               </div>
             </div>
             <div>
@@ -1231,7 +1238,7 @@ export default function RadioPage() {
                 <span className="text-[11px] font-black text-wm-text uppercase tracking-widest">Community Artists</span>
               </div>
               <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
-                {ARTISTS.filter(a => !a.wm_team).map(a => <ArtistCard key={a.id} artist={a} />)}
+                {ARTISTS.filter(a => !a.wm_team).map((a, index) => <ArtistCard key={a.id} artist={a} artIndex={index + 3} />)}
               </div>
             </div>
           </div>

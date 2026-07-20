@@ -68,6 +68,10 @@ const SHOWS: Show[] = [
   { id:"chart-chill",  title:"Chart & Chill",          host:"ChartFanatics",       genre:"Lo-Fi Stream",      color:"#00D4AA", status:"live",   viewers:"967",  motif:"vinyl", opens:"live"    },
 ];
 
+const TV_HERO_ART = "/images/community/wm-tv-host-studio-v1.png";
+const CREATOR_GRID_ART = "/images/community/wm-radio-creator-grid-v1.png";
+const SHOW_ART_POSITIONS = ["0% 0%", "50% 0%", "100% 0%", "0% 100%", "50% 100%", "100% 100%"];
+
 function motifBg(color: string, motif: Show["motif"]): string {
   if (motif === "vinyl")
     return `radial-gradient(circle at 72% 42%, ${color}55 0 2px, transparent 2px 7px), radial-gradient(120% 130% at 15% 20%, ${color}44, rgba(11,12,18,0.94))`;
@@ -88,10 +92,10 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
     <div className="flex-1 min-h-0 overflow-y-auto">
       {/* ── LIVE ON AIR hero ─────────────────────────────── */}
       <div className="relative overflow-hidden" style={{
-        margin: 16, borderRadius: 22, minHeight: 300,
-        background: "radial-gradient(70% 95% at 50% 0%, rgba(232,185,35,0.20), transparent 60%)," +
-                    "radial-gradient(85% 100% at 82% 100%, rgba(5,150,105,0.16), transparent 55%)," +
-                    "linear-gradient(160deg, #14100a 0%, #0c0d13 55%, #0a0a06 100%)",
+        margin: 16, borderRadius: 22, minHeight: 390,
+        backgroundImage: `linear-gradient(90deg, rgba(8,8,10,0.94) 0%, rgba(8,8,10,0.68) 44%, rgba(8,8,10,0.18) 76%, rgba(8,8,10,0.45) 100%), url("${TV_HERO_ART}")`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
         border: "1px solid rgba(232,185,35,0.30)", boxShadow: "0 0 54px rgba(232,185,35,0.12)",
       }}>
         {/* vinyl grooves */}
@@ -101,7 +105,7 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
           <polyline points="0,96 40,84 80,90 120,62 160,72 200,44 240,56 280,30 320,40 360,18 400,26" fill="none" stroke="#E8B923" strokeWidth="2" />
         </svg>
 
-        <div className="relative z-10 flex flex-col items-center text-center px-6 pt-8 pb-10">
+        <div className="relative z-10 flex flex-col items-start text-left px-10 pt-10 pb-12" style={{ maxWidth: 610 }}>
           {/* glowing arc + LIVE ON AIR badge */}
           <div className="relative mb-4" style={{ paddingTop: 26 }}>
             <div className="absolute left-1/2" style={{ top: 0, transform: "translateX(-50%)", width: 168, height: 84, borderTopLeftRadius: 168, borderTopRightRadius: 168, borderTop: "2px solid rgba(232,185,35,0.7)", borderLeft: "2px solid rgba(232,185,35,0.32)", borderRight: "2px solid rgba(232,185,35,0.32)", borderBottom: "none", boxShadow: "0 -6px 26px rgba(232,185,35,0.4)" }} />
@@ -122,7 +126,7 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
           </div>
 
           {/* serif title + tagline */}
-          <h1 className="font-black text-wm-text leading-none mb-2" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 46, letterSpacing: 1 }}>WM TV</h1>
+          <h1 className="font-black text-wm-text leading-none mb-2" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 58, letterSpacing: 1 }}>WM TV</h1>
           <p className="font-semibold mb-6" style={{ color: "#E8B923", fontFamily: 'Georgia, serif', fontSize: 14, maxWidth: 460 }}>Podcasts, live conversations &amp; Black excellence on air since the 1900s</p>
 
           {/* CTAs */}
@@ -163,11 +167,17 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
           <span className="text-[11px] font-black text-wm-text uppercase tracking-widest">Shows & Podcasts</span>
         </div>
         <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))" }}>
-          {SHOWS.map(s => (
+          {SHOWS.map((s, index) => (
             <motion.button key={s.id} whileHover={{ y: -4 }} onClick={s.opens === "live" ? onOpenLive : onOpenPodcast}
               className="relative rounded-2xl overflow-hidden text-left border group"
               style={{ borderColor: "rgba(30,32,48,0.9)", background: "rgba(20,22,32,0.85)" }}>
-              <div className="relative" style={{ height: 118, background: motifBg(s.color, s.motif) }}>
+              <div className="relative" style={{
+                height: 178,
+                backgroundImage: `linear-gradient(to top, rgba(11,12,18,0.94), rgba(11,12,18,0.06) 68%), url("${CREATOR_GRID_ART}")`,
+                backgroundSize: "100% 100%, 300% 200%",
+                backgroundPosition: `center, ${SHOW_ART_POSITIONS[index]}`,
+                backgroundRepeat: "no-repeat",
+              }}>
                 <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(to top, rgba(11,12,18,0.85), transparent 60%)" }} />
                 <div className="absolute top-2.5 left-2.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full"
                   style={{ background: s.status === "live" ? "rgba(255,77,106,0.9)" : "rgba(0,0,0,0.55)", border: s.status === "live" ? "none" : "1px solid rgba(255,255,255,0.2)" }}>
