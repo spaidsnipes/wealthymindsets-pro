@@ -546,6 +546,16 @@ const LOUNGE_TOP8 = [
   { name: "CryptoKing",    color: "#00C853", avatar: "K" },
   { name: "TapeReader",    color: "#E8B923", avatar: "T" },
 ];
+const LOUNGE_CREATOR_SHEET = "/images/community/wm-radio-creator-grid-v1.png";
+const LOUNGE_CREATOR_POSITIONS = ["0% 0%", "50% 0%", "100% 0%", "0% 100%", "50% 100%", "100% 100%"];
+function loungeCreatorArt(index: number): React.CSSProperties {
+  return {
+    backgroundImage: `url("${LOUNGE_CREATOR_SHEET}")`,
+    backgroundSize: "300% 200%",
+    backgroundPosition: LOUNGE_CREATOR_POSITIONS[index % LOUNGE_CREATOR_POSITIONS.length],
+    backgroundRepeat: "no-repeat",
+  };
+}
 
 function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories }: {
   name: string; handle: string; avatar: string; color: string; ceo: boolean;
@@ -633,9 +643,9 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
                 <span className="text-[9px] text-wm-text-dim">· Top 8</span>
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
-                {LOUNGE_TOP8.map(m => (
+                {LOUNGE_TOP8.map((m, index) => (
                   <div key={m.name} className="rounded-full p-[2px]" title={m.name} style={{ background: `linear-gradient(135deg, ${theme.accent}, ${m.color})` }}>
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center font-black text-white text-[12px]" style={{ background: `linear-gradient(135deg, ${m.color}, ${m.color}88)`, border: "2px solid #0D0E14" }}>{m.avatar}</div>
+                    <div className="w-8 h-8 rounded-full" style={{ ...loungeCreatorArt(index), border: "2px solid #0D0E14" }} />
                   </div>
                 ))}
               </div>

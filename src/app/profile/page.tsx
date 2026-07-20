@@ -38,6 +38,16 @@ const CIRCLE_OF_EXCELLENCE = [
   { name: "CryptoKing",    color: "#00C853", avatar: "K" },
   { name: "TapeReader",    color: "#E8B923", avatar: "T" },
 ];
+const PROFILE_CREATOR_SHEET = "/images/community/wm-radio-creator-grid-v1.png";
+const PROFILE_CREATOR_POSITIONS = ["0% 0%", "50% 0%", "100% 0%", "0% 100%", "50% 100%", "100% 100%"];
+function profileCreatorArt(index: number): React.CSSProperties {
+  return {
+    backgroundImage: `url("${PROFILE_CREATOR_SHEET}")`,
+    backgroundSize: "300% 200%",
+    backgroundPosition: PROFILE_CREATOR_POSITIONS[index % PROFILE_CREATOR_POSITIONS.length],
+    backgroundRepeat: "no-repeat",
+  };
+}
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -328,8 +338,10 @@ export default function ProfilePage() {
     <div className="flex flex-col h-full bg-wm-black overflow-y-auto">
       {/* Profile banner */}
       <div className="relative shrink-0" style={{
-        height: 140,
-        background: `linear-gradient(135deg, ${bgColor} 0%, #00D4AA18 50%, #8B5CF618 100%)`,
+        height: 230,
+        backgroundImage: `linear-gradient(90deg,rgba(7,6,8,.2),rgba(7,6,8,.6)),url("/images/community/wm-lounge-harlem-night-v1.png")`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
         borderBottom: "1px solid #252D38",
       }}>
         <div className="absolute inset-0 opacity-10" style={{
@@ -341,6 +353,9 @@ export default function ProfilePage() {
         <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.14]" preserveAspectRatio="none" viewBox="0 0 400 140">
           <polyline points="0,112 40,98 80,106 120,74 160,86 200,52 240,64 280,32 320,44 360,18 400,28" fill="none" stroke="#E8B923" strokeWidth="2" />
         </svg>
+        <div className="absolute left-6 bottom-12 font-serif text-4xl md:text-5xl text-[#F7E7B0] drop-shadow-[0_4px_16px_rgba(0,0,0,.9)]">
+          Harlem Nights
+        </div>
 
         <div className="absolute top-3 right-3 flex gap-2 items-center">
           {["#070A0F", "#0D0A1F", "#0A1A0D", "#1A0A0A"].map(c => (
@@ -473,13 +488,10 @@ export default function ProfilePage() {
               <span className="text-[10px] text-wm-text-dim">· Top 8</span>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              {CIRCLE_OF_EXCELLENCE.map(m => (
+              {CIRCLE_OF_EXCELLENCE.map((m, index) => (
                 <div key={m.name} className="flex flex-col items-center gap-1">
                   <div className="rounded-full p-[2px]" style={{ background: `linear-gradient(135deg,#E8B923,${m.color})`, boxShadow: "0 0 12px rgba(232,185,35,0.32)" }}>
-                    <div className="w-11 h-11 rounded-full flex items-center justify-center font-black text-white text-sm"
-                      style={{ background: `linear-gradient(135deg,${m.color},${m.color}88)`, border: "2px solid #0D0E14" }}>
-                      {m.avatar}
-                    </div>
+                    <div className="w-11 h-11 rounded-full" style={{ ...profileCreatorArt(index), border: "2px solid #0D0E14" }} />
                   </div>
                   <span className="text-[9px] text-wm-text-muted truncate" style={{ maxWidth: 52 }}>{m.name}</span>
                 </div>
