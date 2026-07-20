@@ -17,7 +17,8 @@ const CRYPTO_SYMS = new Set([
 ]);
 function isCrypto(sym: string) { return CRYPTO_SYMS.has(sym.toUpperCase()); }
 
-/* ── Synthetic DOM helpers (futures / equities) ────────────── */
+/* Futures/equities require a licensed Level 2 feed. The free build only renders
+   an order book for crypto symbols backed by observed Kraken data. */
 const SYMBOL_BASE: Record<string,number> = {
   "NQ1!":22_000,"ES1!":7_540,"RTY1!":2_200,"YM1!":43_300,
   "GC1!":3_300,"CL1!":72,"SI1!":33,"ZB1!":115,"ZN1!":109,
@@ -36,25 +37,6 @@ function getTickSize(base: number) {
 }
 
 interface Level { price: number; bidSize: number; askSize: number; isWall: boolean; isBid: boolean; }
-
-function buildSyntheticDOM(center: number, tick: number, levels = 12): Level[] {
-  const out: Level[] = [];
-  const dp = tick < 0.01 ? 4 : 2;
-  const seed = Math.floor(center / (tick * 4));
-  for (let i = levels; i >= -levels; i--) {
-    const price = +(center + i * tick).toFixed(dp);
-    const isBid = i < 0;
-    const distFactor = Math.max(0.05, 1 - Math.abs(i) / (levels * 1.5));
-    const n = Math.floor(Math.abs(price) * 100) + seed * 131 + i * 17;
-    const sr = Math.abs(Math.sin(n * 12.9898) * 43758.5453 % 1);
-    const base = 30 + sr * 200;
-    const wobble = 0.9 + Math.random() * 0.2;
-    const size = Math.max(1, Math.floor(base * distFactor * wobble));
-    const isWall = size > 180;
-    out.push({ price, bidSize: isBid ? size : 0, askSize: !isBid ? size : 0, isWall, isBid });
-  }
-  return out;
-}
 
 /* ── Build Level[] from Kraken real bids/asks ──────────────── */
 function buildRealDOM(
@@ -197,8 +179,9 @@ export function DOMPanel({ symbol }: { symbol: string }) {
   // ── Bootstrap: crypto → Kraken WS + REST snapshot ──────────
   useEffect(() => {
     if (!crypto) {
-      // Non-crypto: synthetic DOM
-      setLevels(buildSyntheticDOM(livePrice, tick));
+      setLevels([]);
+      setTrades([]);
+      setRealConnected(false);
       return;
     }
 
@@ -230,13 +213,12 @@ export function DOMPanel({ symbol }: { symbol: string }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sym, crypto]);
 
-  // ── Non-crypto: synthetic DOM update on price change ────────
+  // ── Non-crypto: keep the book empty; quote prices are not Level 2 depth ──
   useEffect(() => {
     if (crypto) return;
-    // Anchor to the live price (ticker first, then live bar) — never the stale seed.
     if (ticker?.price && ticker.price > 0) priceRef.current = ticker.price;
     else if (liveBar?.close) priceRef.current = liveBar.close;
-    setLevels(buildSyntheticDOM(priceRef.current, tick));
+    setLevels([]);
   }, [liveBar, ticker, tick, crypto]);
 
   // ── Non-crypto: feed Time & Sales from Finnhub WS ticks ────
@@ -268,6 +250,11 @@ export function DOMPanel({ symbol }: { symbol: string }) {
             {realConnected ? "● LIVE" : "○ REST"}
           </span>
         )}
+        {!crypto && (
+          <span style={{ fontSize:9, fontWeight:800, color:"#F0B429", marginLeft:2 }}>
+            LEVEL 2 REQUIRED
+          </span>
+        )}
         <span style={{ marginLeft:"auto", fontFamily:"monospace", fontWeight:800, fontSize:16,
           color: (liveBar?.close ?? 0) >= (liveBar?.open ?? 0) ? "#00C076" : "#FF4D67" }}>
           {center.toFixed(dp)}
@@ -292,6 +279,14 @@ export function DOMPanel({ symbol }: { symbol: string }) {
 
       {/* DOM levels */}
       <div style={{ flex:1, overflow:"hidden" }}>
+        {!crypto && (
+          <div style={{ padding:"28px 18px", textAlign:"center", color:"#8B95A5", lineHeight:1.5 }}>
+            <div style={{ color:"#F0B429", fontSize:11, fontWeight:900, marginBottom:8 }}>NO FABRICATED DEPTH</div>
+            <div style={{ fontSize:10 }}>
+              Equities and futures DOM needs a licensed Level 2 feed. Crypto books use observed Kraken orders in this free build.
+            </div>
+          </div>
+        )}
         {levels.map((lvl, i) => {
           const isAtPrice = Math.abs(lvl.price - center) < tick * 0.6;
           const sz = lvl.bidSize || lvl.askSize;

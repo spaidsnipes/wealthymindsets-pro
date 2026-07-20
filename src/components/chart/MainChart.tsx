@@ -100,7 +100,6 @@ function hexToRgbTriplet(color: string): [number, number, number] | null {
 /* ── FIXED: all values in seconds, uniform ──────────────── */
 function getIntervalSec(tf: string): number {
   const m: Record<string, number> = {
-    "1t":  1,    "5t":  5,    "30t": 30,
     "1m":  60,   "2m":  120,  "3m":  180,  "5m":  300,
     "10m": 600,  "15m": 900,  "30m": 1800,
     "1h":  3600, "2h":  7200, "4h":  14400,
@@ -170,7 +169,7 @@ function toPolygonTimespan(tf: string): { mult: number; span: string } | null {
     "3Y":  { mult:36, span:"month"  },
     "5Y":  { mult:60, span:"month"  },
   };
-  return map[tf] ?? null; // 1t, 5t, 30t tick timeframes → null (synthetic)
+  return map[tf] ?? null;
 }
 
 async function fetchPolygonOHLCV(sym: string, tf: string, count: number): Promise<Bar[] | null> {
@@ -383,135 +382,6 @@ function getMinTick(base: number): number {
 /* Snap price to nearest valid tick */
 function snapTick(price: number, tick: number): number {
   return Math.round(price / tick) * tick;
-}
-
-/* ── Historical candle generator — realistic market phases ── */
-/*
- * Divides history into alternating trend/consolidation phases so
- * recognizable chart patterns (H&S, double-tops, triangles, flags)
- * form naturally over time instead of pure random noise.
- */
-function generateCandles(count: number, base: number, intervalSec: number): Bar[] {
-  const bars: Bar[] = [];
-  const tick = getMinTick(base);
-  const dp   = base < 10 ? 5 : base < 100 ? 2 : 2;
-
-  // ATR (average true range) scales with timeframe — realistic candle sizes
-  const atrScale: Record<number, number> = {
-    1:     0.0003,   // 1s
-    60:    0.0004,   // 1m
-    300:   0.0007,   // 5m
-    900:   0.0011,   // 15m
-    1800:  0.0015,   // 30m
-    3600:  0.0020,   // 1h
-    14400: 0.0032,   // 4h
-    86400: 0.0060,   // D
-  };
-  // Find closest matching interval
-  const atrPct = Object.entries(atrScale).reduce((best, [sec, pct]) =>
-    Math.abs(Number(sec) - intervalSec) < Math.abs(Number(best[0]) - intervalSec) ? [sec, pct] : best
-  , ["60", 0.0004])[1] as number;
-
-  const atr = base * atrPct;
-
-  // Build market phases: trend direction + strength + duration
-  type Phase = { bias: number; strength: number; len: number };
-  const phases: Phase[] = [];
-  let remaining = count;
-  const directions = [1, -1, 1, -1, 0, 1, -1, 0, 1, -1, 1, 0, -1];
-  let dIdx = 0;
-
-  while (remaining > 0) {
-    const dir = directions[dIdx % directions.length];
-    dIdx++;
-    const isConsolidation = dir === 0;
-    const len = isConsolidation
-      ? Math.floor(8 + Math.random() * 18)   // consolidation: 8-25 bars
-      : Math.floor(15 + Math.random() * 40); // trend: 15-55 bars
-    phases.push({
-      bias:     dir,
-      strength: isConsolidation ? 0.02 : 0.08 + Math.random() * 0.18,
-      len:      Math.min(len, remaining),
-    });
-    remaining -= len;
-  }
-
-  let price = base;
-  // Start slightly away from seed so chart has room to move both ways
-  price = snapTick(base * (1 - 0.008 + Math.random() * 0.016), tick);
-
-  const now = Math.floor(Date.now() / 1000 / intervalSec) * intervalSec;
-  let barIdx = 0;
-
-  for (const phase of phases) {
-    // Each phase has a momentum tracker
-    let momentum = 0;
-
-    for (let j = 0; j < phase.len; j++) {
-      const open = price;
-
-      // Weighted random: bias toward phase direction + current momentum
-      const drift  = phase.bias * phase.strength * atr;
-      const noise  = (Math.random() * 2 - 1) * atr;
-      const momPush = momentum * atr * 0.3;
-      let rawMove = drift + noise + momPush;
-
-      // Mean-revert if price drifted too far from seed (±12%)
-      const distFromBase = (price - base) / base;
-      if (Math.abs(distFromBase) > 0.10) {
-        rawMove -= distFromBase * atr * 2;
-      }
-
-      // Snap move to tick grid
-      const ticks = Math.round(rawMove / tick);
-      const move  = ticks * tick;
-      const close = snapTick(Math.max(open * 0.88, open + move), tick);
-
-      // Realistic wicks: upper/lower shadow
-      const bodyHigh = Math.max(open, close);
-      const bodyLow  = Math.min(open, close);
-      const shadowAtr = atr * (0.3 + Math.random() * 0.7);
-      const high  = snapTick(bodyHigh + Math.random() * shadowAtr, tick);
-      const low   = snapTick(Math.max(bodyLow - Math.random() * shadowAtr, open * 0.88), tick);
-
-      // Volume: higher on strong moves, lower on doji/inside bars
-      const bodyRatio = Math.abs(close - open) / (high - low + 0.0001);
-      const baseVol   = base > 10_000 ? 500 : base > 100 ? 1_500 : 500_000;
-      const volume    = Math.floor(baseVol * (0.5 + bodyRatio * 2.5 + Math.random() * 0.8));
-
-      bars.push({
-        time:   now - (count - barIdx) * intervalSec,
-        open:   +open.toFixed(dp),
-        high:   +high.toFixed(dp),
-        low:    +low.toFixed(dp),
-        close:  +close.toFixed(dp),
-        volume,
-      });
-
-      price = close;
-      barIdx++;
-      // Update momentum: persist 40% of last move direction
-      momentum = (close > open ? 1 : close < open ? -1 : 0) * 0.4 + momentum * 0.6;
-    }
-  }
-
-  // ── Anchor the last bar to exactly `base` so history flows seamlessly
-  // into the live synthetic engine (which also starts at `base`).
-  // We shift every bar's OHLC by the same offset — preserving bar shapes.
-  if (bars.length > 0) {
-    const lastClose = bars[bars.length - 1].close;
-    const offset    = base - lastClose;
-    if (Math.abs(offset) > tick) {
-      for (const b of bars) {
-        b.open  = +Math.max(tick, b.open  + offset).toFixed(dp);
-        b.high  = +Math.max(tick, b.high  + offset).toFixed(dp);
-        b.low   = +Math.max(tick, b.low   + offset).toFixed(dp);
-        b.close = +Math.max(tick, b.close + offset).toFixed(dp);
-      }
-    }
-  }
-
-  return bars;
 }
 
 /* ── Props ──────────────────────────────────────────────── */
@@ -1632,8 +1502,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
       // ── NO VWAP / NO BANDS — moved to Indicators panel ──
 
-      // Fetch real spot price IN PARALLEL with candle data — used to anchor synthetic
-      // candles and to validate that Yahoo candle data is at the correct price level.
+      // Fetch real spot price in parallel to validate that candle data is at the
+      // correct price level.
       const spotFetch = fetch(`/api/yahoo?sym=${encodeURIComponent(symbol)}&type=quote`, { cache: "no-store" })
         .then(r => r.json())
         .then(j => (j?.price ?? 0) as number)
@@ -1662,7 +1532,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             .then(r => r.json()).then(j => Array.isArray(j?.candles) && j.candles.length ? j.candles as Bar[] : null).catch(() => null)
         : null;
 
-      // Priority: 0) Exchange-specific, 1) Alpaca, 2) Finnhub, 3) Yahoo, 4) Finnhub REST, 5) Polygon, 6) synthetic
+      // Priority: exchange-specific, Alpaca, Finnhub, Yahoo, Finnhub REST, Polygon.
+      // Never manufacture market bars when every observed-data source is unavailable.
       const alpacaData   = exchangeData ? null : await fetchAlpacaCandles(symbol, timeframe, barCount);
       const fhDirectData = (exchangeData || alpacaData) ? null : await fetchFinnhubCandlesDirect(symbol, timeframe, barCount);
       const yahooData    = (exchangeData || alpacaData || fhDirectData) ? null : await fetchYahooCandles(symbol, timeframe, barCount, extendedHours);
@@ -1672,22 +1543,17 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
       // Real spot price (from parallel fetch above)
       const spotPrice = await spotFetch;
-      // Use spot price as seed — prefer real > SYMBOL_BASE constant
-      const syntheticBase = spotPrice > 0 ? spotPrice : base;
-
       // If we have real candle data but the candles are at a stale price level
-      // (e.g. HMR preserved old 22k synthetic state), rebuild at real price.
-      // We detect this by comparing the last candle close vs spot price — if they
-      // differ by >5% we treat the candle set as stale and regenerate.
+      // we reject it instead of silently moving or fabricating bars.
       let candleData = realData;
       if (candleData && candleData.length > 0 && spotPrice > 0) {
         const lastClose = candleData[candleData.length - 1].close;
         const stalePct  = Math.abs(lastClose - spotPrice) / spotPrice;
-        if (stalePct > 0.05) candleData = null; // discard stale candles, re-generate below
+        if (stalePct > 0.05) candleData = null;
       }
 
       const rawData = filterSession(
-        candleData ?? generateCandles(300, syntheticBase, intervalSec),
+        candleData ?? [],
         symbol, intervalSec, !!extendedHours,
       );
       // ── HARD SANITIZE — Lightweight Charts v5 THROWS (→ blank / distorted

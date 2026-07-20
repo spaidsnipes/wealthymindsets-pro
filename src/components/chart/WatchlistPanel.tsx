@@ -234,7 +234,6 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
   const [showAdd, setShowAdd] = useState(false);
   const [addResults, setAddResults] = useState<{ sym: string; label: string }[]>([]);
   const addTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Right-click context menu
   const [ctxMenu, setCtxMenu] = useState<{ sym: string; x: number; y: number } | null>(null);
   // Filter bar state — the "All ▼" and "⇅" controls used to be inert <button>s
@@ -286,38 +285,16 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
           history: Array.from({ length: 20 }, () => +c.price.toFixed(dp)),
         };
       }
-      const change = (Math.random() - 0.48) * base * 0.012;
       return {
         sym,
-        price: +(base + change).toFixed(base < 10 ? 4 : 2),
-        change: +change.toFixed(base < 10 ? 4 : 2),
-        changePct: +((change / base) * 100).toFixed(2),
-        history: Array.from({ length: 20 }, (_, i) => {
-          const drift = (Math.random() - 0.48) * base * 0.003 * i;
-          return +(base + drift).toFixed(base < 10 ? 4 : 2);
-        }),
+        price: 0,
+        change: 0,
+        changePct: 0,
+        history: [],
       };
     });
     setItems(init);
   }, [symbols]);
-
-  // Tick updates: only drift futures (1!) and forex (/), real prices stay via 15s Finnhub refresh
-  useEffect(() => {
-    intervalRef.current = setInterval(() => {
-      setItems(prev => prev.map(item => {
-        // Only animate forex with synthetic drift — futures/stocks/crypto get real Yahoo prices
-        if (!item.sym.includes("/")) return item;
-        const base = getBase(item.sym);
-        const tick = (Math.random() - 0.50) * base * 0.0004;
-        const price = Math.max(0.0001, +(item.price + tick).toFixed(base < 10 ? 4 : 2));
-        const change = +(price - base).toFixed(base < 10 ? 4 : 2);
-        const changePct = +((change / base) * 100).toFixed(2);
-        const history = [...item.history.slice(-19), price];
-        return { ...item, price, change, changePct, history };
-      }));
-    }, 600);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, []);
 
   // Re-fetch real prices from Yahoo every 10s (fires immediately on mount)
   // Persists prices to localStorage so HMR re-mounts start with correct data

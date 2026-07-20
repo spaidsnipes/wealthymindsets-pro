@@ -24,9 +24,6 @@ const PERIODS = [
 ];
 
 const INTERVALS = [
-  { label: "1t",  tf: "1t"  },
-  { label: "5t",  tf: "5t"  },
-  { label: "30t", tf: "30t" },
   { label: "1m",  tf: "1m"  },
   { label: "3m",  tf: "3m"  },
   { label: "5m",  tf: "5m"  },
@@ -40,11 +37,9 @@ const INTERVALS = [
 ];
 
 function TFBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  const isTick = /^\d+t$/.test(label);
   return (
     <button
       onClick={onClick}
-      title={isTick ? "Tick timeframe — synthetic/approximate on the free data tier. Real per-tick history needs a paid data feed." : undefined}
       style={{
         padding: "0 10px",
         height: 28,
@@ -62,7 +57,6 @@ function TFBtn({ label, active, onClick }: { label: string; active: boolean; onC
       onMouseLeave={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.color = "#8B8FA8"; }}
     >
       {label}
-      {isTick && <sup style={{ marginLeft: 2, color: "#E8B923", fontSize: 8, fontWeight: 900 }}>?</sup>}
     </button>
   );
 }

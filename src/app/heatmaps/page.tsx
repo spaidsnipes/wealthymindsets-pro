@@ -249,7 +249,9 @@ const SECTORS: Sector[] = [
 
 // Only the periods our /api/heatmap endpoint actually supports
 const TIMEFRAMES = ["1D","1W","1M","3M","6M","1Y","5Y"];
-const VIEWS = ["S&P 500", "World", "Full", "ETFs", "Markov", "VP"];
+// Only expose universes we can currently populate with observed free data.
+// "World" and "Full" previously repeated the S&P dataset under a different label.
+const VIEWS = ["S&P 500", "Markov", "VP"];
 
 /* ═══════════════════════════════════════════════════════════
    MARKOV REGIME HEATMAP
@@ -405,45 +407,46 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
 /* ═══════════════════════════════════════════════════════════
    VOLUME PROFILE HEATMAP
 ═══════════════════════════════════════════════════════════ */
-const VP_SYMBOLS = [
-  { sym: "SPY",  base: 587 }, { sym: "QQQ",  base: 510 }, { sym: "IWM",  base: 210 },
-  { sym: "AAPL", base: 226 }, { sym: "NVDA",  base: 860 }, { sym: "TSLA", base: 400 },
-  { sym: "MSFT", base: 432 }, { sym: "META",  base: 612 }, { sym: "AMZN", base: 218 },
-  { sym: "GOOG", base: 178 }, { sym: "AMD",   base: 162 }, { sym: "NFLX", base: 714 },
-];
+const VP_SYMBOLS = ["SPY","QQQ","IWM","AAPL","NVDA","TSLA","MSFT","META","AMZN","GOOG","AMD","NFLX"];
+interface VPCandle { high:number; low:number; close:number; volume:number }
 
-function VolumeProfileBar({ sym, base, tick }: { sym: string; base: number; tick: number }) {
+function VolumeProfileBar({ sym, candles, loading }: { sym: string; candles: VPCandle[]; loading: boolean }) {
   const levels = 16;
-  const rangePct = 0.04; // ±4% range shown
-  const low  = base * (1 - rangePct);
-  const high = base * (1 + rangePct);
-  const step = (high - low) / levels;
-  const n    = sym.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-
-  // POC = price level with highest volume (stable — no tick dependency so bars don't animate)
-  const vols = Array.from({ length: levels }, (_, i) => {
-    const v = Math.abs(Math.sin(n * (i + 1) * 0.17453) * 43758.5453 % 1);
-    // Bell-curve weighting toward middle
-    const mid = Math.abs(i - levels/2) / (levels/2);
-    return v * (1.2 - mid * 0.8);
+  const usable = candles.filter(c => c.high >= c.low && c.close > 0 && c.volume > 0);
+  const low = usable.length ? Math.min(...usable.map(c => c.low)) : 0;
+  const high = usable.length ? Math.max(...usable.map(c => c.high)) : 0;
+  const step = high > low ? (high - low) / levels : 1;
+  // Bar-derived approximation: distribute each observed bar's reported volume
+  // equally across the price bins touched by its high/low range.
+  const vols = Array.from({ length: levels }, () => 0);
+  usable.forEach(c => {
+    const from = Math.max(0, Math.min(levels - 1, Math.floor((c.low - low) / step)));
+    const to = Math.max(from, Math.min(levels - 1, Math.floor((c.high - low) / step)));
+    const share = c.volume / (to - from + 1);
+    for (let i = from; i <= to; i++) vols[i] += share;
   });
   const maxVol = Math.max(...vols);
   const pocIdx = vols.indexOf(maxVol);
-  // Current price drifts slowly with tick (creates live indicator movement)
-  const currentPrice = base * (1 + seededRand(sym, tick) * 0.008);
-  const currentIdx = Math.floor((currentPrice - low) / step);
+  const currentPrice = usable.at(-1)?.close ?? 0;
+  const currentIdx = Math.max(0, Math.min(levels - 1, Math.floor((currentPrice - low) / step)));
 
   return (
     <div style={{ background: "#0A0E14", border: "1px solid #1A2030", borderRadius: 8, padding: "10px 12px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 11, fontWeight: 900, color: "#E8EDF3" }}>{sym}</span>
-        <span style={{ fontSize: 9, color: "#8B95A5" }}>${base.toFixed(2)}</span>
+        <span style={{ fontSize: 9, color: "#8B95A5" }}>{currentPrice ? `$${currentPrice.toFixed(2)}` : "No data"}</span>
         <span style={{ marginLeft: "auto", fontSize: 8, color: "#F0B429", fontWeight: 700 }}>POC</span>
       </div>
 
       {/* VP bars from top (high) to bottom (low) */}
       <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-        {Array.from({ length: levels }, (_, i) => {
+        {(loading || !usable.length) && (
+          <div style={{ minHeight:176, display:"grid", placeItems:"center", fontSize:9, color:"#5A6575" }}>
+            {loading ? "Loading observed OHLCV…" : "Observed OHLCV unavailable"}
+          </div>
+        )}
+        {!loading && usable.length > 0 &&
+        Array.from({ length: levels }, (_, i) => {
           const revI    = levels - 1 - i;
           const price   = high - revI * step;
           const vol     = vols[revI];
@@ -469,29 +472,42 @@ function VolumeProfileBar({ sym, base, tick }: { sym: string; base: number; tick
                 {isCur && <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 1.5, background: "#4FA3E0" }} />}
               </div>
               <span style={{ width: 22, fontSize: 6, color: "#5A6575", textAlign: "right", flexShrink: 0 }}>
-                {(vol * 1000).toFixed(0)}
+                {vol >= 1_000_000 ? `${(vol/1_000_000).toFixed(1)}m` : vol >= 1_000 ? `${(vol/1_000).toFixed(0)}k` : vol.toFixed(0)}
               </span>
             </div>
           );
-        })}
+        })
+        }
       </div>
 
       {/* Value Area */}
       <div style={{ display: "flex", gap: 8, marginTop: 6, paddingTop: 5, borderTop: "1px solid rgba(255,255,255,0.05)", fontSize: 7, color: "#8B95A5" }}>
-        <span>VAH <span style={{ color: "#FF4D6A" }}>${(base * 1.012).toFixed(2)}</span></span>
-        <span>VAL <span style={{ color: "#00D4AA" }}>${(base * 0.988).toFixed(2)}</span></span>
-        <span>70% VA</span>
+        <span>Bar-derived profile</span>
+        <span>Observed OHLCV</span>
+        <span>Not tick-at-price</span>
       </div>
     </div>
   );
 }
 
 function VPHeatmap({ tf }: { tf: string }) {
-  const [tick, setTick] = useState(0);
+  const [profiles, setProfiles] = useState<Record<string,VPCandle[]>>({});
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 15_000); // 15s — price indicator drifts slowly
-    return () => clearInterval(id);
-  }, []);
+    let cancelled = false;
+    const chartTF = tf === "1D" ? "5m" : tf === "1W" ? "30m" : tf === "1M" ? "1h" : tf === "3M" || tf === "6M" ? "4h" : "D";
+    setLoading(true);
+    Promise.all(VP_SYMBOLS.map(async sym => {
+      try {
+        const res = await fetch(`/api/yahoo?sym=${sym}&type=candles&tf=${chartTF}&bars=300`, { cache:"no-store" });
+        const json = await res.json() as { candles?:VPCandle[] };
+        return [sym, json.candles ?? []] as const;
+      } catch { return [sym, []] as const; }
+    })).then(entries => {
+      if (!cancelled) setProfiles(Object.fromEntries(entries));
+    }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [tf]);
 
   return (
     <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8, height: "100%", overflowY: "auto" }}>
@@ -503,11 +519,11 @@ function VPHeatmap({ tf }: { tf: string }) {
           <span style={{ color: "#00D4AA" }}>■ Below</span>
           <span style={{ color: "#4FA3E0" }}>| Current</span>
         </div>
-        <span style={{ marginLeft: "auto", fontSize: 9, color: "#5A6575" }}>TF: {tf}</span>
+        <span style={{ marginLeft: "auto", fontSize: 9, color: "#5A6575" }}>TF: {tf} · bar-derived, not exchange tick profile</span>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 8 }}>
-        {VP_SYMBOLS.map(s => (
-          <VolumeProfileBar key={s.sym} sym={s.sym} base={s.base} tick={tick} />
+        {VP_SYMBOLS.map(sym => (
+          <VolumeProfileBar key={sym} sym={sym} candles={profiles[sym] ?? []} loading={loading} />
         ))}
       </div>
     </div>
