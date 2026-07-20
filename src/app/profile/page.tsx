@@ -589,21 +589,21 @@ export default function ProfilePage() {
                       WM$
                     </div>
                     <div>
-                      <div className="text-sm font-black text-wm-text">Wealthy Mindsets</div>
-                      <div className="text-[10px] text-[#7C3AED] font-bold">WM$ · Main Ecosystem Token</div>
+                      <div className="text-sm font-black text-wm-text">Wealthy Mindsets Activity Points</div>
+                      <div className="text-[10px] text-[#7C3AED] font-bold">Local app points · not cryptocurrency</div>
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-black text-wm-text font-mono">{wmsBalance.toLocaleString()}</div>
-                    <div className="text-[9px] text-wm-text-dim">WM$ balance</div>
+                    <div className="text-[9px] text-wm-text-dim">local points</div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   {[
-                    { l: "Total Earned", v: totalEarned.toLocaleString() + " WM$" },
-                    { l: "Status",       v: isDeployed ? "🟢 On-Chain" : "🟡 Pre-Launch" },
-                    { l: "Chain",        v: "Base Network" },
+                    { l: "Total Activity", v: totalEarned.toLocaleString() + " pts" },
+                    { l: "Status",         v: "Browser-local" },
+                    { l: "On-chain",       v: "Not connected" },
                   ].map(({ l, v }) => (
                     <div key={l} className="bg-wm-surface/50 rounded-lg p-2 text-center">
                       <div className="text-[8px] text-wm-text-dim uppercase tracking-wider">{l}</div>
@@ -649,7 +649,7 @@ export default function ProfilePage() {
                   </div>
                 ) : (
                   <div className="text-[9px] text-wm-text-muted bg-[#7C3AED]/10 rounded-lg px-3 py-2 border border-[#7C3AED]/20 mb-3">
-                    🚀 <strong>Pre-launch:</strong> Your WM$ balance is tracked in-app and converts 1:1 to real on-chain tokens once the contract deploys on Base.
+                    <strong>Local points only:</strong> This balance is stored in your browser for app activity. It is not an on-chain asset and has no promised conversion.
                   </div>
                 )}
 
@@ -659,7 +659,7 @@ export default function ProfilePage() {
                     {recentEarnings.slice(0, 8).map((e, i) => (
                       <div key={i} className="flex justify-between items-center text-[10px]">
                         <span className="text-wm-text-muted">{e.reason}</span>
-                        <span className="font-black text-[#7C3AED] font-mono">+{e.amount} WM$</span>
+                        <span className="font-black text-[#7C3AED] font-mono">+{e.amount} pts</span>
                       </div>
                     ))}
                   </div>
@@ -702,15 +702,15 @@ export default function ProfilePage() {
               ) : (
                 <div className="rounded-xl border border-dashed border-wm-border p-5 text-center">
                   <Rocket size={24} className="text-wm-text-dim mx-auto mb-2 opacity-40"/>
-                  <div className="text-sm font-bold text-wm-text mb-1">Launch Your Creator Coin</div>
+                  <div className="text-sm font-bold text-wm-text mb-1">Creator Coin Deployment Not Connected</div>
                   <div className="text-[10px] text-wm-text-muted mb-3">
-                    Create your own ERC-20 token. Fans buy it, every transfer sends fees to the WM$ treasury creating buy pressure.
+                    A real creator coin requires wallet connection, reviewed contracts, signed transactions, and confirmed chain receipts. This app does not deploy one yet.
                   </div>
                   <button
-                    onClick={() => setShowLaunchCoin(true)}
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#7C3AED] to-[#00D4AA] text-white text-xs font-black hover:opacity-90 transition-all"
+                    disabled
+                    className="px-4 py-2 rounded-xl border border-wm-border bg-wm-surface text-wm-text-dim text-xs font-black cursor-not-allowed"
                   >
-                    + Launch My Creator Coin
+                    Deployment unavailable
                   </button>
                 </div>
               )}

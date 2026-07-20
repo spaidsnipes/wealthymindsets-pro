@@ -46,7 +46,10 @@ const LOGO_COLORS = ["#00D4AA","#F0B429","#7C3AED","#EF4444","#3B82F6","#EC4899"
 function loadState() {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const parsed = raw ? JSON.parse(raw) : null;
+    // v1 awarded fabricated token balances and allowed local-only "coin
+    // launches". Do not migrate those values into the honest local-points model.
+    return parsed?.version === 2 ? parsed : null;
   } catch { return null; }
 }
 
@@ -63,17 +66,12 @@ export function WMSProvider({ children }: { children: React.ReactNode }) {
       setTotalEarned(s.totalEarned ?? 0);
       setCreatorCoin(s.creatorCoin ?? null);
       setRecentEarnings(s.recentEarnings ?? []);
-    } else {
-      // Give 1000 WM$ welcome bonus on first load
-      setWmsBalance(1000);
-      setTotalEarned(1000);
-      setRecentEarnings([{ amount: 1000, reason: "🎉 Welcome bonus", ts: Date.now() }]);
     }
   }, []);
 
   const persist = useCallback((bal: number, earned: number, coin: CreatorCoin | null, earnings: typeof recentEarnings) => {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ balance: bal, totalEarned: earned, creatorCoin: coin, recentEarnings: earnings }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ version: 2, balance: bal, totalEarned: earned, creatorCoin: coin, recentEarnings: earnings }));
     } catch {}
   }, []);
 
@@ -116,7 +114,9 @@ export function WMSProvider({ children }: { children: React.ReactNode }) {
     <WMSContext.Provider value={{
       wmsBalance, creatorCoin, earnWMS, spendWMS,
       launchCreatorCoin, recentEarnings, totalEarned,
-      isDeployed: WMS_CONTRACT.address !== "PENDING",
+      // A configured address alone does not prove contract identity, ownership,
+      // token metadata, or wallet balance integration.
+      isDeployed: false,
       contractAddress: WMS_CONTRACT.address,
     }}>
       {children}

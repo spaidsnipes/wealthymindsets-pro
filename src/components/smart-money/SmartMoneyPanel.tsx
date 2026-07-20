@@ -41,13 +41,6 @@ function fmtDelta(v: number): string {
   return `${sign}${body}`;
 }
 
-// Deterministic seeded random — stable for a given price+seed so panel doesn't spin
-function sr(price: number, seed: number): number {
-  const n = Math.floor(Math.abs(price) * 100) + seed * 997;
-  const v = Math.sin(n * 12.9898 + seed * 78.233) * 43758.5453;
-  return Math.abs(v - Math.floor(v)); // [0, 1)
-}
-
 // Real order-flow snapshot measured from live WebSocket ticks + the live 1m bar.
 // Everything the panel votes on is derived from THESE numbers — no seeded bias.
 interface Flow {
@@ -74,16 +67,10 @@ function generateSignals(symbol: string, price: number, f: Flow): Signal[] {
   if (price <= 0) price = 100;
   const dp = price > 1000 ? 0 : price > 10 ? 2 : 4;
   const tick = price > 10_000 ? 0.25 : price > 1000 ? 0.25 : price > 10 ? 0.01 : 0.0001;
-  const priceSeed = Math.floor(price / (tick * 20));
-
-  // Price-anchored display levels (approximate zones; they do NOT vote on direction).
+  // VWAP reference bands are explicitly fixed-distance context, not observed levels.
   const vwap     = f.vwap > 0 ? +f.vwap.toFixed(dp) : +(price).toFixed(dp);
   const vwapUp   = +(vwap * 1.004).toFixed(dp);
   const vwapDown = +(vwap * 0.996).toFixed(dp);
-  const pdl      = +(price * (0.993 + sr(priceSeed, 2) * 0.003)).toFixed(dp);
-  const demand   = +(price * (0.994 + sr(priceSeed, 3) * 0.003)).toFixed(dp);
-  const demandH  = +(demand * 1.001).toFixed(dp);
-  const absSpt   = +(price * (0.9985 + sr(priceSeed, 4) * 0.001)).toFixed(dp);
 
   // ── REAL directional reads ───────────────────────────────────────────────
   const bullBias = biasFromFlow(price, f);          // majority of real signals
@@ -94,18 +81,12 @@ function generateSignals(symbol: string, price: number, f: Flow): Signal[] {
   const aboveVwap = price >= vwap;
 
   const entryPx  = +(price + (bullBias ? tick * 2 : -tick * 2)).toFixed(dp);
-  const entryLo  = +(price - tick).toFixed(dp);
-  const entryHi  = +(price + tick * 3).toFixed(dp);
 
   // Confidence scales with how one-sided the real delta is.
   const totVol   = f.askVol + f.bidVol;
   const deltaConf = totVol > 0 ? Math.min(96, 55 + Math.round(Math.abs(f.cvd) / totVol * 60)) : 60;
 
   // "delta-confirmed" is only true when the feed actually carries aggressor tape.
-  const phaseTag  = f.hasFlow ? " (delta-confirmed)" : " (price/VWAP context)";
-  const phaseStr  = (bullBias ? "Phase D — Markup" : "Phase D — Markdown") + phaseTag;
-  const schematic = bullBias ? "Accumulation → Markup" : "Distribution → Markdown";
-
   return [
     // VWAP — REAL volume-weighted price of recent tape
     { name: "VWAP", value: fmt(vwap, dp), strength: "strong", bullish: aboveVwap, description: aboveVwap ? "Price above session VWAP — bullish context" : "Price below session VWAP — bearish context" },
@@ -125,12 +106,12 @@ function generateSignals(symbol: string, price: number, f: Flow): Signal[] {
     { name: "Absorption", value: "N/A — needs passive-fill data", strength: "neutral", bullish: null, description: "Absorption (aggressors soaked up by resting size) needs bid/ask fill data, not just time-and-sales" },
     { name: "Volume Tails", value: "N/A — needs per-price volume", strength: "neutral", bullish: null, description: "Wick/tail volume requires per-price footprint data absent from this feed" },
     { name: "Accumulation / Distribution", value: f.hasFlow ? (cvdPos ? "Net accumulation (delta ≥ 0)" : "Net distribution (delta < 0)") : "N/A — no aggressor tape", strength: f.hasFlow ? "strong" : "neutral", bullish: f.hasFlow ? cvdPos : null, description: "Derived from real cumulative delta over the tape" },
-    { name: bullBias ? "Bids Supporting PDL" : "Offers Capping PDH", value: `Watch ${fmt(pdl,dp)} — ${bullBias?"bids may support":"offers may cap"}`, strength: "neutral", bullish: null, description: "Level context, not a measured directional vote" },
+    { name: "PDH / PDL Support", value: "N/A — prior-session levels not loaded", strength: "neutral", bullish: null, description: "A real prior-session high/low feed is required; no price-offset substitute is generated" },
     { name: bullBias ? "Passive Buyers" : "Passive Sellers", value: "N/A — needs Level-2 depth", strength: "neutral", bullish: null, description: "Resting bid/offer size requires an order-book feed" },
     { name: "Spoofing Detection", value: "N/A — needs Level-2 order book", strength: "neutral", bullish: null, description: "Cannot be measured from time-and-sales alone" },
     { name: "Stop Run", value: "N/A — needs swing/liquidity map", strength: "neutral", bullish: null, description: "Liquidity sweeps require tracked swing highs/lows, not in this snapshot" },
     { name: "Trapped Traders", value: "N/A — needs positioning data", strength: "neutral", bullish: null, description: "Inferring trapped positioning needs order-book / OI data" },
-    { name: "Pullback + " + (bullBias ? "Demand" : "Supply"), value: `Zone context near ${fmt(demand,dp)}`, strength: "neutral", bullish: null, description: "Approximate zone for context, not a measured directional vote" },
+    { name: "Pullback + Demand / Supply", value: "N/A — no validated zone", strength: "neutral", bullish: null, description: "Demand/supply requires a defined structure model; no synthetic offset zone is generated" },
 
     // Delta / CVD — REAL
     f.hasFlow
@@ -146,20 +127,22 @@ function generateSignals(symbol: string, price: number, f: Flow): Signal[] {
     { name: "Dark Pool Prints", value: "N/A — needs consolidated dark-pool feed", strength: "neutral", bullish: null, description: "Off-exchange prints not in this data source" },
 
     // Regime — inferred from real delta + trend
-    { name: "Regime", value: `${(f.hasFlow?cvdPos:aboveVwap)?"Trending Up":"Trending Down"} (${deltaConf}% conviction)`, strength: deltaConf > 75 ? "strong" : "moderate", bullish: f.hasFlow ? cvdPos : aboveVwap, description: "Trend read from real delta (or price-vs-VWAP without tape)" },
-    { name: "Wyckoff Phase", value: phaseStr, strength: "neutral", bullish: null, description: "Wyckoff phase is an interpretive overlay, not a measured directional vote" },
-    { name: "Wyckoff Schematic", value: schematic, strength: "neutral", bullish: null, description: "Interpretive schematic for context only" },
+    { name: "Regime", value: f.hasFlow ? `${cvdPos?"Buy-side":"Sell-side"} tape (${deltaConf}% delta concentration)` : `${aboveVwap?"Above":"Below"} VWAP — no tape confirmation`, strength: f.hasFlow && deltaConf > 75 ? "strong" : "moderate", bullish: f.hasFlow ? cvdPos : aboveVwap, description: f.hasFlow ? "Measured from real aggressor delta" : "Price location only; not a full market-regime classification" },
+    { name: "Wyckoff Phase", value: "N/A — phase model not implemented", strength: "neutral", bullish: null, description: "No phase is inferred from a single price/tape snapshot" },
+    { name: "Wyckoff Schematic", value: "N/A — structure history required", strength: "neutral", bullish: null, description: "A schematic requires validated multi-swing structure" },
     { name: bullBias ? "Higher Lows at Demand" : "Lower Highs at Supply", value: "N/A — needs swing structure", strength: "neutral", bullish: null, description: "Swing-structure reads require tracked pivots, not in this snapshot" },
-    { name: "PDL Setup", value: `PDL ${fmt(pdl,dp)} — level to watch`, strength: "neutral", bullish: null, description: "Prior-day level for context, not a measured directional vote" },
+    { name: "PDL Setup", value: "N/A — prior-session level unavailable", strength: "neutral", bullish: null, description: "No PDL is displayed without a real prior-session calculation" },
 
     // CLC Rule — all three now REAL reads
     { name: "Context", value: aboveVwap ? "Bullish — above VWAP" : "Bearish — below VWAP", strength: "strong", bullish: aboveVwap },
-    { name: "Location", value: `Zone ${fmt(demand,dp)}–${fmt(demandH,dp)}`, strength: "neutral", bullish: null, description: "Approximate zone for context, not a measured directional vote" },
+    { name: "Location", value: "N/A — no validated structure zone", strength: "neutral", bullish: null, description: "No synthetic demand/supply zone is generated" },
     { name: "Confirmation", value: f.hasFlow ? `Real ${cvdPos?"buying":"selling"} on tape (Δ ${fmtDelta(cvdVal)})` : (aboveVwap ? "Price-confirmed above VWAP (no tape side data)" : "Price-confirmed below VWAP (no tape side data)"), strength: f.hasFlow ? "strong" : "moderate", bullish: f.hasFlow ? cvdPos : aboveVwap },
 
     // Entry signals
-    { name: "Entry Signal", value: `${bullBias?"LONG":"SHORT"} at ${fmt(entryPx,dp)} (${f.hasFlow ? "order flow" : "VWAP context"})`, strength: f.hasFlow ? "strong" : "moderate", bullish: bullBias, description: f.hasFlow ? "Aligned with real cumulative delta + VWAP context" : "Directional lean from price vs VWAP — no tape side on this feed" },
-    { name: "Best Opportunity", value: `Risk band: ${fmt(entryLo,dp)}–${fmt(entryHi,dp)}`, strength: "neutral", bullish: null, description: "Suggested risk band around the entry — informational, not a vote" },
+    f.hasFlow
+      ? { name: "Entry Signal", value: `${bullBias?"LONG":"SHORT"} context near ${fmt(entryPx,dp)}`, strength: "moderate", bullish: bullBias, description: "Tape/VWAP context only; not an executable recommendation" }
+      : { name: "Entry Signal", value: "N/A — no aggressor-tape confirmation", strength: "neutral", bullish: null, description: "No entry is generated from price location alone" },
+    { name: "Best Opportunity", value: "N/A — define risk from your setup", strength: "neutral", bullish: null, description: "No arbitrary price-offset risk band is generated" },
   ];
 }
 
@@ -366,16 +349,11 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
   const bias = conf.bias;
   const scoreColor = conf.score >= 58 ? "#00D4AA" : conf.score <= 42 ? "#F6465D" : "#F0B429";
 
-  // Price-derived zone numbers for the CLC card + live alert, so they reflect the
-  // CURRENT symbol instead of the old hardcoded NQ levels (21,795–21,820). When
-  // there's no live price yet we show em-dashes rather than fake numbers.
+  // CLC location remains unavailable until a real structure-zone model exists.
+  // Never substitute percentage offsets around the current price.
   const hasPrice = livePrice > 0;
   const ddp = livePrice > 1000 ? 0 : livePrice > 10 ? 2 : 4;
   const isBull = bias !== "BEAR";
-  const zoneLo   = hasPrice ? fmt(livePrice * 0.9985, ddp) : "—";
-  const zoneHi   = hasPrice ? fmt(livePrice * 1.0005, ddp) : "—";
-  const defendPx = hasPrice ? fmt(livePrice * (isBull ? 0.999 : 1.001), ddp) : "—";
-  const zoneWord = isBull ? "Demand" : "Supply";
 
   // ── DELTA DOMINATION (the tug-of-war) ───────────────────────────────────────
   // Who is actually winning the fight right now — measured from REAL aggressor
@@ -807,7 +785,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
         <div className="space-y-1">
           {[
             { text: `Context: ${isBull ? "Bullish above" : "Bearish below"} VWAP`, ok: hasPrice },
-            { text: `Location: ${zoneWord} zone ${zoneLo}–${zoneHi}`, ok: hasPrice },
+            { text: "Location: unavailable — no validated structure zone", ok: false },
             flow.hasFlow
               ? { text: `Confirmation: Real ${deltaVal >= 0 ? "buying" : "selling"} on tape (Δ ${fmtDelta(deltaVal)})`, ok: true }
               : { text: `Confirmation: Awaiting tape — no aggressor side on this feed`, ok: false },
@@ -973,7 +951,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
         </div>
         <div className="text-[10px] text-wm-text mt-0.5">
           {hasPrice
-            ? `Aggressive ${isBull ? "buyers defending" : "sellers capping"} ${defendPx} on ${symbol}. ${isBull ? "High-conviction long" : "High-conviction short"} setup. CLC confirmed.`
+            ? `Aggressor tape on ${symbol} currently favors ${isBull ? "buyers" : "sellers"}. Location is not confirmed because no validated structure zone is available.`
             : `Waiting for live ${symbol} tape — connect a data feed to stream order-flow alerts.`}
         </div>
       </div>

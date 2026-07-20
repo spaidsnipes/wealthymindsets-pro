@@ -9,10 +9,9 @@ import { useActiveSymbol } from "@/contexts/SymbolContext";
 const POLYGON_KEY = process.env.NEXT_PUBLIC_POLYGON_KEY ?? "";
 
 /* ── Ticker catalogue ──────────────────────────────────────────
-   "poly" = Polygon ticker string (null = not supported / synthetic)
-   "base" = synthetic seed price for fallback
+   `base` is an internal formatting/fetch bootstrap only. It must never be
+   rendered or restored as a verified quote.
 ─────────────────────────────────────────────────────────────── */
-// Fallback base prices — real prices fetched from Polygon REST every 15s
 // Verified against MooMoo + TradingView on Jun 16, 2026
 // Updated Jun 17 2026 — Yahoo Finance proxy corrects these at load
 const TAPE_SYMBOLS = [
@@ -190,7 +189,7 @@ export function TickerTape() {
       if (w && Object.keys(w).length > 0 && wAge < 30_000) {
         setTickers(TAPE_SYMBOLS.map(t => {
           const p = w[t.sym.toUpperCase()];
-          return p && p.price > 0
+          return p && p.verified === true && p.price > 0
             ? { sym: t.sym, poly: t.poly, base: t.base, price: p.price, chg: p.chg, pct: p.pct, up: p.chg >= 0, _open: t.base, live: true }
             : { sym: t.sym, poly: t.poly, base: t.base, price: t.base, chg: 0, pct: 0, up: true, _open: t.base, live: false };
         }));
@@ -236,7 +235,9 @@ export function TickerTape() {
         });
         // Write to window cache + localStorage so future HMR/reloads start with correct prices
         const priceCache: Record<string, any> = { _ts: Date.now() };
-        for (const t of updated) priceCache[t.sym] = { price: t.price, chg: t.chg, pct: t.pct };
+        for (const t of updated) {
+          if (t.live) priceCache[t.sym] = { price: t.price, chg: t.chg, pct: t.pct, verified: true };
+        }
         try { (window as any).__wmTicker = priceCache; } catch {}
         // NOTE: Not persisting to localStorage — cleared on init to prevent stale day-change%
         return updated;

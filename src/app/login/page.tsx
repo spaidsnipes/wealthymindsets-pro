@@ -332,10 +332,7 @@ function LoginPage() {
                 {/* Terms */}
                 {mode === "signup" && (
                   <p className="text-[11px] text-[#3A4250] text-center mt-3">
-                    By creating an account you agree to our{" "}
-                    <a href="#" className="text-[#5A6575] hover:text-wm-green transition-colors">Terms of Service</a>
-                    {" "}and{" "}
-                    <a href="#" className="text-[#5A6575] hover:text-wm-green transition-colors">Privacy Policy</a>
+                    Terms of Service and Privacy Policy documents must be published before public enrollment.
                   </p>
                 )}
               </form>

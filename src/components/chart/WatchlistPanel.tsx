@@ -689,12 +689,18 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
 
                     {/* Price + % change stacked */}
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <div style={{ fontSize: 11, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace", fontWeight: 600 }}>
-                        {item.price.toFixed(dp)}
-                      </div>
-                      <div style={{ fontSize: 9, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace" }}>
-                        {up ? "+" : ""}{item.changePct.toFixed(2)}%
-                      </div>
+                      {item.price > 0 ? (
+                        <>
+                          <div style={{ fontSize: 11, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace", fontWeight: 600 }}>
+                            {item.price.toFixed(dp)}
+                          </div>
+                          <div style={{ fontSize: 9, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace" }}>
+                            {up ? "+" : ""}{item.changePct.toFixed(2)}%
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ fontSize: 9, color: "#4A5070", fontFamily: "monospace" }}>quote pending</div>
+                      )}
                     </div>
                   </div>
                 );
@@ -749,7 +755,9 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
 
             {/* Footer */}
             <div style={{ borderTop: "1px solid #1E2030", padding: "4px 10px", flexShrink: 0 }}>
-              <span style={{ fontSize: 9, color: "#4A5070" }}>{filtered.length} symbols · live</span>
+              <span style={{ fontSize: 9, color: "#4A5070" }}>
+                {filtered.filter(i => i.price > 0).length}/{filtered.length} verified quotes
+              </span>
             </div>
           </motion.div>
         )}

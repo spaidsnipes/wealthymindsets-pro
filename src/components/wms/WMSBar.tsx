@@ -1,7 +1,7 @@
 "use client";
 /**
- * WMS Balance Bar — shows your WM$ balance in the top nav.
- * Earns tokens for daily activity. Works pre-deployment.
+ * WMS activity-points bar. These are local app points, not cryptocurrency,
+ * an on-chain balance, or a promise of future conversion.
  */
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,22 +10,11 @@ import { useWMS } from "@/contexts/WMSContext";
 import { clsx } from "clsx";
 
 export function WMSBar() {
-  const { wmsBalance, earnWMS, recentEarnings } = useWMS();
+  const { wmsBalance, recentEarnings } = useWMS();
   const [showEarn, setShowEarn] = useState(false);
   const [lastEarning, setLastEarning] = useState<{ amount: number; reason: string } | null>(null);
 
-  // Daily login bonus
-  useEffect(() => {
-    const key = "wm_last_login";
-    const last = localStorage.getItem(key);
-    const today = new Date().toDateString();
-    if (last !== today) {
-      localStorage.setItem(key, today);
-      setTimeout(() => earnWMS(10, "📅 Daily login bonus"), 2000);
-    }
-  }, []);
-
-  // Show floating +WM$ notification on new earnings
+  // Show floating local-points notification on new activity rewards.
   useEffect(() => {
     if (recentEarnings.length === 0) return;
     const latest = recentEarnings[0];
@@ -46,7 +35,7 @@ export function WMSBar() {
             exit={{ opacity: 0, y: -16, scale: 0.8 }}
             className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap bg-wm-green text-wm-black text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
           >
-            +{lastEarning.amount} WM$
+            +{lastEarning.amount} WM points
           </motion.div>
         )}
       </AnimatePresence>
@@ -57,7 +46,7 @@ export function WMSBar() {
       >
         <Coins size={11} className="text-[#7C3AED]"/>
         <span className="text-[11px] font-black text-wm-text font-mono">
-          {wmsBalance.toLocaleString()} <span className="text-[#7C3AED]">WM$</span>
+          {wmsBalance.toLocaleString()} <span className="text-[#7C3AED]">WM pts</span>
         </span>
       </button>
 
@@ -72,19 +61,15 @@ export function WMSBar() {
             style={{ boxShadow: "0 0 30px rgba(124,58,237,0.2)" }}
           >
             <div className="text-[10px] font-black text-wm-text mb-2 flex items-center gap-1.5">
-              <Coins size={11} className="text-[#7C3AED]"/> Earn WM$ Tokens
+              <Coins size={11} className="text-[#7C3AED]"/> Local WM Activity Points
             </div>
             <div className="text-[9px] text-wm-text-dim mb-3">
-              Pre-deployment balance. Converts to real WM$ when contract goes live on Base. 🚀
+              Stored in this browser for app gamification only. Not money, a token balance, or convertible cryptocurrency.
             </div>
             {[
-              { action: "Daily login",        reward: "+10 WM$" },
-              { action: "Journal a trade",     reward: "+50 WM$" },
-              { action: "Paper trade win",     reward: "+25 WM$" },
-              { action: "Ask the AI",          reward: "+5 WM$"  },
-              { action: "Share a strategy",    reward: "+100 WM$"},
-              { action: "Launch Creator Coin", reward: "+500 WM$"},
-              { action: "Leaderboard top 3",   reward: "+250 WM$"},
+              { action: "Journal a trade", reward: "+50 pts" },
+              { action: "Paper trade win", reward: "+25 pts" },
+              { action: "Generate a journal song", reward: "+100 pts" },
             ].map(({ action, reward }) => (
               <div key={action} className="flex justify-between text-[9px] py-1 border-b border-wm-border/30 last:border-0">
                 <span className="text-wm-text-muted">{action}</span>
