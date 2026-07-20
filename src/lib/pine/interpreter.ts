@@ -971,6 +971,10 @@ function parseNamedArgs(argsStr: string): Record<string | number, string> {
 /* ── Main interpreter entry point ──────────────────────────── */
 export function interpretPine(script: string, bars: OHLCVBar[]): PineOutput {
   const errors: { line: number; msg: string }[] = [];
+  const report = (line: number, error: unknown) => {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (!errors.some(e => e.line === line && e.msg === msg)) errors.push({ line, msg });
+  };
 
   try {
     const { src } = processInputs(stripComments(script));
@@ -1000,10 +1004,11 @@ export function interpretPine(script: string, bars: OHLCVBar[]): PineOutput {
     };
 
     // First pass: collect indicator() meta and simple assignments
-    for (const line of lines) {
+    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+      const line = lines[lineIdx];
       const t = line.trim();
       if (t.startsWith("indicator(") || t.startsWith("//@version")) {
-        try { execLine(t, ctx, 0); } catch {}
+        try { execLine(t, ctx, 0); } catch (error) { report(lineIdx + 1, error); }
       }
     }
 
@@ -1035,12 +1040,12 @@ export function interpretPine(script: string, bars: OHLCVBar[]): PineOutput {
           }
           const execLines = cond ? bodyLines : elseLines;
           for (const bl of execLines) {
-            if (bl) { try { execLine(bl, ctx, barIdx); } catch {} }
+            if (bl) { try { execLine(bl, ctx, barIdx); } catch (error) { report(i + 1, error); } }
           }
           continue;
         }
 
-        try { execLine(line, ctx, barIdx); } catch {}
+        try { execLine(line, ctx, barIdx); } catch (error) { report(i + 1, error); }
         i++;
       }
     }
@@ -1085,7 +1090,7 @@ export function validatePine(script: string): { line: number; msg: string }[] {
     "input","input.float","input.int","color.new","color.rgb","str.tostring","str.format",
     "input.bool","input.string","input.color","input.source","nz","na","float","int","bool",
     "fixnan","alertcondition","alert","array.new_float","array.get","array.size",
-    "request.security","security","label.new","line.new","box.new","table.new",
+    "request.security","request.security_lower_tf","security","label.new","line.new","box.new","table.new",
     "label.set_text","label.set_xy","label.delete","line.delete","timeframe.period",
   ]);
   for (let i = 0; i < lines.length; i++) {
@@ -1094,6 +1099,19 @@ export function validatePine(script: string): { line: number; msg: string }[] {
     const callM = t.match(/^([\w.]+)\s*\(/);
     if (callM && !KNOWN_FNS.has(callM[1]) && !t.includes(":=") && !t.includes("=")) {
       errors.push({ line: i + 1, msg: `Unknown function: ${callM[1]}` });
+    }
+  }
+  const capabilityChecks: Array<{ pattern: RegExp; msg: string }> = [
+    { pattern: /^\s*type\s+\w+/, msg: "Custom Pine types are not supported by the chart preview yet." },
+    { pattern: /^\s*(?:method\s+)?\w+\s*\([^)]*\)\s*=>/, msg: "User-defined Pine functions are not supported by the chart preview yet." },
+    { pattern: /\brequest\.security_lower_tf\s*\(/, msg: "Lower-timeframe array requests need intrabar data and are not supported by this chart feed yet." },
+    { pattern: /^\s*(?:for|while)\b/, msg: "Loop blocks with mutable Pine state are not supported by the chart preview yet." },
+    { pattern: /\b(?:table|label|line|box)\.(?:new|set_|delete)/, msg: "Pine drawing-object APIs are accepted for compatibility but are not rendered by the chart preview." },
+  ];
+  for (const check of capabilityChecks) {
+    const index = lines.findIndex(line => check.pattern.test(line));
+    if (index >= 0 && !errors.some(error => error.msg === check.msg)) {
+      errors.push({ line: index + 1, msg: check.msg });
     }
   }
   return errors;
