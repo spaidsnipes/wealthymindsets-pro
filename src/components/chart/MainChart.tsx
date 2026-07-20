@@ -1254,7 +1254,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
   const { liveBar, ticker, recentTicks, tapeSource } = useWebSocket({ symbol, timeframe });
 
-  // ── Tick accumulator: REAL aggressor tape only (no synthetic / quote-poll noise) ──
+  // ── Tick accumulator: EVERY real executed trade (no synthetic / quote-poll noise) ──
   // Map<barTime, Map<priceRounded, {bid, ask}>>
   const tickAccRef = useRef<Map<number, Map<number, { bid: number; ask: number }>>>(new Map());
   const processedTicksRef = useRef<Set<string>>(new Set());
@@ -1292,12 +1292,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     if (!recentTicks?.length || !hasRealAggressorTape(tapeSource ?? "")) return;
     const intervalSec = getIntervalSec(timeframe);
     const minTick = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
-    const minLot  = minBigTradeLot(base);
     const dp      = base > 100 ? 2 : 4;
 
     recentTicks.forEach(tick => {
+      if (!tick.trade) return;
       if (!Number.isFinite(tick.price) || tick.price <= 0) return;
-      if (!Number.isFinite(tick.size)  || tick.size  < minLot) return;
+      if (!Number.isFinite(tick.size)  || tick.size  <= 0) return;
       const dedupeKey = `${tick.time}|${tick.price}|${tick.size}|${tick.side}`;
       if (processedTicksRef.current.has(dedupeKey)) return;
       processedTicksRef.current.add(dedupeKey);
@@ -3931,10 +3931,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     } catch {}
   }, [chartSettings, candleType, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── Footprint helper: realistic price-level bid/ask data ───
-   * Generates consistent, realistic-looking footprint data from
-   * OHLCV bars. Uses real tick accumulator data when available,
-   * falls back to deterministic simulation based on bar structure.
+  /* ── Footprint helper: real price-level bid/ask data ─────────
+   * Uses only captured aggressor-side executed trades. Historical
+   * OHLCV bars cannot truthfully reconstruct bid/ask-at-price.
    ─────────────────────────────────────────────────────────── */
   /* ─────────────────────────────────────────────────────────────────────────
      FIXED-RESOLUTION BAR PROFILE — the single source of truth for a candle.
@@ -3951,16 +3950,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
      SUB=120 so the 0.20 / 0.80 role thresholds land exactly on sub-boundaries.
   ───────────────────────────────────────────────────────────────────────────── */
   const SUB = 120;
-  const barSubCacheRef = useRef<Map<string, Array<{ bid: number; ask: number }>>>(new Map());
 
   const getBarSubProfile = useCallback((bar: Bar): Array<{ bid: number; ask: number }> | null => {
     const range = bar.high - bar.low;
     if (range <= 0) return null;
 
     const realData = tickAccRef.current.get(bar.time);
-    const key = `${bar.time}|${bar.high}|${bar.low}|${bar.close}|${bar.volume}|${realData?.size ?? 0}`;
-    const cached = barSubCacheRef.current.get(key);
-    if (cached) return cached;
 
     const idxOf = (p: number) =>
       Math.min(SUB - 1, Math.max(0, Math.floor(((p - bar.low) / range) * SUB)));
@@ -3978,68 +3973,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         seen  += rt.bid + rt.ask;
       }
       if (seen > 0) {
-        barSubCacheRef.current.set(key, sub);
         return sub;   // real tape only — never blended with simulated rows
       }
     }
 
     // Historical OHLCV does not contain aggressor-side executions at each price.
-    // Without captured real tape, leave the footprint empty.
+    // Without captured real tape, leave the footprint empty—never synthesize it.
     return null;
-
-    // ── DETERMINISTIC SIMULATION on the fixed grid, normalized to bar.volume.
-    const isBull   = bar.close >= bar.open;
-    const bodyLow  = Math.min(bar.open, bar.close);
-    const bodyHigh = Math.max(bar.open, bar.close);
-    // Keep NATIVE units (float). Rounding fractional crypto volume (~0.3 BTC) to
-    // an integer zeroed the entire simulated footprint ("AGG BUYS 0"). Aggregation
-    // of the fixed sub-grid still conserves Σ exactly, so zoom-stability holds.
-    const target   = Math.max(0, bar.volume);
-
-    const w: number[] = [];
-    const askPcts: number[] = [];
-    let wSum = 0;
-    for (let j = 0; j < SUB; j++) {
-      const f     = (j + 0.5) / SUB;              // price fraction, low→high
-      const price = bar.low + f * range;
-      const inBody    = price >= bodyLow && price <= bodyHigh;
-      const nearOpen  = Math.abs(price - bar.open)  / (range + 0.001) < 0.07;
-      const nearClose = Math.abs(price - bar.close) / (range + 0.001) < 0.07;
-      const nearMid   = Math.abs(f - 0.5) < 0.12;
-
-      let volMult = 0.5;
-      if (inBody)                volMult += 2.0;
-      if (nearOpen || nearClose) volMult += 1.2;
-      if (nearMid)               volMult += 0.6;
-      if (f < 0.04 || f > 0.96)  volMult *= 0.2;  // very sparse at the extremes
-
-      // Seeded per (bar, SUB index) — fixed grid ⇒ identical at every zoom.
-      const s1   = Math.sin(bar.time * 0.01337 + j * 19.13) * 43758.5453;
-      const rnd1 = s1 - Math.floor(s1);
-      const s2   = Math.sin(bar.time * 0.00731 + j * 7.41 + bar.volume * 0.001) * 12345.6789;
-      const rnd2 = s2 - Math.floor(s2);
-
-      const weight = Math.max(0, volMult * (0.7 + rnd1 * 0.6));
-      w.push(weight); wSum += weight;
-
-      // ask = buyer-initiated, bid = seller-initiated.
-      let askPct = isBull ? 0.52 + rnd2 * 0.18 : 0.38 + rnd2 * 0.18;
-      if (inBody) askPct = isBull ? askPct + 0.08 : askPct - 0.08;
-      askPcts.push(Math.max(0.1, Math.min(0.9, askPct)));
-    }
-
-    // Proportional FLOAT allocation ⇒ Σ === bar.volume exactly at every zoom.
-    // No integer rounding/flooring, which used to collapse fractional crypto
-    // footprints to zero. Display precision is handled by fmtV, not here.
-    for (let j = 0; j < SUB; j++) {
-      const total = wSum > 0 ? (target * w[j]) / wSum : 0;
-      const ask   = total * askPcts[j];
-      sub[j] = { ask, bid: total - ask };
-    }
-
-    if (barSubCacheRef.current.size > 3000) barSubCacheRef.current.clear();
-    barSubCacheRef.current.set(key, sub);
-    return sub;
   }, [base]);
 
   /** Aggressive/passive roles for a candle. Derived from the FIXED sub-profile,
@@ -5051,9 +4991,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
           if (showWinner) {
             // ── PER-CANDLE ORDER-FLOW SUMMARY ──────────────────────────────
-            // Four REAL numbers, computed live from THIS candle's own footprint
-            // levels (getBarFootprint → real tick data when present, deterministic
-            // sim otherwise). Nothing here is hardcoded.
+            // Four REAL numbers, computed live from THIS candle's captured
+            // executed-trade footprint. Nothing is reconstructed or hardcoded.
             //
             //   ask = buyer-initiated (market buy lifting the offer)
             //   bid = seller-initiated (market sell hitting the bid)
@@ -6019,8 +5958,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // ── DELTA + VOLUME PROFILE BOX (order flow) ──
       // Left column = per-price DELTA profile (buy−sell), right column = VOLUME
       // profile (ask=green / bid=red, POC=gold). Aggregated from getBarFootprint —
-      // REAL tick data where captured, deterministic bar-structure sim elsewhere
-      // (the identical source the shipped WM Fixed/Session VP draws from). Numbers
+      // real executed-trade data where captured; bars without tape stay empty. Numbers
       // on every row: signed delta at the center gutter, total volume at the edge.
       else if (t === "delta-vp") {
         if (A && B) {
@@ -6651,6 +6589,44 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         onMouseUp={handleCursorSelectUp}
         onMouseLeave={() => { bubbleHoverRef.current = null; setBubbleTip(null); cursorDownRef.current = null; }}>
         <div ref={containerRef} style={{ width:"100%", height:"100%" }} />
+
+        {/* Historical OHLCV cannot reconstruct aggressor-side executions. Keep the
+            tool active, but explain an empty canvas instead of making truth look
+            like a rendering failure (or filling it with synthetic numbers). */}
+        {footprintEnabled && !hasRealAggressorTape(tapeSource ?? "") && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: "absolute", top: 42, left: "50%", transform: "translateX(-50%)",
+              zIndex: 58, maxWidth: 520, padding: "7px 12px", borderRadius: 7,
+              pointerEvents: "none", textAlign: "center",
+              background: "rgba(11,14,26,0.92)", backdropFilter: "blur(5px)",
+              border: "1px solid rgba(240,180,41,0.55)",
+              color: "#D8DCEA", fontSize: 11, fontWeight: 650,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+            }}
+          >
+            <span style={{ color: "#F0B429", fontWeight: 850 }}>Real order-flow tape unavailable.</span>
+            {" "}This feed supplies OHLCV bars, not executed bid/ask trades. No synthetic footprint is shown.
+          </div>
+        )}
+
+        {footprintEnabled && hasRealAggressorTape(tapeSource ?? "") && !recentTicks?.some(t => t.trade) && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: "absolute", top: 42, left: "50%", transform: "translateX(-50%)",
+              zIndex: 58, padding: "6px 11px", borderRadius: 7, pointerEvents: "none",
+              background: "rgba(11,14,26,0.90)", border: "1px solid rgba(0,192,118,0.45)",
+              color: "#AAB2CC", fontSize: 11, fontWeight: 650,
+            }}
+          >
+            <span style={{ color: "#00C076", fontWeight: 850 }}>Collecting live executed trades…</span>
+            {" "}Footprints populate from this point forward; historical rows remain blank.
+          </div>
+        )}
 
         {/* ── Big-Trade comic speech-bubble tooltip (🫧 hover) ─────── */}
         {bubbleTip && (() => {
