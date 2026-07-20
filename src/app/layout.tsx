@@ -13,8 +13,8 @@ import { Analytics } from "@vercel/analytics/next";
 /* ── PWA + SEO metadata ───────────────────────────────────── */
 export const metadata: Metadata = {
   title:       "WealthyMindsets Pro — Elite Trading & Creator Platform",
-  description: "Professional-grade trading dashboard, smart money tools, social community, music streaming, and creator economy in one premium platform.",
-  keywords:    ["trading", "order flow", "smart money", "CLC", "Wyckoff", "footprint chart", "NQ futures"],
+  description: "Trading dashboard with source-aware charts, volume analysis, journaling, education, paper trading, music, and community tools.",
+  keywords:    ["trading", "order flow", "volume profile", "trade journal", "footprint chart", "paper trading"],
   authors:     [{ name: "WealthyMindsets LLC" }],
   manifest:    "/manifest.json",
   appleWebApp: {
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title:       "WealthyMindsets Pro",
-    description: "Elite trading platform — order flow, smart money, community",
+    description: "Source-aware charts, volume analysis, journaling, education, and community tools",
     type:        "website",
     siteName:    "WealthyMindsets Pro",
   },

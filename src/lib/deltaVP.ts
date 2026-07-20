@@ -3,10 +3,9 @@
  *
  * HONESTY: the buy/sell (ask/bid) volume per price level is sourced from
  * MainChart's `getBarFootprint`, which uses REAL accumulated tick data where the
- * platform captured it, and a deterministic bar-structure simulation elsewhere —
- * exactly the same source the shipped WM Fixed / WM Session Volume Profile draws
- * from. This module does NOT invent order flow; it only BINS and AGGREGATES the
- * footprint levels it is handed. Codebase-wide convention (kept here):
+ * platform captured it. Bars without captured aggressor-side executions are not
+ * passed in as estimated bid/ask rows. This module only BINS and AGGREGATES the
+ * real footprint levels it is handed. Codebase-wide convention:
  *   ask = buyer-initiated  → "buy"
  *   bid = seller-initiated  → "sell"
  *   delta = buy - sell

@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const raw = data.user ?? null;
         const u: WMUser | null = raw ? {
           ...raw,
-          verified: true, // all registered users get a check
+          verified: raw.verified === true,
           ceo: isCoreTeam(raw.handle, raw.email),
         } : null;
         setUser(u);
