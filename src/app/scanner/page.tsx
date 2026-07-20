@@ -267,15 +267,21 @@ const PRESETS = [
   { id:"all",      label:"📋 All",           sigs:SIGNALS },
 ];
 
-function Sparkline({ up, id }: { up: boolean; id: string }) {
-  const pts = Array.from({ length: 12 }, (_, i) => {
-    const v = Math.sin(i * 0.9 + id.charCodeAt(0)) * 15 + (up ? i * 2 : -i * 2) + 30;
-    return i * 8 + "," + (50 - v);
-  }).join(" ");
+function ChangeMeter({ changePct }: { changePct: number }) {
+  const magnitude = Math.min(100, Math.abs(changePct) * 18);
+  const up = changePct >= 0;
   return (
-    <svg width={90} height={28}>
-      <polyline points={pts} fill="none" stroke={up ? "#00D4AA" : "#FF4D6A"} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.8} />
-    </svg>
+    <div className="relative h-3 w-[86px] rounded-full bg-wm-surface overflow-hidden" title="Real percentage move">
+      <div className="absolute left-1/2 inset-y-0 w-px bg-wm-border" />
+      <div className="absolute inset-y-0 rounded-full transition-all duration-300"
+        style={{
+          width: `${magnitude / 2}%`,
+          left: up ? "50%" : `${50 - magnitude / 2}%`,
+          background: up ? "#00D4AA" : "#FF4D6A",
+          boxShadow: `0 0 7px ${up ? "rgba(0,212,170,.35)" : "rgba(255,77,106,.35)"}`,
+        }}
+      />
+    </div>
   );
 }
 
@@ -285,14 +291,14 @@ export default function ScannerPage() {
   const [results,       setResults]       = useState<ScanResult[]>([]);
   const [loading,       setLoading]       = useState(true);
   const [search,        setSearch]        = useState("");
-  const [preset,        setPreset]        = useState("hot");
+  const [preset,        setPreset]        = useState("all");
   const [sortKey,       setSortKey]       = useState<SortKey>("time");
   const [sortDir,       setSortDir]       = useState<SortDir>("desc");
   const [live,          setLive]          = useState(true);
   const [lastRefresh,   setLastRefresh]   = useState(Date.now());
   const [selected,      setSelected]      = useState<ScanResult | null>(null);
   const [filterOpen,    setFilterOpen]    = useState(true);
-  const [activeSignals, setActiveSignals] = useState<Signal[]>(PRESETS[0].sigs);
+  const [activeSignals, setActiveSignals] = useState<Signal[]>(SIGNALS);
   const [minVol,        setMinVol]        = useState(0);
   const [minPct,        setMinPct]        = useState(0);
   const [selSectors,    setSelSectors]    = useState<string[]>([]);
@@ -564,7 +570,7 @@ export default function ScannerPage() {
                     </span>
                   </div>
                   <div className="px-2 text-[9px] text-wm-text-dim truncate">{r.sector}</div>
-                  <div className="px-1"><Sparkline up={up} id={r.id}/></div>
+                  <div className="px-1"><ChangeMeter changePct={r.changePct}/></div>
                   <div className="flex items-center justify-center gap-1">
                     <button onClick={e=>{e.stopPropagation();toggleAlert(r.id)}}
                       className={clsx("p-1 rounded transition-colors",r.alerted?"text-wm-gold":"text-wm-text-dim hover:text-wm-gold")}>
@@ -598,7 +604,7 @@ export default function ScannerPage() {
                   <div className={clsx("text-sm font-bold mt-0.5",selected.changePct>=0?"text-wm-green":"text-wm-red")}>
                     {selected.changePct>=0?"+":""}{selected.changePct.toFixed(2)}%
                   </div>
-                  <Sparkline up={selected.changePct>=0} id={selected.id}/>
+                  <div className="mt-3"><ChangeMeter changePct={selected.changePct}/></div>
                 </div>
                 <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
                   style={{ background:`${SIGNAL_META[selected.signal].color}12`,

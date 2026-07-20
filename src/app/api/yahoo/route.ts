@@ -173,6 +173,12 @@ export async function GET(request: Request) {
       // prevClose from daily closes (yesterday's close), for change vs prior session.
       const closes: (number | null)[] = dayRes?.indicators?.quote?.[0]?.close ?? [];
       const validCloses = closes.filter((c): c is number => c != null && c > 0);
+      const dailyVolumes: (number | null)[] = dayRes?.indicators?.quote?.[0]?.volume ?? [];
+      const validDailyVolumes = dailyVolumes.filter((v): v is number => v != null && v > 0);
+      const completedDailyVolumes = validDailyVolumes.length > 1 ? validDailyVolumes.slice(0, -1) : validDailyVolumes;
+      const observedAvgVolume = completedDailyVolumes.length
+        ? completedDailyVolumes.reduce((sum, value) => sum + value, 0) / completedDailyVolumes.length
+        : 0;
       let prevClose = validCloses.length >= 2
         ? validCloses[validCloses.length - 2]
         : (meta?.chartPreviousClose ?? meta?.previousClose ?? price);
@@ -188,7 +194,7 @@ export async function GET(request: Request) {
         change:    +(price - prevClose).toFixed(4),
         changePct: prevClose ? +(((price - prevClose) / prevClose) * 100).toFixed(4) : 0,
         volume:     liveVolume || meta?.regularMarketVolume || 0,
-        avgVolume:  meta?.averageDailyVolume10Day || meta?.averageDailyVolume3Month || 0,
+        avgVolume:  observedAvgVolume || meta?.averageDailyVolume10Day || meta?.averageDailyVolume3Month || 0,
         ts:        Date.now(),
       });
     }
