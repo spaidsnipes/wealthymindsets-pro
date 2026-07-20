@@ -273,40 +273,37 @@ const MARKOV_SECTORS = [
 
 type RegimeState = "BULL" | "BEAR" | "SIDE";
 
-function computeMarkovState(sym: string, tick: number): {
+function computeMarkovState(sym: string, periodReturn: number): {
   state: RegimeState; edge: number; bullP: number; bearP: number; sideP: number;
   trans: number[][]; trend: string; vol: "HIGH" | "MED" | "LOW";
 } {
-  const n = sym.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const v1 = Math.abs(Math.sin(n * 12.9898 + tick * 0.0031) * 43758.5453 % 1);
-  const v2 = Math.abs(Math.sin(n * 78.233 + tick * 0.0017) * 43758.5453 % 1);
-  const v3 = Math.abs(Math.sin(n * 37.719 + tick * 0.0023) * 43758.5453 % 1);
-  const total = v1 + v2 + v3;
-  const bullP = v1 / total;
-  const bearP = v2 / total;
-  const sideP = v3 / total;
+  // Honest regime proxy derived from the selected period's real return. This is
+  // intentionally not presented as a trained predictive model: without a stored
+  // return history there is no defensible empirical transition matrix.
+  const score = Math.max(-1, Math.min(1, periodReturn / 5));
+  const bullRaw = Math.max(0.05, 0.55 + score);
+  const bearRaw = Math.max(0.05, 0.55 - score);
+  const sideRaw = Math.max(0.10, 1 - Math.abs(score));
+  const total = bullRaw + bearRaw + sideRaw;
+  const bullP = bullRaw / total;
+  const bearP = bearRaw / total;
+  const sideP = sideRaw / total;
   const state: RegimeState = bullP >= bearP && bullP >= sideP ? "BULL" : bearP >= sideP ? "BEAR" : "SIDE";
   const edge = Math.abs((bullP - bearP) * 100);
-  // 3x3 transition matrix rows: from BULL, BEAR, SIDE
+  // Scenario matrix, not a fitted transition model. Rows retain state persistence
+  // and distribute the remainder using the live regime probabilities.
   const trans = [
-    [+Math.abs(Math.sin(n*1.1+tick*0.002)*0.45)+0.4, +Math.abs(Math.sin(n*2.3+tick*0.002)*0.3), 0],
-    [+Math.abs(Math.sin(n*3.7+tick*0.002)*0.3), +Math.abs(Math.sin(n*4.1+tick*0.002)*0.45)+0.4, 0],
-    [+Math.abs(Math.sin(n*5.3+tick*0.002)*0.25), +Math.abs(Math.sin(n*6.7+tick*0.002)*0.25), 0],
+    [0.55 + bullP * 0.3, bearP * 0.2, 0],
+    [bullP * 0.2, 0.55 + bearP * 0.3, 0],
+    [bullP * 0.35, bearP * 0.35, 0],
   ].map(row => { const s = row[0]+row[1]; row[2]=Math.max(0,1-s); return row; });
-  const volR = Math.abs(Math.sin(n*8.1+tick*0.004));
-  const vol: "HIGH"|"MED"|"LOW" = volR > 0.66 ? "HIGH" : volR > 0.33 ? "MED" : "LOW";
-  const trendR = Math.abs(Math.sin(n*9.7+tick*0.003));
-  const trend = trendR > 0.66 ? "UP" : trendR > 0.33 ? "FLAT" : "DOWN";
+  const absReturn = Math.abs(periodReturn);
+  const vol: "HIGH"|"MED"|"LOW" = absReturn >= 3 ? "HIGH" : absReturn >= 1 ? "MED" : "LOW";
+  const trend = periodReturn > 0.35 ? "UP" : periodReturn < -0.35 ? "DOWN" : "FLAT";
   return { state, edge, bullP: bullP*100, bearP: bearP*100, sideP: sideP*100, trans, trend, vol };
 }
 
-function MarkovHeatmap({ tf }: { tf: string }) {
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 30_000); // 30s — regime changes are slow
-    return () => clearInterval(id);
-  }, []);
-
+function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> }) {
   const regimeColor: Record<RegimeState, string> = {
     BULL: "#00A86B", BEAR: "#CC1414", SIDE: "#2D3748",
   };
@@ -318,7 +315,7 @@ function MarkovHeatmap({ tf }: { tf: string }) {
     <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8, height: "100%", overflowY: "auto" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 4 }}>
-        <span style={{ fontSize: 11, fontWeight: 900, color: "#F0B429", letterSpacing: 1 }}>MARKOV REGIME HEATMAP</span>
+        <span style={{ fontSize: 11, fontWeight: 900, color: "#F0B429", letterSpacing: 1 }}>MARKOV REGIME PROXY</span>
         <div style={{ display: "flex", gap: 8 }}>
           {(["BULL","BEAR","SIDE"] as RegimeState[]).map(r => (
             <div key={r} style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -327,13 +324,13 @@ function MarkovHeatmap({ tf }: { tf: string }) {
             </div>
           ))}
         </div>
-        <span style={{ marginLeft: "auto", fontSize: 9, color: "#5A6575" }}>TF: {tf} · Updates every 3s</span>
+        <span style={{ marginLeft: "auto", fontSize: 9, color: "#5A6575" }}>TF: {tf} · Live return heuristic · Not predictive</span>
       </div>
 
       {/* Grid of sector cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 8 }}>
         {MARKOV_SECTORS.map(ms => {
-          const d = computeMarkovState(ms.sym, tick);
+          const d = computeMarkovState(ms.sym, pcts[ms.sym] ?? 0);
           return (
             <div key={ms.sym} style={{
               background: regimeBg[d.state],
@@ -527,6 +524,9 @@ function getAllSymbols(): string[] {
   SECTORS.forEach(s => s.industries.forEach(ind => ind.stocks.forEach(st => {
     if (!syms.includes(st.sym)) syms.push(st.sym);
   })));
+  MARKOV_SECTORS.forEach(({ sym }) => {
+    if (!syms.includes(sym)) syms.push(sym);
+  });
   return syms;
 }
 
@@ -797,7 +797,7 @@ export default function HeatmapsPage() {
       {/* ── Markov view ── */}
       {activeView === "Markov" && (
         <div style={{ flex: 1, overflow: "hidden" }}>
-          <MarkovHeatmap tf={activeTF} />
+          <MarkovHeatmap tf={activeTF} pcts={pcts} />
         </div>
       )}
 
