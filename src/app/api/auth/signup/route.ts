@@ -18,6 +18,7 @@ export async function POST(req: Request) {
     const origin =
       req.headers.get("origin") ||
       process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
       "https://wealthymindsets-pro.vercel.app";
     const redirectTo = `${origin}/login?confirmed=1`;
     const data = await supabaseSignUp(email, password, redirectTo);
