@@ -4156,12 +4156,33 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
    *  All 5 footprint modes: bid-ask, delta, volume-profile,
    *  imbalance, aggressive-passive.
    ─────────────────────────────────────────────────────────── */
-  // ResizeObserver keeps canvas pixel-perfect when window/panel resizes
+  // ResizeObserver keeps the overlay canvas pixel-perfect when the window/panel
+  // resizes, AND acts as a blank-chart watchdog. LWC's autoSize zeroes the
+  // canvas whenever the container collapses to 0×0 (route transition, panel
+  // open/close, tab restore) and does not reliably repaint when it returns —
+  // the documented "valid → compressed → blank → recovered" sequence. On the
+  // 0→non-zero recovery edge we force an explicit repaint-resize at the real
+  // size so the plot can never be stranded blank. LWC preserves the visible
+  // logical range across resize, so the user's zoom is untouched. Purely
+  // additive: the recovery branch only fires when coming back from collapse.
   useEffect(() => {
     const cont = containerRef.current;
     const canvas = canvasRef.current;
     if (!cont || !canvas) return;
-    const ro = new ResizeObserver(() => { setRangeVer(v => v + 1); });
+    let prevW = cont.clientWidth, prevH = cont.clientHeight;
+    const ro = new ResizeObserver((entries) => {
+      setRangeVer(v => v + 1);
+      const cr = entries[0]?.contentRect;
+      const w = Math.round(cr?.width  ?? cont.clientWidth);
+      const h = Math.round(cr?.height ?? cont.clientHeight);
+      if ((prevW < 2 || prevH < 2) && w > 2 && h > 2 && chartRef.current) {
+        requestAnimationFrame(() => {
+          try { chartRef.current?.resize(w, h, true); } catch {}
+          setRangeVer(v => v + 1);
+        });
+      }
+      prevW = w; prevH = h;
+    });
     ro.observe(cont);
     return () => ro.disconnect();
   }, []);
