@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { X, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, TrendingUp, TrendingDown, Zap, Eye, Swords, GraduationCap, Info, Droplets, Volume2, VolumeX } from "lucide-react";
+import { X, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, TrendingUp, TrendingDown, Zap, Eye, Swords, GraduationCap, Info, Droplets, Volume2, VolumeX, Minimize2, Maximize2 } from "lucide-react";
 import { WMLogo } from "@/components/ui/WMLogo";
 import { clsx } from "clsx";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -238,6 +238,31 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // ── Resizable width + compact mode (both persisted per workspace) ──────────
+  const [panelW, setPanelW] = useState<number>(() => {
+    if (typeof window === "undefined") return 560;
+    const s = Number(localStorage.getItem("wm_sm_width"));
+    return s >= 320 ? s : Math.min(672, Math.round(window.innerWidth * 0.46));
+  });
+  const [compact, setCompact] = useState<boolean>(() =>
+    typeof window !== "undefined" && localStorage.getItem("wm_sm_compact") === "1");
+  useEffect(() => { try { localStorage.setItem("wm_sm_width", String(panelW)); } catch {} }, [panelW]);
+  useEffect(() => { try { localStorage.setItem("wm_sm_compact", compact ? "1" : "0"); } catch {} }, [compact]);
+  const dragRef = useRef<{ startX: number; startW: number } | null>(null);
+  const onDragStart = (e: React.PointerEvent) => {
+    dragRef.current = { startX: e.clientX, startW: panelW };
+    try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+  };
+  const onDragMove = (e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    const dx = dragRef.current.startX - e.clientX;                 // drag LEFT = wider
+    setPanelW(Math.max(320, Math.min(window.innerWidth - 40, dragRef.current.startW + dx)));
+  };
+  const onDragEnd = (e: React.PointerEvent) => {
+    dragRef.current = null;
+    try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+  };
+
   const { ticker, recentTicks, liveBar, tapeSource } = useWebSocket({ symbol, timeframe: "1m" });
   const livePrice = ticker.price > 0 ? ticker.price : 0;
   const realTape = hasRealAggressorTape(tapeSource);
@@ -460,10 +485,17 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
         // the global top bars (ticker tape + main nav ≈ 64px) so the panel
         // HEADER and its close-X are never occluded/clipped by those bars.
         position: "fixed", top: 64, right: 0, height: "calc(100dvh - 64px)", zIndex: 60,
-        width: "min(42rem, 46vw)", maxWidth: "100%",
+        width: panelW, maxWidth: "100%",
         boxShadow: "-8px 0 32px rgba(0,0,0,0.5)",
       }}
     >
+      {/* Left-edge resize handle — drag to widen/narrow (persisted). */}
+      <div
+        onPointerDown={onDragStart} onPointerMove={onDragMove} onPointerUp={onDragEnd}
+        title="Drag to resize panel"
+        className="hover:bg-wm-gold/30 transition-colors"
+        style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 8, cursor: "col-resize", zIndex: 5, background: "transparent" }}
+      />
       {/* Header */}
       <div className="flex items-center gap-1.5 px-2 py-2 border-b border-wm-border bg-wm-card shrink-0">
         <WMLogo size={24} showGlow />
@@ -482,7 +514,10 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
         >
           {bias === "BULL" ? "↑" : bias === "BEAR" ? "↓" : "–"} {bias}
         </div>
-        <button onClick={onClose} className="text-wm-text-dim hover:text-wm-text p-1 transition-colors">
+        <button onClick={() => setCompact(c => !c)} title={compact ? "Comfortable density" : "Compact density"} className="text-wm-text-dim hover:text-wm-text p-1 transition-colors">
+          {compact ? <Maximize2 size={12} /> : <Minimize2 size={12} />}
+        </button>
+        <button onClick={onClose} aria-label="Close Smart Money panel" title="Close (Esc)" className="text-wm-text-dim hover:text-wm-text p-1 transition-colors">
           <X size={13} />
         </button>
       </div>
@@ -527,7 +562,12 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           below scrolls. On a wide panel the sections tile into columns so the
           trader sees every insight at once while the chart stays visible. ──── */}
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden grid content-start"
-        style={{ gridTemplateColumns: "repeat(auto-fill, minmax(16rem, 1fr))", alignContent: "start" }}>
+        style={{
+          gridTemplateColumns: `repeat(auto-fill, minmax(${compact ? "13rem" : "16rem"}, 1fr))`,
+          alignContent: "start",
+          fontSize: compact ? "0.9em" : undefined,
+          gap: compact ? "0.25rem" : undefined,
+        }}>
 
       {/* ── DELTA DOMINATION (the tug-of-war) ─────────────────────────────── */}
       <div className="mx-2 my-1.5 p-2 rounded-lg bg-wm-surface border border-wm-border shrink-0">

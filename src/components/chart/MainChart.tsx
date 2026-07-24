@@ -5484,6 +5484,28 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // Iterate EVERY bucket low→high so consecutive populated rows are pixel-flush
         // (no gaps). Buckets with genuinely zero traded volume simply draw nothing.
         // Rows whose price is currently off-screen return null and are skipped.
+        // ── RENDER-CONTRACT: precompute per-bucket bar width + up-ratio so the
+        // draw pass can INTERPOLATE between adjacent populated buckets. Drawing
+        // each bucket as one flat rect made a coarse staircase when zoomed in
+        // (a bucket spans many pixels); ramping the width toward the neighbour
+        // over thin sub-rows turns it into a continuous silhouette with no hard
+        // horizontal seams. Underlying buckets / POC / VAH / VAL are unchanged.
+        const vpBaseline = Math.max(4, Math.round(vpW * 0.07));
+        const barWs: (number | null)[] = new Array(nBuckets).fill(null);
+        const upRs:  number[] = new Array(nBuckets).fill(0.5);
+        for (let bi = 0; bi < nBuckets; bi++) {
+          const bp = Math.round((loKey + bi * tickSz) / tickSz) * tickSz;
+          const bv = volMap.get(bp);
+          const bt = bv ? bv.up + bv.down : 0;
+          if (bt <= 0) continue;
+          barWs[bi] = vpBaseline + Math.round((vpW - vpBaseline) * Math.pow(Math.min(1, bt / widthRef), 0.6));
+          upRs[bi]  = bv ? bv.up / bt : 0.5;
+        }
+        // Width/up-ratio of the nearest populated bucket ABOVE i (higher price /
+        // smaller y) — the contour ramps toward it across small empty gaps.
+        const aboveW = (i: number): number => { for (let k = i + 1; k < nBuckets; k++) if (barWs[k] != null) return barWs[k] as number; return (barWs[i] as number) ?? vpBaseline; };
+        const aboveU = (i: number): number => { for (let k = i + 1; k < nBuckets; k++) if (barWs[k] != null) return upRs[k]; return upRs[i]; };
+
         let lastLabelY = -Infinity; // de-overlap volume labels
         for (let i = 0; i < nBuckets; i++) {
           const price = Math.round((loKey + i * tickSz) / tickSz) * tickSz;
@@ -5543,23 +5565,35 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // longest — giving a real FILLED P/b/D silhouette, not slivers and not a
           // uniform block. widthRef (robust percentile) keeps one outlier from
           // flattening the proportional term.
-          const vpBaseline = Math.max(4, Math.round(vpW * 0.07));
-          const barW = vpBaseline + Math.round((vpW - vpBaseline) * Math.pow(Math.min(1, tot / widthRef), 0.6));
+          const barW = (barWs[i] as number) ?? (vpBaseline + Math.round((vpW - vpBaseline) * Math.pow(Math.min(1, tot / widthRef), 0.6)));
+          const upRatio = upRs[i];
 
           if (isPOC) {
             ctx.fillStyle = vpPocRgba(0.68);
             ctx.fillRect(vpRight - barW, rowY, barW, rowH);
           } else {
-            // Preserve the original green/red VP design without claiming historical
-            // bid/ask-at-price. The split is observed up-candle vs down-candle volume
-            // contribution in this price bucket; true aggressor flow remains tape-only.
-            const upRatio = volume ? volume.up / tot : 0.5;
-            const upW = Math.round(barW * upRatio);
-            const downW = barW - upW;
-            ctx.fillStyle = vpUpRgba((0.42 + upRatio * 0.13).toFixed(2));
-            ctx.fillRect(vpRight - barW, rowY, upW, rowH);
-            ctx.fillStyle = vpDnRgba((0.42 + (1 - upRatio) * 0.13).toFixed(2));
-            ctx.fillRect(vpRight - barW + upW, rowY, downW, rowH);
+            // Continuous silhouette: when this bucket maps to a TALL pixel span
+            // (zoomed in) draw thin sub-rows whose width + up/down split RAMP
+            // toward the bucket above, so the profile reads as one smooth shape
+            // instead of coarse rectangular stairs. Zoomed out (rowH small) this
+            // collapses to the original single rect. Green left / red right keeps
+            // the lively bid/ask feel. Underlying bucket volumes are unchanged.
+            const aW = aboveW(i), aU = aboveU(i);
+            const SUBH = 3;
+            const nSub = rowH > SUBH * 1.5 ? Math.min(Math.ceil(rowH / SUBH), 28) : 1;
+            for (let s = 0; s < nSub; s++) {
+              const fMid = (s + 0.5) / nSub;                       // 0 = top, 1 = bottom
+              const w  = nSub === 1 ? barW : Math.round(aW + (barW - aW) * fMid);
+              const ur = nSub === 1 ? upRatio : (aU + (upRatio - aU) * fMid);
+              const sy0 = Math.round(rowY + rowH * (s / nSub));
+              const sy1 = Math.round(rowY + rowH * ((s + 1) / nSub));
+              const sh  = Math.max(1, sy1 - sy0);
+              const upW = Math.round(w * ur);
+              ctx.fillStyle = vpUpRgba((0.42 + ur * 0.13).toFixed(2));
+              ctx.fillRect(vpRight - w, sy0, upW, sh);
+              ctx.fillStyle = vpDnRgba((0.42 + (1 - ur) * 0.13).toFixed(2));
+              ctx.fillRect(vpRight - w + upW, sy0, w - upW, sh);
+            }
           }
           if (isPOC) {
             ctx.strokeStyle = vpPocRgba(0.9); ctx.lineWidth = 1;
