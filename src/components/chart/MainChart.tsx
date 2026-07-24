@@ -1071,7 +1071,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       }
     }
     if (x == null) return null;
-    return { x: +x, y: +y };
+    // Guard: never return a non-finite pixel. A NaN/Infinity coordinate (out-of-range
+    // price, stale transform, or whitespace-index overflow) is exactly what lets a
+    // drawing render as a full-pane band and corrupt auto-scale — the P0 "orange
+    // overlay" defect. Non-finite → treat the point as unprojectable so the render's
+    // `if (A && B)` guards skip the whole drawing instead of drawing garbage.
+    const px = +x, py = +y;
+    if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
+    return { x: px, y: py };
   }, []);
 
   // Context menu state
@@ -5897,7 +5904,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       else if (t === "vline") { const x = timeX(d.pts[0].time); if (x != null) seg({ x, y: 0 }, { x, y: H }); }
       else if (t === "crossline") { if (A) { seg({ x: 0, y: A.y }, { x: W, y: A.y }); seg({ x: A.x, y: 0 }, { x: A.x, y: H }); } }
       // ── RECT / CHANNEL(box) ──
-      else if (t === "rect" || t === "channel") { if (A && B) { const rx = Math.min(A.x, B.x), ry = Math.min(A.y, B.y), rw = Math.abs(B.x - A.x), rh = Math.abs(B.y - A.y); if (s.fill) { ctx.fillStyle = fillCol; ctx.fillRect(rx, ry, rw, rh); } ctx.strokeRect(rx, ry, rw, rh); } }
+      else if (t === "rect" || t === "channel") { if (A && B) { const rx = Math.min(A.x, B.x), ry = Math.min(A.y, B.y), rw = Math.abs(B.x - A.x), rh = Math.abs(B.y - A.y); const fullPane = rw > W * 0.92 && rh > H * 0.92; if (s.fill && !fullPane) { ctx.fillStyle = fillCol; ctx.fillRect(rx, ry, rw, rh); } ctx.strokeRect(rx, ry, rw, rh); } }
       // ── DELTA + VOLUME PROFILE BOX (order flow) ──
       // Left column = per-price DELTA profile (buy−sell), right column = VOLUME
       // profile (ask=green / bid=red, POC=gold). Aggregated from getBarFootprint —
