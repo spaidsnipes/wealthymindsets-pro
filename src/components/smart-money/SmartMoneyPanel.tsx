@@ -446,7 +446,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
       exit={{ x: "100%" }}
       transition={{ type: "spring", stiffness: 350, damping: 35 }}
       className="border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden min-h-0 h-full"
-      style={{ width: "min(19rem, 28vw)", maxWidth: "100%", maxHeight: "100dvh" }}
+      style={{ width: "min(42rem, 46vw)", maxWidth: "100%", maxHeight: "100dvh" }}
     >
       {/* Header */}
       <div className="flex items-center gap-1.5 px-2 py-2 border-b border-wm-border bg-wm-card shrink-0">
@@ -508,8 +508,10 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
       </div>
 
       {/* ── SCROLLABLE BODY — header + confluence stay pinned above; everything
-          below scrolls so no section is ever clipped on short viewports ───── */}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+          below scrolls. On a wide panel the sections tile into columns so the
+          trader sees every insight at once while the chart stays visible. ──── */}
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden grid content-start"
+        style={{ gridTemplateColumns: "repeat(auto-fill, minmax(16rem, 1fr))", alignContent: "start" }}>
 
       {/* ── DELTA DOMINATION (the tug-of-war) ─────────────────────────────── */}
       <div className="mx-2 my-1.5 p-2 rounded-lg bg-wm-surface border border-wm-border shrink-0">
