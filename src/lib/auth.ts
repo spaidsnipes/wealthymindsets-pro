@@ -117,8 +117,14 @@ export function useSupabase(): boolean {
 const SB_URL  = () => process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SB_KEY  = () => (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!;
 
-export async function supabaseSignUp(email: string, password: string) {
-  const res = await fetch(`${SB_URL()}/auth/v1/signup`, {
+export async function supabaseSignUp(email: string, password: string, redirectTo?: string) {
+  // GoTrue honours `redirect_to` as a query param — it becomes the target of the
+  // {{ .ConfirmationURL }} in the confirmation email. Without it, the link falls
+  // back to the dashboard "Site URL", which is the #1 reason invited users get a
+  // confirmation link that points at localhost / a stale preview and can't sign
+  // in. Must be an allowed redirect URL in Supabase Auth settings.
+  const qs = redirectTo ? `?redirect_to=${encodeURIComponent(redirectTo)}` : "";
+  const res = await fetch(`${SB_URL()}/auth/v1/signup${qs}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: SB_KEY() },
     body: JSON.stringify({ email, password }),

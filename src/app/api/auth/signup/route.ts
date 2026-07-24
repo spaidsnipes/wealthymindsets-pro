@@ -12,7 +12,15 @@ export async function POST(req: Request) {
 
   /* ── Supabase path ── */
   if (useSupabase()) {
-    const data = await supabaseSignUp(email, password);
+    // Point the confirmation link at the real deployment the user is on
+    // (request Origin), falling back to a configured site URL. Prevents
+    // confirmation emails linking to localhost / a stale preview URL.
+    const origin =
+      req.headers.get("origin") ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      "https://wealthymindsets-pro.vercel.app";
+    const redirectTo = `${origin}/login?confirmed=1`;
+    const data = await supabaseSignUp(email, password, redirectTo);
     if (data.error) return NextResponse.json({ error: data.error.message ?? "Signup failed" }, { status: 400 });
     const user = data.user;
     if (!user?.id) return NextResponse.json({ error: "Signup service returned an invalid response" }, { status: 502 });
