@@ -445,8 +445,15 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
       animate={{ x: 0 }}
       exit={{ x: "100%" }}
       transition={{ type: "spring", stiffness: 350, damping: 35 }}
-      className="border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden min-h-0 h-full"
-      style={{ width: "min(42rem, 46vw)", maxWidth: "100%", maxHeight: "100dvh" }}
+      className="border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden min-h-0"
+      style={{
+        // Fixed right-side drawer: overlays the chart instead of joining the
+        // column flow (which collapsed the chart to height 0). Chart stays
+        // fully rendered underneath the un-covered left portion.
+        position: "fixed", top: 0, right: 0, height: "100dvh", zIndex: 60,
+        width: "min(42rem, 46vw)", maxWidth: "100%",
+        boxShadow: "-8px 0 32px rgba(0,0,0,0.5)",
+      }}
     >
       {/* Header */}
       <div className="flex items-center gap-1.5 px-2 py-2 border-b border-wm-border bg-wm-card shrink-0">
