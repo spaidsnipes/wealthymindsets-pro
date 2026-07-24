@@ -5312,7 +5312,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         //    (the "stick"). ~100 rows makes the grid fine enough that a zoomed slice
         //    still shows a filled column of bars, WITHOUT re-sourcing on scroll (so the
         //    POC stays stable). Rows clamp to ≥2px and stack contiguously when zoomed out.
-        const rows = 160;
+        // Resolution: 320 data-anchored buckets. The grid is anchored to the DATA
+        // range (stable through pan/zoom — no re-bucketing), but at 160 a zoomed-in
+        // window only intersected a handful of buckets, so each mapped to a tall
+        // pixel row = the audit's "few thick steps despite 160 internal rows."
+        // Doubling to 320 halves each bucket's price width, so a zoomed-in slice
+        // now intersects ~2× more buckets → thin, dense rows and a continuous
+        // silhouette at close zoom, matching the older build. (Extreme-zoom sub-row
+        // LOD is the next lever if still coarse.)
+        const rows = 320;
         let tickSz = rawRange / rows;
         // Snap to the NEAREST clean increment (1/2/2.5/5/10 · 10ⁿ) so bucket edges are
         // still readable prices but the grid never coarsens (nearest, not ceil).
