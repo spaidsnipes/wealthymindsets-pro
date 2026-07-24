@@ -1445,17 +1445,17 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       if ((chartRef as any).__buildId !== buildId) return;
       if (disposed || !containerRef.current) return;
 
-      // Clean up old chart
-      if (chartRef.current) {
-        chartRef.current.remove();
-        chartRef.current = null;
-        pineSeriesRef.current.clear();
-      }
-
+      // ── CREATE-ONCE: reuse the existing chart across symbol / timeframe /
+      // candleType / data changes. Previously the chart was DESTROYED here and
+      // rebuilt below AFTER an awaited multi-source candle fetch, so the plot
+      // sat BLANK for the entire fetch duration — the P0 blank-chart. We now
+      // keep the old chart + its series fully visible during the fetch and only
+      // swap the series once validated data is in hand (series rebuild below).
       const el          = containerRef.current;
       const intervalSec = getIntervalSec(timeframe);
+      const isNewChart  = !chartRef.current;
 
-      const chart = LW.createChart(el, {
+      const chart = chartRef.current ?? LW.createChart(el, {
         autoSize: true,
         localization: { timeFormatter: fmtAxisTime },
         layout: {
@@ -1506,6 +1506,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // time axis can still be dragged to scale horizontally.
         handleScale:  { mouseWheel: true, pinch: true, axisPressedMouseMove: { time: true, price: false } },
       });
+      // Assign immediately so a rapid second symbol/timeframe change during our
+      // async candle fetch REUSES this chart instead of creating a duplicate.
+      if (isNewChart) chartRef.current = chart;
 
       // ── NO VWAP / NO BANDS — moved to Indicators panel ──
 
@@ -1629,6 +1632,23 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       const isComingSoon  = false; // removed: line-break, kagi, point-figure not in dropdown
 
       const displayData = isHA ? toHeikinAshi(data) : data;
+
+      // Superseded-build guard: if the user changed symbol/timeframe again while
+      // our candle fetch was in flight, a newer effect run now owns the chart —
+      // abort WITHOUT touching series so we never clobber the newer build or
+      // blank the chart the newer run is about to populate.
+      if ((chartRef as any).__buildId !== buildId || disposed) return;
+
+      // Reuse path: the PREVIOUS candle + volume series stayed fully visible
+      // during the fetch above; remove them now that fresh validated data is
+      // ready. This swap is synchronous (one repaint), so there is no blank
+      // frame — unlike the old destroy-chart-then-fetch flow.
+      if (!isNewChart && chartRef.current) {
+        try { if (candleRef.current) chartRef.current.removeSeries(candleRef.current); } catch {}
+        try { if (volRef.current)    chartRef.current.removeSeries(volRef.current); } catch {}
+        candleRef.current = null;
+        volRef.current    = null;
+      }
 
       let cs: any;
       if (isLine) {
@@ -1962,62 +1982,67 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       setReady(true);
       onBarsReady?.(data);
 
-      // Redraw canvas overlay whenever user scrolls or zooms
-      chart.timeScale().subscribeVisibleTimeRangeChange(() => {
-        if (!disposed) setRangeVer(v => v + 1);
-      });
+      // Subscriptions attach ONCE per chart (the chart is now persistent across
+      // symbol/timeframe changes). They use chartRef.current as the alive-check
+      // (nulled only on unmount) and candleRef.current for the series (which is
+      // swapped on every rebuild) — never the stale build-local `cs`/`disposed`.
+      if (isNewChart) {
+        // Redraw canvas overlay whenever user scrolls or zooms
+        chart.timeScale().subscribeVisibleTimeRangeChange(() => {
+          if (chartRef.current) setRangeVer(v => v + 1);
+        });
 
-      // Crosshair move → data window update
-      chart.subscribeCrosshairMove((param: any) => {
-        if (!param || !param.time) {
-          if (!disposed) { setDataWindow(null); onOHLCAtCursor?.(null); }
-          return;
-        }
-        // Find bar at crosshair time
-        const bar = barsRef.current.find(b => b.time === param.time);
-        if (bar && !disposed) {
-          const ohlc = { o: bar.open, h: bar.high, l: bar.low, c: bar.close, v: bar.volume, time: bar.time };
-          setDataWindow(ohlc);
-          onOHLCAtCursor?.(ohlc);
-          // Get price at crosshair Y
-          try {
-            if (cs && param.point) {
-              const price = cs.coordinateToPrice(param.point.y);
-              if (price != null) onPriceAtCursor?.(+price.toFixed(bar.close > 100 ? 2 : 4));
-            }
-          } catch {}
-        }
-      });
+        // Crosshair move → data window update
+        chart.subscribeCrosshairMove((param: any) => {
+          if (!chartRef.current) return;
+          if (!param || !param.time) {
+            setDataWindow(null); onOHLCAtCursor?.(null);
+            return;
+          }
+          // Find bar at crosshair time
+          const bar = barsRef.current.find(b => b.time === param.time);
+          if (bar) {
+            const ohlc = { o: bar.open, h: bar.high, l: bar.low, c: bar.close, v: bar.volume, time: bar.time };
+            setDataWindow(ohlc);
+            onOHLCAtCursor?.(ohlc);
+            // Get price at crosshair Y (from the CURRENT candle series)
+            try {
+              const series = candleRef.current;
+              if (series && param.point) {
+                const price = series.coordinateToPrice(param.point.y);
+                if (price != null) onPriceAtCursor?.(+price.toFixed(bar.close > 100 ? 2 : 4));
+              }
+            } catch {}
+          }
+        });
+      }
 
     })().catch(err => {
       console.error("[MainChart] bootstrap failed:", err);
     });
 
     return () => {
+      // Per-change cleanup ONLY aborts this run's in-flight async work. It must
+      // NOT destroy the (now persistent) chart or clear its canvases — doing so
+      // on every symbol/timeframe change is exactly what blanked the plot. Real
+      // teardown happens once on unmount (dedicated effect below).
       disposed = true;
-      (chartRef as any).__buildId = -1; // invalidate this build
-      setReady(false);
-      // Aggressively clear BOTH canvases — prevents ALL stacking artifacts
-      [canvasRef.current, drawCanvasRef.current].forEach(canvas => {
-        if (canvas) {
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.save();
-            ctx.fillStyle = "transparent";
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.restore();
-          }
-        }
-      });
-      candleRef.current = null;
-      pineSeriesRef.current.clear();
-      if (chartRef.current) {
-        try { chartRef.current.remove(); } catch {}
-        chartRef.current = null;
-      }
+      (chartRef as any).__buildId = -1;
     };
   }, [symbol, timeframe, candleType, extendedHours]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Real teardown runs ONCE, on unmount — the chart is persistent while mounted
+  // (create-once), so removing it here (not on every dep change) is what keeps
+  // the plot from blanking during symbol/timeframe/candle-type switches.
+  useEffect(() => {
+    return () => {
+      try { chartRef.current?.remove(); } catch {}
+      chartRef.current  = null;
+      candleRef.current = null;
+      volRef.current    = null;
+      pineSeriesRef.current.clear();
+    };
+  }, []);
 
   /* ── Live tick updates (ALL timeframes) ─────────────────
    *  liveBar.time is already the correct bar-boundary second
@@ -4156,33 +4181,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
    *  All 5 footprint modes: bid-ask, delta, volume-profile,
    *  imbalance, aggressive-passive.
    ─────────────────────────────────────────────────────────── */
-  // ResizeObserver keeps the overlay canvas pixel-perfect when the window/panel
-  // resizes, AND acts as a blank-chart watchdog. LWC's autoSize zeroes the
-  // canvas whenever the container collapses to 0×0 (route transition, panel
-  // open/close, tab restore) and does not reliably repaint when it returns —
-  // the documented "valid → compressed → blank → recovered" sequence. On the
-  // 0→non-zero recovery edge we force an explicit repaint-resize at the real
-  // size so the plot can never be stranded blank. LWC preserves the visible
-  // logical range across resize, so the user's zoom is untouched. Purely
-  // additive: the recovery branch only fires when coming back from collapse.
+  // ResizeObserver redraws the overlay canvas (VP / drawings / footprint) when
+  // the window/panel resizes. (The earlier 0→non-zero "blank-chart watchdog"
+  // here was removed: it targeted the wrong mechanism — the real blank was the
+  // chart being destroyed then rebuilt AFTER an awaited candle fetch, now fixed
+  // by the create-once lifecycle. LWC's own autoSize handles canvas sizing.)
   useEffect(() => {
     const cont = containerRef.current;
     const canvas = canvasRef.current;
     if (!cont || !canvas) return;
-    let prevW = cont.clientWidth, prevH = cont.clientHeight;
-    const ro = new ResizeObserver((entries) => {
-      setRangeVer(v => v + 1);
-      const cr = entries[0]?.contentRect;
-      const w = Math.round(cr?.width  ?? cont.clientWidth);
-      const h = Math.round(cr?.height ?? cont.clientHeight);
-      if ((prevW < 2 || prevH < 2) && w > 2 && h > 2 && chartRef.current) {
-        requestAnimationFrame(() => {
-          try { chartRef.current?.resize(w, h, true); } catch {}
-          setRangeVer(v => v + 1);
-        });
-      }
-      prevW = w; prevH = h;
-    });
+    const ro = new ResizeObserver(() => { setRangeVer(v => v + 1); });
     ro.observe(cont);
     return () => ro.disconnect();
   }, []);
