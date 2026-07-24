@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import {
   Tv, Hash, Video, MonitorUp,
   Radio, Send, Eye, Podcast, Brain, Dumbbell, Timer, Sparkles, Target, Play,
+  BookOpen, Users, Trophy, Calendar, Bell, Gamepad2, GraduationCap,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -504,7 +505,199 @@ const BRAIN_DRILLS: Drill[] = [
     desc: "Name 3 things you're grateful for and 1 intention for the day. Positive priming measurably improves decision quality under stress." },
 ];
 
+/* ── Brain Fitness activity types — what the community does together ── */
+type BFActivity = { id: string; icon: React.ReactNode; title: string; blurb: string; color: string; status: string };
+const BRAIN_ACTIVITIES: BFActivity[] = [
+  { id:"learn",      icon:<GraduationCap size={16}/>, title:"Learn Together",   color:"#00D4AA", status:"Live sessions",       blurb:"Guided group lessons on mindset, risk & the inner game of trading." },
+  { id:"books",      icon:<BookOpen size={16}/>,      title:"Book Discussions", color:"#4FA3E0", status:"Pick shared in room", blurb:"Read the classics together — one chapter, one conversation at a time." },
+  { id:"games",      icon:<Gamepad2 size={16}/>,      title:"Brain Games",      color:"#F0B429", status:"Play now ↓",          blurb:"Memory, focus & pattern drills — play solo or together in a session." },
+  { id:"challenges", icon:<Trophy size={16}/>,        title:"Challenges",       color:"#8B5CF6", status:"Launch week",         blurb:"Weekly discipline & focus challenges with honest, private progress." },
+  { id:"workshops",  icon:<Target size={16}/>,        title:"Workshops",        color:"#FF4D6A", status:"Scheduled",           blurb:"Deep-dive live workshops with hosts and guest practitioners." },
+  { id:"study",      icon:<Timer size={16}/>,         title:"Study Sessions",   color:"#06B6D4", status:"Scheduled",           blurb:"Focused co-working rooms — show up, lock in, and grow with others." },
+  { id:"replays",    icon:<Play size={16}/>,          title:"Replays",          color:"#94A3B8", status:"After first live",    blurb:"Catch sessions you missed once recordings are available." },
+];
+
+// Launch session — a real upcoming time, stored as absolute UTC and rendered
+// in each viewer's own timezone. (Wed Jul 29 2026, 6:00 PM ET.)
+const BF_EVENT_ISO     = "2026-07-29T22:00:00Z";
+const BF_EVENT_END_ISO = "2026-07-29T23:00:00Z";
+
+function bfCalendarUrl() {
+  const fmt = (iso: string) => iso.replace(/[-:]/g, "").replace(/\.\d+/, "");
+  return "https://calendar.google.com/calendar/render?action=TEMPLATE"
+    + "&text="    + encodeURIComponent("Brain Fitness — Live Session (WM TV)")
+    + "&dates="   + fmt(BF_EVENT_ISO) + "/" + fmt(BF_EVENT_END_ISO)
+    + "&details=" + encodeURIComponent("Learn together, discuss, and play brain games in Brain Fitness on Wealthy Mindsets TV.");
+}
+
+/** Live-updating "when + countdown" for the session, computed client-side so
+ *  it renders in the viewer's own timezone without a hydration mismatch. */
+function useEventClock(iso: string) {
+  const [state, setState] = useState<{ when: string; countdown: string }>({ when: "", countdown: "" });
+  useEffect(() => {
+    const target = new Date(iso).getTime();
+    const when = new Date(iso).toLocaleString(undefined, {
+      weekday: "short", month: "short", day: "numeric",
+      hour: "numeric", minute: "2-digit", timeZoneName: "short",
+    });
+    const tick = () => {
+      const ms = target - Date.now();
+      if (ms <= 0) { setState({ when, countdown: "Starting soon" }); return; }
+      const d = Math.floor(ms / 86400000), h = Math.floor((ms % 86400000) / 3600000), m = Math.floor((ms % 3600000) / 60000);
+      setState({ when, countdown: d > 0 ? `in ${d}d ${h}h` : h > 0 ? `in ${h}h ${m}m` : `in ${m}m` });
+    };
+    tick();
+    const t = setInterval(tick, 30000);
+    return () => clearInterval(t);
+  }, [iso]);
+  return state;
+}
+
+/* ── Focus Sequence — a real, playable working-memory game ──────────
+   Watch the sequence light up, then repeat it. Each round adds one step.
+   Honest scoring: score = rounds you actually completed; best is stored
+   locally per player. No fabricated leaderboards. */
+function FocusSequenceGame() {
+  const CELLS = 9;
+  const [seq, setSeq]         = useState<number[]>([]);
+  const [userIdx, setUserIdx] = useState(0);
+  const [flash, setFlash]     = useState<number | null>(null);
+  const [phase, setPhase]     = useState<"idle" | "showing" | "input" | "over">("idle");
+  const [best, setBest]       = useState(0);
+
+  useEffect(() => {
+    const b = Number(localStorage.getItem("wm_bf_seq_best") || "0");
+    if (b > 0) setBest(b);
+  }, []);
+
+  const playSeq = useCallback((s: number[]) => {
+    setPhase("showing");
+    let i = 0;
+    const step = () => {
+      setFlash(s[i]);
+      setTimeout(() => {
+        setFlash(null);
+        i += 1;
+        if (i < s.length) setTimeout(step, 240);
+        else { setPhase("input"); setUserIdx(0); }
+      }, 460);
+    };
+    setTimeout(step, 380);
+  }, []);
+
+  const startRound = useCallback((base: number[]) => {
+    const s = [...base, Math.floor(Math.random() * CELLS)];
+    setSeq(s);
+    playSeq(s);
+  }, [playSeq]);
+
+  const onCell = (cell: number) => {
+    if (phase !== "input") return;
+    if (cell === seq[userIdx]) {
+      const ni = userIdx + 1;
+      if (ni === seq.length) {
+        const score = seq.length;           // rounds completed = sequence length
+        if (score > best) { setBest(score); localStorage.setItem("wm_bf_seq_best", String(score)); }
+        startRound(seq);
+      } else {
+        setUserIdx(ni);
+      }
+    } else {
+      setPhase("over");
+    }
+  };
+
+  const round = seq.length;
+  const status =
+    phase === "idle"    ? "Press Start — watch the pattern, then repeat it." :
+    phase === "showing" ? "Watch closely…" :
+    phase === "input"   ? `Your turn — ${userIdx}/${seq.length}` :
+                          `Round ${Math.max(0, round - 1)} reached. Nice focus.`;
+
+  return (
+    <div className="rounded-2xl p-4" style={{ background:"#0D1117", border:"1px solid #1E2030" }}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background:"#F0B4291E", color:"#F0B429", border:"1px solid #F0B42944" }}>
+            <Gamepad2 size={16} />
+          </div>
+          <div>
+            <div className="text-sm font-black text-wm-text">Focus Sequence</div>
+            <div className="text-[10px] font-bold text-wm-text-muted">Working-memory drill · your best: {best || "—"}</div>
+          </div>
+        </div>
+        <button
+          onClick={() => { setPhase("showing"); setUserIdx(0); startRound([]); }}
+          className="text-[11px] font-black px-3 py-1.5 rounded-lg transition-colors"
+          style={{ background:"#F0B42922", color:"#F0B429", border:"1px solid #F0B42955" }}
+        >
+          {phase === "idle" ? "Start" : "Restart"}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 max-w-[240px] mx-auto">
+        {Array.from({ length: CELLS }).map((_, i) => {
+          const lit = flash === i;
+          return (
+            <button
+              key={i}
+              onClick={() => onCell(i)}
+              disabled={phase !== "input"}
+              aria-label={`Cell ${i + 1}`}
+              className="aspect-square rounded-xl transition-all duration-150"
+              style={{
+                background: lit ? "#F0B429" : "#151823",
+                border: `1px solid ${lit ? "#F0B429" : "#242838"}`,
+                boxShadow: lit ? "0 0 18px rgba(240,180,41,0.6)" : "none",
+                cursor: phase === "input" ? "pointer" : "default",
+                opacity: phase === "showing" && !lit ? 0.55 : 1,
+              }}
+            />
+          );
+        })}
+      </div>
+
+      <p className="text-center text-[11px] mt-3" style={{ color: phase === "over" ? "#FF4D6A" : "#8B8FA8" }}>
+        {status}
+      </p>
+    </div>
+  );
+}
+
 function BrainFitnessChannel() {
+  const { user } = useAuth();
+  const userName = user?.displayName || user?.handle || user?.email?.split("@")[0] || "Guest";
+  const [live, setLive] = useState<null | "host" | "viewer">(null);
+  const clock = useEventClock(BF_EVENT_ISO);
+
+  // ── Live session view (reuses the same LiveKit room infra as the rest of WM TV) ──
+  if (live) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-wm-border bg-wm-dark shrink-0">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background:"linear-gradient(135deg,#00D4AA,#8B5CF6)" }}>
+            <Brain size={16} className="text-white" />
+          </div>
+          <div>
+            <h2 className="text-sm font-black text-wm-text">Brain Fitness — Live</h2>
+            <p className="text-[10px] text-wm-text-muted">{live === "host" ? "You're hosting — start your camera & mic when ready" : "Watching — raise a hand to join the conversation"}</p>
+          </div>
+        </div>
+        <div className="flex-1 min-h-0 p-4 overflow-y-auto">
+          <LiveRoom
+            key={live}
+            roomName="wmtv-brain-fitness"
+            roomLabel="Brain Fitness Live"
+            color="#00D4AA"
+            userName={userName}
+            isHost={live === "host"}
+            onClose={() => setLive(null)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 px-5 py-4 border-b border-wm-border bg-wm-dark shrink-0">
@@ -514,32 +707,99 @@ function BrainFitnessChannel() {
         </div>
         <div>
           <h2 className="text-base font-black text-wm-text">Brain Fitness</h2>
-          <p className="text-[11px] text-wm-text-muted">Mindset, focus & discipline training — the inner game that separates profitable traders.</p>
+          <p className="text-[11px] text-wm-text-muted">Learn together, discuss, play & grow — the community's mental-fitness home inside WM TV.</p>
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-5">
-        <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))" }}>
-          {BRAIN_DRILLS.map(d => (
-            <div key={d.title} className="rounded-2xl p-4 flex flex-col"
-              style={{ background: "#0D1117", border: "1px solid #1E2030" }}>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: `${d.color}1E`, color: d.color, border: `1px solid ${d.color}44` }}>
-                  {d.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-black text-wm-text">{d.title}</div>
-                  <div className="text-[10px] font-bold" style={{ color: d.color }}>{d.time} drill</div>
-                </div>
-              </div>
-              <p className="text-[12px] text-wm-text-muted leading-relaxed">{d.desc}</p>
+      <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-6">
+        {/* ── Next live session ── */}
+        <section className="rounded-2xl p-5 relative overflow-hidden" style={{ background:"#0B1220", border:"1px solid #1E2A3A" }}>
+          <div className="pointer-events-none absolute inset-0" style={{
+            background: "radial-gradient(60% 80% at 85% 20%, rgba(0,212,170,0.14) 0%, transparent 60%), radial-gradient(60% 80% at 10% 90%, rgba(139,92,246,0.12) 0%, transparent 60%)",
+          }} />
+          <div className="relative">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-wm-text-muted mb-1">
+              <Calendar size={12} className="text-wm-green" /> Next Live Session
             </div>
-          ))}
-        </div>
-        <p className="text-center text-[11px] text-wm-text-muted mt-6">
-          More guided sessions & live Brain Fitness broadcasts coming to WM TV.
-        </p>
+            <h3 className="text-lg font-black text-wm-text">Mindset & Focus — Community Kickoff</h3>
+            <p className="text-[12px] text-wm-text-muted mt-1 max-w-xl">
+              A live guided session: set intentions, learn the inner game, discuss, and play a group brain round together.
+            </p>
+            <div className="flex items-center gap-3 mt-3 text-[12px]">
+              <span className="font-bold text-wm-text">{clock.when || "Loading time…"}</span>
+              {clock.countdown && <span className="px-2 py-0.5 rounded-full text-[10px] font-black text-wm-green" style={{ background:"#00D4AA1E", border:"1px solid #00D4AA44" }}>{clock.countdown}</span>}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 mt-4">
+              <button onClick={() => setLive("host")}
+                className="flex items-center gap-1.5 text-[12px] font-black px-4 py-2 rounded-xl text-white transition-transform hover:scale-[1.03]"
+                style={{ background:"linear-gradient(135deg,#00D4AA,#059669)" }}>
+                <Radio size={13} /> Go Live (Host)
+              </button>
+              <button onClick={() => setLive("viewer")}
+                className="flex items-center gap-1.5 text-[12px] font-black px-4 py-2 rounded-xl transition-colors"
+                style={{ background:"#8B5CF622", color:"#A78BFA", border:"1px solid #8B5CF655" }}>
+                <Eye size={13} /> Join Live Room
+              </button>
+              <a href={bfCalendarUrl()} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-[12px] font-bold px-4 py-2 rounded-xl transition-colors text-wm-text-muted"
+                style={{ background:"#151823", border:"1px solid #242838" }}>
+                <Bell size={13} /> Add to calendar
+              </a>
+            </div>
+            <p className="text-[10px] text-wm-text-dim mt-2">The room goes live only when a host starts it — no simulated attendance.</p>
+          </div>
+        </section>
+
+        {/* ── Activity types ── */}
+        <section>
+          <p className="text-[10px] font-black uppercase tracking-wider text-wm-text-muted mb-2">What we do together</p>
+          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))" }}>
+            {BRAIN_ACTIVITIES.map(a => (
+              <div key={a.id} className="rounded-2xl p-4 flex flex-col" style={{ background:"#0D1117", border:"1px solid #1E2030" }}>
+                <div className="flex items-center gap-2.5 mb-2">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background:`${a.color}1E`, color:a.color, border:`1px solid ${a.color}44` }}>
+                    {a.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-black text-wm-text truncate">{a.title}</div>
+                    <div className="text-[10px] font-bold" style={{ color:a.color }}>{a.status}</div>
+                  </div>
+                </div>
+                <p className="text-[12px] text-wm-text-muted leading-relaxed">{a.blurb}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── Brain game ── */}
+        <section>
+          <p className="text-[10px] font-black uppercase tracking-wider text-wm-text-muted mb-2">Brain Games · play now</p>
+          <FocusSequenceGame />
+        </section>
+
+        {/* ── Solo practice (existing drills) ── */}
+        <section>
+          <p className="text-[10px] font-black uppercase tracking-wider text-wm-text-muted mb-2">Solo practice</p>
+          <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))" }}>
+            {BRAIN_DRILLS.map(d => (
+              <div key={d.title} className="rounded-2xl p-4 flex flex-col"
+                style={{ background: "#0D1117", border: "1px solid #1E2030" }}>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: `${d.color}1E`, color: d.color, border: `1px solid ${d.color}44` }}>
+                    {d.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-black text-wm-text">{d.title}</div>
+                    <div className="text-[10px] font-bold" style={{ color: d.color }}>{d.time} drill</div>
+                  </div>
+                </div>
+                <p className="text-[12px] text-wm-text-muted leading-relaxed">{d.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     </div>
   );
