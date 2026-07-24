@@ -231,6 +231,13 @@ const hasRealAggressorTape = (src: string | null) =>
   src === "finnhub" || src === "polygon" || src === "alpaca" || src === "binance";
 
 export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symbol: string }) {
+  // Escape closes the panel (panel-control requirement). Bound while mounted.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   const { ticker, recentTicks, liveBar, tapeSource } = useWebSocket({ symbol, timeframe: "1m" });
   const livePrice = ticker.price > 0 ? ticker.price : 0;
   const realTape = hasRealAggressorTape(tapeSource);
@@ -449,8 +456,10 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
       style={{
         // Fixed right-side drawer: overlays the chart instead of joining the
         // column flow (which collapsed the chart to height 0). Chart stays
-        // fully rendered underneath the un-covered left portion.
-        position: "fixed", top: 0, right: 0, height: "100dvh", zIndex: 60,
+        // fully rendered underneath the un-covered left portion. Offset below
+        // the global top bars (ticker tape + main nav ≈ 64px) so the panel
+        // HEADER and its close-X are never occluded/clipped by those bars.
+        position: "fixed", top: 64, right: 0, height: "calc(100dvh - 64px)", zIndex: 60,
         width: "min(42rem, 46vw)", maxWidth: "100%",
         boxShadow: "-8px 0 32px rgba(0,0,0,0.5)",
       }}
