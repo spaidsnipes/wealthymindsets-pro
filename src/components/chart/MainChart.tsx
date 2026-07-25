@@ -6463,9 +6463,23 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     try {
       const raw = localStorage.getItem(drawStorageKey());
       const arr = raw ? (JSON.parse(raw) as Drawing[]) : [];
-      drawingsRef.current = Array.isArray(arr)
-        ? arr.map(d => ({ ...d, style: { ...d.style, opacity: d.style?.opacity ?? 1 } }))
-        : [];
+      // Corrupt-item QUARANTINE: fail closed on any persisted drawing whose
+      // anchors are non-finite / malformed, instead of rendering garbage (the
+      // class of state that produced the orange full-pane band). Kept out of the
+      // active set; the good ones still load.
+      const isFinitePt = (p: { price?: number; time?: number } | undefined) =>
+        !!p && Number.isFinite(p.price as number) && Number.isFinite(p.time as number);
+      const quarantined: Drawing[] = [];
+      const clean = (Array.isArray(arr) ? arr : []).filter(d => {
+        const ok = d && typeof d.type === "string" && Array.isArray(d.pts) && d.pts.length > 0 && d.pts.every(isFinitePt);
+        if (!ok) quarantined.push(d);
+        return ok;
+      });
+      if (quarantined.length) {
+        console.warn(`[MainChart] quarantined ${quarantined.length} corrupt drawing(s) — not rendered`);
+        try { localStorage.setItem(`${drawStorageKey()}:quarantine`, JSON.stringify(quarantined)); } catch {}
+      }
+      drawingsRef.current = clean.map(d => ({ ...d, style: { ...d.style, opacity: d.style?.opacity ?? 1 } }));
       drawIdRef.current = drawingsRef.current.reduce((m, d) => Math.max(m, d.id || 0), 0);
       lastSavedDrawRef.current = raw ?? "";
     } catch {
