@@ -6471,7 +6471,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         !!p && Number.isFinite(p.price as number) && Number.isFinite(p.time as number);
       const quarantined: Drawing[] = [];
       const clean = (Array.isArray(arr) ? arr : []).filter(d => {
-        const ok = d && typeof d.type === "string" && Array.isArray(d.pts) && d.pts.length > 0 && d.pts.every(isFinitePt);
+        const ok = d && typeof d.tool === "string" && Array.isArray(d.pts) && d.pts.length > 0 && d.pts.every(isFinitePt);
         if (!ok) quarantined.push(d);
         return ok;
       });
