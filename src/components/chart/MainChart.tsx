@@ -1148,6 +1148,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const [lastPrice, setLastPrice] = useState(base);
   const [openPrice, setOpenPrice] = useState(base);
   const [ready,     setReady]     = useState(false);
+  // ── Data provenance (market-truth strip) ─────────────────────────
+  // Which provider actually supplied the candles, and when the last live tick
+  // arrived. The LIVE badge must reflect REAL feed activity — never a
+  // hardcoded label (audit: "never label Live based only on an open socket").
+  const [candleSource, setCandleSource] = useState<string>("");
+  const lastTickAtRef = useRef<number>(0);
+  const [freshVer, setFreshVer] = useState(0); // periodic freshness recheck when ticks stop
+  useEffect(() => { const t = setInterval(() => setFreshVer(v => v + 1), 10000); return () => clearInterval(t); }, []);
   // Bumped whenever paper state may have changed (another tab writes wm_paper_state,
   // or the window regains focus after the user placed a trade on /paper) → re-read.
   const [paperNonce, setPaperNonce] = useState(0);
@@ -1550,6 +1558,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       const finnhubData  = (exchangeData || alpacaData || fhDirectData || yahooData) ? null : await fetchFinnhubCandles(symbol, timeframe, barCount);
       const polyData     = (exchangeData || alpacaData || fhDirectData || yahooData || finnhubData) ? null : await fetchPolygonOHLCV(symbol, timeframe, barCount);
       const realData     = exchangeData ?? alpacaData ?? fhDirectData ?? yahooData ?? finnhubData ?? polyData;
+      // Provenance: record which provider ACTUALLY supplied these candles.
+      const srcName =
+        exchangeData ? (exParsed?.exchange?.toUpperCase() || "EXCHANGE") :
+        alpacaData   ? "ALPACA"  :
+        fhDirectData ? "FINNHUB" :
+        yahooData    ? "YAHOO"   :
+        finnhubData  ? "FINNHUB" :
+        polyData     ? "POLYGON" : "NO FEED";
 
       // Real spot price (from parallel fetch above)
       const spotPrice = await spotFetch;
@@ -1979,6 +1995,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         setLastPrice(data[data.length - 1].close);
         setOpenPrice(data[0].open);
       }
+      setCandleSource(data.length ? srcName : "NO FEED");
       setReady(true);
       onBarsReady?.(data);
 
@@ -2051,6 +2068,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
    ───────────────────────────────────────────────────────── */
   useEffect(() => {
     if (!liveBar || !candleRef.current || !volRef.current || !ready) return;
+    // Provenance: a real tick reached the chart just now.
+    lastTickAtRef.current = Date.now();
 
     const price   = liveBar.close;
     const prevBars = barsRef.current;
@@ -6545,11 +6564,35 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             <span className={closeFlash ? "animate-pulse" : ""}>{countdown}</span>
           </div>
 
-          {/* Live dot */}
-          <div className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-wm-green animate-pulse" />
-            <span className="text-[10px] text-wm-green font-semibold">LIVE</span>
-          </div>
+          {/* Data-truth strip — provider + REAL feed freshness (never a hardcoded LIVE). */}
+          {(() => {
+            void freshVer; // periodic recheck so the badge can go stale when ticks stop
+            const tickAge = lastTickAtRef.current ? Date.now() - lastTickAtRef.current : Infinity;
+            const feedLive = tickAge < 20000; // a real tick in the last 20s
+            const lastBarT = candles.length ? (candles[candles.length - 1].time as number) : 0;
+            const lastStr = lastBarT
+              ? new Date(lastBarT * 1000).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+              : "—";
+            const noFeed = candleSource === "NO FEED" || !candles.length;
+            return (
+              <div
+                className="flex items-center gap-1.5"
+                title={`Candles: ${candleSource || "…"} · session ${extendedHours ? "ETH" : "RTH"} · last bar ${lastStr}${feedLive ? " · ticks flowing" : " · no live tick in >20s"}`}
+              >
+                <span className="text-[9px] font-mono text-wm-text-dim">{candleSource || "…"}</span>
+                {noFeed ? (
+                  <span className="text-[10px] text-wm-red font-semibold">NO FEED</span>
+                ) : feedLive ? (
+                  <span className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-wm-green animate-pulse" />
+                    <span className="text-[10px] text-wm-green font-semibold">LIVE</span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-semibold" style={{ color: "#F0B429" }}>LAST {lastStr}</span>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Fullscreen button */}
           <button
