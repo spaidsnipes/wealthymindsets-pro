@@ -131,21 +131,32 @@ export function BrokerConnectPanel({ onClose }: Props) {
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ background:"#0D0E14",border:"1px solid #1E2030",borderRadius:12,width:820,maxHeight:"85vh",display:"flex",flexDirection:"column",boxShadow:"0 24px 64px rgba(0,0,0,0.8)" }}>
 
-        {/* Header */}
+        {/* Header — explicit connection STATE MACHINE (a green badge is not
+            trading). Derived from what is actually verified end-to-end. */}
         <div style={{ display:"flex",alignItems:"center",padding:"16px 20px",borderBottom:"1px solid #1E2030",flexShrink:0 }}>
           <div style={{ flex:1 }}>
-            <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+            <div style={{ display:"flex",alignItems:"center",gap:8,flexWrap:"wrap" }}>
               {connected ? <Plug2 size={16} color="#00C076" /> : <Unplug size={16} color="#8B8FA8" />}
               <span style={{ fontSize:16,fontWeight:700,color:"#E2E8F0" }}>Connect a Broker</span>
-              {connected === "alpaca" && alpacaAccount && (
-                <span style={{ fontSize:10,color:"#00D4AA",background:"rgba(0,212,170,0.1)",padding:"2px 8px",borderRadius:4,border:"1px solid rgba(0,212,170,0.3)" }}>
-                  PAPER TRADING LIVE
-                </span>
-              )}
+              {(() => {
+                const s =
+                  !connected                        ? { label: "DISCONNECTED",            color: "#8B8FA8" } :
+                  alpacaError                       ? { label: "ERROR",                   color: "#FF4D6A" } :
+                  (alpacaLoading || !alpacaAccount) ? { label: "AUTHORIZING",             color: "#F0B429" } :
+                                                      { label: "TRADING ENABLED · PAPER", color: "#00D4AA" };
+                return (
+                  <span style={{ fontSize:10,fontWeight:700,color:s.color,background:`${s.color}1A`,padding:"2px 8px",borderRadius:4,border:`1px solid ${s.color}55`,letterSpacing:0.3 }}>
+                    {s.label}
+                  </span>
+                );
+              })()}
             </div>
             <p style={{ fontSize:11,color:"#8B8FA8",marginTop:4 }}>
-              {connected ? `Connected to ${BROKERS.find(b => b.id === connected)?.name}. Click disconnect to remove.`
-                         : "Select a broker to open an account and connect live trading to your platform." }
+              {!connected
+                ? "Select a broker to open an account and connect. Paper trading first; live trading is enabled only after end-to-end certification."
+                : !alpacaAccount
+                  ? `Linked to ${BROKERS.find(b => b.id === connected)?.name} — loading account details…`
+                  : "Paper account is trade-ready. A green badge only means paper orders are proven — live trading stays gated until fills, cancel/replace and reconciliation are certified."}
             </p>
           </div>
           <button onClick={onClose} style={{ background:"none",border:"none",cursor:"pointer",color:"#8B8FA8",padding:4 }}>
