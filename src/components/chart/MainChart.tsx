@@ -5291,7 +5291,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       /* ══════════════════════════════════════════════════════
          WM FIXED VP & SESSION VP — right-anchored inside chart
       ══════════════════════════════════════════════════════ */
-      function drawWMVP(barsToUse: Bar[], barColor: string, labelText: string, yOffset: number, colIndex = 0, nCols = 1) {
+      function drawWMVP(barsToUse: Bar[], barColor: string, labelText: string, yOffset: number, colIndex = 0, nCols = 1, alphaScale = 1) {
         if (!barsToUse.length || !ctx) return;
         // Dynamic tick size: ~25 rows so each bar is tall and clearly readable
         const priceRange = barsToUse.reduce((r, b) => ({ hi: Math.max(r.hi, b.high), lo: Math.min(r.lo, b.low) }), { hi: -Infinity, lo: Infinity });
@@ -5446,7 +5446,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // second one LEFT by a full column width + gap so the two histograms sit
         // side-by-side instead of overlapping in the same right-anchored column
         // (the BTC "VP looks wrong" bug — stacked bars + colliding labels).
-        const vpW   = Math.min(nCols > 1 ? 110 : 150, (W - priceScaleW) * (nCols > 1 ? 0.15 : 0.19));
+        // Cap profile width relative to usable chart area so the histogram never
+        // overpowers price action (founder: "profile width overpowers price").
+        // Each profile stays a compact right-side lane, not a wall.
+        const vpW   = Math.min(nCols > 1 ? 84 : 116, (W - priceScaleW) * (nCols > 1 ? 0.10 : 0.13));
         const vpRight = (W - priceScaleW - 6) - colIndex * (vpW + 12);
 
         // ── PRICE-ANCHORED vertical scale ───────────────────────────────
@@ -5481,30 +5484,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         ctx.beginPath();
         ctx.rect(0, 0, W, pane0H);
         ctx.clip();
-        // Iterate EVERY bucket low→high so consecutive populated rows are pixel-flush
-        // (no gaps). Buckets with genuinely zero traded volume simply draw nothing.
-        // Rows whose price is currently off-screen return null and are skipped.
-        // ── RENDER-CONTRACT: precompute per-bucket bar width + up-ratio so the
-        // draw pass can INTERPOLATE between adjacent populated buckets. Drawing
-        // each bucket as one flat rect made a coarse staircase when zoomed in
-        // (a bucket spans many pixels); ramping the width toward the neighbour
-        // over thin sub-rows turns it into a continuous silhouette with no hard
-        // horizontal seams. Underlying buckets / POC / VAH / VAL are unchanged.
+        // Iterate EVERY bucket low→high. Each populated bucket draws ONE thin,
+        // price-aligned row with a small separation gap, so individual levels
+        // stay recognizable and the many thin rows form a naturally smooth OUTER
+        // silhouette. We do NOT interpolate/fill between rows into empty price
+        // levels — that flag-off change ("sub-row neighbour ramping") produced a
+        // solid painted slab and was reverted. Empty buckets draw nothing.
         const vpBaseline = Math.max(4, Math.round(vpW * 0.07));
-        const barWs: (number | null)[] = new Array(nBuckets).fill(null);
-        const upRs:  number[] = new Array(nBuckets).fill(0.5);
-        for (let bi = 0; bi < nBuckets; bi++) {
-          const bp = Math.round((loKey + bi * tickSz) / tickSz) * tickSz;
-          const bv = volMap.get(bp);
-          const bt = bv ? bv.up + bv.down : 0;
-          if (bt <= 0) continue;
-          barWs[bi] = vpBaseline + Math.round((vpW - vpBaseline) * Math.pow(Math.min(1, bt / widthRef), 0.6));
-          upRs[bi]  = bv ? bv.up / bt : 0.5;
-        }
-        // Width/up-ratio of the nearest populated bucket ABOVE i (higher price /
-        // smaller y) — the contour ramps toward it across small empty gaps.
-        const aboveW = (i: number): number => { for (let k = i + 1; k < nBuckets; k++) if (barWs[k] != null) return barWs[k] as number; return (barWs[i] as number) ?? vpBaseline; };
-        const aboveU = (i: number): number => { for (let k = i + 1; k < nBuckets; k++) if (barWs[k] != null) return upRs[k]; return upRs[i]; };
 
         let lastLabelY = -Infinity; // de-overlap volume labels
         for (let i = 0; i < nBuckets; i++) {
@@ -5565,35 +5551,26 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // longest — giving a real FILLED P/b/D silhouette, not slivers and not a
           // uniform block. widthRef (robust percentile) keeps one outlier from
           // flattening the proportional term.
-          const barW = (barWs[i] as number) ?? (vpBaseline + Math.round((vpW - vpBaseline) * Math.pow(Math.min(1, tot / widthRef), 0.6)));
-          const upRatio = upRs[i];
+          const barW = vpBaseline + Math.round((vpW - vpBaseline) * Math.pow(Math.min(1, tot / widthRef), 0.6));
+          const upRatio = volume ? volume.up / tot : 0.5;
+          // Small separation gap so each price row stays individually visible
+          // (many thin rows → smooth OUTER silhouette, not a solid painted slab).
+          const gap = rowH >= 3 ? 1 : 0;
+          const rh  = Math.max(1, rowH - gap);
 
           if (isPOC) {
-            ctx.fillStyle = vpPocRgba(0.68);
-            ctx.fillRect(vpRight - barW, rowY, barW, rowH);
+            ctx.fillStyle = vpPocRgba((0.68 * alphaScale).toFixed(2));
+            ctx.fillRect(vpRight - barW, rowY, barW, rh);
           } else {
-            // Continuous silhouette: when this bucket maps to a TALL pixel span
-            // (zoomed in) draw thin sub-rows whose width + up/down split RAMP
-            // toward the bucket above, so the profile reads as one smooth shape
-            // instead of coarse rectangular stairs. Zoomed out (rowH small) this
-            // collapses to the original single rect. Green left / red right keeps
-            // the lively bid/ask feel. Underlying bucket volumes are unchanged.
-            const aW = aboveW(i), aU = aboveU(i);
-            const SUBH = 3;
-            const nSub = rowH > SUBH * 1.5 ? Math.min(Math.ceil(rowH / SUBH), 28) : 1;
-            for (let s = 0; s < nSub; s++) {
-              const fMid = (s + 0.5) / nSub;                       // 0 = top, 1 = bottom
-              const w  = nSub === 1 ? barW : Math.round(aW + (barW - aW) * fMid);
-              const ur = nSub === 1 ? upRatio : (aU + (upRatio - aU) * fMid);
-              const sy0 = Math.round(rowY + rowH * (s / nSub));
-              const sy1 = Math.round(rowY + rowH * ((s + 1) / nSub));
-              const sh  = Math.max(1, sy1 - sy0);
-              const upW = Math.round(w * ur);
-              ctx.fillStyle = vpUpRgba((0.42 + ur * 0.13).toFixed(2));
-              ctx.fillRect(vpRight - w, sy0, upW, sh);
-              ctx.fillStyle = vpDnRgba((0.42 + (1 - ur) * 0.13).toFixed(2));
-              ctx.fillRect(vpRight - w + upW, sy0, w - upW, sh);
-            }
+            // One thin rect per real price level: green (up-vol) left, red
+            // (down-vol) right — the lively bid/ask look. Nothing is drawn into
+            // empty price levels (no interpolation). alphaScale gives Session VP
+            // a distinct translucent identity vs the solid Fixed VP.
+            const upW = Math.round(barW * upRatio);
+            ctx.fillStyle = vpUpRgba(((0.42 + upRatio * 0.13) * alphaScale).toFixed(2));
+            ctx.fillRect(vpRight - barW, rowY, upW, rh);
+            ctx.fillStyle = vpDnRgba(((0.42 + (1 - upRatio) * 0.13) * alphaScale).toFixed(2));
+            ctx.fillRect(vpRight - barW + upW, rowY, barW - upW, rh);
           }
           if (isPOC) {
             ctx.strokeStyle = vpPocRgba(0.9); ctx.lineWidth = 1;
@@ -5754,7 +5731,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const sessionBars = latestSession
             ? annotated.filter(item => item.date === latestSession).map(item => item.bar)
             : [];
-          drawWMVP(sessionBars, "#8B5CF6", "WM Session VP", 0, bothVP ? 1 : 0, nVPCols);
+          // Session VP: distinct translucent identity (0.6×) so it never merges
+          // with the solid Fixed VP into one slab (founder: "cannot distinguish").
+          drawWMVP(sessionBars, "#8B5CF6", "WM Session VP", 0, bothVP ? 1 : 0, nVPCols, 0.6);
         }
       }
       // Non-big-trades modes draw VP here (top of stack is fine — no bubbles).
