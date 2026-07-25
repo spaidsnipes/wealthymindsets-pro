@@ -5369,17 +5369,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         });
 
         // ── Bar-WIDTH reference = 3.5× the MEDIAN populated-level volume ──────────
-        // Rebuilt (was max/percentile/floor-based, which thrashed): a fixed multiple
-        // of the MEDIAN is distribution-INDEPENDENT. The median bar always lands at the
-        // same readable width regardless of zoom, timeframe, or a lone huge POC — the
-        // POC (and any real value-area node above the ref) just clamps to full width,
-        // tails taper toward the baseline. This is what makes it a filled P/b shape at
-        // wide AND tight zoom, instead of a thin stick (max-based, outlier-crushed) or
-        // a muddy block. maxVol is used ONLY as a last-resort guard against an empty
-        // median, never as a scaling floor.
-        const volsAsc = Array.from(volMap.values()).map(v => v.up + v.down).filter(x => x > 0).sort((a, b) => a - b);
-        const medVol   = volsAsc.length ? volsAsc[Math.floor(volsAsc.length / 2)] : 0;
-        const widthRef = medVol > 0 ? medVol * 5 : (maxVol || 1);
+        // ACCURATE normalization: scale bar length to the REAL peak volume-at-
+        // price (the POC bucket). The previous 5×-median reference saturated every
+        // above-median level to full width → the chunky solid block the founder
+        // flagged. Normalizing to the true max means ONLY the POC is full width and
+        // every other level is drawn in HONEST proportion to its actual volume.
+        const volsAsc   = Array.from(volMap.values()).map(v => v.up + v.down).filter(x => x > 0).sort((a, b) => a - b);
+        const maxBucket = volsAsc.length ? volsAsc[volsAsc.length - 1] : 1;
 
         // Only the ~6 highest-volume levels get a NUMBER (POC + 5). Per-row labels
         // turned BTC's fractional volumes into an unreadable wall; TradingView-style
@@ -5490,7 +5486,6 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // silhouette. We do NOT interpolate/fill between rows into empty price
         // levels — that flag-off change ("sub-row neighbour ramping") produced a
         // solid painted slab and was reverted. Empty buckets draw nothing.
-        const vpBaseline = Math.max(4, Math.round(vpW * 0.07));
 
         let lastLabelY = -Infinity; // de-overlap volume labels
         for (let i = 0; i < nBuckets; i++) {
@@ -5538,20 +5533,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const rowH  = Math.max(2, Math.min(rowCap, rowBot - rowY));
           const isPOC = price === pocPrice;
           // Bar length ∝ volume, shaped by a 0.6 power curve: the POC (ratio 1) is the
-          // longest, mid nodes stay clearly readable, and low nodes taper down HONESTLY
-          // toward a tiny 3px nub instead of clamping to a fat 16px floor. That old 16px
-          // floor was the "anorexic bars" problem: it forced every thin bucket to the
-          // SAME 16px width, so a run of low-volume buckets stacked into one uniform
-          // vertical ribbon while only the POC jutted out — the snaggle-tooth look. A
-          // low 3px floor lets the silhouette taper into a real histogram shape.
-          // Visible BASELINE + volume-proportional extension. Every populated node
-          // draws at >= baseline (~9% of the column) so LOW-volume nodes are actually
-          // VISIBLE (the user's "low nodes not visible / it's just a stick"), while the
-          // proportional part (up to full width) still makes the POC/value-area the
-          // longest — giving a real FILLED P/b/D silhouette, not slivers and not a
-          // uniform block. widthRef (robust percentile) keeps one outlier from
-          // flattening the proportional term.
-          const barW = vpBaseline + Math.round((vpW - vpBaseline) * Math.pow(Math.min(1, tot / widthRef), 0.6));
+          // ACCURATE bar length: DIRECTLY proportional to this level's real
+          // volume-at-price, normalized to the peak (POC) bucket. No aesthetic
+          // baseline and no power-curve compression — those made low levels fake-
+          // wide and saturated the high levels into one chunky block. A 1px floor
+          // only guarantees a genuinely-traded level is not invisible. The result
+          // is an honest histogram: POC full width, everything else in true ratio.
+          const barW = Math.max(1, Math.round(vpW * Math.min(1, tot / maxBucket)));
           const upRatio = volume ? volume.up / tot : 0.5;
           // Small separation gap so each price row stays individually visible
           // (many thin rows → smooth OUTER silhouette, not a solid painted slab).
