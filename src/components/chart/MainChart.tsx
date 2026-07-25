@@ -1156,6 +1156,19 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const lastTickAtRef = useRef<number>(0);
   const [freshVer, setFreshVer] = useState(0); // periodic freshness recheck when ticks stop
   useEffect(() => { const t = setInterval(() => setFreshVer(v => v + 1), 10000); return () => clearInterval(t); }, []);
+  // Delta Bubble level cap — user preference (5/7/10/15), default 7, persisted
+  // per workspace in wm_delta_levels; FootprintControls broadcasts changes.
+  const deltaLevelsPrefRef = useRef<number>(7);
+  useEffect(() => {
+    const read = () => {
+      const v = parseInt(localStorage.getItem("wm_delta_levels") || "7", 10);
+      deltaLevelsPrefRef.current = [5, 7, 10, 15].includes(v) ? v : 7;
+    };
+    read();
+    const onEvt = () => { read(); setRangeVer(x => x + 1); }; // redraw bubbles with new cap
+    window.addEventListener("wm-delta-levels", onEvt);
+    return () => window.removeEventListener("wm-delta-levels", onEvt);
+  }, []);
   // Bumped whenever paper state may have changed (another tab writes wm_paper_state,
   // or the window regains focus after the user placed a trade on /paper) → re-read.
   const [paperNonce, setPaperNonce] = useState(0);
@@ -4175,22 +4188,29 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // BTC (deltas ~0.05 BTC) and stocks (deltas ~50 sh) alike. Above-average zones.
     const threshold = meanAbsDelta;
 
+    // Deterministic level cap: the user preference (5/7/10/15, default 7) is the
+    // MAXIMUM number of ranked qualifying levels shown. Stable ranking: |delta|
+    // desc, tie-broken by price asc — identical data always yields identical
+    // bubbles. Levels with no valid data were already skipped above (never
+    // invented/interpolated).
+    const cap = deltaLevelsPrefRef.current;
+    const rank = (a: { delta: number; priceLevel: number }, z: { delta: number; priceLevel: number }) =>
+      Math.abs(z.delta) - Math.abs(a.delta) || a.priceLevel - z.priceLevel;
+
     const pickMap = new Map<number, typeof levels[0]>();
     for (const l of levels
       .filter(x => Math.abs(x.delta) >= threshold)
-      .sort((a, z) => Math.abs(z.delta) - Math.abs(a.delta))
-      .slice(0, 5)) {
+      .sort(rank)
+      .slice(0, cap)) {
       pickMap.set(l.priceLevel, l);
     }
     // Guaranteed buy + sell leaders so every active bar shows both sides.
-    const topBuy = levels.filter(l => l.delta > 0).sort((a, z) => z.delta - a.delta)[0];
-    const topSell = levels.filter(l => l.delta < 0).sort((a, z) => a.delta - z.delta)[0];
+    const topBuy = levels.filter(l => l.delta > 0).sort((a, z) => z.delta - a.delta || a.priceLevel - z.priceLevel)[0];
+    const topSell = levels.filter(l => l.delta < 0).sort((a, z) => a.delta - z.delta || a.priceLevel - z.priceLevel)[0];
     if (topBuy) pickMap.set(topBuy.priceLevel, topBuy);
     if (topSell) pickMap.set(topSell.priceLevel, topSell);
 
-    return [...pickMap.values()]
-      .sort((a, z) => Math.abs(z.delta) - Math.abs(a.delta))
-      .slice(0, 6);
+    return [...pickMap.values()].sort(rank).slice(0, cap);
   }, [base]);
 
   footprintSnapRef.current = (bar, n) => getBarFootprint(bar, n).map(l => ({ priceLevel: l.priceLevel, total: l.total }));
