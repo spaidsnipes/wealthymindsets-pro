@@ -325,8 +325,15 @@ export function CustomIndicatorBuilder({ onClose, bars, onAddToChart, activeCode
             <Code2 size={14} className="text-white" />
           </div>
           <span className="text-sm font-bold text-wm-text">Custom Indicator Builder</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-wm-green/20 text-wm-green border border-wm-green/30 font-semibold">
-            Pine Script v6
+          {/* Honesty label: WM runs a Pine-COMPATIBLE subset, not a conformance-
+              proven full v6 runtime. Until bar-by-bar numeric parity against
+              TradingView fixtures is demonstrated, this is labeled a preview so
+              users never assume a script renders identically to TradingView. */}
+          <span
+            className="text-[10px] px-2 py-0.5 rounded-full bg-wm-gold/15 text-wm-gold border border-wm-gold/30 font-semibold"
+            title="Runs a Pine-compatible subset. Some scripts may render differently than TradingView — full conformance testing is in progress."
+          >
+            Pine Import Preview · partial compatibility
           </span>
 
           <div className="flex gap-1 ml-4">
