@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  Sun, Plus, X, Check, Trash2, Image as ImageIcon, Flame,
+  Sun, Plus, X, Check, Trash2, Image as ImageIcon,
   CheckCircle2, Circle, Coffee, Target,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -38,6 +38,18 @@ const STARTER_CHECKLIST = [
   "Journal yesterday's lesson",
 ];
 
+const GROWTH_PRACTICES = {
+  spiritual: ["Prayer", "Bible", "Worship", "Reflection", "Gratitude"],
+  physical: ["Sleep", "Workout", "Steps", "Nutrition", "Water", "Recovery"],
+  mental: ["Reading", "Learning", "Journaling", "Thinking", "Meditation"],
+  financial: ["Budget", "Investments", "Trading", "Business", "Saving"],
+  creative: ["Dreamboard", "Writing", "Music", "Studios", "Projects"],
+  relationships: ["Family", "Friends", "Mentorship", "Serving"],
+  work: ["Job", "Business", "Clients", "Sales", "Meetings", "Deep Work"],
+} as const;
+
+type GrowthCategory = keyof typeof GROWTH_PRACTICES;
+
 function storeKey(handle: string) { return `wm_morning_prep_${handle || "guest"}`; }
 
 function loadEntries(handle: string): PrepEntry[] {
@@ -59,8 +71,29 @@ export default function MorningPrepPage() {
 
   const [entries, setEntries] = useState<PrepEntry[]>([]);
   const [showCompose, setShowCompose] = useState(false);
+  const [growthState, setGrowthState] = useState<"loading" | "connected" | "unavailable">("loading");
+  const [growthRecords, setGrowthRecords] = useState(0);
+  const [growthCategory, setGrowthCategory] = useState<GrowthCategory>("creative");
+  const [growthPractice, setGrowthPractice] = useState("Dreamboard");
+  const [growthReflection, setGrowthReflection] = useState("");
+  const [growthSaving, setGrowthSaving] = useState(false);
+  const [growthMessage, setGrowthMessage] = useState("");
 
   useEffect(() => { setEntries(loadEntries(handle)); }, [handle]);
+  useEffect(() => {
+    if (!user) { setGrowthState("unavailable"); return; }
+    let live = true;
+    fetch("/api/morning-prep/growth-rings", { credentials: "include" })
+      .then(async response => ({ response, body: await response.json().catch(() => ({})) }))
+      .then(({ response, body }) => {
+        if (!live) return;
+        if (!response.ok || !Array.isArray(body.entries)) { setGrowthState("unavailable"); return; }
+        const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+        setGrowthRecords(body.entries.filter((entry: { occurred_on?: string }) => entry.occurred_on && new Date(`${entry.occurred_on}T00:00:00`).getTime() >= cutoff).length);
+        setGrowthState("connected");
+      }).catch(() => { if (live) setGrowthState("unavailable"); });
+    return () => { live = false; };
+  }, [user]);
 
   const persist = useCallback((next: PrepEntry[]) => {
     setEntries(next);
@@ -74,18 +107,29 @@ export default function MorningPrepPage() {
   };
   const deleteEntry = (id: string) => persist(entries.filter(e => e.id !== id));
 
-  // Streak = number of consecutive days (ending today) with an entry.
-  const streak = (() => {
-    const days = new Set(entries.map(e => e.date.slice(0, 10)));
-    let count = 0;
-    const d = new Date();
-    for (;;) {
-      const key = d.toISOString().slice(0, 10);
-      if (days.has(key)) { count++; d.setDate(d.getDate() - 1); }
-      else break;
-    }
-    return count;
-  })();
+  const saveGrowthRing = async () => {
+    if (!user) { setGrowthMessage("Sign in to save a private Growth Ring."); return; }
+    setGrowthSaving(true);
+    setGrowthMessage("");
+    try {
+      const response = await fetch("/api/morning-prep/growth-rings", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: growthCategory, practices: [growthPractice], reflection: growthReflection }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Growth Rings could not be saved.");
+      setGrowthRecords(typeof body.totalRecords === "number" ? body.totalRecords : growthRecords + 1);
+      setGrowthState("connected");
+      setGrowthReflection("");
+      setGrowthMessage("Saved privately to your Growth Rings. A missed day never erases this record.");
+    } catch (error) {
+      setGrowthMessage(error instanceof Error ? error.message : "Growth Rings could not be saved.");
+    } finally { setGrowthSaving(false); }
+  };
+
+  const recentEntries = entries.filter(entry => Date.now() - new Date(entry.date).getTime() < 90 * 24 * 60 * 60 * 1000).length;
 
   return (
     <div className="w-full h-full overflow-y-auto" style={{ background: "#070A0F" }}>
@@ -100,26 +144,31 @@ export default function MorningPrepPage() {
             <div>
               <h1 className="text-2xl font-black text-white tracking-tight">Morning Prep</h1>
               <p className="text-sm text-wm-text-muted" style={{ color: "#8B8FA8" }}>
-                A focused space for building discipline through morning routines and personal development.
+                A gentle record of how you are growing—without broken streaks or shame.
               </p>
             </div>
           </div>
           <div className="flex items-center gap-4 mt-4">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl"
               style={{ background: "rgba(240,180,41,0.10)", border: "1px solid rgba(240,180,41,0.30)" }}>
-              <Flame size={15} style={{ color: "#F0B429" }} />
-              <span className="text-sm font-bold" style={{ color: "#F0B429" }}>{streak}-day streak</span>
+              <Sun size={15} style={{ color: "#F0B429" }} />
+              <span className="text-sm font-bold" style={{ color: "#F0B429" }}>{recentEntries} morning record{recentEntries === 1 ? "" : "s"} in 90 days</span>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl"
               style={{ background: "rgba(0,212,170,0.10)", border: "1px solid rgba(0,212,170,0.30)" }}>
               <Target size={15} style={{ color: "#00D4AA" }} />
-              <span className="text-sm font-bold" style={{ color: "#00D4AA" }}>{entries.length} entries</span>
+              <span className="text-sm font-bold" style={{ color: "#00D4AA" }}>{growthState === "connected" ? `${growthRecords} Growth Rings record${growthRecords === 1 ? "" : "s"}` : growthState === "loading" ? "Opening Growth Rings…" : `${entries.length} local morning record${entries.length === 1 ? "" : "s"}`}</span>
             </div>
             <button onClick={() => setShowCompose(true)}
               className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all"
               style={{ background: "rgba(0,212,170,0.15)", border: "1px solid rgba(0,212,170,0.35)", color: "#00D4AA" }}>
               <Plus size={15} /> New Prep
             </button>
+            <a href="https://above-the-hill-developments-built-a.vercel.app/?view=growth-rings" target="_blank" rel="noreferrer"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all"
+              style={{ background: "rgba(240,180,41,0.11)", border: "1px solid rgba(240,180,41,0.35)", color: "#F0B429" }}>
+              Growth Rings ↗
+            </a>
           </div>
         </div>
       </div>
@@ -127,12 +176,33 @@ export default function MorningPrepPage() {
       {/* ── Feed ── */}
       <div className="max-w-3xl mx-auto px-6 py-6 space-y-4">
         <FabioInsights variant="inline" surface="morning" title="WM Playbook — Today's Focus" limit={3} />
+        <section className="rounded-2xl p-5" style={{ background: "linear-gradient(135deg,rgba(0,212,170,0.11),rgba(240,180,41,0.08))", border: "1px solid rgba(240,180,41,0.26)" }}>
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.18em]" style={{ color: "#F0B429" }}>WOW World · Growth Rings</p>
+              <h2 className="text-lg font-black text-white mt-1">How are you growing?</h2>
+              <p className="text-sm mt-1" style={{ color: "#AAB2C5" }}>Keep a private record of one faithful practice. This is a long view, never a streak score.</p>
+            </div>
+            <a href="https://above-the-hill-developments-built-a.vercel.app/?view=growth-rings" target="_blank" rel="noreferrer" className="text-sm font-bold" style={{ color: "#F0B429" }}>Open the wall ↗</a>
+          </div>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {(Object.keys(GROWTH_PRACTICES) as GrowthCategory[]).map(category => <button key={category} onClick={() => { setGrowthCategory(category); setGrowthPractice(GROWTH_PRACTICES[category][0]); }} className="rounded-full px-3 py-1.5 text-xs font-bold capitalize" style={{ background: growthCategory === category ? "#00D4AA" : "rgba(255,255,255,0.06)", color: growthCategory === category ? "#06110F" : "#D8DDEA", border: "1px solid rgba(255,255,255,0.11)" }}>{category}</button>)}
+          </div>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {GROWTH_PRACTICES[growthCategory].map(practice => <button key={practice} onClick={() => setGrowthPractice(practice)} className="rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: growthPractice === practice ? "rgba(240,180,41,0.20)" : "rgba(7,10,15,0.42)", color: growthPractice === practice ? "#F8D477" : "#C9D1DF", border: `1px solid ${growthPractice === practice ? "rgba(240,180,41,0.55)" : "rgba(255,255,255,0.09)"}` }}>{practice}</button>)}
+          </div>
+          <textarea value={growthReflection} onChange={event => setGrowthReflection(event.target.value)} maxLength={800} placeholder="Optional reflection — simply record what happened in your own words." className="w-full min-h-20 rounded-xl p-3 text-sm text-white outline-none" style={{ background: "rgba(7,10,15,0.55)", border: "1px solid rgba(255,255,255,0.12)" }} />
+          <div className="flex flex-wrap items-center gap-3 mt-3">
+            <button onClick={saveGrowthRing} disabled={growthSaving || !user} className="rounded-xl px-4 py-2 text-sm font-black disabled:opacity-50" style={{ background: "#F0B429", color: "#101318" }}>{growthSaving ? "Saving…" : "Place on my Growth Ring"}</button>
+            {growthMessage && <p className="text-xs" style={{ color: growthMessage.startsWith("Saved") ? "#6EE7C5" : "#FBBF24" }}>{growthMessage}</p>}
+          </div>
+        </section>
         {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <Coffee size={40} style={{ color: "#4A5070" }} className="mb-4" />
             <p className="text-base font-semibold text-white mb-1">Start your first morning routine</p>
             <p className="text-sm mb-5" style={{ color: "#8B8FA8" }}>
-              Build the habits that build discipline. Log a routine, check off your prep, and grow your streak.
+              Record one honest morning. Dreamboard will help you see the distance you have travelled—not punish a missed day.
             </p>
             <button onClick={() => setShowCompose(true)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold"
@@ -152,7 +222,7 @@ export default function MorningPrepPage() {
                     <span className="text-2xl">{e.mood || "☀️"}</span>
                     <div>
                       <div className="text-sm font-bold text-white">{fmtDate(e.date)}</div>
-                      <div className="text-[11px]" style={{ color: "#8B8FA8" }}>{pct}% complete · {done}/{e.checklist.length}</div>
+                      <div className="text-[11px]" style={{ color: "#8B8FA8" }}>{done} practice{done === 1 ? "" : "s"} marked · a record of this morning</div>
                     </div>
                   </div>
                   <button onClick={() => deleteEntry(e.id)} style={{ color: "#6B7280" }}
