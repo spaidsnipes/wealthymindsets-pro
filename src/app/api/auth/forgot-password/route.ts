@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { useSupabase, supabaseResetPassword } from "@/lib/auth";
 
-// Accept EITHER env var (they were historically inconsistent across routes),
-// and prefer the actual request origin so the reset link always matches the
-// deployment the user is on.
+// A reset link must use the durable production address for the same reason as
+// email confirmation: a session set on a temporary deployment cannot follow a
+// visitor back to the stable WOW World app.
 const CONFIGURED_URL =
   process.env.NEXT_PUBLIC_SITE_URL ??
   process.env.NEXT_PUBLIC_APP_URL ??
@@ -13,11 +13,9 @@ export async function POST(req: Request) {
   const { email } = await req.json().catch(() => ({})) as Record<string, string>;
   if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 });
 
-  const origin = req.headers.get("origin") || CONFIGURED_URL;
-
   if (useSupabase()) {
     try {
-      await supabaseResetPassword(email, `${origin}/reset-password`);
+      await supabaseResetPassword(email, `${CONFIGURED_URL}/reset-password`);
     } catch {
       // Keep the response generic to avoid exposing whether an account exists.
     }

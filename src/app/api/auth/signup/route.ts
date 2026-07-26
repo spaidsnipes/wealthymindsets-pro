@@ -12,11 +12,11 @@ export async function POST(req: Request) {
 
   /* ── Supabase path ── */
   if (useSupabase()) {
-    // Point the confirmation link at the real deployment the user is on
-    // (request Origin), falling back to a configured site URL. Prevents
-    // confirmation emails linking to localhost / a stale preview URL.
+    // Authentication must always complete on one durable public host. Using the
+    // request Origin here sends people who opened a one-off Vercel deployment
+    // back to a different subdomain, where the httpOnly WOW World session does
+    // not exist. Preview URLs are for testing, never for a customer Passport.
     const origin =
-      req.headers.get("origin") ||
       process.env.NEXT_PUBLIC_SITE_URL ||
       process.env.NEXT_PUBLIC_APP_URL ||
       "https://wealthymindsets-pro.vercel.app";
