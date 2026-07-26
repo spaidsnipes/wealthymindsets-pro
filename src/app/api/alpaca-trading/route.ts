@@ -50,16 +50,14 @@ async function getBase(): Promise<{ url: string; env: "Paper Trading" | "Live Tr
     cache: "no-store",
   }).catch(() => null);
 
-  if (tryPaper?.ok) {
-    resolvedBase = PAPER_BASE;
-    resolvedEnv  = "Paper Trading";
-    return { url: PAPER_BASE, env: "Paper Trading" };
-  }
-
-  // Fall back to live
-  resolvedBase = LIVE_BASE;
-  resolvedEnv  = "Live Trading";
-  return { url: LIVE_BASE, env: "Live Trading" };
+  // Default to PAPER. NEVER silently fall back to the live (real-money) endpoint
+  // if the paper check fails — that could route a real order on a transient error
+  // (Company Bible §46 Gate 3: paper-first, live disabled until certified, never
+  // a silent fallback). Live is ONLY reachable via the explicit ALPACA_LIVE flag
+  // handled above.
+  resolvedBase = PAPER_BASE;
+  resolvedEnv  = "Paper Trading";
+  return { url: PAPER_BASE, env: "Paper Trading" };
 }
 
 export async function GET(request: Request) {
@@ -123,6 +121,26 @@ export async function POST(request: Request) {
     const { action, ...orderFields } = body;
 
     if (action === "order") {
+      const sym = (orderFields.symbol ?? "").toString().toUpperCase();
+      // SAFETY: Alpaca trades US equities + crypto only. Reject futures/forex
+      // symbols so a "BUY 1 ES1!" can't produce a misleading failure or, worse,
+      // a mis-routed order. (Futures execution routes through a certified futures
+      // broker — tastytrade — not Alpaca.)
+      if (/^\/|[!]$|^(ES|NQ|RTY|YM|GC|CL|SI|ZB|ZN|6[A-Z])\d?$/.test(sym) || sym.includes("1!")) {
+        return NextResponse.json(
+          { error: `Alpaca cannot trade ${sym} (futures). Use a supported equity/crypto symbol.` },
+          { status: 400 },
+        );
+      }
+      // SAFETY: a LIVE (real-money) order must carry an explicit confirmation —
+      // never fire real money from a single unconfirmed click (Company Bible §46
+      // Gate 3 / §30 trading safety). Paper orders proceed normally.
+      if (env === "Live Trading" && orderFields.confirm_live !== true) {
+        return NextResponse.json(
+          { error: "LIVE order requires explicit confirmation (confirm_live).", env, requiresConfirm: true },
+          { status: 428 }, // Precondition Required
+        );
+      }
       // Map WM order fields → Alpaca API shape
       const order: Record<string, unknown> = {
         symbol:        orderFields.symbol?.toUpperCase(),

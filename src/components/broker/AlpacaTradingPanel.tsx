@@ -167,6 +167,15 @@ export function AlpacaTradingPanel({
       setOrderMsg("Stop price required"); setOrderStatus("error"); return;
     }
 
+    // SAFETY: a LIVE (real-money) order requires an explicit confirmation — never
+    // fire real money from a single click (Company Bible §46 Gate 3 / §30).
+    if (isLive) {
+      const ok = typeof window !== "undefined" && window.confirm(
+        `⚠️ LIVE ORDER — REAL MONEY\n\n${side.toUpperCase()} ${qty} ${symbol.trim().toUpperCase()} @ ${orderType.toUpperCase()}\n\nThis submits a REAL order to your live brokerage account. Continue?`,
+      );
+      if (!ok) { setOrderStatus("idle"); return; }
+    }
+
     setOrderStatus("submitting");
     setOrderMsg("");
     setOrderResult(null);
@@ -179,6 +188,8 @@ export function AlpacaTradingPanel({
         side,
         type:          orderType,
         time_in_force: tif,
+        // Only sent for live accounts, and only after the confirm above.
+        ...(isLive ? { confirm_live: true } : {}),
       };
       if (limitPrice) body.limit_price = parseFloat(limitPrice);
       if (stopPrice)  body.stop_price  = parseFloat(stopPrice);
