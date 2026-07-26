@@ -17,6 +17,12 @@ export async function POST(request: Request) {
   const rows = await consume.json().catch(() => []) as Array<{ user_id?: string }>;
   const userId = rows[0]?.user_id;
   if (!consume.ok || !userId) return NextResponse.json({ error: "This Passport handoff expired or was already used. Return to Dreamboard and try again." }, { status: 401 });
+  await fetch(`${url}/rest/v1/dreamboard_passport_audit_events`, {
+    method: "POST",
+    headers: { apikey: serviceRole, Authorization: `Bearer ${serviceRole}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify({ user_id: userId, event_type: "handoff_consumed", detail: { destination } }),
+    cache: "no-store",
+  });
   const user = await supabaseGetUserById(userId);
   const email = typeof user?.email === "string" ? user.email : "";
   if (!email) return NextResponse.json({ error: "WOW World could not restore this Passport." }, { status: 503 });
