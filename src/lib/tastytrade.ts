@@ -178,7 +178,10 @@ export async function getTastytradeCapabilities(): Promise<TastytradeCapabilitie
     // Real-time vs delayed is an account entitlement; we do not claim real-time
     // without proof. Left null until a verified quote timestamp confirms it.
   } catch (e) {
-    base.note = "Configured but connection check failed — verify the refresh token is valid.";
+    // Surface the STATUS-ONLY error (our error messages never contain secrets or
+    // response bodies) so the failing step is diagnosable without leaking creds.
+    const msg = e instanceof Error ? e.message : "unknown";
+    base.note = `Configured but connection failed: ${msg}`;
   }
   return base;
 }
