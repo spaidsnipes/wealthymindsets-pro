@@ -158,6 +158,25 @@ export async function supabaseGetUser(accessToken: string) {
 }
 
 /**
+ * Verify an email confirmation without ever sending the one-time secret back to
+ * the browser after it has been entered. Supabase supports both a six-digit
+ * code and a token hash embedded in a custom confirmation link. Keeping the
+ * exchange on the server lets us immediately create WM Pro's httpOnly session
+ * cookie and prevents a verified user from being stranded on a Supabase page.
+ */
+export async function supabaseVerifyEmail(input: { email?: string; token?: string; tokenHash?: string }) {
+  const body = input.tokenHash
+    ? { token_hash: input.tokenHash, type: "email" }
+    : { email: input.email, token: input.token, type: "email" };
+  const res = await fetch(`${SB_URL()}/auth/v1/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: SB_KEY() },
+    body: JSON.stringify(body),
+  });
+  return { ok: res.ok, data: await res.json().catch(() => ({})) as Record<string, unknown> };
+}
+
+/**
  * Persist profile fields to the Supabase user's `user_metadata` via the admin
  * API. THIS is what makes a profile survive logout/login on any device: the
  * login route rebuilds the JWT from `user_metadata`, so if we only ever wrote

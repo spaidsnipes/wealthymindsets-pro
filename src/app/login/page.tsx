@@ -36,14 +36,21 @@ function LoginPage() {
   const [error,      setError]      = useState("");
   const [success,    setSuccess]    = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
   const confirmationHandled = useRef(false);
 
   useEffect(() => { setError(""); setSuccess(""); }, [mode, email, password]);
 
   useEffect(() => {
     if (confirmationHandled.current || typeof window === "undefined") return;
-    const accessToken = new URLSearchParams(window.location.hash.slice(1)).get("access_token");
+    const fragment = new URLSearchParams(window.location.hash.slice(1));
+    const accessToken = fragment.get("access_token");
+    const hashError = fragment.get("error_description");
     if (!accessToken) {
+      if (hashError) setError(decodeURIComponent(hashError.replace(/\+/g, " ")));
+      if (searchParams.get("auth_error") === "expired_confirmation") setError("That confirmation link has expired. Request a fresh email and try again.");
+      if (searchParams.get("auth_error") === "invalid_confirmation") setError("That confirmation link is not valid. Request a fresh email and try again.");
       if (searchParams.get("confirmed") === "1") setSuccess("Your email is verified. Sign in to open your WOW World workspace.");
       return;
     }
@@ -84,8 +91,9 @@ function LoginPage() {
           setError(result.error);
         }
       } else if (result.verificationRequired) {
-        setSuccess("Check your email to verify your account, then return here to sign in.");
-        setMode("login");
+        setVerificationEmail(email.trim().toLowerCase());
+        setVerificationCode("");
+        setSuccess("Check your email. Open the confirmation link here, or enter the six-digit code below on this same device.");
       }
       return;
     }
@@ -123,6 +131,26 @@ function LoginPage() {
       } finally {
         setSubmitting(false);
       }
+    }
+  };
+
+  const verifyEmailCode = async () => {
+    if (!verificationEmail || !verificationCode.trim()) return;
+    setError("");
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/auth/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: verificationEmail, token: verificationCode.trim() }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Your code could not be verified.");
+      window.location.assign("/charts");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Your code could not be verified.");
+      setSubmitting(false);
     }
   };
 
@@ -342,6 +370,25 @@ function LoginPage() {
                     style={{ background: "rgba(0,212,170,0.1)", border: "1px solid rgba(0,212,170,0.3)" }}>
                     <CheckCircle size={13} className="text-wm-green shrink-0 mt-0.5" />
                     <span className="text-[12px] text-wm-green">{success}</span>
+                  </div>
+                )}
+
+                {verificationEmail && (
+                  <div className="space-y-2 rounded-xl p-3" style={{ background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.2)" }}>
+                    <label className="block text-[11px] font-semibold text-[#8B95A5] uppercase tracking-wider">Email confirmation code</label>
+                    <input
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      value={verificationCode}
+                      onChange={event => setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 8))}
+                      placeholder="6-digit code"
+                      className="w-full px-4 py-3 rounded-xl text-[15px] tracking-[0.35em] text-white placeholder-[#3A4250] outline-none"
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    />
+                    <button type="button" onClick={() => void verifyEmailCode()} disabled={submitting || !verificationCode.trim()} className="w-full py-2.5 rounded-xl text-[13px] font-black disabled:opacity-60" style={{ background: "rgba(0,212,170,0.16)", border: "1px solid rgba(0,212,170,0.4)", color: "#00D4AA" }}>
+                      Verify this device
+                    </button>
+                    <p className="text-[11px] text-[#8B95A5]">Only enter a code from your own WealthyMindsets email. The code creates a secure session in this browser.</p>
                   </div>
                 )}
 
