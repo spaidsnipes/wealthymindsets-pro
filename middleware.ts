@@ -16,7 +16,10 @@ export function middleware(request: NextRequest) {
   const host = request.headers.get("host")?.toLowerCase();
   const isTemporaryVercelHost = host?.endsWith(".vercel.app") && host !== canonicalHost;
 
-  if (process.env.VERCEL_ENV === "production" && isTemporaryVercelHost) {
+  // Do this for every ephemeral *.vercel.app hostname. Preview deployments are
+  // intentionally not customer Passport environments either; they must not
+  // create a separate identity cookie from the stable public application.
+  if (isTemporaryVercelHost) {
     const url = request.nextUrl.clone();
     url.protocol = "https:";
     url.host = canonicalHost;
