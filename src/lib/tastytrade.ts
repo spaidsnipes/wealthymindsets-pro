@@ -58,17 +58,17 @@ async function getAccessToken(): Promise<string | null> {
   if (!c.clientSecret || !c.refreshToken) return null;
   if (_access && Date.now() < _access.expiresAt - 30_000) return _access.token;
 
-  const body = new URLSearchParams({
-    grant_type: "refresh_token",
-    refresh_token: c.refreshToken,
-    client_secret: c.clientSecret,
-  });
-  if (c.clientId) body.set("client_id", c.clientId);
-
+  // Exact format from tastytrade's own SDK (tastytrade-http-client.ts): JSON body
+  // with grant_type/refresh_token/client_secret/scope and NO client_id.
   const res = await fetch(`${BASE}/oauth/token`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
-    body,
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      grant_type: "refresh_token",
+      refresh_token: c.refreshToken,
+      client_secret: c.clientSecret,
+      scope: SCOPES,
+    }),
     cache: "no-store",
   });
   if (!res.ok) {
