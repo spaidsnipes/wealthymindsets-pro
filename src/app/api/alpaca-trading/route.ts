@@ -15,20 +15,35 @@
 
 import { NextResponse } from "next/server";
 
-const ALPACA_KEY    = process.env.ALPACA_KEY    ?? "";
-const ALPACA_SECRET = process.env.ALPACA_SECRET ?? "";
+// Alpaca uses SEPARATE credentials for paper vs live accounts. Prefer dedicated
+// paper keys for paper trading; fall back to the generic keys only if no paper-
+// specific keys are set. Live keys are used solely for the live endpoint.
+const ALPACA_KEY        = process.env.ALPACA_KEY    ?? "";
+const ALPACA_SECRET     = process.env.ALPACA_SECRET ?? "";
+const ALPACA_PAPER_KEY    = process.env.ALPACA_PAPER_KEY    ?? "";
+const ALPACA_PAPER_SECRET = process.env.ALPACA_PAPER_SECRET ?? "";
 const FORCE_LIVE    = process.env.ALPACA_LIVE === "1";
 
 const PAPER_BASE    = "https://paper-api.alpaca.markets";
 const LIVE_BASE     = "https://api.alpaca.markets";
 const DATA_BASE     = "https://data.alpaca.markets";
 
-function authHeaders() {
+// Paper trading uses paper keys when available; live uses the generic keys.
+const PAPER_KEY    = ALPACA_PAPER_KEY    || ALPACA_KEY;
+const PAPER_SECRET = ALPACA_PAPER_SECRET || ALPACA_SECRET;
+
+function authHeadersFor(base: string) {
+  const isPaper = base === PAPER_BASE;
   return {
-    "APCA-API-KEY-ID":     ALPACA_KEY,
-    "APCA-API-SECRET-KEY": ALPACA_SECRET,
+    "APCA-API-KEY-ID":     isPaper ? PAPER_KEY    : ALPACA_KEY,
+    "APCA-API-SECRET-KEY": isPaper ? PAPER_SECRET : ALPACA_SECRET,
     "Content-Type":        "application/json",
   };
+}
+// Back-compat shim for existing call sites that used authHeaders() without a
+// base — defaults to the resolved base (paper unless FORCE_LIVE).
+function authHeaders() {
+  return authHeadersFor(FORCE_LIVE ? LIVE_BASE : PAPER_BASE);
 }
 
 // Determine which base URL to use — cached after first success
