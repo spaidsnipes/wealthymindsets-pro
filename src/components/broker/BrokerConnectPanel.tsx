@@ -310,30 +310,18 @@ interface AccountInfo {
 }
 
 /**
- * A broker counts as connected only when its credentials were VERIFIED against
- * the broker API (we stamp `wm_broker_verified_<id>` on a successful handshake).
- * Requiring the verified marker — not just the presence of a key string — is
- * what clears the false "already connected" state: a typo'd/revoked key, or a
- * key left over from the old write-before-validate flow, no longer reads as
- * connected until it actually validates.
+ * Broker OAuth has not been configured with provider-issued client IDs and
+ * callback URLs yet. A local browser marker is not a broker connection, so this
+ * panel never reports a durable "connected" state. API credentials are only
+ * sent to the validation endpoint at the creator's request and are not stored.
  */
-function brokerConnected(id: string): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return !!localStorage.getItem(`wm_broker_key_${id}`)
-        && !!localStorage.getItem(`wm_broker_verified_${id}`);
-  } catch { return false; }
-}
-
 function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => void }) {
   const api = broker.apiSupport!;
-  const [key,    setKey]    = useState(() => localStorage.getItem(`wm_broker_key_${broker.id}`) ?? "");
-  const [secret, setSecret] = useState(() => localStorage.getItem(`wm_broker_secret_${broker.id}`) ?? "");
+  const [key,    setKey]    = useState("");
+  const [secret, setSecret] = useState("");
   const [loading, setLoading] = useState(false);
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [error,   setError]   = useState("");
-
-  const isConnected = brokerConnected(broker.id);
 
   const connect = async () => {
     if (!key.trim()) { setError(`${api.keyLabel} is required`); return; }
@@ -349,30 +337,13 @@ function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => v
       const json = await res.json().catch(() => ({ error: "Bad response from broker" })) as AccountInfo;
 
       if (!res.ok || json.error) {
-        // Failed validation — scrub any stale credentials so nothing lingers as
-        // falsely "connected".
-        localStorage.removeItem(`wm_broker_key_${broker.id}`);
-        localStorage.removeItem(`wm_broker_secret_${broker.id}`);
-        localStorage.removeItem(`wm_broker_verified_${broker.id}`);
-        try {
-          const allKeys = JSON.parse(localStorage.getItem("wm-broker-keys") ?? "{}") as Record<string, unknown>;
-          delete allKeys[broker.id];
-          localStorage.setItem("wm-broker-keys", JSON.stringify(allKeys));
-        } catch {}
         setError(json.error || `Connection failed (HTTP ${res.status})`);
         setLoading(false);
         return;
       }
 
-      // Verified — now (and only now) persist credentials + the verified marker.
-      localStorage.setItem(`wm_broker_key_${broker.id}`, key.trim());
-      if (secret.trim()) localStorage.setItem(`wm_broker_secret_${broker.id}`, secret.trim());
-      localStorage.setItem(`wm_broker_verified_${broker.id}`, String(Date.now()));
-      try {
-        const allKeys = JSON.parse(localStorage.getItem("wm-broker-keys") ?? "{}") as Record<string, { key: string; secret: string }>;
-        allKeys[broker.id] = { key: key.trim(), secret: secret.trim() };
-        localStorage.setItem("wm-broker-keys", JSON.stringify(allKeys));
-      } catch {}
+      // A successful API response is evidence for this one validation only. It
+      // is deliberately not presented as a persistent trading connection.
       setAccount(json);
     } catch (e) {
       setError(String(e));
@@ -381,14 +352,6 @@ function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => v
   };
 
   const disconnect = () => {
-    localStorage.removeItem(`wm_broker_key_${broker.id}`);
-    localStorage.removeItem(`wm_broker_secret_${broker.id}`);
-    localStorage.removeItem(`wm_broker_verified_${broker.id}`);
-    try {
-      const allKeys = JSON.parse(localStorage.getItem("wm-broker-keys") ?? "{}") as Record<string, unknown>;
-      delete allKeys[broker.id];
-      localStorage.setItem("wm-broker-keys", JSON.stringify(allKeys));
-    } catch {}
     setKey(""); setSecret(""); setAccount(null);
   };
 
@@ -423,7 +386,7 @@ function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => v
             <div className="rounded-xl p-3 border border-wm-green/30 bg-wm-green/5">
               <div className="flex items-center gap-2 mb-2">
                 <Check size={13} className="text-wm-green" />
-                <span className="text-[12px] font-bold text-wm-green">Connected</span>
+                <span className="text-[12px] font-bold text-wm-green">API account verified for this check</span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-[11px]">
                 {account.balance && <div><span className="text-wm-text-dim">Balance</span><div className="font-bold text-white">{account.balance}</div></div>}
@@ -466,19 +429,19 @@ function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => v
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-[12px] transition-all disabled:opacity-60"
               style={{ background:`linear-gradient(135deg, ${broker.color}, ${broker.color}bb)`, color:"#000" }}>
               {loading ? <Loader2 size={13} className="animate-spin" /> : <Key size={13} />}
-              {loading ? "Connecting…" : "Connect Account"}
+              {loading ? "Verifying…" : "Verify API account"}
             </button>
-            {isConnected && (
+            {account && (
               <button onClick={disconnect}
                 className="px-3 py-2.5 rounded-xl font-bold text-[12px] border border-wm-red/40 text-wm-red hover:bg-wm-red/10 transition-all">
-                Disconnect
+                Clear
               </button>
             )}
           </div>
 
           <div className="flex items-start gap-2 text-[10px] text-wm-text-dim">
             <span className="mt-0.5">🔐</span>
-            <span>Your API key is stored locally in your browser and sent securely to our proxy. We never store it on our servers. <a href={api.docsUrl} target="_blank" rel="noopener noreferrer" className="text-wm-green underline">Get your API key →</a></span>
+            <span>Your API credential is sent only for this verification and is not stored in this browser or on our servers. A durable in-app connection requires a provider-approved OAuth callback, which is not configured yet. <a href={api.docsUrl} target="_blank" rel="noopener noreferrer" className="text-wm-green underline">Get your API key →</a></span>
           </div>
         </div>
       </motion.div>
@@ -489,7 +452,6 @@ function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => v
 /* ── Broker Card ────────────────────────────────────────── */
 function BrokerCard({ broker }: { broker: Broker }) {
   const [showApiModal, setShowApiModal] = useState(false);
-  const isConnected = broker.apiSupport ? brokerConnected(broker.id) : false;
 
   return (
     <>
@@ -497,9 +459,8 @@ function BrokerCard({ broker }: { broker: Broker }) {
         className={clsx(
           "rounded-xl border bg-wm-card transition-all p-4",
           broker.apiSupport ? "cursor-pointer hover:border-opacity-80" : "hover:border-wm-border/80",
-          isConnected ? "border-wm-green/40" : "border-wm-border"
+          "border-wm-border"
         )}
-        style={broker.apiSupport && isConnected ? { borderColor: "rgba(0,212,170,0.4)" } : undefined}
         onClick={() => { if (broker.apiSupport) setShowApiModal(true); }}
       >
         <div className="flex items-start justify-between mb-3">
@@ -511,11 +472,6 @@ function BrokerCard({ broker }: { broker: Broker }) {
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-sm font-bold text-wm-text">{broker.name}</span>
-                {isConnected && (
-                  <span className="flex items-center gap-0.5 text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-wm-green/15 text-wm-green border border-wm-green/30">
-                    <Check size={8} /> CONNECTED
-                  </span>
-                )}
               </div>
               <div className="text-[10px] text-wm-text-dim leading-snug max-w-[220px]">{broker.desc}</div>
             </div>
@@ -539,18 +495,17 @@ function BrokerCard({ broker }: { broker: Broker }) {
           ))}
         </div>
 
-        {/* API-enabled broker: show prominent "Connect to Trade" CTA */}
+        {/* API-enabled brokers can be verified, but are not called connected until
+            their provider has a real OAuth callback and token vault configured. */}
         {broker.apiSupport ? (
           <div className="space-y-2">
             <button
               onClick={e => { e.stopPropagation(); setShowApiModal(true); }}
               className="w-full flex items-center justify-center gap-2 h-9 rounded-xl font-bold text-[12px] transition-all"
-              style={isConnected
-                ? { background:"rgba(0,212,170,0.15)", color:"#00D4AA", border:"1px solid rgba(0,212,170,0.4)" }
-                : { background:`linear-gradient(135deg,${broker.color}33,${broker.color}22)`, color:broker.color, border:`1px solid ${broker.color}50` }}
+              style={{ background:`linear-gradient(135deg,${broker.color}33,${broker.color}22)`, color:broker.color, border:`1px solid ${broker.color}50` }}
             >
               <Key size={12} />
-              {isConnected ? "✓ Manage Connection" : `Connect ${broker.name} to Trade`}
+              Verify ${broker.name} API account
             </button>
             <div className="flex gap-1.5">
               <a href={broker.signInUrl} target="_blank" rel="noopener noreferrer"
@@ -570,7 +525,7 @@ function BrokerCard({ broker }: { broker: Broker }) {
             <a href={broker.signInUrl} target="_blank" rel="noopener noreferrer"
               className="w-full flex items-center justify-center gap-1.5 h-9 rounded-xl text-[12px] font-bold transition-all hover:brightness-110"
               style={{ background:`linear-gradient(135deg,${broker.color}33,${broker.color}22)`, color:broker.color, border:`1px solid ${broker.color}50` }}>
-              <ExternalLink size={12} /> Connect {broker.name}
+              <ExternalLink size={12} /> Open ${broker.name}
             </a>
             <div className="flex gap-1.5">
               <a href={broker.signInUrl} target="_blank" rel="noopener noreferrer"
@@ -583,7 +538,7 @@ function BrokerCard({ broker }: { broker: Broker }) {
               </a>
             </div>
             <div className="text-[9px] text-wm-text-dim leading-snug px-0.5">
-              Opens {broker.name}&apos;s login. {broker.name} has no public API-key access — trade on their platform, or connect an API-key broker (Alpaca, Coinbase) to trade inside WealthyMindsets.
+              Opens {broker.name}&apos;s site in a new tab. Signing in there does not connect an account to WealthyMindsets yet; that requires a provider-approved OAuth callback.
             </div>
           </div>
         )}
@@ -626,10 +581,10 @@ export function BrokerConnectPanel({ onClose }: { onClose: () => void }) {
           <div>
             <div className="flex items-center gap-2">
               <Zap size={16} className="text-wm-gold" />
-              <span className="font-black text-wm-text text-sm">Connect Accounts</span>
+              <span className="font-black text-wm-text text-sm">Broker access</span>
             </div>
             <div className="text-[10px] text-wm-text-dim mt-0.5">
-              Brokers with API support can show live account data inside the app
+              Verify an API account, or open a broker site. No account is called connected without a real callback.
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors">
@@ -667,7 +622,7 @@ export function BrokerConnectPanel({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="px-4 py-3 border-t border-wm-border text-[10px] text-wm-text-dim text-center shrink-0">
-          🔐 API keys are stored locally in your browser only — never on our servers.
+          🔐 API credentials are not persisted here. Durable account linking needs provider OAuth credentials and a secure callback.
         </div>
       </motion.div>
     </motion.div>
