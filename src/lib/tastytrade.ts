@@ -22,6 +22,9 @@ import "server-only";
 const IS_CERT = process.env.TASTYTRADE_ENV === "cert";
 const BASE = IS_CERT ? "https://api.cert.tastyworks.com" : "https://api.tastyworks.com";
 const SCOPES = "read trade";
+// tastytrade REJECTS requests without a User-Agent (known gotcha; the official
+// SDK always sends one). Applied to every request below.
+const UA = "wealthymindsets-pro/1.0";
 
 function creds() {
   return {
@@ -62,7 +65,7 @@ async function getAccessToken(): Promise<string | null> {
   // with grant_type/refresh_token/client_secret/scope and NO client_id.
   const res = await fetch(`${BASE}/oauth/token`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    headers: { "Content-Type": "application/json", Accept: "application/json", "User-Agent": UA },
     body: JSON.stringify({
       grant_type: "refresh_token",
       refresh_token: c.refreshToken,
@@ -88,7 +91,7 @@ export async function ttGet<T = unknown>(path: string): Promise<T> {
   const token = await getAccessToken();
   if (!token) throw new Error("tastytrade not configured");
   const res = await fetch(`${BASE}${path}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "User-Agent": UA },
     cache: "no-store",
   });
   if (res.status === 401) {
@@ -96,7 +99,7 @@ export async function ttGet<T = unknown>(path: string): Promise<T> {
     _access = null;
     const t2 = await getAccessToken();
     const r2 = await fetch(`${BASE}${path}`, {
-      headers: { Authorization: `Bearer ${t2}`, Accept: "application/json" },
+      headers: { Authorization: `Bearer ${t2}`, Accept: "application/json", "User-Agent": UA },
       cache: "no-store",
     });
     if (!r2.ok) throw new Error(`tastytrade GET ${path} failed (HTTP ${r2.status})`);
