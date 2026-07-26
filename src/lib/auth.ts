@@ -109,7 +109,7 @@ export const userStore: Map<string, { id: string; email: string; passwordHash: s
   globalThis.__wmUsers ?? (globalThis.__wmUsers = new Map());
 
 export function useSupabase(): boolean {
-  return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+  return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) &&
     process.env.NEXT_PUBLIC_SUPABASE_URL.length > 10);
 }
 

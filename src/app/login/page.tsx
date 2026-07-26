@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, Mail, Lock, TrendingUp, Zap, Shield, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,8 +36,34 @@ function LoginPage() {
   const [error,      setError]      = useState("");
   const [success,    setSuccess]    = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const confirmationHandled = useRef(false);
 
   useEffect(() => { setError(""); setSuccess(""); }, [mode, email, password]);
+
+  useEffect(() => {
+    if (confirmationHandled.current || typeof window === "undefined") return;
+    const accessToken = new URLSearchParams(window.location.hash.slice(1)).get("access_token");
+    if (!accessToken) {
+      if (searchParams.get("confirmed") === "1") setSuccess("Your email is verified. Sign in to open your WOW World workspace.");
+      return;
+    }
+    confirmationHandled.current = true;
+    window.history.replaceState({}, document.title, `${window.location.pathname}?confirmed=1`);
+    setSubmitting(true);
+    void fetch("/api/auth/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ accessToken }),
+    }).then(async response => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Your email was verified, but the WOW World session could not be created.");
+      window.location.assign("/charts");
+    }).catch(error => {
+      setError(error instanceof Error ? error.message : "Your verification could not be completed.");
+      setSubmitting(false);
+    });
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
