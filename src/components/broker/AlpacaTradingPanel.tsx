@@ -107,6 +107,20 @@ export function AlpacaTradingPanel({
   const [orderMsg,    setOrderMsg]    = useState("");
   const [orderResult, setOrderResult] = useState<Order | null>(null);
 
+  // tastytrade (futures) connection status — read from the secure server route.
+  // No tokens/secrets ever reach the client; this is state booleans only.
+  const [ttStatus, setTtStatus] = useState<
+    { configured: boolean; connected: boolean; accounts: number; quotes: boolean; note?: string } | null
+  >(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/broker/tastytrade/status", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => { if (alive) setTtStatus(d); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   const loadAccount = useCallback(async () => {
     try {
       const res = await fetch("/api/alpaca-trading?action=account", { cache: "no-store" });
@@ -288,12 +302,36 @@ export function AlpacaTradingPanel({
           </div>
         </div>
 
-        {/* ── Account error ── */}
+        {/* ── Account error (actionable) ── */}
         {acctError && (
-          <div className="mx-4 mt-3 px-3 py-2 rounded-lg text-[11px] text-wm-red flex items-center gap-2"
+          <div className="mx-4 mt-3 px-3 py-2 rounded-lg text-[11px] text-wm-red flex items-start gap-2"
             style={{ background: "rgba(255,77,106,0.08)", border: "1px solid rgba(255,77,106,0.2)" }}>
-            <AlertCircle size={12} className="shrink-0" />
-            {acctError}
+            <AlertCircle size={12} className="shrink-0 mt-0.5" />
+            <span>
+              {/401|not authorized/i.test(acctError)
+                ? "Paper trading unavailable — Alpaca paper account not authorized. Add ALPACA_PAPER_KEY / ALPACA_PAPER_SECRET (from the Alpaca paper dashboard) to enable paper trading."
+                : acctError}
+            </span>
+          </div>
+        )}
+
+        {/* ── tastytrade (futures) connection — honest server-verified state ── */}
+        {ttStatus && (ttStatus.configured || ttStatus.connected) && (
+          <div className="mx-4 mt-3 px-3 py-2 rounded-lg flex items-center gap-2 text-[11px]"
+            style={{
+              background: ttStatus.connected ? "rgba(0,192,118,0.08)" : "rgba(240,180,41,0.08)",
+              border: `1px solid ${ttStatus.connected ? "rgba(0,192,118,0.25)" : "rgba(240,180,41,0.25)"}`,
+            }}>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{ background: ttStatus.connected ? "#00C076" : "#F0B429" }} />
+            <span style={{ color: ttStatus.connected ? "#00C076" : "#F0B429" }} className="font-bold">
+              tastytrade {ttStatus.connected ? "Connected" : "Configured"}
+            </span>
+            <span className="text-wm-text-dim">
+              {ttStatus.connected
+                ? `· ${ttStatus.accounts} account${ttStatus.accounts === 1 ? "" : "s"} · futures${ttStatus.quotes ? " · quotes" : ""}`
+                : `· ${ttStatus.note || "finishing setup"}`}
+            </span>
           </div>
         )}
 
