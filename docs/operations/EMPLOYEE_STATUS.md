@@ -8,8 +8,8 @@ Update your row at the **start** of your session (after claiming) and at the **e
 | Employee | Role | Active task | Status | Branch | Last commit | Last handoff | Updated |
 |---|---|---|---|---|---|---|---|
 | **Sentinel** | COO — operations, verification, prioritization | Ops bus setup + WM Pro verification pass | ACTIVE | `main` | `fb063d0` (verified, not authored) | `handoffs/sentinel/2026-07-28-sentinel.md` | 2026-07-28 10:50 |
-| **Forge** | Build Continuity Lead — research, architecture, tickets. **No production code.** | WM-RESEARCH-P1-01 | FORGE ACTIVE | `main` | `fb063d0` | `docs/WM_CHART_ARCHITECTURE_2026-07-28.md` | 2026-07-28 10:32 |
-| **Noah** | Implementation engineer | WM-CHART-P0-01 | **AWAITING CLAIM** | — | — | none | — |
+| **Forge** | Build Continuity Lead — research, architecture, tickets, **and production engineering (DEC-008, 2026-07-28)** | WM-CHART-P0-01 | FORGE ACTIVE | `main` | `fb063d0` | `docs/WM_CHART_ARCHITECTURE_2026-07-28.md` | 2026-07-28 |
+| **Noah** | Implementation engineer | — (WM-CHART-P0-01 claimed by Forge, see DEC-008) | AWAITING CLAIM | — | — | none | — |
 | **Atlas** | Knowledge indexing | Re-derive circulated "company health" figures from evidence | **CORRECTION REQUIRED** | — | — | none | — |
 | **Research Lab** | Interaction documentation. **No production code.** | Support WM-RESEARCH-P1-01 | AWAITING CLAIM | — | — | none | — |
 
@@ -17,7 +17,10 @@ Update your row at the **start** of your session (after claiming) and at the **e
 
 - **Sentinel** — does not write production code. Verifies, prioritizes, assigns, documents,
   and returns work that lacks evidence.
-- **Forge** — research, architecture, ticket authoring. Does not write production code.
+- **Forge** — research, architecture, ticket authoring, **and production engineering on
+  approved tickets** (DEC-008, 2026-07-28 — supersedes the earlier "no production code"
+  restriction). Same discipline as Noah applies: one primary ticket at a time, no
+  duplicating another employee's active claim, no scope expansion mid-ticket.
 - **Noah** — implements approved tickets only. One primary task at a time. Does not expand
   scope mid-ticket; a discovered adjacent problem becomes a new queue entry, not an edit.
 - **Atlas** — indexes **verified** findings only. Categories must stay separate: *verified
@@ -38,13 +41,9 @@ Update your row at the **start** of your session (after claiming) and at the **e
 - Never fabricate data to fill a UI. If it is not computed, display *unavailable*.
 - Never work from a stale Desktop clone. Canonical clone only.
 
-## Known role conflict — Founder decision required
+## Role conflict — RESOLVED (DEC-008)
 
-Two conflicting role definitions for WM Pro exist in company memory, both dated recently:
-
-- **WM Product Director** — oversight, verification, docs, prioritization; *never write
-  production code*.
-- **Senior Software Engineer (FORGE-QA)** — codes, tests, and fixes WM Pro on approved work.
-
-This block is being run under the **oversight** interpretation (Sentinel verifies, Noah
-implements). Recorded as **DEC-004** in `DECISIONS.md` pending the Founder's ruling.
+DEC-004 (Product Director vs. Senior Engineer) was put to the Founder directly and ruled
+**2026-07-28: "Forge codes."** The engineer interpretation applies. See `DECISIONS.md`
+DEC-008 for the full ruling and consequences. DEC-004 itself is left unedited above it,
+per the append-only rule.

@@ -117,3 +117,23 @@ as a company standard because the claim *"the same class of bug is likely elsewh
 (broker connection state, session validity)"* is a hypothesis, not a finding. Ratify once
 someone audits those two call sites and reports what they actually found. **Atlas must not
 index this as a company standard until then.**
+
+---
+
+## DEC-008 — DEC-004 resolved: Forge writes production code
+
+**Status:** DECIDED (Founder ruling, 2026-07-28)
+**Supersedes:** DEC-004 (left above, unedited, per the append-only rule)
+
+**Ruling.** The Founder was shown the DEC-004 conflict directly — both role definitions,
+verbatim, plus the cost either way — and ruled explicitly: **"Forge codes."** The engineer
+interpretation wins. This Forge/FORGE-QA session writes, tests, and ships production code
+for approved WM Pro tickets going forward, not only research/architecture/ticket-authoring.
+
+**Consequence.** `EMPLOYEE_STATUS.md` role boundaries updated same session: Forge's "No
+production code" restriction is lifted. Noah remains a valid implementer role for future
+sessions — this does not retire Noah, it means either role may pick up an unclaimed,
+unblocked ticket, and normal "no duplicate work" claim rules still apply.
+
+**First action under this ruling:** claim `WM-CHART-P0-01` (Canonical Timeframe System) —
+the queue's own "next highest-value action," unblocked, unclaimed, blocks four other P0s.

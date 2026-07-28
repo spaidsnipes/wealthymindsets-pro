@@ -28,16 +28,16 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Ticket ID** | WM-CHART-P0-01 |
 | **Product** | WM Pro |
 | **Priority** | P0 — **FIRST TICKET**, blocks four other P0s |
-| **Owner** | Noah |
-| **Status** | **READY FOR NOAH** |
+| **Owner** | Forge |
+| **Status** | **FORGE ACTIVE** |
 | **Objective** | One canonical timeframe module that separates candle interval, visible historical range, provider-specific interval value, and display label. Eliminate the three incompatible literals. |
 | **Dependencies** | None |
 | **Evidence source** | `docs/WM_CHART_ARCHITECTURE_2026-07-28.md` §C1, §D1, §E — **independently re-verified by Sentinel 2026-07-28** |
 | **Files / subsystems** | New `src/lib/timeframes.ts`; `src/components/chart/ChartToolbar.tsx:433`; `src/app/heatmaps/page.tsx:251`; `src/app/backtesting/page.tsx:27` |
 | **Acceptance criteria** | 1. Exactly one `TFId` definition repo-wide. 2. `grep -rn "TIMEFRAMES" src/` returns only the canonical module and its importers — zero local literals. 3. `"D"/"W"/"M"` unified with `"1D"/"1W"/"1M"`. 4. Every interval labelled `native` / `aggregated` / `unsupported` from **measured provider probes, not assumption**. 5. Aggregation permitted only from an exact integer divisor. 6. Unsupported intervals render disabled with an honest reason — **never silently substituted**. 7. No state-model change and no UI restyle in this ticket. |
 | **Verification requirements** | Unit: aggregation rejects non-integer divisors; `TFId` round-trips chart↔heatmap; unsupported never returns candles. Automated: `tsc --noEmit` 0 errors, `npm test` green, `npm run build` 69/69. Manual: click all supported intervals in sequence, no crash, honest disabled states. Sentinel re-runs the `grep` and inspects the provider-probe evidence. |
-| **Claimed by** | *(unclaimed — Noah to fill)* |
-| **Claim timestamp** | *(unset)* |
+| **Claimed by** | Forge — claimed under DEC-008 (Founder ruled "Forge codes" on the DEC-004 role conflict) |
+| **Claim timestamp** | 2026-07-28 |
 | **Latest commit** | *(none)* |
 | **Handoff location** | `docs/operations/handoffs/noah/` |
 | **Blockers** | Provider limits (Alpaca free-tier intraday depth, Yahoo intraday range caps) are **UNVERIFIED**. Noah must probe and record before finalising the matrix. Do not guess. |
