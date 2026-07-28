@@ -4,6 +4,20 @@
 
 ---
 
+## 👷 ATH employees start here
+
+**[`docs/operations/ATH_COMMAND_CENTER.md`](docs/operations/ATH_COMMAND_CENTER.md)** — current
+product, milestone, verified HEAD, active P0s, blockers, and the next highest-value action.
+Then [`docs/operations/ACTIVE_TASK_QUEUE.md`](docs/operations/ACTIVE_TASK_QUEUE.md) to claim
+work, and your role's latest handoff in
+[`docs/operations/handoffs/`](docs/operations/handoffs/).
+
+This repository is the workforce communication bus — separate AI sessions cannot message each
+other. Read the operating files before starting; update them before ending. Do not work from
+stale chat memory when newer repository documentation exists.
+
+---
+
 ## 🌐 Access the App (RIGHT NOW)
 
 ```

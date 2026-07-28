@@ -1,0 +1,191 @@
+# RISKS AND BLOCKERS
+
+**Owner:** Sentinel · **Last updated:** 2026-07-28 10:50 CDT
+
+Severity: **HIGH** (threatens launch, data integrity, or user trust) · **MEDIUM**
+(causes lost work or wrong decisions) · **LOW**.
+
+---
+
+## RISK-001 — No live or authenticated verification is possible · HIGH · **OPEN**
+
+**Impact.** Every claim about WM Pro's runtime behaviour is UNKNOWN. All 21 items of the
+trading-system checklist (auth, session persistence, dashboard, charts, symbol switching,
+VWAP, volume profile, DOM, order book, watchlists, broker connection, paper trading,
+positions, orders, account data, alerts, scanner, layout saving, settings, error handling,
+loading states, offline recovery) are unexercised. WM Pro's own chart performance has
+**never been measured** — there is a competitor baseline and a working harness, and zero
+WM Pro numbers.
+
+**Root cause — VERIFIED by Forge.** The running browser is
+`/Users/dspaidnoosleep/Desktop/Google Chrome.app`, a copy on the Desktop, while
+`/Applications/Google Chrome.app` also exists. AppleScript-driven tools resolve "Google
+Chrome" at the standard location, fail to match the running Desktop copy, and report *"not
+running"* — while extension/tab APIs succeed because they do not depend on the bundle
+path. That single discrepancy explains contradictory results that have now blocked three
+sessions.
+
+**Mitigation — Founder, ~2 minutes.** Quit Chrome, move `Google Chrome.app` from the
+Desktop into `/Applications`, relaunch from there, re-test. Alternative: the Founder signs
+in to WM Pro personally in the browser pane. **No employee will type the Founder's password
+or forge a token.**
+
+**Blocks:** WM-VERIFY-P0-01, the perf half of WM-TEST-P0-01, deep competitor comparison,
+and every "is it actually smooth?" acceptance criterion.
+
+---
+
+## RISK-002 — `JWT_SECRET` may be unset in production · HIGH · **OPEN**
+
+**Evidence — VERIFIED by Sentinel.** `src/lib/auth.ts:12` reads
+`process.env.JWT_SECRET ?? "<committed fallback>"`. If the variable is unset in Vercel,
+every session cookie is signed with a value present in a **public** repository. Anyone able
+to read the repo could mint a valid session for any account.
+
+**Why it is still only *may*.** Nobody has checked Vercel. The failure is silent by
+construction — the app boots and behaves normally either way.
+
+**Mitigation.** (a) Founder confirms the var is set — *do not paste the value anywhere*.
+(b) Ship a hardening commit so an unset `JWT_SECRET` throws on boot in production instead
+of degrading quietly. (b) can be written before (a) is answered.
+
+**Ticket:** WM-SEC-P0-01.
+
+---
+
+## RISK-003 — Supabase RLS: always-true write/delete policies · HIGH · **OPEN**
+
+**Evidence.** `docs/PASSPORT_IDENTITY_AUDIT.md`: always-true write/delete policies on
+`lounge_posts` / `likes` / `comments` / `follows` and `radio` inserts; broad public `radio`
+storage listing; leaked-password protection disabled.
+
+**Impact.** Any authenticated user may be able to delete another user's content. Launch
+blocker.
+
+**Compounding factor.** The Supabase project (`zrzaifaxecwgpfrqctkp`) is **shared with
+Dreamboard**. A careless policy change breaks two products at once. Requires a backup and
+policy tests before anything is applied. **Do not apply blind.**
+
+**Ticket:** WM-SEC-P0-02.
+
+---
+
+## RISK-004 — 192 lines of unowned, uncommitted work · MEDIUM · **OPEN**
+
+**Evidence — VERIFIED by Sentinel.** `src/app/lounge/page.tsx` carries a ~192-line
+"Universal Lounge" hero redesign (Discover / Live / Watch / Listen / Rooms modes,
+`UniversalLoungeHero` component). It exists on **one machine**, on **no branch**, in **no
+commit**. No employee has claimed it. It has survived at least two sessions untouched
+because each successive employee correctly declined to commit work they did not write.
+
+**Impact.** One `git checkout` or a disk failure and it is gone. It also silently dirties
+the working tree for every employee who follows, which erodes the "confirm your working
+tree" step of the operating loop.
+
+**Mitigation.** Founder decides **today**: commit it to a `feature/universal-lounge`
+branch as a checkpoint (no review implied, no merge to `main`), or discard it. Sentinel
+recommends the branch — it is free and reversible.
+
+**Ticket:** WM-DEBT-P2-05.
+
+---
+
+## RISK-005 — Documentation cites issues that do not exist · MEDIUM · **OPEN**
+
+**Evidence — VERIFIED by Sentinel 2026-07-28.** Handoffs and company memory reference
+"issue #78" (cross-tab tape dedupe) and "issue #76" (futures tape). Both return **404**
+from the GitHub API. `gh issue list --state all` on `spaidsnipes/wealthymindsets-pro`
+returns **nothing** — the tracker has zero issues, ever, despite issues being enabled.
+
+**Impact.** Employees citing ticket numbers that resolve to nothing. It looks like a
+tracked backlog and is not one, which is worse than an openly untracked backlog because it
+suppresses the instinct to check.
+
+**Mitigation.** Either create real GitHub issues and reference them, or drop issue-number
+citations entirely and use the `ACTIVE_TASK_QUEUE.md` ticket IDs (`WM-DATA-P0-01`,
+`WM-DATA-P1-01` respectively, which now carry that work). Sentinel has adopted the second
+option in this queue.
+
+**Ticket:** WM-OPS-P2-01.
+
+---
+
+## RISK-006 — Stale Desktop clones invite lost work · MEDIUM · **OPEN**
+
+**Evidence — VERIFIED.** `~/Desktop/wealthymindsets-pro` at `6afaf82` (2026-07-07) and
+`~/Desktop/wealthymindsets-pro 2` at `2dded78` (2026-07-06) — three weeks behind. The
+canonical clone is `/Users/dspaidnoosleep/wealthymindsets-pro`.
+
+**Impact.** An employee who opens the wrong directory produces work that is silently
+discarded, and may "fix" bugs that were fixed weeks ago.
+
+**Mitigation.** Founder deletes or archives both Desktop copies. Until then, step 5 of the
+operating loop (*confirm repository, branch, HEAD, working tree*) is the safeguard.
+
+---
+
+## RISK-007 — Unverified metrics circulating as company health · MEDIUM · **OPEN**
+
+**Evidence.** A circulated "ATH COMPANY HEALTH" snapshot reported *WM Pro 82%, 18 videos
+processed, 42 knowledge packages, 2 critical bugs, 3 dead files recommended*. None of it is
+evidence-backed from any session that produced it. One checkable item was close but wrong:
+exactly **one** dead file was confirmed and removed (`src/components/chart/BrokerConnectPanel.tsx`);
+the other two were never verified to exist. Separately, an analysis of "both uploaded
+recordings" circulated when **no recordings existed and no video was viewed**, and a UX
+item was marked *"Verified through live interaction"* which is impossible under RISK-001.
+
+**Impact.** This is the most dangerous item on the list, because unverified numbers harden
+into a baseline that later decisions are measured against. A false 82% is worse than no
+number: it ends the conversation about what is actually broken.
+
+**Mitigation.** **Atlas must re-derive every one of these from evidence or mark them
+UNVERIFIED.** No percentage ships in an ATH report without a stated method.
+
+---
+
+## RISK-008 — Dreamboard work is unpushed and drifting · MEDIUM · **OPEN**
+
+**Evidence — VERIFIED.** `~/dreamboard`, branch `feature/project-memory-health`, has three
+**untracked** files (`app/memory.tsx` 97 lines, `lib/creative-health.ts` 44,
+`supabase/dreamboard-project-memory.sql` 23) and no commit since `ba91915` on 2026-07-23 —
+five days. The branch has no upstream.
+
+**Impact.** Same class as RISK-004, in a second product. Cross-project dependency: the
+`.sql` file touches the Supabase project shared with WM Pro (RISK-003).
+
+**Mitigation.** Commit and push to the feature branch, or record in `DECISIONS.md` why it
+is parked. **Ticket:** DB-OPS-P1-01.
+
+---
+
+## RISK-009 — Three ATH products have no evidence trail at all · MEDIUM · **OPEN**
+
+WOW World and ATHOS have no repository under `spaidsnipes` and no local clone. The Video
+Intelligence pipeline folders (`00_Inbox` … `07_Deletion_Manifests`) are not present on
+this machine.
+
+**Impact.** Sentinel cannot report status, track milestones, or assess risk for three of
+five named products. Any "company state" summary that includes them is guesswork.
+
+**Mitigation.** Founder points Sentinel at where they live (repository, Drive folder ID, or
+another machine), or they are formally marked dormant.
+
+**Note on Video Intelligence:** the retention rule stands regardless — **no deletion is
+recommended until retention is satisfied**, and any deletion manifest requires Founder
+approval.
+
+---
+
+## RISK-010 — Friday target exceeds validated-work capacity · MEDIUM · **OPEN**
+
+WM-STATE-P0-01 requires **new market-state modelling** across intervals — thresholds that
+must be validated against real data, not chosen. It is not a rewiring job. Rushing it
+produces exactly the fabricated-classification failure the Bible forbids.
+
+**Sentinel's honest read of Friday 2026-07-31:** P0-01, P0-02, HEAT-P0-01 and the non-perf
+half of TEST-P0-01 are achievable. STATE-P0-01 is at risk. Wyckoff is not achievable and
+should be descoped (DEC-001). Nothing involving measured smoothness can be certified at all
+while RISK-001 is open.
+
+**Mitigation.** Founder confirms the reduced Friday scope now, rather than discovering it
+on Friday.
