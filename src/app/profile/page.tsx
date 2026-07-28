@@ -98,6 +98,12 @@ export default function ProfilePage() {
         if (user.avatar)  localStorage.setItem("wm-profile-avatar", user.avatar);
         if (user.bgColor) localStorage.setItem("wm-profile-bg", user.bgColor);
         setSetupMode(false);
+      } else if (!user.profileComplete && !user.displayName) {
+        // Genuinely incomplete. The route guard keeps redirecting here, so the
+        // setup form MUST be reachable or the user is stranded on this page
+        // with no way to finish and no way out. Fields stay pre-filled from
+        // localStorage above, so this does not look like the profile "reset".
+        setSetupMode(true);
       }
     } catch {}
   }, [user]);

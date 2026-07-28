@@ -124,7 +124,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.replace("/login");
       return;
     }
-    if (user && !user.profileComplete && !pathname.startsWith("/profile") && !pathname.startsWith("/login")) {
+    // Completeness must use the same rule the server uses in /api/auth/login:
+    // an existing display name is itself proof the profile was completed, even
+    // when the flag did not survive (stale cookie, metadata write that never
+    // landed). Without this the guard bounces the user back to /profile on
+    // every navigation and they can never reach the rest of the app.
+    const profileDone = !!user && (user.profileComplete || !!user.displayName);
+    if (user && !profileDone && !pathname.startsWith("/profile") && !pathname.startsWith("/login")) {
       router.replace("/profile?setup=1");
       return;
     }
