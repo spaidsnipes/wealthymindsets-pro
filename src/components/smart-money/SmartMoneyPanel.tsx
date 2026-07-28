@@ -959,40 +959,11 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           );
         })}
 
-        {/* Wyckoff schematic detail */}
-        <div className="mx-2 my-2 p-2 rounded-lg bg-wm-surface border border-wm-border">
-          <div className="text-[10px] font-bold text-wm-blue mb-2">Wyckoff Accumulation Schematic</div>
-          <div className="flex flex-col gap-1">
-            {[
-              { phase: "PS", label: "Preliminary Support", done: true },
-              { phase: "SC", label: "Selling Climax", done: true },
-              { phase: "AR", label: "Automatic Rally", done: true },
-              { phase: "ST", label: "Secondary Test", done: true },
-              { phase: "Spring", label: "Spring / Shakeout", done: true, active: true },
-              { phase: "LPS", label: "Last Point of Support", done: false },
-              { phase: "SOS", label: "Sign of Strength", done: false },
-            ].map(p => (
-              <div key={p.phase} className="flex items-center gap-2">
-                <div
-                  className="w-6 h-5 rounded text-[8px] font-bold flex items-center justify-center shrink-0"
-                  style={{
-                    background: p.active ? "rgba(0,212,170,0.25)" : p.done ? "rgba(79,163,224,0.15)" : "rgba(37,45,56,0.8)",
-                    color: p.active ? "#00D4AA" : p.done ? "#4FA3E0" : "#5A6575",
-                    border: `1px solid ${p.active ? "rgba(0,212,170,0.4)" : p.done ? "rgba(79,163,224,0.25)" : "rgba(37,45,56,0.5)"}`,
-                  }}
-                >
-                  {p.phase}
-                </div>
-                <span
-                  className="text-[10px]"
-                  style={{ color: p.active ? "#00D4AA" : p.done ? "#8B95A5" : "#5A6575" }}
-                >
-                  {p.label}
-                </span>
-                {p.active && <span className="ml-auto text-[9px] text-wm-green animate-pulse">CURRENT</span>}
-                {p.done && !p.active && <CheckCircle2 size={9} className="ml-auto text-wm-blue opacity-60" />}
-              </div>
-            ))}
+        {/* Wyckoff remains visible, but cannot imply analysis until a real model exists. */}
+        <div className="mx-2 my-2 p-2 rounded-lg bg-wm-surface border border-wm-border opacity-70">
+          <div className="text-[10px] font-bold text-wm-text-dim mb-1">Wyckoff Phase Analysis</div>
+          <div className="text-[10px] text-wm-text-dim leading-snug">
+            Unavailable — phase model not implemented. No phase is inferred for the current symbol.
           </div>
         </div>
       </div>
