@@ -11,7 +11,7 @@ Update your row at the **start** of your session (after claiming) and at the **e
 | **Forge** | Build Continuity Lead — research, architecture, tickets, **and production engineering (DEC-008, 2026-07-28)** | WM-CHART-P0-01 | FORGE ACTIVE | `main` | `fb063d0` | `docs/WM_CHART_ARCHITECTURE_2026-07-28.md` | 2026-07-28 |
 | **Noah** | Implementation engineer | — (WM-CHART-P0-01 claimed by Forge, see DEC-008) | AWAITING CLAIM | — | — | none | — |
 | **Atlas** | Knowledge indexing | Re-derive circulated "company health" figures from evidence | **CORRECTION REQUIRED** | — | — | none | — |
-| **Research Lab** | Interaction documentation. **No production code.** | Support WM-RESEARCH-P1-01 | AWAITING CLAIM | — | — | none | — |
+| **Research Lab** | Interaction documentation, competitive analysis, evidence synthesis. **No production code.** | RL-RESEARCH-P1-01 (**BLOCKED — DEC-010**); DB-OPS-P1-01 evidence corrected | **BLOCKED — awaiting Founder ruling DEC-010** | ops bus `main` · subject `dreamboard` `origin/main` `2049bdd` | none authored (docs-only) | `handoffs/research/2026-07-28-research.md` | 2026-07-28 |
 
 ## Role boundaries (binding)
 

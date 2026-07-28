@@ -168,3 +168,39 @@ legitimate Founder trade — it is recorded here so it is a chosen cost rather t
 **Founder action outstanding:** the four classification questions in
 `docs/WM_WYCKOFF_SPEC_2026-07-28.md` require the Founder's trading judgement. Nobody may
 invent thresholds to unblock themselves — that is the same failure in a new location.
+
+---
+
+## DEC-010 — REQUESTED (Founder): which product does the Research Lab serve?
+
+**Status:** **OPEN — awaiting Founder ruling**
+**Raised by:** Research Lab, 2026-07-28
+**Evidence:** `handoffs/research/2026-07-28-research.md` §5 (BLOCK-R1)
+
+**The contradiction.** Three sources disagree, and the Research Lab cannot act until one wins:
+
+| Source | Class | Says |
+|---|---|---|
+| Research Lab role brief | **FOUNDER INTENT** | "Support the **Dreamboard P0** workflow first" |
+| `ATH_COMMAND_CENTER.md` | **DOCUMENTATION** | WM Pro is the **sole** active product; Dreamboard explicitly not in this work block |
+| `ACTIVE_TASK_QUEUE.md` | **REPOSITORY** | **No Dreamboard P0 exists.** Only DB-OPS-P1-01, a P1 hygiene item |
+| `EMPLOYEE_STATUS.md` | **DOCUMENTATION** | Research Lab → "Support WM-RESEARCH-P1-01" — a **WM Pro P1**, already led by Forge |
+
+So the brief orders prioritization of a P0 that does not exist, while the bus assigns a P1
+belonging to a different product under another employee's active claim.
+
+**Options.**
+- **(a)** Dreamboard is genuinely primary → a Dreamboard P0 must be *defined* (none exists),
+  and the command center's "WM Pro only" scope amended.
+- **(b)** WM Pro is primary through 2026-07-31 → the brief's "Dreamboard P0 first" is
+  superseded until Friday; Research Lab supports WM-RESEARCH-P1-01 as documentation only,
+  and Dreamboard research is limited to repository-evidence work.
+- **(c)** Split across both.
+
+**Research Lab recommendation: (b), until Friday.** The 2026-07-31 release objective is
+concrete, dated, and shared by four employees. "Dreamboard P0" currently names nothing, and
+inventing one to satisfy a brief would be fabricating scope — the same class of error as
+fabricating data. Reconsider on 2026-08-01.
+
+**Consequence if unresolved:** RL-RESEARCH-P1-01 stays BLOCKED and the Research Lab has no
+eligible claim. It will not guess, and it will not duplicate Forge's WM-RESEARCH-P1-01 claim.

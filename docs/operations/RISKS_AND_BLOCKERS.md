@@ -156,6 +156,65 @@ five days. The branch has no upstream.
 **Mitigation.** Commit and push to the feature branch, or record in `DECISIONS.md` why it
 is parked. **Ticket:** DB-OPS-P1-01.
 
+**AMENDMENT 2026-07-28 (Research Lab) — the stated mitigation is unsafe. Do NOT push.**
+
+**Evidence — VERIFIED / REPOSITORY.** After `git fetch`, `origin/main` is at `2049bdd`,
+**17 commits ahead** of the local `ba91915`. One of those commits, `8e71195 feat: add
+inspectable project memory and creative health`, already ships this feature under
+different filenames:
+
+| Local untracked | Upstream on `origin/main` |
+|---|---|
+| `app/memory.tsx` (97) | `app/memory-health.tsx` (126) |
+| `lib/creative-health.ts` (44) | `lib/memory-health.ts` (105) |
+| `supabase/dreamboard-project-memory.sql` (23) | `supabase/dreamboard-project-memory-health.sql` (50) |
+| *(none)* | `tests/memory-health.test.mjs` (19) |
+
+Verified by substance, not filename: **both migrations create the same object** —
+`create table if not exists public.dreamboard_project_memory` and
+`create policy "Creators manage their own project memory"`. Upstream is a strict superset
+(adds `dreamboard_creative_health_preferences` + RLS, a scope/category taxonomy,
+`validateMemoryDraft()`, and a unit test). The local `creativeHealth()` is an earlier draft
+of upstream's `deriveCreativeHealth()`.
+
+**Revised impact — recommend raising to HIGH (Sentinel's call).** Pushing the local file
+would add a *second* migration defining the same table and policy in the Supabase project
+**shared with WM Pro** (RISK-003). This is no longer "work at risk of being lost"; it is
+work at risk of being *duplicated into a shared database*.
+
+**Revised mitigation.** (1) Do not push. (2) Line-level diff the three local files against
+their upstream counterparts to confirm nothing unique exists locally — **NOT YET DONE**;
+symbol, table, policy and line-count comparison only. (3) Founder confirms discard.
+(4) Never delete before (2) and (3). Authorship of the local draft is **UNKNOWN** — the
+files are untracked and carry no author.
+
+Evidence: `handoffs/research/2026-07-28-research.md` §3.2, §4.
+
+---
+
+## RISK-012 — Cross-product rows are derived from stale local clones · MEDIUM · **OPEN**
+
+**Raised 2026-07-28 by Research Lab.**
+
+**Evidence — VERIFIED / REPOSITORY.** `ATH_COMMAND_CENTER.md` §"Other products" records
+Dreamboard's last commit as `ba91915` (2026-07-23). That is the **local branch tip**. The
+product's actual state is `origin/main` `2049bdd` — 17 commits and five days further on,
+including nine Passport commits, a public front-door entry, and archive intake guards. The
+row was wrong within hours of being written, through no fault of its author: it was read
+from a checkout that had never been fetched.
+
+**Impact.** Any prioritization or "company state" judgement made from that row is made on
+data that under-reports a product by five days. Every product tracked from a local
+checkout will drift the same way. Adjacent to RISK-007 (unverified metrics) and RISK-006
+(stale clones).
+
+**Proposed mitigation — INFERENCE, not an approved standard; Sentinel rules.** Cross-product
+rows record `origin/<branch>` after an explicit `git fetch`, and state the fetch timestamp
+beside the hash. A row without a fetch timestamp is treated as UNKNOWN, not as current.
+
+**Related:** BLOCK-R2 — the 17 Dreamboard commits are unverified by anyone and there is no
+Dreamboard verification lane or queue entry.
+
 ---
 
 ## RISK-009 — Three ATH products have no evidence trail at all · MEDIUM · **OPEN**
