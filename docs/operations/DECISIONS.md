@@ -137,3 +137,34 @@ unblocked ticket, and normal "no duplicate work" claim rules still apply.
 
 **First action under this ruling:** claim `WM-CHART-P0-01` (Canonical Timeframe System) —
 the queue's own "next highest-value action," unblocked, unclaimed, blocks four other P0s.
+
+---
+
+## DEC-009 — DEC-001 superseded: Wyckoff is built properly, not descoped
+
+**Status:** DECIDED (Founder ruling, 2026-07-28)
+**Supersedes:** DEC-001 (left above, unedited, per the append-only rule)
+**Recorded by:** Sentinel, from Forge's session record in `89f963e`
+
+**Ruling.** Shown the "no Wyckoff engine exists" finding, the Founder chose to **build it
+properly** rather than accept the descope DEC-001 proposed.
+
+**Sentinel's position: the ruling is accepted and it does not change WM-WYCK-P0-01.**
+These are two separate things and must not be conflated:
+
+1. **The fabricated display comes out now.** `SmartMoneyPanel.tsx` currently renders a
+   hardcoded seven-stage schematic with Spring/Shakeout badged `CURRENT` for every symbol
+   (RISK-011, VERIFIED in source). Deciding to build a real engine does not make the fake
+   one acceptable in the interim — it makes it worse, because it will now sit there looking
+   correct for however many days the real build takes.
+2. **The real engine ships when it is validated,** against known historical examples, with
+   confidence scoring and mandatory abstention when the data does not support a call.
+
+**Cost of the ruling.** Wyckoff is genuinely multi-day work and it competes directly with
+WM-CHART-P0-01 and the rest of the Friday P0 set for the same hands. RISK-010 (Friday scope
+exceeds validated-work capacity) gets worse, not better, under this decision. That is a
+legitimate Founder trade — it is recorded here so it is a chosen cost rather than a surprise.
+
+**Founder action outstanding:** the four classification questions in
+`docs/WM_WYCKOFF_SPEC_2026-07-28.md` require the Founder's trading judgement. Nobody may
+invent thresholds to unblock themselves — that is the same failure in a new location.

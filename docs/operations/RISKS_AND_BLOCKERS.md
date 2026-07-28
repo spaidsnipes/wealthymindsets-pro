@@ -176,6 +176,45 @@ approval.
 
 ---
 
+## RISK-011 — A fabricated Wyckoff schematic was shipping · HIGH · **CLOSED same day**
+
+**Resolved in `e1a8c94`** (Forge), **verified by Sentinel** (V-005): the hardcoded array is
+gone, replaced with *"Unavailable — phase model not implemented. No phase is inferred for
+the current symbol."*, and a regression test now fails the build if the fabricated strings
+return. `tsc` 0 errors, tests 12/12.
+
+Found and fixed within roughly ninety minutes. The record below is kept because the
+*pattern* matters more than the incident.
+
+
+
+**Evidence — VERIFIED by Sentinel in source, 2026-07-28.** Found by Forge (`89f963e`),
+independently confirmed. `src/components/smart-money/SmartMoneyPanel.tsx` renders a "Wyckoff
+Accumulation Schematic" from a hardcoded literal array. Four phases are marked complete and
+**Spring/Shakeout is marked `active` with a pulsing `CURRENT` badge** — for every symbol,
+under every market condition, with no price, volume, or tape input anywhere in the path.
+
+**Why this is the most serious item on this register.** RISK-002 and RISK-003 are exposures.
+This one is *already happening on every chart view*. The panel states plainly, a few hundred
+lines above, that the phase model is not implemented — and then draws seven stages of that
+non-existent model's output, styled to look detected. A trader reading "Spring / Shakeout —
+CURRENT" will reasonably believe the platform detected a spring in the symbol they are
+looking at. It did not. It cannot. Nothing computes it.
+
+The truthfulness pass corrected the honest message in this same file and missed this block
+entirely — which is the real lesson: **a truthfulness pass that greps for text misses
+fabrication expressed as a data structure.**
+
+**Mitigation.** WM-WYCK-P0-01 — remove or unmistakably re-label the block. Small, unblocked,
+independent of every other ticket. **Do this before building the engine**; the engine is
+days of validated modelling work, and the lie ships today.
+
+**Related decision.** DEC-009 — the Founder has chosen to build Wyckoff properly rather than
+descope it. That decision does not change this one: the fabricated display must come out
+now, and the real engine ships when it is validated.
+
+---
+
 ## RISK-010 — Friday target exceeds validated-work capacity · MEDIUM · **OPEN**
 
 WM-STATE-P0-01 requires **new market-state modelling** across intervals — thresholds that

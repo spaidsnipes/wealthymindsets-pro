@@ -76,6 +76,70 @@ Chrome is moved and `get_page_content` succeeds.
 
 ---
 
+### V-005 · `e1a8c94` Wyckoff fabrication fix — **VERIFIED · ACCEPTED**
+
+| Acceptance criterion (WM-WYCK-P0-01) | Result |
+|---|---|
+| Hardcoded schematic no longer renders as live analysis | **PASS** — the literal array is deleted |
+| No phase presented as detected | **PASS** — no `CURRENT` badge, no pulse, no completion checkmarks; the block now reads *"Unavailable — phase model not implemented. No phase is inferred for the current symbol."* |
+| Regression guarded | **PASS** — `SmartMoneyPanel.truthfulness.test.ts` asserts the honest string is present and that `"Spring / Shakeout"`, `>CURRENT</span>` and `{ phase: "PS"` are absent |
+| `tsc --noEmit` | **PASS** — 0 errors |
+| `npm test` | **PASS** — 12/12 (was 11/11; the new test is the twelfth) |
+| No dead import left behind | **PASS** — `CheckCircle2` is still used at two other call sites |
+
+**Verdict: accepted.** Correct fix, honest replacement copy, guarded against regression.
+
+**Correction to Sentinel's own record.** My V-004 entry cited the file as
+`src/components/chart/SmartMoneyPanel.tsx`. **That path does not exist.** The real path is
+`src/components/smart-money/SmartMoneyPanel.tsx` — I glob-matched the file and then wrote
+down the wrong directory. Corrected here and in the queue and risk register. I would have
+returned another employee's work for this, so I am recording it rather than quietly fixing it.
+
+**Additional scan Sentinel ran (new evidence, good news).** I checked whether the same
+fabrication pattern appears elsewhere in that panel. It does not. Every other unavailable
+metric — Absorption, Volume Tails, PDH/PDL, Spoofing, Stop Run, Trapped Traders, Iceberg,
+Dark Pool, Delta Divergence, CVD — already states `"N/A — needs <specific missing data>"`
+with an honest reason, and the computed ones (VWAP, CVD, order-flow imbalance) derive from
+real tape. **The Wyckoff schematic was the single outlier in an otherwise exemplary panel.**
+That materially downgrades the "systemic fabrication" concern to "one missed block."
+
+**Still true, and still the lesson:** the truthfulness pass corrected the honest text in
+this same file and missed the block below it, because it was searching for misleading
+*wording* and the fabrication was a *data structure*. Future sweeps must grep for hardcoded
+arrays feeding analytical UI.
+
+**Outstanding:** Forge's written handoff for this work.
+
+---
+
+### V-004 · `89f963e` Wyckoff fabrication finding — **VERIFIED, CONFIRMED**
+
+Forge's claim was checked directly against `src/components/smart-money/SmartMoneyPanel.tsx`
+rather than accepted from the report.
+
+| Forge claim | Sentinel result |
+|---|---|
+| Schematic renders from a hardcoded array | **CONFIRMED** — a literal array of seven `{phase, label, done}` objects, mapped to JSX |
+| Four phases marked complete, Spring/Shakeout marked CURRENT | **CONFIRMED** — PS/SC/AR/ST `done: true`; Spring `done: true, active: true`, rendered with a pulsing `CURRENT` badge; LPS/SOS pending |
+| No symbol, price, volume or tape input feeds it | **CONFIRMED** — the block references no props, no state, no market data of any kind |
+| Renders identically for every symbol under every condition | **CONFIRMED by construction** — there is no input that could vary it |
+| Same component honestly reports the model is not implemented | **CONFIRMED** — the panel admits the absence and draws the output anyway |
+
+**Verdict: confirmed, and escalated to RISK-011 (HIGH).** This is the most severe *currently
+shipping* truthfulness defect known to the company — the others on the register are exposures;
+this one renders to users on every chart view.
+
+**Sentinel's added finding, not in Forge's report.** The truthfulness pass corrected the
+honest message in this same file and missed this block. The generalisable lesson:
+**a truthfulness audit that searches for misleading *text* will not catch fabrication
+expressed as a *data structure*.** Any future truthfulness sweep must look for hardcoded
+arrays and literals feeding analytical UI, not just wording. Atlas may index this as a
+*verified fact*; it is not yet a ratified company standard.
+
+**Ticket raised:** WM-WYCK-P0-01 — unblocked, small, independent of every other ticket.
+
+---
+
 ### V-003 · Build health at `fb063d0` — **VERIFIED**
 
 | Check | Result | Run by | When |

@@ -44,7 +44,15 @@ change, and nothing on screen is fabricated.
 
 ## Current verified HEAD
 
-`fb063d0` — *docs: chart/heatmap/state architecture + ordered Noah tickets*
+`ab31e3c` — *docs(ops): establish ATH operations bus + Sentinel verification pass*
+
+Two commits landed **during** the ops-bus session, both docs-only:
+- `89f963e` (Forge) — Wyckoff P0 fabrication finding + implementation spec.
+  **Sentinel re-verified the finding in source — CONFIRMED, see RISK-011 / V-004.**
+- `ab31e3c` (Sentinel) — this operations structure.
+
+Build/type/test evidence below was taken at `fb063d0`; both later commits touch only
+`docs/`, so it carries forward.
 
 | Check | Result | Evidence |
 |---|---|---|

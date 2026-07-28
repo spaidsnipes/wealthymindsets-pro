@@ -261,6 +261,30 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 
 ---
 
+## WM-WYCK-P0-01 — Remove the fabricated Wyckoff Accumulation Schematic
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-WYCK-P0-01 |
+| **Product** | WM Pro |
+| **Priority** | **P0 — highest-severity shipping truthfulness defect currently known** |
+| **Owner** | Forge |
+| **Status** | **VERIFIED** — fixed in `e1a8c94`, verified by Sentinel (V-005) |
+| **Objective** | Stop rendering a hardcoded seven-stage Wyckoff schematic as if it were analysis of the selected symbol. |
+| **Dependencies** | None. Independent of WM-CHART-P0-01. |
+| **Evidence source** | `docs/WM_WYCKOFF_SPEC_2026-07-28.md` (`89f963e`, Forge) — **Sentinel independently re-verified in source, CONFIRMED.** `src/components/smart-money/SmartMoneyPanel.tsx` renders a literal array: PS, SC, AR, ST marked `done: true`, **Spring/Shakeout marked `done: true, active: true` and labelled `CURRENT` with a pulsing animation**, LPS and SOS pending. No symbol, price, volume, or tape value feeds it. It renders identically for every symbol under every market condition. The same component separately reports the honest "phase model not implemented" message — so the panel simultaneously admits the model is absent and displays seven stages of its output. |
+| **Files / subsystems** | `src/components/smart-money/SmartMoneyPanel.tsx` (schematic block ~962-996) |
+| **Acceptance criteria** | The hardcoded schematic no longer renders as live analysis. Either removed outright, or clearly re-labelled as a static educational diagram that is visually and textually impossible to mistake for the current symbol's state — no `CURRENT` badge, no pulse, no completion checkmarks. **No phase may be presented as detected until an engine detects it.** |
+| **Verification requirements** | Sentinel: grep confirms the literal array is gone or inert; visual confirmation that no phase reads as "detected"; `tsc` 0 errors, `npm test` green, `npm run build` clean. |
+| **Claimed by** | Forge |
+| **Claim timestamp** | 2026-07-28 |
+| **Latest commit** | `e1a8c94` — *fix(charts): remove fabricated Wyckoff current phase* |
+| **Handoff location** | `docs/operations/handoffs/forge/` — **handoff still outstanding** |
+| **Blockers** | None. |
+| **Next action** | **Closed.** Forge shipped the fix within minutes of the finding, with a regression test. Only the written handoff is outstanding. The real engine remains separate, unstarted work under DEC-009. |
+
+---
+
 ## Lower-priority queue (abbreviated records)
 
 Each still requires the full field set before it is claimed. Detail lives in
