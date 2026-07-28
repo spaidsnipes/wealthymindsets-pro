@@ -8,7 +8,7 @@ Update your row at the **start** of your session (after claiming) and at the **e
 | Employee | Role | Active task | Status | Branch | Last commit | Last handoff | Updated |
 |---|---|---|---|---|---|---|---|
 | **Sentinel** | COO — operations, verification, prioritization | Ops bus setup + WM Pro verification pass | ACTIVE | `main` | `fb063d0` (verified, not authored) | `handoffs/sentinel/2026-07-28-sentinel.md` | 2026-07-28 10:50 |
-| **Forge** | Build Continuity Lead — research, architecture, tickets, **and production engineering (DEC-008, 2026-07-28)** | WM-CHART-P0-01 → Sentinel | AWAITING VERIFICATION | `main` | `d2ea511` | `handoffs/forge/2026-07-28-forge-wm-chart-p0-01.md` | 2026-07-28 |
+| **Forge** | Build Continuity Lead — research, architecture, tickets, **and production engineering (DEC-008, 2026-07-28)** | WM-CHART-P0-02 (P0-01 shipped `d2ea511`, awaiting Sentinel) | FORGE ACTIVE | `main` | `d2ea511` | `handoffs/forge/2026-07-28-forge-wm-chart-p0-01.md` | 2026-07-28 |
 | **Noah** | Implementation engineer | — (WM-CHART-P0-01 claimed by Forge, see DEC-008) | AWAITING CLAIM | — | — | none | — |
 | **Atlas** | Knowledge indexing | Re-derive circulated "company health" figures from evidence | **CORRECTION REQUIRED** | — | — | none | — |
 | **Research Lab** | Interaction documentation, competitive analysis, evidence synthesis. **No production code.** | RL-RESEARCH-P1-01 (**BLOCKED — DEC-010**); DB-OPS-P1-01 evidence corrected | **BLOCKED — awaiting Founder ruling DEC-010** | ops bus `main` · subject `dreamboard` `origin/main` `2049bdd` | none authored (docs-only) | `handoffs/research/2026-07-28-research.md` | 2026-07-28 |

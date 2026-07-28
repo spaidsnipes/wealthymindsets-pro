@@ -70,20 +70,20 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Ticket ID** | WM-CHART-P0-02 |
 | **Product** | WM Pro |
 | **Priority** | P0 |
-| **Owner** | — |
-| **Status** | BACKLOG |
+| **Owner** | Forge |
+| **Status** | **FORGE ACTIVE** |
 | **Objective** | A response from a previous symbol/timeframe must never overwrite the active view. Implement `ChartContext` + monotonic `dataVersion` guard. |
-| **Dependencies** | WM-CHART-P0-01 |
+| **Dependencies** | WM-CHART-P0-01 (done, `d2ea511`) |
 | **Evidence source** | Architecture report §D2 |
 | **Files / subsystems** | Chart data-fetch paths; `ChartsDashboard.tsx`; new context module |
 | **Acceptance criteria** | A forced-slow 1m response arriving after switching to 4h is **discarded, never rendered**. No stale candles persist across symbol change. Every async result carries the `dataVersion` it was requested under. `AbortController` fires on supersede. |
 | **Verification requirements** | Unit: stale `dataVersion` rejected. Manual: 6 rapid timeframe changes in 3 s; final render must match final selection. |
-| **Claimed by** | — | 
-| **Claim timestamp** | — |
-| **Latest commit** | — |
-| **Handoff location** | `docs/operations/handoffs/noah/` |
-| **Blockers** | Blocked until P0-01 lands |
-| **Next action** | Hold. Do not start in parallel with P0-01 — it rewrites the same call sites. |
+| **Claimed by** | Forge — DEC-008 engineering scope |
+| **Claim timestamp** | 2026-07-28 |
+| **Latest commit** | *(none yet)* |
+| **Handoff location** | `docs/operations/handoffs/forge/` |
+| **Blockers** | None — P0-01 landed (`d2ea511`). |
+| **Next action** | Forge implementing. |
 
 ---
 
