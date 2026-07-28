@@ -29,7 +29,7 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Product** | WM Pro |
 | **Priority** | P0 — **FIRST TICKET**, blocks four other P0s |
 | **Owner** | Forge |
-| **Status** | **FORGE ACTIVE** |
+| **Status** | **COMPLETE — AWAITING SENTINEL VERIFICATION** |
 | **Objective** | One canonical timeframe module that separates candle interval, visible historical range, provider-specific interval value, and display label. Eliminate the three incompatible literals. |
 | **Dependencies** | None |
 | **Evidence source** | `docs/WM_CHART_ARCHITECTURE_2026-07-28.md` §C1, §D1, §E — **independently re-verified by Sentinel 2026-07-28** |
@@ -38,12 +38,30 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Verification requirements** | Unit: aggregation rejects non-integer divisors; `TFId` round-trips chart↔heatmap; unsupported never returns candles. Automated: `tsc --noEmit` 0 errors, `npm test` green, `npm run build` 69/69. Manual: click all supported intervals in sequence, no crash, honest disabled states. Sentinel re-runs the `grep` and inspects the provider-probe evidence. |
 | **Claimed by** | Forge — claimed under DEC-008 (Founder ruled "Forge codes" on the DEC-004 role conflict) |
 | **Claim timestamp** | 2026-07-28 |
-| **Latest commit** | *(none)* |
-| **Handoff location** | `docs/operations/handoffs/noah/` |
-| **Blockers** | Provider limits (Alpaca free-tier intraday depth, Yahoo intraday range caps) are **UNVERIFIED**. Noah must probe and record before finalising the matrix. Do not guess. |
-| **Next action** | Noah: read the four required documents, confirm the ticket boundary, claim the ticket, then probe provider support **before** writing the matrix. |
+| **Latest commit** | `d2ea511` |
+| **Handoff location** | `docs/operations/handoffs/forge/2026-07-28-forge-wm-chart-p0-01.md` |
+| **Blockers** | Provider limits RESOLVED — measured 2026-07-28, recorded in `PROVIDER_EVIDENCE`. New: AC#3 only PARTIALLY met; full unification needs WM-CHART-P0-01b (6 downstream consumers still switch on legacy `D`/`W`/`M`). |
+| **Next action** | Sentinel: verify per handoff §4-§5 and rule whether AC#3-partial closes the ticket or P0-01b must land first. |
 
 ---
+
+---
+
+## WM-CHART-P0-01b — Migrate Chart Consumers to Canonical TFId
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-CHART-P0-01b |
+| **Product** | WM Pro |
+| **Priority** | P1 — completes AC#3 of P0-01 |
+| **Owner** | *(unclaimed)* |
+| **Status** | READY |
+| **Objective** | Migrate the six consumers that still switch on legacy `"D"/"W"/"M"` so the toolbar can emit canonical `TFId`, retiring `toChartEmitId()` and `legacyChartId`. |
+| **Dependencies** | WM-CHART-P0-01 (done, `d2ea511`). Sequence with/after P0-02 — both touch the same call sites. |
+| **Evidence source** | `docs/operations/handoffs/forge/2026-07-28-forge-wm-chart-p0-01.md` §6 |
+| **Files / subsystems** | `src/hooks/useWebSocket.ts:701`; `src/components/chart/MainChart.tsx:105,160,219,1545`; `src/components/chart/WMSessionVP.tsx:152`; `src/components/chart/indicatorConfig.ts:16` |
+| **Acceptance criteria** | 1. Toolbar emits canonical `TFId`. 2. `toChartEmitId`/`legacyChartId` removed. 3. `normalizeTFId` still migrates persisted layouts. 4. Chart data path verified unbroken by interaction evidence. |
+| **Blockers** | Requires an authenticated `/charts` session to verify. Do not close on build-passing alone. |
+| **Next action** | Hold for claim. Also triage the adjacent finding: `MainChart.tsx:219` maps `2h`/`4h` to provider `"60"` — possible pre-existing mislabel, UNVERIFIED. |
 
 ## WM-CHART-P0-02 — Chart Context + Stale-Request Protection
 
