@@ -11,6 +11,7 @@ import { clsx } from "clsx";
 import { type ChartLayout } from "./ChartLayoutManager";
 import { isConfigurable } from "./indicatorConfig";
 import { getIndicatorInfo } from "./indicatorDescriptions";
+import { CHART_TF_SHIPPED, getTimeframe, toChartEmitId } from "@/lib/timeframes";
 
 /* ══════════════════════════════════════════════════════════════
    SYMBOL CATALOGUE  (100+ symbols across 5 categories)
@@ -429,8 +430,14 @@ const INDICATORS = [
 /* ══════════════════════════════════════════════════════════════
    TIMEFRAMES
 ══════════════════════════════════════════════════════════════ */
-// Exact native intervals supported across the free observed-data path.
-const TIMEFRAMES = ["1m","2m","5m","15m","30m","1h","D","W","M"];
+// Sourced from the canonical timeframe module (WM-CHART-P0-01). CHART_TF_SHIPPED is
+// the subset whose chart data path is verified wired today; toChartEmitId preserves
+// the string the existing consumers expect until WM-CHART-P0-01b migrates them.
+const TIMEFRAMES = CHART_TF_SHIPPED.map(id => ({
+  key:   id,
+  label: getTimeframe(id).label,
+  emit:  toChartEmitId(id),
+}));
 
 
 /* ══════════════════════════════════════════════════════════════
@@ -754,14 +761,14 @@ export function ChartToolbar({
       {/* ══ Timeframes ══════════════════════════════════════ */}
       <div className="flex items-center gap-0.5 shrink-0">
         {TIMEFRAMES.map(tf => (
-          <button key={tf} onClick={() => setTimeframe(tf)}
+          <button key={tf.key} onClick={() => setTimeframe(tf.emit)}
             className={clsx(
               "px-1.5 h-6 rounded text-[11px] font-mono transition-colors",
-              tf === timeframe
+              tf.emit === timeframe
                 ? "bg-wm-blue/20 text-wm-blue border border-wm-blue/40"
                 : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface"
             )}>
-            {tf}
+            {tf.label}
           </button>
         ))}
       </div>

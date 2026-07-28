@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
+import { HEATMAP_TF_ORDER } from "@/lib/timeframes";
 
 /* ═══════════════════════════════════════════════════════════
    DATA MODEL
@@ -247,8 +248,10 @@ const SECTORS: Sector[] = [
   },
 ];
 
-// Only the periods our /api/heatmap endpoint actually supports
-const TIMEFRAMES = ["1D","1W","1M","3M","6M","1Y","5Y"];
+// Only the periods our /api/heatmap endpoint actually supports. Sourced from the
+// canonical timeframe module (WM-CHART-P0-01) — the heatmap already used the
+// canonical "1D"/"1W"/"1M" form, so emitted values are unchanged by this swap.
+const TIMEFRAMES: readonly string[] = HEATMAP_TF_ORDER;
 // Only expose universes we can currently populate with observed free data.
 // "World" and "Full" previously repeated the S&P dataset under a different label,
 // so they stay out. "Markov" is restored: it's an honest regime proxy derived from

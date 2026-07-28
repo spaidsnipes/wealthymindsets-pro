@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { SymbolSearch } from "@/components/ui/SymbolSearch";
 import { fetchBars, runRealBacktest, type BTTrade, type BTResult } from "@/lib/backtest/engine";
+import { CHART_TF_SHIPPED, toChartEmitId } from "@/lib/timeframes";
 
 /* ── Types ──────────────────────────────────────────────── */
 type Trade = BTTrade;
@@ -24,7 +25,9 @@ const STRATEGIES = [
   { id: "wyckoff",    label: "Wyckoff Spring / UTAD",      desc: "Phase C accumulation/distribution" },
   { id: "momentum",   label: "Breakout Momentum",          desc: "Volume-confirmed range breaks" },
 ];
-const TIMEFRAMES = ["1m","2m","5m","15m","30m","1h","D","W","M"];
+// Canonical timeframe module (WM-CHART-P0-01). Emits exactly the strings the
+// backtest engine already consumes; the duplicate literal is gone.
+const TIMEFRAMES = CHART_TF_SHIPPED.map(id => toChartEmitId(id));
 const DATE_RANGES = [
   { label: "1 Month",  days: 30  },
   { label: "3 Months", days: 90  },
