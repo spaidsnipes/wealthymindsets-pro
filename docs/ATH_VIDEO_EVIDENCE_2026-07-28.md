@@ -1,0 +1,346 @@
+# ATH Video Intelligence — Evidence Report 2026-07-28
+
+**Analyst:** Claude (ATH Video Intelligence — Visual Evidence & Recording Analyst)
+**Role boundary:** verification-class. No production code written. No fix claimed from video alone.
+**Scope:** recording inventory, time-indexed findings, routing to DREAMBOARD / WM PRO / WOW WORLD / SHARED DESIGN REFERENCE.
+
+---
+
+## 0. Capability note — how these frames were actually read
+
+No `ffmpeg`/`ffprobe` on this machine and no PyObjC. Frames were decoded with a
+purpose-built Swift/AVFoundation extractor (`AVAssetImageGenerator`, zero-tolerance
+seeks) compiled in the session scratchpad. Every timestamp below is a real decoded
+frame at that offset, not a thumbnail inference.
+
+**Corrected prior error.** A previous session reported *"the screen recording
+doesn't exist — no `10.09.09 AM.mov` on this machine."* That conclusion was
+produced by a filename-construction bug, not by absence: macOS screen-recording
+filenames use **U+202F NARROW NO-BREAK SPACE** (`e2 80 af`) before `AM`/`PM`. A
+hand-typed ASCII space yields `ENOENT`, which reads as "file not found." All
+recording paths in this report were obtained by glob, never by typing.
+
+That error is now double-corrected: `10.09.09` genuinely is absent from local
+disk (§4), but the earlier session had no valid basis for saying so.
+
+---
+
+## 1. Recording inventory
+
+**41 screen recordings on Desktop; ~35 GB.** Full corpus retained — no deletion
+recommended for any asset (§4).
+
+### Assets analyzed this session
+
+| ID | File (Desktop) | Start | Duration | Size | Res / FPS |
+|---|---|---|---|---|---|
+| **REC-01** | `Screen Recording 2026-07-28 at 11.47.22 AM.mov` | 11:47:22 | **15m 02s** | 494 MB | 1920×1080 @ 57.28 |
+| REC-02 | `Screen Recording 2026-07-28 at 8.17.30 AM.mov` | 08:17:30 | 5s | 4 MB | not analyzed (trivial) |
+
+### Referenced but MISSING — see §4
+
+| ID | Name as shown in REC-01 | Status |
+|---|---|---|
+| **MISS-01** | `Screen Recording 2026-07-28 at 10.09.09 …` | **Not on disk anywhere** |
+| **MISS-02** | `Screen Recording 2026-07-28 at 11.02.59 …` | **Not on disk anywhere** |
+| **MISS-03** | `Screen Recording 2026-07-28 at …1.40.50 …` | **Not on disk anywhere** |
+
+### Largest retained assets (unanalyzed, high value)
+
+| File | Duration | Size |
+|---|---|---|
+| `2026-05-24 at 5.23.12 PM.mov` | **4h 30m** | 8.0 GB |
+| `2026-07-06 at 8.45.52 AM.mov` | **2h 06m** | 6.4 GB |
+| `2026-06-30 at 8.49.08 AM.mov` | 55m | 3.4 GB |
+| `2026-07-16 at 9.17.53 AM.mov` | **2h 52m** | 988 MB |
+| `2026-06-30 at 2.30.01 PM.mov` | 43m | 2.7 GB |
+
+~14 hours of unreviewed capture across the top 5 alone. Not triaged this session.
+
+### What REC-01 actually contains
+
+**Not a product recording.** REC-01 is a capture of the *ChatGPT-side ATH
+operations org* — sidebar threads named `Sentinel Company operations`,
+`ATLAS company memory`, `Sentinel for Dreamboard`, `Noah- Dreamboard`,
+`FORGE-DREAMBOARD`, `Dreamboard Research Lab`, `ATH Video Intelligence`,
+`SENTINEL WM PRO APP`, `FORGE-WM PRO`, `NOAH- WM PRO`, `SENTINEL - WOW World`,
+`FORGE - WOW WORLD`, `NOAH-WOW WORLD`, `Founder's strategic thinking room`.
+
+Evidence in it is **founder intent and cross-org process state**, not observed
+product behavior. No finding below claims UI behavior from REC-01 — the product
+claims it carries are routed as *requests requiring repository verification*,
+which is exactly what I then did against source.
+
+---
+
+## 2. Findings — time-indexed
+
+Schema: recording identity · timestamp · observed behavior · severity · product · verification status.
+
+---
+
+### VE-001 — Dreamboard "no source code" blocker is FALSE
+- **Recording:** REC-01 @ **00:05** and **03:05** (screen clock 11:47 / 11:50)
+- **Observed:** ChatGPT-side "Verified blocker" panel states: *"There was no
+  existing project source code in the workspace or connected GitHub account to
+  migrate. The repositories therefore contain initialized READMEs."* It declares
+  the next operational requirement to be locating any Dreamboard code, and that
+  Sentinel/Forge/Noah are all gated behind it.
+- **Verification: REFUTED — VERIFIED LOCALLY.** `~/dreamboard` is a real git
+  repository with real history and a real app tree:
+  - `2049bdd feat(growth): add private Growth Rings progress wall`
+  - `4a5446f fix(passport): clarify email sign-in paths`
+  - `3bb5c51 fix(passport): keep Dreamboard links on stable host`
+  - Working tree on branch `feature/project-memory-health` carrying
+    `app/memory.tsx`, `lib/creative-health.ts`,
+    `supabase/dreamboard-project-memory.sql`, `docs/operations/`, `docs/research/`.
+- **Severity:** **CRITICAL** — this false blocker is halting three roles on the
+  other side of the org for a reason that does not exist.
+- **Product:** DREAMBOARD
+- **Action:** Point the ChatGPT-side org at `~/dreamboard` (local clone, branch
+  `feature/project-memory-health`). The "reconstruct real state" work it is
+  waiting to start is unnecessary.
+
+---
+
+### VE-002 — GitHub connector sees zero repositories
+- **Recording:** REC-01 @ **00:05**
+- **Observed:** *"The GitHub plugin is installed, but it still reports zero
+  accessible repositories. The five repositories exist under `spaidsnipes`;
+  GitHub app access must include them."* Request to grant access is pending.
+- **Verification:** **UNVERIFIED** — GitHub app installation scope is not
+  inspectable from this machine. Note this is the *proximate cause* of VE-001:
+  the connector saw nothing, and that was misreported as "no code exists."
+- **Severity:** HIGH · **Product:** SHARED / OPS
+- **Action:** Founder grants the GitHub app access to the `spaidsnipes` repos.
+
+---
+
+### VE-003 — Charts are the stated release gate for WM Pro
+- **Recording:** REC-01 @ **07:05** (founder message, composed on screen)
+- **Observed, verbatim:** *"the wm app actually needs to be finished 1st … this
+  app is sooo close to being done once the charts are fully fixed"*
+- **Verification:** **CORROBORATED BY SOURCE.** Matches the independent chart
+  audit in `WM_CHART_ARCHITECTURE_2026-07-28.md` — WM-CHART-P0-01 (Canonical
+  Timeframe System) is already the ordered first ticket.
+- **Severity:** **P0** · **Product:** WM PRO
+- **Action:** No new work. Confirms existing priority order.
+
+---
+
+### VE-004 — Founder believes heatmaps are fixed; source says otherwise
+- **Recording:** REC-01 @ **07:05**
+- **Observed, verbatim:** *"we have all the timeframes on the heatmaps section
+  also and heatmaps is fixed"*
+- **Verification: CONTRADICTED BY SOURCE.** The chart audit found **three
+  mutually incompatible `TIMEFRAMES` literals** (chart `"D"` vs heatmap `"1D"`)
+  and **10 of 19 required intervals missing**. Non-1D heatmap periods still fire
+  ~120 upstream requests, one per symbol.
+- **Severity:** **HIGH — expectation gap.** The founder is treating a P0 as
+  closed. If unaddressed, WM Pro ships believing a broken subsystem is done.
+- **Product:** WM PRO
+- **Action:** Reconcile directly with founder before Friday. Either the fix
+  landed somewhere unmerged, or the belief is mistaken. **Do not silently
+  proceed on either assumption.**
+
+---
+
+### VE-005 — News section cluttered with non-news content
+- **Recording:** REC-01 @ **07:05**
+- **Observed, verbatim:** *"the news section less cluttered with the clc rules
+  and stuff it should be just news in the news sections"*
+- **Verification:** **PARTIALLY VERIFIED.** `src/app/news/page.tsx` exists; CLC
+  logic is present in `SmartMoneyPanel.tsx`, `FabioInsights.tsx`,
+  `PineCommunityLibrary.tsx`, `CustomIndicatorBuilder.tsx`. Whether CLC surfaces
+  render *inside* the news route was not confirmed — requires live UI, and
+  `/charts`-class routes are auth-gated to me.
+- **Severity:** MEDIUM · **Product:** WM PRO
+- **Action:** Needs live-UI confirmation before ticketing.
+
+---
+
+### VE-006 — "Black excellence … since the 1900s" copy to be removed
+- **Recording:** REC-01 @ **07:05**
+- **Observed, verbatim:** *"take off the black exellence since the 1900s"*
+- **Verification: VERIFIED IN SOURCE — exact string located, 2 sites:**
+  - `src/app/tv/page.tsx:104` — *"Podcasts, live conversations & Black excellence on air since the 1900s"*
+  - `src/app/tv/page.tsx:383` — *"… Black excellence on air since the 1900s. Up to 4 on video at once."*
+  Both are in **TV**, not Radio.
+- **Ambiguity requiring founder input:** a *third* site,
+  `src/app/radio/page.tsx:1005`, reads *"A premium home for Black excellence in
+  music and trading culture"* — same phrase, **without** "since the 1900s." The
+  instruction names the dated phrasing specifically. Removing all three is a
+  broader change than was asked. **Not resolved by me.**
+- **Severity:** LOW (copy) · **Product:** WM PRO
+- **Action:** Confirm scope — the two dated TV strings only, or the Radio line too.
+
+---
+
+### VE-007 — Radio and Profile read as too black-dominant
+- **Recording:** REC-01 @ **07:05**
+- **Observed, verbatim:** *"on the wm radio i feel it looks to black dominant
+  and so does the profile"*
+- **Verification:** **UNVERIFIED — visual judgement, requires live render.**
+  This is a color/contrast observation about the surfaces, not about content.
+  `src/app/radio/page.tsx` and the profile route exist.
+- **Severity:** MEDIUM · **Product:** WM PRO → also **SHARED DESIGN REFERENCE**
+- **Action:** Needs a real render. Blocked with VE-012.
+
+---
+
+### VE-008 — Design intent: keep the Black cultural identity, widen the welcome
+- **Recording:** REC-01 @ **07:05**
+- **Observed, verbatim:** *"i want it to feel for more everybody still although
+  i want to point my people out also, but i really love the black cultural feel
+  lets keep that"*
+- **Verification:** N/A — founder design principle, not a defect.
+- **Severity:** N/A — **binding design constraint** · **Product:** **SHARED DESIGN REFERENCE**
+- **Action:** Record in the shared design reference. This governs VE-006 and
+  VE-007: the correction is *tonal balance*, explicitly **not** removal of Black
+  cultural identity. Any implementer acting on VE-006/VE-007 must read this
+  first, or they will over-correct.
+
+---
+
+### VE-009 — Lounge must become a real social surface
+- **Recording:** REC-01 @ **10:35**
+- **Observed, verbatim:** *"people should be able to start really. using the
+  lounge etc likemyspace instagram discord, tiktok apple music etc because this
+  platform is all of that and more in one"*
+- **Verification:** **CORROBORATED — work appears already in flight.**
+  `src/app/lounge/page.tsx` is uncommitted in the working tree with
+  **+192 / −2 lines**. Author unknown to me; not my change.
+- **Severity:** HIGH (scope) · **Product:** WM PRO
+- **Action:** **Custody risk.** 192 uncommitted lines of feature work are sitting
+  in a dirty tree. Identify the owner and commit or stash before any implementer
+  branches. See VE-011.
+
+---
+
+### VE-010 — Release NO-GO on the ops side; NOAH-P0-001 is the only safe ticket
+- **Recording:** REC-01 @ **14:35** (second window, `TEAM DISCUSSIONS ATH/DIRECTION/PROMPT…`)
+- **Observed:** *"Release remains NO-GO."* First safe ticket:
+  **NOAH-P0-001 — Clean release baseline and Passport-change custody.**
+  - VERIFIED IN REPOSITORY: dirty working tree and two lint failures
+  - VERIFIED IN REPOSITORY: local Supabase public configuration names absent
+  - UNVERIFIED: authoritative preview/production URL
+  - UNVERIFIED: applied MVP migrations, RLS, storage policies
+  - UNVERIFIED: approved Passport method (email link, code, or both)
+  - Founder decisions still required: auth method · release URL/environment ·
+    demo/beta vs public · P0 text-import format and size limit
+- **Verification:** **"dirty working tree" INDEPENDENTLY CONFIRMED** — see VE-009
+  and VE-011. The remainder is second-hand from screen and not re-verified here.
+- **Severity:** P0 · **Product:** DREAMBOARD (Passport/Supabase context)
+- **Action:** Consistent with my own finding. NO-GO stands.
+
+---
+
+### VE-011 — Concurrent uncommitted work in both repos
+- **Recording:** N/A — repository state, corroborating VE-009 / VE-010
+- **Observed:** WM Pro: `src/app/lounge/page.tsx` (+192/−2) and
+  `tsconfig.tsbuildinfo` modified and uncommitted. Dreamboard: five untracked
+  paths on `feature/project-memory-health`. During this session a *second agent*
+  committed `ab31e3c docs(ops): establish ATH operations bus + Sentinel
+  verification pass` to WM Pro `main` and further modified
+  `docs/operations/DECISIONS.md`.
+- **Severity:** HIGH · **Product:** SHARED / OPS
+- **Action:** Two writers are live on `main`. Establish custody before Noah or
+  Forge branches. Nobody should branch off a dirty tree.
+
+---
+
+## 3. Routed queues
+
+### DREAMBOARD — priority
+| # | Finding | Severity | Status |
+|---|---|---|---|
+| 1 | **VE-001** False "no source code" blocker — code is at `~/dreamboard` | CRITICAL | Refuted locally |
+| 2 | VE-010 Release NO-GO / NOAH-P0-001 baseline custody | P0 | Partly confirmed |
+| 3 | VE-011 Untracked work on `feature/project-memory-health` | HIGH | Confirmed |
+
+### WM PRO — priority
+| # | Finding | Severity | Status |
+|---|---|---|---|
+| 1 | **VE-004** Heatmap "fixed" belief vs. source contradiction | HIGH | Contradicted |
+| 2 | VE-003 Charts are the release gate (WM-CHART-P0-01) | P0 | Corroborated |
+| 3 | VE-009 Lounge social surface + 192 uncommitted lines | HIGH | Corroborated |
+| 4 | VE-005 News section decluttering | MEDIUM | Partial |
+| 5 | VE-007 Radio / Profile too black-dominant | MEDIUM | Unverified |
+| 6 | VE-006 Remove dated "since the 1900s" copy (tv:104, tv:383) | LOW | Verified |
+
+### WOW WORLD
+No findings. REC-01 shows `SENTINEL - WOW World`, `FORGE - WOW WORLD`,
+`NOAH-WOW WORLD` threads exist, but no WOW World product evidence appears in any
+analyzed frame. **Queue empty — not "clean," unexamined.**
+
+### SHARED DESIGN REFERENCE
+| # | Finding | Note |
+|---|---|---|
+| 1 | **VE-008** Keep Black cultural identity, widen welcome | **Binding.** Governs VE-006 & VE-007 — prevents over-correction. |
+| 2 | VE-002 GitHub connector scope | Ops-wide unblock |
+
+---
+
+## 4. Retention — NO DELETION AUTHORIZED
+
+**Retention requirements are NOT satisfied. No recording may be deleted.**
+
+### Critical: three recordings already lost locally
+
+REC-01 @ **10:35** shows three `.MOV` files attached to the founder's ChatGPT
+message: `10.09.09`, `11.02.59`, and `~1.40.50`. A filesystem-wide search
+(`find /`, maxdepth 8) returns **none of them**. Only `11.47.22` and `8.17.30`
+exist for 2026-07-28.
+
+These are the recordings the founder explicitly asked to be analyzed frame by
+frame — *"analyze frame by frame the videos then lets get to work."* They are
+the **primary product evidence**, and REC-01 (the meta-recording of the ops
+session) is not a substitute for them: REC-01 contains intent, not product
+behavior.
+
+**Consequence:** every product-behavior claim in §2 is currently sourced from a
+founder's written description, not from observed UI. That is why VE-005 and
+VE-007 remain UNVERIFIED and why VE-004 is a *contradiction* I cannot resolve.
+
+**Recovery paths, in order:**
+1. Re-download from the ChatGPT conversation (uploads persist server-side).
+2. Check the recording device — MP4-named captures in `~/Downloads`
+   (`ScreenRecording_06-22-2026 …_1.MP4`) suggest an iOS device is also a source.
+3. Trash / recently-deleted, and any iCloud Desktop sync.
+4. If unrecoverable: re-record the same three flows.
+
+### Standing retention rule
+- 41 Desktop recordings, ~35 GB — **all retained.**
+- ~14 hours of high-value capture in the top 5 files alone is **unreviewed**.
+  Nothing may be deleted while unreviewed material remains.
+- Deletion becomes discussable only when: every recording is inventoried and
+  time-indexed, findings are extracted into durable docs, and each finding is
+  either shipped or ticketed with the evidence preserved in the ticket.
+- **Extracted knowledge outlives the file — but not before it is extracted.**
+
+---
+
+## 5. Verification status ledger
+
+| Status | Findings |
+|---|---|
+| VERIFIED (source/repo) | VE-001 (refuted), VE-006, VE-009, VE-011 |
+| CORROBORATED | VE-003, VE-010 (partial) |
+| CONTRADICTED | **VE-004** |
+| UNVERIFIED — needs live UI | VE-005, VE-007 |
+| UNVERIFIABLE from this machine | VE-002 |
+
+**No fix is claimed by any finding in this report.** Nothing here has been
+implemented, and nothing here should be treated as done.
+
+---
+
+## 6. Founder decisions required
+
+1. **VE-004** — Heatmaps: is the timeframe fix real and unmerged, or is the
+   belief mistaken? Blocks the Friday release picture.
+2. **VE-006** — Copy scope: the two dated TV strings only, or `radio:1005` too?
+3. **MISS-01/02/03** — Recover the three recordings, or authorize re-recording?
+   Product-behavior verification is blocked until then.
+4. **VE-002** — Grant GitHub app access to `spaidsnipes` repos.
+5. **VE-011** — Who owns the 192 uncommitted lounge lines?
