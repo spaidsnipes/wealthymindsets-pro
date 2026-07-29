@@ -416,3 +416,78 @@ Each still requires the full field set before it is claimed. Detail lives in
 | DB-OPS-P1-01 | P1 | — | BACKLOG — **next action REVERSED 2026-07-28** | **Dreamboard**: 164 lines of untracked WIP on `feature/project-memory-health` | Different product/repo | ~~Commit and push~~ → **DO NOT PUSH.** VERIFIED superseded by `8e71195` on `origin/main`; both migrations create the same table + policy. Line-level diff, then Founder confirms discard. See RISK-008 amendment |
 | DB-OPS-P1-02 | P1 | — | BACKLOG | **Dreamboard**: 17 commits on `origin/main` (`ba91915`…`2049bdd`) are unverified by anyone — no build/type/test evidence, no verification lane, no owner | Sentinel is scoped to WM Pro (BLOCK-R2) | Sentinel or Founder: assign Dreamboard a verification owner, or formally mark it out of scope until 2026-07-31 |
 | RL-RESEARCH-P1-01 | P1 | Research Lab | **BLOCKED — awaiting DEC-010** | Re-verify the 19 findings in `world-class-study.md` against Dreamboard `origin/main` `2049bdd`; drop any already fixed by the 17 unreviewed commits | Study was written against the stale tree `ba91915`; scope depends on DEC-010 | Founder answers DEC-010, then Research Lab produces a one-page delta. Repository evidence only, no runtime claims, **no RL ticket enters a P0 lane** |
+
+---
+
+## WM-RESP-P0-01 — Touch parity for the charting surface
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-RESP-P0-01 |
+| **Product** | WM Pro |
+| **Priority** | **P0 — the primary trading surface is inert on the primary trading device** |
+| **Owner** | — (Forge or Noah, after WM-CHART-P0-03) |
+| **Status** | READY |
+| **Objective** | Every chart interaction works by touch on iPhone and iPad, not only by mouse. |
+| **Evidence source** | `docs/operations/WOW_RESPONSIVE_STANDARD.md` §5 — **measured 2026-07-28**: `src/components/chart/` contains **13 mouse handlers and 0 touch/pointer handlers**. |
+| **Root cause** | The overlay layer (drawing tools, crosshair, measure, alert placement) is built on `onMouseDown`/`onMouseMove`/`onMouseUp`. **Touch never fires mouse-drag events.** `lightweight-charts` supplies its own touch pan/zoom so the canvas survives, which is why this was not noticed — the chart *moves*, so it looks alive while every WM Pro tool on top of it is dead. |
+| **Files / subsystems** | `src/components/chart/MainChart.tsx` (13 handlers); every drawing-tool overlay component |
+| **Acceptance criteria** | 1. Mouse handlers migrated to **Pointer Events** (`onPointerDown/Move/Up`) — one path covering mouse, touch and stylus. 2. `touch-action` set so the browser does not steal the drag. 3. Every drawing tool placeable by touch. 4. Crosshair/measure/alert usable by touch. 5. Desktop mouse behaviour unchanged — **regression-tested, not assumed**. |
+| **Verification requirements** | **Screenshot proof required at 390×844 and 834×1194** showing a trendline actually drawn by touch. Code evidence alone does not close this ticket. Desktop regression pass at 1280×800. |
+| **Blockers** | Needs an authenticated `/charts` session to verify (RISK-001). **Implementation is not blocked; only proof is.** |
+| **Next action** | Claim after WM-CHART-P0-03. Coordinate with WM-CHART-P0-02 — both touch `MainChart.tsx`. |
+
+---
+
+## WM-RESP-P0-02 — Restore pinch-zoom; fix login tap targets
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-RESP-P0-02 |
+| **Product** | WM Pro |
+| **Priority** | **P0 — accessibility failure + first-screen defects. Small, unblocked, no auth needed.** |
+| **Owner** | — |
+| **Status** | **READY — best available quick win, fully verifiable today** |
+| **Objective** | Stop blocking zoom, and bring the login screen's tap targets to 44px. |
+| **Evidence source** | `WOW_RESPONSIVE_STANDARD.md` §5 — measured at 390×844 on `localhost:3000`. |
+| **Confirmed defects** | 1. Viewport meta carries `maximum-scale=1, user-scalable=no` → **pinch-zoom blocked. Fails WCAG 2.1 AA SC 1.4.4.** iOS ignores it; **Android Chrome honours it**, so Android traders cannot zoom in on a price. 2. Password reveal button **14×14 px**. 3. "Forgot password?" **93×17 px** — the account-recovery entry point. 4. Sign In / Create Account tabs **164×40 px**. **4 of 7 interactive elements on the first mobile screen are under minimum.** |
+| **Files / subsystems** | Root layout viewport meta (`src/app/layout.tsx`); `src/app/login/page.tsx` |
+| **Acceptance criteria** | 1. `maximum-scale` and `user-scalable=no` **removed**; `viewport-fit=cover` retained. 2. Pinch-zoom works on a real touch device/emulator. 3. Every interactive element on `/login` has a hit area ≥44×44 (padding may exceed visual size — no restyle needed). 4. No horizontal overflow at 360, 390, 834. |
+| **Verification requirements** | Re-run the §4 audit snippet at 360×800, 390×844, 834×1194 — `smallTargets` must be **empty**. **Screenshots at all three.** |
+| **Blockers** | **None. `/login` is public — this is fully verifiable without a session, unlike almost every other WM Pro ticket.** |
+| **Next action** | **Claim now.** Highest value-per-effort ticket currently open, and the only P0 that can be closed today with complete visual proof. |
+
+---
+
+## WM-RESP-P1-01 — Responsive layout for charts and heatmaps
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-RESP-P1-01 |
+| **Product** | WM Pro |
+| **Priority** | P1 (P0 once RISK-001 clears and the true state is observable) |
+| **Owner** | — |
+| **Status** | BACKLOG |
+| **Objective** | Make the chart and heatmap surfaces usable at phone and iPad widths. |
+| **Evidence source** | `WOW_RESPONSIVE_STANDARD.md` §5 — `ChartToolbar.tsx`, `charts/page.tsx`, `MainChart.tsx`, `heatmaps/page.tsx` each contain **0** `sm:`/`md:`/`lg:` breakpoints. |
+| **Confirmed defects** | Toolbar buttons `h-6` (**24px**, ×9) and `h-5` (**20px**, ×5) in a `height: 36` bar — ~half the 44px minimum. Bar is `overflow-x-auto` with `scrollbarWidth: "none"` → **overflowing timeframes are invisible and undiscoverable**. No breakpoint adapts any of it. |
+| **Acceptance criteria** | 1. Toolbar controls ≥44px hit area at phone widths. 2. Overflow scroll has a visible affordance (fade/arrow/cue). 3. No horizontal page overflow at 360/390/834. 4. Heatmap grid legible at phone width. 5. Safe-area insets honoured under `viewport-fit=cover`. |
+| **Verification requirements** | Screenshots at 360×800, 390×844, 834×1194, 1194×834 (**rotation counts as a state**), 1280×800. |
+| **Blockers** | RISK-001 for visual proof. |
+| **Next action** | Hold behind WM-RESP-P0-01. |
+
+---
+
+## WM-RESP-P2-01 — Tesla and watch-class surfaces
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-RESP-P2-01 |
+| **Product** | WM Pro (pattern to be reused across ATH products) |
+| **Priority** | P2 — Founder-stated target, no device available |
+| **Owner** | — |
+| **Status** | **DEFERRED — needs hardware, not effort** |
+| **Objective** | Establish whether Tesla browser (~1200×1920 portrait, touch, imprecise input) and watch-class (<250px) are real targets, and what "supported" means for each. |
+| **Blockers** | **No device or verified emulator.** Building for an unmeasured viewport is guessing — the same failure class as WM-WYCK-P0-01 and RISK-011. |
+| **Acceptance criteria** | Before any code: a real device or verified emulator produces a screenshot. **No claim of Tesla or watch support may be made until then.** |
+| **Next action** | Founder: confirm these are genuine targets and supply a device/emulator path. Until then WM-RESP-P0-01 (touch parity) and P0-02 (zoom + targets) are the shared prerequisite for both, and are worth doing regardless. |
