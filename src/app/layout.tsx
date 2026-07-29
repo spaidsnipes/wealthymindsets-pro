@@ -43,8 +43,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width:               "device-width",
   initialScale:        1,
-  maximumScale:        1,
-  userScalable:        false,
+  // WM-RESP-P0-02: maximumScale/userScalable removed — blocking pinch-zoom
+  // fails WCAG 2.1 AA SC 1.4.4, and Android Chrome (unlike iOS) actually
+  // honours it, so Android traders could not zoom in on a price.
   themeColor:          [
     { media: "(prefers-color-scheme: dark)",  color: "#070A0F" },
     { media: "(prefers-color-scheme: light)", color: "#070A0F" },

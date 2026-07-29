@@ -250,7 +250,7 @@ function LoginPage() {
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
               {(["login", "signup"] as const).map(m => (
                 <button key={m} onClick={() => setMode(m)}
-                  className="flex-1 py-2.5 rounded-lg text-[13px] font-bold transition-all"
+                  className="flex-1 py-3 rounded-lg text-[13px] font-bold transition-all"
                   style={mode === m
                     ? { background: "linear-gradient(135deg, #00D4AA, #00A896)", color: "#000" }
                     : { color: "#5A6575" }}>
@@ -312,7 +312,7 @@ function LoginPage() {
                       <label className="block text-[11px] font-semibold text-[#8B95A5] uppercase tracking-wider">Password</label>
                       {mode === "login" && (
                         <button type="button" onClick={() => setMode("forgot")}
-                          className="text-[11px] text-[#5A6575] hover:text-wm-green transition-colors">
+                          className="py-3.5 text-[11px] text-[#5A6575] hover:text-wm-green transition-colors">
                           Forgot password?
                         </button>
                       )}
@@ -329,7 +329,8 @@ function LoginPage() {
                         onBlur={e  => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)")}
                       />
                       <button type="button" onClick={() => setShowPw(s => !s)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5A6575] hover:text-[#8B95A5] transition-colors">
+                        aria-label={showPw ? "Hide password" : "Show password"}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 p-4 text-[#5A6575] hover:text-[#8B95A5] transition-colors">
                         {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
                       </button>
                     </div>
