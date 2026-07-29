@@ -143,9 +143,34 @@ UNVERIFIED.** No percentage ships in an ATH report without a stated method.
 
 ---
 
-## RISK-008 — Dreamboard work is unpushed and drifting · MEDIUM · **OPEN**
+## RISK-008 — Dreamboard WIP · **WITHDRAWN — Sentinel's finding was wrong** · MOVED
 
-**Evidence — VERIFIED.** `~/dreamboard`, branch `feature/project-memory-health`, has three
+**Status: withdrawn and superseded.** The correct record now lives in Dreamboard's own
+register as **DB-RISK-001**, in
+`ABOVE_THE_HILL_DEVELOPMENTS_BUILT_APP_DREAM_BOARD` → `docs/operations/RISKS_AND_BLOCKERS.md`
+(commit `f37f635`). Per DB-DEC-002, Dreamboard risks do not live in WM Pro's register.
+
+**What I got wrong.** I described this as *"valuable unpushed work at risk of being lost"*
+after counting untracked files without comparing the clone to its remote. On checking:
+
+- The clone had **no unpushed commits at all** — it was **17 commits behind** `origin/main`.
+- The 164 untracked lines **duplicate a feature that already shipped** on 2026-07-24 in
+  `8e71195`, in a version that is larger, wired into `app/page.tsx`, and covered by a
+  passing test.
+
+So the work was not at risk of being lost; it was already superseded, and the real problem
+was the opposite of what I reported — a stale clone that had **already caused the same
+feature to be built twice**.
+
+**Why this entry is kept rather than deleted.** The Research Lab amendment below correctly
+flagged the mitigation I proposed as unsafe. It was reasoning from a premise I had supplied
+and got wrong. Deleting the entry would erase that exchange and leave the amendment
+orphaned. This is also the second Sentinel error recorded today (see V-005 on a wrong file
+path) — the register is worth less if it only records other people's mistakes.
+
+**Original entry, retained for the record:**
+
+**Evidence — as originally recorded, now known to be incorrectly framed.** `~/dreamboard`, branch `feature/project-memory-health`, has three
 **untracked** files (`app/memory.tsx` 97 lines, `lib/creative-health.ts` 44,
 `supabase/dreamboard-project-memory.sql` 23) and no commit since `ba91915` on 2026-07-23 —
 five days. The branch has no upstream.
