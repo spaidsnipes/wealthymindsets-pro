@@ -486,3 +486,228 @@ recordings before any further "evidence unavailable" conclusion is drawn.
 **Still no deletion authorized.** REC-03 is now demonstrated to contain the only
 observed capture of an auth-gated production surface. Any deletion policy
 applied before content identification would have risked destroying exactly this.
+
+---
+
+# Appendix B — Mission Control follow-up (transcripts, competitors, mobile)
+
+Added in response to Mission Control's cross-session brief. This appendix records
+what was actually verifiable versus what is blocked, deliberately, so nothing
+here reads as done when it is not.
+
+## B.1 Chrome tab inventory (SAW — one snapshot before Chrome quit)
+
+At tab-list time the following were open:
+- `wealthymindsets-pro.vercel.app/charts` — WM Pro (auth-gated, still unread live)
+- `grok.com/c/…` "**My Daily power Routine 2026 — Grok**" — this is a **Grok
+  chat conversation, not a video**. Mission Control's guess that "My Daily
+  power…" was a video is **incorrect** — do not chase this as a transcript
+  target.
+- `tradingview.com/chart/OaWoIkYP/?symbol=NASDAQ:TSLA` (TSLA 302.10)
+- `my.tastytrade.com/app.html#/trading/chart` — signed in (read-only per policy)
+- `app.webull.com/trade` — signed in (read-only per policy)
+- `deepcharts.com/features/deepchart`
+- **`youtube.com/watch?v=Pz8f0wWW12M&t=292s`** — *"The Only Orderflow Guide
+  You'll Ever Need"*, founder parked at **04:52**
+- `github.com/dashboard`, `supabase.com/dashboard/…`, Google Docs
+  "WM Pro — Founder Requirement Index and Evidence Map"
+
+**Evidence class:** SAW (Chrome tab list, one moment in time).
+
+---
+
+## B.2 Transcripts — status BLOCKED with a workable next step
+
+### VE-017 — YouTube auto-caption fetch requires an authenticated browser session
+- **Target:** `Pz8f0wWW12M` — the only video URL identified so far.
+- **Observed (SAW):** the video's page HTML contains a `captionTracks` block
+  advertising an **auto-generated English track** (`kind=asr`, `variant=gemini`).
+  The `baseUrl` for that track carries a signed `signature=…` parameter that
+  is bound to the browser session that fetched the page.
+- **Attempted, both failed:**
+  - `curl --tlsv1.2` to the signed `timedtext` URL → **empty body** (signature
+    rejects unauthenticated hosts).
+  - Stripped-parameter `timedtext?…&fmt=srv3` via WebFetch → **empty body**.
+- **Verification: CANNOT FETCH FROM THIS ENVIRONMENT.** I will not paraphrase
+  from memory of the audio — that would be fabricating a transcript.
+- **What actually works — three viable paths, founder's choice:**
+  1. **Founder opens the video and uses YouTube's own "Show transcript"
+     control** (`…` menu under the video), then paste the panel text here. That
+     is the authoritative source and it takes ~30 seconds.
+  2. **Founder runs `yt-dlp --write-auto-subs --skip-download Pz8f0wWW12M`** —
+     writes an SRT to disk that I can then commit as-is with timestamps.
+  3. Chrome relaunches with the founder's cookies and I fetch the signed URL
+     from the running browser session (`get_page_content` on the timedtext
+     endpoint).
+- **Severity:** blocking · **Product:** SHARED / RESEARCH
+- **Note:** the founder is parked at **04:52 (t=292s)**. Whatever is being
+  taught around that mark is the specific interest, not the whole 30–60 min.
+
+### VE-018 — "My Daily power Routine 2026" is a Grok chat, not a video
+- **Observed (SAW):** the URL is `grok.com/c/<uuid>?rid=<uuid>` — that's the
+  chat-conversation surface, not any video player.
+- **Verification: VERIFIED (URL scheme).** No transcript to extract; the whole
+  thread would need to be retrieved as chat, and Grok's chats are not
+  publicly fetchable.
+- **Action:** Founder confirms whether this is the *routine document* he wants
+  captured. If yes, he pastes it or exports it — WebFetch cannot reach
+  Grok chat history.
+
+### VE-019 — Videos-clicked-in-recordings, corpus-side status
+- **Observed (SAW):** I have visually identified **zero** video-player frames
+  in the recordings I have analyzed to date (REC-01 = ChatGPT ops; REC-03 =
+  authenticated WM Pro charts + TradingView; two Downloads phone recordings =
+  brokerage app UI).
+- **38 recordings remain uninventoried by content.** A video click captured in
+  any of them is not yet observed and cannot be transcribed until the
+  container recording is identified.
+- **Severity:** blocking — Mission Control's "videos he was clicking on" claim
+  cannot be honored against evidence I have not yet seen.
+- **Action:** Complete the identification pass over remaining recordings, OR
+  founder names the source video (URL / YouTube ID) directly.
+
+---
+
+## B.3 Mobile / phone evidence — one finding, one hard boundary
+
+### VE-020 — TWO phone recordings exist; both are BROKERAGE MOBILE APP, not WM Pro
+- **Files:**
+  - `~/Downloads/ScreenRecording_06-22-2026 09-30-06_1.MP4` — 16m37s, 1170×2532
+    (iPhone), 34 fps
+  - `~/Downloads/ScreenRecording_06-22-2026 09-47-45_1.MP4` — 8m03s, 1170×2532,
+    46 fps
+- **Observed (SAW at ~02:20 of the first):** a **live brokerage order ticket
+  screen** — Buy/Sell selector, MARKET/LIMIT order types, contracts field,
+  Time-in-Force, and a Sell submit button. Account identifier and open
+  position visible in the recording.
+- **Answer to Mission Control Q1: The primary trading surface (WM Pro) has
+  NEVER been recorded on a phone or iPad in the material available to me.**
+  The two mobile recordings that exist are a broker's mobile app.
+- **Severity:** **BINDING** — the WOW responsive standard demands mobile
+  verification, and there is no mobile WM Pro capture to verify against.
+- **Product:** WM PRO (absence of evidence, not evidence of absence)
+- **Verification:** VERIFIED (frame decoded and viewed once).
+- **Retention & safety:** the account identifier and position seen in these
+  frames **will not be transcribed into any evidence file**. This appendix
+  intentionally records only the *category* of what was on screen.
+  No cropped frames from these recordings are being committed.
+- **Action for founder:**
+  1. Record a **phone** capture of `wealthymindsets-pro.vercel.app/charts`
+     across 360×800 and 390×844.
+  2. Record an **iPad** capture at 834×1194 portrait, then **rotate mid-clip
+     to 1194×834** (the standard counts rotation as a separate state).
+  3. Save to `~/Desktop` so the extractor can pick them up (avoid Photos —
+     see B.5).
+
+### Touch-parity defect predicted by source (WM-RESP-P0-01)
+Mission Control's claim — `src/components/chart/` has 13 mouse handlers and 0
+touch/pointer handlers, and `lightweight-charts` supplies its own touch pan/zoom
+so canvas gestures work while overlay tools (draw, crosshair, measure) do not —
+was NOT re-verified in this appendix because the earlier finding is source-side
+and Mission Control has already confirmed it. Video confirmation requires a
+phone capture that does not exist yet (see above). Signature to look for once
+one arrives: **chart pans and zooms fine, drawing tool is selected, nothing
+gets drawn on tap.**
+
+---
+
+## B.4 Competitor study — status HONEST rather than complete
+
+Chrome is not currently running. Mission Control's brief spelled out the exact
+constraint: Chrome / Webull / moomoo are granted at **READ tier only**; I can
+see but not click. The founder must drive interactions himself. Even that
+requires Chrome to be up.
+
+### What was fetched anyway
+- **`deepcharts.com/features/deepchart`** — WebFetch, page-copy only. **No
+  actionable design detail on the marketing page.** Direct quotes:
+  - Big Trades description: *"Just like your good old candles, but on
+    Ster\*ids"* — no mention of collision handling, offsetting, fading, density
+    caps, or label rules at dense areas.
+  - Timeframes: *"Daily, Weekly, Monthly… you name it, we got it"* — no
+    enumeration; used in a VWAP context.
+  - Mobile/tablet: **not stated on this page.**
+  - Axes: **not stated on this page.**
+  - **Evidence class:** SAW (fetched page content).
+
+### What is NOT delivered and why
+- No pan/zoom stress test on any competitor — requires clicks I cannot make.
+- No timeframe-switch enumeration on any competitor — same reason.
+- No indicator-stacking / pane-reflow observation — same reason.
+- No axis autoscale / log-vs-linear behavior — same reason.
+- No dense-right-edge big-print screenshot for tastytrade, Webull, moomoo,
+  Deepcharts, or Bookmap — same reason, and **tastytrade/Webull/moomoo need
+  the founder's active session anyway per the read-only policy**.
+- No Bookmap frames — Bookmap is a native desktop app; requires the founder
+  to run it and export or record.
+
+### What Mission Control should ask the founder to do (specific and short)
+For each competitor tab, one clip per: (a) drawing tool → tap → try to place
+on candles; (b) full timeframe cycle 1m → 5m → 15m → 1h → D → W → M; (c) hard
+zoom in to a single candle and hard zoom out to All; (d) scroll to current
+price with heavy activity and capture the right-edge crowd. Two minutes per
+competitor is enough. Save to `~/Desktop`.
+
+**Do not proceed with competitor comparison until these clips exist.** Reading
+marketing copy is not a comparative study.
+
+---
+
+## B.5 Missing recordings + Photos library
+
+- **MISS-01/02/03** (from §4) — still not on disk anywhere reachable by the
+  filesystem sweep in the initial report.
+- `~/Pictures/Photos Library.photoslibrary` **exists**, but its internal
+  container (SQLite + resources) is not decodable from bash and *cannot be
+  confirmed to hold these recordings without opening the Photos app*.
+- **I have not opened Photos this session.** I therefore **cannot claim these
+  recordings are or are not in Photos.**
+- **Founder action requested:**
+  1. Open Photos → search *"screen recording"* → filter to `2026-07-28`.
+  2. If the three named recordings are present, **File → Export → Export
+     Unmodified Original** to `~/Desktop`. Photos re-encodes on Share/Export
+     by default; only *Export Unmodified* preserves the source bytes and
+     timing.
+  3. Confirm in one line and I'll pick them up.
+
+---
+
+## B.6 Priority defect cross-check — findings so far
+
+Mission Control asked me to cross-check four confirmed defects in the footage.
+Answers, each with an explicit evidence class:
+
+1. **Big Trades bubbles colliding at current price on 30m TSLA** —
+   **NOT YET OBSERVED in available footage.** REC-03 was on 15m the whole
+   time inspected. The "WM DELTA BUBBLES" panel is visible at REC-03 @ 01:00
+   but it is a **side panel**, not the on-chart Big Trades overlay whose
+   collision Mission Control is describing. **INFERRED, not SAW.** Needs
+   a 30m TSLA capture.
+2. **Chart trigger reading plain-text "Smart Money" with no W branding** —
+   **PARTIALLY SAW.** REC-03 @ 01:00 shows a right-panel header
+   `Smart Money Tools` with a small circular W-style icon on the left of the
+   panel; whether the *chart trigger* (a different UI element) is unbranded
+   was not visible in that frame. **Inconclusive.**
+3. **Confluence Score moving 56 → 60 while inputs unchanged** —
+   **NOT OBSERVED across two frames.** REC-03 @ 01:00 shows
+   `Confluence Score 83 · NEUTRAL`. A single reading cannot prove drift; needs
+   before/after with time-adjacent frames.
+4. **Timeframe label vs. returned bar-size mismatch** — **NOT YET OBSERVED.**
+   The chart at REC-03 was on `15m` and the candles looked 15-minute-ish, but
+   confirming that a `15m` label actually returns 15-minute candles requires
+   reading candle timestamps at the axis, which requires either another crop
+   pass or (more reliably) a founder-driven live check. **Not confirmed.**
+
+**Nothing above is being claimed as a video-confirmed defect.** The rule
+holds: no fix from video alone, and no defect either.
+
+---
+
+## B.7 Retention — reconfirmed
+
+- 41 Desktop + 2 phone + several Downloads video recordings, still all retained.
+- **3 of 43 identified by content, 40 uninventoried.**
+- No deletion authorized on any asset.
+- One asset newly *marked sensitive*: the two brokerage-app phone recordings.
+  They must never be attached to a public artifact and no cropped frames from
+  them will be committed to the repo.
