@@ -312,3 +312,35 @@ while RISK-001 is open.
 
 **Mitigation.** Founder confirms the reduced Friday scope now, rather than discovering it
 on Friday.
+
+---
+
+## RISK-011 — Silent provider interval substitution · **HIGH** · **OPEN**
+
+**Confirmed in source by Sentinel, 2026-07-28.** WM Pro serves bars at a different
+granularity than the user requested, with no indication.
+
+`/api/finnhub/route.ts:39` maps `"2m" → "1"` and `MainChart.tsx:216` maps `"2m" → "5"`.
+`2m` is one of the nine timeframes shipped today. The fallback chain runs `/api/finnhub`
+**ahead of Yahoo**, so whenever Alpaca declines, a `2m` click is answered with 1-minute
+bars. The same click can produce 1-, 2-, or 5-minute candles depending on which provider
+responds first.
+
+`getIntervalSec()` (`MainChart.tsx:110`) compounds it: `return m[tf] ?? 60` silently
+treats any unrecognised timeframe as 1 minute. **A module that decides what the user is
+looking at should never fail open.**
+
+**Why this is the Wyckoff lesson repeating.** `WM-WYCK-P0-01` was closed because the UI
+asserted an analysis the data did not support. This is the same failure at the data layer,
+and it is harder to catch: the Wyckoff schematic was static and obvious once seen, whereas
+a 1-minute series labelled `2m` looks entirely plausible. **The truthfulness pass removed
+fabricated *display*; it did not audit fabricated *granularity*.**
+
+**Mitigation.** `WM-CHART-P0-03` — fail-closed provider mappings, `assertGranularity()`
+wired into every candle path (it currently has zero importers), `getIntervalSec` fail-closed.
+Assigned to Noah, unblocked, independent of RISK-001.
+
+**Systemic note for Atlas.** The canonical module landed in `d2ea511` with correct guards
+that **nothing calls**. Shipping a guard is not the same as enforcing it. Any future
+"canonical module" ticket should carry an acceptance criterion that the guard has real
+importers, not merely that it exists and is unit-tested.

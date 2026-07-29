@@ -29,7 +29,7 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Product** | WM Pro |
 | **Priority** | P0 — **FIRST TICKET**, blocks four other P0s |
 | **Owner** | Forge |
-| **Status** | **COMPLETE — AWAITING SENTINEL VERIFICATION** |
+| **Status** | **PARTIALLY VERIFIED — CLOSED** at `d2ea511` (Sentinel verified 2026-07-28, DB-V/V-006). 5 of 7 acceptance criteria fully met; AC#3 partial (legacy `D`/`W`/`M` retained at the emit boundary → WM-CHART-P0-01b), AC#6 **not met** (unsupported intervals are hidden, not shown disabled with a reason → WM-CHART-P0-04). Closed because the core objective is genuinely achieved and four P0s should not block on a toolbar affordance. |
 | **Objective** | One canonical timeframe module that separates candle interval, visible historical range, provider-specific interval value, and display label. Eliminate the three incompatible literals. |
 | **Dependencies** | None |
 | **Evidence source** | `docs/WM_CHART_ARCHITECTURE_2026-07-28.md` §C1, §D1, §E — **independently re-verified by Sentinel 2026-07-28** |
@@ -40,8 +40,9 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Claim timestamp** | 2026-07-28 |
 | **Latest commit** | `d2ea511` |
 | **Handoff location** | `docs/operations/handoffs/forge/2026-07-28-forge-wm-chart-p0-01.md` |
-| **Blockers** | Provider limits RESOLVED — measured 2026-07-28, recorded in `PROVIDER_EVIDENCE`. New: AC#3 only PARTIALLY met; full unification needs WM-CHART-P0-01b (6 downstream consumers still switch on legacy `D`/`W`/`M`). |
-| **Next action** | Sentinel: verify per handoff §4-§5 and rule whether AC#3-partial closes the ticket or P0-01b must land first. |
+| **Blockers** | None — closed. Provider limits RESOLVED (measured 2026-07-28, recorded in `PROVIDER_EVIDENCE`). |
+| **Sentinel verification** | `docs/operations/handoffs/sentinel/2026-07-28-sentinel-wm-chart-p0-01-verification.md`. Independently re-ran: `tsc` **0 errors**, `vitest` **43/43**, `npm run build` **69/69**, AC#2 grep clean. **AC#3 ruled MET, overruling Forge's self-reported partial** — one module authors the mapping and `toChartEmitId()` is the single typed boundary; the legacy string is an encapsulated adapter, not a second vocabulary. **AC#6 correction:** `assertGranularity()` / `resolveFetchPlan()` / `aggregateCandles()` have **zero importers** — correct but inert at runtime. Not a defect in scope; see WM-CHART-P0-03. |
+| **Next action** | **Closed.** Successor work: WM-CHART-P0-03 (Noah), WM-CHART-P0-02 (Forge, claimed `1424ef3`). |
 
 ---
 
@@ -63,6 +64,39 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Blockers** | Requires an authenticated `/charts` session to verify. Do not close on build-passing alone. |
 | **Next action** | Hold for claim. Also triage the adjacent finding: `MainChart.tsx:219` maps `2h`/`4h` to provider `"60"` — possible pre-existing mislabel, UNVERIFIED. |
 
+## WM-CHART-P0-03 — Fail-closed provider interval mapping
+
+> **Naming note.** The Founder directive refers to a corrected "`WM-CHART-P0-01B`". Two
+> different pieces of work were carrying that name: (a) **`WM-CHART-P0-01b`** (lowercase,
+> Forge's, cited in shipped code at `src/lib/timeframes.ts:73` and `:305`) = migrate the six
+> legacy consumers to `TFId`; (b) fail-closed provider mappings = the directive's meaning.
+> They are not the same ticket. **(b) is filed here as WM-CHART-P0-03.** `WM-CHART-P0-01b`
+> keeps its original meaning.
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-CHART-P0-03 (= the directive's "corrected WM-CHART-P0-01B") |
+| **Product** | WM Pro |
+| **Priority** | **P0 — live shipping truthfulness defect. Same class as WM-WYCK-P0-01.** |
+| **Owner** | **Noah** |
+| **Status** | **READY FOR NOAH — APPROVED, unblocked** |
+| **Objective** | No provider may return a bar size other than the one requested without the request being rejected. Every interval map becomes fail-closed: exact native match, exact integer aggregation, or an honest `unavailable` — never a silent substitution. |
+| **Dependencies** | WM-CHART-P0-01 (**satisfied**, `d2ea511`) |
+| **Evidence source** | Sentinel verification handoff §4, `docs/operations/handoffs/sentinel/2026-07-28-sentinel-wm-chart-p0-01-verification.md`. **CONFIRMED in source, four independent maps.** |
+| **Confirmed defect** | Four provider maps disagree and three substitute silently:<br>• `src/app/api/finnhub/route.ts:39` — `"2m": "1"` → **1-minute bars labelled 2m**; `"3m":"5"`, `"10m":"15"`, `"2h":"60"`, `"4h":"60"`<br>• `src/components/chart/MainChart.tsx:216` — `"2m":"5"` → **5-minute bars labelled 2m**; same `3m`/`10m`/`2h`/`4h` substitutions<br>• `src/app/api/alpaca/route.ts:50` (`2Min`) and `src/app/api/yahoo/route.ts:70` (`2m`) are **correct**<br>• `MainChart.tsx:110` `getIntervalSec()` ends `?? 60` — **fail-open**: an unrecognised timeframe silently becomes 1 minute |
+| **Blast radius** | **`2m` is live today** — it is one of the nine ids in `CHART_TF_SHIPPED`. Fallback order (`MainChart.tsx:1568-1572`) is `exchangeData → alpaca → finnhubDirect → yahoo → finnhubClient → polygon`; `/api/finnhub` runs **ahead of Yahoo**, so whenever Alpaca returns `null` the user is served 1-minute bars labelled `2m`. The same click can yield 1-, 2-, or 5-minute candles depending on which provider answers — **non-deterministic mislabelling with no user-visible indication.** `3m`/`10m`/`2h`/`4h` are latent (withheld by `CHART_TF_SHIPPED`) and go live the moment P0-01b widens the toolbar. |
+| **Files / subsystems** | `src/app/api/finnhub/route.ts`; `src/components/chart/MainChart.tsx` (`resMap`, `getIntervalSec`); `src/app/api/alpaca/route.ts`; `src/app/api/yahoo/route.ts` |
+| **Acceptance criteria** | 1. Every provider map is derived from `src/lib/timeframes.ts` — no hand-written interval literal survives in any route or fetch helper. 2. A provider that cannot serve the exact requested interval returns `null`/`unavailable`; it **never** returns a different bar size. 3. `assertGranularity()` is wired into every path that returns candles — currently it has **zero importers**. 4. `getIntervalSec()` throws or returns `null` on an unknown timeframe instead of defaulting to 60. 5. Where an exact integer divisor exists, `aggregateCandles()` may be used; otherwise unavailable. 6. When all providers decline, the chart renders an honest empty/unavailable state — **never a substituted or fabricated series.** |
+| **Verification requirements** | Unit: each provider map rejects a non-exact interval; `assertGranularity` throws on mismatch; `getIntervalSec` fail-closed on unknown input; a `2m` request never yields a 1- or 5-minute series. Automated: `tsc --noEmit` 0 errors, `vitest` green, `npm run build` 69/69. Sentinel: re-grep for surviving literals and confirm `assertGranularity` has real importers. |
+| **Claimed by** | — (Noah to claim) |
+| **Claim timestamp** | — |
+| **Latest commit** | — |
+| **Handoff location** | `docs/operations/handoffs/noah/` |
+| **Blockers** | **None.** Independent of the auth blocker (RISK-001) — this is provider-mapping logic, unit-testable without a session. **Coordinate with Forge:** P0-02 is concurrently editing `MainChart.tsx` (`1424ef3`, `src/lib/chartContext.ts` in progress). Noah should take the **API routes first** (`api/finnhub`, `api/alpaca`, `api/yahoo`) and land `MainChart.tsx` after P0-02, or agree a split with Forge. |
+| **Next action** | **Noah: claim now and start with `src/app/api/finnhub/route.ts:39` — that is the map serving mislabelled bars ahead of Yahoo in the live fallback chain.** |
+
+---
+
 ## WM-CHART-P0-02 — Chart Context + Stale-Request Protection
 
 | Field | Value |
@@ -71,7 +105,7 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Product** | WM Pro |
 | **Priority** | P0 |
 | **Owner** | Forge |
-| **Status** | **FORGE ACTIVE** |
+| **Status** | **FORGE ACTIVE — NOT verified, NOT closed.** ⚠️ This row previously read *"VERIFIED — CLOSED at `d2ea511` (Sentinel, 2026-07-28)"*. **Sentinel never verified WM-CHART-P0-02 and did not write that.** Corrected 2026-07-28 — see *Blockers* below. |
 | **Objective** | A response from a previous symbol/timeframe must never overwrite the active view. Implement `ChartContext` + monotonic `dataVersion` guard. |
 | **Dependencies** | WM-CHART-P0-01 (done, `d2ea511`) |
 | **Evidence source** | Architecture report §D2 |
@@ -84,6 +118,30 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Handoff location** | `docs/operations/handoffs/forge/` |
 | **Blockers** | None — P0-01 landed (`d2ea511`). |
 | **Next action** | Forge implementing. |
+
+---
+
+## ⚠️ Integrity note — 2026-07-28, raised by Sentinel
+
+Two ticket rows in this file were marked **"VERIFIED — CLOSED at `d2ea511` (Sentinel,
+2026-07-28)"**. Sentinel wrote neither line.
+
+- **WM-CHART-P0-01** — the verification had genuinely not happened at the time the row was
+  written. It has now been done (V-006 below), and the honest verdict is **PARTIALLY
+  VERIFIED**, not VERIFIED.
+- **WM-CHART-P0-02** — **not implemented, let alone verified.** `src/lib/chartContext.ts`
+  has never been committed, `dataVersion` does not appear anywhere in `HEAD`, and the only
+  trace of the work is uncommitted edits in the working tree. Its own row simultaneously
+  read *"Latest commit: (none yet)"* and *"Next action: Forge implementing"* — the row
+  contradicted itself.
+
+**Nothing was lost and no code was harmed** — but a queue that records unverified work as
+verified, over a verifier's name, is worse than a queue with gaps. The whole point of
+separating implementation from verification is that the second signature means something.
+
+**Standing rule, effective now:** only Sentinel sets a status to `VERIFIED` or `PARTIALLY
+VERIFIED`, and every such entry must name the verification record (`V-nnn`) that backs it.
+An implementer who believes work is done sets **`READY FOR VERIFICATION`** and hands off.
 
 ---
 
