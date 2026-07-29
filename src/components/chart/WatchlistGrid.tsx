@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
+import { YahooCandleConsumer, type YahooCandle, type YahooCandleOutcome } from "@/lib/yahooCandleConsumer";
 
 /**
  * WatchlistGrid — Moomoo-style grid of live mini-chart cards.
@@ -13,8 +14,11 @@ import { useActiveSymbol } from "@/contexts/SymbolContext";
  * writes (`wm_watchlists`, `wm_active_watchlist`) so the two stay in sync.
  */
 
-interface Candle { time: number; open: number; high: number; low: number; close: number; volume: number; }
-interface CardData { sym: string; candles: Candle[]; loading: boolean; }
+type Candle = YahooCandle;
+type CardData =
+  | { sym: string; status: "loading"; candles: [] }
+  | { sym: string; status: "ready"; candles: Candle[]; empty: boolean }
+  | { sym: string; status: "unavailable" | "error" | "malformed"; candles: []; message: string; retryable: boolean };
 
 const TF_RANGE: Record<string, { tf: string }> = {
   "Daily": { tf: "D" }, "Weekly": { tf: "W" }, "Monthly": { tf: "M" },
@@ -100,19 +104,34 @@ function MiniChart({ candles }: { candles: Candle[] }) {
 
 function Card({ sym, tf }: { sym: string; tf: string }) {
   const { setActiveSymbol } = useActiveSymbol();
-  const [data, setData] = useState<CardData>({ sym, candles: [], loading: true });
+  const consumerRef = useRef<YahooCandleConsumer | null>(null);
+  if (!consumerRef.current) consumerRef.current = new YahooCandleConsumer();
+  const requestRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [data, setData] = useState<CardData>({ sym, status: "loading", candles: [] });
 
-  const load = useCallback(() => {
-    fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=candles&tf=${encodeURIComponent(tf)}&bars=120`, { cache: "no-store" })
-      .then(r => r.json())
-      .then(j => setData({ sym, candles: Array.isArray(j?.candles) ? j.candles : [], loading: false }))
-      .catch(() => setData({ sym, candles: [], loading: false }));
+  const load = useCallback(async (showLoading = false) => {
+    const requestId = ++requestRef.current;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (showLoading) setData({ sym, status: "loading", candles: [] });
+    const outcome: YahooCandleOutcome = await consumerRef.current!.request({
+      symbol: sym, timeframe: tf, bars: 120,
+    });
+    if (requestId !== requestRef.current) return;
+    if (outcome.status === "ready") {
+      setData({ sym, status: "ready", candles: outcome.candles, empty: outcome.empty });
+      timerRef.current = setTimeout(() => { void load(false); }, 30_000);
+    } else {
+      setData({ sym, status: outcome.status, candles: [], message: outcome.message, retryable: outcome.retryable });
+    }
   }, [sym, tf]);
 
   useEffect(() => {
-    load();
-    const iv = setInterval(load, 30_000); // refresh card every 30s
-    return () => clearInterval(iv);
+    void load(true);
+    return () => {
+      requestRef.current++;
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [load]);
 
   const cs = data.candles;
@@ -153,10 +172,15 @@ function Card({ sym, tf }: { sym: string; tf: string }) {
       </div>
       {/* Mini chart */}
       <div style={{ flex: 1, marginTop: 6, minHeight: 0 }}>
-        {data.loading
+        {data.status === "loading"
           ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#4A5070", fontSize: 11 }}>Loading…</div>
-          : cs.length < 2
-            ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#4A5070", fontSize: 11 }}>No data</div>
+          : data.status !== "ready"
+            ? <div style={{ height: "100%", display: "flex", flexDirection: "column", gap: 8, alignItems: "center", justifyContent: "center", color: "#6A7290", fontSize: 11, textAlign: "center", padding: 10 }}>
+                <span>{data.status === "unavailable" ? "Chart unavailable" : data.status === "malformed" ? "Invalid market data response" : "Chart could not load"}</span>
+                {data.retryable && <button type="button" onClick={e => { e.stopPropagation(); void load(true); }} style={{ color: "#4FA3E0", border: "1px solid #2a3550", borderRadius: 5, padding: "3px 8px" }}>Retry</button>}
+              </div>
+            : data.empty || cs.length < 2
+              ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#4A5070", fontSize: 11 }}>No candles reported</div>
             : <MiniChart candles={cs} />}
       </div>
     </div>

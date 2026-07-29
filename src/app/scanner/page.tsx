@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
+import { YahooCandleConsumer } from "@/lib/yahooCandleConsumer";
 
 type Signal =
   | "momentum-long"  | "momentum-short"
@@ -152,14 +153,24 @@ async function fetchFmpProfiles(): Promise<Map<string, { mktcap: string; float: 
 
 // Cache RSI per symbol — recomputed every 5 min
 const rsiCache = new Map<string, { rsi: number; ts: number }>();
+type RsiFailureCache = Map<string, true>;
 
-async function fetchRSI(sym: string): Promise<number | null> {
+async function fetchRSI(sym: string, consumer: YahooCandleConsumer, failures: RsiFailureCache): Promise<number | null> {
+  const identity = `${sym}:D`;
+  if (failures.has(identity)) return null;
   const cached = rsiCache.get(sym);
   if (cached && Date.now() - cached.ts < 300_000) return cached.rsi;
   try {
-    const json = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=candles&tf=D&bars=40`, { cache: "no-store" }).then(r => r.json());
-    const closes: number[] = (json?.candles ?? []).map((bar: { close?: number }) => bar.close).filter((value: unknown): value is number => typeof value === "number");
-    if (closes.length < 15) return null;
+    const outcome = await consumer.request({ symbol: sym, timeframe: "D", bars: 40 });
+    if (outcome.status !== "ready") {
+      if (!outcome.retryable) failures.set(identity, true);
+      return null;
+    }
+    const closes = outcome.candles.map(bar => bar.close);
+    if (closes.length < 15) {
+      failures.set(identity, true);
+      return null;
+    }
     let gains = 0, losses = 0;
     for (let i = closes.length - 14; i < closes.length; i++) {
       const change = closes[i] - closes[i - 1];
@@ -178,7 +189,7 @@ async function fetchRSI(sym: string): Promise<number | null> {
 
 interface QuoteData { price:number; change:number; changePct:number; volume:number; avgVolume:number; rsi:number|null }
 
-async function fetchScannerQuotes(): Promise<Map<string, QuoteData>> {
+async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFailureCache): Promise<Map<string, QuoteData>> {
   const results = new Map<string, QuoteData>();
   // Use the app's server-side Yahoo proxy for real pre/post-market price and
   // actual intraday volume. No client-side vendor key and no fabricated volume.
@@ -190,7 +201,7 @@ async function fetchScannerQuotes(): Promise<Map<string, QuoteData>> {
       try {
         const [quoteJson, rsi] = await Promise.all([
           fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json()),
-          fetchRSI(sym),
+          fetchRSI(sym, consumer, failures),
         ]);
         const price = quoteJson?.price ?? 0;
         const prev  = quoteJson?.prevClose ?? price;
@@ -303,6 +314,9 @@ export default function ScannerPage() {
   const [minPct,        setMinPct]        = useState(0);
   const [selSectors,    setSelSectors]    = useState<string[]>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const yahooConsumerRef = useRef<YahooCandleConsumer | null>(null);
+  const rsiFailuresRef = useRef<RsiFailureCache>(new Map());
+  if (!yahooConsumerRef.current) yahooConsumerRef.current = new YahooCandleConsumer();
 
   const applyPreset = (id: string) => {
     setPreset(id);
@@ -311,10 +325,11 @@ export default function ScannerPage() {
   };
 
   // Initial load + periodic refresh — real Finnhub quotes + RSI, real FMP profiles
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (explicitRetry = false) => {
+    if (explicitRetry) rsiFailuresRef.current.clear();
     try {
       const [quotes, profiles] = await Promise.all([
-        fetchScannerQuotes(),
+        fetchScannerQuotes(yahooConsumerRef.current!, rsiFailuresRef.current),
         fetchFmpProfiles(),
       ]);
       setResults(prev => buildResults(quotes, profiles, prev));
@@ -422,7 +437,7 @@ export default function ScannerPage() {
               live ? "bg-wm-green/15 text-wm-green border-wm-green/40" : "text-wm-text-muted border-wm-border")}>
             {live ? <><Activity size={11}/> LIVE</> : <><Pause size={11}/> Paused</>}
           </button>
-          <button onClick={() => { refresh(); }}
+          <button onClick={() => { void refresh(true); }}
             className="p-1.5 rounded-lg text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border border-wm-border transition-colors">
             <RefreshCw size={12}/>
           </button>
@@ -557,7 +572,7 @@ export default function ScannerPage() {
                   <div className="px-2">
                     <span className={clsx("text-[10px] font-mono font-bold",
                       r.rsi==null?"text-wm-text-dim":r.rsi>=70?"text-wm-red":r.rsi<=30?"text-wm-green":"text-wm-text-muted")}
-                      title={r.rsi==null?"RSI unavailable (data source not configured)":undefined}>{r.rsi==null?"—":r.rsi}</span>
+                      title={r.rsi==null?"RSI unavailable":undefined}>{r.rsi==null?"—":r.rsi}</span>
                     <div className="h-1 mt-0.5 rounded-full bg-wm-surface" style={{ width:36 }}>
                       <div className="h-full rounded-full" style={{ width:`${r.rsi==null?0:r.rsi}%`,
                         background:r.rsi==null?"transparent":r.rsi>=70?"#FF4D6A":r.rsi<=30?"#00D4AA":"#F0B429" }}/>

@@ -17,6 +17,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { clsx } from "clsx";
+import { YahooCandleConsumer, type YahooCandle } from "@/lib/yahooCandleConsumer";
 
 interface SessionLevel {
   price:  number;
@@ -26,14 +27,7 @@ interface SessionLevel {
   delta:  number;
 }
 
-interface Candle {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
+type Candle = YahooCandle;
 
 type SessionWindow = "RTH" | "ETH" | "24H" | "2D" | "1W" | "1M";
 
@@ -53,6 +47,13 @@ const SESSION_WINDOWS: Record<SessionWindow, SessionWindowConfig> = {
   "1W": { label: "1 Week",  desc: "Mon–Fri this week",   startHour: 0,    endHour: 24,   lookback: 7 },
   "1M": { label: "1 Month", desc: "Last 30 days",        startHour: 0,    endHour: 24,   lookback: 30 },
 };
+
+const SESSION_VP_YAHOO_TIMEFRAMES = new Set(["1m", "2m", "5m", "15m", "30m", "1h"]);
+
+type ProfileRequestState =
+  | { status: "loading"; message: string; retryable: false }
+  | { status: "ready"; message: string; retryable: false }
+  | { status: "unavailable" | "error" | "malformed"; message: string; retryable: boolean };
 
 interface WMSessionVPProps {
   symbol:    string;
@@ -141,28 +142,52 @@ export function WMSessionVP({ symbol, timeframe, onClose }: WMSessionVPProps) {
   const [sessionPct,    setSessionPct]    = useState(0);
   const [sessionWindow, setSessionWindow] = useState<SessionWindow>("RTH");
   const [winOpen,       setWinOpen]       = useState(false);
+  const [requestState,  setRequestState]  = useState<ProfileRequestState>({ status: "loading", message: "Loading real OHLCV…", retryable: false });
+  const [retryKey,      setRetryKey]      = useState(0);
   const tickCountRef = useRef(0);
+  const consumerRef = useRef<YahooCandleConsumer | null>(null);
+  if (!consumerRef.current) consumerRef.current = new YahooCandleConsumer();
 
   const { recentTicks } = useWebSocket({ symbol, timeframe });
 
   /* Build a truthful bar-derived profile from observed OHLCV. */
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    const profileTf = ["1m", "2m", "5m", "15m", "30m", "1h"].includes(timeframe) ? timeframe : "30m";
-    fetch(`/api/yahoo?sym=${encodeURIComponent(symbol)}&type=candles&tf=${profileTf}&bars=3000&ext=1`, { cache: "no-store" })
-      .then(r => r.json())
-      .then(json => {
+    setLevels([]);
+    if (!SESSION_VP_YAHOO_TIMEFRAMES.has(timeframe)) {
+      setLoading(false);
+      setRequestState({ status: "unavailable", message: "Session VP unavailable for this timeframe", retryable: false });
+    } else {
+      setLoading(true);
+      setRequestState({ status: "loading", message: "Loading real OHLCV…", retryable: false });
+      void consumerRef.current!.request({
+        symbol, timeframe, bars: 3000, extendedHours: true,
+      }).then(outcome => {
         if (cancelled) return;
-        const candles = Array.isArray(json?.candles) ? json.candles as Candle[] : [];
-        setLevels(buildSessionLevels(selectSessionCandles(candles, sessionWindow)));
-      })
-      .catch(() => { if (!cancelled) setLevels([]); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+        if (outcome.status === "ready") {
+          setLevels(buildSessionLevels(selectSessionCandles(outcome.candles, sessionWindow)));
+          setRequestState({
+            status: "ready",
+            message: outcome.empty ? "No candles reported for this timeframe" : "Ready",
+            retryable: false,
+          });
+        } else {
+          setLevels([]);
+          setRequestState({ status: outcome.status, message: outcome.message, retryable: outcome.retryable });
+        }
+        setLoading(false);
+      }).catch(() => {
+        if (!cancelled) {
+          setLevels([]);
+          setLoading(false);
+          setRequestState({ status: "error", message: "Session VP could not load.", retryable: true });
+        }
+      });
+    }
     tickCountRef.current = 0;
     setHasRealTape(false);
     return () => { cancelled = true; };
-  }, [sessionWindow, symbol, timeframe]);
+  }, [retryKey, sessionWindow, symbol, timeframe]);
 
   /* Update session pct based on selected window */
   useEffect(() => {
@@ -221,14 +246,16 @@ export function WMSessionVP({ symbol, timeframe, onClose }: WMSessionVPProps) {
   }, [recentTicks]);
 
   /* Recompute VA/POC */
-  if (loading || levels.length === 0) {
+  if (loading || requestState.status !== "ready" || levels.length === 0) {
+    const emptyReady = requestState.status === "ready" && levels.length === 0;
     return (
       <div className="border-l border-wm-border bg-wm-black shrink-0 flex flex-col items-center justify-center gap-2"
         style={{ width: 260 }}>
         <span className="text-[10px] font-black text-wm-purple uppercase tracking-widest">wmSession VP</span>
-        <span className="text-[10px] text-wm-text-dim">
-          {loading ? "Loading real OHLCV…" : "No reported volume for this session"}
+        <span className="text-[10px] text-wm-text-dim text-center px-4">
+          {loading ? "Loading real OHLCV…" : emptyReady ? "No reported volume for this session" : requestState.status === "unavailable" && !SESSION_VP_YAHOO_TIMEFRAMES.has(timeframe) ? "Session VP unavailable for this timeframe" : requestState.message}
         </span>
+        {requestState.retryable && <button type="button" onClick={() => setRetryKey(value => value + 1)} className="text-[10px] text-wm-blue hover:text-wm-text border border-wm-border rounded px-2 py-1">Retry</button>}
         {onClose && <button onClick={onClose} className="text-[10px] text-wm-text-muted hover:text-wm-text">Close</button>}
       </div>
     );
