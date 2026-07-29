@@ -446,8 +446,8 @@ Each still requires the full field set before it is claimed. Detail lives in
 | **Ticket ID** | WM-RESP-P0-02 |
 | **Product** | WM Pro |
 | **Priority** | **P0 — accessibility failure + first-screen defects. Small, unblocked, no auth needed.** |
-| **Owner** | — |
-| **Status** | **READY — best available quick win, fully verifiable today** |
+| **Owner** | Forge |
+| **Status** | **FORGE ACTIVE** — claimed 2026-07-28. No file overlap with WM-CHART-P0-03 (Noah, API routes) or WM-RESP-P0-01 (chart touch parity). |
 | **Objective** | Stop blocking zoom, and bring the login screen's tap targets to 44px. |
 | **Evidence source** | `WOW_RESPONSIVE_STANDARD.md` §5 — measured at 390×844 on `localhost:3000`. |
 | **Confirmed defects** | 1. Viewport meta carries `maximum-scale=1, user-scalable=no` → **pinch-zoom blocked. Fails WCAG 2.1 AA SC 1.4.4.** iOS ignores it; **Android Chrome honours it**, so Android traders cannot zoom in on a price. 2. Password reveal button **14×14 px**. 3. "Forgot password?" **93×17 px** — the account-recovery entry point. 4. Sign In / Create Account tabs **164×40 px**. **4 of 7 interactive elements on the first mobile screen are under minimum.** |
