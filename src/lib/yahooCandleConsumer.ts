@@ -58,6 +58,37 @@ function malformed(): YahooCandleOutcome {
   return { status: "malformed", candles: [], message: MALFORMED_MESSAGE, retryable: false };
 }
 
+/**
+ * Which envelope shape the payload actually is, decided by inspecting the payload
+ * itself — never by transport metadata.
+ *
+ * ROLLBACK-SAFETY CONTRACT. The previous order enforced the version-header
+ * requirement *before* looking at the body, so a server rollback to the
+ * pre-envelope release (legacy body, no header) was indistinguishable from a
+ * corrupt typed response: a latched client rejected every payload permanently and
+ * the chart went dark with no recovery path.
+ *
+ * Classifying candidate-first separates the two questions:
+ *   1. what IS this payload?      (body only)
+ *   2. is that acceptable now?    (mode + header policy)
+ * Only step 2 may reject, and because step 1 already identified a *valid legacy*
+ * body, the consumer can recognise a rollback and unlatch instead of failing shut.
+ */
+export type YahooCandleShape = "typed-ok" | "typed-error" | "legacy" | "unrecognized";
+
+export function classifyYahooCandlePayload(payload: unknown, requestedTf: string): YahooCandleShape {
+  if (!isRecord(payload)) return "unrecognized";
+  if (payload.ok === true || payload.ok === false) {
+    return payload.ok === true ? "typed-ok" : "typed-error";
+  }
+  // No `ok` discriminator: legacy only if the body is genuinely well-formed.
+  // A malformed body must NOT be reported as a rollback signal.
+  const candles = candlesFrom(payload.candles);
+  if (!candles) return "unrecognized";
+  if (payload.tf !== undefined && payload.tf !== requestedTf) return "unrecognized";
+  return "legacy";
+}
+
 export function parseYahooCandlePayload(
   payload: unknown,
   requestedTf: string,
@@ -65,7 +96,27 @@ export function parseYahooCandlePayload(
   options: { requireVersionHeader?: boolean } = {},
 ): YahooCandleOutcome {
   if (!isRecord(payload)) return malformed();
-  if (mode === "typed-required" && options.requireVersionHeader !== false) return malformed();
+
+  // Candidate-first: identify the shape from the body before applying policy.
+  const shape = classifyYahooCandlePayload(payload, requestedTf);
+
+  // A latched client rejects EVERY unversioned response, including a well-formed
+  // legacy one. That invariant is deliberate (see the "never downgrades" test): a
+  // single stray legacy body must never be honoured as data, or a flaky edge node
+  // could silently downgrade the client.
+  //
+  // Recovery is handled one level up, not here. The consumer counts consecutive
+  // confirmed-legacy sightings and unlatches the *mode* after N of them, so a real
+  // server rollback recovers on the following request while no individual payload
+  // is ever silently accepted. Rejecting here and recovering there is what keeps
+  // both contracts intact.
+  // Default-strict: an omitted `requireVersionHeader` means "not proven present",
+  // so a latched parser rejects. Only an explicit `false` (the caller saw a valid
+  // v1 header) opens the gate. Defaulting open here would make every direct caller
+  // and every future test silently bypass the latch.
+  if (mode === "typed-required" && options.requireVersionHeader !== false) {
+    return malformed();
+  }
 
   if (payload.ok === true) {
     if (
@@ -104,10 +155,17 @@ export function parseYahooCandlePayload(
     };
   }
 
+  // Legacy body. Accepted in legacy-compatible mode, and ALSO accepted while
+  // latched typed-required — that combination is precisely a server rollback, and
+  // failing shut here is what took the chart dark. The consumer counts these and
+  // unlatches once the rollback is confirmed; see observeRollbackCandidate().
+  if (shape !== "legacy") return malformed();
+  // A legacy body is never valid data while latched — even when a valid v1 header
+  // was present. That combination is a protocol violation (server promised typed,
+  // sent legacy), not a rollback. Rollback is the *unversioned* case, and it is
+  // handled by the consumer's mode transition, never by relaxing the parser.
   if (mode === "typed-required") return malformed();
-  const candles = candlesFrom(payload.candles);
-  if (!candles) return malformed();
-  if (payload.tf !== undefined && payload.tf !== requestedTf) return malformed();
+  const candles = candlesFrom(payload.candles)!;
   return { status: "ready", candles, empty: candles.length === 0 };
 }
 
@@ -136,6 +194,43 @@ export class YahooCandleConsumer {
 
   requireTyped(): void {
     this.mode = "typed-required";
+    this.rollbackCandidates = 0;
+  }
+
+  /**
+   * ROLLBACK-SAFETY CONTRACT.
+   *
+   * Latching to typed-required is one-way *by design* — a single well-formed
+   * typed response must not be undone by one stray legacy body, or an attacker or
+   * a flaky edge node could downgrade the client at will.
+   *
+   * But a genuine server rollback also produces legacy bodies, forever. Without a
+   * release valve the latch is permanent and the surface stays dark until someone
+   * clears browser state. So: unlatch only after CONSECUTIVE confirmations, and
+   * only when each observation is a *valid* legacy envelope with no version
+   * header. Any typed response in between resets the counter.
+   */
+  private rollbackCandidates = 0;
+  static readonly ROLLBACK_CONFIRMATIONS = 2;
+
+  private observeRollbackCandidate(sawVersionHeader: boolean, shape: YahooCandleShape): void {
+    if (this.mode !== "typed-required") return;
+    if (sawVersionHeader || shape !== "legacy") {
+      this.rollbackCandidates = 0;
+      return;
+    }
+    this.rollbackCandidates += 1;
+    if (this.rollbackCandidates >= YahooCandleConsumer.ROLLBACK_CONFIRMATIONS) {
+      this.mode = "legacy-compatible";
+      this.rollbackCandidates = 0;
+      // Re-arm discovery so the next deploy can latch forward again.
+      this.initialized = false;
+    }
+  }
+
+  /** Test/diagnostic seam — how close the consumer is to declaring a rollback. */
+  getRollbackCandidateCount(): number {
+    return this.rollbackCandidates;
   }
 
   async initialize(signal?: AbortSignal): Promise<YahooCandleMode> {
@@ -195,9 +290,18 @@ export class YahooCandleConsumer {
         const version = response.headers.get(YAHOO_CANDLE_ENVELOPE_HEADER);
         if (version === "1") this.requireTyped();
         const payload = await response.json();
-        outcome = parseYahooCandlePayload(payload, request.timeframe, this.mode, {
-          requireVersionHeader: this.mode === "typed-required" && version !== "1",
+        const shape = classifyYahooCandlePayload(payload, request.timeframe);
+
+        // Parse under the mode in force WHEN THE REQUEST WAS MADE. Observing first
+        // would let the unlatch take effect on the very response that triggered it,
+        // silently honouring the payload that was supposed to be rejected.
+        const modeAtParse = this.mode;
+        outcome = parseYahooCandlePayload(payload, request.timeframe, modeAtParse, {
+          requireVersionHeader: modeAtParse === "typed-required" && version !== "1",
         });
+
+        // Recovery is decided only after the current response has been judged.
+        this.observeRollbackCandidate(version === "1", shape);
       } catch (error) {
         if (request.signal?.aborted) throw error;
         outcome = { status: "error", candles: [], message: DEFAULT_MESSAGE, retryable: true };

@@ -153,22 +153,39 @@ async function fetchFmpProfiles(): Promise<Map<string, { mktcap: string; float: 
 
 // Cache RSI per symbol — recomputed every 5 min
 const rsiCache = new Map<string, { rsi: number; ts: number }>();
-type RsiFailureCache = Map<string, true>;
+/**
+ * Non-retryable failures are cached so the scanner stops hammering a symbol the
+ * provider cannot serve. They are NOT cached forever: "non-retryable" describes
+ * *this response*, not this symbol for all time. An entitlement change, a halt
+ * being lifted, or a provider-side fix would otherwise leave the symbol blank for
+ * the entire life of the tab with no recovery short of a reload.
+ */
+const RSI_FAILURE_TTL_MS = 900_000; // 15 min — well above the 5 min success cache,
+                                    // so a genuinely dead symbol is retried rarely.
+type RsiFailureCache = Map<string, number>; // identity -> when the failure was recorded
+
+function isFailureCached(failures: RsiFailureCache, identity: string): boolean {
+  const recordedAt = failures.get(identity);
+  if (recordedAt === undefined) return false;
+  if (Date.now() - recordedAt < RSI_FAILURE_TTL_MS) return true;
+  failures.delete(identity); // expired — allow exactly one more attempt
+  return false;
+}
 
 async function fetchRSI(sym: string, consumer: YahooCandleConsumer, failures: RsiFailureCache): Promise<number | null> {
   const identity = `${sym}:D`;
-  if (failures.has(identity)) return null;
+  if (isFailureCached(failures, identity)) return null;
   const cached = rsiCache.get(sym);
   if (cached && Date.now() - cached.ts < 300_000) return cached.rsi;
   try {
     const outcome = await consumer.request({ symbol: sym, timeframe: "D", bars: 40 });
     if (outcome.status !== "ready") {
-      if (!outcome.retryable) failures.set(identity, true);
+      if (!outcome.retryable) failures.set(identity, Date.now());
       return null;
     }
     const closes = outcome.candles.map(bar => bar.close);
     if (closes.length < 15) {
-      failures.set(identity, true);
+      failures.set(identity, Date.now());
       return null;
     }
     let gains = 0, losses = 0;
