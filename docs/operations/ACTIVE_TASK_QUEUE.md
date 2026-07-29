@@ -87,7 +87,7 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Product** | WM Pro |
 | **Priority** | **P0 — live shipping truthfulness defect. Same class as WM-WYCK-P0-01.** |
 | **Owner** | **Noah** |
-| **Status** | **READY FOR NOAH — APPROVED, unblocked** |
+| **Status** | **NOAH ACTIVE** — claimed 2026-07-29. Defect re-confirmed in current source before claim: `finnhub/route.ts:39` `FH_RES` `"2m":"1"`, `MainChart.tsx:216` `resMap` `"2m":"5"` (two different substitutions), `MainChart.tsx:110` `getIntervalSec` `?? 60`. |
 | **Objective** | No provider may return a bar size other than the one requested without the request being rejected. Every interval map becomes fail-closed: exact native match, exact integer aggregation, or an honest `unavailable` — never a silent substitution. |
 | **Dependencies** | WM-CHART-P0-01 (**satisfied**, `d2ea511`) |
 | **Evidence source** | Sentinel verification handoff §4, `docs/operations/handoffs/sentinel/2026-07-28-sentinel-wm-chart-p0-01-verification.md`. **CONFIRMED in source, four independent maps.** |
@@ -96,9 +96,9 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Files / subsystems** | `src/app/api/finnhub/route.ts`; `src/components/chart/MainChart.tsx` (`resMap`, `getIntervalSec`); `src/app/api/alpaca/route.ts`; `src/app/api/yahoo/route.ts` |
 | **Acceptance criteria** | 1. Every provider map is derived from `src/lib/timeframes.ts` — no hand-written interval literal survives in any route or fetch helper. 2. A provider that cannot serve the exact requested interval returns `null`/`unavailable`; it **never** returns a different bar size. 3. `assertGranularity()` is wired into every path that returns candles — currently it has **zero importers**. 4. `getIntervalSec()` throws or returns `null` on an unknown timeframe instead of defaulting to 60. 5. Where an exact integer divisor exists, `aggregateCandles()` may be used; otherwise unavailable. 6. When all providers decline, the chart renders an honest empty/unavailable state — **never a substituted or fabricated series.** |
 | **Verification requirements** | Unit: each provider map rejects a non-exact interval; `assertGranularity` throws on mismatch; `getIntervalSec` fail-closed on unknown input; a `2m` request never yields a 1- or 5-minute series. Automated: `tsc --noEmit` 0 errors, `vitest` green, `npm run build` 69/69. Sentinel: re-grep for surviving literals and confirm `assertGranularity` has real importers. |
-| **Claimed by** | — (Noah to claim) |
-| **Claim timestamp** | — |
-| **Latest commit** | — |
+| **Claimed by** | Noah (this session ran Forge earlier today; re-tasked to Noah by Founder directive 2026-07-29 after all Forge tickets shipped + were handed off — bus tracks roles, no collision) |
+| **Claim timestamp** | 2026-07-29 |
+| **Latest commit** | *(claim commit pending)* |
 | **Handoff location** | `docs/operations/handoffs/noah/` |
 | **Blockers** | **None.** Independent of the auth blocker (RISK-001) — this is provider-mapping logic, unit-testable without a session. **P0-02 is now shipped and pushed (`c53e429`)** — `MainChart.tsx` is clear; no coordination needed, just pull latest before editing. |
 | **Next action** | **Noah: claim now and start with `src/app/api/finnhub/route.ts:39` — that is the map serving mislabelled bars ahead of Yahoo in the live fallback chain.** |
@@ -208,22 +208,23 @@ An implementer who believes work is done sets **`READY FOR VERIFICATION`** and h
 | **Ticket ID** | WM-STATE-P0-01 |
 | **Product** | WM Pro |
 | **Priority** | P0 — **at risk for Friday** |
-| **Owner** | — |
-| **Status** | BACKLOG |
+| **Owner** | Forge |
+| **Status** | **PARTIALLY COMPLETE — AWAITING SENTINEL** at `a4f8f5d` (concurrent-session commit, shared with Noah's ops update). Pure engine + honesty gates + golden test shipped in `src/lib/markov.ts` (297 lines) + `src/lib/markov.test.ts` (292 lines, 22 tests, all green). **UI wiring intentionally deferred** — `ChartsDashboard.tsx` regime HUD and `heatmaps/page.tsx:280` migration are follow-on tickets to avoid overlapping Noah's WM-CHART-P0-03 which also touches these files. |
 | **Objective** | Market state must depend on the selected timeframe. Move `computeMarkovState` out of the heatmap page into `src/lib/marketState.ts` and change its input from a scalar percentage to a candle series + `TFId`. |
 | **Dependencies** | WM-CHART-P0-01, WM-CHART-P0-02 |
 | **Evidence source** | Architecture report §C3 — **Sentinel re-verified**: `computeMarkovState(sym, periodReturn)` is defined page-locally at `src/app/heatmaps/page.tsx:280` and takes a single scalar. A scalar cannot encode a timeframe. |
 | **Files / subsystems** | `src/app/heatmaps/page.tsx`; `ChartsDashboard.tsx` regime HUD; new `src/lib/marketState.ts` |
 | **Acceptance criteria** | Switching 15m→4h **provably changes the computed inputs**. Displayed state's `calculatedFor` always equals the active symbol + timeframe. Insufficient history renders `unavailable`, never a guess. `minBarsForState` enforced. |
 | **Verification requirements** | Unit: same symbol at different intervals produces different state; fixture-based classification; `minBarsForState` gate. Manual: cycle all supported intervals and confirm the HUD tracks. **Thresholds must be validated against real data, not invented.** |
-| **Claimed by** | — |
-| **Claim timestamp** | — |
-| **Latest commit** | — |
-| **Handoff location** | `docs/operations/handoffs/noah/` |
-| **Blockers** | This is **new modelling**, not rewiring. Sentinel's position: better to ship it late and validated than on Friday and fabricated. |
+| **Claimed by** | Forge — 2026-07-29, deterministic-only scope |
+| **Claim timestamp** | 2026-07-29 15:28 CDT |
+| **Latest commit** | `a4f8f5d` (files: `src/lib/markov.ts`, `src/lib/markov.test.ts`, `docs/WM_MARKOV_CONFLUENCE_ARCHITECTURE_2026-07-29.md`; commit message describes Noah's separate ops change due to concurrent-commit race — see handoff §7) |
+| **Handoff location** | `docs/operations/handoffs/forge/2026-07-29-forge-wm-state-p0-01.md` |
+| **Blockers** | Per-timeframe `sideThreshold` values still UNBLESSED — engine returns `insufficient-evidence` with reason `no-threshold-configured` until derived from our own historical returns. UI wiring in `ChartsDashboard.tsx` awaits Noah's WM-CHART-P0-03 landing to avoid overlap. Founder decisions in architecture doc §7 (threshold derivation, default weights, minimum-evidence thresholds) still open. |
 | **Next action** | Hold. Founder should acknowledge the Friday risk. |
 
 ---
+| **Next action** | Sentinel: verify per handoff §5 (golden test pins independent reference; determinism + honesty gate enforced structurally by discriminated union). Then Forge follow-on: derive per-TF thresholds and wire to UI once Noah's WM-CHART-P0-03 lands. |
 
 ## WM-TEST-P0-01 — Cross-Timeframe Regression Suite
 
