@@ -76,6 +76,60 @@ Chrome is moved and `get_page_content` succeeds.
 
 ---
 
+### V-006 · `d2ea511` WM-CHART-P0-01 Canonical Timeframe System — **PARTIALLY VERIFIED · ACCEPTED and CLOSED**
+
+Verified against the seven acceptance criteria as written in the queue.
+
+| # | Acceptance criterion | Verdict | Evidence |
+|---|---|---|---|
+| 1 | Exactly one `TFId` definition repo-wide | **PASS** | single definition, `src/lib/timeframes.ts:35` |
+| 2 | Zero remaining local timeframe literals | **PASS** | the three former literals now derive from `CHART_TF_SHIPPED` / `HEATMAP_TF_ORDER`. `grep TIMEFRAMES` still returns hits, but every one is a *derivation from* the canonical module, not a hardcoded interval array. Criterion met in substance. |
+| 3 | `"D"/"W"/"M"` unified with `"1D"/"1W"/"1M"` | **PARTIAL** | canonical vocabulary is unified, but `legacyChartId` + `toChartEmitId()` still emit `"D"/"W"/"M"` to six unmigrated consumers |
+| 4 | Every interval labelled from **measured** provider probes | **PASS — and this is the strongest part of the work** | `PROVIDER_EVIDENCE` records provider, probe date, probe symbol, `validIntervals`, `rejectedIntervals` (`3m`,`10m`,`45m`,`2h`), and per-interval OK/ERROR depth boundaries |
+| 5 | Aggregation only from an exact integer divisor | **PASS** | enforced at runtime (`aggregateCandles` throws on `1.5` and `0`) and covered by tests |
+| 6 | Unsupported intervals render **disabled with an honest reason** | **NOT MET** | the toolbar maps only `CHART_TF_SHIPPED` (9 ids). Unsupported and aggregated intervals are **absent from the UI entirely** — no disabled state, no reason surfaced. `unsupportedReason` exists in the model and is never rendered. |
+| 7 | No state-model change, no UI restyle | **PASS** | diff touches only the three call sites plus the new module and its tests |
+
+**Build health at verification time:** `tsc --noEmit` **0 errors**; `npm test` **43/43
+passing across 3 files** (up from 12 — `timeframes.test.ts` adds 31).
+
+*Caveat, stated rather than hidden:* the working tree was dirty with Forge's active
+WM-CHART-P0-02 edits when these ran, so the result validates `d2ea511` **plus** that WIP,
+not `d2ea511` in isolation. I did not stash another employee's uncommitted work to get a
+cleaner reading.
+
+**Verdict: PARTIALLY VERIFIED, accepted, closed.** The core objective — one canonical
+module that separates candle interval, visible range, provider interval and display label —
+is genuinely achieved, with better evidence than the ticket asked for. Holding four
+dependent P0s hostage to a toolbar affordance would be poor prioritisation. The two gaps
+are carried as their own tickets rather than waved through:
+
+- AC#3 → **WM-CHART-P0-01b** (already raised by Forge, correctly scoped, correctly flagged
+  as unverifiable without an authenticated session).
+- AC#6 → **WM-CHART-P0-04** (new, P2): surface unsupported intervals as disabled with their
+  `unsupportedReason`, or record a decision that hiding them is the intended UX. Hiding is
+  not dishonest, but it does leave a user wondering why `4h` does not exist, and the model
+  already holds the answer.
+
+**Two findings worth promoting beyond this ticket.**
+
+1. **The silent-downgrade discovery is the most valuable thing in this commit.**
+   `range=max` returns `dataGranularity="3mo"` for *every* requested interval — the provider
+   answers HTTP 200 with data at the wrong granularity rather than erroring. Rendering that
+   as 1m candles would have put fabricated-looking bars on the chart while every test
+   passed. `assertGranularity()` makes it unrepresentable. This is the same class of defect
+   as the Wyckoff schematic (V-004/V-005) — *plausible-looking output with nothing real
+   behind it* — caught before it shipped rather than after. Atlas may index this as a
+   **verified fact**.
+2. **`MainChart.tsx:219` maps `2h`/`4h` to provider interval `"60"`** — flagged by Forge as
+   a possible pre-existing mislabel, **UNVERIFIED**. If real, the chart has been silently
+   serving 1-hour candles under a 2h/4h label. That is a truthfulness defect, not a cosmetic
+   one. **Sentinel is raising this to its own P1 ticket rather than leaving it as a
+   parenthetical in a closed ticket's next-action field**, because that is exactly where
+   findings go to die.
+
+---
+
 ### V-005 · `e1a8c94` Wyckoff fabrication fix — **VERIFIED · ACCEPTED**
 
 | Acceptance criterion (WM-WYCK-P0-01) | Result |

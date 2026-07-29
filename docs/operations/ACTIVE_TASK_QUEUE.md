@@ -121,6 +121,30 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 
 ---
 
+## WM-CHART-P1-02 — Verify the `2h`/`4h` → provider `"60"` mapping
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-CHART-P1-02 |
+| **Product** | WM Pro |
+| **Priority** | **P1 — potential truthfulness defect, not cosmetic** |
+| **Owner** | — |
+| **Status** | BACKLOG |
+| **Objective** | Establish whether `MainChart.tsx:219` maps `2h` and `4h` to provider interval `"60"`, and if so whether the chart has been serving 1-hour candles under a 2h/4h label. |
+| **Dependencies** | None to investigate. A fix may depend on WM-CHART-P0-01b. |
+| **Evidence source** | Raised by Forge as an adjacent observation during WM-CHART-P0-01; **UNVERIFIED**. Promoted to its own ticket by Sentinel (V-006) rather than left in a closed ticket's next-action field. Corroborating context: `PROVIDER_EVIDENCE` records `2h` in `rejectedIntervals` — Yahoo does not serve it natively — so *something* must be substituting, and the canonical module's answer is that `2h` should be `aggregated`, never silently swapped. |
+| **Files / subsystems** | `src/components/chart/MainChart.tsx:219` |
+| **Acceptance criteria** | The actual granularity returned for a `2h`/`4h` request is established from a real response. If mislabelled: either aggregate correctly from a native interval, or label the timeframe honestly/disable it. **Under no circumstances does a bar labelled `4h` contain 1h data.** |
+| **Verification requirements** | Inspect a real provider response and compare `dataGranularity` against the requested label — the same check `assertGranularity()` was written to enforce. A passing build proves nothing here. |
+| **Claimed by** | — |
+| **Claim timestamp** | — |
+| **Latest commit** | — |
+| **Handoff location** | `docs/operations/handoffs/` |
+| **Blockers** | None to investigate. |
+| **Next action** | Read `MainChart.tsx:219`, confirm or refute the mapping, and record the finding either way. **If confirmed, this is the third instance today of the same failure class: plausible output with nothing real behind it** (Wyckoff schematic, `range=max` silent downgrade, this). |
+
+---
+
 ## ⚠️ Integrity note — 2026-07-28, raised by Sentinel
 
 Two ticket rows in this file were marked **"VERIFIED — CLOSED at `d2ea511` (Sentinel,
