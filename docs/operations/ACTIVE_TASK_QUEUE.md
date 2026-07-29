@@ -100,7 +100,7 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Claim timestamp** | — |
 | **Latest commit** | — |
 | **Handoff location** | `docs/operations/handoffs/noah/` |
-| **Blockers** | **None.** Independent of the auth blocker (RISK-001) — this is provider-mapping logic, unit-testable without a session. **Coordinate with Forge:** P0-02 is concurrently editing `MainChart.tsx` (`1424ef3`, `src/lib/chartContext.ts` in progress). Noah should take the **API routes first** (`api/finnhub`, `api/alpaca`, `api/yahoo`) and land `MainChart.tsx` after P0-02, or agree a split with Forge. |
+| **Blockers** | **None.** Independent of the auth blocker (RISK-001) — this is provider-mapping logic, unit-testable without a session. **P0-02 is now shipped and pushed (`c53e429`)** — `MainChart.tsx` is clear; no coordination needed, just pull latest before editing. |
 | **Next action** | **Noah: claim now and start with `src/app/api/finnhub/route.ts:39` — that is the map serving mislabelled bars ahead of Yahoo in the live fallback chain.** |
 
 ---
@@ -113,19 +113,19 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Product** | WM Pro |
 | **Priority** | P0 |
 | **Owner** | Forge |
-| **Status** | **FORGE ACTIVE — NOT verified, NOT closed.** ⚠️ This row previously read *"VERIFIED — CLOSED at `d2ea511` (Sentinel, 2026-07-28)"*. **Sentinel never verified WM-CHART-P0-02 and did not write that.** Corrected 2026-07-28 — see *Blockers* below. |
+| **Status** | **COMPLETE — AWAITING SENTINEL VERIFICATION** |
 | **Objective** | A response from a previous symbol/timeframe must never overwrite the active view. Implement `ChartContext` + monotonic `dataVersion` guard. |
 | **Dependencies** | WM-CHART-P0-01 (done, `d2ea511`) |
 | **Evidence source** | Architecture report §D2 |
-| **Files / subsystems** | Chart data-fetch paths; `ChartsDashboard.tsx`; new context module |
+| **Files / subsystems** | New `src/lib/chartContext.ts`; `src/components/chart/MainChart.tsx` (candle-fetch effect + 5 provider helper fns) |
 | **Acceptance criteria** | A forced-slow 1m response arriving after switching to 4h is **discarded, never rendered**. No stale candles persist across symbol change. Every async result carries the `dataVersion` it was requested under. `AbortController` fires on supersede. |
 | **Verification requirements** | Unit: stale `dataVersion` rejected. Manual: 6 rapid timeframe changes in 3 s; final render must match final selection. |
 | **Claimed by** | Forge — DEC-008 engineering scope |
 | **Claim timestamp** | 2026-07-28 |
-| **Latest commit** | *(none yet)* |
-| **Handoff location** | `docs/operations/handoffs/forge/` |
-| **Blockers** | None — P0-01 landed (`d2ea511`). |
-| **Next action** | Forge implementing. |
+| **Latest commit** | `c53e429` |
+| **Handoff location** | `docs/operations/handoffs/forge/2026-07-28-forge-wm-chart-p0-02.md` |
+| **Blockers** | Manual verification (6 rapid timeframe changes) still needs an authenticated `/charts` session — **blocked by RISK-001**, same as P0-01. `buildId`/`disposed` (pre-existing) and the new `DataVersionGuard` are currently redundant, not unified — both must agree before data applies; full consolidation is safe optional follow-up, not required for closure. **`MainChart.tsx` is now clear for WM-CHART-P0-03 (Noah)** — P0-02's edits are committed and pushed. |
+| **Next action** | Sentinel: verify per handoff §3-§4 (grep confirms prior AbortController absence, unit test models the exact ticket scenario) and rule on whether the redundant-guard approach closes the ticket. |
 
 ---
 
