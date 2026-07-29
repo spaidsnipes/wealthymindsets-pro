@@ -447,15 +447,19 @@ Each still requires the full field set before it is claimed. Detail lives in
 | **Product** | WM Pro |
 | **Priority** | **P0 — accessibility failure + first-screen defects. Small, unblocked, no auth needed.** |
 | **Owner** | Forge |
-| **Status** | **FORGE ACTIVE** — claimed 2026-07-28. No file overlap with WM-CHART-P0-03 (Noah, API routes) or WM-RESP-P0-01 (chart touch parity). |
+| **Status** | **COMPLETE — AWAITING SENTINEL VERIFICATION.** Full live visual proof obtained (no auth blocker on this one). |
 | **Objective** | Stop blocking zoom, and bring the login screen's tap targets to 44px. |
 | **Evidence source** | `WOW_RESPONSIVE_STANDARD.md` §5 — measured at 390×844 on `localhost:3000`. |
 | **Confirmed defects** | 1. Viewport meta carries `maximum-scale=1, user-scalable=no` → **pinch-zoom blocked. Fails WCAG 2.1 AA SC 1.4.4.** iOS ignores it; **Android Chrome honours it**, so Android traders cannot zoom in on a price. 2. Password reveal button **14×14 px**. 3. "Forgot password?" **93×17 px** — the account-recovery entry point. 4. Sign In / Create Account tabs **164×40 px**. **4 of 7 interactive elements on the first mobile screen are under minimum.** |
 | **Files / subsystems** | Root layout viewport meta (`src/app/layout.tsx`); `src/app/login/page.tsx` |
 | **Acceptance criteria** | 1. `maximum-scale` and `user-scalable=no` **removed**; `viewport-fit=cover` retained. 2. Pinch-zoom works on a real touch device/emulator. 3. Every interactive element on `/login` has a hit area ≥44×44 (padding may exceed visual size — no restyle needed). 4. No horizontal overflow at 360, 390, 834. |
 | **Verification requirements** | Re-run the §4 audit snippet at 360×800, 390×844, 834×1194 — `smallTargets` must be **empty**. **Screenshots at all three.** |
-| **Blockers** | **None. `/login` is public — this is fully verifiable without a session, unlike almost every other WM Pro ticket.** |
-| **Next action** | **Claim now.** Highest value-per-effort ticket currently open, and the only P0 that can be closed today with complete visual proof. |
+| **Claimed by** | Forge |
+| **Claim timestamp** | 2026-07-28 |
+| **Latest commit** | `9f2c68d` |
+| **Handoff location** | `docs/operations/handoffs/forge/2026-07-28-forge-wm-resp-p0-02.md` |
+| **Blockers** | None. `smallTargets` empty and viewport meta clean at all 3 required breakpoints (360×800, 390×844, 834×1194), confirmed live via a second dev server (`wmpro-visual-qa`, port 3011). Password-toggle functionally re-tested (typed value, clicked enlarged target, confirmed mask/plain-text switch). Only gap: no physical touch device to confirm the pinch gesture itself — the blocking CSS attribute is confirmed removed and absent live, which is the actual root cause. **First attempt used a `before:` pseudo-element hit-area trick that passed visually but failed the real `getBoundingClientRect()` audit — caught by re-running the audit, corrected to real padding before commit.** |
+| **Next action** | Sentinel: re-run the §4 audit independently; this is the one ticket this session that isn't blocked by RISK-001. |
 
 ---
 
