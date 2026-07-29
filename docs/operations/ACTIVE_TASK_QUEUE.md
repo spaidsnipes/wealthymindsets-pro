@@ -41,8 +41,9 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Latest commit** | `d2ea511` |
 | **Handoff location** | `docs/operations/handoffs/forge/2026-07-28-forge-wm-chart-p0-01.md` |
 | **Blockers** | None — closed. Provider limits RESOLVED (measured 2026-07-28, recorded in `PROVIDER_EVIDENCE`). |
-| **Sentinel verification** | `docs/operations/handoffs/sentinel/2026-07-28-sentinel-wm-chart-p0-01-verification.md`. Independently re-ran: `tsc` **0 errors**, `vitest` **43/43**, `npm run build` **69/69**, AC#2 grep clean. **AC#3 ruled MET, overruling Forge's self-reported partial** — one module authors the mapping and `toChartEmitId()` is the single typed boundary; the legacy string is an encapsulated adapter, not a second vocabulary. **AC#6 correction:** `assertGranularity()` / `resolveFetchPlan()` / `aggregateCandles()` have **zero importers** — correct but inert at runtime. Not a defect in scope; see WM-CHART-P0-03. |
-| **Next action** | **Closed.** Successor work: WM-CHART-P0-03 (Noah), WM-CHART-P0-02 (Forge, claimed `1424ef3`). |
+| **Sentinel verification** | **TWO independent Sentinel passes ran concurrently and agree the ticket CLOSES. Both re-ran the automated evidence and got identical numbers** — `tsc` **0 errors**, `vitest` **43/43**, `npm run build` **69/69**, AC#2 grep clean — matching Forge's reported figures exactly. Pass A (V-006): AC#3 partial, AC#6 **not met**. Pass B (`.../sentinel/2026-07-28-sentinel-wm-chart-p0-01-verification.md`): AC#3 **met**, AC#6 met-with-correction. **Resolved in favour of the stricter reading (Pass A)** — see the disagreement row. Neither pass has runtime evidence; both are static/type/test/build only (RISK-001). |
+| **Sentinel disagreement — Founder-visible, unresolved** | **AC#3.** Pass A: partial, because the toolbar still *emits* legacy `"D"`. Pass B: met, because only one module *authors* the mapping and `toChartEmitId()` is a single typed adapter boundary. **Recorded as partial** so nothing is over-claimed; the practical consequence is identical either way (WM-CHART-P0-01b is filed and owns the remainder). No action needed unless the Founder wants the stricter standard written into future ACs. **AC#6.** Pass A is literally correct — the AC says unsupported intervals *render disabled with an honest reason*, and the implementation **hides** them instead. Hiding is fail-closed and safe, but it is not the stated criterion. **Pass B concedes; AC#6 stands as NOT MET → WM-CHART-P0-04.** Pass B adds one fact Pass A does not state: `assertGranularity()` / `resolveFetchPlan()` / `aggregateCandles()` have **zero importers repo-wide** — the guard is correct, unit-tested, and **inert at runtime**. That is out of P0-01's scope but is the whole reason WM-CHART-P0-03 is a P0. |
+| **Next action** | **Closed.** Successors: **WM-CHART-P0-03** (Noah — live defect, highest severity), WM-CHART-P0-02 (Forge, claimed `1424ef3`), WM-CHART-P0-04 (toolbar disabled-state affordance), WM-CHART-P0-01b (consumer migration). |
 
 ---
 
@@ -72,6 +73,13 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 > legacy consumers to `TFId`; (b) fail-closed provider mappings = the directive's meaning.
 > They are not the same ticket. **(b) is filed here as WM-CHART-P0-03.** `WM-CHART-P0-01b`
 > keeps its original meaning.
+>
+> **Scope boundary vs WM-CHART-P0-04.** P0-04 is a *presentation* ticket: render intervals
+> the app declines to serve as visibly disabled with an honest reason, instead of hiding
+> them. **P0-03 is a *data* ticket:** make the provider layer decline in the first place.
+> P0-03 must land first — P0-04 has nothing truthful to display until the data layer stops
+> substituting. No file overlap: P0-04 touches the toolbar, P0-03 touches the API routes
+> and the fetch helpers.
 
 | Field | Value |
 |---|---|
