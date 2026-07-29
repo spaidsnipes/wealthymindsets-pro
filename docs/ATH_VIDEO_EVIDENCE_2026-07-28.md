@@ -344,3 +344,145 @@ implemented, and nothing here should be treated as done.
    Product-behavior verification is blocked until then.
 4. **VE-002** — Grant GitHub app access to `spaidsnipes` repos.
 5. **VE-011** — Who owns the 192 uncommitted lounge lines?
+
+---
+
+# Appendix A — Second pass: REC-03 product footage recovered
+
+Added after the initial report. The §4 conclusion that *no product-behavior
+evidence was available* is **now partially superseded** — not because the three
+missing uploads were found (they are still missing), but because a previously
+uninventoried asset turned out to contain the auth-gated surface.
+
+## A.1 New asset
+
+| ID | File | Duration | Size | Content |
+|---|---|---|---|---|
+| **REC-03** | `Screen Recording 2026-07-16 at 9.17.53 AM.mov` | **2h 52m** | 988 MB | Mixed: authenticated WM Pro `/charts` (production) + TradingView analysis session |
+
+`1920×1080 @ 8.21 fps`. Recorded **2026-07-16**, twelve days before the current
+work — this is a **BEFORE state**, usable as the baseline for before/after
+comparison once a current capture exists.
+
+**Significance:** REC-03 shows `wealthymindsets-pro.vercel.app/charts` while
+signed in. That is the surface I have repeatedly been unable to reach live
+(auth-gated; I will not enter the founder's password). Video is now the only
+channel through which this surface has been observed.
+
+---
+
+### VE-012 — Authenticated WM Pro /charts footage exists in the corpus
+- **Recording:** REC-03 @ **01:00**
+- **Observed:** Production URL `wealthymindsets-pro.vercel.app/charts`, signed
+  in (PRO badge, "Enter Passphrase" control present). Full app shell visible:
+  left rail = Charts · Heatmaps · Scanner · News · Morning Prep · Lounge ·
+  WM TV · WM Radio · Creator · Partnerships · Shop · Profile. Right panel =
+  Smart Money Tools, Confluence Score 83, NEUTRAL, VWAP/CVD/Imbalance/Candle
+  chips, "Absorption reversal · LONG", Paper BUY / Paper SELL, WM DELTA BUBBLES.
+  DOM ladder, footprint/volume-profile chart, top ticker tape all rendering.
+- **Severity:** N/A — capability finding · **Product:** WM PRO
+- **Verification:** **VERIFIED (decoded frame).**
+- **Action:** Treat REC-03 as the standing baseline for WM Pro `/charts` until a
+  current authenticated capture exists.
+
+---
+
+### VE-013 — Chart timeframe set enumerated; `D`/`W`/`M` naming confirmed in UI
+- **Recording:** REC-03 @ **01:00** (toolbar crop, full-resolution)
+- **Observed — 21 intervals, verbatim from the control row:**
+  `1t · 5t · 30t · 1m · 2m · 3m · 5m · 10m · 15m · 30m · 1h · 2h · 4h · D · W · M · 3M · 6M · 1Y · 3Y · 5Y`
+  (`15m` selected at capture time.)
+- **Verification: VERIFIED — video + source agree.** The chart uses **bare
+  `D`/`W`/`M`**, while the heatmap uses `1D`/`1W`/`1M`. The incompatibility
+  identified in `WM_CHART_ARCHITECTURE_2026-07-28.md` is now confirmed in
+  shipped UI, not only in source literals.
+- **Nuance worth recording:** the *chart's* interval list is rich (21 entries,
+  including tick-based `1t/5t/30t`). The deficiency is **not** that the chart
+  lacks intervals — it is **naming divergence plus heatmap non-parity**.
+  WM-CHART-P0-01 should therefore be framed as *reconcile and share one
+  canonical set*, not *add missing intervals to the chart*.
+- **Severity:** **P0** · **Product:** WM PRO
+- **Action:** Feeds directly into WM-CHART-P0-01. Use this enumerated list as
+  the candidate canonical set.
+
+---
+
+### VE-014 — Regime HUD computes from daily % while chart is on an intraday timeframe
+- **Recording:** REC-03 @ **01:00** (HUD crop, full-resolution)
+- **Observed, verbatim:** the regime badge reads **`REGIME  SIDE  −0.50% today`**
+  while the chart timeframe selector shows **`15m`** as active.
+- **Verification: VERIFIED — video confirms source.** This is direct visual
+  proof of the previously source-only finding that the chart classifies regime
+  from the daily percentage change and therefore **cannot track the selected
+  timeframe**. A 15-minute chart is displaying a regime derived from the day's
+  return.
+- **Severity:** **HIGH** · **Product:** WM PRO
+- **Action:** Confirms the state-model defect is real and user-visible, not
+  theoretical. Remains new modelling work, not rewiring.
+
+---
+
+### VE-015 — A working Markov implementation already exists, in Pine on TradingView
+- **Recording:** REC-03 @ **75:00** and **145:00**
+- **Observed:** TradingView chart `OaWoIkYP` (`NASDAQ:TSLA`) running an
+  indicator captioned **"Master Strategy — Markov Pro v2"**, with an overlay
+  panel showing:
+  - `REGIME | SIDEWAYS | DISTRIB` (later `ACCUM`), `EMA 392.92`, `PDH 400.39`, `POC 390.66`
+  - a **transition matrix** — `BULL 74% / 13% / 13%`, `BEAR 10% / 90% / 0%`,
+    `SIDE 12% / 1% / 87%`, `TODAY 12% / 1% / 87%` (rows sum to 100%)
+  - a per-market table — `SPY / QQQ / IWM / TSLA` with `RETURN`, `STATE`, `EDGE`
+- **Verification:** **VERIFIED (decoded frames).** Pine source not inspected —
+  it was not opened on screen.
+- **Severity:** N/A — **high-value reference asset**
+- **Product:** **SHARED DESIGN REFERENCE** → consumed by WM PRO
+- **Why this matters:** the earlier architecture doc concluded WM Pro's state
+  model was *new modelling* with no reference. That framing was incomplete. The
+  founder appears to already own a working Markov formulation with a genuine
+  transition matrix. Porting a spec from owned Pine source is a materially
+  smaller and lower-risk task than originating a model — **and it avoids
+  inventing classifications**, the same constraint that blocked Wyckoff.
+- **Action:** Retrieve the Pine source for "Master Strategy — Markov Pro v2"
+  before any WM Pro state-model ticket is written. **Blocked on founder** —
+  the script is in his TradingView account.
+
+---
+
+### VE-016 — Markov matrix static across 70 minutes (observation, not a defect claim)
+- **Recording:** REC-03 @ **75:00** vs **145:00**
+- **Observed:** across ~70 minutes of elapsed session the matrix values are
+  unchanged (`BULL 74/13/13`, `BEAR 10/90/0`, `SIDE 12/1/87`, `TODAY 12/1/87`)
+  while `REGIME` flipped `DISTRIB → ACCUM`, `DAY RET` moved `−0.16% → −1.55%`,
+  and price moved `393.84 → 388.36`.
+- **Verification: UNRESOLVED — insufficient evidence.** This is consistent with
+  a long-run matrix computed on **daily** bars that only updates at daily close,
+  which would be correct behavior. It is equally consistent with a stale or
+  frozen calculation. **I cannot distinguish these from video.**
+- **Severity:** UNKNOWN — do not action · **Product:** SHARED DESIGN REFERENCE
+- **Action:** Resolve by reading the Pine source (see VE-015). **No defect is
+  claimed here.**
+
+---
+
+## A.2 Corpus status after second pass
+
+| | Count |
+|---|---|
+| Recordings on Desktop | 41 |
+| Content-identified | **3** (REC-01, REC-02, REC-03) |
+| Still uninventoried by content | **38** |
+| Missing / referenced but absent | 3 (MISS-01/02/03) |
+
+Remaining high-value unreviewed assets — `2026-05-24` (**4h 30m**, 8.0 GB),
+`2026-07-06 8.45.52` (**2h 06m**, 6.4 GB), `2026-06-30 8.49.08` (55m, 3.4 GB),
+`2026-07-15 9.55.19` (51m), `2026-07-09 9.07.10` (33m).
+
+**REC-03 was sitting in the corpus the whole time.** The product evidence I
+reported as unavailable existed locally and was simply uninventoried. That is
+the direct argument for completing the identification pass over all 38 remaining
+recordings before any further "evidence unavailable" conclusion is drawn.
+
+## A.3 Retention — unchanged
+
+**Still no deletion authorized.** REC-03 is now demonstrated to contain the only
+observed capture of an auth-gated production surface. Any deletion policy
+applied before content identification would have risked destroying exactly this.
