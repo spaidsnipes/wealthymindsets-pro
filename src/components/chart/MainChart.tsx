@@ -16,6 +16,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import type { FootprintType, CandleType } from "./ChartsDashboard";
 import { resolveParams, visibleAtTf, type IndicatorSettings } from "./indicatorConfig";
 import { parseExchangeSymbol } from "@/lib/exchanges";
+import { DataVersionGuard } from "@/lib/chartContext";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import type { PineOutput } from "@/lib/pine/types";
 import { interpretPine } from "@/lib/pine/interpreter";
@@ -172,7 +173,7 @@ function toPolygonTimespan(tf: string): { mult: number; span: string } | null {
   return map[tf] ?? null;
 }
 
-async function fetchPolygonOHLCV(sym: string, tf: string, count: number): Promise<Bar[] | null> {
+async function fetchPolygonOHLCV(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<Bar[] | null> {
   const POLY_KEY = process.env.NEXT_PUBLIC_POLYGON_KEY ?? "";
   if (!POLY_KEY) return null;
 
@@ -189,7 +190,7 @@ async function fetchPolygonOHLCV(sym: string, tf: string, count: number): Promis
   const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/${timespan.mult}/${timespan.span}/${fromMs}/${toMs}?adjusted=true&sort=asc&limit=${count}&apiKey=${POLY_KEY}`;
 
   try {
-    const res  = await fetch(url, { cache: "no-store" });
+    const res  = await fetch(url, { cache: "no-store", signal });
     const json = await res.json();
     if (!json.results?.length) return null;
     return json.results.map((r: any) => ({
@@ -208,7 +209,7 @@ async function fetchPolygonOHLCV(sym: string, tf: string, count: number): Promis
 /* ── Finnhub OHLCV — primary real data source (Polygon key invalid) ── */
 const FINNHUB_CRYPTOS = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","MATIC","LTC","ATOM","UNI","AAVE"]);
 
-async function fetchFinnhubCandles(sym: string, tf: string, count: number): Promise<Bar[] | null> {
+async function fetchFinnhubCandles(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<Bar[] | null> {
   const KEY = process.env.NEXT_PUBLIC_FINNHUB_KEY ?? "";
   if (!KEY) return null;
 
@@ -240,7 +241,7 @@ async function fetchFinnhubCandles(sym: string, tf: string, count: number): Prom
   }
 
   try {
-    const res  = await fetch(url, { cache: "no-store" });
+    const res  = await fetch(url, { cache: "no-store", signal });
     const json = await res.json();
     if (json.s !== "ok" || !Array.isArray(json.t) || json.t.length === 0) return null;
 
@@ -326,13 +327,13 @@ function filterSession(bars: Bar[], sym: string, intervalSec: number, extendedHo
 
 /* ── Yahoo Finance OHLCV — covers futures + crypto + stocks ── */
 // ── Alpaca candles (primary for stocks/ETFs/crypto when key is set) ──────
-async function fetchAlpacaCandles(sym: string, tf: string, count: number): Promise<Bar[] | null> {
+async function fetchAlpacaCandles(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<Bar[] | null> {
   const up = sym.toUpperCase();
   const isFutures = up.endsWith("1!") || up.includes("=F");
   if (isFutures) return null; // Alpaca doesn't support futures
   try {
     const url = `/api/alpaca?sym=${encodeURIComponent(up)}&type=candles&tf=${tf}&bars=${count}`;
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, { cache: "no-store", signal });
     if (res.status === 503 || res.status === 404) return null; // key not set or not supported
     const json = await res.json();
     if (!Array.isArray(json.candles) || json.candles.length === 0) return null;
@@ -342,7 +343,7 @@ async function fetchAlpacaCandles(sym: string, tf: string, count: number): Promi
   }
 }
 
-async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number): Promise<Bar[] | null> {
+async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<Bar[] | null> {
   // Only for stocks/ETFs — futures/crypto fall back to Yahoo
   const up = sym.toUpperCase();
   const isFutures = up.endsWith("1!") || ["NQ1!","ES1!","RTY1!","YM1!","GC1!","SI1!","CL1!","NG1!","ZB1!","ZN1!","HG1!"].includes(up);
@@ -350,7 +351,7 @@ async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number)
   if (isFutures || isCrypto) return null;
   try {
     const url = `/api/finnhub?sym=${encodeURIComponent(sym)}&type=candles&tf=${tf}&bars=${count}`;
-    const json = await fetch(url, { cache: "no-store" }).then(r => r.json());
+    const json = await fetch(url, { cache: "no-store", signal }).then(r => r.json());
     if (!Array.isArray(json.candles) || json.candles.length === 0) return null;
     return json.candles as Bar[];
   } catch {
@@ -358,10 +359,10 @@ async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number)
   }
 }
 
-async function fetchYahooCandles(sym: string, tf: string, count: number, ext = false): Promise<Bar[] | null> {
+async function fetchYahooCandles(sym: string, tf: string, count: number, ext = false, signal?: AbortSignal): Promise<Bar[] | null> {
   try {
     const url = `/api/yahoo?sym=${encodeURIComponent(sym)}&type=candles&tf=${tf}&bars=${count}${ext ? "&ext=1" : ""}`;
-    const json = await fetch(url, { cache: "no-store" }).then(r => r.json());
+    const json = await fetch(url, { cache: "no-store", signal }).then(r => r.json());
     if (!Array.isArray(json.candles) || json.candles.length === 0) return null;
     return json.candles as Bar[];
   } catch {
@@ -681,6 +682,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const canvasRef     = useRef<HTMLCanvasElement>(null);
   const drawCanvasRef = useRef<HTMLCanvasElement>(null); // drawing tools overlay
   const chartRef      = useRef<any>(null);
+  // WM-CHART-P0-02: aborts the previous symbol/timeframe's in-flight candle
+  // fetch the moment a new one starts, instead of only ignoring its result.
+  const versionGuardRef = useRef<DataVersionGuard>(new DataVersionGuard());
   const lwRef         = useRef<any>(null); // the imported lightweight-charts v5 module (for series defs)
   const candleRef     = useRef<any>(null);
   const markersPluginRef = useRef<any>(null); // v5 createSeriesMarkers plugin (setMarkers moved off ISeriesApi)
@@ -1458,6 +1462,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     let disposed = false;
     const buildId = Date.now(); // unique ID per effect run
     (chartRef as any).__buildId = buildId;
+    // WM-CHART-P0-02: new dataVersion + AbortSignal for this symbol/timeframe.
+    // Starting it aborts whatever the previous run still had in flight.
+    const { version: myDataVersion, signal: myAbortSignal } = versionGuardRef.current.next();
 
     (async () => {
       const LW = await import("lightweight-charts");
@@ -1535,7 +1542,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
       // Fetch real spot price in parallel to validate that candle data is at the
       // correct price level.
-      const spotFetch = fetch(`/api/yahoo?sym=${encodeURIComponent(symbol)}&type=quote`, { cache: "no-store" })
+      const spotFetch = fetch(`/api/yahoo?sym=${encodeURIComponent(symbol)}&type=quote`, { cache: "no-store", signal: myAbortSignal })
         .then(r => r.json())
         .then(j => (j?.price ?? 0) as number)
         .catch(() => 0);
@@ -1559,17 +1566,17 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // Per-exchange crypto (e.g. "BTC.COINBASE") → that exchange's real candles
       const exParsed = parseExchangeSymbol(symbol);
       const exchangeData = exParsed
-        ? await fetch(`/api/exchange?ex=${exParsed.exchange}&coin=${exParsed.coin}&type=candles&tf=${timeframe}&bars=${barCount}`, { cache: "no-store" })
+        ? await fetch(`/api/exchange?ex=${exParsed.exchange}&coin=${exParsed.coin}&type=candles&tf=${timeframe}&bars=${barCount}`, { cache: "no-store", signal: myAbortSignal })
             .then(r => r.json()).then(j => Array.isArray(j?.candles) && j.candles.length ? j.candles as Bar[] : null).catch(() => null)
         : null;
 
       // Priority: exchange-specific, Alpaca, Finnhub, Yahoo, Finnhub REST, Polygon.
       // Never manufacture market bars when every observed-data source is unavailable.
-      const alpacaData   = exchangeData ? null : await fetchAlpacaCandles(symbol, timeframe, barCount);
-      const fhDirectData = (exchangeData || alpacaData) ? null : await fetchFinnhubCandlesDirect(symbol, timeframe, barCount);
-      const yahooData    = (exchangeData || alpacaData || fhDirectData) ? null : await fetchYahooCandles(symbol, timeframe, barCount, extendedHours);
-      const finnhubData  = (exchangeData || alpacaData || fhDirectData || yahooData) ? null : await fetchFinnhubCandles(symbol, timeframe, barCount);
-      const polyData     = (exchangeData || alpacaData || fhDirectData || yahooData || finnhubData) ? null : await fetchPolygonOHLCV(symbol, timeframe, barCount);
+      const alpacaData   = exchangeData ? null : await fetchAlpacaCandles(symbol, timeframe, barCount, myAbortSignal);
+      const fhDirectData = (exchangeData || alpacaData) ? null : await fetchFinnhubCandlesDirect(symbol, timeframe, barCount, myAbortSignal);
+      const yahooData    = (exchangeData || alpacaData || fhDirectData) ? null : await fetchYahooCandles(symbol, timeframe, barCount, extendedHours, myAbortSignal);
+      const finnhubData  = (exchangeData || alpacaData || fhDirectData || yahooData) ? null : await fetchFinnhubCandles(symbol, timeframe, barCount, myAbortSignal);
+      const polyData     = (exchangeData || alpacaData || fhDirectData || yahooData || finnhubData) ? null : await fetchPolygonOHLCV(symbol, timeframe, barCount, myAbortSignal);
       const realData     = exchangeData ?? alpacaData ?? fhDirectData ?? yahooData ?? finnhubData ?? polyData;
       // Provenance: record which provider ACTUALLY supplied these candles.
       const srcName =
@@ -1666,7 +1673,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // our candle fetch was in flight, a newer effect run now owns the chart —
       // abort WITHOUT touching series so we never clobber the newer build or
       // blank the chart the newer run is about to populate.
+      // WM-CHART-P0-02: versionGuardRef is the canonical dataVersion check;
+      // buildId/disposed is this effect's own pre-existing equivalent. Both
+      // must agree that we're still current before this response is applied.
       if ((chartRef as any).__buildId !== buildId || disposed) return;
+      if (!versionGuardRef.current.isCurrent(myDataVersion)) return;
 
       // Reuse path: the PREVIOUS candle + volume series stayed fully visible
       // during the fetch above; remove them now that fresh validated data is
@@ -2058,6 +2069,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // teardown happens once on unmount (dedicated effect below).
       disposed = true;
       (chartRef as any).__buildId = -1;
+      // WM-CHART-P0-02: abort this run's in-flight candle/spot fetches now,
+      // rather than merely letting their (already-guarded) results be ignored
+      // once they land. Safe on both re-run (next effect's next() call takes
+      // over) and unmount (nothing left to take over).
+      versionGuardRef.current.dispose();
     };
   }, [symbol, timeframe, candleType, extendedHours]); // eslint-disable-line react-hooks/exhaustive-deps
 
