@@ -125,7 +125,7 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Latest commit** | `c53e429` |
 | **Handoff location** | `docs/operations/handoffs/forge/2026-07-28-forge-wm-chart-p0-02.md` |
 | **Blockers** | Manual verification (6 rapid timeframe changes) still needs an authenticated `/charts` session — **blocked by RISK-001**, same as P0-01. `buildId`/`disposed` (pre-existing) and the new `DataVersionGuard` are currently redundant, not unified — both must agree before data applies; full consolidation is safe optional follow-up, not required for closure. **`MainChart.tsx` is now clear for WM-CHART-P0-03 (Noah)** — P0-02's edits are committed and pushed. |
-| **Next action** | Sentinel: verify per handoff §3-§4 (grep confirms prior AbortController absence, unit test models the exact ticket scenario) and rule on whether the redundant-guard approach closes the ticket. |
+| **Next action** | Sentinel: verification request `docs/operations/handoffs/forge/2026-07-29-forge-verification-request-wm-chart-p0-02.md` — grep + fixture test + optional live check. |
 
 ---
 
@@ -209,7 +209,7 @@ An implementer who believes work is done sets **`READY FOR VERIFICATION`** and h
 | **Product** | WM Pro |
 | **Priority** | P0 — **at risk for Friday** |
 | **Owner** | Forge |
-| **Status** | **PARTIALLY COMPLETE — AWAITING SENTINEL** at `a4f8f5d` (concurrent-session commit, shared with Noah's ops update). Pure engine + honesty gates + golden test shipped in `src/lib/markov.ts` (297 lines) + `src/lib/markov.test.ts` (292 lines, 22 tests, all green). **UI wiring intentionally deferred** — `ChartsDashboard.tsx` regime HUD and `heatmaps/page.tsx:280` migration are follow-on tickets to avoid overlapping Noah's WM-CHART-P0-03 which also touches these files. |
+| **Status** | **PARTIALLY COMPLETE — AWAITING SENTINEL** at `e0a5ed7` (clean single-purpose commit). Pure engine + honesty gates + golden test shipped in `src/lib/markov.ts` (297 lines) + `src/lib/markov.test.ts` (292 lines, 22 tests, all green). **UI wiring intentionally deferred** — `ChartsDashboard.tsx` regime HUD and `heatmaps/page.tsx:280` migration are follow-on tickets to avoid overlapping Noah's WM-CHART-P0-03 which also touches these files. |
 | **Objective** | Market state must depend on the selected timeframe. Move `computeMarkovState` out of the heatmap page into `src/lib/marketState.ts` and change its input from a scalar percentage to a candle series + `TFId`. |
 | **Dependencies** | WM-CHART-P0-01, WM-CHART-P0-02 |
 | **Evidence source** | Architecture report §C3 — **Sentinel re-verified**: `computeMarkovState(sym, periodReturn)` is defined page-locally at `src/app/heatmaps/page.tsx:280` and takes a single scalar. A scalar cannot encode a timeframe. |
@@ -218,7 +218,7 @@ An implementer who believes work is done sets **`READY FOR VERIFICATION`** and h
 | **Verification requirements** | Unit: same symbol at different intervals produces different state; fixture-based classification; `minBarsForState` gate. Manual: cycle all supported intervals and confirm the HUD tracks. **Thresholds must be validated against real data, not invented.** |
 | **Claimed by** | Forge — 2026-07-29, deterministic-only scope |
 | **Claim timestamp** | 2026-07-29 15:28 CDT |
-| **Latest commit** | `a4f8f5d` (files: `src/lib/markov.ts`, `src/lib/markov.test.ts`, `docs/WM_MARKOV_CONFLUENCE_ARCHITECTURE_2026-07-29.md`; commit message describes Noah's separate ops change due to concurrent-commit race — see handoff §7) |
+| **Latest commit** | `e0a5ed7` (files: `src/lib/markov.ts`, `src/lib/markov.test.ts`, `docs/WM_MARKOV_CONFLUENCE_ARCHITECTURE_2026-07-29.md`; commit message describes Noah's separate ops change due to concurrent-commit race — see handoff §7) |
 | **Handoff location** | `docs/operations/handoffs/forge/2026-07-29-forge-wm-state-p0-01.md` |
 | **Blockers** | Per-timeframe `sideThreshold` values still UNBLESSED — engine returns `insufficient-evidence` with reason `no-threshold-configured` until derived from our own historical returns. UI wiring in `ChartsDashboard.tsx` awaits Noah's WM-CHART-P0-03 landing to avoid overlap. Founder decisions in architecture doc §7 (threshold derivation, default weights, minimum-evidence thresholds) still open. |
 | **Next action** | Hold. Founder should acknowledge the Friday risk. |
