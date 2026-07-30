@@ -7,7 +7,8 @@ import {
   Upload, Play, Volume2, VolumeX,
   ChevronUp, ChevronDown, Crown, CheckCircle, X, Send,
   Repeat2, BarChart2, TrendingUp, Users, Radio, Image, Smile,
-  UserCheck, UserPlus,
+  UserCheck, UserPlus, Podcast, Tv, ShoppingBag, Mic2, Compass,
+  ShieldCheck, Headphones, MessageSquareText,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
@@ -21,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
    TYPES
 ══════════════════════════════════════════════════════════════ */
 type FeedTab = "for-you" | "following" | "explore" | "shorts";
+type LoungeMode = "discover" | "live" | "watch" | "listen" | "rooms";
 
 interface Post {
   id:           number;
@@ -525,6 +527,120 @@ const SIDEBAR_TAGS: Record<string, string[]> = {
   "Creator Hub":    ["creator","music","beats"],
 };
 
+const LOUNGE_MODES: { id: LoungeMode; label: string; eyebrow: string; icon: React.ReactNode }[] = [
+  { id: "discover", label: "Discover", eyebrow: "For your world", icon: <Compass size={14} /> },
+  { id: "live", label: "Live Now", eyebrow: "Stages & streams", icon: <Zap size={14} /> },
+  { id: "watch", label: "Watch", eyebrow: "Shows & shorts", icon: <Tv size={14} /> },
+  { id: "listen", label: "Listen", eyebrow: "Music & podcasts", icon: <Headphones size={14} /> },
+  { id: "rooms", label: "Rooms", eyebrow: "Talk & community", icon: <MessageSquareText size={14} /> },
+];
+
+function UniversalLoungeHero({
+  mode,
+  onMode,
+  onCreate,
+  onOpenRoom,
+  signedIn,
+}: {
+  mode: LoungeMode;
+  onMode: (mode: LoungeMode) => void;
+  onCreate: () => void;
+  onOpenRoom: (room: string, host: boolean) => void;
+  signedIn: boolean;
+}) {
+  const activeRoom = LIVE_ROOMS[0];
+
+  return (
+    <section className="relative overflow-hidden rounded-[30px] border" style={{
+      minHeight: 420,
+      borderColor: "rgba(232,185,35,.24)",
+      background: "#07110e",
+      boxShadow: "0 32px 90px rgba(0,0,0,.42), inset 0 1px rgba(255,255,255,.08)",
+    }}>
+      <div className="absolute inset-0" style={{
+        backgroundImage: 'linear-gradient(90deg,rgba(4,12,10,.98) 0%,rgba(4,12,10,.86) 43%,rgba(4,12,10,.28) 72%,rgba(4,12,10,.72) 100%),url("/images/community/wm-lounge-harlem-night-v1.png")',
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }} />
+      <div className="absolute inset-0 opacity-60" style={{
+        background: "radial-gradient(circle at 72% 18%,rgba(255,231,164,.27),transparent 28%),radial-gradient(circle at 52% 90%,rgba(0,212,170,.18),transparent 34%)",
+      }} />
+      <div className="absolute -right-24 -top-28 w-96 h-96 rounded-full border opacity-40" style={{ borderColor: "rgba(232,185,35,.28)", boxShadow: "inset 0 0 80px rgba(232,185,35,.08)" }} />
+
+      <div className="relative z-10 flex flex-col h-full p-6 md:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[.22em]" style={{
+            color: "#F5D77A", background: "rgba(255,255,255,.07)", border: "1px solid rgba(245,215,122,.24)", backdropFilter: "blur(18px)",
+          }}>
+            <ShieldCheck size={12} /> One Passport · Every WM World
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_14px_#34d399]" />
+            <span className="text-[10px] font-bold text-white/70">The universe is open</span>
+          </div>
+        </div>
+
+        <div className="mt-12 max-w-2xl">
+          <p className="text-[10px] font-black uppercase tracking-[.36em] mb-3" style={{ color: "#DDBF68" }}>WealthyMindsets presents</p>
+          <h1 className="text-white leading-[.9] tracking-[-.04em]" style={{ fontFamily: 'Georgia,"Times New Roman",serif', fontSize: "clamp(48px,7vw,86px)" }}>
+            The Lounge
+          </h1>
+          <p className="mt-4 max-w-xl text-sm md:text-base leading-relaxed text-white/68">
+            Your people, your markets, your music and your next idea—alive in one place.
+            Watch, listen, speak, build and belong without losing your identity between apps.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button onClick={() => onMode("live")} className="h-11 px-5 rounded-2xl text-[11px] font-black text-[#07110e] flex items-center gap-2 transition-transform hover:scale-[1.03]" style={{
+              background: "linear-gradient(135deg,#F5D77A,#65E0B4)", boxShadow: "0 12px 30px rgba(101,224,180,.18)",
+            }}>
+              <Play size={14} fill="currentColor" /> Enter what’s live
+            </button>
+            <button onClick={onCreate} className="h-11 px-5 rounded-2xl text-[11px] font-black text-white flex items-center gap-2 hover:bg-white/10" style={{
+              background: "rgba(255,255,255,.065)", border: "1px solid rgba(255,255,255,.16)", backdropFilter: "blur(18px)",
+            }}>
+              <Plus size={14} /> {signedIn ? "Create something" : "Join with Passport"}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-auto pt-8 grid grid-cols-2 md:grid-cols-5 gap-2">
+          {LOUNGE_MODES.map(item => (
+            <button key={item.id} onClick={() => onMode(item.id)}
+              className="group text-left rounded-2xl px-3 py-3 transition-all"
+              style={{
+                background: mode === item.id ? "linear-gradient(135deg,rgba(245,215,122,.18),rgba(101,224,180,.12))" : "rgba(4,12,10,.46)",
+                border: `1px solid ${mode === item.id ? "rgba(245,215,122,.42)" : "rgba(255,255,255,.1)"}`,
+                backdropFilter: "blur(18px)",
+              }}>
+              <span className="flex items-center gap-2 text-[11px] font-black text-white">{item.icon}{item.label}</span>
+              <span className="block mt-1 text-[9px] text-white/45">{item.eyebrow}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="absolute right-6 top-20 hidden xl:block w-72 rounded-[24px] p-4" style={{
+        background: "linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.045))",
+        border: "1px solid rgba(255,255,255,.18)", backdropFilter: "blur(24px)", boxShadow: "0 24px 60px rgba(0,0,0,.32)",
+      }}>
+        <div className="flex items-center justify-between">
+          <span className="text-[9px] font-black uppercase tracking-[.2em] text-emerald-300">Featured room</span>
+          <span className="text-[9px] text-white/45">Studio ready</span>
+        </div>
+        <div className="mt-8 w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#E8B923,#059669)", color: "#07110e" }}>
+          <Mic2 size={21} />
+        </div>
+        <h3 className="mt-4 text-xl text-white" style={{ fontFamily: "Georgia,serif" }}>{activeRoom.label}</h3>
+        <p className="mt-1 text-[11px] leading-relaxed text-white/55">{activeRoom.desc}. Cameras, screen share, co-hosts and live chat in one stage.</p>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button onClick={() => onOpenRoom(activeRoom.name, false)} className="h-9 rounded-xl text-[10px] font-black text-[#07110e]" style={{ background: "#F5D77A" }}>Join room</button>
+          <button onClick={() => onOpenRoom(activeRoom.name, true)} className="h-9 rounded-xl text-[10px] font-black text-white border border-white/15 bg-white/5">Host</button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ── Lounge vibe header — MySpace-soul profile hero + stories ──
    Themed customizable banner (Harlem Nights / Golden Vinyl / Trading /
    Royal), gold-ring avatar, editable "Current Vibe" status, and a glowing
@@ -651,7 +767,7 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
               <div className="flex-1 min-w-0">
                 <div className="text-[10px] font-bold text-wm-text truncate">No track selected</div>
                 <div className="flex items-end gap-[2px] mt-1" style={{ height: 12 }}>
-                  {Array.from({ length: 34 }).map((_, i) => { const h = Math.min(100, 22 + Math.abs(Math.sin(i * 0.6)) * 78); return <div key={i} style={{ flex: 1, height: `${h}%`, borderRadius: 1, background: `${theme.accent}99` }} />; })}
+                  {Array.from({ length: 34 }).map((_, i) => { const h = Math.min(100, 22 + Math.abs(Math.sin(i * 0.6)) * 78).toFixed(2); return <div key={i} style={{ flex: 1, height: `${h}%`, borderRadius: 1, background: `${theme.accent}99` }} />; })}
                 </div>
               </div>
             </div>
@@ -702,6 +818,7 @@ export default function LoungePage() {
   const [follows,       setFollows]       = useState<Set<string>>(new Set());
   const [activeRoom,    setActiveRoom]    = useState<string | null>(null);
   const [activeRoomIsHost, setActiveRoomIsHost] = useState(false);
+  const [loungeMode, setLoungeMode] = useState<LoungeMode>("discover");
 
   // Deep-link support: a shared live link (…/lounge?room=<name>) drops the visitor
   // straight into that room as a viewer. Runs once on mount.
@@ -941,7 +1058,114 @@ export default function LoungePage() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-5xl mx-auto px-4 py-4 space-y-4">
+          <div className="max-w-[1280px] mx-auto px-4 py-4 space-y-4">
+            <UniversalLoungeHero
+              mode={loungeMode}
+              onMode={next => {
+                setLoungeMode(next);
+                if (next === "live" || next === "rooms") setSidebarFilter(null);
+              }}
+              signedIn={Boolean(myHandle)}
+              onCreate={() => myHandle ? setShowCreate(true) : toast.error("Sign in with WM Passport to create")}
+              onOpenRoom={(room, host) => {
+                setActiveRoomIsHost(host);
+                setActiveRoom(room);
+              }}
+            />
+
+            {/* Passport-connected universal destinations */}
+            <div className="grid md:grid-cols-4 gap-3">
+              {[
+                { href:"/tv", icon:<Tv size={16}/>, kicker:"Watch", title:"WM TV", copy:"Live studios, shows, podcasts and premieres.", color:"#E8B923" },
+                { href:"/radio", icon:<Radio size={16}/>, kicker:"Listen", title:"WM Radio", copy:"Music, stations, artists and talk—everywhere.", color:"#65E0B4" },
+                { href:"/shop", icon:<ShoppingBag size={16}/>, kicker:"Collect", title:"WM Shop", copy:"Drops, memberships and creator storefronts.", color:"#F2A3C7" },
+                { href:"/profile", icon:<Crown size={16}/>, kicker:"Become", title:"Your Passport", copy:"One identity, library, wallet and reputation.", color:"#A98CF5" },
+              ].map(card => (
+                <a key={card.href} href={card.href} className="group relative overflow-hidden rounded-2xl p-4 min-h-[132px] transition-transform hover:-translate-y-1"
+                  style={{ background:"linear-gradient(145deg,rgba(255,255,255,.075),rgba(255,255,255,.025))", border:"1px solid rgba(255,255,255,.1)" }}>
+                  <div className="absolute -right-8 -top-8 w-24 h-24 rounded-full blur-2xl opacity-20" style={{ background:card.color }} />
+                  <div className="relative flex items-center justify-between">
+                    <span className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ color:card.color, background:`${card.color}16`, border:`1px solid ${card.color}30` }}>{card.icon}</span>
+                    <ChevronUp size={13} className="rotate-45 text-white/30 group-hover:text-white/70" />
+                  </div>
+                  <div className="relative mt-4">
+                    <div className="text-[8px] font-black uppercase tracking-[.2em]" style={{ color:card.color }}>{card.kicker}</div>
+                    <div className="mt-1 text-sm font-black text-white">{card.title}</div>
+                    <p className="mt-1 text-[10px] leading-relaxed text-white/45">{card.copy}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+
+            {(loungeMode === "live" || loungeMode === "rooms") && (
+              <div className="rounded-[26px] p-4 md:p-5" style={{ background:"linear-gradient(135deg,rgba(5,46,35,.72),rgba(13,14,20,.94))", border:"1px solid rgba(101,224,180,.2)" }}>
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <div className="text-[9px] font-black uppercase tracking-[.22em] text-emerald-300">Gather live</div>
+                    <h2 className="mt-1 text-xl text-white" style={{ fontFamily:"Georgia,serif" }}>Stages, podcasts and community rooms</h2>
+                  </div>
+                  <button onClick={() => {
+                    if (!myHandle) { toast.error("Sign in with WM Passport to host"); return; }
+                    setActiveRoomIsHost(true);
+                    setActiveRoom(LIVE_ROOMS[0].name);
+                  }}
+                    className="h-9 px-4 rounded-xl text-[10px] font-black text-[#07110e]" style={{ background:"linear-gradient(135deg,#F5D77A,#65E0B4)" }}>
+                    Start a room
+                  </button>
+                </div>
+                <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-2.5">
+                  {LIVE_ROOMS.map((room, index) => (
+                    <button key={room.name} onClick={() => { setActiveRoomIsHost(false); setActiveRoom(room.name); }}
+                      className="text-left rounded-2xl p-3.5 min-h-[118px] hover:-translate-y-0.5 transition-transform"
+                      style={{ background:"rgba(255,255,255,.045)", border:"1px solid rgba(255,255,255,.09)" }}>
+                      <div className="flex items-center justify-between">
+                        <span className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background:`${room.color}18`,color:room.color }}>
+                          {index === 2 ? <Podcast size={13}/> : index === 3 ? <Music size={13}/> : <Mic2 size={13}/>}
+                        </span>
+                        <span className="text-[8px] font-black uppercase tracking-wider text-white/35">Open</span>
+                      </div>
+                      <div className="mt-3 text-[11px] font-black text-white">{room.label}</div>
+                      <div className="mt-1 text-[9px] leading-relaxed text-white/45">{room.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(loungeMode === "watch" || loungeMode === "listen") && (() => {
+              const isWatch = loungeMode === "watch";
+              const dest = isWatch
+                ? { href:"/tv",    kicker:"Watch",  title:"WM TV",    icon:<Tv size={20}/>,        color:"#E8B923",
+                    copy:"Live studios, shows, podcasts and premieres — streamed through your Passport.",
+                    cta:"Open WM TV" }
+                : { href:"/radio", kicker:"Listen", title:"WM Radio", icon:<Headphones size={20}/>, color:"#65E0B4",
+                    copy:"Stations, artists, mixes and talk — your sound follows you across every WM world.",
+                    cta:"Open WM Radio" };
+              return (
+                <div className="rounded-[26px] p-4 md:p-5"
+                  style={{ background:"linear-gradient(135deg,rgba(46,35,5,.5),rgba(13,14,20,.94))", border:`1px solid ${dest.color}33` }}>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
+                        style={{ color:dest.color, background:`${dest.color}18`, border:`1px solid ${dest.color}33` }}>
+                        {dest.icon}
+                      </span>
+                      <div>
+                        <div className="text-[9px] font-black uppercase tracking-[.22em]" style={{ color:dest.color }}>{dest.kicker}</div>
+                        <h2 className="mt-0.5 text-xl text-white" style={{ fontFamily:"Georgia,serif" }}>{dest.title}</h2>
+                      </div>
+                    </div>
+                    <a href={dest.href}
+                      className="h-9 px-4 rounded-xl text-[10px] font-black flex items-center gap-1.5 text-[#07110e] transition-transform hover:scale-[1.03]"
+                      style={{ background:`linear-gradient(135deg,${dest.color},#F5D77A)` }}>
+                      <Play size={12} fill="currentColor" /> {dest.cta}
+                    </a>
+                  </div>
+                  <p className="mt-3 max-w-xl text-[12px] leading-relaxed text-white/55">{dest.copy}</p>
+                </div>
+              );
+            })()}
+
             <LoungeVibeHeader
               name={myName} handle={myHandle} avatar={myAvatar} color={myColor} ceo={myCeo}
               postCount={posts.filter(p => p.user_handle === myHandle).length}
