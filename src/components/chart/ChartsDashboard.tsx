@@ -33,6 +33,7 @@ import { StockInfoPanel } from "./StockInfoPanel";
 import { BottomIndexBar } from "./BottomIndexBar";
 import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { priceSourceBadge } from "@/lib/priceSource";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { interpretPine } from "@/lib/pine/interpreter";
 import type { PineOutput } from "@/lib/pine/types";
@@ -514,7 +515,7 @@ export function ChartsDashboard() {
     }
   }, []);
 
-  const { ticker } = useWebSocket({ symbol, timeframe });
+  const { ticker, source, connected } = useWebSocket({ symbol, timeframe });
 
   // Track day high/low from ticker
   useEffect(() => {
@@ -642,6 +643,28 @@ export function ChartsDashboard() {
             &nbsp;{ticker.changePct >= 0 ? "+" : ""}{ticker.change.toFixed(2)}
             &nbsp;{ticker.changePct >= 0 ? "+" : ""}{ticker.changePct.toFixed(2)}%
           </span>
+          {(() => {
+            const b = priceSourceBadge(source, connected);
+            return (
+              <span
+                title={b.title}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                  fontSize: 8.5, fontWeight: 700, letterSpacing: "0.06em",
+                  color: b.live ? "#00C076" : "#8B8FA8",
+                  background: b.live ? "#00C0761A" : "#8B8FA815",
+                  border: `1px solid ${b.live ? "#00C07640" : "#8B8FA830"}`,
+                  borderRadius: 3, padding: "2px 5px", flexShrink: 0, cursor: "help",
+                }}
+              >
+                <span style={{
+                  width: 5, height: 5, borderRadius: "50%",
+                  background: b.live ? "#00C076" : "#8B8FA8",
+                }} />
+                {b.label}
+              </span>
+            );
+          })()}
         </div>
         {/* Tab bar */}
         {["Chart","Options","ETFs","Financials","Valuation","Corporate Actions","Shareholders","Profile"].map(tab => (
