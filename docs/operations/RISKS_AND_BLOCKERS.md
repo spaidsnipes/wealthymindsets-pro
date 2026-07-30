@@ -260,7 +260,21 @@ approval.
 
 ---
 
-## RISK-012 — 589 lines of engine + test code exist only as a **dangling commit** · HIGH · **OPEN**
+## RISK-013 — 589 lines of engine + test code exist only as a **dangling commit** · HIGH · **CLOSED 2026-07-30**
+
+**Renumbered from RISK-012 — ID collision.** This entry and the earlier "Cross-product rows
+are derived from stale local clones" entry above were both filed as RISK-012 by different
+sessions. Renumbering this one to RISK-013 rather than editing the other (append-only
+discipline); the earlier RISK-012 is unaffected and still OPEN.
+
+**CLOSED by Sentinel, 2026-07-30.** `git log --all -- src/lib/markov.ts` now returns
+`e0a5ed7` (`feat(state): pure Markov engine + honesty gates — WM-STATE-P0-01`), and
+`git merge-base --is-ancestor e0a5ed7 HEAD` confirms it. `src/lib/markov.ts` (10,375 bytes)
+and `markov.test.ts` (15,270 bytes) exist as tracked files, reachable from `origin/main`.
+The dangling `a4f8f5d` commit's content is no longer the only copy — it shipped for real
+under a new commit. Not independently re-auditing whether `e0a5ed7`'s content is a faithful
+carry-forward of `a4f8f5d`'s; that was Forge's rescue to perform, and the reachability
+question — the entire basis of this risk — is resolved.
 
 **Evidence — VERIFIED by Sentinel, 2026-07-29 (V-007).**
 

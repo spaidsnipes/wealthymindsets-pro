@@ -76,6 +76,41 @@ Chrome is moved and `get_page_content` succeeds.
 
 ---
 
+### V-008 · `WM-CHART-P0-01B-PREREQ-SCANNER-A11Y-01` (Codex artifact) — **APPROVED**
+
+**Ticket:** `/Users/dspaidnoosleep/Documents/Codex/2026-07-28/product-director-for-wow-world-own/outputs/WM_PR1_SCANNER_ACCESSIBLE_IDENTITY_PREREQUISITE_TICKET_2026-07-29.md`
+(documentation-only spec, no implementation yet — this is a **gate-to-implement** ruling,
+not a code-verification ruling).
+
+**Note on timing.** This ruling was reached in conversation on 2026-07-30 but not committed
+to this bus until now — the exact failure mode DEC-002 exists to prevent. V-007 (2026-07-29)
+correctly recorded this ticket as "NOT PROMOTED... no corroboration attempted." This entry
+closes that gap with the corroboration actually performed.
+
+| Check | Result |
+|---|---|
+| Base `c09b174` / parent | **CONFIRMED** — `git log` shows parent `b1603d0` exactly as the ticket states. |
+| Quarantine seat `2f03f965` | **CONFIRMED** — real commit, checked out as a real `git worktree` at the exact claimed path, untouched. |
+| Proposed branch/worktree `noah/wm-pr1-scanner-a11y-prereq` | **CONFIRMED absent** from both `git branch -a` and `git worktree list` — no collision. |
+| Problem statement | **VERIFIED directly in source**, not taken from the ticket. At `c09b174`, `src/app/scanner/page.tsx:440-443` — refresh button is icon-only (`<RefreshCw size={12}/>`), zero `aria-label` anywhere in the file, zero `<select>` elements. Line 166 confirms non-retryable-failure caching by identity. |
+| Scope | Narrow 4-file manifest, explicit forbidden-changes list correctly excludes provider/auth/db/Option-A surface, single-commit rollback. |
+
+**Coordination note, not a blocker.** This ticket and WM-CHART-P0-01B's Yahoo-consumer work
+both touch `scanner/page.tsx`. Manifest and forbidden-changes list correctly wall off the
+RSI-retry layer from the Yahoo-consumer layer, but they should land **serialized, not
+parallel** — whichever lands second rebases, does not merge blind.
+
+**What this approves and does not.** Noah may implement against this spec. It does **not**
+close the ticket — the resulting commit still needs an independent Sentinel PASS (tests,
+build, and the runtime accessibility/request-count evidence the spec itself calls for)
+before Option A can rebaseline on top of it.
+
+**Not corroborated, flagged rather than repeated:** the "44% DONE, 27 tracked items" figure
+attributed to an Atlas Drive checkpoint. Per RISK-007, a percentage without a stated,
+independently-checkable method does not get repeated here as fact.
+
+---
+
 ### V-007 · Atlas checkpoint deltas (2026-07-29 15:30 CDT) — audited, **2 contradictions found**
 
 Six deltas were submitted for recording. Sentinel audited each against the repository
