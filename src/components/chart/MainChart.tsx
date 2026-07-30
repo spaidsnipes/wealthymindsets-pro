@@ -18,6 +18,7 @@ import { resolveParams, visibleAtTf, type IndicatorSettings } from "./indicatorC
 import { parseExchangeSymbol } from "@/lib/exchanges";
 import { DataVersionGuard } from "@/lib/chartContext";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { priceSourceBadge } from "@/lib/priceSource";
 import type { PineOutput } from "@/lib/pine/types";
 import { interpretPine } from "@/lib/pine/interpreter";
 import * as IND from "./indicators";
@@ -1284,7 +1285,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     return () => window.removeEventListener("wm-vp-colors", load);
   }, []);
 
-  const { liveBar, ticker, recentTicks, tapeSource } = useWebSocket({ symbol, timeframe });
+  const { liveBar, ticker, recentTicks, tapeSource, source, connected } = useWebSocket({ symbol, timeframe });
 
   // ── Tick accumulator: EVERY real executed trade (no synthetic / quote-poll noise) ──
   // Map<barTime, Map<priceRounded, {bid, ask}>>
@@ -6568,7 +6569,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         style={{ height: 28, flexShrink: 0, background: "#0B0E1A" }}
         className="flex items-center gap-4 px-3 border-b border-wm-border/50"
       >
-        {/* Price + change */}
+        {/* Price + change + source provenance (WM-CHART-P0-05) */}
         <div className="flex items-baseline gap-2">
           <span className="font-mono font-bold text-base text-wm-text leading-none">
             {(ticker.price > 0 ? ticker.price : lastPrice).toLocaleString("en-US", {
@@ -6578,6 +6579,29 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           <span className={`text-xs font-mono font-semibold ${up ? "text-wm-green" : "text-wm-red"}`}>
             {up ? "+" : ""}{change.toFixed(dp)} ({up ? "+" : ""}{changePct}%)
           </span>
+          {(() => {
+            const b = priceSourceBadge(source, connected);
+            return (
+              <span
+                title={b.title}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 3,
+                  fontSize: 8, fontWeight: 700, letterSpacing: "0.06em",
+                  color: b.live ? "#00C076" : "#8B8FA8",
+                  background: b.live ? "#00C0761A" : "#8B8FA815",
+                  border: `1px solid ${b.live ? "#00C07640" : "#8B8FA830"}`,
+                  borderRadius: 3, padding: "1px 4px", cursor: "help",
+                  alignSelf: "center",
+                }}
+              >
+                <span style={{
+                  width: 4, height: 4, borderRadius: "50%",
+                  background: b.live ? "#00C076" : "#8B8FA8",
+                }} />
+                {b.label}
+              </span>
+            );
+          })()}
         </div>
 
         {/* OHLCV */}
