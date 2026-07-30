@@ -540,3 +540,136 @@ Each still requires the full field set before it is claimed. Detail lives in
 | **Blockers** | RISK-001 (no authenticated/extension-connected runtime verification this session). |
 | **Next action** | Route to Forge for architecture (single source-of-truth for live quotes, or explicit per-surface source/cadence labelling). Do not route to Noah — held per Founder Option A. **Forge investigation + design proposal filed: `docs/operations/handoffs/forge/2026-07-30-forge-wm-chart-p0-05-investigation.md` (2026-07-30, `useSymbolPrice` hybrid — WS for active symbol, shared REST cache + source/staleness badge for non-active). Design awaiting Sentinel triage before implementation.** |
 | **Filed by** | Sentinel, 2026-07-30, on independent structural review — not a rubber stamp of the Mission Control report. |
+
+---
+---
+
+# TEAM ASSIGNMENTS — 2026-07-30 15:06 CDT FOUNDER DIRECTIVE
+
+**Source:** Drive doc `1Amds329Q9Gpb1TC3Ut2-ZMig2N7kIHtc5FAMt_cn5pc` — WM Pro ATH Mission Control Current Directive, 2026-07-30 15:06 CDT, King David (Founder). Supersedes yesterday's broad master prompt.
+**Coordinator note (Atlas/Mission Control):** These are your first actions when you open your thread. Do not ask the Founder what to do — read this section, claim your item, do the work, publish the handoff. Per `TEAM_CHARTERS.md` + `DECISIONS.md` DEC-011.
+
+## SENTINEL — Release Gate Owner
+
+**FIRST ACTION (only first action):** Issue **APPROVED** or **RETURN** with exact evidence for `WM-CHART-P0-01B-PREREQ-SCANNER-A11Y-01`. This single verdict unblocks Noah's WM-CHART-P0-03 execution, Forge's Option A V5 rebaseline, and the parked Video Intelligence contracts.
+
+**Then:**
+1. Reconcile RISK-012 (dangling markov commit) — Atlas audit says LIKELY RESOLVED at `e0a5ed7`; confirm and close.
+2. Independently verify **WM-CHART-P0-05 surface fixes** shipped this session (commits `1bbf2ec`, `831e9ea`, `a0b22e8`, `a223fc5`) on production `wealthymindsets-pro.vercel.app/charts`. Closure handoff at `docs/operations/handoffs/forge/2026-07-30-forge-wm-chart-p0-05-closure.md`. Verify: badge renders, tooltips honest, source labels match the resolved provider per surface.
+3. Independently verify **WM-CHART-P0-06** (`3cbf3a9`) — symbol-identity gate on WS tick-folding. Verify: rapid symbol switches (SPY↔AAPL↔TSLA↔SPY) do not produce cross-symbol candle contamination.
+4. No vague verdicts. Use APPROVED / RETURN / BLOCKED — EXTERNAL DEPENDENCY / INSUFFICIENT EVIDENCE.
+
+**Handoff location:** `docs/operations/handoffs/sentinel/2026-07-30-*.md`
+
+## NOAH — Implementation Owner
+
+**STATUS: HELD** until Sentinel's `WM-CHART-P0-01B-PREREQ-SCANNER-A11Y-01` verdict.
+
+**After APPROVED, execute in this order:**
+1. `WM-CHART-P0-03` — truthful granularity behavior (silent 2m→1m/5m substitution).
+2. Approved portion of `WM-CHART-P0-05` remaining work (badge surfaces already shipped in this session; remaining = Forge's canonical-quote shared subscription hook, gated on Forge finalizing the architecture).
+3. **File `WM-CHART-P0-05b`** — Custom Big Trades quantity UI (storage already exists at `FootprintControls.tsx:94-111`, read at `MainChart.tsx:848-850`; UI missing).
+4. **File separate bounded ticket** — restore branded W trigger for the Smart Money chart button (plain text currently; panel interior already has W branding — inconsistency).
+
+**Do NOT begin parked habit-loop features** (Real-Time Alerts, AI Trade Journal, Regime-Aware Risk, Daily Bias, Guided Checklist, Content Export, Explain This). Those are BACKLOG until Sentinel opens the gate.
+
+**Handoff location:** `docs/operations/handoffs/noah/2026-07-30-*.md`
+
+## FORGE — Architecture & Data-Truth Owner
+
+**FIRST ACTIONS (parallel, no gate required):**
+1. **Prepare Option A V5 rebaseline** but do NOT activate before Sentinel's gate.
+2. **Lock the authoritative quote architecture** — one canonical quote snapshot per symbol with `timestamp`, `session`, `source`, `staleness`, `calculatedFor`. This is §5 of the WM-CHART-P0-05 investigation (`useSymbolPrice` hybrid: WS for active symbol, shared REST cache for non-active). The per-surface badges shipped this session are the bridge; the shared subscription is the finish line.
+3. **Finalize Confluence architecture** using only eligible evidence-bearing components. Structurally exclude MBO-dependent claims (order identity, iceberg, absorption, aggressive-vs-passive certainty). Spec is at `docs/WM_MARKOV_CONFLUENCE_ARCHITECTURE_2026-07-29.md`; ship the finalized version.
+
+**Handoff location:** `docs/operations/handoffs/forge/2026-07-30-*.md`
+
+## MICAH — Experience, Accessibility, WOW Polish
+
+**Thread status:** Founder directive requires this thread to be created if it does not exist yet.
+
+**FIRST ACTIONS (parallel, no gate required):**
+1. **Zero-truncation sweep** on `/charts`, `/watchlists`, `/scanner`, `/heatmaps`, `/education`. File one Noah subtask per truncation instance at viewports 360×800, 390×844, 834×1194, desktop.
+2. **Water-style Big Trade marker design spec** — original WM visual language for the bubbles. Circle / square / diamond / approved shapes; opacity + std-dev size scaling; collision avoidance; current-price readability; clear source + timestamp tooltip. Hands to Noah as pixel-level acceptance criteria (see WM-CHART-P0-05b/c).
+3. **Restore branded W trigger** design — the Smart Money chart button. Owner: Micah for design; Noah for implementation.
+4. **Verify every new interactive element** has a keyboard focus state AND a touch equivalent. Mouse-only controls are release-blocking. The 20 drawing tools in `MainChart` are currently mouse-only (WM-RESP-P0-01).
+5. **Screenshot every panel's empty / loading / error / stale / unavailable state.** Missing states are tickets.
+
+**Never invent data.** Presentation-only. If a price feels wrong, file to Forge — don't retint.
+
+**Handoff location:** `docs/operations/handoffs/micah/2026-07-30-*.md`
+
+## NEHEMIAH — Operations & Critical Path
+
+**Thread status:** Founder directive requires this thread to be created if it does not exist yet.
+
+**FIRST ACTIONS:**
+1. **Publish the current critical path** in `docs/operations/DAILY_OPERATIONS_REPORT.md`: single blocker → owner → verifier → next action → blocker age.
+   Current: `WM-CHART-P0-01B-PREREQ-SCANNER-A11Y-01` → Sentinel → (no verifier — Sentinel is the verifier) → issue APPROVED or RETURN → filed today.
+2. **Reconcile ticket status vs `git log`** every 30 minutes during active work. This session shipped commits `1bbf2ec`, `831e9ea`, `a0b22e8`, `a223fc5`, `63290d7`, `3cbf3a9`, `0bfb7fd` — update the queue rows to reflect that WM-CHART-P0-05 four surface badges are shipped and P0-06 is shipped.
+3. **Detect ownerless tickets** and route them using the table in `TEAM_CHARTERS.md`. Do not leave ownerless > 2 hours.
+4. **Detect duplicate work.** The "fix lounge waveform" thread should be checked against `wip/lounge-universal-hero-recovered` — someone was already 227 lines into a Universal Lounge Hero and abandoned it. If the new thread doesn't know about the WIP, route them to that branch instead of starting over.
+5. **End-of-session command-board summary** to `DAILY_OPERATIONS_REPORT.md`.
+
+**Handoff location:** `docs/operations/handoffs/nehemiah/2026-07-30-*.md`
+
+## ATLAS — Knowledge & Drive
+
+**FIRST ACTIONS:**
+1. **Same-day Drive publishing** of this session's closures: `WM-CHART-P0-05` (4-surface badge fix, closure handoff at `docs/operations/handoffs/forge/2026-07-30-forge-wm-chart-p0-05-closure.md`) and `WM-CHART-P0-06` (symbol-identity gate on WS tick-folding, commit `3cbf3a9`).
+2. **Update the WM Pro FULL-THREAD IMPLEMENTATION AUDIT** (Drive doc `1g49GSBy5d5_4gaaOK0jN1zJGZIAM_kEvRXGh9L26OEM`) to reflect that A5 (four-price discrepancy) has moved from IN-FLIGHT to SHIPPED-AT-SURFACE, with the shared-subscription refactor tracked as follow-on quality work (not a truthfulness gate anymore).
+3. **Ticket-to-owner map** refresh, aligned with this section.
+4. **Never index unverified claims as truth.** Label as `UNVERIFIED CLAIM` until Sentinel or observed behavior confirms.
+
+**Handoff location:** `docs/operations/handoffs/atlas/2026-07-30-*.md`
+
+## VIDEO INTELLIGENCE
+
+**STATUS: RESEARCH-ONLY** until Sentinel opens the gate. No implementation tickets.
+
+**Continued work:**
+- Process oldest Founder-clicked video with transcript access; extract lessons in original words.
+- Maintain the 5-app comparison matrix (Webull, moomoo, tastytrade, TradingView, DeepCharts) — new row per week.
+- Preserve transcript failures honestly. Never invent transcript content. Never copy competitor UI/text/code.
+
+## ELIAS — Founder-Level Arbitration
+
+**Do not engage unless:** two employees genuinely disagree on scope/ownership blocking work, OR a `DECISIONS.md` decision conflicts with a new founder-signed directive, OR Nehemiah escalates a > 3-day stalled ticket. See `TEAM_CHARTERS.md` for the full engagement bar.
+
+---
+
+## Coordinator log (Atlas / this session)
+
+| Time (CDT) | Actor | Action | Reference |
+|---|---|---|---|
+| 15:34 | main session | Shipped WM-CHART-P0-05 surface #1 (header) | `1bbf2ec` |
+| 15:41 | main session | Shipped WM-CHART-P0-05 surface #2 (tape)   | `831e9ea` |
+| 15:49 | main session | Shipped WM-CHART-P0-05 surface #3 (watchlist) | `a0b22e8` |
+| 15:55 | main session | Shipped WM-CHART-P0-05 surface #4 (HUD)    | `a223fc5` |
+| 15:59 | main session | Published P0-05 closure handoff            | `63290d7` |
+| 16:02 | main session | Shipped WM-CHART-P0-06 (symbol-identity gate on WS tick fold) | `3cbf3a9` |
+| 16:15 | main session | Team charters ratified as DEC-011           | `0bfb7fd` |
+| 16:22 | main session | Preserved dangling lounge WIP on branch     | `wip/lounge-universal-hero-recovered` |
+| 16:24 | main session | Routed Founder 15:06 CDT directive assignments into this queue | (this commit) |
+
+---
+
+## WM-LOUNGE-P2-01 — Fix lounge waveform (routed from stray thread)
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-LOUNGE-P2-01 |
+| **Product** | WM Pro (Lounge surface) |
+| **Priority** | **P2** by default. Escalate ONLY if Sentinel confirms a broken user-facing rendering — otherwise it stays P2 behind the P0 gate. |
+| **Owner (design)** | **Micah** — waveform is a presentation concern (audio-visualization in Radio/Podcast/Listen mode) inside the Lounge social surface. Micah owns the visual language + acceptance criteria. |
+| **Owner (implementation)** | **Noah**, after Micah's spec — held with the rest of Noah's queue until the WM-CHART-P0-01B-PREREQ-SCANNER-A11Y-01 gate opens. |
+| **Verifier** | Sentinel (visual + interaction across 360×800, 390×844, 834×1194, desktop). |
+| **Status** | **BACKLOG — SCOPE CHECK REQUIRED**. |
+| **Trigger** | A separate Claude thread titled "fix lounge waveform" was created without an assignment. Founder flagged 2026-07-30: work is fragmenting across threads instead of routing through the bus. |
+| **Objective** | Fix the specific waveform rendering defect in `src/app/lounge/page.tsx`. Scope this to the bounded waveform component ONLY. |
+| **Related preserved WIP** | `wip/lounge-universal-hero-recovered` — a 227-line unowned `UniversalLoungeHero` (Discover / Live / Watch / Listen / Rooms) was found abandoned in the working tree and preserved on that branch. **That is NOT this ticket.** Do not conflate a bounded waveform fix with a broader lounge redesign. If the "fix lounge waveform" thread is actually attempting the full redesign, escalate to Nehemiah — the current Founder directive explicitly says "no broad redesign" until the P0 gate opens. |
+| **Scope check** | Nehemiah confirms with the Founder whether "fix lounge waveform" = (a) bounded waveform-rendering bug (proceed at P2), or (b) full lounge redesign (parked, needs Founder scope decision — currently violates the "no broad redesign" clause of the 2026-07-30 15:06 directive). |
+| **Acceptance criteria (if bounded)** | 1. Waveform renders correctly at all four required viewports. 2. Empty/loading/error/no-audio state each has a design. 3. No new dependency added without Forge review. 4. No calculation invention — if the visualization needs frequency data the audio source can't provide, show an honest fallback, don't fabricate a waveform. |
+| **Never in scope** | Any of the parked habit-loop features. Any audio-metadata claim (BPM, key, energy) that the source doesn't provide. Any lounge navigation/hero restructure — that is `wip/lounge-universal-hero-recovered`. |
+| **Next action** | **Nehemiah:** run the scope check with the Founder in one message (bounded fix vs redesign). **Micah:** on the assumption of "bounded," draft the waveform design spec + acceptance criteria; hand to Noah. **Noah:** stays held. |
+| **Filed by** | Atlas / main session, 2026-07-30 16:26 CDT, per Founder routing instruction. |
