@@ -76,6 +76,57 @@ Chrome is moved and `get_page_content` succeeds.
 
 ---
 
+### V-007 · Atlas checkpoint deltas (2026-07-29 15:30 CDT) — audited, **2 contradictions found**
+
+Six deltas were submitted for recording. Sentinel audited each against the repository
+before recording anything. Hash existence alone is not corroboration — every hash cited
+existed, and two of the claims attached to them were still wrong.
+
+| ID | Claim | Sentinel verdict |
+|---|---|---|
+| **D1** | WM-RESP-P0-02 CLOSED at `9f2c68d` + `176fe7f` | **CORROBORATED (source-level).** Both commits are ancestors of `HEAD`. `grep` for `maximum-scale` / `user-scalable` across `src/` returns **zero hits** — pinch-zoom is genuinely permitted. The live-audit figures (360×800 / 390×844 / 834×1194, `horizontalOverflow:false`, `smallTargets:[]`) are recorded as the **submitting session's runtime observation**, not re-observed by me. Correctly carries no deployment claim. |
+| **D2** | Noah CLAIMED WM-CHART-P0-03 at `44c8d1a`, execution HELD | **CORROBORATED.** `44c8d1a` is `HEAD` and `origin/main`; it is a docs-only claim commit. Recorded as VERIFIED CLAIM, EXECUTION HELD. |
+| **D3–D5** | Codex filings (scanner a11y prereq, Option A V5 HELD contract, Video Intelligence appendix) | **NOT PROMOTED.** Recorded as documented claims only, exactly as instructed. No repository or runtime corroboration attempted or implied. |
+| **D6** | markov files "untracked in-progress work, preserved, not touched" | **CONTRADICTED — see below.** |
+| **INV** | `2f03f965` quarantine seat present as a commit | **VERIFIED INTACT.** Not reachable from `HEAD`, but that is not a defect — it lives on branch `noah/wm-chart-pr1-seat`, which exists both locally and at `origin`. The seat is genuinely preserved. |
+| **INV** | Option A hold intact, no hashes issued; no push/deploy/DB/credential/brokerage action; WM Pro NO-GO unchanged | **No contrary evidence found.** I did not perform any such action this turn either. |
+
+#### Contradiction 1 — `a4f8f5d` is a **dangling commit**. The work it contains is not on any branch.
+
+`EMPLOYEE_STATUS.md` records Forge's WM-STATE-P0-01 as *"(`a4f8f5d`, deterministic core) —
+engine + tests shipped."* The commit exists and contains real work: `src/lib/markov.ts`
+(297 lines), `src/lib/markov.test.ts` (292 lines), and a 253-line architecture document.
+
+**But it is unreachable.** `git merge-base --is-ancestor a4f8f5d HEAD` → **NO**.
+`git branch -a --contains a4f8f5d` → **empty**. No branch, local or remote, contains it.
+`git log --all -- src/lib/markov.ts` → **empty**.
+
+So "shipped" is not true in any sense that survives a `git gc`. The 589 lines of engine and
+test code exist as an orphaned object plus untracked copies in the working tree. **This is
+the single most fragile state in the repository right now** — worse than uncommitted work,
+because a commit hash in a status table reads as durable and this one is not.
+
+**Not fixed by me.** Rescuing it means creating a ref, which is Forge's call on Forge's
+work, and the Option A hold means I issue no hashes. → **RISK-012**, and Forge should
+`git branch wm-state-p0-01-rescue a4f8f5d` (or re-commit) at the earliest safe moment.
+
+#### Contradiction 2 — D6 and `EMPLOYEE_STATUS` cannot both be true.
+
+D6 lists `src/lib/markov.ts`, `markov.test.ts` and the architecture doc as **untracked
+in-progress work**. `EMPLOYEE_STATUS` says the same files were **shipped** at `a4f8f5d`.
+Both records describe the same three files. The working tree confirms them as `??`
+untracked.
+
+Both statements are individually defensible and jointly misleading: the files *are*
+untracked, and a commit containing them *does* exist — dangling. An employee reading the
+status table would believe the Markov engine is on `main`. It is not. **The checkpoint
+recorded the preservation instruction correctly and missed that the same files carry a
+false completion claim elsewhere in the bus.**
+
+**Nothing was promoted to VERIFIED that was not corroborated, and no delta was dropped.**
+
+---
+
 ### V-006 · `d2ea511` WM-CHART-P0-01 Canonical Timeframe System — **PARTIALLY VERIFIED · ACCEPTED and CLOSED**
 
 Verified against the seven acceptance criteria as written in the queue.

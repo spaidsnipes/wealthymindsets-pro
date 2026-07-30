@@ -260,6 +260,56 @@ approval.
 
 ---
 
+## RISK-012 — 589 lines of engine + test code exist only as a **dangling commit** · HIGH · **OPEN**
+
+**Evidence — VERIFIED by Sentinel, 2026-07-29 (V-007).**
+
+`EMPLOYEE_STATUS.md` records Forge's WM-STATE-P0-01 as *"(`a4f8f5d`, deterministic core) —
+engine + tests shipped."* The commit is real and contains real work:
+
+| File | Lines |
+|---|---|
+| `src/lib/markov.ts` | 297 |
+| `src/lib/markov.test.ts` | 292 |
+| `docs/WM_MARKOV_CONFLUENCE_ARCHITECTURE_2026-07-29.md` | 253 |
+
+**It is unreachable from every ref.**
+
+```
+git merge-base --is-ancestor a4f8f5d HEAD   → NO
+git branch -a --contains a4f8f5d            → (empty)
+git log --all -- src/lib/markov.ts          → (empty)
+```
+
+The same three files show as `??` untracked in the working tree.
+
+**Impact.** "Shipped" in a status table reads as durable. This is not. An unreferenced
+commit is eligible for garbage collection, and the only other copy is untracked files in one
+machine's working directory — the same single-point-of-failure state as RISK-004, except
+here a hash in the status table actively conceals it. Anyone auditing by hash finds the
+commit and concludes the work landed.
+
+**Why this is worse than plain uncommitted work.** RISK-004's Lounge WIP is *visibly*
+uncommitted — every employee sees a dirty tree and treats it accordingly. This looks
+finished. WM-STATE-P0-01 is a P0 dependency for the Friday set; a reader checking whether
+the Markov engine is done gets "yes, `a4f8f5d`" and moves on.
+
+**Not fixed by Sentinel.** Rescuing it means creating a ref, which is (a) Forge's call on
+Forge's work and (b) hash-issuing, which the Option A hold forbids me. I verify; I do not
+quietly reparent another employee's commits.
+
+**Mitigation — Forge, at the earliest safe moment:**
+`git branch wm-state-p0-01-rescue a4f8f5d` (or re-commit the working-tree copies onto a
+branch). Until then, **WM-STATE-P0-01 must not be counted as complete in any matrix,
+report, or go/no-go.**
+
+**Related contradiction.** The 2026-07-29 checkpoint lists these same files as *"untracked
+in-progress work — preserved, not touched"* while `EMPLOYEE_STATUS` calls them *shipped*.
+Both are individually defensible; together they are misleading. Correct reading: **the work
+exists, is not on any branch, and is not shipped.**
+
+---
+
 ## RISK-011 — A fabricated Wyckoff schematic was shipping · HIGH · **CLOSED same day**
 
 **Resolved in `e1a8c94`** (Forge), **verified by Sentinel** (V-005): the hardcoded array is
