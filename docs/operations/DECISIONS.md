@@ -204,3 +204,41 @@ fabricating data. Reconsider on 2026-08-01.
 
 **Consequence if unresolved:** RL-RESEARCH-P1-01 stays BLOCKED and the Research Lab has no
 eligible claim. It will not guess, and it will not duplicate Forge's WM-RESEARCH-P1-01 claim.
+
+---
+
+## DEC-011 — Team charters ratified; Founder is not asked "what next"
+
+**Status:** RATIFIED
+**Date:** 2026-07-30
+**Ratified by:** Founder (King David), via ATH Mission Control
+**Scope:** All ATH employees on WM Pro
+
+**The rule.** The Founder is not the coordinator. Every employee has a
+standing charter in [`TEAM_CHARTERS.md`](TEAM_CHARTERS.md) with a
+*Default when idle* section — if the ticket queue is empty, the charter
+tells the employee exactly what to do next without asking. Sentinel,
+Noah, Forge, Micah, Nehemiah, Elias, Atlas, Video Intelligence: each has
+one.
+
+**What the Founder still decides (and only these):**
+- Merge / release / prod-push freezes
+- Product scope (new module, killed module, cross-product priority)
+- Truthfulness / safety exceptions
+- Legal, financial, brand-identity trade-offs
+- Requests to skip Sentinel gates
+
+**Everything else is the team's job to route:** Nehemiah for
+cross-employee dependencies, Elias for scope/ownership conflicts, Atlas
+for company memory. Employees who "check in" about routine work are
+violating this decision.
+
+**Enforcement.** Sentinel and Nehemiah audit for founder-pings on
+routine questions in the daily ops report. Repeat violations get a
+RETURN handoff and a note in `EMPLOYEE_STATUS.md`.
+
+**Reason for this decision.** Micah and Nehemiah were repeatedly asking
+the Founder for direction on work that fits inside their own lane; the
+Founder ruled that a coordinator (Mission Control / Atlas) exists so the
+Founder does not. Not having standing charters was the coordination
+failure, not the employees themselves.

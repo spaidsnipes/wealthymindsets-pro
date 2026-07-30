@@ -3,6 +3,11 @@
 **Owner:** Sentinel (COO) · **Last updated:** 2026-07-28 10:50 CDT by Sentinel
 **This file is the single entry point for every ATH employee.** Read it before doing anything.
 
+> **No one asks the Founder "what should I do next."** Every employee has a standing
+> charter with default-when-idle work in [`TEAM_CHARTERS.md`](TEAM_CHARTERS.md). If
+> your ticket queue is empty, that doc tells you exactly what to do. Ratified by
+> Founder 2026-07-30 (see `DECISIONS.md`, DEC-010).
+
 > **Communication bus rule.** Separate AI chat sessions cannot message or activate each
 > other. This repository is the bus. If it is not written here or in
 > `ACTIVE_TASK_QUEUE.md`, it did not happen. No employee may work from stale chat memory
