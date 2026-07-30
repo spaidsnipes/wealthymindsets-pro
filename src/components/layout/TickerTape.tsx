@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, Pencil, X, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
+import { priceSourceBadge } from "@/lib/priceSource";
 
 const POLYGON_KEY = process.env.NEXT_PUBLIC_POLYGON_KEY ?? "";
 
@@ -49,6 +50,7 @@ interface TickerState {
   base:  number;
   _open: number;
   live:  boolean;
+  src?:  string;
 }
 
 /* ── Multi-source quote fetcher ───────────────────────────────── *
@@ -59,7 +61,7 @@ interface TickerState {
 const FUTURES_SYMS = new Set(["NQ1!","ES1!","RTY1!","YM1!","GC1!","SI1!","CL1!","NG1!","ZB1!","ZN1!","ZF1!","ZT1!","HG1!","MNQ1!","MES1!","MYM1!","M2K1!","MGC1!","MCL1!"]);
 const CRYPTO_SYMS  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","ATOM","UNI"]);
 
-async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:number } | null> {
+async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:number; src:string } | null> {
   const up = sym.toUpperCase();
 
   // Futures → Yahoo (only free source for futures)
@@ -68,7 +70,7 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
       const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
       const price = j?.price ?? 0;
       const prev  = j?.prevClose ?? price;
-      if (price > 0) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0 };
+      if (price > 0) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
     } catch {}
     return null;
   }
@@ -77,14 +79,14 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
   if (CRYPTO_SYMS.has(up)) {
     try {
       const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-      if (j?.price > 0) return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0 };
+      if (j?.price > 0) return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0, src: "alpaca" };
     } catch {}
     // Fallback to Yahoo for crypto
     try {
       const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
       const price = j?.price ?? 0;
       const prev  = j?.prevClose ?? price;
-      if (price > 0) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0 };
+      if (price > 0) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
     } catch {}
     return null;
   }
@@ -92,7 +94,7 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
   // Stocks/ETFs → Alpaca first (if key set), then Finnhub, then Yahoo
   try {
     const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-    if (j?.price > 0 && j.source === "alpaca") return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0 };
+    if (j?.price > 0 && j.source === "alpaca") return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0, src: "alpaca" };
   } catch {}
   // Yahoo BEFORE Finnhub — Yahoo includes pre/post-market (matches TradingView);
   // Finnhub free is regular-hours-only and goes stale outside RTH.
@@ -100,17 +102,17 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
     const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
     const price = j?.price ?? 0;
     const prev  = j?.prevClose ?? price;
-    if (price > 0) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0 };
+    if (price > 0) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
   } catch {}
   try {
     const j = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-    if (j?.price > 0) return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0 };
+    if (j?.price > 0) return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0, src: "finnhub" };
   } catch {}
   return null;
 }
 
-async function fetchPolygonPrices(): Promise<Record<string, { price:number; chg:number; pct:number }>> {
-  const results: Record<string, { price:number; chg:number; pct:number }> = {};
+async function fetchPolygonPrices(): Promise<Record<string, { price:number; chg:number; pct:number; src:string }>> {
+  const results: Record<string, { price:number; chg:number; pct:number; src:string }> = {};
   await Promise.all(TAPE_SYMBOLS.filter(t => !t.sym.includes("/")).map(async t => {
     const q = await fetchQuote(t.sym);
     if (q) results[t.sym.toUpperCase()] = q;
@@ -124,19 +126,30 @@ function TickerItem({ item, onClick, active }: {
   onClick: () => void;
   active: boolean;
 }) {
-  const { sym, price, chg, pct, up, live } = item;
+  const { sym, price, chg, pct, up, live, src } = item;
   const dp = price > 10_000 ? 0 : price > 100 ? 2 : price > 1 ? 4 : 6;
+  // Provenance: name the feed each quote came from so a value that differs from
+  // the chart header or watchlist is explainable, not a silent contradiction.
+  const badge = priceSourceBadge(src ?? "unavailable", live);
   return (
     <button
       onClick={onClick}
       className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded transition-colors group cursor-pointer ${
         active ? "bg-wm-surface" : "hover:bg-wm-surface/50"
       }`}
-      title={live ? `Click to chart ${sym}` : `${sym}: waiting for a verified market quote`}
+      title={live ? `${sym} — ${badge.title}. Click to chart.` : `${sym}: waiting for a verified market quote`}
     >
       <span className={`text-[11px] font-bold ${active ? "text-wm-green" : "text-wm-text group-hover:text-wm-green"}`}>{sym}</span>
       {live ? (
         <>
+          <span
+            aria-hidden
+            title={badge.title}
+            style={{
+              width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
+              background: badge.live ? "#00C076" : "#F5A623",
+            }}
+          />
           <span className="font-mono text-[11px] text-wm-text-muted">
             {price.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp })}
           </span>
@@ -190,7 +203,7 @@ export function TickerTape() {
         setTickers(TAPE_SYMBOLS.map(t => {
           const p = w[t.sym.toUpperCase()];
           return p && p.verified === true && p.price > 0
-            ? { sym: t.sym, poly: t.poly, base: t.base, price: p.price, chg: p.chg, pct: p.pct, up: p.chg >= 0, _open: t.base, live: true }
+            ? { sym: t.sym, poly: t.poly, base: t.base, price: p.price, chg: p.chg, pct: p.pct, up: p.chg >= 0, _open: t.base, live: true, src: p.src }
             : { sym: t.sym, poly: t.poly, base: t.base, price: t.base, chg: 0, pct: 0, up: true, _open: t.base, live: false };
         }));
       }
@@ -228,15 +241,15 @@ export function TickerTape() {
         const updated = prev.map(t => {
           const key = t.sym.toUpperCase();
           if (live[key] && live[key].price > 0) {
-            const { price, chg, pct } = live[key];
-            return { ...t, price, chg, pct, up: chg >= 0, live: true };
+            const { price, chg, pct, src } = live[key];
+            return { ...t, price, chg, pct, up: chg >= 0, live: true, src };
           }
           return t;
         });
         // Write to window cache + localStorage so future HMR/reloads start with correct prices
         const priceCache: Record<string, any> = { _ts: Date.now() };
         for (const t of updated) {
-          if (t.live) priceCache[t.sym] = { price: t.price, chg: t.chg, pct: t.pct, verified: true };
+          if (t.live) priceCache[t.sym] = { price: t.price, chg: t.chg, pct: t.pct, verified: true, src: t.src };
         }
         try { (window as any).__wmTicker = priceCache; } catch {}
         // NOTE: Not persisting to localStorage — cleared on init to prevent stale day-change%
