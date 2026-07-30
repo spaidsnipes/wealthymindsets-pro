@@ -496,3 +496,25 @@ Each still requires the full field set before it is claimed. Detail lives in
 | **Blockers** | **No device or verified emulator.** Building for an unmeasured viewport is guessing — the same failure class as WM-WYCK-P0-01 and RISK-011. |
 | **Acceptance criteria** | Before any code: a real device or verified emulator produces a screenshot. **No claim of Tesla or watch support may be made until then.** |
 | **Next action** | Founder: confirm these are genuine targets and supply a device/emulator path. Until then WM-RESP-P0-01 (touch parity) and P0-02 (zoom + targets) are the shared prerequisite for both, and are worth doing regardless. |
+
+---
+
+## WM-CHART-P0-05 — Reconcile the four TSLA price surfaces
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-CHART-P0-05 |
+| **Product** | WM Pro |
+| **Priority** | P0 |
+| **Owner** | — (recommend Forge — architecture, not Noah; Noah remains held) |
+| **Status** | BACKLOG |
+| **Objective** | One reconciled last-trade price per symbol per instant, or explicit per-surface labelling of what each number actually represents. |
+| **Evidence source** | Live production observation, 2026-07-30 09:12 CDT, `wealthymindsets-pro.vercel.app/charts`, TSLA: tab title 305.40, header ticker bar 305.39 (+7.07/+2.37%), chart header 305.33 (+7.01/+2.35%), left watchlist row 305.30 (+2.37%) — $0.10 spread across four surfaces at one moment. Reported via cross-session message from "ATH Mission Control"; original screenshot/evidence file not independently viewed by Sentinel (this session's Chrome connector was unreachable at review time). |
+| **Sentinel structural corroboration (VERIFIED in source, 2026-07-30)** | `src/components/layout/TickerTape.tsx` and `src/components/chart/WatchlistPanel.tsx` each implement their **own independent** quote-fetch function (`fetchQuote` / `fetchPolygonSnapshot`), each with its own Alpaca→Yahoo→Finnhub fallback order and its own `cache: "no-store"` polling call — no shared cache, subscription, or source-of-truth between them. `SymbolInfoHeader.tsx` consumes a `ticker.price` prop from a third, separate path. This is structurally sufficient to produce different prices for the same symbol at the same instant: not staleness, uncoordinated independent fetches that can land on different providers/ticks. Tab-title-price mechanism not located in a quick source pass — that specific sub-claim is unconfirmed, not verified false. |
+| **Why P0** | Each value renders with a full `+X.XX +Y.YY%` decoration implying it is *the* authoritative last trade. Same defect class as the Wyckoff fabrication (RISK-011) and silent granularity substitution (WM-CHART-P0-03): multiple surfaces asserting a truth they cannot all be. |
+| **Explicitly not in scope** | Bubble collision on Big Trades (tracked separately, RISK — same screenshot), "Smart Money" trigger missing W branding (cosmetic, separate ticket). |
+| **Acceptance criteria** | 1. Every symbol has exactly one canonical last-price value per render tick, consumed by all four surfaces from one source, OR each surface that cannot share the canonical value is explicitly labelled with its own cadence/source. 2. No two on-screen price surfaces for the same symbol at the same instant disagree without an explicit, visible reason. 3. `+X.XX +Y.YY%` decoration only appears on values sourced from the canonical feed. |
+| **Verification requirements** | Runtime: reload `/charts` with a symbol live, capture all four surfaces at one instant, confirm agreement or explicit labelling. Requires an authenticated session (RISK-001) or Chrome-extension access to an already-authenticated tab — neither was available to Sentinel this session. |
+| **Blockers** | RISK-001 (no authenticated/extension-connected runtime verification this session). |
+| **Next action** | Route to Forge for architecture (single source-of-truth for live quotes, or explicit per-surface source/cadence labelling). Do not route to Noah — held per Founder Option A. |
+| **Filed by** | Sentinel, 2026-07-30, on independent structural review — not a rubber stamp of the Mission Control report. |
