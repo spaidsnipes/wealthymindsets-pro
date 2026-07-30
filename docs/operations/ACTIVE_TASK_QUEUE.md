@@ -129,6 +129,7 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 
 ---
 
+
 ## WM-CHART-P1-02 — Verify the `2h`/`4h` → provider `"60"` mapping
 
 | Field | Value |
@@ -516,5 +517,5 @@ Each still requires the full field set before it is claimed. Detail lives in
 | **Acceptance criteria** | 1. Every symbol has exactly one canonical last-price value per render tick, consumed by all four surfaces from one source, OR each surface that cannot share the canonical value is explicitly labelled with its own cadence/source. 2. No two on-screen price surfaces for the same symbol at the same instant disagree without an explicit, visible reason. 3. `+X.XX +Y.YY%` decoration only appears on values sourced from the canonical feed. |
 | **Verification requirements** | Runtime: reload `/charts` with a symbol live, capture all four surfaces at one instant, confirm agreement or explicit labelling. Requires an authenticated session (RISK-001) or Chrome-extension access to an already-authenticated tab — neither was available to Sentinel this session. |
 | **Blockers** | RISK-001 (no authenticated/extension-connected runtime verification this session). |
-| **Next action** | Route to Forge for architecture (single source-of-truth for live quotes, or explicit per-surface source/cadence labelling). Do not route to Noah — held per Founder Option A. |
+| **Next action** | Route to Forge for architecture (single source-of-truth for live quotes, or explicit per-surface source/cadence labelling). Do not route to Noah — held per Founder Option A. **Forge investigation + design proposal filed: `docs/operations/handoffs/forge/2026-07-30-forge-wm-chart-p0-05-investigation.md` (2026-07-30, `useSymbolPrice` hybrid — WS for active symbol, shared REST cache + source/staleness badge for non-active). Design awaiting Sentinel triage before implementation.** |
 | **Filed by** | Sentinel, 2026-07-30, on independent structural review — not a rubber stamp of the Mission Control report. |
