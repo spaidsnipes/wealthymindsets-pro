@@ -159,23 +159,85 @@ Observed live: the score moved **56 → 60 while its available inputs changed**,
 itself describing it as "estimated from price" and most contributors unavailable. The score moved
 because *availability* changed — undisclosed. That is the defect, not the styling.
 
+### Second observed reference — TradingView "Master Strategy" panel, 2026-07-29 20:19 CDT
+
+A richer Confluence-equivalent panel was captured live from the Founder's TradingView, TSLA 15m.
+The values below are what the Founder is already reading and trusting — not the earlier
+hand-wavy list I drafted from memory:
+
+```
+BEARISH                                     <- color-coded top banner
+Volume:         Way Below Avg
+Win Rate:       52% (333 trades)            <- backtested; sample size DISCLOSED
+Avg Hold Time:  1h 32m
+Regime:         Trending
+Confidence:     63%                         <- its own component, NOT derived from score
+Range:          --                          <- honest field-level unavailable
+Target:         292.37 (-4.27 pts / -3 ATR) <- price + delta in pts + delta in ATR
+Participation:  12% (Low)                   <- number PLUS plain-English qualifier
+Avg Move:       2.92 (last 333)             <- historical avg over same sample as win rate
+```
+
+Consequences captured in the component set below:
+1. **Field-level "--"** for unavailable is the pattern the Founder already trusts. Adopt it,
+   don't hide the whole panel.
+2. **Sample size disclosed inline** ("333 trades"). Same pattern as Markov's `sampleSize`.
+3. **Plain-English qualifier** ("Low") alongside the number reduces spurious over-reading.
+4. **Regime is separate from Markov state.** The reference panel treats them as different
+   things; so do we.
+
 ### Component contract
 
 Every input implements the same shape, so no component can be special-cased into lying:
 
 ```ts
 interface ConfluenceComponent {
-  id: "markov" | "hurst" | "wyckoff" | "vpLocation" | "deltaStrength"
-    | "imbalanceQuality" | "largeTradeDensity";
+  id: ComponentId;
   status: "ready" | "unavailable" | "insufficient-evidence";
-  score?: number;       // 0..100, bullish-positive, ONLY when ready
-  confidence: number;   // 0..1, derived from sample size — never asserted
-  evidence: { sampleSize?: number; calculatedFor: { symbol: string; timeframe: TFId } };
+  score?: number;                    // 0..100, bullish-positive, ONLY when ready
+  confidence: number;                // 0..1, derived from sample size — never asserted
+  evidence: {
+    sampleSize?: number;             // e.g. 333 trades, or 100 transitions
+    calculatedFor: { symbol: string; timeframe: TFId };
+  };
+  /** Optional plain-English qualifier for UI ("Low", "Way Below Avg"). */
+  qualifier?: string;
+  /** Optional field-level unavailable reason ("Range: --" pattern). */
+  displayFallback?: "--";
 }
 ```
 
 **Markov is the reference implementation** — it already returns availability, sample size and a
-derived confidence, so it defines the bar the other six must meet.
+derived confidence, so it defines the bar every other component must meet.
+
+### Component set — expanded from the live reference
+
+Grouped by MBO dependency. **The MBO group is unavailable on free data and MUST NOT contribute
+a number to the meter** — see §5.
+
+**Buildable on data we hold today (Confluence-eligible):**
+
+| # | id | Source signal | Sample size | 0..100 mapping |
+|---|---|---|---|---|
+| 1 | `markov` | Transition matrix + edge (shipped, `e0a5ed7`) | `currentRowSample` | 50 + 50·edge |
+| 2 | `regime` | Trending / Ranging / Break-out classifier (from ADX + range compression, deterministic) | Bar count in current regime | Confidence-weighted directional map |
+| 3 | `winRate` | Backtested win-rate over N recent setups for this symbol+TFId | N trades (100/30 gate, same as Markov) | Raw percentage |
+| 4 | `avgMove` | Historical average bar-return magnitude, expressed as ATR multiples | Same N as `winRate` | Distance from median mapped to 0..100 |
+| 5 | `participation` | Volume vs its own N-bar rolling average | N bars | Percentile of current relative to distribution |
+| 6 | `speedOfTape` | N-second window over Volume/Orders/Trades, std-dev normalized (DeepCharts pattern, reproducible) | N events | Normalization is intrinsically 0..100 |
+| 7 | `vpLocation` | Position relative to session VP (inside VA / above VAH / below VAL) | Bars used to build the VP | Discrete distance-to-POC mapping |
+
+**MBO-blocked on free data (`status: "unavailable"` structurally, non-negotiable):**
+
+| # | id | Why blocked |
+|---|---|---|
+| 8 | `imbalanceQuality` | Requires order-book pressure ratio; L2 MBO feed only |
+| 9 | `largeTradeDensity` | Requires trade-side identification beyond BBO; L2 MBO feed only |
+
+**Reconciliation with my earlier draft:** `hurst`, `wyckoff` and `deltaStrength` from the
+original seven are moved to a "future components" backlog. `hurst` is buildable but not yet
+specified. `wyckoff` has no engine (see `WM-WYCK-P0-01`, closed as fabricated). `deltaStrength`
+overlaps `speedOfTape` and is subsumed pending clarity from the Founder.
 
 ### Scoring — versioned and deterministic
 
@@ -191,13 +253,24 @@ the result — but re-normalizing *silently* is exactly the 56→60 bug. So:
 **Minimum-evidence threshold (the single most important requirement):**
 
 ```
-MIN_COMPONENTS_READY    = 4     // of 7
-MIN_COVERAGE            = 0.5   // Σ effective weight of ready ÷ Σ of all
+MIN_COMPONENTS_READY    = 4     // of 7 Confluence-eligible (MBO-blocked don't count)
+MIN_COVERAGE            = 0.5   // Σ effective weight of ready ÷ Σ of all eligible
 ```
 
 Below either, the meter renders **"Insufficient data"** — **not a number**. A confluence score
 synthesized from mostly-absent inputs is a more dangerous fabrication than the Wyckoff label,
 because the Founder wants it to be the first thing users look at.
+
+The denominator is **7 Confluence-eligible components**, not 9. MBO-blocked components are
+structurally absent from the meter's arithmetic — they are never a numerator, never a
+denominator, never a "silent zero." Treating them as "unavailable inputs to be recovered from
+later" would be exactly the lie this design exists to prevent.
+
+**Per-field disclosure applies to individual component rows too.** The reference panel renders
+`Range: --` when the current regime has no defined range — not a hidden row, not a fabricated
+number. Our panel does the same: any component in `unavailable` or `insufficient-evidence`
+renders `--` (or its typed reason) in place of a percentage, with the sample-size annotation
+visible even when the number is not.
 
 **Determinism requirements:**
 - `scoreVersion` embedded in every result; changing weights or thresholds bumps it.
@@ -207,24 +280,59 @@ because the Founder wants it to be the first thing users look at.
 
 ### Status text — must reflect real state
 
-Derived from score *and* coverage, never score alone:
-`"Strong Bullish Alignment"` (≥75, coverage ≥0.8) · `"Mixed / Low Conviction"` (40–60) ·
-`"Limited Evidence — 4 of 7 inputs"` (threshold met but coverage low) ·
-`"Insufficient data — 2 of 7 inputs available"` (below threshold; **no number shown**).
+Derived from score *and* coverage, never score alone. Every text combines direction with
+sample-adequacy so the user cannot mistake "no evidence" for "neutral":
+- `"Strong Bullish Alignment"` — score ≥75, coverage ≥0.8
+- `"Mixed / Low Conviction"` — score 40–60
+- `"Limited Evidence — 4 of 7 inputs"` — gate met but coverage low
+- `"Insufficient data — 2 of 7 inputs available"` — below gate; **no number shown**
+
+Matches the reference panel's plain-English qualifier pattern ("Way Below Avg", "Low") —
+qualifier alongside number, never in place of one.
 
 ---
 
 ## 5. MBO line — do not cross
 
-**Buildable from data we hold:** Markov, IVB/ORB (DeepCharts "Deep-M IVB" — opening-range
+**Buildable from data we hold:** Markov (shipped, `e0a5ed7`), the six other Confluence-eligible
+components in the §4 table, IVB/ORB (DeepCharts "Deep-M IVB" — opening-range
 projection/protection/exit from historical sessions, no L2 required), swing-anchored volume
 profiles, price+time aggregation, pattern builder.
 
-**NOT buildable without a licensed L2 MBO feed:** iceberg detection, absorption, any "institutional
-participation" claim. These are Confluence *components* — so `largeTradeDensity` and
-`imbalanceQuality` must report `unavailable` on free data rather than degrade to a proxy. The DOM
-already states "NO FABRICATED DEPTH" in production; that must stay true, and the meter must not
-launder an unavailable component into a number through a weight.
+**NOT buildable without a licensed L2 MBO feed:** iceberg detection, absorption, any
+"institutional participation" claim. These are `imbalanceQuality` and `largeTradeDensity` in
+the component table — they must report `unavailable` on free data rather than degrade to a
+proxy. The DOM already states "NO FABRICATED DEPTH" in production; that must stay true, and
+the meter must not launder an unavailable component into a number through a weight.
+
+### The Big-Trades surrogate — visual only, NOT a Confluence component
+
+DeepCharts' free-tier surface (Big Trades markers: Circle/Square/Diamond/Text, hollow fill,
+opacity scaling, std-dev size scaling, min-threshold, automatic vs manual filter mode) is
+buildable from prints we already receive on the aggressor-labelled tape. **It is a legitimate
+chart visualization and Noah's Big-Trades ticket can honestly ship it.**
+
+**It does NOT feed the Confluence Meter.** The chart shows *observed prints* and their visual
+prominence. That is a display convention. It does not measure order-book pressure or
+side-classified size — those require MBO. So:
+
+- `largeTradeDensity` (component #9) stays `unavailable` on free data, full stop.
+- `imbalanceQuality` (component #8) stays `unavailable` on free data, full stop.
+- The Big-Trades chart layer is styling of a print stream, not a synthesized metric.
+- The line between "we render what we see" (fine) and "we synthesize what we can't see" (not
+  fine) is what this section exists to protect.
+
+DeepCharts' own **Deep Trades** product — the institutional-reconstruction one — requires MBO
+and we do not have it. Nothing in that lineage becomes a Confluence input.
+
+### Speed of Tape — allowed, deterministic
+
+DeepCharts' Speed-of-Tape indicator (N-second window over one of Volume / Orders / Trades,
+std-dev-filtered, bull/bear rendering) analyses the *pace* of prints we already receive.
+That is intrinsically bounded 0..100 by normalization against a rolling distribution, is
+deterministic given the same input stream, and does not require MBO. It ships as `speedOfTape`
+(component #6). WM's implementation must not adopt DeepCharts' name, code, imagery, or
+proprietary terminology — the technique is claims-only reuse.
 
 ---
 
@@ -232,14 +340,22 @@ launder an unavailable component into a number through a weight.
 
 1. **Derive per-timeframe `sideThreshold`** from our own historical returns. Record the
    distribution. This is the gate — everything downstream inherits it.
-2. `src/lib/markov.ts` + fixture tests (§3), behind `NEXT_PUBLIC_MARKOV_ENGINE=v1`.
-3. Wire into the chart HUD via the existing `ChartContext` (`c53e429`), so state carries
-   `calculatedFor` and cannot render against the wrong symbol/timeframe.
-4. Confluence component contract + re-normalization + minimum-evidence threshold.
-5. Upgrade the existing Smart Money score in place. Weight controls last.
+2. ~~`src/lib/markov.ts` + fixture tests (§3), behind `NEXT_PUBLIC_MARKOV_ENGINE=v1`.~~
+   **Shipped `e0a5ed7` — 78/78 tests, still gated by `sideThreshold: null` -> unavailable
+   until step 1.**
+3. Wire Markov into the chart HUD via the existing `ChartContext` (`c53e429`), so state
+   carries `calculatedFor` and cannot render against the wrong symbol/timeframe.
+4. Build the six other Confluence-eligible components (§4 table) one at a time. Each ships
+   with the same discriminated-union honesty gate as Markov. `regime` first (it appears in
+   the reference panel as its own line), then `winRate`/`avgMove` (share the same
+   backtest-sample source), then `participation`, `vpLocation`, `speedOfTape`.
+5. Confluence component contract + re-normalization + minimum-evidence threshold. Field-level
+   `--` for unavailable rows.
+6. Upgrade the existing Smart Money score in place. Weight controls last.
 
-**Do not begin at step 5.** The meter is only as honest as its worst component, and today most
-components cannot report their own availability.
+**Do not begin at step 5 or 6.** The meter is only as honest as its worst component. Today
+Markov is the *only* component that can report its own availability; the other six must reach
+that same bar first, or the 56 -> 60 drift comes back under different labels.
 
 ---
 
@@ -247,7 +363,14 @@ components cannot report their own availability.
 
 1. **`sideThreshold` derivation** — thirds-of-distribution, volatility-scaled (e.g. 0.5×ATR), or a
    fixed per-timeframe table? This changes every downstream number and is a §45-class decision.
-2. **Default weights** across the seven components.
+2. **Default weights** across the seven Confluence-eligible components (§4 table).
 3. **Minimum-evidence thresholds** — I propose 4-of-7 and 0.5 coverage; both are judgement calls
    that should be ratified, not assumed.
 4. **Pin-to-Chart-Header** default — spec says default off (inside panel). Confirm.
+5. **Regime classifier** — the reference panel shows "Trending" as a discrete label with its own
+   confidence (63%). Do we adopt Trending / Ranging / Break-out as the WM regime set, and does
+   that classifier live in `src/lib/marketState.ts` alongside Markov, or as its own module?
+6. **`winRate` / `avgMove` sample source** — a live backtest engine per component request is
+   expensive; a pre-computed daily snapshot may be adequate. Which?
+7. **`hurst`, `deltaStrength` from earlier draft** — moved to backlog (see §4 reconciliation).
+   Ratify or restore?
