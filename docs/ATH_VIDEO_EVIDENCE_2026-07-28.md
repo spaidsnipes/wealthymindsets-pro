@@ -711,3 +711,169 @@ holds: no fix from video alone, and no defect either.
 - One asset newly *marked sensitive*: the two brokerage-app phone recordings.
   They must never be attached to a public artifact and no cropped frames from
   them will be committed to the repo.
+
+---
+
+# Appendix C — Mission Control cross-check: VI-WM-P0-02 mobile claims + transcript status
+
+Added in response to Mission Control's 2026-07-29 checkpoint. Four documented
+Codex claims need frame evidence at specific viewports to graduate to VERIFIED.
+Founder clarified during this session: **the moomoo and Webull opened in the
+phone recordings are the mobile APPS; everything else is in his browser.** That
+distinction is decisive for the four claims below — all of which target the
+public **web** surface at mobile viewport width, not the native app.
+
+## C.1 Resolution census — the whole corpus, one line
+
+| Bucket | Count | Native resolution |
+|---|---|---|
+| Desktop screen recordings on `~/Desktop` | **41** | **1920×1080** (all) |
+| Phone screen recordings in `~/Downloads` | **2** | **1170×2532** (portrait) |
+| Other Downloads media (grok, source) | 2 | 784×1168 / 1920×1080 |
+
+**Not a single recording is captured at 390×844 or 1280×400.** A
+resized-browser-window inside a desktop recording remains theoretically possible
+but was not seen in any of the frames I have inspected across REC-01, REC-03, or
+either phone recording.
+
+## C.2 Phone recordings identified — content, not just resolution
+
+- `~/Downloads/ScreenRecording_06-22-2026 09-30-06_1.MP4` — 16m37s, 1170×2532
+- `~/Downloads/ScreenRecording_06-22-2026 09-47-45_1.MP4` — 8m03s, 1170×2532
+
+Both show **native mobile app** — TSLA options order ticket flow (`Sell @MARKET`,
+`Confirm`, `Risk Reminder`, account label visible). Per founder confirmation,
+this is the **moomoo or Webull mobile app**, not the mobile web. The mobile-web
+public surface these two vendors serve at 390×844 (or resized to 1280×400) is
+NOT in this footage.
+
+**Retention & safety unchanged:** account identifier and open position are
+on-frame in these recordings. No crop from either will be committed to the
+repository, and no account values appear in this appendix.
+
+---
+
+## C.3 Four VI-WM-P0-02 mobile-viewport claims — evidence verdicts
+
+Each answered against the corpus using Mission Control's three truth labels:
+`VERIFIED`, `CONTRADICTED`, `NO EVIDENCE`.
+
+### VE-021 — Claim (1): TradingView phone frames show clipped edges + narrow remaining plot under dense overlays
+- **Corpus check:** every TradingView frame in this corpus is REC-03 desktop
+  (1920×1080, 15m TSLA, `chart/OaWoIkYP`). Zero phone-viewport TradingView
+  frames exist.
+- **Verdict: NO EVIDENCE.** Recording gap, not proof of absence of the defect.
+- **Product:** SHARED DESIGN REFERENCE
+
+### VE-022 — Claim (2): Webull public app has a fixed-width cutoff at 390×844 AND chart disappearance at 1280×400
+- **Corpus check:** Webull footage in the corpus is the **mobile native app**
+  (1170×2532), which is a different surface entirely from `app.webull.com`. No
+  Webull web frames at any viewport in the corpus. No 390×844 or 1280×400
+  browser frames in the corpus.
+- **Verdict: NO EVIDENCE.**
+- **Product:** SHARED DESIGN REFERENCE
+- **Note:** Codex's claim is about `app.webull.com`. The mobile-app footage I
+  have does not corroborate or contradict a **web** defect.
+
+### VE-023 — Claim (3): moomoo public quote page — navigation/range row clips the chart at phone width
+- **Corpus check:** same as VE-022. moomoo footage in corpus is **mobile app,
+  not `moomoo.com`**. No moomoo web frames at any viewport.
+- **Verdict: NO EVIDENCE.**
+- **Product:** SHARED DESIGN REFERENCE
+
+### VE-024 — Claim (4): tastytrade public page has sticky chrome overlapping content at phone width
+- **Corpus check:** **zero** tastytrade footage of any kind exists in the corpus.
+  (The founder had `my.tastytrade.com/app.html#/trading/chart` open in one
+  Chrome tab, per B.1, but that tab was never recorded in any file I have
+  inspected.)
+- **Verdict: NO EVIDENCE.**
+- **Product:** SHARED DESIGN REFERENCE
+
+### C.3 Summary
+
+| Claim | Vendor | Viewport | Verdict |
+|---|---|---|---|
+| VE-021 | TradingView | phone | **NO EVIDENCE** |
+| VE-022 | Webull web  | 390×844 / 1280×400 | **NO EVIDENCE** |
+| VE-023 | moomoo web  | phone | **NO EVIDENCE** |
+| VE-024 | tastytrade web | phone | **NO EVIDENCE** |
+
+**All four claims remain UNVERIFIED after this pass, but for a reason Mission
+Control should record: the recording corpus does not contain any capture of
+these vendors' public web surfaces at mobile-web viewport widths.** They are
+not disproven — they are unphotographed.
+
+### What would move any of these to VERIFIED
+
+For each vendor, the founder does one of the following with Chrome's DevTools
+mobile emulator (Cmd+Opt+I → toggle device toolbar → set 390×844 or 1280×400):
+
+1. Open the vendor URL at the stated viewport.
+2. Screen-record 15 seconds showing the chart / navigation / sticky chrome.
+3. Save the `.mov` to `~/Desktop`.
+
+Twenty minutes of the founder's time, one clip per claim, and all four verdicts
+become checkable from local frames — no third-party UI captured beyond what a
+public visitor would see, so the read-only + no-proprietary-copy rules stay
+intact.
+
+---
+
+## C.4 Transcripts — the honest status after two attempts
+
+Mission Control confirmed that Codex tried five extraction paths and every one
+failed (timedtext API returns HTTP 200 empty body; on-page panel returns
+`VISIBILITY_HIDDEN` with zero segments). My attempts in Appendix B added two
+more that also failed — same signed-URL restriction from a different fetcher.
+
+### VE-025 — Whisper/audio path is not viable from this environment
+- **Attempted:** `AVURLAsset.loadTracks(withMediaType: .audio)` on REC-01 and
+  REC-03 via a direct Swift invocation.
+- **Result:** `AVFoundationErrorDomain code=-11800`, underlying
+  `NSOSStatusErrorDomain -17913`. This is the TCC access-not-granted signature
+  for Documents/Desktop when invoked outside an allowed tool.
+- **Ancillary:** `whisper`, `whisper-cpp`, and `ffmpeg` are all absent. Python
+  `whisper` / `faster_whisper` packages not installed. Homebrew is available
+  but installing Whisper models is a several-GB out-of-band operation.
+- **Also:** macOS screen recordings do **not** capture system audio by default.
+  Even if the sandbox opened, the recordings may have no audio track to
+  transcribe. Not verified either way — the sandbox denial happens before track
+  discovery.
+- **Verdict: BLOCKED.** No production transcript can be produced from this
+  environment without either (a) Chrome relaunched with a fresh session and
+  the browser-signed timedtext URL fetched from the tab, or (b) the founder
+  running `yt-dlp --write-auto-subs --skip-download Pz8f0wWW12M` on his own
+  machine, or (c) the founder using YouTube's on-page "Show transcript" panel
+  and pasting the text into the ops bus.
+- **Not doing:** paraphrasing what the video "probably said" from prior context.
+  That is fabrication and violates the report's founding rule.
+
+### VE-026 — "Videos he was clicking on" — corpus-side identification status
+- **Findings observable in the corpus so far:** none. REC-01 is the ChatGPT
+  ops session; REC-03 is authenticated WM Pro `/charts` plus TradingView
+  desktop. Neither contains a YouTube player or any external video being
+  played back on screen at the timestamps I have inspected.
+- **38 desktop recordings still uninventoried by content.** A video click
+  captured in one of them cannot be identified without at least one frame per
+  recording.
+- **Action:** either Mission Control approves a content-identification sweep of
+  the 38 unreviewed recordings (I can do a one-frame-per-file pass in one
+  session), or the founder names the specific videos + URLs directly and the
+  transcript task collapses to VE-025's three paths.
+
+---
+
+## C.5 Corpus status after this pass
+
+| | Count |
+|---|---|
+| Recordings inspected by content | 4 (REC-01, REC-02, REC-03, ph1) |
+| Frame-sampled but content already known-type | 1 (ph2) |
+| Still uninventoried by content | **38** |
+| Missing / referenced but absent (MISS-01/02/03) | 3 |
+| No deletion authorized on any asset | ✓ |
+
+Retention rule unchanged: nothing may be deleted while both the four VI-WM-P0-02
+claims are uncorroborated **and** 38 recordings remain uninventoried. The lesson
+from REC-03 (a critical piece of evidence sat in the corpus for a full session
+before being decoded) applies again here.
