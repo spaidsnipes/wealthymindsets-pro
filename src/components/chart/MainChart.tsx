@@ -2096,8 +2096,30 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
    *  from useWebSocket's: Math.floor(Date.now()/1000/intervalSec)*intervalSec
    *  We just make sure we cast to the same integer second.
    ───────────────────────────────────────────────────────── */
+  // WM-CHART-P0-06: pin the data version this effect run belongs to. When the
+  // bootstrap effect (deps: symbol/timeframe/candleType/extendedHours) calls
+  // versionGuardRef.current.next() on a symbol switch, the version increments —
+  // so a stale tick that reaches this effect BEFORE React re-runs it with the
+  // new liveBar carries the previous version and is dropped.
+  const myTickVersion = versionGuardRef.current.currentVersion;
   useEffect(() => {
     if (!liveBar || !candleRef.current || !volRef.current || !ready) return;
+
+    // ── WM-CHART-P0-06: symbol-identity gate on the live tick-folding path ──
+    // The async data-load path is guarded by DataVersionGuard, but the WS tick
+    // fold below runs on `liveBar` alone. When the user switches symbols, the
+    // in-flight useWebSocket effect tears the old socket down asynchronously,
+    // so a final tick from the PREVIOUS symbol can still fire this effect
+    // before the new subscription's first tick arrives. The 8% deviation
+    // heuristic below catches wildly different magnitudes (SPY→BTC) but silently
+    // accepts wrong-symbol ticks that happen to be within 8% of the new symbol's
+    // price (SPY→AAPL, or any mid-cap→mid-cap switch). Bump the guard version on
+    // every symbol/timeframe change and require this callback's captured
+    // (symbol, timeframe) to still match — a mismatch means we're a stale
+    // closure holding a stale tick; drop it. This is a superset of the
+    // magnitude check, not a replacement (both stay active).
+    if (!versionGuardRef.current.isCurrent(myTickVersion)) return;
+
     // Provenance: a real tick reached the chart just now.
     lastTickAtRef.current = Date.now();
 

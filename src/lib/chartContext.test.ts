@@ -122,3 +122,26 @@ describe("ChartContext shape", () => {
     expect(ctx.visibleRange.endMs).toBeGreaterThan(ctx.candleIntervalSec);
   });
 });
+
+describe("WM-CHART-P0-06 — WS tick-folding uses currentVersion at effect run", () => {
+  it("captured currentVersion goes stale after a next() bump", () => {
+    // Simulates the MainChart tick-folding effect capturing
+    // versionGuardRef.current.currentVersion for the CURRENT symbol,
+    // then the bootstrap effect calling next() when the user switches symbols.
+    const guard = new DataVersionGuard();
+    guard.next(); // effect run for AAPL — version becomes 1
+    const capturedForAAPL = guard.currentVersion;
+    expect(guard.isCurrent(capturedForAAPL)).toBe(true);
+
+    guard.next(); // user switches to TSLA — bootstrap effect bumps to 2
+    expect(guard.isCurrent(capturedForAAPL)).toBe(false); // stale AAPL tick dropped
+  });
+
+  it("a fresh tick after the switch is current again", () => {
+    const guard = new DataVersionGuard();
+    guard.next();               // AAPL
+    guard.next();               // switch to TSLA
+    const capturedForTSLA = guard.currentVersion;
+    expect(guard.isCurrent(capturedForTSLA)).toBe(true);
+  });
+});
