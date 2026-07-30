@@ -113,7 +113,7 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Product** | WM Pro |
 | **Priority** | P0 |
 | **Owner** | Forge |
-| **Status** | **COMPLETE — AWAITING SENTINEL VERIFICATION** |
+| **Status** | **PARTIALLY VERIFIED — CLOSED** (Sentinel, 2026-07-30). AC met for the ticket's literal scope (async fetch path); one adjacent gap found and filed separately, not blocking. |
 | **Objective** | A response from a previous symbol/timeframe must never overwrite the active view. Implement `ChartContext` + monotonic `dataVersion` guard. |
 | **Dependencies** | WM-CHART-P0-01 (done, `d2ea511`) |
 | **Evidence source** | Architecture report §D2 |
@@ -124,8 +124,29 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 | **Claim timestamp** | 2026-07-28 |
 | **Latest commit** | `c53e429` |
 | **Handoff location** | `docs/operations/handoffs/forge/2026-07-28-forge-wm-chart-p0-02.md` |
-| **Blockers** | Manual verification (6 rapid timeframe changes) still needs an authenticated `/charts` session — **blocked by RISK-001**, same as P0-01. `buildId`/`disposed` (pre-existing) and the new `DataVersionGuard` are currently redundant, not unified — both must agree before data applies; full consolidation is safe optional follow-up, not required for closure. **`MainChart.tsx` is now clear for WM-CHART-P0-03 (Noah)** — P0-02's edits are committed and pushed. |
-| **Next action** | Sentinel: verification request `docs/operations/handoffs/forge/2026-07-29-forge-verification-request-wm-chart-p0-02.md` — grep + fixture test + optional live check. |
+| **Sentinel verification** | `docs/operations/handoffs/sentinel/2026-07-30-sentinel-wm-chart-p0-02-verification.md`. Independently confirmed: real importer at `MainChart.tsx:687`, `AbortSignal` threaded through all 5 fetch helpers, `chartContext.test.ts` 13/13, `tsc` 0 errors, full suite 78/78 (matches Forge's count exactly). **One correction:** Forge's handoff says the state-set is "gated on `applyIfCurrent()`" — that function is not called anywhere in `MainChart.tsx`. The actual gate is a direct `versionGuardRef.current.isCurrent(myDataVersion)` check-and-return at line 1680, which is functionally equivalent but a different API than described. Not a defect; recording it because the description was inaccurate. |
+| **Gap found (out of this ticket's scope, filed separately)** | The live WebSocket tick-folding path (`MainChart.tsx:2200`, `:2260`, fed by `useWebSocket({symbol,timeframe})`) does **not** call `versionGuardRef.isCurrent()` — it relies on an 8%-price-deviation heuristic instead. The code's own comment at `MainChart.tsx:2116` names the exact risk this ticket exists to close: *"a stale tick from the PREVIOUS symbol right after a switch."* Heuristic is probabilistic, not a guarantee. → **WM-CHART-P0-06**. |
+| **Blockers** | Manual verification (6 rapid timeframe changes) still needs an authenticated `/charts` session — **blocked by RISK-001**, same as every runtime check this session. Static/type/test verdict stands on its own merits and is not a substitute for it. `buildId`/`disposed` (pre-existing) and the new `DataVersionGuard` are currently redundant, not unified — both must agree before data applies; full consolidation is safe optional follow-up, not required for closure. |
+| **Next action** | **Closed** on static/type/test evidence. Runtime check remains open behind RISK-001 for whoever gets an authenticated session first. |
+
+---
+
+## WM-CHART-P0-06 — Version-guard the live WS tick-folding path
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-CHART-P0-06 |
+| **Product** | WM Pro |
+| **Priority** | P1 — same defect class as P0-02, narrower blast radius (needs a same-instant symbol switch + in-range stale tick to manifest) |
+| **Owner** | — |
+| **Status** | BACKLOG |
+| **Objective** | Close the one gap WM-CHART-P0-02 left: the live WS tick-folding path (`candleRef.current.update()` at `MainChart.tsx:2200`, `setCandles()` at `:2260`) does not use `DataVersionGuard`/`isCurrent()` at all — only an 8%-deviation heuristic (`:2116`) that can miss a stale tick whose price happens to be close to the new symbol's, or a stale tick for the same symbol at a just-switched timeframe. |
+| **Dependencies** | WM-CHART-P0-02 (done, `c53e429`) — reuses the same `versionGuardRef` already present in `MainChart.tsx`. |
+| **Evidence source** | Sentinel verification of WM-CHART-P0-02, `docs/operations/handoffs/sentinel/2026-07-30-sentinel-wm-chart-p0-02-verification.md` |
+| **Files / subsystems** | `src/components/chart/MainChart.tsx:2100-2270` (live-tick handler), likely `useWebSocket` hook for symbol-scoped subscription cleanup |
+| **Acceptance criteria** | A live tick arriving for a symbol/timeframe other than the currently-active `dataVersion` is discarded before it reaches `candleRef.current.update()` or `setCandles()` — same guarantee P0-02 gives the fetch path, not a magnitude heuristic. Existing 8% bad-tick rejection stays (different purpose: corrupt data, not staleness). |
+| **Verification requirements** | Unit: simulate a tick tagged with a superseded `dataVersion`/symbol, confirm it's dropped before touching chart refs. Manual: rapid symbol switch while ticks are in flight, confirm no cross-symbol bleed — same RISK-001 constraint as everything else. |
+| **Next action** | Unclaimed. Small, additive, low collision risk — safe for either Forge or Noah once Noah's held lane reopens. |
 
 ---
 
