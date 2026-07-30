@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Plus, TrendingUp, TrendingDown, LayoutGrid, List } from "lucide-react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
+import { priceSourceBadge } from "@/lib/priceSource";
 
 const DEFAULT_SYMBOLS = [
   "ES1!", "NQ1!", "RTY1!", "YM1!", "SPY", "QQQ",
@@ -45,7 +46,7 @@ function getSymName(sym: string): string {
 }
 
 /* ── Yahoo Finance quotes — all symbols including futures ─── */
-interface FinnhubQuote { price: number; change: number; changePct: number; }
+interface FinnhubQuote { price: number; change: number; changePct: number; src: string; }
 
 const FUTURES_WL = new Set(["NQ1!","ES1!","RTY1!","YM1!","GC1!","SI1!","CL1!","NG1!","ZB1!","ZN1!","ZF1!","HG1!","MNQ1!","MES1!","MYM1!","M2K1!","MGC1!","MCL1!","VX1!"]);
 const CRYPTO_WL  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC"]);
@@ -62,30 +63,30 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
       // Crypto → Alpaca (FREE, no key, real-time)
       if (isCrypto) {
         const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-        if ((j?.price ?? 0) > 0) { result[up] = { price: j.price, change: j.change ?? 0, changePct: j.changePct ?? 0 }; return; }
+        if ((j?.price ?? 0) > 0) { result[up] = { price: j.price, change: j.change ?? 0, changePct: j.changePct ?? 0, src: "alpaca" }; return; }
         // Fallback to Yahoo
         const y = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-        if ((y?.price ?? 0) > 0) { result[up] = { price: y.price, change: y.change ?? 0, changePct: y.changePct ?? 0 }; return; }
+        if ((y?.price ?? 0) > 0) { result[up] = { price: y.price, change: y.change ?? 0, changePct: y.changePct ?? 0, src: "yahoo" }; return; }
         return;
       }
 
       // Futures → Yahoo only
       if (isFutures) {
         const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-        if ((j?.price ?? 0) > 0) result[up] = { price: j.price, change: j.change ?? 0, changePct: j.changePct ?? 0 };
+        if ((j?.price ?? 0) > 0) result[up] = { price: j.price, change: j.change ?? 0, changePct: j.changePct ?? 0, src: "yahoo" };
         return;
       }
 
       // Stocks/ETFs → Alpaca (real-time RTH; 404s when stale) → Yahoo (pre/post
       // market, matches TradingView) → Finnhub (regular-hours-only fallback).
       const alpacaJ = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if ((alpacaJ?.price ?? 0) > 0) { result[up] = { price: alpacaJ.price, change: alpacaJ.change ?? 0, changePct: alpacaJ.changePct ?? 0 }; return; }
+      if ((alpacaJ?.price ?? 0) > 0) { result[up] = { price: alpacaJ.price, change: alpacaJ.change ?? 0, changePct: alpacaJ.changePct ?? 0, src: "alpaca" }; return; }
 
       const yhJ = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if (yhJ?.price > 0) { result[up] = { price: yhJ.price, change: yhJ.change ?? 0, changePct: yhJ.changePct ?? 0 }; return; }
+      if (yhJ?.price > 0) { result[up] = { price: yhJ.price, change: yhJ.change ?? 0, changePct: yhJ.changePct ?? 0, src: "yahoo" }; return; }
 
       const fhJ = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if (fhJ?.price > 0) result[up] = { price: fhJ.price, change: fhJ.change ?? 0, changePct: fhJ.changePct ?? 0 };
+      if (fhJ?.price > 0) result[up] = { price: fhJ.price, change: fhJ.change ?? 0, changePct: fhJ.changePct ?? 0, src: "finnhub" };
     } catch {}
   }));
   return result;
@@ -97,6 +98,7 @@ interface WatchItem {
   change: number;
   changePct: number;
   history: number[]; // last 20 prices for sparkline
+  src?: string;
 }
 
 function Sparkline({ data, up }: { data: number[]; up: boolean }) {
@@ -306,10 +308,10 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
           const updated = prev.map(item => {
             const q = liveMap[item.sym.toUpperCase()];
             if (!q) return item;
-            const { price, change, changePct } = q;
+            const { price, change, changePct, src } = q;
             SEED_PRICES[item.sym.toUpperCase()] = price;
             const dp = price < 10 ? 4 : 2;
-            return { ...item, price: +price.toFixed(dp), change, changePct };
+            return { ...item, price: +price.toFixed(dp), change, changePct, src };
           });
           // Persist to window cache only (localStorage cleared on init to prevent stale change%)
           try {
@@ -691,8 +693,24 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       {item.price > 0 ? (
                         <>
-                          <div style={{ fontSize: 11, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace", fontWeight: 600 }}>
-                            {item.price.toFixed(dp)}
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+                            {(() => {
+                              const b = priceSourceBadge(item.src ?? "unavailable", item.price > 0);
+                              return (
+                                <span
+                                  title={`${item.sym} — ${b.title}`}
+                                  aria-label={b.label}
+                                  style={{
+                                    width: 5, height: 5, borderRadius: "50%",
+                                    background: b.live ? "#00C076" : "#F5A623",
+                                    flexShrink: 0,
+                                  }}
+                                />
+                              );
+                            })()}
+                            <div style={{ fontSize: 11, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace", fontWeight: 600 }}>
+                              {item.price.toFixed(dp)}
+                            </div>
                           </div>
                           <div style={{ fontSize: 9, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace" }}>
                             {up ? "+" : ""}{item.changePct.toFixed(2)}%
