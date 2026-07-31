@@ -795,3 +795,21 @@ no fabricated capability. All rows BACKLOG until a lane owner claims.
 | **VI-WM-P0-03** | P0 | Video Intelligence | BACKLOG | Fabio / order-flow video queue: Founder to drop the list of clicked videos into `docs/operations/video-queue.md`; VI processes oldest first (yt-dlp, timestamped, honesty note on any failed pull). Carried over from `2023-video-intel-next-matrix-row.md`. | Inventing transcript content for a failed pull. |
 
 Referenced, not duplicated: **WM-STATE-P0-02** (Markov zero-importer wiring), **WM-CHART-P0-05b** (custom bubble qty).
+
+---
+
+## Coordinator log — 2026-07-31 market-open (Forge)
+
+| Time (CDT) | Actor | Action | Reference |
+|---|---|---|---|
+| ~09:35 | Forge (this session) | Architected 3 Founder-flagged root causes; published handoffs + Noah dispatch. **Forge does not ship (DEC-008/DEC-012).** | (this commit) |
+
+New tickets filed (contracts ready for Noah):
+
+| Ticket | P | Owner | Status | Root cause (one line) | Contract |
+|---|---|---|---|---|---|
+| **WM-VP-P0-01** | P0 | Noah | CONTRACT READY | Session VP runs its own hardcoded `/api/yahoo` fetch instead of consuming the chart's canonical candles + `dataVersion` → provider divergence (absent) + stale prior-day `latestDate` (wrong). 2nd recurrence = prior fixes patched the duplicate pipeline. | `handoffs/forge/2026-07-31-forge-wm-vp-p0-01-root-cause.md` |
+| **WM-OF-P0-05** | P0 | Noah | CONTRACT READY | All 6 tools mount; the 5 profile tools are honest (real tape only) but **live-capture-only + silently render empty** on tapeless bars (truth §5 gap). Needs honest `unavailable`/`capturing` state; VP → real total volume w/ "no split" label. | `handoffs/forge/2026-07-31-forge-wm-of-p0-05-toolset-audit.md` |
+| **WM-BROKER-P0-01-A** | P0 | Noah | CONTRACT READY | `supportedAssetClasses` hardcodes `"future"` (`tastytrade.ts:172`) while `isFuturesApproved` computed-but-unused; no futures instrument/streamer-symbol path exists. Derive capability + wire futures product path. | `handoffs/forge/2026-07-31-forge-wm-broker-p0-01-tastytrade-futures.md` |
+
+Founder decision (not for Noah): **broker expansion shortlist** — Tradier→IBKR→Schwab need scope approval + verification spike; Webull/Robinhood rejected (no official retail API). `handoffs/forge/2026-07-31-forge-broker-expansion-matrix.md`
