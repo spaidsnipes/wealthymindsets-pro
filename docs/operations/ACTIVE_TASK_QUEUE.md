@@ -1,7 +1,9 @@
 # ACTIVE TASK QUEUE
 
-**Owner:** Sentinel · **Last updated:** 2026-07-28 10:50 CDT
-**Product in this block:** WM Pro · **Base commit:** `fb063d0`
+**Owner:** Sentinel · **Last updated:** 2026-07-30 (Sentinel reconciliation — see DAILY_OPERATIONS_REPORT Finding 1)
+**Product in this block:** WM Pro · **Base commit:** `708b5c4`
+
+> **2026-07-30 reconciliation note.** This queue drifted two days behind git (stamped 07-28 while commits ran to 07-30). Closed since 07-28: **WM-CHART-P0-02** (`c53e429`, VERIFIED), **WM-CHART-P0-06** (`3cbf3a9`, CLOSED), **WM-CHART-P0-05** (`a223fc5` +3, SHIPPED — runtime agreement still RISK-001-blocked). The `WM-CHART-P0-01B-PREREQ-SCANNER-A11Y-01` gate referenced in §TEAM ASSIGNMENTS has **no ticket body** — RETURNED by Sentinel; it gates nothing until authored. Nehemiah owns keeping this file in step with git going forward.
 
 ## Valid statuses
 

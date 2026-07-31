@@ -1,214 +1,74 @@
-# DAILY OPERATIONS REPORT — 2026-07-28
+# DAILY OPERATIONS REPORT — 2026-07-30
 
-**Prepared by:** Sentinel (COO) · **Work block:** 2026-07-28 morning–midday CDT
-**Product:** Wealthy Mindsets Pro · **Repo/branch:** `spaidsnipes/wealthymindsets-pro` · `main`
-**Verified HEAD at report time:** `fb063d0`
+**Prepared by:** Sentinel (COO) · **Work block:** 2026-07-30 late-afternoon CDT
+**Products reviewed:** Wealthy Mindsets Pro, Dreamboard · **Repo:** `wealthymindsets-pro` · `main`
+**Verified HEAD at report time:** `708b5c4` · **Method:** every figure below re-derived from `git` + files on disk this session; nothing taken on report.
 
----
-
-## Work completed
-
-**Sentinel**
-- Established `docs/operations/` as the workforce communication bus: command center, task
-  queue, employee status, decisions log, risk register, verification queue, handoff
-  structure for all five roles. Existing Forge documents were linked, not absorbed
-  (DEC-003).
-- Ran an independent verification pass over every reported claim about WM Pro state. Results
-  in `VERIFICATION_QUEUE.md`.
-- Completed the requested review of the `AuthContext.tsx` guard change (`a73aae1`) —
-  **approved**.
-- Scanned `fb063d0` for sensitive content — **clean**.
-- Converted the WM Pro backlog into 21 tracked tickets with owners, acceptance criteria and
-  verification requirements.
-
-**Forge** (earlier in the block, pre-existing commits)
-- `8da59b0` audit baseline · `5f5518b` dead duplicate removal · `a73aae1` P0 auth guard fix ·
-  `d2df834` verified handoff · `fb063d0` chart/heatmap/state architecture + ordered tickets.
-
-**Noah** — no work. Ticket assigned, not yet claimed.
-**Atlas** — no work. A correction task is now assigned (RISK-007).
-**Research Lab** — no work. Support task queued.
-
-## Commits created this block
-
-| Commit | Author | Description |
-|---|---|---|
-| *(this commit)* | Sentinel | `docs(ops):` establish ATH operations bus + verification pass |
-
-Forge's five commits (`8da59b0` → `fb063d0`) predate this block and are already pushed.
-
-## Tickets advanced
-
-| Ticket | From | To |
-|---|---|---|
-| WM-CHART-P0-01 | (informal) | **READY FOR NOAH** — approved, unblocked |
-| WM-RESEARCH-P1-01 | (informal) | **FORGE ACTIVE** with an explicit read-only constraint |
-| WM-VERIFY-P0-01 | (informal) | **BLOCKED** — claimed by Sentinel, gated on RISK-001 |
-| WM-STATE-P1-01 (Wyckoff) | P0 expectation | **DEFERRED** — descope proposed (DEC-001) |
-| 17 further tickets | untracked | tracked in `ACTIVE_TASK_QUEUE.md` |
-
-## Tickets verified
-
-- **V-001** `a73aae1` AuthContext guard — **VERIFIED (code review), APPROVED.** Null-safe;
-  client rule now matches the server rule; escape path guaranteed. One low-severity extra
-  redirect hop noted, not blocking.
-- **V-002** `fb063d0` architecture claims — **9 of 11 CONFIRMED** against the repository,
-  1 PARTIALLY VERIFIED, 1 accepted as a stated-method measurement. No sensitive content.
-- **V-003** Build health at `fb063d0` — **VERIFIED** (see below).
-
-## Tickets returned
-
-**None.** No work was submitted for verification this block.
-
-One item was *not* returned but qualified: Forge's duplicate-request observation is recorded
-as an observation rather than a Sentinel-verified fact, because runtime behaviour could not
-be re-observed under RISK-001.
-
-## Current build health
-
-| Check | Result | Evidence |
-|---|---|---|
-| TypeScript `tsc --noEmit` | **PASS — 0 errors** | Sentinel, 2026-07-28 10:48 |
-| Production build 69/69 | **PARTIALLY VERIFIED** | Forge at `a73aae1`; not re-run at `fb063d0` (docs-only delta) |
-| `HEAD` == `origin/main` | **IN SYNC** | `fb063d076e2c…` |
-| Working tree | **DIRTY** — 192 unowned lines in `src/app/lounge/page.tsx` | RISK-004 |
-
-## Current test status
-
-**PASS — 11/11** (vitest, `vpEngine.test.ts`), re-run by Sentinel at `fb063d0`.
-
-**Sentinel's assessment:** 11 tests in a single file, covering one engine, is the entire
-automated safety net for a trading application. Green is accurate and not reassuring.
-WM-TEST-P0-01 should be treated as P0 in substance, not just in label.
-
-## Remaining P0 blockers
-
-1. **RISK-001 — no live verification possible.** Blocks WM-VERIFY-P0-01, the perf gate, and
-   every smoothness criterion. Root cause diagnosed (Chrome running from `~/Desktop`);
-   two-minute Founder fix.
-2. **RISK-002 — `JWT_SECRET` possibly unset in production.** Committed fallback in a public
-   repo. Highest-severity resolvable item.
-3. **RISK-003 — Supabase RLS always-true write/delete policies.** Launch blocker; shared
-   database with Dreamboard, so it must not be applied blind.
-4. **WM-CHART-P0-01 unstarted.** It blocks four other P0s. Every day it waits, the Friday
-   objective compresses.
-
-## Research completed
-
-- **TradingView quantitative interaction baseline — VERIFIED measurement.** 3,117 frames /
-  51.9 s: median 16.7 ms, p95 17.6 ms, worst 21 ms, zero frames over 32 ms, zero long tasks.
-  Not "felt smooth" — measured. This is the bar, and it implies four architectural
-  principles (rendering decoupled from React, crosshair as a compositor concern, heavy work
-  off the interaction path, a defended frame budget).
-- **WM Pro source audit** — timeframe fragmentation, state-model gap, heatmap request
-  pathology, and the absence of a Wyckoff engine, all confirmed with line references.
-- **Browser connector root cause** — the Desktop-vs-`/Applications` Chrome bundle path
-  discrepancy that has blocked three sessions.
-
-## Research still outstanding
-
-- **The 20-minutes-each requirement was not met — ~3 minutes measured.** Forge recorded the
-  shortfall rather than claiming the time, and Sentinel is recording it here rather than
-  quietly dropping it.
-- TradingView qualitative study: alerts, layouts, screener, multi-timeframe, workspace
-  persistence, loading feedback, error recovery.
-- tastytrade options-construction workflow — constrained to read-only on a live brokerage
-  account (DEC-005).
-- **WM Pro's own chart performance — never measured.** There is a competitor number and no
-  WM Pro number, so no comparison exists yet.
-
-## Risks
-
-| ID | Risk | Severity |
-|---|---|---|
-| RISK-001 | No live/authenticated verification possible | HIGH |
-| RISK-002 | `JWT_SECRET` may be unset in production | HIGH |
-| RISK-003 | Supabase RLS always-true write/delete policies | HIGH |
-| RISK-004 | 192 lines of unowned uncommitted Lounge work | MEDIUM |
-| RISK-005 | Docs cite issues `#76`/`#78` that do not exist; tracker is empty | MEDIUM |
-| RISK-006 | Stale Desktop clones (3 weeks behind) | MEDIUM |
-| RISK-007 | Unverified "company health" figures circulating as baseline | MEDIUM |
-| RISK-008 | Dreamboard: 164 lines untracked, unpushed 5 days | MEDIUM |
-| RISK-009 | WOW World / ATHOS / Video Intelligence have no evidence trail | MEDIUM |
-| RISK-010 | Friday scope exceeds validated-work capacity | MEDIUM |
-
-## Founder decisions required
-
-1. **Confirm `JWT_SECRET` is set in Vercel production.** Two minutes. **Do not paste the
-   value anywhere.** (WM-SEC-P0-01)
-2. **Move `Google Chrome.app` from Desktop to `/Applications` and relaunch** — or sign in to
-   WM Pro yourself in the browser pane. Unblocks all live verification. (RISK-001)
-3. **Acknowledge the Wyckoff descope from Friday.** No engine exists; shipping a phase label
-   means inventing classifications. (DEC-001)
-4. **Decide the fate of the 192 uncommitted Lounge lines** — checkpoint branch or discard.
-   Recommend the branch: free and reversible. (RISK-004)
-5. **Approve the RLS fix window** with a backup, or accept it as an open launch blocker.
-   (WM-SEC-P0-02)
-6. **Resolve the role conflict** — Product Director vs. Senior Engineer. (DEC-004)
-7. **Point Sentinel at WOW World, ATHOS, and Video Intelligence**, or mark them dormant.
-   (RISK-009)
-8. *Optional, removes a constraint:* provide a **tastytrade paper/sandbox account** so the
-   workflow study can proceed without touching a live brokerage account. (DEC-005)
-
-## Exact next action for each employee
-
-| Employee | Next action |
-|---|---|
-| **Noah** | Claim **WM-CHART-P0-01**. Read the four required documents, confirm the ticket boundary, **probe real provider support before writing the matrix**. No Wyckoff. Do not start with cosmetic labels. |
-| **Forge** | Continue **WM-RESEARCH-P1-01**. tastytrade read-only. Log findings as they happen. Do not write production code. |
-| **Sentinel** | Verify Noah's submission against the queue's acceptance criteria; re-run `npm run build` at the current commit; execute WM-VERIFY-P0-01 the moment RISK-001 clears. |
-| **Atlas** | Before indexing anything new, **re-derive or mark UNVERIFIED every figure in RISK-007**. Keep the six evidence categories separate. Do not promote DEC-007 to a company standard — it is not ratified. |
-| **Research Lab** | Support WM-RESEARCH-P1-01 with interaction documentation only: chart interaction, heatmap workflow, options construction, workspace persistence, timeframe selection, loading feedback, error recovery. No production code. |
-| **Founder** | The eight decisions above, items 1–2 first. |
+> Prior report (2026-07-28, HEAD `fb063d0`) retained in git history. This report supersedes it and **reconciles a two-day bus drift** — see Finding 1.
 
 ---
 
-## Sentinel's closing assessment
+## Finding 1 — the operations bus drifted two days behind git · MEDIUM
 
-WM Pro is genuinely stronger than it was this morning: a user-blocking auth bug is fixed and
-reviewed, an evidence-based architecture baseline exists where none did, and the work is now
-tracked in one place instead of scattered across chat threads that cannot talk to each other.
+`ACTIVE_TASK_QUEUE.md`, `EMPLOYEE_STATUS.md`, `VERIFICATION_QUEUE.md`, and the prior report were all stamped **2026-07-28 10:50**, while commits ran through **2026-07-30 16:53**. Work shipped and closed (P0-02, P0-05, P0-06) without the queue/status/verification files being advanced in step. **This is the exact failure the Founder named at 15:06** — code shipping without the bus reflecting it. Reconciled below; `EMPLOYEE_STATUS` and the queue header updated this session. Standing owner going forward: **Nehemiah** (queue-vs-git reconciliation every 30 min, per the 15:06 directive).
 
-The honest counterweight is that **almost nothing about the running application has been
-verified by anyone**. One code path was reviewed. Eleven unit tests pass in a single file.
-Twenty-one trading-system behaviours are UNKNOWN, and the product's own chart performance —
-the thing Friday is being judged on — has never been measured. That is not a documentation
-gap; it is the actual state of our knowledge, and RISK-001 is why.
+## Finding 2 — my assigned FIRST ACTION gate is a phantom ticket · HIGH (routing)
 
-The most valuable thing produced today was not a commit. It was Forge writing *"CONTRADICTED
-— I did not spend 40 minutes, I spent 3"* instead of claiming the time, and *"Wyckoff has no
-engine, so we cannot ship the label"* instead of shipping a plausible-looking one. That
-instinct is the company's actual asset. Protect it.
+The 15:06 directive orders Sentinel to issue APPROVED/RETURN on `WM-CHART-P0-01B-PREREQ-SCANNER-A11Y-01` and claims it gates Noah's P0-03, Forge's Option A V5, and the Video Intelligence contracts. **That ticket has no body, no acceptance criteria, no commit, and no handoff** — it exists only as four prose references in the queue. Verdict: **RETURN** (`handoffs/sentinel/2026-07-30-sentinel-scanner-a11y-gate-verdict.md`). It legitimately gates nothing. **Do not hold Noah/Forge/Video Intelligence on it.** To clear: Micah authors the real ticket (or maps it to WM-RESP-P0-01/02); Nehemiah adds a pre-route existence check.
 
 ---
 
-## Ops Checkpoint — 2026-07-30 20:06 CDT (Atlas coordinator, automated 30-min run)
+## Work verified closed since last report
 
-**Critical path:** `WM-CHART-P0-01B-PREREQ-SCANNER-A11Y-01` — the gate the 15:06 CDT
-directive names as unblocking Noah's queue, Forge's Option A V5 rebaseline, and the Video
-Intelligence contracts — **does not exist as a ticket**. Sentinel's RETURN verdict
-(`docs/operations/handoffs/sentinel/2026-07-30-sentinel-scanner-a11y-gate-verdict.md`, filed
-16:59 CDT) found no ticket body, acceptance criteria, or commit anywhere in the repo for that
-ID, and concluded it blocks nothing legitimately — the real blocker for those three tracks is
-RISK-001, not this phantom ID. That handoff was still **uncommitted** as of this checkpoint.
+| Ticket | Commit | Verdict | Evidence (re-run this session) |
+|---|---|---|---|
+| **WM-CHART-P0-02** — Chart Context + stale-request protection | `c53e429` | **VERIFIED** (static/type/test) | Real importer `MainChart.tsx:19/687`; `AbortSignal` on all 5 fetch helpers; `vitest` 78/78; `tsc` 0. Corrected Forge's inaccurate `applyIfCurrent` description; filed follow-on **WM-CHART-P0-06**. |
+| **WM-CHART-P0-06** — version-guard live WS tick-folding | `3cbf3a9` | **CLOSED** | Symbol-identity gate pins `DataVersionGuard.currentVersion` at effect top, drops stale ticks the 8% heuristic would miss. +2 pinning tests. This closes the exact gap I filed during P0-02 review — loop closed. |
+| **WM-CHART-P0-05** — four-price provenance | `1bbf2ec` `831e9ea` `a0b22e8` `a223fc5` | **SHIPPED** (Forge closure filed) | Provenance badge on all 4 surfaces (charts header, ticker tape, watchlist, in-canvas HUD) via shared `priceSource.ts` (5/5 tests). Quote math unchanged — provenance surfaced, not invented. **Runtime agreement still uncertified (RISK-001).** |
 
-**Owner to clear:** Micah authors the real scanner-a11y ticket (or retires the ID if
-WM-RESP-P0-01/02 already cover the intent); Nehemiah reconciles the queue and adds a
-pre-route check so directive line-items must resolve to a real ticket before gating
-downstream work. Neither had committed as of this checkpoint.
-
-**Skipped this cycle:** the working tree was dirty with active concurrent edits (Markov
-confluence architecture doc, `VERIFICATION_QUEUE.md`, lounge waveform, `ChartsDashboard.tsx`,
-`MainChart.tsx`) that changed mid-audit — evidence of a live parallel session touching those
-files. Per the coordinator's standing rule against pushing over WIP it didn't create, this
-checkpoint left that tree untouched rather than committing or resetting it, to avoid
-clobbering in-progress work. No code was shipped this cycle as a result.
-
-**Next:** confirm the scanner-a11y verdict handoff gets committed and the phantom gate is
-either retired or replaced with a real ticket; if unresolved next cycle, escalate.
+**Awaiting my verification (not yet closed):** WM-STATE-P0-01 (`e0a5ed7`, deterministic regime/Markov core) — status AWAITING VERIFICATION; WM-RESP-P0-02 (`9f2c68d`, login zoom/tap-targets) — the one ticket not blocked by RISK-001, Forge reports `smallTargets` empty at 3 breakpoints. Both queued for the next block.
 
 ---
 
-One Brain.
-One Knowledge Base.
-One Company Memory.
+## Open blockers (unchanged, both HIGH)
+
+- **RISK-001 — no live/authenticated verification possible.** Root cause verified: the running browser is a Desktop copy (`~/Desktop/Google Chrome.app`) that AppleScript can't match. Blocks every runtime acceptance criterion — P0-05 agreement, P0-03 live behavior, WM-VERIFY-P0-01, the perf half of WM-TEST-P0-01. **Founder, ~2 min:** move Chrome into `/Applications` and relaunch, or sign in personally in the browser pane. No employee will type the password or forge a token.
+- **RISK-002 / WM-SEC-P0-01 — `JWT_SECRET` may be unset in prod.** `src/lib/auth.ts:12` falls back to a committed value that would sign every session cookie in a public repo. Hardening commit (throw on boot if unset in prod) can be written before the Founder confirms the Vercel var.
+
+## Working-tree / hygiene
+
+- **Uncommitted:** `src/app/lounge/page.tsx` (1 line) — the ownerless "fix lounge waveform" WIP the Founder flagged. Now routed as **WM-LOUNGE-P2-01** (Micah design → Noah impl, held; P2). Nehemiah runs the scope check (bounded waveform fix, **not** a lounge redesign — no broad redesign until the P0 gate opens).
+
+---
+
+## Cross-project status
+
+| Project | State | Note |
+|---|---|---|
+| **Wealthy Mindsets Pro** | ACTIVE · `main` @ `708b5c4` · 0 ahead/behind origin | 3 P0 chart tickets closed this cycle; runtime cert blocked on RISK-001. |
+| **Dreamboard** (top priority per Founder) | **DRIFT RISK** · branch `feature/project-memory-health` · **no upstream (unpushed)** · 6 untracked items incl. `supabase/dreamboard-project-memory.sql`, `app/memory.tsx`, `lib/creative-health.ts`, two DB-P0-002 contract docs | Work exists only on a local unpushed branch — same fragmentation risk the bus exists to prevent. **Recommend:** Dreamboard owner pushes the branch and files the untracked docs into its ops bus this session. |
+| **WOW World** | No repo present on this host | Cannot verify; out of reach this session. |
+| **ATHOS** | No repo present on this host | Cannot verify; out of reach this session. |
+| **Video Intelligence** | Research-only gate (per directive) | Contracts parked; **not** gated by the phantom scanner ticket (Finding 2). |
+
+---
+
+## Prioritization for the next block
+
+1. **Founder (2 actions, both unblock everything):** clear RISK-001 (Chrome path) and confirm `JWT_SECRET` in Vercel. Every runtime acceptance criterion is stalled behind the first.
+2. **Micah:** author the real Scanner-a11y ticket (or retire the ID into WM-RESP-P0-01/02) so the phantom gate resolves.
+3. **Sentinel (me), next block:** verify WM-STATE-P0-01 (`e0a5ed7`) and WM-RESP-P0-02 (`9f2c68d` — RISK-001-free).
+4. **Nehemiah:** stand up the 30-min queue↔git reconciliation; add the directive→ticket existence check (Finding 2 root cause).
+5. **Dreamboard owner:** push `feature/project-memory-health`; file the 6 untracked artifacts into the Dreamboard ops bus.
+6. **Forge:** WM-SEC-P0-01 hardening commit (fail-closed `JWT_SECRET`), writable now without the Founder's answer.
+
+## Assignments issued this session
+
+- **Sentinel → RETURN** on `WM-CHART-P0-01B-PREREQ-SCANNER-A11Y-01` (phantom ticket).
+- **Nehemiah → NEW:** directive-to-ticket existence check + 30-min reconciliation (root-causes Findings 1 & 2).
+- **Micah → NEW:** author or retire the Scanner-a11y ticket.
+- No new implementation assigned to Noah/Forge this session — Noah's queue remains held per Founder Option A, and the hold is **not** on the phantom gate.
+
+---
+
+*Vision check — One Brain, One Knowledge Base, One Company Memory:* the two findings this session are both fragmentation (bus behind git; a gate pointing at nothing; Dreamboard work stranded on an unpushed branch). Closing them is the point of the bus. Reconciled where I could; routed the rest to the owners who prevent recurrence.

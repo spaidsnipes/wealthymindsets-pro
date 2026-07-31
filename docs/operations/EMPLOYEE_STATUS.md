@@ -1,6 +1,6 @@
 # EMPLOYEE STATUS
 
-**Owner:** every employee updates their own row · **Last updated:** 2026-07-28 10:50 CDT
+**Owner:** every employee updates their own row · **Last updated:** 2026-07-30 (Sentinel reconciliation)
 
 Update your row at the **start** of your session (after claiming) and at the **end**
 (before your handoff). A row that has not moved in a day is a signal, not a detail.
@@ -11,7 +11,7 @@ item, and update your row. Do NOT ask the Founder. Ratified by DEC-011.
 
 | Employee | Role | Active task | Status | Branch | Last commit | Last handoff | Updated |
 |---|---|---|---|---|---|---|---|
-| **Sentinel** | COO — operations, verification, prioritization | Ops bus setup + WM Pro verification pass | ACTIVE | `main` | `fb063d0` (verified, not authored) | `handoffs/sentinel/2026-07-28-sentinel.md` | 2026-07-28 10:50 |
+| **Sentinel** | COO — operations, verification, prioritization | 2026-07-30 daily report + bus reconciliation; RETURN on phantom scanner-a11y gate | ACTIVE | `main` | `708b5c4` (verified, not authored) | `handoffs/sentinel/2026-07-30-sentinel-scanner-a11y-gate-verdict.md` | 2026-07-30 |
 | **Forge** | Build Continuity Lead — research, architecture, tickets, **and production engineering (DEC-008, 2026-07-28)** | WM-STATE-P0-01 (`e0a5ed7`, deterministic core) — engine + tests shipped; prior P0-01/P0-02/RESP-P0-02 verified & closed | AWAITING VERIFICATION | `main` | `e0a5ed7` | `handoffs/forge/2026-07-29-forge-wm-state-p0-01.md` | 2026-07-29 |
 | **Noah** | Implementation engineer | WM-CHART-P0-03 — Fail-closed provider interval mapping | NOAH ACTIVE | `main` | `176fe7f` (base) | pending | 2026-07-29 |
 | **Atlas** | Knowledge indexing | Re-derive circulated "company health" figures from evidence | **CORRECTION REQUIRED** | — | — | none | — |
