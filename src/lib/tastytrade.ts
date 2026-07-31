@@ -86,27 +86,56 @@ async function getAccessToken(): Promise<string | null> {
   return token;
 }
 
-/** Authenticated GET against the tastytrade API. Server-side only. */
-export async function ttGet<T = unknown>(path: string): Promise<T> {
+/**
+ * Authenticated request against the tastytrade API. Server-side only.
+ * Retries once on 401 (access token may have expired between checks).
+ * Throws with STATUS-ONLY messages — never echoes response bodies (which can
+ * contain request params) or tokens.
+ */
+async function ttRequest<T = unknown>(
+  method: "GET" | "POST" | "DELETE",
+  path: string,
+  body?: unknown,
+): Promise<T> {
   const token = await getAccessToken();
   if (!token) throw new Error("tastytrade not configured");
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "User-Agent": UA },
-    cache: "no-store",
-  });
-  if (res.status === 401) {
-    // Access token may have expired between checks — clear cache and retry once.
-    _access = null;
-    const t2 = await getAccessToken();
-    const r2 = await fetch(`${BASE}${path}`, {
-      headers: { Authorization: `Bearer ${t2}`, Accept: "application/json", "User-Agent": UA },
+  const doFetch = (tok: string) =>
+    fetch(`${BASE}${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${tok}`,
+        Accept: "application/json",
+        "User-Agent": UA,
+        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
       cache: "no-store",
     });
-    if (!r2.ok) throw new Error(`tastytrade GET ${path} failed (HTTP ${r2.status})`);
-    return r2.json() as Promise<T>;
+
+  let res = await doFetch(token);
+  if (res.status === 401) {
+    _access = null;
+    const t2 = await getAccessToken();
+    if (!t2) throw new Error("tastytrade not configured");
+    res = await doFetch(t2);
   }
-  if (!res.ok) throw new Error(`tastytrade GET ${path} failed (HTTP ${res.status})`);
+  if (!res.ok) {
+    // For order endpoints tastytrade returns a validation body we WANT to relay
+    // (buying-power effect, rejection reason) — but it can echo the symbol/qty we
+    // sent, never a secret. Safe to surface for 4xx order responses.
+    let detail = "";
+    try {
+      const j = await res.json();
+      detail = j?.error?.message || j?.["error"]?.message || "";
+    } catch { /* ignore */ }
+    throw new Error(`tastytrade ${method} ${path} failed (HTTP ${res.status})${detail ? `: ${detail}` : ""}`);
+  }
   return res.json() as Promise<T>;
+}
+
+/** Authenticated GET against the tastytrade API. Server-side only. */
+export async function ttGet<T = unknown>(path: string): Promise<T> {
+  return ttRequest<T>("GET", path);
 }
 
 export interface TastytradeAccountLite {
@@ -187,4 +216,105 @@ export async function getTastytradeCapabilities(): Promise<TastytradeCapabilitie
     base.note = `Configured but connection failed: ${msg}`;
   }
   return base;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Order lifecycle (dry-run-first, live gated)
+//
+// SAFETY: tastytrade production accounts trade REAL money — there is no "paper"
+// account like Alpaca (the sandbox is a whole separate `cert` environment). So
+// the DEFAULT, always-available path here is the DRY-RUN endpoint
+// (POST /accounts/{acct}/orders/dry-run), which fully validates the order and
+// returns the buying-power effect WITHOUT placing it. Real submission
+// (POST .../orders) requires BOTH an explicit `confirm_live` from the caller AND
+// the server flag TASTYTRADE_ALLOW_LIVE_ORDERS=1 — mirroring the Alpaca
+// live-order gate (Company Bible §46 Gate 3: never fire real money on one click,
+// live disabled until certified, no silent fallback).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ALLOW_LIVE_ORDERS = process.env.TASTYTRADE_ALLOW_LIVE_ORDERS === "1";
+
+/** Whether real (non-dry-run) tastytrade order submission is permitted. */
+export function tastytradeLiveOrdersEnabled(): boolean {
+  return ALLOW_LIVE_ORDERS;
+}
+
+export interface TastytradeOrderLeg {
+  instrumentType: "Equity" | "Equity Option" | "Future" | "Future Option";
+  symbol: string; // tastytrade symbol, e.g. "AAPL" or "/ESU5"
+  quantity: number;
+  action:
+    | "Buy to Open" | "Sell to Close"
+    | "Sell to Open" | "Buy to Close"
+    | "Buy" | "Sell";
+}
+
+export interface TastytradeOrderInput {
+  timeInForce?: "Day" | "GTC" | "IOC";
+  orderType?: "Market" | "Limit";
+  price?: number;              // required for Limit
+  priceEffect?: "Debit" | "Credit";
+  legs: TastytradeOrderLeg[];
+}
+
+/** Infer the tastytrade instrument-type from a symbol (futures start with "/"). */
+export function inferInstrumentType(symbol: string): TastytradeOrderLeg["instrumentType"] {
+  return symbol.trim().startsWith("/") ? "Future" : "Equity";
+}
+
+/** Build the tastytrade wire-shape order body from our input. */
+function toWireOrder(input: TastytradeOrderInput): Record<string, unknown> {
+  const order: Record<string, unknown> = {
+    "time-in-force": input.timeInForce ?? "Day",
+    "order-type": input.orderType ?? "Market",
+    legs: input.legs.map((l) => ({
+      "instrument-type": l.instrumentType,
+      symbol: l.symbol,
+      quantity: l.quantity,
+      action: l.action,
+    })),
+  };
+  if ((input.orderType ?? "Market") === "Limit") {
+    if (typeof input.price !== "number") throw new Error("Limit order requires a price");
+    order["price"] = input.price;
+    order["price-effect"] = input.priceEffect ?? "Debit";
+  }
+  return order;
+}
+
+/**
+ * Validate an order WITHOUT placing it. Returns tastytrade's dry-run result
+ * (buying-power effect, warnings, fees). Always safe — no execution.
+ */
+export async function dryRunTastytradeOrder(
+  account: string,
+  input: TastytradeOrderInput,
+): Promise<any> {
+  return ttRequest("POST", `/accounts/${encodeURIComponent(account)}/orders/dry-run`, toWireOrder(input));
+}
+
+/**
+ * Place a REAL order. Guarded: throws unless live orders are enabled server-side
+ * (TASTYTRADE_ALLOW_LIVE_ORDERS=1). Callers must additionally require explicit
+ * user confirmation before reaching this.
+ */
+export async function placeTastytradeOrder(
+  account: string,
+  input: TastytradeOrderInput,
+): Promise<any> {
+  if (!ALLOW_LIVE_ORDERS) {
+    throw new Error("Live tastytrade orders are disabled (set TASTYTRADE_ALLOW_LIVE_ORDERS=1 to certify).");
+  }
+  return ttRequest("POST", `/accounts/${encodeURIComponent(account)}/orders`, toWireOrder(input));
+}
+
+/** List live/working orders for an account. */
+export async function getTastytradeOrders(account: string): Promise<any[]> {
+  const data = await ttGet<any>(`/accounts/${encodeURIComponent(account)}/orders`);
+  return data?.data?.items ?? [];
+}
+
+/** Cancel a working order by id. */
+export async function cancelTastytradeOrder(account: string, orderId: string): Promise<any> {
+  return ttRequest("DELETE", `/accounts/${encodeURIComponent(account)}/orders/${encodeURIComponent(orderId)}`);
 }

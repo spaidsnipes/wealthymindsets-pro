@@ -159,11 +159,54 @@ Observed live: the score moved **56 → 60 while its available inputs changed**,
 itself describing it as "estimated from price" and most contributors unavailable. The score moved
 because *availability* changed — undisclosed. That is the defect, not the styling.
 
-### Second observed reference — TradingView "Master Strategy" panel, 2026-07-29 20:19 CDT
+### Second observed reference — TradingView "Master Strategy Markov Pro v2" panel
 
-A richer Confluence-equivalent panel was captured live from the Founder's TradingView, TSLA 15m.
-The values below are what the Founder is already reading and trusting — not the earlier
-hand-wavy list I drafted from memory:
+Three captures across 2026-07-29/30 on the Founder's own TradingView, TSLA 15m. **The captures
+prove state-responsiveness — the property the discriminated union in `markov.ts` was built to
+enforce.** State didn't drift; state *changed* when its inputs changed, and changed *coherently*:
+
+| Field | 07-29 20:19 | 07-30 14:24 | 07-30 14:30 |
+|---|---|---|---|
+| Banner | BEARISH | (in-between) | **BULLISH** |
+| Confidence | 63% | 84% → 96% | **89%** |
+| Regime | Trending | Trending | **Volatile** |
+| Sample size | 333 | 333 | **334** (+1 trade taken) |
+| Target | short-side | (transition) | **Near PDH (0.9 ATR)** — flipped long |
+
+**Full 14:30 CDT panel** (the richest capture; matches
+`docs/research/COMPETITOR_STUDY_LIVE_2026-07-29.md` structure with two new fields):
+
+```
+BULLISH                                     <- color-coded top banner
+Volume:         Way Below Avg
+Win Rate:       52% (334 trades)            <- backtested; sample size DISCLOSED
+Avg Hold Time:  1h 32m                      <- historical average, same 334 sample
+Regime:         Volatile                    <- FOURTH regime label observed
+Confidence:     89%                         <- its own component, NOT derived from score
+Range:          --                          <- honest field-level unavailable
+Target:         Near PDH (0.9 ATR)          <- SEMANTIC anchor + numeric distance
+Participation:  20% (Low)                   <- number PLUS plain-English qualifier
+Avg Move:       2.92 (last 334)             <- historical avg over same 334-trade sample
+```
+
+Consequences captured in the component set below:
+
+1. **Field-level "--"** for unavailable is the pattern the Founder already trusts. Adopt it,
+   don't hide the whole panel.
+2. **Sample size disclosed inline** ("334 trades"). Same pattern as Markov's `sampleSize`.
+3. **Plain-English qualifier** ("Low", "Way Below Avg") alongside the number reduces spurious
+   over-reading.
+4. **Regime is separate from Markov state** — and its label set is now known to include at least
+   Trending / Volatile (plus Ranging / Break-out from the earlier draft). Locked in §7 Q5.
+5. **`target` is semantic + numeric**: `"Near PDH (0.9 ATR)"` binds a human-readable anchor
+   (`PDH` = previous day high, `POC`, `VAH`, `VAL`, etc.) with a distance in ATR multiples.
+   This is stronger than a naked price — the anchor explains *why* the target is there. The
+   `target` component must return both: `{anchor: string; distanceAtr: number; price: number}`.
+6. **State-responsiveness across three captures is the design proof.** When the banner flipped
+   BEARISH → BULLISH, confidence, regime, and target flipped together — coherent, sourced from
+   the same substrate. That is exactly what the byte-identical-output-on-byte-identical-input
+   test in `markov.test.ts` enforces on our side. **The reference doesn't drift silently, and
+   neither can we.**
 
 ```
 BEARISH                                     <- color-coded top banner
@@ -220,12 +263,14 @@ a number to the meter** — see §5.
 | # | id | Source signal | Sample size | 0..100 mapping |
 |---|---|---|---|---|
 | 1 | `markov` | Transition matrix + edge (shipped, `e0a5ed7`) | `currentRowSample` | 50 + 50·edge |
-| 2 | `regime` | Trending / Ranging / Break-out classifier (from ADX + range compression, deterministic) | Bar count in current regime | Confidence-weighted directional map |
+| 2 | `regime` | **Trending / Ranging / Break-out / Volatile** classifier (from ADX + range compression + realized-vol, deterministic) | Bar count in current regime | Confidence-weighted directional map |
 | 3 | `winRate` | Backtested win-rate over N recent setups for this symbol+TFId | N trades (100/30 gate, same as Markov) | Raw percentage |
 | 4 | `avgMove` | Historical average bar-return magnitude, expressed as ATR multiples | Same N as `winRate` | Distance from median mapped to 0..100 |
 | 5 | `participation` | Volume vs its own N-bar rolling average | N bars | Percentile of current relative to distribution |
-| 6 | `speedOfTape` | N-second window over Volume/Orders/Trades, std-dev normalized (DeepCharts pattern, reproducible) | N events | Normalization is intrinsically 0..100 |
+| 6 | `speedOfTape` | N-second window over Volume/Orders/Trades, std-dev normalized (technique after DeepCharts; WM implementation is claims-only reuse — no name/code/imagery adopted) | N events | Normalization is intrinsically 0..100 |
 | 7 | `vpLocation` | Position relative to session VP (inside VA / above VAH / below VAL) | Bars used to build the VP | Discrete distance-to-POC mapping |
+| 8 | `avgHoldTime` | Historical average bar-count-to-exit over the same N as `winRate` | Same N | Contextual — reported alongside score, does not itself contribute to the 0..100 |
+| — | *(auxiliary display)* `target` | **`{anchor: "PDH"\|"PDL"\|"POC"\|"VAH"\|"VAL"\|"pivot"; distanceAtr: number; price: number}`** — semantic anchor + numeric distance. Not a Confluence input; displayed alongside the meter to answer "target for what?" | Bars used to derive the anchor | n/a |
 
 **MBO-blocked on free data (`status: "unavailable"` structurally, non-negotiable):**
 
@@ -367,10 +412,17 @@ that same bar first, or the 56 -> 60 drift comes back under different labels.
 3. **Minimum-evidence thresholds** — I propose 4-of-7 and 0.5 coverage; both are judgement calls
    that should be ratified, not assumed.
 4. **Pin-to-Chart-Header** default — spec says default off (inside panel). Confirm.
-5. **Regime classifier** — the reference panel shows "Trending" as a discrete label with its own
-   confidence (63%). Do we adopt Trending / Ranging / Break-out as the WM regime set, and does
-   that classifier live in `src/lib/marketState.ts` alongside Markov, or as its own module?
-6. **`winRate` / `avgMove` sample source** — a live backtest engine per component request is
-   expensive; a pre-computed daily snapshot may be adequate. Which?
+5. **Regime classifier — RESOLVED to Trending / Ranging / Break-out / Volatile** by second
+   observed capture 2026-07-30 14:30 CDT (reference showed "Volatile" as a distinct label).
+   Open: does the classifier live in `src/lib/marketState.ts` alongside Markov, or as its own
+   `src/lib/regime.ts` module? Recommend the latter — Markov and regime are already independent
+   components in the reference, and their evidence sources are different.
+6. **`winRate` / `avgMove` / `avgHoldTime` sample source** — three components share one
+   backtest-sample source. A live backtest per component request is expensive; a pre-computed
+   daily snapshot per (symbol, TFId) is probably adequate and would let all three read from one
+   cache. Which?
+7. **`target` anchor set** — the reference uses `PDH` (previous day high). Full set to
+   support: `{PDH, PDL, POC, VAH, VAL, pivot}`? Anchor selection rule (nearest by ATR, or
+   directional-by-regime)?
 7. **`hurst`, `deltaStrength` from earlier draft** — moved to backlog (see §4 reconciliation).
    Ratify or restore?
