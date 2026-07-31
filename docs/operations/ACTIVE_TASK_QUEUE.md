@@ -774,3 +774,24 @@ Each still requires the full field set before it is claimed. Detail lives in
 3. **Forge**: pick the first Markov consumer (recommend Confluence panel), publish contract for `WM-STATE-P0-02`.
 4. **Micah**: draft `WM-CHART-P0-05b` input spec (est. 1 handoff) + Water-style Big Trade marker spec + Branded W trigger spec.
 5. **Nehemiah**: reconcile this queue against `git log --oneline origin/main`; publish command-board summary; verify Noah pulls before starting so he sees these tickets.
+
+---
+
+## VI DeepCharts gap tickets — filed 2026-07-31 (Video Intelligence)
+
+Source: `handoffs/video-intelligence/2026-07-31-vi-deepcharts-gap-matrix.md` (base `50dc7cb`).
+VI surfaces the gap and names the lane only — **Forge decides implementation** (DEC-008). Founder rule §5:
+no fabricated capability. All rows BACKLOG until a lane owner claims.
+
+| Ticket ID | Priority | Lane | Status | Objective | Never in scope |
+|---|---|---|---|---|---|
+| **WM-VP-WORLDS-DEF-01** | P0 (Founder ask) | VI research → Forge spec | BACKLOG | Define **VP Worlds** and **VP Wars** from a primary source (DeepCharts help center / a Founder-clicked video). Neither term appears in our DeepCharts crawl or WM codebase — they cannot be scoped until the mechanic is observed. | Guessing/architecting the feature before it is defined. Copying DeepCharts UI/wording. |
+| **WM-CHART-BUBBLE-DENSITY-01** | P1 | Forge arch → Noah | BACKLOG | Bubble density/legibility toolkit: same-order fragment aggregation, tick grouping, dynamic text size, "K" format, min/max + vol-cluster filters, color-dominant-side. Closes the documented pileup defect. Fragment-merge rule already worked out in `COMPETITOR_STUDY_DEEPCHARTS_2026-07-29.md` §2. | Iceberg/absorption reassembly (MBO-gated). Merging *distinct* orders (fabrication). |
+| **WM-RISK-MGR-01** | P1 | Forge (design exists) → Noah | BACKLOG | Implement the Risk Manager per Forge draft `docs/WM_RISK_MANAGER_ARCHITECTURE_2026-07-30.md` as an **advisory overlay** (daily loss/profit + per-trade + portfolio caps as suggestions/alerts). | Auto-flatten / order execution — brokerage write access is a Founder/compliance decision, live accounts are read-only. |
+| **WM-REGIME-HURST-01** | P2 | Forge assess → Noah | BACKLOG | Add a Hurst-exponent regime detector (absent from `src/`). Forge first assesses value vs the existing Markov engine before any build. | Wyckoff work (DEC-009). Substituting a value when the series is too short — return insufficient-evidence. |
+| **WM-CHART-FIXEDVP-01** | P2 | Forge decide | BACKLOG | Decide whether the existing manual "Delta + VP Box" (`deltaVP.ts`) satisfies fixed-range VP, or a persistent/anchored fixed-VP object is required. | — |
+| **WM-CHART-AGGPASS-AUDIT-01** | P1 (truthfulness) | Forge / Sentinel | BACKLOG | Audit the "passive" side of Aggressive-vs-Passive footprint (`FootprintControls.tsx:476-488`): confirm resting-limit volume is really captured, or relabel — true passive volume is MBO-adjacent. | Shipping inferred passive volume as if it were observed. |
+| **WM-CHART-DELTADIV-01** | P3 | Micah / Noah | BACKLOG | Optionally promote Delta Divergence from a panel signal (`SmartMoneyPanel.tsx:116-118`) to an on-chart overlay marker, if the Founder wants it on-chart. | — |
+| **VI-WM-P0-03** | P0 | Video Intelligence | BACKLOG | Fabio / order-flow video queue: Founder to drop the list of clicked videos into `docs/operations/video-queue.md`; VI processes oldest first (yt-dlp, timestamped, honesty note on any failed pull). Carried over from `2023-video-intel-next-matrix-row.md`. | Inventing transcript content for a failed pull. |
+
+Referenced, not duplicated: **WM-STATE-P0-02** (Markov zero-importer wiring), **WM-CHART-P0-05b** (custom bubble qty).

@@ -18,6 +18,7 @@ item, and update your row. Do NOT ask the Founder. Ratified by DEC-011.
 | **Nehemiah** | Operations & critical path (created 2026-07-30 directive) | Go-live gate published + queue↔git reconciliation (0858 dispatch) | ACTIVE | `main` | `36914de` | `handoffs/nehemiah/2026-07-30-nehemiah-command-board.md` | 2026-07-31 |
 | **Atlas** | Knowledge indexing | Morning dispatch waves (08:55–09:00) + DEC-012 ratified; **still owes** re-derive of circulated "company health" figures | **CORRECTION REQUIRED** | `main` | `50dc7cb` | none | 2026-07-31 |
 | **Research Lab** | Interaction documentation, competitive analysis, evidence synthesis. **No production code.** | RL-RESEARCH-P1-01 (**BLOCKED — DEC-010**); DB-OPS-P1-01 evidence corrected | **BLOCKED — awaiting Founder ruling DEC-010** | ops bus `main` · subject `dreamboard` `origin/main` `2049bdd` | none authored (docs-only) | `handoffs/research/2026-07-28-research.md` | 2026-07-28 |
+| **Video Intelligence** | Video/transcript intelligence + competitive gap analysis. **No production code.** | DeepCharts gap matrix (VP Worlds + full order-flow) published; 8 gap tickets filed | HANDED OFF | `main` | `50dc7cb` (base, not authored) | `handoffs/video-intelligence/2026-07-31-vi-deepcharts-gap-matrix.md` | 2026-07-31 |
 
 ## Role boundaries (binding)
 
