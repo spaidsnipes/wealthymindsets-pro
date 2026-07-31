@@ -651,6 +651,7 @@ Each still requires the full field set before it is claimed. Detail lives in
 | 16:15 | main session | Team charters ratified as DEC-011           | `0bfb7fd` |
 | 16:22 | main session | Preserved dangling lounge WIP on branch     | `wip/lounge-universal-hero-recovered` |
 | 16:24 | main session | Routed Founder 15:06 CDT directive assignments into this queue | (this commit) |
+| 20:06 | scheduled checkpoint | Nehemiah-default: flagged phantom `WM-CHART-P0-01B-PREREQ-SCANNER-A11Y-01` gate (Sentinel RETURN, uncommitted handoff) blocking Noah/Forge V5/VI; no code shipped — tree had active concurrent WIP not created by this run, left untouched | `54ac3be` |
 
 ---
 
