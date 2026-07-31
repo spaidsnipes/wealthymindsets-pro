@@ -4,6 +4,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
 import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity } from "lucide-react";
 import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
+import { WMLogo } from "@/components/ui/WMLogo";
 import { ChartToolbar } from "./ChartToolbar";
 import { MainChart } from "./MainChart";
 import { WatchlistGrid } from "./WatchlistGrid";
@@ -922,17 +923,23 @@ export function ChartsDashboard() {
                 )}
               </AnimatePresence>
 
+              {/* WM-BRAND-W-TRIGGER-01: the panel interior uses <WMLogo /> as its
+                  identity mark; the trigger was a generic Activity icon. Restored
+                  the branded W so the button and panel read as one product. */}
               <button
                 onClick={() => setSmartMoneyOpen(o => !o)}
-                className={`flex items-center gap-1 px-2 h-6 rounded text-[12px] font-semibold border transition-all`}
+                className={`flex items-center gap-1.5 pl-1.5 pr-2.5 h-8 rounded text-[12px] font-semibold border transition-all`}
                 style={{
                   background: smartMoneyOpen ? "rgba(139,92,246,0.15)" : "#131520",
                   borderColor: smartMoneyOpen ? "rgba(139,92,246,0.45)" : "#1E2030",
-                  color: smartMoneyOpen ? "#8B5CF6" : "#8B8FA8",
+                  color: smartMoneyOpen ? "#8B5CF6" : "#E2E8F0",
+                  minHeight: 32, minWidth: 44,
                 }}
                 title="Smart Money — real order-flow read (VWAP, CVD, imbalance); honest N/A for feeds we don't have"
+                aria-label="Open Smart Money panel"
+                aria-pressed={smartMoneyOpen}
               >
-                <Activity size={10} /> Smart Money
+                <WMLogo size={18} showGlow={smartMoneyOpen} /> Smart Money
               </button>
 
               <button
