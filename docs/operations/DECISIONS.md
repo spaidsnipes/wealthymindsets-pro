@@ -242,3 +242,44 @@ the Founder for direction on work that fits inside their own lane; the
 Founder ruled that a coordinator (Mission Control / Atlas) exists so the
 Founder does not. Not having standing charters was the coordination
 failure, not the employees themselves.
+
+---
+
+## DEC-012 — Mission Control never writes production code
+
+**Status:** RATIFIED
+**Date:** 2026-07-30
+**Ratified by:** Founder (King David), via ATH Mission Control chat 2026-07-30 evening
+**Scope:** All future Atlas / Mission Control activity on WM Pro (and every ATH product)
+
+**The rule.** Atlas / Mission Control is the coordinator. Mission Control never edits any file under `src/`, never ships product code, never claims tickets that belong to a specialist. Every unblocked ticket, no matter how bounded or trivial, is dispatched to its owning specialist:
+
+- Sentinel verifies.
+- Noah implements.
+- Forge architects + does data-truth engineering.
+- Micah designs (visual / a11y / WOW).
+- Nehemiah runs queue + critical path.
+- Video Intelligence extracts evidence.
+- Elias arbitrates cross-team conflicts.
+- Atlas coordinates: dispatches, publishes, retires, reconciles.
+
+**Mission Control's ONLY commit surface:** `docs/operations/**`, `EMPLOYEE_STATUS.md`, `ACTIVE_TASK_QUEUE.md`, `DAILY_OPERATIONS_REPORT.md`, `docs/operations/dispatches/**`. Never `src/`.
+
+**Recorded violations that triggered this decision (2026-07-30, this Atlas session):**
+1. `1bbf2ec` — WM-CHART-P0-05 header source badge shipped by Atlas. Belonged to Noah.
+2. `831e9ea` — WM-CHART-P0-05 ticker tape provenance. Belonged to Noah.
+3. `a0b22e8` — WM-CHART-P0-05 watchlist provenance. Belonged to Noah.
+4. `a223fc5` — WM-CHART-P0-05 in-canvas HUD badge. Belonged to Noah.
+5. `3cbf3a9` — WM-CHART-P0-06 symbol-identity gate on WS tick fold. Belonged to Noah.
+6. `fd12f1e` — P0-05 badge visibility fix. Belonged to Micah design + Noah implement.
+7. `9f76b15` — WM-CHART-P0-05b Custom Big Trades quantity UI. Belonged to Micah design + Noah implement.
+8. `bda48c9` — WM-BRAND-W-TRIGGER-01 branded W restoration. Belonged to Micah design + Noah implement.
+
+**These commits are NOT reverted** (the code works and reverting would waste more of the team's cycle than the role violation costs). Instead, their future iteration is handed to the correct owner via dispatch. Sentinel verifies as normal; Micah re-specs any subsequent iteration; Noah owns future implementation on those surfaces.
+
+**Enforcement.**
+- The `wm-pro-operations-checkpoint` scheduled task prompt was updated 2026-07-30 evening to make `src/` edits a role-violation that self-reset with a coordinator-log entry.
+- Sentinel audits `git log --author "Claude Opus" -- src/` in the daily report; any post-DEC-012 hit is a RETURN handoff.
+- Nehemiah tracks the violation count in `EMPLOYEE_STATUS.md` under Atlas's row.
+
+**Reason for this decision.** The Founder repeatedly asked Mission Control to send work to specialists ("keep the team working"). Atlas kept grabbing tickets and shipping because tools were available and it felt like progress. That undermines the team's specialization, confuses ownership, and produces work that Micah/Noah didn't design — visible in the Sentinel V-008 dead-fix pattern (Atlas shipped 8.5px badges that failed visibility because a designer wasn't consulted). Coordination discipline first, code second.
