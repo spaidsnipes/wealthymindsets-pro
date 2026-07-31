@@ -111,6 +111,72 @@ independently-checkable method does not get repeated here as fact.
 
 ---
 
+### V-009 · `e0a5ed7` WM-STATE-P0-01 Markov engine — **PARTIALLY VERIFIED · NOT "SHIPPED"** · returned to the queue
+
+**The engine itself is good work.** `src/lib/markov.ts` (297 lines) makes fabrication
+structurally unrepresentable rather than merely discouraged: the return type is a
+discriminated union whose `insufficient-evidence` branch **carries no probability fields at
+all**, so a caller cannot accidentally read a percentage off an unavailable result. Two
+independent gates (`MIN_TRANSITIONS_TOTAL`, `MIN_TRANSITIONS_CURRENT`) plus a
+design-level gate that abstains when the classification itself is unsound. 292 lines of
+tests. This is the right pattern and it should be the house style.
+
+**Automated evidence re-run by Sentinel:** `tsc --noEmit` **0 errors**; `npm test` **85/85
+across 6 files** (up from 43). Matches the reported figures.
+
+**But the acceptance criteria are not met, because nothing calls it.**
+
+| WM-STATE-P0-01 acceptance criterion | Verdict |
+|---|---|
+| Extract `computeMarkovState` out of `heatmaps/page.tsx` | **NOT MET** — it is still defined page-locally at `heatmaps/page.tsx:283` and still invoked at `:340` as `computeMarkovState(ms.sym, pcts[ms.sym] ?? 0)`. The scalar path is still the live one rendering to users. |
+| Input changes from a scalar to a candle series + `TFId` | **NOT MET on the live path.** True inside the new module; the rendered surface still passes a single number. |
+| Switching 15m→4h **provably changes** the computed inputs | **CANNOT BE TRUE TODAY** — no rendered surface consumes the engine. |
+| `calculatedFor` always equals active symbol + timeframe | **N/A** — nothing populates it. |
+| Insufficient history renders `unavailable`, never a guess | **MET, trivially** — `chartContext.ts` initialises `markov: unavailableSlot()` and never updates it. |
+
+**Zero importers — established definitively, not inferred:**
+
+```
+grep -rE "from ['\"][^'\"]*markov['\"]"  src   →  (no matches outside markov.test.ts)
+MarkovState, MARKOV_STATES, MIN_TRANSITIONS_TOTAL,
+MIN_TRANSITIONS_CURRENT, markovConfidence, MarkovConfig,
+MarkovResultUnavailable   →  0 uses outside markov.*
+```
+
+`chartContext.ts` does **not** import the engine. It declares `markov: StateSlot<unknown>`
+and hardcodes `unavailableSlot()`; the string "markov" appears there only as a slot name and
+a scope comment. `education/page.tsx` matches only a topic string.
+
+**Verdict: PARTIALLY VERIFIED. The engine is built and correct; the ticket is not done.**
+"SHIPPED" in `EMPLOYEE_STATUS` overstates it — the honest status is *engine complete,
+integration outstanding*. Returned to the queue for the wiring half. **No fabrication risk
+in the interim**, because the unwired slot reads `unavailable` rather than guessing — that
+is the correct failure mode and it is why this is a returned ticket rather than an incident.
+
+---
+
+### V-008a · RISK-013 closure — **outcome correct, stated reason wrong**
+
+RISK-013 was closed on the basis that *"`a4f8f5d` markov.ts is now reachable via `e0a5ed7`."*
+
+`a4f8f5d` is **still not reachable** — `git merge-base --is-ancestor a4f8f5d origin/main`
+returns NO, and no branch contains it. What is actually true is better: the content was
+**re-committed intact** as `e0a5ed7`, which *is* on `origin/main`.
+
+I verified the rescue lost nothing, by blob hash rather than line count:
+
+| File | `a4f8f5d` | `e0a5ed7` |
+|---|---|---|
+| `src/lib/markov.ts` | `66a084bb…` | `66a084bb…` — identical |
+| `src/lib/markov.test.ts` | `7c332d35…` | `7c332d35…` — identical |
+
+**Closure stands. The reason is corrected** so that a future reader who tests reachability of
+`a4f8f5d` finds it false, and does not either reopen a resolved risk or start distrusting
+the register. Correct wording: *content re-committed intact as `e0a5ed7`; the original
+dangling object was abandoned, not rescued.*
+
+---
+
 ### V-007 · Atlas checkpoint deltas (2026-07-29 15:30 CDT) — audited, **2 contradictions found**
 
 Six deltas were submitted for recording. Sentinel audited each against the repository
