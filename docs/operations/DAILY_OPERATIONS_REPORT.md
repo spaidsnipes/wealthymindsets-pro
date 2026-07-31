@@ -1,3 +1,43 @@
+# WM PRO GO-LIVE GATE — 2026-07-31 (Nehemiah · Operations & Critical Path)
+
+**Published:** 2026-07-31 09:30 CDT · **HEAD:** `50dc7cb` · **For:** Discord waitlist launch readiness
+**Founder gate (verbatim intent):** *"after the charts are fully fixed and clean we should be able
+to get people on the app officially."* This block defines "fully fixed and clean." Anything not on
+this list is **BACKLOG-POST-LAUNCH**. No item reprioritized without Elias.
+
+**Rule:** an item is GREEN only when its code is on `main`, tests pass, Sentinel APPROVES with live
+proof, and truthful unavailable-states hold. Owner→verifier chains below.
+
+### A. Chart / order-flow / UX gate (from Founder 08:52 CDT live-market audit)
+| # | Ticket | What | Owner chain | Status |
+|---|---|---|---|---|
+| 1 | `WM-VP-P0-01` | Session VP broke again (2nd recurrence, TSLA 15m) | Forge root-cause → Noah → Sentinel | 🔴 Sentinel filing; Forge root-cause pending |
+| 2 | `WM-OF-P0-05` | Order-flow toolset: Bid×Ask, Delta, Vol Profile, Imbalance, Agg/Passive, Big Trades all functional or honest-unavailable | Forge per-tool → Noah → Sentinel | 🔴 filing; per-tool audit pending |
+| 3 | `WM-DRAW-P0-01` | 20 drawing tools clean & smooth (mouse+touch+Esc, ≥12px targets, <150ms, 60fps) | Micah spec → Noah → Sentinel | 🔴 spec pending |
+| 4 | `WM-UX-P0-01` | Move Delta-bubble count control (5/7/10/15) from Big Trades gear → Smart Money (W) panel; single source of truth | Micah spec → Noah → Sentinel | 🔴 spec pending |
+| 5 | `WM-BROKER-P0-01` | Tastytrade wiring shows futures (read-only; **never place orders**) | Forge → Noah → Sentinel | 🔴 to file |
+| 6 | `WM-CHART-P0-05` | Price-source provenance badges (4 surfaces, shipped `63290d7`) | Sentinel APPROVE (DEC-012 backfill) | 🟡 shipped, awaiting Sentinel verify |
+| 7 | `WM-CHART-P0-05c` | Big-Trades marker vocabulary (water-style, honest) | Micah → Noah → Sentinel | 🔴 to file |
+| 8 | Broker-expansion scope | Which brokers at launch | Elias draft → Founder ratify | ⚪ awaiting Elias draft |
+
+### B. Security / data-integrity gate — MANDATORY before real users (Nehemiah adds; NOT in the audit list)
+| # | Ticket | Why it blocks a public waitlist | Owner | Status |
+|---|---|---|---|---|
+| 9 | `WM-SEC-P0-01` | `JWT_SECRET` may be unset in prod → forgeable sessions once real users sign in | Founder confirm in Vercel (2 min, don't paste value) | 🔴 BLOCKED — Founder |
+| 10 | `WM-SEC-P0-02` | Supabase RLS always-true write/delete → any user can mutate/delete others' rows; shared DB with Dreamboard | Founder approve fix-window + backup | 🔴 BLOCKED — Founder |
+
+> **Nehemiah flag to Elias/Founder:** the chart gate (A) is "clean," but **A-green + B-red = do
+> not launch.** Onboarding the Discord waitlist with §9/§10 open exposes real users to session
+> forgery and cross-tenant data loss. Recommend B is a hard blocker, not post-launch. Decision is
+> Elias/Founder's — I am flagging, not deciding.
+
+### Verification note
+RISK-001 is **partially lifted** — the Founder is verifying on authenticated production Chrome
+(08:52 proof). Agent-side live-drive of `/charts` is still constrained, so Sentinel's APPROVEs on
+1–7 depend on the Founder's authenticated window or the Chrome-relocation fix.
+
+---
+
 # DAILY OPERATIONS REPORT — 2026-07-30
 
 **Prepared by:** Sentinel (COO) · **Work block:** 2026-07-30 late-afternoon CDT

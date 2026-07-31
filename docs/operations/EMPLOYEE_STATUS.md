@@ -11,10 +11,12 @@ item, and update your row. Do NOT ask the Founder. Ratified by DEC-011.
 
 | Employee | Role | Active task | Status | Branch | Last commit | Last handoff | Updated |
 |---|---|---|---|---|---|---|---|
-| **Sentinel** | COO — operations, verification, prioritization | 2026-07-30 daily report + bus reconciliation; RETURN on phantom scanner-a11y gate | ACTIVE | `main` | `708b5c4` (verified, not authored) | `handoffs/sentinel/2026-07-30-sentinel-scanner-a11y-gate-verdict.md` | 2026-07-30 |
-| **Forge** | Build Continuity Lead — research, architecture, tickets, **and production engineering (DEC-008, 2026-07-28)** | WM-STATE-P0-01 (`e0a5ed7`, deterministic core) — engine + tests shipped; prior P0-01/P0-02/RESP-P0-02 verified & closed | AWAITING VERIFICATION | `main` | `e0a5ed7` | `handoffs/forge/2026-07-29-forge-wm-state-p0-01.md` | 2026-07-29 |
-| **Noah** | Implementation engineer | WM-CHART-P0-03 — Fail-closed provider interval mapping | NOAH ACTIVE | `main` | `176fe7f` (base) | pending | 2026-07-29 |
-| **Atlas** | Knowledge indexing | Re-derive circulated "company health" figures from evidence | **CORRECTION REQUIRED** | — | — | none | — |
+| **Sentinel** | COO — operations, verification, prioritization | Live-market P0 audit (0855 dispatch): file WM-VP-P0-01, WM-OF-P0-05, WM-DRAW-P0-01 + DEC-012 backfill verify | ACTIVE | `main` | `708b5c4` (verified, not authored) | `handoffs/sentinel/2026-07-30-sentinel-scanner-a11y-gate-verdict.md` | 2026-07-31 |
+| **Forge** | Build Continuity Lead — research, architecture, tickets, **and production engineering (DEC-008, 2026-07-28)** | 3 root causes (0856 dispatch): WM-VP-P0-01, WM-OF-P0-05 (per-tool), WM-BROKER-P0-01 tastytrade futures | ACTIVE | `main` | `e0a5ed7` | `handoffs/forge/2026-07-29-forge-wm-state-p0-01.md` | 2026-07-31 |
+| **Noah** | Implementation engineer | WM-CHART-P0-03 (base `176fe7f`) — **HELD** pending contract handoffs from Forge (VP/OF) + Micah (draw/UX) per 0900 dispatch | **HELD** | `main` | `176fe7f` (base) | pending | 2026-07-31 |
+| **Micah** | Experience / accessibility / WOW polish (created 2026-07-30 directive) | 3 specs (0857 dispatch): WM-DRAW-P0-01, WM-UX-P0-01 (Delta control migration), DEC-012 backfill | ACTIVE | `main` | — | pending (`handoffs/micah/`) | 2026-07-31 |
+| **Nehemiah** | Operations & critical path (created 2026-07-30 directive) | Go-live gate published + queue↔git reconciliation (0858 dispatch) | ACTIVE | `main` | `36914de` | `handoffs/nehemiah/2026-07-30-nehemiah-command-board.md` | 2026-07-31 |
+| **Atlas** | Knowledge indexing | Morning dispatch waves (08:55–09:00) + DEC-012 ratified; **still owes** re-derive of circulated "company health" figures | **CORRECTION REQUIRED** | `main` | `50dc7cb` | none | 2026-07-31 |
 | **Research Lab** | Interaction documentation, competitive analysis, evidence synthesis. **No production code.** | RL-RESEARCH-P1-01 (**BLOCKED — DEC-010**); DB-OPS-P1-01 evidence corrected | **BLOCKED — awaiting Founder ruling DEC-010** | ops bus `main` · subject `dreamboard` `origin/main` `2049bdd` | none authored (docs-only) | `handoffs/research/2026-07-28-research.md` | 2026-07-28 |
 
 ## Role boundaries (binding)
