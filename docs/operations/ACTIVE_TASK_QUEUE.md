@@ -763,6 +763,9 @@ Each still requires the full field set before it is claimed. Detail lives in
 | ~20:07 | main session | **P0-05 badge visibility fix** — addresses V-008 finding directly, bumps all 4 surfaces to readable size + LIVE/DELAYED text + green glow | `fd12f1e` |
 | ~20:12 | main session | **RETRACTED phantom `WM-CHART-P0-01B-PREREQ-SCANNER-A11Y-01`** per Sentinel RETURN; Noah unblocked; real Micah `WM-A11Y-SCANNER-01` filed as follow-on | (this commit) |
 | ~20:12 | main session | Filed **WM-CHART-P0-05b** (Custom Big Trades qty UI), **WM-BRAND-W-TRIGGER-01**, **WM-STATE-P0-02** (Markov zero-importer wiring) | (this commit) |
+| ~20:50 | main session | Shipped WM-CHART-P0-01A canonical timeframe contract + provider capability matrix (arch/evidence only) | `44fd7b6` |
+| ~21:06 | main session | Shipped dispatch system + 4 addressed dispatches (Noah/Forge/Micah/Video-Intel) | `eec9f3b` |
+| 21:13 | scheduled checkpoint | Nehemiah-default: tree has **live** concurrent WIP (Noah editing `FootprintControls.tsx`/`bubbleQty.ts` for WM-CHART-P0-05b, edits <2 min old at check time; Sentinel/Forge WIP in `VERIFICATION_QUEUE.md`/Markov arch doc ~2h old) — no code shipped, nothing touched, no collision risk introduced. Queue already current as of `eec9f3b`; no reconciliation gap found. | (no commit) |
 
 ## Current critical path (Nehemiah snapshot)
 

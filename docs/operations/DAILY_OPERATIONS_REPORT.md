@@ -74,3 +74,13 @@ The 15:06 directive orders Sentinel to issue APPROVED/RETURN on `WM-CHART-P0-01B
 ---
 
 *Vision check — One Brain, One Knowledge Base, One Company Memory:* the two findings this session are both fragmentation (bus behind git; a gate pointing at nothing; Dreamboard work stranded on an unpushed branch). Closing them is the point of the bus. Reconciled where I could; routed the rest to the owners who prevent recurrence.
+
+---
+
+## Checkpoint — 2026-07-30 21:13 CDT (scheduled, Atlas/coordinator)
+
+- **HEAD:** `eec9f3b` (dispatch system + 4 addressed dispatches, `21:06`). Queue and dispatches are current — no reconciliation gap found.
+- **Blocker:** none new. RISK-001 (no authenticated browser session) still gates every runtime-verification acceptance criterion.
+- **In flight right now:** Noah actively editing `FootprintControls.tsx` / new `src/lib/bubbleQty.ts` for **WM-CHART-P0-05b** (edits seconds old at check time) — left untouched, no collision.
+- **Also uncommitted (older, ~2h):** `VERIFICATION_QUEUE.md` (Sentinel V-009 RETURN on WM-STATE-P0-01 zero-importer finding + V-008a correction) and the Markov confluence arch doc — presumably Sentinel/Forge WIP, also left untouched.
+- **Next action:** whoever owns those files commits when ready; next checkpoint reconciles. Forge should pick the first Markov consumer (WM-STATE-P0-02) to give WM-CHART-P0-03 a clear lane once Noah lands P0-05b.
