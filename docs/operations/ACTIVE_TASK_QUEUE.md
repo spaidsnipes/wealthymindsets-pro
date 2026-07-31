@@ -674,3 +674,98 @@ Each still requires the full field set before it is claimed. Detail lives in
 | **Never in scope** | Any of the parked habit-loop features. Any audio-metadata claim (BPM, key, energy) that the source doesn't provide. Any lounge navigation/hero restructure — that is `wip/lounge-universal-hero-recovered`. |
 | **Next action** | **Nehemiah:** run the scope check with the Founder in one message (bounded fix vs redesign). **Micah:** on the assumption of "bounded," draft the waveform design spec + acceptance criteria; hand to Noah. **Noah:** stays held. |
 | **Filed by** | Atlas / main session, 2026-07-30 16:26 CDT, per Founder routing instruction. |
+
+---
+
+## RETRACTED: WM-CHART-P0-01B-PREREQ-SCANNER-A11Y-01 (phantom gate)
+
+| Field | Value |
+|---|---|
+| **Status** | **RETRACTED 2026-07-30 by Atlas / Mission Control**, accepting Sentinel V-008 RETURN (`docs/operations/handoffs/sentinel/2026-07-30-sentinel-scanner-a11y-gate-verdict.md`). |
+| **Reason** | The 15:06 CDT Founder directive named this ID as Sentinel's only first action. It was routed into the queue as if it were an existing ticket. It was not. No body, no acceptance criteria, no commit ever existed for it. Treating a phantom as a hard gate was itself the coordination failure the Founder flagged. Sentinel refused to fabricate an APPROVED and issued a precise RETURN. |
+| **What it was probably referring to** | Scanner `/scanner` page accessibility (`src/app/scanner/page.tsx:440-443` region referenced in another thread's dispatch). Real scope belongs to Micah (a11y lane per DEC-011). |
+| **Consequence** | The gate does NOT block Noah. Noah's real blockers are RISK-001 (runtime verification) and the standing Option-A hold — not this ID. **Noah is unblocked for the next queue-ordered ticket he owns.** |
+| **Follow-on** | Micah authors a real `WM-A11Y-SCANNER-01` ticket if scanner a11y is actually needed (scope, tap targets ≥44px, keyboard focus, ARIA on the interactive elements, breakpoints 360×800 / 390×844 / 834×1194). Not gating anything until it exists. |
+
+---
+
+## WM-CHART-P0-05b — Custom Big Trades quantity UI
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-CHART-P0-05b |
+| **Product** | WM Pro |
+| **Priority** | P0 (per 15:06 Founder directive Phase 1 item 4) |
+| **Owner (design)** | Micah — the UI affordance (input control shape, placement, label) inside the Big Trades gear menu. |
+| **Owner (implementation)** | Noah — wire the input to the already-existing `wm_bubble_max` localStorage slot. |
+| **Verifier** | Sentinel. |
+| **Objective** | Expose a **Custom quantity** input in Big Trades settings alongside the existing All / 200 / 150 presets. The storage layer already exists — this is only a UI ticket. |
+| **Verified evidence source** | Full-thread audit C2 (Drive doc `1g49GSBy5d5_4gaaOK0jN1zJGZIAM_kEvRXGh9L26OEM`) — "Storage layer (wm_bubble_max in localStorage) exists at `FootprintControls.tsx:94-111` and is read at `MainChart.tsx:848-850`. UI does NOT expose Custom input. Trivial add." |
+| **Files / subsystems** | `src/components/chart/FootprintControls.tsx` (add input, hand-off value via existing `wm_bubble_max` key); nothing else. |
+| **Acceptance criteria** | 1. Custom input appears alongside All / 200 / 150 buttons in the Big Trades gear menu. 2. Integer-only, min 1, max 5000. 3. Value persists to `wm_bubble_max`. 4. `MainChart.tsx:848-850` continues to read the value with no change. 5. Empty / non-numeric / out-of-range states each render honestly (do not silently clamp to a preset). 6. Screenshots at 360×800, 390×844, 834×1194, desktop. |
+| **Never in scope** | Any change to how bubbles are rendered / collision-avoided (that is a separate ticket routed to Noah after Micah's water-style spec). Any change to storage schema. |
+| **Blockers** | None. Bounded add, storage layer already exists. |
+| **Next action** | **Micah:** draft the input control spec + acceptance criteria (est. 1 handoff doc). **Noah:** implement against the spec (est. one file, one commit). |
+| **Filed by** | Atlas / main session, 2026-07-30 20:10 CDT, per Founder Phase 1. |
+
+---
+
+## WM-BRAND-W-TRIGGER-01 — Restore branded W trigger on Smart Money chart button
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-BRAND-W-TRIGGER-01 |
+| **Product** | WM Pro |
+| **Priority** | P1 |
+| **Owner (design)** | Micah — brand identity + trigger consistency between the button and the panel interior. |
+| **Owner (implementation)** | Noah. |
+| **Verifier** | Sentinel. |
+| **Objective** | The Smart Money chart-trigger button currently reads plain text. The panel interior already has W branding. This inconsistency is called out in Founder audit C3. Restore the branded W. |
+| **Evidence source** | Full-thread audit C3 — "'Smart Money' chart-trigger button lacks W branding … Panel interior has W branding, trigger reads plain text." |
+| **Files / subsystems** | `src/components/chart/ChartsDashboard.tsx` or wherever the chart-trigger button is currently rendered — verify with grep first, never edit dead code. |
+| **Acceptance criteria** | 1. The trigger uses the same W wordmark treatment as the panel interior. 2. Contrast passes WCAG AA. 3. Tap target ≥44×44. 4. Keyboard focus state visible. 5. Screenshots at 360×800, 390×844, 834×1194, desktop. |
+| **Never in scope** | Renaming "Smart Money." Panel-interior changes. Adding new trigger behavior. |
+| **Blockers** | None. |
+| **Next action** | **Micah:** design spec (1 handoff). **Noah:** implement (1 commit). |
+| **Filed by** | Atlas / main session, 2026-07-30 20:10 CDT, per Founder Phase 1 item 4. |
+
+---
+
+## WM-STATE-P0-02 — Wire Markov engine into runtime (zero importers)
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-STATE-P0-02 |
+| **Product** | WM Pro |
+| **Priority** | P0 — truthfulness / dead-code shipping pattern. |
+| **Owner** | Forge (architecture: which surfaces should consume Markov and via which contract) → Noah (implementation). |
+| **Verifier** | Sentinel. |
+| **Objective** | The deterministic Markov core (`src/lib/markov.ts`, `e0a5ed7`) is shipped, tested (292 lines of tests), architecture-documented (253 lines), and correct — **but has zero importers**. It is inert at runtime. The heatmap still runs the old scalar path. This is the same class as the silent-downgrade guard (`assertGranularity` / `resolveFetchPlan` / `aggregateCandles`) also with zero importers. Ship at least one honest consumer or explicitly retire. |
+| **Evidence source** | Forge Markov audit (context from Forge thread): "The engine is wired into chartContext — but the heatmap still runs the old scalar path… Definitive: zero importers. Recording — this is now a pattern, not an isolated case." |
+| **Acceptance criteria** | 1. At least one production surface imports and displays a Markov-derived state, gated by the honesty threshold (100 total / 30 per row → `insufficient-evidence`). 2. Where insufficient evidence exists, surface shows the honest state, not a substituted value. 3. Golden test remains green. 4. `grep -rln "from \"@/lib/markov\"" src/` returns at least 2 files (the runtime consumer + its test). |
+| **Never in scope** | Changing the Markov algorithm. Any Wyckoff work (DEC-009). Silently substituting Markov output when evidence is insufficient. |
+| **Blockers** | Forge decision: which surface goes first — the regime badge in the Confluence panel, or the heatmap regime overlay? Recommend Confluence panel first (higher-value, single-symbol path). |
+| **Next action** | **Forge:** pick surface + wire contract, publish handoff. **Noah:** implement per contract. |
+| **Filed by** | Atlas / main session, 2026-07-30 20:11 CDT, in response to Forge audit finding. |
+
+---
+
+## Coordinator log — 2026-07-30 evening
+
+| Time (CDT) | Actor | Action | Reference |
+|---|---|---|---|
+| ~19:00 | Atlas (other thread) | Cycle 2 audit published to Drive `18sm4YuU9WNbanwjGBvx0yNlptAtIB5ZE6ae79ptjFzs` — 9 commits verified, V-008 recorded, RISK-012→013 renumbered CLOSED | Drive |
+| ~19:18 | Sentinel (other thread) | V-008 bounded verify request — could NOT visually confirm P0-05 badges at typical zoom; flagged case-2 dead-fix pattern | (cross-thread channel) |
+| ~19:36 | Atlas (other thread) | Cycle 3 scheduled | (scheduled task) |
+| ~19:40 | Video Intelligence | Appendix D — transcript CLOSED (yt-dlp, 944 cues), phone-app cross-check complete | `cddaf74` |
+| ~20:07 | main session | **P0-05 badge visibility fix** — addresses V-008 finding directly, bumps all 4 surfaces to readable size + LIVE/DELAYED text + green glow | `fd12f1e` |
+| ~20:12 | main session | **RETRACTED phantom `WM-CHART-P0-01B-PREREQ-SCANNER-A11Y-01`** per Sentinel RETURN; Noah unblocked; real Micah `WM-A11Y-SCANNER-01` filed as follow-on | (this commit) |
+| ~20:12 | main session | Filed **WM-CHART-P0-05b** (Custom Big Trades qty UI), **WM-BRAND-W-TRIGGER-01**, **WM-STATE-P0-02** (Markov zero-importer wiring) | (this commit) |
+
+## Current critical path (Nehemiah snapshot)
+
+1. **Sentinel** (highest priority): re-verify P0-05 badges on the fresh prod deploy of `fd12f1e`. Visible? APPROVE. Still invisible? RETURN with pixel measurements. Also close the phantom-gate loop by acknowledging the retraction.
+2. **Noah** (unblocked): pull; claim `WM-CHART-P0-05b` (bounded, storage already exists — 1 file, 1 commit) OR `WM-CHART-P0-03` (next in the 15:06 directive). Serialize with any scanner work per V-008's serialization note.
+3. **Forge**: pick the first Markov consumer (recommend Confluence panel), publish contract for `WM-STATE-P0-02`.
+4. **Micah**: draft `WM-CHART-P0-05b` input spec (est. 1 handoff) + Water-style Big Trade marker spec + Branded W trigger spec.
+5. **Nehemiah**: reconcile this queue against `git log --oneline origin/main`; publish command-board summary; verify Noah pulls before starting so he sees these tickets.
