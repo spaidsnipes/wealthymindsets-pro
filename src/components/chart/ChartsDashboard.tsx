@@ -644,24 +644,32 @@ export function ChartsDashboard() {
             &nbsp;{ticker.changePct >= 0 ? "+" : ""}{ticker.changePct.toFixed(2)}%
           </span>
           {(() => {
+            // Sentinel V-008: prior sizing (fontSize 8.5, dot 5px) was below the
+            // visibility threshold in prod screenshots — dead-fix pattern per
+            // DEC-011. Bumped to 11px text / 7px dot / stronger contrast so a
+            // user can actually read WHICH feed the price came from without
+            // hovering for a tooltip.
             const b = priceSourceBadge(source, connected);
+            const extra = b.live ? " · LIVE" : " · DELAYED";
             return (
               <span
                 title={b.title}
                 style={{
-                  display: "inline-flex", alignItems: "center", gap: 4,
-                  fontSize: 8.5, fontWeight: 700, letterSpacing: "0.06em",
-                  color: b.live ? "#00C076" : "#8B8FA8",
-                  background: b.live ? "#00C0761A" : "#8B8FA815",
-                  border: `1px solid ${b.live ? "#00C07640" : "#8B8FA830"}`,
-                  borderRadius: 3, padding: "2px 5px", flexShrink: 0, cursor: "help",
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  fontSize: 11, fontWeight: 700, letterSpacing: "0.05em",
+                  color: b.live ? "#00E88A" : "#F5A623",
+                  background: b.live ? "#00C0762A" : "#F5A62322",
+                  border: `1px solid ${b.live ? "#00C07680" : "#F5A62360"}`,
+                  borderRadius: 4, padding: "3px 7px", flexShrink: 0, cursor: "help",
+                  height: 20, alignSelf: "center",
                 }}
               >
                 <span style={{
-                  width: 5, height: 5, borderRadius: "50%",
-                  background: b.live ? "#00C076" : "#8B8FA8",
+                  width: 7, height: 7, borderRadius: "50%",
+                  background: b.live ? "#00E88A" : "#F5A623",
+                  boxShadow: b.live ? "0 0 4px #00E88A" : "none",
                 }} />
-                {b.label}
+                {b.label}{extra}
               </span>
             );
           })()}

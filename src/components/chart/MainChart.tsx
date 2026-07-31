@@ -6602,25 +6602,27 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             {up ? "+" : ""}{change.toFixed(dp)} ({up ? "+" : ""}{changePct}%)
           </span>
           {(() => {
+            // Sentinel V-008 visibility fix — 10px readable badge.
             const b = priceSourceBadge(source, connected);
+            const extra = b.live ? " LIVE" : " DELAYED";
             return (
               <span
                 title={b.title}
                 style={{
-                  display: "inline-flex", alignItems: "center", gap: 3,
-                  fontSize: 8, fontWeight: 700, letterSpacing: "0.06em",
-                  color: b.live ? "#00C076" : "#8B8FA8",
-                  background: b.live ? "#00C0761A" : "#8B8FA815",
-                  border: `1px solid ${b.live ? "#00C07640" : "#8B8FA830"}`,
-                  borderRadius: 3, padding: "1px 4px", cursor: "help",
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                  fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
+                  color: b.live ? "#00E88A" : "#F5A623",
+                  background: b.live ? "#00C0762A" : "#F5A62322",
+                  border: `1px solid ${b.live ? "#00C07680" : "#F5A62360"}`,
+                  borderRadius: 4, padding: "2px 6px", cursor: "help",
                   alignSelf: "center",
                 }}
               >
                 <span style={{
-                  width: 4, height: 4, borderRadius: "50%",
-                  background: b.live ? "#00C076" : "#8B8FA8",
+                  width: 6, height: 6, borderRadius: "50%",
+                  background: b.live ? "#00E88A" : "#F5A623",
                 }} />
-                {b.label}
+                {b.label}{extra}
               </span>
             );
           })()}

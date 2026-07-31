@@ -146,8 +146,9 @@ function TickerItem({ item, onClick, active }: {
             aria-hidden
             title={badge.title}
             style={{
-              width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
-              background: badge.live ? "#00C076" : "#F5A623",
+              width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+              background: badge.live ? "#00E88A" : "#F5A623",
+              boxShadow: badge.live ? "0 0 3px #00E88A" : "none",
             }}
           />
           <span className="font-mono text-[11px] text-wm-text-muted">

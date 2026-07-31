@@ -701,8 +701,9 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
                                   title={`${item.sym} — ${b.title}`}
                                   aria-label={b.label}
                                   style={{
-                                    width: 5, height: 5, borderRadius: "50%",
-                                    background: b.live ? "#00C076" : "#F5A623",
+                                    width: 7, height: 7, borderRadius: "50%",
+                                    background: b.live ? "#00E88A" : "#F5A623",
+                                    boxShadow: b.live ? "0 0 3px #00E88A" : "none",
                                     flexShrink: 0,
                                   }}
                                 />
