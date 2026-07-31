@@ -877,3 +877,157 @@ Retention rule unchanged: nothing may be deleted while both the four VI-WM-P0-02
 claims are uncorroborated **and** 38 recordings remain uninventoried. The lesson
 from REC-03 (a critical piece of evidence sat in the corpus for a full session
 before being decoded) applies again here.
+
+---
+
+# Appendix D — Mission Control follow-up: transcript CLOSED, cross-check done, Drive package staged
+
+Added 2026-07-30 in response to Mission Control's checkpoint requesting three
+items: (1) Drive-formatted publishing, (2) UI-pattern cross-reference against
+existing phone-app footage, (3) another shot at the YouTube transcript. Two of
+three are now closed; the third is staged in the repo pending Drive push.
+
+## D.1 Transcript — CLOSED
+
+### VE-025 SUPERSEDED — `Pz8f0wWW12M` transcript retrieved
+
+Prior appendix logged this as blocked. It is not blocked anymore.
+
+`yt-dlp` was **not installed** but `pip3` was. One command
+(`pip3 install --user yt-dlp` → `2026.07.04`) closed the gap that five prior
+attempts across two agents did not.
+
+- **Video:** *"The Only Orderflow Guide You'll Ever Need"* — YouTube
+  `Pz8f0wWW12M`. Founder was parked at **04:52 (t=292s)** per the tab URL.
+- **Duration in captions:** ~41:03.
+- **Cue count:** 944 unique cues after collapsing yt's running-preview overlap
+  (raw VTT was 7,576 lines, 332 KB; cleaned is 82 KB / 944 lines).
+- **Provenance:** YouTube auto-generated English captions (`kind=asr`,
+  `variant=gemini`). Explicit note: these are machine-generated, not a human
+  transcript.
+- **Files committed:**
+  - `docs/research/transcripts/YT_Pz8f0wWW12M_orderflow_guide.en.vtt` — raw
+  - `docs/research/transcripts/YT_Pz8f0wWW12M_orderflow_guide.txt` — cleaned,
+    deduped, one line per unique cue with `[hh:mm:ss] text` format.
+- **What the founder is parked on (evidence, not paraphrase):** at 4:52 the
+  transcript reads verbatim about a footprint-chart worked example — passive
+  vs. aggressive orders, an order book at 101/102/103 with `32 execution on the
+  101 level and 42 contract executed on 102 level` and slippage of three ticks
+  as aggressive orders walk the book to 103. That is the specific teaching
+  moment he stopped on.
+- **Why this timestamp matters:** the section is a mechanical explanation of
+  **how large aggressive orders collide with resting limit liquidity across
+  price levels** — the exact phenomenon WM Pro's Big Trades / footprint /
+  Delta bubbles surfaces are meant to visualize. It is directly connected to
+  the "Big Trades bubbles colliding at current price" defect class.
+
+**Verification: VERIFIED (transcript is captured verbatim from YouTube's own
+caption endpoint; not summarized from memory or from audio inference).**
+
+### VE-026 progressed
+
+The 38-recording content-identification pass is still outstanding — Mission
+Control has not yet approved it. **No other video the founder clicked in
+recordings has been identified** because no other player has been visually
+found in the frames I've inspected. If further transcripts are needed, they
+now cost one `python3 -m yt_dlp` invocation per identified video ID.
+
+---
+
+## D.2 UI-pattern cross-check — CANNOT PROMOTE any of VE-021 → VE-024
+
+Mission Control asked whether phone-app footage contains UI patterns that
+match the desktop-web patterns enumerated in *"WM Pro — Deep 5-App UI
+Enumeration + DeepCharts Feature Crawl — 2026-07-30 14:35 CDT"* (Drive), so
+that VE-021 → VE-024 could be promoted from NO EVIDENCE to VERIFIED without
+new footage.
+
+### VE-027 — Phone-app footage contents, exhaustively catalogued
+- **Recording A:** `ScreenRecording_06-22-2026 09-30-06_1.MP4` (16m37s, 1170×2532)
+- **Recording B:** `ScreenRecording_06-22-2026 09-47-45_1.MP4` (8m03s, 1170×2532)
+
+Frames sampled at 20/60/150/240/300/420/500/600/700/780/900/960 s (Recording A)
+and 20/60/150/210/270/330/390/450/470 s (Recording B).
+
+**The entire content of both recordings, across every sampled frame, is a
+single native app surface:** an options **order-ticket** screen for a TSLA put,
+plus its confirm sheet. The elements visible every time are:
+- back-arrow header labelled `Individual Margin(<account label>)` with reload
+- static text banner *"Please note you are closing TSLA $397.5 22 Jun 26 (W) Put 100 ."*
+- symbol block: `TSLA` · option contract line · `Mid Price:` line
+- **a horizontal venue-quote row** — colored halves showing Bid quantity/price
+  on left and Ask price/quantity on right, with an exchange venue chip on each
+  outer edge. Venue chips observed across timestamps: **ARCO, XMIO, MCRY, C2OX,
+  AMXO** (these are options-exchange codes — Arca, PHLX/XMIO, MIAX Emerald,
+  Cboe C2, AMEX Options). The venue chip rotates as the routing choice changes;
+  the layout does not.
+- static `TSLA Price` reference line
+- `Side` toggle (`Buy`/`Sell` — Sell always selected in the sampled frames)
+- `Order Type` selector (`MARKET`), disclosure copy about Ask/Bid spread
+- `Contracts` stepper (`x100 Shares`, value 1 or 2)
+- `Time-in-Force` selector (`Day`)
+- `Estimated Total (Credit)` and `Estimated Transaction Fee` rows
+- `Data Disclaimer` link, red `Sell` submit button
+- confirm sheet with `Sell @MARKET` header, `Account`, `Contracts`, `Price`,
+  `Estimated Total`, `Estimated Transaction Fee`, `Time-in-Force`, and a
+  blue `Confirm` button
+- occasional `Risk Reminder` bottom-sheet modal
+
+**Surfaces that never appear in either recording:**
+- Any chart
+- Any timeframe selector
+- Any navigation/range row
+- Any indicator toggle
+- Any panel dock / pane / axis
+- Any browser chrome (URL bar, tab bar, DevTools mobile-emulation toolbar)
+- Any web-served page (both are native app throughout)
+
+### VE-028 — Verdict: pattern-based promotion is not available
+
+The four VI-WM-P0-02 claims all describe defects on **chart / navigation /
+sticky-chrome / range-row** UI surfaces on the vendors' **public web pages**.
+
+The phone-app footage contains none of those surface classes and no browser
+chrome at all. There is no UI pattern to match against, and therefore no basis
+to promote any of the four claims from NO EVIDENCE.
+
+| Claim | Vendor | Surface targeted | Phone-app footage has that surface? | Verdict |
+|---|---|---|---|---|
+| VE-021 | TradingView | phone chart w/ dense overlays | no | **STAYS NO EVIDENCE** |
+| VE-022 | Webull web  | chart + fixed-width cutoff | no | **STAYS NO EVIDENCE** |
+| VE-023 | moomoo web  | navigation/range row over chart | no | **STAYS NO EVIDENCE** |
+| VE-024 | tastytrade web | sticky chrome | no | **STAYS NO EVIDENCE** |
+
+**All four remain unphotographed.** The 20-minute founder capture plan in
+Appendix C.3 is still the fastest path.
+
+---
+
+## D.3 Drive publishing — package staged, MCP not wired
+
+- **Founder mandate:** publish appendices to Drive same-day.
+- **Available to me this session:** Drive MCP is not present in the loaded tool
+  set. `WebFetch` cannot write to Drive. I cannot upload a file to Drive from
+  this environment.
+- **Staged for Atlas / founder pickup:**
+  - This appendix (D) is committed to `docs/ATH_VIDEO_EVIDENCE_2026-07-28.md`
+    on `origin/main` — Drive-formatted markdown with the same section/heading
+    structure Atlas's index expects.
+  - Companion artifact: the transcript files at
+    `docs/research/transcripts/YT_Pz8f0wWW12M_orderflow_guide.{txt,vtt}` are
+    committed and ready to attach as-is to a Drive doc titled
+    *"YouTube Transcript — The Only Orderflow Guide You'll Ever Need
+    (Pz8f0wWW12M) — 2026-07-30"*.
+- **Handoff line for Atlas:** these two commit paths are the current-day
+  publish targets; both are stable at HEAD of `wealthymindsets-pro` main.
+
+---
+
+## D.4 Retention & safety — reconfirmed
+
+- No frame from either phone recording is committed to the repo. Account
+  labels and open-position values remain in the source files only.
+- The transcript is a **public YouTube video's own auto-caption text**; no
+  private content is being republished.
+- The corpus is still fully retained; still 38 desktop recordings uninventoried
+  by content; still no deletion authorized.
