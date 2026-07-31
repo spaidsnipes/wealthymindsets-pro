@@ -78,6 +78,91 @@ function PortalPopover({
 /* Big-Trades controls: a gear icon that opens a dropdown with Sound, Pause and
    Refresh. The MainChart bubble engine reads the localStorage flags / listens for
    the "wm-bigtrades-control" window event, so these persist + drive the engine. */
+/* ── WM-CHART-P0-05b: Custom Big Trades quantity input ─────────────────────
+   Storage layer (wm_bubble_max) and setBubbleMax dispatcher already existed
+   — this ticket adds the UI affordance only. Validation lives in
+   src/lib/bubbleQty.ts and is unit-tested. Integer 1-5000. Out-of-range is
+   rejected with a visible error, NEVER silently clamped — silent coercion is
+   the same class as silent timeframe downgrade (Founder directive §5). */
+import { validateBubbleQtyInput, isCustomActive as isCustomActiveFn, BUBBLE_MIN, BUBBLE_MAX } from "@/lib/bubbleQty";
+
+function CustomBubbleQtyInput({ maxN, onCommit }: { maxN: number; onCommit: (n: number) => void }) {
+  const isCustomActive = isCustomActiveFn(maxN);
+  const [draft, setDraft] = useState<string>(isCustomActive ? String(maxN) : "");
+
+  useEffect(() => {
+    // Sync when a preset is chosen elsewhere (clear draft) or a Custom value
+    // arrives from another source (mirror it into the field).
+    if (!isCustomActive) setDraft("");
+    else if (String(maxN) !== draft) setDraft(String(maxN));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maxN]);
+
+  const v = validateBubbleQtyInput(draft, maxN);
+  const inRange = v.kind === "valid";
+  const hasError = v.kind === "invalid";
+  const wouldChange = v.kind === "valid" && !v.matchesCurrent;
+
+  const commit = () => {
+    if (v.kind !== "valid") return; // honest reject — never silently clamp
+    onCommit(v.value);
+  };
+
+  return (
+    <div className="mt-1.5">
+      <label className="flex items-center gap-1.5 text-[10px] text-wm-text-dim mb-1">
+        <span>Custom</span>
+        <span className="text-[9px]">({BUBBLE_MIN}–{BUBBLE_MAX})</span>
+        {isCustomActive && (
+          <span className="ml-auto text-[9px] font-bold text-wm-green">ACTIVE · {maxN}</span>
+        )}
+      </label>
+      <div className="flex items-center gap-1">
+        <input
+          type="number"
+          inputMode="numeric"
+          min={BUBBLE_MIN}
+          max={BUBBLE_MAX}
+          step={1}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") commit(); }}
+          placeholder="e.g. 300"
+          aria-label="Custom bubble quantity"
+          aria-invalid={hasError}
+          className={clsx(
+            "flex-1 min-w-0 px-2 py-1 rounded text-[11px] font-mono bg-wm-bg border transition-colors focus:outline-none",
+            hasError
+              ? "border-wm-red/70 text-wm-red focus:border-wm-red"
+              : isCustomActive
+                ? "border-wm-green/50 text-wm-text focus:border-wm-green"
+                : "border-wm-border text-wm-text focus:border-wm-text-dim"
+          )}
+        />
+        <button
+          type="button"
+          onClick={commit}
+          disabled={!wouldChange}
+          className={clsx(
+            "px-2 py-1 rounded text-[10px] font-bold border transition-colors min-h-[24px]",
+            wouldChange
+              ? "bg-wm-green/20 text-wm-green border-wm-green/50 hover:bg-wm-green/30"
+              : "text-wm-text-dim/40 border-wm-border/40 cursor-not-allowed"
+          )}
+          aria-label="Apply custom bubble quantity"
+        >
+          SET
+        </button>
+      </div>
+      {hasError && (
+        <div className="mt-1 text-[9px] text-wm-red" role="alert">
+          Must be an integer between {BUBBLE_MIN} and {BUBBLE_MAX}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BigTradesControls() {
   const [open, setOpen]   = useState(false);
   const [sound, setSound] = useState<boolean>(
@@ -192,21 +277,30 @@ function BigTradesControls() {
               <Layers size={13} /> Bubbles shown
             </div>
             <div className="grid grid-cols-4 gap-1">
-              {([["All", 0], ["25", 25], ["50", 50], ["75", 75], ["100", 100], ["150", 150], ["200", 200]] as [string, number][]).map(([lbl, n]) => (
-                <button
-                  key={n}
-                  onClick={() => setBubbleMax(n)}
-                  className={clsx(
-                    "px-1.5 py-1 rounded text-[11px] font-bold border transition-colors",
-                    maxN === n
-                      ? "bg-wm-green/20 text-wm-green border-wm-green/50"
-                      : "text-wm-text-dim border-wm-border hover:text-wm-text hover:border-wm-text-dim/40"
-                  )}
-                >
-                  {lbl}
-                </button>
-              ))}
+              {(() => {
+                const PRESETS: [string, number][] = [["All", 0], ["25", 25], ["50", 50], ["75", 75], ["100", 100], ["150", 150], ["200", 200]];
+                const isCustom = maxN > 0 && !PRESETS.some(([, n]) => n === maxN);
+                return PRESETS.map(([lbl, n]) => (
+                  <button
+                    key={n}
+                    onClick={() => setBubbleMax(n)}
+                    className={clsx(
+                      "px-1.5 py-1 rounded text-[11px] font-bold border transition-colors",
+                      maxN === n && !isCustom
+                        ? "bg-wm-green/20 text-wm-green border-wm-green/50"
+                        : "text-wm-text-dim border-wm-border hover:text-wm-text hover:border-wm-text-dim/40"
+                    )}
+                  >
+                    {lbl}
+                  </button>
+                ));
+              })()}
             </div>
+            {/* WM-CHART-P0-05b: Custom quantity. Storage already at wm_bubble_max;
+                setBubbleMax(n) already dispatches wm-bigtrades-control. Integer 1-5000.
+                Out-of-range values are visibly rejected (border turns red), never
+                silently clamped — the honest state, per WM data-truth rules. */}
+            <CustomBubbleQtyInput maxN={maxN} onCommit={setBubbleMax} />
           </div>
           {/* Delta Bubble levels — max ranked qualifying price levels shown per
               bar (per-bar scope). Deterministic: same data → same bubbles. */}
