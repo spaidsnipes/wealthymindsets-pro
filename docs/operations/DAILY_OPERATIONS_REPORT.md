@@ -182,6 +182,33 @@ instinct is the company's actual asset. Protect it.
 
 ---
 
+## Ops Checkpoint — 2026-07-30 20:06 CDT (Atlas coordinator, automated 30-min run)
+
+**Critical path:** `WM-CHART-P0-01B-PREREQ-SCANNER-A11Y-01` — the gate the 15:06 CDT
+directive names as unblocking Noah's queue, Forge's Option A V5 rebaseline, and the Video
+Intelligence contracts — **does not exist as a ticket**. Sentinel's RETURN verdict
+(`docs/operations/handoffs/sentinel/2026-07-30-sentinel-scanner-a11y-gate-verdict.md`, filed
+16:59 CDT) found no ticket body, acceptance criteria, or commit anywhere in the repo for that
+ID, and concluded it blocks nothing legitimately — the real blocker for those three tracks is
+RISK-001, not this phantom ID. That handoff was still **uncommitted** as of this checkpoint.
+
+**Owner to clear:** Micah authors the real scanner-a11y ticket (or retires the ID if
+WM-RESP-P0-01/02 already cover the intent); Nehemiah reconciles the queue and adds a
+pre-route check so directive line-items must resolve to a real ticket before gating
+downstream work. Neither had committed as of this checkpoint.
+
+**Skipped this cycle:** the working tree was dirty with active concurrent edits (Markov
+confluence architecture doc, `VERIFICATION_QUEUE.md`, lounge waveform, `ChartsDashboard.tsx`,
+`MainChart.tsx`) that changed mid-audit — evidence of a live parallel session touching those
+files. Per the coordinator's standing rule against pushing over WIP it didn't create, this
+checkpoint left that tree untouched rather than committing or resetting it, to avoid
+clobbering in-progress work. No code was shipped this cycle as a result.
+
+**Next:** confirm the scanner-a11y verdict handoff gets committed and the phantom gate is
+either retired or replaced with a real ticket; if unresolved next cycle, escalate.
+
+---
+
 One Brain.
 One Knowledge Base.
 One Company Memory.
