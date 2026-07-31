@@ -6,6 +6,8 @@
 
 > Prior report (2026-07-28, HEAD `fb063d0`) retained in git history. This report supersedes it and **reconciles a two-day bus drift** — see Finding 1.
 
+> **Post-report reconciliation (concurrent with this commit).** While I was writing this report, a parallel coordinator/Nehemiah session landed `e14e8dd`, which consumed my scanner-a11y verdict as **Sentinel V-008**, **agreed**, and acted: the phantom gate is **RETRACTED**, **Noah is unblocked**, and the coordinator explicitly owned the routing failure ("I routed it into the queue prose as if real — that WAS the 15:06 coordination failure"). Three real tickets were filed in its place: **WM-CHART-P0-05b** (Big-Trades quantity UI, storage already exists), **WM-BRAND-W-TRIGGER-01** (branded W on Smart Money button; Micah→Noah), **WM-STATE-P0-02** (wire the Markov engine into a runtime consumer — it currently has **zero importers, inert at runtime**, same debt class as the P0-01 inert guards). Finding 2 below is therefore **RESOLVED** as of `e14e8dd`; the prioritization line-items 2 & 4 are satisfied. Two independent threads reaching the same verdict from the same evidence is the bus working, not duplication.
+
 ---
 
 ## Finding 1 — the operations bus drifted two days behind git · MEDIUM
