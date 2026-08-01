@@ -16,7 +16,7 @@ proof, and truthful unavailable-states hold. Owner→verifier chains below.
 | 3 | `WM-DRAW-P0-01` | 20 drawing tools clean & smooth (mouse+touch+Esc, ≥12px targets, <150ms, 60fps) | Micah spec → Noah → Sentinel | 🔴 spec pending |
 | 4 | `WM-UX-P0-01` | Move Delta-bubble count control (5/7/10/15) from Big Trades gear → Smart Money (W) panel; single source of truth | Micah spec → Noah → Sentinel | 🔴 spec pending |
 | 5 | `WM-BROKER-P0-01` | Tastytrade wiring shows futures (read-only; **never place orders**) | Forge → Noah → Sentinel | 🔴 to file |
-| 6 | `WM-CHART-P0-05` | Price-source provenance badges (4 surfaces, shipped `63290d7`) | Sentinel APPROVE (DEC-012 backfill) | 🟡 shipped, awaiting Sentinel verify |
+| 6 | `WM-CHART-P0-05` | Price-source provenance badges (4 surfaces, shipped `63290d7`) | Sentinel **APPROVE** (DEC-012 backfill, `2026-08-01`) | 🟢 verified — 4 surfaces legible (LIVE+DELAYED) |
 | 7 | `WM-CHART-P0-05c` | Big-Trades marker vocabulary (water-style, honest) | Micah → Noah → Sentinel | 🔴 to file |
 | 8 | Broker-expansion scope | Which brokers at launch | Elias draft → Founder ratify | ⚪ awaiting Elias draft |
 
