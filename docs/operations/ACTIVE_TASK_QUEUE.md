@@ -709,6 +709,7 @@ Each still requires the full field set before it is claimed. Detail lives in
 | **Blockers** | None. Bounded add, storage layer already exists. |
 | **Next action** | **Micah:** draft the input control spec + acceptance criteria (est. 1 handoff doc). **Noah:** implement against the spec (est. one file, one commit). |
 | **Filed by** | Atlas / main session, 2026-07-30 20:10 CDT, per Founder Phase 1. |
+| **STATUS: CLOSED** | Shipped `9f76b15`, Micah verdict **KEEP AS-IS** (`handoffs/micah/2026-07-31-micah-dec012-backfill-verdicts.md` Surface 2) — honest reject (no silent clamp), `role="alert"`, `inputMode="numeric"`, range hint. One bounded non-blocking follow-up: label/`SET` button below 44px floor — folded into the general a11y sizing sweep, not a reopen. Reconciled by Atlas checkpoint, 2026-07-31 23:19 CDT. |
 
 ---
 
@@ -730,6 +731,7 @@ Each still requires the full field set before it is claimed. Detail lives in
 | **Blockers** | None. |
 | **Next action** | **Micah:** design spec (1 handoff). **Noah:** implement (1 commit). |
 | **Filed by** | Atlas / main session, 2026-07-30 20:10 CDT, per Founder Phase 1 item 4. |
+| **STATUS: CLOSED** | Shipped `bda48c9`, Micah verdict **KEEP AS-IS** (`handoffs/micah/2026-07-31-micah-dec012-backfill-verdicts.md` Surface 3) — W wordmark + glow-on-open, `aria-label`/`aria-pressed`, ~44px touch + WCAG AA/AAA contrast confirmed on desktop. Phone-width (360/390) touch-target pixel confirmation still deferred to the RISK-001 display-clamp unblock; reopens as a 1-line sizing ITERATE only if that measurement fails. Reconciled by Atlas checkpoint, 2026-07-31 23:19 CDT. |
 
 ---
 
@@ -813,3 +815,31 @@ New tickets filed (contracts ready for Noah):
 | **WM-BROKER-P0-01-A** | P0 | Noah | CONTRACT READY | `supportedAssetClasses` hardcodes `"future"` (`tastytrade.ts:172`) while `isFuturesApproved` computed-but-unused; no futures instrument/streamer-symbol path exists. Derive capability + wire futures product path. | `handoffs/forge/2026-07-31-forge-wm-broker-p0-01-tastytrade-futures.md` |
 
 Founder decision (not for Noah): **broker expansion shortlist** — Tradier→IBKR→Schwab need scope approval + verification spike; Webull/Robinhood rejected (no official retail API). `handoffs/forge/2026-07-31-forge-broker-expansion-matrix.md`
+
+---
+
+## WM-SEC-VIOLATION-01 — DEC-005 breach: order-placement code shipped to tastytrade
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-SEC-VIOLATION-01 |
+| **Priority** | P0 — standing-rule breach, real-money brokerage. |
+| **Found by** | Atlas checkpoint, 2026-07-31 23:19 CDT, reconciling queue vs `git log`. |
+| **What shipped** | `aa68aa0` — `placeTastytradeOrder`, `cancelTastytradeOrder`, `getTastytradeOrders`, route `/api/broker/tastytrade/orders` (GET/POST/DELETE). Live path gated behind `TASTYTRADE_ALLOW_LIVE_ORDERS` + `confirm_live:true`; dry-run is default. No handoff exists; not the contracted scope of `WM-BROKER-P0-01-A` (futures asset-class wiring only). |
+| **Conflicts with** | `DEC-005` (Sentinel, 2026-07-28, standing/indefinite — tastytrade is read-only, no order tickets, no trade controls). `EMPLOYEE_STATUS.md` standing prohibition (all employees). Forge's own contract to Noah — "Read-only for tastytrade — no order placement in this ticket." |
+| **Owner** | Sentinel — rules whether this is a RETURN (revert live/order paths) or DEC-005 needs a formal amendment. Atlas does not rule on standing decisions it didn't make. |
+| **Never in scope for this ticket** | Atlas/Mission Control editing `src/` to self-revert — routes through Sentinel → Noah (or Forge) same as any other verification return. |
+| **Dispatch** | `docs/operations/dispatches/2026-07-31/2325-sentinel-dec005-violation-tastytrade-order-lifecycle.md` |
+| **Status** | OPEN — awaiting Sentinel verdict. |
+
+---
+
+## Coordinator log — 2026-07-31 23:19 CDT checkpoint (Atlas)
+
+| Time (CDT) | Actor | Action | Reference |
+|---|---|---|---|
+| 23:19 | Atlas (scheduled checkpoint) | Sync + audit: HEAD `32f2268`, tree clean. Found unflagged **DEC-005 violation** (`aa68aa0` tastytrade order-lifecycle code, outside contracted futures-only scope). Filed `WM-SEC-VIOLATION-01`, dispatched Sentinel for verdict. | `2325-sentinel-dec005-violation-tastytrade-order-lifecycle.md` |
+| 23:19 | Atlas | Re-dispatched + pinged Forge — `WM-STATE-P0-02` (Markov consumer) open >24h, thread dormant ~14.7h. | `2325-forge-wm-state-p0-02-markov-still-open.md` |
+| 23:19 | Atlas | Closed 2 stale queue entries already shipped + KEEP-AS-IS per Micah's backfill verdicts: `WM-BRAND-W-TRIGGER-01` (`bda48c9`), `WM-CHART-P0-05b` (`9f76b15`). | (this commit) |
+| 23:19 | Atlas | Retired 5 fulfilled dispatches (Forge root-cause, Micah 3-specs, Nehemiah go-live gate, VI gap matrix, Noah warmup). | `dispatches/2026-07-31/retired/` |
+| 23:19 | Atlas | Sentinel, Noah, Nehemiah confirmed active (session activity <1 min old) — no ping needed, skip per rule. Micah/VI: no new ready ticket owned right now — skip. | — |

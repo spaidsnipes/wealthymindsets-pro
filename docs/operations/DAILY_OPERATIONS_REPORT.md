@@ -124,3 +124,15 @@ The 15:06 directive orders Sentinel to issue APPROVED/RETURN on `WM-CHART-P0-01B
 - **In flight right now:** Noah actively editing `FootprintControls.tsx` / new `src/lib/bubbleQty.ts` for **WM-CHART-P0-05b** (edits seconds old at check time) — left untouched, no collision.
 - **Also uncommitted (older, ~2h):** `VERIFICATION_QUEUE.md` (Sentinel V-009 RETURN on WM-STATE-P0-01 zero-importer finding + V-008a correction) and the Markov confluence arch doc — presumably Sentinel/Forge WIP, also left untouched.
 - **Next action:** whoever owns those files commits when ready; next checkpoint reconciles. Forge should pick the first Markov consumer (WM-STATE-P0-02) to give WM-CHART-P0-03 a clear lane once Noah lands P0-05b.
+
+---
+
+## Checkpoint — 2026-07-31 23:19 CDT (scheduled, Atlas/coordinator)
+
+- **HEAD:** `32f2268` (Nehemiah reconciliation + 2 Founder blocker cards, §9/§10 JWT_SECRET/RLS).
+- **Critical-path blocker (new, P0):** `WM-SEC-VIOLATION-01` — `aa68aa0` shipped tastytrade order-lifecycle code (place/cancel/list orders, live-gated) outside its contracted futures-only scope and outside standing `DEC-005` ("read-only, indefinitely"). Owner: **Sentinel** (rules the verdict). Age: ~6.5h since commit, found this checkpoint. Next action: Sentinel reads `dispatches/2026-07-31/2325-sentinel-dec005-violation-tastytrade-order-lifecycle.md`, rules RETURN vs. amend-DEC-005, publishes verdict handoff.
+- **Second blocker (carried, unresolved):** `WM-STATE-P0-02` Markov first-consumer wiring — open since 2026-07-30 20:21, still zero-importers per Sentinel's V-009 (`866fc4b`). Owner: **Forge**. Age: >24h. Next action: pick surface (Confluence badge recommended), publish contract, hand to Noah. Re-dispatched + pinged this checkpoint.
+- **Queue hygiene:** closed 2 stale-but-shipped tickets (`WM-BRAND-W-TRIGGER-01` KEEP AS-IS `bda48c9`, `WM-CHART-P0-05b` KEEP AS-IS `9f76b15` — both per Micah's DEC-012 backfill verdicts) that were still showing OPEN in the queue.
+- **Active right now:** Sentinel, Noah, Nehemiah all show live session activity within the last minute — not stale, no ping needed.
+- **Retired:** 5 dispatches whose target delivered (Forge 3-root-cause, Micah 3-specs, Nehemiah go-live gate, VI gap matrix, Noah warmup-superseded).
+- **Next action:** next checkpoint confirms Sentinel's DEC-005 verdict landed and Forge's Markov contract handoff exists; if either is still missing after 90 min, escalate.
