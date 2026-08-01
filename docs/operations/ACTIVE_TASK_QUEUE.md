@@ -830,7 +830,8 @@ Founder decision (not for Noah): **broker expansion shortlist** — Tradier→IB
 | **Owner** | Sentinel — rules whether this is a RETURN (revert live/order paths) or DEC-005 needs a formal amendment. Atlas does not rule on standing decisions it didn't make. |
 | **Never in scope for this ticket** | Atlas/Mission Control editing `src/` to self-revert — routes through Sentinel → Noah (or Forge) same as any other verification return. |
 | **Dispatch** | `docs/operations/dispatches/2026-07-31/2325-sentinel-dec005-violation-tastytrade-order-lifecycle.md` |
-| **Status** | OPEN — awaiting Sentinel verdict. |
+| **Verdict** | **RETURN** (Sentinel, 2026-07-31 10:05 CDT) — confirmed DEC-005 violation. `handoffs/sentinel/2026-07-31-sentinel-dec005-tastytrade-order-verdict.md`. Revert routed to Noah: `dispatches/2026-07-31/1005-sentinel-to-noah-revert-tastytrade-order-lifecycle.md`. |
+| **Status** | RETURN → Noah reverts write/order surface; Sentinel re-verifies. NO-GO on this surface until then. |
 
 ---
 
