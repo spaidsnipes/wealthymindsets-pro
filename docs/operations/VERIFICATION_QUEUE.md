@@ -20,6 +20,29 @@ Verdicts: `VERIFIED` · `PARTIALLY VERIFIED` · `RETURNED` · `BLOCKED` · `PEND
 
 ## Completed this block — 2026-07-28
 
+### V-010 · DEC-012 audit — **2 hits, one already caught and reverted, one live RETURN**
+
+**Method correction first.** DEC-012 specifies `git log --author "Claude Opus" -- src/`.
+That does not work — every commit in this repo has git author `spaidsnipes
+<dhill5711@gmail.com>` regardless of which employee/persona did the work; the persona is
+recorded only in the `Co-Authored-By:` trailer. Audited via
+`git log --since="2026-07-30 18:00" --grep="Co-Authored-By: Claude" -i -- src/` instead.
+**Recommend DEC-012's own enforcement text be corrected to name the trailer, not `--author`,
+so this doesn't silently pass a clean-looking audit that never actually checked anything.**
+
+**Two post-ratification hits, co-authored `Claude Opus 4.8`:**
+
+| Commit | What | Status |
+|---|---|---|
+| `aa68aa0` (2026-07-31 16:53) | `feat(tastytrade): server-side order lifecycle` — dry-run + live-gated order placement, cancel, working-orders list. **DEC-005 violation**: tastytrade is read-only, indefinitely, by flat prohibition — not "gate it safely." | **Already caught.** `627be87` (2026-08-01 00:56) reverts it in full, citing "WM-SEC-VIOLATION-01 (Sentinel RETURN of aa68aa0)." **Independently verified the revert is complete**: `src/app/api/broker/tastytrade/orders/route.ts` no longer exists; `grep` for `placeTastytradeOrder`/`dryRunTastytradeOrder`/`cancelTastytradeOrder` across `src/` returns zero hits anywhere. Nothing further to do here — recorded so the audit trail shows it was checked, not assumed clean. |
+| `0270590` (2026-08-01 00:52) | `WM-UX-P0-01: move Delta bubble-count control to Smart Money panel` — real UI work, tests claimed passing, touches `SmartMoneyPanel.tsx`/`FootprintControls.tsx`/`MainChart.tsx`. Not a safety issue — a **process** violation: this belongs to Micah (design) + Noah (implement) per DEC-012's ownership table, not Mission Control. | **Live, unaddressed. RETURN per DEC-012's own enforcement clause.** Not reverting — DEC-012 explicitly says prior violations aren't reverted because the code works and reverting wastes more cycle than the violation costs, and I have no evidence-based reason to treat this one differently. Recorded here as the RETURN; Nehemiah/EMPLOYEE_STATUS should log the violation count per DEC-012. |
+
+**Not audited this pass:** whether `0270590`'s own claimed evidence (`tsc` clean, 16 vitest
+specs) holds up — that's a normal code-verification pass, separable from the ownership
+question this ticket asked about. Flagging as open, not silently rolled into "verified."
+
+---
+
 ### V-001 · `a73aae1` AuthContext profile guard — **VERIFIED (code review)** · APPROVED
 
 Independent review requested by Forge because the change is auth-critical and carried a
