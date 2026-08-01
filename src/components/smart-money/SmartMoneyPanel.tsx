@@ -349,6 +349,30 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
   // ── Sound FX layer (opt-in, synthesized) ────────────────────────────────────
   const [sfxOn, setSfxOnState] = useState(false);
   useEffect(() => { setSfxOnState(isSfxOn()); }, []);           // hydrate from localStorage
+
+  // WM-UX-P0-01 — Delta bubble level-count control, migrated here from the Big
+  // Trades gear so the selector sits with the bubbles it controls. Reuses the
+  // EXISTING wm_delta_levels key + wm-delta-levels event untouched, so MainChart
+  // and every other listener keep working. This is now the single source of truth.
+  const [deltaLevelCap, setDeltaLevelCapState] = useState<number>(() => {
+    if (typeof window === "undefined") return 7;
+    const v = parseInt(localStorage.getItem("wm_delta_levels") || "7", 10);
+    return [5, 7, 10, 15].includes(v) ? v : 7;
+  });
+  const setDeltaLevelCap = (n: number) => {
+    setDeltaLevelCapState(n);
+    try { localStorage.setItem("wm_delta_levels", String(n)); } catch {}
+    try { window.dispatchEvent(new CustomEvent("wm-delta-levels")); } catch {}
+  };
+  // Stay in sync if the value is changed elsewhere (e.g. another tab).
+  useEffect(() => {
+    const onEvt = () => {
+      const v = parseInt(localStorage.getItem("wm_delta_levels") || "7", 10);
+      setDeltaLevelCapState([5, 7, 10, 15].includes(v) ? v : 7);
+    };
+    window.addEventListener("wm-delta-levels", onEvt);
+    return () => window.removeEventListener("wm-delta-levels", onEvt);
+  }, []);
   const prevSmdSigRef = React.useRef<string | null>(null);      // rising-edge guard for the fire bell
   const toggleSfx = () => {
     const next = !sfxOn;
@@ -781,6 +805,47 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           <span className="ml-auto px-1.5 py-0.5 rounded text-[9px] font-black bg-wm-muted text-wm-text-dim">
             {flow.hasFlow ? `${deltaLevels.length} LEVEL${deltaLevels.length === 1 ? "" : "S"}` : "NO TAPE"}
           </span>
+        </div>
+
+        {/* WM-UX-P0-01 — Delta level-count control (migrated from the Big Trades
+            gear). Four discrete presets, not a slider: the domain is 4 meaningful
+            values, and a segmented control gives an unambiguous a11y selected state. */}
+        <div className="mb-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-semibold text-wm-text">Levels shown</span>
+            <span className="text-[8px] text-wm-text-dim">max ranked price levels per bar</span>
+          </div>
+          <div role="group" aria-label="Delta bubble levels shown" className="grid grid-cols-4 gap-1">
+            {[5, 7, 10, 15].map((n, idx, arr) => {
+              const selected = deltaLevelCap === n;
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setDeltaLevelCap(n)}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                      e.preventDefault();
+                      const dir = e.key === "ArrowRight" ? 1 : -1;
+                      const nextIdx = (idx + dir + arr.length) % arr.length;
+                      setDeltaLevelCap(arr[nextIdx]);
+                      const sib = e.currentTarget.parentElement?.children[nextIdx] as HTMLElement | undefined;
+                      sib?.focus();
+                    }
+                  }}
+                  className={clsx(
+                    "min-h-[44px] flex items-center justify-center rounded text-[12px] font-bold border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-wm-green/60",
+                    selected
+                      ? "bg-wm-green/20 text-wm-green border-wm-green/50"
+                      : "text-wm-text-dim border-wm-border hover:text-wm-text hover:border-wm-text-dim/40"
+                  )}
+                >
+                  {n}{n === 7 ? " ★" : ""}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {flow.hasFlow && deltaLevels.length > 0 ? (

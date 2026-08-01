@@ -178,17 +178,6 @@ function BigTradesControls() {
   const [maxN, setMaxN] = useState<number>(
     () => (typeof window === "undefined" ? 0 : (parseInt(localStorage.getItem("wm_bubble_max") || "0", 10) || 0))
   );
-  // Delta Bubble level cap — default 7, persisted; MainChart listens for changes.
-  const [deltaLevels, setDeltaLevelsState] = useState<number>(() => {
-    if (typeof window === "undefined") return 7;
-    const v = parseInt(localStorage.getItem("wm_delta_levels") || "7", 10);
-    return [5, 7, 10, 15].includes(v) ? v : 7;
-  });
-  const setDeltaLevels = (n: number) => {
-    setDeltaLevelsState(n);
-    try { localStorage.setItem("wm_delta_levels", String(n)); } catch {}
-    try { window.dispatchEvent(new CustomEvent("wm-delta-levels")); } catch {}
-  };
   const btnRef = useRef<HTMLButtonElement>(null);
 
   const setBubbleMax = (n: number) => {
@@ -302,30 +291,9 @@ function BigTradesControls() {
                 silently clamped — the honest state, per WM data-truth rules. */}
             <CustomBubbleQtyInput maxN={maxN} onCommit={setBubbleMax} />
           </div>
-          {/* Delta Bubble levels — max ranked qualifying price levels shown per
-              bar (per-bar scope). Deterministic: same data → same bubbles. */}
-          <div className="px-2 pt-1.5 pb-1 border-t border-wm-border/40 mt-1">
-            <div className="flex items-center justify-between text-[12px] text-wm-text mb-1.5">
-              <span className="flex items-center gap-1.5"><Layers size={13} /> Delta levels</span>
-              <span className="text-[9px] text-wm-text-dim">per bar · max shown</span>
-            </div>
-            <div className="grid grid-cols-4 gap-1">
-              {[5, 7, 10, 15].map(n => (
-                <button
-                  key={n}
-                  onClick={() => setDeltaLevels(n)}
-                  className={clsx(
-                    "px-1.5 py-1 rounded text-[11px] font-bold border transition-colors",
-                    deltaLevels === n
-                      ? "bg-wm-green/20 text-wm-green border-wm-green/50"
-                      : "text-wm-text-dim border-wm-border hover:text-wm-text hover:border-wm-text-dim/40"
-                  )}
-                >
-                  {n}{n === 7 ? " ★" : ""}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Delta Bubble level count migrated to the Smart Money panel's "WM DELTA
+              BUBBLES" section (WM-UX-P0-01) — it sits with the bubbles it controls.
+              Single source of truth: wm_delta_levels is now owned there. */}
           {/* Simultaneous Mode — when ON, Big Trades bubbles overlay ON TOP of
               whatever other order-flow tool is active (Delta, Bid×Ask, Imbalance,
               Agg/Passive, Vol Profile). When OFF, selecting Big Trades runs it

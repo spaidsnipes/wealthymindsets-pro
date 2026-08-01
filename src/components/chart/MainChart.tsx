@@ -1162,7 +1162,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const [freshVer, setFreshVer] = useState(0); // periodic freshness recheck when ticks stop
   useEffect(() => { const t = setInterval(() => setFreshVer(v => v + 1), 10000); return () => clearInterval(t); }, []);
   // Delta Bubble level cap — user preference (5/7/10/15), default 7, persisted
-  // per workspace in wm_delta_levels; FootprintControls broadcasts changes.
+  // per workspace in wm_delta_levels; the Smart Money panel broadcasts changes.
   const deltaLevelsPrefRef = useRef<number>(7);
   useEffect(() => {
     const read = () => {
