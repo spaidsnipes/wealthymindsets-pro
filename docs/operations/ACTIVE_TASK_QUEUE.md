@@ -844,3 +844,28 @@ Founder decision (not for Noah): **broker expansion shortlist** — Tradier→IB
 | 23:19 | Atlas | Closed 2 stale queue entries already shipped + KEEP-AS-IS per Micah's backfill verdicts: `WM-BRAND-W-TRIGGER-01` (`bda48c9`), `WM-CHART-P0-05b` (`9f76b15`). | (this commit) |
 | 23:19 | Atlas | Retired 5 fulfilled dispatches (Forge root-cause, Micah 3-specs, Nehemiah go-live gate, VI gap matrix, Noah warmup). | `dispatches/2026-07-31/retired/` |
 | 23:19 | Atlas | Sentinel, Noah, Nehemiah confirmed active (session activity <1 min old) — no ping needed, skip per rule. Micah/VI: no new ready ticket owned right now — skip. | — |
+
+---
+
+## Coordinator log — 2026-07-31 10:35 CDT sweep (Nehemiah)
+
+**HEAD:** `da1d8eb` · **Charter:** DEC-011 §Default-when-idle §1 (30-min sweep) · **Trigger:** Atlas dispatch "Friday overnight ship list" + market-open Founder-live conditions.
+
+| Time (CDT) | Actor | Action | Reference |
+|---|---|---|---|
+| 10:35 | Nehemiah | Published overnight ship list (7 landings + Session-VP dispute + SEC blockers + housekeeping) so Founder can read the state in one glance. | `dispatches/2026-07-31/1035-nehemiah-friday-overnight-ship-list.md` |
+| 10:35 | Nehemiah | Retired 2 satisfied Sentinel dispatches (order-revert + DEC-005 escalation) — both closed by `627be87` + Noah handoff. | `dispatches/2026-07-31/retired/{1005-…,2325-sentinel-dec005-…}.md` |
+| 10:35 | Nehemiah | Filed **WM-CHART-P0-07** (Big Trades bubble collision, Founder-flagged morning defect #6) — Micah spec → Noah impl. See row below. | (this commit) |
+| 10:35 | Nehemiah | Filed **WM-CHART-P0-05c** (water-style markers, from `da1d8eb` Micah spec) — Noah impl. See row below. | `handoffs/micah/2026-07-31-micah-wm-chart-p0-05c-water-markers.md` (referenced by `da1d8eb`) |
+| 10:35 | Nehemiah | RISK-012→013 renumber: register already reconciled at `RISKS_AND_BLOCKERS.md:263–268` (append-only, both entries distinct); **no edit**. However, a NEW duplicate — two `RISK-011` entries (lines 327 Wyckoff CLOSED + 382 silent-provider OPEN) — routed to Sentinel (register owner). | `handoffs/nehemiah/2026-07-31-nehemiah-risk-011-duplication-flag.md` |
+| 10:35 | Nehemiah | "44% DONE / 27 items" figure: Sentinel already applied RISK-007 discipline at `VERIFICATION_QUEUE.md:131` ("flagged rather than repeated"). Nothing to restate. Any Atlas Drive artifact still carrying it must re-derive per RISK-007 mitigation. | — |
+| 10:35 | Nehemiah | Founder blockers WM-SEC-P0-01 (JWT_SECRET) + WM-SEC-P0-02 (RLS) — routed **only via Atlas**, per DEC-011. Nehemiah does not surface. | `dispatches/2026-07-31/0955-…`, `0956-…` |
+
+### New tickets filed this sweep
+
+| Ticket | P | Owner | Status | Objective | Never in scope |
+|---|---|---|---|---|---|
+| **WM-CHART-P0-07** | P0 (Founder morning defect) | Micah spec → Noah impl | BACKLOG | Big Trades bubbles collide / stack illegibly on dense tape. Micah authors a placement-collision spec (nudge / lane / density-scaled alpha, per WOW responsive standard); Noah implements against the spec. Adjacent to **WM-CHART-BUBBLE-DENSITY-01** (P1) — this ticket is the collision axis, that one is the density-and-legibility toolkit. | Redesigning the bubble semantics (that's `-DENSITY-01`). Fabricating merged orders. Server-side aggregation (client render layer only). |
+| **WM-CHART-P0-05c** | P0 | Noah | CONTRACT READY (Micah spec dispatched at `da1d8eb`) | Water-style markers for Big Trades — implement per Micah's spec bundled in `da1d8eb`. Includes W-trigger 32px height correction (WM-BRAND-W-TRIGGER-01 refinement). | Retouching Delta Bubbles migration surface (WM-UX-P0-01 territory). Any bubble-collision work (that's the new WM-CHART-P0-07). |
+
+**Critical path unchanged:** WM-VP-P0-01 (Noah, awaiting Sentinel clear of WM-UX-P0-01 + WM-SEC-VIOLATION-01 revert).
