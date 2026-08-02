@@ -847,6 +847,20 @@ Founder decision (not for Noah): **broker expansion shortlist** — Tradier→IB
 
 ---
 
+## Coordinator log — 2026-08-01 23:44 CDT checkpoint (Atlas)
+
+**HEAD:** `1e13877` · tree clean except 3 pre-existing untracked handoffs (committed this checkpoint) and 1 new one this session.
+
+| Time (CDT) | Actor | Action | Reference |
+|---|---|---|---|
+| 23:44 | Atlas | **Critical path moved:** Noah shipped `WM-VP-P0-01` (`e06ade9`) — Session VP is now a pure projection of the chart's canonical candles, closing F-A/F-B/F-C. Noah self-dispatched Sentinel for live-verify (`dispatches/2026-08-01/2350-noah-to-sentinel-vp-live-verify.md`) and moved to his next queued ticket (`WM-DRAW-P0-01`) within the same commit window. | `e06ade9`, `1e13877` |
+| 23:44 | Atlas | Ratified **DEC-013** (assembly-line handoff discipline) into `DECISIONS.md`, per the Founder quote captured in the prior Atlas thread's uncommitted handoff. Scoped it as per-surface serialization (not a full-team freeze) since Noah+Sentinel were already correctly running the Noah→Sentinel handoff concurrently at ratification time. | `DECISIONS.md` DEC-013 |
+| 23:44 | Atlas | Committed 3 handoffs that were sitting untracked in the working tree (Forge's WM-VP-P0-01 contract, Nehemiah's 1400 command board, prior Atlas's corrective-reconciliation checkpoint) — none belonged to this thread to author, all belonged to `docs/operations/**` so safe to commit as-is. | (this commit) |
+| 23:44 | Atlas | **Observation, not a ruling:** ~14 dispatch files present under `docs/operations/dispatches/2026-08-01/` earlier this session (0855 through 2345, read and summarized above/in prior sweeps) are no longer on disk and were never `git`-tracked — so their removal left no trace in history. Their substance is preserved in this queue and in the referenced handoffs; nothing appears to be lost, but untracked dispatch files have no durability across concurrent sessions on a shared working tree. Recommend committing a dispatch in the same commit as the work it announces (as Noah's `1e13877` just did) rather than leaving it untracked. | — |
+| 23:44 | Atlas | Per DEC-013 (per-surface, not full-team freeze) + list_sessions: Sentinel and Noah both show live activity within the last minute — correctly running the current baton. Forge/Micah/Nehemiah/Video Intelligence all show ~5.3h dormant threads, but none holds a ticket that's next in the assembly-line order right now (Sentinel verify is in progress) — **no dispatch or send_message ping fired this checkpoint**, to avoid contradicting the serialization just ratified. | — |
+
+---
+
 ## Coordinator log — 2026-07-31 10:35 CDT sweep (Nehemiah)
 
 **HEAD:** `da1d8eb` · **Charter:** DEC-011 §Default-when-idle §1 (30-min sweep) · **Trigger:** Atlas dispatch "Friday overnight ship list" + market-open Founder-live conditions.

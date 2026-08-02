@@ -277,6 +277,20 @@ failure, not the employees themselves.
 
 **These commits are NOT reverted** (the code works and reverting would waste more of the team's cycle than the role violation costs). Instead, their future iteration is handed to the correct owner via dispatch. Sentinel verifies as normal; Micah re-specs any subsequent iteration; Noah owns future implementation on those surfaces.
 
+---
+
+## DEC-013 — Assembly-line handoff discipline (per-surface, not full-team freeze)
+
+**Status:** RATIFIED
+**Date:** 2026-08-01
+**Ratified by:** Founder (King David), quoted verbatim in `handoffs/atlas/2026-08-01-atlas-corrective-reconciliation.md` §6: *"and u can allow the team to work one at a time like an assembly line so each employee can thoroughly execute their job with wow standards."* Written into `DECISIONS.md` by the next scheduled checkpoint (this entry), per that handoff's own instruction.
+
+**The rule.** On any single ticket/surface, exactly one employee holds the active claim at a time, in contract order: **Forge (architecture) → Noah (implementation) → Sentinel (verification) → Nehemiah (status/queue)**. The next link does not start on that same surface until the prior link publishes a handoff + commit (or an explicit block). This closes the failure mode DEC-012 was already guarding against one layer up: a designer-less badge fix (Sentinel's V-008 dead-fix pattern) or a second employee starting work another employee is mid-claim on.
+
+**Scope clarification (this checkpoint, evidence-based):** this is per-surface serialization, not a full-team freeze. At ratification time, Noah shipped `WM-VP-P0-01` (`e06ade9`) and, within the same minute, both dispatched Sentinel for live-verify (`2350-noah-to-sentinel-vp-live-verify.md`) and moved to his next queued ticket (`WM-DRAW-P0-01`) — and Sentinel's session was independently already active verifying. Reading DEC-013 as "all 5 other employees idle whenever one is active" would halt the team the Founder explicitly asked to keep moving ("keep the team working"); reading it as "no two employees claim the same surface concurrently" matches both the Founder's assembly-line wording and what was actually happening on the bus this checkpoint. Atlas applies the latter.
+
+**Never in scope:** blocking an employee from starting their own next queued ticket while a different employee verifies their prior one. Blocking two employees from claiming the *same* ticket/file at the same time remains in scope (unchanged from DEC-011/012 discipline).
+
 **Enforcement.**
 - The `wm-pro-operations-checkpoint` scheduled task prompt was updated 2026-07-30 evening to make `src/` edits a role-violation that self-reset with a coordinator-log entry.
 - Sentinel audits `git log --author "Claude Opus" -- src/` in the daily report; any post-DEC-012 hit is a RETURN handoff.

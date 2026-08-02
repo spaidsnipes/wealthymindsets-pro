@@ -136,3 +136,15 @@ The 15:06 directive orders Sentinel to issue APPROVED/RETURN on `WM-CHART-P0-01B
 - **Active right now:** Sentinel, Noah, Nehemiah all show live session activity within the last minute — not stale, no ping needed.
 - **Retired:** 5 dispatches whose target delivered (Forge 3-root-cause, Micah 3-specs, Nehemiah go-live gate, VI gap matrix, Noah warmup-superseded).
 - **Next action:** next checkpoint confirms Sentinel's DEC-005 verdict landed and Forge's Markov contract handoff exists; if either is still missing after 90 min, escalate.
+
+---
+
+## Checkpoint — 2026-08-01 23:44 CDT (scheduled, Atlas/coordinator)
+
+- **Current blocker → owner → age → next action:** `WM-VP-P0-01` **RESOLVED** — Noah shipped `e06ade9` (VP now projects the chart's canonical candles, closes F-A/F-B/F-C, dataVersion race guard, 5 new tests, tsc/vitest/build all clean). **New head-of-line:** Sentinel live-verify of that fix against Forge's 3 repro states — owner **Sentinel**, age ~1 min (dispatched `2350-noah-to-sentinel-vp-live-verify.md`), already picked up (Sentinel session shows live activity this minute). Next action: Sentinel publishes a verdict handoff; if APPROVE, gate flips green and Noah's next ticket (`WM-DRAW-P0-01`) becomes the new critical-path head.
+- **DEC-013 ratified:** assembly-line handoff discipline (Forge → Noah → Sentinel → Nehemiah, per-surface — not a full-team freeze; see `DECISIONS.md`). Applied this checkpoint by *not* pinging the 4 dormant employees (Forge/Micah/Nehemiah/VI, ~5.3h idle) since none holds the next link in the currently-in-flight chain.
+- **Housekeeping:** committed 3 handoffs that were sitting untracked in the working tree since earlier sessions (none authored by this thread, all within Mission Control's `docs/operations/**` commit surface).
+- **Observation (not a violation):** ~14 dispatch files read and summarized in earlier sweeps today were never git-tracked and are no longer on disk — no history trace exists for untracked-file removal. Their substance is preserved in this report and the queue. Recommend: commit a dispatch in the same commit as the work it announces (Noah's `1e13877` already does this) rather than leaving dispatches untracked on a shared working tree with concurrent sessions.
+- **No `src/` touched by Mission Control this checkpoint.** No role violations found.
+- **Next action:** next checkpoint confirms Sentinel's WM-VP-P0-01 verdict landed; if still missing after 90 min from dispatch, escalate per DEC-013 order.
+- **Next action:** next checkpoint confirms Sentinel's DEC-005 verdict landed and Forge's Markov contract handoff exists; if either is still missing after 90 min, escalate.
