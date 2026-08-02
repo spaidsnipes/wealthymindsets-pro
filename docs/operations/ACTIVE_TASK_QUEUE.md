@@ -23,6 +23,22 @@ employee is actively implementing it, take a supporting audit/test/research/doc 
 
 ---
 
+## WM-OF-P0-06 — Order-flow master/sub-tool state model (silent dead state)
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-OF-P0-06 |
+| **Priority** | P0 — Founder: "we still dont have any of the order flow tools working." |
+| **Found by** | Sentinel, 2026-08-02 00:10 CDT, prod BTC 15m. |
+| **Confirmed state** | Master `ORDER FLOW: OFF` while a sub-tool (Big Trades / Agg-Passive) is highlighted green as if active; nothing renders, no explanation. Silent dead state. |
+| **Scope note** | Market closed at verify time — live-data *population* (master ON + tape) not tested; the state-model defect is what's confirmed. |
+| **Owner (design)** | Micah — pick: (A) sub-tool click auto-enables master, or (B) sub-tools inert/disabled + hint while master OFF. |
+| **Then** | Noah implements → Sentinel verifies (incl. live population at market open). |
+| **Dispatch** | `dispatches/2026-08-02/0010-sentinel-to-micah-of-master-toggle-ux.md` |
+| **Status** | OPEN — dispatched Micah for design pick. |
+
+---
+
 ## WM-CHART-P0-01 — Canonical Timeframe System
 
 | Field | Value |
@@ -810,7 +826,7 @@ New tickets filed (contracts ready for Noah):
 
 | Ticket | P | Owner | Status | Root cause (one line) | Contract |
 |---|---|---|---|---|---|
-| **WM-VP-P0-01** | P0 | Noah | CONTRACT READY | Session VP runs its own hardcoded `/api/yahoo` fetch instead of consuming the chart's canonical candles + `dataVersion` → provider divergence (absent) + stale prior-day `latestDate` (wrong). 2nd recurrence = prior fixes patched the duplicate pipeline. | `handoffs/forge/2026-07-31-forge-wm-vp-p0-01-root-cause.md` |
+| **WM-VP-P0-01** | P0 | **Forge** (root cause) → Noah | **REOPENED — RETURN** (shipped `e06ade9`, F-A/F-B/F-C closed; but Sentinel's own APPROVE (`499e504`) was superseded same night — POC volume readout = `0.00` on crypto, confirmed live on BTC 15m vs. correct TSLA control `12.7k`). Awaiting Forge's crypto-volume-aggregation root cause. | `handoffs/sentinel/2026-08-02-sentinel-wm-vp-p0-01-reopen-poc-zero.md`, dispatch `dispatches/2026-08-02/0010-sentinel-to-forge-vp-crypto-volume-zero.md` |
 | **WM-OF-P0-05** | P0 | Noah | CONTRACT READY | All 6 tools mount; the 5 profile tools are honest (real tape only) but **live-capture-only + silently render empty** on tapeless bars (truth §5 gap). Needs honest `unavailable`/`capturing` state; VP → real total volume w/ "no split" label. | `handoffs/forge/2026-07-31-forge-wm-of-p0-05-toolset-audit.md` |
 | **WM-BROKER-P0-01-A** | P0 | Noah | CONTRACT READY | `supportedAssetClasses` hardcodes `"future"` (`tastytrade.ts:172`) while `isFuturesApproved` computed-but-unused; no futures instrument/streamer-symbol path exists. Derive capability + wire futures product path. | `handoffs/forge/2026-07-31-forge-wm-broker-p0-01-tastytrade-futures.md` |
 
