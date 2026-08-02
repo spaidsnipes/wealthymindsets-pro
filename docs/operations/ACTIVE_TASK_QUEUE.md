@@ -899,3 +899,97 @@ Founder decision (not for Noah): **broker expansion shortlist** — Tradier→IB
 | **WM-CHART-P0-05c** | P0 | Noah | CONTRACT READY (Micah spec dispatched at `da1d8eb`) | Water-style markers for Big Trades — implement per Micah's spec bundled in `da1d8eb`. Includes W-trigger 32px height correction (WM-BRAND-W-TRIGGER-01 refinement). | Retouching Delta Bubbles migration surface (WM-UX-P0-01 territory). Any bubble-collision work (that's the new WM-CHART-P0-07). |
 
 **Critical path unchanged:** WM-VP-P0-01 (Noah, awaiting Sentinel clear of WM-UX-P0-01 + WM-SEC-VIOLATION-01 revert).
+
+---
+---
+
+# BIBLE-DERIVED BACKLOG — filed 2026-08-02 (Atlas gap map)
+
+**Source:** `docs/operations/handoffs/atlas/2026-08-02-atlas-bible-vision-vs-current-state.md`
+**Trigger:** Founder ruling *"stop declaring done, so much more to build"*. Bible §51 Markov Pro DLA + §35 Alerts + §36 Risk + §32 Broker + §37 Perf + §"Journal" + §"Replay" + §"VP Worlds" + §29 Passport all lacked queue rows.
+
+**Rule:** parallel work on independent tickets is authorized. Assembly-line only when files collide. Every ticket below has a Bible section anchor — if scope drifts, cite the section number in the RETURN.
+
+## Markov Pro DLA integration (Bible §51 — CONFIRMED FOUNDER)
+| Ticket | Priority | Owner chain | Files/scope |
+|---|---|---|---|
+| WM-DLA-P1-01 | P1 | Forge→Noah→Sentinel | Strategy Event JSON schema; TV→WM Pro payload; new `src/lib/strategyEvent.ts` |
+| WM-DLA-P1-02 | P1 | Micah→Noah→Sentinel | DLA Morning Game Plan card (scenarios/conditions/invalidation/uncertainty/alternatives; NEVER framed as instruction) |
+| WM-DLA-P1-03 | P1 | Micah→Noah→Sentinel | Guided pre-trade checklist (no-pressure copy) |
+| WM-DLA-P1-04 | P1 | Forge→Noah→Sentinel | Prop Guardian panel (user rules, no auto orders) |
+| WM-DLA-P1-05 | P1 | Forge→Noah→Sentinel | Advanced R Manager (current/protected/trail/runner) |
+| WM-DLA-P1-06 | P1 | Forge→Noah→Sentinel | Stop Integrity monitor (planned vs actual, warn on widen) |
+| WM-DLA-P1-07 | P1 | Forge→Noah→Sentinel | Setup Expiration engine |
+| WM-DLA-P1-08 | P1 | Forge→Noah→Sentinel | Opportunity-Cost warning (< 4-5R clean room) |
+| WM-DLA-P1-09 | P2 | Forge→Noah→Sentinel | Personal Edge Report (setup/session/confluence/mgmt) |
+| WM-DLA-P1-10 | P1 | Forge→Sentinel | Shared formula/version registry (TV + WM Pro rule-set identifier) |
+
+## Order Flow workspace (Bible §"Order Flow")
+| Ticket | Priority | Owner chain | Files/scope |
+|---|---|---|---|
+| WM-OF-P0-06 | P0 | Forge→Micah→Noah→Sentinel | Order-flow master toggle UX: sub-tools inert while master OFF (or auto-enable) |
+| WM-OF-P1-01 | P1 | Forge→Noah→Sentinel | Time-and-Sales panel (where feed available) |
+| WM-OF-P1-02 | P1 | Forge→Noah→Sentinel | Auction labels (session-context tagging) |
+| WM-OF-P1-03 | P1 | Forge→Noah→Sentinel | Inferred absorption (with honest-limitation label, NO MBO fabrication) |
+| WM-OF-P1-04 | P1 | Forge→Noah→Sentinel | CVD chart + divergence markers |
+
+## Risk Management (Bible §36 — "core, not premium decoration")
+| Ticket | Priority | Owner chain | Files/scope |
+|---|---|---|---|
+| WM-RISK-P1-01 | P1 | Forge→Noah→Sentinel | Position-size calc (tick-value aware for futures) |
+| WM-RISK-P1-02 | P1 | Forge→Noah→Sentinel | Max daily loss / max trade loss / open-risk total |
+| WM-RISK-P1-03 | P1 | Forge→Noah→Sentinel | Portfolio concentration + correlated exposure |
+| WM-RISK-P1-04 | P2 | Micah→Noah→Sentinel | Daily lockout + cooldown (no shaming copy) |
+| WM-RISK-P1-05 | P1 | Forge→Noah→Sentinel | R-multiple tracking against verified fills |
+
+## Journal (Bible §"Journal" — both automatic AND reflective)
+| Ticket | Priority | Owner chain | Files/scope |
+|---|---|---|---|
+| WM-JRN-P1-01 | P1 | Forge→Noah→Sentinel | Auto-capture: symbol/entry/exit/size/fees/chart-state/session/tf/screenshots/data-quality |
+| WM-JRN-P1-02 | P1 | Micah→Noah→Sentinel | Reflection fields UI: thesis/trigger/invalidation/risk/emotion/execution-grade/rule-adherence/lessons |
+| WM-JRN-P1-03 | P1 | Forge→Noah→Sentinel | Process-quality metric surface (not just profit) |
+
+## Replay (Bible §"Replay")
+| Ticket | Priority | Owner chain | Files/scope |
+|---|---|---|---|
+| WM-REPLAY-P1-01 | P1 | Forge→Noah→Sentinel | Event recorder (raw trades + candle formation) + storage |
+| WM-REPLAY-P1-02 | P1 | Micah→Noah→Sentinel | Playback UI + scrubber |
+| WM-REPLAY-P1-03 | P2 | Micah→Forge→Noah→Sentinel | Coach + Challenge modes (after core replay) |
+
+## Alerts (Bible §35)
+| Ticket | Priority | Owner chain | Files/scope |
+|---|---|---|---|
+| WM-ALERT-P1-01 | P1 | Forge→Noah→Sentinel | Alert schema + evaluator (client-side vs server-side shown) |
+| WM-ALERT-P1-02 | P1 | Forge→Noah→Sentinel | Alert types (18 per Bible §35) |
+| WM-ALERT-P1-03 | P2 | Forge→Noah→Sentinel | Webhook out (Discord/Telegram) opt-in + idempotency + rate limits |
+
+## Verified Performance (Bible §37)
+| Ticket | Priority | Owner chain | Files/scope |
+|---|---|---|---|
+| WM-PERF-P1-01 | P1 | Forge→Noah→Sentinel | Category labels: broker-verified / paper-verified / self-reported / simulation / backtest / unverified (never mixed) |
+| WM-PERF-P1-02 | P1 | Forge→Noah→Sentinel | Metrics surface (12 per Bible §37) |
+
+## Broker adapters (Bible §32)
+| Ticket | Priority | Owner chain | Files/scope |
+|---|---|---|---|
+| WM-BROKER-P1-01 | P1 | Forge→Noah→Sentinel | IBKR adapter (OAuth if available; futures + equities + options) |
+| WM-BROKER-P1-02 | P2 | Forge→Noah→Sentinel | Tradier adapter |
+| WM-BROKER-P1-03 | P2 | Forge scope→Founder decide | Schwab adapter — evaluation ticket |
+| WM-BROKER-P1-04 | P0 | Forge→Noah→Sentinel | Order state machine (15 states incl. Unknown/Reconcile per Bible §32) |
+
+## Passport / Auth (Bible §29)
+| Ticket | Priority | Owner chain | Files/scope |
+|---|---|---|---|
+| WM-PASSPORT-P0-01 | P0 | Forge→Noah→Sentinel | Passport identity across WM Pro + ecosystem |
+| WM-SEC-P0-01 (open) | P0 | Founder | JWT_SECRET set in Vercel prod (confirm-only, no paste) |
+| WM-SEC-P0-02 (open) | P0 | Founder scope→Forge→Noah | Supabase RLS per-user policies (backup window required) |
+
+## VP Worlds (Bible §"VP Worlds" — Founding Principle 6)
+| Ticket | Priority | Owner chain | Files/scope |
+|---|---|---|---|
+| WM-VPW-P1-01 | P1 (BLOCKED) | Founder source→Forge→Micah→Noah→Sentinel | Define VP Worlds. VI already found no DeepCharts precedent — this is a WM original feature needing Founder spec. |
+
+## Coordinator note
+
+None of these override the current **REOPENED WM-VP-P0-01** (crypto POC=0.00) — that's still the top P0 blocker for Gate 1 truthfulness. Bible backlog fires in parallel where files don't collide.
+

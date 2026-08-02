@@ -11,10 +11,10 @@ proof, and truthful unavailable-states hold. Owner→verifier chains below.
 ### A. Chart / order-flow / UX gate (from Founder 08:52 CDT live-market audit)
 | # | Ticket | What | Owner chain | Status |
 |---|---|---|---|---|
-| 1 | `WM-VP-P0-01` | Session VP broke again (2nd recurrence, TSLA 15m) | Forge root-cause → Noah → Sentinel | 🔴 Sentinel filing; Forge root-cause pending |
+| 1 | `WM-VP-P0-01` | Session VP broke again (2nd recurrence, TSLA 15m) | Forge root-cause → Noah → Sentinel | 🔴 **REOPENED** — Noah shipped `e06ade9` (VP now pure projection of chart candles; F-A/F-C closed live). Sentinel APPROVE (`499e504`) then **superseded by RETURN** (`handoffs/sentinel/2026-08-02-sentinel-wm-vp-p0-01-reopen-poc-zero.md`): BTC 15m POC volume = `0.00`; TSLA 15m POC = `12.7k` (correct). Crypto-only numeric-aggregation defect. Forge next |
 | 2 | `WM-OF-P0-05` | Order-flow toolset: Bid×Ask, Delta, Vol Profile, Imbalance, Agg/Passive, Big Trades all functional or honest-unavailable | Forge per-tool → Noah → Sentinel | 🔴 filing; per-tool audit pending |
 | 3 | `WM-DRAW-P0-01` | 20 drawing tools clean & smooth (mouse+touch+Esc, ≥12px targets, <150ms, 60fps) | Micah spec → Noah → Sentinel | 🔴 spec pending |
-| 4 | `WM-UX-P0-01` | Move Delta-bubble count control (5/7/10/15) from Big Trades gear → Smart Money (W) panel; single source of truth | Micah spec → Noah → Sentinel | 🔴 spec pending |
+| 4 | `WM-UX-P0-01` | Move Delta-bubble count control (5/7/10/15) from Big Trades gear → Smart Money (W) panel; single source of truth | Micah spec → Noah → Sentinel | 🟢 SHIPPED `0270590`; bisect exonerated (`21390e7`, `bc8d2d6`) — not the VP culprit. Sentinel visual verify pending |
 | 5 | `WM-BROKER-P0-01` | Tastytrade wiring shows futures (read-only; **never place orders**) | Forge → Noah → Sentinel | 🔴 to file |
 | 6 | `WM-CHART-P0-05` | Price-source provenance badges (4 surfaces, shipped `63290d7`) | Sentinel **APPROVE** (DEC-012 backfill, `2026-08-01`) | 🟢 verified — 4 surfaces legible (LIVE+DELAYED) |
 | 7 | `WM-CHART-P0-05c` | Big-Trades marker vocabulary (water-style, honest) | Micah → Noah → Sentinel | 🔴 to file |
