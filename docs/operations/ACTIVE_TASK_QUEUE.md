@@ -670,6 +670,7 @@ Each still requires the full field set before it is claimed. Detail lives in
 | 16:22 | main session | Preserved dangling lounge WIP on branch     | `wip/lounge-universal-hero-recovered` |
 | 16:24 | main session | Routed Founder 15:06 CDT directive assignments into this queue | (this commit) |
 | 20:06 | scheduled checkpoint | Nehemiah-default: flagged phantom `WM-CHART-P0-01B-PREREQ-SCANNER-A11Y-01` gate (Sentinel RETURN, uncommitted handoff) blocking Noah/Forge V5/VI; no code shipped — tree had active concurrent WIP not created by this run, left untouched | `54ac3be` |
+| 2026-08-02 17:25 | scheduled checkpoint | Filed `WM-BROKER-QUOTE-P0-01` from Forge's WM-DATA-P0-01 audit; dispatched Noah (EMERGENCY fix contract), Sentinel (verify DRAW-P0-01+UX-P0-01), Micah (JRN-P1-02), VI (competitor matrix row) — all bus-file only, send_message unavailable in unattended run; retired 3 fulfilled dispatches; no `src/` touched | `efe4bec` (reconciled against) |
 
 ---
 
@@ -1013,3 +1014,23 @@ None of these override the current **REOPENED WM-VP-P0-01** (crypto POC=0.00) �
 | **Sentinel verification requirements** | Live verify at Sunday-electronic open (17:00 CT Sun), Monday RTH open (08:30 CT Mon for /ES), and Monday equity open (09:30 ET). All ticker-rail symbols advancing != 0.00. All chart-header + tape + watchlist + HUD badges agree on provenance for the same symbol. |
 | **Blockers** | Founder to confirm which broker(s) are connected and whether tastytrade streaming quotes are entitled on his tt subscription (2-min check, no credential paste). |
 | **Filed by** | Atlas / main session, 2026-08-02 12:41 CDT. |
+
+**2026-08-02 17:25 CDT update (Atlas checkpoint):** Forge shipped root-cause + fix contract —
+`handoffs/forge/2026-08-02-forge-wm-data-p0-01-quote-pipeline-audit.md`. Root cause is a day-change
+fallthrough (`useWebSocket.ts:114-118`, `prev` falls to `price` → `change=0`), NOT the weekend gate.
+Fix contract (single `isMarketOpen(assetClass,ts)`, honest day-change, single provenance resolver)
+handed to Noah — dispatched `dispatches/2026-08-02/1725-noah-wm-data-p0-01-fix-contract.md`. Status: 🔴 Noah impl (was 🔴 Forge RC).
+
+---
+
+## WM-BROKER-QUOTE-P0-01 — Tastytrade dxFeed streaming quotes into provider chain (filed from WM-DATA-P0-01 audit)
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-BROKER-QUOTE-P0-01 |
+| **Priority** | P1 — named gap, not blocking WM-DATA-P0-01's own acceptance (which only requires tastytrade be labeled "orders only" if unwired) |
+| **Owner chain** | Forge (contract) → Noah (impl) → Sentinel (verify) |
+| **Finding** | `tastytrade.ts:202-206` probes `/api-quote-tokens` and confirms dxFeed quote capability (`quotes: true`) on the connected account, but no consumer reads it — `useWebSocket`/tape pipeline have zero tastytrade quote wiring. Adapter serves accounts + order lifecycle only. |
+| **Why it matters** | Futures currently have **no WS path at all** (Yahoo REST only per the WM-DATA-P0-01 provider matrix) — tastytrade/dxFeed would be the first live futures quote stream available. |
+| **Scope** | Wire tastytrade dxFeed as a real provider in the quote fallback chain, Founder-gated read-only. Do not claim liveness until a verified quote timestamp proves it (`tastytrade.ts:211` doctrine). No order-placement code — DEC-005 boundary stays. |
+| **Filed by** | Atlas checkpoint, 2026-08-02 17:25 CDT, from Forge's `WM-DATA-P0-01` audit §5/§7. |

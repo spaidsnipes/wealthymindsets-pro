@@ -213,3 +213,16 @@ The 15:06 directive orders Sentinel to issue APPROVED/RETURN on `WM-CHART-P0-01B
 - **No `src/` touched by Mission Control this checkpoint.** No role violations found.
 - **Next action:** next checkpoint confirms Sentinel's WM-VP-P0-01 verdict landed; if still missing after 90 min from dispatch, escalate per DEC-013 order.
 - **Next action:** next checkpoint confirms Sentinel's DEC-005 verdict landed and Forge's Markov contract handoff exists; if either is still missing after 90 min, escalate.
+
+---
+
+## Checkpoint — 2026-08-02 17:25 CDT (scheduled, Atlas/coordinator)
+
+- **Current blocker → owner → age → next action:** `WM-DATA-P0-01` (P0 EMERGENCY, Founder-visible ticker-rail/provenance regression) — Forge shipped root-cause + fix contract `efe4bec` since last checkpoint (day-change fallthrough in `useWebSocket.ts:114-118`, not the weekend gate; SPY dual-provenance from two independent liveness resolvers; tastytrade quotes unwired). **Head-of-line: Noah** implements per contract — dispatched `1725-noah-wm-data-p0-01-fix-contract.md`, age 0 min. Noah's session was dormant ~8.5h before this dispatch (send_message unavailable this run — unattended scheduled-task session; bus dispatch is the only channel this checkpoint).
+- **New ticket filed:** `WM-BROKER-QUOTE-P0-01` (P1, tastytrade dxFeed streaming quotes) — spun out of Forge's audit §5/§7, was named in handoffs but not yet in the queue table; filed this checkpoint.
+- **Also dispatched (all ≥8h-dormant sessions with unblocked ready tickets):** Sentinel → verify `WM-UX-P0-01`(`0270590`)+`WM-DRAW-P0-01`(`d81a592`), both sitting in READY FOR VERIFICATION; Micah → `WM-JRN-P1-02` (next unblocked Bible-backlog lead item); Video Intelligence → charter default-idle #2 (competitor matrix row), since `VI-WM-P0-03` stays genuinely blocked on Founder video links.
+- **Skipped (active right now):** Forge (shipped `efe4bec` minutes before this checkpoint) and Nehemiah (session activity within the same minute as this checkpoint) — both mid-work, no ping needed.
+- **Retired:** 3 dispatches whose target's commit already landed (`2350-noah-to-sentinel-vp-live-verify` → Sentinel's `499e504`/`961e7aa`; `0010-sentinel-to-forge-vp-crypto-volume-zero` → Forge's `9e56585`; `0010-sentinel-to-micah-of-master-toggle-ux` → Micah's `f208cdb`).
+- **send_message unavailable:** this checkpoint runs as an unattended scheduled task; the live-nudge channel is disabled for unattended sessions. All 4 dispatches this round are bus-file only — flag for next attended checkpoint to send a live ping if any of these 4 are still dormant then.
+- **No `src/` touched by Mission Control this checkpoint.** No role violations found.
+- **Next action:** next checkpoint confirms Noah has claimed `WM-DATA-P0-01` (commit or session activity) and that Sentinel's two verify verdicts landed; escalate whichever is still missing after 90 min.
