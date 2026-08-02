@@ -8,6 +8,71 @@ this list is **BACKLOG-POST-LAUNCH**. No item reprioritized without Elias.
 **Rule:** an item is GREEN only when its code is on `main`, tests pass, Sentinel APPROVES with live
 proof, and truthful unavailable-states hold. Owner→verifier chains below.
 
+> **2026-08-02 12:45 CDT restructure (Nehemiah):** A/B gates below expanded into 7-Gate map after `WM-DATA-P0-01` emergency landing and Atlas Bible-backlog `f20eb15` (40 tickets). Full authoritative version: `handoffs/nehemiah/2026-08-02-nehemiah-1245-full-reconcile-and-7-gate-map.md`. Legacy A/B rows below preserved append-only for audit; the 7-Gate table is the current source of truth.
+
+### 7-GATE MAP (Nehemiah authoritative, 2026-08-02 12:45 CDT)
+
+**Gate 1 — DATA TRUTH**
+| # | Ticket | Owner chain | Status |
+|---|---|---|---|
+| 1.0 | **`WM-DATA-P0-01`** — SPY dual-badge (ALPACA LIVE + FINNHUB DELAYED same surface) + NQ1 tape-unavailable + tastytrade no quote wiring | Forge RC → Noah → Sentinel | 🔴 **EMERGENCY** — Founder-visible now |
+| 1.1 | `WM-CHART-P0-05` provenance badges | Sentinel APPROVE `720355d` | 🟢 |
+| 1.2 | `WM-CHART-P0-05c` water markers | Micah `375603d` → Noah → Sentinel | 🔴 Noah impl |
+| 1.3 | `WM-CHART-P0-07` Big-Trades collision | unassigned | 🔴 route |
+
+**Gate 2 — CHART TRUTH**
+| # | Ticket | Owner chain | Status |
+|---|---|---|---|
+| 2.1 | `WM-VP-P0-01` crypto POC=0.00 | Forge crypto-vol RC `9e56585` → Noah → Sentinel | 🔴 REOPEN |
+| 2.2 | `WM-OF-P0-05` per-tool audit | Forge `116d23c` → Noah → Sentinel | 🔴 |
+| 2.3 | `WM-OF-P0-06` master-toggle UX | Forge `9e56585` + Micah `f208cdb` → Noah | 🔴 Noah impl |
+| 2.4 | `WM-DRAW-P0-01` rail a11y | Micah spec → Noah SHIPPED `d81a592` → Sentinel | 🟡 verify pending |
+| 2.5 | `WM-UX-P0-01` Delta→SM panel | Noah SHIPPED `0270590` (bisect exonerated) → Sentinel | 🟢 verify pending |
+
+**Gate 3 — BROKER REALITY**
+| # | Ticket | Owner chain | Status |
+|---|---|---|---|
+| 3.1 | `WM-BROKER-P0-01` Part A tastytrade futures | Forge `116d23c` → Noah → Sentinel | 🔴 |
+| 3.2 | `WM-BROKER-P0-01` Part C connect UI | Micah `926c783` → Noah → Sentinel | 🔴 |
+| 3.3 | `WM-BROKER-P0-02` adapter seam | Forge `c1b6af6` | 🟢 arch |
+| 3.4 | Broker-expansion scope | Elias draft → Founder | ⚪ escalated `0025-elias-…` |
+
+**Gate 4 — SECURITY**
+| # | Ticket | Owner chain | Status |
+|---|---|---|---|
+| 4.1 | `WM-SEC-P0-01` `JWT_SECRET` in Vercel | Founder OR Elias draft fail-closed | 🔴 **2 days silent** — escalated |
+| 4.2 | `WM-SEC-P0-02` Supabase RLS window + backup | Founder OR Elias draft window | 🔴 **2 days silent** — escalated |
+
+**Gate 5 — VERIFICATION (RISK-001)**
+| # | Ticket | Owner | Status |
+|---|---|---|---|
+| 5.1 | Chrome Desktop→/Applications relocation OR Founder self-signs into browser pane | Founder 2-min action | 🟡 partial (Founder verifies live; agent-side blocked) |
+
+**Gate 6 — DLA/MARKOV PRO (Bible §51, 10 tickets `f20eb15`)**
+| # | Ticket | Owner chain |
+|---|---|---|
+| 6.1 | `WM-DLA-P1-01` TV↔WM Strategy Event schema | Forge → Noah → Sentinel |
+| 6.2 | `WM-DLA-P1-02` DLA Morning Game Plan (scenarios, not instructions) | Micah → Noah → Sentinel |
+| 6.3 | `WM-DLA-P1-03` Guided pre-trade checklist | Micah → Noah → Sentinel |
+| 6.4 | `WM-DLA-P1-04` Prop Guardian (user rules only) | Forge → Noah → Sentinel |
+| 6.5 | `WM-DLA-P1-05` Advanced R Manager | Forge → Noah → Sentinel |
+| 6.6 | `WM-DLA-P1-06` Stop Integrity monitor | Forge → Noah → Sentinel |
+| 6.7 | `WM-DLA-P1-07` Setup Expiration engine | Forge → Noah → Sentinel |
+| 6.8 | `WM-DLA-P1-08` Opportunity-Cost warning | Forge → Noah → Sentinel |
+| 6.9 | `WM-DLA-P1-09` Personal Edge Report | Forge → Noah → Sentinel |
+| 6.10 | `WM-DLA-P1-10` Formula/version registry | Forge → Sentinel |
+
+**Gate 7 — BIBLE BACKLOG (30 tickets, `f20eb15`)**
+- Forge lead (11): `WM-OF-P1-01/02/03` · `WM-RISK-P1-01..05` · `WM-BROKER-P1-01..04` · `WM-VP-P1-01` (VP Worlds blocked pending Founder source)
+- Micah lead (9): `WM-JOURNAL-P1-01..03` · `WM-REPLAY-P1-01..03` · `WM-ALERTS-P1-01..03`
+- Cross-cutting Perf (2): `WM-PERF-P1-01/02` — Forge contract, Noah impl
+- Passport (3): `WM-PASSPORT-P1-01..03` — Forge (shared Supabase w/ Dreamboard)
+- Noah implements all 30
+
+**Momentum rule (Founder-ratified `f20eb15`):** parallel work on independent tickets authorized. Assembly line only on shared-file collisions.
+
+---
+
 ### A. Chart / order-flow / UX gate (from Founder 08:52 CDT live-market audit)
 | # | Ticket | What | Owner chain | Status |
 |---|---|---|---|---|
