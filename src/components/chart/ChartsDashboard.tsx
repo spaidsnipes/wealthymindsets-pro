@@ -537,6 +537,16 @@ export function ChartsDashboard() {
     }
   }, []);
 
+  // WM-VP-P0-01: monotonic data identity for pure downstream projections (the
+  // Session VP). Bumps when the chart's symbol/timeframe changes and clears the
+  // prior identity's canonical candles, so a consumer never projects symbol A's
+  // stale bars for symbol B in the window before MainChart re-emits.
+  const [dataVersion, setDataVersion] = useState(0);
+  useEffect(() => {
+    setDataVersion(v => v + 1);
+    setChartBars([]);
+  }, [symbol, timeframe]);
+
   const handleAddToChart = useCallback((output: PineOutput, code: string) => {
     setPineOutput(output);
     setPineCode(code);
@@ -1302,7 +1312,14 @@ export function ChartsDashboard() {
               </div>
 
               {sessionVPOpen && (
-                <WMSessionVP symbol={symbol} timeframe={timeframe} onClose={() => setSessionVPOpen(false)} />
+                <WMSessionVP
+                  symbol={symbol}
+                  timeframe={timeframe}
+                  candles={chartBars}
+                  dataVersion={dataVersion}
+                  provider={source}
+                  onClose={() => setSessionVPOpen(false)}
+                />
               )}
 
               <BarReplayControls

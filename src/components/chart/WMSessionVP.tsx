@@ -14,28 +14,20 @@
  * - Compact sidebar panel
  */
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { clsx } from "clsx";
-
-interface SessionLevel {
-  price:  number;
-  bid:    number;
-  ask:    number;
-  total:  number;
-  delta:  number;
-}
-
-interface Candle {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
-
-type SessionWindow = "RTH" | "ETH" | "24H" | "2D" | "1W" | "1M";
+import {
+  nyParts,
+  selectSessionCandles,
+  buildSessionLevels,
+  foldTape,
+  buildTapeLevels,
+  type SessionLevel,
+  type Candle,
+  type SessionWindow,
+  type TapeTick,
+} from "@/lib/sessionVP";
 
 interface SessionWindowConfig {
   label:     string;
@@ -57,6 +49,21 @@ const SESSION_WINDOWS: Record<SessionWindow, SessionWindowConfig> = {
 interface WMSessionVPProps {
   symbol:    string;
   timeframe: string;
+  /**
+   * The canonical candles the chart actually rendered for the current data
+   * identity (provider-correct). WM-VP-P0-01: the VP is a PURE projection of
+   * these — it never fetches its own candles, so it can never diverge from the
+   * chart's provider/symbol/timeframe again.
+   */
+  candles:   Candle[];
+  /**
+   * Monotonic version that bumps when the chart's data identity changes
+   * (symbol / timeframe / provider). On change the VP drops accumulated tape
+   * atomically, so symbol B never shows symbol A's tape.
+   */
+  dataVersion?: number;
+  /** Resolved provider name — used only for honest "unavailable" messaging. */
+  provider?: string;
   onClose?:  () => void;
 }
 
@@ -72,71 +79,8 @@ function fmtPrice(p: number): string {
   return p.toFixed(5);
 }
 
-const nyParts = (epochSeconds: number) => {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/New_York",
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-  }).formatToParts(new Date(epochSeconds * 1000));
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    Number(parts.find(part => part.type === type)?.value ?? 0);
-  const year = get("year"), month = get("month"), day = get("day");
-  return {
-    date: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
-    minute: get("hour") * 60 + get("minute"),
-  };
-};
-
-function selectSessionCandles(candles: Candle[], window: SessionWindow): Candle[] {
-  if (!candles.length) return [];
-  const annotated = candles
-    .filter(c => c.volume > 0 && c.high >= c.low)
-    .map(c => ({ candle: c, ...nyParts(c.time) }));
-  if (!annotated.length) return [];
-
-  if (window === "RTH" || window === "ETH" || window === "24H") {
-    const start = window === "RTH" ? 570 : window === "ETH" ? 240 : 0;
-    const end = window === "RTH" ? 960 : window === "ETH" ? 1200 : 1440;
-    const eligible = annotated.filter(x => x.minute >= start && x.minute < end);
-    const latestDate = eligible.at(-1)?.date;
-    return eligible.filter(x => x.date === latestDate).map(x => x.candle);
-  }
-
-  const distinctDates = [...new Set(annotated.map(x => x.date))];
-  const keep = window === "2D" ? 2 : window === "1W" ? 7 : 30;
-  const dates = new Set(distinctDates.slice(-keep));
-  return annotated.filter(x => dates.has(x.date)).map(x => x.candle);
-}
-
-function buildSessionLevels(candles: Candle[]): SessionLevel[] {
-  if (!candles.length) return [];
-  const low = Math.min(...candles.map(c => c.low));
-  const high = Math.max(...candles.map(c => c.high));
-  const range = high - low;
-  if (!(range > 0)) return [];
-
-  const count = 48;
-  const binSize = range / count;
-  const totals = Array.from({ length: count }, () => 0);
-  for (const candle of candles) {
-    const first = Math.max(0, Math.min(count - 1, Math.floor((candle.low - low) / binSize)));
-    const last = Math.max(first, Math.min(count - 1, Math.floor((candle.high - low) / binSize)));
-    const perBin = candle.volume / (last - first + 1);
-    for (let i = first; i <= last; i++) totals[i] += perBin;
-  }
-
-  return totals.map((total, i) => ({
-    price: low + (i + 0.5) * binSize,
-    bid: 0,
-    ask: 0,
-    total,
-    delta: 0,
-  })).reverse();
-}
-
-export function WMSessionVP({ symbol, timeframe, onClose }: WMSessionVPProps) {
-  const [levels,        setLevels]        = useState<SessionLevel[]>([]);
-  const [loading,       setLoading]       = useState(true);
+export function WMSessionVP({ symbol, timeframe, candles, dataVersion = 0, provider, onClose }: WMSessionVPProps) {
+  const [tape,          setTape]          = useState<TapeTick[]>([]);
   const [hasRealTape,   setHasRealTape]   = useState(false);
   const [sessionPct,    setSessionPct]    = useState(0);
   const [sessionWindow, setSessionWindow] = useState<SessionWindow>("RTH");
@@ -145,24 +89,27 @@ export function WMSessionVP({ symbol, timeframe, onClose }: WMSessionVPProps) {
 
   const { recentTicks } = useWebSocket({ symbol, timeframe });
 
-  /* Build a truthful bar-derived profile from observed OHLCV. */
+  // WM-VP-P0-01 Fix 1 (kills F-A): bar-derived profile is a PURE projection of
+  // the chart's canonical candles for the selected session. No fetch — the VP
+  // can no longer diverge from the chart's provider/symbol/timeframe.
+  const barLevels = React.useMemo(
+    () => buildSessionLevels(selectSessionCandles(candles, sessionWindow)),
+    [candles, sessionWindow],
+  );
+
+  // Whether the chart handed us ANY candles — distinguishes "provider gave us
+  // nothing to project" from "today's session hasn't produced bars yet".
+  const haveCandles = candles.length > 0;
+
+  // WM-VP-P0-01 Fix 4: drop accumulated tape atomically whenever the chart's
+  // data identity changes (symbol / timeframe / provider / session window), so
+  // symbol B never renders symbol A's tape. Mirrors DataVersionGuard semantics.
+  const identity = `${dataVersion}|${symbol}|${timeframe}|${sessionWindow}`;
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    const profileTf = ["1m", "2m", "5m", "15m", "30m", "1h"].includes(timeframe) ? timeframe : "30m";
-    fetch(`/api/yahoo?sym=${encodeURIComponent(symbol)}&type=candles&tf=${profileTf}&bars=3000&ext=1`, { cache: "no-store" })
-      .then(r => r.json())
-      .then(json => {
-        if (cancelled) return;
-        const candles = Array.isArray(json?.candles) ? json.candles as Candle[] : [];
-        setLevels(buildSessionLevels(selectSessionCandles(candles, sessionWindow)));
-      })
-      .catch(() => { if (!cancelled) setLevels([]); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    tickCountRef.current = 0;
+    setTape([]);
     setHasRealTape(false);
-    return () => { cancelled = true; };
-  }, [sessionWindow, symbol, timeframe]);
+    tickCountRef.current = 0;
+  }, [identity]);
 
   /* Update session pct based on selected window */
   useEffect(() => {
@@ -189,46 +136,46 @@ export function WMSessionVP({ symbol, timeframe, onClose }: WMSessionVPProps) {
     return () => clearInterval(iv);
   }, [sessionWindow]);
 
-  /* Absorb live ticks into session levels */
+  /* Absorb one representative live executed trade per tick update into the tape
+     (same fold cardinality as before — no new tick pipeline). */
   useEffect(() => {
     if (!recentTicks.length) return;
-    const tick = recentTicks.find(t => t.trade);
+    const tick = recentTicks.find(t => t.trade && t.size > 0 && t.price > 0);
     if (!tick) return;
     setHasRealTape(true);
     tickCountRef.current++;
-
-    setLevels(prev => {
-      // Find nearest level and add volume
-      let nearest = 0;
-      let minDist = Infinity;
-      prev.forEach((lvl, i) => {
-        const d = Math.abs(lvl.price - tick.price);
-        if (d < minDist) { minDist = d; nearest = i; }
-      });
-
-      // A real executed trade belongs to one nearest price bin only.
-      const updated = prev.map((lvl, i) => {
-        if (i !== nearest) return lvl;
-        const addVol = Math.max(0, tick.size);
-        const addBid = tick.side === "sell" ? addVol : 0;
-        const addAsk = tick.side === "buy" ? addVol : 0;
-        const bid    = lvl.bid + addBid;
-        const ask    = lvl.ask + addAsk;
-        return { ...lvl, bid, ask, total: lvl.total + addVol, delta: ask - bid };
-      });
-      return updated;
+    setTape(prev => {
+      const next = prev.concat({ price: tick.price, size: tick.size, side: tick.side });
+      return next.length > 5000 ? next.slice(-5000) : next;   // bounded
     });
   }, [recentTicks]);
 
+  // WM-VP-P0-01 Fix 3 (kills F-C): bar layer and live-tape layer are combined
+  // independently. When bar bins exist, fold the tape into them; when the bar
+  // layer is empty but tape is flowing, build a profile from the tape alone.
+  // Bar-emptiness must never suppress a non-empty tick layer.
+  const levels = React.useMemo<SessionLevel[]>(() => {
+    if (barLevels.length) return foldTape(barLevels, tape);
+    if (tape.length)      return buildTapeLevels(tape);
+    return [];
+  }, [barLevels, tape]);
+
+  // Which layer is actually feeding the panel (labels itself honestly).
+  const layerLabel = barLevels.length ? "BAR-DERIVED" : (tape.length ? "LIVE TAPE" : "—");
+
   /* Recompute VA/POC */
-  if (loading || levels.length === 0) {
+  if (levels.length === 0) {
+    // Honest empty states: no candles from the chart at all vs. a rendered
+    // session that simply carries no reported volume yet. Never a blank Yahoo.
+    const reason = !haveCandles
+      ? "Session starting — awaiting first bars"
+      : "No reported volume for this session";
     return (
       <div className="border-l border-wm-border bg-wm-black shrink-0 flex flex-col items-center justify-center gap-2"
         style={{ width: 260 }}>
         <span className="text-[10px] font-black text-wm-purple uppercase tracking-widest">wmSession VP</span>
-        <span className="text-[10px] text-wm-text-dim">
-          {loading ? "Loading real OHLCV…" : "No reported volume for this session"}
-        </span>
+        <span className="text-[10px] text-wm-text-dim text-center px-3">{reason}</span>
+        {provider && <span className="text-[8px] text-wm-text-muted">provider: {provider}</span>}
         {onClose && <button onClick={onClose} className="text-[10px] text-wm-text-muted hover:text-wm-text">Close</button>}
       </div>
     );
@@ -329,7 +276,7 @@ export function WMSessionVP({ symbol, timeframe, onClose }: WMSessionVPProps) {
       <div className="flex items-center px-2 border-b border-wm-border/60 shrink-0" style={{ height: 20 }}>
         <span className="text-[9px] font-black text-wm-purple w-14">VOLUME</span>
         <div className="flex-1 text-center text-[9px] text-wm-text-muted">PRICE</div>
-        <span className="text-[8px] text-wm-text-dim">BAR-DERIVED</span>
+        <span className="text-[8px] text-wm-text-dim">{layerLabel}</span>
       </div>
 
       {/* Rows */}

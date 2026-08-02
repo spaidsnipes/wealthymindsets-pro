@@ -1,0 +1,109 @@
+import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import {
+  nyParts,
+  selectSessionCandles,
+  buildSessionLevels,
+  foldTape,
+  buildTapeLevels,
+  type Candle,
+  type TapeTick,
+} from "./sessionVP";
+
+/**
+ * WM-VP-P0-01 — one test per Forge failure mode + an architectural guard.
+ * Contract: docs/operations/handoffs/forge/2026-07-31-forge-to-noah-wm-vp-p0-01-implementation-contract.md
+ *
+ * The VP is a PURE projection of the chart's canonical candles. These exercise
+ * the projection logic directly (the repo tests pure lib functions; there is no
+ * DOM test harness), plus a source-level guard that the VP issues no fetch.
+ */
+
+// A candle at "now" (today, ET) — used where we need the live trading day.
+function candleNow(price: number, vol = 100, dPrice = 1): Candle {
+  const t = Math.floor(Date.now() / 1000);
+  return { time: t, open: price, high: price + dPrice, low: price - dPrice, close: price, volume: vol };
+}
+// A candle on a fixed PAST weekday, at ~noon ET (RTH minute ~720). 2020-01-15.
+function candlePast(price: number, vol = 100, dPrice = 1): Candle {
+  const t = Math.floor(Date.UTC(2020, 0, 15, 17, 0, 0) / 1000); // 12:00 EST → ET minute 720
+  return { time: t, open: price, high: price + dPrice, low: price - dPrice, close: price, volume: vol };
+}
+
+describe("WM-VP-P0-01 · Session VP is a pure projection of chart candles", () => {
+  // ── Test 1: No independent fetch (architectural guard — kills F-A's root) ──
+  it("issues no independent fetch — no /api/yahoo, no fetch() in the VP path", () => {
+    const vp = readFileSync(resolve(__dirname, "../components/chart/WMSessionVP.tsx"), "utf8");
+    const lib = readFileSync(resolve(__dirname, "./sessionVP.ts"), "utf8");
+    // The old bug was a hardcoded Yahoo candle fetch inside the component.
+    expect(vp).not.toMatch(/\/api\/yahoo/);
+    expect(vp).not.toMatch(/\bfetch\s*\(/);
+    expect(lib).not.toMatch(/\/api\/yahoo/);
+    expect(lib).not.toMatch(/\bfetch\s*\(/);
+    // And it must accept the chart's canonical candles as a prop.
+    expect(vp).toMatch(/candles:\s*Candle\[\]/);
+  });
+
+  // ── Test 2: Symbol-switch race guard — B never contains A's price bins ──
+  it("symbol switch A→B: B's profile contains none of A's price bins, and no residual tape bleeds", () => {
+    const aCandles = Array.from({ length: 6 }, (_, i) => candleNow(250 + i)); // ~TSLA
+    const bCandles = Array.from({ length: 6 }, (_, i) => candleNow(600 + i)); // different symbol
+    const aLevels = buildSessionLevels(selectSessionCandles(aCandles, "24H"));
+    const bLevels = buildSessionLevels(selectSessionCandles(bCandles, "24H"));
+    expect(aLevels.length).toBeGreaterThan(0);
+    expect(bLevels.length).toBeGreaterThan(0);
+    // Disjoint price regions → switching the candle input to B yields no A bins.
+    const aMax = Math.max(...aLevels.map(l => l.price));
+    const bMin = Math.min(...bLevels.map(l => l.price));
+    expect(aMax).toBeLessThan(bMin);
+    // On identity change the component drops tape; the projection over B with an
+    // empty tape must equal B's bar levels exactly (no A tape residue).
+    const bWithClearedTape = foldTape(bLevels, [] as TapeTick[]);
+    expect(bWithClearedTape).toEqual(bLevels);
+  });
+
+  // ── Test 3: Early-session honest state — kills F-B (no yesterday's profile) ──
+  it("early session (today's bars absent) yields empty → 'awaiting bars', never yesterday's profile", () => {
+    const yesterdayRTH = Array.from({ length: 6 }, (_, i) => candlePast(250 + i));
+    // RTH is pinned to the live trading day; past-dated bars are excluded.
+    expect(selectSessionCandles(yesterdayRTH, "RTH")).toEqual([]);
+    expect(buildSessionLevels(selectSessionCandles(yesterdayRTH, "RTH"))).toEqual([]);
+    // Date-pin isolation: past date excluded, today included (proves it's the
+    // day pin, not a minute-window exclusion).
+    expect(selectSessionCandles(yesterdayRTH, "24H")).toEqual([]);
+    const todayCandles = Array.from({ length: 6 }, (_, i) => candleNow(250 + i));
+    expect(selectSessionCandles(todayCandles, "24H").length).toBeGreaterThan(0);
+  });
+
+  // ── Test 4: Non-Yahoo/crypto populates from canonical candles; live tape
+  //           paints even when the bar layer is empty — kills F-A and F-C ──
+  it("populates from canonical candles regardless of provider; live tape paints with empty bars", () => {
+    // A "crypto" symbol whose chart candles came from a non-Yahoo provider —
+    // the VP projects them directly, so it is never a blank Yahoo panel.
+    const cryptoCandles = Array.from({ length: 8 }, (_, i) => candleNow(65000 + i * 10, 5, 8));
+    const barLevels = buildSessionLevels(selectSessionCandles(cryptoCandles, "24H"));
+    expect(barLevels.length).toBeGreaterThan(0);
+    expect(barLevels.reduce((s, l) => s + l.total, 0)).toBeGreaterThan(0);
+
+    // F-C: even with NO bar candles, a flowing tape produces a live profile —
+    // bar-emptiness must not suppress the tick layer.
+    const tape: TapeTick[] = [
+      { price: 100.0, size: 3, side: "buy" },
+      { price: 100.5, size: 2, side: "sell" },
+      { price: 101.0, size: 4, side: "buy" },
+    ];
+    const emptyBars = buildSessionLevels([]); // no candles at all
+    expect(emptyBars).toEqual([]);
+    const tapeLevels = buildTapeLevels(tape);
+    expect(tapeLevels.length).toBeGreaterThan(0);
+    expect(tapeLevels.reduce((s, l) => s + l.total, 0)).toBe(9);
+  });
+
+  // Sanity: nyParts is a stable ET projection (underpins the day pin).
+  it("nyParts maps a known epoch to the correct ET date/minute", () => {
+    const p = nyParts(Math.floor(Date.UTC(2020, 0, 15, 17, 0, 0) / 1000));
+    expect(p.date).toBe("2020-01-15");
+    expect(p.minute).toBe(720); // 12:00 EST
+  });
+});
