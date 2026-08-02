@@ -993,3 +993,23 @@ Founder decision (not for Noah): **broker expansion shortlist** — Tradier→IB
 
 None of these override the current **REOPENED WM-VP-P0-01** (crypto POC=0.00) — that's still the top P0 blocker for Gate 1 truthfulness. Bible backlog fires in parallel where files don't collide.
 
+
+---
+
+## WM-DATA-P0-01 — Live-quote regression (Founder-verified 2026-08-02 12:40 CDT)
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-DATA-P0-01 |
+| **Priority** | **P0 EMERGENCY** — Founder-visible, blocks Gate 1 (Data truth) and effectively Gate 2 (Chart stability) |
+| **Owner (arch)** | Forge — dispatched at `dispatches/2026-08-02/1240-forge-wm-data-p0-01-quote-pipeline-audit.md` |
+| **Owner (impl)** | Noah — after Forge's fix contract |
+| **Verifier** | Sentinel — live-verify on futures during Sunday-open (17:00 CT Sunday+) AND weekday RTH |
+| **Trigger** | Founder message 12:40 CDT Sun Aug 2: *"the market is live now and i see it moving on trading view but not my app why dont i see futures and whatever else is actually moving moving right now we have tasty trade connected and also finhub"* |
+| **Live evidence (Atlas Chrome capture, same minute)** | 1. Every top-rail ticker (ES1/RTY1/YM1/GC1/CL1/AAPL/TSLA/NVDA/SPY) reads `+0.00 +0.00%`. 2. NQ1! chart header pill `YAHOO · DELAYED`; banner *"Real order-flow tape unavailable"*; `Market Closed` footer. 3. SPY chart shows `● ALPACA · LIVE` AND `FINNHUB · DELAYED` on the same surface — provenance contradiction (P0-05 defect class recurring). 4. No tastytrade badge / quote wiring in UI despite Founder saying tt is connected. |
+| **Sub-defects the fix must close** | (a) whole ticker rail frozen → live-refresh path broken across providers, (b) futures show as delayed with no live tape even when Sunday-electronic session is open, (c) SPY same-surface provider contradiction — P0-05 truthfulness regression, (d) tastytrade provider not in the quote fallback chain despite connection. |
+| **Hypothesis (Forge validates)** | An `isMarketClosed` gate suppresses ALL streaming updates Sat-Sun without distinguishing futures (24/6 electronic) from equities (Mon-Fri RTH). Provenance resolver has forked (per-surface resolvers producing inconsistent badges). Tastytrade adapter serves orders but not quotes. |
+| **Acceptance for Noah's fix** | 1. When TradingView shows futures moving, WM Pro shows the same movement within 5s tick lag. 2. Single `isMarketOpen(assetClass, ts)` function with per-class hours. 3. Every same-surface, same-symbol, same-instant price + provenance readout agrees byte-identically across all UI locations. 4. Tastytrade wired as a quote provider OR explicitly labeled "orders only" in Connect Broker UI so users aren't misled. 5. Per-class provider matrix documented in the fix commit body. |
+| **Sentinel verification requirements** | Live verify at Sunday-electronic open (17:00 CT Sun), Monday RTH open (08:30 CT Mon for /ES), and Monday equity open (09:30 ET). All ticker-rail symbols advancing != 0.00. All chart-header + tape + watchlist + HUD badges agree on provenance for the same symbol. |
+| **Blockers** | Founder to confirm which broker(s) are connected and whether tastytrade streaming quotes are entitled on his tt subscription (2-min check, no credential paste). |
+| **Filed by** | Atlas / main session, 2026-08-02 12:41 CDT. |
