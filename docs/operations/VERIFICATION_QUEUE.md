@@ -134,6 +134,61 @@ independently-checkable method does not get repeated here as fact.
 
 ---
 
+### V-010 · `d81a592` WM-DRAW-P0-01 rail accessibility — **PARTIALLY VERIFIED (static)** · gate 2.4
+
+Single file, `src/components/chart/LeftDrawingSidebar.tsx` (+58/-16).
+
+| Claimed affordance | Static result |
+|---|---|
+| `aria-pressed` on toggles | **PRESENT** — 4 occurrences |
+| `aria-label` on icon-only controls | **PRESENT** — 6 occurrences |
+| ≥44px touch targets | **PRESENT** — 4 sizing references |
+| Focus rings | **PRESENT** — 4 `focus-visible`/outline references |
+
+**Verdict: static criteria PASS. Gate 2.4 must not go GREEN on this alone.**
+
+The WM-DRAW-P0-01 acceptance criteria are explicitly runtime: *mouse + touch + Esc,
+≥12px targets, **<150 ms response, 60 fps***. Latency and frame rate cannot be established
+by reading source, and neither can "Esc cancels the active tool." What I have verified is
+that the accessibility *attributes* are present and correctly shaped — which is the half
+that static analysis can settle.
+
+**Remaining for GREEN:** interaction evidence under the Founder's authenticated window
+(Gate 5.1 / RISK-001) covering Esc-cancel, touch-drag, and a frame measurement during an
+active draw. The gate's own rule — *"Sentinel APPROVES with live proof"* — is not satisfied
+by this entry.
+
+---
+
+### V-011 · Cross-product hazard in Gate 4 — **`WM-SEC-P0-02` is not a WM-Pro-only ticket**
+
+Gate 4 lists `WM-SEC-P0-02` (apply staged Supabase RLS fixes) as a WM Pro launch blocker,
+"2 days silent — escalated." **The Supabase project it targets, `zrzaifaxecwgpfrqctkp`, is
+shared with Dreamboard** (RISK-003 here; DB-RISK-003 there).
+
+The gate presents it as belonging to one product. It does not. A policy change authored for
+`lounge_posts` / `likes` / `comments` / `follows` lands in the same project that holds
+Dreamboard's Passport, vault, graph and audiobook tables.
+
+**Binding condition before `WM-SEC-P0-02` is applied** — recorded in both registers under
+the DB-DEC-002 cross-product exception, and cheap to honour:
+
+1. A backup exists.
+2. `DB-SEC-P1-01` has enumerated which tables Dreamboard owns and their **live** policies —
+   from the live project, not from migration files, which show intent rather than state.
+   **This has never been run. It is UNKNOWN, not "probably fine."**
+3. A named Dreamboard-side reviewer signs off.
+
+Condition 3 currently has nobody to satisfy it: **no employee is assigned to Dreamboard at
+all** — see DB-RISK-007, filed today (`f5f78ac`). Dreamboard's `origin/main` has not moved
+since 2026-07-28 while this repository has taken every commit.
+
+**This does not block WM Pro's launch further than it already is.** It changes *how* the
+existing blocker must be cleared, not *whether*. Doing (2) is a read-only enumeration and
+could be finished in one short session by anyone with Supabase access.
+
+---
+
 ### V-009 · `e0a5ed7` WM-STATE-P0-01 Markov engine — **PARTIALLY VERIFIED · NOT "SHIPPED"** · returned to the queue
 
 **The engine itself is good work.** `src/lib/markov.ts` (297 lines) makes fabrication
