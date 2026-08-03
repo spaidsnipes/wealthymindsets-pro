@@ -1034,3 +1034,48 @@ handed to Noah — dispatched `dispatches/2026-08-02/1725-noah-wm-data-p0-01-fix
 | **Why it matters** | Futures currently have **no WS path at all** (Yahoo REST only per the WM-DATA-P0-01 provider matrix) — tastytrade/dxFeed would be the first live futures quote stream available. |
 | **Scope** | Wire tastytrade dxFeed as a real provider in the quote fallback chain, Founder-gated read-only. Do not claim liveness until a verified quote timestamp proves it (`tastytrade.ts:211` doctrine). No order-placement code — DEC-005 boundary stays. |
 | **Filed by** | Atlas checkpoint, 2026-08-02 17:25 CDT, from Forge's `WM-DATA-P0-01` audit §5/§7. |
+
+---
+
+## NEHEMIAH 2026-08-03 10:40 CDT sweep — Doctrine ingestion + Bible §46 gate-gap tickets + §45 Founder-only placeholders
+
+**HEAD:** `e768558` · **Dispatch:** `dispatches/2026-08-03/1040-nehemiah-market-open-sweep-doctrine-cross-product-gate-4.md`
+Filing compact rows so the whole open decision surface is visible in one glance. **Nehemiah does not scope, size, or pre-decide these** — Founder-only rows are 1-line placeholders per §48 evidence discipline; ops-gate-gap rows have owners assigned but stay P0 backlog until spec authored.
+
+### Doctrine + DLA validation tickets
+
+| Ticket | P | Owner | Status | Objective | Never in scope |
+|---|---|---|---|---|---|
+| **WM-OPS-P1-01** | P1 | Nehemiah tracks; Forge/Micah author per-ticket at next update; Sentinel gates future verdicts against §7 conformance | BACKLOG | ATH Universal Product Doctrine §7 field-ingestion sweep: every OPEN ticket gains the 10 §7 fields (core problem, resilience+recovery, studio+DoD, KISS+progressive-disclosure, JKD, WOW, truth+evidence, a11y/privacy/safety/agency, failure+rollback+continuity, metrics). Additive-only; does not rewrite shipped work. | Retro-editing shipped commits. Blocking in-flight tickets on §7 backfill. |
+| **WM-DLA-P1-11** | P1 | Forge index → Nehemiah publish | BACKLOG | Cross-map every DLA ticket (`WM-DLA-P1-01..10`) to a specific Markov Pro DLA 100% Blueprint module + §16 validation gate. No DLA ticket ships without a module id. | Reordering DLA priorities. |
+
+### Bible §46 gate-gap tickets (new coverage for gates 3/5/6/7)
+
+| Ticket | P | Owner | Status | Objective | Never in scope |
+|---|---|---|---|---|---|
+| **WM-PAPER-P0-01** | P0 (Bible §46 Gate 3) | Forge contract → Noah impl → Sentinel verify | BACKLOG | Paper-trading lifecycle end-to-end: submit → fill → close → PnL → journal. Independent of live-broker; unblocks Trading-Safety gate. | Live order placement (DEC-005 boundary stays). Auto-fill against non-real quotes. |
+| **WM-LEGAL-P0-01** | P0 (Bible §46 Gate 5 + §45 Founder-only) | **FOUNDER-ONLY** kickoff decision (engage counsel, define scope) | AWAITING FOUNDER | Legal review kickoff — jurisdiction(s), scope (broker/copy/token), counsel selection. | Any employee choosing counsel or scope. |
+| **WM-MOBILE-P0-01** | P0 (Bible §46 Gate 6) | Micah lead → Sentinel iPhone+iPad screenshot verify | BACKLOG | Mobile-parity re-sweep at current HEAD: iPhone (360/390) + iPad (834). Bind to `WOW_RESPONSIVE_STANDARD.md`. | Redesign of surfaces already responsive; new features. |
+| **WM-SUPPORT-P0-01** | P0 (Bible §46 Gate 7 + §45 Founder-only scope) | FOUNDER-ONLY scope decision → Micah spec → Noah impl | AWAITING FOUNDER | Support-surface bootstrap: in-app bug report + status page + refund flow — scope defined by Founder, then designed + built. | Employees choosing what support surface exists. |
+
+### §45 Founder-only decision placeholders (delta over Atlas's 8-item list — 10 rows, 1 line each per §48 evidence discipline)
+
+| Ticket | Bible ref | Item | Status |
+|---|---|---|---|
+| **WM-COPY-JURIS-01** | §38 | Copy-trading launch timing + jurisdiction | AWAITING FOUNDER |
+| **WM-PERF-DEFAULTS-01** | §37 | Public performance defaults (Verified Performance) | AWAITING FOUNDER |
+| **WM-TIER-STRUCTURE-01** | §39 | Subscription tier structure + pricing | AWAITING FOUNDER |
+| **WM-TOKEN-SUPPLY-01** | §45 | WM$ / token supply + allocations | AWAITING FOUNDER |
+| **WM-FUTURES-SCOPE-01** | §45 | Futures/options launch scope (distinct from `WM-BROKER-QUOTE-P0-01` wiring — this is *what launches* not *how quotes wire*) | AWAITING FOUNDER |
+| **WM-LOUNGE-ALGO-01** | §Lounge | Lounge feed algorithm (chronological? engagement? both?) | AWAITING FOUNDER |
+| **WM-NODE-RULES-01** | §45 | Gold / Platinum / Diamond node rules | AWAITING FOUNDER |
+| **WM-BRAND-NAMING-01** | §45 | Entity + brand naming (WM Pro vs WealthyMindsets vs …) | AWAITING FOUNDER |
+| **WM-VPW-METRIC-01** | §45 | VP Worlds default metric — **blocked-on** `WM-VP-WORLDS-DEF-01` (definition source) | BLOCKED |
+| **WM-COMPLIANCE-ROADMAP-01** | §45 | Compliance roadmap (KYC/AML/best-execution touchpoints) | AWAITING FOUNDER |
+
+All FOUNDER-ONLY rows are surfaced to Atlas for Drive publishing per §48 evidence discipline. No employee proceeds on these without a Founder ruling recorded in `DECISIONS.md`.
+
+### Gate-rule corrections landed this sweep (from Sentinel V-012/V-013, `818bfee`)
+
+- **Gate 2.4** (`WM-DRAW-P0-01`): static PASS ≠ GREEN. Runtime evidence (<150ms, 60fps, Esc-cancel, touch-drag) required from Sentinel on Founder-authenticated Chrome (blocked by RISK-001 / Gate 5).
+- **Gate 4.2** (`WM-SEC-P0-02`): CROSS-PRODUCT with Dreamboard (shared Supabase `zrzaifaxecwgpfrqctkp`). Binding preconditions: backup exists · `DB-SEC-P1-01` LIVE-policy enumeration · named Dreamboard-side reviewer signs off. Condition #3 currently has nobody assigned (`DB-RISK-007`).
