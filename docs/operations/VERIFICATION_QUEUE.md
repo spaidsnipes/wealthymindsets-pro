@@ -134,7 +134,14 @@ independently-checkable method does not get repeated here as fact.
 
 ---
 
-### V-010 · `d81a592` WM-DRAW-P0-01 rail accessibility — **PARTIALLY VERIFIED (static)** · gate 2.4
+### V-012 · `d81a592` WM-DRAW-P0-01 rail accessibility — **PARTIALLY VERIFIED (static)** · gate 2.4
+
+> **Renumbered.** Filed as V-010/V-011; a concurrent session had already used
+> V-010 for the DEC-012 audit. Renumbered to V-012/V-013 rather than leaving two
+> different V-010s — a verification ID that resolves to two records is worse than a gap.
+> **Standing suggestion:** the next employee to touch this file should add a
+> "next free V-number" line at the top; concurrent sessions cannot see each
+> other's in-flight edits and this will recur.
 
 Single file, `src/components/chart/LeftDrawingSidebar.tsx` (+58/-16).
 
@@ -160,7 +167,7 @@ by this entry.
 
 ---
 
-### V-011 · Cross-product hazard in Gate 4 — **`WM-SEC-P0-02` is not a WM-Pro-only ticket**
+### V-013 · Cross-product hazard in Gate 4 — **`WM-SEC-P0-02` is not a WM-Pro-only ticket**
 
 Gate 4 lists `WM-SEC-P0-02` (apply staged Supabase RLS fixes) as a WM Pro launch blocker,
 "2 days silent — escalated." **The Supabase project it targets, `zrzaifaxecwgpfrqctkp`, is
