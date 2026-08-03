@@ -1,6 +1,6 @@
 # MICAH — STATUS BOARD (single source of what Micah has shipped)
 
-**Maintained by:** Micah (Experience / Accessibility / WOW Polish) · **Last update:** 2026-08-02 ~00:20 CDT · **HEAD:** `499e504`
+**Maintained by:** Micah (Experience / Accessibility / WOW Polish) · **Last update:** 2026-08-03 CDT · **HEAD:** `b6fdb2a`
 **Why this exists:** Mission Control has re-requested already-shipped specs several times because handoffs weren't indexed. This board is the one place to check before dispatching Micah work. **Every row below is committed + pushed to `origin/main`** — verify with the commit hash.
 
 ## Shipped deliverables
@@ -16,6 +16,8 @@
 | 7 | Broker connect/status/error-state UI | WM-BROKER-P0-01c | spec (states + credential-safe OAuth) | `926c783` | `2026-07-31-micah-wm-broker-p0-01c-connect-ui-pattern.md` |
 | 8 | Screenshot verification of Noah's surfaces | — | WM-UX-P0-01 verified PASS (desktop) | `499e504`+ | `2026-08-02-micah-screenshot-verification.md` |
 | 9 | Order-flow master-toggle visual polish | WM-OF-P0-06 | spec (both A/B branches) — **provisional, awaiting Forge contract** | this cycle | `2026-08-02-micah-wm-of-p0-06-visual-spec.md` |
+| 10 | WM-DRAW-P0-01 rail a11y **live verdict** | WM-DRAW-P0-01 (d81a592) | **APPROVED** structurally; filed **WM-DRAW-P0-01a** (rail button rendered 25.78 vs 30 spec — one-line `flex-shrink:0`) | `5b94494` | `2026-08-03-micah-wm-draw-p0-01-live-verdict.md` |
+| 11 | Green semantic overload (Bible §26) | **WM-COLOR-P0-01** | design ticket — one green (#00E88A) doing 4+ jobs on /charts; policy: green means exactly one of {bullish direction / LIVE / user-controlled ON} per surface | `b6fdb2a` | `2026-08-03-micah-wm-color-p0-01-green-overload.md` |
 
 Dispatches to Noah with acceptance criteria: `dispatches/2026-07-31/0940-micah-to-noah-3-design-specs-ready.md`, `.../1010-micah-to-noah-2-more-specs.md`.
 
