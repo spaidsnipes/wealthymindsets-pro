@@ -1031,3 +1031,226 @@ Appendix C.3 is still the fastest path.
   private content is being republished.
 - The corpus is still fully retained; still 38 desktop recordings uninventoried
   by content; still no deletion authorized.
+
+---
+
+# Appendix E — Content-identification pass over 35 previously unreviewed recordings
+
+Added 2026-08-03. Live-observation lane is **blocked** (claude-in-chrome
+extension reports "not connected", MCP tab group is architecturally isolated
+from the founder's authenticated Chrome session anyway), so this session
+pivoted to the standing gap: 38 desktop recordings whose contents were
+uninventoried.
+
+Environmental note: the session scratchpad is wiped between agent turns.
+Frame extractions have to complete inside the same turn as their reads or
+they vanish. This pass was compressed to a single turn accordingly. **Findings
+below are what was actually decoded and viewed, not what was intended.**
+
+## E.1 Corpus growth
+
+The prior corpus count (41 desktop + 2 phone) is out of date. One new
+recording has appeared since the initial census:
+
+- **`Screen Recording 2026-07-28 at 6:47:08 PM.mov`** — recorded the same
+  day as REC-01/02 but ~7 hours later. Not previously logged.
+
+Corpus now: **42 desktop + 2 phone + Downloads odds**. Retention unchanged;
+no deletion authorized on any asset.
+
+## E.2 Frames extracted this session
+
+One mid-recording identification frame was pulled from every previously
+unreviewed `.mov` on Desktop that was longer than 5 seconds (35 files). Of
+those, **8 were viewed and classified** this turn; the remaining 27 exist
+as identification-ready but were not read in this pass.
+
+Naming convention below (`##_YYYY-MM-DD_h_mm_ss AM/PM`) is the per-file
+sequence I extracted; `#` letters map to `docs/ATH_VIDEO_EVIDENCE_2026-07-28.md`
+appendix E only, not to REC-nn IDs.
+
+## E.3 Product-behavior findings — VIDEO CONFIRMED
+
+### VE-029 — Big Trades bubbles cluster/collide at current price (P0 defect, direct evidence)
+- **Recordings + timestamps:**
+  - `#23 = 2026-07-06 10:52:15 AM` @ ~21:25 (mid-file mark). 42m43s / 1.9 GB.
+  - `#22 = 2026-07-06 1:09:07 PM` @ ~21:26 (mid). 43m / 35 MB.
+- **Observed (SAW, both frames):** authenticated
+  `wealthymindsets-pro.vercel.app/charts` on **TSLA, 15m timeframe**. In both
+  independent captures, the Big Trades bubbles are visibly overlapping into a
+  dense stack near the current-price line at the right edge of the chart.
+  Notional labels in `#22` are readable through the collision — "812.0M",
+  "1773.8M", "9741.9M", "1487.2M", "1503.2M", "846.6M", "718.0M", "715.7M",
+  "705.4M", "623.2M", "142.6M" — multiple large bubbles overlapping each
+  other and the price axis, with smaller bubbles cascading below.
+- **Verification: VERIFIED — SAW.** Direct visual evidence in shipped UI in
+  **two independent sessions** on the same trading day. Not inferred, not
+  reproduced synthetically, not reported from source only.
+- **Severity:** **P0** · **Product:** WM PRO
+- **Ticket links:** direct evidence for the defect Mission Control called out
+  as "Delta bubbles UI issue" and the "Big Trades bubbles colliding" claim
+  that was UNCONFIRMED through Appendix C.
+- **Nuance:** the founder's original description was 30m; the video shows the
+  same defect at 15m. So the defect **is not gated to 30m specifically** —
+  it manifests on 15m too. Widen the ticket's repro spec accordingly.
+
+### VE-030 — Volume Profile / VP Worlds subsystem visibly renders on /charts
+- **Recording + timestamp:** `#17 = 2026-06-30 8:49:08 AM` @ ~27:29. 55m / 3.4 GB.
+- **Observed (SAW):** authenticated WM Pro `/charts` at 13:16 clock,
+  TSLA 415.32 on 15m. Right-side panel shows a working VOL PROFILE with
+  **Full Day VP / Session VP toggle**, BID/PRICE/ASK columns rendering
+  numeric quotes, and a labeled **PASSIVE ORDERS / VALUE AREA** row with
+  `VAH 416`, `POC 414.5`, `VAL 409.5` (Value Area High / Point of Control /
+  Value Area Low). Toolbar shows the full order-flow row: `ORDER FLOW ·
+  Bid × Ask · Delta · Vol Profile · Imbalance · Agg/Passive · Big Trades ·
+  WM Fixed VP · WM Session VP · Candles`. Full DOM ladder rendering to the
+  right of that. Chart is on 15m; timeframe row still bare `D/W/M` as
+  documented in VE-013.
+- **Verification: VERIFIED — SAW.**
+- **Severity:** N/A (capability confirmation) · **Product:** WM PRO
+- **Ticket links:** cross-check for the VP Worlds gap matrix at 79a9aaf.
+  Session VP + Full Day VP + VAH/POC/VAL boxes are all SHIPPED and visibly
+  working on 2026-06-30 — flag them as **VERIFIED IN VIDEO** in the matrix
+  regardless of whether they broke later. Whether they still work post the
+  VP crypto fix in-flight this week is unknown from video; that gap is why
+  Mission Control has been asking for live observation, which is blocked.
+
+## E.4 Reference / competitor evidence — VIDEO CONFIRMED
+
+### VE-031 — Webull DESKTOP APP session (Mac native app, authenticated)
+- **Recording + timestamp:** `#26 = 2026-07-06 8:45:52 AM` @ ~62:00 (mid).
+  **2h 6m 10s / 6.4 GB** — one of the corpus heavyweights.
+- **Observed (SAW):** menu bar reads **"Webull Desktop"**. Native macOS app
+  (not `app.webull.com` web). Chart on TSLA option contract
+  (TSLA $390.06 26 (W) Put 100), 15-minute bars. Timeframe row visible at
+  bottom of chart: **`1m · 5m · 15m · 30m · 1h · 2h · D · W · M` — 9 intervals.**
+  Tabs across app top: `Chart · Options · Positions · Watchlists`.
+  Volume + VMA panel below. Authenticated (`Individual Margin(<account>)`
+  label visible; per policy the account identifier is not transcribed).
+- **Verification: VERIFIED — SAW.**
+- **Severity:** N/A (reference material) · **Product:** SHARED DESIGN REFERENCE
+- **Cross-reference for VE-022 / MC's Webull questions:**
+  - Webull's **native desktop app** offers only 9 intervals; WM Pro's chart
+    offers 21 (VE-013). Interval breadth is a WM Pro strength versus this
+    competitor at the desktop tier.
+  - **Webull web `app.webull.com`** — still not in the corpus. The
+    "Webull public app 390×844 / 1280×400" claim (VE-022) STILL has NO
+    EVIDENCE from this pass — desktop app is a different surface entirely.
+- **Retention & safety:** the account identifier and any positions visible
+  in later frames of this recording are sensitive; no frame from `#26`
+  will be committed to the repo.
+
+### VE-032 — TradingView with Tradovate broker connection on NQ futures
+- **Recording + timestamp:** `#32 = 2026-07-15 9:55:19 AM` @ ~25:33.
+  51m / 731 MB.
+- **Observed (SAW):** TradingView chart `OaWoIkYP` displaying `NQ1! ·
+  NASDAQ 100 E-mini Futures · 15 · CME` (NQ1! is the front-month rolling
+  ticker). Same **"Master Strategy — Markov Pro v2"** indicator seen in
+  REC-03, running on futures. Regime HUD present: SIDEWAYS regime, transition
+  matrix (BULL 74/13/13, BEAR 10/90/0, SIDE 12/1/87 — same static values as
+  REC-03, consistent with a daily-bar long-run model). Right side panel is
+  a **live Tradovate order ticket** — Order/DOM tabs, Sell/Buy price row,
+  Market/Limit/Stop/Stop Limit tabs, Take-profit / Stop-loss ticks, Time in
+  Force selector, "Start creating order" button. Below chart: Tradovate
+  positions/orders panel with a toast reading
+  "Take Profit order modified on NQU6" (September 2026 NQ contract).
+- **Verification: VERIFIED — SAW.**
+- **Severity:** N/A (reference material) · **Product:** SHARED DESIGN REFERENCE
+- **Cross-reference for the "futures wiring live test" lane MC keeps
+  requesting:** this is *NQ futures traded through Tradovate INSIDE
+  TradingView*, not inside WM Pro. It's competitor / reference evidence
+  for what the founder is using elsewhere. WM Pro's tastytrade dxFeed fix
+  Noah is shipping cannot be video-verified against this — the surfaces
+  don't overlap. Provide separately with WM Pro futures footage.
+- **Retention & safety:** Tradovate account balance is visible on-frame; no
+  crop from this recording will be committed to the repo.
+
+## E.5 Non-product findings — VIDEO CONFIRMED
+
+### VE-033 — 2026-07-28 6:47 PM recording = Claude Desktop ops chat ("ATLAS COMPANY MEMORY")
+- **Recording + timestamp:** `#35 = 2026-07-28 6:47:08 PM` @ mid.
+- **Observed (SAW):** Claude Desktop app, sidebar with ATH MISSION CONTROL /
+  SENTINEL - DREAMBOARD / NOAH-DREAMBOARD / SENTINEL WM PRO / FORGE-WM PRO
+  APP BUILD / FORGE-DREAMBOARD BUILD / etc. Active chat "ATLAS COMPANY
+  MEMORY" discussing WM World / ATH mission control watch, "second bus
+  exists in Drive", "stopped the Drive mirror", references to docs at
+  ATH_COMPANY_CENTER / ACTIVE_TASK_QUEUE / EMPLOYEE_STATUS.
+- **Verification: VERIFIED — SAW.** Ops / meta discussion, not product.
+- **Notable side-observation for the competitor lane:** desktop clutter
+  shows a **`bookmap_install-7...4.dmg`** installer file. Bookmap installer
+  is on-disk on the founder's desktop. If the "Bookmap comparison" lane
+  ever becomes live, that's where it starts.
+
+### VE-034 — 2026-05-24 4h30m recording = Claude Desktop ops chat (Pine Script Markov strategy)
+- **Recording + timestamp:** `#02 = 2026-05-24 5:23:12 PM` @ ~2h15m mid.
+  **4h 30m / 8.0 GB** — the corpus's largest single asset.
+- **Observed (SAW):** Claude Desktop app, chat titled *"Pine Script Markov
+  strategy indicator setup"*. Discussion about candle-outline color coding
+  (green advance / orange distribution / red decline), "Build and validate
+  Pine Script with Wyckoff phase candle outlines", "Fix trailing operator
+  issue and revalidate", both marked Done. Freemium banner "You are out
+  of free messages until 10:10 PM" visible. Not a product recording.
+- **Historical / research value:** this is where a working *Pine Script*
+  Markov strategy with **Wyckoff phase candle outlines** was worked out
+  with an assistant. Directly relevant to WM-WYCK-P0-00 through
+  WM-WYCK-P1-02 in [WM_WYCKOFF_SPEC_2026-07-28.md](WM_WYCKOFF_SPEC_2026-07-28.md).
+  A specific frame of the Pine source in this 4h30m recording could
+  provide the "founder-authored Wyckoff classification rules" that the spec
+  is BLOCKED on. Not extracted this pass (too large to sweep frame-by-frame
+  in one turn); flagged as **HIGHEST-VALUE unreviewed asset in the corpus.**
+
+## E.6 GitHub / repo evidence
+
+### VE-035 — GitHub profile `spaidsnipes` showing wealthymindsets-pro repo as public
+- **Recording + timestamp:** `#27 = 2026-07-06 9:05:35 PM` @ ~15:05. 30m / 241 MB.
+- **Observed (SAW):** `github.com/spaidsnipes` profile page, "Joined 3 weeks
+  ago", July 2026 activity — "Created 1 commit in 1 repository:
+  spaidsnipes/wealthymindsets-pro (1 commit)" and "Created their first
+  repository: wealthymindsets-pro (Public)".
+- **Verification: VERIFIED — SAW.**
+- **Ticket links:** direct evidence for **VE-002** (GitHub connector zero
+  repositories). The repo exists, is public, is under `spaidsnipes`. The
+  connector's inability to see it must therefore be an authorization scope
+  issue on the GitHub App installation, not repo visibility. Points
+  Sentinel / Nehemiah at the right diagnostic.
+
+## E.7 27 recordings extracted but not classified this session
+
+Identification frames exist in scratchpad but were not opened this turn.
+They are, in the numbering above:
+`01, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 16, 18, 19, 20, 21, 24, 25, 28, 29, 30, 31, 33, 34`.
+
+That's 27 unread identification frames. Since the scratchpad wipes on turn
+boundary, they will need to be re-extracted next session. Two options for
+next pass:
+
+1. Commit the identification frames themselves to the repo (small PNGs,
+   ~50 KB each after 900px downscale; ~1.3 MB total). Persists across
+   turns and sessions but adds binary weight to `git`.
+2. Re-extract on demand and classify in one turn per batch.
+
+**Recommendation:** Option 2 for anything hitting the routing queue below,
+Option 1 only for the ~5 heaviest unclassified files that keep coming up.
+
+## E.8 Retention & safety — reconfirmed for this pass
+
+- No frame from `#26` (Webull Desktop, account visible) or `#32`
+  (Tradovate account balance visible) is committed to the repo.
+- Everything visible in the phone recordings from Appendix C stays under
+  the same policy — no crops.
+- No deletion authorized on any asset in the corpus.
+
+## E.9 Cross-check for Mission Control's four confirmed defects
+
+Since Appendix C, this pass produced direct video evidence on one of the
+four. Refreshed status:
+
+| Defect | Video-confirmed? | Evidence |
+|---|---|---|
+| Big Trades bubbles collide at current price | **YES** | **VE-029** (#22, #23 — 07-06 15m TSLA, two independent sessions) |
+| Chart trigger reads plain-text "Smart Money" | not confirmed | Right-panel header at REC-03 shows *Smart Money Tools* with a W icon; the chart-trigger element (a different UI part) was not the visible one. Still inconclusive. |
+| Confluence Score drift 56 → 60 with unchanged inputs | not confirmed | Multiple single readings (46 in `#23`, 83 in REC-03). No time-adjacent before/after pair captured. Needs a targeted capture. |
+| Timeframe label vs. returned bar-size mismatch | not confirmed | Multiple 15m sessions viewed; bars *look* 15-minute-ish but no candle-timestamp axis read was performed at the resolution needed to verify. Founder-driven live check or a targeted axis-crop pass would settle it. |
+
+**One of four is now VERIFIED. The other three remain open, with the exact
+capture that would close each one specified above.**
