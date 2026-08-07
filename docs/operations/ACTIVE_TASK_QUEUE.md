@@ -1119,3 +1119,41 @@ All FOUNDER-ONLY rows are surfaced to Atlas for Drive publishing per §48 eviden
 - **Next action:** next checkpoint confirms Sentinel's WM-UX-P0-01 + WM-DRAW-P0-01 verdicts
   and the scanner-cache re-verify landed; confirms Nehemiah filed WM-COLOR-P0-01 and fixed the
   WM-DATA-P0-01 ID collision; escalate whichever is still missing after 90 min.
+
+---
+
+## WM-CHART-PROV-EMERG-01 — Strip provider-vendor names from user-visible labels
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-CHART-PROV-EMERG-01 |
+| **Product** | WM Pro |
+| **Priority** | P0 — Founder-reported live, verbatim: *"stop exposing where our api keys are from"* |
+| **Owner** | — (READY FOR NOAH) |
+| **Status** | **Sentinel pre-verified 2026-08-07 — premise CONFIRMED current, not yet fixed** |
+| **Objective** | No user-visible chrome names a data vendor (Finnhub/Yahoo/Alpaca/Polygon/Tradier/Alphavantage). Status ("DELAYED"/"LIVE") stays truthful; provenance detail moves to dev-only (`console.debug` / `window.__WM_DATA_PROVENANCE__`). |
+| **Evidence source** | Drive: "WM Pro — EMERGENCY TICKETS — Provider-Name Exposure + Tastytrade Futures Stall" (2026-08-06 23:35 CDT), filed by Atlas |
+| **Sentinel independent verification (source, 2026-08-07)** | Grep across the 6 named files found real, rendered violations — not just comments/identifiers: `StockInfoPanel.tsx:237` — `{realOHLC ? "Live data via Finnhub" : "Loading market data..."}`, rendered unconditionally when `realOHLC` is true. `ChartToolbar.tsx:724` — `"Searching Finnhub global database…"`, rendered in the symbol-search empty-state. `ChartToolbar.tsx:735` — `"Global results (Finnhub)"`, rendered as a live section header. All three are genuine user-facing JSX text, confirmed by reading surrounding render context, not inferred from the grep hit alone. The remaining grep hits across `DOMPanel.tsx`/`WatchlistPanel.tsx`/`MainChart.tsx` are comments, internal variable/prop names (`src: "finnhub"`), or provider-selection logic — not rendered. **Live-browser confirmation not obtained this pass** — Chrome connector unreachable at verification time; flagged, not silently skipped. |
+| **Files / subsystems** | `StockInfoPanel.tsx:237`, `ChartToolbar.tsx:724,735` confirmed; `DOMPanel.tsx`, `WMSessionVP.tsx`, `WatchlistPanel.tsx`, `MainChart.tsx` need a fresh grep pass after the above three are fixed, since a first-pass grep can miss conditionally-rendered strings. |
+| **Acceptance criteria** | Per Drive ticket: 1) vendor-agnostic user labels. 2) provenance preserved in dev/logs only. 3) status labeling stays truthful. 4) verified at 360×800/390×844/834×1194/desktop. 5) Sentinel grep returns zero user-facing vendor strings under `src/`. |
+| **Ownership** | Micah: label copy. Noah: implementation. Sentinel: grep re-audit + live-verify once shipped. |
+| **Next action** | Ready for Noah. Sentinel re-verifies (grep + live) on submission — do not self-close on grep alone per house standard. |
+
+---
+
+## WM-BROKER-TASTY-ESC-01 — tastytrade futures wiring, stalled 8+ days
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-BROKER-TASTY-ESC-01 |
+| **Product** | WM Pro |
+| **Priority** | P0 — Founder escalation, verbatim: *"Why don't I see tastytrade activated to the futures I've said many times to have it wired up"* |
+| **Owner** | — (READY FOR NOAH — spec already exists, no new contract needed) |
+| **Status** | **Sentinel pre-verified 2026-08-07 — core claim CONFIRMED current; one sub-detail stale** |
+| **Objective** | `/ES` `/NQ` `/GC` `/CL` render live through the tastytrade adapter with correct tick/point values, per Bible §33. |
+| **Evidence source** | Forge contract `docs/operations/handoffs/forge/2026-07-31-forge-wm-broker-p0-01-tastytrade-futures.md` (spec, unimplemented for 8 days); Drive emergency doc above. |
+| **Sentinel independent verification (source, 2026-08-07)** | **Core claim CONFIRMED:** zero tastytrade futures streaming/instrument function exists anywhere in `src/lib/tastytrade.ts`; zero files under `src/components/chart/` or `src/app/charts/` reference tastytrade at all. Futures are still 100% sourced from Yahoo — `WatchlistPanel.tsx:73` (`// Futures → Yahoo only`) and `MainChart.tsx:2310` (`Futures use Yahoo ES=F`) confirm this directly, unchanged. `isFuturesApproved` (`tastytrade.ts:159`) is computed from real account data but has **zero consumers anywhere in `src/`** — confirmed by repo-wide grep, matches the contract's "computed but unused" claim exactly. **One correction to the ticket as worded:** it states `supportedAssetClasses` "hardcodes without a 'future' enum" — that's now stale. `tastytrade.ts:201` already sets `supportedAssetClasses = ["equity", "option", "future"]` unconditionally on successful connection. The string is present; nothing routes on it. Don't let a reader "fix" the string and believe the ticket is closed — the actual gap is the missing instrument/streamer-symbol path and the unused `isFuturesApproved` gate, not the enum list. |
+| **Files / subsystems** | `src/lib/tastytrade.ts` (add futures instrument + streamer-symbol path, wire `isFuturesApproved`), chart/watchlist data-source routing (currently Yahoo-only for futures). |
+| **Acceptance criteria** | Per Forge contract: 1) asset-class capability drives behavior, not just a label. 2) `isFuturesApproved` actually gates the futures path. 3) streamer-symbol path exists. 4) `/ES /NQ /GC /CL` render live with correct tick/point values. 5) continuous-vs-specific contract distinction preserved (Bible §33). |
+| **Ownership** | Noah: implementation per existing Forge contract. Sentinel: live-test when futures market next opens. |
+| **Next action** | Ready for Noah — no new spec needed. Sentinel live-verify blocked until futures market hours + a working Chrome/session path. |
