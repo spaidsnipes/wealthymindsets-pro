@@ -5,11 +5,21 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const base = "c09b17439c7de22cc8311c454491edc465bf7205";
+// WM-SCANNER-RECONCILE-01: this test was carried from branch A onto the
+// reconciled branch (built off origin/main per forge scanner-cache-reconciliation
+// §3). The manifest-freeze is a branch-PURITY guard — it pins the exact file set
+// the change is allowed to touch. Its base and expected list are updated to the
+// reconciled branch's set (A's identity module + B's consumer module + the
+// synthesis cache/test). Every a11y BEHAVIOR assertion below is unchanged from A.
+const base = "4add406db4e197a166c4038e1a06f4739a1db9d2"; // origin/main at branch point
 const expectedManifest = [
   "M\tsrc/app/scanner/page.tsx",
-  "A\tsrc/lib/scannerRequestIdentity.test.ts",
   "A\tsrc/lib/scannerRequestIdentity.ts",
+  "A\tsrc/lib/scannerRequestIdentity.test.ts",
+  "A\tsrc/lib/yahooCandleConsumer.ts",
+  "A\tsrc/lib/yahooCandleConsumer.test.ts",
+  "A\tsrc/lib/scannerFailureCache.ts",
+  "A\tsrc/lib/scannerFailureCache.test.ts",
   "A\ttests/scanner-accessible-retry-contract.mjs",
 ].sort();
 
