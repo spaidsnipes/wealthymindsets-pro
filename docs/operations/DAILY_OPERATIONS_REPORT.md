@@ -226,3 +226,38 @@ The 15:06 directive orders Sentinel to issue APPROVED/RETURN on `WM-CHART-P0-01B
 - **send_message unavailable:** this checkpoint runs as an unattended scheduled task; the live-nudge channel is disabled for unattended sessions. All 4 dispatches this round are bus-file only — flag for next attended checkpoint to send a live ping if any of these 4 are still dormant then.
 - **No `src/` touched by Mission Control this checkpoint.** No role violations found.
 - **Next action:** next checkpoint confirms Noah has claimed `WM-DATA-P0-01` (commit or session activity) and that Sentinel's two verify verdicts landed; escalate whichever is still missing after 90 min.
+
+---
+
+## Checkpoint — 2026-08-06 ~23:00 CDT (scheduled, Atlas/coordinator)
+
+- **Current blocker → owner → age → next action:** scanner-cache reconciliation
+  (`WM-CHART-P0-01B-PREREQ` lineage) — Noah shipped M1 to `origin/noah/scanner-cache-reconciled`
+  @ `04f0824` (pushed, both PR1 RETURNs resolved, 140/140 vitest, tsc/build clean) and
+  self-dispatched Sentinel for §5 re-verify, "do not merge until APPROVE." Owner: **Sentinel**,
+  age ~0 min at dispatch. Next action: Sentinel runs Forge's §5 test list + the 3 authenticated
+  live repros, publishes verdict.
+- **Also still open, older:** `WM-UX-P0-01` (`0270590`) and `WM-DRAW-P0-01` runtime evidence
+  (`d81a592` — Gate 2.4 static-only per V-012 correction), both dispatched to Sentinel on 08-02
+  and never actioned. Bundled into this checkpoint's Sentinel dispatch, ahead of the newer item.
+- **Scheduler gap:** no checkpoint session ran for ~3 days (2026-08-02 22:36 → 2026-08-07
+  03:09 CDT/UTC). Team rows were stale by days rather than the usual ~90 min. No data was lost —
+  Forge and Micah both had stray untracked handoffs from that window, relayed to the bus by the
+  prior checkpoint run (`4add406`) just before this one.
+- **Live-session collision, handled read-only:** Noah's session was actively running mid-
+  checkpoint in the same shared working directory. Local `main` briefly held 3 unpushed,
+  since-superseded commits from an earlier attempt at the same work. Atlas did not reset, edit,
+  or push anything in `src/` — waited it out; Noah's own session reconciled it cleanly before
+  Atlas needed to touch git state.
+- **Queue hygiene defects found, not fixed this checkpoint (flagged to Nehemiah):** (1) two
+  different tickets both titled `WM-DATA-P0-01` in `ACTIVE_TASK_QUEUE.md` — needs a rename;
+  (2) `WM-COLOR-P0-01` (Micah, `b6fdb2a`) has no queue ticket body / owner chain.
+- **Dispatched (bus):** Sentinel, Forge, Nehemiah, Micah, Video Intelligence — all 5 dormant
+  employees with unblocked ready work (Noah excluded, active).
+- **Pinged (send_message, cap 3):** Sentinel, Forge, Nehemiah.
+- **Retired:** 1 dispatch (`dispatches/2026-08-03/1040-nehemiah-market-open-sweep-...` —
+  Nehemiah's own 10:40 sweep commit `803b74a` fulfilled it).
+- **No `src/` touched by Mission Control this checkpoint.** No role violations found.
+- **Next action:** next checkpoint confirms the 3 Sentinel verdicts (UX-P0-01, DRAW-P0-01
+  runtime, scanner-cache) and the two queue-hygiene fixes from Nehemiah; escalate whichever is
+  still missing after 90 min.

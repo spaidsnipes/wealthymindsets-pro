@@ -1079,3 +1079,43 @@ All FOUNDER-ONLY rows are surfaced to Atlas for Drive publishing per §48 eviden
 
 - **Gate 2.4** (`WM-DRAW-P0-01`): static PASS ≠ GREEN. Runtime evidence (<150ms, 60fps, Esc-cancel, touch-drag) required from Sentinel on Founder-authenticated Chrome (blocked by RISK-001 / Gate 5).
 - **Gate 4.2** (`WM-SEC-P0-02`): CROSS-PRODUCT with Dreamboard (shared Supabase `zrzaifaxecwgpfrqctkp`). Binding preconditions: backup exists · `DB-SEC-P1-01` LIVE-policy enumeration · named Dreamboard-side reviewer signs off. Condition #3 currently has nobody assigned (`DB-RISK-007`).
+
+---
+
+## Coordinator log — 2026-08-06 ~23:00 CDT checkpoint (Atlas)
+
+- **Context:** the scheduled-checkpoint task itself appears to have gone dormant for ~3 days
+  (no checkpoint session activity 2026-08-02 22:36 → 2026-08-07 03:09 CDT/UTC per session
+  history) — the whole team's `EMPLOYEE_STATUS.md` rows were stale by days, not the usual
+  ~90 min. Git activity shows the same gap: last commit before this run's start was
+  `bc1404a` (2026-08-03 16:46), then one relay commit (`4add406`, 2026-08-06 22:55, from
+  presumably the checkpoint session that just resumed).
+- **Live collision handled carefully:** Noah's session (`NOAH-WM Pro`) was **actively running**
+  during this checkpoint (`isRunning: true`, editing scanner-cache reconciliation files in the
+  same shared working directory). Mid-checkpoint, local `main` briefly carried 3 unpushed
+  commits (`f2574e1`, `513bdce`, `09d5b4a`) from an earlier direct-on-`main` pass at the same
+  work, before Noah branched to `noah/scanner-cache-reconciled`. Atlas left git state untouched
+  (no reset, no push) rather than risk colliding with an active session's uncommitted WIP —
+  Noah's own session cleaned it up before Atlas needed to act (`87738e8` now sits cleanly on
+  `origin/main`, matching local `main`). No `src/` was read-modified-or-pushed by Atlas.
+- **Ticket-ID collision found (unfixed, flagged to Nehemiah):** two unrelated tickets both
+  named `WM-DATA-P0-01` — "Cross-tab tape dedupe" (line ~341, BACKLOG, unowned) and
+  "Live-quote regression" (line ~1000, the Founder-verified emergency, owner Noah). Needs a
+  rename, not resolved this checkpoint (docs-only edit, deferred to Nehemiah's sweep to avoid
+  editing the same file mid-collision-risk window).
+- **Undocumented ticket found:** Micah shipped `WM-COLOR-P0-01` (green semantic overload,
+  `b6fdb2a`) with no queue ticket body / owner chain — flagged to Nehemiah to file properly.
+- **Dispatched (bus files, `dispatches/2026-08-06/`):** Sentinel (WM-UX-P0-01 + WM-DRAW-P0-01
+  runtime evidence, both still outstanding since 08-02), Forge (pick next Bible-backlog P0 —
+  `WM-BROKER-P1-04` order state machine, now that `WM-BROKER-QUOTE-P0-01` contract is fully
+  relayed), Nehemiah (re-sweep after the 3-day gap + the two queue-hygiene defects above),
+  Micah (WM-OF-P0-06 design pick still outstanding since 08-02), Video Intelligence (repeat:
+  competitor-matrix-row default-idle action, `VI-WM-P0-03` itself stays Founder-blocked).
+- **Skipped:** Noah — active session, no ping needed; self-dispatched Sentinel already
+  (`dispatches/2026-08-05/2320-noah-to-sentinel-m1-scanner-reconcile.md`).
+- **Pinged live (`send_message`, cap 3):** Sentinel, Forge, Nehemiah — highest-leverage:
+  verification bottleneck, next architecture seat, and queue hygiene after the multi-day gap.
+- **No `src/` touched by Mission Control this checkpoint.** No new role violations found.
+- **Next action:** next checkpoint confirms Sentinel's WM-UX-P0-01 + WM-DRAW-P0-01 verdicts
+  and the scanner-cache re-verify landed; confirms Nehemiah filed WM-COLOR-P0-01 and fixed the
+  WM-DATA-P0-01 ID collision; escalate whichever is still missing after 90 min.
