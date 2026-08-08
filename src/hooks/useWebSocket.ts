@@ -2,9 +2,11 @@
  * useWebSocket — Optimized real-time market data hook
  *
  * Architecture:
- *  1. Tries Polygon.io WebSocket (requires NEXT_PUBLIC_POLYGON_KEY)
- *  2. Falls back to Finnhub WebSocket (requires NEXT_PUBLIC_FINNHUB_KEY)
- *  3. Falls back to observed REST polling when streaming is unavailable
+ *  1. Crypto: Coinbase / Binance WebSocket (no key, client-safe).
+ *  2. Stocks: REST polling via /api/finnhub (server proxy holds the key).
+ *     Client-side Finnhub WebSocket was removed 2026-08-08 (WM-SEC-P0-03)
+ *     because it required NEXT_PUBLIC_FINNHUB_KEY in the browser bundle.
+ *  3. Falls back to observed REST polling when streaming is unavailable.
  *
  * Optimizations:
  *  - Message batching: accumulates ticks and flushes in RAF (requestAnimationFrame)
