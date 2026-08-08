@@ -29,8 +29,11 @@ interface NewsItem {
   breaking?: boolean;
 }
 
-/* ── Real Finnhub news fetcher ───────────────────────────── */
-const FINNHUB_KEY = process.env.NEXT_PUBLIC_FINNHUB_KEY ?? "d8efu9hr01qth3ch5f20d8efu9hr01qth3ch5f2g";
+/* ── Real Finnhub news fetcher (via server proxy — no key in browser) ── */
+// WM-SEC-P0-03: this page used to read NEXT_PUBLIC_FINNHUB_KEY and call
+// finnhub.io directly, shipping the key in the client bundle. All Finnhub
+// calls now route through /api/finnhub which holds the server-only
+// FINNHUB_KEY.
 
 const SOURCE_ICONS: Record<string, string> = {
   "CNBC": "📺", "Reuters": "🔴", "Bloomberg": "🔵", "WSJ": "📰",
@@ -123,8 +126,9 @@ async function fetchFinnhubNews(): Promise<NewsItem[]> {
     const [finnhubArrs, rssRaw] = await Promise.all([
       Promise.all(
         cats.map(c =>
-          fetch(`https://finnhub.io/api/v1/news?category=${c}&token=${FINNHUB_KEY}`, { cache: "no-store" })
-            .then(r => (r.ok ? r.json() : []))
+          fetch(`/api/finnhub?type=news&category=${encodeURIComponent(c)}`, { cache: "no-store" })
+            .then(r => (r.ok ? r.json() : { items: [] }))
+            .then((j: { items?: FinnhubRaw[] }) => j.items ?? [])
             .catch(() => [])
         )
       ),

@@ -207,55 +207,24 @@ async function fetchPolygonOHLCV(sym: string, tf: string, count: number, signal?
   }
 }
 
-/* ── Finnhub OHLCV — primary real data source (Polygon key invalid) ── */
-const FINNHUB_CRYPTOS = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","MATIC","LTC","ATOM","UNI","AAVE"]);
-
+/* ── Finnhub OHLCV — via /api/finnhub server proxy ──────────────────
+ * WM-SEC-P0-03 (2026-08-08): this used to fetch finnhub.io directly with
+ * process.env.NEXT_PUBLIC_FINNHUB_KEY, shipping the key in the client
+ * bundle. All Finnhub calls now go through /api/finnhub which holds the
+ * server-only FINNHUB_KEY. The client-side resMap that duplicated (and
+ * disagreed with) the server's FH_RES on `2m` is deleted; the server is
+ * the single source of truth for interval mapping — see WM-CHART-P0-03
+ * for the still-open fail-closed correctness work on the server map. */
 async function fetchFinnhubCandles(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<Bar[] | null> {
-  const KEY = process.env.NEXT_PUBLIC_FINNHUB_KEY ?? "";
-  if (!KEY) return null;
-
-  // Resolution map — Finnhub supported: 1,5,15,30,60,D,W,M
-  const resMap: Record<string, string> = {
-    "1m":"1",  "2m":"5",  "3m":"5",  "5m":"5",
-    "10m":"15","15m":"15","30m":"30",
-    "1h":"60", "2h":"60", "4h":"60",
-    "D":"D",   "W":"W",   "M":"M",
-    "3M":"M",  "6M":"M",  "1Y":"M",  "3Y":"M",  "5Y":"M",
-  };
-  const resolution = resMap[tf];
-  if (!resolution) return null; // tick TFs unsupported
-
   const upper = sym.toUpperCase();
-  // Futures and forex not supported
-  if (upper.includes("1!") || upper.includes("/")) return null;
-
-  const intervalSec = getIntervalSec(tf);
-  const to   = Math.floor(Date.now() / 1000);
-  // Overfetch to account for weekends / market closures
-  const from = to - Math.round(count * 2.5) * intervalSec;
-
-  let url: string;
-  if (FINNHUB_CRYPTOS.has(upper)) {
-    url = `https://finnhub.io/api/v1/crypto/candle?symbol=BINANCE:${upper}USDT&resolution=${resolution}&from=${from}&to=${to}&token=${KEY}`;
-  } else {
-    url = `https://finnhub.io/api/v1/stock/candle?symbol=${upper}&resolution=${resolution}&from=${from}&to=${to}&token=${KEY}`;
-  }
-
+  if (upper.includes("1!") || upper.includes("/")) return null; // futures/forex unsupported by the proxy
   try {
-    const res  = await fetch(url, { cache: "no-store", signal });
-    const json = await res.json();
-    if (json.s !== "ok" || !Array.isArray(json.t) || json.t.length === 0) return null;
-
-    const bars: Bar[] = (json.t as number[]).map((t: number, i: number) => ({
-      time:   t,
-      open:   json.o[i],
-      high:   json.h[i],
-      low:    json.l[i],
-      close:  json.c[i],
-      volume: json.v[i],
-    })).filter((b: Bar) => b.open > 0 && b.high > 0);
-
-    return bars.slice(-count);
+    const url = `/api/finnhub?sym=${encodeURIComponent(upper)}&type=candles&tf=${encodeURIComponent(tf)}&bars=${count}`;
+    const res = await fetch(url, { cache: "no-store", signal });
+    if (!res.ok) return null;
+    const json = await res.json() as { candles?: Array<{ time: number; open: number; high: number; low: number; close: number; volume: number }> };
+    const bars = (json.candles ?? []).filter(b => b.open > 0 && b.high > 0) as Bar[];
+    return bars.length ? bars.slice(-count) : null;
   } catch {
     return null;
   }

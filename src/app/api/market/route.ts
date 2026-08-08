@@ -1,6 +1,18 @@
 import { NextResponse } from "next/server";
 
-const FINNHUB_KEY = process.env.NEXT_PUBLIC_FINNHUB_KEY ?? "d8efu9hr01qth3ch5f20d8efu9hr01qth3ch5f2g";
+// Server-only Finnhub key. Same fail-fast pattern as /api/finnhub — refuse to
+// call Finnhub with the committed-fallback value in production (WM-SEC-P0-03).
+const COMMITTED_FALLBACK = "d8efu9hr01qth3ch5f20d8efu9hr01qth3ch5f2g";
+const FINNHUB_KEY = (() => {
+  const fromEnv = process.env.FINNHUB_KEY ?? process.env.NEXT_PUBLIC_FINNHUB_KEY;
+  const isProd  = process.env.NODE_ENV === "production";
+  if (isProd) {
+    if (!fromEnv)                     throw new Error("FINNHUB_KEY unset in production. Set it in Vercel and redeploy.");
+    if (fromEnv === COMMITTED_FALLBACK) throw new Error("FINNHUB_KEY equals committed dev fallback in production. Rotate at finnhub.io.");
+    return fromEnv;
+  }
+  return fromEnv ?? "";
+})();
 
 // Map common crypto symbols to Finnhub format
 const CRYPTO_SYMS = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","MATIC","LTC"]);

@@ -10,8 +10,38 @@
 
 import { NextResponse } from "next/server";
 
-const FINNHUB_KEY = process.env.FINNHUB_KEY ?? process.env.NEXT_PUBLIC_FINNHUB_KEY ?? "d8efu9hr01qth3ch5f20d8efu9hr01qth3ch5f2g";
+/**
+ * Server-only Finnhub key. In production, unset or committed-fallback-equal
+ * throws at module load so the route refuses to sign a request with a value
+ * visible in the public repo (WM-SEC-P0-03). NEXT_PUBLIC_FINNHUB_KEY is still
+ * read as a transitional fallback so an in-flight client-side rotation doesn't
+ * strand this route; remove that fallback and this comment once every client
+ * caller has moved to this proxy and NEXT_PUBLIC_FINNHUB_KEY is deleted.
+ */
+const COMMITTED_FALLBACK = "d8efu9hr01qth3ch5f20d8efu9hr01qth3ch5f2g";
+const FINNHUB_KEY = resolveFinnhubKey();
 const BASE = "https://finnhub.io/api/v1";
+
+function resolveFinnhubKey(): string {
+  const fromEnv = process.env.FINNHUB_KEY ?? process.env.NEXT_PUBLIC_FINNHUB_KEY;
+  const isProd  = process.env.NODE_ENV === "production";
+  if (isProd) {
+    if (!fromEnv) {
+      throw new Error(
+        "FINNHUB_KEY is not set in production. Refusing to call Finnhub with " +
+        "a committed fallback. Set FINNHUB_KEY in Vercel and redeploy.",
+      );
+    }
+    if (fromEnv === COMMITTED_FALLBACK) {
+      throw new Error(
+        "FINNHUB_KEY equals the committed dev fallback in production. Rotate " +
+        "immediately at finnhub.io, update the value in Vercel, redeploy.",
+      );
+    }
+    return fromEnv;
+  }
+  return fromEnv ?? "";
+}
 
 /* ── Symbol mapping: WM internal → Finnhub ─────────────────── */
 // Finnhub does not support futures directly on the free plan; we fall back to Yahoo for those.
@@ -146,6 +176,14 @@ export async function GET(request: Request) {
         });
       }
       return NextResponse.json({ sym: rawSym, tf, candles, source: "finnhub" });
+    }
+
+    /* ── News (general or per-category) ─────────────────────── */
+    if (type === "news") {
+      const category = searchParams.get("category") ?? "general";
+      const url  = `${BASE}/news?category=${encodeURIComponent(category)}&token=${FINNHUB_KEY}`;
+      const json = await fhFetch(url, 60_000) as any;
+      return NextResponse.json({ items: Array.isArray(json) ? json : [] });
     }
 
     return NextResponse.json({ error: "Unknown type" }, { status: 400 });

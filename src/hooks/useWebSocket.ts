@@ -819,10 +819,16 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     });
 
     // ── Real data strategy ───────────────────────────────────
-    // 1. Finnhub WebSocket (stocks/crypto, 15s delayed on free plan)
-    // 2. REST polling every 5s (Finnhub for stocks, Yahoo for futures/crypto)
-    // NOTE: Polygon key is known-invalid — skip it entirely to avoid blocking Finnhub WS
-    const finnhubKey  = process.env.NEXT_PUBLIC_FINNHUB_KEY ?? "d8efu9hr01qth3ch5f20d8efu9hr01qth3ch5f2g";
+    // WM-SEC-P0-03 (2026-08-08): client-side Finnhub WebSocket is DISABLED.
+    // It required NEXT_PUBLIC_FINNHUB_KEY, which shipped the API key in the
+    // browser bundle. Stocks now use REST polling via /api/finnhub (server
+    // proxy holds the key). Sub-second tick smoothness for stocks is
+    // sacrificed until a WM-hosted WS proxy is built (follow-up ticket) —
+    // truthful over exposed key.
+    //
+    // Coinbase / Binance crypto WS paths below are unaffected (they need no
+    // key and are already client-safe).
+    const finnhubKey: string | null = null;
 
     // Identify instrument class
     const isFuture = symbol.endsWith("1!") || symbol.includes("=F");
