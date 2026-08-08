@@ -297,20 +297,20 @@ An implementer who believes work is done sets **`READY FOR VERIFICATION`** and h
 | **Ticket ID** | WM-SEC-P0-01 |
 | **Product** | WM Pro |
 | **Priority** | P0 |
-| **Owner** | **Founder** |
-| **Status** | **BLOCKED — Founder action required** |
+| **Owner** | Founder (env-var set in Vercel) + one-thread (hardening commit) |
+| **Status** | **HARDENING WRITTEN, LOCAL ONLY — push gated on Founder confirming `JWT_SECRET` is set in Vercel prod with a non-fallback value.** Under one-thread mode (2026-08-08 supersede) the hardening was authored + smoke-tested; it is not pushed because push == deploy and the site will 500 every route on cold start if `JWT_SECRET` is unset — which is the correct fail-closed behaviour and precisely the reason the queue required Founder confirmation first. |
 | **Objective** | Confirm the env var is set in production, then make the fallback fail fast on boot in production instead of silently degrading. |
 | **Dependencies** | Founder access to Vercel |
-| **Evidence source** | `src/lib/auth.ts:12` — **Sentinel re-verified**: `process.env.JWT_SECRET ?? "<committed fallback>"`. If the var is unset in production, session-signing integrity rests on a value visible to anyone with repo read access. |
+| **Evidence source** | `src/lib/auth.ts:12` (pre-hardening) — `process.env.JWT_SECRET ?? "<committed fallback>"`. If the var is unset in production, session-signing integrity rests on a value visible to anyone with repo read access. Post-hardening: `src/lib/auth.ts` `resolveJwtSecret()` at module load throws when `NODE_ENV==="production"` AND (unset OR equal to `DEV_JWT_SECRET`). |
 | **Files / subsystems** | `src/lib/auth.ts` |
-| **Acceptance criteria** | Founder confirms the var is set (**do not paste the value into any document, commit, or chat**). Then a hardening commit makes an unset `JWT_SECRET` throw on boot when `NODE_ENV === 'production'`. |
-| **Verification requirements** | Sentinel confirms the hardening commit and that no document contains the literal secret. |
-| **Claimed by** | — |
-| **Claim timestamp** | — |
-| **Latest commit** | — |
-| **Handoff location** | `docs/operations/handoffs/sentinel/` |
-| **Blockers** | Founder |
-| **Next action** | **Founder: confirm yes/no in `DECISIONS.md`.** The hardening commit can be written before the answer arrives. |
+| **Acceptance criteria** | Founder confirms the var is set (**do not paste the value into any document, commit, or chat**). Then a hardening commit makes an unset `JWT_SECRET` throw on boot when `NODE_ENV === 'production'`. **Also hardened:** a value equal to the committed dev fallback also throws (same threat class — anyone with repo-read could sign tokens). |
+| **Verification requirements** | Sentinel confirms the hardening commit and that no document contains the literal secret. **One-thread smoke-test 2026-08-08:** all four branches confirmed — dev-unset LOAD, prod-unset THROW, prod-fallback-equal THROW, prod-real-secret LOAD. `tsc --noEmit` 0 errors. |
+| **Claimed by** | one-thread (2026-08-08 under supersede directive) |
+| **Claim timestamp** | 2026-08-08 |
+| **Latest commit** | *(local only — awaiting Founder env-var confirm before push)* |
+| **Handoff location** | `docs/operations/handoffs/2026-08-08-one-thread-supersede.md` |
+| **Blockers** | Founder confirm-only: is `JWT_SECRET` set in Vercel prod with a non-fallback value? (yes → push; no → set it first, then push). |
+| **Next action** | **Founder: yes/no in-chat is sufficient.** No paste of the value. On "yes", one-thread pushes + verifies deployment stays green. On "no", one-thread waits or sets it via `vercel env` if a `VERCEL_TOKEN` is provided (currently unavailable in this session). |
 
 ---
 
