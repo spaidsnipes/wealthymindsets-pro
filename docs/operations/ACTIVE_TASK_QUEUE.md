@@ -314,6 +314,30 @@ An implementer who believes work is done sets **`READY FOR VERIFICATION`** and h
 
 ---
 
+## WM-SEC-P0-03 — Rotate + de-fallback the committed Finnhub API key
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-SEC-P0-03 |
+| **Product** | WM Pro |
+| **Priority** | **P0 — live secret exposure, same class as WM-SEC-P0-01** |
+| **Owner** | one-thread (2026-08-08 supersede) |
+| **Status** | **OPEN — confirmed in HEAD.** The literal Finnhub API key `d8efu9hr01qth3ch5f20d8efu9hr01qth3ch5f2g` is committed as the `??` fallback in **five** source files, **three** of which ship to the browser bundle. Repo is public. Anyone with repo-read has a working production Finnhub key. DEC-006 (2026-07-28) redacted the value from the audit doc but the code was never fixed and no ticket was filed. |
+| **Objective** | (1) Rotate the leaked key at Finnhub immediately (it must be treated as compromised). (2) Remove every committed fallback so an unset env var throws or the caller degrades honestly, not silently succeeds against a repo-visible key. |
+| **Dependencies** | Founder access to the Finnhub dashboard for rotation. |
+| **Evidence source** | 2026-08-08 one-thread reconciliation audit (Explore agent `a674…`). Reconfirmed by `grep -rn d8efu9hr src/`. |
+| **Files / subsystems** | `src/app/news/page.tsx:33` (client), `src/app/api/finnhub/route.ts:13` (server), `src/app/api/market/route.ts:3` (server), `src/hooks/useWebSocket.ts:825` (client), `src/lib/api/finnhub.ts:7` (unused module, but also `:4` comment leak). Related: DEC-006 in `DECISIONS.md`. |
+| **Acceptance criteria** | 1. `grep -rn "d8efu9hr" .` returns **zero** hits repo-wide (source, comments, docs, tests). 2. Server-side routes that require a Finnhub key throw at boot in production when the env var is unset (same fail-fast pattern as WM-SEC-P0-01). 3. Client-side callers stop shipping the key at all — either move to server proxy or degrade honestly with a "provider unavailable" state. `src/lib/api/finnhub.ts` has zero importers today (audit confirmed) so it can be deleted outright. 4. Founder rotates the key at finnhub.io and sets the new value only in `FINNHUB_KEY` (server, non-`NEXT_PUBLIC_`) in Vercel. |
+| **Verification requirements** | Post-rotation: `grep -rn d8efu9hr` clean; `/api/diagnostics/auth-config`-style probe for Finnhub key state (add if useful); live smoke of news + tape + market routes returning honest results. Sentinel confirms no document contains the old or new literal. |
+| **Claimed by** | one-thread |
+| **Claim timestamp** | 2026-08-08 |
+| **Latest commit** | — |
+| **Handoff location** | `docs/operations/handoffs/2026-08-08-one-thread-supersede.md` |
+| **Blockers** | Founder rotates the key at Finnhub (dashboard access I don't have) + adds `FINNHUB_KEY` in Vercel prod env. One-thread does the code cleanup in parallel. |
+| **Next action** | **In parallel:** (a) Founder rotates at finnhub.io, records new key only in Vercel env `FINNHUB_KEY`, never in chat/commit/doc. (b) One-thread removes the five `??` fallbacks, deletes the unused `src/lib/api/finnhub.ts`, moves client callers to `/api/finnhub` proxy. Cleanup can be pushed before rotation completes because the fallback removal makes the routes require the env var, which is what we want. |
+
+---
+
 ## WM-SEC-P0-02 — Apply staged Supabase RLS fixes
 
 | Field | Value |
