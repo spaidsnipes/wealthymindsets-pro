@@ -175,7 +175,11 @@ function toPolygonTimespan(tf: string): { mult: number; span: string } | null {
 }
 
 async function fetchPolygonOHLCV(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<Bar[] | null> {
-  const POLY_KEY = process.env.NEXT_PUBLIC_POLYGON_KEY ?? "";
+  // WM-SEC-P0-05 (2026-08-08): client-side Polygon disabled — see
+  // TickerTape.tsx for the full rationale. This function short-circuits
+  // so callers naturally fall through to Yahoo/Alpaca. Restore behind a
+  // server proxy once one exists.
+  const POLY_KEY = "";
   if (!POLY_KEY) return null;
 
   const ticker = toPolygonTicker(sym);

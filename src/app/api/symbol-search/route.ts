@@ -8,7 +8,11 @@
 
 import { NextResponse } from "next/server";
 
-const POLYGON_KEY = process.env.NEXT_PUBLIC_POLYGON_KEY ?? "";
+// WM-SEC-P0-05 (2026-08-08): prefer server-only POLYGON_KEY. NEXT_PUBLIC_
+// fallback stays as a transitional secondary so an in-flight rotation
+// doesn't strand this endpoint; remove that fallback once Founder deletes
+// NEXT_PUBLIC_POLYGON_KEY from Vercel.
+const POLYGON_KEY = process.env.POLYGON_KEY ?? process.env.NEXT_PUBLIC_POLYGON_KEY ?? "";
 
 const CACHE = new Map<string, { data: unknown; ts: number }>();
 const TTL_MS = 30_000; // 30s cache

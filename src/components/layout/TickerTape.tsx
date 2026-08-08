@@ -7,7 +7,15 @@ import { usePathname } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { priceSourceBadge } from "@/lib/priceSource";
 
-const POLYGON_KEY = process.env.NEXT_PUBLIC_POLYGON_KEY ?? "";
+// WM-SEC-P0-05 (2026-08-08): client-side Polygon key read removed. The
+// NEXT_PUBLIC_POLYGON_KEY that used to live here shipped the API key
+// into the browser bundle (same class as the Finnhub bug WM-SEC-P0-03
+// just fixed) and the key value is in public git history — see
+// docs/operations/AUDIT_2026-08-08_10-POINT.md CRITICAL-A. Any Polygon
+// call chain originating here no-ops via the empty-key guards below;
+// tape falls back to the Yahoo / Alpaca REST paths. Rebuild via a
+// server proxy once POLYGON_KEY is set server-only in Vercel.
+const POLYGON_KEY = "";
 
 /* ── Ticker catalogue ──────────────────────────────────────────
    `base` is an internal formatting/fetch bootstrap only. It must never be

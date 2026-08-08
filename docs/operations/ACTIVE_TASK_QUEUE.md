@@ -338,6 +338,71 @@ An implementer who believes work is done sets **`READY FOR VERIFICATION`** and h
 
 ---
 
+## WM-SEC-P0-04 — Rotate LIVE Alpaca keys committed to git history
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-SEC-P0-04 |
+| **Priority** | **P0 — LIVE broker credentials in public git history. Authorises real-money orders on Founder's Alpaca account.** |
+| **Owner** | Founder (rotation at alpaca.markets) + one-thread (post-rotation code verify) |
+| **Status** | **OPEN — live vulnerability.** `.env.local` was committed in `39c8758` and removed in `3dd6050`; deletion does not scrub history. Cleartext in history includes `ALPACA_KEY=AK4YOXHUA6K67UNNKCHP3OZSJG` + `ALPACA_SECRET=…` with `ALPACA_LIVE=1`. |
+| **Objective** | (1) Rotate both keys at alpaca.markets → API Keys → Regenerate; disable `ALPACA_LIVE=1` if not intentionally active. (2) Set only the new server-only `ALPACA_KEY` / `ALPACA_SECRET` in Vercel. (3) Consider `git filter-repo`/BFG history scrub in a follow-up; deletion from HEAD alone leaves the credentials permanently in public GitHub history. |
+| **Dependencies** | Founder access to alpaca.markets dashboard. |
+| **Evidence source** | `docs/operations/AUDIT_2026-08-08_10-POINT.md` §CRITICAL-A. Reconfirmed via `git log -- .env.local`. |
+| **Files / subsystems** | Alpaca dashboard; Vercel env vars; git history (BFG follow-up). |
+| **Acceptance criteria** | 1. Alpaca dashboard shows a fresh key pair; the leaked pair returns 401. 2. `ALPACA_LIVE` state confirmed and documented. 3. Vercel env vars contain new key pair only; old NEXT_PUBLIC variants deleted (see WM-ENV-P1-02 shipped 2026-08-08 `177e63a`). |
+| **Next action** | **Founder: rotate at alpaca.markets ASAP; set new value in Vercel; say `set`.** One-thread will verify via test call to `/api/alpaca/trade` and re-run bundle grep. |
+
+---
+
+## WM-SEC-P0-05 — Rotate Polygon key + finish server-proxy migration
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-SEC-P0-05 |
+| **Priority** | **P0 — same class as WM-SEC-P0-03.** `NEXT_PUBLIC_POLYGON_KEY` shipped to browser bundle; value also in public git history (see WM-SEC-P0-04 context). |
+| **Owner** | Founder (rotation at polygon.io) + one-thread (client migration) |
+| **Status** | **PARTIALLY MITIGATED, awaiting rotation.** One-thread shipped in `<this commit>`: client-side reads set to `""` (fetchPolygonOHLCV + TickerTape short-circuit → falls back to Yahoo/Alpaca REST); server `symbol-search/route.ts` prefers server-only `POLYGON_KEY` with transitional NEXT_PUBLIC fallback. Rotation still required — the leaked value works until Founder regenerates. |
+| **Objective** | (1) Rotate at polygon.io → Dashboard → API keys → Regenerate. (2) Set only server-only `POLYGON_KEY` in Vercel. (3) Delete `NEXT_PUBLIC_POLYGON_KEY` from Vercel once rotation lands. (4) Follow-up: build a `/api/polygon` server proxy so client can regain Polygon paths without shipping the key. |
+| **Dependencies** | Founder access to polygon.io. |
+| **Evidence source** | `docs/operations/AUDIT_2026-08-08_10-POINT.md` §CRITICAL-A + §CRITICAL-B. |
+| **Files / subsystems** | `src/components/layout/TickerTape.tsx:10`, `src/components/chart/MainChart.tsx:178`, `src/app/api/symbol-search/route.ts:11` (all now updated). |
+| **Acceptance criteria** | 1. Rotated key set in Vercel as `POLYGON_KEY` (server-only). 2. `NEXT_PUBLIC_POLYGON_KEY` deleted from Vercel. 3. Post-deploy bundle grep for the OLD key returns zero hits. 4. `/api/symbol-search` works with a real query. |
+| **Next action** | **Founder: rotate at polygon.io; set POLYGON_KEY in Vercel; delete NEXT_PUBLIC_POLYGON_KEY.** One-thread will strip the transitional fallback + build server proxy in follow-up. |
+
+---
+
+## WM-SEC-P0-06 — Add auth guards to 10 unauthenticated privileged endpoints
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-SEC-P0-06 |
+| **Priority** | **P0 — active exploit surface.** Some of these execute real broker trades, mint privileged tokens, or spend paid provider quota with no session gate. |
+| **Owner** | one-thread |
+| **Status** | **OPEN.** Not started this session. |
+| **Objective** | Add `verifyJWT(getAuthToken(req))` gates to every route below and return 401 on failure. For unauthenticated endpoints that are intentionally public (email invites, public passport handoff), add rate-limit + origin check instead of auth (WM-SEC-P0-07). |
+| **Endpoints to gate** | `src/app/api/upload-track/route.ts:12` (multipart write w/ service-role key → public storage), `src/app/api/alpaca/trade/route.ts:14` (executes real orders), `src/app/api/alpaca-trading/route.ts:24-33` (live orders when `ALPACA_LIVE=1`), `src/app/api/livekit/route.ts:5` (mints host token), `src/app/api/livekit/approve/route.ts:5` (grants publish), `src/app/api/emails/welcome/route.ts:4` (Resend spam vector), `src/app/api/tradovate/route.ts:12` (SSRF-ish arbitrary endpoint proxy), `src/app/api/spaidbot/route.ts` (Gemini quota abuse), `src/app/api/broker/{alpaca,coinbase,oanda,kraken,binance}/route.ts` (credential-echo proxies), `src/app/api/audio/route.ts:26,52` (low-impact write). |
+| **Evidence source** | `docs/operations/AUDIT_2026-08-08_10-POINT.md` §CRITICAL-C. |
+| **Acceptance criteria** | 1. Every listed route returns 401 to an unauthenticated request. 2. `alpaca-trading` also confirms the session's user owns the account before placing an order (out-of-scope check goes in follow-up). 3. Manual smoke: signed-out `curl` → 401 on all; signed-in `curl` → normal response. |
+| **Next action** | one-thread implements once Founder is back and can verify the broker + upload flows still work end-to-end. Not pushed autonomously — the alpaca-trading + upload-track paths are broker-critical. |
+
+---
+
+## WM-SEC-P0-07 — Rate-limit + origin check for public endpoints
+
+| Field | Value |
+|---|---|
+| **Ticket ID** | WM-SEC-P0-07 |
+| **Priority** | **P0** |
+| **Owner** | one-thread |
+| **Status** | OPEN |
+| **Objective** | Add per-IP rate limits + `Origin` header enforcement to endpoints that must remain unauthenticated: `src/app/api/emails/welcome/route.ts:4` (email spam vector), `src/app/api/passport/handoff/route.ts:9` (any leaked hashed code currently mints a session with no cooldown). |
+| **Evidence source** | `docs/operations/AUDIT_2026-08-08_10-POINT.md` §CRITICAL-C. |
+| **Acceptance criteria** | 1. `emails/welcome` rejects >5 requests/minute from the same IP. 2. `passport/handoff` rejects requests missing a WM-origin header, and rate-limits code validation attempts to 10/min per IP. |
+| **Next action** | one-thread implements after WM-SEC-P0-06. |
+
+---
+
 ## WM-SEC-P0-02 — Apply staged Supabase RLS fixes
 
 | Field | Value |
