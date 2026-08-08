@@ -2,14 +2,46 @@
  * Auth utilities — JWT + password hashing using Node built-ins only.
  * No npm packages required.
  *
- * JWT_SECRET must be set in env for production security.
- * Falls back to a dev secret with a loud console warning.
+ * JWT_SECRET must be set in env for production. In development the module
+ * falls back to a committed dev secret plus a loud warning; in production
+ * (NODE_ENV === "production") an unset or fallback-equal value throws at
+ * module load, so the process fails immediately rather than silently
+ * signing sessions with a value visible in the repo. WM-SEC-P0-01.
  */
 
-import { createHmac, pbkdf2Sync, randomBytes } from "crypto";
+import { createHmac, pbkdf2Sync, randomBytes, timingSafeEqual } from "crypto";
 import type { ResponseCookies } from "next/dist/compiled/@edge-runtime/cookies";
 
-const JWT_SECRET = process.env.JWT_SECRET ?? "wm-dev-secret-CHANGE-IN-PROD-4f8a2b1c";
+const DEV_JWT_SECRET = "wm-dev-secret-CHANGE-IN-PROD-4f8a2b1c";
+const JWT_SECRET = resolveJwtSecret();
+
+function resolveJwtSecret(): string {
+  const fromEnv = process.env.JWT_SECRET;
+  const isProd  = process.env.NODE_ENV === "production";
+  if (isProd) {
+    if (!fromEnv) {
+      throw new Error(
+        "JWT_SECRET is not set in production. Refusing to sign sessions with " +
+        "a committed fallback. Set JWT_SECRET in Vercel and redeploy.",
+      );
+    }
+    if (fromEnv === DEV_JWT_SECRET) {
+      throw new Error(
+        "JWT_SECRET matches the committed dev fallback in production. Rotate " +
+        "immediately: generate a fresh value, set it in Vercel, redeploy.",
+      );
+    }
+    return fromEnv;
+  }
+  if (!fromEnv) {
+    console.warn(
+      "[auth] JWT_SECRET unset — using committed dev fallback. Never let this " +
+      "reach production; set JWT_SECRET locally to silence this warning.",
+    );
+    return DEV_JWT_SECRET;
+  }
+  return fromEnv;
+}
 const COOKIE_NAME = "wm_auth";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
