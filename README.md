@@ -82,13 +82,16 @@ npm run dev
 
 ## 🔑 Live Data (Optional)
 
-Create `.env.local`:
+Create `.env.local` (server-only names — do NOT use the `NEXT_PUBLIC_` prefix on secret keys; that ships them into the browser bundle):
 ```env
-NEXT_PUBLIC_POLYGON_KEY=your_key_here
-NEXT_PUBLIC_FINNHUB_KEY=your_key_here
+JWT_SECRET=<32-byte random>       # openssl rand -base64 32
+FINNHUB_KEY=your_key              # server-side only
+POLYGON_KEY=your_key              # server-side only
+ALPACA_KEY=your_key               # server-side only
+ALPACA_SECRET=your_secret         # server-side only
 ```
 
-Without keys: **synthetic engine kicks in automatically** — sub-100ms ticks, realistic order flow, identical look. Free tier keys at polygon.io and finnhub.io.
+Without keys: WM Pro degrades honestly. There is no synthetic engine — quotes, tape, and profile all render an explicit "provider unavailable" state rather than fake data. Free tier keys at finnhub.io / polygon.io / alpaca.markets.
 
 ---
 
@@ -132,8 +135,10 @@ Without keys: **synthetic engine kicks in automatically** — sub-100ms ticks, r
 
 ### WebSocket Data
 - RAF-batched updates for smooth rendering
-- Polygon.io → Finnhub → Synthetic fallback chain
+- Crypto via Coinbase / Binance WebSocket (no key needed, client-safe)
+- Stocks via REST polling through the `/api/finnhub` server proxy
 - Exponential backoff reconnection
+- Honest "unavailable" state when providers can't be reached — never synthetic
 
 ### PWA + Electron
 - iPhone/Android installable in 3 taps

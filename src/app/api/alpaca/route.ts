@@ -14,8 +14,13 @@
 
 import { NextResponse } from "next/server";
 
-const ALPACA_KEY    = process.env.ALPACA_KEY    ?? process.env.NEXT_PUBLIC_ALPACA_KEY    ?? "";
-const ALPACA_SECRET = process.env.ALPACA_SECRET ?? process.env.NEXT_PUBLIC_ALPACA_SECRET ?? "";
+// WM-ENV-P1-02: server-only. NEXT_PUBLIC_* prefix on a broker-secret env var
+// invites a future client-side read that would leak the key into the browser
+// bundle — the exact failure mode WM-SEC-P0-03 just closed for Finnhub.
+// After confirming ALPACA_KEY / ALPACA_SECRET are set server-side in Vercel,
+// the NEXT_PUBLIC_ALPACA_KEY / NEXT_PUBLIC_ALPACA_SECRET vars can be deleted.
+const ALPACA_KEY    = process.env.ALPACA_KEY    ?? "";
+const ALPACA_SECRET = process.env.ALPACA_SECRET ?? "";
 
 const DATA_BASE = "https://data.alpaca.markets";
 
