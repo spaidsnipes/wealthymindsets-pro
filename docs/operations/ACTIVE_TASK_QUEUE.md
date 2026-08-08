@@ -338,11 +338,11 @@ An implementer who believes work is done sets **`READY FOR VERIFICATION`** and h
 
 ---
 
-## WM-DATA-P0-01 — Cross-tab tape dedupe
+## WM-DATA-P0-02 — Cross-tab tape dedupe
 
 | Field | Value |
 |---|---|
-| **Ticket ID** | WM-DATA-P0-01 (previously cited as "issue #78" — **that issue does not exist**, see RISK-005) |
+| **Ticket ID** | WM-DATA-P0-02 (renamed 2026-08-07 23:xx CDT checkpoint from `WM-DATA-P0-01` — collided with the Live-quote-regression ticket below of the same ID; mechanical rename only, no priority/ownership change. Previously cited as "issue #78" — **that issue does not exist**, see RISK-005) |
 | **Product** | WM Pro |
 | **Priority** | P0 |
 | **Owner** | — |
