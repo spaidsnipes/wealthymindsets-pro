@@ -1052,6 +1052,15 @@ Trade the system, trust the process, winners every day 🚀`,
           "wm-journal-list w-80 border-r border-wm-border flex flex-col shrink-0 overflow-hidden",
           (selected || newMode) && "wm-mobile-hidden",
         )}>
+          <div className="wm-mobile-only border-b border-wm-border p-2">
+            <button
+              type="button"
+              onClick={() => { setNewMode(true); setSelected(null); }}
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-wm-green text-xs font-bold text-wm-black"
+            >
+              <Plus size={15} aria-hidden="true" /> New journal entry
+            </button>
+          </div>
           <div className="px-2 py-1.5 border-b border-wm-border overflow-x-auto" style={{ scrollbarWidth:"none" }}>
             <div className="flex gap-1 min-w-max">
               <button onClick={() => setFilterTag("")}

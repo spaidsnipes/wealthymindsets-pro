@@ -33,6 +33,7 @@ describe("responsive P0 command surfaces", () => {
     const journal = source("../app/journal/page.tsx");
     expect(journal).toContain("wm-journal-list");
     expect(journal).toContain("wm-journal-detail");
+    expect(journal).toContain("New journal entry");
     expect(journal).toContain("Back to journal");
     expect(css).toContain(".wm-mobile-hidden");
     expect(css).toContain(".wm-mobile-only");
