@@ -22,6 +22,8 @@ describe("responsive P0 command surfaces", () => {
   it("keeps scanner filters contextual and reduces the mobile result grid", () => {
     const scanner = source("../app/scanner/page.tsx");
     expect(scanner).toContain('className="wm-scanner-filters');
+    expect(scanner).toContain('className="wm-scanner-header');
+    expect(scanner).toContain("wm-scanner-mobile-secondary");
     expect(scanner).toContain('"wm-scanner-row grid');
     expect(scanner).toContain('matchMedia("(max-width: 639px)")');
     expect(css).toContain(".wm-scanner-row > :nth-child(n+6)");

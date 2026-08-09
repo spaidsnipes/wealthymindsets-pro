@@ -483,18 +483,18 @@ export default function ScannerPage() {
     <div style={{ display:"flex",flexDirection:"column",width:"100%",height:"100%",overflow:"hidden" }} className="bg-wm-black">
 
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 border-b border-wm-border bg-wm-dark shrink-0" style={{ height:44 }}>
+      <div className="wm-scanner-header flex items-center gap-3 px-4 border-b border-wm-border bg-wm-dark shrink-0" style={{ height:44 }}>
         <Zap size={15} className="text-wm-gold shrink-0"/>
         <h1 className="text-sm font-bold text-wm-text">Scanner</h1>
-        <div className="flex items-center gap-3 ml-2">
+        <div className="wm-scanner-stats flex items-center gap-3 ml-2">
           <div className="flex items-center gap-1.5 text-[10px]">
             <span className="w-2 h-2 rounded-full bg-wm-green animate-pulse"/>
             <span className="text-wm-text-muted">{filtered.length} signals</span>
           </div>
-          <span className="text-[10px] text-wm-green font-bold">{bullCount}▲</span>
-          <span className="text-[10px] text-wm-red font-bold">{bearCount}▼</span>
+          <span className="wm-scanner-breadth text-[10px] text-wm-green font-bold">{bullCount}▲</span>
+          <span className="wm-scanner-breadth text-[10px] text-wm-red font-bold">{bearCount}▼</span>
         </div>
-        <div className="flex items-center gap-1 ml-2 overflow-x-auto" style={{ scrollbarWidth:"none" }}>
+        <div className="wm-scanner-presets flex items-center gap-1 ml-2 overflow-x-auto" style={{ scrollbarWidth:"none" }}>
           {PRESETS.map(p => (
             <button key={p.id} onClick={() => applyPreset(p.id)}
               className={clsx("whitespace-nowrap px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all",
@@ -502,8 +502,8 @@ export default function ScannerPage() {
               )}>{p.label}</button>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          <div className="flex items-center gap-1.5 bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1">
+        <div className="wm-scanner-actions ml-auto flex items-center gap-2">
+          <div className="wm-scanner-search flex items-center gap-1.5 bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1">
             <Search size={11} className="text-wm-text-muted"/>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Symbol..."
               className="bg-transparent text-xs text-wm-text outline-none w-24 placeholder-wm-text-dim"/>
@@ -514,12 +514,12 @@ export default function ScannerPage() {
             <SlidersHorizontal size={11}/> Filters
           </button>
           <button onClick={() => setLive(v => !v)}
-            className={clsx("flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs border font-bold transition-all",
+            className={clsx("wm-scanner-mobile-secondary flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs border font-bold transition-all",
               live ? "bg-wm-green/15 text-wm-green border-wm-green/40" : "text-wm-text-muted border-wm-border")}>
             {live ? <><Activity size={11}/> LIVE</> : <><Pause size={11}/> Paused</>}
           </button>
           {failedRsiIdentities.length > 0 && (
-            <label htmlFor="scanner-request-identity" className="flex items-center gap-1.5 text-[10px] text-wm-text-muted">
+            <label htmlFor="scanner-request-identity" className="wm-scanner-mobile-secondary flex items-center gap-1.5 text-[10px] text-wm-text-muted">
               <span className="sr-only">Scanner request identity</span>
               <select
                 id="scanner-request-identity"
@@ -539,7 +539,7 @@ export default function ScannerPage() {
             </label>
           )}
           <button onClick={() => { void refresh(true); }}
-            className="p-1.5 rounded-lg text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border border-wm-border transition-colors">
+            className="wm-scanner-mobile-secondary p-1.5 rounded-lg text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border border-wm-border transition-colors">
             <RefreshCw size={12}/>
           </button>
         </div>

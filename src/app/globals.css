@@ -160,6 +160,39 @@
     position: relative;
   }
 
+  .wm-scanner-header {
+    gap: 6px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    overflow: hidden;
+  }
+
+  .wm-scanner-stats {
+    margin-left: 0 !important;
+    gap: 4px !important;
+  }
+
+  .wm-scanner-breadth,
+  .wm-scanner-presets,
+  .wm-scanner-mobile-secondary {
+    display: none !important;
+  }
+
+  .wm-scanner-actions {
+    gap: 5px !important;
+    min-width: 0;
+  }
+
+  .wm-scanner-search {
+    min-width: 0;
+    padding-left: 7px !important;
+    padding-right: 7px !important;
+  }
+
+  .wm-scanner-search input {
+    width: 70px !important;
+  }
+
   .wm-scanner-filters,
   .wm-scanner-detail {
     position: absolute !important;
