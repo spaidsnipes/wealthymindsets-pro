@@ -62,7 +62,7 @@ type GeminiChunk = {
 
 export async function POST(req: NextRequest) {
   // WM-SEC-P0-06: was unauthenticated. Uses GEMINI_API_KEY — open quota abuse.
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
   if (!GEMINI_KEY) {
     return new Response(

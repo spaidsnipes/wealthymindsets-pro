@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ttGet, tastytradeConfigStatus } from "@/lib/tastytrade";
-import { getAuthToken, verifyJWT } from "@/lib/auth";
+import { requireAuth } from "@/lib/requireAuth";
 
 // Server-only. Real tastytrade market metrics (IV rank, beta, liquidity, etc.)
 // for a symbol list — proves the full authenticated data pipeline end-to-end,
@@ -8,10 +8,8 @@ import { getAuthToken, verifyJWT } from "@/lib/auth";
 // against tastytrade's SDK (market-metrics-service.ts): GET /market-metrics?symbols=.
 // Gated behind a WM session; returns no tokens/secrets.
 export async function GET(req: NextRequest) {
-  const token = getAuthToken(req);
-  if (!token || !verifyJWT(token)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth(req);
+  if (!auth.ok) return auth.response;
   const cfg = tastytradeConfigStatus();
   if (!cfg.configured) {
     return NextResponse.json({ error: "tastytrade not configured", items: [] }, { status: 200 });

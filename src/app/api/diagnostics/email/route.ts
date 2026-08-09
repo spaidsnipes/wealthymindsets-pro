@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthToken, verifyJWT } from "@/lib/auth";
+import { requireAuth } from "@/lib/requireAuth";
 import { emailConfigStatus } from "@/lib/email";
 
 /**
@@ -10,10 +10,8 @@ import { emailConfigStatus } from "@/lib/email";
  *   GET /api/diagnostics/email  → { hasApiKey, from, usingTestSender, appUrl, ok }
  */
 export async function GET(req: Request) {
-  const token = getAuthToken(req);
-  if (!token || !verifyJWT(token)) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
+  const auth = await requireAuth(req);
+  if (!auth.ok) return auth.response;
   const status = emailConfigStatus();
   return NextResponse.json({
     ...status,

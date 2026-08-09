@@ -11,7 +11,7 @@ const BASE: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   // WM-SEC-P0-06: was unauthenticated. Arbitrary-endpoint proxy — SSRF-ish.
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
   try {
     const body = await req.json();
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 // GET for simple passthrough queries
 export async function GET(req: NextRequest) {
   // WM-SEC-P0-06: was unauthenticated. Same SSRF-adjacent concern as POST.
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
   const { searchParams } = new URL(req.url);
   const endpoint = searchParams.get("endpoint") ?? "";

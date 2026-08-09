@@ -78,7 +78,7 @@ async function getBase(): Promise<{ url: string; env: "Paper Trading" | "Live Tr
 
 export async function GET(request: Request) {
   // WM-SEC-P0-06: was unauthenticated. Reads Alpaca account state.
-  const auth = requireAuth(request);
+  const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
   const { searchParams } = new URL(request.url);
   const action = searchParams.get("action") ?? "account";
@@ -131,7 +131,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   // WM-SEC-P0-06: was unauthenticated. Places real Alpaca orders (paper+live).
-  const auth = requireAuth(request);
+  const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
   if (!ALPACA_KEY || !ALPACA_SECRET) {
     return NextResponse.json({ error: "Alpaca API keys not configured" }, { status: 503 });
@@ -202,7 +202,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   // WM-SEC-P0-06: was unauthenticated. Cancels real Alpaca orders.
-  const auth = requireAuth(request);
+  const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
   const { searchParams } = new URL(request.url);
   const orderId = searchParams.get("id");

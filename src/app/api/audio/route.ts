@@ -35,7 +35,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   // WM-SEC-P0-06: was unauthenticated write to shared track store.
-  const auth = requireAuth(request);
+  const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
   const body = await request.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });

@@ -12,7 +12,7 @@ const LIVE_BASE  = "https://api.alpaca.markets";
 
 export async function POST(req: NextRequest) {
   // WM-SEC-P0-06: was unauthenticated. Executes real Alpaca orders.
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
   try {
     const body = await req.json() as {
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   // WM-SEC-P0-06: was unauthenticated. Reads live account state.
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
   const { searchParams } = new URL(req.url);
   const key    = req.headers.get("APCA-API-KEY-ID")    ?? searchParams.get("key")    ?? "";
