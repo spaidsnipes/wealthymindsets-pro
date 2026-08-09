@@ -382,7 +382,7 @@ export default function ScannerPage() {
     const key = scannerRsiIdentityKey(identity);
     if (rsiRetryInFlightRef.current.has(key)) return;
     rsiRetryInFlightRef.current.add(key);
-    rsiFailuresRef.current.delete(key);
+    const previousFailure = rsiFailuresRef.current.get(key) ?? null;
     setUpdatedRsiKeys(previous => {
       const next = new Set(previous);
       next.delete(key);
@@ -392,11 +392,15 @@ export default function ScannerPage() {
     let failureRemains = false;
     try {
       const outcome = await fetchRSI(identity, yahooConsumerRef.current!, rsiFailuresRef.current, true);
-      failureRemains = outcome.failure !== null;
+      // A retryable transport failure has no newly cached failure and no RSI.
+      // Keep the prior truthful failure visible; never announce "updated" when
+      // the retry returned no value.
+      const currentFailure = outcome.failure ?? (outcome.rsi === null ? previousFailure : null);
+      failureRemains = currentFailure !== null;
       setResults(previous => previous.map(row => row.symbol === identity.symbol
-        ? { ...row, rsi: outcome.rsi, rsiFailure: outcome.failure, time: Date.now() }
+        ? { ...row, rsi: outcome.rsi, rsiFailure: currentFailure, time: Date.now() }
         : row));
-      if (!failureRemains) {
+      if (outcome.rsi !== null) {
         setUpdatedRsiKeys(previous => new Set(previous).add(key));
       }
     } finally {
