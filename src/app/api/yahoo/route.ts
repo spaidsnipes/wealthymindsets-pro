@@ -7,6 +7,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { aggregateYahooBars, resolveYahooTimeframe, type YahooOhlcvBar } from "@/lib/yahooTimeframes";
 
 /* ── Symbol mapping: WM internal → Yahoo Finance ticker ─────── */
 const YF_MAP: Record<string, string> = {
@@ -63,35 +64,6 @@ function toYFSym(sym: string): string {
   return up;
 }
 
-/* ── Interval mapping ──────────────────────────────────────── */
-function toYFInterval(tf: string): { interval: string; range: string } {
-  const map: Record<string, { interval: string; range: string }> = {
-    "1m":  { interval: "1m",  range: "1d"  },
-    "2m":  { interval: "2m",  range: "5d"  },
-    "3m":  { interval: "5m",  range: "5d"  },   // YF has no 3m
-    "5m":  { interval: "5m",  range: "5d"  },
-    "10m": { interval: "15m", range: "5d"  },   // YF has no 10m
-    "15m": { interval: "15m", range: "60d" },
-    "30m": { interval: "30m", range: "60d" },
-    // Hourly: Yahoo serves up to ~2y of 60-minute bars — pull the full window so
-    // the chart scrolls back years instead of stopping at 60 days.
-    "1h":  { interval: "60m", range: "730d" },
-    "2h":  { interval: "60m", range: "730d" },
-    "4h":  { interval: "60m", range: "730d" },
-    "D":   { interval: "1d",  range: "5y"   },
-    "W":   { interval: "1wk", range: "10y"  },
-    "M":   { interval: "1mo", range: "max"  },
-    // Long-range bar intervals — Yahoo's coarsest interval is 3mo, so these
-    // best-effort to monthly/quarterly bars over the maximum available history.
-    "3M":  { interval: "3mo", range: "max"  },
-    "6M":  { interval: "3mo", range: "max"  },
-    "1Y":  { interval: "1mo", range: "max"  },
-    "3Y":  { interval: "1mo", range: "max"  },
-    "5Y":  { interval: "1mo", range: "max"  },
-  };
-  return map[tf] ?? { interval: "1d", range: "5y" };
-}
-
 const CACHE = new Map<string, { data: unknown; ts: number }>();
 
 async function yfFetch(url: string, ttlMs = 10_000): Promise<unknown> {
@@ -116,7 +88,8 @@ export async function GET(request: Request) {
   const rawSym = (searchParams.get("sym") ?? "NQ1!").toUpperCase();
   const type   = searchParams.get("type") ?? "quote";   // "quote" | "candles"
   const tf     = searchParams.get("tf")   ?? "1m";
-  const bars   = Math.min(3000, parseInt(searchParams.get("bars") ?? "300", 10));
+  const parsedBars = parseInt(searchParams.get("bars") ?? "300", 10);
+  const bars = Number.isFinite(parsedBars) ? Math.max(1, Math.min(3000, parsedBars)) : 300;
 
   const yfSym  = toYFSym(rawSym);
 
@@ -201,7 +174,16 @@ export async function GET(request: Request) {
 
     if (type === "candles") {
       /* ── OHLCV candle array ──────────────────────────────── */
-      const { interval, range } = toYFInterval(tf);
+      const plan = resolveYahooTimeframe(tf);
+      if (!plan) {
+        return NextResponse.json({
+          candles: [],
+          tf,
+          qualityState: "UNAVAILABLE",
+          reason: `Unsupported timeframe: ${tf}`,
+        }, { status: 400 });
+      }
+      const { interval, range } = plan;
       // includePrePost=true returns pre-market (4:00) + after-hours (20:00) bars
       // so the chart can show extended trading hours when the user enables them.
       const ext  = searchParams.get("ext") === "1";
@@ -218,13 +200,15 @@ export async function GET(request: Request) {
       const closes = q.close  as (number|null)[];
       const vols   = q.volume as (number|null)[];
 
-      // Take last `bars` candles, skip nulls
-      const start = Math.max(0, timestamps.length - bars);
-      const candles = [];
+      // Reconstructed timeframes need enough finer-grained bars to build the
+      // requested number of candles. Unknown intervals never reach this path.
+      const sourceBars = Math.min(timestamps.length, bars * plan.multiplier);
+      const start = Math.max(0, timestamps.length - sourceBars);
+      const baseCandles: YahooOhlcvBar[] = [];
       for (let i = start; i < timestamps.length; i++) {
         const o = opens?.[i], h = highs?.[i], l = lows?.[i], c = closes?.[i];
         if (o == null || c == null) continue;
-        candles.push({
+        baseCandles.push({
           time:   timestamps[i],
           open:   o,
           high:   h ?? Math.max(o, c),
@@ -234,7 +218,17 @@ export async function GET(request: Request) {
         });
       }
 
-      return NextResponse.json({ sym: rawSym, tf, candles });
+      const candles = aggregateYahooBars(baseCandles, plan, bars);
+
+      return NextResponse.json({
+        sym: rawSym,
+        tf,
+        requestedTf: tf,
+        returnedTf: tf,
+        sourceMode: plan.sourceMode,
+        baseInterval: plan.interval,
+        candles,
+      });
     }
 
     return NextResponse.json({ error: "Unknown type" }, { status: 400 });
