@@ -14,6 +14,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
+import { YahooCandleConsumer } from "@/lib/yahooCandleConsumer";
+import {
+  compareScannerRsiIdentity, scannerRsiIdentity, scannerRsiIdentityDomToken,
+  scannerRsiIdentityKey, type ScannerRsiIdentity,
+} from "@/lib/scannerRequestIdentity";
+import {
+  lookupFailure, recordFailure,
+  type RsiFailure, type RsiFailureCache,
+} from "@/lib/scannerFailureCache";
 
 type Signal =
   | "momentum-long"  | "momentum-short"
@@ -34,6 +43,7 @@ interface ScanResult {
   signal: Signal; strength: AlertStrength;
   rsi: number | null; sector: string; float: string; mktcap: string;
   time: number; starred: boolean; alerted: boolean;
+  rsiFailure: RsiFailure | null;
 }
 
 type SortKey = "time" | "changePct" | "volRatio" | "rsi" | "strength";
@@ -150,16 +160,44 @@ async function fetchFmpProfiles(): Promise<Map<string, { mktcap: string; float: 
   return map;
 }
 
-// Cache RSI per symbol — recomputed every 5 min
+// Cache RSI per symbol — recomputed every 5 min. The failure cache (canonical
+// identity key + 15m TTL) lives in @/lib/scannerFailureCache — WM-SCANNER-RECONCILE-01.
 const rsiCache = new Map<string, { rsi: number; ts: number }>();
 
-async function fetchRSI(sym: string): Promise<number | null> {
-  const cached = rsiCache.get(sym);
-  if (cached && Date.now() - cached.ts < 300_000) return cached.rsi;
+type RsiResult = Readonly<{ rsi: number | null; failure: RsiFailure | null }>;
+
+async function fetchRSI(
+  identity: ScannerRsiIdentity,
+  consumer: YahooCandleConsumer,
+  failures: RsiFailureCache,
+  explicitRetry = false,
+): Promise<RsiResult> {
+  const key = scannerRsiIdentityKey(identity);
+  // TTL-aware lookup: a cached failure only suppresses the fetch while current;
+  // once the 15m TTL lapses it is evicted and one more attempt is allowed.
+  const failed = explicitRetry ? null : lookupFailure(failures, key);
+  if (failed) return { rsi: null, failure: failed };
+  const cached = rsiCache.get(identity.symbol);
+  if (cached && Date.now() - cached.ts < 300_000 && !explicitRetry) return { rsi: cached.rsi, failure: null };
   try {
-    const json = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=candles&tf=D&bars=40`, { cache: "no-store" }).then(r => r.json());
-    const closes: number[] = (json?.candles ?? []).map((bar: { close?: number }) => bar.close).filter((value: unknown): value is number => typeof value === "number");
-    if (closes.length < 15) return null;
+    const outcome = await consumer.request({
+      symbol: identity.symbol,
+      timeframe: identity.timeframe,
+      bars: identity.bars,
+      automaticRetry: false,
+    });
+    if (outcome.status !== "ready") {
+      if (!outcome.retryable) {
+        const failure = recordFailure(failures, key, identity, outcome.message || "RSI unavailable");
+        return { rsi: null, failure };
+      }
+      return { rsi: null, failure: null };
+    }
+    const closes = outcome.candles.map(bar => bar.close);
+    if (closes.length < 15) {
+      const failure = recordFailure(failures, key, identity, "Not enough daily bars for RSI 14");
+      return { rsi: null, failure };
+    }
     let gains = 0, losses = 0;
     for (let i = closes.length - 14; i < closes.length; i++) {
       const change = closes[i] - closes[i - 1];
@@ -169,16 +207,17 @@ async function fetchRSI(sym: string): Promise<number | null> {
     const avgGain = gains / 14;
     const avgLoss = losses / 14;
     const rsi = avgLoss === 0 ? 100 : Math.round(100 - (100 / (1 + avgGain / avgLoss)));
-    rsiCache.set(sym, { rsi, ts: Date.now() });
-    return rsi;
+    failures.delete(key);
+    rsiCache.set(identity.symbol, { rsi, ts: Date.now() });
+    return { rsi, failure: null };
   } catch {
-    return null;
+    return { rsi: null, failure: null };
   }
 }
 
-interface QuoteData { price:number; change:number; changePct:number; volume:number; avgVolume:number; rsi:number|null }
+interface QuoteData { price:number; change:number; changePct:number; volume:number; avgVolume:number; rsi:number|null; rsiFailure:RsiFailure|null }
 
-async function fetchScannerQuotes(): Promise<Map<string, QuoteData>> {
+async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFailureCache): Promise<Map<string, QuoteData>> {
   const results = new Map<string, QuoteData>();
   // Use the app's server-side Yahoo proxy for real pre/post-market price and
   // actual intraday volume. No client-side vendor key and no fabricated volume.
@@ -188,9 +227,10 @@ async function fetchScannerQuotes(): Promise<Map<string, QuoteData>> {
     const batch = scannerSymbols.slice(i, i + BATCH);
     await Promise.all(batch.map(async sym => {
       try {
-        const [quoteJson, rsi] = await Promise.all([
+        const identity = scannerRsiIdentity(sym);
+        const [quoteJson, rsiResult] = await Promise.all([
           fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json()),
-          fetchRSI(sym),
+          fetchRSI(identity, consumer, failures),
         ]);
         const price = quoteJson?.price ?? 0;
         const prev  = quoteJson?.prevClose ?? price;
@@ -199,7 +239,7 @@ async function fetchScannerQuotes(): Promise<Map<string, QuoteData>> {
           const changePct = prev > 0 ? +((change / prev) * 100).toFixed(2) : 0;
           const volume = Number(quoteJson?.volume ?? 0);
           const avgVolume = Number(quoteJson?.avgVolume ?? 0);
-          results.set(sym, { price, change, changePct, volume, avgVolume, rsi });
+          results.set(sym, { price, change, changePct, volume, avgVolume, rsi: rsiResult.rsi, rsiFailure: rsiResult.failure });
         }
       } catch {}
     }));
@@ -247,6 +287,7 @@ function buildResults(
       signal:    signalFromQuote(changePct, volRatio, rsi),
       strength:  strengthFromData(changePct, volRatio),
       rsi,
+      rsiFailure: q ? q.rsiFailure : old?.rsiFailure ?? null,
       sector:    SYM_SECTOR[sym] ?? "Technology",
       // Real float + mktcap from FMP profile; fall back to old cached value
       float:     prf?.float   ?? old?.float   ?? "—",
@@ -302,7 +343,18 @@ export default function ScannerPage() {
   const [minVol,        setMinVol]        = useState(0);
   const [minPct,        setMinPct]        = useState(0);
   const [selSectors,    setSelSectors]    = useState<string[]>([]);
+  const [selectedRsiIdentityKey, setSelectedRsiIdentityKey] = useState("");
+  const [retryingRsiKey, setRetryingRsiKey] = useState<string | null>(null);
+  const [updatedRsiKeys, setUpdatedRsiKeys] = useState<Set<string>>(() => new Set());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const yahooConsumerRef = useRef<YahooCandleConsumer | null>(null);
+  const rsiFailuresRef = useRef<RsiFailureCache>(new Map());
+  const rsiRetryInFlightRef = useRef<Set<string>>(new Set());
+  const rsiRetryButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const rsiStatusRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  if (!yahooConsumerRef.current) {
+    yahooConsumerRef.current = new YahooCandleConsumer({ fetcher: (input, init) => fetch(input, init) });
+  }
 
   const applyPreset = (id: string) => {
     setPreset(id);
@@ -311,10 +363,11 @@ export default function ScannerPage() {
   };
 
   // Initial load + periodic refresh — real Finnhub quotes + RSI, real FMP profiles
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (explicitRetry = false) => {
+    if (explicitRetry) rsiFailuresRef.current.clear();
     try {
       const [quotes, profiles] = await Promise.all([
-        fetchScannerQuotes(),
+        fetchScannerQuotes(yahooConsumerRef.current!, rsiFailuresRef.current),
         fetchFmpProfiles(),
       ]);
       setResults(prev => buildResults(quotes, profiles, prev));
@@ -322,6 +375,41 @@ export default function ScannerPage() {
       setLoading(false);
     } catch {
       setLoading(false);
+    }
+  }, []);
+
+  const retryFailedRsi = useCallback(async (identity: ScannerRsiIdentity) => {
+    const key = scannerRsiIdentityKey(identity);
+    if (rsiRetryInFlightRef.current.has(key)) return;
+    rsiRetryInFlightRef.current.add(key);
+    const previousFailure = rsiFailuresRef.current.get(key) ?? null;
+    setUpdatedRsiKeys(previous => {
+      const next = new Set(previous);
+      next.delete(key);
+      return next;
+    });
+    setRetryingRsiKey(key);
+    let failureRemains = false;
+    try {
+      const outcome = await fetchRSI(identity, yahooConsumerRef.current!, rsiFailuresRef.current, true);
+      // A retryable transport failure has no newly cached failure and no RSI.
+      // Keep the prior truthful failure visible; never announce "updated" when
+      // the retry returned no value.
+      const currentFailure = outcome.failure ?? (outcome.rsi === null ? previousFailure : null);
+      failureRemains = currentFailure !== null;
+      setResults(previous => previous.map(row => row.symbol === identity.symbol
+        ? { ...row, rsi: outcome.rsi, rsiFailure: currentFailure, time: Date.now() }
+        : row));
+      if (outcome.rsi !== null) {
+        setUpdatedRsiKeys(previous => new Set(previous).add(key));
+      }
+    } finally {
+      rsiRetryInFlightRef.current.delete(key);
+      setRetryingRsiKey(null);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (failureRemains) rsiRetryButtonRefs.current.get(key)?.focus();
+        else rsiStatusRefs.current.get(key)?.focus();
+      }));
     }
   }, []);
 
@@ -375,6 +463,10 @@ export default function ScannerPage() {
       return sortDir === "desc" ? bv - av : av - bv;
     });
 
+  const failedRsiIdentities = filtered
+    .flatMap(row => row.rsiFailure ? [row.rsiFailure.identity] : [])
+    .sort(compareScannerRsiIdentity);
+
   const bullCount = filtered.filter(r => r.changePct > 0).length;
   const bearCount = filtered.filter(r => r.changePct < 0).length;
 
@@ -422,7 +514,27 @@ export default function ScannerPage() {
               live ? "bg-wm-green/15 text-wm-green border-wm-green/40" : "text-wm-text-muted border-wm-border")}>
             {live ? <><Activity size={11}/> LIVE</> : <><Pause size={11}/> Paused</>}
           </button>
-          <button onClick={() => { refresh(); }}
+          {failedRsiIdentities.length > 0 && (
+            <label htmlFor="scanner-request-identity" className="flex items-center gap-1.5 text-[10px] text-wm-text-muted">
+              <span className="sr-only">Scanner request identity</span>
+              <select
+                id="scanner-request-identity"
+                aria-label="Scanner request identity"
+                value={failedRsiIdentities.some(identity => scannerRsiIdentityKey(identity) === selectedRsiIdentityKey)
+                  ? selectedRsiIdentityKey
+                  : scannerRsiIdentityKey(failedRsiIdentities[0])}
+                onChange={event => setSelectedRsiIdentityKey(event.target.value)}
+                className="max-w-44 rounded-lg border border-wm-border bg-wm-surface px-2 py-1 text-[10px] text-wm-text outline-none focus-visible:ring-2 focus-visible:ring-wm-blue"
+              >
+                {failedRsiIdentities.map(identity => (
+                  <option key={scannerRsiIdentityKey(identity)} value={scannerRsiIdentityKey(identity)}>
+                    {identity.symbol} · D / 40 bars / RSI 14
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <button onClick={() => { void refresh(true); }}
             className="p-1.5 rounded-lg text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border border-wm-border transition-colors">
             <RefreshCw size={12}/>
           </button>
@@ -495,7 +607,7 @@ export default function ScannerPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Column headers */}
           <div className="grid border-b border-wm-border bg-wm-dark shrink-0"
-            style={{ gridTemplateColumns:"36px 80px 1fr 90px 90px 80px 80px 60px 80px 100px 60px" }}>
+            style={{ gridTemplateColumns:"36px 80px 1fr 90px 90px 80px 160px 60px 80px 100px 60px" }}>
             {[
               {l:"",k:null},{l:"Symbol",k:null},{l:"Signal",k:null},{l:"Price",k:null},
               {l:"Chg%",k:"changePct"},{l:"Vol×",k:"volRatio"},{l:"RSI",k:"rsi"},
@@ -520,13 +632,19 @@ export default function ScannerPage() {
               const meta = SIGNAL_META[r.signal];
               const up   = r.changePct >= 0;
               const isSel = selected?.id === r.id;
+              const rsiIdentity = r.rsiFailure?.identity ?? scannerRsiIdentity(r.symbol);
+              const rsiIdentityKey = scannerRsiIdentityKey(rsiIdentity);
+              const rsiStatusId = `scanner-rsi-status-${scannerRsiIdentityDomToken(rsiIdentity)}`;
+              const rsiRetrying = retryingRsiKey === rsiIdentityKey;
+              const rsiUpdated = updatedRsiKeys.has(rsiIdentityKey);
+              const rsiIdentitySelected = selectedRsiIdentityKey === rsiIdentityKey;
               return (
                 <motion.div key={r.id}
                   initial={{ opacity:0,x:-8 }} animate={{ opacity:1,x:0 }} transition={{ delay:idx*0.015,duration:0.2 }}
                   onClick={() => setSelected(isSel ? null : r)}
                   className={clsx("grid border-b border-wm-border/30 cursor-pointer transition-colors items-center",
-                    isSel ? "bg-wm-surface" : "hover:bg-wm-surface/50")}
-                  style={{ gridTemplateColumns:"36px 80px 1fr 90px 90px 80px 80px 60px 80px 100px 60px",height:40 }}>
+                    isSel || rsiIdentitySelected ? "bg-wm-surface" : "hover:bg-wm-surface/50")}
+                  style={{ gridTemplateColumns:"36px 80px 1fr 90px 90px 80px 160px 60px 80px 100px 60px", minHeight:r.rsiFailure ? 72 : 40 }}>
                   <div className="flex items-center justify-center">
                     <button onClick={e=>{e.stopPropagation();toggleStar(r.id)}} className="text-wm-text-dim hover:text-wm-gold transition-colors">
                       <Star size={11} className={r.starred?"text-wm-gold fill-wm-gold":""}/>
@@ -557,11 +675,50 @@ export default function ScannerPage() {
                   <div className="px-2">
                     <span className={clsx("text-[10px] font-mono font-bold",
                       r.rsi==null?"text-wm-text-dim":r.rsi>=70?"text-wm-red":r.rsi<=30?"text-wm-green":"text-wm-text-muted")}
-                      title={r.rsi==null?"RSI unavailable (data source not configured)":undefined}>{r.rsi==null?"—":r.rsi}</span>
+                      title={r.rsi==null?"RSI unavailable":undefined}>{r.rsi==null?"—":r.rsi}</span>
                     <div className="h-1 mt-0.5 rounded-full bg-wm-surface" style={{ width:36 }}>
                       <div className="h-full rounded-full" style={{ width:`${r.rsi==null?0:r.rsi}%`,
                         background:r.rsi==null?"transparent":r.rsi>=70?"#FF4D6A":r.rsi<=30?"#00D4AA":"#F0B429" }}/>
                     </div>
+                    {(r.rsiFailure || rsiRetrying || rsiUpdated) && (
+                      <div
+                        id={rsiStatusId}
+                        ref={element => {
+                          if (element) rsiStatusRefs.current.set(rsiIdentityKey, element);
+                          else rsiStatusRefs.current.delete(rsiIdentityKey);
+                        }}
+                        role="status"
+                        aria-live="polite"
+                        tabIndex={rsiUpdated && !r.rsiFailure ? 0 : -1}
+                        className="mt-1 text-[9px] leading-tight text-wm-text-muted outline-none focus-visible:ring-2 focus-visible:ring-wm-blue"
+                      >
+                        {rsiRetrying
+                          ? `Retrying RSI for ${r.symbol}`
+                          : r.rsiFailure
+                            ? `RSI unavailable: ${r.rsiFailure.reason}`
+                            : `RSI updated for ${r.symbol}`}
+                      </div>
+                    )}
+                    {r.rsiFailure && (
+                      <button
+                        ref={element => {
+                          if (element) rsiRetryButtonRefs.current.set(rsiIdentityKey, element);
+                          else rsiRetryButtonRefs.current.delete(rsiIdentityKey);
+                        }}
+                        type="button"
+                        disabled={rsiRetrying}
+                        aria-busy={rsiRetrying}
+                        aria-describedby={rsiStatusId}
+                        aria-label={rsiRetrying ? `Retrying RSI for ${r.symbol}` : `Retry failed RSI for ${r.symbol}`}
+                        onClick={event => {
+                          event.stopPropagation();
+                          void retryFailedRsi(rsiIdentity);
+                        }}
+                        className="mt-1 rounded border border-wm-blue/50 px-1.5 py-0.5 text-[9px] font-bold text-wm-blue transition-colors hover:bg-wm-blue/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wm-blue disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {rsiRetrying ? "Retrying…" : "Retry"}
+                      </button>
+                    )}
                   </div>
                   <div className="px-2">
                     <span className="text-[10px] font-black px-1.5 py-0.5 rounded"
