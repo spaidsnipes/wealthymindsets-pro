@@ -16,11 +16,16 @@
  */
 
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
 
 // In-memory store — replace with DB for persistence across deploys
 const trackStore = new Map<string, { url: string; title?: string; artist?: string; addedAt: number }>();
 const stationStore = new Map<string, { url: string; addedAt: number }>();
 
+// GET stays public — it's a listing of already-public URLs. Only POST is
+// gated because it mutates the shared store. (Audit noted a DELETE handler
+// but the file does not currently export one; POST alone covers the mutating
+// surface today.)
 export async function GET() {
   return NextResponse.json({
     tracks:   Object.fromEntries(trackStore),
@@ -29,6 +34,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  // WM-SEC-P0-06: was unauthenticated write to shared track store.
+  const auth = requireAuth(request);
+  if (!auth.ok) return auth.response;
   const body = await request.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 

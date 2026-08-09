@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { RoomServiceClient } from "livekit-server-sdk";
+import { requireAuth } from "@/lib/requireAuth";
 
 export async function POST(request: Request) {
+  // WM-SEC-P0-06: was unauthenticated. Grants publish rights server-side.
+  const auth = requireAuth(request);
+  if (!auth.ok) return auth.response;
   const { room, identity } = await request.json() as { room: string; identity: string };
   if (!room || !identity) return NextResponse.json({ error: "room and identity required" }, { status: 400 });
 

@@ -4,6 +4,7 @@
  */
 
 import { NextRequest } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY ?? "";
 const MODEL      = "gemini-2.0-flash";
@@ -60,6 +61,9 @@ type GeminiChunk = {
 };
 
 export async function POST(req: NextRequest) {
+  // WM-SEC-P0-06: was unauthenticated. Uses GEMINI_API_KEY — open quota abuse.
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
   if (!GEMINI_KEY) {
     return new Response(
       `data: ${JSON.stringify({ error: "GEMINI_API_KEY not set." })}\n\ndata: [DONE]\n\n`,

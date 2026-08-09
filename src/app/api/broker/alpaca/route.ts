@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
 
 export async function POST(req: Request) {
+  // WM-SEC-P0-06: was unauthenticated credential-echo proxy.
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
   const { key, secret } = await req.json().catch(() => ({})) as { key?: string; secret?: string };
   if (!key || !secret) return NextResponse.json({ error: "API Key and Secret Key are required" }, { status: 400 });
 

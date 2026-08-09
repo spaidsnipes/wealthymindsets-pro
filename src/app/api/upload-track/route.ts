@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireAuth } from "@/lib/requireAuth";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,6 +10,10 @@ const supabaseAdmin = createClient(
 const BUCKET = "radio";
 
 export async function POST(request: Request) {
+  // WM-SEC-P0-06: was unauthenticated multipart write using SUPABASE_
+  // SERVICE_ROLE_KEY to a public bucket — arbitrary-file upload for anyone.
+  const auth = requireAuth(request);
+  if (!auth.ok) return auth.response;
   try {
     const form = await request.formData();
     const file     = form.get("file") as File | null;
