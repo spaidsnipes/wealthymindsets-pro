@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthToken, verifyJWT } from "@/lib/auth";
+import { requireAuth } from "@/lib/requireAuth";
 
 const categories = new Set(["spiritual", "physical", "mental", "financial", "creative", "relationships", "work"]);
 
@@ -9,17 +9,13 @@ function databaseConfig() {
   return url && serviceKey ? { url, serviceKey } : null;
 }
 
-function currentPassport(request: Request) {
-  const token = getAuthToken(request);
-  return token ? verifyJWT(token) : null;
-}
-
 // WM Pro verifies its httpOnly Passport session before touching the shared
 // Growth Rings table. The browser never receives a service-role key.
 export async function GET(request: Request) {
-  const passport = currentPassport(request);
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
+  const passport = auth.user;
   const config = databaseConfig();
-  if (!passport) return NextResponse.json({ error: "Sign in to view your Growth Rings." }, { status: 401 });
   if (!config) return NextResponse.json({ error: "Growth Rings connection is not configured yet." }, { status: 503 });
   const url = new URL(`${config.url}/rest/v1/dreamboard_growth_entries`);
   url.searchParams.set("select", "id,occurred_on,category,practice,reflection,created_at");
@@ -32,9 +28,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const passport = currentPassport(request);
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
+  const passport = auth.user;
   const config = databaseConfig();
-  if (!passport) return NextResponse.json({ error: "Sign in to record Growth Rings." }, { status: 401 });
   if (!config) return NextResponse.json({ error: "Growth Rings connection is not configured yet." }, { status: 503 });
   const body = await request.json().catch(() => null) as { category?: string; practices?: string[]; reflection?: string } | null;
   const category = body?.category;

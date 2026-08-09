@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTastytradeAccounts, tastytradeConfigStatus } from "@/lib/tastytrade";
-import { getAuthToken, verifyJWT } from "@/lib/auth";
+import { requireAuth } from "@/lib/requireAuth";
 
 // Server-only. Returns the authenticated customer's tastytrade accounts
 // (account numbers + metadata). No tokens/secrets. (Company Bible §30/§32.)
 // GATED behind a valid WM session — account numbers must not be public.
 export async function GET(req: NextRequest) {
-  const token = getAuthToken(req);
-  if (!token || !verifyJWT(token)) {
-    return NextResponse.json({ error: "Unauthorized", accounts: [] }, { status: 401 });
-  }
+  const auth = await requireAuth(req);
+  if (!auth.ok) return auth.response;
   const cfg = tastytradeConfigStatus();
   if (!cfg.configured) {
     return NextResponse.json(

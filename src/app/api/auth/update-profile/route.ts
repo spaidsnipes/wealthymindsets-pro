@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import { getAuthToken, verifyJWT, signJWT, setAuthCookie, useSupabase, supabaseUpdateUserMetadata } from "@/lib/auth";
+import { signJWT, setAuthCookie, useSupabase, supabaseUpdateUserMetadata } from "@/lib/auth";
+import { requireAuth } from "@/lib/requireAuth";
 
 export async function POST(req: Request) {
-  const token = getAuthToken(req);
-  if (!token) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
-  const payload = verifyJWT(token);
-  if (!payload) return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+  const auth = await requireAuth(req);
+  if (!auth.ok) return auth.response;
+  const payload = auth.user;
 
   const updates = await req.json().catch(() => ({})) as Record<string, string | boolean>;
 

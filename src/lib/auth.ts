@@ -269,9 +269,10 @@ export async function supabaseGetUserById(userId: string): Promise<Record<string
   } catch { return null; }
 }
 
-/** Current revocation epoch for a user (0 = never revoked). */
-export async function supabaseGetSessionEpoch(userId: string): Promise<number> {
+/** Current revocation epoch (0 = never revoked, null = could not verify). */
+export async function supabaseGetSessionEpoch(userId: string): Promise<number | null> {
   const u = await supabaseGetUserById(userId);
+  if (!u) return null;
   const meta = (u?.user_metadata ?? {}) as Record<string, unknown>;
   const se = meta.sessionEpoch;
   return typeof se === "number" ? se : 0;

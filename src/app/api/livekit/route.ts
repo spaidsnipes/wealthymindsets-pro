@@ -5,7 +5,7 @@ import { requireAuth } from "@/lib/requireAuth";
 export async function GET(request: Request) {
   // WM-SEC-P0-06: was unauthenticated. Mints signed LiveKit AccessToken
   // with canPublish when role=host — anyone could self-elevate.
-  const auth = requireAuth(request);
+  const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
   const { searchParams } = new URL(request.url);
   const room = searchParams.get("room");

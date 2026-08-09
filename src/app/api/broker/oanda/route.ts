@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/requireAuth";
 
 export async function POST(req: Request) {
   // WM-SEC-P0-06: was unauthenticated credential-echo proxy.
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
   const { key } = await req.json().catch(() => ({})) as { key?: string };
   if (!key) return NextResponse.json({ error: "API Access Token is required" }, { status: 400 });

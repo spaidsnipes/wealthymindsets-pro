@@ -12,7 +12,7 @@ const BUCKET = "radio";
 export async function POST(request: Request) {
   // WM-SEC-P0-06: was unauthenticated multipart write using SUPABASE_
   // SERVICE_ROLE_KEY to a public bucket — arbitrary-file upload for anyone.
-  const auth = requireAuth(request);
+  const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
   try {
     const form = await request.formData();
