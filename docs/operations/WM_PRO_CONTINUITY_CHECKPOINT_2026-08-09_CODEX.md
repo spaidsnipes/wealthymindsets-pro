@@ -133,7 +133,7 @@ KNOWN OPEN DEFECTS:
 
 1. Full auth/email E2E proof absent; custom SMTP/config not verified.
 2. Historical private credential rotation receipts absent.
-3. Single market truth/store not complete; silent timeframe substitutions remain in the Yahoo route for unsupported granularities.
+3. Single market truth/store not complete. The Yahoo silent timeframe substitutions listed in the original checkpoint were fixed in the post-checkpoint continuation below.
 4. Leaked-password protection disabled; RLS-no-policy classification unresolved; deprecated Auth config warnings remain.
 5. Tastytrade futures execution is not implemented/proven.
 6. Preview deployments fail without Preview `JWT_SECRET`.
@@ -192,3 +192,31 @@ IMPORTANT NOTES FOR CODEX/ANOTHER CLAUDE:
 | Auth email delivery | Passport & Ecosystem Bridge | Supabase GoTrue mail | OPEN | no inbox/config proof | Custom SMTP + signup/reset acceptance |
 | Historical secret rotation | Security | current HEAD cleaned partially | OPEN | history at `39c8758`, no rotation receipts | Rotate at every provider and update Vercel |
 | Futures execution | Risk & Instrument Intelligence | read-only partial Tastytrade integration | OPEN | current route/import trace | Capability matrix, contract mapping, gated paper path only if launch-scoped |
+
+## Post-checkpoint continuation — market timeframe truth
+
+DATE: 2026-08-09 (America/Chicago)
+
+CODE/PRODUCTION SHA: `1ac0744a121e3ec7c8379ebc3055caa3a95ff1f0`
+
+VERCEL DEPLOYMENT: `dpl_6rAUKXcG6zxRqf4rWhNfJDm47zt6` — READY, production, aliased to `wealthymindsets-pro.vercel.app`.
+
+COMPLETED:
+
+- Removed silent 3m→5m, 10m→15m, and 2h/4h→60m label substitutions from `/api/yahoo`.
+- Unsupported intraday intervals are reconstructed from finer native bars with OHLCV aggregation and gap boundaries.
+- Long intervals are reconstructed on explicit UTC calendar boundaries.
+- Responses disclose `sourceMode` and `baseInterval`.
+- Unknown intervals return `qualityState: UNAVAILABLE` instead of daily candles under a false label.
+
+PROOF:
+
+- Full Vitest: 15 files, 156 tests passed.
+- Focused timeframe truth: 5 tests passed.
+- TypeScript no-emit: passed.
+- Next.js production build: passed, 70 routes.
+- Live production AAPL 3m request returned HTTP 200, `requestedTf: 3m`, `returnedTf: 3m`, `sourceMode: reconstructed`, `baseInterval: 1m`, and two three-minute candles whose timestamps were 180 seconds apart.
+- Live production AAPL 7m request returned HTTP 400 with `qualityState: UNAVAILABLE`.
+- Final Vercel runtime error check: no project runtime errors in the selected one-hour range.
+
+DO NOT REDO: The Yahoo timeframe substitution defect is fixed. The remaining market-data P0 is ownership consolidation across independent quote pipelines, not another interval-label patch.
