@@ -241,7 +241,7 @@ export function DOMPanel({ symbol }: { symbol: string }) {
   const bidPct  = Math.round(totBid / Math.max(1, totBid + totAsk) * 100);
 
   return (
-    <div className="border-l border-wm-border flex flex-col shrink-0" style={{ width:230, background:"#0A0B10", fontSize:13 }}>
+    <div className="wm-chart-dom border-l border-wm-border flex flex-col shrink-0" style={{ width:230, background:"#0A0B10", fontSize:13 }}>
       {/* Header */}
       <div className="flex items-center gap-2 px-2.5 shrink-0" style={{ height:38, borderBottom:"1px solid rgba(30,32,48,0.8)" }}>
         <span style={{ fontSize:12, fontWeight:800, color:"#5A6080", letterSpacing:1.2, textTransform:"uppercase" }}>DOM</span>

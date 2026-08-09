@@ -382,7 +382,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "stretch", flexShrink: 0, position: "relative" }}>
+    <div className="wm-chart-watchlist" style={{ display: "flex", alignItems: "stretch", flexShrink: 0, position: "relative" }}>
       <AnimatePresence initial={false}>
         {open && (
           <motion.div

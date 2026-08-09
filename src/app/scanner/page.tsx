@@ -356,6 +356,10 @@ export default function ScannerPage() {
     yahooConsumerRef.current = new YahooCandleConsumer({ fetcher: (input, init) => fetch(input, init) });
   }
 
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 639px)").matches) setFilterOpen(false);
+  }, []);
+
   const applyPreset = (id: string) => {
     setPreset(id);
     const p = PRESETS.find(x => x.id === id);
@@ -542,13 +546,13 @@ export default function ScannerPage() {
       </div>
 
       {/* Body */}
-      <div style={{ flex:1,display:"flex",overflow:"hidden",minHeight:0 }}>
+      <div className="wm-scanner-body" style={{ flex:1,display:"flex",overflow:"hidden",minHeight:0 }}>
 
         {/* Filter panel */}
         <AnimatePresence>
           {filterOpen && (
             <motion.div initial={{ width:0,opacity:0 }} animate={{ width:200,opacity:1 }} exit={{ width:0,opacity:0 }}
-              className="overflow-hidden shrink-0 border-r border-wm-border bg-wm-dark flex flex-col">
+              className="wm-scanner-filters overflow-hidden shrink-0 border-r border-wm-border bg-wm-dark flex flex-col">
               <div className="px-3 py-2 border-b border-wm-border text-[9px] font-bold text-wm-text-dim uppercase tracking-wider flex items-center gap-1.5">
                 <Filter size={11} className="text-wm-blue"/> Filters
               </div>
@@ -606,7 +610,7 @@ export default function ScannerPage() {
         {/* Table */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Column headers */}
-          <div className="grid border-b border-wm-border bg-wm-dark shrink-0"
+          <div className="wm-scanner-row grid border-b border-wm-border bg-wm-dark shrink-0"
             style={{ gridTemplateColumns:"36px 80px 1fr 90px 90px 80px 160px 60px 80px 100px 60px" }}>
             {[
               {l:"",k:null},{l:"Symbol",k:null},{l:"Signal",k:null},{l:"Price",k:null},
@@ -642,7 +646,7 @@ export default function ScannerPage() {
                 <motion.div key={r.id}
                   initial={{ opacity:0,x:-8 }} animate={{ opacity:1,x:0 }} transition={{ delay:idx*0.015,duration:0.2 }}
                   onClick={() => setSelected(isSel ? null : r)}
-                  className={clsx("grid border-b border-wm-border/30 cursor-pointer transition-colors items-center",
+                  className={clsx("wm-scanner-row grid border-b border-wm-border/30 cursor-pointer transition-colors items-center",
                     isSel || rsiIdentitySelected ? "bg-wm-surface" : "hover:bg-wm-surface/50")}
                   style={{ gridTemplateColumns:"36px 80px 1fr 90px 90px 80px 160px 60px 80px 100px 60px", minHeight:r.rsiFailure ? 72 : 40 }}>
                   <div className="flex items-center justify-center">
@@ -748,7 +752,7 @@ export default function ScannerPage() {
         <AnimatePresence>
           {selected && (
             <motion.div initial={{ width:0,opacity:0 }} animate={{ width:252,opacity:1 }} exit={{ width:0,opacity:0 }}
-              className="border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden">
+              className="wm-scanner-detail border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden">
               <div className="px-3 py-2 border-b border-wm-border flex items-center justify-between">
                 <span className="text-xs font-bold text-wm-text">{selected.symbol} Detail</span>
                 <button onClick={()=>setSelected(null)} className="text-wm-text-dim hover:text-wm-text text-xs">✕</button>

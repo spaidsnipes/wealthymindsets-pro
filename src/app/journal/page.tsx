@@ -17,7 +17,7 @@ import {
   FileText, X, Star, BarChart2, Smile, Play, Pause,
   StopCircle, Paperclip, CheckCircle, Camera, Video,
   Brain, AlertTriangle, ChevronUp, ChevronDown, RefreshCw, Zap,
-  Music, Sparkles, Copy, Trash2 as Trash2Icon, Headphones,
+  Music, Sparkles, Copy, Trash2 as Trash2Icon, Headphones, ArrowLeft,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
@@ -791,7 +791,7 @@ Trade the system, trust the process, winners every day 🚀`,
          className="bg-wm-black">
 
       {/* ── Header ─────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-4 border-b border-wm-border bg-wm-dark shrink-0" style={{ height:44 }}>
+      <div className="wm-journal-header flex items-center gap-3 px-4 border-b border-wm-border bg-wm-dark shrink-0" style={{ height:44 }}>
         <FileText size={15} className="text-wm-purple shrink-0" />
         <h1 className="text-sm font-bold text-wm-text">Trade Journal</h1>
         {/* Main tabs */}
@@ -1045,10 +1045,13 @@ Trade the system, trust the process, winners every day 🚀`,
       )}
 
       {/* ── Journal body ─────────────────────────────────────── */}
-      {mainTab === "journal" && <div style={{ flex:1, display:"flex", overflow:"hidden", minHeight:0 }}>
+      {mainTab === "journal" && <div className="wm-journal-body" style={{ flex:1, display:"flex", overflow:"hidden", minHeight:0 }}>
 
         {/* Left: list */}
-        <div className="w-80 border-r border-wm-border flex flex-col shrink-0 overflow-hidden">
+        <div className={clsx(
+          "wm-journal-list w-80 border-r border-wm-border flex flex-col shrink-0 overflow-hidden",
+          (selected || newMode) && "wm-mobile-hidden",
+        )}>
           <div className="px-2 py-1.5 border-b border-wm-border overflow-x-auto" style={{ scrollbarWidth:"none" }}>
             <div className="flex gap-1 min-w-max">
               <button onClick={() => setFilterTag("")}
@@ -1108,7 +1111,17 @@ Trade the system, trust the process, winners every day 🚀`,
         </div>
 
         {/* Right: detail / new entry */}
-        <div className="flex-1 overflow-y-auto p-4" style={{ scrollbarWidth:"thin" }}>
+        <div className={clsx(
+          "wm-journal-detail flex-1 overflow-y-auto p-4",
+          !selected && !newMode && "wm-mobile-hidden",
+        )} style={{ scrollbarWidth:"thin" }}>
+          <button
+            type="button"
+            onClick={() => { setSelected(null); setNewMode(false); }}
+            className="wm-mobile-only mb-3 min-h-11 items-center gap-2 rounded-lg border border-wm-border px-3 text-xs font-bold text-wm-text-muted"
+          >
+            <ArrowLeft size={15} aria-hidden="true" /> Back to journal
+          </button>
 
           {/* Placeholder */}
           {!selected && !newMode && (

@@ -766,6 +766,14 @@ const NAV_BOTTOM = [
   { href: "/shop",         icon: ShoppingBag,   label: "Shop"         },
   { href: "/profile",      icon: User,          label: "Profile"      },
 ];
+
+const MOBILE_NAV_ITEMS = [
+  { href: "/charts", icon: BarChart2, label: "Charts" },
+  { href: "/scanner", icon: ScanLine, label: "Scanner" },
+  { href: "/paper", icon: TrendingUp, label: "Paper" },
+  { href: "/journal", icon: BookOpen, label: "Journal" },
+  { href: "/profile", icon: User, label: "Profile" },
+] as const;
 /* Legacy — kept for any code that may reference NAV_ITEMS */
 const NAV_ITEMS = [
   ...NAV_TOP,
@@ -890,7 +898,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Ticker tape */}
-        <div className="flex-1 overflow-hidden mx-2">
+        <div className="wm-shell-ticker flex-1 overflow-hidden mx-2">
           <TickerTape />
         </div>
 
@@ -931,10 +939,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </button>
 
           {/* WM$ balance */}
-          <WMSBar />
+          <div className="wm-mobile-hide"><WMSBar /></div>
 
           {/* PRO badge */}
-          <div className="ml-1 flex items-center gap-1 bg-gradient-to-r from-wm-gold/25 to-wm-gold/10 border border-wm-gold/40 rounded-full px-2.5 py-0.5">
+          <div className="wm-mobile-hide ml-1 flex items-center gap-1 bg-gradient-to-r from-wm-gold/25 to-wm-gold/10 border border-wm-gold/40 rounded-full px-2.5 py-0.5">
             <Zap size={10} className="text-wm-gold fill-wm-gold" />
             <span className="text-[10px] font-bold text-wm-gold tracking-wide">PRO</span>
           </div>
@@ -1011,7 +1019,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       {/* ── Body row (sidebar + content) ───────────────────── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0, height: 0 }}>
         {/* MooMoo-style 72px icon+label sidebar */}
-        <aside style={{
+        <aside className="wm-primary-sidebar" style={{
           width: 72, flexShrink: 0,
           background: "linear-gradient(180deg,#111018 0%,#0b0b11 55%,#120b0e 100%)",
           borderRight: "1px solid #1E2030",
@@ -1102,6 +1110,23 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           )}
         </main>
       </div>
+
+      <nav className="wm-mobile-nav" aria-label="Primary navigation">
+        {MOBILE_NAV_ITEMS.map(({ href, icon: Icon, label }) => {
+          const active = pathname.startsWith(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={clsx("wm-mobile-nav-link", active && "is-active")}
+            >
+              <Icon size={19} aria-hidden="true" />
+              <span>{label}</span>
+            </Link>
+          );
+        })}
+      </nav>
 
       {/* ── Overlays ─────────────────────────────────────────── */}
       {mounted && (

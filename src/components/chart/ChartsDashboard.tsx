@@ -1287,6 +1287,7 @@ export function ChartsDashboard() {
                 <button
                   onClick={() => setVpDomOpen(v => !v)}
                   title={vpDomOpen ? "Collapse DOM ladder" : "Expand DOM ladder"}
+                  className="wm-chart-dom-toggle"
                   style={{
                     width: 20, flexShrink: 0,
                     background: "#0D0E14",

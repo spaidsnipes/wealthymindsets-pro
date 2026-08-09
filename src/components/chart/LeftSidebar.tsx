@@ -234,7 +234,7 @@ export default function LeftSidebar({
   return (
     <>
       {/* ═══ vertical strip ═══ */}
-      <div style={{
+      <div className="wm-chart-primary-rail" style={{
         width: 46, flexShrink: 0,
         background: "#0A0B10",
         borderRight: "1px solid #1E2030",

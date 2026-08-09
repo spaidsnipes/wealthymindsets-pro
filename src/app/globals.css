@@ -101,6 +101,106 @@
   mask-image: linear-gradient(180deg, rgba(0,0,0,.72), transparent 68%);
 }
 .wm-app-surface > * { position: relative; z-index: 1; }
+.wm-mobile-nav { display: none; }
+.wm-mobile-only { display: none; }
+
+@media (max-width: 1023px) {
+  .wm-primary-sidebar,
+  .wm-chart-primary-rail,
+  .wm-chart-watchlist,
+  .wm-chart-dom,
+  .wm-chart-dom-toggle,
+  .wm-draw-rail {
+    display: none !important;
+  }
+
+  .wm-mobile-nav {
+    display: flex;
+    flex: 0 0 auto;
+    min-height: 58px;
+    padding: 4px 4px max(4px, env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(232,185,35,.18);
+    background: rgba(9,10,15,.98);
+    z-index: 80;
+  }
+
+  .wm-mobile-nav-link {
+    min-width: 0;
+    min-height: 48px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border-radius: 8px;
+    color: #8B8FA8;
+    font-size: 10px;
+    text-decoration: none;
+  }
+
+  .wm-mobile-nav-link.is-active {
+    color: #E8B923;
+    background: rgba(232,185,35,.12);
+  }
+}
+
+@media (max-width: 639px) {
+  .wm-shell-ticker,
+  .wm-mobile-hide {
+    display: none !important;
+  }
+
+  .wm-shell-header {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  .wm-scanner-body {
+    position: relative;
+  }
+
+  .wm-scanner-filters,
+  .wm-scanner-detail {
+    position: absolute !important;
+    top: 0;
+    bottom: 0;
+    z-index: 70;
+    width: min(86vw, 320px) !important;
+    box-shadow: 0 18px 46px rgba(0,0,0,.72);
+  }
+
+  .wm-scanner-filters { left: 0; }
+  .wm-scanner-detail { right: 0; }
+
+  .wm-scanner-row {
+    grid-template-columns: 32px 64px minmax(104px, 1fr) 76px 66px !important;
+  }
+
+  .wm-scanner-row > :nth-child(n+6) {
+    display: none !important;
+  }
+
+  .wm-journal-header {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .wm-journal-body,
+  .wm-journal-list,
+  .wm-journal-detail {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .wm-mobile-hidden {
+    display: none !important;
+  }
+
+  .wm-mobile-only {
+    display: flex;
+  }
+}
 .wm-universe .glass {
   border-color: rgba(232,185,35,.14);
   background: linear-gradient(145deg, rgba(24,25,32,.94), rgba(13,17,20,.92));
