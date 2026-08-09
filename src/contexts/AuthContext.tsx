@@ -11,6 +11,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { isCoreTeam } from "@/lib/coreTeam";
+import { isPublicAuthPath } from "@/lib/authRoutes";
 
 export interface WMUser {
   id:             string;
@@ -51,8 +52,6 @@ const AuthContext = createContext<AuthState>({
 });
 
 export function useAuth() { return useContext(AuthContext); }
-
-const PUBLIC_PATHS = ["/login", "/signup", "/reset-password"];
 
 const SESSION_KEY = "wm_session_v1";
 
@@ -125,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Route guard
   useEffect(() => {
     if (loading) return;
-    const isPublic = PUBLIC_PATHS.some(p => pathname.startsWith(p));
+    const isPublic = isPublicAuthPath(pathname);
     if (!user && !isPublic) {
       router.replace("/login");
       return;

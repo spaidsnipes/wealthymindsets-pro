@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { clsx } from "clsx";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { WMSBar } from "@/components/wms/WMSBar";
+import { isPublicAuthPath } from "@/lib/authRoutes";
 
 /* ── All searchable symbols ─────────────────────────────── */
 const ALL_SYMBOLS = [
@@ -869,8 +870,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Skip shell on auth pages — MUST be after all hooks to keep hook order stable
-  const PUBLIC_AUTH_PATHS = ["/login", "/signup"];
-  if (PUBLIC_AUTH_PATHS.some(p => pathname.startsWith(p))) {
+  if (isPublicAuthPath(pathname)) {
     return <>{children}</>;
   }
 

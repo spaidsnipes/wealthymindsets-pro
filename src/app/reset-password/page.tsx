@@ -14,6 +14,13 @@ export default function ResetPasswordPage() {
     const hash = new URLSearchParams(window.location.hash.slice(1));
     setAccessToken(hash.get("access_token") ?? "");
     if (hash.get("error_description")) setMessage(hash.get("error_description") ?? "");
+    if (window.location.hash) {
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${window.location.search}`,
+      );
+    }
   }, []);
 
   async function submit(event: FormEvent) {
@@ -59,22 +66,28 @@ export default function ResetPasswordPage() {
         <h1 className="mt-3 text-3xl font-semibold">Choose a new password</h1>
         <p className="mt-2 text-sm text-white/55">Use at least 8 characters and keep it unique to this account.</p>
         <form onSubmit={submit} className="mt-7 space-y-4">
-          <input
-            type="password"
-            autoComplete="new-password"
-            placeholder="New password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="w-full rounded-xl border border-white/10 bg-black/35 px-4 py-3 outline-none focus:border-[#E8B923]/60"
-          />
-          <input
-            type="password"
-            autoComplete="new-password"
-            placeholder="Confirm new password"
-            value={confirm}
-            onChange={(event) => setConfirm(event.target.value)}
-            className="w-full rounded-xl border border-white/10 bg-black/35 px-4 py-3 outline-none focus:border-[#E8B923]/60"
-          />
+          <label className="block space-y-2 text-sm text-white/70">
+            <span>New password</span>
+            <input
+              type="password"
+              autoComplete="new-password"
+              placeholder="New password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-[#E8B923]/60"
+            />
+          </label>
+          <label className="block space-y-2 text-sm text-white/70">
+            <span>Confirm new password</span>
+            <input
+              type="password"
+              autoComplete="new-password"
+              placeholder="Confirm new password"
+              value={confirm}
+              onChange={(event) => setConfirm(event.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-[#E8B923]/60"
+            />
+          </label>
           <button
             disabled={saving}
             className="w-full rounded-xl bg-[#E8B923] px-4 py-3 font-semibold text-black transition hover:brightness-110 disabled:opacity-50"
