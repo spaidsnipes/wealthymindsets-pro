@@ -454,7 +454,7 @@ export function SpadeBotButton() {
       <motion.button
         onClick={() => setOpen(o => !o)}
         whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}
-        className="fixed bottom-5 right-5 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-xl"
+        className="wm-spaidbot-launcher fixed bottom-5 right-5 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-xl"
         style={{ background: "linear-gradient(135deg,#00D4AA,#4FA3E0)", boxShadow: "0 4px 28px rgba(0,212,170,0.45)" }}
         title="SpaidBot — AI Trading Assistant"
       >
@@ -472,7 +472,7 @@ export function SpadeBotButton() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.96 }}
             transition={{ type: "spring", stiffness: 420, damping: 32 }}
-            className="fixed bottom-20 right-5 z-50 flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-wm-border"
+            className="wm-spaidbot-panel fixed bottom-20 right-5 z-50 flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-wm-border"
             style={{ width: panelW, height: panelH, background: "#0D0E14", transition: "width .25s, height .25s" }}
           >
             {/* Header */}

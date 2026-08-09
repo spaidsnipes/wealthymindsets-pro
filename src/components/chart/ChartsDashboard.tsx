@@ -625,7 +625,7 @@ export function ChartsDashboard() {
 
   return (
     <div
-      className={theme === "neon" ? "wm-neon" : undefined}
+      className={`wm-chart-dashboard${theme === "neon" ? " wm-neon" : ""}`}
       style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden", background: theme === "neon" ? "#02060a" : "#0D0E14" }}
     >
       {theme === "neon" && <div className="wm-neon-scan" />}
@@ -636,7 +636,7 @@ export function ChartsDashboard() {
         style={{ display: "none" }}
       />
       {/* ── MooMoo-style chart tabs row ──────────────────────── */}
-      <div style={{
+      <div className="wm-chart-tabs" style={{
         height: 40, borderBottom: "1px solid #1E2030", display: "flex", alignItems: "center",
         gap: 0, paddingLeft: 16, background: "#0D0E14", flexShrink: 0, overflowX: "auto",
         scrollbarWidth: "none",
@@ -687,7 +687,7 @@ export function ChartsDashboard() {
         </div>
         {/* Tab bar */}
         {["Chart","Options","ETFs","Financials","Valuation","Corporate Actions","Shareholders","Profile"].map(tab => (
-          <button key={tab} onClick={() => {
+          <button key={tab} className="wm-chart-page-tab" onClick={() => {
             setActiveTab(tab);
             if (tab === "Options") setOptionsOpen(true);
           }} style={{
@@ -701,7 +701,7 @@ export function ChartsDashboard() {
         ))}
 
         {/* ── Layout theme toggle (top-right) ── */}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, paddingRight: 14, flexShrink: 0 }}>
+        <div className="wm-chart-theme-controls" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, paddingRight: 14, flexShrink: 0 }}>
           <button
             className={`wm-theme-toggle ${theme === "original" ? "is-neon" : ""}`}
             onClick={() => setTheme("original")}
@@ -777,7 +777,7 @@ export function ChartsDashboard() {
               clipped ("cut off"). Natural left flow lets the row scroll cleanly and
               keeps every control fully reachable. pr-3 gives the last button breathing
               room so it never sits flush against the clip edge. */}
-          <div className="flex items-center justify-start border-b shrink-0 overflow-x-auto overflow-y-hidden pr-3"
+          <div className="wm-chart-tools flex items-center justify-start border-b shrink-0 overflow-x-auto overflow-y-hidden pr-3"
             style={{ height: 30, background: "#0D0E14", borderColor: "#1E2030" }}>
             <div className="flex items-center shrink-0">
               {/* Drawing tools dropdown — lives in the secondary toolbar */}

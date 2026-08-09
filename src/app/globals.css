@@ -143,6 +143,100 @@
     color: #E8B923;
     background: rgba(232,185,35,.12);
   }
+
+  .wm-chart-tabs,
+  .wm-chart-toolbar,
+  .wm-chart-tools,
+  .wm-journal-header {
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 24px), transparent 100%);
+  }
+
+  .wm-spaidbot-launcher {
+    bottom: calc(70px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .wm-spaidbot-panel {
+    bottom: calc(126px + env(safe-area-inset-bottom)) !important;
+    max-height: calc(100dvh - 150px) !important;
+  }
+}
+
+/* Phones in landscape are a distinct command state, not a compressed desktop.
+   Put the five primary destinations on a safe-area-aware left rail, remove the
+   global chrome and nonessential chart-page tabs, and give the chart the full
+   short edge. This matches the founder's real-device recording and preserves a
+   reachable route out of the chart without spending 102px of vertical space. */
+@media (max-width: 1023px) and (max-height: 520px) and (orientation: landscape) {
+  .wm-shell-header {
+    display: none !important;
+  }
+
+  .wm-app-surface {
+    margin-left: calc(56px + env(safe-area-inset-left));
+  }
+
+  .wm-mobile-nav {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: calc(56px + env(safe-area-inset-left));
+    min-height: 0;
+    padding: max(4px, env(safe-area-inset-top)) 4px max(4px, env(safe-area-inset-bottom)) env(safe-area-inset-left);
+    flex-direction: column;
+    justify-content: center;
+    border-top: 0;
+    border-right: 1px solid rgba(232,185,35,.18);
+  }
+
+  .wm-mobile-nav-link {
+    width: 52px;
+    min-height: 44px;
+    flex: 0 1 54px;
+    font-size: 9px;
+  }
+
+  .wm-chart-tabs {
+    height: 34px !important;
+    padding-left: 8px !important;
+  }
+
+  .wm-chart-page-tab,
+  .wm-chart-theme-controls {
+    display: none !important;
+  }
+
+  .wm-chart-toolbar {
+    height: 34px !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+
+  .wm-chart-tools {
+    height: 28px !important;
+  }
+
+  .wm-chart-dashboard [role="status"][aria-live="polite"] {
+    top: 8px !important;
+    width: max-content;
+    max-width: min(72vw, 440px) !important;
+    padding: 4px 8px !important;
+    font-size: 9px !important;
+    line-height: 1.25 !important;
+  }
+
+  .wm-spaidbot-launcher {
+    right: calc(10px + env(safe-area-inset-right)) !important;
+    bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  .wm-spaidbot-panel {
+    right: calc(10px + env(safe-area-inset-right)) !important;
+    bottom: calc(60px + env(safe-area-inset-bottom)) !important;
+    max-height: calc(100dvh - 74px) !important;
+  }
 }
 
 @media (max-width: 639px) {

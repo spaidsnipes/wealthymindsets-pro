@@ -626,7 +626,7 @@ export function ChartToolbar({
 
   return (
     <div
-      className="flex items-center border-b border-wm-border px-2 gap-1 shrink-0 overflow-x-auto"
+      className="wm-chart-toolbar flex items-center border-b border-wm-border px-2 gap-1 shrink-0 overflow-x-auto"
       style={{ scrollbarWidth:"none", height: 36, background: "#0D0E14", borderColor: "#1E2030" }}
     >
 
