@@ -32,6 +32,7 @@ interface AuthState {
   loading:    boolean;
   signUp:     (email: string, password: string) => Promise<{ error?: string; verificationRequired?: boolean }>;
   signIn:     (email: string, password: string) => Promise<{ error?: string }>;
+  resendConfirmation: (email: string) => Promise<{ error?: string }>;
   signOut:    () => Promise<void>;
   signOutAllDevices: () => Promise<void>;
   updateProfile: (data: Partial<WMUser>) => Promise<{ error?: string }>;
@@ -42,6 +43,7 @@ const AuthContext = createContext<AuthState>({
   user: null, loading: true,
   signUp: async () => ({}),
   signIn:  async () => ({}),
+  resendConfirmation: async () => ({}),
   signOut: async () => {},
   signOutAllDevices: async () => {},
   updateProfile: async () => ({}),
@@ -53,6 +55,10 @@ export function useAuth() { return useContext(AuthContext); }
 const PUBLIC_PATHS = ["/login", "/signup", "/reset-password"];
 
 const SESSION_KEY = "wm_session_v1";
+
+async function readResponseJson(response: Response): Promise<Record<string, unknown>> {
+  return response.json().catch(() => ({})) as Promise<Record<string, unknown>>;
+}
 
 function readCachedUser(): WMUser | null {
   if (typeof window === "undefined") return null;
@@ -140,31 +146,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, loading, pathname, router]);
 
   const signUp = useCallback(async (email: string, password: string) => {
-    const res = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-      credentials: "include",
-    });
-    const data = await res.json();
-    if (!res.ok) return { error: data.error ?? "Signup failed" };
-    if (data.verificationRequired) return { verificationRequired: true };
-    await refreshUser();
-    return {};
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+        credentials: "include",
+      });
+      const data = await readResponseJson(res);
+      if (!res.ok) return { error: typeof data.error === "string" ? data.error : "Signup failed" };
+      if (data.verificationRequired === true) return { verificationRequired: true };
+      await refreshUser();
+      return {};
+    } catch {
+      return { error: "We could not reach the account service. Check your connection and try again." };
+    }
   }, [refreshUser]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-      credentials: "include",
-    });
-    const data = await res.json();
-    if (!res.ok) return { error: data.error ?? "Login failed" };
-    await refreshUser();
-    return {};
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+        credentials: "include",
+      });
+      const data = await readResponseJson(res);
+      if (!res.ok) return { error: typeof data.error === "string" ? data.error : "Login failed" };
+      await refreshUser();
+      return {};
+    } catch {
+      return { error: "We could not reach the account service. Check your connection and try again." };
+    }
   }, [refreshUser]);
+
+  const resendConfirmation = useCallback(async (email: string) => {
+    try {
+      const res = await fetch("/api/auth/resend-confirmation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await readResponseJson(res);
+      if (!res.ok) {
+        return { error: typeof data.error === "string" ? data.error : "Confirmation email could not be requested" };
+      }
+      return {};
+    } catch {
+      return { error: "We could not reach the account service. Check your connection and try again." };
+    }
+  }, []);
 
   const signOut = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
@@ -198,7 +229,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, signOutAllDevices, updateProfile, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, resendConfirmation, signOut, signOutAllDevices, updateProfile, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

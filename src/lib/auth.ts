@@ -164,6 +164,19 @@ export async function supabaseSignUp(email: string, password: string, redirectTo
   return res.json();
 }
 
+export async function supabaseResendSignup(email: string, redirectTo?: string) {
+  const qs = redirectTo ? `?redirect_to=${encodeURIComponent(redirectTo)}` : "";
+  const res = await fetch(`${SB_URL()}/auth/v1/resend${qs}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: SB_KEY() },
+    body: JSON.stringify({ email, type: "signup" }),
+  });
+  return {
+    ok: res.ok,
+    data: await res.json().catch(() => ({})) as Record<string, unknown>,
+  };
+}
+
 export async function supabaseResetPassword(email: string, redirectTo: string) {
   const res = await fetch(`${SB_URL()}/auth/v1/recover`, {
     method: "POST",

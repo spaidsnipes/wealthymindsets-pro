@@ -21,7 +21,15 @@ export async function POST(req: Request) {
       process.env.NEXT_PUBLIC_APP_URL ||
       "https://wealthymindsets-pro.vercel.app";
     const redirectTo = `${origin}/login?confirmed=1`;
-    const data = await supabaseSignUp(email, password, redirectTo);
+    let data;
+    try {
+      data = await supabaseSignUp(email, password, redirectTo);
+    } catch {
+      return NextResponse.json(
+        { error: "The account service could not be reached. Please try again." },
+        { status: 503 },
+      );
+    }
     if (data.error) return NextResponse.json({ error: data.error.message ?? "Signup failed" }, { status: 400 });
     const user = data.user;
     if (!user?.id) return NextResponse.json({ error: "Signup service returned an invalid response" }, { status: 502 });
