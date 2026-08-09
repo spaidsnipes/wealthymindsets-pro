@@ -661,10 +661,10 @@ export function ChartsDashboard() {
             // user can actually read WHICH feed the price came from without
             // hovering for a tooltip.
             const b = priceSourceBadge(source, connected);
-            const extra = b.live ? " · LIVE" : " · DELAYED";
             return (
               <span
                 title={b.title}
+                aria-label={b.label}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 5,
                   fontSize: 11, fontWeight: 700, letterSpacing: "0.05em",
@@ -680,7 +680,7 @@ export function ChartsDashboard() {
                   background: b.live ? "#00E88A" : "#F5A623",
                   boxShadow: b.live ? "0 0 4px #00E88A" : "none",
                 }} />
-                {b.label}{extra}
+                {b.label}
               </span>
             );
           })()}

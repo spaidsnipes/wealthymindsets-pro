@@ -175,7 +175,6 @@ export function WMSessionVP({ symbol, timeframe, candles, dataVersion = 0, provi
         style={{ width: 260 }}>
         <span className="text-[10px] font-black text-wm-purple uppercase tracking-widest">wmSession VP</span>
         <span className="text-[10px] text-wm-text-dim text-center px-3">{reason}</span>
-        {provider && <span className="text-[8px] text-wm-text-muted">provider: {provider}</span>}
         {onClose && <button onClick={onClose} className="text-[10px] text-wm-text-muted hover:text-wm-text">Close</button>}
       </div>
     );

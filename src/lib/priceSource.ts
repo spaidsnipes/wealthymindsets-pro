@@ -1,43 +1,47 @@
 /**
  * priceSource — honest provenance labelling for a displayed quote.
  *
- * WM-CHART-P0-05: multiple surfaces on /charts each resolve their own quote and
- * can legitimately differ by a provider or a poll. Rendering "$X.XX" with no
- * indication of WHICH feed produced it is the truthfulness violation. This
- * helper turns the `source` the data hook already knows into a small badge.
+ * WM-CHART-PROV-EMERG-01 (2026-08-06 Founder emergency): user-visible labels
+ * MUST NOT name the underlying provider. Founder verbatim:
+ *   "stop exposing where our api keys are from … it can say delayed
+ *    but stop telling people where the apis come from"
+ * Vendor identity is preserved in `provenance` for internal diagnostics, but
+ * never rendered as normal trading chrome.
  *
- * It asserts ONLY what we can stand behind: the provider identity and whether a
- * live feed is connected. It deliberately does NOT invent a precise delay figure
- * we cannot guarantee per provider/session — the tooltip explains the honest
- * caveat instead.
+ * Public API: `priceSourceBadge(source, connected)` returns { label, title,
+ * live } where label is one of LIVE / DELAYED / DELAYED 15 MIN / NO FEED.
  */
 export type PriceSource =
   | "polygon" | "binance" | "alpaca" | "finnhub" | "yahoo" | "unavailable" | string;
 
 export interface PriceSourceBadge {
-  label: string;
-  title: string;
+  label: string;      // vendor-agnostic user-visible text
+  title: string;      // vendor-agnostic tooltip (freshness / caveat, not vendor)
   /** true only when the number is coming from a genuine real-time feed. */
   live: boolean;
+  provenance: string; // INTERNAL only — never render in user chrome. Diagnostics inspector reads this.
 }
 
 export function priceSourceBadge(source: PriceSource, connected: boolean): PriceSourceBadge {
   switch (source) {
     case "polygon":
-      return { label: "POLYGON", title: "Price via Polygon.io real-time trade stream", live: true };
+      return { label: "LIVE", title: "Real-time trade stream", live: true, provenance: "polygon" };
     case "binance":
-      return { label: "LIVE", title: "Price via Coinbase / Binance.US real-time crypto stream", live: true };
+      return { label: "LIVE", title: "Real-time crypto stream", live: true, provenance: "binance" };
     case "alpaca":
       return {
-        label: "ALPACA",
-        title: "Price via Alpaca (IEX) — real-time in regular hours; IEX-only prints may diverge from the consolidated tape in pre/post-market",
+        label: connected ? "LIVE" : "DELAYED",
+        title: connected
+          ? "Real-time — IEX-only prints may diverge from consolidated tape in pre/post-market"
+          : "Reconnecting to live feed",
         live: connected,
+        provenance: "alpaca",
       };
     case "finnhub":
-      return { label: "FINNHUB", title: "Price via Finnhub — free tier is delayed, not the live consolidated tape", live: false };
+      return { label: "DELAYED 15 MIN", title: "Free-tier feed lags the live consolidated tape", live: false, provenance: "finnhub" };
     case "yahoo":
-      return { label: "YAHOO", title: "Price via Yahoo Finance consolidated quote — may lag the live tape", live: false };
+      return { label: "DELAYED", title: "Consolidated quote — may lag the live tape", live: false, provenance: "yahoo" };
     default:
-      return { label: "NO FEED", title: "No live price source resolved yet", live: false };
+      return { label: "NO FEED", title: "No live price source resolved yet", live: false, provenance: String(source ?? "unavailable") };
   }
 }

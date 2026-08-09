@@ -721,7 +721,7 @@ export function ChartToolbar({
               {filteredSymbols.length === 0 && liveSymbols.length === 0 && !liveSearching ? (
                 <div className="px-4 py-8 text-center">
                   <div className="text-wm-text-muted text-xs">No results for &ldquo;{symbolSearch}&rdquo;</div>
-                  <div className="text-wm-text-dim text-[12px] mt-1">Searching Finnhub global database…</div>
+                  <div className="text-wm-text-dim text-[12px] mt-1">Searching global markets…</div>
                 </div>
               ) : (
                 <>
@@ -732,7 +732,7 @@ export function ChartToolbar({
                     <>
                       {filteredSymbols.length > 0 && (
                         <div className="px-3 py-1 text-[11px] text-wm-text-dim border-t border-wm-border/40 bg-wm-dark/50">
-                          Global results (Finnhub)
+                          Global results
                         </div>
                       )}
                       {liveSymbols.map((s, i) => (
