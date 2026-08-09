@@ -5762,19 +5762,33 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // not the scroll-dependent visible window. It DOES legitimately differ per
           // timeframe (5m vs 4h aggregate the session's volume at different
           // granularities), which is the expected behaviour the user asked for.
+          //
+          // WM-VP-SESSION-EMPTY-FIX (2026-08-09, Founder-reported regression):
+          // The RTH minute-filter (570–960 = 9:30–16:00 ET) was applied to ALL
+          // symbols. For crypto (24/7) + futures (~24h) + daily/weekly bars,
+          // most bars fall outside that window → annotated = [] → sessionBars
+          // = [] → Session VP renders NOTHING while Fixed VP still draws →
+          // Founder sees "one VP" and thinks Session VP disappeared. Only
+          // apply the RTH filter for equities on intraday timeframes; for
+          // 24-hour assets and for daily+ timeframes, "session" = latest
+          // calendar day, no minute filter.
           const allBars = barsRef.current;
           const formatter = new Intl.DateTimeFormat("en-CA", {
             timeZone: "America/New_York",
             year: "numeric", month: "2-digit", day: "2-digit",
             hour: "2-digit", minute: "2-digit", hourCycle: "h23",
           });
-          const annotated = allBars.map(bar => {
-            const parts = formatter.formatToParts(new Date((bar.time as number) * 1000));
-            const part = (type: Intl.DateTimeFormatPartTypes) =>
-              Number(parts.find(value => value.type === type)?.value ?? 0);
-            const date = `${part("year")}-${String(part("month")).padStart(2, "0")}-${String(part("day")).padStart(2, "0")}`;
-            return { bar, date, minute: part("hour") * 60 + part("minute") };
-          }).filter(item => item.minute >= 570 && item.minute < 960);
+          const dailyOrLonger = /^(D|1D|W|1W|M|1M|3M|6M|1Y|2Y|3Y|5Y)$/.test(timeframe);
+          const applyRTH = isEquitySymbol(symbol) && !dailyOrLonger;
+          const annotated = allBars
+            .map(bar => {
+              const parts = formatter.formatToParts(new Date((bar.time as number) * 1000));
+              const part = (type: Intl.DateTimeFormatPartTypes) =>
+                Number(parts.find(value => value.type === type)?.value ?? 0);
+              const date = `${part("year")}-${String(part("month")).padStart(2, "0")}-${String(part("day")).padStart(2, "0")}`;
+              return { bar, date, minute: part("hour") * 60 + part("minute") };
+            })
+            .filter(item => (applyRTH ? item.minute >= 570 && item.minute < 960 : true));
           const latestSession = annotated.at(-1)?.date;
           const sessionBars = latestSession
             ? annotated.filter(item => item.date === latestSession).map(item => item.bar)
