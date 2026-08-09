@@ -5780,6 +5780,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           });
           const dailyOrLonger = /^(D|1D|W|1W|M|1M|3M|6M|1Y|2Y|3Y|5Y)$/.test(timeframe);
           const applyRTH = isEquitySymbol(symbol) && !dailyOrLonger;
+          // For daily+ TFs, "session" = the last calendar WINDOW of bars,
+          // not just the single most-recent bar (which for 1D collapses the
+          // Session VP into one invisible sliver — Founder-visible regression
+          // on BTC 1D). Window sizes reflect trader mental model:
+          //   1D → 5 bars (trading week), 1W → 4 bars (approx month),
+          //   1M → 3 bars (approx quarter), longer → 4 bars.
+          const sessionWindowBars: Record<string, number> = {
+            "D": 5, "1D": 5, "W": 4, "1W": 4, "M": 3, "1M": 3,
+            "3M": 4, "6M": 4, "1Y": 3, "2Y": 3, "3Y": 3, "5Y": 3,
+          };
           const annotated = allBars
             .map(bar => {
               const parts = formatter.formatToParts(new Date((bar.time as number) * 1000));
@@ -5790,9 +5800,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             })
             .filter(item => (applyRTH ? item.minute >= 570 && item.minute < 960 : true));
           const latestSession = annotated.at(-1)?.date;
-          const sessionBars = latestSession
-            ? annotated.filter(item => item.date === latestSession).map(item => item.bar)
-            : [];
+          const sessionBars = dailyOrLonger
+            ? annotated.slice(-(sessionWindowBars[timeframe] ?? 5)).map(item => item.bar)
+            : latestSession
+              ? annotated.filter(item => item.date === latestSession).map(item => item.bar)
+              : [];
           // Session VP: distinct translucent identity (0.6×) so it never merges
           // with the solid Fixed VP into one slab (founder: "cannot distinguish").
           drawWMVP(sessionBars, "#8B5CF6", "WM Session VP", 0, bothVP ? 1 : 0, nVPCols, 0.6);
