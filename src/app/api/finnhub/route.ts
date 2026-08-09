@@ -64,11 +64,27 @@ const FH_MAP: Record<string, string> = {
   // Futures → NOT supported by Finnhub REST for candles; return null so caller falls back to Yahoo
 };
 
-// Finnhub candle resolution mapping
-const FH_RES: Record<string, string> = {
-  "1m": "1", "2m": "1", "3m": "5", "5m": "5", "10m": "15",
-  "15m": "15", "30m": "30", "1h": "60", "2h": "60", "4h": "60",
-  "D": "D", "W": "W",
+// Finnhub candle resolution mapping — FAIL-CLOSED (WM-CHART-P0-03).
+// Only intervals Finnhub serves NATIVELY are mapped here. Requests for
+// intervals Finnhub does not support natively (2m, 3m, 10m, 2h, 4h)
+// return `null` so the route responds with an honest UNAVAILABLE state
+// rather than silently substituting a different bar size and labelling
+// it with the requested one — the exact defect that produced
+// "1-minute bars labelled 2m" in prod.
+// Finnhub free-tier native resolutions (per finnhub.io/docs/api/stock-candles):
+//   1, 5, 15, 30, 60, D, W, M.
+const FH_NATIVE_RES: Record<string, string> = {
+  "1m": "1",
+  "5m": "5",
+  "15m": "15",
+  "30m": "30",
+  "1h": "60",
+  "D":  "D",
+  "1D": "D",
+  "W":  "W",
+  "1W": "W",
+  "M":  "M",
+  "1M": "M",
 };
 
 function toFinnhubSym(sym: string): string | null {
@@ -145,20 +161,38 @@ export async function GET(request: Request) {
 
     /* ── Historical candles ─────────────────────────────────── */
     if (type === "candles") {
-      const resolution = FH_RES[tf] ?? "1";
+      // WM-CHART-P0-03: fail-closed. Non-native intervals return
+      // UNAVAILABLE rather than a silently-substituted bar size.
+      const resolution = FH_NATIVE_RES[tf];
+      if (!resolution) {
+        return NextResponse.json({
+          sym: rawSym,
+          tf,
+          candles: [],
+          qualityState: "UNAVAILABLE",
+          reason: `Interval "${tf}" is not natively supported by Finnhub (native: ${Object.keys(FH_NATIVE_RES).join(", ")}). Caller should try another provider or accept unavailability.`,
+        }, { status: 200 });
+      }
       const now  = Math.floor(Date.now() / 1000);
-      // Calculate `from` timestamp based on desired bar count + resolution
+      // Calculate `from` timestamp based on desired bar count + resolution.
+      // secPerBar is complete for every value the fail-closed map above emits.
       const secPerBar: Record<string, number> = {
         "1": 60, "5": 300, "15": 900, "30": 1800,
-        "60": 3600, "D": 86400, "W": 604800,
+        "60": 3600, "D": 86400, "W": 604800, "M": 2_592_000,
       };
-      const secs  = (secPerBar[resolution] ?? 60) * bars * 1.5; // 1.5x buffer for gaps/weekends
-      const from  = now - Math.round(secs);
+      const perBar = secPerBar[resolution];
+      if (!perBar) {
+        // Defensive — map + this table are hand-linked; if they drift, refuse
+        // rather than silently pick a 60s default.
+        throw new Error(`Internal: no secPerBar for resolution "${resolution}"`);
+      }
+      const secs = perBar * bars * 1.5; // 1.5x buffer for gaps/weekends
+      const from = now - Math.round(secs);
 
       const url = `${BASE}/stock/candle?symbol=${encodeURIComponent(fhSym)}&resolution=${resolution}&from=${from}&to=${now}&token=${FINNHUB_KEY}`;
       const json = await fhFetch(url, 20_000) as any;
       if (json.s !== "ok" || !Array.isArray(json.t)) {
-        return NextResponse.json({ candles: [] });
+        return NextResponse.json({ candles: [], qualityState: "UNAVAILABLE", reason: json.s === "no_data" ? "Finnhub reports no data for this symbol/range" : "Finnhub error" });
       }
 
       const candles = [];

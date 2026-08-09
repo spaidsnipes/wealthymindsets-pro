@@ -100,6 +100,11 @@ function hexToRgbTriplet(color: string): [number, number, number] | null {
 }
 
 /* ── FIXED: all values in seconds, uniform ──────────────── */
+// WM-CHART-P0-03: fail-closed on unknown timeframe. Previously returned 60
+// (the 1-minute default), which caused unknown timeframes to be silently
+// treated as 1m — a source of the same silent-substitution class the
+// server maps had. Now throws so the caller (or an upstream guard) has to
+// decide explicitly.
 function getIntervalSec(tf: string): number {
   const m: Record<string, number> = {
     "1m":  60,   "2m":  120,  "3m":  180,  "5m":  300,
@@ -109,7 +114,11 @@ function getIntervalSec(tf: string): number {
     "3M":  7776000, "6M": 15552000, "1Y": 31536000,
     "3Y":  94608000, "5Y": 157680000,
   };
-  return m[tf] ?? 60;
+  const v = m[tf];
+  if (v == null) {
+    throw new Error(`getIntervalSec: unknown timeframe "${tf}" — refusing to silently default to 60s. See WM-CHART-P0-03.`);
+  }
+  return v;
 }
 
 /* ── Countdown formatter ─────────────────────────────────── */
