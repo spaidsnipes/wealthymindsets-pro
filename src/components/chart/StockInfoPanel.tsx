@@ -231,10 +231,10 @@ export function StockInfoPanel({ symbol }: Props) {
           <span style={{ color: "#4A5070" }}>04:45 ET ▼</span>
         </div>
 
-        {/* Data source indicator */}
+        {/* Vendor-agnostic data status indicator. */}
         <div style={{ marginTop: 6, overflow: "hidden", height: 16 }}>
           <span style={{ fontSize: 9, color: "#4A5070", whiteSpace: "nowrap" }}>
-            {realOHLC ? "Live data via Finnhub" : "Loading market data..."}
+            {realOHLC ? "MARKET DATA AVAILABLE" : "MARKET DATA LOADING…"}
           </span>
         </div>
       </div>

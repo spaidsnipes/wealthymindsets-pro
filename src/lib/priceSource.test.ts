@@ -24,10 +24,14 @@ describe("priceSourceBadge (WM-CHART-P0-05 provenance)", () => {
     expect(b.live).toBe(false);
   });
 
-  it("names the provider so divergent surfaces are explainable, never blank", () => {
+  it("keeps provider identity internal and renders only vendor-agnostic states", () => {
+    const publicLabels = new Set(["LIVE", "DELAYED", "DELAYED 15 MIN", "NO FEED"]);
     for (const s of ["polygon", "binance", "alpaca", "finnhub", "yahoo", "unavailable"]) {
       const b = priceSourceBadge(s, true);
-      expect(b.label.length).toBeGreaterThan(0);
+      expect(publicLabels.has(b.label)).toBe(true);
+      expect(b.label.toLowerCase()).not.toContain(s);
+      expect(b.title.toLowerCase()).not.toContain(s);
+      expect(b.provenance).toBe(s);
       expect(b.title.length).toBeGreaterThan(0);
     }
   });

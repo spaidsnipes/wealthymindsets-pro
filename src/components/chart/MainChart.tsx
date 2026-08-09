@@ -6586,10 +6586,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           {(() => {
             // Sentinel V-008 visibility fix — 10px readable badge.
             const b = priceSourceBadge(source, connected);
-            const extra = b.live ? " LIVE" : " DELAYED";
             return (
               <span
                 title={b.title}
+                aria-label={b.label}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 4,
                   fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
@@ -6604,7 +6604,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                   width: 6, height: 6, borderRadius: "50%",
                   background: b.live ? "#00E88A" : "#F5A623",
                 }} />
-                {b.label}{extra}
+                {b.label}
               </span>
             );
           })()}
@@ -6644,7 +6644,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             <span className={closeFlash ? "animate-pulse" : ""}>{countdown}</span>
           </div>
 
-          {/* Data-truth strip — provider + REAL feed freshness (never a hardcoded LIVE). */}
+          {/* Data-truth strip — vendor-agnostic status + real feed freshness. */}
           {(() => {
             void freshVer; // periodic recheck so the badge can go stale when ticks stop
             const tickAge = lastTickAtRef.current ? Date.now() - lastTickAtRef.current : Infinity;
@@ -6657,9 +6657,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             return (
               <div
                 className="flex items-center gap-1.5"
-                title={`Candles: ${candleSource || "…"} · session ${extendedHours ? "ETH" : "RTH"} · last bar ${lastStr}${feedLive ? " · ticks flowing" : " · no live tick in >20s"}`}
+                title={`Candles: ${noFeed ? "unavailable" : feedLive ? "live" : "delayed"} · session ${extendedHours ? "ETH" : "RTH"} · last bar ${lastStr}${feedLive ? " · ticks flowing" : " · no live tick in >20s"}`}
               >
-                <span className="text-[9px] font-mono text-wm-text-dim">{candleSource || "…"}</span>
                 {noFeed ? (
                   <span className="text-[10px] text-wm-red font-semibold">NO FEED</span>
                 ) : feedLive ? (
