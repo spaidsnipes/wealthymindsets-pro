@@ -220,3 +220,69 @@ PROOF:
 - Final Vercel runtime error check: no project runtime errors in the selected one-hour range.
 
 DO NOT REDO: The Yahoo timeframe substitution defect is fixed. The remaining market-data P0 is ownership consolidation across independent quote pipelines, not another interval-label patch.
+
+## Post-checkpoint continuation — visual P0 proving and responsive recovery
+
+DATE: 2026-08-09 (America/Chicago)
+
+CODE SHAS:
+
+- `266eb8d77e937ef9ee4c9d7d6ccd7ed191db002d` — canonical public-auth route ownership, isolated password recovery, visible labels, recovery-token fragment scrubbing.
+- `1a008bfa3b8a7b3092046a378c3273c90511bdf4` — responsive command shell and focused chart/scanner/journal mobile modes.
+- `819ac6de2b04bede4eb126b1cb2a4e4ee3c10793` — mobile scanner Search/Filters reachability and correctly anchored filter drawer.
+- `1a056f3c588d8e157a371066df605ba81c203ba4` — dominant 44px mobile journal-entry action.
+- `3286615e269c251be3c8362ec9ec4863e3454338` — qualified order-flow coaching; removed unsupported participant identity and guaranteed-reversal language.
+
+FRESH VISUAL EVIDENCE BEFORE FIX:
+
+- Production chart at 360/390px began around x=358 after desktop rails consumed the viewport; critical chart content was inaccessible behind `overflow:hidden`.
+- Tablet portrait (834x1194) left only about 138px of chart canvas.
+- Scanner retained a 200px filter panel and desktop grid; journal retained a 320px list, clipping their primary workflows.
+- One simultaneous BTC observation showed materially different unlabeled LIVE values across chart/header, watchlist, and DOM. Single market truth remains OPEN.
+
+VERIFIED AFTER FIX:
+
+- Production 390x844 chart: canvas x=0, 302px wide; global rail, watchlist, drawing rail, and DOM hidden; five-action mobile nav visible; body width exactly 390.
+- Production 360x800 chart: canvas x=0, 272px wide; each mobile-nav action measured 49px high; body width exactly 360.
+- Production 834x1194 chart: canvas x=0, 746px wide; desktop panels collapsed; body width exactly 834.
+- Desktop 1440x900 regression: desktop rail, watchlist, drawing rail, and DOM remain visible; mobile nav hidden.
+- Production scanner 390x844: 30 results rendered in a focused five-column grid; Filters visible without hidden-root scrolling; drawer opens at x=0 with width 320px.
+- Production journal 390x844: list fills 390px; detail is hidden until selected; `New journal entry` measures 373x44px; entry form then fills the view and exposes a 44px Back control.
+- Password recovery at 390x844 was visually proven on the local production build: no trading shell/ticker/mobile nav; both password inputs have visible labels; a test fragment was removed from the URL immediately. Production-host auth visualization remains session-dependent, but the same compiled build passed.
+- Final full Vitest before the trust-copy commit: 18 files, 162 tests passed. TypeScript no-emit passed. Next production build passed with 70 routes.
+- Vercel runtime-error aggregation returned no project errors in the selected one-hour range after responsive production smokes.
+
+SCREEN-RECORDING CONTEXT REVIEWED:
+
+- July 30 WM live audit corroborated historical same-screen quote drift.
+- August 3 founder/mobile references established one-column progressive disclosure, large touch targets, restrained accents, KISS above institutional depth, honest labels, and one-task assembly-line continuity.
+- August 5 futures reference reinforced chart-first execution, explicit account/instrument/order state, and Confirm/Discard separation. Private balances/account details were not reproduced.
+
+STATUS CHANGES:
+
+- AUTH RESET SURFACE: VERIFIED for shell isolation, labels, token-fragment scrubbing, build, and local responsive visual. Full inbox/link/session lifecycle remains OPEN.
+- MOBILE RESPONSIVE SHELL: VERIFIED for scoped chart/scanner/journal layout reachability at 360/390/834 and desktop non-regression. Full touch drawing, rotation, keyboard, long-session, and supported-iPhone acceptance remain PARTIAL.
+- ORDER-FLOW COACHING TRUTH: VERIFIED by source/test/build; observation is no longer presented as participant identity or guaranteed outcome.
+- SINGLE MARKET TRUTH: OPEN and now freshly reproduced with BTC. This is the next engineering-owned P0.
+- DEPENDENCY SECURITY: OPEN. Fresh `npm audit --omit=dev` reported 12 HIGH findings, including Next 15.5.19 advisories fixed at 15.5.21 and Sharp below 0.35.0; upgrade/compatibility work remains unshipped.
+
+DO NOT REDO:
+
+- Do not restore fixed global/chart/watchlist/DOM rails below tablet landscape.
+- Do not replace the focused mobile scanner grid with horizontal clipping.
+- Do not hide the mobile journal create action in a horizontally scrolling header.
+- Do not restore the prior deterministic claims that reappearing bids prove a large player, conviction, or a reversal.
+
+NOW: Consolidate one normalized market-truth owner for the chart header, watchlist, and DOM vertical slice; explicitly distinguish last, mid, delayed, proxy, and replay semantics.
+
+NEXT 1: Prove Supabase custom SMTP signup/reset delivery and the full auth lifecycle with a controlled inbox and supported iPhone.
+
+NEXT 2: Rotate every historically exposed private credential and remove stale public-prefixed Vercel variables after server-name migration.
+
+NEXT 3: Upgrade vulnerable production dependencies with full regression/build/production proof.
+
+FIRST COMMAND NEXT SESSION:
+
+```bash
+cd /Users/dspaidnoosleep/wealthymindsets-pro && git fetch --prune origin && git status --short && git rev-parse HEAD && git rev-parse origin/main
+```
