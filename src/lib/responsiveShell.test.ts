@@ -16,6 +16,7 @@ describe("responsive P0 command surfaces", () => {
     expect(css).toContain(".wm-primary-sidebar,");
     expect(css).toContain(".wm-chart-watchlist,");
     expect(css).toContain(".wm-chart-dom,");
+    expect(css).toContain(".wm-music-player,");
     expect(css).toContain(".wm-draw-rail");
     expect(css).toContain("(orientation: landscape)");
     expect(css).toContain("margin-left: calc(56px + env(safe-area-inset-left))");

@@ -19,7 +19,7 @@ export function MusicPlayer() {
   const [liked, setLiked]       = useState(false);
   const [prevVol, setPrevVol]   = useState(0.7);
 
-  if (!nowPlaying) return <div style={{ height: 52, flexShrink: 0 }} className="border-t border-wm-border bg-wm-dark" />;
+  if (!nowPlaying) return <div style={{ height: 52, flexShrink: 0 }} className="wm-music-player border-t border-wm-border bg-wm-dark" />;
 
   const duration = nowPlaying.duration;
   const isLive   = duration <= 0;
@@ -37,7 +37,7 @@ export function MusicPlayer() {
   return (
     <div
       style={{ height: 52, flexShrink: 0 }}
-      className="relative flex items-center border-t border-wm-border bg-wm-dark z-40 px-4 gap-4"
+      className="wm-music-player relative flex items-center border-t border-wm-border bg-wm-dark z-40 px-4 gap-4"
     >
       {/* Track info */}
       <div className="flex items-center gap-3 w-56 shrink-0 min-w-0">

@@ -110,6 +110,7 @@
   .wm-chart-watchlist,
   .wm-chart-dom,
   .wm-chart-dom-toggle,
+  .wm-music-player,
   .wm-draw-rail {
     display: none !important;
   }
