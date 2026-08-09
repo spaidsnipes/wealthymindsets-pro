@@ -15,6 +15,7 @@
 
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 // Alpaca uses SEPARATE credentials for paper vs live accounts. Prefer dedicated
 // paper keys for paper trading; fall back to the generic keys only if no paper-
@@ -133,6 +134,11 @@ export async function POST(request: Request) {
   // WM-SEC-P0-06: was unauthenticated. Places real Alpaca orders (paper+live).
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // WM-SEC-P0-07: cap order submissions per user. 30/min is generous for a
+  // human trader (2s cadence) and stops a runaway loop from placing hundreds
+  // of orders before anyone notices.
+  const rl = checkRateLimit(`alpaca-trading-post:${auth.user.sub}`, { max: 30, windowMs: 60_000 });
+  if (!rl.ok) return rl.response;
   if (!ALPACA_KEY || !ALPACA_SECRET) {
     return NextResponse.json({ error: "Alpaca API keys not configured" }, { status: 503 });
   }

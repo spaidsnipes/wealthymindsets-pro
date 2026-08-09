@@ -81,8 +81,22 @@ function stripTradeTag(text: string) {
   return text.replace(/TRADE_ORDER:\s*\{[\s\S]*?\}/g, "").trim();
 }
 
+// WM-SEC-XSS-01 (2026-08-09): the AI response is rendered via
+// dangerouslySetInnerHTML for markdown-lite bold/code/newline styling. Any
+// raw HTML in the AI output — including jailbreak-injected `<script>` or
+// `<img onerror>` — would execute in the trader's session. Escape the source
+// text FIRST, then apply the markdown regexes against the escaped text.
+// `**bold**` and `` `code` `` are ASCII-safe and survive the escape unchanged.
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 function renderMd(text: string) {
-  return text
+  return escapeHtml(text)
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/`([^`]+)`/g, "<code style='background:rgba(255,255,255,0.08);padding:1px 4px;border-radius:3px;font-family:monospace;font-size:10px'>$1</code>")
     .replace(/\n/g, "<br/>");

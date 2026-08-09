@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireAuth } from "@/lib/requireAuth";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,6 +15,9 @@ export async function POST(request: Request) {
   // SERVICE_ROLE_KEY to a public bucket — arbitrary-file upload for anyone.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // WM-SEC-P0-07: cap uploads per user to blunt a storage-DoS attempt.
+  const rl = checkRateLimit(`upload-track:${auth.user.sub}`, { max: 20, windowMs: 60_000 });
+  if (!rl.ok) return rl.response;
   try {
     const form = await request.formData();
     const file     = form.get("file") as File | null;

@@ -5,6 +5,7 @@
 
 import { NextRequest } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY ?? "";
 const MODEL      = "gemini-2.0-flash";
@@ -64,6 +65,10 @@ export async function POST(req: NextRequest) {
   // WM-SEC-P0-06: was unauthenticated. Uses GEMINI_API_KEY — open quota abuse.
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
+  // WM-SEC-P0-07: signed-in users can still burn free-tier quota (15/min).
+  // 10 requests per minute per user leaves headroom for concurrent tabs.
+  const rl = checkRateLimit(`spaidbot:${auth.user.sub}`, { max: 10, windowMs: 60_000 });
+  if (!rl.ok) return rl.response;
   if (!GEMINI_KEY) {
     return new Response(
       `data: ${JSON.stringify({ error: "GEMINI_API_KEY not set." })}\n\ndata: [DONE]\n\n`,
