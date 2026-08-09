@@ -1,39 +1,12 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-// WM-SCANNER-RECONCILE-01: this test was carried from branch A onto the
-// reconciled branch (built off origin/main per forge scanner-cache-reconciliation
-// §3). The manifest-freeze is a branch-PURITY guard — it pins the exact file set
-// the change is allowed to touch. Its base and expected list are updated to the
-// reconciled branch's set (A's identity module + B's consumer module + the
-// synthesis cache/test). Every a11y BEHAVIOR assertion below is unchanged from A.
-const base = "4add406db4e197a166c4038e1a06f4739a1db9d2"; // origin/main at branch point
-const expectedManifest = [
-  "M\tsrc/app/scanner/page.tsx",
-  "A\tsrc/lib/scannerRequestIdentity.ts",
-  "A\tsrc/lib/scannerRequestIdentity.test.ts",
-  "A\tsrc/lib/yahooCandleConsumer.ts",
-  "A\tsrc/lib/yahooCandleConsumer.test.ts",
-  "A\tsrc/lib/scannerFailureCache.ts",
-  "A\tsrc/lib/scannerFailureCache.test.ts",
-  "A\ttests/scanner-accessible-retry-contract.mjs",
-].sort();
-
-const git = (...args) => execFileSync("git", ["-C", root, ...args], { encoding: "utf8" }).trim();
-const head = git("rev-parse", "HEAD");
-let manifest;
-if (head === base) {
-  manifest = execFileSync("git", ["-C", root, "status", "--porcelain=v1", "--untracked-files=all"], { encoding: "utf8" })
-    .trimEnd().split("\n").filter(Boolean)
-    .map(line => `${line.slice(0, 2) === "??" ? "A" : line.slice(0, 2).trim()}\t${line.slice(3)}`);
-} else {
-  manifest = git("diff", "--name-status", `${base}..HEAD`).split("\n").filter(Boolean);
-}
-assert.deepEqual(manifest.sort(), expectedManifest, "the prerequisite must keep the exact frozen four-file manifest");
+// This is a behavior contract, not a stale branch-manifest assertion. Branch
+// purity is enforced at review time against the current merge base; pinning an
+// August 6 SHA made the test reject every legitimate later mainline change.
 
 const page = readFileSync(path.join(root, "src/app/scanner/page.tsx"), "utf8");
 const identity = readFileSync(path.join(root, "src/lib/scannerRequestIdentity.ts"), "utf8");
@@ -78,4 +51,4 @@ assert.deepEqual({ rsiRequests, scheduledRefreshes, quoteOrchestrations, profile
   rsiRequests: 0, scheduledRefreshes: 1, quoteOrchestrations: 1, profileOrchestrations: 1,
 });
 
-console.log("SCANNER_ACCESSIBLE_RETRY_CONTRACT_PASS manifest=4 symbols=30 scheduled=1 quote=1 profile=1 failed_rsi=0");
+console.log("SCANNER_ACCESSIBLE_RETRY_CONTRACT_PASS symbols=30 scheduled=1 quote=1 profile=1 failed_rsi=0");
