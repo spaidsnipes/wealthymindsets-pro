@@ -23,7 +23,7 @@ export default function LoginPageWrapper() {
 type Mode = "login" | "signup" | "forgot";
 
 function LoginPage() {
-  const { signIn, signUp, loading } = useAuth();
+  const { signIn, signUp, resendConfirmation, loading } = useAuth();
   const searchParams = useSearchParams();
 
   const [mode,       setMode]       = useState<Mode>(
@@ -38,6 +38,7 @@ function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
+  const [resending, setResending] = useState(false);
   const confirmationHandled = useRef(false);
 
   useEffect(() => { setError(""); setSuccess(""); }, [mode, email, password]);
@@ -81,8 +82,7 @@ function LoginPage() {
       if (password !== confirm) { setError("Passwords don't match"); return; }
       if (password.length < 8)  { setError("Password must be at least 8 characters"); return; }
       setSubmitting(true);
-      const result = await signUp(email, password);
-      setSubmitting(false);
+      const result = await signUp(email, password).finally(() => setSubmitting(false));
       if (result.error) {
         // User already exists — suggest sign in
         if (result.error.toLowerCase().includes("already") || result.error.toLowerCase().includes("exists")) {
@@ -100,12 +100,12 @@ function LoginPage() {
 
     if (mode === "login") {
       setSubmitting(true);
-      const result = await signIn(email, password);
-      setSubmitting(false);
+      const result = await signIn(email, password).finally(() => setSubmitting(false));
       if (result.error) {
         // Friendly error messages
         const msg = result.error.toLowerCase();
         if (msg.includes("email not confirmed")) {
+          setVerificationEmail(email.trim().toLowerCase());
           setError("Please check your email and confirm your account, then try again.");
         } else if (msg.includes("invalid") || msg.includes("credentials") || msg.includes("password")) {
           setError("Incorrect email or password. Please try again.");
@@ -152,6 +152,24 @@ function LoginPage() {
       setError(reason instanceof Error ? reason.message : "Your code could not be verified.");
       setSubmitting(false);
     }
+  };
+
+  const resendVerificationEmail = async () => {
+    const targetEmail = (verificationEmail || email).trim().toLowerCase();
+    if (!targetEmail) {
+      setError("Enter your email address first.");
+      return;
+    }
+    if (resending) return;
+    setError("");
+    setSuccess("");
+    setResending(true);
+    const result = await resendConfirmation(targetEmail).finally(() => setResending(false));
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    setSuccess("If confirmation is still pending and resend is available, you'll receive a fresh email shortly. Check your inbox and spam folder.");
   };
 
   if (loading) {
@@ -389,6 +407,9 @@ function LoginPage() {
                     <button type="button" onClick={() => void verifyEmailCode()} disabled={submitting || !verificationCode.trim()} className="w-full py-2.5 rounded-xl text-[13px] font-black disabled:opacity-60" style={{ background: "rgba(0,212,170,0.16)", border: "1px solid rgba(0,212,170,0.4)", color: "#00D4AA" }}>
                       Verify this device
                     </button>
+                    <button type="button" onClick={() => void resendVerificationEmail()} disabled={resending} className="w-full py-2.5 rounded-xl text-[12px] font-bold disabled:opacity-60" style={{ border: "1px solid rgba(255,255,255,0.12)", color: "#C5CDD8" }}>
+                      {resending ? "Requesting a fresh email…" : "Resend confirmation email"}
+                    </button>
                     <p className="text-[11px] text-[#8B95A5]">Only enter a code from your own WealthyMindsets email. The code creates a secure session in this browser.</p>
                   </div>
                 )}
@@ -405,6 +426,13 @@ function LoginPage() {
                     : modeLabel + " →"
                   }
                 </button>
+
+                {mode === "login" && !verificationEmail && (
+                  <button type="button" onClick={() => void resendVerificationEmail()} disabled={resending}
+                    className="w-full min-h-11 text-[12px] font-semibold text-[#8B95A5] hover:text-wm-green transition-colors disabled:opacity-60">
+                    {resending ? "Requesting a fresh email…" : "Didn't receive your confirmation email? Resend it"}
+                  </button>
+                )}
 
                 {/* Terms */}
                 {mode === "signup" && (
