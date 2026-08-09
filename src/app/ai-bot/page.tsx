@@ -103,7 +103,7 @@ export default function AIBotPage() {
             <ul className="mt-3 space-y-3 text-xs leading-5 text-wm-text-muted">
               <li>• Real quotes when a configured free provider responds.</li>
               <li>• Real crypto trades and order books on supported exchanges.</li>
-              <li>• Real stock tape only when the Alpaca relay is connected.</li>
+              <li>• Real stock tape only when your connected broker relay is live.</li>
             </ul>
           </div>
 

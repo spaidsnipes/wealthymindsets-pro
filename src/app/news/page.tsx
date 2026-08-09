@@ -156,7 +156,7 @@ async function fetchFinnhubNews(): Promise<NewsItem[]> {
         raw.push(item);
       }
     }
-    if (raw.length === 0) throw new Error("Finnhub news failed");
+    if (raw.length === 0) throw new Error("News feed failed");
     raw.sort((a, b) => b.datetime - a.datetime);
 
     const now = Date.now();
@@ -196,18 +196,21 @@ async function fetchFinnhubNews(): Promise<NewsItem[]> {
 }
 
 /* ── Fallback seed news (shown while real data loads) ─────── */
+// WM-CHART-PROV-EMERG-01 (2026-08-09): loading placeholders no longer name the
+// upstream news provider. Genuine per-article `source` (e.g. Reuters, CNBC)
+// still renders on real items — that's the article publisher, not our API vendor.
 const BASE_NEWS: Omit<NewsItem, "sentiment" | "ageMs">[] = [
   {
-    id: 1, time: "Loading...", source: "Finnhub", sourceIcon: "📡",
+    id: 1, time: "Loading...", source: "Market News", sourceIcon: "📡",
     sym: "MARKET", impact: "medium", bullish: null,
-    title: "Loading real-time market news from Finnhub...",
+    title: "Loading real-time market news…",
     summary: "Fetching live news feed. This will update momentarily.",
     tags: [],
   },
   {
-    id: 2, time: "Loading...", source: "Finnhub", sourceIcon: "📡",
+    id: 2, time: "Loading...", source: "Market News", sourceIcon: "📡",
     sym: "MARKET", impact: "low", bullish: null,
-    title: "Connecting to Finnhub news API...",
+    title: "Connecting to the news feed…",
     summary: "Real financial news will appear here shortly.",
     tags: [],
   },

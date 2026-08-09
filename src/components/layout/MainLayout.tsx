@@ -680,8 +680,11 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
               <Row label="Subscription" sub="WealthyMindsets PRO — Active">
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-wm-gold/20 text-wm-gold border border-wm-gold/40">PRO</span>
               </Row>
-              <Row label="Data Source" sub="Current market data provider">
-                <span className="text-xs text-wm-blue font-semibold">Finnhub + Polygon.io</span>
+              <Row label="Data Source" sub="Live market data status">
+                {/* WM-CHART-PROV-EMERG-01 (2026-08-09): vendor identity removed
+                    from user-visible chrome per Founder directive. Provenance
+                    kept internal for the diagnostics inspector. */}
+                <span className="text-xs text-wm-blue font-semibold">Real-time feeds active</span>
               </Row>
               <Row label="Two-Factor Auth" sub="Protect your account with 2FA">
                 <Toggle on={twoFactor} set={setTwoFactor} />
