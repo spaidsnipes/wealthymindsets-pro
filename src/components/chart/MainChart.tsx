@@ -6748,6 +6748,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           </div>
         )}
 
+        {/* WM-OF-P0-06 (2026-08-09, Founder emergency): order flow "still dont
+            function properly" — root cause is that footprint tools need per-
+            trade aggressor tape which the free feed only supplies for candles
+            that open AFTER the tab is open. Historical bars stay blank forever.
+            The previous banner said "Collecting…" only until the first trade
+            arrived, then disappeared — leaving the user staring at 99% empty
+            candles with no explanation. Now the banner shows the collecting
+            state until ANY trade arrives, then switches to a persistent
+            "live-only footprint" note that stays as long as the tool is on. */}
         {footprintEnabled && hasRealAggressorTape(tapeSource ?? "") && !recentTicks?.some(t => t.trade) && (
           <div
             role="status"
@@ -6761,6 +6770,22 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           >
             <span style={{ color: "#00C076", fontWeight: 850 }}>Collecting live executed trades…</span>
             {" "}Footprints populate from this point forward; historical rows remain blank.
+          </div>
+        )}
+        {footprintEnabled && hasRealAggressorTape(tapeSource ?? "") && recentTicks?.some(t => t.trade) && (
+          <div
+            role="status"
+            aria-live="polite"
+            title="Free-tier providers do not deliver per-trade tape for historical bars. Only bars that open while this tab is live will accumulate footprint data."
+            style={{
+              position: "absolute", top: 42, left: "50%", transform: "translateX(-50%)",
+              zIndex: 58, padding: "5px 10px", borderRadius: 7, pointerEvents: "auto",
+              background: "rgba(11,14,26,0.85)", border: "1px solid rgba(0,192,118,0.30)",
+              color: "#8B92AC", fontSize: 10, fontWeight: 600,
+            }}
+          >
+            <span style={{ color: "#00C076", fontWeight: 800 }}>● Live footprint recording</span>
+            {" "}— historical bars pre-tab-open stay blank (hover for details).
           </div>
         )}
 
