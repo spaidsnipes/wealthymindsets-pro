@@ -24,6 +24,7 @@ import { MarketEventGuard, type CanonicalMarketEvent } from "@/lib/marketData/ma
 import { normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
 import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay";
 import { applyTickToLiveBar } from "@/lib/marketData/liveBarPolicy";
+import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
 
 export interface Tick {
   price: number;
@@ -472,7 +473,13 @@ function createTapeHub(
   const statuses = new Set<TapeStatus>();
   const hub: TapeHub = { refs: 0, cleanup: () => {}, tickers, statuses, lastStatus: false };
 
-  const fanTick   = (t: Tick, isReal: boolean) => { tickers.forEach(fn => fn(t, isReal)); };
+  const fanTick   = (t: Tick, isReal: boolean) => {
+    // Record one validated collection-health observation per shared feed tick,
+    // not once per React consumer. This stores coverage/receipts only—never raw
+    // payloads and never durable Market Memory.
+    if (t.marketEvent) ingestSessionNectarEvent(t.marketEvent);
+    tickers.forEach(fn => fn(t, isReal));
+  };
   const fanStatus = (ok: boolean) => { hub.lastStatus = ok; statuses.forEach(fn => fn(ok)); };
 
   // Single-tab / unsupported browser: open the socket locally (previous behavior).
