@@ -25,7 +25,10 @@ export interface SessionNectarSnapshot {
   channels: readonly MarketChannelCoverage[];
   receipts: ReturnType<MarketEventGuard["snapshot"]>;
   unsupportedCapabilities: number;
-  retentionState: "SESSION_ONLY_NO_RAW_PAYLOADS" | "BROWSER_LOCAL_SUMMARY_NO_RAW_PAYLOADS";
+  retentionState:
+    | "SESSION_ONLY_NO_RAW_PAYLOADS"
+    | "BROWSER_LOCAL_SUMMARY_NO_RAW_PAYLOADS"
+    | "SERVER_DURABLE_SUMMARY_NO_RAW_PAYLOADS";
   continuityStartedAt?: number;
 }
 
@@ -62,6 +65,7 @@ export class SessionNectarCollector {
   private updatedAt?: number;
   private unsupportedCapabilities = 0;
   private continuityRestored = false;
+  private serverContinuityRestored = false;
 
   constructor(
     private readonly startedAt = Date.now(),
@@ -111,15 +115,27 @@ export class SessionNectarCollector {
     return () => this.listeners.delete(listener);
   }
 
-  restoreCoverageSummaries(channels: readonly MarketChannelCoverage[]): number {
+  restoreCoverageSummaries(
+    channels: readonly MarketChannelCoverage[],
+    source: "browser" | "server" = "browser",
+  ): number {
     let restored = 0;
     for (const channel of channels) {
       if (channel.memoryState !== "SUMMARY_ONLY" || channel.observedFrom == null || channel.observedThrough == null) continue;
       const key = `${channel.instrumentId}|${channel.channel}|${channel.providerPath}`;
-      this.channels.set(key, { ...channel, coverageState: "STALE", memoryState: "SUMMARY_ONLY" });
+      const current = this.channels.get(key);
+      const merged = current ? mergeCoverageChannels([channel], [current])[0] : channel;
+      this.channels.set(key, current ? {
+        ...merged,
+        coverageState: current.coverageState,
+        memoryState: current.memoryState,
+        detail: current.detail,
+      } : { ...merged, coverageState: "STALE", memoryState: "SUMMARY_ONLY" });
       restored += 1;
     }
     this.continuityRestored = restored > 0;
+    if (source === "server" && restored > 0) this.serverContinuityRestored = true;
+    if (restored > 0) this.emit();
     return restored;
   }
 
@@ -135,7 +151,9 @@ export class SessionNectarCollector {
       channels,
       receipts: this.guard.snapshot(),
       unsupportedCapabilities: this.unsupportedCapabilities,
-      retentionState: this.continuityRestored || channels.some(channel => channel.memoryState === "SUMMARY_ONLY")
+      retentionState: this.serverContinuityRestored
+        ? "SERVER_DURABLE_SUMMARY_NO_RAW_PAYLOADS"
+        : this.continuityRestored || channels.some(channel => channel.memoryState === "SUMMARY_ONLY")
         ? "BROWSER_LOCAL_SUMMARY_NO_RAW_PAYLOADS"
         : "SESSION_ONLY_NO_RAW_PAYLOADS",
       continuityStartedAt: channels.reduce<number | undefined>((earliest, channel) =>
@@ -196,25 +214,66 @@ if (typeof window !== "undefined" && !sessionNectarRuntime.continuityInitialized
   }
 
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  let remotePersistTimer: ReturnType<typeof setTimeout> | null = null;
+  const checkpoint = () => {
+    const snapshot = sessionNectarCollector.snapshot();
+    const previous = parseCoverageContinuityRecord(window.localStorage.getItem(COVERAGE_STORAGE_KEY));
+    const channels = mergeCoverageChannels(previous?.channels ?? [], snapshot.channels);
+    return createCoverageContinuityRecord(channels);
+  };
   const persist = () => {
     if (persistTimer) {
       clearTimeout(persistTimer);
       persistTimer = null;
     }
     try {
-      const snapshot = sessionNectarCollector.snapshot();
-      const previous = parseCoverageContinuityRecord(window.localStorage.getItem(COVERAGE_STORAGE_KEY));
-      const channels = mergeCoverageChannels(previous?.channels ?? [], snapshot.channels);
-      window.localStorage.setItem(COVERAGE_STORAGE_KEY, JSON.stringify(createCoverageContinuityRecord(channels)));
+      window.localStorage.setItem(COVERAGE_STORAGE_KEY, JSON.stringify(checkpoint()));
     } catch {
       // Quota/SecurityError is a degraded continuity state, not a reason to
       // interrupt the live chart or claim that anything was retained.
     }
   };
+  const persistRemote = () => {
+    if (remotePersistTimer) {
+      clearTimeout(remotePersistTimer);
+      remotePersistTimer = null;
+    }
+    try {
+      void fetch("/api/market-memory/coverage", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(checkpoint()),
+        keepalive: true,
+      });
+    } catch {
+      // The local checkpoint remains available. A later live event retries the
+      // server ledger; the UI must never claim durable state from this attempt.
+    }
+  };
   sessionNectarCollector.subscribe(() => {
     if (!persistTimer) persistTimer = setTimeout(persist, 2_000);
+    if (!remotePersistTimer) remotePersistTimer = setTimeout(persistRemote, 15_000);
   });
-  window.addEventListener("pagehide", persist);
+  window.addEventListener("pagehide", () => { persist(); persistRemote(); });
+
+  // Hydrate durable operational coverage after the authenticated WM session is
+  // available. If live events arrive first, restoreCoverageSummaries merges
+  // maxima without downgrading the active channel.
+  void fetch("/api/market-memory/coverage", {
+    credentials: "same-origin",
+    cache: "no-store",
+  }).then(async response => {
+    if (!response.ok) return;
+    const payload = await response.json() as { record?: unknown };
+    const restored = parseCoverageContinuityRecord(JSON.stringify(payload.record ?? null));
+    if (restored) {
+      sessionNectarCollector.restoreCoverageSummaries(restored.channels, "server");
+      persist();
+    }
+  }).catch(() => {
+    // Offline/degraded mode continues with the bounded local summary.
+  });
 }
 
 export function ingestSessionNectarEvent(event: CanonicalMarketEvent): SessionNectarIngestResult {

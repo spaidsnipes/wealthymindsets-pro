@@ -7043,7 +7043,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const coverageEvents = tradeChannel?.observedEventCount ?? 0;
           const retentionShort = nectar.retentionState === "SESSION_ONLY_NO_RAW_PAYLOADS"
             ? "session-only"
-            : "browser summary only";
+            : nectar.retentionState === "SERVER_DURABLE_SUMMARY_NO_RAW_PAYLOADS"
+              ? "server-durable summary"
+              : "browser summary only";
           return (
             <div
               className="wm-live-session-chip"

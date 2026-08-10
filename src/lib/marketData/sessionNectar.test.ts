@@ -113,6 +113,18 @@ describe("Session Nectar collection health", () => {
     });
   });
 
+  it("marks server-restored operational coverage as durable without claiming raw tape", () => {
+    const original = new SessionNectarCollector(1_786_335_600_000);
+    original.ingest(trade());
+    const restored = new SessionNectarCollector(1_786_335_800_000);
+    restored.restoreCoverageSummaries(original.snapshot().channels.map(channel => ({
+      ...channel,
+      coverageState: "STALE" as const,
+      memoryState: "SUMMARY_ONLY" as const,
+    })), "server");
+    expect(restored.snapshot().retentionState).toBe("SERVER_DURABLE_SUMMARY_NO_RAW_PAYLOADS");
+  });
+
   it("resumes a restored channel instead of creating an uppercase event-type duplicate", () => {
     const collector = new SessionNectarCollector(1_786_335_800_000);
     collector.restoreCoverageSummaries([{
