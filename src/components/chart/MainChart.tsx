@@ -4503,6 +4503,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const numLevels = Math.max(1, Math.min(maxLev, Math.floor(fullH / 12)));
           const rowH   = fullH / Math.max(1, numLevels);
           const levels = getBarFootprint(c, numLevels);
+          // No captured executions means no footprint layer for this bar. In
+          // particular, do not paint the dark footprint base over a perfectly
+          // valid candle and do not turn unavailable evidence into visual zeroes.
+          if (levels.length === 0) return;
           const maxTot = Math.max(1, ...levels.map(l => l.total));
 
           // ── Dark cell base for entire candle range ──
@@ -4616,6 +4620,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const numLevels = Math.max(1, Math.min(maxLev, Math.floor(fullH / 12)));
           const rowH   = fullH / Math.max(1, numLevels);
           const levels = getBarFootprint(c, numLevels);
+          // Empty means unavailable, not zero. Skip the whole bar before the
+          // background/POC pass so historical candles stay readable and reduce()
+          // is never asked to manufacture a winner from an empty collection.
+          if (levels.length === 0) return;
 
           // Dark base
           ctx.fillStyle = "rgba(15,20,35,0.55)";
@@ -4830,6 +4838,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const numLevels = Math.max(1, Math.min(maxLev, Math.floor(fullH / 12)));
           const rowH   = fullH / Math.max(1, numLevels);
           const levels = getBarFootprint(c, numLevels);
+          if (levels.length === 0) return;
           const maxTot = Math.max(1, ...levels.map(l => l.total));
           const maxBarW = halfW - 1;
 
@@ -4902,6 +4911,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const numLev = Math.max(1, Math.min(maxLev2, Math.floor(fullH / 12)));
           const rowH   = fullH / Math.max(1, numLev);
           const levels = getBarFootprint(c, numLev);
+          if (levels.length === 0) return;
           const x      = cx - halfW;
 
           levels.forEach((lv, li) => {
@@ -4975,6 +4985,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const numLev = Math.max(1, Math.min(maxLev2, Math.floor(fullH / 12)));
           const rowH   = fullH / Math.max(1, numLev);
           const levels = getBarFootprint(c, numLev);
+          if (levels.length === 0) return;
           const x      = cx - halfW;
 
           // Faint neutral background for the entire candle range
