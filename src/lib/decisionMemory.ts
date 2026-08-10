@@ -1,3 +1,5 @@
+import type { AvailableRResult } from "./riskKernel";
+
 export const DECISION_MEMORY_SCHEMA_VERSION = "wm.decision-memory.v1" as const;
 export const DECISION_AMENDMENT_SCHEMA_VERSION = "wm.decision-amendment.v1" as const;
 
@@ -21,15 +23,11 @@ export interface DecisionDimension {
   unknownReason?: string;
 }
 
-export type AvailableR =
-  | { status: "AVAILABLE"; value: number; barrier: number; estimatedCosts: number }
-  | { status: "UNKNOWN" | "UNAVAILABLE"; reason: string };
-
 export interface DecisionRiskPlan {
   structuralInvalidation: number | null;
   plannedStop: number | null;
   plannedTarget: number | null;
-  availableR: AvailableR;
+  availableR: AvailableRResult;
   plannedPosition: number | null;
   plannedAccountRisk: number | null;
   managementRules: readonly string[];

@@ -86,7 +86,10 @@ describe("sealed Decision Memory", () => {
         structuralInvalidation: 64_500,
         plannedStop: 64_450,
         plannedTarget: 66_000,
-        availableR: { status: "AVAILABLE", value: 2.5, barrier: 66_000, estimatedCosts: 5 },
+        availableR: {
+          status: "AVAILABLE", formulaVersion: "wm.risk-kernel.v1", value: 2.5,
+          barrier: 66_000, estimatedCosts: 5, riskPerUnit: 1_550, netRewardPerUnit: 3_875,
+        },
         plannedPosition: 0.1,
         plannedAccountRisk: 155,
         managementRules: ["Exit if structural invalidation is confirmed."],
