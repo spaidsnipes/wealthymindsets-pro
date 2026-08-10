@@ -643,6 +643,13 @@ input[type=range]::-webkit-slider-runnable-track {
 .wm-footprint-live-status__compact { display: none; }
 
 @media (max-width: 480px) {
+  /* The live chart is a critical decision surface. The global assistant stays
+     reachable from every other primary route but cannot cover chart evidence,
+     the market ribbon, or bottom navigation on a phone. */
+  .wm-spaidbot-chart-context {
+    display: none !important;
+  }
+
   .wm-footprint-live-status {
     left: 8px !important;
     right: 82px !important;
@@ -656,4 +663,14 @@ input[type=range]::-webkit-slider-runnable-track {
 
   .wm-footprint-live-status__full { display: none; }
   .wm-footprint-live-status__compact { display: inline; }
+
+  .wm-live-session-chip {
+    left: 8px !important;
+    right: 8px !important;
+    transform: none !important;
+    justify-content: center;
+    gap: 8px !important;
+    padding: 4px 6px !important;
+    white-space: nowrap;
+  }
 }

@@ -1145,7 +1145,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       <MusicPlayer />
 
       {/* SpaidBot floating button */}
-      <SpadeBotButton />
+      <div className={pathname === "/charts" ? "wm-spaidbot-chart-context" : undefined}>
+        <SpadeBotButton />
+      </div>
 
     </div>
   );

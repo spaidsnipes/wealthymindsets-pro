@@ -5937,7 +5937,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               const boxH = 18;
               // Position: right of the line if room, else left, else center on x.
               const boxX = x + 6 + boxW < W ? x + 6 : (x - 6 - boxW > 0 ? x - 6 - boxW : Math.max(4, x - boxW / 2));
-              const boxY = 6;
+              // On phones, the truthful footprint + session status chips occupy
+              // the top of the chart. Keep the canvas-owned horizon label below
+              // them so three truth surfaces never paint over one another.
+              const boxY = W < 480 ? 104 : 6;
               ctx.fillStyle = "rgba(11,14,26,0.92)";
               ctx.strokeStyle = "rgba(240,180,41,0.75)";
               ctx.lineWidth = 1;
@@ -6979,6 +6982,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             : "the first retained execution";
           return (
             <div
+              className="wm-live-session-chip"
               role="group"
               aria-label={`Current tab tape counters since ${horizonTime}. Delta ${fmt(s.delta)}. ${s.tradeCount} trades. ${s.bigTradeCount} large trades.`}
               title={`WM observed in this tab for this symbol.\nBuys: ${fmt(s.buyVol)}\nSells: ${fmt(s.sellVol)}\nDelta = Buys − Sells`}
