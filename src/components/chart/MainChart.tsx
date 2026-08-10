@@ -6295,8 +6295,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     if (TEXT_TOOLS.has(d.tool)) { if (d.text == null) d.text = ""; setTextEdit({ idx: newIdx }); }
   }, [onDrawingComplete]);
 
-  const handleDrawMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleDrawPointerDown = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!e.isPrimary || e.button !== 0) return;
     if (lockDrawings) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left, y = e.clientY - rect.top;
     const lp = pixelToLogical(x, y);
@@ -6333,7 +6335,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     }
   }, [drawingTool, lockDrawings, pixelToLogical, hitHandle, hitTestDrawing, makeDrawing, scheduleDrawRender]);
 
-  const handleDrawMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleDrawPointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!e.isPrimary) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left, y = e.clientY - rect.top;
     const lp = pixelToLogical(x, y);
@@ -6371,7 +6374,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     if (ip || (st && mouseMovedRef.current)) scheduleDrawRender();
   }, [drawingTool, pixelToLogical, moveDrawingBy, scheduleDrawRender]);
 
-  const handleDrawMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleDrawPointerUp = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!e.isPrimary) return;
     if (drawingTool === "select" || drawingTool === "cursor" || drawingTool === "eraser") {
       if (dragRef.current) scheduleDrawRender();
       dragRef.current = null;
@@ -6423,8 +6427,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     if (ip && drawPtsNeeded(ip.tool) === -2 && ip.pts.length >= 2) finalizeDrawing(ip);
   }, [finalizeDrawing]);
 
-  // Pointer leaving the canvas commits a freehand stroke and ends any drag.
-  const handleDrawMouseLeave = useCallback(() => {
+  // Cancellation or lost capture commits a freehand stroke and ends any drag.
+  const handleDrawPointerEnd = useCallback(() => {
     const ip = inProgressRef.current;
     if (ip && drawPtsNeeded(ip.tool) === -1) {
       if (ip.pts.length > 1) finalizeDrawing(ip);
@@ -6437,12 +6441,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // pass-through in cursor mode so the chart can still pan). A clean click
   // — negligible movement — selects the drawing under it; a drag pans.
   const cursorDownRef = useRef<{ x: number; y: number } | null>(null);
-  const handleCursorSelectDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const handleCursorSelectDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.isPrimary || e.button !== 0) return;
     if (drawingTool !== "cursor") return;
     const r = e.currentTarget.getBoundingClientRect();
     cursorDownRef.current = { x: e.clientX - r.left, y: e.clientY - r.top };
   }, [drawingTool]);
-  const handleCursorSelectUp = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const handleCursorSelectUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.isPrimary) return;
     if (drawingTool !== "cursor") return;
     const s = cursorDownRef.current; cursorDownRef.current = null;
     if (!s) return;
@@ -6456,7 +6462,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // ── Big-Trade bubble hover hit-test → comic speech-bubble tooltip ──
   // Attached to the chart wrapper so it fires in cursor mode without blocking
   // chart panning (drawing tools keep their own handler on drawCanvas).
-  const handleOverlayMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const handleOverlayPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.isPrimary) return;
     // Cursor-mode: flip the draw-canvas to CAPTURE when hovering a drawing so a drag
     // moves it instead of panning the chart. Runs before the bubble early-return so
     // it works even with no bubbles present. (When capture is on, the canvas's own
@@ -6738,10 +6745,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
       {/* ── Chart + canvas overlay ───────────────────────── */}
       <div style={{ flex:1, position:"relative", minHeight:0 }} onContextMenu={handleContextMenu}
-        onMouseMove={handleOverlayMouseMove}
-        onMouseDown={handleCursorSelectDown}
-        onMouseUp={handleCursorSelectUp}
-        onMouseLeave={() => { bubbleHoverRef.current = null; setBubbleTip(null); cursorDownRef.current = null; }}>
+        onPointerMove={handleOverlayPointerMove}
+        onPointerDown={handleCursorSelectDown}
+        onPointerUp={handleCursorSelectUp}
+        onPointerLeave={() => { bubbleHoverRef.current = null; setBubbleTip(null); cursorDownRef.current = null; }}>
         <div ref={containerRef} style={{ width:"100%", height:"100%" }} />
 
         {/* Historical OHLCV cannot reconstruct aggressor-side executions. Keep the
@@ -6908,10 +6915,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             touchAction: "none",
             willChange: drawingTool !== "cursor" ? "contents" : "auto",
           }}
-          onMouseDown={handleDrawMouseDown}
-          onMouseMove={handleDrawMouseMove}
-          onMouseUp={handleDrawMouseUp}
-          onMouseLeave={handleDrawMouseLeave}
+          onPointerDown={handleDrawPointerDown}
+          onPointerMove={handleDrawPointerMove}
+          onPointerUp={handleDrawPointerUp}
+          onPointerCancel={handleDrawPointerEnd}
+          onLostPointerCapture={handleDrawPointerEnd}
           onDoubleClick={handleDrawDoubleClick}
         />
 
@@ -6944,7 +6952,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 background: "#141824", border: "1px solid #2A3350", borderRadius: 9,
                 boxShadow: "0 8px 26px rgba(0,0,0,0.55)",
               }}
-              onMouseDown={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
             >
               {/* Color — swatch button opens a palette + full color wheel dropdown */}
               <div style={{ position: "relative" }}>
@@ -7072,7 +7080,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               autoFocus
               defaultValue={d.text ?? ""}
               placeholder="Type text…"
-              onMouseDown={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => {
                 e.stopPropagation();
