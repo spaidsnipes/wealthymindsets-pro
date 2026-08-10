@@ -17,6 +17,7 @@ import type { FootprintType, CandleType } from "./ChartsDashboard";
 import { resolveParams, visibleAtTf, type IndicatorSettings } from "./indicatorConfig";
 import { parseExchangeSymbol } from "@/lib/exchanges";
 import { DataVersionGuard } from "@/lib/chartContext";
+import { tapeHorizonBarStart } from "@/lib/tapeHorizon";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { priceSourceBadge } from "@/lib/priceSource";
 import type { PineOutput } from "@/lib/pine/types";
@@ -1304,25 +1305,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const minBigTradeLot = (symBase: number) =>
     symBase > 10_000 ? 0.15 : symBase > 100 ? 2 : symBase > 1 ? 0.03 : 0.001;
 
-  // WM Tape Horizon (2026-08-09): timestamp (seconds since epoch) of the FIRST
-  // real executed trade WM observed for the current symbol on the current tape
-  // source. Chart draw uses this to render a vertical marker + label showing
-  // "● WM live tape · from HH:MM PM". Everything left of the marker is OHLCV
-  // only — no execution tape, no footprint, no Delta/CVD. Everything right of
-  // the marker is footprint-capable. Turns the free-feed limitation into a
-  // visible honesty artefact per directive Part XLIII.
-  //
-  // Persistence (2026-08-09 late): stored in localStorage per (symbol,
-  // tapeSource) so the horizon GROWS LEFTWARD across page reloads and
-  // sessions — realizes the Founder's "WM builds its own truthful memory"
-  // thesis. Freshness cap: 30 days; older entries are discarded so a symbol
-  // WM hasn't visited in a month starts fresh. Cross-tab reads happen
-  // naturally because localStorage is shared per origin.
+  // WM Tape Horizon: timestamp of the first real execution currently retained
+  // in this tab for the active symbol/source/timeframe. This is deliberately
+  // session-scoped. Persisting only the timestamp would overstate Market Memory
+  // because the execution accumulator itself is not yet durably retained.
   const tapeHorizonRef = useRef<{ sym: string; tapeSrc: string; startedAtSec: number } | null>(null);
-  const TAPE_HORIZON_KEY = (sym: string, src: string) => `wm.tapeHorizon.${sym}.${src}`;
-  const TAPE_HORIZON_MAX_AGE_SEC = 30 * 24 * 3600; // 30 days
 
-  // Reset accumulator on symbol change; restore horizon from localStorage.
+  // Rebuild timeframe-owned buckets whenever symbol, source, or timeframe
+  // changes. The bounded recent-tick buffer is then folded into the new bars by
+  // the accumulator effects below.
   useEffect(() => {
     tickAccRef.current = new Map();
     processedTicksRef.current = new Set();
@@ -1333,46 +1324,17 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // what WM has observed for THIS symbol since collection began.
     sessionTapeStatsRef.current = { delta: 0, buyVol: 0, sellVol: 0, tradeCount: 0, bigTradeCount: 0 };
     setSessionTapeTick(0);
-    // Best-effort restore: symbol changed, try to find a persisted horizon for
-    // the current (symbol, tapeSource). tapeSource may be null at this point;
-    // the tick-arrival effect below will retry restore before stamping fresh.
-    if (typeof window !== "undefined" && tapeSource) {
-      try {
-        const key = TAPE_HORIZON_KEY(symbol, tapeSource);
-        const raw = window.localStorage.getItem(key);
-        if (raw) {
-          const parsed = JSON.parse(raw) as { startedAtSec?: number } | null;
-          const startedAtSec = parsed?.startedAtSec;
-          if (typeof startedAtSec === "number" && Number.isFinite(startedAtSec)) {
-            const nowSec = Math.floor(Date.now() / 1000);
-            if (nowSec - startedAtSec < TAPE_HORIZON_MAX_AGE_SEC) {
-              tapeHorizonRef.current = { sym: symbol, tapeSrc: tapeSource, startedAtSec };
-            } else {
-              // Too old — discard so a stale horizon doesn't linger.
-              window.localStorage.removeItem(key);
-            }
-          }
-        }
-      } catch { /* localStorage disabled or quota — safe to ignore */ }
-    }
-  }, [symbol, tapeSource]);
+  }, [symbol, tapeSource, timeframe]);
 
   useEffect(() => {
     if (!recentTicks?.length || !hasRealAggressorTape(tapeSource ?? "")) return;
-    // Stamp the horizon the FIRST time a real trade arrives for this (symbol,
-    // tapeSource) IF we don't already have a persisted one. Persist immediately
-    // so a reload preserves it. Subsequent trades leave both values unchanged.
+    // Stamp the horizon from the first real execution retained in the current
+    // tab buffer. Subsequent trades leave the exact timestamp unchanged.
     if (!tapeHorizonRef.current && tapeSource) {
       const firstTradeTick = recentTicks.find(t => t.trade && Number.isFinite(t.time));
       if (firstTradeTick) {
         const startedAtSec = Math.floor(firstTradeTick.time / 1000);
         tapeHorizonRef.current = { sym: symbol, tapeSrc: tapeSource, startedAtSec };
-        if (typeof window !== "undefined") {
-          try {
-            const key = TAPE_HORIZON_KEY(symbol, tapeSource);
-            window.localStorage.setItem(key, JSON.stringify({ startedAtSec, savedAtSec: Math.floor(Date.now() / 1000) }));
-          } catch { /* quota / disabled — the in-memory horizon still works */ }
-        }
       }
     }
     const intervalSec = getIntervalSec(timeframe);
@@ -5928,7 +5890,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       const horizon = tapeHorizonRef.current;
       if (horizon && horizon.sym === symbol && footprintEnabled) {
         try {
-          const xRaw = chart.timeScale().timeToCoordinate(horizon.startedAtSec as any);
+          const horizonBarSec = tapeHorizonBarStart(horizon.startedAtSec, getIntervalSec(timeframe));
+          const xRaw = chart.timeScale().timeToCoordinate(horizonBarSec as any);
           if (xRaw != null && Number.isFinite(xRaw)) {
             const x = Math.round(xRaw as number);
             // Only draw when in view (with a small margin)
@@ -5955,10 +5918,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               // + number of trades observed. Turns the marker into a visible
               // WM-memory artefact (Founder verbatim: "WM builds its own
               // truthful memory from the moment it begins observing").
-              const localTime = new Date(horizon.startedAtSec * 1000).toLocaleTimeString(
-                "en-US",
-                { hour: "numeric", minute: "2-digit", hour12: true },
-              );
+              const localTime = fmtTickMark(horizon.startedAtSec, 3);
               const nowSec = Math.floor(Date.now() / 1000);
               const durSec = Math.max(0, nowSec - horizon.startedAtSec);
               const durStr =
@@ -5967,7 +5927,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 : durSec < 86400 ? `${Math.floor(durSec / 3600)}h ${Math.floor((durSec % 3600) / 60)}m`
                 :                  `${Math.floor(durSec / 86400)}d`;
               const tradeCount = sessionTapeStatsRef.current.tradeCount;
-              const label = `● WM LIVE TAPE · from ${localTime} · ${durStr} · ${tradeCount} trades`;
+              const label = `● WM SESSION TAPE · from ${localTime} · ${durStr} · ${tradeCount} trades`;
               ctx.font = "700 10px system-ui, -apple-system, sans-serif";
               const tw = ctx.measureText(label).width;
               const padX = 8;
@@ -7015,9 +6975,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const deltaSign  = s.delta > 0 ? "+" : "";
           return (
             <div
-              role="status"
-              aria-live="polite"
-              title={`WM observed since tape opened for this symbol.\nBuys: ${fmt(s.buyVol)}\nSells: ${fmt(s.sellVol)}\nDelta = Buys − Sells`}
+              role="group"
+              aria-label={`Current tab tape counters. Delta ${fmt(s.delta)}. ${s.tradeCount} trades. ${s.bigTradeCount} large trades.`}
+              title={`WM observed in this tab for this symbol.\nBuys: ${fmt(s.buyVol)}\nSells: ${fmt(s.sellVol)}\nDelta = Buys − Sells`}
               style={{
                 position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)",
                 zIndex: 58, padding: "5px 10px", borderRadius: 7, pointerEvents: "auto",
