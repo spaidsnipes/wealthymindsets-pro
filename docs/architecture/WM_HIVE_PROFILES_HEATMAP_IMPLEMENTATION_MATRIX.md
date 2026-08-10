@@ -2,19 +2,24 @@
 
 **Reconciled:** 2026-08-10 CDT  
 **Drive authority:** `WM Pro — Claude Super Master Transformation Directive — Hive, Nectar, Profiles, Heat Maps, Time Engine & WOW — 2026-08-09`  
-**Repository baseline:** `c696b88cb92661d066e4400d8e5fbe735bf66cd7`
+**Production baseline:** `c178b88b344446b51415c83e93655bfee849b726`
+
+**Validated local continuation:** `d544bac` (publication blocked; see Build Status)
 
 This matrix distinguishes architecture described in Drive from behavior proven in code. A named concept is not implementation evidence.
 
 | Requirement | Status | Current implementation evidence | Exact remaining work |
 |---|---|---|---|
-| Provider capability and persistence-rights registry | VERIFIED FOUNDATION | `src/lib/marketData/capabilityRegistry.ts`; unknown/prohibited rights fail closed | Authorized provider/legal review must populate rights and retention limits before raw storage |
-| Canonical Market Event / Nectar contract | PARTIAL | Versioned event schema, validation and Coinbase/Alpaca relay adapters | Normalize remaining quote/bar/depth/news/broker adapters; remove unmigrated event shapes |
+| Provider capability and persistence-rights registry | VERIFIED FOUNDATION | `src/lib/marketData/capabilityRegistry.ts`; unknown/prohibited rights fail closed; runtime tape source certification is centralized locally at `b4f99e3` | Authorized provider/legal review must populate rights and retention limits before raw storage |
+| Canonical Market Event / Nectar contract | PARTIAL | Local v2 adds validated `availableAt` and `rightsPolicyId`; Coinbase/Alpaca adapters migrated (`b78f9dd`) | Normalize remaining quote/bar/depth/news/broker adapters; remove unmigrated event shapes |
 | Production-safe Nectar collector | PARTIAL | Shared tape hub plus `SessionNectarCollector` records validated coverage and health receipts once per shared feed tick | Durable server/background collection, heartbeat and recovery remain absent; current collection is browser-session scoped |
-| Temporal Integrity / Guard / Quarantine | PARTIAL | Schema validation, bounded identity dedupe, out-of-order quarantine, sequence-gap receipts, late-bar rewind prevention | Reconnect gap ledger, clock drift, calendars/half days, rollovers and controlled late-event reconciliation |
+| Temporal Integrity / Guard / Quarantine | PARTIAL | Schema validation, bounded identity dedupe, out-of-order quarantine, late-bar rewind prevention; unproven Coinbase ticker continuity no longer creates fake gaps locally | Adapter-specific sequence certification, reconnect gap ledger, clock drift, calendars/half days, rollovers and controlled late-event reconciliation |
 | Raw Honeycomb Market Memory | BLOCKED | No raw event vault exists; this is deliberate | All current raw persistence rights are `UNKNOWN`; storage is prohibited until explicit evidence changes a registry cell to `ALLOWED` |
 | Coverage Map | PARTIAL | Per-channel session coverage, gaps, staleness, fidelity, scope and retention truth | Connect every adapter/channel; add permission-safe user details and health monitoring |
 | Canonical WM Market State | OPEN | `useWebSocket` has a hook-local state; coverage facts are canonical but the full derived state is not | One authoritative state referencing Regime, Profiles, Order Flow, fidelity, risk and unknowns without duplicating values |
+| Sealed Decision Memory | VERIFIED CONTRACT / NOT WIRED | `src/lib/decisionMemory.ts` seals pre-outcome evidence with time cutoffs and append-only amendments (`08b2b71`) | Bind to one Canonical Market State and execution/journal flows; persist only after the intended WM database and policies are confirmed |
+| Risk Kernel / Available R | VERIFIED CONTRACT / NOT WIRED | `src/lib/riskKernel.ts` resolves cost-aware Available R and rounds size down to risk budget (`5ff7029`) | Add portfolio/daily/prop/correlation constraints, nonlinear options math, and route every order path through the kernel |
+| Journal Process vs Outcome | PARTIAL | Local Journal captures process separately and classifies earned/professional/dangerous/preventable outcomes (`d544bac`) | Link entries to sealed Decision Memory and execution evidence; replace browser-only identity/storage |
 | Traditional Profiles | PARTIAL | Fixed VP, Session VP and per-bar/order-flow volume profile exist | One `WM PROFILES` owner; reconcile Visible/Fixed/Session/Periodic/Composite/TPO and fidelity-specific Bid/Ask/Delta |
 | Living Profile | OPEN | No canonical evolution engine | Versioned POC/value/node evolution events with evidence and replay tests |
 | Structure Profile | OPEN | No structure-owned anchoring engine | Canonical structural segments, explainable anchors, override and provenance |
