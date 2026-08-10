@@ -77,10 +77,10 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     fidelityClass: "OBSERVED",
     timestampFields: ["PROVIDER", "RECEIVED", "PROCESSED"],
     sequenceSupported: false,
-    aggressorMethod: "PROVIDER",
+    aggressorMethod: "MAKER_SIDE_INVERTED",
     sessionCoverage: "24/7 fallback while the elected browser tab is connected",
     fallbackSemantics: "EXPLICIT",
-    evidence: "src/hooks/useWebSocket.ts tryBinance fallback",
+    evidence: "src/hooks/useWebSocket.ts tryBinance fallback + adapters/binanceUs.ts",
   }),
   capability({
     providerPath: "alpaca-external-relay",

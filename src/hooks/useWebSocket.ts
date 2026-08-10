@@ -25,6 +25,7 @@ import { normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
 import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay";
 import { applyTickToLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
+import { normalizeBinanceUsTrade } from "@/lib/marketData/adapters/binanceUs";
 
 export interface Tick {
   price: number;
@@ -327,6 +328,7 @@ function tryBinance(
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let lastMsgAt = Date.now();
   let watchdog: ReturnType<typeof setInterval> | null = null;
+  const eventGuard = new MarketEventGuard();
 
   const connect = () => {
     if (closed) return;
@@ -359,10 +361,20 @@ function tryBinance(
           }
         } else if (m.e === "trade" && m.p) {
           // @trade: real executed trade (size + aggressor side)
-          const price = parseFloat(m.p);
-          if (price > 0) {
-            lastPx = price;
-            onTick({ price, size: parseFloat(m.q) || 0.01, side: m.m ? "sell" : "buy", time: m.T ?? Date.now(), trade: true }, true);
+          const receivedAtMs = Date.now();
+          const event = normalizeBinanceUsTrade(m, symbol, receivedAtMs, Date.now());
+          if (event) {
+            const guarded = eventGuard.inspect(event);
+            if (guarded.status !== "ACCEPTED") return;
+            lastPx = event.price!;
+            onTick({
+              price: event.price!,
+              size: event.size!,
+              side: event.aggressorSide === "BUY" ? "buy" : "sell",
+              time: event.timestampExchange ?? event.timestampProvider ?? event.timestampReceived,
+              trade: true,
+              marketEvent: event,
+            }, true);
           }
         } else if (m.e === "24hrTicker" && m.c) {
           // @ticker: carries last price + 24h change % (used for the day-change display)
