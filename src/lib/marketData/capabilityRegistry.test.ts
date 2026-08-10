@@ -44,7 +44,7 @@ describe("market-data capability and persistence-rights registry", () => {
   it("records foreground collection honestly instead of implying durability", () => {
     const coinbaseTrades = getMarketDataCapability("coinbase-client-ws", "crypto", "trade");
     expect(coinbaseTrades.collectionScope).toBe("FOREGROUND_TAB");
-    expect(coinbaseTrades.timestampFields).not.toContain("EXCHANGE");
-    expect(coinbaseTrades.sequenceSupported).toBe(false);
+    expect(coinbaseTrades.timestampFields).toContain("EXCHANGE");
+    expect(coinbaseTrades.sequenceSupported).toBe(true);
   });
 });

@@ -4,6 +4,7 @@ import { priceSourceBadge } from "./priceSource";
 describe("priceSourceBadge (WM-CHART-P0-05 provenance)", () => {
   it("labels real-time streams as live", () => {
     expect(priceSourceBadge("polygon", true).live).toBe(true);
+    expect(priceSourceBadge("coinbase", true).live).toBe(true);
     expect(priceSourceBadge("binance", true).live).toBe(true);
     expect(priceSourceBadge("binance", false).live).toBe(true); // crypto stream is live regardless of the stock-feed flag
   });
@@ -26,7 +27,7 @@ describe("priceSourceBadge (WM-CHART-P0-05 provenance)", () => {
 
   it("keeps provider identity internal and renders only vendor-agnostic states", () => {
     const publicLabels = new Set(["LIVE", "DELAYED", "DELAYED 15 MIN", "NO FEED"]);
-    for (const s of ["polygon", "binance", "alpaca", "finnhub", "yahoo", "unavailable"]) {
+    for (const s of ["polygon", "coinbase", "binance", "alpaca", "finnhub", "yahoo", "unavailable"]) {
       const b = priceSourceBadge(s, true);
       expect(publicLabels.has(b.label)).toBe(true);
       expect(b.label.toLowerCase()).not.toContain(s);

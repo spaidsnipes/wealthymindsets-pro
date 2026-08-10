@@ -1294,7 +1294,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const footprintSnapRef = useRef<(bar: Bar, n: number) => Array<{ priceLevel: number; total: number }>>(() => []);
 
   const hasRealAggressorTape = (src: string) =>
-    src === "finnhub" || src === "polygon" || src === "alpaca" || src === "binance";
+    src === "finnhub" || src === "polygon" || src === "alpaca" || src === "coinbase" || src === "binance";
 
   // Min single-trade size to count as a "big trade" (real tape only — never
   // synthetic). Tuned DOWN over several rounds: 2 BTC (~$126k) → 0.5 → 0.15 because

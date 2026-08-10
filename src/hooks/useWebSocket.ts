@@ -20,6 +20,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { MarketEventGuard } from "@/lib/marketData/marketEvent";
+import { normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
 
 export interface Tick {
   price: number;
@@ -53,9 +55,9 @@ export interface MarketState {
   recentTicks: Tick[];
   orderBook:   { bids: OrderBookLevel[]; asks: OrderBookLevel[] };
   connected:   boolean;
-  source:      "polygon" | "finnhub" | "yahoo" | "alpaca" | "binance" | "unavailable";
+  source:      "polygon" | "finnhub" | "yahoo" | "alpaca" | "coinbase" | "binance" | "unavailable";
   /** Aggressor tape feed — set only by trade WebSockets, never downgraded by REST quotes. */
-  tapeSource:  "polygon" | "finnhub" | "alpaca" | "binance" | null;
+  tapeSource:  "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | null;
   latency:     number; // ms to last update
 }
 
@@ -598,6 +600,7 @@ function tryCoinbase(
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let lastMsgAt = Date.now();
   let watchdog: ReturnType<typeof setInterval> | null = null;
+  const eventGuard = new MarketEventGuard();
 
   const connect = () => {
     if (closed) return;
@@ -616,12 +619,18 @@ function tryCoinbase(
       lastMsgAt = Date.now();
       try {
         const m = JSON.parse(ev.data as string);
-        if (m.type === "ticker" && m.price) {
-          const price = parseFloat(m.price);
-          if (price > 0) {
-            // Coinbase `side` is the maker side; aggressor is the opposite.
-            const side: "buy" | "sell" = m.side === "sell" ? "buy" : "sell";
-            onTick({ price, size: parseFloat(m.last_size) || 0.01, side, time: Date.now(), trade: true }, true);
+        const receivedAtMs = Date.now();
+        const event = normalizeCoinbaseTicker(m, symbol, receivedAtMs, Date.now());
+        if (event) {
+          const guarded = eventGuard.inspect(event);
+          if (guarded.status === "ACCEPTED") {
+            onTick({
+              price: event.price!,
+              size: event.size!,
+              side: event.aggressorSide === "BUY" ? "buy" : "sell",
+              time: event.timestampExchange ?? event.timestampProvider ?? event.timestampReceived,
+              trade: true,
+            }, true);
           }
         }
       } catch { /* ignore */ }
@@ -851,8 +860,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           if (ok) {
             gotCoinbase = true;
             hasRealDataRef.current = true;
-            tapeSourceRef.current = "binance";
-            setState(p => ({ ...p, source: "binance" /* "live" badge */, tapeSource: "binance", connected: true }));
+            tapeSourceRef.current = "coinbase";
+            setState(p => ({ ...p, source: "coinbase", tapeSource: "coinbase", connected: true }));
           }
         },
       );

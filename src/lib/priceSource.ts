@@ -12,7 +12,7 @@
  * live } where label is one of LIVE / DELAYED / DELAYED 15 MIN / NO FEED.
  */
 export type PriceSource =
-  | "polygon" | "binance" | "alpaca" | "finnhub" | "yahoo" | "unavailable" | string;
+  | "polygon" | "coinbase" | "binance" | "alpaca" | "finnhub" | "yahoo" | "unavailable" | string;
 
 export interface PriceSourceBadge {
   label: string;      // vendor-agnostic user-visible text
@@ -28,6 +28,8 @@ export function priceSourceBadge(source: PriceSource, connected: boolean): Price
       return { label: "LIVE", title: "Real-time trade stream", live: true, provenance: "polygon" };
     case "binance":
       return { label: "LIVE", title: "Real-time crypto stream", live: true, provenance: "binance" };
+    case "coinbase":
+      return { label: "LIVE", title: "Real-time crypto stream", live: true, provenance: "coinbase" };
     case "alpaca":
       return {
         label: connected ? "LIVE" : "DELAYED",

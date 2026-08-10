@@ -228,7 +228,7 @@ function computeConfluence(price: number, f: Flow): Confluence {
 }
 
 const hasRealAggressorTape = (src: string | null) =>
-  src === "finnhub" || src === "polygon" || src === "alpaca" || src === "binance";
+  src === "finnhub" || src === "polygon" || src === "alpaca" || src === "coinbase" || src === "binance";
 
 export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symbol: string }) {
   // Escape closes the panel (panel-control requirement). Bound while mounted.
