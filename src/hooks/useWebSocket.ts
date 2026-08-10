@@ -20,7 +20,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { MarketEventGuard } from "@/lib/marketData/marketEvent";
+import { MarketEventGuard, type CanonicalMarketEvent } from "@/lib/marketData/marketEvent";
 import { normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
 import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay";
 
@@ -33,6 +33,8 @@ export interface Tick {
    *  price-direction ticks). Delta Bubbles consume only real trades — this flag
    *  lets the consumer include full aggressive flow without quote/synthetic noise. */
   trade?: boolean;
+  /** Canonical identity/provenance for adapters migrated to the Nectar event contract. */
+  marketEvent?: CanonicalMarketEvent;
 }
 
 export interface OHLCVBar {
@@ -631,6 +633,7 @@ function tryCoinbase(
               side: event.aggressorSide === "BUY" ? "buy" : "sell",
               time: event.timestampExchange ?? event.timestampProvider ?? event.timestampReceived,
               trade: true,
+              marketEvent: event,
             }, true);
           }
         }
@@ -1010,6 +1013,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
               side: event.aggressorSide === "BUY" ? "buy" : "sell",
               time: event.timestampProvider ?? event.timestampReceived,
               trade: true,
+              marketEvent: event,
             }, true);
             got = true;
           }

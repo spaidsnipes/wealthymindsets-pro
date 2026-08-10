@@ -18,6 +18,7 @@ import { resolveParams, visibleAtTf, type IndicatorSettings } from "./indicatorC
 import { parseExchangeSymbol } from "@/lib/exchanges";
 import { DataVersionGuard } from "@/lib/chartContext";
 import { tapeHorizonBarStart } from "@/lib/tapeHorizon";
+import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { priceSourceBadge } from "@/lib/priceSource";
 import type { PineOutput } from "@/lib/pine/types";
@@ -1345,7 +1346,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       if (!tick.trade) return;
       if (!Number.isFinite(tick.price) || tick.price <= 0) return;
       if (!Number.isFinite(tick.size)  || tick.size  <= 0) return;
-      const dedupeKey = `${tick.time}|${tick.price}|${tick.size}|${tick.side}`;
+      const dedupeKey = marketTickDedupeKey(tick);
       if (processedTicksRef.current.has(dedupeKey)) return;
       processedTicksRef.current.add(dedupeKey);
       if (processedTicksRef.current.size > 8000) {
@@ -1396,7 +1397,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       if (!tick.trade) return;                                  // real executed trades only
       if (!Number.isFinite(tick.price) || tick.price <= 0) return;
       if (!Number.isFinite(tick.size)  || tick.size  <= 0) return;
-      const dedupeKey = `${tick.time}|${tick.price}|${tick.size}|${tick.side}`;
+      const dedupeKey = marketTickDedupeKey(tick);
       if (deltaProcessedRef.current.has(dedupeKey)) return;
       deltaProcessedRef.current.add(dedupeKey);
       if (deltaProcessedRef.current.size > 12000) {
