@@ -20,7 +20,7 @@ import { DataVersionGuard } from "@/lib/chartContext";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 import { findSessionNectarChannel, getSessionNectarSnapshot } from "@/lib/marketData/sessionNectar";
-import { hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
+import { getRuntimeTapeCapability, hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
 import { overlayFrameBudgetMs, shouldDrawOverlay } from "@/lib/chartOverlayGovernor";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { candleDataStatus, priceSourceBadge } from "@/lib/priceSource";
@@ -7025,22 +7025,31 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // safe to inline in the chip render because the chip re-renders
           // at ~4Hz on the existing sessionTapeTick.
           const nectar = getSessionNectarSnapshot();
-          const tradeChannel = findSessionNectarChannel(nectar, normalizeSym(symbol), "trade");
-          const fidelityLabel = tradeChannel?.fidelity ?? "UNAVAILABLE";
+          const activeTapeCapability = getRuntimeTapeCapability(tapeSource ?? null);
+          const tradeChannel = findSessionNectarChannel(
+            nectar,
+            normalizeSym(symbol),
+            "trade",
+            activeTapeCapability?.providerPath,
+          );
+          const fidelityLabel = tradeChannel?.coverageState === "STALE"
+            ? "UNAVAILABLE"
+            : tradeChannel?.fidelity ?? "UNAVAILABLE";
           const fidelityColor = fidelityLabel === "OBSERVED" ? "#00C076"
                              : fidelityLabel === "DERIVED"  ? "#F0B429"
                              : fidelityLabel === "PROXY"    ? "#F0B429"
                              :                                "#8B92AC";
           const gapCount = tradeChannel?.gapCount ?? 0;
+          const coverageEvents = tradeChannel?.observedEventCount ?? 0;
           const retentionShort = nectar.retentionState === "SESSION_ONLY_NO_RAW_PAYLOADS"
             ? "session-only"
-            : nectar.retentionState;
+            : "browser summary only";
           return (
             <div
               className="wm-live-session-chip"
               role="group"
-              aria-label={`Current tab tape counters since ${horizonTime}. Fidelity ${fidelityLabel}. Delta ${fmt(s.delta)}. ${s.tradeCount} trades. ${s.bigTradeCount} large trades. ${gapCount} gaps. Retention: ${retentionShort}.`}
-              title={`WM observed in this tab for this symbol.\nBuys: ${fmt(s.buyVol)}\nSells: ${fmt(s.sellVol)}\nDelta = Buys − Sells\nFidelity: ${fidelityLabel} (source-classified)\nGaps observed: ${gapCount}\nRetention: ${retentionShort} — raw tape is not durably stored (rights UNKNOWN)`}
+              aria-label={`Current tab tape counters since ${horizonTime}. Fidelity ${fidelityLabel}. Delta ${fmt(s.delta)}. ${s.tradeCount} current-tab trades. ${coverageEvents} coverage receipts. ${s.bigTradeCount} large trades. ${gapCount} gaps. Retention: ${retentionShort}. No raw tape retained.`}
+              title={`WM observed in this tab for this symbol.\nBuys: ${fmt(s.buyVol)}\nSells: ${fmt(s.sellVol)}\nDelta = Buys − Sells\nFidelity: ${fidelityLabel} (source-classified)\nCoverage receipts: ${coverageEvents}\nGaps observed: ${gapCount}\nRetention: ${retentionShort} — operational counts/timestamps only; raw tape is not durably stored (provider rights UNKNOWN)`}
               style={{
                 position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)",
                 zIndex: 58, padding: "5px 10px", borderRadius: 7, pointerEvents: "auto",
@@ -7092,6 +7101,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 <span style={{ color: "#8B92AC", fontWeight: 600 }}>Trades </span>
                 <span style={{ color: "#D8DCEA", fontWeight: 850 }}>{s.tradeCount}</span>
               </span>
+              {coverageEvents > s.tradeCount && (
+                <span>
+                  <span style={{ color: "#8B92AC", fontWeight: 600 }}>Seen </span>
+                  <span style={{ color: "#D8DCEA", fontWeight: 850 }}>{coverageEvents}</span>
+                </span>
+              )}
               <span>
                 <span style={{ color: "#8B92AC", fontWeight: 600 }}>Big </span>
                 <span style={{ color: "#F0B429", fontWeight: 850 }}>{s.bigTradeCount}</span>

@@ -1,6 +1,7 @@
 import { MARKET_DATA_CAPABILITIES, type MarketDataCapability } from "./capabilityRegistry";
 import {
   createChannelCoverage,
+  markCoverageStale,
   observeChannel,
   type MarketChannelCoverage,
 } from "./coverageMap";
@@ -9,6 +10,11 @@ import {
   type CanonicalMarketEvent,
   type MarketEventGuardResult,
 } from "./marketEvent";
+import {
+  createCoverageContinuityRecord,
+  mergeCoverageChannels,
+  parseCoverageContinuityRecord,
+} from "./coverageContinuity";
 
 export const SESSION_NECTAR_SCHEMA_VERSION = "wm.session-nectar.v1" as const;
 
@@ -19,7 +25,8 @@ export interface SessionNectarSnapshot {
   channels: readonly MarketChannelCoverage[];
   receipts: ReturnType<MarketEventGuard["snapshot"]>;
   unsupportedCapabilities: number;
-  retentionState: "SESSION_ONLY_NO_RAW_PAYLOADS";
+  retentionState: "SESSION_ONLY_NO_RAW_PAYLOADS" | "BROWSER_LOCAL_SUMMARY_NO_RAW_PAYLOADS";
+  continuityStartedAt?: number;
 }
 
 export type SessionNectarIngestResult =
@@ -54,6 +61,7 @@ export class SessionNectarCollector {
   private readonly listeners = new Set<Listener>();
   private updatedAt?: number;
   private unsupportedCapabilities = 0;
+  private continuityRestored = false;
 
   constructor(
     private readonly startedAt = Date.now(),
@@ -100,18 +108,35 @@ export class SessionNectarCollector {
     return () => this.listeners.delete(listener);
   }
 
+  restoreCoverageSummaries(channels: readonly MarketChannelCoverage[]): number {
+    let restored = 0;
+    for (const channel of channels) {
+      if (channel.memoryState !== "SUMMARY_ONLY" || channel.observedFrom == null || channel.observedThrough == null) continue;
+      const key = `${channel.instrumentId}|${channel.channel}|${channel.providerPath}`;
+      this.channels.set(key, { ...channel, coverageState: "STALE", memoryState: "SUMMARY_ONLY" });
+      restored += 1;
+    }
+    this.continuityRestored = restored > 0;
+    return restored;
+  }
+
   snapshot(): SessionNectarSnapshot {
+    const channels = [...this.channels.values()]
+      .map(channel => ({ ...channel }))
+      .sort((a, b) => `${a.instrumentId}|${a.channel}|${a.providerPath}`
+        .localeCompare(`${b.instrumentId}|${b.channel}|${b.providerPath}`));
     return {
       schemaVersion: SESSION_NECTAR_SCHEMA_VERSION,
       startedAt: this.startedAt,
       updatedAt: this.updatedAt,
-      channels: [...this.channels.values()]
-        .map(channel => ({ ...channel }))
-        .sort((a, b) => `${a.instrumentId}|${a.channel}|${a.providerPath}`
-          .localeCompare(`${b.instrumentId}|${b.channel}|${b.providerPath}`)),
+      channels,
       receipts: this.guard.snapshot(),
       unsupportedCapabilities: this.unsupportedCapabilities,
-      retentionState: "SESSION_ONLY_NO_RAW_PAYLOADS",
+      retentionState: this.continuityRestored || channels.some(channel => channel.memoryState === "SUMMARY_ONLY")
+        ? "BROWSER_LOCAL_SUMMARY_NO_RAW_PAYLOADS"
+        : "SESSION_ONLY_NO_RAW_PAYLOADS",
+      continuityStartedAt: channels.reduce<number | undefined>((earliest, channel) =>
+        channel.observedFrom == null ? earliest : Math.min(earliest ?? channel.observedFrom, channel.observedFrom), undefined),
     };
   }
 
@@ -121,6 +146,38 @@ export class SessionNectarCollector {
 }
 
 const sessionNectarCollector = new SessionNectarCollector();
+
+const COVERAGE_STORAGE_KEY = "wm:nectar:coverage-continuity:v1";
+if (typeof window !== "undefined") {
+  try {
+    const restored = parseCoverageContinuityRecord(window.localStorage.getItem(COVERAGE_STORAGE_KEY));
+    if (restored) sessionNectarCollector.restoreCoverageSummaries(restored.channels);
+  } catch {
+    // Storage can be blocked by browser privacy policy. Live session collection
+    // must continue honestly without continuity in that case.
+  }
+
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  const persist = () => {
+    if (persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
+    try {
+      const snapshot = sessionNectarCollector.snapshot();
+      const previous = parseCoverageContinuityRecord(window.localStorage.getItem(COVERAGE_STORAGE_KEY));
+      const channels = mergeCoverageChannels(previous?.channels ?? [], snapshot.channels);
+      window.localStorage.setItem(COVERAGE_STORAGE_KEY, JSON.stringify(createCoverageContinuityRecord(channels)));
+    } catch {
+      // Quota/SecurityError is a degraded continuity state, not a reason to
+      // interrupt the live chart or claim that anything was retained.
+    }
+  };
+  sessionNectarCollector.subscribe(() => {
+    if (!persistTimer) persistTimer = setTimeout(persist, 2_000);
+  });
+  window.addEventListener("pagehide", persist);
+}
 
 export function ingestSessionNectarEvent(event: CanonicalMarketEvent): SessionNectarIngestResult {
   return sessionNectarCollector.ingest(event);
@@ -138,11 +195,20 @@ export function findSessionNectarChannel(
   snapshot: SessionNectarSnapshot,
   normalizedSymbol: string,
   channel: MarketChannelCoverage["channel"],
+  providerPath?: string | null,
+  now = Date.now(),
+  staleAfterMs = 15_000,
 ): MarketChannelCoverage | null {
   const wanted = normalizedSymbol.trim().toUpperCase();
   if (!wanted) return null;
-  return snapshot.channels.find(entry =>
+  const matching = snapshot.channels.filter(entry =>
     entry.channel === channel &&
     (entry.normalizedSymbol?.toUpperCase() === wanted || entry.instrumentId.toUpperCase() === wanted)
-  ) ?? null;
+  );
+  const providerMatch = providerPath
+    ? matching.find(entry => entry.providerPath === providerPath)
+    : undefined;
+  const newest = providerMatch ?? matching.sort((a, b) => (b.lastEventAt ?? 0) - (a.lastEventAt ?? 0))[0];
+  if (!newest) return null;
+  return markCoverageStale(newest, now, staleAfterMs);
 }

@@ -14,7 +14,7 @@ export type CoverageState =
   | "UNAVAILABLE"
   | "REPLAY";
 
-export type MemoryState = "NO_MEMORY" | "SESSION_ONLY" | "RETAINED";
+export type MemoryState = "NO_MEMORY" | "SESSION_ONLY" | "SUMMARY_ONLY" | "RETAINED";
 
 export interface MarketChannelCoverage {
   schemaVersion: typeof MARKET_COVERAGE_SCHEMA_VERSION;
@@ -29,6 +29,8 @@ export interface MarketChannelCoverage {
   observedFrom?: number;
   observedThrough?: number;
   lastEventAt?: number;
+  /** Operational receipt count only. No event payloads or event IDs are retained. */
+  observedEventCount: number;
   gapCount: number;
   lastGapAt?: number;
   fidelity: MarketDataCapability["fidelityClass"];
@@ -58,6 +60,7 @@ export function createChannelCoverage(
     memoryState: "NO_MEMORY",
     persistenceRight: capability.rawPersistenceRight,
     rightsPolicyId: capability.rightsPolicyId,
+    observedEventCount: 0,
     gapCount: 0,
     fidelity: capability.fidelityClass,
     collectionScope: capability.collectionScope,
@@ -87,10 +90,11 @@ export function observeChannel(
     coverageState: sequenceGap ? "GAPPED" : "COLLECTING",
     // Current browser collectors retain only in-memory/session evidence. Rights
     // alone never promote a channel to durable memory.
-    memoryState: "SESSION_ONLY",
+    memoryState: coverage.memoryState === "SUMMARY_ONLY" ? "SUMMARY_ONLY" : "SESSION_ONLY",
     observedFrom,
     observedThrough,
     lastEventAt: observation.receivedAt,
+    observedEventCount: coverage.observedEventCount + 1,
     gapCount: coverage.gapCount + (sequenceGap ? 1 : 0),
     lastGapAt: sequenceGap ? observation.receivedAt : coverage.lastGapAt,
     detail: sequenceGap

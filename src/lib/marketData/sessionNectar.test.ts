@@ -56,8 +56,57 @@ describe("Session Nectar collection health", () => {
         persistenceRight: "UNKNOWN",
         rightsPolicyId: "wm.rights.unknown.v1",
         observedFrom: 1_786_335_700_000,
+        observedEventCount: 1,
       }),
     ]);
+  });
+
+  it("selects the active provider and marks stale coverage unavailable to callers", () => {
+    const collector = new SessionNectarCollector(1_786_335_600_000);
+    collector.ingest(trade());
+    collector.ingest(trade({
+      eventId: "binance:BTCUSDT:101",
+      sourceEventId: "101",
+      executableIdentity: "BTC-USDT",
+      providerClass: "EXCHANGE",
+      providerPath: "binance-us-client-ws",
+      exchange: "BINANCE_US",
+      sequenceId: 101,
+      timestampExchange: 1_786_335_701_000,
+      timestampProvider: 1_786_335_701_005,
+      timestampReceived: 1_786_335_701_020,
+      timestampProcessed: 1_786_335_701_025,
+      availableAt: 1_786_335_701_025,
+    }));
+
+    expect(findSessionNectarChannel(
+      collector.snapshot(), "BTC", "trade", "coinbase-client-ws", 1_786_335_701_021, 2_000,
+    )?.providerPath).toBe("coinbase-client-ws");
+    expect(findSessionNectarChannel(
+      collector.snapshot(), "BTC", "trade", "coinbase-client-ws", 1_786_335_720_000, 2_000,
+    )?.coverageState).toBe("STALE");
+    expect(findSessionNectarChannel(
+      collector.snapshot(), "BTC", "trade", "binance-us-client-ws", 1_786_335_701_021, 2_000,
+    )?.providerPath).toBe("binance-us-client-ws");
+  });
+
+  it("restores summary coverage without claiming retained raw tape", () => {
+    const original = new SessionNectarCollector(1_786_335_600_000);
+    original.ingest(trade());
+    const restored = new SessionNectarCollector(1_786_335_800_000);
+    expect(restored.restoreCoverageSummaries(original.snapshot().channels.map(channel => ({
+      ...channel,
+      coverageState: "STALE" as const,
+      memoryState: "SUMMARY_ONLY" as const,
+    })))).toBe(1);
+    expect(restored.snapshot()).toMatchObject({
+      retentionState: "BROWSER_LOCAL_SUMMARY_NO_RAW_PAYLOADS",
+      channels: [expect.objectContaining({
+        coverageState: "STALE",
+        memoryState: "SUMMARY_ONLY",
+        observedEventCount: 1,
+      })],
+    });
   });
 
   it("resolves executable identities by normalized symbol without guessing aliases", () => {
