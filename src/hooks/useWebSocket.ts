@@ -23,6 +23,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { MarketEventGuard, type CanonicalMarketEvent } from "@/lib/marketData/marketEvent";
 import { normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
 import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay";
+import { applyTickToLiveBar } from "@/lib/marketData/liveBarPolicy";
 
 export interface Tick {
   price: number;
@@ -681,6 +682,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   // from days ago) and showed a bogus −7% on a flat day. 0 until first quote.
   const prevCloseRef = useRef(0);
   const barRef     = useRef<OHLCVBar | null>(null);
+  const lastBarEventAtRef = useRef<number | null>(null);
   const tickBuf    = useRef<Tick[]>([]);      // batched buffer
   const bookRef    = useRef(buildBook());
   const rafRef     = useRef<number>(0);
@@ -778,27 +780,14 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // which is reliably refetched per symbol.
     if (!Number.isFinite(tick.price) || tick.price <= 0) return;
 
+    const intervalSec = getIntervalSec();
+    const barUpdate = applyTickToLiveBar(barRef.current, lastBarEventAtRef.current, tick, intervalSec);
+    if (barUpdate.status === "LATE_EVENT_IGNORED") return;
+
     priceRef.current = tick.price;
     tickBuf.current.push(tick);
-
-    // Update bar
-    const intervalSec = getIntervalSec();
-    const barTime = Math.floor(tick.time / 1000 / intervalSec) * intervalSec;
-
-    if (!barRef.current || barRef.current.time !== barTime) {
-      barRef.current = {
-        time: barTime, open: tick.price, high: tick.price,
-        low: tick.price, close: tick.price, volume: tick.size,
-      };
-    } else {
-      barRef.current = {
-        ...barRef.current,
-        high:   Math.max(barRef.current.high, tick.price),
-        low:    Math.min(barRef.current.low, tick.price),
-        close:  tick.price,
-        volume: barRef.current.volume + tick.size,
-      };
-    }
+    barRef.current = barUpdate.bar;
+    lastBarEventAtRef.current = barUpdate.lastEventAt;
 
     scheduleFlush();
   }, [getIntervalSec, scheduleFlush]);
@@ -816,6 +805,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     priceRef.current = b;
     prevCloseRef.current = 0; // cleared on symbol change; repopulated by the next quote
     barRef.current   = null;
+    lastBarEventAtRef.current = null;
     bookRef.current  = buildBook();
     retryCount.current = 0;
     hasRealDataRef.current = false;
@@ -1050,6 +1040,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   // A timeframe change starts an empty live bar; only observed ticks may refill it.
   useEffect(() => {
     barRef.current = null;
+    lastBarEventAtRef.current = null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeframe]);
 
