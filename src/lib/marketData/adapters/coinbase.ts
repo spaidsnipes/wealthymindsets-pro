@@ -2,6 +2,7 @@ import {
   MARKET_EVENT_SCHEMA_VERSION,
   type CanonicalMarketEvent,
 } from "../marketEvent";
+import { UNKNOWN_RIGHTS_POLICY_ID } from "../capabilityRegistry";
 
 interface CoinbaseTickerMessage {
   type?: unknown;
@@ -60,6 +61,7 @@ export function normalizeCoinbaseTicker(
     timestampProvider: providerTime,
     timestampReceived: receivedAtMs,
     timestampProcessed: processedAtMs,
+    availableAt: processedAtMs,
     sequenceId: sequence ?? undefined,
     // Preserve the source sequence as lineage, but do not treat ticker-channel
     // jumps as packet gaps until Coinbase's channel semantics are certified.
@@ -72,6 +74,7 @@ export function normalizeCoinbaseTicker(
     sourceClass: "PRIMARY",
     dataMode: "LIVE",
     fidelityClass: "OBSERVED",
+    rightsPolicyId: UNKNOWN_RIGHTS_POLICY_ID,
     rawLineageRef: `coinbase:ticker:${sourceEventId}`,
   };
 }

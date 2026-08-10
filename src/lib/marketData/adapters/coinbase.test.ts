@@ -23,11 +23,13 @@ describe("Coinbase canonical Market Event adapter", () => {
       providerPath: "coinbase-client-ws",
       timestampExchange: Date.parse(rawTicker.time),
       timestampProvider: Date.parse(rawTicker.time),
+      availableAt: Date.parse(rawTicker.time) + 25,
       sequenceId: 100,
       sequenceState: "UNAVAILABLE",
       price: 65000.25,
       size: 0.125,
       fidelityClass: "OBSERVED",
+      rightsPolicyId: "wm.rights.unknown.v1",
     });
   });
 

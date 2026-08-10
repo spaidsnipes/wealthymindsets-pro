@@ -1,4 +1,4 @@
-export const MARKET_EVENT_SCHEMA_VERSION = "wm.market-event.v1" as const;
+export const MARKET_EVENT_SCHEMA_VERSION = "wm.market-event.v2" as const;
 
 export type MarketEventType = "TRADE" | "QUOTE" | "BAR" | "DEPTH" | "NEWS" | "ORDER" | "ACCOUNT";
 export type MarketProviderClass = "EXCHANGE" | "BROKER" | "AGGREGATOR" | "WM_INTERNAL" | "REPLAY";
@@ -28,6 +28,8 @@ export interface CanonicalMarketEvent {
   timestampProvider?: number;
   timestampReceived: number;
   timestampProcessed: number;
+  /** First instant downstream consumers were allowed to use this event. */
+  availableAt: number;
   sequenceId?: number | string;
   sequenceState: SequenceState;
   price?: number;
@@ -50,6 +52,8 @@ export interface CanonicalMarketEvent {
   sourceClass: MarketSourceClass;
   dataMode: MarketDataMode;
   fidelityClass: MarketFidelityClass;
+  /** Versioned provider-rights decision; UNKNOWN policies remain fail-closed. */
+  rightsPolicyId: string;
   rawLineageRef?: string;
 }
 
@@ -58,6 +62,7 @@ export type MarketEventQuarantineReason =
   | "MISSING_IDENTITY"
   | "INVALID_TIMESTAMP"
   | "PROCESSING_BEFORE_RECEIPT"
+  | "INVALID_AVAILABILITY_TIMESTAMP"
   | "SOURCE_CLOCK_IN_FUTURE"
   | "INVALID_PRICE"
   | "INVALID_SIZE"
@@ -102,6 +107,11 @@ export function validateMarketEvent(
   } else if (event.timestampProcessed < event.timestampReceived) {
     reasons.push("PROCESSING_BEFORE_RECEIPT");
   }
+  if (!Number.isFinite(event.availableAt) || event.availableAt <= 0 ||
+      event.availableAt < event.timestampReceived || event.availableAt > event.timestampProcessed) {
+    reasons.push("INVALID_AVAILABILITY_TIMESTAMP");
+  }
+  if (!event.rightsPolicyId?.trim()) reasons.push("MISSING_IDENTITY");
 
   for (const sourceTimestamp of [event.timestampExchange, event.timestampProvider]) {
     if (sourceTimestamp != null && (!Number.isFinite(sourceTimestamp) || sourceTimestamp <= 0)) {

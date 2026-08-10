@@ -23,6 +23,7 @@ export type PersistenceRight = "UNKNOWN" | "PROHIBITED" | "ALLOWED";
 export type TimestampField = "EXCHANGE" | "PROVIDER" | "RECEIVED" | "PROCESSED";
 export type FidelityClass = "OBSERVED" | "DERIVED" | "PROXY" | "UNAVAILABLE";
 export type RuntimeTapeSource = "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | null;
+export const UNKNOWN_RIGHTS_POLICY_ID = "wm.rights.unknown.v1" as const;
 
 export interface MarketDataCapability {
   providerPath: MarketProviderPath;
@@ -37,15 +38,17 @@ export interface MarketDataCapability {
   sessionCoverage: string;
   fallbackSemantics: "NONE" | "EXPLICIT" | "SILENT_LEGACY";
   rawPersistenceRight: PersistenceRight;
+  rightsPolicyId: string;
   retentionLimitSeconds: number | null;
   evidence: string;
 }
 
 const capability = (
-  value: Omit<MarketDataCapability, "rawPersistenceRight" | "retentionLimitSeconds"> &
-    Partial<Pick<MarketDataCapability, "rawPersistenceRight" | "retentionLimitSeconds">>,
+  value: Omit<MarketDataCapability, "rawPersistenceRight" | "rightsPolicyId" | "retentionLimitSeconds"> &
+    Partial<Pick<MarketDataCapability, "rawPersistenceRight" | "rightsPolicyId" | "retentionLimitSeconds">>,
 ): MarketDataCapability => ({
   rawPersistenceRight: "UNKNOWN",
+  rightsPolicyId: UNKNOWN_RIGHTS_POLICY_ID,
   retentionLimitSeconds: null,
   ...value,
 });

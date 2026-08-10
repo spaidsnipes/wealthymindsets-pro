@@ -2,6 +2,7 @@ import {
   MARKET_EVENT_SCHEMA_VERSION,
   type CanonicalMarketEvent,
 } from "../marketEvent";
+import { UNKNOWN_RIGHTS_POLICY_ID } from "../capabilityRegistry";
 
 interface AlpacaRelayTrade {
   T?: unknown;
@@ -68,6 +69,7 @@ export function normalizeAlpacaRelayTrade(
     timestampProvider: providerTime,
     timestampReceived: receivedAtMs,
     timestampProcessed: processedAtMs,
+    availableAt: processedAtMs,
     sequenceState: "UNAVAILABLE",
     price,
     size,
@@ -78,6 +80,7 @@ export function normalizeAlpacaRelayTrade(
     sourceClass: "PROXY",
     dataMode: "LIVE",
     fidelityClass: "PROXY",
+    rightsPolicyId: UNKNOWN_RIGHTS_POLICY_ID,
     rawLineageRef: `alpaca-relay:${sourceEventId ?? fingerprint}`,
   };
 }

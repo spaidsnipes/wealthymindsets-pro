@@ -24,6 +24,7 @@ describe("Alpaca external-relay canonical adapter", () => {
       providerPath: "alpaca-external-relay",
       sourceClass: "PROXY",
       fidelityClass: "PROXY",
+      rightsPolicyId: "wm.rights.unknown.v1",
       price: 329.25,
       size: 12,
       tradeConditions: ["@"],

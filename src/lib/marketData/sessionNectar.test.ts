@@ -19,6 +19,7 @@ const trade = (overrides: Partial<CanonicalMarketEvent> = {}): CanonicalMarketEv
   timestampProvider: 1_786_335_700_010,
   timestampReceived: 1_786_335_700_020,
   timestampProcessed: 1_786_335_700_025,
+  availableAt: 1_786_335_700_025,
   sequenceId: 100,
   sequenceState: "CONTIGUOUS",
   price: 65_000,
@@ -29,6 +30,7 @@ const trade = (overrides: Partial<CanonicalMarketEvent> = {}): CanonicalMarketEv
   sourceClass: "PRIMARY",
   dataMode: "LIVE",
   fidelityClass: "OBSERVED",
+  rightsPolicyId: "wm.rights.unknown.v1",
   ...overrides,
 });
 
@@ -52,6 +54,7 @@ describe("Session Nectar collection health", () => {
         coverageState: "COLLECTING",
         memoryState: "SESSION_ONLY",
         persistenceRight: "UNKNOWN",
+        rightsPolicyId: "wm.rights.unknown.v1",
         observedFrom: 1_786_335_700_000,
       }),
     ]);
@@ -93,6 +96,7 @@ describe("Session Nectar collection health", () => {
       timestampExchange: 1_786_335_701_000,
       timestampReceived: 1_786_335_701_020,
       timestampProcessed: 1_786_335_701_025,
+      availableAt: 1_786_335_701_025,
     }));
 
     expect(collector.snapshot().receipts.sequenceGaps).toBe(1);

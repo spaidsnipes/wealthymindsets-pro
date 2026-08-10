@@ -25,6 +25,7 @@ export interface MarketChannelCoverage {
   coverageState: CoverageState;
   memoryState: MemoryState;
   persistenceRight: PersistenceRight;
+  rightsPolicyId: string;
   observedFrom?: number;
   observedThrough?: number;
   lastEventAt?: number;
@@ -56,6 +57,7 @@ export function createChannelCoverage(
     coverageState: unavailable ? "UNAVAILABLE" : "CONNECTING",
     memoryState: "NO_MEMORY",
     persistenceRight: capability.rawPersistenceRight,
+    rightsPolicyId: capability.rightsPolicyId,
     gapCount: 0,
     fidelity: capability.fidelityClass,
     collectionScope: capability.collectionScope,

@@ -22,6 +22,7 @@ const trade = (overrides: Partial<CanonicalMarketEvent> = {}): CanonicalMarketEv
   timestampProvider: 1_786_335_700_010,
   timestampReceived: 1_786_335_700_020,
   timestampProcessed: 1_786_335_700_025,
+  availableAt: 1_786_335_700_025,
   sequenceId: 100,
   sequenceState: "CONTIGUOUS",
   price: 65_000,
@@ -32,10 +33,16 @@ const trade = (overrides: Partial<CanonicalMarketEvent> = {}): CanonicalMarketEv
   sourceClass: "PRIMARY",
   dataMode: "LIVE",
   fidelityClass: "OBSERVED",
+  rightsPolicyId: "wm.rights.unknown.v1",
   ...overrides,
 });
 
 describe("canonical Market Event validation", () => {
+  it("rejects evidence available outside its receipt/process window", () => {
+    expect(validateMarketEvent(trade({ availableAt: 1_786_335_699_999 }))).toContain("INVALID_AVAILABILITY_TIMESTAMP");
+    expect(validateMarketEvent(trade({ availableAt: 1_786_335_700_026 }))).toContain("INVALID_AVAILABILITY_TIMESTAMP");
+  });
+
   it("accepts a complete observed trade without rewriting it", () => {
     const event = trade();
     expect(validateMarketEvent(event)).toEqual([]);

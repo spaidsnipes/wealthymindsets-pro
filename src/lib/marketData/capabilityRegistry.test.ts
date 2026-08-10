@@ -12,6 +12,7 @@ describe("market-data capability and persistence-rights registry", () => {
   it("defaults every current raw persistence right to UNKNOWN", () => {
     expect(MARKET_DATA_CAPABILITIES.length).toBeGreaterThan(0);
     expect(MARKET_DATA_CAPABILITIES.every(entry => entry.rawPersistenceRight === "UNKNOWN")).toBe(true);
+    expect(MARKET_DATA_CAPABILITIES.every(entry => entry.rightsPolicyId === "wm.rights.unknown.v1")).toBe(true);
   });
 
   it("fails closed when persistence rights are unknown", () => {
