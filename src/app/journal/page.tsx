@@ -22,6 +22,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { hasJournalCoachEvidence, JOURNAL_COACH_MIN_SAMPLE } from "@/lib/journalEvidence";
+import { classifyFinancialOutcome } from "@/lib/journalOutcome";
 import { FabioInsights } from "@/components/fabio/FabioInsights";
 
 /* ── Emoji palette ───────────────────────────────────────── */
@@ -555,10 +556,10 @@ export default function JournalPage() {
   // New-entry form
   const emptyForm = (): Partial<JournalEntry> => ({
     date: new Date().toISOString().slice(0, 10),
-    symbol: "NQ1!", side: "long", entry: 0, exit: 0, size: 1,
+    symbol: "", side: "long", entry: 0, exit: 0, size: 1,
     pnl: 0, pct: 0, tags: [], notes: "", mood: "neutral",
-    result: "win", starred: false, images: [], voiceSec: 0,
-    setup: "CLC Long", mistakes: "", lessons: "", emojis: [],
+    result: "be", starred: false, images: [], voiceSec: 0,
+    setup: "", mistakes: "", lessons: "", emojis: [],
   });
   const [form, setForm]   = useState<Partial<JournalEntry>>(emptyForm());
   const voiceRec          = useVoiceRecorder();
@@ -581,15 +582,15 @@ export default function JournalPage() {
     const e = { ...(form as JournalEntry) };
     e.id       = uid();
     e.pnl      = (e.exit - e.entry) * e.size * (e.side === "short" ? -1 : 1);
-    e.pct      = e.entry > 0 ? ((e.exit - e.entry) / e.entry * 100) : 0;
-    e.result   = e.pnl > 50 ? "win" : e.pnl < -50 ? "loss" : "be";
+    e.pct      = e.entry > 0 ? ((e.exit - e.entry) / e.entry * 100) * (e.side === "short" ? -1 : 1) : 0;
+    e.result   = classifyFinancialOutcome(e.pnl);
     e.voiceSec = voiceRec.memo?.sec ?? (voiceRec.state === "done" ? voiceRec.sec : 0);
     setEntries(prev => [e, ...prev]);
     setNewMode(false);
     setForm(emptyForm());
     voiceRec.reset();
     // Reward WM$ for journaling
-    earnWMS(50, e.result === "win" ? "📗 Journaled a winning trade" : "📕 Journaled a trade");
+    earnWMS(50, "📕 Journaled a completed decision");
   };
 
   // ── AI Song Generator ────────────────────────────────────
