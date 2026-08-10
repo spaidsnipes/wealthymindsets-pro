@@ -851,6 +851,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // as an automatic fallback if Coinbase fails to connect.
     let cryptoCleanup: (() => void) | null = null;
     let cryptoFallback: (() => void) | null = null;
+    let cryptoFallbackTimer: ReturnType<typeof setTimeout> | null = null;
+    let disposed = false;
     if (isCrypto) {
       let gotCoinbase = false;
       cryptoCleanup = joinTape(
@@ -867,8 +869,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         },
       );
       // If Coinbase hasn't connected within 4s, spin up Binance.US too.
-      setTimeout(() => {
-        if (!gotCoinbase && !cryptoFallback) {
+      cryptoFallbackTimer = setTimeout(() => {
+        cryptoFallbackTimer = null;
+        if (!disposed && !gotCoinbase && !cryptoFallback) {
           cryptoFallback = joinTape(
             `binance:${symbol.toUpperCase()}`,
             (onTick, onStatus) => tryBinance(symbol, onTick, onStatus),
@@ -881,7 +884,10 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
               }
             },
           );
-          if (cryptoFallback) cleanupFns.current.push(cryptoFallback);
+          // The effect may be disposed while joinTape is being established.
+          // Never leave a late fallback subscription outside the cleanup path.
+          if (disposed) cryptoFallback?.();
+          else if (cryptoFallback) cleanupFns.current.push(cryptoFallback);
         }
       }, 4000);
     }
@@ -905,7 +911,10 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       : null;
 
     // ── REST polling — REAL price drives the live bar (no faked movement) ──
+    let restFetchInFlight = false;
     const doRestFetch = () => {
+      if (disposed || document.visibilityState === "hidden" || restFetchInFlight) return;
+      restFetchInFlight = true;
       fetchRealQuote(symbol).then(q => {
         if (!q) return;
         const realPrice = q.price;
@@ -931,7 +940,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           ticker: { price: realPrice, change: q.change, changePct: q.changePct, volume: prev2.ticker.volume },
           orderBook: bookRef.current,
         }));
-      });
+      }).finally(() => { restFetchInFlight = false; });
     };
 
     // Fetch immediately at mount to correct stale seed price
@@ -1033,6 +1042,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     if (binanceCleanup) cleanupFns.current.push(binanceCleanup);
 
     return () => {
+      disposed = true;
+      if (cryptoFallbackTimer) clearTimeout(cryptoFallbackTimer);
       clearInterval(restRefresh);
       proxyClosed = true;
       if (proxyRetry) clearTimeout(proxyRetry);

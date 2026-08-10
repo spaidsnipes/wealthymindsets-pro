@@ -21,6 +21,7 @@ import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 import { findSessionNectarChannel, getSessionNectarSnapshot } from "@/lib/marketData/sessionNectar";
 import { hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
+import { overlayFrameBudgetMs, shouldDrawOverlay } from "@/lib/chartOverlayGovernor";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { candleDataStatus, priceSourceBadge } from "@/lib/priceSource";
 import type { PineOutput } from "@/lib/pine/types";
@@ -4330,6 +4331,48 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // texture — a 60fps buffer realloc that fought LWC's zoom render and caused
     // the candles to "stick." Now the buffer is stable; we just clear + redraw.
     let lastCW = -1, lastCH = -1, lastDpr = -1;
+    let lastOverlayDrawAt = 0;
+    let sessionBarsCache: { source: Bar[]; key: string; bars: Bar[] } | null = null;
+
+    // Session selection is data work, not paint work. Previously every animation
+    // frame constructed Intl.DateTimeFormat, formatted every historical bar, and
+    // allocated three new arrays even when neither the bars nor session changed.
+    // Cache by immutable bar-array identity + session inputs; live updates replace
+    // the array and naturally invalidate the cache.
+    const selectSessionBars = (allBars: Bar[]): Bar[] => {
+      const key = `${symbol}|${timeframe}|${extendedHours ? "ETH" : "RTH"}`;
+      if (sessionBarsCache?.source === allBars && sessionBarsCache.key === key) {
+        return sessionBarsCache.bars;
+      }
+      const formatter = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/New_York",
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+      });
+      const dailyOrLonger = /^(D|1D|W|1W|M|1M|3M|6M|1Y|2Y|3Y|5Y)$/.test(timeframe);
+      const applyRTH = isEquitySymbol(symbol) && !dailyOrLonger;
+      const sessionWindowBars: Record<string, number> = {
+        "1D": 5, "1W": 4, "1M": 3,
+        "3M": 4, "6M": 4, "1Y": 3, "2Y": 3, "3Y": 3, "5Y": 3,
+      };
+      const annotated = allBars
+        .map(bar => {
+          const parts = formatter.formatToParts(new Date((bar.time as number) * 1000));
+          const part = (type: Intl.DateTimeFormatPartTypes) =>
+            Number(parts.find(value => value.type === type)?.value ?? 0);
+          const date = `${part("year")}-${String(part("month")).padStart(2, "0")}-${String(part("day")).padStart(2, "0")}`;
+          return { bar, date, minute: part("hour") * 60 + part("minute") };
+        })
+        .filter(item => (applyRTH ? item.minute >= 570 && item.minute < 960 : true));
+      const latestSession = annotated.at(-1)?.date;
+      const bars = dailyOrLonger
+        ? annotated.slice(-(sessionWindowBars[timeframe] ?? 5)).map(item => item.bar)
+        : latestSession
+          ? annotated.filter(item => item.date === latestSession).map(item => item.bar)
+          : [];
+      sessionBarsCache = { source: allBars, key, bars };
+      return bars;
+    };
 
     const draw = () => {
       // Size to the CHART CONTAINER (not the scroll-box parent). When many panes
@@ -5854,38 +5897,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // 24-hour assets and for daily+ timeframes, "session" = latest
           // calendar day, no minute filter.
           const allBars = barsRef.current;
-          const formatter = new Intl.DateTimeFormat("en-CA", {
-            timeZone: "America/New_York",
-            year: "numeric", month: "2-digit", day: "2-digit",
-            hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-          });
-          const dailyOrLonger = /^(D|1D|W|1W|M|1M|3M|6M|1Y|2Y|3Y|5Y)$/.test(timeframe);
-          const applyRTH = isEquitySymbol(symbol) && !dailyOrLonger;
-          // For daily+ TFs, "session" = the last calendar WINDOW of bars,
-          // not just the single most-recent bar (which for 1D collapses the
-          // Session VP into one invisible sliver — Founder-visible regression
-          // on BTC 1D). Window sizes reflect trader mental model:
-          //   1D → 5 bars (trading week), 1W → 4 bars (approx month),
-          //   1M → 3 bars (approx quarter), longer → 4 bars.
-          const sessionWindowBars: Record<string, number> = {
-            "1D": 5, "1W": 4, "1M": 3,
-            "3M": 4, "6M": 4, "1Y": 3, "2Y": 3, "3Y": 3, "5Y": 3,
-          };
-          const annotated = allBars
-            .map(bar => {
-              const parts = formatter.formatToParts(new Date((bar.time as number) * 1000));
-              const part = (type: Intl.DateTimeFormatPartTypes) =>
-                Number(parts.find(value => value.type === type)?.value ?? 0);
-              const date = `${part("year")}-${String(part("month")).padStart(2, "0")}-${String(part("day")).padStart(2, "0")}`;
-              return { bar, date, minute: part("hour") * 60 + part("minute") };
-            })
-            .filter(item => (applyRTH ? item.minute >= 570 && item.minute < 960 : true));
-          const latestSession = annotated.at(-1)?.date;
-          const sessionBars = dailyOrLonger
-            ? annotated.slice(-(sessionWindowBars[timeframe] ?? 5)).map(item => item.bar)
-            : latestSession
-              ? annotated.filter(item => item.date === latestSession).map(item => item.bar)
-              : [];
+          const sessionBars = selectSessionBars(allBars);
           // Session VP: distinct translucent identity (0.6×) so it never merges
           // with the solid Fixed VP into one slab (founder: "cannot distinguish").
           drawWMVP(sessionBars, "#8B5CF6", "WM Session VP", 0, bothVP ? 1 : 0, nVPCols, 0.6);
@@ -6036,9 +6048,18 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
     // Use a continuous loop so the canvas always stays in sync with chart scroll/zoom
     let running = true;
-    const loop = () => {
+    const loop = (now: number) => {
       if (!running) return;
-      draw();
+      // Dense footprint/profile paint allocates working maps and arrays. Running
+      // it at display refresh rate starved input and drove long-session GC churn.
+      // LWC price candles remain independently real-time; this governor bounds
+      // only the evidence overlay to 30fps (20fps for the heaviest VP modes) and
+      // performs no background paint while the tab is hidden.
+      const frameBudget = overlayFrameBudgetMs(fixedVPActive || sessionVPActive);
+      if (shouldDrawOverlay({ hidden: document.hidden, now, lastDrawAt: lastOverlayDrawAt, frameBudgetMs: frameBudget })) {
+        lastOverlayDrawAt = now;
+        draw();
+      }
       rafId = requestAnimationFrame(loop);
     };
     rafId = requestAnimationFrame(loop);
