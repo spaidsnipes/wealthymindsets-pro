@@ -9,6 +9,7 @@ This is an internal prior-art/research ledger, not a patentability or novelty cl
 | Hindsight-resistant Decision Memory | Outcomes can rewrite the story of what was known at decision time | Deeply sealed pre-decision evidence cutoff plus separate append-only amendments | VALIDATED LOCAL CONTRACT | `08b2b71`; persistence and workflow integration open |
 | Cost-aware Available R | Gross reward-to-risk hides spread, slippage, fees, invalid stop geometry and unit constraints | Deterministic structural geometry subtracts explicit round-trip costs; sizing rounds down to risk budget | VALIDATED LOCAL CONTRACT | `5ff7029`; nonlinear options/portfolio constraints open |
 | Process-vs-Outcome journal lens | Profit can reinforce bad execution and losses can punish disciplined execution | User-declared process quality is classified independently into earned/professional/dangerous/preventable outcomes | VALIDATED LOCAL / UI UNVERIFIED | `d544bac`; visual and Decision Memory linkage pending |
+| Evidence-cutoff Market State packet | Charts, profiles, heat maps and decisions can drift when each surface reconstructs market meaning independently | One sealed, versioned packet preserves dimensions, evidence, contradictions, unknowns, quality and availability chronology; Decision Memory requires its schema | VALIDATED LOCAL CONTRACT | `4099f67`; runtime publisher/selectors and multi-surface replay proof remain open |
 
 ## Guardrails
 
