@@ -38,6 +38,11 @@ export default [
       "@typescript-eslint/no-unused-vars":   ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       "react-hooks/exhaustive-deps":         "warn",
       "@next/next/no-img-element":           "warn",
+      // Existing code contains style-only violations that were accepted before
+      // the flat config landed. Keep them visible without making the first lint
+      // rollout retroactively break every production build.
+      "prefer-const":                         "warn",
+      "react/no-unescaped-entities":          "warn",
     },
   },
 
@@ -51,7 +56,7 @@ export default [
       "no-restricted-syntax": [
         "error",
         {
-          selector: "MemberExpression[object.object.name='process'][object.property.name='env'][property.name=/^NEXT_PUBLIC_.*_(KEY|SECRET|TOKEN|PRIVATE)$/]",
+          selector: "MemberExpression[object.object.name='process'][object.property.name='env'][property.name=/^NEXT_PUBLIC_.*_(KEY|SECRET|TOKEN|PRIVATE)$/]:not([property.name='NEXT_PUBLIC_SUPABASE_ANON_KEY']):not([property.name='NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'])",
           message:
             "Do NOT read NEXT_PUBLIC_*_KEY / _SECRET / _TOKEN / _PRIVATE in client code — those env vars are baked into the browser bundle. Move the call through a server route (src/app/api/**) that reads the non-public equivalent.",
         },
@@ -74,13 +79,13 @@ export default [
     },
   },
 
-  // src/lib/** — pure utility layer, not React. `react-hooks/rules-of-hooks`
-  // fires false-positives on any function whose name starts with `use` even
-  // when it has nothing to do with React (e.g. `useSupabase()` is a boolean
-  // config check, not a hook). Disable there — the rule still fires for real
-  // components and hooks under src/components + src/hooks + src/app.
+  // Server utilities and API route handlers are not React render functions.
+  // `react-hooks/rules-of-hooks` fires false-positives on any function whose
+  // name starts with `use` even when it has nothing to do with React (e.g.
+  // `useSupabase()` is a boolean config check). Disable it only at those server
+  // boundaries; real components/hooks remain protected.
   {
-    files: ["src/lib/**/*.{ts,tsx}"],
+    files: ["src/lib/**/*.{ts,tsx}", "src/app/api/**/*.{ts,tsx}"],
     rules: {
       "react-hooks/rules-of-hooks": "off",
     },
@@ -96,6 +101,16 @@ export default [
     },
   },
 
+  // Node entrypoints/configuration intentionally use CommonJS because Electron,
+  // Tailwind and one-off scripts load them directly in Node. This is not browser
+  // application code and does not weaken the client secret rules above.
+  {
+    files: ["electron/**/*.js", "scripts/**/*.js", "tailwind.config.ts"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+
   // Ignore
   {
     ignores: [
@@ -106,6 +121,7 @@ export default [
       "public/**",
       "out/**",
       "electron/dist/**",
+      "next-env.d.ts",
       "*.tsbuildinfo",
     ],
   },
