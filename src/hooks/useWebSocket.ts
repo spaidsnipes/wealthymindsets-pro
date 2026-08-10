@@ -22,6 +22,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { MarketEventGuard } from "@/lib/marketData/marketEvent";
 import { normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
+import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay";
 
 export interface Tick {
   price: number;
@@ -970,6 +971,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     let proxyWs: WebSocket | null = null;
     let proxyRetry: ReturnType<typeof setTimeout> | null = null;
     let proxyClosed = false;
+    const proxyEventGuard = new MarketEventGuard();
     if (proxyBase && !isFuture && !isCrypto && typeof WebSocket !== "undefined") {
       let lastPx = 0;
       const connectProxy = () => {
@@ -992,17 +994,23 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           const list = Array.isArray(parsed) ? parsed : [parsed];
           let got = false;
           for (const raw of list) {
-            const m = raw as { T?: string; S?: string; p?: number; s?: number; t?: number | string };
-            // Accept ONLY trades for the current chart symbol. The proxy fans out a
-            // shared subscription set (e.g. AAPL/AMZN/BTC/TSLA) to every client, so
-            // without this another symbol's prints would contaminate this symbol's
-            // delta/CVD/bubbles. No-op when the proxy already scopes per-connection.
-            if (!m || (m.T && m.T !== "t") || (m.S && m.S.toUpperCase() !== symbol.toUpperCase()) || typeof m.p !== "number" || m.p <= 0 || !m.s) continue;
-            const t = typeof m.t === "string" ? Date.parse(m.t) : (m.t || Date.now());
-            const side: "buy" | "sell" = lastPx && m.p < lastPx ? "sell" : "buy";
-            lastPx = m.p;
+            const receivedAtMs = Date.now();
+            const event = normalizeAlpacaRelayTrade(raw, symbol, lastPx, receivedAtMs, Date.now());
+            if (!event) continue;
+            const guarded = proxyEventGuard.inspect(event);
+            if (guarded.status !== "ACCEPTED") continue;
+            lastPx = event.price!;
+            // Equal-price/first prints remain observed evidence but cannot enter
+            // Delta/footprint until an aggressor side is supportable.
+            if (event.aggressorSide === "UNKNOWN") continue;
             tapeSourceRef.current = "alpaca";
-            processTick({ price: m.p, size: m.s, side, time: t }, true);
+            processTick({
+              price: event.price!,
+              size: event.size!,
+              side: event.aggressorSide === "BUY" ? "buy" : "sell",
+              time: event.timestampProvider ?? event.timestampReceived,
+              trade: true,
+            }, true);
             got = true;
           }
           if (got) setState(p => (p.tapeSource === "alpaca" ? p : { ...p, source: "alpaca", tapeSource: "alpaca", connected: true }));
