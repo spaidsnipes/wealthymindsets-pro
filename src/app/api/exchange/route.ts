@@ -8,8 +8,13 @@
  */
 
 import { NextResponse } from "next/server";
+import {
+  resolveExchangeTimeframe,
+  type ExchangeTimeframe,
+  type PublicCryptoExchange,
+} from "@/lib/marketData/exchangeTimeframes";
 
-type Ex = "coinbase" | "kraken" | "bitstamp" | "binanceus" | "gemini";
+type Ex = PublicCryptoExchange;
 type Bar = { time: number; open: number; high: number; low: number; close: number; volume: number };
 
 /* Per-exchange trading-pair format for a coin */
@@ -69,17 +74,11 @@ async function getQuote(ex: Ex, coin: string): Promise<{ price: number; change: 
 }
 
 /* ── CANDLES: normalized OHLCV ────────────────────────────────── */
-const TF_SEC: Record<string, number> = {
-  "1m": 60, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600, "2h": 7200, "4h": 14400, "D": 86400, "W": 604800,
-};
-
-async function getCandles(ex: Ex, coin: string, tf: string, bars: number): Promise<Bar[]> {
+async function getCandles(ex: Ex, coin: string, tf: ExchangeTimeframe, sec: number, bars: number): Promise<Bar[]> {
   const p = pair(ex, coin);
-  const sec = TF_SEC[tf] ?? 900;
 
   if (ex === "coinbase") {
-    const g = [60, 300, 900, 3600, 21600, 86400].reduce((a, b) => Math.abs(b - sec) < Math.abs(a - sec) ? b : a);
-    const r = await j(`https://api.exchange.coinbase.com/products/${p}/candles?granularity=${g}`);
+    const r = await j(`https://api.exchange.coinbase.com/products/${p}/candles?granularity=${sec}`);
     // [time, low, high, open, close, volume] newest-first
     return (r as any[]).map(c => ({ time: c[0], low: c[1], high: c[2], open: c[3], close: c[4], volume: c[5] }))
       .sort((a, b) => a.time - b.time).slice(-bars);
@@ -102,7 +101,7 @@ async function getCandles(ex: Ex, coin: string, tf: string, bars: number): Promi
     return (r as any[]).map(c => ({ time: Math.floor(c[0] / 1000), open: +c[1], high: +c[2], low: +c[3], close: +c[4], volume: +c[5] }));
   }
   // gemini — supports 1m,5m,15m,30m,1h,6h,1d
-  const gtf = ["1m", "5m", "15m", "30m", "1h", "6h", "1d"].includes(tf === "D" ? "1d" : tf) ? (tf === "D" ? "1d" : tf) : "15m";
+  const gtf = tf === "D" ? "1d" : tf;
   const r = await j(`https://api.gemini.com/v2/candles/${p}/${gtf}`);
   // [time(ms), open, high, low, close, volume] newest-first
   return (r as any[]).map(c => ({ time: Math.floor(c[0] / 1000), open: c[1], high: c[2], low: c[3], close: c[4], volume: c[5] }))
@@ -115,7 +114,8 @@ export async function GET(req: Request) {
   const coin = (searchParams.get("coin") ?? "BTC").toUpperCase();
   const type = searchParams.get("type") ?? "quote";
   const tf   = searchParams.get("tf") ?? "15m";
-  const bars = Math.min(1000, parseInt(searchParams.get("bars") ?? "300", 10));
+  const requestedBars = parseInt(searchParams.get("bars") ?? "300", 10);
+  const bars = Number.isFinite(requestedBars) ? Math.max(1, Math.min(1000, requestedBars)) : 300;
 
   if (!["coinbase", "kraken", "bitstamp", "binanceus", "gemini"].includes(ex)) {
     return NextResponse.json({ error: "Unknown exchange" }, { status: 400 });
@@ -123,8 +123,30 @@ export async function GET(req: Request) {
 
   try {
     if (type === "candles") {
-      const candles = await cached(`c:${ex}:${coin}:${tf}`, 4000, () => getCandles(ex, coin, tf, bars)) as Bar[];
-      return NextResponse.json({ ex, coin, candles });
+      const resolution = resolveExchangeTimeframe(ex, tf);
+      if (resolution.status === "UNAVAILABLE") {
+        return NextResponse.json({
+          ex,
+          coin,
+          candles: [],
+          qualityState: "UNAVAILABLE",
+          requestedTimeframe: tf,
+          supportedTimeframes: resolution.supported,
+          reason: resolution.reason,
+        }, { status: 422 });
+      }
+      const candles = await cached(
+        `c:${ex}:${coin}:${resolution.timeframe}:${bars}`,
+        4000,
+        () => getCandles(ex, coin, resolution.timeframe, resolution.seconds, bars),
+      ) as Bar[];
+      return NextResponse.json({
+        ex,
+        coin,
+        candles,
+        qualityState: "LIVE",
+        timeframe: resolution.timeframe,
+      });
     }
     const q = await cached(`q:${ex}:${coin}`, 1500, () => getQuote(ex, coin));
     return NextResponse.json({ ex, coin, ...(q as object) });
