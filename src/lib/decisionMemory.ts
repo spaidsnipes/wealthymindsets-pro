@@ -1,4 +1,5 @@
 import type { AvailableRResult } from "./riskKernel";
+import { CANONICAL_MARKET_STATE_SCHEMA_VERSION } from "./marketData/canonicalMarketState";
 
 export const DECISION_MEMORY_SCHEMA_VERSION = "wm.decision-memory.v1" as const;
 export const DECISION_AMENDMENT_SCHEMA_VERSION = "wm.decision-amendment.v1" as const;
@@ -42,6 +43,7 @@ export interface DecisionMemoryInput {
   session: string;
   timeframeContext: readonly string[];
   marketStateSnapshotId: string;
+  marketStateSchemaVersion: typeof CANONICAL_MARKET_STATE_SCHEMA_VERSION;
   marketStateCapturedAt: number;
   marketStateAvailableAt: number;
   direction: DecisionDimension;
@@ -119,6 +121,9 @@ export function validateDecisionMemory(input: DecisionMemoryInput): string[] {
   const errors: string[] = [];
   if (!input.decisionMemoryId.trim() || !input.symbol.trim() || !input.marketStateSnapshotId.trim() ||
       !input.userDecision.trim()) errors.push("Decision identity and user decision are required.");
+  if (input.marketStateSchemaVersion !== CANONICAL_MARKET_STATE_SCHEMA_VERSION) {
+    errors.push("Decision Memory requires the canonical Market State schema version.");
+  }
   if (!input.session.trim() || input.timeframeContext.length === 0 || !input.thesis.trim() ||
       !input.dataQuality.trim() || !input.orderFlowCapability.trim()) {
     errors.push("Decision context, thesis, data quality, and capability are required.");

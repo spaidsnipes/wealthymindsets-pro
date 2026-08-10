@@ -22,6 +22,7 @@ const waitDecision = (overrides: Partial<DecisionMemoryInput> = {}): DecisionMem
   session: "24X7",
   timeframeContext: ["5m", "1h"],
   marketStateSnapshotId: "ms-btc-001",
+  marketStateSchemaVersion: "wm.market-state.v1",
   marketStateCapturedAt: 9_900,
   marketStateAvailableAt: 9_910,
   direction: unknown("Structure evidence is incomplete."),
