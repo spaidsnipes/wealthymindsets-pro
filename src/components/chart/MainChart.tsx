@@ -1302,32 +1302,64 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // only — no execution tape, no footprint, no Delta/CVD. Everything right of
   // the marker is footprint-capable. Turns the free-feed limitation into a
   // visible honesty artefact per directive Part XLIII.
+  //
+  // Persistence (2026-08-09 late): stored in localStorage per (symbol,
+  // tapeSource) so the horizon GROWS LEFTWARD across page reloads and
+  // sessions — realizes the Founder's "WM builds its own truthful memory"
+  // thesis. Freshness cap: 30 days; older entries are discarded so a symbol
+  // WM hasn't visited in a month starts fresh. Cross-tab reads happen
+  // naturally because localStorage is shared per origin.
   const tapeHorizonRef = useRef<{ sym: string; tapeSrc: string; startedAtSec: number } | null>(null);
+  const TAPE_HORIZON_KEY = (sym: string, src: string) => `wm.tapeHorizon.${sym}.${src}`;
+  const TAPE_HORIZON_MAX_AGE_SEC = 30 * 24 * 3600; // 30 days
 
-  // Reset accumulator on symbol change — prevents cross-symbol contamination.
+  // Reset accumulator on symbol change; restore horizon from localStorage.
   useEffect(() => {
     tickAccRef.current = new Map();
     processedTicksRef.current = new Set();
     deltaTickAccRef.current = new Map();
     deltaProcessedRef.current = new Set();
-    // Tape horizon is per-symbol: switching symbols resets it. New symbol has
-    // its own live-tape-begins-here moment.
     tapeHorizonRef.current = null;
-  }, [symbol]);
+    // Best-effort restore: symbol changed, try to find a persisted horizon for
+    // the current (symbol, tapeSource). tapeSource may be null at this point;
+    // the tick-arrival effect below will retry restore before stamping fresh.
+    if (typeof window !== "undefined" && tapeSource) {
+      try {
+        const key = TAPE_HORIZON_KEY(symbol, tapeSource);
+        const raw = window.localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw) as { startedAtSec?: number } | null;
+          const startedAtSec = parsed?.startedAtSec;
+          if (typeof startedAtSec === "number" && Number.isFinite(startedAtSec)) {
+            const nowSec = Math.floor(Date.now() / 1000);
+            if (nowSec - startedAtSec < TAPE_HORIZON_MAX_AGE_SEC) {
+              tapeHorizonRef.current = { sym: symbol, tapeSrc: tapeSource, startedAtSec };
+            } else {
+              // Too old — discard so a stale horizon doesn't linger.
+              window.localStorage.removeItem(key);
+            }
+          }
+        }
+      } catch { /* localStorage disabled or quota — safe to ignore */ }
+    }
+  }, [symbol, tapeSource]);
 
   useEffect(() => {
     if (!recentTicks?.length || !hasRealAggressorTape(tapeSource ?? "")) return;
     // Stamp the horizon the FIRST time a real trade arrives for this (symbol,
-    // tapeSource). Subsequent trades leave it unchanged so the marker stays
-    // put throughout the session.
+    // tapeSource) IF we don't already have a persisted one. Persist immediately
+    // so a reload preserves it. Subsequent trades leave both values unchanged.
     if (!tapeHorizonRef.current && tapeSource) {
       const firstTradeTick = recentTicks.find(t => t.trade && Number.isFinite(t.time));
       if (firstTradeTick) {
-        tapeHorizonRef.current = {
-          sym: symbol,
-          tapeSrc: tapeSource,
-          startedAtSec: Math.floor(firstTradeTick.time / 1000),
-        };
+        const startedAtSec = Math.floor(firstTradeTick.time / 1000);
+        tapeHorizonRef.current = { sym: symbol, tapeSrc: tapeSource, startedAtSec };
+        if (typeof window !== "undefined") {
+          try {
+            const key = TAPE_HORIZON_KEY(symbol, tapeSource);
+            window.localStorage.setItem(key, JSON.stringify({ startedAtSec, savedAtSec: Math.floor(Date.now() / 1000) }));
+          } catch { /* quota / disabled — the in-memory horizon still works */ }
+        }
       }
     }
     const intervalSec = getIntervalSec(timeframe);
