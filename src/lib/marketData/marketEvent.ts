@@ -73,6 +73,16 @@ export type MarketEventGuardResult =
   | { status: "ACCEPTED"; event: CanonicalMarketEvent; warnings: readonly MarketEventWarning[] }
   | { status: "QUARANTINED"; event: CanonicalMarketEvent; reasons: readonly MarketEventQuarantineReason[] };
 
+export interface MarketEventGuardStats {
+  received: number;
+  accepted: number;
+  quarantined: number;
+  duplicates: number;
+  outOfOrder: number;
+  sequenceGaps: number;
+  sequenceUnavailable: number;
+}
+
 const finitePositive = (value: number | undefined) =>
   value == null || (Number.isFinite(value) && value > 0);
 
@@ -123,22 +133,43 @@ export function validateMarketEvent(
 /** Stateful ingress guard. It quarantines; it never silently rewrites evidence. */
 export class MarketEventGuard {
   private seenEventIds = new Set<string>();
+  private seenEventOrder: string[] = [];
   private lastSequenceByStream = new Map<string, number>();
+  private stats: MarketEventGuardStats = {
+    received: 0,
+    accepted: 0,
+    quarantined: 0,
+    duplicates: 0,
+    outOfOrder: 0,
+    sequenceGaps: 0,
+    sequenceUnavailable: 0,
+  };
+
+  constructor(private readonly maxSeenEventIds = 50_000) {
+    if (!Number.isInteger(maxSeenEventIds) || maxSeenEventIds <= 0) {
+      throw new Error("MarketEventGuard requires a positive integer dedupe capacity.");
+    }
+  }
 
   inspect(event: CanonicalMarketEvent): MarketEventGuardResult {
+    this.stats.received += 1;
     const reasons = validateMarketEvent(event);
-    if (this.seenEventIds.has(event.eventId)) reasons.push("DUPLICATE_EVENT");
+    const isDuplicate = this.seenEventIds.has(event.eventId);
+    if (isDuplicate) reasons.push("DUPLICATE_EVENT");
 
     const streamKey = `${event.providerPath}|${event.normalizedSymbol}|${event.eventType}`;
     const numericSequence = typeof event.sequenceId === "number" && Number.isFinite(event.sequenceId)
       ? event.sequenceId
       : null;
     const priorSequence = this.lastSequenceByStream.get(streamKey);
-    if (numericSequence != null && priorSequence != null && numericSequence <= priorSequence) {
+    if (!isDuplicate && numericSequence != null && priorSequence != null && numericSequence <= priorSequence) {
       reasons.push("OUT_OF_ORDER_SEQUENCE");
     }
 
     if (reasons.length) {
+      this.stats.quarantined += 1;
+      if (reasons.includes("DUPLICATE_EVENT")) this.stats.duplicates += 1;
+      if (reasons.includes("OUT_OF_ORDER_SEQUENCE")) this.stats.outOfOrder += 1;
       return { status: "QUARANTINED", event, reasons: [...new Set(reasons)] };
     }
 
@@ -147,7 +178,19 @@ export class MarketEventGuard {
     else if (priorSequence != null && numericSequence > priorSequence + 1) warnings.push("SEQUENCE_GAP");
 
     this.seenEventIds.add(event.eventId);
+    this.seenEventOrder.push(event.eventId);
+    if (this.seenEventOrder.length > this.maxSeenEventIds) {
+      const expiredId = this.seenEventOrder.shift();
+      if (expiredId) this.seenEventIds.delete(expiredId);
+    }
     if (numericSequence != null) this.lastSequenceByStream.set(streamKey, numericSequence);
+    this.stats.accepted += 1;
+    if (warnings.includes("SEQUENCE_GAP")) this.stats.sequenceGaps += 1;
+    if (warnings.includes("SEQUENCE_UNAVAILABLE")) this.stats.sequenceUnavailable += 1;
     return { status: "ACCEPTED", event, warnings };
+  }
+
+  snapshot(): Readonly<MarketEventGuardStats> {
+    return { ...this.stats };
   }
 }

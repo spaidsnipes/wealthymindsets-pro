@@ -88,4 +88,34 @@ describe("canonical Market Event validation", () => {
     expect(result.status).toBe("ACCEPTED");
     if (result.status === "ACCEPTED") expect(result.warnings).toContain("SEQUENCE_UNAVAILABLE");
   });
+
+  it("produces a deterministic collection-health receipt", () => {
+    const guard = new MarketEventGuard();
+    guard.inspect(trade());
+    guard.inspect(trade());
+    guard.inspect(trade({ eventId: "coinbase:BTC-USD:103", sourceEventId: "103", sequenceId: 103 }));
+    guard.inspect(trade({ eventId: "coinbase:BTC-USD:99", sourceEventId: "99", sequenceId: 99 }));
+    expect(guard.snapshot()).toEqual({
+      received: 4,
+      accepted: 2,
+      quarantined: 2,
+      duplicates: 1,
+      outOfOrder: 1,
+      sequenceGaps: 1,
+      sequenceUnavailable: 0,
+    });
+  });
+
+  it("bounds the dedupe window for long-running collectors", () => {
+    const guard = new MarketEventGuard(2);
+    guard.inspect(trade({ eventId: "event-1", sequenceId: undefined, sequenceState: "UNAVAILABLE" }));
+    guard.inspect(trade({ eventId: "event-2", sequenceId: undefined, sequenceState: "UNAVAILABLE" }));
+    guard.inspect(trade({ eventId: "event-3", sequenceId: undefined, sequenceState: "UNAVAILABLE" }));
+    expect(guard.inspect(trade({ eventId: "event-1", sequenceId: undefined, sequenceState: "UNAVAILABLE" })).status).toBe("ACCEPTED");
+    expect(guard.snapshot().accepted).toBe(4);
+  });
+
+  it("fails closed on an invalid dedupe capacity", () => {
+    expect(() => new MarketEventGuard(0)).toThrow(/positive integer/);
+  });
 });
