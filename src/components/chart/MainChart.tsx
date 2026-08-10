@@ -5934,21 +5934,40 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             // Only draw when in view (with a small margin)
             if (x > -60 && x < W + 60) {
               ctx.save();
-              // Vertical line — warm gold, thin, subtly luminous
+              // Vertical line — warm gold, dashed, subtly luminous (fainter
+              // than a price line so it does not steal focus). Twin-stroke
+              // for a soft outer glow so the marker survives dark chart bg.
               ctx.beginPath();
               ctx.moveTo(x + 0.5, 0);
               ctx.lineTo(x + 0.5, H);
-              ctx.strokeStyle = "rgba(240,180,41,0.55)";
-              ctx.lineWidth = 1;
-              ctx.setLineDash([4, 4]);
+              ctx.strokeStyle = "rgba(240,180,41,0.18)";
+              ctx.lineWidth = 4;
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(x + 0.5, 0);
+              ctx.lineTo(x + 0.5, H);
+              ctx.strokeStyle = "rgba(240,180,41,0.85)";
+              ctx.lineWidth = 1.5;
+              ctx.setLineDash([5, 4]);
               ctx.stroke();
               ctx.setLineDash([]);
-              // Label chip on top
+              // Label chip with growing-memory context: duration since horizon
+              // + number of trades observed. Turns the marker into a visible
+              // WM-memory artefact (Founder verbatim: "WM builds its own
+              // truthful memory from the moment it begins observing").
               const localTime = new Date(horizon.startedAtSec * 1000).toLocaleTimeString(
                 "en-US",
                 { hour: "numeric", minute: "2-digit", hour12: true },
               );
-              const label = `● WM LIVE TAPE · from ${localTime}`;
+              const nowSec = Math.floor(Date.now() / 1000);
+              const durSec = Math.max(0, nowSec - horizon.startedAtSec);
+              const durStr =
+                durSec < 60      ? `${durSec}s`
+                : durSec < 3600  ? `${Math.floor(durSec / 60)}m`
+                : durSec < 86400 ? `${Math.floor(durSec / 3600)}h ${Math.floor((durSec % 3600) / 60)}m`
+                :                  `${Math.floor(durSec / 86400)}d`;
+              const tradeCount = sessionTapeStatsRef.current.tradeCount;
+              const label = `● WM LIVE TAPE · from ${localTime} · ${durStr} · ${tradeCount} trades`;
               ctx.font = "700 10px system-ui, -apple-system, sans-serif";
               const tw = ctx.measureText(label).width;
               const padX = 8;
@@ -5958,8 +5977,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               // Position: right of the line if room, else left, else center on x.
               const boxX = x + 6 + boxW < W ? x + 6 : (x - 6 - boxW > 0 ? x - 6 - boxW : Math.max(4, x - boxW / 2));
               const boxY = 6;
-              ctx.fillStyle = "rgba(11,14,26,0.88)";
-              ctx.strokeStyle = "rgba(240,180,41,0.60)";
+              ctx.fillStyle = "rgba(11,14,26,0.92)";
+              ctx.strokeStyle = "rgba(240,180,41,0.75)";
               ctx.lineWidth = 1;
               // Rounded rect
               const r = 5;
