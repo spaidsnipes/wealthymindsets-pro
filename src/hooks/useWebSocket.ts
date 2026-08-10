@@ -701,7 +701,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       "1t": 1, "5t": 5, "30t": 30,
       "1m": 60, "2m": 120, "3m": 180, "5m": 300, "10m": 600,
       "15m": 900, "30m": 1800, "1h": 3600, "2h": 7200,
-      "4h": 14400, "D": 86400, "W": 604800,
+      "4h": 14400, "1D": 86400, "1W": 604800, "1M": 2592000,
     };
     return m[timeframe] ?? 60;
   }, [timeframe]);

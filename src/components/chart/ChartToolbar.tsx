@@ -11,7 +11,7 @@ import { clsx } from "clsx";
 import { type ChartLayout } from "./ChartLayoutManager";
 import { isConfigurable } from "./indicatorConfig";
 import { getIndicatorInfo } from "./indicatorDescriptions";
-import { CHART_TF_SHIPPED, getTimeframe, toChartEmitId } from "@/lib/timeframes";
+import { CHART_TF_SHIPPED, getTimeframe } from "@/lib/timeframes";
 
 /* ══════════════════════════════════════════════════════════════
    SYMBOL CATALOGUE  (100+ symbols across 5 categories)
@@ -431,12 +431,13 @@ const INDICATORS = [
    TIMEFRAMES
 ══════════════════════════════════════════════════════════════ */
 // Sourced from the canonical timeframe module (WM-CHART-P0-01). CHART_TF_SHIPPED is
-// the subset whose chart data path is verified wired today; toChartEmitId preserves
-// the string the existing consumers expect until WM-CHART-P0-01b migrates them.
+// the subset whose chart data path is verified wired today. Every consumer now
+// receives the same canonical TFId; legacy D/W/M values are normalized only when
+// old persisted state is read.
 const TIMEFRAMES = CHART_TF_SHIPPED.map(id => ({
   key:   id,
   label: getTimeframe(id).label,
-  emit:  toChartEmitId(id),
+  emit:  id,
 }));
 
 

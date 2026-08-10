@@ -27,9 +27,9 @@ const PLANS: Record<string, YahooTimeframePlan> = {
   "1h":  { interval: "60m", range: "730d", multiplier: 1,  sourceMode: "native" },
   "2h":  { interval: "60m", range: "730d", multiplier: 2,  baseSeconds: 3600, sourceMode: "reconstructed" },
   "4h":  { interval: "60m", range: "730d", multiplier: 4,  baseSeconds: 3600, sourceMode: "reconstructed" },
-  "D":   { interval: "1d",  range: "5y",   multiplier: 1,  sourceMode: "native" },
-  "W":   { interval: "1wk", range: "10y",  multiplier: 1,  sourceMode: "native" },
-  "M":   { interval: "1mo", range: "max",  multiplier: 1,  sourceMode: "native" },
+  "1D":  { interval: "1d",  range: "5y",   multiplier: 1,  sourceMode: "native" },
+  "1W":  { interval: "1wk", range: "10y",  multiplier: 1,  sourceMode: "native" },
+  "1M":  { interval: "1mo", range: "max",  multiplier: 1,  sourceMode: "native" },
   "3M":  { interval: "3mo", range: "max",  multiplier: 1,  sourceMode: "native" },
   "6M":  { interval: "3mo", range: "max",  multiplier: 2,  calendarMonths: 6,  sourceMode: "reconstructed" },
   "1Y":  { interval: "1mo", range: "max",  multiplier: 12, calendarMonths: 12, sourceMode: "reconstructed" },
@@ -38,7 +38,8 @@ const PLANS: Record<string, YahooTimeframePlan> = {
 };
 
 export function resolveYahooTimeframe(timeframe: string): YahooTimeframePlan | null {
-  return PLANS[timeframe] ?? null;
+  const legacyBoundary = timeframe === "D" ? "1D" : timeframe === "W" ? "1W" : timeframe === "M" ? "1M" : timeframe;
+  return PLANS[legacyBoundary] ?? null;
 }
 
 function combine(bars: YahooOhlcvBar[]): YahooOhlcvBar {

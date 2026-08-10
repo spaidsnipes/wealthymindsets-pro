@@ -110,7 +110,7 @@ function getIntervalSec(tf: string): number {
     "1m":  60,   "2m":  120,  "3m":  180,  "5m":  300,
     "10m": 600,  "15m": 900,  "30m": 1800,
     "1h":  3600, "2h":  7200, "4h":  14400,
-    "D":   86400, "W":  604800, "M":  2592000,
+    "1D":  86400, "1W": 604800, "1M": 2592000,
     "3M":  7776000, "6M": 15552000, "1Y": 31536000,
     "3Y":  94608000, "5Y": 157680000,
   };
@@ -171,9 +171,9 @@ function toPolygonTimespan(tf: string): { mult: number; span: string } | null {
     "1h":  { mult:1,  span:"hour"   },
     "2h":  { mult:2,  span:"hour"   },
     "4h":  { mult:4,  span:"hour"   },
-    "D":   { mult:1,  span:"day"    },
-    "W":   { mult:1,  span:"week"   },
-    "M":   { mult:1,  span:"month"  },
+    "1D":  { mult:1,  span:"day"    },
+    "1W":  { mult:1,  span:"week"   },
+    "1M":  { mult:1,  span:"month"  },
     "3M":  { mult:3,  span:"month"  },
     "6M":  { mult:6,  span:"month"  },
     "1Y":  { mult:12, span:"month"  },
@@ -1532,9 +1532,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
       // Bar count scales with timeframe so higher timeframes pull years of history
       // (e.g. Daily → 1200 bars ≈ 5y, Weekly/Monthly → full available history).
-      const barCount = ["D"].includes(timeframe) ? 2600
-                     : ["W"].includes(timeframe) ? 1000
-                     : ["M","3M","6M","1Y","3Y","5Y"].includes(timeframe) ? 400
+      const barCount = timeframe === "1D" ? 2600
+                     : timeframe === "1W" ? 1000
+                     : ["1M","3M","6M","1Y","3Y","5Y"].includes(timeframe) ? 400
                      // Hourly TFs now pull ~2y of 60-min bars (Yahoo's max) so the
                      // chart scrolls back years, not 60 days.
                      : ["1h","2h","4h"].includes(timeframe) ? 3000
@@ -5809,7 +5809,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           //   1D → 5 bars (trading week), 1W → 4 bars (approx month),
           //   1M → 3 bars (approx quarter), longer → 4 bars.
           const sessionWindowBars: Record<string, number> = {
-            "D": 5, "1D": 5, "W": 4, "1W": 4, "M": 3, "1M": 3,
+            "1D": 5, "1W": 4, "1M": 3,
             "3M": 4, "6M": 4, "1Y": 3, "2Y": 3, "3Y": 3, "5Y": 3,
           };
           const annotated = allBars

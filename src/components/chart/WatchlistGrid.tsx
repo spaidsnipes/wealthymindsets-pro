@@ -17,7 +17,7 @@ interface Candle { time: number; open: number; high: number; low: number; close:
 interface CardData { sym: string; candles: Candle[]; loading: boolean; }
 
 const TF_RANGE: Record<string, { tf: string }> = {
-  "Daily": { tf: "D" }, "Weekly": { tf: "W" }, "Monthly": { tf: "M" },
+  "Daily": { tf: "1D" }, "Weekly": { tf: "1W" }, "Monthly": { tf: "1M" },
   "1h": { tf: "1h" }, "5m": { tf: "5m" }, "15m": { tf: "15m" },
 };
 
@@ -163,7 +163,7 @@ function Card({ sym, tf }: { sym: string; tf: string }) {
   );
 }
 
-export function WatchlistGrid({ refreshKey = 0, timeframe = "D" }: { refreshKey?: number; timeframe?: string }) {
+export function WatchlistGrid({ refreshKey = 0, timeframe = "1D" }: { refreshKey?: number; timeframe?: string }) {
   const [symbols, setSymbols] = useState<string[]>([]);
   useEffect(() => { setSymbols(loadActiveSymbols()); }, [refreshKey]);
 

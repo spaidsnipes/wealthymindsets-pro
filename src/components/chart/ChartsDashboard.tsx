@@ -41,6 +41,7 @@ import type { PineOutput } from "@/lib/pine/types";
 import type { OHLCVBar } from "@/lib/pine/types";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
+import { normalizeTFId } from "@/lib/timeframes";
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
 
@@ -244,7 +245,8 @@ export function ChartsDashboard() {
     if (defTF && defTF !== "last" && defTF !== "none") stored = defTF;
     // Reject all sub-minute timeframes — they have no data outside market hours
     const subMinute = ["1t","5t","30t","1s","2s","3s","5s","10s","15s","30s"];
-    return subMinute.includes(stored) ? "5m" : stored;
+    if (subMinute.includes(stored)) return "5m";
+    return normalizeTFId(stored) ?? "5m";
   });
   const [pineOutput,      setPineOutput]      = useState<PineOutput | null>(null);
   const [pineCode,        setPineCode]        = useState<string>("");

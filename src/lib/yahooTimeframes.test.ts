@@ -17,6 +17,15 @@ describe("Yahoo timeframe truth", () => {
     expect(resolveYahooTimeframe("")).toBeNull();
   });
 
+  it("uses canonical daily ids while accepting legacy ids only at the API boundary", () => {
+    expect(resolveYahooTimeframe("1D")).toMatchObject({ interval: "1d", sourceMode: "native" });
+    expect(resolveYahooTimeframe("1W")).toMatchObject({ interval: "1wk", sourceMode: "native" });
+    expect(resolveYahooTimeframe("1M")).toMatchObject({ interval: "1mo", sourceMode: "native" });
+    expect(resolveYahooTimeframe("D")).toEqual(resolveYahooTimeframe("1D"));
+    expect(resolveYahooTimeframe("W")).toEqual(resolveYahooTimeframe("1W"));
+    expect(resolveYahooTimeframe("M")).toEqual(resolveYahooTimeframe("1M"));
+  });
+
   it("aggregates OHLCV without relabeling a coarser source bar", () => {
     const plan = resolveYahooTimeframe("3m")!;
     const result = aggregateYahooBars([

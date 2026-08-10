@@ -14,9 +14,9 @@ const INTERVALS = [
   { label: "15m", tf: "15m" },
   { label: "30m", tf: "30m" },
   { label: "1h",  tf: "1h"  },
-  { label: "D",   tf: "D"   },
-  { label: "W",   tf: "W"   },
-  { label: "M",   tf: "M"   },
+  { label: "1D",  tf: "1D"  },
+  { label: "1W",  tf: "1W"  },
+  { label: "1M",  tf: "1M"  },
 ];
 
 function TFBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {

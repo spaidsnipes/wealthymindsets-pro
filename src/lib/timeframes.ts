@@ -63,17 +63,6 @@ export interface Timeframe {
   minBarsForState: number;
   /** Why this timeframe is unsupported — shown to the user, never invented. */
   unsupportedReason?: string;
-  /**
-   * The string the existing chart data path still expects ("D"/"W"/"M").
-   *
-   * The chart's consumers — useWebSocket.ts, MainChart.tsx, WMSessionVP.tsx,
-   * indicatorConfig.ts — all switch on the legacy form. Rather than duplicate a
-   * second vocabulary across those files, the mapping lives here, once. The
-   * toolbar emits this value; migrating the consumers to `TFId` is a separate
-   * ticket (WM-CHART-P0-01b) because it touches the chart data path and cannot
-   * be verified without an authenticated session.
-   */
-  legacyChartId?: string;
 }
 
 const MIN = 60;
@@ -140,14 +129,11 @@ const TF_LIST: Timeframe[] = [
 
   // ── Daily and longer. Note these are RANGES over a daily/weekly/monthly bar ─
   { id: "1D", label: "1D", candleIntervalSec: DAY,       defaultRangeSec: 365 * DAY,
-    source: "native", providerInterval: "1d",  maxRangeSec: 3650 * DAY, minBarsForState: 60,
-    legacyChartId: "D" },
+    source: "native", providerInterval: "1d",  maxRangeSec: 3650 * DAY, minBarsForState: 60 },
   { id: "1W", label: "1W", candleIntervalSec: 7 * DAY,   defaultRangeSec: 730 * DAY,
-    source: "native", providerInterval: "1wk", maxRangeSec: 3650 * DAY, minBarsForState: 52,
-    legacyChartId: "W" },
+    source: "native", providerInterval: "1wk", maxRangeSec: 3650 * DAY, minBarsForState: 52 },
   { id: "1M", label: "1M", candleIntervalSec: 30 * DAY,  defaultRangeSec: 1825 * DAY,
-    source: "native", providerInterval: "1mo", maxRangeSec: 3650 * DAY, minBarsForState: 36,
-    legacyChartId: "M" },
+    source: "native", providerInterval: "1mo", maxRangeSec: 3650 * DAY, minBarsForState: 36 },
   { id: "3M", label: "3M", candleIntervalSec: DAY,       defaultRangeSec: 90 * DAY,
     source: "native", providerInterval: "1d",  maxRangeSec: 3650 * DAY, minBarsForState: 60 },
   { id: "6M", label: "6M", candleIntervalSec: DAY,       defaultRangeSec: 180 * DAY,
@@ -307,14 +293,6 @@ export const CHART_TF_ORDER: readonly TFId[] = Object.freeze([
 export const CHART_TF_SHIPPED: readonly TFId[] = Object.freeze([
   "1m", "2m", "5m", "15m", "30m", "1h", "1D", "1W", "1M",
 ]);
-
-/**
- * The value the toolbar emits to the existing chart data path.
- * Canonical `TFId` in, legacy string out where the consumers still require it.
- */
-export function toChartEmitId(id: TFId): string {
-  return getTimeframe(id).legacyChartId ?? id;
-}
 
 /** Period-style views used by the heatmap. Same ids — no second vocabulary. */
 export const HEATMAP_TF_ORDER: readonly TFId[] = Object.freeze([

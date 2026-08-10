@@ -8,12 +8,12 @@
 export const TF_GROUPS = ["Seconds", "Minutes", "Hours", "Days", "Weeks", "Months"] as const;
 export type TfGroup = (typeof TF_GROUPS)[number];
 
-/** Map an app timeframe string (e.g. "5m", "1h", "D") to its visibility group. */
+/** Map a canonical app timeframe (e.g. "5m", "1h", "1D") to its visibility group. */
 export function tfGroupOf(tf: string): TfGroup {
   const t = (tf || "").trim();
-  if (t === "M" || /^(3M|6M|1Y|3Y|5Y)$/i.test(t)) return "Months";
-  if (t === "W") return "Weeks";
-  if (t === "D") return "Days";
+  if (t === "1M" || /^(3M|6M|1Y|3Y|5Y)$/i.test(t)) return "Months";
+  if (t === "1W") return "Weeks";
+  if (t === "1D") return "Days";
   if (/h$/i.test(t)) return "Hours";
   if (/m$/.test(t)) return "Minutes";
   if (/s$/i.test(t)) return "Seconds";
