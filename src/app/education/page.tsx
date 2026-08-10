@@ -86,7 +86,7 @@ const BANK_GEN: QQ[] = [
     choices:["Three peaks with the middle highest, signaling potential bearish reversal","Three troughs signaling accumulation","A double-top with equal highs","A continuation pattern in trending markets"] },
   { q:"Market breadth measures:", correct:1, explain:"Market breadth assesses the overall health of a move by counting how many stocks participate (advance/decline ratio).",
     choices:["The spread between highest and lowest prices","How many stocks advance vs decline across an index","The volatility of a single security","Options implied volatility"] },
-  { q:"A 'liquidity grab' typically:", correct:1, explain:"Liquidity grabs = engineered moves to trigger clustered stop orders. The cascade provides liquidity for large players to fill.",
+  { q:"A 'liquidity grab' typically:", correct:1, explain:"A move through clustered stop locations can trigger orders and then fail back through the level. That behavior is observable; the identity or intent of participants is not.",
     choices:["Adds volume to the market organically","Sweeps stop orders below support or above resistance before reversing","Signals institutional accumulation over weeks","Refers to dark pool prints appearing on tape"] },
   { q:"What does 'open interest' measure in futures?", correct:1, explain:"Open interest = total number of active/open futures contracts. Rising OI in an uptrend confirms new money entering.",
     choices:["Total volume traded in a session","Number of outstanding contracts not yet settled","The bid-ask spread in ticks","Daily P&L of all participants"] },

@@ -303,7 +303,7 @@ export function buildWelcomeEmail(firstName: string, email: string): { html: str
     <table width="100%" cellpadding="0" cellspacing="0">
       ${featureList([
         { icon: "📊", title: "Advanced Charting", desc: "Volume Profile, Footprint, Order Flow, 100+ indicators — all real-time." },
-        { icon: "🔵", title: "Orderflow & Footprint", desc: "Bid × Ask, Delta, Imbalance, Big Trades — see exactly where institutions are buying and selling." },
+        { icon: "🔵", title: "Orderflow & Footprint", desc: "Bid × Ask, Delta, Imbalance, and Big Trades — inspect observed aggressor-side evidence where supported, without guessing trader identity." },
         { icon: "🌡️", title: "Market Heatmaps", desc: "S&P 500 sector heatmap with real-time price movement and volume color-coding." },
         { icon: "🤖", title: "SpaidBot AI", desc: "Integrated AI trading assistant for market analysis, ideas, and education." },
         { icon: "🎵", title: "Focus Radio", desc: "Curated calm-frequency music to keep you in the zone during trading sessions." },
