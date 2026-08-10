@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { MARKET_EVENT_SCHEMA_VERSION, type CanonicalMarketEvent } from "./marketEvent";
-import { findSessionNectarChannel, SessionNectarCollector } from "./sessionNectar";
+import {
+  findSessionNectarChannel,
+  getOrCreateSessionNectarRuntime,
+  SessionNectarCollector,
+} from "./sessionNectar";
 
 const trade = (overrides: Partial<CanonicalMarketEvent> = {}): CanonicalMarketEvent => ({
   schemaVersion: MARKET_EVENT_SCHEMA_VERSION,
@@ -190,5 +194,19 @@ describe("Session Nectar collection health", () => {
 
   it("rejects invalid session timing", () => {
     expect(() => new SessionNectarCollector(0)).toThrow(/valid start timestamp/);
+  });
+
+  it("shares one collector across duplicate client-module evaluations", () => {
+    const browserRealm: Record<PropertyKey, unknown> = {};
+    const createCollector = vi.fn(() => new SessionNectarCollector(1_786_335_600_000));
+
+    const feedRuntime = getOrCreateSessionNectarRuntime(browserRealm, createCollector);
+    const uiRuntime = getOrCreateSessionNectarRuntime(browserRealm, createCollector);
+
+    expect(feedRuntime).toBe(uiRuntime);
+    expect(feedRuntime.collector).toBe(uiRuntime.collector);
+    expect(createCollector).toHaveBeenCalledTimes(1);
+    feedRuntime.collector.ingest(trade());
+    expect(uiRuntime.collector.snapshot().receipts.accepted).toBe(1);
   });
 });

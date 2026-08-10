@@ -7047,9 +7047,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           return (
             <div
               className="wm-live-session-chip"
+              data-nectar-received={nectar.receipts.received}
+              data-nectar-accepted={nectar.receipts.accepted}
+              data-nectar-quarantined={nectar.receipts.quarantined}
+              data-nectar-unsupported={nectar.unsupportedCapabilities}
               role="group"
               aria-label={`Current tab tape counters since ${horizonTime}. Fidelity ${fidelityLabel}. Delta ${fmt(s.delta)}. ${s.tradeCount} current-tab trades. ${coverageEvents} coverage receipts. ${s.bigTradeCount} large trades. ${gapCount} gaps. Retention: ${retentionShort}. No raw tape retained.`}
-              title={`WM observed in this tab for this symbol.\nBuys: ${fmt(s.buyVol)}\nSells: ${fmt(s.sellVol)}\nDelta = Buys − Sells\nFidelity: ${fidelityLabel} (source-classified)\nCoverage receipts: ${coverageEvents}\nGaps observed: ${gapCount}\nRetention: ${retentionShort} — operational counts/timestamps only; raw tape is not durably stored (provider rights UNKNOWN)`}
+              title={`WM observed in this tab for this symbol.\nBuys: ${fmt(s.buyVol)}\nSells: ${fmt(s.sellVol)}\nDelta = Buys − Sells\nFidelity: ${fidelityLabel} (source-classified)\nCoverage receipts: ${coverageEvents}\nCollector receipts: ${nectar.receipts.accepted} accepted / ${nectar.receipts.quarantined} quarantined / ${nectar.unsupportedCapabilities} unsupported\nGaps observed: ${gapCount}\nRetention: ${retentionShort} — operational counts/timestamps only; raw tape is not durably stored (provider rights UNKNOWN)`}
               style={{
                 position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)",
                 zIndex: 58, padding: "5px 10px", borderRadius: 7, pointerEvents: "auto",

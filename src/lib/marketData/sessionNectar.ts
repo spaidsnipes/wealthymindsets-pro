@@ -145,10 +145,45 @@ export class SessionNectarCollector {
   }
 }
 
-const sessionNectarCollector = new SessionNectarCollector();
+interface SessionNectarRuntime {
+  collector: SessionNectarCollector;
+  continuityInitialized: boolean;
+}
+
+const SESSION_NECTAR_RUNTIME_KEY = Symbol.for("wm.session-nectar.runtime.v1");
+
+/**
+ * Next.js can evaluate a client module in more than one compiled chunk. Keep
+ * the operational collector on the browser realm so feed ingestion and UI
+ * readers cannot silently observe different module-local instances.
+ */
+export function getOrCreateSessionNectarRuntime(
+  scope: Record<PropertyKey, unknown>,
+  createCollector: () => SessionNectarCollector = () => new SessionNectarCollector(),
+): SessionNectarRuntime {
+  const existing = scope[SESSION_NECTAR_RUNTIME_KEY] as SessionNectarRuntime | undefined;
+  if (existing) return existing;
+  const runtime: SessionNectarRuntime = {
+    collector: createCollector(),
+    continuityInitialized: false,
+  };
+  Object.defineProperty(scope, SESSION_NECTAR_RUNTIME_KEY, {
+    value: runtime,
+    configurable: false,
+    enumerable: false,
+    writable: false,
+  });
+  return runtime;
+}
+
+const sessionNectarRuntime = getOrCreateSessionNectarRuntime(
+  globalThis as unknown as Record<PropertyKey, unknown>,
+);
+const sessionNectarCollector = sessionNectarRuntime.collector;
 
 const COVERAGE_STORAGE_KEY = "wm:nectar:coverage-continuity:v1";
-if (typeof window !== "undefined") {
+if (typeof window !== "undefined" && !sessionNectarRuntime.continuityInitialized) {
+  sessionNectarRuntime.continuityInitialized = true;
   try {
     const restored = parseCoverageContinuityRecord(window.localStorage.getItem(COVERAGE_STORAGE_KEY));
     if (restored) sessionNectarCollector.restoreCoverageSummaries(restored.channels);
