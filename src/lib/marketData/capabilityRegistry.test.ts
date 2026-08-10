@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   MARKET_DATA_CAPABILITIES,
+  PUBLIC_DISPLAY_ONLY_RIGHTS,
+  UNKNOWN_RIGHTS,
+  canDoAction,
   canPersistRaw,
   getMarketDataCapability,
   getRuntimeTapeCapability,
   hasVerifiedAggressorTape,
   type MarketDataCapability,
+  type MarketDataRights,
 } from "./capabilityRegistry";
 
 describe("market-data capability and persistence-rights registry", () => {
@@ -49,6 +53,77 @@ describe("market-data capability and persistence-rights registry", () => {
     expect(coinbaseTrades.collectionScope).toBe("FOREGROUND_TAB");
     expect(coinbaseTrades.timestampFields).toContain("EXCHANGE");
     expect(coinbaseTrades.sequenceSupported).toBe(false);
+  });
+});
+
+describe("rights registry v2 — granular per-action gating", () => {
+  const actions: Array<keyof MarketDataRights> = [
+    "collect", "display", "raw", "derived", "redistribute", "train",
+  ];
+
+  it("every capability carries an explicit rights object", () => {
+    for (const entry of MARKET_DATA_CAPABILITIES) {
+      for (const action of actions) {
+        expect(entry.rights[action]).toBeDefined();
+      }
+    }
+  });
+
+  it("fails closed on every UNKNOWN action", () => {
+    for (const action of actions) {
+      const unknownEntry: MarketDataCapability = {
+        ...MARKET_DATA_CAPABILITIES[0],
+        rights: { ...UNKNOWN_RIGHTS },
+      };
+      expect(canDoAction(unknownEntry, action)).toBe(false);
+    }
+  });
+
+  it("fails closed on every PROHIBITED action, even if others are ALLOWED", () => {
+    const mixed: MarketDataCapability = {
+      ...MARKET_DATA_CAPABILITIES[0],
+      rights: { ...UNKNOWN_RIGHTS, collect: "ALLOWED", raw: "PROHIBITED" },
+    };
+    expect(canDoAction(mixed, "raw")).toBe(false);
+    expect(canDoAction(mixed, "collect")).toBe(true);
+  });
+
+  it("PUBLIC_DISPLAY_ONLY_RIGHTS grants only collect + display", () => {
+    expect(PUBLIC_DISPLAY_ONLY_RIGHTS.collect).toBe("ALLOWED");
+    expect(PUBLIC_DISPLAY_ONLY_RIGHTS.display).toBe("ALLOWED");
+    expect(PUBLIC_DISPLAY_ONLY_RIGHTS.raw).toBe("UNKNOWN");
+    expect(PUBLIC_DISPLAY_ONLY_RIGHTS.derived).toBe("UNKNOWN");
+    expect(PUBLIC_DISPLAY_ONLY_RIGHTS.redistribute).toBe("UNKNOWN");
+    expect(PUBLIC_DISPLAY_ONLY_RIGHTS.train).toBe("UNKNOWN");
+  });
+
+  it("no registered capability grants raw/derived/redistribute/train yet", () => {
+    for (const entry of MARKET_DATA_CAPABILITIES) {
+      expect(canDoAction(entry, "raw")).toBe(false);
+      expect(canDoAction(entry, "derived")).toBe(false);
+      expect(canDoAction(entry, "redistribute")).toBe(false);
+      expect(canDoAction(entry, "train")).toBe(false);
+    }
+  });
+
+  it("keeps v1 canPersistRaw in sync with rights.raw", () => {
+    const allow: MarketDataCapability = {
+      ...MARKET_DATA_CAPABILITIES[0],
+      rights: { ...UNKNOWN_RIGHTS, collect: "ALLOWED", display: "ALLOWED", raw: "ALLOWED" },
+      rawPersistenceRight: "ALLOWED",
+    };
+    expect(canPersistRaw(allow)).toBe(true);
+    expect(canDoAction(allow, "raw")).toBe(true);
+  });
+
+  it("UNAVAILABLE capabilities fail closed on every action regardless of rights", () => {
+    const gone: MarketDataCapability = {
+      ...MARKET_DATA_CAPABILITIES[0],
+      availability: "UNAVAILABLE",
+      rights: { collect: "ALLOWED", display: "ALLOWED", raw: "ALLOWED",
+                derived: "ALLOWED", redistribute: "ALLOWED", train: "ALLOWED" },
+    };
+    for (const action of actions) expect(canDoAction(gone, action)).toBe(false);
   });
 });
 
