@@ -6071,8 +6071,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, fixedVPActive, sessionVPActive]);
 
   /* ── Derived display values ─────────────────────────────── */
-  const change    = ticker.change ?? (lastPrice - openPrice);
-  const changePct = (ticker.changePct ?? ((lastPrice - openPrice) / openPrice * 100)).toFixed(2);
+  // openPrice is the OPEN of the first loaded bar (see setOpenPrice at load time),
+  // which on a multi-day intraday range is NOT today's session open. Using it as a
+  // change reference produced a fabricated ~ -18.78% header on TSLA when the real
+  // day-change was +0.06%. Only trust a change value that came from a real quote
+  // provider (ticker.change/changePct). Otherwise render "—" and label truthfully.
+  const hasProviderChange = Number.isFinite(ticker.change) && Number.isFinite(ticker.changePct);
+  const change    = hasProviderChange ? (ticker.change as number) : 0;
+  const changePct = hasProviderChange ? (ticker.changePct as number).toFixed(2) : "—";
   const up        = change >= 0;
   const last      = candles[candles.length - 1];
   const dp        = base < 10 ? 4 : 2;
@@ -6804,8 +6810,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               minimumFractionDigits: dp, maximumFractionDigits: dp,
             })}
           </span>
-          <span className={`text-xs font-mono font-semibold ${up ? "text-wm-green" : "text-wm-red"}`}>
-            {up ? "+" : ""}{change.toFixed(dp)} ({up ? "+" : ""}{changePct}%)
+          <span
+            className={`text-xs font-mono font-semibold ${hasProviderChange ? (up ? "text-wm-green" : "text-wm-red") : "text-wm-textDim"}`}
+            title={hasProviderChange ? undefined : "Change unavailable — no verified reference close from the current quote provider."}
+          >
+            {hasProviderChange
+              ? `${up ? "+" : ""}${change.toFixed(dp)} (${up ? "+" : ""}${changePct}%)`
+              : "— (change unavailable)"}
           </span>
           {(() => {
             // Sentinel V-008 visibility fix — 10px readable badge.
