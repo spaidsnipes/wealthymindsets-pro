@@ -1,9 +1,7 @@
 /**
- * /api/alpaca-trading — Real Alpaca trading (paper + live)
- *
- * Auto-detects live vs paper based on ALPACA_LIVE env var.
- * If ALPACA_LIVE=1 → uses live endpoint (api.alpaca.markets)
- * Otherwise → tries paper first, falls back to live.
+ * /api/alpaca-trading — Alpaca paper account access only.
+ * Live brokerage access is fail-closed until the WM Execution Firewall is
+ * certified. No environment flag or request field can promote this route.
  *
  * GET  ?action=account                     → account details + env
  * GET  ?action=positions                   → open positions
@@ -16,65 +14,22 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
+import {
+  ALPACA_PAPER_BASE,
+  liveAlpacaDisabledResponse,
+  rejectsLiveAlpacaRequest,
+} from "@/lib/alpacaSafety";
 
-// Alpaca uses SEPARATE credentials for paper vs live accounts. Prefer dedicated
-// paper keys for paper trading; fall back to the generic keys only if no paper-
-// specific keys are set. Live keys are used solely for the live endpoint.
-const ALPACA_KEY        = process.env.ALPACA_KEY    ?? "";
-const ALPACA_SECRET     = process.env.ALPACA_SECRET ?? "";
 const ALPACA_PAPER_KEY    = process.env.ALPACA_PAPER_KEY    ?? "";
 const ALPACA_PAPER_SECRET = process.env.ALPACA_PAPER_SECRET ?? "";
-const FORCE_LIVE    = process.env.ALPACA_LIVE === "1";
-
-const PAPER_BASE    = "https://paper-api.alpaca.markets";
-const LIVE_BASE     = "https://api.alpaca.markets";
 const DATA_BASE     = "https://data.alpaca.markets";
 
-// Paper trading uses paper keys when available; live uses the generic keys.
-const PAPER_KEY    = ALPACA_PAPER_KEY    || ALPACA_KEY;
-const PAPER_SECRET = ALPACA_PAPER_SECRET || ALPACA_SECRET;
-
-function authHeadersFor(base: string) {
-  const isPaper = base === PAPER_BASE;
+function authHeaders() {
   return {
-    "APCA-API-KEY-ID":     isPaper ? PAPER_KEY    : ALPACA_KEY,
-    "APCA-API-SECRET-KEY": isPaper ? PAPER_SECRET : ALPACA_SECRET,
+    "APCA-API-KEY-ID":     ALPACA_PAPER_KEY,
+    "APCA-API-SECRET-KEY": ALPACA_PAPER_SECRET,
     "Content-Type":        "application/json",
   };
-}
-// Back-compat shim for existing call sites that used authHeaders() without a
-// base — defaults to the resolved base (paper unless FORCE_LIVE).
-function authHeaders() {
-  return authHeadersFor(FORCE_LIVE ? LIVE_BASE : PAPER_BASE);
-}
-
-// Determine which base URL to use — cached after first success
-let resolvedBase: string | null = null;
-let resolvedEnv:  "Paper Trading" | "Live Trading" | null = null;
-
-async function getBase(): Promise<{ url: string; env: "Paper Trading" | "Live Trading" }> {
-  if (resolvedBase && resolvedEnv) return { url: resolvedBase, env: resolvedEnv };
-
-  if (FORCE_LIVE) {
-    resolvedBase = LIVE_BASE;
-    resolvedEnv  = "Live Trading";
-    return { url: LIVE_BASE, env: "Live Trading" };
-  }
-
-  // Try paper first
-  const tryPaper = await fetch(`${PAPER_BASE}/v2/account`, {
-    headers: authHeaders(),
-    cache: "no-store",
-  }).catch(() => null);
-
-  // Default to PAPER. NEVER silently fall back to the live (real-money) endpoint
-  // if the paper check fails — that could route a real order on a transient error
-  // (Company Bible §46 Gate 3: paper-first, live disabled until certified, never
-  // a silent fallback). Live is ONLY reachable via the explicit ALPACA_LIVE flag
-  // handled above.
-  resolvedBase = PAPER_BASE;
-  resolvedEnv  = "Paper Trading";
-  return { url: PAPER_BASE, env: "Paper Trading" };
 }
 
 export async function GET(request: Request) {
@@ -84,12 +39,13 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const action = searchParams.get("action") ?? "account";
 
-  if (!ALPACA_KEY || !ALPACA_SECRET) {
-    return NextResponse.json({ error: "Alpaca API keys not configured in .env.local" }, { status: 503 });
+  if (!ALPACA_PAPER_KEY || !ALPACA_PAPER_SECRET) {
+    return NextResponse.json({ error: "Alpaca paper credentials are not configured", environment: "PAPER_ONLY" }, { status: 503 });
   }
 
   try {
-    const { url: base, env } = await getBase();
+    const base = ALPACA_PAPER_BASE;
+    const env = "Paper Trading";
 
     if (action === "account") {
       const res  = await fetch(`${base}/v2/account`, { headers: authHeaders(), cache: "no-store" });
@@ -131,7 +87,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  // WM-SEC-P0-06: was unauthenticated. Places real Alpaca orders (paper+live).
+  // WM-SEC-P0-06: authenticated paper-order path. Live stays fail-closed.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
   // WM-SEC-P0-07: cap order submissions per user. 30/min is generous for a
@@ -139,13 +95,17 @@ export async function POST(request: Request) {
   // of orders before anyone notices.
   const rl = checkRateLimit(`alpaca-trading-post:${auth.user.sub}`, { max: 30, windowMs: 60_000 });
   if (!rl.ok) return rl.response;
-  if (!ALPACA_KEY || !ALPACA_SECRET) {
-    return NextResponse.json({ error: "Alpaca API keys not configured" }, { status: 503 });
+  if (!ALPACA_PAPER_KEY || !ALPACA_PAPER_SECRET) {
+    return NextResponse.json({ error: "Alpaca paper credentials are not configured", environment: "PAPER_ONLY" }, { status: 503 });
   }
 
   try {
-    const { url: base, env } = await getBase();
     const body = await request.json();
+    if (rejectsLiveAlpacaRequest(body)) {
+      return NextResponse.json(liveAlpacaDisabledResponse(), { status: 403 });
+    }
+    const base = ALPACA_PAPER_BASE;
+    const env = "Paper Trading";
     const { action, ...orderFields } = body;
 
     if (action === "order") {
@@ -158,15 +118,6 @@ export async function POST(request: Request) {
         return NextResponse.json(
           { error: `Alpaca cannot trade ${sym} (futures). Use a supported equity/crypto symbol.` },
           { status: 400 },
-        );
-      }
-      // SAFETY: a LIVE (real-money) order must carry an explicit confirmation —
-      // never fire real money from a single unconfirmed click (Company Bible §46
-      // Gate 3 / §30 trading safety). Paper orders proceed normally.
-      if (env === "Live Trading" && orderFields.confirm_live !== true) {
-        return NextResponse.json(
-          { error: "LIVE order requires explicit confirmation (confirm_live).", env, requiresConfirm: true },
-          { status: 428 }, // Precondition Required
         );
       }
       // Map WM order fields → Alpaca API shape
@@ -207,19 +158,19 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  // WM-SEC-P0-06: was unauthenticated. Cancels real Alpaca orders.
+  // WM-SEC-P0-06: authenticated paper-order cancellation only.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
   const { searchParams } = new URL(request.url);
   const orderId = searchParams.get("id");
 
-  if (!ALPACA_KEY || !ALPACA_SECRET) {
-    return NextResponse.json({ error: "Alpaca keys not configured" }, { status: 503 });
+  if (!ALPACA_PAPER_KEY || !ALPACA_PAPER_SECRET) {
+    return NextResponse.json({ error: "Alpaca paper credentials are not configured", environment: "PAPER_ONLY" }, { status: 503 });
   }
   if (!orderId) return NextResponse.json({ error: "Order id required" }, { status: 400 });
 
   try {
-    const { url: base } = await getBase();
+    const base = ALPACA_PAPER_BASE;
     const res = await fetch(`${base}/v2/orders/${orderId}`, { method: "DELETE", headers: authHeaders() });
     if (res.status === 204) return NextResponse.json({ cancelled: true });
     const data = await res.json();

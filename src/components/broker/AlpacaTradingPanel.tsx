@@ -1,15 +1,15 @@
 "use client";
 
 /**
- * AlpacaTradingPanel — Full trade ticket + account dashboard
- * Connects to /api/alpaca-trading (uses server-side ALPACA_KEY/SECRET from .env.local)
+ * AlpacaTradingPanel — paper-only trade ticket + account dashboard.
+ * Live execution is unavailable until the canonical firewall is certified.
  */
 
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, TrendingUp, TrendingDown, RefreshCw, Loader2, CheckCircle2,
-  AlertCircle, ChevronDown, Activity, DollarSign, BarChart3,
+  X, TrendingUp, RefreshCw, Loader2, CheckCircle2,
+  AlertCircle, Activity, DollarSign, BarChart3,
   Clock, Trash2,
 } from "lucide-react";
 import { clsx } from "clsx";
@@ -181,15 +181,6 @@ export function AlpacaTradingPanel({
       setOrderMsg("Stop price required"); setOrderStatus("error"); return;
     }
 
-    // SAFETY: a LIVE (real-money) order requires an explicit confirmation — never
-    // fire real money from a single click (Company Bible §46 Gate 3 / §30).
-    if (isLive) {
-      const ok = typeof window !== "undefined" && window.confirm(
-        `⚠️ LIVE ORDER — REAL MONEY\n\n${side.toUpperCase()} ${qty} ${symbol.trim().toUpperCase()} @ ${orderType.toUpperCase()}\n\nThis submits a REAL order to your live brokerage account. Continue?`,
-      );
-      if (!ok) { setOrderStatus("idle"); return; }
-    }
-
     setOrderStatus("submitting");
     setOrderMsg("");
     setOrderResult(null);
@@ -202,8 +193,6 @@ export function AlpacaTradingPanel({
         side,
         type:          orderType,
         time_in_force: tif,
-        // Only sent for live accounts, and only after the confirm above.
-        ...(isLive ? { confirm_live: true } : {}),
       };
       if (limitPrice) body.limit_price = parseFloat(limitPrice);
       if (stopPrice)  body.stop_price  = parseFloat(stopPrice);
@@ -247,7 +236,7 @@ export function AlpacaTradingPanel({
     { id: "account",   label: "Account",   icon: <DollarSign size={12} /> },
   ];
 
-  const isLive = account?._env === "Live Trading";
+  const isLive = false;
 
   return (
     <motion.div
@@ -275,7 +264,7 @@ export function AlpacaTradingPanel({
               A
             </div>
             <div>
-              <div className="text-sm font-black text-wm-text">Alpaca Trading</div>
+              <div className="text-sm font-black text-wm-text">Alpaca Paper Trading</div>
               <div className="flex items-center gap-1.5">
                 {loading ? (
                   <Loader2 size={9} className="animate-spin text-wm-text-dim" />
@@ -283,7 +272,7 @@ export function AlpacaTradingPanel({
                   <>
                     <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: isLive ? "#ef4444" : "#00C076" }} />
                     <span className="text-[9px] font-bold" style={{ color: isLive ? "#ef4444" : "#00C076" }}>
-                      {isLive ? "LIVE" : "PAPER"} · {account.account_number}
+                      PAPER · {account.account_number}
                     </span>
                   </>
                 ) : (
@@ -351,14 +340,10 @@ export function AlpacaTradingPanel({
           </div>
         )}
 
-        {/* LIVE trading warning */}
-        {isLive && (
-          <div className="mx-4 mt-2 px-3 py-1.5 rounded-lg text-[10px] font-bold text-wm-red flex items-center gap-1.5 shrink-0"
-            style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }}>
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-            LIVE TRADING — Real money at risk. Verify orders before submitting.
-          </div>
-        )}
+        <div className="mx-4 mt-2 px-3 py-1.5 rounded-lg text-[10px] font-bold text-wm-blue flex items-center gap-1.5 shrink-0"
+          style={{ background: "rgba(79,163,224,0.08)", border: "1px solid rgba(79,163,224,0.25)" }}>
+          PAPER ONLY — Live brokerage access is disabled.
+        </div>
 
         {/* ── Tabs ── */}
         <div className="flex border-b border-wm-border shrink-0">

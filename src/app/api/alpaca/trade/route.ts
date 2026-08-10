@@ -6,18 +6,30 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
+import { checkRateLimit } from "@/lib/rateLimit";
+import {
+  ALPACA_PAPER_BASE,
+  liveAlpacaDisabledResponse,
+  rejectsLiveAlpacaRequest,
+} from "@/lib/alpacaSafety";
 
-const PAPER_BASE = "https://paper-api.alpaca.markets";
-const LIVE_BASE  = "https://api.alpaca.markets";
+const PAPER_KEY = process.env.ALPACA_PAPER_KEY ?? "";
+const PAPER_SECRET = process.env.ALPACA_PAPER_SECRET ?? "";
+
+const headers = () => ({
+  "APCA-API-KEY-ID": PAPER_KEY,
+  "APCA-API-SECRET-KEY": PAPER_SECRET,
+  "Content-Type": "application/json",
+});
 
 export async function POST(req: NextRequest) {
   // WM-SEC-P0-06: was unauthenticated. Executes real Alpaca orders.
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
+  const rl = checkRateLimit(`alpaca-legacy-paper-post:${auth.user.sub}`, { max: 30, windowMs: 60_000 });
+  if (!rl.ok) return rl.response;
   try {
     const body = await req.json() as {
-      key:           string;
-      secret:        string;
       symbol:        string;
       side:          "buy" | "sell";
       qty:           number;
@@ -30,22 +42,24 @@ export async function POST(req: NextRequest) {
       paper?:        boolean; // default true
     };
 
+    if (rejectsLiveAlpacaRequest(body)) {
+      return NextResponse.json(liveAlpacaDisabledResponse(), { status: 403 });
+    }
+    if (!PAPER_KEY || !PAPER_SECRET) {
+      return NextResponse.json({ error: "Alpaca paper credentials are not configured", environment: "PAPER_ONLY" }, { status: 503 });
+    }
+
     const {
-      key, secret, symbol, side, qty, type,
+      symbol, side, qty, type,
       time_in_force = "day",
       limit_price, stop_price,
       trail_percent, trail_price,
-      paper = true,
     } = body;
 
-    if (!key || !secret) {
-      return NextResponse.json({ error: "API key and secret required" }, { status: 400 });
-    }
     if (!symbol || !side || !qty || !type) {
       return NextResponse.json({ error: "symbol, side, qty, type required" }, { status: 400 });
     }
 
-    const base = paper ? PAPER_BASE : LIVE_BASE;
     const order: Record<string, unknown> = {
       symbol:        symbol.toUpperCase(),
       qty:           String(qty),
@@ -68,13 +82,9 @@ export async function POST(req: NextRequest) {
       else return NextResponse.json({ error: "trail_percent or trail_price required" }, { status: 400 });
     }
 
-    const res = await fetch(`${base}/v2/orders`, {
+    const res = await fetch(`${ALPACA_PAPER_BASE}/v2/orders`, {
       method: "POST",
-      headers: {
-        "APCA-API-KEY-ID":     key,
-        "APCA-API-SECRET-KEY": secret,
-        "Content-Type":        "application/json",
-      },
+      headers: headers(),
       body: JSON.stringify(order),
     });
 
@@ -92,7 +102,7 @@ export async function POST(req: NextRequest) {
       type:      data.type,
       status:    data.status,
       filled_at: data.filled_at,
-      env:       paper ? "paper" : "live",
+      env:       "paper",
     });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
@@ -104,17 +114,17 @@ export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
   const { searchParams } = new URL(req.url);
-  const key    = req.headers.get("APCA-API-KEY-ID")    ?? searchParams.get("key")    ?? "";
-  const secret = req.headers.get("APCA-API-SECRET-KEY") ?? searchParams.get("secret") ?? "";
-  const paper  = searchParams.get("paper") !== "false";
   const action = searchParams.get("action") ?? "positions";
 
-  if (!key || !secret) {
-    return NextResponse.json({ error: "key and secret required" }, { status: 400 });
+  if (searchParams.has("key") || searchParams.has("secret")) {
+    return NextResponse.json({ error: "Credentials in URLs are forbidden", code: "URL_CREDENTIALS_FORBIDDEN" }, { status: 400 });
   }
-
-  const base = paper ? PAPER_BASE : LIVE_BASE;
-  const headers = { "APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret };
+  if (searchParams.get("paper") === "false") {
+    return NextResponse.json(liveAlpacaDisabledResponse(), { status: 403 });
+  }
+  if (!PAPER_KEY || !PAPER_SECRET) {
+    return NextResponse.json({ error: "Alpaca paper credentials are not configured", environment: "PAPER_ONLY" }, { status: 503 });
+  }
 
   const endpointMap: Record<string, string> = {
     positions: "/v2/positions",
@@ -123,7 +133,7 @@ export async function GET(req: NextRequest) {
   };
 
   const path = endpointMap[action] ?? "/v2/account";
-  const res  = await fetch(`${base}${path}`, { headers });
+  const res  = await fetch(`${ALPACA_PAPER_BASE}${path}`, { headers: headers() });
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });
 }
