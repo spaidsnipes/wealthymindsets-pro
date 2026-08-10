@@ -7,7 +7,7 @@ import { WMLogo } from "@/components/ui/WMLogo";
 import { clsx } from "clsx";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { getFabioInsights, inferAssetClass } from "@/lib/fabio";
-import { placeChartMarketOrder, type OrderSide } from "@/lib/paperTrade";
+import { evaluateClcEvidence } from "@/lib/decisionIntegrity";
 import { playSfx, isSfxOn, setSfxOn } from "@/lib/sfx";
 
 // ─── Signal types ────────────────────────────────────────────────────────────
@@ -344,7 +344,6 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(["orderflow", "clc", "regime"]));
   const [pulse, setPulse] = useState(false);
   const [showEdu, setShowEdu] = useState(false);
-  const [paperMsg, setPaperMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   // ── Sound FX layer (opt-in, synthesized) ────────────────────────────────────
   const [sfxOn, setSfxOnState] = useState(false);
@@ -373,7 +372,6 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
     window.addEventListener("wm-delta-levels", onEvt);
     return () => window.removeEventListener("wm-delta-levels", onEvt);
   }, []);
-  const prevSmdSigRef = React.useRef<string | null>(null);      // rising-edge guard for the fire bell
   const toggleSfx = () => {
     const next = !sfxOn;
     setSfxOn(next);
@@ -408,6 +406,11 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
   // CLC location remains unavailable until a real structure-zone model exists.
   // Never substitute percentage offsets around the current price.
   const hasPrice = livePrice > 0;
+  const clcDecision = evaluateClcEvidence({
+    context: hasPrice,
+    location: false,
+    confirmation: flow.hasFlow,
+  });
   const ddp = livePrice > 1000 ? 0 : livePrice > 10 ? 2 : 4;
   const isBull = bias !== "BEAR";
 
@@ -430,67 +433,22 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
     : flow.candleUp && deltaVal < 0 ? "bearish"   // price up but sellers dominate
     : !flow.candleUp && deltaVal > 0 ? "bullish"  // price down but buyers dominate
     : null;
-  // Practice-trade suggestion aligned with who's winning, with a tight (<1%) stop.
-  const domLong  = domSide === "buyers" || (domSide === "even" && isBull);
-  const domEntry = hasPrice ? fmt(livePrice, ddp) : "—";
-  const domStop  = hasPrice ? fmt(livePrice * (domLong ? 0.992 : 1.008), ddp) : "—"; // ~0.8%
-  const domTgt   = hasPrice ? fmt(livePrice * (domLong ? 1.016 : 0.984), ddp) : "—"; // ~2R
-
-  // ── SMART MONEY DELTA — the fire signal ─────────────────────────────────────
-  // Fires ONLY on real aggressor tape (flow.hasFlow). Two honest triggers:
-  //  • Absorption / divergence — price ticks one way while delta pushes the
-  //    other (the "price is lying" reversal). Trades AGAINST price.
-  //  • Domination — one side controls ≥65% of aggressive volume (momentum).
-  // No tape → the signal stays dark and says why. We never fire on fake data.
-  const smdDir: "LONG" | "SHORT" | null =
+  // Tape pressure is an observation, not a trade command. It deliberately does
+  // not produce entries, stops, targets, or order shortcuts. Location and risk
+  // remain unresolved elsewhere in this panel.
+  const pressureSide: "BUY" | "SELL" | null =
     !flow.hasFlow                 ? null
-    : divergence === "bearish"    ? "SHORT"   // price up, sellers absorbing → fade
-    : divergence === "bullish"    ? "LONG"    // price down, buyers absorbing → fade
-    : buyPct  >= 65               ? "LONG"    // buyers dominate the tape
-    : sellPct >= 65               ? "SHORT"   // sellers dominate the tape
+    : buyPct  >= 65               ? "BUY"
+    : sellPct >= 65               ? "SELL"
     : null;
-  const smdFired = smdDir !== null;
-  const smdKind: "absorption" | "domination" | null =
-    !smdFired ? null : divergence !== null ? "absorption" : "domination";
-  const smdLong = smdDir === "LONG";
-  const smdReason =
+  const pressureReason =
     !flow.hasFlow
-      ? "Needs aggressor tape — this feed carries no per-trade buy/sell side yet, so the delta engine can't fire honestly."
-    : smdKind === "absorption" && smdDir === "SHORT"
-      ? "Absorption: price is ticking UP but sellers dominate the tape. Buyers are getting eaten — high-odds reversal DOWN."
-    : smdKind === "absorption" && smdDir === "LONG"
-      ? "Absorption: price is ticking DOWN but buyers dominate the tape. Sellers are getting eaten — high-odds reversal UP."
-    : smdDir === "LONG"
-      ? `Domination: buyers control ${buyPct}% of the aggressive tape (Δ ${fmtDelta(deltaVal)}). Momentum is long.`
-    : smdDir === "SHORT"
-      ? `Domination: sellers control ${sellPct}% of the aggressive tape (Δ ${fmtDelta(deltaVal)}). Momentum is short.`
-    : "Delta engine ARMED — real tape flowing, but no strong edge yet. Waiting for absorption or one-sided aggression.";
-  const smdStopPx = hasPrice ? fmt(livePrice * (smdLong ? 0.992 : 1.008), ddp) : "—"; // <1% stop
-  const smdTgtPx  = hasPrice ? fmt(livePrice * (smdLong ? 1.016 : 0.984), ddp) : "—"; // ~2R
-
-  // Ring the bell on the RISING EDGE of a fresh fire (kind+dir change), not every
-  // render. playSfx is a no-op unless the user opted in, and it self-throttles.
-  useEffect(() => {
-    const sig = smdFired ? `${smdKind}:${smdDir}` : null;
-    if (sig && sig !== prevSmdSigRef.current) playSfx("bell");
-    prevSmdSigRef.current = sig;
-  }, [smdFired, smdKind, smdDir]);
-
-  // One-click paper trade straight from the chart → shared /paper brokerage store.
-  const placePaper = (side: OrderSide) => {
-    if (!hasPrice) { setPaperMsg({ text: "No live price yet — can't place a paper order.", ok: false }); return; }
-    const res = placeChartMarketOrder(symbol, side, 1, livePrice);
-    if (res.ok) {
-      playSfx("punch");                                        // body-shot thump on a filled paper order (opt-in)
-      const stopLvl = fmt(livePrice * (side === "buy" ? 0.992 : 1.008), ddp);
-      const verb = side === "buy" ? "LONG" : "SHORT";
-      const closed = res.realized !== 0 ? ` · realized ${res.realized >= 0 ? "+" : ""}${fmt(res.realized, 2)}` : "";
-      setPaperMsg({ text: `Paper ${verb} 1 ${symbol} @ ${fmt(res.fillPx, ddp)} · stop ${stopLvl} (~0.8%)${closed}`, ok: true });
-    } else {
-      setPaperMsg({ text: res.error || "Paper order failed.", ok: false });
-    }
-    setTimeout(() => setPaperMsg(null), 6000);
-  };
+      ? "No aggressor-tagged tape is available, so pressure is unavailable."
+    : pressureSide === "BUY"
+      ? `Observed buyers account for ${buyPct}% of aggressive tape (Δ ${fmtDelta(deltaVal)}). This is evidence, not an entry signal.`
+    : pressureSide === "SELL"
+      ? `Observed sellers account for ${sellPct}% of aggressive tape (Δ ${fmtDelta(deltaVal)}). This is evidence, not an entry signal.`
+    : "Aggressor tape is balanced; there is no dominant pressure observation.";
 
   // ── WM PLAYBOOK — folded contextual insights (on-brand, no external label) ───
   const playbook = getFabioInsights({ symbol, assetClass: inferAssetClass(symbol) }, 3);
@@ -664,18 +622,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
               </div>
             )}
 
-            {/* Practice trade from the winning side, tight (<1%) stop */}
-            <div className="mt-2 p-1.5 rounded bg-wm-muted/40 border border-wm-border">
-              <div className="text-[9px] font-bold text-wm-text-muted mb-0.5">
-                Practice play · {domLong ? "LONG (ride the buyers)" : "SHORT (ride the sellers)"}
-              </div>
-              <div className="flex items-center justify-between text-[9px] tabular-nums">
-                <span className="text-wm-text-dim">Entry <span className="text-wm-text font-semibold">{domEntry}</span></span>
-                <span className="text-wm-text-dim">Stop <span className="text-wm-red font-semibold">{domStop}</span></span>
-                <span className="text-wm-text-dim">Target <span className="text-wm-green font-semibold">{domTgt}</span></span>
-              </div>
-              <div className="text-[8px] text-wm-text-dim mt-0.5">Tight stop (~0.8%) — if you're wrong, surrender fast. Small losses, big winners.</div>
-            </div>
+            <div className="mt-2 text-[8px] text-wm-text-dim">Pressure describes observed tape only. It does not resolve location, risk, or permission to trade.</div>
           </>
         ) : (
           <div className="text-[9px] text-wm-text-dim leading-relaxed">
@@ -705,84 +652,33 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
         )}
       </div>
 
-      {/* ── SMART MONEY DELTA — the fire signal + one-click paper trade ─────── */}
+      {/* Tape-pressure observation. Never a trade call or order shortcut. */}
       <div className={clsx(
         "mx-2 my-1.5 p-2 rounded-lg border shrink-0",
-        smdFired && smdLong  ? "bg-wm-green/10 border-wm-green/30" :
-        smdFired && !smdLong ? "bg-wm-red/10 border-wm-red/30" :
+        pressureSide === "BUY"  ? "bg-wm-green/10 border-wm-green/30" :
+        pressureSide === "SELL" ? "bg-wm-red/10 border-wm-red/30" :
         flow.hasFlow         ? "bg-wm-gold/5 border-wm-gold/25" :
                                "bg-wm-surface border-wm-border"
       )}>
         <div className="flex items-center gap-1.5 mb-1.5">
           <Zap size={11} className={clsx(
-            smdFired && smdLong  ? "text-wm-green fill-wm-green" :
-            smdFired && !smdLong ? "text-wm-red fill-wm-red" :
+            pressureSide === "BUY"  ? "text-wm-green" :
+            pressureSide === "SELL" ? "text-wm-red" :
             flow.hasFlow         ? "text-wm-gold" : "text-wm-text-dim"
           )} />
-          <span className="text-[10px] font-bold text-wm-text">SMART MONEY DELTA</span>
+          <span className="text-[10px] font-bold text-wm-text">TAPE PRESSURE</span>
           <span className={clsx(
             "ml-auto px-1.5 py-0.5 rounded text-[9px] font-black",
-            smdFired && smdLong  ? "bg-wm-green/15 text-wm-green" :
-            smdFired && !smdLong ? "bg-wm-red/15 text-wm-red" :
+            pressureSide === "BUY"  ? "bg-wm-green/15 text-wm-green" :
+            pressureSide === "SELL" ? "bg-wm-red/15 text-wm-red" :
             flow.hasFlow         ? "bg-wm-gold/15 text-wm-gold" :
                                    "bg-wm-muted text-wm-text-dim"
           )}>
-            {smdFired ? `🔥 FIRED · ${smdDir}` : flow.hasFlow ? "ARMED" : "NO TAPE"}
+            {pressureSide ? `OBSERVED · ${pressureSide}` : flow.hasFlow ? "BALANCED" : "NO TAPE"}
           </span>
         </div>
 
-        <p className="text-[9px] text-wm-text-dim leading-relaxed">{smdReason}</p>
-
-        {smdFired && hasPrice && (
-          <div className="mt-2 p-1.5 rounded bg-wm-muted/40 border border-wm-border">
-            <div className="text-[9px] font-bold text-wm-text-muted mb-0.5">
-              {smdKind === "absorption" ? "Absorption reversal" : "Momentum ride"} · {smdLong ? "LONG" : "SHORT"}
-            </div>
-            <div className="flex items-center justify-between text-[9px] tabular-nums">
-              <span className="text-wm-text-dim">Entry <span className="text-wm-text font-semibold">{fmt(livePrice, ddp)}</span></span>
-              <span className="text-wm-text-dim">Stop <span className="text-wm-red font-semibold">{smdStopPx}</span></span>
-              <span className="text-wm-text-dim">Target <span className="text-wm-green font-semibold">{smdTgtPx}</span></span>
-            </div>
-            <div className="text-[8px] text-wm-text-dim mt-0.5">Tight stop (under 1%) — surrender fast if wrong. Small losses, big winners.</div>
-          </div>
-        )}
-
-        {/* One-click paper trade → shared /paper brokerage store */}
-        <div className="grid grid-cols-2 gap-1.5 mt-2">
-          <button
-            onClick={() => placePaper("buy")}
-            disabled={!hasPrice}
-            className={clsx(
-              "py-1.5 rounded text-[10px] font-black transition-colors border disabled:opacity-40 disabled:cursor-not-allowed",
-              smdFired && smdLong
-                ? "bg-wm-green/20 text-wm-green border-wm-green/40 hover:bg-wm-green/30"
-                : "bg-wm-muted/40 text-wm-green border-wm-border hover:bg-wm-green/15"
-            )}
-          >
-            📝 Paper BUY
-          </button>
-          <button
-            onClick={() => placePaper("sell")}
-            disabled={!hasPrice}
-            className={clsx(
-              "py-1.5 rounded text-[10px] font-black transition-colors border disabled:opacity-40 disabled:cursor-not-allowed",
-              smdFired && !smdLong
-                ? "bg-wm-red/20 text-wm-red border-wm-red/40 hover:bg-wm-red/30"
-                : "bg-wm-muted/40 text-wm-red border-wm-border hover:bg-wm-red/15"
-            )}
-          >
-            📝 Paper SELL
-          </button>
-        </div>
-
-        {paperMsg && (
-          <div className="mt-1.5 flex items-start gap-1.5">
-            {paperMsg.ok
-              ? <CheckCircle2 size={10} className="text-wm-green shrink-0 mt-px" />
-              : <AlertCircle size={10} className="text-wm-red shrink-0 mt-px" />}
-            <span className={clsx("text-[9px] leading-tight", paperMsg.ok ? "text-wm-green" : "text-wm-red")}>{paperMsg.text}</span>
-          </div>
-        )}
+        <p className="text-[9px] text-wm-text-dim leading-relaxed">{pressureReason}</p>
 
         {/* Opt-in sound layer — synthesized (Web Audio), never a licensed clip */}
         <button
@@ -894,16 +790,14 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           SAME flow.hasFlow the DD card + order-flow signals use, so they agree. */}
       <div className={clsx(
         "mx-2 my-1.5 p-2 rounded-lg border shrink-0",
-        flow.hasFlow
-          ? "bg-gradient-to-r from-wm-green/10 to-wm-blue/5 border-wm-green/25"
-          : "bg-wm-surface border-wm-border"
+        "bg-wm-surface border-wm-border"
       )}>
         <div className={clsx(
           "text-[10px] font-bold mb-1.5 flex items-center gap-1",
-          flow.hasFlow ? "text-wm-green" : "text-wm-text-muted"
+          "text-wm-text-muted"
         )}>
-          <Zap size={10} className={flow.hasFlow ? "fill-wm-green" : ""} />
-          CLC RULE — {!hasPrice ? "AWAITING DATA" : flow.hasFlow ? "ENTRY CONFIRMED" : "AWAITING CONFIRMATION"}
+          <Zap size={10} />
+          CLC RULE — {!hasPrice ? "AWAITING DATA" : clcDecision.label}
         </div>
         <div className="space-y-1">
           {[
@@ -921,17 +815,10 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
             </div>
           ))}
         </div>
-        {flow.hasFlow ? (
-          <div className="mt-2 p-1.5 rounded bg-wm-gold/10 border border-wm-gold/20">
-            <div className="text-[9px] text-wm-gold font-semibold">⚡ ENTER ON ORDER FLOW — NOT CANDLE CLOSE</div>
-            <div className="text-[9px] text-wm-text-dim mt-0.5">Superior R:R entering at real buying activity</div>
-          </div>
-        ) : (
-          <div className="mt-2 p-1.5 rounded bg-wm-muted/40 border border-wm-border">
-            <div className="text-[9px] text-wm-text-muted font-semibold">⚡ NEED AGGRESSOR TAPE TO CONFIRM</div>
-            <div className="text-[9px] text-wm-text-dim mt-0.5">This feed carries no per-trade side — CLC confirmation can't fire yet</div>
-          </div>
-        )}
+        <div className="mt-2 p-1.5 rounded bg-wm-muted/40 border border-wm-border">
+          <div className="text-[9px] text-wm-gold font-semibold">WAIT — LOCATION UNRESOLVED</div>
+          <div className="text-[9px] text-wm-text-dim mt-0.5">Order flow may confirm pressure, but Context + Location + Confirmation must all resolve before an entry can be evaluated.</div>
+        </div>
       </div>
 
       {/* ── WM PLAYBOOK — context-aware notes folded natively into Smart Money ── */}
