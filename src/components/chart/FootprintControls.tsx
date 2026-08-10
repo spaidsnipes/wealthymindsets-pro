@@ -451,8 +451,8 @@ function OrderFlowColorGear({ toolId, label = "Order Flow" }: { toolId: Footprin
               {([
                 [buy,       "Aggressive Buyers",  "MARKET buy orders lifting the ask — active demand pushing price UP (blue)", 1],
                 [sell,      "Aggressive Sellers", "MARKET sell orders hitting the bid — active supply pushing price DOWN (purple)", 1],
-                ["#94A3B8", "Passive Buyers",     "Resting LIMIT bids absorbing sellers — support waiting below (gray)", 1],
-                ["#FF9500", "Passive Sellers",    "Resting LIMIT offers absorbing buyers — resistance waiting above (orange)", 1],
+                ["#94A3B8", "Passive Buyer Proxy",  "Location-based inference near the candle low; resting orders are not directly observed (gray)", 1],
+                ["#FF9500", "Passive Seller Proxy", "Location-based inference near the candle high; resting orders are not directly observed (orange)", 1],
               ] as [string, string, string, number][]).map(([c, label, desc, op]) => (
                 <div key={label} className="flex items-start gap-2">
                   <span className="mt-0.5 w-3 h-3 rounded-sm shrink-0" style={{ background: c, opacity: op }} />
@@ -489,8 +489,8 @@ const FOOTPRINT_TYPES: { id: FootprintType; label: string; desc: string }[] = [
   { id: "delta",              label: "Delta",         desc: "Net ask−bid per row. Teal = buying pressure, purple = selling" },
   { id: "volume-profile",     label: "Vol Profile",   desc: "Volume-at-price horizontal bars per candle" },
   { id: "imbalance",          label: "Imbalance",     desc: "Highlight cells with >2.5× bid/ask ratio — spot trapped traders" },
-  { id: "aggressive-passive", label: "Agg/Passive",   desc: "Teal = aggressive buyers lifting ask. Purple = aggressive sellers hitting bid" },
-  { id: "big-trades",         label: "Big Trades",    desc: "Large trade circles on candles — spot institutional order flow" },
+  { id: "aggressive-passive", label: "Agg/Passive Proxy", desc: "Aggressor side is observed from tape; passive roles are location-based inferences, not resting-order observations" },
+  { id: "big-trades",         label: "Big Trades",       desc: "Large observed trade prints on candles — no claim about participant identity or intent" },
 ];
 
 export function FootprintControls({
@@ -509,6 +509,7 @@ export function FootprintControls({
       {/* OFF button — always visible, prominent when active */}
       <button
         onClick={onDisable}
+        aria-pressed={!enabled}
         title="Turn off all footprint overlays"
         className={clsx(
           "px-2 h-5 rounded text-[11px] font-bold tracking-wide transition-all shrink-0 mr-1",
@@ -524,6 +525,7 @@ export function FootprintControls({
         <div key={id} className="inline-flex items-center shrink-0">
           <button
             onClick={() => onChange(id)}
+            aria-pressed={(active === id && enabled) || (id === "big-trades" && bigTradesOverlay)}
             title={desc}
             className={clsx(
               "px-1.5 h-5 rounded text-[11px] font-semibold tracking-normal transition-all",

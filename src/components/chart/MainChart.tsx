@@ -4548,8 +4548,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               const fs   = cellFs(rH);
               const midY = rowY + rH / 2;
               if (showSplit) {
-                cellNum(fmtV(lv.bid), x + 3, midY, "left", fs);
-                cellNum(fmtV(lv.ask), x + colW - 3, midY, "right", fs);
+                // A missing side is absence of observed executions, not a useful
+                // numeric zero. Leave it blank so sparse live-forward tape does
+                // not recreate the Founder-visible wall of 0.00 labels.
+                if (lv.bid > 0) cellNum(fmtV(lv.bid), x + 3, midY, "left", fs);
+                if (lv.ask > 0) cellNum(fmtV(lv.ask), x + colW - 3, midY, "right", fs);
               } else {
                 const domVal = askDom ? lv.ask : lv.bid;
                 cellNum(fmtV(domVal), cx, midY, "center", fs);
@@ -4656,8 +4659,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               const fs = cellFs(rH);
               const midY = rowY + rH / 2;
               if (showSplit) {
-                cellNum(fmtV(lv.bid), cx - halfW + 3, midY, "left", fs);
-                cellNum(fmtV(lv.ask), cx + halfW - 3, midY, "right", fs);
+                if (lv.bid > 0) cellNum(fmtV(lv.bid), cx - halfW + 3, midY, "left", fs);
+                if (lv.ask > 0) cellNum(fmtV(lv.ask), cx + halfW - 3, midY, "right", fs);
               } else {
                 const dVal = lv.ask - lv.bid;
                 cellNum((dVal >= 0 ? "+" : "") + fmtV(Math.abs(dVal)), cx, midY, "center", fs);
@@ -4872,8 +4875,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               const fs = cellFs(rH);
               const midY = rowY + rH / 2;
               if (showSplit) {
-                cellNum(fmtV(lv.ask), cx - 3, midY, "right", fs);
-                cellNum(fmtV(lv.bid), cx + 3, midY, "left", fs);
+                if (lv.ask > 0) cellNum(fmtV(lv.ask), cx - 3, midY, "right", fs);
+                if (lv.bid > 0) cellNum(fmtV(lv.bid), cx + 3, midY, "left", fs);
               } else {
                 cellNum(fmtV(lv.total), cx, midY, "center", fs);
               }
@@ -4932,8 +4935,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               const fs = cellFs(rH);
               const midY = rowY + rH / 2;
               if (showSplit) {
-                cellNum(fmtV(lv.ask), x + 3, midY, "left", fs);
-                cellNum(fmtV(lv.bid), x + colW - 3, midY, "right", fs);
+                if (lv.ask > 0) cellNum(fmtV(lv.ask), x + 3, midY, "left", fs);
+                if (lv.bid > 0) cellNum(fmtV(lv.bid), x + colW - 3, midY, "right", fs);
               } else {
                 cellNum(`${ratio.toFixed(1)}×`, cx, midY, "center", fs);
               }
@@ -5022,8 +5025,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               const fs  = cellFs(rH);
               const midY = rowY + rH / 2;
               if (showSplit) {
-                cellNum(fmtV(lv.ask), x + 3, midY, "left", fs);          // white
-                cellNum(fmtV(lv.bid), x + colW - 3, midY, "right", fs);  // white
+                if (lv.ask > 0) cellNum(fmtV(lv.ask), x + 3, midY, "left", fs);          // white
+                if (lv.bid > 0) cellNum(fmtV(lv.bid), x + colW - 3, midY, "right", fs);  // white
               } else {
                 cellNum(fmtV(Math.max(lv.ask, lv.bid)), cx, midY, "center", fs);
               }
