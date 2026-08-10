@@ -8,6 +8,7 @@ import { clsx } from "clsx";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { getFabioInsights, inferAssetClass } from "@/lib/fabio";
 import { evaluateClcEvidence } from "@/lib/decisionIntegrity";
+import { hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
 
 // ─── Signal types ────────────────────────────────────────────────────────────
 type SignalStrength = "strong" | "moderate" | "weak" | "neutral";
@@ -226,9 +227,6 @@ function computeConfluence(price: number, f: Flow): Confluence {
   };
 }
 
-const hasRealAggressorTape = (src: string | null) =>
-  src === "finnhub" || src === "polygon" || src === "alpaca" || src === "coinbase" || src === "binance";
-
 export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symbol: string }) {
   // Escape closes the panel (panel-control requirement). Bound while mounted.
   useEffect(() => {
@@ -264,7 +262,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
 
   const { ticker, recentTicks, liveBar, tapeSource } = useWebSocket({ symbol, timeframe: "1m" });
   const livePrice = ticker.price > 0 ? ticker.price : 0;
-  const realTape = hasRealAggressorTape(tapeSource);
+  const realTape = hasVerifiedAggressorTape(tapeSource);
 
   // ── Build the REAL order-flow snapshot from live ticks + the live 1m bar ────
   const flow: Flow = React.useMemo(() => {

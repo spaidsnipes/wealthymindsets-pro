@@ -24,10 +24,21 @@ describe("Coinbase canonical Market Event adapter", () => {
       timestampExchange: Date.parse(rawTicker.time),
       timestampProvider: Date.parse(rawTicker.time),
       sequenceId: 100,
+      sequenceState: "UNAVAILABLE",
       price: 65000.25,
       size: 0.125,
       fidelityClass: "OBSERVED",
     });
+  });
+
+  it("retains source sequence lineage without claiming contiguous coverage", () => {
+    const first = normalizeCoinbaseTicker(rawTicker, "BTC", Date.parse(rawTicker.time) + 20)!;
+    const later = normalizeCoinbaseTicker({ ...rawTicker, trade_id: 43, sequence: 900 }, "BTC", Date.parse(rawTicker.time) + 30)!;
+    const guard = new MarketEventGuard();
+
+    expect(guard.inspect(first)).toMatchObject({ status: "ACCEPTED", warnings: ["SEQUENCE_UNAVAILABLE"] });
+    expect(guard.inspect(later)).toMatchObject({ status: "ACCEPTED", warnings: ["SEQUENCE_UNAVAILABLE"] });
+    expect(guard.snapshot()).toMatchObject({ sequenceGaps: 0, sequenceUnavailable: 2 });
   });
 
   it("labels maker-side inversion instead of claiming provider aggressor side", () => {

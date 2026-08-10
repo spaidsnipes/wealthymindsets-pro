@@ -22,6 +22,12 @@ export interface PriceSourceBadge {
   provenance: string; // INTERNAL only — never render in user chrome. Diagnostics inspector reads this.
 }
 
+export interface CandleDataStatus {
+  state: "LIVE" | "DELAYED" | "STALE" | "UNAVAILABLE";
+  label: string;
+  live: boolean;
+}
+
 export function priceSourceBadge(source: PriceSource, connected: boolean): PriceSourceBadge {
   switch (source) {
     case "polygon":
@@ -46,4 +52,26 @@ export function priceSourceBadge(source: PriceSource, connected: boolean): Price
     default:
       return { label: "NO FEED", title: "No live price source resolved yet", live: false, provenance: String(source ?? "unavailable") };
   }
+}
+
+/** A recent UI update cannot promote a delayed provider into LIVE market data. */
+export function candleDataStatus(
+  source: PriceSource,
+  connected: boolean,
+  hasCandles: boolean,
+  lastTickAt: number,
+  now = Date.now(),
+  staleAfterMs = 20_000,
+): CandleDataStatus {
+  const badge = priceSourceBadge(source, connected);
+  if (!hasCandles || badge.label === "NO FEED") {
+    return { state: "UNAVAILABLE", label: "NO FEED", live: false };
+  }
+  if (!badge.live) {
+    return { state: "DELAYED", label: badge.label, live: false };
+  }
+  if (!Number.isFinite(lastTickAt) || lastTickAt <= 0 || now - lastTickAt >= staleAfterMs) {
+    return { state: "STALE", label: "STALE", live: false };
+  }
+  return { state: "LIVE", label: "LIVE", live: true };
 }

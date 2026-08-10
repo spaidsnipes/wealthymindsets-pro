@@ -77,7 +77,7 @@ export function normalizeAlpacaRelayTrade(
     aggressorConfidence: aggressorSide === "UNKNOWN" ? 0 : 0.5,
     sourceClass: "PROXY",
     dataMode: "LIVE",
-    fidelityClass: "OBSERVED",
+    fidelityClass: "PROXY",
     rawLineageRef: `alpaca-relay:${sourceEventId ?? fingerprint}`,
   };
 }

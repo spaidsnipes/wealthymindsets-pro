@@ -4,7 +4,7 @@ export type MarketEventType = "TRADE" | "QUOTE" | "BAR" | "DEPTH" | "NEWS" | "OR
 export type MarketProviderClass = "EXCHANGE" | "BROKER" | "AGGREGATOR" | "WM_INTERNAL" | "REPLAY";
 export type MarketSourceClass = "PRIMARY" | "FALLBACK" | "PROXY" | "SIMULATION";
 export type MarketDataMode = "LIVE" | "DELAYED" | "REPLAY" | "SIMULATED";
-export type MarketFidelityClass = "OBSERVED" | "DERIVED" | "INFERRED" | "SIMULATED" | "UNAVAILABLE";
+export type MarketFidelityClass = "OBSERVED" | "DERIVED" | "PROXY" | "INFERRED" | "SIMULATED" | "UNAVAILABLE";
 export type AggressorSide = "BUY" | "SELL" | "UNKNOWN";
 export type AggressorMethod = "PROVIDER" | "MAKER_SIDE_INVERTED" | "TICK_RULE" | "QUOTE_TEST" | "NONE";
 export type SequenceState = "CONTIGUOUS" | "GAP" | "OUT_OF_ORDER" | "UNAVAILABLE";
@@ -158,7 +158,8 @@ export class MarketEventGuard {
     if (isDuplicate) reasons.push("DUPLICATE_EVENT");
 
     const streamKey = `${event.providerPath}|${event.normalizedSymbol}|${event.eventType}`;
-    const numericSequence = typeof event.sequenceId === "number" && Number.isFinite(event.sequenceId)
+    const numericSequence = event.sequenceState !== "UNAVAILABLE" &&
+      typeof event.sequenceId === "number" && Number.isFinite(event.sequenceId)
       ? event.sequenceId
       : null;
     const priorSequence = this.lastSequenceByStream.get(streamKey);

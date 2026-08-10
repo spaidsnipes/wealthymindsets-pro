@@ -3,6 +3,8 @@ import {
   MARKET_DATA_CAPABILITIES,
   canPersistRaw,
   getMarketDataCapability,
+  getRuntimeTapeCapability,
+  hasVerifiedAggressorTape,
   type MarketDataCapability,
 } from "./capabilityRegistry";
 
@@ -45,6 +47,18 @@ describe("market-data capability and persistence-rights registry", () => {
     const coinbaseTrades = getMarketDataCapability("coinbase-client-ws", "crypto", "trade");
     expect(coinbaseTrades.collectionScope).toBe("FOREGROUND_TAB");
     expect(coinbaseTrades.timestampFields).toContain("EXCHANGE");
-    expect(coinbaseTrades.sequenceSupported).toBe(true);
+    expect(coinbaseTrades.sequenceSupported).toBe(false);
+  });
+});
+
+describe("runtime aggressor tape capability", () => {
+  it.each(["coinbase", "binance", "alpaca"] as const)("accepts reviewed %s trade evidence", source => {
+    expect(hasVerifiedAggressorTape(source)).toBe(true);
+    expect(getRuntimeTapeCapability(source)?.eventType).toBe("trade");
+  });
+
+  it.each(["finnhub", "polygon", null] as const)("fails closed for %s", source => {
+    expect(hasVerifiedAggressorTape(source)).toBe(false);
+    expect(getRuntimeTapeCapability(source)).toBeNull();
   });
 });

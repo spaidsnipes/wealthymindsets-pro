@@ -19,9 +19,10 @@ import { parseExchangeSymbol } from "@/lib/exchanges";
 import { DataVersionGuard } from "@/lib/chartContext";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
-import { getSessionNectarSnapshot, subscribeToSessionNectar } from "@/lib/marketData/sessionNectar";
+import { findSessionNectarChannel, getSessionNectarSnapshot } from "@/lib/marketData/sessionNectar";
+import { hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { priceSourceBadge } from "@/lib/priceSource";
+import { candleDataStatus, priceSourceBadge } from "@/lib/priceSource";
 import type { PineOutput } from "@/lib/pine/types";
 import { interpretPine } from "@/lib/pine/interpreter";
 import * as IND from "./indicators";
@@ -1301,8 +1302,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // Late-bound ref so magnet snap can read footprint levels after getBarFootprint is defined.
   const footprintSnapRef = useRef<(bar: Bar, n: number) => Array<{ priceLevel: number; total: number }>>(() => []);
 
-  const hasRealAggressorTape = (src: string) =>
-    src === "finnhub" || src === "polygon" || src === "alpaca" || src === "coinbase" || src === "binance";
+  const hasRealAggressorTape = hasVerifiedAggressorTape;
 
   // Min single-trade size to count as a "big trade" (real tape only — never
   // synthetic). Tuned DOWN over several rounds: 2 BTC (~$126k) → 0.5 → 0.15 because
@@ -6850,27 +6850,31 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           {/* Data-truth strip — vendor-agnostic status + real feed freshness. */}
           {(() => {
             void freshVer; // periodic recheck so the badge can go stale when ticks stop
-            const tickAge = lastTickAtRef.current ? Date.now() - lastTickAtRef.current : Infinity;
-            const feedLive = tickAge < 20000; // a real tick in the last 20s
             const lastBarT = candles.length ? (candles[candles.length - 1].time as number) : 0;
             const lastStr = lastBarT
               ? new Date(lastBarT * 1000).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
               : "—";
-            const noFeed = candleSource === "NO FEED" || !candles.length;
+            const status = candleDataStatus(
+              source,
+              connected,
+              candleSource !== "NO FEED" && candles.length > 0,
+              lastTickAtRef.current,
+            );
+            const noFeed = status.state === "UNAVAILABLE";
             return (
               <div
                 className="flex items-center gap-1.5"
-                title={`Candles: ${noFeed ? "unavailable" : feedLive ? "live" : "delayed"} · session ${extendedHours ? "ETH" : "RTH"} · last bar ${lastStr}${feedLive ? " · ticks flowing" : " · no live tick in >20s"}`}
+                title={`Candles: ${status.state.toLowerCase()} · session ${extendedHours ? "ETH" : "RTH"} · last bar ${lastStr}${status.live ? " · live ticks flowing" : " · no real-time candle claim"}`}
               >
                 {noFeed ? (
                   <span className="text-[10px] text-wm-red font-semibold">NO FEED</span>
-                ) : feedLive ? (
+                ) : status.live ? (
                   <span className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-wm-green animate-pulse" />
                     <span className="text-[10px] text-wm-green font-semibold">LIVE</span>
                   </span>
                 ) : (
-                  <span className="text-[10px] font-semibold" style={{ color: "#F0B429" }}>LAST {lastStr}</span>
+                  <span className="text-[10px] font-semibold" style={{ color: "#F0B429" }}>{status.label} · LAST {lastStr}</span>
                 )}
               </div>
             );
@@ -7000,10 +7004,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // safe to inline in the chip render because the chip re-renders
           // at ~4Hz on the existing sessionTapeTick.
           const nectar = getSessionNectarSnapshot();
-          const symbolMatches = (ch: { instrumentId: string }) =>
-            ch.instrumentId === symbol.toUpperCase() || ch.instrumentId === symbol;
-          const tradeChannel = nectar.channels.find(ch => ch.channel === "trade" && symbolMatches(ch));
-          const fidelityLabel = tradeChannel?.fidelity ?? "OBSERVED";
+          const tradeChannel = findSessionNectarChannel(nectar, normalizeSym(symbol), "trade");
+          const fidelityLabel = tradeChannel?.fidelity ?? "UNAVAILABLE";
           const fidelityColor = fidelityLabel === "OBSERVED" ? "#00C076"
                              : fidelityLabel === "DERIVED"  ? "#F0B429"
                              : fidelityLabel === "PROXY"    ? "#F0B429"

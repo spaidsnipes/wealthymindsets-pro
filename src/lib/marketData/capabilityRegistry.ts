@@ -22,6 +22,7 @@ export type CollectionScope = "FOREGROUND_TAB" | "REQUEST_SCOPED" | "EXTERNAL_RE
 export type PersistenceRight = "UNKNOWN" | "PROHIBITED" | "ALLOWED";
 export type TimestampField = "EXCHANGE" | "PROVIDER" | "RECEIVED" | "PROCESSED";
 export type FidelityClass = "OBSERVED" | "DERIVED" | "PROXY" | "UNAVAILABLE";
+export type RuntimeTapeSource = "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | null;
 
 export interface MarketDataCapability {
   providerPath: MarketProviderPath;
@@ -58,11 +59,11 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     collectionScope: "FOREGROUND_TAB",
     fidelityClass: "OBSERVED",
     timestampFields: ["EXCHANGE", "PROVIDER", "RECEIVED", "PROCESSED"],
-    sequenceSupported: true,
+    sequenceSupported: false,
     aggressorMethod: "MAKER_SIDE_INVERTED",
     sessionCoverage: "24/7 while the elected browser tab is connected",
     fallbackSemantics: "EXPLICIT",
-    evidence: "src/hooks/useWebSocket.ts tryCoinbase + joinTape",
+    evidence: "src/hooks/useWebSocket.ts tryCoinbase + joinTape; ticker sequence continuity is not certified",
   }),
   capability({
     providerPath: "binance-us-client-ws",
@@ -190,4 +191,28 @@ export function getMarketDataCapability(
 export function canPersistRaw(capabilityEntry: MarketDataCapability): boolean {
   return capabilityEntry.availability !== "UNAVAILABLE" &&
     capabilityEntry.rawPersistenceRight === "ALLOWED";
+}
+
+const TAPE_SOURCE_PATHS: Partial<Record<Exclude<RuntimeTapeSource, null>, {
+  providerPath: MarketProviderPath;
+  assetClass: MarketAssetClass;
+}>> = {
+  coinbase: { providerPath: "coinbase-client-ws", assetClass: "crypto" },
+  binance: { providerPath: "binance-us-client-ws", assetClass: "crypto" },
+  alpaca: { providerPath: "alpaca-external-relay", assetClass: "equity" },
+};
+
+/** Runtime tape truth must come from the reviewed capability registry. */
+export function getRuntimeTapeCapability(source: string | null): MarketDataCapability | null {
+  if (!source) return null;
+  const identity = TAPE_SOURCE_PATHS[source as Exclude<RuntimeTapeSource, null>];
+  if (!identity) return null;
+  return getMarketDataCapability(identity.providerPath, identity.assetClass, "trade");
+}
+
+export function hasVerifiedAggressorTape(source: string | null): boolean {
+  const capabilityEntry = getRuntimeTapeCapability(source);
+  return capabilityEntry != null &&
+    capabilityEntry.availability !== "UNAVAILABLE" &&
+    capabilityEntry.aggressorMethod !== "NONE";
 }

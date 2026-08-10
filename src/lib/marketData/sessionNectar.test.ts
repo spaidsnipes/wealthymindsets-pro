@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { MARKET_EVENT_SCHEMA_VERSION, type CanonicalMarketEvent } from "./marketEvent";
-import { SessionNectarCollector } from "./sessionNectar";
+import { findSessionNectarChannel, SessionNectarCollector } from "./sessionNectar";
 
 const trade = (overrides: Partial<CanonicalMarketEvent> = {}): CanonicalMarketEvent => ({
   schemaVersion: MARKET_EVENT_SCHEMA_VERSION,
@@ -47,6 +47,7 @@ describe("Session Nectar collection health", () => {
     expect(snapshot.channels).toEqual([
       expect.objectContaining({
         instrumentId: "BTC-USD",
+        normalizedSymbol: "BTC",
         channel: "trade",
         coverageState: "COLLECTING",
         memoryState: "SESSION_ONLY",
@@ -54,6 +55,18 @@ describe("Session Nectar collection health", () => {
         observedFrom: 1_786_335_700_000,
       }),
     ]);
+  });
+
+  it("resolves executable identities by normalized symbol without guessing aliases", () => {
+    const collector = new SessionNectarCollector(1_786_335_600_000);
+    collector.ingest(trade());
+
+    expect(findSessionNectarChannel(collector.snapshot(), "btc", "trade")).toMatchObject({
+      instrumentId: "BTC-USD",
+      normalizedSymbol: "BTC",
+      fidelity: "OBSERVED",
+    });
+    expect(findSessionNectarChannel(collector.snapshot(), "ETH", "trade")).toBeNull();
   });
 
   it("deduplicates repeated event identities before coverage changes", () => {

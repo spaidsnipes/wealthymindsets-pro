@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { priceSourceBadge } from "./priceSource";
+import { candleDataStatus, priceSourceBadge } from "./priceSource";
 
 describe("priceSourceBadge (WM-CHART-P0-05 provenance)", () => {
   it("labels real-time streams as live", () => {
@@ -35,5 +35,19 @@ describe("priceSourceBadge (WM-CHART-P0-05 provenance)", () => {
       expect(b.provenance).toBe(s);
       expect(b.title.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("candleDataStatus", () => {
+  it("never promotes a recently refreshed delayed feed to LIVE", () => {
+    expect(candleDataStatus("yahoo", true, true, 9_999, 10_000)).toEqual({
+      state: "DELAYED", label: "DELAYED", live: false,
+    });
+  });
+
+  it("distinguishes fresh, stale, and unavailable live-channel evidence", () => {
+    expect(candleDataStatus("coinbase", true, true, 9_999, 10_000).state).toBe("LIVE");
+    expect(candleDataStatus("coinbase", true, true, 1, 30_000).state).toBe("STALE");
+    expect(candleDataStatus("unavailable", false, false, 0, 10_000).state).toBe("UNAVAILABLE");
   });
 });

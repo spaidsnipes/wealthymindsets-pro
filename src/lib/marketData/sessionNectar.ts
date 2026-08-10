@@ -79,7 +79,10 @@ export class SessionNectarCollector {
 
     const instrumentId = event.executableIdentity ?? event.normalizedSymbol;
     const channelKey = `${instrumentId}|${event.eventType}|${event.providerPath}`;
-    const current = this.channels.get(channelKey) ?? createChannelCoverage(instrumentId, capability);
+    const current = this.channels.get(channelKey) ?? {
+      ...createChannelCoverage(instrumentId, capability),
+      normalizedSymbol: event.normalizedSymbol.toUpperCase(),
+    };
     const next = observeChannel(current, {
       eventAt: eventTime(event),
       receivedAt: event.timestampReceived,
@@ -129,4 +132,17 @@ export function getSessionNectarSnapshot(): SessionNectarSnapshot {
 
 export function subscribeToSessionNectar(listener: Listener): () => void {
   return sessionNectarCollector.subscribe(listener);
+}
+
+export function findSessionNectarChannel(
+  snapshot: SessionNectarSnapshot,
+  normalizedSymbol: string,
+  channel: MarketChannelCoverage["channel"],
+): MarketChannelCoverage | null {
+  const wanted = normalizedSymbol.trim().toUpperCase();
+  if (!wanted) return null;
+  return snapshot.channels.find(entry =>
+    entry.channel === channel &&
+    (entry.normalizedSymbol?.toUpperCase() === wanted || entry.instrumentId.toUpperCase() === wanted)
+  ) ?? null;
 }

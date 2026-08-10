@@ -23,6 +23,7 @@ describe("Alpaca external-relay canonical adapter", () => {
       timestampProvider: Date.parse(raw.t),
       providerPath: "alpaca-external-relay",
       sourceClass: "PROXY",
+      fidelityClass: "PROXY",
       price: 329.25,
       size: 12,
       tradeConditions: ["@"],

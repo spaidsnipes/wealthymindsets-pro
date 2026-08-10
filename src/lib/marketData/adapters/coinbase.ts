@@ -61,7 +61,9 @@ export function normalizeCoinbaseTicker(
     timestampReceived: receivedAtMs,
     timestampProcessed: processedAtMs,
     sequenceId: sequence ?? undefined,
-    sequenceState: sequence == null ? "UNAVAILABLE" : "CONTIGUOUS",
+    // Preserve the source sequence as lineage, but do not treat ticker-channel
+    // jumps as packet gaps until Coinbase's channel semantics are certified.
+    sequenceState: "UNAVAILABLE",
     price,
     size,
     aggressorSide,

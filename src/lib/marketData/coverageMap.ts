@@ -19,6 +19,7 @@ export type MemoryState = "NO_MEMORY" | "SESSION_ONLY" | "RETAINED";
 export interface MarketChannelCoverage {
   schemaVersion: typeof MARKET_COVERAGE_SCHEMA_VERSION;
   instrumentId: string;
+  normalizedSymbol?: string;
   channel: MarketEventCapability;
   providerPath: string;
   coverageState: CoverageState;
