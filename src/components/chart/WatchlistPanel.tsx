@@ -77,13 +77,14 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
         return;
       }
 
-      // Stocks/ETFs → Alpaca (real-time RTH; 404s when stale) → Yahoo (pre/post
-      // market, matches TradingView) → Finnhub (regular-hours-only fallback).
-      const alpacaJ = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if ((alpacaJ?.price ?? 0) > 0) { result[up] = { price: alpacaJ.price, change: alpacaJ.change ?? 0, changePct: alpacaJ.changePct ?? 0, src: "alpaca" }; return; }
-
+      // Stocks/ETFs use the same consolidated-first semantic as MainChart and
+      // TickerTape. A same-screen value must not become LIVE merely because an
+      // independent consumer happened to receive an IEX-only print first.
       const yhJ = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
       if (yhJ?.price > 0) { result[up] = { price: yhJ.price, change: yhJ.change ?? 0, changePct: yhJ.changePct ?? 0, src: "yahoo" }; return; }
+
+      const alpacaJ = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
+      if ((alpacaJ?.price ?? 0) > 0) { result[up] = { price: alpacaJ.price, change: alpacaJ.change ?? 0, changePct: alpacaJ.changePct ?? 0, src: "alpaca" }; return; }
 
       const fhJ = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
       if (fhJ?.price > 0) result[up] = { price: fhJ.price, change: fhJ.change ?? 0, changePct: fhJ.changePct ?? 0, src: "finnhub" };

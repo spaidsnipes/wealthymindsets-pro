@@ -99,18 +99,17 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
     return null;
   }
 
-  // Stocks/ETFs → Alpaca first (if key set), then Finnhub, then Yahoo
-  try {
-    const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-    if (j?.price > 0 && j.source === "alpaca") return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0, src: "alpaca" };
-  } catch {}
-  // Yahoo BEFORE Finnhub — Yahoo includes pre/post-market (matches TradingView);
-  // Finnhub free is regular-hours-only and goes stale outside RTH.
+  // Stocks/ETFs use the same consolidated-first semantic as MainChart and the
+  // watchlist. Independent consumers must not disagree on LIVE vs DELAYED.
   try {
     const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
     const price = j?.price ?? 0;
     const prev  = j?.prevClose ?? price;
     if (price > 0) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
+  } catch {}
+  try {
+    const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+    if (j?.price > 0 && j.source === "alpaca") return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0, src: "alpaca" };
   } catch {}
   try {
     const j = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());

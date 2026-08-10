@@ -1284,7 +1284,10 @@ export function ChartsDashboard() {
                     Session VP + the on-chart Fixed VP remain (both draw at the top
                     of the chart). This also frees ~340px so Smart Money + the DOM
                     ladder are fully visible on full screen with no cutoffs. */}
-                {vpDomOpen && <DOMPanel symbol={symbol} />}
+                {/* Instrument identity is part of DOM state. Remount on symbol
+                    changes so an old book headline can never coexist with the
+                    newly selected instrument's ladder while feeds reconnect. */}
+                {vpDomOpen && <DOMPanel key={symbol} symbol={symbol} />}
                 {/* DOM collapse toggle */}
                 <button
                   onClick={() => setVpDomOpen(v => !v)}
