@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
+import { hasJournalCoachEvidence, JOURNAL_COACH_MIN_SAMPLE } from "@/lib/journalEvidence";
 import { FabioInsights } from "@/components/fabio/FabioInsights";
 
 /* ── Emoji palette ───────────────────────────────────────── */
@@ -327,6 +328,29 @@ function NotesEditor({
 
 /* ── AI Strategy Coach ───────────────────────────────────── */
 function StrategyCoach({ entries }: { entries: JournalEntry[] }) {
+  if (!hasJournalCoachEvidence(entries.length)) {
+    return (
+      <div className="p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <Brain size={16} className="text-wm-purple" />
+          <span className="text-sm font-black text-wm-text">Strategy Evidence Coach</span>
+          <span className="text-[10px] text-wm-text-dim">{entries.length} of {JOURNAL_COACH_MIN_SAMPLE} trades</span>
+        </div>
+        <div className="glass rounded-xl p-5 border border-wm-gold/25">
+          <div className="text-xs font-bold text-wm-gold mb-2">INSUFFICIENT EVIDENCE</div>
+          <p className="text-[11px] text-wm-text-dim leading-relaxed">
+            WM needs at least {JOURNAL_COACH_MIN_SAMPLE} completed, consistently tagged journal entries before comparing
+            win rate, reward-to-risk, setups, or behavior patterns. No performance or mindset conclusion is made yet.
+          </p>
+          <p className="text-[10px] text-wm-text-dim mt-3">
+            Next useful action: journal the process, evidence, invalidation, management, and outcome of each decision.
+            WAIT and NO TRADE decisions count as evidence when recorded truthfully.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const wins   = entries.filter(e => e.result === "win");
   const losses = entries.filter(e => e.result === "loss");
   const wr     = entries.length ? (wins.length / entries.length) * 100 : 0;

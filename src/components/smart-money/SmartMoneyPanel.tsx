@@ -899,20 +899,26 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
         </div>
       </div>
 
-      {/* Live alert */}
+      {/* Tape observation — only directional when real aggressor evidence exists. */}
       <div
-        className="mx-2 mb-1.5 mt-1 p-1.5 rounded-lg border shrink-0 animate-pulse"
-        style={{ borderColor: "rgba(0,212,170,0.35)", background: "rgba(0,212,170,0.06)" }}
+        className="mx-2 mb-1.5 mt-1 p-1.5 rounded-lg border shrink-0"
+        style={{
+          borderColor: flow.hasFlow ? "rgba(0,212,170,0.35)" : "rgba(240,180,41,0.35)",
+          background: flow.hasFlow ? "rgba(0,212,170,0.06)" : "rgba(240,180,41,0.06)",
+        }}
       >
         <div className="flex items-center gap-1.5">
-          <AlertCircle size={11} className="text-wm-green" />
-          <span className="text-[10px] font-bold text-wm-green">LIVE ALERT</span>
-          <span className="ml-auto text-[9px] text-wm-text-dim">just now</span>
+          <AlertCircle size={11} className={flow.hasFlow ? "text-wm-green" : "text-wm-gold"} />
+          <span className={clsx("text-[10px] font-bold", flow.hasFlow ? "text-wm-green" : "text-wm-gold")}>
+            {flow.hasFlow ? "LIVE TAPE OBSERVATION" : "TAPE UNAVAILABLE"}
+          </span>
         </div>
         <div className="text-[10px] text-wm-text mt-0.5">
-          {hasPrice
-            ? `Aggressor tape on ${symbol} currently favors ${isBull ? "buyers" : "sellers"}. Location is not confirmed because no validated structure zone is available.`
-            : `Waiting for live ${symbol} tape — connect a data feed to stream order-flow alerts.`}
+          {flow.hasFlow
+            ? domSide === "buyers" || domSide === "sellers"
+              ? `Observed aggressor tape on ${symbol} currently favors ${domSide}. Location is not confirmed because no validated structure zone is available.`
+              : `Observed aggressor tape on ${symbol} is balanced. Location is not confirmed because no validated structure zone is available.`
+            : `No aggressor-tagged tape is available for ${symbol}. Directional order-flow claims are suppressed.`}
         </div>
       </div>
       {/* ── end SCROLLABLE BODY ── */}
