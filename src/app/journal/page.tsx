@@ -23,6 +23,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { hasJournalCoachEvidence, JOURNAL_COACH_MIN_SAMPLE } from "@/lib/journalEvidence";
 import { classifyFinancialOutcome } from "@/lib/journalOutcome";
+import {
+  classifyProcessOutcome,
+  PROCESS_OUTCOME_LABELS,
+  type ProcessOutcome,
+  type ProcessQuality,
+} from "@/lib/journalProcess";
 import { FabioInsights } from "@/components/fabio/FabioInsights";
 
 /* ── Emoji palette ───────────────────────────────────────── */
@@ -57,6 +63,8 @@ interface JournalEntry {
   notes:     string;
   mood:      Mood;
   result:    TradeResult;
+  processQuality: ProcessQuality;
+  processOutcome: ProcessOutcome;
   starred:   boolean;
   images:    string[];   // base64 data URLs
   voiceSec:  number;     // 0 = no memo
@@ -424,7 +432,7 @@ function StrategyCoach({ entries }: { entries: JournalEntry[] }) {
       {/* Header */}
       <div className="flex items-center gap-2 mb-2">
         <Brain size={16} className="text-wm-purple" />
-        <span className="text-sm font-black text-wm-text">AI Strategy Coach</span>
+        <span className="text-sm font-black text-wm-text">Journal Evidence Coach</span>
         <span className="text-[10px] text-wm-text-dim">Based on {entries.length} journaled trades</span>
       </div>
 
@@ -557,7 +565,8 @@ export default function JournalPage() {
     date: new Date().toISOString().slice(0, 10),
     symbol: "", side: "long", entry: 0, exit: 0, size: 1,
     pnl: 0, pct: 0, tags: [], notes: "", mood: "neutral",
-    result: "be", starred: false, images: [], voiceSec: 0,
+    result: "be", processQuality: "UNRESOLVED", processOutcome: "UNRESOLVED",
+    starred: false, images: [], voiceSec: 0,
     setup: "", mistakes: "", lessons: "", emojis: [],
   });
   const [form, setForm]   = useState<Partial<JournalEntry>>(emptyForm());
@@ -583,6 +592,8 @@ export default function JournalPage() {
     e.pnl      = (e.exit - e.entry) * e.size * (e.side === "short" ? -1 : 1);
     e.pct      = e.entry > 0 ? ((e.exit - e.entry) / e.entry * 100) * (e.side === "short" ? -1 : 1) : 0;
     e.result   = classifyFinancialOutcome(e.pnl);
+    e.processQuality = e.processQuality ?? "UNRESOLVED";
+    e.processOutcome = classifyProcessOutcome(e.processQuality, e.pnl);
     e.voiceSec = voiceRec.memo?.sec ?? (voiceRec.state === "done" ? voiceRec.sec : 0);
     setEntries(prev => [e, ...prev]);
     setNewMode(false);
@@ -1190,6 +1201,9 @@ Trade the system, trust the process, winners every day 🚀`,
                     {selected.emojis?.map((em, i) => <span key={i} className="text-base">{em}</span>)}
                   </div>
                   <div className="text-xs text-wm-text-dim mt-0.5">{selected.setup}</div>
+                  <div className="mt-1 text-[10px] font-semibold text-wm-gold">
+                    {PROCESS_OUTCOME_LABELS[selected.processOutcome ?? "UNRESOLVED"]}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <div className={clsx("text-xl font-black", selected.pnl >= 0 ? "text-wm-green" : "text-wm-red")}>
@@ -1342,6 +1356,34 @@ Trade the system, trust the process, winners every day 🚀`,
                     ))}
                   </div>
                 </div>
+              </div>
+
+              <div className="mb-4 rounded-xl border border-wm-border bg-wm-surface/40 p-3">
+                <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-wm-text-dim">Process quality — separate from P&amp;L</div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {([
+                    ["FOLLOWED_PLAN", "Followed plan", "Rules, risk, and management were honored."],
+                    ["BROKE_RULES", "Broke rules", "A declared process rule was not followed."],
+                    ["UNRESOLVED", "Unresolved", "Not enough evidence to grade process yet."],
+                  ] as const).map(([value, label, detail]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setForm(current => ({ ...current, processQuality: value }))}
+                      aria-pressed={form.processQuality === value}
+                      className={clsx(
+                        "min-h-11 rounded-lg border p-2 text-left transition-colors",
+                        form.processQuality === value
+                          ? "border-wm-gold/60 bg-wm-gold/10"
+                          : "border-wm-border bg-wm-surface hover:border-wm-gold/30",
+                      )}
+                    >
+                      <span className="block text-[11px] font-bold text-wm-text">{label}</span>
+                      <span className="block text-[9px] leading-snug text-wm-text-dim">{detail}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-[9px] text-wm-text-dim">Profit does not prove good execution. Loss does not prove bad execution.</p>
               </div>
 
               {/* Notes with emoji pickers */}
