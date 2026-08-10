@@ -2,29 +2,30 @@
 
 **Updated:** 2026-08-10 08:35 CDT
 
-**Production:** `main@c178b88` — Vercel READY
+**Production code release:** `main@2d468a0` — Vercel READY (`dpl_Eg4RNGhRecFoSzVyAwC8a9CTMR9m`)
 
-**Validated local continuation:** `main@4099f67` — not published
+**Validated continuation code:** `main@4099f67` — published inside release `2d468a0`
 
 ## Completed locally after the Claude morning handoff
 
 | SHA | Milestone | Proof | Production |
 |---|---|---|---|
-| `b4f99e3` | Fail-closed tape certification, symbol identity, proxy fidelity, Coinbase gap suppression, delayed/live candle consistency | 32 files / 242 tests; TypeScript; ESLint 0 errors | NO — GitHub write blocked |
-| `b78f9dd` | Market Event v2 `availableAt` + `rightsPolicyId` receipts | 32 files / 243 tests; TypeScript | NO |
-| `08b2b71` | Sealed pre-outcome Decision Memory + append-only amendments | 33 files / 249 tests; TypeScript; ESLint | NO |
-| `5ff7029` | Cost-aware Available R + risk-budget position sizing | 34 files / 255 tests; TypeScript; ESLint | NO |
-| `d544bac` | Journal Process vs Outcome capture/classification | 35 files / 260 tests; TypeScript; ESLint 0 errors | NO |
-| `4099f67` | Sealed Canonical Market State v1; Decision Memory schema binding | 36 files / 265 tests; TypeScript; diff check | NO |
+| `b4f99e3` | Fail-closed tape certification, symbol identity, proxy fidelity, Coinbase gap suppression, delayed/live candle consistency | 32 files / 242 tests; TypeScript; ESLint 0 errors | YES |
+| `b78f9dd` | Market Event v2 `availableAt` + `rightsPolicyId` receipts | 32 files / 243 tests; TypeScript | YES |
+| `08b2b71` | Sealed pre-outcome Decision Memory + append-only amendments | 33 files / 249 tests; TypeScript; ESLint | YES |
+| `5ff7029` | Cost-aware Available R + risk-budget position sizing | 34 files / 255 tests; TypeScript; ESLint | YES |
+| `d544bac` | Journal Process vs Outcome capture/classification | 35 files / 260 tests; TypeScript; ESLint 0 errors | YES |
+| `4099f67` | Sealed Canonical Market State v1; Decision Memory schema binding | 36 files / 265 tests; TypeScript; diff check | YES |
 
-## Publication blocker
+## Publication and visual receipt
 
-- Raw `git push`: network DNS blocked by the execution sandbox.
-- GitHub CLI: installed, but the `spaidsnipes` token is invalid (`gh auth status`).
-- Connected GitHub app: repository read succeeds; Git object creation returns HTTP 403 `Resource not accessible by integration`.
-- Local preview/build: Next/Turbopack helper processes cannot bind a port in this sandbox (`EPERM`). This is an access limitation, not a claimed application PASS.
+- GitHub `main` accepted the nine-commit continuation through `2d468a0`.
+- Exact-SHA deployment `dpl_Eg4RNGhRecFoSzVyAwC8a9CTMR9m` reached READY.
+- Targeted Vercel runtime-error check returned no grouped errors.
+- Authenticated production verification proved NQ candle truth remains DELAYED, BTC produced no false `Gaps N` claim during active tape, and Journal separates Process Quality from P&L with an unresolved default.
+- Evidence: parent-workspace `outputs/wm-production-reconcile-2026-08-10/12-nq-delayed-fixed-2d468a0.jpg`, `13-btc-gap-suppressed-2d468a0.jpg`, and `14-journal-process-outcome-2d468a0.jpg`.
 
-No production or visual PASS is claimed for the six local commits. The clean working repository is isolated at:
+The clean working repository is isolated at:
 
 `/Users/dspaidnoosleep/Documents/Codex/2026-08-09/above-the-hill-developments-wow-wealthymindsets/wm-pro-working`
 
@@ -40,8 +41,6 @@ No production or visual PASS is claimed for the six local commits. The clean wor
 
 ## Exact continuation
 
-1. Restore authenticated GitHub publication (`gh auth login -h github.com`) or grant the connected app contents-write access.
-2. From the isolated checkout, rebase only if remote `main` moved, rerun the full suite, and push `4099f67` plus this documentation commit.
-3. Require Vercel READY at the exact new SHA.
-4. Visually verify BTC gap suppression, NQ delayed/candle consistency, and Journal Process Quality at 360/390/834/1440 before claiming PASS.
-5. Wire the single Canonical Market State into the existing chart/coverage path; do not create parallel Profile/Heat Map state.
+1. Complete responsive Journal Process Quality acceptance at 360/390/834/1440; desktop production is proven.
+2. Wire the single Canonical Market State into the existing chart/coverage path; do not create parallel Profile/Heat Map state.
+3. Bind sealed Decision Memory and Available R to the paper execution firewall and Journal evidence path.

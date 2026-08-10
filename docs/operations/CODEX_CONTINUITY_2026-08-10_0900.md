@@ -99,3 +99,13 @@ git push origin main
 ```
 
 Do not claim deployment or battle-ready status until the exact resulting SHA is READY and the targeted user workflows are visually verified.
+
+## Release addendum
+
+- GitHub publication succeeded at `main@2d468a030b56eb31dd5ecf49b94a8733776736ad`.
+- Vercel deployment `dpl_Eg4RNGhRecFoSzVyAwC8a9CTMR9m` reached READY for that exact SHA.
+- The targeted Vercel runtime-error check returned no grouped errors.
+- Authenticated desktop production proof: NQ header/chart both remain DELAYED; BTC showed `WM SESSION · OBSERVED` without a false `Gaps N` claim during active tape; Journal shows Process Quality separately from P&L and defaults it to Unresolved.
+- Screenshot receipts are `12-nq-delayed-fixed-2d468a0.jpg`, `13-btc-gap-suppressed-2d468a0.jpg`, and `14-journal-process-outcome-2d468a0.jpg` under the parent workspace's `outputs/wm-production-reconcile-2026-08-10` directory.
+- No WM application console errors were observed; only unrelated wallet-extension warnings appeared.
+- Responsive acceptance and the broader auth/email release gate remain open. WM Pro is not yet battle-ready.
