@@ -176,3 +176,11 @@ IMPORTANT NOTES FOR CODEX/ANOTHER CLAUDE:
 - The only expected dirty tracked file at checkpoint time is inherited `tsconfig.tsbuildinfo`.
 - Screenshot receipts live outside the repo under the Codex output directory `wm-next16-ebeef73` plus the preceding `wm-order-flow-978f9b7` directory.
 - READY is not the workflow verdict; repeat the relevant user flow after any subsequent deployment.
+
+## POST-CHECKPOINT CONTINUATION
+
+- `91adb8f` compacted the live-footprint status at phone widths without hiding or weakening its truth contract.
+- Production deployment `dpl_5j2s9Qov3awfNWBwGgP6i9DibAos` is READY at exact SHA `91adb8fefbf59f1110ed6884625ccd50810358bf`.
+- Four fresh production screenshots were captured at 1440x1000, 834x1194, 390x844, and 360x800.
+- Desktop/tablet retain the full visible explanation. At 390/360 the visible card is `● LIVE TAPE · new bars only`, measured 163x25px at x=8, while the full limitation remains in the `role=status` accessible name and tooltip.
+- `document.body.scrollWidth === innerWidth` at all four widths. The measured phone overlap from the preceding screenshots is resolved.
