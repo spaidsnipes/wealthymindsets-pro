@@ -19,6 +19,7 @@ import { parseExchangeSymbol } from "@/lib/exchanges";
 import { DataVersionGuard } from "@/lib/chartContext";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
+import { getSessionNectarSnapshot, subscribeToSessionNectar } from "@/lib/marketData/sessionNectar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { priceSourceBadge } from "@/lib/priceSource";
 import type { PineOutput } from "@/lib/pine/types";
@@ -6980,12 +6981,31 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const horizonTime = tapeHorizonRef.current
             ? fmtTickMark(tapeHorizonRef.current.startedAtSec, 3)
             : "the first retained execution";
+          // Nectar Coverage certification (directive Part 8 — order-flow capability
+          // level made visible). Read live snapshot from the session Nectar
+          // collector for the current symbol's `trade` channel and surface
+          // fidelity + gap-count + retention truthfully. Cheap object copy;
+          // safe to inline in the chip render because the chip re-renders
+          // at ~4Hz on the existing sessionTapeTick.
+          const nectar = getSessionNectarSnapshot();
+          const symbolMatches = (ch: { instrumentId: string }) =>
+            ch.instrumentId === symbol.toUpperCase() || ch.instrumentId === symbol;
+          const tradeChannel = nectar.channels.find(ch => ch.channel === "trade" && symbolMatches(ch));
+          const fidelityLabel = tradeChannel?.fidelity ?? "OBSERVED";
+          const fidelityColor = fidelityLabel === "OBSERVED" ? "#00C076"
+                             : fidelityLabel === "DERIVED"  ? "#F0B429"
+                             : fidelityLabel === "PROXY"    ? "#F0B429"
+                             :                                "#8B92AC";
+          const gapCount = tradeChannel?.gapCount ?? 0;
+          const retentionShort = nectar.retentionState === "SESSION_ONLY_NO_RAW_PAYLOADS"
+            ? "session-only"
+            : nectar.retentionState;
           return (
             <div
               className="wm-live-session-chip"
               role="group"
-              aria-label={`Current tab tape counters since ${horizonTime}. Delta ${fmt(s.delta)}. ${s.tradeCount} trades. ${s.bigTradeCount} large trades.`}
-              title={`WM observed in this tab for this symbol.\nBuys: ${fmt(s.buyVol)}\nSells: ${fmt(s.sellVol)}\nDelta = Buys − Sells`}
+              aria-label={`Current tab tape counters since ${horizonTime}. Fidelity ${fidelityLabel}. Delta ${fmt(s.delta)}. ${s.tradeCount} trades. ${s.bigTradeCount} large trades. ${gapCount} gaps. Retention: ${retentionShort}.`}
+              title={`WM observed in this tab for this symbol.\nBuys: ${fmt(s.buyVol)}\nSells: ${fmt(s.sellVol)}\nDelta = Buys − Sells\nFidelity: ${fidelityLabel} (source-classified)\nGaps observed: ${gapCount}\nRetention: ${retentionShort} — raw tape is not durably stored (rights UNKNOWN)`}
               style={{
                 position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)",
                 zIndex: 58, padding: "5px 10px", borderRadius: 7, pointerEvents: "auto",
@@ -6996,6 +7016,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             >
               <span>
                 <span style={{ color: "#8B92AC", fontWeight: 600 }}>WM SESSION</span>
+                <span style={{ color: fidelityColor, fontWeight: 850, marginLeft: 6, letterSpacing: "0.02em" }}>· {fidelityLabel}</span>
               </span>
               <span>
                 <span style={{ color: "#8B92AC", fontWeight: 600 }}>Δ </span>
@@ -7009,6 +7030,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 <span style={{ color: "#8B92AC", fontWeight: 600 }}>Big </span>
                 <span style={{ color: "#F0B429", fontWeight: 850 }}>{s.bigTradeCount}</span>
               </span>
+              {gapCount > 0 && (
+                <span>
+                  <span style={{ color: "#8B92AC", fontWeight: 600 }}>Gaps </span>
+                  <span style={{ color: "#FF4D6A", fontWeight: 850 }}>{gapCount}</span>
+                </span>
+              )}
             </div>
           );
         })()}
