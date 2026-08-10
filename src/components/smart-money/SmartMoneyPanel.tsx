@@ -2,13 +2,12 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { X, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, TrendingUp, TrendingDown, Zap, Eye, Swords, GraduationCap, Info, Droplets, Volume2, VolumeX, Minimize2, Maximize2 } from "lucide-react";
+import { X, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, TrendingUp, TrendingDown, Zap, Eye, Swords, GraduationCap, Info, Droplets, Minimize2, Maximize2 } from "lucide-react";
 import { WMLogo } from "@/components/ui/WMLogo";
 import { clsx } from "clsx";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { getFabioInsights, inferAssetClass } from "@/lib/fabio";
 import { evaluateClcEvidence } from "@/lib/decisionIntegrity";
-import { playSfx, isSfxOn, setSfxOn } from "@/lib/sfx";
 
 // ─── Signal types ────────────────────────────────────────────────────────────
 type SignalStrength = "strong" | "moderate" | "weak" | "neutral";
@@ -345,10 +344,6 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
   const [pulse, setPulse] = useState(false);
   const [showEdu, setShowEdu] = useState(false);
 
-  // ── Sound FX layer (opt-in, synthesized) ────────────────────────────────────
-  const [sfxOn, setSfxOnState] = useState(false);
-  useEffect(() => { setSfxOnState(isSfxOn()); }, []);           // hydrate from localStorage
-
   // WM-UX-P0-01 — Delta bubble level-count control, migrated here from the Big
   // Trades gear so the selector sits with the bubbles it controls. Reuses the
   // EXISTING wm_delta_levels key + wm-delta-levels event untouched, so MainChart
@@ -372,13 +367,6 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
     window.addEventListener("wm-delta-levels", onEvt);
     return () => window.removeEventListener("wm-delta-levels", onEvt);
   }, []);
-  const toggleSfx = () => {
-    const next = !sfxOn;
-    setSfxOn(next);
-    setSfxOnState(next);
-    if (next) playSfx("bell", { force: true });                // the toggle click IS the gesture → confirm with a ding
-  };
-
   // Gentle "just updated" pulse on an independent heartbeat (signals themselves
   // are derived synchronously above, so no timer is needed to refresh them).
   useEffect(() => {
@@ -504,20 +492,22 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
         </button>
       </div>
 
-      {/* Confluence score — real 0-100 from independent lenses */}
+      {/* Missing CLC evidence suppresses the persuasive aggregate number. */}
       <div className="px-2 py-1.5 border-b border-wm-border shrink-0">
         <div className="flex items-center justify-between mb-1">
           <span className="text-[10px] text-wm-text-muted">Confluence Score</span>
-          <span className="text-[11px] font-black tabular-nums" style={{ color: scoreColor }}>
-            {conf.score}<span className="text-[9px] text-wm-text-dim font-bold">/100</span>
+          <span className="text-[10px] font-black text-wm-gold">
+            {clcDecision.status === "INSUFFICIENT_EVIDENCE" ? "INSUFFICIENT EVIDENCE" : `${conf.score}/100`}
           </span>
         </div>
-        <div className="h-2 rounded-full bg-wm-muted overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${conf.score}%`, background: `linear-gradient(90deg, ${scoreColor}, #4FA3E0)` }}
-          />
-        </div>
+        {clcDecision.status === "READY_FOR_RISK_REVIEW" && (
+          <div className="h-2 rounded-full bg-wm-muted overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${conf.score}%`, background: `linear-gradient(90deg, ${scoreColor}, #4FA3E0)` }}
+            />
+          </div>
+        )}
         {/* Independent-lens breakdown — shows genuine agreement / conflict */}
         <div className="flex flex-wrap gap-1 mt-1.5">
           {conf.lenses.map(l => (
@@ -680,17 +670,6 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
 
         <p className="text-[9px] text-wm-text-dim leading-relaxed">{pressureReason}</p>
 
-        {/* Opt-in sound layer — synthesized (Web Audio), never a licensed clip */}
-        <button
-          onClick={toggleSfx}
-          className="mt-2 flex items-center gap-1.5 text-[9px] text-wm-text-dim hover:text-wm-text transition-colors"
-          title={sfxOn ? "Signal sounds ON — ring bell on a fresh fire, body-shot thump on a paper order. Click to mute." : "Signal sounds OFF — click to enable. Fully synthesized, no audio files."}
-        >
-          {sfxOn ? <Volume2 size={11} className="text-wm-gold" /> : <VolumeX size={11} />}
-          <span>Signal sounds:&nbsp;<span className={clsx("font-black", sfxOn ? "text-wm-gold" : "text-wm-text-muted")}>{sfxOn ? "ON" : "OFF"}</span></span>
-        </button>
-
-        <a href="/paper" className="mt-1.5 block text-[9px] text-wm-gold hover:underline">Open Paper Trading →</a>
       </div>
 
       {/* ── WM DELTA BUBBLES — live net delta at each price level ───────────── */}
