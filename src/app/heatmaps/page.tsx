@@ -568,6 +568,36 @@ function useLivePct(tf: string) {
     return {};
   });
   const [loading, setLoading] = useState(true);
+  const [observedAt, setObservedAt] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem(HM_CACHE_PREFIX + tf);
+      return raw ? (JSON.parse(raw) as { ts?: number }).ts ?? null : null;
+    } catch { return null; }
+  });
+  const [qualityState, setQualityState] = useState<"DELAYED" | "STALE" | "UNAVAILABLE">(
+    Object.keys(pcts).length ? "STALE" : "UNAVAILABLE",
+  );
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(HM_CACHE_PREFIX + tf);
+      if (!raw) {
+        setPcts({});
+        setObservedAt(null);
+        setQualityState("UNAVAILABLE");
+        return;
+      }
+      const cached = JSON.parse(raw) as { data?: Record<string, number>; ts?: number };
+      setPcts(cached.data ?? {});
+      setObservedAt(cached.ts ?? null);
+      setQualityState(Object.keys(cached.data ?? {}).length ? "STALE" : "UNAVAILABLE");
+    } catch {
+      setPcts({});
+      setObservedAt(null);
+      setQualityState("UNAVAILABLE");
+    }
+  }, [tf]);
 
   useEffect(() => {
     let cancelled = false;
@@ -581,13 +611,23 @@ function useLivePct(tf: string) {
           `/api/heatmap?period=${encodeURIComponent(tf)}&syms=${encodeURIComponent(syms.join(","))}`,
           { cache: "no-store" }
         );
-        const json = await res.json() as { results?: Record<string, number> };
+        const json = await res.json() as {
+          results?: Record<string, number>;
+          qualityState?: "DELAYED";
+          receiveTimestamp?: string;
+        };
         if (!cancelled && json.results) {
+          const receivedAt = json.receiveTimestamp ? Date.parse(json.receiveTimestamp) : Date.now();
           setPcts(json.results);
+          setObservedAt(receivedAt);
+          setQualityState(json.qualityState ?? "DELAYED");
           // Cache to localStorage for instant re-load
-          try { localStorage.setItem(HM_CACHE_PREFIX + tf, JSON.stringify({ data: json.results, ts: Date.now() })); } catch {}
+          try { localStorage.setItem(HM_CACHE_PREFIX + tf, JSON.stringify({ data: json.results, ts: receivedAt })); } catch {}
         }
-      } catch { /* network hiccup — keep previous data */ }
+      } catch {
+        // A retained snapshot may remain useful, but it must not stay labelled delayed/current.
+        if (!cancelled) setQualityState(Object.keys(pcts).length ? "STALE" : "UNAVAILABLE");
+      }
       finally { if (!cancelled) setLoading(false); }
     }
 
@@ -598,7 +638,7 @@ function useLivePct(tf: string) {
     return () => { cancelled = true; clearInterval(id); };
   }, [tf]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { pcts, loading };
+  return { pcts, loading, observedAt, qualityState };
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -708,7 +748,7 @@ export default function HeatmapsPage() {
   const [activeTF,   setActiveTF]   = useState("1D");
   const [hovered,    setHovered]    = useState<{ industry: Industry; x: number; y: number } | null>(null);
   const [search,     setSearch]     = useState("");
-  const { pcts, loading: heatLoading } = useLivePct(activeTF);
+  const { pcts, loading: heatLoading, observedAt, qualityState } = useLivePct(activeTF);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { setActiveSymbol } = useActiveSymbol();
@@ -769,6 +809,17 @@ export default function HeatmapsPage() {
         {heatLoading && (
           <span style={{ fontSize: 10, color: "#4FA3E0", marginLeft: 4 }}>Loading…</span>
         )}
+        <span
+          aria-label={`Heat map data ${qualityState.toLowerCase()}${observedAt ? `, received ${new Date(observedAt).toLocaleString()}` : ""}`}
+          title="Heat-map returns are observed snapshots, not an executable quote feed."
+          style={{
+            fontSize: 9, fontWeight: 800, letterSpacing: 0.4,
+            color: qualityState === "DELAYED" ? "#F0B429" : qualityState === "STALE" ? "#FF7A45" : "#8B92AC",
+          }}
+        >
+          {qualityState === "DELAYED" ? "◐ DELAYED" : qualityState === "STALE" ? "! STALE" : "— UNAVAILABLE"}
+          {observedAt ? ` · received ${new Date(observedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}
+        </span>
         <div style={{ flex: 1 }} />
         <input
           value={search}

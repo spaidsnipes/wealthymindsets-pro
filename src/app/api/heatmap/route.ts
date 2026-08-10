@@ -136,7 +136,13 @@ export async function GET(request: Request) {
       }
       return fetchMultiDay(syms, daysForPeriod(period));
     });
-    return NextResponse.json({ period, results });
+    return NextResponse.json({
+      period,
+      results,
+      qualityState: "DELAYED",
+      receiveTimestamp: new Date().toISOString(),
+      sourceProvenance: "yahoo-finance-proxy",
+    });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
