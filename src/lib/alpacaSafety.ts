@@ -26,3 +26,14 @@ export function liveAlpacaDisabledResponse() {
     environment: ALPACA_EXECUTION_MODE,
   } as const;
 }
+
+export function isAuthorizedAlpacaOwner(userId: string, configuredOwnerId: string | undefined): boolean {
+  return Boolean(configuredOwnerId) && userId === configuredOwnerId;
+}
+
+export function alpacaAccountUnauthorizedResponse() {
+  return {
+    error: "This brokerage account is not authorized for the current user.",
+    code: "BROKER_ACCOUNT_NOT_AUTHORIZED",
+  } as const;
+}

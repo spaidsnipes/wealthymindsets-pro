@@ -9,12 +9,15 @@ import { requireAuth } from "@/lib/requireAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import {
   ALPACA_PAPER_BASE,
+  alpacaAccountUnauthorizedResponse,
+  isAuthorizedAlpacaOwner,
   liveAlpacaDisabledResponse,
   rejectsLiveAlpacaRequest,
 } from "@/lib/alpacaSafety";
 
 const PAPER_KEY = process.env.ALPACA_PAPER_KEY ?? "";
 const PAPER_SECRET = process.env.ALPACA_PAPER_SECRET ?? "";
+const ALPACA_OWNER_USER_ID = process.env.ALPACA_OWNER_USER_ID;
 
 const headers = () => ({
   "APCA-API-KEY-ID": PAPER_KEY,
@@ -26,6 +29,9 @@ export async function POST(req: NextRequest) {
   // WM-SEC-P0-06: was unauthenticated. Executes real Alpaca orders.
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
+  if (!isAuthorizedAlpacaOwner(auth.user.sub, ALPACA_OWNER_USER_ID)) {
+    return NextResponse.json(alpacaAccountUnauthorizedResponse(), { status: 403 });
+  }
   const rl = checkRateLimit(`alpaca-legacy-paper-post:${auth.user.sub}`, { max: 30, windowMs: 60_000 });
   if (!rl.ok) return rl.response;
   try {
@@ -113,6 +119,9 @@ export async function GET(req: NextRequest) {
   // WM-SEC-P0-06: was unauthenticated. Reads live account state.
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
+  if (!isAuthorizedAlpacaOwner(auth.user.sub, ALPACA_OWNER_USER_ID)) {
+    return NextResponse.json(alpacaAccountUnauthorizedResponse(), { status: 403 });
+  }
   const { searchParams } = new URL(req.url);
   const action = searchParams.get("action") ?? "positions";
 

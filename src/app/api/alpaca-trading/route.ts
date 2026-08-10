@@ -16,12 +16,15 @@ import { requireAuth } from "@/lib/requireAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import {
   ALPACA_PAPER_BASE,
+  alpacaAccountUnauthorizedResponse,
+  isAuthorizedAlpacaOwner,
   liveAlpacaDisabledResponse,
   rejectsLiveAlpacaRequest,
 } from "@/lib/alpacaSafety";
 
 const ALPACA_PAPER_KEY    = process.env.ALPACA_PAPER_KEY    ?? "";
 const ALPACA_PAPER_SECRET = process.env.ALPACA_PAPER_SECRET ?? "";
+const ALPACA_OWNER_USER_ID = process.env.ALPACA_OWNER_USER_ID;
 const DATA_BASE     = "https://data.alpaca.markets";
 
 function authHeaders() {
@@ -36,6 +39,9 @@ export async function GET(request: Request) {
   // WM-SEC-P0-06: was unauthenticated. Reads Alpaca account state.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  if (!isAuthorizedAlpacaOwner(auth.user.sub, ALPACA_OWNER_USER_ID)) {
+    return NextResponse.json(alpacaAccountUnauthorizedResponse(), { status: 403 });
+  }
   const { searchParams } = new URL(request.url);
   const action = searchParams.get("action") ?? "account";
 
@@ -90,6 +96,9 @@ export async function POST(request: Request) {
   // WM-SEC-P0-06: authenticated paper-order path. Live stays fail-closed.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  if (!isAuthorizedAlpacaOwner(auth.user.sub, ALPACA_OWNER_USER_ID)) {
+    return NextResponse.json(alpacaAccountUnauthorizedResponse(), { status: 403 });
+  }
   // WM-SEC-P0-07: cap order submissions per user. 30/min is generous for a
   // human trader (2s cadence) and stops a runaway loop from placing hundreds
   // of orders before anyone notices.
@@ -161,6 +170,9 @@ export async function DELETE(request: Request) {
   // WM-SEC-P0-06: authenticated paper-order cancellation only.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  if (!isAuthorizedAlpacaOwner(auth.user.sub, ALPACA_OWNER_USER_ID)) {
+    return NextResponse.json(alpacaAccountUnauthorizedResponse(), { status: 403 });
+  }
   const { searchParams } = new URL(request.url);
   const orderId = searchParams.get("id");
 

@@ -3,6 +3,7 @@ import {
   ALPACA_EXECUTION_MODE,
   ALPACA_PAPER_BASE,
   liveAlpacaDisabledResponse,
+  isAuthorizedAlpacaOwner,
   rejectsLiveAlpacaRequest,
 } from "./alpacaSafety";
 
@@ -25,5 +26,11 @@ describe("Alpaca capital-safety boundary", () => {
       code: "LIVE_EXECUTION_DISABLED",
       environment: "PAPER_ONLY",
     });
+  });
+
+  it("denies shared account access unless the authenticated owner is configured", () => {
+    expect(isAuthorizedAlpacaOwner("user-a", undefined)).toBe(false);
+    expect(isAuthorizedAlpacaOwner("user-a", "user-b")).toBe(false);
+    expect(isAuthorizedAlpacaOwner("user-a", "user-a")).toBe(true);
   });
 });
