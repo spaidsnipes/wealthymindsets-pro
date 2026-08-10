@@ -24,16 +24,30 @@ function getSessionLabel(): string {
 /* ── Individual index ticker ─────────────────────────────── */
 function IndexTicker({ label, symbol }: { label: string; symbol: string }) {
   const { ticker } = useWebSocket({ symbol, timeframe: "1m" });
-  const up = ticker.change >= 0;
+  // Truth guard: useWebSocket returns a zero-initialized ticker before/without
+  // a real subscription. Rendering "0.00 +0.00 +0.00%" for every index is
+  // fabricated data. Only paint values when a real quote actually arrived.
+  const hasQuote = Number.isFinite(ticker.price) && ticker.price > 0;
+  const hasChange = hasQuote && Number.isFinite(ticker.change) && Number.isFinite(ticker.changePct);
+  const up = hasChange && ticker.change >= 0;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 14px", borderLeft: "1px solid #1E2030" }}>
       <span style={{ color: "#8B8FA8", fontSize: 11 }}>{label}</span>
-      <span style={{ color: "#E2E8F0", fontSize: 11, fontFamily: "monospace", fontWeight: 600 }}>
-        {ticker.price.toFixed(2)}
-      </span>
-      <span style={{ color: up ? "#00C076" : "#FF4D67", fontSize: 11, fontFamily: "monospace" }}>
-        {up ? "▲" : "▼"} {up ? "+" : ""}{ticker.change.toFixed(2)} {up ? "+" : ""}{ticker.changePct.toFixed(2)}%
-      </span>
+      {hasQuote ? (
+        <span style={{ color: "#E2E8F0", fontSize: 11, fontFamily: "monospace", fontWeight: 600 }}>
+          {ticker.price.toFixed(2)}
+        </span>
+      ) : (
+        <span
+          style={{ color: "#8B8FA8", fontSize: 11, fontFamily: "monospace" }}
+          title="No verified quote from the current feed yet."
+        >—</span>
+      )}
+      {hasChange ? (
+        <span style={{ color: up ? "#00C076" : "#FF4D67", fontSize: 11, fontFamily: "monospace" }}>
+          {up ? "▲" : "▼"} {up ? "+" : ""}{ticker.change.toFixed(2)} {up ? "+" : ""}{ticker.changePct.toFixed(2)}%
+        </span>
+      ) : null}
     </div>
   );
 }
