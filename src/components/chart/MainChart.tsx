@@ -1273,6 +1273,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // Map<barTime, Map<priceRounded, {bid, ask}>>
   const tickAccRef = useRef<Map<number, Map<number, { bid: number; ask: number }>>>(new Map());
   const processedTicksRef = useRef<Set<string>>(new Set());
+  // WM Session Tape Stats — running counters WM has observed for the current
+  // symbol since tape collection began. Purely from real tick.trade events.
+  // Powers the Live Session chip so Delta/CVD/Big Trades tools show something
+  // ALIVE even when historical footprint remains blank per data-feed reality.
+  const sessionTapeStatsRef = useRef<{ delta: number; buyVol: number; sellVol: number; tradeCount: number; bigTradeCount: number }>({
+    delta: 0, buyVol: 0, sellVol: 0, tradeCount: 0, bigTradeCount: 0,
+  });
+  const [sessionTapeTick, setSessionTapeTick] = useState<number>(0); // render trigger
+  const sessionTapeFlushRef = useRef<number>(0);
   // ── Delta accumulator: SEPARATE from Big Trades. Captures EVERY real executed
   // trade (no minLot floor) so net aggressive delta per price zone reflects the
   // full aggressive flow. Real trades only (tick.trade) — never quote/synthetic. ──
@@ -1320,6 +1329,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     deltaTickAccRef.current = new Map();
     deltaProcessedRef.current = new Set();
     tapeHorizonRef.current = null;
+    // Session tape stats reset with the symbol — the counter always tracks
+    // what WM has observed for THIS symbol since collection began.
+    sessionTapeStatsRef.current = { delta: 0, buyVol: 0, sellVol: 0, tradeCount: 0, bigTradeCount: 0 };
+    setSessionTapeTick(0);
     // Best-effort restore: symbol changed, try to find a persisted horizon for
     // the current (symbol, tapeSource). tapeSource may be null at this point;
     // the tick-arrival effect below will retry restore before stamping fresh.
@@ -1386,10 +1399,23 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         bid: existing.bid + (tick.side === "sell" ? tick.size : 0),
         ask: existing.ask + (tick.side === "buy"  ? tick.size : 0),
       });
+      // WM Session Tape Stats — cumulative counters over the collection window.
+      const stats = sessionTapeStatsRef.current;
+      if (tick.side === "buy")  { stats.buyVol  += tick.size; stats.delta += tick.size; }
+      if (tick.side === "sell") { stats.sellVol += tick.size; stats.delta -= tick.size; }
+      stats.tradeCount += 1;
+      if (tick.size >= minBigTradeLot(base)) stats.bigTradeCount += 1;
     });
     if (tickAccRef.current.size > 400) {
       const oldest = [...tickAccRef.current.keys()].sort((a, b) => a - b)[0];
       tickAccRef.current.delete(oldest);
+    }
+    // Throttled render trigger for the Live Session chip. rAF-safe: only bumps
+    // state up to ~4x per second so a busy tape does not thrash React.
+    const now = Date.now();
+    if (now - sessionTapeFlushRef.current > 250) {
+      sessionTapeFlushRef.current = now;
+      setSessionTapeTick(t => t + 1);
     }
   }, [recentTicks, timeframe, base, tapeSource]);
 
@@ -6951,6 +6977,54 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             </span>
           </div>
         )}
+
+        {/* WM Live Session tape chip — running counters from real observed
+            executions. Renders BELOW the honest banner and only when at least
+            one trade has arrived. Aligns with Founder Mockup 1 "Order Flow
+            Command Deck" intelligence strip (mini-form). Values are honest:
+            they're WM's observation, labeled as such. */}
+        {footprintEnabled && hasRealAggressorTape(tapeSource ?? "") && sessionTapeTick > 0 && (() => {
+          const s = sessionTapeStatsRef.current;
+          const fmt = (n: number) => {
+            const abs = Math.abs(n);
+            if (abs >= 1e6) return (n / 1e6).toFixed(2) + "M";
+            if (abs >= 1e3) return (n / 1e3).toFixed(2) + "K";
+            if (abs >= 10)  return n.toFixed(2);
+            return n.toFixed(4);
+          };
+          const deltaColor = s.delta > 0 ? "#00C076" : s.delta < 0 ? "#FF4D6A" : "#8B92AC";
+          const deltaSign  = s.delta > 0 ? "+" : "";
+          return (
+            <div
+              role="status"
+              aria-live="polite"
+              title={`WM observed since tape opened for this symbol.\nBuys: ${fmt(s.buyVol)}\nSells: ${fmt(s.sellVol)}\nDelta = Buys − Sells`}
+              style={{
+                position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)",
+                zIndex: 58, padding: "5px 10px", borderRadius: 7, pointerEvents: "auto",
+                background: "rgba(11,14,26,0.90)", border: "1px solid rgba(240,180,41,0.35)",
+                color: "#D8DCEA", fontSize: 10, fontWeight: 700, fontVariantNumeric: "tabular-nums",
+                display: "flex", gap: 14, alignItems: "center",
+              }}
+            >
+              <span>
+                <span style={{ color: "#8B92AC", fontWeight: 600 }}>WM SESSION</span>
+              </span>
+              <span>
+                <span style={{ color: "#8B92AC", fontWeight: 600 }}>Δ </span>
+                <span style={{ color: deltaColor, fontWeight: 850 }}>{deltaSign}{fmt(s.delta)}</span>
+              </span>
+              <span>
+                <span style={{ color: "#8B92AC", fontWeight: 600 }}>Trades </span>
+                <span style={{ color: "#D8DCEA", fontWeight: 850 }}>{s.tradeCount}</span>
+              </span>
+              <span>
+                <span style={{ color: "#8B92AC", fontWeight: 600 }}>Big </span>
+                <span style={{ color: "#F0B429", fontWeight: 850 }}>{s.bigTradeCount}</span>
+              </span>
+            </div>
+          );
+        })()}
 
         {/* ── Big-Trade comic speech-bubble tooltip (🫧 hover) ─────── */}
         {bubbleTip && (() => {
