@@ -336,7 +336,7 @@ export default function ScannerPage() {
   const [sortKey,       setSortKey]       = useState<SortKey>("time");
   const [sortDir,       setSortDir]       = useState<SortDir>("desc");
   const [live,          setLive]          = useState(true);
-  const [lastRefresh,   setLastRefresh]   = useState(Date.now());
+  const [lastRefresh,   setLastRefresh]   = useState<number | null>(null);
   const [selected,      setSelected]      = useState<ScanResult | null>(null);
   const [filterOpen,    setFilterOpen]    = useState(true);
   const [activeSignals, setActiveSignals] = useState<Signal[]>(SIGNALS);
@@ -514,9 +514,10 @@ export default function ScannerPage() {
             <SlidersHorizontal size={11}/> Filters
           </button>
           <button onClick={() => setLive(v => !v)}
+            title="Controls automatic refresh cadence; it does not certify every row as real-time."
             className={clsx("wm-scanner-mobile-secondary flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs border font-bold transition-all",
-              live ? "bg-wm-green/15 text-wm-green border-wm-green/40" : "text-wm-text-muted border-wm-border")}>
-            {live ? <><Activity size={11}/> LIVE</> : <><Pause size={11}/> Paused</>}
+              live ? "bg-wm-blue/15 text-wm-blue border-wm-blue/40" : "text-wm-text-muted border-wm-border")}>
+            {live ? <><Activity size={11}/> AUTO 30s</> : <><Pause size={11}/> Paused</>}
           </button>
           {failedRsiIdentities.length > 0 && (
             <label htmlFor="scanner-request-identity" className="wm-scanner-mobile-secondary flex items-center gap-1.5 text-[10px] text-wm-text-muted">
@@ -811,11 +812,13 @@ export default function ScannerPage() {
 
       {/* Status bar */}
       <div className="flex items-center gap-3 px-4 py-1 border-t border-wm-border bg-wm-dark shrink-0 text-[9px] text-wm-text-dim">
-        <span suppressHydrationWarning>Refreshed: {new Date(lastRefresh).toLocaleTimeString()}</span>
+        <span suppressHydrationWarning>
+          {lastRefresh ? `Received: ${new Date(lastRefresh).toLocaleTimeString()}` : "Not yet received"}
+        </span>
         <span>·</span>
         <span>{filtered.length}/{results.length} results</span>
         <span>·</span>
-        <span className={live?"text-wm-green":""}>● {live?"LIVE (30s)":"Paused"}</span>
+        <span className={live?"text-wm-blue":""}>{live ? "↻ AUTO REFRESH (30s)" : "— PAUSED"}</span>
         <span>·</span>
         <span>{activeSignals.length} signal types</span>
       </div>
