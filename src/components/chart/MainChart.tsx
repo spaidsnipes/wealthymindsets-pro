@@ -6803,8 +6803,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         )}
         {footprintEnabled && hasRealAggressorTape(tapeSource ?? "") && recentTicks?.some(t => t.trade) && (
           <div
+            className="wm-footprint-live-status"
             role="status"
             aria-live="polite"
+            aria-label="Live footprint recording. Historical bars before this tab opened stay blank because the feed does not provide historical executed-trade tape."
             title="Free-tier providers do not deliver per-trade tape for historical bars. Only bars that open while this tab is live will accumulate footprint data."
             style={{
               position: "absolute", top: 42, left: "50%", transform: "translateX(-50%)",
@@ -6813,8 +6815,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               color: "#8B92AC", fontSize: 10, fontWeight: 600,
             }}
           >
-            <span style={{ color: "#00C076", fontWeight: 800 }}>● Live footprint recording</span>
-            {" "}— historical bars pre-tab-open stay blank (hover for details).
+            <span className="wm-footprint-live-status__full">
+              <span style={{ color: "#00C076", fontWeight: 800 }}>● Live footprint recording</span>
+              {" "}— historical bars pre-tab-open stay blank (hover for details).
+            </span>
+            <span className="wm-footprint-live-status__compact" aria-hidden="true">
+              <span style={{ color: "#00C076", fontWeight: 850 }}>● LIVE TAPE</span>
+              {" "}· new bars only
+            </span>
           </div>
         )}
 

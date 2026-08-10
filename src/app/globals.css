@@ -637,3 +637,23 @@ input[type=range]::-webkit-slider-runnable-track {
 .wm-light [style*="#0A0A0A"] {
   background-color: #ffffff !important;
 }
+
+/* The footprint limitation must remain visible on phones without covering the
+   evidence it explains. The full wording stays in the accessible name/title. */
+.wm-footprint-live-status__compact { display: none; }
+
+@media (max-width: 480px) {
+  .wm-footprint-live-status {
+    left: 8px !important;
+    right: 82px !important;
+    transform: none !important;
+    width: max-content;
+    max-width: calc(100% - 90px);
+    padding: 4px 8px !important;
+    white-space: nowrap;
+    text-align: center;
+  }
+
+  .wm-footprint-live-status__full { display: none; }
+  .wm-footprint-live-status__compact { display: inline; }
+}
