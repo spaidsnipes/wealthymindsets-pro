@@ -1285,6 +1285,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   });
   const [sessionTapeTick, setSessionTapeTick] = useState<number>(0); // render trigger
   const sessionTapeFlushRef = useRef<number>(0);
+  // CVD sparkline sample buffer — rolling 24-point trajectory of cumulative
+  // delta over time. One sample per throttled flush (~4Hz), so a full buffer
+  // represents ~6 seconds of live tape. Rendered inline as an SVG polyline
+  // inside the chip, so the chip visually breathes as Δ moves. Directive
+  // "living intelligence" aesthetic per Founder Mockup 1.
+  const cvdSparkRef = useRef<number[]>([]);
   // ── Delta accumulator: SEPARATE from Big Trades. Captures EVERY real executed
   // trade (no minLot floor) so net aggressive delta per price zone reflects the
   // full aggressive flow. Real trades only (tick.trade) — never quote/synthetic. ──
@@ -1325,6 +1331,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // Session tape stats reset with the symbol — the counter always tracks
     // what WM has observed for THIS symbol since collection began.
     sessionTapeStatsRef.current = { delta: 0, buyVol: 0, sellVol: 0, tradeCount: 0, bigTradeCount: 0 };
+    cvdSparkRef.current = [];
     setSessionTapeTick(0);
   }, [symbol, tapeSource, timeframe]);
 
@@ -1379,6 +1386,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     const now = Date.now();
     if (now - sessionTapeFlushRef.current > 250) {
       sessionTapeFlushRef.current = now;
+      // Push a rolling sparkline sample of cumulative delta. Ring buffer
+      // capped at 24 points (~6 seconds at 4Hz flush).
+      const spark = cvdSparkRef.current;
+      spark.push(sessionTapeStatsRef.current.delta);
+      if (spark.length > 24) spark.shift();
       setSessionTapeTick(t => t + 1);
     }
   }, [recentTicks, timeframe, base, tapeSource]);
@@ -7018,9 +7030,40 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 <span style={{ color: "#8B92AC", fontWeight: 600 }}>WM SESSION</span>
                 <span style={{ color: fidelityColor, fontWeight: 850, marginLeft: 6, letterSpacing: "0.02em" }}>· {fidelityLabel}</span>
               </span>
-              <span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                 <span style={{ color: "#8B92AC", fontWeight: 600 }}>Δ </span>
                 <span style={{ color: deltaColor, fontWeight: 850 }}>{deltaSign}{fmt(s.delta)}</span>
+                {/* Live CVD sparkline — visually breathes as Δ moves; matches
+                    Founder Mockup 1 living-intelligence aesthetic. Line color
+                    follows current-delta polarity. Auto-scales to buffer
+                    min/max so a small delta swing still reads clearly. */}
+                {(() => {
+                  const buf = cvdSparkRef.current;
+                  if (buf.length < 2) return null;
+                  const w = 44, h = 12;
+                  const min = Math.min(...buf);
+                  const max = Math.max(...buf);
+                  const range = max - min || 1;
+                  const step = w / (buf.length - 1);
+                  const pts = buf.map((v, i) => `${(i * step).toFixed(1)},${(h - ((v - min) / range) * h).toFixed(1)}`).join(" ");
+                  // Zero line for reference — subtle grey.
+                  const zeroY = min <= 0 && max >= 0 ? (h - ((0 - min) / range) * h) : null;
+                  return (
+                    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ display: "block", overflow: "visible" }} aria-hidden="true">
+                      {zeroY !== null && (
+                        <line x1={0} x2={w} y1={zeroY} y2={zeroY} stroke="rgba(139,146,172,0.35)" strokeWidth={0.5} strokeDasharray="2 2" />
+                      )}
+                      <polyline
+                        fill="none"
+                        stroke={deltaColor}
+                        strokeWidth={1.2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        points={pts}
+                      />
+                    </svg>
+                  );
+                })()}
               </span>
               <span>
                 <span style={{ color: "#8B92AC", fontWeight: 600 }}>Trades </span>
