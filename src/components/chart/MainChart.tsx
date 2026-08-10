@@ -3823,8 +3823,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       });
     };
 
-    const onDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
+    const onDown = (e: PointerEvent) => {
+      if (!e.isPrimary || e.button !== 0) return;
       if (drawingToolRef.current !== "cursor") return; // let drawing tools own the mouse
       // Skip the right price-axis gutter — that region is owned by the dedicated
       // axis drag-to-SCALE handler below. Body drag = pan; axis drag = stretch.
@@ -3847,8 +3847,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       startY = e.clientY;
       dragging = true;
     };
-    const onMove = (e: MouseEvent) => {
-      if (!dragging) return;
+    const onMove = (e: PointerEvent) => {
+      if (!dragging || !e.isPrimary) return;
       const h = el.clientHeight; if (h <= 0) return;
       const dy = e.clientY - startY;
       if (Math.abs(dy) < 2) return;
@@ -3867,15 +3867,17 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       reapply();
     };
 
-    el.addEventListener("mousedown", onDown);
+    el.addEventListener("pointerdown", onDown);
     el.addEventListener("dblclick", onDbl);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
     return () => {
-      el.removeEventListener("mousedown", onDown);
+      el.removeEventListener("pointerdown", onDown);
       el.removeEventListener("dblclick", onDbl);
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
     };
   }, [ready]);
 
@@ -3904,14 +3906,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       pending = null;
       reapply();
     };
-    const onAxis = (e: MouseEvent) => {
+    const onAxis = (e: PointerEvent) => {
       const rect = el.getBoundingClientRect();
       const localX = e.clientX - rect.left;
       let axW = 0; try { axW = (chartRef.current as any)?.priceScale?.("right")?.width?.() ?? 0; } catch {}
       return axW > 0 && localX >= el.clientWidth - axW - 2 && localX <= el.clientWidth + 4;
     };
-    const onDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
+    const onDown = (e: PointerEvent) => {
+      if (!e.isPrimary || e.button !== 0) return;
       if (!onAxis(e)) return;
       const cs = candleRef.current; if (!cs) return;
       const h = el.clientHeight;
@@ -3931,8 +3933,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       e.preventDefault();
       e.stopPropagation();
     };
-    const onMove = (e: MouseEvent) => {
-      if (!scaling) return;
+    const onMove = (e: PointerEvent) => {
+      if (!scaling || !e.isPrimary) return;
       const h = el.clientHeight; if (h <= 0) return;
       const dy = e.clientY - startY;
       // Exponential factor → smooth, symmetric, never inverts. Drag DOWN (dy>0)
@@ -3955,13 +3957,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     };
 
     // Capture phase so we intercept the axis BEFORE the library's own handlers.
-    el.addEventListener("mousedown", onDown, true);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    el.addEventListener("pointerdown", onDown, true);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
     return () => {
-      el.removeEventListener("mousedown", onDown, true);
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      el.removeEventListener("pointerdown", onDown, true);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
       if (raf) cancelAnimationFrame(raf);
     };
   }, [ready]);
