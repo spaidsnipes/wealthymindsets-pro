@@ -12,21 +12,14 @@
 //
 // Test files get a relaxed set — `any`, unused-vars off, console allowed.
 
-import { FlatCompat } from "@eslint/eslintrc";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname  = path.dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-  recommendedConfig: {},
-});
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
 
 export default [
-  // Base — Next.js flat-config compat + typescript rules.
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  // Next 16 publishes native flat configs. Import them directly; routing them
+  // through FlatCompat duplicates plugin objects and creates a circular config.
+  ...nextVitals,
+  ...nextTs,
 
   // WM Pro overrides — surface the recurring bug classes we've paid for.
   {
@@ -37,6 +30,15 @@ export default [
       "@typescript-eslint/no-explicit-any":  "warn",
       "@typescript-eslint/no-unused-vars":   ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       "react-hooks/exhaustive-deps":         "warn",
+      // Next 16 enables the newer React compiler-oriented rules. Keep the
+      // existing debt visible, but do not turn a framework security upgrade
+      // into 150 unrelated blocking rewrites in one release.
+      "react-hooks/set-state-in-effect":      "warn",
+      "react-hooks/purity":                   "warn",
+      "react-hooks/refs":                     "warn",
+      "react-hooks/immutability":             "warn",
+      "react-hooks/static-components":        "warn",
+      "react-hooks/preserve-manual-memoization": "warn",
       "@next/next/no-img-element":           "warn",
       // Existing code contains style-only violations that were accepted before
       // the flat config landed. Keep them visible without making the first lint
