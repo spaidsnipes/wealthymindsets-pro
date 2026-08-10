@@ -648,14 +648,28 @@ export function ChartsDashboard() {
         {/* Symbol + live price */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 16, flexShrink: 0 }}>
           <span style={{ color: "#E2E8F0", fontWeight: 700, fontSize: 14 }}>{symbol}</span>
-          <span style={{
-            color: ticker.changePct >= 0 ? "#00C076" : "#FF4D67",
-            fontWeight: 700, fontSize: 13, fontFamily: "monospace",
-          }}>
-            {ticker.price.toFixed(2)} {ticker.changePct >= 0 ? "↑" : "↓"}
-            &nbsp;{ticker.changePct >= 0 ? "+" : ""}{ticker.change.toFixed(2)}
-            &nbsp;{ticker.changePct >= 0 ? "+" : ""}{ticker.changePct.toFixed(2)}%
-          </span>
+          {(() => {
+            // Truth guard: header must never paint a change value without a real
+            // reference close. Before this, the header would render whatever the
+            // hook returned even if a seed-derived fake had leaked through — see
+            // useWebSocket flush() for the source-side guard that pairs with this.
+            const hasReal = ticker.price > 0
+              && Number.isFinite(ticker.change) && Number.isFinite(ticker.changePct)
+              && !(ticker.change === 0 && ticker.changePct === 0 && ticker.volume === 0);
+            const up = hasReal && ticker.changePct >= 0;
+            return (
+              <span style={{
+                color: hasReal ? (up ? "#00C076" : "#FF4D67") : "#8B92AC",
+                fontWeight: 700, fontSize: 13, fontFamily: "monospace",
+              }}>
+                {ticker.price > 0 ? ticker.price.toFixed(2) : "—"}
+                {hasReal && <> {up ? "↑" : "↓"}
+                  &nbsp;{up ? "+" : ""}{ticker.change.toFixed(2)}
+                  &nbsp;{up ? "+" : ""}{ticker.changePct.toFixed(2)}%
+                </>}
+              </span>
+            );
+          })()}
           {(() => {
             // Sentinel V-008: prior sizing (fontSize 8.5, dot 5px) was below the
             // visibility threshold in prod screenshots — dead-fix pattern per
