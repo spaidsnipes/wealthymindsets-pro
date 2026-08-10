@@ -113,6 +113,39 @@ describe("Session Nectar collection health", () => {
     });
   });
 
+  it("resumes a restored channel instead of creating an uppercase event-type duplicate", () => {
+    const collector = new SessionNectarCollector(1_786_335_800_000);
+    collector.restoreCoverageSummaries([{
+      schemaVersion: "wm.market-coverage.v1",
+      instrumentId: "BTC-USD",
+      normalizedSymbol: "BTC",
+      channel: "trade",
+      providerPath: "coinbase-client-ws",
+      coverageState: "STALE",
+      memoryState: "SUMMARY_ONLY",
+      persistenceRight: "UNKNOWN",
+      rightsPolicyId: "wm.rights.unknown.v1",
+      observedFrom: 1_786_335_600_000,
+      observedThrough: 1_786_335_650_000,
+      lastEventAt: 1_786_335_650_020,
+      observedEventCount: 1_732,
+      gapCount: 0,
+      fidelity: "OBSERVED",
+      collectionScope: "FOREGROUND_TAB",
+      detail: "Restored operational summary only.",
+    }]);
+
+    expect(collector.ingest(trade()).status).toBe("ACCEPTED");
+    expect(collector.snapshot().channels).toEqual([
+      expect.objectContaining({
+        channel: "trade",
+        coverageState: "COLLECTING",
+        observedEventCount: 1_733,
+        fidelity: "OBSERVED",
+      }),
+    ]);
+  });
+
   it("resolves executable identities by normalized symbol without guessing aliases", () => {
     const collector = new SessionNectarCollector(1_786_335_600_000);
     collector.ingest(trade());

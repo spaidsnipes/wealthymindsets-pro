@@ -86,7 +86,10 @@ export class SessionNectarCollector {
     }
 
     const instrumentId = event.executableIdentity ?? event.normalizedSymbol;
-    const channelKey = `${instrumentId}|${event.eventType}|${event.providerPath}`;
+    // Capability/coverage channels use lowercase values (`trade`, `quote`, …).
+    // Canonical events use uppercase (`TRADE`, `QUOTE`, …). Normalize here so
+    // a restored summary and resumed live collection update the same row.
+    const channelKey = `${instrumentId}|${capability.eventType}|${event.providerPath}`;
     const current = this.channels.get(channelKey) ?? {
       ...createChannelCoverage(instrumentId, capability),
       normalizedSymbol: event.normalizedSymbol.toUpperCase(),
