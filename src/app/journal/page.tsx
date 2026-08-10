@@ -379,34 +379,34 @@ function StrategyCoach({ entries }: { entries: JournalEntry[] }) {
   const alerts: { type:"error"|"warning"|"success"; title: string; body: string }[] = [];
 
   if (wr < 40) alerts.push({
-    type: "error",
-    title: "🚨 Win rate critically low",
-    body: `Your win rate is ${wr.toFixed(0)}% — below the 40% minimum for most strategies. Stop trading this setup until you review your rules. Common fixes: wait for full confirmation before entry, widen your stops, reduce position size.`,
+    type: "warning",
+    title: "Observed outcome distribution",
+    body: `${wins.length} wins and ${losses.length} losses are recorded in this ${entries.length}-trade journal sample (${wr.toFixed(0)}% wins). This describes the sample; it does not prove the strategy, process quality, or what should be traded next.`,
   });
   else if (wr < 50) alerts.push({
     type: "warning",
-    title: "⚠️ Win rate below 50%",
-    body: `At ${wr.toFixed(0)}% win rate, you need a Reward:Risk ratio above ${(1 / (wr/100) - 1).toFixed(1)}:1 to be profitable. Your current R:R is ${rr.toFixed(1)}:1. ${rr >= (1/(wr/100)-1) ? "You're profitable — maintain discipline." : "You're losing money long-term. Increase R:R or wait for better setups."}`,
+    title: "Observed outcome distribution",
+    body: `${wins.length} wins and ${losses.length} losses are recorded (${wr.toFixed(0)}% wins). The sample's average win-to-loss ratio is ${rr.toFixed(1)}:1; fees, slippage, setup version, and out-of-sample stability still need separate review.`,
   });
   else alerts.push({
-    type: "success",
-    title: "✅ Win rate healthy",
-    body: `${wr.toFixed(0)}% win rate with ${rr.toFixed(1)}:1 R:R = Profit Factor ${pf.toFixed(2)}. ${pf >= 1.5 ? "Excellent edge — scale up slowly." : "Profitable but borderline — focus on improving exit timing."}`,
+    type: "warning",
+    title: "Observed outcome distribution",
+    body: `${wins.length} wins and ${losses.length} losses are recorded (${wr.toFixed(0)}% wins), with a ${rr.toFixed(1)}:1 average win-to-loss ratio and ${pf.toFixed(2)} sample profit factor. These are journal observations, not permission to increase risk.`,
   });
 
   if (worstMood && worstMood[1] >= 1) alerts.push({
     type: "warning",
-    title: `😤 "${worstMood[0].charAt(0).toUpperCase() + worstMood[0].slice(1)}" mood causes most losses`,
-    body: `${worstMood[1]} of your losses occurred when you were feeling ${worstMood[0]}. Consider this a hard rule: if you feel ${worstMood[0]}, reduce size by 50% or sit on hands.`,
+    title: `Recorded context: ${worstMood[0]}`,
+    body: `${worstMood[1]} recorded losses include the self-reported state “${worstMood[0]}.” This is an association in your journal, not proof that the state caused the outcomes. Review the linked decisions and process evidence.`,
   });
 
   const fomoTrades = entries.filter(e => e.tags.includes("FOMO") || e.tags.includes("chased"));
   if (fomoTrades.length > 0) {
     const fomoWR = fomoTrades.filter(e => e.result === "win").length / fomoTrades.length * 100;
     alerts.push({
-      type: fomoWR < 40 ? "error" : "warning",
+      type: "warning",
       title: "📈 FOMO/Chased entries detected",
-      body: `${fomoTrades.length} trades tagged FOMO/chased with ${fomoWR.toFixed(0)}% win rate vs your overall ${wr.toFixed(0)}%. ${fomoWR < wr - 10 ? "These trades are dragging your results. Eliminate them." : "Minor impact — stay aware."}`,
+      body: `${fomoTrades.length} entries were explicitly tagged FOMO/chased, with ${fomoWR.toFixed(0)}% wins versus ${wr.toFixed(0)}% for the full sample. This is an observed association; inspect process adherence before drawing a conclusion.`,
     });
   }
 
@@ -495,12 +495,11 @@ function StrategyCoach({ entries }: { entries: JournalEntry[] }) {
           <span className="text-xs font-bold text-wm-gold">Mindset Recommendations</span>
         </div>
         {[
-          wr < 45 ? "🛑 Paper trade until you hit 50%+ win rate on 20+ trades before risking real capital."
-                  : "✅ Win rate qualifies for real trading — maintain your rules strictly.",
-          rr < 1  ? "⚖️ Your average loss exceeds your average win. Move your stops wider OR take profits earlier."
-                  : `📐 R:R of ${rr.toFixed(1)}:1 is ${rr >= 2 ? "excellent" : "acceptable"} — ${rr >= 2 ? "don't lower your targets" : "try to push to 2:1"}.`,
-          fomoTrades.length > 0 ? "🧘 Add a 3-minute pause rule: if you feel the urge to chase, set a timer. If the setup is still valid after 3 min, take it."
-                                : "👌 No FOMO entries detected — great discipline.",
+          `📊 This ${entries.length}-trade sample is descriptive. Live-trading permission still requires your account rules, validated strategy version, risk limits, costs, and out-of-sample evidence.`,
+          rr < 1  ? "⚖️ The recorded average loss is larger than the recorded average win. Review entries, invalidations, exits, fees, and setup versions; WM does not prescribe wider stops from this aggregate alone."
+                  : `📐 The recorded average win-to-loss ratio is ${rr.toFixed(1)}:1. Verify whether it remains stable by setup, regime, instrument, and costs.`,
+          fomoTrades.length > 0 ? "🧭 FOMO/chased tags are present. Compare those decisions with your timestamped thesis and declared invalidation."
+                                : "🧭 No FOMO/chased tag is recorded. Missing tags do not prove the behavior was absent; keep self-reporting consistent.",
         ].map((tip, i) => (
           <div key={i} className="flex gap-2 mb-2 last:mb-0">
             <span className="text-xs text-wm-text-dim leading-relaxed">{tip}</span>
