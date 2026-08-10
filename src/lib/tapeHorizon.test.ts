@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tapeHorizonBarStart } from "./tapeHorizon";
+import { tapeHorizonBarStart, tapeHorizonLabel } from "./tapeHorizon";
 
 describe("Tape Horizon coordinate ownership", () => {
   it("maps a non-boundary trade to its containing five-minute candle", () => {
@@ -20,5 +20,17 @@ describe("Tape Horizon coordinate ownership", () => {
   it("fails closed on invalid timestamps and intervals", () => {
     expect(() => tapeHorizonBarStart(Number.NaN, 300)).toThrow(/timestamp/);
     expect(() => tapeHorizonBarStart(100, 0)).toThrow(/interval/);
+  });
+});
+
+describe("Tape Horizon responsive label", () => {
+  it("keeps the full evidence sentence on wide charts", () => {
+    expect(tapeHorizonLabel("11:39 PM", "7m", 122, false)).toBe(
+      "● WM SESSION TAPE · from 11:39 PM · 7m · 122 trades",
+    );
+  });
+
+  it("uses a bounded phone label without dropping time or trade count", () => {
+    expect(tapeHorizonLabel("11:39 PM", "7m", 122, true)).toBe("● TAPE 11:39 PM · 122");
   });
 });

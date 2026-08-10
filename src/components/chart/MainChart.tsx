@@ -17,7 +17,7 @@ import type { FootprintType, CandleType } from "./ChartsDashboard";
 import { resolveParams, visibleAtTf, type IndicatorSettings } from "./indicatorConfig";
 import { parseExchangeSymbol } from "@/lib/exchanges";
 import { DataVersionGuard } from "@/lib/chartContext";
-import { tapeHorizonBarStart } from "@/lib/tapeHorizon";
+import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { priceSourceBadge } from "@/lib/priceSource";
@@ -5928,7 +5928,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 : durSec < 86400 ? `${Math.floor(durSec / 3600)}h ${Math.floor((durSec % 3600) / 60)}m`
                 :                  `${Math.floor(durSec / 86400)}d`;
               const tradeCount = sessionTapeStatsRef.current.tradeCount;
-              const label = `● WM SESSION TAPE · from ${localTime} · ${durStr} · ${tradeCount} trades`;
+              const label = tapeHorizonLabel(localTime, durStr, tradeCount, W < 480);
               ctx.font = "700 10px system-ui, -apple-system, sans-serif";
               const tw = ctx.measureText(label).width;
               const padX = 8;
@@ -6974,10 +6974,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           };
           const deltaColor = s.delta > 0 ? "#00C076" : s.delta < 0 ? "#FF4D6A" : "#8B92AC";
           const deltaSign  = s.delta > 0 ? "+" : "";
+          const horizonTime = tapeHorizonRef.current
+            ? fmtTickMark(tapeHorizonRef.current.startedAtSec, 3)
+            : "the first retained execution";
           return (
             <div
               role="group"
-              aria-label={`Current tab tape counters. Delta ${fmt(s.delta)}. ${s.tradeCount} trades. ${s.bigTradeCount} large trades.`}
+              aria-label={`Current tab tape counters since ${horizonTime}. Delta ${fmt(s.delta)}. ${s.tradeCount} trades. ${s.bigTradeCount} large trades.`}
               title={`WM observed in this tab for this symbol.\nBuys: ${fmt(s.buyVol)}\nSells: ${fmt(s.sellVol)}\nDelta = Buys − Sells`}
               style={{
                 position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)",

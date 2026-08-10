@@ -13,3 +13,14 @@ export function tapeHorizonBarStart(startedAtSec: number, intervalSec: number): 
 
   return Math.floor(startedAtSec / intervalSec) * intervalSec;
 }
+
+export function tapeHorizonLabel(
+  localTime: string,
+  duration: string,
+  tradeCount: number,
+  compact: boolean,
+): string {
+  return compact
+    ? `● TAPE ${localTime} · ${tradeCount}`
+    : `● WM SESSION TAPE · from ${localTime} · ${duration} · ${tradeCount} trades`;
+}
