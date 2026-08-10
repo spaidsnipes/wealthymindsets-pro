@@ -1035,6 +1035,13 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
             // Delta/footprint until an aggressor side is supportable.
             if (event.aggressorSide === "UNKNOWN") continue;
             tapeSourceRef.current = "alpaca";
+            // Equity/relay trades bypass createTapeHub's fanTick, so the
+            // shared-hub ingest at line ~493 never sees them and TSLA/AAPL/etc
+            // never register a Nectar channel. Ingest here directly so equity
+            // trades produce the same coverage receipts crypto trades do. Guard
+            // is idempotent — the same event.eventId can't dedupe-fail because
+            // MarketEventGuard.inspect above already accepted it.
+            ingestSessionNectarEvent(event);
             processTick({
               price: event.price!,
               size: event.size!,
