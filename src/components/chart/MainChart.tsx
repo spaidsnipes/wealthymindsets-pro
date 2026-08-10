@@ -1295,16 +1295,41 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const minBigTradeLot = (symBase: number) =>
     symBase > 10_000 ? 0.15 : symBase > 100 ? 2 : symBase > 1 ? 0.03 : 0.001;
 
+  // WM Tape Horizon (2026-08-09): timestamp (seconds since epoch) of the FIRST
+  // real executed trade WM observed for the current symbol on the current tape
+  // source. Chart draw uses this to render a vertical marker + label showing
+  // "● WM live tape · from HH:MM PM". Everything left of the marker is OHLCV
+  // only — no execution tape, no footprint, no Delta/CVD. Everything right of
+  // the marker is footprint-capable. Turns the free-feed limitation into a
+  // visible honesty artefact per directive Part XLIII.
+  const tapeHorizonRef = useRef<{ sym: string; tapeSrc: string; startedAtSec: number } | null>(null);
+
   // Reset accumulator on symbol change — prevents cross-symbol contamination.
   useEffect(() => {
     tickAccRef.current = new Map();
     processedTicksRef.current = new Set();
     deltaTickAccRef.current = new Map();
     deltaProcessedRef.current = new Set();
+    // Tape horizon is per-symbol: switching symbols resets it. New symbol has
+    // its own live-tape-begins-here moment.
+    tapeHorizonRef.current = null;
   }, [symbol]);
 
   useEffect(() => {
     if (!recentTicks?.length || !hasRealAggressorTape(tapeSource ?? "")) return;
+    // Stamp the horizon the FIRST time a real trade arrives for this (symbol,
+    // tapeSource). Subsequent trades leave it unchanged so the marker stays
+    // put throughout the session.
+    if (!tapeHorizonRef.current && tapeSource) {
+      const firstTradeTick = recentTicks.find(t => t.trade && Number.isFinite(t.time));
+      if (firstTradeTick) {
+        tapeHorizonRef.current = {
+          sym: symbol,
+          tapeSrc: tapeSource,
+          startedAtSec: Math.floor(firstTradeTick.time / 1000),
+        };
+      }
+    }
     const intervalSec = getIntervalSec(timeframe);
     const minTick = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
     const dp      = base > 100 ? 2 : 4;
@@ -5834,6 +5859,75 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       }
       // Non-big-trades modes draw VP here (top of stack is fine — no bubbles).
       runWMVP();
+
+      /* ══════════════════════════════════════════════════════
+         WM TAPE HORIZON — vertical marker + label at the timestamp
+         WM began observing per-trade tape for the current symbol.
+         Everything LEFT of this line is OHLCV-only; everything RIGHT
+         is footprint-capable. Turns a data-feed limitation into a
+         legible truth artefact per directive Part XLIII.
+      ══════════════════════════════════════════════════════ */
+      const horizon = tapeHorizonRef.current;
+      if (horizon && horizon.sym === symbol && footprintEnabled) {
+        try {
+          const xRaw = chart.timeScale().timeToCoordinate(horizon.startedAtSec as any);
+          if (xRaw != null && Number.isFinite(xRaw)) {
+            const x = Math.round(xRaw as number);
+            // Only draw when in view (with a small margin)
+            if (x > -60 && x < W + 60) {
+              ctx.save();
+              // Vertical line — warm gold, thin, subtly luminous
+              ctx.beginPath();
+              ctx.moveTo(x + 0.5, 0);
+              ctx.lineTo(x + 0.5, H);
+              ctx.strokeStyle = "rgba(240,180,41,0.55)";
+              ctx.lineWidth = 1;
+              ctx.setLineDash([4, 4]);
+              ctx.stroke();
+              ctx.setLineDash([]);
+              // Label chip on top
+              const localTime = new Date(horizon.startedAtSec * 1000).toLocaleTimeString(
+                "en-US",
+                { hour: "numeric", minute: "2-digit", hour12: true },
+              );
+              const label = `● WM LIVE TAPE · from ${localTime}`;
+              ctx.font = "700 10px system-ui, -apple-system, sans-serif";
+              const tw = ctx.measureText(label).width;
+              const padX = 8;
+              const padY = 4;
+              const boxW = Math.round(tw + padX * 2);
+              const boxH = 18;
+              // Position: right of the line if room, else left, else center on x.
+              const boxX = x + 6 + boxW < W ? x + 6 : (x - 6 - boxW > 0 ? x - 6 - boxW : Math.max(4, x - boxW / 2));
+              const boxY = 6;
+              ctx.fillStyle = "rgba(11,14,26,0.88)";
+              ctx.strokeStyle = "rgba(240,180,41,0.60)";
+              ctx.lineWidth = 1;
+              // Rounded rect
+              const r = 5;
+              ctx.beginPath();
+              ctx.moveTo(boxX + r, boxY);
+              ctx.lineTo(boxX + boxW - r, boxY);
+              ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + r);
+              ctx.lineTo(boxX + boxW, boxY + boxH - r);
+              ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - r, boxY + boxH);
+              ctx.lineTo(boxX + r, boxY + boxH);
+              ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - r);
+              ctx.lineTo(boxX, boxY + r);
+              ctx.quadraticCurveTo(boxX, boxY, boxX + r, boxY);
+              ctx.closePath();
+              ctx.fill();
+              ctx.stroke();
+              // Text — warm gold
+              ctx.fillStyle = "#F0B429";
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              ctx.fillText(label, boxX + padX, boxY + boxH / 2 + 0.5);
+              ctx.restore();
+            }
+          }
+        } catch { /* chart may be mid-transition; safe to skip this frame */ }
+      }
 
       /* ══════════════════════════════════════════════════════
          CANDLE TIMER — countdown pinned to the LIVE PRICE LINE
