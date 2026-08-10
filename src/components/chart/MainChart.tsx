@@ -4338,6 +4338,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       const showWinner = bsp >= 22;
       const fmtV  = (v: number) => {
         if (!isFinite(v) || v <= 0) return "0";
+        // Preserve evidence below the two-decimal display floor. Printing 0.00
+        // for a real fractional execution falsely says nothing traded; the
+        // bounded label keeps the observation honest without inventing precision.
+        if (v < 0.005) return "<0.01";
         return v >= 1_000_000 ? `${(v/1_000_000).toFixed(1)}M`
              : v >= 1000       ? `${(v/1000).toFixed(1)}k`
              : v >= 10         ? `${Math.round(v)}`
