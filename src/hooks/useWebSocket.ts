@@ -26,6 +26,7 @@ import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay
 import { applyTickToLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
 import { normalizeBinanceUsTrade } from "@/lib/marketData/adapters/binanceUs";
+import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
 
 export interface Tick {
   price: number;
@@ -502,7 +503,9 @@ function createTapeHub(
     return hub;
   }
 
-  const chan = `wm-tape:${key}`;
+  // Do not join a long-lived tab running an older tick-only broadcast schema.
+  // Nectar certification requires the v2 canonical-event envelope.
+  const chan = tapeProtocolChannel(key);
   const bc = new BroadcastChannel(chan);
   let socketCleanup: (() => void) | null = null;   // real socket, when we are leader
   let safetyCleanup: (() => void) | null = null;    // fallback socket, if leader goes silent

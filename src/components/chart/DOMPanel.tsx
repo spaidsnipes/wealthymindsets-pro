@@ -10,6 +10,7 @@ import {
   getOrderBook,
   getRecentTrades,
 } from "@/lib/api/kraken";
+import { buildObservedDom, deriveDomCenter, type DomLevel } from "@/lib/marketData/domTruth";
 
 /* ── Crypto detection ──────────────────────────────────────── */
 const CRYPTO_SYMS = new Set([
@@ -36,43 +37,14 @@ function getTickSize(base: number) {
   return 0.00001;
 }
 
-interface Level { price: number; bidSize: number; askSize: number; isWall: boolean; isBid: boolean; }
-
 /* ── Build Level[] from Kraken real bids/asks ──────────────── */
 function buildRealDOM(
   bids: { price: number; size: number }[],
   asks: { price: number; size: number }[],
-  tick: number,
+  _tick: number,
   dp: number,
-): Level[] {
-  const out: Level[] = [];
-  const maxBid = bids.length > 0 ? Math.max(...bids.map(b => b.size)) : 1;
-  const maxAsk = asks.length > 0 ? Math.max(...asks.map(a => a.size)) : 1;
-  const wallThreshold = Math.max(maxBid, maxAsk) * 0.6;
-
-  // Asks: sorted high→low (top of book = lowest ask)
-  const sortedAsks = [...asks].sort((a, b) => b.price - a.price).slice(0, 12);
-  for (const a of sortedAsks) {
-    out.push({
-      price:   +a.price.toFixed(dp),
-      bidSize: 0,
-      askSize: Math.round(a.size * 100) / 100,
-      isWall:  a.size >= wallThreshold,
-      isBid:   false,
-    });
-  }
-  // Bids: sorted high→low (top of book = highest bid)
-  const sortedBids = [...bids].sort((a, b) => b.price - a.price).slice(0, 12);
-  for (const b of sortedBids) {
-    out.push({
-      price:   +b.price.toFixed(dp),
-      bidSize: Math.round(b.size * 100) / 100,
-      askSize: 0,
-      isWall:  b.size >= wallThreshold,
-      isBid:   true,
-    });
-  }
-  return out;
+): DomLevel[] {
+  return buildObservedDom(bids, asks, dp);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -91,7 +63,7 @@ export function DOMPanel({ symbol }: { symbol: string }) {
   // (e.g. TSLA 405) is only a pre-data placeholder and must never anchor the DOM.
   const livePrice = (ticker?.price && ticker.price > 0) ? ticker.price : (liveBar?.close ?? base);
 
-  const [levels, setLevels] = useState<Level[]>([]);
+  const [levels, setLevels] = useState<DomLevel[]>([]);
   const [trades, setTrades] = useState<{ price: number; size: number; side: "buy"|"sell"; time: string }[]>([]);
   const [realConnected, setRealConnected] = useState(false);
   const priceRef  = useRef(livePrice);
@@ -234,7 +206,9 @@ export function DOMPanel({ symbol }: { symbol: string }) {
   }, [recentTicks, dp, crypto]);
 
   // Derived display values
-  const center = priceRef.current || livePrice;
+  // A populated observed ladder owns its own headline. Never display a quote
+  // or hardcoded seed outside the visible book range above real DOM levels.
+  const center = deriveDomCenter(levels, priceRef.current || livePrice);
   const maxSize = Math.max(1, ...levels.map(l => Math.max(l.bidSize, l.askSize)));
   const totBid  = levels.filter(l => l.isBid).reduce((s,l) => s + l.bidSize, 0);
   const totAsk  = levels.filter(l => !l.isBid).reduce((s,l) => s + l.askSize, 0);
