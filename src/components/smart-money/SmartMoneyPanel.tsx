@@ -9,6 +9,7 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { getFabioInsights, inferAssetClass } from "@/lib/fabio";
 import { evaluateClcEvidence } from "@/lib/decisionIntegrity";
 import { hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
+import { getSmartMoneyPanelLayout } from "./smartMoneyLayout";
 
 // ─── Signal types ────────────────────────────────────────────────────────────
 type SignalStrength = "strong" | "moderate" | "weak" | "neutral";
@@ -228,12 +229,79 @@ function computeConfluence(price: number, f: Flow): Confluence {
 }
 
 export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symbol: string }) {
-  // Escape closes the panel (panel-control requirement). Bound while mounted.
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth);
+  const layout = getSmartMoneyPanelLayout(viewportWidth);
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", onResize, { passive: true });
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // Enter the drawer deliberately and return focus to the trigger on close.
+  useEffect(() => {
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeRef.current?.focus();
+    return () => openerRef.current?.focus();
+  }, []);
+
+  // Tablet/mobile is a true modal sheet: background chart controls are removed
+  // from pointer and keyboard interaction while the sheet is open.
+  useEffect(() => {
+    if (!layout.modal || !panelRef.current) return;
+    const root = panelRef.current.closest(".wm-chart-dashboard");
+    if (!root) return;
+    const background = Array.from(root.children).filter(
+      child => !child.classList.contains("wm-smart-money-layer"),
+    ) as HTMLElement[];
+    const prior = background.map(element => ({
+      element,
+      inert: element.inert,
+      ariaHidden: element.getAttribute("aria-hidden"),
+    }));
+    for (const element of background) {
+      element.inert = true;
+      element.setAttribute("aria-hidden", "true");
+    }
+    return () => {
+      for (const item of prior) {
+        item.element.inert = item.inert;
+        if (item.ariaHidden === null) item.element.removeAttribute("aria-hidden");
+        else item.element.setAttribute("aria-hidden", item.ariaHidden);
+      }
+    };
+  }, [layout.modal]);
+
+  // Escape closes everywhere. Modal Tab/Shift+Tab is trapped inside the sheet.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab" || !layout.modal || !panelRef.current) return;
+      const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )).filter(element => !element.hidden && element.getClientRects().length > 0);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [layout.modal, onClose]);
 
   // ── Resizable width + compact mode (both persisted per workspace) ──────────
   const [panelW, setPanelW] = useState<number>(() => {
@@ -440,20 +508,35 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
   const playbook = getFabioInsights({ symbol, assetClass: inferAssetClass(symbol) }, 3);
 
   return (
+    <>
+    {layout.modal && (
+      <motion.button
+        type="button"
+        aria-label="Close Smart Money panel"
+        className="wm-smart-money-layer fixed inset-x-0 bottom-0 bg-black/70"
+        style={{ top: layout.top, zIndex: 59 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+      />
+    )}
     <motion.div
+      ref={panelRef}
       initial={{ x: "100%" }}
       animate={{ x: 0 }}
       exit={{ x: "100%" }}
       transition={{ type: "spring", stiffness: 350, damping: 35 }}
-      className="border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden min-h-0"
+      role={layout.modal ? "dialog" : "complementary"}
+      aria-modal={layout.modal || undefined}
+      aria-label="Smart Money tools"
+      className="wm-smart-money-layer wm-smart-money-panel border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden min-h-0"
       style={{
-        // Fixed right-side drawer: overlays the chart instead of joining the
-        // column flow (which collapsed the chart to height 0). Chart stays
-        // fully rendered underneath the un-covered left portion. Offset below
-        // the global top bars (ticker tape + main nav ≈ 64px) so the panel
-        // HEADER and its close-X are never occluded/clipped by those bars.
-        position: "fixed", top: 64, right: 0, height: "calc(100dvh - 64px)", zIndex: 60,
-        width: panelW, maxWidth: "100%",
+        // Desktop begins below the chart tabs + both toolbars, so no visible
+        // order-flow/profile control can sit under the drawer. Narrow screens
+        // become a deliberate modal sheet below the global application chrome.
+        position: "fixed", top: layout.top, right: 0, height: layout.height, zIndex: 60,
+        width: layout.modal ? "100vw" : panelW, maxWidth: "100%",
         boxShadow: "-8px 0 32px rgba(0,0,0,0.5)",
       }}
     >
@@ -485,7 +568,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
         <button onClick={() => setCompact(c => !c)} title={compact ? "Comfortable density" : "Compact density"} className="text-wm-text-dim hover:text-wm-text p-1 transition-colors">
           {compact ? <Maximize2 size={12} /> : <Minimize2 size={12} />}
         </button>
-        <button onClick={onClose} aria-label="Close Smart Money panel" title="Close (Esc)" className="text-wm-text-dim hover:text-wm-text p-1 transition-colors">
+        <button ref={closeRef} onClick={onClose} aria-label="Close Smart Money panel" title="Close (Esc)" className="text-wm-text-dim hover:text-wm-text p-3 -m-2 transition-colors min-w-11 min-h-11 inline-flex items-center justify-center">
           <X size={13} />
         </button>
       </div>
@@ -922,5 +1005,6 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
       {/* ── end SCROLLABLE BODY ── */}
       </div>
     </motion.div>
+    </>
   );
 }
