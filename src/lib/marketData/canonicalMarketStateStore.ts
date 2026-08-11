@@ -55,6 +55,10 @@ export class CanonicalMarketStateStore {
       return { status: "REJECTED_STALE", current, rejected: state };
     }
 
+    // This is a current-state owner, not an unbounded history database. Once a
+    // newer packet replaces the identity, release the superseded snapshot ID.
+    // Durable history belongs in the rights-gated memory layer.
+    if (current) this.snapshotIds.delete(current.snapshotId);
     this.states.set(key, state);
     this.snapshotIds.set(state.snapshotId, key);
     for (const listener of this.listeners.get(key) ?? []) listener(state, current);
