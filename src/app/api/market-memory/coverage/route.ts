@@ -40,14 +40,45 @@ export async function GET(request: Request) {
   const config = databaseConfig();
   if (!config) return NextResponse.json({ error: "Durable coverage is not configured." }, { status: 503 });
 
-  const url = new URL(`${config.url}/rest/v1/wm_market_coverage_checkpoints`);
-  url.searchParams.set("owner_id", `eq.${auth.user.sub}`);
-  url.searchParams.set("select", "instrument_id,normalized_symbol,channel,provider_path,observed_from,observed_through,last_event_at,observed_event_count,gap_count,last_gap_at,fidelity,collection_scope,persistence_right,rights_policy_id");
-  url.searchParams.set("order", "updated_at.asc");
-  url.searchParams.set("limit", "100");
-  const response = await fetch(url, { headers: headers(config.serviceKey), cache: "no-store" });
-  if (!response.ok) return NextResponse.json({ error: "Durable coverage could not be read." }, { status: 502 });
-  const rows = await response.json() as Parameters<typeof databaseRowsToContinuityRecord>[0];
+  const checkpointUrl = new URL(`${config.url}/rest/v1/wm_market_coverage_checkpoints`);
+  checkpointUrl.searchParams.set("owner_id", `eq.${auth.user.sub}`);
+  checkpointUrl.searchParams.set("select", "instrument_id,normalized_symbol,channel,provider_path,observed_from,observed_through,last_event_at,observed_event_count,gap_count,last_gap_at,fidelity,collection_scope,persistence_right,rights_policy_id");
+  checkpointUrl.searchParams.set("order", "updated_at.asc");
+  checkpointUrl.searchParams.set("limit", "100");
+
+  // First-seen guard: even if the checkpoint row was ever deleted+reinserted
+  // (2026-08-10 morning history was lost this way), first_seen preserves the
+  // earliest observation and the client sees LEAST(checkpoint, first_seen).
+  const firstSeenUrl = new URL(`${config.url}/rest/v1/wm_market_coverage_first_seen`);
+  firstSeenUrl.searchParams.set("owner_id", `eq.${auth.user.sub}`);
+  firstSeenUrl.searchParams.set("select", "instrument_id,channel,provider_path,observed_from");
+  firstSeenUrl.searchParams.set("limit", "100");
+
+  const [cpRes, fsRes] = await Promise.all([
+    fetch(checkpointUrl, { headers: headers(config.serviceKey), cache: "no-store" }),
+    fetch(firstSeenUrl, { headers: headers(config.serviceKey), cache: "no-store" }).catch(() => null),
+  ]);
+  if (!cpRes.ok) return NextResponse.json({ error: "Durable coverage could not be read." }, { status: 502 });
+
+  const rows = await cpRes.json() as Parameters<typeof databaseRowsToContinuityRecord>[0];
+
+  // If the first_seen table exists and returns data, apply the guard.
+  // Missing table (pre-migration) or transient error falls through with a
+  // truthful checkpoint-only value; the guard degrades gracefully.
+  if (fsRes && fsRes.ok) {
+    const firstSeen = await fsRes.json() as Array<{
+      instrument_id: string; channel: string; provider_path: string; observed_from: number;
+    }>;
+    const key = (r: { instrument_id: string; channel: string; provider_path: string }) =>
+      `${r.instrument_id}|${r.channel}|${r.provider_path}`;
+    const firstSeenMap = new Map(firstSeen.map(r => [key(r), r.observed_from]));
+    for (const row of rows) {
+      const earliest = firstSeenMap.get(key(row));
+      if (earliest != null && earliest < row.observed_from) {
+        row.observed_from = earliest;
+      }
+    }
+  }
   return NextResponse.json({ record: databaseRowsToContinuityRecord(rows) });
 }
 
