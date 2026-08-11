@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { useWMS, WMS_CONTRACT } from "@/contexts/WMSContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { isCoreTeam } from "@/lib/coreTeam";
+import { hasResolvedTradeOutcome } from "@/lib/tradeEvidence";
 
 
 interface ProfileData {
@@ -23,7 +24,7 @@ const EMPTY_PROFILE: ProfileData = {
   name: "", handle: "", bio: "", email: "", timezone: "America/New_York", botName: "SpaidBot",
 };
 
-interface TradeRow { sym: string; dir: string; entry: string; exit: string; pnl: string; rr: string; date: string; }
+interface TradeRow { sym: string; dir: string; entry: string; exit: string; pnl: string; rr: string; date: string; outcomeResolved: boolean; }
 interface LikedTrack { title: string; artist: string; duration: string; }
 
 const CIRCLE_OF_EXCELLENCE: { name: string; color: string; avatar: string }[] = [];
@@ -143,18 +144,20 @@ export default function ProfilePage() {
           dir: t.direction ?? "LONG",
           entry: t.entryPrice != null ? String(t.entryPrice) : "—",
           exit: t.exitPrice != null ? String(t.exitPrice) : "—",
-          pnl: t.pnl != null ? `${t.pnl >= 0 ? "+" : ""}$${Math.abs(t.pnl).toFixed(0)}` : "—",
-          rr: t.rr != null ? `${t.rr.toFixed(1)}R` : "—",
+          pnl: hasResolvedTradeOutcome(t) ? `${t.pnl >= 0 ? "+" : ""}$${Math.abs(t.pnl).toFixed(0)}` : "Unresolved",
+          rr: hasResolvedTradeOutcome(t) && t.rr != null ? `${t.rr.toFixed(1)}R` : "—",
           date: t.createdAt ? new Date(t.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—",
+          outcomeResolved: hasResolvedTradeOutcome(t),
         })),
         ...paperTrades.filter(t => t.pnl !== undefined).map(t => ({
           sym: t.symbol ?? "—",
           dir: (t.side ?? "LONG").toUpperCase(),
           entry: t.entryPrice != null ? String(t.entryPrice) : "—",
           exit: t.exitPrice != null ? String(t.exitPrice) : "—",
-          pnl: t.pnl != null ? `${t.pnl >= 0 ? "+" : ""}$${Math.abs(t.pnl).toFixed(0)}` : "—",
-          rr: t.rr != null ? `${t.rr.toFixed(1)}R` : "—",
+          pnl: hasResolvedTradeOutcome(t) ? `${t.pnl >= 0 ? "+" : ""}$${Math.abs(t.pnl).toFixed(0)}` : "Unresolved",
+          rr: hasResolvedTradeOutcome(t) && t.rr != null ? `${t.rr.toFixed(1)}R` : "—",
           date: t.closedAt ? new Date(t.closedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—",
+          outcomeResolved: hasResolvedTradeOutcome(t),
         })),
       ].slice(0, 20);
       setRecentTrades(trades);
@@ -168,7 +171,7 @@ export default function ProfilePage() {
       const journalEntries = JSON.parse(localStorage.getItem("wm_journal_entries") ?? "[]") as Array<{ pnl?: number }>;
       const paperState = JSON.parse(localStorage.getItem("wm_paper_state") ?? "null");
       const paperTrades: Array<{ pnl?: number }> = paperState?.trades ?? [];
-      const closedTrades = [...journalEntries, ...paperTrades].filter(t => t.pnl !== undefined);
+      const closedTrades = [...journalEntries, ...paperTrades].filter(hasResolvedTradeOutcome);
       if (closedTrades.length > 0) {
         const wins = closedTrades.filter(t => (t.pnl ?? 0) > 0).length;
         const losses = closedTrades.filter(t => (t.pnl ?? 0) < 0).length;
@@ -534,7 +537,15 @@ export default function ProfilePage() {
                   <div className="text-xs text-wm-text-muted hidden sm:block">Entry: <span className="text-wm-text font-mono">{t.entry}</span></div>
                   <div className="text-xs text-wm-text-muted hidden sm:block">Exit: <span className="text-wm-text font-mono">{t.exit}</span></div>
                   <div className="ml-auto flex items-center gap-3">
-                    <span className={clsx("text-sm font-bold", t.pnl.startsWith("+") ? "text-wm-green" : "text-wm-red")}>{t.pnl}</span>
+                    <span
+                      className={clsx(
+                        "text-sm font-bold",
+                        !t.outcomeResolved ? "text-wm-text-muted" : t.pnl.startsWith("+") ? "text-wm-green" : "text-wm-red",
+                      )}
+                      title={t.outcomeResolved ? "Realized outcome with entry and exit evidence" : "Entry or exit evidence is missing; P&L is not treated as resolved"}
+                    >
+                      {t.pnl}
+                    </span>
                     <span className="text-xs text-wm-gold font-semibold">{t.rr}</span>
                   </div>
                 </div>
