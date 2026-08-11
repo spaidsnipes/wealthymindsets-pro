@@ -68,6 +68,17 @@ describe("chart Market State publisher", () => {
     );
   });
 
+  it("omits a future-dated matching tick instead of violating snapshot chronology", () => {
+    const value: ChartMarketStatePublicationInput = {
+      ...base(),
+      recentTicks: [{ price: 65_000, size: 0.1, side: "buy", time: 2_001, trade: true }],
+    };
+    const publication = createChartMarketStatePublication(value);
+
+    expect(publication.qualityState).toBe("PARTIAL");
+    expect(publication.state.price.last).toBeNull();
+  });
+
   it("keeps delayed provider truth even when a price tick is available", () => {
     const value = { ...base(), source: "yahoo" as const };
     const publication = createChartMarketStatePublication(value);
