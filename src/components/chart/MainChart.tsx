@@ -19,7 +19,11 @@ import { parseExchangeSymbol } from "@/lib/exchanges";
 import { DataVersionGuard } from "@/lib/chartContext";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
-import { findSessionNectarChannel, getSessionNectarSnapshot } from "@/lib/marketData/sessionNectar";
+import {
+  findSessionNectarChannel,
+  getSessionNectarSnapshot,
+  subscribeToSessionNectar,
+} from "@/lib/marketData/sessionNectar";
 import { getRuntimeTapeCapability, hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
 import { overlayFrameBudgetMs, shouldDrawOverlay } from "@/lib/chartOverlayGovernor";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -1286,6 +1290,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     delta: 0, buyVol: 0, sellVol: 0, tradeCount: 0, bigTradeCount: 0,
   });
   const [sessionTapeTick, setSessionTapeTick] = useState<number>(0); // render trigger
+  // Durable Nectar hydration is independent from live tape delivery. Subscribe
+  // explicitly so a restored server checkpoint becomes visible immediately
+  // after reload—even before the first new trade reaches this tab.
+  const [sessionNectarUiVersion, setSessionNectarUiVersion] = useState(0);
+  useEffect(() => {
+    setSessionNectarUiVersion(version => version + 1);
+    return subscribeToSessionNectar(() => {
+      setSessionNectarUiVersion(version => version + 1);
+    });
+  }, []);
   const sessionTapeFlushRef = useRef<number>(0);
   // CVD sparkline sample buffer — rolling 24-point trajectory of cumulative
   // delta over time. One sample per throttled flush (~4Hz), so a full buffer
@@ -7023,7 +7037,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             one trade has arrived. Aligns with Founder Mockup 1 "Order Flow
             Command Deck" intelligence strip (mini-form). Values are honest:
             they're WM's observation, labeled as such. */}
-        {footprintEnabled && hasRealAggressorTape(tapeSource ?? "") && sessionTapeTick > 0 && (() => {
+        {footprintEnabled && hasRealAggressorTape(tapeSource ?? "") &&
+          (sessionTapeTick > 0 || sessionNectarUiVersion > 0) && (() => {
           const s = sessionTapeStatsRef.current;
           const fmt = (n: number) => {
             const abs = Math.abs(n);
@@ -7060,10 +7075,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                              :                                "#8B92AC";
           const gapCount = tradeChannel?.gapCount ?? 0;
           const coverageEvents = tradeChannel?.observedEventCount ?? 0;
+          if (!tradeChannel && s.tradeCount === 0) return null;
           const retentionShort = nectar.retentionState === "SESSION_ONLY_NO_RAW_PAYLOADS"
             ? "session-only"
             : nectar.retentionState === "SERVER_DURABLE_SUMMARY_NO_RAW_PAYLOADS"
-              ? "server-durable summary"
+              ? "server-durable receipt summary"
               : "browser summary only";
           return (
             <div
@@ -7073,8 +7089,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               data-nectar-quarantined={nectar.receipts.quarantined}
               data-nectar-unsupported={nectar.unsupportedCapabilities}
               role="group"
-              aria-label={`Current tab tape counters since ${horizonTime}. Fidelity ${fidelityLabel}. Delta ${fmt(s.delta)}. ${s.tradeCount} current-tab trades. ${coverageEvents} coverage receipts. ${s.bigTradeCount} large trades. ${gapCount} gaps. Retention: ${retentionShort}. No raw tape retained.`}
-              title={`WM observed in this tab for this symbol.\nBuys: ${fmt(s.buyVol)}\nSells: ${fmt(s.sellVol)}\nDelta = Buys − Sells\nFidelity: ${fidelityLabel} (source-classified)\nCoverage receipts: ${coverageEvents}\nCollector receipts: ${nectar.receipts.accepted} accepted / ${nectar.receipts.quarantined} quarantined / ${nectar.unsupportedCapabilities} unsupported\nGaps observed: ${gapCount}\nRetention: ${retentionShort} — operational counts/timestamps only; raw tape is not durably stored (provider rights UNKNOWN)`}
+              aria-label={`Nectar memory for ${normalizeSym(symbol)}. Fidelity ${fidelityLabel}. Current-tab delta ${fmt(s.delta)}. ${s.tradeCount} current-tab trades. ${coverageEvents} durably saved coverage observations. ${s.bigTradeCount} current-tab large trades. ${gapCount} gaps. Retention: ${retentionShort}. Raw tape is not retained.`}
+              title={`WM Nectar memory for ${normalizeSym(symbol)}.\nCurrent tab since: ${horizonTime}\nBuys this tab: ${fmt(s.buyVol)}\nSells this tab: ${fmt(s.sellVol)}\nDelta this tab = Buys − Sells\nFidelity: ${fidelityLabel} (source-classified)\nDurably saved coverage observations: ${coverageEvents}\nCollector receipts this runtime: ${nectar.receipts.accepted} accepted / ${nectar.receipts.quarantined} quarantined / ${nectar.unsupportedCapabilities} unsupported\nGaps observed: ${gapCount}\nRetention: ${retentionShort} — operational counts/timestamps only; raw price/size/aggressor tape is not durably stored while provider rights remain UNKNOWN.`}
               style={{
                 position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)",
                 zIndex: 58, padding: "5px 10px", borderRadius: 7, pointerEvents: "auto",
@@ -7084,7 +7100,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               }}
             >
               <span>
-                <span style={{ color: "#8B92AC", fontWeight: 600 }}>WM SESSION</span>
+                <span style={{ color: "#8B92AC", fontWeight: 600 }}>WM NECTAR</span>
                 <span style={{ color: fidelityColor, fontWeight: 850, marginLeft: 6, letterSpacing: "0.02em" }}>· {fidelityLabel}</span>
               </span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -7123,12 +7139,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 })()}
               </span>
               <span>
-                <span style={{ color: "#8B92AC", fontWeight: 600 }}>Trades </span>
+                <span style={{ color: "#8B92AC", fontWeight: 600 }}>Live </span>
                 <span style={{ color: "#D8DCEA", fontWeight: 850 }}>{s.tradeCount}</span>
               </span>
-              {coverageEvents > s.tradeCount && (
+              {coverageEvents > 0 && (
                 <span>
-                  <span style={{ color: "#8B92AC", fontWeight: 600 }}>Seen </span>
+                  <span style={{ color: "#8B92AC", fontWeight: 600 }}>Saved </span>
                   <span style={{ color: "#D8DCEA", fontWeight: 850 }}>{coverageEvents}</span>
                 </span>
               )}

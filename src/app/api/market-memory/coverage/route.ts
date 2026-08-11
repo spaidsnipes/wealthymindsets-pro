@@ -97,15 +97,33 @@ export async function POST(request: Request) {
   // Reconstruct once more to guarantee only the operational allow-list crosses
   // the server boundary. Raw events, price, size and event IDs are never sent.
   const safe = createCoverageContinuityRecord(parsed.channels);
+  const rpcChannels = continuityRecordToRpcChannels(safe);
   const response = await fetch(`${config.url}/rest/v1/rpc/wm_upsert_market_coverage_checkpoints`, {
     method: "POST",
     headers: headers(config.serviceKey),
     body: JSON.stringify({
       p_owner_id: auth.user.sub,
-      p_channels: continuityRecordToRpcChannels(safe),
+      p_channels: rpcChannels,
     }),
     cache: "no-store",
   });
   if (!response.ok) return NextResponse.json({ error: "Durable coverage could not be recorded." }, { status: 502 });
-  return NextResponse.json({ saved: true, channels: safe.channels.length });
+
+  // Preserve a thinned, append-only audit trail of WM-owned operational
+  // summaries. This RPC never receives price, size, aggressor, event IDs, or
+  // provider payloads; raw/derived Market Memory remains separately gated.
+  const receiptResponse = await fetch(`${config.url}/rest/v1/rpc/wm_append_market_coverage_receipts`, {
+    method: "POST",
+    headers: headers(config.serviceKey),
+    body: JSON.stringify({ p_owner_id: auth.user.sub, p_channels: rpcChannels }),
+    cache: "no-store",
+  });
+  if (!receiptResponse.ok) {
+    return NextResponse.json({
+      error: "Coverage checkpoint saved, but the append-only receipt was not recorded.",
+      checkpointSaved: true,
+    }, { status: 502 });
+  }
+  const appended = await receiptResponse.json() as number;
+  return NextResponse.json({ saved: true, channels: safe.channels.length, receiptsAppended: appended });
 }
