@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Plus, TrendingUp, TrendingDown, LayoutGrid, List } from "lucide-react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { priceSourceBadge } from "@/lib/priceSource";
+import { fetchJsonCoalesced } from "@/lib/marketData/clientRequestCoalescer";
+import { fetchAlpacaQuote } from "@/lib/marketData/alpacaClient";
 
 const DEFAULT_SYMBOLS = [
   "ES1!", "NQ1!", "RTY1!", "YM1!", "SPY", "QQQ",
@@ -62,17 +64,21 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
 
       // Crypto → Alpaca (FREE, no key, real-time)
       if (isCrypto) {
-        const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+        const j = await fetchAlpacaQuote(up, "watchlist", 2_000);
         if ((j?.price ?? 0) > 0) { result[up] = { price: j.price, change: j.change ?? 0, changePct: j.changePct ?? 0, src: "alpaca" }; return; }
         // Fallback to Yahoo
-        const y = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+        const y = await fetchJsonCoalesced<any>(
+          `/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, 2_000, `yahoo:quote:${up}`,
+        );
         if ((y?.price ?? 0) > 0) { result[up] = { price: y.price, change: y.change ?? 0, changePct: y.changePct ?? 0, src: "yahoo" }; return; }
         return;
       }
 
       // Futures → Yahoo only
       if (isFutures) {
-        const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+        const j = await fetchJsonCoalesced<any>(
+          `/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, 2_000, `yahoo:quote:${up}`,
+        );
         if ((j?.price ?? 0) > 0) result[up] = { price: j.price, change: j.change ?? 0, changePct: j.changePct ?? 0, src: "yahoo" };
         return;
       }
@@ -80,10 +86,12 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
       // Stocks/ETFs use the same consolidated-first semantic as MainChart and
       // TickerTape. A same-screen value must not become LIVE merely because an
       // independent consumer happened to receive an IEX-only print first.
-      const yhJ = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
+      const yhJ = await fetchJsonCoalesced<any>(
+        `/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, 2_000, `yahoo:quote:${up}`,
+      ).catch(() => null);
       if (yhJ?.price > 0) { result[up] = { price: yhJ.price, change: yhJ.change ?? 0, changePct: yhJ.changePct ?? 0, src: "yahoo" }; return; }
 
-      const alpacaJ = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
+      const alpacaJ = await fetchAlpacaQuote(up, "watchlist", 2_000).catch(() => null);
       if ((alpacaJ?.price ?? 0) > 0) { result[up] = { price: alpacaJ.price, change: alpacaJ.change ?? 0, changePct: alpacaJ.changePct ?? 0, src: "alpaca" }; return; }
 
       const fhJ = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
@@ -302,8 +310,12 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
   // Re-fetch real prices from Yahoo every 10s (fires immediately on mount)
   // Persists prices to localStorage so HMR re-mounts start with correct data
   useEffect(() => {
-    const doFetch = () => {
-      fetchPolygonSnapshot(symbols).then(liveMap => {
+    let inFlight = false;
+    const doFetch = async () => {
+      if (!open || document.visibilityState === "hidden" || inFlight) return;
+      inFlight = true;
+      try {
+        const liveMap = await fetchPolygonSnapshot(symbols);
         if (!Object.keys(liveMap).length) return;
         setItems(prev => {
           const updated = prev.map(item => {
@@ -322,14 +334,16 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
           } catch {}
           return updated;
         });
-      });
+      } finally {
+        inFlight = false;
+      }
     };
     doFetch();
     const iv = setInterval(doFetch, 10_000);
     const onVisible = () => { if (document.visibilityState === "visible") doFetch(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => { clearInterval(iv); document.removeEventListener("visibilitychange", onVisible); };
-  }, [symbols]);
+  }, [open, symbols]);
 
   const filtered = React.useMemo(() => {
     const rows = items.filter(i => {

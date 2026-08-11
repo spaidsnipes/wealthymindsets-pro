@@ -1,6 +1,7 @@
 import { MARKET_DATA_CAPABILITIES, type MarketDataCapability } from "./capabilityRegistry";
 import {
   createChannelCoverage,
+  markCoverageGap,
   markCoverageStale,
   observeChannel,
   type MarketChannelCoverage,
@@ -108,6 +109,31 @@ export class SessionNectarCollector {
     this.updatedAt = event.timestampProcessed;
     this.emit();
     return inspected;
+  }
+
+  recordOperationalGap(
+    instrumentId: string,
+    normalizedSymbol: string,
+    providerPath: MarketDataCapability["providerPath"],
+    channel: MarketDataCapability["eventType"],
+    occurredAt: number,
+    reason: string,
+  ): boolean {
+    const capability = MARKET_DATA_CAPABILITIES.find(entry =>
+      entry.providerPath === providerPath && entry.eventType === channel
+    );
+    if (!capability || capability.availability === "UNAVAILABLE") return false;
+    const key = `${instrumentId}|${channel}|${providerPath}`;
+    const current = this.channels.get(key) ?? {
+      ...createChannelCoverage(instrumentId, capability),
+      normalizedSymbol: normalizedSymbol.toUpperCase(),
+    };
+    if (current.coverageState === "GAPPED" &&
+        current.lastGapAt != null && occurredAt - current.lastGapAt < 30_000) return false;
+    this.channels.set(key, markCoverageGap(current, occurredAt, reason));
+    this.updatedAt = occurredAt;
+    this.emit();
+    return true;
   }
 
   subscribe(listener: Listener): () => void {
@@ -278,6 +304,24 @@ if (typeof window !== "undefined" && !sessionNectarRuntime.continuityInitialized
 
 export function ingestSessionNectarEvent(event: CanonicalMarketEvent): SessionNectarIngestResult {
   return sessionNectarCollector.ingest(event);
+}
+
+export function recordSessionNectarOperationalGap(
+  instrumentId: string,
+  normalizedSymbol: string,
+  providerPath: MarketDataCapability["providerPath"],
+  channel: MarketDataCapability["eventType"],
+  occurredAt: number,
+  reason: string,
+): boolean {
+  return sessionNectarCollector.recordOperationalGap(
+    instrumentId,
+    normalizedSymbol,
+    providerPath,
+    channel,
+    occurredAt,
+    reason,
+  );
 }
 
 export function getSessionNectarSnapshot(): SessionNectarSnapshot {

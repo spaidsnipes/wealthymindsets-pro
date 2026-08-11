@@ -13,6 +13,12 @@
  */
 
 import { NextResponse } from "next/server";
+import {
+  parseRetryAfterMs,
+  ProviderHttpError,
+  ProviderRequestGovernor,
+  type GovernedResult,
+} from "@/lib/marketData/providerRequestGovernor";
 
 // WM-ENV-P1-02: server-only. NEXT_PUBLIC_* prefix on a broker-secret env var
 // invites a future client-side read that would leak the key into the browser
@@ -36,16 +42,30 @@ function getHeaders(requireAuth = false): Record<string, string> {
   return h;
 }
 
-const CACHE = new Map<string, { data: unknown; ts: number }>();
+const REQUEST_GOVERNOR = new ProviderRequestGovernor();
 
-async function alpacaFetch(url: string, ttlMs = 5_000, requireAuth = false): Promise<unknown> {
-  const cached = CACHE.get(url);
-  if (cached && Date.now() - cached.ts < ttlMs) return cached.data;
-  const res = await fetch(url, { headers: getHeaders(requireAuth), cache: "no-store" });
-  if (!res.ok) throw new Error(`Alpaca HTTP ${res.status}`);
-  const data = await res.json();
-  CACHE.set(url, { data, ts: Date.now() });
-  return data;
+async function alpacaFetch(
+  semanticKey: string,
+  url: string,
+  ttlMs = 5_000,
+  requireAuth = false,
+): Promise<GovernedResult<unknown>> {
+  return REQUEST_GOVERNOR.execute({
+    key: semanticKey,
+    ttlMs,
+    maxStaleMs: Math.max(60_000, ttlMs * 6),
+    fetcher: async () => {
+      const res = await fetch(url, { headers: getHeaders(requireAuth), cache: "no-store" });
+      if (!res.ok) {
+        throw new ProviderHttpError(
+          res.status,
+          parseRetryAfterMs(res.headers.get("retry-after")),
+          `Alpaca HTTP ${res.status}`,
+        );
+      }
+      return res.json();
+    },
+  });
 }
 
 // Alpaca timeframe strings
@@ -95,6 +115,34 @@ export async function GET(request: Request) {
   // Cap raised to 5000 so Daily/Weekly/Monthly can return multi-year history
   // (500 capped Daily to <2y — the user could never see their full 5 years).
   const bars   = Math.min(5000, parseInt(searchParams.get("bars") ?? "300", 10));
+  const consumer = (searchParams.get("consumer") ?? "unattributed").slice(0, 64);
+  let providerMeta: Pick<GovernedResult<unknown>, "health" | "cache" | "retryAfterMs"> = {
+    health: "HEALTHY",
+    cache: "MISS",
+    retryAfterMs: null,
+  };
+  const governed = async (key: string, url: string, ttlMs: number, requireAuth: boolean) => {
+    const result = await alpacaFetch(key, url, ttlMs, requireAuth);
+    providerMeta = result;
+    if (result.health !== "HEALTHY") {
+      console.warn("[wm-provider-health]", {
+        provider: "alpaca",
+        health: result.health,
+        cache: result.cache,
+        retryAfterMs: result.retryAfterMs,
+        symbol: rawSym,
+        channel: type,
+        consumer,
+      });
+    }
+    return result.data as any;
+  };
+  const withProviderMeta = <T extends Record<string, unknown>>(body: T) => ({
+    ...body,
+    providerHealth: providerMeta.health,
+    providerCache: providerMeta.cache,
+    retryAfterMs: providerMeta.retryAfterMs,
+  });
 
   // Futures → not supported
   if (rawSym && isFuturesSym(rawSym)) {
@@ -117,7 +165,7 @@ export async function GET(request: Request) {
         const now  = new Date().toISOString();
         const from = new Date(Date.now() - 2 * 86_400_000).toISOString();
         const url  = `${DATA_BASE}/v1beta3/crypto/us/bars?symbols=${encodeURIComponent(cryptoSym)}&timeframe=1Day&start=${from}&end=${now}&limit=2`;
-        const json = await alpacaFetch(url, 5_000, false) as any;
+        const json = await governed(`quote:crypto:${cryptoSym}`, url, 5_000, false);
         const barsArr: any[] = json?.bars?.[cryptoSym] ?? [];
         if (barsArr.length > 0) {
           const last = barsArr[barsArr.length - 1];
@@ -135,7 +183,7 @@ export async function GET(request: Request) {
           return NextResponse.json({ error: "Alpaca keys not set" }, { status: 503 });
         }
         const snapshotUrl = `${DATA_BASE}/v2/stocks/${encodeURIComponent(rawSym)}/snapshot?feed=iex`;
-        const json = await alpacaFetch(snapshotUrl, 3_000, true) as any;
+        const json = await governed(`quote:stock:${rawSym}:iex`, snapshotUrl, 5_000, true);
         price     = json?.latestTrade?.p  ?? json?.minuteBar?.c ?? 0;
         open      = json?.dailyBar?.o     ?? 0;
         high      = json?.dailyBar?.h     ?? price;
@@ -156,7 +204,7 @@ export async function GET(request: Request) {
 
       if (!price) return NextResponse.json({ error: "No data from Alpaca" }, { status: 404 });
 
-      return NextResponse.json({
+      return NextResponse.json(withProviderMeta({
         sym:       rawSym,
         price,
         open,
@@ -168,7 +216,7 @@ export async function GET(request: Request) {
         changePct: prevClose ? +(((price - prevClose) / prevClose) * 100).toFixed(4) : 0,
         ts:        Date.now(),
         source:    "alpaca",
-      });
+      }));
     }
 
     /* ── Recent per-trade tape (drives Big Trades bubbles) ──────
@@ -188,18 +236,18 @@ export async function GET(request: Request) {
       if (crypto) {
         const cryptoSym = toCryptoSym(rawSym);
         const url  = `${DATA_BASE}/v1beta3/crypto/us/trades?symbols=${encodeURIComponent(cryptoSym)}&start=${startIso}&limit=1000&sort=asc`;
-        const json = await alpacaFetch(url, 900, false) as any;
+        const json = await governed(`trades:crypto:${cryptoSym}:${startIso}`, url, 900, false);
         const arr: any[] = json?.trades?.[cryptoSym] ?? [];
-        return NextResponse.json({ sym: rawSym, trades: arr.map(t => ({ p: t.p, s: t.s, t: Date.parse(t.t) })), source: "alpaca" });
+        return NextResponse.json(withProviderMeta({ sym: rawSym, trades: arr.map(t => ({ p: t.p, s: t.s, t: Date.parse(t.t) })), source: "alpaca" }));
       }
 
       if (!ALPACA_KEY || !ALPACA_SECRET) {
         return NextResponse.json({ trades: [], error: "Alpaca keys not set" }, { status: 503 });
       }
       const url  = `${DATA_BASE}/v2/stocks/${encodeURIComponent(rawSym)}/trades?start=${startIso}&limit=1000&feed=iex&sort=asc`;
-      const json = await alpacaFetch(url, 900, true) as any;
+      const json = await governed(`trades:stock:${rawSym}:${startIso}`, url, 900, true);
       const arr: any[] = json?.trades ?? [];
-      return NextResponse.json({ sym: rawSym, trades: arr.map(t => ({ p: t.p, s: t.s, t: Date.parse(t.t) })), source: "alpaca" });
+      return NextResponse.json(withProviderMeta({ sym: rawSym, trades: arr.map(t => ({ p: t.p, s: t.s, t: Date.parse(t.t) })), source: "alpaca" }));
     }
 
     /* ── Historical candles ─────────────────────────────────── */
@@ -220,7 +268,7 @@ export async function GET(request: Request) {
         // then we reverse to chronological order — identical to the stocks path.
         const cryptoSym = toCryptoSym(rawSym);
         const url = `${DATA_BASE}/v1beta3/crypto/us/bars?symbols=${encodeURIComponent(cryptoSym)}&timeframe=${timeframe}&start=${start}&end=${end}&limit=${bars}&sort=desc`;
-        const json = await alpacaFetch(url, 20_000, false) as any;
+        const json = await governed(`candles:crypto:${cryptoSym}:${timeframe}:${bars}`, url, 20_000, false);
         rawBars = (json?.bars?.[cryptoSym] ?? []).slice().reverse();
       } else {
         if (!ALPACA_KEY || !ALPACA_SECRET) {
@@ -229,7 +277,7 @@ export async function GET(request: Request) {
         // Use sort=desc to get MOST RECENT bars first (avoids hitting limit before reaching today)
         // Then reverse to get chronological order for the chart
         const url = `${DATA_BASE}/v2/stocks/${encodeURIComponent(rawSym)}/bars?timeframe=${timeframe}&start=${start}&end=${end}&limit=${bars}&feed=iex&adjustment=raw&sort=desc`;
-        const json = await alpacaFetch(url, 20_000, true) as any;
+        const json = await governed(`candles:stock:${rawSym}:${timeframe}:${bars}:iex`, url, 20_000, true);
         rawBars = (json?.bars ?? []).reverse(); // reverse to chronological order
       }
 
@@ -242,14 +290,33 @@ export async function GET(request: Request) {
         volume: b.v ?? 0,
       }));
 
-      return NextResponse.json({ sym: rawSym, tf, candles, source: "alpaca" });
+      return NextResponse.json(withProviderMeta({ sym: rawSym, tf, candles, source: "alpaca" }));
     }
 
     return NextResponse.json({ error: "Unknown type" }, { status: 400 });
 
   } catch (err: unknown) {
     const msg = String(err);
-    const status = msg.includes("not configured") || msg.includes("not set") ? 503 : 500;
-    return NextResponse.json({ error: msg }, { status });
+    const providerError = err instanceof ProviderHttpError ? err : null;
+    const status = providerError?.status
+      ?? (msg.includes("not configured") || msg.includes("not set") ? 503 : 500);
+    console.error("[wm-provider-request-failed]", {
+      provider: "alpaca",
+      status,
+      retryAfterMs: providerError?.retryAfterMs ?? null,
+      symbol: rawSym,
+      channel: type,
+      consumer,
+    });
+    return NextResponse.json({
+      error: msg,
+      providerHealth: status === 429 ? "RATE_LIMITED" : "UNAVAILABLE",
+      retryAfterMs: providerError?.retryAfterMs ?? null,
+    }, {
+      status,
+      headers: providerError?.retryAfterMs
+        ? { "Retry-After": String(Math.ceil(providerError.retryAfterMs / 1_000)) }
+        : undefined,
+    });
   }
 }
