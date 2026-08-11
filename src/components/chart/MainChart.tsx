@@ -2033,7 +2033,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // "now", which sits far to the right of those synthetic times — so the bricks
         // bunch against the right edge leaving the left half blank (the "Renko shows
         // empty chart" bug). For these types fit ALL bricks into the pane instead.
-        if (isRenko || isRangeBars) {
+        //
+        // Intraday clock timeframes: fitContent() shows the FULL loaded session
+        // (typically today's RTH) instead of the last ~100 bars around now. Before
+        // this, opening TSLA on 1m at market close showed only "01:20 PM → 02:57 PM"
+        // even though 389 bars covering the whole session were already loaded.
+        // Higher timeframes (daily+) span years, so we keep scrollToRealTime for
+        // those — fitContent would zoom them out to a nearly-flat line.
+        const intradayClockTf = ["1m","2m","3m","5m","10m","15m","30m","1h","2h","4h"].includes(timeframe);
+        if (isRenko || isRangeBars || intradayClockTf) {
           chart.timeScale().fitContent();
         } else {
           chart.timeScale().scrollToRealTime();
@@ -6071,8 +6079,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, fixedVPActive, sessionVPActive]);
 
   /* ── Derived display values ─────────────────────────────── */
-  const change    = ticker.change ?? (lastPrice - openPrice);
-  const changePct = (ticker.changePct ?? ((lastPrice - openPrice) / openPrice * 100)).toFixed(2);
+  // openPrice is the OPEN of the first loaded bar (see setOpenPrice at load time),
+  // which on a multi-day intraday range is NOT today's session open. Using it as a
+  // change reference produced a fabricated ~ -18.78% header on TSLA when the real
+  // day-change was +0.06%. Only trust a change value that came from a real quote
+  // provider (ticker.change/changePct). Otherwise render "—" and label truthfully.
+  const hasProviderChange = Number.isFinite(ticker.change) && Number.isFinite(ticker.changePct);
+  const change    = hasProviderChange ? (ticker.change as number) : 0;
+  const changePct = hasProviderChange ? (ticker.changePct as number).toFixed(2) : "—";
   const up        = change >= 0;
   const last      = candles[candles.length - 1];
   const dp        = base < 10 ? 4 : 2;
@@ -6804,8 +6818,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               minimumFractionDigits: dp, maximumFractionDigits: dp,
             })}
           </span>
-          <span className={`text-xs font-mono font-semibold ${up ? "text-wm-green" : "text-wm-red"}`}>
-            {up ? "+" : ""}{change.toFixed(dp)} ({up ? "+" : ""}{changePct}%)
+          <span
+            className={`text-xs font-mono font-semibold ${hasProviderChange ? (up ? "text-wm-green" : "text-wm-red") : "text-wm-textDim"}`}
+            title={hasProviderChange ? undefined : "Change unavailable — no verified reference close from the current quote provider."}
+          >
+            {hasProviderChange
+              ? `${up ? "+" : ""}${change.toFixed(dp)} (${up ? "+" : ""}${changePct}%)`
+              : "— (change unavailable)"}
           </span>
           {(() => {
             // Sentinel V-008 visibility fix — 10px readable badge.

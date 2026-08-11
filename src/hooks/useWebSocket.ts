@@ -756,17 +756,24 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
     setState(prev => {
       const newVol = prev.ticker.volume + ticks.reduce((s, t) => s + t.size, 0);
-      // Day-change is vs the REAL prior close (from the quote) — NOT the hardcoded
-      // seed, which produced bogus % (e.g. −7% on a flat day for TSLA).
-      const ref = prevCloseRef.current > 0 ? prevCloseRef.current : baseRef.current;
+      // Day-change is vs the REAL prior close (from the quote). Falling back to
+      // baseRef.current (the hardcoded seed, e.g. TSLA 405) produced a fabricated
+      // −18% header on TSLA whenever a WS tick landed before fetchRealQuote
+      // populated prevCloseRef. Truth-first: if we don't have a real reference
+      // yet, do NOT touch change/changePct — keep the last known values so a
+      // seed-derived fake never reaches the UI. fetchRealQuote at mount will
+      // populate prevCloseRef on its first resolve.
+      const hasRealRef = prevCloseRef.current > 0;
       return {
         ...prev,
-        ticker: {
-          price,
-          change:    +(price - ref).toFixed(2),
-          changePct: ref > 0 ? +((price - ref) / ref * 100).toFixed(2) : 0,
-          volume:    newVol,
-        },
+        ticker: hasRealRef
+          ? {
+              price,
+              change:    +(price - prevCloseRef.current).toFixed(2),
+              changePct: +((price - prevCloseRef.current) / prevCloseRef.current * 100).toFixed(2),
+              volume:    newVol,
+            }
+          : { ...prev.ticker, price, volume: newVol },
         liveBar:     barRef.current ? { ...barRef.current } : null,
         recentTicks: [...ticks, ...prev.recentTicks].slice(0, 50),
         orderBook:   bookRef.current,
@@ -1028,6 +1035,13 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
             // Delta/footprint until an aggressor side is supportable.
             if (event.aggressorSide === "UNKNOWN") continue;
             tapeSourceRef.current = "alpaca";
+            // Equity/relay trades bypass createTapeHub's fanTick, so the
+            // shared-hub ingest at line ~493 never sees them and TSLA/AAPL/etc
+            // never register a Nectar channel. Ingest here directly so equity
+            // trades produce the same coverage receipts crypto trades do. Guard
+            // is idempotent — the same event.eventId can't dedupe-fail because
+            // MarketEventGuard.inspect above already accepted it.
+            ingestSessionNectarEvent(event);
             processTick({
               price: event.price!,
               size: event.size!,
