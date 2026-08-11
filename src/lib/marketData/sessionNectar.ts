@@ -141,6 +141,26 @@ export class SessionNectarCollector {
     return true;
   }
 
+  recoverOperationalGap(
+    instrumentId: string,
+    providerPath: MarketDataCapability["providerPath"],
+    channel: MarketDataCapability["eventType"],
+    occurredAt: number,
+  ): boolean {
+    const key = `${instrumentId}|${channel}|${providerPath}`;
+    const current = this.channels.get(key);
+    if (!current || current.coverageState !== "GAPPED") return false;
+    this.channels.set(key, {
+      ...current,
+      coverageState: "COLLECTING",
+      lastEventAt: Math.max(current.lastEventAt ?? 0, occurredAt),
+      detail: "Collection resumed after a known operational gap; the historical gap remains recorded.",
+    });
+    this.updatedAt = occurredAt;
+    this.emit();
+    return true;
+  }
+
   subscribe(listener: Listener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -328,6 +348,17 @@ export function recordSessionNectarOperationalGap(
     channel,
     occurredAt,
     reason,
+  );
+}
+
+export function recoverSessionNectarOperationalGap(
+  instrumentId: string,
+  providerPath: MarketDataCapability["providerPath"],
+  channel: MarketDataCapability["eventType"],
+  occurredAt: number,
+): boolean {
+  return sessionNectarCollector.recoverOperationalGap(
+    instrumentId, providerPath, channel, occurredAt,
   );
 }
 

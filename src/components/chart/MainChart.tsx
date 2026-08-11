@@ -25,6 +25,7 @@ import {
   subscribeToSessionNectar,
 } from "@/lib/marketData/sessionNectar";
 import { getRuntimeTapeCapability, hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
+import { fetchAlpacaCandles as fetchAlpacaCandlesData } from "@/lib/marketData/alpacaClient";
 import { overlayFrameBudgetMs, shouldDrawOverlay } from "@/lib/chartOverlayGovernor";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { candleDataStatus, priceSourceBadge } from "@/lib/priceSource";
@@ -324,10 +325,9 @@ async function fetchAlpacaCandles(sym: string, tf: string, count: number, signal
   const isFutures = up.endsWith("1!") || up.includes("=F");
   if (isFutures) return null; // Alpaca doesn't support futures
   try {
-    const url = `/api/alpaca?sym=${encodeURIComponent(up)}&type=candles&tf=${tf}&bars=${count}`;
-    const res = await fetch(url, { cache: "no-store", signal });
-    if (res.status === 503 || res.status === 404) return null; // key not set or not supported
-    const json = await res.json();
+    if (signal?.aborted) return null;
+    const json = await fetchAlpacaCandlesData<any>(up, tf, count, "main-chart");
+    if (signal?.aborted) return null;
     if (!Array.isArray(json.candles) || json.candles.length === 0) return null;
     return json.candles as Bar[];
   } catch {

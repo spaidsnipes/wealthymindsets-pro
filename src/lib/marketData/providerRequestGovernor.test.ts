@@ -97,6 +97,27 @@ describe("ProviderRequestGovernor", () => {
     await expect(active).resolves.toMatchObject({ data: { ok: true } });
   });
 
+  it("enforces a provider request-rate budget across sequential unique keys", async () => {
+    let now = 1_000;
+    const governor = new ProviderRequestGovernor(() => now, () => 0, 500, 8, 2, 60_000);
+    for (const key of ["quote:TSLA", "quote:AAPL"]) {
+      await governor.execute({ key, ttlMs: 1_000, maxStaleMs: 1_000, fetcher: async () => ({ ok: true }) });
+    }
+    await expect(governor.execute({
+      key: "quote:NVDA",
+      ttlMs: 1_000,
+      maxStaleMs: 1_000,
+      fetcher: async () => ({ ok: true }),
+    })).rejects.toMatchObject({ status: 429, retryAfterMs: 60_000 });
+    now = 61_001;
+    await expect(governor.execute({
+      key: "quote:NVDA",
+      ttlMs: 1_000,
+      maxStaleMs: 1_000,
+      fetcher: async () => ({ ok: true }),
+    })).resolves.toMatchObject({ health: "HEALTHY" });
+  });
+
   it("parses both Retry-After formats", () => {
     expect(parseRetryAfterMs("3", 1_000)).toBe(3_000);
     expect(parseRetryAfterMs("Thu, 01 Jan 1970 00:00:05 GMT", 1_000)).toBe(4_000);

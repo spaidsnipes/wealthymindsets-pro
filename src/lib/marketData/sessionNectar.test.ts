@@ -57,6 +57,13 @@ describe("Session Nectar collection health", () => {
       lastGapAt: 10_000,
       observedEventCount: 0,
     });
+    expect(collector.recoverOperationalGap("TSLA", "alpaca-rest", "quote", 12_000)).toBe(true);
+    expect(collector.snapshot().channels[0]).toMatchObject({
+      coverageState: "COLLECTING",
+      gapCount: 1,
+      lastGapAt: 10_000,
+      lastEventAt: 12_000,
+    });
   });
 
   it("turns an accepted canonical event into session-only channel coverage", () => {

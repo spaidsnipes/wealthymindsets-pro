@@ -44,12 +44,15 @@ export class ProviderRequestGovernor {
   private providerCircuitUntil = 0;
   private providerConsecutiveRateLimits = 0;
   private activeUpstreamRequests = 0;
+  private readonly upstreamRequestTimes: number[] = [];
 
   constructor(
     private readonly now: () => number = Date.now,
     private readonly random: () => number = Math.random,
     private readonly maxEntries = 500,
     private readonly maxConcurrentUpstream = 8,
+    private readonly maxUpstreamPerWindow = 100,
+    private readonly requestWindowMs = 60_000,
   ) {}
 
   async execute<T>({ key, ttlMs, maxStaleMs, fetcher }: GovernedRequest<T>): Promise<GovernedResult<T>> {
@@ -95,6 +98,14 @@ export class ProviderRequestGovernor {
     if (this.activeUpstreamRequests >= this.maxConcurrentUpstream) {
       throw new ProviderHttpError(429, 1_000, "Provider request budget is temporarily saturated");
     }
+    while (this.upstreamRequestTimes[0] <= now - this.requestWindowMs) {
+      this.upstreamRequestTimes.shift();
+    }
+    if (this.upstreamRequestTimes.length >= this.maxUpstreamPerWindow) {
+      const retryAfterMs = Math.max(1, this.upstreamRequestTimes[0] + this.requestWindowMs - now);
+      throw new ProviderHttpError(429, retryAfterMs, "Provider request-rate budget is temporarily exhausted");
+    }
+    this.upstreamRequestTimes.push(now);
 
     const request = (async (): Promise<GovernedResult<T>> => {
       this.activeUpstreamRequests += 1;

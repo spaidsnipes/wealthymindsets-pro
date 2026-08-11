@@ -82,14 +82,18 @@ function toAlpacaTF(tf: string): { timeframe: string; daysBack: number } {
     "2h":  { timeframe: "2Hour", daysBack: 120 },
     "4h":  { timeframe: "4Hour", daysBack: 180 },
     "D":   { timeframe: "1Day",  daysBack: 2000 },
+    "1D":  { timeframe: "1Day",  daysBack: 2000 },
     "W":   { timeframe: "1Week", daysBack: 3650 },
+    "1W":  { timeframe: "1Week", daysBack: 3650 },
     // Monthly & multi-month/year period selectors → monthly candles spanning
     // years. Alpaca's largest bucket is 1Month; without these entries they fell
     // through to the "1Min" default, which is why Monthly showed minute bars.
     "M":   { timeframe: "1Month", daysBack: 5475 },   // ~15y
+    "1M":  { timeframe: "1Month", daysBack: 5475 },
     "3M":  { timeframe: "1Month", daysBack: 7300 },
     "6M":  { timeframe: "1Month", daysBack: 7300 },
     "1Y":  { timeframe: "1Month", daysBack: 7300 },
+    "2Y":  { timeframe: "1Week", daysBack: 3650 },
     "3Y":  { timeframe: "1Month", daysBack: 7300 },
     "5Y":  { timeframe: "1Month", daysBack: 7300 },
   };
@@ -97,6 +101,7 @@ function toAlpacaTF(tf: string): { timeframe: string; daysBack: number } {
 }
 
 const CRYPTO_SYMS = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","MATIC","UNI","ATOM"]);
+const ALPACA_TIMEFRAMES = new Set(["1m","2m","3m","5m","10m","15m","30m","1h","2h","4h","D","1D","W","1W","M","1M","3M","6M","1Y","2Y","3Y","5Y"]);
 
 function isCryptoSym(sym: string) { return CRYPTO_SYMS.has(sym.toUpperCase()); }
 function isFuturesSym(sym: string) { return sym.endsWith("1!") || sym.includes("=F"); }
@@ -159,6 +164,9 @@ export async function GET(request: Request) {
   }
   if (!new Set(["quote", "trades", "candles"]).has(type)) {
     return NextResponse.json({ error: "Unknown type" }, { status: 400 });
+  }
+  if (type === "candles" && !ALPACA_TIMEFRAMES.has(tf)) {
+    return NextResponse.json({ error: "unsupported timeframe" }, { status: 400 });
   }
 
   // Futures → not supported
