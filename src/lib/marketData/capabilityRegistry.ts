@@ -20,6 +20,51 @@ export type MarketEventCapability = "quote" | "trade" | "bar" | "depth" | "news"
 export type CapabilityAvailability = "AVAILABLE" | "PARTIAL" | "UNAVAILABLE";
 export type CollectionScope = "FOREGROUND_TAB" | "REQUEST_SCOPED" | "EXTERNAL_RELAY" | "BROKER_SESSION" | "NONE";
 export type PersistenceRight = "UNKNOWN" | "PROHIBITED" | "ALLOWED";
+
+/**
+ * Rights registry v2 (2026-08-10 afternoon session).
+ *
+ * The v1 registry expressed a single boolean-ish `rawPersistenceRight`. The
+ * founder directive requires an explicit, per-action decision — otherwise a
+ * data-usage choice we never actually made can leak through as an implied
+ * "sure, why not". Every action defaults to `UNKNOWN` and every gate that
+ * reads this MUST treat UNKNOWN as fail-closed (i.e. not allowed).
+ *
+ * Actions:
+ *   collect      — may we receive events from this provider at all?
+ *   display      — may we render values from this provider to the user?
+ *   raw          — may we durably store the raw event payload?
+ *   derived      — may we durably store derived aggregates (bars, VP, delta)?
+ *   redistribute — may we serve this data to third parties (feeds, exports)?
+ *   train        — may this data enter a model training set (WM or external)?
+ *
+ * A capability MAY be `collect: ALLOWED, display: ALLOWED` while every other
+ * action stays `UNKNOWN`. That is the correct posture for most public feeds
+ * today: we can watch and render, but retention/redistribute/train remain
+ * unreviewed and therefore forbidden.
+ */
+export type RightsDecision = "UNKNOWN" | "PROHIBITED" | "ALLOWED";
+
+export interface MarketDataRights {
+  collect:      RightsDecision;
+  display:      RightsDecision;
+  raw:          RightsDecision;
+  derived:      RightsDecision;
+  redistribute: RightsDecision;
+  train:        RightsDecision;
+  commercial:   RightsDecision;
+}
+
+export const UNKNOWN_RIGHTS: MarketDataRights = {
+  collect:      "UNKNOWN",
+  display:      "UNKNOWN",
+  raw:          "UNKNOWN",
+  derived:      "UNKNOWN",
+  redistribute: "UNKNOWN",
+  train:        "UNKNOWN",
+  commercial:   "UNKNOWN",
+} as const;
+
 export type TimestampField = "EXCHANGE" | "PROVIDER" | "RECEIVED" | "PROCESSED";
 export type FidelityClass = "OBSERVED" | "DERIVED" | "PROXY" | "UNAVAILABLE";
 export type RuntimeTapeSource = "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | null;
@@ -37,21 +82,62 @@ export interface MarketDataCapability {
   aggressorMethod: "PROVIDER" | "MAKER_SIDE_INVERTED" | "TICK_RULE" | "NONE";
   sessionCoverage: string;
   fallbackSemantics: "NONE" | "EXPLICIT" | "SILENT_LEGACY";
+  /** @deprecated Use `rights.raw` via `canDoAction(cap, "raw")`. Kept for v1 consumers. */
   rawPersistenceRight: PersistenceRight;
   rightsPolicyId: string;
   retentionLimitSeconds: number | null;
+  attributionRequired: boolean | null;
+  rightsEvidenceUrl: string | null;
+  rightsAgreementVersion: string | null;
+  rightsReviewedBy: string | null;
+  rightsReviewedAt: string | null;
   evidence: string;
+  /**
+   * Granular per-action rights (v2). Every field defaults to `UNKNOWN` when
+   * an entry doesn't specify one. `UNKNOWN` fails closed at the gate — do
+   * NOT treat missing knowledge as consent.
+   */
+  rights: MarketDataRights;
 }
 
+/**
+ * Compatibility preset for operational public-feed entries. Availability
+ * records what the app can technically receive; it is not a legal grant.
+ * The 2026-08-10 provider review found no blanket multi-user commercial
+ * authorization, so every legal action remains UNKNOWN and fails closed.
+ */
+export const PUBLIC_DISPLAY_ONLY_RIGHTS: MarketDataRights = {
+  ...UNKNOWN_RIGHTS,
+} as const;
+
 const capability = (
-  value: Omit<MarketDataCapability, "rawPersistenceRight" | "rightsPolicyId" | "retentionLimitSeconds"> &
-    Partial<Pick<MarketDataCapability, "rawPersistenceRight" | "rightsPolicyId" | "retentionLimitSeconds">>,
-): MarketDataCapability => ({
-  rawPersistenceRight: "UNKNOWN",
-  rightsPolicyId: UNKNOWN_RIGHTS_POLICY_ID,
-  retentionLimitSeconds: null,
-  ...value,
-});
+  value: Omit<MarketDataCapability,
+    | "rawPersistenceRight" | "rightsPolicyId" | "retentionLimitSeconds" | "rights"
+    | "attributionRequired" | "rightsEvidenceUrl" | "rightsAgreementVersion"
+    | "rightsReviewedBy" | "rightsReviewedAt"
+  > & Partial<Pick<MarketDataCapability,
+    | "rawPersistenceRight" | "rightsPolicyId" | "retentionLimitSeconds" | "rights"
+    | "attributionRequired" | "rightsEvidenceUrl" | "rightsAgreementVersion"
+    | "rightsReviewedBy" | "rightsReviewedAt"
+  >>,
+): MarketDataCapability => {
+  const rights: MarketDataRights = { ...UNKNOWN_RIGHTS, ...(value.rights ?? {}) };
+  // Keep rawPersistenceRight (v1) in sync with rights.raw (v2) so old gates
+  // still see the same answer. New code should read `rights.raw`.
+  const rawPersistenceRight: PersistenceRight = value.rawPersistenceRight ?? rights.raw;
+  return {
+    rightsPolicyId: UNKNOWN_RIGHTS_POLICY_ID,
+    retentionLimitSeconds: null,
+    attributionRequired: null,
+    rightsEvidenceUrl: null,
+    rightsAgreementVersion: null,
+    rightsReviewedBy: null,
+    rightsReviewedAt: null,
+    ...value,
+    rights,
+    rawPersistenceRight,
+  };
+};
 
 export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
   capability({
@@ -66,6 +152,7 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     aggressorMethod: "MAKER_SIDE_INVERTED",
     sessionCoverage: "24/7 while the elected browser tab is connected",
     fallbackSemantics: "EXPLICIT",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
     evidence: "src/hooks/useWebSocket.ts tryCoinbase + joinTape; ticker sequence continuity is not certified",
   }),
   capability({
@@ -80,6 +167,7 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     aggressorMethod: "MAKER_SIDE_INVERTED",
     sessionCoverage: "24/7 fallback while the elected browser tab is connected",
     fallbackSemantics: "EXPLICIT",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
     evidence: "src/hooks/useWebSocket.ts tryBinance fallback + adapters/binanceUs.ts",
   }),
   capability({
@@ -94,6 +182,7 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     aggressorMethod: "TICK_RULE",
     sessionCoverage: "Relay-defined US equity session; IEX scope must be verified",
     fallbackSemantics: "NONE",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
     evidence: "src/hooks/useWebSocket.ts DEFAULT_PROXY relay consumer",
   }),
   capability({
@@ -108,6 +197,7 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     aggressorMethod: "NONE",
     sessionCoverage: "IEX quote scope",
     fallbackSemantics: "EXPLICIT",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
     evidence: "src/app/api/alpaca/route.ts",
   }),
   capability({
@@ -122,6 +212,7 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     aggressorMethod: "NONE",
     sessionCoverage: "Provider chart-session coverage; execution contract identity unavailable",
     fallbackSemantics: "EXPLICIT",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
     evidence: "src/app/api/yahoo/route.ts + src/lib/yahooTimeframes.ts",
   }),
   capability({
@@ -136,6 +227,7 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     aggressorMethod: "NONE",
     sessionCoverage: "Plan-dependent historical candle coverage",
     fallbackSemantics: "EXPLICIT",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
     evidence: "src/app/api/finnhub/route.ts fail-closed timeframe contract",
   }),
   capability({
@@ -150,6 +242,7 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     aggressorMethod: "NONE",
     sessionCoverage: "24/7 while the DOM component is connected",
     fallbackSemantics: "NONE",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
     evidence: "src/components/chart/DOMPanel.tsx Kraken book consumer",
   }),
   capability({
@@ -164,6 +257,7 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     aggressorMethod: "NONE",
     sessionCoverage: "Exchange-dependent 24/7 bars",
     fallbackSemantics: "SILENT_LEGACY",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
     evidence: "src/app/api/exchange/route.ts nearest-granularity and Gemini fallback paths",
   }),
 ] as const;
@@ -187,14 +281,39 @@ export function getMarketDataCapability(
     aggressorMethod: "NONE",
     sessionCoverage: "No verified implementation evidence",
     fallbackSemantics: "NONE",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
     evidence: "No matching registry entry",
   });
 }
 
 export function canPersistRaw(capabilityEntry: MarketDataCapability): boolean {
   return capabilityEntry.availability !== "UNAVAILABLE" &&
+    capabilityEntry.rights.collect === "ALLOWED" &&
+    capabilityEntry.rights.raw === "ALLOWED" &&
     capabilityEntry.rawPersistenceRight === "ALLOWED";
 }
+
+export function canPersistDerived(capabilityEntry: MarketDataCapability): boolean {
+  return capabilityEntry.availability !== "UNAVAILABLE" &&
+    capabilityEntry.rights.collect === "ALLOWED" &&
+    capabilityEntry.rights.derived === "ALLOWED";
+}
+
+/**
+ * v2 gate — read a per-action right. Every UNKNOWN answer becomes `false`
+ * (fail closed). Consumers MUST NOT invert this check ("if not prohibited
+ * then allowed") — that would silently grant UNKNOWN.
+ */
+export function canDoAction(
+  capabilityEntry: MarketDataCapability,
+  action: keyof MarketDataRights,
+): boolean {
+  if (capabilityEntry.availability === "UNAVAILABLE") return false;
+  return capabilityEntry.rights[action] === "ALLOWED";
+}
+
+// PUBLIC_DISPLAY_ONLY_RIGHTS moved above MARKET_DATA_CAPABILITIES so the
+// entries can reference it. See the exported constant below the interface.
 
 const TAPE_SOURCE_PATHS: Partial<Record<Exclude<RuntimeTapeSource, null>, {
   providerPath: MarketProviderPath;
