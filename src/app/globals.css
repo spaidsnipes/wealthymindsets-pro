@@ -641,6 +641,7 @@ input[type=range]::-webkit-slider-runnable-track {
 /* The footprint limitation must remain visible on phones without covering the
    evidence it explains. The full wording stays in the accessible name/title. */
 .wm-footprint-live-status__compact { display: none; }
+.wm-nectar-saved-history__compact { display: none; }
 
 @media (max-width: 480px) {
   /* The live chart is a critical decision surface. The global assistant stays
@@ -673,4 +674,12 @@ input[type=range]::-webkit-slider-runnable-track {
     padding: 4px 6px !important;
     white-space: nowrap;
   }
+
+  .wm-nectar-saved-history-chip {
+    gap: 7px !important;
+  }
+
+  .wm-nectar-saved-history__full,
+  .wm-nectar-saved-history__context { display: none; }
+  .wm-nectar-saved-history__compact { display: inline; }
 }

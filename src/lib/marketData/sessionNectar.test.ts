@@ -94,6 +94,46 @@ describe("Session Nectar collection health", () => {
     )?.providerPath).toBe("binance-us-client-ws");
   });
 
+  it("returns the newest prior provider summary when current tape is unavailable", () => {
+    const collector = new SessionNectarCollector(1_786_335_600_000);
+    collector.ingest(trade());
+    collector.ingest(trade({
+      eventId: "alpaca:TSLA:102",
+      sourceEventId: "102",
+      symbol: "TSLA",
+      executableIdentity: "TSLA",
+      normalizedSymbol: "TSLA",
+      assetClass: "equity",
+      providerClass: "BROKER",
+      providerPath: "alpaca-external-relay",
+      exchange: "NASDAQ",
+      sourceClass: "PROXY",
+      fidelityClass: "PROXY",
+      sequenceId: 102,
+      timestampExchange: 1_786_335_702_000,
+      timestampProvider: 1_786_335_702_005,
+      timestampReceived: 1_786_335_702_020,
+      timestampProcessed: 1_786_335_702_025,
+      availableAt: 1_786_335_702_025,
+    }));
+
+    const restored = new SessionNectarCollector(1_786_335_710_000);
+    restored.restoreCoverageSummaries(collector.snapshot().channels.map(channel => ({
+      ...channel,
+      coverageState: "STALE" as const,
+      memoryState: "SUMMARY_ONLY" as const,
+    })), "server");
+    const saved = findSessionNectarChannel(
+      restored.snapshot(), "TSLA", "trade", null, 1_786_335_720_000, 2_000,
+    );
+    expect(saved).toMatchObject({
+      normalizedSymbol: "TSLA",
+      providerPath: "alpaca-external-relay",
+      coverageState: "STALE",
+      memoryState: "SUMMARY_ONLY",
+    });
+  });
+
   it("restores summary coverage without claiming retained raw tape", () => {
     const original = new SessionNectarCollector(1_786_335_600_000);
     original.ingest(trade());
