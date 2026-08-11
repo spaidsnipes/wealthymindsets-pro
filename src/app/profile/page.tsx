@@ -139,26 +139,34 @@ export default function ProfilePage() {
       const paperTrades: Array<{ symbol?: string; side?: string; entryPrice?: number; exitPrice?: number; pnl?: number; rr?: number; closedAt?: string; }> = paperState?.trades ?? [];
 
       const trades: TradeRow[] = [
-        ...journalRaw.filter(t => t.pnl !== undefined).map(t => ({
-          sym: t.symbol ?? "—",
-          dir: t.direction ?? "LONG",
-          entry: t.entryPrice != null ? String(t.entryPrice) : "—",
-          exit: t.exitPrice != null ? String(t.exitPrice) : "—",
-          pnl: hasResolvedTradeOutcome(t) ? `${t.pnl >= 0 ? "+" : ""}$${Math.abs(t.pnl).toFixed(0)}` : "Unresolved",
-          rr: hasResolvedTradeOutcome(t) && t.rr != null ? `${t.rr.toFixed(1)}R` : "—",
-          date: t.createdAt ? new Date(t.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—",
-          outcomeResolved: hasResolvedTradeOutcome(t),
-        })),
-        ...paperTrades.filter(t => t.pnl !== undefined).map(t => ({
-          sym: t.symbol ?? "—",
-          dir: (t.side ?? "LONG").toUpperCase(),
-          entry: t.entryPrice != null ? String(t.entryPrice) : "—",
-          exit: t.exitPrice != null ? String(t.exitPrice) : "—",
-          pnl: hasResolvedTradeOutcome(t) ? `${t.pnl >= 0 ? "+" : ""}$${Math.abs(t.pnl).toFixed(0)}` : "Unresolved",
-          rr: hasResolvedTradeOutcome(t) && t.rr != null ? `${t.rr.toFixed(1)}R` : "—",
-          date: t.closedAt ? new Date(t.closedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—",
-          outcomeResolved: hasResolvedTradeOutcome(t),
-        })),
+        ...journalRaw.filter(t => t.pnl !== undefined).map(t => {
+          const outcomeResolved = hasResolvedTradeOutcome(t);
+          const resolvedPnl = outcomeResolved && typeof t.pnl === "number" ? t.pnl : null;
+          return {
+            sym: t.symbol ?? "—",
+            dir: t.direction ?? "LONG",
+            entry: t.entryPrice != null ? String(t.entryPrice) : "—",
+            exit: t.exitPrice != null ? String(t.exitPrice) : "—",
+            pnl: resolvedPnl !== null ? `${resolvedPnl >= 0 ? "+" : ""}$${Math.abs(resolvedPnl).toFixed(0)}` : "Unresolved",
+            rr: outcomeResolved && t.rr != null ? `${t.rr.toFixed(1)}R` : "—",
+            date: t.createdAt ? new Date(t.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—",
+            outcomeResolved,
+          };
+        }),
+        ...paperTrades.filter(t => t.pnl !== undefined).map(t => {
+          const outcomeResolved = hasResolvedTradeOutcome(t);
+          const resolvedPnl = outcomeResolved && typeof t.pnl === "number" ? t.pnl : null;
+          return {
+            sym: t.symbol ?? "—",
+            dir: (t.side ?? "LONG").toUpperCase(),
+            entry: t.entryPrice != null ? String(t.entryPrice) : "—",
+            exit: t.exitPrice != null ? String(t.exitPrice) : "—",
+            pnl: resolvedPnl !== null ? `${resolvedPnl >= 0 ? "+" : ""}$${Math.abs(resolvedPnl).toFixed(0)}` : "Unresolved",
+            rr: outcomeResolved && t.rr != null ? `${t.rr.toFixed(1)}R` : "—",
+            date: t.closedAt ? new Date(t.closedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—",
+            outcomeResolved,
+          };
+        }),
       ].slice(0, 20);
       setRecentTrades(trades);
     } catch {}
