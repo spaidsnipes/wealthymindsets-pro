@@ -47,11 +47,11 @@ function qualityFor(
   return "UNAVAILABLE";
 }
 
-function matchingPriceTick(tickerPrice: number, ticks: readonly Tick[]): Tick | null {
+function matchingPriceTick(tickerPrice: number, ticks: readonly Tick[], capturedAt: number): Tick | null {
   if (!Number.isFinite(tickerPrice) || tickerPrice <= 0) return null;
   const tolerance = Math.max(Math.abs(tickerPrice) * 1e-8, 1e-8);
   return ticks
-    .filter(tick => Number.isFinite(tick.time) && tick.time > 0 && Math.abs(tick.price - tickerPrice) <= tolerance)
+    .filter(tick => Number.isFinite(tick.time) && tick.time > 0 && tick.time <= capturedAt && Math.abs(tick.price - tickerPrice) <= tolerance)
     .sort((a, b) => b.time - a.time)[0] ?? null;
 }
 
@@ -61,7 +61,7 @@ export function createChartMarketStatePublication(
 ): { state: ProduceMarketStateInput; qualityState: MarketQualityState } {
   const normalizedSymbol = input.symbol.trim().toUpperCase();
   const assetClass = assetClassFor(normalizedSymbol);
-  const priceTick = matchingPriceTick(input.ticker.price, input.recentTicks);
+  const priceTick = matchingPriceTick(input.ticker.price, input.recentTicks, input.capturedAt);
   const hasCanonicalPrice = priceTick != null;
   const coverage = input.nectar.channels.filter(channel =>
     channel.normalizedSymbol?.toUpperCase() === normalizedSymbol ||
@@ -140,6 +140,13 @@ export function usePublishChartMarketState(
       capturedAt: Date.now(),
       nectar: getSessionNectarSnapshot(),
     });
-    publishCanonicalMarketState(publication.state, { qualityState: publication.qualityState });
+    try {
+      publishCanonicalMarketState(publication.state, { qualityState: publication.qualityState });
+    } catch (error) {
+      // Canonical state is an analytical enhancement, never a reason to take
+      // down the chart. Validation remains fail-closed; the invalid packet is
+      // simply not published.
+      console.warn("[WM Market State] publication rejected", error);
+    }
   }, [symbol, timeframe, session, ticker, recentTicks, source, connected]);
 }
