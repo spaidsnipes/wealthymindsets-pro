@@ -2033,7 +2033,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // "now", which sits far to the right of those synthetic times — so the bricks
         // bunch against the right edge leaving the left half blank (the "Renko shows
         // empty chart" bug). For these types fit ALL bricks into the pane instead.
-        if (isRenko || isRangeBars) {
+        //
+        // Intraday clock timeframes: fitContent() shows the FULL loaded session
+        // (typically today's RTH) instead of the last ~100 bars around now. Before
+        // this, opening TSLA on 1m at market close showed only "01:20 PM → 02:57 PM"
+        // even though 389 bars covering the whole session were already loaded.
+        // Higher timeframes (daily+) span years, so we keep scrollToRealTime for
+        // those — fitContent would zoom them out to a nearly-flat line.
+        const intradayClockTf = ["1m","2m","3m","5m","10m","15m","30m","1h","2h","4h"].includes(timeframe);
+        if (isRenko || isRangeBars || intradayClockTf) {
           chart.timeScale().fitContent();
         } else {
           chart.timeScale().scrollToRealTime();
