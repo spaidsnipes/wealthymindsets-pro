@@ -114,7 +114,8 @@ export async function GET(request: Request) {
   const tf     = searchParams.get("tf") ?? "1m";
   // Cap raised to 5000 so Daily/Weekly/Monthly can return multi-year history
   // (500 capped Daily to <2y — the user could never see their full 5 years).
-  const bars   = Math.min(5000, parseInt(searchParams.get("bars") ?? "300", 10));
+  const parsedBars = parseInt(searchParams.get("bars") ?? "300", 10);
+  const bars   = Number.isFinite(parsedBars) ? Math.max(1, Math.min(5000, parsedBars)) : 300;
   const consumer = (searchParams.get("consumer") ?? "unattributed").slice(0, 64);
   let providerMeta: Pick<GovernedResult<unknown>, "health" | "cache" | "retryAfterMs"> = {
     health: "HEALTHY",
@@ -134,6 +135,15 @@ export async function GET(request: Request) {
         channel: type,
         consumer,
       });
+      // No current consumer propagates providerHealth into the visible quote
+      // fidelity. Returning cached data here would restamp it with Date.now()
+      // and falsely paint an old observation as LIVE. Fail closed until every
+      // consumer can render STALE/PARTIAL explicitly.
+      throw new ProviderHttpError(
+        429,
+        result.retryAfterMs,
+        "Alpaca observations are temporarily unavailable after rate limiting",
+      );
     }
     return result.data as any;
   };
@@ -143,6 +153,13 @@ export async function GET(request: Request) {
     providerCache: providerMeta.cache,
     retryAfterMs: providerMeta.retryAfterMs,
   });
+
+  if (rawSym && !/^[A-Z0-9.!_-]{1,16}$/.test(rawSym)) {
+    return NextResponse.json({ error: "invalid symbol" }, { status: 400 });
+  }
+  if (!new Set(["quote", "trades", "candles"]).has(type)) {
+    return NextResponse.json({ error: "Unknown type" }, { status: 400 });
+  }
 
   // Futures → not supported
   if (rawSym && isFuturesSym(rawSym)) {

@@ -1,4 +1,8 @@
-import { MARKET_DATA_CAPABILITIES, type MarketDataCapability } from "./capabilityRegistry";
+import {
+  MARKET_DATA_CAPABILITIES,
+  type MarketAssetClass,
+  type MarketDataCapability,
+} from "./capabilityRegistry";
 import {
   createChannelCoverage,
   markCoverageGap,
@@ -115,12 +119,13 @@ export class SessionNectarCollector {
     instrumentId: string,
     normalizedSymbol: string,
     providerPath: MarketDataCapability["providerPath"],
+    assetClass: MarketAssetClass,
     channel: MarketDataCapability["eventType"],
     occurredAt: number,
     reason: string,
   ): boolean {
     const capability = MARKET_DATA_CAPABILITIES.find(entry =>
-      entry.providerPath === providerPath && entry.eventType === channel
+      entry.providerPath === providerPath && entry.assetClass === assetClass && entry.eventType === channel
     );
     if (!capability || capability.availability === "UNAVAILABLE") return false;
     const key = `${instrumentId}|${channel}|${providerPath}`;
@@ -310,6 +315,7 @@ export function recordSessionNectarOperationalGap(
   instrumentId: string,
   normalizedSymbol: string,
   providerPath: MarketDataCapability["providerPath"],
+  assetClass: MarketAssetClass,
   channel: MarketDataCapability["eventType"],
   occurredAt: number,
   reason: string,
@@ -318,6 +324,7 @@ export function recordSessionNectarOperationalGap(
     instrumentId,
     normalizedSymbol,
     providerPath,
+    assetClass,
     channel,
     occurredAt,
     reason,

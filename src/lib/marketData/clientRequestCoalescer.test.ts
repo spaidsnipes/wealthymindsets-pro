@@ -48,4 +48,29 @@ describe("fetchJsonCoalesced", () => {
     await Promise.all([a, b]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("negative-caches 429 responses for the Retry-After window", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(10_000);
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      error: "rate limited",
+      retryAfterMs: 5_000,
+    }), {
+      status: 429,
+      headers: { "content-type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchJsonCoalesced("/api/alpaca?sym=TSLA", 1_000, "alpaca:quote:TSLA"))
+      .rejects.toMatchObject({ status: 429 });
+    await expect(fetchJsonCoalesced("/api/alpaca?sym=TSLA", 1_000, "alpaca:quote:TSLA"))
+      .rejects.toMatchObject({ status: 429 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(15_001);
+    await expect(fetchJsonCoalesced("/api/alpaca?sym=TSLA", 1_000, "alpaca:quote:TSLA"))
+      .rejects.toMatchObject({ status: 429 });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
 });

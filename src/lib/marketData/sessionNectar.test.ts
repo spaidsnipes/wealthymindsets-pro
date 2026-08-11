@@ -42,10 +42,10 @@ describe("Session Nectar collection health", () => {
   it("records and coalesces provider rate-limit gaps without inventing events", () => {
     const collector = new SessionNectarCollector(1_000);
     expect(collector.recordOperationalGap(
-      "TSLA", "TSLA", "alpaca-rest", "quote", 10_000, "RATE_LIMIT",
+      "TSLA", "TSLA", "alpaca-rest", "equity", "quote", 10_000, "RATE_LIMIT",
     )).toBe(true);
     expect(collector.recordOperationalGap(
-      "TSLA", "TSLA", "alpaca-rest", "quote", 10_500, "RATE_LIMIT",
+      "TSLA", "TSLA", "alpaca-rest", "equity", "quote", 10_500, "RATE_LIMIT",
     )).toBe(false);
     const channel = collector.snapshot().channels[0];
     expect(channel).toMatchObject({

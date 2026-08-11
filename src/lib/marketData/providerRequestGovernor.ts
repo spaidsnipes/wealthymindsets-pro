@@ -41,11 +41,15 @@ export interface GovernedRequest<T> {
  */
 export class ProviderRequestGovernor {
   private readonly entries = new Map<string, CacheEntry<unknown>>();
+  private providerCircuitUntil = 0;
+  private providerConsecutiveRateLimits = 0;
+  private activeUpstreamRequests = 0;
 
   constructor(
     private readonly now: () => number = Date.now,
     private readonly random: () => number = Math.random,
     private readonly maxEntries = 500,
+    private readonly maxConcurrentUpstream = 8,
   ) {}
 
   async execute<T>({ key, ttlMs, maxStaleMs, fetcher }: GovernedRequest<T>): Promise<GovernedResult<T>> {
@@ -70,16 +74,17 @@ export class ProviderRequestGovernor {
       return { data: entry.data, health: "HEALTHY", cache: "HIT", retryAfterMs: null };
     }
 
-    if (entry.circuitUntil > now) {
+    const circuitUntil = Math.max(entry.circuitUntil, this.providerCircuitUntil);
+    if (circuitUntil > now) {
       if (entry.data !== undefined && now - entry.storedAt <= maxStaleMs) {
         return {
           data: entry.data,
           health: "STALE_CACHE",
           cache: "STALE",
-          retryAfterMs: entry.circuitUntil - now,
+          retryAfterMs: circuitUntil - now,
         };
       }
-      throw new ProviderHttpError(429, entry.circuitUntil - now, "Provider circuit open after rate limit");
+      throw new ProviderHttpError(429, circuitUntil - now, "Provider circuit open after rate limit");
     }
 
     if (entry.inFlight) {
@@ -87,21 +92,35 @@ export class ProviderRequestGovernor {
       return { ...result, cache: "COALESCED" };
     }
 
+    if (this.activeUpstreamRequests >= this.maxConcurrentUpstream) {
+      throw new ProviderHttpError(429, 1_000, "Provider request budget is temporarily saturated");
+    }
+
     const request = (async (): Promise<GovernedResult<T>> => {
+      this.activeUpstreamRequests += 1;
       try {
         const data = await fetcher();
         entry.data = data;
         entry.storedAt = this.now();
         entry.consecutiveRateLimits = 0;
         entry.circuitUntil = 0;
+        // A request already in flight may finish after another request opened
+        // the provider-wide circuit. Never let that late success reopen Alpaca.
+        if (this.now() >= this.providerCircuitUntil) {
+          this.providerConsecutiveRateLimits = 0;
+          this.providerCircuitUntil = 0;
+        }
         return { data, health: "HEALTHY", cache: "MISS", retryAfterMs: null };
       } catch (error) {
         if (error instanceof ProviderHttpError && error.status === 429) {
           entry.consecutiveRateLimits += 1;
-          const exponentialMs = Math.min(60_000, 1_000 * 2 ** (entry.consecutiveRateLimits - 1));
+          this.providerConsecutiveRateLimits += 1;
+          const exponentialMs = Math.min(60_000, 1_000 * 2 ** (this.providerConsecutiveRateLimits - 1));
           const jitterMs = Math.floor(this.random() * 500);
           const backoffMs = Math.max(error.retryAfterMs ?? 0, exponentialMs + jitterMs);
-          entry.circuitUntil = this.now() + backoffMs;
+          const nextCircuitUntil = this.now() + backoffMs;
+          entry.circuitUntil = nextCircuitUntil;
+          this.providerCircuitUntil = Math.max(this.providerCircuitUntil, nextCircuitUntil);
 
           if (entry.data !== undefined && this.now() - entry.storedAt <= maxStaleMs) {
             return {
@@ -114,6 +133,7 @@ export class ProviderRequestGovernor {
         }
         throw error;
       } finally {
+        this.activeUpstreamRequests = Math.max(0, this.activeUpstreamRequests - 1);
         entry.inFlight = undefined;
       }
     })();
