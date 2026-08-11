@@ -398,12 +398,17 @@ function OrderTicket({
         <label className="text-[9px] text-wm-text-dim uppercase tracking-wider block mb-1">Quantity</label>
         <div className="flex items-center gap-2">
           <button onClick={()=>setQty(q=>Math.max(1,q-1))}
+            aria-label="Decrease order quantity"
+            title="Decrease order quantity"
             className="w-7 h-7 rounded-lg border border-wm-border text-wm-text-muted hover:text-wm-text flex items-center justify-center transition-colors">
             <Minus size={11}/>
           </button>
           <input type="number" min={1} value={qty} onChange={e=>setQty(+e.target.value||1)}
+            aria-label="Order quantity"
             className="flex-1 bg-wm-surface border border-wm-border rounded-lg px-2 py-1.5 text-xs text-wm-text text-center outline-none focus:border-wm-green/50 font-mono font-bold"/>
           <button onClick={()=>setQty(q=>q+1)}
+            aria-label="Increase order quantity"
+            title="Increase order quantity"
             className="w-7 h-7 rounded-lg border border-wm-border text-wm-text-muted hover:text-wm-text flex items-center justify-center transition-colors">
             <Plus size={11}/>
           </button>
@@ -415,6 +420,7 @@ function OrderTicket({
         <div className="mb-3">
           <label className="text-[9px] text-wm-text-dim uppercase tracking-wider block mb-1">Limit Price</label>
           <input type="number" value={limitPx} onChange={e=>setLimitPx(e.target.value)}
+            aria-label="Limit price"
             placeholder={fmt2(px)} className="w-full bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1.5 text-xs text-wm-text outline-none focus:border-wm-gold/50 font-mono"/>
         </div>
       )}
@@ -422,6 +428,7 @@ function OrderTicket({
         <div className="mb-3">
           <label className="text-[9px] text-wm-text-dim uppercase tracking-wider block mb-1">Stop Price</label>
           <input type="number" value={stopPx} onChange={e=>setStopPx(e.target.value)}
+            aria-label="Stop price"
             placeholder={fmt2(px)} className="w-full bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1.5 text-xs text-wm-text outline-none focus:border-wm-red/50 font-mono"/>
         </div>
       )}
@@ -463,6 +470,8 @@ function PositionRow({ pos, onClose }: { pos: Position; onClose: ()=>void }) {
         {pct>=0?"+":""}{pct.toFixed(2)}%
       </span>
       <button onClick={onClose}
+        aria-label={`Close ${pos.symbol} paper position`}
+        title={`Close ${pos.symbol} paper position`}
         className="w-7 h-7 flex items-center justify-center rounded-lg text-wm-text-dim hover:text-wm-red hover:bg-wm-red/10 transition-all">
         <X size={12}/>
       </button>
@@ -677,9 +686,9 @@ function OptionsChain({
         </div>
         <div className="flex items-center gap-1.5">
           <span className="text-[9px] text-wm-text-dim uppercase">Qty</span>
-          <button onClick={()=>setQty(q=>Math.max(1,q-1))} className="w-6 h-6 rounded border border-wm-border text-wm-text-muted flex items-center justify-center"><Minus size={10}/></button>
+          <button onClick={()=>setQty(q=>Math.max(1,q-1))} aria-label="Decrease option quantity" title="Decrease option quantity" className="w-6 h-6 rounded border border-wm-border text-wm-text-muted flex items-center justify-center"><Minus size={10}/></button>
           <span className="text-xs font-mono font-bold text-wm-text w-6 text-center">{qty}</span>
-          <button onClick={()=>setQty(q=>q+1)} className="w-6 h-6 rounded border border-wm-border text-wm-text-muted flex items-center justify-center"><Plus size={10}/></button>
+          <button onClick={()=>setQty(q=>q+1)} aria-label="Increase option quantity" title="Increase option quantity" className="w-6 h-6 rounded border border-wm-border text-wm-text-muted flex items-center justify-center"><Plus size={10}/></button>
         </div>
         <span className="text-[9px] text-wm-text-dim ml-auto">IV {(iv*100).toFixed(0)}% · {OPT_MULTIPLIER}×/contract · BS model</span>
       </div>
@@ -1287,6 +1296,8 @@ export default function PaperTradingPage() {
                       </span>
                       {ord.status==="pending" && (
                         <button onClick={()=>cancelOrder(ord.id)}
+                          aria-label={`Cancel pending ${ord.symbol} ${ord.side} order`}
+                          title={`Cancel pending ${ord.symbol} ${ord.side} order`}
                           className="w-7 h-7 flex items-center justify-center rounded text-wm-text-dim hover:text-wm-red transition-colors">
                           <X size={12}/>
                         </button>
