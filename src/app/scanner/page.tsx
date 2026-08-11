@@ -548,6 +548,8 @@ export default function ScannerPage() {
             </label>
           )}
           <button onClick={() => { void refresh(true); }}
+            aria-label="Refresh scanner quotes"
+            title="Refresh scanner quotes"
             className="wm-scanner-mobile-secondary p-1.5 rounded-lg text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border border-wm-border transition-colors">
             <RefreshCw size={12}/>
           </button>
@@ -659,7 +661,12 @@ export default function ScannerPage() {
                     isSel || rsiIdentitySelected ? "bg-wm-surface" : "hover:bg-wm-surface/50")}
                   style={{ gridTemplateColumns:"36px 80px 1fr 90px 90px 80px 160px 60px 80px 100px 60px", minHeight:r.rsiFailure ? 72 : 40 }}>
                   <div className="flex items-center justify-center">
-                    <button onClick={e=>{e.stopPropagation();toggleStar(r.id)}} className="text-wm-text-dim hover:text-wm-gold transition-colors">
+                    <button
+                      onClick={e=>{e.stopPropagation();toggleStar(r.id)}}
+                      aria-label={`${r.starred ? "Remove" : "Add"} ${r.symbol} ${r.starred ? "from" : "to"} starred signals`}
+                      title={`${r.starred ? "Remove" : "Add"} ${r.symbol} ${r.starred ? "from" : "to"} starred signals`}
+                      className="text-wm-text-dim hover:text-wm-gold transition-colors"
+                    >
                       <Star size={11} className={r.starred?"text-wm-gold fill-wm-gold":""}/>
                     </button>
                   </div>
@@ -756,11 +763,14 @@ export default function ScannerPage() {
                   <div className="px-1"><ChangeMeter changePct={r.changePct}/></div>
                   <div className="flex items-center justify-center gap-1">
                     <button onClick={e=>{e.stopPropagation();toggleAlert(r.id)}}
+                      aria-label={`${r.alerted ? "Disable" : "Enable"} alert for ${r.symbol}`}
+                      title={`${r.alerted ? "Disable" : "Enable"} alert for ${r.symbol}`}
                       className={clsx("p-1 rounded transition-colors",r.alerted?"text-wm-gold":"text-wm-text-dim hover:text-wm-gold")}>
                       <Bell size={11} className={r.alerted?"fill-wm-gold":""}/>
                     </button>
                     <button onClick={e=>{e.stopPropagation();setActiveSymbol(r.symbol);router.push("/charts");}}
-                      className="p-1 rounded text-wm-text-dim hover:text-wm-blue transition-colors" title="Open chart">
+                      aria-label={`Open ${r.symbol} chart`}
+                      className="p-1 rounded text-wm-text-dim hover:text-wm-blue transition-colors" title={`Open ${r.symbol} chart`}>
                       <BarChart2 size={11}/>
                     </button>
                   </div>
@@ -777,7 +787,12 @@ export default function ScannerPage() {
               className="wm-scanner-detail border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden">
               <div className="px-3 py-2 border-b border-wm-border flex items-center justify-between">
                 <span className="text-xs font-bold text-wm-text">{selected.symbol} Detail</span>
-                <button onClick={()=>setSelected(null)} className="text-wm-text-dim hover:text-wm-text text-xs">✕</button>
+                <button
+                  onClick={()=>setSelected(null)}
+                  aria-label={`Close ${selected.symbol} details`}
+                  title={`Close ${selected.symbol} details`}
+                  className="text-wm-text-dim hover:text-wm-text text-xs"
+                >✕</button>
               </div>
               <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3" style={{ scrollbarWidth:"thin" }}>
                 <div className="rounded-xl border border-wm-border bg-wm-surface/30 p-3">
