@@ -42,6 +42,7 @@ import type { OHLCVBar } from "@/lib/pine/types";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
 import { normalizeTFId } from "@/lib/timeframes";
+import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
 
@@ -518,7 +519,16 @@ export function ChartsDashboard() {
     }
   }, []);
 
-  const { ticker, source, connected } = useWebSocket({ symbol, timeframe });
+  const { ticker, recentTicks, source, connected } = useWebSocket({ symbol, timeframe });
+  usePublishChartMarketState({
+    symbol,
+    timeframe,
+    session: extHours ? "EXTENDED" : "RTH",
+    ticker,
+    recentTicks,
+    source,
+    connected,
+  });
 
   // Track day high/low from ticker
   useEffect(() => {
