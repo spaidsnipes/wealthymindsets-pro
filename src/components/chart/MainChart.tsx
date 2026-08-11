@@ -7032,6 +7032,58 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           </div>
         )}
 
+        {/* A fresh tab can legitimately have no current tape while the server
+            still holds durable, payload-free coverage for this symbol from an
+            earlier provider session. Keep that history visible so a delayed
+            quote fallback does not look like data deletion. This is explicitly
+            not historical footprint reconstruction: no price/size/aggressor
+            payload is retained while provider rights remain UNKNOWN. */}
+        {!hasRealAggressorTape(tapeSource ?? "") && sessionNectarUiVersion > 0 && (() => {
+          const nectar = getSessionNectarSnapshot();
+          const savedTradeCoverage = findSessionNectarChannel(
+            nectar,
+            normalizeSym(symbol),
+            "trade",
+          );
+          if (
+            nectar.retentionState !== "SERVER_DURABLE_SUMMARY_NO_RAW_PAYLOADS" ||
+            !savedTradeCoverage ||
+            savedTradeCoverage.observedEventCount <= 0
+          ) return null;
+          const priorFidelity = savedTradeCoverage.fidelity;
+          const savedCount = savedTradeCoverage.observedEventCount;
+          return (
+            <div
+              className="wm-live-session-chip wm-nectar-saved-history-chip"
+              data-nectar-saved-history={savedCount}
+              role="group"
+              aria-label={`Nectar saved history for ${normalizeSym(symbol)}. ${savedCount} server-durable coverage observations from a prior ${priorFidelity.toLowerCase()} tape session. Current live tape is unavailable. Raw trade payloads were not retained, so historical footprints cannot be reconstructed.`}
+              title={`WM Nectar saved history for ${normalizeSym(symbol)}.\nSaved coverage observations: ${savedCount}\nPrior fidelity: ${priorFidelity}\nCurrent tape: unavailable\nThis is a server-durable operational summary only. Raw price, size, and aggressor payloads were not retained, so WM cannot reconstruct historical footprints from this count.`}
+              style={{
+                position: "absolute", top: footprintEnabled ? 100 : 42,
+                left: "50%", transform: "translateX(-50%)", zIndex: 58,
+                padding: "5px 10px", borderRadius: 7, pointerEvents: "auto",
+                background: "rgba(11,14,26,0.92)",
+                border: "1px solid rgba(240,180,41,0.38)",
+                color: "#D8DCEA", fontSize: 10, fontWeight: 700,
+                fontVariantNumeric: "tabular-nums", display: "flex", gap: 12,
+                alignItems: "center",
+              }}
+            >
+              <span style={{ color: "#F0B429", fontWeight: 850 }}>
+                <span className="wm-nectar-saved-history__full">WM NECTAR · SAVED HISTORY</span>
+                <span className="wm-nectar-saved-history__compact" aria-hidden="true">NECTAR · SAVED</span>
+              </span>
+              <span>
+                <span style={{ color: "#8B92AC", fontWeight: 600 }}>Saved </span>
+                <span style={{ color: "#D8DCEA", fontWeight: 850 }}>{savedCount}</span>
+              </span>
+              <span className="wm-nectar-saved-history__context" style={{ color: "#AAB2CC" }}>Prior {priorFidelity}</span>
+              <span className="wm-nectar-saved-history__context" style={{ color: "#F0B429" }}>Current tape unavailable</span>
+            </div>
+          );
+        })()}
+
         {/* WM Live Session tape chip — running counters from real observed
             executions. Renders BELOW the honest banner and only when at least
             one trade has arrived. Aligns with Founder Mockup 1 "Order Flow
