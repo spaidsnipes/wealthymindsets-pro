@@ -78,6 +78,19 @@ describe("Canonical Market State runtime store", () => {
     expect(store.getBySnapshotId(stale.snapshotId)).toBeNull();
   });
 
+  it("releases superseded snapshot IDs instead of retaining unbounded history", () => {
+    const store = new CanonicalMarketStateStore();
+    const first = state({ snapshotId: "snap-old", capturedAt: 10_000, availableAt: 10_005 });
+    const next = state({ snapshotId: "snap-current", capturedAt: 11_000, availableAt: 11_005 });
+
+    expect(store.publish(first).status).toBe("PUBLISHED");
+    expect(store.publish(next).status).toBe("PUBLISHED");
+
+    expect(store.getBySnapshotId("snap-old")).toBeNull();
+    expect(store.getBySnapshotId("snap-current")).toBe(next);
+    expect(store.get(first)).toBe(next);
+  });
+
   it("keeps timeframe contexts independent instead of overwriting by symbol", () => {
     const store = new CanonicalMarketStateStore();
     const intraday = state({ snapshotId: "intraday", timeframeContext: ["2m", "15m"] });
