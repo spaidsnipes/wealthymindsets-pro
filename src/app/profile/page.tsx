@@ -364,10 +364,17 @@ export default function ProfilePage() {
         </div>
 
         <div className="absolute top-3 right-3 flex gap-2 items-center">
-          {["#070A0F", "#0D0A1F", "#0A1A0D", "#1A0A0A"].map(c => (
-            <button key={c} onClick={() => changeBg(c)}
+          {[
+            { color: "#070A0F", label: "Obsidian" },
+            { color: "#0D0A1F", label: "Midnight violet" },
+            { color: "#0A1A0D", label: "Deep forest" },
+            { color: "#1A0A0A", label: "Dark burgundy" },
+          ].map(({ color, label }) => (
+            <button key={color} onClick={() => changeBg(color)}
+              aria-label={`Use ${label} profile background`}
+              title={`Use ${label} profile background`}
               className="w-5 h-5 rounded-full border-2 transition-all"
-              style={{ background: c, borderColor: bgColor === c ? "#F0B429" : "#252D38" }} />
+              style={{ background: color, borderColor: bgColor === color ? "#F0B429" : "#252D38" }} />
           ))}
           <button onClick={() => { setEditProfile(profile); setEditMode(e => !e); }}
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-wm-surface/80 text-wm-text-muted hover:text-wm-text text-xs transition-colors">
@@ -646,6 +653,8 @@ export default function ProfilePage() {
                         <div className="flex items-center gap-1">
                           <span className="text-[9px] font-mono text-wm-text">{WMS_CONTRACT.address.slice(0,8)}…{WMS_CONTRACT.address.slice(-6)}</span>
                           <button onClick={() => { navigator.clipboard.writeText(WMS_CONTRACT.address); toast.success("Copied!"); }}
+                            aria-label="Copy creator coin contract address"
+                            title="Copy creator coin contract address"
                             className="text-[#7C3AED] hover:text-[#00D4AA] transition-colors"><ExternalLink size={9}/></button>
                         </div>
                       </div>
@@ -745,7 +754,7 @@ export default function ProfilePage() {
                 <div className="rounded-xl border border-[#7C3AED]/40 bg-[#7C3AED]/5 p-4 space-y-3">
                   <div className="text-sm font-black text-wm-text flex items-center justify-between">
                     <span>🪙 Launch Creator Coin</span>
-                    <button onClick={() => setShowLaunchCoin(false)}><X size={14} className="text-wm-text-dim"/></button>
+                    <button onClick={() => setShowLaunchCoin(false)} aria-label="Close creator coin form" title="Close creator coin form"><X size={14} className="text-wm-text-dim"/></button>
                   </div>
                   {[
                     { label: "Coin Name",   key: "name",   placeholder: "e.g. SpaidFX Coin" },
