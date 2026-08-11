@@ -372,6 +372,7 @@ export default function ProfilePage() {
           ].map(({ color, label }) => (
             <button key={color} onClick={() => changeBg(color)}
               aria-label={`Use ${label} profile background`}
+              aria-pressed={bgColor === color}
               title={`Use ${label} profile background`}
               className="w-5 h-5 rounded-full border-2 transition-all"
               style={{ background: color, borderColor: bgColor === color ? "#F0B429" : "#252D38" }} />
@@ -458,6 +459,8 @@ export default function ProfilePage() {
                 </button>
               ) : (
                 <button onClick={() => { navigator.clipboard?.writeText(window.location.href); toast.success("Link copied!"); }}
+                  aria-label="Copy profile link"
+                  title="Copy profile link"
                   className="p-1.5 rounded-lg bg-wm-surface border border-wm-border text-wm-text-muted hover:text-wm-text transition-colors">
                   <Share2 size={13} />
                 </button>
