@@ -23,6 +23,7 @@ import {
   lookupFailure, recordFailure,
   type RsiFailure, type RsiFailureCache,
 } from "@/lib/scannerFailureCache";
+import { scannerQuoteTruth, type ScannerQuoteQuality } from "@/lib/scannerQuoteTruth";
 
 type Signal =
   | "momentum-long"  | "momentum-short"
@@ -44,6 +45,8 @@ interface ScanResult {
   rsi: number | null; sector: string; float: string; mktcap: string;
   time: number; starred: boolean; alerted: boolean;
   rsiFailure: RsiFailure | null;
+  quoteQuality: ScannerQuoteQuality;
+  quoteReceivedAt: number;
 }
 
 type SortKey = "time" | "changePct" | "volRatio" | "rsi" | "strength";
@@ -215,7 +218,7 @@ async function fetchRSI(
   }
 }
 
-interface QuoteData { price:number; change:number; changePct:number; volume:number; avgVolume:number; rsi:number|null; rsiFailure:RsiFailure|null }
+interface QuoteData { price:number; change:number; changePct:number; volume:number; avgVolume:number; rsi:number|null; rsiFailure:RsiFailure|null; receivedAt:number }
 
 async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFailureCache): Promise<Map<string, QuoteData>> {
   const results = new Map<string, QuoteData>();
@@ -239,7 +242,8 @@ async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFa
           const changePct = prev > 0 ? +((change / prev) * 100).toFixed(2) : 0;
           const volume = Number(quoteJson?.volume ?? 0);
           const avgVolume = Number(quoteJson?.avgVolume ?? 0);
-          results.set(sym, { price, change, changePct, volume, avgVolume, rsi: rsiResult.rsi, rsiFailure: rsiResult.failure });
+          const receivedAt = Number(quoteJson?.ts);
+          results.set(sym, { price, change, changePct, volume, avgVolume, rsi: rsiResult.rsi, rsiFailure: rsiResult.failure, receivedAt });
         }
       } catch {}
     }));
@@ -275,6 +279,8 @@ function buildResults(
     const volRatio  = avgVol > 0 ? +(volume / avgVol).toFixed(1) : 0;
     // Real RSI from Finnhub indicator API; fall back to old cached value if available
     const rsi = q?.rsi ?? old?.rsi ?? null;
+    const quoteReceivedAt = q?.receivedAt ?? old?.quoteReceivedAt ?? 0;
+    const quoteTruth = scannerQuoteTruth({ receivedAt: quoteReceivedAt, reusedPrevious: !q });
     return {
       id:        sym + "-" + i,
       symbol:    sym,
@@ -288,6 +294,8 @@ function buildResults(
       strength:  strengthFromData(changePct, volRatio),
       rsi,
       rsiFailure: q ? q.rsiFailure : old?.rsiFailure ?? null,
+      quoteQuality: quoteTruth.quality,
+      quoteReceivedAt,
       sector:    SYM_SECTOR[sym] ?? "Technology",
       // Real float + mktcap from FMP profile; fall back to old cached value
       float:     prf?.float   ?? old?.float   ?? "—",
@@ -488,8 +496,8 @@ export default function ScannerPage() {
         <h1 className="text-sm font-bold text-wm-text">Scanner</h1>
         <div className="wm-scanner-stats flex items-center gap-3 ml-2">
           <div className="flex items-center gap-1.5 text-[10px]">
-            <span className="w-2 h-2 rounded-full bg-wm-green animate-pulse"/>
-            <span className="text-wm-text-muted">{filtered.length} signals</span>
+            <span className="w-2 h-2 rounded-full bg-wm-gold"/>
+            <span className="text-wm-text-muted">{filtered.length} delayed-quote signals</span>
           </div>
           <span className="wm-scanner-breadth text-[10px] text-wm-green font-bold">{bullCount}▲</span>
           <span className="wm-scanner-breadth text-[10px] text-wm-red font-bold">{bearCount}▼</span>
@@ -658,6 +666,19 @@ export default function ScannerPage() {
                   <div className="px-2">
                     <div className="text-xs font-bold text-wm-text">{r.symbol}</div>
                     <div className="text-[9px] text-wm-text-dim truncate">{r.name}</div>
+                    <span
+                      className={clsx(
+                        "mt-0.5 inline-flex rounded border px-1 py-px text-[8px] font-black tracking-wide",
+                        r.quoteQuality === "DELAYED"
+                          ? "border-wm-gold/40 text-wm-gold"
+                          : r.quoteQuality === "STALE"
+                            ? "border-wm-red/40 text-wm-red"
+                            : "border-wm-border text-wm-text-muted",
+                      )}
+                      title={`${scannerQuoteTruth({ receivedAt: r.quoteReceivedAt, reusedPrevious: r.quoteQuality === "STALE" }).title} Received ${new Date(r.quoteReceivedAt).toLocaleTimeString()}.`}
+                    >
+                      {r.quoteQuality}
+                    </span>
                   </div>
                   <div className="px-2">
                     <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded"
@@ -817,6 +838,8 @@ export default function ScannerPage() {
         </span>
         <span>·</span>
         <span>{filtered.length}/{results.length} results</span>
+        <span>·</span>
+        <span className="text-wm-gold">QUOTE STATE: DELAYED</span>
         <span>·</span>
         <span className={live?"text-wm-blue":""}>{live ? "↻ AUTO REFRESH (30s)" : "— PAUSED"}</span>
         <span>·</span>
