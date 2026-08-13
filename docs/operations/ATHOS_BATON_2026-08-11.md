@@ -148,6 +148,43 @@ Founder P0 directive: audit entire provider→UI pipeline. Live production probe
 
 **Standing state**: Disk 186 MiB (dropped from 1.3 GiB in cycle). Chrome MCP still unpaired. `gh` at 4998/5000. No source/schema/DB/deploy mutation. Founder BTC tab + worktrees + quarantine `2f03f965` untouched.
 
+## CYCLE 12 SUPERSESSION — 2026-08-13 helicopter transformation directive
+
+Founder issued new master directive 2026-08-13 shifting priority from Nectar/backend to Trading Experience + UI + Profile + Heatmap + Memory/Learning + Education/Community + WOW Ecosystem. Key architectural insight captured:
+
+**Process Landscape Loop** (Profile × Heatmap × Memory × Replay × Drill):
+```
+Heatmap discovers pattern
+  → Memory proves examples
+    → Replay explains it
+      → Mirror helps interpret it
+        → Drill trains it
+          → Profile records improvement
+```
+
+Market side:
+```
+Market Heatmap → symbol → Command Deck → Story → Chart → Profile/Volume/Order Flow → setup → Decision Memory
+```
+
+Shipped this cycle:
+- `src/lib/traderMemory/viewModels/selectProcessLandscape.ts` — pure selector composing DecisionMemorySnapshots into a heatmap-ready LandscapeVM. 12 axis extractors × 8 metrics = 96 possible views. UNKNOWN-safe below sample threshold. Includes `selectMemoryExamplesForCell` bridge for "heatmap cell → memory examples" drill.
+
+**8 heatmap families** to build per new directive:
+1. Market Map (sector/watchlist strength)
+2. Liquidity Map (only if real depth available)
+3. Volume/Auction Map (unified with VP authority)
+4. Order-Flow Map (signed classification only)
+5. Session Map (time/day/session behavior)
+6. Playbook Edge Map (edge by context, requires sample threshold)
+7. Trader Process Map (adherence, rushing, review) — no emotional diagnosis
+8. Decision Memory Map (patterns across decisions) — correlation ≠ causation
+
+**One WOW civilization** doctrine — TV/Radio/Lounge/Shop share:
+- Passport → Relationship Graph → Search/Discovery → Creator/Business Graph → Permissions → Payments → Notifications → Media Library → Events → Rooms → Academies → Commerce → History/Memory
+
+Different room. Same house. Different instrument. Same orchestra.
+
 ## CYCLE 10 SUPERSESSION — real WSS + code-level TSLA "not live" root cause
 
 **Correction**: Cycle 9 "data plane healthy" was premature from single REST probe. Full end-to-end verification this cycle:
