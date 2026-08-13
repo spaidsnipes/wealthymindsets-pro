@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { useWMS, WMS_CONTRACT } from "@/contexts/WMSContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { isCoreTeam } from "@/lib/coreTeam";
+import ProcessLandscape from "@/components/profile/ProcessLandscape";
 import { hasResolvedTradeOutcome } from "@/lib/tradeEvidence";
 
 
@@ -41,7 +42,7 @@ function profileCreatorArt(index: number): React.CSSProperties {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [tab, setTab] = useState<"trades" | "music" | "posts" | "coins">("trades");
+  const [tab, setTab] = useState<"trades" | "music" | "posts" | "coins" | "growth">("trades");
   const { wmsBalance, creatorCoin, totalEarned, recentEarnings, launchCreatorCoin, isDeployed } = useWMS();
   const { user, updateProfile: saveToAuth } = useAuth();
   const [showLaunchCoin, setShowLaunchCoin] = useState(false);
@@ -518,17 +519,34 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-0 border-b border-wm-border px-4 shrink-0">
+        {/* Tabs — composite tab widget for screen readers.
+            Founder Cycle 12 §D 44px + non-color state cue applied per tab. */}
+        <div
+          role="tablist"
+          aria-label="Profile sections"
+          className="flex gap-0 border-b border-wm-border px-4 shrink-0"
+        >
           {[
+            { id: "growth", icon: Rocket,    label: "Growth" },
             { id: "trades", icon: BarChart2, label: "Trades" },
             { id: "music",  icon: Music,     label: "Music" },
             { id: "posts",  icon: TrendingUp,label: "Posts" },
             { id: "coins",  icon: Coins,     label: "My Coins" },
           ].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id as typeof tab)}
-              className={clsx("flex items-center gap-1.5 px-5 py-2.5 text-xs font-semibold border-b-2 transition-all",
-                tab === t.id ? "border-wm-green text-wm-green" : "border-transparent text-wm-text-muted hover:text-wm-text")}>
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              aria-controls={`profile-tabpanel-${t.id}`}
+              id={`profile-tab-${t.id}`}
+              aria-label={`${t.label}${tab === t.id ? " (selected)" : ""}`}
+              onClick={() => setTab(t.id as typeof tab)}
+              className={clsx(
+                "flex items-center gap-1.5 px-5 py-2.5 text-xs font-semibold border-b-2 transition-all min-h-[44px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold",
+                tab === t.id ? "border-wm-green text-wm-green" : "border-transparent text-wm-text-muted hover:text-wm-text",
+              )}
+            >
               <t.icon size={13} /> {t.label}
             </button>
           ))}
@@ -536,6 +554,61 @@ export default function ProfilePage() {
 
         {/* Tab content */}
         <div className="p-4">
+          {tab === "growth" && (
+            <div
+              id="profile-tabpanel-growth"
+              role="tabpanel"
+              aria-labelledby="profile-tab-growth"
+              className="space-y-4"
+            >
+              {/* Identity + specialties chip. Data-truth: unset fields
+                  render "—" not fabricated defaults. This is the profile
+                  header the Founder wants — identity + operating style,
+                  not follower vanity. */}
+              <div className="glass rounded-xl p-4 flex flex-wrap items-center gap-3">
+                <div className="text-[10px] tracking-[0.28em] uppercase text-wm-text-muted">Identity</div>
+                <div className="text-sm text-wm-text font-semibold">
+                  {profile.name || <span className="text-wm-text-muted">— unset</span>}
+                </div>
+                {profile.handle && (
+                  <div className="text-xs text-wm-text-muted">@{profile.handle}</div>
+                )}
+                <div className="ml-auto flex items-center gap-2 text-[10px] tracking-[0.24em] uppercase text-wm-text-muted">
+                  <span className="w-1.5 h-1.5 rounded-full bg-wm-green" aria-hidden="true" />
+                  Passport identity (WOW-shared)
+                </div>
+              </div>
+
+              {/* Founder loop: Heatmap → Memory → Replay → Mirror → Drill → Profile.
+                  ProcessLandscape emits truthful UNKNOWN cells while the
+                  Decision Memory store is empty. Zero fabrication. */}
+              <ProcessLandscape
+                decisions={[]}
+                ownerId={user?.id ?? ""}
+                onDrilldown={(cell, examples) => {
+                  // Founder-loop wiring: when a cell has decisions, take the
+                  // trader to the journal filtered to those decisionIds. Today
+                  // the array is always empty (store not yet wired), so this
+                  // handler is a scaffold — never renders a broken drilldown.
+                  if (examples.length === 0) return;
+                  const params = new URLSearchParams();
+                  params.set("decisions", examples.map(d => d.decisionId).join(","));
+                  router.push(`/journal?${params.toString()}`);
+                }}
+              />
+
+              <div className="glass rounded-xl p-4 text-xs text-wm-text-muted leading-relaxed">
+                <div className="text-[10px] tracking-[0.28em] uppercase text-wm-gold mb-2">
+                  Founder doctrine
+                </div>
+                Good process + bad outcome = professional loss.
+                Bad process + good outcome = dangerous win.
+                <br />
+                Process teaches. Outcome pays. Never conflate the two.
+              </div>
+            </div>
+          )}
+
           {tab === "trades" && (
             <div className="space-y-2">
               {recentTrades.length === 0 ? (
