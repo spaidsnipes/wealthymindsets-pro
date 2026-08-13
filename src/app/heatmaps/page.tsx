@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { HEATMAP_TF_ORDER } from "@/lib/timeframes";
+import { QualityBadge } from "@/components/ui/DataHealth";
 
 /* ═══════════════════════════════════════════════════════════
    DATA MODEL
@@ -847,19 +848,29 @@ export default function HeatmapsPage() {
           >{tf}</button>
         ))}
         {heatLoading && (
-          <span style={{ fontSize: 10, color: "#4FA3E0", marginLeft: 4 }}>Loading…</span>
+          <span
+            role="status"
+            aria-live="polite"
+            style={{ fontSize: 10, color: "#4FA3E0", marginLeft: 4 }}
+          >Loading…</span>
         )}
-        <span
-          aria-label={`Heat map data ${qualityState.toLowerCase()}${observedAt ? `, received ${new Date(observedAt).toLocaleString()}` : ""}`}
+        {/* Replaces the previous inline single-color span with the shared
+            QualityBadge primitive. Keeps the "received" timestamp as a
+            secondary line so freshness is inspectable without hovering. */}
+        <div
           title="Heat-map returns are observed snapshots, not an executable quote feed."
-          style={{
-            fontSize: 9, fontWeight: 800, letterSpacing: 0.4,
-            color: qualityState === "DELAYED" ? "#F0B429" : qualityState === "STALE" ? "#FF7A45" : "#8B92AC",
-          }}
+          style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }}
         >
-          {qualityState === "DELAYED" ? "◐ DELAYED" : qualityState === "STALE" ? "! STALE" : "— UNAVAILABLE"}
-          {observedAt ? ` · received ${new Date(observedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}
-        </span>
+          <QualityBadge
+            state={qualityState}
+            freshnessMs={observedAt ? Date.now() - observedAt : undefined}
+          />
+          {observedAt && (
+            <span style={{ fontSize: 9, color: "#5A6575", letterSpacing: 0.3 }}>
+              received {new Date(observedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+            </span>
+          )}
+        </div>
         <div style={{ flex: 1 }} />
         <input
           value={search}
