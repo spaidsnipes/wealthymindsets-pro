@@ -238,7 +238,7 @@ function buildDefaultRulesFromDecision(decision: DecisionMemoryRecord): Expectat
     description: "Current market direction still aligned with entry side",
     evaluate: (state, dec) => {
       if (state.direction.resolution !== "RESOLVED" || !state.direction.value) {
-        return { verdict: "UNKNOWN", evidence: state.direction.evidence.map((e) => e.description ?? e.type ?? "evidence"), reason: "Direction unresolved" };
+        return { verdict: "UNKNOWN", evidence: state.direction.evidence.map((e) => e.basis ?? e.source ?? "evidence"), reason: "Direction unresolved" };
       }
       const dirValue = String(state.direction.value).toUpperCase();
       const wantsLong = dec.plan.action === "ENTER_LONG";
