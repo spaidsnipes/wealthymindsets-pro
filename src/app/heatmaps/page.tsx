@@ -785,26 +785,66 @@ export default function HeatmapsPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#070A0F", overflow: "hidden" }}>
 
-      {/* ── Top control bar ── */}
+      {/* ── Top control bar ──
+           minHeight 52 accommodates 44px hit-target buttons (Founder Cycle 12 §D). */}
       <div style={{
-        height: 38, flexShrink: 0, display: "flex", alignItems: "center", gap: 12,
-        padding: "0 14px", borderBottom: "1px solid #1A2030", background: "#0A0E14",
-      }}>
+        minHeight: 52, flexShrink: 0, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+        padding: "4px 14px", borderBottom: "1px solid #1A2030", background: "#0A0E14",
+      }}
+        role="tablist"
+        aria-label="Heatmap view and timeframe"
+      >
         <span style={{ fontSize: 11, color: "#8892A0", fontWeight: 700 }}>VIEW</span>
         {VIEWS.map(v => (
-          <button key={v} onClick={() => setActiveView(v)} style={{
-            fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 4, cursor: "pointer", border: "none",
-            background: activeView === v ? "#4FA3E0" : "transparent",
-            color: activeView === v ? "#fff" : "#8892A0",
-          }}>{v}</button>
+          <button
+            key={v}
+            type="button"
+            role="tab"
+            aria-selected={activeView === v}
+            aria-pressed={activeView === v}
+            aria-label={`View: ${v}${activeView === v ? " (selected)" : ""}`}
+            onClick={() => setActiveView(v)}
+            className="wm-heatmap-btn"
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "10px 14px",           // 44×44 min hit target per Founder Cycle 12 §D
+              minHeight: 44,
+              minWidth: 44,
+              borderRadius: 6,
+              cursor: "pointer",
+              border: activeView === v ? "1px solid #4FA3E0" : "1px solid transparent",
+              background: activeView === v ? "#4FA3E0" : "transparent",
+              color: activeView === v ? "#fff" : "#8892A0",
+              outlineOffset: 2,
+            }}
+          >{v}</button>
         ))}
         <div style={{ width: 1, height: 18, background: "#2D3748", marginLeft: 4 }} />
         {TIMEFRAMES.map(tf => (
-          <button key={tf} onClick={() => setActiveTF(tf)} style={{
-            fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4, cursor: "pointer", border: "none",
-            background: activeTF === tf ? "#2D3748" : "transparent",
-            color: activeTF === tf ? "#fff" : "#8892A0",
-          }}>{tf}</button>
+          <button
+            key={tf}
+            type="button"
+            role="tab"
+            aria-selected={activeTF === tf}
+            aria-pressed={activeTF === tf}
+            aria-label={`Timeframe: ${tf}${activeTF === tf ? " (selected)" : ""}`}
+            onClick={() => setActiveTF(tf)}
+            className="wm-heatmap-btn"
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "10px 12px",           // 44×44 min hit target
+              minHeight: 44,
+              minWidth: 44,
+              borderRadius: 6,
+              cursor: "pointer",
+              border: activeTF === tf ? "1px solid #2D3748" : "1px solid transparent",
+              background: activeTF === tf ? "#2D3748" : "transparent",
+              color: activeTF === tf ? "#fff" : "#8892A0",
+              outlineOffset: 2,
+            }}
+          >{tf}</button>
         ))}
         {heatLoading && (
           <span style={{ fontSize: 10, color: "#4FA3E0", marginLeft: 4 }}>Loading…</span>
