@@ -21,6 +21,26 @@
     --input: 215 18% 14%;
     --ring: 165 100% 42%;
     --radius: 0.5rem;
+
+    /* WM Pro identity tokens — used by src/components/ui/{Panel,HeroNumber,Ring,Ribbon,Pill}.tsx
+       Additive to existing HSL tokens above; do not remove any prior token. */
+    --wm-ob-0: #050506;
+    --wm-ob-1: #0b0b0d;
+    --wm-ob-2: #131317;
+    --wm-ob-3: #1c1c22;
+    --wm-ob-4: #26262d;
+    --wm-gold-hair: #6d5220;
+    --wm-gold-line: #8b6a29;
+    --wm-gold-mark: #c9a55c;
+    --wm-gold-hero: #d4af37;
+    --wm-gold-halo: #ffd76a;
+    --wm-text-1: #ede6d3;
+    --wm-text-2: #8a8271;
+    --wm-text-3: #55503f;
+    --wm-pos: #7fc27f;
+    --wm-neg: #c05a4a;
+    --wm-confirmed: #5cb85c;
+    --wm-warn: #c9a55c;
   }
 }
 

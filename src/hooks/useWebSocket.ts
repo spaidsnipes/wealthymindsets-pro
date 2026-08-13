@@ -1004,7 +1004,11 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     let proxyClosed = false;
     const proxyEventGuard = new MarketEventGuard();
     if (proxyBase && !isFuture && !isCrypto && typeof WebSocket !== "undefined") {
-      let lastPx = 0;
+      // F1 (observation-fix Cycle 10 P0): seed lastPx from the parallel REST
+      // quote so the first proxy trade can produce a valid tick-inferred
+      // aggressor side instead of always UNKNOWN. If priceRef hasn't been
+      // populated yet, this stays 0 and F2 (below) preserves the observation.
+      let lastPx = priceRef.current > 0 ? priceRef.current : 0;
       const connectProxy = () => {
         if (proxyClosed) return;
         let url = proxyBase;
@@ -1031,17 +1035,19 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
             const guarded = proxyEventGuard.inspect(event);
             if (guarded.status !== "ACCEPTED") continue;
             lastPx = event.price!;
-            // Equal-price/first prints remain observed evidence but cannot enter
-            // Delta/footprint until an aggressor side is supportable.
+            // F2 (observation-fix Cycle 10 P0): OBSERVATION ≠ CLASSIFICATION.
+            // Ingest the observation into Nectar for EVERY accepted trade so
+            // coverage/heartbeat reflect reality. Skipping the ingest here
+            // (as the prior code did) silenced the first ~13s of TSLA activity
+            // on a fresh session (measured 41.7% drop rate). Signed indicators
+            // (Delta/CVD/footprint) still gate on aggressor below.
+            // Guard is idempotent — dedup already ran in MarketEventGuard.inspect.
+            ingestSessionNectarEvent(event);
+            // Equal-price/first prints are legitimate observations but cannot
+            // enter Delta/CVD/footprint/tape until an aggressor side is
+            // supportable.
             if (event.aggressorSide === "UNKNOWN") continue;
             tapeSourceRef.current = "alpaca";
-            // Equity/relay trades bypass createTapeHub's fanTick, so the
-            // shared-hub ingest at line ~493 never sees them and TSLA/AAPL/etc
-            // never register a Nectar channel. Ingest here directly so equity
-            // trades produce the same coverage receipts crypto trades do. Guard
-            // is idempotent — the same event.eventId can't dedupe-fail because
-            // MarketEventGuard.inspect above already accepted it.
-            ingestSessionNectarEvent(event);
             processTick({
               price: event.price!,
               size: event.size!,
@@ -1054,7 +1060,16 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           }
           if (got) setState(p => (p.tapeSource === "alpaca" ? p : { ...p, source: "alpaca", tapeSource: "alpaca", connected: true }));
         };
-        sock.onopen = () => { try { sock.send(JSON.stringify({ action: "subscribe", sym: symbol, trades: [symbol] })); } catch { /* proxy may not need a subscribe msg */ } };
+        sock.onopen = () => {
+          // F3 (observation-fix Cycle 10 P0): TRANSPORT ≠ SYMBOL OBSERVATION.
+          // WebSocket handshake success proves the pipe is alive to the proxy.
+          // It does NOT prove a TSLA trade has arrived. Fire the CONNECTED
+          // status here so the UI's transport indicator stops false-negatives
+          // during the natural 400ms–13s window between open and first trade.
+          // Symbol-observing status remains gated on the `got` flag below.
+          setState(p => (p.source === "alpaca" && p.connected ? p : { ...p, source: "alpaca", connected: true }));
+          try { sock.send(JSON.stringify({ action: "subscribe", sym: symbol, trades: [symbol] })); } catch { /* proxy may not need a subscribe msg */ }
+        };
         sock.onmessage = (ev) => {
           const d = ev.data as unknown;
           if (typeof d === "string") handleText(d);
