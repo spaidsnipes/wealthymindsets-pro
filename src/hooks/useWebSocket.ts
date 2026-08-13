@@ -692,6 +692,96 @@ function tryCoinbase(
   };
 }
 
+/**
+ * tryAlpacaRelay — Railway Alpaca IEX proxy connector for the shared TapeHub.
+ *
+ * Matches the shape of tryCoinbase / tryBinance / tryFinnhub so the equity
+ * relay branch can be routed through joinTape with per-symbol dedup +
+ * refcount + teardown. Fixes the 9-socket-per-/charts-mount defect: 9 hook
+ * instances mounted with the same TSLA symbol now share one socket via
+ * tapeHubs.get('alpaca-relay:TSLA'), not spawn 9.
+ *
+ * F1/F2/F3 semantics preserved (see Cycle 10 P0 trace):
+ *   F1 seedFromRest: caller passes priceRef; used as prior-price seed
+ *      so the first proxy trade produces a valid tick-inferred aggressor.
+ *   F2 truthful ingest: the hub's fanTick calls ingestSessionNectarEvent
+ *      for every accepted event (once per real tick, not once per
+ *      consumer) — UNKNOWN aggressor observations are still recorded.
+ *   F3 transport CONNECTED on WebSocket open — onStatus(true) fires
+ *      before the first trade, so the UI's transport indicator stops
+ *      false-negatives during the natural open-to-first-trade gap.
+ */
+function tryAlpacaRelay(
+  symbol: string,
+  seedFromRest: number,
+  proxyBase: string,
+  onTick: TapeTick,
+  onStatus: TapeStatus,
+): (() => void) | null {
+  let sock: WebSocket | null = null;
+  let closed = false;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastPx = seedFromRest > 0 ? seedFromRest : 0;
+  const eventGuard = new MarketEventGuard();
+
+  const connectSock = () => {
+    if (closed) return;
+    let url = proxyBase;
+    try { const u = new URL(proxyBase); u.searchParams.set("sym", symbol); url = u.toString(); }
+    catch { url = `${proxyBase}${proxyBase.includes("?") ? "&" : "?"}sym=${encodeURIComponent(symbol)}`; }
+    try { sock = new WebSocket(url); } catch { retryTimer = setTimeout(connectSock, 4000); return; }
+    sock.binaryType = "arraybuffer";
+
+    const handleText = (text: string) => {
+      let parsed: unknown;
+      try { parsed = JSON.parse(text); } catch { return; }
+      const list = Array.isArray(parsed) ? parsed : [parsed];
+      for (const raw of list) {
+        const receivedAtMs = Date.now();
+        const event = normalizeAlpacaRelayTrade(raw, symbol, lastPx, receivedAtMs, Date.now());
+        if (!event) continue;
+        const guarded = eventGuard.inspect(event);
+        if (guarded.status !== "ACCEPTED") continue;
+        lastPx = event.price!;
+        // fanTick (in createTapeHub) calls ingestSessionNectarEvent for us.
+        // Per-consumer onTick handles the UNKNOWN-aggressor gate for signed
+        // indicators (see the useEffect wiring below).
+        onTick({
+          price: event.price!,
+          size: event.size!,
+          side: event.aggressorSide === "BUY" ? "buy"
+              : event.aggressorSide === "SELL" ? "sell"
+              : "buy", // side is only inspected when UNKNOWN is not skipped by the wrapper
+          time: event.timestampProvider ?? event.timestampReceived,
+          trade: true,
+          marketEvent: event,
+        }, true);
+      }
+    };
+
+    sock.onopen = () => {
+      onStatus(true);
+      try { sock?.send(JSON.stringify({ action: "subscribe", sym: symbol, trades: [symbol] })); } catch { /* proxy may not need a subscribe msg */ }
+    };
+    sock.onmessage = (ev) => {
+      const d = ev.data as unknown;
+      if (typeof d === "string") handleText(d);
+      else if (d instanceof ArrayBuffer) handleText(new TextDecoder().decode(d));
+      else if (d && typeof (d as Blob).text === "function") (d as Blob).text().then(handleText).catch(() => {});
+    };
+    sock.onclose = () => { onStatus(false); if (!closed) retryTimer = setTimeout(connectSock, 3000); };
+    sock.onerror = () => { try { sock?.close(); } catch { /* already closing */ } };
+  };
+
+  connectSock();
+
+  return () => {
+    closed = true;
+    if (retryTimer) clearTimeout(retryTimer);
+    try { sock?.close(); } catch { /* already closing */ }
+  };
+}
+
 /* ── Main hook ──────────────────────────────────────────── */
 export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe: string }) {
   const base      = getBasePrice(symbol);
@@ -999,88 +1089,40 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       try { return (localStorage.getItem("wm_alpaca_proxy") || process.env.NEXT_PUBLIC_ALPACA_PROXY_URL || DEFAULT_PROXY).trim(); }
       catch { return (process.env.NEXT_PUBLIC_ALPACA_PROXY_URL || DEFAULT_PROXY).trim(); }
     })();
-    let proxyWs: WebSocket | null = null;
-    let proxyRetry: ReturnType<typeof setTimeout> | null = null;
-    let proxyClosed = false;
-    const proxyEventGuard = new MarketEventGuard();
-    if (proxyBase && !isFuture && !isCrypto && typeof WebSocket !== "undefined") {
-      // F1 (observation-fix Cycle 10 P0): seed lastPx from the parallel REST
-      // quote so the first proxy trade can produce a valid tick-inferred
-      // aggressor side instead of always UNKNOWN. If priceRef hasn't been
-      // populated yet, this stays 0 and F2 (below) preserves the observation.
-      let lastPx = priceRef.current > 0 ? priceRef.current : 0;
-      const connectProxy = () => {
-        if (proxyClosed) return;
-        let url = proxyBase;
-        try { const u = new URL(proxyBase); u.searchParams.set("sym", symbol); url = u.toString(); }
-        catch { url = `${proxyBase}${proxyBase.includes("?") ? "&" : "?"}sym=${encodeURIComponent(symbol)}`; }
-        let sock: WebSocket;
-        try { sock = new WebSocket(url); } catch { proxyRetry = setTimeout(connectProxy, 4000); return; }
-        // The proxy relays Alpaca's frames as BINARY, so the browser delivers them
-        // as ArrayBuffer/Blob — not text. Decode to a string before parsing (the old
-        // JSON.parse(String(ev.data)) turned a Blob into "[object Blob]" and silently
-        // dropped every trade). arraybuffer is synchronously decodable; Blob is the
-        // async fallback.
-        sock.binaryType = "arraybuffer";
-        proxyWs = sock;
-        const handleText = (text: string) => {
-          let parsed: unknown;
-          try { parsed = JSON.parse(text); } catch { return; }
-          const list = Array.isArray(parsed) ? parsed : [parsed];
-          let got = false;
-          for (const raw of list) {
-            const receivedAtMs = Date.now();
-            const event = normalizeAlpacaRelayTrade(raw, symbol, lastPx, receivedAtMs, Date.now());
-            if (!event) continue;
-            const guarded = proxyEventGuard.inspect(event);
-            if (guarded.status !== "ACCEPTED") continue;
-            lastPx = event.price!;
-            // F2 (observation-fix Cycle 10 P0): OBSERVATION ≠ CLASSIFICATION.
-            // Ingest the observation into Nectar for EVERY accepted trade so
-            // coverage/heartbeat reflect reality. Skipping the ingest here
-            // (as the prior code did) silenced the first ~13s of TSLA activity
-            // on a fresh session (measured 41.7% drop rate). Signed indicators
-            // (Delta/CVD/footprint) still gate on aggressor below.
-            // Guard is idempotent — dedup already ran in MarketEventGuard.inspect.
-            ingestSessionNectarEvent(event);
-            // Equal-price/first prints are legitimate observations but cannot
-            // enter Delta/CVD/footprint/tape until an aggressor side is
-            // supportable.
-            if (event.aggressorSide === "UNKNOWN") continue;
+    // Route the Alpaca IEX relay through the shared TapeHub — matches the
+    // crypto (Coinbase/Binance) and Finnhub pattern. Fixes the 9-socket
+    // defect: N hook instances watching the same equity symbol on /charts
+    // now share ONE socket via tapeHubs.get('alpaca-relay:<SYM>') instead
+    // of spawning N. Founder-verified Aug 13 as a release-gate item.
+    //
+    // F1/F2/F3 semantics preserved in tryAlpacaRelay + the per-consumer
+    // onTick wrapper below.
+    const alpacaRelayCleanup = (proxyBase && !isFuture && !isCrypto && typeof WebSocket !== "undefined")
+      ? joinTape(
+          `alpaca-relay:${symbol.toUpperCase()}`,
+          (onTick, onStatus) => tryAlpacaRelay(symbol, priceRef.current, proxyBase, onTick, onStatus),
+          (tick, isReal) => {
+            // F2 (Cycle 10 P0): UNKNOWN aggressor observations are already
+            // ingested to Nectar in fanTick (shared TapeHub, line ~493) — do
+            // not silence them. Skip only the signed downstream path here so
+            // Delta/CVD/footprint/tape never see a fake "sell" coerced from
+            // UNKNOWN.
+            if (tick.marketEvent?.aggressorSide === "UNKNOWN") return;
             tapeSourceRef.current = "alpaca";
-            processTick({
-              price: event.price!,
-              size: event.size!,
-              side: event.aggressorSide === "BUY" ? "buy" : "sell",
-              time: event.timestampProvider ?? event.timestampReceived,
-              trade: true,
-              marketEvent: event,
-            }, true);
-            got = true;
-          }
-          if (got) setState(p => (p.tapeSource === "alpaca" ? p : { ...p, source: "alpaca", tapeSource: "alpaca", connected: true }));
-        };
-        sock.onopen = () => {
-          // F3 (observation-fix Cycle 10 P0): TRANSPORT ≠ SYMBOL OBSERVATION.
-          // WebSocket handshake success proves the pipe is alive to the proxy.
-          // It does NOT prove a TSLA trade has arrived. Fire the CONNECTED
-          // status here so the UI's transport indicator stops false-negatives
-          // during the natural 400ms–13s window between open and first trade.
-          // Symbol-observing status remains gated on the `got` flag below.
-          setState(p => (p.source === "alpaca" && p.connected ? p : { ...p, source: "alpaca", connected: true }));
-          try { sock.send(JSON.stringify({ action: "subscribe", sym: symbol, trades: [symbol] })); } catch { /* proxy may not need a subscribe msg */ }
-        };
-        sock.onmessage = (ev) => {
-          const d = ev.data as unknown;
-          if (typeof d === "string") handleText(d);
-          else if (d instanceof ArrayBuffer) handleText(new TextDecoder().decode(d));
-          else if (d && typeof (d as Blob).text === "function") (d as Blob).text().then(handleText).catch(() => {});
-        };
-        sock.onclose = () => { if (!proxyClosed) proxyRetry = setTimeout(connectProxy, 3000); };
-        sock.onerror = () => { try { sock.close(); } catch { /* already closing */ } };
-      };
-      connectProxy();
-    }
+            processTick(tick, isReal);
+          },
+          (ok) => {
+            if (ok) {
+              hasRealDataRef.current = true;
+              // F3 (Cycle 10 P0): TRANSPORT CONNECTED — pipe is alive. Per-
+              // symbol observation status remains gated on actual trade
+              // arrival via processTick above.
+              setState(p => (p.source === "alpaca" && p.connected ? p : { ...p, source: "alpaca", connected: true }));
+            }
+          },
+        )
+      : null;
+    if (alpacaRelayCleanup) cleanupFns.current.push(alpacaRelayCleanup);
 
     if (finhCleanup) cleanupFns.current.push(finhCleanup);
     if (binanceCleanup) cleanupFns.current.push(binanceCleanup);
@@ -1089,9 +1131,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       disposed = true;
       if (cryptoFallbackTimer) clearTimeout(cryptoFallbackTimer);
       clearInterval(restRefresh);
-      proxyClosed = true;
-      if (proxyRetry) clearTimeout(proxyRetry);
-      if (proxyWs) { try { proxyWs.close(); } catch { /* already closing */ } }
+      // Alpaca relay teardown now flows through cleanupFns.current below —
+      // the joinTape cleanup drops the refcount and closes the shared socket
+      // when the last consumer unmounts (matches crypto/Finnhub behavior).
       document.removeEventListener("visibilitychange", onVisibleWS);
       cleanupFns.current.forEach(fn => fn());
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
