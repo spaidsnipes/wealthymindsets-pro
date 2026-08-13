@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { useWMS, WMS_CONTRACT } from "@/contexts/WMSContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { isCoreTeam } from "@/lib/coreTeam";
+import { hasResolvedTradeOutcome } from "@/lib/tradeEvidence";
 
 
 interface ProfileData {
@@ -23,7 +24,7 @@ const EMPTY_PROFILE: ProfileData = {
   name: "", handle: "", bio: "", email: "", timezone: "America/New_York", botName: "SpaidBot",
 };
 
-interface TradeRow { sym: string; dir: string; entry: string; exit: string; pnl: string; rr: string; date: string; }
+interface TradeRow { sym: string; dir: string; entry: string; exit: string; pnl: string; rr: string; date: string; outcomeResolved: boolean; }
 interface LikedTrack { title: string; artist: string; duration: string; }
 
 const CIRCLE_OF_EXCELLENCE: { name: string; color: string; avatar: string }[] = [];
@@ -138,24 +139,34 @@ export default function ProfilePage() {
       const paperTrades: Array<{ symbol?: string; side?: string; entryPrice?: number; exitPrice?: number; pnl?: number; rr?: number; closedAt?: string; }> = paperState?.trades ?? [];
 
       const trades: TradeRow[] = [
-        ...journalRaw.filter(t => t.pnl !== undefined).map(t => ({
-          sym: t.symbol ?? "—",
-          dir: t.direction ?? "LONG",
-          entry: t.entryPrice != null ? String(t.entryPrice) : "—",
-          exit: t.exitPrice != null ? String(t.exitPrice) : "—",
-          pnl: t.pnl != null ? `${t.pnl >= 0 ? "+" : ""}$${Math.abs(t.pnl).toFixed(0)}` : "—",
-          rr: t.rr != null ? `${t.rr.toFixed(1)}R` : "—",
-          date: t.createdAt ? new Date(t.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—",
-        })),
-        ...paperTrades.filter(t => t.pnl !== undefined).map(t => ({
-          sym: t.symbol ?? "—",
-          dir: (t.side ?? "LONG").toUpperCase(),
-          entry: t.entryPrice != null ? String(t.entryPrice) : "—",
-          exit: t.exitPrice != null ? String(t.exitPrice) : "—",
-          pnl: t.pnl != null ? `${t.pnl >= 0 ? "+" : ""}$${Math.abs(t.pnl).toFixed(0)}` : "—",
-          rr: t.rr != null ? `${t.rr.toFixed(1)}R` : "—",
-          date: t.closedAt ? new Date(t.closedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—",
-        })),
+        ...journalRaw.filter(t => t.pnl !== undefined).map(t => {
+          const outcomeResolved = hasResolvedTradeOutcome(t);
+          const resolvedPnl = outcomeResolved && typeof t.pnl === "number" ? t.pnl : null;
+          return {
+            sym: t.symbol ?? "—",
+            dir: t.direction ?? "LONG",
+            entry: t.entryPrice != null ? String(t.entryPrice) : "—",
+            exit: t.exitPrice != null ? String(t.exitPrice) : "—",
+            pnl: resolvedPnl !== null ? `${resolvedPnl >= 0 ? "+" : ""}$${Math.abs(resolvedPnl).toFixed(0)}` : "Unresolved",
+            rr: outcomeResolved && t.rr != null ? `${t.rr.toFixed(1)}R` : "—",
+            date: t.createdAt ? new Date(t.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—",
+            outcomeResolved,
+          };
+        }),
+        ...paperTrades.filter(t => t.pnl !== undefined).map(t => {
+          const outcomeResolved = hasResolvedTradeOutcome(t);
+          const resolvedPnl = outcomeResolved && typeof t.pnl === "number" ? t.pnl : null;
+          return {
+            sym: t.symbol ?? "—",
+            dir: (t.side ?? "LONG").toUpperCase(),
+            entry: t.entryPrice != null ? String(t.entryPrice) : "—",
+            exit: t.exitPrice != null ? String(t.exitPrice) : "—",
+            pnl: resolvedPnl !== null ? `${resolvedPnl >= 0 ? "+" : ""}$${Math.abs(resolvedPnl).toFixed(0)}` : "Unresolved",
+            rr: outcomeResolved && t.rr != null ? `${t.rr.toFixed(1)}R` : "—",
+            date: t.closedAt ? new Date(t.closedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—",
+            outcomeResolved,
+          };
+        }),
       ].slice(0, 20);
       setRecentTrades(trades);
     } catch {}
@@ -168,7 +179,7 @@ export default function ProfilePage() {
       const journalEntries = JSON.parse(localStorage.getItem("wm_journal_entries") ?? "[]") as Array<{ pnl?: number }>;
       const paperState = JSON.parse(localStorage.getItem("wm_paper_state") ?? "null");
       const paperTrades: Array<{ pnl?: number }> = paperState?.trades ?? [];
-      const closedTrades = [...journalEntries, ...paperTrades].filter(t => t.pnl !== undefined);
+      const closedTrades = [...journalEntries, ...paperTrades].filter(hasResolvedTradeOutcome);
       if (closedTrades.length > 0) {
         const wins = closedTrades.filter(t => (t.pnl ?? 0) > 0).length;
         const losses = closedTrades.filter(t => (t.pnl ?? 0) < 0).length;
@@ -353,10 +364,18 @@ export default function ProfilePage() {
         </div>
 
         <div className="absolute top-3 right-3 flex gap-2 items-center">
-          {["#070A0F", "#0D0A1F", "#0A1A0D", "#1A0A0A"].map(c => (
-            <button key={c} onClick={() => changeBg(c)}
+          {[
+            { color: "#070A0F", label: "Obsidian" },
+            { color: "#0D0A1F", label: "Midnight violet" },
+            { color: "#0A1A0D", label: "Deep forest" },
+            { color: "#1A0A0A", label: "Dark burgundy" },
+          ].map(({ color, label }) => (
+            <button key={color} onClick={() => changeBg(color)}
+              aria-label={`Use ${label} profile background`}
+              aria-pressed={bgColor === color}
+              title={`Use ${label} profile background`}
               className="w-5 h-5 rounded-full border-2 transition-all"
-              style={{ background: c, borderColor: bgColor === c ? "#F0B429" : "#252D38" }} />
+              style={{ background: color, borderColor: bgColor === color ? "#F0B429" : "#252D38" }} />
           ))}
           <button onClick={() => { setEditProfile(profile); setEditMode(e => !e); }}
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-wm-surface/80 text-wm-text-muted hover:text-wm-text text-xs transition-colors">
@@ -440,6 +459,8 @@ export default function ProfilePage() {
                 </button>
               ) : (
                 <button onClick={() => { navigator.clipboard?.writeText(window.location.href); toast.success("Link copied!"); }}
+                  aria-label="Copy profile link"
+                  title="Copy profile link"
                   className="p-1.5 rounded-lg bg-wm-surface border border-wm-border text-wm-text-muted hover:text-wm-text transition-colors">
                   <Share2 size={13} />
                 </button>
@@ -534,7 +555,15 @@ export default function ProfilePage() {
                   <div className="text-xs text-wm-text-muted hidden sm:block">Entry: <span className="text-wm-text font-mono">{t.entry}</span></div>
                   <div className="text-xs text-wm-text-muted hidden sm:block">Exit: <span className="text-wm-text font-mono">{t.exit}</span></div>
                   <div className="ml-auto flex items-center gap-3">
-                    <span className={clsx("text-sm font-bold", t.pnl.startsWith("+") ? "text-wm-green" : "text-wm-red")}>{t.pnl}</span>
+                    <span
+                      className={clsx(
+                        "text-sm font-bold",
+                        !t.outcomeResolved ? "text-wm-text-muted" : t.pnl.startsWith("+") ? "text-wm-green" : "text-wm-red",
+                      )}
+                      title={t.outcomeResolved ? "Realized outcome with entry and exit evidence" : "Entry or exit evidence is missing; P&L is not treated as resolved"}
+                    >
+                      {t.pnl}
+                    </span>
                     <span className="text-xs text-wm-gold font-semibold">{t.rr}</span>
                   </div>
                 </div>
@@ -627,6 +656,8 @@ export default function ProfilePage() {
                         <div className="flex items-center gap-1">
                           <span className="text-[9px] font-mono text-wm-text">{WMS_CONTRACT.address.slice(0,8)}…{WMS_CONTRACT.address.slice(-6)}</span>
                           <button onClick={() => { navigator.clipboard.writeText(WMS_CONTRACT.address); toast.success("Copied!"); }}
+                            aria-label="Copy creator coin contract address"
+                            title="Copy creator coin contract address"
                             className="text-[#7C3AED] hover:text-[#00D4AA] transition-colors"><ExternalLink size={9}/></button>
                         </div>
                       </div>
@@ -726,7 +757,7 @@ export default function ProfilePage() {
                 <div className="rounded-xl border border-[#7C3AED]/40 bg-[#7C3AED]/5 p-4 space-y-3">
                   <div className="text-sm font-black text-wm-text flex items-center justify-between">
                     <span>🪙 Launch Creator Coin</span>
-                    <button onClick={() => setShowLaunchCoin(false)}><X size={14} className="text-wm-text-dim"/></button>
+                    <button onClick={() => setShowLaunchCoin(false)} aria-label="Close creator coin form" title="Close creator coin form"><X size={14} className="text-wm-text-dim"/></button>
                   </div>
                   {[
                     { label: "Coin Name",   key: "name",   placeholder: "e.g. SpaidFX Coin" },

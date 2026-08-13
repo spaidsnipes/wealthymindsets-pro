@@ -1169,7 +1169,7 @@ Trade the system, trust the process, winners every day 🚀`,
 
           {/* Placeholder */}
           {!selected && !newMode && (
-            <div className="flex flex-col items-center justify-center h-full gap-4 text-wm-text-muted">
+            <div className="flex min-h-full flex-col items-center justify-center gap-4 py-6 text-wm-text-muted">
               <BarChart2 size={40} className="opacity-20" />
               <div className="text-center">
                 <div className="font-semibold text-sm">Select an entry or create a new one</div>

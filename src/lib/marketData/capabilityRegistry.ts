@@ -52,6 +52,7 @@ export interface MarketDataRights {
   derived:      RightsDecision;
   redistribute: RightsDecision;
   train:        RightsDecision;
+  commercial:   RightsDecision;
 }
 
 export const UNKNOWN_RIGHTS: MarketDataRights = {
@@ -61,6 +62,7 @@ export const UNKNOWN_RIGHTS: MarketDataRights = {
   derived:      "UNKNOWN",
   redistribute: "UNKNOWN",
   train:        "UNKNOWN",
+  commercial:   "UNKNOWN",
 } as const;
 
 export type TimestampField = "EXCHANGE" | "PROVIDER" | "RECEIVED" | "PROCESSED";
@@ -84,6 +86,11 @@ export interface MarketDataCapability {
   rawPersistenceRight: PersistenceRight;
   rightsPolicyId: string;
   retentionLimitSeconds: number | null;
+  attributionRequired: boolean | null;
+  rightsEvidenceUrl: string | null;
+  rightsAgreementVersion: string | null;
+  rightsReviewedBy: string | null;
+  rightsReviewedAt: string | null;
   evidence: string;
   /**
    * Granular per-action rights (v2). Every field defaults to `UNKNOWN` when
@@ -94,19 +101,25 @@ export interface MarketDataCapability {
 }
 
 /**
- * Convenience preset for public exchange feeds whose collect + display use
- * we already exercise in production. Retention, redistribution and training
- * remain UNKNOWN (fail closed) until a written rights review lands.
+ * Compatibility preset for operational public-feed entries. Availability
+ * records what the app can technically receive; it is not a legal grant.
+ * The 2026-08-10 provider review found no blanket multi-user commercial
+ * authorization, so every legal action remains UNKNOWN and fails closed.
  */
 export const PUBLIC_DISPLAY_ONLY_RIGHTS: MarketDataRights = {
   ...UNKNOWN_RIGHTS,
-  collect: "ALLOWED",
-  display: "ALLOWED",
 } as const;
 
 const capability = (
-  value: Omit<MarketDataCapability, "rawPersistenceRight" | "rightsPolicyId" | "retentionLimitSeconds" | "rights"> &
-    Partial<Pick<MarketDataCapability, "rawPersistenceRight" | "rightsPolicyId" | "retentionLimitSeconds" | "rights">>,
+  value: Omit<MarketDataCapability,
+    | "rawPersistenceRight" | "rightsPolicyId" | "retentionLimitSeconds" | "rights"
+    | "attributionRequired" | "rightsEvidenceUrl" | "rightsAgreementVersion"
+    | "rightsReviewedBy" | "rightsReviewedAt"
+  > & Partial<Pick<MarketDataCapability,
+    | "rawPersistenceRight" | "rightsPolicyId" | "retentionLimitSeconds" | "rights"
+    | "attributionRequired" | "rightsEvidenceUrl" | "rightsAgreementVersion"
+    | "rightsReviewedBy" | "rightsReviewedAt"
+  >>,
 ): MarketDataCapability => {
   const rights: MarketDataRights = { ...UNKNOWN_RIGHTS, ...(value.rights ?? {}) };
   // Keep rawPersistenceRight (v1) in sync with rights.raw (v2) so old gates
@@ -115,6 +128,11 @@ const capability = (
   return {
     rightsPolicyId: UNKNOWN_RIGHTS_POLICY_ID,
     retentionLimitSeconds: null,
+    attributionRequired: null,
+    rightsEvidenceUrl: null,
+    rightsAgreementVersion: null,
+    rightsReviewedBy: null,
+    rightsReviewedAt: null,
     ...value,
     rights,
     rawPersistenceRight,
@@ -270,7 +288,15 @@ export function getMarketDataCapability(
 
 export function canPersistRaw(capabilityEntry: MarketDataCapability): boolean {
   return capabilityEntry.availability !== "UNAVAILABLE" &&
+    capabilityEntry.rights.collect === "ALLOWED" &&
+    capabilityEntry.rights.raw === "ALLOWED" &&
     capabilityEntry.rawPersistenceRight === "ALLOWED";
+}
+
+export function canPersistDerived(capabilityEntry: MarketDataCapability): boolean {
+  return capabilityEntry.availability !== "UNAVAILABLE" &&
+    capabilityEntry.rights.collect === "ALLOWED" &&
+    capabilityEntry.rights.derived === "ALLOWED";
 }
 
 /**
