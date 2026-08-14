@@ -9,6 +9,15 @@ import { useWMS, WMS_CONTRACT } from "@/contexts/WMSContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { isCoreTeam } from "@/lib/coreTeam";
 import ProcessLandscape from "@/components/profile/ProcessLandscape";
+import ATHOSInterventionPanel from "@/components/athos/ATHOSInterventionPanel";
+import {
+  selectATHOSIntervention,
+  type ATHOSIntervention,
+} from "@/lib/traderMemory/viewModels/selectATHOSIntervention";
+import {
+  selectPermission,
+  defaultFounderRules,
+} from "@/lib/traderMemory/viewModels/selectPermission";
 import { hasResolvedTradeOutcome } from "@/lib/tradeEvidence";
 
 
@@ -578,6 +587,59 @@ export default function ProfilePage() {
                   Passport identity (WOW-shared)
                 </div>
               </div>
+
+              {/* Permission verdict chip — shows how the trader's own rules
+                  are currently evaluating without gating any action.
+                  ALLOWED means "no rule is engaged" — never "WM authorizes
+                  you to trade." Human sovereignty per Founder §10.14. */}
+              {(() => {
+                const permission = selectPermission({
+                  ownerId: user?.id ?? "",
+                  sessionIdentity: `session-${new Date().toISOString().slice(0, 10)}`,
+                  nowMs: Date.now(),
+                  rules: defaultFounderRules(),
+                  sessionDecisions: [],
+                });
+                const verdictColor =
+                  permission.verdict === "ALLOWED" ? "text-wm-green border-wm-green/40" :
+                  permission.verdict === "ADVISORY" ? "text-yellow-400 border-yellow-400/40" :
+                  permission.verdict === "RESTRICTED" ? "text-orange-400 border-orange-400/50" :
+                  "text-wm-text-muted border-wm-text-muted/40";
+                return (
+                  <div className={clsx("glass rounded-xl p-4 border-l-2", verdictColor)}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] tracking-[0.28em] uppercase text-wm-text-muted">Steward rules</span>
+                      <span className={clsx("text-[10px] tracking-[0.28em] uppercase font-bold", verdictColor)}>
+                        {permission.verdict}
+                      </span>
+                      <span className="text-[10px] text-wm-text-dim ml-auto">
+                        {permission.engagedRules.length}/{permission.ruleCount} engaged
+                      </span>
+                    </div>
+                    <div className="text-xs text-wm-text-muted leading-relaxed">
+                      {permission.headline} <span className="text-wm-text-dim">{permission.reason}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ATHOS silent-mode panel. Renders NOTHING when no
+                  intervention is warranted (silence is a feature §14).
+                  Today: interventions = [] because there is no active
+                  session with decisions, so this panel is invisible —
+                  which is correct behavior. */}
+              {(() => {
+                const athos = selectATHOSIntervention({
+                  ownerId: user?.id ?? "",
+                  sessionIdentity: `session-${new Date().toISOString().slice(0, 10)}`,
+                  nowMs: Date.now(),
+                  moment: "IDLE",
+                  sessionDecisions: [],
+                });
+                return (
+                  <ATHOSInterventionPanel interventions={athos.interventions as readonly ATHOSIntervention[]} />
+                );
+              })()}
 
               {/* Founder loop: Heatmap → Memory → Replay → Mirror → Drill → Profile.
                   ProcessLandscape emits truthful UNKNOWN cells while the
