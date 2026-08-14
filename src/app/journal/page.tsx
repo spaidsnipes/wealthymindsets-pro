@@ -14,6 +14,8 @@ import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
 import { useJournalSnapshots, notifyJournalChanged } from "@/lib/traderMemory/adapters/useJournalSnapshots";
+import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
+import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import { useWMS } from "@/contexts/WMSContext";
 import {
   Plus, Search, Tag, Calendar, Download, Mic, MicOff,
@@ -566,6 +568,16 @@ export default function JournalPage() {
     [authCtx?.user?.id, journalSnapshots, mirrorNowMs],
   );
 
+  const personalEdgeVm = useMemo(
+    () =>
+      selectPersonalEdge({
+        ownerId: authCtx?.user?.id ?? "",
+        decisions: journalSnapshots,
+        nowMs: mirrorNowMs,
+      }),
+    [authCtx?.user?.id, journalSnapshots, mirrorNowMs],
+  );
+
   const [selected,  setSelected]  = useState<JournalEntry | null>(null);
   const [newMode,   setNewMode]   = useState(false);
   const [search,    setSearch]    = useState("");
@@ -1100,6 +1112,14 @@ Trade the system, trust the process, winners every day 🚀`,
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Personal Edge chip — one-line summary of where this trader
+          performs well. Renders nothing when no decisions yet. */}
+      {mainTab === "journal" && journalSnapshots.length > 0 && (
+        <div style={{ padding: "8px 16px", borderBottom: "1px solid rgba(139,106,41,0.15)" }}>
+          <PersonalEdgeChip vm={personalEdgeVm} />
         </div>
       )}
 
