@@ -86,32 +86,38 @@ const POST_EXIT_QUICK_REENTRY_WINDOW_MS = 5 * 60_000;
 const LARGE_WINNER_R = 1.5;
 
 const detectPostExitOvertrading: Detector = (decisions, threshold) => {
-  // Look for winner → quick re-entry pairs in the session
-  const sorted = [...decisions]
-    .filter((d) => d.outcome != null)
-    .sort((a, b) => a.outcome!.closedAt - b.outcome!.closedAt);
-  const pairs: DecisionMemorySnapshot[] = [];
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const prev = sorted[i];
-    const next = sorted[i + 1];
-    if (prev.outcome!.realizedR > 0 && next.capturedAt - prev.outcome!.closedAt < POST_EXIT_QUICK_REENTRY_WINDOW_MS) {
-      pairs.push(next);
+  // For each CLOSED winner in the session, look at every LATER decision
+  // (opened OR closed) and flag those that opened within the quick-reentry
+  // window. Re-entry decisions need not have an outcome yet — the pattern
+  // is about opening a new trade too soon after banking a winner.
+  const winners = decisions.filter(
+    (d) => d.outcome != null && d.outcome.realizedR > 0,
+  );
+  if (winners.length === 0) return null;
+  const pairs = new Map<string, DecisionMemorySnapshot>();
+  for (const w of winners) {
+    for (const d of decisions) {
+      if (d.decisionId === w.decisionId) continue;
+      if (d.capturedAt <= w.outcome!.closedAt) continue;
+      if (d.capturedAt - w.outcome!.closedAt < POST_EXIT_QUICK_REENTRY_WINDOW_MS) {
+        pairs.set(d.decisionId, d);
+      }
     }
   }
-  if (pairs.length < 1) return null;
+  if (pairs.size < 1) return null;
   return {
     id: "post-exit-quick-reentry",
     label: "Post-exit quick re-entry",
     evidenceClass: "SYSTEM_CANDIDATE",
     direction: "WATCH",
-    statement: `${pairs.length} re-entry decision(s) opened within ${POST_EXIT_QUICK_REENTRY_WINDOW_MS / 60_000}m of a prior winner this session.`,
+    statement: `${pairs.size} re-entry decision(s) opened within ${POST_EXIT_QUICK_REENTRY_WINDOW_MS / 60_000}m of a prior winner this session.`,
     evidence: [
       "Quick re-entry after a winner correlates with missed-profit regret in the founder Aug-12 case",
       "This is a candidate pattern from decision timing — not a diagnosis",
     ],
-    sampleCount: pairs.length,
-    decisionIds: pairs.map((d) => d.decisionId),
-    confidence: confidenceFor(pairs.length, threshold),
+    sampleCount: pairs.size,
+    decisionIds: Array.from(pairs.values()).map((d) => d.decisionId),
+    confidence: confidenceFor(pairs.size, threshold),
   };
 };
 
