@@ -9,6 +9,8 @@ import { useWMS, WMS_CONTRACT } from "@/contexts/WMSContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { isCoreTeam } from "@/lib/coreTeam";
 import ProcessLandscape from "@/components/profile/ProcessLandscape";
+import PersonalEdgePanel from "@/components/profile/PersonalEdgePanel";
+import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import ATHOSInterventionPanel from "@/components/athos/ATHOSInterventionPanel";
 import {
   selectATHOSIntervention,
