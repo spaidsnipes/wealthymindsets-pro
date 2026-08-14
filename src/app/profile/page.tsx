@@ -668,6 +668,26 @@ export default function ProfilePage() {
                 <br />
                 Process teaches. Outcome pays. Never conflate the two.
               </div>
+
+              {/* Discoverability link — /command-deck ships the full
+                  Regime → Direction → Location → Auction → Aggression →
+                  CLC → R → Permission → Management chain. */}
+              <button
+                type="button"
+                onClick={() => router.push("/command-deck")}
+                className="glass rounded-xl p-4 w-full text-left hover:border-wm-gold/60 transition-colors min-h-[44px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
+                aria-label="Open Command Deck — full decision chain"
+              >
+                <div className="text-[10px] tracking-[0.28em] uppercase text-wm-gold mb-2">
+                  → Command Deck
+                </div>
+                <div className="text-xs text-wm-text">
+                  See the full decision chain — Regime · Direction · Location · Auction · Aggression · CLC · Available R · Permission · Management
+                </div>
+                <div className="text-[10px] text-wm-text-dim mt-2 tracking-wide">
+                  Composed surface · one truth · zero fabrication
+                </div>
+              </button>
             </div>
           )}
 

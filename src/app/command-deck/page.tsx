@@ -14,6 +14,10 @@ import StoryRibbon from "@/components/chart/StoryRibbon";
 import ATHOSInterventionPanel from "@/components/athos/ATHOSInterventionPanel";
 import { selectATHOSIntervention, type ATHOSIntervention } from "@/lib/traderMemory/viewModels/selectATHOSIntervention";
 import { selectPermission, defaultFounderRules } from "@/lib/traderMemory/viewModels/selectPermission";
+import MirrorPanel from "@/components/mirror/MirrorPanel";
+import OpeningBellPanel from "@/components/opening-bell/OpeningBellPanel";
+import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
+import { selectOpeningBell, DEFAULT_PREPARATION_TEMPLATE } from "@/lib/traderMemory/viewModels/selectOpeningBell";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -240,6 +244,37 @@ export default function CommandDeckPage() {
               interventions={athos.interventions as readonly ATHOSIntervention[]}
               onDismiss={(id) => console.debug("dismissed", id)}
             />
+
+            {/* Opening Bell — only meaningful during PREPARATION phase.
+                Uses the default preparation template with no items completed
+                yet, so verdict truthfully = NOT_READY when required items
+                exist. When Founder configures + completes items, this
+                updates automatically. */}
+            {phase === "PREPARATION" && (
+              <OpeningBellPanel
+                vm={selectOpeningBell({
+                  ownerId: user?.id ?? "",
+                  sessionIdentity: `session-${new Date().toISOString().slice(0, 10)}`,
+                  items: DEFAULT_PREPARATION_TEMPLATE.map((t) => ({ ...t, completed: false })),
+                  minutesUntilOpen: null,
+                  dataQuality: state?.qualityState,
+                  nowMs: Date.now(),
+                })}
+              />
+            )}
+
+            {/* Mirror — meaningful during REVIEW phase (also visible in
+                POST_EXIT). Renders NOTHING when no patterns detected
+                (silence-is-a-feature §14 applied to reflection too). */}
+            {(phase === "REVIEW" || phase === "POST_EXIT") && (
+              <MirrorPanel
+                vm={selectMirror({
+                  ownerId: user?.id ?? "",
+                  decisions: [],
+                  nowMs: Date.now(),
+                })}
+              />
+            )}
           </>
         )}
 
