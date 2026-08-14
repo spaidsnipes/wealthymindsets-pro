@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 
 // Server-only Finnhub key. Same fail-fast pattern as /api/finnhub — refuse to
 // call Finnhub with the committed-fallback value in production (WM-SEC-P0-03).
+// Lazy resolver so Vercel build's page-data collection doesn't crash when the
+// prod value isn't wired into the build environment.
 const COMMITTED_FALLBACK = "d8efu9hr01qth3ch5f20d8efu9hr01qth3ch5f2g";
-const FINNHUB_KEY = (() => {
+function getFinnhubKey(): string {
   const fromEnv = process.env.FINNHUB_KEY ?? process.env.NEXT_PUBLIC_FINNHUB_KEY;
   const isProd  = process.env.NODE_ENV === "production";
   if (isProd) {
@@ -12,7 +14,7 @@ const FINNHUB_KEY = (() => {
     return fromEnv;
   }
   return fromEnv ?? "";
-})();
+}
 
 // Map common crypto symbols to Finnhub format
 const CRYPTO_SYMS = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","MATIC","LTC"]);
@@ -28,7 +30,7 @@ export async function GET(request: Request) {
 
   try {
     const finnhubSym = CRYPTO_SYMS.has(symbol) ? `BINANCE:${symbol}USDT` : symbol;
-    const url = `https://finnhub.io/api/v1/quote?symbol=${finnhubSym}&token=${FINNHUB_KEY}`;
+    const url = `https://finnhub.io/api/v1/quote?symbol=${finnhubSym}&token=${getFinnhubKey()}`;
     const res = await fetch(url, { next: { revalidate: 5 } }); // cache 5s
     const data = await res.json();
 

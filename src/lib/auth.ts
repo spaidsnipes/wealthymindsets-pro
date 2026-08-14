@@ -13,9 +13,18 @@ import { createHmac, pbkdf2Sync, randomBytes, timingSafeEqual } from "crypto";
 import type { ResponseCookies } from "next/dist/compiled/@edge-runtime/cookies";
 
 const DEV_JWT_SECRET = "wm-dev-secret-CHANGE-IN-PROD-4f8a2b1c";
-const JWT_SECRET = resolveJwtSecret();
 
-function resolveJwtSecret(): string {
+// JWT secret is resolved LAZILY on first sign/verify call, not at module
+// load. Reason: Vercel's build-time page-data collection imports every
+// route module (and therefore this module) with NODE_ENV=production. If
+// JWT_SECRET is not set in the build environment (e.g. build-only worker
+// context), a top-level throw fails the entire deploy even though the
+// secret is set correctly for runtime request handling. Lazy evaluation
+// preserves the security guard — a real signJWT/verifyJWT call in prod
+// without JWT_SECRET still throws — without breaking builds.
+let _jwtSecretCache: string | null = null;
+function getJwtSecret(): string {
+  if (_jwtSecretCache !== null) return _jwtSecretCache;
   const fromEnv = process.env.JWT_SECRET;
   const isProd  = process.env.NODE_ENV === "production";
   if (isProd) {
@@ -31,6 +40,7 @@ function resolveJwtSecret(): string {
         "immediately: generate a fresh value, set it in Vercel, redeploy.",
       );
     }
+    _jwtSecretCache = fromEnv;
     return fromEnv;
   }
   if (!fromEnv) {
@@ -38,8 +48,10 @@ function resolveJwtSecret(): string {
       "[auth] JWT_SECRET unset — using committed dev fallback. Never let this " +
       "reach production; set JWT_SECRET locally to silence this warning.",
     );
+    _jwtSecretCache = DEV_JWT_SECRET;
     return DEV_JWT_SECRET;
   }
+  _jwtSecretCache = fromEnv;
   return fromEnv;
 }
 const COOKIE_NAME = "wm_auth";
@@ -75,7 +87,7 @@ export function signJWT(payload: Omit<JWTPayload, "iat" | "exp">): string {
   const full: JWTPayload = { ...payload, iat: now, exp: now + COOKIE_MAX_AGE };
   const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
   const body   = b64url(JSON.stringify(full));
-  const sig    = createHmac("sha256", JWT_SECRET).update(`${header}.${body}`).digest("base64url");
+  const sig    = createHmac("sha256", getJwtSecret()).update(`${header}.${body}`).digest("base64url");
   return `${header}.${body}.${sig}`;
 }
 
@@ -83,7 +95,7 @@ export function verifyJWT(token: string): JWTPayload | null {
   try {
     const [header, body, sig] = token.split(".");
     if (!header || !body || !sig) return null;
-    const expected = createHmac("sha256", JWT_SECRET).update(`${header}.${body}`).digest("base64url");
+    const expected = createHmac("sha256", getJwtSecret()).update(`${header}.${body}`).digest("base64url");
     if (sig !== expected) return null;
     const payload = JSON.parse(fromB64url(body)) as JWTPayload;
     if (payload.exp < Math.floor(Date.now() / 1000)) return null;

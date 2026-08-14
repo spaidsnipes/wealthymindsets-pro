@@ -19,10 +19,14 @@ import { NextResponse } from "next/server";
  * caller has moved to this proxy and NEXT_PUBLIC_FINNHUB_KEY is deleted.
  */
 const COMMITTED_FALLBACK = "d8efu9hr01qth3ch5f20d8efu9hr01qth3ch5f2g";
-const FINNHUB_KEY = resolveFinnhubKey();
 const BASE = "https://finnhub.io/api/v1";
 
-function resolveFinnhubKey(): string {
+// Lazy resolution so Vercel's build-time page-data collection doesn't
+// crash when the prod key isn't available in the build environment. Real
+// GET handlers still fail-fast in production at the first request.
+let _finnhubKeyCache: string | null = null;
+function getFinnhubKey(): string {
+  if (_finnhubKeyCache !== null) return _finnhubKeyCache;
   const fromEnv = process.env.FINNHUB_KEY ?? process.env.NEXT_PUBLIC_FINNHUB_KEY;
   const isProd  = process.env.NODE_ENV === "production";
   if (isProd) {
@@ -38,9 +42,11 @@ function resolveFinnhubKey(): string {
         "immediately at finnhub.io, update the value in Vercel, redeploy.",
       );
     }
+    _finnhubKeyCache = fromEnv;
     return fromEnv;
   }
-  return fromEnv ?? "";
+  _finnhubKeyCache = fromEnv ?? "";
+  return _finnhubKeyCache;
 }
 
 /* ── Symbol mapping: WM internal → Finnhub ─────────────────── */
@@ -101,7 +107,7 @@ const CACHE = new Map<string, { data: unknown; ts: number }>();
 async function fhFetch(url: string, ttlMs = 5_000): Promise<unknown> {
   const cached = CACHE.get(url);
   if (cached && Date.now() - cached.ts < ttlMs) return cached.data;
-  const res = await fetch(url, { headers: { "X-Finnhub-Token": FINNHUB_KEY }, cache: "no-store" });
+  const res = await fetch(url, { headers: { "X-Finnhub-Token": getFinnhubKey() }, cache: "no-store" });
   if (!res.ok) throw new Error(`Finnhub HTTP ${res.status}`);
   const data = await res.json();
   CACHE.set(url, { data, ts: Date.now() });
@@ -119,7 +125,7 @@ export async function GET(request: Request) {
   try {
     /* ── Symbol search ──────────────────────────────────────── */
     if (type === "search") {
-      const url  = `${BASE}/search?q=${encodeURIComponent(q)}&token=${FINNHUB_KEY}`;
+      const url  = `${BASE}/search?q=${encodeURIComponent(q)}&token=${getFinnhubKey()}`;
       const json = await fhFetch(url, 30_000) as any;
       const results = (json.result ?? []).slice(0, 50).map((r: any) => ({
         sym:  r.symbol,
@@ -137,7 +143,7 @@ export async function GET(request: Request) {
 
     /* ── Real-time quote ────────────────────────────────────── */
     if (type === "quote") {
-      const url  = `${BASE}/quote?symbol=${encodeURIComponent(fhSym)}&token=${FINNHUB_KEY}`;
+      const url  = `${BASE}/quote?symbol=${encodeURIComponent(fhSym)}&token=${getFinnhubKey()}`;
       const json = await fhFetch(url, 3_000) as any;
       const price     = json.c ?? 0;   // current price
       const prevClose = json.pc ?? price;
@@ -189,7 +195,7 @@ export async function GET(request: Request) {
       const secs = perBar * bars * 1.5; // 1.5x buffer for gaps/weekends
       const from = now - Math.round(secs);
 
-      const url = `${BASE}/stock/candle?symbol=${encodeURIComponent(fhSym)}&resolution=${resolution}&from=${from}&to=${now}&token=${FINNHUB_KEY}`;
+      const url = `${BASE}/stock/candle?symbol=${encodeURIComponent(fhSym)}&resolution=${resolution}&from=${from}&to=${now}&token=${getFinnhubKey()}`;
       const json = await fhFetch(url, 20_000) as any;
       if (json.s !== "ok" || !Array.isArray(json.t)) {
         return NextResponse.json({ candles: [], qualityState: "UNAVAILABLE", reason: json.s === "no_data" ? "Finnhub reports no data for this symbol/range" : "Finnhub error" });
@@ -215,7 +221,7 @@ export async function GET(request: Request) {
     /* ── News (general or per-category) ─────────────────────── */
     if (type === "news") {
       const category = searchParams.get("category") ?? "general";
-      const url  = `${BASE}/news?category=${encodeURIComponent(category)}&token=${FINNHUB_KEY}`;
+      const url  = `${BASE}/news?category=${encodeURIComponent(category)}&token=${getFinnhubKey()}`;
       const json = await fhFetch(url, 60_000) as any;
       return NextResponse.json({ items: Array.isArray(json) ? json : [] });
     }
