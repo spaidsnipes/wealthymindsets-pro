@@ -99,7 +99,40 @@ Legend:
 | F10 | Privacy (PRIVATE / SELECTED / GROUP / PUBLIC / UNKNOWN per domain) | Per-field privacy controls | `CANONICAL` `MISSING` | No privacy layer |
 | F11 | Passport (identity, permissions, mastery, WOW future) | Cross-product identity spine | `CANONICAL` `RESEARCH` | Deferred |
 
-## §G — Vertical slice priorities (next lands)
+## §G — SHIPPED (post-Aug-13 continuation cycle)
+
+| ID | What | Where | Commit |
+|---|---|---|---|
+| VS-1 | `MarketDataHealth` wired into `/heatmaps` header | `src/app/heatmaps/page.tsx` | `543f3f4` |
+| VS-2 | `Growth` tab on `/profile` composing IdentityChip + Permission + ATHOS + ProcessLandscape + PersonalEdge + Command Deck link | `src/app/profile/page.tsx` | `670985b`, `9aef63b`, `476cfdc`, `d980a4e` |
+| VS-3 | ATHOS silent-mode: `selectATHOSIntervention` + `ATHOSInterventionPanel` (7 detectors, CAUTION verdict ceiling) | `src/lib/traderMemory/viewModels/selectATHOSIntervention.ts`, `src/components/athos/` | `0723adb` |
+| VS-4 | Regime + Auction State + composed Decision Chain selectors | `src/lib/marketData/viewModels/select{Regime,AuctionState,DecisionChain}.ts` | `99cdd3a`, `685eef4` |
+| VS-4-UI | `DecisionChainPanel` — pure display for the 9-node chain | `src/components/chart/DecisionChainPanel.tsx` | `7b9f298` |
+| VS-4-Route | `/command-deck` route composing DecisionChain + StoryRibbon + Permission + ATHOS + OpeningBell + Mirror | `src/app/command-deck/page.tsx` | `3f9dec0`, `210d369` |
+| VS-5-Mirror | Mirror behavioral detectors: post-exit quick-reentry, success-triggered rule bending, rushing | `src/lib/traderMemory/viewModels/selectMirror.ts` | `f139bc1`, `f15a785`, `97565f9` |
+| VS-6-Bridge | Journal → DecisionMemorySnapshot adapter + wired into `/journal` MirrorPanel + `/profile` Growth merged data | `src/lib/traderMemory/adapters/*` + `src/app/{journal,profile}/page.tsx` | `4727ca4` |
+| VS-7-Nav | `/command-deck` added to main nav | `src/components/layout/MainLayout.tsx` | `a9afd94` |
+| VS-8-Prep | `/morning-prep` gets OpeningBellPanel above the feed | `src/app/morning-prep/page.tsx` | `74ad348` |
+| A03 | 4-layer truth vocabulary primitives (QualityBadge, PersistenceBadge, NectarHeartbeat, MarketDataHealth) | `src/components/ui/DataHealth.tsx` | `9a238cd` (pre-cycle) |
+| A12 | Determinism doctrine: `nowMs` REQUIRED on Mirror + OpeningBell selectors | `src/lib/traderMemory/viewModels/select{Mirror,OpeningBell}.ts` | `bc46de0` |
+| B01 | 9-socket equity defect fixed via `joinTape('alpaca-relay:SYM')` shared TapeHub | `src/hooks/useWebSocket.ts` | `5696bbd` |
+| B04 | `/heatmaps` a11y — 44px hit targets + aria-pressed + non-color state cue | `src/app/heatmaps/page.tsx` | `3053a77` |
+| B05 | Determinism fix (see A12) | | `bc46de0` |
+| B02/B03 | Retire duplicate `/scanner/heatmap` + broken `MarketHeatmap.tsx` | | `a772167` |
+| C01 | DIRECTION × LOCATION × AGGRESSION × RESPONSE — `selectDLAR` | `src/lib/marketData/viewModels/selectDLAR.ts` | `bc46de0` |
+| C02 | CLC = Context + Location + Confirmation — `selectCLC` | `src/lib/marketData/viewModels/selectCLC.ts` | `bc46de0` |
+| C03 | Timeframe Role Engine — `timeframeRoles.ts` | `src/lib/marketData/viewModels/timeframeRoles.ts` | `bc46de0` |
+| C04 | Available R — `selectAvailableR` (never shrinks stop, UNKNOWN when unknown) | `src/lib/traderMemory/viewModels/selectAvailableR.ts` | `bc46de0` |
+| C06 | Full chain closed: Regime + Auction State (Direction/Location/Aggression/CLC already existed) | | `99cdd3a`, `685eef4` |
+| D01 | Steward selector (existing selector `selectSteward`) | | `38e7d38` (pre-cycle) |
+| D02 | Mirror selector `selectMirror` with 5 detectors + 3 new behavioral | | `bc46de0`, `f139bc1`, `f15a785`, `97565f9` |
+| D03 | Post-Exit Integrity — surfaces via ATHOS (moment) + Mirror (retrospective) | | `0723adb`, `f139bc1` |
+| D04 | Success-Triggered Rule Bending — same dual surface | | `0723adb`, `f139bc1` |
+| D05 | Missed-Profit-Revenge — ATHOS `detectPreReentryMissedProfitRevenge` | | `0723adb` |
+| D10 | Personal Edge — `selectPersonalEdge` + `PersonalEdgePanel` (sample-gated, never fabricates) | | `476cfdc`, `d980a4e` |
+| F01/F02/F03/F04 (partial) | Profile Growth tab surfaces Identity + Process + Playbook context via ProcessLandscape + PersonalEdge | | `9aef63b`, `476cfdc` |
+
+## §G-Next — Vertical slice priorities (next lands)
 
 Sorted by (Founder importance × truth readiness × human value × implementation cost inverted):
 
