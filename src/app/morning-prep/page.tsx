@@ -8,6 +8,12 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { FabioInsights } from "@/components/fabio/FabioInsights";
+import OpeningBellPanel from "@/components/opening-bell/OpeningBellPanel";
+import {
+  selectOpeningBell,
+  DEFAULT_PREPARATION_TEMPLATE,
+  type PreparationItem,
+} from "@/lib/traderMemory/viewModels/selectOpeningBell";
 
 /* ══════════════════════════════════════════════════════════════
    Morning Prep — a focused space for building discipline through
@@ -29,6 +35,40 @@ interface PrepEntry {
 }
 
 const MOODS = ["😴", "🙂", "😃", "🔥", "🧠", "💪", "🎯", "☕"];
+
+/**
+ * MorningPrepOpeningBell — thin adapter between /morning-prep local state
+ * and the shared selectOpeningBell selector. Renders the OpeningBellPanel
+ * with the default preparation template. Personal items stay optional
+ * per Founder §D09 — never imposed.
+ *
+ * Today the completion state is inferred conservatively (today's entry
+ * counts as "personal reflection" done + "body ready" done; everything
+ * else remains not-done until the founder threads richer state through).
+ * When the DecisionMemoryStore + real prep-item persistence land, this
+ * will bind to actual completion data — no code change here.
+ */
+function MorningPrepOpeningBell({ entriesCount, userId }: { entriesCount: number; userId: string }) {
+  // Deterministic derivation — no wall clock reads inside the selector.
+  const nowMs = React.useMemo(() => Date.now(), []);
+  const hasTodayEntry = entriesCount > 0;
+  const items: PreparationItem[] = DEFAULT_PREPARATION_TEMPLATE.map((t) => ({
+    ...t,
+    // A morning entry existing today counts as personal reflection + body
+    // ready done. All other items stay not-done until the founder wires
+    // richer state through.
+    completed: t.category === "personal" ? hasTodayEntry : false,
+    completedAt: t.category === "personal" && hasTodayEntry ? nowMs : undefined,
+  }));
+  const vm = selectOpeningBell({
+    ownerId: userId,
+    sessionIdentity: `session-${new Date(nowMs).toISOString().slice(0, 10)}`,
+    items,
+    minutesUntilOpen: null,
+    nowMs,
+  });
+  return <OpeningBellPanel vm={vm} />;
+}
 
 const STARTER_CHECKLIST = [
   "Hydrate + no phone for first 30 min",
@@ -175,6 +215,12 @@ export default function MorningPrepPage() {
 
       {/* ── Feed ── */}
       <div className="max-w-3xl mx-auto px-6 py-6 space-y-4">
+        {/* Opening Bell readiness panel. Uses the default preparation
+            template with today's local checklist auto-completed items
+            reflected. Truthful UNKNOWN when the trader hasn't completed
+            required prep — advisory framing (never gates). */}
+        <MorningPrepOpeningBell entriesCount={entries.length} userId={user?.id ?? ""} />
+
         <FabioInsights variant="inline" surface="morning" title="WM Playbook — Today's Focus" limit={3} />
         <section className="rounded-2xl p-5" style={{ background: "linear-gradient(135deg,rgba(0,212,170,0.11),rgba(240,180,41,0.08))", border: "1px solid rgba(240,180,41,0.26)" }}>
           <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
