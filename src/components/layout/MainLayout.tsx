@@ -10,7 +10,7 @@ import {
   Bell, Settings, Search, Zap, BookOpen, FlaskConical, TrendingUp,
   X, Check, Moon, Sun, Volume2, VolumeX, Eye, EyeOff,
   Palette, Monitor, Keyboard, Shield, RefreshCw, Trash2, Radio, Copy, Heart,
-  Tv, Handshake,
+  Tv, Handshake, Crosshair,
 } from "lucide-react";
 import { WMLogo } from "@/components/ui/WMLogo";
 import { TickerTape } from "@/components/layout/TickerTape";
@@ -748,7 +748,8 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
 
 /* ── Nav items ──────────────────────────────────────────── */
 const NAV_TOP = [
-  { href: "/charts",      icon: BarChart2,     label: "Charts"     },
+  { href: "/charts",       icon: BarChart2,     label: "Charts"       },
+  { href: "/command-deck", icon: Crosshair,     label: "Command Deck" },
   { href: "/heatmaps",    icon: Map,           label: "Heatmaps"   },
   { href: "/scanner",     icon: ScanLine,      label: "Scanner"    },
   { href: "/news",        icon: Newspaper,     label: "News"       },
