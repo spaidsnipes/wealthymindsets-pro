@@ -10,6 +10,10 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import MirrorPanel from "@/components/mirror/MirrorPanel";
+import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
+import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
+import { useJournalSnapshots, notifyJournalChanged } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import { useWMS } from "@/contexts/WMSContext";
 import {
   Plus, Search, Tag, Calendar, Download, Mic, MicOff,
@@ -537,10 +541,30 @@ export default function JournalPage() {
         : [];
     } catch { return []; }
   });
-  // Persist journal to localStorage whenever entries changes
+  // Persist journal to localStorage whenever entries changes + notify
+  // subscribers on other surfaces (Profile Growth, Command Deck) via
+  // the custom 'wm-journal-updated' event so their MirrorPanels /
+  // ProcessLandscape update in lockstep.
   useEffect(() => {
     localStorage.setItem(JOURNAL_KEY, JSON.stringify(entries));
+    notifyJournalChanged();
   }, [entries]);
+
+  // Live Mirror surface — reads existing journal via adapter, feeds
+  // selectMirror. Zero fabrication: when no patterns detected, the
+  // panel renders NOTHING (silence-is-a-feature §14).
+  const authCtx = useAuthCtx();
+  const journalSnapshots = useJournalSnapshots(authCtx?.user?.id ?? null);
+  const mirrorNowMs = useMemo(() => Date.now(), [journalSnapshots.length]);
+  const mirrorVm = useMemo(
+    () =>
+      selectMirror({
+        ownerId: authCtx?.user?.id ?? "",
+        decisions: journalSnapshots,
+        nowMs: mirrorNowMs,
+      }),
+    [authCtx?.user?.id, journalSnapshots, mirrorNowMs],
+  );
 
   const [selected,  setSelected]  = useState<JournalEntry | null>(null);
   const [newMode,   setNewMode]   = useState(false);
@@ -1076,6 +1100,15 @@ Trade the system, trust the process, winners every day 🚀`,
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Mirror — retrospective behavioral patterns from the journal.
+          Renders NOTHING when no patterns detected (silence-is-a-feature).
+          Populates automatically as journal entries accumulate. */}
+      {mainTab === "journal" && mirrorVm.patterns.length > 0 && (
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(139,106,41,0.25)" }}>
+          <MirrorPanel vm={mirrorVm} />
         </div>
       )}
 

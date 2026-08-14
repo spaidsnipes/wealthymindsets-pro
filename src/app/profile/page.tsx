@@ -19,6 +19,7 @@ import {
   defaultFounderRules,
 } from "@/lib/traderMemory/viewModels/selectPermission";
 import { useDecisionMemory } from "@/lib/traderMemory/useDecisionMemory";
+import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import { hasResolvedTradeOutcome } from "@/lib/tradeEvidence";
 
 
@@ -39,6 +40,15 @@ interface TradeRow { sym: string; dir: string; entry: string; exit: string; pnl:
 interface LikedTrack { title: string; artist: string; duration: string; }
 
 const CIRCLE_OF_EXCELLENCE: { name: string; color: string; avatar: string }[] = [];
+
+/** Dedup two snapshot lists by decisionId; store wins on collision. */
+function mergeSnapshots<T extends { decisionId: string }>(
+  primary: readonly T[],
+  secondary: readonly T[],
+): readonly T[] {
+  const ids = new Set(primary.map((s) => s.decisionId));
+  return [...primary, ...secondary.filter((s) => !ids.has(s.decisionId))];
+}
 const PROFILE_CREATOR_SHEET = "/images/community/wm-radio-creator-grid-v1.png";
 const PROFILE_CREATOR_POSITIONS = ["0% 0%", "50% 0%", "100% 0%", "0% 100%", "50% 100%", "100% 100%"];
 function profileCreatorArt(index: number): React.CSSProperties {
@@ -646,8 +656,14 @@ export default function ProfilePage() {
                   Subscribes to the real DecisionMemoryStore via useDecisionMemory.
                   When empty, ProcessLandscape emits truthful UNKNOWN cells.
                   When populated, patterns emerge naturally. Zero fabrication. */}
+              {/* Merge Decision Memory store snapshots + Journal entries.
+                  Store records take precedence when both surfaces reference
+                  the same decisionId — dedup by id. */}
               <ProcessLandscape
-                decisions={useDecisionMemory(user?.id ?? null)}
+                decisions={mergeSnapshots(
+                  useDecisionMemory(user?.id ?? null),
+                  useJournalSnapshots(user?.id ?? null),
+                )}
                 ownerId={user?.id ?? ""}
                 onDrilldown={(cell, examples) => {
                   // Founder-loop wiring: when a cell has decisions, take the
