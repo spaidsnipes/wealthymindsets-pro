@@ -162,7 +162,7 @@ function BucketList({
             }}
           >
             <span style={{ flex: 1, fontSize: 12 }}>{b.label}</span>
-            <span style={{ fontSize: 10, color: "#8a8271", tabularNums: "on" as never }}>
+            <span style={{ fontSize: 10, color: "#8a8271", fontVariantNumeric: "tabular-nums" }}>
               n={b.sampleCount}
             </span>
             <span
