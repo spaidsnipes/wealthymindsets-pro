@@ -120,6 +120,23 @@ describe("selectMirror — Founder-doctrine detectors", () => {
     expect(r.patterns).toHaveLength(0);
   });
 
+  it("detects rushing when 2+ decisions open within 3 minutes", () => {
+    const d1 = makeDecision({ decisionId: "r1", capturedAt: NOW - 10 * 60_000 });
+    const d2 = makeDecision({ decisionId: "r2", capturedAt: NOW - 9 * 60_000 }); // 1 min later
+    const r = selectMirror({ ownerId: "owner-1", decisions: [d1, d2], nowMs: NOW });
+    const pattern = r.patterns.find((p) => p.id === "rushing-decisions");
+    expect(pattern).toBeDefined();
+    expect(pattern!.direction).toBe("WATCH");
+    expect(pattern!.evidenceClass).toBe("SYSTEM_CANDIDATE");
+  });
+
+  it("does NOT detect rushing when decisions are >3m apart", () => {
+    const d1 = makeDecision({ decisionId: "r1", capturedAt: NOW - 10 * 60_000 });
+    const d2 = makeDecision({ decisionId: "r2", capturedAt: NOW - 5 * 60_000 }); // 5 min later
+    const r = selectMirror({ ownerId: "owner-1", decisions: [d1, d2], nowMs: NOW });
+    expect(r.patterns.find((p) => p.id === "rushing-decisions")).toBeUndefined();
+  });
+
   it("deterministic — identical inputs → identical output", () => {
     const decisions = [
       makeDecision({ decisionId: "w1", outcome: { closedAt: NOW - 10_000, realizedR: 2, reason: "TARGET" }, capturedAt: NOW - 60_000 }),

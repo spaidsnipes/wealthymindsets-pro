@@ -152,9 +152,42 @@ const detectSuccessRuleBending: Detector = (decisions, threshold) => {
   };
 };
 
+const RUSHING_WINDOW_MS = 3 * 60_000;
+
+const detectRushing: Detector = (decisions, threshold) => {
+  // "Rushing" = 2+ decisions opened within the same 3-minute window.
+  // The decision timing is factual — the interpretation ("rushed") stays
+  // SYSTEM_CANDIDATE because it correlates with, but does not prove,
+  // rushed judgment.
+  const sorted = [...decisions].sort((a, b) => a.capturedAt - b.capturedAt);
+  const rushed: DecisionMemorySnapshot[] = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const gap = sorted[i + 1].capturedAt - sorted[i].capturedAt;
+    if (gap < RUSHING_WINDOW_MS) {
+      rushed.push(sorted[i + 1]);
+    }
+  }
+  if (rushed.length < 1) return null;
+  return {
+    id: "rushing-decisions",
+    label: "Rapid successive decisions",
+    evidenceClass: "SYSTEM_CANDIDATE",
+    direction: "WATCH",
+    statement: `${rushed.length} decision(s) opened within ${RUSHING_WINDOW_MS / 60_000}m of another decision this session.`,
+    evidence: [
+      "Timing is factual; the 'rushing' interpretation is a candidate — the trader may deliberately batch entries",
+      "Use trader self-report to confirm/refute (opt-in field on decision)",
+    ],
+    sampleCount: rushed.length,
+    decisionIds: rushed.map((d) => d.decisionId),
+    confidence: confidenceFor(rushed.length, threshold),
+  };
+};
+
 const DETECTORS: readonly Detector[] = [
   detectPostExitOvertrading,
   detectSuccessRuleBending,
+  detectRushing,
   // Rule adherence — OBSERVED (directly recorded per decision)
   (decisions, threshold) => {
     if (decisions.length < threshold) return null;
