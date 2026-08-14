@@ -14,6 +14,9 @@ import {
   DEFAULT_PREPARATION_TEMPLATE,
   type PreparationItem,
 } from "@/lib/traderMemory/viewModels/selectOpeningBell";
+import MirrorPanel from "@/components/mirror/MirrorPanel";
+import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
+import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 
 /* ══════════════════════════════════════════════════════════════
    Morning Prep — a focused space for building discipline through
@@ -48,6 +51,23 @@ const MOODS = ["😴", "🙂", "😃", "🔥", "🧠", "💪", "🎯", "☕"];
  * When the DecisionMemoryStore + real prep-item persistence land, this
  * will bind to actual completion data — no code change here.
  */
+/**
+ * MorningPrepMirror — journal-backed Mirror surface for the morning.
+ * Renders nothing when no patterns detected (silence-is-a-feature §14).
+ * When present, gives the trader a 'here's what yesterday's decisions
+ * teach me' reflection surface before the market opens.
+ */
+function MorningPrepMirror({ userId }: { userId: string }) {
+  const snapshots = useJournalSnapshots(userId || null);
+  const nowMs = React.useMemo(() => Date.now(), [snapshots.length]);
+  const vm = React.useMemo(
+    () => selectMirror({ ownerId: userId, decisions: snapshots, nowMs }),
+    [userId, snapshots, nowMs],
+  );
+  if (vm.patterns.length === 0) return null;
+  return <MirrorPanel vm={vm} />;
+}
+
 function MorningPrepOpeningBell({ entriesCount, userId }: { entriesCount: number; userId: string }) {
   // Deterministic derivation — no wall clock reads inside the selector.
   const nowMs = React.useMemo(() => Date.now(), []);
@@ -220,6 +240,12 @@ export default function MorningPrepPage() {
             reflected. Truthful UNKNOWN when the trader hasn't completed
             required prep — advisory framing (never gates). */}
         <MorningPrepOpeningBell entriesCount={entries.length} userId={user?.id ?? ""} />
+
+        {/* Yesterday's Mirror — retrospective patterns from journal.
+            Renders NOTHING when 0 patterns detected (silence-is-a-feature).
+            When present, this is 'what yesterday teaches me' before I
+            open the market — a natural morning reflection surface. */}
+        <MorningPrepMirror userId={user?.id ?? ""} />
 
         <FabioInsights variant="inline" surface="morning" title="WM Playbook — Today's Focus" limit={3} />
         <section className="rounded-2xl p-5" style={{ background: "linear-gradient(135deg,rgba(0,212,170,0.11),rgba(240,180,41,0.08))", border: "1px solid rgba(240,180,41,0.26)" }}>
