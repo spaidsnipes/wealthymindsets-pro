@@ -10,7 +10,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { isCoreTeam } from "@/lib/coreTeam";
 import ProcessLandscape from "@/components/profile/ProcessLandscape";
 import PersonalEdgePanel from "@/components/profile/PersonalEdgePanel";
+import PlaybookDNAPanel from "@/components/profile/PlaybookDNAPanel";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
+import { selectPlaybookDNA } from "@/lib/traderMemory/viewModels/selectPlaybookDNA";
 import ATHOSInterventionPanel from "@/components/athos/ATHOSInterventionPanel";
 import {
   selectATHOSIntervention,
