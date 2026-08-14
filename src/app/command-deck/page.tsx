@@ -18,6 +18,7 @@ import MirrorPanel from "@/components/mirror/MirrorPanel";
 import OpeningBellPanel from "@/components/opening-bell/OpeningBellPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { selectOpeningBell, DEFAULT_PREPARATION_TEMPLATE } from "@/lib/traderMemory/viewModels/selectOpeningBell";
+import { useDecisionMemory } from "@/lib/traderMemory/useDecisionMemory";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -64,6 +65,7 @@ export default function CommandDeckPage() {
 
   const state = useCanonicalMarketState(identity);
   const history = useCanonicalMarketStateHistory(identity, 6);
+  const sessionDecisions = useDecisionMemory(user?.id ?? null);
 
   const chainVm = React.useMemo(() => {
     if (!state) return null;
@@ -89,12 +91,12 @@ export default function CommandDeckPage() {
       sessionIdentity: `session-${new Date().toISOString().slice(0, 10)}`,
       nowMs: Date.now(),
       moment: momentMap[phase],
-      sessionDecisions: [],
+      sessionDecisions,
       marketState: state ?? undefined,
       dlar: chainVm?.dlar ?? null,
       clc: chainVm?.clc ?? null,
     });
-  }, [phase, user?.id, state, chainVm]);
+  }, [phase, user?.id, state, chainVm, sessionDecisions]);
 
   const permission = React.useMemo(
     () =>
@@ -103,12 +105,12 @@ export default function CommandDeckPage() {
         sessionIdentity: `session-${new Date().toISOString().slice(0, 10)}`,
         nowMs: Date.now(),
         rules: defaultFounderRules(),
-        sessionDecisions: [],
+        sessionDecisions,
         marketState: state ?? undefined,
         clc: chainVm?.clc ?? null,
         availableR: chainVm?.availableR ?? undefined,
       }),
-    [user?.id, state, chainVm],
+    [user?.id, state, chainVm, sessionDecisions],
   );
 
   return (
@@ -270,7 +272,7 @@ export default function CommandDeckPage() {
               <MirrorPanel
                 vm={selectMirror({
                   ownerId: user?.id ?? "",
-                  decisions: [],
+                  decisions: sessionDecisions,
                   nowMs: Date.now(),
                 })}
               />

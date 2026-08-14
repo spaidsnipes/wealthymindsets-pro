@@ -18,6 +18,7 @@ import {
   selectPermission,
   defaultFounderRules,
 } from "@/lib/traderMemory/viewModels/selectPermission";
+import { useDecisionMemory } from "@/lib/traderMemory/useDecisionMemory";
 import { hasResolvedTradeOutcome } from "@/lib/tradeEvidence";
 
 
@@ -642,10 +643,11 @@ export default function ProfilePage() {
               })()}
 
               {/* Founder loop: Heatmap → Memory → Replay → Mirror → Drill → Profile.
-                  ProcessLandscape emits truthful UNKNOWN cells while the
-                  Decision Memory store is empty. Zero fabrication. */}
+                  Subscribes to the real DecisionMemoryStore via useDecisionMemory.
+                  When empty, ProcessLandscape emits truthful UNKNOWN cells.
+                  When populated, patterns emerge naturally. Zero fabrication. */}
               <ProcessLandscape
-                decisions={[]}
+                decisions={useDecisionMemory(user?.id ?? null)}
                 ownerId={user?.id ?? ""}
                 onDrilldown={(cell, examples) => {
                   // Founder-loop wiring: when a cell has decisions, take the
