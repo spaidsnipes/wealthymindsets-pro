@@ -74,7 +74,81 @@ type Detector = (
 const confidenceFor = (n: number, threshold: number): MirrorPattern["confidence"] =>
   n >= threshold * 3 ? "HIGH" : n >= threshold ? "MEDIUM" : "LOW";
 
+// ── Behavioral detectors added for Founder Aug-12 TSLA case ──────────
+//   Post-Exit Integrity / Success-Rule-Bending / Missed-Profit-Revenge
+// These are RETROSPECTIVE mirrors (post-session review) of the
+// PROSPECTIVE ATHOS interventions (moment-time). Same evidence, different
+// framing: ATHOS asks 'should we say something now?'; Mirror asks 'what
+// pattern does the session reveal?'
+// ─────────────────────────────────────────────────────────────────────
+
+const POST_EXIT_QUICK_REENTRY_WINDOW_MS = 5 * 60_000;
+const LARGE_WINNER_R = 1.5;
+
+const detectPostExitOvertrading: Detector = (decisions, threshold) => {
+  // Look for winner → quick re-entry pairs in the session
+  const sorted = [...decisions]
+    .filter((d) => d.outcome != null)
+    .sort((a, b) => a.outcome!.closedAt - b.outcome!.closedAt);
+  const pairs: DecisionMemorySnapshot[] = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const prev = sorted[i];
+    const next = sorted[i + 1];
+    if (prev.outcome!.realizedR > 0 && next.capturedAt - prev.outcome!.closedAt < POST_EXIT_QUICK_REENTRY_WINDOW_MS) {
+      pairs.push(next);
+    }
+  }
+  if (pairs.length < 1) return null;
+  return {
+    id: "post-exit-quick-reentry",
+    label: "Post-exit quick re-entry",
+    evidenceClass: "SYSTEM_CANDIDATE",
+    direction: "WATCH",
+    statement: `${pairs.length} re-entry decision(s) opened within ${POST_EXIT_QUICK_REENTRY_WINDOW_MS / 60_000}m of a prior winner this session.`,
+    evidence: [
+      "Quick re-entry after a winner correlates with missed-profit regret in the founder Aug-12 case",
+      "This is a candidate pattern from decision timing — not a diagnosis",
+    ],
+    sampleCount: pairs.length,
+    decisionIds: pairs.map((d) => d.decisionId),
+    confidence: confidenceFor(pairs.length, threshold),
+  };
+};
+
+const detectSuccessRuleBending: Detector = (decisions, threshold) => {
+  // Rule violations that occurred AFTER a winner in the same session
+  const sorted = [...decisions].sort((a, b) => a.capturedAt - b.capturedAt);
+  const violationsAfterWinner: DecisionMemorySnapshot[] = [];
+  let hadWinner = false;
+  for (const d of sorted) {
+    if (d.outcome && d.outcome.realizedR >= LARGE_WINNER_R) {
+      hadWinner = true;
+      continue;
+    }
+    if (hadWinner && !d.ruleAdherenceAtDecision) {
+      violationsAfterWinner.push(d);
+    }
+  }
+  if (violationsAfterWinner.length < 1) return null;
+  return {
+    id: "success-triggered-rule-bending",
+    label: "Success-triggered rule bending",
+    evidenceClass: "SYSTEM_CANDIDATE",
+    direction: "WATCH",
+    statement: `${violationsAfterWinner.length} rule violation(s) recorded AFTER a ≥${LARGE_WINNER_R}R winner this session.`,
+    evidence: [
+      "Confidence elevation after a strong winner is when rule bending most often occurs (Founder Aug-12 §12)",
+      "Detected via decision ordering + outcome — never emotional inference",
+    ],
+    sampleCount: violationsAfterWinner.length,
+    decisionIds: violationsAfterWinner.map((d) => d.decisionId),
+    confidence: confidenceFor(violationsAfterWinner.length, threshold),
+  };
+};
+
 const DETECTORS: readonly Detector[] = [
+  detectPostExitOvertrading,
+  detectSuccessRuleBending,
   // Rule adherence — OBSERVED (directly recorded per decision)
   (decisions, threshold) => {
     if (decisions.length < threshold) return null;
