@@ -44,6 +44,10 @@ const EMPTY_STATS = (): SessionTapeStats => ({
 
 const slots = new Map<string, SessionSymbolSlot>();
 const listeners = new Set<() => void>();
+// Cached enumeration of known symbols — stable reference between mutations
+// so useSyncExternalStore consumers cannot trip React #185.
+let knownCache: Array<{ symbol: string; tapeSource: string; slot: SessionSymbolSlot }> | null = null;
+function invalidateKnownCache(): void { knownCache = null; }
 
 const LS_KEY = "wm:session-symbol-store:v1";
 const LS_MAX_SLOTS = 32;          // cap so we never blow up user quota
@@ -105,6 +109,7 @@ export function getSessionSymbolSlot(symbol: string, tapeSource: string): Sessio
   if (!slot) {
     slot = { stats: EMPTY_STATS(), horizon: null, cvdSpark: [] };
     slots.set(key, slot);
+    invalidateKnownCache();
   }
   return slot;
 }
@@ -133,6 +138,9 @@ export function pushCvdSample(symbol: string, tapeSource: string): void {
   const slot = getSessionSymbolSlot(symbol, tapeSource);
   slot.cvdSpark.push(slot.stats.delta);
   if (slot.cvdSpark.length > 24) slot.cvdSpark.shift();
+  // knownCache holds references to slot objects (not copies), so mutation
+  // of slot contents is visible without invalidation. Only add/remove
+  // slot keys must invalidate — handled in getSessionSymbolSlot.
   emit();
   scheduleFlush();
 }
@@ -143,18 +151,22 @@ export function subscribeSessionSymbolStore(fn: () => void): () => void {
 }
 
 export function getKnownSessionSymbols(): Array<{ symbol: string; tapeSource: string; slot: SessionSymbolSlot }> {
+  hydrateFromStorage();
+  if (knownCache) return knownCache;
   const out: Array<{ symbol: string; tapeSource: string; slot: SessionSymbolSlot }> = [];
   for (const [key, slot] of slots.entries()) {
     const idx = key.indexOf("::");
     if (idx < 0) continue;
     out.push({ symbol: key.slice(0, idx), tapeSource: key.slice(idx + 2), slot });
   }
+  knownCache = out;
   return out;
 }
 
 export function __resetSessionSymbolStoreForTests(): void {
   slots.clear();
   listeners.clear();
+  invalidateKnownCache();
   hydrated = false;
   if (flushHandle) { clearTimeout(flushHandle); flushHandle = null; }
   if (typeof window !== "undefined") {

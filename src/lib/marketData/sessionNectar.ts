@@ -66,6 +66,11 @@ export class SessionNectarCollector {
   private unsupportedCapabilities = 0;
   private continuityRestored = false;
   private serverContinuityRestored = false;
+  // Cached snapshot — same reference is returned between mutations so
+  // useSyncExternalStore consumers cannot trip React #185 (identity change
+  // per render → infinite re-render). Invalidated by every path that
+  // changes visible state (ingest / restoreCoverageSummaries).
+  private cachedSnapshot: SessionNectarSnapshot | null = null;
 
   constructor(
     private readonly startedAt = Date.now(),
@@ -85,7 +90,8 @@ export class SessionNectarCollector {
     if (!capability || capability.availability === "UNAVAILABLE") {
       this.unsupportedCapabilities += 1;
       this.updatedAt = event.timestampProcessed;
-      this.emit();
+      this.cachedSnapshot = null;
+    this.emit();
       return { status: "UNSUPPORTED_CAPABILITY", event };
     }
 
@@ -106,6 +112,7 @@ export class SessionNectarCollector {
 
     this.channels.set(channelKey, next);
     this.updatedAt = event.timestampProcessed;
+    this.cachedSnapshot = null;
     this.emit();
     return inspected;
   }
@@ -140,11 +147,12 @@ export class SessionNectarCollector {
   }
 
   snapshot(): SessionNectarSnapshot {
+    if (this.cachedSnapshot) return this.cachedSnapshot;
     const channels = [...this.channels.values()]
       .map(channel => ({ ...channel }))
       .sort((a, b) => `${a.instrumentId}|${a.channel}|${a.providerPath}`
         .localeCompare(`${b.instrumentId}|${b.channel}|${b.providerPath}`));
-    return {
+    this.cachedSnapshot = {
       schemaVersion: SESSION_NECTAR_SCHEMA_VERSION,
       startedAt: this.startedAt,
       updatedAt: this.updatedAt,
@@ -159,6 +167,7 @@ export class SessionNectarCollector {
       continuityStartedAt: channels.reduce<number | undefined>((earliest, channel) =>
         channel.observedFrom == null ? earliest : Math.min(earliest ?? channel.observedFrom, channel.observedFrom), undefined),
     };
+    return this.cachedSnapshot;
   }
 
   private emit() {

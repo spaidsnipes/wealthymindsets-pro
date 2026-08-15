@@ -241,6 +241,18 @@ describe("Session Nectar collection health", () => {
     expect(() => new SessionNectarCollector(0)).toThrow(/valid start timestamp/);
   });
 
+  it("returns a stable snapshot reference between mutations (useSyncExternalStore #185 guard)", () => {
+    const c = new SessionNectarCollector(1_786_335_600_000);
+    const s1 = c.snapshot();
+    const s2 = c.snapshot();
+    expect(s2).toBe(s1);       // MUST be same reference — no infinite render loops
+    c.ingest(trade());
+    const s3 = c.snapshot();
+    expect(s3).not.toBe(s1);   // mutation invalidates the cache
+    const s4 = c.snapshot();
+    expect(s4).toBe(s3);       // stable again until next mutation
+  });
+
   it("shares one collector across duplicate client-module evaluations", () => {
     const browserRealm: Record<PropertyKey, unknown> = {};
     const createCollector = vi.fn(() => new SessionNectarCollector(1_786_335_600_000));
