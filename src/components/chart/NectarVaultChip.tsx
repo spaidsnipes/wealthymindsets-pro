@@ -41,6 +41,19 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
     return n.toFixed(2);
   };
 
+  const nowMs = Date.now();
+  const fmtMemoryAge = (startedAtSec: number): string => {
+    const seconds = Math.max(0, Math.floor(nowMs / 1000 - startedAtSec));
+    if (seconds < 60) return `${seconds}s memory`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m memory`;
+    const hours = Math.floor(minutes / 60);
+    const remMin = minutes % 60;
+    if (hours < 24) return remMin ? `${hours}h ${remMin}m memory` : `${hours}h memory`;
+    const days = Math.floor(hours / 24);
+    return `${days}d memory`;
+  };
+
   return (
     <div
       className="wm-nectar-vault-chip"
@@ -105,7 +118,7 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
               cursor: isActive ? "default" : "pointer",
               font: "inherit", letterSpacing: "inherit",
             }}
-            title={`${isActive ? "Currently active" : "Click to switch chart"} — ${symbol}: ${slot.stats.tradeCount.toLocaleString()} trades observed this session. Δ ${fmt(d)}. Big ${slot.stats.bigTradeCount}. Retained ${slot.horizon ? "since horizon" : "recently"}.`}
+            title={`${isActive ? "Currently active" : "Click to switch chart"} — ${symbol}: ${slot.stats.tradeCount.toLocaleString()} trades observed. Δ ${fmt(d)}. Big ${slot.stats.bigTradeCount}. ${slot.horizon ? fmtMemoryAge(slot.horizon.startedAtSec) : "no horizon yet"}.`}
           >
             <span style={{ fontWeight: 850, letterSpacing: "0.03em" }}>{symbol}</span>
             <span style={{ color: dColor, fontWeight: 800 }}>{d > 0 ? "+" : ""}{fmt(d)}</span>
