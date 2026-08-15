@@ -45,6 +45,10 @@ const EMPTY_STATS = (): SessionTapeStats => ({
 const slots = new Map<string, SessionSymbolSlot>();
 const listeners = new Set<() => void>();
 
+const LS_KEY = "wm:session-symbol-store:v1";
+const LS_MAX_SLOTS = 32;          // cap so we never blow up user quota
+const LS_HORIZON_MAX_AGE_SEC = 60 * 60 * 24 * 7; // one week of stat carry-over
+
 function keyFor(symbol: string, tapeSource: string): string {
   return `${symbol}::${tapeSource}`;
 }
@@ -53,7 +57,49 @@ function emit(): void {
   listeners.forEach(fn => { try { fn(); } catch { /* isolate consumer errors */ } });
 }
 
+let hydrated = false;
+function hydrateFromStorage(): void {
+  if (hydrated) return;
+  hydrated = true;
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as Record<string, SessionSymbolSlot & { savedAtSec?: number }>;
+    const nowSec = Math.floor(Date.now() / 1000);
+    for (const [key, slot] of Object.entries(parsed)) {
+      if (!slot || typeof slot !== "object") continue;
+      const savedAt = typeof slot.savedAtSec === "number" ? slot.savedAtSec : nowSec;
+      if (nowSec - savedAt > LS_HORIZON_MAX_AGE_SEC) continue;
+      slots.set(key, {
+        stats: slot.stats ?? EMPTY_STATS(),
+        horizon: slot.horizon ?? null,
+        cvdSpark: Array.isArray(slot.cvdSpark) ? slot.cvdSpark.slice(-24) : [],
+      });
+    }
+  } catch { /* corrupt storage → start fresh, never throw during hydration */ }
+}
+
+let flushHandle: ReturnType<typeof setTimeout> | null = null;
+function scheduleFlush(): void {
+  if (typeof window === "undefined") return;
+  if (flushHandle) return;
+  flushHandle = setTimeout(() => {
+    flushHandle = null;
+    try {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const entries = [...slots.entries()].slice(-LS_MAX_SLOTS);
+      const payload: Record<string, SessionSymbolSlot & { savedAtSec: number }> = {};
+      for (const [key, slot] of entries) {
+        payload[key] = { ...slot, savedAtSec: nowSec };
+      }
+      window.localStorage.setItem(LS_KEY, JSON.stringify(payload));
+    } catch { /* quota / private mode → next flush will retry */ }
+  }, 750);
+}
+
 export function getSessionSymbolSlot(symbol: string, tapeSource: string): SessionSymbolSlot {
+  hydrateFromStorage();
   const key = keyFor(symbol, tapeSource);
   let slot = slots.get(key);
   if (!slot) {
@@ -88,6 +134,7 @@ export function pushCvdSample(symbol: string, tapeSource: string): void {
   slot.cvdSpark.push(slot.stats.delta);
   if (slot.cvdSpark.length > 24) slot.cvdSpark.shift();
   emit();
+  scheduleFlush();
 }
 
 export function subscribeSessionSymbolStore(fn: () => void): () => void {
@@ -108,4 +155,9 @@ export function getKnownSessionSymbols(): Array<{ symbol: string; tapeSource: st
 export function __resetSessionSymbolStoreForTests(): void {
   slots.clear();
   listeners.clear();
+  hydrated = false;
+  if (flushHandle) { clearTimeout(flushHandle); flushHandle = null; }
+  if (typeof window !== "undefined") {
+    try { window.localStorage.removeItem(LS_KEY); } catch { /* noop */ }
+  }
 }
