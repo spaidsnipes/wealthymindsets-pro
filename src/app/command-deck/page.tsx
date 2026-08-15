@@ -29,6 +29,7 @@ import WhyInspector, { type WhyTarget } from "@/components/command-deck/WhyInspe
 import WmWordmark from "@/components/brand/WmWordmark";
 import SectionBanner from "@/components/brand/SectionBanner";
 import CinematicAtmosphere from "@/components/brand/CinematicAtmosphere";
+import RealmGateway from "@/components/brand/RealmGateway";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -532,6 +533,9 @@ export default function CommandDeckPage() {
             Regime → Direction → Location → Auction → Aggression → CLC → Available R → Permission → Management
           </div>
         </div>
+
+        {/* Realm Gateway — 5-tile bottom band from Founder mockups. */}
+        <RealmGateway currentKey="wm-pro" />
         </div>{/* end z-index wrapper */}
       </main>
     </div>
