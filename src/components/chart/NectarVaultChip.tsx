@@ -4,6 +4,7 @@ import {
   getKnownSessionSymbols,
   subscribeSessionSymbolStore,
 } from "@/lib/marketData/sessionSymbolStore";
+import { useActiveSymbol } from "@/contexts/SymbolContext";
 
 /**
  * NectarVaultChip — visible, calm confirmation that WM is holding each
@@ -25,6 +26,7 @@ import {
 export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
   const [, setTick] = useState(0);
   useEffect(() => subscribeSessionSymbolStore(() => setTick(t => t + 1)), []);
+  const { setActiveSymbol } = useActiveSymbol();
 
   const symbols = getKnownSessionSymbols()
     .filter(s => s.slot.stats.tradeCount > 0)
@@ -69,21 +71,26 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
         const d = slot.stats.delta;
         const dColor = d > 0 ? "#00C076" : d < 0 ? "#FF4D6A" : "#8B92AC";
         return (
-          <span
+          <button
             key={symbol}
+            type="button"
+            onClick={() => { if (!isActive) setActiveSymbol(symbol); }}
+            aria-label={`Switch chart to ${symbol}`}
             style={{
               display: "inline-flex", gap: 5, alignItems: "center",
               color: isActive ? "#D8DCEA" : "#8B92AC",
               padding: "1px 7px", borderRadius: 999,
               background: isActive ? "rgba(240,180,41,0.10)" : "transparent",
               border: isActive ? "1px solid rgba(240,180,41,0.30)" : "1px solid transparent",
+              cursor: isActive ? "default" : "pointer",
+              font: "inherit", letterSpacing: "inherit",
             }}
-            title={`${symbol} — ${slot.stats.tradeCount.toLocaleString()} trades observed this session. Δ ${fmt(d)}. Big ${slot.stats.bigTradeCount}. Retained ${slot.horizon ? "since horizon" : "recently"}.`}
+            title={`${isActive ? "Currently active" : "Click to switch chart"} — ${symbol}: ${slot.stats.tradeCount.toLocaleString()} trades observed this session. Δ ${fmt(d)}. Big ${slot.stats.bigTradeCount}. Retained ${slot.horizon ? "since horizon" : "recently"}.`}
           >
             <span style={{ fontWeight: 850, letterSpacing: "0.03em" }}>{symbol}</span>
             <span style={{ color: dColor, fontWeight: 800 }}>{d > 0 ? "+" : ""}{fmt(d)}</span>
             <span style={{ color: "rgba(139,146,172,0.75)" }}>{slot.stats.tradeCount.toLocaleString()}</span>
-          </span>
+          </button>
         );
       })}
       {symbols.length > 6 && (
