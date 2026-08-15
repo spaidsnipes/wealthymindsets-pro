@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, Mail, Lock, TrendingUp, Zap, Shield, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSearchParams } from "next/navigation";
+import WmWordmark from "@/components/brand/WmWordmark";
 
 const FEATURES = [
   { icon: TrendingUp, text: "Professional order flow charts" },
@@ -198,18 +199,26 @@ function LoginPage() {
           style={{ background: "radial-gradient(circle, rgba(0,212,170,0.08) 0%, transparent 70%)" }} />
 
         <div className="relative z-10 p-12">
-          {/* Logo */}
-          <div className="flex items-center gap-3 mb-16">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, #F0B429, #FF8C00)" }}>
-              <span className="text-black font-black text-lg">W</span>
-            </div>
-            <span className="text-white font-black text-xl tracking-tight">WealthyMindsets</span>
-            <span className="px-2 py-0.5 rounded text-[10px] font-black bg-wm-green/20 text-wm-green border border-wm-green/30">PRO</span>
+          {/* Wordmark — serif WM identity from Founder Aug-14 mockups.
+              Replaces the previous rounded-square + sans-serif combo so the
+              unauthenticated visitor immediately sees the WM brand DNA. */}
+          <div className="mb-16">
+            <WmWordmark size="hero" subtitle="ONE IDENTITY · ONE KINGDOM · UNLIMITED REALMS" />
           </div>
 
-          <div className="text-[13px] font-black tracking-[0.2em] uppercase mb-4"
-            style={{ color: "#00D4AA" }}>WealthyMindsets Pro</div>
+          <div
+            className="mb-4"
+            style={{
+              fontFamily: "Georgia, 'Times New Roman', serif",
+              fontSize: 13,
+              letterSpacing: 0.36,
+              color: "#c9a55c",
+              textTransform: "uppercase",
+              fontWeight: 400,
+            }}
+          >
+            Trading Command Center
+          </div>
 
           <h1 className="text-[46px] font-black text-white leading-[1.05] mb-8 tracking-tight">
             Change the way<br />
