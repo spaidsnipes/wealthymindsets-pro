@@ -74,7 +74,6 @@ describe("sessionSymbolStore — per-symbol persistence across switches", () => 
     await new Promise(r => setTimeout(r, 900));
     // Now simulate a page refresh: clear the in-memory Map but keep localStorage.
     // We cannot call __reset because it also wipes storage — clear slots by hand.
-    // @ts-expect-error internal test hook
     (globalThis as { __wmClearSlotsOnly?: () => void }).__wmClearSlotsOnly?.();
     // Re-import path unavailable; instead call the internal state-clear via known trick:
     // just verify that after triggering hydration on a fresh Map, values return.

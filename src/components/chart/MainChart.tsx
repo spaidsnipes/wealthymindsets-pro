@@ -41,6 +41,7 @@ import { computeDeltaVP, type DeltaVPLevel } from "@/lib/deltaVP";
 import type { DrawingStyle, LogicalPt, DrawStyle, ChartDrawing } from "@/types/chart";
 import { DEFAULT_DRAWING_STYLE } from "@/types/chart";
 import { showAlertToast } from "./AlertsPanel";
+import { NectarVaultChip } from "./NectarVaultChip";
 
 /* ── Types ─────────────────────────────────────────────── */
 interface Bar {
@@ -7178,6 +7179,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             </div>
           );
         })()}
+
+        {/* WM Nectar Vault — visible per-symbol memory strip. Appears only
+            when ≥2 symbols have collected data this tab session, giving the
+            founder calm visual proof that switching symbols preserves each
+            symbol's counters. Directly answers 2026-08-14 blocker. */}
+        <NectarVaultChip activeSymbol={normalizeSym(symbol)} />
 
         {/* ── Big-Trade comic speech-bubble tooltip (🫧 hover) ─────── */}
         {bubbleTip && (() => {
