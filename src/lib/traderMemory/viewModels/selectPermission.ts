@@ -269,7 +269,7 @@ export function selectPermission(input: PermissionInput): PermissionVM {
 
   if (hardEngaged.length > 0) {
     verdict = "RESTRICTED";
-    headline = `Your ${hardEngaged.length === 1 ? "rule" : "rules"} say ${hardEngaged.map((e) => e.rule.label).join(", ")}.`;
+    headline = `Your ${hardEngaged.length === 1 ? "rule says" : "rules say"} ${hardEngaged.map((e) => e.rule.label).join(", ")}.`;
     reason = "Hard rule(s) engaged. You retain override capacity — WM does not gate the action. Consider acknowledging the override intentionally.";
   } else if (softEngaged.length > 0) {
     verdict = "ADVISORY";
