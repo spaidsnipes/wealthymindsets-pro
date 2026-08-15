@@ -10,6 +10,7 @@ import {
 } from "@/lib/marketData/useCanonicalMarketState";
 import { selectDecisionChain, type TradePhase } from "@/lib/marketData/viewModels/selectDecisionChain";
 import DecisionChainPanel from "@/components/chart/DecisionChainPanel";
+import StructureContextNote from "@/components/chart/StructureContextNote";
 import StoryRibbon from "@/components/chart/StoryRibbon";
 import ATHOSInterventionPanel from "@/components/athos/ATHOSInterventionPanel";
 import { selectATHOSIntervention, type ATHOSIntervention } from "@/lib/traderMemory/viewModels/selectATHOSIntervention";
@@ -239,6 +240,11 @@ export default function CommandDeckPage() {
         {chainVm && (
           <>
             <DecisionChainPanel vm={chainVm} showNarratives={true} />
+
+            {/* Structure context — surfaces external vs internal
+                contradictions (Founder §C05). Silent when no
+                contradiction detected. */}
+            <StructureContextNote vm={chainVm} />
 
             <StoryRibbon
               state={state}
