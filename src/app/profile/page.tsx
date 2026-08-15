@@ -659,6 +659,45 @@ export default function ProfilePage() {
                 );
               })()}
 
+              {/* Personal Edge — sample-gated, never fabricates. Renders
+                  UNKNOWN honestly below sample threshold. */}
+              <PersonalEdgePanel
+                vm={selectPersonalEdge({
+                  ownerId: user?.id ?? "",
+                  decisions: mergeSnapshots(
+                    useDecisionMemory(user?.id ?? null),
+                    useJournalSnapshots(user?.id ?? null),
+                  ),
+                  nowMs: Date.now(),
+                })}
+              />
+
+              {/* Playbook DNA — per-playbook stats with truthful maturity. */}
+              <PlaybookDNAPanel
+                vm={selectPlaybookDNA({
+                  ownerId: user?.id ?? "",
+                  decisions: mergeSnapshots(
+                    useDecisionMemory(user?.id ?? null),
+                    useJournalSnapshots(user?.id ?? null),
+                  ),
+                  nowMs: Date.now(),
+                })}
+              />
+
+              {/* Session Edge — day × hour performance matrix. */}
+              <SessionEdgePanel
+                vm={selectSessionEdge({
+                  ownerId: user?.id ?? "",
+                  decisions: mergeSnapshots(
+                    useDecisionMemory(user?.id ?? null),
+                    useJournalSnapshots(user?.id ?? null),
+                  ),
+                  nowMs: Date.now(),
+                  metric: sessionMetric,
+                })}
+                onMetricChange={setSessionMetric}
+              />
+
               {/* Founder loop: Heatmap → Memory → Replay → Mirror → Drill → Profile.
                   Subscribes to the real DecisionMemoryStore via useDecisionMemory.
                   When empty, ProcessLandscape emits truthful UNKNOWN cells.
