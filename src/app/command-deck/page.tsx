@@ -19,6 +19,9 @@ import OpeningBellPanel from "@/components/opening-bell/OpeningBellPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { selectOpeningBell, DEFAULT_PREPARATION_TEMPLATE } from "@/lib/traderMemory/viewModels/selectOpeningBell";
 import { useDecisionMemory } from "@/lib/traderMemory/useDecisionMemory";
+import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
+import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
+import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -65,7 +68,24 @@ export default function CommandDeckPage() {
 
   const state = useCanonicalMarketState(identity);
   const history = useCanonicalMarketStateHistory(identity, 6);
-  const sessionDecisions = useDecisionMemory(user?.id ?? null);
+  const storeDecisions = useDecisionMemory(user?.id ?? null);
+  const journalDecisions = useJournalSnapshots(user?.id ?? null);
+  const sessionDecisions = React.useMemo(
+    () => {
+      const ids = new Set(storeDecisions.map((d) => d.decisionId));
+      return [...storeDecisions, ...journalDecisions.filter((d) => !ids.has(d.decisionId))];
+    },
+    [storeDecisions, journalDecisions],
+  );
+  const personalEdgeVm = React.useMemo(
+    () =>
+      selectPersonalEdge({
+        ownerId: user?.id ?? "",
+        decisions: sessionDecisions,
+        nowMs: Date.now(),
+      }),
+    [user?.id, sessionDecisions],
+  );
 
   const chainVm = React.useMemo(() => {
     if (!state) return null;
@@ -184,6 +204,11 @@ export default function CommandDeckPage() {
             </button>
           ))}
         </div>
+
+        {/* Personal Edge chip — one-line 'where do I perform' summary
+            using the merged (Store + Journal) decisions. Renders
+            nothing when no decisions exist yet. */}
+        {sessionDecisions.length > 0 && <PersonalEdgeChip vm={personalEdgeVm} />}
 
         {/* When no state, single unified empty */}
         {!state && (
