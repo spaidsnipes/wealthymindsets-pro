@@ -93,4 +93,47 @@ describe("DecisionMemoryStore", () => {
     expect(store.list("o1")).toEqual([]);
     expect(store.list("o2")).toHaveLength(1);
   });
+
+  // REGRESSION: React #185 crash on /command-deck (fixed in c750df3).
+  // useSyncExternalStore requires getSnapshot to return the SAME reference
+  // between mutations — a fresh array each call causes infinite re-render.
+  describe("snapshot identity stability (useSyncExternalStore contract)", () => {
+    it("list() returns the same reference across reads until a mutation", () => {
+      store.put(sealDecision({ decisionId: "a", ownerId: "o1", sessionIdentity: "s1", frozen: frozen("o1"), plan }));
+      const r1 = store.list("o1");
+      const r2 = store.list("o1");
+      expect(r2).toBe(r1);
+      store.put(sealDecision({ decisionId: "b", ownerId: "o1", sessionIdentity: "s1", frozen: frozen("o1"), plan }));
+      const r3 = store.list("o1");
+      expect(r3).not.toBe(r1);
+      const r4 = store.list("o1");
+      expect(r4).toBe(r3);
+    });
+
+    it("snapshots() returns the same reference across reads until a mutation", () => {
+      store.put(sealDecision({ decisionId: "a", ownerId: "o1", sessionIdentity: "s1", frozen: frozen("o1"), plan }));
+      const s1 = store.snapshots("o1");
+      const s2 = store.snapshots("o1");
+      expect(s2).toBe(s1);
+      store.put(sealDecision({ decisionId: "b", ownerId: "o1", sessionIdentity: "s1", frozen: frozen("o1"), plan }));
+      const s3 = store.snapshots("o1");
+      expect(s3).not.toBe(s1);
+    });
+
+    it("empty-owner reads return a stable frozen empty array", () => {
+      const e1 = store.snapshots("never-mutated-owner");
+      const e2 = store.snapshots("never-mutated-owner");
+      expect(e1).toBe(e2);
+      expect(Object.isFrozen(e1)).toBe(true);
+    });
+
+    it("clearOwner invalidates the cache", () => {
+      store.put(sealDecision({ decisionId: "a", ownerId: "o1", sessionIdentity: "s1", frozen: frozen("o1"), plan }));
+      const before = store.snapshots("o1");
+      store.clearOwner("o1");
+      const after = store.snapshots("o1");
+      expect(after).not.toBe(before);
+      expect(after).toEqual([]);
+    });
+  });
 });
