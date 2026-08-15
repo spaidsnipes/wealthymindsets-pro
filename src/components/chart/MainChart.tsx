@@ -1297,7 +1297,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // Backed by the per-symbol store: switching from BTC → TSLA no longer
   // destroys the BTC counters. Coming back to BTC restores exactly where we
   // left off within this tab session.
-  const sessionSlot = getSessionSymbolSlot(symbol, tapeSource ?? "unavailable");
+  // Normalize at the store boundary so BTC / BTCUSD / BTC.COINBASE all share
+  // one slot — otherwise Nectar fragments across symbol aliases.
+  const canonicalSym = normalizeSym(symbol);
+  const sessionSlot = getSessionSymbolSlot(canonicalSym, tapeSource ?? "unavailable");
   const sessionTapeStatsRef = useRef(sessionSlot.stats);
   sessionTapeStatsRef.current = sessionSlot.stats;
   const [sessionTapeTick, setSessionTapeTick] = useState<number>(0); // render trigger
@@ -1362,12 +1365,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     // the per-symbol store so switching from BTC → TSLA no longer destroys
     // the running BTC observation window; returning to BTC restores exactly
     // where we left off within this tab session.
-    const slot = getSessionSymbolSlot(symbol, tapeSource ?? "unavailable");
+    const slot = getSessionSymbolSlot(canonicalSym, tapeSource ?? "unavailable");
     sessionTapeStatsRef.current = slot.stats;
     cvdSparkRef.current = slot.cvdSpark;
     tapeHorizonRef.current = slot.horizon;
     setSessionTapeTick(t => t + 1);
-  }, [symbol, tapeSource, timeframe]);
+  }, [canonicalSym, tapeSource, timeframe]);
 
   // Re-render the chip when ANY symbol's slot updates so the header stays
   // truthful during rapid symbol switches / multi-symbol future panels.
@@ -1404,7 +1407,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // WM Session Tape Stats — cumulative counters routed through the
       // per-symbol store so switching symbols preserves each symbol's window.
       recordSessionTrade(
-        symbol,
+        canonicalSym,
         tapeSource ?? "unavailable",
         { side: tick.side ?? null, size: tick.size, time: tick.time },
         tick.size >= minBigTradeLot(base),
@@ -1423,10 +1426,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // Push a rolling sparkline sample of cumulative delta through the
       // per-symbol store (24-point ring, ~6s at 4Hz). Store emits so any
       // subscriber (chip, future multi-symbol panels) re-renders.
-      pushCvdSample(symbol, tapeSource ?? "unavailable");
+      pushCvdSample(canonicalSym, tapeSource ?? "unavailable");
       setSessionTapeTick(t => t + 1);
     }
-  }, [recentTicks, timeframe, base, tapeSource, symbol, sessionSlot]);
+  }, [recentTicks, timeframe, base, tapeSource, canonicalSym, sessionSlot]);
 
   // ── Delta accumulator population: EVERY real executed trade (tick.trade),
   //    NO minLot floor → full aggressive flow so net-delta-per-zone reflects
