@@ -11,8 +11,10 @@ import { isCoreTeam } from "@/lib/coreTeam";
 import ProcessLandscape from "@/components/profile/ProcessLandscape";
 import PersonalEdgePanel from "@/components/profile/PersonalEdgePanel";
 import PlaybookDNAPanel from "@/components/profile/PlaybookDNAPanel";
+import SessionEdgePanel from "@/components/profile/SessionEdgePanel";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import { selectPlaybookDNA } from "@/lib/traderMemory/viewModels/selectPlaybookDNA";
+import { selectSessionEdge, type SessionEdgeMetric } from "@/lib/traderMemory/viewModels/selectSessionEdge";
 import ATHOSInterventionPanel from "@/components/athos/ATHOSInterventionPanel";
 import {
   selectATHOSIntervention,
@@ -67,6 +69,7 @@ function profileCreatorArt(index: number): React.CSSProperties {
 export default function ProfilePage() {
   const router = useRouter();
   const [tab, setTab] = useState<"trades" | "music" | "posts" | "coins" | "growth">("trades");
+  const [sessionMetric, setSessionMetric] = useState<SessionEdgeMetric>("avg_realized_r");
   const { wmsBalance, creatorCoin, totalEarned, recentEarnings, launchCreatorCoin, isDeployed } = useWMS();
   const { user, updateProfile: saveToAuth } = useAuth();
   const [showLaunchCoin, setShowLaunchCoin] = useState(false);
