@@ -32,7 +32,11 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
     .filter(s => s.slot.stats.tradeCount > 0)
     .sort((a, b) => b.slot.stats.tradeCount - a.slot.stats.tradeCount);
 
-  if (symbols.length < 2) return null;
+  // Was gated to ≥2 symbols. Founder §14 wants immediate visible proof of
+  // retention — show the Vault the moment WM has observed any real trade,
+  // even for a single symbol. Still hidden when nothing has been observed
+  // so it never adds noise to an empty session.
+  if (symbols.length === 0) return null;
 
   const fmt = (n: number) => {
     const abs = Math.abs(n);
@@ -58,7 +62,7 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
     <div
       className="wm-nectar-vault-chip"
       role="group"
-      aria-label={`WM Nectar Vault. ${symbols.length} symbols have retained tape memory this session.`}
+      aria-label={`WM Nectar Vault. ${symbols.length === 1 ? "1 symbol has" : `${symbols.length} symbols have`} retained tape memory this session.`}
       title={
         `WM Nectar Vault — per-symbol summaries persisted for this tab.\n` +
         `Switching symbols and refreshing the page will not erase these counters.\n` +
