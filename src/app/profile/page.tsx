@@ -12,6 +12,7 @@ import ProcessLandscape from "@/components/profile/ProcessLandscape";
 import PersonalEdgePanel from "@/components/profile/PersonalEdgePanel";
 import PlaybookDNAPanel from "@/components/profile/PlaybookDNAPanel";
 import SessionEdgePanel from "@/components/profile/SessionEdgePanel";
+import GrowthHero from "@/components/profile/GrowthHero";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import { selectPlaybookDNA } from "@/lib/traderMemory/viewModels/selectPlaybookDNA";
 import { selectSessionEdge, type SessionEdgeMetric } from "@/lib/traderMemory/viewModels/selectSessionEdge";
@@ -600,23 +601,22 @@ export default function ProfilePage() {
               aria-labelledby="profile-tab-growth"
               className="space-y-4"
             >
-              {/* Identity + specialties chip. Data-truth: unset fields
-                  render "—" not fabricated defaults. This is the profile
-                  header the Founder wants — identity + operating style,
-                  not follower vanity. */}
-              <div className="glass rounded-xl p-4 flex flex-wrap items-center gap-3">
-                <div className="text-[10px] tracking-[0.28em] uppercase text-wm-text-muted">Identity</div>
-                <div className="text-sm text-wm-text font-semibold">
-                  {profile.name || <span className="text-wm-text-muted">— unset</span>}
-                </div>
-                {profile.handle && (
-                  <div className="text-xs text-wm-text-muted">@{profile.handle}</div>
-                )}
-                <div className="ml-auto flex items-center gap-2 text-[10px] tracking-[0.24em] uppercase text-wm-text-muted">
-                  <span className="w-1.5 h-1.5 rounded-full bg-wm-green" aria-hidden="true" />
-                  Passport identity (WOW-shared)
-                </div>
-              </div>
+              {/* Growth Hero — visually cohesive with Command Deck's HeroTruth.
+                  Founder Aug-14 'visible transformation on one supporting workflow'
+                  acceptance criterion. */}
+              <GrowthHero
+                displayName={profile.name || null}
+                handle={profile.handle || null}
+                passportIdentityBadge="Passport identity (WOW-shared)"
+                personalEdge={selectPersonalEdge({
+                  ownerId: user?.id ?? "",
+                  decisions: mergeSnapshots(
+                    useDecisionMemory(user?.id ?? null),
+                    useJournalSnapshots(user?.id ?? null),
+                  ),
+                  nowMs: Date.now(),
+                })}
+              />
 
               {/* Permission verdict chip — shows how the trader's own rules
                   are currently evaluating without gating any action.
