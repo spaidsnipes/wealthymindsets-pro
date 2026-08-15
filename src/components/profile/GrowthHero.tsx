@@ -4,6 +4,7 @@ import { WM } from "@/lib/design/wmTokens";
 import type { PersonalEdgeVM } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
 import DoctrineTagline from "@/components/brand/DoctrineTagline";
+import RingScore from "@/components/brand/RingScore";
 
 /**
  * GrowthHero — the /profile Growth-tab dominant surface.
@@ -102,28 +103,46 @@ export function GrowthHero({
         )}
       </div>
 
-      <div style={{ marginTop: WM.space.lg, display: "flex", alignItems: "baseline", gap: WM.space.md, flexWrap: "wrap" }}>
-        <span
-          style={{
-            fontSize: 60,
-            fontWeight: 400,
-            letterSpacing: -0.5,
-            lineHeight: 1.02,
-            fontVariantNumeric: "tabular-nums",
-            fontFamily: "Georgia, 'Times New Roman', serif",
-            color: typeof personalEdge.overallAvgR === "number" ? WM.text.hero : WM.text.dim,
-            textShadow: `0 2px 40px ${resolutionColor}30`,
-          }}
-          aria-label={typeof personalEdge.overallAvgR === "number" ? `Avg R ${heroValue}` : "Avg R not yet observed"}
-        >
-          {heroValue}
-        </span>
-        {heroLabel && (
-          <span style={{ fontSize: 20, color: WM.gold.mark, fontWeight: 700 }}>{heroLabel}</span>
-        )}
-        <span style={{ fontSize: 11, color: WM.text.muted, letterSpacing: 0.24, textTransform: "uppercase" }}>
-          avg over {personalEdge.closedCount} closed decision{personalEdge.closedCount === 1 ? "" : "s"}
-        </span>
+      <div style={{ marginTop: WM.space.lg, display: "flex", alignItems: "center", gap: WM.space.xxl, flexWrap: "wrap" }}>
+        {/* Ring-scored hero — matches the '92 EXCELLENT' mockup pattern. */}
+        <RingScore
+          value={typeof personalEdge.overallAvgR === "number" ? Math.min(5, Math.max(0, personalEdge.overallAvgR + 1)) : null}
+          max={5}
+          resolution={personalEdge.resolution === "RESOLVED" ? "RESOLVED" : personalEdge.resolution === "PARTIAL" ? "PARTIAL" : "UNKNOWN"}
+          size={168}
+          label={
+            personalEdge.resolution === "RESOLVED"
+              ? typeof personalEdge.overallAvgR === "number" && personalEdge.overallAvgR > 0
+                ? "COMPOUNDING"
+                : "REBUILD"
+              : personalEdge.resolution === "PARTIAL"
+                ? "EMERGING"
+                : "NOT YET OBSERVED"
+          }
+          unit={typeof personalEdge.overallAvgR === "number" ? "R" : undefined}
+          ariaLabel={typeof personalEdge.overallAvgR === "number" ? `Avg R ${heroValue}` : "Avg R not yet observed"}
+        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ ...WM.type.labelSmall, color: WM.text.muted }}>Personal Edge</span>
+          <span
+            style={{
+              fontSize: 24,
+              fontWeight: 400,
+              letterSpacing: 0.2,
+              fontFamily: "Georgia, 'Times New Roman', serif",
+              color: WM.text.hero,
+            }}
+          >
+            {typeof personalEdge.overallAvgR === "number"
+              ? personalEdge.overallAvgR >= 0
+                ? "You are compounding."
+                : "You are rebuilding."
+              : "Building history."}
+          </span>
+          <span style={{ fontSize: 11, color: WM.text.muted, letterSpacing: 0.24 }}>
+            {personalEdge.closedCount} closed · {personalEdge.reviewedCount} reviewed · min sample {personalEdge.sampleThreshold}
+          </span>
+        </div>
       </div>
 
       {/* Truth strip */}
