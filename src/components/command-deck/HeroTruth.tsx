@@ -123,13 +123,14 @@ export function HeroTruth({ symbol, timeframe, state, className }: HeroTruthProp
         {price != null ? (
           <span
             style={{
-              fontSize: 52,
-              fontWeight: 700,
+              fontSize: 60,
+              fontWeight: 400,
               color: "#ede6d3",
               fontVariantNumeric: "tabular-nums",
-              lineHeight: 1.05,
+              lineHeight: 1.02,
               letterSpacing: -0.5,
-              fontFamily: "system-ui, -apple-system, sans-serif",
+              fontFamily: "Georgia, 'Times New Roman', serif",
+              textShadow: `0 2px 40px ${style.color}30`,
             }}
             aria-label={`Price ${price}`}
           >
@@ -138,11 +139,11 @@ export function HeroTruth({ symbol, timeframe, state, className }: HeroTruthProp
         ) : (
           <span
             style={{
-              fontSize: 52,
-              fontWeight: 700,
+              fontSize: 60,
+              fontWeight: 400,
               color: "#55503f",
-              lineHeight: 1.05,
-              fontFamily: "Georgia, serif",
+              lineHeight: 1.02,
+              fontFamily: "Georgia, 'Times New Roman', serif",
             }}
             aria-label="Price not yet observed"
           >

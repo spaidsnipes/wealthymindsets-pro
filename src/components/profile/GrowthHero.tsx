@@ -2,6 +2,7 @@
 import * as React from "react";
 import { WM } from "@/lib/design/wmTokens";
 import type { PersonalEdgeVM } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
+import WmWordmark from "@/components/brand/WmWordmark";
 
 /**
  * GrowthHero — the /profile Growth-tab dominant surface.
@@ -55,7 +56,8 @@ export function GrowthHero({
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: WM.space.md, marginBottom: WM.space.sm, flexWrap: "wrap" }}>
-        <span style={{ ...WM.type.label, color: WM.gold.mark }}>Growth</span>
+        <WmWordmark size="compact" subtitle="LEGACY JOURNAL" />
+        <span style={{ ...WM.type.label, color: WM.gold.mark, marginLeft: WM.space.sm }}>Growth</span>
         <span style={{ fontSize: 10, color: WM.text.dim }}>·</span>
         <span style={{ ...WM.type.labelSmall, color: WM.text.muted }}>
           personal edge · {personalEdge.resolution.toLowerCase()}
@@ -100,9 +102,14 @@ export function GrowthHero({
       <div style={{ marginTop: WM.space.lg, display: "flex", alignItems: "baseline", gap: WM.space.md, flexWrap: "wrap" }}>
         <span
           style={{
-            ...WM.type.hero,
+            fontSize: 60,
+            fontWeight: 400,
+            letterSpacing: -0.5,
+            lineHeight: 1.02,
+            fontVariantNumeric: "tabular-nums",
+            fontFamily: "Georgia, 'Times New Roman', serif",
             color: typeof personalEdge.overallAvgR === "number" ? WM.text.hero : WM.text.dim,
-            fontFamily: typeof personalEdge.overallAvgR === "number" ? WM.type.hero.fontFamily : "Georgia, serif",
+            textShadow: `0 2px 40px ${resolutionColor}30`,
           }}
           aria-label={typeof personalEdge.overallAvgR === "number" ? `Avg R ${heroValue}` : "Avg R not yet observed"}
         >

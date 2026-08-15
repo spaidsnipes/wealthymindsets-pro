@@ -26,6 +26,9 @@ import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonal
 import HeroTruth from "@/components/command-deck/HeroTruth";
 import DLARStrip, { type DLARDimensionKey } from "@/components/command-deck/DLARStrip";
 import WhyInspector, { type WhyTarget } from "@/components/command-deck/WhyInspector";
+import WmWordmark from "@/components/brand/WmWordmark";
+import SectionBanner from "@/components/brand/SectionBanner";
+import CinematicAtmosphere from "@/components/brand/CinematicAtmosphere";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -192,7 +195,8 @@ export default function CommandDeckPage() {
           <ArrowLeft size={12} />
           Charts
         </button>
-        <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
+        <WmWordmark size="compact" subtitle="COMMAND CENTER" />
+        <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800, marginLeft: 8 }}>
           ◆ Command Deck
         </div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
@@ -258,7 +262,11 @@ export default function CommandDeckPage() {
         </div>
       </header>
 
-      <main style={{ maxWidth: 1280, margin: "0 auto", padding: 24 }}>
+      <main style={{ maxWidth: 1280, margin: "0 auto", padding: 24, position: "relative" }}>
+        {/* Cinematic light rays — subtle, non-interactive, sits behind
+            all content per Founder mockup atmosphere. */}
+        <CinematicAtmosphere intensity="subtle" />
+        <div style={{ position: "relative", zIndex: 1 }}>
         {/* Two-column layout when evidence panel is open, single column otherwise */}
         <div
           style={{
@@ -342,9 +350,8 @@ export default function CommandDeckPage() {
             {/* STORY RIBBON — Market state → progression → evidence */}
             {chainVm && (
               <div>
-                <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800, marginBottom: 8 }}>
-                  Story
-                </div>
+                <SectionBanner number={1} label="Story Ribbon · Market Narrative" tagline="the sequence of chapters" />
+                <div style={{ height: 12 }} />
                 <StoryRibbon state={state} history={history} />
               </div>
             )}
@@ -352,9 +359,8 @@ export default function CommandDeckPage() {
             {/* DIRECTION × LOCATION × AGGRESSION × RESPONSE strip */}
             {chainVm && (
               <div>
-                <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800, marginBottom: 8 }}>
-                  Direction · Location · Aggression · Response
-                </div>
+                <SectionBanner number={2} label="Direction · Location · Aggression · Response" tagline="the auction lens" />
+                <div style={{ height: 12 }} />
                 <DLARStrip
                   dlar={chainVm.dlar}
                   onDrillClick={(dim: DLARDimensionKey) => openWhy({ kind: "dlar", dim })}
@@ -364,6 +370,9 @@ export default function CommandDeckPage() {
 
             {/* AVAILABLE R / PROCESS / STEWARD — the full 9-node chain */}
             {chainVm && (
+              <div>
+                <SectionBanner number={3} label="Decision Chain" tagline="regime → management" />
+                <div style={{ height: 12 }} />
               <DecisionChainPanel
                 vm={chainVm}
                 showNarratives
@@ -378,6 +387,7 @@ export default function CommandDeckPage() {
                   }
                 }}
               />
+              </div>
             )}
 
             {/* Structure context — surfaces external vs internal contradictions */}
@@ -385,6 +395,9 @@ export default function CommandDeckPage() {
 
             {/* Steward / Permission — rules-informing surface */}
             {chainVm && (
+              <div>
+                <SectionBanner number={4} label="Steward · Rules Verdict" tagline="informs, never gates" />
+                <div style={{ height: 12 }} />
               <div
                 style={{
                   border: "1px solid rgba(139,106,41,0.35)",
@@ -406,10 +419,14 @@ export default function CommandDeckPage() {
                   {permission.engagedRules.length}/{permission.ruleCount} engaged · phase: {phase.toLowerCase()}
                 </div>
               </div>
+              </div>
             )}
 
             {/* NECTAR / DATA FIDELITY — coverage + freshness at a glance */}
             {state && (
+              <div>
+                <SectionBanner number={5} label="Data Fidelity · Nectar Memory" tagline="what did WM actually witness" />
+                <div style={{ height: 12 }} />
               <div
                 style={{
                   border: "1px solid rgba(139,106,41,0.35)",
@@ -431,6 +448,7 @@ export default function CommandDeckPage() {
                   <Stat label="Unknowns" value={String(state.unknowns.length)} tone={state.unknowns.length > 0 ? "watch" : "ok"} />
                   <Stat label="Contradictions" value={String(state.contradictions.length)} tone={state.contradictions.length > 0 ? "warn" : "ok"} />
                 </div>
+              </div>
               </div>
             )}
 
@@ -482,21 +500,39 @@ export default function CommandDeckPage() {
           )}
         </div>
 
-        {/* Doctrine footer */}
+        {/* Doctrine footer — mirrors the mockup cadence:
+            'THE MIRROR REFLECTS. YOU EVOLVE.' */}
         <div
           style={{
-            fontSize: 10,
-            letterSpacing: 0.3,
-            textTransform: "uppercase",
-            color: "#55503f",
             paddingTop: 20,
-            marginTop: 24,
+            marginTop: 32,
             borderTop: "1px solid rgba(139,106,41,0.25)",
             textAlign: "center",
           }}
         >
-          Regime → Direction → Location → Auction → Aggression → CLC → Available R → Permission → Management
+          <div
+            style={{
+              fontFamily: "Georgia, 'Times New Roman', serif",
+              fontSize: 12,
+              letterSpacing: 0.4,
+              color: "#c9a55c",
+              marginBottom: 6,
+            }}
+          >
+            OBSERVE TRUTH · PROTECT PROCESS · COMPOUND WISDOM
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: "uppercase",
+              color: "#55503f",
+            }}
+          >
+            Regime → Direction → Location → Auction → Aggression → CLC → Available R → Permission → Management
+          </div>
         </div>
+        </div>{/* end z-index wrapper */}
       </main>
     </div>
   );
