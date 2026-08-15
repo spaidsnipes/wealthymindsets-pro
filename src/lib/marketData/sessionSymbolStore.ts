@@ -61,6 +61,39 @@ function emit(): void {
   listeners.forEach(fn => { try { fn(); } catch { /* isolate consumer errors */ } });
 }
 
+/** Per-slot validator — discards clearly-invalid persisted data so a
+ *  corrupted storage entry cannot silently lie to the trader through
+ *  the Vault chip or downstream selectors. Never throws. */
+function isFiniteNumber(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v);
+}
+function validateStats(s: unknown): SessionTapeStats | null {
+  if (!s || typeof s !== "object") return null;
+  const raw = s as Record<string, unknown>;
+  const stats: SessionTapeStats = {
+    delta:         isFiniteNumber(raw.delta)         ? raw.delta         : 0,
+    buyVol:        isFiniteNumber(raw.buyVol)        ? Math.max(0, raw.buyVol)        : 0,
+    sellVol:       isFiniteNumber(raw.sellVol)       ? Math.max(0, raw.sellVol)       : 0,
+    tradeCount:    isFiniteNumber(raw.tradeCount)    ? Math.max(0, Math.floor(raw.tradeCount))    : 0,
+    bigTradeCount: isFiniteNumber(raw.bigTradeCount) ? Math.max(0, Math.floor(raw.bigTradeCount)) : 0,
+  };
+  return stats;
+}
+function validateHorizon(h: unknown): SessionTapeHorizon | null {
+  if (!h || typeof h !== "object") return null;
+  const raw = h as Record<string, unknown>;
+  if (typeof raw.sym !== "string" || !raw.sym) return null;
+  if (typeof raw.tapeSrc !== "string" || !raw.tapeSrc) return null;
+  if (!isFiniteNumber(raw.startedAtSec) || raw.startedAtSec <= 0) return null;
+  return { sym: raw.sym, tapeSrc: raw.tapeSrc, startedAtSec: Math.floor(raw.startedAtSec) };
+}
+function validateCvdSpark(a: unknown): number[] {
+  if (!Array.isArray(a)) return [];
+  const clean: number[] = [];
+  for (const v of a) if (isFiniteNumber(v)) clean.push(v);
+  return clean.slice(-24);
+}
+
 let hydrated = false;
 function hydrateFromStorage(): void {
   if (hydrated) return;
@@ -69,17 +102,21 @@ function hydrateFromStorage(): void {
   try {
     const raw = window.localStorage.getItem(LS_KEY);
     if (!raw) return;
-    const parsed = JSON.parse(raw) as Record<string, SessionSymbolSlot & { savedAtSec?: number }>;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return;
     const nowSec = Math.floor(Date.now() / 1000);
-    for (const [key, slot] of Object.entries(parsed)) {
-      if (!slot || typeof slot !== "object") continue;
-      const savedAt = typeof slot.savedAtSec === "number" ? slot.savedAtSec : nowSec;
+    for (const [key, entry] of Object.entries(parsed as Record<string, unknown>)) {
+      // Reject keys without our `${symbol}::${tapeSource}` shape — that's
+      // a sign of foreign / corrupted / older-schema data. Fail closed.
+      if (!key || typeof key !== "string" || key.indexOf("::") < 0) continue;
+      if (!entry || typeof entry !== "object") continue;
+      const rec = entry as Record<string, unknown>;
+      const savedAt = isFiniteNumber(rec.savedAtSec) ? rec.savedAtSec : nowSec;
       if (nowSec - savedAt > LS_HORIZON_MAX_AGE_SEC) continue;
-      slots.set(key, {
-        stats: slot.stats ?? EMPTY_STATS(),
-        horizon: slot.horizon ?? null,
-        cvdSpark: Array.isArray(slot.cvdSpark) ? slot.cvdSpark.slice(-24) : [],
-      });
+      const stats = validateStats(rec.stats) ?? EMPTY_STATS();
+      const horizon = validateHorizon(rec.horizon);
+      const cvdSpark = validateCvdSpark(rec.cvdSpark);
+      slots.set(key, { stats, horizon, cvdSpark });
     }
   } catch { /* corrupt storage → start fresh, never throw during hydration */ }
 }

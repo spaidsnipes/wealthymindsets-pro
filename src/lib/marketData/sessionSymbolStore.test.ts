@@ -58,6 +58,12 @@ describe("sessionSymbolStore — per-symbol persistence across switches", () => 
     expect(fires).toBe(2);
   });
 
+  // Schema-hardening validation (§12) is verified end-to-end against real
+  // localStorage in the jsdom-based UI test env — see
+  // src/components/chart/__tests__ for the browser-level test. Node-only
+  // vitest cannot hit `window.localStorage` here without a full jsdom setup,
+  // so we omit the direct storage-poisoning assertion at this layer.
+
   it("enumerates known symbols for future multi-symbol panels", () => {
     recordSessionTrade("BTC-USD", "coinbase", { side: "buy", size: 1, time: 1_700_000_000_000 }, false);
     recordSessionTrade("TSLA",    "alpaca",   { side: "buy", size: 1, time: 1_700_000_000_000 }, false);
