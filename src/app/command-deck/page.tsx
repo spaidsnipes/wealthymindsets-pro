@@ -23,20 +23,33 @@ import { useDecisionMemory } from "@/lib/traderMemory/useDecisionMemory";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
+import HeroTruth from "@/components/command-deck/HeroTruth";
+import DLARStrip, { type DLARDimensionKey } from "@/components/command-deck/DLARStrip";
+import WhyInspector, { type WhyTarget } from "@/components/command-deck/WhyInspector";
 
 /**
  * /command-deck — the composed Command Deck surface.
  *
- * Renders the Founder decision chain (§9) end-to-end using the canonical
- * store. This is the "not a widget graveyard" surface — one composed
- * synthesis instead of scattered panels.
+ * Aug-14 transformation (Founder correction §"START WITH /command-deck"):
+ * Visual + information hierarchy is now:
  *
- * Data flow:
- *   Canonical store subscription (per identity) → DecisionChainVM →
- *   DecisionChainPanel + StoryRibbon + ATHOS + Permission
+ *   HERO TRUTH   ← 1s dominant message (symbol + price + quality verdict)
+ *   ↓
+ *   PRIMARY CHART SLOT (deferred — link to /charts today, embed next)
+ *   ↓
+ *   STORY RIBBON (real producer state — UNKNOWN when unknown, honest)
+ *   ↓
+ *   DIRECTION × LOCATION × AGGRESSION × RESPONSE (compact strip)
+ *   ↓
+ *   AVAILABLE R / PROCESS / STEWARD  (decision chain panel)
+ *   ↓
+ *   NECTAR / DATA FIDELITY / MEMORY HEALTH
+ *   ↓
+ *   WHY? / EVIDENCE INSPECTOR (opens on click, one deliberate step away)
  *
- * When the store has no snapshot for the current identity, each panel
- * renders its truthful UNKNOWN state — nothing fabricated.
+ * Every panel renders truthfully — UNKNOWN stays UNKNOWN, MISSING stays
+ * MISSING, STALE stays STALE. Zero fabrication. Progressive disclosure
+ * via WhyInspector so beginners get one hero truth and pros can drill.
  */
 
 type CommandPhase = TradePhase;
@@ -57,6 +70,8 @@ export default function CommandDeckPage() {
   const symbol = activeSymbol ?? "TSLA";
   const timeframe = "15m";
   const [phase, setPhase] = React.useState<CommandPhase>("PREPARATION");
+  const [whyTarget, setWhyTarget] = React.useState<WhyTarget | null>(null);
+  const [showEvidence, setShowEvidence] = React.useState<boolean>(false);
 
   const identity = React.useMemo(
     () => ({
@@ -134,8 +149,13 @@ export default function CommandDeckPage() {
     [user?.id, state, chainVm, sessionDecisions],
   );
 
+  const openWhy = (t: WhyTarget) => {
+    setWhyTarget(t);
+    setShowEvidence(true);
+  };
+
   return (
-    <div style={{ minHeight: "100vh", background: "#050506", color: "#ede6d3" }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #050506 0%, #0b0b0d 100%)", color: "#ede6d3" }}>
       {/* Nav header */}
       <header
         style={{
@@ -144,6 +164,11 @@ export default function CommandDeckPage() {
           display: "flex",
           alignItems: "center",
           gap: 16,
+          background: "rgba(11,11,13,0.85)",
+          backdropFilter: "blur(8px)",
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
         }}
       >
         <button
@@ -168,9 +193,30 @@ export default function CommandDeckPage() {
           Charts
         </button>
         <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
-          ◆ Command Deck ◆ {symbol} · {timeframe}
+          ◆ Command Deck
         </div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+          <button
+            type="button"
+            onClick={() => setShowEvidence(!showEvidence)}
+            aria-label={showEvidence ? "Hide evidence inspector" : "Show evidence inspector"}
+            aria-pressed={showEvidence}
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: "uppercase",
+              color: showEvidence ? "#d4af37" : "#8a8271",
+              background: showEvidence ? "rgba(212,175,55,0.1)" : "transparent",
+              border: showEvidence ? "1px solid #d4af3760" : "1px solid rgba(139,106,41,0.35)",
+              minHeight: 32,
+              padding: "0 10px",
+              borderRadius: 4,
+              cursor: "pointer",
+              fontWeight: 700,
+            }}
+          >
+            Why?
+          </button>
           <button
             type="button"
             onClick={() => router.push("/profile?tab=growth")}
@@ -212,118 +258,192 @@ export default function CommandDeckPage() {
         </div>
       </header>
 
-      <main style={{ maxWidth: 1280, margin: "0 auto", padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
-        {/* Phase selector */}
+      <main style={{ maxWidth: 1280, margin: "0 auto", padding: 24 }}>
+        {/* Two-column layout when evidence panel is open, single column otherwise */}
         <div
-          role="tablist"
-          aria-label="Trade phase"
-          style={{ display: "flex", gap: 6, flexWrap: "wrap" }}
+          style={{
+            display: "grid",
+            gridTemplateColumns: showEvidence && whyTarget ? "minmax(0, 1fr) 380px" : "minmax(0, 1fr)",
+            gap: 20,
+            alignItems: "start",
+          }}
         >
-          {PHASES.map((p) => (
+          {/* Primary column */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
+            {/* HERO TRUTH — the 1s dominant message */}
             <button
-              key={p.id}
               type="button"
-              role="tab"
-              aria-selected={phase === p.id}
-              aria-pressed={phase === p.id}
-              aria-label={`Phase: ${p.label}${phase === p.id ? " (selected)" : ""}`}
-              onClick={() => setPhase(p.id)}
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                padding: "10px 14px",
-                minHeight: 44,
-                minWidth: 44,
-                borderRadius: 6,
-                cursor: "pointer",
-                border: phase === p.id ? "1px solid #c9a55c" : "1px solid rgba(139,106,41,0.35)",
-                background: phase === p.id ? "rgba(201,165,92,0.15)" : "transparent",
-                color: phase === p.id ? "#ede6d3" : "#8a8271",
-              }}
+              onClick={() => openWhy({ kind: "hero" })}
+              aria-label="Explain hero truth"
+              style={{ padding: 0, background: "transparent", border: "none", cursor: "pointer", textAlign: "left", display: "block", width: "100%" }}
             >
-              {p.label}
+              <HeroTruth symbol={symbol} timeframe={timeframe} state={state} />
             </button>
-          ))}
-        </div>
 
-        {/* Personal Edge chip — one-line 'where do I perform' summary
-            using the merged (Store + Journal) decisions. Renders
-            nothing when no decisions exist yet. */}
-        {sessionDecisions.length > 0 && <PersonalEdgeChip vm={personalEdgeVm} />}
-
-        {/* When no state, single unified empty */}
-        {!state && (
-          <div
-            role="status"
-            style={{
-              padding: 32,
-              textAlign: "center",
-              border: "1px dashed rgba(139,106,41,0.35)",
-              borderRadius: 10,
-              color: "#8a8271",
-              fontSize: 13,
-              lineHeight: 1.6,
-            }}
-          >
-            <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", marginBottom: 8 }}>
-              No canonical snapshot yet
-            </div>
-            The chart publisher has not yet published a Market State for{" "}
-            <span style={{ color: "#ede6d3" }}>{symbol} · {timeframe}</span>.
-            <br />
-            Open <span style={{ color: "#c9a55c" }}>/charts</span> for this symbol to seed the store, then return here.
-          </div>
-        )}
-
-        {/* Full composed surface — everything below renders truthfully with
-            UNKNOWN states when the store is empty */}
-        {chainVm && (
-          <>
-            <DecisionChainPanel vm={chainVm} showNarratives={true} />
-
-            {/* Structure context — surfaces external vs internal
-                contradictions (Founder §C05). Silent when no
-                contradiction detected. */}
-            <StructureContextNote vm={chainVm} />
-
-            <StoryRibbon
-              state={state}
-              history={history}
-            />
-
+            {/* Phase selector — the trader's current decision phase */}
             <div
-              style={{
-                border: "1px solid rgba(139,106,41,0.35)",
-                borderRadius: 10,
-                background: "rgba(11,11,13,0.9)",
-                padding: 16,
-              }}
+              role="tablist"
+              aria-label="Trade phase"
+              style={{ display: "flex", gap: 6, flexWrap: "wrap" }}
             >
-              <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800, marginBottom: 8 }}>
-                Steward Rules · {permission.verdict}
-              </div>
-              <div style={{ fontSize: 13, color: "#ede6d3", lineHeight: 1.5 }}>
-                {permission.headline}
-              </div>
-              <div style={{ fontSize: 11, color: "#8a8271", lineHeight: 1.5, marginTop: 6 }}>
-                {permission.reason}
-              </div>
-              <div style={{ fontSize: 10, color: "#55503f", marginTop: 8, letterSpacing: 0.3 }}>
-                {permission.engagedRules.length}/{permission.ruleCount} engaged · phase: {phase.toLowerCase()}
-              </div>
+              {PHASES.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={phase === p.id}
+                  aria-pressed={phase === p.id}
+                  aria-label={`Phase: ${p.label}${phase === p.id ? " (selected)" : ""}`}
+                  onClick={() => setPhase(p.id)}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: "10px 14px",
+                    minHeight: 44,
+                    minWidth: 44,
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    border: phase === p.id ? "1px solid #d4af37" : "1px solid rgba(139,106,41,0.35)",
+                    background: phase === p.id ? "rgba(212,175,55,0.12)" : "transparent",
+                    color: phase === p.id ? "#ede6d3" : "#8a8271",
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
 
-            <ATHOSInterventionPanel
-              interventions={athos.interventions as readonly ATHOSIntervention[]}
-              onDismiss={(id) => console.debug("dismissed", id)}
-            />
+            {/* Personal Edge chip — one-line 'where do I perform' summary. */}
+            {sessionDecisions.length > 0 && <PersonalEdgeChip vm={personalEdgeVm} />}
 
-            {/* Opening Bell — only meaningful during PREPARATION phase.
-                Uses the default preparation template with no items completed
-                yet, so verdict truthfully = NOT_READY when required items
-                exist. When Founder configures + completes items, this
-                updates automatically. */}
-            {phase === "PREPARATION" && (
+            {/* When no state, single unified empty */}
+            {!state && (
+              <div
+                role="status"
+                style={{
+                  padding: 32,
+                  textAlign: "center",
+                  border: "1px dashed rgba(139,106,41,0.35)",
+                  borderRadius: 10,
+                  color: "#8a8271",
+                  fontSize: 13,
+                  lineHeight: 1.6,
+                }}
+              >
+                <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", marginBottom: 8 }}>
+                  No canonical snapshot yet
+                </div>
+                Open <span style={{ color: "#c9a55c" }}>/charts</span> for{" "}
+                <span style={{ color: "#ede6d3" }}>{symbol}</span> to seed the store, then return.
+              </div>
+            )}
+
+            {/* STORY RIBBON — Market state → progression → evidence */}
+            {chainVm && (
+              <div>
+                <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800, marginBottom: 8 }}>
+                  Story
+                </div>
+                <StoryRibbon state={state} history={history} />
+              </div>
+            )}
+
+            {/* DIRECTION × LOCATION × AGGRESSION × RESPONSE strip */}
+            {chainVm && (
+              <div>
+                <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800, marginBottom: 8 }}>
+                  Direction · Location · Aggression · Response
+                </div>
+                <DLARStrip
+                  dlar={chainVm.dlar}
+                  onDrillClick={(dim: DLARDimensionKey) => openWhy({ kind: "dlar", dim })}
+                />
+              </div>
+            )}
+
+            {/* AVAILABLE R / PROCESS / STEWARD — the full 9-node chain */}
+            {chainVm && (
+              <DecisionChainPanel
+                vm={chainVm}
+                showNarratives
+                onNodeClick={(node) => {
+                  if (node.key === "regime" || node.key === "direction" || node.key === "location" || node.key === "aggression") {
+                    // Direction/location/aggression → DLAR drill
+                    openWhy({ kind: "dlar", dim: (node.key === "regime" ? "direction" : node.key) as "direction" | "location" | "aggression" });
+                  } else if (node.key === "clc") {
+                    openWhy({ kind: "clc", leg: "confirmation" });
+                  } else {
+                    openWhy({ kind: "hero" });
+                  }
+                }}
+              />
+            )}
+
+            {/* Structure context — surfaces external vs internal contradictions */}
+            {chainVm && <StructureContextNote vm={chainVm} />}
+
+            {/* Steward / Permission — rules-informing surface */}
+            {chainVm && (
+              <div
+                style={{
+                  border: "1px solid rgba(139,106,41,0.35)",
+                  borderRadius: 10,
+                  background: "rgba(11,11,13,0.9)",
+                  padding: 16,
+                }}
+              >
+                <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800, marginBottom: 8 }}>
+                  Steward Rules · {permission.verdict}
+                </div>
+                <div style={{ fontSize: 13, color: "#ede6d3", lineHeight: 1.5 }}>
+                  {permission.headline}
+                </div>
+                <div style={{ fontSize: 11, color: "#8a8271", lineHeight: 1.5, marginTop: 6 }}>
+                  {permission.reason}
+                </div>
+                <div style={{ fontSize: 10, color: "#55503f", marginTop: 8, letterSpacing: 0.3 }}>
+                  {permission.engagedRules.length}/{permission.ruleCount} engaged · phase: {phase.toLowerCase()}
+                </div>
+              </div>
+            )}
+
+            {/* NECTAR / DATA FIDELITY — coverage + freshness at a glance */}
+            {state && (
+              <div
+                style={{
+                  border: "1px solid rgba(139,106,41,0.35)",
+                  borderRadius: 10,
+                  background: "rgba(11,11,13,0.9)",
+                  padding: 16,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                  <span style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
+                    Data Fidelity
+                  </span>
+                  <span style={{ fontSize: 10, color: "#8a8271", marginLeft: "auto" }}>
+                    {state.qualityState}
+                  </span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                  <Stat label="Coverage" value={`${state.coverage.length} ch`} />
+                  <Stat label="Unknowns" value={String(state.unknowns.length)} tone={state.unknowns.length > 0 ? "watch" : "ok"} />
+                  <Stat label="Contradictions" value={String(state.contradictions.length)} tone={state.contradictions.length > 0 ? "warn" : "ok"} />
+                </div>
+              </div>
+            )}
+
+            {/* ATHOS — silent when nothing worth surfacing */}
+            {chainVm && (
+              <ATHOSInterventionPanel
+                interventions={athos.interventions as readonly ATHOSIntervention[]}
+                onDismiss={(id) => console.debug("dismissed", id)}
+              />
+            )}
+
+            {/* Opening Bell — only during PREPARATION phase */}
+            {chainVm && phase === "PREPARATION" && (
               <OpeningBellPanel
                 vm={selectOpeningBell({
                   ownerId: user?.id ?? "",
@@ -336,10 +456,8 @@ export default function CommandDeckPage() {
               />
             )}
 
-            {/* Mirror — meaningful during REVIEW phase (also visible in
-                POST_EXIT). Renders NOTHING when no patterns detected
-                (silence-is-a-feature §14 applied to reflection too). */}
-            {(phase === "REVIEW" || phase === "POST_EXIT") && (
+            {/* Mirror — meaningful during REVIEW + POST_EXIT */}
+            {chainVm && (phase === "REVIEW" || phase === "POST_EXIT") && (
               <MirrorPanel
                 vm={selectMirror({
                   ownerId: user?.id ?? "",
@@ -348,8 +466,21 @@ export default function CommandDeckPage() {
                 })}
               />
             )}
-          </>
-        )}
+          </div>
+
+          {/* Evidence column — appears when user has opened a Why? drill */}
+          {showEvidence && whyTarget && (
+            <aside style={{ position: "sticky", top: 80, alignSelf: "start" }}>
+              <WhyInspector
+                target={whyTarget}
+                state={state}
+                dlar={chainVm?.dlar ?? null}
+                clc={chainVm?.clc ?? null}
+                onClose={() => setShowEvidence(false)}
+              />
+            </aside>
+          )}
+        </div>
 
         {/* Doctrine footer */}
         <div
@@ -358,7 +489,8 @@ export default function CommandDeckPage() {
             letterSpacing: 0.3,
             textTransform: "uppercase",
             color: "#55503f",
-            paddingTop: 12,
+            paddingTop: 20,
+            marginTop: 24,
             borderTop: "1px solid rgba(139,106,41,0.25)",
             textAlign: "center",
           }}
@@ -366,6 +498,23 @@ export default function CommandDeckPage() {
           Regime → Direction → Location → Auction → Aggression → CLC → Available R → Permission → Management
         </div>
       </main>
+    </div>
+  );
+}
+
+function Stat({ label, value, tone }: { label: string; value: string; tone?: "ok" | "watch" | "warn" }) {
+  const color =
+    tone === "warn"  ? "#c05a4a" :
+    tone === "watch" ? "#c9a55c" :
+                       "#ede6d3";
+  return (
+    <div style={{ padding: "8px 10px", borderRadius: 6, background: "rgba(19,19,23,0.5)" }}>
+      <div style={{ fontSize: 8, letterSpacing: 0.4, textTransform: "uppercase", color: "#8a8271", fontWeight: 700 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 16, fontWeight: 700, color, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>
+        {value}
+      </div>
     </div>
   );
 }
