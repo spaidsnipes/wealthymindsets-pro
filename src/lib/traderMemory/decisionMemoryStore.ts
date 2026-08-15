@@ -30,11 +30,21 @@ export type DecisionMemoryListener = (
 export class DecisionMemoryStore {
   private readonly recordsByOwner = new Map<string, Map<string, DecisionMemoryRecord>>();
   private readonly listeners = new Map<string, Set<DecisionMemoryListener>>();
+  // Cached projections keyed by owner. Same reference is returned across
+  // reads until a mutation invalidates the entry. REQUIRED for
+  // useSyncExternalStore consumers — a fresh array on every getSnapshot()
+  // call trips React's infinite-loop guard (error #185) and crashes any
+  // page that hosts the store (e.g. /command-deck).
+  private readonly listCache = new Map<string, readonly DecisionMemoryRecord[]>();
+  private readonly snapshotCache = new Map<string, readonly DecisionMemorySnapshot[]>();
+  private static readonly EMPTY_RECORDS: readonly DecisionMemoryRecord[] = Object.freeze([]);
+  private static readonly EMPTY_SNAPSHOTS: readonly DecisionMemorySnapshot[] = Object.freeze([]);
 
   put(record: DecisionMemoryRecord): void {
     const bucket = this.recordsByOwner.get(record.ownerId) ?? new Map<string, DecisionMemoryRecord>();
     bucket.set(record.decisionId, record);
     this.recordsByOwner.set(record.ownerId, bucket);
+    this.invalidateCache(record.ownerId);
     this.notify(record.ownerId);
   }
 
@@ -42,16 +52,34 @@ export class DecisionMemoryStore {
     return this.recordsByOwner.get(ownerId)?.get(decisionId) ?? null;
   }
 
-  /** Returns own-owner records only. Never leaks cross-owner data. */
+  /** Returns own-owner records only. Never leaks cross-owner data.
+   *  Result reference is stable until the next mutation for this owner. */
   list(ownerId: string): readonly DecisionMemoryRecord[] {
+    const cached = this.listCache.get(ownerId);
+    if (cached) return cached;
     const bucket = this.recordsByOwner.get(ownerId);
-    if (!bucket) return [];
-    return Array.from(bucket.values());
+    if (!bucket) return DecisionMemoryStore.EMPTY_RECORDS;
+    const fresh = Object.freeze(Array.from(bucket.values()));
+    this.listCache.set(ownerId, fresh);
+    return fresh;
   }
 
-  /** Compact projection for selectors like selectProcessLandscape / selectMirror. */
+  /** Compact projection for selectors like selectProcessLandscape / selectMirror.
+   *  Result reference is stable until the next mutation for this owner
+   *  (useSyncExternalStore correctness — do not remove the memoization). */
   snapshots(ownerId: string): readonly DecisionMemorySnapshot[] {
-    return this.list(ownerId).map(toDecisionSnapshot);
+    const cached = this.snapshotCache.get(ownerId);
+    if (cached) return cached;
+    const bucket = this.recordsByOwner.get(ownerId);
+    if (!bucket) return DecisionMemoryStore.EMPTY_SNAPSHOTS;
+    const fresh = Object.freeze(this.list(ownerId).map(toDecisionSnapshot));
+    this.snapshotCache.set(ownerId, fresh);
+    return fresh;
+  }
+
+  private invalidateCache(ownerId: string): void {
+    this.listCache.delete(ownerId);
+    this.snapshotCache.delete(ownerId);
   }
 
   subscribe(ownerId: string, listener: DecisionMemoryListener): () => void {
@@ -71,11 +99,14 @@ export class DecisionMemoryStore {
   clear(): void {
     this.recordsByOwner.clear();
     this.listeners.clear();
+    this.listCache.clear();
+    this.snapshotCache.clear();
   }
 
   /** Test/logout lifecycle for a specific owner. */
   clearOwner(ownerId: string): void {
     this.recordsByOwner.delete(ownerId);
+    this.invalidateCache(ownerId);
     this.notify(ownerId);
   }
 
