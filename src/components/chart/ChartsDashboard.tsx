@@ -5,6 +5,7 @@ import { AnimatePresence } from "framer-motion";
 import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity } from "lucide-react";
 import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
 import { WMLogo } from "@/components/ui/WMLogo";
+import WmWordmark from "@/components/brand/WmWordmark";
 import { ChartToolbar } from "./ChartToolbar";
 import { MainChart } from "./MainChart";
 import { WatchlistGrid } from "./WatchlistGrid";
@@ -647,6 +648,56 @@ export function ChartsDashboard() {
         data-ctx={JSON.stringify({ symbol, price: ticker.price, change: ticker.change, changePct: ticker.changePct })}
         style={{ display: "none" }}
       />
+      {/* ── WM brand strip above chart tabs — integrates the chart into
+             the same visual DNA as /command-deck, /profile Growth,
+             /morning-prep, /journal (Founder Aug-14 acceptance criterion:
+             'The chart should now look integrated into WM instead of a
+             legacy chart surrounded by newer widgets'). Slim (28px) so
+             candles keep their real estate. */}
+      <div
+        style={{
+          height: 28,
+          borderBottom: "1px solid rgba(139,106,41,0.25)",
+          background: "linear-gradient(180deg, rgba(11,11,13,0.9), #0D0E14)",
+          display: "flex",
+          alignItems: "center",
+          paddingLeft: 16,
+          paddingRight: 16,
+          gap: 12,
+          flexShrink: 0,
+        }}
+      >
+        <WmWordmark size="compact" />
+        <span
+          style={{
+            fontFamily: "Georgia, 'Times New Roman', serif",
+            fontSize: 10,
+            letterSpacing: 0.32,
+            color: "#8a8271",
+            fontStyle: "italic",
+          }}
+        >
+          the trader's chart
+        </span>
+        <a
+          href="/command-deck"
+          style={{
+            marginLeft: "auto",
+            fontSize: 10,
+            letterSpacing: 0.3,
+            textTransform: "uppercase",
+            color: "#c9a55c",
+            textDecoration: "none",
+            border: "1px solid rgba(139,106,41,0.35)",
+            padding: "3px 8px",
+            borderRadius: 4,
+            fontWeight: 700,
+          }}
+          aria-label="Open Command Deck"
+        >
+          Command Deck →
+        </a>
+      </div>
       {/* ── MooMoo-style chart tabs row ──────────────────────── */}
       <div className="wm-chart-tabs" style={{
         height: 40, borderBottom: "1px solid #1E2030", display: "flex", alignItems: "center",
