@@ -170,6 +170,46 @@ export default function CommandDeckPage() {
         <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
           ◆ Command Deck ◆ {symbol} · {timeframe}
         </div>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+          <button
+            type="button"
+            onClick={() => router.push("/profile?tab=growth")}
+            aria-label="Open Growth on your Profile"
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: "uppercase",
+              color: "#8a8271",
+              background: "transparent",
+              border: "1px solid rgba(139,106,41,0.35)",
+              minHeight: 32,
+              padding: "0 10px",
+              borderRadius: 4,
+              cursor: "pointer",
+            }}
+          >
+            Growth →
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/journal")}
+            aria-label="Open Journal"
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: "uppercase",
+              color: "#8a8271",
+              background: "transparent",
+              border: "1px solid rgba(139,106,41,0.35)",
+              minHeight: 32,
+              padding: "0 10px",
+              borderRadius: 4,
+              cursor: "pointer",
+            }}
+          >
+            Journal →
+          </button>
+        </div>
       </header>
 
       <main style={{ maxWidth: 1280, margin: "0 auto", padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
