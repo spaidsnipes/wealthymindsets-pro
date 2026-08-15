@@ -893,12 +893,19 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     >
       {/* ── Top bar ─────────────────────────────────────────── */}
       <header
-        style={{ height: 44, flexShrink: 0 }}
+        style={{ minHeight: 44, flexShrink: 0 }}
         className="flex items-center px-3 border-b border-wm-border bg-wm-dark z-50 wm-shell-header"
       >
-        {/* Brand */}
-        <div className="flex items-center gap-2 shrink-0" style={{ width: 72 }}>
+        {/* Brand — WM wordmark shipped with the shell so every route
+            (education, news, paper, copy-trading, backtesting, ai-bot,
+            lounge, tv, radio, shop, creator, partnerships, ...) inherits
+            the same brand identity. Per-page subtitles remain on hero
+            surfaces (Command Deck, Growth, Morning Prep, Journal, ...) */}
+        <div className="flex items-center gap-2 shrink-0">
           <WMLogo size={26} />
+          <div className="hidden md:block">
+            <WmWordmark size="compact" />
+          </div>
         </div>
 
         {/* Ticker tape */}
