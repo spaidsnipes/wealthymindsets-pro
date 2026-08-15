@@ -93,6 +93,18 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData>(EMPTY_PROFILE);
   const [editProfile, setEditProfile] = useState<ProfileData>(EMPTY_PROFILE);
 
+  // Growth-tab hook sources — MUST be called unconditionally at the top of the
+  // component. Previously invoked 4× inside JSX under `tab === "growth"`, which
+  // called different numbers of hooks depending on the active tab and blew up
+  // /profile with React #310 the moment the trader tapped Growth. Hoist once,
+  // memoize the merged snapshots, then use the derived array in every panel.
+  const _growthDecisionMemory = useDecisionMemory(user?.id ?? null);
+  const _growthJournalSnapshots = useJournalSnapshots(user?.id ?? null);
+  const growthDecisions = React.useMemo(
+    () => mergeSnapshots(_growthDecisionMemory, _growthJournalSnapshots),
+    [_growthDecisionMemory, _growthJournalSnapshots],
+  );
+
   // Seed profile from the auth user (the ACCOUNT) so it follows the user across
   // devices/logins — not just this browser's localStorage. Only non-empty
   // account values overwrite, so a fresh unsaved local edit is never clobbered
@@ -664,10 +676,7 @@ export default function ProfilePage() {
               <PersonalEdgePanel
                 vm={selectPersonalEdge({
                   ownerId: user?.id ?? "",
-                  decisions: mergeSnapshots(
-                    useDecisionMemory(user?.id ?? null),
-                    useJournalSnapshots(user?.id ?? null),
-                  ),
+                  decisions: growthDecisions,
                   nowMs: Date.now(),
                 })}
               />
@@ -676,10 +685,7 @@ export default function ProfilePage() {
               <PlaybookDNAPanel
                 vm={selectPlaybookDNA({
                   ownerId: user?.id ?? "",
-                  decisions: mergeSnapshots(
-                    useDecisionMemory(user?.id ?? null),
-                    useJournalSnapshots(user?.id ?? null),
-                  ),
+                  decisions: growthDecisions,
                   nowMs: Date.now(),
                 })}
               />
@@ -688,10 +694,7 @@ export default function ProfilePage() {
               <SessionEdgePanel
                 vm={selectSessionEdge({
                   ownerId: user?.id ?? "",
-                  decisions: mergeSnapshots(
-                    useDecisionMemory(user?.id ?? null),
-                    useJournalSnapshots(user?.id ?? null),
-                  ),
+                  decisions: growthDecisions,
                   nowMs: Date.now(),
                   metric: sessionMetric,
                 })}
@@ -706,10 +709,7 @@ export default function ProfilePage() {
                   Store records take precedence when both surfaces reference
                   the same decisionId — dedup by id. */}
               <ProcessLandscape
-                decisions={mergeSnapshots(
-                  useDecisionMemory(user?.id ?? null),
-                  useJournalSnapshots(user?.id ?? null),
-                )}
+                decisions={growthDecisions}
                 ownerId={user?.id ?? ""}
                 onDrilldown={(cell, examples) => {
                   // Founder-loop wiring: when a cell has decisions, take the
