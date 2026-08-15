@@ -24,6 +24,12 @@ import {
   getSessionNectarSnapshot,
   subscribeToSessionNectar,
 } from "@/lib/marketData/sessionNectar";
+import {
+  getSessionSymbolSlot,
+  recordSessionTrade,
+  pushCvdSample,
+  subscribeSessionSymbolStore,
+} from "@/lib/marketData/sessionSymbolStore";
 import { getRuntimeTapeCapability, hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
 import { overlayFrameBudgetMs, shouldDrawOverlay } from "@/lib/chartOverlayGovernor";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -1286,9 +1292,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // symbol since tape collection began. Purely from real tick.trade events.
   // Powers the Live Session chip so Delta/CVD/Big Trades tools show something
   // ALIVE even when historical footprint remains blank per data-feed reality.
-  const sessionTapeStatsRef = useRef<{ delta: number; buyVol: number; sellVol: number; tradeCount: number; bigTradeCount: number }>({
-    delta: 0, buyVol: 0, sellVol: 0, tradeCount: 0, bigTradeCount: 0,
-  });
+  //
+  // Backed by the per-symbol store: switching from BTC → TSLA no longer
+  // destroys the BTC counters. Coming back to BTC restores exactly where we
+  // left off within this tab session.
+  const sessionSlot = getSessionSymbolSlot(symbol, tapeSource ?? "unavailable");
+  const sessionTapeStatsRef = useRef(sessionSlot.stats);
+  sessionTapeStatsRef.current = sessionSlot.stats;
   const [sessionTapeTick, setSessionTapeTick] = useState<number>(0); // render trigger
   // Durable Nectar hydration is independent from live tape delivery. Subscribe
   // explicitly so a restored server checkpoint becomes visible immediately
@@ -1306,7 +1316,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // represents ~6 seconds of live tape. Rendered inline as an SVG polyline
   // inside the chip, so the chip visually breathes as Δ moves. Directive
   // "living intelligence" aesthetic per Founder Mockup 1.
-  const cvdSparkRef = useRef<number[]>([]);
+  const cvdSparkRef = useRef<number[]>(sessionSlot.cvdSpark);
+  cvdSparkRef.current = sessionSlot.cvdSpark;
   // ── Delta accumulator: SEPARATE from Big Trades. Captures EVERY real executed
   // trade (no minLot floor) so net aggressive delta per price zone reflects the
   // full aggressive flow. Real trades only (tick.trade) — never quote/synthetic. ──
@@ -1332,35 +1343,39 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // in this tab for the active symbol/source/timeframe. This is deliberately
   // session-scoped. Persisting only the timestamp would overstate Market Memory
   // because the execution accumulator itself is not yet durably retained.
-  const tapeHorizonRef = useRef<{ sym: string; tapeSrc: string; startedAtSec: number } | null>(null);
+  const tapeHorizonRef = useRef<{ sym: string; tapeSrc: string; startedAtSec: number } | null>(sessionSlot.horizon);
+  tapeHorizonRef.current = sessionSlot.horizon;
 
   // Rebuild timeframe-owned buckets whenever symbol, source, or timeframe
   // changes. The bounded recent-tick buffer is then folded into the new bars by
   // the accumulator effects below.
   useEffect(() => {
+    // Chart-render buckets (footprint & delta price ladders) are timeframe-
+    // owned intermediate caches — safe to rebuild on any of (symbol, source,
+    // timeframe) change. The bounded recent-tick buffer folds back into them.
     tickAccRef.current = new Map();
     processedTicksRef.current = new Set();
     deltaTickAccRef.current = new Map();
     deltaProcessedRef.current = new Set();
-    tapeHorizonRef.current = null;
-    // Session tape stats reset with the symbol — the counter always tracks
-    // what WM has observed for THIS symbol since collection began.
-    sessionTapeStatsRef.current = { delta: 0, buyVol: 0, sellVol: 0, tradeCount: 0, bigTradeCount: 0 };
-    cvdSparkRef.current = [];
-    setSessionTapeTick(0);
+    // Session counters + horizon + sparkline are NOT reset here. They live in
+    // the per-symbol store so switching from BTC → TSLA no longer destroys
+    // the running BTC observation window; returning to BTC restores exactly
+    // where we left off within this tab session.
+    const slot = getSessionSymbolSlot(symbol, tapeSource ?? "unavailable");
+    sessionTapeStatsRef.current = slot.stats;
+    cvdSparkRef.current = slot.cvdSpark;
+    tapeHorizonRef.current = slot.horizon;
+    setSessionTapeTick(t => t + 1);
   }, [symbol, tapeSource, timeframe]);
+
+  // Re-render the chip when ANY symbol's slot updates so the header stays
+  // truthful during rapid symbol switches / multi-symbol future panels.
+  useEffect(() => subscribeSessionSymbolStore(() => {
+    setSessionTapeTick(t => t + 1);
+  }), []);
 
   useEffect(() => {
     if (!recentTicks?.length || !hasRealAggressorTape(tapeSource ?? "")) return;
-    // Stamp the horizon from the first real execution retained in the current
-    // tab buffer. Subsequent trades leave the exact timestamp unchanged.
-    if (!tapeHorizonRef.current && tapeSource) {
-      const firstTradeTick = recentTicks.find(t => t.trade && Number.isFinite(t.time));
-      if (firstTradeTick) {
-        const startedAtSec = Math.floor(firstTradeTick.time / 1000);
-        tapeHorizonRef.current = { sym: symbol, tapeSrc: tapeSource, startedAtSec };
-      }
-    }
     const intervalSec = getIntervalSec(timeframe);
     const minTick = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
     const dp      = base > 100 ? 2 : 4;
@@ -1385,12 +1400,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         bid: existing.bid + (tick.side === "sell" ? tick.size : 0),
         ask: existing.ask + (tick.side === "buy"  ? tick.size : 0),
       });
-      // WM Session Tape Stats — cumulative counters over the collection window.
-      const stats = sessionTapeStatsRef.current;
-      if (tick.side === "buy")  { stats.buyVol  += tick.size; stats.delta += tick.size; }
-      if (tick.side === "sell") { stats.sellVol += tick.size; stats.delta -= tick.size; }
-      stats.tradeCount += 1;
-      if (tick.size >= minBigTradeLot(base)) stats.bigTradeCount += 1;
+      // WM Session Tape Stats — cumulative counters routed through the
+      // per-symbol store so switching symbols preserves each symbol's window.
+      recordSessionTrade(
+        symbol,
+        tapeSource ?? "unavailable",
+        { side: tick.side ?? null, size: tick.size, time: tick.time },
+        tick.size >= minBigTradeLot(base),
+      );
+      tapeHorizonRef.current = sessionSlot.horizon; // hydrate ref after first horizon stamp
     });
     if (tickAccRef.current.size > 400) {
       const oldest = [...tickAccRef.current.keys()].sort((a, b) => a - b)[0];
@@ -1401,14 +1419,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     const now = Date.now();
     if (now - sessionTapeFlushRef.current > 250) {
       sessionTapeFlushRef.current = now;
-      // Push a rolling sparkline sample of cumulative delta. Ring buffer
-      // capped at 24 points (~6 seconds at 4Hz flush).
-      const spark = cvdSparkRef.current;
-      spark.push(sessionTapeStatsRef.current.delta);
-      if (spark.length > 24) spark.shift();
+      // Push a rolling sparkline sample of cumulative delta through the
+      // per-symbol store (24-point ring, ~6s at 4Hz). Store emits so any
+      // subscriber (chip, future multi-symbol panels) re-renders.
+      pushCvdSample(symbol, tapeSource ?? "unavailable");
       setSessionTapeTick(t => t + 1);
     }
-  }, [recentTicks, timeframe, base, tapeSource]);
+  }, [recentTicks, timeframe, base, tapeSource, symbol, sessionSlot]);
 
   // ── Delta accumulator population: EVERY real executed trade (tick.trade),
   //    NO minLot floor → full aggressive flow so net-delta-per-zone reflects
