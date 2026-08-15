@@ -8,6 +8,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { FabioInsights } from "@/components/fabio/FabioInsights";
+import WmWordmark from "@/components/brand/WmWordmark";
+import RealmGateway from "@/components/brand/RealmGateway";
 import OpeningBellPanel from "@/components/opening-bell/OpeningBellPanel";
 import {
   selectOpeningBell,
@@ -196,15 +198,18 @@ export default function MorningPrepPage() {
       {/* ── Header ── */}
       <div className="border-b" style={{ borderColor: "#1E2030", background: "linear-gradient(180deg,#0D1117,#070A0F)" }}>
         <div className="max-w-3xl mx-auto px-6 py-7">
+          <div style={{ marginBottom: 10 }}>
+            <WmWordmark size="compact" subtitle="OPENING BELL PROTOCOL" />
+          </div>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
               style={{ background: "linear-gradient(135deg,#F0B429,#F97316)" }}>
               <Sun size={22} className="text-black" />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-white tracking-tight">Morning Prep</h1>
-              <p className="text-sm text-wm-text-muted" style={{ color: "#8B8FA8" }}>
-                A gentle record of how you are growing—without broken streaks or shame.
+              <h1 className="text-2xl font-black text-white tracking-tight" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 400 }}>Morning Prep</h1>
+              <p className="text-sm text-wm-text-muted" style={{ color: "#8B8FA8", fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic" }}>
+                Prepare · Align · Act. A gentle record of how you are growing.
               </p>
             </div>
           </div>
@@ -334,6 +339,12 @@ export default function MorningPrepPage() {
             );
           })
         )}
+      </div>
+
+      {/* Realm Gateway — same 5-tile band as /command-deck, keeps
+          cross-realm navigation available from the morning prep surface. */}
+      <div className="max-w-3xl mx-auto px-6 pb-8">
+        <RealmGateway currentKey="wm-pro" />
       </div>
 
       <AnimatePresence>
