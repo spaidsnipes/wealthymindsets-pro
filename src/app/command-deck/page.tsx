@@ -30,6 +30,7 @@ import WmWordmark from "@/components/brand/WmWordmark";
 import SectionBanner from "@/components/brand/SectionBanner";
 import CinematicAtmosphere from "@/components/brand/CinematicAtmosphere";
 import RealmGateway from "@/components/brand/RealmGateway";
+import DoctrineTagline from "@/components/brand/DoctrineTagline";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -288,6 +289,9 @@ export default function CommandDeckPage() {
             >
               <HeroTruth symbol={symbol} timeframe={timeframe} state={state} />
             </button>
+
+            {/* Daily-stable doctrine tagline — one aphorism per trader per day. */}
+            <DoctrineTagline seed={`${user?.id ?? "guest"}-${new Date().toISOString().slice(0, 10)}`} />
 
             {/* Phase selector — the trader's current decision phase */}
             <div

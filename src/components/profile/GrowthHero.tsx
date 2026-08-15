@@ -3,6 +3,7 @@ import * as React from "react";
 import { WM } from "@/lib/design/wmTokens";
 import type { PersonalEdgeVM } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
+import DoctrineTagline from "@/components/brand/DoctrineTagline";
 
 /**
  * GrowthHero — the /profile Growth-tab dominant surface.
@@ -22,6 +23,7 @@ export interface GrowthHeroProps {
   handle: string | null;
   passportIdentityBadge?: string;
   personalEdge: PersonalEdgeVM;
+  ownerSeed?: string;
   className?: string;
 }
 
@@ -30,6 +32,7 @@ export function GrowthHero({
   handle,
   passportIdentityBadge,
   personalEdge,
+  ownerSeed,
   className,
 }: GrowthHeroProps) {
   const resolutionColor =
@@ -157,6 +160,12 @@ export function GrowthHero({
           {personalEdge.headline}
         </span>
       </div>
+
+      {ownerSeed && (
+        <div style={{ marginTop: WM.space.md, paddingTop: WM.space.sm, borderTop: `1px solid ${WM.border.hair}` }}>
+          <DoctrineTagline seed={ownerSeed} />
+        </div>
+      )}
     </section>
   );
 }

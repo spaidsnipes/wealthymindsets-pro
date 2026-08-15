@@ -608,6 +608,7 @@ export default function ProfilePage() {
                 displayName={profile.name || null}
                 handle={profile.handle || null}
                 passportIdentityBadge="Passport identity (WOW-shared)"
+                ownerSeed={`${user?.id ?? "guest"}-${new Date().toISOString().slice(0, 10)}`}
                 personalEdge={selectPersonalEdge({
                   ownerId: user?.id ?? "",
                   decisions: mergeSnapshots(
