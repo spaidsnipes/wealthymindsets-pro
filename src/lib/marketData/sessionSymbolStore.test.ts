@@ -64,6 +64,71 @@ describe("sessionSymbolStore — per-symbol persistence across switches", () => 
   // vitest cannot hit `window.localStorage` here without a full jsdom setup,
   // so we omit the direct storage-poisoning assertion at this layer.
 
+  it("§15 stress: BTC → TSLA → ETH → BTC preserves each symbol independently", () => {
+    // Round 1: BTC
+    recordSessionTrade("BTC-USD", "coinbase", { side: "buy",  size: 1.0, time: 1_700_000_000_000 }, true);
+    recordSessionTrade("BTC-USD", "coinbase", { side: "sell", size: 0.5, time: 1_700_000_001_000 }, false);
+    // Round 2: TSLA
+    recordSessionTrade("TSLA", "alpaca", { side: "buy", size: 100, time: 1_700_000_010_000 }, false);
+    // Round 3: ETH
+    recordSessionTrade("ETH-USD", "coinbase", { side: "sell", size: 3.2, time: 1_700_000_020_000 }, false);
+    // Round 4: back to BTC — add more
+    recordSessionTrade("BTC-USD", "coinbase", { side: "buy", size: 0.2, time: 1_700_000_030_000 }, false);
+
+    const btc = getSessionSymbolSlot("BTC-USD", "coinbase");
+    const tsla = getSessionSymbolSlot("TSLA", "alpaca");
+    const eth = getSessionSymbolSlot("ETH-USD", "coinbase");
+
+    // BTC merges rounds 1 and 4; no leakage from TSLA or ETH.
+    expect(btc.stats.buyVol).toBeCloseTo(1.2);
+    expect(btc.stats.sellVol).toBeCloseTo(0.5);
+    expect(btc.stats.tradeCount).toBe(3);
+    expect(btc.stats.bigTradeCount).toBe(1);
+    expect(btc.horizon?.startedAtSec).toBe(1_700_000_000);
+
+    // TSLA is untouched by BTC / ETH activity.
+    expect(tsla.stats.buyVol).toBeCloseTo(100);
+    expect(tsla.stats.tradeCount).toBe(1);
+    expect(tsla.horizon?.sym).toBe("TSLA");
+
+    // ETH sell was routed correctly.
+    expect(eth.stats.sellVol).toBeCloseTo(3.2);
+    expect(eth.stats.tradeCount).toBe(1);
+    expect(eth.stats.delta).toBeCloseTo(-3.2);
+  });
+
+  it("§15 stress: rapid interleave (BTC→TSLA→BTC→ETH→TSLA) has no cross-contamination", () => {
+    const trades = [
+      { sym: "BTC-USD", src: "coinbase", side: "buy"  as const, size: 0.1 },
+      { sym: "TSLA",    src: "alpaca",   side: "buy"  as const, size: 5 },
+      { sym: "BTC-USD", src: "coinbase", side: "sell" as const, size: 0.05 },
+      { sym: "ETH-USD", src: "coinbase", side: "buy"  as const, size: 2 },
+      { sym: "TSLA",    src: "alpaca",   side: "sell" as const, size: 3 },
+      { sym: "BTC-USD", src: "coinbase", side: "buy"  as const, size: 0.3 },
+      { sym: "ETH-USD", src: "coinbase", side: "sell" as const, size: 1 },
+    ];
+    trades.forEach((t, i) => recordSessionTrade(t.sym, t.src, { side: t.side, size: t.size, time: 1_700_000_000_000 + i * 10 }, false));
+
+    const btc = getSessionSymbolSlot("BTC-USD", "coinbase").stats;
+    const tsla = getSessionSymbolSlot("TSLA", "alpaca").stats;
+    const eth = getSessionSymbolSlot("ETH-USD", "coinbase").stats;
+
+    expect(btc.tradeCount).toBe(3);
+    expect(btc.buyVol).toBeCloseTo(0.4);
+    expect(btc.sellVol).toBeCloseTo(0.05);
+    expect(btc.delta).toBeCloseTo(0.35);
+
+    expect(tsla.tradeCount).toBe(2);
+    expect(tsla.buyVol).toBeCloseTo(5);
+    expect(tsla.sellVol).toBeCloseTo(3);
+    expect(tsla.delta).toBeCloseTo(2);
+
+    expect(eth.tradeCount).toBe(2);
+    expect(eth.buyVol).toBeCloseTo(2);
+    expect(eth.sellVol).toBeCloseTo(1);
+    expect(eth.delta).toBeCloseTo(1);
+  });
+
   it("enumerates known symbols for future multi-symbol panels", () => {
     recordSessionTrade("BTC-USD", "coinbase", { side: "buy", size: 1, time: 1_700_000_000_000 }, false);
     recordSessionTrade("TSLA",    "alpaca",   { side: "buy", size: 1, time: 1_700_000_000_000 }, false);
