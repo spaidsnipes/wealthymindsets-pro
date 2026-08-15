@@ -264,13 +264,26 @@ export default function CommandDeckPage() {
         </div>
       </header>
 
-      <main style={{ maxWidth: 1280, margin: "0 auto", padding: 24, position: "relative" }}>
+      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 16px", position: "relative" }}>
         {/* Cinematic light rays — subtle, non-interactive, sits behind
             all content per Founder mockup atmosphere. */}
         <CinematicAtmosphere intensity="subtle" />
         <div style={{ position: "relative", zIndex: 1 }}>
-        {/* Two-column layout when evidence panel is open, single column otherwise */}
+          {/* Responsive shim — mobile viewport should never see the
+              two-column layout that would force a 380px WHY panel next
+              to a squeezed main column. Use CSS media query via style
+              tag so we don't require a global stylesheet touch. */}
+          <style>{`
+            @media (max-width: 900px) {
+              .wm-cd-layout { grid-template-columns: minmax(0, 1fr) !important; }
+              .wm-cd-why-column { position: static !important; }
+            }
+          `}</style>
+        {/* Two-column layout when evidence panel is open, single column otherwise.
+            Below 900px viewport the second column stacks under the first
+            (see <style> above). */}
         <div
+          className="wm-cd-layout"
           style={{
             display: "grid",
             gridTemplateColumns: showEvidence && whyTarget ? "minmax(0, 1fr) 380px" : "minmax(0, 1fr)",
@@ -493,7 +506,7 @@ export default function CommandDeckPage() {
 
           {/* Evidence column — appears when user has opened a Why? drill */}
           {showEvidence && whyTarget && (
-            <aside style={{ position: "sticky", top: 80, alignSelf: "start" }}>
+            <aside className="wm-cd-why-column" style={{ position: "sticky", top: 80, alignSelf: "start" }}>
               <WhyInspector
                 target={whyTarget}
                 state={state}
