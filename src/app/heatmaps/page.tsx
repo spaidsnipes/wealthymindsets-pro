@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { HEATMAP_TF_ORDER } from "@/lib/timeframes";
 import { QualityBadge } from "@/components/ui/DataHealth";
+import WmWordmark from "@/components/brand/WmWordmark";
 
 /* ═══════════════════════════════════════════════════════════
    DATA MODEL
@@ -785,6 +786,32 @@ export default function HeatmapsPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#070A0F", overflow: "hidden" }}>
+
+      {/* ── WM brand strip — same visual DNA as /command-deck, /charts,
+             /profile Growth, /morning-prep, /journal. Slim so heatmap
+             gets max real estate. */}
+      <div style={{
+        height: 28,
+        borderBottom: "1px solid rgba(139,106,41,0.25)",
+        background: "linear-gradient(180deg, rgba(11,11,13,0.9), #0A0E14)",
+        display: "flex",
+        alignItems: "center",
+        paddingLeft: 14,
+        paddingRight: 14,
+        gap: 12,
+        flexShrink: 0,
+      }}>
+        <WmWordmark size="compact" />
+        <span style={{
+          fontFamily: "Georgia, 'Times New Roman', serif",
+          fontSize: 10,
+          letterSpacing: 0.32,
+          color: "#8a8271",
+          fontStyle: "italic",
+        }}>
+          the market map
+        </span>
+      </div>
 
       {/* ── Top control bar ──
            minHeight 52 accommodates 44px hit-target buttons (Founder Cycle 12 §D). */}
