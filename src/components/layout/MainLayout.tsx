@@ -13,6 +13,7 @@ import {
   Tv, Handshake, Crosshair,
 } from "lucide-react";
 import { WMLogo } from "@/components/ui/WMLogo";
+import WmWordmark from "@/components/brand/WmWordmark";
 import { TickerTape } from "@/components/layout/TickerTape";
 import { SpadeBotButton } from "@/components/layout/SpaidBotButton";
 import { MusicPlayer } from "@/components/layout/MusicPlayer";
