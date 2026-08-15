@@ -65,6 +65,26 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
       }}
     >
       <span style={{ color: "#F0B429", fontWeight: 850, letterSpacing: "0.06em" }}>VAULT</span>
+      {/* Persistence-tier badge — truth about WHERE this data lives, per
+          Founder §14. Summary-tier only today; server/durable-history not
+          yet implemented for these per-symbol stats. Never claims more. */}
+      <span
+        style={{
+          color: "#8B92AC", fontSize: 8.5, fontWeight: 700, letterSpacing: "0.08em",
+          padding: "1px 6px", borderRadius: 999,
+          background: "rgba(139,146,172,0.08)",
+          border: "1px solid rgba(139,146,172,0.18)",
+        }}
+        title={
+          "Persistence tier for this per-symbol data:\n" +
+          "• Session (in-memory): always active\n" +
+          "• Browser summary (localStorage): active — survives refresh & symbol switch\n" +
+          "• Durable server history: NOT YET IMPLEMENTED for these per-symbol stats\n" +
+          "• Raw executed prints: NOT retained (provider rights UNKNOWN)"
+        }
+      >
+        LOCAL SUMMARY
+      </span>
       <span style={{ color: "rgba(139,146,172,0.55)" }}>·</span>
       {symbols.slice(0, 6).map(({ symbol, slot }) => {
         const isActive = symbol === activeSymbol;
