@@ -6986,18 +6986,24 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           <div
             role="status"
             aria-live="polite"
+            title="This feed supplies OHLCV bars only, not executed bid/ask trades. No synthetic footprint is shown — WM will not fabricate order flow."
             style={{
-              position: "absolute", top: 42, left: "50%", transform: "translateX(-50%)",
-              zIndex: 58, maxWidth: 520, padding: "7px 12px", borderRadius: 7,
-              pointerEvents: "none", textAlign: "center",
-              background: "rgba(11,14,26,0.92)", backdropFilter: "blur(5px)",
-              border: "1px solid rgba(240,180,41,0.55)",
-              color: "#D8DCEA", fontSize: 11, fontWeight: 650,
-              boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+              position: "absolute", top: 14, left: 14,
+              zIndex: 58, padding: "4px 9px", borderRadius: 999,
+              pointerEvents: "auto",
+              background: "linear-gradient(180deg, rgba(11,14,26,0.94) 0%, rgba(11,14,26,0.86) 100%)",
+              backdropFilter: "blur(6px)",
+              border: "1px solid rgba(240,180,41,0.35)",
+              color: "#D8DCEA", fontSize: 10, fontWeight: 700,
+              letterSpacing: "0.03em",
+              boxShadow: "0 2px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(240,180,41,0.06)",
+              display: "inline-flex", gap: 6, alignItems: "center",
             }}
           >
-            <span style={{ color: "#F0B429", fontWeight: 850 }}>Real order-flow tape unavailable.</span>
-            {" "}This feed supplies OHLCV bars, not executed bid/ask trades. No synthetic footprint is shown.
+            <span style={{ color: "#F0B429", fontWeight: 850 }}>●</span>
+            <span style={{ color: "#F0B429", fontWeight: 850 }}>OHLCV ONLY</span>
+            <span style={{ color: "rgba(139,146,172,0.7)" }}>·</span>
+            <span style={{ color: "#8B92AC" }}>no real tape from this feed</span>
           </div>
         )}
 
