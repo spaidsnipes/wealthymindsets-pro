@@ -472,7 +472,7 @@ function VolumeProfileBar({ sym, candles, loading }: { sym: string; candles: VPC
     <div style={{ background: "#0A0E14", border: "1px solid #1A2030", borderRadius: 8, padding: "10px 12px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 11, fontWeight: 900, color: "#E8EDF3" }}>{sym}</span>
-        <span style={{ fontSize: 9, color: "#8B95A5" }}>{currentPrice ? `$${currentPrice.toFixed(2)}` : "No data"}</span>
+        <span style={{ fontSize: 9, color: "#8B95A5" }}>{currentPrice ? `$${currentPrice.toFixed(2)}` : "Price not yet observed"}</span>
         <span style={{ marginLeft: "auto", fontSize: 8, color: "#F0B429", fontWeight: 700 }}>POC</span>
       </div>
 
