@@ -92,12 +92,25 @@ function MorningPrepOpeningBell({ entriesCount, userId }: { entriesCount: number
   return <OpeningBellPanel vm={vm} />;
 }
 
+// Trader-canon prep checklist — founder Aug-16 §OPENING BELL PROTOCOL.
+// The old wellness-only list was general lifestyle; a trading Operating
+// System needs the actual pre-market ritual dimensions. Items map 1:1
+// to the canon list (mental state, economic calendar, key levels,
+// session, risk per trade, max daily loss, market scenario, intention,
+// news/catalysts, execution focus) with light wellness items preserved
+// because they measurably affect trader state.
 const STARTER_CHECKLIST = [
-  "Hydrate + no phone for first 30 min",
-  "Review overnight moves & key levels",
-  "Set 1 primary intention for the day",
-  "Breathwork / meditation (5 min)",
-  "Journal yesterday's lesson",
+  "Mental state honest — logged mood",
+  "Economic calendar reviewed",
+  "Key levels prepared (support / resistance / VWAP / POC)",
+  "Session and hours selected",
+  "Risk per trade set",
+  "Maximum daily loss set",
+  "Market scenario written (best / base / worst)",
+  "Primary intention written",
+  "News / catalysts reviewed",
+  "Execution focus chosen (setup type / entry rules)",
+  "Hydration + focus reset (5 min breathwork)",
 ];
 
 const GROWTH_PRACTICES = {
