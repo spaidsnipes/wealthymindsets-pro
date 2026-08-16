@@ -3,6 +3,7 @@ import * as React from "react";
 import type { CanonicalMarketState, MarketStateDimension } from "@/lib/marketData/canonicalMarketState";
 import type { DLARVM } from "@/lib/marketData/viewModels/selectDLAR";
 import type { CLCVM } from "@/lib/marketData/viewModels/selectCLC";
+import { WM } from "@/lib/design/wmTokens";
 
 /**
  * WhyInspector — the "WHY?" evidence inspector Founder Aug-14 called out.
@@ -106,22 +107,22 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
       aria-label={title}
       className={["wm-why-inspector", className ?? ""].join(" ")}
       style={{
-        border: "1px solid #d4af3760",
+        border: `1px solid ${WM.border.strong}`,
         borderRadius: 12,
-        background: "linear-gradient(180deg, rgba(212,175,55,0.06), rgba(11,11,13,0.95))",
+        background: `linear-gradient(180deg, ${WM.halo.gold}, ${WM.surface.deep})`,
         padding: 18,
-        boxShadow: "0 0 60px -30px #d4af37",
+        boxShadow: `0 0 60px -30px ${WM.gold.hero}`,
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
+          <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: WM.gold.mark, fontWeight: 800 }}>
             Evidence
           </div>
-          <div style={{ fontSize: 16, color: "#ede6d3", fontWeight: 600, marginTop: 4 }}>
+          <div style={{ fontSize: 16, color: WM.text.hero, fontWeight: 600, marginTop: 4 }}>
             {title}
           </div>
-          <div style={{ fontSize: 12, color: "#8a8271", marginTop: 4, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: WM.text.muted, marginTop: 4, lineHeight: 1.5 }}>
             {subtitle}
           </div>
         </div>
@@ -133,7 +134,7 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
             style={{
               background: "transparent",
               border: "none",
-              color: "#55503f",
+              color: WM.text.dim,
               cursor: "pointer",
               fontSize: 20,
               lineHeight: 1,
@@ -164,11 +165,11 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
       {evidence.length > 0 ? (
         <div style={{ marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
-            <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 700 }}>
+            <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.gold.mark, fontWeight: 700 }}>
               Observed evidence ({evidence.length})
             </div>
             {state && (
-              <div style={{ fontSize: 9, color: "#55503f", letterSpacing: 0.3 }}>
+              <div style={{ fontSize: 9, color: WM.text.dim, letterSpacing: 0.3 }}>
                 as of {new Date(state.capturedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
               </div>
             )}
@@ -196,21 +197,21 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
             return (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {groups.map((g) => (
-                  <div key={g.src} style={{ padding: "6px 10px", background: "rgba(19,19,23,0.5)", borderRadius: 4, borderLeft: "2px solid #c9a55c40" }}>
+                  <div key={g.src} style={{ padding: "6px 10px", background: WM.surface.mid, borderRadius: 4, borderLeft: `2px solid ${WM.gold.line}` }}>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 10, color: "#c9a55c", fontWeight: 700, letterSpacing: 0.3 }}>{g.src}</span>
-                      <span style={{ fontSize: 9, color: "#55503f", letterSpacing: 0.3 }}>{g.items.length} obs · latest {fmtAge(now - g.latest)}</span>
+                      <span style={{ fontSize: 10, color: WM.gold.mark, fontWeight: 700, letterSpacing: 0.3 }}>{g.src}</span>
+                      <span style={{ fontSize: 9, color: WM.text.dim, letterSpacing: 0.3 }}>{g.items.length} obs · latest {fmtAge(now - g.latest)}</span>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                       {g.items.slice(0, 4).map((e, i) => (
-                        <div key={`${e.eventId}-${i}`} style={{ fontSize: 11, color: "#c0b8a0", lineHeight: 1.5, display: "flex", gap: 6, alignItems: "baseline" }}>
+                        <div key={`${e.eventId}-${i}`} style={{ fontSize: 11, color: WM.text.body, lineHeight: 1.5, display: "flex", gap: 6, alignItems: "baseline" }}>
                           <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.basis || "evidence"}</span>
-                          <span style={{ fontSize: 9, color: e.fidelity === "direct" ? "#7fbf7f" : e.fidelity === "derived" ? "#c9a55c" : "#8a8271", letterSpacing: 0.2 }}>{e.fidelity}</span>
-                          <span style={{ fontSize: 9, color: "#55503f", minWidth: 60, textAlign: "right" }}>{fmtAge(now - e.observedAt)}</span>
+                          <span style={{ fontSize: 9, color: e.fidelity === "direct" ? WM.state.ok : e.fidelity === "derived" ? WM.gold.mark : WM.text.muted, letterSpacing: 0.2 }}>{e.fidelity}</span>
+                          <span style={{ fontSize: 9, color: WM.text.dim, minWidth: 60, textAlign: "right" }}>{fmtAge(now - e.observedAt)}</span>
                         </div>
                       ))}
                       {g.items.length > 4 && (
-                        <div style={{ fontSize: 9, color: "#55503f", fontStyle: "italic" }}>
+                        <div style={{ fontSize: 9, color: WM.text.dim, fontStyle: "italic" }}>
                           +{g.items.length - 4} more from {g.src}
                         </div>
                       )}
@@ -223,10 +224,10 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
         </div>
       ) : (
         <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: "#8a8271", fontWeight: 700, marginBottom: 6 }}>
+          <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.text.muted, fontWeight: 700, marginBottom: 6 }}>
             No observed evidence
           </div>
-          <div style={{ fontSize: 11, color: "#8a8271", fontStyle: "italic", lineHeight: 1.5, padding: "6px 10px", background: "rgba(19,19,23,0.3)", borderRadius: 4 }}>
+          <div style={{ fontSize: 11, color: WM.text.muted, fontStyle: "italic", lineHeight: 1.5, padding: "6px 10px", background: "rgba(19,19,23,0.3)", borderRadius: 4 }}>
             {state && state.coverage.length === 0
               ? "No coverage channels have been established yet for this symbol. WM has not yet observed data."
               : state && state.coverage.length > 0
@@ -238,11 +239,11 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
 
       {contradictions.length > 0 && (
         <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: "#c05a4a", fontWeight: 700, marginBottom: 6 }}>
+          <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.state.warn, fontWeight: 700, marginBottom: 6 }}>
             Contradictions ({contradictions.length})
           </div>
           {contradictions.slice(0, 5).map((c, i) => (
-            <div key={i} style={{ fontSize: 11, color: "#c0b8a0", lineHeight: 1.5, padding: "4px 10px", borderLeft: "2px solid #c05a4a30" }}>
+            <div key={i} style={{ fontSize: 11, color: WM.text.body, lineHeight: 1.5, padding: "4px 10px", borderLeft: `2px solid ${WM.state.warn}55` }}>
               {c}
             </div>
           ))}
@@ -251,11 +252,11 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
 
       {unknowns.length > 0 && (
         <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 700, marginBottom: 6 }}>
+          <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.gold.mark, fontWeight: 700, marginBottom: 6 }}>
             Unknowns ({unknowns.length}) — why unknown
           </div>
           {unknowns.slice(0, 5).map((u, i) => (
-            <div key={i} style={{ fontSize: 11, color: "#c0b8a0", lineHeight: 1.5, padding: "4px 10px", borderLeft: "2px solid #c9a55c30" }}>
+            <div key={i} style={{ fontSize: 11, color: WM.text.body, lineHeight: 1.5, padding: "4px 10px", borderLeft: `2px solid ${WM.gold.line}` }}>
               {u}
             </div>
           ))}
@@ -267,8 +268,8 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
           seeing an unresolved dimension deserves to know which channels are
           silent, stale, or gapped. */}
       {state && state.coverage.length > 0 && (unknowns.length > 0 || evidence.length === 0) && (
-        <div style={{ paddingTop: 10, borderTop: "1px solid rgba(139,106,41,0.15)" }}>
-          <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: "#8a8271", fontWeight: 700, marginBottom: 6 }}>
+        <div style={{ paddingTop: 10, borderTop: `1px solid ${WM.border.hair}` }}>
+          <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.text.muted, fontWeight: 700, marginBottom: 6 }}>
             Coverage
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -278,18 +279,18 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
               const silent = c.observedEventCount === 0;
               const gapped = (c.gapCount ?? 0) > 0;
               return (
-                <div key={`${c.channel}-${c.providerPath}`} style={{ fontSize: 10, color: "#c0b8a0", lineHeight: 1.5, display: "flex", gap: 6, alignItems: "baseline" }}>
-                  <span style={{ color: silent ? "#8a8271" : "#c9a55c", minWidth: 90 }}>{c.channel}</span>
-                  <span style={{ flex: 1, color: "#8a8271", fontSize: 9 }}>
+                <div key={`${c.channel}-${c.providerPath}`} style={{ fontSize: 10, color: WM.text.body, lineHeight: 1.5, display: "flex", gap: 6, alignItems: "baseline" }}>
+                  <span style={{ color: silent ? WM.text.muted : WM.gold.mark, minWidth: 90 }}>{c.channel}</span>
+                  <span style={{ flex: 1, color: WM.text.muted, fontSize: 9 }}>
                     {silent ? "silent" : stale ? `stale (${Math.round((ageMs ?? 0) / 1000)}s)` : "live"}
                     {gapped ? ` · ${c.gapCount} gap${c.gapCount === 1 ? "" : "s"}` : ""}
                   </span>
-                  <span style={{ fontSize: 9, color: "#55503f" }}>{c.observedEventCount} obs</span>
+                  <span style={{ fontSize: 9, color: WM.text.dim }}>{c.observedEventCount} obs</span>
                 </div>
               );
             })}
             {state.coverage.length > 6 && (
-              <div style={{ fontSize: 9, color: "#55503f", fontStyle: "italic" }}>
+              <div style={{ fontSize: 9, color: WM.text.dim, fontStyle: "italic" }}>
                 +{state.coverage.length - 6} more channels
               </div>
             )}
@@ -302,11 +303,11 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ padding: "6px 10px", borderRadius: 4, background: "rgba(19,19,23,0.5)" }}>
-      <div style={{ fontSize: 8, letterSpacing: 0.4, textTransform: "uppercase", color: "#55503f", fontWeight: 700 }}>
+    <div style={{ padding: "6px 10px", borderRadius: 4, background: WM.surface.mid }}>
+      <div style={{ fontSize: 8, letterSpacing: 0.4, textTransform: "uppercase", color: WM.text.dim, fontWeight: 700 }}>
         {label}
       </div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: "#ede6d3", marginTop: 2 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: WM.text.hero, marginTop: 2 }}>
         {value}
       </div>
     </div>
