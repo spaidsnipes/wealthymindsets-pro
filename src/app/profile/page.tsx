@@ -13,6 +13,7 @@ import PersonalEdgePanel from "@/components/profile/PersonalEdgePanel";
 import PlaybookDNAPanel from "@/components/profile/PlaybookDNAPanel";
 import SessionEdgePanel from "@/components/profile/SessionEdgePanel";
 import GrowthHero from "@/components/profile/GrowthHero";
+import ScoreExplainer from "@/components/profile/ScoreExplainer";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import { selectPlaybookDNA } from "@/lib/traderMemory/viewModels/selectPlaybookDNA";
 import { selectSessionEdge, type SessionEdgeMetric } from "@/lib/traderMemory/viewModels/selectSessionEdge";
@@ -604,20 +605,35 @@ export default function ProfilePage() {
               {/* Growth Hero — visually cohesive with Command Deck's HeroTruth.
                   Founder Aug-14 'visible transformation on one supporting workflow'
                   acceptance criterion. */}
-              <GrowthHero
-                displayName={profile.name || null}
-                handle={profile.handle || null}
-                passportIdentityBadge="Passport identity (WOW-shared)"
-                ownerSeed={`${user?.id ?? "guest"}-${new Date().toISOString().slice(0, 10)}`}
-                personalEdge={selectPersonalEdge({
+              {(() => {
+                // Compute the Personal Edge VM once so hero + explainer
+                // + downstream panels see identical evidence. Memoised
+                // by decisions identity (stable via useDecisionMemory +
+                // useJournalSnapshots caching).
+                const vm = selectPersonalEdge({
                   ownerId: user?.id ?? "",
                   decisions: mergeSnapshots(
                     useDecisionMemory(user?.id ?? null),
                     useJournalSnapshots(user?.id ?? null),
                   ),
                   nowMs: Date.now(),
-                })}
-              />
+                });
+                return (
+                  <>
+                    <GrowthHero
+                      displayName={profile.name || null}
+                      handle={profile.handle || null}
+                      passportIdentityBadge="Passport identity (WOW-shared)"
+                      ownerSeed={`${user?.id ?? "guest"}-${new Date().toISOString().slice(0, 10)}`}
+                      personalEdge={vm}
+                    />
+                    {/* Score explainer — makes RingScore inspectable per
+                        Founder Aug-14 §13 (why this score? what changed
+                        it? what sample supports it?). Zero fabrication. */}
+                    <ScoreExplainer vm={vm} />
+                  </>
+                );
+              })()}
 
               {/* Permission verdict chip — shows how the trader's own rules
                   are currently evaluating without gating any action.
