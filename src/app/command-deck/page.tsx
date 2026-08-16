@@ -343,25 +343,76 @@ export default function CommandDeckPage() {
             {/* Personal Edge chip — one-line 'where do I perform' summary. */}
             {sessionDecisions.length > 0 && <PersonalEdgeChip vm={personalEdgeVm} />}
 
-            {/* When no state, single unified empty */}
+            {/* When no state, show the deck structure as an INDEX so the
+                trader sees what will appear once the chart publisher
+                seeds the canonical store. Every row lists a section that
+                will populate. Never fabricated — each row explicitly
+                says 'waiting'. */}
             {!state && (
               <div
                 role="status"
+                aria-label="Command Deck sections waiting for canonical market state"
                 style={{
-                  padding: 32,
-                  textAlign: "center",
                   border: "1px dashed rgba(139,106,41,0.35)",
                   borderRadius: 10,
-                  color: "#8a8271",
-                  fontSize: 13,
-                  lineHeight: 1.6,
+                  padding: 20,
+                  background: "rgba(11,11,13,0.5)",
                 }}
               >
-                <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", marginBottom: 8 }}>
-                  No canonical snapshot yet
+                <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 14 }}>
+                  <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 13, letterSpacing: 0.32, color: "#c9a55c", textTransform: "uppercase" }}>
+                    Waiting for canonical state
+                  </span>
+                  <span style={{ fontSize: 11, color: "#8a8271", fontStyle: "italic", marginLeft: "auto" }}>
+                    open /charts for {symbol} to seed the store
+                  </span>
                 </div>
-                Open <span style={{ color: "#c9a55c" }}>/charts</span> for{" "}
-                <span style={{ color: "#ede6d3" }}>{symbol}</span> to seed the store, then return.
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {[
+                    { n: 1, label: "Story Ribbon · Market Narrative" },
+                    { n: 2, label: "Direction · Location · Aggression · Response" },
+                    { n: 3, label: "Decision Chain (Regime → Management)" },
+                    { n: 4, label: "Steward Rules Verdict" },
+                    { n: 5, label: "Data Fidelity · Nectar Memory" },
+                  ].map((row) => (
+                    <div
+                      key={row.n}
+                      style={{
+                        display: "flex",
+                        alignItems: "baseline",
+                        gap: 12,
+                        padding: "8px 12px",
+                        borderLeft: "2px solid rgba(139,106,41,0.25)",
+                        fontSize: 11,
+                        color: "#8a8271",
+                      }}
+                    >
+                      <span style={{ fontFamily: "Georgia, serif", fontSize: 14, color: "#c9a55c", minWidth: 18 }}>{row.n}</span>
+                      <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 12, color: "#c0b8a0", letterSpacing: 0.2 }}>{row.label}</span>
+                      <span style={{ marginLeft: "auto", fontSize: 9, color: "#55503f", letterSpacing: 0.4, textTransform: "uppercase" }}>waiting</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 16, textAlign: "center" }}>
+                  <a
+                    href="/charts"
+                    style={{
+                      display: "inline-block",
+                      padding: "10px 18px",
+                      borderRadius: 6,
+                      background: "rgba(212,175,55,0.12)",
+                      border: "1px solid #d4af37",
+                      color: "#d4af37",
+                      fontFamily: "Georgia, 'Times New Roman', serif",
+                      fontSize: 12,
+                      letterSpacing: 0.32,
+                      textTransform: "uppercase",
+                      textDecoration: "none",
+                    }}
+                  >
+                    Open Charts →
+                  </a>
+                </div>
               </div>
             )}
 
