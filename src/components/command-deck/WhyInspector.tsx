@@ -103,7 +103,7 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
 
   return (
     <section
-      role="dialog"
+      role="region"
       aria-label={title}
       className={["wm-why-inspector", className ?? ""].join(" ")}
       style={{
@@ -112,6 +112,12 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
         background: `linear-gradient(180deg, ${WM.halo.gold}, ${WM.surface.deep})`,
         padding: 18,
         boxShadow: `0 0 60px -30px ${WM.gold.hero}`,
+        // Ensure the inspector never overflows its parent grid cell at
+        // narrow widths (stacked layout at ≤900px per the deck's media
+        // query). minWidth: 0 lets the inner flex/grid rows shrink.
+        maxWidth: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
@@ -136,11 +142,14 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
               border: "none",
               color: WM.text.dim,
               cursor: "pointer",
-              fontSize: 20,
+              fontSize: 22,
               lineHeight: 1,
-              padding: 4,
-              minWidth: 32,
-              minHeight: 32,
+              padding: 8,
+              // WCAG 2.1 AA SC 2.5.5 target-size — minimum 44×44 for
+              // touch. The inspector renders on mobile in the stacked
+              // column at ≤900px; a 32px hit area was too small.
+              minWidth: 44,
+              minHeight: 44,
             }}
           >
             ×
