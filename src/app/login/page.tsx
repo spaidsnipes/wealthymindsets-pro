@@ -303,7 +303,7 @@ function LoginPage() {
               transition={{ duration: 0.15 }}>
 
               <h2 className="text-[22px] font-black text-white mb-1">
-                {mode === "login" ? "Welcome back" : mode === "signup" ? "Join WealthyMindsets" : "Reset your password"}
+                {mode === "login" ? "Welcome back" : mode === "signup" ? "Open your Operating System" : "Reset your password"}
               </h2>
               <p className="text-[13px] text-[#5A6575] mb-7">
                 {mode === "login"
