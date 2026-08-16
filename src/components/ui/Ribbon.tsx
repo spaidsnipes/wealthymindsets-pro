@@ -28,6 +28,10 @@ export interface RibbonChapter {
   resolution?: MarketStateResolution;
   /** Reason surfaced to a11y when resolution !== RESOLVED. */
   reason?: string;
+  /** Milliseconds since chapter entered — surfaced as "12m in" on active pill. */
+  durationMs?: number;
+  /** Distinct evidence observations attributed to this chapter. */
+  evidenceCount?: number;
 }
 
 export interface RibbonProps {
@@ -113,6 +117,28 @@ export function Ribbon({
               >
                 {c.name}
               </div>
+              {/* Progression depth — duration + evidence count per chapter.
+                  Duration surfaces on the active pill only (irrelevant for
+                  past chapters until we track exitedAt in the ribbon input).
+                  Evidence count surfaces on any chapter that has it, so a
+                  trader can see which chapters carried real observations
+                  vs which were guess-shaped transitions. */}
+              {(active && typeof c.durationMs === "number" && c.durationMs > 0) || (typeof c.evidenceCount === "number" && c.evidenceCount > 0) ? (
+                <div
+                  className="text-[8px] tracking-[0.12em] leading-tight mt-0.5"
+                  style={{ color: "var(--wm-text-3, #55503f)" }}
+                >
+                  {active && typeof c.durationMs === "number" && c.durationMs > 0 && (
+                    <span>{formatChapterDuration(c.durationMs)} in</span>
+                  )}
+                  {active && typeof c.durationMs === "number" && c.durationMs > 0 && typeof c.evidenceCount === "number" && c.evidenceCount > 0 && (
+                    <span> · </span>
+                  )}
+                  {typeof c.evidenceCount === "number" && c.evidenceCount > 0 && (
+                    <span>{c.evidenceCount} obs</span>
+                  )}
+                </div>
+              ) : null}
             </button>
           );
         })}
@@ -134,6 +160,14 @@ export function Ribbon({
       ) : null}
     </div>
   );
+}
+
+function formatChapterDuration(ms: number): string {
+  if (!Number.isFinite(ms) || ms <= 0) return "";
+  if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+  if (ms < 3_600_000) return `${Math.round(ms / 60_000)}m`;
+  if (ms < 86_400_000) return `${(ms / 3_600_000).toFixed(1)}h`;
+  return `${(ms / 86_400_000).toFixed(1)}d`;
 }
 
 export default Ribbon;

@@ -122,13 +122,19 @@ export function StoryRibbon({
       )
     : null;
 
-  const ribbonChapters = chaptersToRender.map((c) => ({
-    id: `${c.chapter}-${c.enteredAt}`,
-    name: combinedNames[c.chapter],
-    glyph: combinedGlyphs[c.chapter],
-    resolution: c.resolution,
-    reason: c.reason,
-  }));
+  const nowMs = state?.capturedAt ?? Date.now();
+  const ribbonChapters = chaptersToRender.map((c) => {
+    const isActive = vm.current && c.chapter === vm.current.chapter && c.enteredAt === vm.current.enteredAt;
+    return {
+      id: `${c.chapter}-${c.enteredAt}`,
+      name: combinedNames[c.chapter],
+      glyph: combinedGlyphs[c.chapter],
+      resolution: c.resolution,
+      reason: c.reason,
+      durationMs: isActive ? Math.max(0, nowMs - c.enteredAt) : undefined,
+      evidenceCount: c.evidence.length,
+    };
+  });
 
   // Narrative — if the current chapter has a reason, use it; otherwise omit.
   // Never fabricate a story sentence when evidence is thin.
