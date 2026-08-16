@@ -67,7 +67,7 @@ function LoginPage() {
     }).then(async response => {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Your email was verified, but the WOW World session could not be created.");
-      window.location.assign("/charts");
+      window.location.assign("/command-deck");
     }).catch(error => {
       setError(error instanceof Error ? error.message : "Your verification could not be completed.");
       setSubmitting(false);
@@ -148,7 +148,7 @@ function LoginPage() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Your code could not be verified.");
-      window.location.assign("/charts");
+      window.location.assign("/command-deck");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Your code could not be verified.");
       setSubmitting(false);
