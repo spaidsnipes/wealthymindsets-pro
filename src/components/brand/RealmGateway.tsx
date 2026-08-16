@@ -27,7 +27,7 @@ interface Realm {
 }
 
 const REALMS: readonly Realm[] = [
-  { key: "wm-pro",       label: "WM PRO",      tagline: "Trade · Track · Transform", href: "/charts",     glyph: "◇", active: true },
+  { key: "wm-pro",       label: "WM PRO",      tagline: "Trade · Track · Transform", href: "/command-deck", glyph: "◇", active: true },
   { key: "dreamboard",   label: "DREAMBOARD",  tagline: "Plan · Create · Manifest",   href: "https://above-the-hill-developments-built-a.vercel.app/", external: true, glyph: "★" },
   { key: "powertribes",  label: "POWERTRIBES", tagline: "Lead · Build · Scale",        glyph: "✦" },
   { key: "marketplace",  label: "MARKETPLACE", tagline: "Shop · Invest · Prosper",     glyph: "◈" },
