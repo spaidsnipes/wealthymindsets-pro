@@ -289,14 +289,14 @@ function featureList(items: { icon: string; title: string; desc: string }[]): st
 ───────────────────────────────────────────────────────────── */
 
 export function buildWelcomeEmail(firstName: string, email: string): { html: string; text: string } {
-  const dashboardUrl = `${APP_URL}/charts`;
+  const dashboardUrl = `${APP_URL}/command-deck`;
 
   const html = emailShell(`
-    ${h2("Welcome to the Elite")}
+    ${h2("Welcome to your Operating System")}
     ${h1(`You're in, ${firstName || "Trader"}.`)}
-    ${p("Your WealthyMindsets Pro account is live. You now have access to the same institutional-grade tools that professional traders use — right in your browser.")}
+    ${p("Your WealthyMindsets Pro account is live. WM Pro is a trading operating system — market intelligence, order flow, decision memory, and longitudinal edge — with honest UNKNOWN, STALE, and INSUFFICIENT states. Never a beautiful lie.")}
 
-    ${btn("Open My Dashboard →", dashboardUrl, C.gold)}
+    ${btn("Open My Command Deck →", dashboardUrl, C.gold)}
 
     ${divider()}
     ${h2("What's waiting for you")}
@@ -323,17 +323,21 @@ export function buildWelcomeEmail(firstName: string, email: string): { html: str
       <a href="${APP_URL}/education" style="color:${C.teal};">Education Hub</a>
       for step-by-step guides.
     `, true)}
-  `, `Welcome to WealthyMindsets Pro — your elite trading dashboard is ready.`);
+  `, `Welcome to WealthyMindsets Pro — your trading operating system is ready.`);
 
   const text = `
 Welcome to WealthyMindsets Pro, ${firstName || "Trader"}!
 
-Your account is live. Open your dashboard here:
+WM Pro is a trading operating system — market intelligence, order
+flow, decision memory, and longitudinal edge — with honest UNKNOWN,
+STALE, and INSUFFICIENT states. Never a beautiful lie.
+
+Open your Command Deck here:
 ${dashboardUrl}
 
 What's included:
 • Advanced charting with Volume Profile & Footprint
-• Real-time Order Flow indicators
+• Real-time Order Flow indicators (where verified aggressor tape exists)
 • Market Heatmaps
 • SpaidBot AI assistant
 • Focus Radio
