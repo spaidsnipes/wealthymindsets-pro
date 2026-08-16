@@ -8,6 +8,8 @@ import {
   useCanonicalMarketState,
   useCanonicalMarketStateHistory,
 } from "@/lib/marketData/useCanonicalMarketState";
+import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import { selectDecisionChain, type TradePhase } from "@/lib/marketData/viewModels/selectDecisionChain";
 import DecisionChainPanel from "@/components/chart/DecisionChainPanel";
 import StructureContextNote from "@/components/chart/StructureContextNote";
@@ -104,14 +106,39 @@ function CommandDeckInner() {
   const [whyTarget, setWhyTarget] = React.useState<WhyTarget | null>(null);
   const [showEvidence, setShowEvidence] = React.useState<boolean>(false);
 
+  // Identity MUST match what chartMarketStatePublisher writes — otherwise
+  // the deck reads an empty store even though the /charts route is
+  // actively populating it. Publisher writes:
+  //   instrumentId: executableIdentityFor(symbol, assetClass)  (== upper symbol for equity)
+  //   session: extHours ? "EXTENDED" : "RTH"
+  //   timeframeContext: [timeframe]
+  // Before this alignment fix, the deck read {instrumentId: "TSLA:NASDAQ",
+  // session: "REGULAR"} while the publisher wrote {instrumentId: "TSLA",
+  // session: "RTH"} — resulting in a permanently empty Nectar rack even
+  // when the user had /charts open in another tab. This closes that gap.
   const identity = React.useMemo(
     () => ({
-      instrumentId: `${symbol}:NASDAQ`,
-      session: "REGULAR",
+      instrumentId: symbol,
+      session: "RTH",
       timeframeContext: [timeframe] as readonly string[],
     }),
     [symbol, timeframe],
   );
+
+  // Subscribe to the WS + publish canonical state for this symbol so a
+  // direct landing on /command-deck (without opening /charts first)
+  // still populates the store. The tape hub dedupes so double-connect
+  // with an open /charts tab is safe.
+  const wsFeed = useWebSocket({ symbol, timeframe });
+  usePublishChartMarketState({
+    symbol,
+    timeframe,
+    session: "RTH",
+    ticker: wsFeed.ticker,
+    recentTicks: wsFeed.recentTicks,
+    source: wsFeed.source,
+    connected: wsFeed.connected,
+  });
 
   const state = useCanonicalMarketState(identity);
   const history = useCanonicalMarketStateHistory(identity, 6);
