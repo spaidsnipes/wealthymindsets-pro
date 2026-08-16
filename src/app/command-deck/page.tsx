@@ -549,6 +549,40 @@ function CommandDeckInner() {
                   <Stat label="Unknowns" value={String(state.unknowns.length)} tone={state.unknowns.length > 0 ? "watch" : "ok"} />
                   <Stat label="Contradictions" value={String(state.contradictions.length)} tone={state.contradictions.length > 0 ? "warn" : "ok"} />
                 </div>
+
+                {/* Nectar memory-age row — how long has WM actually been
+                    watching this instrument, and when was the most recent
+                    observation. Renders '—' when unavailable (never a
+                    fabricated 'live now'). Founder Aug-14 §11 explicit
+                    ask: 'History must remain independently attributable
+                    by user/canonical symbol/timeframe/source/observation
+                    time.' */}
+                {state.coverage.length > 0 && (() => {
+                  const observedFroms = state.coverage.map((c) => c.observedFrom).filter((n): n is number => typeof n === "number");
+                  const lastEvents = state.coverage.map((c) => c.lastEventAt).filter((n): n is number => typeof n === "number");
+                  const totalEvents = state.coverage.reduce((s, c) => s + (c.observedEventCount ?? 0), 0);
+                  const gapTotal = state.coverage.reduce((s, c) => s + (c.gapCount ?? 0), 0);
+                  const memoryStart = observedFroms.length ? Math.min(...observedFroms) : null;
+                  const lastEvent = lastEvents.length ? Math.max(...lastEvents) : null;
+                  const now = state.capturedAt;
+                  const memoryAgeMs = memoryStart ? Math.max(0, now - memoryStart) : null;
+                  const staleAgeMs = lastEvent ? Math.max(0, now - lastEvent) : null;
+                  const fmtAge = (ms: number | null): string => {
+                    if (ms == null) return "—";
+                    if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+                    if (ms < 3_600_000) return `${Math.round(ms / 60_000)}m`;
+                    if (ms < 86_400_000) return `${(ms / 3_600_000).toFixed(1)}h`;
+                    return `${(ms / 86_400_000).toFixed(1)}d`;
+                  };
+                  return (
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(139,106,41,0.2)", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                      <Stat label="Memory age" value={fmtAge(memoryAgeMs)} />
+                      <Stat label="Last event" value={fmtAge(staleAgeMs)} tone={staleAgeMs != null && staleAgeMs > 60_000 ? (staleAgeMs > 300_000 ? "warn" : "watch") : "ok"} />
+                      <Stat label="Observed" value={String(totalEvents)} />
+                      <Stat label="Gaps" value={String(gapTotal)} tone={gapTotal > 0 ? "watch" : "ok"} />
+                    </div>
+                  );
+                })()}
               </div>
               </div>
             )}
