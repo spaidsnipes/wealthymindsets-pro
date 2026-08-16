@@ -262,13 +262,12 @@ function LoginPage() {
         style={{ background: "#070A0F" }}>
         <div className="w-full max-w-[420px]">
 
-          {/* Mobile logo */}
-          <div className="flex items-center gap-2 mb-8 lg:hidden">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, #F0B429, #FF8C00)" }}>
-              <span className="text-black font-black text-sm">W</span>
-            </div>
-            <span className="text-white font-black text-lg">WealthyMindsets PRO</span>
+          {/* Mobile brand — the compact WM wordmark (serif crown identity)
+              matches the desktop-side hero wordmark and the app shell.
+              The previous orange gradient "W" tile + generic sans copy
+              read like a legacy dashboard, not the trading OS identity. */}
+          <div className="mb-8 lg:hidden">
+            <WmWordmark size="compact" subtitle="TRADING OPERATING SYSTEM" />
           </div>
 
           {/* Mode tabs — hidden in forgot mode */}
@@ -308,9 +307,9 @@ function LoginPage() {
               </h2>
               <p className="text-[13px] text-[#5A6575] mb-7">
                 {mode === "login"
-                  ? "Sign in to access your trading dashboard"
+                  ? "Sign in to open your trading operating system."
                   : mode === "signup"
-                  ? "Create your free account and start trading smarter"
+                  ? "Create your account and start trading with real evidence, honest UNKNOWN, and durable memory."
                   : "Enter your email and we'll send you a reset link"}
               </p>
 
