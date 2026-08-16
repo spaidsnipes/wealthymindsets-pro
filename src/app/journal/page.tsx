@@ -534,6 +534,86 @@ const LEGACY_DEMO_TRADES = new Set([
   "3|2025-06-13|ES1!",
 ]);
 
+function ProcessOutcomeStrip({ entries }: { entries: JournalEntry[] }) {
+  const buckets = React.useMemo(() => {
+    const counts = { EARNED_WIN: 0, PROFESSIONAL_LOSS: 0, DANGEROUS_WIN: 0, PREVENTABLE_LOSS: 0, UNRESOLVED: 0 };
+    for (const e of entries) {
+      const key = (e.processOutcome ?? "UNRESOLVED") as keyof typeof counts;
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return counts;
+  }, [entries]);
+
+  const resolved = buckets.EARNED_WIN + buckets.PROFESSIONAL_LOSS + buckets.DANGEROUS_WIN + buckets.PREVENTABLE_LOSS;
+  // Silent when no entry has a resolved process outcome — never lecture
+  // the trader with a fake "0/0/0/0" quadrant.
+  if (resolved === 0) return null;
+
+  const rows = [
+    { key: "EARNED_WIN",       label: "Earned wins",       tone: "#5cb85c", desc: "good process + win" },
+    { key: "PROFESSIONAL_LOSS",label: "Professional losses",tone: "#c9a55c",desc: "good process + loss" },
+    { key: "DANGEROUS_WIN",    label: "Dangerous wins",    tone: "#c05a4a", desc: "bad process + win"  },
+    { key: "PREVENTABLE_LOSS", label: "Preventable losses",tone: "#c05a4a", desc: "bad process + loss" },
+  ] as const;
+
+  return (
+    <div
+      role="region"
+      aria-label="Process-outcome quadrant summary"
+      style={{
+        padding: "10px 16px",
+        borderBottom: "1px solid rgba(139,106,41,0.15)",
+        background: "linear-gradient(90deg, rgba(139,106,41,0.04), rgba(139,106,41,0))",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8 }}>
+        <span style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 700 }}>
+          Process × Outcome
+        </span>
+        <span style={{ fontSize: 10, color: "#8a8271" }}>
+          {resolved} resolved · {buckets.UNRESOLVED} unresolved
+        </span>
+        <span style={{ fontSize: 10, color: "#55503f", fontStyle: "italic", marginLeft: "auto" }}>
+          P&amp;L never grades process
+        </span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
+        {rows.map((r) => {
+          const n = buckets[r.key];
+          const pct = resolved > 0 ? Math.round((n / resolved) * 100) : 0;
+          const dim = n === 0;
+          return (
+            <div
+              key={r.key}
+              title={`${r.label} — ${r.desc}`}
+              style={{
+                padding: "6px 10px",
+                background: "rgba(19,19,23,0.5)",
+                border: `1px solid ${dim ? "rgba(139,106,41,0.15)" : r.tone + "40"}`,
+                borderRadius: 4,
+                opacity: dim ? 0.5 : 1,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 18, color: r.tone, fontVariantNumeric: "tabular-nums" }}>
+                  {n}
+                </span>
+                <span style={{ fontSize: 9, color: "#8a8271" }}>· {pct}%</span>
+              </div>
+              <div style={{ fontSize: 9, letterSpacing: 0.28, textTransform: "uppercase", color: dim ? "#55503f" : "#c0b8a0", marginTop: 2 }}>
+                {r.label}
+              </div>
+              <div style={{ fontSize: 9, color: "#55503f", marginTop: 1, fontStyle: "italic" }}>
+                {r.desc}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function TodayIntentStrip({ userHandle }: { userHandle: string }) {
   const prep = useTodayPrep(userHandle);
   if (!prep.hasEntry) return null;
@@ -1195,6 +1275,16 @@ Trade the system, trust the process, winners every day 🚀`,
           renders nothing (silence-is-a-feature; never a fabricated
           "no plan" scold). Founder Aug-14 §14 explicit ask. */}
       {mainTab === "journal" && <TodayIntentStrip userHandle={authCtx?.user?.id ?? "guest"} />}
+
+      {/* Process-outcome quadrant strip — the founder-canon separation of
+          'GOOD PROCESS + LOSING OUTCOME' from 'BAD PROCESS + WINNING
+          OUTCOME'. classifyProcessOutcome() has produced these four
+          buckets per entry for a while, but the aggregate distribution
+          was never surfaced above the entry list. Now the trader can
+          see the discipline pattern (e.g. '3 DANGEROUS WINS this week
+          — those wins are luck, not edge') at a glance. Silent when
+          no entries have a resolved process outcome (never fabricates). */}
+      {mainTab === "journal" && entries.length > 0 && <ProcessOutcomeStrip entries={entries} />}
 
       {/* Mirror — retrospective behavioral patterns from the journal.
           Renders NOTHING when no patterns detected (silence-is-a-feature).
