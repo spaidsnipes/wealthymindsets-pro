@@ -10,11 +10,14 @@ import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar"
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { Analytics } from "@vercel/analytics/next";
 
-/* ── PWA + SEO metadata ───────────────────────────────────── */
+/* ── PWA + SEO metadata ─────────────────────────────────────
+   Positioning aligned with the current WM Pro canon: WM Pro is a
+   trading operating system — market intelligence, decision memory,
+   process stewardship, longitudinal learning — not a dashboard. */
 export const metadata: Metadata = {
-  title:       "WealthyMindsets Pro — Elite Trading & Creator Platform",
-  description: "Trading dashboard with source-aware charts, volume analysis, journaling, education, paper trading, music, and community tools.",
-  keywords:    ["trading", "order flow", "volume profile", "trade journal", "footprint chart", "paper trading"],
+  title:       "WealthyMindsets Pro — Trading Operating System",
+  description: "A trading operating system for serious traders. Market intelligence, order flow, volume profile, decision memory, and longitudinal edge — with truthful UNKNOWN, MISSING, STALE, and INSUFFICIENT states.",
+  keywords:    ["trading operating system", "order flow", "volume profile", "market intelligence", "decision memory", "trader development", "footprint chart", "trade journal"],
   authors:     [{ name: "WealthyMindsets LLC" }],
   manifest:    "/manifest.json",
   appleWebApp: {
@@ -33,8 +36,8 @@ export const metadata: Metadata = {
     other:   [{ rel: "mask-icon", url: "/images/wm-logo.svg", color: "#F0B429" }],
   },
   openGraph: {
-    title:       "WealthyMindsets Pro",
-    description: "Source-aware charts, volume analysis, journaling, education, and community tools",
+    title:       "WealthyMindsets Pro — Trading Operating System",
+    description: "Market intelligence, order flow, decision memory, and longitudinal edge — with honest UNKNOWN, STALE, and INSUFFICIENT states. Never a beautiful lie.",
     type:        "website",
     siteName:    "WealthyMindsets Pro",
   },
