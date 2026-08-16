@@ -12,6 +12,7 @@ import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePub
 import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { selectDecisionChain, type TradePhase } from "@/lib/marketData/viewModels/selectDecisionChain";
+import { selectMarketStory } from "@/lib/marketData/viewModels/selectMarketStory";
 import DecisionChainPanel from "@/components/chart/DecisionChainPanel";
 import StructureContextNote from "@/components/chart/StructureContextNote";
 import StoryRibbon from "@/components/chart/StoryRibbon";
@@ -338,15 +339,31 @@ function CommandDeckInner() {
         >
           {/* Primary column */}
           <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
-            {/* HERO TRUTH — the 1s dominant message */}
-            <button
-              type="button"
-              onClick={() => openWhy({ kind: "hero" })}
-              aria-label="Explain hero truth"
-              style={{ padding: 0, background: "transparent", border: "none", cursor: "pointer", textAlign: "left", display: "block", width: "100%" }}
-            >
-              <HeroTruth symbol={symbol} timeframe={timeframe} state={state} />
-            </button>
+            {/* HERO TRUTH — the 1s dominant message. Market-state chapter
+                is derived from the same selectMarketStory the Story Ribbon
+                consumes downstream, so hero and ribbon can never disagree.
+                When no chapter resolves, HeroTruth still renders — the
+                marketState prop is skipped and SYMBOL becomes the dominant
+                element (never a fabricated 'BALANCE'). */}
+            {(() => {
+              const story = state ? selectMarketStory(state, history) : null;
+              return (
+                <button
+                  type="button"
+                  onClick={() => openWhy({ kind: "hero" })}
+                  aria-label="Explain hero truth"
+                  style={{ padding: 0, background: "transparent", border: "none", cursor: "pointer", textAlign: "left", display: "block", width: "100%" }}
+                >
+                  <HeroTruth
+                    symbol={symbol}
+                    timeframe={timeframe}
+                    state={state}
+                    marketState={story?.current?.chapter ?? (story ? "UNKNOWN" : null)}
+                    marketStateResolution={story?.resolution ?? undefined}
+                  />
+                </button>
+              );
+            })()}
 
             {/* Daily-stable doctrine tagline — one aphorism per trader per day. */}
             <DoctrineTagline seed={`${user?.id ?? "guest"}-${new Date().toISOString().slice(0, 10)}`} />
@@ -412,10 +429,10 @@ function CommandDeckInner() {
               >
                 <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 14 }}>
                   <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 13, letterSpacing: 0.32, color: "#c9a55c", textTransform: "uppercase" }}>
-                    Waiting for canonical state
+                    Awaiting first observation
                   </span>
                   <span style={{ fontSize: 11, color: "#8a8271", fontStyle: "italic", marginLeft: "auto" }}>
-                    open /charts for {symbol} to seed the store
+                    {symbol} · deck is subscribed — chapters populate as evidence arrives
                   </span>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

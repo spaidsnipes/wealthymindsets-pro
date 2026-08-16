@@ -35,6 +35,12 @@ export interface HeroTruthProps {
   symbol: string;
   timeframe: string;
   state: CanonicalMarketState | null;
+  /** Optional dominant one-second market verdict (e.g. 'BALANCE',
+   *  'EXPANSION', 'UNKNOWN'). When absent, only the quality state
+   *  badge is shown. Never fabricated — pass 'UNKNOWN' honestly
+   *  when the underlying engine cannot resolve a chapter. */
+  marketState?: string | null;
+  marketStateResolution?: "RESOLVED" | "PARTIAL" | "UNKNOWN";
   className?: string;
 }
 
@@ -45,7 +51,7 @@ function formatPrice(p: number): string {
   return p.toFixed(5);
 }
 
-export function HeroTruth({ symbol, timeframe, state, className }: HeroTruthProps) {
+export function HeroTruth({ symbol, timeframe, state, marketState, marketStateResolution, className }: HeroTruthProps) {
   const qualityKey: keyof typeof QUALITY_STYLES = state?.qualityState ?? "UNKNOWN";
   const style = QUALITY_STYLES[qualityKey];
   const price = state?.price.last ?? null;
@@ -74,6 +80,40 @@ export function HeroTruth({ symbol, timeframe, state, className }: HeroTruthProp
           hero truth
         </span>
       </div>
+
+      {/* MARKET STATE hero — the founder-defined one-second verdict.
+          Renders when the Story engine has produced a chapter (RESOLVED
+          or PARTIAL). When UNKNOWN, we still render honestly so the
+          trader sees the system's genuine state — not a fabricated
+          BALANCE. When the caller passes no marketState at all we skip
+          this block entirely and let SYMBOL take the dominant role
+          (the pre-Aug-16 behavior). */}
+      {marketState && (
+        <div style={{ marginBottom: 6 }}>
+          <span
+            style={{
+              fontFamily: "Georgia, 'Times New Roman', serif",
+              fontSize: 44,
+              lineHeight: 1.05,
+              letterSpacing: 0.6,
+              color:
+                marketStateResolution === "UNKNOWN" ? "#55503f" :
+                marketStateResolution === "PARTIAL" ? "#c9a55c" :
+                                                       "#ede6d3",
+              textTransform: "uppercase",
+              fontWeight: 400,
+            }}
+            aria-label={`Market state ${marketState}${marketStateResolution ? ` (${marketStateResolution.toLowerCase()})` : ""}`}
+          >
+            {marketState}
+          </span>
+          {marketStateResolution && marketStateResolution !== "RESOLVED" && (
+            <span style={{ marginLeft: 10, fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#8a8271" }}>
+              {marketStateResolution.toLowerCase()}
+            </span>
+          )}
+        </div>
+      )}
 
       <div style={{ display: "flex", alignItems: "baseline", gap: 18, flexWrap: "wrap" }}>
         <span
@@ -186,7 +226,7 @@ export function HeroTruth({ symbol, timeframe, state, className }: HeroTruthProp
         )}
         {!state && (
           <span style={{ color: "#c9a55c", fontStyle: "italic" }}>
-            No canonical snapshot published — open /charts for this symbol to seed the store.
+            Awaiting the first canonical observation — the deck is subscribed to {symbol} and will populate as ticks arrive.
           </span>
         )}
       </div>
