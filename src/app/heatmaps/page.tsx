@@ -313,6 +313,7 @@ function computeMarkovState(sym: string, periodReturn: number): {
 }
 
 function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> }) {
+  const router = useRouter();
   const regimeColor: Record<RegimeState, string> = {
     BULL: "#00A86B", BEAR: "#CC1414", SIDE: "#2D3748",
   };
