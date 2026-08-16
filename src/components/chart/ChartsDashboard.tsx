@@ -44,6 +44,7 @@ import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
 import { normalizeTFId } from "@/lib/timeframes";
 import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
+import { canonicalSession } from "@/lib/marketData/canonicalIdentity";
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
 
@@ -524,7 +525,9 @@ export function ChartsDashboard() {
   usePublishChartMarketState({
     symbol,
     timeframe,
-    session: extHours ? "EXTENDED" : "RTH",
+    // Route through the canonical helper so the session enum comes from a
+    // single deterministic source shared with every reader (see b46fa64).
+    session: canonicalSession(extHours),
     ticker,
     recentTicks,
     source,

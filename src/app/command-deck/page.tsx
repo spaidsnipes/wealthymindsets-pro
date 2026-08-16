@@ -9,6 +9,7 @@ import {
   useCanonicalMarketStateHistory,
 } from "@/lib/marketData/useCanonicalMarketState";
 import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
+import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { selectDecisionChain, type TradePhase } from "@/lib/marketData/viewModels/selectDecisionChain";
 import DecisionChainPanel from "@/components/chart/DecisionChainPanel";
@@ -106,22 +107,13 @@ function CommandDeckInner() {
   const [whyTarget, setWhyTarget] = React.useState<WhyTarget | null>(null);
   const [showEvidence, setShowEvidence] = React.useState<boolean>(false);
 
-  // Identity MUST match what chartMarketStatePublisher writes — otherwise
-  // the deck reads an empty store even though the /charts route is
-  // actively populating it. Publisher writes:
-  //   instrumentId: executableIdentityFor(symbol, assetClass)  (== upper symbol for equity)
-  //   session: extHours ? "EXTENDED" : "RTH"
-  //   timeframeContext: [timeframe]
-  // Before this alignment fix, the deck read {instrumentId: "TSLA:NASDAQ",
-  // session: "REGULAR"} while the publisher wrote {instrumentId: "TSLA",
-  // session: "RTH"} — resulting in a permanently empty Nectar rack even
-  // when the user had /charts open in another tab. This closes that gap.
+  // Identity routes through canonicalMarketStateIdentity — the SAME helper
+  // chartMarketStatePublisher writes with — so the deck cannot silently
+  // drift from the writer again (b46fa64 was the P0; the contract test in
+  // canonicalIdentity.test.ts guarantees writer == reader). Never assemble
+  // literals like `${symbol}:NASDAQ` inline here.
   const identity = React.useMemo(
-    () => ({
-      instrumentId: symbol,
-      session: "RTH",
-      timeframeContext: [timeframe] as readonly string[],
-    }),
+    () => canonicalMarketStateIdentity({ symbol, timeframe, extHours: false }),
     [symbol, timeframe],
   );
 
@@ -133,7 +125,7 @@ function CommandDeckInner() {
   usePublishChartMarketState({
     symbol,
     timeframe,
-    session: "RTH",
+    session: identity.session,
     ticker: wsFeed.ticker,
     recentTicks: wsFeed.recentTicks,
     source: wsFeed.source,

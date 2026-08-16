@@ -8,6 +8,12 @@ import {
 } from "./sessionNectar";
 import type { ProduceMarketStateInput } from "./produceCanonicalMarketState";
 import type { MarketQualityState } from "./canonicalMarketState";
+import {
+  canonicalAssetClass,
+  canonicalInstrumentId,
+  canonicalSession,
+  type CanonicalAssetClass,
+} from "./canonicalIdentity";
 
 export interface ChartMarketStatePublicationInput {
   readonly symbol: string;
@@ -21,19 +27,20 @@ export interface ChartMarketStatePublicationInput {
   readonly nectar: SessionNectarSnapshot;
 }
 
-function assetClassFor(symbol: string): string {
-  const upper = symbol.trim().toUpperCase();
-  if (upper.endsWith("1!") || upper.includes("=F")) return "futures";
-  if (["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX", "LINK", "DOT", "LTC", "ATOM", "UNI"].includes(upper)) return "crypto";
-  if (upper.includes("/")) return "forex";
-  return "equity";
+// Asset class + instrument id + session all delegate to the single canonical
+// helper module so producer/consumer identities cannot drift (b46fa64 class of
+// P0). If you find yourself reaching for a local inference here, extend
+// canonicalIdentity.ts and add a contract test instead.
+function assetClassFor(symbol: string): CanonicalAssetClass {
+  return canonicalAssetClass(symbol);
 }
 
-function executableIdentityFor(symbol: string, assetClass: string): string | null {
-  const upper = symbol.trim().toUpperCase();
+function executableIdentityFor(symbol: string, assetClass: CanonicalAssetClass): string | null {
+  // Futures have no executable identity in the current WM contract (kept to
+  // preserve historical null-check callers). Everything else routes through
+  // the canonical helper so 'BTC' → 'BTC-USD' and equities uppercase.
   if (assetClass === "futures") return null;
-  if (assetClass === "crypto") return `${upper}-USD`;
-  return upper;
+  return canonicalInstrumentId(symbol, assetClass);
 }
 
 function qualityFor(
