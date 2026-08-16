@@ -75,8 +75,33 @@ describe("canonicalMarketStateIdentity — contract test", () => {
     // must produce the SAME identity from the same inputs. If this test
     // ever fails, the class of P0 that b46fa64 fixed has returned.
     const reader = canonicalMarketStateIdentity({ symbol: "TSLA", timeframe: "15m", extHours: false });
-    const writer = canonicalMarketStateIdentity({ symbol: "tsla", timeframe: "15M", extHours: false });
+    const writer = canonicalMarketStateIdentity({ symbol: "tsla", timeframe: "15m", extHours: false });
     expect(reader).toEqual(writer);
+  });
+
+  it("timeframe normalization preserves canonical daily/weekly/monthly casing", () => {
+    // The app's TFId registry uses 'D', 'W', 'M' uppercase for periods above
+    // 4h. If canonicalMarketStateIdentity naively lowercased '1D' → '1d' it
+    // would produce a store key that no other publisher/reader recognizes —
+    // the exact drift class this module exists to prevent.
+    const daily = canonicalMarketStateIdentity({ symbol: "SPY", timeframe: "1D" });
+    expect(daily.timeframeContext).toEqual(["1D"]);
+    const weekly = canonicalMarketStateIdentity({ symbol: "SPY", timeframe: "1W" });
+    expect(weekly.timeframeContext).toEqual(["1W"]);
+  });
+
+  it("legacy timeframe aliases normalize to canonical (60m → 1h, 1d → 1D)", () => {
+    const legacy60m = canonicalMarketStateIdentity({ symbol: "SPY", timeframe: "60m" });
+    expect(legacy60m.timeframeContext).toEqual(["1h"]);
+    const legacy1d = canonicalMarketStateIdentity({ symbol: "SPY", timeframe: "1d" });
+    expect(legacy1d.timeframeContext).toEqual(["1D"]);
+  });
+
+  it("unknown timeframe throws — never silently substitutes", () => {
+    // Founder Aug-16 IV: 'Do not silently substitute a different timeframe.'
+    expect(() =>
+      canonicalMarketStateIdentity({ symbol: "SPY", timeframe: "banana" }),
+    ).toThrow(/unknown timeframe/);
   });
 
   it("differs on timeframe (separate identities)", () => {
@@ -103,7 +128,7 @@ describe("canonicalMarketStateIdentity — contract test", () => {
   });
 
   it("timeframe normalization is idempotent (round-trip stable)", () => {
-    const one = canonicalMarketStateIdentity({ symbol: "AAPL", timeframe: "5M" });
+    const one = canonicalMarketStateIdentity({ symbol: "AAPL", timeframe: "5m" });
     const two = canonicalMarketStateIdentity({ symbol: "AAPL", timeframe: one.timeframeContext[0] });
     expect(one).toEqual(two);
   });

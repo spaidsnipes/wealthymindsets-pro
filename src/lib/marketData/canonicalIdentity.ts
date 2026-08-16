@@ -18,6 +18,8 @@
  * every canonical-store caller MUST route through canonicalMarketStateIdentity().
  */
 
+import { normalizeTFId } from "../timeframes";
+
 export type CanonicalAssetClass = "crypto" | "equity" | "etf" | "futures" | "forex" | "options";
 export type CanonicalSession = "RTH" | "EXTENDED" | "OVERNIGHT" | "CLOSED";
 
@@ -83,9 +85,20 @@ export function canonicalMarketStateIdentity(input: {
   readonly assetClass?: CanonicalAssetClass;
 }): CanonicalMarketStateIdentity {
   const cls = input.assetClass ?? canonicalAssetClass(input.symbol);
+  // Timeframe normalization delegates to the app's TFId registry so
+  // '1D' stays '1D' (not lowercased to legacy '1d'), '60m' becomes '1h',
+  // '1wk' becomes '1W', and unknown ids fail loudly instead of silently
+  // producing a store key nothing else will match.
+  const raw = input.timeframe.trim();
+  const normalized = normalizeTFId(raw);
+  if (!normalized) {
+    throw new Error(
+      `canonicalMarketStateIdentity: unknown timeframe "${raw}" — see @/lib/timeframes TFId registry.`
+    );
+  }
   return {
     instrumentId: canonicalInstrumentId(input.symbol, cls),
     session: canonicalSession(input.extHours === true),
-    timeframeContext: [input.timeframe.trim().toLowerCase()],
+    timeframeContext: [normalized],
   };
 }
