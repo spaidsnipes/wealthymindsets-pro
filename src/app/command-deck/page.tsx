@@ -530,7 +530,10 @@ function CommandDeckInner() {
             {/* Structure context — surfaces external vs internal contradictions */}
             {chainVm && <StructureContextNote vm={chainVm} />}
 
-            {/* Steward / Permission — rules-informing surface */}
+            {/* Steward / Permission — rules-informing surface. Now lists
+                EACH engaged rule with its label + reason so the trader
+                can see WHICH rules changed the verdict, not just how many.
+                Founder canon: 'every state must be explainable'. */}
             {chainVm && (
               <div>
                 <SectionBanner number={4} label="Steward · Rules Verdict" tagline="informs, never gates" />
@@ -555,6 +558,48 @@ function CommandDeckInner() {
                 <div style={{ fontSize: 10, color: "#55503f", marginTop: 8, letterSpacing: 0.3 }}>
                   {permission.engagedRules.length}/{permission.ruleCount} engaged · phase: {phase.toLowerCase()}
                 </div>
+                {/* Per-rule breakdown — 'informs, never gates'. If any
+                    rule is engaged, list each with its label + reason
+                    so the verdict is fully inspectable without another
+                    click. Silent when no rules engaged (the ALLOWED
+                    state needs no per-rule explanation). */}
+                {permission.engagedRules.length > 0 && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(139,106,41,0.15)", display: "flex", flexDirection: "column", gap: 6 }}>
+                    {permission.engagedRules.map((r, i) => (
+                      <div
+                        key={`${r.rule.label}-${i}`}
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          alignItems: "baseline",
+                          padding: "4px 8px",
+                          borderLeft: `2px solid ${r.rule.kind === "HARD" ? "#c05a4a" : "#c9a55c"}`,
+                          background: "rgba(19,19,23,0.5)",
+                          borderRadius: 3,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 9,
+                            letterSpacing: 0.3,
+                            textTransform: "uppercase",
+                            color: r.rule.kind === "HARD" ? "#c05a4a" : "#c9a55c",
+                            fontWeight: 700,
+                            minWidth: 32,
+                          }}
+                        >
+                          {r.rule.kind}
+                        </span>
+                        <span style={{ fontSize: 11, color: "#ede6d3", fontWeight: 600 }}>
+                          {r.rule.label}
+                        </span>
+                        <span style={{ fontSize: 11, color: "#8a8271", flex: 1, minWidth: 0, lineHeight: 1.4 }}>
+                          {r.reason}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               </div>
             )}
