@@ -776,6 +776,25 @@ export default function ScannerPage() {
                       className="p-1 rounded text-wm-text-dim hover:text-wm-blue transition-colors" title={`Open ${r.symbol} chart`}>
                       <BarChart2 size={11}/>
                     </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); router.push(`/command-deck?symbol=${encodeURIComponent(r.symbol)}`); }}
+                      aria-label={`Open ${r.symbol} on the Command Deck`}
+                      title={`Open ${r.symbol} on the Command Deck`}
+                      style={{
+                        fontFamily: "Georgia, 'Times New Roman', serif",
+                        fontSize: 9,
+                        letterSpacing: 0.3,
+                        textTransform: "uppercase",
+                        color: "#c9a55c",
+                        border: "1px solid rgba(139,106,41,0.35)",
+                        borderRadius: 4,
+                        padding: "2px 6px",
+                        background: "transparent",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Deck →
+                    </button>
                   </div>
                 </motion.div>
               );
@@ -841,6 +860,21 @@ export default function ScannerPage() {
                   <button onClick={()=>{setActiveSymbol(selected.symbol);router.push("/charts");}}
                     className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold bg-wm-blue/15 text-wm-blue border border-wm-blue/40 hover:bg-wm-blue/25 transition-all">
                     <BarChart2 size={12}/> Open Chart
+                  </button>
+                  <button
+                    onClick={() => router.push(`/command-deck?symbol=${encodeURIComponent(selected.symbol)}`)}
+                    aria-label={`Open ${selected.symbol} on the Command Deck`}
+                    className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border transition-all"
+                    style={{
+                      fontFamily: "Georgia, 'Times New Roman', serif",
+                      letterSpacing: 0.32,
+                      textTransform: "uppercase",
+                      color: "#c9a55c",
+                      borderColor: "rgba(139,106,41,0.35)",
+                      background: "transparent",
+                    }}
+                  >
+                    Command Deck →
                   </button>
                 </div>
               </div>
