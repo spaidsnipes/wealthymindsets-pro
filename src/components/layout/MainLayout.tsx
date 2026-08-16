@@ -747,22 +747,29 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
-/* ── Nav items ──────────────────────────────────────────── */
+/* ── Nav items ──────────────────────────────────────────────
+   Ordered along the founder-canon trader loop:
+   PREP → UNDERSTAND (OS flagship) → OBSERVE → DISCOVER → LEARN → REVIEW.
+   Command Deck is the flagship surface — it leads the top group after
+   Morning Prep (the loop's actual entry point). Charts sits next as
+   the primary auction surface. Discovery (Heatmaps/Scanner) then
+   Learning (News/Education) then Review (Journal). Trading-mode
+   surfaces (Paper/Copy/Backtest/AI Bot) live below the main loop. */
 const NAV_TOP = [
-  { href: "/charts",       icon: BarChart2,     label: "Charts"       },
+  { href: "/morning-prep", icon: Sun,           label: "Morning Prep" },
   { href: "/command-deck", icon: Crosshair,     label: "Command Deck" },
-  { href: "/heatmaps",    icon: Map,           label: "Heatmaps"   },
-  { href: "/scanner",     icon: ScanLine,      label: "Scanner"    },
-  { href: "/news",        icon: Newspaper,     label: "News"       },
-  { href: "/education",   icon: GraduationCap, label: "Education"  },
-  { href: "/journal",     icon: BookOpen,      label: "Journal"    },
-  { href: "/paper",         icon: TrendingUp,    label: "Paper Trade"  },
-  { href: "/copy-trading",  icon: Copy,          label: "Copy Trading" },
-  { href: "/backtesting",   icon: FlaskConical,  label: "Backtest"     },
-  { href: "/ai-bot",      icon: Zap,           label: "AI Bot"     },
+  { href: "/charts",       icon: BarChart2,     label: "Charts"       },
+  { href: "/heatmaps",     icon: Map,           label: "Heatmaps"     },
+  { href: "/scanner",      icon: ScanLine,      label: "Scanner"      },
+  { href: "/news",         icon: Newspaper,     label: "News"         },
+  { href: "/education",    icon: GraduationCap, label: "Education"    },
+  { href: "/journal",      icon: BookOpen,      label: "Journal"      },
+  { href: "/paper",        icon: TrendingUp,    label: "Paper Trade"  },
+  { href: "/copy-trading", icon: Copy,          label: "Copy Trading" },
+  { href: "/backtesting",  icon: FlaskConical,  label: "Backtest"     },
+  { href: "/ai-bot",       icon: Zap,           label: "AI Bot"       },
 ];
 const NAV_BOTTOM = [
-  { href: "/morning-prep", icon: Sun,           label: "Morning Prep" },
   { href: "/lounge",       icon: Users,         label: "Lounge"       },
   { href: "/tv",           icon: Tv,            label: "WM TV"        },
   { href: "/radio",        icon: Radio,         label: "WM Radio"     },
