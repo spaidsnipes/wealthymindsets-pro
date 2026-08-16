@@ -125,3 +125,147 @@ describe("chooseTickSize", () => {
     expect(chooseTickSize(0)).toBe(1); // degenerate guard
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Founder Aug-16 XI test matrix — 8 deterministic distributions covering
+// POC/VAH/VAL edge cases the VP engine MUST handle without ambiguity.
+// Every case documents its own expected values so a regression in tie-break
+// order, sparse-row handling, or extreme-scale bucketing fails loudly.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("VP determinism matrix — founder XI acceptance", () => {
+  it("A. single dominant bin — POC == that bin, VA collapses to it", () => {
+    const trades: NormalizedTradeLite[] = [
+      { price: 100, size: 100, side: "buy" },
+      { price: 101, size: 1,   side: "buy" },
+      { price: 99,  size: 1,   side: "sell" },
+    ];
+    const p = computeProfileFromTrades(trades, { tickSize: 1, valueAreaPct: 0.7 });
+    expect(p.poc).toBe(100);
+    expect(p.totalVolume).toBe(102);
+    // 70% of 102 = 71.4; POC alone (100) meets it → VA = {100}.
+    expect(p.vah).toBe(100);
+    expect(p.val).toBe(100);
+  });
+
+  it("B. symmetric distribution — POC in the middle, VA expands symmetrically per tie-break rule", () => {
+    const trades: NormalizedTradeLite[] = [
+      { price: 98,  size: 10, side: "buy" },
+      { price: 99,  size: 20, side: "buy" },
+      { price: 100, size: 30, side: "buy" }, // POC
+      { price: 101, size: 20, side: "buy" },
+      { price: 102, size: 10, side: "buy" },
+    ];
+    const p = computeProfileFromTrades(trades, { tickSize: 1, valueAreaPct: 0.7 });
+    expect(p.poc).toBe(100);
+    // target = 63. POC(100)=30, above 101(20)=20 tie below 99(20)=20 → above wins
+    //   → acc = 50, then above 102(10)=10 tie below 99(20)=20 → below wins
+    //   → acc = 70 ≥ 63. VA = {99, 100, 101}.
+    expect(p.vah).toBe(101);
+    expect(p.val).toBe(99);
+  });
+
+  it("C. two equal POC candidates — LOWER price wins (documented tie-break)", () => {
+    const trades: NormalizedTradeLite[] = [
+      { price: 100, size: 25, side: "buy" }, // tied
+      { price: 105, size: 25, side: "buy" }, // tied
+      { price: 102, size: 10, side: "buy" },
+    ];
+    const p = computeProfileFromTrades(trades, { tickSize: 1, valueAreaPct: 0.7 });
+    // Rows ascending; first max encountered wins → lower price (100).
+    expect(p.poc).toBe(100);
+  });
+
+  it("D. sparse gaps — engine only reports populated rows, not zero-filled gaps", () => {
+    const trades: NormalizedTradeLite[] = [
+      { price: 100, size: 10, side: "buy" },
+      { price: 110, size: 20, side: "buy" }, // POC (10-unit gap)
+      { price: 120, size: 10, side: "sell" },
+    ];
+    const p = computeProfileFromTrades(trades, { tickSize: 1, valueAreaPct: 0.7 });
+    expect(p.poc).toBe(110);
+    expect(p.populatedRows).toBe(3); // three populated buckets only
+    expect(p.rows).toHaveLength(3);
+    // Value-area walk over sparse rows: target = 28. POC=20, above 120=10 vs below 100=10 → tie → above wins
+    //   → 30 ≥ 28 → stop. VA = {110, 120}.
+    expect(p.val).toBe(110);
+    expect(p.vah).toBe(120);
+  });
+
+  it("E. one-trade profile — POC == VAH == VAL == that price", () => {
+    const trades: NormalizedTradeLite[] = [
+      { price: 42.5, size: 3, side: "unknown" },
+    ];
+    const p = computeProfileFromTrades(trades, { tickSize: 0.5, valueAreaPct: 0.7 });
+    expect(p.poc).toBe(42.5);
+    expect(p.vah).toBe(42.5);
+    expect(p.val).toBe(42.5);
+    expect(p.totalVolume).toBe(3);
+    // Unknown split evenly.
+    expect(p.rows[0]).toMatchObject({ up: 1.5, down: 1.5 });
+  });
+
+  it("F. very wide price range — chooseTickSize scales, no bucket explosion", () => {
+    // Simulate an instrument moving through a 100k range (index-scale futures).
+    const trades: NormalizedTradeLite[] = [];
+    for (let p = 30_000; p <= 130_000; p += 100) {
+      trades.push({ price: p, size: 1, side: p % 200 === 0 ? "buy" : "sell" });
+    }
+    const p = computeProfileFromTrades(trades, { targetRows: 320 });
+    // 1001 sample trades over 100k range. chooseTickSize picks 250 → 401 buckets.
+    // Assertion: bucketing scales to tick size (>1), populatedRows bounded within
+    // (a small constant multiple of the sample count), and no infinite growth.
+    expect(p.tickSize).toBeGreaterThan(1);
+    expect(p.populatedRows).toBeLessThan(trades.length + 100); // bounded by data density
+    expect(p.poc).toBeGreaterThanOrEqual(30_000);
+    expect(p.poc).toBeLessThanOrEqual(130_000);
+  });
+
+  it("G. extremely tight price range — 4-decimal instrument (crypto/fx)", () => {
+    const trades: NormalizedTradeLite[] = [
+      { price: 1.2001, size: 100, side: "buy" },
+      { price: 1.2002, size: 200, side: "buy" }, // POC
+      { price: 1.2003, size: 100, side: "sell" },
+    ];
+    const p = computeProfileFromTrades(trades, { tickSize: 0.0001, valueAreaPct: 0.7 });
+    // POC bucket is 1.2002 with 200. Floating-point bucketing must not collapse
+    // three distinct 4-decimal prices into one row.
+    expect(p.populatedRows).toBe(3);
+    expect(p.poc).toBeCloseTo(1.2002, 4);
+  });
+
+  it("H. high-decimal instrument — small tick size retains distinctness", () => {
+    const trades: NormalizedTradeLite[] = [
+      { price: 0.00001234, size: 1e6, side: "buy" },
+      { price: 0.00001235, size: 2e6, side: "buy" },
+      { price: 0.00001236, size: 1e6, side: "sell" },
+    ];
+    const p = computeProfileFromTrades(trades, { tickSize: 0.00000001, valueAreaPct: 0.7 });
+    expect(p.populatedRows).toBe(3);
+    expect(p.poc).toBeCloseTo(0.00001235, 8);
+    expect(p.totalVolume).toBe(4e6);
+  });
+
+  it("zero-volume rows never surface (filter is total > 0)", () => {
+    // A trade with size 0 must not create a phantom row.
+    const trades: NormalizedTradeLite[] = [
+      { price: 100, size: 0,  side: "buy" },
+      { price: 101, size: 10, side: "buy" },
+    ];
+    const p = computeProfileFromTrades(trades, { tickSize: 1 });
+    expect(p.rows).toHaveLength(1);
+    expect(p.rows[0].price).toBe(101);
+  });
+
+  it("value-area cannot exceed 100% of total — degrades gracefully", () => {
+    const trades: NormalizedTradeLite[] = [
+      { price: 100, size: 10, side: "buy" },
+      { price: 101, size: 10, side: "buy" },
+      { price: 102, size: 10, side: "buy" },
+    ];
+    const p = computeProfileFromTrades(trades, { tickSize: 1, valueAreaPct: 2.0 });
+    // valueAreaPct > 1 → VA expands to the full range, no infinite loop.
+    expect(p.val).toBe(100);
+    expect(p.vah).toBe(102);
+    expect(p.totalVolume).toBe(30);
+  });
+});
