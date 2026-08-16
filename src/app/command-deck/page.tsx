@@ -69,6 +69,17 @@ const PHASES: readonly { id: CommandPhase; label: string }[] = [
 ];
 
 export default function CommandDeckPage() {
+  // useSearchParams must be inside a Suspense boundary during SSG. The
+  // whole page reads it, so wrap the surface in a Suspense fallback that
+  // shows the deep-obsidian shell instantly.
+  return (
+    <React.Suspense fallback={<div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #050506 0%, #0b0b0d 100%)" }} />}>
+      <CommandDeckInner />
+    </React.Suspense>
+  );
+}
+
+function CommandDeckInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
