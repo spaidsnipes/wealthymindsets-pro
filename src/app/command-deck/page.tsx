@@ -31,6 +31,7 @@ import SectionBanner from "@/components/brand/SectionBanner";
 import CinematicAtmosphere from "@/components/brand/CinematicAtmosphere";
 import RealmGateway from "@/components/brand/RealmGateway";
 import DoctrineTagline from "@/components/brand/DoctrineTagline";
+import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -330,6 +331,12 @@ function CommandDeckInner() {
 
             {/* Daily-stable doctrine tagline — one aphorism per trader per day. */}
             <DoctrineTagline seed={`${user?.id ?? "guest"}-${new Date().toISOString().slice(0, 10)}`} />
+
+            {/* Today's morning-prep intention (if any) — the PREP→OBSERVE
+                bridge from Founder Aug-14 §14 'Morning Prep intention
+                appears later in review.' Silent when no entry today
+                (never fabricates). */}
+            <TodayPrepBridge userHandle={user?.id ?? "guest"} />
 
             {/* Phase selector — the trader's current decision phase */}
             <div
@@ -631,6 +638,66 @@ function CommandDeckInner() {
         <RealmGateway currentKey="wm-pro" />
         </div>{/* end z-index wrapper */}
       </main>
+    </div>
+  );
+}
+
+/**
+ * TodayPrepBridge — surfaces this-morning's stated intention on the deck
+ * so the trader sees the same thread from PREP to DECISION. Silent when
+ * no entry exists for today. Zero fabrication.
+ */
+function TodayPrepBridge({ userHandle }: { userHandle: string }) {
+  const prep = useTodayPrep(userHandle);
+  if (!prep.hasEntry) return null;
+  return (
+    <div
+      role="region"
+      aria-label="Today's morning prep intention"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 14px",
+        border: "1px solid rgba(212,175,55,0.35)",
+        borderLeft: "3px solid #d4af37",
+        borderRadius: 8,
+        background: "rgba(212,175,55,0.05)",
+      }}
+    >
+      {prep.mood && (
+        <span style={{ fontSize: 18, lineHeight: 1 }} aria-label={`Mood ${prep.mood}`}>
+          {prep.mood}
+        </span>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 700, marginBottom: 4 }}>
+          Today's intention
+        </div>
+        {prep.routine ? (
+          <div style={{ fontSize: 12, color: "#ede6d3", lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+            {prep.routine}
+          </div>
+        ) : (
+          <div style={{ fontSize: 11, color: "#8a8271", fontStyle: "italic" }}>
+            Prep saved with no written routine today.
+          </div>
+        )}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+        {prep.checklistTotal > 0 && (
+          <div style={{ fontSize: 10, color: "#c9a55c", letterSpacing: 0.3 }}>
+            {prep.checklistDone}/{prep.checklistTotal} checked
+          </div>
+        )}
+        <a
+          href="/morning-prep"
+          style={{ fontSize: 9, letterSpacing: 0.3, textTransform: "uppercase", color: "#8a8271", textDecoration: "none" }}
+          aria-label="Open Morning Prep"
+        >
+          Prep →
+        </a>
+      </div>
     </div>
   );
 }
