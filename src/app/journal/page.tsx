@@ -14,6 +14,7 @@ import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
 import { useJournalSnapshots, notifyJournalChanged } from "@/lib/traderMemory/adapters/useJournalSnapshots";
+import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -532,6 +533,68 @@ const LEGACY_DEMO_TRADES = new Set([
   "2|2025-06-14|TSLA",
   "3|2025-06-13|ES1!",
 ]);
+
+function TodayIntentStrip({ userHandle }: { userHandle: string }) {
+  const prep = useTodayPrep(userHandle);
+  if (!prep.hasEntry) return null;
+  const routine = prep.routine ?? "(no intention recorded)";
+  const done = prep.checklistDone;
+  const total = prep.checklistTotal;
+  return (
+    <div
+      role="region"
+      aria-label="Today's morning intention"
+      style={{
+        padding: "8px 16px",
+        borderBottom: "1px solid rgba(139,106,41,0.15)",
+        background: "linear-gradient(90deg, rgba(139,106,41,0.06), rgba(139,106,41,0))",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        flexWrap: "wrap",
+      }}
+    >
+      <span style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 700 }}>
+        Today's intent
+      </span>
+      {prep.mood && <span aria-hidden="true" style={{ fontSize: 14 }}>{prep.mood}</span>}
+      <span
+        style={{
+          fontFamily: "Georgia, 'Times New Roman', serif",
+          fontSize: 12,
+          color: "#ede6d3",
+          maxWidth: 620,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          letterSpacing: 0.2,
+        }}
+        title={routine}
+      >
+        {routine}
+      </span>
+      {total > 0 && (
+        <span style={{ fontSize: 10, color: done === total ? "#7fbf7f" : "#8a8271", letterSpacing: 0.2 }}>
+          checklist {done}/{total}
+        </span>
+      )}
+      <a
+        href="/morning-prep"
+        style={{
+          marginLeft: "auto",
+          fontSize: 9,
+          fontFamily: "Georgia, 'Times New Roman', serif",
+          letterSpacing: 0.32,
+          textTransform: "uppercase",
+          color: "#c9a55c",
+          textDecoration: "none",
+        }}
+      >
+        Open Prep →
+      </a>
+    </div>
+  );
+}
 
 export default function JournalPage() {
   const { earnWMS } = useWMS();
@@ -1125,6 +1188,13 @@ Trade the system, trust the process, winners every day 🚀`,
           <PersonalEdgeChip vm={personalEdgeVm} />
         </div>
       )}
+
+      {/* Today's intention — closes the Prep → Decision → Review loop.
+          When today's morning-prep entry exists, we show what the trader
+          set out to do BEFORE the day started. When none exists, this
+          renders nothing (silence-is-a-feature; never a fabricated
+          "no plan" scold). Founder Aug-14 §14 explicit ask. */}
+      {mainTab === "journal" && <TodayIntentStrip userHandle={authCtx?.user?.id ?? "guest"} />}
 
       {/* Mirror — retrospective behavioral patterns from the journal.
           Renders NOTHING when no patterns detected (silence-is-a-feature).
