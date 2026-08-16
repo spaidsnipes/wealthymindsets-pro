@@ -345,7 +345,37 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
               background: regimeBg[d.state],
               border: `1px solid ${regimeColor[d.state]}40`,
               borderRadius: 8, padding: "10px 12px",
+              position: "relative",
             }}>
+              {/* Command Deck handoff — preserves symbol context per
+                  Founder Aug-14 §15 'A trader should not lose context
+                  moving between tools.' */}
+              <button
+                type="button"
+                aria-label={`Open ${ms.sym} on the Command Deck`}
+                title="Open on Command Deck"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push(`/command-deck?symbol=${encodeURIComponent(ms.sym)}`);
+                }}
+                style={{
+                  position: "absolute",
+                  top: 6,
+                  right: 6,
+                  padding: "4px 8px",
+                  fontSize: 8,
+                  letterSpacing: 0.3,
+                  textTransform: "uppercase",
+                  fontFamily: "Georgia, 'Times New Roman', serif",
+                  color: "#c9a55c",
+                  background: "rgba(11,11,13,0.7)",
+                  border: "1px solid rgba(139,106,41,0.35)",
+                  borderRadius: 3,
+                  cursor: "pointer",
+                }}
+              >
+                Deck →
+              </button>
               {/* Top row */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: ms.color, flexShrink: 0 }} />

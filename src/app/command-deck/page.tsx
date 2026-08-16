@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -70,10 +70,24 @@ const PHASES: readonly { id: CommandPhase; label: string }[] = [
 
 export default function CommandDeckPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
-  const { activeSymbol } = useActiveSymbol();
-  const symbol = activeSymbol ?? "TSLA";
-  const timeframe = "15m";
+  const { activeSymbol, setActiveSymbol } = useActiveSymbol();
+  // URL param wins over SymbolContext so external links (/heatmaps cell
+  // click, /scanner row action, docs link) can seed the deck to a
+  // specific market without touching the app-wide symbol state.
+  const urlSymbol = searchParams?.get("symbol");
+  const urlTf = searchParams?.get("tf");
+  const symbol = (urlSymbol || activeSymbol || "TSLA").toUpperCase();
+  const timeframe = (urlTf || "15m").toLowerCase();
+  React.useEffect(() => {
+    // If a URL symbol was supplied, thread it into SymbolContext so a
+    // subsequent nav to /charts keeps the same symbol (Founder Aug-14
+    // §15 'context continuity').
+    if (urlSymbol && urlSymbol.toUpperCase() !== activeSymbol) {
+      setActiveSymbol(urlSymbol.toUpperCase());
+    }
+  }, [urlSymbol, activeSymbol, setActiveSymbol]);
   const [phase, setPhase] = React.useState<CommandPhase>("PREPARATION");
   const [whyTarget, setWhyTarget] = React.useState<WhyTarget | null>(null);
   const [showEvidence, setShowEvidence] = React.useState<boolean>(false);
