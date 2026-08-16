@@ -10,6 +10,7 @@ import { getFabioInsights, inferAssetClass } from "@/lib/fabio";
 import { evaluateClcEvidence } from "@/lib/decisionIntegrity";
 import { hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
 import { getSmartMoneyPanelLayout } from "./smartMoneyLayout";
+import { computeConfluence as computeConfluenceV1 } from "@/lib/marketData/confluence";
 
 // ─── Signal types ────────────────────────────────────────────────────────────
 type SignalStrength = "strong" | "moderate" | "weak" | "neutral";
@@ -163,70 +164,8 @@ const SECTIONS = [
   { key: "clc",             label: "CLC Rule + Entry Signals",  from: 24, to: 29 },
 ];
 
-// ─── Confluence engine ───────────────────────────────────────────────────────
-// A REAL 0-100 score derived from independent, measurable lenses — not a count
-// of signals cloned from one bias flag. Each lens votes with a signed magnitude;
-// lenses that can't be measured on the current feed abstain (dir "na") instead
-// of inflating the read. The score genuinely swings and can sit NEUTRAL when the
-// lenses disagree.
-interface Lens { label: string; dir: "bull" | "bear" | "na"; detail: string; }
-interface Confluence {
-  score: number; bias: "BULL" | "BEAR" | "NEUTRAL";
-  bull: number; bear: number; measured: number; lenses: Lens[];
-}
-const clampN = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-
-function computeConfluence(price: number, f: Flow): Confluence {
-  const vwap = f.vwap > 0 ? f.vwap : price;
-  const totVol = f.askVol + f.bidVol;
-  const lenses: Lens[] = [];
-  let sum = 0;
-
-  // 1. VWAP position (trend context) — measurable whenever price + VWAP exist
-  if (price > 0 && vwap > 0) {
-    const rel = (price - vwap) / vwap;
-    sum += 16 * clampN(rel / 0.004, -1, 1);              // ±0.4% saturates
-    lenses.push({ label: "VWAP", dir: rel > 0.0002 ? "bull" : rel < -0.0002 ? "bear" : "na",
-      detail: `${(rel * 100).toFixed(2)}% ${rel >= 0 ? "above" : "below"} VWAP` });
-  } else lenses.push({ label: "VWAP", dir: "na", detail: "No price/VWAP yet" });
-
-  // 2. Cumulative delta — only when the feed carries per-trade aggressor side
-  if (f.hasFlow && totVol > 0) {
-    const rel = clampN(f.cvd / totVol, -1, 1);
-    sum += 16 * rel;
-    lenses.push({ label: "CVD", dir: f.cvd > 0 ? "bull" : f.cvd < 0 ? "bear" : "na",
-      detail: `Δ ${fmtDelta(f.cvd)} (${Math.round(Math.abs(rel) * 100)}% one-sided)` });
-  } else lenses.push({ label: "CVD", dir: "na", detail: "No aggressor tape on this feed" });
-
-  // 3. Aggressor imbalance — only when hasFlow
-  if (f.hasFlow && totVol > 0) {
-    const strength = clampN((f.imbRatio - 100) / 120, 0, 1);
-    sum += 10 * (f.askDom ? 1 : -1) * strength;
-    lenses.push({ label: "Imbalance", dir: strength < 0.05 ? "na" : f.askDom ? "bull" : "bear",
-      detail: `${Math.round(f.imbRatio)}% ${f.askDom ? "buy" : "sell"}-heavy` });
-  } else lenses.push({ label: "Imbalance", dir: "na", detail: "Requires per-trade side data" });
-
-  // 4. Candle body — always measurable from the live bar
-  sum += 6 * (f.candleUp ? 1 : -1);
-  lenses.push({ label: "Candle", dir: f.candleUp ? "bull" : "bear",
-    detail: f.candleUp ? "Live bar closing up" : "Live bar closing down" });
-
-  // 5. VWAP band position — mean-reversion lens, independent of raw trend
-  const up = vwap * 1.004, down = vwap * 0.996;
-  if (price > up)        { sum -= 6; lenses.push({ label: "Band", dir: "bear", detail: "Stretched above upper band" }); }
-  else if (price < down) { sum += 6; lenses.push({ label: "Band", dir: "bull", detail: "Stretched below lower band" }); }
-  else                     lenses.push({ label: "Band", dir: "na", detail: "Inside VWAP bands" });
-
-  const score = Math.round(clampN(50 + sum, 2, 98));
-  const bias: Confluence["bias"] = score >= 58 ? "BULL" : score <= 42 ? "BEAR" : "NEUTRAL";
-  return {
-    score, bias,
-    bull: lenses.filter(l => l.dir === "bull").length,
-    bear: lenses.filter(l => l.dir === "bear").length,
-    measured: lenses.filter(l => l.dir !== "na").length,
-    lenses,
-  };
-}
+// Confluence engine moved to @/lib/marketData/confluence — versioned, tested,
+// and enforces a minimum-evidence gate. See computeConfluence import above.
 
 export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symbol: string }) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -453,9 +392,17 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
 
   // Real 0-100 confluence from independent, measurable lenses (recomputed live
   // from the same flow snapshot the signals use) — NOT a count of cloned flags.
-  const conf = computeConfluence(livePrice, flow);
+  // The v1 engine emits {score: null, bias: 'INSUFFICIENT'} when fewer than 3
+  // lenses can measure, so the UI must never paint a persuasive numeric score
+  // in that case. Founder Aug-16 XVI: 'NO SCORE when minimum evidence is not
+  // met. Do not output 56/100 if four of five components are unavailable.'
+  const conf = computeConfluenceV1(livePrice, flow);
   const bias = conf.bias;
-  const scoreColor = conf.score >= 58 ? "#00D4AA" : conf.score <= 42 ? "#F6465D" : "#F0B429";
+  const scoreColor =
+    conf.score == null ? "#8B95A5" :
+    conf.score >= 58   ? "#00D4AA" :
+    conf.score <= 42   ? "#F6465D" :
+                         "#F0B429";
 
   // CLC location remains unavailable until a real structure-zone model exists.
   // Never substitute percentage offsets around the current price.
@@ -466,7 +413,9 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
     confirmation: flow.hasFlow,
   });
   const ddp = livePrice > 1000 ? 0 : livePrice > 10 ? 2 : 4;
-  const isBull = bias !== "BEAR";
+  // isBull is used for downstream directional pressure hints; INSUFFICIENT
+  // must not tilt bullish by default, so we require an explicit BULL or NEUTRAL.
+  const isBull = bias === "BULL" || bias === "NEUTRAL";
 
   // ── DELTA DOMINATION (the tug-of-war) ───────────────────────────────────────
   // Who is actually winning the fight right now — measured from REAL aggressor
@@ -554,16 +503,21 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           <div className="text-xs font-bold text-wm-gold">Smart Money Tools</div>
           <div className="text-[10px] text-wm-text-dim">{symbol} · est. from price</div>
         </div>
-        {/* Bias badge */}
+        {/* Bias badge — INSUFFICIENT is a distinct honest state, not NEUTRAL.
+            A trader must be able to tell 'the market is balanced' apart from
+            'we do not have enough evidence to say anything at all'. */}
         <div
           className={clsx(
             "px-2 py-0.5 rounded text-[10px] font-bold mr-1",
-            bias === "BULL" ? "bg-wm-green/15 text-wm-green border border-wm-green/30" :
-            bias === "BEAR" ? "bg-wm-red/15 text-wm-red border border-wm-red/30" :
-            "bg-wm-muted text-wm-text-muted"
+            bias === "BULL"          ? "bg-wm-green/15 text-wm-green border border-wm-green/30" :
+            bias === "BEAR"          ? "bg-wm-red/15 text-wm-red border border-wm-red/30" :
+            bias === "INSUFFICIENT"  ? "bg-wm-dark text-wm-text-dim border border-wm-border" :
+                                       "bg-wm-muted text-wm-text-muted"
           )}
+          title={bias === "INSUFFICIENT" ? conf.reason : undefined}
         >
-          {bias === "BULL" ? "↑" : bias === "BEAR" ? "↓" : "–"} {bias}
+          {bias === "BULL" ? "↑" : bias === "BEAR" ? "↓" : bias === "INSUFFICIENT" ? "?" : "–"}{" "}
+          {bias === "INSUFFICIENT" ? "INSUFFICIENT" : bias}
         </div>
         <button onClick={() => setCompact(c => !c)} title={compact ? "Comfortable density" : "Compact density"} className="text-wm-text-dim hover:text-wm-text p-1 transition-colors">
           {compact ? <Maximize2 size={12} /> : <Minimize2 size={12} />}
@@ -573,15 +527,30 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
         </button>
       </div>
 
-      {/* Missing CLC evidence suppresses the persuasive aggregate number. */}
+      {/* Confluence Score — TWO independent gates suppress the persuasive
+          aggregate number:
+            1) engine-side minimum-evidence gate (conf.insufficient — fewer
+               than 3/5 lenses can measure at all)
+            2) CLC-side risk-review gate (location/confirmation unresolved)
+          Either gate → INSUFFICIENT EVIDENCE, no numeric score, no filled
+          progress bar. Founder Aug-16 XVI explicit ask. */}
       <div className="px-2 py-1.5 border-b border-wm-border shrink-0">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] text-wm-text-muted">Confluence Score</span>
-          <span className="text-[10px] font-black text-wm-gold">
-            {clcDecision.status === "INSUFFICIENT_EVIDENCE" ? "INSUFFICIENT EVIDENCE" : `${conf.score}/100`}
+          <span className="text-[10px] text-wm-text-muted">
+            Confluence Score
+            <span className="ml-1 text-wm-text-dim">· {conf.formulaVersion}</span>
+          </span>
+          <span
+            className="text-[10px] font-black"
+            style={{ color: conf.insufficient || clcDecision.status === "INSUFFICIENT_EVIDENCE" ? "#8B95A5" : "#c9a55c" }}
+            title={conf.reason}
+          >
+            {conf.insufficient || clcDecision.status === "INSUFFICIENT_EVIDENCE"
+              ? "INSUFFICIENT EVIDENCE"
+              : `${conf.score}/100`}
           </span>
         </div>
-        {clcDecision.status === "READY_FOR_RISK_REVIEW" && (
+        {!conf.insufficient && conf.score != null && clcDecision.status === "READY_FOR_RISK_REVIEW" && (
           <div className="h-2 rounded-full bg-wm-muted overflow-hidden">
             <div
               className="h-full rounded-full transition-all duration-500"
@@ -589,7 +558,9 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
             />
           </div>
         )}
-        {/* Independent-lens breakdown — shows genuine agreement / conflict */}
+        {/* Independent-lens breakdown — shows genuine agreement / conflict.
+            Rendered even when INSUFFICIENT so the trader can see WHICH lenses
+            abstained and WHY. */}
         <div className="flex flex-wrap gap-1 mt-1.5">
           {conf.lenses.map(l => (
             <span
@@ -607,7 +578,11 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           ))}
         </div>
         <div className="text-[9px] text-wm-text-dim mt-1">
-          {conf.bull} bullish · {conf.bear} bearish · {5 - conf.measured} N/A on this feed
+          {conf.measured}/{conf.totalLenses} lenses measured
+          {` · ${conf.bull} bullish · ${conf.bear} bearish · ${conf.totalLenses - conf.measured} N/A on this feed`}
+          {conf.insufficient && (
+            <span className="ml-1 text-wm-text-muted">(need {conf.minRequired})</span>
+          )}
         </div>
       </div>
 
