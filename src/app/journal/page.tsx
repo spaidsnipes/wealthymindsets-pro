@@ -534,7 +534,15 @@ const LEGACY_DEMO_TRADES = new Set([
   "3|2025-06-13|ES1!",
 ]);
 
-function ProcessOutcomeStrip({ entries }: { entries: JournalEntry[] }) {
+function ProcessOutcomeStrip({
+  entries,
+  selected,
+  onSelect,
+}: {
+  entries: JournalEntry[];
+  selected?: ProcessOutcome | null;
+  onSelect?: (bucket: ProcessOutcome | null) => void;
+}) {
   const buckets = React.useMemo(() => {
     const counts = { EARNED_WIN: 0, PROFESSIONAL_LOSS: 0, DANGEROUS_WIN: 0, PREVENTABLE_LOSS: 0, UNRESOLVED: 0 };
     for (const e of entries) {
@@ -550,11 +558,16 @@ function ProcessOutcomeStrip({ entries }: { entries: JournalEntry[] }) {
   if (resolved === 0) return null;
 
   const rows = [
-    { key: "EARNED_WIN",       label: "Earned wins",       tone: "#5cb85c", desc: "good process + win" },
-    { key: "PROFESSIONAL_LOSS",label: "Professional losses",tone: "#c9a55c",desc: "good process + loss" },
-    { key: "DANGEROUS_WIN",    label: "Dangerous wins",    tone: "#c05a4a", desc: "bad process + win"  },
-    { key: "PREVENTABLE_LOSS", label: "Preventable losses",tone: "#c05a4a", desc: "bad process + loss" },
-  ] as const;
+    { key: "EARNED_WIN"        as ProcessOutcome, label: "Earned wins",       tone: "#5cb85c", desc: "good process + win"  },
+    { key: "PROFESSIONAL_LOSS" as ProcessOutcome, label: "Professional losses",tone: "#c9a55c",desc: "good process + loss" },
+    { key: "DANGEROUS_WIN"     as ProcessOutcome, label: "Dangerous wins",    tone: "#c05a4a", desc: "bad process + win"   },
+    { key: "PREVENTABLE_LOSS"  as ProcessOutcome, label: "Preventable losses",tone: "#c05a4a", desc: "bad process + loss"  },
+  ];
+
+  const handleClick = (bucket: ProcessOutcome) => {
+    if (!onSelect) return;
+    onSelect(selected === bucket ? null : bucket);
+  };
 
   return (
     <div
@@ -573,6 +586,16 @@ function ProcessOutcomeStrip({ entries }: { entries: JournalEntry[] }) {
         <span style={{ fontSize: 10, color: "#8a8271" }}>
           {resolved} resolved · {buckets.UNRESOLVED} unresolved
         </span>
+        {selected && (
+          <button
+            type="button"
+            onClick={() => onSelect?.(null)}
+            style={{ fontSize: 9, color: "#c9a55c", background: "transparent", border: "none", cursor: "pointer", letterSpacing: 0.3, textTransform: "uppercase" }}
+            aria-label="Clear process-outcome filter"
+          >
+            clear filter ×
+          </button>
+        )}
         <span style={{ fontSize: 10, color: "#55503f", fontStyle: "italic", marginLeft: "auto" }}>
           P&amp;L never grades process
         </span>
@@ -582,16 +605,26 @@ function ProcessOutcomeStrip({ entries }: { entries: JournalEntry[] }) {
           const n = buckets[r.key];
           const pct = resolved > 0 ? Math.round((n / resolved) * 100) : 0;
           const dim = n === 0;
+          const isSelected = selected === r.key;
+          const clickable = onSelect != null && n > 0;
+          const Tile = clickable ? "button" : "div";
           return (
-            <div
+            <Tile
               key={r.key}
-              title={`${r.label} — ${r.desc}`}
+              type={clickable ? "button" : undefined}
+              onClick={clickable ? () => handleClick(r.key) : undefined}
+              aria-pressed={clickable ? isSelected : undefined}
+              title={`${r.label} — ${r.desc}${clickable ? " (click to filter journal to this bucket)" : ""}`}
               style={{
                 padding: "6px 10px",
-                background: "rgba(19,19,23,0.5)",
-                border: `1px solid ${dim ? "rgba(139,106,41,0.15)" : r.tone + "40"}`,
+                background: isSelected ? `${r.tone}18` : "rgba(19,19,23,0.5)",
+                border: `1px solid ${isSelected ? r.tone + "80" : dim ? "rgba(139,106,41,0.15)" : r.tone + "40"}`,
                 borderRadius: 4,
                 opacity: dim ? 0.5 : 1,
+                cursor: clickable ? "pointer" : "default",
+                textAlign: "left",
+                fontFamily: "inherit",
+                minHeight: clickable ? 44 : undefined,
               }}
             >
               <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
@@ -606,7 +639,7 @@ function ProcessOutcomeStrip({ entries }: { entries: JournalEntry[] }) {
               <div style={{ fontSize: 9, color: "#55503f", marginTop: 1, fontStyle: "italic" }}>
                 {r.desc}
               </div>
-            </div>
+            </Tile>
           );
         })}
       </div>
@@ -727,6 +760,10 @@ export default function JournalPage() {
   const [search,    setSearch]    = useState("");
   const [filterTag, setFilterTag] = useState("");
   const [filterRes, setFilterRes] = useState<"all"|TradeResult>("all");
+  // Process-outcome filter — companion to filterRes. Lets the trader
+  // isolate a specific quadrant (e.g. 'DANGEROUS_WIN' — bad process +
+  // lucky win) from the ProcessOutcomeStrip. 'all' means no filter.
+  const [filterProcessOutcome, setFilterProcessOutcome] = useState<"all"|ProcessOutcome>("all");
   const [lightbox,  setLightbox]  = useState<string | null>(null);
   const [mainTab,   setMainTab]   = useState<"journal"|"coach"|"songs">("journal");
 
@@ -757,7 +794,8 @@ export default function JournalPage() {
     return (
       (!q || e.symbol.toLowerCase().includes(q) || e.notes.toLowerCase().includes(q) || e.setup.toLowerCase().includes(q)) &&
       (!filterTag || e.tags.includes(filterTag)) &&
-      (filterRes === "all" || e.result === filterRes)
+      (filterRes === "all" || e.result === filterRes) &&
+      (filterProcessOutcome === "all" || e.processOutcome === filterProcessOutcome)
     );
   });
 
@@ -1284,7 +1322,13 @@ Trade the system, trust the process, winners every day 🚀`,
           see the discipline pattern (e.g. '3 DANGEROUS WINS this week
           — those wins are luck, not edge') at a glance. Silent when
           no entries have a resolved process outcome (never fabricates). */}
-      {mainTab === "journal" && entries.length > 0 && <ProcessOutcomeStrip entries={entries} />}
+      {mainTab === "journal" && entries.length > 0 && (
+        <ProcessOutcomeStrip
+          entries={entries}
+          selected={filterProcessOutcome === "all" ? null : filterProcessOutcome}
+          onSelect={(bucket) => setFilterProcessOutcome(bucket ?? "all")}
+        />
+      )}
 
       {/* Mirror — retrospective behavioral patterns from the journal.
           Renders NOTHING when no patterns detected (silence-is-a-feature).
