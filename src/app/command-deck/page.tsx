@@ -625,7 +625,7 @@ function CommandDeckInner() {
                     {state.qualityState}
                   </span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 10 }}>
                   <Stat label="Coverage" value={`${state.coverage.length} ch`} />
                   <Stat label="Unknowns" value={String(state.unknowns.length)} tone={state.unknowns.length > 0 ? "watch" : "ok"} />
                   <Stat label="Contradictions" value={String(state.contradictions.length)} tone={state.contradictions.length > 0 ? "warn" : "ok"} />
@@ -656,7 +656,7 @@ function CommandDeckInner() {
                     return `${(ms / 86_400_000).toFixed(1)}d`;
                   };
                   return (
-                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(139,106,41,0.2)", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(139,106,41,0.2)", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10 }}>
                       <Stat label="Memory age" value={fmtAge(memoryAgeMs)} />
                       <Stat label="Last event" value={fmtAge(staleAgeMs)} tone={staleAgeMs != null && staleAgeMs > 60_000 ? (staleAgeMs > 300_000 ? "warn" : "watch") : "ok"} />
                       <Stat label="Observed" value={String(totalEvents)} />

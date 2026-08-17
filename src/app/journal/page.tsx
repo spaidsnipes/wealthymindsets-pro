@@ -600,7 +600,7 @@ function ProcessOutcomeStrip({
           P&amp;L never grades process
         </span>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
         {rows.map((r) => {
           const n = buckets[r.key];
           const pct = resolved > 0 ? Math.round((n / resolved) * 100) : 0;
