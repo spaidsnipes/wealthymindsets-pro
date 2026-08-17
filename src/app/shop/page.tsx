@@ -186,12 +186,48 @@ export default function ShopPage() {
         .wm-shop-light .glass { background: #ffffff; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 8px 24px rgba(120,90,20,0.12); }
         .wm-shop-light input::placeholder { color: #a99f8c; }
       `}</style>
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-wm-border bg-wm-dark shrink-0">
-        <h1 className="text-xl font-black text-wm-text" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>WM Shop</h1>
-        <span className="text-[10px] text-wm-text-muted">Books · art · beauty · music · tools · culture</span>
-        <span className="rounded-full border border-[#8a6a16]/25 bg-[#E8B923]/15 px-2 py-1 text-[9px] font-black tracking-wide text-[#6f5410]">
-          CONCEPT CATALOG · CHECKOUT NOT CONNECTED
+      {/* Header — WM atmosphere, aligned with /command-deck + /nectar */}
+      <div
+        className="flex items-center gap-3 px-4 shrink-0"
+        style={{
+          minHeight: 44,
+          borderBottom: "1px solid rgba(139,106,41,0.15)",
+          background: "linear-gradient(180deg, #0b0b0d 0%, rgba(11,11,13,0.6) 100%)",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            fontFamily: "Georgia, 'Times New Roman', serif",
+            fontSize: 12, letterSpacing: 0.32,
+            color: "#c9a55c", textTransform: "uppercase", fontWeight: 400,
+          }}
+        >
+          WM
+        </span>
+        <div style={{ width: 1, height: 16, background: "rgba(139,106,41,0.35)" }} aria-hidden="true" />
+        <h1
+          style={{
+            fontFamily: "Georgia, 'Times New Roman', serif",
+            fontSize: 16, fontWeight: 400, color: "#ede6d3",
+            letterSpacing: -0.1, margin: 0,
+          }}
+        >
+          Shop
+        </h1>
+        <span style={{ fontSize: 10, color: "#8a8271", fontStyle: "italic" }}>
+          Books · art · beauty · music · tools · culture
+        </span>
+        <span
+          style={{
+            padding: "2px 8px", borderRadius: 999,
+            border: "1px solid rgba(212,175,55,0.30)",
+            background: "rgba(212,175,55,0.08)",
+            color: "#c9a55c",
+            fontSize: 9, letterSpacing: 0.32, fontWeight: 800, textTransform: "uppercase",
+          }}
+        >
+          Concept catalog · checkout not connected
         </span>
         <div className="ml-auto flex items-center gap-3">
           {/* Search */}

@@ -691,13 +691,55 @@ export default function NewsPage() {
 
       <ApiKeysModal open={showKeys} onClose={() => setShowKeys(false)} onSaved={loadNews} />
 
-      {/* ── Topbar ─────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-wm-border bg-wm-dark shrink-0">
-        <div className="flex items-center gap-2">
-          <h1 className="text-sm font-bold text-wm-text">Market Intelligence</h1>
-          <div className="flex items-center gap-1 text-[10px] text-wm-green">
-            <span className="w-1.5 h-1.5 rounded-full bg-wm-green animate-pulse" />
-            LIVE · Sentiment Score
+      {/* ── Topbar ── WM atmosphere: warm-gold hairline, serif hero,
+           tabular indicator. Belongs to the same OS as /command-deck
+           and /nectar. ─────────────────────────────────────────── */}
+      <div
+        className="flex items-center gap-3 px-4 shrink-0"
+        style={{
+          minHeight: 44,
+          borderBottom: "1px solid rgba(139,106,41,0.15)",
+          background: "linear-gradient(180deg, #0b0b0d 0%, rgba(11,11,13,0.6) 100%)",
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden="true"
+            style={{
+              fontFamily: "Georgia, 'Times New Roman', serif",
+              fontSize: 12, letterSpacing: 0.32,
+              color: "#c9a55c",
+              textTransform: "uppercase",
+              fontWeight: 400,
+            }}
+          >
+            WM
+          </span>
+          <div style={{ width: 1, height: 16, background: "rgba(139,106,41,0.35)" }} aria-hidden="true" />
+          <h1
+            style={{
+              fontFamily: "Georgia, 'Times New Roman', serif",
+              fontSize: 14, fontWeight: 400,
+              color: "#ede6d3", letterSpacing: -0.1,
+              margin: 0,
+            }}
+          >
+            Market Intelligence
+          </h1>
+          <div
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              padding: "2px 8px", borderRadius: 999,
+              border: "1px solid rgba(92,184,92,0.35)",
+              background: "rgba(92,184,92,0.08)",
+              color: "#5cb85c",
+              fontSize: 9, letterSpacing: 0.32, fontWeight: 800,
+              textTransform: "uppercase",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: 999, background: "#5cb85c" }} className="animate-pulse" />
+            LIVE · Sentiment
           </div>
         </div>
 
