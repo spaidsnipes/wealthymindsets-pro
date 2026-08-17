@@ -588,29 +588,16 @@ const HM_CACHE_PREFIX = "wm_heatmap_";
 const HM_CACHE_TTL = { "1D": 60_000, "1W": 300_000, "1M": 600_000, "3M": 900_000, "6M": 900_000, "YTD": 900_000, "1Y": 900_000, "5Y": 1_800_000 } as Record<string, number>;
 
 function useLivePct(tf: string) {
-  // Initialize from localStorage cache so we never show blank zeros on revisit
-  const [pcts, setPcts] = useState<Record<string, number>>(() => {
-    if (typeof window === "undefined") return {};
-    try {
-      const raw = localStorage.getItem(HM_CACHE_PREFIX + tf);
-      if (!raw) return {};
-      const { data, ts } = JSON.parse(raw) as { data: Record<string, number>; ts: number };
-      const ttl = HM_CACHE_TTL[tf] ?? 120_000;
-      if (Date.now() - ts < ttl * 5) return data; // show stale data while refreshing
-    } catch {}
-    return {};
-  });
+  // HYDRATION-SAFE: initialize deterministically (empty) so SSR and the
+  // first client paint agree. The localStorage cache is folded in by
+  // the after-mount effect below. Reading localStorage in the
+  // initializer used to cause a React #418 shape mismatch (SSR: no
+  // observedAt → the "received" span is not rendered; client: cache
+  // hit → span renders → tree diverges).
+  const [pcts, setPcts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  const [observedAt, setObservedAt] = useState<number | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const raw = localStorage.getItem(HM_CACHE_PREFIX + tf);
-      return raw ? (JSON.parse(raw) as { ts?: number }).ts ?? null : null;
-    } catch { return null; }
-  });
-  const [qualityState, setQualityState] = useState<"DELAYED" | "STALE" | "UNAVAILABLE">(
-    Object.keys(pcts).length ? "STALE" : "UNAVAILABLE",
-  );
+  const [observedAt, setObservedAt] = useState<number | null>(null);
+  const [qualityState, setQualityState] = useState<"DELAYED" | "STALE" | "UNAVAILABLE">("UNAVAILABLE");
 
   useEffect(() => {
     try {
