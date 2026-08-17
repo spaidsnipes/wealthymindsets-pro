@@ -148,22 +148,46 @@ export default function CreatorPage() {
   return (
     <div className="min-h-full bg-wm-black text-wm-text overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
 
-      {/* ── Hero ─────────────────────────────────────────────── */}
-      <div className="relative border-b border-wm-border overflow-hidden" style={{ background: "linear-gradient(135deg, #070A14 0%, #0B0E1A 60%, #0D1022 100%)" }}>
-        {/* Background glow */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div style={{ position:"absolute", top:"20%", left:"20%", width:400, height:400, borderRadius:"50%", background:"rgba(240,180,41,0.04)", filter:"blur(80px)" }}/>
-          <div style={{ position:"absolute", top:"30%", right:"15%", width:300, height:300, borderRadius:"50%", background:"rgba(0,212,170,0.04)", filter:"blur(60px)" }}/>
+      {/* ── Hero — WM atmosphere ─────────────────────────────── */}
+      <div
+        className="relative overflow-hidden"
+        style={{
+          borderBottom: "1px solid rgba(139,106,41,0.15)",
+          background: "radial-gradient(1200px 700px at 50% -20%, rgba(212,175,55,0.08), transparent 60%), linear-gradient(180deg, #0b0b0d 0%, #050506 100%)",
+        }}
+      >
+        {/* Warm glow */}
+        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+          <div style={{ position:"absolute", top:"20%", left:"20%", width:420, height:420, borderRadius:"50%", background:"rgba(212,175,55,0.05)", filter:"blur(90px)" }}/>
+          <div style={{ position:"absolute", top:"30%", right:"15%", width:320, height:320, borderRadius:"50%", background:"rgba(201,165,92,0.05)", filter:"blur(70px)" }}/>
         </div>
 
-        <div className="relative max-w-5xl mx-auto px-6 py-16 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border mb-5 text-xs font-bold"
-               style={{ borderColor:"rgba(240,180,41,0.4)", background:"rgba(240,180,41,0.08)", color:"#F0B429" }}>
-            <Sparkles size={11}/> Creator Program Preview · Enrollment Not Connected
+        <div className="relative max-w-5xl mx-auto text-center" style={{ padding: "clamp(48px, 8vw, 88px) clamp(16px, 4vw, 40px)" }}>
+          <div
+            className="inline-flex items-center gap-2 mb-5"
+            style={{
+              padding: "3px 10px", borderRadius: 999,
+              border: "1px solid rgba(212,175,55,0.30)",
+              background: "rgba(212,175,55,0.06)",
+              color: "#c9a55c",
+              fontSize: 10, letterSpacing: 0.32, fontWeight: 800,
+              textTransform: "uppercase",
+            }}
+          >
+            <Sparkles size={11} /> Creator Program preview · enrollment not connected
           </div>
-          <h1 className="text-4xl font-black text-wm-text mb-4 leading-tight">
-            Turn Your Audience Into<br/>
-            <span style={{ color:"#F0B429" }}>Recurring Revenue</span>
+          <h1
+            style={{
+              fontFamily: "Georgia, 'Times New Roman', serif",
+              fontSize: "clamp(28px, 6vw, 46px)",
+              fontWeight: 400, color: "#ede6d3",
+              letterSpacing: -0.6, lineHeight: 1.05,
+              margin: "0 0 16px 0",
+            }}
+          >
+            Turn Your Audience Into
+            <br />
+            <span style={{ color: "#d4af37" }}>Recurring Revenue</span>
           </h1>
           <p className="text-sm text-wm-text-muted max-w-xl mx-auto mb-8 leading-relaxed">
             Preview the proposed WealthyMindsets creator tiers and save your interest locally.
