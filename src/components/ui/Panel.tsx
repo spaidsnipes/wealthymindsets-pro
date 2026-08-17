@@ -29,9 +29,6 @@ export interface PanelProps extends React.HTMLAttributes<HTMLDivElement> {
   panelRef?: React.Ref<HTMLDivElement>;
 }
 
-let panelIdCounter = 0;
-const genId = () => `wm-panel-${++panelIdCounter}`;
-
 export function Panel({
   label,
   sublabel,
@@ -42,7 +39,15 @@ export function Panel({
   role,
   ...rest
 }: PanelProps) {
-  const labelId = React.useMemo(() => (label ? genId() : undefined), [label]);
+  // React.useId() produces IDs that are deterministic AND identical
+  // between SSR and client hydration. A previous module-scoped counter
+  // accumulated across Next.js SSR requests (server side) but reset on
+  // each client load, so SSR emitted e.g. "wm-panel-47" while client
+  // hydration wanted "wm-panel-1" → React #418 text mismatch on every
+  // route rendering a labelled Panel. useId() is the framework-blessed
+  // fix; no more shared counter.
+  const generatedId = React.useId();
+  const labelId = label ? `wm-panel-${generatedId}` : undefined;
   const resolvedRole = role ?? (label ? "region" : undefined);
 
   return (
