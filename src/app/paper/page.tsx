@@ -260,7 +260,14 @@ function useLivePrices() {
         try {
           const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json());
           const price = j?.price ?? 0;
-          if (alive && price > 0) {
+          // SF-D01 consumer migration (2026-08-17): honor the discriminated
+          // observation. Skip anchoring when Yahoo tells us the quote is
+          // UNKNOWN (Sunday/closed futures with no live prints) so the
+          // paper-trading anchor doesn't silently latch onto a stale
+          // previousClose masquerading as a live entry.
+          const obsRes = j?.observation?.resolution;
+          const isObserved = typeof obsRes !== "string" || obsRes === "RESOLVED";
+          if (alive && price > 0 && isObserved) {
             anchors.current[sym] = price;
             snap[sym] = price;
             if (j?.prevClose > 0) pc[sym] = j.prevClose;

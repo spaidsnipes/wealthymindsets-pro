@@ -69,6 +69,27 @@ interface TickerState {
 const FUTURES_SYMS = new Set(["NQ1!","ES1!","RTY1!","YM1!","GC1!","SI1!","CL1!","NG1!","ZB1!","ZN1!","ZF1!","ZT1!","HG1!","MNQ1!","MES1!","MYM1!","M2K1!","MGC1!","MCL1!"]);
 const CRYPTO_SYMS  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","ATOM","UNI"]);
 
+/**
+ * SF-D01 consumer migration (2026-08-17): every /api/yahoo?type=quote
+ * response now carries an `observation: {resolution: "RESOLVED"|"UNKNOWN", …}`
+ * discriminated union alongside the legacy `price` / `prevClose` fields.
+ * When `observation.resolution === "UNKNOWN"` (typical for Sunday/closed
+ * futures with no live prints), the legacy `price` field silently falls
+ * back to previousClose. Consuming that as a live tape entry is exactly
+ * the "fake-fresh" failure SF-D01 exists to prevent.
+ *
+ * Returns true only when Yahoo observed a real live/intraday print for
+ * this symbol; consumer must skip rendering when this returns false.
+ */
+function yahooQuoteObserved(j: unknown): boolean {
+  if (!j || typeof j !== "object") return false;
+  const obs = (j as { observation?: { resolution?: string } }).observation;
+  // If the SF-D01 field is absent (older cache / other endpoint / test fixture)
+  // fall back to permissive behavior — the pre-SF-D01 default.
+  if (!obs || typeof obs.resolution !== "string") return true;
+  return obs.resolution === "RESOLVED";
+}
+
 async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:number; src:string } | null> {
   const up = sym.toUpperCase();
 
@@ -78,7 +99,7 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
       const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
       const price = j?.price ?? 0;
       const prev  = j?.prevClose ?? price;
-      if (price > 0) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
+      if (price > 0 && yahooQuoteObserved(j)) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
     } catch {}
     return null;
   }
@@ -94,7 +115,7 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
       const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
       const price = j?.price ?? 0;
       const prev  = j?.prevClose ?? price;
-      if (price > 0) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
+      if (price > 0 && yahooQuoteObserved(j)) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
     } catch {}
     return null;
   }
@@ -105,7 +126,7 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
     const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
     const price = j?.price ?? 0;
     const prev  = j?.prevClose ?? price;
-    if (price > 0) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
+    if (price > 0 && yahooQuoteObserved(j)) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
   } catch {}
   try {
     const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());

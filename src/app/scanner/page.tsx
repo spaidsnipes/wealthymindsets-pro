@@ -238,7 +238,12 @@ async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFa
         ]);
         const price = quoteJson?.price ?? 0;
         const prev  = quoteJson?.prevClose ?? price;
-        if (price > 0) {
+        // SF-D01 consumer migration (2026-08-17): honor the discriminated
+        // observation. A scanner row for a symbol Yahoo could not actually
+        // observe is stale-noise, not a scan hit — skip it entirely.
+        const obsRes = quoteJson?.observation?.resolution;
+        const isObserved = typeof obsRes !== "string" || obsRes === "RESOLVED";
+        if (price > 0 && isObserved) {
           const change    = +(price - prev).toFixed(2);
           const changePct = prev > 0 ? +((change / prev) * 100).toFixed(2) : 0;
           const volume = Number(quoteJson?.volume ?? 0);
