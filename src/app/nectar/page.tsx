@@ -77,6 +77,15 @@ export default function NectarVaultPage() {
       >
         <VaultHero symbolCount={known.length} tradeTotal={known.reduce((a, s) => a + s.slot.stats.tradeCount, 0)} />
 
+        {/* Session Intelligence — aggregate coverage across every symbol
+            the Nectar collector has any channel for. Truthful counters
+            only. Renders even when no trades yet, so the trader can see
+            "0 live channels" as a real signal, not fabricated silence. */}
+        <SessionIntelligenceStrip
+          channels={nectar.channels}
+          symbolCount={known.length}
+        />
+
         <section aria-labelledby="vault-symbols">
           <SectionBanner
             number="1"
@@ -157,6 +166,71 @@ export default function NectarVaultPage() {
         <FooterNote />
       </div>
     </main>
+  );
+}
+
+/* ── Session Intelligence Strip ─────────────────────────── */
+
+function SessionIntelligenceStrip({
+  channels, symbolCount,
+}: {
+  channels: readonly { coverageState: string; gapCount: number }[];
+  symbolCount: number;
+}) {
+  const liveChannels = channels.filter(c => c.coverageState === "LIVE").length;
+  const staleChannels = channels.filter(c => c.coverageState === "STALE").length;
+  const unavailableChannels = channels.filter(c => c.coverageState === "UNAVAILABLE").length;
+  const totalGaps = channels.reduce((a, c) => a + c.gapCount, 0);
+
+  return (
+    <div
+      role="group"
+      aria-label="Session intelligence: aggregate coverage across all observed channels"
+      style={{
+        display: "grid",
+        gap: 12,
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 150px), 1fr))",
+        padding: "14px 16px",
+        borderRadius: 12,
+        border: `1px solid ${WM.border.line}`,
+        background: `linear-gradient(180deg, ${WM.surface.deep} 0%, ${WM.surface.mid} 100%)`,
+        boxShadow: `inset 0 0 0 1px rgba(212,175,55,0.04)`,
+      }}
+    >
+      <IntelCell label="SYMBOLS OBSERVED" value={symbolCount} tone={symbolCount > 0 ? WM.state.ok : WM.text.dim} />
+      <IntelCell label="CHANNELS LIVE" value={liveChannels} tone={liveChannels > 0 ? WM.state.ok : WM.text.dim} />
+      <IntelCell label="CHANNELS STALE" value={staleChannels} tone={staleChannels > 0 ? WM.state.warn : WM.text.dim} />
+      <IntelCell label="CHANNELS UNAVAILABLE" value={unavailableChannels} tone={unavailableChannels > 0 ? WM.state.warn : WM.text.dim} />
+      <IntelCell label="COVERAGE GAPS" value={totalGaps} tone={totalGaps > 0 ? WM.state.warn : WM.state.ok} />
+    </div>
+  );
+}
+
+function IntelCell({ label, value, tone }: { label: string; value: number; tone: string }) {
+  return (
+    <div style={{ textAlign: "left" }}>
+      <div
+        style={{
+          fontSize: 9, letterSpacing: 0.32, textTransform: "uppercase",
+          color: WM.text.muted, fontWeight: 700,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          marginTop: 4,
+          fontFamily: "Georgia, 'Times New Roman', serif",
+          fontSize: 22,
+          fontVariantNumeric: "tabular-nums",
+          color: tone,
+          letterSpacing: -0.2,
+          lineHeight: 1,
+        }}
+      >
+        {value.toLocaleString()}
+      </div>
+    </div>
   );
 }
 
