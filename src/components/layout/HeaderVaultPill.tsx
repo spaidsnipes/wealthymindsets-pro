@@ -25,9 +25,19 @@ import {
  * chip on /charts and the /nectar page, so all three surfaces agree.
  */
 export function HeaderVaultPill() {
+  // Gate the FIRST render on a client-mounted flag so both SSR and the
+  // initial client paint agree (both null). Without this, SSR reads
+  // sessionSymbolStore with no localStorage available and returns
+  // count=0 → renders null; the very next client render hydrates
+  // localStorage → count>0 → renders the pill. React interprets that
+  // as a hydration mismatch (React #418) and warns.
+  const [mounted, setMounted] = React.useState(false);
   const [, setTick] = React.useState(0);
+  React.useEffect(() => { setMounted(true); }, []);
   React.useEffect(() => subscribeSessionSymbolStore(() => setTick(t => t + 1)), []);
   React.useEffect(() => subscribeToSessionNectar(() => setTick(t => t + 1)), []);
+
+  if (!mounted) return null;
 
   const count = getKnownSessionSymbols().filter(s => s.slot.stats.tradeCount > 0).length;
   if (count === 0) return null;
