@@ -378,27 +378,44 @@ function SymbolCard({ symbol, tapeSource, slot, isActive, fidelity, gapCount, on
         <StatCell label="BIG" value={slot.stats.bigTradeCount.toLocaleString()} />
       </div>
 
-      <button
-        type="button"
-        onClick={onOpen}
-        aria-label={`Open ${symbol} on the chart`}
-        style={{
-          marginTop: 14,
-          width: "100%",
-          padding: "9px 14px",
-          borderRadius: 8,
-          border: `1px solid ${isActive ? WM.border.strong : WM.border.line}`,
-          background: isActive ? `linear-gradient(180deg, rgba(212,175,55,0.14), rgba(212,175,55,0.06))` : "transparent",
-          color: isActive ? WM.gold.hero : WM.text.body,
-          fontSize: 10,
-          letterSpacing: 0.32,
-          textTransform: "uppercase",
-          fontWeight: 800,
-          cursor: "pointer",
-        }}
-      >
-        {isActive ? "Active on chart" : "Open on chart →"}
-      </button>
+      <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={`Open ${symbol} on the chart`}
+          style={{
+            flex: 1,
+            padding: "9px 14px",
+            borderRadius: 8,
+            border: `1px solid ${isActive ? WM.border.strong : WM.border.line}`,
+            background: isActive ? `linear-gradient(180deg, rgba(212,175,55,0.14), rgba(212,175,55,0.06))` : "transparent",
+            color: isActive ? WM.gold.hero : WM.text.body,
+            fontSize: 10,
+            letterSpacing: 0.32,
+            textTransform: "uppercase",
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          {isActive ? "Active on chart" : "Open on chart →"}
+        </button>
+        <Link
+          href={`/nectar/${encodeURIComponent(symbol)}`}
+          aria-label={`View full memory detail for ${symbol}`}
+          title={`Deep-dive into ${symbol}'s retained memory: full CVD, per-stat metrics, coverage receipts`}
+          style={{
+            padding: "9px 12px",
+            borderRadius: 8,
+            border: `1px solid ${WM.border.line}`,
+            color: WM.text.muted,
+            fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
+            textDecoration: "none",
+            display: "inline-flex", alignItems: "center",
+          }}
+        >
+          Detail
+        </Link>
+      </div>
     </Panel>
   );
 }
