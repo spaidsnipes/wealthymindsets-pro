@@ -18,6 +18,15 @@ import { WmWordmark } from "@/components/brand/WmWordmark";
 import { SectionBanner } from "@/components/brand/SectionBanner";
 import { Panel } from "@/components/ui/Panel";
 import { WM } from "@/lib/design/wmTokens";
+import {
+  fmtNum,
+  formatMemoryAge,
+  fidelityToTone,
+  coverageTone,
+  memoryStateTone,
+  persistenceRightTone,
+  relTime,
+} from "@/lib/nectarFormat";
 
 /**
  * /nectar/[symbol] — per-symbol memory deep-dive.
@@ -281,9 +290,9 @@ function CoverageReceipts({ channels }: { channels: readonly MarketChannelCovera
           <Panel key={`${ch.instrumentId}::${ch.channel}::${ch.providerPath}::${i}`} label={`${ch.channel.toUpperCase()} · ${ch.providerPath}`}>
             <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
               <ReceiptRow label="Coverage state" value={ch.coverageState} tone={coverageTone(ch.coverageState)} />
-              <ReceiptRow label="Memory state" value={ch.memoryState} tone={memoryTone(ch.memoryState)} />
+              <ReceiptRow label="Memory state" value={ch.memoryState} tone={memoryStateTone(ch.memoryState)} />
               <ReceiptRow label="Fidelity class" value={ch.fidelity} tone={fidelityToTone(ch.fidelity)} />
-              <ReceiptRow label="Persistence right" value={ch.persistenceRight} tone={rightTone(ch.persistenceRight)} />
+              <ReceiptRow label="Persistence right" value={ch.persistenceRight} tone={persistenceRightTone(ch.persistenceRight)} />
               <ReceiptRow label="Rights policy" value={ch.rightsPolicyId} />
               <ReceiptRow label="Observed events" value={ch.observedEventCount.toLocaleString()} tone={ch.observedEventCount > 0 ? WM.state.ok : WM.text.dim} />
               <ReceiptRow label="Gaps" value={ch.gapCount > 0 ? String(ch.gapCount) : "None"} tone={ch.gapCount > 0 ? WM.state.warn : WM.state.ok} />
@@ -318,32 +327,6 @@ function ReceiptRow({ label, value, tone }: { label: string; value: string; tone
       </span>
     </div>
   );
-}
-
-function coverageTone(state: string): string {
-  if (state === "LIVE") return WM.state.ok;
-  if (state === "CONNECTING" || state === "DEGRADED") return WM.state.watch;
-  if (state === "STALE" || state === "UNAVAILABLE") return WM.state.warn;
-  return WM.text.muted;
-}
-function memoryTone(state: string): string {
-  if (state === "RETAINED" || state === "SUMMARY_ONLY") return WM.state.ok;
-  if (state === "SESSION_ONLY") return WM.state.watch;
-  return WM.text.dim;
-}
-function rightTone(right: string): string {
-  if (right === "ALLOWED") return WM.state.ok;
-  if (right === "UNKNOWN") return WM.state.warn;
-  return WM.state.warn;
-}
-function relTime(t: number): string {
-  const diff = Date.now() - t;
-  if (diff < 0) return "just now";
-  if (diff < 1_000) return "just now";
-  if (diff < 60_000) return `${Math.floor(diff / 1000)}s ago`;
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  return `${Math.floor(diff / 86_400_000)}d ago`;
 }
 
 /* ── Unobserved state ───────────────────────────────────── */
@@ -472,32 +455,6 @@ function BigCvd({ buffer, tone }: { buffer: number[]; tone: string }) {
 }
 
 /* ── Helpers ────────────────────────────────────────────── */
-
-function fmtNum(n: number): string {
-  const abs = Math.abs(n);
-  const sign = n > 0 ? "+" : n < 0 ? "-" : "";
-  if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(2)}M`;
-  if (abs >= 1e3) return `${sign}${(abs / 1e3).toFixed(2)}K`;
-  return `${sign}${abs.toFixed(2)}`;
-}
-
-function formatMemoryAge(startedAtSec: number): string {
-  const secs = Math.max(0, Math.floor(Date.now() / 1000 - startedAtSec));
-  if (secs < 60) return `${secs}s memory`;
-  const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m memory`;
-  const hrs = Math.floor(mins / 60);
-  const remMin = mins % 60;
-  if (hrs < 24) return remMin ? `${hrs}h ${remMin}m memory` : `${hrs}h memory`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d memory`;
-}
-
-function fidelityToTone(fidelity: string | null): string {
-  if (!fidelity) return WM.text.dim;
-  const upper = fidelity.toUpperCase();
-  if (upper.includes("OBSERVED") || upper.includes("LIVE") || upper.includes("FULL")) return WM.state.ok;
-  if (upper.includes("DERIVED") || upper.includes("PARTIAL")) return WM.state.watch;
-  if (upper.includes("INFERRED") || upper.includes("STALE") || upper.includes("UNAVAILABLE")) return WM.state.warn;
-  return WM.text.muted;
-}
+// fmtNum, formatMemoryAge, fidelityToTone, coverageTone, memoryStateTone,
+// persistenceRightTone, and relTime live in @/lib/nectarFormat and are
+// unit-tested in nectarFormat.test.ts.

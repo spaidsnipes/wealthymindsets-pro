@@ -17,6 +17,7 @@ import { WmWordmark } from "@/components/brand/WmWordmark";
 import { SectionBanner } from "@/components/brand/SectionBanner";
 import { Panel } from "@/components/ui/Panel";
 import { WM } from "@/lib/design/wmTokens";
+import { fmtNum, formatMemoryAge, fidelityToTone } from "@/lib/nectarFormat";
 
 /**
  * /nectar — the WM Nectar Vault.
@@ -547,15 +548,6 @@ function FidelityChip({ fidelity, tone }: { fidelity: string | null; tone: strin
   );
 }
 
-function fidelityToTone(fidelity: string | null): string {
-  if (!fidelity) return WM.text.dim;
-  const upper = fidelity.toUpperCase();
-  if (upper.includes("OBSERVED") || upper.includes("LIVE") || upper.includes("FULL")) return WM.state.ok;
-  if (upper.includes("DERIVED") || upper.includes("PARTIAL")) return WM.state.watch;
-  if (upper.includes("INFERRED") || upper.includes("STALE") || upper.includes("UNAVAILABLE")) return WM.state.warn;
-  return WM.text.muted;
-}
-
 /* ── CVD Sparkline ──────────────────────────────────────── */
 
 function CvdSpark({ buffer, tone }: { buffer: number[]; tone: string }) {
@@ -684,23 +676,5 @@ function FooterNote() {
 }
 
 /* ── Helpers ────────────────────────────────────────────── */
-
-function fmtNum(n: number): string {
-  const abs = Math.abs(n);
-  const sign = n > 0 ? "+" : n < 0 ? "-" : "";
-  if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(2)}M`;
-  if (abs >= 1e3) return `${sign}${(abs / 1e3).toFixed(2)}K`;
-  return `${sign}${abs.toFixed(2)}`;
-}
-
-function formatMemoryAge(startedAtSec: number): string {
-  const secs = Math.max(0, Math.floor(Date.now() / 1000 - startedAtSec));
-  if (secs < 60) return `${secs}s memory`;
-  const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m memory`;
-  const hrs = Math.floor(mins / 60);
-  const remMin = mins % 60;
-  if (hrs < 24) return remMin ? `${hrs}h ${remMin}m memory` : `${hrs}h memory`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d memory`;
-}
+// fmtNum, formatMemoryAge and fidelityToTone are shared with the
+// /nectar/[symbol] detail page and unit-tested in nectarFormat.test.ts.
