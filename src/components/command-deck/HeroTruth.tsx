@@ -56,7 +56,13 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
   const style = QUALITY_STYLES[qualityKey];
   const price = state?.price.last ?? null;
   const eventAt = state?.price.eventAt ?? null;
-  const freshnessMs = eventAt ? Math.max(0, (state?.capturedAt ?? Date.now()) - eventAt) : null;
+  // Never call Date.now() during render — it produces different values
+  // on SSR (server clock) vs client hydration (browser clock) → React
+  // #418 hydration mismatch on every route that renders HeroTruth. If
+  // capturedAt is missing, treat freshness as unknown; the CanonicalMarketState
+  // consumer will supply capturedAt as soon as it has a snapshot.
+  const capturedAt = state?.capturedAt ?? null;
+  const freshnessMs = eventAt && capturedAt ? Math.max(0, capturedAt - eventAt) : null;
 
   return (
     <section
