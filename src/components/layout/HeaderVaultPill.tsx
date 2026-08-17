@@ -6,6 +6,10 @@ import {
   getKnownSessionSymbols,
   subscribeSessionSymbolStore,
 } from "@/lib/marketData/sessionSymbolStore";
+import {
+  getSessionNectarSnapshot,
+  subscribeToSessionNectar,
+} from "@/lib/marketData/sessionNectar";
 
 /**
  * HeaderVaultPill — persistent memory-safety indicator in the global
@@ -23,25 +27,35 @@ import {
 export function HeaderVaultPill() {
   const [, setTick] = React.useState(0);
   React.useEffect(() => subscribeSessionSymbolStore(() => setTick(t => t + 1)), []);
+  React.useEffect(() => subscribeToSessionNectar(() => setTick(t => t + 1)), []);
 
   const count = getKnownSessionSymbols().filter(s => s.slot.stats.tradeCount > 0).length;
   if (count === 0) return null;
 
+  const nectar = getSessionNectarSnapshot();
+  const gapCount = nectar.channels.reduce((a, c) => a + c.gapCount, 0);
+  const hasGaps = gapCount > 0;
+
   return (
     <Link
       href="/nectar"
-      aria-label={`Nectar Vault: ${count} symbol${count === 1 ? "" : "s"} with retained memory this session. Open the Vault.`}
+      aria-label={
+        hasGaps
+          ? `Nectar Vault: ${count} symbol${count === 1 ? "" : "s"} with retained memory, ${gapCount} coverage gap${gapCount === 1 ? "" : "s"} recorded. Open the Vault.`
+          : `Nectar Vault: ${count} symbol${count === 1 ? "" : "s"} with retained memory this session. Open the Vault.`
+      }
       title={
         `WM Nectar Vault — ${count} symbol${count === 1 ? "" : "s"} with retained tape memory this session.\n` +
+        (hasGaps ? `Coverage gaps recorded across channels: ${gapCount}. Open the Vault to inspect per-channel receipts.\n` : "") +
         `Session summary is preserved across refresh and symbol switch.\n` +
         `Open the Vault to see per-symbol Δ, trade counts, fidelity, and retention truth.`
       }
       style={{
         display: "inline-flex", alignItems: "center", gap: 5,
         padding: "3px 8px", borderRadius: 999,
-        border: "1px solid rgba(212,175,55,0.30)",
-        background: "rgba(212,175,55,0.08)",
-        color: "#d4af37",
+        border: `1px solid ${hasGaps ? "rgba(192,90,74,0.35)" : "rgba(212,175,55,0.30)"}`,
+        background: hasGaps ? "rgba(192,90,74,0.08)" : "rgba(212,175,55,0.08)",
+        color: hasGaps ? "#c05a4a" : "#d4af37",
         fontSize: 9.5, fontWeight: 800, letterSpacing: "0.10em",
         fontVariantNumeric: "tabular-nums",
         textDecoration: "none",
@@ -51,6 +65,21 @@ export function HeaderVaultPill() {
     >
       <Database size={11} />
       VAULT · {count}
+      {hasGaps && (
+        <span
+          aria-hidden="true"
+          style={{
+            marginLeft: 4,
+            padding: "0 5px",
+            borderRadius: 999,
+            border: "1px solid rgba(192,90,74,0.5)",
+            color: "#c05a4a",
+            fontSize: 8, fontWeight: 900, letterSpacing: 0.4,
+          }}
+        >
+          ! {gapCount}
+        </span>
+      )}
     </Link>
   );
 }
