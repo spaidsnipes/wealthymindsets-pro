@@ -6,6 +6,7 @@ import { ArrowLeft, BarChart3 } from "lucide-react";
 import {
   getKnownSessionSymbols,
   subscribeSessionSymbolStore,
+  clearSessionSymbol,
 } from "@/lib/marketData/sessionSymbolStore";
 import {
   findSessionNectarChannel,
@@ -205,21 +206,24 @@ function SlotPanels({
             {tapeSource.toUpperCase()} · {memoryAge}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onOpen}
-          style={{
-            padding: "9px 14px", borderRadius: 8,
-            border: `1px solid ${WM.border.strong}`,
-            background: `linear-gradient(180deg, rgba(212,175,55,0.16), rgba(212,175,55,0.06))`,
-            color: WM.gold.hero,
-            fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
-            cursor: "pointer",
-            display: "inline-flex", alignItems: "center", gap: 6,
-          }}
-        >
-          <BarChart3 size={12} /> Open on chart
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            onClick={onOpen}
+            style={{
+              padding: "9px 14px", borderRadius: 8,
+              border: `1px solid ${WM.border.strong}`,
+              background: `linear-gradient(180deg, rgba(212,175,55,0.16), rgba(212,175,55,0.06))`,
+              color: WM.gold.hero,
+              fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
+              cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 6,
+            }}
+          >
+            <BarChart3 size={12} /> Open on chart
+          </button>
+          <ClearSlotButton symbol={symbol} tapeSource={tapeSource} />
+        </div>
       </div>
 
       {/* Big CVD */}
@@ -266,6 +270,78 @@ function SlotPanels({
         />
       </div>
     </>
+  );
+}
+
+/* ── Clear slot button — trader agency over their own memory ── */
+
+function ClearSlotButton({ symbol, tapeSource }: { symbol: string; tapeSource: string }) {
+  const [confirming, setConfirming] = React.useState(false);
+  React.useEffect(() => {
+    if (!confirming) return;
+    const h = setTimeout(() => setConfirming(false), 4000);
+    return () => clearTimeout(h);
+  }, [confirming]);
+
+  if (confirming) {
+    return (
+      <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+        <span
+          style={{
+            fontSize: 10, letterSpacing: 0.24, color: WM.text.muted,
+            padding: "0 6px",
+          }}
+        >
+          Delete this symbol&apos;s session memory?
+        </span>
+        <button
+          type="button"
+          onClick={() => { clearSessionSymbol(symbol, tapeSource); setConfirming(false); }}
+          style={{
+            padding: "9px 12px", borderRadius: 8,
+            border: `1px solid ${WM.state.warn}66`,
+            background: `${WM.state.warn}14`,
+            color: WM.state.warn,
+            fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          Yes, forget
+        </button>
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          style={{
+            padding: "9px 12px", borderRadius: 8,
+            border: `1px solid ${WM.border.line}`,
+            background: "transparent",
+            color: WM.text.muted,
+            fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => setConfirming(true)}
+      aria-label={`Forget ${symbol}'s session memory`}
+      title={`Clear ${symbol}'s local session memory (Δ, volumes, counts, horizon, CVD). Undoable this session only.`}
+      style={{
+        padding: "9px 12px", borderRadius: 8,
+        border: `1px solid ${WM.border.line}`,
+        background: "transparent",
+        color: WM.text.muted,
+        fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
+        cursor: "pointer",
+      }}
+    >
+      Clear memory
+    </button>
   );
 }
 

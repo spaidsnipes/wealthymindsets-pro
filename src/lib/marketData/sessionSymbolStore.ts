@@ -200,6 +200,41 @@ export function getKnownSessionSymbols(): Array<{ symbol: string; tapeSource: st
   return out;
 }
 
+/**
+ * User-facing clear for a single (symbol, tapeSource) slot. Wipes the
+ * in-memory slot AND schedules a localStorage flush so the trader's
+ * decision to forget a symbol survives a reload. Fanout listeners are
+ * notified so the Vault / header pill / detail page reflect the change
+ * immediately.
+ *
+ * Returns true when a slot was actually removed, false when the
+ * (symbol, tapeSource) had no slot to begin with.
+ */
+export function clearSessionSymbol(symbol: string, tapeSource: string): boolean {
+  hydrateFromStorage();
+  const key = keyFor(symbol, tapeSource);
+  const existed = slots.delete(key);
+  if (existed) {
+    invalidateKnownCache();
+    emit();
+    scheduleFlush();
+  }
+  return existed;
+}
+
+/** User-facing clear for EVERY slot. Same fanout + flush as the
+ *  per-symbol clear. Used by the "clear all memory" action. */
+export function clearAllSessionSymbols(): number {
+  hydrateFromStorage();
+  const count = slots.size;
+  if (count === 0) return 0;
+  slots.clear();
+  invalidateKnownCache();
+  emit();
+  scheduleFlush();
+  return count;
+}
+
 export function __resetSessionSymbolStoreForTests(): void {
   slots.clear();
   listeners.clear();

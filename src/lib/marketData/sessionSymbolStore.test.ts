@@ -5,6 +5,8 @@ import {
   pushCvdSample,
   subscribeSessionSymbolStore,
   getKnownSessionSymbols,
+  clearSessionSymbol,
+  clearAllSessionSymbols,
   __resetSessionSymbolStoreForTests,
 } from "./sessionSymbolStore";
 
@@ -152,5 +154,56 @@ describe("sessionSymbolStore — per-symbol persistence across switches", () => 
     expect(fresh.stats.buyVol).toBeCloseTo(2.0);
     expect(fresh.stats.tradeCount).toBe(2);
     expect(fresh.horizon?.sym).toBe("BTC-USD");
+  });
+});
+
+describe("sessionSymbolStore — user-facing clear", () => {
+  beforeEach(() => __resetSessionSymbolStoreForTests());
+
+  it("clearSessionSymbol removes the slot and notifies subscribers", () => {
+    recordSessionTrade("BTC-USD", "coinbase", { side: "buy", size: 1, time: 1_700_000_000_000 }, false);
+    recordSessionTrade("TSLA",    "alpaca",   { side: "buy", size: 5, time: 1_700_000_010_000 }, false);
+    expect(getKnownSessionSymbols().length).toBe(2);
+
+    let fires = 0;
+    const unsub = subscribeSessionSymbolStore(() => { fires += 1; });
+
+    const removed = clearSessionSymbol("BTC-USD", "coinbase");
+    expect(removed).toBe(true);
+    expect(fires).toBe(1);
+
+    // BTC gone, TSLA still there.
+    const remaining = getKnownSessionSymbols();
+    expect(remaining.length).toBe(1);
+    expect(remaining[0].symbol).toBe("TSLA");
+
+    // Clearing something we never observed is a no-op that reports so.
+    const removedAgain = clearSessionSymbol("BTC-USD", "coinbase");
+    expect(removedAgain).toBe(false);
+    // No fanout for a no-op clear.
+    expect(fires).toBe(1);
+
+    unsub();
+  });
+
+  it("clearAllSessionSymbols wipes every slot and returns the count", () => {
+    recordSessionTrade("BTC-USD", "coinbase", { side: "buy", size: 1, time: 1_700_000_000_000 }, false);
+    recordSessionTrade("TSLA",    "alpaca",   { side: "buy", size: 5, time: 1_700_000_010_000 }, false);
+    recordSessionTrade("ETH-USD", "coinbase", { side: "buy", size: 2, time: 1_700_000_020_000 }, false);
+
+    let fires = 0;
+    const unsub = subscribeSessionSymbolStore(() => { fires += 1; });
+
+    const removed = clearAllSessionSymbols();
+    expect(removed).toBe(3);
+    expect(fires).toBe(1);
+    expect(getKnownSessionSymbols().length).toBe(0);
+
+    // Second call on an empty store — no-op, no fanout.
+    const removedAgain = clearAllSessionSymbols();
+    expect(removedAgain).toBe(0);
+    expect(fires).toBe(1);
+
+    unsub();
   });
 });
