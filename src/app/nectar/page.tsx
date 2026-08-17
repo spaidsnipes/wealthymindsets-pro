@@ -7,6 +7,11 @@ import {
   subscribeSessionSymbolStore,
   type SessionSymbolSlot,
 } from "@/lib/marketData/sessionSymbolStore";
+import {
+  findSessionNectarChannel,
+  getSessionNectarSnapshot,
+  subscribeToSessionNectar,
+} from "@/lib/marketData/sessionNectar";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { WmWordmark } from "@/components/brand/WmWordmark";
 import { SectionBanner } from "@/components/brand/SectionBanner";
@@ -35,6 +40,7 @@ import { WM } from "@/lib/design/wmTokens";
 export default function NectarVaultPage() {
   const [, setTick] = React.useState(0);
   React.useEffect(() => subscribeSessionSymbolStore(() => setTick(t => t + 1)), []);
+  React.useEffect(() => subscribeToSessionNectar(() => setTick(t => t + 1)), []);
   React.useEffect(() => {
     // Age labels drift once per second; re-render at that cadence so
     // "3m memory" becomes "4m memory" without polling every ref.
@@ -46,6 +52,8 @@ export default function NectarVaultPage() {
   const known = getKnownSessionSymbols()
     .filter(s => s.slot.stats.tradeCount > 0)
     .sort((a, b) => b.slot.stats.tradeCount - a.slot.stats.tradeCount);
+
+  const nectar = getSessionNectarSnapshot();
 
   return (
     <main
@@ -86,16 +94,21 @@ export default function NectarVaultPage() {
                 gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))",
               }}
             >
-              {known.map(({ symbol, tapeSource, slot }) => (
-                <SymbolCard
-                  key={`${symbol}::${tapeSource}`}
-                  symbol={symbol}
-                  tapeSource={tapeSource}
-                  slot={slot}
-                  isActive={symbol === activeSymbol}
-                  onOpen={() => { setActiveSymbol(symbol); }}
-                />
-              ))}
+              {known.map(({ symbol, tapeSource, slot }) => {
+                const tradeChannel = findSessionNectarChannel(nectar, symbol, "trade");
+                return (
+                  <SymbolCard
+                    key={`${symbol}::${tapeSource}`}
+                    symbol={symbol}
+                    tapeSource={tapeSource}
+                    slot={slot}
+                    isActive={symbol === activeSymbol}
+                    fidelity={tradeChannel?.fidelity ?? null}
+                    gapCount={tradeChannel?.gapCount ?? 0}
+                    onOpen={() => { setActiveSymbol(symbol); }}
+                  />
+                );
+              })}
             </div>
           )}
         </section>
@@ -278,13 +291,16 @@ interface SymbolCardProps {
   tapeSource: string;
   slot: SessionSymbolSlot;
   isActive: boolean;
+  fidelity: string | null;
+  gapCount: number;
   onOpen: () => void;
 }
 
-function SymbolCard({ symbol, tapeSource, slot, isActive, onOpen }: SymbolCardProps) {
+function SymbolCard({ symbol, tapeSource, slot, isActive, fidelity, gapCount, onOpen }: SymbolCardProps) {
   const d = slot.stats.delta;
   const deltaTone = d > 0 ? WM.state.ok : d < 0 ? WM.state.warn : WM.text.muted;
   const memoryAge = slot.horizon ? formatMemoryAge(slot.horizon.startedAtSec) : "no horizon yet";
+  const fidelityTone = fidelityToTone(fidelity);
   return (
     <Panel
       label={`${symbol} · ${tapeSource.toUpperCase()}`}
@@ -319,6 +335,28 @@ function SymbolCard({ symbol, tapeSource, slot, isActive, onOpen }: SymbolCardPr
         >
           {memoryAge}
         </div>
+      </div>
+
+      {/* Fidelity + gap truth for this symbol's trade channel. UNKNOWN
+          stays UNKNOWN — never fabricated. */}
+      <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        <FidelityChip fidelity={fidelity} tone={fidelityTone} />
+        {gapCount > 0 && (
+          <span
+            title={`${gapCount} coverage gap${gapCount === 1 ? "" : "s"} detected on this symbol's trade channel this session`}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "2px 7px", borderRadius: 999,
+              border: `1px solid ${WM.state.warn}55`,
+              background: `${WM.state.warn}14`,
+              color: WM.state.warn,
+              fontSize: 9, letterSpacing: 0.32, fontWeight: 800,
+              textTransform: "uppercase",
+            }}
+          >
+            ! GAPS {gapCount}
+          </span>
+        )}
       </div>
 
       {/* CVD sparkline (real rolling samples, no fake data) */}
@@ -388,6 +426,43 @@ function StatCell({ label, value, color }: { label: string; value: string; color
       </div>
     </div>
   );
+}
+
+/* ── Fidelity chip ──────────────────────────────────────── */
+
+function FidelityChip({ fidelity, tone }: { fidelity: string | null; tone: string }) {
+  const label = fidelity ?? "UNKNOWN";
+  return (
+    <span
+      title={
+        fidelity
+          ? `Trade-channel fidelity class for this symbol: ${fidelity}. Reflects Nectar collector's observed classification quality this session.`
+          : "No trade-channel fidelity has been recorded yet — either no trades observed for this symbol, or Nectar has not classified any."
+      }
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 4,
+        padding: "2px 8px", borderRadius: 999,
+        border: `1px solid ${tone}55`,
+        background: `${tone}12`,
+        color: tone,
+        fontSize: 9, letterSpacing: 0.32, fontWeight: 800,
+        textTransform: "uppercase",
+        fontVariantNumeric: "tabular-nums",
+      }}
+    >
+      <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: 999, background: tone }} />
+      {label}
+    </span>
+  );
+}
+
+function fidelityToTone(fidelity: string | null): string {
+  if (!fidelity) return WM.text.dim;
+  const upper = fidelity.toUpperCase();
+  if (upper.includes("OBSERVED") || upper.includes("LIVE") || upper.includes("FULL")) return WM.state.ok;
+  if (upper.includes("DERIVED") || upper.includes("PARTIAL")) return WM.state.watch;
+  if (upper.includes("INFERRED") || upper.includes("STALE") || upper.includes("UNAVAILABLE")) return WM.state.warn;
+  return WM.text.muted;
 }
 
 /* ── CVD Sparkline ──────────────────────────────────────── */
