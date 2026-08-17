@@ -8,33 +8,32 @@
 
 ---
 
-## 20 shipped commits (all on `main`)
+## Shipped commits (all on `main`, oldest → newest)
 
-| SHA (short) | What it changes |
+| SHA | Change |
 |---|---|
-| `58f28ef` | `feat(nectar)` /nectar Vault flagship page — visible per-symbol memory proof, wmTokens + Panel + SectionBanner, 4-tier retention truth, empty state, click-through. |
-| n/a | `feat(vault)` OPEN → link on floating chip so /nectar is discoverable. |
-| n/a | `feat(nav)` Nectar Vault in primary nav after Charts. |
-| n/a | `feat(shell)` Persistent VAULT · N pill in the global header. |
-| n/a | `feat(morning-prep)` header adopts WM warm-obsidian + gold. |
-| n/a | `feat(atmosphere)` /news + /shop headers unified. |
-| n/a | `feat(atmosphere)` /education header unified. |
-| n/a | `feat(nectar)` per-symbol fidelity + gap chips on Vault cards. |
-| n/a | `feat(nectar)` /nectar/[symbol] per-symbol deep-dive route. |
-| n/a | `feat(atmosphere)` /copy-trading + /ai-bot headers unified. |
-| n/a | `feat(atmosphere)` /backtesting header unified. |
-| n/a | `feat(atmosphere)` /partnerships header unified. |
-| n/a | `feat(nectar)` Coverage receipts on /nectar/[symbol] (real coverageMap data). |
-| n/a | `feat(atmosphere)` /creator hero adopts warm-obsidian language. |
-| n/a | `feat(nectar)` Session Intelligence strip on /nectar (5 aggregate counters). |
-| n/a | `refactor(nectar)` Extract formatters + 21 pure-function tests (@/lib/nectarFormat). |
-| n/a | `feat(shell)` Header Vault pill escalates to warn tone on Nectar gaps. |
-| n/a | `feat(nectar)` clearSessionSymbol + clearAllSessionSymbols APIs + confirm button on /nectar/[symbol]. |
-| n/a | `feat(nectar)` "Clear all" action on /nectar Vault index. |
+| `58f28ef` | feat(nectar) /nectar Vault flagship page |
+| `53ba5fa` | feat(vault) OPEN → link on floating chip |
+| `bc36178` | feat(nav) Nectar Vault in primary nav after Charts |
+| `a8c6f36` | feat(morning-prep) header adopts WM atmosphere |
+| `a0f93ca` | feat(nectar) per-symbol fidelity + gap truth on Vault cards |
+| `55932db` | feat(shell) persistent VAULT · N pill in global header |
+| `87dd330` | feat(atmosphere) /news + /shop headers unified |
+| `dc38f1d` | feat(atmosphere) /education header unified |
+| `71b07d4` | feat(nectar) /nectar/[symbol] per-symbol deep-dive route |
+| `703e028` | feat(atmosphere) /copy-trading + /ai-bot headers unified |
+| `bf92bb6` | feat(atmosphere) /backtesting header unified |
+| `7844eff` | feat(atmosphere) /partnerships header unified |
+| `650d696` | feat(nectar) coverage receipts on /nectar/[symbol] |
+| `8eb786f` | feat(atmosphere) /creator hero adopts warm-obsidian |
+| `652a9ae` | feat(nectar) session intelligence strip on /nectar |
+| `de39e7e` | refactor(nectar) extract formatters + 21 pure-fn tests |
+| `0c5699f` | feat(shell) header VAULT pill escalates on gaps |
+| `0b48c86` | feat(nectar) clearSessionSymbol + slot confirm button |
+| `50d9412` | feat(nectar) Vault-wide "Clear all" action |
+| `ed7017a` | docs(ops) this shift baton |
 
 Every commit tsc-clean, every push landed on `origin/main`. Full suite green after each merge.
-
-Exact SHAs are visible in `git log --oneline` since `411c134`.
 
 ---
 
