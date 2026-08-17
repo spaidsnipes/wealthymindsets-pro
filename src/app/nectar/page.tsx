@@ -260,13 +260,23 @@ function ExportSessionButton() {
 
 /* ── Clear-all-browser-stats button — bounded truthful scope ── */
 
+type ClearReceipt = { count: number; persistence: string } | null;
+
 function ClearAllButton({ knownCount }: { knownCount: number }) {
   const [confirming, setConfirming] = React.useState(false);
+  const [receipt, setReceipt] = React.useState<ClearReceipt>(null);
   React.useEffect(() => {
     if (!confirming) return;
     const h = setTimeout(() => setConfirming(false), 4000);
     return () => clearTimeout(h);
   }, [confirming]);
+  React.useEffect(() => {
+    if (!receipt) return;
+    const h = setTimeout(() => setReceipt(null), 5000);
+    return () => clearTimeout(h);
+  }, [receipt]);
+
+  if (receipt) return <ClearReceiptPill receipt={receipt} />;
 
   if (confirming) {
     return (
@@ -281,7 +291,11 @@ function ClearAllButton({ knownCount }: { knownCount: number }) {
         </span>
         <button
           type="button"
-          onClick={() => { clearAllSessionSymbols(); setConfirming(false); }}
+          onClick={() => {
+            const result = clearAllSessionSymbols();
+            setConfirming(false);
+            setReceipt({ count: result.inMemoryRemoved, persistence: result.persistence });
+          }}
           style={{
             minHeight: 44, minWidth: 44,
             padding: "12px 16px", borderRadius: 8,
@@ -341,6 +355,37 @@ function ClearAllButton({ knownCount }: { knownCount: number }) {
     >
       Clear browser stats
     </button>
+  );
+}
+
+/**
+ * Post-clear status pill — renders the bounded readback receipt from
+ * sessionSymbolStore so the trader sees a truthful "persisted vs not"
+ * signal instead of a silent void. ACKNOWLEDGED gets gold, everything
+ * else gets warn. Auto-dismisses after 5s.
+ */
+function ClearReceiptPill({ receipt }: { receipt: { count: number; persistence: string } }) {
+  const acknowledged = receipt.persistence === "ACKNOWLEDGED";
+  const tone = acknowledged ? WM.state.ok : WM.state.warn;
+  const label = acknowledged
+    ? `${receipt.count} browser stat${receipt.count === 1 ? "" : "s"} cleared · reload will show them gone`
+    : `${receipt.count} in-memory cleared · persistence ${receipt.persistence.toLowerCase().replace("_", " ")} — reload may still show them`;
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 6,
+        padding: "10px 14px", borderRadius: 8,
+        border: `1px solid ${tone}66`,
+        background: `${tone}14`,
+        color: tone,
+        fontSize: 10, letterSpacing: 0.32, fontWeight: 800, textTransform: "uppercase",
+        maxWidth: 520,
+      }}
+    >
+      {label}
+    </div>
   );
 }
 

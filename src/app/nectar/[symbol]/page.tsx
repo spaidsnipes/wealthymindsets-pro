@@ -288,11 +288,41 @@ function SlotPanels({
 
 function ClearSlotButton({ symbol, tapeSource }: { symbol: string; tapeSource: string }) {
   const [confirming, setConfirming] = React.useState(false);
+  const [receipt, setReceipt] = React.useState<{ persistence: string } | null>(null);
   React.useEffect(() => {
     if (!confirming) return;
     const h = setTimeout(() => setConfirming(false), 4000);
     return () => clearTimeout(h);
   }, [confirming]);
+  React.useEffect(() => {
+    if (!receipt) return;
+    const h = setTimeout(() => setReceipt(null), 5000);
+    return () => clearTimeout(h);
+  }, [receipt]);
+
+  if (receipt) {
+    const acknowledged = receipt.persistence === "ACKNOWLEDGED";
+    const tone = acknowledged ? WM.state.ok : WM.state.warn;
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "10px 14px", borderRadius: 8,
+          border: `1px solid ${tone}66`,
+          background: `${tone}14`,
+          color: tone,
+          fontSize: 10, letterSpacing: 0.32, fontWeight: 800, textTransform: "uppercase",
+          maxWidth: 360,
+        }}
+      >
+        {acknowledged
+          ? `${symbol} browser stats cleared · reload will show them gone`
+          : `${symbol} in-memory cleared · persistence ${receipt.persistence.toLowerCase().replace("_", " ")} — reload may still show them`}
+      </div>
+    );
+  }
 
   if (confirming) {
     return (
@@ -311,7 +341,11 @@ function ClearSlotButton({ symbol, tapeSource }: { symbol: string; tapeSource: s
         </span>
         <button
           type="button"
-          onClick={() => { clearSessionSymbol(symbol, tapeSource); setConfirming(false); }}
+          onClick={() => {
+            const result = clearSessionSymbol(symbol, tapeSource);
+            setConfirming(false);
+            setReceipt({ persistence: result.persistence });
+          }}
           style={{
             minHeight: 44, minWidth: 44,
             padding: "12px 14px", borderRadius: 8,

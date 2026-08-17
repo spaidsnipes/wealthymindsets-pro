@@ -122,21 +122,70 @@ function hydrateFromStorage(): void {
 }
 
 let flushHandle: ReturnType<typeof setTimeout> | null = null;
+function serializeCurrent(nowSec: number): string {
+  const entries = [...slots.entries()].slice(-LS_MAX_SLOTS);
+  const payload: Record<string, SessionSymbolSlot & { savedAtSec: number }> = {};
+  for (const [key, slot] of entries) {
+    payload[key] = { ...slot, savedAtSec: nowSec };
+  }
+  return JSON.stringify(payload);
+}
+
 function scheduleFlush(): void {
   if (typeof window === "undefined") return;
   if (flushHandle) return;
   flushHandle = setTimeout(() => {
     flushHandle = null;
     try {
-      const nowSec = Math.floor(Date.now() / 1000);
-      const entries = [...slots.entries()].slice(-LS_MAX_SLOTS);
-      const payload: Record<string, SessionSymbolSlot & { savedAtSec: number }> = {};
-      for (const [key, slot] of entries) {
-        payload[key] = { ...slot, savedAtSec: nowSec };
-      }
-      window.localStorage.setItem(LS_KEY, JSON.stringify(payload));
+      window.localStorage.setItem(LS_KEY, serializeCurrent(Math.floor(Date.now() / 1000)));
     } catch { /* quota / private mode → next flush will retry */ }
   }, 750);
+}
+
+/**
+ * Persistence acknowledgement for user-facing clear actions. Runs the
+ * flush synchronously, reads the key back, and confirms that every
+ * requested key is absent from the persisted payload. Returns the
+ * bounded, honest state the UI can render — never claims more than
+ * the readback proves.
+ */
+export type SessionSymbolClearAck =
+  | "ACKNOWLEDGED"          // synchronous flush + readback confirmed absence
+  | "FAILED"                // localStorage.setItem threw (quota / private mode)
+  | "READBACK_MISMATCH"     // wrote but readback still saw the key(s) present
+  | "UNSUPPORTED"           // no window (server) — action ran in-memory only
+  | "PARSE_ERROR";          // readback saw invalid JSON — treat as inconclusive
+
+function flushAndAcknowledge(expectedAbsentKeys: readonly string[]): SessionSymbolClearAck {
+  if (typeof window === "undefined") return "UNSUPPORTED";
+  // Cancel any pending debounced flush — we're about to write synchronously
+  // and don't want a stale delayed write to clobber this one.
+  if (flushHandle) { clearTimeout(flushHandle); flushHandle = null; }
+  const nowSec = Math.floor(Date.now() / 1000);
+  let written: string;
+  try {
+    written = serializeCurrent(nowSec);
+    window.localStorage.setItem(LS_KEY, written);
+  } catch { return "FAILED"; }
+  // Readback: parse what actually landed and prove the keys are absent.
+  let readback: unknown;
+  try {
+    const raw = window.localStorage.getItem(LS_KEY);
+    if (raw == null) {
+      // Empty payload is fine ONLY when we cleared everything AND the
+      // serialized "written" is also empty. Treat missing key as absence.
+      return expectedAbsentKeys.every(k => !written.includes(`"${k}":`))
+        ? "ACKNOWLEDGED"
+        : "READBACK_MISMATCH";
+    }
+    readback = JSON.parse(raw);
+  } catch { return "PARSE_ERROR"; }
+  if (!readback || typeof readback !== "object") return "READBACK_MISMATCH";
+  const rec = readback as Record<string, unknown>;
+  for (const key of expectedAbsentKeys) {
+    if (Object.prototype.hasOwnProperty.call(rec, key)) return "READBACK_MISMATCH";
+  }
+  return "ACKNOWLEDGED";
 }
 
 export function getSessionSymbolSlot(symbol: string, tapeSource: string): SessionSymbolSlot {
@@ -201,38 +250,67 @@ export function getKnownSessionSymbols(): Array<{ symbol: string; tapeSource: st
 }
 
 /**
- * User-facing clear for a single (symbol, tapeSource) slot. Wipes the
- * in-memory slot AND schedules a localStorage flush so the trader's
- * decision to forget a symbol survives a reload. Fanout listeners are
- * notified so the Vault / header pill / detail page reflect the change
- * immediately.
+ * Result of a user-facing clear action — a truthful, bounded receipt
+ * the UI can render without overstating scope.
  *
- * Returns true when a slot was actually removed, false when the
- * (symbol, tapeSource) had no slot to begin with.
+ * Per Sentinel's "Clear persistence proof" RETURN, the caller cannot
+ * claim the forget survived reload until localStorage has been flushed
+ * synchronously and read back with the key absent. `persistence` is
+ * that readback proof; `inMemoryRemoved` is only what was deleted from
+ * the in-memory Map. Neither field extends beyond
+ * sessionSymbolStore's own ownership boundary.
  */
-export function clearSessionSymbol(symbol: string, tapeSource: string): boolean {
+export interface SessionSymbolClearResult {
+  /** Whether a slot with this identity existed in memory before this call. */
+  readonly inMemoryRemoved: boolean;
+  /** Synchronous readback of the localStorage key after the flush. */
+  readonly persistence: SessionSymbolClearAck;
+}
+export interface SessionSymbolClearAllResult {
+  /** Number of slots that existed in memory before the clear. */
+  readonly inMemoryRemoved: number;
+  /** Synchronous readback of the localStorage key after the flush. */
+  readonly persistence: SessionSymbolClearAck;
+}
+
+/**
+ * User-facing clear for a single (symbol, tapeSource) slot. Wipes the
+ * in-memory slot, notifies fanout listeners, then synchronously
+ * flushes localStorage and reads it back to prove the persisted
+ * payload no longer contains the key.
+ *
+ * Returns both the in-memory outcome AND the persistence
+ * acknowledgement so the UI can render either "browser stats deleted"
+ * (ACKNOWLEDGED) or a truthful degraded state (FAILED / READBACK_MISMATCH
+ * / PARSE_ERROR / UNSUPPORTED).
+ */
+export function clearSessionSymbol(symbol: string, tapeSource: string): SessionSymbolClearResult {
   hydrateFromStorage();
   const key = keyFor(symbol, tapeSource);
   const existed = slots.delete(key);
-  if (existed) {
-    invalidateKnownCache();
-    emit();
-    scheduleFlush();
+  if (!existed) {
+    return { inMemoryRemoved: false, persistence: "ACKNOWLEDGED" };
   }
-  return existed;
+  invalidateKnownCache();
+  emit();
+  const persistence = flushAndAcknowledge([key]);
+  return { inMemoryRemoved: true, persistence };
 }
 
-/** User-facing clear for EVERY slot. Same fanout + flush as the
- *  per-symbol clear. Used by the "clear all memory" action. */
-export function clearAllSessionSymbols(): number {
+/** User-facing clear for EVERY slot. Same fanout + synchronous flush
+ *  + readback as the per-symbol clear. */
+export function clearAllSessionSymbols(): SessionSymbolClearAllResult {
   hydrateFromStorage();
-  const count = slots.size;
-  if (count === 0) return 0;
+  const preClearKeys = [...slots.keys()];
+  const count = preClearKeys.length;
+  if (count === 0) {
+    return { inMemoryRemoved: 0, persistence: "ACKNOWLEDGED" };
+  }
   slots.clear();
   invalidateKnownCache();
   emit();
-  scheduleFlush();
-  return count;
+  const persistence = flushAndAcknowledge(preClearKeys);
+  return { inMemoryRemoved: count, persistence };
 }
 
 export function __resetSessionSymbolStoreForTests(): void {

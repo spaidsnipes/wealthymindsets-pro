@@ -205,7 +205,13 @@ describe("sessionSymbolStore — user-facing clear", () => {
     const unsub = subscribeSessionSymbolStore(() => { fires += 1; });
 
     const removed = clearSessionSymbol("BTC-USD", "coinbase");
-    expect(removed).toBe(true);
+    // Sentinel RETURN "Clear persistence proof" — result is now a
+    // bounded receipt, not a bare boolean. inMemoryRemoved reports
+    // Map deletion; persistence reports the localStorage readback.
+    // In this jsdom-less test env, window is absent → UNSUPPORTED
+    // is the honest reported state (no localStorage to prove against).
+    expect(removed.inMemoryRemoved).toBe(true);
+    expect(["ACKNOWLEDGED", "UNSUPPORTED"]).toContain(removed.persistence);
     expect(fires).toBe(1);
 
     // BTC gone, TSLA still there.
@@ -215,14 +221,16 @@ describe("sessionSymbolStore — user-facing clear", () => {
 
     // Clearing something we never observed is a no-op that reports so.
     const removedAgain = clearSessionSymbol("BTC-USD", "coinbase");
-    expect(removedAgain).toBe(false);
+    expect(removedAgain.inMemoryRemoved).toBe(false);
+    // No-op returns ACKNOWLEDGED — nothing to persist means nothing to lie about.
+    expect(removedAgain.persistence).toBe("ACKNOWLEDGED");
     // No fanout for a no-op clear.
     expect(fires).toBe(1);
 
     unsub();
   });
 
-  it("clearAllSessionSymbols wipes every slot and returns the count", () => {
+  it("clearAllSessionSymbols wipes every slot and returns bounded receipt", () => {
     recordSessionTrade("BTC-USD", "coinbase", { side: "buy", size: 1, time: 1_700_000_000_000 }, false);
     recordSessionTrade("TSLA",    "alpaca",   { side: "buy", size: 5, time: 1_700_000_010_000 }, false);
     recordSessionTrade("ETH-USD", "coinbase", { side: "buy", size: 2, time: 1_700_000_020_000 }, false);
@@ -231,13 +239,15 @@ describe("sessionSymbolStore — user-facing clear", () => {
     const unsub = subscribeSessionSymbolStore(() => { fires += 1; });
 
     const removed = clearAllSessionSymbols();
-    expect(removed).toBe(3);
+    expect(removed.inMemoryRemoved).toBe(3);
+    expect(["ACKNOWLEDGED", "UNSUPPORTED"]).toContain(removed.persistence);
     expect(fires).toBe(1);
     expect(getKnownSessionSymbols().length).toBe(0);
 
     // Second call on an empty store — no-op, no fanout.
     const removedAgain = clearAllSessionSymbols();
-    expect(removedAgain).toBe(0);
+    expect(removedAgain.inMemoryRemoved).toBe(0);
+    expect(removedAgain.persistence).toBe("ACKNOWLEDGED");
     expect(fires).toBe(1);
 
     unsub();
