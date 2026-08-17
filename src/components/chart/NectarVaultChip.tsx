@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   getKnownSessionSymbols,
   subscribeSessionSymbolStore,
@@ -133,6 +134,26 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
       {symbols.length > 6 && (
         <span style={{ color: "rgba(139,146,172,0.6)" }}>+{symbols.length - 6}</span>
       )}
+      {/* Discoverable entry point into the full /nectar Vault surface.
+          Kept as a tiny chip so it doesn't compete with the per-symbol
+          pills — traders who want the full memory view can drill in. */}
+      <Link
+        href="/nectar"
+        aria-label="Open the full Nectar Vault"
+        title="Open the full Nectar Vault — every symbol WM has observed this session, with retention truth"
+        style={{
+          marginLeft: 2,
+          padding: "1px 7px", borderRadius: 999,
+          border: "1px solid rgba(240,180,41,0.22)",
+          background: "rgba(240,180,41,0.06)",
+          color: "#F0B429",
+          fontSize: 9, fontWeight: 850, letterSpacing: "0.10em",
+          textDecoration: "none",
+          display: "inline-flex", alignItems: "center", gap: 3,
+        }}
+      >
+        OPEN →
+      </Link>
     </div>
   );
 }
