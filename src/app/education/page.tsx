@@ -519,13 +519,46 @@ export default function EducationPage() {
     <div style={{ display:"flex",flexDirection:"column",width:"100%",height:"100%",overflow:"hidden" }}
          className="bg-wm-black">
 
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 border-b border-wm-border bg-wm-dark shrink-0" style={{ height:44 }}>
-        <GraduationCap size={15} className="text-wm-gold shrink-0"/>
+      {/* Header — WM atmosphere, aligned with the OS-wide vocabulary */}
+      <div
+        className="flex items-center gap-3 px-4 shrink-0"
+        style={{
+          minHeight: 44,
+          borderBottom: "1px solid rgba(139,106,41,0.15)",
+          background: "linear-gradient(180deg, #0b0b0d 0%, rgba(11,11,13,0.6) 100%)",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            fontFamily: "Georgia, 'Times New Roman', serif",
+            fontSize: 12, letterSpacing: 0.32,
+            color: "#c9a55c", textTransform: "uppercase", fontWeight: 400,
+          }}
+        >
+          WM
+        </span>
+        <div style={{ width: 1, height: 16, background: "rgba(139,106,41,0.35)" }} aria-hidden="true" />
+        <GraduationCap size={14} style={{ color: "#c9a55c", flexShrink: 0 }} />
         <div>
-          <h1 className="text-sm font-bold text-wm-text">Education</h1>
-          <p className="text-[9px] text-wm-gold italic" style={{ letterSpacing:"0.02em" }}>
-            Wealthy Mindsets: Change the way you think and you&apos;ll change the way you live
+          <h1
+            style={{
+              fontFamily: "Georgia, 'Times New Roman', serif",
+              fontSize: 14, fontWeight: 400,
+              color: "#ede6d3", letterSpacing: -0.1, margin: 0,
+            }}
+          >
+            Education
+          </h1>
+          <p
+            style={{
+              fontFamily: "Georgia, 'Times New Roman', serif",
+              fontSize: 10, fontStyle: "italic",
+              color: "#8a8271", letterSpacing: 0.02,
+              margin: 0, marginTop: 1,
+            }}
+          >
+            Change the way you think and you&apos;ll change the way you live
           </p>
         </div>
         <div className="flex items-center gap-2 ml-4">
