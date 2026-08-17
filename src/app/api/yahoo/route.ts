@@ -8,6 +8,7 @@
 
 import { NextResponse } from "next/server";
 import { aggregateYahooBars, resolveYahooTimeframe, type YahooOhlcvBar } from "@/lib/yahooTimeframes";
+import { buildYahooQuoteObservation } from "@/lib/marketData/yahooQuoteObservation";
 
 /* ── Symbol mapping: WM internal → Yahoo Finance ticker ─────── */
 const YF_MAP: Record<string, string> = {
@@ -114,8 +115,14 @@ export async function GET(request: Request) {
 
       // Most-recent live price from the intraday (pre/post-aware) series.
       let livePrice = 0, liveHigh = 0, liveLow = 0, liveOpen = 0, liveVolume = 0;
+      // SF-D01: capture the REAL observation epoch-ms of the chosen live price.
+      // Yahoo intraday timestamps are epoch SECONDS; ×1000 → ms. Previously this
+      // was discarded and every quote was stamped with server Date.now(), which
+      // borrowed server time as observation chronology (forbidden).
+      let liveObservedAt: number | null = null;
       const ir = intraJson?.chart?.result?.[0];
       if (ir?.timestamp?.length) {
+        const ts: (number|null)[] = ir.timestamp ?? [];
         const q = ir.indicators?.quote?.[0] ?? {};
         const cl: (number|null)[] = q.close ?? [];
         const hi: (number|null)[] = q.high  ?? [];
@@ -123,7 +130,12 @@ export async function GET(request: Request) {
         const op: (number|null)[] = q.open  ?? [];
         const vo: (number|null)[] = q.volume ?? [];
         for (let i = cl.length - 1; i >= 0; i--) {
-          if (cl[i] != null && (cl[i] as number) > 0) { livePrice = cl[i] as number; break; }
+          if (cl[i] != null && (cl[i] as number) > 0) {
+            livePrice = cl[i] as number;
+            const tsec = ts[i];
+            liveObservedAt = (tsec != null && Number.isFinite(tsec) && tsec > 0) ? tsec * 1000 : null;
+            break;
+          }
         }
         const validHi = hi.filter((v): v is number => v != null && v > 0);
         const validLo = lo.filter((v): v is number => v != null && v > 0);
@@ -157,6 +169,23 @@ export async function GET(request: Request) {
         : (meta?.chartPreviousClose ?? meta?.previousClose ?? price);
       if (!prevClose || prevClose <= 0) prevClose = price;
 
+      // SF-D01: build the truthful quote observation ALONGSIDE the legacy
+      // fields. RESOLVED only when there is a real live price WITH a real
+      // observation timestamp; otherwise UNKNOWN with nonempty reasons and no
+      // borrowed chronology. Legacy `price`/`ts` are retained for existing
+      // consumers, but `observation` is the honest, resolution-typed truth: a
+      // consumer that only had a day/meta fallback will see observation.resolution
+      // === "UNKNOWN" instead of a stale number stamped with server time.
+      const capturedAt = Date.now();
+      const observation = buildYahooQuoteObservation({
+        symbol:         rawSym,
+        normalizedSymbol: rawSym.trim().toUpperCase(),
+        livePrice:      livePrice > 0 ? livePrice : null,
+        liveObservedAt,                     // real intraday epoch-ms, or null
+        receivedAt:     capturedAt,         // transport receipt (server) — never used as observation time
+        capturedAt,
+      });
+
       return NextResponse.json({
         sym:       rawSym,
         price,
@@ -168,7 +197,10 @@ export async function GET(request: Request) {
         changePct: prevClose ? +(((price - prevClose) / prevClose) * 100).toFixed(4) : 0,
         volume:     liveVolume || meta?.regularMarketVolume || 0,
         avgVolume:  observedAvgVolume || meta?.averageDailyVolume10Day || meta?.averageDailyVolume3Month || 0,
-        ts:        Date.now(),
+        // `ts` is transport/response time only — NOT observation chronology.
+        ts:        capturedAt,
+        // SF-D01 truthful observation (RESOLVED | UNKNOWN discriminated union).
+        observation,
       });
     }
 
