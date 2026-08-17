@@ -5,6 +5,7 @@ import { Activity, AlertTriangle, Bot, ChevronRight, Database, ShieldCheck } fro
 import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { WM } from "@/lib/design/wmTokens";
 
 const SYMBOLS = ["SPY","QQQ","AAPL","NVDA","TSLA","MSFT","META","AMZN","BTC","ETH"];
 
@@ -17,17 +18,66 @@ export default function AIBotPage() {
   const dp = price >= 100 ? 2 : price >= 1 ? 4 : 6;
 
   return (
-    <div className="h-full overflow-y-auto bg-[#0D0E14] text-wm-text">
-      <header className="flex min-h-16 items-center gap-3 border-b border-wm-border px-5">
-        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-wm-purple to-wm-blue">
-          <Bot size={20} className="text-white" />
+    <div
+      className="h-full overflow-y-auto"
+      style={{
+        background: `radial-gradient(1200px 700px at 50% -10%, rgba(212,175,55,0.06), transparent 60%), ${WM.surface.deepest}`,
+        color: WM.text.body,
+      }}
+    >
+      <header
+        className="flex items-center gap-3 px-5"
+        style={{
+          minHeight: 64,
+          borderBottom: "1px solid rgba(139,106,41,0.15)",
+          background: "linear-gradient(180deg, #0b0b0d 0%, rgba(11,11,13,0.6) 100%)",
+          flexWrap: "wrap",
+        }}
+      >
+        <div
+          className="grid place-items-center"
+          style={{
+            width: 40, height: 40, borderRadius: 999,
+            background: "linear-gradient(160deg, rgba(212,175,55,0.22), rgba(201,165,92,0.08))",
+            border: "1px solid rgba(212,175,55,0.35)",
+            boxShadow: "inset 0 0 18px -8px rgba(212,175,55,0.4)",
+            color: WM.gold.hero,
+          }}
+        >
+          <Bot size={18} />
         </div>
         <div>
-          <h1 className="text-base font-black">WM Market Intelligence</h1>
-          <p className="text-[10px] text-wm-text-dim">Observed market data only · no generated signals</p>
+          <h1
+            style={{
+              fontFamily: "Georgia, 'Times New Roman', serif",
+              fontSize: 16, fontWeight: 400,
+              color: WM.text.hero, letterSpacing: -0.2, margin: 0,
+            }}
+          >
+            Market Intelligence
+          </h1>
+          <p
+            style={{
+              fontFamily: "Georgia, 'Times New Roman', serif",
+              fontSize: 10, fontStyle: "italic", color: WM.text.muted,
+              margin: 0, marginTop: 2,
+            }}
+          >
+            Observed market data only · no generated signals
+          </p>
         </div>
-        <div className={`ml-auto rounded-full border px-3 py-1 text-[10px] font-black ${connected ? "border-wm-green/30 bg-wm-green/10 text-wm-green" : "border-wm-red/30 bg-wm-red/10 text-wm-red"}`}>
-          {connected ? `CONNECTED · ${market.source.toUpperCase()}` : "REAL DATA UNAVAILABLE"}
+        <div
+          className="ml-auto"
+          style={{
+            padding: "3px 10px", borderRadius: 999,
+            border: `1px solid ${(connected ? WM.state.ok : WM.state.warn)}44`,
+            background: `${connected ? WM.state.ok : WM.state.warn}12`,
+            color: connected ? WM.state.ok : WM.state.warn,
+            fontSize: 9, letterSpacing: 0.32, fontWeight: 800,
+            textTransform: "uppercase", fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {connected ? `Connected · ${market.source}` : "Real data unavailable"}
         </div>
       </header>
 

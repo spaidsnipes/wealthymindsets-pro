@@ -2,22 +2,74 @@
 
 import React from "react";
 import { AlertTriangle, Link2, ShieldCheck, Users } from "lucide-react";
+import { WM } from "@/lib/design/wmTokens";
 
 export default function CopyTradingPage() {
   return (
-    <div className="h-full overflow-y-auto bg-[#0D0E14] p-5 text-wm-text">
-      <div className="mx-auto max-w-5xl">
-        <header className="rounded-3xl border border-wm-border bg-wm-card/80 p-6">
-          <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-wm-purple/15 text-wm-purple">
-              <Users size={21} />
+    <div
+      className="h-full overflow-y-auto"
+      style={{
+        background: `radial-gradient(1200px 700px at 50% -10%, rgba(212,175,55,0.06), transparent 60%), ${WM.surface.deepest}`,
+        color: WM.text.body,
+      }}
+    >
+      <div className="mx-auto max-w-5xl" style={{ padding: "24px clamp(16px, 4vw, 32px)" }}>
+        {/* Header — WM atmosphere */}
+        <header
+          style={{
+            borderRadius: 14,
+            border: `1px solid ${WM.border.line}`,
+            background: `linear-gradient(180deg, ${WM.surface.deep} 0%, ${WM.surface.mid} 100%)`,
+            padding: "20px 22px",
+          }}
+        >
+          <div className="flex items-center gap-3" style={{ flexWrap: "wrap" }}>
+            <div
+              className="grid place-items-center"
+              style={{
+                width: 44, height: 44, borderRadius: 999,
+                background: "linear-gradient(160deg, rgba(212,175,55,0.22), rgba(201,165,92,0.08))",
+                border: "1px solid rgba(212,175,55,0.35)",
+                boxShadow: "inset 0 0 20px -8px rgba(212,175,55,0.4)",
+                color: WM.gold.hero,
+              }}
+            >
+              <Users size={20} />
             </div>
             <div>
-              <h1 className="text-xl font-black">Copy Trading</h1>
-              <p className="text-xs text-wm-text-dim">Verified broker performance and authorization required</p>
+              <h1
+                style={{
+                  fontFamily: "Georgia, 'Times New Roman', serif",
+                  fontSize: "clamp(20px, 3.5vw, 26px)",
+                  fontWeight: 400, color: WM.text.hero,
+                  letterSpacing: -0.3, margin: 0, lineHeight: 1.1,
+                }}
+              >
+                Copy Trading
+              </h1>
+              <p
+                style={{
+                  fontFamily: "Georgia, 'Times New Roman', serif",
+                  fontSize: 12, fontStyle: "italic",
+                  color: WM.text.muted, marginTop: 4,
+                }}
+              >
+                Verified broker performance and authorization required
+              </p>
             </div>
-            <span className="ml-auto rounded-full border border-wm-red/30 bg-wm-red/10 px-3 py-1 text-[10px] font-black text-wm-red">
-              NOT AVAILABLE
+            <span
+              className="ml-auto"
+              style={{
+                padding: "3px 10px", borderRadius: 999,
+                border: `1px solid ${WM.state.warn}44`,
+                background: `${WM.state.warn}12`,
+                color: WM.state.warn,
+                fontSize: 9, letterSpacing: 0.32, fontWeight: 800,
+                textTransform: "uppercase",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              Not available
             </span>
           </div>
         </header>
