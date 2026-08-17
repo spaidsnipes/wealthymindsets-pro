@@ -25,9 +25,19 @@ import { useActiveSymbol } from "@/contexts/SymbolContext";
  * Nectar Persistence doc. Raw tape is NOT stored.
  */
 export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
+  // SSR-safe mount gate — same class of hydration mismatch (React #418)
+  // the HeaderVaultPill fix addressed. sessionSymbolStore hydrates from
+  // localStorage on the client; SSR sees 0 symbols and returns null,
+  // client sees observed symbols and renders the chip → tree shape
+  // diverges. Gate on `mounted` so both SSR and initial client paint
+  // agree (null), then swap in real content after mount.
+  const [mounted, setMounted] = useState(false);
   const [, setTick] = useState(0);
+  useEffect(() => { setMounted(true); }, []);
   useEffect(() => subscribeSessionSymbolStore(() => setTick(t => t + 1)), []);
   const { setActiveSymbol } = useActiveSymbol();
+
+  if (!mounted) return null;
 
   const symbols = getKnownSessionSymbols()
     .filter(s => s.slot.stats.tradeCount > 0)
