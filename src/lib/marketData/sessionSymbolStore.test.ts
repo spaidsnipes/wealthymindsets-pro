@@ -253,3 +253,78 @@ describe("sessionSymbolStore — user-facing clear", () => {
     unsub();
   });
 });
+
+describe("sessionSymbolStore — clear persistence readback (Sentinel RETURN)", () => {
+  // Minimal in-memory localStorage stand-in to exercise the readback
+  // paths without pulling in jsdom. Restored after each test.
+  function installFakeLocalStorage(): { store: Map<string, string>; failNextSet?: () => void } {
+    const store = new Map<string, string>();
+    const ctrl: { store: Map<string, string>; failNextSet?: () => void } = { store };
+    (globalThis as unknown as { window?: unknown }).window = {
+      localStorage: {
+        getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+        setItem: (k: string, v: string) => {
+          if (ctrl.failNextSet) { const fn = ctrl.failNextSet; ctrl.failNextSet = undefined; fn(); }
+          store.set(k, v);
+        },
+        removeItem: (k: string) => { store.delete(k); },
+      },
+    };
+    return ctrl;
+  }
+  function uninstallFakeLocalStorage(): void {
+    delete (globalThis as unknown as { window?: unknown }).window;
+  }
+
+  beforeEach(() => __resetSessionSymbolStoreForTests());
+
+  it("ACKNOWLEDGED: sync flush + readback confirms the cleared key is absent", () => {
+    installFakeLocalStorage();
+    try {
+      recordSessionTrade("BTC-USD", "coinbase", { side: "buy", size: 1, time: 1_700_000_000_000 }, false);
+      recordSessionTrade("TSLA",    "alpaca",   { side: "buy", size: 5, time: 1_700_000_010_000 }, false);
+      const r = clearSessionSymbol("BTC-USD", "coinbase");
+      expect(r.inMemoryRemoved).toBe(true);
+      expect(r.persistence).toBe("ACKNOWLEDGED");
+    } finally { uninstallFakeLocalStorage(); }
+  });
+
+  it("ACKNOWLEDGED: clearAll leaves an empty payload in storage", () => {
+    installFakeLocalStorage();
+    try {
+      recordSessionTrade("BTC-USD", "coinbase", { side: "buy", size: 1, time: 1_700_000_000_000 }, false);
+      recordSessionTrade("TSLA",    "alpaca",   { side: "buy", size: 5, time: 1_700_000_010_000 }, false);
+      const r = clearAllSessionSymbols();
+      expect(r.inMemoryRemoved).toBe(2);
+      expect(r.persistence).toBe("ACKNOWLEDGED");
+    } finally { uninstallFakeLocalStorage(); }
+  });
+
+  it("FAILED: setItem throw (quota / private mode) is honestly reported", () => {
+    const ctrl = installFakeLocalStorage();
+    try {
+      recordSessionTrade("BTC-USD", "coinbase", { side: "buy", size: 1, time: 1_700_000_000_000 }, false);
+      ctrl.failNextSet = () => { throw new Error("QuotaExceededError"); };
+      const r = clearSessionSymbol("BTC-USD", "coinbase");
+      expect(r.inMemoryRemoved).toBe(true);
+      expect(r.persistence).toBe("FAILED");
+    } finally { uninstallFakeLocalStorage(); }
+  });
+
+  it("no-op clear on empty store still returns ACKNOWLEDGED (nothing to persist means nothing to lie about)", () => {
+    installFakeLocalStorage();
+    try {
+      const r = clearAllSessionSymbols();
+      expect(r.inMemoryRemoved).toBe(0);
+      expect(r.persistence).toBe("ACKNOWLEDGED");
+    } finally { uninstallFakeLocalStorage(); }
+  });
+
+  it("UNSUPPORTED: without window, clear still runs in memory and reports honestly", () => {
+    // No fake install → typeof window === "undefined"
+    recordSessionTrade("BTC-USD", "coinbase", { side: "buy", size: 1, time: 1_700_000_000_000 }, false);
+    const r = clearSessionSymbol("BTC-USD", "coinbase");
+    expect(r.inMemoryRemoved).toBe(true);
+    expect(r.persistence).toBe("UNSUPPORTED");
+  });
+});
