@@ -157,6 +157,42 @@ describe("sessionSymbolStore — per-symbol persistence across switches", () => 
   });
 });
 
+describe("sessionSymbolStore — scale guards", () => {
+  beforeEach(() => __resetSessionSymbolStoreForTests());
+
+  it("accepts a large multi-symbol multi-source fanout without throwing", () => {
+    // Simulate a heavy day: 50 unique symbols × 2 tape sources = 100 slots.
+    // The store must remain functional even if it later caps localStorage
+    // flushes — in-memory representation is unbounded on purpose so a busy
+    // trader never loses observation truth mid-session.
+    for (let i = 0; i < 50; i++) {
+      const sym = `SYM${i}`;
+      recordSessionTrade(sym, "coinbase", { side: "buy",  size: 1, time: 1_700_000_000_000 + i }, false);
+      recordSessionTrade(sym, "alpaca",   { side: "sell", size: 1, time: 1_700_000_000_000 + i }, false);
+    }
+    const known = getKnownSessionSymbols();
+    expect(known.length).toBe(100);
+    // Sanity: a random slot in the middle still reports real data.
+    const middle = getSessionSymbolSlot("SYM25", "coinbase");
+    expect(middle.stats.tradeCount).toBe(1);
+    expect(middle.stats.buyVol).toBeCloseTo(1);
+  });
+
+  it("getKnownSessionSymbols returns the same reference until a new slot appears", () => {
+    recordSessionTrade("BTC-USD", "coinbase", { side: "buy", size: 1, time: 1_700_000_000_000 }, false);
+    const a = getKnownSessionSymbols();
+    // Same call, no mutation → cached reference (protects useSyncExternalStore
+    // consumers from React #185 unstable-snapshot infinite loops).
+    const b = getKnownSessionSymbols();
+    expect(a).toBe(b);
+    // New symbol → cache invalidates → new reference.
+    recordSessionTrade("TSLA", "alpaca", { side: "buy", size: 1, time: 1_700_000_000_000 }, false);
+    const c = getKnownSessionSymbols();
+    expect(c).not.toBe(a);
+    expect(c.length).toBe(2);
+  });
+});
+
 describe("sessionSymbolStore — user-facing clear", () => {
   beforeEach(() => __resetSessionSymbolStoreForTests());
 
