@@ -1,6 +1,23 @@
 # WM Pro Build Status
 
-**Updated:** 2026-08-10 08:35 CDT
+**Updated:** 2026-08-17 00:22 UTC  (previous entry preserved below)
+
+## 2026-08-16 → 08-17 · Nectar visibility + trader agency (24 commits)
+
+**Head:** shipped on `main`, from `411c134` → latest (post `feat(nectar): Export JSON`).
+**Suite:** 480 → 487 (parallel) → **556 / 69 files** (this shift, all green).
+**tsc --noEmit:** 0 errors after every commit.
+**next build:** clean; `/nectar/[symbol]` correctly dynamic, all other routes static.
+
+Full 24-commit ledger + SHAs in `CLAUDE_SESSION_2026-08-16_NECTAR_SHIFT.md`. Highlights:
+
+- **New flagship routes** `/nectar` and `/nectar/[symbol]` — visible per-symbol memory proof, coverage receipts, retention truth (4 tiers stated honestly, none fabricated).
+- **Trader agency** — clearSessionSymbol + clearAllSessionSymbols APIs + confirm buttons on both routes so the trader can forget individual or all session memory. Two-step confirm to prevent accidental clicks.
+- **Persistent header pill** — `VAULT · N` on every route; escalates to warn tone `! G` when Nectar collector records coverage gaps.
+- **Cross-route atmosphere** — /morning-prep, /news, /shop, /education, /copy-trading, /ai-bot, /backtesting, /partnerships, /creator all now share the warm-obsidian + serif WM header vocabulary alongside /command-deck.
+- **Regression coverage** — 23 new tests (@/lib/nectarFormat 21 + store scale/stability/clear 2 already, +1 more = 23 net). Locks tone contracts + snapshot reference stability against React #185.
+
+## 2026-08-10 08:35 CDT (previous)
 
 **Production code release:** `main@2d468a0` — Vercel READY (`dpl_Eg4RNGhRecFoSzVyAwC8a9CTMR9m`)
 
