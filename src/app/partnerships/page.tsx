@@ -21,21 +21,69 @@ const PARTNERS: Partner[] = [];
 export default function PartnershipsPage() {
   return (
     <div className="flex flex-col h-full bg-wm-black overflow-y-auto">
-      {/* ── Header ─────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-wm-border bg-wm-dark shrink-0 sticky top-0 z-10">
-        <div
-          className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: "linear-gradient(135deg, #F0B429 0%, #FF4D6A 100%)" }}
+      {/* ── Header — WM atmosphere ────────────────────────── */}
+      <div
+        className="flex items-center gap-3 px-4 shrink-0 sticky top-0 z-10"
+        style={{
+          minHeight: 48,
+          borderBottom: "1px solid rgba(139,106,41,0.15)",
+          background: "linear-gradient(180deg, #0b0b0d 0%, rgba(11,11,13,0.6) 100%)",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            fontFamily: "Georgia, 'Times New Roman', serif",
+            fontSize: 12, letterSpacing: 0.32,
+            color: "#c9a55c", textTransform: "uppercase", fontWeight: 400,
+          }}
         >
-          <Handshake size={16} className="text-white" />
+          WM
+        </span>
+        <div style={{ width: 1, height: 16, background: "rgba(139,106,41,0.35)" }} aria-hidden="true" />
+        <div
+          className="grid place-items-center shrink-0"
+          style={{
+            width: 32, height: 32, borderRadius: 999,
+            background: "linear-gradient(160deg, rgba(212,175,55,0.22), rgba(201,165,92,0.08))",
+            border: "1px solid rgba(212,175,55,0.35)",
+            color: "#d4af37",
+          }}
+        >
+          <Handshake size={15} />
         </div>
         <div>
-          <h1 className="text-sm font-black text-wm-text tracking-wide">Partnerships &amp; Sponsors</h1>
-          <p className="text-[10px] text-wm-text-muted">Only verified partner records are published here</p>
+          <h1
+            style={{
+              fontFamily: "Georgia, 'Times New Roman', serif",
+              fontSize: 14, fontWeight: 400,
+              color: "#ede6d3", letterSpacing: -0.1, margin: 0,
+            }}
+          >
+            Partnerships &amp; Sponsors
+          </h1>
+          <p
+            style={{
+              fontSize: 10, letterSpacing: 0.02,
+              color: "#8a8271", margin: 0, marginTop: 2,
+            }}
+          >
+            Only verified partner records are published here
+          </p>
         </div>
-        <div className="ml-auto flex items-center gap-1.5 text-[10px] text-wm-text-muted">
-          <ShieldCheck size={12} className="text-wm-green" />
-          Verification required
+        <div
+          className="ml-auto"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            padding: "3px 8px", borderRadius: 999,
+            border: "1px solid rgba(92,184,92,0.35)",
+            background: "rgba(92,184,92,0.08)",
+            color: "#5cb85c",
+            fontSize: 9, letterSpacing: 0.32, fontWeight: 800,
+            textTransform: "uppercase",
+          }}
+        >
+          <ShieldCheck size={10} /> Verification required
         </div>
       </div>
 
