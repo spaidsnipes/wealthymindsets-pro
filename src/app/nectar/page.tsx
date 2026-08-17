@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import {
   getKnownSessionSymbols,
   subscribeSessionSymbolStore,
+  clearAllSessionSymbols,
   type SessionSymbolSlot,
 } from "@/lib/marketData/sessionSymbolStore";
 import {
@@ -88,11 +89,14 @@ export default function NectarVaultPage() {
         />
 
         <section aria-labelledby="vault-symbols">
-          <SectionBanner
-            number="1"
-            label="OBSERVED SYMBOLS"
-            tagline={known.length === 0 ? "No trades observed yet this session." : `${known.length} symbol${known.length === 1 ? "" : "s"} with retained tape memory.`}
-          />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <SectionBanner
+              number="1"
+              label="OBSERVED SYMBOLS"
+              tagline={known.length === 0 ? "No trades observed yet this session." : `${known.length} symbol${known.length === 1 ? "" : "s"} with retained tape memory.`}
+            />
+            {known.length > 0 && <ClearAllButton knownCount={known.length} />}
+          </div>
           {known.length === 0 ? (
             <EmptyVault />
           ) : (
@@ -167,6 +171,73 @@ export default function NectarVaultPage() {
         <FooterNote />
       </div>
     </main>
+  );
+}
+
+/* ── Clear all button — trader agency, two-step confirm ─── */
+
+function ClearAllButton({ knownCount }: { knownCount: number }) {
+  const [confirming, setConfirming] = React.useState(false);
+  React.useEffect(() => {
+    if (!confirming) return;
+    const h = setTimeout(() => setConfirming(false), 4000);
+    return () => clearTimeout(h);
+  }, [confirming]);
+
+  if (confirming) {
+    return (
+      <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+        <span style={{ fontSize: 10, letterSpacing: 0.24, color: WM.text.muted }}>
+          Forget all {knownCount} symbol{knownCount === 1 ? "" : "s"}?
+        </span>
+        <button
+          type="button"
+          onClick={() => { clearAllSessionSymbols(); setConfirming(false); }}
+          style={{
+            padding: "7px 12px", borderRadius: 8,
+            border: `1px solid ${WM.state.warn}66`,
+            background: `${WM.state.warn}14`,
+            color: WM.state.warn,
+            fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          Yes, forget all
+        </button>
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          style={{
+            padding: "7px 12px", borderRadius: 8,
+            border: `1px solid ${WM.border.line}`,
+            background: "transparent",
+            color: WM.text.muted,
+            fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => setConfirming(true)}
+      aria-label="Clear all session memory across every symbol"
+      title="Delete every symbol's session summary — Δ, volumes, trade counts, horizons, CVD. Undoable this session only."
+      style={{
+        padding: "7px 12px", borderRadius: 8,
+        border: `1px solid ${WM.border.line}`,
+        background: "transparent",
+        color: WM.text.muted,
+        fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
+        cursor: "pointer",
+      }}
+    >
+      Clear all
+    </button>
   );
 }
 
