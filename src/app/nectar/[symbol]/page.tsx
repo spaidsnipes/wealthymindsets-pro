@@ -12,6 +12,7 @@ import {
   getSessionNectarSnapshot,
   subscribeToSessionNectar,
 } from "@/lib/marketData/sessionNectar";
+import type { MarketChannelCoverage } from "@/lib/marketData/coverageMap";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { WmWordmark } from "@/components/brand/WmWordmark";
 import { SectionBanner } from "@/components/brand/SectionBanner";
@@ -56,6 +57,10 @@ export default function NectarSymbolDetailPage() {
 
   const nectar = getSessionNectarSnapshot();
   const tradeChannel = findSessionNectarChannel(nectar, symbol, "trade");
+  const allChannelsForSymbol = nectar.channels.filter(ch =>
+    (ch.normalizedSymbol?.toUpperCase() === symbol) ||
+    (ch.instrumentId.toUpperCase() === symbol),
+  );
 
   return (
     <main
@@ -92,6 +97,13 @@ export default function NectarSymbolDetailPage() {
                 onOpen={() => setActiveSymbol(symbol)}
               />
             ))}
+
+            {/* Coverage receipts — audit surface for every channel the
+                Nectar collector has any evidence of for this symbol.
+                Renders nothing when the collector has no channels yet. */}
+            {allChannelsForSymbol.length > 0 && (
+              <CoverageReceipts channels={allChannelsForSymbol} />
+            )}
           </>
         )}
       </div>
@@ -246,6 +258,92 @@ function SlotPanels({
       </div>
     </>
   );
+}
+
+/* ── Coverage receipts ──────────────────────────────────── */
+
+function CoverageReceipts({ channels }: { channels: readonly MarketChannelCoverage[] }) {
+  return (
+    <>
+      <SectionBanner
+        number="3"
+        label="COVERAGE RECEIPTS"
+        tagline="Every channel the Nectar collector has recorded for this symbol. Operational receipts only — no raw payloads retained."
+      />
+      <div
+        style={{
+          display: "grid",
+          gap: 12,
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
+        }}
+      >
+        {channels.map((ch, i) => (
+          <Panel key={`${ch.instrumentId}::${ch.channel}::${ch.providerPath}::${i}`} label={`${ch.channel.toUpperCase()} · ${ch.providerPath}`}>
+            <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
+              <ReceiptRow label="Coverage state" value={ch.coverageState} tone={coverageTone(ch.coverageState)} />
+              <ReceiptRow label="Memory state" value={ch.memoryState} tone={memoryTone(ch.memoryState)} />
+              <ReceiptRow label="Fidelity class" value={ch.fidelity} tone={fidelityToTone(ch.fidelity)} />
+              <ReceiptRow label="Persistence right" value={ch.persistenceRight} tone={rightTone(ch.persistenceRight)} />
+              <ReceiptRow label="Rights policy" value={ch.rightsPolicyId} />
+              <ReceiptRow label="Observed events" value={ch.observedEventCount.toLocaleString()} tone={ch.observedEventCount > 0 ? WM.state.ok : WM.text.dim} />
+              <ReceiptRow label="Gaps" value={ch.gapCount > 0 ? String(ch.gapCount) : "None"} tone={ch.gapCount > 0 ? WM.state.warn : WM.state.ok} />
+              <ReceiptRow label="Last event" value={ch.lastEventAt ? relTime(ch.lastEventAt) : "—"} />
+              {ch.detail && (
+                <div style={{ marginTop: 4, fontSize: 11, lineHeight: 1.5, color: WM.text.body, borderTop: `1px dashed ${WM.border.hair}`, paddingTop: 8 }}>
+                  {ch.detail}
+                </div>
+              )}
+            </div>
+          </Panel>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function ReceiptRow({ label, value, tone }: { label: string; value: string; tone?: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, fontSize: 11 }}>
+      <span style={{ color: WM.text.muted, letterSpacing: 0.16 }}>{label}</span>
+      <span
+        style={{
+          color: tone ?? WM.text.hero,
+          fontWeight: 700,
+          fontVariantNumeric: "tabular-nums",
+          letterSpacing: 0.06,
+          textAlign: "right",
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function coverageTone(state: string): string {
+  if (state === "LIVE") return WM.state.ok;
+  if (state === "CONNECTING" || state === "DEGRADED") return WM.state.watch;
+  if (state === "STALE" || state === "UNAVAILABLE") return WM.state.warn;
+  return WM.text.muted;
+}
+function memoryTone(state: string): string {
+  if (state === "RETAINED" || state === "SUMMARY_ONLY") return WM.state.ok;
+  if (state === "SESSION_ONLY") return WM.state.watch;
+  return WM.text.dim;
+}
+function rightTone(right: string): string {
+  if (right === "ALLOWED") return WM.state.ok;
+  if (right === "UNKNOWN") return WM.state.warn;
+  return WM.state.warn;
+}
+function relTime(t: number): string {
+  const diff = Date.now() - t;
+  if (diff < 0) return "just now";
+  if (diff < 1_000) return "just now";
+  if (diff < 60_000) return `${Math.floor(diff / 1000)}s ago`;
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  return `${Math.floor(diff / 86_400_000)}d ago`;
 }
 
 /* ── Unobserved state ───────────────────────────────────── */
