@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { WMLogo } from "@/components/ui/WMLogo";
 import WmWordmark from "@/components/brand/WmWordmark";
+import HeaderVaultPill from "@/components/layout/HeaderVaultPill";
 import { TickerTape } from "@/components/layout/TickerTape";
 import { SpadeBotButton } from "@/components/layout/SpaidBotButton";
 import { MusicPlayer } from "@/components/layout/MusicPlayer";
@@ -924,6 +925,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
         {/* Right controls */}
         <div className="flex items-center gap-1 shrink-0">
+          {/* Persistent Vault indicator — appears on every route as
+              a quiet memory-safety reassurance. Renders nothing when
+              nothing has been observed yet. */}
+          <HeaderVaultPill />
+
           {/* Live P&L (toggled by Settings → Show P&L in header) */}
           <HeaderPnL />
 
