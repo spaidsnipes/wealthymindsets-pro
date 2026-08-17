@@ -285,10 +285,36 @@ export default function BacktestingPage() {
     <div style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden" }}
          className="bg-wm-black">
 
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 border-b border-wm-border bg-wm-dark shrink-0" style={{ height: 44 }}>
-        <BarChart2 size={15} className="text-wm-blue shrink-0" />
-        <h1 className="text-sm font-bold text-wm-text">Backtesting Engine</h1>
+      {/* Header — WM atmosphere */}
+      <div
+        className="flex items-center gap-3 px-4 shrink-0"
+        style={{
+          minHeight: 44,
+          borderBottom: "1px solid rgba(139,106,41,0.15)",
+          background: "linear-gradient(180deg, #0b0b0d 0%, rgba(11,11,13,0.6) 100%)",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            fontFamily: "Georgia, 'Times New Roman', serif",
+            fontSize: 12, letterSpacing: 0.32,
+            color: "#c9a55c", textTransform: "uppercase", fontWeight: 400,
+          }}
+        >
+          WM
+        </span>
+        <div style={{ width: 1, height: 16, background: "rgba(139,106,41,0.35)" }} aria-hidden="true" />
+        <BarChart2 size={14} style={{ color: "#c9a55c", flexShrink: 0 }} />
+        <h1
+          style={{
+            fontFamily: "Georgia, 'Times New Roman', serif",
+            fontSize: 14, fontWeight: 400,
+            color: "#ede6d3", letterSpacing: -0.1, margin: 0,
+          }}
+        >
+          Backtesting Engine
+        </h1>
         {/* Main tabs */}
         <div className="flex gap-1 ml-2">
           {([
