@@ -6,7 +6,26 @@
 
 ---
 
-## Four bounded fixes shipped, four different mechanisms
+## UPDATE — fifth fix landed, class closed live-verified
+
+After this receipt was originally shipped, the residual `#418` was traced
+in-session by systematic `Date.now() / new Date()` grep across
+`src/components`. Fifth root cause: `HeroTruth.tsx:59` — a
+`state?.capturedAt ?? Date.now()` fallback that ran at render time,
+producing different values between SSR clock and client clock. Fixed
+in commit `f7ef8e9` (approximate) — see the fifth-fix commit at the top
+of `git log`. Verification: fresh Chrome reloads of `/command-deck` and
+`/nectar` at HEAD post-fix return **zero console errors**. Live
+screenshot `ss_6491pg3qw` shows `PRICE AGE 11.2S` — honest freshness
+from real `capturedAt - eventAt`, no more server-clock guessing.
+
+The "Residual" section below is retained for historical honesty but is
+now closed. DoD: **9/9 stages green** (was 8/9), Founder acceptance
+still ⏳.
+
+---
+
+## Five bounded fixes shipped, five different mechanisms
 
 Each fix is a distinct real root cause discovered by systematic §XI weakness exploitation ("what else could fail for the same reason?"):
 
