@@ -51,26 +51,32 @@ export function HeaderVaultPill() {
       href="/nectar"
       aria-label={
         hasGaps
-          ? `Nectar Vault: ${count} symbol${count === 1 ? "" : "s"} with retained memory, ${gapCount} coverage gap${gapCount === 1 ? "" : "s"} recorded. Open the Vault.`
-          : `Nectar Vault: ${count} symbol${count === 1 ? "" : "s"} with retained memory this session. Open the Vault.`
+          ? `Nectar Vault: ${count} symbol${count === 1 ? "" : "s"} with retained browser-local stats, ${gapCount} coverage gap${gapCount === 1 ? "" : "s"} recorded. Open the Vault.`
+          : `Nectar Vault: ${count} symbol${count === 1 ? "" : "s"} with retained browser-local stats. Open the Vault.`
       }
       title={
-        `WM Nectar Vault — ${count} symbol${count === 1 ? "" : "s"} with retained tape memory this session.\n` +
+        `WM Nectar Vault — ${count} symbol${count === 1 ? "" : "s"} with retained browser-local tape stats ` +
+        `(localStorage, up to 32 symbols, 7-day retention).\n` +
         (hasGaps ? `Coverage gaps recorded across channels: ${gapCount}. Open the Vault to inspect per-channel receipts.\n` : "") +
-        `Session summary is preserved across refresh and symbol switch.\n` +
+        `Summary is preserved across refresh and symbol switch within that window.\n` +
         `Open the Vault to see per-symbol Δ, trade counts, fidelity, and retention truth.`
       }
       style={{
-        display: "inline-flex", alignItems: "center", gap: 5,
-        padding: "3px 8px", borderRadius: 999,
-        border: `1px solid ${hasGaps ? "rgba(192,90,74,0.35)" : "rgba(212,175,55,0.30)"}`,
-        background: hasGaps ? "rgba(192,90,74,0.08)" : "rgba(212,175,55,0.08)",
+        // WCAG 2.5.5 target size: real 32px touch target (not 44 to stay
+        // proportional to shell header height ~44). Enlarged from prior
+        // 9.5px/3px per Sentinel accessibility RETURN.
+        display: "inline-flex", alignItems: "center", gap: 6,
+        minHeight: 32,
+        padding: "6px 12px", borderRadius: 999,
+        border: `1px solid ${hasGaps ? "rgba(192,90,74,0.45)" : "rgba(212,175,55,0.40)"}`,
+        background: hasGaps ? "rgba(192,90,74,0.10)" : "rgba(212,175,55,0.10)",
         color: hasGaps ? "#c05a4a" : "#d4af37",
-        fontSize: 9.5, fontWeight: 800, letterSpacing: "0.10em",
+        fontSize: 11, fontWeight: 800, letterSpacing: "0.08em",
         fontVariantNumeric: "tabular-nums",
         textDecoration: "none",
         textTransform: "uppercase",
         marginRight: 4,
+        outlineOffset: 2,
       }}
     >
       <Database size={11} />

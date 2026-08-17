@@ -73,12 +73,12 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
     <div
       className="wm-nectar-vault-chip"
       role="group"
-      aria-label={`WM Nectar Vault. ${symbols.length === 1 ? "1 symbol has" : `${symbols.length} symbols have`} retained tape memory this session.`}
+      aria-label={`WM Nectar Vault. ${symbols.length === 1 ? "1 symbol has" : `${symbols.length} symbols have`} retained browser-local tape stats.`}
       title={
-        `WM Nectar Vault — per-symbol summaries persisted for this tab.\n` +
-        `Switching symbols and refreshing the page will not erase these counters.\n` +
-        `Retention tier: summary only (delta, trade counts, horizon). ` +
-        `Raw executed prints are not durably stored while provider rights remain UNKNOWN.`
+        `WM Nectar Vault — browser-local per-symbol stats (localStorage, up to 32 symbols, 7-day retention).\n` +
+        `Switching symbols and refreshing the page will not erase these counters within that window.\n` +
+        `Retention tier: browser-local summary only (delta, trade counts, horizon).\n` +
+        `Raw executed prints are not stored. Nectar channel-coverage receipts and server-side data are separately owned.`
       }
       style={{
         position: "absolute", top: 104, left: "50%", transform: "translateX(-50%)",

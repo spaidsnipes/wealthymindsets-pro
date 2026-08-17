@@ -213,7 +213,7 @@ function ExportSessionButton() {
         exportedAtIso: new Date().toISOString(),
         retentionTier: "browser-summary",
         rawPayloadsIncluded: false,
-        note: "Session-only summary. Raw executed prints are not stored in WM Pro today.",
+        note: "Browser-local per-symbol summary snapshot (localStorage-backed, up to 32 slots, 7-day retention). Nectar channel/coverage receipts and server-side coverage are separately owned and not included. Raw executed prints are not stored in WM Pro today.",
         sessionNectar: {
           schemaVersion: snapshot.schemaVersion,
           startedAt: snapshot.startedAt,
@@ -242,7 +242,7 @@ function ExportSessionButton() {
       onClick={onDownload}
       disabled={busy}
       aria-label="Export session Nectar as JSON"
-      title="Download every observed symbol's session summary + Nectar snapshot as JSON. Session-only tier; raw prints not included."
+      title="Download every observed symbol's browser-local session-stats snapshot + the sessionNectar channel snapshot as JSON. Browser-local tier only; server-side data and raw prints are not included."
       style={{
         padding: "7px 12px", borderRadius: 8,
         border: `1px solid ${WM.border.line}`,
@@ -258,7 +258,7 @@ function ExportSessionButton() {
   );
 }
 
-/* ── Clear all button — trader agency, two-step confirm ─── */
+/* ── Clear-all-browser-stats button — bounded truthful scope ── */
 
 function ClearAllButton({ knownCount }: { knownCount: number }) {
   const [confirming, setConfirming] = React.useState(false);
@@ -270,34 +270,43 @@ function ClearAllButton({ knownCount }: { knownCount: number }) {
 
   if (confirming) {
     return (
-      <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-        <span style={{ fontSize: 10, letterSpacing: 0.24, color: WM.text.muted }}>
-          Forget all {knownCount} symbol{knownCount === 1 ? "" : "s"}?
+      <div style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        {/* Truthful confirmation copy per Sentinel RETURN. Names the
+            exact scope AND the four ownership boundaries it does NOT
+            touch, so the trader can't mistake this for a system-wide
+            forget. */}
+        <span style={{ fontSize: 10, letterSpacing: 0.24, color: WM.text.muted, maxWidth: 320 }}>
+          Delete browser-local session stats for {knownCount} symbol{knownCount === 1 ? "" : "s"}?
+          Does not clear Nectar channels, coverage receipts, or server data.
         </span>
         <button
           type="button"
           onClick={() => { clearAllSessionSymbols(); setConfirming(false); }}
           style={{
-            padding: "7px 12px", borderRadius: 8,
+            minHeight: 44, minWidth: 44,
+            padding: "12px 16px", borderRadius: 8,
             border: `1px solid ${WM.state.warn}66`,
             background: `${WM.state.warn}14`,
             color: WM.state.warn,
             fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
             cursor: "pointer",
+            outlineOffset: 2,
           }}
         >
-          Yes, forget all
+          Yes, delete browser stats
         </button>
         <button
           type="button"
           onClick={() => setConfirming(false)}
           style={{
-            padding: "7px 12px", borderRadius: 8,
+            minHeight: 44, minWidth: 44,
+            padding: "12px 16px", borderRadius: 8,
             border: `1px solid ${WM.border.line}`,
             background: "transparent",
             color: WM.text.muted,
             fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
             cursor: "pointer",
+            outlineOffset: 2,
           }}
         >
           Cancel
@@ -309,18 +318,28 @@ function ClearAllButton({ knownCount }: { knownCount: number }) {
     <button
       type="button"
       onClick={() => setConfirming(true)}
-      aria-label="Clear all session memory across every symbol"
-      title="Delete every symbol's session summary — Δ, volumes, trade counts, horizons, CVD. Undoable this session only."
+      aria-label="Clear all browser-local session stats across every symbol. Does not clear Nectar channels, coverage receipts, or server-side data."
+      title={
+        "Deletes only browser-local session summary stats (Δ, volumes, " +
+        "trade counts, horizons, CVD samples) for every observed symbol.\n\n" +
+        "Does NOT clear:\n" +
+        "  · sessionNectar channel-coverage receipts\n" +
+        "  · coverage-continuity records\n" +
+        "  · any server-side coverage or acknowledgement\n" +
+        "  · raw executed prints (WM does not store them today)"
+      }
       style={{
-        padding: "7px 12px", borderRadius: 8,
+        minHeight: 44, minWidth: 44,
+        padding: "12px 16px", borderRadius: 8,
         border: `1px solid ${WM.border.line}`,
         background: "transparent",
         color: WM.text.muted,
         fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
         cursor: "pointer",
+        outlineOffset: 2,
       }}
     >
-      Clear all
+      Clear browser stats
     </button>
   );
 }

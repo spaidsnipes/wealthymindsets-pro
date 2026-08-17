@@ -284,7 +284,7 @@ function SlotPanels({
   );
 }
 
-/* ── Clear slot button — trader agency over their own memory ── */
+/* ── Clear-browser-stats button — bounded truthful scope ── */
 
 function ClearSlotButton({ symbol, tapeSource }: { symbol: string; tapeSource: string }) {
   const [confirming, setConfirming] = React.useState(false);
@@ -296,39 +296,47 @@ function ClearSlotButton({ symbol, tapeSource }: { symbol: string; tapeSource: s
 
   if (confirming) {
     return (
-      <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+      <div style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        {/* Truthful confirmation per Sentinel RETURN — names the exact
+            scope, not "session memory" which overstates to include
+            Nectar / coverage / server data. */}
         <span
           style={{
             fontSize: 10, letterSpacing: 0.24, color: WM.text.muted,
-            padding: "0 6px",
+            padding: "0 6px", maxWidth: 320,
           }}
         >
-          Delete this symbol&apos;s session memory?
+          Delete {symbol}&apos;s browser-local session stats?
+          Does not clear Nectar channels, coverage receipts, or server data.
         </span>
         <button
           type="button"
           onClick={() => { clearSessionSymbol(symbol, tapeSource); setConfirming(false); }}
           style={{
-            padding: "9px 12px", borderRadius: 8,
+            minHeight: 44, minWidth: 44,
+            padding: "12px 14px", borderRadius: 8,
             border: `1px solid ${WM.state.warn}66`,
             background: `${WM.state.warn}14`,
             color: WM.state.warn,
             fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
             cursor: "pointer",
+            outlineOffset: 2,
           }}
         >
-          Yes, forget
+          Yes, delete browser stats
         </button>
         <button
           type="button"
           onClick={() => setConfirming(false)}
           style={{
-            padding: "9px 12px", borderRadius: 8,
+            minHeight: 44, minWidth: 44,
+            padding: "12px 14px", borderRadius: 8,
             border: `1px solid ${WM.border.line}`,
             background: "transparent",
             color: WM.text.muted,
             fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
             cursor: "pointer",
+            outlineOffset: 2,
           }}
         >
           Cancel
@@ -340,18 +348,28 @@ function ClearSlotButton({ symbol, tapeSource }: { symbol: string; tapeSource: s
     <button
       type="button"
       onClick={() => setConfirming(true)}
-      aria-label={`Forget ${symbol}'s session memory`}
-      title={`Clear ${symbol}'s local session memory (Δ, volumes, counts, horizon, CVD). Undoable this session only.`}
+      aria-label={`Clear ${symbol}'s browser-local session stats. Does not clear Nectar channels, coverage receipts, or server-side data.`}
+      title={
+        `Deletes only ${symbol}'s browser-local session summary stats ` +
+        `(Δ, buy/sell vol, trade count, big-trade count, horizon, CVD samples).\n\n` +
+        `Does NOT clear:\n` +
+        `  · sessionNectar channel-coverage receipts for ${symbol}\n` +
+        `  · coverage-continuity records\n` +
+        `  · any server-side coverage or acknowledgement\n` +
+        `  · raw executed prints (WM does not store them today)`
+      }
       style={{
-        padding: "9px 12px", borderRadius: 8,
+        minHeight: 44, minWidth: 44,
+        padding: "12px 14px", borderRadius: 8,
         border: `1px solid ${WM.border.line}`,
         background: "transparent",
         color: WM.text.muted,
         fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
         cursor: "pointer",
+        outlineOffset: 2,
       }}
     >
-      Clear memory
+      Clear browser stats
     </button>
   );
 }
