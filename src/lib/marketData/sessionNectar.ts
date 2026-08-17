@@ -1,6 +1,11 @@
-import { MARKET_DATA_CAPABILITIES, type MarketDataCapability } from "./capabilityRegistry";
+import {
+  MARKET_DATA_CAPABILITIES,
+  type MarketAssetClass,
+  type MarketDataCapability,
+} from "./capabilityRegistry";
 import {
   createChannelCoverage,
+  markCoverageGap,
   markCoverageStale,
   observeChannel,
   type MarketChannelCoverage,
@@ -115,6 +120,52 @@ export class SessionNectarCollector {
     this.cachedSnapshot = null;
     this.emit();
     return inspected;
+  }
+
+  recordOperationalGap(
+    instrumentId: string,
+    normalizedSymbol: string,
+    providerPath: MarketDataCapability["providerPath"],
+    assetClass: MarketAssetClass,
+    channel: MarketDataCapability["eventType"],
+    occurredAt: number,
+    reason: string,
+  ): boolean {
+    const capability = MARKET_DATA_CAPABILITIES.find(entry =>
+      entry.providerPath === providerPath && entry.assetClass === assetClass && entry.eventType === channel
+    );
+    if (!capability || capability.availability === "UNAVAILABLE") return false;
+    const key = `${instrumentId}|${channel}|${providerPath}`;
+    const current = this.channels.get(key) ?? {
+      ...createChannelCoverage(instrumentId, capability),
+      normalizedSymbol: normalizedSymbol.toUpperCase(),
+    };
+    if (current.coverageState === "GAPPED" &&
+        current.lastGapAt != null && occurredAt - current.lastGapAt < 30_000) return false;
+    this.channels.set(key, markCoverageGap(current, occurredAt, reason));
+    this.updatedAt = occurredAt;
+    this.emit();
+    return true;
+  }
+
+  recoverOperationalGap(
+    instrumentId: string,
+    providerPath: MarketDataCapability["providerPath"],
+    channel: MarketDataCapability["eventType"],
+    occurredAt: number,
+  ): boolean {
+    const key = `${instrumentId}|${channel}|${providerPath}`;
+    const current = this.channels.get(key);
+    if (!current || current.coverageState !== "GAPPED") return false;
+    this.channels.set(key, {
+      ...current,
+      coverageState: "COLLECTING",
+      lastEventAt: Math.max(current.lastEventAt ?? 0, occurredAt),
+      detail: "Collection resumed after a known operational gap; the historical gap remains recorded.",
+    });
+    this.updatedAt = occurredAt;
+    this.emit();
+    return true;
   }
 
   subscribe(listener: Listener): () => void {
@@ -287,6 +338,37 @@ if (typeof window !== "undefined" && !sessionNectarRuntime.continuityInitialized
 
 export function ingestSessionNectarEvent(event: CanonicalMarketEvent): SessionNectarIngestResult {
   return sessionNectarCollector.ingest(event);
+}
+
+export function recordSessionNectarOperationalGap(
+  instrumentId: string,
+  normalizedSymbol: string,
+  providerPath: MarketDataCapability["providerPath"],
+  assetClass: MarketAssetClass,
+  channel: MarketDataCapability["eventType"],
+  occurredAt: number,
+  reason: string,
+): boolean {
+  return sessionNectarCollector.recordOperationalGap(
+    instrumentId,
+    normalizedSymbol,
+    providerPath,
+    assetClass,
+    channel,
+    occurredAt,
+    reason,
+  );
+}
+
+export function recoverSessionNectarOperationalGap(
+  instrumentId: string,
+  providerPath: MarketDataCapability["providerPath"],
+  channel: MarketDataCapability["eventType"],
+  occurredAt: number,
+): boolean {
+  return sessionNectarCollector.recoverOperationalGap(
+    instrumentId, providerPath, channel, occurredAt,
+  );
 }
 
 export function getSessionNectarSnapshot(): SessionNectarSnapshot {

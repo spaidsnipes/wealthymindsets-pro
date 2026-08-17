@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { priceSourceBadge } from "@/lib/priceSource";
+import { fetchJsonCoalesced } from "@/lib/marketData/clientRequestCoalescer";
+import { fetchAlpacaQuote } from "@/lib/marketData/alpacaClient";
 
 // WM-SEC-P0-05 (2026-08-08): client-side Polygon key read removed. The
 // NEXT_PUBLIC_POLYGON_KEY that used to live here shipped the API key
@@ -75,7 +77,9 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
   // Futures → Yahoo (only free source for futures)
   if (FUTURES_SYMS.has(up) || up.endsWith("1!")) {
     try {
-      const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      const j = await fetchJsonCoalesced<any>(
+        `/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, 2_000, `yahoo:quote:${up}`,
+      );
       const price = j?.price ?? 0;
       const prev  = j?.prevClose ?? price;
       if (price > 0) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
@@ -86,12 +90,14 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
   // Crypto → Alpaca (FREE, no key required, real-time)
   if (CRYPTO_SYMS.has(up)) {
     try {
-      const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      const j = await fetchAlpacaQuote(up, "ticker-tape", 2_000);
       if (j?.price > 0) return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0, src: "alpaca" };
     } catch {}
     // Fallback to Yahoo for crypto
     try {
-      const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      const j = await fetchJsonCoalesced<any>(
+        `/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, 2_000, `yahoo:quote:${up}`,
+      );
       const price = j?.price ?? 0;
       const prev  = j?.prevClose ?? price;
       if (price > 0) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
@@ -102,13 +108,15 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
   // Stocks/ETFs use the same consolidated-first semantic as MainChart and the
   // watchlist. Independent consumers must not disagree on LIVE vs DELAYED.
   try {
-    const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+    const j = await fetchJsonCoalesced<any>(
+      `/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, 2_000, `yahoo:quote:${up}`,
+    );
     const price = j?.price ?? 0;
     const prev  = j?.prevClose ?? price;
     if (price > 0) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
   } catch {}
   try {
-    const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+    const j = await fetchAlpacaQuote(up, "ticker-tape", 2_000);
     if (j?.price > 0 && j.source === "alpaca") return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0, src: "alpaca" };
   } catch {}
   try {
@@ -242,10 +250,14 @@ export function TickerTape() {
 
   /* ── Yahoo REST fetch on mount + every 10s ────────────── */
   useEffect(() => {
+    let inFlight = false;
     const doFetch = async () => {
-      const live = await fetchPolygonPrices();
-      if (!Object.keys(live).length) return;
-      setTickers(prev => {
+      if (document.visibilityState === "hidden" || inFlight) return;
+      inFlight = true;
+      try {
+        const live = await fetchPolygonPrices();
+        if (!Object.keys(live).length) return;
+        setTickers(prev => {
         const updated = prev.map(t => {
           const key = t.sym.toUpperCase();
           if (live[key] && live[key].price > 0) {
@@ -261,8 +273,11 @@ export function TickerTape() {
         }
         try { (window as any).__wmTicker = priceCache; } catch {}
         // NOTE: Not persisting to localStorage — cleared on init to prevent stale day-change%
-        return updated;
-      });
+          return updated;
+        });
+      } finally {
+        inFlight = false;
+      }
     };
 
     doFetch();

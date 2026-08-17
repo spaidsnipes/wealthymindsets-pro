@@ -39,6 +39,33 @@ const trade = (overrides: Partial<CanonicalMarketEvent> = {}): CanonicalMarketEv
 });
 
 describe("Session Nectar collection health", () => {
+  it("records and coalesces provider rate-limit gaps without inventing events", () => {
+    const collector = new SessionNectarCollector(1_000);
+    expect(collector.recordOperationalGap(
+      "TSLA", "TSLA", "alpaca-rest", "equity", "quote", 10_000, "RATE_LIMIT",
+    )).toBe(true);
+    expect(collector.recordOperationalGap(
+      "TSLA", "TSLA", "alpaca-rest", "equity", "quote", 10_500, "RATE_LIMIT",
+    )).toBe(false);
+    const channel = collector.snapshot().channels[0];
+    expect(channel).toMatchObject({
+      normalizedSymbol: "TSLA",
+      providerPath: "alpaca-rest",
+      channel: "quote",
+      coverageState: "GAPPED",
+      gapCount: 1,
+      lastGapAt: 10_000,
+      observedEventCount: 0,
+    });
+    expect(collector.recoverOperationalGap("TSLA", "alpaca-rest", "quote", 12_000)).toBe(true);
+    expect(collector.snapshot().channels[0]).toMatchObject({
+      coverageState: "COLLECTING",
+      gapCount: 1,
+      lastGapAt: 10_000,
+      lastEventAt: 12_000,
+    });
+  });
+
   it("turns an accepted canonical event into session-only channel coverage", () => {
     const collector = new SessionNectarCollector(1_786_335_600_000);
     expect(collector.ingest(trade()).status).toBe("ACCEPTED");

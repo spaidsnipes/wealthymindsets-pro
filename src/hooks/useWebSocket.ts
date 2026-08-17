@@ -27,6 +27,8 @@ import { applyTickToLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
 import { normalizeBinanceUsTrade } from "@/lib/marketData/adapters/binanceUs";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
+import { fetchJsonCoalesced } from "@/lib/marketData/clientRequestCoalescer";
+import { fetchAlpacaQuote } from "@/lib/marketData/alpacaClient";
 
 export interface Tick {
   price: number;
@@ -137,11 +139,15 @@ async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
   // the accurate primary; Alpaca/Finnhub are fallbacks only if Yahoo fails. ───
   if (!isFutures && !isForex) {
     try {
-      const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      const j = await fetchJsonCoalesced<any>(
+        `/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`,
+        1_250,
+        `yahoo:quote:${upper}`,
+      );
       const q = mk(j, "yahoo"); if (q) return q;
     } catch {}
     try {
-      const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(upper)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      const j = await fetchAlpacaQuote(upper, "useWebSocket", 1_250);
       const q = mk(j, "alpaca"); if (q) return q;
     } catch {}
     if (!isCrypto) {
@@ -154,7 +160,11 @@ async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
 
   // ── Futures + Crypto + final fallback: Yahoo Finance proxy ──────────────
   try {
-    const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+    const j = await fetchJsonCoalesced<any>(
+      `/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`,
+      1_250,
+      `yahoo:quote:${upper}`,
+    );
     const q = mk(j, "yahoo"); if (q) return q;
   } catch {}
 
@@ -1028,7 +1038,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       if (disposed || document.visibilityState === "hidden" || restFetchInFlight) return;
       restFetchInFlight = true;
       fetchRealQuote(symbol).then(q => {
-        if (!q) return;
+        if (disposed || !q) return;
         const realPrice = q.price;
         const prevPrice = priceRef.current;
         priceRef.current = realPrice;

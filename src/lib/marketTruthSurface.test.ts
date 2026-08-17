@@ -11,8 +11,8 @@ describe("same-screen market truth contract", () => {
 
     const watchlistStockPolicy = watchlist.slice(watchlist.indexOf("Stocks/ETFs use the same"));
     const tickerStockPolicy = tickerTape.slice(tickerTape.indexOf("Stocks/ETFs use the same"));
-    expect(watchlistStockPolicy.indexOf("/api/yahoo")).toBeLessThan(watchlistStockPolicy.indexOf("/api/alpaca"));
-    expect(tickerStockPolicy.indexOf("/api/yahoo")).toBeLessThan(tickerStockPolicy.indexOf("/api/alpaca"));
+    expect(watchlistStockPolicy.indexOf("/api/yahoo")).toBeLessThan(watchlistStockPolicy.indexOf("fetchAlpacaQuote"));
+    expect(tickerStockPolicy.indexOf("/api/yahoo")).toBeLessThan(tickerStockPolicy.indexOf("fetchAlpacaQuote"));
   });
 
   it("keys the DOM by instrument so old and new books cannot share state", () => {

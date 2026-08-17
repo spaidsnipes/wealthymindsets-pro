@@ -120,6 +120,25 @@ export function markCoverageStale(
   };
 }
 
+/** Records an operational collection gap without inventing missing events. */
+export function markCoverageGap(
+  coverage: MarketChannelCoverage,
+  occurredAt: number,
+  detail: string,
+): MarketChannelCoverage {
+  if (!Number.isFinite(occurredAt) || occurredAt <= 0) {
+    throw new Error("Coverage gaps require a valid epoch-millisecond timestamp.");
+  }
+  if (coverage.coverageState === "UNAVAILABLE") return coverage;
+  return {
+    ...coverage,
+    coverageState: "GAPPED",
+    gapCount: coverage.gapCount + 1,
+    lastGapAt: occurredAt,
+    detail,
+  };
+}
+
 export function canClaimRetainedCoverage(coverage: MarketChannelCoverage): boolean {
   return coverage.memoryState === "RETAINED" &&
     coverage.persistenceRight === "ALLOWED" &&
