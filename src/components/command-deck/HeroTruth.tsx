@@ -89,11 +89,14 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
           this block entirely and let SYMBOL take the dominant role
           (the pre-Aug-16 behavior). */}
       {marketState && (
-        <div style={{ marginBottom: 6 }}>
+        <div style={{ marginBottom: 6, minWidth: 0 }}>
           <span
             style={{
               fontFamily: "Georgia, 'Times New Roman', serif",
-              fontSize: 44,
+              // Fluid across device classes: ~28px on a 390px phone, scaling to
+              // 44px on desktop. Chapter names like TREND_EXPANSION /
+              // OPENING_AUCTION overflowed a phone at a fixed 44px.
+              fontSize: "clamp(26px, 7.5vw, 44px)",
               lineHeight: 1.05,
               letterSpacing: 0.6,
               color:
@@ -102,6 +105,9 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
                                                        "#ede6d3",
               textTransform: "uppercase",
               fontWeight: 400,
+              display: "inline-block",
+              maxWidth: "100%",
+              overflowWrap: "anywhere",
             }}
             aria-label={`Market state ${marketState}${marketStateResolution ? ` (${marketStateResolution.toLowerCase()})` : ""}`}
           >
@@ -115,10 +121,10 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "baseline", gap: 18, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 18, flexWrap: "wrap", minWidth: 0 }}>
         <span
           style={{
-            fontSize: 32,
+            fontSize: "clamp(24px, 6vw, 32px)",
             fontWeight: 800,
             letterSpacing: 0.4,
             color: "#ede6d3",
@@ -163,7 +169,7 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
         {price != null ? (
           <span
             style={{
-              fontSize: 60,
+              fontSize: "clamp(40px, 12vw, 60px)",
               fontWeight: 400,
               color: "#ede6d3",
               fontVariantNumeric: "tabular-nums",
@@ -179,7 +185,7 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
         ) : (
           <span
             style={{
-              fontSize: 60,
+              fontSize: "clamp(40px, 12vw, 60px)",
               fontWeight: 400,
               color: "#55503f",
               lineHeight: 1.02,
