@@ -95,7 +95,12 @@ export default function NectarVaultPage() {
               label="OBSERVED SYMBOLS"
               tagline={known.length === 0 ? "No trades observed yet this session." : `${known.length} symbol${known.length === 1 ? "" : "s"} with retained tape memory.`}
             />
-            {known.length > 0 && <ClearAllButton knownCount={known.length} />}
+            {known.length > 0 && (
+              <div style={{ display: "inline-flex", gap: 8 }}>
+                <ExportSessionButton />
+                <ClearAllButton knownCount={known.length} />
+              </div>
+            )}
           </div>
           {known.length === 0 ? (
             <EmptyVault />
@@ -171,6 +176,71 @@ export default function NectarVaultPage() {
         <FooterNote />
       </div>
     </main>
+  );
+}
+
+/* ── Export session — JSON download of every observed slot ── */
+
+function ExportSessionButton() {
+  const [busy, setBusy] = React.useState(false);
+  const onDownload = () => {
+    setBusy(true);
+    try {
+      const slots = getKnownSessionSymbols().map(({ symbol, tapeSource, slot }) => ({
+        symbol,
+        tapeSource,
+        stats: slot.stats,
+        horizon: slot.horizon,
+        cvdSpark: slot.cvdSpark,
+      }));
+      const snapshot = getSessionNectarSnapshot();
+      const payload = {
+        wmNectarExport: "v1",
+        exportedAtIso: new Date().toISOString(),
+        retentionTier: "browser-summary",
+        rawPayloadsIncluded: false,
+        note: "Session-only summary. Raw executed prints are not stored in WM Pro today.",
+        sessionNectar: {
+          schemaVersion: snapshot.schemaVersion,
+          startedAt: snapshot.startedAt,
+          updatedAt: snapshot.updatedAt,
+          retentionState: snapshot.retentionState,
+          unsupportedCapabilities: snapshot.unsupportedCapabilities,
+          channels: snapshot.channels,
+        },
+        symbolSlots: slots,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      a.href = url;
+      a.download = `wm-nectar-session-${stamp}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={onDownload}
+      disabled={busy}
+      aria-label="Export session Nectar as JSON"
+      title="Download every observed symbol's session summary + Nectar snapshot as JSON. Session-only tier; raw prints not included."
+      style={{
+        padding: "7px 12px", borderRadius: 8,
+        border: `1px solid ${WM.border.line}`,
+        background: "transparent",
+        color: WM.text.body,
+        fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
+        cursor: busy ? "wait" : "pointer",
+        opacity: busy ? 0.6 : 1,
+      }}
+    >
+      Export JSON
+    </button>
   );
 }
 
