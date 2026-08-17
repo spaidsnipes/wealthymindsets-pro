@@ -49,7 +49,14 @@ export default function NectarSymbolDetailPage() {
   const raw = Array.isArray(params?.symbol) ? params.symbol[0] : (params?.symbol as string | undefined);
   const symbol = (raw ?? "").toUpperCase();
 
+  // SSR-safe mount gate — both stores hydrate from localStorage on
+  // the client. SSR sees them empty, client sees them populated →
+  // React #418 hydration mismatch. Gate on `mounted` so both trees
+  // start with the empty-symbol shell and swap to real data after
+  // mount.
+  const [mounted, setMounted] = React.useState(false);
   const [, setTick] = React.useState(0);
+  React.useEffect(() => { setMounted(true); }, []);
   React.useEffect(() => subscribeSessionSymbolStore(() => setTick(t => t + 1)), []);
   React.useEffect(() => subscribeToSessionNectar(() => setTick(t => t + 1)), []);
   React.useEffect(() => {
@@ -61,16 +68,20 @@ export default function NectarSymbolDetailPage() {
 
   // Try to find any slot for this symbol regardless of tape source.
   // Prefer the slot with the highest trade count.
-  const matched = getKnownSessionSymbols()
-    .filter(s => s.symbol.toUpperCase() === symbol)
-    .sort((a, b) => b.slot.stats.tradeCount - a.slot.stats.tradeCount);
+  const matched = mounted
+    ? getKnownSessionSymbols()
+        .filter(s => s.symbol.toUpperCase() === symbol)
+        .sort((a, b) => b.slot.stats.tradeCount - a.slot.stats.tradeCount)
+    : [];
 
-  const nectar = getSessionNectarSnapshot();
-  const tradeChannel = findSessionNectarChannel(nectar, symbol, "trade");
-  const allChannelsForSymbol = nectar.channels.filter(ch =>
-    (ch.normalizedSymbol?.toUpperCase() === symbol) ||
-    (ch.instrumentId.toUpperCase() === symbol),
-  );
+  const nectar = mounted ? getSessionNectarSnapshot() : null;
+  const tradeChannel = nectar ? findSessionNectarChannel(nectar, symbol, "trade") : null;
+  const allChannelsForSymbol = nectar
+    ? nectar.channels.filter(ch =>
+        (ch.normalizedSymbol?.toUpperCase() === symbol) ||
+        (ch.instrumentId.toUpperCase() === symbol),
+      )
+    : [];
 
   return (
     <main

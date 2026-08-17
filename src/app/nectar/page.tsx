@@ -40,7 +40,16 @@ import { fmtNum, formatMemoryAge, fidelityToTone } from "@/lib/nectarFormat";
  * so this page belongs to the same visual world as /command-deck.
  */
 export default function NectarVaultPage() {
+  // SSR-safe mount gate — sessionSymbolStore + sessionNectar both
+  // hydrate from localStorage on the client. Reading them during
+  // SSR (or the first client render pre-hydration) returns empty,
+  // then the second render returns the observed data → React #418
+  // hydration mismatch. Gate rendering on `mounted` so SSR and the
+  // first client paint agree (both show the empty-state header
+  // shell), then swap in real data after mount.
+  const [mounted, setMounted] = React.useState(false);
   const [, setTick] = React.useState(0);
+  React.useEffect(() => { setMounted(true); }, []);
   React.useEffect(() => subscribeSessionSymbolStore(() => setTick(t => t + 1)), []);
   React.useEffect(() => subscribeToSessionNectar(() => setTick(t => t + 1)), []);
   React.useEffect(() => {
@@ -51,11 +60,16 @@ export default function NectarVaultPage() {
   }, []);
   const { setActiveSymbol, activeSymbol } = useActiveSymbol();
 
-  const known = getKnownSessionSymbols()
-    .filter(s => s.slot.stats.tradeCount > 0)
-    .sort((a, b) => b.slot.stats.tradeCount - a.slot.stats.tradeCount);
-
-  const nectar = getSessionNectarSnapshot();
+  // On SSR + pre-mount client: both trees see the same empty session
+  // (no localStorage, both `mounted=false`). After mount effect fires,
+  // real store data flows in via the setTick subscriptions.
+  const known = mounted
+    ? getKnownSessionSymbols()
+        .filter(s => s.slot.stats.tradeCount > 0)
+        .sort((a, b) => b.slot.stats.tradeCount - a.slot.stats.tradeCount)
+    : [];
+  const nectar: ReturnType<typeof getSessionNectarSnapshot> | null =
+    mounted ? getSessionNectarSnapshot() : null;
 
   return (
     <main
@@ -84,7 +98,7 @@ export default function NectarVaultPage() {
             only. Renders even when no trades yet, so the trader can see
             "0 live channels" as a real signal, not fabricated silence. */}
         <SessionIntelligenceStrip
-          channels={nectar.channels}
+          channels={nectar?.channels ?? []}
           symbolCount={known.length}
         />
 
@@ -114,7 +128,7 @@ export default function NectarVaultPage() {
               }}
             >
               {known.map(({ symbol, tapeSource, slot }) => {
-                const tradeChannel = findSessionNectarChannel(nectar, symbol, "trade");
+                const tradeChannel = nectar ? findSessionNectarChannel(nectar, symbol, "trade") : null;
                 return (
                   <SymbolCard
                     key={`${symbol}::${tapeSource}`}
