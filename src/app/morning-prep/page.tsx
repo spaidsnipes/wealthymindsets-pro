@@ -207,44 +207,135 @@ export default function MorningPrepPage() {
   const recentEntries = entries.filter(entry => Date.now() - new Date(entry.date).getTime() < 90 * 24 * 60 * 60 * 1000).length;
 
   return (
-    <div className="w-full h-full overflow-y-auto" style={{ background: "#070A0F" }}>
-      {/* ── Header ── */}
-      <div className="border-b" style={{ borderColor: "#1E2030", background: "linear-gradient(180deg,#0D1117,#070A0F)" }}>
-        <div className="max-w-3xl mx-auto px-6 py-7">
-          <div style={{ marginBottom: 10 }}>
+    <div
+      className="w-full h-full overflow-y-auto"
+      style={{
+        background: "radial-gradient(1200px 700px at 50% -10%, rgba(212,175,55,0.06), transparent 60%), #050506",
+      }}
+    >
+      {/* ── Header ── deep obsidian + warm gold, wmTokens-aligned so the
+           morning-prep entry point belongs to the same OS as Command
+           Deck and /nectar Vault. Serif hero + tabular metrics. */}
+      <div
+        style={{
+          borderBottom: "1px solid rgba(139,106,41,0.15)",
+          background: "linear-gradient(180deg, #0b0b0d 0%, rgba(11,11,13,0.6) 100%)",
+        }}
+      >
+        <div className="max-w-3xl mx-auto" style={{ padding: "18px clamp(16px, 4vw, 32px) 22px" }}>
+          <div style={{ marginBottom: 12 }}>
             <WmWordmark size="compact" subtitle="OPENING BELL PROTOCOL" />
           </div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
-              style={{ background: "linear-gradient(135deg,#F0B429,#F97316)" }}>
-              <Sun size={22} className="text-black" />
+          <div className="flex items-center gap-3 mb-3">
+            <div
+              className="rounded-full flex items-center justify-center shrink-0"
+              style={{
+                width: 44, height: 44,
+                background: "linear-gradient(160deg, rgba(212,175,55,0.22), rgba(201,165,92,0.08))",
+                border: "1px solid rgba(212,175,55,0.35)",
+                boxShadow: "inset 0 0 20px -8px rgba(212,175,55,0.4)",
+              }}
+            >
+              <Sun size={20} style={{ color: "#d4af37" }} />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-white tracking-tight" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 400 }}>Morning Prep</h1>
-              <p className="text-sm text-wm-text-muted" style={{ color: "#8B8FA8", fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic" }}>
+              <h1
+                style={{
+                  fontFamily: "Georgia, 'Times New Roman', serif",
+                  fontSize: "clamp(22px, 4vw, 28px)",
+                  fontWeight: 400,
+                  color: "#ede6d3",
+                  letterSpacing: -0.4,
+                  lineHeight: 1.1,
+                  margin: 0,
+                }}
+              >
+                Morning Prep
+              </h1>
+              <p
+                style={{
+                  fontFamily: "Georgia, 'Times New Roman', serif",
+                  fontSize: 12,
+                  fontStyle: "italic",
+                  color: "#8a8271",
+                  marginTop: 4,
+                }}
+              >
                 Prepare · Align · Act. A gentle record of how you are growing.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-4 mt-4">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl"
-              style={{ background: "rgba(240,180,41,0.10)", border: "1px solid rgba(240,180,41,0.30)" }}>
-              <Sun size={15} style={{ color: "#F0B429" }} />
-              <span className="text-sm font-bold" style={{ color: "#F0B429" }}>{recentEntries} morning record{recentEntries === 1 ? "" : "s"} in 90 days</span>
+          {/* Metric strip — auto-wraps at narrow widths (390 phone → single column), full-width buttons wrap under */}
+          <div
+            className="mt-4"
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <div
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "5px 10px", borderRadius: 999,
+                background: "rgba(212,175,55,0.08)",
+                border: "1px solid rgba(212,175,55,0.30)",
+                color: "#d4af37",
+                fontSize: 11, fontWeight: 700, letterSpacing: 0.16,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              <Sun size={13} />
+              {recentEntries} morning record{recentEntries === 1 ? "" : "s"} · 90d
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl"
-              style={{ background: "rgba(0,212,170,0.10)", border: "1px solid rgba(0,212,170,0.30)" }}>
-              <Target size={15} style={{ color: "#00D4AA" }} />
-              <span className="text-sm font-bold" style={{ color: "#00D4AA" }}>{growthState === "connected" ? `${growthRecords} Growth Rings record${growthRecords === 1 ? "" : "s"}` : growthState === "loading" ? "Opening Growth Rings…" : `${entries.length} local morning record${entries.length === 1 ? "" : "s"}`}</span>
+            <div
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "5px 10px", borderRadius: 999,
+                background: "rgba(139,106,41,0.10)",
+                border: "1px solid rgba(139,106,41,0.35)",
+                color: "#c9a55c",
+                fontSize: 11, fontWeight: 700, letterSpacing: 0.16,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              <Target size={13} />
+              {growthState === "connected"
+                ? `${growthRecords} Growth Ring${growthRecords === 1 ? "" : "s"}`
+                : growthState === "loading"
+                  ? "Opening Growth Rings…"
+                  : `${entries.length} local record${entries.length === 1 ? "" : "s"}`}
             </div>
-            <button onClick={() => setShowCompose(true)}
-              className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all"
-              style={{ background: "rgba(0,212,170,0.15)", border: "1px solid rgba(0,212,170,0.35)", color: "#00D4AA" }}>
-              <Plus size={15} /> New Prep
+            <div style={{ flex: 1, minWidth: 8 }} />
+            <button
+              onClick={() => setShowCompose(true)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "7px 14px", borderRadius: 8,
+                background: "linear-gradient(180deg, rgba(212,175,55,0.18), rgba(212,175,55,0.08))",
+                border: "1px solid rgba(212,175,55,0.45)",
+                color: "#ede6d3",
+                fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              <Plus size={13} /> New Prep
             </button>
-            <a href="https://above-the-hill-developments-built-a.vercel.app/?view=growth-rings" target="_blank" rel="noreferrer"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all"
-              style={{ background: "rgba(240,180,41,0.11)", border: "1px solid rgba(240,180,41,0.35)", color: "#F0B429" }}>
+            <a
+              href="https://above-the-hill-developments-built-a.vercel.app/?view=growth-rings"
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "7px 12px", borderRadius: 8,
+                background: "transparent",
+                border: "1px solid rgba(139,106,41,0.35)",
+                color: "#c9a55c",
+                fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
+                textDecoration: "none",
+              }}
+            >
               Growth Rings ↗
             </a>
           </div>
