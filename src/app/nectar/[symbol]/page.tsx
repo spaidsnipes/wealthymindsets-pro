@@ -435,7 +435,7 @@ function UnobservedState({ symbol, onOpen }: { symbol: string; onOpen: () => voi
       <div style={{ marginTop: 8, fontSize: 11, color: WM.text.dim }}>
         Open it on the chart and let a live tape stream in — this page will populate as observation begins.
       </div>
-      <div style={{ marginTop: 18 }}>
+      <div style={{ marginTop: 18, display: "inline-flex", gap: 8 }}>
         <button
           onClick={onOpen}
           style={{
@@ -449,6 +449,19 @@ function UnobservedState({ symbol, onOpen }: { symbol: string; onOpen: () => voi
         >
           Open {symbol} on chart →
         </button>
+        <Link
+          href="/nectar"
+          style={{
+            padding: "9px 14px", borderRadius: 8,
+            border: `1px solid ${WM.border.line}`,
+            color: WM.text.muted,
+            fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
+            textDecoration: "none",
+            display: "inline-flex", alignItems: "center",
+          }}
+        >
+          Back to Vault
+        </Link>
       </div>
     </div>
   );
