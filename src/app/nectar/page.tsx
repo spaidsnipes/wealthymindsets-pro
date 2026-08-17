@@ -532,9 +532,10 @@ function VaultHero({ symbolCount, tradeTotal }: { symbolCount: number; tradeTota
             maxWidth: 640,
           }}
         >
-          Session-only, per-symbol memory. Every real trade WM sees enters this Vault
-          under the symbol it happened on. Switching symbols does not erase prior symbols.
-          Nothing here is fabricated — if a symbol is missing, WM never observed it in this tab.
+          Browser-local per-symbol memory (localStorage-backed, up to 32 symbols, 7-day retention).
+          Every real trade this browser sees enters the Vault under the symbol it happened on.
+          Switching symbols does not erase prior symbols. Nothing here is fabricated — if a symbol
+          is missing, this browser has never observed it in that window.
         </div>
       </div>
       <div
