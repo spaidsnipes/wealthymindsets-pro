@@ -99,7 +99,19 @@ function getBasePrice(sym: string) {
 const FUTURES_SET = new Set(["NQ1!","ES1!","RTY1!","YM1!","GC1!","SI1!","CL1!","NG1!","ZB1!","ZN1!","ZF1!","ZT1!","HG1!","MNQ1!","MES1!","MYM1!","M2K1!","MGC1!","MCL1!","VX1!"]);
 const CRYPTO_SET  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","ATOM","UNI"]);
 
-type RealQuote = { price: number; change: number; changePct: number; source: string };
+type RealQuote = {
+  price: number;
+  change: number;
+  changePct: number;
+  source: string;
+  /**
+   * SF-D01: the REAL observation epoch-ms when the source returned a RESOLVED
+   * YahooQuoteObservation; null otherwise (UNKNOWN observation, or a legacy
+   * source that carries no observation). Used to stamp the synthesized tick's
+   * time honestly instead of always borrowing server Date.now().
+   */
+  observedAt: number | null;
+};
 
 async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
   const upper = sym.toUpperCase();
@@ -110,7 +122,7 @@ async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
     try {
       const ex = exMatch[2].toLowerCase();
       const j = await fetch(`/api/exchange?ex=${ex}&coin=${exMatch[1]}&type=quote`, { cache: "no-store" }).then(r => r.json());
-      if ((j?.price ?? 0) > 0) return { price: j.price, change: j.change ?? 0, changePct: j.changePct ?? 0, source: "binance" };
+      if ((j?.price ?? 0) > 0) return { price: j.price, change: j.change ?? 0, changePct: j.changePct ?? 0, source: "binance", observedAt: null };
     } catch {}
     return null;
   }
@@ -126,7 +138,14 @@ async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
     const prev  = j?.prevClose ?? j?.pc ?? j?.open ?? price;
     const change    = j?.change    ?? +(price - prev).toFixed(4);
     const changePct = j?.changePct ?? (prev > 0 ? +((price - prev) / prev * 100).toFixed(4) : 0);
-    return { price, change, changePct, source };
+    // SF-D01: only a RESOLVED observation carries a real observation time.
+    // UNKNOWN (stale meta / no live trade) → null, so we never claim its age.
+    const obs = j?.observation;
+    const observedAt =
+      obs && obs.resolution === "RESOLVED" && typeof obs.observedAt === "number" && obs.observedAt > 0
+        ? obs.observedAt
+        : null;
+    return { price, change, changePct, source, observedAt };
   };
 
   // ── Stocks & ETFs: Yahoo FIRST. Yahoo's intraday series uses includePrePost,
@@ -1040,7 +1059,12 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         const side: "buy" | "sell" = realPrice >= prevPrice ? "buy" : "sell";
         // Capture the REAL prior close so flush() computes the correct day-change.
         if (Number.isFinite(q.change)) prevCloseRef.current = realPrice - q.change;
-        processTick({ price: realPrice, size: 1, side, time: Date.now() }, true);
+        // SF-D01: stamp the synthesized tick with the REAL observation time when
+        // the source resolved one (q.observedAt); only fall back to server
+        // Date.now() when there is genuinely no observation time (legacy source
+        // or UNKNOWN). This stops a stale Sunday/closed-market quote from
+        // reaching the canonical store's price.eventAt as fake-fresh (~0ms age).
+        processTick({ price: realPrice, size: 1, side, time: q.observedAt ?? Date.now() }, true);
         // Real day change comes straight from the quote (not a per-poll delta).
         const tape = tapeSourceRef.current;
         setState(prev2 => ({
