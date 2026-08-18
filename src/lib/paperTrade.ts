@@ -26,6 +26,19 @@
 export const PAPER_KEY = "wm_paper_state";
 export const STARTING_CASH = 100_000;
 
+/**
+ * clearPaperState — hard reset of the browser-local paper-trading store.
+ * Called on sign-out to prevent cross-owner paper-trading state leaks
+ * on shared browsers (User B would otherwise inherit User A's cash,
+ * positions, and blotter). Never throws; safe to call from auth flow.
+ *
+ * Does NOT touch server-side paper-trading state (none exists today).
+ */
+export function clearPaperState(): void {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.removeItem(PAPER_KEY); } catch { /* noop */ }
+}
+
 export type OrderSide = "buy" | "sell";
 export type OrderType = "market" | "limit" | "stop" | "stop-limit";
 export type OrderStatus = "pending" | "filled" | "cancelled" | "rejected";

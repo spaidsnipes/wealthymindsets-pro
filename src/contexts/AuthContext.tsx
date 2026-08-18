@@ -13,6 +13,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { isCoreTeam } from "@/lib/coreTeam";
 import { isPublicAuthPath } from "@/lib/authRoutes";
 import { clearAllSessionSymbols } from "@/lib/marketData/sessionSymbolStore";
+import { clearPaperState } from "@/lib/paperTrade";
 
 export interface WMUser {
   id:             string;
@@ -208,6 +209,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     try { clearAllSessionSymbols(); } catch { /* never block sign-out on store cleanup */ }
+    try { clearPaperState(); }         catch { /* never block sign-out on store cleanup */ }
     writeCachedUser(null);
     setUser(null);
     router.replace("/login");
@@ -220,6 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await fetch("/api/auth/logout-all", { method: "POST", credentials: "include" });
     } catch { /* still clear locally below */ }
     try { clearAllSessionSymbols(); } catch { /* never block sign-out on store cleanup */ }
+    try { clearPaperState(); }         catch { /* never block sign-out on store cleanup */ }
     writeCachedUser(null);
     setUser(null);
     router.replace("/login");
