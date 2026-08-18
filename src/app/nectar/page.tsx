@@ -91,7 +91,18 @@ export default function NectarVaultPage() {
           gap: 28,
         }}
       >
-        <VaultHero symbolCount={known.length} tradeTotal={known.reduce((a, s) => a + s.slot.stats.tradeCount, 0)} />
+        <VaultHero
+          symbolCount={known.length}
+          tradeTotal={known.reduce((a, s) => a + s.slot.stats.tradeCount, 0)}
+          // Earliest observation across every symbol slot — the true
+          // "session started at" for this browser Vault. null when
+          // nothing has been observed yet (empty Vault).
+          earliestHorizonSec={known.reduce<number | null>((acc, s) => {
+            const ts = s.slot.horizon?.startedAtSec ?? null;
+            if (ts == null) return acc;
+            return acc == null || ts < acc ? ts : acc;
+          }, null)}
+        />
 
         {/* Session Intelligence — aggregate coverage across every symbol
             the Nectar collector has any channel for. Truthful counters
@@ -500,7 +511,23 @@ function VaultHeader() {
 
 /* ── Hero ───────────────────────────────────────────────── */
 
-function VaultHero({ symbolCount, tradeTotal }: { symbolCount: number; tradeTotal: number }) {
+function VaultHero({
+  symbolCount, tradeTotal, earliestHorizonSec,
+}: {
+  symbolCount: number;
+  tradeTotal: number;
+  earliestHorizonSec: number | null;
+}) {
+  // Absolute wall-clock timestamp of the earliest observation. Renders
+  // only after mount (parent gated `known` on mounted). Locale-based
+  // formatting is safe here because the mount gate ensures both server
+  // and initial client paint see earliestHorizonSec=null.
+  const startedAtLabel = earliestHorizonSec
+    ? new Date(earliestHorizonSec * 1000).toLocaleString(undefined, {
+        month: "short", day: "numeric",
+        hour: "numeric", minute: "2-digit",
+      })
+    : null;
   return (
     <div
       style={{
@@ -537,6 +564,21 @@ function VaultHero({ symbolCount, tradeTotal }: { symbolCount: number; tradeTota
           Switching symbols does not erase prior symbols. Nothing here is fabricated — if a symbol
           is missing, this browser has never observed it in that window.
         </div>
+        {startedAtLabel && (
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 10,
+              letterSpacing: 0.32,
+              textTransform: "uppercase",
+              color: WM.text.dim,
+              fontWeight: 700,
+            }}
+            title="Absolute wall-clock time of the earliest real trade observed across every symbol currently in the Vault. Sourced from sessionSymbolStore horizons — no fabrication."
+          >
+            Earliest observation · {startedAtLabel}
+          </div>
+        )}
       </div>
       <div
         style={{
@@ -620,15 +662,34 @@ function SymbolCard({ symbol, tapeSource, slot, isActive, fidelity, gapCount, on
         >
           {symbol}
         </div>
-        <div
-          style={{
-            fontSize: 10,
-            letterSpacing: 0.24,
-            textTransform: "uppercase",
-            color: WM.text.muted,
-          }}
-        >
-          {memoryAge}
+        <div style={{ textAlign: "right" }}>
+          <div
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.24,
+              textTransform: "uppercase",
+              color: WM.text.muted,
+            }}
+          >
+            {memoryAge}
+          </div>
+          {slot.horizon && (
+            <div
+              style={{
+                fontSize: 9,
+                letterSpacing: 0.24,
+                color: WM.text.dim,
+                marginTop: 2,
+                fontVariantNumeric: "tabular-nums",
+              }}
+              title={`Absolute wall-clock time of the first real trade observed for ${symbol} in this browser. From sessionSymbolStore.horizon — no fabrication.`}
+            >
+              since {new Date(slot.horizon.startedAtSec * 1000).toLocaleString(undefined, {
+                month: "short", day: "numeric",
+                hour: "numeric", minute: "2-digit",
+              })}
+            </div>
+          )}
         </div>
       </div>
 
