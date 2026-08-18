@@ -15,6 +15,7 @@ import { isPublicAuthPath } from "@/lib/authRoutes";
 import { clearAllSessionSymbols } from "@/lib/marketData/sessionSymbolStore";
 import { clearPaperState } from "@/lib/paperTrade";
 import { clearWMSState } from "@/contexts/WMSContext";
+import { clearOwnerScopedLocalStorage } from "@/lib/logoutIsolation";
 
 export interface WMUser {
   id:             string;
@@ -209,9 +210,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // interfere — server rows stay put).
   const signOut = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    try { clearAllSessionSymbols(); } catch { /* never block sign-out on store cleanup */ }
-    try { clearPaperState(); }         catch { /* never block sign-out on store cleanup */ }
-    try { clearWMSState(); }           catch { /* never block sign-out on store cleanup */ }
+    try { clearAllSessionSymbols(); }        catch { /* never block sign-out on store cleanup */ }
+    try { clearPaperState(); }                catch { /* never block sign-out on store cleanup */ }
+    try { clearWMSState(); }                  catch { /* never block sign-out on store cleanup */ }
+    try { clearOwnerScopedLocalStorage(); }   catch { /* never block sign-out on store cleanup */ }
     writeCachedUser(null);
     setUser(null);
     router.replace("/login");
@@ -223,9 +225,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await fetch("/api/auth/logout-all", { method: "POST", credentials: "include" });
     } catch { /* still clear locally below */ }
-    try { clearAllSessionSymbols(); } catch { /* never block sign-out on store cleanup */ }
-    try { clearPaperState(); }         catch { /* never block sign-out on store cleanup */ }
-    try { clearWMSState(); }           catch { /* never block sign-out on store cleanup */ }
+    try { clearAllSessionSymbols(); }        catch { /* never block sign-out on store cleanup */ }
+    try { clearPaperState(); }                catch { /* never block sign-out on store cleanup */ }
+    try { clearWMSState(); }                  catch { /* never block sign-out on store cleanup */ }
+    try { clearOwnerScopedLocalStorage(); }   catch { /* never block sign-out on store cleanup */ }
     writeCachedUser(null);
     setUser(null);
     router.replace("/login");

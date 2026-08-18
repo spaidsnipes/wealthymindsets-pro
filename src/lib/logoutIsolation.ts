@@ -1,0 +1,64 @@
+/**
+ * logoutIsolation — bounded owner-local localStorage cleanup for
+ * sign-out flows.
+ *
+ * Founder Nectar Persistence Authority:
+ *   "logout/account transition clears owner-local symbol, Nectar and
+ *    canonical runtime state without deleting server history"
+ *
+ * Today sessionSymbolStore, paperTrade, WMS points, journal, and
+ * profile-draft storage are all keyed by intrinsic feature name
+ * (not by owner). On a shared browser User B would inherit User A's
+ * state on sign-in. This module is the single canonical list of
+ * owner-scoped browser-local keys to purge on sign-out.
+ *
+ * NOT touched here (separately owned, per Sentinel boundary):
+ *   · wm:nectar:coverage-continuity:v1   (sessionNectar owner)
+ *   · wm_settings                        (theme / font size are device prefs, not user data)
+ *   · wm-install-dismissed               (PWA install prompt state, device-level)
+ *   · wm-watchlist-prices                (cache, not user data)
+ *   · wm-tape-symbols                    (ticker tape customization, device-level)
+ *   · HM_CACHE_PREFIX + tf               (heatmap %s cache, not user data)
+ *
+ * Extends automatically when a new owner-scoped key appears — add
+ * it to OWNER_SCOPED_KEYS + a matching clear... helper.
+ *
+ * Never throws. Individual removals are wrapped so one storage
+ * failure never blocks the sign-out flow.
+ */
+
+const OWNER_SCOPED_KEYS: readonly string[] = [
+  "wm-profile",           // profile draft (avatar, bio, botName)
+  "wm-profile-avatar",    // avatar data URL
+  "wm-profile-bg",        // profile background color
+  "wm-radio-liked",       // liked radio tracks
+  "wm_songs",             // user-uploaded music tracks
+  "wm_watchlists",        // user watchlist collections
+  "wm_quick_syms",        // SearchPanel quick-access symbols
+  "wm_scanner_starred",   // scanner starred symbols
+  "wm_scanner_alerted",   // scanner alerted symbols
+  "wm_journal_entries",   // journal entries (owner-specific)
+] as const;
+
+/**
+ * clearOwnerScopedLocalStorage — removes every owner-scoped
+ * localStorage key. Called from AuthContext.signOut /
+ * signOutAllDevices in addition to the three domain-specific
+ * clearers (clearAllSessionSymbols, clearPaperState, clearWMSState).
+ *
+ * Returns the count of keys actually removed for observability
+ * (though the sign-out flow does not consult it).
+ */
+export function clearOwnerScopedLocalStorage(): number {
+  if (typeof window === "undefined") return 0;
+  let removed = 0;
+  for (const key of OWNER_SCOPED_KEYS) {
+    try {
+      if (window.localStorage.getItem(key) !== null) {
+        window.localStorage.removeItem(key);
+        removed += 1;
+      }
+    } catch { /* private mode / quota — skip this key */ }
+  }
+  return removed;
+}
