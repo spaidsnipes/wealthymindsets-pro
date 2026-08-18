@@ -781,9 +781,15 @@ const NAV_BOTTOM = [
   { href: "/profile",      icon: User,          label: "Profile"      },
 ];
 
+// Mobile primary nav — 5 slots per iOS/Android convention. Sentinel
+// audit RETURN: Nectar was invisible on mobile except via the tiny
+// conditional header pill (which disappears on empty sessions). Swap
+// in Nectar; Scanner needs a big screen and stays desktop-first via
+// NAV_TOP. Order follows the trader loop: OBSERVE (Charts) → REMEMBER
+// (Nectar) → PRACTICE (Paper) → REVIEW (Journal) → IDENTITY (Profile).
 const MOBILE_NAV_ITEMS = [
   { href: "/charts", icon: BarChart2, label: "Charts" },
-  { href: "/scanner", icon: ScanLine, label: "Scanner" },
+  { href: "/nectar", icon: Database,  label: "Nectar" },
   { href: "/paper", icon: TrendingUp, label: "Paper" },
   { href: "/journal", icon: BookOpen, label: "Journal" },
   { href: "/profile", icon: User, label: "Profile" },
