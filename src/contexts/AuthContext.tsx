@@ -12,6 +12,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useRouter, usePathname } from "next/navigation";
 import { isCoreTeam } from "@/lib/coreTeam";
 import { isPublicAuthPath } from "@/lib/authRoutes";
+import { clearAllSessionSymbols } from "@/lib/marketData/sessionSymbolStore";
 
 export interface WMUser {
   id:             string;
@@ -196,8 +197,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Founder Nectar Persistence Authority §"logout/account transition
+  // clears owner-local symbol, Nectar and canonical runtime state
+  // without deleting server history." sessionSymbolStore has no owner-
+  // scoping today, so on shared browsers User B would inherit User A's
+  // observations. Clear browser-local session stats on every sign-out.
+  // Does NOT touch server-side coverage (there isn't any owner-scoped
+  // server-durable Nectar tier yet; when it lands, this line does not
+  // interfere — server rows stay put).
   const signOut = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    try { clearAllSessionSymbols(); } catch { /* never block sign-out on store cleanup */ }
     writeCachedUser(null);
     setUser(null);
     router.replace("/login");
@@ -209,6 +219,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await fetch("/api/auth/logout-all", { method: "POST", credentials: "include" });
     } catch { /* still clear locally below */ }
+    try { clearAllSessionSymbols(); } catch { /* never block sign-out on store cleanup */ }
     writeCachedUser(null);
     setUser(null);
     router.replace("/login");
