@@ -53,6 +53,16 @@ function loadState() {
   } catch { return null; }
 }
 
+/**
+ * clearWMSState — hard reset of the browser-local WM points / creator-coin
+ * store. Called on sign-out to prevent cross-owner points balance leak
+ * on shared browsers. Never throws; safe to call from auth flow.
+ */
+export function clearWMSState(): void {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.removeItem(LS_KEY); } catch { /* noop */ }
+}
+
 export function WMSProvider({ children }: { children: React.ReactNode }) {
   const [wmsBalance, setWmsBalance]     = useState(0);
   const [totalEarned, setTotalEarned]   = useState(0);

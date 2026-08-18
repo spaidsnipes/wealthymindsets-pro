@@ -14,6 +14,7 @@ import { isCoreTeam } from "@/lib/coreTeam";
 import { isPublicAuthPath } from "@/lib/authRoutes";
 import { clearAllSessionSymbols } from "@/lib/marketData/sessionSymbolStore";
 import { clearPaperState } from "@/lib/paperTrade";
+import { clearWMSState } from "@/contexts/WMSContext";
 
 export interface WMUser {
   id:             string;
@@ -210,6 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     try { clearAllSessionSymbols(); } catch { /* never block sign-out on store cleanup */ }
     try { clearPaperState(); }         catch { /* never block sign-out on store cleanup */ }
+    try { clearWMSState(); }           catch { /* never block sign-out on store cleanup */ }
     writeCachedUser(null);
     setUser(null);
     router.replace("/login");
@@ -223,6 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch { /* still clear locally below */ }
     try { clearAllSessionSymbols(); } catch { /* never block sign-out on store cleanup */ }
     try { clearPaperState(); }         catch { /* never block sign-out on store cleanup */ }
+    try { clearWMSState(); }           catch { /* never block sign-out on store cleanup */ }
     writeCachedUser(null);
     setUser(null);
     router.replace("/login");
