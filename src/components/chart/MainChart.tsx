@@ -7108,6 +7108,27 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             : nectar.retentionState === "SERVER_DURABLE_SUMMARY_NO_RAW_PAYLOADS"
               ? "server-durable receipt summary"
               : "browser summary only";
+          // Sentinel "SAVED overclaim" P0 (Nectar authority §"P0 TRUTH
+          // DEFECT — SAVED OVERCLAIM"): the previous label used "Saved N"
+          // for every non-zero coverageEvents regardless of whether the
+          // count was actually acknowledged by the append-only server
+          // receipt ledger. That was false whenever retentionState was
+          // SESSION_ONLY or BROWSER_LOCAL. Label honestly per tier:
+          //   SERVER_DURABLE → "Saved"   (real server acknowledgement)
+          //   BROWSER_LOCAL  → "Browser" (localStorage summary only)
+          //   SESSION_ONLY   → "Observed" (in-memory, no persistence)
+          const coverageLabel =
+            nectar.retentionState === "SERVER_DURABLE_SUMMARY_NO_RAW_PAYLOADS" ? "Saved" :
+            nectar.retentionState === "BROWSER_LOCAL_SUMMARY_NO_RAW_PAYLOADS"  ? "Browser" :
+            "Observed";
+          const coverageAriaClause =
+            coverageLabel === "Saved"    ? `${coverageEvents} durably saved coverage observations` :
+            coverageLabel === "Browser"  ? `${coverageEvents} browser-summary coverage observations` :
+            `${coverageEvents} in-memory-only coverage observations (not persisted server-side)`;
+          const coverageTitleLine =
+            coverageLabel === "Saved"    ? `Durably saved coverage observations: ${coverageEvents}` :
+            coverageLabel === "Browser"  ? `Browser-summary coverage observations: ${coverageEvents} (localStorage only, not server-acknowledged)` :
+            `In-memory coverage observations: ${coverageEvents} (session-only, no persistence)`;
           return (
             <div
               className="wm-live-session-chip"
@@ -7116,8 +7137,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               data-nectar-quarantined={nectar.receipts.quarantined}
               data-nectar-unsupported={nectar.unsupportedCapabilities}
               role="group"
-              aria-label={`Nectar memory for ${normalizeSym(symbol)}. Fidelity ${fidelityLabel}. Current-tab delta ${fmt(s.delta)}. ${s.tradeCount} current-tab trades. ${coverageEvents} durably saved coverage observations. ${s.bigTradeCount} current-tab large trades. ${gapCount} gaps. Retention: ${retentionShort}. Raw tape is not retained.`}
-              title={`WM Nectar memory for ${normalizeSym(symbol)}.\nCurrent tab since: ${horizonTime}\nBuys this tab: ${fmt(s.buyVol)}\nSells this tab: ${fmt(s.sellVol)}\nDelta this tab = Buys − Sells\nFidelity: ${fidelityLabel} (source-classified)\nDurably saved coverage observations: ${coverageEvents}\nCollector receipts this runtime: ${nectar.receipts.accepted} accepted / ${nectar.receipts.quarantined} quarantined / ${nectar.unsupportedCapabilities} unsupported\nGaps observed: ${gapCount}\nRetention: ${retentionShort} — operational counts/timestamps only; raw price/size/aggressor tape is not durably stored while provider rights remain UNKNOWN.`}
+              aria-label={`Nectar memory for ${normalizeSym(symbol)}. Fidelity ${fidelityLabel}. Current-tab delta ${fmt(s.delta)}. ${s.tradeCount} current-tab trades. ${coverageAriaClause}. ${s.bigTradeCount} current-tab large trades. ${gapCount} gaps. Retention: ${retentionShort}. Raw tape is not retained.`}
+              title={`WM Nectar memory for ${normalizeSym(symbol)}.\nCurrent tab since: ${horizonTime}\nBuys this tab: ${fmt(s.buyVol)}\nSells this tab: ${fmt(s.sellVol)}\nDelta this tab = Buys − Sells\nFidelity: ${fidelityLabel} (source-classified)\n${coverageTitleLine}\nCollector receipts this runtime: ${nectar.receipts.accepted} accepted / ${nectar.receipts.quarantined} quarantined / ${nectar.unsupportedCapabilities} unsupported\nGaps observed: ${gapCount}\nRetention: ${retentionShort} — operational counts/timestamps only; raw price/size/aggressor tape is not durably stored while provider rights remain UNKNOWN.`}
               style={{
                 position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)",
                 zIndex: 58, padding: "5px 10px", borderRadius: 7, pointerEvents: "auto",
@@ -7171,7 +7192,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               </span>
               {coverageEvents > 0 && (
                 <span>
-                  <span style={{ color: "#8B92AC", fontWeight: 600 }}>Saved </span>
+                  <span style={{ color: "#8B92AC", fontWeight: 600 }}>{coverageLabel} </span>
                   <span style={{ color: "#D8DCEA", fontWeight: 850 }}>{coverageEvents}</span>
                 </span>
               )}
