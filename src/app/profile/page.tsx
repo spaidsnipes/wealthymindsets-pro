@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Settings, Edit3, Music, TrendingUp, Users, Star, Shield, Zap, Play, Heart, Share2, BarChart2, Save, X, CheckCircle, Coins, Rocket, ExternalLink, Plus } from "lucide-react";
+import { Settings, Edit3, Music, TrendingUp, Users, Star, Shield, Zap, Play, Heart, Share2, BarChart2, Save, X, CheckCircle, Coins, Rocket, ExternalLink, Plus, Database } from "lucide-react";
 import { clsx } from "clsx";
 import toast from "react-hot-toast";
 import { useWMS, WMS_CONTRACT } from "@/contexts/WMSContext";
@@ -31,6 +31,11 @@ import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnaps
 import { hasResolvedTradeOutcome } from "@/lib/tradeEvidence";
 import { parseProfileTab, profileTabHref, type ProfileTab } from "@/lib/profileTab";
 import { loadPaperState } from "@/lib/paperTrade";
+import Link from "next/link";
+import {
+  getKnownSessionSymbols,
+  subscribeSessionSymbolStore,
+} from "@/lib/marketData/sessionSymbolStore";
 
 
 interface ProfileData {
@@ -45,6 +50,125 @@ interface ProfileData {
 const EMPTY_PROFILE: ProfileData = {
   name: "", handle: "", bio: "", email: "", timezone: "America/New_York", botName: "SpaidBot",
 };
+
+/**
+ * NectarProfilePanel — closes the OBSERVE → BECOME loop link on /profile.
+ *
+ * Reads the trader's actual sessionSymbolStore observations (browser-local,
+ * per-symbol tape counters and horizon) and surfaces the top observed
+ * symbols with per-symbol drilldown links to /nectar/[symbol] plus a Vault
+ * index link to /nectar. Honest empty state when nothing has been observed.
+ *
+ * Bounded — reads only the existing sessionSymbolStore owner, creates no
+ * new store, request, cache, or acknowledgement authority.
+ */
+function NectarProfilePanel(): React.ReactElement {
+  const [mounted, setMounted] = React.useState(false);
+  const [, force] = React.useReducer((n: number) => n + 1, 0);
+  React.useEffect(() => { setMounted(true); }, []);
+  React.useEffect(() => {
+    if (!mounted) return;
+    return subscribeSessionSymbolStore(() => force());
+  }, [mounted]);
+
+  // Group by canonical symbol; a symbol may have slots across multiple
+  // tape sources (yahoo, alpaca, etc). Sum tradeCount to rank + display,
+  // and prefer the most-recent horizon across sources for freshness.
+  const byCanon = React.useMemo(() => {
+    if (!mounted) return [];
+    const known = getKnownSessionSymbols();
+    const merged = new Map<string, { symbol: string; trades: number; delta: number; horizonMs: number | null }>();
+    for (const { symbol, slot } of known) {
+      const key = symbol.toUpperCase();
+      const prev = merged.get(key);
+      const horizonMs = (slot.horizon?.startedAtSec != null ? slot.horizon.startedAtSec * 1000 : null);
+      merged.set(key, {
+        symbol: key,
+        trades: (prev?.trades ?? 0) + slot.stats.tradeCount,
+        delta:  (prev?.delta  ?? 0) + slot.stats.delta,
+        horizonMs: horizonMs != null
+          ? Math.min(prev?.horizonMs ?? horizonMs, horizonMs)
+          : (prev?.horizonMs ?? null),
+      });
+    }
+    return Array.from(merged.values())
+      .filter(s => s.trades > 0)
+      .sort((a, b) => b.trades - a.trades);
+  }, [mounted]);
+
+  const earliestMs = byCanon.reduce<number | null>(
+    (acc, s) => (s.horizonMs == null ? acc : (acc == null ? s.horizonMs : Math.min(acc, s.horizonMs))),
+    null,
+  );
+
+  function fmtHorizon(ms: number | null): string {
+    if (ms == null) return "no horizon yet";
+    const d = new Date(ms);
+    return `since ${d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`;
+  }
+
+  if (!mounted) {
+    return <div className="flex flex-col items-center justify-center h-40 gap-3 text-wm-text-muted"><Database size={32} className="opacity-20" aria-hidden="true"/><div className="text-sm">Loading Nectar…</div></div>;
+  }
+
+  if (byCanon.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-56 gap-3 text-wm-text-muted">
+        <Database size={32} className="opacity-20" aria-hidden="true"/>
+        <div className="text-sm font-semibold">No Nectar observed yet</div>
+        <div className="text-xs text-wm-text-dim text-center max-w-sm leading-relaxed">
+          Nectar is browser-local per-symbol tape memory. Open the chart on a symbol; every trade the tape reports gets counted here — no fake data, no server durability yet.
+        </div>
+        <Link href="/nectar" className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-wm-gold hover:text-wm-gold/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold rounded px-2 py-1">
+          Open the Vault →
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-baseline justify-between gap-3 flex-wrap">
+        <div>
+          <div className="text-xs text-wm-text-muted">
+            {byCanon.length} symbol{byCanon.length === 1 ? "" : "s"} observed · browser-local, up to 32 slots, 7-day retention
+          </div>
+          {earliestMs != null && (
+            <div className="text-[10px] text-wm-text-dim mt-0.5" style={{ fontVariantNumeric: "tabular-nums" }}>
+              EARLIEST OBSERVATION · {new Date(earliestMs).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).toUpperCase()}
+            </div>
+          )}
+        </div>
+        <Link href="/nectar" className="inline-flex items-center gap-1.5 text-xs font-bold text-wm-gold hover:text-wm-gold/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold rounded px-2 py-1">
+          Open full Vault →
+        </Link>
+      </div>
+
+      {byCanon.map(row => {
+        const deltaPositive = row.delta >= 0;
+        const deltaStr = `${deltaPositive ? "+" : ""}${row.delta.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+        return (
+          <Link
+            key={row.symbol}
+            href={`/nectar/${encodeURIComponent(row.symbol)}`}
+            aria-label={`Open ${row.symbol} Nectar detail, ${row.trades} trades, delta ${deltaStr}`}
+            className="glass rounded-xl p-3 flex items-center gap-4 hover:border-wm-border/80 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold no-underline"
+            style={{ minHeight: 44 }}
+          >
+            <div className="font-bold text-wm-text w-16 shrink-0" style={{ fontVariantNumeric: "tabular-nums" }}>{row.symbol}</div>
+            <div className="text-xs text-wm-text-muted min-w-0 flex-1">
+              <span className="text-wm-text font-mono" style={{ fontVariantNumeric: "tabular-nums" }}>{row.trades.toLocaleString("en-US")}</span> trade{row.trades === 1 ? "" : "s"}
+              <span className="mx-2 text-wm-text-dim">·</span>
+              <span className={clsx("font-mono", deltaPositive ? "text-wm-green" : "text-wm-red")} style={{ fontVariantNumeric: "tabular-nums" }}>Δ {deltaStr}</span>
+              <span className="ml-2 text-[10px] text-wm-text-dim">{fmtHorizon(row.horizonMs)}</span>
+            </div>
+            <span className="text-wm-text-dim text-xs shrink-0" aria-hidden="true">→</span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
 
 interface TradeRow { sym: string; dir: string; entry: string; exit: string; pnl: string; rr: string; date: string; outcomeResolved: boolean; }
 interface LikedTrack { title: string; artist: string; duration: string; }
@@ -607,6 +731,7 @@ function ProfilePageInner() {
           {[
             { id: "growth", icon: Rocket,    label: "Growth" },
             { id: "trades", icon: BarChart2, label: "Trades" },
+            { id: "nectar", icon: Database,  label: "Nectar" },
             { id: "music",  icon: Music,     label: "Music" },
             { id: "posts",  icon: TrendingUp,label: "Posts" },
             { id: "coins",  icon: Coins,     label: "My Coins" },
@@ -840,6 +965,8 @@ function ProfilePageInner() {
               ))}
             </div>
           )}
+
+          {tab === "nectar" && <NectarProfilePanel />}
 
           {tab === "music" && (
             <div className="space-y-2">

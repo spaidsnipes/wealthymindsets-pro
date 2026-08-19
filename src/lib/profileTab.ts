@@ -1,4 +1,4 @@
-export const PROFILE_TABS = ["growth", "trades", "music", "posts", "coins"] as const;
+export const PROFILE_TABS = ["growth", "trades", "nectar", "music", "posts", "coins"] as const;
 
 export type ProfileTab = (typeof PROFILE_TABS)[number];
 
