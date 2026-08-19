@@ -271,6 +271,25 @@
     padding-right: 8px !important;
   }
 
+  .wm-shell-actions {
+    gap: 0 !important;
+    min-width: 0;
+  }
+
+  .wm-shell-action,
+  .wm-shell-avatar {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    justify-content: center;
+  }
+
+  .wm-shell-profile {
+    margin-left: 0 !important;
+  }
+
   .wm-scanner-body {
     position: relative;
   }

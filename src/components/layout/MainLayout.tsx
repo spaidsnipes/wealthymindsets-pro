@@ -832,7 +832,7 @@ function HeaderPnL() {
   const up = val >= 0;
   return (
     <div
-      className="flex items-center gap-1 px-2 py-0.5 rounded-lg border mr-1"
+      className="wm-mobile-hide flex items-center gap-1 px-2 py-0.5 rounded-lg border mr-1"
       style={{ borderColor: up ? "rgba(0,212,170,0.4)" : "rgba(255,77,77,0.4)" }}
       title="Realized paper-trading P&L"
     >
@@ -936,7 +936,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Right controls */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="wm-shell-actions flex items-center gap-1 shrink-0">
           {/* Persistent Vault indicator — appears on every route as
               a quiet memory-safety reassurance. Renders nothing when
               nothing has been observed yet. */}
@@ -948,7 +948,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           {/* Search — opens modal */}
           <button
             onClick={() => setSearchOpen(true)}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors group"
+            aria-label="Search symbols"
+            className="wm-shell-action flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors group"
             title="Search symbols (Ctrl+K)"
           >
             <Search size={14} />
@@ -958,7 +959,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           {/* Notifications */}
           <button
             onClick={() => { setNotifsOpen(true); setSettingsOpen(false); }}
-            className="relative p-1.5 rounded hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors"
+            aria-label="Open notifications"
+            className="wm-shell-action relative p-1.5 rounded hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors"
             title="Notifications"
           >
             <Bell size={14} />
@@ -970,7 +972,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           {/* Settings */}
           <button
             onClick={() => { setSettingsOpen(true); setNotifsOpen(false); }}
-            className="p-1.5 rounded hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors"
+            aria-label="Open settings"
+            className="wm-shell-action p-1.5 rounded hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors"
             title="Settings"
           >
             <Settings size={14} />
@@ -986,10 +989,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* User avatar — click to open dropdown */}
-          <div className="relative ml-2">
+          <div className="wm-shell-profile relative ml-2">
             <button
               onClick={() => setProfileOpen(o => !o)}
-              className="w-7 h-7 rounded-full overflow-hidden ring-2 ring-wm-green/30 hover:ring-wm-green/60 transition-all shrink-0"
+              aria-label={profileOpen ? "Close profile menu" : "Open profile menu"}
+              className="wm-shell-avatar w-7 h-7 rounded-full overflow-hidden ring-2 ring-wm-green/30 hover:ring-wm-green/60 transition-all shrink-0"
               title={user?.displayName ?? "Profile"}
             >
               {user?.avatar ? (

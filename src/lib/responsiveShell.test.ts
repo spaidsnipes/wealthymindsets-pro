@@ -32,6 +32,19 @@ describe("responsive P0 command surfaces", () => {
     expect(layout).toContain('{ position: "relative", minHeight: "100%" }');
   });
 
+  it("contains the phone shell while preserving 44px primary controls", () => {
+    const layout = source("../components/layout/MainLayout.tsx");
+    const vault = source("../components/layout/HeaderVaultPill.tsx");
+    expect(layout).toContain('className="wm-shell-actions');
+    expect(layout.match(/wm-shell-action/g)?.length).toBeGreaterThanOrEqual(4);
+    expect(layout).toContain('className="wm-shell-avatar');
+    expect(layout).toContain('className="wm-mobile-hide flex items-center gap-1 px-2');
+    expect(css).toContain(".wm-shell-action,");
+    expect(css).toContain("width: 44px !important");
+    expect(css).toContain("min-height: 44px !important");
+    expect(vault).toContain("minHeight: 44");
+  });
+
   it("does not force an installed phone into one orientation", () => {
     const manifest = JSON.parse(source("../../public/manifest.json"));
     expect(manifest.orientation).toBe("any");

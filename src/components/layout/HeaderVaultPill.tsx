@@ -62,11 +62,9 @@ export function HeaderVaultPill() {
         `Open the Vault to see per-symbol Δ, trade counts, fidelity, and retention truth.`
       }
       style={{
-        // WCAG 2.5.5 target size: real 32px touch target (not 44 to stay
-        // proportional to shell header height ~44). Enlarged from prior
-        // 9.5px/3px per Sentinel accessibility RETURN.
+        // Canonical responsive standard: preserve a real 44px touch target.
         display: "inline-flex", alignItems: "center", gap: 6,
-        minHeight: 32,
+        minHeight: 44,
         padding: "6px 12px", borderRadius: 999,
         border: `1px solid ${hasGaps ? "rgba(192,90,74,0.45)" : "rgba(212,175,55,0.40)"}`,
         background: hasGaps ? "rgba(192,90,74,0.10)" : "rgba(212,175,55,0.10)",
