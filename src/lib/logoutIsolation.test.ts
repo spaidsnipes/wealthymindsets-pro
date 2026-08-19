@@ -34,15 +34,19 @@ describe("logoutIsolation — owner-scoped localStorage cleanup", () => {
     store.set("wm_scanner_alerted", "[]");
     store.set("wm_journal_entries", "[]");
     store.set("wm_edu_progress", "{}");
+    store.set("wm_api_keys", JSON.stringify({ newsapi: "secret" }));
+    store.set("wm_creator_waitlist", JSON.stringify({ email: "owner@example.com" }));
     store.set("wm_settings", "{}");           // NON-owner (device pref)
     store.set("wm-install-dismissed", "true"); // NON-owner (device state)
 
     const removed = clearOwnerScopedLocalStorage();
 
-    expect(removed).toBe(11);
+    expect(removed).toBe(13);
     // Owner-scoped keys gone.
     expect(store.has("wm-profile")).toBe(false);
     expect(store.has("wm_journal_entries")).toBe(false);
+    expect(store.has("wm_api_keys")).toBe(false);
+    expect(store.has("wm_creator_waitlist")).toBe(false);
     // Non-owner keys preserved.
     expect(store.get("wm_settings")).toBe("{}");
     expect(store.get("wm-install-dismissed")).toBe("true");

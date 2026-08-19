@@ -39,6 +39,8 @@ const OWNER_SCOPED_KEYS: readonly string[] = [
   "wm_scanner_alerted",   // scanner alerted symbols
   "wm_journal_entries",   // journal entries (owner-specific)
   "wm_edu_progress",      // education module completion / notes
+  "wm_api_keys",          // user-supplied NewsAPI / X bearer credentials
+  "wm_creator_waitlist",  // creator waitlist email, handle and tier
 ] as const;
 
 /**
