@@ -217,6 +217,12 @@ function PostCard({ post, myHandle, myName, myAvatar, myColor, onDelete }:
 
   const deletePost = async () => {
     if (post.user_handle !== myHandle) return;
+    // Lounge posts are public server records — other traders may have
+    // seen, liked, or replied. Deletion is server-durable and cannot
+    // be undone. Require explicit confirmation naming the specific
+    // post (first ~60 chars of content) about to be removed.
+    const preview = post.content.length > 60 ? `${post.content.slice(0, 60)}…` : post.content;
+    if (!window.confirm(`Delete this Lounge post?\n\n"${preview}"\n\nOther traders may have seen it. This cannot be undone.`)) return;
     await supabase.from("lounge_posts").delete().eq("id", post.id);
     onDelete?.(post.id);
     toast.success("Post deleted");
@@ -240,8 +246,13 @@ function PostCard({ post, myHandle, myName, myAvatar, myColor, onDelete }:
             <span className="text-xs text-wm-text-dim">{post.user_handle}</span>
             <span className="text-xs text-wm-text-dim ml-auto">{timeAgo(post.created_at)}</span>
             {post.user_handle === myHandle && (
-              <button onClick={deletePost} className="text-wm-text-dim hover:text-wm-red transition-colors">
-                <X size={13} />
+              <button
+                onClick={deletePost}
+                aria-label="Delete this Lounge post (requires confirmation)"
+                className="inline-flex items-center justify-center rounded text-wm-text-dim hover:text-wm-red transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+                style={{ minWidth: 44, minHeight: 44 }}
+              >
+                <X size={16} aria-hidden="true" />
               </button>
             )}
           </div>
