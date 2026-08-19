@@ -336,8 +336,9 @@ export default function MorningPrepPage() {
               href="https://above-the-hill-developments-built-a.vercel.app/?view=growth-rings"
               target="_blank"
               rel="noreferrer"
+              className="inline-flex min-h-11 items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
               style={{
-                display: "inline-flex", alignItems: "center", gap: 6,
+                gap: 6,
                 padding: "7px 12px", borderRadius: 8,
                 background: "transparent",
                 border: "1px solid rgba(139,106,41,0.35)",
@@ -384,17 +385,17 @@ export default function MorningPrepPage() {
               <h2 className="text-lg font-black text-white mt-1">How are you growing?</h2>
               <p className="text-sm mt-1" style={{ color: "#AAB2C5" }}>Keep a private record of one faithful practice. This is a long view, never a streak score.</p>
             </div>
-            <a href="https://above-the-hill-developments-built-a.vercel.app/?view=growth-rings" target="_blank" rel="noreferrer" className="text-sm font-bold" style={{ color: "#F0B429" }}>Open the wall ↗</a>
+            <a href="https://above-the-hill-developments-built-a.vercel.app/?view=growth-rings" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold" style={{ color: "#F0B429" }}>Open the wall ↗</a>
           </div>
           <div className="flex flex-wrap gap-2 mb-3">
-            {(Object.keys(GROWTH_PRACTICES) as GrowthCategory[]).map(category => <button key={category} onClick={() => { setGrowthCategory(category); setGrowthPractice(GROWTH_PRACTICES[category][0]); }} className="rounded-full px-3 py-1.5 text-xs font-bold capitalize" style={{ background: growthCategory === category ? "#00D4AA" : "rgba(255,255,255,0.06)", color: growthCategory === category ? "#06110F" : "#D8DDEA", border: "1px solid rgba(255,255,255,0.11)" }}>{category}</button>)}
+            {(Object.keys(GROWTH_PRACTICES) as GrowthCategory[]).map(category => <button key={category} onClick={() => { setGrowthCategory(category); setGrowthPractice(GROWTH_PRACTICES[category][0]); }} className="inline-flex min-h-11 items-center justify-center rounded-full px-3 py-1.5 text-xs font-bold capitalize focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold" style={{ background: growthCategory === category ? "#00D4AA" : "rgba(255,255,255,0.06)", color: growthCategory === category ? "#06110F" : "#D8DDEA", border: "1px solid rgba(255,255,255,0.11)" }}>{category}</button>)}
           </div>
           <div className="flex flex-wrap gap-2 mb-3">
-            {GROWTH_PRACTICES[growthCategory].map(practice => <button key={practice} onClick={() => setGrowthPractice(practice)} className="rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: growthPractice === practice ? "rgba(240,180,41,0.20)" : "rgba(7,10,15,0.42)", color: growthPractice === practice ? "#F8D477" : "#C9D1DF", border: `1px solid ${growthPractice === practice ? "rgba(240,180,41,0.55)" : "rgba(255,255,255,0.09)"}` }}>{practice}</button>)}
+            {GROWTH_PRACTICES[growthCategory].map(practice => <button key={practice} onClick={() => setGrowthPractice(practice)} className="inline-flex min-h-11 items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold" style={{ background: growthPractice === practice ? "rgba(240,180,41,0.20)" : "rgba(7,10,15,0.42)", color: growthPractice === practice ? "#F8D477" : "#C9D1DF", border: `1px solid ${growthPractice === practice ? "rgba(240,180,41,0.55)" : "rgba(255,255,255,0.09)"}` }}>{practice}</button>)}
           </div>
           <textarea value={growthReflection} onChange={event => setGrowthReflection(event.target.value)} maxLength={800} placeholder="Optional reflection — simply record what happened in your own words." className="w-full min-h-20 rounded-xl p-3 text-sm text-white outline-none" style={{ background: "rgba(7,10,15,0.55)", border: "1px solid rgba(255,255,255,0.12)" }} />
           <div className="flex flex-wrap items-center gap-3 mt-3">
-            <button onClick={saveGrowthRing} disabled={growthSaving || !user} className="rounded-xl px-4 py-2 text-sm font-black disabled:opacity-50" style={{ background: "#F0B429", color: "#101318" }}>{growthSaving ? "Saving…" : "Place on my Growth Ring"}</button>
+            <button onClick={saveGrowthRing} disabled={growthSaving || !user} className="inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2 text-sm font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold disabled:opacity-50" style={{ background: "#F0B429", color: "#101318" }}>{growthSaving ? "Saving…" : "Place on my Growth Ring"}</button>
             {growthMessage && <p className="text-xs" style={{ color: growthMessage.startsWith("Saved") ? "#6EE7C5" : "#FBBF24" }}>{growthMessage}</p>}
           </div>
         </section>

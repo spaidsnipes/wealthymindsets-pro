@@ -88,4 +88,12 @@ describe("Morning Prep immutable owner storage", () => {
     expect(deckPage).not.toContain('userHandle={user?.id ?? "guest"}');
     expect(journalPage).not.toContain('userHandle={authCtx?.user?.id ?? "guest"}');
   });
+
+  it("keeps every Growth Rings action on the 44px touch contract", () => {
+    expect(prepPage).toMatch(/className="inline-flex min-h-11 items-center justify-center focus-visible:[^"]+"[\s\S]*?Growth Rings ↗/);
+    expect(prepPage).toMatch(/className="inline-flex min-h-11 items-center justify-center text-sm font-bold focus-visible:[^"]+"[\s\S]*?Open the wall ↗/);
+    expect(prepPage).toContain('className="inline-flex min-h-11 items-center justify-center rounded-full px-3 py-1.5 text-xs font-bold capitalize focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"');
+    expect(prepPage).toContain('className="inline-flex min-h-11 items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"');
+    expect(prepPage).toContain('className="inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2 text-sm font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold disabled:opacity-50"');
+  });
 });
