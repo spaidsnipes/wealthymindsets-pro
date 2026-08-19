@@ -36,6 +36,7 @@ import CinematicAtmosphere from "@/components/brand/CinematicAtmosphere";
 import RealmGateway from "@/components/brand/RealmGateway";
 import DoctrineTagline from "@/components/brand/DoctrineTagline";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
+import CommandContextRibbon from "@/components/command/CommandContextRibbon";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -378,6 +379,21 @@ function CommandDeckInner() {
                 When no chapter resolves, HeroTruth still renders — the
                 marketState prop is skipped and SYMBOL becomes the dominant
                 element (never a fabricated 'BALANCE'). */}
+            {/* CONTEXT RIBBON — 5-tile purposeful state read (Founder
+                2026-08-19 OS Transformation Program §DESKTOP TARGET).
+                Reads canonical owners only; UNKNOWN/UNAVAILABLE/DEGRADED
+                are first-class visible states. Shared primitive: other
+                rooms consume the same component. */}
+            <CommandContextRibbon
+              symbol={symbol}
+              session={identity.session}
+              state={state}
+              wsConnected={wsFeed.connected}
+              wsSource={wsFeed.source ?? null}
+              availableR={chainVm?.availableR ?? null}
+              permission={permission}
+            />
+
             {(() => {
               const story = state ? selectMarketStory(state, history) : null;
               return (
