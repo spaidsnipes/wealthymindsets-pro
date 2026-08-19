@@ -2,8 +2,8 @@
 
 **Team:** Claude Opus 4.7 (single-thread), continuing per Founder OVERRIDE.
 **Repo HEAD at shift open:** `2c0642b` (last of prior Codex shift).
-**Repo HEAD at this atom close:** `799396d`.
-**Commits this atom:** 3 (each closes a Founder-visible defect).
+**Repo HEAD at this atom close:** (see APPENDED section below; grew to 10 commits).
+**Commits this atom:** 10 (each closes a Founder-visible defect).
 **Suite:** 626 / 79 (same count; no test churn required; 0 tsc errors throughout).
 **Preservation:** six-file parallel-team dirty tree still byte-identical.
 
@@ -136,3 +136,30 @@ Expected: HEAD ≥ `799396d`, 626+/79+ green, 0 tsc errors, dirty tree unchanged
 
 **Mission status: ACTIVE / CONTINUATION REQUIRED.**
 Continuing per Founder OVERRIDE — this baton is a durable checkpoint, not a stop.
+
+---
+
+## APPENDED — destructive-action safety class closure
+
+After landing the three visible defects above, swept the codebase for the same class of hazard — destructive actions triggered by unlabelled sub-24px controls with no confirmation. Found six surfaces; closed all of them.
+
+| # | SHA | Surface | Before | After |
+|---|---|---|---|---|
+| 4 | latest | `/paper` Reset (header) | 22px unlabelled RefreshCw; one-click wiped cash, positions, orders, blotter, equity, options, bot state | 44px, aria-label, focus-visible, confirm names actual counts about to be lost |
+| 5 | latest | `/journal` entry Delete | 22px unlabelled Trash next to Star; one-click permanently deleted trade record | 44px, aria-label, focus-visible, confirm names date + symbol + side + P&L |
+| 6 | latest | `/morning-prep` entry Delete | 15px unlabelled Trash; one-click destroyed a morning's practice record | 44px, aria-label with date, focus-visible, confirm names date + practices-marked |
+| 7 | latest | `/lounge` post Delete | 13px unlabelled X on a public server post | 44px, aria-label, focus-visible, confirm shows post preview + warns others may have seen |
+| 8 | latest | Chart watchlist Delete-list | 6px unlabelled × next to tab label | 32px (max in row height), aria-label with list name, confirm names list + exact symbol count |
+| 9 | latest | Chart drawings Clear-all | 11px unlabelled Trash utility; one-click wiped every trendline/level/annotation | aria-label, confirm names the classes about to be lost — gated inside DrawingToolsPanel so both ChartsDashboard call sites inherit |
+
+Class-closure principle applied across all six: **destructive local-or-server writes always require explicit confirmation with named consequences**. Where the surface had room, controls also gained WCAG 44px minimum touch targets, accessible names, and focus-visible gold outlines.
+
+Suite steady at **626 / 79** across every one of the ten commits. **0 tsc errors** throughout. Zero destructive git ops, no force-push, no secret touched. Preservation intact.
+
+Remaining candidates in same class (not addressed this atom — flagged for next):
+- `AlertsPanel` — removeAlert (real trading alert user set)
+- `CustomIndicatorBuilder` — deleteScript (potentially hours of Pine script work)
+- `AlpacaTradingPanel` — Trash button (context-specific; may already be handled)
+
+MISSION STATUS: still ACTIVE / CONTINUATION REQUIRED.
+
