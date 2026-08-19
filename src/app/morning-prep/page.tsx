@@ -185,7 +185,17 @@ export default function MorningPrepPage() {
       ...e, checklist: e.checklist.map(i => i.id === itemId ? { ...i, done: !i.done } : i),
     }));
   };
-  const deleteEntry = (id: string) => persist(entries.filter(e => e.id !== id));
+  const deleteEntry = (id: string) => {
+    // Morning-prep entries are the durable record of a morning's practice —
+    // browser-local, no server tier, no undo. Require explicit confirmation
+    // naming the specific morning about to be lost.
+    const entry = entries.find(e => e.id === id);
+    if (!entry) return;
+    const done = entry.checklist.filter(i => i.done).length;
+    const summary = `${fmtDate(entry.date)} — ${done} practice${done === 1 ? "" : "s"} marked`;
+    if (!window.confirm(`Delete this morning's prep?\n\n${summary}\n\nThis cannot be undone.`)) return;
+    persist(entries.filter(e => e.id !== id));
+  };
 
   const saveGrowthRing = async () => {
     if (!user) { setGrowthMessage("Sign in to save a private Growth Ring."); return; }
@@ -427,8 +437,12 @@ export default function MorningPrepPage() {
                       <div className="text-[11px]" style={{ color: "#8B8FA8" }}>{done} practice{done === 1 ? "" : "s"} marked · a record of this morning</div>
                     </div>
                   </div>
-                  <button onClick={() => deleteEntry(e.id)} style={{ color: "#6B7280" }}
-                    className="hover:text-red-400 transition-colors"><Trash2 size={15} /></button>
+                  <button
+                    onClick={() => deleteEntry(e.id)}
+                    aria-label={`Delete ${fmtDate(e.date)} morning prep (requires confirmation)`}
+                    style={{ color: "#6B7280", minWidth: 44, minHeight: 44 }}
+                    className="inline-flex items-center justify-center rounded hover:text-red-400 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+                  ><Trash2 size={16} aria-hidden="true" /></button>
                 </div>
 
                 {/* progress bar */}
