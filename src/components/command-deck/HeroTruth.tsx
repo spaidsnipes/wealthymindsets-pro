@@ -51,6 +51,14 @@ function formatPrice(p: number): string {
   return p.toFixed(5);
 }
 
+export function shouldShowMarketStateResolutionQualifier(
+  marketState: string | null | undefined,
+  resolution: HeroTruthProps["marketStateResolution"],
+): boolean {
+  if (!marketState || !resolution || resolution === "RESOLVED") return false;
+  return marketState.trim().toUpperCase() !== resolution;
+}
+
 export function HeroTruth({ symbol, timeframe, state, marketState, marketStateResolution, className }: HeroTruthProps) {
   const qualityKey: keyof typeof QUALITY_STYLES = state?.qualityState ?? "UNKNOWN";
   const style = QUALITY_STYLES[qualityKey];
@@ -63,6 +71,7 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
   // consumer will supply capturedAt as soon as it has a snapshot.
   const capturedAt = state?.capturedAt ?? null;
   const freshnessMs = eventAt && capturedAt ? Math.max(0, capturedAt - eventAt) : null;
+  const showResolutionQualifier = shouldShowMarketStateResolutionQualifier(marketState, marketStateResolution);
 
   return (
     <section
@@ -115,13 +124,13 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
               maxWidth: "100%",
               overflowWrap: "anywhere",
             }}
-            aria-label={`Market state ${marketState}${marketStateResolution ? ` (${marketStateResolution.toLowerCase()})` : ""}`}
+            aria-label={`Market state ${marketState}${showResolutionQualifier ? ` (${marketStateResolution!.toLowerCase()})` : ""}`}
           >
             {marketState}
           </span>
-          {marketStateResolution && marketStateResolution !== "RESOLVED" && (
+          {showResolutionQualifier && (
             <span style={{ marginLeft: 10, fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#8a8271" }}>
-              {marketStateResolution.toLowerCase()}
+              {marketStateResolution!.toLowerCase()}
             </span>
           )}
         </div>

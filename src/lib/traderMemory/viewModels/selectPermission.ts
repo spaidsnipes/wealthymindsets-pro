@@ -302,6 +302,6 @@ export function defaultFounderRules(): readonly RuleConfiguration[] {
     { id: "reentry", kind: "SOFT", trigger: "REENTRY_COOLDOWN", label: "Re-entry cooldown", windowMs: 5 * 60_000 },
     { id: "post-loss", kind: "SOFT", trigger: "COOLDOWN_AFTER_LOSS", label: "Post-loss cooldown", windowMs: 10 * 60_000 },
     { id: "data-quality", kind: "HARD", trigger: "DATA_QUALITY_FLOOR", label: "Trustworthy market data required" },
-    { id: "clc-satisfied", kind: "SOFT", trigger: "CLC_MUST_BE_SATISFIED", label: "CLC setup satisfied" },
+    { id: "clc-satisfied", kind: "SOFT", trigger: "CLC_MUST_BE_SATISFIED", label: "CLC setup evidence required" },
   ];
 }

@@ -194,6 +194,7 @@ describe("defaultFounderRules preset", () => {
     expect(triggers).toContain("MAX_LOSSES_PER_SESSION");
     expect(triggers).toContain("MAX_DAILY_DRAWDOWN");
     expect(triggers).toContain("DATA_QUALITY_FLOOR");
+    expect(rules.find((rule) => rule.id === "clc-satisfied")?.label).toBe("CLC setup evidence required");
   });
 
   it("evaluates cleanly with no session activity → ALLOWED", () => {
