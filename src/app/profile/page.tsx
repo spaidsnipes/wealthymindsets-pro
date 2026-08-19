@@ -612,10 +612,7 @@ export default function ProfilePage() {
                 // useJournalSnapshots caching).
                 const vm = selectPersonalEdge({
                   ownerId: user?.id ?? "",
-                  decisions: mergeSnapshots(
-                    useDecisionMemory(user?.id ?? null),
-                    useJournalSnapshots(user?.id ?? null),
-                  ),
+                  decisions: growthDecisions,
                   nowMs: Date.now(),
                 });
                 return (

@@ -33,7 +33,7 @@ function trendMoodFor(vm: PersonalEdgeVM): { label: string; detail: string; colo
   if (typeof vm.overallAvgR !== "number") {
     return {
       label: "Building history.",
-      detail: `${vm.totalDecisions} decision${vm.totalDecisions === 1 ? "" : "s"} recorded — need ${Math.max(0, vm.sampleThreshold - vm.totalDecisions)} more per context to resolve.`,
+      detail: `${vm.totalDecisions} decision${vm.totalDecisions === 1 ? "" : "s"} recorded — each context needs n=${vm.sampleThreshold} to resolve.`,
       color: WM.text.muted,
     };
   }
@@ -100,7 +100,7 @@ export function ScoreExplainer({ vm, onDrillClick, className }: ScoreExplainerPr
 
       {/* Compounding / Leaking edge context */}
       {(strongest || watch) && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: WM.space.sm, paddingTop: WM.space.sm, borderTop: `1px solid ${WM.border.hair}` }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: WM.space.sm, paddingTop: WM.space.sm, borderTop: `1px solid ${WM.border.hair}` }}>
           <div style={{ padding: `${WM.space.sm}px ${WM.space.md}px`, background: WM.surface.mid, borderLeft: `2px solid ${WM.state.ok}` }}>
             <div style={{ fontSize: 9, letterSpacing: 0.3, textTransform: "uppercase", color: WM.state.ok, fontWeight: 700 }}>
               Compounding
@@ -142,6 +142,58 @@ export function ScoreExplainer({ vm, onDrillClick, className }: ScoreExplainerPr
         </div>
       )}
 
+      {/* Next practice — the founder-canon 'what should the trader
+          practice' prescription. Derived from PersonalEdgeVM only,
+          no fabrication. Priority: (1) if a losing context is
+          isolated, prescribe avoiding it; (2) else if a winning
+          context is isolated, prescribe repeating it; (3) else
+          prescribe reaching the sample threshold. Silent only when
+          resolution is UNKNOWN AND totalDecisions is 0 (a genuinely
+          new trader — no prescription is honest until any evidence
+          exists). */}
+      {(() => {
+        const nextPractice: { verb: string; body: string; color: string } | null = (() => {
+          if (watch) {
+            return {
+              verb: "Practice avoiding",
+              body: `${watch.label} — n=${watch.sampleCount}${typeof watch.avgRealizedR === "number" ? `, avg ${watch.avgRealizedR.toFixed(2)}R` : ""}.`,
+              color: WM.state.warn,
+            };
+          }
+          if (strongest) {
+            return {
+              verb: "Practice repeating",
+              body: `${strongest.label} — n=${strongest.sampleCount}${typeof strongest.avgRealizedR === "number" ? `, avg ${strongest.avgRealizedR.toFixed(2)}R` : ""}.`,
+              color: WM.state.ok,
+            };
+          }
+          if (vm.totalDecisions > 0) {
+            return {
+              verb: "Practice logging",
+              body: `Keep logging the same playbook, direction, and session context until it reaches n=${vm.sampleThreshold}.`,
+              color: WM.gold.mark,
+            };
+          }
+          return null;
+        })();
+        if (!nextPractice) return null;
+        return (
+          <div style={{ paddingTop: WM.space.sm, borderTop: `1px solid ${WM.border.hair}` }}>
+            <div style={{ fontSize: 10, letterSpacing: 0.3, textTransform: "uppercase", color: WM.text.muted, marginBottom: 4 }}>
+              Next practice
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+              <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 14, color: nextPractice.color, letterSpacing: 0.2 }}>
+                {nextPractice.verb}
+              </span>
+              <span style={{ fontSize: 12, color: WM.text.body, lineHeight: 1.5 }}>
+                {nextPractice.body}
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+
       {onDrillClick && (
         <button
           type="button"
@@ -150,7 +202,7 @@ export function ScoreExplainer({ vm, onDrillClick, className }: ScoreExplainerPr
           style={{
             marginTop: WM.space.sm,
             alignSelf: "flex-start",
-            padding: "8px 14px",
+            padding: "10px 16px",
             background: "transparent",
             border: `1px solid ${WM.gold.line}`,
             borderRadius: WM.radius.md,
@@ -160,7 +212,9 @@ export function ScoreExplainer({ vm, onDrillClick, className }: ScoreExplainerPr
             letterSpacing: 0.32,
             textTransform: "uppercase",
             cursor: "pointer",
-            minHeight: 32,
+            // WCAG 2.1 AA SC 2.5.5 target-size (44×44 minimum for
+            // touch). Previously 32 which failed mobile a11y.
+            minHeight: 44,
           }}
         >
           Open full breakdown →
