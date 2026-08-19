@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Settings, Edit3, Music, TrendingUp, Users, Star, Shield, Zap, Play, Heart, Share2, BarChart2, Save, X, CheckCircle, Coins, Rocket, ExternalLink, Plus } from "lucide-react";
 import { clsx } from "clsx";
 import toast from "react-hot-toast";
@@ -29,6 +29,7 @@ import {
 import { useDecisionMemory } from "@/lib/traderMemory/useDecisionMemory";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import { hasResolvedTradeOutcome } from "@/lib/tradeEvidence";
+import { parseProfileTab, profileTabHref, type ProfileTab } from "@/lib/profileTab";
 
 
 interface ProfileData {
@@ -69,8 +70,17 @@ function profileCreatorArt(index: number): React.CSSProperties {
 }
 
 export default function ProfilePage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-wm-black" />}>
+      <ProfilePageInner />
+    </React.Suspense>
+  );
+}
+
+function ProfilePageInner() {
   const router = useRouter();
-  const [tab, setTab] = useState<"trades" | "music" | "posts" | "coins" | "growth">("trades");
+  const searchParams = useSearchParams();
+  const tab = parseProfileTab(searchParams.get("tab"));
   const [sessionMetric, setSessionMetric] = useState<SessionEdgeMetric>("avg_realized_r");
   const { wmsBalance, creatorCoin, totalEarned, recentEarnings, launchCreatorCoin, isDeployed } = useWMS();
   const { user, updateProfile: saveToAuth } = useAuth();
@@ -582,7 +592,7 @@ export default function ProfilePage() {
               aria-controls={`profile-tabpanel-${t.id}`}
               id={`profile-tab-${t.id}`}
               aria-label={`${t.label}${tab === t.id ? " (selected)" : ""}`}
-              onClick={() => setTab(t.id as typeof tab)}
+              onClick={() => router.replace(profileTabHref(searchParams.toString(), t.id as ProfileTab))}
               className={clsx(
                 "flex items-center gap-1.5 px-5 py-2.5 text-xs font-semibold border-b-2 transition-all min-h-[44px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold",
                 tab === t.id ? "border-wm-green text-wm-green" : "border-transparent text-wm-text-muted hover:text-wm-text",
