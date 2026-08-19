@@ -405,7 +405,7 @@ function CommandDeckInner() {
                 bridge from Founder Aug-14 §14 'Morning Prep intention
                 appears later in review.' Silent when no entry today
                 (never fabricates). */}
-            <TodayPrepBridge userHandle={user?.id ?? "guest"} />
+            <TodayPrepBridge userId={user?.id ?? null} />
 
             {/* Phase selector — the trader's current decision phase */}
             <div
@@ -795,8 +795,8 @@ function CommandDeckInner() {
  * so the trader sees the same thread from PREP to DECISION. Silent when
  * no entry exists for today. Zero fabrication.
  */
-function TodayPrepBridge({ userHandle }: { userHandle: string }) {
-  const prep = useTodayPrep(userHandle);
+function TodayPrepBridge({ userId }: { userId: string | null }) {
+  const prep = useTodayPrep(userId);
   if (!prep.hasEntry) return null;
   return (
     <div

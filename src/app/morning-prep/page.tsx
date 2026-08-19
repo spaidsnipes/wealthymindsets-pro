@@ -19,6 +19,13 @@ import {
 import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
+import {
+  readMorningPrepEntries,
+  writeMorningPrepEntries,
+  type MorningPrepChecklistItem as ChecklistItem,
+  type MorningPrepEntry as PrepEntry,
+  type MorningPrepReadState,
+} from "@/lib/traderMemory/morningPrepStorage";
 
 /* ══════════════════════════════════════════════════════════════
    Morning Prep — a focused space for building discipline through
@@ -27,17 +34,6 @@ import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnaps
    Entries persist per-user in localStorage so a member's prep log
    survives reloads without depending on a backend table.
 ══════════════════════════════════════════════════════════════ */
-
-interface ChecklistItem { id: string; text: string; done: boolean; }
-interface PrepEntry {
-  id: string;
-  date: string;          // ISO date string
-  routine: string;       // free-text routine / intentions
-  mood: string;          // emoji
-  checklist: ChecklistItem[];
-  photo?: string | null; // data URL
-  createdAt: number;
-}
 
 const MOODS = ["😴", "🙂", "😃", "🔥", "🧠", "💪", "🎯", "☕"];
 
@@ -125,16 +121,6 @@ const GROWTH_PRACTICES = {
 
 type GrowthCategory = keyof typeof GROWTH_PRACTICES;
 
-function storeKey(handle: string) { return `wm_morning_prep_${handle || "guest"}`; }
-
-function loadEntries(handle: string): PrepEntry[] {
-  try { return JSON.parse(localStorage.getItem(storeKey(handle)) || "[]") as PrepEntry[]; }
-  catch { return []; }
-}
-function saveEntries(handle: string, entries: PrepEntry[]) {
-  try { localStorage.setItem(storeKey(handle), JSON.stringify(entries)); } catch {}
-}
-
 function fmtDate(iso: string) {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
@@ -142,9 +128,15 @@ function fmtDate(iso: string) {
 
 export default function MorningPrepPage() {
   const { user } = useAuth();
-  const handle = user?.handle ?? user?.email?.split("@")[0] ?? "guest";
+  const ownerId = user?.id ?? null;
 
-  const [entries, setEntries] = useState<PrepEntry[]>([]);
+  const [ownedEntries, setOwnedEntries] = useState<{
+    ownerId: string | null;
+    entries: PrepEntry[];
+    readState: MorningPrepReadState;
+  }>({ ownerId: null, entries: [], readState: "UNAVAILABLE" });
+  const entries = ownedEntries.ownerId === ownerId ? ownedEntries.entries : [];
+  const prepReadState = ownedEntries.ownerId === ownerId ? ownedEntries.readState : "UNAVAILABLE";
   const [showCompose, setShowCompose] = useState(false);
   const [growthState, setGrowthState] = useState<"loading" | "connected" | "unavailable">("loading");
   const [growthRecords, setGrowthRecords] = useState(0);
@@ -154,7 +146,14 @@ export default function MorningPrepPage() {
   const [growthSaving, setGrowthSaving] = useState(false);
   const [growthMessage, setGrowthMessage] = useState("");
 
-  useEffect(() => { setEntries(loadEntries(handle)); }, [handle]);
+  useEffect(() => {
+    if (!ownerId) {
+      setOwnedEntries({ ownerId: null, entries: [], readState: "UNAVAILABLE" });
+      return;
+    }
+    const result = readMorningPrepEntries(ownerId);
+    setOwnedEntries({ ownerId, entries: [...result.entries], readState: result.state });
+  }, [ownerId]);
   useEffect(() => {
     if (!user) { setGrowthState("unavailable"); return; }
     let live = true;
@@ -171,9 +170,15 @@ export default function MorningPrepPage() {
   }, [user]);
 
   const persist = useCallback((next: PrepEntry[]) => {
-    setEntries(next);
-    saveEntries(handle, next);
-  }, [handle]);
+    if (!ownerId) return false;
+    const written = writeMorningPrepEntries(ownerId, next);
+    setOwnedEntries({
+      ownerId,
+      entries: written ? next : [],
+      readState: written ? (next.length > 0 ? "PRESENT" : "ABSENT") : "UNAVAILABLE",
+    });
+    return written;
+  }, [ownerId]);
 
   const toggleItem = (entryId: string, itemId: string) => {
     persist(entries.map(e => e.id !== entryId ? e : {
@@ -309,15 +314,20 @@ export default function MorningPrepPage() {
             </div>
             <div style={{ flex: 1, minWidth: 8 }} />
             <button
-              onClick={() => setShowCompose(true)}
+              type="button"
+              onClick={() => { if (ownerId) setShowCompose(true); }}
+              disabled={!ownerId}
+              aria-label={ownerId ? "Create a new morning prep entry" : "Sign in to save morning prep"}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6,
+                minHeight: 44,
                 padding: "7px 14px", borderRadius: 8,
                 background: "linear-gradient(180deg, rgba(212,175,55,0.18), rgba(212,175,55,0.08))",
                 border: "1px solid rgba(212,175,55,0.45)",
                 color: "#ede6d3",
                 fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
-                cursor: "pointer",
+                cursor: ownerId ? "pointer" : "not-allowed",
+                opacity: ownerId ? 1 : 0.55,
               }}
             >
               <Plus size={13} /> New Prep
@@ -344,6 +354,16 @@ export default function MorningPrepPage() {
 
       {/* ── Feed ── */}
       <div className="max-w-3xl mx-auto px-6 py-6 space-y-4">
+        {!ownerId && (
+          <div role="status" className="rounded-xl border border-wm-border px-4 py-3 text-sm text-wm-text-muted">
+            Sign in to save Morning Prep privately. Signed-out prep is not written to shared browser storage.
+          </div>
+        )}
+        {ownerId && prepReadState === "UNAVAILABLE" && (
+          <div role="status" className="rounded-xl border border-wm-gold/30 px-4 py-3 text-sm text-wm-gold">
+            Morning Prep storage is unavailable on this device. No prior intention is being inferred.
+          </div>
+        )}
         {/* Opening Bell readiness panel. Uses the default preparation
             template with today's local checklist auto-completed items
             reflected. Truthful UNKNOWN when the trader hasn't completed
@@ -385,10 +405,10 @@ export default function MorningPrepPage() {
             <p className="text-sm mb-5" style={{ color: "#8B8FA8" }}>
               Record one honest morning. Dreamboard will help you see the distance you have travelled—not punish a missed day.
             </p>
-            <button onClick={() => setShowCompose(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold"
+            <button type="button" onClick={() => { if (ownerId) setShowCompose(true); }} disabled={!ownerId}
+              className="flex min-h-11 items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
               style={{ background: "rgba(0,212,170,0.15)", border: "1px solid rgba(0,212,170,0.35)", color: "#00D4AA" }}>
-              <Plus size={14} /> Create first entry
+              <Plus size={14} /> {ownerId ? "Create first entry" : "Sign in to save"}
             </button>
           </div>
         ) : (
@@ -452,7 +472,7 @@ export default function MorningPrepPage() {
       </div>
 
       <AnimatePresence>
-        {showCompose && (
+        {showCompose && ownerId && (
           <ComposeModal
             onClose={() => setShowCompose(false)}
             onSave={(entry) => { persist([entry, ...entries]); setShowCompose(false); }}

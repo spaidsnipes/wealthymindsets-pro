@@ -653,8 +653,8 @@ function ProcessOutcomeStrip({
   );
 }
 
-function TodayIntentStrip({ userHandle }: { userHandle: string }) {
-  const prep = useTodayPrep(userHandle);
+function TodayIntentStrip({ userId }: { userId: string | null }) {
+  const prep = useTodayPrep(userId);
   if (!prep.hasEntry) return null;
   const routine = prep.routine ?? "(no intention recorded)";
   const done = prep.checklistDone;
@@ -1335,7 +1335,7 @@ Trade the system, trust the process, winners every day 🚀`,
           set out to do BEFORE the day started. When none exists, this
           renders nothing (silence-is-a-feature; never a fabricated
           "no plan" scold). Founder Aug-14 §14 explicit ask. */}
-      {mainTab === "journal" && <TodayIntentStrip userHandle={authCtx?.user?.id ?? "guest"} />}
+      {mainTab === "journal" && <TodayIntentStrip userId={authCtx?.user?.id ?? null} />}
 
       {/* Process-outcome quadrant strip — the founder-canon separation of
           'GOOD PROCESS + LOSING OUTCOME' from 'BAD PROCESS + WINNING
