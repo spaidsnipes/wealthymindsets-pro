@@ -163,8 +163,13 @@ Extended after the initial six-surface pass:
 | 10 | latest | Chart AlertsPanel Delete-alert | 12px unlabelled X, 20px hit box; silent alert removal | 32px, aria-label, focus-visible, confirm names symbol + alert description ("Price crosses above 165", "-5% move down", etc.) |
 | 11 | latest | Pine script Delete | 12px unlabelled Trash, 20px hit box; silent Pine script deletion | 32px, aria-label with script name, focus-visible, confirm names script + line count |
 
-**Full sweep this atom closed 8 destructive-action surfaces** with a consistent confirmation-with-named-consequences pattern. Remaining known same-class candidates for the next atom:
-- `AlpacaTradingPanel` — Trash button (context-specific; check if wired to real broker cancel-order or just local UI)
+Alpaca cancel-order closed as well (real broker API):
+
+| # | SHA | Surface | Before | After |
+|---|---|---|---|---|
+| 12 | latest | Alpaca Cancel-order | 12px unlabelled Trash; direct Alpaca API cancel with no confirmation. Alpaca defaults to paper but real brokerage accounts can be connected. | 32px, aria-label with side/qty/symbol, focus-visible, confirm names the specific order + warns "will not execute" |
+
+**Full sweep this atom closed nine destructive-action surfaces** with a consistent confirmation-with-named-consequences pattern applied everywhere. No remaining same-class candidates flagged. If new such affordances land in future work, apply the same pattern by default.
 
 MISSION STATUS: still ACTIVE / CONTINUATION REQUIRED.
 
