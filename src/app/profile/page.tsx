@@ -30,6 +30,7 @@ import { useDecisionMemory } from "@/lib/traderMemory/useDecisionMemory";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import { hasResolvedTradeOutcome } from "@/lib/tradeEvidence";
 import { parseProfileTab, profileTabHref, type ProfileTab } from "@/lib/profileTab";
+import { loadPaperState } from "@/lib/paperTrade";
 
 
 interface ProfileData {
@@ -291,20 +292,46 @@ function ProfilePageInner() {
     try { localStorage.setItem("wm-profile-bg", c); } catch {}
   };
 
+  // Paper-position CSV export. Reads the canonical `wm_paper_state` store
+  // via loadPaperState (was previously reading the wrong key
+  // `wm-paper-positions` — which never existed — and silently downloading
+  // a header-only file while showing a success toast). No positions ⇒
+  // refuse to download and say so.
   const exportData = () => {
-    try {
-      const positions = JSON.parse(localStorage.getItem("wm-paper-positions") ?? "[]");
-      const rows = [["Symbol","Side","AvgPx","Qty"], ...positions.map((p: { symbol: string; qty: number; avgPx: number }) => [p.symbol, p.qty > 0 ? "LONG" : "SHORT", p.avgPx, Math.abs(p.qty)])];
-      const csv = rows.map(r => r.join(",")).join("\n");
-      const blob = new Blob([csv], { type: "text/csv" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "wm-paper-positions.csv";
-      a.click();
-      toast.success("CSV exported!", { icon: "📥" });
-    } catch {
-      toast.error("No paper trading data to export.");
+    let state;
+    try { state = loadPaperState(); }
+    catch { toast.error("Could not read paper-trading data."); return; }
+    const positions = state.positions ?? [];
+    if (positions.length === 0) {
+      toast.error("No paper positions to export yet.");
+      return;
     }
+    const esc = (v: unknown) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows: (string | number)[][] = [
+      ["Symbol","Side","Qty","AvgPx","MarketPx","UnrealizedPnL"],
+      ...positions.map(p => [
+        p.symbol,
+        p.qty >= 0 ? "LONG" : "SHORT",
+        Math.abs(p.qty),
+        p.avgPx,
+        p.marketPx,
+        p.unrealPnl,
+      ]),
+    ];
+    const csv = rows.map(r => r.map(esc).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "wm-paper-positions.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${positions.length} position${positions.length === 1 ? "" : "s"}.`, { icon: "📥" });
   };
 
   const STAT_LIST = [
