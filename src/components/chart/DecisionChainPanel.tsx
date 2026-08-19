@@ -127,7 +127,8 @@ export function DecisionChainPanel({
         {vm.nodes.map((node) => {
           const ind = INDICATOR_STYLES[node.indicator];
           const clickable = !!onNodeClick;
-          const label = `${node.label}: ${node.verdict}, ${ind.label.toLowerCase()}${node.reason ? `. ${node.reason}` : ""}`;
+          const hintEvidence = node.hints?.length ? `. Evidence: ${node.hints.join("; ")}` : "";
+          const label = `${node.label}: ${node.verdict}, ${ind.label.toLowerCase()}${node.reason ? `. ${node.reason}` : ""}${hintEvidence}`;
           return (
             <button
               key={node.key}
@@ -198,6 +199,43 @@ export function DecisionChainPanel({
                     }}
                   >
                     {node.narrative}
+                  </div>
+                )}
+                {/* Structured hints — populated by the selector when the
+                    node has supporting evidence (missing inputs, engaged
+                    rules, warnings). Rendered as chips so the trader
+                    inspects WHY a node is UNKNOWN/WATCH/WARN without
+                    opening WhyInspector. Silent when hints unset. */}
+                {node.hints && node.hints.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+                    {node.hints.map((h, i) => {
+                      const tone = node.hintTones?.[i] ?? "missing";
+                      const color =
+                        tone === "warn"    ? "#c05a4a" :
+                        tone === "watch"   ? "#c9a55c" :
+                                             "#8a8271";
+                      return (
+                        <span
+                          key={`${node.key}-hint-${i}`}
+                          title={h}
+                          style={{
+                            fontSize: 9,
+                            letterSpacing: 0.24,
+                            padding: "2px 6px",
+                            borderRadius: 3,
+                            border: `1px solid ${color}55`,
+                            color,
+                            background: "rgba(19,19,23,0.5)",
+                            maxWidth: 220,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {h}
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
               </div>

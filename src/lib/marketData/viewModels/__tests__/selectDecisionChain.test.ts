@@ -113,4 +113,78 @@ describe("selectDecisionChain", () => {
     expect(r1.summary).toEqual(r2.summary);
     expect(r1.nodes.map(n => n.verdict)).toEqual(r2.nodes.map(n => n.verdict));
   });
+
+  it("Available R node exposes hints for missing inputs — every state explainable", () => {
+    // availableRInputs supplied but the required fields (entryPrice /
+    // structuralStop / destination) are absent → selectAvailableR returns
+    // resolution UNKNOWN with missingInputs populated. The chain must
+    // surface those inputs as hints so the trader knows WHY the risk
+    // node is unknown without opening WhyInspector.
+    const r = selectDecisionChain({
+      state: mkState(),
+      nowMs: NOW,
+      phase: "APPROACH",
+      availableRInputs: {
+        side: "LONG",
+        entryPrice: null,
+        structuralStop: null,
+        destination: null,
+      },
+    });
+    const risk = r.nodes.find((n) => n.key === "risk");
+    expect(risk).toBeDefined();
+    expect(risk!.indicator).toBe("UNKNOWN");
+    expect(risk!.hints).toBeDefined();
+    expect(risk!.hints!.length).toBeGreaterThan(0);
+    // Every missing-input hint tagged 'missing' tone.
+    expect(risk!.hintTones!.every((t) => t === "missing")).toBe(true);
+    // Specifically names entryPrice + structuralStop + destination.
+    const joined = risk!.hints!.join(" ");
+    expect(joined).toContain("entryPrice");
+    expect(joined).toContain("structuralStop");
+    expect(joined).toContain("destination");
+  });
+
+  it("Available R node has no hints when nothing to explain (silence-is-a-feature)", () => {
+    // No availableRInputs at all → node verdict NOT_EVALUATED, hints
+    // must be undefined (not an empty array — silence, not noise).
+    const r = selectDecisionChain({ state: mkState(), nowMs: NOW, phase: "PREPARATION" });
+    const risk = r.nodes.find((n) => n.key === "risk");
+    expect(risk!.verdict).toBe("NOT_EVALUATED");
+    expect(risk!.hints).toBeUndefined();
+    expect(risk!.hintTones).toBeUndefined();
+  });
+
+  it("Permission node exposes hints for each engaged rule with HARD/SOFT tone", () => {
+    // Two real rules that always engage: MAX_TRADES_PER_SESSION with
+    // threshold 0 (engages when 0 sessionDecisions ≥ 0) and same rule
+    // as SOFT. The chain must surface both as hints — HARD 'warn' tone,
+    // SOFT 'watch' tone. This is the same evidence the Command Deck's
+    // Steward panel renders (08796aa), now available through the
+    // DecisionChain contract too so alternate consumers can reuse the
+    // same VM.
+    const r = selectDecisionChain({
+      state: mkState(),
+      nowMs: NOW,
+      phase: "APPROACH",
+      permissionInputs: {
+        ownerId: "test-owner",
+        sessionIdentity: "test-session",
+        rules: [
+          { id: "hard-1", kind: "HARD", trigger: "MAX_TRADES_PER_SESSION", label: "Max daily loss", threshold: 0 },
+          { id: "soft-1", kind: "SOFT", trigger: "MAX_TRADES_PER_SESSION", label: "Cool-off window", threshold: 0 },
+        ],
+        sessionDecisions: [],
+      },
+    });
+    const perm = r.nodes.find((n) => n.key === "permission");
+    expect(perm).toBeDefined();
+    expect(perm!.hints).toBeDefined();
+    expect(perm!.hints!.length).toBe(2);
+    expect(perm!.hints![0]).toContain("HARD");
+    expect(perm!.hints![0]).toContain("Max daily loss");
+    expect(perm!.hints![1]).toContain("SOFT");
+    expect(perm!.hints![1]).toContain("Cool-off window");
+    expect(perm!.hintTones).toEqual(["warn", "watch"]);
+  });
 });

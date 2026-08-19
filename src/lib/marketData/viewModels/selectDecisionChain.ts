@@ -73,6 +73,20 @@ export interface DecisionChainNode {
   readonly reason?: string;
   /** UI hint: OK / WATCH / WARN / UNKNOWN — non-color state signal for a11y. */
   readonly indicator: "OK" | "WATCH" | "WARN" | "UNKNOWN";
+  /**
+   * Optional structured supporting evidence — each hint is a short
+   * label (e.g. missing input name, engaged rule label, warning text).
+   * Rendered as chips beneath the narrative so a trader can inspect
+   * WHY a node is UNKNOWN / WATCH / WARN without opening WhyInspector.
+   * Founder canon: 'every state must be explainable.'
+   */
+  readonly hints?: readonly string[];
+  /**
+   * Tone-per-hint — 'missing' (dim), 'warn' (red), 'watch' (gold).
+   * Length must match hints[] when supplied; caller responsibility.
+   * Absent = all hints render 'missing' tone.
+   */
+  readonly hintTones?: readonly ("missing" | "warn" | "watch")[];
 }
 
 export interface DecisionChainVM {
@@ -224,38 +238,61 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
       reason: clc.reason,
       indicator: CLC_INDICATOR[clc.verdict],
     },
-    {
-      key: "risk",
-      label: "Available R",
-      verdict: availableR
-        ? availableR.resolution === "RESOLVED" || availableR.resolution === "PARTIAL"
-          ? `${typeof availableR.conservativeR === "number" ? availableR.conservativeR.toFixed(2) : "?"}R–${typeof availableR.optimisticR === "number" ? availableR.optimisticR.toFixed(2) : "?"}R`
+    (() => {
+      const missing = availableR?.missingInputs ?? [];
+      const warnings = availableR?.warnings ?? [];
+      const hints: string[] = [];
+      const hintTones: ("missing" | "warn" | "watch")[] = [];
+      for (const m of missing) {
+        hints.push(`missing ${m}`);
+        hintTones.push("missing");
+      }
+      for (const w of warnings) {
+        hints.push(w);
+        hintTones.push("warn");
+      }
+      return {
+        key: "risk",
+        label: "Available R",
+        verdict: availableR
+          ? availableR.resolution === "RESOLVED" || availableR.resolution === "PARTIAL"
+            ? `${typeof availableR.conservativeR === "number" ? availableR.conservativeR.toFixed(2) : "?"}R–${typeof availableR.optimisticR === "number" ? availableR.optimisticR.toFixed(2) : "?"}R`
+            : "UNKNOWN"
+          : "NOT_EVALUATED",
+        resolution: availableR?.resolution ?? "UNKNOWN",
+        narrative: availableR
+          ? availableR.reason ?? `${typeof availableR.conservativeR === "number" ? `${availableR.conservativeR.toFixed(2)}R conservative` : "conservative R unknown"} · ${typeof availableR.optimisticR === "number" ? `${availableR.optimisticR.toFixed(2)}R optimistic` : "optimistic R unknown"}`
+          : "No proposed setup — Available R not evaluated.",
+        reason: availableR?.reason,
+        indicator: availableR
+          ? availableR.resolution === "RESOLVED" ? "OK"
+          : availableR.resolution === "PARTIAL" ? "WATCH"
           : "UNKNOWN"
-        : "NOT_EVALUATED",
-      resolution: availableR?.resolution ?? "UNKNOWN",
-      narrative: availableR
-        ? availableR.reason ?? `${typeof availableR.conservativeR === "number" ? `${availableR.conservativeR.toFixed(2)}R conservative` : "conservative R unknown"} · ${typeof availableR.optimisticR === "number" ? `${availableR.optimisticR.toFixed(2)}R optimistic` : "optimistic R unknown"}`
-        : "No proposed setup — Available R not evaluated.",
-      reason: availableR?.reason,
-      indicator: availableR
-        ? availableR.resolution === "RESOLVED" ? "OK"
-        : availableR.resolution === "PARTIAL" ? "WATCH"
-        : "UNKNOWN"
-        : "UNKNOWN",
-    },
-    {
-      key: "permission",
-      label: "Permission",
-      verdict: permission?.verdict ?? "NOT_EVALUATED",
-      resolution: permission
-        ? permission.verdict === "UNKNOWN" ? "UNKNOWN"
-        : permission.verdict === "ALLOWED" ? "RESOLVED"
-        : "PARTIAL"
-        : "UNKNOWN",
-      narrative: permission?.headline ?? "No trader rules configured — Permission not evaluated.",
-      reason: permission?.reason,
-      indicator: permission ? PERMISSION_INDICATOR[permission.verdict] : "UNKNOWN",
-    },
+          : "UNKNOWN",
+        hints: hints.length > 0 ? hints : undefined,
+        hintTones: hints.length > 0 ? hintTones : undefined,
+      };
+    })(),
+    (() => {
+      const engaged = permission?.engagedRules ?? [];
+      const hints = engaged.map((e) => `${e.rule.kind === "HARD" ? "HARD" : "SOFT"}: ${e.rule.label}`);
+      const hintTones = engaged.map((e): "warn" | "watch" => (e.rule.kind === "HARD" ? "warn" : "watch"));
+      return {
+        key: "permission",
+        label: "Permission",
+        verdict: permission?.verdict ?? "NOT_EVALUATED",
+        resolution: permission
+          ? permission.verdict === "UNKNOWN" ? "UNKNOWN"
+          : permission.verdict === "ALLOWED" ? "RESOLVED"
+          : "PARTIAL"
+          : "UNKNOWN",
+        narrative: permission?.headline ?? "No trader rules configured — Permission not evaluated.",
+        reason: permission?.reason,
+        indicator: permission ? PERMISSION_INDICATOR[permission.verdict] : "UNKNOWN",
+        hints: hints.length > 0 ? hints : undefined,
+        hintTones: hintTones.length > 0 ? hintTones : undefined,
+      };
+    })(),
     {
       key: "management",
       label: "Management",
