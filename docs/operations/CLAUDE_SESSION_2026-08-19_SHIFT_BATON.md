@@ -156,10 +156,15 @@ Class-closure principle applied across all six: **destructive local-or-server wr
 
 Suite steady at **626 / 79** across every one of the ten commits. **0 tsc errors** throughout. Zero destructive git ops, no force-push, no secret touched. Preservation intact.
 
-Remaining candidates in same class (not addressed this atom — flagged for next):
-- `AlertsPanel` — removeAlert (real trading alert user set)
-- `CustomIndicatorBuilder` — deleteScript (potentially hours of Pine script work)
-- `AlpacaTradingPanel` — Trash button (context-specific; may already be handled)
+Extended after the initial six-surface pass:
+
+| # | SHA | Surface | Before | After |
+|---|---|---|---|---|
+| 10 | latest | Chart AlertsPanel Delete-alert | 12px unlabelled X, 20px hit box; silent alert removal | 32px, aria-label, focus-visible, confirm names symbol + alert description ("Price crosses above 165", "-5% move down", etc.) |
+| 11 | latest | Pine script Delete | 12px unlabelled Trash, 20px hit box; silent Pine script deletion | 32px, aria-label with script name, focus-visible, confirm names script + line count |
+
+**Full sweep this atom closed 8 destructive-action surfaces** with a consistent confirmation-with-named-consequences pattern. Remaining known same-class candidates for the next atom:
+- `AlpacaTradingPanel` — Trash button (context-specific; check if wired to real broker cancel-order or just local UI)
 
 MISSION STATUS: still ACTIVE / CONTINUATION REQUIRED.
 
