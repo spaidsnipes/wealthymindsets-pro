@@ -76,7 +76,7 @@ export function RealmGateway({ currentKey = "wm-pro", className }: RealmGatewayP
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: `repeat(${REALMS.length}, 1fr)`,
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(140px, 100%), 1fr))",
           gap: 8,
         }}
       >
@@ -113,6 +113,7 @@ export function RealmGateway({ currentKey = "wm-pro", className }: RealmGatewayP
                 opacity: disabled ? 0.55 : 1,
                 color: "#ede6d3",
                 transition: "border-color 120ms ease, background 120ms ease",
+                minWidth: 0,
               }}
             >
               <span

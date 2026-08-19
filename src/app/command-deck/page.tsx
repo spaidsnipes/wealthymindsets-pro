@@ -255,7 +255,7 @@ function CommandDeckInner() {
           <button
             className="wm-cd-header-action"
             type="button"
-            onClick={() => setShowEvidence(!showEvidence)}
+            onClick={() => (showEvidence ? setShowEvidence(false) : openWhy({ kind: "hero" }))}
             aria-label={showEvidence ? "Hide evidence inspector" : "Show evidence inspector"}
             aria-pressed={showEvidence}
             style={{

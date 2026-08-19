@@ -87,7 +87,7 @@ export function DLARStrip({ dlar, onDrillClick, className }: DLARStripProps) {
       className={["wm-dlar-strip", className ?? ""].join(" ")}
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(150px, 100%), 1fr))",
         gap: 8,
       }}
     >
@@ -113,6 +113,7 @@ export function DLARStrip({ dlar, onDrillClick, className }: DLARStripProps) {
               background: "rgba(19,19,23,0.55)",
               cursor: clickable ? "pointer" : "default",
               color: "#ede6d3",
+              minWidth: 0,
             }}
           >
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>

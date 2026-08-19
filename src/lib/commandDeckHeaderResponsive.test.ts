@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const page = readFileSync(resolve(__dirname, "../app/command-deck/page.tsx"), "utf8");
+const dlar = readFileSync(resolve(__dirname, "../components/command-deck/DLARStrip.tsx"), "utf8");
+const realms = readFileSync(resolve(__dirname, "../components/brand/RealmGateway.tsx"), "utf8");
 
 describe("Command Deck header responsive contract", () => {
   it("keeps all three primary actions reachable on phone widths", () => {
@@ -22,8 +24,16 @@ describe("Command Deck header responsive contract", () => {
   });
 
   it("preserves a named navigation target for every action", () => {
+    expect(page).toContain('onClick={() => (showEvidence ? setShowEvidence(false) : openWhy({ kind: "hero" }))}');
     expect(page).toContain('aria-label={showEvidence ? "Hide evidence inspector" : "Show evidence inspector"}');
     expect(page).toContain('aria-label="Open Growth on your Profile"');
     expect(page).toContain('aria-label="Open Journal"');
+  });
+
+  it("lets dense evidence and realm grids reflow without phone overflow", () => {
+    expect(dlar).toContain('gridTemplateColumns: "repeat(auto-fit, minmax(min(150px, 100%), 1fr))"');
+    expect(realms).toContain('gridTemplateColumns: "repeat(auto-fit, minmax(min(140px, 100%), 1fr))"');
+    expect(dlar).toContain("minWidth: 0");
+    expect(realms).toContain("minWidth: 0");
   });
 });
