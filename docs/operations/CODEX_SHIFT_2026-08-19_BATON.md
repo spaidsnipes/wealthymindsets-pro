@@ -123,3 +123,50 @@ This section supersedes the earlier local-candidate blocker above. Founder push 
 **AFTER:** continue the same-SHA computer/iPad/iPhone regression loop and hourly canon reconciliation.
 
 **MISSION STATUS:** ACTIVE / CONTINUATION REQUIRED.
+
+## Founder-shift checkpoint — 2026-08-19T06:59:40Z
+
+This checkpoint supersedes the prior NOW selection while preserving every earlier exact-SHA receipt and limitation.
+
+**Governing authority:** Founding Execution Contract revision 34, modified 2026-08-18T13:23:30.717Z. A fresh content-level pass of all 11 named Drive authorities found no revision delta. Canon Index remains revision 6. The protected Founder trading tab remained untouched.
+
+**Canonical production identity:**
+
+- GitHub/local/origin main: `8884b8c17a45fb81f3c473b2bbeb135f3e855281`
+- Vercel deployment: `dpl_Cwrasgpk8D9xN8S36yySePmYxGnF`
+- Canonical alias: `wealthymindsets-pro.vercel.app`
+- State: `READY`, production target, `aliasError=null`, exact Git SHA match
+- Capacity: approximately 16.5 GiB free; worktree clean after publication
+- PR #24 (`baa297a`) and PR #25 (`8d49e4f`) remain open, stale, unmergeable collision surfaces and were not modified or merged
+
+**Additional shipped product stack:**
+
+1. `fa7bbb6` — connect every Nectar “Open on chart” action to the canonical active-symbol owner and `/charts`.
+2. `2b51259` — contain Nectar live-count hero metrics at 360px without truncating the truthful count.
+3. `281d0f2` — honor canonical Profile tab deep links, including Command Deck Growth → Profile Growth.
+4. `1cd6122` — make Journal linked-decision drilldowns fail closed and preserve unrelated filters.
+5. `3abc80b` — scope Morning Prep history to the immutable authenticated UID, centralize its browser-local owner, keep unattributed legacy handle/email/guest payloads unread and untouched, and add owner-scoped same-tab notifications.
+6. `8884b8c` — restore the Morning Prep Growth Rings controls to the responsive 44px touch contract with explicit keyboard focus.
+
+**Exact-SHA verification at `8884b8c`:**
+
+- Focused Morning Prep contract: 7/7 PASS.
+- Full regression: 620/620 across 78 files PASS.
+- TypeScript: PASS with incremental writes disabled.
+- Next.js 16.3.0 Turbopack production build: PASS, 74 routes generated.
+- 360x800, 390x844, 834x1194, 1194x834, 1280x800 and 1920x1080: root/universe/main/Growth section exact horizontal containment with `scrollLeft=0`.
+- All 15 Growth Rings controls measured exactly 44px high at every viewport; all were keyboard-focusable and visibly focused without activation.
+- Signed-in UI showed only the canonical UID owner with zero records; no guest text, unattributed legacy prep, prior-owner controls, React #310/#418, hydration warning, WM Pro console error, Vercel runtime cluster, 4xx or 5xx was observed.
+- Controlled proof tab was closed and reset; protected Founder tab untouched.
+
+**Truthful limits:** no safe v2 prep record existed, so same-tab propagation remains deterministic-test evidence rather than a live save receipt. No auth transition was performed, so cross-owner transition masking remains deterministic-test evidence. No server durability or cross-device data continuity is claimed for browser-local Morning Prep.
+
+**NOW:** strengthen the existing shared Settings/Notifications drawer owner in `MainLayout.tsx` with one accessible dialog contract: semantic modal naming, initial focus, keyboard trap/restore/Escape, named 44px actions, and responsive containment—without triggering sign-out or modifying preferences/notifications.
+
+**NEXT:** reconnect Profile paper-position CSV export to the canonical `paperTrade` owner and prohibit false success/header-only downloads.
+
+**AFTER:** continue the read-only three-day product sweep and exact-SHA desktop/iPad/iPhone proof loop; preserve Journal and desktop ticker touch-target debt as separately owned bounded work.
+
+**R00:** RETURN / WM NO-GO until independent current-SHA four-gate closure outside these bounded product atoms.
+
+**MISSION STATUS:** ACTIVE / CONTINUATION REQUIRED.
