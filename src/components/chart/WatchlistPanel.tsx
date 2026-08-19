@@ -223,6 +223,14 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
     e.target.value = "";
   };
   const deleteList = (name: string) => {
+    // A watchlist is a curated symbol set — often built over months. The
+    // trigger is a 6px × icon next to the tab label with a real mis-click
+    // radius. Confirm with the exact count about to be lost.
+    const count = (lists[name] ?? []).length;
+    const summary = count > 0
+      ? `"${name}" contains ${count} symbol${count === 1 ? "" : "s"}. This cannot be undone.`
+      : `"${name}" is empty.`;
+    if (!window.confirm(`Delete watchlist "${name}"?\n\n${summary}`)) return;
     setLists(prev => {
       if (Object.keys(prev).length <= 1) return prev; // keep at least one
       const next = { ...prev }; delete next[name];
@@ -439,8 +447,12 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
                           }}
                         >{name} <span style={{ color: "#6A7290", fontWeight: 500 }}>({(lists[name]||[]).length})</span></button>
                         {Object.keys(lists).length > 1 && (
-                          <button onClick={() => deleteList(name)} title="Delete list"
-                            style={{ background: "none", border: "none", cursor: "pointer", color: "#FF4D67", fontSize: 13, padding: "0 6px" }}>×</button>
+                          <button
+                            onClick={() => deleteList(name)}
+                            aria-label={`Delete watchlist "${name}" (requires confirmation)`}
+                            title={`Delete "${name}"`}
+                            style={{ background: "none", border: "none", cursor: "pointer", color: "#FF4D67", fontSize: 16, padding: "0 10px", minWidth: 32, minHeight: 32, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                          >×</button>
                         )}
                       </div>
                     ))}
