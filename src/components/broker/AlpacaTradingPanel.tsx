@@ -632,10 +632,23 @@ export function AlpacaTradingPanel({
                         <div className="text-[9px] text-wm-text-dim mt-0.5">{fmtTime(ord.submitted_at)}</div>
                       </div>
                       {isOpen && (
-                        <button onClick={() => cancelOrder(ord.id)}
-                          className="p-1.5 rounded text-wm-red hover:bg-wm-red/10 transition-all shrink-0"
-                          title="Cancel order">
-                          <Trash2 size={12} />
+                        <button
+                          onClick={() => {
+                            // cancelOrder calls the Alpaca API to cancel an
+                            // open order. Alpaca defaults to paper, but real
+                            // accounts can be connected — treat every cancel
+                            // as potentially real financial state.
+                            const side = (ord.side ?? "").toUpperCase();
+                            const desc = `${side} ${ord.qty} ${ord.symbol}${ord.limit_price ? ` @ ${fmt$(ord.limit_price)}` : " (market)"}`;
+                            if (!window.confirm(`Cancel this open order?\n\n${desc}\n\nThe order will not execute.`)) return;
+                            cancelOrder(ord.id);
+                          }}
+                          aria-label={`Cancel ${ord.side ?? ""} ${ord.qty} ${ord.symbol} order (requires confirmation)`}
+                          className="inline-flex items-center justify-center rounded text-wm-red hover:bg-wm-red/10 transition-all shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+                          title="Cancel order"
+                          style={{ minWidth: 32, minHeight: 32 }}
+                        >
+                          <Trash2 size={14} aria-hidden="true" />
                         </button>
                       )}
                     </div>
