@@ -15,6 +15,7 @@ import {
 import { WMLogo } from "@/components/ui/WMLogo";
 import WmWordmark from "@/components/brand/WmWordmark";
 import HeaderVaultPill from "@/components/layout/HeaderVaultPill";
+import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { TickerTape } from "@/components/layout/TickerTape";
 import { SpadeBotButton } from "@/components/layout/SpaidBotButton";
 import { MusicPlayer } from "@/components/layout/MusicPlayer";
@@ -340,7 +341,13 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
 }
 
 /* ── Notifications Panel ─────────────────────────────────── */
-function NotificationsPanel({ onClose }: { onClose: () => void }) {
+function NotificationsPanel({
+  onClose,
+  fallbackTriggerRef,
+}: {
+  onClose: () => void;
+  fallbackTriggerRef: React.RefObject<HTMLButtonElement | null>;
+}) {
   const [notifs, setNotifs] = useState(INITIAL_NOTIFS);
   const unread = notifs.filter(n => !n.read).length;
 
@@ -349,88 +356,72 @@ function NotificationsPanel({ onClose }: { onClose: () => void }) {
   const markOne = (id: number) => setNotifs(n => n.map(x => x.id === id ? { ...x, read: true } : x));
 
   return (
-    <motion.div
-      initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-      className="fixed inset-0 z-[200] flex items-start justify-end"
-      style={{ background:"rgba(0,0,0,0.55)", backdropFilter:"blur(3px)" }}
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    <ShellModalDrawer
+      id="wm-notifications-drawer"
+      titleId="wm-notifications-title"
+      descriptionId="wm-notifications-description"
+      title="Notifications"
+      description="Market alerts, strategy coaching, reminders"
+      closeLabel="Close notifications"
+      width={380}
+      onClose={onClose}
+      fallbackTriggerRef={fallbackTriggerRef}
+      titleIcon={<Bell size={14} className="text-wm-gold" aria-hidden="true" />}
+      headerActions={unread > 0 ? (
+        <button
+          type="button"
+          onClick={markAll}
+          className="inline-flex min-h-11 items-center justify-center rounded px-2 text-[10px] text-wm-blue transition-colors hover:bg-wm-surface hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+        >
+          Mark all read
+        </button>
+      ) : undefined}
+      footer={<p className="text-center text-[10px] text-wm-text-dim">Alerts are generated from your strategy win rate and market data</p>}
     >
-      <motion.div
-        initial={{ x: 400 }} animate={{ x: 0 }} exit={{ x: 400 }}
-        transition={{ type:"spring", stiffness:300, damping:30 }}
-        className="relative h-full flex flex-col bg-wm-dark border-l border-wm-border shadow-2xl"
-        style={{ width: 380 }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-wm-border shrink-0">
-          <div>
-            <div className="flex items-center gap-2">
-              <Bell size={14} className="text-wm-gold" />
-              <span className="font-black text-wm-text text-sm">Notifications</span>
-              {unread > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-wm-red/20 text-wm-red border border-wm-red/40">
-                  {unread} NEW
-                </span>
-              )}
-            </div>
-            <div className="text-[10px] text-wm-text-dim mt-0.5">Market alerts, strategy coaching, reminders</div>
+      <div className="h-full">
+        {notifs.length === 0 && (
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-wm-text-muted">
+            <Bell size={32} className="opacity-20" aria-hidden="true" />
+            <span className="text-sm">All caught up!</span>
           </div>
-          <div className="flex items-center gap-1">
-            {unread > 0 && (
-              <button onClick={markAll}
-                className="text-[10px] text-wm-blue hover:text-wm-text transition-colors px-2 py-1 rounded hover:bg-wm-surface">
-                Mark all read
-              </button>
+        )}
+        {notifs.map(n => (
+          <article
+            key={n.id}
+            className={clsx(
+              "flex items-start gap-2 border-b border-wm-border/40 px-3 py-2 transition-colors",
+              n.read ? "hover:bg-wm-surface/30" : "bg-wm-surface/50 hover:bg-wm-surface"
             )}
-            <button onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors">
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-
-        {/* List */}
-        <div className="flex-1 overflow-y-auto">
-          {notifs.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-wm-text-muted gap-3">
-              <Bell size={32} className="opacity-20" />
-              <span className="text-sm">All caught up!</span>
-            </div>
-          )}
-          {notifs.map(n => (
-            <div
-              key={n.id}
+          >
+            <button
+              type="button"
               onClick={() => markOne(n.id)}
-              className={clsx(
-                "flex items-start gap-3 px-4 py-3 border-b border-wm-border/40 cursor-pointer transition-colors",
-                n.read ? "hover:bg-wm-surface/30" : "bg-wm-surface/50 hover:bg-wm-surface"
-              )}
+              aria-label={n.read ? `Notification: ${n.title}` : `Mark ${n.title} as read`}
+              className="flex min-h-11 min-w-0 flex-1 items-start gap-3 rounded-lg p-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
             >
-              <span className="text-xl shrink-0 mt-0.5">{n.icon}</span>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="mt-0.5 shrink-0 text-xl" aria-hidden="true">{n.icon}</span>
+              <span className="min-w-0 flex-1">
+                <span className="mb-0.5 flex items-center gap-1.5">
                   <span className={clsx("text-xs font-bold", n.read ? "text-wm-text-muted" : "text-wm-text")}>{n.title}</span>
-                  {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-wm-blue shrink-0" />}
-                </div>
-                <div className="text-[11px] text-wm-text-dim leading-relaxed">{n.body}</div>
-                <div className="text-[10px] text-wm-text-dim mt-1">{n.time}</div>
-              </div>
-              <button
-                onClick={e => { e.stopPropagation(); remove(n.id); }}
-                className="text-wm-text-dim hover:text-wm-red transition-colors shrink-0 mt-1"
-              >
-                <X size={11} />
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <div className="px-4 py-3 border-t border-wm-border shrink-0 text-[10px] text-wm-text-dim text-center">
-          Alerts are generated from your strategy win rate and market data
-        </div>
-      </motion.div>
-    </motion.div>
+                  {!n.read && <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-wm-blue" />}
+                  <span className="sr-only">{n.read ? "Read" : "Unread"}</span>
+                </span>
+                <span className="block text-[11px] leading-relaxed text-wm-text-dim">{n.body}</span>
+                <span className="mt-1 block text-[10px] text-wm-text-dim">{n.time}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => remove(n.id)}
+              aria-label={`Dismiss notification: ${n.title}`}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-wm-text-dim transition-colors hover:bg-wm-surface hover:text-wm-red focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+            >
+              <X size={14} aria-hidden="true" />
+            </button>
+          </article>
+        ))}
+      </div>
+    </ShellModalDrawer>
   );
 }
 
@@ -446,7 +437,7 @@ function SignOutButton({ onClose }: { onClose: () => void }) {
         await signOut();
         onClose();
       }}
-      className="w-full py-2 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50"
+      className="min-h-11 w-full rounded-xl py-2 text-sm font-bold transition-all hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold disabled:opacity-50"
       style={{ background: "rgba(255,77,106,0.12)", border: "1px solid rgba(255,77,106,0.3)", color: "#FF4D6A" }}
     >
       {busy ? "Signing out…" : "Sign Out"}
@@ -455,7 +446,13 @@ function SignOutButton({ onClose }: { onClose: () => void }) {
 }
 
 /* ── Settings Panel ──────────────────────────────────────── */
-function SettingsPanel({ onClose }: { onClose: () => void }) {
+function SettingsPanel({
+  onClose,
+  fallbackTriggerRef,
+}: {
+  onClose: () => void;
+  fallbackTriggerRef: React.RefObject<HTMLButtonElement | null>;
+}) {
   const [tab,       setTab]       = useState<"display"|"trading"|"alerts"|"account">("display");
   const [darkMode,  setDarkMode]  = useState(true);
   const [soundOn,   setSoundOn]   = useState(true);
@@ -507,24 +504,32 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
     document.documentElement.style.fontSize = px;
   }, [fontSize]);
 
-  const Toggle = ({ on, set }: { on: boolean; set: (v:boolean)=>void }) => (
+  const Toggle = ({ label, on, set }: { label: string; on: boolean; set: (v:boolean)=>void }) => (
     <button
+      type="button"
       onClick={() => set(!on)}
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
       className={clsx(
-        "relative inline-flex h-5 w-9 rounded-full transition-colors shrink-0",
-        on ? "bg-wm-green" : "bg-wm-surface border border-wm-border"
+        "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
       )}
     >
-      <span className={clsx(
-        "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform",
-        on ? "translate-x-4" : "translate-x-0"
-      )} />
+      <span aria-hidden="true" className={clsx(
+        "relative inline-flex h-5 w-9 rounded-full transition-colors",
+        on ? "bg-wm-green" : "border border-wm-border bg-wm-surface"
+      )}>
+        <span className={clsx(
+          "absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
+          on ? "translate-x-4" : "translate-x-0"
+        )} />
+      </span>
     </button>
   );
 
   const Row = ({ label, sub, children }: { label: string; sub?: string; children: React.ReactNode }) => (
-    <div className="flex items-center justify-between py-3 border-b border-wm-border/40">
-      <div>
+    <div className="flex min-w-0 items-center justify-between gap-3 border-b border-wm-border/40 py-3">
+      <div className="min-w-0">
         <div className="text-xs font-semibold text-wm-text">{label}</div>
         {sub && <div className="text-[10px] text-wm-text-dim mt-0.5">{sub}</div>}
       </div>
@@ -539,62 +544,93 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
     { id:"account" as const, label:"Account", icon:Shield },
   ];
 
-  return (
-    <motion.div
-      initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-      className="fixed inset-0 z-[200] flex items-start justify-end"
-      style={{ background:"rgba(0,0,0,0.55)", backdropFilter:"blur(3px)" }}
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <motion.div
-        initial={{ x: 420 }} animate={{ x: 0 }} exit={{ x: 420 }}
-        transition={{ type:"spring", stiffness:300, damping:30 }}
-        className="relative h-full flex flex-col bg-wm-dark border-l border-wm-border shadow-2xl"
-        style={{ width: 420 }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-wm-border shrink-0">
-          <div className="flex items-center gap-2">
-            <Settings size={15} className="text-wm-blue" />
-            <span className="font-black text-wm-text text-sm">Settings</span>
-          </div>
-          <button onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors">
-            <X size={14} />
-          </button>
-        </div>
+  const onTabKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    current: (typeof TABS)[number]["id"],
+  ) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const currentIndex = TABS.findIndex(item => item.id === current);
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? TABS.length - 1
+        : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + TABS.length) % TABS.length;
+    const next = TABS[nextIndex].id;
+    setTab(next);
+    window.requestAnimationFrame(() => document.getElementById(`wm-settings-tab-${next}`)?.focus());
+  };
 
+  return (
+    <ShellModalDrawer
+      id="wm-settings-drawer"
+      titleId="wm-settings-title"
+      descriptionId="wm-settings-description"
+      title="Settings"
+      description="Display, trading, alert, and account preferences"
+      closeLabel="Close settings"
+      width={420}
+      onClose={onClose}
+      fallbackTriggerRef={fallbackTriggerRef}
+      titleIcon={<Settings size={15} className="text-wm-blue" aria-hidden="true" />}
+      footer={(
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.setItem("wm_settings", JSON.stringify({
+                darkMode, soundOn, showPnl, defaultTF, defSym, chartTheme, fontSize,
+                priceAlert, newsAlert, wrAlert, autoSave, paperWarn,
+                confirmOrders, overtrading, fomoDetect, inAppNotifs, twoFactor,
+              }));
+              window.dispatchEvent(new CustomEvent("wm-settings-changed"));
+              onClose();
+            }}
+            className="min-h-11 w-full rounded-xl text-sm font-bold text-wm-black transition-all hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+            style={{ background:"linear-gradient(135deg,#00D4AA,#4FA3E0)" }}
+          >
+            Save Settings
+          </button>
+          <SignOutButton onClose={onClose} />
+        </div>
+      )}
+    >
         {/* Tabs */}
-        <div className="flex border-b border-wm-border shrink-0">
+        <div role="tablist" aria-label="Settings sections" className="flex shrink-0 border-b border-wm-border">
           {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
+            <button key={t.id} type="button" role="tab"
+              id={`wm-settings-tab-${t.id}`}
+              aria-selected={tab === t.id}
+              aria-controls={`wm-settings-panel-${t.id}`}
+              tabIndex={tab === t.id ? 0 : -1}
+              onClick={() => setTab(t.id)}
+              onKeyDown={event => onTabKeyDown(event, t.id)}
               className={clsx(
-                "flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-all",
+                "flex min-h-11 flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-semibold transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-wm-gold",
                 tab === t.id ? "text-wm-blue border-b-2 border-wm-blue" : "text-wm-text-muted hover:text-wm-text"
               )}>
-              <t.icon size={13} />
+              <t.icon size={13} aria-hidden="true" />
               {t.label}
             </button>
           ))}
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-5 py-2">
+        <div className="px-4 py-2">
           {tab === "display" && (
-            <div>
+            <div role="tabpanel" id="wm-settings-panel-display" aria-labelledby="wm-settings-tab-display">
               <Row label="Dark Mode" sub="Premium dark theme for night trading">
-                <Toggle on={darkMode} set={setDarkMode} />
+                <Toggle label="Dark Mode" on={darkMode} set={setDarkMode} />
               </Row>
               <Row label="Show P&L in header" sub="Display live profit/loss in the top bar">
-                <Toggle on={showPnl} set={setShowPnl} />
+                <Toggle label="Show P&L in header" on={showPnl} set={setShowPnl} />
               </Row>
               <Row label="Sound Effects" sub="Tick sounds, alert chimes, order fills">
-                <Toggle on={soundOn} set={setSoundOn} />
+                <Toggle label="Sound Effects" on={soundOn} set={setSoundOn} />
               </Row>
               <Row label="Chart Theme" sub="Candle color scheme">
-                <select value={chartTheme} onChange={e => setChartTheme(e.target.value)}
-                  className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none">
+                <select aria-label="Chart Theme" value={chartTheme} onChange={e => setChartTheme(e.target.value)}
+                  className="min-h-11 max-w-[55%] rounded-lg border border-wm-border bg-wm-surface px-2 py-1 text-xs text-wm-text outline-none focus-visible:ring-2 focus-visible:ring-wm-gold">
                   <option value="green-red">Green/Red (Default)</option>
                   <option value="blue-purple">Royal Blue/Purple</option>
                   <option value="blue-orange">Blue/Yellow</option>
@@ -602,8 +638,8 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
                 </select>
               </Row>
               <Row label="Font Size" sub="Chart label and UI text size">
-                <select value={fontSize} onChange={e => setFontSize(e.target.value)}
-                  className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none">
+                <select aria-label="Font Size" value={fontSize} onChange={e => setFontSize(e.target.value)}
+                  className="min-h-11 max-w-[55%] rounded-lg border border-wm-border bg-wm-surface px-2 py-1 text-xs text-wm-text outline-none focus-visible:ring-2 focus-visible:ring-wm-gold">
                   <option value="small">Small</option>
                   <option value="medium">Medium (Default)</option>
                   <option value="large">Large</option>
@@ -613,15 +649,16 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
           )}
 
           {tab === "trading" && (
-            <div>
+            <div role="tabpanel" id="wm-settings-panel-trading" aria-labelledby="wm-settings-tab-trading">
               <Row label="Default Symbol" sub="Symbol loaded when opening Charts — type any ticker">
                 <>
                   <input
                     list="wm-defsym-list"
+                    aria-label="Default Symbol"
                     value={defSym}
                     onChange={e => setDefSym(e.target.value.toUpperCase())}
                     placeholder="Search symbol…"
-                    className="w-28 bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none focus:border-wm-blue uppercase" />
+                    className="min-h-11 w-28 rounded-lg border border-wm-border bg-wm-surface px-2 py-1 text-xs uppercase text-wm-text outline-none focus:border-wm-blue focus-visible:ring-2 focus-visible:ring-wm-gold" />
                   <datalist id="wm-defsym-list">
                     {["NQ1!","ES1!","BTC","ETH","AAPL","SPY","GC1!","TSLA","NVDA","MSFT","QQQ","EUR/USD","XAU/USD"].map(s => <option key={s} value={s} />)}
                   </datalist>
@@ -629,56 +666,57 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
               </Row>
               <Row label="Default Timeframe" sub="Timeframe loaded on chart open">
                 <select
+                  aria-label="Default Timeframe"
                   value={defaultTF} onChange={e => setDefaultTF(e.target.value)}
-                  className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none">
+                  className="min-h-11 rounded-lg border border-wm-border bg-wm-surface px-2 py-1 text-xs text-wm-text outline-none focus-visible:ring-2 focus-visible:ring-wm-gold">
                   <option value="last">Last Used</option>
                   <option value="none">None</option>
                   {["1m","2m","5m","15m","30m","1h","D","W","M"].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </Row>
               <Row label="Auto-save Journal" sub="Prompt to log trades when session ends">
-                <Toggle on={autoSave} set={setAutoSave} />
+                <Toggle label="Auto-save Journal" on={autoSave} set={setAutoSave} />
               </Row>
               <Row label="Paper Trade Warnings" sub="Alert before placing paper trade orders">
-                <Toggle on={paperWarn} set={setPaperWarn} />
+                <Toggle label="Paper Trade Warnings" on={paperWarn} set={setPaperWarn} />
               </Row>
               <Row label="Confirm Order Submissions" sub="Require confirmation before submitting">
-                <Toggle on={confirmOrders} set={setConfirmOrders} />
+                <Toggle label="Confirm Order Submissions" on={confirmOrders} set={setConfirmOrders} />
               </Row>
             </div>
           )}
 
           {tab === "alerts" && (
-            <div>
+            <div role="tabpanel" id="wm-settings-panel-alerts" aria-labelledby="wm-settings-tab-alerts">
               <div className="text-[10px] text-wm-text-dim uppercase tracking-wider mb-3 mt-1">Market Alerts</div>
               <Row label="Price Level Alerts" sub="Notify when price reaches your set levels">
-                <Toggle on={priceAlert} set={setPriceAlert} />
+                <Toggle label="Price Level Alerts" on={priceAlert} set={setPriceAlert} />
               </Row>
               <Row label="News & Events" sub="Breaking news that may impact your positions">
-                <Toggle on={newsAlert} set={setNewsAlert} />
+                <Toggle label="News & Events" on={newsAlert} set={setNewsAlert} />
               </Row>
               <div className="text-[10px] text-wm-text-dim uppercase tracking-wider mb-3 mt-4">AI Coaching Alerts</div>
               <Row label="Win Rate Warning" sub="Alert when strategy win rate drops below 40%">
-                <Toggle on={wrAlert} set={setWrAlert} />
+                <Toggle label="Win Rate Warning" on={wrAlert} set={setWrAlert} />
               </Row>
               <Row label="Overtrading Alert" sub="Warn when daily trade count exceeds your limit">
-                <Toggle on={overtrading} set={setOvertrading} />
+                <Toggle label="Overtrading Alert" on={overtrading} set={setOvertrading} />
               </Row>
               <Row label="FOMO Entry Detection" sub="Flag trades that match past losing patterns">
-                <Toggle on={fomoDetect} set={setFomoDetect} />
+                <Toggle label="FOMO Entry Detection" on={fomoDetect} set={setFomoDetect} />
               </Row>
               <div className="text-[10px] text-wm-text-dim uppercase tracking-wider mb-3 mt-4">Delivery</div>
               <Row label="In-App Notifications" sub="Show alerts in the notification panel">
-                <Toggle on={inAppNotifs} set={setInAppNotifs} />
+                <Toggle label="In-App Notifications" on={inAppNotifs} set={setInAppNotifs} />
               </Row>
               <Row label="Sound Chime" sub="Play sound when alert fires">
-                <Toggle on={soundOn} set={setSoundOn} />
+                <Toggle label="Sound Chime" on={soundOn} set={setSoundOn} />
               </Row>
             </div>
           )}
 
           {tab === "account" && (
-            <div>
+            <div role="tabpanel" id="wm-settings-panel-account" aria-labelledby="wm-settings-tab-account">
               <Row label="Subscription" sub="WealthyMindsets PRO — Active">
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-wm-gold/20 text-wm-gold border border-wm-gold/40">PRO</span>
               </Row>
@@ -689,7 +727,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
                 <span className="text-xs text-wm-blue font-semibold">Real-time feeds active</span>
               </Row>
               <Row label="Two-Factor Auth" sub="Protect your account with 2FA">
-                <Toggle on={twoFactor} set={setTwoFactor} />
+                <Toggle label="Two-Factor Auth" on={twoFactor} set={setTwoFactor} />
               </Row>
               <Row label="Export All Data" sub="Download journal, trades, settings as JSON">
                 <button
@@ -706,7 +744,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
                     a.href = url; a.download = "wealthymindsets-export.json"; a.click();
                     URL.revokeObjectURL(url);
                   }}
-                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-wm-border text-wm-text-muted hover:text-wm-text transition-colors">
+                  className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg border border-wm-border px-2.5 py-1.5 text-xs text-wm-text-muted transition-colors hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold">
                   Export
                 </button>
               </Row>
@@ -717,7 +755,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
                     Object.keys(localStorage).forEach(k => { if (!keep.includes(k)) localStorage.removeItem(k); });
                     window.location.reload();
                   }}
-                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-wm-border text-wm-red/70 hover:text-wm-red transition-colors">
+                  className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg border border-wm-border px-2.5 py-1.5 text-xs text-wm-red/70 transition-colors hover:text-wm-red focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold">
                   <Trash2 size={10} /> Clear
                 </button>
               </Row>
@@ -725,26 +763,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        <div className="px-5 py-3 border-t border-wm-border shrink-0 space-y-2">
-          <button
-            onClick={() => {
-              localStorage.setItem("wm_settings", JSON.stringify({
-                darkMode, soundOn, showPnl, defaultTF, defSym, chartTheme, fontSize,
-                priceAlert, newsAlert, wrAlert, autoSave, paperWarn,
-                confirmOrders, overtrading, fomoDetect, inAppNotifs, twoFactor,
-              }));
-              window.dispatchEvent(new CustomEvent("wm-settings-changed"));
-              onClose();
-            }}
-            className="w-full py-2 rounded-xl text-sm font-bold text-wm-black transition-all hover:opacity-90"
-            style={{ background:"linear-gradient(135deg,#00D4AA,#4FA3E0)" }}
-          >
-            Save Settings
-          </button>
-          <SignOutButton onClose={onClose} />
-        </div>
-      </motion.div>
-    </motion.div>
+    </ShellModalDrawer>
   );
 }
 
@@ -851,6 +870,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const [settingsOpen,  setSettingsOpen]  = useState(false);
   const [profileOpen,   setProfileOpen]   = useState(false);
   const [mounted,       setMounted]       = useState(false);
+  const notificationsTriggerRef = useRef<HTMLButtonElement>(null);
+  const settingsTriggerRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
   // Full-document product surfaces own their vertical rhythm and must remain
   // reachable inside the fixed application shell. Workspace surfaces (charts,
@@ -895,8 +916,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       }
       if (e.key === "Escape") {
         setSearchOpen(false);
-        setNotifsOpen(false);
-        setSettingsOpen(false);
       }
     };
     window.addEventListener("keydown", handler);
@@ -958,21 +977,29 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
           {/* Notifications */}
           <button
+            ref={notificationsTriggerRef}
             onClick={() => { setNotifsOpen(true); setSettingsOpen(false); }}
-            aria-label="Open notifications"
+            aria-label={unreadCount > 0 ? `Open notifications, ${unreadCount} unread` : "Open notifications"}
+            aria-haspopup="dialog"
+            aria-expanded={notifsOpen}
+            aria-controls="wm-notifications-drawer"
             className="wm-shell-action relative p-1.5 rounded hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors"
             title="Notifications"
           >
             <Bell size={14} />
             {unreadCount > 0 && (
-              <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-wm-red rounded-full ring-1 ring-wm-dark" />
+              <span aria-hidden="true" className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-wm-red rounded-full ring-1 ring-wm-dark" />
             )}
           </button>
 
           {/* Settings */}
           <button
+            ref={settingsTriggerRef}
             onClick={() => { setSettingsOpen(true); setNotifsOpen(false); }}
             aria-label="Open settings"
+            aria-haspopup="dialog"
+            aria-expanded={settingsOpen}
+            aria-controls="wm-settings-drawer"
             className="wm-shell-action p-1.5 rounded hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors"
             title="Settings"
           >
@@ -1190,8 +1217,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       {mounted && (
         <AnimatePresence>
           {searchOpen   && <SearchPanel        key="search"   onClose={() => setSearchOpen(false)} />}
-          {notifsOpen   && <NotificationsPanel key="notifs"   onClose={() => setNotifsOpen(false)} />}
-          {settingsOpen && <SettingsPanel      key="settings" onClose={() => setSettingsOpen(false)} />}
+          {notifsOpen   && <NotificationsPanel key="notifs" onClose={() => setNotifsOpen(false)} fallbackTriggerRef={notificationsTriggerRef} />}
+          {settingsOpen && <SettingsPanel key="settings" onClose={() => setSettingsOpen(false)} fallbackTriggerRef={settingsTriggerRef} />}
           {brokerOpen   && <BrokerConnectPanel key="broker"   onClose={() => setBrokerOpen(false)} />}
         </AnimatePresence>
       )}
