@@ -11,9 +11,11 @@ import { useRouter } from "next/navigation";
  * subtitle underneath, thin gold hairlines separating tiles, hover =
  * gold border intensification.
  *
- * Only WM PRO is currently in-app (routes to /charts). Other tiles
- * open external URLs when defined, otherwise render as 'coming soon'
- * placeholders. Never fabricates — a tile that isn't real says so.
+ * WM PRO routes to /command-deck. MARKETPLACE routes to /shop — the
+ * Marketplace-lite (branded apparel, accessories, books, lifestyle)
+ * that already ships inside WM Pro. Other tiles open external URLs
+ * when defined, otherwise render as 'coming soon' placeholders.
+ * Never fabricates — a tile that isn't real says so.
  */
 
 interface Realm {
@@ -30,7 +32,7 @@ const REALMS: readonly Realm[] = [
   { key: "wm-pro",       label: "WM PRO",      tagline: "Trade · Track · Transform", href: "/command-deck", glyph: "◇", active: true },
   { key: "dreamboard",   label: "DREAMBOARD",  tagline: "Plan · Create · Manifest",   href: "https://above-the-hill-developments-built-a.vercel.app/", external: true, glyph: "★" },
   { key: "powertribes",  label: "POWERTRIBES", tagline: "Lead · Build · Scale",        glyph: "✦" },
-  { key: "marketplace",  label: "MARKETPLACE", tagline: "Shop · Invest · Prosper",     glyph: "◈" },
+  { key: "marketplace",  label: "MARKETPLACE", tagline: "Merch · Books · Lifestyle",   href: "/shop", glyph: "◈" },
   { key: "games",        label: "GAMES",       tagline: "Play · Compete · Conquer",    glyph: "⬢" },
 ];
 
