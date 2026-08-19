@@ -209,6 +209,7 @@ function CommandDeckInner() {
     <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #050506 0%, #0b0b0d 100%)", color: "#ede6d3" }}>
       {/* Nav header */}
       <header
+        className="wm-cd-header"
         style={{
           borderBottom: "1px solid rgba(139,106,41,0.35)",
           padding: "12px 24px",
@@ -223,6 +224,7 @@ function CommandDeckInner() {
         }}
       >
         <button
+          className="wm-cd-header-back"
           onClick={() => router.push("/charts")}
           aria-label="Back to charts"
           style={{
@@ -243,12 +245,15 @@ function CommandDeckInner() {
           <ArrowLeft size={12} />
           Charts
         </button>
-        <WmWordmark size="compact" subtitle="COMMAND CENTER" />
-        <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800, marginLeft: 8 }}>
-          ◆ Command Deck
+        <div className="wm-cd-header-identity" style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <WmWordmark size="compact" subtitle="COMMAND CENTER" />
+          <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800, whiteSpace: "nowrap" }}>
+            ◆ Command Deck
+          </div>
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="wm-cd-header-actions" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
           <button
+            className="wm-cd-header-action"
             type="button"
             onClick={() => setShowEvidence(!showEvidence)}
             aria-label={showEvidence ? "Hide evidence inspector" : "Show evidence inspector"}
@@ -270,6 +275,7 @@ function CommandDeckInner() {
             Why?
           </button>
           <button
+            className="wm-cd-header-action"
             type="button"
             onClick={() => router.push("/profile?tab=growth")}
             aria-label="Open Growth on your Profile"
@@ -289,6 +295,7 @@ function CommandDeckInner() {
             Growth →
           </button>
           <button
+            className="wm-cd-header-action"
             type="button"
             onClick={() => router.push("/journal")}
             aria-label="Open Journal"
@@ -320,6 +327,32 @@ function CommandDeckInner() {
               to a squeezed main column. Use CSS media query via style
               tag so we don't require a global stylesheet touch. */}
           <style>{`
+            .wm-cd-header-action { min-height: 44px !important; }
+            .wm-cd-header-action:focus-visible,
+            .wm-cd-header-back:focus-visible {
+              outline: 2px solid #d4af37;
+              outline-offset: 2px;
+            }
+            @media (max-width: 640px) {
+              .wm-cd-header {
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                padding: 8px 12px !important;
+              }
+              .wm-cd-header-back { padding-inline: 6px !important; }
+              .wm-cd-header-identity { flex: 1 1 auto; gap: 6px !important; }
+              .wm-cd-header-actions {
+                flex: 0 0 100%;
+                margin-left: 0 !important;
+                display: grid !important;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 8px !important;
+              }
+              .wm-cd-header-action {
+                width: 100%;
+                padding-inline: 8px !important;
+              }
+            }
             @media (max-width: 900px) {
               .wm-cd-layout { grid-template-columns: minmax(0, 1fr) !important; }
               .wm-cd-why-column { position: static !important; }
