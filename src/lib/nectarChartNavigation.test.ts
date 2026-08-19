@@ -25,4 +25,15 @@ describe("Nectar chart navigation contract", () => {
     expect(indexPage).toContain("minHeight: 44");
     expect(detailPage).toContain("minHeight: 44");
   });
+
+  it("lets real large Vault counts stack without overflowing a 360px phone", () => {
+    expect(indexPage).toContain(
+      'gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))"',
+    );
+    expect(indexPage).toContain(
+      'gridTemplateColumns: "repeat(2, minmax(0, 1fr))"',
+    );
+    expect(indexPage).not.toContain('gridAutoFlow: "column"');
+    expect(indexPage).toContain('<div style={{ textAlign: "right", minWidth: 0 }}>');
+  });
 });

@@ -538,9 +538,9 @@ function VaultHero({
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "1fr auto",
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))",
         alignItems: "end",
-        gap: 24,
+        gap: "clamp(16px, 3vw, 24px)",
         paddingTop: 8,
       }}
     >
@@ -589,9 +589,10 @@ function VaultHero({
       <div
         style={{
           display: "grid",
-          gridAutoFlow: "column",
-          gap: 24,
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gap: "clamp(12px, 3vw, 24px)",
           alignItems: "end",
+          minWidth: 0,
         }}
       >
         <VaultMetric label="SYMBOLS" value={symbolCount} />
@@ -603,7 +604,7 @@ function VaultHero({
 
 function VaultMetric({ label, value }: { label: string; value: number }) {
   return (
-    <div style={{ textAlign: "right", minWidth: 80 }}>
+    <div style={{ textAlign: "right", minWidth: 0 }}>
       <div
         style={{
           fontFamily: "Georgia, 'Times New Roman', serif",
