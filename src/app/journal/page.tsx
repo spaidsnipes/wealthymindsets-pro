@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
@@ -38,6 +39,11 @@ import {
   type ProcessQuality,
 } from "@/lib/journalProcess";
 import { FabioInsights } from "@/components/fabio/FabioInsights";
+import {
+  filterLinkedDecisionEntries,
+  parseLinkedDecisionIds,
+  withoutLinkedDecisions,
+} from "@/lib/journalDecisionFilter";
 
 /* ── Emoji palette ───────────────────────────────────────── */
 const EMOJIS = [
@@ -710,6 +716,21 @@ function TodayIntentStrip({ userHandle }: { userHandle: string }) {
 }
 
 export default function JournalPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-wm-black" />}>
+      <JournalPageInner />
+    </React.Suspense>
+  );
+}
+
+function JournalPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const linkedFilterActive = searchParams.has("decisions");
+  const linkedDecisionIds = useMemo(
+    () => parseLinkedDecisionIds(searchParams.get("decisions")),
+    [searchParams],
+  );
   const { earnWMS } = useWMS();
   const [entries, setEntries] = useState<JournalEntry[]>(() => {
     if (typeof window === "undefined") return [];
@@ -789,7 +810,8 @@ export default function JournalPage() {
   const [form, setForm]   = useState<Partial<JournalEntry>>(emptyForm());
   const voiceRec          = useVoiceRecorder();
 
-  const filtered = entries.filter(e => {
+  const linkedEntries = filterLinkedDecisionEntries(entries, linkedDecisionIds, linkedFilterActive);
+  const filtered = linkedEntries.filter(e => {
     const q = search.toLowerCase();
     return (
       (!q || e.symbol.toLowerCase().includes(q) || e.notes.toLowerCase().includes(q) || e.setup.toLowerCase().includes(q)) &&
@@ -798,6 +820,7 @@ export default function JournalPage() {
       (filterProcessOutcome === "all" || e.processOutcome === filterProcessOutcome)
     );
   });
+  const linkedMatchCount = linkedFilterActive ? linkedEntries.length : 0;
 
   const wins     = entries.filter(e => e.result === "win").length;
   const losses   = entries.filter(e => e.result === "loss").length;
@@ -1356,6 +1379,24 @@ Trade the system, trust the process, winners every day 🚀`,
               <Plus size={15} aria-hidden="true" /> New journal entry
             </button>
           </div>
+          {linkedFilterActive && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex flex-wrap items-center justify-between gap-2 border-b border-wm-border px-2 py-2"
+            >
+              <span className="text-[10px] font-semibold text-wm-gold">
+                Linked decisions · {linkedMatchCount} found
+              </span>
+              <button
+                type="button"
+                onClick={() => router.replace(withoutLinkedDecisions(searchParams.toString()))}
+                className="min-h-11 rounded-lg border border-wm-border px-3 text-[10px] font-bold text-wm-text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
+              >
+                Clear linked filter
+              </button>
+            </div>
+          )}
           <div className="px-2 py-1.5 border-b border-wm-border overflow-x-auto" style={{ scrollbarWidth:"none" }}>
             <div className="flex gap-1 min-w-max">
               <button onClick={() => setFilterTag("")}
@@ -1377,7 +1418,9 @@ Trade the system, trust the process, winners every day 🚀`,
             {filtered.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-wm-text-muted gap-2">
                 <FileText size={24} className="opacity-30" />
-                <span className="text-xs">No entries found</span>
+                <span className="text-xs">
+                  {linkedFilterActive ? "No linked decisions found" : "No entries found"}
+                </span>
               </div>
             )}
             {filtered.map(e => {
