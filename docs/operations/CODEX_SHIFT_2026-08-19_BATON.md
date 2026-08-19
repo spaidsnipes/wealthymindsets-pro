@@ -77,3 +77,49 @@ Evidence at local HEAD:
 **AFTER:** classify unresolved logout custody keys (`wm_api_keys`, `wm_creator_waitlist`, owner-authored keys, and Nectar singleton continuity) before any further deletion behavior; never clear all localStorage indiscriminately.
 
 **MISSION STATUS:** ACTIVE / CONTINUATION REQUIRED.
+
+## Supersession checkpoint — 2026-08-19T06:17:07Z
+
+This section supersedes the earlier local-candidate blocker above. Founder push approval was received through the interactive approval gates, and the verified stack is now live.
+
+**Governing Drive authority:** Founding Execution Contract revision 34, modified 2026-08-18T13:23:30.823Z, Drive revision `AIroW36d1dwsk4xQOaULwvqlNuAt3ib5R3d838TJn6VjGqinXToo_F2x8HMZcqlUEZCJWof6uN-ZMS1yAFBZOe0agmlv7ZRHtWmohEFHy4k`.
+
+**Canonical production identity:**
+
+- GitHub/local/origin main: `5b208fe5b6d7bab7d02c033be307a774ad3a1f9a`
+- Vercel deployment: `dpl_8nYELooAFrtbxKspAoqZkfQzSYD6`
+- Canonical alias: `wealthymindsets-pro.vercel.app`
+- State: `READY`, `aliasError=null`, exact Git SHA match
+
+**Additional shipped commits:**
+
+1. `4348ece` — honest Command Deck UNKNOWN/CLC truth copy.
+2. `a2fdb43` — earlier revision-bound shift baton.
+3. `e44159c` — clear browser-local API credentials and creator waitlist PII on logout. Pre-commit two-path diff SHA-256: `f5ac2650281d17de9f57b3e5dc3feee6d7c0decc9c132d0a270a31e0163a50d1`.
+4. `b1e61c8` — keep Command Deck WHY/Growth/Journal actions visible and 44px on phones.
+5. `8ba06ac` — make header WHY open real hero evidence and contain canonical Realm/DLAR grids.
+6. `5b208fe` — contain the universal phone shell and give Vault/search/notifications/settings/profile named 44px targets.
+
+**Exact-SHA verification at `5b208fe`:**
+
+- Focused responsive contracts: 11/11 PASS.
+- Full regression: 596/596 across 74 files PASS.
+- TypeScript: PASS with incremental writes disabled.
+- Next.js 16.3.0 Turbopack build: PASS, 74 routes generated.
+- 360x800 and 390x844: root, universe and main `clientWidth === scrollWidth` before and after keyboard traversal; `scrollLeft=0`.
+- Phone shell: Vault 105x44; Search, Notifications, Settings and Profile each 44x44; all named, focusable and in viewport.
+- Command Deck phone actions: all visible and 44px; WHY renders the honest hero Evidence inspector in a one-column stack; Realm and DLAR remain contained.
+- 834x1194, 1194x834, 1280x800 and 1920x1080: exact containment, Sections 1–5 intact, actions visible/44px, vertical scroll verified.
+- `UNKNOWNUNKNOWN` absent; `CLC setup evidence required` present; `CLC setup satisfied` absent.
+- No WM Pro console errors, Vercel runtime errors, 4xx or 5xx observed in the closure window.
+- Controlled verification tab closed and viewport reset. Protected Founder trading tab untouched.
+
+**Privacy preservation:** Sentinel APPROVED only `wm_api_keys` and `wm_creator_waitlist` logout clearing. Broader scripts, notes, chats, alerts, lounge state, watchlists, morning prep and drawings remain preserved pending identity-scoped non-destructive migration design. Operational Nectar coverage continuity and device preferences remain untouched.
+
+**NOW:** select the next highest-leverage collision-safe Founder-visible product/accessibility item from current production.
+
+**NEXT:** prepare the identity-scoped browser-owner migration contract without deleting unattributed legacy content.
+
+**AFTER:** continue the same-SHA computer/iPad/iPhone regression loop and hourly canon reconciliation.
+
+**MISSION STATUS:** ACTIVE / CONTINUATION REQUIRED.
