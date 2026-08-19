@@ -300,8 +300,22 @@ export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChang
                         {" · "}{alert.symbol}
                       </div>
                     </div>
-                    <button onClick={() => removeAlert(alert.id)} style={{ color: "#4A5580", background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                      <X size={12} />
+                    <button
+                      onClick={() => {
+                        // Alerts are real trading signals the trader set with
+                        // intent; deleting one silently could miss a setup.
+                        // Confirm with the specific alert being removed.
+                        const desc = alert.type === "above" ? `Price crosses above ${alert.price}`
+                                   : alert.type === "below" ? `Price crosses below ${alert.price}`
+                                   : alert.type === "pct-up" ? `+${alert.pct ?? "?"}% move up`
+                                   : `-${alert.pct ?? "?"}% move down`;
+                        if (!window.confirm(`Delete alert for ${alert.symbol}?\n\n${desc}\n\nYou will no longer be notified when this triggers.`)) return;
+                        removeAlert(alert.id);
+                      }}
+                      aria-label={`Delete ${alert.symbol} alert (requires confirmation)`}
+                      style={{ color: "#4A5580", background: "none", border: "none", cursor: "pointer", minWidth: 32, minHeight: 32, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                    >
+                      <X size={14} aria-hidden="true" />
                     </button>
                   </div>
                 );
