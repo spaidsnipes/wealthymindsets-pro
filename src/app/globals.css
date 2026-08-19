@@ -300,6 +300,12 @@
   }
 }
 
+/* Show the Mobile Session Pill only on ≤639px; hide it entirely on
+   desktop where the full ticker occupies the same middle slot. */
+@media (min-width: 640px) {
+  .wm-mobile-session-slot { display: none !important; }
+}
+
 @media (max-width: 639px) {
   .wm-shell-ticker,
   .wm-mobile-hide {

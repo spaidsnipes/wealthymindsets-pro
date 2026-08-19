@@ -15,6 +15,7 @@ import {
 import { WMLogo } from "@/components/ui/WMLogo";
 import WmWordmark from "@/components/brand/WmWordmark";
 import HeaderVaultPill from "@/components/layout/HeaderVaultPill";
+import MobileSessionPill from "@/components/layout/MobileSessionPill";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { TickerTape } from "@/components/layout/TickerTape";
 import { SpadeBotButton } from "@/components/layout/SpaidBotButton";
@@ -949,9 +950,17 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        {/* Ticker tape */}
+        {/* Ticker tape (desktop) — hidden on ≤639px via wm-shell-ticker rule */}
         <div className="wm-shell-ticker flex-1 overflow-hidden mx-2">
           <TickerTape />
+        </div>
+
+        {/* Mobile Session Pill — fills the phone header when the ticker
+            is hidden, giving phone users a canonical "active symbol +
+            live/observed" read that ties into the Market Truth graph
+            without shrinking the desktop ticker into a broken thin bar. */}
+        <div className="wm-mobile-session-slot flex-1 min-w-0 overflow-hidden mx-1 flex items-center justify-center">
+          <MobileSessionPill />
         </div>
 
         {/* Right controls */}
