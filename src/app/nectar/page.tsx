@@ -1,6 +1,7 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import {
   getKnownSessionSymbols,
@@ -40,6 +41,7 @@ import { fmtNum, formatMemoryAge, fidelityToTone } from "@/lib/nectarFormat";
  * so this page belongs to the same visual world as /command-deck.
  */
 export default function NectarVaultPage() {
+  const router = useRouter();
   // SSR-safe mount gate — sessionSymbolStore + sessionNectar both
   // hydrate from localStorage on the client. Reading them during
   // SSR (or the first client render pre-hydration) returns empty,
@@ -59,6 +61,10 @@ export default function NectarVaultPage() {
     return () => clearInterval(h);
   }, []);
   const { setActiveSymbol, activeSymbol } = useActiveSymbol();
+  const openOnChart = React.useCallback((symbol: string) => {
+    setActiveSymbol(symbol);
+    router.push("/charts");
+  }, [router, setActiveSymbol]);
 
   // On SSR + pre-mount client: both trees see the same empty session
   // (no localStorage, both `mounted=false`). After mount effect fires,
@@ -149,7 +155,7 @@ export default function NectarVaultPage() {
                     isActive={symbol === activeSymbol}
                     fidelity={tradeChannel?.fidelity ?? null}
                     gapCount={tradeChannel?.gapCount ?? 0}
-                    onOpen={() => { setActiveSymbol(symbol); }}
+                    onOpen={() => openOnChart(symbol)}
                   />
                 );
               })}
@@ -741,6 +747,7 @@ function SymbolCard({ symbol, tapeSource, slot, isActive, fidelity, gapCount, on
           aria-label={`Open ${symbol} on the chart`}
           style={{
             flex: 1,
+            minHeight: 44,
             padding: "9px 14px",
             borderRadius: 8,
             border: `1px solid ${isActive ? WM.border.strong : WM.border.line}`,
@@ -753,7 +760,7 @@ function SymbolCard({ symbol, tapeSource, slot, isActive, fidelity, gapCount, on
             cursor: "pointer",
           }}
         >
-          {isActive ? "Active on chart" : "Open on chart →"}
+          {isActive ? "Open active symbol on chart →" : "Open on chart →"}
         </button>
         <Link
           href={`/nectar/${encodeURIComponent(symbol)}`}
@@ -767,6 +774,7 @@ function SymbolCard({ symbol, tapeSource, slot, isActive, fidelity, gapCount, on
             fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
             textDecoration: "none",
             display: "inline-flex", alignItems: "center",
+            minHeight: 44,
           }}
         >
           Detail

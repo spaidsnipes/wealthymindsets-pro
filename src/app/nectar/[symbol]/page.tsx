@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, BarChart3 } from "lucide-react";
 import {
   getKnownSessionSymbols,
@@ -45,6 +45,7 @@ import {
  *   shows an honest empty state. UNKNOWN stays UNKNOWN.
  */
 export default function NectarSymbolDetailPage() {
+  const router = useRouter();
   const params = useParams();
   const raw = Array.isArray(params?.symbol) ? params.symbol[0] : (params?.symbol as string | undefined);
   const symbol = (raw ?? "").toUpperCase();
@@ -65,6 +66,10 @@ export default function NectarSymbolDetailPage() {
   }, []);
 
   const { setActiveSymbol } = useActiveSymbol();
+  const openOnChart = React.useCallback(() => {
+    setActiveSymbol(symbol);
+    router.push("/charts");
+  }, [router, setActiveSymbol, symbol]);
 
   // Try to find any slot for this symbol regardless of tape source.
   // Prefer the slot with the highest trade count.
@@ -104,7 +109,7 @@ export default function NectarSymbolDetailPage() {
         }}
       >
         {matched.length === 0 ? (
-          <UnobservedState symbol={symbol} onOpen={() => setActiveSymbol(symbol)} />
+          <UnobservedState symbol={symbol} onOpen={openOnChart} />
         ) : (
           <>
             {matched.map(({ slot, tapeSource }, idx) => (
@@ -115,7 +120,7 @@ export default function NectarSymbolDetailPage() {
                 slot={slot}
                 fidelity={idx === 0 ? tradeChannel?.fidelity ?? null : null}
                 gapCount={idx === 0 ? tradeChannel?.gapCount ?? 0 : 0}
-                onOpen={() => setActiveSymbol(symbol)}
+                onOpen={openOnChart}
               />
             ))}
 
@@ -223,6 +228,7 @@ function SlotPanels({
             onClick={onOpen}
             style={{
               padding: "9px 14px", borderRadius: 8,
+              minHeight: 44,
               border: `1px solid ${WM.border.strong}`,
               background: `linear-gradient(180deg, rgba(212,175,55,0.16), rgba(212,175,55,0.06))`,
               color: WM.gold.hero,
@@ -503,6 +509,7 @@ function UnobservedState({ symbol, onOpen }: { symbol: string; onOpen: () => voi
           onClick={onOpen}
           style={{
             padding: "9px 14px", borderRadius: 8,
+            minHeight: 44,
             border: `1px solid ${WM.border.strong}`,
             background: `linear-gradient(180deg, rgba(212,175,55,0.16), rgba(212,175,55,0.06))`,
             color: WM.gold.hero,
