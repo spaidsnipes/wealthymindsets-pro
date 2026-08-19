@@ -1512,13 +1512,31 @@ Trade the system, trust the process, winners every day 🚀`,
                   <div className={clsx("text-xl font-black", selected.pnl >= 0 ? "text-wm-green" : "text-wm-red")}>
                     {fmtPnl(selected.pnl)}
                   </div>
-                  <button onClick={() => setEntries(e => e.map(x => x.id === selected.id ? { ...x, starred:!x.starred } : x))}
-                    className="p-1 hover:bg-wm-surface rounded transition-colors">
-                    <Star size={14} className={selected.starred ? "text-wm-gold fill-wm-gold" : "text-wm-text-muted"} />
+                  <button
+                    onClick={() => setEntries(e => e.map(x => x.id === selected.id ? { ...x, starred:!x.starred } : x))}
+                    aria-label={selected.starred ? `Unstar ${selected.symbol} entry` : `Star ${selected.symbol} entry`}
+                    aria-pressed={selected.starred}
+                    className="inline-flex items-center justify-center rounded hover:bg-wm-surface transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+                    style={{ minWidth: 44, minHeight: 44 }}
+                  >
+                    <Star size={16} className={selected.starred ? "text-wm-gold fill-wm-gold" : "text-wm-text-muted"} aria-hidden="true" />
                   </button>
-                  <button onClick={() => { setEntries(e => e.filter(x => x.id !== selected.id)); setSelected(null); }}
-                    className="p-1 hover:bg-wm-surface rounded transition-colors text-wm-red">
-                    <Trash2 size={14} />
+                  <button
+                    onClick={() => {
+                      // Journal entries are the durable record of a real trade.
+                      // Deletion is irreversible (no server tier + no undo). The
+                      // trash icon sits right next to Star with a 22px hit box —
+                      // require an explicit confirmation naming what will be lost.
+                      const label = `${selected.date} · ${selected.symbol} ${selected.side.toUpperCase()} (${fmtPnl(selected.pnl)})`;
+                      if (!window.confirm(`Permanently delete this journal entry?\n\n${label}\n\nThis cannot be undone.`)) return;
+                      setEntries(e => e.filter(x => x.id !== selected.id));
+                      setSelected(null);
+                    }}
+                    aria-label={`Delete ${selected.symbol} journal entry (requires confirmation)`}
+                    className="inline-flex items-center justify-center rounded hover:bg-wm-surface transition-colors text-wm-red focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+                    style={{ minWidth: 44, minHeight: 44 }}
+                  >
+                    <Trash2 size={16} aria-hidden="true" />
                   </button>
                 </div>
               </div>
