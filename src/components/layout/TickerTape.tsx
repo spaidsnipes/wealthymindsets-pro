@@ -166,6 +166,34 @@ function TickerItem({ item, onClick, active }: {
           <span className="font-mono text-[11px] text-wm-text-muted">
             {price.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp })}
           </span>
+          {/* Freshness label (NOT vendor). Futures/yahoo/finnhub return
+              DELAYED / DELAYED 15 MIN — the badge was computed but never
+              rendered, so a trader glancing at the tape could not tell
+              15-min-delayed futures from real-time crypto/stocks.
+              Render only for non-LIVE tiles; LIVE stays clean (the green
+              dot is affirmation enough) to avoid noise. */}
+          {!badge.live && (
+            <span
+              aria-label={`${badge.label.toLowerCase()} — ${badge.title}`}
+              title={badge.title}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                fontSize: 8,
+                fontWeight: 800,
+                letterSpacing: 0.4,
+                padding: "1px 4px",
+                borderRadius: 3,
+                background: "rgba(245,166,35,0.10)",
+                color: "#F5A623",
+                border: "1px solid rgba(245,166,35,0.30)",
+                textTransform: "uppercase",
+                lineHeight: 1.1,
+              }}
+            >
+              {badge.label}
+            </span>
+          )}
           <span className={`flex items-center gap-0.5 font-mono text-[10px] ${up ? "text-wm-green" : "text-wm-red"}`}>
             {up ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
             {chg >= 0 ? "+" : ""}{chg.toFixed(dp > 2 ? 4 : 2)} ({pct >= 0 ? "+" : ""}{pct.toFixed(2)}%)
