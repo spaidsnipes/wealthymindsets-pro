@@ -404,7 +404,19 @@ export function DrawingToolsPanel({
       <button onClick={onVisToggle}    title={visible ? "Hide drawings" : "Show drawings"} style={utilBtnStyle(false, "#00D4AA")}>
         {visible ? <Eye size={11} /> : <EyeOff size={11} />}
       </button>
-      <button onClick={onClearAll}     title="Clear all drawings"   style={utilBtnStyle(false, "#FF4D6A", true)}><Trash2 size={11} /></button>
+      <button
+        onClick={() => {
+          // Clear-all wipes every drawing the trader placed this session —
+          // trendlines, annotations, measurements, everything. There is no
+          // undo. Two ChartsDashboard call sites both wire this direct;
+          // gating the confirmation here means both inherit it.
+          if (!window.confirm("Clear all drawings on this chart?\n\nEvery trendline, level, annotation, and measurement you placed will be removed. This cannot be undone.")) return;
+          onClearAll();
+        }}
+        title="Clear all drawings"
+        aria-label="Clear all drawings on this chart (requires confirmation)"
+        style={utilBtnStyle(false, "#FF4D6A", true)}
+      ><Trash2 size={11} aria-hidden="true" /></button>
 
       {/* ── Style dropdown (portal) ── */}
       {showStyle && stylePos && typeof document !== "undefined" && (
