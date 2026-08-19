@@ -1063,6 +1063,20 @@ export default function PaperTradingPage() {
   };
 
   const resetAccount = () => {
+    // Paper trading is real learning history for the founder-canon trader
+    // memory loop (Observe → Remember → Reflect). One-click Reset would
+    // silently destroy cash, positions, orders, blotter, equity curve,
+    // option positions, and bot state. Require explicit confirmation
+    // naming the specific classes of data about to be wiped.
+    const positionCount = positions.length;
+    const tradeCount    = trades.length;
+    const parts: string[] = [];
+    if (positionCount > 0) parts.push(`${positionCount} open position${positionCount === 1 ? "" : "s"}`);
+    if (tradeCount > 0)    parts.push(`${tradeCount} blotter trade${tradeCount === 1 ? "" : "s"}`);
+    const summary = parts.length > 0
+      ? `This will permanently delete ${parts.join(" and ")} plus your cash balance and equity curve. This cannot be undone.`
+      : "This will reset cash to $100,000 and clear the equity curve.";
+    if (!window.confirm(`Reset paper trading?\n\n${summary}\n\nContinue?`)) return;
     setCash(STARTING_CASH); setPositions([]); setOrders([]); setTrades([]);
     setOptionPositions([]); setBotRunning(false); setBotLog([]);
     setEquity([{ ts:Date.now(), equity:STARTING_CASH }]);
@@ -1103,9 +1117,13 @@ export default function PaperTradingPage() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <button onClick={resetAccount}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border border-wm-border text-wm-text-muted hover:text-wm-red hover:border-wm-red/40 transition-all">
-            <RefreshCw size={10}/> Reset
+          <button
+            onClick={resetAccount}
+            aria-label="Reset paper trading account (requires confirmation)"
+            className="inline-flex items-center justify-center gap-1 px-2.5 rounded-lg text-[10px] font-bold border border-wm-border text-wm-text-muted hover:text-wm-red hover:border-wm-red/40 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+            style={{ minHeight: 44 }}
+          >
+            <RefreshCw size={10} aria-hidden="true"/> Reset
           </button>
           <div className="text-[10px] px-2 py-1 rounded-lg border border-wm-border/50 text-wm-text-dim font-mono">
             Start: $100,000
