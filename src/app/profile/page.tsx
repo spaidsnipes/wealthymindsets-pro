@@ -966,7 +966,11 @@ function ProfilePageInner() {
             </div>
           )}
 
-          {tab === "nectar" && <NectarProfilePanel />}
+          {tab === "nectar" && (
+            <div id="profile-tabpanel-nectar" role="tabpanel" aria-labelledby="profile-tab-nectar">
+              <NectarProfilePanel />
+            </div>
+          )}
 
           {tab === "music" && (
             <div className="space-y-2">
