@@ -289,7 +289,13 @@ export function CustomIndicatorBuilder({ onClose, bars, onAddToChart, activeCode
   };
 
   const deleteScript = (id: string) => {
-    const next = saved.filter(s => s.id !== id);
+    // Custom Pine scripts can represent hours of iterative work — no
+    // server backup, no undo. Require confirmation naming the script.
+    const s = saved.find(x => x.id === id);
+    if (!s) return;
+    const lines = s.code.split("\n").length;
+    if (!window.confirm(`Delete Pine script "${s.name}"?\n\n${lines} line${lines === 1 ? "" : "s"} of code. This cannot be undone.`)) return;
+    const next = saved.filter(x => x.id !== id);
     setSaved(next);
     saveSaved(next);
   };
@@ -559,9 +565,11 @@ export function CustomIndicatorBuilder({ onClose, bars, onAddToChart, activeCode
                         </button>
                         <button
                           onClick={() => deleteScript(s.id)}
-                          className="p-1 rounded text-wm-red/60 hover:text-wm-red hover:bg-wm-red/10 transition-colors"
+                          aria-label={`Delete Pine script "${s.name}" (requires confirmation)`}
+                          className="inline-flex items-center justify-center rounded text-wm-red/60 hover:text-wm-red hover:bg-wm-red/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+                          style={{ minWidth: 32, minHeight: 32 }}
                         >
-                          <Trash2 size={12} />
+                          <Trash2 size={14} aria-hidden="true" />
                         </button>
                       </div>
                     </div>
