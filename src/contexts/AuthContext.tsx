@@ -15,7 +15,7 @@ import { isPublicAuthPath } from "@/lib/authRoutes";
 import { clearAllSessionSymbols } from "@/lib/marketData/sessionSymbolStore";
 import { clearPaperState } from "@/lib/paperTrade";
 import { clearWMSState } from "@/contexts/WMSContext";
-import { clearOwnerScopedLocalStorage } from "@/lib/logoutIsolation";
+import { clearOwnerScopedLocalStorage, completeLocalSignOut } from "@/lib/logoutIsolation";
 
 export interface WMUser {
   id:             string;
@@ -209,29 +209,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // server-durable Nectar tier yet; when it lands, this line does not
   // interfere — server rows stay put).
   const signOut = useCallback(async () => {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    try { clearAllSessionSymbols(); }        catch { /* never block sign-out on store cleanup */ }
-    try { clearPaperState(); }                catch { /* never block sign-out on store cleanup */ }
-    try { clearWMSState(); }                  catch { /* never block sign-out on store cleanup */ }
-    try { clearOwnerScopedLocalStorage(); }   catch { /* never block sign-out on store cleanup */ }
-    writeCachedUser(null);
-    setUser(null);
-    router.replace("/login");
+    await completeLocalSignOut(
+      fetch("/api/auth/logout", { method: "POST", credentials: "include", keepalive: true }),
+      [
+        clearAllSessionSymbols,
+        clearPaperState,
+        clearWMSState,
+        clearOwnerScopedLocalStorage,
+        () => writeCachedUser(null),
+        () => setUser(null),
+        () => router.replace("/login"),
+      ],
+    );
   }, [router]);
 
   // Revoke every session everywhere (bumps the server-side session epoch), then
   // sign out locally. Other devices drop at their next /api/auth/me poll.
   const signOutAllDevices = useCallback(async () => {
-    try {
-      await fetch("/api/auth/logout-all", { method: "POST", credentials: "include" });
-    } catch { /* still clear locally below */ }
-    try { clearAllSessionSymbols(); }        catch { /* never block sign-out on store cleanup */ }
-    try { clearPaperState(); }                catch { /* never block sign-out on store cleanup */ }
-    try { clearWMSState(); }                  catch { /* never block sign-out on store cleanup */ }
-    try { clearOwnerScopedLocalStorage(); }   catch { /* never block sign-out on store cleanup */ }
-    writeCachedUser(null);
-    setUser(null);
-    router.replace("/login");
+    await completeLocalSignOut(
+      fetch("/api/auth/logout-all", { method: "POST", credentials: "include", keepalive: true }),
+      [
+        clearAllSessionSymbols,
+        clearPaperState,
+        clearWMSState,
+        clearOwnerScopedLocalStorage,
+        () => writeCachedUser(null),
+        () => setUser(null),
+        () => router.replace("/login"),
+      ],
+    );
   }, [router]);
 
   const updateProfile = useCallback(async (updates: Partial<WMUser>) => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { clearOwnerScopedLocalStorage } from "./logoutIsolation";
+import { clearOwnerScopedLocalStorage, completeLocalSignOut } from "./logoutIsolation";
 
 describe("logoutIsolation — owner-scoped localStorage cleanup", () => {
   function installFakeLocalStorage(): Map<string, string> {
@@ -70,5 +70,42 @@ describe("logoutIsolation — owner-scoped localStorage cleanup", () => {
     };
     expect(() => clearOwnerScopedLocalStorage()).not.toThrow();
     expect(clearOwnerScopedLocalStorage()).toBe(0);
+  });
+
+  it("runs every local cleanup when the server logout request rejects", async () => {
+    const calls: string[] = [];
+
+    await completeLocalSignOut(
+      Promise.reject(new TypeError("network offline")),
+      [
+        () => calls.push("session-symbols"),
+        () => { calls.push("paper"); throw new Error("broken paper storage"); },
+        () => calls.push("points"),
+        () => calls.push("owner-local"),
+        () => calls.push("auth-cache"),
+        () => calls.push("route"),
+      ],
+    );
+
+    expect(calls).toEqual([
+      "session-symbols",
+      "paper",
+      "points",
+      "owner-local",
+      "auth-cache",
+      "route",
+    ]);
+  });
+
+  it("does not wait for a pending server request before clearing local state", async () => {
+    let resolveServer!: () => void;
+    const pendingServer = new Promise<void>(resolve => { resolveServer = resolve; });
+    const calls: string[] = [];
+
+    const completion = completeLocalSignOut(pendingServer, [() => calls.push("local")]);
+
+    expect(calls).toEqual(["local"]);
+    resolveServer();
+    await completion;
   });
 });

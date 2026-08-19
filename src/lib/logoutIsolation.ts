@@ -63,3 +63,32 @@ export function clearOwnerScopedLocalStorage(): number {
   }
   return removed;
 }
+
+/**
+ * A server logout request is best-effort from the browser's point of view.
+ * Owner-local data must still be cleared when that request is offline or
+ * otherwise rejects. Each cleanup is isolated so one broken store cannot
+ * prevent the remaining owner state from being removed.
+ */
+export async function completeLocalSignOut(
+  serverLogout: Promise<unknown>,
+  cleanups: readonly (() => void)[],
+): Promise<void> {
+  // Attach the rejection handler immediately, but never put a slow network
+  // request in front of browser-local privacy cleanup.
+  const settledServerLogout = serverLogout.catch(() => {
+    // The server session may remain active, but this browser must not retain
+    // the previous owner's local data. The next authenticated request remains
+    // responsible for reporting the server-side session truth.
+  });
+
+  for (const cleanup of cleanups) {
+    try {
+      cleanup();
+    } catch {
+      // Keep clearing independent owner-local domains.
+    }
+  }
+
+  await settledServerLogout;
+}

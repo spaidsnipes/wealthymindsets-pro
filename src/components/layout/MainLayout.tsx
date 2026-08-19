@@ -852,6 +852,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const [profileOpen,   setProfileOpen]   = useState(false);
   const [mounted,       setMounted]       = useState(false);
   const pathname = usePathname();
+  // Full-document product surfaces own their vertical rhythm and must remain
+  // reachable inside the fixed application shell. Workspace surfaces (charts,
+  // scanner, journal, etc.) keep their existing internally managed overflow.
+  const documentScroll = pathname === "/command-deck"
+    || pathname === "/nectar"
+    || pathname.startsWith("/nectar/");
   const router   = useRouter();
   const { user, signOut, signOutAllDevices } = useAuth();
 
@@ -1123,7 +1129,19 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </aside>
 
         {/* Main content */}
-        <main className="wm-app-surface" style={{ flex: 1, overflow: "hidden", minWidth: 0, position: "relative", height: "100%" }}>
+        <main
+          className="wm-app-surface"
+          data-scroll-owner={documentScroll ? "shell" : "workspace"}
+          style={{
+            flex: 1,
+            overflowX: "hidden",
+            overflowY: documentScroll ? "auto" : "hidden",
+            minWidth: 0,
+            position: "relative",
+            height: "100%",
+            overscrollBehaviorY: documentScroll ? "contain" : undefined,
+          }}
+        >
           {mounted ? (
             <AnimatePresence mode="wait">
               <motion.div
@@ -1132,13 +1150,17 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.12 }}
-                style={{ position: "absolute", inset: 0 }}
+                style={documentScroll
+                  ? { position: "relative", minHeight: "100%" }
+                  : { position: "absolute", inset: 0 }}
               >
                 <ErrorBoundary>{children}</ErrorBoundary>
               </motion.div>
             </AnimatePresence>
           ) : (
-            <div style={{ position: "absolute", inset: 0 }}><ErrorBoundary>{children}</ErrorBoundary></div>
+            <div style={documentScroll
+              ? { position: "relative", minHeight: "100%" }
+              : { position: "absolute", inset: 0 }}><ErrorBoundary>{children}</ErrorBoundary></div>
           )}
         </main>
       </div>

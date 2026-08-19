@@ -23,6 +23,15 @@ describe("responsive P0 command surfaces", () => {
     expect(css).toContain("border-right: 1px solid rgba(232,185,35,.18)");
   });
 
+  it("keeps long-form Nectar and Command Deck surfaces vertically reachable", () => {
+    const layout = source("../components/layout/MainLayout.tsx");
+    expect(layout).toContain('pathname === "/nectar"');
+    expect(layout).toContain('pathname.startsWith("/nectar/")');
+    expect(layout).toContain('data-scroll-owner={documentScroll ? "shell" : "workspace"}');
+    expect(layout).toContain('overflowY: documentScroll ? "auto" : "hidden"');
+    expect(layout).toContain('{ position: "relative", minHeight: "100%" }');
+  });
+
   it("does not force an installed phone into one orientation", () => {
     const manifest = JSON.parse(source("../../public/manifest.json"));
     expect(manifest.orientation).toBe("any");
