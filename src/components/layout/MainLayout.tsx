@@ -1051,14 +1051,14 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     { label: "Settings",    icon: "⚙️", action: () => { setSettingsOpen(true); setProfileOpen(false); } },
                   ].map(item => (
                     <button key={item.label} onClick={item.action}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-wm-text-muted hover:bg-wm-surface hover:text-wm-text transition-colors text-left">
+                      className="flex min-h-11 w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs text-wm-text-muted transition-colors hover:bg-wm-surface hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-wm-gold">
                       <span>{item.icon}</span>{item.label}
                     </button>
                   ))}
                   <div className="border-t border-wm-border/60 mt-1">
                     <button
                       onClick={async () => { setProfileOpen(false); await signOut(); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-bold transition-colors text-left"
+                      className="flex min-h-11 w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-wm-gold"
                       style={{ color: "#FF4D6A" }}
                       onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,77,106,0.08)")}
                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -1071,7 +1071,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                         setProfileOpen(false);
                         await signOutAllDevices();
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[11px] transition-colors text-left text-wm-text-muted hover:text-wm-text"
+                      className="flex min-h-11 w-full items-center gap-2.5 px-3 py-2.5 text-left text-[11px] text-wm-text-muted transition-colors hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-wm-gold"
                       onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                     >

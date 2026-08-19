@@ -37,6 +37,7 @@ describe("shared shell modal drawer accessibility", () => {
     expect(layout).toContain('aria-controls="wm-settings-drawer"');
     expect(layout).toContain("fallbackTriggerRef={notificationsTriggerRef}");
     expect(layout).toContain("fallbackTriggerRef={settingsTriggerRef}");
+    expect(layout).toContain('className="flex min-h-11 w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs text-wm-text-muted');
   });
 
   it("separates notification primary and dismiss actions with truthful names and 44px targets", () => {
