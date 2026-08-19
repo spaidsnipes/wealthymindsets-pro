@@ -255,23 +255,38 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
 
   const pct = Math.round((score / qs.length) * 100);
 
+  // Escape closes the modal; matches ShellModalDrawer accessibility contract.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-      className="fixed inset-0 z-[300] flex items-center justify-center"
-      style={{ background:"rgba(7,10,15,0.88)", backdropFilter:"blur(6px)" }}>
+      className="fixed inset-0 z-[300] flex items-center justify-center px-3 py-3"
+      style={{ background:"rgba(7,10,15,0.88)", backdropFilter:"blur(6px)" }}
+      role="dialog" aria-modal="true" aria-label="Lesson quiz">
       <motion.div initial={{ scale:0.92,y:16 }} animate={{ scale:1,y:0 }}
-        className="relative bg-wm-dark border border-wm-border rounded-2xl shadow-2xl flex flex-col"
-        style={{ width:600, maxHeight:"88vh", overflow:"hidden" }}>
+        className="relative bg-wm-dark border border-wm-border rounded-2xl shadow-2xl flex flex-col w-full"
+        style={{ maxWidth: 600, maxHeight:"88vh", overflow:"hidden" }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-wm-border shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-wm-border shrink-0">
           <div className="flex items-center gap-2">
-            <HelpCircle size={15} className="text-wm-gold"/>
+            <HelpCircle size={15} className="text-wm-gold" aria-hidden="true"/>
             <span className="text-sm font-black text-wm-text">Lesson Quiz</span>
           </div>
-          <div className="flex items-center gap-3">
-            {!done && <span className="text-xs text-wm-text-muted font-mono">{cur+1}/{qs.length}</span>}
-            <button onClick={() => onClose()}><X size={14} className="text-wm-text-muted hover:text-wm-text"/></button>
+          <div className="flex items-center gap-2">
+            {!done && <span className="text-xs text-wm-text-muted font-mono" aria-live="polite">{cur+1}/{qs.length}</span>}
+            <button
+              onClick={() => onClose()}
+              aria-label="Close quiz"
+              className="inline-flex items-center justify-center rounded-lg text-wm-text-muted hover:text-wm-text hover:bg-wm-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+              style={{ minWidth: 44, minHeight: 44 }}
+            >
+              <X size={16} aria-hidden="true"/>
+            </button>
           </div>
         </div>
 
@@ -574,11 +589,12 @@ export default function EducationPage() {
         </div>
       </div>
 
-      {/* Body */}
-      <div style={{ flex:1,display:"flex",overflow:"hidden",minHeight:0 }}>
+      {/* Body — column stack on phones so both the module list and the
+          selected lesson are reachable at ≤768px; row on larger screens. */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
 
-        {/* Module list */}
-        <div className="w-80 border-r border-wm-border flex flex-col overflow-hidden shrink-0">
+        {/* Module list — full-width on phones, 320px on md+ */}
+        <div className="w-full md:w-80 border-b md:border-b-0 md:border-r border-wm-border flex flex-col overflow-hidden shrink-0 max-h-[45vh] md:max-h-none">
           <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
             {mods.map(mod => {
               const isExp = expandedId === mod.id;
@@ -620,24 +636,32 @@ export default function EducationPage() {
                         {mod.lessons.map((lesson, li) => {
                           const isActive = activeLesson?.lesson.id === lesson.id;
                           return (
-                            <div key={lesson.id}
+                            <button
+                              type="button"
+                              key={lesson.id}
                               onClick={() => setActiveLesson({ lesson, color:mod.color })}
-                              className={clsx("flex items-start gap-2 pl-6 pr-3 py-2 cursor-pointer transition-colors border-t border-wm-border/20",
-                                isActive ? "bg-wm-surface" : "hover:bg-wm-surface/30")}>
+                              aria-current={isActive ? "true" : undefined}
+                              aria-label={`Lesson ${li+1}: ${lesson.title}, ${lesson.duration}${lesson.completed ? ", completed" : ""}`}
+                              className={clsx(
+                                "w-full flex items-start gap-2 pl-6 pr-3 py-2 text-left transition-colors border-t border-wm-border/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-wm-gold",
+                                isActive ? "bg-wm-surface" : "hover:bg-wm-surface/30",
+                              )}
+                              style={{ minHeight: 44 }}
+                            >
                               {lesson.completed
-                                ? <CheckCircle2 size={12} className="text-wm-green mt-0.5 shrink-0"/>
+                                ? <CheckCircle2 size={12} className="text-wm-green mt-0.5 shrink-0" aria-hidden="true"/>
                                 : <div className="w-3 h-3 rounded-full border border-wm-border mt-0.5 shrink-0"
-                                    style={{ borderColor:isActive?mod.color:undefined }}/>}
+                                    style={{ borderColor:isActive?mod.color:undefined }} aria-hidden="true"/>}
                               <div className="flex-1 min-w-0">
                                 <div className={clsx("text-[11px] leading-snug",
                                   isActive ? "font-bold text-wm-text" : "text-wm-text-muted")}>
                                   {li+1}. {lesson.title}
                                 </div>
                                 <div className="text-[9px] text-wm-text-dim mt-0.5 flex items-center gap-1">
-                                  <Clock size={8}/>{lesson.duration}
+                                  <Clock size={8} aria-hidden="true"/>{lesson.duration}
                                 </div>
                               </div>
-                            </div>
+                            </button>
                           );
                         })}
                       </motion.div>
