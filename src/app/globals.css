@@ -160,6 +160,21 @@
     text-decoration: none;
   }
 
+  /* Landscape-only auxiliary trio; hidden in portrait so the five
+     primary destinations remain unambiguous. Reveal below in the
+     landscape-short media query where the shell header is hidden. */
+  .wm-mobile-nav-landscape-actions {
+    display: none;
+  }
+
+  .wm-mobile-nav-action {
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    padding: 0;
+    font-family: inherit;
+  }
+
   .wm-mobile-nav-link.is-active {
     color: #E8B923;
     background: rgba(232,185,35,.12);
@@ -215,6 +230,31 @@
     min-height: 44px;
     flex: 0 1 54px;
     font-size: 9px;
+  }
+
+  /* Reveal the auxiliary trio in landscape-short so Notifications,
+     Settings, and Profile remain reachable when the shell header is
+     hidden above. Divider separates the five primary destinations
+     from the access-secondary trio. */
+  .wm-mobile-nav-landscape-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 6px;
+    margin-top: 4px;
+    border-top: 1px solid rgba(232,185,35,.14);
+  }
+
+  .wm-mobile-nav-landscape-actions .wm-mobile-nav-link {
+    width: 52px;
+    min-height: 44px;
+    flex: 0 0 auto;
+    font-size: 9px;
+    color: #8B8FA8;
+  }
+
+  .wm-mobile-nav-landscape-actions .wm-mobile-nav-link.is-active {
+    color: #E8B923;
   }
 
   .wm-chart-tabs {

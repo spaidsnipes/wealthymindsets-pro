@@ -1211,6 +1211,46 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             </Link>
           );
         })}
+        {/* Landscape-only trio: header is hidden in landscape-short mode
+            (globals.css:192), so Notifications / Settings / Profile would
+            otherwise be unreachable. Render them here as native buttons
+            reusing the same state setters. Hidden in portrait via CSS. */}
+        <div className="wm-mobile-nav-landscape-actions" aria-label="Access">
+          <button
+            type="button"
+            onClick={() => { setNotifsOpen(true); setSettingsOpen(false); }}
+            aria-label={unreadCount > 0 ? `Open notifications, ${unreadCount} unread` : "Open notifications"}
+            className="wm-mobile-nav-link wm-mobile-nav-action"
+          >
+            <span className="relative inline-flex" aria-hidden="true">
+              <Bell size={19} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-wm-red rounded-full ring-1 ring-wm-dark" />
+              )}
+            </span>
+            <span>Alerts</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setSettingsOpen(true); setNotifsOpen(false); }}
+            aria-label="Open settings"
+            className="wm-mobile-nav-link wm-mobile-nav-action"
+          >
+            <Settings size={19} aria-hidden="true" />
+            <span>Settings</span>
+          </button>
+          <Link
+            href="/profile"
+            aria-label="Open profile"
+            className={clsx(
+              "wm-mobile-nav-link wm-mobile-nav-action",
+              pathname.startsWith("/profile") && "is-active",
+            )}
+          >
+            <User size={19} aria-hidden="true" />
+            <span>Profile</span>
+          </Link>
+        </div>
       </nav>
 
       {/* ── Overlays ─────────────────────────────────────────── */}
