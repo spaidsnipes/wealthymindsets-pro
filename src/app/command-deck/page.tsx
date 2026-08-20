@@ -392,6 +392,7 @@ function CommandDeckInner() {
               wsSource={wsFeed.source ?? null}
               availableR={chainVm?.availableR ?? null}
               permission={permission}
+              chainNodes={chainVm?.nodes}
             />
 
             {(() => {

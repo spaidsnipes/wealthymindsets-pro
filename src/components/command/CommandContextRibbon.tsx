@@ -33,6 +33,7 @@ import {
 import type { CanonicalMarketState } from "@/lib/marketData/canonicalMarketState";
 import type { PermissionVM } from "@/lib/traderMemory/viewModels/selectPermission";
 import type { AvailableRVM } from "@/lib/traderMemory/viewModels/selectAvailableR";
+import type { DecisionChainNode } from "@/lib/marketData/viewModels/selectDecisionChain";
 import {
   selectContextDataReading,
   type ContextDataState,
@@ -46,6 +47,16 @@ export interface CommandContextRibbonProps {
   readonly wsSource: string | null;         // "yahoo" / "coinbase" / "alpaca" / "unavailable" / null
   readonly availableR: AvailableRVM | null;
   readonly permission: PermissionVM | null;
+  /**
+   * Decision-chain nodes for the current phase. When provided, an
+   * EVIDENCE DEBT tile renders honestly per Founder Market Reality
+   * canon §Evidence Debt (2026-08-20): "Direction ✓ / Location ✓
+   * / Aggression ? / CLC ? / Available R ✓ / EVIDENCE DEBT —
+   * Awaiting aggression + confirmation." No debt paid = no
+   * authorization. Zero fabrication — UNKNOWN nodes count as
+   * missing, WARN nodes as watch, only OK counts as paid.
+   */
+  readonly chainNodes?: readonly DecisionChainNode[];
 }
 
 type Tone = "resolved" | "pending" | "unknown" | "warn";
@@ -270,8 +281,32 @@ function useNectarForSymbol(symbol: string): { channels: number; trades: number;
   }, [symbol, tick, hydrated]);
 }
 
+// Evidence Debt tile — derives missing/watch/resolved counts from the
+// decision chain nodes. Honest first-class UNKNOWN states.
+interface EvidenceDebt {
+  readonly total: number;
+  readonly resolved: number;
+  readonly missing: number;
+  readonly warn: number;
+  readonly missingLabels: readonly string[]; // first-few UNKNOWN node labels for detail
+  readonly warnLabels: readonly string[];    // first-few WARN node labels
+}
+function computeEvidenceDebt(nodes: readonly DecisionChainNode[] | undefined): EvidenceDebt | null {
+  if (!nodes || nodes.length === 0) return null;
+  let resolved = 0, missing = 0, warn = 0;
+  const missingLabels: string[] = [];
+  const warnLabels: string[] = [];
+  for (const n of nodes) {
+    if (n.indicator === "OK") resolved += 1;
+    else if (n.indicator === "UNKNOWN") { missing += 1; if (missingLabels.length < 3) missingLabels.push(n.label); }
+    else if (n.indicator === "WARN") { warn += 1; if (warnLabels.length < 3) warnLabels.push(n.label); }
+    // WATCH is neither paid nor blocking — reported as "watch" implicitly (not counted here)
+  }
+  return { total: nodes.length, resolved, missing, warn, missingLabels, warnLabels };
+}
+
 export function CommandContextRibbon(props: CommandContextRibbonProps): React.ReactElement {
-  const { symbol, session, state, wsConnected, wsSource, availableR, permission } = props;
+  const { symbol, session, state, wsConnected, wsSource, availableR, permission, chainNodes } = props;
   const nectar = useNectarForSymbol(symbol);
   const [nowMs, setNowMs] = React.useState<number | null>(null);
   React.useEffect(() => {
@@ -282,6 +317,7 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
   }, []);
   const arText = availableRText(availableR);
   const permText = permissionText(permission);
+  const debt = React.useMemo(() => computeEvidenceDebt(chainNodes), [chainNodes]);
 
   const tiles: readonly Tile[] = [
     {
@@ -327,6 +363,29 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
       detail: arText.detail,
       tone: availableRTone(availableR),
     },
+    // EVIDENCE DEBT — direct Founder Market Reality canon §Evidence
+    // Debt (2026-08-20). Rendered only when chainNodes prop supplied
+    // (Command Deck provides it; other rooms may omit). Zero-fabrication:
+    // UNKNOWN indicator = missing evidence; only OK counts as paid.
+    ...(debt ? [{
+      key: "evidenceDebt",
+      label: "EVIDENCE",
+      value: debt.missing === 0 && debt.warn === 0
+        ? "COMPLETE"
+        : debt.missing > 0
+          ? `${debt.missing} MISSING`
+          : `${debt.warn} WARN`,
+      detail: debt.missing > 0
+        ? `${debt.resolved}/${debt.total} paid · need ${debt.missingLabels.slice(0, 2).map(l => l.toLowerCase()).join(" + ")}${debt.missingLabels.length > 2 ? " +" + (debt.missingLabels.length - 2) : ""}`
+        : debt.warn > 0
+          ? `${debt.resolved}/${debt.total} paid · watch ${debt.warnLabels.slice(0, 2).map(l => l.toLowerCase()).join(" + ")}`
+          : `${debt.total}/${debt.total} paid · authorization complete`,
+      tone: (debt.missing === 0 && debt.warn === 0
+        ? "resolved"
+        : debt.warn > 0
+          ? "warn"
+          : "unknown") as Tone,
+    } as Tile] : []),
     {
       key: "steward",
       label: "STEWARD",
