@@ -1721,6 +1721,28 @@ Trade the system, trust the process, winners every day 🚀`,
                         <span>Last trade {new Date(selected.nectarSnapshot.lastTradeAtMs).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
                       )}
                     </div>
+                    {/* Loop completion — Journal→Nectar cross-navigation.
+                        Trader can jump from a reflected entry into the
+                        Vault to see what changed since journal-time, OR
+                        open the chart with the same canonical symbol. */}
+                    <div className="mt-3 pt-2 border-t border-wm-gold/15 flex flex-wrap items-center gap-2">
+                      <a
+                        href={`/nectar/${encodeURIComponent(selected.symbol)}`}
+                        aria-label={`See current Nectar detail for ${selected.symbol}`}
+                        className="inline-flex items-center gap-1 text-[10px] font-bold text-wm-gold hover:text-wm-gold/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold rounded px-2 py-1"
+                        style={{ minHeight: 28 }}
+                      >
+                        See what changed since →
+                      </a>
+                      <a
+                        href={`/command-deck?symbol=${encodeURIComponent(selected.symbol)}`}
+                        aria-label={`Open Command Deck focused on ${selected.symbol}`}
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-wm-text-muted hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold rounded px-2 py-1"
+                        style={{ minHeight: 28 }}
+                      >
+                        Open Command Deck →
+                      </a>
+                    </div>
                   </div>
                 </div>
               )}
