@@ -15,6 +15,8 @@ import SessionEdgePanel from "@/components/profile/SessionEdgePanel";
 import GrowthHero from "@/components/profile/GrowthHero";
 import ScoreExplainer from "@/components/profile/ScoreExplainer";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
+import { selectMemoryFreshness, type MemoryFreshnessState } from "@/lib/traderMemory/selectMemoryFreshness";
+import { formatTradeAge } from "@/lib/marketData/tradeFreshness";
 import { selectPlaybookDNA } from "@/lib/traderMemory/viewModels/selectPlaybookDNA";
 import { selectSessionEdge, type SessionEdgeMetric } from "@/lib/traderMemory/viewModels/selectSessionEdge";
 import ATHOSInterventionPanel from "@/components/athos/ATHOSInterventionPanel";
@@ -68,6 +70,42 @@ function profileCreatorArt(index: number): React.CSSProperties {
     backgroundPosition: PROFILE_CREATOR_POSITIONS[index % PROFILE_CREATOR_POSITIONS.length],
     backgroundRepeat: "no-repeat",
   };
+}
+
+function MemoryFreshnessStrip({
+  decisions,
+}: {
+  decisions: readonly { capturedAt: number; outcome?: { closedAt: number } | null; review?: { reviewedAt: number } | null }[];
+}) {
+  const now = Date.now();
+  const f = selectMemoryFreshness(decisions, now);
+  const toneClass: Record<MemoryFreshnessState, string> = {
+    EMPTY: "text-wm-text-muted border-wm-text-muted/30",
+    ACTIVE: "text-wm-green border-wm-green/40",
+    AGING: "text-yellow-400 border-yellow-400/40",
+    DORMANT: "text-orange-400 border-orange-400/50",
+  };
+  const ageLabel = formatTradeAge(f.lastActivityAtMs, now).label;
+  const headline =
+    f.state === "EMPTY" ? "No decisions recorded yet"
+    : f.state === "ACTIVE" ? "Your trading memory is current"
+    : f.state === "AGING" ? "Your trading memory is aging"
+    : "Your trading memory is dormant";
+  const detail =
+    f.state === "EMPTY"
+      ? "Log a decision or journal a trade to start building your edge."
+      : `${f.count} decision${f.count === 1 ? "" : "s"} · ${f.reviewedCount} reviewed · ${f.openCount} open${ageLabel ? ` · last activity ${ageLabel}` : ""}`;
+  return (
+    <div
+      className={clsx("glass rounded-xl p-4 border-l-2", toneClass[f.state])}
+      role="status"
+      aria-label={`Trading memory ${f.state.toLowerCase()}. ${headline}. ${detail}`}
+    >
+      <div className="text-[10px] uppercase tracking-wider font-bold mb-1">Trading memory · {f.state}</div>
+      <div className="text-sm font-semibold text-wm-text">{headline}</div>
+      <div className="text-xs text-wm-text-muted mt-0.5">{detail}</div>
+    </div>
+  );
 }
 
 export default function ProfilePage() {
@@ -665,6 +703,10 @@ function ProfilePageInner() {
                         Founder Aug-14 §13 (why this score? what changed
                         it? what sample supports it?). Zero fabrication. */}
                     <ScoreExplainer vm={vm} />
+                    {/* Memory freshness — is your Personal Edge built on
+                        RECENT process, or stale history you've drifted from?
+                        Honest: EMPTY when no decisions, DORMANT past a week. */}
+                    <MemoryFreshnessStrip decisions={growthDecisions} />
                   </>
                 );
               })()}
