@@ -35,6 +35,11 @@ import type { PermissionVM } from "@/lib/traderMemory/viewModels/selectPermissio
 import type { AvailableRVM } from "@/lib/traderMemory/viewModels/selectAvailableR";
 import type { DecisionChainNode } from "@/lib/marketData/viewModels/selectDecisionChain";
 import {
+  computeEvidenceDebt as computeEvidenceDebtCanonical,
+  computeRightOfWay as computeRightOfWayCanonical,
+  type EvidenceDebt as CanonicalEvidenceDebt,
+} from "@/lib/marketData/viewModels/decisionPermissionCompiler";
+import {
   selectContextDataReading,
   type ContextDataState,
 } from "@/lib/marketData/contextDataTruth";
@@ -247,76 +252,8 @@ function availableRText(vm: AvailableRVM | null): { value: string; detail?: stri
   };
 }
 
-/**
- * Right of Way — Decision Permission Compiler per Founder 2029
- * Integration Glue canon §NEW GLUE INVENTION — DECISION PERMISSION
- * COMPILER (2026-08-20). Explicitly forbids the EVIDENCE DEBT / RIGHT-
- * OF-WAY CONTRADICTION rejection #1 by construction:
- *
- *   "Required unpaid debt blocks authorization. ... The compiler
- *    returns ACTION / WAIT / NO TRADE plus exact reasons and cannot
- *    be overridden by a decorative confidence score."
- *
- * Deterministic priority — evidence debt gates authorization first,
- * permission verdict second. STEWARD tile can NEVER read ALLOWED
- * when Evidence Debt has missing nodes.
- */
-type RightOfWay = "ACTION" | "WAIT" | "NO TRADE" | "CAUTION" | "UNKNOWN";
-function computeRightOfWay(perm: PermissionVM | null, debt: EvidenceDebt | null): {
-  value: RightOfWay;
-  detail: string;
-  tone: Tone;
-} {
-  // Rule 1 (highest priority): missing evidence blocks Right of Way.
-  if (debt && debt.missing > 0) {
-    const missing = debt.missingLabels.slice(0, 2).map(l => l.toLowerCase()).join(" + ");
-    return {
-      value: "WAIT",
-      detail: `evidence debt: need ${missing}${debt.missingLabels.length > 2 ? " +" + (debt.missingLabels.length - 2) : ""}`,
-      tone: "warn",
-    };
-  }
-  // Rule 2: Explicit permission block.
-  if (perm?.verdict === "RESTRICTED") {
-    const reason = (perm as unknown as { reason?: string }).reason ?? "hard rule engaged";
-    return {
-      value: "NO TRADE",
-      detail: reason.length > 40 ? reason.slice(0, 40) + "…" : reason,
-      tone: "warn",
-    };
-  }
-  // Rule 3: Explicit permission caution.
-  if (perm?.verdict === "ADVISORY") {
-    const reason = (perm as unknown as { reason?: string }).reason ?? "soft rule engaged";
-    return {
-      value: "CAUTION",
-      detail: reason.length > 40 ? reason.slice(0, 40) + "…" : reason,
-      tone: "pending",
-    };
-  }
-  // Rule 4: Permission ALLOWED AND no evidence debt (rule 1 already passed).
-  if (perm?.verdict === "ALLOWED") {
-    if (debt && debt.warn > 0) {
-      // Warn nodes exist but no missing — treat as CAUTION not ACTION.
-      return {
-        value: "CAUTION",
-        detail: `${debt.warn} watch node${debt.warn === 1 ? "" : "s"}`,
-        tone: "pending",
-      };
-    }
-    return {
-      value: "ACTION",
-      detail: "all evidence paid · steward allows",
-      tone: "resolved",
-    };
-  }
-  // Rule 5: Nothing to say honestly.
-  return {
-    value: "UNKNOWN",
-    detail: perm ? "permission unresolved" : "not evaluated",
-    tone: "unknown",
-  };
-}
+// Local alias — the extracted canonical compiler owns the derivation.
+const computeRightOfWay = computeRightOfWayCanonical;
 
 // Nectar tile — count of tape sources with observed trades for THIS symbol,
 // summed trade count. Reads sessionSymbolStore, the same canonical owner
@@ -335,29 +272,10 @@ function useNectarForSymbol(symbol: string): { channels: number; trades: number;
   }, [symbol, tick, hydrated]);
 }
 
-// Evidence Debt tile — derives missing/watch/resolved counts from the
-// decision chain nodes. Honest first-class UNKNOWN states.
-interface EvidenceDebt {
-  readonly total: number;
-  readonly resolved: number;
-  readonly missing: number;
-  readonly warn: number;
-  readonly missingLabels: readonly string[]; // first-few UNKNOWN node labels for detail
-  readonly warnLabels: readonly string[];    // first-few WARN node labels
-}
-function computeEvidenceDebt(nodes: readonly DecisionChainNode[] | undefined): EvidenceDebt | null {
-  if (!nodes || nodes.length === 0) return null;
-  let resolved = 0, missing = 0, warn = 0;
-  const missingLabels: string[] = [];
-  const warnLabels: string[] = [];
-  for (const n of nodes) {
-    if (n.indicator === "OK") resolved += 1;
-    else if (n.indicator === "UNKNOWN") { missing += 1; if (missingLabels.length < 3) missingLabels.push(n.label); }
-    else if (n.indicator === "WARN") { warn += 1; if (warnLabels.length < 3) warnLabels.push(n.label); }
-    // WATCH is neither paid nor blocking — reported as "watch" implicitly (not counted here)
-  }
-  return { total: nodes.length, resolved, missing, warn, missingLabels, warnLabels };
-}
+// Local alias — the extracted canonical compiler owns the derivation.
+// This ribbon renders the values but never re-implements the logic.
+type EvidenceDebt = CanonicalEvidenceDebt;
+const computeEvidenceDebt = computeEvidenceDebtCanonical;
 
 export function CommandContextRibbon(props: CommandContextRibbonProps): React.ReactElement {
   const { symbol, session, state, wsConnected, wsSource, availableR, permission, chainNodes } = props;
