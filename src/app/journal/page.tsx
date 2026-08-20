@@ -20,6 +20,7 @@ import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
 import { useWMS } from "@/contexts/WMSContext";
+import { getKnownSessionSymbols } from "@/lib/marketData/sessionSymbolStore";
 import {
   Plus, Search, Tag, Calendar, Download, Mic, MicOff,
   TrendingUp, TrendingDown, Image as ImageIcon, Trash2,
@@ -63,6 +64,29 @@ interface VoiceMemo {
   sec:  number;
 }
 
+/**
+ * NectarSnapshot — REMEMBER→REFLECT bridge.
+ *
+ * Captured from the canonical sessionSymbolStore at the moment a
+ * journal entry is created, so the trader can review not just what
+ * happened but WHAT WM ACTUALLY OBSERVED about that symbol at
+ * journal-creation time. Optional: pre-existing entries have no
+ * snapshot; new entries capture one when Nectar had any trades for
+ * the entry's symbol. Zero fabrication — if nothing was observed,
+ * the snapshot is null and the review says so honestly.
+ */
+export interface NectarSnapshot {
+  readonly capturedAtMs: number;
+  readonly channels: number;       // count of tape sources for this symbol at capture
+  readonly tradeCount: number;
+  readonly delta: number;
+  readonly buyVol: number;
+  readonly sellVol: number;
+  readonly bigTradeCount: number;
+  readonly horizonSec: number | null;      // first observation
+  readonly lastTradeAtMs: number | null;   // most recent observation (real freshness)
+}
+
 interface JournalEntry {
   id:        string;
   date:      string;
@@ -86,6 +110,7 @@ interface JournalEntry {
   mistakes:  string;
   lessons:   string;
   emojis:    string[];
+  nectarSnapshot?: NectarSnapshot | null;
 }
 
 const ALL_TAGS = ["CLC","VWAP reclaim","Wyckoff","dark pool","CVD","absorption","chased","FOMO","breakeven","morning session","supply rejection","EOD","momentum"];
@@ -836,6 +861,41 @@ function JournalPageInner() {
     e.processQuality = e.processQuality ?? "UNRESOLVED";
     e.processOutcome = classifyProcessOutcome(e.processQuality, e.pnl);
     e.voiceSec = voiceRec.memo?.sec ?? (voiceRec.state === "done" ? voiceRec.sec : 0);
+
+    // Nectar snapshot — REMEMBER→REFLECT bridge (Founder OVERRIDE §10
+    // loop closure). Capture what WM actually observed about this
+    // symbol at journal-creation time, from the canonical
+    // sessionSymbolStore. Null-safe: no observations → null snapshot
+    // → detail view says so honestly (no fabrication).
+    try {
+      const upper = e.symbol.toUpperCase();
+      const rows = getKnownSessionSymbols().filter(s => s.symbol.toUpperCase() === upper && s.slot.stats.tradeCount > 0);
+      if (rows.length > 0) {
+        const merged = rows.reduce(
+          (acc, r) => {
+            acc.tradeCount    += r.slot.stats.tradeCount;
+            acc.delta         += r.slot.stats.delta;
+            acc.buyVol        += r.slot.stats.buyVol;
+            acc.sellVol       += r.slot.stats.sellVol;
+            acc.bigTradeCount += r.slot.stats.bigTradeCount;
+            const hSec = r.slot.horizon?.startedAtSec ?? null;
+            if (hSec != null) acc.horizonSec = acc.horizonSec == null ? hSec : Math.min(acc.horizonSec, hSec);
+            const l = r.slot.lastTradeAtMs ?? null;
+            if (l != null) acc.lastTradeAtMs = acc.lastTradeAtMs == null ? l : Math.max(acc.lastTradeAtMs, l);
+            return acc;
+          },
+          { tradeCount: 0, delta: 0, buyVol: 0, sellVol: 0, bigTradeCount: 0, horizonSec: null as number | null, lastTradeAtMs: null as number | null },
+        );
+        e.nectarSnapshot = {
+          capturedAtMs: Date.now(),
+          channels: rows.length,
+          ...merged,
+        };
+      } else {
+        e.nectarSnapshot = null;
+      }
+    } catch { e.nectarSnapshot = null; }
+
     setEntries(prev => [e, ...prev]);
     setNewMode(false);
     setForm(emptyForm());
@@ -1611,6 +1671,59 @@ Trade the system, trust the process, winners every day 🚀`,
                   <div className="rounded-lg border border-wm-border bg-wm-surface p-3 text-xs text-wm-text leading-relaxed whitespace-pre-wrap">{val}</div>
                 </div>
               ))}
+
+              {/* ── Nectar snapshot @ journal — REMEMBER→REFLECT bridge ───
+                  Founder OVERRIDE §10: closes the loop hop between what WM
+                  observed (Nectar) and what the trader reflects on (Journal).
+                  Only rendered for entries CREATED after this ships (older
+                  entries have no snapshot). Zero fabrication — null means
+                  nothing observed at journal-creation, and we say so. */}
+              {selected.nectarSnapshot === null && (
+                <div className="mb-4">
+                  <div className="text-xs font-bold text-wm-text-muted mb-1.5">🧠 Nectar at Journal Time</div>
+                  <div className="rounded-lg border border-wm-border/60 bg-wm-surface/40 p-3 text-xs text-wm-text-dim italic">
+                    No Nectar observations for {selected.symbol} at the moment this entry was logged.
+                  </div>
+                </div>
+              )}
+              {selected.nectarSnapshot && (
+                <div className="mb-4">
+                  <div className="text-xs font-bold text-wm-text-muted mb-1.5 flex items-center gap-2">
+                    🧠 Nectar at Journal Time
+                    <span className="text-[9px] text-wm-text-dim font-normal">captured {new Date(selected.nectarSnapshot.capturedAtMs).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).toLowerCase()}</span>
+                  </div>
+                  <div className="rounded-lg border border-wm-gold/25 bg-wm-gold/5 p-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div>
+                        <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Trades</div>
+                        <div className="text-sm font-mono font-bold text-wm-text" style={{ fontVariantNumeric: "tabular-nums" }}>{selected.nectarSnapshot.tradeCount.toLocaleString("en-US")}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Δ</div>
+                        <div className={clsx("text-sm font-mono font-bold", selected.nectarSnapshot.delta >= 0 ? "text-wm-green" : "text-wm-red")} style={{ fontVariantNumeric: "tabular-nums" }}>
+                          {selected.nectarSnapshot.delta >= 0 ? "+" : ""}{Math.round(selected.nectarSnapshot.delta).toLocaleString("en-US")}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Big Trades</div>
+                        <div className="text-sm font-mono font-bold text-wm-text" style={{ fontVariantNumeric: "tabular-nums" }}>{selected.nectarSnapshot.bigTradeCount.toLocaleString("en-US")}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Channels</div>
+                        <div className="text-sm font-mono font-bold text-wm-text" style={{ fontVariantNumeric: "tabular-nums" }}>{selected.nectarSnapshot.channels}</div>
+                      </div>
+                    </div>
+                    <div className="mt-3 pt-2 border-t border-wm-gold/15 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-wm-text-muted">
+                      {selected.nectarSnapshot.horizonSec && (
+                        <span>Observed since {new Date(selected.nectarSnapshot.horizonSec * 1000).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+                      )}
+                      {selected.nectarSnapshot.lastTradeAtMs && (
+                        <span>Last trade {new Date(selected.nectarSnapshot.lastTradeAtMs).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
 
