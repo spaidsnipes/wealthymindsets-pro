@@ -17,7 +17,7 @@
  *     observed yet.
  *
  * Never fabricates a price. Never claims LIVE without evidence of a
- * recent trade for THIS symbol. Tap → /nectar/[symbol] for detail.
+ * recent trade for THIS symbol. Tap → /charts, the public market workspace.
  *
  * Desktop hides via CSS (>= 640px display: none) so nothing changes on
  * larger viewports — this is Mobile Realm surface, not shrunk desktop.
@@ -101,8 +101,8 @@ export function MobileSessionPill(): React.ReactElement | null {
 
   return (
     <Link
-      href={`/nectar/${encodeURIComponent(symbol)}`}
-      aria-label={`${symbol} — session ${session}, ${status}, ${detail}. Open Nectar detail.`}
+      href="/charts"
+      aria-label={`${symbol} — session ${session}, ${status}, ${detail}. Open chart.`}
       title={`${symbol} · ${session}\n${status} — ${detail}`}
       className="wm-mobile-session-pill"
       style={{

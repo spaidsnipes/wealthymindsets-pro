@@ -10,11 +10,10 @@ import {
   Bell, Settings, Search, Zap, BookOpen, FlaskConical, TrendingUp,
   X, Check, Moon, Sun, Volume2, VolumeX, Eye, EyeOff,
   Palette, Monitor, Keyboard, Shield, RefreshCw, Trash2, Radio, Copy, Heart,
-  Tv, Handshake, Crosshair, Database,
+  Tv, Handshake, Crosshair,
 } from "lucide-react";
 import { WMLogo } from "@/components/ui/WMLogo";
 import WmWordmark from "@/components/brand/WmWordmark";
-import HeaderVaultPill from "@/components/layout/HeaderVaultPill";
 import MobileSessionPill from "@/components/layout/MobileSessionPill";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { TickerTape } from "@/components/layout/TickerTape";
@@ -780,7 +779,6 @@ const NAV_TOP = [
   { href: "/morning-prep", icon: Sun,           label: "Morning Prep" },
   { href: "/command-deck", icon: Crosshair,     label: "Command Deck" },
   { href: "/charts",       icon: BarChart2,     label: "Charts"       },
-  { href: "/nectar",       icon: Database,      label: "Nectar Vault" },
   { href: "/heatmaps",     icon: Map,           label: "Heatmaps"     },
   { href: "/scanner",      icon: ScanLine,      label: "Scanner"      },
   { href: "/news",         icon: Newspaper,     label: "News"         },
@@ -801,15 +799,14 @@ const NAV_BOTTOM = [
   { href: "/profile",      icon: User,          label: "Profile"      },
 ];
 
-// Mobile primary nav — 5 slots per iOS/Android convention. Sentinel
-// audit RETURN: Nectar was invisible on mobile except via the tiny
-// conditional header pill (which disappears on empty sessions). Swap
-// in Nectar; Scanner needs a big screen and stays desktop-first via
-// NAV_TOP. Order follows the trader loop: OBSERVE (Charts) → REMEMBER
-// (Nectar) → PRACTICE (Paper) → REVIEW (Journal) → IDENTITY (Profile).
+// Mobile primary nav — 5 slots per iOS/Android convention. Public navigation
+// names trader jobs and destinations, never private collection infrastructure.
+// Scanner remains desktop-first via NAV_TOP. Order follows the trader loop:
+// OBSERVE (Charts) → DECIDE (Command Deck) → PRACTICE (Paper) →
+// REVIEW (Journal) → IDENTITY (Profile).
 const MOBILE_NAV_ITEMS = [
   { href: "/charts", icon: BarChart2, label: "Charts" },
-  { href: "/nectar", icon: Database,  label: "Nectar" },
+  { href: "/command-deck", icon: Crosshair, label: "Command Deck" },
   { href: "/paper", icon: TrendingUp, label: "Paper" },
   { href: "/journal", icon: BookOpen, label: "Journal" },
   { href: "/profile", icon: User, label: "Profile" },
@@ -965,11 +962,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
         {/* Right controls */}
         <div className="wm-shell-actions flex items-center gap-1 shrink-0">
-          {/* Persistent Vault indicator — appears on every route as
-              a quiet memory-safety reassurance. Renders nothing when
-              nothing has been observed yet. */}
-          <HeaderVaultPill />
-
           {/* Live P&L (toggled by Settings → Show P&L in header) */}
           <HeaderPnL />
 
