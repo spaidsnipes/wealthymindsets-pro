@@ -77,8 +77,12 @@ export function InstallPrompt() {
           animate={{ y: 0,  opacity: 1 }}
           exit={{   y: 80, opacity: 0 }}
           transition={{ type: "spring", stiffness: 350, damping: 30 }}
-          className="fixed bottom-16 left-1/2 -translate-x-1/2 z-[200] max-w-sm w-full mx-4"
+          className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-1/2 z-[200] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2"
           style={{ filter: "drop-shadow(0 8px 32px rgba(0,212,170,0.25))" }}
+          role="region"
+          aria-live="polite"
+          aria-labelledby="wm-install-prompt-title"
+          aria-describedby="wm-install-prompt-description"
         >
           <div className="relative rounded-2xl overflow-hidden border border-wm-border/80"
                style={{ background: "linear-gradient(135deg, #0D1117 0%, #161B22 100%)" }}>
@@ -91,27 +95,28 @@ export function InstallPrompt() {
             <div className="p-4">
               <button
                 onClick={handleDismiss}
-                className="absolute top-3 right-3 text-wm-text-muted hover:text-wm-text transition-colors"
+                aria-label="Dismiss install prompt"
+                className="absolute top-2 right-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-wm-text-muted transition-colors hover:bg-wm-surface hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
               >
-                <X size={15} />
+                <X size={15} aria-hidden="true" />
               </button>
 
               <div className="flex items-start gap-3">
                 {/* Icon */}
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
                      style={{ background: "linear-gradient(135deg, #00D4AA20, #4FA3E020)", border: "1px solid rgba(0,212,170,0.3)" }}>
-                  {isIOS ? <Smartphone size={22} className="text-wm-green" /> : <Monitor size={22} className="text-wm-green" />}
+                  {isIOS ? <Smartphone size={22} className="text-wm-green" aria-hidden="true" /> : <Monitor size={22} className="text-wm-green" aria-hidden="true" />}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-1">
-                    <span className="text-sm font-bold text-wm-text">Install WealthyMindsets Pro</span>
-                    <Zap size={11} className="text-wm-gold fill-wm-gold" />
+                    <span id="wm-install-prompt-title" className="pr-8 text-sm font-bold text-wm-text">Install WealthyMindsets Pro</span>
+                    <Zap size={11} className="text-wm-gold fill-wm-gold" aria-hidden="true" />
                   </div>
-                  <p className="text-[11px] text-wm-text-muted leading-relaxed">
+                  <p id="wm-install-prompt-description" className="text-[11px] text-wm-text-muted leading-relaxed">
                     {isIOS
-                      ? 'Tap the Share button then "Add to Home Screen" for the full native experience.'
-                      : "Install for instant access, offline charts, and push alerts — no browser needed."}
+                      ? 'Tap the Share button then "Add to Home Screen" for a quicker shortcut to the same WM Pro web app.'
+                      : "Install a WM Pro shortcut for quicker access. Data, alerts, and offline availability still depend on your connection and enabled services."}
                   </p>
 
                   {isIOS ? (
@@ -124,11 +129,11 @@ export function InstallPrompt() {
                   ) : (
                     <button
                       onClick={handleInstall}
-                      className="mt-2.5 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-wm-black transition-all hover:opacity-90 active:scale-95"
+                      className="mt-2.5 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-wm-black transition-all hover:opacity-90 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
                       style={{ background: "linear-gradient(135deg, #00D4AA, #4FA3E0)" }}
                     >
-                      <Download size={13} />
-                      Install Now — It&apos;s Free
+                      <Download size={13} aria-hidden="true" />
+                      Install WM Pro
                     </button>
                   )}
                 </div>
@@ -136,7 +141,7 @@ export function InstallPrompt() {
 
               {/* Feature pills */}
               <div className="flex gap-1.5 mt-3 flex-wrap">
-                {["Real-time data", "Push alerts", "Offline charts", "Zero latency"].map(f => (
+                {["Home screen shortcut", "Focused workspace", "Connection-aware", "Same WM Pro"].map(f => (
                   <span key={f} className="text-[9px] px-2 py-0.5 rounded-full bg-wm-surface border border-wm-border text-wm-text-dim">
                     {f}
                   </span>
