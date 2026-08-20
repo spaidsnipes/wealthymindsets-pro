@@ -247,20 +247,74 @@ function availableRText(vm: AvailableRVM | null): { value: string; detail?: stri
   };
 }
 
-function permissionTone(vm: PermissionVM | null): Tone {
-  if (!vm) return "unknown";
-  if (vm.verdict === "ALLOWED") return "resolved";
-  if (vm.verdict === "RESTRICTED") return "warn";
-  if (vm.verdict === "ADVISORY") return "pending";
-  return "unknown"; // UNKNOWN
-}
-
-function permissionText(vm: PermissionVM | null): { value: string; detail?: string } {
-  if (!vm) return { value: "NOT EVALUATED", detail: undefined };
-  const detail = (vm as unknown as { reason?: string }).reason;
+/**
+ * Right of Way — Decision Permission Compiler per Founder 2029
+ * Integration Glue canon §NEW GLUE INVENTION — DECISION PERMISSION
+ * COMPILER (2026-08-20). Explicitly forbids the EVIDENCE DEBT / RIGHT-
+ * OF-WAY CONTRADICTION rejection #1 by construction:
+ *
+ *   "Required unpaid debt blocks authorization. ... The compiler
+ *    returns ACTION / WAIT / NO TRADE plus exact reasons and cannot
+ *    be overridden by a decorative confidence score."
+ *
+ * Deterministic priority — evidence debt gates authorization first,
+ * permission verdict second. STEWARD tile can NEVER read ALLOWED
+ * when Evidence Debt has missing nodes.
+ */
+type RightOfWay = "ACTION" | "WAIT" | "NO TRADE" | "CAUTION" | "UNKNOWN";
+function computeRightOfWay(perm: PermissionVM | null, debt: EvidenceDebt | null): {
+  value: RightOfWay;
+  detail: string;
+  tone: Tone;
+} {
+  // Rule 1 (highest priority): missing evidence blocks Right of Way.
+  if (debt && debt.missing > 0) {
+    const missing = debt.missingLabels.slice(0, 2).map(l => l.toLowerCase()).join(" + ");
+    return {
+      value: "WAIT",
+      detail: `evidence debt: need ${missing}${debt.missingLabels.length > 2 ? " +" + (debt.missingLabels.length - 2) : ""}`,
+      tone: "warn",
+    };
+  }
+  // Rule 2: Explicit permission block.
+  if (perm?.verdict === "RESTRICTED") {
+    const reason = (perm as unknown as { reason?: string }).reason ?? "hard rule engaged";
+    return {
+      value: "NO TRADE",
+      detail: reason.length > 40 ? reason.slice(0, 40) + "…" : reason,
+      tone: "warn",
+    };
+  }
+  // Rule 3: Explicit permission caution.
+  if (perm?.verdict === "ADVISORY") {
+    const reason = (perm as unknown as { reason?: string }).reason ?? "soft rule engaged";
+    return {
+      value: "CAUTION",
+      detail: reason.length > 40 ? reason.slice(0, 40) + "…" : reason,
+      tone: "pending",
+    };
+  }
+  // Rule 4: Permission ALLOWED AND no evidence debt (rule 1 already passed).
+  if (perm?.verdict === "ALLOWED") {
+    if (debt && debt.warn > 0) {
+      // Warn nodes exist but no missing — treat as CAUTION not ACTION.
+      return {
+        value: "CAUTION",
+        detail: `${debt.warn} watch node${debt.warn === 1 ? "" : "s"}`,
+        tone: "pending",
+      };
+    }
+    return {
+      value: "ACTION",
+      detail: "all evidence paid · steward allows",
+      tone: "resolved",
+    };
+  }
+  // Rule 5: Nothing to say honestly.
   return {
-    value: vm.verdict,
-    detail: detail ? detail.slice(0, 40) + (detail.length > 40 ? "…" : "") : undefined,
+    value: "UNKNOWN",
+    detail: perm ? "permission unresolved" : "not evaluated",
+    tone: "unknown",
   };
 }
 
@@ -316,8 +370,8 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
     return () => window.clearInterval(timer);
   }, []);
   const arText = availableRText(availableR);
-  const permText = permissionText(permission);
   const debt = React.useMemo(() => computeEvidenceDebt(chainNodes), [chainNodes]);
+  const rightOfWay = React.useMemo(() => computeRightOfWay(permission, debt), [permission, debt]);
 
   const tiles: readonly Tile[] = [
     {
@@ -386,12 +440,16 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
           ? "warn"
           : "unknown") as Tone,
     } as Tile] : []),
+    // RIGHT OF WAY — Decision Permission Compiler (Founder 2029 canon
+    // §Decision Permission Compiler). Deterministic gate: unpaid debt
+    // forces WAIT regardless of permission verdict. Cannot contradict
+    // EVIDENCE tile above by construction.
     {
-      key: "steward",
-      label: "STEWARD",
-      value: permText.value,
-      detail: permText.detail,
-      tone: permissionTone(permission),
+      key: "rightOfWay",
+      label: "RIGHT OF WAY",
+      value: rightOfWay.value,
+      detail: rightOfWay.detail,
+      tone: rightOfWay.tone,
     },
   ];
 
