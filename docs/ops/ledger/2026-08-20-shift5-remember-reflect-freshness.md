@@ -16,6 +16,7 @@ Status: **3 breakthroughs on branch `shift5-remember-reflect`, pushed to origin,
 - `6f0b2aa` feat(ribbon): OBSERVED tile shows real 'last trade N ago' freshness + warns when stale.
 - `be2225e` feat(mobile): phone session pill shows real last-trade age + shares freshness thresholds.
 - `5df8224` feat(nectar): Vault remembers your last visit — 'what changed since' + shared reader.
+- `e50710f` feat(profile): 'Trading memory' freshness strip on Growth — ACTIVE/AGING/DORMANT.
 
 ## Subsystem(s) touched
 `src/lib/traderMemory/nectarComparison.ts` (new), `src/lib/marketData/tradeFreshness.ts` (new), `src/app/journal/page.tsx`, `src/components/command/CommandContextRibbon.tsx`, `src/components/layout/MobileSessionPill.tsx`.
@@ -43,7 +44,7 @@ Status: **3 breakthroughs on branch `shift5-remember-reflect`, pushed to origin,
 - **Proof:** 6 tests; 0 tsc; full suite 706/706; clean build.
 
 ## Tests / build proof
-0 prod tsc errors throughout. Full suite **706/706** (baseline ~681 at main 4676de9 + 25 new: 10 nectarComparison + 9 tradeFreshness + 6 nectarLastVisit). Clean production `next build` (worktree with APFS-cloned node_modules + copied gitignored .env.local — same approach as prior shift).
+0 prod tsc errors throughout. Full suite **716/716** (baseline ~681 at main 4676de9 + 35 new: 10 nectarComparison + 9 tradeFreshness + 6 nectarLastVisit + 10 selectMemoryFreshness). Clean production `next build` (worktree with APFS-cloned node_modules + copied gitignored .env.local — same approach as prior shift).
 
 ## Deployment state
 Branch `shift5-remember-reflect` on origin. NOT merged to main. NOT deployed. WM production unchanged. Merge deferred: main is heavily advanced and a parallel team is mid-shift on hero-chronology/heatmap files (none of which I touched).
