@@ -31,8 +31,7 @@ import {
   subscribeSessionSymbolStore,
 } from "@/lib/marketData/sessionSymbolStore";
 import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
-
-const FRESH_WINDOW_MS = 30_000; // "live" = fresh trade within 30s
+import { formatTradeAge } from "@/lib/marketData/tradeFreshness";
 
 interface SymbolReading {
   hydrated: boolean;
@@ -89,12 +88,18 @@ export function MobileSessionPill(): React.ReactElement | null {
 
   const now = Date.now();
   const observed = reading.trades > 0;
-  const fresh = observed && reading.lastTradeMs != null && now - reading.lastTradeMs < FRESH_WINDOW_MS;
+  // Shared freshness thresholds (fresh <30s, stale >=5m) — single source with
+  // the Command Deck ribbon, no duplicate constant.
+  const age = formatTradeAge(reading.lastTradeMs, now);
+  const fresh = observed && age.fresh;
 
   const dotColor = !observed ? "#8a8271" : fresh ? "#00E88A" : "#F5A623";
   const dotShadow = fresh ? "0 0 3px #00E88A" : "none";
 
-  const status = !observed ? "no trades yet" : fresh ? "live tape" : "observed";
+  // Status now carries the REAL age so the phone user (and screen readers)
+  // see when the last trade actually printed, not just a color.
+  const ageSuffix = observed && age.label ? ` · last trade ${age.label}` : "";
+  const status = (!observed ? "no trades yet" : fresh ? "live tape" : "observed") + ageSuffix;
   const detail = observed
     ? `${reading.trades.toLocaleString("en-US")} trade${reading.trades === 1 ? "" : "s"} observed`
     : "browser-local memory empty";
@@ -153,6 +158,11 @@ export function MobileSessionPill(): React.ReactElement | null {
       {observed && (
         <span style={{ color: "#8a8271", fontWeight: 500, letterSpacing: 0.3 }}>
           · {reading.trades > 999 ? `${Math.round(reading.trades / 1000)}k` : reading.trades}
+          {age.label && (
+            <span style={{ color: age.stale ? "#F5A623" : "#8a8271" }}>
+              {" · "}{age.label.replace(" ago", "")}
+            </span>
+          )}
         </span>
       )}
     </Link>
