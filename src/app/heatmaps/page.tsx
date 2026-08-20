@@ -990,7 +990,21 @@ export default function HeatmapsPage() {
 
       {/* ── Main stock heatmap area ── */}
       {activeView !== "Markov" && activeView !== "VP" && (
-      <div ref={containerRef} style={{ flex: 1, overflow: "hidden", display: "flex", flexWrap: "wrap", alignContent: "flex-start", gap: 2, padding: 4 }}>
+      <div
+        ref={containerRef}
+        style={{
+          flex: 1,
+          overflow: "auto",
+          overscrollBehavior: "contain",
+          WebkitOverflowScrolling: "touch",
+          touchAction: "pan-x pan-y",
+          display: "flex",
+          flexWrap: "wrap",
+          alignContent: "flex-start",
+          gap: 2,
+          padding: 4,
+        }}
+      >
         {visibleSectors.map(sector => {
           const sectorPct = sector.weight / totalWeight;
           // Compute a representative sector avg pct
@@ -1047,7 +1061,7 @@ export default function HeatmapsPage() {
                       borderRadius: 3,
                       overflow: "hidden",
                       minHeight: 60,
-                      cursor: "pointer",
+                      cursor: "default",
                     }}
                   >
                     {/* Industry sub-label */}
@@ -1065,22 +1079,32 @@ export default function HeatmapsPage() {
                       display: "flex", flexWrap: "wrap", gap: 1, padding: 1,
                     }}>
                       {industryStocks.map(st => {
-                        const p = pcts[st.sym] ?? 0;
+                        const rawPct = pcts[st.sym];
+                        const hasPct = Object.prototype.hasOwnProperty.call(pcts, st.sym)
+                          && Number.isFinite(rawPct);
+                        const p = hasPct ? rawPct : null;
                         const tileWeight = st.mcap / totalMcap;
                         const minW = tileWeight > 0.35 ? "100%" : tileWeight > 0.2 ? "48%" : tileWeight > 0.1 ? "32%" : "auto";
-                        const bg = pctColor(p);
-                        const tc = pctTextColor(p);
+                        const bg = p === null ? "#252B36" : pctColor(p);
+                        const tc = p === null ? "#D0D5DD" : pctTextColor(p);
+                        const changeText = p === null
+                          ? "change unavailable"
+                          : `${p >= 0 ? "+" : ""}${p.toFixed(2)}%`;
 
                         return (
-                          <div
+                          <button
                             key={st.sym}
-                            title={`${st.name}: ${p >= 0 ? "+" : ""}${p.toFixed(2)}% — Click to open chart`}
+                            type="button"
+                            className="wm-heatmap-stock-tile"
+                            aria-label={`${st.name}, ${st.sym}, ${activeTF} ${changeText}. Open chart`}
+                            title={`${st.name}: ${activeTF} ${changeText} — Open chart`}
                             onClick={() => goToChart(st.sym)}
                             style={{
                               flex: `0 0 ${minW}`,
-                              minWidth: tileWeight < 0.05 ? 32 : 52,
-                              minHeight: tileWeight > 0.35 ? 80 : tileWeight > 0.15 ? 56 : 36,
+                              minWidth: tileWeight < 0.05 ? 44 : 52,
+                              minHeight: tileWeight > 0.35 ? 80 : tileWeight > 0.15 ? 56 : 44,
                               background: bg,
+                              border: 0,
                               borderRadius: 2,
                               display: "flex",
                               flexDirection: "column",
@@ -1088,6 +1112,9 @@ export default function HeatmapsPage() {
                               justifyContent: "center",
                               padding: "2px 4px",
                               cursor: "pointer",
+                              appearance: "none",
+                              WebkitAppearance: "none",
+                              touchAction: "manipulation",
                               transition: "filter 0.15s",
                             }}
                             onMouseEnter={e => e.currentTarget.style.filter = "brightness(1.25)"}
@@ -1100,16 +1127,14 @@ export default function HeatmapsPage() {
                             }}>
                               {st.sym}
                             </span>
-                            {tileWeight > 0.08 && (
-                              <span style={{
-                                fontSize: tileWeight > 0.25 ? 13 : 10,
-                                fontWeight: 700, color: tc,
-                                lineHeight: 1.2, marginTop: 2,
-                              }}>
-                                {p >= 0 ? "+" : ""}{p.toFixed(2)}%
-                              </span>
-                            )}
-                          </div>
+                            <span style={{
+                              fontSize: tileWeight > 0.25 ? 13 : 10,
+                              fontWeight: 700, color: tc,
+                              lineHeight: 1.2, marginTop: 2,
+                            }}>
+                              {p === null ? "—" : `${p >= 0 ? "+" : ""}${p.toFixed(2)}%`}
+                            </span>
+                          </button>
                         );
                       })}
                     </div>
@@ -1135,6 +1160,14 @@ export default function HeatmapsPage() {
           )}
         </AnimatePresence>
       )}
+      <style jsx>{`
+        .wm-heatmap-stock-tile:focus-visible {
+          outline: 3px solid #f0b429;
+          outline-offset: 2px;
+          position: relative;
+          z-index: 2;
+        }
+      `}</style>
     </div>
   );
 }
