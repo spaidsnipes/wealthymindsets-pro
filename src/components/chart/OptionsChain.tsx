@@ -155,6 +155,12 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
   }, [expiry, allContracts, priceKey, dataSource]);
 
   const atm = chain.find(r => r.itm === "atm");
+  const hasAvailableData = !loading && dataSource === "fmp" && chain.length > 0;
+  const dataStatus = loading
+    ? "CHECKING · FIDELITY UNKNOWN"
+    : hasAvailableData
+      ? "DATA AVAILABLE · FIDELITY UNKNOWN"
+      : "UNAVAILABLE";
 
   return (
     <motion.div
@@ -162,37 +168,45 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
       animate={{ x: 0,       opacity: 1 }}
       exit={{   x: "100%",  opacity: 0 }}
       transition={{ type: "spring", stiffness: 350, damping: 35 }}
-      className="w-[700px] border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden"
+      className="w-full max-w-[700px] min-w-0 border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden"
     >
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 border-b border-wm-border shrink-0" style={{ height: 44 }}>
+      <div className="flex min-h-11 flex-wrap items-center gap-2 border-b border-wm-border px-3 py-2 sm:px-4 shrink-0">
         <TrendingUp size={13} className="text-wm-green" />
         <span className="text-sm font-bold text-wm-text">{symbol} Options</span>
-        <div className={clsx("flex items-center gap-1 text-[10px]", dataSource === "fmp" ? "text-wm-green" : "text-wm-red")}>
-          <span className={clsx("w-1.5 h-1.5 rounded-full", dataSource === "fmp" ? "bg-wm-green animate-pulse" : "bg-wm-red")} />
-          {dataSource === "fmp" ? "LIVE • FMP" : "UNAVAILABLE"}
+        <div
+          className={clsx("flex items-center gap-1 text-[10px]", (loading || hasAvailableData) ? "text-wm-gold" : "text-wm-red")}
+          title={loading
+            ? "Checking options availability; delivery freshness and entitlement are not established."
+            : hasAvailableData
+              ? "Options contracts received; delivery freshness and entitlement are not established."
+              : "Options contracts are unavailable."}
+        >
+          <span className={clsx("w-1.5 h-1.5 rounded-full", (loading || hasAvailableData) ? "bg-wm-gold" : "bg-wm-red")} aria-hidden="true" />
+          {dataStatus}
         </div>
         <span className="text-[10px] font-mono text-wm-text-muted ml-1">
           Spot: <span className="text-wm-text font-bold">{price.toLocaleString("en-US",{minimumFractionDigits:2})}</span>
         </span>
-        {atm && (
+        {hasAvailableData && atm && (
           <div className="ml-3 flex items-center gap-2 text-[10px] text-wm-text-dim">
             <span>ATM IV: <span className="text-wm-gold font-bold">{(atm.cIV * 100).toFixed(1)}%</span></span>
             <span>ATM Δ: <span className="text-wm-blue font-bold">{atm.cDelta.toFixed(2)}</span></span>
           </div>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <button onClick={fetchContracts} title="Refresh options data"
-            className="p-1 hover:bg-wm-surface rounded transition-colors">
+          <button onClick={fetchContracts} title="Refresh options data" aria-label="Refresh options data"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded transition-colors hover:bg-wm-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold">
             <RefreshCw size={12} className={clsx("text-wm-text-muted", loading && "animate-spin")} />
           </button>
-          <button onClick={() => setShowGreeks(g => !g)}
-            className={clsx("px-2 py-0.5 rounded text-[10px] font-semibold border transition-all",
+          <button onClick={() => setShowGreeks(g => !g)} aria-pressed={showGreeks}
+            className={clsx("inline-flex min-h-11 min-w-11 items-center justify-center px-3 rounded text-[10px] font-semibold border transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold",
               showGreeks ? "bg-wm-purple/20 text-wm-purple border-wm-purple/40"
                         : "text-wm-text-muted border-wm-border hover:text-wm-text")}>
             Greeks
           </button>
-          <button onClick={onClose} className="p-1 hover:bg-wm-surface rounded transition-colors">
+          <button onClick={onClose} aria-label="Close options chain"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded transition-colors hover:bg-wm-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold">
             <X size={13} className="text-wm-text-muted hover:text-wm-text" />
           </button>
         </div>
@@ -211,8 +225,8 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
         {loading ? (
           <span className="text-[10px] text-wm-text-dim animate-pulse">Loading expirations...</span>
         ) : expirations.map(e => (
-          <button key={e} onClick={() => setExpiry(e)}
-            className={clsx("px-2.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap border transition-all",
+          <button key={e} onClick={() => setExpiry(e)} aria-pressed={expiry === e}
+            className={clsx("inline-flex min-h-11 min-w-11 items-center justify-center px-3 rounded-full text-[10px] font-semibold whitespace-nowrap border transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold",
               expiry === e ? "bg-wm-green/15 text-wm-green border-wm-green/35"
                           : "text-wm-text-muted border-transparent hover:border-wm-border")}>
             {e}
@@ -223,8 +237,8 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
       {/* View tabs */}
       <div className="flex gap-1 px-3 py-1 border-b border-wm-border shrink-0">
         {(["chain","calls","puts"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={clsx("px-3 py-0.5 rounded text-xs font-semibold capitalize transition-all",
+          <button key={t} onClick={() => setTab(t)} aria-pressed={tab === t}
+            className={clsx("inline-flex min-h-11 min-w-11 items-center justify-center px-3 rounded text-xs font-semibold capitalize transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold",
               tab === t ? "bg-wm-surface text-wm-text" : "text-wm-text-muted hover:text-wm-text")}>
             {t === "chain" ? "Full Chain" : t}
           </button>
@@ -244,7 +258,7 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
             <div className="text-[11px] text-wm-text-dim mt-1">Connect a supported options-data provider and refresh. WealthyMindsets will not fabricate contracts.</div>
           </div>
         ) : (
-        <table className="w-full text-[10px] border-collapse">
+        <table className="w-full min-w-max text-[10px] border-collapse">
           <thead className="sticky top-0 bg-wm-dark z-10">
             <tr className="border-b border-wm-border">
               {tab !== "puts" && <>
@@ -329,20 +343,26 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
       </div>
 
       {/* Footer stats */}
-      <div className="flex items-center gap-6 px-4 py-2 border-t border-wm-border shrink-0 bg-wm-dark">
-        <div className="text-[9px] text-wm-text-dim">
-          Calls OI: <span className="text-wm-green font-mono">{chain.reduce((s,r) => s+r.cOI,0).toLocaleString()}</span>
-        </div>
-        <div className="text-[9px] text-wm-text-dim">
-          Puts OI: <span className="text-wm-red font-mono">{chain.reduce((s,r) => s+r.pOI,0).toLocaleString()}</span>
-        </div>
-        <div className="text-[9px] text-wm-text-dim">
-          P/C Ratio: <span className="text-wm-gold font-mono">
-            {chain.length ? (chain.reduce((s,r)=>s+r.pOI,0)/Math.max(1,chain.reduce((s,r)=>s+r.cOI,0))).toFixed(2) : "—"}
-          </span>
-        </div>
-        <div className="ml-auto text-[9px] text-wm-text-dim italic">
-          {dataSource === "fmp" ? "Real data: Financial Modeling Prep API" : "No real contracts available"}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 px-4 py-2 border-t border-wm-border shrink-0 bg-wm-dark">
+        {hasAvailableData && <>
+          <div className="text-[9px] text-wm-text-dim">
+            Calls OI: <span className="text-wm-green font-mono">{chain.reduce((s,r) => s+r.cOI,0).toLocaleString()}</span>
+          </div>
+          <div className="text-[9px] text-wm-text-dim">
+            Puts OI: <span className="text-wm-red font-mono">{chain.reduce((s,r) => s+r.pOI,0).toLocaleString()}</span>
+          </div>
+          <div className="text-[9px] text-wm-text-dim">
+            P/C Ratio: <span className="text-wm-gold font-mono">
+              {(chain.reduce((s,r)=>s+r.pOI,0)/Math.max(1,chain.reduce((s,r)=>s+r.cOI,0))).toFixed(2)}
+            </span>
+          </div>
+        </>}
+        <div className="text-[9px] text-wm-text-dim italic sm:ml-auto">
+          {loading
+            ? "Checking options availability · fidelity UNKNOWN"
+            : hasAvailableData
+              ? "Source response: Financial Modeling Prep · freshness UNKNOWN"
+              : "No contracts available"}
         </div>
       </div>
     </motion.div>
