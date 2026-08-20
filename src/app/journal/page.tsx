@@ -21,6 +21,7 @@ import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonal
 import WmWordmark from "@/components/brand/WmWordmark";
 import { useWMS } from "@/contexts/WMSContext";
 import { getKnownSessionSymbols } from "@/lib/marketData/sessionSymbolStore";
+import { aggregateNectar, selectNectarComparison, type NectarAggregate } from "@/lib/traderMemory/nectarComparison";
 import {
   Plus, Search, Tag, Calendar, Download, Mic, MicOff,
   TrendingUp, TrendingDown, Image as ImageIcon, Trash2,
@@ -85,6 +86,28 @@ export interface NectarSnapshot {
   readonly bigTradeCount: number;
   readonly horizonSec: number | null;      // first observation
   readonly lastTradeAtMs: number | null;   // most recent observation (real freshness)
+}
+
+/**
+ * Read the CURRENT canonical Nectar aggregate for a symbol from the live
+ * sessionSymbolStore. Single source used by BOTH journal-time capture and the
+ * compare-to-current view, so the two can never drift. Returns null when the
+ * symbol has no live observations (never fabricates).
+ */
+function currentNectarForSymbol(symbol: string): NectarAggregate | null {
+  const upper = symbol.toUpperCase();
+  const rows = getKnownSessionSymbols()
+    .filter((s) => s.symbol.toUpperCase() === upper)
+    .map((s) => ({
+      tradeCount: s.slot.stats.tradeCount,
+      delta: s.slot.stats.delta,
+      buyVol: s.slot.stats.buyVol,
+      sellVol: s.slot.stats.sellVol,
+      bigTradeCount: s.slot.stats.bigTradeCount,
+      horizonSec: s.slot.horizon?.startedAtSec ?? null,
+      lastTradeAtMs: s.slot.lastTradeAtMs ?? null,
+    }));
+  return aggregateNectar(rows);
 }
 
 interface JournalEntry {
@@ -868,32 +891,10 @@ function JournalPageInner() {
     // sessionSymbolStore. Null-safe: no observations → null snapshot
     // → detail view says so honestly (no fabrication).
     try {
-      const upper = e.symbol.toUpperCase();
-      const rows = getKnownSessionSymbols().filter(s => s.symbol.toUpperCase() === upper && s.slot.stats.tradeCount > 0);
-      if (rows.length > 0) {
-        const merged = rows.reduce(
-          (acc, r) => {
-            acc.tradeCount    += r.slot.stats.tradeCount;
-            acc.delta         += r.slot.stats.delta;
-            acc.buyVol        += r.slot.stats.buyVol;
-            acc.sellVol       += r.slot.stats.sellVol;
-            acc.bigTradeCount += r.slot.stats.bigTradeCount;
-            const hSec = r.slot.horizon?.startedAtSec ?? null;
-            if (hSec != null) acc.horizonSec = acc.horizonSec == null ? hSec : Math.min(acc.horizonSec, hSec);
-            const l = r.slot.lastTradeAtMs ?? null;
-            if (l != null) acc.lastTradeAtMs = acc.lastTradeAtMs == null ? l : Math.max(acc.lastTradeAtMs, l);
-            return acc;
-          },
-          { tradeCount: 0, delta: 0, buyVol: 0, sellVol: 0, bigTradeCount: 0, horizonSec: null as number | null, lastTradeAtMs: null as number | null },
-        );
-        e.nectarSnapshot = {
-          capturedAtMs: Date.now(),
-          channels: rows.length,
-          ...merged,
-        };
-      } else {
-        e.nectarSnapshot = null;
-      }
+      // Single shared aggregation path (also used by the compare-to-current
+      // view) so journal-time capture and later comparison cannot drift.
+      const agg = currentNectarForSymbol(e.symbol);
+      e.nectarSnapshot = agg ? { capturedAtMs: Date.now(), ...agg } : null;
     } catch { e.nectarSnapshot = null; }
 
     setEntries(prev => [e, ...prev]);
@@ -1721,6 +1722,50 @@ Trade the system, trust the process, winners every day 🚀`,
                         <span>Last trade {new Date(selected.nectarSnapshot.lastTradeAtMs).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
                       )}
                     </div>
+                    {/* WHAT CHANGED SINCE — REMEMBER→REFLECT closure. Compares
+                        the frozen journal-time snapshot against current canonical
+                        observations. Honest across every edge: no live data now,
+                        session reset, or no new trades each render a truthful
+                        line rather than a misleading number. Computed at open
+                        time (IIFE, no hooks). */}
+                    {(() => {
+                      const cmp = selectNectarComparison(selected.nectarSnapshot, currentNectarForSymbol(selected.symbol));
+                      const sinceTone =
+                        !cmp.hasCurrent || cmp.reset ? "text-wm-text-muted"
+                        : (cmp.sinceTrades ?? 0) > 0 ? "text-wm-gold"
+                        : "text-wm-text-muted";
+                      return (
+                        <div className="mt-3 pt-2 border-t border-wm-gold/15">
+                          <div className="text-[9px] text-wm-text-dim uppercase tracking-wider mb-1">What changed since</div>
+                          <div className={clsx("text-[11px] leading-relaxed", sinceTone)}>{cmp.detail}</div>
+                          {cmp.hasCurrent && !cmp.reset && (cmp.sinceTrades ?? 0) > 0 && (
+                            <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                              <div>
+                                <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Trades then → now</div>
+                                <div className="text-xs font-mono font-bold text-wm-text" style={{ fontVariantNumeric: "tabular-nums" }}>
+                                  {cmp.thenTradeCount.toLocaleString("en-US")} → {cmp.nowTradeCount!.toLocaleString("en-US")}
+                                  <span className="text-wm-gold"> (+{cmp.sinceTrades!.toLocaleString("en-US")})</span>
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Δ then → now</div>
+                                <div className="text-xs font-mono font-bold" style={{ fontVariantNumeric: "tabular-nums" }}>
+                                  <span className={cmp.thenDelta >= 0 ? "text-wm-green" : "text-wm-red"}>{cmp.thenDelta >= 0 ? "+" : ""}{Math.round(cmp.thenDelta).toLocaleString("en-US")}</span>
+                                  <span className="text-wm-text-dim"> → </span>
+                                  <span className={cmp.nowDelta! >= 0 ? "text-wm-green" : "text-wm-red"}>{cmp.nowDelta! >= 0 ? "+" : ""}{Math.round(cmp.nowDelta!).toLocaleString("en-US")}</span>
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Big trades since</div>
+                                <div className="text-xs font-mono font-bold text-wm-text" style={{ fontVariantNumeric: "tabular-nums" }}>
+                                  {(cmp.sinceBigTrades ?? 0) > 0 ? `+${cmp.sinceBigTrades}` : "0"}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {/* Return to the canonical public workspace while the
                         private snapshot owner remains unchanged. */}
                     <div className="mt-3 pt-2 border-t border-wm-gold/15 flex flex-wrap items-center gap-2">
