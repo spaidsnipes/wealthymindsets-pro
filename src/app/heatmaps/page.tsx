@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { HEATMAP_TF_ORDER } from "@/lib/timeframes";
 import { QualityBadge } from "@/components/ui/DataHealth";
+import type { ContextDataState } from "@/lib/marketData/contextDataTruth";
 import WmWordmark from "@/components/brand/WmWordmark";
 
 /* ═══════════════════════════════════════════════════════════
@@ -592,30 +593,48 @@ function useLivePct(tf: string) {
   // first client paint agree. The localStorage cache is folded in by
   // the after-mount effect below. Reading localStorage in the
   // initializer used to cause a React #418 shape mismatch (SSR: no
-  // observedAt → the "received" span is not rendered; client: cache
+  // receivedAt → the "received" span is not rendered; client: cache
   // hit → span renders → tree diverges).
   const [pcts, setPcts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  const [observedAt, setObservedAt] = useState<number | null>(null);
-  const [qualityState, setQualityState] = useState<"DELAYED" | "STALE" | "UNAVAILABLE">("UNAVAILABLE");
+  const [receivedAt, setReceivedAt] = useState<number | null>(null);
+  const [qualityState, setQualityState] = useState<ContextDataState>("UNKNOWN");
+  const [fidelityReason, setFidelityReason] = useState("Market-data fidelity has not been established.");
+  const [resolvedTf, setResolvedTf] = useState(tf);
+  const retainedRowsRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(HM_CACHE_PREFIX + tf);
       if (!raw) {
         setPcts({});
-        setObservedAt(null);
-        setQualityState("UNAVAILABLE");
+        retainedRowsRef.current = {};
+        setReceivedAt(null);
+        setQualityState("UNKNOWN");
+        setFidelityReason("No retained heat-map data is available.");
+        setLoading(true);
+        setResolvedTf(tf);
         return;
       }
       const cached = JSON.parse(raw) as { data?: Record<string, number>; ts?: number };
-      setPcts(cached.data ?? {});
-      setObservedAt(cached.ts ?? null);
-      setQualityState(Object.keys(cached.data ?? {}).length ? "STALE" : "UNAVAILABLE");
+      const cachedRows = cached.data ?? {};
+      setPcts(cachedRows);
+      retainedRowsRef.current = cachedRows;
+      setReceivedAt(cached.ts ?? null);
+      setQualityState(Object.keys(cached.data ?? {}).length ? "DEGRADED" : "UNKNOWN");
+      setFidelityReason(Object.keys(cached.data ?? {}).length
+        ? "Retained browser snapshot; current refresh is not yet confirmed."
+        : "No retained heat-map data is available.");
+      setLoading(Object.keys(cachedRows).length === 0);
+      setResolvedTf(tf);
     } catch {
       setPcts({});
-      setObservedAt(null);
-      setQualityState("UNAVAILABLE");
+      retainedRowsRef.current = {};
+      setReceivedAt(null);
+      setQualityState("UNKNOWN");
+      setFidelityReason("Retained heat-map data could not be read.");
+      setLoading(true);
+      setResolvedTf(tf);
     }
   }, [tf]);
 
@@ -624,29 +643,41 @@ function useLivePct(tf: string) {
 
     async function load() {
       // Only show spinner if we have no data at all
-      if (Object.keys(pcts).length === 0) setLoading(true);
+      if (Object.keys(retainedRowsRef.current).length === 0) setLoading(true);
       try {
         const syms = getAllSymbols();
         const res  = await fetch(
           `/api/heatmap?period=${encodeURIComponent(tf)}&syms=${encodeURIComponent(syms.join(","))}`,
           { cache: "no-store" }
         );
+        if (!res.ok) throw new Error(`Heat map HTTP ${res.status}`);
         const json = await res.json() as {
           results?: Record<string, number>;
-          qualityState?: "DELAYED";
+          qualityState?: "HISTORICAL" | "DEGRADED" | "UNKNOWN";
+          fidelityReason?: string;
           receiveTimestamp?: string;
+          cacheHit?: boolean;
         };
         if (!cancelled && json.results) {
           const receivedAt = json.receiveTimestamp ? Date.parse(json.receiveTimestamp) : Date.now();
           setPcts(json.results);
-          setObservedAt(receivedAt);
-          setQualityState(json.qualityState ?? "DELAYED");
+          retainedRowsRef.current = json.results;
+          setReceivedAt(receivedAt);
+          setQualityState(json.qualityState ?? "UNKNOWN");
+          setFidelityReason(json.fidelityReason ?? "Market-data fidelity has not been established.");
+          setResolvedTf(tf);
           // Cache to localStorage for instant re-load
           try { localStorage.setItem(HM_CACHE_PREFIX + tf, JSON.stringify({ data: json.results, ts: receivedAt })); } catch {}
         }
       } catch {
-        // A retained snapshot may remain useful, but it must not stay labelled delayed/current.
-        if (!cancelled) setQualityState(Object.keys(pcts).length ? "STALE" : "UNAVAILABLE");
+        // A retained snapshot may remain useful, but it must not stay labelled current.
+        if (!cancelled) {
+          const hasRetainedRows = Object.keys(retainedRowsRef.current).length > 0;
+          setQualityState(hasRetainedRows ? "DEGRADED" : "UNKNOWN");
+          setFidelityReason(hasRetainedRows
+            ? "Refresh failed; showing a retained browser snapshot."
+            : "Heat-map data is unavailable and fidelity is unknown.");
+        }
       }
       finally { if (!cancelled) setLoading(false); }
     }
@@ -658,7 +689,17 @@ function useLivePct(tf: string) {
     return () => { cancelled = true; clearInterval(id); };
   }, [tf]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { pcts, loading, observedAt, qualityState };
+  if (resolvedTf !== tf) {
+    return {
+      pcts: {},
+      loading: true,
+      receivedAt: null,
+      qualityState: "UNKNOWN" as const,
+      fidelityReason: "Checking the selected timeframe; fidelity is not established yet.",
+    };
+  }
+
+  return { pcts, loading, receivedAt, qualityState, fidelityReason };
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -768,7 +809,7 @@ export default function HeatmapsPage() {
   const [activeTF,   setActiveTF]   = useState("1D");
   const [hovered,    setHovered]    = useState<{ industry: Industry; x: number; y: number } | null>(null);
   const [search,     setSearch]     = useState("");
-  const { pcts, loading: heatLoading, observedAt, qualityState } = useLivePct(activeTF);
+  const { pcts, loading: heatLoading, receivedAt, qualityState, fidelityReason } = useLivePct(activeTF);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { setActiveSymbol } = useActiveSymbol();
@@ -900,19 +941,21 @@ export default function HeatmapsPage() {
           >Loading…</span>
         )}
         {/* Replaces the previous inline single-color span with the shared
-            QualityBadge primitive. Keeps the "received" timestamp as a
-            secondary line so freshness is inspectable without hovering. */}
+            QualityBadge primitive. Receipt time stays secondary and is never
+            passed as market-observation freshness. */}
         <div
           title="Heat-map returns are observed snapshots, not an executable quote feed."
           style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }}
         >
           <QualityBadge
             state={qualityState}
-            freshnessMs={observedAt ? Date.now() - observedAt : undefined}
           />
-          {observedAt && (
+          <span style={{ fontSize: 9, color: "#8892A0", letterSpacing: 0.2, maxWidth: 250 }}>
+            {fidelityReason}
+          </span>
+          {receivedAt && (
             <span style={{ fontSize: 9, color: "#5A6575", letterSpacing: 0.3 }}>
-              received {new Date(observedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+              received {new Date(receivedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · receipt time only
             </span>
           )}
         </div>

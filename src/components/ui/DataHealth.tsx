@@ -1,6 +1,7 @@
 "use client";
 import * as React from "react";
 import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
+import type { ContextDataState } from "@/lib/marketData/contextDataTruth";
 
 /**
  * Data-health primitives — QualityBadge, PersistenceBadge, NectarHeartbeat.
@@ -21,9 +22,15 @@ import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 
 // ── QualityBadge ────────────────────────────────────────────────────────
 
-const QUALITY_STYLES: Record<MarketQualityState, { text: string; border: string; glyph: string; label: string }> = {
+type PublicQualityState = MarketQualityState | ContextDataState;
+
+const QUALITY_STYLES: Record<PublicQualityState, { text: string; border: string; glyph: string; label: string }> = {
   LIVE:        { text: "#5cb85c", border: "rgba(92,184,92,0.4)",  glyph: "●", label: "Live" },
+  "NEAR-LIVE":{ text: "#9abf72", border: "rgba(154,191,114,0.45)", glyph: "◕", label: "Near-live" },
   DELAYED:     { text: "#c9a55c", border: "rgba(201,165,92,0.5)", glyph: "◐", label: "Delayed" },
+  HISTORICAL:  { text: "#8a8271", border: "rgba(139,106,41,0.5)", glyph: "⟲", label: "Historical" },
+  DEGRADED:    { text: "#c05a4a", border: "rgba(192,90,74,0.5)",  glyph: "!", label: "Degraded" },
+  UNKNOWN:     { text: "#8a8271", border: "rgba(139,106,41,0.5)", glyph: "?", label: "Unknown" },
   STALE:       { text: "#c05a4a", border: "rgba(192,90,74,0.5)",  glyph: "!", label: "Stale" },
   PARTIAL:     { text: "#c9a55c", border: "rgba(201,165,92,0.5)", glyph: "◑", label: "Partial" },
   PROXY:       { text: "#8a8271", border: "rgba(139,106,41,0.5)", glyph: "≈", label: "Proxy" },
@@ -33,7 +40,7 @@ const QUALITY_STYLES: Record<MarketQualityState, { text: string; border: string;
 
 export interface QualityBadgeProps {
   /** The MarketQualityState from CanonicalMarketState.qualityState. */
-  state: MarketQualityState;
+  state: PublicQualityState;
   /** Optional freshness in ms — displayed when state is LIVE/DELAYED. */
   freshnessMs?: number;
   /** Optional custom label override. */

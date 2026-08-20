@@ -18,12 +18,12 @@ import { NextResponse } from "next/server";
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36";
 
 const SERVER_CACHE = new Map<string, { data: unknown; ts: number }>();
-async function withCache<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
+async function withCache<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<{ data: T; cacheHit: boolean }> {
   const hit = SERVER_CACHE.get(key);
-  if (hit && Date.now() - hit.ts < ttlMs) return hit.data as T;
+  if (hit && Date.now() - hit.ts < ttlMs) return { data: hit.data as T, cacheHit: true };
   const data = await fn();
   SERVER_CACHE.set(key, { data, ts: Date.now() });
-  return data;
+  return { data, cacheHit: false };
 }
 
 // Yahoo Finance symbol mapping
@@ -121,7 +121,7 @@ export async function GET(request: Request) {
   const cacheKey = `heatmap:${period}:${syms.slice(0, 5).join(",")}:${syms.length}`;
 
   try {
-    const results = await withCache(cacheKey, ttl, async () => {
+    const { data: results, cacheHit } = await withCache(cacheKey, ttl, async () => {
       // 1D primary path: Yahoo's v7 batch quote endpoint now returns
       // "Unauthorized", which silently produced all +0.00% tiles. Fall back to
       // the still-working v8 chart endpoint (prev close → current) when v7 is
@@ -136,10 +136,23 @@ export async function GET(request: Request) {
       }
       return fetchMultiDay(syms, daysForPeriod(period));
     });
+    const hasResults = Object.keys(results).length > 0;
+    const qualityState = !hasResults ? "UNKNOWN" : cacheHit ? "DEGRADED" : period === "1D" ? "UNKNOWN" : "HISTORICAL";
+    const fidelityReason = !hasResults
+      ? "No market observations returned."
+      : cacheHit
+        ? "Retained server snapshot; current provider refresh was not performed."
+      : period === "1D"
+        ? "Source response received; delivery freshness and entitlement are not established."
+        : "Calculated from historical daily closes.";
     return NextResponse.json({
       period,
       results,
-      qualityState: "DELAYED",
+      qualityState,
+      fidelityReason,
+      cacheHit,
+      // Receipt chronology only. This is not a provider event timestamp and
+      // must never be used to claim market-observation freshness.
       receiveTimestamp: new Date().toISOString(),
       sourceProvenance: "yahoo-finance-proxy",
     });
