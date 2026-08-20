@@ -38,6 +38,7 @@ import {
   selectContextDataReading,
   type ContextDataState,
 } from "@/lib/marketData/contextDataTruth";
+import { formatTradeAge } from "@/lib/marketData/tradeFreshness";
 
 export interface CommandContextRibbonProps {
   readonly symbol: string;
@@ -267,17 +268,24 @@ function permissionText(vm: PermissionVM | null): { value: string; detail?: stri
 // Nectar tile — count of tape sources with observed trades for THIS symbol,
 // summed trade count. Reads sessionSymbolStore, the same canonical owner
 // /nectar and /profile Nectar tab consume — no duplicate identity.
-function useNectarForSymbol(symbol: string): { channels: number; trades: number; hydrated: boolean } {
+function useNectarForSymbol(symbol: string): { channels: number; trades: number; lastTradeAtMs: number | null; hydrated: boolean } {
   const [tick, force] = React.useReducer((n: number) => n + 1, 0);
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => { setHydrated(true); }, []);
   React.useEffect(() => subscribeSessionSymbolStore(() => force()), []);
   return React.useMemo(() => {
-    if (!hydrated) return { channels: 0, trades: 0, hydrated: false };
+    if (!hydrated) return { channels: 0, trades: 0, lastTradeAtMs: null, hydrated: false };
     const upper = symbol.toUpperCase();
     const rows = getKnownSessionSymbols().filter(s => s.symbol.toUpperCase() === upper && s.slot.stats.tradeCount > 0);
     const trades = rows.reduce((sum, r) => sum + r.slot.stats.tradeCount, 0);
-    return { channels: rows.length, trades, hydrated: true };
+    // Real freshness: latest lastTradeAtMs across sources, with the same
+    // horizon-start fallback MobileSessionPill uses for older-schema slots.
+    const lastTradeAtMs = rows.reduce<number | null>((acc, r) => {
+      const t = r.slot.lastTradeAtMs ?? (r.slot.horizon?.startedAtSec != null ? r.slot.horizon.startedAtSec * 1000 : null);
+      if (t == null) return acc;
+      return acc == null ? t : Math.max(acc, t);
+    }, null);
+    return { channels: rows.length, trades, lastTradeAtMs, hydrated: true };
   }, [symbol, tick, hydrated]);
 }
 
@@ -345,17 +353,31 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
         tone: dataTone(reading.value),
       };
     })(),
-    {
-      key: "nectar",
-      label: "OBSERVED",
-      value: !nectar.hydrated ? "…" : nectar.channels === 0 ? "NONE YET" : `${nectar.trades.toLocaleString("en-US")}`,
-      detail: !nectar.hydrated
-        ? undefined
-        : nectar.channels === 0
-          ? `${symbol} — nothing observed`
-          : `${symbol} · ${nectar.channels} channel${nectar.channels === 1 ? "" : "s"}`,
-      tone: !nectar.hydrated ? "unknown" : nectar.channels === 0 ? "unknown" : "resolved",
-    },
+    (() => {
+      // Real last-trade freshness — honest "last trade Ns ago" appended to the
+      // detail when we have a trade time and a clock. A stale (>5m) reading
+      // drops the tile tone to "watch" so a symbol that stopped printing no
+      // longer reads as confidently resolved. Never fabricates an age.
+      const fresh = formatTradeAge(nectar.lastTradeAtMs, nowMs);
+      const baseDetail =
+        !nectar.hydrated ? undefined
+        : nectar.channels === 0 ? `${symbol} — nothing observed`
+        : `${symbol} · ${nectar.channels} channel${nectar.channels === 1 ? "" : "s"}`;
+      const detail =
+        baseDetail && fresh.label ? `${baseDetail} · last trade ${fresh.label}` : baseDetail;
+      const tone: Tile["tone"] =
+        !nectar.hydrated ? "unknown"
+        : nectar.channels === 0 ? "unknown"
+        : fresh.stale ? "warn"
+        : "resolved";
+      return {
+        key: "nectar",
+        label: "OBSERVED",
+        value: !nectar.hydrated ? "…" : nectar.channels === 0 ? "NONE YET" : `${nectar.trades.toLocaleString("en-US")}`,
+        detail,
+        tone,
+      };
+    })(),
     {
       key: "availableR",
       label: "AVAILABLE R",
