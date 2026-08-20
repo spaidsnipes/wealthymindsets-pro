@@ -20,8 +20,8 @@ import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
 import { useWMS } from "@/contexts/WMSContext";
-import { getKnownSessionSymbols } from "@/lib/marketData/sessionSymbolStore";
-import { aggregateNectar, selectNectarComparison, type NectarAggregate } from "@/lib/traderMemory/nectarComparison";
+import { selectNectarComparison } from "@/lib/traderMemory/nectarComparison";
+import { currentNectarForSymbol } from "@/lib/traderMemory/currentNectar";
 import {
   Plus, Search, Tag, Calendar, Download, Mic, MicOff,
   TrendingUp, TrendingDown, Image as ImageIcon, Trash2,
@@ -86,28 +86,6 @@ export interface NectarSnapshot {
   readonly bigTradeCount: number;
   readonly horizonSec: number | null;      // first observation
   readonly lastTradeAtMs: number | null;   // most recent observation (real freshness)
-}
-
-/**
- * Read the CURRENT canonical Nectar aggregate for a symbol from the live
- * sessionSymbolStore. Single source used by BOTH journal-time capture and the
- * compare-to-current view, so the two can never drift. Returns null when the
- * symbol has no live observations (never fabricates).
- */
-function currentNectarForSymbol(symbol: string): NectarAggregate | null {
-  const upper = symbol.toUpperCase();
-  const rows = getKnownSessionSymbols()
-    .filter((s) => s.symbol.toUpperCase() === upper)
-    .map((s) => ({
-      tradeCount: s.slot.stats.tradeCount,
-      delta: s.slot.stats.delta,
-      buyVol: s.slot.stats.buyVol,
-      sellVol: s.slot.stats.sellVol,
-      bigTradeCount: s.slot.stats.bigTradeCount,
-      horizonSec: s.slot.horizon?.startedAtSec ?? null,
-      lastTradeAtMs: s.slot.lastTradeAtMs ?? null,
-    }));
-  return aggregateNectar(rows);
 }
 
 interface JournalEntry {

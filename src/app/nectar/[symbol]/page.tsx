@@ -26,6 +26,9 @@ import {
   coverageTone,
   relTime,
 } from "@/lib/nectarFormat";
+import { currentNectarForSymbol } from "@/lib/traderMemory/currentNectar";
+import { selectNectarComparison, type NectarComparison } from "@/lib/traderMemory/nectarComparison";
+import { readLastVisit, writeLastVisit, visitFromAggregate, type NectarVisit } from "@/lib/traderMemory/nectarLastVisit";
 
 /**
  * /nectar/[symbol] — per-symbol memory deep-dive.
@@ -69,6 +72,28 @@ export default function NectarSymbolDetailPage() {
     router.push("/charts");
   }, [router, setActiveSymbol, symbol]);
 
+  // "Since your last visit" — durable-memory promise. Read the PRIOR visit
+  // once (before writing the current one), so the comparison reflects change
+  // since the last time this Vault was opened. The current aggregate keeps
+  // growing live via the 1s tick, so the delta accumulates while watching.
+  const [priorVisit, setPriorVisit] = React.useState<NectarVisit | null>(null);
+  const wroteRef = React.useRef(false);
+  React.useEffect(() => {
+    setPriorVisit(readLastVisit(symbol));
+    wroteRef.current = false;
+  }, [symbol]);
+  const currentAgg = mounted ? currentNectarForSymbol(symbol) : null;
+  React.useEffect(() => {
+    if (!mounted || wroteRef.current) return;
+    const agg = currentNectarForSymbol(symbol);
+    if (agg) {
+      writeLastVisit(symbol, visitFromAggregate(agg, Date.now()));
+      wroteRef.current = true;
+    }
+  }, [mounted, symbol]);
+  const visitComparison: NectarComparison | null =
+    priorVisit && currentAgg ? selectNectarComparison(priorVisit, currentAgg) : null;
+
   // Try to find any slot for this symbol regardless of tape source.
   // Prefer the slot with the highest trade count.
   const matched = mounted
@@ -110,6 +135,9 @@ export default function NectarSymbolDetailPage() {
           <UnobservedState symbol={symbol} onOpen={openOnChart} />
         ) : (
           <>
+            {visitComparison && priorVisit && (
+              <SinceLastVisitPanel comparison={visitComparison} lastVisitAtMs={priorVisit.capturedAtMs} />
+            )}
             {matched.map(({ slot, tapeSource }, idx) => (
               <SlotPanels
                 key={`${symbol}::${tapeSource}::${idx}`}
@@ -132,6 +160,67 @@ export default function NectarSymbolDetailPage() {
         )}
       </div>
     </main>
+  );
+}
+
+/* ── Since last visit ───────────────────────────────────── */
+
+function SinceLastVisitPanel({
+  comparison,
+  lastVisitAtMs,
+}: {
+  comparison: NectarComparison;
+  lastVisitAtMs: number;
+}) {
+  const grew = !comparison.reset && (comparison.sinceTrades ?? 0) > 0;
+  const accent = grew ? WM.gold.mark : WM.text.muted;
+  return (
+    <section
+      aria-label="What changed since your last visit"
+      style={{
+        border: `1px solid ${grew ? WM.gold.line : WM.border.hair}`,
+        borderRadius: WM.radius.xl,
+        background: grew ? "rgba(212,175,55,0.06)" : WM.surface.deep,
+        padding: WM.space.lg,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+        <span style={{ ...WM.type.label, color: WM.gold.mark }}>Since your last visit</span>
+        <span style={{ fontSize: 10, color: WM.text.dim }}>
+          {relTime(lastVisitAtMs)}
+        </span>
+      </div>
+      <div style={{ fontSize: 12, color: accent, lineHeight: 1.5 }}>{comparison.detail}</div>
+      {grew && (
+        <div
+          style={{
+            marginTop: WM.space.md,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+            gap: WM.space.md,
+          }}
+        >
+          <VisitStat label="Trades then → now" value={`${comparison.thenTradeCount.toLocaleString("en-US")} → ${comparison.nowTradeCount!.toLocaleString("en-US")}`} accent={`+${comparison.sinceTrades!.toLocaleString("en-US")}`} />
+          <VisitStat
+            label="Δ then → now"
+            value={`${comparison.thenDelta >= 0 ? "+" : ""}${Math.round(comparison.thenDelta)} → ${comparison.nowDelta! >= 0 ? "+" : ""}${Math.round(comparison.nowDelta!)}`}
+          />
+          <VisitStat label="Big trades since" value={(comparison.sinceBigTrades ?? 0) > 0 ? `+${comparison.sinceBigTrades}` : "0"} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function VisitStat({ label, value, accent }: { label: string; value: string; accent?: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: 9, letterSpacing: 0.3, textTransform: "uppercase", color: WM.text.dim }}>{label}</div>
+      <div style={{ fontSize: 13, fontFamily: "monospace", fontWeight: 700, color: WM.text.hero, fontVariantNumeric: "tabular-nums" }}>
+        {value}
+        {accent && <span style={{ color: WM.gold.mark }}> ({accent})</span>}
+      </div>
+    </div>
   );
 }
 
