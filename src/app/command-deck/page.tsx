@@ -37,6 +37,8 @@ import RealmGateway from "@/components/brand/RealmGateway";
 import DoctrineTagline from "@/components/brand/DoctrineTagline";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import CommandContextRibbon from "@/components/command/CommandContextRibbon";
+import OneStoryStrip from "@/components/command/OneStoryStrip";
+import { selectOneStory } from "@/lib/marketData/viewModels/selectOneStory";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -423,6 +425,22 @@ function CommandDeckInner() {
                 appears later in review.' Silent when no entry today
                 (never fabricates). */}
             <TodayPrepBridge userId={user?.id ?? null} />
+
+            {/* One Story Strip — Founder 2029 Integration Glue canon §7
+                ONE STORY COMPILER. Compiles the market state into
+                PRIMARY / CONTRADICTION / MISSING / DECISION so the
+                trader gets the at-most-four-outputs read before hunting
+                the numbered sections below. Consumes shared canonical
+                selectors — never invents. */}
+            {(() => {
+              const storyVm = state ? selectMarketStory(state, history) : null;
+              const oneStory = selectOneStory({
+                story: storyVm,
+                chainNodes: chainVm?.nodes,
+                permission,
+              });
+              return <OneStoryStrip vm={oneStory} />;
+            })()}
 
             {/* Phase selector — the trader's current decision phase */}
             <div
