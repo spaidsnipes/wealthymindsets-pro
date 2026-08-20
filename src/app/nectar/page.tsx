@@ -20,6 +20,7 @@ import { SectionBanner } from "@/components/brand/SectionBanner";
 import { Panel } from "@/components/ui/Panel";
 import { WM } from "@/lib/design/wmTokens";
 import { fmtNum, formatMemoryAge, fidelityToTone } from "@/lib/nectarFormat";
+import { ContextRibbonContainer, ContextRibbonTile } from "@/components/command/CommandContextRibbon";
 
 /**
  * /nectar — the WM Nectar Vault.
@@ -97,6 +98,55 @@ export default function NectarVaultPage() {
           gap: 28,
         }}
       >
+        {(() => {
+          // Vault Ribbon — the shared OS context ribbon composed with
+          // Vault-specific tiles. Uses ContextRibbonTile from Command
+          // Deck so the visual DNA matches; NO duplicate primitive.
+          // Founder no-duplication law: one atom, many purposeful views.
+          const totalTrades = known.reduce((a, s) => a + s.slot.stats.tradeCount, 0);
+          const earliestSec = known.reduce<number | null>((acc, s) => {
+            const ts = s.slot.horizon?.startedAtSec ?? null;
+            if (ts == null) return acc;
+            return acc == null || ts < acc ? ts : acc;
+          }, null);
+          const gaps = (nectar?.channels ?? []).reduce((a, c) => a + c.gapCount, 0);
+          const channelCount = nectar?.channels.length ?? 0;
+          return (
+            <ContextRibbonContainer ariaLabel="Nectar Vault context ribbon">
+              <ContextRibbonTile
+                label="VAULT"
+                value={known.length === 0 ? "EMPTY" : `${known.length} SYMBOL${known.length === 1 ? "" : "S"}`}
+                detail={known.length === 0 ? "no observations yet" : "with retained tape memory"}
+                tone={known.length === 0 ? "unknown" : "resolved"}
+              />
+              <ContextRibbonTile
+                label="TAPE TOTAL"
+                value={totalTrades === 0 ? "0" : totalTrades.toLocaleString("en-US")}
+                detail={totalTrades === 0 ? "browser-local memory empty" : "trades observed across symbols"}
+                tone={totalTrades === 0 ? "unknown" : "resolved"}
+              />
+              <ContextRibbonTile
+                label="CHANNELS"
+                value={channelCount === 0 ? "NONE" : String(channelCount)}
+                detail={channelCount === 0 ? "no Nectar coverage yet" : gaps > 0 ? `${gaps} coverage gap${gaps === 1 ? "" : "s"}` : "no gaps recorded"}
+                tone={channelCount === 0 ? "unknown" : gaps > 0 ? "warn" : "resolved"}
+              />
+              <ContextRibbonTile
+                label="EARLIEST"
+                value={earliestSec == null ? "—" : new Date(earliestSec * 1000).toLocaleString(undefined, { month: "short", day: "numeric" }).toUpperCase()}
+                detail={earliestSec == null ? "no horizon yet" : new Date(earliestSec * 1000).toLocaleString(undefined, { hour: "numeric", minute: "2-digit" }).toLowerCase()}
+                tone={earliestSec == null ? "unknown" : "resolved"}
+              />
+              <ContextRibbonTile
+                label="RETENTION"
+                value="7 DAYS"
+                detail="up to 32 symbol slots · browser-local"
+                tone="pending"
+              />
+            </ContextRibbonContainer>
+          );
+        })()}
+
         <VaultHero
           symbolCount={known.length}
           tradeTotal={known.reduce((a, s) => a + s.slot.stats.tradeCount, 0)}

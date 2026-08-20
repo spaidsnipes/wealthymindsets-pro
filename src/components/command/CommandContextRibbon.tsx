@@ -54,26 +54,135 @@ interface Tile {
   readonly tone: Tone;
 }
 
-const TONE_COLOR: Record<Tone, string> = {
+export type ContextRibbonTone = Tone;
+
+export const RIBBON_TONE_COLOR: Record<Tone, string> = {
   resolved: "#d4af37",  // gold — resolved / active / verified
   pending:  "#c9a55c",  // dimmed gold — computing / partial
   unknown:  "#8a8271",  // muted — UNKNOWN / not evaluated
   warn:     "#e07b5c",  // amber-warn — degraded / stale / blocked
 };
 
-const TONE_BG: Record<Tone, string> = {
+export const RIBBON_TONE_BG: Record<Tone, string> = {
   resolved: "rgba(212,175,55,0.10)",
   pending:  "rgba(201,165,92,0.06)",
   unknown:  "rgba(255,255,255,0.02)",
   warn:     "rgba(224,123,92,0.08)",
 };
 
-const TONE_BORDER: Record<Tone, string> = {
+export const RIBBON_TONE_BORDER: Record<Tone, string> = {
   resolved: "rgba(212,175,55,0.55)",
   pending:  "rgba(201,165,92,0.32)",
   unknown:  "rgba(139,106,41,0.35)",
   warn:     "rgba(224,123,92,0.45)",
 };
+
+// Local aliases keep the existing render loop tidy.
+const TONE_COLOR = RIBBON_TONE_COLOR;
+const TONE_BG = RIBBON_TONE_BG;
+const TONE_BORDER = RIBBON_TONE_BORDER;
+
+/**
+ * ContextRibbonTile — the shared atom every OS ribbon uses.
+ *
+ * Consumers (CommandContextRibbon, /nectar Vault ribbon, /charts,
+ * future rooms) compose their own tile array with their own canonical
+ * owners, then render each cell through this atom for identical
+ * visual DNA. One primitive, many views. Never duplicate this styling
+ * — extend this atom instead.
+ */
+export interface ContextRibbonTileProps {
+  readonly label: string;
+  readonly value: string;
+  readonly detail?: string;
+  readonly tone: ContextRibbonTone;
+}
+
+export function ContextRibbonTile({ label, value, detail, tone }: ContextRibbonTileProps): React.ReactElement {
+  return (
+    <div
+      role="group"
+      aria-label={`${label}: ${value}${detail ? " — " + detail : ""}`}
+      style={{
+        padding: "10px 12px",
+        minHeight: 68,
+        borderRadius: 8,
+        border: `1px solid ${RIBBON_TONE_BORDER[tone]}`,
+        background: RIBBON_TONE_BG[tone],
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        minWidth: 0,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 9,
+          letterSpacing: 0.4,
+          textTransform: "uppercase",
+          fontFamily: "Georgia, 'Times New Roman', serif",
+          color: "#8a8271",
+          fontWeight: 400,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 15,
+          fontWeight: 700,
+          color: RIBBON_TONE_COLOR[tone],
+          lineHeight: 1.15,
+          fontVariantNumeric: "tabular-nums",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {value}
+      </div>
+      {detail && (
+        <div
+          style={{
+            fontSize: 9,
+            letterSpacing: 0.2,
+            color: "#6f6a5a",
+            lineHeight: 1.2,
+            marginTop: 2,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {detail}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export interface ContextRibbonContainerProps {
+  readonly ariaLabel: string;
+  readonly children: React.ReactNode;
+}
+
+export function ContextRibbonContainer({ ariaLabel, children }: ContextRibbonContainerProps): React.ReactElement {
+  return (
+    <div
+      role="region"
+      aria-label={ariaLabel}
+      className="wm-cd-context-ribbon"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
+        gap: 8,
+        padding: 0,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 function sessionTone(session: string, connected: boolean): Tone {
   const s = session.toUpperCase();
@@ -201,79 +310,17 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
   ];
 
   return (
-    <div
-      role="region"
-      aria-label="Command Deck context ribbon"
-      className="wm-cd-context-ribbon"
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
-        gap: 8,
-        padding: 0,
-      }}
-    >
+    <ContextRibbonContainer ariaLabel="Command Deck context ribbon">
       {tiles.map(tile => (
-        <div
+        <ContextRibbonTile
           key={tile.key}
-          role="group"
-          aria-label={`${tile.label}: ${tile.value}${tile.detail ? " — " + tile.detail : ""}`}
-          style={{
-            padding: "10px 12px",
-            minHeight: 68,
-            borderRadius: 8,
-            border: `1px solid ${TONE_BORDER[tile.tone]}`,
-            background: TONE_BG[tile.tone],
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            minWidth: 0,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 9,
-              letterSpacing: 0.4,
-              textTransform: "uppercase",
-              fontFamily: "Georgia, 'Times New Roman', serif",
-              color: "#8a8271",
-              fontWeight: 400,
-            }}
-          >
-            {tile.label}
-          </div>
-          <div
-            style={{
-              fontSize: 15,
-              fontWeight: 700,
-              color: TONE_COLOR[tile.tone],
-              lineHeight: 1.15,
-              fontVariantNumeric: "tabular-nums",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {tile.value}
-          </div>
-          {tile.detail && (
-            <div
-              style={{
-                fontSize: 9,
-                letterSpacing: 0.2,
-                color: "#6f6a5a",
-                lineHeight: 1.2,
-                marginTop: 2,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {tile.detail}
-            </div>
-          )}
-        </div>
+          label={tile.label}
+          value={tile.value}
+          detail={tile.detail}
+          tone={tile.tone}
+        />
       ))}
-    </div>
+    </ContextRibbonContainer>
   );
 }
 
