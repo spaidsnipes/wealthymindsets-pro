@@ -17,7 +17,6 @@ interface Stock {
   sym:   string;
   name:  string;
   mcap:  number; // billions — determines tile size
-  price: number;
 }
 
 interface Industry {
@@ -36,36 +35,36 @@ const SECTORS: Sector[] = [
     label: "TECHNOLOGY", weight: 29,
     industries: [
       { name: "SOFTWARE - INFRASTRUCTURE", stocks: [
-        { sym:"MSFT",  name:"Microsoft",      mcap:2950, price:415 },
-        { sym:"ORCL",  name:"Oracle",         mcap:380,  price:145 },
-        { sym:"SNOW",  name:"Snowflake",      mcap:55,   price:155 },
-        { sym:"MDB",   name:"MongoDB",        mcap:22,   price:310 },
+        { sym:"MSFT",  name:"Microsoft",      mcap:2950 },
+        { sym:"ORCL",  name:"Oracle",         mcap:380 },
+        { sym:"SNOW",  name:"Snowflake",      mcap:55 },
+        { sym:"MDB",   name:"MongoDB",        mcap:22 },
       ]},
       { name: "SEMICONDUCTORS", stocks: [
-        { sym:"NVDA",  name:"NVIDIA",         mcap:3100, price:135 },
-        { sym:"AVGO",  name:"Broadcom",       mcap:860,  price:210 },
-        { sym:"AMD",   name:"AMD",            mcap:240,  price:148 },
-        { sym:"INTC",  name:"Intel",          mcap:95,   price:22  },
-        { sym:"QCOM",  name:"Qualcomm",       mcap:175,  price:155 },
-        { sym:"TXN",   name:"Texas Instr.",   mcap:165,  price:178 },
-        { sym:"AMAT",  name:"Applied Mat.",   mcap:145,  price:165 },
-        { sym:"LRCX",  name:"Lam Research",  mcap:90,   price:72  },
+        { sym:"NVDA",  name:"NVIDIA",         mcap:3100 },
+        { sym:"AVGO",  name:"Broadcom",       mcap:860 },
+        { sym:"AMD",   name:"AMD",            mcap:240 },
+        { sym:"INTC",  name:"Intel",          mcap:95  },
+        { sym:"QCOM",  name:"Qualcomm",       mcap:175 },
+        { sym:"TXN",   name:"Texas Instr.",   mcap:165 },
+        { sym:"AMAT",  name:"Applied Mat.",   mcap:145 },
+        { sym:"LRCX",  name:"Lam Research",  mcap:90  },
       ]},
       { name: "SOFTWARE - APPLICATION", stocks: [
-        { sym:"CRM",   name:"Salesforce",     mcap:280,  price:285 },
-        { sym:"ADBE",  name:"Adobe",          mcap:210,  price:480 },
-        { sym:"NOW",   name:"ServiceNow",     mcap:195,  price:985 },
-        { sym:"INTU",  name:"Intuit",         mcap:175,  price:625 },
-        { sym:"TEAM",  name:"Atlassian",      mcap:48,   price:188 },
-        { sym:"WDAY",  name:"Workday",        mcap:62,   price:246 },
-        { sym:"DDOG",  name:"Datadog",        mcap:38,   price:118 },
+        { sym:"CRM",   name:"Salesforce",     mcap:280 },
+        { sym:"ADBE",  name:"Adobe",          mcap:210 },
+        { sym:"NOW",   name:"ServiceNow",     mcap:195 },
+        { sym:"INTU",  name:"Intuit",         mcap:175 },
+        { sym:"TEAM",  name:"Atlassian",      mcap:48 },
+        { sym:"WDAY",  name:"Workday",        mcap:62 },
+        { sym:"DDOG",  name:"Datadog",        mcap:38 },
       ]},
       { name: "INTERNET CONTENT & INFO", stocks: [
-        { sym:"GOOG",  name:"Alphabet",       mcap:2100, price:178 },
-        { sym:"META",  name:"Meta",           mcap:1400, price:545 },
+        { sym:"GOOG",  name:"Alphabet",       mcap:2100 },
+        { sym:"META",  name:"Meta",           mcap:1400 },
       ]},
       { name: "CONSUMER ELECTRONICS", stocks: [
-        { sym:"AAPL",  name:"Apple",          mcap:3000, price:228 },
+        { sym:"AAPL",  name:"Apple",          mcap:3000 },
       ]},
     ],
   },
@@ -73,16 +72,16 @@ const SECTORS: Sector[] = [
     label: "COMMUNICATION SERVICES", weight: 8.5,
     industries: [
       { name: "INTERNET CONTENT", stocks: [
-        { sym:"NFLX",  name:"Netflix",        mcap:295,  price:710 },
-        { sym:"SNAP",  name:"Snap",           mcap:18,   price:11  },
-        { sym:"PINS",  name:"Pinterest",      mcap:19,   price:28  },
+        { sym:"NFLX",  name:"Netflix",        mcap:295 },
+        { sym:"SNAP",  name:"Snap",           mcap:18  },
+        { sym:"PINS",  name:"Pinterest",      mcap:19  },
       ]},
       { name: "TELECOM SERVICES", stocks: [
-        { sym:"T",     name:"AT&T",           mcap:175,  price:22  },
-        { sym:"VZ",    name:"Verizon",        mcap:165,  price:42  },
-        { sym:"TMUS",  name:"T-Mobile",       mcap:210,  price:180 },
-        { sym:"CMCSA", name:"Comcast",        mcap:145,  price:38  },
-        { sym:"CHTR",  name:"Charter",        mcap:52,   price:370 },
+        { sym:"T",     name:"AT&T",           mcap:175  },
+        { sym:"VZ",    name:"Verizon",        mcap:165  },
+        { sym:"TMUS",  name:"T-Mobile",       mcap:210 },
+        { sym:"CMCSA", name:"Comcast",        mcap:145  },
+        { sym:"CHTR",  name:"Charter",        mcap:52 },
       ]},
     ],
   },
@@ -90,24 +89,24 @@ const SECTORS: Sector[] = [
     label: "CONSUMER CYCLICAL", weight: 10.8,
     industries: [
       { name: "INTERNET RETAIL", stocks: [
-        { sym:"AMZN",  name:"Amazon",         mcap:2000, price:218 },
-        { sym:"BKNG",  name:"Booking",        mcap:145,  price:4100},
-        { sym:"EBAY",  name:"eBay",           mcap:28,   price:52  },
+        { sym:"AMZN",  name:"Amazon",         mcap:2000 },
+        { sym:"BKNG",  name:"Booking",        mcap:145},
+        { sym:"EBAY",  name:"eBay",           mcap:28  },
       ]},
       { name: "AUTO MANUFACTURERS", stocks: [
-        { sym:"TSLA",  name:"Tesla",          mcap:650,  price:205 },
-        { sym:"GM",    name:"General Motors", mcap:55,   price:45  },
-        { sym:"F",     name:"Ford",           mcap:45,   price:12  },
-        { sym:"RIVN",  name:"Rivian",         mcap:12,   price:13  },
+        { sym:"TSLA",  name:"Tesla",          mcap:650 },
+        { sym:"GM",    name:"General Motors", mcap:55  },
+        { sym:"F",     name:"Ford",           mcap:45  },
+        { sym:"RIVN",  name:"Rivian",         mcap:12  },
       ]},
       { name: "HOME IMPROVEMENT", stocks: [
-        { sym:"HD",    name:"Home Depot",     mcap:330,  price:340 },
-        { sym:"LOW",   name:"Lowe's",         mcap:140,  price:235 },
+        { sym:"HD",    name:"Home Depot",     mcap:330 },
+        { sym:"LOW",   name:"Lowe's",         mcap:140 },
       ]},
       { name: "RESTAURANTS", stocks: [
-        { sym:"MCD",   name:"McDonald's",     mcap:205,  price:278 },
-        { sym:"SBUX",  name:"Starbucks",      mcap:100,  price:88  },
-        { sym:"CMG",   name:"Chipotle",       mcap:82,   price:57  },
+        { sym:"MCD",   name:"McDonald's",     mcap:205 },
+        { sym:"SBUX",  name:"Starbucks",      mcap:100  },
+        { sym:"CMG",   name:"Chipotle",       mcap:82  },
       ]},
     ],
   },
@@ -115,18 +114,18 @@ const SECTORS: Sector[] = [
     label: "CONSUMER DEFENSIVE", weight: 6.2,
     industries: [
       { name: "DISCOUNT STORES", stocks: [
-        { sym:"WMT",   name:"Walmart",        mcap:645,  price:80  },
-        { sym:"COST",  name:"Costco",         mcap:355,  price:800 },
-        { sym:"TGT",   name:"Target",         mcap:65,   price:142 },
+        { sym:"WMT",   name:"Walmart",        mcap:645  },
+        { sym:"COST",  name:"Costco",         mcap:355 },
+        { sym:"TGT",   name:"Target",         mcap:65 },
       ]},
       { name: "BEVERAGES - NON-ALC", stocks: [
-        { sym:"KO",    name:"Coca-Cola",      mcap:265,  price:62  },
-        { sym:"PEP",   name:"PepsiCo",        mcap:215,  price:155 },
-        { sym:"KDP",   name:"Keurig Dr Pep.", mcap:48,   price:35  },
+        { sym:"KO",    name:"Coca-Cola",      mcap:265  },
+        { sym:"PEP",   name:"PepsiCo",        mcap:215 },
+        { sym:"KDP",   name:"Keurig Dr Pep.", mcap:48  },
       ]},
       { name: "PACKAGED FOODS", stocks: [
-        { sym:"GIS",   name:"General Mills",  mcap:38,   price:65  },
-        { sym:"CPB",   name:"Campbell Soup",  mcap:12,   price:40  },
+        { sym:"GIS",   name:"General Mills",  mcap:38  },
+        { sym:"CPB",   name:"Campbell Soup",  mcap:12  },
       ]},
     ],
   },
@@ -134,23 +133,23 @@ const SECTORS: Sector[] = [
     label: "FINANCIALS", weight: 12.8,
     industries: [
       { name: "CREDIT SERVICES", stocks: [
-        { sym:"V",     name:"Visa",           mcap:540,  price:275 },
-        { sym:"MA",    name:"Mastercard",     mcap:450,  price:480 },
-        { sym:"AXP",   name:"Amex",           mcap:195,  price:242 },
-        { sym:"PYPL",  name:"PayPal",         mcap:68,   price:62  },
+        { sym:"V",     name:"Visa",           mcap:540 },
+        { sym:"MA",    name:"Mastercard",     mcap:450 },
+        { sym:"AXP",   name:"Amex",           mcap:195 },
+        { sym:"PYPL",  name:"PayPal",         mcap:68  },
       ]},
       { name: "BANKS - DIVERSIFIED", stocks: [
-        { sym:"JPM",   name:"JPMorgan",       mcap:595,  price:205 },
-        { sym:"BAC",   name:"Bank of America",mcap:310,  price:38  },
-        { sym:"WFC",   name:"Wells Fargo",    mcap:215,  price:60  },
-        { sym:"C",     name:"Citigroup",      mcap:118,  price:62  },
-        { sym:"GS",    name:"Goldman Sachs",  mcap:155,  price:510 },
+        { sym:"JPM",   name:"JPMorgan",       mcap:595 },
+        { sym:"BAC",   name:"Bank of America",mcap:310  },
+        { sym:"WFC",   name:"Wells Fargo",    mcap:215  },
+        { sym:"C",     name:"Citigroup",      mcap:118  },
+        { sym:"GS",    name:"Goldman Sachs",  mcap:155 },
       ]},
       { name: "CAPITAL MARKETS", stocks: [
-        { sym:"BRK-B", name:"Berkshire",      mcap:950,  price:440 },
-        { sym:"SCHW",  name:"Schwab",         mcap:130,  price:72  },
-        { sym:"MS",    name:"Morgan Stanley", mcap:155,  price:105 },
-        { sym:"BLK",   name:"BlackRock",      mcap:115,  price:948 },
+        { sym:"BRK-B", name:"Berkshire",      mcap:950 },
+        { sym:"SCHW",  name:"Schwab",         mcap:130  },
+        { sym:"MS",    name:"Morgan Stanley", mcap:155 },
+        { sym:"BLK",   name:"BlackRock",      mcap:115 },
       ]},
     ],
   },
@@ -158,25 +157,25 @@ const SECTORS: Sector[] = [
     label: "HEALTHCARE", weight: 12.5,
     industries: [
       { name: "DRUG MANUFACTURERS - GENERAL", stocks: [
-        { sym:"LLY",   name:"Eli Lilly",      mcap:755,  price:795 },
-        { sym:"JNJ",   name:"J&J",            mcap:380,  price:158 },
-        { sym:"ABBV",  name:"AbbVie",         mcap:315,  price:178 },
-        { sym:"MRK",   name:"Merck",          mcap:255,  price:100 },
-        { sym:"PFE",   name:"Pfizer",         mcap:148,  price:26  },
-        { sym:"BMY",   name:"Bristol-Myers",  mcap:118,  price:57  },
-        { sym:"AZN",   name:"AstraZeneca",    mcap:245,  price:82  },
+        { sym:"LLY",   name:"Eli Lilly",      mcap:755 },
+        { sym:"JNJ",   name:"J&J",            mcap:380 },
+        { sym:"ABBV",  name:"AbbVie",         mcap:315 },
+        { sym:"MRK",   name:"Merck",          mcap:255 },
+        { sym:"PFE",   name:"Pfizer",         mcap:148  },
+        { sym:"BMY",   name:"Bristol-Myers",  mcap:118  },
+        { sym:"AZN",   name:"AstraZeneca",    mcap:245  },
       ]},
       { name: "HEALTHCARE PLANS", stocks: [
-        { sym:"UNH",   name:"UnitedHealth",   mcap:455,  price:488 },
-        { sym:"CVS",   name:"CVS Health",     mcap:68,   price:52  },
-        { sym:"CI",    name:"Cigna",          mcap:82,   price:335 },
-        { sym:"HUM",   name:"Humana",         mcap:38,   price:315 },
+        { sym:"UNH",   name:"UnitedHealth",   mcap:455 },
+        { sym:"CVS",   name:"CVS Health",     mcap:68  },
+        { sym:"CI",    name:"Cigna",          mcap:82 },
+        { sym:"HUM",   name:"Humana",         mcap:38 },
       ]},
       { name: "BIOTECHNOLOGY", stocks: [
-        { sym:"AMGN",  name:"Amgen",          mcap:155,  price:290 },
-        { sym:"GILD",  name:"Gilead",         mcap:112,  price:90  },
-        { sym:"REGN",  name:"Regeneron",      mcap:95,   price:930 },
-        { sym:"BIIB",  name:"Biogen",         mcap:28,   price:190 },
+        { sym:"AMGN",  name:"Amgen",          mcap:155 },
+        { sym:"GILD",  name:"Gilead",         mcap:112  },
+        { sym:"REGN",  name:"Regeneron",      mcap:95 },
+        { sym:"BIIB",  name:"Biogen",         mcap:28 },
       ]},
     ],
   },
@@ -184,21 +183,21 @@ const SECTORS: Sector[] = [
     label: "INDUSTRIALS", weight: 8.5,
     industries: [
       { name: "AEROSPACE & DEFENSE", stocks: [
-        { sym:"RTX",   name:"RTX Corp",       mcap:145,  price:118 },
-        { sym:"LMT",   name:"Lockheed",       mcap:118,  price:462 },
-        { sym:"BA",    name:"Boeing",         mcap:95,   price:158 },
-        { sym:"NOC",   name:"Northrop",       mcap:72,   price:480 },
-        { sym:"GD",    name:"General Dyn.",   mcap:78,   price:280 },
+        { sym:"RTX",   name:"RTX Corp",       mcap:145 },
+        { sym:"LMT",   name:"Lockheed",       mcap:118 },
+        { sym:"BA",    name:"Boeing",         mcap:95 },
+        { sym:"NOC",   name:"Northrop",       mcap:72 },
+        { sym:"GD",    name:"General Dyn.",   mcap:78 },
       ]},
       { name: "SPECIALTY INDUSTRIAL", stocks: [
-        { sym:"HON",   name:"Honeywell",      mcap:130,  price:205 },
-        { sym:"MMM",   name:"3M",             mcap:68,   price:118 },
-        { sym:"EMR",   name:"Emerson",        mcap:55,   price:95  },
-        { sym:"ITW",   name:"Ill. Tool",      mcap:68,   price:235 },
+        { sym:"HON",   name:"Honeywell",      mcap:130 },
+        { sym:"MMM",   name:"3M",             mcap:68 },
+        { sym:"EMR",   name:"Emerson",        mcap:55  },
+        { sym:"ITW",   name:"Ill. Tool",      mcap:68 },
       ]},
       { name: "STAFFING & EMPLOYMENT", stocks: [
-        { sym:"ADP",   name:"ADP",            mcap:102,  price:248 },
-        { sym:"PAYX",  name:"Paychex",        mcap:48,   price:135 },
+        { sym:"ADP",   name:"ADP",            mcap:102 },
+        { sym:"PAYX",  name:"Paychex",        mcap:48 },
       ]},
     ],
   },
@@ -206,11 +205,11 @@ const SECTORS: Sector[] = [
     label: "ENERGY", weight: 3.8,
     industries: [
       { name: "OIL & GAS INTEGRATED", stocks: [
-        { sym:"XOM",   name:"ExxonMobil",     mcap:465,  price:115 },
-        { sym:"CVX",   name:"Chevron",        mcap:272,  price:148 },
-        { sym:"COP",   name:"ConocoPhillips", mcap:128,  price:100 },
-        { sym:"EOG",   name:"EOG Resources",  mcap:65,   price:118 },
-        { sym:"OXY",   name:"Occidental",     mcap:42,   price:48  },
+        { sym:"XOM",   name:"ExxonMobil",     mcap:465 },
+        { sym:"CVX",   name:"Chevron",        mcap:272 },
+        { sym:"COP",   name:"ConocoPhillips", mcap:128 },
+        { sym:"EOG",   name:"EOG Resources",  mcap:65 },
+        { sym:"OXY",   name:"Occidental",     mcap:42  },
       ]},
     ],
   },
@@ -218,13 +217,13 @@ const SECTORS: Sector[] = [
     label: "REAL ESTATE", weight: 2.4,
     industries: [
       { name: "REIT - SPECIALTY", stocks: [
-        { sym:"AMT",   name:"American Tower", mcap:88,   price:188 },
-        { sym:"EQIX",  name:"Equinix",        mcap:72,   price:775 },
-        { sym:"PLD",   name:"Prologis",       mcap:92,   price:110 },
+        { sym:"AMT",   name:"American Tower", mcap:88 },
+        { sym:"EQIX",  name:"Equinix",        mcap:72 },
+        { sym:"PLD",   name:"Prologis",       mcap:92 },
       ]},
       { name: "REIT - RESIDENTIAL", stocks: [
-        { sym:"EQR",   name:"Equity Resi.",   mcap:28,   price:68  },
-        { sym:"AVB",   name:"AvalonBay",      mcap:30,   price:215 },
+        { sym:"EQR",   name:"Equity Resi.",   mcap:28  },
+        { sym:"AVB",   name:"AvalonBay",      mcap:30 },
       ]},
     ],
   },
@@ -232,10 +231,10 @@ const SECTORS: Sector[] = [
     label: "UTILITIES", weight: 2.3,
     industries: [
       { name: "UTILITIES - REGULATED ELECTRIC", stocks: [
-        { sym:"NEE",   name:"NextEra Energy", mcap:145,  price:72  },
-        { sym:"SO",    name:"Southern Co.",   mcap:82,   price:88  },
-        { sym:"DUK",   name:"Duke Energy",    mcap:78,   price:112 },
-        { sym:"SRE",   name:"Sempra",         mcap:48,   price:75  },
+        { sym:"NEE",   name:"NextEra Energy", mcap:145  },
+        { sym:"SO",    name:"Southern Co.",   mcap:82  },
+        { sym:"DUK",   name:"Duke Energy",    mcap:78 },
+        { sym:"SRE",   name:"Sempra",         mcap:48  },
       ]},
     ],
   },
@@ -243,10 +242,10 @@ const SECTORS: Sector[] = [
     label: "BASIC MATERIALS", weight: 2.2,
     industries: [
       { name: "SPECIALTY CHEMICALS", stocks: [
-        { sym:"LIN",   name:"Linde",          mcap:198,  price:440 },
-        { sym:"APD",   name:"Air Products",   mcap:52,   price:238 },
-        { sym:"SHW",   name:"Sherwin-Will.",  mcap:82,   price:320 },
-        { sym:"ECL",   name:"Ecolab",         mcap:62,   price:218 },
+        { sym:"LIN",   name:"Linde",          mcap:198 },
+        { sym:"APD",   name:"Air Products",   mcap:52 },
+        { sym:"SHW",   name:"Sherwin-Will.",  mcap:82 },
+        { sym:"ECL",   name:"Ecolab",         mcap:62 },
       ]},
     ],
   },
@@ -793,10 +792,10 @@ function IndustryTooltip({ industry, pcts, x, y }: TooltipProps) {
         {topRow ? (
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
             <span style={{ fontSize: 15, fontWeight: 900, color: "#fff" }}>{topRow.stock.sym}</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#8892A0", marginLeft: "auto" }}>
-              ${topRow.stock.price.toFixed(2)}
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#8892A0" }}>
+              {topRow.stock.name}
             </span>
-            <span style={{ fontSize: 13, fontWeight: 800, color: topRow.value! >= 0 ? "#00D4AA" : "#FF4D6A" }}>
+            <span style={{ marginLeft: "auto", fontSize: 13, fontWeight: 800, color: topRow.value! >= 0 ? "#00D4AA" : "#FF4D6A" }}>
               {topRow.value! >= 0 ? "+" : ""}{topRow.value!.toFixed(2)}%
             </span>
           </div>
@@ -815,11 +814,11 @@ function IndustryTooltip({ industry, pcts, x, y }: TooltipProps) {
               borderBottom: "1px solid #1A2030",
             }}>
               <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", width: 52 }}>{st.sym}</span>
-              <span style={{ fontSize: 12, color: "#8892A0", marginLeft: "auto" }}>
-                ${st.price.toFixed(2)}
+              <span style={{ fontSize: 11, color: "#8892A0", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {st.name}
               </span>
               <span style={{
-                fontSize: 12, fontWeight: 700, width: 60, textAlign: "right",
+                marginLeft: "auto", fontSize: 12, fontWeight: 700, minWidth: 88, textAlign: "right",
                 color: p === null ? "#8892A0" : p >= 0 ? "#00D4AA" : "#FF4D6A",
               }}>
                 {p === null ? "— unavailable" : `${p >= 0 ? "+" : ""}${p.toFixed(2)}%`}

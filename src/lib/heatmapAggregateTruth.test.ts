@@ -69,4 +69,20 @@ describe("Heat Map aggregate truth", () => {
     expect(page).toContain("const tooltipWidth = Math.min(320");
     expect(page).toContain("winW - tooltipWidth - 12");
   });
+
+  it("never presents embedded static catalog prices as current tooltip quotes", () => {
+    const tooltip = page.slice(
+      page.indexOf("function IndustryTooltip"),
+      page.indexOf("export default function HeatmapsPage"),
+    );
+    expect(page).not.toContain("price: number");
+    expect(page).not.toMatch(/\bmcap:\s*[^,}]+,\s*price:/);
+    expect(tooltip).toContain("{topRow.stock.name}");
+    expect(tooltip).toContain("{st.name}");
+    expect(tooltip).not.toContain(".stock.price");
+    expect(tooltip).not.toContain("st.price");
+    expect(tooltip).not.toContain("price.toFixed");
+    expect(tooltip).toContain("Observed change unavailable");
+    expect(tooltip).toContain('p === null ? "— unavailable"');
+  });
 });
