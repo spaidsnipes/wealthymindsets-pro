@@ -464,7 +464,10 @@ function SessionIntelligenceStrip({
   channels: readonly { coverageState: string; gapCount: number }[];
   symbolCount: number;
 }) {
-  const liveChannels = channels.filter(c => c.coverageState === "LIVE").length;
+  // CoverageState describes collector activity, not licensed feed fidelity.
+  // COLLECTING is therefore presented as observing and must never be
+  // promoted into a public LIVE claim.
+  const observingChannels = channels.filter(c => c.coverageState === "COLLECTING").length;
   const staleChannels = channels.filter(c => c.coverageState === "STALE").length;
   const unavailableChannels = channels.filter(c => c.coverageState === "UNAVAILABLE").length;
   const totalGaps = channels.reduce((a, c) => a + c.gapCount, 0);
@@ -485,7 +488,7 @@ function SessionIntelligenceStrip({
       }}
     >
       <IntelCell label="SYMBOLS OBSERVED" value={symbolCount} tone={symbolCount > 0 ? WM.state.ok : WM.text.dim} />
-      <IntelCell label="CHANNELS LIVE" value={liveChannels} tone={liveChannels > 0 ? WM.state.ok : WM.text.dim} />
+      <IntelCell label="CHANNELS OBSERVING" value={observingChannels} tone={observingChannels > 0 ? WM.state.ok : WM.text.dim} />
       <IntelCell label="CHANNELS STALE" value={staleChannels} tone={staleChannels > 0 ? WM.state.warn : WM.text.dim} />
       <IntelCell label="CHANNELS UNAVAILABLE" value={unavailableChannels} tone={unavailableChannels > 0 ? WM.state.warn : WM.text.dim} />
       <IntelCell label="COVERAGE GAPS" value={totalGaps} tone={totalGaps > 0 ? WM.state.warn : WM.state.ok} />
