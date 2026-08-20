@@ -24,8 +24,6 @@ import {
   formatMemoryAge,
   fidelityToTone,
   coverageTone,
-  memoryStateTone,
-  persistenceRightTone,
   relTime,
 } from "@/lib/nectarFormat";
 
@@ -152,16 +150,17 @@ function SymbolHeader({ symbol }: { symbol: string }) {
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <Link
           href="/nectar"
-          aria-label="Back to Nectar Vault"
+          aria-label="Back to Market Evidence"
           style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             color: WM.text.muted, fontSize: 11, letterSpacing: 0.2,
             padding: "6px 10px", borderRadius: 8,
+            minHeight: 44,
             border: `1px solid ${WM.border.hair}`,
             textDecoration: "none",
           }}
         >
-          <ArrowLeft size={12} /> VAULT
+          <ArrowLeft size={12} /> EVIDENCE
         </Link>
         <WmWordmark size="compact" />
       </div>
@@ -244,7 +243,7 @@ function SlotPanels({
       </div>
 
       {/* Big CVD */}
-      <Panel label="CUMULATIVE Δ · CVD" sublabel="Rolling ring buffer over recent live samples. Not persisted.">
+      <Panel label="CUMULATIVE Δ · CVD" sublabel="Rolling ring buffer over recent accepted samples. Not persisted.">
         <BigCvd buffer={slot.cvdSpark} tone={tone} />
       </Panel>
 
@@ -265,7 +264,7 @@ function SlotPanels({
       </div>
 
       {/* Coverage / fidelity truth */}
-      <SectionBanner number="2" label="TRADE CHANNEL COVERAGE" tagline="From the Nectar collector's per-channel coverage map." />
+      <SectionBanner number="2" label="TRADE CHANNEL COVERAGE" tagline="From recorded per-channel evidence." />
       <div
         style={{
           display: "grid",
@@ -343,7 +342,7 @@ function ClearSlotButton({ symbol, tapeSource }: { symbol: string; tapeSource: s
           }}
         >
           Delete {symbol}&apos;s browser-local session stats?
-          Does not clear Nectar channels, coverage receipts, or server data.
+          Does not clear channel-coverage receipts or server data.
         </span>
         <button
           type="button"
@@ -388,12 +387,12 @@ function ClearSlotButton({ symbol, tapeSource }: { symbol: string; tapeSource: s
     <button
       type="button"
       onClick={() => setConfirming(true)}
-      aria-label={`Clear ${symbol}'s browser-local session stats. Does not clear Nectar channels, coverage receipts, or server-side data.`}
+      aria-label={`Clear ${symbol}'s browser-local session stats. Does not clear channel-coverage receipts or server-side data.`}
       title={
         `Deletes only ${symbol}'s browser-local session summary stats ` +
         `(Δ, buy/sell vol, trade count, big-trade count, horizon, CVD samples).\n\n` +
         `Does NOT clear:\n` +
-        `  · sessionNectar channel-coverage receipts for ${symbol}\n` +
+        `  · channel-coverage receipts for ${symbol}\n` +
         `  · coverage-continuity records\n` +
         `  · any server-side coverage or acknowledgement\n` +
         `  · raw executed prints (WM does not store them today)`
@@ -422,7 +421,7 @@ function CoverageReceipts({ channels }: { channels: readonly MarketChannelCovera
       <SectionBanner
         number="3"
         label="COVERAGE RECEIPTS"
-        tagline="Every channel the Nectar collector has recorded for this symbol. Operational receipts only — no raw payloads retained."
+        tagline="Recorded channel health for this symbol. Operational receipts only — no raw payloads retained."
       />
       <div
         style={{
@@ -432,21 +431,13 @@ function CoverageReceipts({ channels }: { channels: readonly MarketChannelCovera
         }}
       >
         {channels.map((ch, i) => (
-          <Panel key={`${ch.instrumentId}::${ch.channel}::${ch.providerPath}::${i}`} label={`${ch.channel.toUpperCase()} · ${ch.providerPath}`}>
+          <Panel key={`${ch.instrumentId}::${ch.channel}::${ch.providerPath}::${i}`} label={ch.channel.toUpperCase()}>
             <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
               <ReceiptRow label="Coverage state" value={ch.coverageState} tone={coverageTone(ch.coverageState)} />
-              <ReceiptRow label="Memory state" value={ch.memoryState} tone={memoryStateTone(ch.memoryState)} />
               <ReceiptRow label="Fidelity class" value={ch.fidelity} tone={fidelityToTone(ch.fidelity)} />
-              <ReceiptRow label="Persistence right" value={ch.persistenceRight} tone={persistenceRightTone(ch.persistenceRight)} />
-              <ReceiptRow label="Rights policy" value={ch.rightsPolicyId} />
               <ReceiptRow label="Observed events" value={ch.observedEventCount.toLocaleString()} tone={ch.observedEventCount > 0 ? WM.state.ok : WM.text.dim} />
               <ReceiptRow label="Gaps" value={ch.gapCount > 0 ? String(ch.gapCount) : "None"} tone={ch.gapCount > 0 ? WM.state.warn : WM.state.ok} />
               <ReceiptRow label="Last event" value={ch.lastEventAt ? relTime(ch.lastEventAt) : "—"} />
-              {ch.detail && (
-                <div style={{ marginTop: 4, fontSize: 11, lineHeight: 1.5, color: WM.text.body, borderTop: `1px dashed ${WM.border.hair}`, paddingTop: 8 }}>
-                  {ch.detail}
-                </div>
-              )}
             </div>
           </Panel>
         ))}
@@ -502,7 +493,7 @@ function UnobservedState({ symbol, onOpen }: { symbol: string; onOpen: () => voi
         WM has not observed any real trades for this symbol in the current tab.
       </div>
       <div style={{ marginTop: 8, fontSize: 11, color: WM.text.dim }}>
-        Open it on the chart and let a live tape stream in — this page will populate as observation begins.
+        Open it on the chart and let market observations arrive — this page will populate as observation begins.
       </div>
       <div style={{ marginTop: 18, display: "inline-flex", gap: 8 }}>
         <button
@@ -528,9 +519,10 @@ function UnobservedState({ symbol, onOpen }: { symbol: string; onOpen: () => voi
             fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800,
             textDecoration: "none",
             display: "inline-flex", alignItems: "center",
+            minHeight: 44,
           }}
         >
-          Back to Vault
+          Back to Market Evidence
         </Link>
       </div>
     </div>

@@ -112,23 +112,23 @@ export default function NectarVaultPage() {
           const gaps = (nectar?.channels ?? []).reduce((a, c) => a + c.gapCount, 0);
           const channelCount = nectar?.channels.length ?? 0;
           return (
-            <ContextRibbonContainer ariaLabel="Nectar Vault context ribbon">
+            <ContextRibbonContainer ariaLabel="Market Evidence context ribbon">
               <ContextRibbonTile
-                label="VAULT"
+                label="EVIDENCE"
                 value={known.length === 0 ? "EMPTY" : `${known.length} SYMBOL${known.length === 1 ? "" : "S"}`}
-                detail={known.length === 0 ? "no observations yet" : "with retained tape memory"}
+                detail={known.length === 0 ? "no browser-local observations" : "with browser-retained summaries"}
                 tone={known.length === 0 ? "unknown" : "resolved"}
               />
               <ContextRibbonTile
-                label="TAPE TOTAL"
+                label="TRADES OBSERVED"
                 value={totalTrades === 0 ? "0" : totalTrades.toLocaleString("en-US")}
-                detail={totalTrades === 0 ? "browser-local memory empty" : "trades observed across symbols"}
+                detail={totalTrades === 0 ? "no browser-local observations" : "trades observed across symbols"}
                 tone={totalTrades === 0 ? "unknown" : "resolved"}
               />
               <ContextRibbonTile
                 label="CHANNELS"
                 value={channelCount === 0 ? "NONE" : String(channelCount)}
-                detail={channelCount === 0 ? "no Nectar coverage yet" : gaps > 0 ? `${gaps} coverage gap${gaps === 1 ? "" : "s"}` : "no gaps recorded"}
+                detail={channelCount === 0 ? "no channel coverage yet" : gaps > 0 ? `${gaps} coverage gap${gaps === 1 ? "" : "s"}` : "no gaps recorded"}
                 tone={channelCount === 0 ? "unknown" : gaps > 0 ? "warn" : "resolved"}
               />
               <ContextRibbonTile
@@ -174,7 +174,7 @@ export default function NectarVaultPage() {
             <SectionBanner
               number="1"
               label="OBSERVED SYMBOLS"
-              tagline={known.length === 0 ? "No trades observed yet this session." : `${known.length} symbol${known.length === 1 ? "" : "s"} with retained tape memory.`}
+              tagline={known.length === 0 ? "No trades observed yet this session." : `${known.length} symbol${known.length === 1 ? "" : "s"} with browser-retained summaries.`}
             />
             {known.length > 0 && (
               <div style={{ display: "inline-flex", gap: 8 }}>
@@ -280,7 +280,7 @@ function ExportSessionButton() {
         exportedAtIso: new Date().toISOString(),
         retentionTier: "browser-summary",
         rawPayloadsIncluded: false,
-        note: "Browser-local per-symbol summary snapshot (localStorage-backed, up to 32 slots, 7-day retention). Nectar channel/coverage receipts and server-side coverage are separately owned and not included. Raw executed prints are not stored in WM Pro today.",
+        note: "Browser-local per-symbol summary snapshot (up to 32 slots, 7-day retention). Channel-coverage receipts and server-side coverage are separately owned and not included. Raw executed prints are not stored in WM Pro today.",
         sessionNectar: {
           schemaVersion: snapshot.schemaVersion,
           startedAt: snapshot.startedAt,
@@ -296,7 +296,7 @@ function ExportSessionButton() {
       const a = document.createElement("a");
       const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
       a.href = url;
-      a.download = `wm-nectar-session-${stamp}.json`;
+      a.download = `wm-market-evidence-session-${stamp}.json`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -308,9 +308,10 @@ function ExportSessionButton() {
       type="button"
       onClick={onDownload}
       disabled={busy}
-      aria-label="Export session Nectar as JSON"
-      title="Download every observed symbol's browser-local session-stats snapshot + the sessionNectar channel snapshot as JSON. Browser-local tier only; server-side data and raw prints are not included."
+      aria-label="Export session market evidence as JSON"
+      title="Download observed browser-local symbol summaries and channel evidence as JSON. Server-side data and raw prints are not included."
       style={{
+        minHeight: 44,
         padding: "7px 12px", borderRadius: 8,
         border: `1px solid ${WM.border.line}`,
         background: "transparent",
@@ -354,7 +355,7 @@ function ClearAllButton({ knownCount }: { knownCount: number }) {
             forget. */}
         <span style={{ fontSize: 10, letterSpacing: 0.24, color: WM.text.muted, maxWidth: 320 }}>
           Delete browser-local session stats for {knownCount} symbol{knownCount === 1 ? "" : "s"}?
-          Does not clear Nectar channels, coverage receipts, or server data.
+          Does not clear channel-coverage receipts or server data.
         </span>
         <button
           type="button"
@@ -399,12 +400,12 @@ function ClearAllButton({ knownCount }: { knownCount: number }) {
     <button
       type="button"
       onClick={() => setConfirming(true)}
-      aria-label="Clear all browser-local session stats across every symbol. Does not clear Nectar channels, coverage receipts, or server-side data."
+      aria-label="Clear all browser-local session stats across every symbol. Does not clear channel-coverage receipts or server-side data."
       title={
         "Deletes only browser-local session summary stats (Δ, volumes, " +
         "trade counts, horizons, CVD samples) for every observed symbol.\n\n" +
         "Does NOT clear:\n" +
-        "  · sessionNectar channel-coverage receipts\n" +
+        "  · channel-coverage receipts\n" +
         "  · coverage-continuity records\n" +
         "  · any server-side coverage or acknowledgement\n" +
         "  · raw executed prints (WM does not store them today)"
@@ -547,6 +548,7 @@ function VaultHeader() {
             display: "inline-flex", alignItems: "center", gap: 6,
             color: WM.text.muted, fontSize: 11, letterSpacing: 0.2,
             padding: "6px 10px", borderRadius: 8,
+            minHeight: 44,
             border: `1px solid ${WM.border.hair}`,
             textDecoration: "none",
           }}
@@ -562,7 +564,7 @@ function VaultHeader() {
           fontFamily: "Georgia, 'Times New Roman', serif",
         }}
       >
-        Nectar Vault
+        Market Evidence
       </div>
     </header>
   );
@@ -618,8 +620,8 @@ function VaultHero({
             maxWidth: 640,
           }}
         >
-          Browser-local per-symbol memory (localStorage-backed, up to 32 symbols, 7-day retention).
-          Every real trade this browser sees enters the Vault under the symbol it happened on.
+          Browser-local per-symbol evidence summaries (up to 32 symbols, 7-day retention).
+          Every real trade this browser observes is attributed to the symbol where it happened.
           Switching symbols does not erase prior symbols. Nothing here is fabricated — if a symbol
           is missing, this browser has never observed it in that window.
         </div>
@@ -633,7 +635,7 @@ function VaultHero({
               color: WM.text.dim,
               fontWeight: 700,
             }}
-            title="Absolute wall-clock time of the earliest real trade observed across every symbol currently in the Vault. Sourced from sessionSymbolStore horizons — no fabrication."
+            title="Absolute wall-clock time of the earliest real trade observed across every symbol currently retained. No fabricated chronology."
           >
             Earliest observation · {startedAtLabel}
           </div>
@@ -871,8 +873,8 @@ function FidelityChip({ fidelity, tone }: { fidelity: string | null; tone: strin
     <span
       title={
         fidelity
-          ? `Trade-channel fidelity class for this symbol: ${fidelity}. Reflects Nectar collector's observed classification quality this session.`
-          : "No trade-channel fidelity has been recorded yet — either no trades observed for this symbol, or Nectar has not classified any."
+          ? `Trade-channel fidelity class for this symbol: ${fidelity}. Reflects the recorded channel classification this session.`
+          : "No trade-channel fidelity has been recorded yet — either no trades were observed for this symbol, or no channel classification is available."
       }
       style={{
         display: "inline-flex", alignItems: "center", gap: 4,
@@ -973,16 +975,17 @@ function EmptyVault() {
       }}
     >
       <div style={{ color: WM.text.body, fontSize: 14, marginBottom: 6 }}>
-        The Vault is empty — for now.
+        No market evidence yet.
       </div>
       <div style={{ fontSize: 11, letterSpacing: 0.16 }}>
-        Open a chart, let real trades stream in, and each symbol will appear here with its own retained memory.
+        Open a chart and let accepted market observations arrive. Each symbol will appear here with its browser-retained summary.
       </div>
       <div style={{ marginTop: 18 }}>
         <Link
           href="/charts"
           style={{
-            display: "inline-block",
+            display: "inline-flex", alignItems: "center",
+            minHeight: 44,
             padding: "8px 14px",
             border: `1px solid ${WM.border.strong}`,
             borderRadius: 8,
@@ -1012,8 +1015,8 @@ function FooterNote() {
         fontFamily: "Georgia, 'Times New Roman', serif",
       }}
     >
-      Nectar remembers what WM observed. Coverage remembers what WM missed.
-      The Vault will never tell you WM knows something it does not.
+      Market Evidence shows what WM observed. Coverage shows what WM missed.
+      This view never claims WM knows what it did not observe.
     </div>
   );
 }
