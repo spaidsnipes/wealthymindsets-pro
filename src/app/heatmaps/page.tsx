@@ -7,6 +7,7 @@ import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { HEATMAP_TF_ORDER } from "@/lib/timeframes";
 import { QualityBadge } from "@/components/ui/DataHealth";
 import type { ContextDataState } from "@/lib/marketData/contextDataTruth";
+import { summarizeObservedChange } from "@/lib/heatmapAggregateTruth";
 import WmWordmark from "@/components/brand/WmWordmark";
 
 /* ═══════════════════════════════════════════════════════════
@@ -1009,9 +1010,9 @@ export default function HeatmapsPage() {
           const sectorPct = sector.weight / totalWeight;
           // Compute a representative sector avg pct
           const allStocks = sector.industries.flatMap(i => i.stocks);
-          const avgPct = allStocks.length
-            ? allStocks.reduce((sum, st) => sum + (pcts[st.sym] ?? 0), 0) / allStocks.length
-            : 0;
+          const sectorChange = summarizeObservedChange(allStocks, pcts);
+          const avgPct = sectorChange.value;
+          const sectorCoverage = `${sectorChange.observedCount}/${sectorChange.totalCount} rows`;
 
           return (
             <div
@@ -1025,17 +1026,25 @@ export default function HeatmapsPage() {
               }}
             >
               {/* Sector header */}
-              <div style={{
+              <div
+                aria-label={`${sector.label}: equal-weight observed average ${avgPct === null ? "unavailable" : `${avgPct >= 0 ? "+" : ""}${avgPct.toFixed(2)}%`}; ${sectorCoverage}`}
+                title={`Equal-weight average of finite observed rows · ${sectorCoverage}`}
+                style={{
                 fontSize: 10, fontWeight: 900, color: "#8892A0",
                 textTransform: "uppercase", letterSpacing: 0.8,
-                display: "flex", alignItems: "center", gap: 6, padding: "2px 4px",
+                display: "flex", alignItems: "center", gap: 6, padding: "2px 4px", flexWrap: "wrap",
               }}>
                 <span>{sector.label}</span>
                 <span style={{
                   fontSize: 10, fontWeight: 700,
-                  color: avgPct >= 0 ? "#00D4AA" : "#FF4D6A",
+                  color: avgPct === null ? "#8892A0" : avgPct >= 0 ? "#00D4AA" : "#FF4D6A",
                 }}>
-                  {avgPct >= 0 ? "+" : ""}{avgPct.toFixed(2)}%
+                  EW {avgPct === null ? "—" : `${avgPct >= 0 ? "+" : ""}${avgPct.toFixed(2)}%`}
+                </span>
+                <span style={{ fontSize: 9, fontWeight: 700, color: "#687385" }}>
+                  {sectorCoverage}{sectorChange.observedCount < sectorChange.totalCount
+                    ? sectorChange.observedCount === 0 ? " · unavailable" : " · partial"
+                    : ""}
                 </span>
               </div>
 
@@ -1043,9 +1052,6 @@ export default function HeatmapsPage() {
               {sector.industries.map(industry => {
                 const industryStocks = industry.stocks;
                 const totalMcap = industryStocks.reduce((s, st) => s + st.mcap, 0);
-                const industryPct = industryStocks.length
-                  ? industryStocks.reduce((sum, st) => sum + (pcts[st.sym] ?? 0), 0) / industryStocks.length
-                  : 0;
 
                 return (
                   <div
