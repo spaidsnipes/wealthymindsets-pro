@@ -16,6 +16,7 @@ import { WMLogo } from "@/components/ui/WMLogo";
 import WmWordmark from "@/components/brand/WmWordmark";
 import MobileSessionPill from "@/components/layout/MobileSessionPill";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
+import { useShellModalFocus } from "@/components/layout/useShellModalFocus";
 import { TickerTape } from "@/components/layout/TickerTape";
 import { SpadeBotButton } from "@/components/layout/SpaidBotButton";
 import { MusicPlayer } from "@/components/layout/MusicPlayer";
@@ -131,11 +132,18 @@ const CAT_COLOR: Record<string,string> = {
 const DEFAULT_QUICK = ["NQ1!","ES1!","BTC","AAPL","NVDA","TSLA","SPY","GC1!"];
 
 /* ── Search Panel ────────────────────────────────────────── */
-function SearchPanel({ onClose }: { onClose: () => void }) {
+function SearchPanel({
+  onClose,
+  fallbackTriggerRef,
+}: {
+  onClose: () => void;
+  fallbackTriggerRef: React.RefObject<HTMLButtonElement | null>;
+}) {
   const [query, setQuery] = useState("");
   const { setActiveSymbol } = useActiveSymbol();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Live Finnhub search results
@@ -160,7 +168,12 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
   };
   const removeQuick = (sym: string) => saveQuick(quickSyms.filter(s => s !== sym));
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  const onDialogKeyDown = useShellModalFocus({
+    panelRef,
+    initialFocusRef: inputRef,
+    fallbackTriggerRef,
+    onClose,
+  });
 
   // Local filtered results — matches symbol, label, and aliases
   const qLow = query.toLowerCase().replace(/[/\-_\s!]/g, "");
@@ -216,25 +229,35 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
       const target = allResults[0]?.sym ?? (query.trim().toUpperCase() || null);
       if (target) pick(target);
     }
-    if (e.key === "Escape") onClose();
   };
 
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[300] flex items-start justify-center pt-20"
+      className="fixed inset-0 z-[300] flex items-start justify-center overflow-hidden p-4 sm:items-center"
       style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <motion.div
+        ref={panelRef}
+        id="wm-symbol-search-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wm-symbol-search-title"
+        aria-describedby="wm-symbol-search-description"
         initial={{ scale: 0.95, y: -10 }} animate={{ scale: 1, y: 0 }}
-        className="w-full max-w-xl bg-wm-dark border border-wm-border rounded-2xl shadow-2xl overflow-hidden"
+        className="max-h-[calc(100dvh-32px)] w-full max-w-xl overflow-y-auto overscroll-contain rounded-2xl border border-wm-border bg-wm-dark shadow-2xl"
         onClick={e => e.stopPropagation()}
+        onKeyDown={onDialogKeyDown}
       >
+        <h2 id="wm-symbol-search-title" className="sr-only">Search symbols</h2>
+        <p id="wm-symbol-search-description" className="sr-only">Search markets or manage browser quick access symbols.</p>
         {/* Input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-wm-border">
           <Search size={16} className="text-wm-text-dim shrink-0" />
+          <label htmlFor="wm-symbol-search-input" className="sr-only">Search symbols</label>
           <input
+            id="wm-symbol-search-input"
             ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
@@ -242,13 +265,16 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
             placeholder="Search any symbol — NQ1!, AAPL, RIVN, BTC, EUR/USD…"
             className="flex-1 bg-transparent text-sm text-wm-text outline-none placeholder-wm-text-dim"
           />
-          {searching && <div className="w-3 h-3 rounded-full border-2 border-wm-blue border-t-transparent animate-spin shrink-0" />}
+          {searching && <div aria-hidden="true" className="w-3 h-3 rounded-full border-2 border-wm-blue border-t-transparent animate-spin shrink-0" />}
           {query && !searching && (
-            <button onClick={() => { setQuery(""); setLiveResults([]); }} className="text-wm-text-dim hover:text-wm-text">
-              <X size={14} />
+            <button type="button" aria-label="Clear symbol search" onClick={() => { setQuery(""); setLiveResults([]); }} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-wm-text-dim hover:bg-wm-surface hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
+              <X size={14} aria-hidden="true" />
             </button>
           )}
           <kbd className="text-[10px] text-wm-text-dim border border-wm-border rounded px-1.5 py-0.5">ESC</kbd>
+        </div>
+        <div role="status" aria-live="polite" className="sr-only">
+          {searching ? "Searching" : query ? `${allResults.length} result${allResults.length === 1 ? "" : "s"}` : "Quick access"}
         </div>
 
         {/* Results */}
@@ -258,7 +284,8 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
               <button
                 key={`${s.sym}-${i}`}
                 onClick={() => pick(s.sym)}
-                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-wm-surface transition-colors text-left"
+                aria-label={`Open ${s.sym}, ${s.label}, ${s.cat}`}
+                className="flex min-h-11 w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-wm-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-wm-gold"
               >
                 <div className="w-10 h-8 rounded-lg bg-wm-surface flex items-center justify-center text-[10px] font-black text-wm-text border border-wm-border shrink-0">
                   {s.sym.slice(0, 4)}
@@ -280,7 +307,8 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
             <div className="text-wm-text-dim text-sm mb-1">No results for &ldquo;{query}&rdquo;</div>
             <button
               onClick={() => pick(query.trim().toUpperCase())}
-              className="mt-1 text-wm-blue text-xs hover:underline"
+              aria-label={`Open ${query.trim().toUpperCase()} as entered`}
+              className="mt-1 inline-flex min-h-11 items-center rounded-lg px-3 text-xs text-wm-blue hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
             >
               Open &ldquo;{query.trim().toUpperCase()}&rdquo; anyway →
             </button>
@@ -291,16 +319,18 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
           <div className="px-4 py-3">
             <div className="flex items-center justify-between mb-2">
               <div className="text-[10px] text-wm-text-dim uppercase tracking-wider">Quick access</div>
-              <button onClick={() => setEditingQuick(v => !v)}
-                className="text-[10px] text-wm-blue hover:text-wm-blue/80 transition-colors">
+              <button type="button" onClick={() => setEditingQuick(v => !v)}
+                aria-label={editingQuick ? "Finish editing quick access" : "Edit quick access"}
+                className="inline-flex min-h-11 items-center rounded-lg px-2 text-[10px] text-wm-blue transition-colors hover:text-wm-blue/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
                 {editingQuick ? "Done" : "✎ Edit"}
               </button>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {quickSyms.map(s => (
                 <div key={s} className="relative group">
-                  <button onClick={() => editingQuick ? removeQuick(s) : pick(s)}
-                    className={`px-2.5 py-1 rounded-lg bg-wm-surface border text-xs font-bold transition-all ${
+                  <button type="button" onClick={() => editingQuick ? removeQuick(s) : pick(s)}
+                    aria-label={editingQuick ? `Remove ${s} from quick access` : `Open ${s}`}
+                    className={`min-h-11 px-2.5 py-1 rounded-lg bg-wm-surface border text-xs font-bold transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold ${
                       editingQuick
                         ? "border-wm-red/50 text-wm-red hover:bg-wm-red/10"
                         : "border-wm-border text-wm-text hover:border-wm-green/50 hover:text-wm-green"
@@ -312,14 +342,17 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
               {editingQuick && (
                 <div className="flex items-center gap-1">
                   <input
+                    aria-label="Quick access symbol"
                     value={newQuickInput}
                     onChange={e => setNewQuickInput(e.target.value.toUpperCase())}
                     onKeyDown={e => { if (e.key === "Enter") addQuick(newQuickInput); }}
                     placeholder="+ Add…"
-                    className="w-20 px-2 py-0.5 rounded-lg bg-wm-surface border border-wm-border text-xs text-wm-text outline-none focus:border-wm-blue/50 placeholder-wm-text-dim"
+                    className="h-11 w-24 px-2 py-0.5 rounded-lg bg-wm-surface border border-wm-border text-xs text-wm-text outline-none focus:border-wm-blue/50 placeholder-wm-text-dim"
                   />
-                  <button onClick={() => addQuick(newQuickInput)}
-                    className="text-wm-green text-xs font-bold hover:text-wm-green/80">
+                  <button type="button" onClick={() => addQuick(newQuickInput)}
+                    disabled={!newQuickInput.trim() || quickSyms.includes(newQuickInput.trim().toUpperCase())}
+                    aria-label="Add quick access symbol"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-xs font-bold text-wm-green hover:text-wm-green/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold disabled:cursor-not-allowed disabled:opacity-40">
                     ✓
                   </button>
                 </div>
@@ -868,6 +901,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const [settingsOpen,  setSettingsOpen]  = useState(false);
   const [profileOpen,   setProfileOpen]   = useState(false);
   const [mounted,       setMounted]       = useState(false);
+  const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const notificationsTriggerRef = useRef<HTMLButtonElement>(null);
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
@@ -881,6 +915,13 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const { user, signOut, signOutAllDevices } = useAuth();
 
   const unreadCount = INITIAL_NOTIFS.filter(n => !n.read).length;
+
+  const openSearch = useCallback(() => {
+    setNotifsOpen(false);
+    setSettingsOpen(false);
+    setProfileOpen(false);
+    setSearchOpen(true);
+  }, []);
 
   React.useEffect(() => { setMounted(true); }, []);
 
@@ -910,15 +951,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        setSearchOpen(true);
-      }
-      if (e.key === "Escape") {
-        setSearchOpen(false);
+        openSearch();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [openSearch]);
 
   // Skip shell on auth pages — MUST be after all hooks to keep hook order stable
   if (isPublicAuthPath(pathname)) {
@@ -967,8 +1005,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
           {/* Search — opens modal */}
           <button
-            onClick={() => setSearchOpen(true)}
+            ref={searchTriggerRef}
+            onClick={openSearch}
             aria-label="Search symbols"
+            aria-haspopup="dialog"
+            aria-expanded={searchOpen}
+            aria-controls="wm-symbol-search-dialog"
             className="wm-shell-action flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors group"
             title="Search symbols (Ctrl+K)"
           >
@@ -1257,7 +1299,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       {/* ── Overlays ─────────────────────────────────────────── */}
       {mounted && (
         <AnimatePresence>
-          {searchOpen   && <SearchPanel        key="search"   onClose={() => setSearchOpen(false)} />}
+          {searchOpen   && <SearchPanel        key="search"   onClose={() => setSearchOpen(false)} fallbackTriggerRef={searchTriggerRef} />}
           {notifsOpen   && <NotificationsPanel key="notifs" onClose={() => setNotifsOpen(false)} fallbackTriggerRef={notificationsTriggerRef} />}
           {settingsOpen && <SettingsPanel key="settings" onClose={() => setSettingsOpen(false)} fallbackTriggerRef={settingsTriggerRef} />}
           {brokerOpen   && <BrokerConnectPanel key="broker"   onClose={() => setBrokerOpen(false)} />}

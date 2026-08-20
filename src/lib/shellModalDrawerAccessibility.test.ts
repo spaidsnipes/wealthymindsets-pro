@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const source = (path: string) => readFileSync(resolve(__dirname, path), "utf8");
 const drawer = source("../components/layout/ShellModalDrawer.tsx");
+const modalFocus = source("../components/layout/useShellModalFocus.ts");
 const layout = source("../components/layout/MainLayout.tsx");
 
 describe("shared shell modal drawer accessibility", () => {
@@ -11,14 +12,16 @@ describe("shared shell modal drawer accessibility", () => {
     expect(drawer).toContain('role="dialog"');
     expect(drawer).toContain('aria-modal="true"');
     expect(drawer).toContain("aria-labelledby={titleId}");
-    expect(drawer).toContain("closeRef.current?.focus()");
-    expect(drawer).toContain('event.key === "Escape"');
-    expect(drawer).toContain('event.key !== "Tab"');
-    expect(drawer).toContain("event.shiftKey && active === first");
-    expect(drawer).toContain("!event.shiftKey && active === last");
-    expect(drawer).toContain("opener?.isConnected");
-    expect(drawer).toContain("fallbackTriggerRef.current?.focus()");
-    expect(drawer).toContain("active !== document.body");
+    expect(drawer).toContain("useShellModalFocus");
+    expect(drawer).toContain("initialFocusRef: closeRef");
+    expect(modalFocus).toContain("initialFocusRef.current?.focus()");
+    expect(modalFocus).toContain('event.key === "Escape"');
+    expect(modalFocus).toContain('event.key !== "Tab"');
+    expect(modalFocus).toContain("event.shiftKey && active === first");
+    expect(modalFocus).toContain("!event.shiftKey && active === last");
+    expect(modalFocus).toContain("opener?.isConnected");
+    expect(modalFocus).toContain("fallbackTriggerRef.current?.focus()");
+    expect(modalFocus).toContain("active !== document.body");
   });
 
   it("keeps the shared drawer on-screen, independently scrollable, and safe-area aware", () => {
