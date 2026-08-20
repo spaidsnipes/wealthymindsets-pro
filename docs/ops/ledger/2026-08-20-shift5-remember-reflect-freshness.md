@@ -15,6 +15,7 @@ Status: **3 breakthroughs on branch `shift5-remember-reflect`, pushed to origin,
 - `451bd98` feat(journal): 'What changed since' — REMEMBER→REFLECT compare-to-current.
 - `6f0b2aa` feat(ribbon): OBSERVED tile shows real 'last trade N ago' freshness + warns when stale.
 - `be2225e` feat(mobile): phone session pill shows real last-trade age + shares freshness thresholds.
+- `5df8224` feat(nectar): Vault remembers your last visit — 'what changed since' + shared reader.
 
 ## Subsystem(s) touched
 `src/lib/traderMemory/nectarComparison.ts` (new), `src/lib/marketData/tradeFreshness.ts` (new), `src/app/journal/page.tsx`, `src/components/command/CommandContextRibbon.tsx`, `src/components/layout/MobileSessionPill.tsx`.
@@ -36,8 +37,13 @@ Status: **3 breakthroughs on branch `shift5-remember-reflect`, pushed to origin,
 - **Change:** removed the duplicate constant; adopted formatTradeAge; status/aria-label/title carry the real age; compact visible age after the trade count (amber when stale).
 - **Proof:** 0 tsc; full suite (pill now covered by tradeFreshness suite); clean build.
 
+### B4 · `5df8224` — Vault 'since your last visit' + shared store reader
+- **Failure:** /nectar/[symbol] showed only current stats; the Vault (durable-memory surface) had no memory of your prior visit.
+- **Change:** new `currentNectar.currentNectarForSymbol` (single store→aggregate reader, journal's local copy removed); new `nectarLastVisit` (pure visitFromAggregate + fail-closed parseVisit; SSR-safe localStorage). Vault reads the prior visit once, compares via selectNectarComparison, renders a 'Since your last visit' panel (honest across first-visit / reset / no-new / growth); delta accumulates live via the 1s tick. Responsive auto-fit grid.
+- **Proof:** 6 tests; 0 tsc; full suite 706/706; clean build.
+
 ## Tests / build proof
-0 prod tsc errors throughout. Full suite **700/700** (baseline ~681 at main 4676de9 + 19 new: 10 nectarComparison + 9 tradeFreshness). Clean production `next build` (worktree with APFS-cloned node_modules + copied gitignored .env.local — same approach as prior shift).
+0 prod tsc errors throughout. Full suite **706/706** (baseline ~681 at main 4676de9 + 25 new: 10 nectarComparison + 9 tradeFreshness + 6 nectarLastVisit). Clean production `next build` (worktree with APFS-cloned node_modules + copied gitignored .env.local — same approach as prior shift).
 
 ## Deployment state
 Branch `shift5-remember-reflect` on origin. NOT merged to main. NOT deployed. WM production unchanged. Merge deferred: main is heavily advanced and a parallel team is mid-shift on hero-chronology/heatmap files (none of which I touched).
