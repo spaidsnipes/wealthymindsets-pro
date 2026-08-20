@@ -30,6 +30,7 @@ import {
   getKnownSessionSymbols,
   subscribeSessionSymbolStore,
 } from "@/lib/marketData/sessionSymbolStore";
+import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
 
 const FRESH_WINDOW_MS = 30_000; // "live" = fresh trade within 30s
 
@@ -75,6 +76,15 @@ export function MobileSessionPill(): React.ReactElement | null {
   const symbol = (activeSymbol || "").toUpperCase() || "TSLA";
   const reading = useActiveSymbolReading(symbol);
 
+  // Canonical session identity — RTH / ETH / OVERNIGHT / CLOSED. Same
+  // helper the Command Deck ribbon and every chart-state publisher uses;
+  // never assemble literals.
+  const identity = React.useMemo(
+    () => canonicalMarketStateIdentity({ symbol, timeframe: "1m", extHours: false }),
+    [symbol],
+  );
+  const session = identity.session.toUpperCase();
+
   if (!reading.hydrated) return null;
 
   const now = Date.now();
@@ -92,8 +102,8 @@ export function MobileSessionPill(): React.ReactElement | null {
   return (
     <Link
       href={`/nectar/${encodeURIComponent(symbol)}`}
-      aria-label={`${symbol} — ${status}, ${detail}. Open Nectar detail.`}
-      title={`${symbol} · ${status}\n${detail}`}
+      aria-label={`${symbol} — session ${session}, ${status}, ${detail}. Open Nectar detail.`}
+      title={`${symbol} · ${session}\n${status} — ${detail}`}
       className="wm-mobile-session-pill"
       style={{
         display: "inline-flex",
@@ -124,6 +134,22 @@ export function MobileSessionPill(): React.ReactElement | null {
         }}
       />
       <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{symbol}</span>
+      <span
+        style={{
+          color: "#c9a55c",
+          fontWeight: 500,
+          letterSpacing: 0.3,
+          fontSize: 8,
+          padding: "1px 4px",
+          borderRadius: 3,
+          border: "1px solid rgba(201,165,92,0.32)",
+          background: "rgba(201,165,92,0.06)",
+          lineHeight: 1.1,
+        }}
+        aria-hidden="true"
+      >
+        {session}
+      </span>
       {observed && (
         <span style={{ color: "#8a8271", fontWeight: 500, letterSpacing: 0.3 }}>
           · {reading.trades > 999 ? `${Math.round(reading.trades / 1000)}k` : reading.trades}
