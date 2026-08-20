@@ -57,13 +57,13 @@ function useActiveSymbolReading(symbol: string): SymbolReading {
     const upper = symbol.toUpperCase();
     const rows = getKnownSessionSymbols().filter(s => s.symbol.toUpperCase() === upper && s.slot.stats.tradeCount > 0);
     const trades = rows.reduce((sum, r) => sum + r.slot.stats.tradeCount, 0);
-    // Horizon startedAtSec is oldest observed; there's no lastTradeAt in the
-    // slot shape today. We use the most-recent horizon start across channels
-    // as a proxy — imperfect but honest: it says "at least this old since a
-    // channel was first observed" without inventing a "last trade at" time
-    // that the store does not track.
+    // Real freshness now — lastTradeAtMs is the wall-clock ms of the
+    // most recent trade recorded in that slot (added to the canonical
+    // store this shift). Falls back to horizon start for slots that
+    // hydrated from older persisted schema before the field existed.
     const lastTradeMs = rows.reduce<number | null>((acc, r) => {
-      const t = r.slot.horizon?.startedAtSec != null ? r.slot.horizon.startedAtSec * 1000 : null;
+      const t = r.slot.lastTradeAtMs
+        ?? (r.slot.horizon?.startedAtSec != null ? r.slot.horizon.startedAtSec * 1000 : null);
       if (t == null) return acc;
       return acc == null ? t : Math.max(acc, t);
     }, null);

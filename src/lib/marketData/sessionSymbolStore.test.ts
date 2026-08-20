@@ -36,6 +36,36 @@ describe("sessionSymbolStore — per-symbol persistence across switches", () => 
     expect(eth.horizon?.startedAtSec).toBe(1_700_000_100);
   });
 
+  it("lastTradeAtMs advances to the MOST RECENT trade — real freshness proof", () => {
+    // Freshness downstream (MobileSessionPill, CommandContextRibbon NECTAR
+    // tile) depends on the "most recent trade" stamp being real, not
+    // proxied via horizon start (which stays frozen at first-observation).
+    recordSessionTrade("ETH-USD", "coinbase", { side: "buy",  size: 1, time: 1_700_000_100_000 }, false);
+    const afterFirst = getSessionSymbolSlot("ETH-USD", "coinbase");
+    expect(afterFirst.lastTradeAtMs).toBe(1_700_000_100_000);
+    recordSessionTrade("ETH-USD", "coinbase", { side: "sell", size: 1, time: 1_700_000_500_000 }, false);
+    const afterSecond = getSessionSymbolSlot("ETH-USD", "coinbase");
+    expect(afterSecond.lastTradeAtMs).toBe(1_700_000_500_000);
+    // Horizon stayed at first observation — the two fields serve different roles.
+    expect(afterSecond.horizon?.startedAtSec).toBe(1_700_000_100);
+  });
+
+  it("lastTradeAtMs starts null on a fresh slot with no observations", () => {
+    const fresh = getSessionSymbolSlot("NVDA", "alpaca");
+    expect(fresh.lastTradeAtMs).toBeNull();
+  });
+
+  it("lastTradeAtMs ignores invalid tick times without corrupting state", () => {
+    recordSessionTrade("SPY", "alpaca", { side: "buy", size: 1, time: 1_700_000_000_000 }, false);
+    recordSessionTrade("SPY", "alpaca", { side: "buy", size: 1, time: 0 }, false); // invalid
+    recordSessionTrade("SPY", "alpaca", { side: "buy", size: 1, time: Number.NaN as unknown as number }, false);
+    const spy = getSessionSymbolSlot("SPY", "alpaca");
+    // The last VALID tick time is what stuck.
+    expect(spy.lastTradeAtMs).toBe(1_700_000_000_000);
+    // And trade count still incremented for every recorded trade.
+    expect(spy.stats.tradeCount).toBe(3);
+  });
+
   it("cvd sparkline is per-symbol and capped at 24 points", () => {
     for (let i = 0; i < 30; i++) {
       recordSessionTrade("BTC-USD", "coinbase", { side: "buy", size: 0.01, time: 1_700_000_000_000 + i }, false);

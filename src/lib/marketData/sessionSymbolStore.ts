@@ -36,6 +36,19 @@ export interface SessionSymbolSlot {
   stats: SessionTapeStats;
   horizon: SessionTapeHorizon | null;
   cvdSpark: number[];
+  /**
+   * Wall-clock ms of the most recent trade recorded in this slot.
+   *
+   * Freshness proof for downstream consumers (MobileSessionPill,
+   * CommandContextRibbon NECTAR tile, /nectar horizon labels). Before
+   * this field existed, "fresh" was proxied via horizon.startedAtSec
+   * which is the FIRST observation — invented freshness. Now honest.
+   *
+   * Optional at the type level so persisted data from the pre-field
+   * schema hydrates without loss (validator falls back to `null`,
+   * which downstream consumers treat as "unknown freshness").
+   */
+  lastTradeAtMs?: number | null;
 }
 
 const EMPTY_STATS = (): SessionTapeStats => ({
@@ -116,7 +129,10 @@ function hydrateFromStorage(): void {
       const stats = validateStats(rec.stats) ?? EMPTY_STATS();
       const horizon = validateHorizon(rec.horizon);
       const cvdSpark = validateCvdSpark(rec.cvdSpark);
-      slots.set(key, { stats, horizon, cvdSpark });
+      const lastTradeAtMs = isFiniteNumber(rec.lastTradeAtMs) && rec.lastTradeAtMs > 0
+        ? rec.lastTradeAtMs
+        : null;
+      slots.set(key, { stats, horizon, cvdSpark, lastTradeAtMs });
     }
   } catch { /* corrupt storage → start fresh, never throw during hydration */ }
 }
@@ -193,7 +209,7 @@ export function getSessionSymbolSlot(symbol: string, tapeSource: string): Sessio
   const key = keyFor(symbol, tapeSource);
   let slot = slots.get(key);
   if (!slot) {
-    slot = { stats: EMPTY_STATS(), horizon: null, cvdSpark: [] };
+    slot = { stats: EMPTY_STATS(), horizon: null, cvdSpark: [], lastTradeAtMs: null };
     slots.set(key, slot);
     invalidateKnownCache();
   }
@@ -217,6 +233,13 @@ export function recordSessionTrade(
     if (Number.isFinite(startedAtSec) && startedAtSec > 0) {
       slot.horizon = { sym: symbol, tapeSrc: tapeSource, startedAtSec };
     }
+  }
+
+  // Real freshness stamp — every recorded trade updates the wall-clock
+  // ms so downstream freshness readers no longer have to proxy via the
+  // horizon start. tick.time is provider ms; guard against 0/NaN.
+  if (Number.isFinite(tick.time) && tick.time > 0) {
+    slot.lastTradeAtMs = tick.time;
   }
 }
 
