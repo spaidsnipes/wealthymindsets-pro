@@ -753,11 +753,11 @@ function SettingsPanel({
               <Row label="Subscription" sub="WealthyMindsets PRO — Active">
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-wm-gold/20 text-wm-gold border border-wm-gold/40">PRO</span>
               </Row>
-              <Row label="Data Source" sub="Live market data status">
+              <Row label="Market Data" sub="Status varies by source, symbol, and freshness">
                 {/* WM-CHART-PROV-EMERG-01 (2026-08-09): vendor identity removed
                     from user-visible chrome per Founder directive. Provenance
                     kept internal for the diagnostics inspector. */}
-                <span className="text-xs text-wm-blue font-semibold">Real-time feeds active</span>
+                <span className="text-xs text-wm-blue font-semibold">See contextual data health</span>
               </Row>
               <Row label="Two-Factor Auth" sub="Protect your account with 2FA">
                 <Toggle label="Two-Factor Auth" on={twoFactor} set={setTwoFactor} />
