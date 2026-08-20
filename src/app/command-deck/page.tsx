@@ -490,7 +490,7 @@ function CommandDeckInner() {
                     { n: 2, label: "Direction · Location · Aggression · Response" },
                     { n: 3, label: "Decision Chain (Regime → Management)" },
                     { n: 4, label: "Steward Rules Verdict" },
-                    { n: 5, label: "Data Fidelity · Nectar Memory" },
+                    { n: 5, label: "Data Fidelity · Market Evidence" },
                   ].map((row) => (
                     <div
                       key={row.n}
@@ -656,7 +656,7 @@ function CommandDeckInner() {
             {/* NECTAR / DATA FIDELITY — coverage + freshness at a glance */}
             {state && (
               <div>
-                <SectionBanner number={5} label="Data Fidelity · Nectar Memory" tagline="what did WM actually witness" />
+                <SectionBanner number={5} label="Data Fidelity · Market Evidence" tagline="what did WM actually witness" />
                 <div style={{ height: 12 }} />
               <div
                 style={{

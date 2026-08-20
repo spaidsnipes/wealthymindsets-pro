@@ -311,7 +311,7 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
     })(),
     {
       key: "nectar",
-      label: "NECTAR",
+      label: "OBSERVED",
       value: !nectar.hydrated ? "…" : nectar.channels === 0 ? "NONE YET" : `${nectar.trades.toLocaleString("en-US")}`,
       detail: !nectar.hydrated
         ? undefined
