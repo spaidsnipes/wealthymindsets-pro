@@ -193,10 +193,28 @@ function sessionTone(session: string, connected: boolean): Tone {
   return "unknown";
 }
 
-function dataTone(state: CanonicalMarketState | null, connected: boolean, source: string | null): Tone {
-  if (!connected || source === "unavailable" || !source) return "warn";
-  if (state) return "resolved";
-  return "pending";
+/**
+ * Explicit data-state semantics. Four honest cells:
+ *   LIVE        — state resolved AND wsFeed connected  → live truth
+ *   CACHED      — state resolved BUT wsFeed offline    → last-known truth
+ *   COMPUTING   — wsFeed connected BUT state unresolved (first-load, pre-hydration)
+ *   UNAVAILABLE — wsFeed missing/offline AND no state  → nothing to say
+ */
+type DataState = "LIVE" | "CACHED" | "COMPUTING" | "UNAVAILABLE";
+function dataState(state: CanonicalMarketState | null, connected: boolean, source: string | null): DataState {
+  const feedOn = connected && !!source && source !== "unavailable";
+  if (state && feedOn) return "LIVE";
+  if (state && !feedOn) return "CACHED";
+  if (!state && feedOn) return "COMPUTING";
+  return "UNAVAILABLE";
+}
+function dataTone(ds: DataState): Tone {
+  switch (ds) {
+    case "LIVE":        return "resolved";
+    case "CACHED":      return "warn";      // amber — real data but not being refreshed
+    case "COMPUTING":   return "pending";
+    case "UNAVAILABLE": return "warn";
+  }
 }
 
 function availableRTone(vm: AvailableRVM | null): Tone {
@@ -275,13 +293,21 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
       detail: wsConnected ? "connected" : "disconnected",
       tone: sessionTone(session, wsConnected),
     },
-    {
-      key: "data",
-      label: "DATA",
-      value: state ? "RESOLVED" : (wsConnected ? "COMPUTING" : "UNAVAILABLE"),
-      detail: wsSource && wsSource !== "unavailable" ? wsSource : (wsConnected ? "no source" : "offline"),
-      tone: dataTone(state, wsConnected, wsSource),
-    },
+    (() => {
+      const ds = dataState(state, wsConnected, wsSource);
+      const dsDetail =
+        ds === "LIVE"        ? (wsSource ?? "streaming") :
+        ds === "CACHED"      ? "last-known · feed offline" :
+        ds === "COMPUTING"   ? (wsSource ? `${wsSource} · resolving` : "resolving") :
+        /* UNAVAILABLE */      "no feed · no state";
+      return {
+        key: "data",
+        label: "DATA",
+        value: ds,
+        detail: dsDetail,
+        tone: dataTone(ds),
+      };
+    })(),
     {
       key: "nectar",
       label: "NECTAR",
