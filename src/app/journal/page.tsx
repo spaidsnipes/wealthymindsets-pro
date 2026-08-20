@@ -1680,16 +1680,16 @@ Trade the system, trust the process, winners every day 🚀`,
                   nothing observed at journal-creation, and we say so. */}
               {selected.nectarSnapshot === null && (
                 <div className="mb-4">
-                  <div className="text-xs font-bold text-wm-text-muted mb-1.5">🧠 Nectar at Journal Time</div>
+                  <div className="text-xs font-bold text-wm-text-muted mb-1.5">Market Evidence at Journal Time</div>
                   <div className="rounded-lg border border-wm-border/60 bg-wm-surface/40 p-3 text-xs text-wm-text-dim italic">
-                    No Nectar observations for {selected.symbol} at the moment this entry was logged.
+                    No market observations for {selected.symbol} were available when this entry was logged.
                   </div>
                 </div>
               )}
               {selected.nectarSnapshot && (
                 <div className="mb-4">
                   <div className="text-xs font-bold text-wm-text-muted mb-1.5 flex items-center gap-2">
-                    🧠 Nectar at Journal Time
+                    Market Evidence at Journal Time
                     <span className="text-[9px] text-wm-text-dim font-normal">captured {new Date(selected.nectarSnapshot.capturedAtMs).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).toLowerCase()}</span>
                   </div>
                   <div className="rounded-lg border border-wm-gold/25 bg-wm-gold/5 p-3">
@@ -1721,26 +1721,16 @@ Trade the system, trust the process, winners every day 🚀`,
                         <span>Last trade {new Date(selected.nectarSnapshot.lastTradeAtMs).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
                       )}
                     </div>
-                    {/* Loop completion — Journal→Nectar cross-navigation.
-                        Trader can jump from a reflected entry into the
-                        Vault to see what changed since journal-time, OR
-                        open the chart with the same canonical symbol. */}
+                    {/* Return to the canonical public workspace while the
+                        private snapshot owner remains unchanged. */}
                     <div className="mt-3 pt-2 border-t border-wm-gold/15 flex flex-wrap items-center gap-2">
                       <a
-                        href={`/nectar/${encodeURIComponent(selected.symbol)}`}
-                        aria-label={`See current Nectar detail for ${selected.symbol}`}
-                        className="inline-flex items-center gap-1 text-[10px] font-bold text-wm-gold hover:text-wm-gold/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold rounded px-2 py-1"
-                        style={{ minHeight: 28 }}
-                      >
-                        See what changed since →
-                      </a>
-                      <a
                         href={`/command-deck?symbol=${encodeURIComponent(selected.symbol)}`}
-                        aria-label={`Open Command Deck focused on ${selected.symbol}`}
-                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-wm-text-muted hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold rounded px-2 py-1"
-                        style={{ minHeight: 28 }}
+                        aria-label={`Open current market evidence for ${selected.symbol}`}
+                        className="inline-flex items-center gap-1 text-[10px] font-bold text-wm-gold hover:text-wm-gold/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold rounded px-2 py-1"
+                        style={{ minHeight: 44 }}
                       >
-                        Open Command Deck →
+                        Open current evidence →
                       </a>
                     </div>
                   </div>
