@@ -33,6 +33,10 @@ import {
 import type { CanonicalMarketState } from "@/lib/marketData/canonicalMarketState";
 import type { PermissionVM } from "@/lib/traderMemory/viewModels/selectPermission";
 import type { AvailableRVM } from "@/lib/traderMemory/viewModels/selectAvailableR";
+import {
+  selectContextDataReading,
+  type ContextDataState,
+} from "@/lib/marketData/contextDataTruth";
 
 export interface CommandContextRibbonProps {
   readonly symbol: string;
@@ -193,27 +197,14 @@ function sessionTone(session: string, connected: boolean): Tone {
   return "unknown";
 }
 
-/**
- * Explicit data-state semantics. Four honest cells:
- *   LIVE        — state resolved AND wsFeed connected  → live truth
- *   CACHED      — state resolved BUT wsFeed offline    → last-known truth
- *   COMPUTING   — wsFeed connected BUT state unresolved (first-load, pre-hydration)
- *   UNAVAILABLE — wsFeed missing/offline AND no state  → nothing to say
- */
-type DataState = "LIVE" | "CACHED" | "COMPUTING" | "UNAVAILABLE";
-function dataState(state: CanonicalMarketState | null, connected: boolean, source: string | null): DataState {
-  const feedOn = connected && !!source && source !== "unavailable";
-  if (state && feedOn) return "LIVE";
-  if (state && !feedOn) return "CACHED";
-  if (!state && feedOn) return "COMPUTING";
-  return "UNAVAILABLE";
-}
-function dataTone(ds: DataState): Tone {
+function dataTone(ds: ContextDataState): Tone {
   switch (ds) {
     case "LIVE":        return "resolved";
-    case "CACHED":      return "warn";      // amber — real data but not being refreshed
-    case "COMPUTING":   return "pending";
-    case "UNAVAILABLE": return "warn";
+    case "NEAR-LIVE":   return "pending";
+    case "DELAYED":     return "pending";
+    case "HISTORICAL":  return "unknown";
+    case "DEGRADED":    return "warn";
+    case "UNKNOWN":     return "unknown";
   }
 }
 
@@ -282,6 +273,13 @@ function useNectarForSymbol(symbol: string): { channels: number; trades: number;
 export function CommandContextRibbon(props: CommandContextRibbonProps): React.ReactElement {
   const { symbol, session, state, wsConnected, wsSource, availableR, permission } = props;
   const nectar = useNectarForSymbol(symbol);
+  const [nowMs, setNowMs] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    const updateNow = () => setNowMs(Date.now());
+    updateNow();
+    const timer = window.setInterval(updateNow, 5_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const arText = availableRText(availableR);
   const permText = permissionText(permission);
 
@@ -294,18 +292,21 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
       tone: sessionTone(session, wsConnected),
     },
     (() => {
-      const ds = dataState(state, wsConnected, wsSource);
-      const dsDetail =
-        ds === "LIVE"        ? (wsSource ?? "streaming") :
-        ds === "CACHED"      ? "last-known · feed offline" :
-        ds === "COMPUTING"   ? (wsSource ? `${wsSource} · resolving` : "resolving") :
-        /* UNAVAILABLE */      "no feed · no state";
+      // The first render uses the snapshot's deterministic capture time so SSR
+      // and hydration agree. After mount, the five-second clock ages a frozen
+      // LIVE snapshot into DEGRADED even if transport remains connected.
+      const reading = selectContextDataReading(
+        state,
+        wsConnected,
+        wsSource,
+        nowMs ?? state?.capturedAt ?? 0,
+      );
       return {
         key: "data",
         label: "DATA",
-        value: ds,
-        detail: dsDetail,
-        tone: dataTone(ds),
+        value: reading.value,
+        detail: reading.detail,
+        tone: dataTone(reading.value),
       };
     })(),
     {
