@@ -15,6 +15,7 @@ describe("profile tab URL contract", () => {
     expect(parseProfileTab("")).toBe("trades");
     expect(parseProfileTab("settings")).toBe("trades");
     expect(parseProfileTab("GROWTH")).toBe("trades");
+    expect(parseProfileTab("nectar")).toBe("trades");
   });
 
   it("replaces only tab while preserving other Profile query state", () => {
@@ -30,5 +31,7 @@ describe("profile tab URL contract", () => {
       "router.replace(profileTabHref(searchParams.toString(), t.id as ProfileTab))",
     );
     expect(profilePage).not.toContain('useState<"trades" | "music" | "posts" | "coins" | "growth">');
+    expect(profilePage).not.toContain('id: "nectar"');
+    expect(profilePage).not.toContain("/nectar");
   });
 });
