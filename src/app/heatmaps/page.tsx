@@ -7,7 +7,7 @@ import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { HEATMAP_TF_ORDER } from "@/lib/timeframes";
 import { QualityBadge } from "@/components/ui/DataHealth";
 import type { ContextDataState } from "@/lib/marketData/contextDataTruth";
-import { summarizeObservedChange } from "@/lib/heatmapAggregateTruth";
+import { readObservedChange, summarizeObservedChange } from "@/lib/heatmapAggregateTruth";
 import WmWordmark from "@/components/brand/WmWordmark";
 
 /* ═══════════════════════════════════════════════════════════
@@ -336,17 +336,18 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
             </div>
           ))}
         </div>
-        <span style={{ marginLeft: "auto", fontSize: 9, color: "#5A6575" }}>TF: {tf} · Live return heuristic · Not predictive</span>
+        <span style={{ marginLeft: "auto", fontSize: 9, color: "#5A6575" }}>TF: {tf} · Selected-period observed-return heuristic · Not predictive</span>
       </div>
 
       {/* Grid of sector cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 8 }}>
         {MARKOV_SECTORS.map(ms => {
-          const d = computeMarkovState(ms.sym, pcts[ms.sym] ?? 0);
+          const observedReturn = readObservedChange(pcts, ms.sym);
+          const d = observedReturn === null ? null : computeMarkovState(ms.sym, observedReturn);
           return (
             <div key={ms.sym} style={{
-              background: regimeBg[d.state],
-              border: `1px solid ${regimeColor[d.state]}40`,
+              background: d ? regimeBg[d.state] : "rgba(45,55,72,0.18)",
+              border: d ? `1px solid ${regimeColor[d.state]}40` : "1px solid #2D3748",
               borderRadius: 8, padding: "10px 12px",
               position: "relative",
             }}>
@@ -385,14 +386,20 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
                 <span style={{ fontSize: 11, fontWeight: 900, color: "#E8EDF3" }}>{ms.sym}</span>
                 <span style={{ fontSize: 9, color: "#8B95A5" }}>{ms.label}</span>
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{
+                  {d ? <>
+                    <span style={{
                     fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 3,
                     background: regimeColor[d.state], color: "#fff", letterSpacing: 0.5,
                   }}>{d.state}</span>
                   <span style={{ fontSize: 9, color: "#8B95A5" }}>{d.vol}</span>
+                  </> : <span style={{
+                    fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 3,
+                    background: "#2D3748", color: "#D0D5DD", letterSpacing: 0.5,
+                  }}>UNKNOWN</span>}
                 </div>
               </div>
 
+              {d ? <>
               {/* Probability bars */}
               <div style={{ display: "flex", gap: 2, height: 8, borderRadius: 3, overflow: "hidden", marginBottom: 6 }}>
                 <div style={{ flex: d.bullP, background: "#00A86B", transition: "flex 0.8s ease" }} />
@@ -436,6 +443,20 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
                 <span style={{ fontSize: 8, color: "#8B95A5" }}>TREND {d.trend}</span>
                 <span style={{ fontSize: 8, color: "#4FA3E0" }}>{tf}</span>
               </div>
+              </> : <div
+                role="status"
+                aria-label={`${ms.sym} ${tf} return unavailable; regime scenario not computed`}
+                style={{
+                  minHeight: 84,
+                  display: "grid",
+                  placeItems: "center",
+                  color: "#8B95A5",
+                  fontSize: 10,
+                  textAlign: "center",
+                }}
+              >
+                Return unavailable · scenario not computed
+              </div>}
             </div>
           );
         })}
@@ -730,14 +751,22 @@ interface TooltipProps {
   x: number; y: number;
 }
 function IndustryTooltip({ industry, pcts, x, y }: TooltipProps) {
-  const sorted = [...industry.stocks].sort((a, b) => (pcts[b.sym] ?? 0) - (pcts[a.sym] ?? 0));
-  const topStock = sorted[0];
-  const topPct = pcts[topStock?.sym] ?? 0;
+  const rows = industry.stocks
+    .map((stock, index) => ({ stock, index, value: readObservedChange(pcts, stock.sym) }))
+    .sort((a, b) => {
+      if (a.value === null && b.value === null) return a.index - b.index;
+      if (a.value === null) return 1;
+      if (b.value === null) return -1;
+      return b.value - a.value;
+    });
+  const topRow = rows.find(row => row.value !== null) ?? null;
 
   // Position tooltip to stay on screen (guard for SSR where window is undefined)
   const winH = typeof window !== "undefined" ? window.innerHeight : 800;
-  const left = x + 16;
-  const top = Math.min(y, winH - 420);
+  const winW = typeof window !== "undefined" ? window.innerWidth : 1024;
+  const tooltipWidth = Math.min(320, Math.max(0, winW - 24));
+  const left = Math.min(Math.max(12, x + 16), Math.max(12, winW - tooltipWidth - 12));
+  const top = Math.min(Math.max(12, y), Math.max(12, winH - 420 - 12));
 
   return (
     <motion.div
@@ -748,7 +777,7 @@ function IndustryTooltip({ industry, pcts, x, y }: TooltipProps) {
       style={{
         position: "fixed", left, top,
         zIndex: 9999, pointerEvents: "none",
-        width: 320,
+        width: tooltipWidth,
         background: "#0D1117",
         border: "1px solid #2D3748",
         borderRadius: 8,
@@ -761,23 +790,24 @@ function IndustryTooltip({ industry, pcts, x, y }: TooltipProps) {
         <div style={{ fontSize: 11, fontWeight: 700, color: "#8892A0", textTransform: "uppercase", letterSpacing: 1 }}>
           {industry.name}
         </div>
-        {topStock && (
+        {topRow ? (
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
-            <span style={{ fontSize: 15, fontWeight: 900, color: "#fff" }}>{topStock.sym}</span>
+            <span style={{ fontSize: 15, fontWeight: 900, color: "#fff" }}>{topRow.stock.sym}</span>
             <span style={{ fontSize: 13, fontWeight: 700, color: "#8892A0", marginLeft: "auto" }}>
-              ${topStock.price.toFixed(2)}
+              ${topRow.stock.price.toFixed(2)}
             </span>
-            <span style={{ fontSize: 13, fontWeight: 800, color: topPct >= 0 ? "#00D4AA" : "#FF4D6A" }}>
-              {topPct >= 0 ? "+" : ""}{topPct.toFixed(2)}%
+            <span style={{ fontSize: 13, fontWeight: 800, color: topRow.value! >= 0 ? "#00D4AA" : "#FF4D6A" }}>
+              {topRow.value! >= 0 ? "+" : ""}{topRow.value!.toFixed(2)}%
             </span>
           </div>
-        )}
+        ) : <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: "#8892A0" }}>
+          Observed change unavailable
+        </div>}
       </div>
 
       {/* Stock list */}
       <div style={{ maxHeight: 320, overflowY: "auto" }}>
-        {sorted.map(st => {
-          const p = pcts[st.sym] ?? 0;
+        {rows.map(({ stock: st, value: p }) => {
           return (
             <div key={st.sym} style={{
               display: "flex", alignItems: "center", gap: 8,
@@ -790,9 +820,9 @@ function IndustryTooltip({ industry, pcts, x, y }: TooltipProps) {
               </span>
               <span style={{
                 fontSize: 12, fontWeight: 700, width: 60, textAlign: "right",
-                color: p >= 0 ? "#00D4AA" : "#FF4D6A",
+                color: p === null ? "#8892A0" : p >= 0 ? "#00D4AA" : "#FF4D6A",
               }}>
-                {p >= 0 ? "+" : ""}{p.toFixed(2)}%
+                {p === null ? "— unavailable" : `${p >= 0 ? "+" : ""}${p.toFixed(2)}%`}
               </span>
             </div>
           );
@@ -1085,10 +1115,7 @@ export default function HeatmapsPage() {
                       display: "flex", flexWrap: "wrap", gap: 1, padding: 1,
                     }}>
                       {industryStocks.map(st => {
-                        const rawPct = pcts[st.sym];
-                        const hasPct = Object.prototype.hasOwnProperty.call(pcts, st.sym)
-                          && Number.isFinite(rawPct);
-                        const p = hasPct ? rawPct : null;
+                        const p = readObservedChange(pcts, st.sym);
                         const tileWeight = st.mcap / totalMcap;
                         const minW = tileWeight > 0.35 ? "100%" : tileWeight > 0.2 ? "48%" : tileWeight > 0.1 ? "32%" : "auto";
                         const bg = p === null ? "#252B36" : pctColor(p);

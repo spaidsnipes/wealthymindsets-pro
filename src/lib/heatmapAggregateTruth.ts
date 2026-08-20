@@ -4,15 +4,23 @@ export interface HeatmapAggregateSummary {
   totalCount: number;
 }
 
+export function readObservedChange(
+  pcts: Readonly<Record<string, number | undefined>>,
+  sym: string,
+): number | null {
+  const value = pcts[sym];
+  return Object.prototype.hasOwnProperty.call(pcts, sym) && Number.isFinite(value)
+    ? value as number
+    : null;
+}
+
 export function summarizeObservedChange(
   stocks: ReadonlyArray<{ sym: string }>,
   pcts: Readonly<Record<string, number | undefined>>,
 ): HeatmapAggregateSummary {
   const observed = stocks.flatMap(({ sym }) => {
-    const value = pcts[sym];
-    return Object.prototype.hasOwnProperty.call(pcts, sym) && Number.isFinite(value)
-      ? [value as number]
-      : [];
+    const value = readObservedChange(pcts, sym);
+    return value === null ? [] : [value];
   });
 
   return {

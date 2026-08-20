@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { summarizeObservedChange } from "./heatmapAggregateTruth";
+import { readObservedChange, summarizeObservedChange } from "./heatmapAggregateTruth";
 
 const page = fs.readFileSync(
   path.join(process.cwd(), "src/app/heatmaps/page.tsx"),
@@ -11,6 +11,12 @@ const page = fs.readFileSync(
 const stocks = [{ sym: "ONE" }, { sym: "TWO" }, { sym: "THREE" }];
 
 describe("Heat Map aggregate truth", () => {
+  it("reads only own finite observations while preserving a real zero", () => {
+    expect(readObservedChange({ A: 0 }, "A")).toBe(0);
+    expect(readObservedChange({}, "A")).toBeNull();
+    expect(readObservedChange({ A: Number.NaN }, "A")).toBeNull();
+    expect(readObservedChange({ A: Number.POSITIVE_INFINITY }, "A")).toBeNull();
+  });
   it("averages only finite own observations and discloses partial coverage", () => {
     expect(summarizeObservedChange(stocks, { ONE: 2, TWO: -1 })).toEqual({
       value: 0.5,
@@ -38,7 +44,7 @@ describe("Heat Map aggregate truth", () => {
   });
 
   it("renders truthful compact sector coverage and removes the false reducers", () => {
-    expect(page).toContain('import { summarizeObservedChange } from "@/lib/heatmapAggregateTruth"');
+    expect(page).toContain('import { readObservedChange, summarizeObservedChange } from "@/lib/heatmapAggregateTruth"');
     expect(page).toContain("const sectorChange = summarizeObservedChange(allStocks, pcts)");
     expect(page).toContain("EW {avgPct === null ? \"—\"");
     expect(page).toContain('`${sectorChange.observedCount}/${sectorChange.totalCount} rows`');
@@ -48,5 +54,19 @@ describe("Heat Map aggregate truth", () => {
     expect(page).not.toContain("const industryPct");
     expect(page).toContain("setActiveSymbol(sym)");
     expect(page).toContain('router.push("/charts")');
+  });
+
+  it("fails closed in the Industry Tooltip and Markov scenario surface", () => {
+    expect(page).toContain("value: readObservedChange(pcts, stock.sym)");
+    expect(page).toContain("Observed change unavailable");
+    expect(page).toContain('p === null ? "— unavailable"');
+    expect(page).toContain("const observedReturn = readObservedChange(pcts, ms.sym)");
+    expect(page).toContain("observedReturn === null ? null : computeMarkovState");
+    expect(page).toContain("Return unavailable · scenario not computed");
+    expect(page).toContain("Selected-period observed-return heuristic · Not predictive");
+    expect(page).not.toContain("Live return heuristic");
+    expect(page).not.toContain("computeMarkovState(ms.sym, pcts[ms.sym] ?? 0)");
+    expect(page).toContain("const tooltipWidth = Math.min(320");
+    expect(page).toContain("winW - tooltipWidth - 12");
   });
 });

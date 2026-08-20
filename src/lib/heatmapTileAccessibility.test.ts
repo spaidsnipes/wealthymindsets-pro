@@ -21,8 +21,7 @@ describe("Heat Map stock tile accessibility and missing-row truth", () => {
   });
 
   it("shows unavailable data neutrally instead of fabricating a green zero", () => {
-    expect(page).toContain("Object.prototype.hasOwnProperty.call(pcts, st.sym)");
-    expect(page).toContain("Number.isFinite(rawPct)");
+    expect(page).toContain("const p = readObservedChange(pcts, st.sym)");
     expect(page).toContain('p === null ? "#252B36" : pctColor(p)');
     expect(page).toContain('? "change unavailable"');
     expect(page).toContain('{p === null ? "—"');
