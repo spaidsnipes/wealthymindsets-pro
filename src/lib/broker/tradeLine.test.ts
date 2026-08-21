@@ -127,3 +127,63 @@ describe("authorizeOrder — validation + capability gate", () => {
     expect(a.errors.some((e) => /none yet/i.test(e))).toBe(true);
   });
 });
+
+import { authorizeOrderWithRules } from "./tradeLine";
+import type { PermissionVM, PermissionVerdict } from "../traderMemory/viewModels/selectPermission";
+
+function permission(verdict: PermissionVerdict, engagedLabels: string[] = []): PermissionVM {
+  const engagedRules = engagedLabels.map((label) => ({
+    rule: { id: label, kind: "HARD" as const, trigger: "MAX_TRADES_PER_SESSION" as const, label },
+    engaged: true,
+    reason: `${label} engaged`,
+    evidenceIds: [],
+  }));
+  return {
+    verdict,
+    evaluations: engagedRules,
+    engagedRules,
+    headline: `verdict ${verdict}`,
+    reason: "test",
+    ruleCount: engagedRules.length,
+    evaluatedAt: 0,
+  };
+}
+
+describe("authorizeOrderWithRules — A07: informs, never gates on rules", () => {
+  it("permission null → identical to capability authorization (only hard gates)", () => {
+    const a = authorizeOrderWithRules(order({ type: "market", assetClass: "equity" }), caps(), null);
+    expect(a.authorized).toBe(true);
+    expect(a.warnings).toEqual([]);
+  });
+
+  it("RESTRICTED verdict does NOT flip authorized to false (A07) — warns instead", () => {
+    const a = authorizeOrderWithRules(order({ type: "market", assetClass: "equity" }), caps(), permission("RESTRICTED", ["Loss count limit"]));
+    expect(a.authorized).toBe(true); // still the trader's decision
+    expect(a.warnings.some((w) => /RESTRICTED/i.test(w) && /Loss count limit/.test(w))).toBe(true);
+    expect(a.warnings.some((w) => /will be logged/i.test(w))).toBe(true);
+  });
+
+  it("ADVISORY verdict → advisory warning, authorized true", () => {
+    const a = authorizeOrderWithRules(order({ type: "market", assetClass: "equity" }), caps(), permission("ADVISORY", ["Re-entry cooldown"]));
+    expect(a.authorized).toBe(true);
+    expect(a.warnings.some((w) => /Advisory/i.test(w))).toBe(true);
+  });
+
+  it("ALLOWED / UNKNOWN → no rule warning", () => {
+    expect(authorizeOrderWithRules(order({ type: "market", assetClass: "equity" }), caps(), permission("ALLOWED")).warnings).toEqual([]);
+    expect(authorizeOrderWithRules(order({ type: "market", assetClass: "equity" }), caps(), permission("UNKNOWN")).warnings).toEqual([]);
+  });
+
+  it("a HARD capability error still blocks even when rules are ALLOWED", () => {
+    const a = authorizeOrderWithRules(order({ type: "stop", stopPx: 100 }), caps({ orderTypes: ["market", "limit"] }), permission("ALLOWED"));
+    expect(a.authorized).toBe(false); // broker literally can't — hard fact
+    expect(a.errors.some((e) => /does not support stop/i.test(e))).toBe(true);
+  });
+
+  it("capability error AND restricted rules → hard error blocks, rule warning still surfaced", () => {
+    const a = authorizeOrderWithRules(order({ type: "stop", stopPx: 100 }), caps({ orderTypes: ["market"] }), permission("RESTRICTED", ["Loss count limit"]));
+    expect(a.authorized).toBe(false);
+    expect(a.errors.length).toBeGreaterThan(0);
+    expect(a.warnings.some((w) => /RESTRICTED/i.test(w))).toBe(true);
+  });
+});

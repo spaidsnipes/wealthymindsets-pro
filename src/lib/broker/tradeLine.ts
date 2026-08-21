@@ -16,6 +16,7 @@
  */
 
 import type { BrokerCapabilities, UniversalOrderIntent } from "./BrokerAdapter";
+import type { PermissionVM } from "../traderMemory/viewModels/selectPermission";
 
 export interface OrderIntentValidation {
   readonly ok: boolean;
@@ -120,6 +121,42 @@ export function authorizeOrder(
     warnings.push(
       "Broker does not declare short support — a sell that opens a new short (rather than closing a long) will be rejected by the broker.",
     );
+  }
+
+  return { authorized: errors.length === 0, errors, warnings };
+}
+
+/**
+ * Full TradeLine authorization: structural + capability (HARD gates) PLUS the
+ * trader's configured rule state (ADVISORY, per canon A07).
+ *
+ * Canon A07 — "the trader is responsible; WM informs, human decides." A
+ * RESTRICTED permission verdict (e.g. max losses reached) does NOT flip
+ * `authorized` to false. Only broker facts (can't do this order type / asset)
+ * and malformed intents are hard errors. Rule state surfaces as warnings the
+ * order ticket shows; if the trader proceeds anyway, the caller records it in
+ * the override log (overrideLog.ts). Pass permission=null when no rule context
+ * is available (e.g. unauthenticated preview) — then only the hard gates apply.
+ */
+export function authorizeOrderWithRules(
+  intent: UniversalOrderIntent,
+  caps: BrokerCapabilities,
+  permission: PermissionVM | null,
+): OrderAuthorization {
+  const capAuth = authorizeOrder(intent, caps);
+  const errors = [...capAuth.errors];
+  const warnings = [...capAuth.warnings];
+
+  if (permission) {
+    const engaged = permission.engagedRules.map((r) => r.rule.label).filter(Boolean).join("; ");
+    if (permission.verdict === "RESTRICTED") {
+      warnings.push(
+        `Your rules are RESTRICTED — ${permission.headline}${engaged ? ` (${engaged})` : ""}. WM informs; proceeding is your decision and will be logged.`,
+      );
+    } else if (permission.verdict === "ADVISORY") {
+      warnings.push(`Advisory — ${permission.headline}${engaged ? ` (${engaged})` : ""}. WM informs; your call.`);
+    }
+    // ALLOWED / UNKNOWN → no rule warning (never a hard error either).
   }
 
   return { authorized: errors.length === 0, errors, warnings };
