@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdapter } from "../../../../lib/broker/adapters";
-import { getAIAdapter } from "../../../../lib/ai/adapters";
+import { athosHealth } from "../../../../lib/ai/athosGateway";
 
 /**
  * /api/broker/status
@@ -68,25 +68,20 @@ function alpacaReport(): ProviderReport {
 }
 
 /**
- * AI providers delegate to the canonical AIAdapter registry (ATHOS gateway),
- * mirroring fromRegistry() for brokers. The status route no longer inlines any
- * provider's env check — one source of truth per provider.
+ * AI providers come straight from the ATHOS gateway's health roll-up — every
+ * registered AIAdapter auto-appears here. Adding an AI provider = one registry
+ * line in src/lib/ai/adapters, never an edit to this aggregate (the same
+ * guarantee brokers have via fromRegistry). One source of truth per provider.
  */
-function aiFromRegistry(id: "gemini", fallbackNote: string): ProviderReport {
-  const adapter = getAIAdapter(id);
-  const h = adapter?.health();
-  return {
-    provider: id,
-    kind: "ai",
-    implemented: h?.implemented ?? false,
-    envConfigured: h?.envConfigured ?? false,
-    connected: h?.connected ?? false,
-    note: h?.note ?? fallbackNote,
-  };
-}
-
-function geminiReport(): ProviderReport {
-  return aiFromRegistry("gemini", "Gemini AI adapter is not registered.");
+function aiReports(): readonly ProviderReport[] {
+  return athosHealth().map((h) => ({
+    provider: h.provider,
+    kind: "ai" as const,
+    implemented: h.implemented,
+    envConfigured: h.envConfigured,
+    connected: h.connected,
+    note: h.note,
+  }));
 }
 
 export interface BrokerStatusResponse {
@@ -103,7 +98,7 @@ export function buildBrokerStatus(): BrokerStatusResponse {
     webullReport(),
     tastytradeReport(),
     alpacaReport(),
-    geminiReport(),
+    ...aiReports(),
   ];
   return {
     generatedAt: new Date().toISOString(),
