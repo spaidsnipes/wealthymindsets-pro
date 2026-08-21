@@ -11,9 +11,11 @@
 
 import type { AIAdapter, AIProviderId } from "../AIAdapter";
 import { geminiAdapter } from "./geminiAdapter";
+import { openrouterAdapter } from "./openrouterAdapter";
 
 const REGISTRY: Partial<Record<AIProviderId, AIAdapter>> = {
   gemini: geminiAdapter,
+  openrouter: openrouterAdapter,
 };
 
 /** Look up an adapter by provider id. null when not shipped (honest absence). */

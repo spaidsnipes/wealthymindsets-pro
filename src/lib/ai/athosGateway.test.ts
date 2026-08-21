@@ -23,9 +23,15 @@ describe("ai adapter registry", () => {
     expect(listAIAdapters().length).toBeGreaterThan(0);
   });
 
-  it("returns null (honest absence) for an unshipped provider — no fabricated default", () => {
-    expect(getAIAdapter("openrouter" as AIProviderId)).toBeNull();
-    expect(hasAIAdapter("openrouter" as AIProviderId)).toBe(false);
+  it("resolves openrouter (adapter #002) — organism proof: one registry line", () => {
+    expect(hasAIAdapter("openrouter")).toBe(true);
+    expect(getAIAdapter("openrouter")?.id).toBe("openrouter");
+    expect(listAIAdapters().length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("returns null (honest absence) for a genuinely unshipped provider — no fabricated default", () => {
+    expect(getAIAdapter("anthropic" as AIProviderId)).toBeNull();
+    expect(hasAIAdapter("anthropic" as AIProviderId)).toBe(false);
   });
 });
 

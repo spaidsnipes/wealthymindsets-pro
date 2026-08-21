@@ -5,7 +5,7 @@ function clearBrokerEnv(): void {
   for (const k of [
     "TASTYTRADE_CLIENT_ID", "TASTYTRADE_CLIENT_SECRET", "TASTYTRADE_REFRESH_TOKEN", "TASTYTRADE_ENV",
     "ALPACA_KEY", "ALPACA_SECRET", "ALPACA_PAPER_KEY", "ALPACA_PAPER_SECRET",
-    "GEMINI_API_KEY",
+    "GEMINI_API_KEY", "OPENROUTER_API_KEY",
   ]) delete process.env[k];
 }
 
@@ -26,9 +26,18 @@ describe("/api/broker/status — canon §12 truthful aggregate", () => {
     }
   });
 
-  it("reports 4 providers with stable order", () => {
+  it("reports brokers first in stable order, then every registered AI provider (auto-expanded via ATHOS gateway)", () => {
     const s = buildBrokerStatus();
-    expect(s.providers.map(p => p.provider)).toEqual(["webull", "tastytrade", "alpaca", "gemini"]);
+    const ids = s.providers.map(p => p.provider);
+    // Brokers are fixed + ordered.
+    expect(ids.slice(0, 3)).toEqual(["webull", "tastytrade", "alpaca"]);
+    // AI providers come from the gateway registry — gemini + openrouter today,
+    // auto-expanding as adapters register (no aggregate edit).
+    const aiIds = s.providers.filter(p => p.kind === "ai").map(p => p.provider);
+    expect(aiIds).toContain("gemini");
+    expect(aiIds).toContain("openrouter");
+    // Every AI provider is kind "ai"; every broker is kind "broker".
+    expect(s.providers.filter(p => p.kind === "broker").map(p => p.provider)).toEqual(["webull", "tastytrade", "alpaca"]);
   });
 
   it("Webull is always implemented=false regardless of env presence", () => {
@@ -91,9 +100,9 @@ describe("/api/broker/status — canon §12 truthful aggregate", () => {
     process.env.TASTYTRADE_REFRESH_TOKEN = "z";
     process.env.GEMINI_API_KEY = "k";
     const s = buildBrokerStatus();
-    // 3 implemented (tastytrade, alpaca, gemini); webull is not
-    expect(s.implementedCount).toBe(3);
-    // 2 envConfigured in this setup (tastytrade + gemini)
+    // 4 implemented (tastytrade, alpaca, gemini, openrouter); webull is not.
+    expect(s.implementedCount).toBe(4);
+    // 2 envConfigured in this setup (tastytrade + gemini); alpaca + openrouter unset.
     expect(s.envConfiguredCount).toBe(2);
   });
 
