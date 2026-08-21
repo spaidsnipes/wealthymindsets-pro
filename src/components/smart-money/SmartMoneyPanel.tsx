@@ -6,6 +6,7 @@ import { X, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, TrendingUp, Tr
 import { WMLogo } from "@/components/ui/WMLogo";
 import { clsx } from "clsx";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { computeDeltaLevels } from "@/lib/marketData/deltaLevels";
 import { getFabioInsights, inferAssetClass } from "@/lib/fabio";
 import { evaluateClcEvidence } from "@/lib/decisionIntegrity";
 import { hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
@@ -312,34 +313,27 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
   // levels, then nets buy vs sell size per level. Green bubble = buyers dominated
   // that level, red = sellers; bubble size scales with how lopsided it was. No
   // tape → no bubbles (we never invent levels). Honest by construction.
+  // User-controlled level count (canon §11: "default/user-controlled
+  // configuration"). Declared before the bubbles so they consume it. Setter +
+  // cross-tab sync live below.
+  const [deltaLevelCap, setDeltaLevelCapState] = useState<number>(() => {
+    if (typeof window === "undefined") return 7;
+    const v = parseInt(localStorage.getItem("wm_delta_levels") || "7", 10);
+    return [5, 7, 10, 15].includes(v) ? v : 7;
+  });
+  // Stable level ownership (canon §11): a price is quantized onto a fixed
+  // magnitude-appropriate grid, so a given price ALWAYS owns the same bubble
+  // level — the window widening/narrowing no longer shifts every boundary
+  // ("random fluctuating count"). Display bounded to the user cap; missing
+  // tape → nothing (never invents a level).
   const deltaLevels = React.useMemo(() => {
     if (!realTape) return [] as { price: number; delta: number; vol: number }[];
     const ticks = Array.isArray(recentTicks) ? recentTicks : [];
-    // Same honest rule as the flow snapshot + the chart's delta engine: every real
-    // executed trade (tick.trade), no lot floor, so bubbles reflect full aggressive
-    // flow per zone on any feed (BTC 0.01Δ or TSLA 50sh alike). Never invent levels.
-    const clean = ticks.filter(t => t?.trade === true && (Number(t?.size) || 0) > 0 && (Number(t?.price) || 0) > 0);
-    if (clean.length === 0) return [] as { price: number; delta: number; vol: number }[];
-    let lo = Infinity, hi = -Infinity;
-    for (const t of clean) { const p = Number(t.price); if (p < lo) lo = p; if (p > hi) hi = p; }
-    const BUCKETS = 6;
-    const span  = hi - lo;
-    const width = span > 0 ? span / BUCKETS : 1;   // degenerate feed → single level
-    const acc = new Map<number, { buy: number; sell: number }>();
-    for (const t of clean) {
-      const p = Number(t.price), size = Number(t.size);
-      let idx = span > 0 ? Math.floor((p - lo) / width) : 0;
-      if (idx >= BUCKETS) idx = BUCKETS - 1;         // clamp the top-of-range edge
-      if (idx < 0) idx = 0;
-      const cur = acc.get(idx) ?? { buy: 0, sell: 0 };
-      if (t.side === "buy") cur.buy += size; else cur.sell += size;
-      acc.set(idx, cur);
-    }
-    return [...acc.entries()]
-      .map(([idx, v]) => ({ price: lo + (idx + 0.5) * width, delta: v.buy - v.sell, vol: v.buy + v.sell }))
-      .filter(l => l.vol > 0)
-      .sort((a, b) => b.price - a.price);            // top of book first
-  }, [recentTicks, realTape, livePrice]);
+    return computeDeltaLevels(
+      ticks.map(t => ({ price: Number(t?.price), size: Number(t?.size), side: t?.side === "buy" ? "buy" : "sell", trade: t?.trade === true })),
+      { referencePrice: livePrice > 0 ? livePrice : undefined, cap: deltaLevelCap },
+    );
+  }, [recentTicks, realTape, livePrice, deltaLevelCap]);
   const maxAbsDelta = deltaLevels.reduce((m, l) => Math.max(m, Math.abs(l.delta)), 0);
 
   // Derived directly from the SAME `flow` snapshot the Delta Domination card
@@ -353,11 +347,6 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
   // Trades gear so the selector sits with the bubbles it controls. Reuses the
   // EXISTING wm_delta_levels key + wm-delta-levels event untouched, so MainChart
   // and every other listener keep working. This is now the single source of truth.
-  const [deltaLevelCap, setDeltaLevelCapState] = useState<number>(() => {
-    if (typeof window === "undefined") return 7;
-    const v = parseInt(localStorage.getItem("wm_delta_levels") || "7", 10);
-    return [5, 7, 10, 15].includes(v) ? v : 7;
-  });
   const setDeltaLevelCap = (n: number) => {
     setDeltaLevelCapState(n);
     try { localStorage.setItem("wm_delta_levels", String(n)); } catch {}
