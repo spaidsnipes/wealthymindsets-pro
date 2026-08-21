@@ -7,9 +7,9 @@ the parallel teams' active trunk; merge is the founder's call under NO-GO).
 ## Handoff header
 
 - **Base SHA:** `991e350` (current origin/main at shift start)
-- **Branch:** `shiftg-athos-ai-gateway` @ `14ca981` (pushed to origin)
-- **Commits this shift:** 4 code
-- **Suite:** 783 (shift-F) → main-baseline → **814 / 108 files** (+39 new tests this shift)
+- **Branch:** `shiftg-athos-ai-gateway` @ `0e7ddfa` (pushed to origin; merges CLEAN into current origin/main)
+- **Commits this shift:** 7 code + 1 baton
+- **Suite:** 783 (shift-F) → main-baseline → **838 / 110 files** (+73 new tests this shift)
 - **tsc --noEmit:** clean throughout
 - **Production build:** clean on every commit (worktree, APFS-cloned node_modules + gitignored .env.local copied)
 - **Destructive git ops:** zero. Force-push: zero. Secret touched/printed: zero. Broker/Supabase mutation: zero.
@@ -54,6 +54,18 @@ canonical sources this shift.
    (Gemini/OpenRouter). ORGANISM PROOF: one adapter file + one registry line →
    auto-appears in status + routable via athosComplete, ZERO gateway/aggregate
    edits. Activation is one Vercel var (OPENROUTER_API_KEY) away. 10 tests.
+5. `04105cf` **Canonical Broker State** (`src/lib/broker/brokerState.ts` +
+   `/api/broker/state`) — the ONE aggregate broker-state contract; pure
+   `composeBrokerState` + honest `buildBrokerEntry` + `getBrokerState()` over
+   the adapter registry. Honest zero-account state today (never a fabricated
+   portfolio). 8 tests. Closes P0 "Prove one Canonical Broker State."
+6. `b5aadb8` **TradeLine `validateOrderIntent`** — the pure structural floor
+   every order intent must pass before an adapter (the named-but-absent
+   TradeLine layer's foundation). Collects ALL errors; per-type price rules;
+   idempotency-key required. 10 tests. Directive "risk controls" first gate.
+7. `0e7ddfa` **TradeLine `authorizeOrder`** — capability gate composing
+   validation with the adapter's declared BrokerCapabilities (canon §W4).
+   Empty-caps → authorizes nothing (honest). Executes nothing. 6 tests.
 
 ## Env survey (P0 "eliminate mystery env")
 
