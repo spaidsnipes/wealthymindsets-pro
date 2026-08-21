@@ -15,7 +15,7 @@
  * is the structural floor.
  */
 
-import type { UniversalOrderIntent } from "./BrokerAdapter";
+import type { BrokerCapabilities, UniversalOrderIntent } from "./BrokerAdapter";
 
 export interface OrderIntentValidation {
   readonly ok: boolean;
@@ -80,4 +80,47 @@ export function validateOrderIntent(intent: UniversalOrderIntent): OrderIntentVa
   }
 
   return { ok: errors.length === 0, errors, warnings };
+}
+
+export interface OrderAuthorization {
+  readonly authorized: boolean;
+  readonly errors: readonly string[];
+  readonly warnings: readonly string[];
+}
+
+/**
+ * Authorization gate — composes structural validation with the ADAPTER'S
+ * DECLARED capabilities (canon §W4 account-aware capability discovery). The
+ * caller fetches `caps` from adapter.capabilities(accountId) and passes them in,
+ * so this stays pure/testable. A broker that declares no support for the order
+ * type or asset class rejects here — never sent to the broker to bounce.
+ *
+ * This does NOT execute anything. Live submission requires this to pass AND
+ * explicit live-write authorization + buying-power checks in a higher layer.
+ */
+export function authorizeOrder(
+  intent: UniversalOrderIntent,
+  caps: BrokerCapabilities,
+): OrderAuthorization {
+  const structural = validateOrderIntent(intent);
+  const errors = [...structural.errors];
+  const warnings = [...structural.warnings];
+
+  if (VALID_TYPES.has(intent.type) && !caps.orderTypes.includes(intent.type)) {
+    errors.push(
+      `Broker does not support ${intent.type} orders (declared: ${caps.orderTypes.join(", ") || "none yet"}).`,
+    );
+  }
+  if (intent.assetClass && !caps.assetClasses.includes(intent.assetClass)) {
+    errors.push(
+      `Broker does not support ${intent.assetClass} (declared: ${caps.assetClasses.join(", ") || "none yet"}).`,
+    );
+  }
+  if (intent.side === "sell" && !caps.supportsShort) {
+    warnings.push(
+      "Broker does not declare short support — a sell that opens a new short (rather than closing a long) will be rejected by the broker.",
+    );
+  }
+
+  return { authorized: errors.length === 0, errors, warnings };
 }

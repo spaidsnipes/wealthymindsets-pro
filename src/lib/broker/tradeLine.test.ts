@@ -73,3 +73,57 @@ describe("validateOrderIntent — structural floor", () => {
     }
   });
 });
+
+import { authorizeOrder } from "./tradeLine";
+import type { BrokerCapabilities } from "./BrokerAdapter";
+
+function caps(over: Partial<BrokerCapabilities> = {}): BrokerCapabilities {
+  return {
+    assetClasses: ["equity"],
+    orderTypes: ["market", "limit"],
+    supportsPaper: true,
+    supportsLive: false,
+    supportsBracketOrders: false,
+    supportsShort: false,
+    notes: [],
+    ...over,
+  };
+}
+
+describe("authorizeOrder — validation + capability gate", () => {
+  it("authorizes a structurally-valid order the broker supports", () => {
+    const a = authorizeOrder(order({ type: "market", assetClass: "equity" }), caps());
+    expect(a.authorized).toBe(true);
+    expect(a.errors).toEqual([]);
+  });
+
+  it("rejects an order type the broker does not declare", () => {
+    const a = authorizeOrder(order({ type: "stop", stopPx: 100 }), caps({ orderTypes: ["market", "limit"] }));
+    expect(a.authorized).toBe(false);
+    expect(a.errors.some((e) => /does not support stop orders/i.test(e))).toBe(true);
+  });
+
+  it("rejects an asset class the broker does not declare", () => {
+    const a = authorizeOrder(order({ assetClass: "future" }), caps({ assetClasses: ["equity"] }));
+    expect(a.authorized).toBe(false);
+    expect(a.errors.some((e) => /does not support future/i.test(e))).toBe(true);
+  });
+
+  it("carries structural errors through (malformed intent never authorized)", () => {
+    const a = authorizeOrder(order({ qty: 0 }), caps());
+    expect(a.authorized).toBe(false);
+    expect(a.errors.some((e) => /qty must be/i.test(e))).toBe(true);
+  });
+
+  it("warns on a sell when short is not declared (non-blocking)", () => {
+    const a = authorizeOrder(order({ side: "sell" }), caps({ supportsShort: false }));
+    expect(a.authorized).toBe(true);
+    expect(a.warnings.some((w) => /short/i.test(w))).toBe(true);
+  });
+
+  it("empty declared capabilities → honest rejection, not a fabricated allow", () => {
+    const a = authorizeOrder(order({ type: "market" }), caps({ orderTypes: [], assetClasses: [] }));
+    expect(a.authorized).toBe(false);
+    expect(a.errors.some((e) => /none yet/i.test(e))).toBe(true);
+  });
+});
