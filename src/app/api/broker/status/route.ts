@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdapter } from "../../../../lib/broker/adapters";
+import { getAIAdapter } from "../../../../lib/ai/adapters";
 
 /**
  * /api/broker/status
@@ -37,12 +38,6 @@ export interface ProviderReport {
   readonly note: string;
 }
 
-function envAllPresent(names: readonly string[]): boolean {
-  return names.every(n => {
-    const v = process.env[n];
-    return typeof v === "string" && v.length > 0;
-  });
-}
 
 function fromRegistry(
   id: "webull" | "alpaca" | "tastytrade",
@@ -72,18 +67,26 @@ function alpacaReport(): ProviderReport {
   return fromRegistry("alpaca", "Alpaca adapter is not registered.");
 }
 
-function geminiReport(): ProviderReport {
-  const configured = envAllPresent(["GEMINI_API_KEY"]);
+/**
+ * AI providers delegate to the canonical AIAdapter registry (ATHOS gateway),
+ * mirroring fromRegistry() for brokers. The status route no longer inlines any
+ * provider's env check — one source of truth per provider.
+ */
+function aiFromRegistry(id: "gemini", fallbackNote: string): ProviderReport {
+  const adapter = getAIAdapter(id);
+  const h = adapter?.health();
   return {
-    provider: "gemini",
+    provider: id,
     kind: "ai",
-    implemented: true, // /api/spaidbot/route.ts uses Google Gemini 2.0 Flash
-    envConfigured: configured,
-    connected: false, // no persistent connection concept for REST AI calls
-    note: configured
-      ? "AI adapter present (spaidbot route). ATHOS Gateway wrapper is a future atom."
-      : "AI adapter present but GEMINI_API_KEY is missing.",
+    implemented: h?.implemented ?? false,
+    envConfigured: h?.envConfigured ?? false,
+    connected: h?.connected ?? false,
+    note: h?.note ?? fallbackNote,
   };
+}
+
+function geminiReport(): ProviderReport {
+  return aiFromRegistry("gemini", "Gemini AI adapter is not registered.");
 }
 
 export interface BrokerStatusResponse {

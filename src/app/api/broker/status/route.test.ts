@@ -70,17 +70,19 @@ describe("/api/broker/status — canon §12 truthful aggregate", () => {
     expect(a.note).toContain("Live");
   });
 
-  it("Gemini reports honestly when key absent vs present", () => {
+  it("Gemini reports honestly when key absent vs present (note now sourced from canonical AIAdapter)", () => {
     let s = buildBrokerStatus();
     let g = s.providers.find(p => p.provider === "gemini")!;
     expect(g.envConfigured).toBe(false);
-    expect(g.note).toContain("missing");
+    // Note delegates to geminiAdapter.health() — reflects env absence honestly.
+    expect(g.note).toMatch(/absent|missing|unconfigured/i);
 
     process.env.GEMINI_API_KEY = "k";
     s = buildBrokerStatus();
     g = s.providers.find(p => p.provider === "gemini")!;
     expect(g.envConfigured).toBe(true);
-    expect(g.note).toContain("Gateway");
+    // Wired/active when the key is present.
+    expect(g.note).toMatch(/wired|active|present/i);
   });
 
   it("aggregate counts reflect implemented / envConfigured totals", () => {
