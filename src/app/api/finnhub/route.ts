@@ -9,6 +9,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { resolveProviderKey } from "../../../lib/env/providerKeys";
 
 /**
  * Server-only Finnhub key. In production, unset or committed-fallback-equal
@@ -27,7 +28,7 @@ const BASE = "https://finnhub.io/api/v1";
 let _finnhubKeyCache: string | null = null;
 function getFinnhubKey(): string {
   if (_finnhubKeyCache !== null) return _finnhubKeyCache;
-  const fromEnv = process.env.FINNHUB_KEY ?? process.env.NEXT_PUBLIC_FINNHUB_KEY;
+  const fromEnv = resolveProviderKey("finnhub").value || undefined;
   const isProd  = process.env.NODE_ENV === "production";
   if (isProd) {
     if (!fromEnv) {

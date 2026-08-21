@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveProviderKey } from "../../../lib/env/providerKeys";
 
 // Server-only Finnhub key. Same fail-fast pattern as /api/finnhub — refuse to
 // call Finnhub with the committed-fallback value in production (WM-SEC-P0-03).
@@ -6,7 +7,7 @@ import { NextResponse } from "next/server";
 // prod value isn't wired into the build environment.
 const COMMITTED_FALLBACK = "d8efu9hr01qth3ch5f20d8efu9hr01qth3ch5f2g";
 function getFinnhubKey(): string {
-  const fromEnv = process.env.FINNHUB_KEY ?? process.env.NEXT_PUBLIC_FINNHUB_KEY;
+  const fromEnv = resolveProviderKey("finnhub").value || undefined;
   const isProd  = process.env.NODE_ENV === "production";
   if (isProd) {
     if (!fromEnv)                     throw new Error("FINNHUB_KEY unset in production. Set it in Vercel and redeploy.");
