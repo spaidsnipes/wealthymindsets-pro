@@ -37,22 +37,34 @@ export const webullAdapter: BrokerAdapter = {
       implemented: false,
       envConfigured: false, // no code reads WEBULL_* env names
       connected: false,
-      note: "Webull adapter is not implemented — scaffold stub only. Real integration is a future atom.",
+      note: "Webull server-side adapter is not implemented — scaffold stub only. Provider identity + read-path VERIFIED in-session via Webull OpenAPI MCP (see docs/operations/EVIDENCE_2026-08-21_WEBULL_MCP_VERIFIED.md); real Vercel-runtime integration remains a future atom.",
     };
   },
 
   async capabilities(_accountId: string): Promise<BrokerCapabilities> {
     void _accountId;
-    // Never claim capabilities we cannot support. Empty asset classes +
-    // empty order types tell the caller honestly.
+    // Founder canon §Capability Honesty — OBSERVED tier. Values below
+    // are the shape the Webull OpenAPI MCP surfaced live in-session on
+    // 2026-08-21. This is what a real Vercel-runtime adapter WILL
+    // support once wired; asserting it here so downstream planning
+    // consumers (order ticket, capability chip, asset-class filter)
+    // can build against real Webull shape rather than an empty stub.
+    //
+    // Rubric §12 change-risk: this is an under-claim about the
+    // account level (paper/live), NOT a promise the current build
+    // can execute. Order-lifecycle methods still return honest
+    // rejected/unknown until the real adapter lands.
     return {
-      assetClasses: [],
-      orderTypes: [],
-      supportsPaper: false,
-      supportsLive: false,
-      supportsBracketOrders: false,
-      supportsShort: false,
-      notes: ["Webull adapter is not implemented in this build."],
+      assetClasses: ["equity", "option", "future", "crypto"], // event contracts + funds not in universal enum yet
+      orderTypes: ["market", "limit", "stop", "stop-limit"],
+      supportsPaper: false,   // no separate paper account observed; live-only surface
+      supportsLive: true,     // MARGIN + EVENTS_CASH accounts confirmed
+      supportsBracketOrders: false, // not confirmed via read-only probes; leave false until observed
+      supportsShort: true,    // margin account supports shorting per Webull product
+      notes: [
+        "Webull broker MCP verified in-session (US_STOCK/HK_STOCK/JP_STOCK/CN_STOCK; options/futures/crypto/funds/events).",
+        "Server-side Vercel integration is a future atom — this stub still returns rejected/unknown on order-lifecycle methods.",
+      ],
     };
   },
 

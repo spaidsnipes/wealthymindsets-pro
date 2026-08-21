@@ -19,15 +19,21 @@ describe("webullAdapter — canon §12 stub honesty", () => {
     expect(h.note.toLowerCase()).toContain("not implemented");
   });
 
-  it("capabilities() returns EMPTY arrays and false booleans (no fabrication)", async () => {
-    const c = await webullAdapter.capabilities("any-account");
-    expect(c.assetClasses.length).toBe(0);
-    expect(c.orderTypes.length).toBe(0);
-    expect(c.supportsPaper).toBe(false);
-    expect(c.supportsLive).toBe(false);
-    expect(c.supportsBracketOrders).toBe(false);
-    expect(c.supportsShort).toBe(false);
+  it("capabilities() reports the OBSERVED Webull asset/order shape (post 2026-08-21 MCP verification)", async () => {
+    // Founder canon §Capability Honesty — OBSERVED tier. Every value
+    // below was pulled live from the Webull OpenAPI MCP in a Claude
+    // session on 2026-08-21 (see docs/operations/EVIDENCE_2026-08-21_
+    // WEBULL_MCP_VERIFIED.md). Under-claims about paper/bracket where
+    // read-only probes could not confirm.
+    const c = await webullAdapter.capabilities("QMI6Q1D50CL66VD1S479DQOS5B");
+    expect(c.assetClasses).toEqual(expect.arrayContaining(["equity", "option", "future", "crypto"]));
+    expect(c.orderTypes).toEqual(expect.arrayContaining(["market", "limit", "stop", "stop-limit"]));
+    expect(c.supportsPaper).toBe(false);   // no separate paper account observed
+    expect(c.supportsLive).toBe(true);     // MARGIN + EVENTS_CASH confirmed
+    expect(c.supportsBracketOrders).toBe(false); // under-claim until observed via write-path
+    expect(c.supportsShort).toBe(true);    // margin account supports shorting
     expect(c.notes.length).toBeGreaterThan(0);
+    expect(c.notes.some(n => n.toLowerCase().includes("mcp"))).toBe(true);
   });
 
   it("listAccounts() returns empty array (honest — no adapter, no accounts)", async () => {
