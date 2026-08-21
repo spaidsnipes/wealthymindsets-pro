@@ -18,6 +18,7 @@
 
 import type { BrokerAdapter, BrokerId } from "../BrokerAdapter";
 import { webullAdapter } from "./webullAdapter";
+import { alpacaAdapter } from "./alpacaAdapter";
 
 /**
  * All shipped adapters keyed by their canonical BrokerId.
@@ -27,9 +28,10 @@ import { webullAdapter } from "./webullAdapter";
  */
 const REGISTRY: Partial<Record<BrokerId, BrokerAdapter>> = {
   webull: webullAdapter,
-  // tastytrade + alpaca have server-side helpers under src/lib/tastytrade.ts
-  // + src/app/api/alpaca/*.ts but no BrokerAdapter-conforming exports yet.
-  // Future atoms will add adapter wrappers under this same registry.
+  alpaca: alpacaAdapter,
+  // tastytrade has server-side helpers under src/lib/tastytrade.ts + 3
+  // API routes but no BrokerAdapter-conforming export yet. A future
+  // atom will add the wrapper under this same registry.
 };
 
 /**
