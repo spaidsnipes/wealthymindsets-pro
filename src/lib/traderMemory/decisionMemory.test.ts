@@ -47,7 +47,7 @@ function seal(overrides: Partial<SealDecisionInput> = {}) {
   });
 }
 
-const mgmt: ManagementEvent = { id: "m-1", type: "SCALE_OUT", at: 1_500, detail: "trim half" };
+const mgmt: ManagementEvent = { id: "m-1", type: "PARTIAL_EXIT", at: 1_500, detail: "trim half" };
 const outcome: Outcome = { closedAt: 2_000, realizedR: 1.5, reason: "TARGET" };
 const review: Review = {
   reviewedAt: 2_100, marketOpportunityQuality: 4, playbookMatch: 5, riskQuality: 4,
