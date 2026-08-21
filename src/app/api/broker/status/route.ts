@@ -44,62 +44,32 @@ function envAllPresent(names: readonly string[]): boolean {
   });
 }
 
-function webullReport(): ProviderReport {
-  // Delegate to the canonical BrokerAdapter registry (shift-F). When
-  // a real Webull adapter replaces the stub, this aggregate updates
-  // automatically — no route churn required.
-  const adapter = getAdapter("webull");
+function fromRegistry(
+  id: "webull" | "alpaca" | "tastytrade",
+  fallbackNote: string,
+): ProviderReport {
+  const adapter = getAdapter(id);
   const h = adapter?.health();
   return {
-    provider: "webull",
+    provider: id,
     kind: "broker",
     implemented: h?.implemented ?? false,
     envConfigured: h?.envConfigured ?? false,
     connected: h?.connected ?? false,
-    note: h?.note ?? "Webull adapter is not implemented in this build.",
+    note: h?.note ?? fallbackNote,
   };
+}
+
+function webullReport(): ProviderReport {
+  return fromRegistry("webull", "Webull adapter is not implemented in this build.");
 }
 
 function tastytradeReport(): ProviderReport {
-  const configured = envAllPresent([
-    "TASTYTRADE_CLIENT_ID",
-    "TASTYTRADE_CLIENT_SECRET",
-    "TASTYTRADE_REFRESH_TOKEN",
-  ]);
-  return {
-    provider: "tastytrade",
-    kind: "broker",
-    implemented: true, // src/lib/tastytrade.ts + 3 API routes exist
-    envConfigured: configured,
-    // connected requires actual auth handshake; a passing status route
-    // check is where that would be measured. Deferred to keep this
-    // aggregate cheap (no upstream calls). Consumers can hit
-    // /api/broker/tastytrade/status for the live check.
-    connected: false,
-    note: configured
-      ? "Adapter present. Full live connectivity requires /api/broker/tastytrade/status handshake."
-      : "Adapter present but env credentials are missing.",
-  };
+  return fromRegistry("tastytrade", "Tastytrade adapter is not registered.");
 }
 
 function alpacaReport(): ProviderReport {
-  const paperOk = envAllPresent(["ALPACA_PAPER_KEY", "ALPACA_PAPER_SECRET"]);
-  const liveOk  = envAllPresent(["ALPACA_KEY", "ALPACA_SECRET"]);
-  const anyEnv = paperOk || liveOk;
-  return {
-    provider: "alpaca",
-    kind: "broker",
-    implemented: true, // 5 API routes + AlpacaTradingPanel
-    envConfigured: anyEnv,
-    connected: false, // requires actual credential handshake per request
-    note: paperOk && liveOk
-      ? "Paper and live env credentials present. Live handshake requires POST /api/broker/alpaca."
-      : paperOk
-        ? "Paper env credentials present. Live env credentials absent."
-        : liveOk
-          ? "Live env credentials present. Paper env credentials absent."
-          : "Adapter present but env credentials are missing.",
-  };
+  return fromRegistry("alpaca", "Alpaca adapter is not registered.");
 }
 
 function geminiReport(): ProviderReport {
