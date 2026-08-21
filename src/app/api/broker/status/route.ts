@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAdapter } from "../../../../lib/broker/adapters";
 
 /**
  * /api/broker/status
@@ -44,16 +45,18 @@ function envAllPresent(names: readonly string[]): boolean {
 }
 
 function webullReport(): ProviderReport {
-  // Zero server-side references in the codebase as of 2026-08-21 discovery.
-  // Env NAMES the founder may have set in Vercel from July are not read
-  // anywhere. Report honestly.
+  // Delegate to the canonical BrokerAdapter registry (shift-F). When
+  // a real Webull adapter replaces the stub, this aggregate updates
+  // automatically — no route churn required.
+  const adapter = getAdapter("webull");
+  const h = adapter?.health();
   return {
     provider: "webull",
     kind: "broker",
-    implemented: false,
-    envConfigured: false, // no code reads WEBULL_*; even if Vercel has values, adapter is absent
-    connected: false,
-    note: "Webull adapter is not implemented in this build.",
+    implemented: h?.implemented ?? false,
+    envConfigured: h?.envConfigured ?? false,
+    connected: h?.connected ?? false,
+    note: h?.note ?? "Webull adapter is not implemented in this build.",
   };
 }
 
