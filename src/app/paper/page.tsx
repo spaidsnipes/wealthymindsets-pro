@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { SymbolSearch } from "@/components/ui/SymbolSearch";
 import { yahooQuoteObserved } from "@/lib/marketData/yahooQuoteObserved";
+import { transitionOrder } from "@/lib/paperOrderLifecycle";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 
@@ -963,8 +964,13 @@ export default function PaperTradingPage() {
     setPositions(work);
     setCash(c => c + cashDelta);
     setTrades(t => [...newTrades.reverse(), ...t]);
-    setOrders(prev => prev.map(o => fillPxById.has(o.id)
-      ? { ...o, status:"filled", fillPx: fillPxById.get(o.id)! } : o));
+    setOrders(prev => prev.map(o => {
+      if (!fillPxById.has(o.id)) return o;
+      // Guard the transition: an already-filled/cancelled order is terminal
+      // truth and must never be silently re-filled (canon §11).
+      const t = transitionOrder(o, "FILL", { fillPx: fillPxById.get(o.id)! });
+      return t.ok ? t.order : o;
+    }));
     wins.forEach(sym => earnWMS(25, `📈 Paper trade win on ${sym}`));
   }, [prices, orders, earnWMS]);
 
@@ -1049,7 +1055,13 @@ export default function PaperTradingPage() {
   }, [earnWMS]);
 
   const cancelOrder = (id: string) => {
-    setOrders(prev => prev.map(o => o.id===id ? { ...o, status:"cancelled" } : o));
+    // Only a resting (pending) order can be cancelled — a filled order is
+    // settled truth and must not flip to cancelled (canon §11).
+    setOrders(prev => prev.map(o => {
+      if (o.id !== id) return o;
+      const t = transitionOrder(o, "CANCEL");
+      return t.ok ? t.order : o;
+    }));
   };
 
   const closePosition = (symbol: string) => {
