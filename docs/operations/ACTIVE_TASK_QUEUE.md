@@ -1246,3 +1246,34 @@ All FOUNDER-ONLY rows are surfaced to Atlas for Drive publishing per §48 eviden
 | **Acceptance criteria** | Per Forge contract: 1) asset-class capability drives behavior, not just a label. 2) `isFuturesApproved` actually gates the futures path. 3) streamer-symbol path exists. 4) `/ES /NQ /GC /CL` render live with correct tick/point values. 5) continuous-vs-specific contract distinction preserved (Bible §33). |
 | **Ownership** | Noah: implementation per existing Forge contract. Sentinel: live-test when futures market next opens. |
 | **Next action** | Ready for Noah — no new spec needed. Sentinel live-verify blocked until futures market hours + a working Chrome/session path. |
+
+---
+
+## Coordinator log — 2026-08-22 07:xx CDT checkpoint (Atlas) — multi-role bus confirmed obsolete, dispatch/ping skipped
+
+- **Finding, not a new decision — restating what `handoffs/2026-08-08-one-thread-supersede.md`
+  already ratified:** the six role-thread sessions this checkpoint is built to dispatch/ping
+  (`Sentinel WM Pro`, `FORGE WM Pro`, `NOAH-WM Pro`, `MICAH WM Pro app`, `Nehemiah WM Pro app`,
+  `ATH video intelligence`) all went dormant on/before 2026-08-08 and never resumed
+  (`list_sessions` confirms last activity 2026-08-02 → 2026-08-08 across all six, nothing since).
+  `EMPLOYEE_STATUS.md` hasn't moved since 2026-07-30. No Coordinator log entry landed between
+  2026-08-06/07 and today — this checkpoint effectively stopped doing useful work at the
+  supersede boundary and kept re-running its old playbook against an empty bus.
+- **What's actually happening:** all WM Pro engineering since 2026-08-08 is one continuously
+  active thread ("ATH unified engineering directive", `isRunning: true` as of this checkpoint)
+  operating under canon §20's 3-hour ATH/WOW strong-shift law, tracked via
+  `docs/operations/CLAUDE_SESSION_*_SHIFT*_BATON.md` — 8 commits landed today alone
+  (`991e350`..`75158ab`), latest baton `CLAUDE_SESSION_2026-08-22_SHIFTG_BATON.md`. tsc clean,
+  suite green per that baton.
+- **Action taken this checkpoint:** sync + audit only (§1–2). Skipped §3 (dispatch/ping — no
+  live recipient exists; filing tickets into `dispatches/` or paging six dormant sessions
+  would be pure noise and an unjustified `send_message` approval prompt) and §5 (Nehemiah
+  snapshot — role thread defunct). No `src/` touched, matches the 6 preserved-dirty-file set
+  the shift baton already accounts for (untouched, byte-identical) — not new WIP, not mine.
+- **Recommendation:** this scheduled task (`wm-pro-operations-checkpoint`, fires every 30 min
+  07:00–22:00 CDT) should be paused or repurposed — its dispatch/ping mechanism has had no
+  live target for two weeks. If continued checkpoint coverage is wanted, point it at auditing
+  the shift-baton cadence instead (e.g. flag if no new `SHIFT*_BATON.md` lands within an
+  expected window), not the pre-2026-08-08 role bus.
+- **Next action:** none required from this mechanism until the scheduled task itself is
+  updated or retired by the Founder.
