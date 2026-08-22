@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Plus, TrendingUp, TrendingDown, LayoutGrid, List } from "lucide-react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { priceSourceBadge } from "@/lib/priceSource";
+import { resolveConsolidatedQuote } from "@/lib/marketData/consolidatedQuote";
 
 const DEFAULT_SYMBOLS = [
   "ES1!", "NQ1!", "RTY1!", "YM1!", "SPY", "QQQ",
@@ -48,47 +49,19 @@ function getSymName(sym: string): string {
 /* ── Yahoo Finance quotes — all symbols including futures ─── */
 interface FinnhubQuote { price: number; change: number; changePct: number; src: string; }
 
-const FUTURES_WL = new Set(["NQ1!","ES1!","RTY1!","YM1!","GC1!","SI1!","CL1!","NG1!","ZB1!","ZN1!","ZF1!","HG1!","MNQ1!","MES1!","MYM1!","M2K1!","MGC1!","MCL1!","VX1!"]);
-const CRYPTO_WL  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC"]);
-
+// Quote resolution now goes through the ONE canonical consolidated-quote
+// resolver (see consolidatedQuote.ts). Previously this panel re-implemented a
+// look-alike ladder that accepted any price>0 — no observed gate, no Alpaca
+// source check, and a different crypto/futures symbol set than TickerTape — so
+// the same symbol could show a different price/source on the same screen.
+// Delegating fixes that divergence (Breakthrough Build Contract P0).
 async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, FinnhubQuote>> {
   const result: Record<string, FinnhubQuote> = {};
   const fetchable = syms.filter(s => !s.includes("/"));
   await Promise.all(fetchable.map(async sym => {
     const up = sym.toUpperCase();
-    try {
-      const isFutures = FUTURES_WL.has(up) || up.endsWith("1!");
-      const isCrypto  = CRYPTO_WL.has(up);
-
-      // Crypto → Alpaca (FREE, no key, real-time)
-      if (isCrypto) {
-        const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-        if ((j?.price ?? 0) > 0) { result[up] = { price: j.price, change: j.change ?? 0, changePct: j.changePct ?? 0, src: "alpaca" }; return; }
-        // Fallback to Yahoo
-        const y = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-        if ((y?.price ?? 0) > 0) { result[up] = { price: y.price, change: y.change ?? 0, changePct: y.changePct ?? 0, src: "yahoo" }; return; }
-        return;
-      }
-
-      // Futures → Yahoo only
-      if (isFutures) {
-        const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-        if ((j?.price ?? 0) > 0) result[up] = { price: j.price, change: j.change ?? 0, changePct: j.changePct ?? 0, src: "yahoo" };
-        return;
-      }
-
-      // Stocks/ETFs use the same consolidated-first semantic as MainChart and
-      // TickerTape. A same-screen value must not become LIVE merely because an
-      // independent consumer happened to receive an IEX-only print first.
-      const yhJ = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if (yhJ?.price > 0) { result[up] = { price: yhJ.price, change: yhJ.change ?? 0, changePct: yhJ.changePct ?? 0, src: "yahoo" }; return; }
-
-      const alpacaJ = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if ((alpacaJ?.price ?? 0) > 0) { result[up] = { price: alpacaJ.price, change: alpacaJ.change ?? 0, changePct: alpacaJ.changePct ?? 0, src: "alpaca" }; return; }
-
-      const fhJ = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if (fhJ?.price > 0) result[up] = { price: fhJ.price, change: fhJ.change ?? 0, changePct: fhJ.changePct ?? 0, src: "finnhub" };
-    } catch {}
+    const q = await resolveConsolidatedQuote(up);
+    if (q) result[up] = { price: q.price, change: q.change, changePct: q.changePct, src: q.src };
   }));
   return result;
 }

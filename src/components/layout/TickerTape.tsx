@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { priceSourceBadge } from "@/lib/priceSource";
-import { yahooQuoteObserved } from "@/lib/marketData/yahooQuoteObserved";
+import { resolveConsolidatedQuote } from "@/lib/marketData/consolidatedQuote";
 
 // WM-SEC-P0-05 (2026-08-08): client-side Polygon key read removed. The
 // NEXT_PUBLIC_POLYGON_KEY that used to live here shipped the API key
@@ -63,64 +63,16 @@ interface TickerState {
 }
 
 /* ── Multi-source quote fetcher ───────────────────────────────── *
- *  Stocks/ETFs  → Finnhub /api/finnhub (real-time)              *
- *  Futures/Crypto → Yahoo /api/yahoo (15-min delayed but best   *
- *    available free source for these instruments)                *
+ *  Delegates to the ONE canonical consolidated-quote resolver so this
+ *  ticker and the watchlist can never disagree on price/source for the
+ *  same symbol (Breakthrough Build Contract P0: no provider-specific
+ *  market truth in UI; consumers must not disagree on LIVE vs DELAYED).
+ *  See consolidatedQuote.ts for the ladder + truth gates.
  * ────────────────────────────────────────────────────────────── */
-const FUTURES_SYMS = new Set(["NQ1!","ES1!","RTY1!","YM1!","GC1!","SI1!","CL1!","NG1!","ZB1!","ZN1!","ZF1!","ZT1!","HG1!","MNQ1!","MES1!","MYM1!","M2K1!","MGC1!","MCL1!"]);
-const CRYPTO_SYMS  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","ATOM","UNI"]);
-
-// SF-D01 consumer gate — shared with paper + scanner consumers so all
-// three surfaces consult one predicate. See yahooQuoteObserved.ts +
-// yahooQuoteObserved.test.ts for the truth contract.
-
 async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:number; src:string } | null> {
-  const up = sym.toUpperCase();
-
-  // Futures → Yahoo (only free source for futures)
-  if (FUTURES_SYMS.has(up) || up.endsWith("1!")) {
-    try {
-      const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-      const price = j?.price ?? 0;
-      const prev  = j?.prevClose ?? price;
-      if (price > 0 && yahooQuoteObserved(j)) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
-    } catch {}
-    return null;
-  }
-
-  // Crypto → Alpaca (FREE, no key required, real-time)
-  if (CRYPTO_SYMS.has(up)) {
-    try {
-      const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-      if (j?.price > 0) return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0, src: "alpaca" };
-    } catch {}
-    // Fallback to Yahoo for crypto
-    try {
-      const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-      const price = j?.price ?? 0;
-      const prev  = j?.prevClose ?? price;
-      if (price > 0 && yahooQuoteObserved(j)) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
-    } catch {}
-    return null;
-  }
-
-  // Stocks/ETFs use the same consolidated-first semantic as MainChart and the
-  // watchlist. Independent consumers must not disagree on LIVE vs DELAYED.
-  try {
-    const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-    const price = j?.price ?? 0;
-    const prev  = j?.prevClose ?? price;
-    if (price > 0 && yahooQuoteObserved(j)) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
-  } catch {}
-  try {
-    const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-    if (j?.price > 0 && j.source === "alpaca") return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0, src: "alpaca" };
-  } catch {}
-  try {
-    const j = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-    if (j?.price > 0) return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0, src: "finnhub" };
-  } catch {}
-  return null;
+  const q = await resolveConsolidatedQuote(sym);
+  if (!q) return null;
+  return { price: q.price, chg: q.change, pct: q.changePct, src: q.src };
 }
 
 async function fetchPolygonPrices(): Promise<Record<string, { price:number; chg:number; pct:number; src:string }>> {
