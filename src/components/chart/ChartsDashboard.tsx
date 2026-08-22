@@ -37,6 +37,7 @@ import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { priceSourceBadge } from "@/lib/priceSource";
 import { searchSymbols } from "@/lib/marketData/symbolSearch";
+import { fmpFetch } from "@/lib/marketData/fmpClient";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { interpretPine } from "@/lib/pine/interpreter";
 import type { PineOutput } from "@/lib/pine/types";
@@ -1570,9 +1571,8 @@ function FundamentalsTabPanel({ symbol, tab, onBack }: { symbol: string; tab: st
     Promise.all(keys.map(async k => {
       try {
         const path = map[k].replace(/%S/g, base);
-        const res = await fetch(`/api/fmp?path=${encodeURIComponent(path)}`);
-        const j: any = await res.json();
-        if (!res.ok || j?.error || j?.["Error Message"]) return [k, null] as const;
+        const j: any = await fmpFetch(path);
+        if (!j) return [k, null] as const; // fmpFetch returns null on !ok / error payload
         const empty = Array.isArray(j) ? j.length === 0 : (j && typeof j === "object" && Object.keys(j).length === 0);
         return [k, empty ? null : j] as const;
       } catch { return [k, null] as const; }

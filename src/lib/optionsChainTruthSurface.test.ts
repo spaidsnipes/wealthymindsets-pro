@@ -38,7 +38,9 @@ describe("Options Chain truth and responsive surface", () => {
   });
 
   it("preserves the canonical fetch and fail-closed chain construction", () => {
-    expect(optionsChain).toContain("/api/fmp?path=/v3/options/");
+    // FMP egress now goes through the canonical fmpFetch client (one owner).
+    expect(optionsChain).toContain("fmpFetch(`/v3/options/${symbol}`)");
+    expect(optionsChain).toContain('from "@/lib/marketData/fmpClient"');
     expect(optionsChain).toContain('throw new Error("No options data")');
     expect(optionsChain).toContain('throw new Error("No contracts for the selected expiration")');
     expect(optionsChain).toContain("buildChain(allContracts, priceKey, isoDate)");

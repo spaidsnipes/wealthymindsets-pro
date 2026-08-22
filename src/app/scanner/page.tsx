@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import WmWordmark from "@/components/brand/WmWordmark";
 import { YahooCandleConsumer } from "@/lib/yahooCandleConsumer";
+import { fmpFetch } from "@/lib/marketData/fmpClient";
 import { yahooQuoteObserved } from "@/lib/marketData/yahooQuoteObserved";
 import {
   compareScannerRsiIdentity, scannerRsiIdentity, scannerRsiIdentityDomToken,
@@ -144,9 +145,7 @@ async function fetchFmpProfiles(): Promise<Map<string, { mktcap: string; float: 
   const map = new Map<string, { mktcap: string; float: string }>();
   try {
     const syms = SCANNER_STOCKS.join(",");
-    const res  = await fetch(`/api/fmp?path=/v3/profile/${encodeURIComponent(syms)}`);
-    if (!res.ok) return map;
-    const data = await res.json();
+    const data = await fmpFetch(`/v3/profile/${syms}`);
     const arr: Array<{ symbol: string; mktCap?: number; floatShares?: number }> = Array.isArray(data) ? data : [];
     for (const p of arr) {
       const mc = p.mktCap ?? 0;

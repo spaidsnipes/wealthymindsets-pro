@@ -10,6 +10,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { X, TrendingUp, RefreshCw, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 import { clsx } from "clsx";
+import { fmpFetch } from "@/lib/marketData/fmpClient";
 
 interface OptionRow {
   strike:   number;
@@ -108,11 +109,10 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/fmp?path=/v3/options/${encodeURIComponent(symbol)}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      // FMP returns { chain: [...] } or just [...]
-      const contracts: FMPContract[] = Array.isArray(data) ? data : (data?.chain ?? data?.optionChain ?? []);
+      const data = await fmpFetch(`/v3/options/${symbol}`);
+      // FMP returns { chain: [...] } or just [...]; null (failure) → [] → "No options data"
+      const dataObj = data as { chain?: FMPContract[]; optionChain?: FMPContract[] } | FMPContract[] | null;
+      const contracts: FMPContract[] = Array.isArray(dataObj) ? dataObj : (dataObj?.chain ?? dataObj?.optionChain ?? []);
       if (contracts.length === 0) throw new Error("No options data");
       setAllContracts(contracts);
       // Extract unique expiration dates
