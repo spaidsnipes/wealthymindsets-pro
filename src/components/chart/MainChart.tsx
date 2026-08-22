@@ -6863,11 +6863,22 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           </span>
           {(() => {
             // Sentinel V-008 visibility fix — 10px readable badge.
+            // SHIFT-H H-Bkt 8 (Orkin nest closure): H-Bkt 1 fixed the
+            // freshness strip to say HISTORICAL when candles exist but
+            // realtime is unavailable — but THIS second badge still
+            // rendered NO FEED for the same state (revive-attempt caught
+            // it via ?symbol=INVALIDSYMBOL on prod). Same principle,
+            // same nest: a chart with real candles is never NO FEED.
             const b = priceSourceBadge(source, connected);
+            const isNoFeedButHasCandles = b.label === "NO FEED" && candles.length > 0;
+            const label = isNoFeedButHasCandles ? "HISTORICAL" : b.label;
+            const title = isNoFeedButHasCandles
+              ? "Historical OHLCV loaded. No realtime tape resolved yet — chart trustworthy for past-tense analysis only."
+              : b.title;
             return (
               <span
-                title={b.title}
-                aria-label={b.label}
+                title={title}
+                aria-label={label}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 4,
                   fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
@@ -6882,7 +6893,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                   width: 6, height: 6, borderRadius: "50%",
                   background: b.live ? "#00E88A" : "#F5A623",
                 }} />
-                {b.label}
+                {label}
               </span>
             );
           })()}
