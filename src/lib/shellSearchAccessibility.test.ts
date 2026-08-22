@@ -45,7 +45,9 @@ describe("global symbol search accessibility", () => {
 
   it("preserves quick symbols, provider search, and chart selection behavior", () => {
     expect(layout).toContain('localStorage.setItem("wm_quick_syms"');
-    expect(layout).toContain('/api/finnhub?q=${encodeURIComponent(query)}&type=search');
+    // Provider search now routes through the canonical searchSymbols helper
+    // (canonical-first with Finnhub fallback) rather than an inline provider fetch.
+    expect(layout).toContain("searchSymbols(query)");
     expect(layout).toContain("setActiveSymbol(sym.toUpperCase())");
     expect(layout).toContain('router.push("/charts")');
   });

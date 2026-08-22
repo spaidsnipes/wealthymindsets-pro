@@ -12,6 +12,7 @@ import { type ChartLayout } from "./ChartLayoutManager";
 import { isConfigurable } from "./indicatorConfig";
 import { getIndicatorInfo } from "./indicatorDescriptions";
 import { CHART_TF_SHIPPED, getTimeframe } from "@/lib/timeframes";
+import { searchSymbols } from "@/lib/marketData/symbolSearch";
 
 /* ══════════════════════════════════════════════════════════════
    SYMBOL CATALOGUE  (100+ symbols across 5 categories)
@@ -540,15 +541,12 @@ export function ChartToolbar({
     if (!q || q.length < 1) { setLiveSymbols([]); setLiveSearching(false); return; }
     setLiveSearching(true);
     try {
-      const res = await fetch(`/api/finnhub?q=${encodeURIComponent(q)}&type=search`, { cache: "no-store" });
-      const json = await res.json();
-      // Normalize: proxy returns {results:[{sym,name,type,exchange}]}, direct returns {result:[...]}
-      const raw = json.results ?? json.result ?? [];
-      const results: SymbolEntry[] = raw.slice(0, 50).map((r: any) => ({
-        sym:  r.sym ?? r.symbol,
-        name: r.name ?? r.description,
-        cat:  r.type === "Crypto" ? "Crypto" : r.type === "Forex" ? "Forex" : r.type === "ETF" ? "ETFs" : "Stocks",
-      })).filter((r: SymbolEntry) => r.sym && r.name);
+      const hits = await searchSymbols(q, { limit: 50 });
+      const results: SymbolEntry[] = hits.map(h => ({
+        sym:  h.sym,
+        name: h.name,
+        cat:  h.cat === "Crypto" ? "Crypto" : h.cat === "Forex" ? "Forex" : h.cat === "ETF" ? "ETFs" : "Stocks",
+      }));
       // Deduplicate against local results (local takes priority) AND within the
       // Finnhub set itself — Finnhub returns the same symbol on multiple exchanges,
       // which otherwise produces duplicate React keys + duplicate visible rows.

@@ -27,6 +27,7 @@ import { clsx } from "clsx";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { WMSBar } from "@/components/wms/WMSBar";
 import { isPublicAuthPath } from "@/lib/authRoutes";
+import { searchSymbols } from "@/lib/marketData/symbolSearch";
 
 /* ── All searchable symbols ─────────────────────────────── */
 const ALL_SYMBOLS = [
@@ -196,17 +197,16 @@ function SearchPanel({
     setSearching(true);
     searchTimerRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/finnhub?q=${encodeURIComponent(query)}&type=search`, { cache: "no-store" });
-        const json = await res.json();
+        const hits = await searchSymbols(query);
         const localSymSet = new Set(localResults.map(s => s.sym));
-        const live = (json.results ?? [])
-          .filter((r: any) => !localSymSet.has(r.sym) && r.sym && r.name)
+        const live = hits
+          .filter(h => !localSymSet.has(h.sym))
           .slice(0, 12)
-          .map((r: any) => ({
-            sym:   r.sym,
-            label: r.name,
-            cat:   r.type === "Crypto" ? "Crypto" : r.type === "ETF" ? "ETF" :
-                   r.type === "Forex" ? "Forex" : "Stock",
+          .map(h => ({
+            sym:   h.sym,
+            label: h.name,
+            cat:   h.cat === "Crypto" ? "Crypto" : h.cat === "ETF" ? "ETF" :
+                   h.cat === "Forex" ? "Forex" : "Stock",
           }));
         setLiveResults(live);
       } catch { setLiveResults([]); }

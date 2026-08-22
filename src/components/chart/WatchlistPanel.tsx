@@ -6,6 +6,7 @@ import { Search, X, Plus, TrendingUp, TrendingDown, LayoutGrid, List } from "luc
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { priceSourceBadge } from "@/lib/priceSource";
 import { resolveConsolidatedQuote } from "@/lib/marketData/consolidatedQuote";
+import { searchSymbols } from "@/lib/marketData/symbolSearch";
 
 const DEFAULT_SYMBOLS = [
   "ES1!", "NQ1!", "RTY1!", "YM1!", "SPY", "QQQ",
@@ -346,12 +347,8 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
     if (!showAdd || q.length < 1) { setAddResults([]); return; }
     addTimerRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/finnhub?q=${encodeURIComponent(q)}&type=search`, { cache: "no-store" });
-        const json = await res.json();
-        const live = (json.results ?? [])
-          .filter((r: any) => r.sym && r.name)
-          .slice(0, 10)
-          .map((r: any) => ({ sym: r.sym, label: r.name }));
+        const hits = await searchSymbols(q);
+        const live = hits.slice(0, 10).map(h => ({ sym: h.sym, label: h.name }));
         setAddResults(live);
       } catch { setAddResults([]); }
     }, 250);

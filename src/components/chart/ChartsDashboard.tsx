@@ -36,6 +36,7 @@ import { BottomIndexBar } from "./BottomIndexBar";
 import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { priceSourceBadge } from "@/lib/priceSource";
+import { searchSymbols } from "@/lib/marketData/symbolSearch";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { interpretPine } from "@/lib/pine/interpreter";
 import type { PineOutput } from "@/lib/pine/types";
@@ -493,11 +494,8 @@ export function ChartsDashboard() {
     const timer = setTimeout(async () => {
       setCompareSearching(true);
       try {
-        const r = await fetch(`/api/finnhub?q=${encodeURIComponent(q)}&type=search`).then(res => res.json());
-        const list: {sym:string;name:string}[] = (r?.results ?? []).slice(0, 8).map((x: any) => ({
-          sym:  x.sym ?? x.symbol ?? "",
-          name: x.name ?? x.description ?? "",
-        })).filter((x: any) => x.sym);
+        const hits = await searchSymbols(q, { limit: 8 });
+        const list: {sym:string;name:string}[] = hits.map(h => ({ sym: h.sym, name: h.name }));
         setCompareResults(list);
       } catch { setCompareResults([]); }
       finally { setCompareSearching(false); }

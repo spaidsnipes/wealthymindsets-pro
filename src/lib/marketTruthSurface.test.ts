@@ -28,6 +28,23 @@ describe("same-screen market truth contract", () => {
     expect(equityPath.indexOf("fromYahoo")).toBeLessThan(equityPath.indexOf("fromAlpaca"));
   });
 
+  it("every symbol-search box routes through the ONE canonical searchSymbols helper", () => {
+    // No UI may re-fetch /api/finnhub?type=search inline (four divergent copies
+    // before). All must delegate to searchSymbols (canonical-first, Finnhub
+    // fallback) so search coverage/behavior is defined in one place.
+    const consumers = [
+      "../components/layout/MainLayout.tsx",
+      "../components/chart/WatchlistPanel.tsx",
+      "../components/chart/ChartToolbar.tsx",
+      "../components/chart/ChartsDashboard.tsx",
+    ];
+    for (const path of consumers) {
+      const src = source(path);
+      expect(src, `${path} must use searchSymbols`).toContain("searchSymbols");
+      expect(src, `${path} must not fetch symbol search inline`).not.toMatch(/\/api\/finnhub\?[^`'"]*type=search/);
+    }
+  });
+
   it("keys the DOM by instrument so old and new books cannot share state", () => {
     const dashboard = source("../components/chart/ChartsDashboard.tsx");
     expect(dashboard).toContain('<DOMPanel key={symbol} symbol={symbol} />');
