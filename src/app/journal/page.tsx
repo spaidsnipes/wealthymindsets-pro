@@ -1570,6 +1570,29 @@ Trade the system, trust the process, winners every day 🚀`,
                       </span>
                     </div>
                     <div className="text-[10px] text-wm-text-dim truncate">{e.setup}</div>
+                    {/* Proof Lane §21 read-side (H-Bkt 6): render Model + R
+                        + option-multiplier chips when the entry carries them
+                        so a review scan shows canon-shaped truth, not just
+                        dollar P&L. Silent when the entry pre-dates the
+                        Proof Lane fields (legacy entries look identical). */}
+                    {(e.dayModel || typeof e.realizedR === "number" || e.contractType === "option") && (
+                      <div className="flex items-center gap-1 mt-1">
+                        {e.dayModel && (
+                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold border border-wm-gold/40 bg-wm-gold/10 text-wm-gold">{e.dayModel}</span>
+                        )}
+                        {typeof e.realizedR === "number" && Number.isFinite(e.realizedR) && (
+                          <span className={clsx(
+                            "px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold border",
+                            e.realizedR >= 0 ? "text-wm-green border-wm-green/40 bg-wm-green/10" : "text-wm-red border-wm-red/40 bg-wm-red/10",
+                          )}>
+                            {e.realizedR >= 0 ? "+" : ""}{e.realizedR.toFixed(2)}R
+                          </span>
+                        )}
+                        {e.contractType === "option" && (
+                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold border border-wm-purple/40 bg-wm-purple/10 text-wm-purple">OPT</span>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center gap-1.5 mt-1">
                       <span className="text-[9px] text-wm-text-dim">{e.date}</span>
                       {e.starred && <Star size={9} className="text-wm-gold fill-wm-gold" />}
