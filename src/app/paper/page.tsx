@@ -1412,10 +1412,21 @@ export default function PaperTradingPage() {
             </div>
           )}
 
-        {/* Right: Market prices ticker */}
+        {/* Right: Market prices ticker.
+            SHIFT-H H-Bkt 3: label was "Live Prices" while data flows from
+            /api/yahoo?type=quote — the same DELAYED provider the top
+            ticker tape and every chart chrome flag as DELAYED. The green
+            Activity dot + "Live" copy claimed live-tape truthfulness
+            these numbers do not have. Truth label unified with the rest
+            of the shell: amber dot + "MARKET PRICES" + DELAYED chip. */}
         <div className="w-48 border-l border-wm-border flex flex-col overflow-hidden shrink-0">
-          <div className="px-3 py-2 border-b border-wm-border text-[9px] font-black text-wm-text-dim uppercase tracking-wider flex items-center gap-1.5">
-            <Activity size={10} className="text-wm-green"/> Live Prices
+          <div
+            className="px-3 py-2 border-b border-wm-border text-[9px] font-black text-wm-text-dim uppercase tracking-wider flex items-center gap-1.5"
+            title="Prices are consolidated quotes from the same delayed provider the chart chrome flags as DELAYED — not a real-time tape."
+          >
+            <Activity size={10} className="text-wm-gold"/>
+            <span>Market Prices</span>
+            <span className="ml-auto text-[8px] font-semibold text-wm-gold">DELAYED</span>
           </div>
           <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"none" }}>
             {Object.entries(UNIVERSE).map(([sym,info])=>{
