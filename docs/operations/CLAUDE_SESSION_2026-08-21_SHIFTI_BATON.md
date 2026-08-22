@@ -54,6 +54,22 @@ this in-repo baton is the ledger record per the established mirror pattern.
    review; amendDecision appends (owner-only, sealed outcome not rewritten). No
    production code changed — closes the verification gap.
 
+3. `c7e0854` **Paper order-lifecycle guard** (canon §11: a settled order is
+   truth, never silently rewritten). `/paper` mutated `order.status` inline at
+   each site (pending→filled, pending→cancelled) with NO legality guard — an
+   already-filled order could be re-filled, a cancelled order resurrected to
+   filled, or an order filled after cancel, each silently corrupting paper P&L.
+   Fix: new pure `src/lib/paperOrderLifecycle.ts` — single owner of legal
+   transitions (only a resting pending order may FILL/CANCEL/REJECT; the rest
+   are terminal); `transitionOrder()` returns a NEW order on a legal move and
+   refuses illegal ones with an explainable reason, never mutating/corrupting.
+   Wired into the fill + cancel sites in `paper/page.tsx` so the RUNNING paper
+   trader can no longer double-fill or resurrect a settled order. **9 tests.**
+   FOUNDER-VISIBLE: paper P&L can no longer be corrupted by an illegal status flip.
+   NOTE: `paper/page.tsx` still keeps a LOCAL duplicate `OrderStatus`/`applyFill`
+   (a separate §6 de-dup debt vs `src/lib/paperTrade.ts`) — logged, not touched
+   this shift (large refactor, auth-gated visual surface).
+
 ## Assessed but correctly NOT changed (canon §5: don't fabricate a defect)
 
 - SmartMoneyPanel close affordance + layout: already correct (44px Esc button,
@@ -65,9 +81,9 @@ this in-repo baton is the ledger record per the established mirror pattern.
 
 ## Proof
 
-0 prod tsc; full suite **797 / 106 files** (+22 this shift: 10 deltaLevels + 12
-decisionMemory); clean production build every commit; branch merges CLEAN into
-current origin/main; main + live-team files untouched.
+0 prod tsc; full suite **806 / 107 files** (+31 this shift: 10 deltaLevels + 12
+decisionMemory + 9 paperOrderLifecycle); clean production build every commit;
+branch merges CLEAN into current origin/main; main + live-team files untouched.
 
 ## Next (product-first per §13/§15, unblocked, testable)
 
