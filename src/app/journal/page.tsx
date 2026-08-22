@@ -118,6 +118,10 @@ interface JournalEntry {
   dayModel?: DayModel;
   plannedRDollars?: number;
   realizedR?: number;
+  // Contract lens (canon §6). Multiplier is required for options: a
+  // $1.00→$1.20 option with 1 contract is +$20 P&L, not +$0.20.
+  // "stock" default keeps legacy entries computing exactly as before.
+  contractType?: "stock" | "option";
 }
 
 const ALL_TAGS = ["CLC","VWAP reclaim","Wyckoff","dark pool","CVD","absorption","chased","FOMO","breakeven","morning session","supply rejection","EOD","momentum"];
@@ -843,6 +847,7 @@ function JournalPageInner() {
     dayModel: undefined,
     plannedRDollars: undefined,
     realizedR: undefined,
+    contractType: "stock",
   });
   const [form, setForm]   = useState<Partial<JournalEntry>>(emptyForm());
   const voiceRec          = useVoiceRecorder();
@@ -886,7 +891,10 @@ function JournalPageInner() {
   const saveEntry = () => {
     const e = { ...(form as JournalEntry) };
     e.id       = uid();
-    e.pnl      = (e.exit - e.entry) * e.size * (e.side === "short" ? -1 : 1);
+    // Canon §6 Contract Lens: options carry a 100x standard multiplier.
+    // Stock defaults to 1x so existing entries compute exactly as before.
+    const contractMultiplier = e.contractType === "option" ? 100 : 1;
+    e.pnl      = (e.exit - e.entry) * e.size * contractMultiplier * (e.side === "short" ? -1 : 1);
     e.pct      = e.entry > 0 ? ((e.exit - e.entry) / e.entry * 100) * (e.side === "short" ? -1 : 1) : 0;
     e.result   = classifyFinancialOutcome(e.pnl);
     e.processQuality = e.processQuality ?? "UNRESOLVED";
@@ -1874,7 +1882,30 @@ Trade the system, trust the process, winners every day 🚀`,
               <div className="mb-4 rounded-xl border border-wm-gold/40 bg-gradient-to-br from-wm-surface/50 to-transparent p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-wm-gold">Proof Lane · Day Model + R</div>
-                  <span className="text-[9px] font-mono uppercase tracking-widest text-wm-text-dim">CANON §3 / §4 / §24</span>
+                  <span className="text-[9px] font-mono uppercase tracking-widest text-wm-text-dim">CANON §3 / §4 / §6 / §24</span>
+                </div>
+                {/* Contract type — canon §6 Contract Lens. Options carry a
+                    100x multiplier. Wrong multiplier = wrong P&L = wrong R. */}
+                <div className="mb-3">
+                  <label className="text-[10px] text-wm-text-dim uppercase mb-1 block">Contract Type</label>
+                  <div className="flex gap-2">
+                    {(["stock", "option"] as const).map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, contractType: t }))}
+                        aria-pressed={form.contractType === t}
+                        className={clsx(
+                          "flex-1 py-2 rounded-lg text-xs font-bold border transition-all",
+                          form.contractType === t
+                            ? "bg-wm-gold/15 text-wm-gold border-wm-gold/40"
+                            : "bg-wm-surface border-wm-border text-wm-text-muted",
+                        )}
+                      >
+                        {t.toUpperCase()}{t === "option" && " · 100x"}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 mb-3">
                   {(["M0", "M1", "M2"] as const).map((m) => (
@@ -1916,9 +1947,10 @@ Trade the system, trust the process, winners every day 🚀`,
                         const entryV = form.entry ?? 0;
                         const exitV = form.exit ?? 0;
                         const sizeV = form.size ?? 0;
+                        const multV = form.contractType === "option" ? 100 : 1;
                         if (!(p && p > 0)) return <span className="text-wm-text-dim text-[10px]">R undefined — set Planned R first</span>;
                         if (!(entryV > 0 && exitV > 0 && sizeV > 0)) return <span className="text-wm-text-dim text-[10px]">Awaiting entry/exit/size</span>;
-                        const pnl = (exitV - entryV) * sizeV * (form.side === "short" ? -1 : 1);
+                        const pnl = (exitV - entryV) * sizeV * multV * (form.side === "short" ? -1 : 1);
                         const r = pnl / p;
                         return (
                           <span className={clsx("font-bold", r >= 0 ? "text-wm-green" : "text-wm-red")}>
