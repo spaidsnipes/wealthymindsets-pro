@@ -35,6 +35,11 @@ describe("source contract — the chart hook actually applies the gate", () => {
   it("imports the shared gate", () => {
     expect(src).toContain('from "@/lib/marketData/realQuoteGate"');
   });
+  it("classifies symbols via the canonical sets (no duplicate local sets)", () => {
+    expect(src).toContain('from "@/lib/marketData/consolidatedQuote"');
+    // The old local set literals must be gone (they had drifted risk).
+    expect(src).not.toMatch(/const (CRYPTO_SET|FUTURES_SET)\s*=\s*new Set/);
+  });
   it("guards every Yahoo acceptance with realQuoteSourceAccepted", () => {
     // Each `mk(j, "yahoo")` acceptance must be followed by the gate — no bare
     // `if (q) return q` for a Yahoo quote (that was the recurrence path).

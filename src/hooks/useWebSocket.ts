@@ -28,6 +28,12 @@ import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
 import { normalizeBinanceUsTrade } from "@/lib/marketData/adapters/binanceUs";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
 import { realQuoteSourceAccepted } from "@/lib/marketData/realQuoteGate";
+// Single UI-side owner of instrument classification (Breakthrough Build Contract:
+// no duplicate symbol classification). These are the SAME sets consolidatedQuote
+// gives TickerTape/WatchlistPanel, so the chart classifies a symbol identically
+// to the watchlist/ticker. (Server routes api/alpaca + api/market keep their own,
+// already-drifted sets — see shift-K baton: needs a canonical crypto-list decision.)
+import { CRYPTO_SYMS as CRYPTO_SET, FUTURES_SYMS as FUTURES_SET } from "@/lib/marketData/consolidatedQuote";
 
 export interface Tick {
   price: number;
@@ -97,8 +103,6 @@ function getBasePrice(sym: string) {
    Yahoo Finance via /api/yahoo covers futures (NQ=F, ES=F etc),
    crypto, stocks. Finnhub used as fallback for stocks/crypto.
 ────────────────────────────────────────────────────────────── */
-const FUTURES_SET = new Set(["NQ1!","ES1!","RTY1!","YM1!","GC1!","SI1!","CL1!","NG1!","ZB1!","ZN1!","ZF1!","ZT1!","HG1!","MNQ1!","MES1!","MYM1!","M2K1!","MGC1!","MCL1!","VX1!"]);
-const CRYPTO_SET  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","ATOM","UNI"]);
 
 type RealQuote = {
   price: number;
