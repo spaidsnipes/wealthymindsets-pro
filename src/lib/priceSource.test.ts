@@ -71,4 +71,68 @@ describe("candleDataStatus", () => {
       expect(candleDataStatus("finnhub", true, true, 9_999, 10_000).label).toBe("DELAYED 15 MIN");
     });
   });
+
+  // Orkin §22 state-matrix — enumerate every realistic reachable branch
+  // of candleDataStatus. Each row: (source × connected × hasCandles ×
+  // freshTick) → expected {state, label, live}. Impossible/theatre
+  // combinations are excluded per §22 "prove impossible states are
+  // impossible" — the priceSourceBadge switch guarantees a live-source
+  // never falls into the NO FEED default.
+  describe("state matrix — every realistic reachable branch", () => {
+    it("polygon connected + candles + fresh tick → LIVE", () => {
+      const s = candleDataStatus("polygon", true, true, 9_999, 10_000);
+      expect(s).toEqual({ state: "LIVE", label: "LIVE", live: true });
+    });
+    it("polygon connected + no candles → UNAVAILABLE / NO FEED (live source can be pre-load)", () => {
+      const s = candleDataStatus("polygon", true, false, 0, 10_000);
+      expect(s.state).toBe("UNAVAILABLE");
+      expect(s.label).toBe("NO FEED");
+    });
+    it("alpaca connected + candles + fresh tick → LIVE (equity IEX-only path)", () => {
+      const s = candleDataStatus("alpaca", true, true, 9_999, 10_000);
+      expect(s.state).toBe("LIVE");
+    });
+    it("alpaca DISCONNECTED + candles → DELAYED (reconnecting, not NO FEED — chart is honest)", () => {
+      const s = candleDataStatus("alpaca", false, true, 9_999, 10_000);
+      expect(s.state).toBe("DELAYED");
+      expect(s.label).toBe("DELAYED");
+    });
+    it("binance connected=false + candles + fresh tick → LIVE (crypto stream is live regardless)", () => {
+      const s = candleDataStatus("binance", false, true, 9_999, 10_000);
+      expect(s.state).toBe("LIVE");
+    });
+    it("coinbase live source + candles + no tick ever (lastTickAt=0) → STALE", () => {
+      const s = candleDataStatus("coinbase", true, true, 0, 10_000);
+      expect(s.state).toBe("STALE");
+      expect(s.label).toBe("STALE");
+    });
+    it("yahoo delayed + candles → DELAYED regardless of connected flag", () => {
+      expect(candleDataStatus("yahoo", true, true, 9_999, 10_000).state).toBe("DELAYED");
+      expect(candleDataStatus("yahoo", false, true, 9_999, 10_000).state).toBe("DELAYED");
+    });
+    it("finnhub 15min-delayed + candles → DELAYED 15 MIN (label preserved)", () => {
+      expect(candleDataStatus("finnhub", true, true, 9_999, 10_000).label).toBe("DELAYED 15 MIN");
+    });
+    it("unknown source string + candles → HISTORICAL (falls through the badge default, promoted by H-Bkt 1)", () => {
+      const s = candleDataStatus("some-future-provider-not-in-switch", true, true, 0, 10_000);
+      expect(s.state).toBe("DELAYED");
+      expect(s.label).toBe("HISTORICAL");
+    });
+    it("unknown source string + no candles → NO FEED (still nothing to render)", () => {
+      const s = candleDataStatus("mystery", false, false, 0, 10_000);
+      expect(s.state).toBe("UNAVAILABLE");
+      expect(s.label).toBe("NO FEED");
+    });
+    it("live=false paths never claim live=true (rejection guarantee)", () => {
+      for (const s of ["yahoo", "finnhub", "unknown"] as const) {
+        expect(candleDataStatus(s, true, true, 9_999, 10_000).live).toBe(false);
+      }
+    });
+    it("staleAfterMs boundary — exactly at the threshold is STALE, one ms before is LIVE", () => {
+      // now - lastTickAt = 20_000 = staleAfterMs → STALE
+      expect(candleDataStatus("coinbase", true, true, 0, 20_000).state).toBe("STALE");
+      // now - lastTickAt = 19_999 → LIVE
+      expect(candleDataStatus("coinbase", true, true, 1, 20_000).state).toBe("LIVE");
+    });
+  });
 });
