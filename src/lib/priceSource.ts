@@ -23,6 +23,16 @@ export interface PriceSourceBadge {
 }
 
 export interface CandleDataStatus {
+  /**
+   * LIVE      = realtime tape flowing, recent tick within staleAfterMs.
+   * DELAYED   = we have candle data, but no realtime tape (delayed provider,
+   *             or realtime source unresolved). Label may be "HISTORICAL" when
+   *             the historical OHLCV fetch succeeded but no realtime feed
+   *             is configured — SHIFT-H P1 fix (H-Bkt 1): the chart chrome
+   *             must never say NO FEED while it is rendering real candles.
+   * STALE     = realtime source is live but ticks have stopped flowing.
+   * UNAVAILABLE = no candles at all — genuinely nothing on the chart.
+   */
   state: "LIVE" | "DELAYED" | "STALE" | "UNAVAILABLE";
   label: string;
   live: boolean;
@@ -64,8 +74,16 @@ export function candleDataStatus(
   staleAfterMs = 20_000,
 ): CandleDataStatus {
   const badge = priceSourceBadge(source, connected);
-  if (!hasCandles || badge.label === "NO FEED") {
+  // Genuine no-data — no candles rendered. NO FEED is the honest label.
+  if (!hasCandles) {
     return { state: "UNAVAILABLE", label: "NO FEED", live: false };
+  }
+  // Candles exist but no realtime feed is configured / connected. The chart
+  // is showing real historical OHLCV — it is DELAYED, not empty. Truth
+  // label is HISTORICAL so the trader knows there is no live tape while
+  // the chart itself remains trustworthy for past-tense analysis.
+  if (badge.label === "NO FEED") {
+    return { state: "DELAYED", label: "HISTORICAL", live: false };
   }
   if (!badge.live) {
     return { state: "DELAYED", label: badge.label, live: false };

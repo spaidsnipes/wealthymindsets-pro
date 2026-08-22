@@ -50,4 +50,25 @@ describe("candleDataStatus", () => {
     expect(candleDataStatus("coinbase", true, true, 1, 30_000).state).toBe("STALE");
     expect(candleDataStatus("unavailable", false, false, 0, 10_000).state).toBe("UNAVAILABLE");
   });
+
+  // SHIFT-H H-Bkt 1: P1 truth defect discovered by USE on /charts —
+  // chart shows full historical OHLCV yet the chrome said NO FEED.
+  // Contradiction. When candles are rendered, chart is DELAYED at worst.
+  describe("HISTORICAL guarantee — chart with candles is never NO FEED", () => {
+    it("returns DELAYED / HISTORICAL when candles exist but realtime source is unavailable", () => {
+      const s = candleDataStatus("unavailable", false, true, 0, 10_000);
+      expect(s.state).toBe("DELAYED");
+      expect(s.label).toBe("HISTORICAL");
+      expect(s.live).toBe(false);
+    });
+    it("still emits NO FEED when there are no candles at all", () => {
+      const s = candleDataStatus("unavailable", false, false, 0, 10_000);
+      expect(s.state).toBe("UNAVAILABLE");
+      expect(s.label).toBe("NO FEED");
+    });
+    it("still emits DELAYED with the vendor-neutral badge label for delayed providers", () => {
+      expect(candleDataStatus("yahoo", true, true, 9_999, 10_000).label).toBe("DELAYED");
+      expect(candleDataStatus("finnhub", true, true, 9_999, 10_000).label).toBe("DELAYED 15 MIN");
+    });
+  });
 });
