@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { SymbolSearch } from "@/components/ui/SymbolSearch";
 import { yahooQuoteObserved } from "@/lib/marketData/yahooQuoteObserved";
+import { acceptOrderSubmit } from "@/lib/orderSubmitGuard";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 
@@ -330,12 +331,18 @@ function OrderTicket({
   const [limitPx,setLimitPx]= useState("");
   const [stopPx, setStopPx] = useState("");
   const [flash,  setFlash]  = useState(false);
+  const lastSubmitRef = useRef(0); // double-submit guard (see orderSubmitGuard)
 
   const px  = prices[sym] ?? 0;
   const est = qty * px;
 
   const submit = () => {
     if (!qty || qty <= 0) return;
+    // Guard against an accidental double-submit (fat-finger double-tap places
+    // two orders otherwise — found in live QA). See orderSubmitGuard.
+    const now = Date.now();
+    if (!acceptOrderSubmit(lastSubmitRef.current, now)) return;
+    lastSubmitRef.current = now;
     const order: Order = {
       id:     uid(),
       symbol: sym,
