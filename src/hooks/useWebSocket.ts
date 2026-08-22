@@ -27,6 +27,7 @@ import { applyTickToLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
 import { normalizeBinanceUsTrade } from "@/lib/marketData/adapters/binanceUs";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
+import { realQuoteSourceAccepted } from "@/lib/marketData/realQuoteGate";
 
 export interface Tick {
   price: number;
@@ -157,7 +158,7 @@ async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
   if (!isFutures && !isForex) {
     try {
       const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-      const q = mk(j, "yahoo"); if (q) return q;
+      const q = mk(j, "yahoo"); if (q && realQuoteSourceAccepted("yahoo", j)) return q;
     } catch {}
     try {
       const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(upper)}&type=quote`, { cache: "no-store" }).then(r => r.json());
@@ -172,9 +173,13 @@ async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
   }
 
   // ── Futures + Crypto + final fallback: Yahoo Finance proxy ──────────────
+  // Same SF-D01 gate: an unobserved (previousClose-fallback) Yahoo quote is not
+  // a live price. For futures whose only free source is Yahoo (e.g. a closed
+  // Sunday session), this correctly yields no live tick rather than a fake-fresh
+  // print — the exact case SF-D01 was raised for.
   try {
     const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-    const q = mk(j, "yahoo"); if (q) return q;
+    const q = mk(j, "yahoo"); if (q && realQuoteSourceAccepted("yahoo", j)) return q;
   } catch {}
 
   return null;
