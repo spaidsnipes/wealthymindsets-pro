@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { candleDataStatus, priceSourceBadge } from "./priceSource";
+import { candleDataStatus, priceSourceBadge, resolveChartSurfaceBadge } from "./priceSource";
 
 describe("priceSourceBadge (WM-CHART-P0-05 provenance)", () => {
   it("labels real-time streams as live", () => {
@@ -133,6 +133,31 @@ describe("candleDataStatus", () => {
       expect(candleDataStatus("coinbase", true, true, 0, 20_000).state).toBe("STALE");
       // now - lastTickAt = 19_999 → LIVE
       expect(candleDataStatus("coinbase", true, true, 1, 20_000).state).toBe("LIVE");
+    });
+  });
+
+  // H-Bkt 8 nest closure — pure helper protects future chart-chrome pills.
+  describe("resolveChartSurfaceBadge — H-Bkt 1/8 truth guard as reusable helper", () => {
+    it("promotes NO FEED to HISTORICAL when candles are on-screen", () => {
+      const b = resolveChartSurfaceBadge("unavailable", false, true);
+      expect(b.label).toBe("HISTORICAL");
+      expect(b.live).toBe(false);
+      expect(b.title.toLowerCase()).toContain("historical");
+    });
+    it("keeps NO FEED when there are no candles to display", () => {
+      expect(resolveChartSurfaceBadge("unavailable", false, false).label).toBe("NO FEED");
+    });
+    it("preserves live-source LIVE labels regardless of hasCandles", () => {
+      expect(resolveChartSurfaceBadge("polygon", true, true).label).toBe("LIVE");
+      expect(resolveChartSurfaceBadge("polygon", true, false).label).toBe("LIVE");
+    });
+    it("preserves delayed-provider labels — never accidentally over-promotes to HISTORICAL", () => {
+      expect(resolveChartSurfaceBadge("yahoo", true, true).label).toBe("DELAYED");
+      expect(resolveChartSurfaceBadge("finnhub", true, true).label).toBe("DELAYED 15 MIN");
+    });
+    it("provenance is preserved on the promoted HISTORICAL badge (internal diagnostics)", () => {
+      const b = resolveChartSurfaceBadge("unavailable", false, true);
+      expect(b.provenance).toBe("unavailable");
     });
   });
 });

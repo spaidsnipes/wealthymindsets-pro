@@ -64,6 +64,31 @@ export function priceSourceBadge(source: PriceSource, connected: boolean): Price
   }
 }
 
+/**
+ * resolveChartSurfaceBadge — the H-Bkt 1 / H-Bkt 8 truth guard as a pure
+ * helper so future chart-chrome pills can't recreate the "NO FEED beside
+ * rendered candles" contradiction. Callers who know whether candles are
+ * on-screen pass hasCandles=true; if the raw badge label is NO FEED but
+ * candles exist, the label is promoted to HISTORICAL with an honest
+ * tooltip. Everything else passes through unchanged.
+ */
+export function resolveChartSurfaceBadge(
+  source: PriceSource,
+  connected: boolean,
+  hasCandles: boolean,
+): PriceSourceBadge {
+  const b = priceSourceBadge(source, connected);
+  if (b.label === "NO FEED" && hasCandles) {
+    return {
+      ...b,
+      label: "HISTORICAL",
+      title: "Historical OHLCV loaded. No realtime tape resolved yet — chart trustworthy for past-tense analysis only.",
+      live: false,
+    };
+  }
+  return b;
+}
+
 /** A recent UI update cannot promote a delayed provider into LIVE market data. */
 export function candleDataStatus(
   source: PriceSource,

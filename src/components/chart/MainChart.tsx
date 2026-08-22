@@ -33,7 +33,7 @@ import {
 import { getRuntimeTapeCapability, hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
 import { overlayFrameBudgetMs, shouldDrawOverlay } from "@/lib/chartOverlayGovernor";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { candleDataStatus, priceSourceBadge } from "@/lib/priceSource";
+import { candleDataStatus, priceSourceBadge, resolveChartSurfaceBadge } from "@/lib/priceSource";
 import type { PineOutput } from "@/lib/pine/types";
 import { interpretPine } from "@/lib/pine/interpreter";
 import * as IND from "./indicators";
@@ -6863,22 +6863,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           </span>
           {(() => {
             // Sentinel V-008 visibility fix — 10px readable badge.
-            // SHIFT-H H-Bkt 8 (Orkin nest closure): H-Bkt 1 fixed the
-            // freshness strip to say HISTORICAL when candles exist but
-            // realtime is unavailable — but THIS second badge still
-            // rendered NO FEED for the same state (revive-attempt caught
-            // it via ?symbol=INVALIDSYMBOL on prod). Same principle,
-            // same nest: a chart with real candles is never NO FEED.
-            const b = priceSourceBadge(source, connected);
-            const isNoFeedButHasCandles = b.label === "NO FEED" && candles.length > 0;
-            const label = isNoFeedButHasCandles ? "HISTORICAL" : b.label;
-            const title = isNoFeedButHasCandles
-              ? "Historical OHLCV loaded. No realtime tape resolved yet — chart trustworthy for past-tense analysis only."
-              : b.title;
+            // SHIFT-H H-Bkt 8 → shared helper: resolveChartSurfaceBadge
+            // enforces the "chart with candles never says NO FEED" truth
+            // guard at the pure-selector layer so this render site can't
+            // recreate the H-Bkt 1 / H-Bkt 8 nest and is protected by
+            // priceSource.test.ts state-matrix cases.
+            const b = resolveChartSurfaceBadge(source, connected, candles.length > 0);
             return (
               <span
-                title={title}
-                aria-label={label}
+                title={b.title}
+                aria-label={b.label}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 4,
                   fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
@@ -6893,7 +6887,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                   width: 6, height: 6, borderRadius: "50%",
                   background: b.live ? "#00E88A" : "#F5A623",
                 }} />
-                {label}
+                {b.label}
               </span>
             );
           })()}
