@@ -16,7 +16,7 @@ import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
 import { useJournalSnapshots, notifyJournalChanged } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
-import { realizedR, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
+import { realizedR, evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -864,6 +864,25 @@ function JournalPageInner() {
   const totalPnl = entries.reduce((s, e) => s + e.pnl, 0);
   const winRate  = entries.length ? ((wins / entries.length) * 100).toFixed(0) : "0";
 
+  // Proof Lane §21 launch — today's session R evaluation. Composes the
+  // canon §4 shutdown gate over TODAY's entries only. Founder sees
+  // cumulative R + shutdown state at a glance so a live-session
+  // journal review immediately tells him "session open" / "hard stop
+  // reached" / "+3R baseline objective — stewardship decision".
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayEntries = entries.filter(e => e.date === todayIso);
+  const todayRs = todayEntries
+    .map(e => e.realizedR)
+    .filter((r): r is number => typeof r === "number" && Number.isFinite(r));
+  const sessionShutdown = evaluateShutdown({ closedRs: todayRs });
+  const todayModelCounts = todayEntries.reduce(
+    (acc, e) => {
+      if (e.dayModel) acc[e.dayModel] = (acc[e.dayModel] ?? 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
   const saveEntry = () => {
     const e = { ...(form as JournalEntry) };
     e.id       = uid();
@@ -1179,6 +1198,26 @@ Trade the system, trust the process, winners every day 🚀`,
           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-wm-green/15 text-wm-green border border-wm-green/30">{winRate}% WR</span>
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${totalPnl >= 0 ? "bg-wm-green/10 text-wm-green border-wm-green/25" : "bg-wm-red/10 text-wm-red border-wm-red/25"}`}>{fmtPnl(totalPnl)}</span>
           <span className="text-[10px] text-wm-text-dim">{wins}W / {losses}L</span>
+          {/* Proof Lane §21 — today's Session R gate. Silent when the
+              trader hasn't logged any R for today (empty proof-lane
+              day; no fabrication). Live once first R lands. Canon §4:
+              -2R hard stop, +3R baseline objective (not a quota). */}
+          {todayRs.length > 0 && (
+            <span
+              title={`${sessionShutdown.reason} · ${todayModelCounts.M0 ?? 0}·M0 / ${todayModelCounts.M1 ?? 0}·M1 / ${todayModelCounts.M2 ?? 0}·M2`}
+              className={clsx(
+                "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                sessionShutdown.state === "AT_TWO_R_STOP" && "bg-wm-red/15 text-wm-red border-wm-red/40",
+                sessionShutdown.state === "AT_THREE_R_TARGET" && "bg-wm-gold/15 text-wm-gold border-wm-gold/40",
+                sessionShutdown.state === "OPEN" && "bg-wm-surface text-wm-text border-wm-border",
+              )}
+            >
+              {sessionShutdown.cumulativeR >= 0 ? "+" : ""}{sessionShutdown.cumulativeR.toFixed(2)}R
+              {sessionShutdown.state === "AT_TWO_R_STOP" && " · HARD STOP"}
+              {sessionShutdown.state === "AT_THREE_R_TARGET" && " · +3R OBJECTIVE"}
+              {sessionShutdown.state === "OPEN" && " · session open"}
+            </span>
+          )}
         </div>
         <div className="ml-auto flex items-center gap-2">
           <div className="flex items-center gap-1.5 bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1">
