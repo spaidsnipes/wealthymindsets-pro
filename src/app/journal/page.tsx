@@ -16,6 +16,7 @@ import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
 import { useJournalSnapshots, notifyJournalChanged } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
+import { realizedR, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -111,6 +112,12 @@ interface JournalEntry {
   lessons:   string;
   emojis:    string[];
   nectarSnapshot?: NectarSnapshot | null;
+  // Proof Lane §21 launch fields (2026-08-24). Optional / additive so
+  // pre-existing entries keep loading. §3 day model + §4 planned R
+  // dollars + §24 realized R (computed as pnl / plannedRDollars).
+  dayModel?: DayModel;
+  plannedRDollars?: number;
+  realizedR?: number;
 }
 
 const ALL_TAGS = ["CLC","VWAP reclaim","Wyckoff","dark pool","CVD","absorption","chased","FOMO","breakeven","morning session","supply rejection","EOD","momentum"];
@@ -831,6 +838,11 @@ function JournalPageInner() {
     result: "be", processQuality: "UNRESOLVED", processOutcome: "UNRESOLVED",
     starred: false, images: [], voiceSec: 0,
     setup: "", mistakes: "", lessons: "", emojis: [],
+    // Proof Lane defaults — start unset so the trader must consciously
+    // pick a Model and Planned R per canon §3 / §4. Empty ≠ zero.
+    dayModel: undefined,
+    plannedRDollars: undefined,
+    realizedR: undefined,
   });
   const [form, setForm]   = useState<Partial<JournalEntry>>(emptyForm());
   const voiceRec          = useVoiceRecorder();
@@ -861,6 +873,18 @@ function JournalPageInner() {
     e.processQuality = e.processQuality ?? "UNRESOLVED";
     e.processOutcome = classifyProcessOutcome(e.processQuality, e.pnl);
     e.voiceSec = voiceRec.memo?.sec ?? (voiceRec.state === "done" ? voiceRec.sec : 0);
+
+    // Proof Lane §21 — realized R = pnl / plannedRDollars, ONLY when
+    // the trader defined 1R before entry (canon §4). Otherwise leave
+    // realizedR undefined; the reader will show "R undefined" instead
+    // of a fabricated ratio.
+    if (typeof e.plannedRDollars === "number" && e.plannedRDollars > 0) {
+      try {
+        e.realizedR = realizedR({ plannedRDollars: e.plannedRDollars, realizedPnlDollars: e.pnl });
+      } catch { e.realizedR = undefined; }
+    } else {
+      e.realizedR = undefined;
+    }
 
     // Nectar snapshot — REMEMBER→REFLECT bridge (Founder OVERRIDE §10
     // loop closure). Capture what WM actually observed about this
@@ -1802,6 +1826,73 @@ Trade the system, trust the process, winners every day 🚀`,
                     ))}
                   </div>
                 </div>
+              </div>
+
+              {/* Proof Lane §21 — Day Model + Planned R. Founder canon §3/§4.
+                  Optional so old entries load, but presented prominently so
+                  the live-launch trader is nudged to classify + define 1R
+                  before saving. Live-computed R shown for feedback. */}
+              <div className="mb-4 rounded-xl border border-wm-gold/40 bg-gradient-to-br from-wm-surface/50 to-transparent p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-wm-gold">Proof Lane · Day Model + R</div>
+                  <span className="text-[9px] font-mono uppercase tracking-widest text-wm-text-dim">CANON §3 / §4 / §24</span>
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 mb-3">
+                  {(["M0", "M1", "M2"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setForm(current => ({ ...current, dayModel: m }))}
+                      aria-pressed={form.dayModel === m}
+                      className={clsx(
+                        "min-h-11 rounded-lg border p-2 text-left transition-colors",
+                        form.dayModel === m
+                          ? "border-wm-gold/60 bg-wm-gold/10"
+                          : "border-wm-border bg-wm-surface hover:border-wm-gold/30",
+                      )}
+                    >
+                      <span className="block text-[11px] font-bold text-wm-text">{m}</span>
+                      <span className="block text-[9px] leading-snug text-wm-text-dim">{DAY_MODEL_LABELS[m]}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] text-wm-text-dim uppercase mb-1 block">Planned R (1R = $)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={form.plannedRDollars ?? ""}
+                      onChange={e => setForm(f => ({ ...f, plannedRDollars: parseFloat(e.target.value) || undefined }))}
+                      placeholder="Define 1R BEFORE entry"
+                      className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-gold/50 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-wm-text-dim uppercase mb-1 block">Realized R (auto)</label>
+                    <div className="w-full bg-wm-surface/60 border border-wm-border rounded-lg px-3 py-2 text-sm font-mono min-h-[38px] flex items-center">
+                      {(() => {
+                        const p = form.plannedRDollars;
+                        const entryV = form.entry ?? 0;
+                        const exitV = form.exit ?? 0;
+                        const sizeV = form.size ?? 0;
+                        if (!(p && p > 0)) return <span className="text-wm-text-dim text-[10px]">R undefined — set Planned R first</span>;
+                        if (!(entryV > 0 && exitV > 0 && sizeV > 0)) return <span className="text-wm-text-dim text-[10px]">Awaiting entry/exit/size</span>;
+                        const pnl = (exitV - entryV) * sizeV * (form.side === "short" ? -1 : 1);
+                        const r = pnl / p;
+                        return (
+                          <span className={clsx("font-bold", r >= 0 ? "text-wm-green" : "text-wm-red")}>
+                            {r >= 0 ? "+" : ""}{r.toFixed(2)}R
+                          </span>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+                <p className="mt-2 text-[9px] text-wm-text-dim">
+                  R is separate from contract-return %. Canon §24 example: $100 contract with $20 Planned R and +$100 P&amp;L = +5R AND +100% contract return — record both, conflate neither.
+                </p>
               </div>
 
               <div className="mb-4 rounded-xl border border-wm-border bg-wm-surface/40 p-3">
