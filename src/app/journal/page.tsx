@@ -16,7 +16,8 @@ import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
 import { useJournalSnapshots, notifyJournalChanged } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
-import { realizedR, evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
+import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
+import { computeJournalPnl, computeJournalRealizedR } from "@/lib/journal/computePnl";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -892,26 +893,22 @@ function JournalPageInner() {
     const e = { ...(form as JournalEntry) };
     e.id       = uid();
     // Canon §6 Contract Lens: options carry a 100x standard multiplier.
-    // Stock defaults to 1x so existing entries compute exactly as before.
-    const contractMultiplier = e.contractType === "option" ? 100 : 1;
-    e.pnl      = (e.exit - e.entry) * e.size * contractMultiplier * (e.side === "short" ? -1 : 1);
+    // Delegating to computeJournalPnl (pure, state-matrix-tested) so the
+    // 16-branch coverage in computePnl.test.ts protects the shipped path.
+    e.pnl      = computeJournalPnl({ entry: e.entry, exit: e.exit, size: e.size, side: e.side, contractType: e.contractType });
     e.pct      = e.entry > 0 ? ((e.exit - e.entry) / e.entry * 100) * (e.side === "short" ? -1 : 1) : 0;
     e.result   = classifyFinancialOutcome(e.pnl);
     e.processQuality = e.processQuality ?? "UNRESOLVED";
     e.processOutcome = classifyProcessOutcome(e.processQuality, e.pnl);
     e.voiceSec = voiceRec.memo?.sec ?? (voiceRec.state === "done" ? voiceRec.sec : 0);
 
-    // Proof Lane §21 — realized R = pnl / plannedRDollars, ONLY when
-    // the trader defined 1R before entry (canon §4). Otherwise leave
-    // realizedR undefined; the reader will show "R undefined" instead
-    // of a fabricated ratio.
-    if (typeof e.plannedRDollars === "number" && e.plannedRDollars > 0) {
-      try {
-        e.realizedR = realizedR({ plannedRDollars: e.plannedRDollars, realizedPnlDollars: e.pnl });
-      } catch { e.realizedR = undefined; }
-    } else {
-      e.realizedR = undefined;
-    }
+    // Proof Lane §21 — realized R via the same state-matrix-tested pure
+    // selector the live modal tile uses. Never fabricated when
+    // plannedRDollars is missing / zero (canon §4).
+    e.realizedR = computeJournalRealizedR({
+      entry: e.entry, exit: e.exit, size: e.size, side: e.side,
+      contractType: e.contractType, plannedRDollars: e.plannedRDollars,
+    });
 
     // Nectar snapshot — REMEMBER→REFLECT bridge (Founder OVERRIDE §10
     // loop closure). Capture what WM actually observed about this
@@ -1947,11 +1944,15 @@ Trade the system, trust the process, winners every day 🚀`,
                         const entryV = form.entry ?? 0;
                         const exitV = form.exit ?? 0;
                         const sizeV = form.size ?? 0;
-                        const multV = form.contractType === "option" ? 100 : 1;
                         if (!(p && p > 0)) return <span className="text-wm-text-dim text-[10px]">R undefined — set Planned R first</span>;
                         if (!(entryV > 0 && exitV > 0 && sizeV > 0)) return <span className="text-wm-text-dim text-[10px]">Awaiting entry/exit/size</span>;
-                        const pnl = (exitV - entryV) * sizeV * multV * (form.side === "short" ? -1 : 1);
-                        const r = pnl / p;
+                        // Same state-matrix-tested pure selector as saveEntry.
+                        const r = computeJournalRealizedR({
+                          entry: entryV, exit: exitV, size: sizeV,
+                          side: form.side ?? "long", contractType: form.contractType,
+                          plannedRDollars: p,
+                        });
+                        if (r === undefined) return <span className="text-wm-text-dim text-[10px]">R undefined</span>;
                         return (
                           <span className={clsx("font-bold", r >= 0 ? "text-wm-green" : "text-wm-red")}>
                             {r >= 0 ? "+" : ""}{r.toFixed(2)}R
