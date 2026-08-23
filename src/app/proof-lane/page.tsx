@@ -44,15 +44,18 @@ function useJournalEdge() {
       try {
         const raw = localStorage.getItem("wm-journal");
         if (!raw) { setEdge(selectSessionEdge([])); return; }
-        const arr = JSON.parse(raw) as Array<{ date?: string; result?: string; realizedR?: number; processQuality?: string }>;
+        const arr = JSON.parse(raw) as Array<{ date?: string; result?: string; realizedR?: number; processQuality?: string; mfeR?: number; maeR?: number }>;
         if (!Array.isArray(arr)) { setEdge(selectSessionEdge([])); return; }
+        const num = (v: unknown): number | undefined => typeof v === "number" && Number.isFinite(v) ? v : undefined;
         const entries = arr
           .filter(e => e && typeof e.date === "string" && typeof e.result === "string")
           .map(e => ({
             date: e.date as string,
             result: (e.result === "win" || e.result === "loss" || e.result === "be" ? e.result : "be") as "win" | "loss" | "be",
-            realizedR: typeof e.realizedR === "number" && Number.isFinite(e.realizedR) ? e.realizedR : undefined,
+            realizedR: num(e.realizedR),
             processQuality: (e.processQuality === "FOLLOWED_PLAN" || e.processQuality === "BROKE_RULES" || e.processQuality === "UNRESOLVED" ? e.processQuality : "UNRESOLVED") as "FOLLOWED_PLAN" | "BROKE_RULES" | "UNRESOLVED",
+            mfeR: num(e.mfeR),
+            maeR: num(e.maeR),
           }));
         setEdge(selectSessionEdge(entries));
       } catch { setEdge(selectSessionEdge([])); }
@@ -318,9 +321,19 @@ export default function ProofLanePage() {
                   <span className="text-neutral-500">— (no graded process yet)</span>
                 )}
               </div>
+              <div className="text-neutral-400">
+                Capture % (canon §7): {measured.avgCaptureRatio != null ? (
+                  <>
+                    <span className="text-emerald-300 font-mono">{(measured.avgCaptureRatio * 100).toFixed(0)}%</span>
+                    <span className="text-neutral-500"> · n={measured.captureSampleSize}</span>
+                  </>
+                ) : (
+                  <span className="text-neutral-500">— (no MFE recorded yet)</span>
+                )}
+              </div>
             </div>
             <p className="mt-3 text-xs text-neutral-500">
-              MEASURED LIVE reads only entries with Planned R defined pre-entry per canon §4. Entries without R are counted but excluded from expectancy — never fabricated.
+              MEASURED LIVE reads only entries with Planned R defined pre-entry per canon §4. Entries without R are counted but excluded from expectancy — never fabricated. Capture % requires both realized R and max-favorable R per canon §7.
             </p>
           </section>
         )}

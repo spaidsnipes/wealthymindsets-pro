@@ -131,6 +131,22 @@ describe("selectSessionEdge — rules adhered percentage", () => {
   });
 });
 
+describe("selectSessionEdge — capture % (canon §7)", () => {
+  it("undefined when no entries have both R and MFE", () => {
+    const s = selectSessionEdge([mk({ realizedR: 1 })]); // no mfeR
+    expect(s.avgCaptureRatio).toBeUndefined();
+    expect(s.captureSampleSize).toBe(0);
+  });
+  it("70% capture across a two-entry sample", () => {
+    const s = selectSessionEdge([
+      mk({ realizedR: 1.4, mfeR: 2.0 }), // 70%
+      mk({ realizedR: 1.5, mfeR: 2.0 }), // 75%
+    ]);
+    expect(s.captureSampleSize).toBe(2);
+    expect(s.avgCaptureRatio).toBeCloseTo((0.7 + 0.75) / 2, 6);
+  });
+});
+
 describe("selectSessionEdge — Founder Week-One realistic sample", () => {
   it("5 sessions, mix of M1/M2 + one no-trade equivalent → all metrics compute honestly", () => {
     // Realistic Week-One shape: 3 winners, 1 loser, 1 unresolved (M0 = no

@@ -923,6 +923,8 @@ function JournalPageInner() {
     result: e.result,
     realizedR: e.realizedR,
     processQuality: e.processQuality,
+    mfeR: e.mfeR,
+    maeR: e.maeR,
   })));
 
   const saveEntry = () => {

@@ -24,6 +24,8 @@
  *    multiplier doesn't distort it.
  */
 
+import { averageCapture } from "./captureEfficiency";
+
 export type SessionOutcome = "win" | "loss" | "be";
 export type SessionProcess = "FOLLOWED_PLAN" | "BROKE_RULES" | "UNRESOLVED";
 
@@ -36,6 +38,10 @@ export interface EdgeEntry {
   realizedR?: number;
   /** Process quality per canon §journalProcess. */
   processQuality: SessionProcess;
+  /** Canon §7 Management Studio — max favorable excursion in R. */
+  mfeR?: number;
+  /** Canon §7 Management Studio — max adverse excursion in R. */
+  maeR?: number;
 }
 
 export interface SessionEdge {
@@ -59,6 +65,10 @@ export interface SessionEdge {
   followedPlan: number;
   brokeRules: number;
   unresolved: number;
+  /** Canon §7 capture % averaged over entries with both realizedR + mfeR. */
+  avgCaptureRatio: number | undefined;
+  /** Entries eligible for capture computation (had both R + MFE). */
+  captureSampleSize: number;
 }
 
 /**
@@ -102,6 +112,9 @@ export function selectSessionEdge(entries: readonly EdgeEntry[]): SessionEdge {
   const gradedProcess = followedPlan + brokeRules;
   const rulesAdheredPct = gradedProcess ? followedPlan / gradedProcess : undefined;
 
+  // Canon §7 capture — only over entries with both realizedR AND mfeR.
+  const capture = averageCapture(entries);
+
   return {
     totalEntries: entries.length,
     rTaggedEntries: rTagged.length,
@@ -119,5 +132,7 @@ export function selectSessionEdge(entries: readonly EdgeEntry[]): SessionEdge {
     followedPlan,
     brokeRules,
     unresolved,
+    avgCaptureRatio: capture.avgCapture,
+    captureSampleSize: capture.sampleSize,
   };
 }
