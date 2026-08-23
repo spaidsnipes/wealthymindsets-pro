@@ -824,6 +824,11 @@ function JournalPageInner() {
   // isolate a specific quadrant (e.g. 'DANGEROUS_WIN' — bad process +
   // lucky win) from the ProcessOutcomeStrip. 'all' means no filter.
   const [filterProcessOutcome, setFilterProcessOutcome] = useState<"all"|ProcessOutcome>("all");
+  // I-Bkt 7: filter by canon §3 day model. Founder's Week-One review
+  // will want "show only my M1 days last week" to isolate a class of
+  // sessions. 'all' = no filter; entries without dayModel are excluded
+  // from a specific-Mx filter (canon: unclassified never counted as Mx).
+  const [filterDayModel, setFilterDayModel] = useState<"all"|"M0"|"M1"|"M2">("all");
   const [lightbox,  setLightbox]  = useState<string | null>(null);
   const [mainTab,   setMainTab]   = useState<"journal"|"coach"|"songs">("journal");
 
@@ -862,7 +867,8 @@ function JournalPageInner() {
       (!q || e.symbol.toLowerCase().includes(q) || e.notes.toLowerCase().includes(q) || e.setup.toLowerCase().includes(q)) &&
       (!filterTag || e.tags.includes(filterTag)) &&
       (filterRes === "all" || e.result === filterRes) &&
-      (filterProcessOutcome === "all" || e.processOutcome === filterProcessOutcome)
+      (filterProcessOutcome === "all" || e.processOutcome === filterProcessOutcome) &&
+      (filterDayModel === "all" || e.dayModel === filterDayModel)
     );
   });
   const linkedMatchCount = linkedFilterActive ? linkedEntries.length : 0;
@@ -1272,6 +1278,25 @@ Trade the system, trust the process, winners every day 🚀`,
                   : "text-wm-text-muted border-transparent hover:border-wm-border"
               )}>
               {r === "be" ? "BE" : r === "all" ? "All" : r.charAt(0).toUpperCase() + r.slice(1)}
+            </button>
+          ))}
+          {/* I-Bkt 7: day-model filter chips per canon §3. Silent
+              on-screen when a specific Mx is selected + no entries
+              match — the existing "No entries found" empty state
+              handles the message. */}
+          {(["all", "M0", "M1", "M2"] as const).map(m => (
+            <button
+              key={m}
+              onClick={() => setFilterDayModel(m)}
+              aria-pressed={filterDayModel === m}
+              className={clsx("px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-all",
+                filterDayModel === m && m !== "all" && "bg-wm-gold/20 text-wm-gold border-wm-gold/40",
+                filterDayModel === m && m === "all" && "bg-wm-surface text-wm-text border-wm-border",
+                filterDayModel !== m && "text-wm-text-muted border-transparent hover:border-wm-border",
+              )}
+              title={m === "all" ? "Show all days" : m === "M0" ? "Show no-trade days" : m === "M1" ? "Show trend-expansion days" : "Show chop-rotation days"}
+            >
+              {m === "all" ? "All Models" : m}
             </button>
           ))}
           <button onClick={exportCSV}
