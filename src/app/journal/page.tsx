@@ -126,6 +126,13 @@ interface JournalEntry {
   // $1.00→$1.20 option with 1 contract is +$20 P&L, not +$0.20.
   // "stock" default keeps legacy entries computing exactly as before.
   contractType?: "stock" | "option";
+  // Management Studio (canon §7). Trader-observed maximum favorable
+  // excursion (best unrealized R the trade printed while open) and
+  // maximum adverse excursion (worst unrealized R). Used with
+  // realizedR to compute capture efficiency = realizedR / mfeR.
+  // Optional; absent for legacy entries and skipped for M0 no-trade days.
+  mfeR?: number;
+  maeR?: number;
 }
 
 const ALL_TAGS = ["CLC","VWAP reclaim","Wyckoff","dark pool","CVD","absorption","chased","FOMO","breakeven","morning session","supply rejection","EOD","momentum"];
@@ -2152,6 +2159,36 @@ Trade the system, trust the process, winners every day 🚀`,
                 <p className="mt-2 text-[9px] text-wm-text-dim">
                   R is separate from contract-return %. Canon §24 example: $100 contract with $20 Planned R and +$100 P&amp;L = +5R AND +100% contract return — record both, conflate neither.
                 </p>
+                {/* J-Bkt 6: MFE / MAE (canon §7 Management Studio).
+                    Optional — the trader observes the max favorable /
+                    max adverse excursion during the trade in R units.
+                    Enables capture-efficiency review across a sample. */}
+                {form.dayModel !== "M0" && (
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-wm-text-dim uppercase mb-1 block">MFE (R)  — max favorable</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        placeholder="e.g. 2.0"
+                        value={form.mfeR ?? ""}
+                        onChange={e => setForm(f => ({ ...f, mfeR: parseFloat(e.target.value) || undefined }))}
+                        className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-gold/50 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-wm-text-dim uppercase mb-1 block">MAE (R) — max adverse</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        placeholder="e.g. -0.4"
+                        value={form.maeR ?? ""}
+                        onChange={e => setForm(f => ({ ...f, maeR: parseFloat(e.target.value) || undefined }))}
+                        className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-red/50 font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="mb-4 rounded-xl border border-wm-border bg-wm-surface/40 p-3">
