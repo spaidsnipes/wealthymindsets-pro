@@ -182,7 +182,7 @@ class MemStorage {
   key(_i: number) { return null; }
 }
 
-const g = globalThis as { window?: { localStorage: MemStorage }; localStorage?: MemStorage };
+const g = globalThis as unknown as { window?: { localStorage: MemStorage }; localStorage?: MemStorage };
 
 beforeEach(() => {
   const ls = new MemStorage();
