@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { SymbolSearch } from "@/components/ui/SymbolSearch";
 import { yahooQuoteObserved } from "@/lib/marketData/yahooQuoteObserved";
+import { applyFill as applyFillShared } from "@/lib/paperTrade";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 
@@ -82,68 +83,25 @@ const PAPER_KEY = "wm_paper_state";
 function uid() { return Math.random().toString(36).slice(2,9); }
 
 /**
- * Pure position-fill reducer with correct long/short realized-P&L accounting.
+ * SHIFT-J J-Bkt 3: the local applyFill is now a thin type-adapter
+ * over the shared src/lib/paperTrade.ts `applyFill` — canonically
+ * tested by the 18-branch state matrix in src/lib/paperTrade.test.ts.
+ * Structural typing makes the two Position/Order/Trade shapes
+ * interchangeable; this indirection preserves the local call sites
+ * while eliminating the duplicated money math the pre-J file-header
+ * warned about.
  *
- * Returns the next positions array, the blotter `trade` (carrying realized P&L
- * only on reducing/closing fills), and the `cashDelta`. Cash already embodies
- * realized P&L via double-entry: you pay `qty*px` to buy and receive `qty*px`
- * to sell, so realized profit is the net of those cash flows — it must NOT be
- * added to cash a second time. `trade.pnl` is purely for the blotter/stats.
- *
- * Handles: open, add (same direction), partial close, full close, and reversal
- * (close all + open the leftover on the opposite side at the fill price).
+ * If either the local types or the shared reducer types drift, the
+ * compiler catches it here — the money math itself lives in one place.
  */
 function applyFill(
   positions: Position[],
   ord: Order,
   fillPx: number,
 ): { positions: Position[]; trade: Trade; cashDelta: number; realized: number } {
-  const signedQty = ord.side === "buy" ? ord.qty : -ord.qty; // signed fill size
-  const cashDelta = -signedQty * fillPx;                     // pay to buy, receive to sell
-  const trade: Trade = {
-    id: uid(), symbol: ord.symbol, side: ord.side,
-    qty: ord.qty, px: fillPx, ts: Date.now(),
+  return applyFillShared(positions, ord, fillPx) as {
+    positions: Position[]; trade: Trade; cashDelta: number; realized: number;
   };
-
-  const idx = positions.findIndex(p => p.symbol === ord.symbol);
-  if (idx === -1 || positions[idx].qty === 0) {
-    // Brand-new position — opening only, no realized P&L
-    const next = idx === -1
-      ? [...positions, { symbol: ord.symbol, qty: signedQty, avgPx: fillPx, unrealPnl: 0, marketPx: fillPx }]
-      : positions.map((p, i) => i === idx ? { ...p, qty: signedQty, avgPx: fillPx, marketPx: fillPx } : p);
-    return { positions: next, trade, cashDelta, realized: 0 };
-  }
-
-  const pos = positions[idx];
-  const sameDir = Math.sign(signedQty) === Math.sign(pos.qty);
-  let realized = 0;
-  let newPos: Position | null;
-
-  if (sameDir) {
-    // Adding to the position → volume-weighted average, no realized P&L
-    const newQty = pos.qty + signedQty;
-    const newAvg = (pos.avgPx * pos.qty + fillPx * signedQty) / newQty;
-    newPos = { ...pos, qty: newQty, avgPx: newAvg, marketPx: fillPx };
-  } else {
-    // Opposite direction → reduce / close / reverse. Book realized P&L on the
-    // portion that offsets the existing position: (exit-entry)*closed*dir.
-    const closeQty = Math.min(Math.abs(signedQty), Math.abs(pos.qty));
-    realized = closeQty * (fillPx - pos.avgPx) * Math.sign(pos.qty);
-    const newQty = pos.qty + signedQty;
-    if (newQty === 0) {
-      newPos = null;                                            // fully closed
-    } else if (Math.sign(newQty) === Math.sign(pos.qty)) {
-      newPos = { ...pos, qty: newQty, marketPx: fillPx };       // partial close, avg unchanged
-    } else {
-      newPos = { ...pos, qty: newQty, avgPx: fillPx, marketPx: fillPx }; // reversal: leftover opens fresh
-    }
-  }
-
-  if (realized !== 0) trade.pnl = realized;
-  const next = newPos
-    ? positions.map((p, i) => (i === idx ? newPos! : p))
-    : positions.filter((_, i) => i !== idx);
-  return { positions: next, trade, cashDelta, realized };
 }
 
 function loadPaperState() {
