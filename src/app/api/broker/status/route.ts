@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdapter } from "../../../../lib/broker/adapters";
+import { computeCertificationLevel, type CertLevel, type CertStageReport } from "../../../../lib/broker/certification";
+import type { BrokerId } from "../../../../lib/broker/BrokerAdapter";
 
 /**
  * /api/broker/status
@@ -35,6 +37,10 @@ export interface ProviderReport {
   readonly connected: boolean;
   /** Truthful note the surface can render. */
   readonly note: string;
+  /** Canon §W3 certification level. Absent for AI providers. */
+  readonly certLevel?: CertLevel;
+  /** Canon §W3 progress "N/12 stages passed". Absent for AI providers. */
+  readonly certPassedStages?: number;
 }
 
 function envAllPresent(names: readonly string[]): boolean {
@@ -44,19 +50,47 @@ function envAllPresent(names: readonly string[]): boolean {
   });
 }
 
+/**
+ * I-Bkt 10 (canon §W3): derive a minimal cert-stage report from the
+ * adapter's health() output so the aggregate can render cert level
+ * alongside implemented/envConfigured/connected. Never claims stages
+ * we can't verify from health — cert runner will supply richer reports.
+ *
+ * Rules:
+ *   implemented + envConfigured + connected  → auth PASS
+ *   implemented + envConfigured               → auth PENDING, other PENDING
+ *   !implemented                              → every stage PENDING
+ *   Any downstream stage requires a live cert harness run — not yet
+ *   available in this stub — so all remain PENDING here.
+ */
+function deriveCertReports(implemented: boolean, envConfigured: boolean, connected: boolean): readonly CertStageReport[] {
+  if (!implemented) return [];
+  if (implemented && envConfigured && connected) {
+    return [{ stage: "auth", status: "PASS", note: "Derived from adapter.health() — connected in-process." }];
+  }
+  return [{ stage: "auth", status: "PENDING", note: "Adapter present; live cert harness has not run." }];
+}
+
 function fromRegistry(
   id: "webull" | "alpaca" | "tastytrade",
   fallbackNote: string,
 ): ProviderReport {
   const adapter = getAdapter(id);
   const h = adapter?.health();
+  const implemented = h?.implemented ?? false;
+  const envConfigured = h?.envConfigured ?? false;
+  const connected = h?.connected ?? false;
+  const reports = deriveCertReports(implemented, envConfigured, connected);
+  const cert = computeCertificationLevel(id as BrokerId, reports);
   return {
     provider: id,
     kind: "broker",
-    implemented: h?.implemented ?? false,
-    envConfigured: h?.envConfigured ?? false,
-    connected: h?.connected ?? false,
+    implemented,
+    envConfigured,
+    connected,
     note: h?.note ?? fallbackNote,
+    certLevel: cert.level,
+    certPassedStages: cert.passedStages.length,
   };
 }
 
