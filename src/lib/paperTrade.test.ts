@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { applyFill, type Order, type Position } from "./paperTrade";
+import { afterEach, beforeEach } from "vitest";
+import {
+  applyFill,
+  clearPaperState,
+  loadPaperState,
+  placeChartMarketOrder,
+  PAPER_KEY,
+  STARTING_CASH,
+  type Order,
+  type Position,
+} from "./paperTrade";
 
 /**
  * SHIFT-J J-Bkt 2 — Orkin §22 state-matrix for applyFill.
@@ -154,5 +164,134 @@ describe("applyFill — cash-delta invariant (canon: cash = -signedQty * fillPx)
   ])("$side $qty @ $$fillPx → cashDelta $expected", ({ side, qty, fillPx, expected }) => {
     const r = applyFill([], mk({ side, qty }), fillPx);
     expect(r.cashDelta).toBe(expected);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// J-Bkt 4 — loadPaperState + placeChartMarketOrder + clearPaperState state
+// matrix. Uses a minimal localStorage polyfill in the Node test environment.
+// ---------------------------------------------------------------------------
+
+class MemStorage {
+  private store = new Map<string, string>();
+  getItem(k: string) { return this.store.has(k) ? this.store.get(k)! : null; }
+  setItem(k: string, v: string) { this.store.set(k, v); }
+  removeItem(k: string) { this.store.delete(k); }
+  clear() { this.store.clear(); }
+  get length() { return this.store.size; }
+  key(_i: number) { return null; }
+}
+
+const g = globalThis as { window?: { localStorage: MemStorage }; localStorage?: MemStorage };
+
+beforeEach(() => {
+  const ls = new MemStorage();
+  g.window = { localStorage: ls };
+  g.localStorage = ls;
+});
+afterEach(() => {
+  delete g.window;
+  delete g.localStorage;
+});
+
+describe("loadPaperState — SSR fallback + corrupt-payload tolerance", () => {
+  it("returns fresh state ($100k cash, empty positions/orders/trades) when no window", () => {
+    delete g.window;
+    delete g.localStorage;
+    const s = loadPaperState();
+    expect(s.cash).toBe(STARTING_CASH);
+    expect(s.positions).toEqual([]);
+    expect(s.orders).toEqual([]);
+    expect(s.trades).toEqual([]);
+    expect(s.equity.length).toBeGreaterThan(0);
+  });
+  it("returns fresh state when localStorage is empty", () => {
+    const s = loadPaperState();
+    expect(s.cash).toBe(STARTING_CASH);
+  });
+  it("returns fresh state when localStorage is corrupt JSON", () => {
+    g.window!.localStorage.setItem(PAPER_KEY, "{this-is-not-json");
+    const s = loadPaperState();
+    expect(s.cash).toBe(STARTING_CASH);
+    expect(s.positions).toEqual([]);
+  });
+  it("round-trips a saved state exactly", () => {
+    const pos: Position = { symbol: "TSLA", qty: 5, avgPx: 100, unrealPnl: 0, marketPx: 100 };
+    g.window!.localStorage.setItem(PAPER_KEY, JSON.stringify({
+      cash: 50_000, positions: [pos], orders: [], trades: [], equity: [{ ts: 1, equity: 50_500 }],
+    }));
+    const s = loadPaperState();
+    expect(s.cash).toBe(50_000);
+    expect(s.positions).toEqual([pos]);
+    expect(s.equity[0]).toEqual({ ts: 1, equity: 50_500 });
+  });
+  it("defaults missing arrays without crashing", () => {
+    g.window!.localStorage.setItem(PAPER_KEY, JSON.stringify({ cash: 42 }));
+    const s = loadPaperState();
+    expect(s.cash).toBe(42);
+    expect(s.positions).toEqual([]);
+    expect(s.orders).toEqual([]);
+    expect(s.trades).toEqual([]);
+  });
+});
+
+describe("placeChartMarketOrder — validation guards + persistence", () => {
+  it("rejects empty symbol", () => {
+    const r = placeChartMarketOrder("", "buy", 1, 100);
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/no symbol/i);
+  });
+  it("rejects non-positive qty", () => {
+    expect(placeChartMarketOrder("TSLA", "buy", 0, 100).ok).toBe(false);
+    expect(placeChartMarketOrder("TSLA", "buy", -1, 100).ok).toBe(false);
+  });
+  it("rejects non-finite or non-positive fillPx (no live price)", () => {
+    expect(placeChartMarketOrder("TSLA", "buy", 1, 0).ok).toBe(false);
+    expect(placeChartMarketOrder("TSLA", "buy", 1, NaN).ok).toBe(false);
+    expect(placeChartMarketOrder("TSLA", "buy", 1, -100).ok).toBe(false);
+  });
+  it("persists a buy order + trade + updated cash into localStorage", () => {
+    const r = placeChartMarketOrder("TSLA", "buy", 10, 100);
+    expect(r.ok).toBe(true);
+    expect(r.position).toMatchObject({ symbol: "TSLA", qty: 10, avgPx: 100 });
+    expect(r.cash).toBe(STARTING_CASH - 1000);
+    const raw = g.window!.localStorage.getItem(PAPER_KEY)!;
+    const s = JSON.parse(raw);
+    expect(s.positions).toHaveLength(1);
+    expect(s.orders).toHaveLength(1);
+    expect(s.trades).toHaveLength(1);
+    expect(s.cash).toBe(STARTING_CASH - 1000);
+  });
+  it("caps orders + trades at 500 entries (canonical rolling window)", () => {
+    // Seed 500 orders + trades already
+    const seedOrders = Array.from({ length: 500 }, (_, i) => ({ id: `o${i}`, symbol: "X", side: "buy", type: "market", qty: 1, fillPx: 1, status: "filled", ts: i }));
+    const seedTrades = Array.from({ length: 500 }, (_, i) => ({ id: `t${i}`, symbol: "X", side: "buy", qty: 1, px: 1, ts: i }));
+    g.window!.localStorage.setItem(PAPER_KEY, JSON.stringify({
+      cash: STARTING_CASH, positions: [], orders: seedOrders, trades: seedTrades, equity: [{ ts: 0, equity: STARTING_CASH }],
+    }));
+    const r = placeChartMarketOrder("TSLA", "buy", 1, 100);
+    expect(r.ok).toBe(true);
+    const s = JSON.parse(g.window!.localStorage.getItem(PAPER_KEY)!);
+    expect(s.orders.length).toBe(500);
+    expect(s.trades.length).toBe(500);
+    // Newest at the front
+    expect(s.orders[0].symbol).toBe("TSLA");
+    expect(s.trades[0].symbol).toBe("TSLA");
+  });
+});
+
+describe("clearPaperState — logout-isolation guarantee (canon §Sentinel)", () => {
+  it("removes the paper key entirely; loadPaperState returns a fresh account", () => {
+    g.window!.localStorage.setItem(PAPER_KEY, JSON.stringify({ cash: 1, positions: [{ symbol: "X", qty: 10, avgPx: 1, unrealPnl: 0, marketPx: 1 }] }));
+    clearPaperState();
+    expect(g.window!.localStorage.getItem(PAPER_KEY)).toBeNull();
+    const s = loadPaperState();
+    expect(s.cash).toBe(STARTING_CASH);
+    expect(s.positions).toEqual([]);
+  });
+  it("is safe to call when there is no window (SSR / node)", () => {
+    delete g.window;
+    delete g.localStorage;
+    expect(() => clearPaperState()).not.toThrow();
   });
 });
