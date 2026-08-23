@@ -840,6 +840,8 @@ function JournalPageInner() {
   // I-Bkt 14: filter by canon §6 contract type. Founder review will
   // want to isolate all option trades or all stock trades separately.
   const [filterContract, setFilterContract] = useState<"all"|"stock"|"option">("all");
+  // J-Bkt 9: starred-only filter. One-click "show me my best trades" review.
+  const [filterStarred, setFilterStarred] = useState(false);
   const [lightbox,  setLightbox]  = useState<string | null>(null);
   const [mainTab,   setMainTab]   = useState<"journal"|"coach"|"songs">("journal");
 
@@ -880,7 +882,8 @@ function JournalPageInner() {
       (filterRes === "all" || e.result === filterRes) &&
       (filterProcessOutcome === "all" || e.processOutcome === filterProcessOutcome) &&
       (filterDayModel === "all" || e.dayModel === filterDayModel) &&
-      (filterContract === "all" || (e.contractType ?? "stock") === filterContract)
+      (filterContract === "all" || (e.contractType ?? "stock") === filterContract) &&
+      (!filterStarred || e.starred)
     );
   });
   const linkedMatchCount = linkedFilterActive ? linkedEntries.length : 0;
@@ -1324,6 +1327,17 @@ Trade the system, trust the process, winners every day 🚀`,
               {m === "all" ? "All Models" : m}
             </button>
           ))}
+          {/* J-Bkt 9: starred-only filter chip. */}
+          <button
+            onClick={() => setFilterStarred(v => !v)}
+            aria-pressed={filterStarred}
+            title={filterStarred ? "Show all entries" : "Show only starred entries"}
+            className={clsx("px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-all",
+              filterStarred ? "bg-wm-gold/25 text-wm-gold border-wm-gold/50" : "text-wm-text-muted border-transparent hover:border-wm-border",
+            )}
+          >
+            ★ Starred
+          </button>
           {/* I-Bkt 14: contract-type filter chips (canon §6 Contract Lens). */}
           {(["all", "stock", "option"] as const).map(c => (
             <button
