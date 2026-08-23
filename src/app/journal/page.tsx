@@ -18,6 +18,7 @@ import { useJournalSnapshots, notifyJournalChanged } from "@/lib/traderMemory/ad
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
 import { computeJournalPnl, computeJournalRealizedR } from "@/lib/journal/computePnl";
+import { journalToCsv } from "@/lib/journal/journalToCsv";
 import { selectSessionEdge } from "@/lib/proofLane/selectSessionEdge";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
@@ -1176,12 +1177,14 @@ Trade the system, trust the process, winners every day 🚀`,
   };
 
   const exportCSV = () => {
-    const h = "Date,Symbol,Side,Entry,Exit,Size,PnL,Result,Setup,Tags,Notes\n";
-    const r = entries.map(e =>
-      `${e.date},${e.symbol},${e.side},${e.entry},${e.exit},${e.size},${e.pnl},${e.result},"${e.setup}","${e.tags.join(";")}","${e.notes.replace(/"/g, "'")}"`
-    ).join("\n");
+    // I-Bkt 4: delegates to journalToCsv (pure, RFC 4180 escaping,
+    // 20 columns including all Proof Lane fields per canon §3/§4/§6/§24).
+    // Prior inline version dropped dayModel / plannedR / realizedR /
+    // contractType / processQuality — Founder's Week-One review would
+    // have been silently wrong.
+    const csv = journalToCsv(entries);
     const a = Object.assign(document.createElement("a"), {
-      href: URL.createObjectURL(new Blob([h + r], { type: "text/csv" })),
+      href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })),
       download: "wm-journal.csv",
     });
     a.click();
