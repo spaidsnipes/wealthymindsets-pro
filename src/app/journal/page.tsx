@@ -1953,18 +1953,34 @@ Trade the system, trust the process, winners every day 🚀`,
                     {SETUPS.map(s => <option key={s}>{s}</option>)}
                   </select>
                 </div>
-                {([
-                  { k:"entry" as const, l:"Entry Price" },
-                  { k:"exit"  as const, l:"Exit Price"  },
-                  { k:"size"  as const, l:"Size / Contracts" },
-                ]).map(({ k, l }) => (
-                  <div key={k}>
-                    <label className="text-[10px] text-wm-text-dim uppercase mb-1 block">{l}</label>
-                    <input type="number" value={form[k] || ""}
-                      onChange={e => setForm(f => ({ ...f, [k]: parseFloat(e.target.value) || 0 }))}
-                      className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-green/50 font-mono" />
+                {/* I-Bkt 5: canon §3 M0 = NO TRADE. When the trader
+                    classifies today as M0, hide the order fields and
+                    label them clearly disabled. Founder can still log a
+                    reflective "no-trade day" record with notes + mood
+                    without fabricating an entry/exit/size that never
+                    happened. */}
+                {form.dayModel === "M0" ? (
+                  <div className="col-span-2 rounded-lg border border-wm-gold/25 bg-wm-gold/5 p-3">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-wm-gold mb-1">M0 · No Trade</div>
+                    <p className="text-[11px] text-wm-text leading-snug">
+                      Entry / Exit / Size / Planned R are not applicable — canon §3 M0 is capital preservation.
+                      Use the notes below to record what you observed and why no setup was authorized. Realized R will be recorded as undefined.
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  ([
+                    { k:"entry" as const, l:"Entry Price" },
+                    { k:"exit"  as const, l:"Exit Price"  },
+                    { k:"size"  as const, l:"Size / Contracts" },
+                  ]).map(({ k, l }) => (
+                    <div key={k}>
+                      <label className="text-[10px] text-wm-text-dim uppercase mb-1 block">{l}</label>
+                      <input type="number" value={form[k] || ""}
+                        onChange={e => setForm(f => ({ ...f, [k]: parseFloat(e.target.value) || 0 }))}
+                        className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-green/50 font-mono" />
+                    </div>
+                  ))
+                )}
                 <div>
                   <label className="text-[10px] text-wm-text-dim uppercase mb-1 block">Mood</label>
                   <div className="flex gap-1">
