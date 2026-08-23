@@ -14,6 +14,13 @@ out/
 .env.*.local
 .env.production
 
+# Cloudflare Workers / OpenNext — NEVER commit local secrets or build output
+.dev.vars
+.dev.vars.*
+.wrangler/
+.open-next/
+env.d.ts
+
 # Vercel
 .vercel
 

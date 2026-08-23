@@ -1,0 +1,36 @@
+/**
+ * WM Pro — Cloudflare Workers configuration (Phase 5 K-Bkt 4).
+ *
+ * Runtime: Cloudflare Workers via @opennextjs/cloudflare.
+ * Adapter output: .open-next/ (Worker + assets).
+ *
+ * Canon anchors:
+ *  - Hosting Runbook §4 (Next.js → Cloudflare Workers baseline)
+ *  - Migration Contract Phase 1 (Cloudflare must become code-owned)
+ *  - Migration Contract Phase 5 (Cloudflare env vs runtime env)
+ *
+ * IMPORTANT — SECRETS:
+ *  This file MUST NEVER contain secret values. Install runtime
+ *  secrets via `npx wrangler secret put NAME` (terminal-only prompt,
+ *  never appears on screen) or the Cloudflare dashboard's encrypted
+ *  variables section. Non-secret public configuration lives in the
+ *  `vars` block below (currently empty; add build-safe public values
+ *  here if any accumulate).
+ *
+ * OpenNext will write `.open-next/worker.js` + `.open-next/assets/` on
+ * `opennextjs-cloudflare build`. Wrangler consumes those artifacts.
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "wealthymindsets-pro",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-05-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

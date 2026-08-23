@@ -17,7 +17,10 @@
     "electron:build:win": "npm run build:standalone && electron-builder --win   --config electron-builder.yml",
     "electron:build:linux": "npm run build:standalone && electron-builder --linux --config electron-builder.yml",
     "electron:build:all": "npm run build:standalone && electron-builder --mac --win --linux --config electron-builder.yml",
-    "test": "vitest run"
+    "test": "vitest run",
+    "preview:cf": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy:cf": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv env.d.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
@@ -64,6 +67,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.2",
     "@types/node": "^22.10.7",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
@@ -75,6 +79,7 @@
     "eslint-config-next": "16.3.0",
     "playwright": "^1.62.0",
     "vitest": "^4.1.10",
-    "wait-on": "^8.0.0"
+    "wait-on": "^8.0.0",
+    "wrangler": "^4.125.0"
   }
 }
