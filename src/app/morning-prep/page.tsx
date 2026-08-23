@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { DREAMBOARD_URL } from "@/lib/canonicalUrl";
 import {
   Sun, Plus, X, Check, Trash2, Image as ImageIcon,
   CheckCircle2, Circle, Coffee, Target,
@@ -343,7 +344,7 @@ export default function MorningPrepPage() {
               <Plus size={13} /> New Prep
             </button>
             <a
-              href="https://above-the-hill-developments-built-a.vercel.app/?view=growth-rings"
+              href={`${DREAMBOARD_URL}/?view=growth-rings`}
               target="_blank"
               rel="noreferrer"
               className="inline-flex min-h-11 items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
@@ -395,7 +396,7 @@ export default function MorningPrepPage() {
               <h2 className="text-lg font-black text-white mt-1">How are you growing?</h2>
               <p className="text-sm mt-1" style={{ color: "#AAB2C5" }}>Keep a private record of one faithful practice. This is a long view, never a streak score.</p>
             </div>
-            <a href="https://above-the-hill-developments-built-a.vercel.app/?view=growth-rings" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold" style={{ color: "#F0B429" }}>Open the wall ↗</a>
+            <a href={`${DREAMBOARD_URL}/?view=growth-rings`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold" style={{ color: "#F0B429" }}>Open the wall ↗</a>
           </div>
           <div className="flex flex-wrap gap-2 mb-3">
             {(Object.keys(GROWTH_PRACTICES) as GrowthCategory[]).map(category => <button key={category} onClick={() => { setGrowthCategory(category); setGrowthPractice(GROWTH_PRACTICES[category][0]); }} className="inline-flex min-h-11 items-center justify-center rounded-full px-3 py-1.5 text-xs font-bold capitalize focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold" style={{ background: growthCategory === category ? "#00D4AA" : "rgba(255,255,255,0.06)", color: growthCategory === category ? "#06110F" : "#D8DDEA", border: "1px solid rgba(255,255,255,0.11)" }}>{category}</button>)}

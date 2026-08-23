@@ -3,6 +3,7 @@ import {
   hashPassword, signJWT, setAuthCookie, userStore, useSupabase, supabaseSignUp,
 } from "@/lib/auth";
 import { sendWelcomeEmail } from "@/lib/email";
+import { CANONICAL_URL } from "@/lib/canonicalUrl";
 import { randomBytes } from "crypto";
 
 export async function POST(req: Request) {
@@ -12,15 +13,11 @@ export async function POST(req: Request) {
 
   /* ── Supabase path ── */
   if (useSupabase()) {
-    // Authentication must always complete on one durable public host. Using the
-    // request Origin here sends people who opened a one-off Vercel deployment
-    // back to a different subdomain, where the httpOnly WOW World session does
-    // not exist. Preview URLs are for testing, never for a customer Passport.
-    const origin =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      process.env.NEXT_PUBLIC_APP_URL ||
-      "https://wealthymindsets-pro.dhill5711.workers.dev";
-    const redirectTo = `${origin}/login?confirmed=1`;
+    // Authentication must always complete on one durable public host (see
+    // @/lib/canonicalUrl). Using the request Origin here sends people who opened
+    // a one-off deployment back to a subdomain where the httpOnly WOW World
+    // session does not exist. Preview URLs are for testing, never for a Passport.
+    const redirectTo = `${CANONICAL_URL}/login?confirmed=1`;
     let data;
     try {
       data = await supabaseSignUp(email, password, redirectTo);

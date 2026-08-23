@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
 import { useSupabase, supabaseResetPassword } from "@/lib/auth";
+import { CANONICAL_URL as CONFIGURED_URL } from "@/lib/canonicalUrl";
 
 // A reset link must use the durable production address for the same reason as
 // email confirmation: a session set on a temporary deployment cannot follow a
-// visitor back to the stable WOW World app.
-const CONFIGURED_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  process.env.NEXT_PUBLIC_APP_URL ??
-  "https://wealthymindsets-pro.dhill5711.workers.dev";
+// visitor back to the stable WOW World app. See @/lib/canonicalUrl.
 
 export async function POST(req: Request) {
   const { email } = await req.json().catch(() => ({})) as Record<string, string>;

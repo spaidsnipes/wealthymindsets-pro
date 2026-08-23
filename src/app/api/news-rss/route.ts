@@ -16,7 +16,7 @@ import { NextResponse } from "next/server";
 export const revalidate = 0;
 
 // SEC EDGAR requires a descriptive UA with contact info, otherwise it 403s.
-const UA = "WealthyMindsets/1.0 (contact: dhill5711@gmail.com; +https://wealthymindsets-pro.vercel.app)";
+const UA = "WealthyMindsets/1.0 (contact: dhill5711@gmail.com; +https://wealthymindsets-pro.dhill5711.workers.dev)";
 
 type Feed = { source: string; url: string };
 

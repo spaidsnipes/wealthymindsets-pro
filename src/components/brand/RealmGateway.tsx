@@ -1,6 +1,7 @@
 "use client";
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { DREAMBOARD_URL } from "@/lib/canonicalUrl";
 
 /**
  * RealmGateway — 5-tile bottom band from the Founder mockup grid.
@@ -30,7 +31,7 @@ interface Realm {
 
 const REALMS: readonly Realm[] = [
   { key: "wm-pro",       label: "WM PRO",      tagline: "Trade · Track · Transform", href: "/command-deck", glyph: "◇", active: true },
-  { key: "dreamboard",   label: "DREAMBOARD",  tagline: "Plan · Create · Manifest",   href: "https://above-the-hill-developments-built-a.vercel.app/", external: true, glyph: "★" },
+  { key: "dreamboard",   label: "DREAMBOARD",  tagline: "Plan · Create · Manifest",   href: `${DREAMBOARD_URL}/`, external: true, glyph: "★" },
   { key: "powertribes",  label: "POWERTRIBES", tagline: "Lead · Build · Scale",        glyph: "✦" },
   { key: "marketplace",  label: "MARKETPLACE", tagline: "Merch · Books · Lifestyle",   href: "/shop", glyph: "◈" },
   { key: "games",        label: "GAMES",       tagline: "Play · Compete · Conquer",    glyph: "⬢" },

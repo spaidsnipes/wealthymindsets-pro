@@ -5,6 +5,10 @@ vi.mock("@/lib/auth", () => ({
   supabaseResendSignup: vi.fn(),
 }));
 
+vi.mock("@/lib/canonicalUrl", () => ({
+  CANONICAL_URL: "https://wealthymindsets-pro.dhill5711.workers.dev",
+}));
+
 import { supabaseResendSignup, useSupabase } from "@/lib/auth";
 import { POST } from "./route";
 
@@ -33,7 +37,7 @@ describe("POST /api/auth/resend-confirmation", () => {
     expect(await response.json()).toEqual({ ok: true });
     expect(mockedResend).toHaveBeenCalledWith(
       "trader@example.com",
-      "https://wealthymindsets-pro.vercel.app/login?confirmed=1",
+      "https://wealthymindsets-pro.dhill5711.workers.dev/login?confirmed=1",
     );
   });
 

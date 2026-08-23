@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseResendSignup, useSupabase } from "@/lib/auth";
-
-const CONFIGURED_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  process.env.NEXT_PUBLIC_APP_URL ??
-  "https://wealthymindsets-pro.dhill5711.workers.dev";
+import { CANONICAL_URL as CONFIGURED_URL } from "@/lib/canonicalUrl";
 
 export async function POST(req: Request) {
   const { email } = await req.json().catch(() => ({})) as Record<string, string>;

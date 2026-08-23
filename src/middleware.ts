@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const canonicalUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
-  "https://wealthymindsets-pro.dhill5711.workers.dev";
-const canonicalHost = new URL(canonicalUrl).host;
+import { CANONICAL_HOST as canonicalHost } from "@/lib/canonicalUrl";
 
 /**
  * Never let a customer start an authenticated production journey on a changing
