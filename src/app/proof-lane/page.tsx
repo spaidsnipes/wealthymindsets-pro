@@ -17,7 +17,7 @@
  *  - "$1,000,000 aspirational target, not an earnings promise" (§18).
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   CANONICAL_HORIZONS,
@@ -28,6 +28,46 @@ import {
   SESSIONS_PER_MONTH,
 } from "@/lib/proofLane/proofLanePace";
 import { DAY_MODEL_LABELS } from "@/lib/proofLane/proofLaneR";
+import { selectSessionEdge } from "@/lib/proofLane/selectSessionEdge";
+
+/**
+ * useJournalEdge — SSR-safe hook that reads the local wm-journal
+ * store and returns the SessionEdge summary over R-tagged entries.
+ * Never shows on server; empty until the client hydrates. The
+ * hook subscribes to wm-journal-updated so a save from /journal
+ * reflects instantly on /proof-lane.
+ */
+function useJournalEdge() {
+  const [edge, setEdge] = useState<ReturnType<typeof selectSessionEdge> | null>(null);
+  useEffect(() => {
+    const compute = () => {
+      try {
+        const raw = localStorage.getItem("wm-journal");
+        if (!raw) { setEdge(selectSessionEdge([])); return; }
+        const arr = JSON.parse(raw) as Array<{ date?: string; result?: string; realizedR?: number; processQuality?: string }>;
+        if (!Array.isArray(arr)) { setEdge(selectSessionEdge([])); return; }
+        const entries = arr
+          .filter(e => e && typeof e.date === "string" && typeof e.result === "string")
+          .map(e => ({
+            date: e.date as string,
+            result: (e.result === "win" || e.result === "loss" || e.result === "be" ? e.result : "be") as "win" | "loss" | "be",
+            realizedR: typeof e.realizedR === "number" && Number.isFinite(e.realizedR) ? e.realizedR : undefined,
+            processQuality: (e.processQuality === "FOLLOWED_PLAN" || e.processQuality === "BROKE_RULES" || e.processQuality === "UNRESOLVED" ? e.processQuality : "UNRESOLVED") as "FOLLOWED_PLAN" | "BROKE_RULES" | "UNRESOLVED",
+          }));
+        setEdge(selectSessionEdge(entries));
+      } catch { setEdge(selectSessionEdge([])); }
+    };
+    compute();
+    const on = () => compute();
+    window.addEventListener("wm-journal-updated", on);
+    window.addEventListener("storage", on);
+    return () => {
+      window.removeEventListener("wm-journal-updated", on);
+      window.removeEventListener("storage", on);
+    };
+  }, []);
+  return edge;
+}
 
 const START = 100;
 const TARGET = 1_000_000;
@@ -45,6 +85,7 @@ export default function ProofLanePage() {
   const [sessionIndex, setSessionIndex] = useState(0);
   const [actualBalance, setActualBalance] = useState(START);
   const [selectedHorizon, setSelectedHorizon] = useState<2 | 3 | 4 | 6 | 9 | 12>(6);
+  const measured = useJournalEdge();
 
   const status = paceStatus(selectedHorizon, sessionIndex, actualBalance, START, TARGET);
 
@@ -215,6 +256,74 @@ export default function ProofLanePage() {
             Middle-of-range guessing is not M2. Any missing chain link → M0. No green-day count creates permission to trade.
           </p>
         </section>
+
+        {/* I-Bkt 8: MEASURED LIVE overlay. Reads the local wm-journal
+            store client-side and renders live Personal Edge over
+            R-tagged entries. Silent until the first real session is
+            recorded — no fabrication. Canon §21 verbatim: objective
+            is the first MEASURED LIVE dataset, not "$1M fast". */}
+        {measured && measured.rTaggedEntries > 0 && (
+          <section aria-labelledby="measured-live" className="rounded-xl border border-emerald-800/50 bg-emerald-950/10 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 id="measured-live" className="text-sm uppercase tracking-widest text-emerald-400/90">
+                Measured Live — Personal Edge (7d window in /journal)
+              </h2>
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-950/40 px-2 py-0.5 text-[10px] font-mono uppercase tracking-widest text-emerald-300">
+                MEASURED LIVE
+              </span>
+            </div>
+            <div className="grid sm:grid-cols-4 gap-3">
+              <div className="rounded-lg border border-neutral-800 bg-black/40 px-3 py-2">
+                <div className="text-[10px] uppercase tracking-widest text-neutral-500">R-Tagged</div>
+                <div className="mt-1 font-mono text-lg text-neutral-100">
+                  {measured.rTaggedEntries} / {measured.totalEntries}
+                </div>
+              </div>
+              <div className="rounded-lg border border-neutral-800 bg-black/40 px-3 py-2">
+                <div className="text-[10px] uppercase tracking-widest text-neutral-500">Expectancy</div>
+                <div className={`mt-1 font-mono text-lg ${measured.expectancyR != null && measured.expectancyR >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                  {measured.expectancyR != null ? `${measured.expectancyR >= 0 ? "+" : ""}${measured.expectancyR.toFixed(2)}R` : "—"}
+                </div>
+              </div>
+              <div className="rounded-lg border border-neutral-800 bg-black/40 px-3 py-2">
+                <div className="text-[10px] uppercase tracking-widest text-neutral-500">Cumulative R</div>
+                <div className={`mt-1 font-mono text-lg ${measured.cumulativeR >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                  {measured.cumulativeR >= 0 ? "+" : ""}{measured.cumulativeR.toFixed(2)}R
+                </div>
+              </div>
+              <div className="rounded-lg border border-neutral-800 bg-black/40 px-3 py-2">
+                <div className="text-[10px] uppercase tracking-widest text-neutral-500">Max Drawdown</div>
+                <div className="mt-1 font-mono text-lg text-neutral-100">
+                  {measured.maxDrawdownR.toFixed(2)}R
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 grid sm:grid-cols-3 gap-3 text-xs">
+              <div className="text-neutral-400">
+                Winners: <span className="text-neutral-100 font-mono">{measured.winners}</span>
+                {measured.avgWinnerR != null && (
+                  <> · avg <span className="text-emerald-300 font-mono">+{measured.avgWinnerR.toFixed(2)}R</span></>
+                )}
+              </div>
+              <div className="text-neutral-400">
+                Losers: <span className="text-neutral-100 font-mono">{measured.losers}</span>
+                {measured.avgLoserR != null && (
+                  <> · avg <span className="text-rose-300 font-mono">{measured.avgLoserR.toFixed(2)}R</span></>
+                )}
+              </div>
+              <div className="text-neutral-400">
+                Rules Adhered: {measured.rulesAdheredPct != null ? (
+                  <span className="text-emerald-300 font-mono">{(measured.rulesAdheredPct * 100).toFixed(0)}%</span>
+                ) : (
+                  <span className="text-neutral-500">— (no graded process yet)</span>
+                )}
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-neutral-500">
+              MEASURED LIVE reads only entries with Planned R defined pre-entry per canon §4. Entries without R are counted but excluded from expectancy — never fabricated.
+            </p>
+          </section>
+        )}
 
         <section aria-labelledby="launch" className="rounded-xl border border-amber-800/50 bg-amber-950/10 p-5">
           <h2 id="launch" className="text-sm uppercase tracking-widest text-amber-400/80 mb-2">
