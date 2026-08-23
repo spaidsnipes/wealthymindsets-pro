@@ -1296,3 +1296,31 @@ All FOUNDER-ONLY rows are surfaced to Atlas for Drive publishing per §48 eviden
 - **Next action:** unchanged — this scheduled task should be repurposed to audit shift-baton
   cadence (flag if no new `SHIFT*_BATON.md` lands within an expected window) rather than the
   pre-2026-08-08 role bus, or paused pending Founder decision.
+
+---
+
+## Coordinator log — 2026-08-22 22:29 CDT checkpoint (Atlas) — one-thread status reconfirmed, no action taken
+
+- **Same finding as the 07:44/07:46 checkpoints, still holding 15 hours later:** all six
+  role-thread sessions (Sentinel/Forge/Noah/Micah/Nehemiah/Video Intelligence) remain dormant
+  since on/before 2026-08-08. Dispatch/ping (§3) skipped again — no live recipient, paging
+  them would be noise.
+- **Shift-baton thread is highly active, not stalled:** HEAD `0fd6ab0` (I-Bkt 12, 22:29:45
+  CDT) landed literally during this checkpoint's audit — 12 "I-Bkt" commits since 21:25 CDT
+  alone (journal exporter, broker certification harness + `/api/broker/status` +
+  `/api/broker/certification` endpoints), following an earlier "H-Bkt" run this morning
+  (`CLAUDE_SESSION_2026-08-22_SHIFTH_BATON.md`, written 07:51, 862/862 vitest, tsc clean).
+  All commits authored `spaidsnipes` — no Atlas/Claude-role commits under `src/`, no DEC-012
+  violation.
+- **Uncommitted working tree:** the same 5 preserved-dirty files (byte-identical, matches
+  shift baton's invariant) plus in-flight WIP (`heroTruthChronology.ts`/test, a
+  heatmap-a11y test) not yet committed by the active thread — not touched by Mission Control,
+  not a violation.
+- **No `src/` touched by Mission Control this checkpoint. No new role violations found.**
+- **Recommendation unchanged from 07:44/07:46:** this scheduled task's dispatch/ping
+  mechanism still has no live target two weeks running. Repurpose to audit shift-baton
+  cadence (flag only if no new commit/baton lands within an expected window) or pause,
+  pending Founder decision. Continuing to log identical "no action" checkpoints every 30
+  min is low-value; will keep doing so until repurposed or paused.
+- **Next action:** none required from this mechanism until the scheduled task itself is
+  updated or retired by the Founder.
