@@ -21,7 +21,7 @@ function getResend(): Resend {
 // account owner's own inbox. That is the root cause of "sign-up emails never
 // reach new users": the code is fine, the sender is unconfigured.
 const FROM = process.env.RESEND_FROM_EMAIL ?? "WealthyMindsets Pro <onboarding@resend.dev>";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://wealthymindsets-pro.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://wealthymindsets-pro.dhill5711.workers.dev";
 
 // True while still on the Resend test sender — surfaced loudly in logs so a
 // missing RESEND_FROM_EMAIL can never fail silently again.
