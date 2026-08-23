@@ -213,6 +213,27 @@ function sessionTone(session: string, connected: boolean): Tone {
   return "unknown";
 }
 
+/**
+ * sessionDetailText — I-Bkt 6 truth label. Prior detail was a bare
+ * "connected" / "disconnected" that misled on weekends (Founder saw
+ * "SESSION RTH · disconnected" on Saturday when the truth is
+ * "SESSION · Market Closed · Weekend"). This helper checks the
+ * current US day and prefers the market-hours truth over the
+ * transport-level truth when they diverge. Pure, testable.
+ *
+ * Rules:
+ *  - If session === "CLOSED" or day is Sat/Sun → "market closed".
+ *  - Else if not connected → "no data connection".
+ *  - Else → "connected".
+ */
+export function sessionDetailText(session: string, connected: boolean, dayOfWeek: number): string {
+  const s = session.toUpperCase();
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+  if (s === "CLOSED" || isWeekend) return "market closed";
+  if (!connected) return "no data connection";
+  return "connected";
+}
+
 function dataTone(ds: ContextDataState): Tone {
   switch (ds) {
     case "LIVE":        return "resolved";
@@ -296,7 +317,7 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
       key: "session",
       label: "SESSION",
       value: session.toUpperCase(),
-      detail: wsConnected ? "connected" : "disconnected",
+      detail: sessionDetailText(session, wsConnected, new Date().getUTCDay()),
       tone: sessionTone(session, wsConnected),
     },
     (() => {
