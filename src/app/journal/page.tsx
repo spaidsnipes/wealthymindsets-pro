@@ -1356,8 +1356,25 @@ Trade the system, trust the process, winners every day 🚀`,
               {c === "all" ? "All Contracts" : c === "option" ? "OPT" : "STK"}
             </button>
           ))}
+          {/* J-Bkt 11: reset filters — hidden when nothing is filtered. */}
+          {(filterRes !== "all" || filterProcessOutcome !== "all" || filterDayModel !== "all" || filterContract !== "all" || filterStarred || filterTag) && (
+            <button
+              onClick={() => {
+                setFilterRes("all");
+                setFilterProcessOutcome("all");
+                setFilterDayModel("all");
+                setFilterContract("all");
+                setFilterStarred(false);
+                setFilterTag("");
+              }}
+              title="Clear every active filter"
+              className="px-2 py-0.5 rounded-full text-[10px] font-semibold border border-wm-red/40 bg-wm-red/10 text-wm-red hover:bg-wm-red/20 transition-colors"
+            >
+              ✕ Reset filters
+            </button>
+          )}
           <button onClick={exportCSV}
-            title="Export all journal entries as CSV (20 columns incl. all Proof Lane fields)"
+            title="Export all journal entries as CSV (22 columns incl. all Proof Lane fields)"
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border border-wm-border transition-colors">
             <Download size={11} /> CSV
           </button>
