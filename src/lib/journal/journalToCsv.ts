@@ -43,6 +43,9 @@ export interface JournalCsvEntry {
   contractType?: "stock" | "option";
   processQuality?: "FOLLOWED_PLAN" | "BROKE_RULES" | "UNRESOLVED";
   processOutcome?: string;
+  // Canon §7 Management Studio — optional MFE / MAE in R units.
+  mfeR?: number;
+  maeR?: number;
 }
 
 export const JOURNAL_CSV_COLUMNS = [
@@ -59,6 +62,8 @@ export const JOURNAL_CSV_COLUMNS = [
   "DayModel",
   "PlannedRDollars",
   "RealizedR",
+  "MfeR",
+  "MaeR",
   "ProcessQuality",
   "ProcessOutcome",
   "Setup",
@@ -99,6 +104,8 @@ export function journalRowToCsv(e: JournalCsvEntry): string {
     csvEscape(e.dayModel ?? ""),
     fmtNum(e.plannedRDollars, 2),
     fmtNum(e.realizedR, 4),
+    fmtNum(e.mfeR, 4),
+    fmtNum(e.maeR, 4),
     csvEscape(e.processQuality ?? ""),
     csvEscape(e.processOutcome ?? ""),
     csvEscape(e.setup),

@@ -67,15 +67,21 @@ describe("journalRowToCsv — Proof Lane fields present", () => {
 });
 
 describe("journalToCsv — header + row shape", () => {
-  it("header lists all 20 columns in declared order", () => {
+  it("header lists all 22 columns in declared order (J-Bkt 7 added MfeR + MaeR)", () => {
     const csv = journalToCsv([]);
     expect(csv).toBe(JOURNAL_CSV_COLUMNS.join(","));
     expect(JOURNAL_CSV_COLUMNS).toEqual([
       "Date", "Symbol", "Side", "ContractType", "Entry", "Exit", "Size",
       "PnL", "PctChange", "Result", "DayModel", "PlannedRDollars",
-      "RealizedR", "ProcessQuality", "ProcessOutcome", "Setup", "Tags",
+      "RealizedR", "MfeR", "MaeR", "ProcessQuality", "ProcessOutcome", "Setup", "Tags",
       "Notes", "Mistakes", "Lessons",
     ]);
+  });
+  it("includes MfeR / MaeR when set", () => {
+    const row = journalToCsv([mk({ mfeR: 2.0, maeR: -0.4 })]);
+    const cells = row.split("\n")[1].split(",");
+    expect(cells).toContain("2.0000");
+    expect(cells).toContain("-0.4000");
   });
 
   it("serializes a realistic Founder Week-One entry set", () => {
