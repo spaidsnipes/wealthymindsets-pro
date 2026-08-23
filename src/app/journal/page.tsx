@@ -830,6 +830,9 @@ function JournalPageInner() {
   // sessions. 'all' = no filter; entries without dayModel are excluded
   // from a specific-Mx filter (canon: unclassified never counted as Mx).
   const [filterDayModel, setFilterDayModel] = useState<"all"|"M0"|"M1"|"M2">("all");
+  // I-Bkt 14: filter by canon §6 contract type. Founder review will
+  // want to isolate all option trades or all stock trades separately.
+  const [filterContract, setFilterContract] = useState<"all"|"stock"|"option">("all");
   const [lightbox,  setLightbox]  = useState<string | null>(null);
   const [mainTab,   setMainTab]   = useState<"journal"|"coach"|"songs">("journal");
 
@@ -869,7 +872,8 @@ function JournalPageInner() {
       (!filterTag || e.tags.includes(filterTag)) &&
       (filterRes === "all" || e.result === filterRes) &&
       (filterProcessOutcome === "all" || e.processOutcome === filterProcessOutcome) &&
-      (filterDayModel === "all" || e.dayModel === filterDayModel)
+      (filterDayModel === "all" || e.dayModel === filterDayModel) &&
+      (filterContract === "all" || (e.contractType ?? "stock") === filterContract)
     );
   });
   const linkedMatchCount = linkedFilterActive ? linkedEntries.length : 0;
@@ -1309,6 +1313,23 @@ Trade the system, trust the process, winners every day 🚀`,
               title={m === "all" ? "Show all days" : m === "M0" ? "Show no-trade days" : m === "M1" ? "Show trend-expansion days" : "Show chop-rotation days"}
             >
               {m === "all" ? "All Models" : m}
+            </button>
+          ))}
+          {/* I-Bkt 14: contract-type filter chips (canon §6 Contract Lens). */}
+          {(["all", "stock", "option"] as const).map(c => (
+            <button
+              key={c}
+              onClick={() => setFilterContract(c)}
+              aria-pressed={filterContract === c}
+              className={clsx("px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-all",
+                filterContract === c && c === "option" && "bg-wm-purple/20 text-wm-purple border-wm-purple/40",
+                filterContract === c && c === "stock" && "bg-wm-surface text-wm-text border-wm-border",
+                filterContract === c && c === "all" && "bg-wm-surface text-wm-text border-wm-border",
+                filterContract !== c && "text-wm-text-muted border-transparent hover:border-wm-border",
+              )}
+              title={c === "all" ? "Stock + option entries" : c === "stock" ? "Only stock entries" : "Only option entries (100x multiplier)"}
+            >
+              {c === "all" ? "All Contracts" : c === "option" ? "OPT" : "STK"}
             </button>
           ))}
           <button onClick={exportCSV}
