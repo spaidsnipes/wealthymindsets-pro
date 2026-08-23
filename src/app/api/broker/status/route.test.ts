@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { GET, buildBrokerStatus } from "./route";
+import { GET, type BrokerStatusResponse } from "./route";
+
+async function readBrokerStatus(): Promise<BrokerStatusResponse> {
+  const response = await GET();
+  expect(response.status).toBe(200);
+  expect(response.headers.get("Cache-Control")).toBe("no-store");
+  return await response.json() as BrokerStatusResponse;
+}
 
 function clearBrokerEnv(): void {
   for (const k of [
@@ -26,36 +33,36 @@ describe("/api/broker/status — canon §12 truthful aggregate", () => {
     }
   });
 
-  it("reports 4 providers with stable order", () => {
-    const s = buildBrokerStatus();
+  it("reports 4 providers with stable order", async () => {
+    const s = await readBrokerStatus();
     expect(s.providers.map(p => p.provider)).toEqual(["webull", "tastytrade", "alpaca", "gemini"]);
   });
 
-  it("Webull is always implemented=false regardless of env presence", () => {
+  it("Webull is always implemented=false regardless of env presence", async () => {
     process.env.WEBULL_CLIENT_ID = "any"; // shouldn't matter
-    const s = buildBrokerStatus();
+    const s = await readBrokerStatus();
     const w = s.providers.find(p => p.provider === "webull")!;
     expect(w.implemented).toBe(false);
     expect(w.envConfigured).toBe(false); // no code reads WEBULL_*
     expect(w.note).toContain("not implemented");
   });
 
-  it("Tastytrade envConfigured only when ALL required names present", () => {
+  it("Tastytrade envConfigured only when ALL required names present", async () => {
     process.env.TASTYTRADE_CLIENT_ID = "x";
     process.env.TASTYTRADE_CLIENT_SECRET = "y";
     // missing TASTYTRADE_REFRESH_TOKEN
-    let s = buildBrokerStatus();
+    let s = await readBrokerStatus();
     expect(s.providers.find(p => p.provider === "tastytrade")!.envConfigured).toBe(false);
 
     process.env.TASTYTRADE_REFRESH_TOKEN = "z";
-    s = buildBrokerStatus();
+    s = await readBrokerStatus();
     expect(s.providers.find(p => p.provider === "tastytrade")!.envConfigured).toBe(true);
   });
 
-  it("Alpaca envConfigured true if paper OR live keys present", () => {
+  it("Alpaca envConfigured true if paper OR live keys present", async () => {
     process.env.ALPACA_PAPER_KEY = "p";
     process.env.ALPACA_PAPER_SECRET = "s";
-    let s = buildBrokerStatus();
+    let s = await readBrokerStatus();
     let a = s.providers.find(p => p.provider === "alpaca")!;
     expect(a.envConfigured).toBe(true);
     expect(a.note).toContain("Paper");
@@ -64,31 +71,31 @@ describe("/api/broker/status — canon §12 truthful aggregate", () => {
     delete process.env.ALPACA_PAPER_SECRET;
     process.env.ALPACA_KEY = "k";
     process.env.ALPACA_SECRET = "kk";
-    s = buildBrokerStatus();
+    s = await readBrokerStatus();
     a = s.providers.find(p => p.provider === "alpaca")!;
     expect(a.envConfigured).toBe(true);
     expect(a.note).toContain("Live");
   });
 
-  it("Gemini reports honestly when key absent vs present", () => {
-    let s = buildBrokerStatus();
+  it("Gemini reports honestly when key absent vs present", async () => {
+    let s = await readBrokerStatus();
     let g = s.providers.find(p => p.provider === "gemini")!;
     expect(g.envConfigured).toBe(false);
     expect(g.note).toContain("missing");
 
     process.env.GEMINI_API_KEY = "k";
-    s = buildBrokerStatus();
+    s = await readBrokerStatus();
     g = s.providers.find(p => p.provider === "gemini")!;
     expect(g.envConfigured).toBe(true);
     expect(g.note).toContain("Gateway");
   });
 
-  it("aggregate counts reflect implemented / envConfigured totals", () => {
+  it("aggregate counts reflect implemented / envConfigured totals", async () => {
     process.env.TASTYTRADE_CLIENT_ID = "x";
     process.env.TASTYTRADE_CLIENT_SECRET = "y";
     process.env.TASTYTRADE_REFRESH_TOKEN = "z";
     process.env.GEMINI_API_KEY = "k";
-    const s = buildBrokerStatus();
+    const s = await readBrokerStatus();
     // 3 implemented (tastytrade, alpaca, gemini); webull is not
     expect(s.implementedCount).toBe(3);
     // 2 envConfigured in this setup (tastytrade + gemini)
@@ -106,8 +113,8 @@ describe("/api/broker/status — canon §12 truthful aggregate", () => {
     expect(s).not.toContain("very-secret-gemini-abc");
   });
 
-  it("generatedAt is a valid ISO 8601 timestamp", () => {
-    const s = buildBrokerStatus();
+  it("generatedAt is a valid ISO 8601 timestamp", async () => {
+    const s = await readBrokerStatus();
     expect(new Date(s.generatedAt).toISOString()).toBe(s.generatedAt);
   });
 });

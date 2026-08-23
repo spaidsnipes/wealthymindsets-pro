@@ -1,9 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { buildBrokerCertification } from "./route";
+import { GET, type BrokerCertificationResponse } from "./route";
+
+async function readBrokerCertification(): Promise<BrokerCertificationResponse> {
+  const response = await GET();
+  expect(response.status).toBe(200);
+  expect(response.headers.get("Cache-Control")).toBe("no-store");
+  return await response.json() as BrokerCertificationResponse;
+}
 
 describe("/api/broker/certification GET aggregate", () => {
-  it("returns one entry per registered adapter", () => {
-    const body = buildBrokerCertification();
+  it("returns one entry per registered adapter", async () => {
+    const body = await readBrokerCertification();
     // Registry currently: webull, alpaca, tastytrade (per adapters/index.ts).
     expect(body.brokers.length).toBeGreaterThan(0);
     const ids = body.brokers.map((b) => b.brokerId).sort();
@@ -12,8 +19,8 @@ describe("/api/broker/certification GET aggregate", () => {
     expect(ids).toContain("tastytrade");
   });
 
-  it("every broker report includes canon-shaped fields", () => {
-    const body = buildBrokerCertification();
+  it("every broker report includes canon-shaped fields", async () => {
+    const body = await readBrokerCertification();
     for (const b of body.brokers) {
       expect(typeof b.certLevel).toBe("string");
       expect(typeof b.summary).toBe("string");
@@ -24,27 +31,27 @@ describe("/api/broker/certification GET aggregate", () => {
     }
   });
 
-  it("summary is 'LEVEL · X/12 stages passed' shape", () => {
-    const body = buildBrokerCertification();
+  it("summary is 'LEVEL · X/12 stages passed' shape", async () => {
+    const body = await readBrokerCertification();
     for (const b of body.brokers) {
       expect(b.summary).toMatch(/^(NONE|READ_ONLY|WRITE_PAPER|WRITE_LIVE) · \d+\/12 stages passed$/);
     }
   });
 
-  it("fullyCertifiedCount = number of brokers with WRITE_LIVE level", () => {
-    const body = buildBrokerCertification();
+  it("fullyCertifiedCount = number of brokers with WRITE_LIVE level", async () => {
+    const body = await readBrokerCertification();
     const writeLive = body.brokers.filter((b) => b.certLevel === "WRITE_LIVE").length;
     expect(body.fullyCertifiedCount).toBe(writeLive);
   });
 
-  it("generatedAt is a valid ISO timestamp", () => {
-    const body = buildBrokerCertification();
+  it("generatedAt is a valid ISO timestamp", async () => {
+    const body = await readBrokerCertification();
     expect(() => new Date(body.generatedAt).toISOString()).not.toThrow();
     expect(body.generatedAt).toBe(new Date(body.generatedAt).toISOString());
   });
 
-  it("never leaks broker tokens / api keys into the response", () => {
-    const body = buildBrokerCertification();
+  it("never leaks broker tokens / api keys into the response", async () => {
+    const body = await readBrokerCertification();
     const raw = JSON.stringify(body);
     // Generic secret smells — none should appear.
     expect(raw.toLowerCase()).not.toContain("bearer ");

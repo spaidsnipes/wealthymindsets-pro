@@ -129,7 +129,7 @@ export interface BrokerStatusResponse {
   readonly envConfiguredCount: number;
 }
 
-export function buildBrokerStatus(): BrokerStatusResponse {
+function buildBrokerStatus(): BrokerStatusResponse {
   const providers: readonly ProviderReport[] = [
     webullReport(),
     tastytradeReport(),

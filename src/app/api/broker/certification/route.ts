@@ -46,7 +46,7 @@ function deriveReports(implemented: boolean, envConfigured: boolean, connected: 
   return [{ stage: "auth", status: "PENDING", note: "Adapter present; live cert harness has not run." }];
 }
 
-export function buildBrokerCertification(): BrokerCertificationResponse {
+function buildBrokerCertification(): BrokerCertificationResponse {
   const brokers = listAdapters().map((adapter) => {
     const id = adapter.id;
     const h = adapter.health();
