@@ -1707,6 +1707,58 @@ Trade the system, trust the process, winners every day 🚀`,
                 ))}
               </div>
 
+              {/* Proof Lane detail block — I-Bkt 1: mirrors the modal's Proof
+                  Lane strip in read-only form so a pro-trader review sees
+                  Model / Planned R $ / Realized R / Contract type together
+                  with the standard OHLCV stats. Silent for legacy entries. */}
+              {(selected.dayModel || typeof selected.plannedRDollars === "number" || selected.contractType === "option") && (
+                <div className="mb-4 rounded-xl border border-wm-gold/40 bg-gradient-to-br from-wm-surface/50 to-transparent p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-wm-gold">Proof Lane · Trade R Truth</div>
+                    <span className="text-[9px] font-mono uppercase tracking-widest text-wm-text-dim">CANON §3 / §4 / §6 / §24</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {selected.dayModel && (
+                      <div className="rounded-lg border border-wm-border bg-wm-surface/60 p-2 text-center">
+                        <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Model</div>
+                        <div className="text-sm font-mono font-bold text-wm-gold mt-0.5">{selected.dayModel}</div>
+                      </div>
+                    )}
+                    {typeof selected.plannedRDollars === "number" && selected.plannedRDollars > 0 && (
+                      <div className="rounded-lg border border-wm-border bg-wm-surface/60 p-2 text-center">
+                        <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Planned R</div>
+                        <div className="text-sm font-mono font-bold text-wm-text mt-0.5">
+                          ${selected.plannedRDollars.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    )}
+                    {typeof selected.realizedR === "number" && Number.isFinite(selected.realizedR) && (
+                      <div className="rounded-lg border border-wm-border bg-wm-surface/60 p-2 text-center">
+                        <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Realized R</div>
+                        <div className={clsx(
+                          "text-sm font-mono font-bold mt-0.5",
+                          selected.realizedR >= 0 ? "text-wm-green" : "text-wm-red",
+                        )}>
+                          {selected.realizedR >= 0 ? "+" : ""}{selected.realizedR.toFixed(2)}R
+                        </div>
+                      </div>
+                    )}
+                    <div className="rounded-lg border border-wm-border bg-wm-surface/60 p-2 text-center">
+                      <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Contract</div>
+                      <div className={clsx(
+                        "text-sm font-mono font-bold mt-0.5",
+                        selected.contractType === "option" ? "text-wm-purple" : "text-wm-text",
+                      )}>
+                        {selected.contractType === "option" ? "OPTION · 100x" : "STOCK"}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[9px] text-wm-text-dim">
+                    R and contract-return % are separate measurements. See {selected.contractType === "option" ? "canon §6 Contract Lens + §24 R math" : "canon §4 R math"}.
+                  </p>
+                </div>
+              )}
+
               {/* Voice memo */}
               {selected.voiceSec > 0 && (
                 <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg border border-wm-purple/30 bg-wm-purple/5">
