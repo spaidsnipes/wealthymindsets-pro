@@ -1324,3 +1324,32 @@ All FOUNDER-ONLY rows are surfaced to Atlas for Drive publishing per §48 eviden
   min is low-value; will keep doing so until repurposed or paused.
 - **Next action:** none required from this mechanism until the scheduled task itself is
   updated or retired by the Founder.
+
+---
+
+## Coordinator log — 2026-08-22 22:36 CDT checkpoint (Atlas) — shift-I baton closed, one-thread status reconfirmed, no action taken
+
+- **No new information vs. the 07:44/07:46/22:29 checkpoints** — same finding restated because
+  it's still true, not because anything changed: dispatch/ping (§3) has no live target.
+- **`list_sessions` reconfirmed** (this checkpoint): all six role-thread sessions (Sentinel,
+  Forge, Noah, Micah, Nehemiah, Video Intelligence) last active 2026-08-02→2026-08-08, still
+  dormant. The single active thread ("ATH unified engineering directive") shows
+  `lastActivityAt` 2026-08-23T03:35Z (~22:35 CDT) — the most recent activity of any session,
+  confirming it's the one doing the work, not coordinator dispatch.
+- **Shift-I baton closed this checkpoint window** (`docs/operations/CLAUDE_SESSION_2026-08-23_SHIFTI_BATON.md`,
+  written 22:32 CDT): 14 atoms shipped (Proof Lane read-side, broker cert harness + 2 endpoints,
+  JSON export, filter chips), +21 tests (916 total), tsc clean. `RUNNING_PRODUCT_VISUALLY_CERTIFIED`
+  and `CROSS_DEVICE_CERTIFIED` still NO — blocked on Vercel prod being paused (Founder-only,
+  matches known WM-Vercel-billing-block), not an engineering gap.
+- **Commits since last checkpoint (`0fd6ab0`→`826fa25`, 6 commits):** all authored `spaidsnipes`,
+  none under Atlas/coordinator identity. No DEC-012 violation.
+- **Working tree:** same preserved-dirty set (5 modified + 6 untracked, matches shift-I WIP
+  per baton) — not touched by Mission Control.
+- **§5 Nehemiah snapshot, §3 dispatch/ping: skipped again**, same reasoning as prior three
+  checkpoints — role bus superseded 2026-08-08, paging dormant sessions is noise.
+- **Recommendation unchanged and now 4 checkpoints running:** repurpose this scheduled task to
+  audit shift-baton cadence (flag only if no new `SHIFT*_BATON.md`/commit lands within an
+  expected window, e.g. 90 min) instead of the pre-supersede six-role bus, or pause pending
+  Founder decision. Will keep logging identical no-action entries every 30 min until then.
+- **Next action:** none required from this mechanism until the scheduled task itself is
+  updated or retired by the Founder.
