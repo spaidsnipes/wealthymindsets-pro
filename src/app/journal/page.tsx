@@ -20,6 +20,7 @@ import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLa
 import { computeJournalPnl, computeJournalRealizedR } from "@/lib/journal/computePnl";
 import { journalToCsv } from "@/lib/journal/journalToCsv";
 import { journalToJson } from "@/lib/journal/journalToJson";
+import { captureEfficiency } from "@/lib/proofLane/captureEfficiency";
 import { selectSessionEdge } from "@/lib/proofLane/selectSessionEdge";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
@@ -1826,15 +1827,16 @@ Trade the system, trust the process, winners every day 🚀`,
                 ))}
               </div>
 
-              {/* Proof Lane detail block — I-Bkt 1: mirrors the modal's Proof
+              {/* Proof Lane detail block — I-Bkt 1 (+J-Bkt 10 MFE/MAE/Capture): mirrors the modal's Proof
                   Lane strip in read-only form so a pro-trader review sees
-                  Model / Planned R $ / Realized R / Contract type together
-                  with the standard OHLCV stats. Silent for legacy entries. */}
-              {(selected.dayModel || typeof selected.plannedRDollars === "number" || selected.contractType === "option") && (
+                  Model / Planned R $ / Realized R / Contract type / MFE /
+                  MAE / Capture % together with the standard OHLCV stats.
+                  Silent for legacy entries. */}
+              {(selected.dayModel || typeof selected.plannedRDollars === "number" || selected.contractType === "option" || typeof selected.mfeR === "number") && (
                 <div className="mb-4 rounded-xl border border-wm-gold/40 bg-gradient-to-br from-wm-surface/50 to-transparent p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-wm-gold">Proof Lane · Trade R Truth</div>
-                    <span className="text-[9px] font-mono uppercase tracking-widest text-wm-text-dim">CANON §3 / §4 / §6 / §24</span>
+                    <span className="text-[9px] font-mono uppercase tracking-widest text-wm-text-dim">CANON §3 / §4 / §6 / §7 / §24</span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {selected.dayModel && (
@@ -1872,8 +1874,43 @@ Trade the system, trust the process, winners every day 🚀`,
                       </div>
                     </div>
                   </div>
+                  {(typeof selected.mfeR === "number" || typeof selected.maeR === "number") && (
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      {typeof selected.mfeR === "number" && Number.isFinite(selected.mfeR) && (
+                        <div className="rounded-lg border border-wm-border bg-wm-surface/60 p-2 text-center">
+                          <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">MFE</div>
+                          <div className="text-sm font-mono font-bold text-wm-green mt-0.5">
+                            +{selected.mfeR.toFixed(2)}R
+                          </div>
+                        </div>
+                      )}
+                      {typeof selected.maeR === "number" && Number.isFinite(selected.maeR) && (
+                        <div className="rounded-lg border border-wm-border bg-wm-surface/60 p-2 text-center">
+                          <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">MAE</div>
+                          <div className="text-sm font-mono font-bold text-wm-red mt-0.5">
+                            {selected.maeR.toFixed(2)}R
+                          </div>
+                        </div>
+                      )}
+                      {(() => {
+                        const cap = captureEfficiency({ realizedR: selected.realizedR, mfeR: selected.mfeR });
+                        if (cap === undefined) return null;
+                        return (
+                          <div className="rounded-lg border border-wm-border bg-wm-surface/60 p-2 text-center">
+                            <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Capture %</div>
+                            <div className={clsx(
+                              "text-sm font-mono font-bold mt-0.5",
+                              cap >= 0 ? "text-wm-gold" : "text-wm-red",
+                            )}>
+                              {(cap * 100).toFixed(0)}%
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                   <p className="mt-2 text-[9px] text-wm-text-dim">
-                    R and contract-return % are separate measurements. See {selected.contractType === "option" ? "canon §6 Contract Lens + §24 R math" : "canon §4 R math"}.
+                    R and contract-return % are separate measurements. Capture % = realizedR / MFE (canon §7). See {selected.contractType === "option" ? "canon §6 Contract Lens + §7 Management Studio + §24 R math" : "canon §4 + §7"}.
                   </p>
                 </div>
               )}
