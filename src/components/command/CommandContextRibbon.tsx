@@ -214,12 +214,18 @@ function sessionTone(session: string, connected: boolean): Tone {
 }
 
 /**
- * sessionDetailText — I-Bkt 6 truth label. Prior detail was a bare
- * "connected" / "disconnected" that misled on weekends (Founder saw
- * "SESSION RTH · disconnected" on Saturday when the truth is
- * "SESSION · Market Closed · Weekend"). This helper checks the
- * current US day and prefers the market-hours truth over the
- * transport-level truth when they diverge. Pure, testable.
+ * sessionDetailText — I-Bkt 6 truth label + J-Bkt 5 local-day fix.
+ *
+ * Prior detail was a bare "connected" / "disconnected" that misled on
+ * weekends (Founder saw "SESSION RTH · disconnected" on Saturday when
+ * the truth is "market closed"). The I-Bkt 6 call site initially used
+ * `getUTCDay()` which misclassifies Fri-evening local ET (Sat UTC) as
+ * a weekend — technically true for a US trader but for a global user
+ * base it should reflect the caller's LOCAL day. Call site now passes
+ * `new Date().getDay()`.
+ *
+ * Pure. Testable. Caller supplies dayOfWeek so the helper stays
+ * deterministic under tests.
  *
  * Rules:
  *  - If session === "CLOSED" or day is Sat/Sun → "market closed".
@@ -317,7 +323,7 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
       key: "session",
       label: "SESSION",
       value: session.toUpperCase(),
-      detail: sessionDetailText(session, wsConnected, new Date().getUTCDay()),
+      detail: sessionDetailText(session, wsConnected, new Date().getDay()),
       tone: sessionTone(session, wsConnected),
     },
     (() => {
