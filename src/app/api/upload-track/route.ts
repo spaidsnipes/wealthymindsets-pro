@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireAuth } from "@/lib/requireAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
+// SHIFT-K K-Bkt 3 (Noah): Supabase admin client is LAZY (getSupabaseAdmin).
+// The prior `createClient(URL!, SERVICE_ROLE_KEY!)` at module scope crashed
+// the Cloudflare / OpenNext build with "supabaseUrl is required" whenever
+// the build environment lacked the values. See src/lib/supabaseAdmin.ts.
 
 const BUCKET = "radio";
 
@@ -18,6 +18,15 @@ export async function POST(request: Request) {
   // WM-SEC-P0-07: cap uploads per user to blunt a storage-DoS attempt.
   const rl = checkRateLimit(`upload-track:${auth.user.sub}`, { max: 20, windowMs: 60_000 });
   if (!rl.ok) return rl.response;
+  // K-Bkt 3: honest 503 when Supabase isn't configured on this runtime
+  // instead of a build-time crash or a stack-trace leak at request time.
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) {
+    return NextResponse.json(
+      { error: "Radio uploads are not configured on this deployment (missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)." },
+      { status: 503 },
+    );
+  }
   try {
     const form = await request.formData();
     const file     = form.get("file") as File | null;
