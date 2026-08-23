@@ -355,6 +355,7 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
                   moving between tools.' */}
               <button
                 type="button"
+                className="wm-markov-deck-action"
                 aria-label={`Open ${ms.sym} on the Command Deck`}
                 title="Open on Command Deck"
                 onClick={(e) => {
@@ -365,7 +366,9 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
                   position: "absolute",
                   top: 6,
                   right: 6,
-                  padding: "4px 8px",
+                  minWidth: 44,
+                  minHeight: 44,
+                  padding: "8px",
                   fontSize: 8,
                   letterSpacing: 0.3,
                   textTransform: "uppercase",
@@ -375,16 +378,18 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
                   border: "1px solid rgba(139,106,41,0.35)",
                   borderRadius: 3,
                   cursor: "pointer",
+                  touchAction: "manipulation",
+                  zIndex: 2,
                 }}
               >
                 Deck →
               </button>
               {/* Top row */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, minHeight: 44, paddingRight: 52 }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: ms.color, flexShrink: 0 }} />
                 <span style={{ fontSize: 11, fontWeight: 900, color: "#E8EDF3" }}>{ms.sym}</span>
-                <span style={{ fontSize: 9, color: "#8B95A5" }}>{ms.label}</span>
-                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ fontSize: 9, color: "#8B95A5", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ms.label}</span>
+                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
                   {d ? <>
                     <span style={{
                     fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 3,
@@ -1192,7 +1197,8 @@ export default function HeatmapsPage() {
           )}
         </AnimatePresence>
       )}
-      <style jsx>{`
+      <style jsx global>{`
+        .wm-markov-deck-action:focus-visible,
         .wm-heatmap-stock-tile:focus-visible {
           outline: 3px solid #f0b429;
           outline-offset: 2px;
