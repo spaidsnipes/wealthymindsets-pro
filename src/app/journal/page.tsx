@@ -18,6 +18,7 @@ import { useJournalSnapshots, notifyJournalChanged } from "@/lib/traderMemory/ad
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
 import { computeJournalPnl, computeJournalRealizedR } from "@/lib/journal/computePnl";
+import { selectSessionEdge } from "@/lib/proofLane/selectSessionEdge";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -889,6 +890,22 @@ function JournalPageInner() {
     {} as Record<string, number>,
   );
 
+  // Proof Lane §21 Week-One + §11 Personal Edge Lab — this-week edge.
+  // 7-day rolling window ending today. Composes the tested
+  // selectSessionEdge selector; silent when no R-tagged entries this
+  // week (nothing to summarize honestly yet).
+  const weekStartMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const weekEntries = entries.filter(e => {
+    const t = Date.parse(e.date);
+    return Number.isFinite(t) && t >= weekStartMs;
+  });
+  const weekEdge = selectSessionEdge(weekEntries.map(e => ({
+    date: e.date,
+    result: e.result,
+    realizedR: e.realizedR,
+    processQuality: e.processQuality,
+  })));
+
   const saveEntry = () => {
     const e = { ...(form as JournalEntry) };
     e.id       = uid();
@@ -1221,6 +1238,18 @@ Trade the system, trust the process, winners every day 🚀`,
               {sessionShutdown.state === "AT_TWO_R_STOP" && " · HARD STOP"}
               {sessionShutdown.state === "AT_THREE_R_TARGET" && " · +3R OBJECTIVE"}
               {sessionShutdown.state === "OPEN" && " · session open"}
+            </span>
+          )}
+          {/* Week Edge chip — I-Bkt 3, canon §11 + §21 Week-One. Silent
+              when no R-tagged entries this week (nothing to summarize). */}
+          {weekEdge.rTaggedEntries > 0 && (
+            <span
+              title={`Last 7 days · ${weekEdge.rTaggedEntries} R-tagged / ${weekEdge.totalEntries} total · expectancy ${weekEdge.expectancyR?.toFixed(2)}R · max drawdown ${weekEdge.maxDrawdownR.toFixed(2)}R${
+                weekEdge.rulesAdheredPct != null ? ` · rules ${(weekEdge.rulesAdheredPct * 100).toFixed(0)}%` : ""
+              }`}
+              className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-wm-gold/40 bg-wm-gold/10 text-wm-gold"
+            >
+              WEEK EDGE {weekEdge.expectancyR != null ? `${weekEdge.expectancyR >= 0 ? "+" : ""}${weekEdge.expectancyR.toFixed(2)}R/trade` : "—"}
             </span>
           )}
         </div>
