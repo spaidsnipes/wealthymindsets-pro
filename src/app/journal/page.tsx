@@ -19,6 +19,7 @@ import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
 import { computeJournalPnl, computeJournalRealizedR } from "@/lib/journal/computePnl";
 import { journalToCsv } from "@/lib/journal/journalToCsv";
+import { journalToJson } from "@/lib/journal/journalToJson";
 import { selectSessionEdge } from "@/lib/proofLane/selectSessionEdge";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
@@ -1195,6 +1196,17 @@ Trade the system, trust the process, winners every day 🚀`,
     });
     a.click();
   };
+  const exportJSON = () => {
+    // I-Bkt 13: JSON companion to CSV. Machine-readable, versioned,
+    // drops undefined for a clean archive. Suitable for backup or
+    // migration into a future authoritative store.
+    const json = journalToJson(entries, new Date().toISOString());
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(new Blob([json], { type: "application/json" })),
+      download: "wm-journal.json",
+    });
+    a.click();
+  };
 
   return (
     <div style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden" }}
@@ -1300,8 +1312,14 @@ Trade the system, trust the process, winners every day 🚀`,
             </button>
           ))}
           <button onClick={exportCSV}
+            title="Export all journal entries as CSV (20 columns incl. all Proof Lane fields)"
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border border-wm-border transition-colors">
-            <Download size={11} /> Export
+            <Download size={11} /> CSV
+          </button>
+          <button onClick={exportJSON}
+            title="Export all journal entries as versioned JSON (machine-readable backup)"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border border-wm-border transition-colors">
+            <Download size={11} /> JSON
           </button>
           <button onClick={() => { setNewMode(true); setSelected(null); }}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-wm-black transition-all hover:opacity-90"
