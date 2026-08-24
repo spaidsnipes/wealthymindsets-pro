@@ -199,11 +199,29 @@ function LoginPage() {
           style={{ background: "radial-gradient(circle, rgba(0,212,170,0.08) 0%, transparent 70%)" }} />
 
         <div className="relative z-10 p-12">
-          {/* Wordmark — serif WM identity from Founder Aug-14 mockups.
-              Replaces the previous rounded-square + sans-serif combo so the
-              unauthenticated visitor immediately sees the WM brand DNA. */}
-          <div className="mb-16">
-            <WmWordmark size="hero" subtitle="ONE IDENTITY · ONE KINGDOM · UNLIMITED REALMS" />
+          {/* Master crest — the REAL delivered hero mark (faceless gentleman +
+              WM medallion + jeweled crown + wordmark + "STAY SHARP. STAY A
+              STUDENT.", founder Drive kit 2026-08-24). This is the one surface
+              the founder named for the full crest; kept to a calm hero size so
+              WM Pro reads professional, never plastered. */}
+          <div className="mb-12">
+            <img
+              src="/brand/wm-master-crest.jpeg"
+              alt="WEALTHY MINDSETS — Stay Sharp. Stay a Student."
+              style={{ height: 300, width: "auto", display: "block" }}
+            />
+            <div
+              className="mt-4"
+              style={{
+                fontFamily: "Georgia, 'Times New Roman', serif",
+                fontSize: 11,
+                letterSpacing: 1.6,
+                color: "#8a8271",
+                textTransform: "uppercase",
+              }}
+            >
+              One Identity · One Kingdom · Unlimited Realms
+            </div>
           </div>
 
           <div

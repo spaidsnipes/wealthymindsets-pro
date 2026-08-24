@@ -2,12 +2,22 @@
 import * as React from "react";
 
 /**
- * WmWordmark — the WealthyMindsets Pro wordmark from Founder mockups.
+ * WmWordmark — the WealthyMindsets Pro header lockup.
  *
- * Renders a gold W-crown mark + serif "WEALTHYMINDSETS" wordmark + "PRO"
- * micro-cap. Configurable size + optional "COMMAND CENTER" subtitle for
- * hero surfaces (Command Deck), and compact variant for headers.
+ * Renders the REAL delivered compact monogram (gold WM + fleur-de-lis crown,
+ * founder Drive "Brand Identity & Logos", 2026-08-24) beside the serif
+ * "WEALTHYMINDSETS" wordmark + "PRO" micro-cap. Configurable size + optional
+ * subtitle for hero surfaces (Command Deck), and compact variant for headers.
+ *
+ * The mark image is `/brand/wm-monogram-mark.png` — the square, inline-framed
+ * crop DERIVED from the canonical `compact-monogram` role in brandCanon
+ * (WM_MARK_ASSETS["compact-monogram"] is the full-bleed source of record).
+ * Swapping that role's art re-crops one file; every header updates at once.
+ * This replaces the earlier code-drawn SVG *approximation* of the W-crown.
  */
+
+/** The everyday product mark, framed for inline header use. */
+const WM_MONOGRAM_MARK = "/brand/wm-monogram-mark.png";
 
 export type WmWordmarkSize = "compact" | "regular" | "hero";
 
@@ -16,8 +26,6 @@ export interface WmWordmarkProps {
   subtitle?: string;   // e.g. "COMMAND CENTER" · "PRO LOUNGE" · "PRO LEGACY JOURNAL"
   className?: string;
 }
-
-const CROWN_GLYPH = "♢"; // ◢ inverted diamond — approximates the pointed W-crown from mockups
 
 const SIZE = {
   compact: { mark: 14, word: 12, sub: 8, spacing: 6, tracking: 0.32 },
@@ -39,36 +47,15 @@ export function WmWordmark({ size = "regular", subtitle, className }: WmWordmark
       aria-label={`WealthyMindsets Pro${subtitle ? ` — ${subtitle}` : ""}`}
     >
       <div style={{ display: "flex", alignItems: "baseline", gap: s.spacing }}>
-        {/* SVG W-crown mark — approximates the founder mockup's W-with-crown */}
-        <svg
+        {/* REAL delivered compact monogram (gold WM + crown), inline-framed. */}
+        <img
+          src={WM_MONOGRAM_MARK}
           width={s.mark}
           height={s.mark}
-          viewBox="0 0 32 32"
+          alt=""
           aria-hidden="true"
-          style={{ flexShrink: 0 }}
-        >
-          <defs>
-            <linearGradient id={`wm-crown-${size}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#ffd76a" />
-              <stop offset="1" stopColor="#8b6a29" />
-            </linearGradient>
-          </defs>
-          <path
-            d="M4 6 L8 4 L12 8 L16 3 L20 8 L24 4 L28 6 L26 12 L16 26 L6 12 Z"
-            fill="none"
-            stroke={`url(#wm-crown-${size})`}
-            strokeWidth="1.8"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M11 10 L16 20 L21 10"
-            fill="none"
-            stroke="#d4af37"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+          style={{ flexShrink: 0, display: "block", alignSelf: "center" }}
+        />
         <span
           style={{
             fontFamily: "Georgia, 'Times New Roman', serif",
