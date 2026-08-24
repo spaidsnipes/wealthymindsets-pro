@@ -8,7 +8,6 @@ import { RadioProvider } from "@/contexts/RadioContext";
 import { Toaster } from "react-hot-toast";
 import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
-import { Analytics } from "@vercel/analytics/next";
 
 /* ── PWA + SEO metadata ─────────────────────────────────────
    Positioning aligned with the current WM Pro canon: WM Pro is a
@@ -111,8 +110,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         {/* PWA Install banner — auto-shows after 3-4s on eligible devices */}
         <InstallPrompt />
-
-        <Analytics />
       </body>
     </html>
   );

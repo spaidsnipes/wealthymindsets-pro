@@ -12,20 +12,18 @@ import { describe, it, expect } from "vitest";
  * `process.env.VERCEL*` beyond an explicit, tracked allowlist — so a Cloudflare
  * (or any) migration cannot be silently re-coupled to Vercel by a new import.
  *
- * KNOWN EXCEPTION (tracked migration item): @vercel/analytics in
- * src/app/layout.tsx. It builds on any host but only reports to Vercel; the
- * migration team must decide keep / replace / gate before VERCEL_EXIT_SAFE.
- * Removing it is an observability decision, not a blind edit — hence allowlisted
- * here rather than deleted.
+ * 2026-08-24: the last tracked exception (@vercel/analytics in src/app/layout.tsx)
+ * was REMOVED — its beacon endpoint (/_vercel/insights) does not exist on the
+ * Cloudflare Worker, so it was inert host-coupling. The allowlist is now empty:
+ * ZERO Vercel runtime cords remain in app code.
  */
 
 const REPO_ROOT = resolve(__dirname, "..", "..");
 const SRC = join(REPO_ROOT, "src");
 
 // Files permitted to carry a Vercel-specific import, with the reason.
-const VERCEL_IMPORT_ALLOWLIST = new Set<string>([
-  "src/app/layout.tsx", // @vercel/analytics — tracked migration item
-]);
+// EMPTY by design — no app module may import @vercel/* runtime packages.
+const VERCEL_IMPORT_ALLOWLIST = new Set<string>([]);
 
 function walk(dir: string): string[] {
   const out: string[] = [];
