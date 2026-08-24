@@ -14,12 +14,19 @@ import { useRouter, useSearchParams } from "next/navigation";
 import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
-import { useJournalSnapshots, notifyJournalChanged } from "@/lib/traderMemory/adapters/useJournalSnapshots";
+import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
 import { computeJournalPnl, computeJournalRealizedR } from "@/lib/journal/computePnl";
 import { journalToCsv } from "@/lib/journal/journalToCsv";
 import { journalToJson } from "@/lib/journal/journalToJson";
+import {
+  JOURNAL_STORAGE_KEY,
+  migrateLegacyJournal,
+  notifyCanonicalJournalChanged,
+  readJournalStorage,
+  type JournalStorageRead,
+} from "@/lib/traderMemory/adapters/journalStorage";
 import { captureEfficiency } from "@/lib/proofLane/captureEfficiency";
 import { selectSessionEdge } from "@/lib/proofLane/selectSessionEdge";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
@@ -581,7 +588,6 @@ function StrategyCoach({ entries }: { entries: JournalEntry[] }) {
 }
 
 /* ── Main component ──────────────────────────────────────── */
-const JOURNAL_KEY = "wm_journal_entries";
 const LEGACY_DEMO_TRADES = new Set([
   "1|2025-06-14|NQ1!",
   "2|2025-06-14|TSLA",
@@ -780,22 +786,40 @@ function JournalPageInner() {
     [searchParams],
   );
   const { earnWMS } = useWMS();
-  const [entries, setEntries] = useState<JournalEntry[]>(() => {
+  const hydrationRef = useRef<JournalStorageRead | null>(null);
+  const persistenceAllowedRef = useRef(false);
+  const persistenceArmedRef = useRef(false);
+  const [entries, setEntriesState] = useState<JournalEntry[]>(() => {
     if (typeof window === "undefined") return [];
-    try {
-      const saved = JSON.parse(localStorage.getItem(JOURNAL_KEY) ?? "null");
-      return Array.isArray(saved)
-        ? saved.filter((e: JournalEntry) => !LEGACY_DEMO_TRADES.has(`${e.id}|${e.date}|${e.symbol}`))
-        : [];
-    } catch { return []; }
+    const read = readJournalStorage(localStorage);
+    hydrationRef.current = read;
+    persistenceAllowedRef.current = read.status === "RESOLVED_CANONICAL" || read.status === "ABSENT";
+    const saved = read.status === "RESOLVED_CANONICAL" || read.status === "RESOLVED_LEGACY"
+      ? read.records as JournalEntry[]
+      : [];
+    return saved.filter((e: JournalEntry) => !LEGACY_DEMO_TRADES.has(`${e.id}|${e.date}|${e.symbol}`));
   });
+  const setEntries = useCallback<React.Dispatch<React.SetStateAction<JournalEntry[]>>>((update) => {
+    persistenceArmedRef.current = true;
+    setEntriesState(update);
+  }, []);
+  useEffect(() => {
+    const read = hydrationRef.current;
+    if (!read || read.status !== "RESOLVED_LEGACY") return;
+    persistenceAllowedRef.current = migrateLegacyJournal(localStorage, read).status === "MIGRATED";
+  }, []);
   // Persist journal to localStorage whenever entries changes + notify
   // subscribers on other surfaces (Profile Growth, Command Deck) via
   // the custom 'wm-journal-updated' event so their MirrorPanels /
   // ProcessLandscape update in lockstep.
   useEffect(() => {
-    localStorage.setItem(JOURNAL_KEY, JSON.stringify(entries));
-    notifyJournalChanged();
+    if (!persistenceArmedRef.current || !persistenceAllowedRef.current) return;
+    try {
+      localStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(entries));
+      notifyCanonicalJournalChanged();
+    } catch {
+      // Browser-local persistence is unavailable; do not claim a successful save.
+    }
   }, [entries]);
 
   // Live Mirror surface — reads existing journal via adapter, feeds

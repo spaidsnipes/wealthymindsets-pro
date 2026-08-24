@@ -29,13 +29,19 @@ import {
 } from "@/lib/proofLane/proofLanePace";
 import { DAY_MODEL_LABELS } from "@/lib/proofLane/proofLaneR";
 import { selectSessionEdge } from "@/lib/proofLane/selectSessionEdge";
+import { journalRecordsToEdgeEntries } from "@/lib/proofLane/journalEdgeAdapter";
+import {
+  JOURNAL_UPDATED_EVENT,
+  readJournalStorage,
+} from "@/lib/traderMemory/adapters/journalStorage";
 import {
   CHALLENGE_JOURNEY,
   CHALLENGE_EXECUTION_BOUNDARY,
 } from "@/lib/proofLane/challengeJourney";
 
 /**
- * useJournalEdge — SSR-safe hook that reads the local wm-journal
+ * useJournalEdge — SSR-safe, read-only view over the canonical browser-local
+ * Journal transport. It never claims account or server durability.
  * store and returns the SessionEdge summary over R-tagged entries.
  * Never shows on server; empty until the client hydrates. The
  * hook subscribes to wm-journal-updated so a save from /journal
@@ -46,30 +52,19 @@ function useJournalEdge() {
   useEffect(() => {
     const compute = () => {
       try {
-        const raw = localStorage.getItem("wm-journal");
-        if (!raw) { setEdge(selectSessionEdge([])); return; }
-        const arr = JSON.parse(raw) as Array<{ date?: string; result?: string; realizedR?: number; processQuality?: string; mfeR?: number; maeR?: number }>;
-        if (!Array.isArray(arr)) { setEdge(selectSessionEdge([])); return; }
-        const num = (v: unknown): number | undefined => typeof v === "number" && Number.isFinite(v) ? v : undefined;
-        const entries = arr
-          .filter(e => e && typeof e.date === "string" && typeof e.result === "string")
-          .map(e => ({
-            date: e.date as string,
-            result: (e.result === "win" || e.result === "loss" || e.result === "be" ? e.result : "be") as "win" | "loss" | "be",
-            realizedR: num(e.realizedR),
-            processQuality: (e.processQuality === "FOLLOWED_PLAN" || e.processQuality === "BROKE_RULES" || e.processQuality === "UNRESOLVED" ? e.processQuality : "UNRESOLVED") as "FOLLOWED_PLAN" | "BROKE_RULES" | "UNRESOLVED",
-            mfeR: num(e.mfeR),
-            maeR: num(e.maeR),
-          }));
+        const read = readJournalStorage(localStorage);
+        const entries = read.status === "RESOLVED_CANONICAL" || read.status === "RESOLVED_LEGACY"
+          ? journalRecordsToEdgeEntries(read.records)
+          : [];
         setEdge(selectSessionEdge(entries));
       } catch { setEdge(selectSessionEdge([])); }
     };
     compute();
     const on = () => compute();
-    window.addEventListener("wm-journal-updated", on);
+    window.addEventListener(JOURNAL_UPDATED_EVENT, on);
     window.addEventListener("storage", on);
     return () => {
-      window.removeEventListener("wm-journal-updated", on);
+      window.removeEventListener(JOURNAL_UPDATED_EVENT, on);
       window.removeEventListener("storage", on);
     };
   }, []);
@@ -308,8 +303,8 @@ export default function ProofLanePage() {
           </p>
         </section>
 
-        {/* I-Bkt 8: MEASURED LIVE overlay. Reads the local wm-journal
-            store client-side and renders live Personal Edge over
+        {/* I-Bkt 8: MEASURED LIVE overlay. Reads the browser-local Journal
+            transport client-side and renders live Personal Edge over
             R-tagged entries. Silent until the first real session is
             recorded — no fabrication. Canon §21 verbatim: objective
             is the first MEASURED LIVE dataset, not "$1M fast". */}
