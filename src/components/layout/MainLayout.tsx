@@ -10,7 +10,7 @@ import {
   Bell, Settings, Search, Zap, BookOpen, FlaskConical, TrendingUp,
   X, Check, Moon, Sun, Volume2, VolumeX, Eye, EyeOff,
   Palette, Monitor, Keyboard, Shield, RefreshCw, Trash2, Radio, Copy, Heart,
-  Tv, Handshake, Crosshair,
+  Tv, Handshake, Crosshair, Trophy,
 } from "lucide-react";
 import { WMLogo } from "@/components/ui/WMLogo";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -816,6 +816,7 @@ const NAV_TOP = [
   { href: "/scanner",      icon: ScanLine,      label: "Scanner"      },
   { href: "/news",         icon: Newspaper,     label: "News"         },
   { href: "/education",    icon: GraduationCap, label: "Education"    },
+  { href: "/proof-lane",   icon: Trophy,        label: "$100 Challenge" },
   { href: "/journal",      icon: BookOpen,      label: "Journal"      },
   { href: "/paper",        icon: TrendingUp,    label: "Paper Trade"  },
   { href: "/copy-trading", icon: Copy,          label: "Copy Trading" },
@@ -910,6 +911,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   // scanner, journal, etc.) keep their existing internally managed overflow.
   const documentScroll = pathname === "/command-deck"
     || pathname === "/nectar"
+    || pathname === "/proof-lane"
     || pathname.startsWith("/nectar/");
   const router   = useRouter();
   const { user, signOut, signOutAllDevices } = useAuth();

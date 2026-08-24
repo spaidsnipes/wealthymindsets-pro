@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useWMS } from "@/contexts/WMSContext";
 import {
@@ -442,12 +443,12 @@ function PositionRow({ pos, onClose }: { pos: Position; onClose: ()=>void }) {
 }
 
 /* ── Leaderboard ─────────────────────────────────────────── */
-const PRIZE_TIERS = [
-  { rank: 1, prize: "$500",  label: "1st Place", color: "#FFD700", icon: "👑" },
-  { rank: 2, prize: "$250",  label: "2nd Place", color: "#C0C0C0", icon: "🥈" },
-  { rank: 3, prize: "$100",  label: "3rd Place", color: "#CD7F32", icon: "🥉" },
-  { rank: 4, prize: "$50",   label: "4th–5th",   color: "#00D4AA", icon: "🏅" },
-  { rank: 5, prize: "$50",   label: "4th–5th",   color: "#00D4AA", icon: "🏅" },
+const RANK_BADGES = [
+  { rank: 1, label: "1st Place", color: "#FFD700", icon: "👑" },
+  { rank: 2, label: "2nd Place", color: "#C0C0C0", icon: "🥈" },
+  { rank: 3, label: "3rd Place", color: "#CD7F32", icon: "🥉" },
+  { rank: 4, label: "4th Place", color: "#00D4AA", icon: "🏅" },
+  { rank: 5, label: "5th Place", color: "#00D4AA", icon: "🏅" },
 ];
 
 function Leaderboard({ myPct, myPnl, myTrades, myWin }: {
@@ -462,40 +463,35 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin }: {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Prize pool header */}
+      {/* External partner status — never promote unverified prize claims. */}
       <div className="shrink-0 p-4 border-b border-wm-border bg-gradient-to-r from-[#FFD700]/5 via-transparent to-[#00D4AA]/5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Trophy size={16} className="text-[#FFD700]"/>
-            <span className="text-sm font-black text-wm-text">Upside Only — Win Real Money</span>
+            <span className="text-sm font-black text-wm-text">External Challenge Status</span>
           </div>
           <button
             onClick={() => window.open("https://www.upsideonly.com", "_blank", "noopener,noreferrer")}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#00C853] text-black text-[10px] font-black hover:bg-[#00E060] transition-all"
           >
-            Join Contest <ExternalLink size={9}/>
+            Visit Partner <ExternalLink size={9}/>
           </button>
         </div>
 
-        {/* Prize tiers */}
+        {/* Local paper rank badges — not prize or payment claims. */}
         <div className="grid grid-cols-5 gap-1.5">
-          {PRIZE_TIERS.map(tier => (
+          {RANK_BADGES.map(tier => (
             <div key={tier.rank}
               className="rounded-lg border p-2 text-center"
               style={{ borderColor: tier.color + "40", background: tier.color + "10" }}>
               <div className="text-base mb-0.5">{tier.icon}</div>
-              <div className="text-[10px] font-black font-mono" style={{ color: tier.color }}>{tier.prize}</div>
-              <div className="text-[8px] text-wm-text-dim">{tier.label}</div>
+              <div className="text-[8px] font-bold" style={{ color: tier.color }}>{tier.label}</div>
             </div>
           ))}
         </div>
 
         <div className="mt-2.5 rounded-lg bg-[#00C853]/10 border border-[#00C853]/20 px-3 py-2 text-[9px] text-wm-text-dim">
-          💵 <span className="font-black text-[#00C853]">Real cash payouts.</span> Paper trade here to climb the leaderboard — top performers win actual money through Upside Only. No gimmicks, no points. <span className="font-bold text-wm-text">Real dollars, paid out weekly.</span>
-        </div>
-        <div className="mt-1.5 flex items-center justify-between text-[9px] text-wm-text-dim">
-          <span>📅 Contest resets weekly · Paid directly via Upside Only</span>
-          <span className="font-mono font-bold text-wm-text">Total Pool: <span className="text-[#FFD700]">$950</span></span>
+          External contest availability, eligibility, prizes, and payment are not verified by WM Pro. This leaderboard reflects only your browser-local paper results.
         </div>
       </div>
 
@@ -532,7 +528,7 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin }: {
 
         {board.map((entry, i) => {
           const isMe = (entry as any).isMe;
-          const prize = PRIZE_TIERS.find(p => p.rank === i + 1);
+          const badge = RANK_BADGES.find(p => p.rank === i + 1);
           return (
             <div key={entry.name}
               className={clsx(
@@ -543,8 +539,8 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin }: {
 
               {/* Rank */}
               <div className="flex items-center">
-                {prize ? (
-                  <span className="text-base leading-none">{prize.icon}</span>
+                {badge ? (
+                  <span className="text-base leading-none">{badge.icon}</span>
                 ) : (
                   <span className="text-[11px] font-bold text-wm-text-dim">{i + 1}</span>
                 )}
@@ -555,9 +551,9 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin }: {
                 <div className={clsx("text-xs font-bold", isMe ? "text-wm-green" : "text-wm-text")}>
                   {entry.name}
                 </div>
-                {prize && (
-                  <div className="text-[8px] font-bold" style={{ color: prize.color }}>
-                    {prize.prize} prize
+                {badge && (
+                  <div className="text-[8px] font-bold" style={{ color: badge.color }}>
+                    {badge.label}
                   </div>
                 )}
               </div>
@@ -591,10 +587,10 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin }: {
           onClick={() => window.open("https://www.upsideonly.com", "_blank", "noopener,noreferrer")}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-[#00C853] to-[#00A844] text-black text-xs font-black hover:opacity-90 active:scale-[0.99] transition-all shadow-lg shadow-[#00C853]/20"
         >
-          <ArrowUpRight size={14}/> Join Upside Only — Claim Your Cash Prize
+          <ArrowUpRight size={14}/> Review External Partner
         </button>
         <p className="text-[9px] text-wm-text-dim text-center mt-2">
-          🏆 Top leaderboard traders win <span className="font-black text-[#FFD700]">real money</span> — paid out by Upside Only every week
+          WM Pro does not verify external contest availability, eligibility, prizes, or payment.
         </p>
       </div>
     </div>
@@ -1056,7 +1052,7 @@ export default function PaperTradingPage() {
         <h1 className="text-sm font-bold text-wm-text">Paper Trading</h1>
         <div className="flex items-center gap-1.5 ml-1">
           <span className="w-1.5 h-1.5 rounded-full bg-wm-green animate-pulse"/>
-          <span className="text-[10px] text-wm-green font-bold">LIVE SIMULATION</span>
+          <span className="text-[10px] text-wm-green font-bold">PAPER SIMULATION</span>
         </div>
 
         {/* Account stats in header */}
@@ -1088,6 +1084,26 @@ export default function PaperTradingPage() {
           </div>
         </div>
       </div>
+
+      <section
+        id="academy-challenge"
+        aria-labelledby="academy-challenge-title"
+        className="flex shrink-0 flex-col items-stretch gap-2 border-b border-amber-700/30 bg-amber-950/20 px-4 py-2 sm:flex-row sm:items-center sm:gap-3"
+      >
+        <Trophy size={15} className="shrink-0 text-amber-300" aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <h2 id="academy-challenge-title" className="text-[11px] font-bold text-amber-100">Academy Challenge rehearsal</h2>
+          <p className="text-[9px] leading-relaxed text-wm-text-dim">
+            PAPER SIMULATION · BROWSER-LOCAL. Your existing $100,000 simulated account is preserved; this does not create a $100 funded account, deposit, contest entry, or live order.
+          </p>
+        </div>
+        <Link
+          href="/proof-lane#academy-challenge"
+          className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg border border-amber-600/40 px-3 text-[10px] font-semibold text-amber-200 transition-colors hover:border-amber-400/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold sm:w-auto"
+        >
+          Review Proof Lane
+        </Link>
+      </section>
 
       {/* Body */}
       <div style={{ flex:1,display:"flex",overflow:"hidden",minHeight:0 }}>
@@ -1149,7 +1165,7 @@ export default function PaperTradingPage() {
 
               <div className="flex items-center gap-1 mt-2 justify-center">
                 <span className="w-1 h-1 rounded-full bg-[#00C853] animate-pulse"/>
-                <span className="text-[8px] text-[#00C853] font-bold">LIVE COMMUNITY</span>
+                <span className="text-[8px] text-[#00C853] font-bold">EXTERNAL SITE</span>
               </div>
             </div>
           </div>

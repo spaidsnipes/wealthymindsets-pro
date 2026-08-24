@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import {
   Play, BookOpen, CheckCircle2, Lock, Star,
   ChevronRight, ChevronDown, ChevronUp, Pencil,
@@ -587,6 +588,14 @@ export default function EducationPage() {
           <Star size={11} className="text-wm-gold"/>
           {mods.filter(m=>m.completed).length}/{mods.length} modules complete
         </div>
+        <Link
+          href="/proof-lane"
+          className="hidden sm:inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 text-[10px] font-semibold text-amber-200 transition-colors hover:border-amber-400/70 hover:bg-amber-950/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+          aria-label="Open the $100 Academy Challenge Proof Lane"
+        >
+          <Trophy size={12} aria-hidden="true" />
+          $100 Challenge
+        </Link>
       </div>
 
       {/* Body — column stack on phones so both the module list and the
@@ -595,6 +604,20 @@ export default function EducationPage() {
 
         {/* Module list — full-width on phones, 320px on md+ */}
         <div className="w-full md:w-80 border-b md:border-b-0 md:border-r border-wm-border flex flex-col overflow-hidden shrink-0 max-h-[45vh] md:max-h-none">
+          <Link
+            href="/proof-lane"
+            className="mx-3 my-3 inline-flex min-h-11 shrink-0 items-center justify-between gap-3 rounded-xl border border-amber-600/40 bg-gradient-to-r from-amber-950/50 to-wm-surface/30 px-3 text-left transition-colors hover:border-amber-400/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold sm:hidden"
+            aria-label="Open the $100 Academy Challenge Proof Lane"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <Trophy size={14} className="shrink-0 text-amber-300" aria-hidden="true" />
+              <span className="min-w-0">
+                <span className="block text-[11px] font-bold text-amber-100">$100 Academy Challenge</span>
+                <span className="block truncate text-[9px] text-wm-text-dim">Learn → plan → paper practice → review</span>
+              </span>
+            </span>
+            <ChevronRight size={14} className="shrink-0 text-amber-300" aria-hidden="true" />
+          </Link>
           <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
             {mods.map(mod => {
               const isExp = expandedId === mod.id;

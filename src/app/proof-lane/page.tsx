@@ -29,6 +29,10 @@ import {
 } from "@/lib/proofLane/proofLanePace";
 import { DAY_MODEL_LABELS } from "@/lib/proofLane/proofLaneR";
 import { selectSessionEdge } from "@/lib/proofLane/selectSessionEdge";
+import {
+  CHALLENGE_JOURNEY,
+  CHALLENGE_EXECUTION_BOUNDARY,
+} from "@/lib/proofLane/challengeJourney";
 
 /**
  * useJournalEdge — SSR-safe hook that reads the local wm-journal
@@ -112,6 +116,50 @@ export default function ProofLanePage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-8 py-8 space-y-10">
+        <section aria-labelledby="academy-challenge" className="rounded-2xl border border-amber-700/50 bg-gradient-to-br from-amber-950/30 via-neutral-950 to-black p-5 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-amber-400/80">
+                Academy Challenge · authenticated training path
+              </div>
+              <h2 id="academy-challenge" className="mt-1 text-xl font-semibold text-neutral-100">
+                Learn → Plan → Practice → Review
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-400">
+                Begin the $100 challenge inside WM Pro without confusing education, theoretical pace, paper simulation, or browser-local progress with live brokerage execution.
+              </p>
+            </div>
+            <span className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-rose-700/50 bg-rose-950/30 px-3 text-[10px] font-mono uppercase tracking-wider text-rose-200">
+              Live execution excluded
+            </span>
+          </div>
+
+          <ol className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {CHALLENGE_JOURNEY.map((stage) => (
+              <li key={stage.id} className="flex min-h-[190px] flex-col rounded-xl border border-neutral-800 bg-black/40 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs text-amber-300">0{stage.step}</span>
+                  <span className="max-w-[75%] truncate text-[9px] font-mono uppercase tracking-wider text-neutral-600" title={stage.truth}>
+                    {stage.truth.replaceAll("_", " ")}
+                  </span>
+                </div>
+                <h3 className="mt-3 text-sm font-semibold text-neutral-100">{stage.title}</h3>
+                <p className="mt-2 flex-1 text-xs leading-relaxed text-neutral-400">{stage.description}</p>
+                <Link
+                  href={stage.href}
+                  className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-700/50 bg-amber-950/20 px-3 text-xs font-semibold text-amber-200 transition-colors hover:border-amber-500 hover:bg-amber-950/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
+                >
+                  {stage.action}
+                </Link>
+              </li>
+            ))}
+          </ol>
+
+          <p className="mt-4 text-xs text-neutral-500">
+            Academy execution boundary: <span className="font-mono text-rose-300">{CHALLENGE_EXECUTION_BOUNDARY}</span>. Academy provides education and paper rehearsal only. It cannot authorize live execution.
+          </p>
+        </section>
+
         <section aria-labelledby="mountain">
           <h2 id="mountain" className="text-sm uppercase tracking-widest text-amber-400/80 mb-3">
             Pace Mountain — Required Theoretical Rate
