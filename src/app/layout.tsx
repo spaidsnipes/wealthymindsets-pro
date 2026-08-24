@@ -33,7 +33,12 @@ export const metadata: Metadata = {
       { url: "/icons/icon-192x192.png",sizes: "192x192",type: "image/png" },
     ],
     apple:   "/icons/icon-180x180.png",
-    other:   [{ rel: "mask-icon", url: "/images/wm-logo.svg", color: "#F0B429" }],
+    // Safari mask-icon intentionally omitted: the founder's micro-glyph
+    // ("simplified angular W/crown") is not yet delivered as a monochrome
+    // vector, and the old /images/wm-logo.svg was an OFF-BRAND orange
+    // "W + arrow + $" mark. Per brand canon ("fall back honestly, never to a
+    // fabricated mark"), Safari pinned tabs fall back to the real
+    // monogram-derived apple-touch/favicon rather than an off-spec silhouette.
   },
   openGraph: {
     title:       "WealthyMindsets Pro — Trading Operating System",
