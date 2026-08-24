@@ -1,15 +1,15 @@
 import { describe, it, expect } from "vitest";
-// CommandContextRibbon imports React + @/ alias — vitest can't resolve
-// them without the full-project setup. Duplicate the pure helper as a
-// verified spec so this test locks the semantics without the JSX
-// coupling. If the helper drifts from CommandContextRibbon.tsx the
-// TypeScript build will still catch a type mismatch.
-function sessionDetailText(session: string, connected: boolean, dayOfWeek: number): string {
-  const s = session.toUpperCase();
-  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-  if (s === "CLOSED" || isWeekend) return "market closed";
-  if (!connected) return "no data connection";
-  return "connected";
+import { selectCanonicalSessionPresentation } from "../../lib/marketData/canonicalIdentity";
+
+function present(session: string, connected: boolean, dayOfWeek: number, symbol = "TSLA", observedActivityAt: number | null = null) {
+  return selectCanonicalSessionPresentation({
+    symbol,
+    requestedSession: session,
+    connected,
+    dayOfWeek,
+    observedActivityAt,
+    evaluatedAt: 2_000,
+  });
 }
 
 /**
@@ -26,30 +26,43 @@ function sessionDetailText(session: string, connected: boolean, dayOfWeek: numbe
 
 describe("sessionDetailText — weekend / market-closed / connection truth", () => {
   it("Sunday (dow=0) → 'market closed' regardless of transport state", () => {
-    expect(sessionDetailText("RTH", true, 0)).toBe("market closed");
-    expect(sessionDetailText("RTH", false, 0)).toBe("market closed");
+    expect(present("RTH", true, 0).detail).toBe("market closed");
+    expect(present("RTH", false, 0).detail).toBe("market closed");
   });
   it("Saturday (dow=6) → 'market closed' regardless of transport state", () => {
-    expect(sessionDetailText("RTH", true, 6)).toBe("market closed");
-    expect(sessionDetailText("RTH", false, 6)).toBe("market closed");
+    expect(present("RTH", true, 6).detail).toBe("market closed");
+    expect(present("RTH", false, 6).detail).toBe("market closed");
   });
   it("Weekday + session=CLOSED → 'market closed' even if transport connected", () => {
     for (let d = 1; d <= 5; d++) {
-      expect(sessionDetailText("CLOSED", true, d)).toBe("market closed");
+      expect(present("CLOSED", true, d).detail).toBe("market closed");
     }
   });
   it("Weekday + session=RTH + connected → 'connected'", () => {
     for (let d = 1; d <= 5; d++) {
-      expect(sessionDetailText("RTH", true, d)).toBe("connected");
+      expect(present("RTH", true, d).detail).toBe("connected");
     }
   });
   it("Weekday + session=RTH + disconnected → 'no data connection' (honest, non-mysterious)", () => {
     for (let d = 1; d <= 5; d++) {
-      expect(sessionDetailText("RTH", false, d)).toBe("no data connection");
+      expect(present("RTH", false, d).detail).toBe("no data connection");
     }
   });
   it("Case-insensitive session token", () => {
-    expect(sessionDetailText("rth", false, 3)).toBe("no data connection");
-    expect(sessionDetailText("closed", true, 3)).toBe("market closed");
+    expect(present("rth", false, 3).detail).toBe("no data connection");
+    expect(present("closed", true, 3).detail).toBe("market closed");
+  });
+  it("Observed Sunday futures activity remains session UNKNOWN, never market closed", () => {
+    expect(present("RTH", true, 0, "NQ1!", 1_000)).toMatchObject({
+      value: "FUTURES ACTIVITY OBSERVED",
+      detail: "session classification unavailable — no authoritative calendar",
+      activity: "OBSERVED",
+    });
+  });
+  it("Futures without observed activity remain session UNKNOWN", () => {
+    expect(present("RTH", false, 0, "ES1!", null)).toMatchObject({
+      value: "SESSION UNKNOWN",
+      activity: "UNKNOWN",
+    });
   });
 });

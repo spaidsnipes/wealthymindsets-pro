@@ -4,6 +4,8 @@ import {
   canonicalInstrumentId,
   canonicalSession,
   canonicalMarketStateIdentity,
+  selectCanonicalFuturesSessionTruth,
+  US_CASH_SESSION_UNKNOWN_LABEL,
 } from "./canonicalIdentity";
 
 describe("canonicalAssetClass", () => {
@@ -25,6 +27,88 @@ describe("canonicalAssetClass", () => {
     expect(canonicalAssetClass("TSLA")).toBe("equity");
     expect(canonicalAssetClass("NVDA")).toBe("equity");
     expect(canonicalAssetClass("aapl")).toBe("equity");
+  });
+});
+
+describe("selectCanonicalFuturesSessionTruth", () => {
+  const base = {
+    instrumentId: "NQ1!",
+    assetClass: "futures" as const,
+    requestedFilter: "RTH" as const,
+    observedActivityAt: 1_000,
+    evaluatedAt: 2_000,
+  };
+
+  it("keeps observed Sunday-style activity separate from session identity", () => {
+    expect(selectCanonicalFuturesSessionTruth(base)).toMatchObject({
+      resolution: "UNKNOWN",
+      session: null,
+      activity: "OBSERVED",
+      label: "FUTURES ACTIVITY OBSERVED",
+      requestedFilter: "RTH",
+    });
+  });
+
+  it("does not let absent, invalid, or future observation time prove activity", () => {
+    for (const observedActivityAt of [null, Number.NaN, -1, 3_000]) {
+      expect(selectCanonicalFuturesSessionTruth({ ...base, observedActivityAt }).activity).toBe("UNKNOWN");
+    }
+  });
+
+  it("resolves only a matching, sourced, versioned, effective calendar fact", () => {
+    expect(selectCanonicalFuturesSessionTruth({
+      ...base,
+      authoritativeCalendarFact: {
+        instrumentId: "NQ1!",
+        session: "OVERNIGHT",
+        source: "calendar-authority",
+        version: "2026.08",
+        effectiveFrom: 1_500,
+        effectiveTo: 2_500,
+      },
+    })).toMatchObject({ resolution: "RESOLVED", session: "OVERNIGHT", activity: "OBSERVED" });
+  });
+
+  it("fails closed on mismatched, unversioned, or expired facts", () => {
+    const fact = {
+      instrumentId: "NQ1!",
+      session: "OVERNIGHT" as const,
+      source: "calendar-authority",
+      version: "2026.08",
+      effectiveFrom: 1_500,
+      effectiveTo: 2_500,
+    };
+    expect(selectCanonicalFuturesSessionTruth({ ...base, authoritativeCalendarFact: { ...fact, instrumentId: "ES1!" } }).resolution).toBe("UNKNOWN");
+    expect(selectCanonicalFuturesSessionTruth({ ...base, authoritativeCalendarFact: { ...fact, version: "" } }).resolution).toBe("UNKNOWN");
+    expect(selectCanonicalFuturesSessionTruth({ ...base, authoritativeCalendarFact: { ...fact, effectiveTo: 1_999 } }).resolution).toBe("UNKNOWN");
+  });
+
+  it("fails closed when evaluation time is not finite", () => {
+    const truth = selectCanonicalFuturesSessionTruth({
+      ...base,
+      evaluatedAt: Number.NaN,
+      authoritativeCalendarFact: {
+        instrumentId: "NQ1!",
+        session: "OVERNIGHT",
+        source: "calendar-authority",
+        version: "2026.08",
+        effectiveFrom: 1_500,
+        effectiveTo: 2_500,
+      },
+    });
+
+    expect(truth.resolution).toBe("UNKNOWN");
+    expect(truth.session).toBeNull();
+    expect(truth.reasons).toContain("Evaluation time is invalid.");
+  });
+
+  it("does not let a requested EXTENDED filter become session truth", () => {
+    const truth = selectCanonicalFuturesSessionTruth({ ...base, requestedFilter: "EXTENDED" });
+    expect(truth).toMatchObject({ resolution: "UNKNOWN", session: null, requestedFilter: "EXTENDED" });
+  });
+
+  it("keeps the cash-session footer fail-closed", () => {
+    expect(US_CASH_SESSION_UNKNOWN_LABEL).toBe("US CASH SESSION · STATUS UNKNOWN");
   });
 });
 

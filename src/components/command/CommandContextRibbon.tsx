@@ -43,6 +43,7 @@ import {
   selectContextDataReading,
   type ContextDataState,
 } from "@/lib/marketData/contextDataTruth";
+import { selectCanonicalSessionPresentation } from "@/lib/marketData/canonicalIdentity";
 
 export interface CommandContextRibbonProps {
   readonly symbol: string;
@@ -232,14 +233,6 @@ function sessionTone(session: string, connected: boolean): Tone {
  *  - Else if not connected → "no data connection".
  *  - Else → "connected".
  */
-export function sessionDetailText(session: string, connected: boolean, dayOfWeek: number): string {
-  const s = session.toUpperCase();
-  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-  if (s === "CLOSED" || isWeekend) return "market closed";
-  if (!connected) return "no data connection";
-  return "connected";
-}
-
 function dataTone(ds: ContextDataState): Tone {
   switch (ds) {
     case "LIVE":        return "resolved";
@@ -285,17 +278,22 @@ const computeRightOfWay = computeRightOfWayCanonical;
 // Nectar tile — count of tape sources with observed trades for THIS symbol,
 // summed trade count. Reads sessionSymbolStore, the same canonical owner
 // /nectar and /profile Nectar tab consume — no duplicate identity.
-function useNectarForSymbol(symbol: string): { channels: number; trades: number; hydrated: boolean } {
+function useNectarForSymbol(symbol: string): { channels: number; trades: number; lastTradeAtMs: number | null; hydrated: boolean } {
   const [tick, force] = React.useReducer((n: number) => n + 1, 0);
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => { setHydrated(true); }, []);
   React.useEffect(() => subscribeSessionSymbolStore(() => force()), []);
   return React.useMemo(() => {
-    if (!hydrated) return { channels: 0, trades: 0, hydrated: false };
+    if (!hydrated) return { channels: 0, trades: 0, lastTradeAtMs: null, hydrated: false };
     const upper = symbol.toUpperCase();
     const rows = getKnownSessionSymbols().filter(s => s.symbol.toUpperCase() === upper && s.slot.stats.tradeCount > 0);
     const trades = rows.reduce((sum, r) => sum + r.slot.stats.tradeCount, 0);
-    return { channels: rows.length, trades, hydrated: true };
+    const lastTradeAtMs = rows.reduce<number | null>((latest, row) => {
+      const observedAt = row.slot.lastTradeAtMs ?? null;
+      if (observedAt == null) return latest;
+      return latest == null ? observedAt : Math.max(latest, observedAt);
+    }, null);
+    return { channels: rows.length, trades, lastTradeAtMs, hydrated: true };
   }, [symbol, tick, hydrated]);
 }
 
@@ -317,14 +315,22 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
   const arText = availableRText(availableR);
   const debt = React.useMemo(() => computeEvidenceDebt(chainNodes), [chainNodes]);
   const rightOfWay = React.useMemo(() => computeRightOfWay(permission, debt), [permission, debt]);
+  const sessionPresentation = selectCanonicalSessionPresentation({
+    symbol,
+    requestedSession: session,
+    connected: wsConnected,
+    dayOfWeek: new Date(nowMs ?? 0).getDay(),
+    observedActivityAt: nectar.lastTradeAtMs,
+    evaluatedAt: nowMs ?? 0,
+  });
 
   const tiles: readonly Tile[] = [
     {
       key: "session",
       label: "SESSION",
-      value: session.toUpperCase(),
-      detail: sessionDetailText(session, wsConnected, new Date().getDay()),
-      tone: sessionTone(session, wsConnected),
+      value: sessionPresentation.value,
+      detail: sessionPresentation.detail,
+      tone: sessionPresentation.activity === "OBSERVED" ? "pending" : sessionTone(session, wsConnected),
     },
     (() => {
       // The first render uses the snapshot's deterministic capture time so SSR

@@ -29,6 +29,144 @@ export interface CanonicalMarketStateIdentity {
   readonly timeframeContext: readonly string[];
 }
 
+export type RequestedSessionFilter = "RTH" | "EXTENDED";
+export type FuturesActivityState = "OBSERVED" | "UNKNOWN";
+
+export interface AuthoritativeSessionFact {
+  readonly instrumentId: string;
+  readonly session: CanonicalSession;
+  readonly source: string;
+  readonly version: string;
+  readonly effectiveFrom: number;
+  readonly effectiveTo: number;
+}
+
+export interface CanonicalFuturesSessionTruthInput {
+  readonly instrumentId: string;
+  readonly assetClass: CanonicalAssetClass;
+  readonly requestedFilter: RequestedSessionFilter;
+  readonly observedActivityAt: number | null;
+  readonly evaluatedAt: number;
+  readonly authoritativeCalendarFact?: AuthoritativeSessionFact | null;
+}
+
+export type CanonicalFuturesSessionTruth =
+  | {
+      readonly resolution: "RESOLVED";
+      readonly session: CanonicalSession;
+      readonly requestedFilter: RequestedSessionFilter;
+      readonly activity: FuturesActivityState;
+      readonly label: CanonicalSession;
+      readonly detail: string;
+      readonly reasons: readonly [];
+    }
+  | {
+      readonly resolution: "UNKNOWN";
+      readonly session: null;
+      readonly requestedFilter: RequestedSessionFilter;
+      readonly activity: FuturesActivityState;
+      readonly label: "FUTURES ACTIVITY OBSERVED" | "SESSION UNKNOWN";
+      readonly detail: "session classification unavailable — no authoritative calendar";
+      readonly reasons: readonly string[];
+    };
+
+/**
+ * Fail-closed futures-session truth. Observed activity is evidence that a
+ * price event exists; it is never evidence of RTH, EXTENDED, OVERNIGHT, or
+ * CLOSED. Only a matching, versioned, effective calendar fact may resolve a
+ * session. Pure and deterministic: callers inject evaluatedAt.
+ */
+export function selectCanonicalFuturesSessionTruth(
+  input: CanonicalFuturesSessionTruthInput,
+): CanonicalFuturesSessionTruth {
+  const activityObserved = Number.isFinite(input.observedActivityAt)
+    && (input.observedActivityAt ?? 0) > 0
+    && Number.isFinite(input.evaluatedAt)
+    && input.observedActivityAt! <= input.evaluatedAt;
+  const activity: FuturesActivityState = activityObserved ? "OBSERVED" : "UNKNOWN";
+  const reasons: string[] = [];
+  const fact = input.authoritativeCalendarFact;
+
+  if (input.assetClass !== "futures") reasons.push("Asset is not classified as futures.");
+  if (!Number.isFinite(input.evaluatedAt)) reasons.push("Evaluation time is invalid.");
+  if (!fact) {
+    reasons.push("No authoritative futures calendar fact is available.");
+  } else {
+    if (fact.instrumentId !== input.instrumentId) reasons.push("Calendar fact instrument does not match.");
+    if (!fact.source.trim()) reasons.push("Calendar fact source is missing.");
+    if (!fact.version.trim()) reasons.push("Calendar fact version is missing.");
+    if (!Number.isFinite(fact.effectiveFrom) || !Number.isFinite(fact.effectiveTo)
+      || fact.effectiveFrom > input.evaluatedAt || fact.effectiveTo < input.evaluatedAt) {
+      reasons.push("Calendar fact is outside its effective window.");
+    }
+  }
+
+  if (reasons.length === 0 && fact) {
+    return {
+      resolution: "RESOLVED",
+      session: fact.session,
+      requestedFilter: input.requestedFilter,
+      activity,
+      label: fact.session,
+      detail: `${fact.source} · ${fact.version}`,
+      reasons: [],
+    };
+  }
+
+  return {
+    resolution: "UNKNOWN",
+    session: null,
+    requestedFilter: input.requestedFilter,
+    activity,
+    label: activity === "OBSERVED" ? "FUTURES ACTIVITY OBSERVED" : "SESSION UNKNOWN",
+    detail: "session classification unavailable — no authoritative calendar",
+    reasons,
+  };
+}
+
+export interface CanonicalSessionPresentationInput {
+  readonly symbol: string;
+  readonly requestedSession: string;
+  readonly connected: boolean;
+  readonly dayOfWeek: number;
+  readonly observedActivityAt: number | null;
+  readonly evaluatedAt: number;
+  readonly authoritativeCalendarFact?: AuthoritativeSessionFact | null;
+}
+
+/** One production presenter shared by the Command ribbon and its tests. */
+export function selectCanonicalSessionPresentation(
+  input: CanonicalSessionPresentationInput,
+): { readonly value: string; readonly detail: string; readonly activity: FuturesActivityState } {
+  const assetClass = canonicalAssetClass(input.symbol);
+  const requestedFilter: RequestedSessionFilter = input.requestedSession.toUpperCase() === "EXTENDED"
+    || input.requestedSession.toUpperCase() === "ETH" ? "EXTENDED" : "RTH";
+
+  if (assetClass === "futures") {
+    const truth = selectCanonicalFuturesSessionTruth({
+      instrumentId: canonicalInstrumentId(input.symbol, assetClass),
+      assetClass,
+      requestedFilter,
+      observedActivityAt: input.observedActivityAt,
+      evaluatedAt: input.evaluatedAt,
+      authoritativeCalendarFact: input.authoritativeCalendarFact,
+    });
+    return { value: truth.label, detail: truth.detail, activity: truth.activity };
+  }
+
+  const session = input.requestedSession.toUpperCase();
+  const isWeekend = input.dayOfWeek === 0 || input.dayOfWeek === 6;
+  return {
+    value: session,
+    detail: session === "CLOSED" || isWeekend
+      ? "market closed"
+      : input.connected ? "connected" : "no data connection",
+    activity: "UNKNOWN",
+  };
+}
+
+export const US_CASH_SESSION_UNKNOWN_LABEL = "US CASH SESSION · STATUS UNKNOWN" as const;
+
 const CRYPTO_TICKERS = new Set([
   "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX",
   "LINK", "DOT", "LTC", "ATOM", "UNI",

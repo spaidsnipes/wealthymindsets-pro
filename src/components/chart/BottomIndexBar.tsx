@@ -3,23 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Eye } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
-
-/* ── Market session detection (ET) ─────────────────────── */
-function getSessionLabel(): string {
-  const now = new Date();
-  // Convert to ET (UTC-5 or UTC-4 depending on DST)
-  const etOffset = -5; // simplified; adjust for DST if needed
-  const etHour = (now.getUTCHours() + 24 + etOffset) % 24;
-  const etMin  = now.getUTCMinutes();
-  const t = etHour * 60 + etMin;
-
-  const day = now.getUTCDay(); // 0=Sun, 6=Sat
-  if (day === 0 || day === 6) return "Market Closed";
-  if (t >= 4 * 60 && t < 9 * 60 + 30) return "Pre-Market Trading";
-  if (t >= 9 * 60 + 30 && t < 16 * 60) return "Market Open";
-  if (t >= 16 * 60 && t < 20 * 60) return "After-Hours";
-  return "Market Closed";
-}
+import { US_CASH_SESSION_UNKNOWN_LABEL } from "@/lib/marketData/canonicalIdentity";
 
 /* ── Individual index ticker ─────────────────────────────── */
 function IndexTicker({ label, symbol }: { label: string; symbol: string }) {
@@ -54,7 +38,6 @@ function IndexTicker({ label, symbol }: { label: string; symbol: string }) {
 
 export function BottomIndexBar() {
   const [time, setTime] = useState("");
-  const [session, setSession] = useState("");
 
   useEffect(() => {
     const update = () => {
@@ -70,7 +53,6 @@ export function BottomIndexBar() {
       const mon = months[et.getUTCMonth()];
       const day = et.getUTCDate();
       setTime(`${mon} ${day} ${h}:${m}:${s}`);
-      setSession(getSessionLabel());
     };
     update();
     const iv = setInterval(update, 1000);
@@ -90,7 +72,7 @@ export function BottomIndexBar() {
       {/* Session status */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 14px" }}>
         <span style={{ fontSize: 10, color: "#8B8FA8" }}>🇺🇸</span>
-        <span style={{ fontSize: 11, color: "#8B8FA8", fontWeight: 500 }}>{session}</span>
+        <span style={{ fontSize: 11, color: "#8B8FA8", fontWeight: 500 }}>{US_CASH_SESSION_UNKNOWN_LABEL}</span>
       </div>
 
       <IndexTicker label="Dow Jones" symbol="YM1!" />

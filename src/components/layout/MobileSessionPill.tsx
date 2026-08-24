@@ -30,7 +30,11 @@ import {
   getKnownSessionSymbols,
   subscribeSessionSymbolStore,
 } from "@/lib/marketData/sessionSymbolStore";
-import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
+import {
+  canonicalAssetClass,
+  canonicalMarketStateIdentity,
+  selectCanonicalFuturesSessionTruth,
+} from "@/lib/marketData/canonicalIdentity";
 
 const FRESH_WINDOW_MS = 30_000; // "live" = fresh trade within 30s
 
@@ -98,12 +102,26 @@ export function MobileSessionPill(): React.ReactElement | null {
   const detail = observed
     ? `${reading.trades.toLocaleString("en-US")} trade${reading.trades === 1 ? "" : "s"} observed`
     : "browser-local memory empty";
+  const assetClass = canonicalAssetClass(symbol);
+  const futuresTruth = assetClass === "futures"
+    ? selectCanonicalFuturesSessionTruth({
+        instrumentId: identity.instrumentId,
+        assetClass,
+        requestedFilter: identity.session === "EXTENDED" ? "EXTENDED" : "RTH",
+        observedActivityAt: reading.lastTradeMs,
+        evaluatedAt: now,
+      })
+    : null;
+  const sessionToken = futuresTruth ? "SESSION ?" : session;
+  const accessibleStatus = futuresTruth
+    ? `${futuresTruth.activity === "OBSERVED" ? "futures activity observed" : "futures activity unknown"}; session classification unknown`
+    : `session ${session}, ${status}`;
 
   return (
     <Link
       href="/charts"
-      aria-label={`${symbol} — session ${session}, ${status}, ${detail}. Open chart.`}
-      title={`${symbol} · ${session}\n${status} — ${detail}`}
+      aria-label={`${symbol} — ${accessibleStatus}, ${detail}. Open chart.`}
+      title={`${symbol} · ${sessionToken}\n${accessibleStatus} — ${detail}`}
       className="wm-mobile-session-pill"
       style={{
         display: "inline-flex",
@@ -148,7 +166,7 @@ export function MobileSessionPill(): React.ReactElement | null {
         }}
         aria-hidden="true"
       >
-        {session}
+        {sessionToken}
       </span>
       {observed && (
         <span style={{ color: "#8a8271", fontWeight: 500, letterSpacing: 0.3 }}>
