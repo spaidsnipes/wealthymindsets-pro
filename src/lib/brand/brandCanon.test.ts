@@ -4,6 +4,7 @@ import {
   WM_SLOGAN,
   WM_MARKS,
   WM_MARK_HIERARCHY,
+  WM_MARK_ASSETS,
   WM_INTEGRATION_PHRASING,
   type WmMark,
 } from "./brandCanon";
@@ -45,6 +46,14 @@ describe("brandCanon — the frozen brand identity (drift guard)", () => {
     expect(WM_MARK_HIERARCHY["micro-glyph"].usage).toContain("favicon");
     expect(WM_MARK_HIERARCHY["master-crest"].avoid).toContain("favicon");
     expect(WM_MARK_HIERARCHY.editorial.avoid.join(" ")).toMatch(/professional and calm/i);
+  });
+
+  it("delivered mark assets map to real /brand paths; undelivered roles stay absent (no fabricated mark)", () => {
+    expect(WM_MARK_ASSETS["master-crest"]).toBe("/brand/wm-master-crest.jpeg");
+    expect(WM_MARK_ASSETS["compact-monogram"]).toBe("/brand/wm-compact-monogram.jpeg");
+    // micro-glyph + editorial are not delivered as standalone in-app assets yet.
+    expect(WM_MARK_ASSETS["micro-glyph"]).toBeUndefined();
+    expect(WM_MARK_ASSETS.editorial).toBeUndefined();
   });
 
   it("integration phrasing refuses the word 'connected' pre-certification", () => {

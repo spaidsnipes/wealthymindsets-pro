@@ -98,6 +98,21 @@ export const WM_MARK_HIERARCHY: Readonly<Record<WmMark, WmMarkSpec>> = {
 } as const;
 
 /**
+ * Delivered brand-mark ASSET files (founder's Drive "Brand Identity & Logos",
+ * imported 2026-08-24). Roles without a delivered asset are intentionally
+ * ABSENT — surfaces must fall back honestly, never to a fabricated mark.
+ *   · master-crest    → faceless gentleman + WM medallion + crown + wordmark
+ *   · compact-monogram→ gold WM + crown on black (also the favicon/app-icon source)
+ *   · micro-glyph     → NOT yet delivered as a standalone asset; small surfaces
+ *                       currently reuse the monogram-derived icon set.
+ *   · editorial       → campaign boards live in Drive, not bundled in-app.
+ */
+export const WM_MARK_ASSETS: Partial<Readonly<Record<WmMark, string>>> = {
+  "master-crest": "/brand/wm-master-crest.jpeg",
+  "compact-monogram": "/brand/wm-compact-monogram.jpeg",
+} as const;
+
+/**
  * Honest phrasing for the moomoo/webull integration state. Founder directive
  * (2026-08-24): do NOT say "connected" until the certification endpoint shows
  * real earned capabilities. Use this until then.
