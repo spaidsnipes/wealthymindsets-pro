@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { probeMoomooMarketData } from "../../../../lib/marketData/adapters/moomooMarketData";
+import { probeWebullMarketData } from "../../../../lib/marketData/adapters/webullMarketData";
 import {
   aggregateSourceCertifications,
   type FleetSourceCertification,
@@ -28,9 +29,12 @@ async function buildFleet(): Promise<FleetSourceCertification> {
     bridgeToken: process.env.MOOMOO_BRIDGE_TOKEN,
     canarySymbol: process.env.MOOMOO_CANARY_SYMBOL || undefined,
   });
-  // Future sources (Webull, Alpaca) slot in here as their probes land —
-  // one array entry each, no new truth engine.
-  return aggregateSourceCertifications([moomoo]);
+  const webull = await probeWebullMarketData(fetch, {
+    dataUrl: process.env.WEBULL_DATA_URL || undefined,
+  });
+  // Future sources (Alpaca, …) slot in here as their probes land — one array
+  // entry each, no new truth engine.
+  return aggregateSourceCertifications([moomoo, webull]);
 }
 
 export async function GET(): Promise<NextResponse<FleetSourceCertification>> {
