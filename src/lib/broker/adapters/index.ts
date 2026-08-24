@@ -20,6 +20,7 @@ import type { BrokerAdapter, BrokerId } from "../BrokerAdapter";
 import { webullAdapter } from "./webullAdapter";
 import { alpacaAdapter } from "./alpacaAdapter";
 import { tastytradeAdapter } from "./tastytradeAdapter";
+import { moomooAdapter } from "./moomooAdapter";
 
 /**
  * All shipped adapters keyed by their canonical BrokerId.
@@ -31,6 +32,7 @@ const REGISTRY: Partial<Record<BrokerId, BrokerAdapter>> = {
   webull: webullAdapter,
   alpaca: alpacaAdapter,
   tastytrade: tastytradeAdapter,
+  moomoo: moomooAdapter,
 };
 
 /**

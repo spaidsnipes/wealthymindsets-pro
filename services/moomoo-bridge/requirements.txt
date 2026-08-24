@@ -1,0 +1,4 @@
+# moomoo-bridge runtime deps. Python 3.10+ (verified on 3.14.5).
+# The bridge itself uses only the stdlib http.server; moomoo-api is the SDK
+# that speaks to the OpenD gateway.
+moomoo-api==10.10.7008
