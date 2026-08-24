@@ -8,6 +8,7 @@ import { RadioProvider } from "@/contexts/RadioContext";
 import { Toaster } from "react-hot-toast";
 import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { WM_BRAND } from "@/lib/brand/brandCanon";
 
 /* ── PWA + SEO metadata ─────────────────────────────────────
    Positioning aligned with the current WM Pro canon: WM Pro is a
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   title:       "WealthyMindsets Pro — Trading Operating System",
   description: "A trading operating system for serious traders. Market intelligence, order flow, volume profile, decision memory, and longitudinal edge — with truthful UNKNOWN, MISSING, STALE, and INSUFFICIENT states.",
   keywords:    ["trading operating system", "order flow", "volume profile", "market intelligence", "decision memory", "trader development", "footprint chart", "trade journal"],
-  authors:     [{ name: "WealthyMindsets LLC" }],
+  authors:     [{ name: WM_BRAND.legalEntity }],
   manifest:    "/manifest.json",
   appleWebApp: {
     capable:        true,
