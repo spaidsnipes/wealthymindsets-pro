@@ -53,5 +53,8 @@ Implementation Ledger. Suggested workflow:
 - `2026-08-16-scoreexplainer-nextpractice-atom.md` — atom-close baton for
   the pending ScoreExplainer + profile/page.tsx conditional-hook fix
   awaiting Sentinel review.
-- `2026-08-16-pm-execution-session.md` — this session's ledger entry
-  (written at end of session).
+- `2026-08-16-pm-execution-session.md` — prior session's ledger entry.
+- `2026-08-24-experience-shell-cutover.md` — first WM Experience Shell
+  cutover (live seven-mode band on /command-deck) + moomoo/webull env
+  drift-lock fix. Records a P0: prod serving Cloudflare Error 1027
+  (Workers plan-limit outage) — Founder action required.
