@@ -1,0 +1,95 @@
+import { describe, it, expect, vi } from "vitest";
+import { probeMoomooMarketData } from "./moomooMarketData";
+
+/** Build a mock fetch that returns the given JSON body + status per URL match. */
+function mockFetch(routes: Array<{ match: string; status: number; body: unknown }>): typeof fetch {
+  return vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    const route = routes.find((r) => url.includes(r.match));
+    if (!route) throw new Error(`unexpected fetch ${url}`);
+    return {
+      ok: route.status >= 200 && route.status < 300,
+      status: route.status,
+      json: async () => route.body,
+    } as Response;
+  }) as unknown as typeof fetch;
+}
+
+const status = (cert: Awaited<ReturnType<typeof probeMoomooMarketData>>, cap: string) =>
+  cert.rows.find((r) => r.capability === cap)!.status;
+
+describe("probeMoomooMarketData — honest bridge-state → certification mapping", () => {
+  it("no bridge configured → all NOT_IMPLEMENTED, CVD UNAVAILABLE, nothing certified", async () => {
+    const cert = await probeMoomooMarketData(mockFetch([]), { bridgeUrl: "" });
+    expect(cert.source).toBe("moomoo");
+    expect(cert.rows.every((r) => r.status === "NOT_IMPLEMENTED")).toBe(true);
+    expect(cert.certifiedCount).toBe(0);
+    expect(cert.cvd).toBe("UNAVAILABLE");
+  });
+
+  it("bridge /health unreachable → PRICE NOT_IMPLEMENTED with honest note", async () => {
+    const cert = await probeMoomooMarketData(
+      mockFetch([{ match: "/health", status: 502, body: { ok: false } }]),
+      { bridgeUrl: "https://bridge.example" },
+    );
+    expect(status(cert, "PRICE")).toBe("NOT_IMPLEMENTED");
+    expect(cert.certifiedCount).toBe(0);
+  });
+
+  it("network throw on /health is caught → NOT_IMPLEMENTED (never crashes)", async () => {
+    const throwing = vi.fn(async () => {
+      throw new Error("ECONNREFUSED");
+    }) as unknown as typeof fetch;
+    const cert = await probeMoomooMarketData(throwing, { bridgeUrl: "https://bridge.example" });
+    expect(status(cert, "PRICE")).toBe("NOT_IMPLEMENTED");
+  });
+
+  it("bridge up but OpenD offline → every market capability BLOCKED_AUTH", async () => {
+    const cert = await probeMoomooMarketData(
+      mockFetch([{ match: "/health", status: 200, body: { ok: true, opend_reachable: false, sdk_version: "10.10.7008" } }]),
+      { bridgeUrl: "https://bridge.example" },
+    );
+    for (const cap of ["PRICE", "BARS", "TICKS", "EXECUTED_VOLUME", "AGGRESSOR_SIDE", "DEPTH", "OPTIONS", "FUTURES"]) {
+      expect(status(cert, cap), cap).toBe("BLOCKED_AUTH");
+    }
+    // Broker rows we never probe stay honest NOT_IMPLEMENTED.
+    expect(status(cert, "ACCOUNT")).toBe("NOT_IMPLEMENTED");
+    // OpenD offline still means no executed evidence → CVD UNAVAILABLE.
+    expect(cert.cvd).toBe("UNAVAILABLE");
+    // The note names the concrete Founder action.
+    expect(cert.rows.find((r) => r.capability === "PRICE")!.note).toMatch(/OpenD gateway offline/i);
+  });
+
+  it("OpenD reachable + canary quote returns data → PRICE ACTIVE_DEGRADED (snapshot)", async () => {
+    const cert = await probeMoomooMarketData(
+      mockFetch([
+        { match: "/health", status: 200, body: { ok: true, opend_reachable: true, sdk_version: "10.10.7008" } },
+        { match: "/quote", status: 200, body: { ok: true, quotes: { "US.AAPL": { last: 312.04 } } } },
+      ]),
+      { bridgeUrl: "https://bridge.example", bridgeToken: "secret", canarySymbol: "US.AAPL" },
+    );
+    const price = cert.rows.find((r) => r.capability === "PRICE")!;
+    expect(price.status).toBe("ACTIVE_DEGRADED");
+    expect(price.fidelity).toBe("SNAPSHOT");
+    expect(cert.certifiedCount).toBe(0); // DEGRADED is not CERTIFIED — never rounded up
+  });
+
+  it("OpenD reachable + empty quote → PRICE BLOCKED_ENTITLEMENT (no market-data sub)", async () => {
+    const cert = await probeMoomooMarketData(
+      mockFetch([
+        { match: "/health", status: 200, body: { ok: true, opend_reachable: true, sdk_version: "10.10.7008" } },
+        { match: "/quote", status: 502, body: { ok: false, error: "no data" } },
+      ]),
+      { bridgeUrl: "https://bridge.example", bridgeToken: "secret", canarySymbol: "US.AAPL" },
+    );
+    expect(status(cert, "PRICE")).toBe("BLOCKED_ENTITLEMENT");
+  });
+
+  it("OpenD reachable but no token/symbol → PRICE stays PENDING (NOT_IMPLEMENTED, not claimed)", async () => {
+    const cert = await probeMoomooMarketData(
+      mockFetch([{ match: "/health", status: 200, body: { ok: true, opend_reachable: true, sdk_version: "10.10.7008" } }]),
+      { bridgeUrl: "https://bridge.example" },
+    );
+    expect(status(cert, "PRICE")).toBe("NOT_IMPLEMENTED");
+  });
+});
