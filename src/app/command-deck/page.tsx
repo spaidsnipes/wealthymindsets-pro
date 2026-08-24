@@ -39,6 +39,9 @@ import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import CommandContextRibbon from "@/components/command/CommandContextRibbon";
 import OneStoryStrip from "@/components/command/OneStoryStrip";
 import { selectOneStory } from "@/lib/marketData/viewModels/selectOneStory";
+import ExperienceModeBar from "@/components/experience/ExperienceModeBar";
+import { useDecisionContext } from "@/lib/experience/useDecisionContext";
+import { shellEmphasis } from "@/lib/experience/shellLayout";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -110,6 +113,13 @@ function CommandDeckInner() {
   const [phase, setPhase] = React.useState<CommandPhase>("PREPARATION");
   const [whyTarget, setWhyTarget] = React.useState<WhyTarget | null>(null);
   const [showEvidence, setShowEvidence] = React.useState<boolean>(false);
+
+  // Experience layer (Founder Phase 1): the seven operating states reorganise
+  // the shell's EMPHASIS around the human's current job — the market truth
+  // below is untouched. `context.mode` is the live job; `emphasis.job` is its
+  // single-line caption. This surface is the first WM Experience Shell cutover.
+  const { context: experienceContext } = useDecisionContext();
+  const experienceEmphasis = shellEmphasis(experienceContext.mode);
 
   // Identity routes through canonicalMarketStateIdentity — the SAME helper
   // chartMarketStatePublisher writes with — so the deck cannot silently
@@ -319,6 +329,38 @@ function CommandDeckInner() {
           </button>
         </div>
       </header>
+
+      {/* Experience mode band (Founder Phase 1 — the WM Experience Shell
+          cutover): the seven operating states, live and switchable, reorganise
+          the shell's emphasis around the human's current job. The market truth
+          below is unchanged — only what the surface EMPHASISES changes. */}
+      <div
+        className="wm-cd-mode-band"
+        style={{
+          maxWidth: 1280,
+          margin: "0 auto",
+          padding: "10px 16px 0",
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <ExperienceModeBar />
+        </div>
+        <div
+          style={{
+            flexShrink: 0,
+            fontSize: 11,
+            letterSpacing: 0.3,
+            color: "#c9a55c",
+            whiteSpace: "nowrap",
+            fontStyle: "italic",
+          }}
+        >
+          {experienceEmphasis.job}
+        </div>
+      </div>
 
       <main style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 16px", position: "relative" }}>
         {/* Cinematic light rays — subtle, non-interactive, sits behind

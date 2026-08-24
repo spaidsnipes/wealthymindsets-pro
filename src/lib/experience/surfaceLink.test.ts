@@ -5,6 +5,12 @@ import {
   type CanonicalMarketStateInput,
   type MarketStateDimension,
 } from "../marketData/canonicalMarketState";
+import type { OneStoryVM } from "../marketData/viewModels/selectOneStory";
+import type {
+  RightOfWay as CanonRightOfWay,
+  RightOfWayReading,
+  EvidenceDebt,
+} from "../marketData/viewModels/decisionPermissionCompiler";
 import { buildExperiencePacket, SURFACE_LINK_SCHEMA_VERSION } from "./surfaceLink";
 
 const CAPTURED = 10_000;
@@ -65,9 +71,35 @@ function state(overrides: Partial<CanonicalMarketStateInput> = {}): CanonicalMar
   });
 }
 
+const reading = (value: CanonRightOfWay): RightOfWayReading => ({
+  value,
+  detail: "test",
+  tone: value === "ACTION" ? "resolved" : value === "UNKNOWN" ? "unknown" : "pending",
+});
+
+function oneStory(overrides: Partial<OneStoryVM> = {}): OneStoryVM {
+  return {
+    primary: "Market is in balance around a fair-value zone.",
+    contradiction: null,
+    missing: null,
+    decision: reading("WAIT"),
+    debt: null,
+    ...overrides,
+  };
+}
+
+const debt = (missingLabels: string[]): EvidenceDebt => ({
+  total: 8,
+  resolved: 8 - missingLabels.length,
+  missing: missingLabels.length,
+  warn: 0,
+  missingLabels,
+  warnLabels: [],
+});
+
 describe("SurfaceLink — buildExperiencePacket (engine owns truth, SurfaceLink owns presentation)", () => {
-  it("null state yields a fully UNKNOWN packet — never a fabricated story", () => {
-    const p = buildExperiencePacket(null);
+  it("null story yields a fully UNKNOWN packet — never a fabricated story", () => {
+    const p = buildExperiencePacket(null, null);
     expect(p.schemaVersion).toBe(SURFACE_LINK_SCHEMA_VERSION);
     expect(p.primaryStory).toBe("No market evidence yet.");
     expect(p.rightOfWay).toBe("UNKNOWN");
@@ -77,80 +109,75 @@ describe("SurfaceLink — buildExperiencePacket (engine owns truth, SurfaceLink 
     expect(p.relevantObjects).toEqual([]);
   });
 
-  it("reads the PRIMARY STORY verbatim from the resolved Direction dimension", () => {
-    const p = buildExperiencePacket(state({ direction: resolved("Bullish continuation intact.") }));
+  it("forwards the PRIMARY STORY verbatim from the canonical compiler — no re-derivation", () => {
+    const p = buildExperiencePacket(
+      oneStory({ primary: "Bullish continuation intact." }),
+      state({ direction: resolved("ignored — SurfaceLink must not read this for truth") }),
+    );
     expect(p.primaryStory).toBe("Bullish continuation intact.");
     expect(p.sourceSnapshotId).toBe("ms-1");
   });
 
-  it("unresolved direction is stated honestly, not invented", () => {
-    const p = buildExperiencePacket(state());
-    expect(p.primaryStory).toBe("Market direction not yet resolved.");
-  });
-
-  it("MISSING names every unresolved evidence family (the Evidence Debt)", () => {
-    const p = buildExperiencePacket(state({ direction: resolved("Bullish.") }));
-    // direction resolved → not missing; the other 7 families remain missing.
-    expect(p.missing).toContain("Location");
-    expect(p.missing).toContain("Aggression");
-    expect(p.missing).not.toContain("Direction");
-  });
-
-  it("relevantObjects + visibleDepth reflect only RESOLVED families", () => {
+  it("forwards the contradiction verbatim from the compiler", () => {
     const p = buildExperiencePacket(
+      oneStory({ contradiction: "Price rejecting external resistance." }),
+      state(),
+    );
+    expect(p.contradiction).toBe("Price rejecting external resistance.");
+  });
+
+  it("MISSING prefers the rich Evidence-Debt labels from the compiler", () => {
+    const p = buildExperiencePacket(
+      oneStory({ missing: "Location", debt: debt(["Location", "Aggression", "Order Flow"]) }),
+      state(),
+    );
+    expect(p.missing).toEqual(["Location", "Aggression", "Order Flow"]);
+  });
+
+  it("MISSING falls back to the single compact phrase when no debt labels exist", () => {
+    const p = buildExperiencePacket(oneStory({ missing: "Location", debt: null }), state());
+    expect(p.missing).toEqual(["Location"]);
+  });
+
+  it("MISSING is empty when the compiler reports nothing missing", () => {
+    const p = buildExperiencePacket(oneStory({ missing: null, debt: null }), state());
+    expect(p.missing).toEqual([]);
+  });
+
+  it("right-of-way is forwarded faithfully — ACTION only when the compiler says ACTION", () => {
+    expect(buildExperiencePacket(oneStory({ decision: reading("ACTION") }), state()).rightOfWay).toBe("ACTION");
+    expect(buildExperiencePacket(oneStory({ decision: reading("WAIT") }), state()).rightOfWay).toBe("WAIT");
+    expect(buildExperiencePacket(oneStory({ decision: reading("CAUTION") }), state()).rightOfWay).toBe("CAUTION");
+    expect(buildExperiencePacket(oneStory({ decision: reading("UNKNOWN") }), state()).rightOfWay).toBe("UNKNOWN");
+  });
+
+  it("normalises 'NO TRADE' to the wire-friendly NO_TRADE without losing meaning", () => {
+    const p = buildExperiencePacket(oneStory({ decision: reading("NO TRADE") }), state());
+    expect(p.rightOfWay).toBe("NO_TRADE");
+  });
+
+  it("relevantObjects + visibleDepth are pure provenance reads of RESOLVED families", () => {
+    const p = buildExperiencePacket(
+      oneStory(),
       state({ direction: resolved("Bullish."), location: resolved("HTF support.") }),
     );
     expect(p.relevantObjects).toEqual(["Direction", "Location"]);
     expect(p.visibleDepth).toBe(2);
   });
 
-  it("surfaces the strongest contradiction (top-level preferred over dimension)", () => {
-    const p = buildExperiencePacket(
-      state({
-        direction: resolved("Bullish continuation.", ["Buyer efficiency weakening."]),
-        contradictions: ["Price rejecting external resistance."],
-      }),
-    );
-    expect(p.contradiction).toBe("Price rejecting external resistance.");
-  });
-
-  it("falls back to a dimension contradiction when there is no top-level one", () => {
-    const p = buildExperiencePacket(
-      state({ direction: resolved("Bullish.", ["Buyer efficiency weakening."]) }),
-    );
-    expect(p.contradiction).toBe("Buyer efficiency weakening.");
-  });
-
-  it("NEVER promotes to ACTION from raw market state — WAIT is the strongest self-derived verdict", () => {
-    // Fully resolved, zero contradiction, zero missing — still only WAIT,
-    // because ACTION belongs to the Decision Permission Compiler, not SurfaceLink.
-    const allResolved = state({
-      direction: resolved("Bullish."),
-      location: resolved("HTF support."),
-      structure: resolved("Higher low."),
-      aggression: resolved("Buyers aggressive."),
-      orderFlow: resolved("Positive delta."),
-      regime: resolved("Trend."),
-      profile: resolved("Value rising."),
-      volatility: resolved("Expanding."),
-    });
-    const p = buildExperiencePacket(allResolved);
-    expect(p.missing).toEqual([]);
-    expect(p.rightOfWay).toBe("WAIT");
-  });
-
-  it("ACTION appears ONLY when an explicit permission verdict is supplied", () => {
-    const p = buildExperiencePacket(state({ direction: resolved("Bullish.") }), {
-      permission: "ACTION",
-    });
-    expect(p.rightOfWay).toBe("ACTION");
-  });
-
   it("carries the canonical qualityState through honestly and uses the supplied lens question", () => {
-    const p = buildExperiencePacket(state({ qualityState: "DELAYED" }), {
+    const p = buildExperiencePacket(oneStory(), state({ qualityState: "DELAYED" }), {
       question: "Is continuation healthy?",
     });
     expect(p.qualityState).toBe("DELAYED");
     expect(p.question).toBe("Is continuation healthy?");
+  });
+
+  it("a compiled story with a null sealed state still renders truthfully (quality UNKNOWN)", () => {
+    const p = buildExperiencePacket(oneStory({ primary: "Balance." }), null);
+    expect(p.primaryStory).toBe("Balance.");
+    expect(p.qualityState).toBe("UNKNOWN");
+    expect(p.relevantObjects).toEqual([]);
+    expect(p.sourceSnapshotId).toBeNull();
   });
 });
