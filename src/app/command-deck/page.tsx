@@ -42,6 +42,7 @@ import { selectOneStory } from "@/lib/marketData/viewModels/selectOneStory";
 import ExperienceModeBar from "@/components/experience/ExperienceModeBar";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { shellEmphasis } from "@/lib/experience/shellLayout";
+import { routeQuestion } from "@/lib/experience/questionRouter";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -213,6 +214,23 @@ function CommandDeckInner() {
     [user?.id, state, chainVm, sessionDecisions],
   );
 
+  // One Story (canon §7 compiler) computed ONCE at component level so both the
+  // mode band's routed question and the One Story strip below consume the SAME
+  // canonical read — no second, potentially-disagreeing truth producer.
+  const oneStory = React.useMemo(() => {
+    const storyVm = state ? selectMarketStory(state, history) : null;
+    return selectOneStory({
+      story: storyVm,
+      chainNodes: chainVm?.nodes,
+      permission,
+    });
+  }, [state, history, chainVm, permission]);
+
+  // The Question Router (canon P26/P6) compiles the ONE dominant question the
+  // surface is currently answering: a function of the human's job (mode) and
+  // what the engine actually resolved (oneStory). It asserts no market fact.
+  const experienceQuestion = routeQuestion(experienceContext.mode, oneStory);
+
   const openWhy = (t: WhyTarget) => {
     setWhyTarget(t);
     setShowEvidence(true);
@@ -341,24 +359,39 @@ function CommandDeckInner() {
           margin: "0 auto",
           padding: "10px 16px 0",
           display: "flex",
-          alignItems: "center",
-          gap: 14,
+          flexDirection: "column",
+          gap: 6,
         }}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <ExperienceModeBar />
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <ExperienceModeBar />
+          </div>
+          <div
+            style={{
+              flexShrink: 0,
+              fontSize: 11,
+              letterSpacing: 0.3,
+              color: "#8a7a52",
+              whiteSpace: "nowrap",
+              textTransform: "uppercase",
+            }}
+          >
+            {experienceEmphasis.job}
+          </div>
         </div>
+        {/* The ONE dominant question this surface is currently answering
+            (Question Router, canon P26/P6). Tracks the engine's actual read —
+            never invents a market claim. */}
         <div
           style={{
-            flexShrink: 0,
-            fontSize: 11,
-            letterSpacing: 0.3,
+            fontSize: 13,
+            lineHeight: 1.35,
             color: "#c9a55c",
-            whiteSpace: "nowrap",
             fontStyle: "italic",
           }}
         >
-          {experienceEmphasis.job}
+          {experienceQuestion}
         </div>
       </div>
 
@@ -474,15 +507,7 @@ function CommandDeckInner() {
                 trader gets the at-most-four-outputs read before hunting
                 the numbered sections below. Consumes shared canonical
                 selectors — never invents. */}
-            {(() => {
-              const storyVm = state ? selectMarketStory(state, history) : null;
-              const oneStory = selectOneStory({
-                story: storyVm,
-                chainNodes: chainVm?.nodes,
-                permission,
-              });
-              return <OneStoryStrip vm={oneStory} />;
-            })()}
+            <OneStoryStrip vm={oneStory} />
 
             {/* Phase selector — the trader's current decision phase */}
             <div
