@@ -18,8 +18,16 @@
  * in the build environment to the final domain; this default is the safety net.
  */
 
-/** Current live host. Update when the custom domain is cut over. */
-export const DEFAULT_CANONICAL_URL = "https://wealthymindsets-pro.dhill5711.workers.dev";
+/** Current live host — the custom domain (apex+www bound to the Cloudflare Worker). */
+export const DEFAULT_CANONICAL_URL = "https://wealthymindsetspro.com";
+
+/**
+ * The raw workers.dev origin the Worker also answers on. Retained ONLY as an
+ * intentional fallback for comparison/debug — never used as the auth host of
+ * record. Auth redirects and email links resolve through `resolve()`, which
+ * prefers env → DEFAULT_CANONICAL_URL (the custom domain).
+ */
+export const WORKERS_DEV_FALLBACK = "https://wealthymindsets-pro.dhill5711.workers.dev";
 
 function resolve(): string {
   const raw =
@@ -29,10 +37,19 @@ function resolve(): string {
   return raw.replace(/\/+$/, ""); // no trailing slash — callers append paths
 }
 
-/** The canonical origin, e.g. "https://wealthymindsets-pro.dhill5711.workers.dev". */
+/** The canonical origin, e.g. "https://wealthymindsetspro.com". */
 export const CANONICAL_URL = resolve();
 
-/** The canonical host, e.g. "wealthymindsets-pro.dhill5711.workers.dev". */
+/**
+ * Function form of the canonical-URL resolution. Prefer this at call sites that
+ * run per-request (route handlers, middleware) so a runtime env override is
+ * honored; the `CANONICAL_URL` constant captures the value at module-eval time.
+ */
+export function getCanonicalUrl(): string {
+  return resolve();
+}
+
+/** The canonical host, e.g. "wealthymindsetspro.com". */
 export const CANONICAL_HOST = new URL(CANONICAL_URL).host;
 
 /**
