@@ -6,6 +6,8 @@ describe("logoutIsolation — owner-scoped localStorage cleanup", () => {
     const store = new Map<string, string>();
     (globalThis as unknown as { window?: unknown }).window = {
       localStorage: {
+        get length() { return store.size; },
+        key: (index: number) => Array.from(store.keys())[index] ?? null,
         getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
         setItem: (k: string, v: string) => { store.set(k, v); },
         removeItem: (k: string) => { store.delete(k); },
@@ -58,6 +60,40 @@ describe("logoutIsolation — owner-scoped localStorage cleanup", () => {
     expect(clearOwnerScopedLocalStorage()).toBe(0);
     // Non-owner key still there.
     expect(store.get("wm_settings")).toBe("{}");
+  });
+
+  it("removes every dynamic Academy lesson note and preserves similar keys", () => {
+    const store = installFakeLocalStorage();
+    store.set("wm-notes-of-1", "first owner note");
+    store.set("wm-notes-wyckoff-2", "second owner note");
+    store.set("wm-note-of-1", "similar but not owned by this contract");
+    store.set("x-wm-notes-of-1", "foreign prefix");
+    store.set("wm_settings", "{}");
+
+    expect(clearOwnerScopedLocalStorage()).toBe(2);
+    expect(store.has("wm-notes-of-1")).toBe(false);
+    expect(store.has("wm-notes-wyckoff-2")).toBe(false);
+    expect(store.get("wm-note-of-1")).toBe("similar but not owned by this contract");
+    expect(store.get("x-wm-notes-of-1")).toBe("foreign prefix");
+    expect(store.get("wm_settings")).toBe("{}");
+  });
+
+  it("keeps clearing fixed and dynamic keys when one removal fails", () => {
+    const store = installFakeLocalStorage();
+    store.set("wm-profile", "{}");
+    store.set("wm-notes-broken", "private");
+    store.set("wm-notes-ok", "private");
+    const storage = (globalThis as unknown as { window: { localStorage: Storage } }).window.localStorage;
+    const removeItem = storage.removeItem.bind(storage);
+    storage.removeItem = (key: string) => {
+      if (key === "wm-notes-broken") throw new Error("SecurityError");
+      removeItem(key);
+    };
+
+    expect(clearOwnerScopedLocalStorage()).toBe(2);
+    expect(store.has("wm-profile")).toBe(false);
+    expect(store.has("wm-notes-ok")).toBe(false);
+    expect(store.get("wm-notes-broken")).toBe("private");
   });
 
   it("returns 0 when window is absent (SSR)", () => {

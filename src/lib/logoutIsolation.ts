@@ -43,6 +43,9 @@ const OWNER_SCOPED_KEYS: readonly string[] = [
   "wm_creator_waitlist",  // creator waitlist email, handle and tier
 ] as const;
 
+/** Dynamic per-lesson Academy notes share this exact owner-scoped prefix. */
+const OWNER_SCOPED_PREFIXES: readonly string[] = ["wm-notes-"] as const;
+
 /**
  * clearOwnerScopedLocalStorage — removes every owner-scoped
  * localStorage key. Called from AuthContext.signOut /
@@ -55,7 +58,25 @@ const OWNER_SCOPED_KEYS: readonly string[] = [
 export function clearOwnerScopedLocalStorage(): number {
   if (typeof window === "undefined") return 0;
   let removed = 0;
-  for (const key of OWNER_SCOPED_KEYS) {
+  const keys = new Set<string>(OWNER_SCOPED_KEYS);
+
+  // Snapshot dynamic keys before removing anything so storage index shifts do
+  // not skip a lesson note. Each enumeration operation is isolated: private
+  // mode or a single broken key must not prevent the fixed owner keys from
+  // being cleared.
+  try {
+    const length = window.localStorage.length;
+    for (let index = 0; index < length; index += 1) {
+      try {
+        const key = window.localStorage.key(index);
+        if (key && OWNER_SCOPED_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+          keys.add(key);
+        }
+      } catch { /* skip only this storage index */ }
+    }
+  } catch { /* fixed owner keys still clear below */ }
+
+  for (const key of keys) {
     try {
       if (window.localStorage.getItem(key) !== null) {
         window.localStorage.removeItem(key);
