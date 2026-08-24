@@ -24,7 +24,7 @@
  */
 
 /** Universal broker identifier. Never exposed as market truth. */
-export type BrokerId = "webull" | "tastytrade" | "alpaca" | "oanda" | "tradestation" | "tradier" | "ibkr";
+export type BrokerId = "webull" | "tastytrade" | "alpaca" | "moomoo" | "oanda" | "tradestation" | "tradier" | "ibkr";
 
 /**
  * Universal order intent. Consumers (chart one-click, paper page,
