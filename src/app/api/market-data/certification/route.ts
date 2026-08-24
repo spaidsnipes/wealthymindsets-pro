@@ -1,0 +1,42 @@
+import { NextResponse } from "next/server";
+import { probeMoomooMarketData } from "../../../../lib/marketData/adapters/moomooMarketData";
+import {
+  aggregateSourceCertifications,
+  type FleetSourceCertification,
+} from "../../../../lib/marketData/sourceCertificationRegistry";
+
+/**
+ * /api/market-data/certification — the DATA-side companion to
+ * /api/broker/certification.
+ *
+ * broker/certification certifies the TRADE loop (auth→submit→fill→reconcile).
+ * THIS endpoint certifies DATA FIDELITY per capability (PRICE, BARS, TICKS,
+ * EXECUTED VOLUME, AGGRESSOR/SIDE, DEPTH, …) per source, and derives the CVD
+ * law honestly. It probes the REAL read-only bridges — it never fabricates a
+ * certified state. With no bridge env configured every row is NOT_IMPLEMENTED
+ * and CVD is UNAVAILABLE, which is the truthful "not proven" answer.
+ *
+ * Server-side only: the bridge token is read from env and used to sign the
+ * canary /quote probe; it is NEVER returned in the response.
+ */
+
+export const dynamic = "force-dynamic";
+
+async function buildFleet(): Promise<FleetSourceCertification> {
+  const moomoo = await probeMoomooMarketData(fetch, {
+    bridgeUrl: (process.env.MOOMOO_BRIDGE_URL ?? "").replace(/\/+$/, ""),
+    bridgeToken: process.env.MOOMOO_BRIDGE_TOKEN,
+    canarySymbol: process.env.MOOMOO_CANARY_SYMBOL || undefined,
+  });
+  // Future sources (Webull, Alpaca) slot in here as their probes land —
+  // one array entry each, no new truth engine.
+  return aggregateSourceCertifications([moomoo]);
+}
+
+export async function GET(): Promise<NextResponse<FleetSourceCertification>> {
+  const body = await buildFleet();
+  return NextResponse.json(body, {
+    status: 200,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
