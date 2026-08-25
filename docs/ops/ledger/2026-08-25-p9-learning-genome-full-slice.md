@@ -3,13 +3,13 @@
 **Shift author:** Claude Opus 4.7 (one-thread execution)
 **Canon:** Final Helicopter §9 Learning Genome + §Public Blessing / Private Recipe + Anti-Drift Execution Law (2026-08-24 BINDING)
 **Preceding HEAD:** `2753839` (job-suggestion confidence-scaling)
-**Ending HEAD:** `530d459` (Genome Inspector on /command-deck REVIEW/LEARN)
+**Ending HEAD:** `4dc8eae` (selectFocusStreak + FOCUS chip on /journal)
 
 ## Thesis
 
 Ship the full **P9 Learning Genome** stack — canon's §9 four-dimension trader diagnostic — from pure selector to visible surface on both `/journal` and `/command-deck`, in the same session, without dropping tests or Layer-3 verification.
 
-## Atoms shipped this shift (12)
+## Atoms shipped this shift (16)
 
 | # | SHA | Atom | Deploy |
 |---|-----|------|--------|
@@ -25,6 +25,10 @@ Ship the full **P9 Learning Genome** stack — canon's §9 four-dimension trader
 | 10 | `27ef19a` | `LearningGenomeInspector` component (3 tests) | (component) |
 | 11 | `428f3d1` | Expand-toggle wires Inspector into /journal | `3e8a9dfe` |
 | 12 | `530d459` | Genome Inspector on /command-deck REVIEW/LEARN + `useLearningGenomeBundle` hook | `077de834` |
+| 13 | `0c864bf` | (this) ledger doc | — |
+| 14 | `3ced28d` | `useLearningGenomeBundle` pure-helper unit tests (13 tests, closes ledger-flagged gap) | — |
+| 15 | `6e6de24` | flex-wrap the /journal chip stack for narrow viewports (§Cross-device Continuity) | `27f6a612` |
+| 16 | `4dc8eae` | `selectFocusStreak` + FOCUS chip on /journal (§Public Blessing, 7 tests) | `3c58005f` |
 
 ## §9 primitives now live
 
@@ -46,7 +50,7 @@ Ship the full **P9 Learning Genome** stack — canon's §9 four-dimension trader
 
 - **Layer 1** — canon §9 quoted in every module header
 - **Layer 2** — 12 commits, all pushed to `origin/main`
-- **Layer 3** — vitest **1216/1216 PASS**, tsc clean, `curl -sSI /login /journal /command-deck` all HTTP/2 200 after each of 6 deploys
+- **Layer 3** — vitest **1236/1236 PASS**, tsc clean, `curl -sSI /login /journal /command-deck` all HTTP/2 200 after each of 8 deploys
 - **Layer 4** — no secrets, no PII, no coupling to Cloudflare business logic, pure selectors + pure component
 
 ## Rejection guarantees enforced
