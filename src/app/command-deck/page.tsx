@@ -38,6 +38,8 @@ import DoctrineTagline from "@/components/brand/DoctrineTagline";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import CommandContextRibbon from "@/components/command/CommandContextRibbon";
 import OneStoryStrip from "@/components/command/OneStoryStrip";
+import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassportPanel";
+import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import { selectOneStory } from "@/lib/marketData/viewModels/selectOneStory";
 import ExperienceModeBar from "@/components/experience/ExperienceModeBar";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
@@ -230,6 +232,12 @@ function CommandDeckInner() {
   // surface is currently answering: a function of the human's job (mode) and
   // what the engine actually resolved (oneStory). It asserts no market fact.
   const experienceQuestion = routeQuestion(experienceContext.mode, oneStory);
+
+  // Market Object Passports (canon P6 Object DNA): each canonical dimension the
+  // engine resolved becomes a Passport with its evidence lineage, fidelity,
+  // contradictions and invalidation — reversible to provider evidence. Pure
+  // read of the sealed state; never a second truth producer.
+  const passport = React.useMemo(() => selectMarketObjectPassport(state), [state]);
 
   const openWhy = (t: WhyTarget) => {
     setWhyTarget(t);
@@ -508,6 +516,28 @@ function CommandDeckInner() {
                 the numbered sections below. Consumes shared canonical
                 selectors — never invents. */}
             <OneStoryStrip vm={oneStory} />
+
+            {/* Market Object Passports (canon P6 Object DNA) — a contextual
+                drawer, collapsed by default so the canvas stays sacred. Opens
+                to each resolved dimension's evidence lineage / fidelity /
+                contradiction / invalidation. Pure display of the sealed state. */}
+            <details style={{ marginTop: 4 }}>
+              <summary
+                style={{
+                  cursor: "pointer",
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                  color: "#c9a55c",
+                  textTransform: "uppercase",
+                  padding: "4px 0",
+                }}
+              >
+                Market Object Passports · {passport.resolvedCount}/{passport.totalCount} resolved
+              </summary>
+              <div style={{ marginTop: 6 }}>
+                <MarketObjectPassportPanel vm={passport} />
+              </div>
+            </details>
 
             {/* Phase selector — the trader's current decision phase */}
             <div
