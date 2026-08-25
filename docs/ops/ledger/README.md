@@ -77,3 +77,12 @@ Implementation Ledger. Suggested workflow:
   around the human's current job. 209/209 green; deployed; VERIFIED LIVE on
   desktop — proved the OBSERVE→REVIEW switch flips the Passport/Receipt
   drawers. The "app → operating system" thesis made literal.
+- `2026-08-25-job-mode-inference.md` — Job-Mode Inference (`cbe3090`). Pure
+  `inferJobMode(signals)` reads concrete decision state (open position →
+  MANAGE, unreviewed close → REVIEW, right-of-way → EXECUTE/WAIT, resolving
+  state → OBSERVE, else PREP) and the deck surfaces it as a read-only
+  suggestion chip that appears ONLY when the inferred job differs from the
+  human's selection. Clicking accepts (setMode); WM never auto-switches. 9
+  deterministic tests; deployed; VERIFIED LIVE on desktop — the chip
+  rendered "SUGGESTED JOB → WAIT", accepted on click, then vanished
+  (inferred == current). Suggest, never gate. Mobile 390px still open.
