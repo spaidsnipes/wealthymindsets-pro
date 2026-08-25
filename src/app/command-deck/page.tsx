@@ -605,6 +605,30 @@ function CommandDeckInner() {
                 (never fabricates). */}
             <TodayPrepBridge userId={user?.id ?? null} />
 
+            {/* Layout-honesty caption — the OS reorders the decision column
+                around the human's job; this one quiet line SAYS why, so the
+                re-emphasis is never silent or mysterious. Sits OUTSIDE the
+                reorderable stack so it always leads the section. Reads the same
+                deckEmphasis.rationale that drives the order. Presentation-only. */}
+            <div
+              aria-live="polite"
+              style={{
+                fontSize: 10,
+                letterSpacing: 0.6,
+                textTransform: "uppercase",
+                color: "#8a8271",
+                display: "flex",
+                gap: 6,
+                alignItems: "baseline",
+                marginBottom: -8,
+              }}
+            >
+              <span style={{ color: "#c9a55c" }}>Layout</span>
+              <span style={{ textTransform: "none", letterSpacing: 0 }}>
+                {deckEmphasis.rationale}
+              </span>
+            </div>
+
             {/* Decision-surface stack — the four job-reorderable surfaces
                 (STORY / WHY / PASSPORT / RECEIPT). This is its OWN flex column
                 so the job-emphasis `order` reranks ONLY these four (via CSS
