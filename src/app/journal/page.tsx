@@ -32,6 +32,7 @@ import { selectSessionEdge } from "@/lib/proofLane/selectSessionEdge";
 import { selectLearningGenome } from "@/lib/learningGenome/selectLearningGenome";
 import { prescribeDrill } from "@/lib/learningGenome/prescribeDrill";
 import { selectMisreadMap, type MisreadEntry } from "@/lib/learningGenome/selectMisreadMap";
+import { genomeTrend } from "@/lib/learningGenome/genomeTrend";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -979,6 +980,26 @@ function JournalPageInner() {
     dayModel: e.dayModel,
   }));
   const weekMisread = selectMisreadMap(weekMisreadEntries);
+  // Genome trend — canon §9 "distinguish skill from luck". Compare
+  // current 7-day window to the prior 7-day window (days -14 to -7)
+  // and surface most_improved / most_degraded. Silent when no
+  // dimension moved past the noise threshold.
+  const priorWeekStartMs = weekStartMs - 7 * 24 * 60 * 60 * 1000;
+  const priorWeekEntries = entries.filter(e => {
+    const t = Date.parse(e.date);
+    return Number.isFinite(t) && t >= priorWeekStartMs && t < weekStartMs;
+  });
+  const priorGenome = selectLearningGenome(
+    priorWeekEntries.map(e => ({
+      date: e.date,
+      result: e.result,
+      realizedR: e.realizedR,
+      processQuality: e.processQuality,
+      mfeR: e.mfeR,
+      maeR: e.maeR,
+    })),
+  );
+  const weekTrend = genomeTrend(weekGenome, priorGenome);
 
   const saveEntry = () => {
     const e = { ...(form as JournalEntry) };
@@ -1366,6 +1387,29 @@ Trade the system, trust the process, winners every day 🚀`,
               no dominant misread (empty week or tie). Dominant surfaces
               the most-common single mistake shape across the 7-day window
               — actionable teach signal that pairs with the Genome chip. */}
+          {/* Genome trend chip — canon §9 "distinguish skill from luck".
+              Two arrows: ▲ most_improved (green) + ▼ most_degraded (red).
+              Silent when neither moved past the noise threshold. */}
+          {(weekTrend.most_improved || weekTrend.most_degraded) && (
+            <span
+              title={[
+                weekTrend.perception.delta != null ? `perception ${weekTrend.perception.delta >= 0 ? "+" : ""}${(weekTrend.perception.delta * 100).toFixed(0)}%` : `perception ${weekTrend.perception.direction.toLowerCase()}`,
+                weekTrend.reasoning.delta != null ? `reasoning ${weekTrend.reasoning.delta >= 0 ? "+" : ""}${(weekTrend.reasoning.delta * 100).toFixed(0)}%` : `reasoning ${weekTrend.reasoning.direction.toLowerCase()}`,
+                weekTrend.process.delta != null ? `process ${weekTrend.process.delta >= 0 ? "+" : ""}${(weekTrend.process.delta * 100).toFixed(0)}%` : `process ${weekTrend.process.direction.toLowerCase()}`,
+                weekTrend.transfer.delta != null ? `transfer ${weekTrend.transfer.delta >= 0 ? "+" : ""}${weekTrend.transfer.delta.toFixed(2)}R` : `transfer ${weekTrend.transfer.direction.toLowerCase()}`,
+              ].join(" · ")}
+              className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-wm-border bg-wm-surface text-wm-text-muted"
+              aria-label={`Week-over-week: ${weekTrend.most_improved ? `${weekTrend.most_improved.toLowerCase()} improving` : ""}${weekTrend.most_improved && weekTrend.most_degraded ? ", " : ""}${weekTrend.most_degraded ? `${weekTrend.most_degraded.toLowerCase()} degrading` : ""}`}
+            >
+              TREND
+              {weekTrend.most_improved && (
+                <span className="ml-1 text-wm-green">▲ {weekTrend.most_improved}</span>
+              )}
+              {weekTrend.most_degraded && (
+                <span className="ml-1 text-wm-red">▼ {weekTrend.most_degraded}</span>
+              )}
+            </span>
+          )}
           {weekMisread.dominant && weekMisread.dominant !== "CLEAN" && (
             <span
               title={`Last 7 days · ${weekMisread.sample_size} trades · MISSED_SETUP ${weekMisread.counts.MISSED_SETUP} · BROKE_PROCESS ${weekMisread.counts.BROKE_PROCESS} · POOR_MANAGEMENT ${weekMisread.counts.POOR_MANAGEMENT} · FULL_STOP_LOSS ${weekMisread.counts.FULL_STOP_LOSS} · UNRESOLVED ${weekMisread.counts.UNRESOLVED_PROCESS} · CLEAN ${weekMisread.counts.CLEAN}`}
