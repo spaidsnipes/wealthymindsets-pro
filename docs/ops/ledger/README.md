@@ -95,3 +95,12 @@ Implementation Ledger. Suggested workflow:
   LIVE on desktop — OBSERVE led with PASSPORT, switching to REVIEW reranked the
   column to lead with RECEIPT, restored on OBSERVE. Emphasis made physical.
   Mobile 390px still open.
+- `2026-08-25-deck-emphasis-signals.md` — Signal-Aware Secondary Order
+  (`db4f1fd`). `selectDeckEmphasis` gains an optional `DeckEmphasisSignals` arg
+  that refines ONLY the secondary order (never the lead): a live unresolved
+  contradiction raises WHY under the lead; an empty Receipt sinks so it never
+  outranks a live surface; omitting signals reproduces the pure order exactly.
+  62/62 green; deployed (Version `03adf20b`). Live-checked desktop: OBSERVE
+  showed the pure order (signal-off path faithful) — the WHY-raise branch was
+  NOT observed firing because the market carried no live contradiction
+  (proven by unit tests only). Mobile 390px still open.
