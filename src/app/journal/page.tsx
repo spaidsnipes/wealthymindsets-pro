@@ -37,6 +37,7 @@ import { selectLearningGenome } from "@/lib/learningGenome/selectLearningGenome"
 import { prescribeDrill } from "@/lib/learningGenome/prescribeDrill";
 import { selectMisreadMap, classifyMisread, type MisreadEntry } from "@/lib/learningGenome/selectMisreadMap";
 import { genomeTrend } from "@/lib/learningGenome/genomeTrend";
+import { LearningGenomeInspector } from "@/components/learningGenome/LearningGenomeInspector";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -881,6 +882,9 @@ function JournalPageInner() {
   const [filterMisread, setFilterMisread] = useState<
     "all" | "MISSED_SETUP" | "BROKE_PROCESS" | "POOR_MANAGEMENT" | "FULL_STOP_LOSS" | "UNRESOLVED_PROCESS" | "CLEAN"
   >("all");
+  // Canon §9: expand toggle for the full LearningGenomeInspector panel.
+  // Diagnostic chip is always visible; full panel is a click away.
+  const [showGenomePanel, setShowGenomePanel] = useState(false);
   const [lightbox,  setLightbox]  = useState<string | null>(null);
   const [mainTab,   setMainTab]   = useState<"journal"|"coach"|"songs">("journal");
 
@@ -1412,22 +1416,26 @@ Trade the system, trust the process, winners every day 🚀`,
               fabricates a "your weakest area is X" from a single data
               point. Tooltip enumerates the four per-dimension labels. */}
           {weekGenome.headlineWeakness && (
-            <span
-              title={[
-                weekGenome.perception.label ?? "perception · not enough data",
-                weekGenome.reasoning.label ?? "reasoning · not enough data",
-                weekGenome.process.label ?? "process · not enough data",
-                weekGenome.transfer.label ?? "transfer · not enough data",
-                ...(weekDrill ? [`DRILL (${weekDrill.stage}): ${weekDrill.drill}`] : []),
-              ].join(" · ")}
-              className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-wm-gold/40 bg-wm-gold/5 text-wm-gold"
+            <button
+              type="button"
+              onClick={() => setShowGenomePanel(v => !v)}
+              aria-pressed={showGenomePanel}
+              aria-expanded={showGenomePanel}
+              title={showGenomePanel ? "Collapse Learning Genome panel" : `Expand Learning Genome panel. ${[weekGenome.perception.label ?? "perception · not enough data", weekGenome.reasoning.label ?? "reasoning · not enough data", weekGenome.process.label ?? "process · not enough data", weekGenome.transfer.label ?? "transfer · not enough data", ...(weekDrill ? [`DRILL (${weekDrill.stage}): ${weekDrill.drill}`] : [])].join(" · ")}`}
+              className={clsx(
+                "px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all",
+                showGenomePanel
+                  ? "bg-wm-gold/15 text-wm-gold border-wm-gold/60"
+                  : "bg-wm-gold/5 text-wm-gold border-wm-gold/40 hover:bg-wm-gold/10",
+              )}
               aria-label={`Learning Genome: ${weekGenome.headlineWeakness}${weekDrill ? `. Prescribed drill: ${weekDrill.drill}` : ""}`}
             >
               GENOME · {weekGenome.headlineWeakness}
               {weekDrill && (
                 <span className="ml-1 opacity-75">· {weekDrill.stage}</span>
               )}
-            </span>
+              <span className="ml-1">{showGenomePanel ? "▾" : "▸"}</span>
+            </button>
           )}
           {/* Misread Map chip — canon §9 Trader Misread Map. Silent when
               no dominant misread (empty week or tie). Dominant surfaces
@@ -1581,6 +1589,20 @@ Trade the system, trust the process, winners every day 🚀`,
           </button>
         </div>
       </div>
+
+      {/* Learning Genome full-view panel — expanded via the GENOME chip.
+          Silent until the trader clicks the chip; then the four-dim
+          breakdown, drill card, and misread map render in one look. */}
+      {mainTab === "journal" && showGenomePanel && weekGenome.headlineWeakness && (
+        <div className="px-4 pt-3 pb-2 border-b border-wm-border bg-wm-dark/40">
+          <LearningGenomeInspector
+            genome={weekGenome}
+            drill={weekDrill}
+            misread={weekMisread}
+            trend={weekTrend}
+          />
+        </div>
+      )}
 
       {/* ── AI Coach tab ─────────────────────────────────────── */}
       {mainTab === "coach" && (
