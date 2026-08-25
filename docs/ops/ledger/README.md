@@ -86,3 +86,12 @@ Implementation Ledger. Suggested workflow:
   deterministic tests; deployed; VERIFIED LIVE on desktop — the chip
   rendered "SUGGESTED JOB → WAIT", accepted on click, then vanished
   (inferred == current). Suggest, never gate. Mobile 390px still open.
+- `2026-08-25-deck-surface-reorder.md` — Deck Surface Reorder (`afd1a55`).
+  Extends `selectDeckEmphasis` with a pure `order: DeckSurface[]` (full
+  permutation, lead first) + `surfaceOrder` helper; the deck isolates the four
+  decision surfaces in their own flex column and maps each to a CSS `order`, so
+  the current job PHYSICALLY floats its lead surface to the top without any
+  surface leaving the DOM. 58/58 green; deployed (Version `87f1b2bb`); VERIFIED
+  LIVE on desktop — OBSERVE led with PASSPORT, switching to REVIEW reranked the
+  column to lead with RECEIPT, restored on OBSERVE. Emphasis made physical.
+  Mobile 390px still open.
