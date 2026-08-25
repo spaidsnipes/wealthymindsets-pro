@@ -49,6 +49,7 @@ import ExperienceModeBar from "@/components/experience/ExperienceModeBar";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { shellEmphasis } from "@/lib/experience/shellLayout";
 import { routeQuestion } from "@/lib/experience/questionRouter";
+import { selectDeckEmphasis } from "@/lib/experience/selectDeckEmphasis";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -127,6 +128,10 @@ function CommandDeckInner() {
   // single-line caption. This surface is the first WM Experience Shell cutover.
   const { context: experienceContext } = useDecisionContext();
   const experienceEmphasis = shellEmphasis(experienceContext.mode);
+  // Deck-level job emphasis: which decision surface leads and which contextual
+  // drawer opens by default for the human's current job. Presentation-only —
+  // never changes market truth or which data is shown (Auto-Quiet).
+  const deckEmphasis = selectDeckEmphasis(experienceContext.mode);
 
   // Identity routes through canonicalMarketStateIdentity — the SAME helper
   // chartMarketStatePublisher writes with — so the deck cannot silently
@@ -549,15 +554,27 @@ function CommandDeckInner() {
             {/* WHY / WHY NOT (canon P6) — reverses the right-of-way verdict to
                 its concrete causes so the trader sees exactly what stands
                 between them and entry (or why the path is clear). */}
-            <div style={{ marginTop: 4 }}>
+            <div
+              style={{
+                marginTop: 4,
+                // Job-emphasis: in WAIT / EXECUTE the trigger question leads, so
+                // the panel gets a quiet gold ring. Presentation-only.
+                borderRadius: deckEmphasis.emphasizeWhy ? 12 : undefined,
+                boxShadow: deckEmphasis.emphasizeWhy
+                  ? "0 0 0 1px rgba(212,175,55,0.35)"
+                  : undefined,
+              }}
+            >
               <DecisionWhyPanel vm={decisionWhy} />
             </div>
 
             {/* Market Object Passports (canon P6 Object DNA) — a contextual
                 drawer, collapsed by default so the canvas stays sacred. Opens
                 to each resolved dimension's evidence lineage / fidelity /
-                contradiction / invalidation. Pure display of the sealed state. */}
-            <details style={{ marginTop: 4 }}>
+                contradiction / invalidation. Pure display of the sealed state.
+                Opens by default when the job is OBSERVE (studying market
+                objects) per the deck job-emphasis. */}
+            <details style={{ marginTop: 4 }} open={deckEmphasis.passportOpen}>
               <summary
                 style={{
                   cursor: "pointer",
@@ -580,8 +597,10 @@ function CommandDeckInner() {
                 its trader-facing receipt: verbatim commitment, defensible
                 process facts, management trail, outcome, and the trader's own
                 review split. WAIT / NO_TRADE reads as complete; no fabricated
-                grade. Honest empty state when nothing is sealed yet. */}
-            <details style={{ marginTop: 4 }}>
+                grade. Honest empty state when nothing is sealed yet. Opens by
+                default in management + reflection jobs (MANAGE / REVIEW / LEARN)
+                per the deck job-emphasis. */}
+            <details style={{ marginTop: 4 }} open={deckEmphasis.receiptOpen}>
               <summary
                 style={{
                   cursor: "pointer",
