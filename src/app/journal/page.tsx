@@ -1032,9 +1032,12 @@ function JournalPageInner() {
   const focusStreak = selectFocusStreak(weekEdgeEntries);
   // Canon §A-Setup-Only Doctrine (Top-Down Process 2026-08-24):
   // "Live capital is reserved for A and A+ setups only." Grade each
-  // week entry post-hoc and summarize; surface the live-capital rate.
+  // week entry post-hoc: since only realizedR is stored (planned-R
+  // multiple isn't captured), we use realizedR as the R-multiple
+  // proxy for grading. Trade that FOLLOWED_PLAN and printed 4R had
+  // at least 4R available at entry — canonically valid mapping.
   const weekSetupGrades = weekEntries.map(e =>
-    selectSetupGrade({ dayModel: e.dayModel, plannedR: e.plannedR, processQuality: e.processQuality })
+    selectSetupGrade({ dayModel: e.dayModel, plannedR: e.realizedR, processQuality: e.processQuality })
   );
   const setupGradeSummary = summarizeSetupGrades(weekSetupGrades);
 
