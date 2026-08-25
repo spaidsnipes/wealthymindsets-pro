@@ -44,6 +44,8 @@ import { selectDailyScore } from "@/lib/learningGenome/selectDailyScore";
 import { selectMentalGate } from "@/lib/learningGenome/selectMentalGate";
 import { selectRuleAdherenceStreak } from "@/lib/learningGenome/selectRuleAdherenceStreak";
 import { selectSetupGradeReasons } from "@/lib/learningGenome/selectSetupGradeReasons";
+import { selectDayModelCoverage } from "@/lib/learningGenome/selectDayModelCoverage";
+import { selectEdgeQualityIndex } from "@/lib/learningGenome/selectEdgeQualityIndex";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -1047,6 +1049,11 @@ function JournalPageInner() {
   // Canon §Loss-as-Data — consecutive clean-DAY streak (day-level
   // discipline, complements trade-level focusStreak).
   const dayStreak = selectRuleAdherenceStreak(weekEdgeEntries);
+  // Canon §Personal Edge — one 0-100 index composed from the four
+  // measured §9 dimensions + classification discipline. UNDEFINED
+  // until at least one component measures.
+  const weekCoverage = selectDayModelCoverage(weekMisreadEntries);
+  const edgeQuality = selectEdgeQualityIndex(weekGenome, weekCoverage);
   // Canon §A-Setup-Only Doctrine (Top-Down Process 2026-08-24):
   // "Live capital is reserved for A and A+ setups only." Grade each
   // week entry post-hoc: since only realizedR is stored (planned-R
@@ -1536,6 +1543,29 @@ Trade the system, trust the process, winners every day 🚀`,
               <span className="ml-1 opacity-75">
                 ({Math.round(setupGradeSummary.live_capital_rate * 100)}%)
               </span>
+            </span>
+          )}
+          {/* EDGE QUALITY chip — canon §Personal Edge Lab 0-100 composite.
+              Silent when index is undefined (no measurable evidence yet).
+              Color-graded: ≥70 gold, 40-70 muted, <40 red. */}
+          {typeof edgeQuality.index === "number" && (
+            <span
+              title={`Edge Quality Index · ${edgeQuality.index.toFixed(1)}/100 · measured over ${edgeQuality.sample_size} trades · ${[
+                edgeQuality.components.plan_adherence && `plan ${edgeQuality.components.plan_adherence.points.toFixed(1)}/${edgeQuality.components.plan_adherence.max}`,
+                edgeQuality.components.capture_efficiency && `capture ${edgeQuality.components.capture_efficiency.points.toFixed(1)}/${edgeQuality.components.capture_efficiency.max}`,
+                edgeQuality.components.live_r_capture && `R ${edgeQuality.components.live_r_capture.points.toFixed(1)}/${edgeQuality.components.live_r_capture.max}`,
+                edgeQuality.components.classification && `class ${edgeQuality.components.classification.points.toFixed(1)}/${edgeQuality.components.classification.max}`,
+              ].filter(Boolean).join(" · ")}`}
+              className={clsx(
+                "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                edgeQuality.index >= 70 && "bg-wm-gold/15 text-wm-gold border-wm-gold/40",
+                edgeQuality.index < 70 && edgeQuality.index >= 40 && "bg-wm-surface text-wm-text border-wm-border",
+                edgeQuality.index < 40 && "bg-wm-red/10 text-wm-red border-wm-red/30",
+              )}
+              aria-label={`Personal Edge Quality Index: ${edgeQuality.index.toFixed(0)} out of 100 over ${edgeQuality.sample_size} trades`}
+            >
+              EDGE · {edgeQuality.index.toFixed(0)}
+              <span className="ml-1 opacity-75">/100</span>
             </span>
           )}
           {/* DAY streak chip — canon §Loss-as-Data. Consecutive
