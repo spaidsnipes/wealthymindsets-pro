@@ -104,3 +104,10 @@ Implementation Ledger. Suggested workflow:
   showed the pure order (signal-off path faithful) — the WHY-raise branch was
   NOT observed firing because the market carried no live contradiction
   (proven by unit tests only). Mobile 390px still open.
+- `2026-08-25-layout-rationale-caption.md` — Layout-Rationale Caption
+  (`0ddb6f5`). Renders a quiet "LAYOUT · <rationale>" line above the decision
+  stack (aria-live=polite) so the deck's re-emphasis is never silent — reads the
+  same `deckEmphasis.rationale` that drives the order, no new state. Deployed
+  (Version `2f350623`); VERIFIED LIVE desktop: caption read the OBSERVE
+  rationale, updated to the REVIEW rationale on switch, restored. "Every state
+  must be explainable" applied to layout. Mobile 390px still open.
