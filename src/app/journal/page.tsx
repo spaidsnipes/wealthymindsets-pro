@@ -1374,7 +1374,10 @@ Trade the system, trust the process, winners every day 🚀`,
           ))}
         </div>
         <span className="text-[10px] text-wm-text-dim">{entries.length} entries</span>
-        <div className="flex items-center gap-2">
+        {/* flex-wrap so the WR/PnL/Session-R/Week-Edge/GENOME/TREND/MISREAD
+            chip stack reflows on narrow viewports (390px mobile) instead
+            of overflowing the header. Canon §Cross-device Continuity. */}
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-wm-green/15 text-wm-green border border-wm-green/30">{winRate}% WR</span>
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${totalPnl >= 0 ? "bg-wm-green/10 text-wm-green border-wm-green/25" : "bg-wm-red/10 text-wm-red border-wm-red/25"}`}>{fmtPnl(totalPnl)}</span>
           <span className="text-[10px] text-wm-text-dim">{wins}W / {losses}L</span>
