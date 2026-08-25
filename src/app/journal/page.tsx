@@ -43,6 +43,7 @@ import { selectSetupGrade, summarizeSetupGrades } from "@/lib/learningGenome/sel
 import { selectDailyScore } from "@/lib/learningGenome/selectDailyScore";
 import { selectMentalGate } from "@/lib/learningGenome/selectMentalGate";
 import { selectRuleAdherenceStreak } from "@/lib/learningGenome/selectRuleAdherenceStreak";
+import { selectSetupGradeReasons } from "@/lib/learningGenome/selectSetupGradeReasons";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -2267,6 +2268,43 @@ Trade the system, trust the process, winners every day 🚀`,
                   <p className="mt-2 text-[9px] text-wm-text-dim">
                     R and contract-return % are separate measurements. Capture % = realizedR / MFE (canon §7). See {selected.contractType === "option" ? "canon §6 Contract Lens + §7 Management Studio + §24 R math" : "canon §4 + §7"}.
                   </p>
+                  {/* Setup Grade WHY-layer — canon §A-Setup + §WHY?.
+                      Renders the specific canonical reasons the grade
+                      landed where it did, each with severity color. */}
+                  {(() => {
+                    const explained = selectSetupGradeReasons({
+                      dayModel: selected.dayModel,
+                      plannedR: selected.realizedR,
+                      processQuality: selected.processQuality,
+                    });
+                    if (explained.reasons.length === 0) return null;
+                    return (
+                      <div className="mt-3 rounded-lg border border-wm-gold/30 bg-wm-black/40 p-2">
+                        <div className="mb-1.5 flex items-baseline justify-between">
+                          <div className="text-[9px] font-bold uppercase tracking-wider text-wm-gold">
+                            Setup Grade · {explained.grade.replace("_PLUS", "+").replace("_", " ")}
+                          </div>
+                          <div className="text-[9px] font-mono text-wm-text-dim">canon §A-Setup / §WHY?</div>
+                        </div>
+                        <ul className="space-y-1">
+                          {explained.reasons.map((r, i) => (
+                            <li key={i} className="flex items-start gap-2 text-[10px] leading-snug">
+                              <span className={clsx(
+                                "shrink-0 mt-[3px] inline-block w-1.5 h-1.5 rounded-full",
+                                r.severity === "PASS" && "bg-wm-green",
+                                r.severity === "WARN" && "bg-wm-gold",
+                                r.severity === "FAIL" && "bg-wm-red",
+                              )} aria-hidden="true" />
+                              <span className="text-wm-text">
+                                {r.message}
+                                <span className="ml-1 text-wm-text-dim font-mono">[{r.canon}]</span>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
