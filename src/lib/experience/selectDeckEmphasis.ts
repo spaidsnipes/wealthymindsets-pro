@@ -120,12 +120,62 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
 } as const;
 
 /**
+ * Concrete, live signals the deck already holds that can refine the SECONDARY
+ * ordering of the decision surfaces within a job. These NEVER move the lead —
+ * the job owns the lead — they only reorder what sits below it, and only on
+ * defensible facts (a live blocker to raise, an empty receipt to sink).
+ */
+export interface DeckEmphasisSignals {
+  /** A right-of-way blocker / contradiction is live and unresolved. */
+  readonly hasUnresolvedContradiction?: boolean;
+  /** At least one decision has been sealed (the Receipt has real content). */
+  readonly hasSealedReceipt?: boolean;
+}
+
+/**
  * Resolve the decision-column emphasis for a job-mode. Total over every
  * ExperienceMode; the mapping is deterministic and presentation-only.
+ *
+ * When `signals` are supplied, the SECONDARY order (everything below the lead)
+ * is refined on concrete facts — a live blocker raises WHY toward the top; an
+ * empty Receipt sinks to the bottom so it never outranks a live surface. The
+ * lead is NEVER changed (the job owns it) and the result stays a full
+ * permutation. Omitting `signals` reproduces the pure per-job mapping exactly.
  */
-export function selectDeckEmphasis(mode: ExperienceMode): DeckEmphasis {
+export function selectDeckEmphasis(
+  mode: ExperienceMode,
+  signals?: DeckEmphasisSignals,
+): DeckEmphasis {
   const base = EMPHASIS[mode];
-  return { version: DECK_EMPHASIS_VERSION, mode, ...base };
+  const order = signals ? refineOrder(base.lead, base.order, signals) : base.order;
+  return { version: DECK_EMPHASIS_VERSION, mode, ...base, order };
+}
+
+/**
+ * Refine the secondary order on live signals while preserving two invariants:
+ * (1) the lead stays at index 0; (2) the result is a full permutation of the
+ * same four surfaces. Pure and total.
+ */
+function refineOrder(
+  lead: DeckSurface,
+  order: readonly DeckSurface[],
+  signals: DeckEmphasisSignals,
+): readonly DeckSurface[] {
+  // Work only on the tail below the lead so the lead can never move.
+  let tail = order.filter((s) => s !== lead);
+
+  // An empty Receipt should never outrank a live surface — sink it to last.
+  if (signals.hasSealedReceipt === false) {
+    tail = [...tail.filter((s) => s !== "RECEIPT"), ...tail.filter((s) => s === "RECEIPT")];
+  }
+
+  // A live, unresolved blocker deserves to sit directly under the lead so the
+  // human sees what stands in the way — but only when WHY isn't already leading.
+  if (signals.hasUnresolvedContradiction && lead !== "WHY") {
+    tail = ["WHY", ...tail.filter((s) => s !== "WHY")];
+  }
+
+  return [lead, ...tail];
 }
 
 /**

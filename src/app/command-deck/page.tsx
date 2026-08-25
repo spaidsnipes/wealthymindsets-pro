@@ -129,10 +129,6 @@ function CommandDeckInner() {
   // single-line caption. This surface is the first WM Experience Shell cutover.
   const { context: experienceContext, setMode: setExperienceMode } = useDecisionContext();
   const experienceEmphasis = shellEmphasis(experienceContext.mode);
-  // Deck-level job emphasis: which decision surface leads and which contextual
-  // drawer opens by default for the human's current job. Presentation-only —
-  // never changes market truth or which data is shown (Auto-Quiet).
-  const deckEmphasis = selectDeckEmphasis(experienceContext.mode);
 
   // Identity routes through canonicalMarketStateIdentity — the SAME helper
   // chartMarketStatePublisher writes with — so the deck cannot silently
@@ -291,6 +287,21 @@ function CommandDeckInner() {
   }, [decisionRecords, oneStory, passport]);
   const suggestJob =
     jobInference.suggested !== experienceContext.mode ? jobInference : null;
+
+  // Deck-level job emphasis: which decision surface LEADS, which contextual
+  // drawer opens by default, and the physical top-to-bottom order of the four
+  // surfaces for the human's current job. Presentation-only — never changes
+  // market truth or which data is shown (Auto-Quiet). Live signals refine only
+  // the SECONDARY order (never the lead): a live blocker raises WHY; an empty
+  // Receipt sinks so it never outranks a live surface.
+  const deckEmphasis = React.useMemo(
+    () =>
+      selectDeckEmphasis(experienceContext.mode, {
+        hasUnresolvedContradiction: oneStory.contradiction != null,
+        hasSealedReceipt: !decisionReceipt.empty,
+      }),
+    [experienceContext.mode, oneStory.contradiction, decisionReceipt.empty],
+  );
 
   const openWhy = (t: WhyTarget) => {
     setWhyTarget(t);
