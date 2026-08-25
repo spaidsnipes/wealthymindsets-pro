@@ -58,3 +58,7 @@ Implementation Ledger. Suggested workflow:
   cutover (live seven-mode band on /command-deck) + moomoo/webull env
   drift-lock fix. Records a P0: prod serving Cloudflare Error 1027
   (Workers plan-limit outage) — Founder action required.
+- `2026-08-24-question-router-atom.md` — WM Question Router: compiles the
+  one dominant question on /command-deck from (job mode) × canonical One
+  Story signals. Deployed (Worker `ab64ff85`); visual verification still
+  blocked by the same Error 1027 outage.
