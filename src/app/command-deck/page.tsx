@@ -23,7 +23,7 @@ import MirrorPanel from "@/components/mirror/MirrorPanel";
 import OpeningBellPanel from "@/components/opening-bell/OpeningBellPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { selectOpeningBell, DEFAULT_PREPARATION_TEMPLATE } from "@/lib/traderMemory/viewModels/selectOpeningBell";
-import { useDecisionMemory } from "@/lib/traderMemory/useDecisionMemory";
+import { useDecisionMemory, useDecisionMemoryRecords } from "@/lib/traderMemory/useDecisionMemory";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
@@ -42,6 +42,8 @@ import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassp
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
 import { selectDecisionWhyNot } from "@/lib/marketData/viewModels/selectDecisionWhyNot";
+import DecisionReceiptPanel from "@/components/experience/DecisionReceiptPanel";
+import { selectDecisionReceipt } from "@/lib/traderMemory/viewModels/selectDecisionReceipt";
 import { selectOneStory } from "@/lib/marketData/viewModels/selectOneStory";
 import ExperienceModeBar from "@/components/experience/ExperienceModeBar";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
@@ -154,6 +156,7 @@ function CommandDeckInner() {
   const state = useCanonicalMarketState(identity);
   const history = useCanonicalMarketStateHistory(identity, 6);
   const storeDecisions = useDecisionMemory(user?.id ?? null);
+  const decisionRecords = useDecisionMemoryRecords(user?.id ?? null);
   const journalDecisions = useJournalSnapshots(user?.id ?? null);
   const sessionDecisions = React.useMemo(
     () => {
@@ -247,6 +250,22 @@ function CommandDeckInner() {
   const decisionWhy = React.useMemo(
     () => selectDecisionWhyNot(oneStory, permission),
     [oneStory, permission],
+  );
+
+  // Decision Receipt (canon P8): project the most-recently sealed decision
+  // capsule into its trader-facing receipt — verbatim commitment, defensible
+  // process facts, management trail, outcome, and the trader's own review
+  // split. WAIT / NO_TRADE reads as complete; no fabricated grade. Honest
+  // empty state when nothing is sealed yet.
+  const latestDecisionRecord = React.useMemo(() => {
+    if (decisionRecords.length === 0) return null;
+    return decisionRecords.reduce((latest, r) =>
+      r.frozen.capturedAt > latest.frozen.capturedAt ? r : latest,
+    );
+  }, [decisionRecords]);
+  const decisionReceipt = React.useMemo(
+    () => selectDecisionReceipt(latestDecisionRecord),
+    [latestDecisionRecord],
   );
 
   const openWhy = (t: WhyTarget) => {
@@ -553,6 +572,33 @@ function CommandDeckInner() {
               </summary>
               <div style={{ marginTop: 6 }}>
                 <MarketObjectPassportPanel vm={passport} />
+              </div>
+            </details>
+
+            {/* Decision Receipt (canon P8) — a contextual drawer, collapsed by
+                default. Projects the most-recently sealed decision capsule into
+                its trader-facing receipt: verbatim commitment, defensible
+                process facts, management trail, outcome, and the trader's own
+                review split. WAIT / NO_TRADE reads as complete; no fabricated
+                grade. Honest empty state when nothing is sealed yet. */}
+            <details style={{ marginTop: 4 }}>
+              <summary
+                style={{
+                  cursor: "pointer",
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                  color: "#c9a55c",
+                  textTransform: "uppercase",
+                  padding: "4px 0",
+                }}
+              >
+                Decision Receipt ·{" "}
+                {decisionReceipt.empty
+                  ? "none sealed"
+                  : `${decisionReceipt.stage.toLowerCase()}`}
+              </summary>
+              <div style={{ marginTop: 6 }}>
+                <DecisionReceiptPanel vm={decisionReceipt} />
               </div>
             </details>
 
