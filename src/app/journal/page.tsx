@@ -29,6 +29,7 @@ import {
 } from "@/lib/traderMemory/adapters/journalStorage";
 import { captureEfficiency } from "@/lib/proofLane/captureEfficiency";
 import { selectSessionEdge } from "@/lib/proofLane/selectSessionEdge";
+import { selectLearningGenome } from "@/lib/learningGenome/selectLearningGenome";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -946,14 +947,19 @@ function JournalPageInner() {
     const t = Date.parse(e.date);
     return Number.isFinite(t) && t >= weekStartMs;
   });
-  const weekEdge = selectSessionEdge(weekEntries.map(e => ({
+  const weekEdgeEntries = weekEntries.map(e => ({
     date: e.date,
     result: e.result,
     realizedR: e.realizedR,
     processQuality: e.processQuality,
     mfeR: e.mfeR,
     maeR: e.maeR,
-  })));
+  }));
+  const weekEdge = selectSessionEdge(weekEdgeEntries);
+  // Canon §9 Learning Genome — four-dimension diagnostic over the same
+  // rolling 7-day window. Silent when fewer than 2 dimensions are
+  // measurable OR when the top and bottom scores tie (no fabrication).
+  const weekGenome = selectLearningGenome(weekEdgeEntries);
 
   const saveEntry = () => {
     const e = { ...(form as JournalEntry) };
@@ -1312,6 +1318,25 @@ Trade the system, trust the process, winners every day 🚀`,
               className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-wm-gold/40 bg-wm-gold/10 text-wm-gold"
             >
               WEEK EDGE {weekEdge.expectancyR != null ? `${weekEdge.expectancyR >= 0 ? "+" : ""}${weekEdge.expectancyR.toFixed(2)}R/trade` : "—"}
+            </span>
+          )}
+          {/* Learning Genome chip — canon §9 (Final Helicopter, 2026-08-24).
+              Emits a comparative diagnostic only when at least two of the
+              four dimensions are measured AND their scores differ. Never
+              fabricates a "your weakest area is X" from a single data
+              point. Tooltip enumerates the four per-dimension labels. */}
+          {weekGenome.headlineWeakness && (
+            <span
+              title={[
+                weekGenome.perception.label ?? "perception · not enough data",
+                weekGenome.reasoning.label ?? "reasoning · not enough data",
+                weekGenome.process.label ?? "process · not enough data",
+                weekGenome.transfer.label ?? "transfer · not enough data",
+              ].join(" · ")}
+              className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-wm-gold/40 bg-wm-gold/5 text-wm-gold"
+              aria-label={`Learning Genome: ${weekGenome.headlineWeakness}`}
+            >
+              GENOME · {weekGenome.headlineWeakness}
             </span>
           )}
         </div>
