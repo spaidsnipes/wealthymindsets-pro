@@ -30,6 +30,7 @@ import {
 import { captureEfficiency } from "@/lib/proofLane/captureEfficiency";
 import { selectSessionEdge } from "@/lib/proofLane/selectSessionEdge";
 import { selectLearningGenome } from "@/lib/learningGenome/selectLearningGenome";
+import { prescribeDrill } from "@/lib/learningGenome/prescribeDrill";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -960,6 +961,10 @@ function JournalPageInner() {
   // rolling 7-day window. Silent when fewer than 2 dimensions are
   // measurable OR when the top and bottom scores tie (no fabrication).
   const weekGenome = selectLearningGenome(weekEdgeEntries);
+  // Adaptive Academy bridge — canon-defined drill for the weakest
+  // dimension. Undefined when the Genome has no weakest (same silence
+  // policy as the chip). No prescription from insufficient signal.
+  const weekDrill = prescribeDrill(weekGenome);
 
   const saveEntry = () => {
     const e = { ...(form as JournalEntry) };
@@ -1332,11 +1337,15 @@ Trade the system, trust the process, winners every day 🚀`,
                 weekGenome.reasoning.label ?? "reasoning · not enough data",
                 weekGenome.process.label ?? "process · not enough data",
                 weekGenome.transfer.label ?? "transfer · not enough data",
+                ...(weekDrill ? [`DRILL (${weekDrill.stage}): ${weekDrill.drill}`] : []),
               ].join(" · ")}
               className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-wm-gold/40 bg-wm-gold/5 text-wm-gold"
-              aria-label={`Learning Genome: ${weekGenome.headlineWeakness}`}
+              aria-label={`Learning Genome: ${weekGenome.headlineWeakness}${weekDrill ? `. Prescribed drill: ${weekDrill.drill}` : ""}`}
             >
               GENOME · {weekGenome.headlineWeakness}
+              {weekDrill && (
+                <span className="ml-1 opacity-75">· {weekDrill.stage}</span>
+              )}
             </span>
           )}
         </div>
