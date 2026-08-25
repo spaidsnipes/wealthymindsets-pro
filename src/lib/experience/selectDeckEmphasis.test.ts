@@ -5,8 +5,15 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { selectDeckEmphasis, DECK_EMPHASIS_VERSION } from "./selectDeckEmphasis";
+import {
+  selectDeckEmphasis,
+  surfaceOrder,
+  DECK_EMPHASIS_VERSION,
+  type DeckSurface,
+} from "./selectDeckEmphasis";
 import { EXPERIENCE_MODES } from "./decisionContextBus";
+
+const ALL_SURFACES: readonly DeckSurface[] = ["STORY", "WHY", "PASSPORT", "RECEIPT"];
 
 describe("selectDeckEmphasis", () => {
   it("exposes a stable version", () => {
@@ -58,6 +65,27 @@ describe("selectDeckEmphasis", () => {
       const e = selectDeckEmphasis(mode);
       const openCount = Number(e.passportOpen) + Number(e.receiptOpen);
       expect(openCount).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("ranks every surface exactly once with the lead first (a full permutation)", () => {
+    for (const mode of EXPERIENCE_MODES) {
+      const e = selectDeckEmphasis(mode);
+      // A permutation: same length, no duplicates, contains every surface.
+      expect(e.order).toHaveLength(ALL_SURFACES.length);
+      expect(new Set(e.order).size).toBe(ALL_SURFACES.length);
+      for (const surface of ALL_SURFACES) expect(e.order).toContain(surface);
+      // The lead always physically floats to the top.
+      expect(e.order[0]).toBe(e.lead);
+    }
+  });
+
+  it("maps surfaceOrder to a contiguous 0-based rank, lead === 0, never leaves a surface unplaced", () => {
+    for (const mode of EXPERIENCE_MODES) {
+      const e = selectDeckEmphasis(mode);
+      expect(surfaceOrder(e, e.lead)).toBe(0);
+      const ranks = ALL_SURFACES.map((s) => surfaceOrder(e, s)).sort((a, b) => a - b);
+      expect(ranks).toEqual([0, 1, 2, 3]);
     }
   });
 });

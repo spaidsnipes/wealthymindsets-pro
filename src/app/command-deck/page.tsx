@@ -49,7 +49,7 @@ import ExperienceModeBar from "@/components/experience/ExperienceModeBar";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { shellEmphasis } from "@/lib/experience/shellLayout";
 import { routeQuestion } from "@/lib/experience/questionRouter";
-import { selectDeckEmphasis } from "@/lib/experience/selectDeckEmphasis";
+import { selectDeckEmphasis, surfaceOrder } from "@/lib/experience/selectDeckEmphasis";
 import { inferJobMode } from "@/lib/experience/inferJobMode";
 
 /**
@@ -594,83 +594,99 @@ function CommandDeckInner() {
                 (never fabricates). */}
             <TodayPrepBridge userId={user?.id ?? null} />
 
-            {/* One Story Strip — Founder 2029 Integration Glue canon §7
-                ONE STORY COMPILER. Compiles the market state into
-                PRIMARY / CONTRADICTION / MISSING / DECISION so the
-                trader gets the at-most-four-outputs read before hunting
-                the numbered sections below. Consumes shared canonical
-                selectors — never invents. */}
-            <OneStoryStrip vm={oneStory} />
+            {/* Decision-surface stack — the four job-reorderable surfaces
+                (STORY / WHY / PASSPORT / RECEIPT). This is its OWN flex column
+                so the job-emphasis `order` reranks ONLY these four (via CSS
+                `order`) without disturbing the hero, ribbon, or phase selector
+                above/below. Every surface stays in the DOM in every job — the
+                job only decides which physically leads. Presentation-only. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              {/* One Story Strip — Founder 2029 Integration Glue canon §7
+                  ONE STORY COMPILER. Compiles the market state into
+                  PRIMARY / CONTRADICTION / MISSING / DECISION so the
+                  trader gets the at-most-four-outputs read before hunting
+                  the numbered sections below. Consumes shared canonical
+                  selectors — never invents. */}
+              <div style={{ order: surfaceOrder(deckEmphasis, "STORY") }}>
+                <OneStoryStrip vm={oneStory} />
+              </div>
 
-            {/* WHY / WHY NOT (canon P6) — reverses the right-of-way verdict to
-                its concrete causes so the trader sees exactly what stands
-                between them and entry (or why the path is clear). */}
-            <div
-              style={{
-                marginTop: 4,
-                // Job-emphasis: in WAIT / EXECUTE the trigger question leads, so
-                // the panel gets a quiet gold ring. Presentation-only.
-                borderRadius: deckEmphasis.emphasizeWhy ? 12 : undefined,
-                boxShadow: deckEmphasis.emphasizeWhy
-                  ? "0 0 0 1px rgba(212,175,55,0.35)"
-                  : undefined,
-              }}
-            >
-              <DecisionWhyPanel vm={decisionWhy} />
+              {/* WHY / WHY NOT (canon P6) — reverses the right-of-way verdict to
+                  its concrete causes so the trader sees exactly what stands
+                  between them and entry (or why the path is clear). */}
+              <div
+                style={{
+                  order: surfaceOrder(deckEmphasis, "WHY"),
+                  // Job-emphasis: in WAIT / EXECUTE the trigger question leads, so
+                  // the panel gets a quiet gold ring. Presentation-only.
+                  borderRadius: deckEmphasis.emphasizeWhy ? 12 : undefined,
+                  boxShadow: deckEmphasis.emphasizeWhy
+                    ? "0 0 0 1px rgba(212,175,55,0.35)"
+                    : undefined,
+                }}
+              >
+                <DecisionWhyPanel vm={decisionWhy} />
+              </div>
+
+              {/* Market Object Passports (canon P6 Object DNA) — a contextual
+                  drawer, collapsed by default so the canvas stays sacred. Opens
+                  to each resolved dimension's evidence lineage / fidelity /
+                  contradiction / invalidation. Pure display of the sealed state.
+                  Opens by default when the job is OBSERVE (studying market
+                  objects) per the deck job-emphasis. */}
+              <details
+                style={{ order: surfaceOrder(deckEmphasis, "PASSPORT") }}
+                open={deckEmphasis.passportOpen}
+              >
+                <summary
+                  style={{
+                    cursor: "pointer",
+                    fontSize: 10,
+                    letterSpacing: 0.6,
+                    color: "#c9a55c",
+                    textTransform: "uppercase",
+                    padding: "4px 0",
+                  }}
+                >
+                  Market Object Passports · {passport.resolvedCount}/{passport.totalCount} resolved
+                </summary>
+                <div style={{ marginTop: 6 }}>
+                  <MarketObjectPassportPanel vm={passport} />
+                </div>
+              </details>
+
+              {/* Decision Receipt (canon P8) — a contextual drawer, collapsed by
+                  default. Projects the most-recently sealed decision capsule into
+                  its trader-facing receipt: verbatim commitment, defensible
+                  process facts, management trail, outcome, and the trader's own
+                  review split. WAIT / NO_TRADE reads as complete; no fabricated
+                  grade. Honest empty state when nothing is sealed yet. Opens by
+                  default in management + reflection jobs (MANAGE / REVIEW / LEARN)
+                  per the deck job-emphasis. */}
+              <details
+                style={{ order: surfaceOrder(deckEmphasis, "RECEIPT") }}
+                open={deckEmphasis.receiptOpen}
+              >
+                <summary
+                  style={{
+                    cursor: "pointer",
+                    fontSize: 10,
+                    letterSpacing: 0.6,
+                    color: "#c9a55c",
+                    textTransform: "uppercase",
+                    padding: "4px 0",
+                  }}
+                >
+                  Decision Receipt ·{" "}
+                  {decisionReceipt.empty
+                    ? "none sealed"
+                    : `${decisionReceipt.stage.toLowerCase()}`}
+                </summary>
+                <div style={{ marginTop: 6 }}>
+                  <DecisionReceiptPanel vm={decisionReceipt} />
+                </div>
+              </details>
             </div>
-
-            {/* Market Object Passports (canon P6 Object DNA) — a contextual
-                drawer, collapsed by default so the canvas stays sacred. Opens
-                to each resolved dimension's evidence lineage / fidelity /
-                contradiction / invalidation. Pure display of the sealed state.
-                Opens by default when the job is OBSERVE (studying market
-                objects) per the deck job-emphasis. */}
-            <details style={{ marginTop: 4 }} open={deckEmphasis.passportOpen}>
-              <summary
-                style={{
-                  cursor: "pointer",
-                  fontSize: 10,
-                  letterSpacing: 0.6,
-                  color: "#c9a55c",
-                  textTransform: "uppercase",
-                  padding: "4px 0",
-                }}
-              >
-                Market Object Passports · {passport.resolvedCount}/{passport.totalCount} resolved
-              </summary>
-              <div style={{ marginTop: 6 }}>
-                <MarketObjectPassportPanel vm={passport} />
-              </div>
-            </details>
-
-            {/* Decision Receipt (canon P8) — a contextual drawer, collapsed by
-                default. Projects the most-recently sealed decision capsule into
-                its trader-facing receipt: verbatim commitment, defensible
-                process facts, management trail, outcome, and the trader's own
-                review split. WAIT / NO_TRADE reads as complete; no fabricated
-                grade. Honest empty state when nothing is sealed yet. Opens by
-                default in management + reflection jobs (MANAGE / REVIEW / LEARN)
-                per the deck job-emphasis. */}
-            <details style={{ marginTop: 4 }} open={deckEmphasis.receiptOpen}>
-              <summary
-                style={{
-                  cursor: "pointer",
-                  fontSize: 10,
-                  letterSpacing: 0.6,
-                  color: "#c9a55c",
-                  textTransform: "uppercase",
-                  padding: "4px 0",
-                }}
-              >
-                Decision Receipt ·{" "}
-                {decisionReceipt.empty
-                  ? "none sealed"
-                  : `${decisionReceipt.stage.toLowerCase()}`}
-              </summary>
-              <div style={{ marginTop: 6 }}>
-                <DecisionReceiptPanel vm={decisionReceipt} />
-              </div>
-            </details>
 
             {/* Phase selector — the trader's current decision phase */}
             <div

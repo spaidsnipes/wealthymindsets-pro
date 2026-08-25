@@ -27,6 +27,13 @@ export interface DeckEmphasis {
   readonly mode: ExperienceMode;
   /** The single surface that leads the decision column in this job. */
   readonly lead: DeckSurface;
+  /**
+   * The full physical top-to-bottom ranking of the four decision surfaces for
+   * this job — a permutation of every DeckSurface, `lead` first. The deck maps
+   * each surface's index here onto a CSS `order` so the lead surface rises to
+   * the top WITHOUT any surface leaving the DOM. Presentation-only.
+   */
+  readonly order: readonly DeckSurface[];
   /** WHY / WHY NOT gets visual emphasis (decision-at-the-trigger jobs). */
   readonly emphasizeWhy: boolean;
   /** Market Object Passport drawer opens by default (market-study jobs). */
@@ -39,6 +46,7 @@ export interface DeckEmphasis {
 
 interface EmphasisBase {
   readonly lead: DeckSurface;
+  readonly order: readonly DeckSurface[];
   readonly emphasizeWhy: boolean;
   readonly passportOpen: boolean;
   readonly receiptOpen: boolean;
@@ -49,6 +57,7 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
   // Reflection before the bell: the One Story frames the plan; nothing forced open.
   PREP: {
     lead: "STORY",
+    order: ["STORY", "WHY", "PASSPORT", "RECEIPT"],
     emphasizeWhy: false,
     passportOpen: false,
     receiptOpen: false,
@@ -57,6 +66,7 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
   // No position: study what the market objects actually are.
   OBSERVE: {
     lead: "PASSPORT",
+    order: ["PASSPORT", "STORY", "WHY", "RECEIPT"],
     emphasizeWhy: false,
     passportOpen: true,
     receiptOpen: false,
@@ -65,6 +75,7 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
   // Holding a thesis: the trigger question is whether right-of-way is open.
   WAIT: {
     lead: "WHY",
+    order: ["WHY", "STORY", "PASSPORT", "RECEIPT"],
     emphasizeWhy: true,
     passportOpen: false,
     receiptOpen: false,
@@ -73,6 +84,7 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
   // Placing the planned decision: keep the blocker ledger front and centre.
   EXECUTE: {
     lead: "WHY",
+    order: ["WHY", "STORY", "PASSPORT", "RECEIPT"],
     emphasizeWhy: true,
     passportOpen: false,
     receiptOpen: false,
@@ -81,6 +93,7 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
   // Stewarding an open position: the receipt's management trail leads.
   MANAGE: {
     lead: "RECEIPT",
+    order: ["RECEIPT", "WHY", "STORY", "PASSPORT"],
     emphasizeWhy: false,
     passportOpen: false,
     receiptOpen: true,
@@ -89,6 +102,7 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
   // Reviewing: the sealed receipt is the object of study.
   REVIEW: {
     lead: "RECEIPT",
+    order: ["RECEIPT", "STORY", "WHY", "PASSPORT"],
     emphasizeWhy: false,
     passportOpen: false,
     receiptOpen: true,
@@ -97,6 +111,7 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
   // Training a weakness: the receipt carries the lessons to drill.
   LEARN: {
     lead: "RECEIPT",
+    order: ["RECEIPT", "STORY", "WHY", "PASSPORT"],
     emphasizeWhy: false,
     passportOpen: false,
     receiptOpen: true,
@@ -111,6 +126,17 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
 export function selectDeckEmphasis(mode: ExperienceMode): DeckEmphasis {
   const base = EMPHASIS[mode];
   return { version: DECK_EMPHASIS_VERSION, mode, ...base };
+}
+
+/**
+ * The CSS `order` value for a decision surface under this emphasis — its index
+ * in the job's ranking (lead === 0). A surface absent from the ranking (never
+ * expected, since `order` is always a full permutation) sorts last so it can
+ * never silently vanish above the fold. Pure and total.
+ */
+export function surfaceOrder(emphasis: DeckEmphasis, surface: DeckSurface): number {
+  const idx = emphasis.order.indexOf(surface);
+  return idx === -1 ? emphasis.order.length : idx;
 }
 
 export default selectDeckEmphasis;
