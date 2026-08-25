@@ -52,6 +52,8 @@ import { routeQuestion } from "@/lib/experience/questionRouter";
 import { selectDeckEmphasis, surfaceOrder } from "@/lib/experience/selectDeckEmphasis";
 import { inferJobMode } from "@/lib/experience/inferJobMode";
 import { selectJobSuggestion } from "@/lib/experience/selectJobSuggestion";
+import { useLearningGenomeBundle } from "@/lib/learningGenome/useLearningGenomeBundle";
+import { LearningGenomeInspector } from "@/components/learningGenome/LearningGenomeInspector";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -270,6 +272,12 @@ function CommandDeckInner() {
     () => selectDecisionReceipt(latestDecisionRecord),
     [latestDecisionRecord],
   );
+
+  // Canon §9 Learning Genome — client-side bundle assembled from
+  // browser-local Journal storage. Undefined during first hydration
+  // so the caller can render a skeleton. Reads the same 7+7 day
+  // window as /journal so the diagnostic is consistent across surfaces.
+  const learningGenome = useLearningGenomeBundle();
 
   // Job-mode inference (the OS completing the loop): infer which job the human
   // is most likely in from concrete decision state, so the shell can gently
@@ -738,6 +746,38 @@ function CommandDeckInner() {
                   <DecisionReceiptPanel vm={decisionReceipt} />
                 </div>
               </details>
+              {/* Canon §9 Learning Genome — surfaced in REVIEW / LEARN
+                  where the trader is looking backward. Silent when
+                  either the bundle is still hydrating or the trader
+                  hasn't logged enough plan-adherence / MFE data to
+                  measure two dimensions comparably. */}
+              {(experienceContext.mode === "REVIEW" || experienceContext.mode === "LEARN") &&
+                learningGenome &&
+                learningGenome.genome.headlineWeakness && (
+                  <details style={{ marginTop: 8 }}>
+                    <summary
+                      style={{
+                        cursor: "pointer",
+                        fontSize: 10,
+                        letterSpacing: 0.6,
+                        color: "#c9a55c",
+                        textTransform: "uppercase",
+                        padding: "4px 0",
+                      }}
+                    >
+                      Learning Genome ·{" "}
+                      {learningGenome.drill ? learningGenome.drill.stage.toLowerCase() : "diagnostic"}
+                    </summary>
+                    <div style={{ marginTop: 6 }}>
+                      <LearningGenomeInspector
+                        genome={learningGenome.genome}
+                        drill={learningGenome.drill}
+                        misread={learningGenome.misread}
+                        trend={learningGenome.trend}
+                      />
+                    </div>
+                  </details>
+                )}
             </div>
 
             {/* Phase selector — the trader's current decision phase */}
