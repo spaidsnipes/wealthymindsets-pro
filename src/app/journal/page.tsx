@@ -42,6 +42,7 @@ import { selectFocusStreak } from "@/lib/learningGenome/selectFocusStreak";
 import { selectSetupGrade, summarizeSetupGrades } from "@/lib/learningGenome/selectSetupGrade";
 import { selectDailyScore } from "@/lib/learningGenome/selectDailyScore";
 import { selectMentalGate } from "@/lib/learningGenome/selectMentalGate";
+import { selectRuleAdherenceStreak } from "@/lib/learningGenome/selectRuleAdherenceStreak";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -1042,6 +1043,9 @@ function JournalPageInner() {
   // in what order) stays in the Journal detail. Entries are
   // stored newest-first in the array as loaded.
   const focusStreak = selectFocusStreak(weekEdgeEntries);
+  // Canon §Loss-as-Data — consecutive clean-DAY streak (day-level
+  // discipline, complements trade-level focusStreak).
+  const dayStreak = selectRuleAdherenceStreak(weekEdgeEntries);
   // Canon §A-Setup-Only Doctrine (Top-Down Process 2026-08-24):
   // "Live capital is reserved for A and A+ setups only." Grade each
   // week entry post-hoc: since only realizedR is stored (planned-R
@@ -1531,6 +1535,21 @@ Trade the system, trust the process, winners every day 🚀`,
               <span className="ml-1 opacity-75">
                 ({Math.round(setupGradeSummary.live_capital_rate * 100)}%)
               </span>
+            </span>
+          )}
+          {/* DAY streak chip — canon §Loss-as-Data. Consecutive
+              clean-day count (day-level discipline, complements FOCUS).
+              Silent when current is 0. */}
+          {dayStreak.current >= 2 && (
+            <span
+              title={`${dayStreak.current} consecutive clean days · best ${dayStreak.best} · ${dayStreak.days_measured} days measured`}
+              className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-wm-green/40 bg-wm-green/5 text-wm-green"
+              aria-label={`Rule-adherence day streak: ${dayStreak.current} clean days in a row`}
+            >
+              DAYS · {dayStreak.current}
+              {dayStreak.best > dayStreak.current && (
+                <span className="ml-1 opacity-75">/ best {dayStreak.best}</span>
+              )}
             </span>
           )}
           {/* FOCUS streak chip — canon §Public Blessing. Silent when
