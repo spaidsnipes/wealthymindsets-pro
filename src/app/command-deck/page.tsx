@@ -40,6 +40,8 @@ import CommandContextRibbon from "@/components/command/CommandContextRibbon";
 import OneStoryStrip from "@/components/command/OneStoryStrip";
 import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassportPanel";
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
+import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
+import { selectDecisionWhyNot } from "@/lib/marketData/viewModels/selectDecisionWhyNot";
 import { selectOneStory } from "@/lib/marketData/viewModels/selectOneStory";
 import ExperienceModeBar from "@/components/experience/ExperienceModeBar";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
@@ -238,6 +240,14 @@ function CommandDeckInner() {
   // contradictions and invalidation — reversible to provider evidence. Pure
   // read of the sealed state; never a second truth producer.
   const passport = React.useMemo(() => selectMarketObjectPassport(state), [state]);
+
+  // WHY / WHY NOT (canon P6): reverse the compiled right-of-way verdict to its
+  // concrete causes (engaged rules, contradiction, unpaid evidence debt). Reads
+  // the same oneStory + permission the deck already compiled — no new truth.
+  const decisionWhy = React.useMemo(
+    () => selectDecisionWhyNot(oneStory, permission),
+    [oneStory, permission],
+  );
 
   const openWhy = (t: WhyTarget) => {
     setWhyTarget(t);
@@ -516,6 +526,13 @@ function CommandDeckInner() {
                 the numbered sections below. Consumes shared canonical
                 selectors — never invents. */}
             <OneStoryStrip vm={oneStory} />
+
+            {/* WHY / WHY NOT (canon P6) — reverses the right-of-way verdict to
+                its concrete causes so the trader sees exactly what stands
+                between them and entry (or why the path is clear). */}
+            <div style={{ marginTop: 4 }}>
+              <DecisionWhyPanel vm={decisionWhy} />
+            </div>
 
             {/* Market Object Passports (canon P6 Object DNA) — a contextual
                 drawer, collapsed by default so the canvas stays sacred. Opens
