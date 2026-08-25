@@ -48,6 +48,11 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/** Exported for isolated unit-testing — same logic the hook uses. */
+export function normalizeJournalRecords(records: readonly unknown[]): MisreadEntry[] {
+  return normalize(records);
+}
+
 function normalize(records: readonly unknown[]): MisreadEntry[] {
   const out: MisreadEntry[] = [];
   for (const v of records) {
@@ -74,6 +79,14 @@ function normalize(records: readonly unknown[]): MisreadEntry[] {
     });
   }
   return out;
+}
+
+/** Exported for isolated unit-testing — same logic the hook uses. */
+export function splitJournalByWeekWindow(
+  entries: readonly MisreadEntry[],
+  nowMs: number,
+): { current: MisreadEntry[]; prior: MisreadEntry[] } {
+  return splitByWindow(entries, nowMs);
 }
 
 function splitByWindow(entries: readonly MisreadEntry[], nowMs: number): {
