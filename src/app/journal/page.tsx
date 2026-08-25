@@ -21,6 +21,10 @@ import { computeJournalPnl, computeJournalRealizedR } from "@/lib/journal/comput
 import { journalToCsv } from "@/lib/journal/journalToCsv";
 import { journalToJson } from "@/lib/journal/journalToJson";
 import {
+  buildLearningGenomeBundle,
+  learningGenomeToJson,
+} from "@/lib/learningGenome/learningGenomeToJson";
+import {
   JOURNAL_STORAGE_KEY,
   migrateLegacyJournal,
   notifyCanonicalJournalChanged,
@@ -1294,6 +1298,33 @@ Trade the system, trust the process, winners every day 🚀`,
     });
     a.click();
   };
+  const exportGenome = () => {
+    // Canon §9 Learning Genome bundle — Public Blessing exporter.
+    // Trader pulls their own four-dimension diagnostic + drill +
+    // misread map + trend as one JSON payload. Private Recipe
+    // (thresholds, priority order) stays behind the WM boundary.
+    const bundle = buildLearningGenomeBundle({
+      currentEntries: weekMisreadEntries,
+      priorEntries: priorWeekEntries.map(e => ({
+        date: e.date,
+        result: e.result,
+        realizedR: e.realizedR,
+        processQuality: e.processQuality,
+        mfeR: e.mfeR,
+        maeR: e.maeR,
+        dayModel: e.dayModel,
+      })),
+      currentDays: 7,
+      priorDays: 7,
+      exportedAt: new Date().toISOString(),
+    });
+    const json = learningGenomeToJson(bundle);
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(new Blob([json], { type: "application/json" })),
+      download: "wm-learning-genome.json",
+    });
+    a.click();
+  };
 
   return (
     <div style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden" }}
@@ -1514,6 +1545,11 @@ Trade the system, trust the process, winners every day 🚀`,
             title="Export all journal entries as versioned JSON (machine-readable backup)"
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border border-wm-border transition-colors">
             <Download size={11} /> JSON
+          </button>
+          <button onClick={exportGenome}
+            title="Export your Learning Genome bundle — dimensions, drill, misread map, trend — as versioned JSON (canon §9 Public Blessing)"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs text-wm-gold hover:bg-wm-gold/10 border border-wm-gold/40 transition-colors">
+            <Download size={11} /> Genome
           </button>
           <button onClick={() => { setNewMode(true); setSelected(null); }}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-wm-black transition-all hover:opacity-90"
