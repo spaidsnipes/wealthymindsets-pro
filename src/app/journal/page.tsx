@@ -38,6 +38,7 @@ import { prescribeDrill } from "@/lib/learningGenome/prescribeDrill";
 import { selectMisreadMap, classifyMisread, type MisreadEntry } from "@/lib/learningGenome/selectMisreadMap";
 import { genomeTrend } from "@/lib/learningGenome/genomeTrend";
 import { LearningGenomeInspector } from "@/components/learningGenome/LearningGenomeInspector";
+import { selectFocusStreak } from "@/lib/learningGenome/selectFocusStreak";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -1023,6 +1024,11 @@ function JournalPageInner() {
     })),
   );
   const weekTrend = genomeTrend(weekGenome, priorGenome);
+  // Canon §Public Blessing — consecutive plan-followed streak.
+  // The blessing users can see; the recipe (which trades qualified,
+  // in what order) stays in the Journal detail. Entries are
+  // stored newest-first in the array as loaded.
+  const focusStreak = selectFocusStreak(weekEdgeEntries);
 
   const saveEntry = () => {
     const e = { ...(form as JournalEntry) };
@@ -1444,6 +1450,20 @@ Trade the system, trust the process, winners every day 🚀`,
               no dominant misread (empty week or tie). Dominant surfaces
               the most-common single mistake shape across the 7-day window
               — actionable teach signal that pairs with the Genome chip. */}
+          {/* FOCUS streak chip — canon §Public Blessing. Silent when
+              the current streak is 0 (no fabricated encouragement). */}
+          {focusStreak.current >= 3 && (
+            <span
+              title={`${focusStreak.current} consecutive plan-followed trades this week (best ${focusStreak.best})`}
+              className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-wm-green/40 bg-wm-green/10 text-wm-green"
+              aria-label={`Focus streak: ${focusStreak.current} plan-followed trades in a row`}
+            >
+              FOCUS · {focusStreak.current}
+              {focusStreak.best > focusStreak.current && (
+                <span className="ml-1 opacity-75">/ best {focusStreak.best}</span>
+              )}
+            </span>
+          )}
           {/* Genome trend chip — canon §9 "distinguish skill from luck".
               Two arrows: ▲ most_improved (green) + ▼ most_degraded (red).
               Silent when neither moved past the noise threshold. */}
