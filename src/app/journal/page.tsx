@@ -46,6 +46,9 @@ import { selectRuleAdherenceStreak } from "@/lib/learningGenome/selectRuleAdhere
 import { selectSetupGradeReasons } from "@/lib/learningGenome/selectSetupGradeReasons";
 import { selectDayModelCoverage } from "@/lib/learningGenome/selectDayModelCoverage";
 import { selectEdgeQualityIndex } from "@/lib/learningGenome/selectEdgeQualityIndex";
+import { selectRecoveryTradeDetector } from "@/lib/learningGenome/selectRecoveryTradeDetector";
+import { selectShutdownAdvice } from "@/lib/learningGenome/selectShutdownAdvice";
+import { selectStewardshipVerdict } from "@/lib/learningGenome/selectStewardshipVerdict";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -1054,6 +1057,24 @@ function JournalPageInner() {
   // until at least one component measures.
   const weekCoverage = selectDayModelCoverage(weekMisreadEntries);
   const edgeQuality = selectEdgeQualityIndex(weekGenome, weekCoverage);
+  // Canon §Daily Risk — same-day recovery-trade signature detection.
+  const todayEdgeEntries = todayEntries.map(e => ({
+    date: e.date,
+    result: e.result,
+    realizedR: e.realizedR,
+    processQuality: e.processQuality,
+    mfeR: e.mfeR,
+    maeR: e.maeR,
+  }));
+  const todayRecovery = selectRecoveryTradeDetector(todayEdgeEntries);
+  const todayShutdownAdvice = selectShutdownAdvice(todayRs);
+  // Canon §Stewardship — one end-of-day verdict composed from
+  // process grade + shutdown state + recovery detection.
+  const todayStewardship = selectStewardshipVerdict({
+    process_grade: todayProcessScore.grade,
+    shutdown_state: todayShutdownAdvice.state,
+    recovery_candidate_count: todayRecovery.candidates.length,
+  });
   // Canon §A-Setup-Only Doctrine (Top-Down Process 2026-08-24):
   // "Live capital is reserved for A and A+ setups only." Grade each
   // week entry post-hoc: since only realizedR is stored (planned-R
@@ -1503,6 +1524,36 @@ Trade the system, trust the process, winners every day 🚀`,
               no dominant misread (empty week or tie). Dominant surfaces
               the most-common single mistake shape across the 7-day window
               — actionable teach signal that pairs with the Genome chip. */}
+          {/* STEWARDSHIP verdict chip — canon §Stewardship. One
+              end-of-day answer: HELD / MIXED / BROKEN / (silent
+              when INSUFFICIENT_EVIDENCE). Highest-signal chip on
+              the header — canon: "Win condition = faithful execution
+              and stewardship, not P&L alone." */}
+          {todayStewardship.verdict !== "INSUFFICIENT_EVIDENCE" && (
+            <span
+              title={todayStewardship.reasons.map(r => `${r.message} [${r.canon}]`).join(" · ")}
+              className={clsx(
+                "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                todayStewardship.verdict === "HELD" && "bg-wm-green/15 text-wm-green border-wm-green/40",
+                todayStewardship.verdict === "MIXED" && "bg-wm-surface text-wm-text border-wm-border",
+                todayStewardship.verdict === "BROKEN" && "bg-wm-red/15 text-wm-red border-wm-red/50",
+              )}
+              aria-label={`Today's stewardship verdict: ${todayStewardship.verdict.toLowerCase()}`}
+            >
+              STEWARD · {todayStewardship.verdict === "HELD" ? "✓ HELD" : todayStewardship.verdict === "BROKEN" ? "✕ BROKEN" : "MIXED"}
+            </span>
+          )}
+          {/* Recovery-trade tell (canon §Daily Risk): highlights when
+              a same-day recovery signature is detected. Silent when 0. */}
+          {todayRecovery.candidates.length > 0 && (
+            <span
+              title={`${todayRecovery.candidates.length} recovery-trade signature${todayRecovery.candidates.length === 1 ? "" : "s"} detected today · canon §Daily Risk: a loss does not create permission for a recovery trade`}
+              className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-wm-red/50 bg-wm-red/15 text-wm-red"
+              aria-label={`Recovery trade detected: ${todayRecovery.candidates.length} candidate${todayRecovery.candidates.length === 1 ? "" : "s"}`}
+            >
+              RECOVERY · {todayRecovery.candidates.length}
+            </span>
+          )}
           {/* PROCESS grade chip — canon §14 Process before P&L.
               Silent until >=3 categories measured today. Color-coded
               by canon grade thresholds. */}
