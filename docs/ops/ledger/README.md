@@ -65,3 +65,8 @@ Implementation Ledger. Suggested workflow:
 - `2026-08-25-verification-close.md` — prod recovered at the 00:00 UTC reset
   (login 200); DESKTOP visual gate CLOSED for the mode band + routed question
   (verified in the Founder's Chrome). Mobile 390px screenshot still open.
+- `2026-08-25-p6-passport-whynot.md` — P6 Market Object Passport (`7cb9fd9`)
+  + WHY / WHY NOT (`58a5cee`). Both pure view models + display panels wired
+  into `/command-deck`, tested (61/61 green), deployed, and VERIFIED LIVE on
+  desktop via the Founder's authenticated Chrome. Mobile 390px gate still
+  open. Evidence-Reversibility Moat made visible.
