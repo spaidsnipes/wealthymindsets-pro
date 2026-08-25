@@ -35,7 +35,7 @@ import { captureEfficiency } from "@/lib/proofLane/captureEfficiency";
 import { selectSessionEdge } from "@/lib/proofLane/selectSessionEdge";
 import { selectLearningGenome } from "@/lib/learningGenome/selectLearningGenome";
 import { prescribeDrill } from "@/lib/learningGenome/prescribeDrill";
-import { selectMisreadMap, type MisreadEntry } from "@/lib/learningGenome/selectMisreadMap";
+import { selectMisreadMap, classifyMisread, type MisreadEntry } from "@/lib/learningGenome/selectMisreadMap";
 import { genomeTrend } from "@/lib/learningGenome/genomeTrend";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
@@ -875,6 +875,12 @@ function JournalPageInner() {
   const [filterContract, setFilterContract] = useState<"all"|"stock"|"option">("all");
   // J-Bkt 9: starred-only filter. One-click "show me my best trades" review.
   const [filterStarred, setFilterStarred] = useState(false);
+  // Canon §9 Trader Misread Map filter — click the MISREAD chip in the
+  // header to isolate all trades that fell into that misread bucket
+  // (drill-in from diagnostic to specific entries). "all" = no filter.
+  const [filterMisread, setFilterMisread] = useState<
+    "all" | "MISSED_SETUP" | "BROKE_PROCESS" | "POOR_MANAGEMENT" | "FULL_STOP_LOSS" | "UNRESOLVED_PROCESS" | "CLEAN"
+  >("all");
   const [lightbox,  setLightbox]  = useState<string | null>(null);
   const [mainTab,   setMainTab]   = useState<"journal"|"coach"|"songs">("journal");
 
@@ -916,7 +922,16 @@ function JournalPageInner() {
       (filterProcessOutcome === "all" || e.processOutcome === filterProcessOutcome) &&
       (filterDayModel === "all" || e.dayModel === filterDayModel) &&
       (filterContract === "all" || (e.contractType ?? "stock") === filterContract) &&
-      (!filterStarred || e.starred)
+      (!filterStarred || e.starred) &&
+      (filterMisread === "all" || classifyMisread({
+        date: e.date,
+        result: e.result,
+        realizedR: e.realizedR,
+        processQuality: e.processQuality,
+        mfeR: e.mfeR,
+        maeR: e.maeR,
+        dayModel: e.dayModel,
+      }) === filterMisread)
     );
   });
   const linkedMatchCount = linkedFilterActive ? linkedEntries.length : 0;
@@ -1442,16 +1457,24 @@ Trade the system, trust the process, winners every day 🚀`,
             </span>
           )}
           {weekMisread.dominant && weekMisread.dominant !== "CLEAN" && (
-            <span
-              title={`Last 7 days · ${weekMisread.sample_size} trades · MISSED_SETUP ${weekMisread.counts.MISSED_SETUP} · BROKE_PROCESS ${weekMisread.counts.BROKE_PROCESS} · POOR_MANAGEMENT ${weekMisread.counts.POOR_MANAGEMENT} · FULL_STOP_LOSS ${weekMisread.counts.FULL_STOP_LOSS} · UNRESOLVED ${weekMisread.counts.UNRESOLVED_PROCESS} · CLEAN ${weekMisread.counts.CLEAN}`}
-              className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-wm-red/40 bg-wm-red/10 text-wm-red"
-              aria-label={`Dominant misread this week: ${weekMisread.dominant.replaceAll("_", " ").toLowerCase()}, ${weekMisread.counts[weekMisread.dominant]} of ${weekMisread.sample_size} trades`}
+            <button
+              type="button"
+              onClick={() => setFilterMisread(prev => prev === weekMisread.dominant ? "all" : (weekMisread.dominant ?? "all"))}
+              aria-pressed={filterMisread === weekMisread.dominant}
+              title={`Click to filter journal to ${weekMisread.dominant.replaceAll("_", " ").toLowerCase()} trades only. Last 7 days · ${weekMisread.sample_size} trades · MISSED_SETUP ${weekMisread.counts.MISSED_SETUP} · BROKE_PROCESS ${weekMisread.counts.BROKE_PROCESS} · POOR_MANAGEMENT ${weekMisread.counts.POOR_MANAGEMENT} · FULL_STOP_LOSS ${weekMisread.counts.FULL_STOP_LOSS} · UNRESOLVED ${weekMisread.counts.UNRESOLVED_PROCESS} · CLEAN ${weekMisread.counts.CLEAN}`}
+              className={clsx(
+                "px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all",
+                filterMisread === weekMisread.dominant
+                  ? "bg-wm-red/25 text-wm-red border-wm-red/60"
+                  : "bg-wm-red/10 text-wm-red border-wm-red/40 hover:bg-wm-red/20",
+              )}
             >
               MISREAD · {weekMisread.dominant.replaceAll("_", " ")}
               <span className="ml-1 opacity-75">
                 {weekMisread.counts[weekMisread.dominant]}/{weekMisread.sample_size}
               </span>
-            </span>
+              {filterMisread === weekMisread.dominant && <span className="ml-1">✕</span>}
+            </button>
           )}
         </div>
         <div className="ml-auto flex items-center gap-2">
