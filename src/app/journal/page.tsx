@@ -39,6 +39,7 @@ import { selectMisreadMap, classifyMisread, type MisreadEntry } from "@/lib/lear
 import { genomeTrend } from "@/lib/learningGenome/genomeTrend";
 import { LearningGenomeInspector } from "@/components/learningGenome/LearningGenomeInspector";
 import { selectFocusStreak } from "@/lib/learningGenome/selectFocusStreak";
+import { selectSetupGrade, summarizeSetupGrades } from "@/lib/learningGenome/selectSetupGrade";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -1029,6 +1030,13 @@ function JournalPageInner() {
   // in what order) stays in the Journal detail. Entries are
   // stored newest-first in the array as loaded.
   const focusStreak = selectFocusStreak(weekEdgeEntries);
+  // Canon §A-Setup-Only Doctrine (Top-Down Process 2026-08-24):
+  // "Live capital is reserved for A and A+ setups only." Grade each
+  // week entry post-hoc and summarize; surface the live-capital rate.
+  const weekSetupGrades = weekEntries.map(e =>
+    selectSetupGrade({ dayModel: e.dayModel, plannedR: e.plannedR, processQuality: e.processQuality })
+  );
+  const setupGradeSummary = summarizeSetupGrades(weekSetupGrades);
 
   const saveEntry = () => {
     const e = { ...(form as JournalEntry) };
@@ -1450,6 +1458,27 @@ Trade the system, trust the process, winners every day 🚀`,
               no dominant misread (empty week or tie). Dominant surfaces
               the most-common single mistake shape across the 7-day window
               — actionable teach signal that pairs with the Genome chip. */}
+          {/* A-SETUP chip — canon §A-Setup-Only Doctrine. Shows
+              "N of M authorized" where N = A/A+ trades and M = non-M0
+              live-capital-eligible entries this week. Silent when
+              nothing tradeable was logged. */}
+          {setupGradeSummary.live_capital_rate !== undefined && (
+            <span
+              title={`Last 7 days · ${setupGradeSummary.live_capital_qualified} of ${setupGradeSummary.a_plus + setupGradeSummary.a + setupGradeSummary.b_plus + setupGradeSummary.b} non-M0 trades met the A/A+ live-capital threshold · A+ ${setupGradeSummary.a_plus} · A ${setupGradeSummary.a} · B+ ${setupGradeSummary.b_plus} · B ${setupGradeSummary.b} · NO_TRADE ${setupGradeSummary.no_trade}`}
+              className={clsx(
+                "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                setupGradeSummary.live_capital_rate >= 0.75 && "bg-wm-gold/15 text-wm-gold border-wm-gold/40",
+                setupGradeSummary.live_capital_rate < 0.75 && setupGradeSummary.live_capital_rate >= 0.4 && "bg-wm-surface text-wm-text border-wm-border",
+                setupGradeSummary.live_capital_rate < 0.4 && "bg-wm-red/10 text-wm-red border-wm-red/30",
+              )}
+              aria-label={`A-setup rate: ${Math.round(setupGradeSummary.live_capital_rate * 100)}% of tradeable entries met live-capital grade`}
+            >
+              A-SETUP · {setupGradeSummary.live_capital_qualified}/{setupGradeSummary.a_plus + setupGradeSummary.a + setupGradeSummary.b_plus + setupGradeSummary.b}
+              <span className="ml-1 opacity-75">
+                ({Math.round(setupGradeSummary.live_capital_rate * 100)}%)
+              </span>
+            </span>
+          )}
           {/* FOCUS streak chip — canon §Public Blessing. Silent when
               the current streak is 0 (no fabricated encouragement). */}
           {focusStreak.current >= 3 && (
