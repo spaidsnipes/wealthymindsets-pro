@@ -31,6 +31,7 @@ import { captureEfficiency } from "@/lib/proofLane/captureEfficiency";
 import { selectSessionEdge } from "@/lib/proofLane/selectSessionEdge";
 import { selectLearningGenome } from "@/lib/learningGenome/selectLearningGenome";
 import { prescribeDrill } from "@/lib/learningGenome/prescribeDrill";
+import { selectMisreadMap, type MisreadEntry } from "@/lib/learningGenome/selectMisreadMap";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -965,6 +966,19 @@ function JournalPageInner() {
   // dimension. Undefined when the Genome has no weakest (same silence
   // policy as the chip). No prescription from insufficient signal.
   const weekDrill = prescribeDrill(weekGenome);
+  // Canon §9 Trader Misread Map — deterministic single-bucket
+  // classification per trade. Dominant category surfaces the shape
+  // of the trader's most-common mistake; undefined on ties.
+  const weekMisreadEntries: MisreadEntry[] = weekEntries.map(e => ({
+    date: e.date,
+    result: e.result,
+    realizedR: e.realizedR,
+    processQuality: e.processQuality,
+    mfeR: e.mfeR,
+    maeR: e.maeR,
+    dayModel: e.dayModel,
+  }));
+  const weekMisread = selectMisreadMap(weekMisreadEntries);
 
   const saveEntry = () => {
     const e = { ...(form as JournalEntry) };
@@ -1346,6 +1360,22 @@ Trade the system, trust the process, winners every day 🚀`,
               {weekDrill && (
                 <span className="ml-1 opacity-75">· {weekDrill.stage}</span>
               )}
+            </span>
+          )}
+          {/* Misread Map chip — canon §9 Trader Misread Map. Silent when
+              no dominant misread (empty week or tie). Dominant surfaces
+              the most-common single mistake shape across the 7-day window
+              — actionable teach signal that pairs with the Genome chip. */}
+          {weekMisread.dominant && weekMisread.dominant !== "CLEAN" && (
+            <span
+              title={`Last 7 days · ${weekMisread.sample_size} trades · MISSED_SETUP ${weekMisread.counts.MISSED_SETUP} · BROKE_PROCESS ${weekMisread.counts.BROKE_PROCESS} · POOR_MANAGEMENT ${weekMisread.counts.POOR_MANAGEMENT} · FULL_STOP_LOSS ${weekMisread.counts.FULL_STOP_LOSS} · UNRESOLVED ${weekMisread.counts.UNRESOLVED_PROCESS} · CLEAN ${weekMisread.counts.CLEAN}`}
+              className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-wm-red/40 bg-wm-red/10 text-wm-red"
+              aria-label={`Dominant misread this week: ${weekMisread.dominant.replaceAll("_", " ").toLowerCase()}, ${weekMisread.counts[weekMisread.dominant]} of ${weekMisread.sample_size} trades`}
+            >
+              MISREAD · {weekMisread.dominant.replaceAll("_", " ")}
+              <span className="ml-1 opacity-75">
+                {weekMisread.counts[weekMisread.dominant]}/{weekMisread.sample_size}
+              </span>
             </span>
           )}
         </div>
