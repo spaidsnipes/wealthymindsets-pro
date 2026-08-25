@@ -40,6 +40,7 @@ import { genomeTrend } from "@/lib/learningGenome/genomeTrend";
 import { LearningGenomeInspector } from "@/components/learningGenome/LearningGenomeInspector";
 import { selectFocusStreak } from "@/lib/learningGenome/selectFocusStreak";
 import { selectSetupGrade, summarizeSetupGrades } from "@/lib/learningGenome/selectSetupGrade";
+import { selectDailyScore } from "@/lib/learningGenome/selectDailyScore";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -1040,6 +1041,23 @@ function JournalPageInner() {
     selectSetupGrade({ dayModel: e.dayModel, plannedR: e.realizedR, processQuality: e.processQuality })
   );
   const setupGradeSummary = summarizeSetupGrades(weekSetupGrades);
+  // Canon §14 today's Process Grade — 5-category score over today's
+  // entries. Hidden until >=3 categories are measurable. Reads the
+  // same today-derived data as SESSION R and shutdown.
+  const todayProcessScore = selectDailyScore({
+    entries: todayEntries.map(e => ({
+      date: e.date,
+      result: e.result,
+      realizedR: e.realizedR,
+      processQuality: e.processQuality,
+      mfeR: e.mfeR,
+      maeR: e.maeR,
+      dayModel: e.dayModel,
+    })),
+    // hadMorningPrep not observable from journal storage yet — this
+    // signal will wire in once /morning-prep exposes a same-day
+    // completion flag. For now, category is undefined (honest).
+  });
 
   const saveEntry = () => {
     const e = { ...(form as JournalEntry) };
@@ -1461,6 +1479,27 @@ Trade the system, trust the process, winners every day 🚀`,
               no dominant misread (empty week or tie). Dominant surfaces
               the most-common single mistake shape across the 7-day window
               — actionable teach signal that pairs with the Genome chip. */}
+          {/* PROCESS grade chip — canon §14 Process before P&L.
+              Silent until >=3 categories measured today. Color-coded
+              by canon grade thresholds. */}
+          {todayProcessScore.grade !== "INSUFFICIENT_EVIDENCE" && todayProcessScore.total !== undefined && (
+            <span
+              title={`Today's Process Score · ${todayProcessScore.total}/${todayProcessScore.measured_categories * 2} across ${todayProcessScore.measured_categories} measured categories · preparation ${todayProcessScore.preparation ?? "—"} · classification ${todayProcessScore.classification ?? "—"} · authorization ${todayProcessScore.authorization ?? "—"} · risk ${todayProcessScore.risk_management ?? "—"} · journal ${todayProcessScore.journal_completion ?? "—"}`}
+              className={clsx(
+                "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                todayProcessScore.grade === "A_PROCESS" && "bg-wm-gold/15 text-wm-gold border-wm-gold/40",
+                todayProcessScore.grade === "B_PROCESS" && "bg-wm-blue/10 text-wm-blue border-wm-blue/30",
+                todayProcessScore.grade === "C_PROCESS" && "bg-wm-surface text-wm-text border-wm-border",
+                todayProcessScore.grade === "PROCESS_FAILURE" && "bg-wm-red/10 text-wm-red border-wm-red/30",
+              )}
+              aria-label={`Today's process grade: ${todayProcessScore.grade.replaceAll("_", " ").toLowerCase()}`}
+            >
+              PROCESS · {todayProcessScore.grade.replace("_PROCESS", "").replace("PROCESS_FAILURE", "FAIL")}
+              <span className="ml-1 opacity-75">
+                {todayProcessScore.total}/{todayProcessScore.measured_categories * 2}
+              </span>
+            </span>
+          )}
           {/* A-SETUP chip — canon §A-Setup-Only Doctrine. Shows
               "N of M authorized" where N = A/A+ trades and M = non-M0
               live-capital-eligible entries this week. Silent when
