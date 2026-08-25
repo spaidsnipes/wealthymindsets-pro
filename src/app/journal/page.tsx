@@ -41,6 +41,7 @@ import { LearningGenomeInspector } from "@/components/learningGenome/LearningGen
 import { selectFocusStreak } from "@/lib/learningGenome/selectFocusStreak";
 import { selectSetupGrade, summarizeSetupGrades } from "@/lib/learningGenome/selectSetupGrade";
 import { selectDailyScore } from "@/lib/learningGenome/selectDailyScore";
+import { selectMentalGate } from "@/lib/learningGenome/selectMentalGate";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -885,6 +886,16 @@ function JournalPageInner() {
   const [filterMisread, setFilterMisread] = useState<
     "all" | "MISSED_SETUP" | "BROKE_PROCESS" | "POOR_MANAGEMENT" | "FULL_STOP_LOSS" | "UNRESOLVED_PROCESS" | "CLEAN"
   >("all");
+  // Canon §17 Mental Gate — trader answers 4 boolean self-checks
+  // before submitting a New Trade. undefined = unanswered. Reset on
+  // every fresh newMode entry (below in useEffect).
+  const [mentalGate, setMentalGate] = useState<{
+    calmAndClear?: boolean;
+    takenIfAlreadyAhead?: boolean;
+    skippedIfClcFailed?: boolean;
+    drivenByEvidenceNotNeed?: boolean;
+  }>({});
+  const mentalGateResult = selectMentalGate(mentalGate);
   // Canon §9: expand toggle for the full LearningGenomeInspector panel.
   // Diagnostic chip is always visible; full panel is a click away.
   const [showGenomePanel, setShowGenomePanel] = useState(false);
@@ -1117,6 +1128,7 @@ function JournalPageInner() {
     setEntries(prev => [e, ...prev]);
     setNewMode(false);
     setForm(emptyForm());
+    setMentalGate({}); // canon §17: fresh gate for the next trade
     voiceRec.reset();
     // Reward WM$ for journaling
     earnWMS(50, "📕 Journaled a completed decision");
@@ -2568,6 +2580,71 @@ Trade the system, trust the process, winners every day 🚀`,
                 )}
               </div>
 
+              {/* Canon §17 MENTAL GATE — 4 pre-trade self-checks.
+                  Not gated (canon: the trader is authoritative), but
+                  the verdict is visible so a WAIT answer is honest.
+                  Silent when M0 (no trade to gate). */}
+              {form.dayModel !== "M0" && (
+                <div className={clsx(
+                  "mb-4 rounded-xl border p-3",
+                  mentalGateResult.verdict === "PASS" && "border-wm-green/40 bg-wm-green/5",
+                  mentalGateResult.verdict === "WAIT" && "border-wm-red/40 bg-wm-red/5",
+                  mentalGateResult.verdict === "INSUFFICIENT_INPUT" && "border-wm-border bg-wm-surface/40",
+                )}>
+                  <div className="mb-2 flex items-baseline justify-between">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-wm-text-dim">
+                      Mental Gate · canon §17
+                    </div>
+                    <div className={clsx(
+                      "text-[10px] font-bold",
+                      mentalGateResult.verdict === "PASS" && "text-wm-green",
+                      mentalGateResult.verdict === "WAIT" && "text-wm-red",
+                      mentalGateResult.verdict === "INSUFFICIENT_INPUT" && "text-wm-text-dim",
+                    )}>
+                      {mentalGateResult.verdict === "PASS" && "✓ ACTION AUTHORIZED"}
+                      {mentalGateResult.verdict === "WAIT" && "✕ WAIT"}
+                      {mentalGateResult.verdict === "INSUFFICIENT_INPUT" && `${4 - mentalGateResult.unanswered.length}/4 answered`}
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    {([
+                      ["calmAndClear", "Am I calm and clear enough to follow the plan?"],
+                      ["takenIfAlreadyAhead", "Would I take this same setup if I were already ahead today?"],
+                      ["skippedIfClcFailed", "Would I still skip it if CLC failed?"],
+                      ["drivenByEvidenceNotNeed", "Is this evidence, not need?"],
+                    ] as const).map(([key, prompt]) => (
+                      <div key={key} className="flex items-center gap-2">
+                        <span className="text-[10px] text-wm-text flex-1">{prompt}</span>
+                        <button
+                          type="button"
+                          onClick={() => setMentalGate(g => ({ ...g, [key]: true }))}
+                          aria-pressed={mentalGate[key] === true}
+                          className={clsx(
+                            "min-h-8 min-w-11 rounded-md border px-2 text-[10px] font-bold transition-colors",
+                            mentalGate[key] === true
+                              ? "border-wm-green/50 bg-wm-green/15 text-wm-green"
+                              : "border-wm-border bg-wm-surface text-wm-text-muted hover:border-wm-green/30",
+                          )}
+                        >Yes</button>
+                        <button
+                          type="button"
+                          onClick={() => setMentalGate(g => ({ ...g, [key]: false }))}
+                          aria-pressed={mentalGate[key] === false}
+                          className={clsx(
+                            "min-h-8 min-w-11 rounded-md border px-2 text-[10px] font-bold transition-colors",
+                            mentalGate[key] === false
+                              ? "border-wm-red/50 bg-wm-red/15 text-wm-red"
+                              : "border-wm-border bg-wm-surface text-wm-text-muted hover:border-wm-red/30",
+                          )}
+                        >No</button>
+                      </div>
+                    ))}
+                  </div>
+                  {mentalGateResult.reason && mentalGateResult.verdict !== "PASS" && (
+                    <p className="mt-2 text-[10px] text-wm-text-muted italic leading-snug">{mentalGateResult.reason}</p>
+                  )}
+                </div>
+              )}
               <div className="mb-4 rounded-xl border border-wm-border bg-wm-surface/40 p-3">
                 <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-wm-text-dim">Process quality — separate from P&amp;L</div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
