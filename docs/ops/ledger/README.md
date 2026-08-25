@@ -70,3 +70,10 @@ Implementation Ledger. Suggested workflow:
   into `/command-deck`, tested (61/61 green), deployed, and VERIFIED LIVE on
   desktop via the Founder's authenticated Chrome. Mobile 390px gate still
   open. Evidence-Reversibility Moat made visible.
+- `2026-08-25-p8-receipt-job-emphasis.md` — P8 Decision Receipt (`186ca83`)
+  + Job-Emphasis (`ccd2e0a`). `selectDecisionReceipt` projects a sealed
+  DecisionMemoryRecord into a trader receipt (WAIT/NO_TRADE = complete; no
+  fabricated grade); `selectDeckEmphasis` re-emphasises the deck surfaces
+  around the human's current job. 209/209 green; deployed; VERIFIED LIVE on
+  desktop — proved the OBSERVE→REVIEW switch flips the Passport/Receipt
+  drawers. The "app → operating system" thesis made literal.
