@@ -111,3 +111,13 @@ Implementation Ledger. Suggested workflow:
   (Version `2f350623`); VERIFIED LIVE desktop: caption read the OBSERVE
   rationale, updated to the REVIEW rationale on switch, restored. "Every state
   must be explainable" applied to layout. Mobile 390px still open.
+- `2026-08-25-job-suggestion-confidence.md` — Job-Suggestion Confidence Scaling
+  (`7ef8925`). Pure `selectJobSuggestion(inference, currentMode)` resolves NONE /
+  ACTIONABLE (HIGH·MEDIUM divergence, gold chip) / HINT (LOW divergence, muted
+  dashed "Possibly →") so a weak guess never nags the human off their chosen
+  job; both stay clickable, WM never auto-switches. 6 tests; 68/68 green;
+  deployed (Version `792ad6ca`); VERIFIED LIVE desktop — MEDIUM WAIT divergence
+  rendered the ACTIONABLE gold chip (solid border, opacity 1) confirmed by
+  computed style. HINT variant NOT observed live (no LOW divergence in market).
+  Mobile 390px root-caused: resize_window reports success but innerWidth stays
+  1475 — the display won't render sub-640px, so responsive rules never fire.
