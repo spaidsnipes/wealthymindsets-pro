@@ -62,3 +62,6 @@ Implementation Ledger. Suggested workflow:
   one dominant question on /command-deck from (job mode) × canonical One
   Story signals. Deployed (Worker `ab64ff85`); visual verification still
   blocked by the same Error 1027 outage.
+- `2026-08-25-verification-close.md` — prod recovered at the 00:00 UTC reset
+  (login 200); DESKTOP visual gate CLOSED for the mode band + routed question
+  (verified in the Founder's Chrome). Mobile 390px screenshot still open.
