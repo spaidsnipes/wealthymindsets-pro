@@ -51,6 +51,7 @@ import { shellEmphasis } from "@/lib/experience/shellLayout";
 import { routeQuestion } from "@/lib/experience/questionRouter";
 import { selectDeckEmphasis, surfaceOrder } from "@/lib/experience/selectDeckEmphasis";
 import { inferJobMode } from "@/lib/experience/inferJobMode";
+import { selectJobSuggestion } from "@/lib/experience/selectJobSuggestion";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -285,8 +286,11 @@ function CommandDeckInner() {
       hasResolvedMarketState: passport.resolvedCount > 0,
     });
   }, [decisionRecords, oneStory, passport]);
-  const suggestJob =
-    jobInference.suggested !== experienceContext.mode ? jobInference : null;
+  // Scale the suggestion's insistence to the inference confidence: a firm
+  // (HIGH/MEDIUM) divergence earns a full accept-chip; a LOW-confidence guess
+  // drops to a quiet hint so the OS never nags the human off their chosen job.
+  // Still suggestion-only — the chip stays clickable, WM never auto-switches.
+  const jobSuggestion = selectJobSuggestion(jobInference, experienceContext.mode);
 
   // Deck-level job emphasis: which decision surface LEADS, which contextual
   // drawer opens by default, and the physical top-to-bottom order of the four
@@ -465,38 +469,51 @@ function CommandDeckInner() {
         >
           {experienceQuestion}
         </div>
-        {/* Job-mode SUGGESTION (inferJobMode). Appears only when the inferred
-            job differs from the human's current selection. Read-only nudge:
-            clicking accepts it; WM never auto-switches the job. */}
-        {suggestJob && (
-          <button
-            type="button"
-            onClick={() => setExperienceMode(suggestJob.suggested)}
-            title={suggestJob.reason}
-            style={{
-              marginTop: 6,
-              alignSelf: "flex-start",
-              display: "inline-flex",
-              alignItems: "baseline",
-              gap: 6,
-              background: "transparent",
-              border: "1px solid rgba(212,175,55,0.35)",
-              borderRadius: 999,
-              padding: "3px 10px",
-              cursor: "pointer",
-              fontSize: 10,
-              letterSpacing: 0.4,
-              color: "#c9a55c",
-              textTransform: "uppercase",
-            }}
-          >
-            <span style={{ color: "#8a8271" }}>Suggested job →</span>
-            <span style={{ color: "#d4af37", fontWeight: 600 }}>{suggestJob.suggested}</span>
-            <span style={{ color: "#8a8271", textTransform: "none", letterSpacing: 0.2 }}>
-              {suggestJob.reason}
-            </span>
-          </button>
-        )}
+        {/* Job-mode SUGGESTION (inferJobMode → selectJobSuggestion). Appears
+            only when the inferred job differs from the human's current
+            selection. Read-only nudge: clicking accepts it; WM never
+            auto-switches the job. The chip's insistence scales with confidence
+            — a firm ACTIONABLE divergence gets a gold accent + "Suggested job",
+            a LOW-confidence HINT is muted + "Possibly →" so a weak guess never
+            nags the human off their chosen job. */}
+        {jobSuggestion.strength !== "NONE" && jobSuggestion.inference && (() => {
+          const sug = jobSuggestion.inference;
+          const hint = jobSuggestion.strength === "HINT";
+          return (
+            <button
+              type="button"
+              onClick={() => setExperienceMode(sug.suggested)}
+              title={sug.reason}
+              style={{
+                marginTop: 6,
+                alignSelf: "flex-start",
+                display: "inline-flex",
+                alignItems: "baseline",
+                gap: 6,
+                background: "transparent",
+                border: hint
+                  ? "1px dashed rgba(138,130,113,0.35)"
+                  : "1px solid rgba(212,175,55,0.35)",
+                borderRadius: 999,
+                padding: "3px 10px",
+                cursor: "pointer",
+                fontSize: 10,
+                letterSpacing: 0.4,
+                color: "#c9a55c",
+                textTransform: "uppercase",
+                opacity: hint ? 0.72 : 1,
+              }}
+            >
+              <span style={{ color: "#8a8271" }}>{hint ? "Possibly →" : "Suggested job →"}</span>
+              <span style={{ color: hint ? "#c9a55c" : "#d4af37", fontWeight: 600 }}>
+                {sug.suggested}
+              </span>
+              <span style={{ color: "#8a8271", textTransform: "none", letterSpacing: 0.2 }}>
+                {sug.reason}
+              </span>
+            </button>
+          );
+        })()}
       </div>
 
       <main style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 16px", position: "relative" }}>
