@@ -848,6 +848,11 @@ function JournalPageInner() {
   // panel renders NOTHING (silence-is-a-feature §14).
   const authCtx = useAuthCtx();
   const journalSnapshots = useJournalSnapshots(authCtx?.user?.id ?? null);
+  // Canon §14 Preparation category — shared morning-prep read for both
+  // the TodayIntentStrip (line 731 component) AND the selectDailyScore
+  // wire-in below. Reads today's morning-prep entry (if any) so surfaces
+  // outside /morning-prep can surface the trader's stated intention.
+  const todayPrep = useTodayPrep(authCtx?.user?.id ?? null);
   const mirrorNowMs = useMemo(() => Date.now(), [journalSnapshots.length]);
   const mirrorVm = useMemo(
     () =>
@@ -1095,7 +1100,7 @@ function JournalPageInner() {
       maeR: e.maeR,
       dayModel: e.dayModel,
     })),
-    hadMorningPrep: prep.hasEntry,
+    hadMorningPrep: todayPrep.hasEntry,
   });
   // Canon §Daily Risk — same-day recovery-trade signature detection.
   const todayRecovery = selectRecoveryTradeDetector(todayEdgeEntries);
