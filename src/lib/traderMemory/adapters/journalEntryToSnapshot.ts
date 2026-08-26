@@ -68,26 +68,38 @@ export function journalEntryToSnapshot(
     ? entry.setup.toLowerCase().replace(/\s+/g, "-")
     : "unspecified";
 
-  // Rule adherence: infer from processQuality — GREAT/GOOD → adherence;
-  // MID/POOR/UNRESOLVED → non-adherence. Never fabricates a self-report.
+  // Rule adherence: infer from processQuality.
+  // Current canon (Top-Down §journalProcess): FOLLOWED_PLAN → adherence;
+  // BROKE_RULES / UNRESOLVED → non-adherence.
+  // Legacy ordinal (pre-2026-08 canon): GREAT/GOOD → adherence.
+  // Never fabricates a self-report.
   const ruleAdherenceAtDecision =
-    entry.processQuality === "GREAT" || entry.processQuality === "GOOD";
+    entry.processQuality === "FOLLOWED_PLAN" ||
+    entry.processQuality === "GREAT" ||
+    entry.processQuality === "GOOD";
 
-  // Review composite: only populated when processQuality resolved.
+  // Review composite: only populated for LEGACY ordinal processQuality
+  // (GREAT/GOOD/MID/POOR) which encoded a 1-5 quality score. Current
+  // canon FOLLOWED_PLAN/BROKE_RULES is binary discipline, not a quality
+  // ordinal — so review stays undefined and callers read
+  // ruleAdherenceAtDecision instead. Prevents fake per-dimension 1-5
+  // scores from a binary source (canon §Truth Resolution Matrix).
   const reviewedAt = capturedAt;
-  const qualityScore =
+  const legacyOrdinal: 5 | 4 | 3 | 2 | 1 | null =
     entry.processQuality === "GREAT" ? 5 :
     entry.processQuality === "GOOD"  ? 4 :
     entry.processQuality === "MID"   ? 3 :
-    entry.processQuality === "POOR"  ? 2 : 1;
-  const review = entry.processQuality && entry.processQuality !== "UNRESOLVED"
+    entry.processQuality === "POOR"  ? 2 :
+    entry.processQuality === "TERRIBLE" ? 1 :
+    null;
+  const review = legacyOrdinal !== null
     ? {
         reviewedAt,
-        marketOpportunityQuality: qualityScore as 1 | 2 | 3 | 4 | 5,
-        playbookMatch: qualityScore as 1 | 2 | 3 | 4 | 5,
-        riskQuality: qualityScore as 1 | 2 | 3 | 4 | 5,
-        executionQuality: qualityScore as 1 | 2 | 3 | 4 | 5,
-        processAdherence: qualityScore as 1 | 2 | 3 | 4 | 5,
+        marketOpportunityQuality: legacyOrdinal,
+        playbookMatch: legacyOrdinal,
+        riskQuality: legacyOrdinal,
+        executionQuality: legacyOrdinal,
+        processAdherence: legacyOrdinal,
       }
     : undefined;
 
