@@ -54,6 +54,25 @@ describe("inferJobMode", () => {
     }
   });
 
+  it("suggests OBSERVE with MEDIUM confidence on a NO TRADE verdict (decisive, not thin)", () => {
+    // NO TRADE is a compiled engine verdict — the setup was hard-rejected. It must
+    // NOT fall through to the LOW/PREP default, and it must NOT be treated as WAIT
+    // (nothing is pending; the thesis was rejected). The honest job is OBSERVE at
+    // the same MEDIUM tier as the other concrete right-of-way verdicts.
+    const r = inferJobMode({ ...NONE, decision: "NO TRADE", hasResolvedMarketState: true });
+    expect(r.suggested).toBe("OBSERVE");
+    expect(r.confidence).toBe("MEDIUM");
+    expect(r.reason).toMatch(/no valid trade/i);
+  });
+
+  it("treats NO TRADE as decisive even with no resolved market-state flag", () => {
+    // Even absent the hasResolvedMarketState hint, a NO TRADE verdict is concrete
+    // enough to answer the job — it must not decay to PREP.
+    const r = inferJobMode({ ...NONE, decision: "NO TRADE" });
+    expect(r.suggested).toBe("OBSERVE");
+    expect(r.confidence).toBe("MEDIUM");
+  });
+
   it("suggests OBSERVE with LOW confidence when state resolves but there is no verdict", () => {
     const r = inferJobMode({ ...NONE, hasResolvedMarketState: true, decision: "UNKNOWN" });
     expect(r.suggested).toBe("OBSERVE");

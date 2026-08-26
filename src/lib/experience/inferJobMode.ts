@@ -72,6 +72,16 @@ export function inferJobMode(signals: JobModeSignals): JobModeInference {
     return build("WAIT", "Right-of-way is withheld — hold the thesis and wait.", "MEDIUM");
   }
 
+  // 4b. The engine hard-rejected the setup (NO TRADE) — this is a decisive
+  //     compiled verdict, not a thin no-signal state, so it must not fall through
+  //     to the LOW/PREP default. There is no valid trade here; the honest job is
+  //     to stand down and watch (OBSERVE), at the same MEDIUM tier as the other
+  //     concrete right-of-way verdicts. Waiting would be wrong — nothing is
+  //     pending; the thesis was rejected, not deferred.
+  if (signals.decision === "NO TRADE") {
+    return build("OBSERVE", "No valid trade here — stand down and watch.", "MEDIUM");
+  }
+
   // 5. Market state is resolving but there is no thesis yet — watch.
   if (signals.hasResolvedMarketState) {
     return build("OBSERVE", "Market state is resolving with no position — watch.", "LOW");
