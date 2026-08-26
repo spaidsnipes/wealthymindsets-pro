@@ -153,3 +153,14 @@ Implementation Ledger. Suggested workflow:
   across BOTH the inferred job and the dominant question (every compiled verdict —
   ACTION / WAIT / NO TRADE / CAUTION / UNKNOWN — now answered truthfully). +3 tests;
   76→79 green; tsc clean for changed files. NOT DEPLOYED (same parallel-builder gate).
+- `2026-08-26-atoms-deploy-1027-block.md` — **DEPLOY milestone.** Single
+  `deploy:cf` carried origin/main `61c09f1` (the four atoms `5b12ced` / `e374845`
+  / `a91c8da` / `04a2007` PLUS the release-blocking journal TS2448 fix `61c09f1`)
+  to Cloudflare. Build's TypeScript gate PASSED (journal fix cleared the sole
+  error); Worker uploaded — new **Version `1a17536d-97a2-458d-9cb1-cab06e63225b`**.
+  Atoms advanced TESTED → DEPLOYED. BUT prod is serving **Error 1027** (Workers
+  free-plan daily quota exhausted at ~08:42 UTC) on every origin — Gate 3 (route)
+  + Gate 4 (live/visual) BLOCKED; atoms DEPLOYED but NOT OBSERVED/VERIFIED.
+  Founder-only fix: upgrade Workers plan (or 00:00 UTC reset). Build ran from the
+  isolated worktree after converting its `node_modules` symlink to an APFS COW
+  clone (Turbopack rejects the out-of-root symlink).
