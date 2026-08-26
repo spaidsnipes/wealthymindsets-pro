@@ -115,6 +115,86 @@ describe("LearningGenomeInspector — canon §9 presentation", () => {
     expect(html).toContain("Clean 4");
   });
 
+  it("renders v1.1.0 Streaks & Coverage chips when signals are supplied", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(LearningGenomeInspector, {
+        genome: EMPTY_GENOME,
+        drill: undefined,
+        misread: EMPTY_MISREAD,
+        trend: EMPTY_TREND,
+        focusStreak: { current: 4, best: 7, sample_size: 12 },
+        ruleAdherenceStreak: { current: 3, best: 5, days_measured: 6 },
+        dayModelCoverage: {
+          m0: 1,
+          m1: 5,
+          m2: 2,
+          unclassified: 1,
+          sample_size: 9,
+          classification_rate: 8 / 9,
+          m1_share: 5 / 8,
+          m2_share: 2 / 8,
+        },
+        dualSideGuard: {
+          pairs: [],
+          hazards: [
+            {
+              date: "2026-08-26",
+              symbol: "TSLA",
+              long_side_count: 1,
+              short_side_count: 1,
+              exempted: false,
+              exempt_reason: null,
+            },
+          ],
+          days_scanned: 1,
+          symbols_scanned: 1,
+          sample_size: 2,
+        },
+      }),
+    );
+    expect(html).toContain("Streaks &amp; Coverage");
+    expect(html).toContain("Focus streak 4");
+    expect(html).toContain("best 7");
+    expect(html).toContain("Rule days 3");
+    expect(html).toContain("M0·1");
+    expect(html).toContain("M1·5");
+    expect(html).toContain("M2·2");
+    expect(html).toContain("Dual-side hazard · 1");
+  });
+
+  it("stays silent on Streaks & Coverage when no signals supplied", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(LearningGenomeInspector, {
+        genome: EMPTY_GENOME,
+        drill: undefined,
+        misread: EMPTY_MISREAD,
+        trend: EMPTY_TREND,
+      }),
+    );
+    expect(html).not.toContain("Streaks &amp; Coverage");
+    expect(html).not.toContain("Dual-side");
+  });
+
+  it("renders Dual-side clean chip when guard scanned days but found no hazards", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(LearningGenomeInspector, {
+        genome: EMPTY_GENOME,
+        drill: undefined,
+        misread: EMPTY_MISREAD,
+        trend: EMPTY_TREND,
+        dualSideGuard: {
+          pairs: [],
+          hazards: [],
+          days_scanned: 3,
+          symbols_scanned: 4,
+          sample_size: 12,
+        },
+      }),
+    );
+    expect(html).toContain("Dual-side clean");
+    expect(html).not.toContain("hazard ·");
+  });
+
   it("formats TRANSFER score as R, not percent (canon: R is bounded, % is not)", () => {
     const genome: LearningGenome = {
       ...EMPTY_GENOME,
