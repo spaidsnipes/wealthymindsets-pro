@@ -36,6 +36,7 @@ import { selectSessionEdge } from "@/lib/proofLane/selectSessionEdge";
 import { selectLearningGenome } from "@/lib/learningGenome/selectLearningGenome";
 import { prescribeDrill } from "@/lib/learningGenome/prescribeDrill";
 import { selectMisreadMap, classifyMisread, type MisreadEntry } from "@/lib/learningGenome/selectMisreadMap";
+import { selectSameDayDualSideGuard, type BiasSide } from "@/lib/learningGenome/selectSameDayDualSideGuard";
 import { genomeTrend } from "@/lib/learningGenome/genomeTrend";
 import { LearningGenomeInspector } from "@/components/learningGenome/LearningGenomeInspector";
 import { selectFocusStreak } from "@/lib/learningGenome/selectFocusStreak";
@@ -1024,6 +1025,18 @@ function JournalPageInner() {
     dayModel: e.dayModel,
   }));
   const weekMisread = selectMisreadMap(weekMisreadEntries);
+  // Canon §SAME-DAY DUAL-SIDE GUARD (Top-Down 2026-08-25) — scan
+  // week's entries for long+short on the same underlying same day
+  // that were NOT part of a predeclared multi-leg strategy. Tag map
+  // reads `multiLegTag` from entry.tags (looks for straddle/strangle/
+  // iron_condor/hedge/collar so a canonical tag on any leg exempts).
+  const weekDualSideEntries = weekEntries.map(e => ({
+    date: e.date,
+    symbol: e.symbol,
+    side: (e.side === "long" ? "long" : "short") as BiasSide,
+    multiLegTag: (e.tags || []).join(","),
+  }));
+  const weekDualSideGuard = selectSameDayDualSideGuard(weekDualSideEntries);
   // Genome trend — canon §9 "distinguish skill from luck". Compare
   // current 7-day window to the prior 7-day window (days -14 to -7)
   // and surface most_improved / most_degraded. Silent when no
@@ -1684,6 +1697,21 @@ Trade the system, trust the process, winners every day 🚀`,
               </span>
               {filterMisread === weekMisread.dominant && <span className="ml-1">✕</span>}
             </button>
+          )}
+          {/* DUAL-SIDE guard chip — canon §SAME-DAY DUAL-SIDE GUARD
+              (Top-Down 2026-08-25). Silent when no unexempted
+              long+short pair on the same underlying same day.
+              Red atmosphere signals a discipline hazard (long+short
+              on the same symbol without a predeclared multi-leg
+              strategy tag). Tooltip lists offending {date,symbol}. */}
+          {weekDualSideGuard.hazards.length > 0 && (
+            <span
+              title={`${weekDualSideGuard.hazards.length} same-day dual-side ${weekDualSideGuard.hazards.length === 1 ? "hazard" : "hazards"} · ${weekDualSideGuard.hazards.map(h => `${h.symbol} ${h.date} (long ${h.long_side_count} / short ${h.short_side_count})`).join(" · ")}`}
+              className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-wm-red/50 bg-wm-red/15 text-wm-red"
+              aria-label={`Dual-side guard: ${weekDualSideGuard.hazards.length} hazard${weekDualSideGuard.hazards.length === 1 ? "" : "s"} this week — canon §Same-Day Dual-Side Guard`}
+            >
+              DUAL-SIDE · {weekDualSideGuard.hazards.length}
+            </span>
           )}
         </div>
         <div className="ml-auto flex items-center gap-2">
