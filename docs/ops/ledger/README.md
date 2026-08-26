@@ -121,3 +121,16 @@ Implementation Ledger. Suggested workflow:
   computed style. HINT variant NOT observed live (no LOW divergence in market).
   Mobile 390px root-caused: resize_window reports success but innerWidth stays
   1475 — the display won't render sub-640px, so responsive rules never fire.
+- `2026-08-25-refinement-note-and-notrade.md` — two isolated experience-layer
+  atoms landed under active parallel-builder conditions (a concurrent
+  learning-genome thread was committing to `main`): `5b12ced` makes the layout
+  caption NAME a signal-driven surface reorder (contradiction-raises-WHY /
+  empty-Receipt-sink) instead of moving silently, via a new
+  `DeckEmphasis.refinementNote` (null when a signal was a no-op — never a false
+  claim); `e374845` fills a hole in `inferJobMode` so a compiled `NO TRADE`
+  verdict infers OBSERVE ("stand down and watch") at MEDIUM confidence instead of
+  decaying to the LOW/PREP fallback. 74/74 experience green; tsc clean. Built in
+  an isolated git worktree (`shift/deck-emphasis-explain`) per ATHOS
+  one-builder-per-branch law. NOT DEPLOYED — deferred to a settled, type-clean
+  `main` (`origin/main` @ `285a14b` carried a transient `journal/page.tsx` type
+  error already fixed in the owning builder's unpushed WIP).
