@@ -34,8 +34,13 @@ import {
   type MisreadMap,
 } from "./selectMisreadMap";
 import { genomeTrend, type GenomeTrend } from "./genomeTrend";
+// SHIFT-N atom 4 additions — 2026-08-25 canon amendments.
+import { selectSameDayDualSideGuard, type BiasSide, type DualSideGuardResult } from "./selectSameDayDualSideGuard";
+import { selectFocusStreak, type FocusStreak } from "./selectFocusStreak";
+import { selectRuleAdherenceStreak, type RuleAdherenceStreak } from "./selectRuleAdherenceStreak";
+import { selectDayModelCoverage, type DayModelCoverage } from "./selectDayModelCoverage";
 
-export const LEARNING_GENOME_JSON_SCHEMA_VERSION = "1.0.0" as const;
+export const LEARNING_GENOME_JSON_SCHEMA_VERSION = "1.1.0" as const;
 
 export interface LearningGenomeBundle {
   readonly version: string;
@@ -50,6 +55,11 @@ export interface LearningGenomeBundle {
   readonly drill: DrillPrescription | undefined;
   readonly misread: MisreadMap;
   readonly trend: GenomeTrend;
+  // v1.1.0 additions — 2026-08-25 canon primitives.
+  readonly focus_streak: FocusStreak;
+  readonly rule_adherence_streak: RuleAdherenceStreak;
+  readonly day_model_coverage: DayModelCoverage;
+  readonly dual_side_guard: DualSideGuardResult;
 }
 
 export interface LearningGenomeInput {
@@ -93,6 +103,21 @@ export function buildLearningGenomeBundle(
   const drill = prescribeDrill(genome);
   const misread = selectMisreadMap(input.currentEntries);
   const trend = genomeTrend(genome, priorGenome);
+  // v1.1.0 — additional canon primitives from 2026-08-25 amendments.
+  const focus_streak = selectFocusStreak(currentEdge);
+  const rule_adherence_streak = selectRuleAdherenceStreak(currentEdge);
+  const day_model_coverage = selectDayModelCoverage(input.currentEntries);
+  // dual-side guard — MisreadEntry doesn't carry symbol/side, so derive
+  // from the edge shape only if callers supply the extended data. When
+  // symbol/side aren't on the input record, the guard returns an empty
+  // result set (canon: no fabrication).
+  const dualSideInputs = (input.currentEntries as readonly (MisreadEntry & { symbol?: string; side?: BiasSide })[])
+    .filter((e): e is MisreadEntry & { symbol: string; side: BiasSide } =>
+      typeof e.symbol === "string" && e.symbol.length > 0 &&
+      (e.side === "long" || e.side === "short" || e.side === "call" || e.side === "put"),
+    )
+    .map((e) => ({ date: e.date, symbol: e.symbol, side: e.side }));
+  const dual_side_guard = selectSameDayDualSideGuard(dualSideInputs);
   return {
     version: LEARNING_GENOME_JSON_SCHEMA_VERSION,
     exportedAt: input.exportedAt,
@@ -106,6 +131,10 @@ export function buildLearningGenomeBundle(
     drill,
     misread,
     trend,
+    focus_streak,
+    rule_adherence_streak,
+    day_model_coverage,
+    dual_side_guard,
   };
 }
 

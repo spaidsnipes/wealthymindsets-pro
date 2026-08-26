@@ -20,7 +20,7 @@ const FIXED_TIMESTAMP = "2026-08-25T00:00:00.000Z";
 
 describe("learningGenomeToJson — canon §Public Blessing exporter", () => {
   it("returns a stable schema version", () => {
-    expect(LEARNING_GENOME_JSON_SCHEMA_VERSION).toBe("1.0.0");
+    expect(LEARNING_GENOME_JSON_SCHEMA_VERSION).toBe("1.1.0");
   });
 
   it("produces a bundle with all four §9 primitives even on empty input", () => {
@@ -31,7 +31,7 @@ describe("learningGenomeToJson — canon §Public Blessing exporter", () => {
       priorDays: 7,
       exportedAt: FIXED_TIMESTAMP,
     });
-    expect(bundle.version).toBe("1.0.0");
+    expect(bundle.version).toBe("1.1.0");
     expect(bundle.exportedAt).toBe(FIXED_TIMESTAMP);
     expect(bundle.window.current_sample_size).toBe(0);
     expect(bundle.window.prior_sample_size).toBe(0);
@@ -84,10 +84,10 @@ describe("learningGenomeToJson — canon §Public Blessing exporter", () => {
     const json = learningGenomeToJson(bundle);
     // Valid JSON — parses without throwing.
     const parsed = JSON.parse(json);
-    expect(parsed.version).toBe("1.0.0");
+    expect(parsed.version).toBe("1.1.0");
     expect(parsed.exportedAt).toBe(FIXED_TIMESTAMP);
     // Two-space indent per canon (matches journalToJson style).
-    expect(json).toContain('"version": "1.0.0"');
+    expect(json).toContain('"version": "1.1.0"');
   });
 
   it("deterministic — same inputs → identical JSON string", () => {
