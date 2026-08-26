@@ -142,3 +142,14 @@ Implementation Ledger. Suggested workflow:
   contradiction still outranks it. Closes the same `RightOfWay`-completeness gap
   in the router that `e374845` closed in `inferJobMode`. +2 tests; 76/76 green;
   tsc clean for changed files. NOT DEPLOYED (same parallel-builder gate).
+- `2026-08-25-caution-question-router.md` — CAUTION Degraded-Grant Question
+  (`04a2007`). CAUTION was the last `RightOfWay` member the router silently
+  collapsed: in EXECUTE a degraded grant fell through to the clean "exact price"
+  question, in WAIT to the quiet earned-entry fallback — both presenting a degraded
+  verdict as either clean-go or still-pending. Added CAUTION branches → WAIT
+  "Conditions are degraded — take a reduced entry, or wait for cleaner?" (a live
+  contradiction still outranks it) and EXECUTE "Right-of-way is degraded — is my
+  size cut to match the caution?". Completes the `RightOfWay`-totality closure
+  across BOTH the inferred job and the dominant question (every compiled verdict —
+  ACTION / WAIT / NO TRADE / CAUTION / UNKNOWN — now answered truthfully). +3 tests;
+  76→79 green; tsc clean for changed files. NOT DEPLOYED (same parallel-builder gate).
