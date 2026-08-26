@@ -1082,6 +1082,9 @@ function JournalPageInner() {
   }));
   // Canon §14 today's Process Grade — 5-category score. Must be
   // computed BEFORE stewardship (which reads its grade).
+  // Canon §Preparation category — wired to useTodayPrep.hasEntry so
+  // a morning-prep entry for today COUNTS as canon-defined preparation
+  // (was UNMEASURED before; now honest true/false depending on prep).
   const todayProcessScore = selectDailyScore({
     entries: todayEntries.map(e => ({
       date: e.date,
@@ -1092,7 +1095,7 @@ function JournalPageInner() {
       maeR: e.maeR,
       dayModel: e.dayModel,
     })),
-    // hadMorningPrep not observable from journal storage yet.
+    hadMorningPrep: prep.hasEntry,
   });
   // Canon §Daily Risk — same-day recovery-trade signature detection.
   const todayRecovery = selectRecoveryTradeDetector(todayEdgeEntries);
