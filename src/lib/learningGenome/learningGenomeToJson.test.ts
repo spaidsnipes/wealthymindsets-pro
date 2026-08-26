@@ -20,7 +20,7 @@ const FIXED_TIMESTAMP = "2026-08-25T00:00:00.000Z";
 
 describe("learningGenomeToJson — canon §Public Blessing exporter", () => {
   it("returns a stable schema version", () => {
-    expect(LEARNING_GENOME_JSON_SCHEMA_VERSION).toBe("1.1.0");
+    expect(LEARNING_GENOME_JSON_SCHEMA_VERSION).toBe("1.1.1");
   });
 
   it("produces a bundle with all four §9 primitives even on empty input", () => {
@@ -31,7 +31,7 @@ describe("learningGenomeToJson — canon §Public Blessing exporter", () => {
       priorDays: 7,
       exportedAt: FIXED_TIMESTAMP,
     });
-    expect(bundle.version).toBe("1.1.0");
+    expect(bundle.version).toBe("1.1.1");
     expect(bundle.exportedAt).toBe(FIXED_TIMESTAMP);
     expect(bundle.window.current_sample_size).toBe(0);
     expect(bundle.window.prior_sample_size).toBe(0);
@@ -84,10 +84,10 @@ describe("learningGenomeToJson — canon §Public Blessing exporter", () => {
     const json = learningGenomeToJson(bundle);
     // Valid JSON — parses without throwing.
     const parsed = JSON.parse(json);
-    expect(parsed.version).toBe("1.1.0");
+    expect(parsed.version).toBe("1.1.1");
     expect(parsed.exportedAt).toBe(FIXED_TIMESTAMP);
     // Two-space indent per canon (matches journalToJson style).
-    expect(json).toContain('"version": "1.1.0"');
+    expect(json).toContain('"version": "1.1.1"');
   });
 
   it("deterministic — same inputs → identical JSON string", () => {
@@ -139,5 +139,49 @@ describe("learningGenomeToJson — canon §Public Blessing exporter", () => {
     });
     expect(bundle.window.current_days).toBe(30);
     expect(bundle.window.prior_days).toBe(30);
+  });
+
+  it("v1.1.1 exposes week_maturity distribution across §6 verdicts", () => {
+    const entries: MisreadEntry[] = [
+      // FULFILLED — win with realizedR>0
+      e({ result: "win", realizedR: 2.3, mfeR: 2.5, maeR: -0.2 }),
+      // WRONG — plan-followed loss hitting stop
+      e({ result: "loss", processQuality: "FOLLOWED_PLAN", realizedR: -1, maeR: -0.9 }),
+      // ACTIVE — mfeR ≥ 1.5 progression evidence, loss w/o structural stop
+      e({ result: "loss", processQuality: "FOLLOWED_PLAN", realizedR: -0.3, mfeR: 1.6, maeR: -0.5 }),
+      // EARLY — no destination, no MFE evidence, no structural stop
+      e({ result: "be", processQuality: "FOLLOWED_PLAN", realizedR: 0, mfeR: 0.5, maeR: -0.2 }),
+      // INSUFFICIENT_INPUT — no mfeR/maeR at all → excluded
+      e({ result: "be", processQuality: "FOLLOWED_PLAN" }),
+    ];
+    const bundle = buildLearningGenomeBundle({
+      currentEntries: entries,
+      priorEntries: [],
+      currentDays: 7,
+      priorDays: 7,
+      exportedAt: FIXED_TIMESTAMP,
+    });
+    expect(bundle.week_maturity.FULFILLED).toBe(1);
+    expect(bundle.week_maturity.WRONG).toBe(1);
+    expect(bundle.week_maturity.classified_count).toBeGreaterThanOrEqual(2);
+    expect(bundle.week_maturity.sample_size).toBe(5);
+  });
+
+  it("v1.1.1 week_maturity returns zeros on empty input (no NaN, no fake distribution)", () => {
+    const bundle = buildLearningGenomeBundle({
+      currentEntries: [],
+      priorEntries: [],
+      currentDays: 7,
+      priorDays: 7,
+      exportedAt: FIXED_TIMESTAMP,
+    });
+    expect(bundle.week_maturity).toEqual({
+      FULFILLED: 0,
+      ACTIVE: 0,
+      EARLY: 0,
+      WRONG: 0,
+      classified_count: 0,
+      sample_size: 0,
+    });
   });
 });

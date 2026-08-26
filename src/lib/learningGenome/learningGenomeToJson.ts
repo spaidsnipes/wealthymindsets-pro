@@ -39,8 +39,28 @@ import { selectSameDayDualSideGuard, type BiasSide, type DualSideGuardResult } f
 import { selectFocusStreak, type FocusStreak } from "./selectFocusStreak";
 import { selectRuleAdherenceStreak, type RuleAdherenceStreak } from "./selectRuleAdherenceStreak";
 import { selectDayModelCoverage, type DayModelCoverage } from "./selectDayModelCoverage";
+import { selectAnalysisMaturity, type AnalysisMaturityVerdict } from "./selectAnalysisMaturity";
 
-export const LEARNING_GENOME_JSON_SCHEMA_VERSION = "1.1.0" as const;
+export const LEARNING_GENOME_JSON_SCHEMA_VERSION = "1.1.1" as const;
+
+/**
+ * Week-level roll-up of the per-entry §6 ANALYSIS MATURITY verdict.
+ * Public Blessing: exposes the count in each bucket + the total
+ * classifiable trades, so a trader can see "did my plan-following
+ * produce FULFILLED moves or drown in EARLY closes?" from the JSON
+ * alone (matches the on-screen week chip on /journal).
+ *
+ * INSUFFICIENT_INPUT entries are excluded from `classified_count` —
+ * canon: absence of proof is not proof.
+ */
+export interface WeekMaturityDistribution {
+  readonly FULFILLED: number;
+  readonly ACTIVE: number;
+  readonly EARLY: number;
+  readonly WRONG: number;
+  readonly classified_count: number;
+  readonly sample_size: number;
+}
 
 export interface LearningGenomeBundle {
   readonly version: string;
@@ -60,6 +80,39 @@ export interface LearningGenomeBundle {
   readonly rule_adherence_streak: RuleAdherenceStreak;
   readonly day_model_coverage: DayModelCoverage;
   readonly dual_side_guard: DualSideGuardResult;
+  // v1.1.1 addition — 2026-08-26 shift-N atom 9.
+  readonly week_maturity: WeekMaturityDistribution;
+}
+
+function buildWeekMaturity(entries: readonly MisreadEntry[]): WeekMaturityDistribution {
+  const acc: Record<Exclude<AnalysisMaturityVerdict, "INSUFFICIENT_INPUT">, number> = {
+    FULFILLED: 0,
+    ACTIVE: 0,
+    EARLY: 0,
+    WRONG: 0,
+  };
+  for (const e of entries) {
+    const m = selectAnalysisMaturity({
+      destinationReached: e.result === "win" && (e.realizedR ?? 0) > 0,
+      structuralInvalidationHit:
+        e.result === "loss" &&
+        e.processQuality === "FOLLOWED_PLAN" &&
+        typeof e.maeR === "number" &&
+        e.maeR <= -0.75,
+      progressionEvidenceCount:
+        typeof e.mfeR === "number" && e.mfeR >= 1.5 ? 2 : 0,
+    });
+    if (m.verdict === "INSUFFICIENT_INPUT") continue;
+    acc[m.verdict] += 1;
+  }
+  return {
+    FULFILLED: acc.FULFILLED,
+    ACTIVE: acc.ACTIVE,
+    EARLY: acc.EARLY,
+    WRONG: acc.WRONG,
+    classified_count: acc.FULFILLED + acc.ACTIVE + acc.EARLY + acc.WRONG,
+    sample_size: entries.length,
+  };
 }
 
 export interface LearningGenomeInput {
@@ -118,6 +171,7 @@ export function buildLearningGenomeBundle(
     )
     .map((e) => ({ date: e.date, symbol: e.symbol, side: e.side }));
   const dual_side_guard = selectSameDayDualSideGuard(dualSideInputs);
+  const week_maturity = buildWeekMaturity(input.currentEntries);
   return {
     version: LEARNING_GENOME_JSON_SCHEMA_VERSION,
     exportedAt: input.exportedAt,
@@ -135,6 +189,7 @@ export function buildLearningGenomeBundle(
     rule_adherence_streak,
     day_model_coverage,
     dual_side_guard,
+    week_maturity,
   };
 }
 
