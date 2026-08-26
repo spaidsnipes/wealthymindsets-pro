@@ -134,3 +134,11 @@ Implementation Ledger. Suggested workflow:
   one-builder-per-branch law. NOT DEPLOYED — deferred to a settled, type-clean
   `main` (`origin/main` @ `285a14b` carried a transient `journal/page.tsx` type
   error already fixed in the owning builder's unpushed WIP).
+- `2026-08-25-notrade-question-router.md` — WAIT NO TRADE Stand-Down Question
+  (`a91c8da`). `routeQuestion` handled `NO TRADE` in EXECUTE but not WAIT, so a
+  trader whose setup the engine rejected still got "Has the market earned my entry
+  yet?" (implying entry was pending). Added a WAIT NO TRADE branch → "The setup
+  was rejected — is the thesis dead, or a cleaner level ahead?", ordered so a live
+  contradiction still outranks it. Closes the same `RightOfWay`-completeness gap
+  in the router that `e374845` closed in `inferJobMode`. +2 tests; 76/76 green;
+  tsc clean for changed files. NOT DEPLOYED (same parallel-builder gate).
