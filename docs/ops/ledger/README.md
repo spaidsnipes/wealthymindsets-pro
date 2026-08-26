@@ -164,3 +164,12 @@ Implementation Ledger. Suggested workflow:
   Founder-only fix: upgrade Workers plan (or 00:00 UTC reset). Build ran from the
   isolated worktree after converting its `node_modules` symlink to an APFS COW
   clone (Turbopack rejects the out-of-root symlink).
+- `2026-08-26-vitest-alias-gap.md` — **Test-infra root-cause fix (`30c6c18`).**
+  The one carried-open red suite (`useLearningGenomeBundle.test.ts`, "Cannot find
+  package '@/lib/...'") was NOT a code defect: Vitest doesn't read tsconfig
+  `paths` and the repo had no vitest/vite config, so unmocked `@/` VALUE imports
+  never resolved (prior `@/` test imports only "passed" because they were
+  type-only or `vi.mock`-replaced). Added `vitest.config.ts` wiring `@` → `./src`
+  — the SAME alias tsconfig/app already use (no parallel copy, strictly additive).
+  Suite **161/162 → 162/162 files, 1337 → 1350 tests green**; +13 tests now run;
+  tsc clean; `next build` unaffected. Test-infra only — nothing to deploy.
