@@ -61,6 +61,10 @@ export function routeQuestion(mode: ExperienceMode, oneStory: OneStoryVM | null)
       if (s.hasContradiction) return "Is this contradiction fatal to the thesis, or noise?";
       if (s.hasMissing) return "Is my confirmation arriving, or is the thesis decaying?";
       if (s.decision === "ACTION") return "Right-of-way is open — is this my planned location?";
+      // A compiled NO TRADE verdict means the engine hard-rejected the setup —
+      // asking "has the market earned my entry yet?" would imply entry is still
+      // pending. It is not; the thesis was rejected. Ask the honest question.
+      if (s.decision === "NO TRADE") return "The setup was rejected — is the thesis dead, or a cleaner level ahead?";
       return "Has the market earned my entry yet?";
 
     case "EXECUTE":

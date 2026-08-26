@@ -98,6 +98,23 @@ describe("questionRouter", () => {
     );
   });
 
+  it("WAIT asks the stand-down question on a NO TRADE verdict (never 'earned my entry')", () => {
+    // A hard-rejected setup must not be phrased as if entry is still pending.
+    const q = routeQuestion("WAIT", story({ decision: reading("NO TRADE") }));
+    expect(q).toContain("rejected");
+    expect(q).not.toBe("Has the market earned my entry yet?");
+  });
+
+  it("WAIT still lets a live contradiction outrank a NO TRADE verdict", () => {
+    // The trader's most urgent cognitive question when the thesis is contradicted
+    // stays first; NO TRADE only governs the otherwise-quiet case.
+    const q = routeQuestion(
+      "WAIT",
+      story({ contradiction: "sellers absorbing", decision: reading("NO TRADE") }),
+    );
+    expect(q).toBe("Is this contradiction fatal to the thesis, or noise?");
+  });
+
   it("WAIT falls back to the earned-entry question when quiet", () => {
     expect(routeQuestion("WAIT", story())).toBe(
       "Has the market earned my entry yet?",
