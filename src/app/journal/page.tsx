@@ -1057,7 +1057,8 @@ function JournalPageInner() {
   // until at least one component measures.
   const weekCoverage = selectDayModelCoverage(weekMisreadEntries);
   const edgeQuality = selectEdgeQualityIndex(weekGenome, weekCoverage);
-  // Canon §Daily Risk — same-day recovery-trade signature detection.
+  // Today Edge entries — shared shape used by process-score,
+  // recovery detector, and stewardship verdict.
   const todayEdgeEntries = todayEntries.map(e => ({
     date: e.date,
     result: e.result,
@@ -1066,28 +1067,8 @@ function JournalPageInner() {
     mfeR: e.mfeR,
     maeR: e.maeR,
   }));
-  const todayRecovery = selectRecoveryTradeDetector(todayEdgeEntries);
-  const todayShutdownAdvice = selectShutdownAdvice(todayRs);
-  // Canon §Stewardship — one end-of-day verdict composed from
-  // process grade + shutdown state + recovery detection.
-  const todayStewardship = selectStewardshipVerdict({
-    process_grade: todayProcessScore.grade,
-    shutdown_state: todayShutdownAdvice.state,
-    recovery_candidate_count: todayRecovery.candidates.length,
-  });
-  // Canon §A-Setup-Only Doctrine (Top-Down Process 2026-08-24):
-  // "Live capital is reserved for A and A+ setups only." Grade each
-  // week entry post-hoc: since only realizedR is stored (planned-R
-  // multiple isn't captured), we use realizedR as the R-multiple
-  // proxy for grading. Trade that FOLLOWED_PLAN and printed 4R had
-  // at least 4R available at entry — canonically valid mapping.
-  const weekSetupGrades = weekEntries.map(e =>
-    selectSetupGrade({ dayModel: e.dayModel, plannedR: e.realizedR, processQuality: e.processQuality })
-  );
-  const setupGradeSummary = summarizeSetupGrades(weekSetupGrades);
-  // Canon §14 today's Process Grade — 5-category score over today's
-  // entries. Hidden until >=3 categories are measurable. Reads the
-  // same today-derived data as SESSION R and shutdown.
+  // Canon §14 today's Process Grade — 5-category score. Must be
+  // computed BEFORE stewardship (which reads its grade).
   const todayProcessScore = selectDailyScore({
     entries: todayEntries.map(e => ({
       date: e.date,
@@ -1098,10 +1079,23 @@ function JournalPageInner() {
       maeR: e.maeR,
       dayModel: e.dayModel,
     })),
-    // hadMorningPrep not observable from journal storage yet — this
-    // signal will wire in once /morning-prep exposes a same-day
-    // completion flag. For now, category is undefined (honest).
+    // hadMorningPrep not observable from journal storage yet.
   });
+  // Canon §Daily Risk — same-day recovery-trade signature detection.
+  const todayRecovery = selectRecoveryTradeDetector(todayEdgeEntries);
+  const todayShutdownAdvice = selectShutdownAdvice(todayRs);
+  // Canon §Stewardship — one end-of-day verdict composed from
+  // process grade + shutdown state + recovery detection.
+  const todayStewardship = selectStewardshipVerdict({
+    process_grade: todayProcessScore.grade,
+    shutdown_state: todayShutdownAdvice.state,
+    recovery_candidate_count: todayRecovery.candidates.length,
+  });
+  // Canon §A-Setup-Only Doctrine — post-hoc weekly A/A+ grade summary.
+  const weekSetupGrades = weekEntries.map(e =>
+    selectSetupGrade({ dayModel: e.dayModel, plannedR: e.realizedR, processQuality: e.processQuality })
+  );
+  const setupGradeSummary = summarizeSetupGrades(weekSetupGrades);
 
   const saveEntry = () => {
     const e = { ...(form as JournalEntry) };
