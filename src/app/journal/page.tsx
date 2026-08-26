@@ -2457,6 +2457,43 @@ Trade the system, trust the process, winners every day 🚀`,
                       </div>
                     );
                   })()}
+                  {/* Same-Day Dual-Side context — canon §SAME-DAY
+                      DUAL-SIDE GUARD (Top-Down 2026-08-25). If this
+                      entry is part of an unexempted long+short pair
+                      on the same symbol today, surface it here so
+                      the trader sees the discipline hazard in
+                      review, not just as a week-level chip. */}
+                  {(() => {
+                    if (!selected.symbol) return null;
+                    const selectedDay = String(selected.date ?? "").slice(0, 10);
+                    if (!selectedDay) return null;
+                    const symbolUpper = String(selected.symbol).trim().toUpperCase();
+                    const match = weekDualSideGuard.pairs.find(
+                      (p) => p.date === selectedDay && p.symbol === symbolUpper,
+                    );
+                    if (!match) return null;
+                    const color = match.exempted
+                      ? "text-wm-text-muted border-wm-border bg-wm-surface"
+                      : "text-wm-red border-wm-red/40 bg-wm-red/10";
+                    return (
+                      <div className={clsx("mt-2 rounded-md border p-2", color)}>
+                        <div className="flex items-baseline justify-between">
+                          <div className="text-[9px] font-bold uppercase tracking-wider">
+                            Same-day dual-side
+                          </div>
+                          <div className="text-[9px] font-mono opacity-70">canon §DUAL-SIDE</div>
+                        </div>
+                        <div className="mt-0.5 text-[11px] font-bold">
+                          {match.exempted ? "EXEMPTED (predeclared)" : "HAZARD"} · L{match.long_side_count}/S{match.short_side_count}
+                        </div>
+                        <div className="text-[10px] opacity-80 leading-snug mt-0.5">
+                          {match.exempted
+                            ? `Exempt reason: ${match.exempt_reason ?? "multi-leg strategy"}`
+                            : "Long + short on same symbol same day. Canon: each side must carry its own thesis, invalidation, model, and DTE — not emotional insurance."}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 

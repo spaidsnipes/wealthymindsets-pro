@@ -123,7 +123,7 @@ describe("LearningGenomeInspector — canon §9 presentation", () => {
         misread: EMPTY_MISREAD,
         trend: EMPTY_TREND,
         focusStreak: { current: 4, best: 7, sample_size: 12 },
-        ruleAdherenceStreak: { current: 3, best: 5, days_measured: 6 },
+        ruleAdherenceStreak: { current: 3, best: 5, days_measured: 6, newest_day: "2026-08-26" },
         dayModelCoverage: {
           m0: 1,
           m1: 5,
@@ -131,6 +131,7 @@ describe("LearningGenomeInspector — canon §9 presentation", () => {
           unclassified: 1,
           sample_size: 9,
           classification_rate: 8 / 9,
+          m0_share: 1 / 8,
           m1_share: 5 / 8,
           m2_share: 2 / 8,
         },
