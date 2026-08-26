@@ -45,6 +45,7 @@ import { selectDailyScore } from "@/lib/learningGenome/selectDailyScore";
 import { selectMentalGate } from "@/lib/learningGenome/selectMentalGate";
 import { selectRuleAdherenceStreak } from "@/lib/learningGenome/selectRuleAdherenceStreak";
 import { selectSetupGradeReasons } from "@/lib/learningGenome/selectSetupGradeReasons";
+import { selectAnalysisMaturity } from "@/lib/learningGenome/selectAnalysisMaturity";
 import { selectDayModelCoverage } from "@/lib/learningGenome/selectDayModelCoverage";
 import { selectEdgeQualityIndex } from "@/lib/learningGenome/selectEdgeQualityIndex";
 import { selectRecoveryTradeDetector } from "@/lib/learningGenome/selectRecoveryTradeDetector";
@@ -2413,6 +2414,42 @@ Trade the system, trust the process, winners every day 🚀`,
                             </li>
                           ))}
                         </ul>
+                      </div>
+                    );
+                  })()}
+                  {/* Analysis Maturity — canon §6 ANALYSIS MATURITY
+                      (Top-Down Process 2026-08-25 §6). Post-hoc
+                      classifier: WRONG / EARLY / ACTIVE / FULFILLED.
+                      Derived from stored fields: FULFILLED when a
+                      win closed at profit; WRONG when a plan-followed
+                      trade hit stop-loss (maeR ≤ -0.75); ACTIVE when
+                      the trade had ≥1.5R MFE (progression evidence);
+                      EARLY otherwise. Silent when INSUFFICIENT_INPUT. */}
+                  {(() => {
+                    const maturity = selectAnalysisMaturity({
+                      destinationReached: selected.result === "win" && (selected.realizedR ?? 0) > 0,
+                      structuralInvalidationHit:
+                        selected.result === "loss" &&
+                        selected.processQuality === "FOLLOWED_PLAN" &&
+                        typeof selected.maeR === "number" &&
+                        selected.maeR <= -0.75,
+                      progressionEvidenceCount:
+                        typeof selected.mfeR === "number" && selected.mfeR >= 1.5 ? 2 : 0,
+                    });
+                    if (maturity.verdict === "INSUFFICIENT_INPUT") return null;
+                    const color =
+                      maturity.verdict === "FULFILLED" ? "text-wm-green border-wm-green/40 bg-wm-green/10" :
+                      maturity.verdict === "ACTIVE"    ? "text-wm-gold border-wm-gold/40 bg-wm-gold/10" :
+                      maturity.verdict === "WRONG"     ? "text-wm-red border-wm-red/40 bg-wm-red/10" :
+                      "text-wm-text-muted border-wm-border bg-wm-surface";
+                    return (
+                      <div className={clsx("mt-2 rounded-md border p-2", color)}>
+                        <div className="flex items-baseline justify-between">
+                          <div className="text-[9px] font-bold uppercase tracking-wider">Analysis maturity</div>
+                          <div className="text-[9px] font-mono opacity-70">canon §6</div>
+                        </div>
+                        <div className="mt-0.5 text-[11px] font-bold">{maturity.verdict}</div>
+                        <div className="text-[10px] opacity-80 leading-snug mt-0.5">{maturity.canon}</div>
                       </div>
                     );
                   })()}
