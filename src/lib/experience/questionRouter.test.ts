@@ -115,6 +115,22 @@ describe("questionRouter", () => {
     expect(q).toBe("Is this contradiction fatal to the thesis, or noise?");
   });
 
+  it("WAIT asks the degraded-conditions question on a CAUTION verdict (never 'earned my entry')", () => {
+    // CAUTION is a degraded grant, not still-pending permission — the
+    // earned-entry fallback would misrepresent it.
+    const q = routeQuestion("WAIT", story({ decision: reading("CAUTION") }));
+    expect(q).toContain("degraded");
+    expect(q).not.toBe("Has the market earned my entry yet?");
+  });
+
+  it("WAIT still lets a live contradiction outrank a CAUTION verdict", () => {
+    const q = routeQuestion(
+      "WAIT",
+      story({ contradiction: "sellers absorbing", decision: reading("CAUTION") }),
+    );
+    expect(q).toBe("Is this contradiction fatal to the thesis, or noise?");
+  });
+
   it("WAIT falls back to the earned-entry question when quiet", () => {
     expect(routeQuestion("WAIT", story())).toBe(
       "Has the market earned my entry yet?",
@@ -125,6 +141,14 @@ describe("questionRouter", () => {
     expect(
       routeQuestion("EXECUTE", story({ decision: reading("NO TRADE") })),
     ).toContain("stand down");
+  });
+
+  it("EXECUTE asks about cut size on a CAUTION (degraded) grant, not the clean price re-check", () => {
+    // A degraded verdict must not be phrased like the clean ACTION grant.
+    const q = routeQuestion("EXECUTE", story({ decision: reading("CAUTION") }));
+    expect(q).toContain("degraded");
+    expect(q).toContain("size");
+    expect(q).not.toBe("Is right-of-way still granted at this exact price?");
   });
 
   it("EXECUTE otherwise re-checks right-of-way at the exact price", () => {
