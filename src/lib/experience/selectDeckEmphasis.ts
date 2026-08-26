@@ -42,6 +42,14 @@ export interface DeckEmphasis {
   readonly receiptOpen: boolean;
   /** One-line reason this emphasis fits the job — for a11y / tooltip honesty. */
   readonly rationale: string;
+  /**
+   * When a live `DeckEmphasisSignals` fact actually MOVED a surface below the
+   * lead (a contradiction raised WHY, an empty Receipt sank), this is a short
+   * clause naming that change so the re-emphasis is never silent. `null` when no
+   * signal changed the order (no signals supplied, or the signals were no-ops on
+   * this job's base ranking). Presentation-only honesty — never truth.
+   */
+  readonly refinementNote: string | null;
 }
 
 interface EmphasisBase {
@@ -147,35 +155,61 @@ export function selectDeckEmphasis(
   signals?: DeckEmphasisSignals,
 ): DeckEmphasis {
   const base = EMPHASIS[mode];
-  const order = signals ? refineOrder(base.lead, base.order, signals) : base.order;
-  return { version: DECK_EMPHASIS_VERSION, mode, ...base, order };
+  const refined = signals
+    ? refineOrder(base.lead, base.order, signals)
+    : { order: base.order, notes: [] as string[] };
+  return {
+    version: DECK_EMPHASIS_VERSION,
+    mode,
+    ...base,
+    order: refined.order,
+    refinementNote: refined.notes.length > 0 ? refined.notes.join("; ") : null,
+  };
 }
 
 /**
  * Refine the secondary order on live signals while preserving two invariants:
  * (1) the lead stays at index 0; (2) the result is a full permutation of the
- * same four surfaces. Pure and total.
+ * same four surfaces. Pure and total. Also returns a human-readable `notes`
+ * list naming ONLY the refinements that actually moved a surface — a signal
+ * that holds but leaves the order unchanged (e.g. sinking a Receipt already
+ * last, or raising a WHY already directly under the lead) produces no note, so
+ * the caption never claims a change that did not happen.
  */
 function refineOrder(
   lead: DeckSurface,
   order: readonly DeckSurface[],
   signals: DeckEmphasisSignals,
-): readonly DeckSurface[] {
+): { order: readonly DeckSurface[]; notes: string[] } {
   // Work only on the tail below the lead so the lead can never move.
   let tail = order.filter((s) => s !== lead);
+  const notes: string[] = [];
 
   // An empty Receipt should never outrank a live surface — sink it to last.
-  if (signals.hasSealedReceipt === false) {
-    tail = [...tail.filter((s) => s !== "RECEIPT"), ...tail.filter((s) => s === "RECEIPT")];
+  if (signals.hasSealedReceipt === false && tail.includes("RECEIPT")) {
+    const sunk = [...tail.filter((s) => s !== "RECEIPT"), "RECEIPT" as DeckSurface];
+    if (!sameOrder(sunk, tail)) {
+      tail = sunk;
+      notes.push("an empty Decision Receipt sank below the live surfaces");
+    }
   }
 
   // A live, unresolved blocker deserves to sit directly under the lead so the
   // human sees what stands in the way — but only when WHY isn't already leading.
   if (signals.hasUnresolvedContradiction && lead !== "WHY") {
-    tail = ["WHY", ...tail.filter((s) => s !== "WHY")];
+    const raised = ["WHY" as DeckSurface, ...tail.filter((s) => s !== "WHY")];
+    if (!sameOrder(raised, tail)) {
+      tail = raised;
+      notes.push("a live contradiction raised WHY / WHY NOT under the lead");
+    }
   }
 
-  return [lead, ...tail];
+  return { order: [lead, ...tail], notes };
+}
+
+/** True when two surface rankings are identical in length and position. */
+function sameOrder(a: readonly DeckSurface[], b: readonly DeckSurface[]): boolean {
+  return a.length === b.length && a.every((s, i) => s === b[i]);
 }
 
 /**

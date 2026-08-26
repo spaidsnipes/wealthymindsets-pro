@@ -139,4 +139,56 @@ describe("selectDeckEmphasis", () => {
       expect(e.order[0]).toBe("RECEIPT");
     }
   });
+
+  it("carries no refinementNote when no signals are supplied", () => {
+    for (const mode of EXPERIENCE_MODES) {
+      expect(selectDeckEmphasis(mode).refinementNote).toBeNull();
+      expect(selectDeckEmphasis(mode, undefined).refinementNote).toBeNull();
+    }
+  });
+
+  it("names the contradiction refinement ONLY when it actually moved a surface", () => {
+    // OBSERVE leads PASSPORT — a live contradiction raises WHY, a real change → note.
+    const observe = selectDeckEmphasis("OBSERVE", { hasUnresolvedContradiction: true });
+    expect(observe.order[1]).toBe("WHY");
+    expect(observe.refinementNote).toContain("contradiction");
+    // WAIT already leads with WHY — the signal is a no-op, so NO note is claimed.
+    const wait = selectDeckEmphasis("WAIT", { hasUnresolvedContradiction: true });
+    expect(wait.refinementNote).toBeNull();
+    // MANAGE already has WHY directly under the RECEIPT lead — no move, no note.
+    const manage = selectDeckEmphasis("MANAGE", { hasUnresolvedContradiction: true });
+    expect(manage.order[1]).toBe("WHY");
+    expect(manage.refinementNote).toBeNull();
+  });
+
+  it("names the empty-Receipt refinement ONLY when the Receipt actually sank", () => {
+    // OBSERVE's pure order already ends in RECEIPT — sinking is a no-op → no note.
+    const observe = selectDeckEmphasis("OBSERVE", { hasSealedReceipt: false });
+    expect(observe.refinementNote).toBeNull();
+    // MANAGE has RECEIPT leading + a real tail; an empty receipt cannot move the
+    // lead, so the sink is a no-op below → no false note.
+    const manage = selectDeckEmphasis("MANAGE", { hasSealedReceipt: false });
+    expect(manage.refinementNote).toBeNull();
+  });
+
+  it("reports only refinements that truly moved a surface — never a false or doubled note", () => {
+    // Across every base ranking, RECEIPT is either the lead or already last, so an
+    // empty-Receipt sink is always a no-op given both signals; only the WHY raise
+    // can fire. This proves the note reflects reality, not merely which signal was set.
+    // PREP: lead STORY, tail ["WHY","PASSPORT","RECEIPT"] — WHY already tail[0] and
+    // RECEIPT already last, so BOTH signals are no-ops → null (no invented note).
+    expect(
+      selectDeckEmphasis("PREP", { hasUnresolvedContradiction: true, hasSealedReceipt: false })
+        .refinementNote,
+    ).toBeNull();
+    // OBSERVE: lead PASSPORT, tail ["STORY","WHY","RECEIPT"] — the sink is a no-op
+    // (RECEIPT already last) but the WHY raise moves it, so EXACTLY one real note.
+    const observe = selectDeckEmphasis("OBSERVE", {
+      hasUnresolvedContradiction: true,
+      hasSealedReceipt: false,
+    });
+    expect(observe.refinementNote).toContain("contradiction");
+    expect(observe.refinementNote).not.toContain("Receipt");
+    expect(observe.refinementNote?.includes(";")).toBe(false);
+  });
 });

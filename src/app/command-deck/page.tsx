@@ -651,6 +651,12 @@ function CommandDeckInner() {
               <span style={{ color: "#c9a55c" }}>Layout</span>
               <span style={{ textTransform: "none", letterSpacing: 0 }}>
                 {deckEmphasis.rationale}
+                {deckEmphasis.refinementNote && (
+                  // A live signal physically moved a surface below the lead; say
+                  // so, so the re-emphasis is never silent. Reads the same pure
+                  // selector that drove the order — no new truth.
+                  <span style={{ color: "#c9a55c" }}> · {deckEmphasis.refinementNote}</span>
+                )}
               </span>
             </div>
 
