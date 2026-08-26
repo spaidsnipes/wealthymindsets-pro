@@ -1722,6 +1722,45 @@ Trade the system, trust the process, winners every day 🚀`,
               DUAL-SIDE · {weekDualSideGuard.hazards.length}
             </span>
           )}
+          {/* Analysis Maturity distribution — canon §6 (2026-08-25).
+              Aggregates the per-entry maturity verdict across the
+              week so the trader sees at a glance whether their
+              plan-following is producing FULFILLED / ACTIVE moves
+              or drowning in EARLY / WRONG closes. Silent when no
+              entry in the week has enough data to classify. */}
+          {(() => {
+            const dist = { FULFILLED: 0, ACTIVE: 0, EARLY: 0, WRONG: 0 };
+            for (const e of weekEntries) {
+              const m = selectAnalysisMaturity({
+                destinationReached: e.result === "win" && (e.realizedR ?? 0) > 0,
+                structuralInvalidationHit:
+                  e.result === "loss" &&
+                  e.processQuality === "FOLLOWED_PLAN" &&
+                  typeof e.maeR === "number" &&
+                  e.maeR <= -0.75,
+                progressionEvidenceCount:
+                  typeof e.mfeR === "number" && e.mfeR >= 1.5 ? 2 : 0,
+              });
+              if (m.verdict === "INSUFFICIENT_INPUT") continue;
+              dist[m.verdict] += 1;
+            }
+            const total = dist.FULFILLED + dist.ACTIVE + dist.EARLY + dist.WRONG;
+            if (total === 0) return null;
+            const tone = dist.WRONG > dist.FULFILLED
+              ? "border-wm-red/40 bg-wm-red/10 text-wm-red"
+              : dist.FULFILLED >= dist.EARLY + dist.WRONG
+              ? "border-wm-green/40 bg-wm-green/10 text-wm-green"
+              : "border-wm-gold/40 bg-wm-gold/10 text-wm-gold";
+            return (
+              <span
+                title={`Analysis Maturity (canon §6): FULFILLED ${dist.FULFILLED} · ACTIVE ${dist.ACTIVE} · EARLY ${dist.EARLY} · WRONG ${dist.WRONG} — across ${total} classifiable trades`}
+                className={clsx("px-2 py-0.5 rounded-full text-[10px] font-bold border", tone)}
+                aria-label={`Analysis maturity across ${total} trades: ${dist.FULFILLED} fulfilled, ${dist.ACTIVE} active, ${dist.EARLY} early, ${dist.WRONG} wrong — canon section 6`}
+              >
+                MATURITY · F{dist.FULFILLED} A{dist.ACTIVE} E{dist.EARLY} W{dist.WRONG}
+              </span>
+            );
+          })()}
         </div>
         <div className="ml-auto flex items-center gap-2">
           <div className="flex items-center gap-1.5 bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1">
