@@ -6,6 +6,10 @@ import type { LearningGenome, LearningDimensionKey } from "@/lib/learningGenome/
 import type { DrillPrescription } from "@/lib/learningGenome/prescribeDrill";
 import type { MisreadMap, MisreadCategory } from "@/lib/learningGenome/selectMisreadMap";
 import type { GenomeTrend } from "@/lib/learningGenome/genomeTrend";
+import type { FocusStreak } from "@/lib/learningGenome/selectFocusStreak";
+import type { RuleAdherenceStreak } from "@/lib/learningGenome/selectRuleAdherenceStreak";
+import type { DayModelCoverage } from "@/lib/learningGenome/selectDayModelCoverage";
+import type { DualSideGuardResult } from "@/lib/learningGenome/selectSameDayDualSideGuard";
 
 /**
  * LearningGenomeInspector — canon §9 full-view panel.
@@ -26,6 +30,12 @@ export interface LearningGenomeInspectorProps {
   readonly drill: DrillPrescription | undefined;
   readonly misread: MisreadMap;
   readonly trend: GenomeTrend;
+  // v1.1.0 bundle additions — 2026-08-25 canon primitives (optional
+  // so existing callers keep compiling; silent-when-absent render).
+  readonly focusStreak?: FocusStreak;
+  readonly ruleAdherenceStreak?: RuleAdherenceStreak;
+  readonly dayModelCoverage?: DayModelCoverage;
+  readonly dualSideGuard?: DualSideGuardResult;
 }
 
 const DIMENSION_LABEL: Record<LearningDimensionKey, string> = {
@@ -88,6 +98,10 @@ export function LearningGenomeInspector({
   drill,
   misread,
   trend,
+  focusStreak,
+  ruleAdherenceStreak,
+  dayModelCoverage,
+  dualSideGuard,
 }: LearningGenomeInspectorProps): React.ReactElement {
   const dimensions: readonly {
     key: LearningDimensionKey;
@@ -189,6 +203,73 @@ export function LearningGenomeInspector({
                 {CATEGORY_LABEL[cat]} {misread.counts[cat]}
               </span>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Streaks & Coverage — v1.1.0 canon primitives (2026-08-25).
+          Silent by design when the caller doesn't supply the field. */}
+      {(focusStreak || ruleAdherenceStreak || dayModelCoverage || dualSideGuard) && (
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-wm-text-muted mb-1">
+            Streaks &amp; Coverage
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {focusStreak && focusStreak.sample_size > 0 && (
+              <span
+                className={`px-1.5 py-0.5 text-[10px] rounded border ${
+                  focusStreak.current >= 3
+                    ? "border-wm-green/40 bg-wm-green/10 text-wm-green"
+                    : "border-wm-border bg-wm-black/40 text-wm-text-muted"
+                }`}
+                title="Consecutive plan-followed trades (newest-first)"
+              >
+                Focus streak {focusStreak.current} · best {focusStreak.best}
+              </span>
+            )}
+            {ruleAdherenceStreak && ruleAdherenceStreak.days_measured > 0 && (
+              <span
+                className={`px-1.5 py-0.5 text-[10px] rounded border ${
+                  ruleAdherenceStreak.current >= 3
+                    ? "border-wm-green/40 bg-wm-green/10 text-wm-green"
+                    : "border-wm-border bg-wm-black/40 text-wm-text-muted"
+                }`}
+                title="Consecutive days with zero BROKE_RULES entries"
+              >
+                Rule days {ruleAdherenceStreak.current} · best {ruleAdherenceStreak.best}
+              </span>
+            )}
+            {dayModelCoverage && dayModelCoverage.sample_size > 0 && (
+              <span
+                className={`px-1.5 py-0.5 text-[10px] rounded border ${
+                  (dayModelCoverage.classification_rate ?? 0) >= 0.8
+                    ? "border-wm-gold/40 bg-wm-gold/10 text-wm-gold"
+                    : "border-wm-border bg-wm-black/40 text-wm-text-muted"
+                }`}
+                title="§3 Model 0/1/2 — classification honesty"
+              >
+                Models M0·{dayModelCoverage.m0} M1·{dayModelCoverage.m1} M2·{dayModelCoverage.m2}
+                {dayModelCoverage.unclassified > 0 && ` · ?·${dayModelCoverage.unclassified}`}
+              </span>
+            )}
+            {dualSideGuard && dualSideGuard.hazards.length > 0 && (
+              <span
+                className="px-1.5 py-0.5 text-[10px] rounded border border-wm-red/50 bg-wm-red/10 text-wm-red font-bold"
+                title={dualSideGuard.hazards
+                  .map((h) => `${h.date} ${h.symbol} L${h.long_side_count}/S${h.short_side_count}`)
+                  .join("\n")}
+              >
+                Dual-side hazard · {dualSideGuard.hazards.length}
+              </span>
+            )}
+            {dualSideGuard && dualSideGuard.hazards.length === 0 && dualSideGuard.days_scanned > 0 && (
+              <span
+                className="px-1.5 py-0.5 text-[10px] rounded border border-wm-green/40 bg-wm-green/10 text-wm-green"
+                title="No unexempted same-day long+short pairs"
+              >
+                Dual-side clean
+              </span>
+            )}
           </div>
         </div>
       )}

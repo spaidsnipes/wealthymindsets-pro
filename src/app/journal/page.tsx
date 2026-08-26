@@ -1838,6 +1838,10 @@ Trade the system, trust the process, winners every day 🚀`,
             drill={weekDrill}
             misread={weekMisread}
             trend={weekTrend}
+            focusStreak={focusStreak}
+            ruleAdherenceStreak={dayStreak}
+            dayModelCoverage={weekCoverage}
+            dualSideGuard={weekDualSideGuard}
           />
         </div>
       )}

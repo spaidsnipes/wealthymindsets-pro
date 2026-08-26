@@ -780,6 +780,10 @@ function CommandDeckInner() {
                         drill={learningGenome.drill}
                         misread={learningGenome.misread}
                         trend={learningGenome.trend}
+                        focusStreak={learningGenome.focus_streak}
+                        ruleAdherenceStreak={learningGenome.rule_adherence_streak}
+                        dayModelCoverage={learningGenome.day_model_coverage}
+                        dualSideGuard={learningGenome.dual_side_guard}
                       />
                     </div>
                   </details>
