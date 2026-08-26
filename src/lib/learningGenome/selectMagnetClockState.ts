@@ -85,7 +85,7 @@ export function selectMagnetClockState(
 
   for (let i = 0; i < input.transitions.length; i++) {
     const to = input.transitions[i]!;
-    const allowed = ALLOWED_TRANSITIONS[current];
+    const allowed: readonly MagnetState[] = ALLOWED_TRANSITIONS[current];
     if (!allowed.includes(to)) {
       return {
         current,
