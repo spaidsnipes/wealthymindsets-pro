@@ -784,6 +784,7 @@ function CommandDeckInner() {
                         ruleAdherenceStreak={learningGenome.rule_adherence_streak}
                         dayModelCoverage={learningGenome.day_model_coverage}
                         dualSideGuard={learningGenome.dual_side_guard}
+                        weekMaturity={learningGenome.week_maturity}
                       />
                     </div>
                   </details>

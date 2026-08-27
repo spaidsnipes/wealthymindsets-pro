@@ -22,6 +22,7 @@ import { journalToCsv } from "@/lib/journal/journalToCsv";
 import { journalToJson } from "@/lib/journal/journalToJson";
 import {
   buildLearningGenomeBundle,
+  buildWeekMaturity,
   learningGenomeToJson,
 } from "@/lib/learningGenome/learningGenomeToJson";
 import {
@@ -1075,6 +1076,8 @@ function JournalPageInner() {
   // measured §9 dimensions + classification discipline. UNDEFINED
   // until at least one component measures.
   const weekCoverage = selectDayModelCoverage(weekMisreadEntries);
+  // v1.1.1 §6 week-level maturity distribution (canon-anchored).
+  const weekMaturity = buildWeekMaturity(weekMisreadEntries);
   const edgeQuality = selectEdgeQualityIndex(weekGenome, weekCoverage);
   // Today Edge entries — shared shape used by process-score,
   // recovery detector, and stewardship verdict.
@@ -1881,6 +1884,7 @@ Trade the system, trust the process, winners every day 🚀`,
             ruleAdherenceStreak={dayStreak}
             dayModelCoverage={weekCoverage}
             dualSideGuard={weekDualSideGuard}
+            weekMaturity={weekMaturity}
           />
         </div>
       )}

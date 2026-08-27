@@ -84,7 +84,13 @@ export interface LearningGenomeBundle {
   readonly week_maturity: WeekMaturityDistribution;
 }
 
-function buildWeekMaturity(entries: readonly MisreadEntry[]): WeekMaturityDistribution {
+/**
+ * Public helper — the same distribution the bundle exposes as
+ * `week_maturity`. UI surfaces (e.g. /journal Inspector) call this
+ * directly instead of round-tripping through the whole bundle so
+ * they don't force `priorEntries` collection just to render a chip.
+ */
+export function buildWeekMaturity(entries: readonly MisreadEntry[]): WeekMaturityDistribution {
   const acc: Record<Exclude<AnalysisMaturityVerdict, "INSUFFICIENT_INPUT">, number> = {
     FULFILLED: 0,
     ACTIVE: 0,

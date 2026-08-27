@@ -10,6 +10,7 @@ import type { FocusStreak } from "@/lib/learningGenome/selectFocusStreak";
 import type { RuleAdherenceStreak } from "@/lib/learningGenome/selectRuleAdherenceStreak";
 import type { DayModelCoverage } from "@/lib/learningGenome/selectDayModelCoverage";
 import type { DualSideGuardResult } from "@/lib/learningGenome/selectSameDayDualSideGuard";
+import type { WeekMaturityDistribution } from "@/lib/learningGenome/learningGenomeToJson";
 
 /**
  * LearningGenomeInspector — canon §9 full-view panel.
@@ -36,6 +37,8 @@ export interface LearningGenomeInspectorProps {
   readonly ruleAdherenceStreak?: RuleAdherenceStreak;
   readonly dayModelCoverage?: DayModelCoverage;
   readonly dualSideGuard?: DualSideGuardResult;
+  // v1.1.1 bundle addition — 2026-08-26 canon §6 week-level distribution.
+  readonly weekMaturity?: WeekMaturityDistribution;
 }
 
 const DIMENSION_LABEL: Record<LearningDimensionKey, string> = {
@@ -102,6 +105,7 @@ export function LearningGenomeInspector({
   ruleAdherenceStreak,
   dayModelCoverage,
   dualSideGuard,
+  weekMaturity,
 }: LearningGenomeInspectorProps): React.ReactElement {
   const dimensions: readonly {
     key: LearningDimensionKey;
@@ -209,7 +213,7 @@ export function LearningGenomeInspector({
 
       {/* Streaks & Coverage — v1.1.0 canon primitives (2026-08-25).
           Silent by design when the caller doesn't supply the field. */}
-      {(focusStreak || ruleAdherenceStreak || dayModelCoverage || dualSideGuard) && (
+      {(focusStreak || ruleAdherenceStreak || dayModelCoverage || dualSideGuard || weekMaturity) && (
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-wide text-wm-text-muted mb-1">
             Streaks &amp; Coverage
@@ -268,6 +272,25 @@ export function LearningGenomeInspector({
                 title="No unexempted same-day long+short pairs"
               >
                 Dual-side clean
+              </span>
+            )}
+            {weekMaturity && weekMaturity.classified_count > 0 && (
+              <span
+                className={`px-1.5 py-0.5 text-[10px] rounded border ${
+                  // FULFILLED-dominant weeks read gold; WRONG-dominant reads red;
+                  // otherwise neutral. Compares max class share.
+                  (() => {
+                    const total = weekMaturity.classified_count;
+                    const f = weekMaturity.FULFILLED / total;
+                    const w = weekMaturity.WRONG / total;
+                    if (f >= 0.5) return "border-wm-gold/40 bg-wm-gold/10 text-wm-gold";
+                    if (w >= 0.5) return "border-wm-red/50 bg-wm-red/10 text-wm-red font-bold";
+                    return "border-wm-border bg-wm-black/40 text-wm-text-muted";
+                  })()
+                }`}
+                title="§6 ANALYSIS MATURITY — per-trade fulfilled/active/early/wrong distribution"
+              >
+                Maturity F·{weekMaturity.FULFILLED} A·{weekMaturity.ACTIVE} E·{weekMaturity.EARLY} W·{weekMaturity.WRONG}
               </span>
             )}
           </div>
