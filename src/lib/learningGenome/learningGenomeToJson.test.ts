@@ -184,4 +184,77 @@ describe("learningGenomeToJson — canon §Public Blessing exporter", () => {
       sample_size: 0,
     });
   });
+
+  // canon §Public Blessing / Private Recipe
+  // The bundle is the trader-facing surface: it must expose OUTPUTS,
+  // never the manufacturing recipe (thresholds, priority-order tables,
+  // classifier internals). This test locks the top-level key set so a
+  // future field addition forces a conscious update here, giving
+  // Sentinel a chance to catch a Private Recipe leak.
+  describe("§Public Blessing / Private Recipe boundary", () => {
+    const EXPECTED_TOP_LEVEL_KEYS = [
+      "version",
+      "exportedAt",
+      "window",
+      "genome",
+      "drill",
+      "misread",
+      "trend",
+      "focus_streak",
+      "rule_adherence_streak",
+      "day_model_coverage",
+      "dual_side_guard",
+      "week_maturity",
+    ] as const;
+
+    it("top-level keys are exactly the Public Blessing set (adding a field forces this test to update)", () => {
+      const bundle = buildLearningGenomeBundle({
+        currentEntries: [
+          e({ result: "win", realizedR: 1.2, mfeR: 1.8, maeR: -0.2 }),
+        ],
+        priorEntries: [],
+        currentDays: 7,
+        priorDays: 7,
+        exportedAt: FIXED_TIMESTAMP,
+      });
+      const actualKeys = Object.keys(bundle).sort();
+      const expectedKeys = [...EXPECTED_TOP_LEVEL_KEYS].sort();
+      expect(actualKeys).toEqual(expectedKeys);
+    });
+
+    // Threshold guard — the numeric literals that classify entries
+    // (STABLE = 0.05, POOR_MANAGEMENT MFE = 1.5R, FULL_STOP_LOSS
+    // MAE = -0.75R, OVER_TIMED = 1.5x, and the LIQUID/MARGINAL spread
+    // percentages) MUST NOT appear in the serialized JSON. If any
+    // future field pipes a threshold through, this test fails and
+    // Sentinel reviews before shipping.
+    it("serialized JSON contains no Private Recipe threshold values verbatim", () => {
+      const bundle = buildLearningGenomeBundle({
+        currentEntries: [
+          e({ result: "win", realizedR: 1.2, mfeR: 1.8, maeR: -0.2 }),
+          e({ result: "loss", realizedR: -0.9, mfeR: 0.3, maeR: -0.85, processQuality: "FOLLOWED_PLAN" }),
+          e({ result: "loss", realizedR: -0.4, mfeR: 1.6, maeR: -0.3, processQuality: "BROKE_RULES" }),
+        ],
+        priorEntries: [],
+        currentDays: 7,
+        priorDays: 7,
+        exportedAt: FIXED_TIMESTAMP,
+      });
+      const json = learningGenomeToJson(bundle);
+      // Recipe-only literals — none of these should appear anywhere in
+      // the trader-facing JSON payload. If any does, a threshold has
+      // leaked through a field or label.
+      const RECIPE_LITERALS = [
+        '"STABLE":0.05',
+        '"POOR_MANAGEMENT_MFE_R":1.5',
+        '"FULL_STOP_LOSS_MAE_R":-0.75',
+        '"OVER_TIMED_MULTIPLIER":1.5',
+        '"threshold"',
+        '"classification_priority"',
+      ];
+      for (const literal of RECIPE_LITERALS) {
+        expect(json).not.toContain(literal);
+      }
+    });
+  });
 });
