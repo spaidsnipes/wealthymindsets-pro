@@ -27,7 +27,6 @@
 import { describe, it, expect } from "vitest";
 // The manifest module is authored as .mjs (Node ESM CLI); Vitest's
 // module resolver handles .mjs the same as .ts here.
-// @ts-expect-error — untyped ESM CLI module
 import { buildManifest } from "./env-manifest.mjs";
 
 interface ManifestEntry {
@@ -49,7 +48,7 @@ interface Manifest {
 
 describe("env-manifest — canon §11.10 Environment Truth Law", () => {
   it("buildManifest returns a well-formed schema", () => {
-    const m = buildManifest() as Manifest;
+    const m = buildManifest() as unknown as Manifest;
     expect(typeof m.entry_count).toBe("number");
     expect(Array.isArray(m.entries)).toBe(true);
     expect(m.drift).toBeDefined();
@@ -57,14 +56,14 @@ describe("env-manifest — canon §11.10 Environment Truth Law", () => {
   });
 
   it("every code process.env.X reference has a matching .env.example row (no orphan reads)", () => {
-    const m = buildManifest() as Manifest;
+    const m = buildManifest() as unknown as Manifest;
     // Canonical drift signal — if a new process.env.X lands without a
     // .env.example entry, this array is non-empty and CI fails here.
     expect(m.drift.in_code_missing_env_example).toEqual([]);
   });
 
   it("entry count matches the union of scanned code refs (no phantom entries)", () => {
-    const m = buildManifest() as Manifest;
+    const m = buildManifest() as unknown as Manifest;
     // Each entry corresponds to a distinct process.env.X name; if this
     // ever drifts, a bug in scanEnvReferences is silently double-counting.
     const uniqueNames = new Set(m.entries.map((e) => e.name));

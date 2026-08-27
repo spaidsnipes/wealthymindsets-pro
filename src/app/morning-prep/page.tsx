@@ -20,6 +20,11 @@ import {
 import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
+import { readJournalStorage } from "@/lib/traderMemory/adapters/journalStorage";
+import type { AdaptableJournalEntry } from "@/lib/traderMemory/adapters/journalEntryToSnapshot";
+import { selectFocusStreak } from "@/lib/learningGenome/selectFocusStreak";
+import { selectRuleAdherenceStreak } from "@/lib/learningGenome/selectRuleAdherenceStreak";
+import type { EdgeEntry, SessionProcess, SessionOutcome } from "@/lib/proofLane/selectSessionEdge";
 import {
   readMorningPrepEntries,
   writeMorningPrepEntries,
@@ -56,6 +61,96 @@ const MOODS = ["😴", "🙂", "😃", "🔥", "🧠", "💪", "🎯", "☕"];
  * When present, gives the trader a 'here's what yesterday's decisions
  * teach me' reflection surface before the market opens.
  */
+/**
+ * MorningPrepStreakBadge — canon §Public Blessing.
+ *
+ * A trader opening morning-prep before the bell benefits from a
+ * calm, honest signal of what they've already earned — consecutive
+ * plan-followed trades + consecutive clean days — so the morning
+ * frame is CONTINUITY, not zero-state anxiety.
+ *
+ * Silent when both streaks measure zero (canon: no fake
+ * encouragement; a fresh trader should not see fabricated pride).
+ * Reads the same wm_journal_entries store /journal uses so the
+ * numbers are consistent surface-to-surface.
+ */
+function MorningPrepStreakBadge({ userId }: { userId: string }) {
+  const [edge, setEdge] = React.useState<readonly EdgeEntry[]>([]);
+  React.useEffect(() => {
+    if (!userId || typeof window === "undefined") return;
+    const read = readJournalStorage(window.localStorage);
+    if (read.status === "UNAVAILABLE" || read.status === "INVALID" || read.status === "ABSENT") {
+      setEdge([]);
+      return;
+    }
+    // Journal entries are stored newest-first; selectFocusStreak
+    // depends on that order for `current`, so pass through as-is.
+    // Map the AdaptableJournalEntry shape into EdgeEntry — only
+    // fields the streak selectors read (date + result + processQuality).
+    const records = read.records as readonly AdaptableJournalEntry[];
+    const mapped: EdgeEntry[] = records.map((e) => {
+      const q = String(e.processQuality ?? "").toUpperCase();
+      const processQuality: SessionProcess =
+        q === "FOLLOWED_PLAN" || q === "GREAT" || q === "GOOD"
+          ? "FOLLOWED_PLAN"
+          : q === "BROKE_RULES" || q === "POOR" || q === "TERRIBLE"
+            ? "BROKE_RULES"
+            : "UNRESOLVED";
+      const result: SessionOutcome = (e.pnl ?? 0) > 0 ? "win" : (e.pnl ?? 0) < 0 ? "loss" : "be";
+      return { date: e.date, result, processQuality };
+    });
+    setEdge(mapped);
+  }, [userId]);
+  const focusStreak = React.useMemo(() => selectFocusStreak(edge), [edge]);
+  const dayStreak = React.useMemo(() => selectRuleAdherenceStreak(edge), [edge]);
+  if (focusStreak.current === 0 && dayStreak.current === 0) return null;
+  return (
+    <section
+      aria-label="Morning discipline continuity"
+      className="rounded-2xl px-4 py-3 mb-3"
+      style={{
+        background: "linear-gradient(135deg, rgba(240,180,41,0.10), rgba(0,212,170,0.06))",
+        border: "1px solid rgba(240,180,41,0.30)",
+      }}
+    >
+      <div className="flex items-center gap-2 flex-wrap">
+        <span
+          className="text-[10px] font-black uppercase tracking-[0.18em]"
+          style={{ color: "#F0B429" }}
+        >
+          Continuity
+        </span>
+        {focusStreak.current > 0 && (
+          <span
+            className="text-[11px] px-2 py-0.5 rounded-full"
+            style={{
+              background: "rgba(240,180,41,0.15)",
+              color: "#F8D477",
+              border: "1px solid rgba(240,180,41,0.35)",
+            }}
+            title="Consecutive plan-followed trades (§Public Blessing focus streak)"
+          >
+            Focus streak {focusStreak.current} · best {focusStreak.best}
+          </span>
+        )}
+        {dayStreak.current > 0 && (
+          <span
+            className="text-[11px] px-2 py-0.5 rounded-full"
+            style={{
+              background: "rgba(0,212,170,0.13)",
+              color: "#88F5D3",
+              border: "1px solid rgba(0,212,170,0.35)",
+            }}
+            title="Consecutive days with zero BROKE_RULES entries"
+          >
+            Clean days {dayStreak.current} · best {dayStreak.best}
+          </span>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function MorningPrepMirror({ userId }: { userId: string }) {
   const snapshots = useJournalSnapshots(userId || null);
   const nowMs = React.useMemo(() => Date.now(), [snapshots.length]);
@@ -380,6 +475,11 @@ export default function MorningPrepPage() {
             template with today's local checklist auto-completed items
             reflected. Truthful UNKNOWN when the trader hasn't completed
             required prep — advisory framing (never gates). */}
+        {/* Continuity — silent unless the trader has an active
+            focus streak or a clean-day streak. Morning frame is
+            CONTINUITY, not zero-state anxiety. */}
+        <MorningPrepStreakBadge userId={user?.id ?? ""} />
+
         <MorningPrepOpeningBell entriesCount={entries.length} userId={user?.id ?? ""} />
 
         {/* Yesterday's Mirror — retrospective patterns from journal.
