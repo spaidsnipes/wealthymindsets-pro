@@ -22,9 +22,10 @@ import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import { readJournalStorage } from "@/lib/traderMemory/adapters/journalStorage";
 import type { AdaptableJournalEntry } from "@/lib/traderMemory/adapters/journalEntryToSnapshot";
+import { journalEntriesToEdgeEntries } from "@/lib/traderMemory/adapters/journalEntryToEdgeEntry";
 import { selectFocusStreak } from "@/lib/learningGenome/selectFocusStreak";
 import { selectRuleAdherenceStreak } from "@/lib/learningGenome/selectRuleAdherenceStreak";
-import type { EdgeEntry, SessionProcess, SessionOutcome } from "@/lib/proofLane/selectSessionEdge";
+import type { EdgeEntry } from "@/lib/proofLane/selectSessionEdge";
 import {
   readMorningPrepEntries,
   writeMorningPrepEntries,
@@ -88,18 +89,7 @@ function MorningPrepStreakBadge({ userId }: { userId: string }) {
     // Map the AdaptableJournalEntry shape into EdgeEntry — only
     // fields the streak selectors read (date + result + processQuality).
     const records = read.records as readonly AdaptableJournalEntry[];
-    const mapped: EdgeEntry[] = records.map((e) => {
-      const q = String(e.processQuality ?? "").toUpperCase();
-      const processQuality: SessionProcess =
-        q === "FOLLOWED_PLAN" || q === "GREAT" || q === "GOOD"
-          ? "FOLLOWED_PLAN"
-          : q === "BROKE_RULES" || q === "POOR" || q === "TERRIBLE"
-            ? "BROKE_RULES"
-            : "UNRESOLVED";
-      const result: SessionOutcome = (e.pnl ?? 0) > 0 ? "win" : (e.pnl ?? 0) < 0 ? "loss" : "be";
-      return { date: e.date, result, processQuality };
-    });
-    setEdge(mapped);
+    setEdge(journalEntriesToEdgeEntries(records));
   }, [userId]);
   const focusStreak = React.useMemo(() => selectFocusStreak(edge), [edge]);
   const dayStreak = React.useMemo(() => selectRuleAdherenceStreak(edge), [edge]);
