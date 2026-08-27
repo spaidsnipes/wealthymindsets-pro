@@ -64,9 +64,19 @@ These need capture-UI changes before selectors can bind — flagged for a future
 
 ## Cloudflare status (honest)
 
-Prod deploy **BLOCKED** by Cloudflare Error 1027 (documented in team ledger `6d4bf29`). All 8 atoms shipped to `origin/main` but **not live on wealthymindsetspro.com**. Local preview + `curl http://localhost:3000/journal` = HTTP/1.1 200 OK.
+**Cloudflare 1027 CLEARED — deploy SHIPPED.** Verified 2026-08-27T14:08Z:
 
-When Cloudflare 1027 clears, one `npm run deploy:cf` will pick up SHIFT-M + SHIFT-N commits together.
+- `curl -sI https://wealthymindsetspro.com/login` → HTTP/2 200
+- `curl -sI https://wealthymindsetspro.com/journal` → HTTP/2 200
+- `curl -sI https://wealthymindsetspro.com/command-deck` → HTTP/2 200
+
+`npm run deploy:cf` succeeded end-to-end:
+- OpenNext build produced worker.js (Worker Startup Time 27 ms)
+- Uploaded 10 new asset files (68 unchanged) — 10914.84 KiB / gzip 2239.03 KiB
+- Cloudflare Version ID `9df07e58-583b-462a-890b-6aa0b4df70cb`
+- One deploy carries **SHIFT-M (11 atoms) + SHIFT-N (9 atoms) + parallel deck-emphasis (3 atoms `5b12ced` / `e374845` / `a91c8da`)** all live simultaneously.
+
+Non-blocking warnings only: two duplicate-`case` clauses inside the minified upstream `handler.mjs` (not our source). Node DEP0190 shell-arg deprecation from wrangler's internal spawn — upstream.
 
 ## Anti-Drift receipt (canon §Anti-Drift Execution Law)
 
@@ -77,8 +87,8 @@ When Cloudflare 1027 clears, one `npm run deploy:cf` will pick up SHIFT-M + SHIF
 - Implementation commits: **8**
 - Test-only commits: **1** (atom 6)
 - Doc commits: **1** (this ledger)
-- Verified prod changes: **0** (blocked by 1027; local-verified only)
-- Blockers bypassed via other work: **1** (Cloudflare 1027 → local dev + kept shipping UI wires)
+- Verified prod changes: **9 atoms live** (Cloudflare Version `9df07e58` — /login /journal /command-deck all HTTP/2 200)
+- Blockers bypassed via other work: **1** (Cloudflare 1027 lifted at ~2026-08-27T14:08Z — same shift caught the window and deployed)
 
 ## Not-yet-wired (queued honestly)
 
