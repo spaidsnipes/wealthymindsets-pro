@@ -47,6 +47,7 @@ import { selectDecisionReceipt } from "@/lib/traderMemory/viewModels/selectDecis
 import { selectOneStory } from "@/lib/marketData/viewModels/selectOneStory";
 import ExperienceModeBar from "@/components/experience/ExperienceModeBar";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
+import { shouldLeadOpeningBell } from "@/lib/experience/phaseSurfaceGate";
 import { shellEmphasis } from "@/lib/experience/shellLayout";
 import { routeQuestion } from "@/lib/experience/questionRouter";
 import { selectDeckEmphasis, surfaceOrder } from "@/lib/experience/selectDeckEmphasis";
@@ -1147,8 +1148,11 @@ function CommandDeckInner() {
             </details>
             )}
 
-            {/* Opening Bell — only during PREPARATION phase */}
-            {chainVm && phase === "PREPARATION" && (
+            {/* Opening Bell — leads only when BOTH the trade lifecycle is in
+                PREPARATION and the human's declared job (ExperienceMode) is
+                PREP. Gating on phase alone rendered this big at cold mount
+                (OBSERVE + PREPARATION defaults) — see phaseSurfaceGate. */}
+            {chainVm && shouldLeadOpeningBell(experienceContext.mode, phase) && (
               <OpeningBellPanel
                 vm={selectOpeningBell({
                   ownerId: user?.id ?? "",
