@@ -173,3 +173,16 @@ Implementation Ledger. Suggested workflow:
   — the SAME alias tsconfig/app already use (no parallel copy, strictly additive).
   Suite **161/162 → 162/162 files, 1337 → 1350 tests green**; +13 tests now run;
   tsc clean; `next build` unaffected. Test-infra only — nothing to deploy.
+- `2026-08-27-mobile-mode-band-wrap.md` — **Mobile mode-band wrap fix (`66524a9`
+  → rebased `5022a46`).** At 390px the ExperienceModeBar's seven tabs overflowed
+  their `flex:1/minWidth:0` wrapper (crushed to ~106px) and collided with the
+  current-job descriptor. Root cause: the `<nav>` had no `flexWrap` and buttons
+  had no `minWidth`, inside a non-wrapping deck row. Fix (pure CSS): nav
+  `flexWrap:"wrap"` + buttons `flex:"1 1 auto"/minWidth:52`; deck row
+  `flexWrap:"wrap"` + bar wrapper `flex:"1 1 260px"/minWidth:240`. Desktop
+  single-row layout unchanged (flex-grow). VERIFIED LIVE (prior session, local
+  preview @390px): nav 106→354px, overflow true→false, tabs wrap into 2 rows.
+  tsc clean; combined tree **174/174 files, 1475/1475 tests green** (my fix +
+  parallel SHIFT-O atoms). PUSHED @ `5022a46`; NOT DEPLOYED (prod under Error
+  1027 — redeploy required, this is a runtime change). Fresh screenshot this
+  restart blocked by client auth guard (no session; forging JWT prohibited).
