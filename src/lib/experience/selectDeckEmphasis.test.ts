@@ -60,6 +60,25 @@ describe("selectDeckEmphasis", () => {
     expect(e.emphasizeWhy).toBe(false);
   });
 
+  it("opens the deep analytical stack only in deliberate-analysis jobs, keeping the live-decision loop calm", () => {
+    // PREP builds the plan off the chain; REVIEW / LEARN dissect the record.
+    for (const mode of ["PREP", "REVIEW", "LEARN"] as const) {
+      expect(selectDeckEmphasis(mode).deepSectionsOpen).toBe(true);
+    }
+    // The live-decision loop must stay calm — the deep chain sits one click away
+    // so the One Story / question / Hero Truth lead dominates ("WAIT should feel
+    // calm"; capital-live jobs reduce navigation).
+    for (const mode of ["OBSERVE", "WAIT", "EXECUTE", "MANAGE"] as const) {
+      expect(selectDeckEmphasis(mode).deepSectionsOpen).toBe(false);
+    }
+  });
+
+  it("exposes deepSectionsOpen as a boolean for every mode (total)", () => {
+    for (const mode of EXPERIENCE_MODES) {
+      expect(typeof selectDeckEmphasis(mode).deepSectionsOpen).toBe("boolean");
+    }
+  });
+
   it("only ever opens one contextual drawer by default (never competes for attention)", () => {
     for (const mode of EXPERIENCE_MODES) {
       const e = selectDeckEmphasis(mode);

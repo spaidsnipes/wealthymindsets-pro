@@ -40,6 +40,17 @@ export interface DeckEmphasis {
   readonly passportOpen: boolean;
   /** Decision Receipt drawer opens by default (management + reflection jobs). */
   readonly receiptOpen: boolean;
+  /**
+   * The deep numbered analytical stack (Story Ribbon, DLAR, Decision Chain,
+   * Steward, Data Fidelity) is expanded by default. TRUE only in the deliberate-
+   * analysis jobs (PREP builds the plan, REVIEW/LEARN dissect the record); FALSE
+   * in the live-decision loop (OBSERVE/WAIT/EXECUTE/MANAGE) where the calm lead —
+   * One Story / one question / Hero Truth — must dominate and the depth sits one
+   * deliberate click away. Founder doctrine: "WAIT should feel calm"; "the moment
+   * capital is live, WM should REDUCE navigation." Presentation-only; every
+   * section stays in the DOM and one click from view in every job.
+   */
+  readonly deepSectionsOpen: boolean;
   /** One-line reason this emphasis fits the job — for a11y / tooltip honesty. */
   readonly rationale: string;
   /**
@@ -58,26 +69,32 @@ interface EmphasisBase {
   readonly emphasizeWhy: boolean;
   readonly passportOpen: boolean;
   readonly receiptOpen: boolean;
+  readonly deepSectionsOpen: boolean;
   readonly rationale: string;
 }
 
 const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
-  // Reflection before the bell: the One Story frames the plan; nothing forced open.
+  // Reflection before the bell: the One Story frames the plan; the deep chain is
+  // open because planning is a deliberate-analysis job that builds off it.
   PREP: {
     lead: "STORY",
     order: ["STORY", "WHY", "PASSPORT", "RECEIPT"],
     emphasizeWhy: false,
     passportOpen: false,
     receiptOpen: false,
+    deepSectionsOpen: true,
     rationale: "Planning the session — the One Story frames the day, no live drawer forced.",
   },
-  // No position: study what the market objects actually are.
+  // No position: study what the market objects actually are. The deep decision
+  // chain stays collapsed — watching studies OBJECTS (the Passport), not the
+  // full decision machinery, which is premature with no thesis in play.
   OBSERVE: {
     lead: "PASSPORT",
     order: ["PASSPORT", "STORY", "WHY", "RECEIPT"],
     emphasizeWhy: false,
     passportOpen: true,
     receiptOpen: false,
+    deepSectionsOpen: false,
     rationale: "Watching with no position — the Object DNA leads the study.",
   },
   // Holding a thesis: the trigger question is whether right-of-way is open.
@@ -87,6 +104,7 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
     emphasizeWhy: true,
     passportOpen: false,
     receiptOpen: false,
+    deepSectionsOpen: false,
     rationale: "Waiting for permission — WHY / WHY NOT leads the decision.",
   },
   // Placing the planned decision: keep the blocker ledger front and centre.
@@ -96,6 +114,7 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
     emphasizeWhy: true,
     passportOpen: false,
     receiptOpen: false,
+    deepSectionsOpen: false,
     rationale: "Placing the decision — WHY / WHY NOT confirms the path is clear.",
   },
   // Stewarding an open position: the receipt's management trail leads.
@@ -105,24 +124,29 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
     emphasizeWhy: false,
     passportOpen: false,
     receiptOpen: true,
+    deepSectionsOpen: false,
     rationale: "Managing the position — the Decision Receipt's management trail leads.",
   },
-  // Reviewing: the sealed receipt is the object of study.
+  // Reviewing: the sealed receipt is the object of study — and the deep chain is
+  // the evidence being dissected, so it opens.
   REVIEW: {
     lead: "RECEIPT",
     order: ["RECEIPT", "STORY", "WHY", "PASSPORT"],
     emphasizeWhy: false,
     passportOpen: false,
     receiptOpen: true,
+    deepSectionsOpen: true,
     rationale: "Reviewing — the sealed Decision Receipt is the object of study.",
   },
-  // Training a weakness: the receipt carries the lessons to drill.
+  // Training a weakness: the receipt carries the lessons to drill, and the deep
+  // analytics are the material being trained against.
   LEARN: {
     lead: "RECEIPT",
     order: ["RECEIPT", "STORY", "WHY", "PASSPORT"],
     emphasizeWhy: false,
     passportOpen: false,
     receiptOpen: true,
+    deepSectionsOpen: true,
     rationale: "Training the weakness — the receipt carries the lessons to drill.",
   },
 } as const;

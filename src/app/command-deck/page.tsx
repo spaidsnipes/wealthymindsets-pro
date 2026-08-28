@@ -929,6 +929,30 @@ function CommandDeckInner() {
               </div>
             )}
 
+            {/* DEEP READ — the numbered analytical stack (Story Ribbon, the
+                auction lens, the 9-node Decision Chain, Steward rules, Data
+                Fidelity). In the live-decision loop (OBSERVE / WAIT / EXECUTE /
+                MANAGE) it is collapsed by default so the calm lead — One Story /
+                one question / Hero Truth — owns the first screen and the depth is
+                one deliberate click away; in the deliberate-analysis jobs (PREP /
+                REVIEW / LEARN) it opens because the chain IS the material being
+                worked. Open-state is derived from the same canonical deckEmphasis
+                that reorders the surfaces above — presentation-only, every section
+                stays in the DOM and reachable in every job. */}
+            {chainVm && (
+            <details open={deckEmphasis.deepSectionsOpen}>
+              <summary
+                style={{
+                  cursor: "pointer",
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                  color: "#c9a55c",
+                  textTransform: "uppercase",
+                  padding: "6px 0",
+                }}
+              >
+                Deep read · story · auction lens · decision chain · steward · fidelity
+              </summary>
             {/* STORY RIBBON — Market state → progression → evidence */}
             {chainVm && (
               <div>
@@ -1119,6 +1143,8 @@ function CommandDeckInner() {
                 interventions={athos.interventions as readonly ATHOSIntervention[]}
                 onDismiss={(id) => console.debug("dismissed", id)}
               />
+            )}
+            </details>
             )}
 
             {/* Opening Bell — only during PREPARATION phase */}
