@@ -51,6 +51,17 @@ export interface DeckEmphasis {
    * section stays in the DOM and one click from view in every job.
    */
   readonly deepSectionsOpen: boolean;
+  /**
+   * The deck header's SECONDARY navigation (Growth →, Journal → — links that
+   * leave the decision for another surface) is quieted to low salience. TRUE
+   * only in the capital-live jobs (EXECUTE places the order, MANAGE stewards an
+   * open position) where the trader must stay locked on the decision, not wander
+   * elsewhere. Founder doctrine: "the moment capital is live, WM should REDUCE
+   * navigation." Presentation-only: the links stay in the DOM, reachable and
+   * focusable — only their visual pull recedes. FALSE in every study/plan/review
+   * job, where moving between surfaces is the point.
+   */
+  readonly secondaryNavQuiet: boolean;
   /** One-line reason this emphasis fits the job — for a11y / tooltip honesty. */
   readonly rationale: string;
   /**
@@ -70,6 +81,7 @@ interface EmphasisBase {
   readonly passportOpen: boolean;
   readonly receiptOpen: boolean;
   readonly deepSectionsOpen: boolean;
+  readonly secondaryNavQuiet: boolean;
   readonly rationale: string;
 }
 
@@ -83,6 +95,7 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
     passportOpen: false,
     receiptOpen: false,
     deepSectionsOpen: true,
+    secondaryNavQuiet: false,
     rationale: "Planning the session — the One Story frames the day, no live drawer forced.",
   },
   // No position: study what the market objects actually are. The deep decision
@@ -95,6 +108,7 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
     passportOpen: true,
     receiptOpen: false,
     deepSectionsOpen: false,
+    secondaryNavQuiet: false,
     rationale: "Watching with no position — the Object DNA leads the study.",
   },
   // Holding a thesis: the trigger question is whether right-of-way is open.
@@ -105,6 +119,7 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
     passportOpen: false,
     receiptOpen: false,
     deepSectionsOpen: false,
+    secondaryNavQuiet: false,
     rationale: "Waiting for permission — WHY / WHY NOT leads the decision.",
   },
   // Placing the planned decision: keep the blocker ledger front and centre.
@@ -115,6 +130,7 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
     passportOpen: false,
     receiptOpen: false,
     deepSectionsOpen: false,
+    secondaryNavQuiet: true,
     rationale: "Placing the decision — WHY / WHY NOT confirms the path is clear.",
   },
   // Stewarding an open position: the receipt's management trail leads.
@@ -125,6 +141,7 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
     passportOpen: false,
     receiptOpen: true,
     deepSectionsOpen: false,
+    secondaryNavQuiet: true,
     rationale: "Managing the position — the Decision Receipt's management trail leads.",
   },
   // Reviewing: the sealed receipt is the object of study — and the deep chain is
@@ -136,6 +153,7 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
     passportOpen: false,
     receiptOpen: true,
     deepSectionsOpen: true,
+    secondaryNavQuiet: false,
     rationale: "Reviewing — the sealed Decision Receipt is the object of study.",
   },
   // Training a weakness: the receipt carries the lessons to drill, and the deep
@@ -147,6 +165,7 @@ const EMPHASIS: Readonly<Record<ExperienceMode, EmphasisBase>> = {
     passportOpen: false,
     receiptOpen: true,
     deepSectionsOpen: true,
+    secondaryNavQuiet: false,
     rationale: "Training the weakness — the receipt carries the lessons to drill.",
   },
 } as const;

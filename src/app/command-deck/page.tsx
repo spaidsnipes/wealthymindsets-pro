@@ -394,7 +394,12 @@ function CommandDeckInner() {
             className="wm-cd-header-action"
             type="button"
             onClick={() => router.push("/profile?tab=growth")}
-            aria-label="Open Growth on your Profile"
+            aria-label={
+              deckEmphasis.secondaryNavQuiet
+                ? "Open Growth on your Profile (quieted — capital is live, stay on the decision)"
+                : "Open Growth on your Profile"
+            }
+            title={deckEmphasis.secondaryNavQuiet ? deckEmphasis.rationale : undefined}
             style={{
               fontSize: 10,
               letterSpacing: 0.3,
@@ -406,6 +411,10 @@ function CommandDeckInner() {
               padding: "0 10px",
               borderRadius: 4,
               cursor: "pointer",
+              // Capital-live jobs (EXECUTE/MANAGE) recede the secondary nav so the
+              // trader stays on the decision — reachable + focusable, just quiet.
+              opacity: deckEmphasis.secondaryNavQuiet ? 0.4 : 1,
+              transition: "opacity 160ms ease",
             }}
           >
             Growth →
@@ -414,7 +423,12 @@ function CommandDeckInner() {
             className="wm-cd-header-action"
             type="button"
             onClick={() => router.push("/journal")}
-            aria-label="Open Journal"
+            aria-label={
+              deckEmphasis.secondaryNavQuiet
+                ? "Open Journal (quieted — capital is live, stay on the decision)"
+                : "Open Journal"
+            }
+            title={deckEmphasis.secondaryNavQuiet ? deckEmphasis.rationale : undefined}
             style={{
               fontSize: 10,
               letterSpacing: 0.3,
@@ -426,6 +440,8 @@ function CommandDeckInner() {
               padding: "0 10px",
               borderRadius: 4,
               cursor: "pointer",
+              opacity: deckEmphasis.secondaryNavQuiet ? 0.4 : 1,
+              transition: "opacity 160ms ease",
             }}
           >
             Journal →

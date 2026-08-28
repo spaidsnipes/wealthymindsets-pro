@@ -79,6 +79,26 @@ describe("selectDeckEmphasis", () => {
     }
   });
 
+  it("quiets the header's secondary navigation ONLY in the capital-live jobs (EXECUTE, MANAGE)", () => {
+    // "The moment capital is live, WM should REDUCE navigation" — placing the
+    // order and stewarding an open position are the two jobs where wandering to
+    // Growth/Journal pulls the trader off the decision.
+    for (const mode of ["EXECUTE", "MANAGE"] as const) {
+      expect(selectDeckEmphasis(mode).secondaryNavQuiet).toBe(true);
+    }
+    // Every study / plan / review job leaves the nav at full salience — moving
+    // between surfaces is the point there.
+    for (const mode of ["PREP", "OBSERVE", "WAIT", "REVIEW", "LEARN"] as const) {
+      expect(selectDeckEmphasis(mode).secondaryNavQuiet).toBe(false);
+    }
+  });
+
+  it("exposes secondaryNavQuiet as a boolean for every mode (total)", () => {
+    for (const mode of EXPERIENCE_MODES) {
+      expect(typeof selectDeckEmphasis(mode).secondaryNavQuiet).toBe("boolean");
+    }
+  });
+
   it("only ever opens one contextual drawer by default (never competes for attention)", () => {
     for (const mode of EXPERIENCE_MODES) {
       const e = selectDeckEmphasis(mode);
