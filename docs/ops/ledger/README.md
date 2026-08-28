@@ -220,3 +220,14 @@ Implementation Ledger. Suggested workflow:
   (drawer opens to the full 6 tiles). tsc clean; 174/174 files, 1478/1478 green.
   Founder-visible AFTER screenshot captured LIVE (local preview). PUSHED; NOT
   DEPLOYED (Error 1027).
+- `2026-08-27-deck-deep-read-job-collapse.md` — **Deep analytical stack collapses
+  in the live-decision loop (`c173124`).** Below the calm lead, five always-open
+  numbered sections (Story Ribbon, DLAR auction lens, 9-node Decision Chain ~1265px,
+  Steward, Data Fidelity) rendered expanded in EVERY job — ~3500px of deep
+  analytics competing with the lead even while just watching. Added
+  `deepSectionsOpen` to the canonical `selectDeckEmphasis` job map (TRUE only in
+  PREP/REVIEW/LEARN; FALSE in OBSERVE/WAIT/EXECUTE/MANAGE) and wrapped the sections
+  in a job-derived `<details>`. In OBSERVE they collapse to one "Deep read" line;
+  REVIEW re-opens them (DOM-confirmed open false→true). Presentation-only; job
+  logic centralized in the selector; no data hidden. +2 tests (17→19); tsc clean;
+  174 files / 1480 green. AFTER screenshot LIVE. PUSHED; NOT DEPLOYED (Error 1027).
