@@ -101,3 +101,73 @@ describe("DecisionContextBus — human job, with interface hysteresis (P29)", ()
     expect(listener).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * getContext() is the getSnapshot for `useDecisionContext`'s useSyncExternalStore.
+ * React calls getSnapshot on every render and compares the reference: if it ever
+ * returns a FRESH object while nothing changed, React sees an endless stream of
+ * "new" snapshots, logs "The result of getSnapshot should be cached to avoid an
+ * infinite loop", and re-renders forever (React #185 / max-update-depth). These
+ * tests lock the reference-identity contract that keeps that loop impossible —
+ * the same #185 guard the session/nectar/decision-memory stores already carry.
+ */
+describe("DecisionContextBus — getContext snapshot identity (useSyncExternalStore #185 guard)", () => {
+  it("returns the SAME reference on repeated reads when nothing changed", () => {
+    const bus = busAt();
+    const a = bus.getContext();
+    const b = bus.getContext();
+    expect(b).toBe(a); // identical reference — not merely deep-equal
+  });
+
+  it("holds the reference STABLE across hysteresis-PENDING market proposals", () => {
+    // A pending (un-committed) proposal must NOT change the published snapshot,
+    // or every pending tick would thrash useSyncExternalStore into a re-render
+    // storm before the mode ever commits — the exact cold-mount burst symptom.
+    const bus = busAt();
+    const before = bus.getContext();
+    const r1 = bus.proposeMode("WAIT"); // pending (1 of 3)
+    expect(r1.status).toBe("PENDING");
+    expect(bus.getContext()).toBe(before);
+    const r2 = bus.proposeMode("WAIT"); // pending (2 of 3)
+    expect(r2.status).toBe("PENDING");
+    expect(bus.getContext()).toBe(before); // still the same reference
+  });
+
+  it("keeps the SAME reference on no-op user intent and no-op question set", () => {
+    const bus = busAt(); // seeded OBSERVE
+    const seed = bus.getContext();
+    // Re-asserting the current mode with no question change is a no-op.
+    expect(bus.setMode("OBSERVE")).toBe(seed);
+    expect(bus.getContext()).toBe(seed);
+    // Setting the identical question is a no-op.
+    expect(bus.setQuestion(seed.question)).toBe(seed);
+    expect(bus.getContext()).toBe(seed);
+    // Proposing the already-committed mode is a NOOP.
+    bus.proposeMode("OBSERVE");
+    expect(bus.getContext()).toBe(seed);
+  });
+
+  it("publishes a NEW reference only when the context truly changes", () => {
+    const bus = busAt();
+    const seed = bus.getContext();
+    const afterMode = bus.setMode("EXECUTE");
+    expect(afterMode).not.toBe(seed); // real change → fresh snapshot
+    expect(bus.getContext()).toBe(afterMode); // then stable again at the new ref
+    const afterQuestion = bus.setQuestion("Is right-of-way actually open?");
+    expect(afterQuestion).not.toBe(afterMode);
+    expect(bus.getContext()).toBe(afterQuestion);
+  });
+
+  it("a committed market proposal flips the reference exactly once, then holds it", () => {
+    const bus = busAt();
+    const seed = bus.getContext();
+    bus.proposeMode("WAIT"); // 1
+    bus.proposeMode("WAIT"); // 2
+    const committed = bus.proposeMode("WAIT"); // 3 → COMMITTED
+    expect(committed.status).toBe("COMMITTED");
+    const after = bus.getContext();
+    expect(after).not.toBe(seed);
+    expect(after.mode).toBe("WAIT");
+    expect(bus.getContext()).toBe(after); // stable at the committed reference
+  });
+});
