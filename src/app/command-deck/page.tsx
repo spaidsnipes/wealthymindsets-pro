@@ -590,22 +590,6 @@ function CommandDeckInner() {
                 When no chapter resolves, HeroTruth still renders — the
                 marketState prop is skipped and SYMBOL becomes the dominant
                 element (never a fabricated 'BALANCE'). */}
-            {/* CONTEXT RIBBON — 5-tile purposeful state read (Founder
-                2026-08-19 OS Transformation Program §DESKTOP TARGET).
-                Reads canonical owners only; UNKNOWN/UNAVAILABLE/DEGRADED
-                are first-class visible states. Shared primitive: other
-                rooms consume the same component. */}
-            <CommandContextRibbon
-              symbol={symbol}
-              session={identity.session}
-              state={state}
-              wsConnected={wsFeed.connected}
-              wsSource={wsFeed.source ?? null}
-              availableR={chainVm?.availableR ?? null}
-              permission={permission}
-              chainNodes={chainVm?.nodes}
-            />
-
             {(() => {
               const story = state ? selectMarketStory(state, history) : null;
               return (
@@ -795,6 +779,45 @@ function CommandDeckInner() {
                   </details>
                 )}
             </div>
+
+            {/* RAW context rail — SHOW FIRST, EXPLAIN SECOND, RAW THIRD
+                (Founder doctrine). The 6-tile purposeful state read
+                (session / data / observed / available-R / evidence debt /
+                right-of-way) used to LEAD the room, forcing six cards to
+                fight the Hero Truth for the trader's first second. Every
+                decision-critical value it carries is already surfaced above
+                — right-of-way + missing-evidence in the One Story, Available
+                R + evidence debt in the decision chain — so it is genuinely
+                the RAW tier: collapsed by default so the deck opens calm,
+                one deliberate click from the full canonical read. Reads
+                canonical owners only; UNKNOWN/UNAVAILABLE/DEGRADED stay
+                first-class visible states. Shared primitive — do not fork. */}
+            <details>
+              <summary
+                style={{
+                  cursor: "pointer",
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                  color: "#8a8271",
+                  textTransform: "uppercase",
+                  padding: "4px 0",
+                }}
+              >
+                System state · session · data · evidence · right-of-way
+              </summary>
+              <div style={{ marginTop: 8 }}>
+                <CommandContextRibbon
+                  symbol={symbol}
+                  session={identity.session}
+                  state={state}
+                  wsConnected={wsFeed.connected}
+                  wsSource={wsFeed.source ?? null}
+                  availableR={chainVm?.availableR ?? null}
+                  permission={permission}
+                  chainNodes={chainVm?.nodes}
+                />
+              </div>
+            </details>
 
             {/* Phase selector — the trader's current decision phase */}
             <div
