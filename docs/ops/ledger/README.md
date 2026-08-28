@@ -186,3 +186,13 @@ Implementation Ledger. Suggested workflow:
   parallel SHIFT-O atoms). PUSHED @ `5022a46`; NOT DEPLOYED (prod under Error
   1027 — redeploy required, this is a runtime change). Fresh screenshot this
   restart blocked by client auth guard (no session; forging JWT prohibited).
+- `2026-08-27-manage-invalidation-question.md` — **MANAGE invalidation question
+  (`e23e080`).** The router's MANAGE branch never inspected the compiled verdict,
+  so a hard NO TRADE (thesis rejected while holding) and a degraded CAUTION both
+  collapsed into the calm "still doing what I expected?" fallback — understating
+  an invalidation with capital LIVE. Added capital-live precedence: NO TRADE →
+  "invalidated — protect or exit now?" (outranks a soft contradiction, unlike
+  WAIT); CAUTION → "degraded — reduce size or tighten stop?"; contradiction and
+  fallback kept. Closes RightOfWay-verdict totality across EVERY ExperienceMode
+  in the router. +3 tests (20→23); tsc clean; full suite **174/174 files,
+  1478/1478 green**. PUSHED; NOT DEPLOYED (Error 1027).
