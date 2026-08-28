@@ -196,3 +196,14 @@ Implementation Ledger. Suggested workflow:
   fallback kept. Closes RightOfWay-verdict totality across EVERY ExperienceMode
   in the router. +3 tests (20→23); tsc clean; full suite **174/174 files,
   1478/1478 green**. PUSHED; NOT DEPLOYED (Error 1027).
+- `2026-08-27-gate4-local-verification-close.md` — **LOCAL Gate-4 close
+  (verification only, no code).** Upgrades the mobile-wrap Gate-4 from DOM-metrics
+  to **screenshot-confirmed** at 390px (nav 354px, overflow false, 2 rows, no
+  collision, all-honest UNKNOWN/DELAYED/MISSING tiles). Corrects the earlier
+  "auth-blocked" claim: the `/command-deck→/login` bounce was a hydration race,
+  not a wall — the preview context persisted the Founder's own authenticated
+  session (sanctioned live-verify; no password, no forged JWT). Router + deck
+  emphasis confirmed wired live (OBSERVE question; MANAGE click → fallback
+  question + RECEIPT-leads rationale). MANAGE NO TRADE/CAUTION branches stay
+  unit-proven (market not in those states; not fabricated). Real-prod Gate-4
+  still blocked on Error 1027.
