@@ -207,3 +207,16 @@ Implementation Ledger. Suggested workflow:
   question + RECEIPT-leads rationale). MANAGE NO TRADE/CAUTION branches stay
   unit-proven (market not in those states; not fabricated). Real-prod Gate-4
   still blocked on Error 1027.
+- `2026-08-27-deck-calm-lead-raw-third.md` — **Deck opens calm — raw context
+  rail demoted to a collapsed RAW-third tier (`71c06c8`).** The 6-tile
+  CommandContextRibbon (SESSION/DATA/OBSERVED/AVAILABLE R/EVIDENCE/RIGHT OF WAY)
+  used to render FIRST in the primary column, above Hero Truth + One Story —
+  a card museum inverting SHOW-FIRST/EXPLAIN-SECOND/RAW-THIRD. Every value it
+  carries is already surfaced above (right-of-way + missing in the One Story;
+  Available R + evidence debt in the decision chain), so leading with it is noise.
+  Relocated to the bottom, wrapped in a `<details>` collapsed by default; deck now
+  leads with the routed question → the WAIT job suggestion → Hero Truth, raw rail
+  one click away. Presentation-only; shared primitive unforked; no truth hidden
+  (drawer opens to the full 6 tiles). tsc clean; 174/174 files, 1478/1478 green.
+  Founder-visible AFTER screenshot captured LIVE (local preview). PUSHED; NOT
+  DEPLOYED (Error 1027).
