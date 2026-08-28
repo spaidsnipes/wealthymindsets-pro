@@ -98,3 +98,23 @@ visibly reorganizes around the job.
 - Continue the WAIT vertical slice: WHY should hold depth without losing chart
   context. Founder resolves Error 1027 (task #15) to move both deck-calm atoms
   DEPLOYED → OBSERVED on real prod.
+
+## Post-commit verification (2026-08-28 ~23:53 local) — FALSE-ALARM cleared
+A dev-server console check after `c173124` surfaced ~64 repeated Turbopack parse
+errors at `page.tsx:1174:11` ("Expected '</', got '{'"). Investigated as a
+possible broken commit. Verdict: **STALE MODULE CACHE, not a real imbalance.**
+Evidence the on-disk file is valid:
+- `tsc --noEmit --skipLibCheck`: **0 errors**.
+- `NEXT_TELEMETRY_DISABLED=1 next build`: **exit 0**, `/command-deck` in the
+  compiled route table (a real parse error fails the build — it did not).
+- Manual JSX trace: `<details>` opens L943 inside `{chainVm && (` (L942), closes
+  L1147; the guard closes L1148; primary-column `</div>` L1174; Evidence `<aside>`
+  is its SIBLING (L1177–1187); layout `</div>` L1188. Balanced.
+Root cause: the two-edit atom (opening `<details>` then closing it in a second
+Edit) left Turbopack's dev module in the transient one-sided state; a browser
+reload re-requests but does not invalidate the cached compile. Forcing a fresh
+mtime (`touch`) triggered the fs-watch recompile of the valid file. Post-recompile
+DOM eval: deck fully rendered (deep-read + system-state drawers, 8 passports,
+receipt), `nextjs-portal` present but holds only the dev-indicator CSS — no
+error dialog, no error overlay, no build-error text in body. Screenshot captured
+(OBSERVE, calm lead dominant). `c173124` stands SOUND on origin/main.
