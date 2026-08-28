@@ -83,7 +83,19 @@ export function routeQuestion(mode: ExperienceMode, oneStory: OneStoryVM | null)
       return "Is right-of-way still granted at this exact price?";
 
     case "MANAGE":
+      // Capital is LIVE here, so protecting it dominates — and the precedence is
+      // deliberately different from WAIT (which risks no capital). A compiled
+      // hard NO TRADE verdict means the engine has REJECTED the very thesis the
+      // position rests on: that is an invalidation, and the calm fallback
+      // ("still doing what I expected?") would dangerously understate it. It
+      // even outranks a soft contradiction, because "starting to break down"
+      // understates a thesis the engine has already thrown out.
+      if (s.decision === "NO TRADE") return "The thesis is invalidated — do I protect or exit now?";
       if (s.hasContradiction) return "Is my open thesis starting to break down?";
+      // A DEGRADED (CAUTION) verdict while holding is not a full invalidation,
+      // but it is not the all-clear either — the honest management question is
+      // whether to reduce size or tighten the stop to match the degradation.
+      if (s.decision === "CAUTION") return "Conditions have degraded — do I reduce size or tighten my stop?";
       return "Is the position still doing what I expected?";
 
     case "REVIEW":

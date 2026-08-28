@@ -163,6 +163,29 @@ describe("questionRouter", () => {
     ).toContain("break down");
   });
 
+  it("MANAGE escalates to protect/exit on a hard NO TRADE invalidation", () => {
+    const q = routeQuestion("MANAGE", story({ decision: reading("NO TRADE") }));
+    expect(q).toContain("invalidated");
+    expect(q).toContain("protect or exit");
+  });
+
+  it("MANAGE invalidation outranks a soft contradiction (capital is live)", () => {
+    // Unlike WAIT — where a contradiction is examined first because no capital
+    // is at risk — an open position must hear the harder exit trigger first.
+    const q = routeQuestion(
+      "MANAGE",
+      story({ contradiction: "momentum stalling", decision: reading("NO TRADE") }),
+    );
+    expect(q).toContain("invalidated");
+    expect(q).not.toContain("break down");
+  });
+
+  it("MANAGE asks to reduce/tighten on a degraded CAUTION verdict", () => {
+    const q = routeQuestion("MANAGE", story({ decision: reading("CAUTION") }));
+    expect(q).toContain("degraded");
+    expect(q).toMatch(/reduce size or tighten/);
+  });
+
   it("MANAGE otherwise asks if the position is behaving as expected", () => {
     expect(routeQuestion("MANAGE", story())).toContain("still doing what I expected");
   });
