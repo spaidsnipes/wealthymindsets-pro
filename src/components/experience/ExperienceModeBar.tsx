@@ -45,6 +45,11 @@ export function ExperienceModeBar({ bus, className }: ExperienceModeBarProps) {
       style={{
         display: "flex",
         alignItems: "center",
+        // Wrap gracefully on narrow (mobile) widths: the seven states must stay
+        // fully visible — never overflow their container and collide with the
+        // adjacent job descriptor. On desktop everything fits on one row, so
+        // wrap never triggers and the layout is unchanged.
+        flexWrap: "wrap",
         gap: 2,
         background: WM.surface.deep,
         border: `1px solid ${WM.border.hair}`,
@@ -62,7 +67,10 @@ export function ExperienceModeBar({ bus, className }: ExperienceModeBarProps) {
             aria-pressed={active}
             title={MODE_HINT[mode]}
             style={{
-              flex: 1,
+              flex: "1 1 auto",
+              // Keep each tap target readable when the bar wraps on mobile;
+              // ignored on desktop where flex-grow spreads them across one row.
+              minWidth: 52,
               fontSize: 10,
               fontWeight: 800,
               letterSpacing: 0.6,

@@ -447,8 +447,13 @@ function CommandDeckInner() {
           gap: 6,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Mode bar + current-job descriptor. On desktop they share one row
+            (descriptor right-aligned); on mobile the row WRAPS so the descriptor
+            drops below and the mode bar keeps its full width instead of being
+            crushed to a sliver (which previously made the seven tabs overflow
+            and collide with this text). */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <div style={{ flex: "1 1 260px", minWidth: 240 }}>
             <ExperienceModeBar />
           </div>
           <div
