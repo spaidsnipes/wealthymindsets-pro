@@ -26,8 +26,15 @@ describe("Command Deck header responsive contract", () => {
   it("preserves a named navigation target for every action", () => {
     expect(page).toContain('onClick={() => (showEvidence ? setShowEvidence(false) : openWhy({ kind: "hero" }))}');
     expect(page).toContain('aria-label={showEvidence ? "Hide evidence inspector" : "Show evidence inspector"}');
-    expect(page).toContain('aria-label="Open Growth on your Profile"');
-    expect(page).toContain('aria-label="Open Journal"');
+    // Growth + Journal name their target in BOTH the full-salience and the
+    // capital-live "quieted" branch (the nav recedes visually but stays a named,
+    // reachable target). The base phrase must survive in the not-quiet branch.
+    expect(page).toContain('"Open Growth on your Profile"');
+    expect(page).toContain('"Open Journal"');
+    // And the quieted branch must still name the same destination, never a bare
+    // "(quieted)" with no target — the trader always knows where the link goes.
+    expect(page).toContain('"Open Growth on your Profile (quieted — capital is live, stay on the decision)"');
+    expect(page).toContain('"Open Journal (quieted — capital is live, stay on the decision)"');
   });
 
   it("lets dense evidence and realm grids reflow without phone overflow", () => {
