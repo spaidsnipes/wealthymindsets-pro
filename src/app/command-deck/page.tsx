@@ -40,6 +40,8 @@ import CommandContextRibbon from "@/components/command/CommandContextRibbon";
 import OneStoryStrip from "@/components/command/OneStoryStrip";
 import { PerCapabilityFidelityGrid } from "@/components/marketData/PerCapabilityFidelityGrid";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
+import { strongestCapability, weakestCapability, evaluatedCapabilityCount } from "@/lib/marketData/perCapabilityFidelity";
+import { SemanticZoom } from "@/components/experience/SemanticZoom";
 import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassportPanel";
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
@@ -823,48 +825,65 @@ function CommandDeckInner() {
 
             {/* Per-capability fidelity — canon §Provider Status Is
                 Resolved Per Capability (Founding Contract 2026-08-29).
-                Progressive-disclosure details block so the deck stays
-                calm; expand to inspect what evidence each of the seven
-                capabilities is actually producing right now. */}
-            <details style={{ marginTop: 6 }}>
-              <summary
-                style={{
-                  cursor: "pointer",
-                  fontSize: 10,
-                  letterSpacing: 0.6,
-                  color: "#8B92AC",
-                  textTransform: "uppercase",
-                  padding: "4px 0",
-                }}
-              >
-                Data · fidelity per capability
-              </summary>
-              <div style={{ marginTop: 8 }}>
-                <PerCapabilityFidelityGrid
-                  symbol={symbol}
-                  showUnevaluated
-                  report={selectPerCapabilityFidelity({
-                    source: wsFeed.source ?? "unavailable",
-                    connected: wsFeed.connected,
-                    hasCandles: !!state,
-                    // TICKS — real signal: wsFeed.recentTicks is populated
-                    // only when per-trade tape is actively flowing for the
-                    // current symbol. Pass true when recent ticks exist AND
-                    // transport is connected (both must hold — connected
-                    // alone can produce ticks[] on hot-reload with no live
-                    // stream). Pass false to explicitly claim STALE when
-                    // connected but the buffer is empty (canon: name the
-                    // condition, not silence). Undefined only during
-                    // hydration/init.
-                    tapeConnected: !wsFeed.connected
-                      ? undefined
-                      : (wsFeed.recentTicks?.length ?? 0) > 0,
-                    // depth / options / greeks / orderFlow still undefined —
-                    // providers not yet wired. Canon §silent-not-fake.
-                  })}
-                />
-              </div>
-            </details>
+                Rendered inside a canonical <SemanticZoom> so the deck
+                honors §Phase 2 Experience Shell 4-level pattern:
+                  L1 — one-glance summary line
+                  L3 — full per-capability grid
+                (§Semantic Zoom skips L2 + L4 here — silent per canon.) */}
+            {(() => {
+              const capabilityReport = selectPerCapabilityFidelity({
+                source: wsFeed.source ?? "unavailable",
+                connected: wsFeed.connected,
+                hasCandles: !!state,
+                // TICKS lit from real wsFeed tape signal
+                tapeConnected: !wsFeed.connected
+                  ? undefined
+                  : (wsFeed.recentTicks?.length ?? 0) > 0,
+              });
+              const evaluated = evaluatedCapabilityCount(capabilityReport);
+              const weakest = weakestCapability(capabilityReport);
+              const strongest = strongestCapability(capabilityReport);
+              return (
+                <div style={{ marginTop: 6 }}>
+                  <SemanticZoom
+                    ariaLabel="Data fidelity per capability"
+                    levels={{
+                      1: (
+                        <div className="text-[10px]" style={{ color: "#8B92AC", padding: "4px 2px" }}>
+                          {evaluated === 0 ? (
+                            <span className="italic">Fidelity not yet evaluated</span>
+                          ) : weakest && strongest && weakest.capability === strongest.capability ? (
+                            <span>
+                              <span style={{ color: "#F0B429", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                                Data
+                              </span>{" · "}
+                              <span>{evaluated} / 7 capabilities · {strongest.label}</span>
+                            </span>
+                          ) : weakest && strongest ? (
+                            <span>
+                              <span style={{ color: "#F0B429", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                                Data
+                              </span>{" · "}
+                              <span>{evaluated} / 7 capabilities · strongest {strongest.capability} = {strongest.label}</span>
+                              {weakest.label !== strongest.label && (
+                                <span> · weakest {weakest.capability} = {weakest.label}</span>
+                              )}
+                            </span>
+                          ) : null}
+                        </div>
+                      ),
+                      3: (
+                        <PerCapabilityFidelityGrid
+                          symbol={symbol}
+                          showUnevaluated
+                          report={capabilityReport}
+                        />
+                      ),
+                    }}
+                  />
+                </div>
+              );
+            })()}
 
             {/* Phase selector — the trader's current decision phase */}
             <div
