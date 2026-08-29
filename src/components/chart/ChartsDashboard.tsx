@@ -36,6 +36,7 @@ import { BottomIndexBar } from "./BottomIndexBar";
 import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { priceSourceBadge } from "@/lib/priceSource";
+import { fidelityLabelToFailureReport } from "@/lib/systemHealth/fidelityToHealth";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { interpretPine } from "@/lib/pine/interpreter";
 import type { PineOutput } from "@/lib/pine/types";
@@ -741,9 +742,28 @@ export function ChartsDashboard() {
             // user can actually read WHICH feed the price came from without
             // hovering for a tooltip.
             const b = priceSourceBadge(source, connected);
+            // Canon §Failure + Recovery Grammar (2026-08-28) — enrich the
+            // tooltip with the seven-question narrative derived from the
+            // canonical fidelity label. Trader hovering the badge now
+            // sees not just "what" but "what still works, why, and what
+            // the next safe action is."
+            const report = fidelityLabelToFailureReport(b.label);
+            const enrichedTitle = report.state === "NORMAL"
+              ? b.title
+              : [
+                  b.title,
+                  "",
+                  `State: ${report.state}`,
+                  report.affected      ? `Affected: ${report.affected}`             : null,
+                  report.stillWorks    ? `Still works: ${report.stillWorks}`        : null,
+                  report.reason        ? `Reason: ${report.reason}`                 : null,
+                  report.userImpact    ? `Impact: ${report.userImpact}`             : null,
+                  report.nextSafeAction? `Next: ${report.nextSafeAction}`           : null,
+                  report.recoveredWhen ? `Recovered when: ${report.recoveredWhen}`  : null,
+                ].filter(Boolean).join("\n");
             return (
               <span
-                title={b.title}
+                title={enrichedTitle}
                 aria-label={b.label}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 5,
