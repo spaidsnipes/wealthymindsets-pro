@@ -1,5 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { candleDataStatus, priceSourceBadge, resolveChartSurfaceBadge } from "./priceSource";
+import {
+  CANONICAL_FIDELITY_LABELS as L,
+  ALL_CANONICAL_FIDELITY_LABELS,
+} from "./marketData/canonicalFidelityLabels";
+
+/**
+ * Labels updated 2026-08-28 SHIFT-P: priceSource emits canonical
+ * Living Market Visual Systems vocabulary (2026-08-27 canon). Legacy
+ * "NO FEED" / "DELAYED 15 MIN" / "HISTORICAL" strings are quarantined;
+ * every test here asserts on the canon-approved labels.
+ */
 
 describe("priceSourceBadge (WM-CHART-P0-05 provenance)", () => {
   it("labels real-time streams as live", () => {
@@ -19,17 +30,23 @@ describe("priceSourceBadge (WM-CHART-P0-05 provenance)", () => {
     expect(priceSourceBadge("alpaca", false).live).toBe(false);
   });
 
-  it("shows an explicit no-feed state before any source resolves", () => {
+  it("emits STALE_PIPELINE + unresolved=true before any source resolves", () => {
     const b = priceSourceBadge("unavailable", false);
-    expect(b.label).toBe("NO FEED");
+    expect(b.label).toBe(L.STALE_PIPELINE);
     expect(b.live).toBe(false);
+    expect(b.unresolved).toBe(true);
   });
 
-  it("keeps provider identity internal and renders only vendor-agnostic states", () => {
-    const publicLabels = new Set(["LIVE", "DELAYED", "DELAYED 15 MIN", "NO FEED"]);
+  it("resolved providers never carry unresolved=true", () => {
+    for (const s of ["polygon", "coinbase", "binance", "alpaca", "finnhub", "yahoo"]) {
+      expect(priceSourceBadge(s, true).unresolved).toBe(false);
+    }
+  });
+
+  it("every emitted label is one of the seven canon-approved strings", () => {
     for (const s of ["polygon", "coinbase", "binance", "alpaca", "finnhub", "yahoo", "unavailable"]) {
       const b = priceSourceBadge(s, true);
-      expect(publicLabels.has(b.label)).toBe(true);
+      expect(ALL_CANONICAL_FIDELITY_LABELS as readonly string[]).toContain(b.label);
       expect(b.label.toLowerCase()).not.toContain(s);
       expect(b.title.toLowerCase()).not.toContain(s);
       expect(b.provenance).toBe(s);
@@ -41,7 +58,7 @@ describe("priceSourceBadge (WM-CHART-P0-05 provenance)", () => {
 describe("candleDataStatus", () => {
   it("never promotes a recently refreshed delayed feed to LIVE", () => {
     expect(candleDataStatus("yahoo", true, true, 9_999, 10_000)).toEqual({
-      state: "DELAYED", label: "DELAYED", live: false,
+      state: "DELAYED", label: L.DELAYED_BY_ENTITLEMENT, live: false,
     });
   });
 
@@ -51,77 +68,72 @@ describe("candleDataStatus", () => {
     expect(candleDataStatus("unavailable", false, false, 0, 10_000).state).toBe("UNAVAILABLE");
   });
 
-  // SHIFT-H H-Bkt 1: P1 truth defect discovered by USE on /charts —
-  // chart shows full historical OHLCV yet the chrome said NO FEED.
-  // Contradiction. When candles are rendered, chart is DELAYED at worst.
-  describe("HISTORICAL guarantee — chart with candles is never NO FEED", () => {
-    it("returns DELAYED / HISTORICAL when candles exist but realtime source is unavailable", () => {
+  // SHIFT-H H-Bkt 1 → SHIFT-P canon: chart with candles is never mis-
+  // labeled as absent. The canon label is HISTORICAL_BARS_VERIFIED.
+  describe("HISTORICAL guarantee — chart with candles renders as bars-verified", () => {
+    it("returns DELAYED / HISTORICAL_BARS_VERIFIED when candles exist but realtime source is unavailable", () => {
       const s = candleDataStatus("unavailable", false, true, 0, 10_000);
       expect(s.state).toBe("DELAYED");
-      expect(s.label).toBe("HISTORICAL");
+      expect(s.label).toBe(L.HISTORICAL_BARS_VERIFIED);
       expect(s.live).toBe(false);
     });
-    it("still emits NO FEED when there are no candles at all", () => {
+    it("emits SESSION_CLOSED_LAST_VERIFIED when there are no candles at all (canon: closed is not delayed)", () => {
       const s = candleDataStatus("unavailable", false, false, 0, 10_000);
       expect(s.state).toBe("UNAVAILABLE");
-      expect(s.label).toBe("NO FEED");
+      expect(s.label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
     });
-    it("still emits DELAYED with the vendor-neutral badge label for delayed providers", () => {
-      expect(candleDataStatus("yahoo", true, true, 9_999, 10_000).label).toBe("DELAYED");
-      expect(candleDataStatus("finnhub", true, true, 9_999, 10_000).label).toBe("DELAYED 15 MIN");
+    it("passes through the entitlement-delayed label for delayed providers", () => {
+      expect(candleDataStatus("yahoo", true, true, 9_999, 10_000).label).toBe(L.DELAYED_BY_ENTITLEMENT);
+      expect(candleDataStatus("finnhub", true, true, 9_999, 10_000).label).toBe(L.DELAYED_BY_ENTITLEMENT);
     });
   });
 
-  // Orkin §22 state-matrix — enumerate every realistic reachable branch
-  // of candleDataStatus. Each row: (source × connected × hasCandles ×
-  // freshTick) → expected {state, label, live}. Impossible/theatre
-  // combinations are excluded per §22 "prove impossible states are
-  // impossible" — the priceSourceBadge switch guarantees a live-source
-  // never falls into the NO FEED default.
+  // Orkin §22 state-matrix — every realistic reachable branch of
+  // candleDataStatus, now speaking the canon vocabulary.
   describe("state matrix — every realistic reachable branch", () => {
     it("polygon connected + candles + fresh tick → LIVE", () => {
       const s = candleDataStatus("polygon", true, true, 9_999, 10_000);
-      expect(s).toEqual({ state: "LIVE", label: "LIVE", live: true });
+      expect(s).toEqual({ state: "LIVE", label: L.LIVE_CERTIFIED_QUOTE, live: true });
     });
-    it("polygon connected + no candles → UNAVAILABLE / NO FEED (live source can be pre-load)", () => {
+    it("polygon connected + no candles → UNAVAILABLE / SESSION_CLOSED_LAST_VERIFIED", () => {
       const s = candleDataStatus("polygon", true, false, 0, 10_000);
       expect(s.state).toBe("UNAVAILABLE");
-      expect(s.label).toBe("NO FEED");
+      expect(s.label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
     });
     it("alpaca connected + candles + fresh tick → LIVE (equity IEX-only path)", () => {
       const s = candleDataStatus("alpaca", true, true, 9_999, 10_000);
       expect(s.state).toBe("LIVE");
     });
-    it("alpaca DISCONNECTED + candles → DELAYED (reconnecting, not NO FEED — chart is honest)", () => {
+    it("alpaca DISCONNECTED + candles → DELAYED / STALE_PIPELINE (reconnecting)", () => {
       const s = candleDataStatus("alpaca", false, true, 9_999, 10_000);
       expect(s.state).toBe("DELAYED");
-      expect(s.label).toBe("DELAYED");
+      expect(s.label).toBe(L.STALE_PIPELINE);
     });
     it("binance connected=false + candles + fresh tick → LIVE (crypto stream is live regardless)", () => {
       const s = candleDataStatus("binance", false, true, 9_999, 10_000);
       expect(s.state).toBe("LIVE");
     });
-    it("coinbase live source + candles + no tick ever (lastTickAt=0) → STALE", () => {
+    it("coinbase live source + candles + no tick ever (lastTickAt=0) → STALE / STALE_PIPELINE", () => {
       const s = candleDataStatus("coinbase", true, true, 0, 10_000);
       expect(s.state).toBe("STALE");
-      expect(s.label).toBe("STALE");
+      expect(s.label).toBe(L.STALE_PIPELINE);
     });
     it("yahoo delayed + candles → DELAYED regardless of connected flag", () => {
       expect(candleDataStatus("yahoo", true, true, 9_999, 10_000).state).toBe("DELAYED");
       expect(candleDataStatus("yahoo", false, true, 9_999, 10_000).state).toBe("DELAYED");
     });
-    it("finnhub 15min-delayed + candles → DELAYED 15 MIN (label preserved)", () => {
-      expect(candleDataStatus("finnhub", true, true, 9_999, 10_000).label).toBe("DELAYED 15 MIN");
+    it("finnhub 15min-delayed + candles → DELAYED_BY_ENTITLEMENT (canon: entitlement, not clock)", () => {
+      expect(candleDataStatus("finnhub", true, true, 9_999, 10_000).label).toBe(L.DELAYED_BY_ENTITLEMENT);
     });
-    it("unknown source string + candles → HISTORICAL (falls through the badge default, promoted by H-Bkt 1)", () => {
+    it("unknown source string + candles → HISTORICAL_BARS_VERIFIED (unresolved → bars-only truth)", () => {
       const s = candleDataStatus("some-future-provider-not-in-switch", true, true, 0, 10_000);
       expect(s.state).toBe("DELAYED");
-      expect(s.label).toBe("HISTORICAL");
+      expect(s.label).toBe(L.HISTORICAL_BARS_VERIFIED);
     });
-    it("unknown source string + no candles → NO FEED (still nothing to render)", () => {
+    it("unknown source string + no candles → SESSION_CLOSED_LAST_VERIFIED", () => {
       const s = candleDataStatus("mystery", false, false, 0, 10_000);
       expect(s.state).toBe("UNAVAILABLE");
-      expect(s.label).toBe("NO FEED");
+      expect(s.label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
     });
     it("live=false paths never claim live=true (rejection guarantee)", () => {
       for (const s of ["yahoo", "finnhub", "unknown"] as const) {
@@ -129,33 +141,31 @@ describe("candleDataStatus", () => {
       }
     });
     it("staleAfterMs boundary — exactly at the threshold is STALE, one ms before is LIVE", () => {
-      // now - lastTickAt = 20_000 = staleAfterMs → STALE
       expect(candleDataStatus("coinbase", true, true, 0, 20_000).state).toBe("STALE");
-      // now - lastTickAt = 19_999 → LIVE
       expect(candleDataStatus("coinbase", true, true, 1, 20_000).state).toBe("LIVE");
     });
   });
 
   // H-Bkt 8 nest closure — pure helper protects future chart-chrome pills.
   describe("resolveChartSurfaceBadge — H-Bkt 1/8 truth guard as reusable helper", () => {
-    it("promotes NO FEED to HISTORICAL when candles are on-screen", () => {
+    it("promotes unresolved to HISTORICAL_BARS_VERIFIED when candles are on-screen", () => {
       const b = resolveChartSurfaceBadge("unavailable", false, true);
-      expect(b.label).toBe("HISTORICAL");
+      expect(b.label).toBe(L.HISTORICAL_BARS_VERIFIED);
       expect(b.live).toBe(false);
       expect(b.title.toLowerCase()).toContain("historical");
     });
-    it("keeps NO FEED when there are no candles to display", () => {
-      expect(resolveChartSurfaceBadge("unavailable", false, false).label).toBe("NO FEED");
+    it("keeps STALE_PIPELINE when there are no candles to display (unresolved fallthrough)", () => {
+      expect(resolveChartSurfaceBadge("unavailable", false, false).label).toBe(L.STALE_PIPELINE);
     });
-    it("preserves live-source LIVE labels regardless of hasCandles", () => {
-      expect(resolveChartSurfaceBadge("polygon", true, true).label).toBe("LIVE");
-      expect(resolveChartSurfaceBadge("polygon", true, false).label).toBe("LIVE");
+    it("preserves live-source LIVE_CERTIFIED_QUOTE labels regardless of hasCandles", () => {
+      expect(resolveChartSurfaceBadge("polygon", true, true).label).toBe(L.LIVE_CERTIFIED_QUOTE);
+      expect(resolveChartSurfaceBadge("polygon", true, false).label).toBe(L.LIVE_CERTIFIED_QUOTE);
     });
-    it("preserves delayed-provider labels — never accidentally over-promotes to HISTORICAL", () => {
-      expect(resolveChartSurfaceBadge("yahoo", true, true).label).toBe("DELAYED");
-      expect(resolveChartSurfaceBadge("finnhub", true, true).label).toBe("DELAYED 15 MIN");
+    it("preserves delayed-provider canon labels — never over-promotes", () => {
+      expect(resolveChartSurfaceBadge("yahoo", true, true).label).toBe(L.DELAYED_BY_ENTITLEMENT);
+      expect(resolveChartSurfaceBadge("finnhub", true, true).label).toBe(L.DELAYED_BY_ENTITLEMENT);
     });
-    it("provenance is preserved on the promoted HISTORICAL badge (internal diagnostics)", () => {
+    it("provenance is preserved on the promoted badge (internal diagnostics)", () => {
       const b = resolveChartSurfaceBadge("unavailable", false, true);
       expect(b.provenance).toBe("unavailable");
     });
