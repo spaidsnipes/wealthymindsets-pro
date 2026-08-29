@@ -851,6 +851,9 @@ function CommandDeckInner() {
                   L3 — full per-capability grid
                 (§Semantic Zoom skips L4 here — silent per canon.) */}
             {(() => {
+              const bookLevels =
+                (wsFeed.orderBook?.bids?.length ?? 0) +
+                (wsFeed.orderBook?.asks?.length ?? 0);
               const capabilityReport = selectPerCapabilityFidelity({
                 source: wsFeed.source ?? "unavailable",
                 connected: wsFeed.connected,
@@ -859,6 +862,13 @@ function CommandDeckInner() {
                 tapeConnected: !wsFeed.connected
                   ? undefined
                   : (wsFeed.recentTicks?.length ?? 0) > 0,
+                // DEPTH lit from real wsFeed order-book signal. When the
+                // book is empty we leave DEPTH UNDEFINED (silent) rather
+                // than lighting BLOCKED_BY_ENTITLEMENT — empty could
+                // mean "no L2 provider wired" and canon §Silence
+                // requires the caller not claim knowledge it doesn't
+                // have.
+                depthSubscribed: bookLevels > 0 ? true : undefined,
               });
               const evaluated = evaluatedCapabilityCount(capabilityReport);
               const weakest = weakestCapability(capabilityReport);
