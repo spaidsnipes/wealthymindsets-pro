@@ -39,6 +39,7 @@ import CommandContextRibbon from "@/components/command/CommandContextRibbon";
 import OneStoryStrip from "@/components/command/OneStoryStrip";
 import { PerCapabilityFidelityGrid } from "@/components/marketData/PerCapabilityFidelityGrid";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
+import { isOptionSymbol } from "@/lib/marketData/isOptionSymbol";
 import { strongestCapability, weakestCapability, evaluatedCapabilityCount } from "@/lib/marketData/perCapabilityFidelity";
 import { SemanticZoom } from "@/components/experience/SemanticZoom";
 import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassportPanel";
@@ -845,6 +846,14 @@ function CommandDeckInner() {
               const bookLevels =
                 (wsFeed.orderBook?.bids?.length ?? 0) +
                 (wsFeed.orderBook?.asks?.length ?? 0);
+              // X4 (canon §Provider Status Per Capability): when the
+              // trader is looking at an OCC-form option symbol we KNOW
+              // OPTIONS applies. No options provider is wired to /command-
+              // deck yet, so we honestly report BLOCKED_BY_ENTITLEMENT
+              // (via optionsSubscribed=false) instead of leaving the
+              // OPTIONS slot silent. For non-option symbols the slot
+              // stays undefined per §Silence.
+              const optionsSubscribed = isOptionSymbol(symbol) ? false : undefined;
               const capabilityReport = selectPerCapabilityFidelity({
                 source: wsFeed.source ?? "unavailable",
                 connected: wsFeed.connected,
@@ -853,6 +862,7 @@ function CommandDeckInner() {
                 tapeConnected: !wsFeed.connected
                   ? undefined
                   : (wsFeed.recentTicks?.length ?? 0) > 0,
+                optionsSubscribed,
                 // DEPTH lit from real wsFeed order-book signal. When the
                 // book is empty we leave DEPTH UNDEFINED (silent) rather
                 // than lighting BLOCKED_BY_ENTITLEMENT — empty could
