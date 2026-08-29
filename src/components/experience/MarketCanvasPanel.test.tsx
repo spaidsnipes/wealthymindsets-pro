@@ -17,6 +17,7 @@ function vm(over: Partial<MarketCanvasVM> = {}): MarketCanvasVM {
     clear: true,
     headline: "Right-of-way is granted — the path is clear.",
     missing: [],
+    resolved: [],
     blockers: [],
     invalidators: [],
     hasSnapshot: true,
@@ -31,6 +32,18 @@ describe("MarketCanvasPanel — canon §Phase 3 Market Canvas", () => {
     expect(html).toContain("ACTION");
     expect(html).toContain("Right-of-way is granted");
     expect(html).toContain('data-testid="market-canvas-panel"');
+  });
+
+  it("renders the RESOLVED strip only when resolved[] has entries (canon §Silence Is A Feature)", () => {
+    const empty = renderToStaticMarkup(<MarketCanvasPanel vm={vm({ resolved: [] })} />);
+    expect(empty).not.toContain("market-canvas-resolved");
+
+    const populated = renderToStaticMarkup(
+      <MarketCanvasPanel vm={vm({ resolved: ["direction", "regime"] })} />,
+    );
+    expect(populated).toContain("market-canvas-resolved");
+    expect(populated).toContain("Resolved (2)");
+    expect(populated).toContain("direction, regime");
   });
 
   it("renders the MISSING strip only when missing[] has entries (canon §Silence Is A Feature)", () => {

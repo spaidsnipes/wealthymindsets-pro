@@ -43,7 +43,10 @@ const VERDICT_TONE: Record<MarketCanvasVM["verdict"], string> = {
 
 export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): React.ReactElement {
   const anyBodyPresent =
-    vm.missing.length > 0 || vm.blockers.length > 0 || vm.invalidators.length > 0;
+    vm.missing.length > 0 ||
+    vm.resolved.length > 0 ||
+    vm.blockers.length > 0 ||
+    vm.invalidators.length > 0;
 
   return (
     <section
@@ -69,6 +72,24 @@ export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): Re
       <div style={{ fontSize: 12, color: "#d8cfb8", lineHeight: 1.4, marginBottom: anyBodyPresent ? 10 : 0 }}>
         {vm.headline}
       </div>
+
+      {vm.resolved.length > 0 && (
+        <div
+          data-testid="market-canvas-resolved"
+          style={{ marginBottom: (vm.missing.length || vm.blockers.length || vm.invalidators.length) ? 10 : 0 }}
+        >
+          {/* canon §Phase 3 Market Canvas — RESOLVED. Symmetric to
+              MISSING: names each canonical dimension the snapshot has
+              resolved (or resolved-partial). Silent when nothing is
+              resolved (canon §Silence). */}
+          <div style={{ fontSize: 9, letterSpacing: 0.5, color: "#7ac57a", marginBottom: 4, textTransform: "uppercase" }}>
+            Resolved ({vm.resolved.length})
+          </div>
+          <div style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>
+            {vm.resolved.join(", ")}
+          </div>
+        </div>
+      )}
 
       {vm.missing.length > 0 && (
         <div

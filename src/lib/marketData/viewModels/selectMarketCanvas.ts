@@ -53,6 +53,16 @@ export interface MarketCanvasVM {
    */
   readonly missing: readonly string[];
   /**
+   * The RESOLVED panel — symmetric with MISSING. Names each
+   * canonical dimension the snapshot has RESOLVED (or PARTIAL).
+   * A dimension appears here iff its resolution is not UNKNOWN.
+   *
+   * Founder-visible closure of the four-corner canvas: MISSING says
+   * what we don't know; RESOLVED says what we do. Both are honest,
+   * both are silent when the input is silent (canon §Silence).
+   */
+  readonly resolved: readonly string[];
+  /**
    * The WHY NOT panel — blocker labels from the compiled DecisionWhy.
    * Ordered by severity (HARD_RULE first). Empty on ACTION.
    */
@@ -82,6 +92,26 @@ export function selectMarketCanvas(
 ): MarketCanvasVM {
   const hasSnapshot = state != null;
   const missing = state ? [...state.unknowns] : [];
+
+  // Symmetric to `missing`: name each canonical dimension whose
+  // resolution is RESOLVED or PARTIAL (i.e., not UNKNOWN). The order
+  // matches CanonicalMarketState's canonical dimension ordering.
+  const resolved: string[] = [];
+  if (state) {
+    const dims: readonly (readonly [string, { resolution: string } | undefined])[] = [
+      ["direction", state.direction],
+      ["location", state.location],
+      ["aggression", state.aggression],
+      ["regime", state.regime],
+      ["structure", state.structure],
+      ["volatility", state.volatility],
+      ["profile", state.profile],
+      ["orderFlow", state.orderFlow],
+    ];
+    for (const [name, dim] of dims) {
+      if (dim && dim.resolution !== "UNKNOWN") resolved.push(name);
+    }
+  }
   const verdict = whyNot?.verdict ?? "UNKNOWN";
   const clear = whyNot?.clear === true;
   const blockers = whyNot ? whyNot.blockers.map((b) => b.label) : [];
@@ -102,6 +132,7 @@ export function selectMarketCanvas(
     clear,
     headline,
     missing,
+    resolved,
     blockers,
     invalidators,
     hasSnapshot,

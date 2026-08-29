@@ -95,6 +95,50 @@ describe("selectMarketCanvas — canon §Phase 3 Market Canvas", () => {
     expect(vm.missing).toEqual(["direction:unresolved", "regime:unresolved"]);
   });
 
+  it("RESOLVED corner is empty when every dimension is UNKNOWN", () => {
+    const vm = selectMarketCanvas(emptyState(), null);
+    expect(vm.resolved).toEqual([]);
+  });
+
+  it("RESOLVED corner is silent when no snapshot supplied (canon §Silence)", () => {
+    const vm = selectMarketCanvas(null, null);
+    expect(vm.resolved).toEqual([]);
+  });
+
+  it("RESOLVED corner names each dimension whose resolution is not UNKNOWN", () => {
+    const s = emptyState();
+    // Cast to mutate for test fixture only.
+    const withResolved = {
+      ...s,
+      direction: { ...s.direction, resolution: "RESOLVED" as const, value: "up" },
+      regime: { ...s.regime, resolution: "PARTIAL" as const },
+    };
+    const vm = selectMarketCanvas(withResolved, null);
+    expect(vm.resolved).toContain("direction");
+    expect(vm.resolved).toContain("regime");
+    expect(vm.resolved).not.toContain("location");
+  });
+
+  it("RESOLVED order matches the canonical dimension order (direction, location, aggression, regime, structure, volatility, profile, orderFlow)", () => {
+    const s = emptyState();
+    const allResolved = {
+      ...s,
+      direction: { ...s.direction, resolution: "RESOLVED" as const },
+      location: { ...s.location, resolution: "RESOLVED" as const },
+      aggression: { ...s.aggression, resolution: "RESOLVED" as const },
+      regime: { ...s.regime, resolution: "RESOLVED" as const },
+      structure: { ...s.structure, resolution: "RESOLVED" as const },
+      volatility: { ...s.volatility, resolution: "RESOLVED" as const },
+      profile: { ...s.profile, resolution: "RESOLVED" as const },
+      orderFlow: { ...s.orderFlow, resolution: "RESOLVED" as const },
+    };
+    const vm = selectMarketCanvas(allResolved, null);
+    expect(vm.resolved).toEqual([
+      "direction", "location", "aggression", "regime",
+      "structure", "volatility", "profile", "orderFlow",
+    ]);
+  });
+
   it("maps WhyNot blockers to their labels for the WHY NOT panel", () => {
     const vm = selectMarketCanvas(
       emptyState(),
