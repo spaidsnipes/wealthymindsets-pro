@@ -366,7 +366,11 @@ function CommandDeckInner() {
         {/* canon §Phase 3 Market Canvas — one-line summary in the
             sticky header. Renders nothing when the canvas is fully
             silent (§Silence Is A Feature). */}
-        <CanvasSummaryPill vm={marketCanvas} ariaLabel="Deck canvas summary" />
+        <CanvasSummaryPill
+          vm={marketCanvas}
+          ariaLabel="Deck canvas summary — jump to Market Canvas"
+          scrollToSelector='[data-testid="market-canvas-panel"]'
+        />
         <div className="wm-cd-header-actions" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
           <button
             className="wm-cd-header-action"

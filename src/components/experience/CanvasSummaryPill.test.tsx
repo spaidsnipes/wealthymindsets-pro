@@ -84,6 +84,30 @@ describe("CanvasSummaryPill — canon §Phase 3 Market Canvas summary", () => {
     expect(html).toContain('role="status"');
   });
 
+  it("renders as an interactive button when scrollToSelector is supplied (W14)", () => {
+    const html = renderToStaticMarkup(
+      <CanvasSummaryPill
+        vm={vm({ verdict: "ACTION", hasSnapshot: true })}
+        scrollToSelector='[data-testid="market-canvas-panel"]'
+      />,
+    );
+    // Interactive variant emits a <button type="button"> and a jump-oriented
+    // aria-label so screen readers announce the navigation.
+    expect(html).toContain('<button');
+    expect(html).toContain('type="button"');
+    expect(html).toContain("jump to detail");
+    // Non-interactive role="status" is NOT present in this variant.
+    expect(html).not.toContain('role="status"');
+  });
+
+  it("stays a passive role=status element when scrollToSelector is omitted (default)", () => {
+    const html = renderToStaticMarkup(
+      <CanvasSummaryPill vm={vm({ verdict: "ACTION", hasSnapshot: true })} />,
+    );
+    expect(html).toContain('role="status"');
+    expect(html).not.toContain('<button');
+  });
+
   it("honors a custom aria-label", () => {
     const html = renderToStaticMarkup(
       <CanvasSummaryPill vm={vm({ hasSnapshot: true })} ariaLabel="TSLA canvas" />,

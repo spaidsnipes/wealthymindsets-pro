@@ -24,6 +24,13 @@ export interface CanvasSummaryPillProps {
   readonly className?: string;
   /** Optional aria-label; defaults to "Canvas summary". */
   readonly ariaLabel?: string;
+  /**
+   * Optional CSS selector to scroll into view on click / Enter / Space.
+   * When supplied the pill renders as a <button> and centers the target
+   * on activation. When omitted the pill stays a non-interactive <div
+   * role="status">.
+   */
+  readonly scrollToSelector?: string;
 }
 
 const HAIR = "rgba(139,106,41,0.22)";
@@ -40,6 +47,7 @@ export function CanvasSummaryPill({
   vm,
   className,
   ariaLabel,
+  scrollToSelector,
 }: CanvasSummaryPillProps): React.ReactElement | null {
   // Canon §Silence Is A Feature: without a snapshot AND without a
   // compiled decision, there's nothing to summarise. Render nothing.
@@ -57,24 +65,28 @@ export function CanvasSummaryPill({
   if (vm.clearances.length > 0) parts.push(`${vm.clearances.length} cleared`);
   if (vm.invalidators.length > 0) parts.push(`${vm.invalidators.length} would-invalidate`);
 
-  return (
-    <div
-      aria-label={ariaLabel ?? "Canvas summary"}
-      role="status"
-      data-testid="canvas-summary-pill"
-      className={className}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "4px 10px",
-        borderRadius: 999,
-        border: `1px solid ${HAIR}`,
-        background: "rgba(255,255,255,0.02)",
-        fontSize: 10,
-        letterSpacing: 0.4,
-      }}
-    >
+  const commonStyle: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "4px 10px",
+    borderRadius: 999,
+    border: `1px solid ${HAIR}`,
+    background: "rgba(255,255,255,0.02)",
+    fontSize: 10,
+    letterSpacing: 0.4,
+  };
+
+  const scroll = React.useCallback(() => {
+    if (!scrollToSelector) return;
+    const target = document.querySelector(scrollToSelector);
+    if (target instanceof HTMLElement) {
+      target.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, [scrollToSelector]);
+
+  const body = (
+    <>
       <span
         style={{
           textTransform: "uppercase",
@@ -90,6 +102,33 @@ export function CanvasSummaryPill({
       {parts.length > 0 && (
         <span style={{ color: "#d8cfb8" }}>{parts.join(" · ")}</span>
       )}
+    </>
+  );
+
+  if (scrollToSelector) {
+    return (
+      <button
+        type="button"
+        onClick={scroll}
+        aria-label={ariaLabel ?? "Canvas summary — jump to detail"}
+        data-testid="canvas-summary-pill"
+        className={className}
+        style={{ ...commonStyle, cursor: "pointer", minHeight: 24 }}
+      >
+        {body}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      aria-label={ariaLabel ?? "Canvas summary"}
+      role="status"
+      data-testid="canvas-summary-pill"
+      className={className}
+      style={commonStyle}
+    >
+      {body}
     </div>
   );
 }
