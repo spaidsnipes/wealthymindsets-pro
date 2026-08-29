@@ -34,6 +34,7 @@ import { getRuntimeTapeCapability, hasVerifiedAggressorTape } from "@/lib/market
 import { overlayFrameBudgetMs, shouldDrawOverlay } from "@/lib/chartOverlayGovernor";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { candleDataStatus, priceSourceBadge, resolveChartSurfaceBadge } from "@/lib/priceSource";
+import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import type { PineOutput } from "@/lib/pine/types";
 import { interpretPine } from "@/lib/pine/interpreter";
 import * as IND from "./indicators";
@@ -6866,34 +6867,17 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               : "— (change unavailable)"}
           </span>
           {(() => {
-            // Sentinel V-008 visibility fix — 10px readable badge.
-            // SHIFT-H H-Bkt 8 → shared helper: resolveChartSurfaceBadge
-            // enforces the "chart with candles never says NO FEED" truth
-            // guard at the pure-selector layer so this render site can't
-            // recreate the H-Bkt 1 / H-Bkt 8 nest and is protected by
-            // priceSource.test.ts state-matrix cases.
+            // SHIFT-T cutover — canon §BINDING LEGACY DATA + SURFACE
+            // CUTOVER LAW (2026-08-29): "OLD PROVIDER CHROME AND OLD
+            // CHART-APP SURFACES ARE QUARANTINED FROM THE NEW OS PATH."
+            // Migrate the last hand-rolled fidelity chip on MainChart
+            // to <CanonicalFidelityBadge>. The primitive carries the
+            // canon 7-question narrative tooltip automatically (SHIFT-Q
+            // atom 4 → SHIFT-R atom 3-5 uniformity). Truth stays in
+            // resolveChartSurfaceBadge (the H-Bkt 1/8 guard); the
+            // primitive only renders it.
             const b = resolveChartSurfaceBadge(source, connected, candles.length > 0);
-            return (
-              <span
-                title={b.title}
-                aria-label={b.label}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 4,
-                  fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
-                  color: b.live ? "#00E88A" : "#F5A623",
-                  background: b.live ? "#00C0762A" : "#F5A62322",
-                  border: `1px solid ${b.live ? "#00C07680" : "#F5A62360"}`,
-                  borderRadius: 4, padding: "2px 6px", cursor: "help",
-                  alignSelf: "center",
-                }}
-              >
-                <span style={{
-                  width: 6, height: 6, borderRadius: "50%",
-                  background: b.live ? "#00E88A" : "#F5A623",
-                }} />
-                {b.label}
-              </span>
-            );
+            return <CanonicalFidelityBadge badge={b} variant="chrome" />;
           })()}
         </div>
 

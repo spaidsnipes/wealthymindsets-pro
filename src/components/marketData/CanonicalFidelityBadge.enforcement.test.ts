@@ -34,11 +34,14 @@ const ALLOWED_FILES = new Set<string>([
   "CanonicalFidelityBadge.tsx",
   "CanonicalFidelityBadge.test.ts",
   "CanonicalFidelityBadge.enforcement.test.ts",
-  // MainChart candleDataStatus renders canon labels directly, not via
-  // a PriceSourceBadge — different signal axis, allowed to hand-roll.
-  "MainChart.tsx",
+  // priceSource.ts is the type owner + resolver; not a UI surface.
   "priceSource.ts",
   "priceSource.test.ts",
+  // SHIFT-T cutover 2026-08-29: MainChart's remaining hand-rolled
+  // chip (line 6875 resolveChartSurfaceBadge site) migrated to
+  // <CanonicalFidelityBadge> — no longer exempted. Canon §Binding
+  // Legacy Data + Surface Cutover Law: "OLD PROVIDER CHROME AND OLD
+  // CHART-APP SURFACES ARE QUARANTINED FROM THE NEW OS PATH."
 ]);
 
 function isAllowedFile(path: string): boolean {
@@ -112,6 +115,10 @@ describe("<CanonicalFidelityBadge> enforcement — canon §Single-Writer / Many-
       "components/chart/ChartsDashboard.tsx",
       "components/layout/TickerTape.tsx",
       "components/chart/WatchlistPanel.tsx",
+      // SHIFT-T cutover 2026-08-29: MainChart's resolveChartSurfaceBadge
+      // site now rendered by the primitive too — protects the migration
+      // from silent revert.
+      "components/chart/MainChart.tsx",
     ];
     for (const rel of expected) {
       const p = resolve(SRC_ROOT, rel);
