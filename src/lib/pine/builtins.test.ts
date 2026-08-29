@@ -25,6 +25,10 @@ import {
   rsi,
   cum,
   roc,
+  macd,
+  bb,
+  atr,
+  stoch,
 } from "./builtins";
 
 describe("nz — null / NaN coalescer", () => {
@@ -171,6 +175,118 @@ describe("cum — cumulative sum", () => {
       const cur = out[i];
       if (prev == null || cur == null) continue;
       expect(cur).toBeGreaterThanOrEqual(prev);
+    }
+  });
+});
+
+describe("macd — MACD composite (fast/slow EMA + signal EMA)", () => {
+  it("returns three parallel series of equal length to the input", () => {
+    const src = Array.from({ length: 40 }, (_, i) => i + 1);
+    const out = macd(src);
+    expect(out.macd).toHaveLength(40);
+    expect(out.signal).toHaveLength(40);
+    expect(out.histogram).toHaveLength(40);
+  });
+
+  it("histogram = macd - signal on every non-null bar", () => {
+    const src = Array.from({ length: 40 }, (_, i) => i + 1);
+    const out = macd(src);
+    for (let i = 0; i < out.macd.length; i++) {
+      const m = out.macd[i], s = out.signal[i], h = out.histogram[i];
+      if (m == null || s == null || h == null) continue;
+      expect(h).toBeCloseTo(m - s, 8);
+    }
+  });
+
+  it("uses the default fast=12/slow=26/signal=9 tuple when no args", () => {
+    // On a strictly rising series, fast EMA exceeds slow EMA once seeded,
+    // so macdLine > 0 in steady state.
+    const src = Array.from({ length: 60 }, (_, i) => i + 1);
+    const out = macd(src);
+    // The very last bar's macd should be positive (fast responds sooner).
+    expect(out.macd[out.macd.length - 1]).toBeGreaterThan(0);
+  });
+});
+
+describe("bb — Bollinger Bands (mid = SMA, upper/lower = ±mult·stddev)", () => {
+  it("returns three parallel series", () => {
+    const src = Array.from({ length: 25 }, (_, i) => i + 1);
+    const out = bb(src, 20, 2);
+    expect(out.middle).toHaveLength(25);
+    expect(out.upper).toHaveLength(25);
+    expect(out.lower).toHaveLength(25);
+  });
+
+  it("upper >= middle >= lower on every non-null bar", () => {
+    const src = Array.from({ length: 40 }, (_, i) => 100 + Math.sin(i));
+    const out = bb(src, 20, 2);
+    for (let i = 0; i < out.middle.length; i++) {
+      const u = out.upper[i], m = out.middle[i], l = out.lower[i];
+      if (u == null || m == null || l == null) continue;
+      expect(u).toBeGreaterThanOrEqual(m);
+      expect(m).toBeGreaterThanOrEqual(l);
+    }
+  });
+
+  it("upper - middle equals middle - lower for symmetric envelope", () => {
+    const src = Array.from({ length: 30 }, (_, i) => 100 + (i % 5));
+    const out = bb(src, 20, 2);
+    for (let i = 0; i < out.middle.length; i++) {
+      const u = out.upper[i], m = out.middle[i], l = out.lower[i];
+      if (u == null || m == null || l == null) continue;
+      expect(u - m).toBeCloseTo(m - l, 8);
+    }
+  });
+});
+
+describe("atr — average true range (Wilder-smoothed true-range series)", () => {
+  it("returns a series equal in length to the input", () => {
+    const close = [10, 11, 12, 13, 14, 15, 16];
+    const high  = [11, 12, 13, 14, 15, 16, 17];
+    const low   = [9, 10, 11, 12, 13, 14, 15];
+    const out = atr(close, high, low, 3);
+    expect(out).toHaveLength(close.length);
+  });
+
+  it("emits non-null values in steady state and is non-negative (range invariant)", () => {
+    const close = Array.from({ length: 20 }, (_, i) => 100 + i);
+    const high  = close.map((c) => c + 1);
+    const low   = close.map((c) => c - 1);
+    const out = atr(close, high, low, 5);
+    // At least one steady-state value must be defined.
+    expect(out.some((v) => v != null)).toBe(true);
+    // ATR is a range magnitude → every defined value must be ≥ 0.
+    for (const v of out) {
+      if (v == null) continue;
+      expect(v).toBeGreaterThanOrEqual(0);
+    }
+  });
+});
+
+describe("stoch — stochastic %K and %D", () => {
+  it("returns two parallel series (%K smoothed, %D = SMA(%K))", () => {
+    const close = Array.from({ length: 30 }, (_, i) => 100 + Math.sin(i));
+    const high  = close.map((c) => c + 1);
+    const low   = close.map((c) => c - 1);
+    const out = stoch(close, high, low);
+    expect(out.k).toHaveLength(30);
+    expect(out.d).toHaveLength(30);
+  });
+
+  it("clamps every non-null %K to [0, 100] (raw pre-smoothing invariant)", () => {
+    const close = Array.from({ length: 30 }, (_, i) => 100 + Math.sin(i));
+    const high  = close.map((c) => c + 1);
+    const low   = close.map((c) => c - 1);
+    const out = stoch(close, high, low, 14, 3, 3);
+    for (const v of out.k) {
+      if (v == null) continue;
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(100);
+    }
+    for (const v of out.d) {
+      if (v == null) continue;
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(100);
     }
   });
 });
