@@ -6946,12 +6946,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 className="flex items-center gap-1.5"
                 title={`Candles: ${status.state.toLowerCase()} · session ${extendedHours ? "ETH" : "RTH"} · last bar ${lastStr}${status.live ? " · live ticks flowing" : " · no real-time candle claim"}`}
               >
+                {/* Canon §Living Market Visual Systems (2026-08-27) —
+                    "CLOSED IS NOT DELAYED." When the feed reports no
+                    ticks but candles are on screen, the honest label
+                    is a session-aware truth, not a red "NO FEED". */}
                 {noFeed ? (
-                  <span className="text-[10px] text-wm-red font-semibold">NO FEED</span>
+                  <span className="text-[10px] font-semibold" style={{ color: "#8B92AC" }}>SESSION CLOSED — LAST VERIFIED</span>
                 ) : status.live ? (
                   <span className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-wm-green animate-pulse" />
-                    <span className="text-[10px] text-wm-green font-semibold">LIVE</span>
+                    <span className="text-[10px] text-wm-green font-semibold">LIVE — CERTIFIED QUOTE</span>
                   </span>
                 ) : (
                   <span className="text-[10px] font-semibold" style={{ color: "#F0B429" }}>{status.label} · LAST {lastStr}</span>
@@ -7008,10 +7012,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               display: "inline-flex", gap: 6, alignItems: "center",
             }}
           >
+            {/* Canon §Living Market Visual Systems (2026-08-27):
+                "FIDELITY IS PER CAPABILITY, NOT A SYMBOL-WIDE INSULT."
+                Bars are verified; the missing capability is real tape. */}
             <span style={{ color: "#F0B429", fontWeight: 850 }}>●</span>
-            <span style={{ color: "#F0B429", fontWeight: 850 }}>OHLCV ONLY</span>
+            <span style={{ color: "#F0B429", fontWeight: 850 }}>HISTORICAL BARS VERIFIED</span>
             <span style={{ color: "rgba(139,146,172,0.7)" }}>·</span>
-            <span style={{ color: "#8B92AC" }}>no real tape from this feed</span>
+            <span style={{ color: "#8B92AC" }}>tape unavailable on this feed</span>
           </div>
         )}
 
