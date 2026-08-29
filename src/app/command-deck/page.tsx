@@ -38,6 +38,8 @@ import DoctrineTagline from "@/components/brand/DoctrineTagline";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import CommandContextRibbon from "@/components/command/CommandContextRibbon";
 import OneStoryStrip from "@/components/command/OneStoryStrip";
+import { PerCapabilityFidelityGrid } from "@/components/marketData/PerCapabilityFidelityGrid";
+import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassportPanel";
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
@@ -815,6 +817,41 @@ function CommandDeckInner() {
                   availableR={chainVm?.availableR ?? null}
                   permission={permission}
                   chainNodes={chainVm?.nodes}
+                />
+              </div>
+            </details>
+
+            {/* Per-capability fidelity — canon §Provider Status Is
+                Resolved Per Capability (Founding Contract 2026-08-29).
+                Progressive-disclosure details block so the deck stays
+                calm; expand to inspect what evidence each of the seven
+                capabilities is actually producing right now. */}
+            <details style={{ marginTop: 6 }}>
+              <summary
+                style={{
+                  cursor: "pointer",
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                  color: "#8B92AC",
+                  textTransform: "uppercase",
+                  padding: "4px 0",
+                }}
+              >
+                Data · fidelity per capability
+              </summary>
+              <div style={{ marginTop: 8 }}>
+                <PerCapabilityFidelityGrid
+                  symbol={symbol}
+                  showUnevaluated
+                  report={selectPerCapabilityFidelity({
+                    source: wsFeed.source ?? "unavailable",
+                    connected: wsFeed.connected,
+                    hasCandles: !!state,
+                    // ticks / depth / options / greeks / orderFlow left
+                    // undefined — providers not yet wired. Canon: silent
+                    // rather than fake-known. Follow-up shift lights each
+                    // capability as its provider ships.
+                  })}
                 />
               </div>
             </details>
