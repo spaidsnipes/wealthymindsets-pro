@@ -3,6 +3,12 @@
 import * as React from "react";
 import type { PriceSourceBadge } from "@/lib/priceSource";
 import { fidelityLabelToFailureReport } from "@/lib/systemHealth/fidelityToHealth";
+import {
+  weakestCapability,
+  evaluatedCapabilityCount,
+  type PerCapabilityFidelityReport,
+} from "@/lib/marketData/perCapabilityFidelity";
+import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
 
 /**
  * CanonicalFidelityBadge — the single trader-facing chip for a
@@ -54,6 +60,15 @@ export interface CanonicalFidelityBadgeProps {
   readonly ariaLabel?: string;
   /** Optional caller title override — merged with canon narrative if provided. */
   readonly titleSuffix?: string;
+  /**
+   * Optional per-capability report (canon §Provider Status Is Resolved
+   * Per Capability). When provided AND at least one non-NORMAL evaluated
+   * capability exists, the tooltip gains a "Capability status" hint
+   * naming the weakest capability + label. The visible chip text stays
+   * driven by `badge` (canon: don't fatten the one-glance chip); trader
+   * gets the deeper truth on hover only — canon §Semantic Zoom.
+   */
+  readonly capabilityReport?: PerCapabilityFidelityReport;
 }
 
 /**
@@ -65,17 +80,54 @@ export interface CanonicalFidelityBadgeProps {
 export function buildCanonicalFidelityTooltip(
   badge: PriceSourceBadge,
   titleSuffix?: string,
+  capabilityReport?: PerCapabilityFidelityReport,
 ): string {
   const report = fidelityLabelToFailureReport(badge.label);
   const base = titleSuffix ? `${badge.title} ${titleSuffix}` : badge.title;
-  if (report.state === "NORMAL") return base;
-  const lines: string[] = [base, "", `State: ${report.state}`];
-  if (report.affected)       lines.push(`Affected: ${report.affected}`);
-  if (report.stillWorks)     lines.push(`Still works: ${report.stillWorks}`);
-  if (report.reason)         lines.push(`Reason: ${report.reason}`);
-  if (report.userImpact)     lines.push(`Impact: ${report.userImpact}`);
-  if (report.nextSafeAction) lines.push(`Next: ${report.nextSafeAction}`);
-  if (report.recoveredWhen)  lines.push(`Recovered when: ${report.recoveredWhen}`);
+
+  // Canon §Provider Status Is Resolved Per Capability — if a
+  // per-capability report is supplied AND at least one evaluated
+  // capability is non-NORMAL, tell the trader on hover which
+  // capability is weakest. NORMAL badge state with all-NORMAL
+  // capabilities keeps the calm one-line tooltip.
+  const weakest = capabilityReport ? weakestCapability(capabilityReport) : null;
+  const weakestIsProblem =
+    weakest !== null &&
+    weakest.label !== CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE &&
+    weakest.label !== CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED;
+  const evaluatedCount = capabilityReport ? evaluatedCapabilityCount(capabilityReport) : 0;
+
+  // Early return only when there's NOTHING to add: badge is NORMAL,
+  // no weakest problem, and no evaluated capabilities to report count for.
+  if (report.state === "NORMAL" && !weakestIsProblem && evaluatedCount === 0) {
+    return base;
+  }
+
+  const lines: string[] = [base];
+
+  // Badge-level narrative only fires when the badge itself is not NORMAL.
+  if (report.state !== "NORMAL") {
+    lines.push("", `State: ${report.state}`);
+    if (report.affected)       lines.push(`Affected: ${report.affected}`);
+    if (report.stillWorks)     lines.push(`Still works: ${report.stillWorks}`);
+    if (report.reason)         lines.push(`Reason: ${report.reason}`);
+    if (report.userImpact)     lines.push(`Impact: ${report.userImpact}`);
+    if (report.nextSafeAction) lines.push(`Next: ${report.nextSafeAction}`);
+    if (report.recoveredWhen)  lines.push(`Recovered when: ${report.recoveredWhen}`);
+  }
+
+  if (weakestIsProblem && weakest) {
+    lines.push("");
+    lines.push(`Weakest capability: ${weakest.capability} · ${weakest.label}`);
+    lines.push(`Capabilities evaluated: ${evaluatedCount} / 7`);
+  } else if (capabilityReport && evaluatedCount > 0) {
+    // Report supplied but everything is NORMAL — still tell the trader
+    // coverage count. Canon §Vector, not god score: the count IS the
+    // truth, not a synthesized "health %" hiding disagreement.
+    lines.push("");
+    lines.push(`Capabilities evaluated: ${evaluatedCount} / 7 — all normal`);
+  }
+
   return lines.join("\n");
 }
 
@@ -84,8 +136,9 @@ export function CanonicalFidelityBadge({
   variant = "chrome",
   ariaLabel,
   titleSuffix,
+  capabilityReport,
 }: CanonicalFidelityBadgeProps): React.ReactElement {
-  const tooltip = buildCanonicalFidelityTooltip(badge, titleSuffix);
+  const tooltip = buildCanonicalFidelityTooltip(badge, titleSuffix, capabilityReport);
   const isLive = badge.live;
   const dotColor  = isLive ? "#00E88A" : "#F5A623";
   const textColor = isLive ? "#00E88A" : "#F5A623";

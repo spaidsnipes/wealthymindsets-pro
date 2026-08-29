@@ -67,4 +67,49 @@ describe("buildCanonicalFidelityTooltip — canon 7-question enrichment", () => 
       expect(t.length).toBeGreaterThan(0);
     }
   });
+
+  describe("capabilityReport enrichment — canon §Provider Status Per Capability", () => {
+    it("LIVE badge + all-NORMAL capabilities → tooltip mentions coverage count (canon §Vector, not god score)", () => {
+      const b = priceSourceBadge("polygon", true);
+      const t = buildCanonicalFidelityTooltip(b, undefined, {
+        bars: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
+        quotes: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
+        ticks: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
+      });
+      expect(t).toContain("Capabilities evaluated: 3 / 7 — all normal");
+    });
+
+    it("LIVE badge + a degraded capability → tooltip flags weakest capability by name", () => {
+      const b = priceSourceBadge("polygon", true);
+      const t = buildCanonicalFidelityTooltip(b, undefined, {
+        bars: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
+        quotes: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
+        depth: CANONICAL_FIDELITY_LABELS.BLOCKED_BY_ENTITLEMENT,
+      });
+      expect(t).toContain("Weakest capability: depth · BLOCKED BY ENTITLEMENT");
+      expect(t).toContain("Capabilities evaluated: 3 / 7");
+    });
+
+    it("no capabilityReport supplied → tooltip shape unchanged (backwards-compat)", () => {
+      const b = priceSourceBadge("polygon", true);
+      expect(buildCanonicalFidelityTooltip(b)).toBe(b.title);
+    });
+
+    it("empty capabilityReport → tooltip omits coverage line (silent per canon)", () => {
+      const b = priceSourceBadge("polygon", true);
+      const t = buildCanonicalFidelityTooltip(b, undefined, {});
+      expect(t).toBe(b.title);
+      expect(t).not.toContain("Capabilities evaluated");
+    });
+
+    it("SESSION_CLOSED weakest capability does NOT count as a problem (canon §closed-is-not-delayed)", () => {
+      const b = priceSourceBadge("polygon", true);
+      const t = buildCanonicalFidelityTooltip(b, undefined, {
+        bars: CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED,
+        quotes: CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED,
+      });
+      expect(t).not.toContain("Weakest capability");
+      expect(t).toContain("all normal");
+    });
+  });
 });
