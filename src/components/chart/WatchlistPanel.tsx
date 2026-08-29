@@ -6,6 +6,7 @@ import { Search, X, Plus, TrendingUp, TrendingDown, LayoutGrid, List } from "luc
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { priceSourceBadge } from "@/lib/priceSource";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
+import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 
 const DEFAULT_SYMBOLS = [
   "ES1!", "NQ1!", "RTY1!", "YM1!", "SPY", "QQQ",
@@ -713,7 +714,12 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
                               // variant) — canon 7-question tooltip enrichment
                               // arrives on every watchlist row for free.
                               const b = priceSourceBadge(item.src ?? "unavailable", item.price > 0);
-                              return <CanonicalFidelityBadge badge={b} variant="compact" titleSuffix={`— ${item.sym}`} />;
+                              const capabilityReport = selectPerCapabilityFidelity({
+                                source: item.src ?? "unavailable",
+                                connected: item.price > 0,
+                                hasCandles: item.price > 0,
+                              });
+                              return <CanonicalFidelityBadge badge={b} variant="compact" titleSuffix={`— ${item.sym}`} capabilityReport={capabilityReport} />;
                             })()}
                             <div style={{ fontSize: 11, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace", fontWeight: 600 }}>
                               {item.price.toFixed(dp)}

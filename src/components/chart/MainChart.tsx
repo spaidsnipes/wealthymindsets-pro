@@ -35,6 +35,7 @@ import { overlayFrameBudgetMs, shouldDrawOverlay } from "@/lib/chartOverlayGover
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { candleDataStatus, priceSourceBadge, resolveChartSurfaceBadge } from "@/lib/priceSource";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
+import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import type { PineOutput } from "@/lib/pine/types";
 import { interpretPine } from "@/lib/pine/interpreter";
 import * as IND from "./indicators";
@@ -6877,7 +6878,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             // resolveChartSurfaceBadge (the H-Bkt 1/8 guard); the
             // primitive only renders it.
             const b = resolveChartSurfaceBadge(source, connected, candles.length > 0);
-            return <CanonicalFidelityBadge badge={b} variant="chrome" />;
+            const capabilityReport = selectPerCapabilityFidelity({
+              source, connected, hasCandles: candles.length > 0,
+            });
+            return <CanonicalFidelityBadge badge={b} variant="chrome" capabilityReport={capabilityReport} />;
           })()}
         </div>
 

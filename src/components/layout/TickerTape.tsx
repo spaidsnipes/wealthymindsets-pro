@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { priceSourceBadge } from "@/lib/priceSource";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
+import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { yahooQuoteObserved } from "@/lib/marketData/yahooQuoteObserved";
 
 // WM-SEC-P0-05 (2026-08-08): client-side Polygon key read removed. The
@@ -144,6 +145,13 @@ function TickerItem({ item, onClick, active }: {
   // Provenance: name the feed each quote came from so a value that differs from
   // the chart header or watchlist is explainable, not a silent contradiction.
   const badge = priceSourceBadge(src ?? "unavailable", live);
+  // SHIFT-U continuation — per-capability tooltip enrichment: bars +
+  // quotes lit from the ticker's own source; other slots silent.
+  const capabilityReport = selectPerCapabilityFidelity({
+    source: src ?? "unavailable",
+    connected: live,
+    hasCandles: price > 0,
+  });
   return (
     <button
       onClick={onClick}
@@ -159,7 +167,7 @@ function TickerItem({ item, onClick, active }: {
               replaces the hand-rolled dot + freshness label. The canon
               7-question tooltip enrichment now appears on every ticker
               row for free (canon §Failure Recovery Grammar). */}
-          <CanonicalFidelityBadge badge={badge} variant="ticker" titleSuffix={`${sym} — Click to chart.`} />
+          <CanonicalFidelityBadge badge={badge} variant="ticker" titleSuffix={`${sym} — Click to chart.`} capabilityReport={capabilityReport} />
           <span className="font-mono text-[11px] text-wm-text-muted">
             {price.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp })}
           </span>
