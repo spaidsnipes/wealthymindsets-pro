@@ -19,6 +19,7 @@ function vm(over: Partial<MarketCanvasVM> = {}): MarketCanvasVM {
     missing: [],
     resolved: [],
     blockers: [],
+    clearances: [],
     invalidators: [],
     hasSnapshot: false,
     ...over,

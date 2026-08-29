@@ -46,6 +46,7 @@ export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): Re
     vm.missing.length > 0 ||
     vm.resolved.length > 0 ||
     vm.blockers.length > 0 ||
+    vm.clearances.length > 0 ||
     vm.invalidators.length > 0;
 
   return (
@@ -111,7 +112,7 @@ export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): Re
       {vm.blockers.length > 0 && (
         <div
           data-testid="market-canvas-blockers"
-          style={{ marginBottom: vm.invalidators.length ? 10 : 0 }}
+          style={{ marginBottom: (vm.clearances.length || vm.invalidators.length) ? 10 : 0 }}
         >
           <div style={{ fontSize: 9, letterSpacing: 0.5, color: "#e07b5c", marginBottom: 4, textTransform: "uppercase" }}>
             Why not ({vm.blockers.length})
@@ -122,10 +123,28 @@ export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): Re
         </div>
       )}
 
+      {vm.clearances.length > 0 && (
+        <div
+          data-testid="market-canvas-clearances"
+          style={{ marginBottom: vm.invalidators.length ? 10 : 0 }}
+        >
+          {/* CLEARED — the affirmative ledger from DecisionWhyVM. Names
+              each check that IS satisfied. Founder-visible symmetry with
+              WHY NOT: the trader can see what already passed alongside
+              what is still blocking. */}
+          <div style={{ fontSize: 9, letterSpacing: 0.5, color: "#7ac57a", marginBottom: 4, textTransform: "uppercase" }}>
+            Cleared ({vm.clearances.length})
+          </div>
+          {vm.clearances.slice(0, 6).map((c, i) => (
+            <div key={i} style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>{c}</div>
+          ))}
+        </div>
+      )}
+
       {vm.invalidators.length > 0 && (
         <div
           data-testid="market-canvas-invalidators"
-          style={{ paddingTop: (vm.missing.length || vm.blockers.length) ? 6 : 0, borderTop: (vm.missing.length || vm.blockers.length) ? `1px solid ${HAIR}` : "none" }}
+          style={{ paddingTop: (vm.missing.length || vm.blockers.length || vm.clearances.length) ? 6 : 0, borderTop: (vm.missing.length || vm.blockers.length || vm.clearances.length) ? `1px solid ${HAIR}` : "none" }}
         >
           <div style={{ fontSize: 9, letterSpacing: 0.5, color: "#c9a55c", marginBottom: 4, textTransform: "uppercase" }}>
             Would invalidate

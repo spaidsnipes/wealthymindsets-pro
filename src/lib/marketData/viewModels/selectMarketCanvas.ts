@@ -68,6 +68,13 @@ export interface MarketCanvasVM {
    */
   readonly blockers: readonly string[];
   /**
+   * The CLEARED panel — affirmative ledger from the compiled
+   * DecisionWhy. Names each check that IS satisfied (e.g., "No active
+   * contradiction to the thesis." / "3/9 evidence nodes paid.").
+   * Silent when nothing has cleared yet (canon §Silence).
+   */
+  readonly clearances: readonly string[];
+  /**
    * The WHAT WOULD INVALIDATE panel — populates only for ACTION
    * verdicts. Same content as DecisionWhyVM.invalidators.
    */
@@ -115,6 +122,7 @@ export function selectMarketCanvas(
   const verdict = whyNot?.verdict ?? "UNKNOWN";
   const clear = whyNot?.clear === true;
   const blockers = whyNot ? whyNot.blockers.map((b) => b.label) : [];
+  const clearances = whyNot ? [...whyNot.clearances] : [];
   const invalidators = whyNot ? [...whyNot.invalidators] : [];
 
   let headline: string;
@@ -134,6 +142,7 @@ export function selectMarketCanvas(
     missing,
     resolved,
     blockers,
+    clearances,
     invalidators,
     hasSnapshot,
   };

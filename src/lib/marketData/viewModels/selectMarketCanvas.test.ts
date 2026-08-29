@@ -139,6 +139,22 @@ describe("selectMarketCanvas — canon §Phase 3 Market Canvas", () => {
     ]);
   });
 
+  it("copies WhyNot clearances into the CLEARED panel", () => {
+    const vm = selectMarketCanvas(
+      emptyState(),
+      why({ clearances: ["No active contradiction to the thesis.", "3/9 evidence nodes paid."] }),
+    );
+    expect(vm.clearances).toEqual([
+      "No active contradiction to the thesis.",
+      "3/9 evidence nodes paid.",
+    ]);
+  });
+
+  it("leaves CLEARED empty when no whyNot is compiled (canon §Silence)", () => {
+    const vm = selectMarketCanvas(emptyState(), null);
+    expect(vm.clearances).toEqual([]);
+  });
+
   it("maps WhyNot blockers to their labels for the WHY NOT panel", () => {
     const vm = selectMarketCanvas(
       emptyState(),

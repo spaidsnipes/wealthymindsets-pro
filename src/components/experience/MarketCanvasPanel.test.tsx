@@ -19,6 +19,7 @@ function vm(over: Partial<MarketCanvasVM> = {}): MarketCanvasVM {
     missing: [],
     resolved: [],
     blockers: [],
+    clearances: [],
     invalidators: [],
     hasSnapshot: true,
     ...over,
@@ -76,6 +77,19 @@ describe("MarketCanvasPanel — canon §Phase 3 Market Canvas", () => {
     expect(populated).toContain("Why not (2)");
     expect(populated).toContain("Active contradiction");
     expect(populated).toContain("regime");
+  });
+
+  it("renders the CLEARED strip only when clearances[] has entries (canon §Silence Is A Feature)", () => {
+    const empty = renderToStaticMarkup(<MarketCanvasPanel vm={vm({ clearances: [] })} />);
+    expect(empty).not.toContain("market-canvas-clearances");
+
+    const populated = renderToStaticMarkup(
+      <MarketCanvasPanel vm={vm({ clearances: ["No active contradiction to the thesis.", "3/9 evidence nodes paid."] })} />,
+    );
+    expect(populated).toContain("market-canvas-clearances");
+    expect(populated).toContain("Cleared (2)");
+    expect(populated).toContain("No active contradiction to the thesis.");
+    expect(populated).toContain("3/9 evidence nodes paid.");
   });
 
   it("renders the WOULD INVALIDATE strip only when invalidators[] has entries", () => {
