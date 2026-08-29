@@ -51,6 +51,19 @@ export interface DecisionWhyVM {
   readonly blockers: readonly WhyBlocker[];
   /** What IS satisfied — the affirmative side of the ledger. */
   readonly clearances: readonly string[];
+  /**
+   * canon §Phase 3 Market Canvas — WHAT WOULD INVALIDATE.
+   *
+   * For an ACTION verdict this lists the concrete observations that,
+   * if they became true right now, would flip the verdict away from
+   * ACTION. Ordered by which is fastest to detect (contradiction →
+   * evidence debt → rule engagement).
+   *
+   * For non-ACTION verdicts this is empty — the blockers list is
+   * itself the inverse ("to clear" answer), so publishing a separate
+   * invalidators field would duplicate that signal.
+   */
+  readonly invalidators: readonly string[];
 }
 
 const HEADLINE: Record<RightOfWay, string> = {
@@ -89,6 +102,7 @@ export function selectDecisionWhyNot(
       headline: "No decision compiled yet — the engine has not resolved right-of-way.",
       blockers: [],
       clearances: [],
+      invalidators: [],
     };
   }
 
@@ -142,6 +156,28 @@ export function selectDecisionWhyNot(
 
   blockers.sort((a, b) => KIND_RANK[a.kind] - KIND_RANK[b.kind]);
 
+  // canon §Phase 3 Market Canvas — WHAT WOULD INVALIDATE.
+  // Only meaningful for ACTION verdicts (the trader is about to place;
+  // they need to know which observation would flip the verdict). For
+  // non-ACTION verdicts the blockers list already answers "what would
+  // clear it," so invalidators stays empty.
+  const invalidators: string[] = [];
+  if (verdict === "ACTION") {
+    if (!oneStory.contradiction) {
+      invalidators.push("A contradiction emerges against the thesis.");
+    }
+    if (oneStory.debt && oneStory.debt.total > 0 && oneStory.debt.missingLabels.length === 0 && oneStory.debt.warnLabels.length === 0) {
+      invalidators.push("A required evidence node degrades to unpaid or below-confirmation.");
+    } else if (!oneStory.debt && !oneStory.missing) {
+      // Debt not surfaced — invalidator is the same shape but generic.
+      invalidators.push("A required evidence node degrades to unpaid.");
+    }
+    const hasEngagedHard = engaged.some((ev) => ev.rule.kind === "HARD");
+    if (permission && !hasEngagedHard) {
+      invalidators.push("A HARD trader rule engages.");
+    }
+  }
+
   return {
     version: DECISION_WHY_VERSION,
     verdict,
@@ -149,5 +185,6 @@ export function selectDecisionWhyNot(
     headline: HEADLINE[verdict],
     blockers,
     clearances,
+    invalidators,
   };
 }

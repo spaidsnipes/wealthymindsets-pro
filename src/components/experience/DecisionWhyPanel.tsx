@@ -82,10 +82,27 @@ export function DecisionWhyPanel({ vm }: DecisionWhyPanelProps): React.ReactElem
       )}
 
       {vm.clearances.length > 0 && (
-        <div>
+        <div style={{ marginBottom: vm.invalidators.length ? 10 : 0 }}>
           <div style={{ fontSize: 9, letterSpacing: 0.5, color: MUTED, marginBottom: 4 }}>CLEARED</div>
           {vm.clearances.map((c, i) => (
             <div key={i} style={{ fontSize: 11, color: "#9db88a", lineHeight: 1.4 }}>{c}</div>
+          ))}
+        </div>
+      )}
+
+      {vm.invalidators.length > 0 && (
+        <div
+          style={{ paddingTop: 6, borderTop: `1px solid ${HAIR}` }}
+          data-testid="decision-why-invalidators"
+        >
+          {/* canon §Phase 3 Market Canvas — WHAT WOULD INVALIDATE.
+              Only meaningful for ACTION verdicts (the trader is about to
+              place; they need to know what observation would flip this). */}
+          <div style={{ fontSize: 9, letterSpacing: 0.5, color: "#c9a55c", marginBottom: 4, textTransform: "uppercase" }}>
+            Would invalidate
+          </div>
+          {vm.invalidators.map((s, i) => (
+            <div key={i} style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>{s}</div>
           ))}
         </div>
       )}

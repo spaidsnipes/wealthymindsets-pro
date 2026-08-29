@@ -147,4 +147,40 @@ describe("selectDecisionWhyNot", () => {
     const b = vm.blockers.find((x) => x.kind === "EVIDENCE_DEBT");
     expect(b!.label).toBe("order-flow confirmation");
   });
+
+  // canon §Phase 3 Market Canvas — WHAT WOULD INVALIDATE.
+  describe("invalidators (canon §Phase 3 Market Canvas — WHAT WOULD INVALIDATE)", () => {
+    it("null story reports no invalidators", () => {
+      const vm = selectDecisionWhyNot(null);
+      expect(vm.invalidators).toEqual([]);
+    });
+
+    it("non-ACTION verdicts report no invalidators (the blockers list is already the inverse)", () => {
+      const vm = selectDecisionWhyNot(story({ decision: reading("WAIT"), debt: debt(["regime"], [], 3, 9) }));
+      expect(vm.invalidators).toEqual([]);
+    });
+
+    it("ACTION verdict with no contradiction lists 'contradiction emerges' as an invalidator", () => {
+      const vm = selectDecisionWhyNot(story({ decision: reading("ACTION"), debt: debt([], [], 9, 9) }));
+      expect(vm.invalidators.some((s) => /contradiction emerges/i.test(s))).toBe(true);
+    });
+
+    it("ACTION verdict with all-paid debt lists 'evidence node degrades' as an invalidator", () => {
+      const vm = selectDecisionWhyNot(story({ decision: reading("ACTION"), debt: debt([], [], 9, 9) }));
+      expect(vm.invalidators.some((s) => /evidence node degrades/i.test(s))).toBe(true);
+    });
+
+    it("ACTION verdict with permission-present-and-clean lists 'HARD rule engages' as an invalidator", () => {
+      const vm = selectDecisionWhyNot(
+        story({ decision: reading("ACTION"), debt: debt([], [], 9, 9) }),
+        permission([]),
+      );
+      expect(vm.invalidators.some((s) => /HARD trader rule engages/i.test(s))).toBe(true);
+    });
+
+    it("ACTION verdict without permission omits the rule-engagement invalidator (canon §Silence Is A Feature)", () => {
+      const vm = selectDecisionWhyNot(story({ decision: reading("ACTION"), debt: debt([], [], 9, 9) }));
+      expect(vm.invalidators.some((s) => /HARD trader rule/i.test(s))).toBe(false);
+    });
+  });
 });
