@@ -40,6 +40,7 @@ import OneStoryStrip from "@/components/command/OneStoryStrip";
 import { PerCapabilityFidelityGrid } from "@/components/marketData/PerCapabilityFidelityGrid";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { isOptionSymbol } from "@/lib/marketData/isOptionSymbol";
+import { selectAggressorFlow } from "@/lib/marketData/selectAggressorFlow";
 import { strongestCapability, weakestCapability, evaluatedCapabilityCount } from "@/lib/marketData/perCapabilityFidelity";
 import { SemanticZoom } from "@/components/experience/SemanticZoom";
 import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassportPanel";
@@ -854,6 +855,16 @@ function CommandDeckInner() {
               // OPTIONS slot silent. For non-option symbols the slot
               // stays undefined per §Silence.
               const optionsSubscribed = isOptionSymbol(symbol) ? false : undefined;
+              // X7 (canon §Provider Status Per Capability): light ORDER
+              // FLOW from real aggressor-volume observation via the pure
+              // selectAggressorFlow primitive. When hasFlow=true we KNOW
+              // aggressor deltas are being derived from real ticks;
+              // undefined otherwise (canon §Silence).
+              const aggressorFlow = wsFeed.connected
+                ? selectAggressorFlow(wsFeed.recentTicks)
+                : null;
+              const orderFlowDerived =
+                aggressorFlow != null && aggressorFlow.hasFlow ? true : undefined;
               const capabilityReport = selectPerCapabilityFidelity({
                 source: wsFeed.source ?? "unavailable",
                 connected: wsFeed.connected,
@@ -863,6 +874,7 @@ function CommandDeckInner() {
                   ? undefined
                   : (wsFeed.recentTicks?.length ?? 0) > 0,
                 optionsSubscribed,
+                orderFlowDerived,
                 // DEPTH lit from real wsFeed order-book signal. When the
                 // book is empty we leave DEPTH UNDEFINED (silent) rather
                 // than lighting BLOCKED_BY_ENTITLEMENT — empty could
