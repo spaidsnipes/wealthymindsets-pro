@@ -24,16 +24,28 @@ const ALPACA_SECRET = process.env.ALPACA_SECRET ?? "";
 
 const DATA_BASE = "https://data.alpaca.markets";
 
-// Auth headers — only included when keys are present
+// Auth headers — included only for endpoints that explicitly require them.
 function getHeaders(requireAuth = false): Record<string, string> {
   const h: Record<string, string> = { "Accept": "application/json" };
-  if (ALPACA_KEY && ALPACA_SECRET) {
-    h["APCA-API-KEY-ID"]     = ALPACA_KEY;
-    h["APCA-API-SECRET-KEY"] = ALPACA_SECRET;
-  } else if (requireAuth) {
+  // Alpaca's public crypto market-data endpoints do not require auth. More
+  // importantly, sending a configured-but-rejected stock credential pair to
+  // those endpoints turns an otherwise valid public request into a 401. Keep
+  // crypto/public calls genuinely unauthenticated and attach broker headers
+  // only when the caller explicitly requires them.
+  if (!requireAuth) return h;
+  if (!ALPACA_KEY || !ALPACA_SECRET) {
     throw new Error("Alpaca API keys not configured — add ALPACA_KEY and ALPACA_SECRET to .env.local");
   }
+  h["APCA-API-KEY-ID"]     = ALPACA_KEY;
+  h["APCA-API-SECRET-KEY"] = ALPACA_SECRET;
   return h;
+}
+
+class AlpacaUpstreamError extends Error {
+  constructor(readonly status: number) {
+    super(`Alpaca HTTP ${status}`);
+    this.name = "AlpacaUpstreamError";
+  }
 }
 
 const CACHE = new Map<string, { data: unknown; ts: number }>();
@@ -42,7 +54,7 @@ async function alpacaFetch(url: string, ttlMs = 5_000, requireAuth = false): Pro
   const cached = CACHE.get(url);
   if (cached && Date.now() - cached.ts < ttlMs) return cached.data;
   const res = await fetch(url, { headers: getHeaders(requireAuth), cache: "no-store" });
-  if (!res.ok) throw new Error(`Alpaca HTTP ${res.status}`);
+  if (!res.ok) throw new AlpacaUpstreamError(res.status);
   const data = await res.json();
   CACHE.set(url, { data, ts: Date.now() });
   return data;
@@ -248,6 +260,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unknown type" }, { status: 400 });
 
   } catch (err: unknown) {
+    if (err instanceof AlpacaUpstreamError) {
+      return NextResponse.json(
+        { error: "Alpaca upstream unavailable", upstreamStatus: err.status },
+        { status: 502 },
+      );
+    }
     const msg = String(err);
     const status = msg.includes("not configured") || msg.includes("not set") ? 503 : 500;
     return NextResponse.json({ error: msg }, { status });
