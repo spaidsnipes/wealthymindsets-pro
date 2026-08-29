@@ -828,8 +828,9 @@ function CommandDeckInner() {
                 Rendered inside a canonical <SemanticZoom> so the deck
                 honors §Phase 2 Experience Shell 4-level pattern:
                   L1 — one-glance summary line
+                  L2 — essential evidence (weakest capability + coverage line)
                   L3 — full per-capability grid
-                (§Semantic Zoom skips L2 + L4 here — silent per canon.) */}
+                (§Semantic Zoom skips L4 here — silent per canon.) */}
             {(() => {
               const capabilityReport = selectPerCapabilityFidelity({
                 source: wsFeed.source ?? "unavailable",
@@ -870,6 +871,29 @@ function CommandDeckInner() {
                               )}
                             </span>
                           ) : null}
+                        </div>
+                      ),
+                      2: (
+                        <div style={{ padding: "6px 2px", display: "flex", flexDirection: "column", gap: 4 }}>
+                          {evaluated === 0 ? (
+                            <span className="text-[11px] italic" style={{ color: "#8B92AC" }}>
+                              No capabilities evaluated yet — nothing to summarise (canon §Silence Is A Feature).
+                            </span>
+                          ) : (
+                            <>
+                              <div className="text-[11px]" style={{ color: "#E4E7EF", fontWeight: 600 }}>
+                                {weakest && strongest && weakest.capability !== strongest.capability
+                                  ? `Weakest: ${weakest.capability} — ${weakest.label}`
+                                  : `All evaluated capabilities: ${strongest?.label ?? "—"}`}
+                              </div>
+                              <div className="text-[10px]" style={{ color: "#8B92AC" }}>
+                                {evaluated} of 7 capabilities evaluated
+                                {strongest && weakest && weakest.capability !== strongest.capability
+                                  ? ` · strongest: ${strongest.capability} — ${strongest.label}`
+                                  : ""}
+                              </div>
+                            </>
+                          )}
                         </div>
                       ),
                       3: (
