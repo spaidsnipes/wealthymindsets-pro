@@ -1,6 +1,7 @@
 "use client";
 import * as React from "react";
 import type { CanonicalMarketState } from "@/lib/marketData/canonicalMarketState";
+import { selectHeroPriceChronology } from "@/lib/marketData/heroTruthChronology";
 
 /**
  * HeroTruth — the ONE dominant first-second message on /command-deck.
@@ -63,14 +64,13 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
   const qualityKey: keyof typeof QUALITY_STYLES = state?.qualityState ?? "UNKNOWN";
   const style = QUALITY_STYLES[qualityKey];
   const price = state?.price.last ?? null;
-  const eventAt = state?.price.eventAt ?? null;
-  // Never call Date.now() during render — it produces different values
-  // on SSR (server clock) vs client hydration (browser clock) → React
-  // #418 hydration mismatch on every route that renders HeroTruth. If
-  // capturedAt is missing, treat freshness as unknown; the CanonicalMarketState
-  // consumer will supply capturedAt as soon as it has a snapshot.
-  const capturedAt = state?.capturedAt ?? null;
-  const freshnessMs = eventAt && capturedAt ? Math.max(0, capturedAt - eventAt) : null;
+  // canon §fail-closed hero chronology (heroTruthChronology adapter):
+  // a transport/server receipt timestamp is not proof of market
+  // observation time. Only a LIVE packet with a valid observed →
+  // available → captured chronology may display an exact age. Every
+  // other packet (DELAYED / PROXY / REPLAY / STALE) surfaces
+  // UNVERIFIED — never turning a receipt-time delta into market truth.
+  const priceChronology = selectHeroPriceChronology(state ?? null);
   const showResolutionQualifier = shouldShowMarketStateResolutionQualifier(marketState, marketStateResolution);
 
   return (
@@ -211,16 +211,25 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
             ?
           </span>
         )}
-        {freshnessMs != null && (
+        {priceChronology.label != null && (
           <span
+            data-testid="hero-price-chronology"
+            data-chronology-state={priceChronology.state}
+            title={priceChronology.detail}
             style={{
               fontSize: 10,
-              color: "#8a8271",
+              // OBSERVED_AGE renders in the usual muted gold; UNVERIFIED
+              // renders dimmer so a trader can visually tell "we don't
+              // know the true age" from "here it is".
+              color: priceChronology.state === "OBSERVED_AGE" ? "#8a8271" : "#55503f",
               letterSpacing: 0.3,
               textTransform: "uppercase",
+              fontStyle: priceChronology.state === "OBSERVED_AGE" ? "normal" : "italic",
             }}
           >
-            price age {freshnessMs < 1000 ? `${freshnessMs}ms` : `${(freshnessMs / 1000).toFixed(1)}s`}
+            {priceChronology.state === "OBSERVED_AGE"
+              ? `price ${priceChronology.label}`
+              : priceChronology.label}
           </span>
         )}
       </div>
