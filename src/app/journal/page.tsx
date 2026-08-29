@@ -15,6 +15,10 @@ import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
+import { useMarketCanvasVM } from "@/lib/marketData/viewModels/useMarketCanvasVM";
+import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
+import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
+import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
 import { computeJournalPnl, computeJournalRealizedR } from "@/lib/journal/computePnl";
@@ -878,6 +882,33 @@ function JournalPageInner() {
 
   const [selected,  setSelected]  = useState<JournalEntry | null>(null);
   const [newMode,   setNewMode]   = useState(false);
+
+  // canon §Phase 3 Market Canvas propagation (Shift-X X2): when the
+  // trader opens a journal entry, show the CURRENT canvas for that
+  // symbol alongside the past trade. Honest review context: "what does
+  // the deck say NOW about the symbol I traded?" — helps decide whether
+  // to re-enter, wait, or move on. The canvas VM is derived through the
+  // shared composeMarketCanvasVM compiler via the useMarketCanvasVM
+  // hook, so this surface stays canonically consistent with /command-deck.
+  //
+  // Identity is built from the selected entry's symbol + a default 15m
+  // timeframe (matches /command-deck). Journal entries don't carry a
+  // timeframe, so 15m is the honest fallback (canon §Silence: when
+  // the store has no snapshot for that identity, the canvas returns a
+  // silent-safe VM and renders nothing).
+  const journalCanvasIdentity = React.useMemo(() => {
+    if (!selected?.symbol) return null;
+    try {
+      return canonicalMarketStateIdentity({ symbol: selected.symbol, timeframe: "15" });
+    } catch {
+      // Unknown symbol shape (option OCC / futures) — treat as no-op.
+      return null;
+    }
+  }, [selected?.symbol]);
+  const journalCanvas = useMarketCanvasVM({
+    identity: journalCanvasIdentity,
+    ownerId: authCtx?.user?.id ?? null,
+  });
   const [search,    setSearch]    = useState("");
   const [filterTag, setFilterTag] = useState("");
   const [filterRes, setFilterRes] = useState<"all"|TradeResult>("all");
@@ -2325,6 +2356,29 @@ Trade the system, trust the process, winners every day 🚀`,
                     <Trash2 size={16} aria-hidden="true" />
                   </button>
                 </div>
+              </div>
+
+              {/* canon §Phase 3 Market Canvas — CURRENT canvas for the
+                  entry's symbol. Silent when the market-state store has
+                  no snapshot for this identity (canon §Silence). Panel
+                  itself already stays silent when every corner is empty
+                  (MISSING / RESOLVED / WHY NOT / CLEARED / WOULD INVALIDATE
+                  all empty → nothing renders). */}
+              <div className="mb-4 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-wm-text-muted">
+                    Canvas · {selected.symbol} now
+                  </span>
+                  <CanvasSummaryPill
+                    vm={journalCanvas.canvas}
+                    ariaLabel={`Current market canvas summary for ${selected.symbol}`}
+                  />
+                </div>
+                {(journalCanvas.canvas.hasSnapshot ||
+                  journalCanvas.canvas.blockers.length > 0 ||
+                  journalCanvas.canvas.clearances.length > 0) && (
+                  <MarketCanvasPanel vm={journalCanvas.canvas} />
+                )}
               </div>
 
               {/* Stats grid */}
