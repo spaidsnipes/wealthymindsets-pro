@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { SemanticZoom, type SemanticZoomLevels } from "@/components/experience/SemanticZoom";
 import type { LearningGenome, LearningDimensionKey } from "@/lib/learningGenome/selectLearningGenome";
 import type { DrillPrescription } from "@/lib/learningGenome/prescribeDrill";
 import type { MisreadMap, MisreadCategory } from "@/lib/learningGenome/selectMisreadMap";
@@ -145,9 +146,17 @@ export function LearningGenomeInspector({
         )}
       </header>
 
-      {/* Four-dimension grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        {dimensions.map(({ key, dim, trend: t }) => (
+      {/* canon §Phase 2 Experience Shell — the Learning Genome is the
+          canonical dense-diagnostic panel and MUST route its body through
+          the shared <SemanticZoom> primitive. L1 = 4-dim scorecard;
+          L2 = + drill prescription; L3 = + misread + streaks/coverage.
+          L4 intentionally unsupplied (canon §Silence Is A Feature — no
+          raw-dump surface for LGI yet). Defaults to L3 to preserve the
+          pre-Phase-2 baseline (the whole diagnostic shows when opened). */}
+      {(() => {
+        const dimGrid = (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {dimensions.map(({ key, dim, trend: t }) => (
           <div
             key={key}
             className="border border-wm-border rounded p-2 bg-wm-black/40"
@@ -167,54 +176,51 @@ export function LearningGenomeInspector({
               {dim.label ?? "no signal"}
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* Drill prescription */}
-      {drill && (
-        <div className="border border-wm-gold/40 bg-wm-gold/5 rounded p-2">
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-[10px] font-bold text-wm-gold uppercase tracking-wide">
-              Drill · {drill.stage}
-            </span>
-            <span className="text-[10px] text-wm-text-muted">
-              {DIMENSION_LABEL[drill.dimension]}
-            </span>
-          </div>
-          <p className="text-[11px] text-wm-text leading-snug">{drill.drill}</p>
-          <p className="text-[10px] text-wm-text-dim mt-1">Why: {drill.why}</p>
-        </div>
-      )}
-
-      {/* Misread breakdown */}
-      {misread.sample_size > 0 && (
-        <div>
-          <div className="text-[10px] font-semibold uppercase tracking-wide text-wm-text-muted mb-1">
-            Misread Map · {misread.sample_size} trades
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {misreadRows.map((cat) => (
-              <span
-                key={cat}
-                className={`px-1.5 py-0.5 text-[10px] rounded border ${
-                  cat === misread.dominant
-                    ? "border-wm-red/50 bg-wm-red/10 text-wm-red font-bold"
-                    : cat === "CLEAN"
-                    ? "border-wm-green/40 bg-wm-green/10 text-wm-green"
-                    : "border-wm-border bg-wm-black/40 text-wm-text-muted"
-                }`}
-              >
-                {CATEGORY_LABEL[cat]} {misread.counts[cat]}
-              </span>
             ))}
           </div>
-        </div>
-      )}
+        );
 
-      {/* Streaks & Coverage — v1.1.0 canon primitives (2026-08-25).
-          Silent by design when the caller doesn't supply the field. */}
-      {(focusStreak || ruleAdherenceStreak || dayModelCoverage || dualSideGuard || weekMaturity) && (
-        <div>
+        const drillNode = drill ? (
+          <div className="border border-wm-gold/40 bg-wm-gold/5 rounded p-2">
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-[10px] font-bold text-wm-gold uppercase tracking-wide">
+                Drill · {drill.stage}
+              </span>
+              <span className="text-[10px] text-wm-text-muted">
+                {DIMENSION_LABEL[drill.dimension]}
+              </span>
+            </div>
+            <p className="text-[11px] text-wm-text leading-snug">{drill.drill}</p>
+            <p className="text-[10px] text-wm-text-dim mt-1">Why: {drill.why}</p>
+          </div>
+        ) : null;
+
+        const misreadNode = misread.sample_size > 0 ? (
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-wm-text-muted mb-1">
+              Misread Map · {misread.sample_size} trades
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {misreadRows.map((cat) => (
+                <span
+                  key={cat}
+                  className={`px-1.5 py-0.5 text-[10px] rounded border ${
+                    cat === misread.dominant
+                      ? "border-wm-red/50 bg-wm-red/10 text-wm-red font-bold"
+                      : cat === "CLEAN"
+                      ? "border-wm-green/40 bg-wm-green/10 text-wm-green"
+                      : "border-wm-border bg-wm-black/40 text-wm-text-muted"
+                  }`}
+                >
+                  {CATEGORY_LABEL[cat]} {misread.counts[cat]}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null;
+
+        const streaksNode = (focusStreak || ruleAdherenceStreak || dayModelCoverage || dualSideGuard || weekMaturity) ? (
+          <div>
           <div className="text-[10px] font-semibold uppercase tracking-wide text-wm-text-muted mb-1">
             Streaks &amp; Coverage
           </div>
@@ -293,9 +299,30 @@ export function LearningGenomeInspector({
                 Maturity F·{weekMaturity.FULFILLED} A·{weekMaturity.ACTIVE} E·{weekMaturity.EARLY} W·{weekMaturity.WRONG}
               </span>
             )}
+            </div>
           </div>
-        </div>
-      )}
+        ) : null;
+
+        const l1 = <>{dimGrid}</>;
+        const l2 = <div className="space-y-3">{dimGrid}{drillNode}</div>;
+        const l3 = (
+          <div className="space-y-3">
+            {dimGrid}
+            {drillNode}
+            {misreadNode}
+            {streaksNode}
+          </div>
+        );
+
+        const levels: SemanticZoomLevels = { 1: l1, 2: l2, 3: l3 };
+        return (
+          <SemanticZoom
+            levels={levels}
+            defaultLevel={3}
+            ariaLabel="Learning Genome zoom"
+          />
+        );
+      })()}
     </section>
   );
 }

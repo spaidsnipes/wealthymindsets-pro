@@ -91,6 +91,7 @@ describe("<SemanticZoom> enforcement — canon §Phase 2 Experience Shell", () =
     const expected = [
       "app/command-deck/page.tsx",
       "components/command-deck/WhyInspector.tsx",
+      "components/learningGenome/LearningGenomeInspector.tsx",
     ];
     for (const rel of expected) {
       const p = resolve(SRC_ROOT, rel);
