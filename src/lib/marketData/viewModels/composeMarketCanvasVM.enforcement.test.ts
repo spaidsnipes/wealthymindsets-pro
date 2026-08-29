@@ -89,4 +89,15 @@ describe("composeMarketCanvasVM enforcement — canon §Single-Writer / Many-Rea
     expect(content).not.toContain('from "@/lib/traderMemory/viewModels/selectPermission"');
     expect(content).not.toContain('from "@/lib/marketData/viewModels/selectOneStory"');
   });
+
+  it("second Phase 3 consumer /journal routes through useMarketCanvasVM (X2 breadcrumb)", () => {
+    const p = resolve(SRC_ROOT, "src/app/journal/page.tsx");
+    const content = readFileSync(p, "utf8");
+    // /journal uses the hook wrapper rather than calling the compiler
+    // directly — the hook re-exports the compiler internally, so both
+    // are acceptable canonical routes.
+    expect(content).toMatch(/useMarketCanvasVM|composeMarketCanvasVM/);
+    // And it must render one of the canonical canvas surfaces.
+    expect(content).toMatch(/MarketCanvasPanel|CanvasSummaryPill/);
+  });
 });
