@@ -847,10 +847,20 @@ function CommandDeckInner() {
                     source: wsFeed.source ?? "unavailable",
                     connected: wsFeed.connected,
                     hasCandles: !!state,
-                    // ticks / depth / options / greeks / orderFlow left
-                    // undefined — providers not yet wired. Canon: silent
-                    // rather than fake-known. Follow-up shift lights each
-                    // capability as its provider ships.
+                    // TICKS — real signal: wsFeed.recentTicks is populated
+                    // only when per-trade tape is actively flowing for the
+                    // current symbol. Pass true when recent ticks exist AND
+                    // transport is connected (both must hold — connected
+                    // alone can produce ticks[] on hot-reload with no live
+                    // stream). Pass false to explicitly claim STALE when
+                    // connected but the buffer is empty (canon: name the
+                    // condition, not silence). Undefined only during
+                    // hydration/init.
+                    tapeConnected: !wsFeed.connected
+                      ? undefined
+                      : (wsFeed.recentTicks?.length ?? 0) > 0,
+                    // depth / options / greeks / orderFlow still undefined —
+                    // providers not yet wired. Canon §silent-not-fake.
                   })}
                 />
               </div>
