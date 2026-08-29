@@ -4,6 +4,7 @@ import type { CanonicalMarketState, MarketStateDimension } from "@/lib/marketDat
 import type { DLARVM } from "@/lib/marketData/viewModels/selectDLAR";
 import type { CLCVM } from "@/lib/marketData/viewModels/selectCLC";
 import { WM } from "@/lib/design/wmTokens";
+import { SemanticZoom, type SemanticZoomLevels } from "@/components/experience/SemanticZoom";
 
 /**
  * WhyInspector — the "WHY?" evidence inspector Founder Aug-14 called out.
@@ -157,155 +158,183 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
         )}
       </div>
 
-      {(value || resolution || confidence != null) && (
-        <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
-          {value && (
-            <Stat label="Value" value={value} />
-          )}
-          {resolution && (
-            <Stat label="Resolution" value={resolution.toLowerCase()} />
-          )}
-          {confidence != null && (
-            <Stat label="Confidence" value={confidence.toFixed(2)} />
-          )}
-        </div>
-      )}
+      {(() => {
+        // Canon §Phase 2 Experience Shell — the WHY? panel is the canonical
+        // deep-drill surface, so it MUST offer progressive disclosure via the
+        // shared <SemanticZoom> primitive (single writer for the 4-level
+        // pattern). L1 = one-glance verdict chips; L2 = + evidence groups
+        // summary; L3 = full evidence + contradictions + unknowns + coverage.
+        // Default = L3 to preserve pre-Phase-2 behaviour (nothing gets hidden
+        // from the trader who opened the inspector on purpose).
+        const statsNode = (value || resolution || confidence != null) ? (
+          <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+            {value && <Stat label="Value" value={value} />}
+            {resolution && <Stat label="Resolution" value={resolution.toLowerCase()} />}
+            {confidence != null && <Stat label="Confidence" value={confidence.toFixed(2)} />}
+          </div>
+        ) : null;
 
-      {evidence.length > 0 ? (
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
-            <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.gold.mark, fontWeight: 700 }}>
-              Observed evidence ({evidence.length})
+        const fmtAge = (ms: number): string => {
+          if (!Number.isFinite(ms) || ms < 0) return "—";
+          if (ms < 60_000) return `${Math.round(ms / 1000)}s ago`;
+          if (ms < 3_600_000) return `${Math.round(ms / 60_000)}m ago`;
+          if (ms < 86_400_000) return `${(ms / 3_600_000).toFixed(1)}h ago`;
+          return `${(ms / 86_400_000).toFixed(1)}d ago`;
+        };
+        const nowTs = state?.capturedAt ?? Date.now();
+
+        // Group evidence by source once — shared by L2 (summary) and L3 (full).
+        const bySource = new Map<string, typeof evidence>();
+        evidence.forEach((e) => {
+          const src = e.source || "unknown source";
+          const bucket = bySource.get(src) ?? [];
+          bucket.push(e);
+          bySource.set(src, bucket);
+        });
+        const evidenceGroups = Array.from(bySource.entries()).map(([src, items]) => {
+          const latest = items.reduce((max, it) => (it.observedAt > max ? it.observedAt : max), 0);
+          return { src, items, latest };
+        }).sort((a, b) => b.latest - a.latest);
+
+        const evidenceSummaryNode = evidence.length > 0 ? (
+          <div style={{ marginBottom: 12 }} data-testid="why-evidence-summary">
+            <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.gold.mark, fontWeight: 700, marginBottom: 6 }}>
+              Evidence sources ({evidenceGroups.length}) · {evidence.length} obs total
             </div>
-            {state && (
-              <div style={{ fontSize: 9, color: WM.text.dim, letterSpacing: 0.3 }}>
-                as of {new Date(state.capturedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-              </div>
-            )}
-          </div>
-          {(() => {
-            const bySource = new Map<string, typeof evidence>();
-            evidence.forEach((e) => {
-              const src = e.source || "unknown source";
-              const bucket = bySource.get(src) ?? [];
-              bucket.push(e);
-              bySource.set(src, bucket);
-            });
-            const fmtAge = (ms: number): string => {
-              if (!Number.isFinite(ms) || ms < 0) return "—";
-              if (ms < 60_000) return `${Math.round(ms / 1000)}s ago`;
-              if (ms < 3_600_000) return `${Math.round(ms / 60_000)}m ago`;
-              if (ms < 86_400_000) return `${(ms / 3_600_000).toFixed(1)}h ago`;
-              return `${(ms / 86_400_000).toFixed(1)}d ago`;
-            };
-            const groups = Array.from(bySource.entries()).map(([src, items]) => {
-              const latest = items.reduce((max, it) => (it.observedAt > max ? it.observedAt : max), 0);
-              return { src, items, latest };
-            }).sort((a, b) => b.latest - a.latest);
-            const now = state?.capturedAt ?? Date.now();
-            return (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {groups.map((g) => (
-                  <div key={g.src} style={{ padding: "6px 10px", background: WM.surface.mid, borderRadius: 4, borderLeft: `2px solid ${WM.gold.line}` }}>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 10, color: WM.gold.mark, fontWeight: 700, letterSpacing: 0.3 }}>{g.src}</span>
-                      <span style={{ fontSize: 9, color: WM.text.dim, letterSpacing: 0.3 }}>{g.items.length} obs · latest {fmtAge(now - g.latest)}</span>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      {g.items.slice(0, 4).map((e, i) => (
-                        <div key={`${e.eventId}-${i}`} style={{ fontSize: 11, color: WM.text.body, lineHeight: 1.5, display: "flex", gap: 6, alignItems: "baseline" }}>
-                          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.basis || "evidence"}</span>
-                          <span style={{ fontSize: 9, color: e.fidelity === "direct" ? WM.state.ok : e.fidelity === "derived" ? WM.gold.mark : WM.text.muted, letterSpacing: 0.2 }}>{e.fidelity}</span>
-                          <span style={{ fontSize: 9, color: WM.text.dim, minWidth: 60, textAlign: "right" }}>{fmtAge(now - e.observedAt)}</span>
-                        </div>
-                      ))}
-                      {g.items.length > 4 && (
-                        <div style={{ fontSize: 9, color: WM.text.dim, fontStyle: "italic" }}>
-                          +{g.items.length - 4} more from {g.src}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
-        </div>
-      ) : (
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.text.muted, fontWeight: 700, marginBottom: 6 }}>
-            No observed evidence
-          </div>
-          <div style={{ fontSize: 11, color: WM.text.muted, fontStyle: "italic", lineHeight: 1.5, padding: "6px 10px", background: "rgba(19,19,23,0.3)", borderRadius: 4 }}>
-            {state && state.coverage.length === 0
-              ? "No coverage channels have been established yet for this symbol. WM has not yet observed data."
-              : state && state.coverage.length > 0
-                ? `WM has ${state.coverage.length} coverage channel(s) but none have posted evidence for this dimension. This is honest UNKNOWN, not silence.`
-                : "No canonical market snapshot yet — evidence cannot be attributed."}
-          </div>
-        </div>
-      )}
-
-      {contradictions.length > 0 && (
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.state.warn, fontWeight: 700, marginBottom: 6 }}>
-            Contradictions ({contradictions.length})
-          </div>
-          {contradictions.slice(0, 5).map((c, i) => (
-            <div key={i} style={{ fontSize: 11, color: WM.text.body, lineHeight: 1.5, padding: "4px 10px", borderLeft: `2px solid ${WM.state.warn}55` }}>
-              {c}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {unknowns.length > 0 && (
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.gold.mark, fontWeight: 700, marginBottom: 6 }}>
-            Unknowns ({unknowns.length}) — why unknown
-          </div>
-          {unknowns.slice(0, 5).map((u, i) => (
-            <div key={i} style={{ fontSize: 11, color: WM.text.body, lineHeight: 1.5, padding: "4px 10px", borderLeft: `2px solid ${WM.gold.line}` }}>
-              {u}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Coverage explanation — makes UNKNOWN inspectable. Founder Aug-14 §9:
-          "Can UNKNOWN explain WHY it is unknown?" A trader clicking Why? and
-          seeing an unresolved dimension deserves to know which channels are
-          silent, stale, or gapped. */}
-      {state && state.coverage.length > 0 && (unknowns.length > 0 || evidence.length === 0) && (
-        <div style={{ paddingTop: 10, borderTop: `1px solid ${WM.border.hair}` }}>
-          <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.text.muted, fontWeight: 700, marginBottom: 6 }}>
-            Coverage
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {state.coverage.slice(0, 6).map((c) => {
-              const ageMs = c.lastEventAt ? state.capturedAt - c.lastEventAt : null;
-              const stale = ageMs != null && ageMs > 60_000;
-              const silent = c.observedEventCount === 0;
-              const gapped = (c.gapCount ?? 0) > 0;
-              return (
-                <div key={`${c.channel}-${c.providerPath}`} style={{ fontSize: 10, color: WM.text.body, lineHeight: 1.5, display: "flex", gap: 6, alignItems: "baseline" }}>
-                  <span style={{ color: silent ? WM.text.muted : WM.gold.mark, minWidth: 90 }}>{c.channel}</span>
-                  <span style={{ flex: 1, color: WM.text.muted, fontSize: 9 }}>
-                    {silent ? "silent" : stale ? `stale (${Math.round((ageMs ?? 0) / 1000)}s)` : "live"}
-                    {gapped ? ` · ${c.gapCount} gap${c.gapCount === 1 ? "" : "s"}` : ""}
-                  </span>
-                  <span style={{ fontSize: 9, color: WM.text.dim }}>{c.observedEventCount} obs</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {evidenceGroups.map((g) => (
+                <div key={g.src} style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "4px 10px", background: WM.surface.mid, borderRadius: 4, borderLeft: `2px solid ${WM.gold.line}` }}>
+                  <span style={{ fontSize: 10, color: WM.gold.mark, fontWeight: 700, letterSpacing: 0.3, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.src}</span>
+                  <span style={{ fontSize: 9, color: WM.text.dim, letterSpacing: 0.3 }}>{g.items.length} obs · latest {fmtAge(nowTs - g.latest)}</span>
                 </div>
-              );
-            })}
-            {state.coverage.length > 6 && (
-              <div style={{ fontSize: 9, color: WM.text.dim, fontStyle: "italic" }}>
-                +{state.coverage.length - 6} more channels
-              </div>
-            )}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        ) : null;
+
+        const evidenceFullNode = evidence.length > 0 ? (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+              <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.gold.mark, fontWeight: 700 }}>
+                Observed evidence ({evidence.length})
+              </div>
+              {state && (
+                <div style={{ fontSize: 9, color: WM.text.dim, letterSpacing: 0.3 }}>
+                  as of {new Date(state.capturedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {evidenceGroups.map((g) => (
+                <div key={g.src} style={{ padding: "6px 10px", background: WM.surface.mid, borderRadius: 4, borderLeft: `2px solid ${WM.gold.line}` }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontSize: 10, color: WM.gold.mark, fontWeight: 700, letterSpacing: 0.3 }}>{g.src}</span>
+                    <span style={{ fontSize: 9, color: WM.text.dim, letterSpacing: 0.3 }}>{g.items.length} obs · latest {fmtAge(nowTs - g.latest)}</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    {g.items.slice(0, 4).map((e, i) => (
+                      <div key={`${e.eventId}-${i}`} style={{ fontSize: 11, color: WM.text.body, lineHeight: 1.5, display: "flex", gap: 6, alignItems: "baseline" }}>
+                        <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.basis || "evidence"}</span>
+                        <span style={{ fontSize: 9, color: e.fidelity === "direct" ? WM.state.ok : e.fidelity === "derived" ? WM.gold.mark : WM.text.muted, letterSpacing: 0.2 }}>{e.fidelity}</span>
+                        <span style={{ fontSize: 9, color: WM.text.dim, minWidth: 60, textAlign: "right" }}>{fmtAge(nowTs - e.observedAt)}</span>
+                      </div>
+                    ))}
+                    {g.items.length > 4 && (
+                      <div style={{ fontSize: 9, color: WM.text.dim, fontStyle: "italic" }}>
+                        +{g.items.length - 4} more from {g.src}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.text.muted, fontWeight: 700, marginBottom: 6 }}>
+              No observed evidence
+            </div>
+            <div style={{ fontSize: 11, color: WM.text.muted, fontStyle: "italic", lineHeight: 1.5, padding: "6px 10px", background: "rgba(19,19,23,0.3)", borderRadius: 4 }}>
+              {state && state.coverage.length === 0
+                ? "No coverage channels have been established yet for this symbol. WM has not yet observed data."
+                : state && state.coverage.length > 0
+                  ? `WM has ${state.coverage.length} coverage channel(s) but none have posted evidence for this dimension. This is honest UNKNOWN, not silence.`
+                  : "No canonical market snapshot yet — evidence cannot be attributed."}
+            </div>
+          </div>
+        );
+
+        const contradictionsNode = contradictions.length > 0 ? (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.state.warn, fontWeight: 700, marginBottom: 6 }}>
+              Contradictions ({contradictions.length})
+            </div>
+            {contradictions.slice(0, 5).map((c, i) => (
+              <div key={i} style={{ fontSize: 11, color: WM.text.body, lineHeight: 1.5, padding: "4px 10px", borderLeft: `2px solid ${WM.state.warn}55` }}>
+                {c}
+              </div>
+            ))}
+          </div>
+        ) : null;
+
+        const unknownsNode = unknowns.length > 0 ? (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.gold.mark, fontWeight: 700, marginBottom: 6 }}>
+              Unknowns ({unknowns.length}) — why unknown
+            </div>
+            {unknowns.slice(0, 5).map((u, i) => (
+              <div key={i} style={{ fontSize: 11, color: WM.text.body, lineHeight: 1.5, padding: "4px 10px", borderLeft: `2px solid ${WM.gold.line}` }}>
+                {u}
+              </div>
+            ))}
+          </div>
+        ) : null;
+
+        const coverageNode = state && state.coverage.length > 0 && (unknowns.length > 0 || evidence.length === 0) ? (
+          <div style={{ paddingTop: 10, borderTop: `1px solid ${WM.border.hair}` }}>
+            <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.text.muted, fontWeight: 700, marginBottom: 6 }}>
+              Coverage
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {state.coverage.slice(0, 6).map((c) => {
+                const ageMs = c.lastEventAt ? state.capturedAt - c.lastEventAt : null;
+                const stale = ageMs != null && ageMs > 60_000;
+                const silent = c.observedEventCount === 0;
+                const gapped = (c.gapCount ?? 0) > 0;
+                return (
+                  <div key={`${c.channel}-${c.providerPath}`} style={{ fontSize: 10, color: WM.text.body, lineHeight: 1.5, display: "flex", gap: 6, alignItems: "baseline" }}>
+                    <span style={{ color: silent ? WM.text.muted : WM.gold.mark, minWidth: 90 }}>{c.channel}</span>
+                    <span style={{ flex: 1, color: WM.text.muted, fontSize: 9 }}>
+                      {silent ? "silent" : stale ? `stale (${Math.round((ageMs ?? 0) / 1000)}s)` : "live"}
+                      {gapped ? ` · ${c.gapCount} gap${c.gapCount === 1 ? "" : "s"}` : ""}
+                    </span>
+                    <span style={{ fontSize: 9, color: WM.text.dim }}>{c.observedEventCount} obs</span>
+                  </div>
+                );
+              })}
+              {state.coverage.length > 6 && (
+                <div style={{ fontSize: 9, color: WM.text.dim, fontStyle: "italic" }}>
+                  +{state.coverage.length - 6} more channels
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null;
+
+        const l1 = <>{statsNode}</>;
+        const l2 = <>{statsNode}{evidenceSummaryNode}</>;
+        const l3 = <>{statsNode}{evidenceFullNode}{contradictionsNode}{unknownsNode}{coverageNode}</>;
+
+        const levels: SemanticZoomLevels = { 1: l1, 2: l2, 3: l3 };
+
+        return (
+          <SemanticZoom
+            levels={levels}
+            defaultLevel={3}
+            ariaLabel={`${title} — evidence zoom`}
+          />
+        );
+      })()}
     </section>
   );
 }
