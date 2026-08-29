@@ -1663,7 +1663,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         fhDirectData ? "FINNHUB" :
         yahooData    ? "YAHOO"   :
         finnhubData  ? "FINNHUB" :
-        polyData     ? "POLYGON" : "NO FEED";
+        // Internal sentinel — never rendered to trader.
+        polyData     ? "POLYGON" : "__unresolved__";
 
       // Real spot price (from parallel fetch above)
       const spotPrice = await spotFetch;
@@ -2105,7 +2106,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         setLastPrice(data[data.length - 1].close);
         setOpenPrice(data[0].open);
       }
-      setCandleSource(data.length ? srcName : "NO FEED");
+      // Internal sentinel — never shown to trader. Canon-quarantined
+      // display strings live in canonicalFidelityLabels; this state
+      // is INTERNAL bookkeeping only.
+      setCandleSource(data.length ? srcName : "__unresolved__");
       setReady(true);
       onBarsReady?.(data);
 
@@ -6937,7 +6941,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             const status = candleDataStatus(
               source,
               connected,
-              candleSource !== "NO FEED" && candles.length > 0,
+              candleSource !== "__unresolved__" && candles.length > 0,
               lastTickAtRef.current,
             );
             const noFeed = status.state === "UNAVAILABLE";
@@ -6949,7 +6953,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 {/* Canon §Living Market Visual Systems (2026-08-27) —
                     "CLOSED IS NOT DELAYED." When the feed reports no
                     ticks but candles are on screen, the honest label
-                    is a session-aware truth, not a red "NO FEED". */}
+                    is a session-aware truth, not a red no-feed alarm. */}
                 {noFeed ? (
                   <span className="text-[10px] font-semibold" style={{ color: "#8B92AC" }}>SESSION CLOSED — LAST VERIFIED</span>
                 ) : status.live ? (
