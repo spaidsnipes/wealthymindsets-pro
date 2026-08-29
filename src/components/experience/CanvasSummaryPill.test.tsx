@@ -108,6 +108,28 @@ describe("CanvasSummaryPill — canon §Phase 3 Market Canvas summary", () => {
     expect(html).not.toContain('<button');
   });
 
+  it("tooltip carries the headline + top blockers/invalidators/missing (X8 hover-truth)", () => {
+    const html = renderToStaticMarkup(
+      <CanvasSummaryPill
+        vm={vm({
+          verdict: "WAIT",
+          hasSnapshot: true,
+          headline: "Right-of-way is withheld — waiting on regime.",
+          blockers: ["regime", "Active contradiction"],
+          invalidators: [],
+          missing: ["direction:unresolved", "location:unresolved"],
+        })}
+      />,
+    );
+    expect(html).toContain("title=");
+    // The title attribute is HTML-escaped so &#x27; and &quot; can appear;
+    // we check for the substring that must be present regardless of encoding.
+    expect(html).toContain("Right-of-way is withheld");
+    expect(html).toContain("Why not");
+    expect(html).toContain("regime");
+    expect(html).toContain("Missing");
+  });
+
   it("honors a custom aria-label", () => {
     const html = renderToStaticMarkup(
       <CanvasSummaryPill vm={vm({ hasSnapshot: true })} ariaLabel="TSLA canvas" />,

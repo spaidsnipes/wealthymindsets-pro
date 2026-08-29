@@ -77,6 +77,17 @@ export function CanvasSummaryPill({
     letterSpacing: 0.4,
   };
 
+  // X8 tooltip: compact hover-truth reveal. The pill can only show
+  // counts because of space; the tooltip carries the actual headline
+  // ("Right-of-way is blocked.") plus the top blocker / top invalidator
+  // so a mouse-hover surfaces reasoning without scrolling to the panel.
+  const tooltipLines: string[] = [`Canvas · ${vm.verdict}`];
+  if (vm.headline) tooltipLines.push("", vm.headline);
+  if (vm.blockers.length > 0) tooltipLines.push("", "Why not:", ...vm.blockers.slice(0, 3).map((b) => `  · ${b}`));
+  if (vm.invalidators.length > 0) tooltipLines.push("", "Would invalidate:", ...vm.invalidators.slice(0, 3).map((s) => `  · ${s}`));
+  if (vm.missing.length > 0) tooltipLines.push("", `Missing: ${vm.missing.slice(0, 4).join(", ")}${vm.missing.length > 4 ? " …" : ""}`);
+  const tooltip = tooltipLines.join("\n");
+
   const scroll = React.useCallback(() => {
     if (!scrollToSelector) return;
     const target = document.querySelector(scrollToSelector);
@@ -111,6 +122,7 @@ export function CanvasSummaryPill({
         type="button"
         onClick={scroll}
         aria-label={ariaLabel ?? "Canvas summary — jump to detail"}
+        title={tooltip}
         data-testid="canvas-summary-pill"
         className={className}
         style={{ ...commonStyle, cursor: "pointer", minHeight: 24 }}
@@ -124,6 +136,7 @@ export function CanvasSummaryPill({
     <div
       aria-label={ariaLabel ?? "Canvas summary"}
       role="status"
+      title={tooltip}
       data-testid="canvas-summary-pill"
       className={className}
       style={commonStyle}
