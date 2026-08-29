@@ -36,7 +36,7 @@ import { BottomIndexBar } from "./BottomIndexBar";
 import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { priceSourceBadge } from "@/lib/priceSource";
-import { fidelityLabelToFailureReport } from "@/lib/systemHealth/fidelityToHealth";
+import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { interpretPine } from "@/lib/pine/interpreter";
 import type { PineOutput } from "@/lib/pine/types";
@@ -741,48 +741,14 @@ export function ChartsDashboard() {
             // DEC-011. Bumped to 11px text / 7px dot / stronger contrast so a
             // user can actually read WHICH feed the price came from without
             // hovering for a tooltip.
+            // SHIFT-R atom 3 — the four ad-hoc chip renders across the
+            // trader surfaces all collapse into <CanonicalFidelityBadge>
+            // (canon §Single-Writer / Many-Readers + §Simplification
+            // Dividend). The SHIFT-Q 7-question tooltip enrichment now
+            // ships to every surface for free, and any future canon
+            // vocabulary or color change touches ONE component.
             const b = priceSourceBadge(source, connected);
-            // Canon §Failure + Recovery Grammar (2026-08-28) — enrich the
-            // tooltip with the seven-question narrative derived from the
-            // canonical fidelity label. Trader hovering the badge now
-            // sees not just "what" but "what still works, why, and what
-            // the next safe action is."
-            const report = fidelityLabelToFailureReport(b.label);
-            const enrichedTitle = report.state === "NORMAL"
-              ? b.title
-              : [
-                  b.title,
-                  "",
-                  `State: ${report.state}`,
-                  report.affected      ? `Affected: ${report.affected}`             : null,
-                  report.stillWorks    ? `Still works: ${report.stillWorks}`        : null,
-                  report.reason        ? `Reason: ${report.reason}`                 : null,
-                  report.userImpact    ? `Impact: ${report.userImpact}`             : null,
-                  report.nextSafeAction? `Next: ${report.nextSafeAction}`           : null,
-                  report.recoveredWhen ? `Recovered when: ${report.recoveredWhen}`  : null,
-                ].filter(Boolean).join("\n");
-            return (
-              <span
-                title={enrichedTitle}
-                aria-label={b.label}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 5,
-                  fontSize: 11, fontWeight: 700, letterSpacing: "0.05em",
-                  color: b.live ? "#00E88A" : "#F5A623",
-                  background: b.live ? "#00C0762A" : "#F5A62322",
-                  border: `1px solid ${b.live ? "#00C07680" : "#F5A62360"}`,
-                  borderRadius: 4, padding: "3px 7px", flexShrink: 0, cursor: "help",
-                  height: 20, alignSelf: "center",
-                }}
-              >
-                <span style={{
-                  width: 7, height: 7, borderRadius: "50%",
-                  background: b.live ? "#00E88A" : "#F5A623",
-                  boxShadow: b.live ? "0 0 4px #00E88A" : "none",
-                }} />
-                {b.label}
-              </span>
-            );
+            return <CanonicalFidelityBadge badge={b} variant="chrome" />;
           })()}
         </div>
         {/* Tab bar */}

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Plus, TrendingUp, TrendingDown, LayoutGrid, List } from "lucide-react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { priceSourceBadge } from "@/lib/priceSource";
+import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 
 const DEFAULT_SYMBOLS = [
   "ES1!", "NQ1!", "RTY1!", "YM1!", "SPY", "QQQ",
@@ -708,19 +709,11 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
                         <>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
                             {(() => {
+                              // SHIFT-R atom 5 — CanonicalFidelityBadge (compact
+                              // variant) — canon 7-question tooltip enrichment
+                              // arrives on every watchlist row for free.
                               const b = priceSourceBadge(item.src ?? "unavailable", item.price > 0);
-                              return (
-                                <span
-                                  title={`${item.sym} — ${b.title}`}
-                                  aria-label={b.label}
-                                  style={{
-                                    width: 7, height: 7, borderRadius: "50%",
-                                    background: b.live ? "#00E88A" : "#F5A623",
-                                    boxShadow: b.live ? "0 0 3px #00E88A" : "none",
-                                    flexShrink: 0,
-                                  }}
-                                />
-                              );
+                              return <CanonicalFidelityBadge badge={b} variant="compact" titleSuffix={`— ${item.sym}`} />;
                             })()}
                             <div style={{ fontSize: 11, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace", fontWeight: 600 }}>
                               {item.price.toFixed(dp)}
