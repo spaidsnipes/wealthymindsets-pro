@@ -46,6 +46,7 @@ import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassp
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
+import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import { selectDecisionWhyNot } from "@/lib/marketData/viewModels/selectDecisionWhyNot";
 import { selectMarketCanvas } from "@/lib/marketData/viewModels/selectMarketCanvas";
 import DecisionReceiptPanel from "@/components/experience/DecisionReceiptPanel";
@@ -380,6 +381,10 @@ function CommandDeckInner() {
             ◆ Command Deck
           </div>
         </div>
+        {/* canon §Phase 3 Market Canvas — one-line summary in the
+            sticky header. Renders nothing when the canvas is fully
+            silent (§Silence Is A Feature). */}
+        <CanvasSummaryPill vm={marketCanvas} ariaLabel="Deck canvas summary" />
         <div className="wm-cd-header-actions" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
           <button
             className="wm-cd-header-action"
