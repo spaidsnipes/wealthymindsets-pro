@@ -52,6 +52,13 @@ export interface ComposeMarketCanvasInput {
    * (e.g. the paper trading session) SHOULD pass their own.
    */
   readonly sessionIdentity?: string;
+  /**
+   * Optional pre-compiled chain. When supplied the compiler skips its
+   * internal `selectDecisionChain` call and reuses the caller's chain
+   * — this avoids double-compilation on surfaces (like /command-deck)
+   * that already need `chain` for sibling panels.
+   */
+  readonly chain?: DecisionChainVM | null;
 }
 
 export interface ComposeMarketCanvasOutput {
@@ -78,14 +85,16 @@ export function composeMarketCanvasVM(
   const sessionIdentity =
     input.sessionIdentity ?? defaultSessionIdentity(input.nowMs);
 
-  const chain: DecisionChainVM | null = input.state
-    ? selectDecisionChain({
-        state: input.state,
-        history: input.history,
-        nowMs: input.nowMs,
-        phase,
-      })
-    : null;
+  const chain: DecisionChainVM | null = input.chain !== undefined
+    ? input.chain
+    : input.state
+      ? selectDecisionChain({
+          state: input.state,
+          history: input.history,
+          nowMs: input.nowMs,
+          phase,
+        })
+      : null;
 
   const permission: PermissionVM = selectPermission({
     ownerId: input.ownerId,

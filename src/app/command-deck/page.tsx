@@ -18,7 +18,6 @@ import StructureContextNote from "@/components/chart/StructureContextNote";
 import StoryRibbon from "@/components/chart/StoryRibbon";
 import ATHOSInterventionPanel from "@/components/athos/ATHOSInterventionPanel";
 import { selectATHOSIntervention, type ATHOSIntervention } from "@/lib/traderMemory/viewModels/selectATHOSIntervention";
-import { selectPermission, defaultFounderRules } from "@/lib/traderMemory/viewModels/selectPermission";
 import MirrorPanel from "@/components/mirror/MirrorPanel";
 import OpeningBellPanel from "@/components/opening-bell/OpeningBellPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
@@ -47,11 +46,9 @@ import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMa
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
-import { selectDecisionWhyNot } from "@/lib/marketData/viewModels/selectDecisionWhyNot";
-import { selectMarketCanvas } from "@/lib/marketData/viewModels/selectMarketCanvas";
+import { composeMarketCanvasVM } from "@/lib/marketData/viewModels/composeMarketCanvasVM";
 import DecisionReceiptPanel from "@/components/experience/DecisionReceiptPanel";
 import { selectDecisionReceipt } from "@/lib/traderMemory/viewModels/selectDecisionReceipt";
-import { selectOneStory } from "@/lib/marketData/viewModels/selectOneStory";
 import ExperienceModeBar from "@/components/experience/ExperienceModeBar";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { shellEmphasis } from "@/lib/experience/shellLayout";
@@ -218,32 +215,29 @@ function CommandDeckInner() {
     });
   }, [phase, user?.id, state, chainVm, sessionDecisions]);
 
-  const permission = React.useMemo(
+  // canon §Single-Writer / Many-Readers: the deck's four Phase 3
+  // compilations (permission → oneStory → decisionWhy → marketCanvas)
+  // now flow through the shared composeMarketCanvasVM compiler so any
+  // other decision surface (Nectar deep-dive, /paper receipts) can
+  // consume the SAME derivations without duplicating the pipeline.
+  // The deck passes its own chainVm to skip the compiler's internal
+  // chain re-compile (used by sibling panels: athos, decision receipt).
+  const canvasCompilation = React.useMemo(
     () =>
-      selectPermission({
-        ownerId: user?.id ?? "",
-        sessionIdentity: `session-${new Date().toISOString().slice(0, 10)}`,
-        nowMs: Date.now(),
-        rules: defaultFounderRules(),
+      composeMarketCanvasVM({
+        state: state ?? null,
+        history,
         sessionDecisions,
-        marketState: state ?? undefined,
-        clc: chainVm?.clc ?? null,
-        availableR: chainVm?.availableR ?? undefined,
+        ownerId: user?.id ?? "",
+        nowMs: Date.now(),
+        chain: chainVm ?? null,
       }),
-    [user?.id, state, chainVm, sessionDecisions],
+    [state, history, sessionDecisions, user?.id, chainVm],
   );
-
-  // One Story (canon §7 compiler) computed ONCE at component level so both the
-  // mode band's routed question and the One Story strip below consume the SAME
-  // canonical read — no second, potentially-disagreeing truth producer.
-  const oneStory = React.useMemo(() => {
-    const storyVm = state ? selectMarketStory(state, history) : null;
-    return selectOneStory({
-      story: storyVm,
-      chainNodes: chainVm?.nodes,
-      permission,
-    });
-  }, [state, history, chainVm, permission]);
+  const permission = canvasCompilation.permission;
+  const oneStory = canvasCompilation.oneStory;
+  const decisionWhy = canvasCompilation.decisionWhy;
+  const marketCanvas = canvasCompilation.canvas;
 
   // The Question Router (canon P26/P6) compiles the ONE dominant question the
   // surface is currently answering: a function of the human's job (mode) and
@@ -256,21 +250,9 @@ function CommandDeckInner() {
   // read of the sealed state; never a second truth producer.
   const passport = React.useMemo(() => selectMarketObjectPassport(state), [state]);
 
-  // WHY / WHY NOT (canon P6): reverse the compiled right-of-way verdict to its
-  // concrete causes (engaged rules, contradiction, unpaid evidence debt). Reads
-  // the same oneStory + permission the deck already compiled — no new truth.
-  const decisionWhy = React.useMemo(
-    () => selectDecisionWhyNot(oneStory, permission),
-    [oneStory, permission],
-  );
-
-  // canon §Phase 3 Market Canvas — compose the four-corner canvas
-  // (verdict + missing + why-not + would-invalidate) from what's
-  // already computed. Pure; no I/O, no new truth.
-  const marketCanvas = React.useMemo(
-    () => selectMarketCanvas(state, decisionWhy),
-    [state, decisionWhy],
-  );
+  // decisionWhy + marketCanvas are already destructured above from the
+  // shared composeMarketCanvasVM call. No second, potentially-disagreeing
+  // compilation happens here.
 
   // Decision Receipt (canon P8): project the most-recently sealed decision
   // capsule into its trader-facing receipt — verbatim commitment, defensible

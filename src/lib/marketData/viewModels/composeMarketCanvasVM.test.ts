@@ -117,6 +117,21 @@ describe("composeMarketCanvasVM — canon §Phase 3 Market Canvas compiler", () 
     expect(out.canvas.clearances.length).toBe(out.decisionWhy.clearances.length);
   });
 
+  it("honors an explicit chain override — no double-compilation for surfaces that already have chain", () => {
+    // Passing chain=null explicitly bypasses the internal chain compile
+    // even though state is supplied. Consumers with their own chain
+    // pass it verbatim.
+    const out = composeMarketCanvasVM({
+      state: emptyState(),
+      history: [],
+      sessionDecisions: [],
+      ownerId: "u1",
+      nowMs: 2_000,
+      chain: null,
+    });
+    expect(out.chain).toBeNull();
+  });
+
   it("populates the RESOLVED corner from any resolved snapshot dimensions", () => {
     const state = emptyState({
       direction: { ...emptyDim(), resolution: "RESOLVED", value: "up" },
