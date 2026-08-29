@@ -42,6 +42,22 @@ describe("CanvasSummaryPill — canon §Phase 3 Market Canvas summary", () => {
     expect(html).not.toContain("would-invalidate");
   });
 
+  it("appends the CLEARED count when clearances[] has entries (W6 symmetric ledger)", () => {
+    const html = renderToStaticMarkup(
+      <CanvasSummaryPill
+        vm={vm({
+          verdict: "WAIT",
+          hasSnapshot: true,
+          blockers: ["regime"],
+          clearances: ["No active contradiction to the thesis.", "3/9 evidence nodes paid."],
+        })}
+      />,
+    );
+    expect(html).toContain("WAIT");
+    expect(html).toContain("1 blockers");
+    expect(html).toContain("2 cleared");
+  });
+
   it("appends missing / blockers / would-invalidate counts when present", () => {
     const html = renderToStaticMarkup(
       <CanvasSummaryPill

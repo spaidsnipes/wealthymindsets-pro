@@ -54,6 +54,7 @@ export function CanvasSummaryPill({
   const parts: string[] = [];
   if (vm.missing.length > 0) parts.push(`${vm.missing.length} missing`);
   if (vm.blockers.length > 0) parts.push(`${vm.blockers.length} blockers`);
+  if (vm.clearances.length > 0) parts.push(`${vm.clearances.length} cleared`);
   if (vm.invalidators.length > 0) parts.push(`${vm.invalidators.length} would-invalidate`);
 
   return (
