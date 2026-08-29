@@ -45,7 +45,9 @@ import { SemanticZoom } from "@/components/experience/SemanticZoom";
 import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassportPanel";
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
+import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import { selectDecisionWhyNot } from "@/lib/marketData/viewModels/selectDecisionWhyNot";
+import { selectMarketCanvas } from "@/lib/marketData/viewModels/selectMarketCanvas";
 import DecisionReceiptPanel from "@/components/experience/DecisionReceiptPanel";
 import { selectDecisionReceipt } from "@/lib/traderMemory/viewModels/selectDecisionReceipt";
 import { selectOneStory } from "@/lib/marketData/viewModels/selectOneStory";
@@ -259,6 +261,14 @@ function CommandDeckInner() {
   const decisionWhy = React.useMemo(
     () => selectDecisionWhyNot(oneStory, permission),
     [oneStory, permission],
+  );
+
+  // canon §Phase 3 Market Canvas — compose the four-corner canvas
+  // (verdict + missing + why-not + would-invalidate) from what's
+  // already computed. Pure; no I/O, no new truth.
+  const marketCanvas = React.useMemo(
+    () => selectMarketCanvas(state, decisionWhy),
+    [state, decisionWhy],
   );
 
   // Decision Receipt (canon P8): project the most-recently sealed decision
@@ -685,6 +695,15 @@ function CommandDeckInner() {
                 }}
               >
                 <DecisionWhyPanel vm={decisionWhy} />
+              </div>
+
+              {/* canon §Phase 3 Market Canvas — the visible three-corner
+                  canvas (MISSING / WHY NOT / WOULD INVALIDATE). Renders
+                  silently when every corner is empty (canon §Silence Is
+                  A Feature). The fourth corner (WHY?) stays with
+                  WhyInspector because it needs per-target evidence. */}
+              <div style={{ marginTop: 10 }}>
+                <MarketCanvasPanel vm={marketCanvas} />
               </div>
 
               {/* Market Object Passports (canon P6 Object DNA) — a contextual

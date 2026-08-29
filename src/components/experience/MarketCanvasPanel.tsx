@@ -1,0 +1,121 @@
+"use client";
+
+/**
+ * MarketCanvasPanel — the canon §Phase 3 Market Canvas visible surface.
+ *
+ * Renders three of the four canvas corners in one panel:
+ *   • MISSING?             (canonical UNKNOWN — unresolved dimensions)
+ *   • WHY NOT?             (compiled RightOfWay blockers)
+ *   • WHAT WOULD INVALIDATE (ACTION-only — what observation would flip it)
+ *
+ * The fourth corner — WHY? — remains WhyInspector's job, because WHY is
+ * per-target (hero / story / DLAR dim / CLC leg) and cannot be composed
+ * generically here without losing the evidence detail. This panel focuses
+ * on the DECISION-scope canvas questions.
+ *
+ * Single-writer for the canvas — every deck that surfaces "why not /
+ * missing / would invalidate" must route through this component so the
+ * shape stays canonical across Phase 3 consumers.
+ *
+ * Pure render — consumes selectMarketCanvas VM. Silent by design when
+ * a corner is empty (canon §Silence Is A Feature — do not render
+ * "Nothing missing" placeholders; render nothing).
+ */
+
+import * as React from "react";
+import type { MarketCanvasVM } from "@/lib/marketData/viewModels/selectMarketCanvas";
+
+export interface MarketCanvasPanelProps {
+  readonly vm: MarketCanvasVM;
+  readonly className?: string;
+}
+
+const HAIR = "rgba(139,106,41,0.22)";
+const MUTED = "#8a8271";
+
+const VERDICT_TONE: Record<MarketCanvasVM["verdict"], string> = {
+  ACTION: "#d4af37",
+  CAUTION: "#c9a55c",
+  WAIT: "#c9a55c",
+  "NO TRADE": "#e07b5c",
+  UNKNOWN: "#8a8271",
+};
+
+export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): React.ReactElement {
+  const anyBodyPresent =
+    vm.missing.length > 0 || vm.blockers.length > 0 || vm.invalidators.length > 0;
+
+  return (
+    <section
+      aria-label="Market canvas — decision"
+      className={className}
+      data-testid="market-canvas-panel"
+      style={{
+        border: `1px solid ${HAIR}`,
+        borderRadius: 10,
+        padding: "12px 14px",
+        background: "rgba(255,255,255,0.015)",
+      }}
+    >
+      <header style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: anyBodyPresent ? 10 : 0 }}>
+        <span style={{ fontSize: 11, letterSpacing: 0.6, color: "#c9a55c", textTransform: "uppercase" }}>
+          Market canvas
+        </span>
+        <span style={{ fontSize: 10, letterSpacing: 0.5, color: VERDICT_TONE[vm.verdict], marginLeft: "auto", textTransform: "uppercase" }}>
+          {vm.verdict}
+        </span>
+      </header>
+
+      <div style={{ fontSize: 12, color: "#d8cfb8", lineHeight: 1.4, marginBottom: anyBodyPresent ? 10 : 0 }}>
+        {vm.headline}
+      </div>
+
+      {vm.missing.length > 0 && (
+        <div
+          data-testid="market-canvas-missing"
+          style={{ marginBottom: (vm.blockers.length || vm.invalidators.length) ? 10 : 0 }}
+        >
+          <div style={{ fontSize: 9, letterSpacing: 0.5, color: MUTED, marginBottom: 4, textTransform: "uppercase" }}>
+            Missing ({vm.missing.length})
+          </div>
+          {vm.missing.slice(0, 6).map((m, i) => (
+            <div key={i} style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>{m}</div>
+          ))}
+          {vm.missing.length > 6 && (
+            <div style={{ fontSize: 9, color: MUTED, fontStyle: "italic" }}>+{vm.missing.length - 6} more</div>
+          )}
+        </div>
+      )}
+
+      {vm.blockers.length > 0 && (
+        <div
+          data-testid="market-canvas-blockers"
+          style={{ marginBottom: vm.invalidators.length ? 10 : 0 }}
+        >
+          <div style={{ fontSize: 9, letterSpacing: 0.5, color: "#e07b5c", marginBottom: 4, textTransform: "uppercase" }}>
+            Why not ({vm.blockers.length})
+          </div>
+          {vm.blockers.slice(0, 6).map((b, i) => (
+            <div key={i} style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>{b}</div>
+          ))}
+        </div>
+      )}
+
+      {vm.invalidators.length > 0 && (
+        <div
+          data-testid="market-canvas-invalidators"
+          style={{ paddingTop: (vm.missing.length || vm.blockers.length) ? 6 : 0, borderTop: (vm.missing.length || vm.blockers.length) ? `1px solid ${HAIR}` : "none" }}
+        >
+          <div style={{ fontSize: 9, letterSpacing: 0.5, color: "#c9a55c", marginBottom: 4, textTransform: "uppercase" }}>
+            Would invalidate
+          </div>
+          {vm.invalidators.map((s, i) => (
+            <div key={i} style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>{s}</div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+export default MarketCanvasPanel;
