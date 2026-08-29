@@ -37,6 +37,7 @@ import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { priceSourceBadge } from "@/lib/priceSource";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
+import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { interpretPine } from "@/lib/pine/interpreter";
 import type { PineOutput } from "@/lib/pine/types";
@@ -748,7 +749,19 @@ export function ChartsDashboard() {
             // ships to every surface for free, and any future canon
             // vocabulary or color change touches ONE component.
             const b = priceSourceBadge(source, connected);
-            return <CanonicalFidelityBadge badge={b} variant="chrome" />;
+            // SHIFT-U continuation — pass the per-capability report so
+            // the trader hovering the chip sees "Weakest capability"
+            // hint + coverage count. Canon §Provider Status Per
+            // Capability delivered on the /charts chrome without
+            // fattening the visible chip (canon §Semantic Zoom).
+            const capabilityReport = selectPerCapabilityFidelity({
+              source: source ?? "unavailable",
+              connected,
+              hasCandles: true, // chart already rendered by this render path
+              // ticks / depth / options / greeks / orderFlow: unwired
+              // on ChartsDashboard; silent per canon §no-silent-override.
+            });
+            return <CanonicalFidelityBadge badge={b} variant="chrome" capabilityReport={capabilityReport} />;
           })()}
         </div>
         {/* Tab bar */}
