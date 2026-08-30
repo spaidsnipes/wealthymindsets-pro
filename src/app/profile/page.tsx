@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Settings, Edit3, Music, TrendingUp, Users, Star, Shield, Zap, Play, Heart, Share2, BarChart2, Save, X, CheckCircle, Coins, Rocket, ExternalLink, Plus } from "lucide-react";
+import { Settings, Edit3, Music, TrendingUp, Users, Star, Shield, Zap, Play, Heart, Share2, BarChart2, Save, X, CheckCircle, Coins, Rocket, ExternalLink, Plus, GraduationCap } from "lucide-react";
 import { clsx } from "clsx";
 import toast from "react-hot-toast";
 import { useWMS, WMS_CONTRACT } from "@/contexts/WMSContext";
@@ -629,6 +629,27 @@ function ProfilePageInner() {
             </button>
           ))}
         </div>
+
+        {/* Mobile-safe Academy entry: Profile is one of the canonical five
+            primary destinations, so learning stays reachable from every
+            profile tab without displacing the trader-loop nav. */}
+        <button
+          type="button"
+          onClick={() => router.push("/education")}
+          className="glass mx-4 mt-4 flex min-h-11 items-start gap-3 rounded-xl p-4 text-left transition-colors hover:border-wm-gold/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
+          aria-label="Open Academy and the $100 Challenge preview"
+        >
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-wm-gold/25 bg-wm-gold/10 text-wm-gold" aria-hidden="true">
+            <GraduationCap size={18} />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[10px] font-bold uppercase tracking-[0.28em] text-wm-gold">Academy · $100 Challenge Preview</span>
+            <span className="mt-1 block text-xs leading-relaxed text-wm-text">
+              Open lesson outlines, browser-local notes, knowledge checks, and the theoretical challenge path.
+            </span>
+            <span className="mt-1 block text-[10px] text-wm-text-dim">No enrollment · no live execution · no earnings promise</span>
+          </span>
+        </button>
 
         {/* Tab content */}
         <div className="p-4">
