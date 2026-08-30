@@ -113,17 +113,17 @@ function shufflePick(bank: QQ[], n = 10): QQ[] {
 
 /* ── Modules ─────────────────────────────────────────────── */
 const MODULES: Module[] = [
-  { id:1, title:"Order Flow Foundations",              duration:"4h 20m", level:"Beginner",     locked:false, completed:true,  color:"#00D4AA",
+  { id:1, title:"Order Flow Foundations",              duration:"4h 20m", level:"Beginner",     locked:false, completed:false, color:"#00D4AA",
     lessons:[
-      { id:"of-1", title:"What is Order Flow? Market Mechanics Explained",  duration:"18m", completed:true  },
-      { id:"of-2", title:"Tape Reading: Time & Sales Deep Dive",            duration:"22m", completed:true  },
-      { id:"of-3", title:"DOM (Depth of Market) Explained",                 duration:"25m", completed:true  },
-      { id:"of-4", title:"Bid, Ask, and Spread Dynamics",                   duration:"15m", completed:true  },
+      { id:"of-1", title:"What is Order Flow? Market Mechanics Explained",  duration:"18m", completed:false },
+      { id:"of-2", title:"Tape Reading: Time & Sales Deep Dive",            duration:"22m", completed:false },
+      { id:"of-3", title:"DOM (Depth of Market) Explained",                 duration:"25m", completed:false },
+      { id:"of-4", title:"Bid, Ask, and Spread Dynamics",                   duration:"15m", completed:false },
     ]},
   { id:2, title:"Footprint Charts Mastery",            duration:"5h 45m", level:"Intermediate", locked:false, completed:false, color:"#4FA3E0",
     lessons:[
-      { id:"fp-1", title:"Footprint Chart Types: Bid×Ask vs Delta vs Vol Profile vs Imbalance", duration:"35m", completed:true  },
-      { id:"fp-2", title:"Aggressive vs Passive Order Flow — Key Difference",                   duration:"28m", completed:true  },
+      { id:"fp-1", title:"Footprint Chart Types: Bid×Ask vs Delta vs Vol Profile vs Imbalance", duration:"35m", completed:false },
+      { id:"fp-2", title:"Aggressive vs Passive Order Flow — Key Difference",                   duration:"28m", completed:false },
       { id:"fp-3", title:"Imbalance Clusters: Identifying >300% Threshold",                     duration:"32m", completed:false },
       { id:"fp-4", title:"Volume Profile: POC, VAH, VAL, and How to Trade Them",               duration:"40m", completed:false },
       { id:"fp-5", title:"Delta & Cumulative Volume Delta (CVD) Analysis",                      duration:"38m", completed:false },
@@ -591,10 +591,10 @@ export default function EducationPage() {
         <Link
           href="/proof-lane"
           className="hidden sm:inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 text-[10px] font-semibold text-amber-200 transition-colors hover:border-amber-400/70 hover:bg-amber-950/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
-          aria-label="Open the $100 Academy Challenge Proof Lane"
+          aria-label="Explore the $100 Academy Challenge preview"
         >
           <Trophy size={12} aria-hidden="true" />
-          $100 Challenge
+          $100 Challenge Preview
         </Link>
       </div>
 
@@ -607,13 +607,13 @@ export default function EducationPage() {
           <Link
             href="/proof-lane"
             className="mx-3 my-3 inline-flex min-h-11 shrink-0 items-center justify-between gap-3 rounded-xl border border-amber-600/40 bg-gradient-to-r from-amber-950/50 to-wm-surface/30 px-3 text-left transition-colors hover:border-amber-400/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold sm:hidden"
-            aria-label="Open the $100 Academy Challenge Proof Lane"
+            aria-label="Explore the $100 Academy Challenge preview"
           >
             <span className="flex min-w-0 items-center gap-2">
               <Trophy size={14} className="shrink-0 text-amber-300" aria-hidden="true" />
               <span className="min-w-0">
-                <span className="block text-[11px] font-bold text-amber-100">$100 Academy Challenge</span>
-                <span className="block truncate text-[9px] text-wm-text-dim">Learn → plan → paper practice → review</span>
+                <span className="block text-[11px] font-bold text-amber-100">$100 Academy Challenge Preview</span>
+                <span className="block truncate text-[9px] text-wm-text-dim">No enrollment · browser-local progress</span>
               </span>
             </span>
             <ChevronRight size={14} className="shrink-0 text-amber-300" aria-hidden="true" />

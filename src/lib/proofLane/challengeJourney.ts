@@ -62,3 +62,6 @@ export const CHALLENGE_JOURNEY: readonly ChallengeJourneyStage[] = [
 
 /** Live execution is intentionally outside the Academy launch journey. */
 export const CHALLENGE_EXECUTION_BOUNDARY = "LIVE_EXECUTION_EXCLUDED" as const;
+
+/** No account-bound enrollment or payment owner exists yet. */
+export const CHALLENGE_ENROLLMENT_BOUNDARY = "ENROLLMENT_NOT_CONNECTED" as const;

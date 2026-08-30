@@ -37,6 +37,7 @@ import {
 import {
   CHALLENGE_JOURNEY,
   CHALLENGE_EXECUTION_BOUNDARY,
+  CHALLENGE_ENROLLMENT_BOUNDARY,
 } from "@/lib/proofLane/challengeJourney";
 
 /**
@@ -115,18 +116,23 @@ export default function ProofLanePage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-amber-400/80">
-                Academy Challenge · authenticated training path
+                Academy Challenge · preview
               </div>
               <h2 id="academy-challenge" className="mt-1 text-xl font-semibold text-neutral-100">
                 Learn → Plan → Practice → Review
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-400">
-                Begin the $100 challenge inside WM Pro without confusing education, theoretical pace, paper simulation, or browser-local progress with live brokerage execution.
+                Preview the $100 challenge path inside WM Pro. $100 means simulated starting capital—not a price, deposit, funded account, or earnings promise. Enrollment and payment are not connected; Academy progress remains browser-local.
               </p>
             </div>
-            <span className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-rose-700/50 bg-rose-950/30 px-3 text-[10px] font-mono uppercase tracking-wider text-rose-200">
-              Live execution excluded
-            </span>
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-amber-700/50 bg-amber-950/30 px-3 text-[10px] font-mono uppercase tracking-wider text-amber-200">
+                Enrollment not connected
+              </span>
+              <span className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-rose-700/50 bg-rose-950/30 px-3 text-[10px] font-mono uppercase tracking-wider text-rose-200">
+                Live execution excluded
+              </span>
+            </div>
           </div>
 
           <ol className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -151,7 +157,7 @@ export default function ProofLanePage() {
           </ol>
 
           <p className="mt-4 text-xs text-neutral-500">
-            Academy execution boundary: <span className="font-mono text-rose-300">{CHALLENGE_EXECUTION_BOUNDARY}</span>. Academy provides education and paper rehearsal only. It cannot authorize live execution.
+            Academy boundaries: <span className="font-mono text-amber-300">{CHALLENGE_ENROLLMENT_BOUNDARY}</span> · <span className="font-mono text-rose-300">{CHALLENGE_EXECUTION_BOUNDARY}</span>. Previewing this path creates no enrollment or payment. Academy provides browser-local education and paper rehearsal only; it cannot authorize live execution.
           </p>
         </section>
 

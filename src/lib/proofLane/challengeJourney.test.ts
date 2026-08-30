@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CHALLENGE_JOURNEY,
   CHALLENGE_EXECUTION_BOUNDARY,
+  CHALLENGE_ENROLLMENT_BOUNDARY,
 } from "./challengeJourney";
 
 describe("Academy Challenge journey", () => {
@@ -30,6 +31,7 @@ describe("Academy Challenge journey", () => {
 
   it("keeps live execution fail-closed", () => {
     expect(CHALLENGE_EXECUTION_BOUNDARY).toBe("LIVE_EXECUTION_EXCLUDED");
+    expect(CHALLENGE_ENROLLMENT_BOUNDARY).toBe("ENROLLMENT_NOT_CONNECTED");
   });
 
   it("keeps every step internal and free of payment, enrollment, and live-order promises", () => {
