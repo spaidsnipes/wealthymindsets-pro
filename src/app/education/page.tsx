@@ -15,6 +15,10 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
+import {
+  ACADEMY_LESSON_CONTENT_STATUS,
+  canRecordAcademyLessonCompletion,
+} from "@/lib/educationProgressTruth";
 
 /* ── Types ───────────────────────────────────────────────── */
 interface Lesson {
@@ -199,7 +203,7 @@ function LessonNotes({ lessonId }: { lessonId: string }) {
   if (!editing) {
     return (
       <button onClick={() => setEditing(true)}
-        className="flex items-center gap-1.5 text-[10px] text-wm-text-dim hover:text-wm-blue transition-colors">
+        className="inline-flex min-h-11 items-center gap-1.5 text-[10px] text-wm-text-dim hover:text-wm-blue transition-colors">
         <Pencil size={10}/>
         {text ? <span className="italic">{text.slice(0,60)}{text.length>60?"…":""}</span> : "Add notes"}
       </button>
@@ -214,7 +218,7 @@ function LessonNotes({ lessonId }: { lessonId: string }) {
         </span>
         <div className="flex items-center gap-2">
           <span className="text-[9px] text-wm-text-dim">{saved ? "✓ Saved" : "Saving…"}</span>
-          <button onClick={() => setEditing(false)} className="text-[9px] text-wm-text-dim hover:text-wm-text">Close</button>
+          <button onClick={() => setEditing(false)} className="inline-flex min-h-11 items-center px-2 text-[9px] text-wm-text-dim hover:text-wm-text">Close notes</button>
         </div>
       </div>
       <textarea value={text} onChange={e => onChange(e.target.value)} rows={4} autoFocus
@@ -353,7 +357,7 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
 
               {answered && (
                 <button onClick={next}
-                  className="mt-4 w-full py-3 rounded-xl text-sm font-bold text-wm-black hover:opacity-90 transition-all"
+                  className="mt-4 min-h-11 w-full py-3 rounded-xl text-sm font-bold text-wm-black hover:opacity-90 transition-all"
                   style={{ background:"linear-gradient(135deg,#00D4AA,#4FA3E0)" }}>
                   {cur+1>=qs.length ? "See Results" : "Next Question →"}
                 </button>
@@ -367,10 +371,12 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
                 <span className="text-2xl font-black" style={{ color:pct>=70?"#00D4AA":"#FF4D6A" }}>{pct}%</span>
               </div>
               <div className="text-lg font-black text-wm-text mb-1">
-                {pct>=90?"🏆 Outstanding!":pct>=70?"✅ Quiz Passed!":"📚 Keep Studying"}
+                {pct>=90?"🏆 Knowledge Check Mastered":pct>=70?"✅ Knowledge Check Passed":"📚 Keep Studying"}
               </div>
               <div className="text-xs text-wm-text-muted mb-6">
-                {score}/{qs.length} correct · {pct>=70?"You passed!":"Score 70%+ to pass."}
+                {score}/{qs.length} correct · {pct>=70
+                  ? "The lesson remains incomplete until its video is published."
+                  : "Score 70%+ to pass the knowledge check."}
               </div>
               <div className="flex gap-1.5 mb-6 flex-wrap justify-center">
                 {log.map((r,i) => (
@@ -382,13 +388,16 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
               </div>
               <div className="flex gap-3 w-full">
                 <button onClick={retake}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border border-wm-border bg-wm-surface text-wm-text hover:bg-wm-surface/80 transition-all">
+                  className="flex min-h-11 flex-1 items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border border-wm-border bg-wm-surface text-wm-text hover:bg-wm-surface/80 transition-all">
                   <RotateCcw size={13}/> Retake Quiz
                 </button>
-                <button onClick={() => onClose(pct >= 70)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-wm-black hover:opacity-90 transition-all"
+                <button onClick={() => onClose(canRecordAcademyLessonCompletion({
+                    quizPassed: pct >= 70,
+                    contentStatus: ACADEMY_LESSON_CONTENT_STATUS,
+                  }))}
+                  className="min-h-11 flex-1 py-2.5 rounded-xl text-sm font-bold text-wm-black hover:opacity-90 transition-all"
                   style={{ background:"linear-gradient(135deg,#00D4AA,#4FA3E0)" }}>
-                  {pct >= 70 ? "✓ Complete Lesson" : "Done"}
+                  {pct >= 70 ? "Close Knowledge Check" : "Done"}
                 </button>
               </div>
             </div>
@@ -412,10 +421,16 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => setShowQuiz(true)}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-wm-gold/15 text-wm-gold border border-wm-gold/30 hover:bg-wm-gold/25 transition-all">
+            className="inline-flex min-h-11 items-center gap-1 px-2.5 rounded-lg text-[10px] font-bold bg-wm-gold/15 text-wm-gold border border-wm-gold/30 hover:bg-wm-gold/25 transition-all">
             <HelpCircle size={10}/> Take Quiz
           </button>
-          <button onClick={() => onClose()}><X size={13} className="text-wm-text-muted hover:text-wm-text"/></button>
+          <button
+            onClick={() => onClose()}
+            aria-label="Close lesson"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-wm-text-muted hover:bg-wm-surface hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+          >
+            <X size={13} aria-hidden="true"/>
+          </button>
         </div>
       </div>
 
@@ -467,7 +482,7 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
                   10 MCQ questions · Different questions every retake · Pass at 70%+
                 </div>
                 <button onClick={() => setShowQuiz(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold bg-wm-gold/15 text-wm-gold border border-wm-gold/30 hover:bg-wm-gold/25 transition-all">
+                  className="inline-flex min-h-11 items-center gap-1.5 px-3 rounded-lg text-[10px] font-bold bg-wm-gold/15 text-wm-gold border border-wm-gold/30 hover:bg-wm-gold/25 transition-all">
                   <HelpCircle size={11}/> Start Quiz
                 </button>
               </div>
