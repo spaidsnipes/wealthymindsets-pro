@@ -3,24 +3,10 @@
  * from anywhere in the app (e.g. one-click BUY/SELL from the chart's Smart
  * Money panel) into the SAME store the /paper brokerage page reads.
  *
- * DESIGN — zero regression on the working /paper page:
- *   The /paper page keeps its own copy of this fill math. This module is a
- *   schema-compatible, self-contained writer that targets the identical
- *   `wm_paper_state` localStorage key. Orders placed here are written already
- *   `status:"filled"` with a `fillPx`, so the /paper page's pending-order
- *   processor (which only touches `status:"pending"`) never re-applies them —
- *   no double-fill, no double-counted cash.
- *
- *   `applyFill` below is a VERBATIM copy of the verified reducer in
- *   src/app/paper/page.tsx (correct long/short realized-P&L accounting). Keep
- *   the two in sync if either changes. Duplication is a deliberate trade to
- *   avoid refactoring money-adjacent code that real users depend on.
- *
- * KNOWN LIMITATION: if /paper and /charts are open in two tabs at once, the
- * /paper page's persist effect can overwrite an order placed from the chart on
- * its next state change (last-writer-wins on localStorage). For the common
- * single-active-page flow it is correct: place from chart → open /paper → the
- * position, blotter trade and cash are all there.
+ * This module is the sole browser-persistence owner for `wm_paper_state`.
+ * Charts and /paper share its read, verified write, reset, and cross-tab
+ * subscription functions so an open page cannot silently overwrite a newer
+ * chart-originated order with a stale React snapshot.
  */
 
 export const PAPER_KEY = "wm_paper_state";
@@ -77,6 +63,7 @@ export interface Trade {
 export interface EquityPoint { ts: number; equity: number; }
 
 export interface PaperState {
+  revision: number;
   cash: number;
   positions: Position[];
   orders: Order[];
@@ -85,6 +72,17 @@ export interface PaperState {
   // Options are marked/managed exclusively by the /paper page; we preserve the
   // array untouched so chart equity orders never disturb an open options book.
   optionPositions?: unknown[];
+}
+
+export type PaperPersistenceResult =
+  | { status: "PERSISTED"; state: PaperState }
+  | { status: "CONFLICT"; state: PaperState }
+  | { status: "FAILED"; state: null };
+
+export type PaperExternalDisposition = "PERSISTED" | "CLEARED" | "INVALID";
+export interface PaperSubscriptionUpdate {
+  disposition: PaperExternalDisposition;
+  state: PaperState;
 }
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
@@ -143,17 +141,18 @@ export function applyFill(
 }
 
 /** Read the shared paper state, tolerating a missing/corrupt payload. */
-export function loadPaperState(): PaperState {
-  const fresh = (): PaperState => ({
-    cash: STARTING_CASH, positions: [], orders: [], trades: [],
+function freshPaperState(): PaperState {
+  return {
+    revision: 0, cash: STARTING_CASH, positions: [], orders: [], trades: [],
     equity: [{ ts: Date.now(), equity: STARTING_CASH }], optionPositions: [],
-  });
-  if (typeof window === "undefined") return fresh();
+  };
+}
+
+function parsePaperState(raw: string): PaperState | null {
   try {
-    const raw = window.localStorage.getItem(PAPER_KEY);
-    if (!raw) return fresh();
     const s = JSON.parse(raw);
     return {
+      revision: Number.isSafeInteger(s.revision) && s.revision >= 0 ? s.revision : 0,
       cash: typeof s.cash === "number" ? s.cash : STARTING_CASH,
       positions: Array.isArray(s.positions) ? s.positions : [],
       orders: Array.isArray(s.orders) ? s.orders : [],
@@ -162,8 +161,60 @@ export function loadPaperState(): PaperState {
       optionPositions: Array.isArray(s.optionPositions) ? s.optionPositions : [],
     };
   } catch {
-    return fresh();
+    return null;
   }
+}
+
+export function loadPaperState(): PaperState {
+  if (typeof window === "undefined") return freshPaperState();
+  try {
+    const raw = window.localStorage.getItem(PAPER_KEY);
+    if (!raw) return freshPaperState();
+    return parsePaperState(raw) ?? freshPaperState();
+  } catch {
+    return freshPaperState();
+  }
+}
+
+/** Persist one canonical paper snapshot with compare-and-swap protection. */
+export function savePaperState(
+  state: PaperState,
+  expectedRevision = state.revision,
+): PaperPersistenceResult {
+  if (typeof window === "undefined") return { status: "FAILED", state: null };
+  try {
+    const current = loadPaperState();
+    if (current.revision !== expectedRevision) {
+      return { status: "CONFLICT", state: current };
+    }
+    const accepted = { ...state, revision: expectedRevision + 1 };
+    const serialized = JSON.stringify(accepted);
+    window.localStorage.setItem(PAPER_KEY, serialized);
+    return window.localStorage.getItem(PAPER_KEY) === serialized
+      ? { status: "PERSISTED", state: accepted }
+      : { status: "FAILED", state: null };
+  } catch {
+    return { status: "FAILED", state: null };
+  }
+}
+
+/** Re-read the canonical snapshot when another tab changes the paper key. */
+export function subscribePaperState(listener: (update: PaperSubscriptionUpdate) => void): () => void {
+  if (typeof window === "undefined") return () => undefined;
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== PAPER_KEY) return;
+    if (event.storageArea && event.storageArea !== window.localStorage) return;
+    if (event.newValue === null) {
+      listener({ disposition: "CLEARED", state: freshPaperState() });
+      return;
+    }
+    const parsed = parsePaperState(event.newValue);
+    listener(parsed
+      ? { disposition: "PERSISTED", state: parsed }
+      : { disposition: "INVALID", state: freshPaperState() });
+  };
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
 }
 
 export interface ChartOrderResult {
@@ -213,10 +264,15 @@ export function placeChartMarketOrder(
     // equity point that would ignore an open options book.
   };
 
-  try {
-    window.localStorage.setItem(PAPER_KEY, JSON.stringify(next));
-  } catch {
-    return { ...base, cash, error: "Could not save paper state" };
+  const persisted = savePaperState(next, state.revision);
+  if (persisted.status !== "PERSISTED") {
+    return {
+      ...base,
+      cash,
+      error: persisted.status === "CONFLICT"
+        ? "Paper state changed in another tab. Review the latest account and try again."
+        : "Could not save paper state",
+    };
   }
 
   const position = positions.find(p => p.symbol === symbol) ?? null;

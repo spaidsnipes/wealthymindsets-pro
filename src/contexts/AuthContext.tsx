@@ -11,7 +11,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { isCoreTeam } from "@/lib/coreTeam";
-import { isPublicAuthPath } from "@/lib/authRoutes";
+import { isPublicAuthPath, selectAuthenticatedRouteState } from "@/lib/authRoutes";
 import { clearAllSessionSymbols } from "@/lib/marketData/sessionSymbolStore";
 import { clearPaperState } from "@/lib/paperTrade";
 import { clearWMSState } from "@/contexts/WMSContext";
@@ -127,9 +127,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Route guard
   useEffect(() => {
-    if (loading) return;
+    const routeState = selectAuthenticatedRouteState(pathname, user, loading);
+    if (routeState === "CHECKING_SESSION") return;
     const isPublic = isPublicAuthPath(pathname);
-    if (!user && !isPublic) {
+    if (routeState === "SIGN_IN_REQUIRED") {
       router.replace("/login");
       return;
     }
@@ -138,8 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // when the flag did not survive (stale cookie, metadata write that never
     // landed). Without this the guard bounces the user back to /profile on
     // every navigation and they can never reach the rest of the app.
-    const profileDone = !!user && (user.profileComplete || !!user.displayName);
-    if (user && !profileDone && !pathname.startsWith("/profile") && !pathname.startsWith("/login")) {
+    if (routeState === "PROFILE_SETUP_REQUIRED") {
       router.replace("/profile?setup=1");
       return;
     }
@@ -253,9 +253,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return {};
   }, []);
 
+  const routeState = selectAuthenticatedRouteState(pathname, user, loading);
+  const renderProtectedChildren = routeState === "READY";
+  const renderPublicChildren = routeState === "PUBLIC";
+
   return (
     <AuthContext.Provider value={{ user, loading, signUp, signIn, resendConfirmation, signOut, signOutAllDevices, updateProfile, refreshUser }}>
-      {children}
+      {renderPublicChildren || renderProtectedChildren ? children : (
+        <main
+          className="flex min-h-screen items-center justify-center bg-wm-black px-6 text-center text-wm-text-muted"
+          aria-live="polite"
+          aria-busy={routeState === "CHECKING_SESSION"}
+        >
+          <p>{routeState === "CHECKING_SESSION" ? "Checking your secure session…" : "Opening sign in…"}</p>
+        </main>
+      )}
     </AuthContext.Provider>
   );
 }

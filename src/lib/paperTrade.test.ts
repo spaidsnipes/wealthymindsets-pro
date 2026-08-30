@@ -1,10 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, it, expect, vi } from "vitest";
 import { afterEach, beforeEach } from "vitest";
 import {
   applyFill,
   clearPaperState,
   loadPaperState,
   placeChartMarketOrder,
+  savePaperState,
+  subscribePaperState,
   PAPER_KEY,
   STARTING_CASH,
   type Order,
@@ -182,11 +186,25 @@ class MemStorage {
   key(_i: number) { return null; }
 }
 
-const g = globalThis as unknown as { window?: { localStorage: MemStorage }; localStorage?: MemStorage };
+type StorageListener = (event: StorageEvent) => void;
+const listeners = new Set<StorageListener>();
+const g = globalThis as unknown as {
+  window?: {
+    localStorage: MemStorage;
+    addEventListener: (type: string, listener: StorageListener) => void;
+    removeEventListener: (type: string, listener: StorageListener) => void;
+  };
+  localStorage?: MemStorage;
+};
 
 beforeEach(() => {
+  listeners.clear();
   const ls = new MemStorage();
-  g.window = { localStorage: ls };
+  g.window = {
+    localStorage: ls,
+    addEventListener: (type, listener) => { if (type === "storage") listeners.add(listener); },
+    removeEventListener: (type, listener) => { if (type === "storage") listeners.delete(listener); },
+  };
   g.localStorage = ls;
 });
 afterEach(() => {
@@ -219,11 +237,13 @@ describe("loadPaperState — SSR fallback + corrupt-payload tolerance", () => {
     const pos: Position = { symbol: "TSLA", qty: 5, avgPx: 100, unrealPnl: 0, marketPx: 100 };
     g.window!.localStorage.setItem(PAPER_KEY, JSON.stringify({
       cash: 50_000, positions: [pos], orders: [], trades: [], equity: [{ ts: 1, equity: 50_500 }],
+      optionPositions: [{ id: "option-1", underlying: "TSLA" }],
     }));
     const s = loadPaperState();
     expect(s.cash).toBe(50_000);
     expect(s.positions).toEqual([pos]);
     expect(s.equity[0]).toEqual({ ts: 1, equity: 50_500 });
+    expect(s.optionPositions).toEqual([{ id: "option-1", underlying: "TSLA" }]);
   });
   it("defaults missing arrays without crashing", () => {
     g.window!.localStorage.setItem(PAPER_KEY, JSON.stringify({ cash: 42 }));
@@ -232,6 +252,102 @@ describe("loadPaperState — SSR fallback + corrupt-payload tolerance", () => {
     expect(s.positions).toEqual([]);
     expect(s.orders).toEqual([]);
     expect(s.trades).toEqual([]);
+  });
+});
+
+describe("canonical paper persistence owner", () => {
+  it("reports PERSISTED only after exact browser readback", () => {
+    const state = loadPaperState();
+    const result = savePaperState(state);
+    expect(result.status).toBe("PERSISTED");
+    if (result.status !== "PERSISTED") throw new Error("expected persistence");
+    expect(loadPaperState()).toEqual(result.state);
+  });
+
+  it("reports FAILED when the browser write throws", () => {
+    vi.spyOn(g.window!.localStorage, "setItem").mockImplementation(() => { throw new Error("quota denied"); });
+    expect(savePaperState(loadPaperState()).status).toBe("FAILED");
+  });
+
+  it("subscribes only to the canonical key and re-reads once", () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribePaperState(listener);
+    const dispatch = (key: string | null, newValue: string | null = null) => {
+      for (const handle of listeners) handle({ key, newValue, storageArea: g.window!.localStorage } as unknown as StorageEvent);
+    };
+    dispatch("unrelated-key");
+    expect(listener).not.toHaveBeenCalled();
+    dispatch(PAPER_KEY, JSON.stringify(loadPaperState()));
+    expect(listener).toHaveBeenCalledOnce();
+    unsubscribe();
+    dispatch(PAPER_KEY, JSON.stringify(loadPaperState()));
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("rejects stale page A after chart B writes and preserves B byte-for-byte", () => {
+    expect(savePaperState(loadPaperState()).status).toBe("PERSISTED");
+    const stalePageA = loadPaperState();
+    expect(placeChartMarketOrder("TSLA", "buy", 2, 100).ok).toBe(true);
+    const chartB = loadPaperState();
+    const chartBBytes = g.window!.localStorage.getItem(PAPER_KEY);
+
+    const staleAttempt = savePaperState(stalePageA, stalePageA.revision);
+
+    expect(staleAttempt.status).toBe("CONFLICT");
+    expect(g.window!.localStorage.getItem(PAPER_KEY)).toBe(chartBBytes);
+    expect(loadPaperState()).toEqual(chartB);
+    expect(chartB.positions).toHaveLength(1);
+    expect(chartB.orders).toHaveLength(1);
+    expect(chartB.trades).toHaveLength(1);
+  });
+
+  it("does not let a stale snapshot resurrect state after logout clear", () => {
+    expect(savePaperState(loadPaperState()).status).toBe("PERSISTED");
+    const stale = loadPaperState();
+    clearPaperState();
+
+    const staleAttempt = savePaperState(stale, stale.revision);
+
+    expect(staleAttempt.status).toBe("CONFLICT");
+    const after = loadPaperState();
+    expect(after.revision).toBe(0);
+    expect(after.cash).toBe(STARTING_CASH);
+    expect(after.positions).toEqual([]);
+  });
+
+  it("classifies an external logout clear as CLEARED, never PERSISTED", () => {
+    expect(savePaperState(loadPaperState()).status).toBe("PERSISTED");
+    const listener = vi.fn();
+    subscribePaperState(listener);
+    clearPaperState();
+
+    for (const handle of listeners) {
+      handle({ key: PAPER_KEY, newValue: null, storageArea: g.window!.localStorage } as unknown as StorageEvent);
+    }
+
+    expect(listener).toHaveBeenCalledOnce();
+    const update = listener.mock.calls[0][0];
+    expect(update.disposition).toBe("CLEARED");
+    expect(update.state.revision).toBe(0);
+    expect(update.state.positions).toEqual([]);
+    expect(g.window!.localStorage.getItem(PAPER_KEY)).toBeNull();
+  });
+
+  it("fails closed on an externally malformed paper payload", () => {
+    const listener = vi.fn();
+    subscribePaperState(listener);
+    for (const handle of listeners) {
+      handle({ key: PAPER_KEY, newValue: "{malformed", storageArea: g.window!.localStorage } as unknown as StorageEvent);
+    }
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({ disposition: "INVALID" }));
+  });
+
+  it("keeps /paper free of a second storage owner", () => {
+    const page = readFileSync(resolve(__dirname, "../app/paper/page.tsx"), "utf8");
+    expect(page).not.toContain("const PAPER_KEY");
+    expect(page).not.toContain("localStorage.setItem");
+    expect(page).not.toContain("localStorage.removeItem");
+    expect(page).not.toMatch(/function\s+loadPaperState/);
   });
 });
 

@@ -16,8 +16,21 @@ import {
   ExternalLink, ArrowUpRight, Trophy, Medal, Crown, Users, Gift,
 } from "lucide-react";
 import { SymbolSearch } from "@/components/ui/SymbolSearch";
-import { yahooQuoteObserved } from "@/lib/marketData/yahooQuoteObserved";
-import { applyFill as applyFillShared } from "@/lib/paperTrade";
+import {
+  actionablePaperQuotePrice,
+  initialPaperQuoteReadiness,
+  selectPaperQuoteReadiness,
+  type PaperQuoteReadiness,
+} from "@/lib/marketData/viewModels/selectPaperQuoteReadiness";
+import {
+  STARTING_CASH,
+  applyFill as applyFillShared,
+  loadPaperState,
+  savePaperState,
+  subscribePaperState,
+  type PaperPersistenceResult,
+  type PaperState,
+} from "@/lib/paperTrade";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 
@@ -78,9 +91,6 @@ interface Trade {
 
 interface EquityPoint { ts: number; equity: number; }
 
-const STARTING_CASH = 100_000;
-const PAPER_KEY = "wm_paper_state";
-
 function uid() { return Math.random().toString(36).slice(2,9); }
 
 /**
@@ -103,17 +113,6 @@ function applyFill(
   return applyFillShared(positions, ord, fillPx) as {
     positions: Position[]; trade: Trade; cashDelta: number; realized: number;
   };
-}
-
-function loadPaperState() {
-  try {
-    const raw = localStorage.getItem(PAPER_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as {
-      cash: number; positions: Position[]; orders: Order[];
-      trades: Trade[]; equity: EquityPoint[]; optionPositions?: OptionPosition[];
-    };
-  } catch { return null; }
 }
 
 function fmt2(n: number) {
@@ -200,15 +199,14 @@ const EXPIRY_CHOICES = [
  * the real market instead of drifting from a stale base. Futures
  * that have no free real feed gracefully fall back to their base. */
 function useLivePrices() {
-  const [prices, setPrices] = useState<Record<string,number>>(() =>
-    Object.fromEntries(Object.entries(UNIVERSE).map(([k,v]) => [k, v.base]))
+  const [prices, setPrices] = useState<Record<string,number>>({});
+  const [quoteReadiness, setQuoteReadiness] = useState<Record<string, PaperQuoteReadiness>>(() =>
+    Object.fromEntries(Object.keys(UNIVERSE).map(sym => [sym, initialPaperQuoteReadiness()]))
   );
-  // Real anchor + previous close per symbol — seeded to base, refreshed live.
-  const anchors    = useRef<Record<string,number>>(
-    Object.fromEntries(Object.entries(UNIVERSE).map(([k,v]) => [k, v.base]))
+  const readinessRef = useRef<Record<string, PaperQuoteReadiness>>(
+    Object.fromEntries(Object.keys(UNIVERSE).map(sym => [sym, initialPaperQuoteReadiness()]))
   );
   const [prevCloses, setPrevCloses] = useState<Record<string,number>>({});
-  const seeded = useRef(false);
 
   // Refresh real anchors from the same quote API the chart uses.
   useEffect(() => {
@@ -216,24 +214,33 @@ function useLivePrices() {
     const refresh = async () => {
       const snap: Record<string,number> = {};
       const pc:   Record<string,number> = {};
+      const nextReadiness = { ...readinessRef.current };
       await Promise.all(Object.keys(UNIVERSE).map(async sym => {
         try {
           const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-          const price = j?.price ?? 0;
-          // SF-D01 consumer gate — shared predicate. Skip anchoring on
-          // UNKNOWN observation so the paper-trading anchor never
-          // latches on a Sunday-futures stale prevClose.
-          if (alive && price > 0 && yahooQuoteObserved(j)) {
-            anchors.current[sym] = price;
-            snap[sym] = price;
-            if (j?.prevClose > 0) pc[sym] = j.prevClose;
+          const readiness = selectPaperQuoteReadiness(
+            j,
+            readinessRef.current[sym] ?? initialPaperQuoteReadiness(),
+            Date.now(),
+          );
+          nextReadiness[sym] = readiness;
+          if (alive && readiness.price != null) {
+            snap[sym] = readiness.price;
+            if (readiness.actionable && j?.prevClose > 0) pc[sym] = j.prevClose;
           }
-        } catch { /* keep prior anchor */ }
+        } catch {
+          nextReadiness[sym] = selectPaperQuoteReadiness(
+            null,
+            readinessRef.current[sym] ?? initialPaperQuoteReadiness(),
+            Date.now(),
+          );
+        }
       }));
       if (!alive) return;
+      readinessRef.current = nextReadiness;
+      setQuoteReadiness(nextReadiness);
       if (Object.keys(pc).length) setPrevCloses(prev => ({ ...prev, ...pc }));
       if (Object.keys(snap).length) {
-        seeded.current = true;
         setPrices(prev => ({ ...prev, ...snap }));
       }
     };
@@ -242,7 +249,7 @@ function useLivePrices() {
     return () => { alive = false; clearInterval(iv); };
   }, []);
 
-  return { prices, prevCloses };
+  return { prices, prevCloses, quoteReadiness };
 }
 
 /* ── Equity sparkline ────────────────────────────────────── */
@@ -276,9 +283,10 @@ function EquitySparkline({ points }: { points: EquityPoint[] }) {
 
 /* ── Order ticket ────────────────────────────────────────── */
 function OrderTicket({
-  prices, onSubmit, initialSymbol,
+  prices, quoteReadiness, onSubmit, initialSymbol,
 }: {
   prices: Record<string,number>;
+  quoteReadiness: Record<string, PaperQuoteReadiness>;
   onSubmit: (o: Order) => void;
   initialSymbol?: string;
 }) {
@@ -290,11 +298,12 @@ function OrderTicket({
   const [stopPx, setStopPx] = useState("");
   const [flash,  setFlash]  = useState(false);
 
-  const px  = prices[sym] ?? 0;
+  const readiness = quoteReadiness[sym] ?? initialPaperQuoteReadiness();
+  const px  = readiness.price ?? prices[sym] ?? 0;
   const est = qty * px;
 
   const submit = () => {
-    if (!qty || qty <= 0) return;
+    if (!readiness.actionable || !qty || qty <= 0) return;
     const order: Order = {
       id:     uid(),
       symbol: sym,
@@ -323,7 +332,17 @@ function OrderTicket({
       {/* Live price display */}
       <div className="mb-3 flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-wm-surface/40 border border-wm-border/50">
         <span className="text-[10px] text-wm-text-muted">Last Price</span>
-        <span className="text-sm font-black text-wm-text font-mono">${fmt2(px)}</span>
+        <span className="text-sm font-black text-wm-text font-mono">
+          {readiness.price == null ? "—" : `$${fmt2(readiness.price)}`}
+        </span>
+      </div>
+      <div className="mb-3 rounded-lg border border-wm-border/50 bg-wm-surface/20 px-2.5 py-2" role="status" aria-live="polite">
+        <div className={clsx("text-[9px] font-black", readiness.actionable ? "text-wm-gold" : "text-wm-red")}>{readiness.label}</div>
+        <div className="mt-0.5 text-[8px] leading-relaxed text-wm-text-dim">
+          {readiness.observedAt == null
+            ? readiness.reason
+            : `Observed ${new Date(readiness.observedAt).toLocaleString()} · ${Math.round((readiness.ageMs ?? 0) / 60_000)}m old`}
+        </div>
       </div>
 
       {/* Side */}
@@ -399,14 +418,16 @@ function OrderTicket({
       {/* Est value */}
       <div className="flex justify-between text-[10px] text-wm-text-dim mb-3 px-1">
         <span>Est. Value</span>
-        <span className="font-mono font-bold text-wm-text">${est.toLocaleString("en-US",{maximumFractionDigits:0})}</span>
+        <span className="font-mono font-bold text-wm-text">{readiness.actionable ? `$${est.toLocaleString("en-US",{maximumFractionDigits:0})}` : "UNKNOWN"}</span>
       </div>
 
       {/* Submit */}
-      <button onClick={submit}
+      <button onClick={submit} disabled={!readiness.actionable}
+        aria-disabled={!readiness.actionable}
         className={clsx("w-full py-3 rounded-xl text-sm font-black transition-all hover:opacity-90 active:scale-[0.99]",
+          !readiness.actionable && "cursor-not-allowed opacity-50 hover:opacity-50",
           side==="buy" ? "bg-wm-green text-wm-black" : "bg-wm-red text-white")}>
-        {side==="buy"?"▲ Place Buy Order":"▼ Place Sell Order"}
+        {!readiness.actionable ? "WAIT FOR VERIFIED QUOTE" : side==="buy"?"▲ Place Buy Order":"▼ Place Sell Order"}
       </button>
     </div>
   );
@@ -599,9 +620,10 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin }: {
 
 /* ── Options chain (Black-Scholes) ───────────────────────── */
 function OptionsChain({
-  prices, optionPositions, onTrade, onClose, initialSymbol,
+  prices, quoteReadiness, optionPositions, onTrade, onClose, initialSymbol,
 }: {
   prices: Record<string,number>;
+  quoteReadiness: Record<string, PaperQuoteReadiness>;
   optionPositions: OptionPosition[];
   onTrade: (p: Omit<OptionPosition,"id"|"entryTs"|"entryPrem">, side:"buy"|"sell") => void;
   onClose: (id:string, exitPrem:number) => void;
@@ -611,7 +633,29 @@ function OptionsChain({
   const [expIdx, setExpIdx] = useState(2); // default 30D
   const [qty, setQty] = useState(1);
 
-  const spot = prices[sym] ?? UNIVERSE[sym]?.base ?? 100;
+  const readiness = quoteReadiness[sym] ?? initialPaperQuoteReadiness();
+  const spot = actionablePaperQuotePrice(readiness);
+
+  if (spot == null) {
+    return (
+      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
+        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-wm-border bg-wm-dark px-3 py-2.5">
+          <div className="w-44"><SymbolSearch value={sym} onChange={s=>s&&UNIVERSE[s]&&setSym(s)} placeholder="Underlying…"/></div>
+          <div className="flex items-center gap-1.5 rounded-lg border border-wm-border/50 bg-wm-surface/40 px-2.5 py-1">
+            <span className="text-[9px] text-wm-text-muted">Spot</span>
+            <span className="font-mono text-xs font-black text-wm-text">—</span>
+          </div>
+          <span className="text-[9px] font-black text-wm-red">{readiness.label}</span>
+        </div>
+        <div className="m-4 rounded-xl border border-wm-red/30 bg-wm-red/5 px-4 py-6 text-center" role="status" aria-live="polite">
+          <div className="text-xs font-black text-wm-red">OPTIONS NOT ACTIONABLE</div>
+          <p className="mt-2 text-[10px] leading-relaxed text-wm-text-muted">{readiness.reason}</p>
+          <p className="mt-1 text-[9px] text-wm-text-dim">No strikes, modeled premiums, Greeks, marks, or option actions are produced without a finite canonical quote for {sym}.</p>
+        </div>
+      </div>
+    );
+  }
+
   const iv   = underlyingIV(sym);
   const days = EXPIRY_CHOICES[expIdx].days;
   const expiryTs = Date.now() + days*86_400_000 + (days===0 ? 6*3600_000 : 0);
@@ -622,8 +666,6 @@ function OptionsChain({
   const strikes: number[] = [];
   for (let i=-6;i<=6;i++) strikes.push(+(atm + i*step).toFixed(2));
 
-  const openForSym = optionPositions.filter(p => p.underlying===sym);
-
   return (
     <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
       {/* Controls */}
@@ -633,6 +675,7 @@ function OptionsChain({
           <span className="text-[9px] text-wm-text-muted">Spot</span>
           <span className="text-xs font-black font-mono text-wm-text">${fmt2(spot)}</span>
         </div>
+        <span className={clsx("text-[9px] font-black", readiness.actionable ? "text-wm-gold" : "text-wm-red")}>{readiness.label}</span>
         <div className="flex gap-1">
           {EXPIRY_CHOICES.map((e,i)=>(
             <button key={e.label} onClick={()=>setExpIdx(i)}
@@ -669,7 +712,7 @@ function OptionsChain({
               atmRow&&"bg-wm-gold/5")}
             style={{ gridTemplateColumns:"1fr 60px 46px 46px 46px 70px 1fr" }}>
             {/* CALL side */}
-            <button onClick={()=>onTrade({underlying:sym,type:"call",strike:k,expiryTs,qty},"buy")}
+            <button onClick={()=>onTrade({underlying:sym,type:"call",strike:k,expiryTs,qty},"buy")} disabled={!readiness.actionable}
               className={clsx("text-right pr-2 font-mono hover:bg-wm-green/10 rounded py-0.5 transition-colors",
                 itmC?"text-wm-green":"text-wm-text-muted")}>
               {fmt2(cBid)}/{fmt2(cAsk)} · {c.delta.toFixed(2)}
@@ -679,7 +722,7 @@ function OptionsChain({
             <span className="text-center font-mono font-black text-wm-text">{k>=1000?k.toLocaleString():fmt2(k)}</span>
             <span></span>
             <span className={clsx("text-center font-mono font-bold", itmP?"text-wm-red":"text-wm-text")}>{fmt2(p.price)}</span>
-            <button onClick={()=>onTrade({underlying:sym,type:"put",strike:k,expiryTs,qty},"buy")}
+            <button onClick={()=>onTrade({underlying:sym,type:"put",strike:k,expiryTs,qty},"buy")} disabled={!readiness.actionable}
               className={clsx("text-left pl-2 font-mono hover:bg-wm-red/10 rounded py-0.5 transition-colors",
                 itmP?"text-wm-red":"text-wm-text-muted")}>
               {p.delta.toFixed(2)} · {fmt2(pBid)}/{fmt2(pAsk)}
@@ -695,7 +738,24 @@ function OptionsChain({
       {optionPositions.length===0 ? (
         <div className="px-3 py-4 text-[10px] text-wm-text-muted text-center">Click any bid/ask to buy a contract.</div>
       ) : optionPositions.map(op=>{
-        const uPx = prices[op.underlying] ?? UNIVERSE[op.underlying]?.base ?? op.strike;
+        const uPx = actionablePaperQuotePrice(quoteReadiness[op.underlying]);
+        if (uPx == null) {
+          return (
+            <div key={op.id} className="grid items-center border-b border-wm-border/20 px-3 py-1.5 text-[10px]"
+              style={{ gridTemplateColumns:"1.4fr 1fr 60px" }}>
+              <span className="font-bold text-wm-text">
+                {op.underlying} {op.strike>=1000?op.strike.toLocaleString():fmt2(op.strike)}
+                <span className={clsx("ml-1 font-black", op.type==="call"?"text-wm-green":"text-wm-red")}>{op.type==="call"?"C":"P"}</span>
+                <span className="ml-1 text-wm-text-dim">×{op.qty}</span>
+              </span>
+              <span className="font-bold text-wm-red">MARK UNAVAILABLE · NOT ACTIONABLE</span>
+              <button disabled aria-disabled="true"
+                className="rounded border border-wm-border px-2 py-1 text-[9px] font-bold text-wm-text-dim opacity-50">
+                Close
+              </button>
+            </div>
+          );
+        }
         const t   = Math.max((op.expiryTs-Date.now())/86_400_000,0)/365;
         const g   = blackScholes(uPx, op.strike, t, underlyingIV(op.underlying), op.type==="call");
         const pnl = (g.price - op.entryPrem) * op.qty * OPT_MULTIPLIER;
@@ -714,7 +774,7 @@ function OptionsChain({
             <span className={clsx("font-mono font-black", pnl>=0?"text-wm-green":"text-wm-red")}>
               {pnl>=0?"+":""}{fmt2(pnl)}
             </span>
-            <button onClick={()=>onClose(op.id, g.price)}
+            <button onClick={()=>onClose(op.id, g.price)} disabled={!quoteReadiness[op.underlying]?.actionable}
               className="text-[9px] font-bold px-2 py-1 rounded border border-wm-border text-wm-text-muted hover:text-wm-red hover:border-wm-red/40 transition-all">
               Close
             </button>
@@ -731,15 +791,17 @@ function OptionsChain({
  * SAME order flow. Never touches real money or real brokerage. */
 type BotStrategy = "momentum" | "meanrev";
 function AIBot({
-  prices, onSignalOrder, running, setRunning, strategy, setStrategy, log,
+  prices, quoteReadiness, onSignalOrder, running, setRunning, strategy, setStrategy, log,
 }: {
   prices: Record<string,number>;
+  quoteReadiness: Record<string, PaperQuoteReadiness>;
   onSignalOrder: (o: Order)=>void;
   running: boolean; setRunning:(v:boolean)=>void;
   strategy: BotStrategy; setStrategy:(s:BotStrategy)=>void;
   log: { ts:number; msg:string; side:OrderSide }[];
 }) {
   const [botSym, setBotSym] = useState("NQ1!");
+  const readiness = quoteReadiness[botSym] ?? initialPaperQuoteReadiness();
   return (
     <div className="rounded-xl border border-wm-blue/30 bg-gradient-to-br from-wm-blue/10 to-transparent p-3.5 mt-4">
       <div className="flex items-center justify-between mb-3">
@@ -760,12 +822,13 @@ function AIBot({
           </button>
         ))}
       </div>
-      <button onClick={()=>setRunning(!running)}
+      <button onClick={()=>setRunning(!running)} disabled={!running && !readiness.actionable}
         data-bot-symbol={botSym}
         className={clsx("w-full py-2 rounded-lg text-xs font-black transition-all active:scale-[0.99]",
-          running?"bg-wm-red text-white":"bg-wm-blue text-white hover:opacity-90")}>
-        {running?"■ Stop Bot":"▶ Start Bot"}
+          running?"bg-wm-red text-white":readiness.actionable?"bg-wm-blue text-white hover:opacity-90":"cursor-not-allowed bg-wm-surface text-wm-text-dim")}>
+        {running?"■ Stop Bot":readiness.actionable?"▶ Start Bot":"WAIT FOR VERIFIED QUOTE"}
       </button>
+      <p className="mt-1 text-[8px] font-bold text-wm-text-dim">{readiness.label}</p>
       <div className="mt-2 max-h-32 overflow-y-auto space-y-1" style={{ scrollbarWidth:"none" }}>
         {log.length===0 ? (
           <div className="text-[9px] text-wm-text-dim text-center py-2">Signals will appear here.</div>
@@ -789,7 +852,7 @@ function AIBot({
 export default function PaperTradingPage() {
   const { activeSymbol } = useActiveSymbol();
   const { earnWMS } = useWMS();
-  const { prices, prevCloses } = useLivePrices();
+  const { prices, prevCloses, quoteReadiness } = useLivePrices();
   // Start from deterministic defaults so server and client render identically,
   // then hydrate persisted state in a post-mount effect (avoids React #418).
   const [cash,      setCash]      = useState(STARTING_CASH);
@@ -800,23 +863,39 @@ export default function PaperTradingPage() {
   const [tab,       setTab]       = useState<"positions"|"orders"|"trades"|"options"|"leaderboard">("positions");
   const [resetKey,  setResetKey]  = useState(0);
   const [hydrated,  setHydrated]  = useState(false);
+  const [persistenceState, setPersistenceState] = useState<PaperPersistenceResult["status"] | "UNKNOWN">("UNKNOWN");
+  const paperRevisionRef = useRef(0);
+  const skipNextPersistRef = useRef(false);
 
   // Options positions (Black-Scholes paper sim)
   const [optionPositions, setOptionPositions] = useState<OptionPosition[]>([]);
 
-  // Hydrate saved account state once, after mount (client only).
+  const applyStoredState = useCallback((saved: PaperState) => {
+    paperRevisionRef.current = saved.revision;
+    setCash(saved.cash);
+    setPositions(saved.positions as Position[]);
+    setOrders(saved.orders as Order[]);
+    setTrades(saved.trades as Trade[]);
+    setEquity(saved.equity as EquityPoint[]);
+    setOptionPositions((saved.optionPositions ?? []) as OptionPosition[]);
+  }, []);
+
+  // Hydrate through the canonical owner, then follow chart-originated writes
+  // from other tabs so stale page state cannot overwrite newer orders.
   useEffect(() => {
     const saved = loadPaperState();
-    if (saved) {
-      setCash(saved.cash ?? STARTING_CASH);
-      setPositions(saved.positions ?? []);
-      setOrders(saved.orders ?? []);
-      setTrades(saved.trades ?? []);
-      setEquity(saved.equity ?? [{ ts:Date.now(), equity:STARTING_CASH }]);
-      setOptionPositions(saved.optionPositions ?? []);
-    }
+    applyStoredState(saved);
     setHydrated(true);
-  }, []);
+    return subscribePaperState(update => {
+      skipNextPersistRef.current = true;
+      applyStoredState(update.state);
+      setPersistenceState(
+        update.disposition === "PERSISTED"
+          ? "PERSISTED"
+          : update.disposition === "INVALID" ? "FAILED" : "UNKNOWN",
+      );
+    });
+  }, [applyStoredState]);
 
   // AI bot state
   const [botRunning,  setBotRunning]  = useState(false);
@@ -840,9 +919,17 @@ export default function PaperTradingPage() {
 
   // Real P&L = unrealized sum across all positions
   const totalUnreal = updatedPositions.reduce((s,p) => s + p.unrealPnl, 0);
-  // Mark-to-market value of open option contracts (Black-Scholes).
+  const unmarkedOptionCount = optionPositions.filter(
+    op => actionablePaperQuotePrice(quoteReadiness[op.underlying]) == null,
+  ).length;
+  const hasUnmarkedOptions = unmarkedOptionCount > 0;
+  // Mark-to-market value of open option contracts. Without an actionable
+  // quote, preserve the known entry receipt as cost basis; never synthesize a
+  // current mark from UNIVERSE seed prices. The UI labels the resulting total
+  // as partial cost basis, never as current portfolio equity or return.
   const optionsMark = optionPositions.reduce((s,op)=>{
-    const uPx = prices[op.underlying] ?? UNIVERSE[op.underlying]?.base ?? op.strike;
+    const uPx = actionablePaperQuotePrice(quoteReadiness[op.underlying]);
+    if (uPx == null) return s + op.entryPrem * op.qty * OPT_MULTIPLIER;
     const t   = Math.max((op.expiryTs-Date.now())/86_400_000,0)/365;
     const g   = blackScholes(uPx, op.strike, t, underlyingIV(op.underlying), op.type==="call");
     return s + g.price * op.qty * OPT_MULTIPLIER;
@@ -852,16 +939,30 @@ export default function PaperTradingPage() {
   const totalRealPnl = trades.reduce((s,t) => s + (t.pnl ?? 0), 0);
   const dayPnl = totalRealPnl + totalUnreal;
 
-  // Persist state to localStorage
+  // PERSISTED means exact immediate browser readback matched; failure is
+  // visible and never silently promoted to saved continuity.
   useEffect(() => {
     if (!hydrated) return; // don't clobber saved state with pre-hydration defaults
-    try {
-      localStorage.setItem(PAPER_KEY, JSON.stringify({ cash, positions, orders, trades, equity, optionPositions }));
-    } catch {}
-  }, [hydrated, cash, positions, orders, trades, equity, optionPositions]);
+    if (skipNextPersistRef.current) {
+      skipNextPersistRef.current = false;
+      return;
+    }
+    const result = savePaperState(
+      { revision: paperRevisionRef.current, cash, positions, orders, trades, equity, optionPositions },
+      paperRevisionRef.current,
+    );
+    setPersistenceState(result.status);
+    if (result.status === "PERSISTED") {
+      paperRevisionRef.current = result.state.revision;
+    } else if (result.status === "CONFLICT") {
+      skipNextPersistRef.current = true;
+      applyStoredState(result.state);
+    }
+  }, [hydrated, cash, positions, orders, trades, equity, optionPositions, applyStoredState]);
 
   // Track equity curve every 10s
   useEffect(() => {
+    if (hasUnmarkedOptions) return;
     const iv = setInterval(() => {
       setEquity(prev => {
         const pt = { ts: Date.now(), equity: totalEquity };
@@ -870,7 +971,7 @@ export default function PaperTradingPage() {
       });
     }, 10_000);
     return () => clearInterval(iv);
-  }, [totalEquity]);
+  }, [totalEquity, hasUnmarkedOptions]);
 
   // Process pending orders when price crosses limit/stop.
   // Fills are computed purely, applied once (filledRef guards against any
@@ -882,7 +983,9 @@ export default function PaperTradingPage() {
 
     const fills: { ord: Order; fillPx: number }[] = [];
     for (const ord of pend) {
-      const px = prices[ord.symbol] ?? 100;
+      const readiness = quoteReadiness[ord.symbol];
+      if (!readiness?.actionable || readiness.price == null) continue;
+      const px = readiness.price;
       let fill = false;
       if (ord.type === "market") fill = true;
       else if (ord.type === "limit") {
@@ -920,7 +1023,7 @@ export default function PaperTradingPage() {
     setOrders(prev => prev.map(o => fillPxById.has(o.id)
       ? { ...o, status:"filled", fillPx: fillPxById.get(o.id)! } : o));
     wins.forEach(sym => earnWMS(25, `📈 Paper trade win on ${sym}`));
-  }, [prices, orders, earnWMS]);
+  }, [prices, quoteReadiness, orders, earnWMS]);
 
   // AI bot: evaluate a simple momentum / mean-reversion signal on an
   // interval and auto-submit PAPER orders through the same flow.
@@ -931,6 +1034,7 @@ export default function PaperTradingPage() {
       const el = typeof document !== "undefined"
         ? document.querySelector<HTMLElement>("[data-bot-symbol]") : null;
       const sym = el?.dataset.botSymbol || "NQ1!";
+      if (!quoteReadiness[sym]?.actionable) return;
       const px  = prices[sym];
       if (!px) return;
       const hist = botHist.current[sym] ?? [];
@@ -964,15 +1068,17 @@ export default function PaperTradingPage() {
       }, ...prev].slice(0,40));
     }, 3000);
     return () => clearInterval(iv);
-  }, [botRunning, botStrategy, prices, botLog]);
+  }, [botRunning, botStrategy, prices, quoteReadiness, botLog]);
 
   const handleOrder = (ord: Order) => {
+    if (!quoteReadiness[ord.symbol]?.actionable) return;
     setOrders(prev => [ord, ...prev]);
   };
 
   /* ── Options: open / close (paper sim, Black-Scholes) ──── */
   const openOption = useCallback((p: Omit<OptionPosition,"id"|"entryTs"|"entryPrem">, _side:"buy"|"sell") => {
-    const uPx = prices[p.underlying] ?? UNIVERSE[p.underlying]?.base ?? p.strike;
+    const uPx = actionablePaperQuotePrice(quoteReadiness[p.underlying]);
+    if (uPx == null) return;
     const t   = Math.max((p.expiryTs-Date.now())/86_400_000,0.0001)/365;
     const g   = blackScholes(uPx, p.strike, t, underlyingIV(p.underlying), p.type==="call");
     const ask = g.price + Math.max(0.02, g.price*0.03); // pay the ask
@@ -982,12 +1088,14 @@ export default function PaperTradingPage() {
       { ...p, id:uid(), entryTs:Date.now(), entryPrem:ask },
       ...prev,
     ]);
-  }, [prices]);
+  }, [quoteReadiness]);
 
   const closeOption = useCallback((id:string, exitPrem:number) => {
+    if (!Number.isFinite(exitPrem) || exitPrem < 0) return;
     setOptionPositions(prev => {
       const op = prev.find(o => o.id===id);
       if (!op) return prev;
+      if (actionablePaperQuotePrice(quoteReadiness[op.underlying]) == null) return prev;
       const bid = Math.max(0, exitPrem - Math.max(0.02, exitPrem*0.03)); // sell the bid
       const proceeds = bid * op.qty * OPT_MULTIPLIER;
       const pnl = (bid - op.entryPrem) * op.qty * OPT_MULTIPLIER;
@@ -1000,7 +1108,7 @@ export default function PaperTradingPage() {
       if (pnl > 0) earnWMS(25, `📈 Options win on ${op.underlying}`);
       return prev.filter(o => o.id!==id);
     });
-  }, [earnWMS]);
+  }, [earnWMS, quoteReadiness]);
 
   const cancelOrder = (id: string) => {
     setOrders(prev => prev.map(o => o.id===id ? { ...o, status:"cancelled" } : o));
@@ -1031,12 +1139,25 @@ export default function PaperTradingPage() {
       ? `This will permanently delete ${parts.join(" and ")} plus your cash balance and equity curve. This cannot be undone.`
       : "This will reset cash to $100,000 and clear the equity curve.";
     if (!window.confirm(`Reset paper trading?\n\n${summary}\n\nContinue?`)) return;
-    setCash(STARTING_CASH); setPositions([]); setOrders([]); setTrades([]);
-    setOptionPositions([]); setBotRunning(false); setBotLog([]);
-    setEquity([{ ts:Date.now(), equity:STARTING_CASH }]);
+    const fresh: PaperState = {
+      revision: paperRevisionRef.current,
+      cash: STARTING_CASH,
+      positions: [], orders: [], trades: [], optionPositions: [],
+      equity: [{ ts:Date.now(), equity:STARTING_CASH }],
+    };
+    const result = savePaperState(fresh, paperRevisionRef.current);
+    setPersistenceState(result.status);
+    if (result.status === "CONFLICT") {
+      skipNextPersistRef.current = true;
+      applyStoredState(result.state);
+      return;
+    }
+    if (result.status === "FAILED") return;
+    skipNextPersistRef.current = true;
+    applyStoredState(result.state);
+    setBotRunning(false); setBotLog([]);
     setResetKey(k=>k+1);
     filledRef.current.clear(); posRef.current = [];
-    try { localStorage.removeItem(PAPER_KEY); } catch {}
   };
 
   const pendingOrders = orders.filter(o=>o.status==="pending");
@@ -1044,23 +1165,39 @@ export default function PaperTradingPage() {
 
   return (
     <div style={{ display:"flex",flexDirection:"column",width:"100%",height:"100%",overflow:"hidden" }}
-         className="bg-wm-black">
+         className="wm-paper-page bg-wm-black">
 
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 border-b border-wm-border bg-wm-dark shrink-0" style={{ height:44 }}>
+      <div className="wm-paper-header flex items-center gap-3 px-4 border-b border-wm-border bg-wm-dark shrink-0" style={{ height:44 }}>
         <Activity size={15} className="text-wm-green shrink-0"/>
         <h1 className="text-sm font-bold text-wm-text">Paper Trading</h1>
         <div className="flex items-center gap-1.5 ml-1">
           <span className="w-1.5 h-1.5 rounded-full bg-wm-green animate-pulse"/>
           <span className="text-[10px] text-wm-green font-bold">PAPER SIMULATION</span>
         </div>
+        <div
+          role="status"
+          aria-live="polite"
+          className={clsx(
+            "rounded-md border px-2 py-1 text-[9px] font-bold",
+            persistenceState === "PERSISTED" && "border-wm-green/30 text-wm-green",
+            persistenceState === "CONFLICT" && "border-amber-500/40 text-amber-300",
+            persistenceState === "FAILED" && "border-wm-red/40 text-wm-red",
+            persistenceState === "UNKNOWN" && "border-wm-border text-wm-text-dim",
+          )}
+        >
+          {persistenceState === "PERSISTED" && "BROWSER SAVE VERIFIED"}
+          {persistenceState === "CONFLICT" && "UPDATED FROM ANOTHER TAB"}
+          {persistenceState === "FAILED" && "BROWSER SAVE FAILED"}
+          {persistenceState === "UNKNOWN" && "BROWSER SAVE CHECKING"}
+        </div>
 
         {/* Account stats in header */}
-        <div className="flex items-center gap-4 ml-6">
+        <div className="wm-paper-account-stats flex items-center gap-4 ml-6">
           {[
-            { l:"Equity",   v:`$${totalEquity.toLocaleString("en-US",{maximumFractionDigits:0})}`,  c:"text-wm-text" },
+            { l:hasUnmarkedOptions?"Equity":"Equity", v:hasUnmarkedOptions?"UNKNOWN":`$${totalEquity.toLocaleString("en-US",{maximumFractionDigits:0})}`, c:hasUnmarkedOptions?"text-wm-red":"text-wm-text" },
             { l:"Cash",     v:`$${cash.toLocaleString("en-US",{maximumFractionDigits:0})}`,          c:"text-wm-text-muted" },
-            { l:"Day P&L",  v:`${dayPnl>=0?"+":""}$${fmt2(Math.abs(dayPnl))}`,                       c:dayPnl>=0?"text-wm-green":"text-wm-red" },
+            { l:hasUnmarkedOptions?"Known P&L":"Day P&L", v:`${dayPnl>=0?"+":""}$${fmt2(Math.abs(dayPnl))}`, c:dayPnl>=0?"text-wm-green":"text-wm-red" },
             { l:"Realized", v:`${totalRealPnl>=0?"+":""}$${fmt2(Math.abs(totalRealPnl))}`,          c:totalRealPnl>=0?"text-wm-green":"text-wm-red" },
           ].map(({l,v,c})=>(
             <div key={l} className="text-center">
@@ -1106,14 +1243,15 @@ export default function PaperTradingPage() {
       </section>
 
       {/* Body */}
-      <div style={{ flex:1,display:"flex",overflow:"hidden",minHeight:0 }}>
+      <div className="wm-paper-body" style={{ flex:1,display:"flex",overflow:"hidden",minHeight:0 }}>
 
         {/* Left: Order ticket */}
-        <div className="w-64 border-r border-wm-border shrink-0 overflow-y-auto p-3" style={{ scrollbarWidth:"thin" }}>
-          <OrderTicket key={resetKey} prices={prices} onSubmit={handleOrder} initialSymbol={UNIVERSE[activeSymbol] ? activeSymbol : undefined}/>
+        <div className="wm-paper-ticket w-64 border-r border-wm-border shrink-0 overflow-y-auto p-3" style={{ scrollbarWidth:"thin" }}>
+          <OrderTicket key={resetKey} prices={prices} quoteReadiness={quoteReadiness} onSubmit={handleOrder} initialSymbol={UNIVERSE[activeSymbol] ? activeSymbol : undefined}/>
 
           <AIBot
             prices={prices}
+            quoteReadiness={quoteReadiness}
             onSignalOrder={handleOrder}
             running={botRunning} setRunning={setBotRunning}
             strategy={botStrategy} setStrategy={setBotStrategy}
@@ -1172,19 +1310,28 @@ export default function PaperTradingPage() {
         </div>
 
         {/* Center: Equity curve + positions/orders */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <div className="wm-paper-center flex-1 flex flex-col overflow-hidden min-w-0">
 
           {/* Equity curve card */}
           <div className="border-b border-wm-border px-4 py-3 shrink-0">
             <div className="flex items-center justify-between mb-2">
               <div>
-                <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Portfolio Equity</div>
-                <div className="text-xl font-black text-wm-text font-mono">
-                  ${totalEquity.toLocaleString("en-US",{maximumFractionDigits:0})}
+                <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">
+                  {hasUnmarkedOptions ? "Portfolio valuation unavailable" : "Portfolio Equity"}
+                </div>
+                <div className={clsx("text-xl font-black font-mono", hasUnmarkedOptions?"text-wm-red":"text-wm-text")}>
+                  {hasUnmarkedOptions ? "UNKNOWN" : `$${totalEquity.toLocaleString("en-US",{maximumFractionDigits:0})}`}
                 </div>
                 <div className={clsx("text-xs font-bold font-mono", dayPnl>=0?"text-wm-green":"text-wm-red")}>
-                  {dayPnl>=0?"+":""}{fmt2(dayPnl)} today ({((dayPnl/STARTING_CASH)*100).toFixed(2)}%)
+                  {hasUnmarkedOptions
+                    ? `${dayPnl>=0?"+":""}${fmt2(dayPnl)} known P&L · excludes ${unmarkedOptionCount} unmarked option${unmarkedOptionCount===1?"":"s"}`
+                    : `${dayPnl>=0?"+":""}${fmt2(dayPnl)} today (${((dayPnl/STARTING_CASH)*100).toFixed(2)}%)`}
                 </div>
+                {hasUnmarkedOptions && (
+                  <div className="mt-1 text-[9px] font-bold text-wm-gold" role="status" aria-live="polite">
+                    PARTIAL COST BASIS ONLY · current option mark and portfolio return are not available
+                  </div>
+                )}
               </div>
               <div className="flex flex-col items-end gap-1">
                 <EquitySparkline points={equity}/>
@@ -1309,6 +1456,7 @@ export default function PaperTradingPage() {
           {tab==="options" && (
             <OptionsChain
               prices={prices}
+              quoteReadiness={quoteReadiness}
               optionPositions={optionPositions}
               onTrade={openOption}
               onClose={closeOption}
@@ -1377,12 +1525,19 @@ export default function PaperTradingPage() {
           {/* Leaderboard */}
           {tab==="leaderboard" && (
             <div className="flex-1 overflow-hidden">
-              <Leaderboard
-                myPct={((totalEquity - STARTING_CASH) / STARTING_CASH) * 100}
-                myPnl={totalEquity - STARTING_CASH}
-                myTrades={trades.length}
-                myWin={trades.length ? Math.round(trades.filter(t=>(t.pnl??0)>0).length/trades.length*100) : 0}
-              />
+              {hasUnmarkedOptions ? (
+                <div className="m-4 rounded-xl border border-wm-gold/30 bg-wm-gold/5 px-4 py-6 text-center" role="status">
+                  <div className="text-xs font-black text-wm-gold">RETURN AND RANK UNKNOWN</div>
+                  <p className="mt-2 text-[10px] text-wm-text-muted">Leaderboard return is withheld until every open option has a current actionable quote.</p>
+                </div>
+              ) : (
+                <Leaderboard
+                  myPct={((totalEquity - STARTING_CASH) / STARTING_CASH) * 100}
+                  myPnl={totalEquity - STARTING_CASH}
+                  myTrades={trades.length}
+                  myWin={trades.length ? Math.round(trades.filter(t=>(t.pnl??0)>0).length/trades.length*100) : 0}
+                />
+              )}
             </div>
           )}
 
@@ -1393,20 +1548,21 @@ export default function PaperTradingPage() {
             Activity dot + "Live" copy claimed live-tape truthfulness
             these numbers do not have. Truth label unified with the rest
             of the shell: amber dot + "MARKET PRICES" + DELAYED chip. */}
-        <div className="w-48 border-l border-wm-border flex flex-col overflow-hidden shrink-0">
+        <div className="wm-paper-market w-48 border-l border-wm-border flex flex-col overflow-hidden shrink-0">
           <div
             className="px-3 py-2 border-b border-wm-border text-[9px] font-black text-wm-text-dim uppercase tracking-wider flex items-center gap-1.5"
             title="Prices are consolidated quotes from the same delayed provider the chart chrome flags as DELAYED — not a real-time tape."
           >
             <Activity size={10} className="text-wm-gold"/>
             <span>Market Prices</span>
-            <span className="ml-auto text-[8px] font-semibold text-wm-gold">DELAYED</span>
+            <span className="ml-auto text-[8px] font-semibold text-wm-gold">PAPER QUOTES</span>
           </div>
           <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"none" }}>
             {Object.entries(UNIVERSE).map(([sym,info])=>{
-              const px   = prices[sym] ?? info.base;
+              const readiness = quoteReadiness[sym] ?? initialPaperQuoteReadiness();
+              const px   = readiness.price;
               const ref  = prevCloses[sym] ?? info.base;
-              const chg  = ref ? ((px - ref)/ref)*100 : 0;
+              const chg  = px != null && ref ? ((px - ref)/ref)*100 : null;
               return (
                 <div key={sym} className="flex items-center justify-between px-2.5 py-1.5 border-b border-wm-border/20 hover:bg-wm-surface/30 transition-colors">
                   <div>
@@ -1415,10 +1571,10 @@ export default function PaperTradingPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-[10px] font-mono font-bold text-wm-text">
-                      {px>=1000 ? px.toLocaleString("en-US",{maximumFractionDigits:0}) : fmt2(px)}
+                      {px == null ? "—" : px>=1000 ? px.toLocaleString("en-US",{maximumFractionDigits:0}) : fmt2(px)}
                     </div>
-                    <div className={clsx("text-[9px] font-mono font-bold", chg>=0?"text-wm-green":"text-wm-red")}>
-                      {chg>=0?"+":""}{chg.toFixed(2)}%
+                    <div className={clsx("text-[8px] font-bold", readiness.actionable?"text-wm-gold":"text-wm-red")}>
+                      {chg == null ? readiness.status : `${chg>=0?"+":""}${chg.toFixed(2)}%`}
                     </div>
                   </div>
                 </div>
