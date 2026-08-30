@@ -5,11 +5,11 @@
  * Notes save browser-locally with exact readback. Quizzes shuffle questions on every retake.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Play, BookOpen, CheckCircle2, Lock, Star,
-  ChevronRight, ChevronDown, ChevronUp, Pencil,
+  ChevronRight, ChevronUp, Pencil,
   RotateCcw, Trophy, Clock, GraduationCap, FileText,
   CheckCircle, XCircle, HelpCircle, X,
 } from "lucide-react";
@@ -22,6 +22,7 @@ import {
 } from "@/lib/educationProgressTruth";
 import { persistAcademyNote, readAcademyNote } from "@/lib/educationNotesStorage";
 import { persistAcademyProgress } from "@/lib/educationProgressStorage";
+import { useShellModalFocus } from "@/components/layout/useShellModalFocus";
 
 /* ── Types ───────────────────────────────────────────────── */
 interface Lesson {
@@ -282,31 +283,38 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
 
   const pct = Math.round((score / qs.length) * 100);
 
-  // Escape closes the modal; matches ShellModalDrawer accessibility contract.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const onKeyDown = useShellModalFocus({
+    panelRef,
+    initialFocusRef: closeRef,
+    fallbackTriggerRef: closeRef,
+    onClose,
+  });
 
   return (
     <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
       className="fixed inset-0 z-[300] flex items-center justify-center px-3 py-3"
       style={{ background:"rgba(7,10,15,0.88)", backdropFilter:"blur(6px)" }}
-      role="dialog" aria-modal="true" aria-label="Lesson quiz">
-      <motion.div initial={{ scale:0.92,y:16 }} animate={{ scale:1,y:0 }}
+      onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <motion.div ref={panelRef} initial={{ scale:0.92,y:16 }} animate={{ scale:1,y:0 }}
         className="relative bg-wm-dark border border-wm-border rounded-2xl shadow-2xl flex flex-col w-full"
-        style={{ maxWidth: 600, maxHeight:"88vh", overflow:"hidden" }}>
+        style={{ maxWidth: 600, maxHeight:"88vh", overflow:"hidden" }}
+        role="dialog" aria-modal="true" aria-labelledby="lesson-quiz-title"
+        onKeyDown={onKeyDown}
+        onMouseDown={event => event.stopPropagation()}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-wm-border shrink-0">
           <div className="flex items-center gap-2">
             <HelpCircle size={15} className="text-wm-gold" aria-hidden="true"/>
-            <span className="text-sm font-black text-wm-text">Lesson Quiz</span>
+            <h2 id="lesson-quiz-title" className="text-sm font-black text-wm-text">Lesson Quiz</h2>
           </div>
           <div className="flex items-center gap-2">
             {!done && <span className="text-xs text-wm-text-muted font-mono" aria-live="polite">{cur+1}/{qs.length}</span>}
             <button
+              ref={closeRef}
+              type="button"
               onClick={() => onClose()}
               aria-label="Close quiz"
               className="inline-flex items-center justify-center rounded-lg text-wm-text-muted hover:text-wm-text hover:bg-wm-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
