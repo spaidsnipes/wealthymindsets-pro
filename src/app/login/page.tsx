@@ -406,7 +406,7 @@ function LoginPage() {
 
                 {/* Error */}
                 {error && (
-                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg"
+                  <div role="alert" aria-live="assertive" className="flex items-center gap-2 px-3 py-2.5 rounded-lg"
                     style={{ background: "rgba(255,77,106,0.1)", border: "1px solid rgba(255,77,106,0.3)" }}>
                     <AlertCircle size={13} className="text-wm-red shrink-0" />
                     <span className="text-[12px] text-wm-red">{error}</span>
@@ -415,7 +415,7 @@ function LoginPage() {
 
                 {/* Success */}
                 {success && (
-                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg"
+                  <div role="status" aria-live="polite" className="flex items-start gap-2 px-3 py-2.5 rounded-lg"
                     style={{ background: "rgba(0,212,170,0.1)", border: "1px solid rgba(0,212,170,0.3)" }}>
                     <CheckCircle size={13} className="text-wm-green shrink-0 mt-0.5" />
                     <span className="text-[12px] text-wm-green">{success}</span>
