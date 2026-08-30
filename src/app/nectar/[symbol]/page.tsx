@@ -35,6 +35,10 @@ import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 
+const subscribeHydration = () => () => {};
+const getHydratedClientSnapshot = () => true;
+const getHydratedServerSnapshot = () => false;
+
 /**
  * /nectar/[symbol] — per-symbol memory deep-dive.
  *
@@ -61,9 +65,12 @@ export default function NectarSymbolDetailPage() {
   // React #418 hydration mismatch. Gate on `mounted` so both trees
   // start with the empty-symbol shell and swap to real data after
   // mount.
-  const [mounted, setMounted] = React.useState(false);
+  const mounted = React.useSyncExternalStore(
+    subscribeHydration,
+    getHydratedClientSnapshot,
+    getHydratedServerSnapshot,
+  );
   const [, setTick] = React.useState(0);
-  React.useEffect(() => { setMounted(true); }, []);
   React.useEffect(() => subscribeSessionSymbolStore(() => setTick(t => t + 1)), []);
   React.useEffect(() => subscribeToSessionNectar(() => setTick(t => t + 1)), []);
   React.useEffect(() => {

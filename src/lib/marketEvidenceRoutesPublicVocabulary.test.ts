@@ -41,6 +41,12 @@ describe("Market Evidence route public vocabulary", () => {
     expect(detailPage).toContain("NectarSymbolDetailPage");
   });
 
+  it("hydrates the detail route without a synchronous effect-state cascade", () => {
+    expect(detailPage).toContain("React.useSyncExternalStore(");
+    expect(detailPage).toContain("getHydratedServerSnapshot");
+    expect(detailPage).not.toContain("setMounted");
+  });
+
   it("removes private vocabulary from visible route entry copy", () => {
     expect(indexPage).not.toContain("Nectar Vault context ribbon");
     expect(indexPage).not.toContain('label="VAULT"');
