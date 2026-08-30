@@ -5,7 +5,7 @@
  * Notes save browser-locally with exact readback. Quizzes shuffle questions on every retake.
  */
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Play, BookOpen, CheckCircle2, Lock, Star,
@@ -192,27 +192,29 @@ const LEVEL_COLOR: Record<Module["level"],string> = {
 /* ── Notes component ─────────────────────────────────────── */
 function LessonNotes({ lessonId }: { lessonId: string }) {
   const KEY = `wm-notes-${lessonId}`;
-  const [text,    setText]    = useState(() => (typeof window !== "undefined" ? readAcademyNote(localStorage, KEY) : ""));
+  const [text,    setText]    = useState("");
   const [editing, setEditing] = useState(false);
-  const [persistence, setPersistence] = useState<"IDLE" | "SAVING" | "PERSISTED" | "UNAVAILABLE">("IDLE");
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [readState, setReadState] = useState<"LOADING" | "READ" | "UNAVAILABLE">("LOADING");
+  const [persistence, setPersistence] = useState<"IDLE" | "PERSISTED" | "UNAVAILABLE">("IDLE");
 
-  const persist = (value: string) => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-    const result = persistAcademyNote(localStorage, KEY, value);
-    setPersistence(result.status);
-  };
+  // The parent keys this editor by lesson: no draft can migrate to a new key.
+  // Read after hydration. An unreadable note is not an empty, writable note.
+  useEffect(() => {
+    const result = readAcademyNote(() => window.localStorage, KEY);
+    // This effect deliberately synchronizes React with browser-owned storage;
+    // reading during initial render would make server/client hydration diverge.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setReadState(result.status);
+    if (result.status === "READ") setText(result.value);
+  }, [KEY]);
 
   const onChange = (v: string) => {
-    setText(v); setPersistence("SAVING");
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => persist(v), 700);
+    if (readState !== "READ") return;
+    setText(v);
+    // localStorage is synchronous: finish the write/readback in the edit event,
+    // before a route change or unmount can discard a pending autosave.
+    setPersistence(persistAcademyNote(() => window.localStorage, KEY, v).status);
   };
-
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-  }, []);
 
   if (!editing) {
     return (
@@ -232,7 +234,8 @@ function LessonNotes({ lessonId }: { lessonId: string }) {
         </span>
         <div className="flex items-center gap-2">
           <span className="text-[9px] text-wm-text-dim" role="status" aria-live="polite">
-            {persistence === "SAVING" ? "Saving in this browser…"
+            {readState === "LOADING" ? "Loading browser note…"
+              : readState === "UNAVAILABLE" ? "Could not read note — editing disabled to protect existing notes"
               : persistence === "PERSISTED" ? "✓ Saved in this browser"
               : persistence === "UNAVAILABLE" ? "Not saved — browser storage unavailable"
               : "Browser-only note"}
@@ -240,7 +243,7 @@ function LessonNotes({ lessonId }: { lessonId: string }) {
           <button onClick={() => setEditing(false)} className="inline-flex min-h-11 items-center px-2 text-[9px] text-wm-text-dim hover:text-wm-text">Close notes</button>
         </div>
       </div>
-      <textarea value={text} onChange={e => onChange(e.target.value)} onBlur={() => persist(text)} rows={4} autoFocus
+      <textarea aria-label="Lesson notes" value={text} onChange={e => onChange(e.target.value)} disabled={readState !== "READ"} rows={4} autoFocus
         placeholder="Key takeaways, setups to remember, questions…"
         className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-xs text-wm-text outline-none focus:border-wm-blue/50 resize-none placeholder-wm-text-dim leading-relaxed"/>
     </div>
@@ -487,7 +490,7 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
             <div className="text-[10px] font-black text-wm-text-muted uppercase tracking-wider mb-2 flex items-center gap-1">
               <FileText size={10}/> Your Notes
             </div>
-            <LessonNotes lessonId={lesson.id}/>
+            <LessonNotes key={lesson.id} lessonId={lesson.id}/>
           </div>
 
           <div className="p-4 rounded-xl border bg-wm-gold/5 border-wm-gold/20">

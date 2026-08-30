@@ -1,14 +1,20 @@
 export type AcademyNoteStorage = Pick<Storage, "getItem" | "setItem">;
+type StorageSource<T> = T | (() => T);
+
+export type AcademyNoteReadResult =
+  | { status: "READ"; value: string }
+  | { status: "UNAVAILABLE" };
 
 export type AcademyNotePersistenceResult =
   | { status: "PERSISTED" }
   | { status: "UNAVAILABLE"; reason: string };
 
-export function readAcademyNote(storage: Pick<Storage, "getItem">, key: string): string {
+export function readAcademyNote(storage: StorageSource<Pick<Storage, "getItem">>, key: string): AcademyNoteReadResult {
   try {
-    return storage.getItem(key) ?? "";
+    const target = typeof storage === "function" ? storage() : storage;
+    return { status: "READ", value: target.getItem(key) ?? "" };
   } catch {
-    return "";
+    return { status: "UNAVAILABLE" };
   }
 }
 
@@ -18,13 +24,14 @@ export function readAcademyNote(storage: Pick<Storage, "getItem">, key: string):
  * not, by itself, evidence that the note survived browser persistence.
  */
 export function persistAcademyNote(
-  storage: AcademyNoteStorage,
+  storage: StorageSource<AcademyNoteStorage>,
   key: string,
   value: string,
 ): AcademyNotePersistenceResult {
   try {
-    storage.setItem(key, value);
-    if (storage.getItem(key) !== value) {
+    const target = typeof storage === "function" ? storage() : storage;
+    target.setItem(key, value);
+    if (target.getItem(key) !== value) {
       return { status: "UNAVAILABLE", reason: "Browser readback did not match the note." };
     }
     return { status: "PERSISTED" };
