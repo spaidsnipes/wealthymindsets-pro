@@ -96,6 +96,10 @@ export default function NectarSymbolDetailPage() {
     identity: nectarCanvasIdentity,
     ownerId: null,
   });
+  const hasNectarCanvasEvidence =
+    nectarCanvas.canvas.hasSnapshot ||
+    nectarCanvas.canvas.blockers.length > 0 ||
+    nectarCanvas.canvas.clearances.length > 0;
 
   // Try to find any slot for this symbol regardless of tape source.
   // Prefer the slot with the highest trade count.
@@ -136,49 +140,45 @@ export default function NectarSymbolDetailPage() {
       >
         {matched.length === 0 ? (
           <UnobservedState symbol={symbol} onOpen={openOnChart} />
-        ) : (
+        ) : matched.map(({ slot, tapeSource }, idx) => (
+          <SlotPanels
+            key={`${symbol}::${tapeSource}::${idx}`}
+            symbol={symbol}
+            tapeSource={tapeSource}
+            slot={slot}
+            fidelity={idx === 0 ? tradeChannel?.fidelity ?? null : null}
+            gapCount={idx === 0 ? tradeChannel?.gapCount ?? 0 : 0}
+            onOpen={openOnChart}
+          />
+        ))}
+
+        {/* Canonical Canvas evidence is independent from the session trade
+            collector. A quote/bar snapshot must not disappear merely because
+            this tab has not observed a trade for the symbol. */}
+        {hasNectarCanvasEvidence && (
           <>
-            {matched.map(({ slot, tapeSource }, idx) => (
-              <SlotPanels
-                key={`${symbol}::${tapeSource}::${idx}`}
-                symbol={symbol}
-                tapeSource={tapeSource}
-                slot={slot}
-                fidelity={idx === 0 ? tradeChannel?.fidelity ?? null : null}
-                gapCount={idx === 0 ? tradeChannel?.gapCount ?? 0 : 0}
-                onOpen={openOnChart}
+            <SectionBanner
+              number="3"
+              label={`MARKET CANVAS · ${symbol} NOW`}
+              tagline="Current 15m reality — MISSING / RESOLVED / WHY NOT / CLEARED / WOULD INVALIDATE — from the shared compiler."
+            />
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: -8 }}>
+              <CanvasSummaryPill
+                vm={nectarCanvas.canvas}
+                ariaLabel={`Current market canvas summary for ${symbol}`}
               />
-            ))}
-
-            {/* Shift-Z Z1: Market Canvas — current market reality for this
-                symbol per canonicalMarketState. Silent-safe: renders only when
-                the canvas has an actual snapshot / blockers / clearances. */}
-            {(nectarCanvas.canvas.hasSnapshot ||
-              nectarCanvas.canvas.blockers.length > 0 ||
-              nectarCanvas.canvas.clearances.length > 0) && (
-              <>
-                <SectionBanner
-                  number="3"
-                  label={`MARKET CANVAS · ${symbol} NOW`}
-                  tagline="Current 15m reality — MISSING / RESOLVED / WHY NOT / CLEARED / WOULD INVALIDATE — from the shared compiler."
-                />
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: -8 }}>
-                  <CanvasSummaryPill
-                    vm={nectarCanvas.canvas}
-                    ariaLabel={`Current market canvas summary for ${symbol}`}
-                  />
-                </div>
-                <MarketCanvasPanel vm={nectarCanvas.canvas} />
-              </>
-            )}
-
-            {/* Coverage receipts — audit surface for every channel the
-                Nectar collector has any evidence of for this symbol.
-                Renders nothing when the collector has no channels yet. */}
-            {allChannelsForSymbol.length > 0 && (
-              <CoverageReceipts channels={allChannelsForSymbol} />
-            )}
+            </div>
+            <MarketCanvasPanel vm={nectarCanvas.canvas} />
           </>
+        )}
+
+        {/* Coverage receipts require collector evidence, but not necessarily a
+            selected trade slot. Keep their independent truth boundary. */}
+        {allChannelsForSymbol.length > 0 && (
+          <CoverageReceipts
+            channels={allChannelsForSymbol}
+            sectionNumber={hasNectarCanvasEvidence ? "4" : "3"}
+          />
         )}
       </div>
     </main>
@@ -465,11 +465,17 @@ function ClearSlotButton({ symbol, tapeSource }: { symbol: string; tapeSource: s
 
 /* ── Coverage receipts ──────────────────────────────────── */
 
-function CoverageReceipts({ channels }: { channels: readonly MarketChannelCoverage[] }) {
+function CoverageReceipts({
+  channels,
+  sectionNumber,
+}: {
+  channels: readonly MarketChannelCoverage[];
+  sectionNumber: string;
+}) {
   return (
     <>
       <SectionBanner
-        number="4"
+        number={sectionNumber}
         label="COVERAGE RECEIPTS"
         tagline="Recorded channel health for this symbol. Operational receipts only — no raw payloads retained."
       />

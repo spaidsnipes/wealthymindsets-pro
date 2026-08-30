@@ -109,4 +109,27 @@ describe("composeMarketCanvasVM enforcement — canon §Single-Writer / Many-Rea
     expect(content).toMatch(/useMarketCanvasVM|composeMarketCanvasVM/);
     expect(content).toMatch(/MarketCanvasPanel|CanvasSummaryPill/);
   });
+
+  it("does not hide canonical Canvas or channel evidence behind session trade collection", () => {
+    const p = resolve(SRC_ROOT, "src/app/nectar/[symbol]/page.tsx");
+    const content = readFileSync(p, "utf8");
+    const tradeBranch = content.indexOf("{matched.length === 0 ? (");
+    const canvasBranch = content.indexOf("{hasNectarCanvasEvidence && (");
+    const coverageBranch = content.indexOf("{allChannelsForSymbol.length > 0 && (");
+
+    expect(tradeBranch).toBeGreaterThan(-1);
+    expect(canvasBranch).toBeGreaterThan(tradeBranch);
+    expect(coverageBranch).toBeGreaterThan(canvasBranch);
+
+    // The session-trade ternary is already closed before either independent
+    // evidence surface begins. This prevents a valid quote/bar Canvas from
+    // being suppressed by an empty trade collector.
+    const tradeOnlyMarkup = content.slice(tradeBranch, canvasBranch);
+    expect(tradeOnlyMarkup).toContain(") : matched.map(");
+    expect(tradeOnlyMarkup.lastIndexOf("))}")).toBeGreaterThan(
+      tradeOnlyMarkup.indexOf(") : matched.map("),
+    );
+    expect(content).toContain('sectionNumber={hasNectarCanvasEvidence ? "4" : "3"}');
+    expect(content).toContain("number={sectionNumber}");
+  });
 });
