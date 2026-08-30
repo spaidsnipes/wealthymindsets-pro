@@ -26,6 +26,14 @@ import {
   coverageTone,
   relTime,
 } from "@/lib/nectarFormat";
+// Shift-Z Z1: Market Canvas — third canonical consumer of composeMarketCanvasVM
+// (after /command-deck and /journal detail). Closes STOP-THE-LINE integration
+// gap: canvas VM was computing for this symbol but had no visible consumer on
+// the per-symbol memory deep-dive.
+import { useMarketCanvasVM } from "@/lib/marketData/viewModels/useMarketCanvasVM";
+import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
+import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
+import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 
 /**
  * /nectar/[symbol] — per-symbol memory deep-dive.
@@ -68,6 +76,26 @@ export default function NectarSymbolDetailPage() {
     setActiveSymbol(symbol);
     router.push("/charts");
   }, [router, setActiveSymbol, symbol]);
+
+  // Shift-Z Z1: Market Canvas VM — third canonical consumer of the shared
+  // composeMarketCanvasVM compiler. Identity is built from route symbol +
+  // default 15m timeframe (matches /command-deck + /journal detail). No
+  // owner binding — Canvas display is symbol-scoped, not owner-scoped.
+  // Silent-safe: returns an empty VM when store has no snapshot for this
+  // identity (canon §Silence Is A Feature — undefined ≠ unavailable).
+  const nectarCanvasIdentity = React.useMemo(() => {
+    if (!symbol) return null;
+    try {
+      return canonicalMarketStateIdentity({ symbol, timeframe: "15" });
+    } catch {
+      // Unknown symbol shape (option OCC, non-canonical futures) — no-op.
+      return null;
+    }
+  }, [symbol]);
+  const nectarCanvas = useMarketCanvasVM({
+    identity: nectarCanvasIdentity,
+    ownerId: null,
+  });
 
   // Try to find any slot for this symbol regardless of tape source.
   // Prefer the slot with the highest trade count.
@@ -121,6 +149,28 @@ export default function NectarSymbolDetailPage() {
                 onOpen={openOnChart}
               />
             ))}
+
+            {/* Shift-Z Z1: Market Canvas — current market reality for this
+                symbol per canonicalMarketState. Silent-safe: renders only when
+                the canvas has an actual snapshot / blockers / clearances. */}
+            {(nectarCanvas.canvas.hasSnapshot ||
+              nectarCanvas.canvas.blockers.length > 0 ||
+              nectarCanvas.canvas.clearances.length > 0) && (
+              <>
+                <SectionBanner
+                  number="3"
+                  label={`MARKET CANVAS · ${symbol} NOW`}
+                  tagline="Current 15m reality — MISSING / RESOLVED / WHY NOT / CLEARED / WOULD INVALIDATE — from the shared compiler."
+                />
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: -8 }}>
+                  <CanvasSummaryPill
+                    vm={nectarCanvas.canvas}
+                    ariaLabel={`Current market canvas summary for ${symbol}`}
+                  />
+                </div>
+                <MarketCanvasPanel vm={nectarCanvas.canvas} />
+              </>
+            )}
 
             {/* Coverage receipts — audit surface for every channel the
                 Nectar collector has any evidence of for this symbol.
@@ -419,7 +469,7 @@ function CoverageReceipts({ channels }: { channels: readonly MarketChannelCovera
   return (
     <>
       <SectionBanner
-        number="3"
+        number="4"
         label="COVERAGE RECEIPTS"
         tagline="Recorded channel health for this symbol. Operational receipts only — no raw payloads retained."
       />
