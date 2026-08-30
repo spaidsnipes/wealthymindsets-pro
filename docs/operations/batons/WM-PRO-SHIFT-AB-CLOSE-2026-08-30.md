@@ -34,11 +34,21 @@ The code below is genuine, verified, and collision-clean. Only the *framing*
    +23 tests.
 2. `40a8607` — **AB2**: `composeExitRamp` — Completion Receipt compiler;
    copies SAFE-TO-LEAVE verbatim, never fabricates permission. +12 tests.
-3. `0ae7dbf` — **AB3**: `ExitRampCard` on **/command-deck** — runtime proof;
-   silent while ACTIVE (§Silence Is A Feature). Presentation-only, additive.
+3. `0ae7dbf` — **AB3**: `ExitRampCard` wired on **/command-deck**; silent while
+   ACTIVE (§Silence Is A Feature). Presentation-only, additive. HONESTY NOTE:
+   NOT visually verified at runtime — /command-deck is auth-gated and redirects
+   to /login in the unauthenticated preview, so the rendered card was never
+   seen. The wiring is code-verified (tsc + suite), not runtime-proven.
 4. `59a43bb` — **AB4**: `deriveCompletionSignals` — pure adapter (deck state →
    signals); a sealed receipt can never fabricate completion while a position
    is open or a close is unreviewed. +20 tests.
+5. `60c8cc2` — **AB6**: `/login` a11y + autofill fix — real §22 product-walk
+   defect. Email/password/confirm/OTP inputs had visual-only labels (no
+   htmlFor/id — WCAG 1.3.1/4.1.2 fail) and no autoComplete/name. Added label
+   associations, name attrs, and autoComplete tokens. Verified in LIVE DOM
+   (email autocomplete=email labelled=true; password autocomplete=current-
+   password labelled=true). This IS runtime-verified reality, on a public
+   (non-auth-gated) surface.
 
 ## Evidence (as of correction)
 
