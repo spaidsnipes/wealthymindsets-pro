@@ -1,0 +1,61 @@
+/* Paper simulation: phone layouts prioritize one safe action column. The
+   ticket, portfolio, and delayed market list stack instead of shrinking
+   trading controls below the platform 44px interaction floor. */
+@media (max-width: 767px) {
+  .page {
+    height: auto !important;
+    min-height: 100%;
+    overflow-y: auto !important;
+  }
+
+  .header {
+    height: auto !important;
+    min-height: 44px;
+    flex-wrap: wrap;
+    padding-block: 0.5rem;
+  }
+
+  .accountStats {
+    order: 3;
+    width: 100%;
+    margin-left: 0 !important;
+    justify-content: space-between;
+    overflow-x: auto;
+  }
+
+  .body {
+    flex: none !important;
+    min-height: auto !important;
+    flex-direction: column;
+    overflow: visible !important;
+  }
+
+  .ticket,
+  .center,
+  .market {
+    width: 100% !important;
+    flex: none !important;
+    overflow: visible !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+  }
+
+  .center,
+  .market {
+    border-top: 1px solid hsl(var(--border));
+  }
+
+  .center {
+    min-height: 34rem;
+  }
+
+  .market {
+    max-height: 28rem;
+  }
+
+  .ticket input:not([type="hidden"]),
+  .ticket select,
+  .ticket button {
+    min-height: 44px;
+  }
+}

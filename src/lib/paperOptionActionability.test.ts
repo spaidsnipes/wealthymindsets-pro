@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const paperPage = readFileSync(resolve(__dirname, "../app/paper/page.tsx"), "utf8");
-const globalStyles = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
+const paperStyles = readFileSync(resolve(__dirname, "../app/paper/paper.module.css"), "utf8");
 
 describe("Paper options actionability enforcement", () => {
   it("renders an explicit fail-closed state instead of a synthetic chain", () => {
@@ -44,12 +44,13 @@ describe("Paper options actionability enforcement", () => {
   });
 
   it("keeps the same truth controls usable in the single-column phone layout", () => {
-    for (const className of ["wm-paper-page", "wm-paper-header", "wm-paper-account-stats", "wm-paper-body", "wm-paper-ticket", "wm-paper-center", "wm-paper-market"]) {
-      expect(paperPage).toContain(className);
-      expect(globalStyles).toContain(`.${className}`);
+    expect(paperPage).toContain('import styles from "./paper.module.css"');
+    for (const className of ["page", "header", "accountStats", "body", "ticket", "center", "market"]) {
+      expect(paperPage).toContain(`styles.${className}`);
+      expect(paperStyles).toContain(`.${className}`);
     }
-    expect(globalStyles).toContain("@media (max-width: 767px)");
-    expect(globalStyles).toContain("flex-direction: column");
-    expect(globalStyles).toContain("min-height: 44px");
+    expect(paperStyles).toContain("@media (max-width: 767px)");
+    expect(paperStyles).toContain("flex-direction: column");
+    expect(paperStyles).toContain("min-height: 44px");
   });
 });

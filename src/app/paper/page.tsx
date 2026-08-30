@@ -33,6 +33,7 @@ import {
 } from "@/lib/paperTrade";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
+import styles from "./paper.module.css";
 
 /* ── Symbol universe with live-ish prices ────────────────── */
 const UNIVERSE: Record<string,{ name:string; base:number; tick:number }> = {
@@ -1165,10 +1166,10 @@ export default function PaperTradingPage() {
 
   return (
     <div style={{ display:"flex",flexDirection:"column",width:"100%",height:"100%",overflow:"hidden" }}
-         className="wm-paper-page bg-wm-black">
+         className={clsx(styles.page, "bg-wm-black")}>
 
       {/* Header */}
-      <div className="wm-paper-header flex items-center gap-3 px-4 border-b border-wm-border bg-wm-dark shrink-0" style={{ height:44 }}>
+      <div className={clsx(styles.header, "flex items-center gap-3 px-4 border-b border-wm-border bg-wm-dark shrink-0")} style={{ height:44 }}>
         <Activity size={15} className="text-wm-green shrink-0"/>
         <h1 className="text-sm font-bold text-wm-text">Paper Trading</h1>
         <div className="flex items-center gap-1.5 ml-1">
@@ -1193,7 +1194,7 @@ export default function PaperTradingPage() {
         </div>
 
         {/* Account stats in header */}
-        <div className="wm-paper-account-stats flex items-center gap-4 ml-6">
+        <div className={clsx(styles.accountStats, "flex items-center gap-4 ml-6")}>
           {[
             { l:hasUnmarkedOptions?"Equity":"Equity", v:hasUnmarkedOptions?"UNKNOWN":`$${totalEquity.toLocaleString("en-US",{maximumFractionDigits:0})}`, c:hasUnmarkedOptions?"text-wm-red":"text-wm-text" },
             { l:"Cash",     v:`$${cash.toLocaleString("en-US",{maximumFractionDigits:0})}`,          c:"text-wm-text-muted" },
@@ -1243,10 +1244,10 @@ export default function PaperTradingPage() {
       </section>
 
       {/* Body */}
-      <div className="wm-paper-body" style={{ flex:1,display:"flex",overflow:"hidden",minHeight:0 }}>
+      <div className={styles.body} style={{ flex:1,display:"flex",overflow:"hidden",minHeight:0 }}>
 
         {/* Left: Order ticket */}
-        <div className="wm-paper-ticket w-64 border-r border-wm-border shrink-0 overflow-y-auto p-3" style={{ scrollbarWidth:"thin" }}>
+        <div className={clsx(styles.ticket, "w-64 border-r border-wm-border shrink-0 overflow-y-auto p-3")} style={{ scrollbarWidth:"thin" }}>
           <OrderTicket key={resetKey} prices={prices} quoteReadiness={quoteReadiness} onSubmit={handleOrder} initialSymbol={UNIVERSE[activeSymbol] ? activeSymbol : undefined}/>
 
           <AIBot
@@ -1310,7 +1311,7 @@ export default function PaperTradingPage() {
         </div>
 
         {/* Center: Equity curve + positions/orders */}
-        <div className="wm-paper-center flex-1 flex flex-col overflow-hidden min-w-0">
+        <div className={clsx(styles.center, "flex-1 flex flex-col overflow-hidden min-w-0")}>
 
           {/* Equity curve card */}
           <div className="border-b border-wm-border px-4 py-3 shrink-0">
@@ -1548,7 +1549,7 @@ export default function PaperTradingPage() {
             Activity dot + "Live" copy claimed live-tape truthfulness
             these numbers do not have. Truth label unified with the rest
             of the shell: amber dot + "MARKET PRICES" + DELAYED chip. */}
-        <div className="wm-paper-market w-48 border-l border-wm-border flex flex-col overflow-hidden shrink-0">
+        <div className={clsx(styles.market, "w-48 border-l border-wm-border flex flex-col overflow-hidden shrink-0")}>
           <div
             className="px-3 py-2 border-b border-wm-border text-[9px] font-black text-wm-text-dim uppercase tracking-wider flex items-center gap-1.5"
             title="Prices are consolidated quotes from the same delayed provider the chart chrome flags as DELAYED — not a real-time tape."
