@@ -2,7 +2,7 @@
 
 /**
  * Education — Lesson library with per-lesson note-taking + 10-question adaptive MCQ quizzes
- * Notes auto-save to localStorage. Quizzes shuffle questions on every retake.
+ * Notes save browser-locally with exact readback. Quizzes shuffle questions on every retake.
  */
 
 import React, { useState, useRef, useEffect } from "react";
@@ -20,6 +20,7 @@ import {
   canRecordAcademyLessonCompletion,
   summarizeAcademyProgress,
 } from "@/lib/educationProgressTruth";
+import { persistAcademyNote, readAcademyNote } from "@/lib/educationNotesStorage";
 
 /* ── Types ───────────────────────────────────────────────── */
 interface Lesson {
@@ -190,16 +191,27 @@ const LEVEL_COLOR: Record<Module["level"],string> = {
 /* ── Notes component ─────────────────────────────────────── */
 function LessonNotes({ lessonId }: { lessonId: string }) {
   const KEY = `wm-notes-${lessonId}`;
-  const [text,    setText]    = useState(() => (typeof window !== "undefined" ? localStorage.getItem(KEY) ?? "" : ""));
+  const [text,    setText]    = useState(() => (typeof window !== "undefined" ? readAcademyNote(localStorage, KEY) : ""));
   const [editing, setEditing] = useState(false);
-  const [saved,   setSaved]   = useState(true);
+  const [persistence, setPersistence] = useState<"IDLE" | "SAVING" | "PERSISTED" | "UNAVAILABLE">("IDLE");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const onChange = (v: string) => {
-    setText(v); setSaved(false);
+  const persist = (value: string) => {
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => { localStorage.setItem(KEY, v); setSaved(true); }, 700);
+    timer.current = null;
+    const result = persistAcademyNote(localStorage, KEY, value);
+    setPersistence(result.status);
   };
+
+  const onChange = (v: string) => {
+    setText(v); setPersistence("SAVING");
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => persist(v), 700);
+  };
+
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
 
   if (!editing) {
     return (
@@ -218,11 +230,16 @@ function LessonNotes({ lessonId }: { lessonId: string }) {
           <Pencil size={9}/> Notes
         </span>
         <div className="flex items-center gap-2">
-          <span className="text-[9px] text-wm-text-dim">{saved ? "✓ Saved" : "Saving…"}</span>
+          <span className="text-[9px] text-wm-text-dim" role="status" aria-live="polite">
+            {persistence === "SAVING" ? "Saving in this browser…"
+              : persistence === "PERSISTED" ? "✓ Saved in this browser"
+              : persistence === "UNAVAILABLE" ? "Not saved — browser storage unavailable"
+              : "Browser-only note"}
+          </span>
           <button onClick={() => setEditing(false)} className="inline-flex min-h-11 items-center px-2 text-[9px] text-wm-text-dim hover:text-wm-text">Close notes</button>
         </div>
       </div>
-      <textarea value={text} onChange={e => onChange(e.target.value)} rows={4} autoFocus
+      <textarea value={text} onChange={e => onChange(e.target.value)} onBlur={() => persist(text)} rows={4} autoFocus
         placeholder="Key takeaways, setups to remember, questions…"
         className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-xs text-wm-text outline-none focus:border-wm-blue/50 resize-none placeholder-wm-text-dim leading-relaxed"/>
     </div>
@@ -756,7 +773,7 @@ export default function EducationPage() {
               </div>
               <div className="text-center">
                 <div className="font-semibold text-sm mb-1">Select a lesson to begin</div>
-                <div className="text-xs">Notes auto-save · 10-question quiz per lesson · Retake with different questions</div>
+                <div className="text-xs">Browser-local notes confirm after readback · 10-question quiz per lesson · Retake with different questions</div>
               </div>
               {/* Progress ring */}
               <div className="relative w-20 h-20">
