@@ -446,12 +446,12 @@ function LoginPage() {
                 )}
 
                 {/* Submit */}
-                <button type="submit" disabled={submitting}
+                <button type="submit" disabled={submitting} aria-busy={submitting}
                   className="w-full py-3.5 rounded-xl font-black text-[14px] transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60 mt-2"
                   style={{ background: "linear-gradient(135deg, #00D4AA, #00A896)", color: "#000" }}>
                   {submitting
                     ? <span className="flex items-center justify-center gap-2">
-                        <span className="w-4 h-4 rounded-full border-2 border-black/40 border-t-black animate-spin" />
+                        <span aria-hidden="true" className="w-4 h-4 rounded-full border-2 border-black/40 border-t-black animate-spin" />
                         {mode === "signup" ? "Creating account…" : mode === "forgot" ? "Sending reset link…" : "Signing in…"}
                       </span>
                     : modeLabel + " →"
