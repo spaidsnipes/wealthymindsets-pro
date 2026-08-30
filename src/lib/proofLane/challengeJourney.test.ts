@@ -22,6 +22,15 @@ describe("Academy Challenge journey", () => {
     expect(CHALLENGE_JOURNEY.some((stage) => /broker|trade/i.test(stage.href))).toBe(false);
   });
 
+  it("makes the Plan step actionable instead of linking to the page top", () => {
+    const plan = CHALLENGE_JOURNEY.find((stage) => stage.id === "plan");
+    expect(plan).toMatchObject({
+      href: "/proof-lane#compass",
+      action: "Set a scenario",
+      truth: "THEORETICAL_WITH_LOCAL_MEASURED_OVERLAY",
+    });
+  });
+
   it("does not duplicate destinations or truth ownership", () => {
     expect(new Set(CHALLENGE_JOURNEY.map((stage) => stage.href)).size).toBe(
       CHALLENGE_JOURNEY.length,

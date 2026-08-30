@@ -16,4 +16,11 @@ describe("Proof Lane surface truth", () => {
     expect(page).toContain("Journal entries are not brokerage-certified live-execution receipts");
     expect(page).not.toContain("MEASURED LIVE");
   });
+
+  it("shows an explicit unavailable state instead of fabricating an empty Journal", () => {
+    expect(page).toContain('journalEdge.status === "UNAVAILABLE"');
+    expect(page).toContain("Journal summary unavailable");
+    expect(page).toMatch(/No measured\s+result is shown/);
+    expect(page).not.toContain("setEdge(selectSessionEdge([]))");
+  });
 });

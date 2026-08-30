@@ -28,12 +28,13 @@ import {
   SESSIONS_PER_MONTH,
 } from "@/lib/proofLane/proofLanePace";
 import { DAY_MODEL_LABELS } from "@/lib/proofLane/proofLaneR";
-import { selectSessionEdge } from "@/lib/proofLane/selectSessionEdge";
-import { journalRecordsToEdgeEntries } from "@/lib/proofLane/journalEdgeAdapter";
 import {
   JOURNAL_UPDATED_EVENT,
-  readJournalStorage,
 } from "@/lib/traderMemory/adapters/journalStorage";
+import {
+  readProofLaneJournalEdge,
+  type ProofLaneJournalEdgeRead,
+} from "@/lib/proofLane/readJournalEdge";
 import {
   CHALLENGE_JOURNEY,
   CHALLENGE_EXECUTION_BOUNDARY,
@@ -49,16 +50,14 @@ import {
  * reflects instantly on /proof-lane.
  */
 function useJournalEdge() {
-  const [edge, setEdge] = useState<ReturnType<typeof selectSessionEdge> | null>(null);
+  const [readState, setReadState] = useState<ProofLaneJournalEdgeRead | { status: "LOADING" }>({ status: "LOADING" });
   useEffect(() => {
     const compute = () => {
       try {
-        const read = readJournalStorage(localStorage);
-        const entries = read.status === "RESOLVED_CANONICAL" || read.status === "RESOLVED_LEGACY"
-          ? journalRecordsToEdgeEntries(read.records)
-          : [];
-        setEdge(selectSessionEdge(entries));
-      } catch { setEdge(selectSessionEdge([])); }
+        setReadState(readProofLaneJournalEdge(localStorage));
+      } catch {
+        setReadState({ status: "UNAVAILABLE", reason: "Browser Journal storage could not be read." });
+      }
     };
     compute();
     const on = () => compute();
@@ -69,7 +68,7 @@ function useJournalEdge() {
       window.removeEventListener("storage", on);
     };
   }, []);
-  return edge;
+  return readState;
 }
 
 const START = 100;
@@ -88,7 +87,8 @@ export default function ProofLanePage() {
   const [sessionIndex, setSessionIndex] = useState(0);
   const [actualBalance, setActualBalance] = useState(START);
   const [selectedHorizon, setSelectedHorizon] = useState<2 | 3 | 4 | 6 | 9 | 12>(6);
-  const measured = useJournalEdge();
+  const journalEdge = useJournalEdge();
+  const measured = journalEdge.status === "RESOLVED" ? journalEdge.edge : null;
 
   const status = paceStatus(selectedHorizon, sessionIndex, actualBalance, START, TARGET);
 
@@ -316,6 +316,21 @@ export default function ProofLanePage() {
         {/* Browser-local Journal summary. R-tagged records can support
             measured process math, but without brokerage provenance they
             cannot be promoted into a live-execution claim. */}
+        {journalEdge.status === "UNAVAILABLE" && (
+          <section
+            role="status"
+            aria-live="polite"
+            className="rounded-xl border border-rose-800/50 bg-rose-950/10 p-5"
+          >
+            <h2 className="text-sm uppercase tracking-widest text-rose-300">
+              Journal summary unavailable
+            </h2>
+            <p className="mt-2 text-sm text-neutral-300">
+              Saved browser Journal data could not be read safely. No measured
+              result is shown; your Journal has not been cleared or replaced.
+            </p>
+          </section>
+        )}
         {measured && measured.rTaggedEntries > 0 && (
           <section aria-labelledby="measured-journal" className="rounded-xl border border-emerald-800/50 bg-emerald-950/10 p-5">
             <div className="flex items-center justify-between mb-3">

@@ -16,7 +16,7 @@ export interface ChallengeJourneyStage {
   readonly step: number;
   readonly title: string;
   readonly description: string;
-  readonly href: "/education" | "/proof-lane" | "/paper" | "/journal";
+  readonly href: "/education" | "/proof-lane#compass" | "/paper" | "/journal";
   readonly action: string;
   readonly truth: ChallengeJourneyTruth;
 }
@@ -36,8 +36,8 @@ export const CHALLENGE_JOURNEY: readonly ChallengeJourneyStage[] = [
     step: 2,
     title: "Choose the lane",
     description: "Compare the $100 pace mountain without treating it as a promise or permission to trade.",
-    href: "/proof-lane",
-    action: "Open Proof Lane",
+    href: "/proof-lane#compass",
+    action: "Set a scenario",
     truth: "THEORETICAL_WITH_LOCAL_MEASURED_OVERLAY",
   },
   {
