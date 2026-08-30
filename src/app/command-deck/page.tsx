@@ -59,6 +59,7 @@ import { selectDeckEmphasis, surfaceOrder } from "@/lib/experience/selectDeckEmp
 import { inferJobMode } from "@/lib/experience/inferJobMode";
 import { selectJobSuggestion } from "@/lib/experience/selectJobSuggestion";
 import { selectCompletionState } from "@/lib/experience/selectCompletionState";
+import { deriveCompletionSignals } from "@/lib/experience/deriveCompletionSignals";
 import { composeExitRamp } from "@/lib/experience/composeExitRamp";
 import ExitRampCard from "@/components/experience/ExitRampCard";
 import { useLearningGenomeBundle } from "@/lib/learningGenome/useLearningGenomeBundle";
@@ -323,32 +324,20 @@ function CommandDeckInner() {
   // SAFE-TO-LEAVE verdict — this surface only reflects it (never fabricates
   // permission). Additive + presentation-only; it never changes market truth.
   const exitRamp = React.useMemo(() => {
-    const hasOpenPosition = decisionRecords.some(
-      (r) => (r.plan.action === "ENTER_LONG" || r.plan.action === "ENTER_SHORT") && !r.outcome,
-    );
-    const hasUnreviewedClose = decisionRecords.some((r) => !!r.outcome && !r.review);
-    const statePreserved = decisionRecords.length > 0 || passport.resolvedCount > 0;
-    const returnCondition =
-      experienceContext.mode === "WAIT" && oneStory.decision.value === "WAIT"
-        ? "the market grants permission (your thesis triggers)"
-        : null;
-    const assessment = selectCompletionState({
+    const signals = deriveCompletionSignals({
       mode: experienceContext.mode,
-      hasOpenPosition,
-      hasUnreviewedClose,
-      hasActiveWork: false,
-      jobComplete: !decisionReceipt.empty && !hasOpenPosition && !hasUnreviewedClose,
-      statePreserved,
-      blockedReason: null,
-      returnCondition,
-      lowValueRepetition: false,
+      decisionRecords,
+      resolvedObjectCount: passport.resolvedCount,
+      receiptEmpty: decisionReceipt.empty,
+      decision: oneStory.decision.value,
     });
+    const assessment = selectCompletionState(signals);
     const done: string[] = [];
     if (!decisionReceipt.empty) done.push("Decision receipt sealed");
     if (passport.resolvedCount > 0) done.push(`${passport.resolvedCount} market object(s) resolved`);
     const saved: string[] = [];
     if (decisionRecords.length > 0) saved.push(`${decisionRecords.length} decision record(s) preserved`);
-    return composeExitRamp({ assessment, done, saved, returnCondition });
+    return composeExitRamp({ assessment, done, saved, returnCondition: signals.returnCondition });
   }, [decisionRecords, decisionReceipt.empty, passport.resolvedCount, experienceContext.mode, oneStory.decision.value]);
 
   const openWhy = (t: WhyTarget) => {
