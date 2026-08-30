@@ -100,4 +100,13 @@ describe("composeMarketCanvasVM enforcement — canon §Single-Writer / Many-Rea
     // And it must render one of the canonical canvas surfaces.
     expect(content).toMatch(/MarketCanvasPanel|CanvasSummaryPill/);
   });
+
+  it("third Phase 3 consumer /nectar/[symbol] routes through useMarketCanvasVM (Z1 breadcrumb)", () => {
+    // Shift-Z Z1: closes STOP-THE-LINE integration gap — canvas VM had
+    // no visible consumer on the per-symbol memory deep-dive.
+    const p = resolve(SRC_ROOT, "src/app/nectar/[symbol]/page.tsx");
+    const content = readFileSync(p, "utf8");
+    expect(content).toMatch(/useMarketCanvasVM|composeMarketCanvasVM/);
+    expect(content).toMatch(/MarketCanvasPanel|CanvasSummaryPill/);
+  });
 });
