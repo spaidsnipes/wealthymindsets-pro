@@ -607,13 +607,13 @@ export default function EducationPage() {
         </div>
         <div className="hidden lg:flex ml-auto items-center gap-1.5 text-[10px] text-wm-text-muted">
           <Star size={11} className="text-wm-gold"/>
-          {mods.filter(m=>m.completed).length}/{mods.length} modules complete
+          {contentAvailable ? mods.filter(m => m.completed).length : 0}/{mods.length} modules verified
         </div>
         <Link
           href="/proof-lane"
           className="hidden sm:inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 text-[10px] font-semibold text-amber-200 transition-colors hover:border-amber-400/70 hover:bg-amber-950/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
           aria-label="Explore the $100 Academy Challenge preview"
-      >
+        >
           <Trophy size={12} aria-hidden="true" />
           $100 Challenge Preview
         </Link>
