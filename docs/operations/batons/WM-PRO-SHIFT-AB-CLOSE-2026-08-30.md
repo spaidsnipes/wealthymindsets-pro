@@ -16,6 +16,15 @@ below. The shift is **CONTINUING**, not closed.
   SHIFT and must never be rounded up or framed as a completed shift.
 - SHIFT_END: **NOT YET** — to be recorded from the actual clock when the real
   work window closes. No SHIFT_END is claimed here.
+- CONTINUATION (post-correction, live clock):
+  - AB6 `60c8cc2` @ ~16:44 — login label/autofill fix (live-DOM verified).
+  - AB7 `23a01e8` @ ~16:45 — AB3 ExitRampCard EARNED runtime proof on
+    authenticated /command-deck (headline/chip/recap seen, 0 console errors).
+  - AB8 `9f2193a` @ ~16:45 — login error/success live regions (WCAG 4.1.3);
+    code+tsc verified (auth redirect blocks live /login render this session).
+  - AB9 `3c7fe6d` @ ~16:46 — aria-busy + aria-hidden on login submit control.
+  - CLOCK NOW: `2026-08-30T16:46:31-05:00` → ~31 active minutes since 16:15.
+    STILL A PARTIAL SHIFT. Not 3 hours. Momentum law: work continues.
 
 ## §21 BREAKTHROUGH MOMENTUM LAW
 
