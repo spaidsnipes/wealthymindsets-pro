@@ -25,6 +25,7 @@ import {
   paceForHorizon,
   theoreticalBalanceAtSession,
   paceStatus,
+  normalizeSessionIndex,
   SESSIONS_PER_MONTH,
 } from "@/lib/proofLane/proofLanePace";
 import { DAY_MODEL_LABELS } from "@/lib/proofLane/proofLaneR";
@@ -208,7 +209,11 @@ export default function ProofLanePage() {
               <span className="block text-[10px] uppercase tracking-widest text-neutral-500 mb-1">Horizon</span>
               <select
                 value={selectedHorizon}
-                onChange={(e) => setSelectedHorizon(Number(e.target.value) as 2 | 3 | 4 | 6 | 9 | 12)}
+                onChange={(e) => {
+                  const nextHorizon = Number(e.target.value) as 2 | 3 | 4 | 6 | 9 | 12;
+                  setSelectedHorizon(nextHorizon);
+                  setSessionIndex((current) => normalizeSessionIndex(current, nextHorizon));
+                }}
                 className="w-full rounded-md border border-neutral-800 bg-black/60 px-3 py-2 text-sm"
               >
                 {CANONICAL_HORIZONS.map((h) => (
@@ -226,8 +231,11 @@ export default function ProofLanePage() {
                 type="number"
                 min={0}
                 max={selectedHorizon * SESSIONS_PER_MONTH}
+                step={1}
                 value={sessionIndex}
-                onChange={(e) => setSessionIndex(Math.max(0, Number(e.target.value)))}
+                onChange={(e) => setSessionIndex(
+                  normalizeSessionIndex(Number(e.target.value), selectedHorizon),
+                )}
                 className="w-full rounded-md border border-neutral-800 bg-black/60 px-3 py-2 text-sm font-mono"
               />
             </label>

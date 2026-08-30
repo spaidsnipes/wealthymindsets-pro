@@ -8,6 +8,7 @@ import {
   PACE_TRUTH_LABEL,
   WEEKS_PER_MONTH,
   SESSIONS_PER_MONTH,
+  normalizeSessionIndex,
 } from "./proofLanePace";
 
 /**
@@ -81,6 +82,16 @@ describe("proofLanePace — mathematical guarantees", () => {
   });
   it("caps past-horizon session at target", () => {
     expect(theoreticalBalanceAtSession(3, 999)).toBe(1_000_000);
+  });
+  it("rejects fractional and non-finite session chronology", () => {
+    expect(() => theoreticalBalanceAtSession(3, 1.5)).toThrow(/whole session/);
+    expect(() => theoreticalBalanceAtSession(3, Number.NaN)).toThrow(/whole session/);
+  });
+  it("normalizes UI chronology into the selected lane", () => {
+    expect(normalizeSessionIndex(-1, 3)).toBe(0);
+    expect(normalizeSessionIndex(1.9, 3)).toBe(1);
+    expect(normalizeSessionIndex(999, 3)).toBe(63);
+    expect(normalizeSessionIndex(Number.NaN, 3)).toBe(0);
   });
 });
 

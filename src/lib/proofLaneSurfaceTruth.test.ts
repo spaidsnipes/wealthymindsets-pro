@@ -23,4 +23,10 @@ describe("Proof Lane surface truth", () => {
     expect(page).toMatch(/No measured\s+result is shown/);
     expect(page).not.toContain("setEdge(selectSessionEdge([]))");
   });
+
+  it("keeps the manual session inside the selected whole-session lane", () => {
+    expect(page).toContain("normalizeSessionIndex(current, nextHorizon)");
+    expect(page).toContain("normalizeSessionIndex(Number(e.target.value), selectedHorizon)");
+    expect(page).toContain("step={1}");
+  });
 });

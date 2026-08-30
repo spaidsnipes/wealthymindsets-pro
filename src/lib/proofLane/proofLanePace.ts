@@ -74,6 +74,18 @@ export function paceForHorizon(
 /** All four canonical challenge lanes plus the two supplementary sprint lanes. */
 export const CANONICAL_HORIZONS: readonly ChallengeHorizonMonths[] = [2, 3, 4, 6, 9, 12] as const;
 
+/** Keep a UI session value on a real, whole session inside its lane. */
+export function normalizeSessionIndex(
+  value: number,
+  horizonMonths: ChallengeHorizonMonths,
+): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(
+    horizonMonths * SESSIONS_PER_MONTH,
+    Math.max(0, Math.trunc(value)),
+  );
+}
+
 /**
  * Compute the theoretical balance on session N of a horizon.
  * Session 0 = starting balance. Session `sessions` = target.
@@ -84,7 +96,9 @@ export function theoreticalBalanceAtSession(
   start = 100,
   target = 1_000_000,
 ): number {
-  if (sessionIndex < 0) throw new Error("proofLanePace: sessionIndex must be ≥ 0");
+  if (!Number.isFinite(sessionIndex) || !Number.isInteger(sessionIndex) || sessionIndex < 0) {
+    throw new Error("proofLanePace: sessionIndex must be a non-negative whole session");
+  }
   const row = paceForHorizon(horizonMonths, start, target);
   if (sessionIndex > row.sessions) return target; // past horizon end
   return start * Math.pow(1 + row.sessionRate, sessionIndex);
