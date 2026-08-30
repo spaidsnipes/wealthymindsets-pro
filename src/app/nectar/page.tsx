@@ -22,6 +22,10 @@ import { WM } from "@/lib/design/wmTokens";
 import { fmtNum, formatMemoryAge, fidelityToTone } from "@/lib/nectarFormat";
 import { ContextRibbonContainer, ContextRibbonTile } from "@/components/command/CommandContextRibbon";
 
+const subscribeHydration = () => () => {};
+const getHydratedClientSnapshot = () => true;
+const getHydratedServerSnapshot = () => false;
+
 /**
  * /nectar — the WM Nectar Vault.
  *
@@ -50,9 +54,12 @@ export default function NectarVaultPage() {
   // hydration mismatch. Gate rendering on `mounted` so SSR and the
   // first client paint agree (both show the empty-state header
   // shell), then swap in real data after mount.
-  const [mounted, setMounted] = React.useState(false);
+  const mounted = React.useSyncExternalStore(
+    subscribeHydration,
+    getHydratedClientSnapshot,
+    getHydratedServerSnapshot,
+  );
   const [, setTick] = React.useState(0);
-  React.useEffect(() => { setMounted(true); }, []);
   React.useEffect(() => subscribeSessionSymbolStore(() => setTick(t => t + 1)), []);
   React.useEffect(() => subscribeToSessionNectar(() => setTick(t => t + 1)), []);
   React.useEffect(() => {
