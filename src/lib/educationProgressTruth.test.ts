@@ -18,4 +18,9 @@ describe("Academy progress truth", () => {
     expect(educationPage).toContain("$100 Academy Challenge Preview");
     expect(educationPage).toContain("No enrollment · browser-local progress");
   });
+
+  it("does not rewrite browser progress merely because the page mounted", () => {
+    expect(educationPage).not.toContain("localStorage.setItem(EDU_KEY");
+    expect(educationPage).toContain("persistAcademyProgress(localStorage, EDU_KEY");
+  });
 });

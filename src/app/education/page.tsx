@@ -21,6 +21,7 @@ import {
   summarizeAcademyProgress,
 } from "@/lib/educationProgressTruth";
 import { persistAcademyNote, readAcademyNote } from "@/lib/educationNotesStorage";
+import { persistAcademyProgress } from "@/lib/educationProgressStorage";
 
 /* ── Types ───────────────────────────────────────────────── */
 interface Lesson {
@@ -538,26 +539,29 @@ export default function EducationPage() {
   });
   const [expandedId,   setExpandedId]   = useState<number | null>(1);
   const [activeLesson, setActiveLesson] = useState<{ lesson: Lesson; color: string } | null>(null);
+  const [progressPersistence, setProgressPersistence] = useState<"IDLE" | "PERSISTED" | "UNAVAILABLE">("IDLE");
 
-  // Persist progress to localStorage whenever mods changes
-  useEffect(() => {
+  const serializeProgress = (nextMods: Module[]) => {
     const toSave: Record<number, { completed: boolean; lessons: Record<string, boolean> }> = {};
-    mods.forEach(m => {
+    nextMods.forEach(m => {
       toSave[m.id] = {
         completed: m.completed,
         lessons: Object.fromEntries(m.lessons.map(l => [l.id, l.completed])),
       };
     });
-    localStorage.setItem(EDU_KEY, JSON.stringify(toSave));
-  }, [mods]);
+    return toSave;
+  };
 
   // Mark lesson as complete (called after quiz passed)
   const markLessonComplete = (lessonId: string) => {
-    setMods(prev => prev.map(m => {
+    const next = mods.map(m => {
       const newLessons = m.lessons.map(l => l.id === lessonId ? { ...l, completed: true } : l);
       const allDone    = newLessons.every(l => l.completed);
       return { ...m, lessons: newLessons, completed: allDone };
-    }));
+    });
+    setMods(next);
+    const persistence = persistAcademyProgress(localStorage, EDU_KEY, serializeProgress(next));
+    setProgressPersistence(persistence.status);
   };
 
   const allLessons = mods.flatMap(m => m.lessons);
@@ -639,6 +643,23 @@ export default function EducationPage() {
       {priorPracticeMarks > 0 && (
         <div className="shrink-0 border-b border-amber-700/20 bg-amber-950/20 px-3 py-1.5 text-[10px] text-amber-100 sm:px-4" role="status">
           {priorPracticeMarks} prior browser practice {priorPracticeMarks === 1 ? "mark is" : "marks are"} retained. Lesson completion remains unverified until content is published.
+        </div>
+      )}
+
+      {progressPersistence !== "IDLE" && (
+        <div
+          className={clsx(
+            "shrink-0 border-b px-3 py-1.5 text-[10px] sm:px-4",
+            progressPersistence === "PERSISTED"
+              ? "border-emerald-700/20 bg-emerald-950/20 text-emerald-100"
+              : "border-rose-700/20 bg-rose-950/20 text-rose-100",
+          )}
+          role="status"
+          aria-live="polite"
+        >
+          {progressPersistence === "PERSISTED"
+            ? "Progress saved in this browser after verified readback."
+            : "Progress changed for this session but was not saved in browser storage."}
         </div>
       )}
 
