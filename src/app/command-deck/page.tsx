@@ -387,9 +387,9 @@ function CommandDeckInner() {
         </button>
         <div className="wm-cd-header-identity" style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           <WmWordmark size="compact" subtitle="COMMAND CENTER" />
-          <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800, whiteSpace: "nowrap" }}>
+          <h1 style={{ margin: 0, fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800, whiteSpace: "nowrap" }}>
             ◆ Command Deck
-          </div>
+          </h1>
         </div>
         {/* canon §Phase 3 Market Canvas — one-line summary in the
             sticky header. Renders nothing when the canvas is fully
