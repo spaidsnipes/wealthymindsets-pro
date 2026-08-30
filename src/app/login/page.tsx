@@ -334,11 +334,12 @@ function LoginPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Email */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#8B95A5] uppercase tracking-wider mb-1.5">Email</label>
+                  <label htmlFor="wm-login-email" className="block text-[11px] font-semibold text-[#8B95A5] uppercase tracking-wider mb-1.5">Email</label>
                   <div className="relative">
                     <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5A6575]" />
                     <input
-                      type="email" required
+                      id="wm-login-email" name="email"
+                      type="email" required autoComplete="email"
                       value={email} onChange={e => setEmail(e.target.value)}
                       placeholder="you@example.com"
                       className="w-full pl-10 pr-4 py-3 rounded-xl text-[13px] text-white placeholder-[#3A4250] outline-none transition-all"
@@ -353,7 +354,7 @@ function LoginPage() {
                 {mode !== "forgot" && (
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-[11px] font-semibold text-[#8B95A5] uppercase tracking-wider">Password</label>
+                      <label htmlFor="wm-login-password" className="block text-[11px] font-semibold text-[#8B95A5] uppercase tracking-wider">Password</label>
                       {mode === "login" && (
                         <button type="button" onClick={() => setMode("forgot")}
                           className="py-3.5 text-[11px] text-[#5A6575] hover:text-wm-green transition-colors">
@@ -364,7 +365,9 @@ function LoginPage() {
                     <div className="relative">
                       <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5A6575]" />
                       <input
+                        id="wm-login-password" name="password"
                         type={showPw ? "text" : "password"} required
+                        autoComplete={mode === "signup" ? "new-password" : "current-password"}
                         value={password} onChange={e => setPassword(e.target.value)}
                         placeholder={mode === "signup" ? "At least 8 characters" : "Your password"}
                         className="w-full pl-10 pr-10 py-3 rounded-xl text-[13px] text-white placeholder-[#3A4250] outline-none transition-all"
@@ -384,11 +387,12 @@ function LoginPage() {
                 {/* Confirm password */}
                 {mode === "signup" && (
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#8B95A5] uppercase tracking-wider mb-1.5">Confirm Password</label>
+                    <label htmlFor="wm-login-confirm" className="block text-[11px] font-semibold text-[#8B95A5] uppercase tracking-wider mb-1.5">Confirm Password</label>
                     <div className="relative">
                       <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5A6575]" />
                       <input
-                        type={showPw ? "text" : "password"} required
+                        id="wm-login-confirm" name="confirm-password"
+                        type={showPw ? "text" : "password"} required autoComplete="new-password"
                         value={confirm} onChange={e => setConfirm(e.target.value)}
                         placeholder="Repeat your password"
                         className="w-full pl-10 pr-4 py-3 rounded-xl text-[13px] text-white placeholder-[#3A4250] outline-none transition-all"
@@ -420,8 +424,9 @@ function LoginPage() {
 
                 {verificationEmail && (
                   <div className="space-y-2 rounded-xl p-3" style={{ background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.2)" }}>
-                    <label className="block text-[11px] font-semibold text-[#8B95A5] uppercase tracking-wider">Email confirmation code</label>
+                    <label htmlFor="wm-login-otp" className="block text-[11px] font-semibold text-[#8B95A5] uppercase tracking-wider">Email confirmation code</label>
                     <input
+                      id="wm-login-otp" name="one-time-code"
                       inputMode="numeric"
                       autoComplete="one-time-code"
                       value={verificationCode}
