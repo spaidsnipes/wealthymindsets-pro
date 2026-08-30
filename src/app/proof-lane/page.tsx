@@ -7,8 +7,8 @@
  * Founder canon: "ATH/WOW Overflow Options Studio — 3·6·9·12 Challenge
  * Engine — Invention Canon v0.2" §21 LAUNCH PROTOCOL.
  * The live $100 Proof Lane launches the week of 2026-08-24.
- * This surface is READ-ONLY math today — the MEASURED LIVE overlay
- * arrives in the next atom once the first real session lands.
+ * This surface is read-only pace math plus a browser-local Journal summary.
+ * Journal records do not prove live or brokerage execution provenance.
  *
  * Rejection guarantees rendered on-screen:
  *  - Every number carries THEORETICAL truth label (canon §13).
@@ -232,13 +232,14 @@ export default function ProofLanePage() {
               />
             </label>
             <label className="block">
-              <span className="block text-[10px] uppercase tracking-widest text-neutral-500 mb-1">Actual balance ($)</span>
+              <span className="block text-[10px] uppercase tracking-widest text-neutral-500 mb-1">Manual scenario balance ($)</span>
               <input
                 type="number"
                 min={0}
                 step="0.01"
                 value={actualBalance}
                 onChange={(e) => setActualBalance(Math.max(0, Number(e.target.value)))}
+                aria-describedby="scenario-balance-boundary"
                 className="w-full rounded-md border border-neutral-800 bg-black/60 px-3 py-2 text-sm font-mono"
               />
             </label>
@@ -252,7 +253,7 @@ export default function ProofLanePage() {
               </div>
             </div>
             <div className="rounded-lg border border-neutral-800 bg-black/40 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-widest text-neutral-500">Actual</div>
+              <div className="text-[10px] uppercase tracking-widest text-neutral-500">Manual Scenario</div>
               <div className="mt-1 font-mono text-lg text-neutral-100">{fmtUsd(status.actualBalance)}</div>
             </div>
             <div
@@ -290,6 +291,9 @@ export default function ProofLanePage() {
           <p className="mt-2 text-xs text-neutral-500">
             Behind pace changes the timeline, not the setup standard. Ahead of pace does not lower the setup standard. No-trade can still be the best decision.
           </p>
+          <p id="scenario-balance-boundary" className="mt-2 text-xs text-neutral-500">
+            Manual scenario input only · not connected to a brokerage account, Paper balance, Journal balance, or live execution.
+          </p>
         </section>
 
         <section aria-labelledby="models">
@@ -309,19 +313,17 @@ export default function ProofLanePage() {
           </p>
         </section>
 
-        {/* I-Bkt 8: MEASURED LIVE overlay. Reads the browser-local Journal
-            transport client-side and renders live Personal Edge over
-            R-tagged entries. Silent until the first real session is
-            recorded — no fabrication. Canon §21 verbatim: objective
-            is the first MEASURED LIVE dataset, not "$1M fast". */}
+        {/* Browser-local Journal summary. R-tagged records can support
+            measured process math, but without brokerage provenance they
+            cannot be promoted into a live-execution claim. */}
         {measured && measured.rTaggedEntries > 0 && (
-          <section aria-labelledby="measured-live" className="rounded-xl border border-emerald-800/50 bg-emerald-950/10 p-5">
+          <section aria-labelledby="measured-journal" className="rounded-xl border border-emerald-800/50 bg-emerald-950/10 p-5">
             <div className="flex items-center justify-between mb-3">
-              <h2 id="measured-live" className="text-sm uppercase tracking-widest text-emerald-400/90">
-                Measured Live — Personal Edge (7d window in /journal)
+              <h2 id="measured-journal" className="text-sm uppercase tracking-widest text-emerald-400/90">
+                Measured Journal — Personal Edge (browser-local 7d window)
               </h2>
               <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-950/40 px-2 py-0.5 text-[10px] font-mono uppercase tracking-widest text-emerald-300">
-                MEASURED LIVE
+                MEASURED JOURNAL
               </span>
             </div>
             <div className="grid sm:grid-cols-4 gap-3">
@@ -382,7 +384,7 @@ export default function ProofLanePage() {
               </div>
             </div>
             <p className="mt-3 text-xs text-neutral-500">
-              MEASURED LIVE reads only entries with Planned R defined pre-entry per canon §4. Entries without R are counted but excluded from expectancy — never fabricated. Capture % requires both realized R and max-favorable R per canon §7.
+              MEASURED JOURNAL reads only browser-local entries with Planned R defined pre-entry per canon §4. Entries without R are counted but excluded from expectancy — never fabricated. Capture % requires both realized R and max-favorable R per canon §7. Journal entries are not brokerage-certified live-execution receipts.
             </p>
           </section>
         )}
@@ -392,7 +394,7 @@ export default function ProofLanePage() {
             Launch Protocol — Week of 2026-08-24
           </h2>
           <p className="text-sm text-neutral-200">
-            The MEASURED LIVE overlay activates when the first real session is recorded. Objective is not "make $1M fast" — the objective is the first MEASURED LIVE dataset for the invention. Five sessions of faithful classification and execution, not five green days.
+            The measured overlay activates when the first R-tagged Journal record is available. Objective is not "make $1M fast" — it is a trustworthy process dataset. Live-execution status remains unknown without authoritative brokerage evidence. Five sessions of faithful classification and execution, not five green days.
           </p>
         </section>
       </main>
