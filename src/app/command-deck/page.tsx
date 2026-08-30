@@ -58,6 +58,9 @@ import { routeQuestion } from "@/lib/experience/questionRouter";
 import { selectDeckEmphasis, surfaceOrder } from "@/lib/experience/selectDeckEmphasis";
 import { inferJobMode } from "@/lib/experience/inferJobMode";
 import { selectJobSuggestion } from "@/lib/experience/selectJobSuggestion";
+import { selectCompletionState } from "@/lib/experience/selectCompletionState";
+import { composeExitRamp } from "@/lib/experience/composeExitRamp";
+import ExitRampCard from "@/components/experience/ExitRampCard";
 import { useLearningGenomeBundle } from "@/lib/learningGenome/useLearningGenomeBundle";
 import { LearningGenomeInspector } from "@/components/learningGenome/LearningGenomeInspector";
 
@@ -313,6 +316,40 @@ function CommandDeckInner() {
       }),
     [experienceContext.mode, oneStory.contradiction, decisionReceipt.empty],
   );
+
+  // Completion Intelligence (the "DONE" half of the experience grammar): from
+  // the SAME concrete decision state, answer "can I stop carrying this now?"
+  // and compile a calm Exit Ramp / Completion Receipt. The engine owns the
+  // SAFE-TO-LEAVE verdict — this surface only reflects it (never fabricates
+  // permission). Additive + presentation-only; it never changes market truth.
+  const exitRamp = React.useMemo(() => {
+    const hasOpenPosition = decisionRecords.some(
+      (r) => (r.plan.action === "ENTER_LONG" || r.plan.action === "ENTER_SHORT") && !r.outcome,
+    );
+    const hasUnreviewedClose = decisionRecords.some((r) => !!r.outcome && !r.review);
+    const statePreserved = decisionRecords.length > 0 || passport.resolvedCount > 0;
+    const returnCondition =
+      experienceContext.mode === "WAIT" && oneStory.decision.value === "WAIT"
+        ? "the market grants permission (your thesis triggers)"
+        : null;
+    const assessment = selectCompletionState({
+      mode: experienceContext.mode,
+      hasOpenPosition,
+      hasUnreviewedClose,
+      hasActiveWork: false,
+      jobComplete: !decisionReceipt.empty && !hasOpenPosition && !hasUnreviewedClose,
+      statePreserved,
+      blockedReason: null,
+      returnCondition,
+      lowValueRepetition: false,
+    });
+    const done: string[] = [];
+    if (!decisionReceipt.empty) done.push("Decision receipt sealed");
+    if (passport.resolvedCount > 0) done.push(`${passport.resolvedCount} market object(s) resolved`);
+    const saved: string[] = [];
+    if (decisionRecords.length > 0) saved.push(`${decisionRecords.length} decision record(s) preserved`);
+    return composeExitRamp({ assessment, done, saved, returnCondition });
+  }, [decisionRecords, decisionReceipt.empty, passport.resolvedCount, experienceContext.mode, oneStory.decision.value]);
 
   const openWhy = (t: WhyTarget) => {
     setWhyTarget(t);
@@ -671,6 +708,17 @@ function CommandDeckInner() {
                   selectors — never invents. */}
               <div style={{ order: surfaceOrder(deckEmphasis, "STORY") }}>
                 <OneStoryStrip vm={oneStory} />
+              </div>
+
+              {/* Exit Ramp / Completion Receipt — canon §Exit Ramp (2026-08-29
+                  Cognitive Sovereignty audit). The "DONE" half of the grammar:
+                  when a useful stopping point is reached it answers "can I stop
+                  carrying this now?" with an honest SAFE-TO-LEAVE verdict and a
+                  DONE/SAVED/OPEN/NEXT/RETURN receipt. Renders nothing while live
+                  work remains (§Silence Is A Feature). Reflects the engine — it
+                  never fabricates permission the assessment withheld. */}
+              <div style={{ order: surfaceOrder(deckEmphasis, "STORY") }}>
+                <ExitRampCard ramp={exitRamp} />
               </div>
 
               {/* WHY / WHY NOT (canon P6) — reverses the right-of-way verdict to
