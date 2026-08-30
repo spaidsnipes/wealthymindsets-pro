@@ -110,6 +110,16 @@ describe("composeMarketCanvasVM enforcement — canon §Single-Writer / Many-Rea
     expect(content).toMatch(/MarketCanvasPanel|CanvasSummaryPill/);
   });
 
+  it("fourth Phase 3 consumer /ai-bot routes through useMarketCanvasVM (SPAIDBOT breadcrumb)", () => {
+    // Shift-SPAIDBOT: closes an ORPHAN — the "Market Intelligence · Live
+    // market monitor" page has a real per-context symbol identity
+    // (activeSymbol) but the canvas VM had no visible consumer there.
+    const p = resolve(SRC_ROOT, "src/app/ai-bot/page.tsx");
+    const content = readFileSync(p, "utf8");
+    expect(content).toMatch(/useMarketCanvasVM|composeMarketCanvasVM/);
+    expect(content).toMatch(/MarketCanvasPanel|CanvasSummaryPill/);
+  });
+
   it("does not hide canonical Canvas or channel evidence behind session trade collection", () => {
     const p = resolve(SRC_ROOT, "src/app/nectar/[symbol]/page.tsx");
     const content = readFileSync(p, "utf8");

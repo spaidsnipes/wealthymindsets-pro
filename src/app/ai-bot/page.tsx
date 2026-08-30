@@ -6,6 +6,15 @@ import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { WM } from "@/lib/design/wmTokens";
+// Shift-SPAIDBOT: Market Canvas — fourth canonical consumer of composeMarketCanvasVM
+// (after /command-deck, /journal detail, and /nectar/[symbol]). Closes an ORPHAN:
+// this "Market Intelligence · Live market monitor" page has a real per-context
+// symbol identity (activeSymbol) but the canvas VM was computing for it with no
+// visible consumer. Same class of gap Shift-Z Z1 closed on /nectar/[symbol].
+import { useMarketCanvasVM } from "@/lib/marketData/viewModels/useMarketCanvasVM";
+import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
+import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
+import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 
 const SYMBOLS = ["SPY","QQQ","AAPL","NVDA","TSLA","MSFT","META","AMZN","BTC","ETH"];
 
@@ -16,6 +25,24 @@ export default function AIBotPage() {
   const price = market.ticker.price;
   const connected = market.connected && price > 0 && market.source !== "unavailable";
   const dp = price >= 100 ? 2 : price >= 1 ? 4 : 6;
+
+  // Shift-SPAIDBOT: Market Canvas VM — fourth canonical consumer of the shared
+  // composeMarketCanvasVM compiler. Identity is built from the active symbol +
+  // default 15m timeframe (matches /command-deck, /journal, /nectar/[symbol]).
+  // No owner binding — Canvas display here is symbol-scoped, not owner-scoped
+  // (this monitor has no auth context loaded). Silent-safe: returns an empty VM
+  // when the canonical store has no snapshot for this identity (canon §Silence
+  // Is A Feature — undefined ≠ unavailable).
+  const canvasIdentity = React.useMemo(() => {
+    if (!activeSymbol) return null;
+    try {
+      return canonicalMarketStateIdentity({ symbol: activeSymbol, timeframe: "15" });
+    } catch {
+      // Unknown symbol shape (option OCC, non-canonical futures) — no-op.
+      return null;
+    }
+  }, [activeSymbol]);
+  const marketCanvas = useMarketCanvasVM({ identity: canvasIdentity, ownerId: null });
 
   return (
     <div
@@ -131,6 +158,40 @@ export default function AIBotPage() {
               </button>
             ))}
           </div>
+
+          {/* Shift-SPAIDBOT: Market Canvas — current market reality for the
+              active symbol per canonicalMarketState. Silent-safe: renders only
+              when the canvas has an actual snapshot / blockers / clearances
+              (canon §Silence Is A Feature). Routed through the shared
+              composeMarketCanvasVM compiler via useMarketCanvasVM so this
+              monitor stays canonically consistent with the deck. */}
+          {(marketCanvas.canvas.hasSnapshot ||
+            marketCanvas.canvas.blockers.length > 0 ||
+            marketCanvas.canvas.clearances.length > 0) && (
+            <div className="mt-6">
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-wm-gold">
+                <Activity size={14} /> Market Canvas · {activeSymbol} now
+              </div>
+              <p
+                style={{
+                  fontFamily: "Georgia, 'Times New Roman', serif",
+                  fontSize: 10, fontStyle: "italic", color: WM.text.muted,
+                  margin: "4px 0 0",
+                }}
+              >
+                Current 15m reality — MISSING / RESOLVED / WHY NOT / CLEARED / WOULD INVALIDATE — from the shared compiler.
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+                <CanvasSummaryPill
+                  vm={marketCanvas.canvas}
+                  ariaLabel={`Current market canvas summary for ${activeSymbol}`}
+                />
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <MarketCanvasPanel vm={marketCanvas.canvas} />
+              </div>
+            </div>
+          )}
 
           <button
             onClick={() => router.push("/charts")}
