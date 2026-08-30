@@ -18,6 +18,7 @@ import { clsx } from "clsx";
 import {
   ACADEMY_LESSON_CONTENT_STATUS,
   canRecordAcademyLessonCompletion,
+  summarizeAcademyProgress,
 } from "@/lib/educationProgressTruth";
 
 /* ── Types ───────────────────────────────────────────────── */
@@ -542,9 +543,14 @@ export default function EducationPage() {
     }));
   };
 
-  const total     = mods.flatMap(m => m.lessons).length;
-  const completed = mods.flatMap(m => m.lessons).filter(l => l.completed).length;
-  const pct       = Math.round((completed / total) * 100);
+  const allLessons = mods.flatMap(m => m.lessons);
+  const progress = summarizeAcademyProgress({
+    markedCompleted: allLessons.filter(l => l.completed).length,
+    total: allLessons.length,
+    contentStatus: ACADEMY_LESSON_CONTENT_STATUS,
+  });
+  const { total, verifiedCompleted: completed, priorPracticeMarks, verifiedPercent: pct } = progress;
+  const contentAvailable = ACADEMY_LESSON_CONTENT_STATUS === "AVAILABLE";
 
   return (
     <div style={{ display:"flex",flexDirection:"column",width:"100%",height:"100%",overflow:"hidden" }}
@@ -552,7 +558,7 @@ export default function EducationPage() {
 
       {/* Header — WM atmosphere, aligned with the OS-wide vocabulary */}
       <div
-        className="flex items-center gap-3 px-4 shrink-0"
+        className="flex min-w-0 items-center gap-2 px-3 py-2 shrink-0 sm:gap-3 sm:px-4 sm:py-0"
         style={{
           minHeight: 44,
           borderBottom: "1px solid rgba(139,106,41,0.15)",
@@ -571,7 +577,7 @@ export default function EducationPage() {
         </span>
         <div style={{ width: 1, height: 16, background: "rgba(139,106,41,0.35)" }} aria-hidden="true" />
         <GraduationCap size={14} style={{ color: "#c9a55c", flexShrink: 0 }} />
-        <div>
+        <div className="min-w-0">
           <h1
             style={{
               fontFamily: "Georgia, 'Times New Roman', serif",
@@ -581,7 +587,7 @@ export default function EducationPage() {
           >
             Education
           </h1>
-          <p
+          <p className="hidden sm:block"
             style={{
               fontFamily: "Georgia, 'Times New Roman', serif",
               fontSize: 10, fontStyle: "italic",
@@ -592,14 +598,14 @@ export default function EducationPage() {
             Change the way you think and you&apos;ll change the way you live
           </p>
         </div>
-        <div className="flex items-center gap-2 ml-4">
-          <div className="w-28 h-1.5 rounded-full bg-wm-surface">
+        <div className="ml-auto flex min-w-0 items-center gap-2 sm:ml-4">
+          <div className="h-1.5 w-16 rounded-full bg-wm-surface sm:w-28">
             <div className="h-full rounded-full bg-gradient-to-r from-wm-green to-wm-blue transition-all"
               style={{ width:`${pct}%` }}/>
           </div>
-          <span className="text-[10px] text-wm-text-muted font-mono">{completed}/{total} · {pct}%</span>
+          <span className="whitespace-nowrap text-[10px] text-wm-text-muted font-mono">{completed}/{total} verified</span>
         </div>
-        <div className="ml-auto flex items-center gap-1.5 text-[10px] text-wm-text-muted">
+        <div className="hidden lg:flex ml-auto items-center gap-1.5 text-[10px] text-wm-text-muted">
           <Star size={11} className="text-wm-gold"/>
           {mods.filter(m=>m.completed).length}/{mods.length} modules complete
         </div>
@@ -607,11 +613,17 @@ export default function EducationPage() {
           href="/proof-lane"
           className="hidden sm:inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 text-[10px] font-semibold text-amber-200 transition-colors hover:border-amber-400/70 hover:bg-amber-950/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
           aria-label="Explore the $100 Academy Challenge preview"
-        >
+      >
           <Trophy size={12} aria-hidden="true" />
           $100 Challenge Preview
         </Link>
       </div>
+
+      {priorPracticeMarks > 0 && (
+        <div className="shrink-0 border-b border-amber-700/20 bg-amber-950/20 px-3 py-1.5 text-[10px] text-amber-100 sm:px-4" role="status">
+          {priorPracticeMarks} prior browser practice {priorPracticeMarks === 1 ? "mark is" : "marks are"} retained. Lesson completion remains unverified until content is published.
+        </div>
+      )}
 
       {/* Body — column stack on phones so both the module list and the
           selected lesson are reachable at ≤768px; row on larger screens. */}
@@ -636,7 +648,12 @@ export default function EducationPage() {
           <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
             {mods.map(mod => {
               const isExp = expandedId === mod.id;
-              const done  = mod.lessons.filter(l=>l.completed).length;
+              const moduleProgress = summarizeAcademyProgress({
+                markedCompleted: mod.lessons.filter(l => l.completed).length,
+                total: mod.lessons.length,
+                contentStatus: ACADEMY_LESSON_CONTENT_STATUS,
+              });
+              const done = moduleProgress.verifiedCompleted;
               return (
                 <div key={mod.id} className="border-b border-wm-border/40">
                   <button
@@ -648,7 +665,7 @@ export default function EducationPage() {
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-bold text-wm-text leading-snug">{mod.title}</span>
                         {mod.locked && <Lock size={10} className="text-wm-text-dim shrink-0"/>}
-                        {mod.completed && <CheckCircle2 size={10} className="text-wm-green shrink-0"/>}
+                        {contentAvailable && mod.completed && <CheckCircle2 size={10} className="text-wm-green shrink-0"/>}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[9px] font-bold px-1 rounded"
@@ -656,7 +673,10 @@ export default function EducationPage() {
                           {mod.level}
                         </span>
                         <span className="text-[9px] text-wm-text-dim">{mod.duration}</span>
-                        <span className="text-[9px] text-wm-text-dim">{done}/{mod.lessons.length}</span>
+                        <span className="text-[9px] text-wm-text-dim">{done}/{mod.lessons.length} verified</span>
+                        {moduleProgress.priorPracticeMarks > 0 && (
+                          <span className="text-[9px] text-amber-300">{moduleProgress.priorPracticeMarks} prior</span>
+                        )}
                       </div>
                       <div className="mt-1.5 h-1 rounded-full bg-wm-surface w-full">
                         <div className="h-full rounded-full transition-all"
@@ -673,21 +693,25 @@ export default function EducationPage() {
                       <motion.div initial={{ height:0,opacity:0 }} animate={{ height:"auto",opacity:1 }} exit={{ height:0,opacity:0 }} className="overflow-hidden">
                         {mod.lessons.map((lesson, li) => {
                           const isActive = activeLesson?.lesson.id === lesson.id;
+                          const isVerifiedComplete = contentAvailable && lesson.completed;
+                          const isPriorPracticeMark = !contentAvailable && lesson.completed;
                           return (
                             <button
                               type="button"
                               key={lesson.id}
                               onClick={() => setActiveLesson({ lesson, color:mod.color })}
                               aria-current={isActive ? "true" : undefined}
-                              aria-label={`Lesson ${li+1}: ${lesson.title}, ${lesson.duration}${lesson.completed ? ", completed" : ""}`}
+                              aria-label={`Lesson ${li+1}: ${lesson.title}, ${lesson.duration}${isVerifiedComplete ? ", completed" : isPriorPracticeMark ? ", prior browser practice mark retained; completion unverified" : ""}`}
                               className={clsx(
                                 "w-full flex items-start gap-2 pl-6 pr-3 py-2 text-left transition-colors border-t border-wm-border/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-wm-gold",
                                 isActive ? "bg-wm-surface" : "hover:bg-wm-surface/30",
                               )}
                               style={{ minHeight: 44 }}
                             >
-                              {lesson.completed
+                              {isVerifiedComplete
                                 ? <CheckCircle2 size={12} className="text-wm-green mt-0.5 shrink-0" aria-hidden="true"/>
+                                : isPriorPracticeMark
+                                ? <Star size={12} className="text-amber-300 mt-0.5 shrink-0" aria-hidden="true"/>
                                 : <div className="w-3 h-3 rounded-full border border-wm-border mt-0.5 shrink-0"
                                     style={{ borderColor:isActive?mod.color:undefined }} aria-hidden="true"/>}
                               <div className="flex-1 min-w-0">
@@ -719,8 +743,8 @@ export default function EducationPage() {
             <div className="flex flex-col items-center justify-center h-full gap-6 text-wm-text-muted">
               <div className="grid grid-cols-3 gap-4">
                 {[
-                  { label:"Lessons Done", value:completed, color:"#00D4AA", icon:<CheckCircle2 size={18}/> },
-                  { label:"Modules",      value:`${mods.filter(m=>!m.locked&&!m.completed).length} active`, color:"#4FA3E0", icon:<BookOpen size={18}/> },
+                  { label:"Verified Lessons", value:completed, color:"#00D4AA", icon:<CheckCircle2 size={18}/> },
+                  { label:"Modules",      value:`${mods.filter(m => !m.locked && !(contentAvailable && m.completed)).length} active`, color:"#4FA3E0", icon:<BookOpen size={18}/> },
                   { label:"Total Time",   value:"40h+", color:"#F0B429", icon:<Clock size={18}/> },
                 ].map(({label,value,color,icon})=>(
                   <div key={label} className="flex flex-col items-center gap-2 p-5 rounded-2xl border border-wm-border bg-wm-surface/30 min-w-[120px]">
@@ -743,7 +767,7 @@ export default function EducationPage() {
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="text-base font-black text-wm-text">{pct}%</span>
-                  <span className="text-[9px] text-wm-text-dim">Done</span>
+                  <span className="text-[9px] text-wm-text-dim">Verified</span>
                 </div>
               </div>
             </div>
