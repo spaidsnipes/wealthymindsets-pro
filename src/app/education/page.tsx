@@ -696,6 +696,9 @@ export default function EducationPage() {
                 <div key={mod.id} className="border-b border-wm-border/40">
                   <button
                     onClick={() => !mod.locked && setExpandedId(isExp ? null : mod.id)}
+                    disabled={mod.locked}
+                    aria-disabled={mod.locked}
+                    aria-label={`${mod.title}, ${mod.level}, ${done} of ${mod.lessons.length} lessons verified${mod.locked ? ", preview locked; unlock rules not connected" : ""}`}
                     className={clsx("w-full flex items-center gap-2 px-3 py-3 transition-colors text-left",
                       mod.locked ? "opacity-50 cursor-not-allowed" : "hover:bg-wm-surface/40")}>
                     <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background:mod.color }}/>
@@ -705,7 +708,7 @@ export default function EducationPage() {
                         {mod.locked && <Lock size={10} className="text-wm-text-dim shrink-0"/>}
                         {contentAvailable && mod.completed && <CheckCircle2 size={10} className="text-wm-green shrink-0"/>}
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
                         <span className="text-[9px] font-bold px-1 rounded"
                           style={{ background:`${LEVEL_COLOR[mod.level]}20`, color:LEVEL_COLOR[mod.level] }}>
                           {mod.level}
@@ -714,6 +717,9 @@ export default function EducationPage() {
                         <span className="text-[9px] text-wm-text-dim">{done}/{mod.lessons.length} verified</span>
                         {moduleProgress.priorPracticeMarks > 0 && (
                           <span className="text-[9px] text-amber-300">{moduleProgress.priorPracticeMarks} prior</span>
+                        )}
+                        {mod.locked && (
+                          <span className="text-[9px] text-amber-200">Preview locked · unlock not connected</span>
                         )}
                       </div>
                       <div className="mt-1.5 h-1 rounded-full bg-wm-surface w-full">

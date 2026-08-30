@@ -23,4 +23,10 @@ describe("Academy progress truth", () => {
     expect(educationPage).not.toContain("localStorage.setItem(EDU_KEY");
     expect(educationPage).toContain("persistAcademyProgress(localStorage, EDU_KEY");
   });
+
+  it("does not imply a connected entitlement system for preview-locked modules", () => {
+    expect(educationPage).toContain("preview locked; unlock rules not connected");
+    expect(educationPage).toContain("Preview locked · unlock not connected");
+    expect(educationPage).toContain("disabled={mod.locked}");
+  });
 });
