@@ -1,16 +1,17 @@
-# WM Pro — Authority Spine + Freshness-Truth Sweep (PARTIAL / CONTINUING)
+# WM Pro — Authority Spine + Freshness-Truth Sweep (SHIFT CLOSED)
 
-Status: **PARTIAL SHIFT — CONTINUING**. Not a close. This baton indexes
-verified findings and shipped atoms for the single-thread continuity bus
+Status: **SHIFT CLOSED** on Founder direction ("finish the shift"). This baton
+indexes verified findings and shipped atoms for the single-thread continuity bus
 (Atlas lane) so the next window resumes without re-deriving.
 
 ## §21 honest shift-time ledger
 
 - SHIFT_START: `2026-08-31T01:34:28Z`
-- CLOCK_NOW:  `2026-08-31T01:49:04Z`
-- ACTIVE_WORK: **~15 minutes elapsed** since shift start. This is a focused
+- SHIFT_END:   `2026-08-31T01:55:27Z` (Founder said "finish the shift")
+- ACTIVE_WORK: **~21 minutes elapsed** from start to close. This was a focused
   execution burst, **not** a 3-hour shift. No duration is rounded up or
-  reframed. SHIFT_END: **NOT YET** — recorded only when the window truly closes.
+  reframed. The shift ended because the Founder directed it, not because a
+  clock ran out.
 - Directive in force: Founder — substantive continuous work, honest elapsed
   reporting, §21 momentum (one breakthrough obligates the next).
 
@@ -97,9 +98,9 @@ Both modules **compose** existing canon (`RightOfWay` from
 
 ## Evidence
 
-- Authority suite: **41/41 PASS** (3 files) at `2026-08-31T01:50:38Z`.
-- Full suite prior runs this window green through 262 files / 2625 tests;
-  `tsc --noEmit` exit 0.
+- Authority suite: **41/41 PASS** (3 files).
+- **Close-out full suite: 263 files / 2631 tests PASS** at
+  `2026-08-31T01:55:27Z`; `tsc --noEmit` exit 0.
 - `next dev` agent-file block (AGENTS.md/CLAUDE.md) unchanged.
 
 ## Truth: NOT YET WIRED
@@ -126,4 +127,16 @@ push-HELD + collision constraints, and avoid chart files / paper / academy):
   files. FORGE/FOUNDRY not used as any DB/API/migration identifier.
 - Push **HELD** this session — no push, no deploy, no force-push, no `--no-verify`.
 
-MISSION STATUS = ACTIVE / SHIFT CONTINUING (NOT CLOSED)
+## Shift close — what a resume must know
+
+- Commit chain this shift (push HELD, nothing deployed):
+  `130f2ae` baton update ← `0b831a5` authorizeAndRecord ← `1e16f26` baton ←
+  `183a045` receipt ← `426efb3` gate ← `cc95ad7` AB20 ← `707859b` AB19.
+- The authority spine (gate + receipt + orchestrator, 41 tests) is **built and
+  green but NOT wired to any surface** — no user-visible behavior ships from it
+  yet. First resume task is surface wiring (targets listed above), which crosses
+  into push-HELD territory and needs Founder go on push/deploy.
+- No paper/academy/globals/chart files touched. FORGE/FOUNDRY not used as any
+  DB/API/migration identifier (Aug-30 naming hold honored).
+
+MISSION STATUS = SHIFT CLOSED (Founder-directed) / SPINE BUILT, NOT YET WIRED
