@@ -246,3 +246,32 @@ MISSION STATUS = SHIFT CONTINUING / WHY-EVIDENCE VIEW NOW EXISTS AS CODE
 (`ExecutionReceiptCard`) + SINGLE-RENDERER SENTINEL. FIRST BUILDABLE SLICE
 COMPLETE END TO END (gate→ack→JSON→parse→view→card). MOUNT AWAITS A
 NON-COLLIDING TRADE SURFACE.
+
+## Continued window — parse boundary hardened on every enum identity field
+
+While reviewing the boundary I found a real defensive gap: `parseExecutionReceipt`
+validated `result` against a known set but cast the OTHER enum identity fields
+UNCHECKED — yet `formatExecutionReceiptWhy` prints `actionClass`, `source`, and
+`env` straight into WHY rows. A malformed API payload could therefore land a
+garbage class ("SUPER_ACT"), env ("production"), or source ("aliens") on the
+surface. Closed across two atoms so every rendered enum is now membership-
+validated (unknown/missing → `null`, the honest "no receipt" state):
+
+- `f5c29b8` **actionClass + reasonCode** validated against `ActionClass` /
+  `AuthorizationReasonCode`. +2 rejection tests.
+- `bd4e85c` **env + source** validated against `ExecutionEnv` (paper/sandbox/
+  live) / `ProposalSource` (human/model/strategy/external-bot/unknown). +1 test.
+
+Evidence (this window): `tsc --noEmit` exit 0; **full suite 270 files / 2678
+tests PASS**. Push still **HELD** — nothing pushed or deployed. No paper/
+academy/chart/globals SHA-locked files touched; FORGE/FOUNDRY not used as any
+identifier.
+
+Commit chain this window (push HELD): `bd4e85c` ← `f5c29b8` ← `cbc89ca` (baton)
+← `ed6799f` (renderer Sentinel) ← `cb94204` (ExecutionReceiptCard) ← `d4e83f8`.
+
+MISSION STATUS = SHIFT CONTINUING / SLICE COMPLETE + PARSE BOUNDARY FULLY
+HARDENED. Every enum on a rendered receipt is validated; no garbage verdict,
+class, env, or source can reach a surface. MOUNT STILL AWAITS A NON-COLLIDING
+TRADE SURFACE (no order UI exists in src to mount onto without touching the
+SHA-locked chart/paper files).
