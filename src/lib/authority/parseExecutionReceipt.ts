@@ -15,12 +15,30 @@
  */
 
 import type { AIExecutionReceipt, ExecutionResult, ModelRuntimeRef } from "./executionReceipt";
+import type { ActionClass, AuthorizationReasonCode } from "./executionAuthority";
 
 const EXECUTION_RESULTS: readonly ExecutionResult[] = [
   "EXECUTED",
   "AUTHORIZED_NOT_EXECUTED",
   "FAILED",
   "DENIED",
+];
+
+const ACTION_CLASSES: readonly ActionClass[] = [
+  "OBSERVE",
+  "PREPARE",
+  "LOW_RISK_ACT",
+  "HIGH_IMPACT_ACT",
+];
+
+const REASON_CODES: readonly AuthorizationReasonCode[] = [
+  "AUTHORIZED",
+  "AUTHORIZED_HUMAN_OVERRIDE",
+  "DENIED_INVALID_INTENT",
+  "DENIED_HUMAN_APPROVAL_REQUIRED",
+  "DENIED_MODEL_CANNOT_SELF_AUTHORIZE",
+  "DENIED_EVIDENCE_INCOMPLETE",
+  "DENIED_HARD_RULE",
 ];
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -73,6 +91,23 @@ export function parseExecutionReceipt(value: unknown): AIExecutionReceipt | null
   if (typeof value.authorized !== "boolean") return null;
   if (typeof value.requiresHumanApproval !== "boolean") return null;
 
+  // Enum identity fields — a receipt whose actionClass / reasonCode is not a
+  // known member is not a receipt we will render. formatExecutionReceiptWhy
+  // prints actionClass straight into a WHY row, so an unchecked cast here would
+  // let a garbage class reach the surface. Validate, don't trust.
+  if (
+    typeof value.actionClass !== "string" ||
+    !ACTION_CLASSES.includes(value.actionClass as ActionClass)
+  ) {
+    return null;
+  }
+  if (
+    typeof value.reasonCode !== "string" ||
+    !REASON_CODES.includes(value.reasonCode as AuthorizationReasonCode)
+  ) {
+    return null;
+  }
+
   return {
     receiptId: value.receiptId,
     createdAtIso: typeof value.createdAtIso === "string" ? value.createdAtIso : "",
@@ -83,6 +118,7 @@ export function parseExecutionReceipt(value: unknown): AIExecutionReceipt | null
     intentSummary,
     authorized: value.authorized,
     reasonCode: value.reasonCode as AIExecutionReceipt["reasonCode"],
+    // (actionClass / reasonCode validated above against their known sets)
     reason: value.reason,
     requiresHumanApproval: value.requiresHumanApproval,
     humanApprovedBy: typeof value.humanApprovedBy === "string" ? value.humanApprovedBy : null,

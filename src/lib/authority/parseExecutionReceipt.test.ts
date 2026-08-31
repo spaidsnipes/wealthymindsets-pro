@@ -59,6 +59,20 @@ describe("parseExecutionReceipt — trusts nothing, fabricates nothing", () => {
     expect(parseExecutionReceipt(r)).toBeNull();
   });
 
+  it("returns null when actionClass is not a known member (no garbage reaches the WHY row)", () => {
+    const r = JSON.parse(JSON.stringify(realReceipt())) as Record<string, unknown>;
+    r.actionClass = "SUPER_ACT";
+    expect(parseExecutionReceipt(r)).toBeNull();
+    delete r.actionClass;
+    expect(parseExecutionReceipt(r)).toBeNull();
+  });
+
+  it("returns null when reasonCode is not a known member", () => {
+    const r = JSON.parse(JSON.stringify(realReceipt())) as Record<string, unknown>;
+    r.reasonCode = "BECAUSE_I_SAID_SO";
+    expect(parseExecutionReceipt(r)).toBeNull();
+  });
+
   it("normalizes missing optionals rather than emitting undefined", () => {
     const r = JSON.parse(JSON.stringify(realReceipt())) as Record<string, unknown>;
     delete r.sourceRefs;
