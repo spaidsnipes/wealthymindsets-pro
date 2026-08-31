@@ -22,39 +22,60 @@ import type {
   ExecutionEnv,
 } from "./executionAuthority";
 
-const EXECUTION_RESULTS: readonly ExecutionResult[] = [
-  "EXECUTED",
-  "AUTHORIZED_NOT_EXECUTED",
-  "FAILED",
-  "DENIED",
-];
+/**
+ * The known-member sets for each enum identity field, expressed as
+ * `Record<Union, true>` rather than a hand-listed array. This is deliberate:
+ * TypeScript FORCES every union member to appear as a key, so if a new
+ * `ProposalSource` / `ActionClass` / … is ever added to the type, this file
+ * fails to compile until the set is updated. A plain `string[]` would silently
+ * go stale and start REJECTING valid receipts. Membership is then an O(1)
+ * own-property check via `isKnown`.
+ */
+const EXECUTION_RESULT_SET: Record<ExecutionResult, true> = {
+  EXECUTED: true,
+  AUTHORIZED_NOT_EXECUTED: true,
+  FAILED: true,
+  DENIED: true,
+};
 
-const ACTION_CLASSES: readonly ActionClass[] = [
-  "OBSERVE",
-  "PREPARE",
-  "LOW_RISK_ACT",
-  "HIGH_IMPACT_ACT",
-];
+const ACTION_CLASS_SET: Record<ActionClass, true> = {
+  OBSERVE: true,
+  PREPARE: true,
+  LOW_RISK_ACT: true,
+  HIGH_IMPACT_ACT: true,
+};
 
-const REASON_CODES: readonly AuthorizationReasonCode[] = [
-  "AUTHORIZED",
-  "AUTHORIZED_HUMAN_OVERRIDE",
-  "DENIED_INVALID_INTENT",
-  "DENIED_HUMAN_APPROVAL_REQUIRED",
-  "DENIED_MODEL_CANNOT_SELF_AUTHORIZE",
-  "DENIED_EVIDENCE_INCOMPLETE",
-  "DENIED_HARD_RULE",
-];
+const REASON_CODE_SET: Record<AuthorizationReasonCode, true> = {
+  AUTHORIZED: true,
+  AUTHORIZED_HUMAN_OVERRIDE: true,
+  DENIED_INVALID_INTENT: true,
+  DENIED_HUMAN_APPROVAL_REQUIRED: true,
+  DENIED_MODEL_CANNOT_SELF_AUTHORIZE: true,
+  DENIED_EVIDENCE_INCOMPLETE: true,
+  DENIED_HARD_RULE: true,
+};
 
-const PROPOSAL_SOURCES: readonly ProposalSource[] = [
-  "human",
-  "model",
-  "strategy",
-  "external-bot",
-  "unknown",
-];
+const PROPOSAL_SOURCE_SET: Record<ProposalSource, true> = {
+  human: true,
+  model: true,
+  strategy: true,
+  "external-bot": true,
+  unknown: true,
+};
 
-const EXECUTION_ENVS: readonly ExecutionEnv[] = ["paper", "sandbox", "live"];
+const EXECUTION_ENV_SET: Record<ExecutionEnv, true> = {
+  paper: true,
+  sandbox: true,
+  live: true,
+};
+
+/** O(1) known-member check that also narrows `value` to the union type. */
+function isKnown<T extends string>(
+  set: Record<T, true>,
+  value: unknown,
+): value is T {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(set, value);
+}
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -89,68 +110,45 @@ function parseIntentSummary(
 export function parseExecutionReceipt(value: unknown): AIExecutionReceipt | null {
   if (!isRecord(value)) return null;
 
-  const result = value.result;
-  if (typeof result !== "string" || !EXECUTION_RESULTS.includes(result as ExecutionResult)) {
-    return null;
-  }
+  // Verdict — no fabrication of a missing / unknown verdict.
+  if (!isKnown(EXECUTION_RESULT_SET, value.result)) return null;
 
   const intentSummary = parseIntentSummary(value.intentSummary);
   if (!intentSummary) return null;
 
-  // Required scalar identity + verdict fields — a receipt without these is not
-  // a receipt we will render (no fabrication of a missing verdict).
+  // Required scalar identity fields.
   if (typeof value.receiptId !== "string") return null;
   if (typeof value.reason !== "string") return null;
-  if (
-    typeof value.env !== "string" ||
-    !EXECUTION_ENVS.includes(value.env as ExecutionEnv)
-  ) {
-    return null;
-  }
-  if (
-    typeof value.source !== "string" ||
-    !PROPOSAL_SOURCES.includes(value.source as ProposalSource)
-  ) {
-    return null;
-  }
   if (typeof value.authorized !== "boolean") return null;
   if (typeof value.requiresHumanApproval !== "boolean") return null;
 
-  // Enum identity fields — a receipt whose actionClass / reasonCode is not a
-  // known member is not a receipt we will render. formatExecutionReceiptWhy
-  // prints actionClass straight into a WHY row, so an unchecked cast here would
-  // let a garbage class reach the surface. Validate, don't trust.
-  if (
-    typeof value.actionClass !== "string" ||
-    !ACTION_CLASSES.includes(value.actionClass as ActionClass)
-  ) {
-    return null;
-  }
-  if (
-    typeof value.reasonCode !== "string" ||
-    !REASON_CODES.includes(value.reasonCode as AuthorizationReasonCode)
-  ) {
-    return null;
-  }
+  // Enum identity fields — every one of these is printed into a WHY row by
+  // formatExecutionReceiptWhy, so an unchecked cast would let a garbage member
+  // reach the surface. Validate against the known-member set (which itself is
+  // compile-time-forced to cover the whole union). `isKnown` narrows the type,
+  // so no casts are needed below.
+  if (!isKnown(EXECUTION_ENV_SET, value.env)) return null;
+  if (!isKnown(PROPOSAL_SOURCE_SET, value.source)) return null;
+  if (!isKnown(ACTION_CLASS_SET, value.actionClass)) return null;
+  if (!isKnown(REASON_CODE_SET, value.reasonCode)) return null;
 
   return {
     receiptId: value.receiptId,
     createdAtIso: typeof value.createdAtIso === "string" ? value.createdAtIso : "",
     product: typeof value.product === "string" ? value.product : "",
-    source: value.source as AIExecutionReceipt["source"],
-    env: value.env as AIExecutionReceipt["env"],
-    actionClass: value.actionClass as AIExecutionReceipt["actionClass"],
+    source: value.source,
+    env: value.env,
+    actionClass: value.actionClass,
     intentSummary,
     authorized: value.authorized,
-    reasonCode: value.reasonCode as AIExecutionReceipt["reasonCode"],
-    // (actionClass / reasonCode validated above against their known sets)
+    reasonCode: value.reasonCode,
     reason: value.reason,
     requiresHumanApproval: value.requiresHumanApproval,
     humanApprovedBy: typeof value.humanApprovedBy === "string" ? value.humanApprovedBy : null,
     modelRuntime: parseModelRuntime(value.modelRuntime),
     sourceRefs: isStringArray(value.sourceRefs) ? value.sourceRefs : [],
     brokerOrderId: typeof value.brokerOrderId === "string" ? value.brokerOrderId : null,
-    result: result as ExecutionResult,
+    result: value.result,
   };
 }
 
