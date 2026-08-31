@@ -76,10 +76,14 @@ export function priceSourceBadge(source: PriceSource, connected: boolean): Price
         unresolved: false,
       };
     case "finnhub":
-      // Free tier is entitlement-limited, not a pipeline outage.
-      return { label: L.DELAYED_BY_ENTITLEMENT, title: "Free-tier feed lags the live consolidated tape", live: false, provenance: "finnhub", unresolved: false };
+      // A delayed consolidated quote is flowing, but NOTHING here has proven a
+      // paid-tier entitlement is the cause — the certified realtime source is
+      // simply not resolved for this symbol. Monday Test 2 law: never assert
+      // "DELAYED BY ENTITLEMENT" without a provider-proven entitlement edge.
+      // The honest verdict is a degraded-but-usable capability.
+      return { label: L.ACTIVE_DEGRADED, title: "Delayed consolidated quote — no certified realtime source resolved. Act with reduced confidence.", live: false, provenance: "finnhub", unresolved: false };
     case "yahoo":
-      return { label: L.DELAYED_BY_ENTITLEMENT, title: "Consolidated quote — may lag the live tape", live: false, provenance: "yahoo", unresolved: false };
+      return { label: L.ACTIVE_DEGRADED, title: "Delayed consolidated quote — no certified realtime source resolved. Act with reduced confidence.", live: false, provenance: "yahoo", unresolved: false };
     default:
       // No provider matched — we cannot claim a certified quote and
       // we cannot claim a closed session either. Canon-honest: the

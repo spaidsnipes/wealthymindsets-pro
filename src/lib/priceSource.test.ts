@@ -57,8 +57,10 @@ describe("priceSourceBadge (WM-CHART-P0-05 provenance)", () => {
 
 describe("candleDataStatus", () => {
   it("never promotes a recently refreshed delayed feed to LIVE", () => {
+    // Monday Test 2: a delayed consolidated quote with no proven entitlement
+    // edge is ACTIVE_DEGRADED, never DELAYED_BY_ENTITLEMENT.
     expect(candleDataStatus("yahoo", true, true, 9_999, 10_000)).toEqual({
-      state: "DELAYED", label: L.DELAYED_BY_ENTITLEMENT, live: false,
+      state: "DELAYED", label: L.ACTIVE_DEGRADED, live: false,
     });
   });
 
@@ -82,9 +84,9 @@ describe("candleDataStatus", () => {
       expect(s.state).toBe("UNAVAILABLE");
       expect(s.label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
     });
-    it("passes through the entitlement-delayed label for delayed providers", () => {
-      expect(candleDataStatus("yahoo", true, true, 9_999, 10_000).label).toBe(L.DELAYED_BY_ENTITLEMENT);
-      expect(candleDataStatus("finnhub", true, true, 9_999, 10_000).label).toBe(L.DELAYED_BY_ENTITLEMENT);
+    it("passes through the honest degraded label for delayed providers (no unproven entitlement claim)", () => {
+      expect(candleDataStatus("yahoo", true, true, 9_999, 10_000).label).toBe(L.ACTIVE_DEGRADED);
+      expect(candleDataStatus("finnhub", true, true, 9_999, 10_000).label).toBe(L.ACTIVE_DEGRADED);
     });
   });
 
@@ -122,8 +124,8 @@ describe("candleDataStatus", () => {
       expect(candleDataStatus("yahoo", true, true, 9_999, 10_000).state).toBe("DELAYED");
       expect(candleDataStatus("yahoo", false, true, 9_999, 10_000).state).toBe("DELAYED");
     });
-    it("finnhub 15min-delayed + candles → DELAYED_BY_ENTITLEMENT (canon: entitlement, not clock)", () => {
-      expect(candleDataStatus("finnhub", true, true, 9_999, 10_000).label).toBe(L.DELAYED_BY_ENTITLEMENT);
+    it("finnhub delayed + candles → ACTIVE_DEGRADED (no provider-proven entitlement edge)", () => {
+      expect(candleDataStatus("finnhub", true, true, 9_999, 10_000).label).toBe(L.ACTIVE_DEGRADED);
     });
     it("unknown source string + candles → HISTORICAL_BARS_VERIFIED (unresolved → bars-only truth)", () => {
       const s = candleDataStatus("some-future-provider-not-in-switch", true, true, 0, 10_000);
@@ -161,9 +163,9 @@ describe("candleDataStatus", () => {
       expect(resolveChartSurfaceBadge("polygon", true, true).label).toBe(L.LIVE_CERTIFIED_QUOTE);
       expect(resolveChartSurfaceBadge("polygon", true, false).label).toBe(L.LIVE_CERTIFIED_QUOTE);
     });
-    it("preserves delayed-provider canon labels — never over-promotes", () => {
-      expect(resolveChartSurfaceBadge("yahoo", true, true).label).toBe(L.DELAYED_BY_ENTITLEMENT);
-      expect(resolveChartSurfaceBadge("finnhub", true, true).label).toBe(L.DELAYED_BY_ENTITLEMENT);
+    it("preserves delayed-provider canon labels — never over-promotes, never claims entitlement", () => {
+      expect(resolveChartSurfaceBadge("yahoo", true, true).label).toBe(L.ACTIVE_DEGRADED);
+      expect(resolveChartSurfaceBadge("finnhub", true, true).label).toBe(L.ACTIVE_DEGRADED);
     });
     it("provenance is preserved on the promoted badge (internal diagnostics)", () => {
       const b = resolveChartSurfaceBadge("unavailable", false, true);
