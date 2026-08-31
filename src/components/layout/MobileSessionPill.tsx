@@ -35,6 +35,7 @@ import {
   canonicalMarketStateIdentity,
   selectCanonicalFuturesSessionTruth,
 } from "@/lib/marketData/canonicalIdentity";
+import { useCanvasClock } from "@/lib/marketData/viewModels/canvasClock";
 
 const FRESH_WINDOW_MS = 30_000; // "live" = fresh trade within 30s
 
@@ -89,9 +90,19 @@ export function MobileSessionPill(): React.ReactElement | null {
   );
   const session = identity.session.toUpperCase();
 
+  // Live cadence clock so freshness ("live tape" green dot) DEGRADES on its
+  // own even when the tape goes silent. Reading Date.now() at render alone
+  // froze `now` between store notifications: during a quiet feed the store
+  // stops notifying, no re-render fires, and `fresh` stayed TRUE forever —
+  // the pill kept claiming "live tape" long after the last trade aged past
+  // FRESH_WINDOW_MS. The clock re-renders on cadence so the dot honestly
+  // drops to amber ("observed") when trades stop. Falls back to render-time
+  // Date.now() before mount (SSR-safe; component early-returns pre-hydrate).
+  const tickedNowMs = useCanvasClock();
+
   if (!reading.hydrated) return null;
 
-  const now = Date.now();
+  const now = tickedNowMs ?? Date.now();
   const observed = reading.trades > 0;
   const fresh = observed && reading.lastTradeMs != null && now - reading.lastTradeMs < FRESH_WINDOW_MS;
 
