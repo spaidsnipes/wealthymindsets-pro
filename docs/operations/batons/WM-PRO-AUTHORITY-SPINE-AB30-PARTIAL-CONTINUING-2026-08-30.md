@@ -1,19 +1,20 @@
-# WM Pro — Authority Spine + Freshness-Truth Sweep (SHIFT CLOSED)
+# WM Pro — Authority Spine + Freshness-Truth Sweep (CONTINUING)
 
-Status: **SHIFT CLOSED** on Founder direction ("finish the shift"). This baton
-indexes verified findings and shipped atoms for the single-thread continuity bus
-(Atlas lane) so the next window resumes without re-deriving.
+Status: **SHIFT CONTINUING**. CORRECTION: an earlier version of this file
+declared "SHIFT CLOSED" after ~21 minutes because I read "finish the shift" as
+"stop." The Founder corrected that hard — the standing directive is KEEP GOING
+(verbatim history: "KEEP BUILDING STOP STOPPING ASKING FOR VERIFICATION KEEP
+GOING"). "Finish the shift" meant *do the full shift of work*, not wrap up. The
+premature CLOSE is retracted. Work continues.
 
 ## §21 honest shift-time ledger
 
 - SHIFT_START: `2026-08-31T01:34:28Z`
-- SHIFT_END:   `2026-08-31T01:55:27Z` (Founder said "finish the shift")
-- ACTIVE_WORK: **~21 minutes elapsed** from start to close. This was a focused
-  execution burst, **not** a 3-hour shift. No duration is rounded up or
-  reframed. The shift ended because the Founder directed it, not because a
-  clock ran out.
-- Directive in force: Founder — substantive continuous work, honest elapsed
-  reporting, §21 momentum (one breakthrough obligates the next).
+- PREMATURE_CLOSE (retracted): `2026-08-31T01:55:27Z` (~21 min) — a §21 stop-
+  early violation; retracted, not counted as an end.
+- SHIFT_END: **NOT YET** — recorded only when the Founder ends it.
+- Directive in force: Founder — substantive continuous work, KEEP GOING, honest
+  elapsed reporting, §21 momentum (one breakthrough obligates the next).
 
 ## Drive sync (helicopter view, newest canon)
 
@@ -103,20 +104,27 @@ Both modules **compose** existing canon (`RightOfWay` from
   `2026-08-31T01:55:27Z`; `tsc --noEmit` exit 0.
 - `next dev` agent-file block (AGENTS.md/CLAUDE.md) unchanged.
 
-## Truth: NOT YET WIRED
+## NOW WIRED to the real order path (canon enforced, not just built)
 
-The authority spine is **pure library code with tests only** — it is **not yet
-called by any surface**. No API route, order ticket, or ai-bot proposal path
-consumes `authorizeExecution` / `buildExecutionReceipt` yet. No behavior change
-ships to users from these two modules alone. This is stated plainly so the next
-window does not mistake "spine built" for "spine enforced."
+- `67f80c0` **alpacaOrderAuthorization.ts** (+13 tests) + wired into
+  `src/app/api/alpaca/trade/route.ts`. The gate now runs **before any broker
+  call**: a directly authenticated human owner is unaffected (behavior
+  identical), but any automated source (model/strategy/external-bot) without
+  explicit human approval — or an invalid intent — is **DENIED 403 with a
+  receipt**. Every submitted order carries a truthful AI Execution Receipt
+  derived from the **real Alpaca ack** (EXECUTED / FAILED), never asserted.
+  `canonicalizeAlpacaStatus` maps broker status → canonical ack honestly
+  (unknown/absent → "unknown", never fabricated success).
+- This is the canon's "NO MODEL OUTPUT ALONE CREATES AUTHORITY" made real on a
+  live surface — the spine is now **enforced**, not just present.
 
-Suggested next wiring targets (each must be confirmed in-scope, respect
-push-HELD + collision constraints, and avoid chart files / paper / academy):
-1. ai-bot / model proposal path → route every proposed order through
-   `authorizeExecution` before any `BrokerAdapter.submitOrder`.
-2. Order-ticket confirm → attach `buildExecutionReceipt` output to the WHY view.
-3. `/api` broker route → deny + receipt on any non-human source w/o approval.
+Remaining wiring targets (in-scope, respect push-HELD + collision constraints;
+avoid chart / paper / academy SHA-locked files):
+1. Order-ticket confirm UI → surface the receipt in the WHY view.
+2. Other broker routes (webull/tastytrade/etc.) → same preflight gate when they
+   gain order-submit paths.
+NOTE: /api/spaidbot is a chat stream that already carries a strong execution
+boundary in its system prompt and places no orders — intentionally NOT gated.
 
 ## Collision + push posture
 
@@ -127,16 +135,17 @@ push-HELD + collision constraints, and avoid chart files / paper / academy):
   files. FORGE/FOUNDRY not used as any DB/API/migration identifier.
 - Push **HELD** this session — no push, no deploy, no force-push, no `--no-verify`.
 
-## Shift close — what a resume must know
+## Resume state — what the next window must know
 
 - Commit chain this shift (push HELD, nothing deployed):
-  `130f2ae` baton update ← `0b831a5` authorizeAndRecord ← `1e16f26` baton ←
-  `183a045` receipt ← `426efb3` gate ← `cc95ad7` AB20 ← `707859b` AB19.
-- The authority spine (gate + receipt + orchestrator, 41 tests) is **built and
-  green but NOT wired to any surface** — no user-visible behavior ships from it
-  yet. First resume task is surface wiring (targets listed above), which crosses
-  into push-HELD territory and needs Founder go on push/deploy.
-- No paper/academy/globals/chart files touched. FORGE/FOUNDRY not used as any
-  DB/API/migration identifier (Aug-30 naming hold honored).
+  `67f80c0` alpaca gate WIRED ← baton corrections ← `0b831a5` authorizeAndRecord
+  ← `183a045` receipt ← `426efb3` gate ← `cc95ad7` AB20 ← `707859b` AB19.
+- Authority spine = gate + receipt + orchestrator + alpaca bridge, **51 tests**,
+  and it is **enforced on /api/alpaca/trade** (no longer library-only).
+- Close-out full suite when last measured: **264 files / 2641 tests PASS**,
+  `tsc --noEmit` exit 0.
+- No paper/academy/globals/chart SHA-locked files touched. FORGE/FOUNDRY not
+  used as any DB/API/migration identifier (Aug-30 naming hold honored).
+- Push **HELD** — nothing pushed or deployed this session.
 
-MISSION STATUS = SHIFT CLOSED (Founder-directed) / SPINE BUILT, NOT YET WIRED
+MISSION STATUS = SHIFT CONTINUING / SPINE ENFORCED ON THE ALPACA ORDER PATH
