@@ -319,3 +319,48 @@ MISSION STATUS = SHIFT CONTINUING. Portability is now inspectable and testable;
 the authority spine knows the difference between "may act" and "can reach the
 broker." Still awaiting Founder-pasted broker credentials + a non-colliding
 trade surface to mount the receipt onto.
+
+---
+
+## 2026-08-31 Monday-Test-2 window — Moomoo TRUE tick spine (bridge → canonical)
+
+Executed the baton's "FIRST CONCRETE MOOMOO ATOM." Two atoms, pushed
+`8d7f8be..bf48f71`:
+
+- `d568811` **services/moomoo-bridge/bridge.py `/ticks`** — a REAL executed-print
+  route: a TICKER `subscribe` + `get_rt_ticker` over OpenD, emitting
+  `{code,seq,time,price,volume,turnover,direction,type}` per print. Bearer-authed,
+  event `count`. **Truthful-or-nothing**: OpenD unreachable → HTTP 502 with the
+  gateway's own edge string (`OpenD not reachable on 127.0.0.1:11111`), NEVER a
+  fabricated tick. A snapshot/candle/synthetic interval is never labeled a tick;
+  `/quote` (get_market_snapshot) stays a separate, clearly-documented capability.
+- `bf48f71` **src/lib/marketData/adapters/moomooTicks.ts** — the runtime link from
+  that envelope to the canonical `CanonicalMarketEvent` (`wm.market-event.v2`) as
+  `eventType:"TRADE"`. Provider price/executed-size/sequence pass through verbatim.
+  moomoo `ticker_direction` is treated as a **PROVIDER-declared** aggressor
+  (`aggressorMethod:"PROVIDER"`), never inferred; NEUTRAL/unknown → no side.
+  `dataMode` (LIVE vs DELAYED) is a **caller-supplied certified input**, not
+  guessed — entitlement is a separate proof. moomoo's timezone-less `time` is
+  preserved as lineage, not synthesized into a false epoch. Error/non-ok envelope
+  → `[]`. 11 tests, incl. proving output survives the canonical `MarketEventGuard`
+  (ACCEPTED + honest `SEQUENCE_UNAVAILABLE` warning; duplicate → QUARANTINED).
+
+Chain now real end-to-end IN CODE: bridge `/ticks` → `normalizeMoomooTicksEnvelope`
+→ `CanonicalMarketEvent` → `MarketEventGuard`.
+
+**HONEST REAL-EVENTS EDGE (not entitlement):** no live moomoo tick has flowed,
+because OpenD is not running here — it needs the Founder's moomoo login on the
+bridge host. The exact edge is **BRIDGE UNREACHABLE / OpenD not running**, NOT
+"delayed by entitlement." Until OpenD is up, `/ticks` correctly returns its 502
+edge and the normalizer yields `[]`. NOT-CONFIGURED ≠ delayed-by-entitlement.
+
+Not yet done (next thread): the app-side probe `moomooMarketData.ts` still
+exercises `/health`+`/quote` only (it is another thread's UNCOMMITTED working-tree
+file — left untouched); wiring `/ticks` into a probe + a Founder-visible tape
+receipt is the next atom once OpenD can run.
+
+Evidence (this window): `python3 -m py_compile bridge.py` OK; `tsc --noEmit`
+exit 0; **full suite 279 files / 2731 tests PASS**. Committed only my own files by
+name; SHA-locked paper/academy/chart/globals untouched; other threads' uncommitted
+changes left alone; FORGE/FOUNDRY not used as any identifier; no `--no-verify`, no
+force-push.
