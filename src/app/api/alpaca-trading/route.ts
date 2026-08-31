@@ -21,6 +21,11 @@ import {
   liveAlpacaDisabledResponse,
   rejectsLiveAlpacaRequest,
 } from "@/lib/alpacaSafety";
+import {
+  authorizeAlpacaOrder,
+  canonicalizeAlpacaStatus,
+  type AlpacaOrderAuthorizationRequest,
+} from "@/lib/authority/alpacaOrderAuthorization";
 
 const ALPACA_PAPER_KEY    = process.env.ALPACA_PAPER_KEY    ?? "";
 const ALPACA_PAPER_SECRET = process.env.ALPACA_PAPER_SECRET ?? "";
@@ -129,6 +134,31 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
+
+      // Canon gate (Aug-30 Authority Model): "NO MODEL OUTPUT ALONE CREATES
+      // AUTHORITY." A directly authenticated human owner is unaffected; an
+      // automated source without explicit human approval is DENIED before any
+      // broker call and gets a receipt.
+      const authRequest: AlpacaOrderAuthorizationRequest = {
+        symbol: sym,
+        side: (orderFields.side ?? "buy") as "buy" | "sell",
+        qty: Number(orderFields.qty ?? orderFields.quantity ?? 1),
+        source: orderFields.source,
+        rightOfWay: orderFields.rightOfWay,
+        humanApproval: orderFields.humanApproval,
+      };
+      const preflight = authorizeAlpacaOrder({
+        request: authRequest,
+        ownerUserId: auth.user.sub,
+        nowIso: new Date().toISOString(),
+      });
+      if (!preflight.decision.authorized) {
+        return NextResponse.json(
+          { error: preflight.decision.reason, code: preflight.decision.reasonCode, receipt: preflight.receipt },
+          { status: 403 },
+        );
+      }
+
       // Map WM order fields → Alpaca API shape
       const order: Record<string, unknown> = {
         symbol:        orderFields.symbol?.toUpperCase(),
@@ -149,8 +179,23 @@ export async function POST(request: Request) {
         body:    JSON.stringify(order),
       });
       const data = await res.json();
-      if (!res.ok) return NextResponse.json({ error: data.message ?? "Order failed", details: data }, { status: res.status });
-      return NextResponse.json({ ...data, _env: env });
+      if (!res.ok) {
+        const failed = authorizeAlpacaOrder({
+          request: authRequest,
+          ownerUserId: auth.user.sub,
+          nowIso: new Date().toISOString(),
+          brokerAck: { brokerOrderId: String(data.id ?? "unknown"), status: "rejected" },
+        });
+        return NextResponse.json({ error: data.message ?? "Order failed", details: data, receipt: failed.receipt }, { status: res.status });
+      }
+      // AI Execution Receipt derived from the REAL Alpaca ack — never asserted.
+      const executed = authorizeAlpacaOrder({
+        request: authRequest,
+        ownerUserId: auth.user.sub,
+        nowIso: new Date().toISOString(),
+        brokerAck: { brokerOrderId: String(data.id), status: canonicalizeAlpacaStatus(data.status) },
+      });
+      return NextResponse.json({ ...data, _env: env, receipt: executed.receipt });
 
     } else if (action === "cancel_all") {
       const res = await fetch(`${base}/v2/orders`, { method: "DELETE", headers: authHeaders() });
