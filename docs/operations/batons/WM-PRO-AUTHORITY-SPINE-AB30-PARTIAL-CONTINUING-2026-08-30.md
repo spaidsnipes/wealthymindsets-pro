@@ -424,3 +424,49 @@ DURATION_REQUIREMENT_MET: NO — no continuous multi-hour shift occurred or is c
 STILL OPEN: live moomoo tick (needs Founder OpenD login); device verification
 (phone/iPad portrait+landscape); fetch/consumer wiring deferred to avoid colliding
 with the in-flight uncommitted resolver/wire-strip work.
+
+---
+
+## Window 2026-08-31 (afternoon) — moomoo runtime adapter + app route
+
+CLAIM_CLASS: PARTIAL_SHIFT (turn-based continuation; NOT a numbered-hour shift).
+START_OBSERVED_AT: ~13:05 CDT (first tool-timestamped action this window).
+END_OBSERVED_AT: this receipt.
+ELAPSED_OBSERVED: minutes, not hours — a focused burst. DURATION: sub-hour.
+DECLARED_PAUSES_OR_GAPS: none within the window.
+
+ACTIVE_WORK_EVIDENCE — two collision-safe atoms extended the moomoo `/ticks`
+chain from classifier to authenticated app route:
+
+- `moomooTicksClient.ts` + `.test.ts` (commit cfb2cd3, pushed) — the runtime
+  transport edge. `probeMoomooTicks` performs the authenticated bearer request
+  (never logs the token), never throws (transport failure → truthful
+  `transportReached:false`), clamps `num` 1..1000, sends `cache:"no-store"`.
+  `readMoomooTicks` runs probe → classify → normalize, defaulting `dataMode`
+  to DELAYED so it never asserts uncertified realtime. 9 tests, injected fetch.
+
+- `src/app/api/market-data/moomoo/ticks/route.ts` + `.test.ts` (commit 3267ffc,
+  pushed) — session-gated (`requireAuth`), `force-dynamic`, `no-store` app route.
+  Bare symbols address US market (`US.<symbol>`); explicit codes (e.g. HK.00700)
+  pass through with app symbol derived. Surfaces the honest wire label VERBATIM;
+  a test asserts a BRIDGE UNREACHABLE outcome is never upgraded and never
+  contains "ENTITLEMENT". Mirrors webull route conventions.
+
+COMMITS/TESTS: cfb2cd3 (+232), 3267ffc (+137). moomoo-chain family 36/36 green
+(11 normalizer + 11 wire-status + 9 client + 5 route); full `tsc --noEmit` exit 0.
+Only my own files committed; the concurrent uncommitted work
+(`moomooMarketData`, `canonicalCapabilityResolver`, `ProviderWireStrip`, webull
+route) was NOT touched or swept in.
+
+CHAIN STATE (Monday Test 2 moomoo P0): bridge.py `/ticks` → normalizer →
+classifier → runtime adapter → authenticated no-store route — all shipped and
+tested. The app can now name the ACTUAL blocker for a moomoo read (NOT
+CONFIGURED / AUTH BLOCKED / BRIDGE UNREACHABLE / SUBSCRIPTION FAILED / NO EVENTS
+RECEIVED / RECEIVING / UNKNOWN) and never fabricates "DELAYED BY ENTITLEMENT".
+
+SCOPE_COMPLETE: transport→route wiring for the moomoo tick spine — YES.
+DURATION_REQUIREMENT_MET: NO — no continuous multi-hour shift occurred or is claimed.
+STILL OPEN: live moomoo tick (needs Founder OpenD login + real secrets set by
+NAME); tape/MarketState consumer wiring; three-device visual verification
+(phone/iPad portrait+landscape); the standing `moomooMarketData.ts:169`
+entitlement-overclaim defect (owned by another thread — flagged, not edited).
