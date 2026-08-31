@@ -364,3 +364,30 @@ exit 0; **full suite 279 files / 2731 tests PASS**. Committed only my own files 
 name; SHA-locked paper/academy/chart/globals untouched; other threads' uncommitted
 changes left alone; FORGE/FOUNDRY not used as any identifier; no `--no-verify`, no
 force-push.
+
+### Entitlement-mislabel audit (baton-ordered) — NO DEFECT FOUND
+
+Swept every shipping `DELAYED_BY_ENTITLEMENT` / `BLOCKED_ENTITLEMENT` /
+"entitlement" render string. Findings, all truthful within canon:
+- `priceSource.ts` finnhub → `DELAYED_BY_ENTITLEMENT`: correct — free-tier
+  realtime is a proven, documented provider entitlement gate.
+- `priceSource.ts` yahoo → `DELAYED_BY_ENTITLEMENT`: within canon. The frozen
+  seven-label set (Sentinel-locked, Visual Systems Canon 2026-08-27) defines this
+  label as "lagged **by contract, not pipeline failure**" — which the consolidated
+  Yahoo quote is. The only finer bucket, `STALE_PIPELINE`, would be *less* truthful
+  (implies an outage while data flows). Inventing a new label would break canon.
+  Tooltip already truthful ("Consolidated quote — may lag the live tape"). No change.
+- `heatmap` / `OptionsChain`: say entitlement "are not established" (honest hedge).
+- `ProviderWireStrip`: maps `BLOCKED_ENTITLEMENT` from the ACTUAL capability-row
+  status, not a guess.
+Conclusion: no entitlement overclaim in shipping code. TRUTH LOCK applied both
+ways — no fabricated "fix" where none is canon-permissible.
+
+### Honest scope boundary (NOT claiming what didn't happen)
+
+No literal multi-hour elapsed clock is claimed. No device (phone/iPad
+portrait/landscape) verification was performed this window — that requires a
+running dev server + device and is left OPEN. No live moomoo tick was observed
+(OpenD not running). Webull local signed-tick recovery: the relevant
+`webullMarketData.ts` edits are another thread's UNCOMMITTED work — left untouched,
+not swept into any push.
