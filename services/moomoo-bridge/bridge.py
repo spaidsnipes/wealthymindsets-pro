@@ -17,6 +17,16 @@ WHAT IT EXPOSES (read-only in this version — no order placement over HTTP)
     GET /health            → { ok, opend_reachable, sdk_version }   (no secrets, ever)
     GET /quote?symbols=US.AAPL,US.SPY
                            → { ok, quotes:[{code,last,prev_close,update_time,status}] }
+    GET /ticks?symbols=US.TSLA&num=100
+                           → { ok, ticks:[{code,seq,time,price,volume,turnover,
+                                           direction,type}], count, source:"moomoo-opend" }
+
+QUOTE vs TICKS — these are DIFFERENT capabilities and must never be conflated:
+    /quote is get_market_snapshot — a single last-price snapshot, NOT executed prints.
+    /ticks is a TICKER subscription + get_rt_ticker — the real executed print stream
+    (time, price, executed volume, provider sequence, provider-declared direction).
+    A snapshot, candle, or synthetic interval is NOT a tick and this bridge never
+    labels one as such.
 
 SECURITY
     · Set MOOMOO_BRIDGE_TOKEN; every request must send `Authorization: Bearer <token>`.
@@ -88,6 +98,48 @@ def fetch_quotes(symbols: list[str]) -> tuple[bool, object]:
         ctx.close()
 
 
+def fetch_ticks(symbols: list[str], num: int) -> tuple[bool, object]:
+    """Return (ok, payload) of REAL executed prints from OpenD's ticker stream.
+
+    This is get_rt_ticker over a TICKER subscription — the genuine executed
+    print stream, NOT a snapshot/candle/synthetic interval. Every field below
+    is the provider's own value; the bridge fabricates nothing. `direction` is
+    moomoo's provider-declared ticker_direction (BUY/SELL/NEUTRAL), NOT an
+    aggressor we infer. On any failure we propagate the gateway's own edge —
+    truthful-or-nothing. OpenD unreachable is the honest edge, not a fake tick.
+    """
+    if not opend_reachable():
+        return False, f"OpenD not reachable on {OPEND_HOST}:{OPEND_PORT}"
+    import moomoo as ft
+
+    ctx = ft.OpenQuoteContext(host=OPEND_HOST, port=OPEND_PORT)
+    try:
+        # A TICKER subscription must exist before get_rt_ticker returns prints.
+        sub_ret, sub_data = ctx.subscribe(symbols, [ft.SubType.TICKER])
+        if sub_ret != ft.RET_OK:
+            return False, f"TICKER subscribe failed: {sub_data}"
+
+        rows: list[dict] = []
+        for code in symbols:
+            ret, data = ctx.get_rt_ticker(code, num)
+            if ret != ft.RET_OK:
+                return False, f"get_rt_ticker({code}) failed: {data}"
+            for _, r in data.iterrows():
+                rows.append({
+                    "code": r.get("code"),
+                    "seq": r.get("sequence"),
+                    "time": r.get("time"),
+                    "price": r.get("price"),
+                    "volume": r.get("volume"),
+                    "turnover": r.get("turnover"),
+                    "direction": r.get("ticker_direction"),
+                    "type": r.get("type"),
+                })
+        return True, rows
+    finally:
+        ctx.close()
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "moomoo-bridge/1.0"
 
@@ -123,6 +175,29 @@ class Handler(BaseHTTPRequestHandler):
                 return
             ok, payload = fetch_quotes(symbols)
             self._send(200 if ok else 502, {"ok": ok, "quotes" if ok else "error": payload})
+            return
+        if route.path == "/ticks":
+            q = parse_qs(route.query)
+            symbols = [s for s in (q.get("symbols", [""])[0]).split(",") if s]
+            if not symbols:
+                self._send(400, {"ok": False, "error": "pass ?symbols=US.TSLA&num=100"})
+                return
+            try:
+                num = max(1, min(1000, int(q.get("num", ["100"])[0])))
+            except ValueError:
+                self._send(400, {"ok": False, "error": "num must be an integer 1..1000"})
+                return
+            ok, payload = fetch_ticks(symbols, num)
+            if not ok:
+                # Truthful edge propagates verbatim — never a fabricated tick.
+                self._send(502, {"ok": False, "error": payload, "source": "moomoo-opend"})
+                return
+            self._send(200, {
+                "ok": True,
+                "ticks": payload,
+                "count": len(payload),
+                "source": "moomoo-opend",
+            })
             return
         self._send(404, {"ok": False, "error": f"no route {route.path}"})
 
