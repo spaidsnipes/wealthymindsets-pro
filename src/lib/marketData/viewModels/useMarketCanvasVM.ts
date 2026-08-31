@@ -32,6 +32,7 @@ import {
   composeMarketCanvasVM,
   type ComposeMarketCanvasOutput,
 } from "./composeMarketCanvasVM";
+import { useCanvasClock } from "./canvasClock";
 import type { TradePhase } from "./selectDecisionChain";
 import type { DecisionChainVM } from "./selectDecisionChain";
 
@@ -74,11 +75,15 @@ export function useMarketCanvasVM(
     ];
   }, [storeDecisions, journalDecisions]);
 
-  // Stable timestamp per render pass — the compiler is pure so this
-  // is fine. We deliberately DO NOT freeze Date.now() outside the
-  // render (session-static clock) because permission rule freshness
-  // and evidence age are meant to reflect the live clock.
-  const nowMs = Date.now();
+  // Live cadence clock. `useCanvasClock` re-renders on a fixed cadence
+  // (even when the market feed is silent) so permission-rule freshness
+  // and evidence age keep advancing instead of freezing at the last
+  // market-state change. Before mount it is null; we fall back to a
+  // render-time clock so first paint matches SSR (no hydration churn).
+  // Crucially `nowMs` IS in the memo deps below — when only the clock
+  // advances, the canvas recompiles so age reflects reality.
+  const tickedNowMs = useCanvasClock();
+  const nowMs = tickedNowMs ?? Date.now();
 
   return React.useMemo(
     () =>
@@ -91,11 +96,7 @@ export function useMarketCanvasVM(
         phase: input.phase,
         chain: input.chain ?? null,
       }),
-    // nowMs intentionally excluded from deps — a fresh Date.now()
-    // each render is expected, and the compiler cost is O(canvas VM)
-    // which is small.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state, history, sessionDecisions, input.ownerId, input.phase, input.chain],
+    [state, history, sessionDecisions, input.ownerId, input.phase, input.chain, nowMs],
   );
 }
 
