@@ -84,13 +84,20 @@ Safe-sites survey (no change needed — confirmed already honest):
   AUTHORIZED_NOT_EXECUTED; ack accepted/pending→EXECUTED; else→FAILED. A
   no-secrets test asserts the receipt JSON never matches `secret|token|apiKey`.
 
+- `0b831a5` **authorizeAndRecord.ts** + `.test.ts` (6 tests) — the single
+  honest entry point. Composes the gate + the receipt in one atomic call so a
+  surface never hand-threads the decision: the receipt's authorization can never
+  disagree with the gate, a denial is a first-class receipt (not a silent drop),
+  and execution is never fabricated. Does NOT submit an order — authority ≠
+  execution; the caller passes back any real broker ack. Pure/deterministic.
+
 Both modules **compose** existing canon (`RightOfWay` from
 `decisionPermissionCompiler`, `UniversalOrderIntent`/`CanonicalOrderAck` from
 `BrokerAdapter`) — extract-upward, **not** a fork.
 
 ## Evidence
 
-- Authority suite: **35/35 PASS** (2 files) at `2026-08-31T01:49:04Z`.
+- Authority suite: **41/41 PASS** (3 files) at `2026-08-31T01:50:38Z`.
 - Full suite prior runs this window green through 262 files / 2625 tests;
   `tsc --noEmit` exit 0.
 - `next dev` agent-file block (AGENTS.md/CLAUDE.md) unchanged.
