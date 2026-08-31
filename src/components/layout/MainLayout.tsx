@@ -808,20 +808,26 @@ function SettingsPanel({
    the primary auction surface. Discovery (Heatmaps/Scanner) then
    Learning (News/Education) then Review (Journal). Trading-mode
    surfaces (Paper/Copy/Backtest/AI Bot) live below the main loop. */
+/* tier: 1 = always-primary live-decision surfaces (Command Deck / Charts /
+   Market Truth / Structure); 2 = trader-strengthening tools (Academy /
+   Journal / Paper / Automation). The existing loop order already groups
+   Tier 1 (items 1-6) ahead of Tier 2 (items 7-13); the `tier` field only
+   marks the boundary so the live-decision block reads as distinct. It does
+   NOT reorder, remove, or rename any surface (UI Priority Lock). */
 const NAV_TOP = [
-  { href: "/morning-prep", icon: Sun,           label: "Morning Prep" },
-  { href: "/command-deck", icon: Crosshair,     label: "Command Deck" },
-  { href: "/charts",       icon: BarChart2,     label: "Charts"       },
-  { href: "/heatmaps",     icon: Map,           label: "Heatmaps"     },
-  { href: "/scanner",      icon: ScanLine,      label: "Scanner"      },
-  { href: "/news",         icon: Newspaper,     label: "News"         },
-  { href: "/education",    icon: GraduationCap, label: "Education"    },
-  { href: "/proof-lane",   icon: Trophy,        label: "$100 Challenge" },
-  { href: "/journal",      icon: BookOpen,      label: "Journal"      },
-  { href: "/paper",        icon: TrendingUp,    label: "Paper Trade"  },
-  { href: "/copy-trading", icon: Copy,          label: "Copy Trading" },
-  { href: "/backtesting",  icon: FlaskConical,  label: "Backtest"     },
-  { href: "/ai-bot",       icon: Zap,           label: "AI Bot"       },
+  { href: "/morning-prep", icon: Sun,           label: "Morning Prep", tier: 1 },
+  { href: "/command-deck", icon: Crosshair,     label: "Command Deck", tier: 1 },
+  { href: "/charts",       icon: BarChart2,     label: "Charts",       tier: 1 },
+  { href: "/heatmaps",     icon: Map,           label: "Heatmaps",     tier: 1 },
+  { href: "/scanner",      icon: ScanLine,      label: "Scanner",      tier: 1 },
+  { href: "/news",         icon: Newspaper,     label: "News",         tier: 1 },
+  { href: "/education",    icon: GraduationCap, label: "Education",    tier: 2 },
+  { href: "/proof-lane",   icon: Trophy,        label: "$100 Challenge", tier: 2 },
+  { href: "/journal",      icon: BookOpen,      label: "Journal",      tier: 2 },
+  { href: "/paper",        icon: TrendingUp,    label: "Paper Trade",  tier: 2 },
+  { href: "/copy-trading", icon: Copy,          label: "Copy Trading", tier: 2 },
+  { href: "/backtesting",  icon: FlaskConical,  label: "Backtest",     tier: 2 },
+  { href: "/ai-bot",       icon: Zap,           label: "AI Bot",       tier: 2 },
 ];
 const NAV_BOTTOM = [
   { href: "/lounge",       icon: Users,         label: "Lounge"       },
@@ -1142,10 +1148,20 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         }}>
           {/* Top nav items */}
           <nav style={{ flex: 1, overflowY: "auto", overflowX: "hidden", scrollbarWidth: "none", paddingTop: 4 }}>
-            {NAV_TOP.map(({ href, icon: Icon, label }) => {
+            {NAV_TOP.map(({ href, icon: Icon, label, tier }, i) => {
               const active = pathname.startsWith(href);
+              // Divider at the Tier 1 → Tier 2 boundary: separates the
+              // always-primary live-decision block from strengthening tools.
+              const startsTier2 = tier === 2 && (NAV_TOP[i - 1]?.tier ?? tier) === 1;
               return (
-                <Link key={href} href={href} title={label}
+                <React.Fragment key={href}>
+                {startsTier2 && (
+                  <div aria-hidden="true" style={{
+                    height: 1, margin: "6px 12px",
+                    background: "linear-gradient(90deg,transparent,#1E2030 40%,#1E2030 60%,transparent)",
+                  }} />
+                )}
+                <Link href={href} title={label}
                   style={{
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                     gap: 3, height: 58, cursor: "pointer", textDecoration: "none",
@@ -1168,6 +1184,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     {label}
                   </span>
                 </Link>
+                </React.Fragment>
               );
             })}
           </nav>
