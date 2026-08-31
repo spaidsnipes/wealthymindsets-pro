@@ -27,6 +27,8 @@ import { clsx } from "clsx";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { WMSBar } from "@/components/wms/WMSBar";
 import { isPublicAuthPath } from "@/lib/authRoutes";
+import { useDecisionContext } from "@/lib/experience/useDecisionContext";
+import { selectNavEmphasis } from "@/lib/experience/selectNavEmphasis";
 
 /* ── All searchable symbols ─────────────────────────────── */
 const ALL_SYMBOLS = [
@@ -912,6 +914,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const notificationsTriggerRef = useRef<HTMLButtonElement>(null);
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
+  // Nav right-of-way (UI Priority Lock): in live-market jobs the WOW ecosystem
+  // (Tier 3) quiets so the live-decision surfaces lead; in reflection jobs it
+  // returns to full visibility. Presentation-only — nothing is ever hidden.
+  const { context: decisionContext } = useDecisionContext();
+  const navEmphasis = selectNavEmphasis(decisionContext.mode);
   // Full-document product surfaces own their vertical rhythm and must remain
   // reachable inside the fixed application shell. Workspace surfaces (charts,
   // scanner, journal, etc.) keep their existing internally managed overflow.
@@ -1189,8 +1196,16 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          {/* Bottom nav items */}
-          <div style={{ borderTop: "1px solid #1E2030", paddingBottom: 4 }}>
+          {/* Bottom nav items (Tier 3 WOW ecosystem) — quieted while live,
+              full while reflecting. Presentation-only: still fully clickable. */}
+          <div
+            title={navEmphasis.rationale}
+            style={{
+              borderTop: "1px solid #1E2030", paddingBottom: 4,
+              opacity: navEmphasis.tier3Opacity,
+              transition: "opacity 0.24s ease",
+            }}
+          >
             {NAV_BOTTOM.map(({ href, icon: Icon, label }) => {
               const active = pathname.startsWith(href);
               return (
