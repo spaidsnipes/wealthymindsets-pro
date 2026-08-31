@@ -1154,7 +1154,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           zIndex: 40, overflow: "hidden",
         }}>
           {/* Top nav items */}
-          <nav style={{ flex: 1, overflowY: "auto", overflowX: "hidden", scrollbarWidth: "none", paddingTop: 4 }}>
+          <nav aria-label="Primary" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", scrollbarWidth: "none", paddingTop: 4 }}>
             {NAV_TOP.map(({ href, icon: Icon, label, tier }, i) => {
               const active = pathname.startsWith(href);
               // Divider at the Tier 1 → Tier 2 boundary: separates the
