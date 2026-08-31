@@ -148,4 +148,35 @@ boundary in its system prompt and places no orders — intentionally NOT gated.
   used as any DB/API/migration identifier (Aug-30 naming hold honored).
 - Push **HELD** — nothing pushed or deployed this session.
 
-MISSION STATUS = SHIFT CONTINUING / SPINE ENFORCED ON THE ALPACA ORDER PATH
+## Continued window — BOTH real order paths enforced + WHY-view boundary
+
+A consistency audit (`grep … v2/orders`) surfaced a SECOND real Alpaca
+order-submit path that was still ungated. It is now closed, and the receipt
+now has an honest path all the way to a surface:
+
+- `8a4df1c` **gate `/api/alpaca-trading`** — the second `action:"order"` →
+  `v2/orders` path now runs `authorizeAlpacaOrder` BEFORE any broker call
+  (automated self-authorization / invalid intent → 403 + receipt) and attaches
+  a truthful EXECUTED / FAILED receipt from the real Alpaca ack. Human owner
+  behavior unchanged. This was a genuine security-consistency gap — the first
+  gate wiring had left a sibling route uncovered.
+- `3a201c4` **`alpacaGateDenialBody`** — extracted the 403 denial body into one
+  pure shaper both order routes call, so the two paths can no longer DRIFT
+  (drift is exactly what let the second route ship ungated). +3 tests
+  (field-set + no-secret invariant).
+- `d7c3854` **`parseExecutionReceipt`** — the defensive boundary from API JSON
+  (`unknown` off fetch) to the WHY/evidence view. Structurally validates the
+  receipt (known verdict, well-typed intent) → typed receipt or `null`; never
+  throws, never trusts, never fabricates a missing verdict; normalizes missing
+  optionals to `[]`/null so `formatExecutionReceipt` never sees `undefined`.
+  `parseReceiptFromResponse` pulls it off a `{ …, receipt }` body. +10 tests.
+  This completes the canon's data path: gate → receipt (real ack) → API JSON →
+  defensive parse → `formatExecutionReceipt` WHY rows.
+
+Evidence this window: `tsc --noEmit` exit 0; authority suite **71 PASS**
+(6 files); **full suite 265 files / 2661 tests PASS**. Push still **HELD** —
+nothing pushed or deployed. No paper/academy/chart/globals SHA-locked files
+touched; FORGE/FOUNDRY not used as any identifier.
+
+MISSION STATUS = SHIFT CONTINUING / SPINE ENFORCED ON **BOTH** ALPACA ORDER
+PATHS + WHY-VIEW PARSE BOUNDARY LANDED
