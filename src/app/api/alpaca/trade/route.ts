@@ -14,6 +14,12 @@ import {
   liveAlpacaDisabledResponse,
   rejectsLiveAlpacaRequest,
 } from "@/lib/alpacaSafety";
+import {
+  authorizeAlpacaOrder,
+  canonicalizeAlpacaStatus,
+  type AlpacaOrderAuthorizationRequest,
+} from "@/lib/authority/alpacaOrderAuthorization";
+import type { ProposalSource } from "@/lib/authority/executionAuthority";
 
 const PAPER_KEY = process.env.ALPACA_PAPER_KEY ?? "";
 const PAPER_SECRET = process.env.ALPACA_PAPER_SECRET ?? "";
@@ -46,6 +52,10 @@ export async function POST(req: NextRequest) {
       trail_percent?: number;
       trail_price?:  number;
       paper?:        boolean; // default true
+      // Canon (Aug-30) authority context. Absent => a direct human owner.
+      source?:        ProposalSource;
+      rightOfWay?:    AlpacaOrderAuthorizationRequest["rightOfWay"];
+      humanApproval?: AlpacaOrderAuthorizationRequest["humanApproval"];
     };
 
     if (rejectsLiveAlpacaRequest(body)) {
@@ -64,6 +74,32 @@ export async function POST(req: NextRequest) {
 
     if (!symbol || !side || !qty || !type) {
       return NextResponse.json({ error: "symbol, side, qty, type required" }, { status: 400 });
+    }
+
+    // Canon gate (Aug-30 Authority Model): "NO MODEL OUTPUT ALONE CREATES
+    // AUTHORITY." A directly authenticated human owner is unaffected; an
+    // automated source (model/strategy/external-bot) without explicit human
+    // approval is DENIED here — BEFORE any broker call — and gets a receipt.
+    const authRequest: AlpacaOrderAuthorizationRequest = {
+      symbol, side, qty,
+      source: body.source,
+      rightOfWay: body.rightOfWay,
+      humanApproval: body.humanApproval,
+    };
+    const preflight = authorizeAlpacaOrder({
+      request: authRequest,
+      ownerUserId: auth.user.sub,
+      nowIso: new Date().toISOString(),
+    });
+    if (!preflight.decision.authorized) {
+      return NextResponse.json(
+        {
+          error: preflight.decision.reason,
+          code: preflight.decision.reasonCode,
+          receipt: preflight.receipt,
+        },
+        { status: 403 },
+      );
     }
 
     const order: Record<string, unknown> = {
@@ -96,8 +132,27 @@ export async function POST(req: NextRequest) {
 
     const data = await res.json();
     if (!res.ok) {
-      return NextResponse.json({ error: data.message ?? "Order rejected", detail: data }, { status: res.status });
+      // Record the broker rejection as a truthful FAILED receipt.
+      const failed = authorizeAlpacaOrder({
+        request: authRequest,
+        ownerUserId: auth.user.sub,
+        nowIso: new Date().toISOString(),
+        brokerAck: { brokerOrderId: String(data.id ?? "unknown"), status: "rejected" },
+      });
+      return NextResponse.json(
+        { error: data.message ?? "Order rejected", detail: data, receipt: failed.receipt },
+        { status: res.status },
+      );
     }
+
+    // AI Execution Receipt (canon): derived from the REAL broker ack, never
+    // asserted. EXECUTED only because Alpaca acknowledged the order.
+    const executed = authorizeAlpacaOrder({
+      request: authRequest,
+      ownerUserId: auth.user.sub,
+      nowIso: new Date().toISOString(),
+      brokerAck: { brokerOrderId: String(data.id), status: canonicalizeAlpacaStatus(data.status) },
+    });
 
     return NextResponse.json({
       ok:        true,
@@ -109,6 +164,7 @@ export async function POST(req: NextRequest) {
       status:    data.status,
       filled_at: data.filled_at,
       env:       "paper",
+      receipt:   executed.receipt,
     });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
