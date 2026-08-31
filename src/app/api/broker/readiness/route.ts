@@ -19,9 +19,11 @@ export const dynamic = "force-dynamic";
  * env. It NEVER reads, returns, or logs a secret value — only whether each
  * required NAME is present & non-empty.
  *
- * `runtime` marks which lane this receipt describes ("local" via `next dev`
- * or the deployed host), so the same route surfaces the truth on both sides
- * and drift becomes visible by comparing the two receipts.
+ * The same route runs on BOTH lanes (local `next dev` and the deployed host);
+ * the caller's URL identifies which lane, and drift becomes visible by diffing
+ * the two receipts. The route stays host-neutral — it never reads a
+ * host-specific runtime signal (a Vercel/Cloudflare-only env flag) to guess
+ * where it is running.
  *
  * Presence of a key here means "credentials to attempt a connection are
  * present" — strictly weaker than a live health check or the broker
@@ -38,7 +40,6 @@ export async function GET() {
   return NextResponse.json(
     {
       surface: "broker-readiness",
-      runtime: process.env.VERCEL || process.env.CF_PAGES ? "host" : "local",
       summary: readinessSummary(providers),
       providers,
       envPresence,
