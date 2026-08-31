@@ -1169,6 +1169,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                   }} />
                 )}
                 <Link href={href} title={label}
+                  aria-current={active ? "page" : undefined}
                   style={{
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                     gap: 3, height: 58, cursor: "pointer", textDecoration: "none",
@@ -1210,6 +1211,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               const active = pathname.startsWith(href);
               return (
                 <Link key={href} href={href} title={label}
+                  aria-current={active ? "page" : undefined}
                   style={{
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                     gap: 3, height: 54, cursor: "pointer", textDecoration: "none",
