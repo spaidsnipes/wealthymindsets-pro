@@ -8,6 +8,7 @@ import {
   useCanonicalMarketState,
   useCanonicalMarketStateHistory,
 } from "@/lib/marketData/useCanonicalMarketState";
+import { useCanvasClock } from "@/lib/marketData/viewModels/canvasClock";
 import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
 import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -170,6 +171,13 @@ function CommandDeckInner() {
 
   const state = useCanonicalMarketState(identity);
   const history = useCanonicalMarketStateHistory(identity, 6);
+  // Live cadence clock: keeps freshness / evidence age advancing even
+  // when the feed is silent (see canvasClock.ts). Fed into every memo
+  // below AND listed in their deps so age reflects the live clock
+  // instead of freezing at the last market-state change. SSR-safe:
+  // before mount it falls back to a render-time clock (first paint
+  // unchanged), then ticks on a 5s cadence.
+  const nowMs = useCanvasClock() ?? Date.now();
   const storeDecisions = useDecisionMemory(user?.id ?? null);
   const decisionRecords = useDecisionMemoryRecords(user?.id ?? null);
   const journalDecisions = useJournalSnapshots(user?.id ?? null);
@@ -185,9 +193,9 @@ function CommandDeckInner() {
       selectPersonalEdge({
         ownerId: user?.id ?? "",
         decisions: sessionDecisions,
-        nowMs: Date.now(),
+        nowMs,
       }),
-    [user?.id, sessionDecisions],
+    [user?.id, sessionDecisions, nowMs],
   );
 
   const chainVm = React.useMemo(() => {
@@ -195,10 +203,10 @@ function CommandDeckInner() {
     return selectDecisionChain({
       state,
       history,
-      nowMs: Date.now(),
+      nowMs,
       phase,
     });
-  }, [state, history, phase]);
+  }, [state, history, phase, nowMs]);
 
   const athos = React.useMemo(() => {
     const momentMap: Record<CommandPhase, ATHOSIntervention["moment"]> = {
@@ -211,15 +219,15 @@ function CommandDeckInner() {
     };
     return selectATHOSIntervention({
       ownerId: user?.id ?? "",
-      sessionIdentity: `session-${new Date().toISOString().slice(0, 10)}`,
-      nowMs: Date.now(),
+      sessionIdentity: `session-${new Date(nowMs).toISOString().slice(0, 10)}`,
+      nowMs,
       moment: momentMap[phase],
       sessionDecisions,
       marketState: state ?? undefined,
       dlar: chainVm?.dlar ?? null,
       clc: chainVm?.clc ?? null,
     });
-  }, [phase, user?.id, state, chainVm, sessionDecisions]);
+  }, [phase, user?.id, state, chainVm, sessionDecisions, nowMs]);
 
   // canon §Single-Writer / Many-Readers: the deck's four Phase 3
   // compilations (permission → oneStory → decisionWhy → marketCanvas)
@@ -235,10 +243,10 @@ function CommandDeckInner() {
         history,
         sessionDecisions,
         ownerId: user?.id ?? "",
-        nowMs: Date.now(),
+        nowMs,
         chain: chainVm ?? null,
       }),
-    [state, history, sessionDecisions, user?.id, chainVm],
+    [state, history, sessionDecisions, user?.id, chainVm, nowMs],
   );
   const permission = canvasCompilation.permission;
   const oneStory = canvasCompilation.oneStory;
@@ -1321,11 +1329,11 @@ function CommandDeckInner() {
               <OpeningBellPanel
                 vm={selectOpeningBell({
                   ownerId: user?.id ?? "",
-                  sessionIdentity: `session-${new Date().toISOString().slice(0, 10)}`,
+                  sessionIdentity: `session-${new Date(nowMs).toISOString().slice(0, 10)}`,
                   items: DEFAULT_PREPARATION_TEMPLATE.map((t) => ({ ...t, completed: false })),
                   minutesUntilOpen: null,
                   dataQuality: state?.qualityState,
-                  nowMs: Date.now(),
+                  nowMs,
                 })}
               />
             )}
@@ -1336,7 +1344,7 @@ function CommandDeckInner() {
                 vm={selectMirror({
                   ownerId: user?.id ?? "",
                   decisions: sessionDecisions,
-                  nowMs: Date.now(),
+                  nowMs,
                 })}
               />
             )}
