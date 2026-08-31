@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  alpacaGateDenialBody,
   authorizeAlpacaOrder,
   canonicalizeAlpacaStatus,
   type AlpacaOrderAuthorizationRequest,
@@ -91,5 +92,30 @@ describe("authorizeAlpacaOrder — NO MODEL OUTPUT ALONE CREATES AUTHORITY", () 
     });
     expect(decision.authorized).toBe(false);
     expect(decision.reasonCode).toBe("DENIED_INVALID_INTENT");
+  });
+});
+
+describe("alpacaGateDenialBody — one identical 403 contract across both routes", () => {
+  const denied = authorizeAlpacaOrder({
+    request: order({ source: "model" }),
+    ownerUserId: OWNER,
+    nowIso: NOW,
+  });
+
+  it("carries the machine reason code, human reason, and the DENIED receipt", () => {
+    const body = alpacaGateDenialBody(denied);
+    expect(body.code).toBe("DENIED_MODEL_CANNOT_SELF_AUTHORIZE");
+    expect(body.error).toBe(denied.decision.reason);
+    expect(body.receipt.result).toBe("DENIED");
+  });
+
+  it("never leaks a secret in the denial body", () => {
+    const body = alpacaGateDenialBody(denied);
+    expect(JSON.stringify(body)).not.toMatch(/secret|token|apiKey|api_key/i);
+  });
+
+  it("is a pure projection of the preflight (no invented fields)", () => {
+    const body = alpacaGateDenialBody(denied);
+    expect(Object.keys(body).sort()).toEqual(["code", "error", "receipt"]);
   });
 });

@@ -22,6 +22,7 @@ import {
   rejectsLiveAlpacaRequest,
 } from "@/lib/alpacaSafety";
 import {
+  alpacaGateDenialBody,
   authorizeAlpacaOrder,
   canonicalizeAlpacaStatus,
   type AlpacaOrderAuthorizationRequest,
@@ -153,10 +154,7 @@ export async function POST(request: Request) {
         nowIso: new Date().toISOString(),
       });
       if (!preflight.decision.authorized) {
-        return NextResponse.json(
-          { error: preflight.decision.reason, code: preflight.decision.reasonCode, receipt: preflight.receipt },
-          { status: 403 },
-        );
+        return NextResponse.json(alpacaGateDenialBody(preflight), { status: 403 });
       }
 
       // Map WM order fields → Alpaca API shape

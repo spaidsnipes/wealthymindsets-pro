@@ -119,4 +119,26 @@ export function authorizeAlpacaOrder(args: AuthorizeAlpacaOrderArgs): AuthorizeA
   });
 }
 
+/**
+ * The canonical JSON body for a gate DENIAL — returned with HTTP 403 BEFORE any
+ * broker call. Both Alpaca order routes (/api/alpaca/trade and
+ * /api/alpaca-trading) MUST return this exact shape so a client sees one
+ * contract no matter which path served the request. Extracting it here is what
+ * stops the two routes from drifting again — divergence between these paths is
+ * precisely the class of gap that let the second order path ship ungated.
+ *
+ * PURE: plain JSON-serializable data; the route wraps it in NextResponse.
+ */
+export function alpacaGateDenialBody(preflight: AuthorizeAndRecordResult): {
+  readonly error: string;
+  readonly code: AuthorizeAndRecordResult["decision"]["reasonCode"];
+  readonly receipt: AuthorizeAndRecordResult["receipt"];
+} {
+  return {
+    error: preflight.decision.reason,
+    code: preflight.decision.reasonCode,
+    receipt: preflight.receipt,
+  };
+}
+
 export default authorizeAlpacaOrder;
