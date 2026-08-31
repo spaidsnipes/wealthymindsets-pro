@@ -178,5 +178,27 @@ Evidence this window: `tsc --noEmit` exit 0; authority suite **71 PASS**
 nothing pushed or deployed. No paper/academy/chart/globals SHA-locked files
 touched; FORGE/FOUNDRY not used as any identifier.
 
+Two more atoms after the parse boundary completed the slice and defended it:
+
+- `164a9a1` **`executionReceiptView`** — one surface-ready composer: raw
+  response body → `{ line, tone, why, receipt }` or `null`. A surface renders
+  exactly this and never touches the raw receipt, so it cannot overclaim and
+  cannot crash on a malformed body. +5 tests.
+- `1594a73` **`alpacaOrderGate.enforcement.test.ts`** (Sentinel) — walks
+  `src/app/api` and FAILS CI if any route that POSTs to `/v2/orders` does not
+  import `authorizeAlpacaOrder`. This closes the ROOT-CAUSE class behind the
+  gap: a future ungated order path can no longer ship silently. +2 tests.
+
+Evidence (final measure this window): `tsc --noEmit` exit 0; **full suite 265
+files / 2668 tests PASS**; authority suite 8 files / 78 tests. Push still HELD.
+
+Remaining in-scope target that is currently COLLISION-BLOCKED (honest note, not
+skipped work): wiring `executionReceiptView` into the actual order-ticket
+confirm UI. The order-ticket surfaces live in chart files (Noah/Forge
+SHA-locked) and Team-B paper files — both off-limits this session — so the
+receipt intentionally stops at the library/API boundary, ready for a surface
+to consume the moment collision locks lift.
+
 MISSION STATUS = SHIFT CONTINUING / SPINE ENFORCED ON **BOTH** ALPACA ORDER
-PATHS + WHY-VIEW PARSE BOUNDARY LANDED
+PATHS + FULL RECEIPT DATA PATH (gate→ack→JSON→parse→view) + CI SENTINEL
+GUARDING THE ROOT CAUSE. UI SURFACING AWAITS COLLISION-LOCK RELEASE.
