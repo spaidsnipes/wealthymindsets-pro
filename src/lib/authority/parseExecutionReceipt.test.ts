@@ -73,6 +73,15 @@ describe("parseExecutionReceipt — trusts nothing, fabricates nothing", () => {
     expect(parseExecutionReceipt(r)).toBeNull();
   });
 
+  it("returns null when env or source is not a known member", () => {
+    const r1 = JSON.parse(JSON.stringify(realReceipt())) as Record<string, unknown>;
+    r1.env = "production";
+    expect(parseExecutionReceipt(r1)).toBeNull();
+    const r2 = JSON.parse(JSON.stringify(realReceipt())) as Record<string, unknown>;
+    r2.source = "aliens";
+    expect(parseExecutionReceipt(r2)).toBeNull();
+  });
+
   it("normalizes missing optionals rather than emitting undefined", () => {
     const r = JSON.parse(JSON.stringify(realReceipt())) as Record<string, unknown>;
     delete r.sourceRefs;

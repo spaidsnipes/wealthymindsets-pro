@@ -15,7 +15,12 @@
  */
 
 import type { AIExecutionReceipt, ExecutionResult, ModelRuntimeRef } from "./executionReceipt";
-import type { ActionClass, AuthorizationReasonCode } from "./executionAuthority";
+import type {
+  ActionClass,
+  AuthorizationReasonCode,
+  ProposalSource,
+  ExecutionEnv,
+} from "./executionAuthority";
 
 const EXECUTION_RESULTS: readonly ExecutionResult[] = [
   "EXECUTED",
@@ -40,6 +45,16 @@ const REASON_CODES: readonly AuthorizationReasonCode[] = [
   "DENIED_EVIDENCE_INCOMPLETE",
   "DENIED_HARD_RULE",
 ];
+
+const PROPOSAL_SOURCES: readonly ProposalSource[] = [
+  "human",
+  "model",
+  "strategy",
+  "external-bot",
+  "unknown",
+];
+
+const EXECUTION_ENVS: readonly ExecutionEnv[] = ["paper", "sandbox", "live"];
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -86,8 +101,18 @@ export function parseExecutionReceipt(value: unknown): AIExecutionReceipt | null
   // a receipt we will render (no fabrication of a missing verdict).
   if (typeof value.receiptId !== "string") return null;
   if (typeof value.reason !== "string") return null;
-  if (typeof value.env !== "string") return null;
-  if (typeof value.source !== "string") return null;
+  if (
+    typeof value.env !== "string" ||
+    !EXECUTION_ENVS.includes(value.env as ExecutionEnv)
+  ) {
+    return null;
+  }
+  if (
+    typeof value.source !== "string" ||
+    !PROPOSAL_SOURCES.includes(value.source as ProposalSource)
+  ) {
+    return null;
+  }
   if (typeof value.authorized !== "boolean") return null;
   if (typeof value.requiresHumanApproval !== "boolean") return null;
 
