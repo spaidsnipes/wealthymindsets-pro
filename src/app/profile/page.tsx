@@ -28,6 +28,7 @@ import {
 } from "@/lib/traderMemory/viewModels/selectPermission";
 import { useDecisionMemory } from "@/lib/traderMemory/useDecisionMemory";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
+import { useCanvasClock } from "@/lib/marketData/viewModels/canvasClock";
 import { hasResolvedTradeOutcome } from "@/lib/tradeEvidence";
 import { parseProfileTab, profileTabHref, type ProfileTab } from "@/lib/profileTab";
 import { loadPaperState } from "@/lib/paperTrade";
@@ -117,6 +118,14 @@ function ProfilePageInner() {
     () => mergeSnapshots(_growthDecisionMemory, _growthJournalSnapshots),
     [_growthDecisionMemory, _growthJournalSnapshots],
   );
+
+  // Live cadence clock so the Growth-tab evidence age keeps advancing even
+  // when the decision feed is silent. Falls back to a render-time clock
+  // before mount so first paint matches SSR (no hydration mismatch). Every
+  // Growth selector below reads this single `nowMs` so hero + panels agree
+  // on one coherent "now" rather than drifting across per-call Date.now()s.
+  const growthNowMs = useCanvasClock() ?? Date.now();
+  const growthNowIso = new Date(growthNowMs).toISOString().slice(0, 10);
 
   // Seed profile from the auth user (the ACCOUNT) so it follows the user across
   // devices/logins — not just this browser's localStorage. Only non-empty
@@ -671,7 +680,7 @@ function ProfilePageInner() {
                 const vm = selectPersonalEdge({
                   ownerId: user?.id ?? "",
                   decisions: growthDecisions,
-                  nowMs: Date.now(),
+                  nowMs: growthNowMs,
                 });
                 return (
                   <>
@@ -679,7 +688,7 @@ function ProfilePageInner() {
                       displayName={profile.name || null}
                       handle={profile.handle || null}
                       passportIdentityBadge="Passport identity (WOW-shared)"
-                      ownerSeed={`${user?.id ?? "guest"}-${new Date().toISOString().slice(0, 10)}`}
+                      ownerSeed={`${user?.id ?? "guest"}-${growthNowIso}`}
                       personalEdge={vm}
                     />
                     {/* Score explainer — makes RingScore inspectable per
@@ -697,8 +706,8 @@ function ProfilePageInner() {
               {(() => {
                 const permission = selectPermission({
                   ownerId: user?.id ?? "",
-                  sessionIdentity: `session-${new Date().toISOString().slice(0, 10)}`,
-                  nowMs: Date.now(),
+                  sessionIdentity: `session-${growthNowIso}`,
+                  nowMs: growthNowMs,
                   rules: defaultFounderRules(),
                   sessionDecisions: [],
                 });
@@ -733,8 +742,8 @@ function ProfilePageInner() {
               {(() => {
                 const athos = selectATHOSIntervention({
                   ownerId: user?.id ?? "",
-                  sessionIdentity: `session-${new Date().toISOString().slice(0, 10)}`,
-                  nowMs: Date.now(),
+                  sessionIdentity: `session-${growthNowIso}`,
+                  nowMs: growthNowMs,
                   moment: "IDLE",
                   sessionDecisions: [],
                 });
@@ -749,7 +758,7 @@ function ProfilePageInner() {
                 vm={selectPersonalEdge({
                   ownerId: user?.id ?? "",
                   decisions: growthDecisions,
-                  nowMs: Date.now(),
+                  nowMs: growthNowMs,
                 })}
               />
 
@@ -758,7 +767,7 @@ function ProfilePageInner() {
                 vm={selectPlaybookDNA({
                   ownerId: user?.id ?? "",
                   decisions: growthDecisions,
-                  nowMs: Date.now(),
+                  nowMs: growthNowMs,
                 })}
               />
 
@@ -767,7 +776,7 @@ function ProfilePageInner() {
                 vm={selectSessionEdge({
                   ownerId: user?.id ?? "",
                   decisions: growthDecisions,
-                  nowMs: Date.now(),
+                  nowMs: growthNowMs,
                   metric: sessionMetric,
                 })}
                 onMetricChange={setSessionMetric}
