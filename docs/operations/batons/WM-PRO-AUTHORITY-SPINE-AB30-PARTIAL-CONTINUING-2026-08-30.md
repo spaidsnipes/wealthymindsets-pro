@@ -202,3 +202,47 @@ to consume the moment collision locks lift.
 MISSION STATUS = SHIFT CONTINUING / SPINE ENFORCED ON **BOTH** ALPACA ORDER
 PATHS + FULL RECEIPT DATA PATH (gate→ack→JSON→parse→view) + CI SENTINEL
 GUARDING THE ROOT CAUSE. UI SURFACING AWAITS COLLISION-LOCK RELEASE.
+
+## Continued window — WHY/evidence VIEW built (correction to "collision-blocked")
+
+CORRECTION to the note above: a fresh grep audit found there is **no Alpaca
+order UI anywhere in src** — no `.tsx` references the alpaca order endpoints,
+no client caller, no component consumes an execution receipt. So the receipt
+did not stop at the library boundary because a surface was SHA-locked; it
+stopped because the WHY/evidence view **did not exist yet**. The honest way to
+finish the canon's FIRST BUILDABLE SLICE ("...WHY/evidence view → AI Execution
+Receipt") was therefore to BUILD that view as a new, non-colliding component —
+not to wait on a lock.
+
+- `cb94204` **`ExecutionReceiptCard.tsx`** — the canon WHY/evidence view. A
+  presentation-only React component that takes a typed receipt OR a raw
+  order-route response body, resolves it through `executionReceiptView` /
+  `executionReceiptViewFromResponse`, and renders a verdict Pill + the truthful
+  headline line + ordered evidence rows. A receipt-less / malformed body renders
+  an honest "No execution receipt" state — never a fabricated verdict, never a
+  crash. It computes no truth, so it cannot manufacture an authority the receipt
+  does not carry. Pure helpers (`toneToPillState`, `resolveView`) are exported +
+  tested (repo has no DOM render harness — no testing-library/jsdom), so the
+  card's two pure decisions are covered even without DOM assertions. +7 tests.
+- `ed6799f` **`executionReceiptRenderer.enforcement.test.ts`** (Sentinel) —
+  walks `src/app` + `src/components` and FAILS if any surface imports the raw
+  WHY-view formatters (`formatExecutionReceiptLine` / `formatExecutionReceiptWhy`
+  / `executionResultTone`) directly instead of going through the composer /
+  card. A hand-assembled view is where overclaim creeps back; this locks the
+  single-renderer canon the same way the order-gate Sentinel locks the gate.
+  Passes today (2/2) — the card is the sole render path.
+
+The component is built and self-contained but not yet MOUNTED on a route: the
+only trade surfaces are the SHA-locked chart/paper files this session must not
+touch. Mounting it is a one-line adoption for the next window once a lock lifts
+(or on a new, non-colliding trade surface).
+
+Evidence (this window): `tsc --noEmit` exit 0; **full suite 269 files / 2673
+tests PASS**; authority + component suites green. Push still **HELD** — nothing
+pushed or deployed. No paper/academy/chart/globals SHA-locked files touched;
+FORGE/FOUNDRY not used as any identifier.
+
+MISSION STATUS = SHIFT CONTINUING / WHY-EVIDENCE VIEW NOW EXISTS AS CODE
+(`ExecutionReceiptCard`) + SINGLE-RENDERER SENTINEL. FIRST BUILDABLE SLICE
+COMPLETE END TO END (gate→ack→JSON→parse→view→card). MOUNT AWAITS A
+NON-COLLIDING TRADE SURFACE.
