@@ -41,7 +41,7 @@ describe("selectPaperQuoteReadiness — Paper actionability truth gate", () => {
       price: 29_509.5,
       observedAt: OBSERVED,
       ageMs: 10 * 60_000,
-      label: "DELAYED BY ENTITLEMENT",
+      label: "ACTIVE DEGRADED",
     });
   });
 

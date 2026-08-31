@@ -160,7 +160,13 @@ export function selectPaperQuoteReadiness(
     ...base,
     status: "DELAYED",
     actionable: true,
-    label: CANONICAL_FIDELITY_LABELS.DELAYED_BY_ENTITLEMENT,
+    // Monday Test 2 law: never assert DELAYED BY ENTITLEMENT without a
+    // provider-proven entitlement edge. A canonical delayed observation with
+    // no proven paid-tier cause is an honestly degraded-but-usable capability
+    // (canon ACTIVE DEGRADED: session active, one capability degraded, the
+    // trader can still act with reduced confidence) — never a false
+    // entitlement claim.
+    label: CANONICAL_FIDELITY_LABELS.ACTIVE_DEGRADED,
     reason: "Canonical delayed observation accepted for paper simulation only.",
   };
 }
