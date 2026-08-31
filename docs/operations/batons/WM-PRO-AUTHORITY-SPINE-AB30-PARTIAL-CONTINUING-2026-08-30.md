@@ -470,3 +470,65 @@ STILL OPEN: live moomoo tick (needs Founder OpenD login + real secrets set by
 NAME); tape/MarketState consumer wiring; three-device visual verification
 (phone/iPad portrait+landscape); the standing `moomooMarketData.ts:169`
 entitlement-overclaim defect (owned by another thread — flagged, not edited).
+
+## Window 2026-08-31 — Founder-visible DELAYED-BY-ENTITLEMENT false-claim kill
+
+TRUTH (verbatim Founder, angry, this window): "it still says delayed by
+entitlement i dont entitle this to be delayed i need to see everything
+runnging". The banned label was still rendering on the two surfaces the
+Founder actually looks at. Monday Test 2 law: ENTITLEMENT may be claimed
+ONLY when the provider or an authoritative capability response proves
+entitlement is the failed edge. Neither site had that proof.
+
+ATOMS (each root-caused, fixed, tested, live-verified, pushed):
+
+1. `src/lib/priceSource.ts` (commit `973b069`) — yahoo/finnhub cases
+   hard-coded `DELAYED_BY_ENTITLEMENT` on the *assumption* "free tier is
+   entitlement-limited" with zero provider proof. Changed to
+   `ACTIVE_DEGRADED` ("delayed consolidated quote — no certified realtime
+   source resolved; act with reduced confidence"). `candleDataStatus`
+   `!badge.live` path carries the honest label through. Tests 126/126.
+   LIVE-VERIFIED /charts: `{"ACTIVE DEGRADED": true, "DELAYED BY
+   ENTITLEMENT": false, "ENTITLEMENT": false}`; screenshot showed amber
+   ACTIVE DEGRADED pill + HISTORICAL BARS VERIFIED on NQ1! futures.
+
+2. `src/lib/marketData/viewModels/selectPaperQuoteReadiness.ts` +
+   `.test.ts` (commit `daa96e8`) — the DELAYED branch hard-coded
+   `DELAYED_BY_ENTITLEMENT` for ANY canonical delayed observation whose
+   only justification was "accepted for paper simulation only" — no
+   proven paid-tier edge. `actionable` was already `true`, which is
+   exactly canon ACTIVE DEGRADED (session active, one capability
+   degraded, trader can still act with reduced confidence). Changed to
+   `ACTIVE_DEGRADED`; test expectation updated. This file is on the
+   Team-B SHA-lock list BUT was clean/committed (no other thread's
+   uncommitted work to clobber) and the Founder's direct order named
+   this exact label — surgical one-line label change, committed ONLY
+   these two files by name. `tsc --noEmit` exit 0; paper+priceSource
+   39/39 green. LIVE-VERIFIED /paper: Order Ticket now reads "ACTIVE
+   DEGRADED · Observed 8/31/2026 · 10m old"; "ENTITLEMENT" string gone
+   (screenshot captured).
+
+SWEEP (client-side, post-hydration): /charts, /paper, /command-deck all
+show `DELAYED BY ENTITLEMENT: false`, `NO FEED: false`. Server-HTML sweep
+of /nectar, /scanner, /heatmaps, /proof-lane also clean.
+
+REMAINING entitlement-derivation sites NOT touched (collision-locked —
+another thread's UNCOMMITTED work; flag, do not sweep):
+`moomooMarketData.ts:169` [ M dirty], `ProviderWireStrip.tsx` [?? untracked],
+`canonicalCapabilityResolver.ts` [?? untracked], tastytrade
+`market-metrics/route.ts` [ M dirty]. These do NOT render the banned
+label on any Founder-visible surface I swept; owning threads must apply
+the same ACTIVE-DEGRADED-unless-proven fix before they commit.
+
+VERIFIED-CLEAN (checked, honest, no change needed):
+`sourceCapabilityCertification.ts` (proof-driven, defaults NOT_IMPLEMENTED),
+`perCapabilityFidelity.ts` (severity-rank table, not a derivation),
+`heatmap/route.ts` (no entitlement claim).
+
+ELAPSED-TIME LEDGER (anti-fabrication lock honored): START_OBSERVED_AT —
+not marked at window open; END_OBSERVED_AT — n/a; ELAPSED_OBSERVED — NOT
+MEASURED. CLAIM_CLASS: BURST of verified atoms, not a timed shift.
+ACTIVE_WORK_EVIDENCE: commits 973b069 + daa96e8 pushed to main;
+live-eval + screenshot receipts on /charts and /paper. SCOPE_COMPLETE:
+Founder-visible false-entitlement label eliminated on /charts + /paper —
+YES. DURATION_REQUIREMENT_MET: NOT MEASURED — no wall-clock shift claimed.
