@@ -275,3 +275,47 @@ HARDENED. Every enum on a rendered receipt is validated; no garbage verdict,
 class, env, or source can reach a surface. MOUNT STILL AWAITS A NON-COLLIDING
 TRADE SURFACE (no order UI exists in src to mount onto without touching the
 SHA-locked chart/paper files).
+
+## Continued window 2026-08-31 — portability readiness verifier + connectivity bridge
+
+Founder directive this window: "make sure my app is connected locally also so we
+stop running into these issues" and "Both, in order" — build the portability
+readiness verifier + local↔host parity FIRST, then continue the authority spine.
+Secrets boundary HELD: the Founder's Drive credentials were NOT written by me;
+everything is built AROUND the credentials, presence-only, no value ever printed.
+
+Task 1 — deterministic provider-readiness verifier (needs no secrets):
+- `d0ad800` **providerReadiness.ts** — one declarative `PROVIDER_REQUIREMENTS`
+  table replaces the scattered per-adapter env knowledge. Pure, presence-only
+  selectors: per provider READY vs BLOCKED(missing VAR); `computeEnvParity`
+  reports local↔host drift (LOCAL_ONLY / HOST_ONLY) by NAME, never by value.
+  14 tests.
+- `4760ad5` **/api/broker/readiness** — read-only route surfacing the verifier
+  on both lanes; caller URL identifies local vs host. + host-neutral fix
+  (`fixup`): dropped an initial `process.env.VERCEL` read that tripped the
+  host-neutrality lock + env-manifest orphan guard.
+- **providerReadiness.envExample.test.ts** — Sentinel that FAILS the build if a
+  provider var is declared but undocumented in `.env.example`.
+
+Local-lane presence snapshot (presence-only, values never shown): only
+`alpaca-live` is READY; `webull-data`/`webull-broker` BLOCKED (WEBULL_API_HOST
+[+ WEBULL_CLIENT_ID]), `tastytrade` BLOCKED (TASTYTRADE_REFRESH_TOKEN), `moomoo`
+BLOCKED (MOOMOO_BRIDGE_URL + _TOKEN), `alpaca-paper` BLOCKED (ALPACA_PAPER_*).
+These are exactly the vars the Founder must paste into `.env.local`.
+
+Task 2 — authority spine continuation:
+- **executionConnectivity.ts** — composes the Aug-30 authorization decision with
+  the readiness verdict: authorized ≠ reachable. Three honest states
+  (READY_TO_EXECUTE / AUTHORIZED_BUT_DISCONNECTED[names missing vars] /
+  NOT_AUTHORIZED — denial dominates). Pure, no secrets. 4 tests. Does NOT modify
+  the SHA-sensitive authorizeExecution gate — additive composition only.
+
+Evidence (this window): `tsc --noEmit` exit 0; **full suite 277 files / 2716
+tests PASS**. Push still **HELD**. No paper/academy/chart/globals SHA-locked
+files touched; other threads' uncommitted working-tree changes were left alone
+(committed only my own files by name). FORGE/FOUNDRY not used as any identifier.
+
+MISSION STATUS = SHIFT CONTINUING. Portability is now inspectable and testable;
+the authority spine knows the difference between "may act" and "can reach the
+broker." Still awaiting Founder-pasted broker credentials + a non-colliding
+trade surface to mount the receipt onto.
