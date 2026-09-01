@@ -28,6 +28,7 @@ import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
 import { normalizeBinanceUsTrade } from "@/lib/marketData/adapters/binanceUs";
 import { moomooNextPollDelayMs, selectFreshMoomooTapeEvents } from "@/lib/marketData/adapters/moomooTicksBrowser";
 import { selectFreshWebullTapeEvents } from "@/lib/marketData/adapters/webullTicksBrowser";
+import { electProviderTapeSource, type ProviderTapeSource } from "@/lib/marketData/providerTapeElection";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
 
 export interface Tick {
@@ -66,7 +67,7 @@ export interface MarketState {
   connected:   boolean;
   source:      "polygon" | "finnhub" | "yahoo" | "alpaca" | "coinbase" | "binance" | "unavailable";
   /** Aggressor tape feed — set only by trade WebSockets, never downgraded by REST quotes. */
-  tapeSource:  "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | "moomoo" | "webull" | null;
+  tapeSource:  ProviderTapeSource | null;
   latency:     number; // ms to last update
 }
 
@@ -995,7 +996,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // as a persistent stream. A route response alone is insufficient: only a
     // current provider timestamp + exact symbol + explicit provider side can
     // elect Moomoo as the active aggressor tape.
-    const moomooGuard = new MarketEventGuard();
+    const providerTapeGuard = new MarketEventGuard();
     let moomooInFlight = false;
     let moomooAbort: AbortController | null = null;
     let moomooTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1035,12 +1036,14 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         // so an unavailable provider cannot burn the host request budget.
         nextDelayMs = moomooNextPollDelayMs(events.length);
         for (const event of events) {
-          const inspected = moomooGuard.inspect(event);
+          const inspected = providerTapeGuard.inspect(event);
           if (inspected.status !== "ACCEPTED") continue;
+          const nextTapeSource = electProviderTapeSource(tapeSourceRef.current, electedSource);
+          if (nextTapeSource !== electedSource) continue;
+          tapeSourceRef.current = nextTapeSource;
+          // Only the elected tape owner may enter the canonical session store.
+          // A valid-but-rejected alternate provider remains diagnostics evidence.
           ingestSessionNectarEvent(inspected.event);
-          const mayPromote = tapeSourceRef.current === "webull" && electedSource === "moomoo";
-          if (tapeSourceRef.current && tapeSourceRef.current !== electedSource && !mayPromote) continue;
-          tapeSourceRef.current = electedSource;
           processTick({
             price: inspected.event.price!,
             size: inspected.event.size!,
