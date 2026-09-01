@@ -17,6 +17,19 @@ describe("/api/athos/market-data/capabilities GET", () => {
     expect(matrix.capabilities.map((row) => row.capability)).toEqual(DATA_CAPABILITIES);
   });
 
+  it("keeps all four active-required providers inside canonical resolution", async () => {
+    const matrix = await readMatrix();
+    const represented = new Set(
+      matrix.capabilities.flatMap((row) => [
+        ...(row.provider ? [row.provider] : []),
+        ...row.rejectedSources.map((source) => source.source),
+      ]),
+    );
+    for (const source of ["moomoo", "webull", "alpaca", "tastytrade"]) {
+      expect(represented.has(source)).toBe(true);
+    }
+  });
+
   it("does not infer session state from provider connectivity", async () => {
     const matrix = await readMatrix();
     expect(matrix.session.state).toBe("UNKNOWN");
