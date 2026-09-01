@@ -997,6 +997,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // current provider timestamp + exact symbol + explicit provider side can
     // elect Moomoo as the active aggressor tape.
     const providerTapeGuard = new MarketEventGuard();
+    let providerTapeLastAcceptedAt = 0;
     let moomooInFlight = false;
     let moomooAbort: AbortController | null = null;
     let moomooTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1038,9 +1039,16 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         for (const event of events) {
           const inspected = providerTapeGuard.inspect(event);
           if (inspected.status !== "ACCEPTED") continue;
-          const nextTapeSource = electProviderTapeSource(tapeSourceRef.current, electedSource);
+          const acceptedAt = Date.now();
+          const nextTapeSource = electProviderTapeSource(
+            tapeSourceRef.current,
+            electedSource,
+            providerTapeLastAcceptedAt,
+            acceptedAt,
+          );
           if (nextTapeSource !== electedSource) continue;
           tapeSourceRef.current = nextTapeSource;
+          providerTapeLastAcceptedAt = acceptedAt;
           // Only the elected tape owner may enter the canonical session store.
           // A valid-but-rejected alternate provider remains diagnostics evidence.
           ingestSessionNectarEvent(inspected.event);

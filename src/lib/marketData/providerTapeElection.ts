@@ -16,8 +16,18 @@ export type ProviderTapeSource =
 export function electProviderTapeSource(
   current: ProviderTapeSource | null,
   candidate: "moomoo" | "webull",
+  currentAcceptedAt = 0,
+  now = Date.now(),
+  providerLeaseMs = 30_000,
 ): ProviderTapeSource {
-  if (!current || current === candidate) return candidate;
-  if (current === "webull" && candidate === "moomoo") return "moomoo";
-  return current;
+  const providerOwner = current === "moomoo" || current === "webull";
+  const leaseExpired = providerOwner && (
+    !Number.isFinite(currentAcceptedAt) ||
+    currentAcceptedAt <= 0 ||
+    now - currentAcceptedAt > providerLeaseMs
+  );
+  const effectiveCurrent = leaseExpired ? null : current;
+  if (!effectiveCurrent || effectiveCurrent === candidate) return candidate;
+  if (effectiveCurrent === "webull" && candidate === "moomoo") return "moomoo";
+  return effectiveCurrent;
 }
