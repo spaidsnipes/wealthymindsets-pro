@@ -50,4 +50,22 @@ describe("GET /api/finnhub — honest upstream failure classification", () => {
     expect(res.status).toBe(429);
     expect(body.edge).toBe("RATE LIMITED");
   });
+
+  it("reports a missing key in production as NOT CONFIGURED @ 503, not a generic 500", async () => {
+    vi.unstubAllEnvs();
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("FINNHUB_KEY", "");
+    vi.stubEnv("NEXT_PUBLIC_FINNHUB_KEY", "");
+    // fetch must never be reached — the pre-flight config guard fires first.
+    const spy = vi.fn();
+    globalThis.fetch = spy as unknown as typeof fetch;
+
+    const { GET } = await loadRoute();
+    const res = await GET(new Request("http://localhost/api/finnhub?sym=TSLA&type=quote"));
+    const body = await res.json();
+    expect(res.status).toBe(503);
+    expect(body.edge).toBe("NOT CONFIGURED");
+    expect(spy).not.toHaveBeenCalled();
+    expect(String(body.error).toUpperCase()).not.toContain("ENTITLEMENT");
+  });
 });

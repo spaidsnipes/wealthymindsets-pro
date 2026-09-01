@@ -25,21 +25,37 @@ const BASE = "https://finnhub.io/api/v1";
 // crash when the prod key isn't available in the build environment. Real
 // GET handlers still fail-fast in production at the first request.
 let _finnhubKeyCache: string | null = null;
+/**
+ * A pre-flight configuration failure (the key is absent or is the committed
+ * dev fallback in production). Distinct from an upstream provider failure:
+ * the real edge is NOT CONFIGURED, and the honest status is 503 — never a
+ * generic 500 and never "delayed by entitlement".
+ */
+class FinnhubConfigError extends Error {
+  readonly edge = "NOT CONFIGURED";
+  constructor(message: string) {
+    super(message);
+    this.name = "FinnhubConfigError";
+  }
+}
+
 function getFinnhubKey(): string {
   if (_finnhubKeyCache !== null) return _finnhubKeyCache;
   const fromEnv = process.env.FINNHUB_KEY ?? process.env.NEXT_PUBLIC_FINNHUB_KEY;
   const isProd  = process.env.NODE_ENV === "production";
   if (isProd) {
     if (!fromEnv) {
-      throw new Error(
-        "FINNHUB_KEY is not set in production. Refusing to call Finnhub with " +
-        "a committed fallback. Set FINNHUB_KEY in Vercel and redeploy.",
+      throw new FinnhubConfigError(
+        "FINNHUB_KEY is not set on the host runtime. Refusing to call Finnhub " +
+        "with a committed fallback. Set FINNHUB_KEY in the host runtime secrets " +
+        "and redeploy.",
       );
     }
     if (fromEnv === COMMITTED_FALLBACK) {
-      throw new Error(
+      throw new FinnhubConfigError(
         "FINNHUB_KEY equals the committed dev fallback in production. Rotate " +
-        "immediately at finnhub.io, update the value in Vercel, redeploy.",
+        "immediately at finnhub.io, update the value in the host runtime secrets, " +
+        "redeploy.",
       );
     }
     _finnhubKeyCache = fromEnv;
@@ -261,6 +277,15 @@ export async function GET(request: Request) {
       return NextResponse.json(
         { error: err.message, edge: err.edge, source: "finnhub" },
         { status: err.status },
+      );
+    }
+    // Pre-flight config failure (key absent / committed fallback) is NOT
+    // CONFIGURED, surfaced as 503 — an honest "this lane was never wired here",
+    // not a generic 500 server crash.
+    if (err instanceof FinnhubConfigError) {
+      return NextResponse.json(
+        { error: err.message, edge: err.edge, source: "finnhub" },
+        { status: 503 },
       );
     }
     return NextResponse.json({ error: String(err) }, { status: 500 });
