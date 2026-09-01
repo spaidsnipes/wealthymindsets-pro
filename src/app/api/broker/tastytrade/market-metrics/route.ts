@@ -21,13 +21,19 @@ export async function GET(req: NextRequest) {
   // Cap to protect the upstream — never forward an unbounded list.
   const list = symbols.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean).slice(0, 25);
   try {
-    const data = await ttGet<any>(`/market-metrics?symbols=${encodeURIComponent(list.join(","))}`);
+    const data = await ttGet<{ data?: { items?: unknown[] } }>(`/market-metrics?symbols=${encodeURIComponent(list.join(","))}`);
     const items = data?.data?.items ?? [];
     return NextResponse.json(
-      { source: "tastytrade", state: "LIVE", items },
+      {
+        source: "tastytrade",
+        state: "SNAPSHOT",
+        observedAt: new Date().toISOString(),
+        note: "On-demand authenticated market metrics; not a streaming quote or real-time entitlement receipt.",
+        items,
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: "tastytrade market-metrics failed", items: [] }, { status: 502 });
   }
 }
