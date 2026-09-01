@@ -1,9 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getTastytradeCapabilities } from "@/lib/tastytrade";
+import { requireAuth } from "@/lib/requireAuth";
 
 // Server-only. Returns the tastytrade connection STATE + verified capabilities.
 // Never returns tokens or secret values (Company Bible §30).
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   try {
     const caps = await getTastytradeCapabilities();
     return NextResponse.json(caps, { headers: { "Cache-Control": "no-store" } });
