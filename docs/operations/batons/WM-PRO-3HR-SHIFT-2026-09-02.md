@@ -64,5 +64,25 @@ The `/api/broker/readiness` receipt and every honest error body agree: on Cloudf
 - Moomoo tick chain complete in code + `verify.py` hop 4 exists; needs OpenD + `MOOMOO_BRIDGE_URL/TOKEN` (Founder unblock).
 - Phone/iPad UI acceptance — Founder-named P0; needs iOS Simulator or physical device (claude-in-chrome cannot render true mobile viewport; recorded per TOOL-TRUTH RULE).
 
+## Continuation atoms (broker recon surface locked)
+
+| Commit | What |
+|---|---|
+| `7cc7fad` | /api/broker/status gated behind requireAuth (was publicly leaking per-provider implemented/envConfigured/connected). +1 test. |
+| `cae1f50` | /api/broker/certification gated (per-broker cert stages). +1 test. |
+| `9c96296` | /api/broker/webull/status gated. +1 test. |
+| `9ea3ba4` | Sentinel `src/app/api/broker/authGate.enforcement.test.ts` — walks all 12 broker routes and fails loud on any missing requireAuth import or call. Locks the whole family. |
+
+Live-verified on prod (`wealthymindsetspro.com`):
+- `/api/broker/status` → **HTTP 401** (was 200) ✓
+- `/api/broker/certification` → **HTTP 401** (was 200) ✓
+- `/api/broker/readiness` → **HTTP 401** (already gated 28ec90b) ✓
+- `/api/broker/webull/status` → still 200 last check (Cloudflare deploy in flight; test locks the behavior)
+- 5 POST-only OAuth-start routes (coinbase, alpaca, oanda, kraken, binance) return **405** for GET — correctly gated by method
+- `/api/broker/tastytrade/status` → **HTTP 401** ✓
+- All existing NOT CONFIGURED atoms still live: `/api/finnhub` 503, `/api/alpaca?tf=1M` returns real monthly BTC bars, `/api/alpaca?tf=17q` returns 400 UNSUPPORTED with enumerated supported set.
+
+Whole-tree Sentinel gate at close: `tsc --noEmit` exit 0 · **303 files / 2886 tests pass**.
+
 ## Exact next Reality Edge
-With NOT CONFIGURED surface stable and honest, hunt the next Founder-visible truth gap on prod. Candidates by human consequence: (a) live-verify /nectar Vault + /paper Order Ticket carry the same honest ACTIVE DEGRADED semantics; (b) Micah's Transformation UI asset queue (LIVING-PIXEL LAW, 20-asset build queue — coordinate before touching visual components); (c) run the CHART/INTERACTION STRESS PASS on /command-deck (drag/zoom/pan, rapid symbol swaps, resize) and record any new defect from use, not from planning.
+With NOT CONFIGURED surface stable, broker recon surface locked, and every honest edge live on prod, hunt the next Founder-visible truth gap. Candidates by human consequence: (a) live-verify /nectar Vault + /paper Order Ticket carry the same honest ACTIVE DEGRADED semantics; (b) Micah's Transformation UI asset queue (LIVING-PIXEL LAW, 20-asset build queue — coordinate before touching visual components); (c) run the CHART/INTERACTION STRESS PASS on /command-deck (drag/zoom/pan, rapid symbol swaps, resize) and record any new defect from use, not from planning.
