@@ -18,6 +18,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import "server-only";
+import { fetchProviderWithTimeout } from "./providerFetch";
 
 const IS_CERT = process.env.TASTYTRADE_ENV === "cert";
 const BASE = IS_CERT ? "https://api.cert.tastyworks.com" : "https://api.tastyworks.com";
@@ -63,7 +64,7 @@ async function getAccessToken(): Promise<string | null> {
 
   // Exact format from tastytrade's own SDK (tastytrade-http-client.ts): JSON body
   // with grant_type/refresh_token/client_secret/scope and NO client_id.
-  const res = await fetch(`${BASE}/oauth/token`, {
+  const res = await fetchProviderWithTimeout(fetch, `${BASE}/oauth/token`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json", "User-Agent": UA },
     body: JSON.stringify({
@@ -100,7 +101,7 @@ async function ttRequest<T = unknown>(
   const token = await getAccessToken();
   if (!token) throw new Error("tastytrade not configured");
   const doFetch = (tok: string) =>
-    fetch(`${BASE}${path}`, {
+    fetchProviderWithTimeout(fetch, `${BASE}${path}`, {
       method,
       headers: {
         Authorization: `Bearer ${tok}`,
