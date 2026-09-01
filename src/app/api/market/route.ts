@@ -2,15 +2,15 @@ import { NextResponse } from "next/server";
 
 // Server-only Finnhub key. Same fail-fast pattern as /api/finnhub — refuse to
 // call Finnhub with the committed-fallback value in production (WM-SEC-P0-03).
-// Lazy resolver so Vercel build's page-data collection doesn't crash when the
+// Lazy resolver so the build's page-data collection doesn't crash when the
 // prod value isn't wired into the build environment.
 const COMMITTED_FALLBACK = "d8efu9hr01qth3ch5f20d8efu9hr01qth3ch5f2g";
 function getFinnhubKey(): string {
   const fromEnv = process.env.FINNHUB_KEY ?? process.env.NEXT_PUBLIC_FINNHUB_KEY;
   const isProd  = process.env.NODE_ENV === "production";
   if (isProd) {
-    if (!fromEnv)                     throw new Error("FINNHUB_KEY unset in production. Set it in Vercel and redeploy.");
-    if (fromEnv === COMMITTED_FALLBACK) throw new Error("FINNHUB_KEY equals committed dev fallback in production. Rotate at finnhub.io.");
+    if (!fromEnv)                     throw new Error("FINNHUB_KEY is not set on the host runtime. Set it in the host runtime secrets (e.g. Cloudflare) and redeploy.");
+    if (fromEnv === COMMITTED_FALLBACK) throw new Error("FINNHUB_KEY equals the committed dev fallback in production. Rotate at finnhub.io, update the value in the host runtime secrets, and redeploy.");
     return fromEnv;
   }
   return fromEnv ?? "";

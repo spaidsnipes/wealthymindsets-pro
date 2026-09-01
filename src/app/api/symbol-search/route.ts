@@ -54,7 +54,16 @@ export async function GET(request: Request) {
   if (!q) return NextResponse.json({ results: [] });
 
   if (!POLYGON_KEY) {
-    return NextResponse.json({ error: "Polygon API key not configured" }, { status: 500 });
+    // Monday Test 2 truth: name the exact missing var and use 503 (config gap)
+    // instead of a generic 500 (server error). Presence-only.
+    return NextResponse.json(
+      {
+        error: "Symbol search is NOT CONFIGURED on this host runtime — missing required variable: POLYGON_KEY (server-only) or NEXT_PUBLIC_POLYGON_KEY. Set POLYGON_KEY in the host runtime secrets (e.g. Cloudflare) and redeploy.",
+        edge: "NOT CONFIGURED",
+        missing: ["POLYGON_KEY"],
+      },
+      { status: 503 },
+    );
   }
 
   try {

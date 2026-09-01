@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     ...status,
     ok: status.hasApiKey && !status.usingTestSender,
     hint: status.usingTestSender
-      ? "Set RESEND_FROM_EMAIL to a verified-domain address (e.g. 'WealthyMindsets Pro <no-reply@wealthymindsets.info>') in Vercel → Project → Settings → Environment Variables, then redeploy."
+      ? "Set RESEND_FROM_EMAIL to a verified-domain address (e.g. 'WealthyMindsets Pro <no-reply@wealthymindsets.info>') in the host runtime secrets (e.g. Cloudflare → Settings → Environment Variables), then redeploy."
       : "Email sender is configured for production delivery.",
   });
 }
