@@ -29,6 +29,7 @@ import { normalizeBinanceUsTrade } from "@/lib/marketData/adapters/binanceUs";
 import { moomooNextPollDelayMs, selectFreshMoomooTapeEvents } from "@/lib/marketData/adapters/moomooTicksBrowser";
 import { selectFreshWebullTapeEvents } from "@/lib/marketData/adapters/webullTicksBrowser";
 import { electProviderTapeSource, type ProviderTapeSource } from "@/lib/marketData/providerTapeElection";
+import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
 
 export interface Tick {
@@ -1145,6 +1146,12 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
     // ── REST polling — REAL price drives the live bar (no faked movement) ──
     let restFetchInFlight = false;
+    let restTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRestFetch = (delayMs: number) => {
+      if (disposed || document.visibilityState === "hidden") return;
+      if (restTimer) clearTimeout(restTimer);
+      restTimer = setTimeout(doRestFetch, delayMs);
+    };
     const doRestFetch = () => {
       if (disposed || document.visibilityState === "hidden" || restFetchInFlight) return;
       restFetchInFlight = true;
@@ -1184,16 +1191,21 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           ticker: { price: realPrice, change: q.change, changePct: q.changePct, volume: prev2.ticker.volume },
           orderBook: bookRef.current,
         }));
-      }).finally(() => { restFetchInFlight = false; });
+      }).finally(() => {
+        restFetchInFlight = false;
+        scheduleRestFetch(restQuoteNextPollDelayMs(tapeSourceRef.current));
+      });
     };
 
     // Fetch immediately at mount to correct stale seed price
     doRestFetch();
-    // Poll every 1.5s for real-time price updates (Yahoo/Alpaca handle this rate fine)
-    const restRefresh = setInterval(doRestFetch, 1_500);
 
     // Fire REST fetch immediately when tab becomes visible (fixes background-tab throttling)
-    const onVisibleWS = () => { if (document.visibilityState === "visible") doRestFetch(); };
+    const onVisibleWS = () => {
+      if (document.visibilityState !== "visible") return;
+      if (restTimer) clearTimeout(restTimer);
+      doRestFetch();
+    };
     document.addEventListener("visibilitychange", onVisibleWS);
 
     // ── Real-time per-trade tape via an always-on external WS proxy ─────────
@@ -1266,7 +1278,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       moomooAbort?.abort();
       if (moomooTimer) clearTimeout(moomooTimer);
       if (cryptoFallbackTimer) clearTimeout(cryptoFallbackTimer);
-      clearInterval(restRefresh);
+      if (restTimer) clearTimeout(restTimer);
       // Alpaca relay teardown now flows through cleanupFns.current below —
       // the joinTape cleanup drops the refcount and closes the shared socket
       // when the last consumer unmounts (matches crypto/Finnhub behavior).
