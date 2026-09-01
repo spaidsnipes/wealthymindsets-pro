@@ -40,7 +40,7 @@ Executed rules from the "MANDATORY HANDS-ON OPERATOR PASS" + "CHART / INTERACTIO
 ### PROD chart interactive walk (`/charts`)
 - **TF stress switch:** rapid 4-switch series (15m → 1h → 1D → 1m) — every button click registered; DOM confirms `1m` has the active `bg-wm-blue/20 text-wm` class after the sequence; chart chrome remained stable; EVIDENCE strip continued live (BTC/ETH/CL1! per-tile). No console errors. ✓
 - **Truth labels:** chart shows `HISTORICAL BARS VERIFIED · LAST 02:59 PM`, header shows `ACTIVE DEGRADED` for TSLA, DOM says `NO FABRICATED DEPTH — needs a licensed Level 2 feed`. Every label per canon. ✓
-- **Watchlist row clicks (SPY/AAPL/QQQ/TSLA):** chart header stayed on TSLA after the sequence. Either (a) click coords landed on non-target rows or (b) real click-handler defect. **Recorded OPEN** for a follow-up isolated repro rather than falsely resolving.
+- **Watchlist row clicks (SPY/AAPL/QQQ/TSLA):** initial coord-based clicks (y=344/380/415/451) did not switch the chart — first read as a defect. **Sentinel RETURN corrected via DOM dispatch:** finding the SPY row by `textContent` and calling `.click()` directly DID switch the chart to SPY (OHLC price row confirmed showing O 761.25 H 761.71 L 761.04 C 761.63 V 132,628 — real SPY numbers). Handler at `WatchlistPanel.tsx:674` (`onClick={() => setActiveSymbol(item.sym)}` via `useActiveSymbol`) is wired correctly. Earlier failure was a Chrome-automation coordinate hitbox miss, not a real product defect. **Reverse false-green caught before it became a bogus commit.**
 - **Chart Settings modal:** opens on cog click, dismisses cleanly on X. Initial screenshot showed a paint-race overlap of the settings header with the underlying nav row that was gone in the DOM re-inspection (`modalCount:0, hasOpenModal:false`). No confirmed defect.
 
 ### Founder-actionable finding (from the honest surface)
@@ -62,8 +62,7 @@ The `/api/broker/readiness` receipt and every honest error body agree: on Cloudf
 - Finnhub calls fail on prod because `FINNHUB_KEY` isn't set in Cloudflare (Founder unblock).
 - Tastytrade requires `TASTYTRADE_REFRESH_TOKEN` (Founder unblock).
 - Moomoo tick chain complete in code + `verify.py` hop 4 exists; needs OpenD + `MOOMOO_BRIDGE_URL/TOKEN` (Founder unblock).
-- Watchlist-row click behavior on `/charts` needs isolated repro.
 - Phone/iPad UI acceptance — Founder-named P0; needs iOS Simulator or physical device (claude-in-chrome cannot render true mobile viewport; recorded per TOOL-TRUTH RULE).
 
 ## Exact next Reality Edge
-Reproduce the watchlist-row click behavior in an isolated test: does the click bubble to the wrong handler? does the row bind onClick but not fire on the child text spans? Fix with a focused unit test + component patch (Micah territory — coordinate before touching visual components).
+With NOT CONFIGURED surface stable and honest, hunt the next Founder-visible truth gap on prod. Candidates by human consequence: (a) live-verify /nectar Vault + /paper Order Ticket carry the same honest ACTIVE DEGRADED semantics; (b) Micah's Transformation UI asset queue (LIVING-PIXEL LAW, 20-asset build queue — coordinate before touching visual components); (c) run the CHART/INTERACTION STRESS PASS on /command-deck (drag/zoom/pan, rapid symbol swaps, resize) and record any new defect from use, not from planning.
