@@ -3,8 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DATA_CAPABILITIES } from "../../../../../lib/marketData/sourceCapabilityCertification";
 import type { AthosCapabilityMatrix } from "../../../../../lib/marketData/canonicalCapabilityResolver";
 
-const mocks = vi.hoisted(() => ({ requireAuth: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  requireAuth: vi.fn(),
+  getTastytradeCapabilities: vi.fn(),
+}));
 vi.mock("@/lib/requireAuth", () => ({ requireAuth: mocks.requireAuth }));
+vi.mock("../../../../../lib/tastytrade", () => ({
+  getTastytradeCapabilities: mocks.getTastytradeCapabilities,
+}));
 
 import { GET } from "./route";
 
@@ -19,6 +25,17 @@ describe("/api/athos/market-data/capabilities GET", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.requireAuth.mockResolvedValue({ ok: true });
+    mocks.getTastytradeCapabilities.mockResolvedValue({
+      configured: false,
+      connected: false,
+      env: "production",
+      accounts: 0,
+      quotes: false,
+      realTime: null,
+      supportedAssetClasses: [],
+      sourceName: "tastytrade / dxFeed",
+      note: "TASTYTRADE_REFRESH_TOKEN is missing.",
+    });
   });
 
   it("rejects an unauthenticated request before any capability is exposed", async () => {
@@ -72,5 +89,27 @@ describe("/api/athos/market-data/capabilities GET", () => {
     expect(raw).not.toContain("bearer ");
     expect(raw).not.toContain("authorization");
     expect(raw).not.toContain("moomoo_bridge_token");
+  });
+
+  it("uses the provider status probe without promoting quote-token access to market data", async () => {
+    mocks.getTastytradeCapabilities.mockResolvedValue({
+      configured: true,
+      connected: true,
+      env: "production",
+      accounts: 1,
+      quotes: true,
+      realTime: null,
+      supportedAssetClasses: ["equity", "option", "future"],
+      sourceName: "tastytrade / dxFeed",
+      note: "Quote token observed; timestamped market event is still unproven.",
+    });
+
+    const matrix = await readMatrix();
+    const tastytradeRows = matrix.capabilities.flatMap((row) => row.rejectedSources)
+      .filter((source) => source.source === "tastytrade");
+    expect(tastytradeRows.length).toBeGreaterThan(0);
+    expect(tastytradeRows.every((row) => row.reason === "capability status is NOT_IMPLEMENTED")).toBe(true);
+    expect(tastytradeRows.some((row) => row.note?.includes("timestamped market event is still unproven"))).toBe(true);
+    expect(JSON.stringify(tastytradeRows)).not.toMatch(/BLOCKED_ENTITLEMENT|DELAYED_BY_ENTITLEMENT/);
   });
 });
