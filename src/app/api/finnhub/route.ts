@@ -104,11 +104,36 @@ function toFinnhubSym(sym: string): string | null {
 
 const CACHE = new Map<string, { data: unknown; ts: number }>();
 
+/**
+ * A failed upstream Finnhub response, classified into an honest edge. Monday
+ * Test 2: name the ACTUAL proven failure class — a 401 (Finnhub rejected our
+ * token) is AUTH BLOCKED, not a generic HTTP 500 and never "delayed by
+ * entitlement". The upstream status is preserved for the caller.
+ */
+class FinnhubUpstreamError extends Error {
+  constructor(readonly status: number, readonly edge: string, message: string) {
+    super(message);
+    this.name = "FinnhubUpstreamError";
+  }
+}
+
+function classifyFinnhubStatus(status: number): string {
+  if (status === 401) return "AUTH BLOCKED";  // Finnhub rejected the API token (invalid/expired)
+  if (status === 403) return "FORBIDDEN";     // token lacks access to this resource / plan
+  if (status === 429) return "RATE LIMITED";  // Finnhub free-tier throttle
+  if (status === 404) return "NOT FOUND";     // symbol / endpoint not found upstream
+  if (status >= 500) return "PROVIDER ERROR"; // Finnhub-side failure
+  return "UPSTREAM ERROR";
+}
+
 async function fhFetch(url: string, ttlMs = 5_000): Promise<unknown> {
   const cached = CACHE.get(url);
   if (cached && Date.now() - cached.ts < ttlMs) return cached.data;
   const res = await fetch(url, { headers: { "X-Finnhub-Token": getFinnhubKey() }, cache: "no-store" });
-  if (!res.ok) throw new Error(`Finnhub HTTP ${res.status}`);
+  if (!res.ok) {
+    const edge = classifyFinnhubStatus(res.status);
+    throw new FinnhubUpstreamError(res.status, edge, `Finnhub ${edge} (HTTP ${res.status})`);
+  }
   const data = await res.json();
   CACHE.set(url, { data, ts: Date.now() });
   return data;
@@ -229,6 +254,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unknown type" }, { status: 400 });
 
   } catch (err: unknown) {
+    // Preserve the provider's real failure class + status. A rejected token
+    // surfaces as 401 AUTH BLOCKED so the consumer can degrade honestly instead
+    // of reading a generic 500 (and never "delayed by entitlement").
+    if (err instanceof FinnhubUpstreamError) {
+      return NextResponse.json(
+        { error: err.message, edge: err.edge, source: "finnhub" },
+        { status: err.status },
+      );
+    }
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
