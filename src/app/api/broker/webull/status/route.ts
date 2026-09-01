@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
 import { getAdapter } from "../../../../../lib/broker/adapters";
 
 /**
@@ -21,7 +22,11 @@ export interface WebullStatus {
   readonly checkedAt: string;
 }
 
-export async function GET(): Promise<NextResponse<WebullStatus>> {
+export async function GET(request: Request): Promise<Response> {
+  // Gated behind a WM session — infra recon consistency with the
+  // /api/broker/{status,certification,readiness} routes.
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   const adapter = getAdapter("webull");
   const h = adapter?.health();
   const body: WebullStatus = {
