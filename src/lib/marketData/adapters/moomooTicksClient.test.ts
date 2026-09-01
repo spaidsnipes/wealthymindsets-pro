@@ -59,6 +59,24 @@ describe("probeMoomooTicks — transport truth, no secret leakage", () => {
     expect(input.transportReached).toBe(false);
     expect(input.transportError).toContain("ECONNREFUSED");
   });
+
+  it("times out a hanging bridge read instead of freezing the authenticated route", async () => {
+    vi.useFakeTimers();
+    try {
+      const hanging = vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
+        }),
+      ) as unknown as FetchLike;
+      const pending = probeMoomooTicks(hanging, { ...CONFIG, timeoutMs: 250 }, "US.TSLA");
+      await vi.advanceTimersByTimeAsync(250);
+      const input = await pending;
+      expect(input.transportReached).toBe(false);
+      expect(input.transportError).toBe("Bridge read timed out after 250 ms.");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("readMoomooTicks — transport + honest label + canonical events", () => {

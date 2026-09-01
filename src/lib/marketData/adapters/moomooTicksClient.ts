@@ -37,6 +37,8 @@ export interface MoomooTicksClientConfig {
   readonly bridgeUrl?: string;
   /** Shared bearer secret (MOOMOO_BRIDGE_TOKEN) — used, never returned/logged. */
   readonly bridgeToken?: string;
+  /** Bound bridge latency so a dead OpenD host cannot stall the app route. */
+  readonly timeoutMs?: number;
 }
 
 export interface ReadMoomooTicksParams {
@@ -77,11 +79,15 @@ export async function probeMoomooTicks(
 
   const clampedNum = Math.max(1, Math.min(1000, Math.trunc(num) || 100));
   const url = `${base}/ticks?symbols=${encodeURIComponent(providerCode)}&num=${clampedNum}`;
+  const timeoutMs = Math.max(250, Math.min(30_000, config.timeoutMs ?? 5_000));
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetchImpl(url, {
       method: "GET",
       headers: { Authorization: `Bearer ${config.bridgeToken}` },
       cache: "no-store",
+      signal: controller.signal,
     });
     let body: MoomooTicksEnvelope | undefined;
     try {
@@ -94,8 +100,12 @@ export async function probeMoomooTicks(
     return {
       configured: true,
       transportReached: false,
-      transportError: err instanceof Error ? err.message : String(err),
+      transportError: controller.signal.aborted
+        ? `Bridge read timed out after ${timeoutMs} ms.`
+        : err instanceof Error ? err.message : String(err),
     };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
