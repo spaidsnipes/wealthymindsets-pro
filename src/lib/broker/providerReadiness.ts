@@ -113,7 +113,7 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     lane: "broker",
     required: ["ALPACA_KEY", "ALPACA_SECRET"],
     recommended: [],
-    note: "Live-account key/secret pair.",
+    note: "Live-account key/secret pair. The legacy Cloudflare ALPACA_BROKERAGE_KEY / ALPACA_BROKERAGE_KEY_SECRET_ pair is accepted without exposing values.",
   },
 ];
 
@@ -153,7 +153,12 @@ export function computeProviderReadiness(
   env: EnvPresence,
 ): ProviderReadiness {
   const req = requirementFor(provider);
-  const missing = req.required.filter((name) => !isEnvPresent(env, name));
+  const hasLegacyAlpacaLivePair = provider === "alpaca-live"
+    && isEnvPresent(env, "ALPACA_BROKERAGE_KEY")
+    && isEnvPresent(env, "ALPACA_BROKERAGE_KEY_SECRET_");
+  const missing = hasLegacyAlpacaLivePair
+    ? []
+    : req.required.filter((name) => !isEnvPresent(env, name));
   const missingRecommended = req.recommended.filter((name) => !isEnvPresent(env, name));
   return {
     provider: req.provider,
@@ -182,6 +187,8 @@ export function allProviderEnvNames(): readonly string[] {
     for (const n of r.required) set.add(n);
     for (const n of r.recommended) set.add(n);
   }
+  set.add("ALPACA_BROKERAGE_KEY");
+  set.add("ALPACA_BROKERAGE_KEY_SECRET_");
   return [...set].sort();
 }
 

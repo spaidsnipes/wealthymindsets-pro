@@ -154,3 +154,25 @@ describe("readinessSummary", () => {
     expect(readinessSummary(all)).toBe(`1/${all.length} providers READY`);
   });
 });
+
+describe("Alpaca legacy Cloudflare readiness", () => {
+  it("recognizes the complete legacy pair without requiring duplicate canonical bindings", () => {
+    const readiness = computeProviderReadiness("alpaca-live", {
+      ALPACA_BROKERAGE_KEY: "legacy-key",
+      ALPACA_BROKERAGE_KEY_SECRET_: "legacy-secret",
+    });
+    expect(readiness.status).toBe("READY");
+    expect(readiness.missing).toEqual([]);
+    expect(allProviderEnvNames()).toEqual(expect.arrayContaining([
+      "ALPACA_BROKERAGE_KEY",
+      "ALPACA_BROKERAGE_KEY_SECRET_",
+    ]));
+  });
+
+  it("does not combine an incomplete canonical pair with an incomplete legacy pair", () => {
+    expect(computeProviderReadiness("alpaca-live", {
+      ALPACA_KEY: "canonical-key",
+      ALPACA_BROKERAGE_KEY_SECRET_: "legacy-secret",
+    }).status).toBe("BLOCKED");
+  });
+});

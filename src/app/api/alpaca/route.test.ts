@@ -50,6 +50,31 @@ describe("GET /api/alpaca — crypto is keyless", () => {
 });
 
 describe("GET /api/alpaca — honest upstream failure classification", () => {
+  it("uses the complete legacy Cloudflare pair for a read-only stock request", async () => {
+    vi.stubEnv("ALPACA_KEY", "");
+    vi.stubEnv("ALPACA_SECRET", "");
+    vi.stubEnv("ALPACA_BROKERAGE_KEY", "legacy-key");
+    vi.stubEnv("ALPACA_BROKERAGE_KEY_SECRET_", "legacy-secret");
+    let sentHeaders: Record<string, string> = {};
+    globalThis.fetch = vi.fn(async (_url: string, init: any) => {
+      sentHeaders = (init?.headers ?? {}) as Record<string, string>;
+      return new Response(JSON.stringify({
+        latestTrade: { p: 351.25, s: 1, t: new Date().toISOString() },
+        dailyBar: { o: 350, h: 352, l: 349, v: 1000 },
+        prevDailyBar: { c: 349.5 },
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+
+    const { GET } = await loadRoute();
+    const res = await GET(new Request("http://localhost/api/alpaca?sym=TSLA&type=quote"));
+    expect(res.status).toBe(200);
+    expect(sentHeaders["APCA-API-KEY-ID"]).toBe("legacy-key");
+    expect(sentHeaders["APCA-API-SECRET-KEY"]).toBe("legacy-secret");
+  });
+
   it("maps an upstream 401 to AUTH BLOCKED and preserves the 401 status", async () => {
     globalThis.fetch = vi.fn(async () =>
       new Response(JSON.stringify({ message: "forbidden" }), { status: 401 }),

@@ -9,6 +9,7 @@ import {
   type AthosCapabilityMatrix,
   type SessionTruth,
 } from "../../../../../lib/marketData/canonicalCapabilityResolver";
+import { resolveAlpacaLiveCredentials } from "../../../../../lib/broker/alpacaCredentials";
 
 /**
  * ATHOS capability matrix — one canonical decision per market-data capability.
@@ -25,6 +26,7 @@ async function buildMatrix(): Promise<AthosCapabilityMatrix> {
     asOf: generatedAt,
     reason: "canonical exchange-calendar session owner is not wired to this endpoint yet",
   };
+  const alpacaCredentials = resolveAlpacaLiveCredentials();
   const [moomoo, webull, alpaca] = await Promise.all([
     probeMoomooMarketData(fetch, {
       bridgeUrl: (process.env.MOOMOO_BRIDGE_URL ?? "").replace(/\/+$/, ""),
@@ -40,8 +42,8 @@ async function buildMatrix(): Promise<AthosCapabilityMatrix> {
       canarySymbol: process.env.WEBULL_CANARY_SYMBOL || undefined,
     }),
     probeAlpacaMarketData(fetch, {
-      key: process.env.ALPACA_KEY,
-      secret: process.env.ALPACA_SECRET,
+      key: alpacaCredentials.key,
+      secret: alpacaCredentials.secret,
       canarySymbol: process.env.ALPACA_CANARY_SYMBOL || "TSLA",
     }),
   ]);

@@ -18,14 +18,14 @@
 
 import type { NextRequest } from "next/server";
 import WebSocket from "ws";
+import { resolveAlpacaLiveCredentials } from "@/lib/broker/alpacaCredentials";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // Vercel Pro: 5 min, then the client reconnects
 
 // WM-ENV-P1-02: server-only. See src/app/api/alpaca/route.ts for context.
-const ALPACA_KEY    = process.env.ALPACA_KEY    ?? "";
-const ALPACA_SECRET = process.env.ALPACA_SECRET ?? "";
+const { key: ALPACA_KEY, secret: ALPACA_SECRET } = resolveAlpacaLiveCredentials();
 
 export async function GET(request: NextRequest) {
   const sym = (new URL(request.url).searchParams.get("sym") ?? "").toUpperCase();
