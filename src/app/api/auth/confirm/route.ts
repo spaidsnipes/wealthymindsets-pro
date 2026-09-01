@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { setAuthCookie, signJWT, supabaseGetUser, supabaseVerifyEmail, useSupabase } from "@/lib/auth";
+import { supabaseConfigStatus, notConfiguredBody } from "@/lib/supabaseConfigStatus";
 
 type SupabaseUser = {
   id?: string;
@@ -28,7 +29,14 @@ function issueSession(user: SupabaseUser) {
 }
 
 export async function POST(request: Request) {
-  if (!useSupabase()) return NextResponse.json({ error: "Account verification is not configured." }, { status: 503 });
+  if (!useSupabase()) {
+    // Monday Test 2 truth: name the exact missing Supabase config so an
+    // operator can fix it (presence-only, no secret value read).
+    return NextResponse.json(
+      notConfiguredBody("Account verification", supabaseConfigStatus()),
+      { status: 503 },
+    );
+  }
   const body = await request.json().catch(() => ({})) as { accessToken?: string; email?: string; token?: string; tokenHash?: string };
   const accessToken = body.accessToken?.trim();
   if (accessToken) {

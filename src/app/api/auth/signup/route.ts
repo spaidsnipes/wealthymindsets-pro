@@ -4,6 +4,7 @@ import {
 } from "@/lib/auth";
 import { sendWelcomeEmail } from "@/lib/email";
 import { CANONICAL_URL } from "@/lib/canonicalUrl";
+import { supabaseConfigStatus, notConfiguredBody } from "@/lib/supabaseConfigStatus";
 import { randomBytes } from "crypto";
 
 export async function POST(req: Request) {
@@ -54,20 +55,10 @@ export async function POST(req: Request) {
   /* ── In-memory path (dev/demo) ── */
   if (process.env.NODE_ENV === "production") {
     // Monday Test 2 truth: name the EXACT missing config so an operator can fix
-    // it. Presence-only inspection — no secret value read or leaked. The message
-    // enumerates the WM auth contract (URL + one of the two accepted key names).
-    const hasUrl   = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const hasAnon  = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const hasPub   = !!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-    const missing: string[] = [];
-    if (!hasUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL");
-    if (!hasAnon && !hasPub) missing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)");
+    // it. Presence-only inspection via shared supabaseConfigStatus helper — no
+    // secret value read or leaked.
     return NextResponse.json(
-      {
-        error: `Sign-up is NOT CONFIGURED on this host runtime — missing required Supabase auth ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
-        edge: "NOT CONFIGURED",
-        missing,
-      },
+      notConfiguredBody("Sign-up", supabaseConfigStatus()),
       { status: 503 },
     );
   }

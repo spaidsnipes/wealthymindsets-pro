@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { useSupabase, supabaseResetPassword } from "@/lib/auth";
 import { CANONICAL_URL as CONFIGURED_URL } from "@/lib/canonicalUrl";
+import { supabaseConfigStatus, notConfiguredBody } from "@/lib/supabaseConfigStatus";
 
 // A reset link must use the durable production address for the same reason as
 // email confirmation: a session set on a temporary deployment cannot follow a
@@ -19,8 +20,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  // Monday Test 2 truth: name the exact missing Supabase config so an
+  // operator can fix it (presence-only, no secret value read).
   return NextResponse.json(
-    { error: "Password recovery is unavailable because the account service is not configured." },
+    notConfiguredBody("Password recovery", supabaseConfigStatus()),
     { status: 503 },
   );
 }

@@ -4,6 +4,7 @@ import {
   userStore, useSupabase, supabaseSignIn,
 } from "@/lib/auth";
 import { sendLoginAlertEmail, loginAlertDetailsFromRequest } from "@/lib/email";
+import { supabaseConfigStatus, notConfiguredBody } from "@/lib/supabaseConfigStatus";
 
 // Long-lived, httpOnly marker cookie that identifies a browser we've already
 // seen sign in. Absent = a genuinely new device → send the sign-in alert email.
@@ -123,22 +124,11 @@ export async function POST(req: Request) {
 
   /* ── In-memory path ── */
   if (process.env.NODE_ENV === "production") {
-    // Monday Test 2 truth: name the EXACT missing config. This 503 is why the
-    // Founder-reported sign-in-email failure happens — Supabase is unwired here,
-    // so magic-link / email-confirm can't originate at all. Presence-only, no
-    // secret value read.
-    const hasUrl  = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const hasAnon = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const hasPub  = !!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-    const missing: string[] = [];
-    if (!hasUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL");
-    if (!hasAnon && !hasPub) missing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)");
+    // Monday Test 2 truth via shared supabaseConfigStatus helper: this 503 is
+    // why the Founder-reported sign-in-email failure happens — Supabase is
+    // unwired here so magic-link / email-confirm can't originate at all.
     return NextResponse.json(
-      {
-        error: `Sign-in is NOT CONFIGURED on this host runtime — missing required Supabase auth ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
-        edge: "NOT CONFIGURED",
-        missing,
-      },
+      notConfiguredBody("Sign-in", supabaseConfigStatus()),
       { status: 503 },
     );
   }
