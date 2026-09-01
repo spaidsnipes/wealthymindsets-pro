@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
 import { probeMoomooMarketData } from "../../../../../lib/marketData/adapters/moomooMarketData";
 import { probeWebullMarketData } from "../../../../../lib/marketData/adapters/webullMarketData";
 import { probeAlpacaMarketData } from "../../../../../lib/marketData/adapters/alpacaMarketData";
@@ -69,7 +70,9 @@ async function buildMatrix(): Promise<AthosCapabilityMatrix> {
   ], session, generatedAt);
 }
 
-export async function GET(): Promise<NextResponse<AthosCapabilityMatrix>> {
+export async function GET(request: NextRequest): Promise<NextResponse<AthosCapabilityMatrix> | Response> {
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   return NextResponse.json(await buildMatrix(), {
     status: 200,
     headers: { "Cache-Control": "no-store" },

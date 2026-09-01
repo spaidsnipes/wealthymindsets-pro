@@ -1,16 +1,32 @@
-import { describe, expect, it } from "vitest";
+import { NextRequest, NextResponse } from "next/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DATA_CAPABILITIES } from "../../../../../lib/marketData/sourceCapabilityCertification";
 import type { AthosCapabilityMatrix } from "../../../../../lib/marketData/canonicalCapabilityResolver";
+
+const mocks = vi.hoisted(() => ({ requireAuth: vi.fn() }));
+vi.mock("@/lib/requireAuth", () => ({ requireAuth: mocks.requireAuth }));
+
 import { GET } from "./route";
 
 async function readMatrix(): Promise<AthosCapabilityMatrix> {
-  const response = await GET();
+  const response = await GET(new NextRequest("http://localhost/api/athos/market-data/capabilities"));
   expect(response.status).toBe(200);
   expect(response.headers.get("Cache-Control")).toBe("no-store");
   return (await response.json()) as AthosCapabilityMatrix;
 }
 
 describe("/api/athos/market-data/capabilities GET", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.requireAuth.mockResolvedValue({ ok: true });
+  });
+
+  it("rejects an unauthenticated request before any capability is exposed", async () => {
+    mocks.requireAuth.mockResolvedValue({ ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) });
+    const response = await GET(new NextRequest("http://localhost/api/athos/market-data/capabilities"));
+    expect(response.status).toBe(401);
+  });
+
   it("returns an exhaustive, versioned per-capability matrix", async () => {
     const matrix = await readMatrix();
     expect(matrix.schemaVersion).toBe("wm.capability-matrix.v1");
