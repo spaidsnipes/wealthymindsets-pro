@@ -45,6 +45,24 @@ describe("probeMoomooMarketData — honest bridge-state → certification mappin
     expect(status(cert, "PRICE")).toBe("NOT_IMPLEMENTED");
   });
 
+  it("bounds a hanging health probe so one bridge cannot freeze the provider matrix", async () => {
+    vi.useFakeTimers();
+    try {
+      const hanging = vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
+        }),
+      ) as unknown as typeof fetch;
+      const pending = probeMoomooMarketData(hanging, { bridgeUrl: "https://bridge.example", timeoutMs: 250 });
+      await vi.advanceTimersByTimeAsync(250);
+      const cert = await pending;
+      expect(status(cert, "PRICE")).toBe("NOT_IMPLEMENTED");
+      expect(cert.rows.find((row) => row.capability === "PRICE")?.note).toMatch(/BRIDGE UNREACHABLE/i);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("bridge up but OpenD offline → every market capability BLOCKED_AUTH", async () => {
     const cert = await probeMoomooMarketData(
       mockFetch([{ match: "/health", status: 200, body: { ok: true, opend_reachable: false, sdk_version: "10.10.7008" } }]),
@@ -109,6 +127,36 @@ describe("probeMoomooMarketData — honest bridge-state → certification mappin
       { bridgeUrl: "https://bridge.example", bridgeToken: "secret", canarySymbol: "US.AAPL" },
     );
     expect(status(cert, "PRICE")).toBe("BLOCKED_AUTH");
+  });
+
+  it("bounds a hanging authenticated quote probe", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes("/health")) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({ ok: true, opend_reachable: true }),
+          } as Response);
+        }
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
+        });
+      }) as unknown as typeof fetch;
+      const pending = probeMoomooMarketData(fetchImpl, {
+        bridgeUrl: "https://bridge.example",
+        bridgeToken: "secret",
+        canarySymbol: "US.AAPL",
+        timeoutMs: 250,
+      });
+      await vi.advanceTimersByTimeAsync(250);
+      const cert = await pending;
+      expect(status(cert, "PRICE")).toBe("NOT_IMPLEMENTED");
+      expect(cert.rows.find((row) => row.capability === "PRICE")?.note).toMatch(/transport error/i);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("OpenD reachable but no token/symbol → PRICE stays PENDING (NOT_IMPLEMENTED, not claimed)", async () => {

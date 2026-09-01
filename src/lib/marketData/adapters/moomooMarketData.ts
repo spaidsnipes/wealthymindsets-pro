@@ -51,6 +51,8 @@ export interface MoomooBridgeConfig {
   readonly bridgeToken?: string;
   /** Optional symbol (moomoo format, e.g. "US.AAPL") to probe /quote and certify PRICE. */
   readonly canarySymbol?: string;
+  /** Bound every bridge read so one unhealthy host cannot stall the matrix. */
+  readonly timeoutMs?: number;
 }
 
 interface HealthEnvelope {
@@ -94,6 +96,21 @@ function report(
   };
 }
 
+async function fetchWithTimeout(
+  fetchImpl: typeof fetch,
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetchImpl(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * Probe the moomoo bridge and return an honest data-capability certification.
  * Injected `fetchImpl` keeps this unit-testable and host-agnostic.
@@ -104,6 +121,7 @@ export async function probeMoomooMarketData(
 ): Promise<SourceCertification> {
   const source = "moomoo";
   const base = (config.bridgeUrl ?? "").replace(/\/+$/, "");
+  const timeoutMs = Math.max(250, Math.min(30_000, config.timeoutMs ?? 5_000));
 
   // 1. Not configured → nothing to certify. All rows NOT_IMPLEMENTED (honest).
   if (!base) {
@@ -121,7 +139,7 @@ export async function probeMoomooMarketData(
   // 2. Bridge /health (unauthenticated, no secrets).
   let health: HealthEnvelope | null = null;
   try {
-    const res = await fetchImpl(`${base}/health`, { method: "GET" });
+    const res = await fetchWithTimeout(fetchImpl, `${base}/health`, { method: "GET" }, timeoutMs);
     if (res.ok) health = (await res.json()) as HealthEnvelope;
   } catch {
     health = null;
@@ -179,9 +197,11 @@ export async function probeMoomooMarketData(
   }
   if (config.canarySymbol && config.bridgeToken) {
     try {
-      const res = await fetchImpl(
+      const res = await fetchWithTimeout(
+        fetchImpl,
         `${base}/quote?symbols=${encodeURIComponent(config.canarySymbol)}`,
         { headers: { Authorization: `Bearer ${config.bridgeToken}` } },
+        timeoutMs,
       );
       const body = (await res.json()) as QuoteEnvelope;
       if (res.status === 401 || res.status === 403) {
