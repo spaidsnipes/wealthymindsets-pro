@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MARKET_EVENT_SCHEMA_VERSION, type CanonicalMarketEvent } from "../marketEvent";
-import { selectFreshMoomooTapeEvents } from "./moomooTicksBrowser";
+import { MOOMOO_ACTIVE_POLL_MS, MOOMOO_BACKOFF_POLL_MS, moomooNextPollDelayMs, selectFreshMoomooTapeEvents } from "./moomooTicksBrowser";
 
 const NOW = 1_788_180_010_000;
 const event: CanonicalMarketEvent = {
@@ -40,5 +40,18 @@ describe("selectFreshMoomooTapeEvents", () => {
     expect(selectFreshMoomooTapeEvents(receipt([{ ...event, normalizedSymbol: "SPY" }]), "TSLA", NOW)).toEqual([]);
     expect(selectFreshMoomooTapeEvents(receipt([{ ...event, aggressorSide: undefined, aggressorMethod: "NONE" }]), "TSLA", NOW)).toEqual([]);
     expect(selectFreshMoomooTapeEvents({ ...receipt([event]), label: "STALE", receiving: false }, "TSLA", NOW)).toEqual([]);
+  });
+});
+
+describe("moomooNextPollDelayMs", () => {
+  it("polls quickly only while accepted provider events are arriving", () => {
+    expect(moomooNextPollDelayMs(1)).toBe(MOOMOO_ACTIVE_POLL_MS);
+    expect(moomooNextPollDelayMs(8)).toBe(MOOMOO_ACTIVE_POLL_MS);
+  });
+
+  it("backs off for missing, blocked, stale, or malformed receipts", () => {
+    for (const count of [0, -1, Number.NaN]) {
+      expect(moomooNextPollDelayMs(count)).toBe(MOOMOO_BACKOFF_POLL_MS);
+    }
   });
 });

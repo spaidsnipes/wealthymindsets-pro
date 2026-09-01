@@ -26,7 +26,7 @@ import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay
 import { applyTickToLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
 import { normalizeBinanceUsTrade } from "@/lib/marketData/adapters/binanceUs";
-import { selectFreshMoomooTapeEvents } from "@/lib/marketData/adapters/moomooTicksBrowser";
+import { moomooNextPollDelayMs, selectFreshMoomooTapeEvents } from "@/lib/marketData/adapters/moomooTicksBrowser";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
 
 export interface Tick {
@@ -1020,7 +1020,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         // is producing fresh provider events. Missing config, auth blockers,
         // stale/no-event states, and malformed receipts back off to one minute
         // so an unavailable provider cannot burn the host request budget.
-        nextDelayMs = events.length > 0 ? 5_000 : 60_000;
+        nextDelayMs = moomooNextPollDelayMs(events.length);
         for (const event of events) {
           const inspected = moomooGuard.inspect(event);
           if (inspected.status !== "ACCEPTED") continue;

@@ -8,6 +8,16 @@ export interface MoomooTicksRouteBody {
   readonly events?: unknown;
 }
 
+export const MOOMOO_ACTIVE_POLL_MS = 5_000;
+export const MOOMOO_BACKOFF_POLL_MS = 60_000;
+
+/** Fast only while fresh events are actually accepted; every empty/blocker state backs off. */
+export function moomooNextPollDelayMs(acceptedEventCount: number): number {
+  return Number.isFinite(acceptedEventCount) && acceptedEventCount > 0
+    ? MOOMOO_ACTIVE_POLL_MS
+    : MOOMOO_BACKOFF_POLL_MS;
+}
+
 /**
  * Browser-side fail-closed selection for the authenticated Moomoo route.
  * The server receipt is evidence, not authority: each event must still match
