@@ -26,6 +26,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const AUTH_ROUTES_ROOT = resolve(__dirname, "..", "app", "api", "auth");
+const API_ROOT = resolve(__dirname, "..", "app", "api");
 
 // Copy patterns that were the historic vague form. Fail loud if they reappear.
 const FORBIDDEN_PATTERNS: RegExp[] = [
@@ -81,6 +82,41 @@ describe("supabaseConfigStatus — single-writer enforcement across /api/auth", 
       if (!/NOT CONFIGURED/.test(body)) continue; // route may not need the config guard
       if (!body.includes(HELPER_IMPORT)) {
         offenders.push(`${path} emits NOT CONFIGURED but does not import from ${HELPER_IMPORT}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe("api-tree NOT CONFIGURED shape — every route follows Monday Test 2 contract", () => {
+  const allRoutes = walk(API_ROOT);
+
+  it("every /api route that emits 'NOT CONFIGURED' also emits the {edge, missing} contract", () => {
+    // The Monday Test 2 contract for a NOT CONFIGURED body is:
+    //   { error: "...NOT CONFIGURED...", edge: "NOT CONFIGURED", missing: [...] }
+    // Any route that surfaces the phrase without the two structured fields is
+    // a partial adopter — an inspector/UI can't reliably render or classify it.
+    //
+    // Legitimate patterns the regex accepts:
+    //   (a) inline literal:            edge: "NOT CONFIGURED"
+    //   (b) typed error carrying it:   readonly edge = "NOT CONFIGURED"
+    //   (c) shared helper:             import from @/lib/supabaseConfigStatus
+    // Any of those + a missing:… field satisfies the contract.
+    const offenders: string[] = [];
+    for (const path of allRoutes) {
+      const raw = readFileSync(path, "utf8");
+      // Strip line comments and block comments so we don't false-positive on
+      // documentation that mentions the phrase.
+      const code = raw
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/\/\/[^\n]*/g, "");
+      if (!/NOT CONFIGURED/.test(code)) continue;
+      const hasEdgeLiteral = /edge\s*[:=]\s*["']NOT CONFIGURED["']/.test(code);
+      const importsHelper = /@\/lib\/supabaseConfigStatus/.test(code);
+      const hasEdge = hasEdgeLiteral || importsHelper;
+      const hasMissing = /missing[:\s]/.test(code) || importsHelper;
+      if (!hasEdge || !hasMissing) {
+        offenders.push(`${path}: hasEdge=${hasEdge} hasMissing=${hasMissing}`);
       }
     }
     expect(offenders).toEqual([]);

@@ -33,9 +33,11 @@ let _finnhubKeyCache: string | null = null;
  */
 class FinnhubConfigError extends Error {
   readonly edge = "NOT CONFIGURED";
-  constructor(message: string) {
+  readonly missing: readonly string[];
+  constructor(message: string, missing: readonly string[] = ["FINNHUB_KEY"]) {
     super(message);
     this.name = "FinnhubConfigError";
+    this.missing = missing;
   }
 }
 
@@ -284,7 +286,7 @@ export async function GET(request: Request) {
     // not a generic 500 server crash.
     if (err instanceof FinnhubConfigError) {
       return NextResponse.json(
-        { error: err.message, edge: err.edge, source: "finnhub" },
+        { error: err.message, edge: err.edge, missing: err.missing, source: "finnhub" },
         { status: 503 },
       );
     }
