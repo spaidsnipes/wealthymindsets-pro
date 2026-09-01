@@ -83,8 +83,10 @@ describe("matrixProviderWireView", () => {
 describe("ProviderWireStrip touch truth surface", () => {
   it("keeps exact provider state and blocker detail in accessible card text", () => {
     const source = readFileSync(new URL("./ProviderWireStrip.tsx", import.meta.url), "utf8");
-    expect(source).toContain('aria-label={`${wire.source}: ${wire.label}. ${wire.detail}`}');
+    expect(source).toContain('aria-label={`${wire.source}: ${wire.label}. ${wire.detail} Open provider readiness wireboard.`}');
     expect(source).toContain('data-provider-tone={wire.tone}');
+    expect(source).toContain('href="/readiness"');
+    expect(source).toContain("Inspect wire →");
     expect(source).toContain('WebkitLineClamp: compact ? 2 : 3');
     expect(source).not.toContain('whiteSpace: "nowrap" }}>{wire.detail}');
   });
