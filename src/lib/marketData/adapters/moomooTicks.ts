@@ -41,6 +41,7 @@ export interface MoomooTickRow {
   code?: unknown;
   seq?: unknown;
   time?: unknown;
+  timestamp_ms?: unknown;
   price?: unknown;
   volume?: unknown;
   turnover?: unknown;
@@ -86,7 +87,7 @@ function rawTimeString(value: unknown): string {
 
 /**
  * Normalize a single moomoo /ticks row. Returns null when the row lacks a usable
- * price or executed size (dropped, not fabricated).
+ * price, executed size, unambiguous provider epoch, or symbol identity.
  */
 export function normalizeMoomooTick(
   row: MoomooTickRow,
@@ -99,11 +100,14 @@ export function normalizeMoomooTick(
 
   const price = positiveNumber(row.price);
   const size = positiveNumber(row.volume);
-  if (price == null || size == null) return null;
+  const timestampProvider = positiveNumber(row.timestamp_ms);
+  if (price == null || size == null || timestampProvider == null) return null;
 
   const providerSymbol = typeof row.code === "string" && row.code.trim() ? row.code.trim() : appSymbol;
   // moomoo codes are "US.TSLA" / "HK.00700"; strip the market prefix for the app symbol.
   const normalizedSymbol = providerSymbol.replace(/^[A-Z]{2,3}\./, "").toUpperCase();
+  if (normalizedSymbol !== appSymbol.trim().toUpperCase()) return null;
+  if (timestampProvider > receivedAtMs + 5 * 60_000) return null;
 
   const sequence = positiveNumber(row.seq);
   const aggressorSide = mapDirection(row.direction);
@@ -123,6 +127,7 @@ export function normalizeMoomooTick(
     providerPath: "moomoo-opend-bridge",
     eventType: "TRADE",
     timestampReceived: receivedAtMs,
+    timestampProvider,
     timestampProcessed: processedAtMs,
     availableAt: processedAtMs,
     sequenceId: sequence ?? undefined,

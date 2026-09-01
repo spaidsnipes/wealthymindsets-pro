@@ -9,11 +9,13 @@ import { MarketEventGuard, MARKET_EVENT_SCHEMA_VERSION } from "../marketEvent";
 
 const RECEIVED = 1_756_000_000_000;
 const PROCESSED = 1_756_000_000_050;
+const PROVIDER_TS = RECEIVED - 1_250;
 
 const buyRow: MoomooTickRow = {
   code: "US.TSLA",
   seq: 4021,
   time: "2026-08-31 09:30:01.250",
+  timestamp_ms: PROVIDER_TS,
   price: 248.13,
   volume: 120,
   turnover: 29775.6,
@@ -54,9 +56,9 @@ describe("normalizeMoomooTick", () => {
     expect(blank.aggressorMethod).toBe("NONE");
   });
 
-  it("does NOT synthesize a provider epoch from moomoo's timezone-less time string", () => {
+  it("preserves the bridge's explicit provider epoch without parsing the raw local-time string", () => {
     const e = normalizeMoomooTick(buyRow, "TSLA", "DELAYED", RECEIVED, PROCESSED)!;
-    expect(e.timestampProvider).toBeUndefined();
+    expect(e.timestampProvider).toBe(PROVIDER_TS);
     expect(e.timestampExchange).toBeUndefined();
     // the raw string is preserved as lineage, not silently dropped
     expect(e.rawLineageRef).toContain("2026-08-31 09:30:01.250");
@@ -68,11 +70,13 @@ describe("normalizeMoomooTick", () => {
     expect(normalizeMoomooTick({ ...buyRow, price: "n/a" }, "TSLA", "LIVE", RECEIVED)).toBeNull();
     expect(normalizeMoomooTick({ ...buyRow, volume: 0 }, "TSLA", "LIVE", RECEIVED)).toBeNull();
     expect(normalizeMoomooTick({ ...buyRow, volume: undefined }, "TSLA", "LIVE", RECEIVED)).toBeNull();
+    expect(normalizeMoomooTick({ ...buyRow, timestamp_ms: undefined }, "TSLA", "LIVE", RECEIVED)).toBeNull();
   });
 
-  it("strips the moomoo market prefix for the normalized symbol", () => {
-    expect(normalizeMoomooTick({ ...buyRow, code: "HK.00700" }, "700", "LIVE", RECEIVED)!.normalizedSymbol).toBe("00700");
+  it("strips the moomoo market prefix and rejects a wrong-symbol row", () => {
+    expect(normalizeMoomooTick({ ...buyRow, code: "HK.00700" }, "00700", "LIVE", RECEIVED)!.normalizedSymbol).toBe("00700");
     expect(normalizeMoomooTick({ ...buyRow, code: "US.SPY" }, "SPY", "LIVE", RECEIVED)!.normalizedSymbol).toBe("SPY");
+    expect(normalizeMoomooTick({ ...buyRow, code: "US.SPY" }, "TSLA", "LIVE", RECEIVED)).toBeNull();
   });
 });
 

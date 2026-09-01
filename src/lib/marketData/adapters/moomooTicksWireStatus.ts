@@ -40,6 +40,7 @@ export type MoomooTicksWireLabel =
   | "BRIDGE UNREACHABLE" // could not reach the bridge process, or bridge could not reach OpenD
   | "SUBSCRIPTION FAILED" // TICKER subscribe / get_rt_ticker failed inside OpenD
   | "NO EVENTS RECEIVED" // bridge answered ok but returned zero usable prints
+  | "STALE" // prints exist, but their provider clock is outside the current-use window
   | "RECEIVING" // real executed prints normalized into canonical TRADE events
   | "UNKNOWN"; // an unclassified edge — named honestly, never dressed up as success
 
@@ -129,6 +130,11 @@ export function classifyMoomooTicksOutcome(
   if (events.length === 0) {
     // ok envelope but nothing usable — an empty tape is NOT a delayed tape.
     return none("NO EVENTS RECEIVED", "bridge returned ok but no usable executed prints");
+  }
+
+  const newestProviderTimestamp = Math.max(...events.map((event) => event.timestampProvider ?? 0));
+  if (newestProviderTimestamp <= 0 || processedAtMs - newestProviderTimestamp > 30_000) {
+    return none("STALE", "executed prints were observed, but the newest provider timestamp is older than 30 seconds");
   }
 
   return {

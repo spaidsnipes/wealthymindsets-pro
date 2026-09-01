@@ -26,6 +26,7 @@ import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay
 import { applyTickToLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
 import { normalizeBinanceUsTrade } from "@/lib/marketData/adapters/binanceUs";
+import { selectFreshMoomooTapeEvents } from "@/lib/marketData/adapters/moomooTicksBrowser";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
 
 export interface Tick {
@@ -64,7 +65,7 @@ export interface MarketState {
   connected:   boolean;
   source:      "polygon" | "finnhub" | "yahoo" | "alpaca" | "coinbase" | "binance" | "unavailable";
   /** Aggressor tape feed — set only by trade WebSockets, never downgraded by REST quotes. */
-  tapeSource:  "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | null;
+  tapeSource:  "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | "moomoo" | null;
   latency:     number; // ms to last update
 }
 
@@ -148,13 +149,23 @@ async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
     return { price, change, changePct, source, observedAt };
   };
 
+  // Crypto display quotes come from the public exchange route, while the
+  // executed tape remains the Coinbase/Binance WebSocket path below. Never
+  // send crypto symbols through the Alpaca equity fallback.
+  if (isCrypto) {
+    try {
+      const j = await fetch(`/api/exchange?ex=coinbase&coin=${encodeURIComponent(upper)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      const q = mk(j, "coinbase"); if (q) return q;
+    } catch {}
+  }
+
   // ── Stocks & ETFs: Yahoo FIRST. Yahoo's intraday series uses includePrePost,
   // so it reflects the CONSOLIDATED last price (the number Moomoo/TradingView
   // show) in both regular AND extended hours. Alpaca's free IEX feed only sees
   // IEX's own thin prints — which match in RTH but diverge by dollars in
   // pre/post-market (e.g. TSLA 377 on IEX vs 380.89 consolidated). So Yahoo is
   // the accurate primary; Alpaca/Finnhub are fallbacks only if Yahoo fails. ───
-  if (!isFutures && !isForex) {
+  if (!isFutures && !isForex && !isCrypto) {
     try {
       const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json());
       const q = mk(j, "yahoo"); if (q) return q;
@@ -976,6 +987,73 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // Identify instrument class
     const isFuture = symbol.endsWith("1!") || symbol.includes("=F");
     const isCrypto = binancePair(symbol) != null;
+    let disposed = false;
+
+    // Moomoo OpenD executed-print lane. This remains a bounded authenticated
+    // poll because the current bridge is request-scoped; it is never described
+    // as a persistent stream. A route response alone is insufficient: only a
+    // current provider timestamp + exact symbol + explicit provider side can
+    // elect Moomoo as the active aggressor tape.
+    const moomooGuard = new MarketEventGuard();
+    let moomooInFlight = false;
+    let moomooAbort: AbortController | null = null;
+    let moomooTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleMoomooPoll = (delayMs: number) => {
+      if (disposed || isFuture || isCrypto || document.visibilityState === "hidden") return;
+      if (moomooTimer) clearTimeout(moomooTimer);
+      moomooTimer = setTimeout(() => { void pollMoomooTicks(); }, delayMs);
+    };
+    const pollMoomooTicks = async () => {
+      if (disposed || isFuture || isCrypto || document.visibilityState === "hidden" || moomooInFlight) return;
+      moomooInFlight = true;
+      moomooAbort = new AbortController();
+      let nextDelayMs = 60_000;
+      try {
+        const response = await fetch(`/api/market-data/moomoo/ticks?symbol=${encodeURIComponent(symbol.toUpperCase())}`, {
+          cache: "no-store",
+          signal: moomooAbort.signal,
+        });
+        if (!response.ok || disposed) return;
+        const body = await response.json().catch(() => null);
+        const events = selectFreshMoomooTapeEvents(body, symbol, Date.now());
+        // Preserve a responsive five-second tape only while this exact symbol
+        // is producing fresh provider events. Missing config, auth blockers,
+        // stale/no-event states, and malformed receipts back off to one minute
+        // so an unavailable provider cannot burn the host request budget.
+        nextDelayMs = events.length > 0 ? 5_000 : 60_000;
+        for (const event of events) {
+          const inspected = moomooGuard.inspect(event);
+          if (inspected.status !== "ACCEPTED") continue;
+          ingestSessionNectarEvent(inspected.event);
+          if (tapeSourceRef.current && tapeSourceRef.current !== "moomoo") continue;
+          tapeSourceRef.current = "moomoo";
+          processTick({
+            price: inspected.event.price!,
+            size: inspected.event.size!,
+            side: inspected.event.aggressorSide === "BUY" ? "buy" : "sell",
+            time: inspected.event.timestampProvider!,
+            trade: true,
+            marketEvent: inspected.event,
+          }, true);
+          setState(previous => previous.tapeSource === "moomoo" ? previous : { ...previous, tapeSource: "moomoo" });
+        }
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          // Route/provider truth is rendered by the certification surface. The
+          // chart simply retains its last proven source and never invents data.
+        }
+      } finally {
+        moomooInFlight = false;
+        scheduleMoomooPoll(nextDelayMs);
+      }
+    };
+    void pollMoomooTicks();
+    const onVisibleMoomoo = () => {
+      if (document.visibilityState !== "visible") return;
+      if (moomooTimer) clearTimeout(moomooTimer);
+      void pollMoomooTicks();
+    };
+    document.addEventListener("visibilitychange", onVisibleMoomoo);
 
     // ── CRYPTO: real-time WebSocket (US-compliant, no key, 24/7) ──
     // Primary = Coinbase (highest US volume, ~4 ticks/sec). Binance.US is kept
@@ -983,7 +1061,6 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     let cryptoCleanup: (() => void) | null = null;
     let cryptoFallback: (() => void) | null = null;
     let cryptoFallbackTimer: ReturnType<typeof setTimeout> | null = null;
-    let disposed = false;
     if (isCrypto) {
       let gotCoinbase = false;
       cryptoCleanup = joinTape(
@@ -1064,15 +1141,21 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         // Date.now() when there is genuinely no observation time (legacy source
         // or UNKNOWN). This stops a stale Sunday/closed-market quote from
         // reaching the canonical store's price.eventAt as fake-fresh (~0ms age).
-        processTick({ price: realPrice, size: 1, side, time: q.observedAt ?? Date.now() }, true);
+        if (q.observedAt != null) {
+          processTick({ price: realPrice, size: 1, side, time: q.observedAt }, true);
+        }
         // Real day change comes straight from the quote (not a per-poll delta).
         const tape = tapeSourceRef.current;
         setState(prev2 => ({
           ...prev2,
           // REST quote is for price display only — never downgrade an active aggressor tape feed.
-          source: tape ?? (q.source as MarketState["source"]),
+          // Moomoo is an aggressor-tape identity, not a certified quote-source
+          // label. Keep the independently observed REST quote provenance.
+          source: tape === "moomoo"
+            ? (q.observedAt != null ? (q.source as MarketState["source"]) : prev2.source)
+            : tape ?? (q.observedAt != null ? (q.source as MarketState["source"]) : prev2.source),
           tapeSource: tape,
-          connected: true,
+          connected: tape != null || q.observedAt != null,
           ticker: { price: realPrice, change: q.change, changePct: q.changePct, volume: prev2.ticker.volume },
           orderBook: bookRef.current,
         }));
@@ -1134,16 +1217,18 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
             if (tick.marketEvent?.aggressorSide === "UNKNOWN") return;
             tapeSourceRef.current = "alpaca";
             processTick(tick, isReal);
+            // A transport-open callback is not market data. Elect Alpaca only
+            // after a normalized, signed trade reached this consumer.
+            hasRealDataRef.current = true;
+            setState(previous =>
+              previous.source === "alpaca" && previous.tapeSource === "alpaca" && previous.connected
+                ? previous
+                : { ...previous, source: "alpaca", tapeSource: "alpaca", connected: true },
+            );
           },
-          (ok) => {
-            if (ok) {
-              hasRealDataRef.current = true;
-              // F3 (Cycle 10 P0): TRANSPORT CONNECTED — pipe is alive. Per-
-              // symbol observation status remains gated on actual trade
-              // arrival via processTick above.
-              setState(p => (p.source === "alpaca" && p.connected ? p : { ...p, source: "alpaca", connected: true }));
-            }
-          },
+          // Socket readiness is transport truth only. It must not promote the
+          // chart's source/connected state before a symbol event is observed.
+          () => {},
         )
       : null;
     if (alpacaRelayCleanup) cleanupFns.current.push(alpacaRelayCleanup);
@@ -1153,12 +1238,15 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
     return () => {
       disposed = true;
+      moomooAbort?.abort();
+      if (moomooTimer) clearTimeout(moomooTimer);
       if (cryptoFallbackTimer) clearTimeout(cryptoFallbackTimer);
       clearInterval(restRefresh);
       // Alpaca relay teardown now flows through cleanupFns.current below —
       // the joinTape cleanup drops the refcount and closes the shared socket
       // when the last consumer unmounts (matches crypto/Finnhub behavior).
       document.removeEventListener("visibilitychange", onVisibleWS);
+      document.removeEventListener("visibilitychange", onVisibleMoomoo);
       cleanupFns.current.forEach(fn => fn());
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };

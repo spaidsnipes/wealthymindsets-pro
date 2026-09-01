@@ -79,10 +79,10 @@ describe("chart Market State publisher", () => {
     expect(publication.state.price.last).toBeNull();
   });
 
-  it("keeps delayed provider truth even when a price tick is available", () => {
+  it("keeps an unentitled-unproven quote PARTIAL rather than calling it delayed", () => {
     const value = { ...base(), source: "yahoo" as const };
     const publication = createChartMarketStatePublication(value);
-    expect(publication.qualityState).toBe("DELAYED");
+    expect(publication.qualityState).toBe("PARTIAL");
   });
 
   it("does not make continuous futures executable", () => {
@@ -97,6 +97,6 @@ describe("chart Market State publisher", () => {
 
     expect(publication.state.assetClass).toBe("futures");
     expect(publication.state.executableIdentity).toBeNull();
-    expect(publication.qualityState).toBe("DELAYED");
+    expect(publication.qualityState).toBe("PARTIAL");
   });
 });

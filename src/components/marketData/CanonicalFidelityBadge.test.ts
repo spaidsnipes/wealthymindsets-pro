@@ -24,9 +24,9 @@ describe("buildCanonicalFidelityTooltip — canon 7-question enrichment", () => 
     expect(t).not.toContain("State:");
   });
 
-  it("DELAYED_BY_ENTITLEMENT badge → tooltip carries all seven canon narrative fields", () => {
+  it("ACTIVE_DEGRADED badge → tooltip carries all seven canon narrative fields", () => {
     const b = priceSourceBadge("yahoo", true);
-    expect(b.label).toBe(CANONICAL_FIDELITY_LABELS.DELAYED_BY_ENTITLEMENT);
+    expect(b.label).toBe(CANONICAL_FIDELITY_LABELS.ACTIVE_DEGRADED);
     const t = buildCanonicalFidelityTooltip(b);
     expect(t.startsWith(b.title)).toBe(true);
     expect(t).toContain("State: DEGRADED");

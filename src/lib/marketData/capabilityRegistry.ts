@@ -10,6 +10,7 @@ export type MarketProviderPath =
   | "binance-us-client-ws"
   | "alpaca-external-relay"
   | "alpaca-rest"
+  | "moomoo-opend-bridge"
   | "yahoo-rest"
   | "finnhub-rest"
   | "kraken-dom-client-ws"
@@ -67,7 +68,7 @@ export const UNKNOWN_RIGHTS: MarketDataRights = {
 
 export type TimestampField = "EXCHANGE" | "PROVIDER" | "RECEIVED" | "PROCESSED";
 export type FidelityClass = "OBSERVED" | "DERIVED" | "PROXY" | "UNAVAILABLE";
-export type RuntimeTapeSource = "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | null;
+export type RuntimeTapeSource = "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | "moomoo" | null;
 export const UNKNOWN_RIGHTS_POLICY_ID = "wm.rights.unknown.v1" as const;
 
 export interface MarketDataCapability {
@@ -201,6 +202,21 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     evidence: "src/app/api/alpaca/route.ts",
   }),
   capability({
+    providerPath: "moomoo-opend-bridge",
+    assetClass: "equity",
+    eventType: "trade",
+    availability: "PARTIAL",
+    collectionScope: "REQUEST_SCOPED",
+    fidelityClass: "OBSERVED",
+    timestampFields: ["PROVIDER", "RECEIVED", "PROCESSED"],
+    sequenceSupported: false,
+    aggressorMethod: "PROVIDER",
+    sessionCoverage: "OpenD ticker subscription through the authenticated bridge; runtime continuity remains request-scoped",
+    fallbackSemantics: "EXPLICIT",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
+    evidence: "services/moomoo-bridge/bridge.py /ticks + adapters/moomooTicks.ts; persistent streaming/reconnect is not yet certified",
+  }),
+  capability({
     providerPath: "yahoo-rest",
     assetClass: "futures",
     eventType: "bar",
@@ -322,6 +338,7 @@ const TAPE_SOURCE_PATHS: Partial<Record<Exclude<RuntimeTapeSource, null>, {
   coinbase: { providerPath: "coinbase-client-ws", assetClass: "crypto" },
   binance: { providerPath: "binance-us-client-ws", assetClass: "crypto" },
   alpaca: { providerPath: "alpaca-external-relay", assetClass: "equity" },
+  moomoo: { providerPath: "moomoo-opend-bridge", assetClass: "equity" },
 };
 
 /** Runtime tape truth must come from the reviewed capability registry. */

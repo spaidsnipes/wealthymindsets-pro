@@ -51,6 +51,10 @@ function qualityFor(
   const badge = priceSourceBadge(source, connected);
   if (badge.live) return hasCanonicalPrice ? "LIVE" : "PARTIAL";
   if (badge.label.startsWith("DELAYED")) return "DELAYED";
+  // ACTIVE DEGRADED means a usable observation exists but its realtime
+  // fidelity is not certified. The canonical state vocabulary represents
+  // that as PARTIAL, never UNAVAILABLE and never entitlement-delayed.
+  if (badge.label === "ACTIVE DEGRADED") return hasCanonicalPrice ? "PARTIAL" : "UNAVAILABLE";
   return "UNAVAILABLE";
 }
 

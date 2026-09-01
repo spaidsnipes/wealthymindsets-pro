@@ -62,10 +62,11 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
       const isFutures = FUTURES_WL.has(up) || up.endsWith("1!");
       const isCrypto  = CRYPTO_WL.has(up);
 
-      // Crypto → Alpaca (FREE, no key, real-time)
+      // Crypto → public Coinbase quote. Keep broker/equity Alpaca requests out
+      // of the crypto watchlist path.
       if (isCrypto) {
-        const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-        if ((j?.price ?? 0) > 0) { result[up] = { price: j.price, change: j.change ?? 0, changePct: j.changePct ?? 0, src: "alpaca" }; return; }
+        const j = await fetch(`/api/exchange?ex=coinbase&coin=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+        if ((j?.price ?? 0) > 0) { result[up] = { price: j.price, change: j.change ?? 0, changePct: j.changePct ?? 0, src: "coinbase" }; return; }
         // Fallback to Yahoo
         const y = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
         if ((y?.price ?? 0) > 0) { result[up] = { price: y.price, change: y.change ?? 0, changePct: y.changePct ?? 0, src: "yahoo" }; return; }

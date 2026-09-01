@@ -12,6 +12,7 @@ const buyRow: MoomooTickRow = {
   code: "US.TSLA",
   seq: 4021,
   time: "2026-08-31 09:30:01.250",
+  timestamp_ms: RECEIVED - 1_250,
   price: 248.13,
   volume: 120,
   turnover: 29775.6,
@@ -107,6 +108,18 @@ describe("classifyMoomooTicksOutcome — honest visible-blocker labeling", () =>
     expect(s.label).toBe("RECEIVING");
     expect(s.receiving).toBe(true);
     expect(s.eventCount).toBe(2);
+  });
+
+  it("does not promote old provider prints into a current receiving tape", () => {
+    const s = classify({
+      configured: true,
+      transportReached: true,
+      httpStatus: 200,
+      body: { ok: true, ticks: [{ ...buyRow, timestamp_ms: RECEIVED - 30_001 }] },
+    });
+    expect(s.label).toBe("STALE");
+    expect(s.receiving).toBe(false);
+    expect(s.eventCount).toBe(0);
   });
 
   it("an ok envelope whose rows are all unusable degrades to NO EVENTS RECEIVED (not RECEIVING)", () => {

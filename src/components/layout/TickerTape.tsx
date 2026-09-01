@@ -90,11 +90,13 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
     return null;
   }
 
-  // Crypto → Alpaca (FREE, no key required, real-time)
+  // Crypto → public Coinbase quote. The real executed tape is owned by the
+  // WebSocket path; this bounded quote request must never hit Alpaca's equity
+  // route or claim a broker connection.
   if (CRYPTO_SYMS.has(up)) {
     try {
-      const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-      if (j?.price > 0) return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0, src: "alpaca" };
+      const j = await fetch(`/api/exchange?ex=coinbase&coin=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      if (j?.price > 0) return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0, src: "coinbase" };
     } catch {}
     // Fallback to Yahoo for crypto
     try {

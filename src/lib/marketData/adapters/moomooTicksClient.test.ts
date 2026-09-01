@@ -2,10 +2,14 @@ import { describe, it, expect, vi } from "vitest";
 import { probeMoomooTicks, readMoomooTicks, type FetchLike } from "./moomooTicksClient";
 import type { MoomooTickRow } from "./moomooTicks";
 
+const RECEIVED = 1_756_000_000_000;
+const PROCESSED = RECEIVED + 50;
+
 const buyRow: MoomooTickRow = {
   code: "US.TSLA",
   seq: 4021,
   time: "2026-08-31 09:30:01.250",
+  timestamp_ms: 1_756_000_000_000,
   price: 248.13,
   volume: 120,
   turnover: 29775.6,
@@ -67,7 +71,7 @@ describe("readMoomooTicks — transport + honest label + canonical events", () =
     const { status, events } = await readMoomooTicks(fetchImpl, CONFIG, {
       providerCode: "US.TSLA",
       appSymbol: "TSLA",
-    });
+    }, RECEIVED, PROCESSED);
     expect(status.label).toBe("RECEIVING");
     expect(status.eventCount).toBe(2);
     expect(events).toHaveLength(2);
@@ -77,7 +81,13 @@ describe("readMoomooTicks — transport + honest label + canonical events", () =
 
   it("defaults to DELAYED mode (never asserts uncertified realtime)", async () => {
     const fetchImpl = jsonFetch(200, { ok: true, ticks: [buyRow] });
-    const { events } = await readMoomooTicks(fetchImpl, CONFIG, { providerCode: "US.TSLA", appSymbol: "TSLA" });
+    const { events } = await readMoomooTicks(
+      fetchImpl,
+      CONFIG,
+      { providerCode: "US.TSLA", appSymbol: "TSLA" },
+      RECEIVED,
+      PROCESSED,
+    );
     expect(events[0].dataMode).toBe("DELAYED");
   });
 

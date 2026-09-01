@@ -35,9 +35,9 @@ export const webullAdapter: BrokerAdapter = {
   health(): BrokerHealth {
     return {
       implemented: false,
-      envConfigured: false, // no code reads WEBULL_* env names
+      envConfigured: false, // broker execution is not implemented; market-data credentials are certified separately
       connected: false,
-      note: "Webull server-side adapter is not implemented — scaffold stub only. Provider identity + read-path VERIFIED in-session via Webull OpenAPI MCP (see docs/operations/EVIDENCE_2026-08-21_WEBULL_MCP_VERIFIED.md); real Vercel-runtime integration remains a future atom.",
+      note: "Webull broker execution is not implemented. Its read-only Data API probe is separate at /api/market-data/certification and does not authorize accounts, positions, orders, or fills.",
     };
   },
 
