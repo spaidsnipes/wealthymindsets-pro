@@ -29,4 +29,8 @@ describe("Academy progress truth", () => {
     expect(educationPage).toContain("Preview locked · unlock not connected");
     expect(educationPage).toContain("disabled={mod.locked}");
   });
+
+  it("does not restore the Founder-retired lifestyle slogan", () => {
+    expect(educationPage).not.toMatch(/change the way you think.*change the way you live/i);
+  });
 });

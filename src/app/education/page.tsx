@@ -619,16 +619,6 @@ export default function EducationPage() {
           >
             Education
           </h1>
-          <p className="hidden sm:block"
-            style={{
-              fontFamily: "Georgia, 'Times New Roman', serif",
-              fontSize: 10, fontStyle: "italic",
-              color: "#8a8271", letterSpacing: 0.02,
-              margin: 0, marginTop: 1,
-            }}
-          >
-            Change the way you think and you&apos;ll change the way you live
-          </p>
         </div>
         <div className="ml-auto flex min-w-0 items-center gap-2 sm:ml-4">
           <div className="h-1.5 w-16 rounded-full bg-wm-surface sm:w-28">
