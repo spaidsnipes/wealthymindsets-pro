@@ -46,14 +46,49 @@ from __future__ import annotations
 import json
 import os
 import socket
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
+from zoneinfo import ZoneInfo
 
 OPEND_HOST = os.environ.get("MOOMOO_OPEND_HOST", "127.0.0.1")
 OPEND_PORT = int(os.environ.get("MOOMOO_OPEND_PORT", "11111"))
 BIND_HOST = os.environ.get("MOOMOO_BRIDGE_HOST", "127.0.0.1")
 BIND_PORT = int(os.environ.get("MOOMOO_BRIDGE_PORT", "8790"))
 TOKEN = os.environ.get("MOOMOO_BRIDGE_TOKEN", "")
+
+MARKET_TIMEZONES = {
+    "US": "America/New_York",
+    "CA": "America/Toronto",
+    "HK": "Asia/Hong_Kong",
+    "SH": "Asia/Shanghai",
+    "SZ": "Asia/Shanghai",
+    "SG": "Asia/Singapore",
+    "JP": "Asia/Tokyo",
+    "AU": "Australia/Sydney",
+}
+
+
+def provider_timestamp_ms(code: object, raw_time: object) -> int | None:
+    """Convert OpenD's exchange-local ticker clock to an explicit epoch.
+
+    OpenD emits ``YYYY-MM-DD HH:mm:ss[.SSS]`` without a zone. The market prefix
+    is the only authoritative zone input available to this bridge. Unknown
+    markets or malformed clocks stay missing instead of borrowing the host zone.
+    """
+    if not isinstance(code, str) or not isinstance(raw_time, str):
+        return None
+    market = code.split(".", 1)[0].upper()
+    zone = MARKET_TIMEZONES.get(market)
+    if not zone:
+        return None
+    try:
+        local_time = datetime.fromisoformat(raw_time.strip())
+    except ValueError:
+        return None
+    if local_time.tzinfo is not None:
+        return int(local_time.timestamp() * 1000)
+    return int(local_time.replace(tzinfo=ZoneInfo(zone)).timestamp() * 1000)
 
 
 def opend_reachable() -> bool:
@@ -125,10 +160,13 @@ def fetch_ticks(symbols: list[str], num: int) -> tuple[bool, object]:
             if ret != ft.RET_OK:
                 return False, f"get_rt_ticker({code}) failed: {data}"
             for _, r in data.iterrows():
+                code_value = r.get("code")
+                time_value = r.get("time")
                 rows.append({
-                    "code": r.get("code"),
+                    "code": code_value,
                     "seq": r.get("sequence"),
-                    "time": r.get("time"),
+                    "time": time_value,
+                    "timestamp_ms": provider_timestamp_ms(code_value, time_value),
                     "price": r.get("price"),
                     "volume": r.get("volume"),
                     "turnover": r.get("turnover"),
@@ -152,9 +190,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _authed(self) -> bool:
-        if not TOKEN:
-            return True  # no token configured → dev mode (README warns against prod)
-        return self.headers.get("Authorization", "") == f"Bearer {TOKEN}"
+        return bool(TOKEN) and self.headers.get("Authorization", "") == f"Bearer {TOKEN}"
 
     def do_GET(self) -> None:  # noqa: N802 - stdlib signature
         route = urlparse(self.path)
@@ -207,7 +243,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     if not TOKEN:
-        print("⚠  MOOMOO_BRIDGE_TOKEN is empty — running UNAUTHENTICATED (dev only).")
+        raise SystemExit("MOOMOO_BRIDGE_TOKEN is required; refusing unauthenticated startup")
     print(f"moomoo-bridge → OpenD {OPEND_HOST}:{OPEND_PORT} | listening on {BIND_HOST}:{BIND_PORT}")
     print(f"   OpenD reachable now: {opend_reachable()} | SDK: {sdk_version()}")
     ThreadingHTTPServer((BIND_HOST, BIND_PORT), Handler).serve_forever()

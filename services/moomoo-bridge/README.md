@@ -73,12 +73,19 @@ MOOMOO_BRIDGE_TOKEN = <same secret as above>
 `GET /quote?symbols=US.AAPL,US.SPY` (Bearer required) → real snapshot rows, or HTTP 502
 with OpenD's own error. **No fabricated quotes, ever.**
 
+`GET /ticks?symbols=US.TSLA&num=100` (Bearer required) → executed prints with
+provider sequence, price, size, direction, and `timestamp_ms`. The bridge derives
+that epoch only from the provider's local clock plus the symbol's explicit market
+timezone; unknown markets/clocks remain missing and are rejected downstream.
+
 ## Design notes / guardrails
 
 - **Read-only v1.** No order placement over HTTP by design. `moomooAdapter.submitOrder`
   returns an honest `rejected` until a reviewed trade path is added.
 - **Secrets stay on the bridge host.** The Worker only ever holds `MOOMOO_BRIDGE_URL` +
   the shared bearer token; the moomoo password and trade-unlock live only in OpenD.
+- **Fail closed.** The bridge refuses to start without `MOOMOO_BRIDGE_TOKEN`; there
+  is no unauthenticated data-serving development mode.
 - **Hosting decision (Founder):** the bridge needs a persistent host. Cheapest is your
   Mac + a tailscale/cloudflared tunnel; more robust is a small always-on VM. Same class
   of constraint as the tape-feed (serverless can't hold a broker socket).
