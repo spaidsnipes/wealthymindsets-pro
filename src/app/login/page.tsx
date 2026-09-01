@@ -125,8 +125,16 @@ function LoginPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email }),
         });
-        await res.json();
-        setSuccess("If that email is registered, you'll receive a password reset link shortly. Check your inbox.");
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        // Truth surface: on a non-2xx (e.g. 503 NOT CONFIGURED naming missing
+        // Supabase vars), show the server's actual reason instead of the "check
+        // your inbox" success message — the Founder-reported "sign-in email
+        // fails" pattern was masked by this exact optimism.
+        if (!res.ok) {
+          setError(data.error || `Password recovery failed (HTTP ${res.status}).`);
+        } else {
+          setSuccess("If that email is registered, you'll receive a password reset link shortly. Check your inbox.");
+        }
       } catch {
         setError("Something went wrong. Please try again.");
       } finally {
