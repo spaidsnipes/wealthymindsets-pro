@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { SourceCertification } from "@/lib/marketData/sourceCapabilityCertification";
-import type { FleetSourceCertification } from "@/lib/marketData/sourceCertificationRegistry";
+import type { AthosCapabilityMatrix } from "@/lib/marketData/canonicalCapabilityResolver";
 import {
   selectReadinessWireboard,
   type ReadinessPayload,
@@ -115,6 +115,30 @@ export function providerWireView(source: SourceCertification): ProviderWireView 
   return { source: source.source, tone: "OFFLINE", label: "Not runtime-wired", detail: source.rows.find((row) => row.note)?.note || "No capability evidence returned." };
 }
 
+export function matrixProviderWireView(
+  matrix: AthosCapabilityMatrix | null | undefined,
+  source: string,
+): ProviderWireView {
+  if (!matrix) return { source, tone: "CHECKING", label: "Checking", detail: "Canonical capability receipt in progress." };
+  const selected = matrix.capabilities.filter((row) => row.provider === source);
+  if (selected.length > 0) {
+    const certifiedRealtime = selected.some((row) => row.status === "ACTIVE_CERTIFIED" && row.fidelity === "REALTIME");
+    return {
+      source,
+      tone: certifiedRealtime ? "LIVE" : "LIMITED",
+      label: certifiedRealtime ? `${selected.length} certified` : `${selected.length} observed`,
+      detail: selected.map((row) => `${row.capability} ${row.fidelity.toLowerCase()}`).join(" · "),
+    };
+  }
+  const rejected = matrix.capabilities.flatMap((row) => row.rejectedSources).filter((row) => row.source === source);
+  const auth = rejected.find((row) => row.reason.includes("BLOCKED_AUTH"));
+  if (auth) return { source, tone: "BLOCKED", label: "Authentication blocked", detail: auth.note || auth.reason };
+  const entitlement = rejected.find((row) => row.reason.includes("BLOCKED_ENTITLEMENT"));
+  if (entitlement) return { source, tone: "BLOCKED", label: "Entitlement blocked", detail: entitlement.note || entitlement.reason };
+  const detail = rejected.find((row) => row.note)?.note || rejected[0]?.reason || "No canonical capability evidence returned.";
+  return { source, tone: "OFFLINE", label: rejected.length > 0 ? "Not receiving" : "Status unavailable", detail };
+}
+
 const TONE_COLOR: Record<WireTone, string> = {
   LIVE: "#46d39a",
   LIMITED: "#f0b429",
@@ -124,10 +148,8 @@ const TONE_COLOR: Record<WireTone, string> = {
 };
 
 export default function ProviderWireStrip({ compact = false }: { readonly compact?: boolean }) {
-  const [fleet, setFleet] = React.useState<FleetSourceCertification | null>(null);
-  const [tastytrade, setTastytrade] = React.useState<BrokerStatus | null>(null);
+  const [matrix, setMatrix] = React.useState<AthosCapabilityMatrix | null>(null);
   const [moomooTicks, setMoomooTicks] = React.useState<MoomooTickReceipt | null>(null);
-  const [readiness, setReadiness] = React.useState<ReadinessPayload | null>(null);
   const [failures, setFailures] = React.useState<ReadonlySet<string>>(() => new Set());
 
   React.useEffect(() => {
@@ -164,22 +186,16 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
     };
     const refresh = () => {
       if (document.visibilityState === "hidden") return;
-      void readJson<FleetSourceCertification>("/api/market-data/certification")
-        .then((body) => { if (active) setFleet(body); clearFailure("market"); })
+      void readJson<AthosCapabilityMatrix>("/api/athos/market-data/capabilities")
+        .then((body) => { if (active) setMatrix(body); clearFailure("market"); })
         .catch((error: unknown) => recordFailure("market", error));
-      void readJson<BrokerStatus>("/api/broker/tastytrade/status")
-        .then((body) => { if (active) setTastytrade(body); clearFailure("tastytrade"); })
-        .catch((error: unknown) => recordFailure("tastytrade", error));
       void readMoomooReceipt()
         .then((body) => { if (active) setMoomooTicks(body); clearFailure("moomoo"); })
         .catch((error: unknown) => recordFailure("moomoo", error));
-      void readJson<ReadinessPayload>("/api/broker/readiness")
-        .then((body) => { if (active) setReadiness(body); clearFailure("readiness"); })
-        .catch((error: unknown) => recordFailure("readiness", error));
     };
 
     refresh();
-    const interval = window.setInterval(refresh, 15_000);
+    const interval = window.setInterval(refresh, 60_000);
     document.addEventListener("visibilitychange", refresh);
     return () => {
       active = false;
@@ -189,26 +205,15 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
     };
   }, []);
 
-  const marketWires: ProviderWireView[] = failures.has("market") && !fleet
-    ? [
-        { source: "moomoo", tone: "OFFLINE", label: "Status unavailable", detail: "The read-only certification probe did not return." },
-        { source: "webull", tone: "OFFLINE", label: "Status unavailable", detail: "The read-only certification probe did not return." },
-      ]
-    : fleet?.sources.map(providerWireView) ?? [
-        { source: "moomoo", tone: "CHECKING", label: "Checking", detail: "Read-only runtime probe in progress." },
-        { source: "webull", tone: "CHECKING", label: "Checking", detail: "Read-only runtime probe in progress." },
-      ];
+  const providerSources = ["moomoo", "webull", "tastytrade", "alpaca"] as const;
+  const marketWires: ProviderWireView[] = failures.has("market") && !matrix
+    ? providerSources.map((source) => ({ source, tone: "OFFLINE", label: "Status unavailable", detail: "The canonical capability probe did not return." }))
+    : providerSources.map((source) => matrixProviderWireView(matrix, source));
   const moomooWire = failures.has("moomoo") && !moomooTicks
     ? { source: "moomoo", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated tick receipt did not return." }
     : moomooTicks ? moomooTickWireView(moomooTicks) : null;
   const wires = [
     ...marketWires.map((wire) => wire.source === "moomoo" && moomooWire ? moomooWire : wire),
-    failures.has("tastytrade") && !tastytrade
-      ? { source: "tastytrade", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated broker probe did not return." }
-      : tastytrade ? tastytradeWireView(tastytrade) : { source: "tastytrade", tone: "CHECKING" as const, label: "Checking", detail: "Read-only connection probe in progress." },
-    failures.has("readiness") && !readiness
-      ? { source: "alpaca", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The presence-only readiness receipt did not return." }
-      : readiness ? alpacaReadinessWireView(readiness) : { source: "alpaca", tone: "CHECKING" as const, label: "Checking", detail: "Presence-only readiness probe in progress." },
   ];
 
   return (

@@ -73,6 +73,7 @@ export interface CapabilityResolution {
   readonly rejectedSources: readonly {
     readonly source: string;
     readonly reason: string;
+    readonly note?: string;
   }[];
 }
 
@@ -157,7 +158,7 @@ export function resolveCapability(
   const relevant = candidates.filter((candidate) => candidate.row.capability === capability);
   const rejectedSources = relevant.flatMap((candidate) => {
     const reason = rejectionReason(candidate);
-    return reason ? [{ source: candidate.source, reason }] : [];
+    return reason ? [{ source: candidate.source, reason, note: candidate.row.note }] : [];
   });
   const selected = relevant.filter((candidate) => rejectionReason(candidate) === null).sort(compareCandidates)[0];
 

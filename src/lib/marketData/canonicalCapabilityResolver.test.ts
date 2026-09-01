@@ -85,8 +85,8 @@ describe("canonical per-capability resolver", () => {
     expect(result.provider).toBeNull();
     expect(result.status).toBe("UNAVAILABLE");
     expect(result.rejectedSources).toEqual([
-      { source: "legacy-yahoo", reason: "legacy providers cannot bypass the canonical production resolver" },
-      { source: "fixture", reason: "mock providers are never production-eligible" },
+      { source: "legacy-yahoo", reason: "legacy providers cannot bypass the canonical production resolver", note: "legacy-yahoo PRICE evidence" },
+      { source: "fixture", reason: "mock providers are never production-eligible", note: "fixture PRICE evidence" },
     ]);
   });
 

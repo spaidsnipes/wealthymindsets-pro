@@ -3,9 +3,11 @@ import { certifySource } from "@/lib/marketData/sourceCapabilityCertification";
 import {
   alpacaReadinessWireView,
   moomooTickWireView,
+  matrixProviderWireView,
   providerWireView,
   tastytradeWireView,
 } from "./ProviderWireStrip";
+import { buildAthosCapabilityMatrix } from "@/lib/marketData/canonicalCapabilityResolver";
 
 describe("providerWireView", () => {
   it("shows bounded snapshot observations as limited, never live", () => {
@@ -54,5 +56,25 @@ describe("providerWireView", () => {
     });
     expect(blocked).toMatchObject({ tone: "OFFLINE", label: "Not configured" });
     expect(blocked.detail).toContain("ALPACA_KEY");
+  });
+});
+
+describe("matrixProviderWireView", () => {
+  const session = { state: "UNKNOWN" as const, asOf: "2026-08-31T00:00:00.000Z", reason: "calendar owner pending" };
+
+  it("renders observed snapshot truth below live", () => {
+    const matrix = buildAthosCapabilityMatrix([{ certification: certifySource("alpaca", [
+      { capability: "PRICE", status: "ACTIVE_DEGRADED", fidelity: "SNAPSHOT", stalenessMs: 500, note: "bounded IEX trade" },
+    ]), providerTier: "CANONICAL" }], session);
+    expect(matrixProviderWireView(matrix, "alpaca")).toMatchObject({ tone: "LIMITED", label: "1 observed" });
+  });
+
+  it("preserves exact auth and not-receiving notes from rejected sources", () => {
+    const matrix = buildAthosCapabilityMatrix([
+      { certification: certifySource("webull", [{ capability: "TICKS", status: "BLOCKED_AUTH", note: "HTTP 401 from provider" }]), providerTier: "CERTIFIED_NEW" },
+      { certification: certifySource("tastytrade", [{ capability: "OPTIONS", status: "NOT_IMPLEMENTED", note: "refresh token missing" }]), providerTier: "CERTIFIED_NEW" },
+    ], session);
+    expect(matrixProviderWireView(matrix, "webull")).toMatchObject({ tone: "BLOCKED", label: "Authentication blocked", detail: "HTTP 401 from provider" });
+    expect(matrixProviderWireView(matrix, "tastytrade")).toMatchObject({ tone: "OFFLINE", label: "Not receiving", detail: "refresh token missing" });
   });
 });
