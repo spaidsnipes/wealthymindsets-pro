@@ -7,7 +7,15 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/requireAuth", () => ({ requireAuth: mocks.requireAuth }));
-vi.mock("@/lib/marketData/adapters/webullMarketData", () => ({ fetchWebullTickSnapshot: mocks.fetchWebullTickSnapshot }));
+vi.mock("@/lib/marketData/adapters/webullMarketData", () => ({
+  fetchWebullTickSnapshot: mocks.fetchWebullTickSnapshot,
+  webullDataConfigFromEnv: (env: Record<string, string | undefined>) => ({
+    appKey: env.WEBULL_APP_KEY || env.WEBULL_API_KEY,
+    appSecret: env.WEBULL_APP_SECRET || env.WEBULL_API_SECRET,
+    accessToken: env.WEBULL_ACCESS_TOKEN,
+    apiHost: env.WEBULL_API_HOST,
+  }),
+}));
 
 import { GET } from "./route";
 

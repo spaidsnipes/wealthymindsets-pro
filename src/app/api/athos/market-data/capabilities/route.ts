@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { probeMoomooMarketData } from "../../../../../lib/marketData/adapters/moomooMarketData";
-import { probeWebullMarketData } from "../../../../../lib/marketData/adapters/webullMarketData";
+import { probeWebullMarketData, webullDataConfigFromEnv } from "../../../../../lib/marketData/adapters/webullMarketData";
 import { probeAlpacaMarketData } from "../../../../../lib/marketData/adapters/alpacaMarketData";
 import { certifyTastytradeMarketData } from "../../../../../lib/marketData/adapters/tastytradeMarketData";
 import {
@@ -36,11 +36,7 @@ async function buildMatrix(): Promise<AthosCapabilityMatrix> {
       canarySymbol: process.env.MOOMOO_CANARY_SYMBOL || undefined,
     }),
     probeWebullMarketData(fetch, {
-      dataUrl: process.env.WEBULL_DATA_URL || undefined,
-      appKey: process.env.WEBULL_API_KEY || undefined,
-      appSecret: process.env.WEBULL_API_SECRET || undefined,
-      accessToken: process.env.WEBULL_ACCESS_TOKEN || undefined,
-      apiHost: process.env.WEBULL_API_HOST || undefined,
+      ...webullDataConfigFromEnv(process.env),
       canarySymbol: process.env.WEBULL_CANARY_SYMBOL || undefined,
     }),
     probeAlpacaMarketData(fetch, {

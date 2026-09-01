@@ -19,6 +19,18 @@ export interface WebullDataConfig {
   readonly nonce?: () => string;
 }
 
+/** Resolve canonical Webull OpenAPI names while preserving WM's older aliases. */
+export function webullDataConfigFromEnv(env: Readonly<Record<string, string | undefined>>): WebullDataConfig {
+  return {
+    appKey: env.WEBULL_APP_KEY || env.WEBULL_API_KEY || undefined,
+    appSecret: env.WEBULL_APP_SECRET || env.WEBULL_API_SECRET || undefined,
+    accessToken: env.WEBULL_ACCESS_TOKEN || undefined,
+    apiHost: env.WEBULL_API_HOST || undefined,
+    canarySymbol: env.WEBULL_CANARY_SYMBOL || undefined,
+    dataUrl: env.WEBULL_DATA_URL || undefined,
+  };
+}
+
 export interface WebullTickObservation {
   readonly symbol: string;
   readonly price: number;
@@ -190,7 +202,9 @@ export async function fetchWebullTickSnapshot(
     if (response.status === 401) {
       return unavailable(
         "BLOCKED_AUTH",
-        "Webull Data API returned HTTP 401. Credentials, signature, timestamp, or the optional 2FA access token may be invalid or missing; no tick observation was returned.",
+        accessToken
+          ? "Webull Data API returned HTTP 401 with an access token configured. The token may be invalid or expired, or the App Key/Secret may belong to a different Webull environment; no tick observation was returned."
+          : "Webull Data API returned HTTP 401 and no 2FA access token is configured in this runtime. If OpenAPI 2FA is enabled, create and verify a token in the Webull App; otherwise confirm the App Key/Secret and production API environment. No tick observation was returned.",
       );
     }
     if (response.status === 403) {

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Zap, ExternalLink, Search, Key, Check, ChevronDown, ChevronUp, AlertCircle, Loader2 } from "lucide-react";
 import { clsx } from "clsx";
+import ProviderWireStrip from "@/components/marketData/ProviderWireStrip";
 
 type BrokerCategory = "broker" | "crypto" | "forex" | "prop";
 
@@ -104,6 +105,14 @@ const BROKERS: Broker[] = [
     features:["Stocks","ETFs","Options","Level 2 Data"],
     signInUrl:"https://j.moomoo.com/",
     signUpUrl:"https://www.moomoo.com/us/",
+  },
+  {
+    id:"longbridge", name:"Longbridge", category:"broker",
+    logo:"L", color:"#2F80ED",
+    desc:"Global stocks and options with OpenAPI market-data access",
+    features:["Stocks","Options","OpenAPI","Market Data"],
+    signInUrl:"https://longbridge.com/",
+    signUpUrl:"https://longbridge.com/",
   },
 
   /* ── Crypto Exchanges ──────────────────────────────────── */
@@ -450,7 +459,7 @@ function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => v
 }
 
 /* ── Broker Card ────────────────────────────────────────── */
-function BrokerCard({ broker }: { broker: Broker }) {
+function BrokerCard({ broker, selected, onToggle }: { broker: Broker; selected: boolean; onToggle: () => void }) {
   const [showApiModal, setShowApiModal] = useState(false);
 
   return (
@@ -476,17 +485,20 @@ function BrokerCard({ broker }: { broker: Broker }) {
               <div className="text-[10px] text-wm-text-dim leading-snug max-w-[220px]">{broker.desc}</div>
             </div>
           </div>
-          <span className={clsx(
-            "text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0",
-            broker.category === "prop"   ? "bg-wm-purple/15 text-wm-purple" :
-            broker.category === "crypto" ? "bg-wm-yellow/15 text-wm-yellow" :
-            broker.category === "forex"  ? "bg-wm-blue/15 text-wm-blue" :
-            "bg-wm-blue/15 text-wm-blue"
-          )}>
-            {broker.category === "prop" ? "PROP FIRM" :
-             broker.category === "crypto" ? "CRYPTO" :
-             broker.category === "forex" ? "FOREX" : "BROKER"}
-          </span>
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); onToggle(); }}
+            aria-pressed={selected}
+            className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-colors"
+            style={{
+              color: selected ? "#050506" : broker.color,
+              background: selected ? broker.color : `${broker.color}18`,
+              border: `1px solid ${broker.color}55`,
+            }}
+          >
+            {selected && <Check size={10} />}
+            {selected ? "Selected" : "Add"}
+          </button>
         </div>
 
         <div className="flex flex-wrap gap-1 mb-3">
@@ -505,7 +517,7 @@ function BrokerCard({ broker }: { broker: Broker }) {
               style={{ background:`linear-gradient(135deg,${broker.color}33,${broker.color}22)`, color:broker.color, border:`1px solid ${broker.color}50` }}
             >
               <Key size={12} />
-              Verify ${broker.name} API account
+              Verify {broker.name} API account
             </button>
             <div className="flex gap-1.5">
               <a href={broker.signInUrl} target="_blank" rel="noopener noreferrer"
@@ -525,7 +537,7 @@ function BrokerCard({ broker }: { broker: Broker }) {
             <a href={broker.signInUrl} target="_blank" rel="noopener noreferrer"
               className="w-full flex items-center justify-center gap-1.5 h-9 rounded-xl text-[12px] font-bold transition-all hover:brightness-110"
               style={{ background:`linear-gradient(135deg,${broker.color}33,${broker.color}22)`, color:broker.color, border:`1px solid ${broker.color}50` }}>
-              <ExternalLink size={12} /> Open ${broker.name}
+              <ExternalLink size={12} /> Open {broker.name}
             </a>
             <div className="flex gap-1.5">
               <a href={broker.signInUrl} target="_blank" rel="noopener noreferrer"
@@ -555,6 +567,16 @@ function BrokerCard({ broker }: { broker: Broker }) {
 export function BrokerConnectPanel({ onClose }: { onClose: () => void }) {
   const [tab,    setTab]    = useState<BrokerCategory>("broker");
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+
+  const toggleSelected = (id: string) => {
+    setSelected(current => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const shown = BROKERS.filter(b =>
     b.category === tab &&
@@ -573,7 +595,7 @@ export function BrokerConnectPanel({ onClose }: { onClose: () => void }) {
         initial={{ x:500 }} animate={{ x:0 }} exit={{ x:500 }}
         transition={{ type:"spring", stiffness:280, damping:28 }}
         className="relative h-full flex flex-col border-l border-wm-border bg-wm-dark shadow-2xl"
-        style={{ width:500 }}
+        style={{ width:"min(500px, 100vw)" }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -581,15 +603,19 @@ export function BrokerConnectPanel({ onClose }: { onClose: () => void }) {
           <div>
             <div className="flex items-center gap-2">
               <Zap size={16} className="text-wm-gold" />
-              <span className="font-black text-wm-text text-sm">Broker access</span>
+              <span className="font-black text-wm-text text-sm">Connect brokers</span>
             </div>
             <div className="text-[10px] text-wm-text-dim mt-0.5">
-              Verify an API account, or open a broker site. No account is called connected without a real callback.
+              Build one trading workspace with one or several verified providers.
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors">
             <X size={15} />
           </button>
+        </div>
+
+        <div className="px-4 py-3 border-b border-wm-border shrink-0">
+          <ProviderWireStrip />
         </div>
 
         {/* Category tabs */}
@@ -618,11 +644,20 @@ export function BrokerConnectPanel({ onClose }: { onClose: () => void }) {
           {shown.length === 0 && (
             <div className="text-center py-12 text-wm-text-dim text-[12px]">No brokers found</div>
           )}
-          {shown.map(b => <BrokerCard key={b.id} broker={b} />)}
+          {shown.map(b => (
+            <BrokerCard
+              key={b.id}
+              broker={b}
+              selected={selected.has(b.id)}
+              onToggle={() => toggleSelected(b.id)}
+            />
+          ))}
         </div>
 
         <div className="px-4 py-3 border-t border-wm-border text-[10px] text-wm-text-dim text-center shrink-0">
-          🔐 API credentials are not persisted here. Durable account linking needs provider OAuth credentials and a secure callback.
+          {selected.size > 0
+            ? `${selected.size} ${selected.size === 1 ? "provider" : "providers"} selected · verify each connection before live use.`
+            : "Select one or several providers. Each connection is verified independently."}
         </div>
       </motion.div>
     </motion.div>

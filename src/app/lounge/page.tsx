@@ -536,16 +536,15 @@ const SIDEBAR_TAGS: Record<string, string[]> = {
   "Creator Hub":    ["creator","music","beats"],
 };
 
-/* ── Lounge vibe header — MySpace-soul profile hero + stories ──
-   Themed customizable banner (Harlem Nights / Golden Vinyl / Trading /
-   Royal), gold-ring avatar, editable "Current Vibe" status, and a glowing
-   stories row. Theme + vibe persist in localStorage (no DB migration). */
-const LOUNGE_THEMES = [
-  { id: "harlem",  name: "Harlem Nights",  grad: "linear-gradient(90deg, rgba(10,7,8,0.25), rgba(10,7,8,0.52))", accent: "#E8B923", image: "/images/community/wm-lounge-harlem-night-v1.png" },
-  { id: "vinyl",   name: "Golden Vinyl",   grad: "linear-gradient(120deg, #1c1408, #3d2e10 50%, #0f0c06)", accent: "#E8B923" },
-  { id: "trading", name: "Trading Lounge", grad: "linear-gradient(120deg, #06231c, #0a3a2c 50%, #061512)", accent: "#059669" },
-  { id: "royal",   name: "Royal Purple",   grad: "linear-gradient(120deg, #180e2e, #2e1a4a 50%, #0f0a1a)", accent: "#8B5CF6" },
-];
+/* ── Lounge identity header ───────────────────────────────────
+   One product identity replaces the old themed profile banner. The Lounge
+   is a working creator/trader community, not a selectable campaign skin. */
+const LOUNGE_IDENTITY = {
+  name: "WM Lounge",
+  tagline: "Trade. Create. Connect.",
+  grad: "radial-gradient(circle at 72% 12%, rgba(240,180,41,0.12), transparent 36%), linear-gradient(135deg, #0b0d14, #111722 58%, #090b10)",
+  accent: "#E8B923",
+};
 
 const LOUNGE_TOP8: { name: string; color: string; avatar: string }[] = [];
 const LOUNGE_CREATOR_SHEET = "/images/community/wm-radio-creator-grid-v1.png";
@@ -564,17 +563,14 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
   postCount: number;
   stories: { handle: string; name: string; avatar: string; color: string; ceo: boolean }[];
 }) {
-  const [themeId, setThemeId] = useState("harlem");
   const [vibe, setVibe]       = useState("");
   const [editing, setEditing] = useState(false);
   useEffect(() => {
     try {
-      setThemeId(localStorage.getItem("wm_lounge_theme") || "harlem");
       setVibe(localStorage.getItem("wm_lounge_vibe") || "");
     } catch {}
   }, []);
-  const theme = LOUNGE_THEMES.find(t => t.id === themeId) ?? LOUNGE_THEMES[0];
-  const pickTheme = (id: string) => { setThemeId(id); try { localStorage.setItem("wm_lounge_theme", id); } catch {} };
+  const theme = LOUNGE_IDENTITY;
   const commitVibe = () => { setEditing(false); try { localStorage.setItem("wm_lounge_vibe", vibe.trim()); } catch {} };
 
   return (
@@ -582,31 +578,20 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
       {/* ── Themed profile banner ── */}
       <div className="relative rounded-2xl overflow-hidden border" style={{ borderColor: "rgba(232,185,35,0.22)" }}>
         <div className="relative" style={{
-          height: 230,
-          backgroundImage: theme.image ? `${theme.grad}, url("${theme.image}")` : theme.grad,
+          height: 156,
+          backgroundImage: theme.grad,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}>
-          {/* serif theme title (Harlem Nights / Golden Vinyl / …) */}
-          <div className="absolute inset-x-0 flex flex-col items-center pointer-events-none z-[1]" style={{ top: 46 }}>
-            <span className="text-[8px] font-black uppercase tracking-[0.32em] mb-1" style={{ color: theme.accent }}>WM Lounge</span>
-            <span className="font-black text-white leading-none" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 48, letterSpacing: 1.5, textTransform: "uppercase", textShadow: "0 3px 22px rgba(0,0,0,0.9)" }}>{theme.name}</span>
+          <div className="absolute inset-x-0 flex flex-col items-center pointer-events-none z-[1]" style={{ top: 36 }}>
+            <span className="font-black text-white leading-none" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 34, letterSpacing: 1.2, textTransform: "uppercase", textShadow: "0 3px 22px rgba(0,0,0,0.9)" }}>{theme.name}</span>
+            <span className="mt-3 text-[9px] font-black uppercase tracking-[0.3em]" style={{ color: theme.accent }}>{theme.tagline}</span>
           </div>
           {/* faint trading chart line */}
           <svg className="absolute inset-0 w-full h-full opacity-[0.18] pointer-events-none" preserveAspectRatio="none" viewBox="0 0 400 120">
             <polyline points="0,92 40,80 80,88 120,58 160,70 200,40 240,52 280,26 320,36 360,14 400,22"
               fill="none" stroke={theme.accent} strokeWidth="2" />
           </svg>
-          {/* faint vinyl grooves */}
-          <div className="absolute inset-0 opacity-[0.07] pointer-events-none" style={{ background: `repeating-radial-gradient(circle at 88% 28%, ${theme.accent} 0 1px, transparent 1px 9px)` }} />
-          {/* theme switcher */}
-          <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
-            {LOUNGE_THEMES.map(t => (
-              <button key={t.id} onClick={() => pickTheme(t.id)} title={t.name} aria-label={t.name}
-                className="w-5 h-5 rounded-full transition-transform hover:scale-110"
-                style={{ background: t.grad, border: `2px solid ${themeId === t.id ? t.accent : "rgba(255,255,255,0.25)"}` }} />
-            ))}
-          </div>
         </div>
         {/* identity + vibe */}
         <div className="relative bg-wm-dark px-4 pb-3">

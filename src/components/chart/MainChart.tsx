@@ -6938,12 +6938,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 className="flex items-center gap-1.5"
                 title={`Candles: ${status.state.toLowerCase()} · session ${extendedHours ? "ETH" : "RTH"} · last bar ${lastStr}${status.live ? " · live ticks flowing" : " · no real-time candle claim"}`}
               >
-                {/* Canon §Living Market Visual Systems (2026-08-27) —
-                    "CLOSED IS NOT DELAYED." When the feed reports no
-                    ticks but candles are on screen, the honest label
-                    is a session-aware truth, not a red no-feed alarm. */}
+                {/* An unavailable feed does not prove session closure. A
+                    timestamped bar can support a historical-only receipt;
+                    zero bars can support only data unavailable. */}
                 {noFeed ? (
-                  <span className="text-[10px] font-semibold" style={{ color: "#8B92AC" }}>SESSION CLOSED — LAST VERIFIED</span>
+                  <span className="text-[10px] font-semibold" style={{ color: "#8B92AC" }}>
+                    {lastBarT ? `HISTORICAL ONLY · LAST ${lastStr}` : "DATA UNAVAILABLE"}
+                  </span>
                 ) : status.live ? (
                   <span className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-wm-green animate-pulse" />
@@ -6982,37 +6983,6 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         onPointerUp={handleCursorSelectUp}
         onPointerLeave={() => { bubbleHoverRef.current = null; setBubbleTip(null); cursorDownRef.current = null; }}>
         <div ref={containerRef} style={{ width:"100%", height:"100%" }} />
-
-        {/* Historical OHLCV cannot reconstruct aggressor-side executions. Keep the
-            tool active, but explain an empty canvas instead of making truth look
-            like a rendering failure (or filling it with synthetic numbers). */}
-        {footprintEnabled && !hasRealAggressorTape(tapeSource ?? "") && (
-          <div
-            role="status"
-            aria-live="polite"
-            title="This feed supplies OHLCV bars only, not executed bid/ask trades. No synthetic footprint is shown — WM will not fabricate order flow."
-            style={{
-              position: "absolute", top: 14, left: 14,
-              zIndex: 58, padding: "4px 9px", borderRadius: 999,
-              pointerEvents: "auto",
-              background: "linear-gradient(180deg, rgba(11,14,26,0.94) 0%, rgba(11,14,26,0.86) 100%)",
-              backdropFilter: "blur(6px)",
-              border: "1px solid rgba(240,180,41,0.35)",
-              color: "#D8DCEA", fontSize: 10, fontWeight: 700,
-              letterSpacing: "0.03em",
-              boxShadow: "0 2px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(240,180,41,0.06)",
-              display: "inline-flex", gap: 6, alignItems: "center",
-            }}
-          >
-            {/* Canon §Living Market Visual Systems (2026-08-27):
-                "FIDELITY IS PER CAPABILITY, NOT A SYMBOL-WIDE INSULT."
-                Bars are verified; the missing capability is real tape. */}
-            <span style={{ color: "#F0B429", fontWeight: 850 }}>●</span>
-            <span style={{ color: "#F0B429", fontWeight: 850 }}>HISTORICAL BARS VERIFIED</span>
-            <span style={{ color: "rgba(139,146,172,0.7)" }}>·</span>
-            <span style={{ color: "#8B92AC" }}>tape unavailable on this feed</span>
-          </div>
-        )}
 
         {/* WM-OF-P0-06 (2026-08-09, Founder emergency): order flow "still dont
             function properly" — root cause is that footprint tools need per-

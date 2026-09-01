@@ -38,7 +38,7 @@ describe("computeProviderReadiness", () => {
     const env: EnvPresence = { WEBULL_API_KEY: "k" };
     const r = computeProviderReadiness("webull-data", env);
     expect(r.status).toBe("BLOCKED");
-    expect(r.missing).toEqual(["WEBULL_API_SECRET"]);
+    expect(r.missing).toEqual(["WEBULL_APP_SECRET"]);
   });
 
   it("recommended vars never gate READY but are reported as fidelity gaps", () => {

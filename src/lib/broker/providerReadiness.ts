@@ -72,7 +72,7 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     provider: "webull-data",
     label: "Webull market data",
     lane: "market-data",
-    required: ["WEBULL_API_KEY", "WEBULL_API_SECRET"],
+    required: ["WEBULL_APP_KEY", "WEBULL_APP_SECRET"],
     recommended: ["WEBULL_ACCESS_TOKEN", "WEBULL_API_HOST", "WEBULL_DATA_URL", "WEBULL_CANARY_SYMBOL"],
     note: "Signed tick reads. WEBULL_ACCESS_TOKEN is optional unless Webull OpenAPI 2FA requires it; WEBULL_API_HOST defaults to Webull's production Data API host.",
   },
@@ -80,7 +80,7 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     provider: "webull-broker",
     label: "Webull broker execution",
     lane: "broker",
-    required: ["WEBULL_API_KEY", "WEBULL_API_SECRET", "WEBULL_CLIENT_ID"],
+    required: ["WEBULL_APP_KEY", "WEBULL_APP_SECRET", "WEBULL_CLIENT_ID"],
     recommended: ["WEBULL_ACCESS_TOKEN", "WEBULL_API_HOST"],
     note: "Broker execution is a future adapter atom; credentials alone do not authorize orders.",
   },
@@ -167,7 +167,11 @@ export function computeProviderReadiness(
     && isEnvPresent(env, "ALPACA_BROKERAGE_KEY_SECRET_");
   const missing = hasLegacyAlpacaLivePair
     ? []
-    : req.required.filter((name) => !isEnvPresent(env, name));
+    : req.required.filter((name) => {
+        if (provider.startsWith("webull-") && name === "WEBULL_APP_KEY" && isEnvPresent(env, "WEBULL_API_KEY")) return false;
+        if (provider.startsWith("webull-") && name === "WEBULL_APP_SECRET" && isEnvPresent(env, "WEBULL_API_SECRET")) return false;
+        return !isEnvPresent(env, name);
+      });
   const missingRecommended = req.recommended.filter((name) => !isEnvPresent(env, name));
   return {
     provider: req.provider,
@@ -198,6 +202,8 @@ export function allProviderEnvNames(): readonly string[] {
   }
   set.add("ALPACA_BROKERAGE_KEY");
   set.add("ALPACA_BROKERAGE_KEY_SECRET_");
+  set.add("WEBULL_API_KEY");
+  set.add("WEBULL_API_SECRET");
   return [...set].sort();
 }
 

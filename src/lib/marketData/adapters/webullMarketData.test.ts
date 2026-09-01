@@ -1,7 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
-import { parseWebullTickEnvelope, probeWebullMarketData, signWebullRequest } from "./webullMarketData";
+import { parseWebullTickEnvelope, probeWebullMarketData, signWebullRequest, webullDataConfigFromEnv } from "./webullMarketData";
 
 describe("Webull Data API market-data certification", () => {
+  it("prefers canonical Webull OpenAPI names and accepts the legacy WM aliases", () => {
+    expect(webullDataConfigFromEnv({
+      WEBULL_APP_KEY: "canonical-key",
+      WEBULL_APP_SECRET: "canonical-secret",
+      WEBULL_API_KEY: "legacy-key",
+      WEBULL_API_SECRET: "legacy-secret",
+    })).toMatchObject({ appKey: "canonical-key", appSecret: "canonical-secret" });
+    expect(webullDataConfigFromEnv({
+      WEBULL_API_KEY: "legacy-key",
+      WEBULL_API_SECRET: "legacy-secret",
+    })).toMatchObject({ appKey: "legacy-key", appSecret: "legacy-secret" });
+  });
+
   it("matches Webull's published signature vector", () => {
     expect(signWebullRequest({
       path: "/trade/place_order",
@@ -96,8 +109,24 @@ describe("Webull Data API market-data certification", () => {
     });
     const ticks = cert.rows.find((row) => row.capability === "TICKS")!;
     expect(ticks.status).toBe("BLOCKED_AUTH");
+    expect(ticks.note).toMatch(/no 2FA access token is configured/i);
     expect(JSON.stringify(cert)).not.toContain("app-secret");
     expect(JSON.stringify(cert)).not.toContain("secret provider detail");
+  });
+
+  it("distinguishes a configured but rejected Webull access token", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response("token rejected", { status: 401 })) as unknown as typeof fetch;
+    const cert = await probeWebullMarketData(fetchImpl, {
+      appKey: "app-key",
+      appSecret: "app-secret",
+      accessToken: "expired-token",
+      now: () => new Date("2026-08-31T12:00:00Z"),
+      nonce: () => "fixed-nonce",
+    });
+    const ticks = cert.rows.find((row) => row.capability === "TICKS")!;
+    expect(ticks.status).toBe("BLOCKED_AUTH");
+    expect(ticks.note).toMatch(/access token configured/i);
+    expect(JSON.stringify(cert)).not.toContain("expired-token");
   });
 
   it("does not relabel an unproven HTTP 403 as auth or entitlement", async () => {

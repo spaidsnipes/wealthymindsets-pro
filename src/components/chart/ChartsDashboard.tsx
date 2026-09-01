@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
-import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity } from "lucide-react";
+import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity, Plug2 } from "lucide-react";
 import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
 import { WMLogo } from "@/components/ui/WMLogo";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -37,7 +37,6 @@ import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { priceSourceBadge } from "@/lib/priceSource";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
-import ProviderWireStrip from "@/components/marketData/ProviderWireStrip";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { interpretPine } from "@/lib/pine/interpreter";
@@ -260,7 +259,7 @@ export function ChartsDashboard() {
   const [communityOpen,   setCommunityOpen]   = useState(false);
   const [activeTab,       setActiveTab]       = useState("Chart");
   const [infoOpen,        setInfoOpen]        = useState(false); // collapsible right panel
-  const [vpDomOpen,       setVpDomOpen]       = useState(true); // VP + DOM collapsible
+  const [vpDomOpen,       setVpDomOpen]       = useState(false); // Open only when the trader asks for depth
 
   // ── Drawing tools ───────────────────────────────────────────
   const [drawingTool,     setDrawingTool]     = useState<DrawingTool>("cursor");
@@ -685,10 +684,29 @@ export function ChartsDashboard() {
         >
           the trader's chart
         </span>
+        <button
+          type="button"
+          onClick={() => setBrokerOpen(true)}
+          style={{
+            marginLeft: "auto",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            fontSize: 10,
+            color: "#e8d7a7",
+            border: "1px solid rgba(240,180,41,0.38)",
+            padding: "3px 8px",
+            borderRadius: 4,
+            fontWeight: 750,
+            whiteSpace: "nowrap",
+          }}
+          aria-label="Connect one or more brokers"
+        >
+          <Plug2 size={11} /> Brokers
+        </button>
         <a
           href="/command-deck"
           style={{
-            marginLeft: "auto",
             fontSize: 10,
             letterSpacing: 0.3,
             textTransform: "uppercase",
@@ -704,7 +722,6 @@ export function ChartsDashboard() {
           Command Deck →
         </a>
       </div>
-      <ProviderWireStrip compact />
       {/* ── MooMoo-style chart tabs row ──────────────────────── */}
       <div className="wm-chart-tabs" style={{
         height: 40, borderBottom: "1px solid #1E2030", display: "flex", alignItems: "center",
@@ -829,7 +846,7 @@ export function ChartsDashboard() {
           <ChartToolbar
             symbol={symbol}         setSymbol={setSymbol}
             timeframe={timeframe}   setTimeframe={setTimeframe}
-            onPnL={() => setTradeOpen(true)}
+            onPnL={() => setBrokerOpen(true)}
             onDOM={() => setVpDomOpen(o => !o)}
             onPineScript={() => setPineBuilderOpen(true)}
             onCommunity={() => setCommunityOpen(true)}
@@ -1367,33 +1384,6 @@ export function ChartsDashboard() {
                     changes so an old book headline can never coexist with the
                     newly selected instrument's ladder while feeds reconnect. */}
                 {vpDomOpen && <DOMPanel key={symbol} symbol={symbol} />}
-                {/* DOM collapse toggle */}
-                <button
-                  onClick={() => setVpDomOpen(v => !v)}
-                  title={vpDomOpen ? "Collapse DOM ladder" : "Expand DOM ladder"}
-                  className="wm-chart-dom-toggle"
-                  style={{
-                    width: 20, flexShrink: 0,
-                    background: "#0D0E14",
-                    borderLeft: "1px solid #1E2030",
-                    display: "flex", flexDirection: "column",
-                    alignItems: "center", justifyContent: "center",
-                    cursor: "pointer",
-                    gap: 4,
-                  }}
-                >
-                  <span style={{
-                    fontSize: 11, color: vpDomOpen ? "#4A5070" : "#4FA3E0",
-                    display: "block",
-                    transform: vpDomOpen ? "none" : "rotate(180deg)",
-                    transition: "transform 0.2s",
-                  }}>›</span>
-                  <span style={{
-                    fontSize: 7, color: "#4A5070", letterSpacing: 0.5,
-                    writingMode: "vertical-rl", textOrientation: "mixed",
-                    textTransform: "uppercase", fontWeight: 700,
-                  }}>DOM</span>
-                </button>
               </div>
 
               {sessionVPOpen && (

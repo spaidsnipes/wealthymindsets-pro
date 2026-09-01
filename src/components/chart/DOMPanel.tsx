@@ -225,8 +225,8 @@ export function DOMPanel({ symbol }: { symbol: string }) {
           </span>
         )}
         {!crypto && (
-          <span style={{ fontSize:9, fontWeight:800, color:"#F0B429", marginLeft:2 }}>
-            LEVEL 2 REQUIRED
+          <span style={{ fontSize:9, fontWeight:800, color:"#8B95A5", marginLeft:2 }}>
+            DEPTH UNAVAILABLE
           </span>
         )}
         <span style={{ marginLeft:"auto", fontFamily:"monospace", fontWeight:800, fontSize:16,
@@ -255,9 +255,9 @@ export function DOMPanel({ symbol }: { symbol: string }) {
       <div style={{ flex:1, overflow:"hidden" }}>
         {!crypto && (
           <div style={{ padding:"28px 18px", textAlign:"center", color:"#8B95A5", lineHeight:1.5 }}>
-            <div style={{ color:"#F0B429", fontSize:11, fontWeight:900, marginBottom:8 }}>NO FABRICATED DEPTH</div>
+            <div style={{ color:"#D8DCEA", fontSize:11, fontWeight:900, marginBottom:8 }}>Market depth unavailable</div>
             <div style={{ fontSize:10 }}>
-              Equities and futures DOM needs a licensed Level 2 feed. Crypto books use observed Kraken orders in this free build.
+              Connect a Level 2 provider to display observed bid and ask liquidity for {symbol}.
             </div>
           </div>
         )}

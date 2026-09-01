@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
-import { fetchWebullTickSnapshot } from "@/lib/marketData/adapters/webullMarketData";
+import { fetchWebullTickSnapshot, webullDataConfigFromEnv } from "@/lib/marketData/adapters/webullMarketData";
 
 export const dynamic = "force-dynamic";
 
@@ -23,10 +23,7 @@ export async function GET(request: NextRequest) {
   }
 
   const body = await fetchWebullTickSnapshot(fetch, {
-    appKey: process.env.WEBULL_API_KEY || undefined,
-    appSecret: process.env.WEBULL_API_SECRET || undefined,
-    accessToken: process.env.WEBULL_ACCESS_TOKEN || undefined,
-    apiHost: process.env.WEBULL_API_HOST || undefined,
+    ...webullDataConfigFromEnv(process.env),
     canarySymbol: symbol,
   });
   return NextResponse.json(body, {
