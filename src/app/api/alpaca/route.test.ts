@@ -101,3 +101,39 @@ describe("GET /api/alpaca — honest upstream failure classification", () => {
     expect(body.edge).toBe("RATE LIMITED");
   });
 });
+
+describe("GET /api/alpaca — WM-CHART-P0-01A honest UNSUPPORTED timeframe", () => {
+  it("accepts the '1M' alias MainChart passes (no silent substitution to 1Day)", async () => {
+    // Track the outbound URL so we can assert the correct Alpaca timeframe was
+    // requested, not the historic silent fallthrough that mapped 1M → 1Day.
+    // Use crypto (keyless) so the test doesn't depend on stubbed equity keys.
+    let sentUrl = "";
+    globalThis.fetch = vi.fn(async (url: string) => {
+      sentUrl = url;
+      return new Response(
+        JSON.stringify({ bars: { "BTC/USD": [{ t: "2026-09-01T00:00:00Z", o: 1, h: 2, l: 1, c: 2, v: 3 }] } }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }) as unknown as typeof fetch;
+
+    const { GET } = await loadRoute();
+    const res = await GET(new Request("http://localhost/api/alpaca?sym=BTC&type=candles&tf=1M"));
+    expect(res.status).toBe(200);
+    // The 1M spelling MUST route to the 1Month bucket, not the silent 1Day default.
+    expect(sentUrl).toContain("timeframe=1Month");
+  });
+
+  it("rejects a truly unknown timeframe with edge=UNSUPPORTED, HTTP 400, and names the supported set", async () => {
+    globalThis.fetch = vi.fn() as unknown as typeof fetch;
+    const { GET } = await loadRoute();
+    const res = await GET(new Request("http://localhost/api/alpaca?sym=TSLA&type=candles&tf=17q"));
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.edge).toBe("UNSUPPORTED");
+    expect(body.tf).toBe("17q");
+    expect(Array.isArray(body.supported)).toBe(true);
+    expect(body.supported.length).toBeGreaterThan(10);
+    // Never claim entitlement, never silently succeed.
+    expect(String(body.error).toUpperCase()).not.toContain("ENTITLEMENT");
+  });
+});

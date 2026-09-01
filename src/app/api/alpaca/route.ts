@@ -79,31 +79,61 @@ async function alpacaFetch(url: string, ttlMs = 5_000, requireAuth = false): Pro
 }
 
 // Alpaca timeframe strings
+/**
+ * A timeframe the route cannot map to an Alpaca bucket. WM-CHART-P0-01A:
+ * silently defaulting an unknown TF to 1Day/2000 was a source of the same
+ * "Monthly showed minute bars" class the comment below describes — in
+ * reverse. The route now names the actual edge instead of guessing.
+ */
+class UnsupportedTimeframeError extends Error {
+  readonly edge = "UNSUPPORTED";
+  readonly tf: string;
+  readonly supported: readonly string[];
+  constructor(tf: string, supported: readonly string[]) {
+    super(`Timeframe "${tf}" is UNSUPPORTED by /api/alpaca. Supported: ${supported.join(", ")}.`);
+    this.name = "UnsupportedTimeframeError";
+    this.tf = tf;
+    this.supported = supported;
+  }
+}
+
+const ALPACA_TF_MAP: Record<string, { timeframe: string; daysBack: number }> = {
+  "1m":  { timeframe: "1Min",  daysBack: 2   },
+  "2m":  { timeframe: "2Min",  daysBack: 5   },
+  "3m":  { timeframe: "3Min",  daysBack: 5   },
+  "5m":  { timeframe: "5Min",  daysBack: 5   },
+  "10m": { timeframe: "10Min", daysBack: 10  },
+  "15m": { timeframe: "15Min", daysBack: 30  },
+  "30m": { timeframe: "30Min", daysBack: 60  },
+  "1h":  { timeframe: "1Hour", daysBack: 90  },
+  "2h":  { timeframe: "2Hour", daysBack: 120 },
+  "4h":  { timeframe: "4Hour", daysBack: 180 },
+  "D":   { timeframe: "1Day",  daysBack: 2000 },
+  "W":   { timeframe: "1Week", daysBack: 3650 },
+  // Monthly & multi-month/year period selectors → monthly candles spanning
+  // years. Alpaca's largest bucket is 1Month; without these entries they fell
+  // through to the "1Min" default, which is why Monthly showed minute bars.
+  "M":   { timeframe: "1Month", daysBack: 5475 },   // ~15y
+  "3M":  { timeframe: "1Month", daysBack: 7300 },
+  "6M":  { timeframe: "1Month", daysBack: 7300 },
+  "1Y":  { timeframe: "1Month", daysBack: 7300 },
+  "3Y":  { timeframe: "1Month", daysBack: 7300 },
+  "5Y":  { timeframe: "1Month", daysBack: 7300 },
+  // WM-CHART-P0-01A: MainChart.tsx uses "1D"/"1W"/"1M" as canonical keys;
+  // alpaca's map originally used the shorter "D"/"W"/"M" alone. The mismatch
+  // silently sent "1M" through the ?? default (1Day/2000) — same defect
+  // class as "Monthly showed minute bars". Accept both spellings.
+  "1D":  { timeframe: "1Day",   daysBack: 2000 },
+  "1W":  { timeframe: "1Week",  daysBack: 3650 },
+  "1M":  { timeframe: "1Month", daysBack: 5475 },
+};
+
 function toAlpacaTF(tf: string): { timeframe: string; daysBack: number } {
-  const map: Record<string, { timeframe: string; daysBack: number }> = {
-    "1m":  { timeframe: "1Min",  daysBack: 2   },
-    "2m":  { timeframe: "2Min",  daysBack: 5   },
-    "3m":  { timeframe: "3Min",  daysBack: 5   },
-    "5m":  { timeframe: "5Min",  daysBack: 5   },
-    "10m": { timeframe: "10Min", daysBack: 10  },
-    "15m": { timeframe: "15Min", daysBack: 30  },
-    "30m": { timeframe: "30Min", daysBack: 60  },
-    "1h":  { timeframe: "1Hour", daysBack: 90  },
-    "2h":  { timeframe: "2Hour", daysBack: 120 },
-    "4h":  { timeframe: "4Hour", daysBack: 180 },
-    "D":   { timeframe: "1Day",  daysBack: 2000 },
-    "W":   { timeframe: "1Week", daysBack: 3650 },
-    // Monthly & multi-month/year period selectors → monthly candles spanning
-    // years. Alpaca's largest bucket is 1Month; without these entries they fell
-    // through to the "1Min" default, which is why Monthly showed minute bars.
-    "M":   { timeframe: "1Month", daysBack: 5475 },   // ~15y
-    "3M":  { timeframe: "1Month", daysBack: 7300 },
-    "6M":  { timeframe: "1Month", daysBack: 7300 },
-    "1Y":  { timeframe: "1Month", daysBack: 7300 },
-    "3Y":  { timeframe: "1Month", daysBack: 7300 },
-    "5Y":  { timeframe: "1Month", daysBack: 7300 },
-  };
-  return map[tf] ?? { timeframe: "1Day", daysBack: 2000 };
+  const hit = ALPACA_TF_MAP[tf];
+  if (!hit) {
+    throw new UnsupportedTimeframeError(tf, Object.keys(ALPACA_TF_MAP));
+  }
+  return hit;
 }
 
 const CRYPTO_SYMS = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","MATIC","UNI","ATOM"]);
@@ -286,6 +316,20 @@ export async function GET(request: Request) {
       return NextResponse.json(
         { error: err.message, edge: err.edge, source: "alpaca" },
         { status: err.status },
+      );
+    }
+    if (err instanceof UnsupportedTimeframeError) {
+      // WM-CHART-P0-01A: name the actual failed edge (UNSUPPORTED) with the
+      // supported set — never silently substitute another resolution.
+      return NextResponse.json(
+        {
+          error: err.message,
+          edge: err.edge,
+          tf: err.tf,
+          supported: err.supported,
+          source: "alpaca",
+        },
+        { status: 400 },
       );
     }
     const msg = String(err);
