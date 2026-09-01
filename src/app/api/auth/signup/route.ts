@@ -21,9 +21,16 @@ export async function POST(req: Request) {
     let data;
     try {
       data = await supabaseSignUp(email, password, redirectTo);
-    } catch {
+    } catch (e) {
+      // Monday Test 2 truth: preserve the provider's actual error class instead of
+      // collapsing to a generic "unreachable" (which historically masked a paused
+      // Supabase project vs a bad key vs a real network failure).
+      console.error("[signup] Supabase call threw — auth backend unreachable/misconfigured:", e);
       return NextResponse.json(
-        { error: "The account service could not be reached. Please try again." },
+        {
+          error: "Sign-up service is temporarily unavailable. If this persists, the Supabase project may be paused or an env var changed.",
+          edge: "UPSTREAM UNREACHABLE",
+        },
         { status: 503 },
       );
     }
@@ -46,8 +53,21 @@ export async function POST(req: Request) {
 
   /* ── In-memory path (dev/demo) ── */
   if (process.env.NODE_ENV === "production") {
+    // Monday Test 2 truth: name the EXACT missing config so an operator can fix
+    // it. Presence-only inspection — no secret value read or leaked. The message
+    // enumerates the WM auth contract (URL + one of the two accepted key names).
+    const hasUrl   = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const hasAnon  = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const hasPub   = !!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    const missing: string[] = [];
+    if (!hasUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+    if (!hasAnon && !hasPub) missing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)");
     return NextResponse.json(
-      { error: "Signup is unavailable because the account service is not configured." },
+      {
+        error: `Sign-up is NOT CONFIGURED on this host runtime — missing required Supabase auth ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
+        edge: "NOT CONFIGURED",
+        missing,
+      },
       { status: 503 },
     );
   }

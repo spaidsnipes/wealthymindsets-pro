@@ -30,14 +30,16 @@ function getJwtSecret(): string {
   if (isProd) {
     if (!fromEnv) {
       throw new Error(
-        "JWT_SECRET is not set in production. Refusing to sign sessions with " +
-        "a committed fallback. Set JWT_SECRET in Vercel and redeploy.",
+        "JWT_SECRET is not set on the host runtime. Refusing to sign sessions " +
+        "with a committed fallback. Set JWT_SECRET in the host runtime secrets " +
+        "(e.g. Cloudflare) and redeploy.",
       );
     }
     if (fromEnv === DEV_JWT_SECRET) {
       throw new Error(
         "JWT_SECRET matches the committed dev fallback in production. Rotate " +
-        "immediately: generate a fresh value, set it in Vercel, redeploy.",
+        "immediately: generate a fresh value, set it in the host runtime secrets " +
+        "(e.g. Cloudflare), redeploy.",
       );
     }
     _jwtSecretCache = fromEnv;

@@ -79,7 +79,7 @@ export async function POST(req: Request) {
       const isKeyIssue = low.includes("api key") || low.includes("apikey") || low.includes("jwt") || low.includes("no api key");
       return NextResponse.json(
         isKeyIssue
-          ? { error: `Supabase rejected the API key: "${sbErr}". Check NEXT_PUBLIC_SUPABASE_ANON_KEY / NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in Vercel.` }
+          ? { error: `Supabase rejected the API key: "${sbErr}". Check NEXT_PUBLIC_SUPABASE_ANON_KEY / NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in the host runtime secrets (Cloudflare) and redeploy.`, edge: "AUTH KEY REJECTED" }
           : { error: sbErr },
         { status: isKeyIssue ? 503 : 401 },
       );
@@ -123,8 +123,22 @@ export async function POST(req: Request) {
 
   /* ── In-memory path ── */
   if (process.env.NODE_ENV === "production") {
+    // Monday Test 2 truth: name the EXACT missing config. This 503 is why the
+    // Founder-reported sign-in-email failure happens — Supabase is unwired here,
+    // so magic-link / email-confirm can't originate at all. Presence-only, no
+    // secret value read.
+    const hasUrl  = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const hasAnon = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const hasPub  = !!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    const missing: string[] = [];
+    if (!hasUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+    if (!hasAnon && !hasPub) missing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)");
     return NextResponse.json(
-      { error: "Sign-in is unavailable because the account service is not configured." },
+      {
+        error: `Sign-in is NOT CONFIGURED on this host runtime — missing required Supabase auth ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
+        edge: "NOT CONFIGURED",
+        missing,
+      },
       { status: 503 },
     );
   }
