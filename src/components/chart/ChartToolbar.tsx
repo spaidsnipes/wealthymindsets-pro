@@ -1042,12 +1042,18 @@ export function ChartToolbar({
       </button>
 
       <button onClick={onPnL}
-        className="flex items-center gap-1 px-2 h-6 rounded text-[12px] font-semibold border transition-colors shrink-0"
-        style={{ background:"rgba(0,192,118,0.10)", borderColor:"rgba(0,192,118,0.35)", color:"#00C076" }}
+        aria-label="Connect one or more brokers"
+        className="sticky right-0 z-20 flex items-center gap-1 px-2 h-6 rounded text-[12px] font-semibold border transition-colors shrink-0"
+        style={{
+          background:"linear-gradient(90deg,#0c1517,#0a1815)",
+          borderColor:"rgba(0,192,118,0.45)",
+          color:"#00C076",
+          boxShadow:"-10px 0 18px rgba(7,9,14,.92)",
+        }}
         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,192,118,0.22)"; }}
         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,192,118,0.10)"; }}
         title="Connect a Broker to Trade">
-        <Plug2 size={11} /> Connect Broker / Trade
+        <Plug2 size={11} /> Connect brokers
       </button>
 
       <button onClick={onPineScript}

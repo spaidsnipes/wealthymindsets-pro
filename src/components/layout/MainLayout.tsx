@@ -10,7 +10,7 @@ import {
   Bell, Settings, Search, Zap, BookOpen, FlaskConical, TrendingUp,
   X, Check, Moon, Sun, Volume2, VolumeX, Eye, EyeOff,
   Palette, Monitor, Keyboard, Shield, RefreshCw, Trash2, Radio, Copy, Heart,
-  Tv, Handshake, Crosshair, Trophy,
+  Tv, Handshake, Crosshair, Trophy, Menu,
 } from "lucide-react";
 import { WMLogo } from "@/components/ui/WMLogo";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -27,8 +27,6 @@ import { clsx } from "clsx";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { WMSBar } from "@/components/wms/WMSBar";
 import { isPublicAuthPath } from "@/lib/authRoutes";
-import { useDecisionContext } from "@/lib/experience/useDecisionContext";
-import { selectNavEmphasis } from "@/lib/experience/selectNavEmphasis";
 
 /* ── All searchable symbols ─────────────────────────────── */
 const ALL_SYMBOLS = [
@@ -816,15 +814,17 @@ function SettingsPanel({
    Tier 1 (items 1-6) ahead of Tier 2 (items 7-13); the `tier` field only
    marks the boundary so the live-decision block reads as distinct. It does
    NOT reorder, remove, or rename any surface (UI Priority Lock). */
-const NAV_TOP = [
+const NAV_CORE = [
   { href: "/morning-prep", icon: Sun,           label: "Morning Prep", tier: 1 },
   { href: "/command-deck", icon: Crosshair,     label: "Command Deck", tier: 1 },
   { href: "/charts",       icon: BarChart2,     label: "Charts",       tier: 1 },
+  { href: "/education",    icon: GraduationCap, label: "Academy",      tier: 2 },
+  { href: "/journal",      icon: BookOpen,      label: "Journal",      tier: 2 },
+];
+const NAV_WORKBENCH = [
   { href: "/heatmaps",     icon: Map,           label: "Heatmaps",     tier: 1 },
   { href: "/scanner",      icon: ScanLine,      label: "Scanner",      tier: 1 },
   { href: "/news",         icon: Newspaper,     label: "News",         tier: 1 },
-  { href: "/education",    icon: GraduationCap, label: "Academy",      tier: 2 },
-  { href: "/journal",      icon: BookOpen,      label: "Journal",      tier: 2 },
   { href: "/paper",        icon: TrendingUp,    label: "Paper Trade",  tier: 2 },
   { href: "/copy-trading", icon: Copy,          label: "Copy Trading", tier: 2 },
   { href: "/backtesting",  icon: FlaskConical,  label: "Backtest",     tier: 2 },
@@ -854,7 +854,8 @@ const MOBILE_NAV_ITEMS = [
 ] as const;
 /* Legacy — kept for any code that may reference NAV_ITEMS */
 const NAV_ITEMS = [
-  ...NAV_TOP,
+  ...NAV_CORE,
+  ...NAV_WORKBENCH,
   ...NAV_BOTTOM,
   { href: "/veddbuild",   icon: Globe,         label: "VeddBuild"  },
 ];
@@ -908,16 +909,14 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const [notifsOpen,    setNotifsOpen]    = useState(false);
   const [settingsOpen,  setSettingsOpen]  = useState(false);
   const [profileOpen,   setProfileOpen]   = useState(false);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [mounted,       setMounted]       = useState(false);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const notificationsTriggerRef = useRef<HTMLButtonElement>(null);
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
-  // Nav right-of-way (UI Priority Lock): in live-market jobs the WOW ecosystem
-  // (Tier 3) quiets so the live-decision surfaces lead; in reflection jobs it
-  // returns to full visibility. Presentation-only — nothing is ever hidden.
-  const { context: decisionContext } = useDecisionContext();
-  const navEmphasis = selectNavEmphasis(decisionContext.mode);
+
+  useEffect(() => setWorkspaceOpen(false), [pathname]);
   // Full-document product surfaces own their vertical rhythm and must remain
   // reachable inside the fixed application shell. Workspace surfaces (charts,
   // scanner, journal, etc.) keep their existing internally managed overflow.
@@ -1150,24 +1149,16 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           background: "linear-gradient(180deg,#111018 0%,#0b0b11 55%,#120b0e 100%)",
           borderRight: "1px solid #1E2030",
           display: "flex", flexDirection: "column",
-          zIndex: 40, overflow: "hidden",
+          zIndex: 40, overflow: "visible",
         }}>
-          {/* Top nav items */}
+          {/* Five-job decision dock. The full product remains reachable from
+              Workspace without forcing every destination into the live rail. */}
           <nav aria-label="Primary" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", scrollbarWidth: "none", paddingTop: 4 }}>
-            {NAV_TOP.map(({ href, icon: Icon, label, tier }, i) => {
+            {NAV_CORE.map(({ href, icon: Icon, label }) => {
               const active = pathname.startsWith(href);
-              // Divider at the Tier 1 → Tier 2 boundary: separates the
-              // always-primary live-decision block from strengthening tools.
-              const startsTier2 = tier === 2 && (NAV_TOP[i - 1]?.tier ?? tier) === 1;
               return (
-                <React.Fragment key={href}>
-                {startsTier2 && (
-                  <div aria-hidden="true" style={{
-                    height: 1, margin: "6px 12px",
-                    background: "linear-gradient(90deg,transparent,#1E2030 40%,#1E2030 60%,transparent)",
-                  }} />
-                )}
                 <Link href={href} title={label}
+                  key={href}
                   aria-current={active ? "page" : undefined}
                   style={{
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
@@ -1191,50 +1182,92 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     {label}
                   </span>
                 </Link>
-                </React.Fragment>
               );
             })}
           </nav>
 
-          {/* Bottom nav items (Tier 3 WOW ecosystem) — quieted while live,
-              full while reflecting. Presentation-only: still fully clickable. */}
-          <div
-            title={navEmphasis.rationale}
-            style={{
-              borderTop: "1px solid #1E2030", paddingBottom: 4,
-              opacity: navEmphasis.tier3Opacity,
-              transition: "opacity 0.24s ease",
-            }}
-          >
-            {NAV_BOTTOM.map(({ href, icon: Icon, label }) => {
-              const active = pathname.startsWith(href);
-              return (
-                <Link key={href} href={href} title={label}
-                  aria-current={active ? "page" : undefined}
-                  style={{
-                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                    gap: 3, height: 54, cursor: "pointer", textDecoration: "none",
-                    background: active ? "linear-gradient(90deg,rgba(232,185,35,.16),rgba(5,150,105,.04))" : "transparent",
-                    borderLeft: active ? "2px solid #E8B923" : "2px solid transparent",
-                    transition: "background 0.12s",
-                  }}
-                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.04)"; }}
-                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = "transparent"; }}
-                >
-                  <Icon size={18} style={{ color: active ? "#E8B923" : "#8B8FA8", flexShrink: 0 }} />
-                  <span style={{
-                    fontSize: 9, fontWeight: active ? 600 : 400,
-                    color: active ? "#E2E8F0" : "#8B8FA8",
-                    textAlign: "center", lineHeight: 1.2,
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    maxWidth: 62,
-                  }}>
-                    {label}
-                  </span>
-                </Link>
-              );
-            })}
+          <div style={{ borderTop: "1px solid #1E2030", padding: "6px 0 8px" }}>
+            <button
+              type="button"
+              aria-label="Open workspace menu"
+              aria-expanded={workspaceOpen}
+              aria-controls="wm-workspace-menu"
+              onClick={() => setWorkspaceOpen(open => !open)}
+              style={{
+                width: "100%", height: 56, border: 0, borderLeft: workspaceOpen ? "2px solid #E8B923" : "2px solid transparent",
+                background: workspaceOpen ? "linear-gradient(90deg,rgba(232,185,35,.16),rgba(5,150,105,.04))" : "transparent",
+                color: workspaceOpen ? "#E8B923" : "#8B8FA8", display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center", gap: 4, cursor: "pointer",
+              }}
+            >
+              {workspaceOpen ? <X size={19} /> : <Menu size={19} />}
+              <span style={{ fontSize: 9, fontWeight: workspaceOpen ? 700 : 500 }}>Workspace</span>
+            </button>
           </div>
+
+          <AnimatePresence>
+            {workspaceOpen && (
+              <>
+                <motion.button
+                  type="button"
+                  aria-label="Close workspace menu"
+                  onClick={() => setWorkspaceOpen(false)}
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  style={{ position: "fixed", inset: "44px 0 0 72px", border: 0, background: "rgba(0,0,0,.48)", zIndex: 68 }}
+                />
+                <motion.section
+                  id="wm-workspace-menu"
+                  aria-label="Workspace"
+                  initial={{ opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -14 }}
+                  transition={{ duration: 0.16 }}
+                  style={{
+                    position: "fixed", left: 72, top: 44, bottom: 0, width: 292, zIndex: 69,
+                    background: "linear-gradient(180deg,#11131b 0%,#0b0c12 100%)",
+                    borderRight: "1px solid rgba(232,185,35,.24)", boxShadow: "18px 0 48px rgba(0,0,0,.48)",
+                    padding: "20px 16px", overflowY: "auto",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
+                    <div>
+                      <div style={{ color: "#E8B923", fontSize: 10, fontWeight: 800, letterSpacing: ".16em", textTransform: "uppercase" }}>Workspace</div>
+                      <div style={{ color: "#E2E8F0", fontSize: 18, fontWeight: 760, marginTop: 5 }}>Everything, without the clutter.</div>
+                      <p style={{ color: "#8B8FA8", fontSize: 11, lineHeight: 1.5, marginTop: 6 }}>Open a focused tool, then return to the market with one clear job.</p>
+                    </div>
+                    <button type="button" aria-label="Close workspace menu" onClick={() => setWorkspaceOpen(false)}
+                      style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #272a38", color: "#AEB3C7", display: "grid", placeItems: "center" }}>
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  {[
+                    { title: "Market tools", items: NAV_WORKBENCH },
+                    { title: "Community & business", items: NAV_BOTTOM },
+                  ].map(section => (
+                    <div key={section.title} style={{ marginTop: 18 }}>
+                      <div style={{ color: "#74798f", fontSize: 9, fontWeight: 800, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 8 }}>{section.title}</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        {section.items.map(({ href, icon: Icon, label }) => {
+                          const active = pathname.startsWith(href);
+                          return (
+                            <Link key={href} href={href} aria-current={active ? "page" : undefined}
+                              style={{
+                                minHeight: 72, borderRadius: 12, border: active ? "1px solid rgba(232,185,35,.55)" : "1px solid #242735",
+                                background: active ? "linear-gradient(145deg,rgba(232,185,35,.16),rgba(5,150,105,.08))" : "rgba(255,255,255,.025)",
+                                color: active ? "#F2D578" : "#D1D5E2", textDecoration: "none", padding: 12,
+                                display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 9,
+                              }}>
+                              <Icon size={17} aria-hidden="true" />
+                              <span style={{ fontSize: 11, fontWeight: 700 }}>{label}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </motion.section>
+              </>
+            )}
+          </AnimatePresence>
         </aside>
 
         {/* Main content */}

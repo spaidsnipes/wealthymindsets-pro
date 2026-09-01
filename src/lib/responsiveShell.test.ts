@@ -23,6 +23,41 @@ describe("responsive P0 command surfaces", () => {
     expect(css).toContain("border-right: 1px solid rgba(232,185,35,.18)");
   });
 
+  it("compresses the desktop product map into five human jobs plus one workspace menu", () => {
+    const layout = source("../components/layout/MainLayout.tsx");
+    const coreBlock = layout.slice(layout.indexOf("const NAV_CORE"), layout.indexOf("const NAV_WORKBENCH"));
+    expect(coreBlock.match(/href:/g)).toHaveLength(5);
+    expect(layout).toContain('aria-label="Open workspace menu"');
+    expect(layout).toContain('id="wm-workspace-menu"');
+    expect(layout).toContain("Everything, without the clutter.");
+    expect(layout).toContain("{ title: \"Market tools\", items: NAV_WORKBENCH }");
+    expect(layout).toContain("{ title: \"Community & business\", items: NAV_BOTTOM }");
+  });
+
+  it("keeps the Command Deck proof chain available without stacking it into the primary read", () => {
+    const deck = source("../app/command-deck/page.tsx");
+    expect(deck).toContain('className="wm-cd-evidence-drawer"');
+    expect(deck).toContain("Evidence &amp; reasoning");
+    expect(deck).toContain("Open the proof chain");
+    expect(deck.indexOf("wm-cd-evidence-drawer")).toBeLessThan(deck.indexOf("<DecisionWhyPanel"));
+    expect(deck.indexOf("wm-cd-evidence-drawer")).toBeLessThan(deck.indexOf("<MarketCanvasPanel"));
+  });
+
+  it("keeps the multi-broker entry point visible at the right edge of the chart toolbar", () => {
+    const toolbar = source("../components/chart/ChartToolbar.tsx");
+    expect(toolbar).toContain('aria-label="Connect one or more brokers"');
+    expect(toolbar).toContain("sticky right-0 z-20");
+    expect(toolbar).toContain("Connect brokers");
+  });
+
+  it("removes the retired Harlem Nights identity from active product surfaces", () => {
+    const lounge = source("../app/lounge/page.tsx");
+    const profile = source("../app/profile/page.tsx");
+    expect(lounge).not.toMatch(/Harlem Nights/i);
+    expect(profile).not.toMatch(/Harlem Nights/i);
+    expect(profile).toContain("Wealthy Mindsets");
+  });
+
   it("keeps long-form Nectar and Command Deck surfaces vertically reachable", () => {
     const layout = source("../components/layout/MainLayout.tsx");
     expect(layout).toContain('pathname === "/nectar"');

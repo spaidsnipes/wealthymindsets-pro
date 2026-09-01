@@ -46,6 +46,7 @@ export interface WebullTickSnapshotResult {
     | "OBSERVED"
     | "UNCONFIGURED"
     | "BLOCKED_AUTH"
+    | "BLOCKED_ENTITLEMENT"
     | "ACCESS_UNPROVEN"
     | "RATE_LIMITED"
     | "PROVIDER_ERROR"
@@ -139,6 +140,14 @@ function zeroState(note: string): SourceCertification {
   }]);
 }
 
+async function readWebullErrorCode(response: Response): Promise<string | null> {
+  const payload = await response.json().catch(() => null);
+  if (!payload || typeof payload !== "object") return null;
+  const code = (payload as { code?: unknown; errorCode?: unknown }).code
+    ?? (payload as { errorCode?: unknown }).errorCode;
+  return typeof code === "string" ? code.trim().toUpperCase() : null;
+}
+
 /** Execute one bounded, signed, read-only stock-tick request. */
 export async function fetchWebullTickSnapshot(
   fetchImpl: typeof fetch,
@@ -208,6 +217,13 @@ export async function fetchWebullTickSnapshot(
       );
     }
     if (response.status === 403) {
+      const providerCode = await readWebullErrorCode(response);
+      if (providerCode === "MARKET_DATA_NOT_SUBSCRIBED") {
+        return unavailable(
+          "BLOCKED_ENTITLEMENT",
+          "Webull proved MARKET_DATA_NOT_SUBSCRIBED for this account. Real tick data is unavailable until the required Webull market-data subscription is active; no tick observation was returned.",
+        );
+      }
       return unavailable(
         "ACCESS_UNPROVEN",
         "Webull Data API returned HTTP 403. Access was denied, but the failed edge (authorization, subscription, entitlement, or policy) was not proven; no tick observation was returned.",
@@ -272,7 +288,11 @@ export async function probeWebullMarketData(fetchImpl: typeof fetch, config: Web
   if (snapshot.state !== "OBSERVED") {
     return certifySource("webull", [{
       capability: "TICKS",
-      status: snapshot.state === "BLOCKED_AUTH" ? "BLOCKED_AUTH" : "NOT_IMPLEMENTED",
+      status: snapshot.state === "BLOCKED_AUTH"
+        ? "BLOCKED_AUTH"
+        : snapshot.state === "BLOCKED_ENTITLEMENT"
+          ? "BLOCKED_ENTITLEMENT"
+          : "NOT_IMPLEMENTED",
       fidelity: "NONE",
       note: snapshot.note,
       observedAt: snapshot.requestedAt,

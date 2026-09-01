@@ -433,7 +433,7 @@ function ProfilePageInner() {
       {/* Profile banner */}
       <div className="relative shrink-0" style={{
         height: 230,
-        backgroundImage: `linear-gradient(90deg,rgba(7,6,8,.2),rgba(7,6,8,.6)),url("/images/community/wm-lounge-harlem-night-v1.png")`,
+        backgroundImage: "radial-gradient(circle at 78% 22%,rgba(0,192,118,.16),transparent 30%),linear-gradient(120deg,#090b12 0%,#11151e 58%,#0b1012 100%)",
         backgroundSize: "cover",
         backgroundPosition: "center",
         borderBottom: "1px solid #252D38",
@@ -448,7 +448,7 @@ function ProfilePageInner() {
           <polyline points="0,112 40,98 80,106 120,74 160,86 200,52 240,64 280,32 320,44 360,18 400,28" fill="none" stroke="#E8B923" strokeWidth="2" />
         </svg>
         <div className="absolute left-6 bottom-12 font-serif text-4xl md:text-5xl text-[#F7E7B0] drop-shadow-[0_4px_16px_rgba(0,0,0,.9)]">
-          Harlem Nights
+          Wealthy Mindsets
         </div>
 
         <div className="absolute top-3 right-3 flex gap-2 items-center">

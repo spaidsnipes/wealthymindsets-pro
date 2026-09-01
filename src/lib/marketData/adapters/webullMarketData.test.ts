@@ -144,6 +144,44 @@ describe("Webull Data API market-data certification", () => {
     expect(JSON.stringify(cert)).not.toContain("subscription maybe");
   });
 
+  it("reports entitlement only when Webull proves the market-data subscription edge", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      code: "MARKET_DATA_NOT_SUBSCRIBED",
+      message: "private provider detail",
+    }), { status: 403, headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
+    const cert = await probeWebullMarketData(fetchImpl, {
+      appKey: "app-key",
+      appSecret: "app-secret",
+      accessToken: "active-token",
+      now: () => new Date("2026-08-31T12:00:00Z"),
+      nonce: () => "fixed-nonce",
+    });
+    const ticks = cert.rows.find((row) => row.capability === "TICKS")!;
+    expect(ticks.status).toBe("BLOCKED_ENTITLEMENT");
+    expect(ticks.note).toMatch(/MARKET_DATA_NOT_SUBSCRIBED/);
+    expect(ticks.note).toMatch(/subscription is active/i);
+    expect(ticks.note).not.toMatch(/delayed/i);
+    expect(JSON.stringify(cert)).not.toContain("active-token");
+    expect(JSON.stringify(cert)).not.toContain("private provider detail");
+  });
+
+  it("does not infer entitlement from an unrelated structured Webull 403", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      code: "POLICY_DENIED",
+      message: "private policy detail",
+    }), { status: 403, headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
+    const cert = await probeWebullMarketData(fetchImpl, {
+      appKey: "app-key",
+      appSecret: "app-secret",
+      now: () => new Date("2026-08-31T12:00:00Z"),
+      nonce: () => "fixed-nonce",
+    });
+    const ticks = cert.rows.find((row) => row.capability === "TICKS")!;
+    expect(ticks.status).toBe("NOT_IMPLEMENTED");
+    expect(ticks.note).toMatch(/failed edge .* not proven/i);
+    expect(JSON.stringify(cert)).not.toContain("private policy detail");
+  });
+
   it.each([
     [429, "RATE_LIMITED"],
     [500, "PROVIDER_ERROR"],

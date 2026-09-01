@@ -718,31 +718,55 @@ function CommandDeckInner() {
                 <ExitRampCard ramp={exitRamp} />
               </div>
 
-              {/* WHY / WHY NOT (canon P6) — reverses the right-of-way verdict to
-                  its concrete causes so the trader sees exactly what stands
-                  between them and entry (or why the path is clear). */}
-              <div
+              {/* The proof chain remains complete, but it no longer competes
+                  with the hero and one-story read. Advanced evidence is one
+                  intentional disclosure instead of four stacked gold panels. */}
+              <details
+                className="wm-cd-evidence-drawer"
                 style={{
                   order: surfaceOrder(deckEmphasis, "WHY"),
-                  // Job-emphasis: in WAIT / EXECUTE the trigger question leads, so
-                  // the panel gets a quiet gold ring. Presentation-only.
-                  borderRadius: deckEmphasis.emphasizeWhy ? 12 : undefined,
-                  boxShadow: deckEmphasis.emphasizeWhy
-                    ? "0 0 0 1px rgba(212,175,55,0.35)"
-                    : undefined,
+                  border: "1px solid rgba(139,106,41,0.28)",
+                  borderRadius: 12,
+                  background: "rgba(10,12,18,0.72)",
+                  overflow: "hidden",
                 }}
               >
-                <DecisionWhyPanel vm={decisionWhy} />
-              </div>
+                <summary
+                  style={{
+                    minHeight: 54,
+                    padding: "0 16px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    color: "#d7d9e2",
+                    fontSize: 12,
+                    fontWeight: 750,
+                    listStyle: "none",
+                  }}
+                >
+                  <span>Evidence &amp; reasoning</span>
+                  <span style={{ color: "#8a8271", fontSize: 10, fontWeight: 500 }}>
+                    Open the proof chain
+                  </span>
+                </summary>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "0 16px 16px" }}>
+                  {/* WHY / WHY NOT (canon P6) — reverses the right-of-way verdict to
+                      its concrete causes so the trader sees exactly what stands
+                      between them and entry (or why the path is clear). */}
+                  <div>
+                    <DecisionWhyPanel vm={decisionWhy} />
+                  </div>
 
               {/* canon §Phase 3 Market Canvas — the visible three-corner
                   canvas (MISSING / WHY NOT / WOULD INVALIDATE). Renders
                   silently when every corner is empty (canon §Silence Is
                   A Feature). The fourth corner (WHY?) stays with
                   WhyInspector because it needs per-target evidence. */}
-              <div style={{ marginTop: 10 }}>
-                <MarketCanvasPanel vm={marketCanvas} />
-              </div>
+                  <div>
+                    <MarketCanvasPanel vm={marketCanvas} />
+                  </div>
 
               {/* Market Object Passports (canon P6 Object DNA) — a contextual
                   drawer, collapsed by default so the canvas stays sacred. Opens
@@ -750,10 +774,7 @@ function CommandDeckInner() {
                   contradiction / invalidation. Pure display of the sealed state.
                   Opens by default when the job is OBSERVE (studying market
                   objects) per the deck job-emphasis. */}
-              <details
-                style={{ order: surfaceOrder(deckEmphasis, "PASSPORT") }}
-                open={deckEmphasis.passportOpen}
-              >
+                  <details>
                 <summary
                   style={{
                     cursor: "pointer",
@@ -769,7 +790,7 @@ function CommandDeckInner() {
                 <div style={{ marginTop: 6 }}>
                   <MarketObjectPassportPanel vm={passport} />
                 </div>
-              </details>
+                  </details>
 
               {/* Decision Receipt (canon P8) — a contextual drawer, collapsed by
                   default. Projects the most-recently sealed decision capsule into
@@ -779,10 +800,7 @@ function CommandDeckInner() {
                   grade. Honest empty state when nothing is sealed yet. Opens by
                   default in management + reflection jobs (MANAGE / REVIEW / LEARN)
                   per the deck job-emphasis. */}
-              <details
-                style={{ order: surfaceOrder(deckEmphasis, "RECEIPT") }}
-                open={deckEmphasis.receiptOpen}
-              >
+                  <details>
                 <summary
                   style={{
                     cursor: "pointer",
@@ -800,6 +818,8 @@ function CommandDeckInner() {
                 </summary>
                 <div style={{ marginTop: 6 }}>
                   <DecisionReceiptPanel vm={decisionReceipt} />
+                </div>
+                  </details>
                 </div>
               </details>
               {/* Canon §9 Learning Genome — surfaced in REVIEW / LEARN
