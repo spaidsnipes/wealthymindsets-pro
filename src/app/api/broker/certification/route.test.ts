@@ -1,8 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import { NextResponse } from "next/server";
+
+vi.mock("@/lib/requireAuth", () => ({
+  requireAuth: vi.fn(async () => ({ ok: true, user: { sub: "u1" } })),
+}));
+
 import { GET, type BrokerCertificationResponse } from "./route";
+import { requireAuth } from "@/lib/requireAuth";
 
 async function readBrokerCertification(): Promise<BrokerCertificationResponse> {
-  const response = await GET();
+  const response = await GET(new Request("http://localhost/api/broker/certification"));
   expect(response.status).toBe(200);
   expect(response.headers.get("Cache-Control")).toBe("no-store");
   return await response.json() as BrokerCertificationResponse;
@@ -58,5 +65,14 @@ describe("/api/broker/certification GET aggregate", () => {
     expect(raw.toLowerCase()).not.toContain("api_key=");
     expect(raw.toLowerCase()).not.toContain("refresh_token=");
     expect(raw).not.toMatch(/sk[_-][a-zA-Z0-9]{16,}/); // Alpaca / Stripe-style secret keys
+  });
+
+  it("gates behind requireAuth — per-broker cert stages aren't public recon", async () => {
+    (requireAuth as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      response: NextResponse.json({ error: "Not authenticated" }, { status: 401 }),
+    });
+    const res = await GET(new Request("http://localhost/api/broker/certification"));
+    expect(res.status).toBe(401);
   });
 });

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
 import { getAdapter, listAdapters } from "../../../../lib/broker/adapters";
 import {
   computeCertificationLevel,
@@ -74,7 +75,12 @@ function buildBrokerCertification(): BrokerCertificationResponse {
   };
 }
 
-export async function GET(): Promise<NextResponse<BrokerCertificationResponse>> {
+export async function GET(request: Request): Promise<Response> {
+  // Gated behind a WM session — per-broker certification stages reveal
+  // which lanes are wired on the host (same recon class as /api/broker/status
+  // and /api/broker/readiness). Presence-only, no secret VALUE ever shipped.
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   const body = buildBrokerCertification();
   return NextResponse.json(body, {
     status: 200,
