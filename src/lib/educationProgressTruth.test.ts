@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const educationPage = readFileSync(resolve(__dirname, "../app/education/page.tsx"), "utf8");
+const loginPage = readFileSync(resolve(__dirname, "../app/login/page.tsx"), "utf8");
 const moduleSeed = educationPage.slice(
   educationPage.indexOf("const MODULES"),
   educationPage.indexOf("const LEVEL_COLOR"),
@@ -32,5 +33,7 @@ describe("Academy progress truth", () => {
 
   it("does not restore the Founder-retired lifestyle slogan", () => {
     expect(educationPage).not.toMatch(/change the way you think.*change the way you live/i);
+    const collapsedLoginCopy = loginPage.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    expect(collapsedLoginCopy).not.toMatch(/change the way you think.*change the way you live/i);
   });
 });

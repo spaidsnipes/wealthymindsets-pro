@@ -239,11 +239,9 @@ function LoginPage() {
           </div>
 
           <h1 className="text-[46px] font-black text-white leading-[1.05] mb-8 tracking-tight">
-            Change the way<br />
-            you think and<br />
-            you&apos;ll change the<br />
+            Professional Trading<br />
             <span style={{ background: "linear-gradient(135deg, #00D4AA, #F0B429)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              way you live.
+              Operating System
             </span>
           </h1>
 
