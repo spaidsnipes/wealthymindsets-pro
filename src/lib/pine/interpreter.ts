@@ -743,14 +743,6 @@ function callFunction(name: string, args: any[], ctx: ExecContext, barIdx: numbe
     case "input.string":case "input.source": return args[0] ?? "close";
     case "input.color": return args[0] ?? "#4FA3E0";
     case "input":       return args[0] ?? 0;
-    // request.security(symbol, timeframe, expression, ...) — client-side we
-    // cannot fetch a different timeframe's history, so we approximate the
-    // higher-timeframe value with the expression evaluated on the CURRENT
-    // series. This lets MTF scripts (e.g. multi-timeframe EMAs) plot cleanly
-    // instead of returning null/flat lines. HONEST LIMITATION: the plotted
-    // value tracks the current chart timeframe, not the literal HTF bar.
-    case "request.security": case "security":
-      return args[2] ?? args[args.length - 1] ?? null;
     // Label / line / table / alert primitives — accepted as no-ops so scripts
     // that create labels/alerts still run and plot their series.
     case "label.new": case "line.new": case "box.new": case "table.new":
