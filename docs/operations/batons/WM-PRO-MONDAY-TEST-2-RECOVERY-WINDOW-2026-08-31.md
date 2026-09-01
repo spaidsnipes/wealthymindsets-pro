@@ -108,7 +108,42 @@ wall-clock shift — see the elapsed-time ledger below.
   the first moomoo atom + build the visible wireboard + kill the false
   entitlement label — done and pushed.
 
+## Continuation (2026-09-01) — more pushed atoms + REAL DATA verified flowing
+
+- `28ec90b` — **security:** gated `/api/broker/readiness` behind `requireAuth`
+  (it revealed which provider env NAMES are configured — recon; sibling routes
+  were all gated). +3 tests. Live-verified 401 unauthenticated.
+- `a9a9a76` — **chore:** `.gitignore` now covers Python byte-code from the
+  recovered `services/moomoo-bridge` service.
+- `6effbdc` — **moomoo-bridge:** `verify.py` proves the TICK path (hop 4:
+  TICKER subscribe + get_rt_ticker), not just the snapshot; 0 prints outside
+  RTH reported honestly (NO EXECUTED PRINTS YET), never a fabricated tick.
+- `7b5aee1` — **alpaca (breakthrough — REAL DATA IN):** `getHeaders` attached
+  equity creds to EVERY request incl. the keyless crypto endpoint, so an
+  invalid/expired equity key 401'd crypto too. Now creds attach only when
+  required. **BTC candles + quote return REAL Alpaca OHLCV locally** (verified:
+  BTC ~78.9k, live bars). Also classified upstream failures honestly (401 AUTH
+  BLOCKED / 429 RATE LIMITED / …) with the provider's real status preserved,
+  never "delayed by entitlement". +3 tests.
+
+### Verified honest data-flow truth (local runtime, port 4333, 2026-09-01)
+- **Crypto (BTC/ETH): REAL** via Alpaca keyless endpoint — flowing now.
+- **Equity (TSLA): REAL** via `/api/yahoo` fallback ($367.42, +5.35%, real
+  volume, canonical observation envelope) — labelled ACTIVE DEGRADED (honest:
+  delayed, no certified realtime), per the `973b069` priceSource fix.
+- **Alpaca equity: AUTH BLOCKED** — the ALPACA_KEY/SECRET currently set are
+  being REJECTED by the provider (HTTP 401). Actionable Founder signal: refresh
+  the Alpaca key. The app now says AUTH BLOCKED, not a fabricated entitlement.
+- **Moomoo ticks: NOT CONFIGURED** — no bridge secrets set (honest).
+
+Net: WM Pro is showing REAL market data with HONEST provenance on every lane
+locally — crypto live, equity live-via-fallback (degraded), and every blocked
+lane naming its true edge. No lane fabricates "delayed by entitlement".
+
 ## Exact next atoms (for the next thread / window)
+0. **Refresh the Alpaca equity credential** (Founder) — the current
+   ALPACA_KEY/SECRET are rejected (AUTH BLOCKED @ 401). A valid key promotes
+   equity from Yahoo-degraded to Alpaca-IEX realtime.
 1. **Deploy the moomoo bridge** to the persistent host; set MOOMOO_BRIDGE_URL /
    MOOMOO_BRIDGE_TOKEN by NAME (Founder pastes secrets); then prove ONE real
    TSLA/SPY tick end-to-end: event count advances, provider timestamp advances,
