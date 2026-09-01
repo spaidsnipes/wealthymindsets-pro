@@ -1,8 +1,19 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+
+// The route is now WM-session-gated (mirrors /api/broker/readiness) — infra
+// recon (which providers are configured on this host) must not be public.
+// Tests stub requireAuth so the existing per-provider assertions still cover
+// the aggregate shape; a separate test covers the auth-gate itself below.
+vi.mock("@/lib/requireAuth", () => ({
+  requireAuth: vi.fn(async () => ({ ok: true, user: { sub: "u1" } })),
+}));
+
 import { GET, type BrokerStatusResponse } from "./route";
+import { requireAuth } from "@/lib/requireAuth";
+import { NextResponse } from "next/server";
 
 async function readBrokerStatus(): Promise<BrokerStatusResponse> {
-  const response = await GET();
+  const response = await GET(new Request("http://localhost/api/broker/status"));
   expect(response.status).toBe(200);
   expect(response.headers.get("Cache-Control")).toBe("no-store");
   return await response.json() as BrokerStatusResponse;
@@ -105,12 +116,21 @@ describe("/api/broker/status — canon §12 truthful aggregate", () => {
   it("GET returns 200 with no-store and never leaks token/secret text", async () => {
     process.env.TASTYTRADE_CLIENT_SECRET = "very-secret-value-xyz";
     process.env.GEMINI_API_KEY = "very-secret-gemini-abc";
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/broker/status"));
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("no-store");
     const s = JSON.stringify(await res.json());
     expect(s).not.toContain("very-secret-value-xyz");
     expect(s).not.toContain("very-secret-gemini-abc");
+  });
+
+  it("gates behind requireAuth — infra recon isn't public", async () => {
+    (requireAuth as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      response: NextResponse.json({ error: "Not authenticated" }, { status: 401 }),
+    });
+    const res = await GET(new Request("http://localhost/api/broker/status"));
+    expect(res.status).toBe(401);
   });
 
   it("generatedAt is a valid ISO 8601 timestamp", async () => {

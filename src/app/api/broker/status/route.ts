@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
 import { getAdapter } from "../../../../lib/broker/adapters";
 import { computeCertificationLevel, type CertLevel, type CertStageReport } from "../../../../lib/broker/certification";
 import type { BrokerId } from "../../../../lib/broker/BrokerAdapter";
@@ -144,7 +145,13 @@ function buildBrokerStatus(): BrokerStatusResponse {
   };
 }
 
-export async function GET(): Promise<NextResponse<BrokerStatusResponse>> {
+export async function GET(request: Request): Promise<Response> {
+  // Gated behind a WM session, matching /api/broker/readiness. The per-provider
+  // implemented/envConfigured/connected flags reveal which lanes are wired on
+  // the host — that is infra recon even without exposing secret values. A
+  // logged-in local session still receives the report.
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   const body = buildBrokerStatus();
   return NextResponse.json(body, {
     status: 200,
