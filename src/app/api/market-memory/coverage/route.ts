@@ -38,7 +38,19 @@ export async function GET(request: Request) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
   const config = databaseConfig();
-  if (!config) return NextResponse.json({ error: "Durable coverage is not configured." }, { status: 503 });
+  if (!config) {
+    const missing: string[] = [];
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+    return NextResponse.json(
+      {
+        error: `Durable coverage is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
+        edge: "NOT CONFIGURED",
+        missing,
+      },
+      { status: 503 },
+    );
+  }
 
   const checkpointUrl = new URL(`${config.url}/rest/v1/wm_market_coverage_checkpoints`);
   checkpointUrl.searchParams.set("owner_id", `eq.${auth.user.sub}`);
@@ -89,7 +101,19 @@ export async function POST(request: Request) {
   const limited = checkRateLimit(`market-memory:coverage:${auth.user.sub}`, { max: 12, windowMs: 60_000 });
   if (!limited.ok) return limited.response;
   const config = databaseConfig();
-  if (!config) return NextResponse.json({ error: "Durable coverage is not configured." }, { status: 503 });
+  if (!config) {
+    const missing: string[] = [];
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+    return NextResponse.json(
+      {
+        error: `Durable coverage is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
+        edge: "NOT CONFIGURED",
+        missing,
+      },
+      { status: 503 },
+    );
+  }
 
   const raw = await request.text();
   const parsed = parseCoverageContinuityRecord(raw);

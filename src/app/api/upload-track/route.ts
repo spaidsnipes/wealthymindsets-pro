@@ -23,7 +23,16 @@ export async function POST(request: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Radio uploads are not configured on this deployment (missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)." },
+      (() => {
+        const missing: string[] = [];
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+        if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+        return {
+          error: `Radio uploads are NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
+          edge: "NOT CONFIGURED",
+          missing,
+        };
+      })(),
       { status: 503 },
     );
   }

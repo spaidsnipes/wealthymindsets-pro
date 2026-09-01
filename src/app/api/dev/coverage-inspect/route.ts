@@ -24,7 +24,19 @@ export async function GET(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) {
-    return NextResponse.json({ error: "Supabase not configured." }, { status: 503 });
+    {
+      const missing: string[] = [];
+      if (!url) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+      if (!serviceKey) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+      return NextResponse.json(
+        {
+          error: `Coverage inspection is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
+          edge: "NOT CONFIGURED",
+          missing,
+        },
+        { status: 503 },
+      );
+    }
   }
 
   const params = new URL(request.url).searchParams;
