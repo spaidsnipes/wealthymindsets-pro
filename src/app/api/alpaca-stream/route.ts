@@ -17,12 +17,11 @@
  */
 
 import type { NextRequest } from "next/server";
-import WebSocket from "ws";
 import { resolveAlpacaLiveCredentials } from "@/lib/broker/alpacaCredentials";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 300; // Vercel Pro: 5 min, then the client reconnects
+export const maxDuration = 300; // bounded host execution; EventSource reconnects
 
 // WM-ENV-P1-02: server-only. See src/app/api/alpaca/route.ts for context.
 const { key: ALPACA_KEY, secret: ALPACA_SECRET } = resolveAlpacaLiveCredentials();
@@ -35,6 +34,7 @@ export async function GET(request: NextRequest) {
   const encoder = new TextEncoder();
   let ws: WebSocket | null = null;
   let closed = false;
+  let authTimer: ReturnType<typeof setTimeout> | null = null;
 
   const stream = new ReadableStream({
     start(controller) {
@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
       const shutdown = () => {
         if (closed) return;
         closed = true;
+        if (authTimer) clearTimeout(authTimer);
         try { ws?.close(); } catch { /* already closed */ }
         try { controller.close(); } catch { /* already closed */ }
       };
@@ -67,14 +68,16 @@ export async function GET(request: NextRequest) {
         try { ws!.send(JSON.stringify({ action: "auth", key: ALPACA_KEY, secret: ALPACA_SECRET })); } catch { shutdown(); }
         // If Alpaca goes silent after auth, it's almost always the free plan's
         // one-connection limit (another socket already holds it). Surface it.
-        setTimeout(() => { if (!authed && !closed) send({ err: "auth timeout — likely Alpaca 1-connection limit (close other tabs/streams)" }); }, 6000);
+        authTimer = setTimeout(() => {
+          if (!authed && !closed) send({ err: "auth timeout — Alpaca did not return an authentication result" });
+        }, 6000);
       };
 
-      ws.on("open", () => { send({ st: "open" }); });
+      ws.addEventListener("open", () => { send({ st: "open" }); });
 
-      ws.on("message", (raw: unknown) => {
+      ws.addEventListener("message", (event: MessageEvent) => {
         let msgs: unknown;
-        try { msgs = JSON.parse(String(raw)); } catch { return; }
+        try { msgs = JSON.parse(String(event.data)); } catch { return; }
         if (!Array.isArray(msgs)) return;
         for (const m of msgs as Array<Record<string, unknown>>) {
           if (m?.T === "success" && m?.msg === "connected") {
@@ -83,6 +86,7 @@ export async function GET(request: NextRequest) {
             authenticate();
           } else if (m?.T === "success" && m?.msg === "authenticated") {
             authed = true;
+            if (authTimer) clearTimeout(authTimer);
             send({ st: "auth" });
             try { ws!.send(JSON.stringify({ action: "subscribe", trades: [sym] })); } catch { shutdown(); }
           } else if (m?.T === "subscription") {
@@ -90,15 +94,17 @@ export async function GET(request: NextRequest) {
           } else if (m?.T === "t" && typeof m?.p === "number") {
             send({ p: m.p, s: m.s, t: typeof m.t === "string" ? Date.parse(m.t) : Date.now() });
           } else if (m?.T === "error") {
+            if (authTimer) clearTimeout(authTimer);
             send({ err: String(m?.msg ?? "alpaca error"), code: m?.code });
+            shutdown();
           } else {
             send({ st: "msg", T: m?.T });
           }
         }
       });
 
-      ws.on("error", () => shutdown());
-      ws.on("close",  () => shutdown());
+      ws.addEventListener("error", () => shutdown());
+      ws.addEventListener("close", () => shutdown());
 
       // Heartbeat keeps intermediary proxies from idle-closing the SSE; recycle
       // just before maxDuration so EventSource reconnects cleanly.
@@ -108,6 +114,7 @@ export async function GET(request: NextRequest) {
     },
     cancel() {
       closed = true;
+      if (authTimer) clearTimeout(authTimer);
       try { ws?.close(); } catch { /* already closed */ }
     },
   });
