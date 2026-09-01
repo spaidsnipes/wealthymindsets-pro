@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
 import { probeMoomooMarketData } from "../../../../lib/marketData/adapters/moomooMarketData";
 import { probeWebullMarketData } from "../../../../lib/marketData/adapters/webullMarketData";
 import {
@@ -42,7 +43,9 @@ async function buildFleet(): Promise<FleetSourceCertification> {
   return aggregateSourceCertifications([moomoo, webull]);
 }
 
-export async function GET(): Promise<NextResponse<FleetSourceCertification>> {
+export async function GET(request: NextRequest): Promise<NextResponse<FleetSourceCertification> | Response> {
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   const body = await buildFleet();
   return NextResponse.json(body, {
     status: 200,

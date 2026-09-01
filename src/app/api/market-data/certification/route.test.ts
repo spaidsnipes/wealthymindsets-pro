@@ -1,16 +1,30 @@
-import { describe, it, expect } from "vitest";
+import { NextRequest, NextResponse } from "next/server";
+import { beforeEach, describe, it, expect, vi } from "vitest";
+const mocks = vi.hoisted(() => ({ requireAuth: vi.fn() }));
+vi.mock("@/lib/requireAuth", () => ({ requireAuth: mocks.requireAuth }));
 import { GET } from "./route";
 import type { FleetSourceCertification } from "../../../../lib/marketData/sourceCertificationRegistry";
 import { DATA_CAPABILITIES } from "../../../../lib/marketData/sourceCapabilityCertification";
 
 async function readFleet(): Promise<FleetSourceCertification> {
-  const response = await GET();
+  const response = await GET(new NextRequest("http://localhost/api/market-data/certification"));
   expect(response.status).toBe(200);
   expect(response.headers.get("Cache-Control")).toBe("no-store");
   return (await response.json()) as FleetSourceCertification;
 }
 
 describe("/api/market-data/certification GET aggregate", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.requireAuth.mockResolvedValue({ ok: true });
+  });
+
+  it("rejects anonymous provider probes", async () => {
+    mocks.requireAuth.mockResolvedValue({ ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) });
+    const response = await GET(new NextRequest("http://localhost/api/market-data/certification"));
+    expect(response.status).toBe(401);
+  });
+
   it("reports the two founder-named co-equal sources (moomoo + webull)", async () => {
     const body = await readFleet();
     const sources = body.sources.map((s) => s.source).sort();
