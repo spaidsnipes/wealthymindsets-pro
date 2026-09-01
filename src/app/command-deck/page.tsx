@@ -40,7 +40,6 @@ import CommandContextRibbon from "@/components/command/CommandContextRibbon";
 import OneStoryStrip from "@/components/command/OneStoryStrip";
 import { PerCapabilityFidelityGrid } from "@/components/marketData/PerCapabilityFidelityGrid";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
-import { isOptionSymbol } from "@/lib/marketData/isOptionSymbol";
 import { selectAggressorFlow } from "@/lib/marketData/selectAggressorFlow";
 import { strongestCapability, weakestCapability, evaluatedCapabilityCount } from "@/lib/marketData/perCapabilityFidelity";
 import { SemanticZoom } from "@/components/experience/SemanticZoom";
@@ -65,6 +64,7 @@ import { composeExitRamp } from "@/lib/experience/composeExitRamp";
 import ExitRampCard from "@/components/experience/ExitRampCard";
 import { useLearningGenomeBundle } from "@/lib/learningGenome/useLearningGenomeBundle";
 import { LearningGenomeInspector } from "@/components/learningGenome/LearningGenomeInspector";
+import ProviderWireStrip from "@/components/marketData/ProviderWireStrip";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -841,6 +841,8 @@ function CommandDeckInner() {
                 )}
             </div>
 
+            <ProviderWireStrip />
+
             {/* RAW context rail — SHOW FIRST, EXPLAIN SECOND, RAW THIRD
                 (Founder doctrine). The 6-tile purposeful state read
                 (session / data / observed / available-R / evidence debt /
@@ -892,14 +894,6 @@ function CommandDeckInner() {
               const bookLevels =
                 (wsFeed.orderBook?.bids?.length ?? 0) +
                 (wsFeed.orderBook?.asks?.length ?? 0);
-              // X4 (canon §Provider Status Per Capability): when the
-              // trader is looking at an OCC-form option symbol we KNOW
-              // OPTIONS applies. No options provider is wired to /command-
-              // deck yet, so we honestly report BLOCKED_BY_ENTITLEMENT
-              // (via optionsSubscribed=false) instead of leaving the
-              // OPTIONS slot silent. For non-option symbols the slot
-              // stays undefined per §Silence.
-              const optionsSubscribed = isOptionSymbol(symbol) ? false : undefined;
               // X7 (canon §Provider Status Per Capability): light ORDER
               // FLOW from real aggressor-volume observation via the pure
               // selectAggressorFlow primitive. When hasFlow=true we KNOW
@@ -918,7 +912,6 @@ function CommandDeckInner() {
                 tapeConnected: !wsFeed.connected
                   ? undefined
                   : (wsFeed.recentTicks?.length ?? 0) > 0,
-                optionsSubscribed,
                 orderFlowDerived,
                 // DEPTH lit from real wsFeed order-book signal. When the
                 // book is empty we leave DEPTH UNDEFINED (silent) rather

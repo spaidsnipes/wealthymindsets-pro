@@ -17,8 +17,9 @@
  * silently omitting the capability.
  *
  * PURE — no I/O, no clock. Used by selectPerCapabilityFidelity
- * indirectly (consumers pass `optionsSubscribed: false` when this
- * predicate returns true + no provider is wired).
+ * indirectly. Detecting an option symbol does not itself prove provider
+ * entitlement; consumers must keep the fidelity slot silent until a provider
+ * returns either a live subscription receipt or an explicit entitlement wall.
  */
 
 /**

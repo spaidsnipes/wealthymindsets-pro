@@ -31,6 +31,10 @@ async function buildFleet(): Promise<FleetSourceCertification> {
   });
   const webull = await probeWebullMarketData(fetch, {
     dataUrl: process.env.WEBULL_DATA_URL || undefined,
+    appKey: process.env.WEBULL_API_KEY || undefined,
+    appSecret: process.env.WEBULL_API_SECRET || undefined,
+    apiHost: process.env.WEBULL_API_HOST || undefined,
+    canarySymbol: process.env.WEBULL_CANARY_SYMBOL || undefined,
   });
   // Future sources (Alpaca, …) slot in here as their probes land — one array
   // entry each, no new truth engine.

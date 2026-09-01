@@ -31,12 +31,12 @@ describe("selectPerCapabilityFidelity — canon derivation", () => {
     expect(r.ticks).toBeUndefined();
   });
 
-  it("delayed provider → bars + quotes = DELAYED_BY_ENTITLEMENT (canon: name the reason)", () => {
+  it("uncertified realtime provider → bars + quotes = ACTIVE_DEGRADED without inventing entitlement", () => {
     const r = selectPerCapabilityFidelity({
       source: "yahoo", connected: true, hasCandles: true,
     });
-    expect(r.bars).toBe(L.DELAYED_BY_ENTITLEMENT);
-    expect(r.quotes).toBe(L.DELAYED_BY_ENTITLEMENT);
+    expect(r.bars).toBe(L.ACTIVE_DEGRADED);
+    expect(r.quotes).toBe(L.ACTIVE_DEGRADED);
   });
 
   it("tapeConnected=true → ticks LIVE", () => {
@@ -62,15 +62,21 @@ describe("selectPerCapabilityFidelity — canon derivation", () => {
     expect(r.ticks).toBeUndefined();
   });
 
-  it("depthSubscribed=false → depth BLOCKED_BY_ENTITLEMENT (canon: name the wall)", () => {
+  it("does not infer a depth entitlement wall from subscription=false", () => {
     const r = selectPerCapabilityFidelity({
       source: "polygon", connected: true, hasCandles: true,
       depthSubscribed: false,
     });
-    expect(r.depth).toBe(L.BLOCKED_BY_ENTITLEMENT);
+    expect(r.depth).toBeUndefined();
+    const proven = selectPerCapabilityFidelity({
+      source: "polygon", connected: true, hasCandles: true,
+      depthSubscribed: false,
+      depthEntitlementBlocked: true,
+    });
+    expect(proven.depth).toBe(L.BLOCKED_BY_ENTITLEMENT);
   });
 
-  it("optionsSubscribed=true → options LIVE; false → BLOCKED", () => {
+  it("options require either live subscription or explicit provider entitlement proof", () => {
     const t = selectPerCapabilityFidelity({
       source: "polygon", connected: true, hasCandles: true,
       optionsSubscribed: true,
@@ -80,10 +86,16 @@ describe("selectPerCapabilityFidelity — canon derivation", () => {
       source: "polygon", connected: true, hasCandles: true,
       optionsSubscribed: false,
     });
-    expect(f.options).toBe(L.BLOCKED_BY_ENTITLEMENT);
+    expect(f.options).toBeUndefined();
+    const proven = selectPerCapabilityFidelity({
+      source: "polygon", connected: true, hasCandles: true,
+      optionsSubscribed: false,
+      optionsEntitlementBlocked: true,
+    });
+    expect(proven.options).toBe(L.BLOCKED_BY_ENTITLEMENT);
   });
 
-  it("greeksSubscribed follows the same live/blocked binary", () => {
+  it("greeks require explicit entitlement proof before rendering blocked", () => {
     const t = selectPerCapabilityFidelity({
       source: "polygon", connected: true, hasCandles: true,
       greeksSubscribed: true,
@@ -93,7 +105,13 @@ describe("selectPerCapabilityFidelity — canon derivation", () => {
       source: "polygon", connected: true, hasCandles: true,
       greeksSubscribed: false,
     });
-    expect(f.greeks).toBe(L.BLOCKED_BY_ENTITLEMENT);
+    expect(f.greeks).toBeUndefined();
+    const proven = selectPerCapabilityFidelity({
+      source: "polygon", connected: true, hasCandles: true,
+      greeksSubscribed: false,
+      greeksEntitlementBlocked: true,
+    });
+    expect(proven.greeks).toBe(L.BLOCKED_BY_ENTITLEMENT);
   });
 
   it("orderFlowDerived=true + tapeConnected=true → orderFlow LIVE", () => {

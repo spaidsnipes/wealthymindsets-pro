@@ -37,6 +37,7 @@ import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { priceSourceBadge } from "@/lib/priceSource";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
+import ProviderWireStrip from "@/components/marketData/ProviderWireStrip";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { interpretPine } from "@/lib/pine/interpreter";
@@ -703,6 +704,7 @@ export function ChartsDashboard() {
           Command Deck →
         </a>
       </div>
+      <ProviderWireStrip compact />
       {/* ── MooMoo-style chart tabs row ──────────────────────── */}
       <div className="wm-chart-tabs" style={{
         height: 40, borderBottom: "1px solid #1E2030", display: "flex", alignItems: "center",

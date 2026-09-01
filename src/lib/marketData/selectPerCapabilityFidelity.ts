@@ -54,16 +54,22 @@ export interface PerCapabilityFidelityInput {
    * Same silence rule as tapeConnected.
    */
   readonly depthSubscribed?: boolean;
+  /** True only when the provider response explicitly proves depth entitlement is the failed edge. */
+  readonly depthEntitlementBlocked?: boolean;
   /**
    * Optional — populated when the trader is on an options symbol AND
    * an options provider is wired. Same silence rule.
    */
   readonly optionsSubscribed?: boolean;
+  /** True only when the provider response explicitly proves options entitlement is the failed edge. */
+  readonly optionsEntitlementBlocked?: boolean;
   /**
    * Optional — populated when a Greeks provider is producing values.
    * Same silence rule.
    */
   readonly greeksSubscribed?: boolean;
+  /** True only when the provider response explicitly proves Greeks entitlement is the failed edge. */
+  readonly greeksEntitlementBlocked?: boolean;
   /**
    * Optional — populated when derived order-flow (delta / footprint)
    * is being computed AND the input ticks are trustworthy enough
@@ -103,24 +109,25 @@ export function selectPerCapabilityFidelity(
   }
   // undefined ⇒ ticks stays out of the report
 
-  // DEPTH — same rule. Explicit false = we tried and it's blocked.
+  // DEPTH — a false subscription flag alone cannot identify WHY the
+  // capability is absent. Entitlement requires an explicit provider receipt.
   if (input.depthSubscribed === true) {
     report.depth = CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE;
-  } else if (input.depthSubscribed === false) {
+  } else if (input.depthEntitlementBlocked === true) {
     report.depth = CANONICAL_FIDELITY_LABELS.BLOCKED_BY_ENTITLEMENT;
   }
 
   // OPTIONS — only when an options provider is wired for the symbol.
   if (input.optionsSubscribed === true) {
     report.options = CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE;
-  } else if (input.optionsSubscribed === false) {
+  } else if (input.optionsEntitlementBlocked === true) {
     report.options = CANONICAL_FIDELITY_LABELS.BLOCKED_BY_ENTITLEMENT;
   }
 
   // GREEKS — same rule; undefined until a Greeks provider signals.
   if (input.greeksSubscribed === true) {
     report.greeks = CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE;
-  } else if (input.greeksSubscribed === false) {
+  } else if (input.greeksEntitlementBlocked === true) {
     report.greeks = CANONICAL_FIDELITY_LABELS.BLOCKED_BY_ENTITLEMENT;
   }
 

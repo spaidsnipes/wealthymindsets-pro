@@ -134,6 +134,8 @@ export interface FidelityResolutionInput {
   liveQuoteFresh?: boolean;
   /** Is the underlying entitlement gate blocking live access? */
   entitlementBlocked?: boolean;
+  /** Did the provider explicitly identify contractual delayed access? */
+  entitlementDelayed?: boolean;
   /** Have we exceeded the pipeline freshness budget without a wall
    *  entitlement block? */
   pipelineStale?: boolean;
@@ -174,8 +176,10 @@ export function resolveCanonicalFidelityLabel(
   if (input.sessionOpen === true && input.pipelineStale === true) {
     return CANONICAL_FIDELITY_LABELS.STALE_PIPELINE;
   }
-  // Entitlement-based delay (paid-tier gap).
-  if (input.entitlementBlocked === false && input.liveQuoteFresh === false && input.sessionOpen === true) {
+  // Entitlement-based delay (paid-tier gap). This requires affirmative
+  // provider evidence; `entitlementBlocked=false` merely rules out one wall
+  // and must never be rounded up into a delay contract.
+  if (input.entitlementDelayed === true && input.liveQuoteFresh === false && input.sessionOpen === true) {
     return CANONICAL_FIDELITY_LABELS.DELAYED_BY_ENTITLEMENT;
   }
   // We have bars but no active session signal — fall back to bars-verified.

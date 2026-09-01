@@ -122,12 +122,19 @@ describe("resolveCanonicalFidelityLabel — priority ordering", () => {
     ).toBe(CANONICAL_FIDELITY_LABELS.STALE_PIPELINE);
   });
 
-  it("open + not fresh + entitlement=false → DELAYED_BY_ENTITLEMENT", () => {
+  it("requires explicit provider delay proof before DELAYED_BY_ENTITLEMENT", () => {
     expect(
       resolveCanonicalFidelityLabel({
         sessionOpen: true,
         liveQuoteFresh: false,
         entitlementBlocked: false,
+      }),
+    ).toBeUndefined();
+    expect(
+      resolveCanonicalFidelityLabel({
+        sessionOpen: true,
+        liveQuoteFresh: false,
+        entitlementDelayed: true,
       }),
     ).toBe(CANONICAL_FIDELITY_LABELS.DELAYED_BY_ENTITLEMENT);
   });
