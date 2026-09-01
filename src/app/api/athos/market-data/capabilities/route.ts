@@ -11,6 +11,7 @@ import {
 } from "../../../../../lib/marketData/canonicalCapabilityResolver";
 import { resolveAlpacaLiveCredentials } from "../../../../../lib/broker/alpacaCredentials";
 import { getTastytradeCapabilities } from "../../../../../lib/tastytrade";
+import { probeLongbridgeMarketData } from "../../../../../lib/marketData/adapters/longbridgeTicks";
 
 /**
  * ATHOS capability matrix — one canonical decision per market-data capability.
@@ -28,7 +29,7 @@ async function buildMatrix(): Promise<AthosCapabilityMatrix> {
     reason: "canonical exchange-calendar session owner is not wired to this endpoint yet",
   };
   const alpacaCredentials = resolveAlpacaLiveCredentials();
-  const [moomoo, webull, alpaca, tastytradeObservation] = await Promise.all([
+  const [moomoo, webull, alpaca, longbridge, tastytradeObservation] = await Promise.all([
     probeMoomooMarketData(fetch, {
       bridgeUrl: (process.env.MOOMOO_BRIDGE_URL ?? "").replace(/\/+$/, ""),
       bridgeToken: process.env.MOOMOO_BRIDGE_TOKEN,
@@ -47,6 +48,11 @@ async function buildMatrix(): Promise<AthosCapabilityMatrix> {
       secret: alpacaCredentials.secret,
       canarySymbol: process.env.ALPACA_CANARY_SYMBOL || "TSLA",
     }),
+    probeLongbridgeMarketData(fetch, {
+      bridgeUrl: process.env.LONGBRIDGE_BRIDGE_URL,
+      bridgeToken: process.env.LONGBRIDGE_BRIDGE_TOKEN,
+      canarySymbol: process.env.LONGBRIDGE_CANARY_SYMBOL || "TSLA",
+    }),
     getTastytradeCapabilities(),
   ]);
   // Account auth and a dxFeed quote-token grant are real provider observations,
@@ -63,6 +69,7 @@ async function buildMatrix(): Promise<AthosCapabilityMatrix> {
     { certification: moomoo, providerTier: "CERTIFIED_NEW" },
     { certification: webull, providerTier: "CERTIFIED_NEW" },
     { certification: alpaca, providerTier: "CANONICAL" },
+    { certification: longbridge, providerTier: "CERTIFIED_NEW" },
     { certification: tastytrade, providerTier: "CERTIFIED_NEW" },
   ], session, generatedAt);
 }

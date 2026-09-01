@@ -56,6 +56,17 @@ describe("market-data capability and persistence-rights registry", () => {
     expect(coinbaseTrades.timestampFields).toContain("EXCHANGE");
     expect(coinbaseTrades.sequenceSupported).toBe(false);
   });
+
+  it("registers Longbridge executed prints without inventing aggressor fidelity", () => {
+    const longbridge = MARKET_DATA_CAPABILITIES.find((entry) => entry.providerPath === "longbridge-openapi-bridge");
+    expect(longbridge).toMatchObject({
+      availability: "PARTIAL",
+      eventType: "trade",
+      collectionScope: "REQUEST_SCOPED",
+      aggressorMethod: "NONE",
+      rightsPolicyId: "wm.rights.unknown.v1",
+    });
+  });
 });
 
 describe("rights registry v2 — granular per-action gating", () => {

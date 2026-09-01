@@ -38,6 +38,7 @@ export type ProviderId =
   | "webull-broker"
   | "tastytrade"
   | "moomoo"
+  | "longbridge-data"
   | "alpaca-paper"
   | "alpaca-live";
 
@@ -98,6 +99,14 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     required: ["MOOMOO_BRIDGE_URL", "MOOMOO_BRIDGE_TOKEN"],
     recommended: ["MOOMOO_CANARY_SYMBOL"],
     note: "Both the bridge URL and shared bearer token must be set AND a reachable OpenD bridge must be running.",
+  },
+  {
+    provider: "longbridge-data",
+    label: "Longbridge market data",
+    lane: "market-data",
+    required: ["LONGBRIDGE_BRIDGE_URL", "LONGBRIDGE_BRIDGE_TOKEN"],
+    recommended: ["LONGBRIDGE_CANARY_SYMBOL"],
+    note: "Portable Longbridge OpenAPI bridge. Credentials stay in the bridge; WM Pro receives bounded read-only tick receipts.",
   },
   {
     provider: "alpaca-paper",

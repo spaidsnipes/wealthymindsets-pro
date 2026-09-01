@@ -82,6 +82,12 @@ describe("computeProviderReadiness", () => {
     expect(r.missing).toEqual(["MOOMOO_BRIDGE_TOKEN"]);
   });
 
+  it("Longbridge needs both portable bridge names", () => {
+    const r = computeProviderReadiness("longbridge-data", { LONGBRIDGE_BRIDGE_URL: "u" });
+    expect(r.status).toBe("BLOCKED");
+    expect(r.missing).toEqual(["LONGBRIDGE_BRIDGE_TOKEN"]);
+  });
+
   it("empty env → every provider BLOCKED", () => {
     const all = computeAllProviderReadiness({});
     expect(all.every((r) => r.status === "BLOCKED")).toBe(true);

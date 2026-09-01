@@ -7,6 +7,7 @@ import {
   matrixProviderWireView,
   providerWireView,
   tastytradeWireView,
+  longbridgeTickWireView,
 } from "./ProviderWireStrip";
 import { buildAthosCapabilityMatrix } from "@/lib/marketData/canonicalCapabilityResolver";
 
@@ -38,6 +39,11 @@ describe("providerWireView", () => {
     expect(moomooTickWireView({ label: "AUTH BLOCKED", detail: "Sign in required.", eventCount: 0 })).toMatchObject({ tone: "BLOCKED", label: "AUTH BLOCKED" });
     expect(moomooTickWireView({ label: "NO EVENTS RECEIVED", detail: "No prints returned.", eventCount: 0 })).toMatchObject({ tone: "LIMITED", label: "NO EVENTS RECEIVED" });
     expect(moomooTickWireView({ label: "RECEIVING", receiving: true, eventCount: 4 })).toMatchObject({ tone: "LIMITED", label: "Ticks receiving" });
+  });
+
+  it("keeps Longbridge receiving below live until entitlement is certified", () => {
+    expect(longbridgeTickWireView({ label: "RECEIVING", receiving: true, eventCount: 20 })).toMatchObject({ source: "longbridge", tone: "LIMITED", label: "Ticks receiving" });
+    expect(longbridgeTickWireView({ label: "NOT CONFIGURED", detail: "LONGBRIDGE_BRIDGE_URL missing", eventCount: 0 })).toMatchObject({ source: "longbridge", tone: "OFFLINE", label: "Not configured" });
   });
 
   it("keeps Alpaca env readiness below connected or receiving", () => {

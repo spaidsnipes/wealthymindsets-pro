@@ -57,6 +57,17 @@ export function moomooTickWireView(receipt: MoomooTickReceipt): ProviderWireView
   return { source: "moomoo", tone: "OFFLINE", label: "Unknown", detail };
 }
 
+export function longbridgeTickWireView(receipt: MoomooTickReceipt): ProviderWireView {
+  const view = moomooTickWireView(receipt);
+  return {
+    ...view,
+    source: "longbridge",
+    detail: view.label === "Ticks receiving"
+      ? `${receipt.eventCount} accepted Longbridge executed prints · realtime entitlement not certified.`
+      : receipt.detail?.trim() || "The Longbridge receipt did not identify a provider state.",
+  };
+}
+
 export function alpacaReadinessWireView(payload: ReadinessPayload | null | undefined): ProviderWireView {
   const alpacaRows = selectReadinessWireboard(payload).rows.filter((row) => row.provider.startsWith("alpaca-"));
   const ready = alpacaRows.filter((row) => row.status === "READY");
@@ -151,6 +162,7 @@ const TONE_COLOR: Record<WireTone, string> = {
 export default function ProviderWireStrip({ compact = false }: { readonly compact?: boolean }) {
   const [matrix, setMatrix] = React.useState<AthosCapabilityMatrix | null>(null);
   const [moomooTicks, setMoomooTicks] = React.useState<MoomooTickReceipt | null>(null);
+  const [longbridgeTicks, setLongbridgeTicks] = React.useState<MoomooTickReceipt | null>(null);
   const [failures, setFailures] = React.useState<ReadonlySet<string>>(() => new Set());
 
   React.useEffect(() => {
@@ -175,24 +187,27 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.json() as Promise<T>;
     };
-    const readMoomooReceipt = async (): Promise<MoomooTickReceipt> => {
-      const response = await fetch("/api/market-data/moomoo/ticks?symbol=TSLA", { cache: "no-store", signal: controller.signal });
+    const readProviderReceipt = async (source: "moomoo" | "longbridge"): Promise<MoomooTickReceipt> => {
+      const response = await fetch(`/api/market-data/${source}/ticks?symbol=TSLA`, { cache: "no-store", signal: controller.signal });
       const body = await response.json().catch(() => null) as MoomooTickReceipt | null;
       if (body?.label) return body;
       if (response.status === 401 || response.status === 403) {
-        return { label: "AUTH BLOCKED", detail: "Sign in is required for the authenticated Moomoo tick receipt.", receiving: false, eventCount: 0 };
+        return { label: "AUTH BLOCKED", detail: `Sign in is required for the authenticated ${source === "moomoo" ? "Moomoo" : "Longbridge"} tick receipt.`, receiving: false, eventCount: 0 };
       }
-      if (!response.ok) return { label: "UNKNOWN", detail: `The Moomoo tick route returned HTTP ${response.status}.`, receiving: false, eventCount: 0 };
-      return { label: "UNKNOWN", detail: "The Moomoo tick route returned no classified receipt.", receiving: false, eventCount: 0 };
+      if (!response.ok) return { label: "UNKNOWN", detail: `The ${source === "moomoo" ? "Moomoo" : "Longbridge"} tick route returned HTTP ${response.status}.`, receiving: false, eventCount: 0 };
+      return { label: "UNKNOWN", detail: `The ${source === "moomoo" ? "Moomoo" : "Longbridge"} tick route returned no classified receipt.`, receiving: false, eventCount: 0 };
     };
     const refresh = () => {
       if (document.visibilityState === "hidden") return;
       void readJson<AthosCapabilityMatrix>("/api/athos/market-data/capabilities")
         .then((body) => { if (active) setMatrix(body); clearFailure("market"); })
         .catch((error: unknown) => recordFailure("market", error));
-      void readMoomooReceipt()
+      void readProviderReceipt("moomoo")
         .then((body) => { if (active) setMoomooTicks(body); clearFailure("moomoo"); })
         .catch((error: unknown) => recordFailure("moomoo", error));
+      void readProviderReceipt("longbridge")
+        .then((body) => { if (active) setLongbridgeTicks(body); clearFailure("longbridge"); })
+        .catch((error: unknown) => recordFailure("longbridge", error));
     };
 
     refresh();
@@ -206,15 +221,18 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
     };
   }, []);
 
-  const providerSources = ["moomoo", "webull", "tastytrade", "alpaca"] as const;
+  const providerSources = ["moomoo", "longbridge", "webull", "tastytrade", "alpaca"] as const;
   const marketWires: ProviderWireView[] = failures.has("market") && !matrix
     ? providerSources.map((source) => ({ source, tone: "OFFLINE", label: "Status unavailable", detail: "The canonical capability probe did not return." }))
     : providerSources.map((source) => matrixProviderWireView(matrix, source));
   const moomooWire = failures.has("moomoo") && !moomooTicks
     ? { source: "moomoo", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated tick receipt did not return." }
     : moomooTicks ? moomooTickWireView(moomooTicks) : null;
+  const longbridgeWire = failures.has("longbridge") && !longbridgeTicks
+    ? { source: "longbridge", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated Longbridge tick receipt did not return." }
+    : longbridgeTicks ? longbridgeTickWireView(longbridgeTicks) : null;
   const wires = [
-    ...marketWires.map((wire) => wire.source === "moomoo" && moomooWire ? moomooWire : wire),
+    ...marketWires.map((wire) => wire.source === "moomoo" && moomooWire ? moomooWire : wire.source === "longbridge" && longbridgeWire ? longbridgeWire : wire),
   ];
 
   return (

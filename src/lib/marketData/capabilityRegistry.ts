@@ -11,6 +11,7 @@ export type MarketProviderPath =
   | "alpaca-external-relay"
   | "alpaca-rest"
   | "moomoo-opend-bridge"
+  | "longbridge-openapi-bridge"
   | "yahoo-rest"
   | "finnhub-rest"
   | "kraken-dom-client-ws"
@@ -215,6 +216,21 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     fallbackSemantics: "EXPLICIT",
     rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
     evidence: "services/moomoo-bridge/bridge.py /ticks + adapters/moomooTicks.ts; persistent streaming/reconnect is not yet certified",
+  }),
+  capability({
+    providerPath: "longbridge-openapi-bridge",
+    assetClass: "equity",
+    eventType: "trade",
+    availability: "PARTIAL",
+    collectionScope: "REQUEST_SCOPED",
+    fidelityClass: "OBSERVED",
+    timestampFields: ["PROVIDER", "RECEIVED", "PROCESSED"],
+    sequenceSupported: false,
+    aggressorMethod: "NONE",
+    sessionCoverage: "Authenticated Longbridge recent-trades bridge; runtime continuity and real-time entitlement remain uncertified",
+    fallbackSemantics: "EXPLICIT",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
+    evidence: "src/app/api/market-data/longbridge/ticks/route.ts + adapters/longbridgeTicks.ts; direction is retained as lineage and never promoted to aggressor side",
   }),
   capability({
     providerPath: "yahoo-rest",
