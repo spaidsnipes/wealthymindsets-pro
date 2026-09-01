@@ -27,13 +27,40 @@ const DATA_BASE = "https://data.alpaca.markets";
 // Auth headers — only included when keys are present
 function getHeaders(requireAuth = false): Record<string, string> {
   const h: Record<string, string> = { "Accept": "application/json" };
+  // Only attach equity credentials to endpoints that actually require them
+  // (requireAuth=true → stocks). Crypto data is a keyless endpoint; sending
+  // equity creds there means an invalid/expired key 401s a request that would
+  // have succeeded unauthenticated. Keyless-or-nothing for keyless routes.
+  if (!requireAuth) return h;
   if (ALPACA_KEY && ALPACA_SECRET) {
     h["APCA-API-KEY-ID"]     = ALPACA_KEY;
     h["APCA-API-SECRET-KEY"] = ALPACA_SECRET;
-  } else if (requireAuth) {
-    throw new Error("Alpaca API keys not configured — add ALPACA_KEY and ALPACA_SECRET to .env.local");
+    return h;
   }
-  return h;
+  throw new Error("Alpaca API keys not configured — add ALPACA_KEY and ALPACA_SECRET to .env.local");
+}
+
+/**
+ * A failed upstream Alpaca response, classified into an honest edge. Monday
+ * Test 2: name the ACTUAL proven failure class — a 401 (the provider rejected
+ * our credential) is AUTH BLOCKED, not a generic HTTP error and never
+ * "delayed by entitlement". The upstream status is preserved so the route
+ * surfaces the real code instead of collapsing everything to 500.
+ */
+class AlpacaUpstreamError extends Error {
+  constructor(readonly status: number, readonly edge: string, message: string) {
+    super(message);
+    this.name = "AlpacaUpstreamError";
+  }
+}
+
+function classifyAlpacaStatus(status: number): string {
+  if (status === 401) return "AUTH BLOCKED";  // provider rejected the API credential (invalid/expired/missing)
+  if (status === 403) return "FORBIDDEN";     // provider denied this request (plan / permission)
+  if (status === 429) return "RATE LIMITED";  // too many requests upstream
+  if (status === 404) return "NOT FOUND";     // symbol / endpoint not found upstream
+  if (status >= 500) return "PROVIDER ERROR"; // Alpaca-side failure
+  return "UPSTREAM ERROR";
 }
 
 const CACHE = new Map<string, { data: unknown; ts: number }>();
@@ -42,7 +69,10 @@ async function alpacaFetch(url: string, ttlMs = 5_000, requireAuth = false): Pro
   const cached = CACHE.get(url);
   if (cached && Date.now() - cached.ts < ttlMs) return cached.data;
   const res = await fetch(url, { headers: getHeaders(requireAuth), cache: "no-store" });
-  if (!res.ok) throw new Error(`Alpaca HTTP ${res.status}`);
+  if (!res.ok) {
+    const edge = classifyAlpacaStatus(res.status);
+    throw new AlpacaUpstreamError(res.status, edge, `Alpaca ${edge} (HTTP ${res.status})`);
+  }
   const data = await res.json();
   CACHE.set(url, { data, ts: Date.now() });
   return data;
@@ -248,6 +278,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unknown type" }, { status: 400 });
 
   } catch (err: unknown) {
+    // Preserve the provider's real failure class + status instead of collapsing
+    // every upstream error to a generic 500. A rejected credential surfaces as
+    // 401 AUTH BLOCKED so the consumer can degrade honestly (never "delayed by
+    // entitlement" for what is actually an auth failure).
+    if (err instanceof AlpacaUpstreamError) {
+      return NextResponse.json(
+        { error: err.message, edge: err.edge, source: "alpaca" },
+        { status: err.status },
+      );
+    }
     const msg = String(err);
     const status = msg.includes("not configured") || msg.includes("not set") ? 503 : 500;
     return NextResponse.json({ error: msg }, { status });
