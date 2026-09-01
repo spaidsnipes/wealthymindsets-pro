@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { certifySource } from "@/lib/marketData/sourceCapabilityCertification";
 import {
   alpacaReadinessWireView,
@@ -76,5 +77,15 @@ describe("matrixProviderWireView", () => {
     ], session);
     expect(matrixProviderWireView(matrix, "webull")).toMatchObject({ tone: "BLOCKED", label: "Authentication blocked", detail: "HTTP 401 from provider" });
     expect(matrixProviderWireView(matrix, "tastytrade")).toMatchObject({ tone: "OFFLINE", label: "Not receiving", detail: "refresh token missing" });
+  });
+});
+
+describe("ProviderWireStrip touch truth surface", () => {
+  it("keeps exact provider state and blocker detail in accessible card text", () => {
+    const source = readFileSync(new URL("./ProviderWireStrip.tsx", import.meta.url), "utf8");
+    expect(source).toContain('aria-label={`${wire.source}: ${wire.label}. ${wire.detail}`}');
+    expect(source).toContain('data-provider-tone={wire.tone}');
+    expect(source).toContain('WebkitLineClamp: compact ? 2 : 3');
+    expect(source).not.toContain('whiteSpace: "nowrap" }}>{wire.detail}');
   });
 });
