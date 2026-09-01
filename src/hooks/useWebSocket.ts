@@ -27,6 +27,7 @@ import { applyTickToLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
 import { normalizeBinanceUsTrade } from "@/lib/marketData/adapters/binanceUs";
 import { moomooNextPollDelayMs, selectFreshMoomooTapeEvents } from "@/lib/marketData/adapters/moomooTicksBrowser";
+import { selectFreshWebullTapeEvents } from "@/lib/marketData/adapters/webullTicksBrowser";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
 
 export interface Tick {
@@ -65,7 +66,7 @@ export interface MarketState {
   connected:   boolean;
   source:      "polygon" | "finnhub" | "yahoo" | "alpaca" | "coinbase" | "binance" | "unavailable";
   /** Aggressor tape feed — set only by trade WebSockets, never downgraded by REST quotes. */
-  tapeSource:  "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | "moomoo" | null;
+  tapeSource:  "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | "moomoo" | "webull" | null;
   latency:     number; // ms to last update
 }
 
@@ -1013,9 +1014,21 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           cache: "no-store",
           signal: moomooAbort.signal,
         });
-        if (!response.ok || disposed) return;
-        const body = await response.json().catch(() => null);
-        const events = selectFreshMoomooTapeEvents(body, symbol, Date.now());
+        const body = response.ok && !disposed ? await response.json().catch(() => null) : null;
+        let electedSource: "moomoo" | "webull" = "moomoo";
+        let events = selectFreshMoomooTapeEvents(body, symbol, Date.now());
+        // Moomoo is the deterministic first choice for this lane. Webull is a
+        // bounded signed-print fallback only when Moomoo returns no admissible
+        // event; a diagnostics receipt alone never reaches the tape.
+        if (events.length === 0 && !disposed) {
+          const webullResponse = await fetch(`/api/market-data/webull/ticks?symbol=${encodeURIComponent(symbol.toUpperCase())}`, {
+            cache: "no-store",
+            signal: moomooAbort.signal,
+          });
+          const webullBody = webullResponse.ok ? await webullResponse.json().catch(() => null) : null;
+          events = selectFreshWebullTapeEvents(webullBody, symbol, Date.now());
+          electedSource = "webull";
+        }
         // Preserve a responsive five-second tape only while this exact symbol
         // is producing fresh provider events. Missing config, auth blockers,
         // stale/no-event states, and malformed receipts back off to one minute
@@ -1025,8 +1038,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           const inspected = moomooGuard.inspect(event);
           if (inspected.status !== "ACCEPTED") continue;
           ingestSessionNectarEvent(inspected.event);
-          if (tapeSourceRef.current && tapeSourceRef.current !== "moomoo") continue;
-          tapeSourceRef.current = "moomoo";
+          const mayPromote = tapeSourceRef.current === "webull" && electedSource === "moomoo";
+          if (tapeSourceRef.current && tapeSourceRef.current !== electedSource && !mayPromote) continue;
+          tapeSourceRef.current = electedSource;
           processTick({
             price: inspected.event.price!,
             size: inspected.event.size!,
@@ -1035,7 +1049,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
             trade: true,
             marketEvent: inspected.event,
           }, true);
-          setState(previous => previous.tapeSource === "moomoo" ? previous : { ...previous, tapeSource: "moomoo" });
+          setState(previous => previous.tapeSource === electedSource ? previous : { ...previous, tapeSource: electedSource });
         }
       } catch (error) {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
@@ -1151,7 +1165,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           // REST quote is for price display only — never downgrade an active aggressor tape feed.
           // Moomoo is an aggressor-tape identity, not a certified quote-source
           // label. Keep the independently observed REST quote provenance.
-          source: tape === "moomoo"
+          source: tape === "moomoo" || tape === "webull"
             ? (q.observedAt != null ? (q.source as MarketState["source"]) : prev2.source)
             : tape ?? (q.observedAt != null ? (q.source as MarketState["source"]) : prev2.source),
           tapeSource: tape,
