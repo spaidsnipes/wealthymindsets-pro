@@ -12,6 +12,11 @@ describe("Paper options actionability enforcement", () => {
     expect(paperPage).toContain("MARK UNAVAILABLE · NOT ACTIONABLE");
   });
 
+  it("keeps Paper quote copy aligned with the canonical degraded label", () => {
+    expect(paperPage).toContain("chart chrome flags as ACTIVE DEGRADED");
+    expect(paperPage).not.toContain("chart chrome flags as DELAYED");
+  });
+
   it("contains no hard-coded underlying fallback in the Paper options path", () => {
     expect(paperPage).not.toMatch(/prices\[sym\]\s*\?\?\s*UNIVERSE\[sym\]/);
     expect(paperPage).not.toContain("UNIVERSE[p.underlying]?.base");

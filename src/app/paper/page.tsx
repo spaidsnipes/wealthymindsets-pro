@@ -1552,7 +1552,7 @@ export default function PaperTradingPage() {
         <div className={clsx(styles.market, "w-48 border-l border-wm-border flex flex-col overflow-hidden shrink-0")}>
           <div
             className="px-3 py-2 border-b border-wm-border text-[9px] font-black text-wm-text-dim uppercase tracking-wider flex items-center gap-1.5"
-            title="Prices are consolidated quotes from the same delayed provider the chart chrome flags as DELAYED — not a real-time tape."
+            title="Prices are consolidated quotes from the same degraded provider the chart chrome flags as ACTIVE DEGRADED — not a certified real-time tape."
           >
             <Activity size={10} className="text-wm-gold"/>
             <span>Market Prices</span>
