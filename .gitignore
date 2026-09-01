@@ -30,3 +30,9 @@ Thumbs.db
 
 # Claude
 .claude/
+
+# Python (services/moomoo-bridge)
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
