@@ -13,6 +13,8 @@ export interface WebullDataConfig {
   readonly accessToken?: string;
   readonly apiHost?: string;
   readonly canarySymbol?: string;
+  readonly maxTickAgeMs?: number;
+  readonly timeoutMs?: number;
   readonly now?: () => Date;
   readonly nonce?: () => string;
 }
@@ -28,7 +30,18 @@ export interface WebullTickObservation {
 
 export interface WebullTickSnapshotResult {
   readonly source: "webull";
-  readonly state: "OBSERVED" | "UNCONFIGURED" | "BLOCKED_AUTH" | "UNAVAILABLE";
+  readonly state:
+    | "OBSERVED"
+    | "UNCONFIGURED"
+    | "BLOCKED_AUTH"
+    | "ACCESS_UNPROVEN"
+    | "RATE_LIMITED"
+    | "PROVIDER_ERROR"
+    | "NO_EVENTS"
+    | "STALE"
+    | "CLOCK_INVALID"
+    | "TIMEOUT"
+    | "UNAVAILABLE";
   readonly fidelity: "SNAPSHOT" | "NONE";
   readonly symbol: string;
   readonly requestedAt: string;
@@ -125,6 +138,7 @@ export async function fetchWebullTickSnapshot(
   const symbol = (config.canarySymbol || "TSLA").trim().toUpperCase();
   const now = config.now || (() => new Date());
   const timestamp = isoSeconds(now());
+  const timeoutMs = Math.max(250, Math.min(30_000, config.timeoutMs ?? 8_000));
   const unavailable = (
     state: WebullTickSnapshotResult["state"],
     note: string,
@@ -142,6 +156,8 @@ export async function fetchWebullTickSnapshot(
   Object.entries(query).forEach(([key, value]) => url.searchParams.set(key, value));
 
   let response: Response;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const headers: Record<string, string> = {
       "x-app-key": appKey,
@@ -160,9 +176,15 @@ export async function fetchWebullTickSnapshot(
       method: "GET",
       cache: "no-store",
       headers,
+      signal: controller.signal,
     });
   } catch {
+    if (controller.signal.aborted) {
+      return unavailable("TIMEOUT", `Webull Data API did not respond within ${timeoutMs} ms; no tick observation was returned.`);
+    }
     return unavailable("UNAVAILABLE", "Webull Data API could not be reached; no tick observation was returned.");
+  } finally {
+    clearTimeout(timeout);
   }
   if (!response.ok) {
     if (response.status === 401) {
@@ -173,16 +195,38 @@ export async function fetchWebullTickSnapshot(
     }
     if (response.status === 403) {
       return unavailable(
-        "UNAVAILABLE",
+        "ACCESS_UNPROVEN",
         "Webull Data API returned HTTP 403. Access was denied, but the failed edge (authorization, subscription, entitlement, or policy) was not proven; no tick observation was returned.",
       );
+    }
+    if (response.status === 429) {
+      return unavailable("RATE_LIMITED", "Webull Data API returned HTTP 429. The bounded read was rate limited; no tick observation was returned.");
+    }
+    if (response.status >= 500) {
+      return unavailable("PROVIDER_ERROR", `Webull Data API returned HTTP ${response.status}. The provider failed before a tick observation was returned.`);
     }
     return unavailable("UNAVAILABLE", `Webull Data API returned HTTP ${response.status}; no tick observation was returned.`);
   }
 
-  const ticks = parseWebullTickEnvelope(await response.json().catch(() => null), symbol);
+  const payload = await response.json().catch(() => null);
+  const envelope = payload && typeof payload === "object"
+    ? payload as { symbol?: unknown; result?: unknown }
+    : null;
+  if (!envelope || typeof envelope.symbol !== "string" || envelope.symbol.toUpperCase() !== symbol || !Array.isArray(envelope.result)) {
+    return unavailable("PROVIDER_ERROR", "Webull Data API returned an unrecognized or symbol-mismatched tick envelope; no tick observation was accepted.");
+  }
+  const ticks = parseWebullTickEnvelope(payload, symbol);
   if (ticks.length === 0) {
-    return unavailable("UNAVAILABLE", "Webull Data API returned no valid, symbol-matched tick observations.");
+    return unavailable("NO_EVENTS", "Webull Data API returned no valid, symbol-matched tick observations.");
+  }
+  const newest = Math.max(...ticks.map((tick) => tick.observedAtMs));
+  const maxTickAgeMs = Math.max(1_000, config.maxTickAgeMs ?? 60_000);
+  const tickAgeMs = now().getTime() - newest;
+  if (tickAgeMs < -5_000) {
+    return unavailable("CLOCK_INVALID", `Webull Data API returned a provider timestamp ${Math.abs(tickAgeMs)} ms in the future; the print was not exposed as current.`);
+  }
+  if (tickAgeMs > maxTickAgeMs) {
+    return unavailable("STALE", `Webull Data API returned symbol-matched prints, but the newest provider timestamp was ${tickAgeMs} ms old; stale prints were not exposed as current.`);
   }
   return {
     source: "webull",

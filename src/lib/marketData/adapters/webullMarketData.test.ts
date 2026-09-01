@@ -114,4 +114,71 @@ describe("Webull Data API market-data certification", () => {
     expect(ticks.note).not.toMatch(/delayed/i);
     expect(JSON.stringify(cert)).not.toContain("subscription maybe");
   });
+
+  it.each([
+    [429, "RATE_LIMITED"],
+    [500, "PROVIDER_ERROR"],
+    [503, "PROVIDER_ERROR"],
+  ] as const)("maps HTTP %i to exact runtime state %s", async (status, state) => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response("provider detail", { status })) as unknown as typeof fetch;
+    const result = await (await import("./webullMarketData")).fetchWebullTickSnapshot(fetchImpl, {
+      appKey: "app-key",
+      appSecret: "app-secret",
+      now: () => new Date("2026-08-31T12:00:00Z"),
+      nonce: () => "fixed-nonce",
+    });
+    expect(result.state).toBe(state);
+    expect(JSON.stringify(result)).not.toContain("provider detail");
+  });
+
+  it("distinguishes no events from stale events and exposes neither as current", async () => {
+    const { fetchWebullTickSnapshot } = await import("./webullMarketData");
+    const noEvents = await fetchWebullTickSnapshot(
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ symbol: "TSLA", result: [] }), { status: 200 })) as unknown as typeof fetch,
+      { appKey: "k", appSecret: "s", now: () => new Date(1788177425265), nonce: () => "n" },
+    );
+    expect(noEvents).toMatchObject({ state: "NO_EVENTS", ticks: [] });
+
+    const stale = await fetchWebullTickSnapshot(
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({
+        symbol: "TSLA",
+        result: [{ time: "1788177300000", price: "346.63", volume: "2", side: "N" }],
+      }), { status: 200 })) as unknown as typeof fetch,
+      { appKey: "k", appSecret: "s", now: () => new Date(1788177425265), nonce: () => "n", maxTickAgeMs: 60_000 },
+    );
+    expect(stale).toMatchObject({ state: "STALE", ticks: [] });
+    expect(stale.note).toMatch(/provider timestamp/i);
+  });
+
+  it("rejects malformed envelopes and future provider clocks", async () => {
+    const { fetchWebullTickSnapshot } = await import("./webullMarketData");
+    const malformed = await fetchWebullTickSnapshot(
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ unexpected: [] }), { status: 200 })) as unknown as typeof fetch,
+      { appKey: "k", appSecret: "s", now: () => new Date(1788177425265), nonce: () => "n" },
+    );
+    expect(malformed).toMatchObject({ state: "PROVIDER_ERROR", ticks: [] });
+
+    const future = await fetchWebullTickSnapshot(
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({
+        symbol: "TSLA",
+        result: [{ time: String(1788177425265 + 6_000), price: "346.63", volume: "2", side: "N" }],
+      }), { status: 200 })) as unknown as typeof fetch,
+      { appKey: "k", appSecret: "s", now: () => new Date(1788177425265), nonce: () => "n" },
+    );
+    expect(future).toMatchObject({ state: "CLOCK_INVALID", ticks: [] });
+  });
+
+  it("aborts a hung provider read and reports timeout truth", async () => {
+    const { fetchWebullTickSnapshot } = await import("./webullMarketData");
+    const fetchImpl = vi.fn((_url: URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+    })) as unknown as typeof fetch;
+    const result = await fetchWebullTickSnapshot(fetchImpl, {
+      appKey: "k",
+      appSecret: "s",
+      nonce: () => "n",
+      timeoutMs: 250,
+    });
+    expect(result).toMatchObject({ state: "TIMEOUT", ticks: [] });
+  });
 });
