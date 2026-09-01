@@ -63,7 +63,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(liveAlpacaDisabledResponse(), { status: 403 });
     }
     if (!PAPER_KEY || !PAPER_SECRET) {
-      return NextResponse.json({ error: "Alpaca paper credentials are not configured", environment: "PAPER_ONLY" }, { status: 503 });
+      return NextResponse.json(
+        {
+          error: "Alpaca paper trading is NOT CONFIGURED on this host runtime — missing required variables: ALPACA_PAPER_KEY, ALPACA_PAPER_SECRET. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.",
+          edge: "NOT CONFIGURED",
+          missing: ["ALPACA_PAPER_KEY", "ALPACA_PAPER_SECRET"],
+          environment: "PAPER_ONLY",
+        },
+        { status: 503 },
+      );
     }
 
     const {

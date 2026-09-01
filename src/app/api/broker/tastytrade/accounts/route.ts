@@ -10,8 +10,19 @@ export async function GET(req: NextRequest) {
   if (!auth.ok) return auth.response;
   const cfg = tastytradeConfigStatus();
   if (!cfg.configured) {
+    // Monday Test 2 truth: name the exact missing var(s). Status stays 200 so
+    // the calling UI still gets a safe empty accounts list; body enrichment
+    // exposes the honest edge + missing NAMES to any inspector.
+    const missing: string[] = [];
+    if (!cfg.hasClientSecret) missing.push("TASTYTRADE_CLIENT_SECRET");
+    if (!cfg.hasRefreshToken) missing.push("TASTYTRADE_REFRESH_TOKEN");
     return NextResponse.json(
-      { error: "tastytrade not configured", accounts: [] },
+      {
+        error: `Tastytrade accounts is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
+        edge: "NOT CONFIGURED",
+        missing,
+        accounts: [],
+      },
       { status: 200, headers: { "Cache-Control": "no-store" } },
     );
   }

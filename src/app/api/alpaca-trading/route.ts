@@ -52,7 +52,15 @@ export async function GET(request: Request) {
   const action = searchParams.get("action") ?? "account";
 
   if (!ALPACA_PAPER_KEY || !ALPACA_PAPER_SECRET) {
-    return NextResponse.json({ error: "Alpaca paper credentials are not configured", environment: "PAPER_ONLY" }, { status: 503 });
+    return NextResponse.json(
+      {
+        error: "Alpaca paper trading is NOT CONFIGURED on this host runtime — missing required variables: ALPACA_PAPER_KEY, ALPACA_PAPER_SECRET. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.",
+        edge: "NOT CONFIGURED",
+        missing: ["ALPACA_PAPER_KEY", "ALPACA_PAPER_SECRET"],
+        environment: "PAPER_ONLY",
+      },
+      { status: 503 },
+    );
   }
 
   try {
@@ -111,7 +119,15 @@ export async function POST(request: Request) {
   const rl = checkRateLimit(`alpaca-trading-post:${auth.user.sub}`, { max: 30, windowMs: 60_000 });
   if (!rl.ok) return rl.response;
   if (!ALPACA_PAPER_KEY || !ALPACA_PAPER_SECRET) {
-    return NextResponse.json({ error: "Alpaca paper credentials are not configured", environment: "PAPER_ONLY" }, { status: 503 });
+    return NextResponse.json(
+      {
+        error: "Alpaca paper trading is NOT CONFIGURED on this host runtime — missing required variables: ALPACA_PAPER_KEY, ALPACA_PAPER_SECRET. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.",
+        edge: "NOT CONFIGURED",
+        missing: ["ALPACA_PAPER_KEY", "ALPACA_PAPER_SECRET"],
+        environment: "PAPER_ONLY",
+      },
+      { status: 503 },
+    );
   }
 
   try {
@@ -220,7 +236,15 @@ export async function DELETE(request: Request) {
   const orderId = searchParams.get("id");
 
   if (!ALPACA_PAPER_KEY || !ALPACA_PAPER_SECRET) {
-    return NextResponse.json({ error: "Alpaca paper credentials are not configured", environment: "PAPER_ONLY" }, { status: 503 });
+    return NextResponse.json(
+      {
+        error: "Alpaca paper trading is NOT CONFIGURED on this host runtime — missing required variables: ALPACA_PAPER_KEY, ALPACA_PAPER_SECRET. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.",
+        edge: "NOT CONFIGURED",
+        missing: ["ALPACA_PAPER_KEY", "ALPACA_PAPER_SECRET"],
+        environment: "PAPER_ONLY",
+      },
+      { status: 503 },
+    );
   }
   if (!orderId) return NextResponse.json({ error: "Order id required" }, { status: 400 });
 

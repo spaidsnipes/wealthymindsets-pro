@@ -16,7 +16,18 @@ export async function GET(request: Request) {
   const apiKey    = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
   if (!apiKey || !apiSecret) {
-    return NextResponse.json({ error: "LiveKit not configured" }, { status: 500 });
+    // Monday Test 2 truth: 503 (config gap), not 500 (server error). Name vars.
+    const missing: string[] = [];
+    if (!apiKey) missing.push("LIVEKIT_API_KEY");
+    if (!apiSecret) missing.push("LIVEKIT_API_SECRET");
+    return NextResponse.json(
+      {
+        error: `LiveKit is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
+        edge: "NOT CONFIGURED",
+        missing,
+      },
+      { status: 503 },
+    );
   }
 
   const role = searchParams.get("role") ?? "viewer"; // "host" | "viewer"

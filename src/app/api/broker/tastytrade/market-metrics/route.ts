@@ -12,7 +12,21 @@ export async function GET(req: NextRequest) {
   if (!auth.ok) return auth.response;
   const cfg = tastytradeConfigStatus();
   if (!cfg.configured) {
-    return NextResponse.json({ error: "tastytrade not configured", items: [] }, { status: 200 });
+    // Monday Test 2 truth: name the exact missing var(s). Status stays 200 so
+    // the calling UI still gets a safe empty items list without crashing; the
+    // body enrichment lets any inspector see the honest edge + missing NAMES.
+    const missing: string[] = [];
+    if (!cfg.hasClientSecret) missing.push("TASTYTRADE_CLIENT_SECRET");
+    if (!cfg.hasRefreshToken) missing.push("TASTYTRADE_REFRESH_TOKEN");
+    return NextResponse.json(
+      {
+        error: `Tastytrade market metrics is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
+        edge: "NOT CONFIGURED",
+        missing,
+        items: [],
+      },
+      { status: 200 },
+    );
   }
   const symbols = (req.nextUrl.searchParams.get("symbols") || "").trim();
   if (!symbols) {

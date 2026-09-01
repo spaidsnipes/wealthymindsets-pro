@@ -16,7 +16,20 @@ export async function GET(request: Request) {
   if (!auth.ok) return auth.response;
   const passport = auth.user;
   const config = databaseConfig();
-  if (!config) return NextResponse.json({ error: "Growth Rings connection is not configured yet." }, { status: 503 });
+  if (!config) {
+    // Monday Test 2 truth: name the exact missing Supabase config.
+    const missing: string[] = [];
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+    return NextResponse.json(
+      {
+        error: `Growth Rings is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
+        edge: "NOT CONFIGURED",
+        missing,
+      },
+      { status: 503 },
+    );
+  }
   const url = new URL(`${config.url}/rest/v1/dreamboard_growth_entries`);
   url.searchParams.set("select", "id,occurred_on,category,practice,reflection,created_at");
   url.searchParams.set("owner_id", `eq.${passport.sub}`);
@@ -32,7 +45,20 @@ export async function POST(request: Request) {
   if (!auth.ok) return auth.response;
   const passport = auth.user;
   const config = databaseConfig();
-  if (!config) return NextResponse.json({ error: "Growth Rings connection is not configured yet." }, { status: 503 });
+  if (!config) {
+    // Monday Test 2 truth: name the exact missing Supabase config.
+    const missing: string[] = [];
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+    return NextResponse.json(
+      {
+        error: `Growth Rings is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
+        edge: "NOT CONFIGURED",
+        missing,
+      },
+      { status: 503 },
+    );
+  }
   const body = await request.json().catch(() => null) as { category?: string; practices?: string[]; reflection?: string } | null;
   const category = body?.category;
   const practices = [...new Set((body?.practices || []).map(value => value.trim()).filter(Boolean))];

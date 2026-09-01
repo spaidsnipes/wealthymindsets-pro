@@ -6,7 +6,21 @@ const DESTINATIONS = new Set(["lounge", "shop", "radio"]);
 const hashCode = (code: string) => createHash("sha256").update(code).digest("hex");
 
 export async function POST(request: Request) {
-  if (!useSupabase() || !process.env.SUPABASE_SERVICE_ROLE_KEY) return NextResponse.json({ error: "WOW World Passport handoff is not configured yet." }, { status: 503 });
+  if (!useSupabase() || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    // Monday Test 2 truth: name the exact missing Supabase config.
+    const missing: string[] = [];
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+    if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) missing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)");
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+    return NextResponse.json(
+      {
+        error: `WOW World Passport handoff is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
+        edge: "NOT CONFIGURED",
+        missing,
+      },
+      { status: 503 },
+    );
+  }
   const form = await request.formData().catch(() => null);
   const code = typeof form?.get("code") === "string" ? String(form?.get("code")) : "";
   const destination = typeof form?.get("route") === "string" ? String(form?.get("route")) : "";
