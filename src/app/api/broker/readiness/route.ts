@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
 import {
   computeAllProviderReadiness,
   allProviderEnvNames,
@@ -29,7 +30,15 @@ export const dynamic = "force-dynamic";
  * present" — strictly weaker than a live health check or the broker
  * Certification Harness. Never render READY as "connected" or "certified."
  */
-export async function GET() {
+export async function GET(request: Request) {
+  // The receipt reveals which provider env NAMES are configured on this
+  // runtime — infra reconnaissance, even though no secret VALUE is exposed.
+  // The plan's intent is an AUTHORIZED developer inspecting; gate it behind a
+  // WM session like every sibling market-data route, rather than serving the
+  // config surface publicly. A logged-in local session still sees it.
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
+
   const env = process.env as unknown as EnvPresence;
   const providers = computeAllProviderReadiness(env);
 
