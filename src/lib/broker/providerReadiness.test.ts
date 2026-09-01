@@ -35,10 +35,10 @@ describe("computeProviderReadiness", () => {
   });
 
   it("BLOCKED lists the EXACT missing required vars", () => {
-    const env: EnvPresence = { WEBULL_API_KEY: "k", WEBULL_API_SECRET: "s" };
+    const env: EnvPresence = { WEBULL_API_KEY: "k" };
     const r = computeProviderReadiness("webull-data", env);
     expect(r.status).toBe("BLOCKED");
-    expect(r.missing).toEqual(["WEBULL_API_HOST"]);
+    expect(r.missing).toEqual(["WEBULL_API_SECRET"]);
   });
 
   it("recommended vars never gate READY but are reported as fidelity gaps", () => {
@@ -49,8 +49,21 @@ describe("computeProviderReadiness", () => {
     };
     const r = computeProviderReadiness("webull-data", env);
     expect(r.status).toBe("READY");
+    expect(r.missingRecommended).not.toContain("WEBULL_API_HOST");
+    expect(r.missingRecommended).toContain("WEBULL_ACCESS_TOKEN");
     expect(r.missingRecommended).toContain("WEBULL_DATA_URL");
     expect(r.missingRecommended).toContain("WEBULL_CANARY_SYMBOL");
+  });
+
+  it("uses the adapter's default Webull host without falsely blocking readiness", () => {
+    const r = computeProviderReadiness("webull-data", {
+      WEBULL_API_KEY: "k",
+      WEBULL_API_SECRET: "s",
+    });
+    expect(r.status).toBe("READY");
+    expect(r.missing).toEqual([]);
+    expect(r.missingRecommended).toContain("WEBULL_API_HOST");
+    expect(r.missingRecommended).toContain("WEBULL_ACCESS_TOKEN");
   });
 
   it("tastytrade needs the client pair AND a refresh token", () => {

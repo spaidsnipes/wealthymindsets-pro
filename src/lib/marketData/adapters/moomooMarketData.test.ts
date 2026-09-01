@@ -23,6 +23,7 @@ describe("probeMoomooMarketData — honest bridge-state → certification mappin
     const cert = await probeMoomooMarketData(mockFetch([]), { bridgeUrl: "" });
     expect(cert.source).toBe("moomoo");
     expect(cert.rows.every((r) => r.status === "NOT_IMPLEMENTED")).toBe(true);
+    expect(cert.rows.find((r) => r.capability === "TICKS")?.note).toMatch(/MOOMOO_BRIDGE_URL is missing/i);
     expect(cert.certifiedCount).toBe(0);
     expect(cert.cvd).toBe("UNAVAILABLE");
   });
@@ -64,7 +65,7 @@ describe("probeMoomooMarketData — honest bridge-state → certification mappin
     const cert = await probeMoomooMarketData(
       mockFetch([
         { match: "/health", status: 200, body: { ok: true, opend_reachable: true, sdk_version: "10.10.7008" } },
-        { match: "/quote", status: 200, body: { ok: true, quotes: { "US.AAPL": { last: 312.04 } } } },
+        { match: "/quote", status: 200, body: { ok: true, quotes: [{ code: "US.AAPL", last: 312.04, update_time: "2026-08-31 09:45:00" }] } },
       ]),
       { bridgeUrl: "https://bridge.example", bridgeToken: "secret", canarySymbol: "US.AAPL" },
     );
@@ -74,15 +75,40 @@ describe("probeMoomooMarketData — honest bridge-state → certification mappin
     expect(cert.certifiedCount).toBe(0); // DEGRADED is not CERTIFIED — never rounded up
   });
 
-  it("OpenD reachable + empty quote → PRICE BLOCKED_ENTITLEMENT (no market-data sub)", async () => {
+  it("OpenD reachable + empty quote → PRICE NOT_IMPLEMENTED because entitlement is unproven", async () => {
     const cert = await probeMoomooMarketData(
       mockFetch([
         { match: "/health", status: 200, body: { ok: true, opend_reachable: true, sdk_version: "10.10.7008" } },
-        { match: "/quote", status: 502, body: { ok: false, error: "no data" } },
+        { match: "/quote", status: 200, body: { ok: true, quotes: [] } },
       ]),
       { bridgeUrl: "https://bridge.example", bridgeToken: "secret", canarySymbol: "US.AAPL" },
     );
-    expect(status(cert, "PRICE")).toBe("BLOCKED_ENTITLEMENT");
+    const price = cert.rows.find((r) => r.capability === "PRICE")!;
+    expect(price.status).toBe("NOT_IMPLEMENTED");
+    expect(price.note).toMatch(/entitlement is not proven/i);
+    expect(cert.certifiedCount).toBe(0);
+  });
+
+  it("rejects a wrong-symbol or malformed quote instead of certifying price", async () => {
+    const cert = await probeMoomooMarketData(
+      mockFetch([
+        { match: "/health", status: 200, body: { ok: true, opend_reachable: true } },
+        { match: "/quote", status: 200, body: { ok: true, quotes: [{ code: "US.TSLA", last: 351.12, update_time: "2026-08-31 09:45:00" }] } },
+      ]),
+      { bridgeUrl: "https://bridge.example", bridgeToken: "secret", canarySymbol: "US.AAPL" },
+    );
+    expect(status(cert, "PRICE")).toBe("NOT_IMPLEMENTED");
+  });
+
+  it("maps rejected bridge credentials to BLOCKED_AUTH", async () => {
+    const cert = await probeMoomooMarketData(
+      mockFetch([
+        { match: "/health", status: 200, body: { ok: true, opend_reachable: true } },
+        { match: "/quote", status: 401, body: { ok: false, error: "bad token" } },
+      ]),
+      { bridgeUrl: "https://bridge.example", bridgeToken: "secret", canarySymbol: "US.AAPL" },
+    );
+    expect(status(cert, "PRICE")).toBe("BLOCKED_AUTH");
   });
 
   it("OpenD reachable but no token/symbol → PRICE stays PENDING (NOT_IMPLEMENTED, not claimed)", async () => {
@@ -91,5 +117,17 @@ describe("probeMoomooMarketData — honest bridge-state → certification mappin
       { bridgeUrl: "https://bridge.example" },
     );
     expect(status(cert, "PRICE")).toBe("NOT_IMPLEMENTED");
+    expect(cert.rows.find((r) => r.capability === "PRICE")?.note).toMatch(/MOOMOO_BRIDGE_TOKEN is missing/i);
+    expect(cert.rows.find((r) => r.capability === "TICKS")?.note).toMatch(/no authenticated tick retrieval/i);
+  });
+
+  it("OpenD reachable with token but no canary names the exact unexercised edge", async () => {
+    const cert = await probeMoomooMarketData(
+      mockFetch([{ match: "/health", status: 200, body: { ok: true, opend_reachable: true, sdk_version: "10.10.7008" } }]),
+      { bridgeUrl: "https://bridge.example", bridgeToken: "secret" },
+    );
+    expect(status(cert, "PRICE")).toBe("NOT_IMPLEMENTED");
+    expect(cert.rows.find((r) => r.capability === "PRICE")?.note).toMatch(/CANARY NOT SELECTED/i);
+    expect(cert.rows.find((r) => r.capability === "TICKS")?.note).toMatch(/no symbol-scoped tick retrieval/i);
   });
 });

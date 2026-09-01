@@ -32,6 +32,7 @@ async function buildMatrix(): Promise<AthosCapabilityMatrix> {
       dataUrl: process.env.WEBULL_DATA_URL || undefined,
       appKey: process.env.WEBULL_API_KEY || undefined,
       appSecret: process.env.WEBULL_API_SECRET || undefined,
+      accessToken: process.env.WEBULL_ACCESS_TOKEN || undefined,
       apiHost: process.env.WEBULL_API_HOST || undefined,
       canarySymbol: process.env.WEBULL_CANARY_SYMBOL || undefined,
     }),

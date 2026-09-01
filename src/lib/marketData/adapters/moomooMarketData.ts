@@ -14,7 +14,8 @@
  *     (OpenD holds the authenticated moomoo session; no OpenD == no auth)
  *   · OpenD reachable + canary /quote returns data → PRICE ACTIVE_DEGRADED
  *     (snapshot observed; realtime-vs-delayed entitlement not yet certified)
- *   · OpenD reachable + /quote empty → BLOCKED_ENTITLEMENT (no market-data sub)
+ *   · OpenD reachable + /quote empty → NOT_IMPLEMENTED / no event observed
+ *     (an empty set does not prove an entitlement failure)
  *
  * PURE except for the injected `fetchImpl` — tests pass a mock; no real network.
  * The bridge envelopes matched here are the ACTUAL shapes emitted by
@@ -64,6 +65,21 @@ interface QuoteEnvelope {
   error?: unknown;
 }
 
+interface MoomooQuoteRow {
+  code?: unknown;
+  last?: unknown;
+  update_time?: unknown;
+}
+
+function isValidCanaryQuote(value: unknown, canarySymbol: string): value is MoomooQuoteRow {
+  if (!value || typeof value !== "object") return false;
+  const row = value as MoomooQuoteRow;
+  const code = typeof row.code === "string" ? row.code.trim().toUpperCase() : "";
+  const last = typeof row.last === "number" ? row.last : Number(row.last);
+  const updateTime = typeof row.update_time === "string" ? row.update_time.trim() : "";
+  return code === canarySymbol.trim().toUpperCase() && Number.isFinite(last) && last > 0 && updateTime.length > 0;
+}
+
 function report(
   capability: DataCapability,
   status: CapabilityCertStatus,
@@ -91,7 +107,15 @@ export async function probeMoomooMarketData(
 
   // 1. Not configured → nothing to certify. All rows NOT_IMPLEMENTED (honest).
   if (!base) {
-    return certifySource(source, []);
+    return certifySource(
+      source,
+      MOOMOO_MARKET_CAPS.map((capability) =>
+        report(capability, "NOT_IMPLEMENTED", {
+          fidelity: "NONE",
+          note: "NOT CONFIGURED — MOOMOO_BRIDGE_URL is missing in this runtime; no bridge or provider event was probed.",
+        }),
+      ),
+    );
   }
 
   // 2. Bridge /health (unauthenticated, no secrets).
@@ -106,7 +130,7 @@ export async function probeMoomooMarketData(
   if (!health || health.ok !== true) {
     return certifySource(source, [
       report("PRICE", "NOT_IMPLEMENTED", {
-        note: "moomoo-bridge /health unreachable — the read path is not deployed yet.",
+        note: "BRIDGE UNREACHABLE — moomoo-bridge /health did not return a valid success receipt; deployment, transport, and OpenD state remain unproven.",
       }),
     ]);
   }
@@ -129,6 +153,30 @@ export async function probeMoomooMarketData(
   //    token + symbol; otherwise leave PRICE PENDING (NOT_IMPLEMENTED) — we do
   //    not claim a capability we did not actually exercise.
   const reports: SourceCapabilityReport[] = [];
+  if (!config.bridgeToken) {
+    return certifySource(source, [
+      report("PRICE", "NOT_IMPLEMENTED", {
+        fidelity: "NONE",
+        note: "NOT CONFIGURED — MOOMOO_BRIDGE_TOKEN is missing in this runtime; OpenD was reachable but no authenticated quote probe was attempted.",
+      }),
+      report("TICKS", "NOT_IMPLEMENTED", {
+        fidelity: "NONE",
+        note: "NOT CONFIGURED — MOOMOO_BRIDGE_TOKEN is missing in this runtime; no authenticated tick retrieval was attempted.",
+      }),
+    ]);
+  }
+  if (!config.canarySymbol) {
+    return certifySource(source, [
+      report("PRICE", "NOT_IMPLEMENTED", {
+        fidelity: "NONE",
+        note: "CANARY NOT SELECTED — MOOMOO_CANARY_SYMBOL is absent; OpenD was reachable but no symbol-scoped quote probe was executed.",
+      }),
+      report("TICKS", "NOT_IMPLEMENTED", {
+        fidelity: "NONE",
+        note: "CANARY NOT SELECTED — MOOMOO_CANARY_SYMBOL is absent; no symbol-scoped tick retrieval was executed.",
+      }),
+    ]);
+  }
   if (config.canarySymbol && config.bridgeToken) {
     try {
       const res = await fetchImpl(
@@ -136,17 +184,29 @@ export async function probeMoomooMarketData(
         { headers: { Authorization: `Bearer ${config.bridgeToken}` } },
       );
       const body = (await res.json()) as QuoteEnvelope;
-      if (res.ok && body.ok === true && body.quotes != null) {
+      if (res.status === 401 || res.status === 403) {
+        reports.push(
+          report("PRICE", "BLOCKED_AUTH", {
+            note: "moomoo-bridge rejected the read-only quote credential.",
+          }),
+        );
+      } else if (res.ok && body.ok === true && Array.isArray(body.quotes) && body.quotes.some((row) => isValidCanaryQuote(row, config.canarySymbol!))) {
         reports.push(
           report("PRICE", "ACTIVE_DEGRADED", {
             fidelity: "SNAPSHOT",
-            note: "Live snapshot observed via OpenD; realtime-vs-delayed entitlement not yet certified.",
+            note: "On-demand symbol-matched snapshot observed via OpenD; realtime-vs-delayed entitlement not yet certified.",
+          }),
+        );
+      } else if (res.ok && body.ok === true && Array.isArray(body.quotes) && body.quotes.length === 0) {
+        reports.push(
+          report("PRICE", "NOT_IMPLEMENTED", {
+            note: "OpenD returned an empty quote set for the canary symbol. No price event was observed, and entitlement is not proven.",
           }),
         );
       } else {
         reports.push(
-          report("PRICE", "BLOCKED_ENTITLEMENT", {
-            note: "OpenD reachable but /quote returned no data — likely no moomoo market-data subscription for this symbol.",
+          report("PRICE", "NOT_IMPLEMENTED", {
+            note: "OpenD quote response was unavailable, malformed, stale-looking, or did not match the requested symbol.",
           }),
         );
       }
