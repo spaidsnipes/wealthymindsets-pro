@@ -12,7 +12,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import toast from "react-hot-toast";
-import { supabase } from "@/lib/supabase";
+import { getSupabase, supabase } from "@/lib/supabase";
 import dynamic from "next/dynamic";
 const LiveRoom = dynamic(() => import("@/components/lounge/LiveRoom"), { ssr: false });
 import { useAuth } from "@/contexts/AuthContext";
@@ -690,6 +690,7 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
 
 export default function LoungePage() {
   const { user } = useAuth();
+  const loungeClient = getSupabase();
   const [feedTab,       setFeedTab]       = useState<FeedTab>("for-you");
   const [search,        setSearch]        = useState("");
   const [posts,         setPosts]         = useState<Post[]>([]);
@@ -721,8 +722,12 @@ export default function LoungePage() {
 
   /* ── Load posts + like counts ── */
   const loadPosts = useCallback(async () => {
+    if (!loungeClient) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
-    const { data: rawPosts } = await supabase
+    const { data: rawPosts } = await loungeClient
       .from("lounge_posts")
       .select("*")
       .order("created_at", { ascending: false })
@@ -732,9 +737,9 @@ export default function LoungePage() {
 
     // Fetch like counts and whether current user liked each post
     const ids = rawPosts.map(p => p.id);
-    const { data: likesData } = await supabase
+    const { data: likesData } = await loungeClient
       .from("lounge_likes").select("post_id, user_handle").in("post_id", ids);
-    const { data: commentsData } = await supabase
+    const { data: commentsData } = await loungeClient
       .from("lounge_comments").select("post_id").in("post_id", ids);
 
     const likeMap: Record<number, number> = {};
@@ -756,13 +761,14 @@ export default function LoungePage() {
       liked_by_me:   likedSet.has(p.id),
     })));
     setLoading(false);
-  }, [myHandle]);
+  }, [loungeClient, myHandle]);
 
   useEffect(() => { loadPosts(); }, [loadPosts]);
 
   /* ── Realtime: new posts stream in ── */
   useEffect(() => {
-    const channel = supabase
+    if (!loungeClient) return;
+    const channel = loungeClient
       .channel("lounge_realtime")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "lounge_posts" }, payload => {
         const newPost = { ...(payload.new as Post), like_count: 0, comment_count: 0, liked_by_me: false };
@@ -773,25 +779,26 @@ export default function LoungePage() {
         });
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, []);
+    return () => { loungeClient.removeChannel(channel); };
+  }, [loungeClient]);
 
   /* ── Follow / unfollow ── */
   useEffect(() => {
-    if (!myHandle) return;
-    supabase.from("lounge_follows").select("following_handle").eq("follower_handle", myHandle)
+    if (!myHandle || !loungeClient) return;
+    loungeClient.from("lounge_follows").select("following_handle").eq("follower_handle", myHandle)
       .then(({ data }) => setFollows(new Set((data ?? []).map(r => r.following_handle))));
-  }, [myHandle]);
+  }, [loungeClient, myHandle]);
 
   const toggleFollow = async (handle: string) => {
+    if (!loungeClient) return;
     if (!myHandle) { toast.error("Sign in to follow"); return; }
     if (follows.has(handle)) {
-      await supabase.from("lounge_follows").delete()
+      await loungeClient.from("lounge_follows").delete()
         .eq("follower_handle", myHandle).eq("following_handle", handle);
       setFollows(f => { const n = new Set(f); n.delete(handle); return n; });
       toast.success(`Unfollowed ${handle}`);
     } else {
-      await supabase.from("lounge_follows").insert({ follower_handle: myHandle, following_handle: handle });
+      await loungeClient.from("lounge_follows").insert({ follower_handle: myHandle, following_handle: handle });
       setFollows(f => new Set([...f, handle]));
       toast.success(`Following ${handle}! 🔔`);
     }
@@ -822,6 +829,35 @@ export default function LoungePage() {
     { id:"following" as FeedTab, label:"Following", icon:<Users size={12}/> },
     { id:"explore"   as FeedTab, label:"Explore",   icon:<Globe size={12}/> },
   ];
+
+  if (!loungeClient) {
+    return (
+      <main
+        data-lounge-runtime="not-configured"
+        className="flex h-full min-h-[420px] w-full items-center justify-center overflow-hidden bg-wm-black px-4"
+      >
+        <section
+          role="status"
+          aria-live="polite"
+          className="w-full max-w-xl rounded-2xl border border-wm-border bg-wm-dark p-6 text-center shadow-2xl"
+        >
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-wm-gold">Community connection</p>
+          <h1 className="mt-3 text-xl font-black text-wm-text">Lounge is not configured on this runtime</h1>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-wm-text-muted">
+            No community records were requested, and no empty feed is being inferred. This host needs its public
+            Supabase connection before Lounge can load safely.
+          </p>
+          <div className="mt-5 rounded-xl border border-wm-border/70 bg-wm-black/60 px-4 py-3 text-left">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-wm-text-dim">Required runtime names</p>
+            <code className="mt-2 block break-words text-xs text-wm-text-muted">NEXT_PUBLIC_SUPABASE_URL</code>
+            <code className="mt-1 block break-words text-xs text-wm-text-muted">
+              NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY)
+            </code>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <div style={{display:"flex",width:"100%",height:"100%",overflow:"hidden"}} className="bg-wm-black">
