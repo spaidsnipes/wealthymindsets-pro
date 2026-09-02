@@ -60,6 +60,7 @@ import { useAuth } from "@/contexts/AuthContext";
 // Order Flow Cockpit is the top-most tile in the canonical OS layout.
 // Real signal only — routes through selectAggressorFlow.
 import { OrderFlowCockpitStrip } from "./OrderFlowCockpitStrip";
+import { selectAggressorFlow } from "@/lib/marketData/selectAggressorFlow";
 // Asset 14 (Market Object Passport) + Asset 16 (Chart Workspace Object
 // Passport) canon: passport lineage / owner / birth / touches /
 // invalidation must be integrated into the chart workspace.
@@ -602,6 +603,14 @@ export function ChartsDashboard() {
   // permission VM already flows through composeMarketCanvasVM; we
   // just surface its verdict + headline as a compact chip.
   const chartPermission = chartCanvasVM.permission;
+  // Real signal derivation: when the tape carries live per-trade
+  // ticks with sides, the aggressor-flow selector's hasFlow is true.
+  // Feed this into the capability report so the fidelity chip lights
+  // the ORDER FLOW capability (canon §Provider Status Per Capability).
+  const chartFlowSnap = React.useMemo(
+    () => selectAggressorFlow(recentTicks, ticker.price),
+    [recentTicks, ticker.price],
+  );
 
   // Asset 14/16 canon: Market Object Passport (lineage, owner, birth,
   // touches, invalidation, provenance) integrated into the chart
@@ -1118,8 +1127,14 @@ export function ChartsDashboard() {
               source: source ?? "unavailable",
               connected,
               hasCandles: true, // chart already rendered by this render path
-              // ticks / depth / options / greeks / orderFlow: unwired
-              // on ChartsDashboard; silent per canon §no-silent-override.
+              // ticks / depth / options / greeks: unwired on
+              // ChartsDashboard; silent per canon §no-silent-override.
+              // orderFlow lights when the aggressor selector proves
+              // real per-trade flow (hasFlow=true). tapeConnected is
+              // set to the same signal so the report writes the
+              // canonical LIVE label per the selector's derivation.
+              tapeConnected: chartFlowSnap.hasFlow ? true : undefined,
+              orderFlowDerived: chartFlowSnap.hasFlow ? true : undefined,
             });
             return <CanonicalFidelityBadge badge={b} variant="chrome" capabilityReport={capabilityReport} />;
           })()}
