@@ -262,7 +262,12 @@
     padding-left: 8px !important;
   }
 
-  .wm-chart-page-tab,
+  /* Landscape-phone chrome trim: only hide the theme controls and any
+     legacy tab siblings still living inside .wm-chart-tabs (the old
+     MooMoo row). The Founder-visible top-level category strip
+     (.wm-chart-category-strip) MUST stay visible on every device —
+     it is now primary navigation, not chrome. */
+  .wm-chart-tabs .wm-chart-page-tab,
   .wm-chart-theme-controls {
     display: none !important;
   }
@@ -304,6 +309,18 @@
    desktop where the full ticker occupies the same middle slot. */
 @media (min-width: 640px) {
   .wm-mobile-session-slot { display: none !important; }
+}
+
+/* Founder 2026-09-02: inactive category-strip tabs get a subtle hover
+   response — feels like navigation instead of static labels. The active
+   tab keeps its orange underline + white text so hover on it is a no-op. */
+.wm-chart-category-strip .wm-chart-page-tab:not([aria-selected="true"]):hover {
+  color: #d8dbe8 !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+.wm-chart-category-strip .wm-chart-page-tab:focus-visible {
+  outline: 2px solid #E8B923;
+  outline-offset: -2px;
 }
 
 @media (max-width: 639px) {
