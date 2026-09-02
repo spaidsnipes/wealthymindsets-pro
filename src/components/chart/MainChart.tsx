@@ -7184,10 +7184,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           );
         })()}
 
-        {/* WM Nectar Vault — visible per-symbol memory strip. Appears only
-            when ≥2 symbols have collected data this tab session, giving the
-            founder calm visual proof that switching symbols preserves each
-            symbol's counters. Directly answers 2026-08-14 blocker. */}
+        {/* Retained evidence stays reachable without laying a persistent data
+            strip across price action. The disclosure opens only on intent. */}
         <NectarVaultChip activeSymbol={normalizeSym(symbol)} />
 
         {/* ── Big-Trade comic speech-bubble tooltip (🫧 hover) ─────── */}

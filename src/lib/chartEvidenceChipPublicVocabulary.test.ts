@@ -10,10 +10,9 @@ const chip = fs.readFileSync(
 describe("chart Market Evidence chip", () => {
   it("uses outcome-facing public vocabulary", () => {
     expect(chip).toContain("Market Evidence.");
-    expect(chip).toContain(">EVIDENCE</span>");
-    expect(chip).toContain("BROWSER SUMMARY");
+    expect(chip).toContain("Evidence saved");
     expect(chip).toContain('aria-label="Open Market Evidence"');
-    expect(chip).toContain("DETAILS →");
+    expect(chip).toContain("View all →");
     expect(chip).not.toContain("WM Nectar Vault —");
     expect(chip).not.toContain(">VAULT</span>");
     expect(chip).not.toContain("provider rights UNKNOWN");
@@ -27,11 +26,14 @@ describe("chart Market Evidence chip", () => {
     expect(chip).toContain('href="/nectar"');
   });
 
-  it("keeps actions touch-safe inside a contained horizontal strip", () => {
-    expect(chip.match(/minHeight: 44, minWidth: 44/g)?.length).toBeGreaterThanOrEqual(2);
-    expect(chip).toContain('overflowX: "auto"');
-    expect(chip).toContain('calc(100vw - 16px)');
-    expect(chip).toContain('overscrollBehaviorX: "contain"');
+  it("keeps the chart clean until the trader deliberately opens retained evidence", () => {
+    expect(chip).toContain("<details");
+    expect(chip).toContain("<summary");
+    expect(chip).toContain('title="Open retained browser summaries"');
+    expect(chip).toContain('maxWidth: "calc(100vw - 24px)"');
+    expect(chip).toContain("minHeight: 44, minWidth: 44");
     expect(chip).toContain("aria-pressed={isActive}");
+    expect(chip).not.toContain('left: "50%"');
+    expect(chip).not.toContain('transform: "translateX(-50%)"');
   });
 });
