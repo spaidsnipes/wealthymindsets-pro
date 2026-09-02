@@ -15,6 +15,7 @@ import {
   type CanonicalAssetClass,
 } from "./canonicalIdentity";
 import { deriveOrderFlowDimension } from "./deriveOrderFlowDimension";
+import { deriveVolatilityDimension } from "./deriveVolatilityDimension";
 
 export interface ChartMarketStatePublicationInput {
   readonly symbol: string;
@@ -112,14 +113,30 @@ export function createChartMarketStatePublication(
     capturedAt: input.capturedAt,
     snapshotIdSeed: snapshotId,
   });
+  const volatility = deriveVolatilityDimension({
+    ticks: input.recentTicks,
+    source: typeof input.source === "string" ? input.source : null,
+    latestTickAtMs: latestTickAtMs > 0 ? latestTickAtMs : null,
+    capturedAt: input.capturedAt,
+    snapshotIdSeed: snapshotId,
+  });
 
-  const unknowns = orderFlow.resolution === "RESOLVED"
-    ? [
-        "Direction, location, aggression, regime, structure, volatility, and profile are unresolved until verified engines publish evidence.",
-      ]
-    : [
-        "Direction, location, aggression, regime, structure, volatility, profile, and order flow are unresolved until verified engines publish evidence.",
-      ];
+  const resolvedNames: string[] = [];
+  if (orderFlow.resolution === "RESOLVED") resolvedNames.push("order flow");
+  if (volatility.resolution === "RESOLVED") resolvedNames.push("volatility");
+  const dimensionsList = [
+    "Direction",
+    "location",
+    "aggression",
+    "regime",
+    "structure",
+    ...(volatility.resolution === "RESOLVED" ? [] : ["volatility"]),
+    "profile",
+    ...(orderFlow.resolution === "RESOLVED" ? [] : ["order flow"]),
+  ];
+  const unknowns = [
+    `${dimensionsList.join(", ").replace(/, ([^,]+)$/, ", and $1")} are unresolved until verified engines publish evidence.`,
+  ];
   const contradictions: string[] = [];
   if (input.ticker.price > 0 && !priceTick) {
     contradictions.push("Displayed ticker price has no matching timestamped runtime tick; canonical price evidence omitted.");
@@ -148,7 +165,7 @@ export function createChartMarketStatePublication(
       coverage,
       contradictions,
       unknowns,
-      dimensions: { orderFlow },
+      dimensions: { orderFlow, volatility },
     },
   };
 }
