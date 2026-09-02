@@ -28,6 +28,13 @@ describe("chart progressive disclosure", () => {
     expect(dashboard).toContain("onToggleStudyTools={() => setStudyToolsOpen(open => !open)}");
   });
 
+  it("keeps unresolved infrastructure out of permanent chart chrome", () => {
+    expect(dashboard).not.toContain("LIQUIDITY WEATHER · NOT WIRED");
+    expect(dashboard).not.toContain("ROW · {chartPermission.verdict}");
+    expect(dashboard).toContain("<CanvasSummaryPill");
+    expect(dashboard).toContain("Open Decision Why");
+  });
+
   it("keeps the menu viewport-bound instead of extending the toolbar", () => {
     expect(toolbar).toContain('position: "fixed"');
     expect(toolbar).toContain("window.innerWidth - (rect?.right ?? window.innerWidth)");

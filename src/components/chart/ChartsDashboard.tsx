@@ -598,12 +598,6 @@ export function ChartsDashboard() {
     ownerId: canvasUser?.id ?? null,
   });
   const chartMarketCanvas = chartCanvasVM.canvas;
-  // Asset 10 canon — Right of Way / Decision Permission chip. Reads
-  // the SAME permission compilation the deck consumes so the trader
-  // sees identical verdict on /charts (no divergent rule state). The
-  // permission VM already flows through composeMarketCanvasVM; we
-  // just surface its verdict + headline as a compact chip.
-  const chartPermission = chartCanvasVM.permission;
   // Real signal derivation: when the tape carries live per-trade
   // ticks with sides, the aggressor-flow selector's hasFlow is true.
   // Feed this into the capability report so the fidelity chip lights
@@ -762,13 +756,10 @@ export function ChartsDashboard() {
           paddingRight: 16,
           gap: 12,
           flexShrink: 0,
-          // The wordmark row now carries the full Asset 10 canon
-          // chip stack (canvas verdict + liquidity weather + ROW +
-          // Why + Passport). On narrow desktop widths and phones the
-          // chips can overrun; allow horizontal scroll instead of
-          // overlap. Container never wraps — the trader's spatial
-          // memory of chip order is preserved (canon §Atmosphere
-          // Review — spatial memory).
+          // The row carries one decision summary plus disclosure
+          // controls. Keep it horizontally safe on narrow screens,
+          // but do not turn unresolved internal capabilities into a
+          // wall of diagnostic chips.
           overflowX: "auto",
           overflowY: "hidden",
           scrollbarWidth: "none",
@@ -828,87 +819,9 @@ export function ChartsDashboard() {
             ariaLabel="Chart market canvas summary"
           />
         </div>
-        {/* Asset 14/16 canon — Market Object Passport button. Silent
-            when snapshot not yet available (§Silence Is A Feature);
-            opens a real Passport panel with lineage/owner/birth/
-            touches/invalidation/provenance sourced from the same
-            selectMarketObjectPassport /command-deck routes through. */}
-        {/* Asset 08 + 10 canon — Liquidity Weather truth chip.
-            LIVING-PIXEL LAW: no fake heatmap gradient, no invented
-            "climate map · NEUTRAL" scalar. Renders the honest state
-            of the depth capability — NOT WIRED when we have no L2
-            depth provider (the current situation), BLOCKED when
-            entitlement is refused, LIVE when a depth stream is
-            connected. This is the Asset 08 (Liquidity Weather
-            Heatmap) reference merged with real data owners only. */}
-        <span
-          role="status"
-          aria-label="Liquidity Weather — Level 2 depth capability not wired"
-          title="Liquidity Weather (Asset 08 canon) needs a licensed Level 2 depth provider. No decorative heatmap will be drawn until real depth signals arrive."
-          style={{
-            fontSize: 10,
-            letterSpacing: 0.32,
-            textTransform: "uppercase",
-            fontWeight: 700,
-            padding: "3px 8px",
-            borderRadius: 4,
-            marginLeft: 4,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            color: "#8B8FA8",
-            background: "transparent",
-            border: "1px dashed rgba(139,143,168,0.35)",
-          }}
-        >
-          LIQUIDITY WEATHER · NOT WIRED
-        </span>
-        {/* Asset 10 canon — Right of Way / Decision Permission chip.
-            Silent when verdict is UNKNOWN and no rules are declared
-            (§Silence Is A Feature). Otherwise a color-coded verdict
-            chip: gold ALLOWED, amber ADVISORY, red RESTRICTED. Reads
-            the SAME permission compilation the deck consumes so the
-            trader never sees a divergent verdict across surfaces. */}
-        {chartPermission && (chartPermission.verdict !== "UNKNOWN" || chartPermission.ruleCount > 0) && (
-          <button
-            type="button"
-            onClick={() => setWhyOpen(o => !o)}
-            aria-label={`Right of Way — ${chartPermission.verdict}. ${chartPermission.headline}. Click to open Decision Why.`}
-            title={`${chartPermission.headline} — click for full WHY reasoning.`}
-            style={{
-              fontSize: 10,
-              letterSpacing: 0.32,
-              textTransform: "uppercase",
-              fontWeight: 700,
-              padding: "3px 8px",
-              borderRadius: 4,
-              marginLeft: 4,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              cursor: "pointer",
-              ...(chartPermission.verdict === "ALLOWED" ? {
-                color: "#e8b923",
-                background: "rgba(232,185,35,0.10)",
-                border: "1px solid rgba(232,185,35,0.35)",
-              } : chartPermission.verdict === "ADVISORY" ? {
-                color: "#f4a03d",
-                background: "rgba(244,160,61,0.08)",
-                border: "1px solid rgba(244,160,61,0.35)",
-              } : chartPermission.verdict === "RESTRICTED" ? {
-                color: "#ff6b6b",
-                background: "rgba(255,107,107,0.08)",
-                border: "1px solid rgba(255,107,107,0.35)",
-              } : {
-                color: "#8B8FA8",
-                background: "transparent",
-                border: "1px solid rgba(139,143,168,0.25)",
-              }),
-            }}
-          >
-            ROW · {chartPermission.verdict}
-          </button>
-        )}
+        {/* Internal depth readiness stays in the broker/capability drawer.
+            A missing L2 wire must not occupy permanent chart chrome, and the
+            canvas verdict already owns the decision state. */}
         {/* Asset 07 canon — Evidence Debt / Question Mode toggle.
             Silent when there's no decisionWhy compilation yet
             (§Silence Is A Feature). Opens the SAME DecisionWhyPanel
