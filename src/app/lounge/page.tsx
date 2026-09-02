@@ -16,6 +16,7 @@ import { supabase } from "@/lib/supabase";
 import dynamic from "next/dynamic";
 const LiveRoom = dynamic(() => import("@/components/lounge/LiveRoom"), { ssr: false });
 import { useAuth } from "@/contexts/AuthContext";
+import { selectLoungeDiscovery } from "@/lib/loungeDiscovery";
 
 /* ══════════════════════════════════════════════════════════════
    TYPES
@@ -561,7 +562,7 @@ function loungeCreatorArt(index: number): React.CSSProperties {
 function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories }: {
   name: string; handle: string; avatar: string; color: string; ceo: boolean;
   postCount: number;
-  stories: { handle: string; name: string; avatar: string; color: string; ceo: boolean }[];
+  stories: readonly { handle: string; name: string; avatar: string; color: string; ceo: boolean }[];
 }) {
   const [vibe, setVibe]       = useState("");
   const [editing, setEditing] = useState(false);
@@ -813,15 +814,8 @@ export default function LoungePage() {
     return p.content.toLowerCase().includes(q) || p.user_name.toLowerCase().includes(q) || p.user_handle.includes(q);
   });
 
-  /* ── Top posters for sidebar ── */
-  const topPosters = Array.from(
-    posts.reduce((acc, p) => {
-      if (!acc.has(p.user_handle)) acc.set(p.user_handle, { handle: p.user_handle, name: p.user_name, avatar: p.user_avatar, color: p.user_color, ceo: p.user_ceo, count: 0 });
-      acc.get(p.user_handle)!.count++;
-      return acc;
-    }, new Map<string, { handle:string; name:string; avatar:string; color:string; ceo:boolean; count:number }>())
-    .values()
-  ).sort((a, b) => b.count - a.count).slice(0, 4).filter(u => u.handle !== myHandle);
+  /* Silence is a feature: discovery earns space only from real community data. */
+  const { people: topPosters, tags: trendingTags, hasDiscovery } = selectLoungeDiscovery(posts, myHandle);
 
   const TAB_LABELS = [
     { id:"for-you"   as FeedTab, label:"For You",   icon:<Flame size={12}/> },
@@ -1015,10 +1009,13 @@ export default function LoungePage() {
         </div>
       </div>
 
-      {/* ── Right sidebar — who to follow + trending ── */}
-      <div style={{width:220,flexShrink:0}} className="border-l border-wm-border bg-wm-dark flex flex-col p-3 overflow-y-auto">
-        <div className="text-[9px] font-black text-wm-text-muted uppercase tracking-widest mb-2">Who to Follow</div>
-        {topPosters.length > 0 ? topPosters.map(u => (
+      {/* Discovery is progressive disclosure, not an empty permanent rail. */}
+      {hasDiscovery && (
+      <aside aria-label="Community discovery" style={{width:220,flexShrink:0}} className="border-l border-wm-border bg-wm-dark flex flex-col p-3 overflow-y-auto">
+        {topPosters.length > 0 && (
+          <>
+          <div className="text-[9px] font-black text-wm-text-muted uppercase tracking-widest mb-2">Who to Follow</div>
+          {topPosters.map(u => (
           <div key={u.handle} className="flex items-center gap-2 py-2">
             <Avatar src={u.avatar} name={u.name} color={u.color} size={28} ceo={u.ceo} />
             <div className="flex-1 min-w-0">
@@ -1033,20 +1030,15 @@ export default function LoungePage() {
                 : <><UserPlus size={11}/></>}
             </button>
           </div>
-        )) : (
-          <p className="text-[10px] text-wm-text-dim px-1">Post something to see other members here.</p>
+          ))}
+          </>
         )}
 
         {/* Live trending tags from actual posts */}
-        <div className="mt-4 text-[9px] font-black text-wm-text-muted uppercase tracking-widest mb-2">Trending Tags</div>
-        {(() => {
-          const tagCounts: Record<string, number> = {};
-          posts.forEach(p => p.tags?.forEach(t => { tagCounts[t] = (tagCounts[t] ?? 0) + 1; }));
-          const sorted = Object.entries(tagCounts).sort((a,b) => b[1]-a[1]).slice(0,8);
-          if (sorted.length === 0) return (
-            <p className="text-[10px] text-wm-text-dim px-1">Tags from real posts will appear here.</p>
-          );
-          return sorted.map(([tag, count], i) => (
+        {trendingTags.length > 0 && (
+          <>
+          <div className={clsx("text-[9px] font-black text-wm-text-muted uppercase tracking-widest mb-2", topPosters.length > 0 && "mt-4")}>Trending Tags</div>
+          {trendingTags.map(([tag, count], i) => (
             <button key={tag} onClick={() => { setSearch(tag.replace("#","")); setFeedTab("explore"); }}
               className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-wm-surface transition-all group text-left">
               <div>
@@ -1055,9 +1047,11 @@ export default function LoungePage() {
               </div>
               <span className="text-[9px] text-wm-text-dim">#{i+1}</span>
             </button>
-          ));
-        })()}
-      </div>
+          ))}
+          </>
+        )}
+      </aside>
+      )}
 
       {/* Create Post Modal */}
       <AnimatePresence>
