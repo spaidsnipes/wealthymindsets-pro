@@ -84,5 +84,14 @@ Live-verified on prod (`wealthymindsetspro.com`):
 
 Whole-tree Sentinel gate at close: `tsc --noEmit` exit 0 · **303 files / 2886 tests pass**.
 
+## Continuation atoms (logout-isolation Sentinel + Vercel copy retire)
+
+| Commit | What |
+|---|---|
+| `56e0b20` | webullAdapter: retire "Vercel" from capabilities.notes (user-visible via /api/broker/status); host is Cloudflare Workers now. |
+| `ff4ad6a` | Sentinel `src/lib/logoutIsolation.enforcement.test.ts` — walks src, collects every wm_ / wm- string passed to localStorage/sessionStorage.{set,get,remove}Item, and requires each to be classified into OWNER_SCOPED_KEYS, OWNER_SCOPED_PREFIXES, DOMAIN_CLEARER_KEYS, or DEVICE_LEVEL_EXEMPT. Regex scoped to storage calls, so CSS classes/DOM IDs/filenames don't false-positive. Closes the silent-leak class from Project Brief §account isolation. |
+
+Whole-tree Sentinel gate at close: `tsc --noEmit` exit 0 · **305 files / 2897 tests pass**.
+
 ## Exact next Reality Edge
-With NOT CONFIGURED surface stable, broker recon surface locked, and every honest edge live on prod, hunt the next Founder-visible truth gap. Candidates by human consequence: (a) live-verify /nectar Vault + /paper Order Ticket carry the same honest ACTIVE DEGRADED semantics; (b) Micah's Transformation UI asset queue (LIVING-PIXEL LAW, 20-asset build queue — coordinate before touching visual components); (c) run the CHART/INTERACTION STRESS PASS on /command-deck (drag/zoom/pan, rapid symbol swaps, resize) and record any new defect from use, not from planning.
+With NOT CONFIGURED surface stable, broker recon surface locked, WM-CHART silent-substitution killed, and logout-isolation coverage gated by Sentinel, hunt the next Founder-visible truth gap. Candidates by human consequence: (a) live-verify /nectar Vault + /paper Order Ticket carry the same honest ACTIVE DEGRADED semantics; (b) Micah's Transformation UI asset queue (LIVING-PIXEL LAW, 20-asset build queue — coordinate before touching visual components); (c) run the CHART/INTERACTION STRESS PASS on /command-deck (drag/zoom/pan, rapid symbol swaps, resize) and record any new defect from use, not from planning.
