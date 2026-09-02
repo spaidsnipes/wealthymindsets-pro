@@ -56,6 +56,10 @@ import { categoryTabsFor } from "@/lib/charts/categoryTabsFor";
 import { useMarketCanvasVM } from "@/lib/marketData/viewModels/useMarketCanvasVM";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import { useAuth } from "@/contexts/AuthContext";
+// Founder Visual Canon Asset 10 (Full Operating System Overview): the
+// Order Flow Cockpit is the top-most tile in the canonical OS layout.
+// Real signal only — routes through selectAggressorFlow.
+import { OrderFlowCockpitStrip } from "./OrderFlowCockpitStrip";
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
 
@@ -882,6 +886,17 @@ export function ChartsDashboard() {
           });
         })()}
       </div>
+      {/* ── Order Flow Cockpit strip — Asset 10 canon merge ──────
+          Real per-trade tick data → selectAggressorFlow pure selector
+          → honest aggressor volumes / net flow / imbalance. Silent
+          chip when no aggressor evidence yet (§Silence Is A Feature).
+          NO fake bullish-percentage score, NO invented net-buying-
+          pressure gauge — the canon "68% net buying pressure" and
+          "2.84B aggressive buy" numbers from Asset 10 stay in the
+          reference; here we surface the REAL selector output. */}
+      {(activeTab === "Chart" || activeTab === "Options") && (
+        <OrderFlowCockpitStrip ticks={recentTicks} livePrice={ticker.price} />
+      )}
       {/* ── MooMoo-style chart tabs row ──────────────────────── */}
       <div className="wm-chart-tabs" style={{
         height: 40, borderBottom: "1px solid #1E2030", display: "flex", alignItems: "center",
