@@ -133,6 +133,35 @@ describe("composeMarketCanvasVM enforcement — canon §Single-Writer / Many-Rea
     expect(content).toMatch(/MarketCanvasPanel|CanvasSummaryPill/);
   });
 
+  it("sixth Phase 3 breadcrumb — /charts surfaces the Right of Way + Decision Why + Passport from the same canvas VM", () => {
+    // Asset 10 canon (Full Operating System Overview) requires the
+    // Right of Way / Priority & Domain Rights tile visible on the
+    // primary trader surface. Same compiler as /command-deck (via
+    // chartCanvasVM.permission) so verdict cannot diverge.
+    // Asset 07 canon (Evidence Debt / Question Mode) requires the
+    // DecisionWhy compilation reachable from /charts too.
+    // Asset 14/16 canon (Market Object Passport) requires the
+    // passport lineage reachable from the chart workspace.
+    const p = resolve(SRC_ROOT, "src/components/chart/ChartsDashboard.tsx");
+    const content = readFileSync(p, "utf8");
+    // Right of Way — must consume chartCanvasVM.permission and render
+    // "ROW · " as the visible chip label.
+    expect(content).toMatch(/chartCanvasVM\.permission|chartPermission\s*=\s*chartCanvasVM\.permission/);
+    expect(content).toContain("ROW ·");
+    // Decision Why — must consume chartCanvasVM.decisionWhy and mount
+    // the shared DecisionWhyPanel component (single-writer canon).
+    expect(content).toMatch(/chartCanvasVM\.decisionWhy/);
+    expect(content).toContain("DecisionWhyPanel");
+    // Passport — must consume selectMarketObjectPassport and mount
+    // the shared MarketObjectPassportPanel.
+    expect(content).toContain("selectMarketObjectPassport");
+    expect(content).toContain("MarketObjectPassportPanel");
+    // Liquidity Weather (Asset 08/10) — must render the honest
+    // NOT WIRED chip; no fake heatmap component may be introduced.
+    expect(content).toContain("LIQUIDITY WEATHER");
+    expect(content).toContain("NOT WIRED");
+  });
+
   it("does not hide canonical Canvas or channel evidence behind session trade collection", () => {
     const p = resolve(SRC_ROOT, "src/app/nectar/[symbol]/page.tsx");
     const content = readFileSync(p, "utf8");
