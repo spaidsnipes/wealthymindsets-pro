@@ -869,10 +869,11 @@ export function ChartsDashboard() {
             the SAME permission compilation the deck consumes so the
             trader never sees a divergent verdict across surfaces. */}
         {chartPermission && (chartPermission.verdict !== "UNKNOWN" || chartPermission.ruleCount > 0) && (
-          <span
-            role="status"
-            aria-label={`Right of Way — ${chartPermission.verdict}. ${chartPermission.headline}`}
-            title={chartPermission.headline}
+          <button
+            type="button"
+            onClick={() => setWhyOpen(o => !o)}
+            aria-label={`Right of Way — ${chartPermission.verdict}. ${chartPermission.headline}. Click to open Decision Why.`}
+            title={`${chartPermission.headline} — click for full WHY reasoning.`}
             style={{
               fontSize: 10,
               letterSpacing: 0.32,
@@ -884,6 +885,7 @@ export function ChartsDashboard() {
               display: "inline-flex",
               alignItems: "center",
               gap: 4,
+              cursor: "pointer",
               ...(chartPermission.verdict === "ALLOWED" ? {
                 color: "#e8b923",
                 background: "rgba(232,185,35,0.10)",
@@ -904,7 +906,7 @@ export function ChartsDashboard() {
             }}
           >
             ROW · {chartPermission.verdict}
-          </span>
+          </button>
         )}
         {/* Asset 07 canon — Evidence Debt / Question Mode toggle.
             Silent when there's no decisionWhy compilation yet
