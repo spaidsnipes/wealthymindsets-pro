@@ -866,7 +866,29 @@ function CommandDeckInner() {
                 )}
             </div>
 
-            <ProviderWireStrip compact />
+            {/* Connection diagnostics are operational evidence, not the
+                trader's primary market story. Keep the complete wireboard one
+                deliberate tap away so auth/config failures remain inspectable
+                without turning the Command Deck into permanent infrastructure
+                chrome. */}
+            <details className="wm-cd-connection-diagnostics">
+              <summary
+                style={{
+                  minHeight: 44,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                  color: "#8a8271",
+                  textTransform: "uppercase",
+                  padding: "4px 0",
+                }}
+              >
+                Connections · provider readiness
+              </summary>
+              <ProviderWireStrip compact />
+            </details>
 
             {/* RAW context rail — SHOW FIRST, EXPLAIN SECOND, RAW THIRD
                 (Founder doctrine). The 6-tile purposeful state read

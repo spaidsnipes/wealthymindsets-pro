@@ -118,5 +118,7 @@ describe("ProviderWireStrip touch truth surface", () => {
     const deck = readFileSync(new URL("../../app/command-deck/page.tsx", import.meta.url), "utf8");
     expect(brokers).toContain("<ProviderWireStrip compact />");
     expect(deck).toContain("<ProviderWireStrip compact />");
+    expect(deck).toContain('className="wm-cd-connection-diagnostics"');
+    expect(deck).toContain("Connections · provider readiness");
   });
 });
