@@ -30,6 +30,11 @@ interface Broker {
     endpoint: string;
     docsUrl: string;
   };
+  runtimeConnection?: {
+    label: string;
+    note: string;
+    docsUrl: string;
+  };
 }
 
 const BROKERS: Broker[] = [
@@ -90,6 +95,11 @@ const BROKERS: Broker[] = [
     features:["Options-first","$0 stock commissions","Futures"],
     signInUrl:"https://trade.tastytrade.com/",
     signUpUrl:"https://open.tastytrade.com/",
+    runtimeConnection:{
+      label:"Server OAuth token wire",
+      note:"WM Pro needs a server-side tastytrade refresh token. Signing into the tastytrade website does not connect this app.",
+      docsUrl:"https://developer.tastytrade.com/basic-api-usage/",
+    },
   },
   {
     id:"ninjatrader", name:"NinjaTrader", category:"broker",
@@ -114,6 +124,11 @@ const BROKERS: Broker[] = [
     features:["Stocks","ETFs","Options","Level 2 Data"],
     signInUrl:"https://j.moomoo.com/",
     signUpUrl:"https://www.moomoo.com/us/",
+    runtimeConnection:{
+      label:"OpenD bridge wire",
+      note:"WM Pro receives Moomoo data through an authenticated OpenD bridge. Website sign-in alone cannot create that bridge.",
+      docsUrl:"https://openapi.moomoo.com/moomoo-api-doc/en/",
+    },
   },
   {
     id:"longbridge", name:"Longbridge", category:"broker",
@@ -122,6 +137,11 @@ const BROKERS: Broker[] = [
     features:["Stocks","Options","OpenAPI","Market Data"],
     signInUrl:"https://longbridge.com/",
     signUpUrl:"https://longbridge.com/",
+    runtimeConnection:{
+      label:"OpenAPI bridge wire",
+      note:"WM Pro receives bounded Longbridge receipts through its server bridge. Website sign-in alone does not connect the app.",
+      docsUrl:"https://open.longbridge.com/docs",
+    },
   },
 
   /* ── Crypto Exchanges ──────────────────────────────────── */
@@ -634,6 +654,24 @@ function BrokerCard({ broker, selected, onToggle }: { broker: Broker; selected: 
                 onClick={e => e.stopPropagation()}
                 className="flex min-h-11 flex-1 items-center justify-center gap-1 rounded-lg text-[10px] font-semibold transition-all hover:brightness-110 text-wm-text-muted hover:text-wm-text bg-wm-surface border border-wm-border">
                 <ExternalLink size={9} /> Get API Keys
+              </a>
+            </div>
+          </div>
+        ) : broker.runtimeConnection ? (
+          <div className="space-y-2">
+            <div className="rounded-xl border border-wm-border bg-wm-surface/60 px-3 py-2.5">
+              <div className="text-[11px] font-black" style={{ color: broker.color }}>{broker.runtimeConnection.label}</div>
+              <p className="mt-1 text-[9px] leading-relaxed text-wm-text-dim">{broker.runtimeConnection.note}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <a href="/readiness" onClick={e => e.stopPropagation()}
+                className="flex min-h-11 items-center justify-center gap-1 rounded-lg border border-wm-border bg-wm-surface text-[10px] font-semibold text-wm-text-muted transition-all hover:text-wm-text">
+                <Zap size={10} /> Inspect wire
+              </a>
+              <a href={broker.runtimeConnection.docsUrl} target="_blank" rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="flex min-h-11 items-center justify-center gap-1 rounded-lg border border-wm-border bg-wm-surface text-[10px] font-semibold text-wm-text-muted transition-all hover:text-wm-text">
+                <ExternalLink size={9} /> Provider setup
               </a>
             </div>
           </div>
