@@ -66,6 +66,9 @@ import { OrderFlowCockpitStrip } from "./OrderFlowCockpitStrip";
 import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassportPanel";
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import { useCanonicalMarketState } from "@/lib/marketData/useCanonicalMarketState";
+// Asset 07 (Evidence Debt / Question Mode) canon: dedicated
+// question-mode surface exposing the decisionWhy compilation.
+import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
@@ -610,7 +613,10 @@ export function ChartsDashboard() {
     [chartCanvasState],
   );
   const [passportOpen, setPassportOpen] = useState(false);
+  // Asset 07 canon — Evidence Debt / Question Mode toggle.
+  const [whyOpen, setWhyOpen] = useState(false);
   const passportTriggerRef = useRef<HTMLButtonElement>(null);
+  const whyTriggerRef = useRef<HTMLButtonElement>(null);
 
   // Track day high/low from ticker
   useEffect(() => {
@@ -881,6 +887,35 @@ export function ChartsDashboard() {
             ROW · {chartPermission.verdict}
           </span>
         )}
+        {/* Asset 07 canon — Evidence Debt / Question Mode toggle.
+            Silent when there's no decisionWhy compilation yet
+            (§Silence Is A Feature). Opens the SAME DecisionWhyPanel
+            /command-deck ships so trader sees identical WHY on both. */}
+        {chartCanvasVM.decisionWhy && (
+          <button
+            ref={whyTriggerRef}
+            type="button"
+            onClick={() => setWhyOpen(o => !o)}
+            aria-label={whyOpen ? "Close Decision Why" : "Open Decision Why"}
+            aria-expanded={whyOpen}
+            aria-controls="chart-decision-why"
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: "uppercase",
+              color: whyOpen ? "#e8b923" : "#c9a55c",
+              background: whyOpen ? "rgba(232, 185, 35, 0.12)" : "transparent",
+              border: whyOpen ? "1px solid rgba(232, 185, 35, 0.5)" : "1px solid rgba(139,106,41,0.35)",
+              padding: "3px 10px",
+              borderRadius: 4,
+              fontWeight: 700,
+              cursor: "pointer",
+              marginLeft: 4,
+            }}
+          >
+            {whyOpen ? "▾ Why" : "▸ Why"}
+          </button>
+        )}
         {chartPassportVM.capturedAt !== null && (
           <button
             ref={passportTriggerRef}
@@ -1149,6 +1184,29 @@ export function ChartsDashboard() {
             >
               <div style={{ padding: 12 }}>
                 <MarketObjectPassportPanel vm={chartPassportVM} />
+              </div>
+            </ShellModalDrawer>
+          )}
+
+          {/* Asset 07 canon — Evidence Debt / Question Mode drawer.
+              Same DecisionWhyPanel the deck renders + same ShellModalDrawer
+              containment used by the Passport drawer above. Same VM
+              (chartCanvasVM.decisionWhy) so the trader sees identical WHY
+              reasoning on both /charts and /command-deck. */}
+          {whyOpen && (activeTab === "Chart" || activeTab === "Options") && (
+            <ShellModalDrawer
+              id="chart-decision-why"
+              titleId="chart-decision-why-title"
+              descriptionId="chart-decision-why-description"
+              title="Decision Why"
+              description="Compiled reasoning behind the current market canvas — evidence gaps, blockers, clearances."
+              closeLabel="Close Decision Why"
+              width={440}
+              onClose={() => setWhyOpen(false)}
+              fallbackTriggerRef={whyTriggerRef}
+            >
+              <div style={{ padding: 12 }}>
+                <DecisionWhyPanel vm={chartCanvasVM.decisionWhy} />
               </div>
             </ShellModalDrawer>
           )}
