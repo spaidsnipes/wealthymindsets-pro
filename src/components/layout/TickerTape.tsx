@@ -127,9 +127,9 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
   return null;
 }
 
-async function fetchPolygonPrices(): Promise<Record<string, { price:number; chg:number; pct:number; src:string }>> {
+async function fetchPolygonPrices(symbols: readonly (typeof TAPE_SYMBOLS)[number][]): Promise<Record<string, { price:number; chg:number; pct:number; src:string }>> {
   const results: Record<string, { price:number; chg:number; pct:number; src:string }> = {};
-  await Promise.all(TAPE_SYMBOLS.filter(t => !t.sym.includes("/")).map(async t => {
+  await Promise.all(symbols.filter(t => !t.sym.includes("/")).map(async t => {
     const q = await fetchQuote(t.sym);
     if (q) results[t.sym.toUpperCase()] = q;
   }));
@@ -247,15 +247,22 @@ export function TickerTape() {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  // Derive the active TAPE_SYMBOLS entries filtered + ordered by customSyms
+  // Resolve the user's tape once. Charts already has a full watchlist and
+  // symbol header, so its global rail becomes a calm four-symbol pulse rather
+  // than a second competing watchlist. Other routes keep the full custom tape.
   const activeTapeSymbols = customSyms
     .map(sym => TAPE_SYMBOLS.find(t => t.sym === sym))
     .filter((t): t is typeof TAPE_SYMBOLS[0] => t !== undefined);
+  const chartPulseSymbols = [
+    ...activeTapeSymbols.filter(t => t.sym === activeSymbol),
+    ...activeTapeSymbols.filter(t => t.sym !== activeSymbol),
+  ].slice(0, 4);
+  const requestedTapeSymbols = pathname === "/charts" ? chartPulseSymbols : activeTapeSymbols;
 
   /* ── Yahoo REST fetch on mount + every 10s ────────────── */
   useEffect(() => {
     const doFetch = async () => {
-      const live = await fetchPolygonPrices();
+      const live = await fetchPolygonPrices(requestedTapeSymbols);
       if (!Object.keys(live).length) return;
       setTickers(prev => {
         const updated = prev.map(t => {
@@ -283,7 +290,7 @@ export function TickerTape() {
     const onVisible = () => { if (document.visibilityState === "visible") doFetch(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
-  }, []);
+  }, [activeSymbol, customSyms, pathname]);
 
   const handleClick = (sym: string) => {
     setActiveSymbol(sym);
@@ -293,12 +300,14 @@ export function TickerTape() {
   };
 
   // Visible tickers = only those in customSyms, in order
-  const visibleTickers = customSyms
+  const visibleTickers = (pathname === "/charts" ? chartPulseSymbols.map(t => t.sym) : customSyms)
     .map(sym => tickers.find(t => t.sym === sym))
     .filter((t): t is TickerState => t !== undefined);
 
-  /* Double the list for seamless scroll loop */
-  const doubled: TickerState[] = [...visibleTickers, ...visibleTickers];
+  /* Charts keeps one stable pulse; other routes retain the seamless loop. */
+  const renderedTickers: TickerState[] = pathname === "/charts"
+    ? visibleTickers
+    : [...visibleTickers, ...visibleTickers];
 
   const handleAddSym = (sym: string) => {
     const s = sym.trim().toUpperCase();
@@ -327,8 +336,8 @@ export function TickerTape() {
   return (
     <div className="h-full flex items-center relative" style={{ overflow: "hidden" }}>
       <div className="ticker-wrap flex-1 h-full flex items-center" style={{ overflow: "hidden" }}>
-        <div className="ticker-inner">
-          {doubled.map((t, i) => (
+        <div className="ticker-inner" style={pathname === "/charts" ? { animation: "none" } : undefined}>
+          {renderedTickers.map((t, i) => (
             <React.Fragment key={i}>
               <TickerItem
                 item={t}

@@ -48,4 +48,13 @@ describe("same-screen market truth contract", () => {
     expect(dom).toContain('aria-label="Close market depth panel"');
     expect(dom).toContain('href="/readiness"');
   });
+
+  it("keeps Charts focused by replacing the duplicated scrolling tape with a bounded market pulse", () => {
+    const tickerTape = source("../components/layout/TickerTape.tsx");
+    expect(tickerTape).toContain("const chartPulseSymbols");
+    expect(tickerTape).toContain(".slice(0, 4)");
+    expect(tickerTape).toContain('pathname === "/charts" ? chartPulseSymbols');
+    expect(tickerTape).toContain('{ animation: "none" }');
+    expect(tickerTape).toContain("fetchPolygonPrices(requestedTapeSymbols)");
+  });
 });
