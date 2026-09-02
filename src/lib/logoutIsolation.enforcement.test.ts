@@ -101,6 +101,7 @@ const DEVICE_LEVEL_EXEMPT = new Set<string>([
   "wm_bigtrades_simul",       // demo mode — device chart pref
   "wm_bf_seq_best",           // best-perf record — device metric
   "wm_active_watchlist",      // last-selected watchlist name — device chart pref
+  "wm_chart_watchlist_open",  // watchlist visibility — device chart layout pref
   "wm_alpaca_proxy",          // proxy toggle — device pref
   "wm_alpaca_disconnected",   // WS disconnect flag — device transient
   "wm_lounge_vibe",           // lounge theme — device pref

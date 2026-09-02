@@ -23,6 +23,7 @@ function clearBrokerEnv(): void {
   for (const k of [
     "TASTYTRADE_CLIENT_ID", "TASTYTRADE_CLIENT_SECRET", "TASTYTRADE_REFRESH_TOKEN", "TASTYTRADE_ENV",
     "ALPACA_KEY", "ALPACA_SECRET", "ALPACA_PAPER_KEY", "ALPACA_PAPER_SECRET",
+    "WEBULL_APP_KEY", "WEBULL_APP_SECRET", "WEBULL_API_KEY", "WEBULL_API_SECRET", "WEBULL_ACCESS_TOKEN",
     "GEMINI_API_KEY",
   ]) delete process.env[k];
 }
@@ -33,6 +34,7 @@ describe("/api/broker/status — canon §12 truthful aggregate", () => {
     for (const k of [
       "TASTYTRADE_CLIENT_ID", "TASTYTRADE_CLIENT_SECRET", "TASTYTRADE_REFRESH_TOKEN",
       "ALPACA_KEY", "ALPACA_SECRET", "ALPACA_PAPER_KEY", "ALPACA_PAPER_SECRET",
+      "WEBULL_APP_KEY", "WEBULL_APP_SECRET", "WEBULL_API_KEY", "WEBULL_API_SECRET", "WEBULL_ACCESS_TOKEN",
       "GEMINI_API_KEY",
     ]) saved[k] = process.env[k];
     clearBrokerEnv();
@@ -49,13 +51,13 @@ describe("/api/broker/status — canon §12 truthful aggregate", () => {
     expect(s.providers.map(p => p.provider)).toEqual(["webull", "tastytrade", "alpaca", "gemini"]);
   });
 
-  it("Webull is always implemented=false regardless of env presence", async () => {
-    process.env.WEBULL_CLIENT_ID = "any"; // shouldn't matter
+  it("Webull reports its signed account probe implemented without fabricating configuration", async () => {
     const s = await readBrokerStatus();
     const w = s.providers.find(p => p.provider === "webull")!;
-    expect(w.implemented).toBe(false);
-    expect(w.envConfigured).toBe(false); // no code reads WEBULL_*
-    expect(w.note).toContain("not implemented");
+    expect(w.implemented).toBe(true);
+    expect(w.envConfigured).toBe(false);
+    expect(w.connected).toBe(false);
+    expect(w.note).toContain("not configured");
   });
 
   it("Tastytrade envConfigured only when ALL required names present", async () => {
@@ -107,8 +109,9 @@ describe("/api/broker/status — canon §12 truthful aggregate", () => {
     process.env.TASTYTRADE_REFRESH_TOKEN = "z";
     process.env.GEMINI_API_KEY = "k";
     const s = await readBrokerStatus();
-    // 3 implemented (tastytrade, alpaca, gemini); webull is not
-    expect(s.implementedCount).toBe(3);
+    // All four have an implementation rung; Webull account probing remains
+    // unconfigured in this deterministic setup and is never counted connected.
+    expect(s.implementedCount).toBe(4);
     // 2 envConfigured in this setup (tastytrade + gemini)
     expect(s.envConfiguredCount).toBe(2);
   });
