@@ -283,10 +283,10 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
   ];
 
   return (
-    <section aria-label="Market data provider wires" style={{ marginTop: compact ? 0 : 8, border: "1px solid rgba(240,180,41,0.18)", borderRadius: compact ? 0 : 10, background: "rgba(5,5,6,0.76)", padding: compact ? "6px 10px" : "9px 10px", flexShrink: 0 }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: 7 }}>
-        <span style={{ color: "#f0b429", fontSize: 10, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase" }}>Market data wires</span>
-        <span style={{ color: "#777f96", fontSize: 9 }}>read-only · capability truth</span>
+    <section aria-label="Market data provider wires" style={{ marginTop: compact ? 0 : 8, border: "1px solid rgba(240,180,41,0.18)", borderRadius: compact ? 8 : 10, background: "rgba(5,5,6,0.76)", padding: compact ? "6px 8px" : "9px 10px", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: compact ? 5 : 7 }}>
+        <span style={{ color: "#f0b429", fontSize: 10, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase" }}>{compact ? "Connections" : "Market data wires"}</span>
+        <Link href="/readiness" style={{ color: "#8b92ac", fontSize: 9, textDecoration: "none", whiteSpace: "nowrap" }}>{compact ? "View details →" : "read-only · capability truth"}</Link>
       </div>
       <div style={compact
         ? { display: "flex", gap: 7, overflowX: "auto", scrollbarWidth: "thin" }
@@ -299,14 +299,18 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
             aria-label={`${wire.source}: ${wire.label}. ${wire.detail} Open provider readiness wireboard.`}
             data-provider={wire.source}
             data-provider-tone={wire.tone}
-            style={{ minWidth: compact ? 210 : 0, flex: compact ? "1 0 210px" : undefined, border: "1px solid rgba(240,180,41,0.18)", borderRadius: 8, padding: compact ? "6px 8px" : "7px 8px", background: "linear-gradient(145deg, rgba(240,180,41,0.045), rgba(255,255,255,0.012))", textDecoration: "none" }}
+            style={{ minWidth: compact ? 126 : 0, flex: compact ? "1 0 126px" : undefined, border: "1px solid rgba(240,180,41,0.18)", borderRadius: 8, padding: compact ? "6px 8px" : "7px 8px", background: "linear-gradient(145deg, rgba(240,180,41,0.045), rgba(255,255,255,0.012))", textDecoration: "none" }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
               <span style={{ color: "#d9dce7", fontSize: 10, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase" }}>{wire.source}</span>
               <span style={{ color: TONE_COLOR[wire.tone], fontSize: 9, fontWeight: 800, whiteSpace: "nowrap" }}>{wire.label}</span>
             </div>
-            <div style={{ color: "#8b92ac", fontSize: 9, lineHeight: 1.35, marginTop: 4, overflow: "hidden", overflowWrap: "anywhere", display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: compact ? 2 : 3 }}>{wire.detail}</div>
-            <div style={{ color: "rgba(240,180,41,0.74)", fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", marginTop: 5, textTransform: "uppercase" }}>Inspect wire →</div>
+            {!compact && (
+              <>
+                <div style={{ color: "#8b92ac", fontSize: 9, lineHeight: 1.35, marginTop: 4, overflow: "hidden", overflowWrap: "anywhere", display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 3 }}>{wire.detail}</div>
+                <div style={{ color: "rgba(240,180,41,0.74)", fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", marginTop: 5, textTransform: "uppercase" }}>Inspect wire →</div>
+              </>
+            )}
           </Link>
         ))}
       </div>

@@ -874,7 +874,7 @@ function CommandDeckInner() {
                 )}
             </div>
 
-            <ProviderWireStrip />
+            <ProviderWireStrip compact />
 
             {/* RAW context rail — SHOW FIRST, EXPLAIN SECOND, RAW THIRD
                 (Founder doctrine). The 6-tile purposeful state read

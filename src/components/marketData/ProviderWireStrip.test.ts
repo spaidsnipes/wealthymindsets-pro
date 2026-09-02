@@ -99,14 +99,24 @@ describe("matrixProviderWireView", () => {
 });
 
 describe("ProviderWireStrip touch truth surface", () => {
-  it("keeps exact provider state and blocker detail in accessible card text", () => {
+  it("keeps exact provider state accessible while compact surfaces stay calm", () => {
     const source = readFileSync(new URL("./ProviderWireStrip.tsx", import.meta.url), "utf8");
     expect(source).toContain('aria-label={`${wire.source}: ${wire.label}. ${wire.detail} Open provider readiness wireboard.`}');
     expect(source).toContain('data-provider-tone={wire.tone}');
     expect(source).toContain('href="/readiness"');
     expect(source).toContain('readJson<ReadinessPayload>("/api/broker/readiness")');
     expect(source).toContain("Inspect wire →");
-    expect(source).toContain('WebkitLineClamp: compact ? 2 : 3');
+    expect(source).toContain('{compact ? "Connections" : "Market data wires"}');
+    expect(source).toContain('compact ? "View details →"');
+    expect(source).toContain("{!compact && (");
+    expect(source).toContain("WebkitLineClamp: 3");
     expect(source).not.toContain('whiteSpace: "nowrap" }}>{wire.detail}');
+  });
+
+  it("uses compact connection summaries on the chart and command deck surfaces", () => {
+    const brokers = readFileSync(new URL("../broker/BrokerConnectPanel.tsx", import.meta.url), "utf8");
+    const deck = readFileSync(new URL("../../app/command-deck/page.tsx", import.meta.url), "utf8");
+    expect(brokers).toContain("<ProviderWireStrip compact />");
+    expect(deck).toContain("<ProviderWireStrip compact />");
   });
 });

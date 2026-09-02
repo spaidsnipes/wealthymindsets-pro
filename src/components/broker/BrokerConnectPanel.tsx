@@ -617,7 +617,7 @@ export function BrokerConnectPanel({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="px-4 py-3 border-b border-wm-border shrink-0">
-          <ProviderWireStrip />
+          <ProviderWireStrip compact />
         </div>
 
         {/* Category tabs */}
