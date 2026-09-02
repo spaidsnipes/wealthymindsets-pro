@@ -747,8 +747,19 @@ export function ChartsDashboard() {
             padding: "3px 8px",
             borderRadius: 4,
             fontWeight: 700,
+            transition: "background 0.12s, color 0.12s, border-color 0.12s",
           }}
           aria-label="Open Command Deck"
+          onMouseEnter={e => {
+            e.currentTarget.style.background = "rgba(232, 185, 35, 0.12)";
+            e.currentTarget.style.color = "#e8b923";
+            e.currentTarget.style.borderColor = "rgba(232, 185, 35, 0.5)";
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = "#c9a55c";
+            e.currentTarget.style.borderColor = "rgba(139,106,41,0.35)";
+          }}
         >
           Command Deck →
         </a>
