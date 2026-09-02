@@ -97,17 +97,17 @@ export default function ProofLanePage() {
     <div className="min-h-screen bg-gradient-to-b from-black via-neutral-950 to-black text-neutral-100">
       <header className="border-b border-amber-900/40 bg-black/60 backdrop-blur px-4 sm:px-8 py-4">
         <div className="max-w-6xl mx-auto flex items-center gap-3 flex-wrap">
-          <Link href="/" className="text-xs uppercase tracking-widest text-amber-400/80 hover:text-amber-300">
-            ← WM Pro
+          <Link href="/education" className="text-xs uppercase tracking-widest text-amber-400/80 hover:text-amber-300">
+            ← Academy
           </Link>
           <span className="text-neutral-600">·</span>
-          <h1 className="text-lg sm:text-xl font-semibold tracking-tight">Proof Lane</h1>
+          <h1 className="text-lg sm:text-xl font-semibold tracking-tight">Academy · Challenge Lab</h1>
           <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-950/40 px-2 py-0.5 text-[10px] font-mono uppercase tracking-widest text-amber-300">
             {PACE_TRUTH_LABEL}
           </span>
         </div>
         <p className="max-w-6xl mx-auto mt-2 text-xs sm:text-sm text-neutral-400">
-          The $100 → $1,000,000 challenge is an <span className="text-neutral-200">educational trading and scenario experiment</span> in discipline, risk, options mechanics, and personal-edge development. $1M is an aspirational hypothetical target,{" "}
+          This private Academy lab models the $100 → $1,000,000 path as an <span className="text-neutral-200">educational trading and scenario experiment</span> in discipline, risk, options mechanics, and personal-edge development. $1M is an aspirational hypothetical target,{" "}
           <span className="text-neutral-200">not an earnings promise</span>. Actual trading can include partial or complete loss of capital.
         </p>
       </header>

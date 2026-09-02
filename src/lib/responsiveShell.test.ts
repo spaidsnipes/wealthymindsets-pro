@@ -36,6 +36,16 @@ describe("responsive P0 command surfaces", () => {
     expect(layout).toContain("{ title: \"Community & business\", items: NAV_BOTTOM }");
   });
 
+  it("keeps the challenge lab visibly inside Academy instead of exposing a sixth product", () => {
+    const layout = source("../components/layout/MainLayout.tsx");
+    const challenge = source("../app/proof-lane/page.tsx");
+    expect(layout).toContain('return href === "/education" && pathname.startsWith("/proof-lane")');
+    expect(layout).toContain("isPrimaryDestinationActive(pathname, href)");
+    expect(challenge).toContain('href="/education"');
+    expect(challenge).toContain("Academy · Challenge Lab");
+    expect(challenge).toContain("This private Academy lab models");
+  });
+
   it("keeps the Command Deck proof chain available without stacking it into the primary read", () => {
     const deck = source("../app/command-deck/page.tsx");
     expect(deck).toContain('className="wm-cd-evidence-drawer"');

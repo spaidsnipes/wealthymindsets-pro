@@ -860,6 +860,13 @@ const NAV_ITEMS = [
   { href: "/veddbuild",   icon: Globe,         label: "VeddBuild"  },
 ];
 
+function isPrimaryDestinationActive(pathname: string, href: string): boolean {
+  if (pathname.startsWith(href)) return true;
+  // Proof Lane is an Academy curriculum surface. Keep the legacy URL for
+  // saved links without exposing it as a separate top-level product.
+  return href === "/education" && pathname.startsWith("/proof-lane");
+}
+
 /* ── Main Layout ─────────────────────────────────────────── */
 /* ── Header live P&L badge ───────────────────────────────── */
 function HeaderPnL() {
@@ -1157,7 +1164,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               Workspace without forcing every destination into the live rail. */}
           <nav aria-label="Primary" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", scrollbarWidth: "none", paddingTop: 4 }}>
             {NAV_CORE.map(({ href, icon: Icon, label }) => {
-              const active = pathname.startsWith(href);
+              const active = isPrimaryDestinationActive(pathname, href);
               return (
                 <Link href={href} title={label}
                   key={href}
