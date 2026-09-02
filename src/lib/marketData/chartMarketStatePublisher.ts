@@ -14,6 +14,7 @@ import {
   canonicalSession,
   type CanonicalAssetClass,
 } from "./canonicalIdentity";
+import { deriveOrderFlowDimension } from "./deriveOrderFlowDimension";
 
 export interface ChartMarketStatePublicationInput {
   readonly symbol: string;
@@ -80,13 +81,6 @@ export function createChartMarketStatePublication(
     channel.instrumentId.toUpperCase() === executableIdentityFor(normalizedSymbol, assetClass)
   );
   const qualityState = qualityFor(input.source, input.connected, hasCanonicalPrice);
-  const unknowns = [
-    "Direction, location, aggression, regime, structure, volatility, profile, and order flow are unresolved until verified engines publish evidence.",
-  ];
-  const contradictions: string[] = [];
-  if (input.ticker.price > 0 && !priceTick) {
-    contradictions.push("Displayed ticker price has no matching timestamped runtime tick; canonical price evidence omitted.");
-  }
 
   const eventAt = priceTick?.time ?? null;
   const coverageVersion = input.nectar.updatedAt ?? input.nectar.startedAt;
@@ -99,6 +93,37 @@ export function createChartMarketStatePublication(
     coverageVersion,
     input.capturedAt,
   ].join(":");
+
+  // Real from-USE fix: seal an orderFlow dimension from the very same
+  // per-trade ticks that the OrderFlowCockpitStrip renders. Without this
+  // the Passport ORDER FLOW node always read "UNRESOLVED — No verified
+  // evidence supplied at snapshot time." while the strip one row above
+  // showed live aggressor volumes. The pure derivation self-degrades to
+  // UNKNOWN on thin tape so nothing gets fabricated.
+  const latestTickAtMs = input.recentTicks.reduce(
+    (mx, t) => (Number.isFinite(t.time) && t.time > 0 ? Math.max(mx, t.time) : mx),
+    0,
+  );
+  const orderFlow = deriveOrderFlowDimension({
+    ticks: input.recentTicks,
+    livePrice: input.ticker.price,
+    source: typeof input.source === "string" ? input.source : null,
+    latestTickAtMs: latestTickAtMs > 0 ? latestTickAtMs : null,
+    capturedAt: input.capturedAt,
+    snapshotIdSeed: snapshotId,
+  });
+
+  const unknowns = orderFlow.resolution === "RESOLVED"
+    ? [
+        "Direction, location, aggression, regime, structure, volatility, and profile are unresolved until verified engines publish evidence.",
+      ]
+    : [
+        "Direction, location, aggression, regime, structure, volatility, profile, and order flow are unresolved until verified engines publish evidence.",
+      ];
+  const contradictions: string[] = [];
+  if (input.ticker.price > 0 && !priceTick) {
+    contradictions.push("Displayed ticker price has no matching timestamped runtime tick; canonical price evidence omitted.");
+  }
 
   return {
     qualityState,
@@ -123,6 +148,7 @@ export function createChartMarketStatePublication(
       coverage,
       contradictions,
       unknowns,
+      dimensions: { orderFlow },
     },
   };
 }
