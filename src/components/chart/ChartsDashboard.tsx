@@ -593,6 +593,12 @@ export function ChartsDashboard() {
     ownerId: canvasUser?.id ?? null,
   });
   const chartMarketCanvas = chartCanvasVM.canvas;
+  // Asset 10 canon — Right of Way / Decision Permission chip. Reads
+  // the SAME permission compilation the deck consumes so the trader
+  // sees identical verdict on /charts (no divergent rule state). The
+  // permission VM already flows through composeMarketCanvasVM; we
+  // just surface its verdict + headline as a compact chip.
+  const chartPermission = chartCanvasVM.permission;
 
   // Asset 14/16 canon: Market Object Passport (lineage, owner, birth,
   // touches, invalidation, provenance) integrated into the chart
@@ -801,6 +807,50 @@ export function ChartsDashboard() {
             opens a real Passport panel with lineage/owner/birth/
             touches/invalidation/provenance sourced from the same
             selectMarketObjectPassport /command-deck routes through. */}
+        {/* Asset 10 canon — Right of Way / Decision Permission chip.
+            Silent when verdict is UNKNOWN and no rules are declared
+            (§Silence Is A Feature). Otherwise a color-coded verdict
+            chip: gold ALLOWED, amber ADVISORY, red RESTRICTED. Reads
+            the SAME permission compilation the deck consumes so the
+            trader never sees a divergent verdict across surfaces. */}
+        {chartPermission && (chartPermission.verdict !== "UNKNOWN" || chartPermission.ruleCount > 0) && (
+          <span
+            role="status"
+            aria-label={`Right of Way — ${chartPermission.verdict}. ${chartPermission.headline}`}
+            title={chartPermission.headline}
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.32,
+              textTransform: "uppercase",
+              fontWeight: 700,
+              padding: "3px 8px",
+              borderRadius: 4,
+              marginLeft: 4,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              ...(chartPermission.verdict === "ALLOWED" ? {
+                color: "#e8b923",
+                background: "rgba(232,185,35,0.10)",
+                border: "1px solid rgba(232,185,35,0.35)",
+              } : chartPermission.verdict === "ADVISORY" ? {
+                color: "#f4a03d",
+                background: "rgba(244,160,61,0.08)",
+                border: "1px solid rgba(244,160,61,0.35)",
+              } : chartPermission.verdict === "RESTRICTED" ? {
+                color: "#ff6b6b",
+                background: "rgba(255,107,107,0.08)",
+                border: "1px solid rgba(255,107,107,0.35)",
+              } : {
+                color: "#8B8FA8",
+                background: "transparent",
+                border: "1px solid rgba(139,143,168,0.25)",
+              }),
+            }}
+          >
+            ROW · {chartPermission.verdict}
+          </span>
+        )}
         {chartPassportVM.capturedAt !== null && (
           <button
             ref={passportTriggerRef}
