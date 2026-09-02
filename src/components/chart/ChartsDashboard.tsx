@@ -66,6 +66,7 @@ import { OrderFlowCockpitStrip } from "./OrderFlowCockpitStrip";
 import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassportPanel";
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import { useCanonicalMarketState } from "@/lib/marketData/useCanonicalMarketState";
+import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
 
@@ -602,6 +603,7 @@ export function ChartsDashboard() {
     [chartCanvasState],
   );
   const [passportOpen, setPassportOpen] = useState(false);
+  const passportTriggerRef = useRef<HTMLButtonElement>(null);
 
   // Track day high/low from ticker
   useEffect(() => {
@@ -800,10 +802,12 @@ export function ChartsDashboard() {
             selectMarketObjectPassport /command-deck routes through. */}
         {chartPassportVM.capturedAt !== null && (
           <button
+            ref={passportTriggerRef}
             type="button"
             onClick={() => setPassportOpen(o => !o)}
             aria-label={passportOpen ? "Close Market Object Passport" : "Open Market Object Passport"}
             aria-expanded={passportOpen}
+            aria-controls="chart-market-object-passport"
             style={{
               fontSize: 10,
               letterSpacing: 0.3,
@@ -811,7 +815,8 @@ export function ChartsDashboard() {
               color: passportOpen ? "#e8b923" : "#c9a55c",
               background: passportOpen ? "rgba(232, 185, 35, 0.12)" : "transparent",
               border: passportOpen ? "1px solid rgba(232, 185, 35, 0.5)" : "1px solid rgba(139,106,41,0.35)",
-              padding: "3px 8px",
+              minHeight: 44,
+              padding: "3px 10px",
               borderRadius: 4,
               fontWeight: 700,
               cursor: "pointer",
@@ -1045,43 +1050,26 @@ export function ChartsDashboard() {
 
         {/* Center: toolbar + chart area — fullscreen target includes all controls */}
         <div ref={fullscreenRef} style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0, position:"relative" }}>
-          {/* Asset 14/16 canon — Passport overlay. Same VM shape the
-              deck consumes. Slides in from the right when the Passport
-              button is toggled in the wordmark row. */}
+          {/* Asset 14/16 canon — accessible responsive Passport drawer.
+              Same VM shape the deck consumes; the shared shell owner gives
+              phone-width containment, focus trapping, Escape close, and
+              focus restoration to the chart trigger. */}
           {passportOpen && (activeTab === "Chart" || activeTab === "Options") && (
-            <div
-              role="dialog"
-              aria-label="Market Object Passport"
-              style={{
-                position: "absolute",
-                top: 0,
-                right: 0,
-                bottom: 0,
-                width: 400,
-                maxWidth: "42vw",
-                zIndex: 30,
-                background: "linear-gradient(180deg, rgba(11,11,13,0.98), rgba(13,14,20,0.98))",
-                borderLeft: "1px solid rgba(232,185,35,0.35)",
-                boxShadow: "-8px 0 24px rgba(0,0,0,0.4)",
-                overflow: "auto",
-                padding: 12,
-              }}
+            <ShellModalDrawer
+              id="chart-market-object-passport"
+              titleId="chart-market-object-passport-title"
+              descriptionId="chart-market-object-passport-description"
+              title="Market Object Passport"
+              description="Lineage, ownership, evidence, and invalidation for this chart object."
+              closeLabel="Close Market Object Passport"
+              width={440}
+              onClose={() => setPassportOpen(false)}
+              fallbackTriggerRef={passportTriggerRef}
             >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                <span style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
-                  Market Object Passport
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setPassportOpen(false)}
-                  aria-label="Close Market Object Passport"
-                  style={{ background: "transparent", border: "1px solid #333", color: "#8B8FA8", fontSize: 11, padding: "2px 8px", borderRadius: 3, cursor: "pointer" }}
-                >
-                  Close
-                </button>
+              <div style={{ padding: 12 }}>
+                <MarketObjectPassportPanel vm={chartPassportVM} />
               </div>
-              <MarketObjectPassportPanel vm={chartPassportVM} />
-            </div>
+            </ShellModalDrawer>
           )}
 
           {/* ── Toolbar ───────────────────────────────────────── */}
