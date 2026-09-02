@@ -6,6 +6,7 @@ import {
   moomooTickWireView,
   matrixProviderWireView,
   providerWireView,
+  providerConfigReadinessWireView,
   tastytradeWireView,
   longbridgeTickWireView,
 } from "./ProviderWireStrip";
@@ -64,6 +65,17 @@ describe("providerWireView", () => {
     expect(blocked).toMatchObject({ tone: "OFFLINE", label: "Not configured" });
     expect(blocked.detail).toContain("ALPACA_KEY");
   });
+
+  it("turns missing Tastytrade configuration into the exact visible blocker", () => {
+    const view = providerConfigReadinessWireView({
+      providers: [{
+        provider: "tastytrade", label: "Tastytrade", lane: "broker", status: "BLOCKED",
+        missing: ["TASTYTRADE_REFRESH_TOKEN"], missingRecommended: [], note: "OAuth token required.",
+      }],
+    }, "tastytrade", ["tastytrade"]);
+    expect(view).toMatchObject({ source: "tastytrade", tone: "OFFLINE", label: "Not configured" });
+    expect(view?.detail).toContain("TASTYTRADE_REFRESH_TOKEN");
+  });
 });
 
 describe("matrixProviderWireView", () => {
@@ -92,6 +104,7 @@ describe("ProviderWireStrip touch truth surface", () => {
     expect(source).toContain('aria-label={`${wire.source}: ${wire.label}. ${wire.detail} Open provider readiness wireboard.`}');
     expect(source).toContain('data-provider-tone={wire.tone}');
     expect(source).toContain('href="/readiness"');
+    expect(source).toContain('readJson<ReadinessPayload>("/api/broker/readiness")');
     expect(source).toContain("Inspect wire →");
     expect(source).toContain('WebkitLineClamp: compact ? 2 : 3');
     expect(source).not.toContain('whiteSpace: "nowrap" }}>{wire.detail}');

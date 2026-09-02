@@ -91,6 +91,33 @@ export function alpacaReadinessWireView(payload: ReadinessPayload | null | undef
   return { source: "alpaca", tone: "OFFLINE", label: "Status unavailable", detail: "The readiness endpoint returned no Alpaca lanes." };
 }
 
+export function providerConfigReadinessWireView(
+  payload: ReadinessPayload | null | undefined,
+  source: string,
+  providerIds: readonly string[],
+): ProviderWireView | null {
+  const rows = selectReadinessWireboard(payload).rows.filter((row) => providerIds.includes(row.provider));
+  if (rows.length === 0) return null;
+  const ready = rows.filter((row) => row.status === "READY");
+  if (ready.length > 0) {
+    return {
+      source,
+      tone: "LIMITED",
+      label: "Configured to attempt",
+      detail: "Required credential names are present · no accepted provider event receipt yet.",
+    };
+  }
+  const missing = [...new Set(rows.flatMap((row) => row.missing))];
+  return {
+    source,
+    tone: "OFFLINE",
+    label: "Not configured",
+    detail: missing.length > 0
+      ? `Missing required variables: ${missing.join(", ")}.`
+      : "The runtime readiness receipt did not prove required configuration.",
+  };
+}
+
 export function tastytradeWireView(status: BrokerStatus): ProviderWireView {
   if (status.connected && status.quotes && status.realTime === true) {
     return { source: "tastytrade", tone: "LIVE", label: "Real-time verified", detail: status.note || "Authenticated quote access and real-time entitlement verified." };
@@ -161,6 +188,7 @@ const TONE_COLOR: Record<WireTone, string> = {
 
 export default function ProviderWireStrip({ compact = false }: { readonly compact?: boolean }) {
   const [matrix, setMatrix] = React.useState<AthosCapabilityMatrix | null>(null);
+  const [readiness, setReadiness] = React.useState<ReadinessPayload | null>(null);
   const [moomooTicks, setMoomooTicks] = React.useState<MoomooTickReceipt | null>(null);
   const [longbridgeTicks, setLongbridgeTicks] = React.useState<MoomooTickReceipt | null>(null);
   const [failures, setFailures] = React.useState<ReadonlySet<string>>(() => new Set());
@@ -202,6 +230,9 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
       void readJson<AthosCapabilityMatrix>("/api/athos/market-data/capabilities")
         .then((body) => { if (active) setMatrix(body); clearFailure("market"); })
         .catch((error: unknown) => recordFailure("market", error));
+      void readJson<ReadinessPayload>("/api/broker/readiness")
+        .then((body) => { if (active) setReadiness(body); clearFailure("readiness"); })
+        .catch((error: unknown) => recordFailure("readiness", error));
       void readProviderReceipt("moomoo")
         .then((body) => { if (active) setMoomooTicks(body); clearFailure("moomoo"); })
         .catch((error: unknown) => recordFailure("moomoo", error));
@@ -231,8 +262,24 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
   const longbridgeWire = failures.has("longbridge") && !longbridgeTicks
     ? { source: "longbridge", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated Longbridge tick receipt did not return." }
     : longbridgeTicks ? longbridgeTickWireView(longbridgeTicks) : null;
+  const readinessOverrides = {
+    tastytrade: providerConfigReadinessWireView(readiness, "tastytrade", ["tastytrade"]),
+    alpaca: providerConfigReadinessWireView(readiness, "alpaca", ["alpaca-paper", "alpaca-live"]),
+  } as const;
   const wires = [
-    ...marketWires.map((wire) => wire.source === "moomoo" && moomooWire ? moomooWire : wire.source === "longbridge" && longbridgeWire ? longbridgeWire : wire),
+    ...marketWires.map((wire) => {
+      if (wire.source === "moomoo" && moomooWire) return moomooWire;
+      if (wire.source === "longbridge" && longbridgeWire) return longbridgeWire;
+      if (wire.source === "tastytrade" || wire.source === "alpaca") {
+        const override = readinessOverrides[wire.source];
+        // Missing required configuration is a more exact cause than a generic
+        // no-receipt result. Never replace an observed/auth/entitlement probe,
+        // and never promote configured-to-attempt over a failed live probe.
+        if (override && override.tone === "OFFLINE" && wire.tone === "OFFLINE") return override;
+        if (override && (wire.label === "Status unavailable" || wire.label === "Not runtime-wired")) return override;
+      }
+      return wire;
+    }),
   ];
 
   return (
