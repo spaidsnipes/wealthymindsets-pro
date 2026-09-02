@@ -32,9 +32,7 @@ import DLARStrip, { type DLARDimensionKey } from "@/components/command-deck/DLAR
 import WhyInspector, { type WhyTarget } from "@/components/command-deck/WhyInspector";
 import WmWordmark from "@/components/brand/WmWordmark";
 import SectionBanner from "@/components/brand/SectionBanner";
-import CinematicAtmosphere from "@/components/brand/CinematicAtmosphere";
 import RealmGateway from "@/components/brand/RealmGateway";
-import DoctrineTagline from "@/components/brand/DoctrineTagline";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import CommandContextRibbon from "@/components/command/CommandContextRibbon";
 import OneStoryStrip from "@/components/command/OneStoryStrip";
@@ -575,9 +573,6 @@ function CommandDeckInner() {
       </div>
 
       <main style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 16px", position: "relative" }}>
-        {/* Cinematic light rays — subtle, non-interactive, sits behind
-            all content per Founder mockup atmosphere. */}
-        <CinematicAtmosphere intensity="subtle" />
         <div style={{ position: "relative", zIndex: 1 }}>
           {/* Responsive shim — mobile viewport should never see the
               two-column layout that would force a 380px WHY panel next
@@ -654,9 +649,6 @@ function CommandDeckInner() {
                 </button>
               );
             })()}
-
-            {/* Daily-stable doctrine tagline — one aphorism per trader per day. */}
-            <DoctrineTagline seed={`${user?.id ?? "guest"}-${new Date().toISOString().slice(0, 10)}`} />
 
             {/* Today's morning-prep intention (if any) — the PREP→OBSERVE
                 bridge from Founder Aug-14 §14 'Morning Prep intention
