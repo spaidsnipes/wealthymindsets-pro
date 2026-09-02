@@ -46,7 +46,8 @@ import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
 import { normalizeTFId } from "@/lib/timeframes";
 import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
-import { canonicalSession } from "@/lib/marketData/canonicalIdentity";
+import { canonicalSession, canonicalAssetClass } from "@/lib/marketData/canonicalIdentity";
+import { categoryTabsFor } from "@/lib/charts/categoryTabsFor";
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
 
@@ -258,6 +259,17 @@ export function ChartsDashboard() {
   const [chartBars,       setChartBars]       = useState<OHLCVBar[]>([]);
   const [communityOpen,   setCommunityOpen]   = useState(false);
   const [activeTab,       setActiveTab]       = useState("Chart");
+  // Founder 2026-09-02: category tabs are filtered per asset class,
+  // so switching from an equity (Financials selected) to crypto/futures
+  // would strand the user on a tab that no longer exists in the strip.
+  // Snap back to Chart whenever the current tab is not valid for the
+  // new asset class. Pure state reset — no data fetches triggered.
+  useEffect(() => {
+    const allowed = categoryTabsFor(canonicalAssetClass(symbol));
+    if (!allowed.includes(activeTab as (typeof allowed)[number])) {
+      setActiveTab("Chart");
+    }
+  }, [symbol, activeTab]);
   const [infoOpen,        setInfoOpen]        = useState(false); // collapsible right panel
   const [vpDomOpen,       setVpDomOpen]       = useState(false); // Open only when the trader asks for depth
 
@@ -742,7 +754,7 @@ export function ChartsDashboard() {
         role="tablist"
         aria-label="Symbol view categories"
       >
-        {["Chart","Options","ETFs","Financials","Valuation","Corporate Actions","Shareholders","Profile"].map(tab => (
+        {categoryTabsFor(canonicalAssetClass(symbol)).map(tab => (
           <button
             key={tab}
             className="wm-chart-page-tab"
