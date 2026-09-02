@@ -705,6 +705,35 @@ export function ChartsDashboard() {
         >
           the trader's chart
         </span>
+        {/* Founder 2026-09-02: breadcrumb — orientation truth. The user
+            can always see WHERE in the OS they are and jump one level
+            up. activeTab renders as the terminal segment so switching
+            categories updates the crumb without a route change. */}
+        <nav
+          aria-label="Breadcrumb"
+          style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 4, fontSize: 10, color: "#6d7288", letterSpacing: 0.2 }}
+        >
+          <span aria-hidden="true" style={{ color: "#3a3f52" }}>›</span>
+          <a
+            href="/charts"
+            style={{ color: "#a89b6f", textDecoration: "none", fontWeight: 600, letterSpacing: 0.32, textTransform: "uppercase" }}
+            aria-current={activeTab === "Chart" ? "page" : undefined}
+          >
+            Charts
+          </a>
+          <span aria-hidden="true" style={{ color: "#3a3f52" }}>›</span>
+          <span style={{ color: "#c9c2a7", fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }}>
+            {symbol}
+          </span>
+          {activeTab !== "Chart" && (
+            <>
+              <span aria-hidden="true" style={{ color: "#3a3f52" }}>›</span>
+              <span style={{ color: "#8b8fa8", letterSpacing: 0.32, textTransform: "uppercase" }} aria-current="page">
+                {activeTab}
+              </span>
+            </>
+          )}
+        </nav>
         <a
           href="/command-deck"
           style={{
