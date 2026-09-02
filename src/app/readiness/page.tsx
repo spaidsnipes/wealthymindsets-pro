@@ -22,6 +22,9 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { AnimatePresence } from "framer-motion";
+import { Plug2 } from "lucide-react";
+import { BrokerConnectPanel } from "@/components/broker/BrokerConnectPanel";
 import {
   selectReadinessWireboard,
   type ReadinessPayload,
@@ -36,6 +39,7 @@ type LoadState =
 export default function ReadinessPage() {
   const [state, setState] = useState<LoadState>({ phase: "loading" });
   const [origin, setOrigin] = useState<string>("");
+  const [connectOpen, setConnectOpen] = useState(false);
 
   useEffect(() => {
     setOrigin(typeof window !== "undefined" ? window.location.origin : "");
@@ -67,23 +71,32 @@ export default function ReadinessPage() {
           <div className="p-5 sm:p-7">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#f0b429]">WM Pro connection desk</p>
-                <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Provider Readiness Wireboard</h1>
-                <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-500">Source → runtime → canonical owner → trader</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#f0b429]">WM Pro workspace</p>
+                <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Connections</h1>
+                <p className="mt-2 text-xs leading-relaxed text-neutral-400">Connect one broker or several. Each connection is verified independently before it can power charts or trading.</p>
               </div>
-              <Link href="/command-deck" className="rounded-full border border-[#f0b429]/25 bg-[#f0b429]/5 px-4 py-2 text-xs font-semibold text-[#f0b429] transition hover:border-[#f0b429]/50 hover:bg-[#f0b429]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0b429]">
-                ← Command Deck
-              </Link>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConnectOpen(true)}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-emerald-400/35 bg-emerald-400/10 px-4 py-2 text-xs font-semibold text-emerald-300 transition hover:border-emerald-300/60 hover:bg-emerald-400/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                >
+                  <Plug2 size={14} aria-hidden="true" /> Connect or review brokers
+                </button>
+                <Link href="/command-deck" className="rounded-full border border-[#f0b429]/25 bg-[#f0b429]/5 px-4 py-2 text-xs font-semibold text-[#f0b429] transition hover:border-[#f0b429]/50 hover:bg-[#f0b429]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0b429]">
+                  ← Command Deck
+                </Link>
+              </div>
             </div>
-          <p className="mt-5 max-w-3xl text-xs leading-relaxed text-neutral-400">
-            Presence-only observability. <span className="text-neutral-200">READY</span> means the credentials
-            needed to <em>attempt</em> a connection are present — it is strictly weaker than connected or
-            certified. A blocked lane names its <span className="text-neutral-200">actual missing config</span>,
-            never a fabricated "delayed by entitlement". No secret value is ever read or shown.
-          </p>
-          {origin && (
-            <p className="mt-3 inline-flex rounded-full border border-white/5 bg-white/[0.025] px-3 py-1 font-mono text-[10px] text-neutral-500">receipt origin: {origin}</p>
-          )}
+            <details className="mt-5 max-w-3xl rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 text-[11px] leading-relaxed text-neutral-500">
+              <summary className="cursor-pointer font-semibold text-neutral-300">How connection status works</summary>
+              <p className="mt-2">
+                Credentials present means WM Pro may attempt a connection. It does not mean connected or live.
+                Missing setup, authentication, entitlement, no events, and stale data remain separate states.
+                Secret values are never shown.
+              </p>
+              {origin && <p className="mt-2 font-mono text-[10px]">receipt origin: {origin}</p>}
+            </details>
           </div>
         </header>
 
@@ -169,6 +182,9 @@ export default function ReadinessPage() {
           </>
         )}
       </main>
+      <AnimatePresence>
+        {connectOpen && <BrokerConnectPanel onClose={() => setConnectOpen(false)} />}
+      </AnimatePresence>
     </div>
   );
 }

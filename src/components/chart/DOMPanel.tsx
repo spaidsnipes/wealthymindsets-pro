@@ -229,7 +229,7 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
           )}
         </div>
         <div style={{ padding: "18px 14px", color: "#8B95A5", lineHeight: 1.5 }}>
-          <div style={{ color: "#F0B429", fontSize: 10, fontWeight: 900, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 7 }}>Level 2 not connected</div>
+          <div style={{ color: "#F0B429", fontSize: 10, fontWeight: 900, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 7 }}>No observed market depth</div>
           <p style={{ fontSize: 10, margin: 0 }}>
             {symbol} has no observed bid-and-ask book. Quotes and trades are not displayed as depth.
           </p>

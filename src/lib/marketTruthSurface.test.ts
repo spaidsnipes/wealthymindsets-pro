@@ -42,6 +42,8 @@ describe("same-screen market truth contract", () => {
     const dashboard = source("../components/chart/ChartsDashboard.tsx");
     const dom = source("../components/chart/DOMPanel.tsx");
     expect(dashboard).toContain('<DOMPanel key={symbol} symbol={symbol} onClose={() => setVpDomOpen(false)} />');
+    expect(dom).toContain("No observed market depth");
+    expect(dom).not.toContain("Level 2 not connected");
     expect(dom).toContain("Quotes and trades are not displayed as depth.");
     expect(dom).toContain('aria-label="Close market depth panel"');
     expect(dom).toContain('href="/readiness"');

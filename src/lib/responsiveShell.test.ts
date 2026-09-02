@@ -72,11 +72,16 @@ describe("responsive P0 command surfaces", () => {
 
   it("makes multi-provider selection an honest reviewable setup queue", () => {
     const brokers = source("../components/broker/BrokerConnectPanel.tsx");
+    const readiness = source("../app/readiness/page.tsx");
     expect(brokers).toContain("broker setup queue");
     expect(brokers).toContain("Review setup queue");
     expect(brokers).toContain("verification still happens independently");
     expect(brokers).toContain("selectedOnly ? selected.has(b.id) : b.category === tab");
     expect(brokers).not.toContain("providers selected · verify each connection");
+    expect(readiness).toContain("Connect or review brokers");
+    expect(readiness).toContain("Connect one broker or several.");
+    expect(readiness).toContain("<BrokerConnectPanel");
+    expect(readiness).toContain("How connection status works");
   });
 
   it("keeps long-form Nectar and Command Deck surfaces vertically reachable", () => {
