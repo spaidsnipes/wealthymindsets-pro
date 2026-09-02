@@ -292,7 +292,12 @@ export function ChartsDashboard() {
   const [sessionVPChart,  setSessionVPChart]  = useState<boolean>(() => lsGet("wm_sessionVP", false) as boolean);
 
   // ── NEW: Watchlist ──────────────────────────────────────────
-  const [watchlistOpen, setWatchlistOpen] = useState(true);
+  // Keep price action as the dominant canvas. The watchlist remains one click
+  // away and remembers the trader's choice, but it no longer consumes chart
+  // width before the trader asks for it.
+  const [watchlistOpen, setWatchlistOpen] = useState<boolean>(() =>
+    lsGet("wm_chart_watchlist_open", false) as boolean
+  );
   // Moomoo-style grid view (mini-chart cards) vs single chart
   const [gridView, setGridView] = useState(false);
   const [gridRefresh, setGridRefresh] = useState(0);
@@ -301,6 +306,10 @@ export function ChartsDashboard() {
   const [alertsOpen,   setAlertsOpen]   = useState(false);
   const [allAlerts,    setAllAlerts]    = useState<PriceAlert[]>([]);
   const [currentPrice, setCurrentPrice] = useState(0);
+
+  useEffect(() => {
+    try { localStorage.setItem("wm_chart_watchlist_open", JSON.stringify(watchlistOpen)); } catch {}
+  }, [watchlistOpen]);
 
   // ── Strategies ──────────────────────────────────────────────
   const [strategiesOpen,   setStrategiesOpen]   = useState(false);

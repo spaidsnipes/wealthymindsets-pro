@@ -69,6 +69,13 @@ describe("responsive P0 command surfaces", () => {
     expect(dashboard).not.toContain("> Brokers");
   });
 
+  it("opens charts around price action while preserving the trader's watchlist choice", () => {
+    const dashboard = source("../components/chart/ChartsDashboard.tsx");
+    expect(dashboard).toContain('lsGet("wm_chart_watchlist_open", false)');
+    expect(dashboard).toContain('localStorage.setItem("wm_chart_watchlist_open"');
+    expect(dashboard).toContain("onToggleWatchlist={() => setWatchlistOpen(v => !v)}");
+  });
+
   it("removes the retired Harlem Nights identity from active product surfaces", () => {
     const lounge = source("../app/lounge/page.tsx");
     const profile = source("../app/profile/page.tsx");
