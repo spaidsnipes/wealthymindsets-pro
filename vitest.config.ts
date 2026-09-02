@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 /**
  * Vitest configuration.
@@ -18,6 +18,12 @@ import { defineConfig } from "vitest/config";
  * strictly additive: mocked and type-only `@/` imports are unaffected.
  */
 export default defineConfig({
+  test: {
+    // Nested Claude worktrees are separate historical checkouts, not part of
+    // this repository candidate. Running their copied suites mixes stale
+    // expectations into the root receipt and can double/triple execution.
+    exclude: [...configDefaults.exclude, ".claude/worktrees/**"],
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

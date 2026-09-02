@@ -158,6 +158,12 @@ export async function GET(request: Request) {
       // prevClose from daily closes (yesterday's close), for change vs prior session.
       const closes: (number | null)[] = dayRes?.indicators?.quote?.[0]?.close ?? [];
       const validCloses = closes.filter((c): c is number => c != null && c > 0);
+      const ohlcObservation = {
+        open: Boolean(liveOpen || meta?.regularMarketOpen),
+        high: Boolean(liveHigh || meta?.regularMarketDayHigh),
+        low: Boolean(liveLow || meta?.regularMarketDayLow),
+        prevClose: Boolean(validCloses.length >= 2 || meta?.chartPreviousClose || meta?.previousClose),
+      };
       const dailyVolumes: (number | null)[] = dayRes?.indicators?.quote?.[0]?.volume ?? [];
       const validDailyVolumes = dailyVolumes.filter((v): v is number => v != null && v > 0);
       const completedDailyVolumes = validDailyVolumes.length > 1 ? validDailyVolumes.slice(0, -1) : validDailyVolumes;
@@ -197,6 +203,9 @@ export async function GET(request: Request) {
         changePct: prevClose ? +(((price - prevClose) / prevClose) * 100).toFixed(4) : 0,
         volume:     liveVolume || meta?.regularMarketVolume || 0,
         avgVolume:  observedAvgVolume || meta?.averageDailyVolume10Day || meta?.averageDailyVolume3Month || 0,
+        // Identifies which legacy session fields came from an actual provider
+        // observation rather than a compatibility fallback to current price.
+        ohlcObservation,
         // `ts` is transport/response time only — NOT observation chronology.
         ts:        capturedAt,
         // SF-D01 truthful observation (RESOLVED | UNKNOWN discriminated union).

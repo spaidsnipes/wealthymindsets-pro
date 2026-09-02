@@ -57,4 +57,15 @@ describe("same-screen market truth contract", () => {
     expect(tickerTape).toContain('{ animation: "none" }');
     expect(tickerTape).toContain("fetchPolygonPrices(requestedTapeSymbols)");
   });
+
+  it("does not manufacture Stock Info session facts from a current quote", () => {
+    const stockInfo = source("../components/chart/StockInfoPanel.tsx");
+    const yahooRoute = source("../app/api/yahoo/route.ts");
+    expect(stockInfo).toContain("observed?.open");
+    expect(stockInfo).toContain('const open  = realOHLC ? realOHLC.open.toFixed(dp)      : "—"');
+    expect(stockInfo).not.toContain("ticker.price * 0.9986");
+    expect(stockInfo).not.toContain("ticker.price * 1.0012");
+    expect(stockInfo).not.toContain("Jun 15 16:00:00 ET");
+    expect(yahooRoute).toContain("ohlcObservation");
+  });
 });

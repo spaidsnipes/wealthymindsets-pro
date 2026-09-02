@@ -870,7 +870,7 @@ export function ChartsDashboard() {
           <ChartToolbar
             symbol={symbol}         setSymbol={setSymbol}
             timeframe={timeframe}   setTimeframe={setTimeframe}
-            onPnL={() => setBrokerOpen(true)}
+            onConnectBrokers={() => setBrokerOpen(true)}
             onDOM={() => setVpDomOpen(o => !o)}
             onPineScript={() => setPineBuilderOpen(true)}
             onCommunity={() => setCommunityOpen(true)}

@@ -449,7 +449,7 @@ interface ChartToolbarProps {
   setSymbol:           (s: string) => void;
   timeframe:           string;
   setTimeframe:        (t: string) => void;
-  onPnL:               () => void;
+  onConnectBrokers:    () => void;
   onDOM:               () => void;
   onPineScript:        () => void;
   onCommunity?:        () => void;
@@ -507,7 +507,7 @@ function SymbolRow({ s, symbol, onSelect }: { s: SymbolEntry; symbol: string; on
 
 export function ChartToolbar({
   symbol, setSymbol, timeframe, setTimeframe,
-  onPnL, onDOM, onPineScript, onCommunity,
+  onConnectBrokers, onDOM, onPineScript, onCommunity,
   pineActive,
   initialActiveInds, onActiveIndsChange, onIndicatorSettings, onExtHoursChange,
   onAlerts, alertsActive, onSettings,
@@ -1090,7 +1090,7 @@ export function ChartToolbar({
         className="flex items-center gap-1 shrink-0 pl-1.5 h-full"
         style={{ position: "sticky", right: 0, background: "#0D0E14", borderLeft: "1px solid #1E2030", zIndex: 5 }}
       >
-        <button onClick={onPnL}
+        <button onClick={onConnectBrokers}
           aria-label="Connect one or more brokers"
           className="flex items-center gap-1 px-2 h-6 rounded text-[12px] font-semibold border transition-colors shrink-0"
           style={{

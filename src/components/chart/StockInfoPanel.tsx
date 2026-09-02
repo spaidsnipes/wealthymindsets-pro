@@ -110,6 +110,7 @@ export function StockInfoPanel({ symbol }: Props) {
 
   // Fetch real OHLC at mount and on symbol change
   useEffect(() => {
+    setRealOHLC(null);
     const up = symbol.toUpperCase();
     const isFutures = up.endsWith("1!") || up.includes("=F");
     const isCrypto  = ["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC"].includes(up);
@@ -118,11 +119,12 @@ export function StockInfoPanel({ symbol }: Props) {
     void isFutures; void isCrypto;
     const url = `/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`;
     fetch(url, { cache: "no-store" }).then(r => r.json()).then(j => {
-      if (j?.price > 0) setRealOHLC({
-        open:      j.open      ?? j.price,
-        high:      j.high      ?? j.price,
-        low:       j.low       ?? j.price,
-        prevClose: j.prevClose ?? j.price,
+      const observed = j?.ohlcObservation;
+      if (j?.price > 0 && observed?.open && observed?.high && observed?.low && observed?.prevClose) setRealOHLC({
+        open:      j.open,
+        high:      j.high,
+        low:       j.low,
+        prevClose: j.prevClose,
         volume:    j.volume    ?? 0,
       });
     }).catch(() => {});
@@ -136,19 +138,14 @@ export function StockInfoPanel({ symbol }: Props) {
   const up = ticker.change >= 0;
   const name = getSymbolName(symbol);
 
-  // Use real OHLC if available, else derive from live ticker
+  // Session facts render only when the provider fields were observed.
   const dp = ticker.price > 1000 ? 2 : ticker.price > 10 ? 3 : 5;
-  const open  = realOHLC ? +realOHLC.open.toFixed(dp)      : +(ticker.price * 0.9986).toFixed(dp);
-  const high  = realOHLC ? +realOHLC.high.toFixed(dp)      : +(ticker.price * 1.0054).toFixed(dp);
-  const low   = realOHLC ? +realOHLC.low.toFixed(dp)       : +(ticker.price * 0.9944).toFixed(dp);
-  const prev  = realOHLC ? +realOHLC.prevClose.toFixed(dp) : +(ticker.price - ticker.change).toFixed(dp);
+  const open  = realOHLC ? realOHLC.open.toFixed(dp)      : "—";
+  const high  = realOHLC ? realOHLC.high.toFixed(dp)      : "—";
+  const low   = realOHLC ? realOHLC.low.toFixed(dp)       : "—";
+  const prev  = realOHLC ? realOHLC.prevClose.toFixed(dp) : "—";
   const vol   = realOHLC?.volume ? (realOHLC.volume >= 1e9 ? `${(realOHLC.volume/1e9).toFixed(2)}B` : realOHLC.volume >= 1e6 ? `${(realOHLC.volume/1e6).toFixed(2)}M` : `${(realOHLC.volume/1e3).toFixed(0)}K`) : "—";
   const turn  = "—";
-
-  // Pre-market values derived from live ticker
-  const preMkt    = ticker.price > 0 ? (ticker.price * 1.0012).toFixed(dp) : "—";
-  const preMktChg = ticker.price > 0 ? +(ticker.price * 0.0012).toFixed(dp) : 0;
-  const preMktPct = ticker.price > 0 ? +(0.12).toFixed(2) : 0;
 
   const TABS: TabType[]    = ["Quotes", "Analysis", "Comments", "News"];
   const SUB_TABS: SubTabType[] = ["Ticks", "Summary"];
@@ -197,17 +194,16 @@ export function StockInfoPanel({ symbol }: Props) {
         {/* Prev close */}
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
           <span style={{ fontSize: 9, color: "#4A5070" }}>Prev Close</span>
-          <span style={{ fontSize: 9, color: "#8B8FA8" }}>Jun 15 16:00:00 ET</span>
-          <span style={{ fontSize: 9 }}>🇺🇸</span>
+          <span style={{ fontSize: 9, color: "#8B8FA8", fontFamily: "monospace" }}>{prev}</span>
         </div>
 
         {/* Stats grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 0", marginTop: 8 }}>
           {[
-            ["High",       high.toFixed(3)],
-            ["Low",        low.toFixed(3)],
-            ["Open",       open.toFixed(3)],
-            ["Prev Close", prev.toFixed(3)],
+            ["High",       high],
+            ["Low",        low],
+            ["Open",       open],
+            ["Prev Close", prev],
             ["Volume",     vol],
             ["Turnover",   turn],
           ].map(([k, v]) => (
@@ -216,19 +212,6 @@ export function StockInfoPanel({ symbol }: Props) {
               <span style={{ fontSize: 10, color: "#E2E8F0", fontFamily: "monospace" }}>{v}</span>
             </div>
           ))}
-        </div>
-
-        {/* Pre-market */}
-        <div style={{
-          marginTop: 6, padding: "4px 6px", background: "#131520", borderRadius: 4,
-          display: "flex", alignItems: "center", gap: 6, fontSize: 10,
-        }}>
-          <span style={{ color: "#8B8FA8" }}>Pre Mkt</span>
-          <span style={{ color: "#E2E8F0", fontFamily: "monospace" }}>{preMkt}</span>
-          <span style={{ color: preMktChg < 0 ? "#FF4D67" : "#00C076", fontFamily: "monospace" }}>
-            {preMktChg > 0 ? "+" : ""}{preMktChg}&nbsp;{preMktPct > 0 ? "+" : ""}{preMktPct}%
-          </span>
-          <span style={{ color: "#4A5070" }}>04:45 ET ▼</span>
         </div>
 
         {/* Vendor-agnostic data status indicator. */}
