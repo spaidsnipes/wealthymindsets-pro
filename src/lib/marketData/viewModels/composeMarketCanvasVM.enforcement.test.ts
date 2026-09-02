@@ -120,6 +120,19 @@ describe("composeMarketCanvasVM enforcement — canon §Single-Writer / Many-Rea
     expect(content).toMatch(/MarketCanvasPanel|CanvasSummaryPill/);
   });
 
+  it("fifth Phase 3 consumer /charts routes through useMarketCanvasVM (2026-09-02 breadcrumb)", () => {
+    // Founder Visual Systems Execution Canon call-in (Asset 10 — Full
+    // Operating System Overview): /charts is the primary trader surface
+    // and must expose the same canonical canvas verdict as the deck.
+    // ChartsDashboard.tsx now composes useMarketCanvasVM and renders
+    // CanvasSummaryPill in the wordmark row — same compiler as
+    // /command-deck, zero divergent verdict.
+    const p = resolve(SRC_ROOT, "src/components/chart/ChartsDashboard.tsx");
+    const content = readFileSync(p, "utf8");
+    expect(content).toMatch(/useMarketCanvasVM|composeMarketCanvasVM/);
+    expect(content).toMatch(/MarketCanvasPanel|CanvasSummaryPill/);
+  });
+
   it("does not hide canonical Canvas or channel evidence behind session trade collection", () => {
     const p = resolve(SRC_ROOT, "src/app/nectar/[symbol]/page.tsx");
     const content = readFileSync(p, "utf8");

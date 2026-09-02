@@ -46,8 +46,16 @@ import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
 import { normalizeTFId } from "@/lib/timeframes";
 import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
-import { canonicalSession, canonicalAssetClass } from "@/lib/marketData/canonicalIdentity";
+import { canonicalSession, canonicalAssetClass, canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
 import { categoryTabsFor } from "@/lib/charts/categoryTabsFor";
+// Micah + Noah 2026-09-02 — /charts joins the Phase 3 Market Canvas.
+// Composes the SAME canonical compiler /command-deck already routes through
+// (composeMarketCanvasVM via useMarketCanvasVM), rendering the canvas verdict
+// in the wordmark row via CanvasSummaryPill. Real data owners only — no
+// fake heatmap, no invented confidence — per Living-Pixel Law.
+import { useMarketCanvasVM } from "@/lib/marketData/viewModels/useMarketCanvasVM";
+import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
 
@@ -557,6 +565,23 @@ export function ChartsDashboard() {
     connected,
   });
 
+  // Micah + Noah 2026-09-02 — /charts joins Phase 3 Market Canvas as a
+  // reader. Same canonicalIdentity the publisher writes → same compiler
+  // the deck consumes. Zero duplicate pipeline, zero divergent verdict.
+  // Living-Pixel Law satisfied: every field the pill renders derives
+  // from a real canonical source (composeMarketCanvasVM); silent when
+  // evidence is not yet enough (§Silence Is A Feature).
+  const { user: canvasUser } = useAuth();
+  const canvasIdentity = React.useMemo(
+    () => canonicalMarketStateIdentity({ symbol, timeframe, extHours }),
+    [symbol, timeframe, extHours],
+  );
+  const chartCanvasVM = useMarketCanvasVM({
+    identity: canvasIdentity,
+    ownerId: canvasUser?.id ?? null,
+  });
+  const chartMarketCanvas = chartCanvasVM.canvas;
+
   // Track day high/low from ticker
   useEffect(() => {
     if (ticker.price > 0) {
@@ -734,6 +759,19 @@ export function ChartsDashboard() {
             </>
           )}
         </nav>
+        {/* Phase 3 Market Canvas verdict — same compiler as /command-deck.
+            Sourced via useMarketCanvasVM(canvasIdentity); silent when
+            evidence is insufficient (§Silence Is A Feature). No fake
+            confidence, no invented aggressor ratio — every field flows
+            from the canonical compiler. Founder canon: Asset 10
+            "Full Operating System Overview" merge into the primary
+            trader surface. */}
+        <div style={{ marginLeft: 4, marginRight: 4, display: "flex", alignItems: "center" }}>
+          <CanvasSummaryPill
+            vm={chartMarketCanvas}
+            ariaLabel="Chart market canvas summary"
+          />
+        </div>
         <a
           href="/command-deck"
           style={{
