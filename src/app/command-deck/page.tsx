@@ -325,8 +325,13 @@ function CommandDeckInner() {
     [experienceContext.mode, oneStory.contradiction, decisionReceipt.empty],
   );
   React.useEffect(() => {
-    setProofChainOpen(deckEmphasis.emphasizeWhy || deckEmphasis.passportOpen || deckEmphasis.receiptOpen);
-  }, [deckEmphasis.emphasizeWhy, deckEmphasis.passportOpen, deckEmphasis.receiptOpen, experienceContext.mode]);
+    // Auto-Quiet: only the capital-decision modes (WAIT / EXECUTE) may
+    // automatically reveal the proof chain. OBSERVE, MANAGE, REVIEW, and
+    // LEARN still rank the relevant inner panel first, but the trader opens
+    // the chain deliberately. This prevents a Passport or Receipt preference
+    // from expanding the entire evidence stack on arrival.
+    setProofChainOpen(deckEmphasis.emphasizeWhy);
+  }, [deckEmphasis.emphasizeWhy, experienceContext.mode]);
 
   // Completion Intelligence (the "DONE" half of the experience grammar): from
   // the SAME concrete decision state, answer "can I stop carrying this now?"

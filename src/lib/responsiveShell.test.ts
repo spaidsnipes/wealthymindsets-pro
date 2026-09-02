@@ -55,6 +55,8 @@ describe("responsive P0 command surfaces", () => {
     expect(deck).toContain("Open the proof chain");
     expect(deck.indexOf("wm-cd-evidence-drawer")).toBeLessThan(deck.indexOf("<DecisionWhyPanel"));
     expect(deck.indexOf("wm-cd-evidence-drawer")).toBeLessThan(deck.indexOf("<MarketCanvasPanel"));
+    expect(deck).toContain("setProofChainOpen(deckEmphasis.emphasizeWhy)");
+    expect(deck).not.toContain("deckEmphasis.emphasizeWhy || deckEmphasis.passportOpen");
     expect(deck).not.toContain("CinematicAtmosphere");
     expect(deck).not.toContain("DoctrineTagline");
   });
