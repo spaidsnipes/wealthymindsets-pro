@@ -136,6 +136,7 @@ function CommandDeckInner() {
   const [phase, setPhase] = React.useState<CommandPhase>("PREPARATION");
   const [whyTarget, setWhyTarget] = React.useState<WhyTarget | null>(null);
   const [showEvidence, setShowEvidence] = React.useState<boolean>(false);
+  const [proofChainOpen, setProofChainOpen] = React.useState(false);
 
   // Experience layer (Founder Phase 1): the seven operating states reorganise
   // the shell's EMPHASIS around the human's current job — the market truth
@@ -325,6 +326,9 @@ function CommandDeckInner() {
       }),
     [experienceContext.mode, oneStory.contradiction, decisionReceipt.empty],
   );
+  React.useEffect(() => {
+    setProofChainOpen(deckEmphasis.emphasizeWhy || deckEmphasis.passportOpen || deckEmphasis.receiptOpen);
+  }, [deckEmphasis.emphasizeWhy, deckEmphasis.passportOpen, deckEmphasis.receiptOpen, experienceContext.mode]);
 
   // Completion Intelligence (the "DONE" half of the experience grammar): from
   // the SAME concrete decision state, answer "can I stop carrying this now?"
@@ -722,7 +726,10 @@ function CommandDeckInner() {
                   with the hero and one-story read. Advanced evidence is one
                   intentional disclosure instead of four stacked gold panels. */}
               <details
+                key={`evidence-${experienceContext.mode}`}
                 className="wm-cd-evidence-drawer"
+                open={proofChainOpen}
+                onToggle={event => setProofChainOpen(event.currentTarget.open)}
                 style={{
                   order: surfaceOrder(deckEmphasis, "WHY"),
                   border: "1px solid rgba(139,106,41,0.28)",
@@ -755,7 +762,7 @@ function CommandDeckInner() {
                   {/* WHY / WHY NOT (canon P6) — reverses the right-of-way verdict to
                       its concrete causes so the trader sees exactly what stands
                       between them and entry (or why the path is clear). */}
-                  <div>
+                  <div style={{ order: surfaceOrder(deckEmphasis, "WHY") }}>
                     <DecisionWhyPanel vm={decisionWhy} />
                   </div>
 
@@ -764,7 +771,7 @@ function CommandDeckInner() {
                   silently when every corner is empty (canon §Silence Is
                   A Feature). The fourth corner (WHY?) stays with
                   WhyInspector because it needs per-target evidence. */}
-                  <div>
+                  <div style={{ order: surfaceOrder(deckEmphasis, "STORY") }}>
                     <MarketCanvasPanel vm={marketCanvas} />
                   </div>
 
@@ -774,7 +781,10 @@ function CommandDeckInner() {
                   contradiction / invalidation. Pure display of the sealed state.
                   Opens by default when the job is OBSERVE (studying market
                   objects) per the deck job-emphasis. */}
-                  <details>
+                  <details
+                    style={{ order: surfaceOrder(deckEmphasis, "PASSPORT") }}
+                    open={deckEmphasis.passportOpen}
+                  >
                 <summary
                   style={{
                     cursor: "pointer",
@@ -800,7 +810,10 @@ function CommandDeckInner() {
                   grade. Honest empty state when nothing is sealed yet. Opens by
                   default in management + reflection jobs (MANAGE / REVIEW / LEARN)
                   per the deck job-emphasis. */}
-                  <details>
+                  <details
+                    style={{ order: surfaceOrder(deckEmphasis, "RECEIPT") }}
+                    open={deckEmphasis.receiptOpen}
+                  >
                 <summary
                   style={{
                     cursor: "pointer",

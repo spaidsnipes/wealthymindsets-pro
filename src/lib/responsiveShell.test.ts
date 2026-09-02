@@ -30,6 +30,8 @@ describe("responsive P0 command surfaces", () => {
     expect(layout).toContain('aria-label="Open workspace menu"');
     expect(layout).toContain('id="wm-workspace-menu"');
     expect(layout).toContain("Everything, without the clutter.");
+    expect(layout).toContain("<ShellModalDrawer");
+    expect(layout).toContain("fallbackTriggerRef={workspaceTriggerRef}");
     expect(layout).toContain("{ title: \"Market tools\", items: NAV_WORKBENCH }");
     expect(layout).toContain("{ title: \"Community & business\", items: NAV_BOTTOM }");
   });
@@ -46,7 +48,7 @@ describe("responsive P0 command surfaces", () => {
   it("keeps the multi-broker entry point visible at the right edge of the chart toolbar", () => {
     const toolbar = source("../components/chart/ChartToolbar.tsx");
     expect(toolbar).toContain('aria-label="Connect one or more brokers"');
-    expect(toolbar).toContain("sticky right-0 z-20");
+    expect(toolbar).toContain('style={{ position: "sticky", right: 0');
     expect(toolbar).toContain("Connect brokers");
   });
 

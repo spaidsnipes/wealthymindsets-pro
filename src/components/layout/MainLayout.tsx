@@ -914,6 +914,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const notificationsTriggerRef = useRef<HTMLButtonElement>(null);
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);
+  const workspaceTriggerRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
 
   useEffect(() => setWorkspaceOpen(false), [pathname]);
@@ -1074,6 +1075,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           {/* User avatar — click to open dropdown */}
           <div className="wm-shell-profile relative ml-2">
             <button
+              ref={workspaceTriggerRef}
               onClick={() => setProfileOpen(o => !o)}
               aria-label={profileOpen ? "Close profile menu" : "Open profile menu"}
               className="wm-shell-avatar w-7 h-7 rounded-full overflow-hidden ring-2 ring-wm-green/30 hover:ring-wm-green/60 transition-all shrink-0"
@@ -1207,37 +1209,19 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
           <AnimatePresence>
             {workspaceOpen && (
-              <>
-                <motion.button
-                  type="button"
-                  aria-label="Close workspace menu"
-                  onClick={() => setWorkspaceOpen(false)}
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  style={{ position: "fixed", inset: "44px 0 0 72px", border: 0, background: "rgba(0,0,0,.48)", zIndex: 68 }}
-                />
-                <motion.section
-                  id="wm-workspace-menu"
-                  aria-label="Workspace"
-                  initial={{ opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -14 }}
-                  transition={{ duration: 0.16 }}
-                  style={{
-                    position: "fixed", left: 72, top: 44, bottom: 0, width: 292, zIndex: 69,
-                    background: "linear-gradient(180deg,#11131b 0%,#0b0c12 100%)",
-                    borderRight: "1px solid rgba(232,185,35,.24)", boxShadow: "18px 0 48px rgba(0,0,0,.48)",
-                    padding: "20px 16px", overflowY: "auto",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
-                    <div>
-                      <div style={{ color: "#E8B923", fontSize: 10, fontWeight: 800, letterSpacing: ".16em", textTransform: "uppercase" }}>Workspace</div>
-                      <div style={{ color: "#E2E8F0", fontSize: 18, fontWeight: 760, marginTop: 5 }}>Everything, without the clutter.</div>
-                      <p style={{ color: "#8B8FA8", fontSize: 11, lineHeight: 1.5, marginTop: 6 }}>Open a focused tool, then return to the market with one clear job.</p>
-                    </div>
-                    <button type="button" aria-label="Close workspace menu" onClick={() => setWorkspaceOpen(false)}
-                      style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #272a38", color: "#AEB3C7", display: "grid", placeItems: "center" }}>
-                      <X size={16} />
-                    </button>
-                  </div>
+              <ShellModalDrawer
+                id="wm-workspace-menu"
+                titleId="wm-workspace-title"
+                descriptionId="wm-workspace-description"
+                title="Workspace"
+                description="Everything, without the clutter. Open one focused tool, then return to the market."
+                closeLabel="Close workspace menu"
+                width={360}
+                fallbackTriggerRef={workspaceTriggerRef}
+                onClose={() => setWorkspaceOpen(false)}
+                titleIcon={<Menu size={17} aria-hidden="true" />}
+              >
+                <div style={{ padding: "2px 16px 20px" }}>
 
                   {[
                     { title: "Market tools", items: NAV_WORKBENCH },
@@ -1264,8 +1248,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                       </div>
                     </div>
                   ))}
-                </motion.section>
-              </>
+                </div>
+              </ShellModalDrawer>
             )}
           </AnimatePresence>
         </aside>

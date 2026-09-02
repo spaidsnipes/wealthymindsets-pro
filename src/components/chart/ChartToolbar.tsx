@@ -1041,21 +1041,6 @@ export function ChartToolbar({
         <LayoutGrid size={12} /> DOM
       </button>
 
-      <button onClick={onPnL}
-        aria-label="Connect one or more brokers"
-        className="sticky right-0 z-20 flex items-center gap-1 px-2 h-6 rounded text-[12px] font-semibold border transition-colors shrink-0"
-        style={{
-          background:"linear-gradient(90deg,#0c1517,#0a1815)",
-          borderColor:"rgba(0,192,118,0.45)",
-          color:"#00C076",
-          boxShadow:"-10px 0 18px rgba(7,9,14,.92)",
-        }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,192,118,0.22)"; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,192,118,0.10)"; }}
-        title="Connect a Broker to Trade">
-        <Plug2 size={11} /> Connect brokers
-      </button>
-
       <button onClick={onPineScript}
         className={clsx(
           "flex items-center gap-1 px-2 h-6 rounded text-[11px] font-semibold transition-colors shrink-0 border",
@@ -1105,6 +1090,18 @@ export function ChartToolbar({
         className="flex items-center gap-1 shrink-0 pl-1.5 h-full"
         style={{ position: "sticky", right: 0, background: "#0D0E14", borderLeft: "1px solid #1E2030", zIndex: 5 }}
       >
+        <button onClick={onPnL}
+          aria-label="Connect one or more brokers"
+          className="flex items-center gap-1 px-2 h-6 rounded text-[12px] font-semibold border transition-colors shrink-0"
+          style={{
+            background:"linear-gradient(90deg,#0c1517,#0a1815)",
+            borderColor:"rgba(0,192,118,0.45)",
+            color:"#00C076",
+          }}
+          title="Connect one or more brokers">
+          <Plug2 size={11} /> Connect brokers
+        </button>
+
         {/* Alerts */}
         {onAlerts && (
           <button onClick={onAlerts}
