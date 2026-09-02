@@ -788,21 +788,16 @@ export function ChartsDashboard() {
           }}>{tab}</button>
         ))}
 
-        {/* ── Layout theme toggle (top-right) ── */}
+        {/* Keep appearance optional and compact; it must not compete with the
+            symbol, market state, or chart navigation. */}
         <div className="wm-chart-theme-controls" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, paddingRight: 14, flexShrink: 0 }}>
           <button
-            className={`wm-theme-toggle ${theme === "original" ? "is-neon" : ""}`}
-            onClick={() => setTheme("original")}
-            title="Clean, professional TradingView-style layout"
-          >
-            ◻ Original
-          </button>
-          <button
             className={`wm-theme-toggle ${theme === "neon" ? "is-neon" : ""}`}
-            onClick={() => setTheme("neon")}
-            title="WM Neon — Tron × Matrix × Star Wars aesthetic"
+            onClick={() => setTheme(theme === "neon" ? "original" : "neon")}
+            title={`Switch to ${theme === "neon" ? "Original" : "WM Neon"} appearance`}
+            aria-label={`Chart appearance: ${theme === "neon" ? "WM Neon" : "Original"}. Switch appearance.`}
           >
-            ⬢ WM Neon
+            Appearance
           </button>
         </div>
       </div>

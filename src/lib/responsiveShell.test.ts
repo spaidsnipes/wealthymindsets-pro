@@ -76,6 +76,13 @@ describe("responsive P0 command surfaces", () => {
     expect(dashboard).toContain("onToggleWatchlist={() => setWatchlistOpen(v => !v)}");
   });
 
+  it("keeps chart appearance available without two competing theme buttons", () => {
+    const dashboard = source("../components/chart/ChartsDashboard.tsx");
+    expect(dashboard).toContain("Chart appearance:");
+    expect(dashboard).toContain("Switch appearance.");
+    expect(dashboard.match(/className={`wm-theme-toggle/g)).toHaveLength(1);
+  });
+
   it("removes the retired Harlem Nights identity from active product surfaces", () => {
     const lounge = source("../app/lounge/page.tsx");
     const profile = source("../app/profile/page.tsx");
