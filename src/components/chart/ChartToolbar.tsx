@@ -5,7 +5,7 @@ import {
   Search, ChevronDown,
   LayoutGrid, Clock, DollarSign, BarChart2, Plug2,
   X, ChevronRight, Star, Check, Bell, Settings,
-  Play, GitMerge, HelpCircle,
+  Play, GitMerge, HelpCircle, MoreHorizontal,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { type ChartLayout } from "./ChartLayoutManager";
@@ -519,6 +519,7 @@ export function ChartToolbar({
   const [symbolOpen,     setSymbolOpen]    = useState(false);
   const [symCat,         setSymCat]        = useState("All");
   const [indicatorOpen,  setIndicatorOpen] = useState(false);
+  const [advancedOpen,   setAdvancedOpen]  = useState(false);
   const [extendedHours,  setExtendedHours] = useState(false);
   const [activeInds,     setActiveInds]    = useState<Set<string>>(() => initialActiveInds ? new Set(initialActiveInds) : new Set<string>());
   const [indSearch,      setIndSearch]     = useState("");
@@ -534,6 +535,7 @@ export function ChartToolbar({
 
   const symRef  = useRef<HTMLDivElement>(null);
   const indRef  = useRef<HTMLDivElement>(null);
+  const advancedRef = useRef<HTMLDivElement>(null);
   const symInputRef = useRef<HTMLInputElement>(null);
 
   /* ── Finnhub live search (via server proxy to avoid CORS) ── */
@@ -573,6 +575,7 @@ export function ChartToolbar({
     const h = (e: MouseEvent) => {
       if (symRef.current  && !symRef.current.contains(e.target as Node))  setSymbolOpen(false);
       if (indRef.current  && !indRef.current.contains(e.target as Node))  setIndicatorOpen(false);
+      if (advancedRef.current && !advancedRef.current.contains(e.target as Node)) setAdvancedOpen(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
@@ -1035,54 +1038,6 @@ export function ChartToolbar({
 
       <div className="w-px h-5 bg-wm-border mx-0.5 shrink-0" />
 
-      {/* ══ Panel Toggles ═══════════════════════════════════ */}
-      <button onClick={onDOM}
-        className="flex items-center gap-1 px-2 h-6 rounded text-[11px] text-wm-text-muted hover:text-wm-text hover:bg-wm-surface transition-colors shrink-0"
-        title="DOM Ladder">
-        <LayoutGrid size={12} /> DOM
-      </button>
-
-      <button onClick={onPineScript}
-        className={clsx(
-          "flex items-center gap-1 px-2 h-6 rounded text-[11px] font-semibold transition-colors shrink-0 border",
-          pineActive
-            ? "bg-wm-purple/20 text-wm-purple border-wm-purple/40"
-            : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border-transparent"
-        )}
-        title="Pine Script Editor">
-        <span className="text-sm leading-none">ƒ</span> Pine
-      </button>
-
-      <div className="w-px h-5 bg-wm-border mx-0.5 shrink-0" />
-
-      {/* ══ Replay ══════════════════════════════════════════ */}
-      {onReplay && (
-        <button onClick={onReplay}
-          className={clsx(
-            "flex items-center gap-1 px-2 h-6 rounded text-[11px] transition-colors shrink-0 border",
-            replayActive
-              ? "bg-wm-red/20 text-wm-red border-wm-red/40"
-              : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border-transparent"
-          )}
-          title="Bar Replay">
-          <Play size={10} /> Replay
-        </button>
-      )}
-
-      {/* ══ Compare ══════════════════════════════════════════ */}
-      {onCompare && (
-        <button onClick={onCompare}
-          className={clsx(
-            "flex items-center gap-1 px-2 h-6 rounded text-[11px] transition-colors shrink-0 border",
-            compareActive
-              ? "bg-wm-blue/20 text-wm-blue border-wm-blue/40"
-              : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border-transparent"
-          )}
-          title="Compare symbol">
-          <GitMerge size={10} /> Compare
-        </button>
-      )}
-
       <div className="ml-auto" />
 
       {/* ══ Pinned right cluster — always visible, never clipped ══════
@@ -1091,6 +1046,52 @@ export function ChartToolbar({
         className="flex items-center gap-1 shrink-0 pl-1.5 h-full"
         style={{ position: "sticky", right: 0, background: "#0D0E14", borderLeft: "1px solid #1E2030", zIndex: 5 }}
       >
+        <div className="relative" ref={advancedRef}>
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen(open => !open)}
+            aria-expanded={advancedOpen}
+            aria-haspopup="menu"
+            className={clsx(
+              "flex min-h-11 items-center gap-1 rounded border px-2 text-[11px] font-semibold transition-colors",
+              advancedOpen || pineActive || replayActive || compareActive || alertsActive
+                ? "border-wm-gold/35 bg-wm-gold/10 text-wm-gold"
+                : "border-wm-border text-wm-text-muted hover:text-wm-text",
+            )}
+            title="More chart tools"
+          >
+            <MoreHorizontal size={13} /> Tools
+          </button>
+          {advancedOpen && (() => {
+            const rect = advancedRef.current?.getBoundingClientRect();
+            const itemClass = "flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-[11px] font-semibold text-wm-text-muted transition-colors hover:bg-wm-surface hover:text-wm-text";
+            return (
+              <div
+                role="menu"
+                aria-label="More chart tools"
+                style={{
+                  position: "fixed",
+                  top: (rect?.bottom ?? 36) + 4,
+                  right: Math.max(8, window.innerWidth - (rect?.right ?? window.innerWidth)),
+                  zIndex: 9999,
+                  width: 210,
+                  background: "var(--wm-card,#131520)",
+                  border: "1px solid var(--wm-border,#1E2030)",
+                  borderRadius: 12,
+                  boxShadow: "0 12px 40px rgba(0,0,0,0.8)",
+                  padding: 6,
+                }}
+              >
+                <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onDOM(); }}><LayoutGrid size={13} /> Depth ladder</button>
+                <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onPineScript(); }}><span className="text-sm">ƒ</span> Pine workspace{pineActive ? " · active" : ""}</button>
+                {onReplay && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onReplay(); }}><Play size={12} /> Replay{replayActive ? " · active" : ""}</button>}
+                {onCompare && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onCompare(); }}><GitMerge size={12} /> Compare{compareActive ? " · active" : ""}</button>}
+                {onAlerts && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onAlerts(); }}><Bell size={12} /> Alerts{alertsActive ? " · active" : ""}</button>}
+                {onSettings && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onSettings(); }}><Settings size={12} /> Chart settings</button>}
+              </div>
+            );
+          })()}
+        </div>
         <button ref={connectBrokersTriggerRef} onClick={onConnectBrokers}
           aria-label="Connect one or more brokers"
           aria-haspopup="dialog"
@@ -1104,31 +1105,6 @@ export function ChartToolbar({
           title="Connect one or more brokers">
           <Plug2 size={11} /> Connect brokers
         </button>
-
-        {/* Alerts */}
-        {onAlerts && (
-          <button onClick={onAlerts}
-            className={clsx(
-              "flex items-center gap-1 px-2 h-6 rounded text-[11px] transition-colors shrink-0 border",
-              alertsActive
-                ? "bg-wm-gold/20 text-wm-gold border-wm-gold/40"
-                : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface border-transparent"
-            )}
-            title="Price Alerts">
-            <Bell size={10} /> Alerts
-          </button>
-        )}
-
-        {/* Layout Manager moved to the left tool strip (LeftSidebar) */}
-
-        {/* Settings */}
-        {onSettings && (
-          <button onClick={onSettings}
-            className="p-1.5 rounded hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors shrink-0 border border-transparent hover:border-wm-border"
-            title="Chart Settings">
-            <Settings size={13} />
-          </button>
-        )}
 
       </div>
 

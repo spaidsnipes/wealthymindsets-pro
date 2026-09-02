@@ -1,0 +1,28 @@
+import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const toolbar = readFileSync(resolve(process.cwd(), "src/components/chart/ChartToolbar.tsx"), "utf8");
+
+describe("chart progressive disclosure", () => {
+  it("keeps the trading decision controls and broker entry primary", () => {
+    expect(toolbar).toContain("TIMEFRAMES.map");
+    expect(toolbar).toContain("RTH — Regular Hours");
+    expect(toolbar).toContain("Indicators");
+    expect(toolbar).toContain("Connect brokers");
+  });
+
+  it("moves secondary chart utilities into one accessible tools menu", () => {
+    expect(toolbar).toContain('aria-haspopup="menu"');
+    expect(toolbar).toContain('role="menu"');
+    expect(toolbar).toContain('role="menuitem"');
+    expect(toolbar).toContain("Depth ladder");
+    expect(toolbar).toContain("Pine workspace");
+    expect(toolbar).toContain("Chart settings");
+  });
+
+  it("keeps the menu viewport-bound instead of extending the toolbar", () => {
+    expect(toolbar).toContain('position: "fixed"');
+    expect(toolbar).toContain("window.innerWidth - (rect?.right ?? window.innerWidth)");
+  });
+});
