@@ -25,6 +25,10 @@ interface Broker {
     docsUrl:      string;
     endpoint:     string;         // our internal proxy: /api/broker/[id]/account
   };
+  managedConnection?: {
+    endpoint: string;
+    docsUrl: string;
+  };
 }
 
 const BROKERS: Broker[] = [
@@ -65,6 +69,10 @@ const BROKERS: Broker[] = [
     features:["Stocks","ETFs","Options","Commission-free"],
     signInUrl:"https://app.webull.com/",
     signUpUrl:"https://www.webull.com/signup",
+    managedConnection:{
+      endpoint:"/api/broker/webull/status",
+      docsUrl:"https://developer.webull.com/apis/docs/trade-api/getting-started/",
+    },
   },
   {
     id:"ib", name:"Interactive Brokers", category:"broker",
@@ -458,6 +466,99 @@ function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => v
   );
 }
 
+interface ManagedConnectionReceipt {
+  provider: string;
+  configured: boolean;
+  connected: boolean;
+  state: string;
+  accountCount: number;
+  accountTypes: readonly string[];
+  note: string;
+}
+
+function ManagedConnectionStatus({ broker }: { broker: Broker }) {
+  const managed = broker.managedConnection!;
+  const [loading, setLoading] = useState(true);
+  const [receipt, setReceipt] = useState<ManagedConnectionReceipt | null>(null);
+  const [error, setError] = useState("");
+
+  const check = React.useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(managed.endpoint, { cache: "no-store" });
+      const json = await response.json().catch(() => null) as ManagedConnectionReceipt | null;
+      if (!response.ok || !json) {
+        setReceipt(null);
+        setError(response.status === 401 ? "Sign in to WM Pro to check this connection." : `Connection check failed (HTTP ${response.status}).`);
+      } else {
+        setReceipt(json);
+      }
+    } catch {
+      setReceipt(null);
+      setError("WM Pro could not reach the broker connection check.");
+    } finally {
+      setLoading(false);
+    }
+  }, [managed.endpoint]);
+
+  useEffect(() => { void check(); }, [check]);
+
+  const connected = receipt?.connected === true;
+  return (
+    <div className="space-y-2">
+      <div
+        role="status"
+        className="rounded-xl border px-3 py-2.5"
+        style={{
+          borderColor: connected ? "rgba(0,192,118,0.35)" : "rgba(255,255,255,0.1)",
+          background: connected ? "rgba(0,192,118,0.06)" : "rgba(255,255,255,0.025)",
+        }}
+      >
+        <div className="flex items-center gap-2 text-[11px] font-black" style={{ color: connected ? "#00C076" : broker.color }}>
+          {loading ? <Loader2 size={12} className="animate-spin" /> : connected ? <Check size={12} /> : <AlertCircle size={12} />}
+          {loading ? "Checking signed connection…" : connected ? "Webull account wire connected" : (receipt?.state || "Connection not proven")}
+        </div>
+        {!loading && receipt && (
+          <>
+            <p className="mt-1 text-[10px] leading-relaxed text-wm-text-muted">{receipt.note}</p>
+            {connected && (
+              <p className="mt-1 text-[10px] text-wm-text-dim">
+                {receipt.accountCount} account{receipt.accountCount === 1 ? "" : "s"}
+                {receipt.accountTypes.length ? ` · ${receipt.accountTypes.join(" · ")}` : ""}
+              </p>
+            )}
+          </>
+        )}
+        {!loading && error && <p className="mt-1 text-[10px] text-wm-red">{error}</p>}
+      </div>
+      <div className="grid grid-cols-2 gap-1.5">
+        <button
+          type="button"
+          onClick={event => { event.stopPropagation(); void check(); }}
+          disabled={loading}
+          className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-wm-border bg-wm-surface text-[10px] font-bold text-wm-text-muted transition-colors hover:text-wm-text disabled:opacity-60"
+        >
+          {loading ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
+          Check wire
+        </button>
+        <a
+          href={managed.docsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={event => event.stopPropagation()}
+          className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-wm-border bg-wm-surface text-[10px] font-bold text-wm-text-muted transition-colors hover:text-wm-text"
+        >
+          <ExternalLink size={10} /> Webull API
+        </a>
+      </div>
+      <p className="px-0.5 text-[9px] leading-snug text-wm-text-dim">
+        This checks WM Pro&apos;s server-side Webull wire. Signing into Webull&apos;s website is separate and does not connect this app.
+      </p>
+    </div>
+  );
+}
+
 /* ── Broker Card ────────────────────────────────────────── */
 function BrokerCard({ broker, selected, onToggle }: { broker: Broker; selected: boolean; onToggle: () => void }) {
   const [showApiModal, setShowApiModal] = useState(false);
@@ -510,7 +611,9 @@ function BrokerCard({ broker, selected, onToggle }: { broker: Broker; selected: 
 
         {/* API-enabled brokers can be verified, but are not called connected until
             their provider has a real OAuth callback and token vault configured. */}
-        {broker.apiSupport ? (
+        {broker.managedConnection ? (
+          <ManagedConnectionStatus broker={broker} />
+        ) : broker.apiSupport ? (
           <div className="space-y-2">
             <button
               onClick={e => { e.stopPropagation(); setShowApiModal(true); }}
