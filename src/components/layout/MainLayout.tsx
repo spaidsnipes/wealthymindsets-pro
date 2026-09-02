@@ -1182,10 +1182,16 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 >
                   <Icon size={18} style={{ color: active ? "#E8B923" : "#8B8FA8", flexShrink: 0 }} />
                   <span style={{
+                    // Founder 2026-09-02: allow up to two lines so two-word
+                    // primary destinations ("Command Deck", "Morning Prep")
+                    // render in full instead of truncating to "Command D…".
+                    // 72px rail is fixed, so we keep the ellipsis fallback
+                    // to prevent a rogue three-word label from overflowing.
                     fontSize: 9, fontWeight: active ? 600 : 400,
                     color: active ? "#E2E8F0" : "#8B8FA8",
-                    textAlign: "center", lineHeight: 1.2, maxWidth: 62,
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    textAlign: "center", lineHeight: 1.15, maxWidth: 66,
+                    display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2,
+                    overflow: "hidden", wordBreak: "keep-all",
                     letterSpacing: "0.01em",
                   }}>
                     {label}
