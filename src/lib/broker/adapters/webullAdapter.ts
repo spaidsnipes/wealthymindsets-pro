@@ -45,7 +45,7 @@ export const webullAdapter: BrokerAdapter = {
     void _accountId;
     // Founder canon §Capability Honesty — OBSERVED tier. Values below
     // are the shape the Webull OpenAPI MCP surfaced live in-session on
-    // 2026-08-21. This is what a real Vercel-runtime adapter WILL
+    // 2026-08-21. This is what a real host-runtime adapter WILL
     // support once wired; asserting it here so downstream planning
     // consumers (order ticket, capability chip, asset-class filter)
     // can build against real Webull shape rather than an empty stub.
@@ -63,7 +63,7 @@ export const webullAdapter: BrokerAdapter = {
       supportsShort: true,    // margin account supports shorting per Webull product
       notes: [
         "Webull broker MCP verified in-session (US_STOCK/HK_STOCK/JP_STOCK/CN_STOCK; options/futures/crypto/funds/events).",
-        "Server-side Vercel integration is a future atom — this stub still returns rejected/unknown on order-lifecycle methods.",
+        "Server-side host-runtime integration (Cloudflare Workers) is a future atom — this stub still returns rejected/unknown on order-lifecycle methods.",
       ],
     };
   },
