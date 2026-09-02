@@ -20,6 +20,7 @@ import {
  */
 export interface WebullStatus {
   readonly provider: "webull";
+  readonly authMode: "SIGNED_OPENAPI";
   readonly implemented: boolean;
   readonly configured: boolean;
   readonly connected: boolean;
@@ -42,22 +43,20 @@ export interface WebullStatus {
  * founder must set to move it forward. Anti-fabrication: only NAME
  * variables, never emit values.
  */
-function missingSecretsForState(state: WebullBrokerConnectionState): readonly string[] {
-  switch (state) {
-    case "UNCONFIGURED":
-      // probeWebullBrokerConnection short-circuits here when the OpenAPI
-      // key pair isn't present together. Both are required by the signed
-      // request; see webullBrokerConfigFromEnv (WEBULL_APP_KEY /
-      // WEBULL_API_KEY and WEBULL_APP_SECRET / WEBULL_API_SECRET aliases).
-      return ["WEBULL_APP_KEY (or WEBULL_API_KEY)", "WEBULL_APP_SECRET (or WEBULL_API_SECRET)"];
-    case "BLOCKED_AUTH":
-      // Signed request reached Webull but auth was rejected. Most common
-      // cause on the Trading API is that 2FA requires an access-token
-      // header; the key pair itself may already be correct.
-      return ["WEBULL_ACCESS_TOKEN"];
-    default:
-      return [];
+export function missingSecretsForState(
+  state: WebullBrokerConnectionState,
+  env: Readonly<Record<string, string | undefined>>,
+): readonly string[] {
+  if (state !== "UNCONFIGURED") return [];
+
+  const missing: string[] = [];
+  if (!(env.WEBULL_APP_KEY || env.WEBULL_API_KEY)?.trim()) {
+    missing.push("WEBULL_APP_KEY (or WEBULL_API_KEY)");
   }
+  if (!(env.WEBULL_APP_SECRET || env.WEBULL_API_SECRET)?.trim()) {
+    missing.push("WEBULL_APP_SECRET (or WEBULL_API_SECRET)");
+  }
+  return missing;
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -70,6 +69,7 @@ export async function GET(request: Request): Promise<Response> {
   const live = await probeWebullBrokerConnection(fetch, webullBrokerConfigFromEnv(process.env));
   const body: WebullStatus = {
     provider: "webull",
+    authMode: "SIGNED_OPENAPI",
     implemented: h?.implemented ?? false,
     configured: h?.envConfigured ?? false,
     connected: live.connected,
@@ -78,7 +78,7 @@ export async function GET(request: Request): Promise<Response> {
     accountTypes: live.accountTypes,
     note: live.note,
     checkedAt: live.checkedAt,
-    missing: missingSecretsForState(live.state),
+    missing: missingSecretsForState(live.state, process.env),
   };
   return NextResponse.json(body, {
     status: 200,

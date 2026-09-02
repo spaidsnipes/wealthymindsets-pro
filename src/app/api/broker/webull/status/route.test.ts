@@ -8,7 +8,7 @@ vi.mock("@/lib/requireAuth", () => ({
   requireAuth: vi.fn(async () => ({ ok: true, user: { sub: "u1" } })),
 }));
 
-import { GET } from "./route";
+import { GET, missingSecretsForState } from "./route";
 import { requireAuth } from "@/lib/requireAuth";
 
 function req(): Request {
@@ -21,6 +21,7 @@ describe("/api/broker/webull/status — canon §12 truth", () => {
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body.provider).toBe("webull");
+    expect(body.authMode).toBe("SIGNED_OPENAPI");
     expect(body.implemented).toBe(true);
     expect(body.configured).toBe(false);
     expect(body.connected).toBe(false);
@@ -46,6 +47,35 @@ describe("/api/broker/webull/status — canon §12 truth", () => {
     // note field must not embed a plausible secret VALUE.
     expect(body.note).not.toMatch(/["'][a-f0-9]{24,}["']/i);
     expect(body.note).not.toMatch(/["'][A-Za-z0-9+/=]{40,}["']/);
+  });
+
+  it("names only the absent member of the OpenAPI key pair", () => {
+    expect(missingSecretsForState("UNCONFIGURED", { WEBULL_APP_KEY: "configured-key" })).toEqual([
+      "WEBULL_APP_SECRET (or WEBULL_API_SECRET)",
+    ]);
+    expect(missingSecretsForState("UNCONFIGURED", { WEBULL_API_SECRET: "configured-secret" })).toEqual([
+      "WEBULL_APP_KEY (or WEBULL_API_KEY)",
+    ]);
+  });
+
+  it("does not invent a missing access token from an HTTP 401", () => {
+    expect(missingSecretsForState("BLOCKED_AUTH", {})).toEqual([]);
+    expect(missingSecretsForState("BLOCKED_AUTH", { WEBULL_ACCESS_TOKEN: "configured-token" })).toEqual([]);
+  });
+
+  it("never returns configured credential values", () => {
+    const key = "founder-key-value";
+    const secret = "founder-secret-value";
+    const token = "founder-token-value";
+    const missing = missingSecretsForState("UNCONFIGURED", {
+      WEBULL_APP_KEY: key,
+      WEBULL_APP_SECRET: secret,
+      WEBULL_ACCESS_TOKEN: token,
+    });
+    expect(missing).toEqual([]);
+    expect(JSON.stringify(missing)).not.toContain(key);
+    expect(JSON.stringify(missing)).not.toContain(secret);
+    expect(JSON.stringify(missing)).not.toContain(token);
   });
 
   it("never caches — no-store", async () => {
