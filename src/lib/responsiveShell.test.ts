@@ -100,7 +100,15 @@ describe("responsive P0 command surfaces", () => {
     expect(lounge).toContain("No community records were requested");
     expect(lounge).toContain("NEXT_PUBLIC_SUPABASE_URL");
     expect(lounge).toContain("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY)");
-    expect(lounge.indexOf('if (!loungeClient) {')).toBeLessThan(lounge.indexOf("{/* ── Left sidebar ── */}"));
+    expect(lounge.indexOf('if (!loungeClient) {')).toBeLessThan(lounge.indexOf('aria-label="Open community tools"'));
+  });
+
+  it("makes configured Lounge filters and rooms progressive disclosure instead of a fixed rail", () => {
+    const lounge = source("../app/lounge/page.tsx");
+    expect(lounge).toContain('aria-label="Open community tools"');
+    expect(lounge).toContain('aria-expanded={showCommunityTools}');
+    expect(lounge).toContain('aria-label="Community tools"');
+    expect(lounge).not.toContain('style={{width:200,flexShrink:0}}');
   });
 
   it("makes multi-provider selection an honest reviewable setup queue", () => {

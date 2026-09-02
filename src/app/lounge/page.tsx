@@ -700,6 +700,7 @@ export default function LoungePage() {
   const [follows,       setFollows]       = useState<Set<string>>(new Set());
   const [activeRoom,    setActiveRoom]    = useState<string | null>(null);
   const [activeRoomIsHost, setActiveRoomIsHost] = useState(false);
+  const [showCommunityTools, setShowCommunityTools] = useState(false);
 
   // Deep-link support: a shared live link (…/lounge?room=<name>) drops the visitor
   // straight into that room as a viewer. Runs once on mount.
@@ -860,11 +861,29 @@ export default function LoungePage() {
   }
 
   return (
-    <div style={{display:"flex",width:"100%",height:"100%",overflow:"hidden"}} className="bg-wm-black">
+    <div style={{display:"flex",width:"100%",height:"100%",overflow:"hidden",position:"relative"}} className="bg-wm-black">
 
-      {/* ── Left sidebar ── */}
-      <div style={{width:200,flexShrink:0}} className="border-r border-wm-border bg-wm-dark flex flex-col p-3 gap-1 overflow-y-auto">
-        <div className="text-[9px] font-black text-wm-text-muted uppercase tracking-widest mb-2">The Lounge</div>
+      {/* Community filters and rooms are available on demand, never a permanent rail. */}
+      <AnimatePresence>
+      {showCommunityTools && (
+      <motion.aside
+        aria-label="Community tools"
+        initial={{ x: -24, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: -24, opacity: 0 }}
+        style={{width:260,position:"absolute",inset:"0 auto 0 0",zIndex:40}}
+        className="border-r border-wm-border bg-wm-dark flex flex-col p-3 gap-1 overflow-y-auto shadow-2xl"
+      >
+        <div className="mb-2 flex min-h-11 items-center justify-between gap-2">
+          <div className="text-[9px] font-black text-wm-text-muted uppercase tracking-widest">Community tools</div>
+          <button
+            onClick={() => setShowCommunityTools(false)}
+            aria-label="Close community tools"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-wm-text-muted hover:bg-wm-surface hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
+        </div>
 
         {[
           { icon:<Flame size={13}/>,      label:"Hot Right Now", color:"#FF4D6A" },
@@ -935,12 +954,23 @@ export default function LoungePage() {
             </div>
           )}
         </div>
-      </div>
+      </motion.aside>
+      )}
+      </AnimatePresence>
 
       {/* ── Main feed ── */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 border-b border-wm-border shrink-0" style={{height:44}}>
-          <div className="flex gap-0.5">
+          <div className="flex min-w-0 items-center gap-0.5">
+            <button
+              onClick={() => setShowCommunityTools(true)}
+              aria-label="Open community tools"
+              aria-expanded={showCommunityTools}
+              className="mr-1 inline-flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg px-2 text-[11px] font-bold text-wm-text-muted hover:bg-wm-surface hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+            >
+              <MoreHorizontal size={15} aria-hidden="true" />
+              <span className="hidden sm:inline">Community</span>
+            </button>
             {TAB_LABELS.map(t => (
               <button key={t.id} onClick={() => setFeedTab(t.id)}
                 className={clsx(

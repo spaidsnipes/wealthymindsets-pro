@@ -24,4 +24,13 @@ describe("Lounge runtime truth", () => {
     expect(lounge).toContain('role="status"');
     expect(lounge).toContain('aria-live="polite"');
   });
+
+  it("keeps configured community tools behind one explicit disclosure", () => {
+    expect(lounge).toContain("showCommunityTools");
+    expect(lounge).toContain('aria-label="Open community tools"');
+    expect(lounge).toContain('aria-label="Close community tools"');
+    expect(lounge).toContain('aria-label="Community tools"');
+    expect(lounge).toContain('style={{width:260,position:"absolute",inset:"0 auto 0 0",zIndex:40}}');
+    expect(lounge).not.toContain('style={{width:200,flexShrink:0}}');
+  });
 });
