@@ -82,6 +82,8 @@ describe("responsive P0 command surfaces", () => {
     expect(readiness).toContain("Connect one broker or several.");
     expect(readiness).toContain("<BrokerConnectPanel");
     expect(readiness).toContain("How connection status works");
+    expect(readiness).toContain("Technical receipt");
+    expect(readiness).toContain("This provider still needs setup in the current runtime.");
   });
 
   it("keeps long-form Nectar and Command Deck surfaces vertically reachable", () => {

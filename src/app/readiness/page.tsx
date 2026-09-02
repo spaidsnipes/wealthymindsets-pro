@@ -164,8 +164,16 @@ export default function ReadinessPage() {
                           {row.blockerClass}
                         </span>
                       </div>
-                      <p className="mt-3 text-xs leading-relaxed text-neutral-300">{row.blockerDetail}</p>
-                      {row.note ? <p className="mt-2 border-t border-white/5 pt-2 text-[11px] leading-relaxed text-neutral-500">{row.note}</p> : null}
+                      <p className="mt-3 text-xs leading-relaxed text-neutral-300">
+                        {isReady
+                          ? "WM Pro has the required setup names and can attempt verification."
+                          : "This provider still needs setup in the current runtime."}
+                      </p>
+                      <details className="mt-3 border-t border-white/5 pt-2 text-[11px] leading-relaxed text-neutral-500">
+                        <summary className="cursor-pointer font-semibold text-neutral-400">Technical receipt</summary>
+                        <p className="mt-2">{row.blockerDetail}</p>
+                        {row.note ? <p className="mt-2">{row.note}</p> : null}
+                      </details>
                     </li>
                   );
                 })}
