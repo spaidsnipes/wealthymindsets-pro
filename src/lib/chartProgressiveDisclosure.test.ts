@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const toolbar = readFileSync(resolve(process.cwd(), "src/components/chart/ChartToolbar.tsx"), "utf8");
+const dashboard = readFileSync(resolve(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8");
 
 describe("chart progressive disclosure", () => {
   it("keeps the trading decision controls and broker entry primary", () => {
@@ -17,8 +18,14 @@ describe("chart progressive disclosure", () => {
     expect(toolbar).toContain('role="menu"');
     expect(toolbar).toContain('role="menuitem"');
     expect(toolbar).toContain("Depth ladder");
+    expect(toolbar).toContain("Flow &amp; studies");
     expect(toolbar).toContain("Pine workspace");
     expect(toolbar).toContain("Chart settings");
+  });
+
+  it("keeps the dense flow and study strip closed until the trader asks for it", () => {
+    expect(dashboard).toContain("studyToolsOpen && <div className=\"wm-chart-tools");
+    expect(dashboard).toContain("onToggleStudyTools={() => setStudyToolsOpen(open => !open)}");
   });
 
   it("keeps the menu viewport-bound instead of extending the toolbar", () => {

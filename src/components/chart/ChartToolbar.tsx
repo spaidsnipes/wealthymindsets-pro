@@ -467,6 +467,8 @@ interface ChartToolbarProps {
   replayActive?:       boolean;
   onCompare?:          () => void;
   compareActive?:      boolean;
+  onToggleStudyTools?: () => void;
+  studyToolsOpen?:     boolean;
   chartLayout?:        ChartLayout;
   onLayoutChange?:     (l: ChartLayout) => void;
 }
@@ -513,6 +515,7 @@ export function ChartToolbar({
   initialActiveInds, onActiveIndsChange, onIndicatorSettings, onExtHoursChange,
   onAlerts, alertsActive, onSettings,
   onReplay, replayActive, onCompare, compareActive,
+  onToggleStudyTools, studyToolsOpen,
   chartLayout = "1", onLayoutChange,
 }: ChartToolbarProps) {
   const [symbolSearch,   setSymbolSearch]  = useState("");
@@ -1054,7 +1057,7 @@ export function ChartToolbar({
             aria-haspopup="menu"
             className={clsx(
               "flex min-h-11 items-center gap-1 rounded border px-2 text-[11px] font-semibold transition-colors",
-              advancedOpen || pineActive || replayActive || compareActive || alertsActive
+              advancedOpen || pineActive || replayActive || compareActive || alertsActive || studyToolsOpen
                 ? "border-wm-gold/35 bg-wm-gold/10 text-wm-gold"
                 : "border-wm-border text-wm-text-muted hover:text-wm-text",
             )}
@@ -1082,6 +1085,7 @@ export function ChartToolbar({
                   padding: 6,
                 }}
               >
+                {onToggleStudyTools && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onToggleStudyTools(); }}><BarChart2 size={13} /> Flow &amp; studies{studyToolsOpen ? " · open" : ""}</button>}
                 <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onDOM(); }}><LayoutGrid size={13} /> Depth ladder</button>
                 <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onPineScript(); }}><span className="text-sm">ƒ</span> Pine workspace{pineActive ? " · active" : ""}</button>
                 {onReplay && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onReplay(); }}><Play size={12} /> Replay{replayActive ? " · active" : ""}</button>}

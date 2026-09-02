@@ -296,6 +296,7 @@ export function ChartsDashboard() {
   }, [symbol, activeTab]);
   const [infoOpen,        setInfoOpen]        = useState(false); // collapsible right panel
   const [vpDomOpen,       setVpDomOpen]       = useState(false); // Open only when the trader asks for depth
+  const [studyToolsOpen,  setStudyToolsOpen]  = useState(false); // Advanced controls stay quiet until requested
 
   // ── Drawing tools ───────────────────────────────────────────
   const [drawingTool,     setDrawingTool]     = useState<DrawingTool>("cursor");
@@ -1266,6 +1267,8 @@ export function ChartsDashboard() {
             replayActive={replayActive}
             onCompare={() => setCompareOpen(o => !o)}
             compareActive={!!compareSymbol}
+            onToggleStudyTools={() => setStudyToolsOpen(open => !open)}
+            studyToolsOpen={studyToolsOpen}
             chartLayout={chartLayout}
             onLayoutChange={setChartLayout}
           />}
@@ -1280,7 +1283,7 @@ export function ChartsDashboard() {
               clipped ("cut off"). Natural left flow lets the row scroll cleanly and
               keeps every control fully reachable. pr-3 gives the last button breathing
               room so it never sits flush against the clip edge. */}
-          {(activeTab === "Chart" || activeTab === "Options") && <div className="wm-chart-tools flex items-center justify-start border-b shrink-0 overflow-x-auto overflow-y-hidden pr-3"
+          {(activeTab === "Chart" || activeTab === "Options") && studyToolsOpen && <div className="wm-chart-tools flex items-center justify-start border-b shrink-0 overflow-x-auto overflow-y-hidden pr-3"
             style={{ height: 30, background: "#0D0E14", borderColor: "#1E2030" }}>
             <div className="flex items-center shrink-0">
               {/* Drawing tools dropdown — lives in the secondary toolbar */}
