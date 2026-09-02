@@ -725,10 +725,13 @@ export function ChartsDashboard() {
       <div
         className="wm-chart-category-strip"
         style={{
-          height: 36,
+          // Founder-canon mobile tap target: min 44px. Height stretches
+          // to whatever the buttons need so touch users hit them without
+          // fat-fingering an adjacent tab.
+          minHeight: 44,
           borderBottom: "1px solid #1E2030",
           display: "flex",
-          alignItems: "center",
+          alignItems: "stretch",
           gap: 0,
           paddingLeft: 16,
           background: "#0D0E14",
@@ -750,7 +753,8 @@ export function ChartsDashboard() {
               if (tab === "Options") setOptionsOpen(true);
             }}
             style={{
-              padding: "0 14px", height: 36,
+              padding: "0 14px",
+              minHeight: 44,
               color: tab === activeTab ? "#E2E8F0" : "#8B8FA8",
               background: "transparent", border: "none",
               borderBottom: tab === activeTab ? "2px solid #FF8C00" : "2px solid transparent",
