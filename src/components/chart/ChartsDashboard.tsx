@@ -235,6 +235,7 @@ export function ChartsDashboard() {
   // ── Core state ──────────────────────────────────────────────
   const [pnlOpen,         setPnlOpen]         = useState(false);
   const [brokerOpen,      setBrokerOpen]      = useState(false);
+  const brokerTriggerRef = useRef<HTMLButtonElement>(null);
   const [tradeOpen,       setTradeOpen]       = useState(false);
   const [optionsOpen,     setOptionsOpen]     = useState(false);
   const [pineBuilderOpen, setPineBuilderOpen] = useState(false);
@@ -1084,6 +1085,7 @@ export function ChartsDashboard() {
             symbol={symbol}         setSymbol={setSymbol}
             timeframe={timeframe}   setTimeframe={setTimeframe}
             onConnectBrokers={() => setBrokerOpen(true)}
+            connectBrokersTriggerRef={brokerTriggerRef}
             onDOM={() => setVpDomOpen(o => !o)}
             onPineScript={() => setPineBuilderOpen(true)}
             onCommunity={() => setCommunityOpen(true)}
@@ -1690,7 +1692,12 @@ export function ChartsDashboard() {
 
       {pnlOpen && <PnLStatsPanel onClose={() => setPnlOpen(false)} />}
       {smartMoneyOpen && <SmartMoneyPanel onClose={() => setSmartMoneyOpen(false)} symbol={symbol} />}
-      {brokerOpen && <BrokerConnectPanel onClose={() => setBrokerOpen(false)} />}
+      {brokerOpen && (
+        <BrokerConnectPanel
+          onClose={() => setBrokerOpen(false)}
+          fallbackTriggerRef={brokerTriggerRef}
+        />
+      )}
       <AnimatePresence>
         {indSettingsFor && (
           <IndicatorSettingsModal

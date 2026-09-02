@@ -450,6 +450,7 @@ interface ChartToolbarProps {
   timeframe:           string;
   setTimeframe:        (t: string) => void;
   onConnectBrokers:    () => void;
+  connectBrokersTriggerRef: React.RefObject<HTMLButtonElement | null>;
   onDOM:               () => void;
   onPineScript:        () => void;
   onCommunity?:        () => void;
@@ -507,7 +508,7 @@ function SymbolRow({ s, symbol, onSelect }: { s: SymbolEntry; symbol: string; on
 
 export function ChartToolbar({
   symbol, setSymbol, timeframe, setTimeframe,
-  onConnectBrokers, onDOM, onPineScript, onCommunity,
+  onConnectBrokers, connectBrokersTriggerRef, onDOM, onPineScript, onCommunity,
   pineActive,
   initialActiveInds, onActiveIndsChange, onIndicatorSettings, onExtHoursChange,
   onAlerts, alertsActive, onSettings,
@@ -1090,9 +1091,11 @@ export function ChartToolbar({
         className="flex items-center gap-1 shrink-0 pl-1.5 h-full"
         style={{ position: "sticky", right: 0, background: "#0D0E14", borderLeft: "1px solid #1E2030", zIndex: 5 }}
       >
-        <button onClick={onConnectBrokers}
+        <button ref={connectBrokersTriggerRef} onClick={onConnectBrokers}
           aria-label="Connect one or more brokers"
-          className="flex items-center gap-1 px-2 h-6 rounded text-[12px] font-semibold border transition-colors shrink-0"
+          aria-haspopup="dialog"
+          aria-controls="wm-broker-connect"
+          className="flex min-h-11 items-center gap-1 px-3 rounded text-[12px] font-semibold border transition-colors shrink-0"
           style={{
             background:"linear-gradient(90deg,#0c1517,#0a1815)",
             borderColor:"rgba(0,192,118,0.45)",

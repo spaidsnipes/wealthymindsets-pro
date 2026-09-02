@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Zap, ExternalLink, Search, Key, Check, ChevronDown, ChevronUp, AlertCircle, Loader2 } from "lucide-react";
 import { clsx } from "clsx";
 import ProviderWireStrip from "@/components/marketData/ProviderWireStrip";
+import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 
 type BrokerCategory = "broker" | "crypto" | "forex" | "prop";
 
@@ -537,7 +538,7 @@ function ManagedConnectionStatus({ broker }: { broker: Broker }) {
           type="button"
           onClick={event => { event.stopPropagation(); void check(); }}
           disabled={loading}
-          className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-wm-border bg-wm-surface text-[10px] font-bold text-wm-text-muted transition-colors hover:text-wm-text disabled:opacity-60"
+          className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-wm-border bg-wm-surface text-[10px] font-bold text-wm-text-muted transition-colors hover:text-wm-text disabled:opacity-60"
         >
           {loading ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
           Check wire
@@ -547,7 +548,7 @@ function ManagedConnectionStatus({ broker }: { broker: Broker }) {
           target="_blank"
           rel="noopener noreferrer"
           onClick={event => event.stopPropagation()}
-          className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-wm-border bg-wm-surface text-[10px] font-bold text-wm-text-muted transition-colors hover:text-wm-text"
+          className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-wm-border bg-wm-surface text-[10px] font-bold text-wm-text-muted transition-colors hover:text-wm-text"
         >
           <ExternalLink size={10} /> Webull API
         </a>
@@ -591,7 +592,7 @@ function BrokerCard({ broker, selected, onToggle }: { broker: Broker; selected: 
             onClick={e => { e.stopPropagation(); onToggle(); }}
             aria-pressed={selected}
             aria-label={`${selected ? "Remove" : "Add"} ${broker.name} ${selected ? "from" : "to"} the broker setup queue`}
-            className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-colors"
+            className="flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-2 text-[9px] font-black uppercase tracking-wider transition-colors"
             style={{
               color: selected ? "#050506" : broker.color,
               background: selected ? broker.color : `${broker.color}18`,
@@ -617,7 +618,7 @@ function BrokerCard({ broker, selected, onToggle }: { broker: Broker; selected: 
           <div className="space-y-2">
             <button
               onClick={e => { e.stopPropagation(); setShowApiModal(true); }}
-              className="w-full flex items-center justify-center gap-2 h-9 rounded-xl font-bold text-[12px] transition-all"
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl font-bold text-[12px] transition-all"
               style={{ background:`linear-gradient(135deg,${broker.color}33,${broker.color}22)`, color:broker.color, border:`1px solid ${broker.color}50` }}
             >
               <Key size={12} />
@@ -626,12 +627,12 @@ function BrokerCard({ broker, selected, onToggle }: { broker: Broker; selected: 
             <div className="flex gap-1.5">
               <a href={broker.signInUrl} target="_blank" rel="noopener noreferrer"
                 onClick={e => e.stopPropagation()}
-                className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-[10px] font-semibold transition-all hover:brightness-110 text-wm-text-muted hover:text-wm-text bg-wm-surface border border-wm-border">
+                className="flex min-h-11 flex-1 items-center justify-center gap-1 rounded-lg text-[10px] font-semibold transition-all hover:brightness-110 text-wm-text-muted hover:text-wm-text bg-wm-surface border border-wm-border">
                 <ExternalLink size={9} /> Platform
               </a>
               <a href={broker.apiSupport.docsUrl} target="_blank" rel="noopener noreferrer"
                 onClick={e => e.stopPropagation()}
-                className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-[10px] font-semibold transition-all hover:brightness-110 text-wm-text-muted hover:text-wm-text bg-wm-surface border border-wm-border">
+                className="flex min-h-11 flex-1 items-center justify-center gap-1 rounded-lg text-[10px] font-semibold transition-all hover:brightness-110 text-wm-text-muted hover:text-wm-text bg-wm-surface border border-wm-border">
                 <ExternalLink size={9} /> Get API Keys
               </a>
             </div>
@@ -639,17 +640,17 @@ function BrokerCard({ broker, selected, onToggle }: { broker: Broker; selected: 
         ) : (
           <div className="space-y-2">
             <a href={broker.signInUrl} target="_blank" rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-1.5 h-9 rounded-xl text-[12px] font-bold transition-all hover:brightness-110"
+              className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl text-[12px] font-bold transition-all hover:brightness-110"
               style={{ background:`linear-gradient(135deg,${broker.color}33,${broker.color}22)`, color:broker.color, border:`1px solid ${broker.color}50` }}>
               <ExternalLink size={12} /> Open {broker.name}
             </a>
             <div className="flex gap-1.5">
               <a href={broker.signInUrl} target="_blank" rel="noopener noreferrer"
-                className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-[10px] font-semibold text-wm-text-muted hover:text-wm-text bg-wm-surface border border-wm-border transition-all hover:brightness-110">
+                className="flex min-h-11 flex-1 items-center justify-center gap-1 rounded-lg text-[10px] font-semibold text-wm-text-muted hover:text-wm-text bg-wm-surface border border-wm-border transition-all hover:brightness-110">
                 <ExternalLink size={9} /> Log In
               </a>
               <a href={broker.signUpUrl} target="_blank" rel="noopener noreferrer"
-                className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-[10px] font-semibold text-wm-text-muted hover:text-wm-text bg-wm-surface border border-wm-border transition-all hover:brightness-110">
+                className="flex min-h-11 flex-1 items-center justify-center gap-1 rounded-lg text-[10px] font-semibold text-wm-text-muted hover:text-wm-text bg-wm-surface border border-wm-border transition-all hover:brightness-110">
                 <ExternalLink size={9} /> Open Account
               </a>
             </div>
@@ -668,7 +669,13 @@ function BrokerCard({ broker, selected, onToggle }: { broker: Broker; selected: 
 }
 
 /* ── Main Panel ─────────────────────────────────────────── */
-export function BrokerConnectPanel({ onClose }: { onClose: () => void }) {
+export function BrokerConnectPanel({
+  onClose,
+  fallbackTriggerRef,
+}: {
+  onClose: () => void;
+  fallbackTriggerRef: React.RefObject<HTMLButtonElement | null>;
+}) {
   const [tab,    setTab]    = useState<BrokerCategory>("broker");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
@@ -689,35 +696,40 @@ export function BrokerConnectPanel({ onClose }: { onClose: () => void }) {
      b.desc.toLowerCase().includes(search.toLowerCase()))
   );
 
+  const footer = (
+    <div className="space-y-2 text-center text-[10px] text-wm-text-dim">
+      <div>
+        {selected.size > 0
+          ? `${selected.size} ${selected.size === 1 ? "provider" : "providers"} queued for setup · verification still happens independently.`
+          : "Queue one or several providers, then verify each connection independently."}
+      </div>
+      {selected.size > 0 && (
+        <button
+          type="button"
+          aria-pressed={selectedOnly}
+          onClick={() => setSelectedOnly(value => !value)}
+          className="inline-flex min-h-11 items-center justify-center rounded-lg border border-wm-gold/40 px-3 font-bold text-wm-gold transition-colors hover:bg-wm-gold/10"
+        >
+          {selectedOnly ? "Show all providers" : `Review setup queue (${selected.size})`}
+        </button>
+      )}
+    </div>
+  );
+
   return (
-    <motion.div
-      initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-      className="fixed inset-0 z-[200] flex items-start justify-end"
-      style={{ background:"rgba(0,0,0,0.65)", backdropFilter:"blur(4px)" }}
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    <ShellModalDrawer
+      id="wm-broker-connect"
+      titleId="wm-broker-connect-title"
+      descriptionId="wm-broker-connect-description"
+      title="Connect brokers"
+      description="One workspace, one or several independently verified providers."
+      closeLabel="Close connect brokers"
+      width={500}
+      onClose={onClose}
+      fallbackTriggerRef={fallbackTriggerRef}
+      titleIcon={<Zap size={16} className="text-wm-gold" aria-hidden="true" />}
+      footer={footer}
     >
-      <motion.div
-        initial={{ x:500 }} animate={{ x:0 }} exit={{ x:500 }}
-        transition={{ type:"spring", stiffness:280, damping:28 }}
-        className="relative h-full flex flex-col border-l border-wm-border bg-wm-dark shadow-2xl"
-        style={{ width:"min(500px, 100vw)" }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-wm-border shrink-0">
-          <div>
-            <div className="flex items-center gap-2">
-              <Zap size={16} className="text-wm-gold" />
-              <span className="font-black text-wm-text text-sm">Connect brokers</span>
-            </div>
-            <div className="text-[10px] text-wm-text-dim mt-0.5">
-              Build one trading workspace with one or several verified providers.
-            </div>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors">
-            <X size={15} />
-          </button>
-        </div>
 
         <div className="px-4 py-3 border-b border-wm-border shrink-0">
           <ProviderWireStrip compact />
@@ -727,21 +739,23 @@ export function BrokerConnectPanel({ onClose }: { onClose: () => void }) {
         <div className="px-4 pt-3 pb-2 border-b border-wm-border shrink-0 space-y-2">
           <div className="grid grid-cols-4 gap-1">
             {CATEGORY_TABS.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)}
+              <button key={t.id} type="button" onClick={() => setTab(t.id)}
+                aria-pressed={tab === t.id}
                 className={clsx(
-                  "py-1.5 rounded-lg text-[11px] font-bold transition-all",
+                  "min-h-11 rounded-lg px-1 py-2 text-[11px] font-bold transition-all",
                   tab === t.id ? "bg-wm-blue/20 text-wm-blue border border-wm-blue/40" : "text-wm-text-muted border border-wm-border hover:text-wm-text"
                 )}>
                 {t.emoji} {t.label}
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2 bg-wm-surface border border-wm-border rounded-lg px-2.5">
+          <label className="flex min-h-11 items-center gap-2 rounded-lg border border-wm-border bg-wm-surface px-2.5">
             <Search size={11} className="text-wm-text-dim shrink-0" />
             <input value={search} onChange={e => setSearch(e.target.value)}
+              aria-label="Search brokers"
               placeholder="Search brokers…"
-              className="flex-1 bg-transparent py-1.5 text-xs text-wm-text outline-none placeholder-wm-text-dim" />
-          </div>
+              className="min-h-11 flex-1 bg-transparent py-2 text-xs text-wm-text outline-none placeholder-wm-text-dim" />
+          </label>
         </div>
 
         {/* Cards */}
@@ -759,24 +773,6 @@ export function BrokerConnectPanel({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
-        <div className="px-4 py-3 border-t border-wm-border text-[10px] text-wm-text-dim text-center shrink-0 space-y-2">
-          <div>
-            {selected.size > 0
-              ? `${selected.size} ${selected.size === 1 ? "provider" : "providers"} queued for setup · verification still happens independently.`
-              : "Queue one or several providers, then verify each connection independently."}
-          </div>
-          {selected.size > 0 && (
-            <button
-              type="button"
-              aria-pressed={selectedOnly}
-              onClick={() => setSelectedOnly(value => !value)}
-              className="inline-flex min-h-9 items-center justify-center rounded-lg border border-wm-gold/40 px-3 font-bold text-wm-gold transition-colors hover:bg-wm-gold/10"
-            >
-              {selectedOnly ? "Show all providers" : `Review setup queue (${selected.size})`}
-            </button>
-          )}
-        </div>
-      </motion.div>
-    </motion.div>
+    </ShellModalDrawer>
   );
 }

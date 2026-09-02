@@ -20,7 +20,7 @@
  * visible by comparing two loads.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
 import { Plug2 } from "lucide-react";
@@ -40,6 +40,7 @@ export default function ReadinessPage() {
   const [state, setState] = useState<LoadState>({ phase: "loading" });
   const [origin, setOrigin] = useState<string>("");
   const [connectOpen, setConnectOpen] = useState(false);
+  const connectTriggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setOrigin(typeof window !== "undefined" ? window.location.origin : "");
@@ -77,8 +78,11 @@ export default function ReadinessPage() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button
+                  ref={connectTriggerRef}
                   type="button"
                   onClick={() => setConnectOpen(true)}
+                  aria-haspopup="dialog"
+                  aria-controls="wm-broker-connect"
                   className="inline-flex min-h-11 items-center gap-2 rounded-full border border-emerald-400/35 bg-emerald-400/10 px-4 py-2 text-xs font-semibold text-emerald-300 transition hover:border-emerald-300/60 hover:bg-emerald-400/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
                 >
                   <Plug2 size={14} aria-hidden="true" /> Connect or review brokers
@@ -191,7 +195,12 @@ export default function ReadinessPage() {
         )}
       </main>
       <AnimatePresence>
-        {connectOpen && <BrokerConnectPanel onClose={() => setConnectOpen(false)} />}
+        {connectOpen && (
+          <BrokerConnectPanel
+            onClose={() => setConnectOpen(false)}
+            fallbackTriggerRef={connectTriggerRef}
+          />
+        )}
       </AnimatePresence>
     </div>
   );

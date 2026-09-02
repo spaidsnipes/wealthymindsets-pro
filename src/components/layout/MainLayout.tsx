@@ -20,7 +20,6 @@ import { useShellModalFocus } from "@/components/layout/useShellModalFocus";
 import { TickerTape } from "@/components/layout/TickerTape";
 import { SpadeBotButton } from "@/components/layout/SpaidBotButton";
 import { MusicPlayer } from "@/components/layout/MusicPlayer";
-import { BrokerConnectPanel } from "@/components/broker/BrokerConnectPanel";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { clsx } from "clsx";
@@ -911,7 +910,6 @@ function HeaderPnL() {
 }
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
-  const [brokerOpen,    setBrokerOpen]    = useState(false);
   const [searchOpen,    setSearchOpen]    = useState(false);
   const [notifsOpen,    setNotifsOpen]    = useState(false);
   const [settingsOpen,  setSettingsOpen]  = useState(false);
@@ -1367,7 +1365,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           {searchOpen   && <SearchPanel        key="search"   onClose={() => setSearchOpen(false)} fallbackTriggerRef={searchTriggerRef} />}
           {notifsOpen   && <NotificationsPanel key="notifs" onClose={() => setNotifsOpen(false)} fallbackTriggerRef={notificationsTriggerRef} />}
           {settingsOpen && <SettingsPanel key="settings" onClose={() => setSettingsOpen(false)} fallbackTriggerRef={settingsTriggerRef} />}
-          {brokerOpen   && <BrokerConnectPanel key="broker"   onClose={() => setBrokerOpen(false)} />}
         </AnimatePresence>
       )}
 
