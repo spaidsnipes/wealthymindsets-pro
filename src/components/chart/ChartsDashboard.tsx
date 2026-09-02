@@ -807,6 +807,36 @@ export function ChartsDashboard() {
             opens a real Passport panel with lineage/owner/birth/
             touches/invalidation/provenance sourced from the same
             selectMarketObjectPassport /command-deck routes through. */}
+        {/* Asset 08 + 10 canon — Liquidity Weather truth chip.
+            LIVING-PIXEL LAW: no fake heatmap gradient, no invented
+            "climate map · NEUTRAL" scalar. Renders the honest state
+            of the depth capability — NOT WIRED when we have no L2
+            depth provider (the current situation), BLOCKED when
+            entitlement is refused, LIVE when a depth stream is
+            connected. This is the Asset 08 (Liquidity Weather
+            Heatmap) reference merged with real data owners only. */}
+        <span
+          role="status"
+          aria-label="Liquidity Weather — Level 2 depth capability not wired"
+          title="Liquidity Weather (Asset 08 canon) needs a licensed Level 2 depth provider. No decorative heatmap will be drawn until real depth signals arrive."
+          style={{
+            fontSize: 10,
+            letterSpacing: 0.32,
+            textTransform: "uppercase",
+            fontWeight: 700,
+            padding: "3px 8px",
+            borderRadius: 4,
+            marginLeft: 4,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            color: "#8B8FA8",
+            background: "transparent",
+            border: "1px dashed rgba(139,143,168,0.35)",
+          }}
+        >
+          LIQUIDITY WEATHER · NOT WIRED
+        </span>
         {/* Asset 10 canon — Right of Way / Decision Permission chip.
             Silent when verdict is UNKNOWN and no rules are declared
             (§Silence Is A Feature). Otherwise a color-coded verdict
