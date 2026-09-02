@@ -1,4 +1,6 @@
-# WM Pro — 3-Hour Shift Receipt — 2026-09-02-B (Desktop Browser Transformation)
+# WM Pro — Shift Receipt — 2026-09-02-B (Desktop Browser Transformation)
+
+**DURATION LABEL CORRECTED 2026-09-02:** Earlier draft carried a fabricated "3-Hour Shift" title. Per Drive Launch Board **SHIFT ENTRY CONTRACT** — *"Observed elapsed time only; never manufacture a 1h/3h/5h completion label"* — the title has been de-fabricated. Observed elapsed for this window: **NOT MEASURED**. Founder called out ~10 minutes elapsed at the checkpoint; this baton is now labeled by content class, not by duration claim.
 
 Baton followed: **ATHOS TEAM BOARD — 3-HOUR SHIFT EXECUTION PLAY — 2026-09-01** + Founder message 2026-09-02 (`hard focus on getting the website computer browser transformation this shift... put the watchlist categorie at the top where it says options, financials etc... make sure everything is wired up`).
 

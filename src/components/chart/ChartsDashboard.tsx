@@ -949,7 +949,14 @@ export function ChartsDashboard() {
         <div ref={fullscreenRef} style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0 }}>
 
           {/* ── Toolbar ───────────────────────────────────────── */}
-          <ChartToolbar
+          {/* Founder canon (Drive Launch Board — HANDS-ON REALITY LOCK):
+              "controls that visually promise more than they do" are false-green.
+              Chart-specific controls (timeframes / Draw / ORDER FLOW / Indicators
+              / DOM / Pine / Replay / Compare / Alerts / VP tools) are meaningless
+              on Financials / Valuation / Corporate Actions / etc. Mount them only
+              when the actual chart is showing so a trader on Financials never
+              clicks 1M and gets nothing. */}
+          {(activeTab === "Chart" || activeTab === "Options") && <ChartToolbar
             symbol={symbol}         setSymbol={setSymbol}
             timeframe={timeframe}   setTimeframe={setTimeframe}
             onConnectBrokers={() => setBrokerOpen(true)}
@@ -970,9 +977,10 @@ export function ChartsDashboard() {
             compareActive={!!compareSymbol}
             chartLayout={chartLayout}
             onLayoutChange={setChartLayout}
-          />
+          />}
 
-          {/* ── Extra controls bar (Footprint, candle type, etc.) ── */}
+          {/* ── Extra controls bar (Footprint, candle type, etc.) ──
+              Gated by the same chart-only rule as the toolbar above. */}
           {/* overflow-x-auto so the toolbar NEVER clips a control (the WM Session VP
               button was being cut off by the candle dropdown when the row exceeded the
               viewport) — it scrolls horizontally instead of hiding items. */}
@@ -981,7 +989,7 @@ export function ChartsDashboard() {
               clipped ("cut off"). Natural left flow lets the row scroll cleanly and
               keeps every control fully reachable. pr-3 gives the last button breathing
               room so it never sits flush against the clip edge. */}
-          <div className="wm-chart-tools flex items-center justify-start border-b shrink-0 overflow-x-auto overflow-y-hidden pr-3"
+          {(activeTab === "Chart" || activeTab === "Options") && <div className="wm-chart-tools flex items-center justify-start border-b shrink-0 overflow-x-auto overflow-y-hidden pr-3"
             style={{ height: 30, background: "#0D0E14", borderColor: "#1E2030" }}>
             <div className="flex items-center shrink-0">
               {/* Drawing tools dropdown — lives in the secondary toolbar */}
@@ -1348,7 +1356,7 @@ export function ChartsDashboard() {
 
               <FearGreedWidget />
             </div>
-          </div>
+          </div>}
 
           {/* ── Non-Chart tab panels ──────────────────────────── */}
           {activeTab !== "Chart" && activeTab !== "Options" && (
@@ -1661,23 +1669,39 @@ function FundamentalsTabPanel({ symbol, tab, onBack }: { symbol: string; tab: st
   const [loading, setLoading] = useState(true);
   const [d, setD] = useState<Record<string, any>>({});
   const [hasData, setHasData] = useState(false);
+  // Founder canon (Monday Test 2 §honest edge): capture the ACTUAL failure
+  // class from the provider so the empty state names the real cause instead
+  // of hedging ("maybe not equity, maybe not configured"). Populated when a
+  // 503 returns {edge:"NOT CONFIGURED", missing:[…]}; null when the empty
+  // state is a genuine no-data condition (e.g. a micro-cap equity FMP has
+  // no coverage for).
+  const [providerEdge, setProviderEdge] = useState<{ edge: string; missing: readonly string[] } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const map = FMP_PATHS[tab];
     if (!map) { setLoading(false); setHasData(false); return; }
-    setLoading(true); setHasData(false); setD({});
+    setLoading(true); setHasData(false); setD({}); setProviderEdge(null);
+    let capturedEdge: { edge: string; missing: readonly string[] } | null = null;
     const keys = Object.keys(map);
     Promise.all(keys.map(async k => {
       try {
         const path = map[k].replace(/%S/g, base);
         const res = await fetch(`/api/fmp?path=${encodeURIComponent(path)}`);
         const j: any = await res.json();
+        // Capture the NOT CONFIGURED contract so the panel can name the exact
+        // missing env var instead of guessing. First-wins is fine — every key
+        // hits the same host runtime; if FMP_API_KEY is missing for one, it's
+        // missing for all.
+        if (res.status === 503 && j?.edge === "NOT CONFIGURED" && Array.isArray(j?.missing) && !capturedEdge) {
+          capturedEdge = { edge: j.edge, missing: j.missing };
+        }
         if (!res.ok || j?.error || j?.["Error Message"]) return [k, null] as const;
         const empty = Array.isArray(j) ? j.length === 0 : (j && typeof j === "object" && Object.keys(j).length === 0);
         return [k, empty ? null : j] as const;
       } catch { return [k, null] as const; }
     })).then(entries => {
+      if (!cancelled && capturedEdge) setProviderEdge(capturedEdge);
       if (cancelled) return;
       const obj: Record<string, any> = {};
       let any = false;
@@ -1839,14 +1863,48 @@ function FundamentalsTabPanel({ symbol, tab, onBack }: { symbol: string; tab: st
       </div>
       {loading ? (
         <div style={{ color:"#6B7094", fontSize:13, padding:"24px 4px" }}>Loading {tab.toLowerCase()} data…</div>
-      ) : (body && hasData) ? body : (
+      ) : (body && hasData) ? body : providerEdge ? (
+        // Truth-in-name: FMP responded 503 with the NOT CONFIGURED
+        // contract — name the exact missing env var so a founder can
+        // paste it in host secrets and unblock every fundamentals view.
+        <div style={{ background:"#1a1410", border:"1px solid #5b3a12", borderRadius:8, padding:"20px 18px", maxWidth:640 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:"#f4c86b", marginBottom:6, letterSpacing:0.4, textTransform:"uppercase" }}>
+            Fundamentals provider — {providerEdge.edge}
+          </div>
+          <p style={{ fontSize:12, color:"#d6ceb8", lineHeight:1.6, margin:"0 0 10px 0" }}>
+            The Financial Modeling Prep (FMP) fundamentals provider is not configured on
+            the current host runtime, so {tab.toLowerCase()} for <strong>{base}</strong> cannot
+            be loaded. This panel shows real data only — it will never fabricate placeholder
+            figures.
+          </p>
+          <div style={{ fontSize:11, color:"#8896BE", lineHeight:1.6 }}>
+            Missing host secret{providerEdge.missing.length === 1 ? "" : "s"}:
+            {" "}
+            {providerEdge.missing.map((m, i) => (
+              <code key={m} style={{ background:"#0b0b0d", border:"1px solid #333", padding:"1px 6px", borderRadius:3, marginRight:4, color:"#f4c86b" }}>{m}{i < providerEdge.missing.length - 1 ? "" : ""}</code>
+            ))}
+          </div>
+          <div style={{ fontSize:11, color:"#6B7094", lineHeight:1.6, marginTop:8 }}>
+            Set it in Cloudflare Worker environment variables and this panel will populate real data.
+          </div>
+        </div>
+      ) : (
         <div style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:8, padding:"20px 18px", maxWidth:560 }}>
           <div style={{ fontSize:13, fontWeight:700, color:"#E2E8F0", marginBottom:6 }}>No {tab.toLowerCase()} data for {base}</div>
           <p style={{ fontSize:12, color:"#8896BE", lineHeight:1.6, margin:0 }}>
-            Fundamental data isn&apos;t available for this symbol. {base} may not be an equity
-            (crypto, futures, forex and indices have no company fundamentals), or the
-            fundamentals data provider is not configured. This panel shows real data only —
-            it will never display placeholder figures.
+            {canonicalAssetClass(symbol) !== "equity" ? (
+              <>
+                {base} is classified as <strong>{canonicalAssetClass(symbol)}</strong> — company
+                fundamentals (income, ratios, valuation, corporate actions, shareholders) apply to
+                equities only. Switch to an equity symbol (e.g. TSLA, AAPL) to see this view.
+              </>
+            ) : (
+              <>
+                No {tab.toLowerCase()} coverage returned for {base}. This panel shows real data
+                only — the provider is configured but returned no rows for this symbol/tab
+                combination. Try a different symbol or tab.
+              </>
+            )}
           </p>
         </div>
       )}
