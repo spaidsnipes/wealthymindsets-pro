@@ -99,6 +99,41 @@ Executed via `mcp__claude-in-chrome__*` on `https://wealthymindsetspro.com/chart
 - **FINNHUB_KEY**, **TASTYTRADE_REFRESH_TOKEN**, moomoo bridge secrets — same Founder-unblock class.
 - **iOS / iPad real-device proof** not run this window — recorded per Drive.
 
+## Full breakthrough loop CLOSED — 2b38fa8 deploy verified
+
+Cloudflare deploy of `2b38fa8` landed (poll-until-live loop caught the shape flip). Post-deploy operator pass on `/charts` → Financials tab on TSLA now renders:
+
+- **Gold header:** `FUNDAMENTALS PROVIDER — NOT CONFIGURED`
+- Body: *"The Financial Modeling Prep (FMP) fundamentals provider is not configured on the current host runtime, so financials for TSLA cannot be loaded. This panel shows real data only — it will never fabricate placeholder figures."*
+- **Missing host secret** code-chip: `FMP_KEY (or NEXT_PUBLIC_FMP_KEY)`
+- **Actionable fix**: "Set it in Cloudflare Worker environment variables and this panel will populate real data."
+
+Chart toolbar + ORDER FLOW row DO NOT render on Financials — screenshot confirms `chartToolbarStillVisible: false`, `timeframeButtonStillVisible: false` in DOM inspection.
+
+This is the full breakthrough loop per Drive canon: **current truth → model → implementation → integration → visible human use → stress/failure → recovery → parity → proof → Atlas dividend.**
+
+Founder unblock for the whole fundamentals surface is now one env-var paste away, and the panel itself teaches which secret.
+
+## BEGINNER-PASS observations (Options tab)
+
+- The Options tab opens a right-rail overlay: "TSLA Options · UNAVAILABLE · Spot: 0.00" — spot price shows 0.00 while the chart above shows $356.08 (Weakness #1 candidate — multi-price disagreement on one page, moat #1 target).
+- The overlay message "Real options data is unavailable for TSLA. No contracts were..." clips at the right edge — beginners can't read the full sentence.
+- No WHY explainer for terms IV / Greeks / Chain / Strike — beginner-hostile per Drive canon "labels, teaching/explanation, error prevention, cognitive load".
+
+These are the next Reality Edges. Recorded here as EDGES OPEN so a next-team continuation is exact.
+
 ## Exact Next Reality Edge (Nehemiah continuation)
 
-BEGINNER PASS not yet executed this window. Immediate continuation: open Options tab (only surface still visible on a crypto after the toolbar-hide), then hunt for beginner-hostile labels ("IV", "chain", "greeks" without explainer). Also: verify the 2b38fa8 fmp-contract deploy landed on prod and the panel now paints the gold NOT CONFIGURED card naming FMP_KEY.
+1. **Options overlay Spot: 0.00 defect** — should mirror the chart's canonical price (TSLA $356.08), not fabricate 0.00 when data is unavailable. Attack in `src/components/chart/OptionsChain.tsx`.
+2. **Options overlay text clipping** — right-rail width too tight for the honest UNAVAILABLE message. Widen or reflow.
+3. **BEGINNER WHY explainer** for options terms — a one-liner tooltip on IV/Delta/Greeks/Chain/Strike per Drive "WHY / WHY NOT guidance" clause.
+4. **iOS / iPad ACTUAL DEVICE proof** — this window's cross-device proof is DEVICE BROWSER only, not ACTUAL DEVICE. Founder-canon P0 mobile pass still owed.
+5. Founder env-secret paste for FMP_KEY, NEXT_PUBLIC_SUPABASE_ANON_KEY, FINNHUB_KEY, TASTYTRADE_REFRESH_TOKEN, moomoo bridge (all now truthfully surfaced on prod so paste is one action per var).
+
+## Atlas lane — reusable dividend
+
+- **Pattern**: "provider not configured" empty states MUST render the exact missing env var name pulled from the `{edge, missing}` contract, not hedge among alternative causes. Every future data-panel that hits a 503 should follow the `FundamentalsTabPanel providerEdge` capture pattern.
+- **Pattern**: chart-specific controls MUST be gated by the active view context — a control that "visually promises more than it does" IS the false-green class Sentinel must attack. Extend to any future context-swap surface (paper trading modal open, replay mode active, etc.).
+- **Pattern**: use `canonicalAssetClass(symbol)` for asset-class-conditional UI branches; never inline the string check. `categoryTabsFor` is the reference implementation.
+
+Observed elapsed this correction window: **NOT MEASURED** (post-correction; Founder measurement of ~10min stands for prior window).
