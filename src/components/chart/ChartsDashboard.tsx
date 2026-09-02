@@ -60,6 +60,12 @@ import { useAuth } from "@/contexts/AuthContext";
 // Order Flow Cockpit is the top-most tile in the canonical OS layout.
 // Real signal only — routes through selectAggressorFlow.
 import { OrderFlowCockpitStrip } from "./OrderFlowCockpitStrip";
+// Asset 14 (Market Object Passport) + Asset 16 (Chart Workspace Object
+// Passport) canon: passport lineage / owner / birth / touches /
+// invalidation must be integrated into the chart workspace.
+import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassportPanel";
+import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
+import { useCanonicalMarketState } from "@/lib/marketData/useCanonicalMarketState";
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
 
@@ -586,6 +592,17 @@ export function ChartsDashboard() {
   });
   const chartMarketCanvas = chartCanvasVM.canvas;
 
+  // Asset 14/16 canon: Market Object Passport (lineage, owner, birth,
+  // touches, invalidation, provenance) integrated into the chart
+  // workspace. Same selector /command-deck already routes through.
+  // Toggle state is device-local; not owner-scoped (view preference).
+  const chartCanvasState = useCanonicalMarketState(canvasIdentity);
+  const chartPassportVM = React.useMemo(
+    () => selectMarketObjectPassport(chartCanvasState),
+    [chartCanvasState],
+  );
+  const [passportOpen, setPassportOpen] = useState(false);
+
   // Track day high/low from ticker
   useEffect(() => {
     if (ticker.price > 0) {
@@ -776,6 +793,34 @@ export function ChartsDashboard() {
             ariaLabel="Chart market canvas summary"
           />
         </div>
+        {/* Asset 14/16 canon — Market Object Passport button. Silent
+            when snapshot not yet available (§Silence Is A Feature);
+            opens a real Passport panel with lineage/owner/birth/
+            touches/invalidation/provenance sourced from the same
+            selectMarketObjectPassport /command-deck routes through. */}
+        {chartPassportVM.capturedAt !== null && (
+          <button
+            type="button"
+            onClick={() => setPassportOpen(o => !o)}
+            aria-label={passportOpen ? "Close Market Object Passport" : "Open Market Object Passport"}
+            aria-expanded={passportOpen}
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: "uppercase",
+              color: passportOpen ? "#e8b923" : "#c9a55c",
+              background: passportOpen ? "rgba(232, 185, 35, 0.12)" : "transparent",
+              border: passportOpen ? "1px solid rgba(232, 185, 35, 0.5)" : "1px solid rgba(139,106,41,0.35)",
+              padding: "3px 8px",
+              borderRadius: 4,
+              fontWeight: 700,
+              cursor: "pointer",
+              marginLeft: 4,
+            }}
+          >
+            {passportOpen ? "▾ Passport" : "▸ Passport"}
+          </button>
+        )}
         <a
           href="/command-deck"
           style={{
@@ -999,7 +1044,45 @@ export function ChartsDashboard() {
         />
 
         {/* Center: toolbar + chart area — fullscreen target includes all controls */}
-        <div ref={fullscreenRef} style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0 }}>
+        <div ref={fullscreenRef} style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0, position:"relative" }}>
+          {/* Asset 14/16 canon — Passport overlay. Same VM shape the
+              deck consumes. Slides in from the right when the Passport
+              button is toggled in the wordmark row. */}
+          {passportOpen && (activeTab === "Chart" || activeTab === "Options") && (
+            <div
+              role="dialog"
+              aria-label="Market Object Passport"
+              style={{
+                position: "absolute",
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: 400,
+                maxWidth: "42vw",
+                zIndex: 30,
+                background: "linear-gradient(180deg, rgba(11,11,13,0.98), rgba(13,14,20,0.98))",
+                borderLeft: "1px solid rgba(232,185,35,0.35)",
+                boxShadow: "-8px 0 24px rgba(0,0,0,0.4)",
+                overflow: "auto",
+                padding: 12,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <span style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
+                  Market Object Passport
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPassportOpen(false)}
+                  aria-label="Close Market Object Passport"
+                  style={{ background: "transparent", border: "1px solid #333", color: "#8B8FA8", fontSize: 11, padding: "2px 8px", borderRadius: 3, cursor: "pointer" }}
+                >
+                  Close
+                </button>
+              </div>
+              <MarketObjectPassportPanel vm={chartPassportVM} />
+            </div>
+          )}
 
           {/* ── Toolbar ───────────────────────────────────────── */}
           {/* Founder canon (Drive Launch Board — HANDS-ON REALITY LOCK):
