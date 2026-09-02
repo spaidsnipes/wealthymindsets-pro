@@ -133,21 +133,18 @@ describe("composeMarketCanvasVM enforcement — canon §Single-Writer / Many-Rea
     expect(content).toMatch(/MarketCanvasPanel|CanvasSummaryPill/);
   });
 
-  it("sixth Phase 3 breadcrumb — /charts surfaces the Right of Way + Decision Why + Passport from the same canvas VM", () => {
+  it("sixth Phase 3 breadcrumb — /charts keeps one canvas verdict with Decision Why + Passport disclosure", () => {
     // Asset 10 canon (Full Operating System Overview) requires the
-    // Right of Way / Priority & Domain Rights tile visible on the
-    // primary trader surface. Same compiler as /command-deck (via
-    // chartCanvasVM.permission) so verdict cannot diverge.
+    // canonical decision state on the primary trader surface. The canvas
+    // summary owns that verdict; do not duplicate it as a permanent ROW chip.
     // Asset 07 canon (Evidence Debt / Question Mode) requires the
     // DecisionWhy compilation reachable from /charts too.
     // Asset 14/16 canon (Market Object Passport) requires the
     // passport lineage reachable from the chart workspace.
     const p = resolve(SRC_ROOT, "src/components/chart/ChartsDashboard.tsx");
     const content = readFileSync(p, "utf8");
-    // Right of Way — must consume chartCanvasVM.permission and render
-    // "ROW · " as the visible chip label.
-    expect(content).toMatch(/chartCanvasVM\.permission|chartPermission\s*=\s*chartCanvasVM\.permission/);
-    expect(content).toContain("ROW ·");
+    expect(content).toContain("CanvasSummaryPill");
+    expect(content).not.toContain("ROW · {chartPermission.verdict}");
     // Decision Why — must consume chartCanvasVM.decisionWhy and mount
     // the shared DecisionWhyPanel component (single-writer canon).
     expect(content).toMatch(/chartCanvasVM\.decisionWhy/);
@@ -156,10 +153,9 @@ describe("composeMarketCanvasVM enforcement — canon §Single-Writer / Many-Rea
     // the shared MarketObjectPassportPanel.
     expect(content).toContain("selectMarketObjectPassport");
     expect(content).toContain("MarketObjectPassportPanel");
-    // Liquidity Weather (Asset 08/10) — must render the honest
-    // NOT WIRED chip; no fake heatmap component may be introduced.
-    expect(content).toContain("LIQUIDITY WEATHER");
-    expect(content).toContain("NOT WIRED");
+    // Unresolved depth readiness belongs in the capability drawer, not
+    // permanent chart chrome. Silence is preferable to an infrastructure chip.
+    expect(content).not.toContain("LIQUIDITY WEATHER · NOT WIRED");
   });
 
   it("does not hide canonical Canvas or channel evidence behind session trade collection", () => {
