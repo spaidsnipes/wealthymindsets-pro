@@ -27,7 +27,16 @@ export async function GET(request: Request) {
   const extra = searchParams.get("limit") ? `&limit=${searchParams.get("limit")}` : "";
 
   if (!path) return NextResponse.json({ error: "path required" }, { status: 400 });
-  if (!FMP_KEY) return NextResponse.json({ error: "FMP_KEY not configured" }, { status: 503 });
+  if (!FMP_KEY) {
+    // Monday Test 2 canonical config-honesty contract — every WM API surface
+    // that hits a missing host secret responds with {edge, missing:[…exact
+    // names…]} so consumers can render the honest edge instead of guessing.
+    // Sentinel enforces this shape across the whole /api tree.
+    return NextResponse.json(
+      { error: "FMP fundamentals provider is not configured", edge: "NOT CONFIGURED", missing: ["FMP_KEY (or NEXT_PUBLIC_FMP_KEY)"], source: "fmp" },
+      { status: 503 },
+    );
+  }
 
   const cacheKey = path + extra;
   const ttl = path.includes("/options/") ? 60_000 : path.includes("/profile/") ? 300_000 : 300_000;
