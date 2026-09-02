@@ -489,6 +489,7 @@ function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => v
 
 interface ManagedConnectionReceipt {
   provider: string;
+  authMode?: "SIGNED_OPENAPI";
   configured: boolean;
   connected: boolean;
   state: string;
@@ -548,6 +549,11 @@ function ManagedConnectionStatus({ broker }: { broker: Broker }) {
         </div>
         {!loading && receipt && (
           <>
+            {receipt.authMode === "SIGNED_OPENAPI" && (
+              <div className="mt-1 text-[9px] font-bold uppercase tracking-wider text-wm-text-dim">
+                Signed OpenAPI check · read-only account proof
+              </div>
+            )}
             <p className="mt-1 text-[10px] leading-relaxed text-wm-text-muted">{receipt.note}</p>
             {connected && (
               <p className="mt-1 text-[10px] text-wm-text-dim">
@@ -601,7 +607,8 @@ function ManagedConnectionStatus({ broker }: { broker: Broker }) {
         </a>
       </div>
       <p className="px-0.5 text-[9px] leading-snug text-wm-text-dim">
-        This checks WM Pro&apos;s server-side Webull wire. Signing into Webull&apos;s website is separate and does not connect this app.
+        This verifies WM Pro&apos;s server-side signed OpenAPI wire. Webull Connect OAuth—authorize, callback, token refresh,
+        per-user vault, and disconnect—is not implemented yet. Signing into Webull&apos;s website cannot connect this app.
       </p>
     </div>
   );
