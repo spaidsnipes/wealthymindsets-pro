@@ -42,8 +42,10 @@ describe("responsive P0 command surfaces", () => {
     expect(layout).toContain('return href === "/education" && pathname.startsWith("/proof-lane")');
     expect(layout).toContain("isPrimaryDestinationActive(pathname, href)");
     expect(challenge).toContain('href="/education"');
-    expect(challenge).toContain("Academy · Challenge Lab");
-    expect(challenge).toContain("This private Academy lab models");
+    expect(challenge).toContain(">Challenge Lab</h1>");
+    expect(challenge).toContain("This private Academy lesson models");
+    expect(challenge).toContain('className="h-full overflow-y-auto bg-[#050506]');
+    expect(challenge).not.toContain('className="min-h-screen');
   });
 
   it("keeps the Command Deck proof chain available without stacking it into the primary read", () => {

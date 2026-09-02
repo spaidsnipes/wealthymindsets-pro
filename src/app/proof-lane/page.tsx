@@ -94,25 +94,19 @@ export default function ProofLanePage() {
   const status = paceStatus(selectedHorizon, sessionIndex, actualBalance, START, TARGET);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black via-neutral-950 to-black text-neutral-100">
-      <header className="border-b border-amber-900/40 bg-black/60 backdrop-blur px-4 sm:px-8 py-4">
-        <div className="max-w-6xl mx-auto flex items-center gap-3 flex-wrap">
-          <Link href="/education" className="text-xs uppercase tracking-widest text-amber-400/80 hover:text-amber-300">
+    <div className="h-full overflow-y-auto bg-[#050506] text-neutral-100">
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+        <div className="flex flex-wrap items-center gap-3 border-b border-white/5 pb-4">
+          <Link href="/education" className="inline-flex min-h-11 items-center text-xs font-semibold uppercase tracking-widest text-amber-400/80 hover:text-amber-300">
             ← Academy
           </Link>
-          <span className="text-neutral-600">·</span>
-          <h1 className="text-lg sm:text-xl font-semibold tracking-tight">Academy · Challenge Lab</h1>
-          <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-950/40 px-2 py-0.5 text-[10px] font-mono uppercase tracking-widest text-amber-300">
+          <span className="text-neutral-700">/</span>
+          <h1 className="text-base font-semibold tracking-tight">Challenge Lab</h1>
+          <span className="ml-auto inline-flex min-h-8 items-center rounded-full border border-amber-500/30 bg-amber-950/25 px-3 text-[9px] font-mono uppercase tracking-widest text-amber-300">
             {PACE_TRUTH_LABEL}
           </span>
         </div>
-        <p className="max-w-6xl mx-auto mt-2 text-xs sm:text-sm text-neutral-400">
-          This private Academy lab models the $100 → $1,000,000 path as an <span className="text-neutral-200">educational trading and scenario experiment</span> in discipline, risk, options mechanics, and personal-edge development. $1M is an aspirational hypothetical target,{" "}
-          <span className="text-neutral-200">not an earnings promise</span>. Actual trading can include partial or complete loss of capital.
-        </p>
-      </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-8 py-8 space-y-10">
         <section aria-labelledby="academy-challenge" className="rounded-2xl border border-amber-700/50 bg-gradient-to-br from-amber-950/30 via-neutral-950 to-black p-5 sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -123,7 +117,7 @@ export default function ProofLanePage() {
                 Learn → Plan → Practice → Review
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-400">
-                Preview the $100 challenge path inside WM Pro. $100 means simulated starting capital—not a price, deposit, funded account, or earnings promise. Enrollment and payment are not connected; Academy progress remains browser-local.
+                This private Academy lesson models the $100 challenge as an educational scenario in discipline, risk, options mechanics, and personal-edge development. $100 means simulated starting capital—not a price, deposit, funded account, or earnings promise. Actual trading can include partial or complete loss of capital.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
