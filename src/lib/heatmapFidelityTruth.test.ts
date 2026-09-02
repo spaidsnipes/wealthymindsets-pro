@@ -49,4 +49,13 @@ describe("Heat Map fidelity truth", () => {
     expect(page).toContain('const HM_CACHE_PREFIX = "wm_heatmap_"');
     expect(page).toContain('router.push("/charts")');
   });
+
+  it("deduplicates provider refreshes and prevents overlapping client polls", () => {
+    expect(route).toContain("const SERVER_INFLIGHT = new Map");
+    expect(route).toContain("SERVER_INFLIGHT.get(key)");
+    expect(route).toContain('const cacheKey = `heatmap:${period}:${syms.join(",")}`');
+    expect(page).toContain("refreshTimer = setTimeout(load, refreshInterval)");
+    expect(page).toContain("requestController?.abort()");
+    expect(page).not.toContain("const id = setInterval(load, interval)");
+  });
 });

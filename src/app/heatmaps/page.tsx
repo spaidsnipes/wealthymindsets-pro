@@ -666,15 +666,21 @@ function useLivePct(tf: string) {
 
   useEffect(() => {
     let cancelled = false;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    let requestController: AbortController | null = null;
+    const refreshInterval = tf === "1D" ? 30_000 : 120_000;
 
     async function load() {
+      if (cancelled) return;
+      requestController?.abort();
+      requestController = new AbortController();
       // Only show spinner if we have no data at all
       if (Object.keys(retainedRowsRef.current).length === 0) setLoading(true);
       try {
         const syms = getAllSymbols();
         const res  = await fetch(
           `/api/heatmap?period=${encodeURIComponent(tf)}&syms=${encodeURIComponent(syms.join(","))}`,
-          { cache: "no-store" }
+          { cache: "no-store", signal: requestController.signal }
         );
         if (!res.ok) throw new Error(`Heat map HTTP ${res.status}`);
         const json = await res.json() as {
@@ -695,7 +701,8 @@ function useLivePct(tf: string) {
           // Cache to localStorage for instant re-load
           try { localStorage.setItem(HM_CACHE_PREFIX + tf, JSON.stringify({ data: json.results, ts: receivedAt })); } catch {}
         }
-      } catch {
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
         // A retained snapshot may remain useful, but it must not stay labelled current.
         if (!cancelled) {
           const hasRetainedRows = Object.keys(retainedRowsRef.current).length > 0;
@@ -705,14 +712,22 @@ function useLivePct(tf: string) {
             : "Heat-map data is unavailable and fidelity is unknown.");
         }
       }
-      finally { if (!cancelled) setLoading(false); }
+      finally {
+        if (!cancelled) {
+          setLoading(false);
+          // Schedule from completion instead of using setInterval. A slow
+          // provider refresh can never overlap the next refresh.
+          refreshTimer = setTimeout(load, refreshInterval);
+        }
+      }
     }
 
     load();
-    // 1D refreshes every 30s; historical every 2 min
-    const interval = tf === "1D" ? 30_000 : 120_000;
-    const id = setInterval(load, interval);
-    return () => { cancelled = true; clearInterval(id); };
+    return () => {
+      cancelled = true;
+      requestController?.abort();
+      if (refreshTimer) clearTimeout(refreshTimer);
+    };
   }, [tf]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (resolvedTf !== tf) {

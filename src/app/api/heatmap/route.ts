@@ -18,12 +18,26 @@ import { NextResponse } from "next/server";
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36";
 
 const SERVER_CACHE = new Map<string, { data: unknown; ts: number }>();
+const SERVER_INFLIGHT = new Map<string, Promise<unknown>>();
 async function withCache<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<{ data: T; cacheHit: boolean }> {
   const hit = SERVER_CACHE.get(key);
   if (hit && Date.now() - hit.ts < ttlMs) return { data: hit.data as T, cacheHit: true };
-  const data = await fn();
-  SERVER_CACHE.set(key, { data, ts: Date.now() });
-  return { data, cacheHit: false };
+
+  // A heat-map request can fan out to many chart observations. Reuse the same
+  // pending refresh so tab restores, Strict Mode, and timer boundaries do not
+  // launch duplicate provider bursts for an identical symbol universe.
+  const pending = SERVER_INFLIGHT.get(key) as Promise<T> | undefined;
+  if (pending) return { data: await pending, cacheHit: false };
+
+  const refresh = fn();
+  SERVER_INFLIGHT.set(key, refresh);
+  try {
+    const data = await refresh;
+    SERVER_CACHE.set(key, { data, ts: Date.now() });
+    return { data, cacheHit: false };
+  } finally {
+    if (SERVER_INFLIGHT.get(key) === refresh) SERVER_INFLIGHT.delete(key);
+  }
 }
 
 // Yahoo Finance symbol mapping
@@ -118,7 +132,10 @@ export async function GET(request: Request) {
 
   // Cache 1D for 30s, historical for 3 minutes
   const ttl      = period === "1D" ? 30_000 : 180_000;
-  const cacheKey = `heatmap:${period}:${syms.slice(0, 5).join(",")}:${syms.length}`;
+  // Include the complete requested universe. First-five-plus-count aliases
+  // different watchlists and can return a valid-looking snapshot for the
+  // wrong symbols.
+  const cacheKey = `heatmap:${period}:${syms.join(",")}`;
 
   try {
     const { data: results, cacheHit } = await withCache(cacheKey, ttl, async () => {
