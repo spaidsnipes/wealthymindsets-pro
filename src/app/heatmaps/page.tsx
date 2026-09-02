@@ -927,62 +927,58 @@ export default function HeatmapsPage() {
       <div style={{
         minHeight: 52, flexShrink: 0, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
         padding: "4px 14px", borderBottom: "1px solid #1A2030", background: "#0A0E14",
-      }}
-        role="tablist"
-        aria-label="Heatmap view and timeframe"
-      >
-        <span style={{ fontSize: 11, color: "#8892A0", fontWeight: 700 }}>VIEW</span>
-        {VIEWS.map(v => (
-          <button
-            key={v}
-            type="button"
-            role="tab"
-            aria-selected={activeView === v}
-            aria-pressed={activeView === v}
-            aria-label={`View: ${v}${activeView === v ? " (selected)" : ""}`}
-            onClick={() => setActiveView(v)}
-            className="wm-heatmap-btn"
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              padding: "10px 14px",           // 44×44 min hit target per Founder Cycle 12 §D
-              minHeight: 44,
-              minWidth: 44,
-              borderRadius: 6,
-              cursor: "pointer",
-              border: activeView === v ? "1px solid #4FA3E0" : "1px solid transparent",
-              background: activeView === v ? "#4FA3E0" : "transparent",
-              color: activeView === v ? "#fff" : "#8892A0",
-              outlineOffset: 2,
-            }}
-          >{v}</button>
-        ))}
+      }}>
+        <div role="tablist" aria-label="Heatmap view" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 11, color: "#8892A0", fontWeight: 700 }}>VIEW</span>
+          {VIEWS.map(v => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={activeView === v}
+              aria-pressed={activeView === v}
+              aria-label={`View: ${v}${activeView === v ? " (selected)" : ""}`}
+              onClick={() => setActiveView(v)}
+              className="wm-heatmap-btn"
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                padding: "10px 14px",
+                minHeight: 44,
+                minWidth: 44,
+                borderRadius: 6,
+                cursor: "pointer",
+                border: activeView === v ? "1px solid #4FA3E0" : "1px solid transparent",
+                background: activeView === v ? "#4FA3E0" : "transparent",
+                color: activeView === v ? "#fff" : "#8892A0",
+                outlineOffset: 2,
+              }}
+            >{v}</button>
+          ))}
+        </div>
         <div style={{ width: 1, height: 18, background: "#2D3748", marginLeft: 4 }} />
-        {TIMEFRAMES.map(tf => (
-          <button
-            key={tf}
-            type="button"
-            role="tab"
-            aria-selected={activeTF === tf}
-            aria-pressed={activeTF === tf}
-            aria-label={`Timeframe: ${tf}${activeTF === tf ? " (selected)" : ""}`}
-            onClick={() => setActiveTF(tf)}
-            className="wm-heatmap-btn"
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              padding: "10px 12px",           // 44×44 min hit target
-              minHeight: 44,
-              minWidth: 44,
-              borderRadius: 6,
-              cursor: "pointer",
-              border: activeTF === tf ? "1px solid #2D3748" : "1px solid transparent",
-              background: activeTF === tf ? "#2D3748" : "transparent",
-              color: activeTF === tf ? "#fff" : "#8892A0",
-              outlineOffset: 2,
-            }}
-          >{tf}</button>
-        ))}
+        <label htmlFor="heatmap-timeframe" style={{ fontSize: 10, color: "#8892A0", fontWeight: 700 }}>
+          TIMEFRAME
+        </label>
+        <select
+          id="heatmap-timeframe"
+          aria-label="Heatmap timeframe"
+          value={activeTF}
+          onChange={event => setActiveTF(event.target.value)}
+          style={{
+            minHeight: 44,
+            minWidth: 76,
+            borderRadius: 6,
+            border: "1px solid #2D3748",
+            background: "#161B22",
+            color: "#fff",
+            fontSize: 12,
+            fontWeight: 700,
+            padding: "0 10px",
+          }}
+        >
+          {TIMEFRAMES.map(tf => <option key={tf} value={tf}>{tf}</option>)}
+        </select>
         {heatLoading && (
           <span
             role="status"
@@ -1016,7 +1012,7 @@ export default function HeatmapsPage() {
           placeholder="Quick search ticker…"
           style={{
             background: "#161B22", border: "1px solid #2D3748", borderRadius: 6,
-            color: "#fff", fontSize: 11, padding: "3px 10px", width: 160, outline: "none",
+            color: "#fff", fontSize: 11, padding: "3px 10px", width: 160, minHeight: 44, outline: "none",
           }}
         />
         <span style={{ fontSize: 10, color: "#8892A0" }}>
