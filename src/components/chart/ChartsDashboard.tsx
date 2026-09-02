@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
-import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity, Plug2 } from "lucide-react";
+import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity } from "lucide-react";
 import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
 import { WMLogo } from "@/components/ui/WMLogo";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -684,29 +684,10 @@ export function ChartsDashboard() {
         >
           the trader's chart
         </span>
-        <button
-          type="button"
-          onClick={() => setBrokerOpen(true)}
-          style={{
-            marginLeft: "auto",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            fontSize: 10,
-            color: "#e8d7a7",
-            border: "1px solid rgba(240,180,41,0.38)",
-            padding: "3px 8px",
-            borderRadius: 4,
-            fontWeight: 750,
-            whiteSpace: "nowrap",
-          }}
-          aria-label="Connect one or more brokers"
-        >
-          <Plug2 size={11} /> Brokers
-        </button>
         <a
           href="/command-deck"
           style={{
+            marginLeft: "auto",
             fontSize: 10,
             letterSpacing: 0.3,
             textTransform: "uppercase",

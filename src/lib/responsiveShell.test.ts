@@ -61,9 +61,12 @@ describe("responsive P0 command surfaces", () => {
 
   it("keeps the multi-broker entry point visible at the right edge of the chart toolbar", () => {
     const toolbar = source("../components/chart/ChartToolbar.tsx");
+    const dashboard = source("../components/chart/ChartsDashboard.tsx");
     expect(toolbar).toContain('aria-label="Connect one or more brokers"');
     expect(toolbar).toContain('style={{ position: "sticky", right: 0');
     expect(toolbar).toContain("Connect brokers");
+    expect(dashboard).not.toContain('aria-label="Connect one or more brokers"');
+    expect(dashboard).not.toContain("> Brokers");
   });
 
   it("removes the retired Harlem Nights identity from active product surfaces", () => {
