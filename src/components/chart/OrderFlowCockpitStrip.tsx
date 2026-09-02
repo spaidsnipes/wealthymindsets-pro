@@ -7,9 +7,9 @@
  * that grammar with REAL data owners only.
  *
  * Wire: recentTicks → selectAggressorFlow → honest volumes.
- *   - hasFlow=false → single-line silent chip ("Order Flow —
- *     no aggressor evidence yet") per LIVING-PIXEL LAW. No fake
- *     imbalance. No decorative bar.
+ *   - hasFlow=false → render nothing per LIVING-PIXEL LAW. Missing
+ *     evidence remains available through canonical diagnostics without
+ *     charging every chart visit another chrome row.
  *   - hasFlow=true → three tiles: Aggressive Buy, Aggressive Sell,
  *     Net Flow (signed), with the dominant side subtly highlighted.
  *
@@ -73,21 +73,7 @@ export function OrderFlowCockpitStrip({
   };
 
   if (!snap.hasFlow) {
-    return (
-      <div
-        className="wm-order-flow-cockpit-strip"
-        style={containerStyle}
-        aria-label="Order flow cockpit — silent (no aggressor evidence)"
-      >
-        <span style={{ color: "#8B8FA8", letterSpacing: 0.4, fontWeight: 700 }}>
-          {label}
-        </span>
-        <span style={{ color: "#555a72" }}>—</span>
-        <span style={{ color: "#8B8FA8", fontStyle: "italic" }}>
-          no aggressor evidence yet
-        </span>
-      </div>
-    );
+    return null;
   }
 
   const buyColor = snap.askDom ? "#00C076" : "#4A8560";

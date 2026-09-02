@@ -13,18 +13,14 @@ import { OrderFlowCockpitStrip } from "./OrderFlowCockpitStrip";
 import type { AggressorTick } from "@/lib/marketData/selectAggressorFlow";
 
 describe("OrderFlowCockpitStrip", () => {
-  it("renders the silent empty-state chip when there are no ticks", () => {
+  it("renders nothing when there are no ticks", () => {
     const html = renderToStaticMarkup(
       <OrderFlowCockpitStrip ticks={[]} livePrice={100} />,
     );
-    expect(html).toContain("no aggressor evidence yet");
-    // No fabricated numbers ever painted in silent mode.
-    expect(html).not.toContain("Aggressive Buy");
-    expect(html).not.toContain("Net Flow");
-    expect(html).not.toContain("Imb");
+    expect(html).toBe("");
   });
 
-  it("renders the silent chip when every tick is invalid (missing side)", () => {
+  it("renders nothing when every tick is invalid (missing side)", () => {
     const ticks: AggressorTick[] = [
       { size: 100, price: 50 } as AggressorTick,
       { size: 200, price: 50 } as AggressorTick,
@@ -32,8 +28,7 @@ describe("OrderFlowCockpitStrip", () => {
     const html = renderToStaticMarkup(
       <OrderFlowCockpitStrip ticks={ticks} livePrice={50} />,
     );
-    expect(html).toContain("no aggressor evidence yet");
-    expect(html).not.toContain("Aggressive Buy");
+    expect(html).toBe("");
   });
 
   it("renders Aggressive Buy / Aggressive Sell / Net Flow when real ticks flow", () => {
@@ -65,8 +60,11 @@ describe("OrderFlowCockpitStrip", () => {
   });
 
   it("uses the custom label prefix when provided", () => {
+    const ticks: AggressorTick[] = [
+      { side: "buy", size: 1, price: 1, trade: true },
+    ];
     const html = renderToStaticMarkup(
-      <OrderFlowCockpitStrip ticks={[]} livePrice={0} label="FLOW" />,
+      <OrderFlowCockpitStrip ticks={ticks} livePrice={1} label="FLOW" />,
     );
     expect(html).toContain("FLOW");
   });
