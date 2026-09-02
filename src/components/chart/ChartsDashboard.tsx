@@ -754,29 +754,55 @@ export function ChartsDashboard() {
         role="tablist"
         aria-label="Symbol view categories"
       >
-        {categoryTabsFor(canonicalAssetClass(symbol)).map(tab => (
-          <button
-            key={tab}
-            className="wm-chart-page-tab"
-            role="tab"
-            aria-selected={tab === activeTab}
-            onClick={() => {
-              setActiveTab(tab);
-              if (tab === "Options") setOptionsOpen(true);
-            }}
-            style={{
-              padding: "0 14px",
-              minHeight: 44,
-              color: tab === activeTab ? "#E2E8F0" : "#8B8FA8",
-              background: "transparent", border: "none",
-              borderBottom: tab === activeTab ? "2px solid #FF8C00" : "2px solid transparent",
-              fontSize: 12, fontWeight: tab === activeTab ? 600 : 400, cursor: "pointer",
-              whiteSpace: "nowrap", flexShrink: 0,
-            }}
-          >
-            {tab}
-          </button>
-        ))}
+        {(() => {
+          const tabs = categoryTabsFor(canonicalAssetClass(symbol));
+          return tabs.map((tab, idx) => {
+            const isActive = tab === activeTab;
+            const panelId = tab === "Chart" || tab === "Options"
+              ? "wm-chart-category-panel-chart"
+              : "wm-chart-category-panel";
+            return (
+              <button
+                key={tab}
+                className="wm-chart-page-tab"
+                role="tab"
+                aria-selected={isActive}
+                aria-controls={panelId}
+                tabIndex={isActive ? 0 : -1}
+                onKeyDown={(e) => {
+                  // WAI-ARIA tab pattern: Left/Right arrows move focus + activate.
+                  // Founder canon: keyboard users MUST reach every category tab
+                  // without the mouse.
+                  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Home" && e.key !== "End") return;
+                  e.preventDefault();
+                  let nextIdx = idx;
+                  if (e.key === "ArrowLeft") nextIdx = (idx - 1 + tabs.length) % tabs.length;
+                  if (e.key === "ArrowRight") nextIdx = (idx + 1) % tabs.length;
+                  if (e.key === "Home") nextIdx = 0;
+                  if (e.key === "End") nextIdx = tabs.length - 1;
+                  const nextTab = tabs[nextIdx];
+                  setActiveTab(nextTab);
+                  if (nextTab === "Options") setOptionsOpen(true);
+                }}
+                onClick={() => {
+                  setActiveTab(tab);
+                  if (tab === "Options") setOptionsOpen(true);
+                }}
+                style={{
+                  padding: "0 14px",
+                  minHeight: 44,
+                  color: isActive ? "#E2E8F0" : "#8B8FA8",
+                  background: "transparent", border: "none",
+                  borderBottom: isActive ? "2px solid #FF8C00" : "2px solid transparent",
+                  fontSize: 12, fontWeight: isActive ? 600 : 400, cursor: "pointer",
+                  whiteSpace: "nowrap", flexShrink: 0,
+                }}
+              >
+                {tab}
+              </button>
+            );
+          });
+        })()}
       </div>
       {/* ── MooMoo-style chart tabs row ──────────────────────── */}
       <div className="wm-chart-tabs" style={{
@@ -1286,11 +1312,13 @@ export function ChartsDashboard() {
 
           {/* ── Non-Chart tab panels ──────────────────────────── */}
           {activeTab !== "Chart" && activeTab !== "Options" && (
-            <FundamentalsTabPanel symbol={symbol} tab={activeTab} onBack={() => setActiveTab("Chart")} />
+            <div role="tabpanel" id="wm-chart-category-panel" aria-label={`${activeTab} for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
+              <FundamentalsTabPanel symbol={symbol} tab={activeTab} onBack={() => setActiveTab("Chart")} />
+            </div>
           )}
 
           {/* ── Chart area ─────────────────────────── */}
-          <div style={{ flex:1, overflow:"hidden", minHeight:0, display: (activeTab === "Chart" || activeTab === "Options") ? "flex" : "none" }}>
+          <div role="tabpanel" id="wm-chart-category-panel-chart" aria-label={`Chart for ${symbol}`} style={{ flex:1, overflow:"hidden", minHeight:0, display: (activeTab === "Chart" || activeTab === "Options") ? "flex" : "none" }}>
 
             {/* Chart + VP ladder (snapshot target) */}
             <div ref={chartWrapRef} style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0, position:"relative" }}>
