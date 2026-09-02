@@ -928,14 +928,12 @@ export default function HeatmapsPage() {
         minHeight: 52, flexShrink: 0, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
         padding: "4px 14px", borderBottom: "1px solid #1A2030", background: "#0A0E14",
       }}>
-        <div role="tablist" aria-label="Heatmap view" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div role="group" aria-label="Heatmap view" style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 11, color: "#8892A0", fontWeight: 700 }}>VIEW</span>
           {VIEWS.map(v => (
             <button
               key={v}
               type="button"
-              role="tab"
-              aria-selected={activeView === v}
               aria-pressed={activeView === v}
               aria-label={`View: ${v}${activeView === v ? " (selected)" : ""}`}
               onClick={() => setActiveView(v)}

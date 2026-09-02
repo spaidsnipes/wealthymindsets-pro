@@ -5,8 +5,10 @@ import { resolve } from "node:path";
 const page = readFileSync(resolve(process.cwd(), "src/app/heatmaps/page.tsx"), "utf8");
 
 describe("heatmap toolbar transformation", () => {
-  it("keeps one semantic tablist for the three mutually exclusive views", () => {
-    expect(page).toContain('role="tablist" aria-label="Heatmap view"');
+  it("uses a truthful labelled button group for the three views", () => {
+    expect(page).toContain('role="group" aria-label="Heatmap view"');
+    expect(page).not.toContain('role="tablist" aria-label="Heatmap view"');
+    expect(page).not.toContain('role="tab"');
     expect(page).not.toContain('aria-label="Heatmap view and timeframe"');
   });
 
