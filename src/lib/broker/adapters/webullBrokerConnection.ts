@@ -1,0 +1,173 @@
+/** Bounded, read-only proof of the founder's Webull Trading API connection. */
+import { randomUUID } from "crypto";
+import { signWebullRequest } from "@/lib/marketData/adapters/webullMarketData";
+
+const DEFAULT_HOST = "api.webull.com";
+const ACCOUNT_LIST_PATH = "/trading/accounts/list";
+
+export interface WebullBrokerConfig {
+  readonly appKey?: string;
+  readonly appSecret?: string;
+  readonly accessToken?: string;
+  readonly apiHost?: string;
+  readonly timeoutMs?: number;
+  readonly now?: () => Date;
+  readonly nonce?: () => string;
+}
+
+export type WebullBrokerConnectionState =
+  | "CONNECTED"
+  | "UNCONFIGURED"
+  | "BLOCKED_AUTH"
+  | "ACCESS_UNPROVEN"
+  | "NO_ACCOUNTS"
+  | "RATE_LIMITED"
+  | "PROVIDER_ERROR"
+  | "TIMEOUT"
+  | "UNAVAILABLE";
+
+export interface WebullBrokerConnectionReceipt {
+  readonly provider: "webull";
+  readonly state: WebullBrokerConnectionState;
+  readonly configured: boolean;
+  readonly connected: boolean;
+  readonly accountCount: number;
+  /** Provider-declared account types only. Account IDs never leave the server. */
+  readonly accountTypes: readonly string[];
+  readonly checkedAt: string;
+  readonly note: string;
+}
+
+export function webullBrokerConfigFromEnv(env: Readonly<Record<string, string | undefined>>): WebullBrokerConfig {
+  return {
+    appKey: env.WEBULL_APP_KEY || env.WEBULL_API_KEY || undefined,
+    appSecret: env.WEBULL_APP_SECRET || env.WEBULL_API_SECRET || undefined,
+    accessToken: env.WEBULL_ACCESS_TOKEN || undefined,
+    apiHost: env.WEBULL_API_HOST || undefined,
+  };
+}
+
+function cleanHost(host: string | undefined): string {
+  return (host || DEFAULT_HOST).replace(/^https?:\/\//, "").replace(/\/+$/, "");
+}
+
+function isoSeconds(date: Date): string {
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+function parseAccounts(payload: unknown): readonly Record<string, unknown>[] | null {
+  if (Array.isArray(payload)) return payload.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object");
+  if (!payload || typeof payload !== "object") return null;
+  const envelope = payload as { data?: unknown; result?: unknown };
+  const rows = Array.isArray(envelope.data) ? envelope.data : Array.isArray(envelope.result) ? envelope.result : null;
+  return rows?.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object") ?? null;
+}
+
+/**
+ * Proves only signed read access to Webull accounts. It does not prove order
+ * preview, placement, cancellation, fills, or options permissions.
+ */
+export async function probeWebullBrokerConnection(
+  fetchImpl: typeof fetch,
+  config: WebullBrokerConfig = {},
+): Promise<WebullBrokerConnectionReceipt> {
+  const appKey = config.appKey?.trim();
+  const appSecret = config.appSecret?.trim();
+  const accessToken = config.accessToken?.trim();
+  const checkedAt = isoSeconds((config.now || (() => new Date()))());
+  const configured = Boolean(appKey && appSecret);
+  const receipt = (
+    state: WebullBrokerConnectionState,
+    note: string,
+    accountCount = 0,
+    accountTypes: readonly string[] = [],
+  ): WebullBrokerConnectionReceipt => ({
+    provider: "webull",
+    state,
+    configured,
+    connected: state === "CONNECTED",
+    accountCount,
+    accountTypes,
+    checkedAt,
+    note,
+  });
+
+  if (!appKey || !appSecret) {
+    return receipt("UNCONFIGURED", "The Webull Trading API credential pair is not configured together in this runtime.");
+  }
+
+  const host = cleanHost(config.apiHost);
+  const nonce = (config.nonce || (() => randomUUID().replace(/-/g, "")))();
+  const signature = signWebullRequest({
+    path: ACCOUNT_LIST_PATH,
+    query: {},
+    appKey,
+    appSecret,
+    host,
+    timestamp: checkedAt,
+    nonce,
+  });
+  const headers: Record<string, string> = {
+    "x-app-key": appKey,
+    "x-timestamp": checkedAt,
+    "x-signature": signature,
+    "x-signature-algorithm": "HMAC-SHA1",
+    "x-signature-version": "1.0",
+    "x-signature-nonce": nonce,
+    "x-version": "v2",
+  };
+  if (accessToken) headers["x-access-token"] = accessToken;
+
+  const controller = new AbortController();
+  const timeoutMs = Math.max(250, Math.min(30_000, config.timeoutMs ?? 8_000));
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await fetchImpl(`https://${host}${ACCOUNT_LIST_PATH}`, {
+      method: "GET",
+      cache: "no-store",
+      headers,
+      signal: controller.signal,
+    });
+  } catch {
+    return controller.signal.aborted
+      ? receipt("TIMEOUT", `Webull Trading API did not respond within ${timeoutMs} ms.`)
+      : receipt("UNAVAILABLE", "Webull Trading API could not be reached.");
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (response.status === 401) {
+    return receipt("BLOCKED_AUTH", "Webull rejected the signed account request with HTTP 401. Verify the OpenAPI key pair, environment, and 2FA token requirement.");
+  }
+  if (response.status === 403 || response.status === 417) {
+    return receipt("ACCESS_UNPROVEN", `Webull rejected the signed account request with HTTP ${response.status}; the failed permission or business-rule edge was not proven.`);
+  }
+  if (response.status === 429) {
+    return receipt("RATE_LIMITED", "Webull rate-limited the bounded account check.");
+  }
+  if (response.status >= 500) {
+    return receipt("PROVIDER_ERROR", `Webull Trading API returned HTTP ${response.status} before account access could be proven.`);
+  }
+  if (!response.ok) {
+    return receipt("UNAVAILABLE", `Webull Trading API returned HTTP ${response.status}; account access was not proven.`);
+  }
+
+  const accounts = parseAccounts(await response.json().catch(() => null));
+  if (!accounts) {
+    return receipt("PROVIDER_ERROR", "Webull returned an unrecognized account-list envelope.");
+  }
+  if (accounts.length === 0) {
+    return receipt("NO_ACCOUNTS", "Webull accepted the signed request but returned no accounts available to OpenAPI.");
+  }
+  const accountTypes = [...new Set(accounts.flatMap((account) => {
+    const value = account.account_type ?? account.account_class;
+    return typeof value === "string" && value.trim() ? [value.trim().toUpperCase()] : [];
+  }))];
+  return receipt(
+    "CONNECTED",
+    "Signed read access to the Webull account list is proven. Order preview and execution remain separately gated.",
+    accounts.length,
+    accountTypes,
+  );
+}

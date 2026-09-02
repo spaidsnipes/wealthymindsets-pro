@@ -16,15 +16,17 @@ function req(): Request {
 }
 
 describe("/api/broker/webull/status — canon §12 truth", () => {
-  it("returns implemented=false with an honest note (never claims wired)", async () => {
+  it("returns the unconfigured live probe honestly (never claims wired)", async () => {
     const res = await GET(req());
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body.provider).toBe("webull");
-    expect(body.implemented).toBe(false);
+    expect(body.implemented).toBe(true);
     expect(body.configured).toBe(false);
     expect(body.connected).toBe(false);
-    expect(body.note).toContain("not implemented");
+    expect(body.state).toBe("UNCONFIGURED");
+    expect(body.accountCount).toBe(0);
+    expect(body.note).toContain("not configured");
     expect(typeof body.checkedAt).toBe("string");
     const s = JSON.stringify(body);
     expect(s.toLowerCase()).not.toContain("token");

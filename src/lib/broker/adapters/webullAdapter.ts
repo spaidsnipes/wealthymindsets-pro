@@ -21,6 +21,12 @@ import type {
   CanonicalOrderAck,
   UniversalOrderIntent,
 } from "../BrokerAdapter";
+import { webullBrokerConfigFromEnv } from "./webullBrokerConnection";
+
+function configuredForSignedTrading(): boolean {
+  const config = webullBrokerConfigFromEnv(process.env);
+  return Boolean(config.appKey?.trim() && config.appSecret?.trim());
+}
 
 class NotImplementedError extends Error {
   constructor(op: string) {
@@ -33,11 +39,14 @@ export const webullAdapter: BrokerAdapter = {
   id: "webull",
 
   health(): BrokerHealth {
+    const envConfigured = configuredForSignedTrading();
     return {
-      implemented: false,
-      envConfigured: false, // broker execution is not implemented; market-data credentials are certified separately
+      implemented: true,
+      envConfigured,
       connected: false,
-      note: "Webull broker execution is not implemented. Its read-only Data API probe is separate at /api/market-data/certification and does not authorize accounts, positions, orders, or fills.",
+      note: envConfigured
+        ? "Webull signed account probing is implemented and configured. Connection is proven per request at /api/broker/webull/status; order preview and execution are not yet enabled."
+        : "Webull signed account probing is implemented, but the Trading API credential pair is not configured together. Order preview and execution are not enabled.",
     };
   },
 
@@ -69,7 +78,9 @@ export const webullAdapter: BrokerAdapter = {
   },
 
   async listAccounts(): Promise<readonly CanonicalAccount[]> {
-    // Empty array is honest — no accounts because no adapter.
+    // Account-list proof is exposed through the authenticated status route
+    // without returning identifiers. Canonical account balance wrapping is a
+    // separate atom because this contract requires cash/equity/buying power.
     return [];
   },
 

@@ -10,13 +10,12 @@ import { webullAdapter } from "./webullAdapter";
  * canon has been violated and the adapter must revert.
  */
 
-describe("webullAdapter — canon §12 stub honesty", () => {
-  it("health() reports implemented=false and connected=false", () => {
+describe("webullAdapter — canon §12 staged implementation honesty", () => {
+  it("health() reports the account probe implemented but never fabricates a connection", () => {
     const h = webullAdapter.health();
-    expect(h.implemented).toBe(false);
-    expect(h.envConfigured).toBe(false);
+    expect(h.implemented).toBe(true);
     expect(h.connected).toBe(false);
-    expect(h.note.toLowerCase()).toContain("not implemented");
+    expect(h.note.toLowerCase()).toContain("order");
   });
 
   it("capabilities() reports the OBSERVED Webull asset/order shape (post 2026-08-21 MCP verification)", async () => {

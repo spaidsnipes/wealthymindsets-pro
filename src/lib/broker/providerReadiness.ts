@@ -80,9 +80,9 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     provider: "webull-broker",
     label: "Webull broker execution",
     lane: "broker",
-    required: ["WEBULL_APP_KEY", "WEBULL_APP_SECRET", "WEBULL_CLIENT_ID"],
-    recommended: ["WEBULL_ACCESS_TOKEN", "WEBULL_API_HOST"],
-    note: "Broker execution is a future adapter atom; credentials alone do not authorize orders.",
+    required: ["WEBULL_APP_KEY", "WEBULL_APP_SECRET"],
+    recommended: ["WEBULL_ACCESS_TOKEN", "WEBULL_API_HOST", "WEBULL_CLIENT_ID"],
+    note: "The App Key/Secret can prove the founder's signed Trading API account lane. WEBULL_CLIENT_ID is only required for the separate multi-user Connect OAuth flow. Credentials alone do not authorize orders.",
   },
   {
     provider: "tastytrade",
