@@ -17,6 +17,7 @@ describe("chart Market Object Passport transformation", () => {
     expect(dashboard).toContain('aria-controls="chart-market-object-passport"');
     expect(dashboard).toContain("fallbackTriggerRef={passportTriggerRef}");
     expect(dashboard).toContain("minHeight: 44");
+    expect(dashboard).not.toContain("height: 28,");
   });
 
   it("inherits Escape, focus containment, and focus restoration", () => {

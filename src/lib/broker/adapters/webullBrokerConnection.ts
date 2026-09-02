@@ -55,12 +55,26 @@ function isoSeconds(date: Date): string {
   return date.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
-function parseAccounts(payload: unknown): readonly Record<string, unknown>[] | null {
-  if (Array.isArray(payload)) return payload.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object");
+interface ParsedAccounts {
+  readonly accounts: readonly Record<string, unknown>[];
+  readonly rawCount: number;
+}
+
+function parseAccounts(payload: unknown): ParsedAccounts | null {
+  const validate = (rows: readonly unknown[]): ParsedAccounts => ({
+    rawCount: rows.length,
+    accounts: rows.filter((row): row is Record<string, unknown> => {
+      if (!row || typeof row !== "object") return false;
+      const account = row as Record<string, unknown>;
+      const id = account.account_id ?? account.accountId;
+      return typeof id === "string" && id.trim().length > 0;
+    }),
+  });
+  if (Array.isArray(payload)) return validate(payload);
   if (!payload || typeof payload !== "object") return null;
   const envelope = payload as { data?: unknown; result?: unknown };
   const rows = Array.isArray(envelope.data) ? envelope.data : Array.isArray(envelope.result) ? envelope.result : null;
-  return rows?.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object") ?? null;
+  return rows ? validate(rows) : null;
 }
 
 /**
@@ -153,11 +167,15 @@ export async function probeWebullBrokerConnection(
     return receipt("UNAVAILABLE", `Webull Trading API returned HTTP ${response.status}; account access was not proven.`);
   }
 
-  const accounts = parseAccounts(await response.json().catch(() => null));
-  if (!accounts) {
+  const parsed = parseAccounts(await response.json().catch(() => null));
+  if (!parsed) {
     return receipt("PROVIDER_ERROR", "Webull returned an unrecognized account-list envelope.");
   }
+  const accounts = parsed.accounts;
   if (accounts.length === 0) {
+    if (parsed.rawCount > 0) {
+      return receipt("PROVIDER_ERROR", "Webull returned account-list rows without a valid account identifier; connection was not accepted.");
+    }
     return receipt("NO_ACCOUNTS", "Webull accepted the signed request but returned no accounts available to OpenAPI.");
   }
   const accountTypes = [...new Set(accounts.flatMap((account) => {

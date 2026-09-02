@@ -58,6 +58,17 @@ describe("Webull signed broker connection proof", () => {
   });
 
   it.each([
+    [[{}]],
+    [{ data: [{ message: "ok" }] }],
+  ])("rejects nonempty envelopes that do not prove an account identifier", async (payload) => {
+    const receipt = await probeWebullBrokerConnection(
+      vi.fn(async () => new Response(JSON.stringify(payload), { status: 200 })) as unknown as typeof fetch,
+      config,
+    );
+    expect(receipt).toMatchObject({ state: "PROVIDER_ERROR", connected: false, accountCount: 0 });
+  });
+
+  it.each([
     [401, "BLOCKED_AUTH"],
     [403, "ACCESS_UNPROVEN"],
     [417, "ACCESS_UNPROVEN"],

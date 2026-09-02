@@ -726,11 +726,11 @@ export function ChartsDashboard() {
              the same visual DNA as /command-deck, /profile Growth,
              /morning-prep, /journal (Founder Aug-14 acceptance criterion:
              'The chart should now look integrated into WM instead of a
-             legacy chart surrounded by newer widgets'). Slim (28px) so
-             candles keep their real estate. */}
+             legacy chart surrounded by newer widgets'). The row owns a real
+             44px touch target instead of letting Passport overlap the tabs. */}
       <div
         style={{
-          height: 28,
+          minHeight: 44,
           borderBottom: "1px solid rgba(139,106,41,0.25)",
           background: "linear-gradient(180deg, rgba(11,11,13,0.9), #0D0E14)",
           display: "flex",
