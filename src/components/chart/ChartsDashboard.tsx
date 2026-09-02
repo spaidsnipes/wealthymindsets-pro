@@ -1383,7 +1383,7 @@ export function ChartsDashboard() {
                 {/* Instrument identity is part of DOM state. Remount on symbol
                     changes so an old book headline can never coexist with the
                     newly selected instrument's ladder while feeds reconnect. */}
-                {vpDomOpen && <DOMPanel key={symbol} symbol={symbol} />}
+                {vpDomOpen && <DOMPanel key={symbol} symbol={symbol} onClose={() => setVpDomOpen(false)} />}
               </div>
 
               {sessionVPOpen && (

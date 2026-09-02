@@ -38,8 +38,12 @@ describe("same-screen market truth contract", () => {
     expect(relay).not.toContain("if (ok)");
   });
 
-  it("keys the DOM by instrument so old and new books cannot share state", () => {
+  it("keys the DOM by instrument and does not paint quotes as market depth", () => {
     const dashboard = source("../components/chart/ChartsDashboard.tsx");
-    expect(dashboard).toContain('<DOMPanel key={symbol} symbol={symbol} />');
+    const dom = source("../components/chart/DOMPanel.tsx");
+    expect(dashboard).toContain('<DOMPanel key={symbol} symbol={symbol} onClose={() => setVpDomOpen(false)} />');
+    expect(dom).toContain("Quotes and trades are not displayed as depth.");
+    expect(dom).toContain('aria-label="Close market depth panel"');
+    expect(dom).toContain('href="/readiness"');
   });
 });

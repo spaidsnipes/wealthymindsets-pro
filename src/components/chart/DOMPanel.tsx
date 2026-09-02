@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import Link from "next/link";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import {
   KRAKEN_WS_URL,
@@ -50,7 +51,7 @@ function buildRealDOM(
 /* ══════════════════════════════════════════════════════════════
    DOMPanel component
 ══════════════════════════════════════════════════════════════ */
-export function DOMPanel({ symbol }: { symbol: string }) {
+export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => void }) {
   const sym    = symbol.toUpperCase();
   const crypto = isCrypto(sym);
   const base   = getBase(sym);
@@ -205,6 +206,41 @@ export function DOMPanel({ symbol }: { symbol: string }) {
     setTrades(prev => [...newest, ...prev].slice(0, 25));
   }, [recentTicks, dp, crypto]);
 
+  // A consolidated quote or trade is not a market-depth observation. Keep the
+  // capability visible without painting a synthetic 0/100 ladder around it.
+  if (!crypto) {
+    return (
+      <aside
+        aria-label={`Market depth unavailable for ${symbol}`}
+        className="wm-chart-dom border-l border-wm-border flex flex-col shrink-0"
+        style={{ width: 190, background: "#0A0B10", fontSize: 13 }}
+      >
+        <div className="flex items-center gap-2 px-3 shrink-0" style={{ height: 38, borderBottom: "1px solid rgba(30,32,48,0.8)" }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: "#D8DCEA", letterSpacing: 1, textTransform: "uppercase" }}>Market depth</span>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close market depth panel"
+              style={{ marginLeft: "auto", border: 0, background: "transparent", color: "#8B95A5", cursor: "pointer", fontSize: 18, lineHeight: 1 }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+        <div style={{ padding: "18px 14px", color: "#8B95A5", lineHeight: 1.5 }}>
+          <div style={{ color: "#F0B429", fontSize: 10, fontWeight: 900, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 7 }}>Level 2 not connected</div>
+          <p style={{ fontSize: 10, margin: 0 }}>
+            {symbol} has no observed bid-and-ask book. Quotes and trades are not displayed as depth.
+          </p>
+          <Link href="/readiness" style={{ display: "inline-block", color: "#D8DCEA", fontSize: 10, fontWeight: 750, marginTop: 12, textDecoration: "none" }}>
+            Check connections →
+          </Link>
+        </div>
+      </aside>
+    );
+  }
+
   // Derived display values
   // A populated observed ladder owns its own headline. Never display a quote
   // or hardcoded seed outside the visible book range above real DOM levels.
@@ -222,11 +258,6 @@ export function DOMPanel({ symbol }: { symbol: string }) {
         {crypto && (
           <span style={{ fontSize:10, fontWeight:700, color: realConnected ? "#00C076" : "#F0B429", marginLeft:2 }}>
             {realConnected ? "● LIVE" : "○ REST"}
-          </span>
-        )}
-        {!crypto && (
-          <span style={{ fontSize:9, fontWeight:800, color:"#8B95A5", marginLeft:2 }}>
-            DEPTH UNAVAILABLE
           </span>
         )}
         <span style={{ marginLeft:"auto", fontFamily:"monospace", fontWeight:800, fontSize:16,
@@ -253,14 +284,6 @@ export function DOMPanel({ symbol }: { symbol: string }) {
 
       {/* DOM levels */}
       <div style={{ flex:1, overflow:"hidden" }}>
-        {!crypto && (
-          <div style={{ padding:"28px 18px", textAlign:"center", color:"#8B95A5", lineHeight:1.5 }}>
-            <div style={{ color:"#D8DCEA", fontSize:11, fontWeight:900, marginBottom:8 }}>Market depth unavailable</div>
-            <div style={{ fontSize:10 }}>
-              Connect a Level 2 provider to display observed bid and ask liquidity for {symbol}.
-            </div>
-          </div>
-        )}
         {levels.map((lvl, i) => {
           const isAtPrice = Math.abs(lvl.price - center) < tick * 0.6;
           const sz = lvl.bidSize || lvl.askSize;
