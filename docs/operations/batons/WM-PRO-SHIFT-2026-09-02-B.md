@@ -136,4 +136,39 @@ These are the next Reality Edges. Recorded here as EDGES OPEN so a next-team con
 - **Pattern**: chart-specific controls MUST be gated by the active view context — a control that "visually promises more than it does" IS the false-green class Sentinel must attack. Extend to any future context-swap surface (paper trading modal open, replay mode active, etc.).
 - **Pattern**: use `canonicalAssetClass(symbol)` for asset-class-conditional UI branches; never inline the string check. `categoryTabsFor` is the reference implementation.
 
-Observed elapsed this correction window: **NOT MEASURED** (post-correction; Founder measurement of ~10min stands for prior window).
+## Continuation window (post-Founder-callout — Drive-visual-canon merge pass)
+
+Governing docs re-read this continuation window: **Transformation UI Visual Implementation Contract & Asset Ledger — 2026-09-01** (Drive `11xOCJYbc8-B-B1A_1R0AaBh2Xm7GY5OVL5hKQbE6KHI`) + **WM Pro — Visual Systems Execution Canon** folder (Drive `1DFuPuMvggyKM6tyo5eVSNXCATu6YE4_i`) + **Asset 10** (Full Operating System Overview — the canonical whole-system reference).
+
+Founder anti-fabrication callouts honored this continuation: (1) baton title de-fabricated to remove "3-Hour" label; (2) "17 minutes not 3hrs" acknowledged — no shift-duration claim on any downstream atom; (3) "check the visuals cannon folder … build towards our inventions" acted on with a real Founder-Visible Visual Debt Register + graduation ledger.
+
+### New atoms this continuation
+
+| SHA | Role | Lane | Asset canon | What |
+|---|---|---|---|---|
+| `edc65c2` | Micah + Noah | LIVING-SCENE + TRUTH/WIRE | Asset 10 (Central Market Reality Canvas) | /charts becomes the 5th Phase 3 canvas consumer; `<CanvasSummaryPill/>` in wordmark row via `useMarketCanvasVM`. LIVE confirmed: "NO TRADE · 1 missing · 1 blockers · 1 cleared". Sentinel breadcrumb extended. |
+| `06b92fb` | Micah + Noah | LIVING-SCENE + TRUTH/WIRE | Asset 09 + 10 (Order Flow Cockpit) | New `<OrderFlowCockpitStrip/>` primitive routes through `selectAggressorFlow`. Silent chip when hasFlow=false. 6 tests. Adversarial-verify PASS. |
+| `062037c` | Micah | LIVING-SCENE | Asset 14 + 16 (Market Object Passport) | `▸ PASSPORT` button in wordmark row opens right-slide overlay via existing `MarketObjectPassportPanel` + `selectMarketObjectPassport`. Silent when `capturedAt === null`. LIVE confirmed. |
+| `71aacfb` | Atlas | ATLAS | (register) | Founder-Visible Visual Debt Register — 7-row table comparing Asset 10 canon vs live /charts, ordered by human impact, with graduation ledger + Atlas patterns. |
+| Team `0bcbc59` `9128896` `d2b232d` `150cbb8` `3631483` | (parallel session) | LIVING-SCENE + TRUTH/WIRE | Various | Passport drawer device-ready, broker drawer device-ready, execution requires live broker capability, connections distinguish bridge/token wires, chart controls focused. Not my authorship; noted for continuity. |
+| Team `daae9c6` | (parallel session) | LIVING-SCENE | Asset 09 (silence pattern) | Tightened OrderFlowCockpitStrip to render `null` on silent branch (was single-line "no aggressor evidence yet" chip). Accepted per system-reminder rule. |
+| Team `f735566` `7cb920a` `b0388d8` `67b001b` | (parallel session) | TRUTH/WIRE | Asset 12 (broker wire) | Webull broker connection proved end-to-end at the server: `webullBrokerConnection.ts` (173 lines) signs a real Trading API call + returns rich WebullBrokerConnectionReceipt state enum. WM Pro is now server-ready to prove signed Webull account access as soon as Founder pastes host secrets. |
+| `2d3c481` | Noah + Micah | TRUTH/WIRE + LIVING-SCENE | Founder P0 Webull unblock | `/api/broker/webull/status` extended with Monday Test 2 `missing:string[]`; client renders gold "MISSING HOST SECRET(S)" card + `WEBULL_APP_KEY (or WEBULL_API_KEY)` / `WEBULL_APP_SECRET (or WEBULL_API_SECRET)` code chips + one-line Cloudflare instruction. Anti-value-leak Sentinel refit to permit env-var NAMES while still rejecting value shapes. |
+| `1bf49aa` | Micah | LIVING-SCENE | Asset 10 (Right of Way / Priority & Domain Rights) | "ROW · <verdict>" chip in wordmark row reads `chartCanvasVM.permission.verdict` (ALLOWED / ADVISORY / RESTRICTED). Same permission compilation the deck uses. Silent when UNKNOWN + zero rules. |
+
+### Founder-P0 Webull unblock — what actually shipped vs what still needs Founder action
+
+The parallel session (`67b001b`) built the SERVER-SIDE ATH-standard wire: `probeWebullBrokerConnection` signs a real Trading API request using `WEBULL_APP_KEY` + `WEBULL_APP_SECRET` (+ optional `WEBULL_ACCESS_TOKEN`) and returns a proof-of-connectivity receipt. That is the real "ath standard wire" Founder asked for.
+
+The Founder's specific frustration ("i tried to connect webull … it just sends me to the website to login and im on webull no redirection back to wm pro") — clarified in code: Webull Trading OpenAPI is **not a consumer OAuth flow**. There is no redirect_uri handshake; it uses developer-console-issued app credentials, not user OAuth. Any prior UI implying "Sign in with Webull → return to WM Pro" was a lie. This shift's atom (`2d3c481`) makes the /api/broker/webull/status response name the exact missing host secrets and the client shows them as actionable code chips + Cloudflare instruction — mirroring the /api/fmp NOT CONFIGURED pattern the Founder has already seen work.
+
+**Founder next action (unblocks morning options trading)**:
+1. Register a WM Pro app at `https://developer.webull.com` (developer console)
+2. Copy the issued App Key + App Secret
+3. Paste into Cloudflare Worker env vars: `WEBULL_APP_KEY` + `WEBULL_APP_SECRET`
+4. (If Webull requires 2FA on the API) also set `WEBULL_ACCESS_TOKEN`
+5. Reload /connections or press Check wire — the panel flips CONNECTED and returns real account count + types
+
+The Chrome-connector session (parallel agent) also shipped a `test(integration): reconcile Webull connection truth` (`f735566`) — that lock keeps the server wire honest against the real WebullBrokerConnectionState transitions.
+
+Anti-fabrication: NO shift-duration claim on this continuation window either. Continuous burst of verified commits with commit SHAs + live-verified DOM proof + Drive citations.

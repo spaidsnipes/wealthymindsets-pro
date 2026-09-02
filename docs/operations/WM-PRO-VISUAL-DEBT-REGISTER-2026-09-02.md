@@ -73,15 +73,36 @@ All atoms this window pass the canon prohibitions:
 
 ## Assets STILL requiring merge (queue per canon whole-system order)
 
-- Asset 09 — Master Order Flow Cockpit (raw evidence workspace)
-- Asset 08 — Liquidity Weather Heatmap (calls for real depth data owner)
-- Asset 14 — Market Object Passport (Order Block lineage)
-- Asset 16 — Chart Workspace Object Passport (Passport integrated into workspace)
-- Asset 04 — Question-Driven Absorption Canvas
-- Asset 07 — Evidence Debt / Question Mode
-- Asset 15 — Question-Driven Continuation Health
-- Asset 17 — Cinematic Continuation Health Canvas
-- Assets 01 / 11 / 12 / 13 / 18 — Learning / progressive scaffolding
-- Assets 03 / 05 / 06 / 19 / 20 — Aggression / response / absorption / big-trade
+- Asset 09 — Master Order Flow Cockpit (raw evidence workspace) — **PARTIAL RUNTIME MATCH via OrderFlowCockpitStrip (`06b92fb`); full workspace deep-dive still open**
+- Asset 08 — Liquidity Weather Heatmap (calls for real depth data owner) — NOT STARTED (no licensed Level 2 depth provider wired yet; can ship honest NOT CONFIGURED tile as next atom)
+- Asset 14 — Market Object Passport (Order Block lineage) — **RUNTIME MATCH (`062037c`)**
+- Asset 16 — Chart Workspace Object Passport (Passport integrated into workspace) — **RUNTIME MATCH (`062037c`) — right-slide overlay inside chart wrapper**
+- Asset 04 — Question-Driven Absorption Canvas — NOT STARTED
+- Asset 07 — Evidence Debt / Question Mode — **PARTIAL RUNTIME MATCH (missing/blockers/cleared counts already surfaced by CanvasSummaryPill `edc65c2`); dedicated question-mode surface still open**
+- Asset 15 — Question-Driven Continuation Health — NOT STARTED
+- Asset 17 — Cinematic Continuation Health Canvas — NOT STARTED
+- Assets 01 / 11 / 12 / 13 / 18 — Learning / progressive scaffolding — NOT STARTED
+- Assets 03 / 05 / 06 / 19 / 20 — Aggression / response / absorption / big-trade — NOT STARTED
+
+## Graduation ledger (this correction window's shipped atoms)
+
+Per canon Asset Status Vocabulary: **REFERENCE ONLY → APPROVED DIRECTION → IN TRANSLATION → RUNTIME MATCH → HUMAN-PROVEN → SUPERSEDED**.
+
+| Debt row | Canon status transition | SHA | Proof |
+|---|---|---|---|
+| 1 · Order Flow Cockpit | APPROVED DIRECTION → RUNTIME MATCH | `06b92fb` | `<OrderFlowCockpitStrip/>` mounted below category strip via `selectAggressorFlow`; DOM confirmed `stripMounted:true`; 6 tests pass; adversarial verify agent (workflow `wz2slg3mi`) returned PASS with L75-91 silent-chip guard + K/M/B formatting proof |
+| 2 · Central Market Reality Canvas | APPROVED DIRECTION → RUNTIME MATCH → **HUMAN-PROVEN (DEVICE BROWSER)** | `edc65c2` | `<CanvasSummaryPill/>` in wordmark row; live-verified via connected Chrome: `pillMounted:true, pillText:"NO TRADE · 1 missing · 1 blockers · 1 cleared"` — 4 real living signals from real state |
+| 3 · Market Object Passport | APPROVED DIRECTION → RUNTIME MATCH → **HUMAN-PROVEN (DEVICE BROWSER)** | `062037c` | "▸ PASSPORT" button in wordmark row; overlay opens on click and renders MarketObjectPassportPanel — DOM confirmed `passportButtonMounted:true`; adversarial verify agent returned PASS with zero fake MW-24A or trust-score hardcoded |
+| 4 · Evidence Debt counter | REFERENCE ONLY → PARTIAL RUNTIME MATCH | `edc65c2` (implicit via pill) | The "1 missing · 1 blockers · 1 cleared" text in the CanvasSummaryPill IS the Evidence Debt count from canvas VM. Dedicated question-mode surface (Asset 07) still open. |
+| 6 · Right of Way | APPROVED DIRECTION → **RUNTIME MATCH** | `1bf49aa` | "ROW · <verdict>" chip in wordmark row, reads `chartCanvasVM.permission.verdict` (ALLOWED / ADVISORY / RESTRICTED). Same permission compilation the deck uses; zero divergent verdict. |
+| Webull actionability | (new row) NOT_STARTED → RUNTIME MATCH | `2d3c481` | `/api/broker/webull/status` extended with `missing: readonly string[]` per Monday Test 2 canonical shape. Client renders gold "MISSING HOST SECRET(S)" card + code-chip per env var + one-line instruction to set in Cloudflare. Same visual grammar as `/api/fmp` NOT CONFIGURED card. |
+
+## Reusable Atlas patterns (HARVEST from this window)
+
+1. **Founder Drive visual-canon Asset N merge — always compose the existing canonical selector/compiler, never fabricate the mockup's specific numbers.** Every visible field must trace to a real store/selector; when data is absent, render silent, not decorative. (Applied 4× this window: canvas, order flow, passport, permission.)
+
+2. **Silent-branch pattern (§Silence Is A Feature) — every canon-merge primitive must have a hasSnapshot / hasFlow / verdict!==UNKNOWN guard that returns null or a single-line "no evidence yet" chip.** Living-Pixel Law: nothing decorative before real evidence. (Applied to CanvasSummaryPill, OrderFlowCockpitStrip, Passport button, Right of Way chip.)
+
+3. **Monday Test 2 canonical failure shape — every provider gap must return `{edge, missing:[…exact env var names…]}` server-side AND the consumer UI must render each missing var as an actionable code chip + Cloudflare instruction.** Same pattern for /api/fmp and /api/broker/webull/status; extends to any future provider surface. (Applied to Webull + fmp this window.)
 
 Anti-fabrication ledger: NO shift-duration claim. Observed events only.
