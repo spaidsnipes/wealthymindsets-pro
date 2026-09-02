@@ -80,4 +80,39 @@ describe("OrderFlowCockpitStrip", () => {
     );
     expect(html).toContain("400:100");
   });
+
+  it("preserves sub-1 crypto volumes instead of rounding to \"0\" (Founder BTC defect)", () => {
+    // Real from-USE BTC prod defect: labels showed "AGGRESSIVE BUY 0 /
+    // AGGRESSIVE SELL 0" while imbRatio was 27,261,700:100 because the
+    // formatter used toFixed(0) and 0.011 BTC → "0". Now 0.011 → "0.0110".
+    const ticks: AggressorTick[] = [
+      { side: "buy", size: 0.011, price: 77000, trade: true },
+      { side: "sell", size: 0.005, price: 77000, trade: true },
+    ];
+    const html = renderToStaticMarkup(
+      <OrderFlowCockpitStrip ticks={ticks} livePrice={77000} />,
+    );
+    // Must show real fractional numbers, not "0"
+    expect(html).toContain("0.0110");
+    expect(html).toContain("0.0050");
+    // Aggressor labels must NOT collapse to "0" for real sub-1 flow
+    const buyCell = html.match(/Aggressive Buy[\s\S]{0,200}?<\/span><\/span>/)?.[0] ?? "";
+    expect(buyCell).not.toMatch(/>0<\/span>/);
+  });
+
+  it("caps absurd imbalance ratios instead of showing millions:100", () => {
+    // Real from-USE BTC prod: crypto's fractional volumes pushed the
+    // imbalance ratio to 27,261,700:100 (a real math result, but reads
+    // as garbage). Cap to "≥10k:1" so the trader isn't confused.
+    const ticks: AggressorTick[] = [
+      { side: "buy", size: 2726.17, price: 77000, trade: true },
+      { side: "sell", size: 0.01, price: 77000, trade: true },
+    ];
+    const html = renderToStaticMarkup(
+      <OrderFlowCockpitStrip ticks={ticks} livePrice={77000} />,
+    );
+    // Must NOT contain the millions-digit raw ratio; must show honest cap
+    expect(html).not.toContain("27261700");
+    expect(html).toMatch(/≥10k:1|≥1k:1/);
+  });
 });

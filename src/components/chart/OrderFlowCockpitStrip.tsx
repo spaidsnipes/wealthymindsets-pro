@@ -39,12 +39,33 @@ function formatVolume(v: number): string {
   if (a >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
   if (a >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
   if (a >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
-  return v.toFixed(0);
+  if (a >= 1) return v.toFixed(0);
+  // Real crypto flow is often fractional (0.011 BTC etc). Rounding
+  // to 0 falsely reads as "no aggressor volume" — a from-USE defect
+  // observed on BTC where labels showed "0 / 0" while imbRatio was
+  // 27,261,700:100 because sub-1 values existed but got truncated.
+  if (a > 0) return v.toFixed(4);
+  return "0";
 }
 
 function formatSignedVolume(v: number): string {
   const sign = v > 0 ? "+" : v < 0 ? "" : "";
   return `${sign}${formatVolume(v)}`;
+}
+
+/**
+ * Format the aggressor imbalance ratio for the chip. Values are
+ * derived from real per-trade sizes so crypto's fractional volumes
+ * can push the ratio into the millions when one side is tiny. Show
+ * an honest cap ("≥100k:1") instead of a 27,261,700:100 string that
+ * reads as noise. The unbounded number is preserved in aria-label
+ * for keyboard/screen-reader users who want the raw value.
+ */
+function formatImbalanceRatio(ratio: number): string {
+  if (!Number.isFinite(ratio) || ratio <= 100) return "1:1";
+  if (ratio >= 1e6) return "≥10k:1";
+  if (ratio >= 1e5) return "≥1k:1";
+  return `${ratio.toFixed(0)}:100`;
 }
 
 export function OrderFlowCockpitStrip({
@@ -84,7 +105,7 @@ export function OrderFlowCockpitStrip({
     <div
       className="wm-order-flow-cockpit-strip"
       style={containerStyle}
-      aria-label={`Order flow cockpit — ${snap.askDom ? "aggressive buy" : "aggressive sell"} dominant, ratio ${snap.imbRatio.toFixed(0)} to 100`}
+      aria-label={`Order flow cockpit — ${snap.askDom ? "aggressive buy" : "aggressive sell"} dominant, ratio ${formatImbalanceRatio(snap.imbRatio)}`}
     >
       <span style={{ color: "#c9a55c", letterSpacing: 0.4, fontWeight: 700, textTransform: "uppercase" }}>
         {label}
@@ -122,7 +143,7 @@ export function OrderFlowCockpitStrip({
           Imb
         </span>
         <span style={{ color: netColor, fontWeight: 700, fontFamily: "monospace" }}>
-          {snap.imbRatio.toFixed(0)}:100
+          {formatImbalanceRatio(snap.imbRatio)}
         </span>
       </span>
 
