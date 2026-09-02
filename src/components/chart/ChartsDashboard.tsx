@@ -761,6 +761,16 @@ export function ChartsDashboard() {
           paddingRight: 16,
           gap: 12,
           flexShrink: 0,
+          // The wordmark row now carries the full Asset 10 canon
+          // chip stack (canvas verdict + liquidity weather + ROW +
+          // Why + Passport). On narrow desktop widths and phones the
+          // chips can overrun; allow horizontal scroll instead of
+          // overlap. Container never wraps — the trader's spatial
+          // memory of chip order is preserved (canon §Atmosphere
+          // Review — spatial memory).
+          overflowX: "auto",
+          overflowY: "hidden",
+          scrollbarWidth: "none",
         }}
       >
         <WmWordmark size="compact" />
