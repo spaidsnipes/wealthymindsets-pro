@@ -20,10 +20,11 @@ export interface WebullTicksRouteBody {
 
 /**
  * Fail-closed browser normalization for the authenticated Webull snapshot.
- * Only recent exact-symbol prints with provider-declared side may enter the
- * aggressor tape. Snapshot retrieval never becomes a streaming/LIVE claim.
+ * Recent exact-symbol prints may update price/volume even when Webull does not
+ * declare aggressor side. Snapshot retrieval never becomes a streaming/LIVE
+ * claim, and UNKNOWN side remains barred from signed order-flow consumers.
  */
-export function selectFreshWebullTapeEvents(
+export function selectFreshWebullObservedEvents(
   body: WebullTicksRouteBody,
   expectedSymbol: string,
   receivedAt = Date.now(),
@@ -45,7 +46,7 @@ export function selectFreshWebullTapeEvents(
     const price = Number(tick.price);
     const size = Number(tick.volume);
     const providerAt = Number(tick.observedAtMs);
-    const side = tick.side === "BUY" || tick.side === "SELL" ? tick.side : null;
+    const side = tick.side === "BUY" || tick.side === "SELL" ? tick.side : "UNKNOWN";
     if (
       symbol !== normalized ||
       !(price > 0) ||
@@ -53,8 +54,7 @@ export function selectFreshWebullTapeEvents(
       !Number.isFinite(providerAt) ||
       providerAt <= 0 ||
       providerAt > receivedAt + 5 * 60_000 ||
-      receivedAt - providerAt > maxAgeMs ||
-      !side
+      receivedAt - providerAt > maxAgeMs
     ) return [];
 
     // Webull does not expose a sequence in this response. Keep identity stable
@@ -80,8 +80,8 @@ export function selectFreshWebullTapeEvents(
       size,
       sessionId: typeof tick.tradingSession === "string" ? tick.tradingSession : undefined,
       aggressorSide: side,
-      aggressorMethod: "PROVIDER",
-      aggressorConfidence: 1,
+      aggressorMethod: side === "UNKNOWN" ? "NONE" : "PROVIDER",
+      aggressorConfidence: side === "UNKNOWN" ? 0 : 1,
       sourceClass: "PRIMARY",
       dataMode: "DELAYED",
       fidelityClass: "OBSERVED",
@@ -89,4 +89,15 @@ export function selectFreshWebullTapeEvents(
     } satisfies CanonicalMarketEvent];
   });
   return events.sort((left, right) => left.timestampProvider! - right.timestampProvider!);
+}
+
+/** Only provider-sided observations may enter tape/CVD/footprint consumers. */
+export function selectFreshWebullTapeEvents(
+  body: WebullTicksRouteBody,
+  expectedSymbol: string,
+  receivedAt = Date.now(),
+  maxAgeMs = 30_000,
+): CanonicalMarketEvent[] {
+  return selectFreshWebullObservedEvents(body, expectedSymbol, receivedAt, maxAgeMs)
+    .filter((event) => event.aggressorSide === "BUY" || event.aggressorSide === "SELL");
 }

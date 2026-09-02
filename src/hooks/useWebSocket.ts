@@ -27,7 +27,7 @@ import { applyTickToLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
 import { normalizeBinanceUsTrade } from "@/lib/marketData/adapters/binanceUs";
 import { moomooNextPollDelayMs, selectFreshMoomooTapeEvents } from "@/lib/marketData/adapters/moomooTicksBrowser";
-import { selectFreshWebullTapeEvents } from "@/lib/marketData/adapters/webullTicksBrowser";
+import { selectFreshWebullObservedEvents } from "@/lib/marketData/adapters/webullTicksBrowser";
 import { electProviderTapeSource, type ProviderTapeSource } from "@/lib/marketData/providerTapeElection";
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
@@ -66,7 +66,7 @@ export interface MarketState {
   recentTicks: Tick[];
   orderBook:   { bids: OrderBookLevel[]; asks: OrderBookLevel[] };
   connected:   boolean;
-  source:      "polygon" | "finnhub" | "yahoo" | "alpaca" | "coinbase" | "binance" | "unavailable";
+  source:      "polygon" | "finnhub" | "yahoo" | "alpaca" | "coinbase" | "binance" | "moomoo" | "webull" | "unavailable";
   /** Aggressor tape feed — set only by trade WebSockets, never downgraded by REST quotes. */
   tapeSource:  ProviderTapeSource | null;
   latency:     number; // ms to last update
@@ -944,6 +944,30 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     scheduleFlush();
   }, [getIntervalSec, scheduleFlush]);
 
+  /* Price/volume observation path. It advances the visible bar and ticker but
+     intentionally never enters recentTicks, tapeSource, Delta, CVD, or DOM. */
+  const processUnsignedObservation = useCallback((event: CanonicalMarketEvent, source: "webull") => {
+    const price = event.price;
+    const size = event.size;
+    const time = event.timestampProvider ?? event.timestampReceived;
+    if (!(price && price > 0) || !(size && size > 0) || !Number.isFinite(time) || time <= 0) return;
+    const barUpdate = applyTickToLiveBar(barRef.current, lastBarEventAtRef.current, { price, size, time }, getIntervalSec());
+    if (barUpdate.status === "LATE_EVENT_IGNORED") return;
+    priceRef.current = price;
+    barRef.current = barUpdate.bar;
+    lastBarEventAtRef.current = barUpdate.lastEventAt;
+    hasRealDataRef.current = true;
+    const now = Date.now();
+    setState(previous => ({
+      ...previous,
+      ticker: { ...previous.ticker, price, volume: previous.ticker.volume + size },
+      liveBar: { ...barUpdate.bar },
+      source,
+      connected: true,
+      latency: Math.max(0, now - time),
+    }));
+  }, [getIntervalSec]);
+
   /* ── Mount / symbol change ──────────────────────────────── */
   useEffect(() => {
     // Cleanup previous
@@ -1029,7 +1053,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
             signal: moomooAbort.signal,
           });
           const webullBody = webullResponse.ok ? await webullResponse.json().catch(() => null) : null;
-          events = selectFreshWebullTapeEvents(webullBody, symbol, Date.now());
+          events = selectFreshWebullObservedEvents(webullBody, symbol, Date.now());
           electedSource = "webull";
         }
         // Preserve a responsive five-second tape only while this exact symbol
@@ -1040,6 +1064,11 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         for (const event of events) {
           const inspected = providerTapeGuard.inspect(event);
           if (inspected.status !== "ACCEPTED") continue;
+          ingestSessionNectarEvent(inspected.event);
+          if (inspected.event.aggressorSide !== "BUY" && inspected.event.aggressorSide !== "SELL") {
+            if (electedSource === "webull") processUnsignedObservation(inspected.event, "webull");
+            continue;
+          }
           const acceptedAt = Date.now();
           const nextTapeSource = electProviderTapeSource(
             tapeSourceRef.current,
@@ -1052,7 +1081,6 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           providerTapeLastAcceptedAt = acceptedAt;
           // Only the elected tape owner may enter the canonical session store.
           // A valid-but-rejected alternate provider remains diagnostics evidence.
-          ingestSessionNectarEvent(inspected.event);
           processTick({
             price: inspected.event.price!,
             size: inspected.event.size!,

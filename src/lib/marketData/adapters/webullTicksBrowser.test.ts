@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectFreshWebullTapeEvents } from "./webullTicksBrowser";
+import { selectFreshWebullObservedEvents, selectFreshWebullTapeEvents } from "./webullTicksBrowser";
 
 const NOW = 1_756_000_000_000;
 
@@ -39,12 +39,23 @@ describe("selectFreshWebullTapeEvents", () => {
     expect(first.map((event) => event.eventId)).toEqual(second.map((event) => event.eventId));
   });
 
+  it("admits a fresh unknown-side print for price and volume without admitting it to order flow", () => {
+    const unknown = body({ ticks: [{ symbol: "TSLA", price: 248, volume: 2, observedAtMs: NOW, side: "UNKNOWN" }] });
+    expect(selectFreshWebullObservedEvents(unknown, "TSLA", NOW)).toMatchObject([{
+      price: 248,
+      size: 2,
+      aggressorSide: "UNKNOWN",
+      aggressorMethod: "NONE",
+      aggressorConfidence: 0,
+    }]);
+    expect(selectFreshWebullTapeEvents(unknown, "TSLA", NOW)).toEqual([]);
+  });
+
   it.each([
     ["blocker", { state: "BLOCKED_AUTH" }],
     ["wrong symbol envelope", { symbol: "SPY" }],
     ["stale", { ticks: [{ symbol: "TSLA", price: 248, volume: 2, observedAtMs: NOW - 30_001, side: "SELL" }] }],
     ["future clock", { ticks: [{ symbol: "TSLA", price: 248, volume: 2, observedAtMs: NOW + 5 * 60_000 + 1, side: "SELL" }] }],
-    ["unknown aggressor", { ticks: [{ symbol: "TSLA", price: 248, volume: 2, observedAtMs: NOW, side: "UNKNOWN" }] }],
     ["zero size", { ticks: [{ symbol: "TSLA", price: 248, volume: 0, observedAtMs: NOW, side: "BUY" }] }],
   ])("rejects %s truth", (_name, overrides) => {
     expect(selectFreshWebullTapeEvents(body(overrides), "TSLA", NOW)).toEqual([]);
