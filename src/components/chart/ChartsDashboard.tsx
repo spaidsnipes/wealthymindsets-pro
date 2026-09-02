@@ -712,6 +712,56 @@ export function ChartsDashboard() {
           Command Deck →
         </a>
       </div>
+      {/* ── Top-level category tab strip ──────────────────────
+          Founder directive 2026-09-02: the per-symbol view
+          categories (Chart / Options / ETFs / Financials /
+          Valuation / Corporate Actions / Shareholders / Profile)
+          were previously wedged into the same MooMoo row as
+          asset-class + symbol + price + fidelity badge, competing
+          for horizontal space and only surfacing after a long
+          scroll. Promoting them to their own row at the top of
+          the chrome makes them read as primary navigation and
+          restores breathing room to the symbol row below. */}
+      <div
+        className="wm-chart-category-strip"
+        style={{
+          height: 36,
+          borderBottom: "1px solid #1E2030",
+          display: "flex",
+          alignItems: "center",
+          gap: 0,
+          paddingLeft: 16,
+          background: "#0D0E14",
+          flexShrink: 0,
+          overflowX: "auto",
+          scrollbarWidth: "none",
+        }}
+        role="tablist"
+        aria-label="Symbol view categories"
+      >
+        {["Chart","Options","ETFs","Financials","Valuation","Corporate Actions","Shareholders","Profile"].map(tab => (
+          <button
+            key={tab}
+            className="wm-chart-page-tab"
+            role="tab"
+            aria-selected={tab === activeTab}
+            onClick={() => {
+              setActiveTab(tab);
+              if (tab === "Options") setOptionsOpen(true);
+            }}
+            style={{
+              padding: "0 14px", height: 36,
+              color: tab === activeTab ? "#E2E8F0" : "#8B8FA8",
+              background: "transparent", border: "none",
+              borderBottom: tab === activeTab ? "2px solid #FF8C00" : "2px solid transparent",
+              fontSize: 12, fontWeight: tab === activeTab ? 600 : 400, cursor: "pointer",
+              whiteSpace: "nowrap", flexShrink: 0,
+            }}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
       {/* ── MooMoo-style chart tabs row ──────────────────────── */}
       <div className="wm-chart-tabs" style={{
         height: 40, borderBottom: "1px solid #1E2030", display: "flex", alignItems: "center",
@@ -773,20 +823,9 @@ export function ChartsDashboard() {
             return <CanonicalFidelityBadge badge={b} variant="chrome" capabilityReport={capabilityReport} />;
           })()}
         </div>
-        {/* Tab bar */}
-        {["Chart","Options","ETFs","Financials","Valuation","Corporate Actions","Shareholders","Profile"].map(tab => (
-          <button key={tab} className="wm-chart-page-tab" onClick={() => {
-            setActiveTab(tab);
-            if (tab === "Options") setOptionsOpen(true);
-          }} style={{
-            padding: "0 14px", height: 40,
-            color: tab === activeTab ? "#E2E8F0" : "#8B8FA8",
-            background: "transparent", border: "none",
-            borderBottom: tab === activeTab ? "2px solid #FF8C00" : "2px solid transparent",
-            fontSize: 12, fontWeight: tab === activeTab ? 600 : 400, cursor: "pointer",
-            whiteSpace: "nowrap", flexShrink: 0,
-          }}>{tab}</button>
-        ))}
+        {/* Tab bar promoted to its own top-level category strip above
+            (Founder 2026-09-02). Keeping this comment as a breadcrumb
+            so a future edit doesn't accidentally re-inline the tabs. */}
 
         {/* Keep appearance optional and compact; it must not compete with the
             symbol, market state, or chart navigation. */}
