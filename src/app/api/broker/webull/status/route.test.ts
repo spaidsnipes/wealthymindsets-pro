@@ -28,10 +28,24 @@ describe("/api/broker/webull/status — canon §12 truth", () => {
     expect(body.accountCount).toBe(0);
     expect(body.note).toContain("not configured");
     expect(typeof body.checkedAt).toBe("string");
-    const s = JSON.stringify(body);
-    expect(s.toLowerCase()).not.toContain("token");
-    expect(s.toLowerCase()).not.toContain("secret");
-    expect(s.toLowerCase()).not.toContain("password");
+    // Monday Test 2 shape: when UNCONFIGURED the body must NAME the
+    // exact host secrets the founder needs to set. These are env-var
+    // NAMES (not values) so they can appear in the JSON body honestly.
+    expect(Array.isArray(body.missing)).toBe(true);
+    expect(body.missing.length).toBeGreaterThan(0);
+    expect(body.missing.some((m: string) => m.includes("WEBULL_APP_KEY"))).toBe(true);
+    // Anti-value-leak Sentinel — a config gap must never surface actual
+    // secret values (keys, tokens, passwords). We check the SHAPE, not
+    // the word content: the response body must not carry secret-holding
+    // fields like appKey/appSecret/accessToken/password.
+    expect(body.appKey).toBeUndefined();
+    expect(body.appSecret).toBeUndefined();
+    expect(body.accessToken).toBeUndefined();
+    expect(body.password).toBeUndefined();
+    // Additionally: values look like hex/base64 blobs; the response's
+    // note field must not embed a plausible secret VALUE.
+    expect(body.note).not.toMatch(/["'][a-f0-9]{24,}["']/i);
+    expect(body.note).not.toMatch(/["'][A-Za-z0-9+/=]{40,}["']/);
   });
 
   it("never caches — no-store", async () => {

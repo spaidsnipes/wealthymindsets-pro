@@ -495,6 +495,12 @@ interface ManagedConnectionReceipt {
   accountCount: number;
   accountTypes: readonly string[];
   note: string;
+  /**
+   * Monday Test 2 canonical shape — the server names the exact host
+   * secrets that must be set to move the wire forward. Optional here
+   * (server may omit) so we render defensively.
+   */
+  missing?: readonly string[];
 }
 
 function ManagedConnectionStatus({ broker }: { broker: Broker }) {
@@ -548,6 +554,27 @@ function ManagedConnectionStatus({ broker }: { broker: Broker }) {
                 {receipt.accountCount} account{receipt.accountCount === 1 ? "" : "s"}
                 {receipt.accountTypes.length ? ` · ${receipt.accountTypes.join(" · ")}` : ""}
               </p>
+            )}
+            {/* Monday Test 2 — name the exact host secret(s) the Founder
+                must set to advance the wire. Same code-chip pattern as
+                /api/fmp NOT CONFIGURED. Anti-fabrication: only names,
+                never values. */}
+            {!connected && receipt.missing && receipt.missing.length > 0 && (
+              <div className="mt-2 rounded-lg border px-2 py-1.5" style={{ borderColor: "rgba(244, 200, 107, 0.35)", background: "rgba(244, 200, 107, 0.06)" }}>
+                <div className="text-[9px] font-black uppercase tracking-wider" style={{ color: "#f4c86b" }}>
+                  Missing host secret{receipt.missing.length === 1 ? "" : "s"}
+                </div>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {receipt.missing.map(m => (
+                    <code key={m} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "#0b0b0d", border: "1px solid #333", color: "#f4c86b" }}>
+                      {m}
+                    </code>
+                  ))}
+                </div>
+                <div className="mt-1.5 text-[9px] leading-snug text-wm-text-dim">
+                  Set the above in Cloudflare Worker environment variables and press <em>Check wire</em>.
+                </div>
+              </div>
             )}
           </>
         )}
