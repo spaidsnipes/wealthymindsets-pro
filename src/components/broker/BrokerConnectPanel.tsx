@@ -489,6 +489,7 @@ function BrokerCard({ broker, selected, onToggle }: { broker: Broker; selected: 
             type="button"
             onClick={e => { e.stopPropagation(); onToggle(); }}
             aria-pressed={selected}
+            aria-label={`${selected ? "Remove" : "Add"} ${broker.name} ${selected ? "from" : "to"} the broker setup queue`}
             className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-colors"
             style={{
               color: selected ? "#050506" : broker.color,
@@ -497,7 +498,7 @@ function BrokerCard({ broker, selected, onToggle }: { broker: Broker; selected: 
             }}
           >
             {selected && <Check size={10} />}
-            {selected ? "Selected" : "Add"}
+            {selected ? "Queued" : "Queue"}
           </button>
         </div>
 
@@ -568,6 +569,7 @@ export function BrokerConnectPanel({ onClose }: { onClose: () => void }) {
   const [tab,    setTab]    = useState<BrokerCategory>("broker");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  const [selectedOnly, setSelectedOnly] = useState(false);
 
   const toggleSelected = (id: string) => {
     setSelected(current => {
@@ -579,7 +581,7 @@ export function BrokerConnectPanel({ onClose }: { onClose: () => void }) {
   };
 
   const shown = BROKERS.filter(b =>
-    b.category === tab &&
+    (selectedOnly ? selected.has(b.id) : b.category === tab) &&
     (b.name.toLowerCase().includes(search.toLowerCase()) ||
      b.desc.toLowerCase().includes(search.toLowerCase()))
   );
@@ -654,10 +656,22 @@ export function BrokerConnectPanel({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
-        <div className="px-4 py-3 border-t border-wm-border text-[10px] text-wm-text-dim text-center shrink-0">
-          {selected.size > 0
-            ? `${selected.size} ${selected.size === 1 ? "provider" : "providers"} selected · verify each connection before live use.`
-            : "Select one or several providers. Each connection is verified independently."}
+        <div className="px-4 py-3 border-t border-wm-border text-[10px] text-wm-text-dim text-center shrink-0 space-y-2">
+          <div>
+            {selected.size > 0
+              ? `${selected.size} ${selected.size === 1 ? "provider" : "providers"} queued for setup · verification still happens independently.`
+              : "Queue one or several providers, then verify each connection independently."}
+          </div>
+          {selected.size > 0 && (
+            <button
+              type="button"
+              aria-pressed={selectedOnly}
+              onClick={() => setSelectedOnly(value => !value)}
+              className="inline-flex min-h-9 items-center justify-center rounded-lg border border-wm-gold/40 px-3 font-bold text-wm-gold transition-colors hover:bg-wm-gold/10"
+            >
+              {selectedOnly ? "Show all providers" : `Review setup queue (${selected.size})`}
+            </button>
+          )}
         </div>
       </motion.div>
     </motion.div>

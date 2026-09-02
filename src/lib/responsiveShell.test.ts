@@ -60,6 +60,15 @@ describe("responsive P0 command surfaces", () => {
     expect(profile).toContain("Wealthy Mindsets");
   });
 
+  it("makes multi-provider selection an honest reviewable setup queue", () => {
+    const brokers = source("../components/broker/BrokerConnectPanel.tsx");
+    expect(brokers).toContain("broker setup queue");
+    expect(brokers).toContain("Review setup queue");
+    expect(brokers).toContain("verification still happens independently");
+    expect(brokers).toContain("selectedOnly ? selected.has(b.id) : b.category === tab");
+    expect(brokers).not.toContain("providers selected · verify each connection");
+  });
+
   it("keeps long-form Nectar and Command Deck surfaces vertically reachable", () => {
     const layout = source("../components/layout/MainLayout.tsx");
     expect(layout).toContain('pathname === "/nectar"');
