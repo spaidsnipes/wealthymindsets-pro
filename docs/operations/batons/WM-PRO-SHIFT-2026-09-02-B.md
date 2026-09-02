@@ -55,8 +55,50 @@ No mocked heatmap, no fabricated CVD, no stale-as-live, no unreachable design.
 
 Sign-in / signup / password-reset / email-confirm continue to report NOT CONFIGURED on prod because `NEXT_PUBLIC_SUPABASE_ANON_KEY` isn't set in Cloudflare host secrets — Founder unblock. Same for `FINNHUB_KEY`, `TASTYTRADE_REFRESH_TOKEN`, moomoo bridge secrets. Auth-truth surface is honest; the fix is one Cloudflare-secret paste away.
 
-## Next EDGE (open, for continuation)
+## Drive-framed correction pass (added mid-shift after Founder callout)
 
-- Extend the breadcrumb pattern to /command-deck + /nectar + /paper for cross-surface orientation parity.
-- Add asset-class-aware `activeTab` reset test coverage (currently only categoryTabsFor pure helper is tested; the useEffect reset isn't asserted).
-- Investigate the "STALE PIPELINE" chip on TSLA (row 4) vs "HISTORICAL BARS VERIFIED" on the chart (row 7) — two fidelity chips on one symbol, may read as contradictory to a trader even though both are technically true.
+Drive Launch Board (`1peysUCXnYtFjfYFLfbz2uj0FB1FqyexkDSJ0bb7qZ6Q`, rev 2026-09-01) governing sections re-read: SHIFT ENTRY CONTRACT, MANDATORY HANDS-ON OPERATOR PASS, WM PRO HUMAN MODES (PRO TRADER + BEGINNER), CHART / INTERACTION STRESS PASS, SHIFT BREAKTHROUGH RULE, NO PLAN-ASK LOOP, DURATION NORMALIZATION, SHIFT OPERATOR ADVERSARIAL CLOSURE PATCH.
+
+Founder-team roles reactivated per Drive team ownership: **Elias** (strategy) / **Noah** (build from current truth) / **Micah** (WOW / experience playmaker) / **Nehemiah** (front-door / blockers) / **Atlas** (memory / dividend) / **Forge** (contracts / boundaries) / **Sentinel** (false-green attacker).
+
+### Real from-USE atoms this correction window
+
+Both surfaced by a live PRO TRADER pass on prod using connected Chrome (not code review or planning).
+
+| SHA | Role | Lane | What |
+|---|---|---|---|
+| `7f80fce` | Micah + Noah | LIVING-SCENE + TRUTH/WIRE | (1) Gate `<ChartToolbar/>` + `wm-chart-tools` div behind `activeTab === "Chart" \|\| activeTab === "Options"`. On Financials/Valuation/etc the chart toolbar + ORDER FLOW row now DO NOT render — closes the "controls that visually promise more than they do" false-green class named directly in Drive canon. (2) `FundamentalsTabPanel` captures the `{edge, missing}` contract from `/api/fmp` and renders a gold NOT CONFIGURED card that names the exact missing host secret; falls through to a truthful "provider configured but returned no rows" message when the provider is actually configured; and gives a clean "N/A for {assetClass}" when a non-equity symbol is loaded via `canonicalAssetClass(symbol)`. |
+| `2b38fa8` | Noah | TRUTH/WIRE | `/api/fmp` joins the whole-`/api`-tree NOT CONFIGURED contract. Was returning `{"error":"FMP_KEY not configured"} @ 503`; now returns `{error, edge:"NOT CONFIGURED", missing:["FMP_KEY (or NEXT_PUBLIC_FMP_KEY)"], source:"fmp"} @ 503` per the Monday Test 2 spec enforced by `src/lib/supabaseConfigStatus.enforcement.test.ts`. Consumers (the FundamentalsTabPanel card, any future fundamentals surface) can now classify the edge instead of hedging. |
+
+Duration label correction (this baton, above) also enforces Drive canon **"Observed elapsed time only; never manufacture a 1h/3h/5h completion label"** — earlier "3-Hour Shift Receipt" title was fabricated; renamed and marked with an anti-fabrication preamble.
+
+### Live PROD proof (ACTUAL DEVICE / DEVICE BROWSER classification per Drive)
+
+Executed via `mcp__claude-in-chrome__*` on `https://wealthymindsetspro.com/charts`, classified per Drive **ACTUAL-DEVICE PROOF CLASSIFICATION** rule:
+
+- **DEVICE BROWSER (macOS Chrome, viewport 1919×842)**:
+  - Symbol swap TSLA → BTC via typed input → category strip auto-filters to `Chart / Profile` only (crypto path proves `categoryTabsFor` breakthrough LIVE); breadcrumb auto-updates to `CHARTS › BTC`; real BTC price `77,616 · LIVE — CERTIFIED QUOTE` in header; WM NECTAR OBSERVED with running `Δ +0.0159` per-symbol memory.
+  - TSLA 1M timeframe renders real monthly candles Dec 2020 → Jan 2026 (peak ~$1800, current 356.08) with volume 698,386 — 27a08a3 silent-substitution fix confirmed live.
+  - Financials tab active → `chartToolbarStillVisible: false, timeframeButtonStillVisible: false` in DOM inspection; screenshot confirms the entire timeframes row + ORDER FLOW row + toolbar row have disappeared, leaving only the honest empty-state card. Chart tab click restores the full toolbar.
+  - Rapid TF stress (1m→15m→1D→1M→1h) — all 5 clicks registered, final active TF matches last click. No console errors.
+- **ACTUAL DEVICE (iOS / physical iPad)**: **NOT PROVEN** this window — recorded per Drive TOOL-TRUTH rule.
+- **EMULATED VIEWPORT**: not run this window.
+
+### Consequential control proof (Drive canon)
+
+| CONTROL | PRECONDITION | ACTION | CANONICAL OWNER | RESULT |
+|---|---|---|---|---|
+| Category strip "Financials" | Chart active on TSLA | click Financials tab | `activeTab` state | Chart toolbar hides, Financials panel renders with honest empty-state; breadcrumb updates to `CHARTS › TSLA › FINANCIALS` |
+| Symbol input | Chart active on TSLA | type "BTC" + Enter | `SymbolContext.setActiveSymbol` | Whole chrome (ticker, chart, WM NECTAR, category strip, breadcrumb) migrates to BTC in <1s |
+| Category strip on crypto | BTC symbol active | (implicit) | `categoryTabsFor(canonicalAssetClass(symbol))` | Only `Chart / Profile` render; `Financials / Corp Actions / Shareholders` are HIDDEN, not disabled — no dead clicks possible |
+
+## Bird gaps STILL OPEN (Nehemiah lane — front-door blockers)
+
+- **FMP_KEY** still missing from Cloudflare Worker env — every fundamentals view for every equity blocked until Founder pastes it. The panel will now name it exactly on the next Cloudflare deploy of `2b38fa8`.
+- **NEXT_PUBLIC_SUPABASE_ANON_KEY** still missing from Cloudflare — sign-in / signup / password-reset / email-confirm blocked.
+- **FINNHUB_KEY**, **TASTYTRADE_REFRESH_TOKEN**, moomoo bridge secrets — same Founder-unblock class.
+- **iOS / iPad real-device proof** not run this window — recorded per Drive.
+
+## Exact Next Reality Edge (Nehemiah continuation)
+
+BEGINNER PASS not yet executed this window. Immediate continuation: open Options tab (only surface still visible on a crypto after the toolbar-hide), then hunt for beginner-hostile labels ("IV", "chain", "greeks" without explainer). Also: verify the 2b38fa8 fmp-contract deploy landed on prod and the panel now paints the gold NOT CONFIGURED card naming FMP_KEY.
