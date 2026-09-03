@@ -2756,9 +2756,17 @@ Trade the system, trust the process, winners every day 🚀`,
                 </div>
                 <div>
                   <label className="text-[10px] text-wm-text-dim uppercase mb-1 block">Setup</label>
-                  <select value={form.setup} onChange={e => setForm(f => ({ ...f, setup: e.target.value }))}
+                  {/* emptyForm() starts setup unset ("") per canon §3/§4 —
+                      the trader must consciously pick. Without an explicit
+                      empty option the browser rendered the FIRST setup
+                      ("CLC Long") as selected while state was still "", so a
+                      trader who never touched the control believed they had
+                      logged a CLC Long and the entry stored an empty setup.
+                      The unset state must be visible (LIVING-PIXEL LAW). */}
+                  <select value={form.setup ?? ""} onChange={e => setForm(f => ({ ...f, setup: e.target.value }))}
                     className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-xs text-wm-text outline-none focus:border-wm-green/50">
-                    {SETUPS.map(s => <option key={s}>{s}</option>)}
+                    <option value="">— select setup —</option>
+                    {SETUPS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 {/* I-Bkt 5: canon §3 M0 = NO TRADE. When the trader
