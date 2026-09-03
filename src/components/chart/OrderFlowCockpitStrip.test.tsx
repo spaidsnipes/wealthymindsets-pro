@@ -100,6 +100,21 @@ describe("OrderFlowCockpitStrip", () => {
     expect(buyCell).not.toMatch(/>0<\/span>/);
   });
 
+  it("renders one-sided flow honestly instead of a fabricated 300:100 chip", () => {
+    // Real from-USE defect: initial /charts BTC render showed
+    // "AGGRESSIVE BUY 0 · AGGRESSIVE SELL 0.0004 · IMB 300:100" — a 3:1
+    // reading the tape never produced. One side had zero volume, so the
+    // true ratio is unbounded.
+    const ticks: AggressorTick[] = [
+      { side: "sell", size: 0.0004, price: 77000, trade: true },
+    ];
+    const html = renderToStaticMarkup(
+      <OrderFlowCockpitStrip ticks={ticks} livePrice={77000} />,
+    );
+    expect(html).not.toContain("300:100");
+    expect(html).toContain("one-sided");
+  });
+
   it("caps absurd imbalance ratios instead of showing millions:100", () => {
     // Real from-USE BTC prod: crypto's fractional volumes pushed the
     // imbalance ratio to 27,261,700:100 (a real math result, but reads

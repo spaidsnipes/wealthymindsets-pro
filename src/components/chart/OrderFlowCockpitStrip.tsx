@@ -61,7 +61,11 @@ function formatSignedVolume(v: number): string {
  * reads as noise. The unbounded number is preserved in aria-label
  * for keyboard/screen-reader users who want the raw value.
  */
-function formatImbalanceRatio(ratio: number): string {
+function formatImbalanceRatio(ratio: number, oneSided = false): string {
+  // One-sided flow has an UNBOUNDED ratio — the selector's 300 sentinel is not
+  // a measurement. Painting it as "300:100" invents a 3:1 reading the tape
+  // never produced (LIVING-PIXEL LAW).
+  if (oneSided) return "one-sided";
   if (!Number.isFinite(ratio) || ratio <= 100) return "1:1";
   if (ratio >= 1e6) return "≥10k:1";
   if (ratio >= 1e5) return "≥1k:1";
@@ -105,7 +109,7 @@ export function OrderFlowCockpitStrip({
     <div
       className="wm-order-flow-cockpit-strip"
       style={containerStyle}
-      aria-label={`Order flow cockpit — ${snap.askDom ? "aggressive buy" : "aggressive sell"} dominant, ratio ${formatImbalanceRatio(snap.imbRatio)}`}
+      aria-label={`Order flow cockpit — ${snap.askDom ? "aggressive buy" : "aggressive sell"} dominant, ratio ${formatImbalanceRatio(snap.imbRatio, snap.oneSided)}`}
     >
       <span style={{ color: "#c9a55c", letterSpacing: 0.4, fontWeight: 700, textTransform: "uppercase" }}>
         {label}
@@ -143,7 +147,7 @@ export function OrderFlowCockpitStrip({
           Imb
         </span>
         <span style={{ color: netColor, fontWeight: 700, fontFamily: "monospace" }}>
-          {formatImbalanceRatio(snap.imbRatio)}
+          {formatImbalanceRatio(snap.imbRatio, snap.oneSided)}
         </span>
       </span>
 

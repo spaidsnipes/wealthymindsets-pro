@@ -35,6 +35,12 @@ export interface AggressorFlowSnapshot {
   readonly cvd: number;
   readonly vwap: number;
   readonly imbRatio: number;
+  /**
+   * True when one aggressor side has zero volume, making the real ratio
+   * unbounded. `imbRatio` carries a 300 sentinel in this case — display
+   * layers must render "one-sided" rather than a fabricated "300:100".
+   */
+  readonly oneSided: boolean;
   readonly askDom: boolean;
 }
 
@@ -54,6 +60,7 @@ export function selectAggressorFlow(
     cvd: 0,
     vwap: livePrice > 0 ? livePrice : 0,
     imbRatio: 100,
+    oneSided: false,
     askDom: true,
   };
   if (!ticks || !Array.isArray(ticks) || ticks.length === 0) return empty;
@@ -80,6 +87,12 @@ export function selectAggressorFlow(
   const vwap = vol > 0 ? pv / vol : livePrice > 0 ? livePrice : 0;
   const hi = Math.max(askVol, bidVol);
   const lo = Math.min(askVol, bidVol);
+  // When the weaker side has zero volume the true ratio is UNBOUNDED, not 3:1.
+  // `imbRatio` keeps its historical 300 sentinel so existing numeric consumers
+  // (dominance thresholds) behave unchanged, but `oneSided` is the honest
+  // signal: display layers MUST NOT paint 300 as a measured "300:100" ratio —
+  // that number has no owner in the tape (LIVING-PIXEL LAW).
+  const oneSided = lo === 0 && hi > 0;
   const imbRatio = lo > 0 ? (hi / lo) * 100 : hi > 0 ? 300 : 100;
 
   return {
@@ -90,6 +103,7 @@ export function selectAggressorFlow(
     cvd,
     vwap,
     imbRatio,
+    oneSided,
     askDom: askVol >= bidVol,
   };
 }

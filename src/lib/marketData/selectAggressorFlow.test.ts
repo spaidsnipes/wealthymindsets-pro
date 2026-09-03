@@ -98,16 +98,30 @@ describe("selectAggressorFlow — canon aggressor-flow selector", () => {
     expect(s.imbRatio).toBe(500);
   });
 
-  it("caps imbRatio at 300 when only one side is active (weaker=0, hi>0)", () => {
+  it("flags one-sided flow and keeps the 300 numeric sentinel for dominance consumers", () => {
     const s = selectAggressorFlow([
       tick({ side: "buy", size: 10 }),
     ]);
+    // The true ratio is unbounded. 300 is a sentinel for numeric consumers,
+    // NOT a measurement — `oneSided` is what display layers must read so the
+    // trader never sees a fabricated "300:100" chip (LIVING-PIXEL LAW).
+    expect(s.oneSided).toBe(true);
     expect(s.imbRatio).toBe(300);
   });
 
-  it("imbRatio defaults to 100 on empty flow", () => {
+  it("does not flag oneSided when both aggressor sides have volume", () => {
+    const s = selectAggressorFlow([
+      tick({ side: "buy", size: 10 }),
+      tick({ side: "sell", size: 2 }),
+    ]);
+    expect(s.oneSided).toBe(false);
+    expect(s.imbRatio).toBe(500);
+  });
+
+  it("imbRatio defaults to 100 on empty flow and is not one-sided", () => {
     const s = selectAggressorFlow([]);
     expect(s.imbRatio).toBe(100);
+    expect(s.oneSided).toBe(false);
   });
 
   it("hasFlow=false when zero volume observed (haveData may still be false)", () => {
