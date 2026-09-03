@@ -244,3 +244,91 @@ describe("order purpose — every choice states its cost", () => {
     expect(r.status).toBe("INCOMPLETE");
   });
 });
+
+import { validateTicketLevels } from "./orderPurpose";
+
+/**
+ * Regression net for the live /paper Order Ticket defect: `+limitPx||px`.
+ * Every case below previously produced a SILENTLY MARKET-PRICED order.
+ */
+describe("ticket levels — never substitutes the market price", () => {
+  const base = { side: "buy" as const, limitRaw: "", stopRaw: "", referencePrice: 100 };
+
+  it("refuses a blank limit rather than pricing it at the market", () => {
+    const r = validateTicketLevels({ ...base, type: "limit" });
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error("must not resolve");
+    expect(r.issues[0].reason).toContain("will not fill this in with the market price");
+  });
+
+  it("refuses unparseable text — `+\"abc\"` is NaN, which is falsy", () => {
+    const r = validateTicketLevels({ ...base, type: "limit", limitRaw: "abc" });
+    expect(r.ok).toBe(false);
+  });
+
+  it("refuses a typed zero — falsy, so the old code swallowed it too", () => {
+    const r = validateTicketLevels({ ...base, type: "limit", limitRaw: "0" });
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error("must not resolve");
+    expect(r.issues[0].reason).toContain("not tradeable");
+  });
+
+  it("passes a real limit through untouched", () => {
+    const r = validateTicketLevels({ ...base, type: "limit", limitRaw: "99.5" });
+    expect(r).toEqual({ ok: true, limitPx: 99.5, stopPx: undefined });
+  });
+
+  it("requires BOTH levels for stop-limit and reports both at once", () => {
+    const r = validateTicketLevels({ ...base, type: "stop-limit" });
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error("must not resolve");
+    expect(r.issues.map(i => i.field).sort()).toEqual(["limit", "stop"]);
+  });
+
+  it("ignores levels the order type does not use", () => {
+    const r = validateTicketLevels({ ...base, type: "market", limitRaw: "", stopRaw: "" });
+    expect(r).toEqual({ ok: true, limitPx: undefined, stopPx: undefined });
+  });
+});
+
+describe("ticket levels — a stop must not fire on arrival", () => {
+  it("refuses a sell stop at or above the market", () => {
+    for (const stopRaw of ["100", "105"]) {
+      const r = validateTicketLevels({
+        type: "stop", side: "sell", limitRaw: "", stopRaw, referencePrice: 100,
+      });
+      expect(r.ok).toBe(false);
+      if (r.ok) throw new Error("must not resolve");
+      expect(r.issues[0].reason).toContain("trigger immediately");
+    }
+  });
+
+  it("accepts a protective sell stop below the market", () => {
+    const r = validateTicketLevels({
+      type: "stop", side: "sell", limitRaw: "", stopRaw: "95", referencePrice: 100,
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  it("accepts a buy stop ABOVE the market — that is a breakout, not an error", () => {
+    const r = validateTicketLevels({
+      type: "stop", side: "buy", limitRaw: "", stopRaw: "105", referencePrice: 100,
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  it("refuses a buy stop at or below the market", () => {
+    const r = validateTicketLevels({
+      type: "stop", side: "buy", limitRaw: "", stopRaw: "95", referencePrice: 100,
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("skips the geometry check when no reference price is observed", () => {
+    // Better to accept than to invent a market price to compare against.
+    const r = validateTicketLevels({
+      type: "stop", side: "sell", limitRaw: "", stopRaw: "95",
+    });
+    expect(r.ok).toBe(true);
+  });
+});

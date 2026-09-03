@@ -369,3 +369,114 @@ export function purposeSentence(purpose: OrderPurpose): string {
 export function purposeTradeoff(purpose: OrderPurpose): PurposeTradeoff {
   return SPECS[purpose].tradeoff;
 }
+
+/* ------------------------------------------------------------------ */
+/* Order-ticket level resolution                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Real defect (2026-09-03), /paper Order Ticket:
+ *
+ *   limitPx: type==="limit" ? +limitPx||px : undefined
+ *   stopPx:  type==="stop"  ? +stopPx ||px : undefined
+ *
+ * `+""` is 0, which is falsy, so a BLANK field fell through to `px` — the
+ * current market price. A trader who chose "limit" precisely to control their
+ * price, and left the box empty, silently got an order priced at the market.
+ * The same path swallowed a typed `0` and any unparseable text (`+"abc"` is
+ * NaN, also falsy).
+ *
+ * On the stop side it was worse than a lost limit: a protective stop placed AT
+ * the market triggers immediately, converting "protect me if I'm wrong" into
+ * an instant market exit.
+ *
+ * A level is a risk decision. The software does not get to make it.
+ */
+export interface TicketLevelIssue {
+  readonly field: "limit" | "stop";
+  readonly reason: string;
+}
+
+export type TicketLevels =
+  | { readonly ok: true; readonly limitPx?: number; readonly stopPx?: number }
+  | { readonly ok: false; readonly issues: readonly TicketLevelIssue[] };
+
+export interface TicketLevelInput {
+  readonly type: BrokerOrderType;
+  readonly side: "buy" | "sell";
+  readonly limitRaw: string;
+  readonly stopRaw: string;
+  /** Last observed price. Used only to detect an instantly-triggering stop. */
+  readonly referencePrice?: number;
+}
+
+function parseLevel(
+  raw: string,
+  field: "limit" | "stop",
+): { value: number } | { issue: TicketLevelIssue } {
+  const label = field === "limit" ? "limit" : "stop";
+  if (raw.trim() === "") {
+    return {
+      issue: {
+        field,
+        reason: `Enter a ${label} price. WM will not fill this in with the market price for you.`,
+      },
+    };
+  }
+  const n = Number(raw);
+  if (!Number.isFinite(n)) {
+    return { issue: { field, reason: `"${raw}" is not a usable ${label} price.` } };
+  }
+  if (n <= 0) {
+    return { issue: { field, reason: `A ${label} price of ${n} is not tradeable.` } };
+  }
+  return { value: n };
+}
+
+/**
+ * Resolve the price levels an order ticket needs, or report every reason it
+ * cannot. Never substitutes the market price for a missing level.
+ */
+export function validateTicketLevels(input: TicketLevelInput): TicketLevels {
+  const needsLimit = input.type === "limit" || input.type === "stop-limit";
+  const needsStop = input.type === "stop" || input.type === "stop-limit";
+
+  const issues: TicketLevelIssue[] = [];
+  let limitPx: number | undefined;
+  let stopPx: number | undefined;
+
+  if (needsLimit) {
+    const r = parseLevel(input.limitRaw, "limit");
+    if ("issue" in r) issues.push(r.issue);
+    else limitPx = r.value;
+  }
+
+  if (needsStop) {
+    const r = parseLevel(input.stopRaw, "stop");
+    if ("issue" in r) issues.push(r.issue);
+    else stopPx = r.value;
+  }
+
+  // A stop on the wrong side of the market fires the moment it is accepted.
+  // A sell stop protects below; a buy stop breaks out above.
+  const ref = input.referencePrice;
+  if (
+    stopPx !== undefined &&
+    typeof ref === "number" &&
+    Number.isFinite(ref) &&
+    ref > 0
+  ) {
+    const instant = input.side === "sell" ? stopPx >= ref : stopPx <= ref;
+    if (instant) {
+      issues.push({
+        field: "stop",
+        reason:
+          `A ${input.side} stop at ${stopPx} is already through the market at ` +
+          `${ref}, so it would trigger immediately as a market order. ` +
+          `Move the stop, or place a market order deliberately.`,
+      });
+    }
+  }
+
+  return issues.length > 0 ? { ok: false, issues } : { ok: true, limitPx, stopPx };
+}

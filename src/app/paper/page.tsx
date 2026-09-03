@@ -37,6 +37,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import styles from "./paper.module.css";
+import { validateTicketLevels, type TicketLevelIssue } from "@/lib/orderPurpose";
 
 /* ── Symbol universe with live-ish prices ────────────────── */
 const UNIVERSE: Record<string,{ name:string; base:number; tick:number }> = {
@@ -301,6 +302,7 @@ function OrderTicket({
   const [limitPx,setLimitPx]= useState("");
   const [stopPx, setStopPx] = useState("");
   const [flash,  setFlash]  = useState(false);
+  const [levelIssues, setLevelIssues] = useState<readonly TicketLevelIssue[]>([]);
 
   const readiness = quoteReadiness[sym] ?? initialPaperQuoteReadiness();
   const px  = readiness.price ?? prices[sym] ?? 0;
@@ -308,13 +310,21 @@ function OrderTicket({
 
   const submit = () => {
     if (!readiness.actionable || !qty || qty <= 0) return;
+    // A price level is a risk decision. If the trader left it blank, WM
+    // refuses and says so — it does NOT fall back to the market price.
+    const levels = validateTicketLevels({
+      type, side, limitRaw: limitPx, stopRaw: stopPx,
+      referencePrice: readiness.price ?? undefined,
+    });
+    if (!levels.ok) { setLevelIssues(levels.issues); return; }
+    setLevelIssues([]);
     const order: Order = {
       id:     uid(),
       symbol: sym,
       side, type, qty, status:"pending",
       ts:     Date.now(),
-      limitPx:type==="limit"||type==="stop-limit" ? +limitPx||px : undefined,
-      stopPx: type==="stop"||type==="stop-limit"  ? +stopPx||px  : undefined,
+      limitPx: levels.limitPx,
+      stopPx:  levels.stopPx,
     };
     onSubmit(order);
     setFlash(true);
@@ -370,7 +380,7 @@ function OrderTicket({
         <label className="text-[9px] text-wm-text-dim uppercase tracking-wider block mb-1">Order Type</label>
         <div className="grid grid-cols-2 gap-1">
           {(["market","limit","stop","stop-limit"] as OrderType[]).map(t=>(
-            <button key={t} onClick={()=>setType(t)}
+            <button key={t} onClick={()=>{setType(t);setLevelIssues([]);}}
               className={clsx("py-1 rounded text-[10px] font-bold border transition-all",
                 type===t ? "bg-wm-blue/20 text-wm-blue border-wm-blue/40" : "text-wm-text-muted border-wm-border hover:text-wm-text")}>
               {t.charAt(0).toUpperCase()+t.slice(1).replace("-"," ")}
@@ -405,17 +415,17 @@ function OrderTicket({
       {(type==="limit"||type==="stop-limit") && (
         <div className="mb-3">
           <label className="text-[9px] text-wm-text-dim uppercase tracking-wider block mb-1">Limit Price</label>
-          <input type="number" value={limitPx} onChange={e=>setLimitPx(e.target.value)}
+          <input type="number" value={limitPx} onChange={e=>{setLimitPx(e.target.value);setLevelIssues([]);}}
             aria-label="Limit price"
-            placeholder={fmt2(px)} className="w-full bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1.5 text-xs text-wm-text outline-none focus:border-wm-gold/50 font-mono"/>
+            placeholder="Required — no default" className="w-full bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1.5 text-xs text-wm-text outline-none focus:border-wm-gold/50 font-mono"/>
         </div>
       )}
       {(type==="stop"||type==="stop-limit") && (
         <div className="mb-3">
           <label className="text-[9px] text-wm-text-dim uppercase tracking-wider block mb-1">Stop Price</label>
-          <input type="number" value={stopPx} onChange={e=>setStopPx(e.target.value)}
+          <input type="number" value={stopPx} onChange={e=>{setStopPx(e.target.value);setLevelIssues([]);}}
             aria-label="Stop price"
-            placeholder={fmt2(px)} className="w-full bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1.5 text-xs text-wm-text outline-none focus:border-wm-red/50 font-mono"/>
+            placeholder="Required — no default" className="w-full bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1.5 text-xs text-wm-text outline-none focus:border-wm-red/50 font-mono"/>
         </div>
       )}
 
@@ -424,6 +434,22 @@ function OrderTicket({
         <span>Est. Value</span>
         <span className="font-mono font-bold text-wm-text">{readiness.actionable ? `$${est.toLocaleString("en-US",{maximumFractionDigits:0})}` : "UNKNOWN"}</span>
       </div>
+
+      {/* Refusals — why this order was not sent. §7: never fabricate a level. */}
+      {levelIssues.length > 0 && (
+        <div role="alert" className="mb-3 rounded-lg border border-wm-red/50 bg-wm-red/10 px-2.5 py-2">
+          <div className="text-[9px] font-black uppercase tracking-wider text-wm-red mb-1">
+            Order not sent
+          </div>
+          <ul className="space-y-1">
+            {levelIssues.map((iss, i) => (
+              <li key={`${iss.field}-${i}`} className="text-[10px] leading-snug text-wm-text">
+                {iss.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Submit */}
       <button onClick={submit} disabled={!readiness.actionable}
