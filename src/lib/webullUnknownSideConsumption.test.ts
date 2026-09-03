@@ -7,7 +7,8 @@ const hook = readFileSync(resolve(__dirname, "../hooks/useWebSocket.ts"), "utf8"
 describe("Webull unknown-side consumption boundary", () => {
   it("routes observed Webull prints through price/volume admission", () => {
     expect(hook).toContain("selectFreshWebullObservedEvents(webullBody");
-    expect(hook).toContain("processUnsignedObservation(inspected.event, \"webull\")");
+    expect(hook).toContain('electedSource === "longbridge" || electedSource === "webull"');
+    expect(hook).toContain("processUnsignedObservation(inspected.event, electedSource)");
     expect(hook).toContain("ticker: { ...previous.ticker, price, volume: previous.ticker.volume + size }");
   });
 

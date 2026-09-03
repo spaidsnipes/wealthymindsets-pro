@@ -27,6 +27,7 @@ import { applyTickToLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
 import { normalizeBinanceUsTrade } from "@/lib/marketData/adapters/binanceUs";
 import { moomooNextPollDelayMs, selectFreshMoomooTapeEvents } from "@/lib/marketData/adapters/moomooTicksBrowser";
+import { selectFreshLongbridgeObservedEvents } from "@/lib/marketData/adapters/longbridgeTicksBrowser";
 import { selectFreshWebullObservedEvents } from "@/lib/marketData/adapters/webullTicksBrowser";
 import { electProviderTapeSource, type ProviderTapeSource } from "@/lib/marketData/providerTapeElection";
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
@@ -66,7 +67,7 @@ export interface MarketState {
   recentTicks: Tick[];
   orderBook:   { bids: OrderBookLevel[]; asks: OrderBookLevel[] };
   connected:   boolean;
-  source:      "polygon" | "finnhub" | "yahoo" | "alpaca" | "coinbase" | "binance" | "moomoo" | "webull" | "unavailable";
+  source:      "polygon" | "finnhub" | "yahoo" | "alpaca" | "coinbase" | "binance" | "moomoo" | "longbridge" | "webull" | "unavailable";
   /** Aggressor tape feed — set only by trade WebSockets, never downgraded by REST quotes. */
   tapeSource:  ProviderTapeSource | null;
   latency:     number; // ms to last update
@@ -946,7 +947,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
   /* Price/volume observation path. It advances the visible bar and ticker but
      intentionally never enters recentTicks, tapeSource, Delta, CVD, or DOM. */
-  const processUnsignedObservation = useCallback((event: CanonicalMarketEvent, source: "webull") => {
+  const processUnsignedObservation = useCallback((event: CanonicalMarketEvent, source: "longbridge" | "webull") => {
     const price = event.price;
     const size = event.size;
     const time = event.timestampProvider ?? event.timestampReceived;
@@ -1042,11 +1043,20 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           signal: moomooAbort.signal,
         });
         const body = response.ok && !disposed ? await response.json().catch(() => null) : null;
-        let electedSource: "moomoo" | "webull" = "moomoo";
+        let electedSource: "moomoo" | "longbridge" | "webull" = "moomoo";
         let events = selectFreshMoomooTapeEvents(body, symbol, Date.now());
-        // Moomoo is the deterministic first choice for this lane. Webull is a
-        // bounded signed-print fallback only when Moomoo returns no admissible
-        // event; a diagnostics receipt alone never reaches the tape.
+        // Moomoo is the deterministic first choice. Longbridge may contribute
+        // only unsigned observed price/volume, then Webull is the final bounded
+        // fallback. A diagnostics receipt alone never reaches any consumer.
+        if (events.length === 0 && !disposed) {
+          const longbridgeResponse = await fetch(`/api/market-data/longbridge/ticks?symbol=${encodeURIComponent(symbol.toUpperCase())}`, {
+            cache: "no-store",
+            signal: moomooAbort.signal,
+          });
+          const longbridgeBody = longbridgeResponse.ok ? await longbridgeResponse.json().catch(() => null) : null;
+          events = selectFreshLongbridgeObservedEvents(longbridgeBody, symbol, Date.now());
+          electedSource = "longbridge";
+        }
         if (events.length === 0 && !disposed) {
           const webullResponse = await fetch(`/api/market-data/webull/ticks?symbol=${encodeURIComponent(symbol.toUpperCase())}`, {
             cache: "no-store",
@@ -1066,9 +1076,14 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           if (inspected.status !== "ACCEPTED") continue;
           ingestSessionNectarEvent(inspected.event);
           if (inspected.event.aggressorSide !== "BUY" && inspected.event.aggressorSide !== "SELL") {
-            if (electedSource === "webull") processUnsignedObservation(inspected.event, "webull");
+            if (electedSource === "longbridge" || electedSource === "webull") {
+              processUnsignedObservation(inspected.event, electedSource);
+            }
             continue;
           }
+          // Longbridge direction is provenance only. Even if an unexpected
+          // future payload carries a side, this lane never elects it as tape.
+          if (electedSource === "longbridge") continue;
           const acceptedAt = Date.now();
           const nextTapeSource = electProviderTapeSource(
             tapeSourceRef.current,
