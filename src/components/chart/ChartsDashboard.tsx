@@ -574,7 +574,8 @@ export function ChartsDashboard() {
     timeframe,
     // Route through the canonical helper so the session enum comes from a
     // single deterministic source shared with every reader (see b46fa64).
-    session: canonicalSession(extHours),
+    // Asset class decides: a continuous (crypto) market is 24X7, never RTH.
+    session: canonicalSession(extHours, canonicalAssetClass(symbol)),
     ticker,
     recentTicks,
     source,

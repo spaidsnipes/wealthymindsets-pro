@@ -21,7 +21,12 @@
 import { normalizeTFId } from "../timeframes";
 
 export type CanonicalAssetClass = "crypto" | "equity" | "etf" | "futures" | "forex" | "options";
-export type CanonicalSession = "RTH" | "EXTENDED" | "OVERNIGHT" | "CLOSED";
+/**
+ * "24X7" is the continuous-market session for instruments that never close
+ * (crypto). RTH/EXTENDED are US-equity concepts and must never be applied to
+ * a continuous market — see canonicalSession().
+ */
+export type CanonicalSession = "RTH" | "EXTENDED" | "OVERNIGHT" | "CLOSED" | "24X7";
 
 export interface CanonicalMarketStateIdentity {
   readonly instrumentId: string;
@@ -154,6 +159,18 @@ export function selectCanonicalSessionPresentation(
     return { value: truth.label, detail: truth.detail, activity: truth.activity };
   }
 
+  // Continuous markets never close. Echoing the requested RTH/EXTENDED filter
+  // here produced "session RTH" for BTCUSD, and the weekend branch below would
+  // additionally have claimed "market closed" while crypto was actively
+  // trading — two false statements from one fall-through.
+  if (assetClass === "crypto") {
+    return {
+      value: "24X7",
+      detail: input.connected ? "continuous market · connected" : "continuous market · no data connection",
+      activity: "UNKNOWN",
+    };
+  }
+
   const session = input.requestedSession.toUpperCase();
   const isWeekend = input.dayOfWeek === 0 || input.dayOfWeek === 6;
   return {
@@ -206,7 +223,23 @@ export function canonicalInstrumentId(symbol: string, assetClass?: CanonicalAsse
 }
 
 /** Canonical session — narrow enum with a deterministic default. */
-export function canonicalSession(extHours: boolean): CanonicalSession {
+/**
+ * Map the requested-hours toggle to a canonical session.
+ *
+ * Real from-USE defect (2026-09-03): /command-deck rendered
+ * "session RTH · connected" for BTCUSD. RTH means US Regular Trading Hours
+ * (09:30–16:00 ET) — an equity concept with no meaning for a 24/7 crypto
+ * instrument. The extHours toggle does not apply to a continuous market at
+ * all, so the asset class decides.
+ *
+ * `assetClass` is optional for backward compatibility; omit it only where the
+ * instrument is known not to be continuous.
+ */
+export function canonicalSession(
+  extHours: boolean,
+  assetClass?: CanonicalAssetClass,
+): CanonicalSession {
+  if (assetClass === "crypto") return "24X7";
   return extHours ? "EXTENDED" : "RTH";
 }
 

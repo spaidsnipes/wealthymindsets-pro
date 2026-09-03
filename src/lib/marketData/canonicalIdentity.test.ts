@@ -5,6 +5,7 @@ import {
   canonicalSession,
   canonicalMarketStateIdentity,
   selectCanonicalFuturesSessionTruth,
+  selectCanonicalSessionPresentation,
   US_CASH_SESSION_UNKNOWN_LABEL,
 } from "./canonicalIdentity";
 
@@ -215,5 +216,76 @@ describe("canonicalMarketStateIdentity — contract test", () => {
     const one = canonicalMarketStateIdentity({ symbol: "AAPL", timeframe: "5m" });
     const two = canonicalMarketStateIdentity({ symbol: "AAPL", timeframe: one.timeframeContext[0] });
     expect(one).toEqual(two);
+  });
+
+  /* Real from-USE defect (2026-09-03): /command-deck rendered
+   * "session RTH · connected" for BTCUSD. RTH = US Regular Trading Hours,
+   * an equity concept with no meaning for a 24/7 crypto instrument. */
+  describe("continuous-market session truth", () => {
+    it("classifies crypto as 24X7 regardless of the extHours toggle", () => {
+      expect(canonicalSession(false, "crypto")).toBe("24X7");
+      expect(canonicalSession(true, "crypto")).toBe("24X7");
+    });
+
+    it("leaves equity/futures session mapping unchanged", () => {
+      expect(canonicalSession(false, "equity")).toBe("RTH");
+      expect(canonicalSession(true, "equity")).toBe("EXTENDED");
+      expect(canonicalSession(false)).toBe("RTH");
+      expect(canonicalSession(true)).toBe("EXTENDED");
+    });
+
+    it("never labels a crypto instrument RTH or EXTENDED in the presenter", () => {
+      const p = selectCanonicalSessionPresentation({
+        symbol: "BTC",
+        requestedSession: "RTH",
+        connected: true,
+        dayOfWeek: 3,
+        observedActivityAt: null,
+        evaluatedAt: 1_788_000_000_000,
+      });
+      expect(p.value).toBe("24X7");
+      expect(p.value).not.toBe("RTH");
+      expect(p.detail).toContain("continuous market");
+    });
+
+    it("never claims a crypto market is closed on a weekend", () => {
+      for (const dayOfWeek of [0, 6]) {
+        const p = selectCanonicalSessionPresentation({
+          symbol: "ETH",
+          requestedSession: "RTH",
+          connected: true,
+          dayOfWeek,
+          observedActivityAt: null,
+          evaluatedAt: 1_788_000_000_000,
+        });
+        expect(p.value).toBe("24X7");
+        expect(p.detail).not.toContain("market closed");
+      }
+    });
+
+    it("still reports an honest disconnection for a continuous market", () => {
+      const p = selectCanonicalSessionPresentation({
+        symbol: "BTC",
+        requestedSession: "EXTENDED",
+        connected: false,
+        dayOfWeek: 2,
+        observedActivityAt: null,
+        evaluatedAt: 1_788_000_000_000,
+      });
+      expect(p.value).toBe("24X7");
+      expect(p.detail).toContain("no data connection");
+    });
+
+    it("equities still report market closed on a weekend", () => {
+      const p = selectCanonicalSessionPresentation({
+        symbol: "AAPL",
+        requestedSession: "RTH",
+        connected: true,
+        dayOfWeek: 0,
+        observedActivityAt: null,
+        evaluatedAt: 1_788_000_000_000,
+      });
+      expect(p.detail).toBe("market closed");
+    });
   });
 });
