@@ -90,13 +90,20 @@ export function CanvasSummaryPill({
   // so a mouse-hover surfaces reasoning without scrolling to the panel.
   const tooltipLines: string[] = [`Canvas · ${vm.verdict}`];
   if (vm.headline) tooltipLines.push("", vm.headline);
-  if (vm.blockers.length > 0) tooltipLines.push("", "Why not:", ...vm.blockers.slice(0, 3).map((b) => `  · ${b}`));
-  if (vm.invalidators.length > 0) tooltipLines.push("", "Would invalidate:", ...vm.invalidators.slice(0, 3).map((s) => `  · ${s}`));
+  // The tooltip is a summary by design, but it must say how much it is
+  // withholding — an unmarked truncation reads as a complete list.
+  const withRemainder = (items: readonly string[], shown: number): string[] => {
+    const lines = items.slice(0, shown).map((x) => `  · ${x}`);
+    if (items.length > shown) lines.push(`  · +${items.length - shown} more — open the canvas`);
+    return lines;
+  };
+  if (vm.blockers.length > 0) tooltipLines.push("", `Why not (${vm.blockers.length}):`, ...withRemainder(vm.blockers, 3));
+  if (vm.invalidators.length > 0) tooltipLines.push("", `Would invalidate (${vm.invalidators.length}):`, ...withRemainder(vm.invalidators, 3));
   if (vm.missing.length > 0) {
     tooltipLines.push(
       "",
       `Unresolved dimensions (${vm.missing.length}) — these do not gate the verdict; blockers do:`,
-      ...vm.missing.slice(0, 4).map((m) => `  · ${m}`),
+      ...withRemainder(vm.missing, 4),
     );
     if (vm.missing.length > 4) tooltipLines.push("  …");
   }

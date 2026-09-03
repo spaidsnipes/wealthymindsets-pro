@@ -121,7 +121,10 @@ export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): Re
           <div style={{ fontSize: 9, letterSpacing: 0.5, color: "#e07b5c", marginBottom: 4, textTransform: "uppercase" }}>
             Why not ({vm.blockers.length})
           </div>
-          {vm.blockers.slice(0, 6).map((b, i) => (
+          {/* Every blocker renders. The header already disclosed the count,
+              but a blocker the trader cannot READ is one they cannot clear —
+              and these are the reasons not to put money at risk. */}
+          {vm.blockers.map((b, i) => (
             <div key={i} style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>{b}</div>
           ))}
         </div>
@@ -142,6 +145,11 @@ export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): Re
           {vm.clearances.slice(0, 6).map((c, i) => (
             <div key={i} style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>{c}</div>
           ))}
+          {vm.clearances.length > 6 && (
+            <div style={{ fontSize: 10, color: "#8a8578", lineHeight: 1.4, fontStyle: "italic" }}>
+              +{vm.clearances.length - 6} more cleared, not shown
+            </div>
+          )}
         </div>
       )}
 
