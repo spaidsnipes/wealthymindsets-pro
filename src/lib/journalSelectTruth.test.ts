@@ -40,3 +40,36 @@ describe("journal select truth", () => {
     expect(page).not.toMatch(/setup:\s*SETUPS\[0\]/);
   });
 });
+
+/**
+ * Label-overreach Sentinel — canon §AI AUTHORITY CREEP.
+ *
+ * The "coach" tab was labelled "AI Strategy Coach" while the panel it opens
+ * (StrategyCoach) is pure deterministic aggregation — win/loss counts, avg R:R,
+ * profit factor, per-setup breakdown. No AI service is called. The panel's own
+ * internal headers already read "Strategy Evidence Coach" / "Journal Evidence
+ * Coach", proving the honest name existed; only the tab bar overclaimed.
+ */
+describe("journal label truth", () => {
+  it("no journal tab promises an AI engine that does not run", () => {
+    expect(page).not.toContain('label:"AI Strategy Coach"');
+    expect(page).not.toMatch(/label:\s*"AI /);
+  });
+
+  it("the coach tab label matches the panel's own honest name", () => {
+    expect(page).toContain('label:"Strategy Evidence Coach"');
+  });
+
+  it("the songs tab does not promise AI over a hardcoded template", () => {
+    // generateSong() fills SONG_TEMPLATES; no model is invoked.
+    expect(page).not.toContain('label:"AI Songs"');
+    expect(page).toContain('label:"Lyric Templates"');
+  });
+
+  it("the coach panel still calls no AI service", () => {
+    // If a real model call is ever added, this Sentinel should be revisited
+    // deliberately — not silently satisfied by renaming the tab back.
+    const coachRegion = page.slice(page.indexOf("function StrategyCoach"));
+    expect(coachRegion.slice(0, 4000)).not.toMatch(/fetch\(|anthropic|openai|\/api\/ai/i);
+  });
+});

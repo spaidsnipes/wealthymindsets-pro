@@ -1489,8 +1489,13 @@ Trade the system, trust the process, winners every day 🚀`,
         <div className="flex gap-1">
           {([
             { id:"journal" as const, label:"Journal",           icon:FileText },
-            { id:"coach"   as const, label:"AI Strategy Coach", icon:Brain   },
-            { id:"songs"   as const, label:"AI Songs",          icon:Music   },
+            // Label matches what the panel actually is: deterministic aggregation over
+            // journal evidence, no AI service call. Canon §AI AUTHORITY CREEP — do not
+            // let a tab promise an engine that does not run.
+            { id:"coach"   as const, label:"Strategy Evidence Coach", icon:Brain   },
+            // generateSong() fills a hardcoded SONG_TEMPLATES string — no model call.
+            // Its own reward toast already says "local lyric template".
+            { id:"songs"   as const, label:"Lyric Templates",   icon:Music   },
           ]).map(t => (
             <button key={t.id} onClick={() => setMainTab(t.id)}
               className={clsx(
