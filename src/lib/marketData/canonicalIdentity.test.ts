@@ -288,4 +288,34 @@ describe("canonicalMarketStateIdentity — contract test", () => {
       expect(p.detail).toBe("market closed");
     });
   });
+
+  /* Producer/reader key agreement.
+   *
+   * `session` is part of canonicalMarketStateKey. During this shift the chart
+   * publisher was changed to pass assetClass to canonicalSession() while
+   * canonicalMarketStateIdentity() was not — so a crypto snapshot was written
+   * under "24X7" and read back under "RTH". The canvas then read a key nothing
+   * ever wrote and rendered as unresolved. These lock the agreement. */
+  describe("producer/reader session key agreement", () => {
+    it("identity session matches canonicalSession for the same symbol", () => {
+      for (const symbol of ["BTC", "ETH", "AAPL", "TSLA", "ES1!", "NQ1!"]) {
+        const cls = canonicalAssetClass(symbol);
+        for (const extHours of [false, true]) {
+          const identity = canonicalMarketStateIdentity({ symbol, timeframe: "5m", extHours });
+          expect(identity.session).toBe(canonicalSession(extHours, cls));
+        }
+      }
+    });
+
+    it("crypto identity is 24X7 on both sides regardless of extHours", () => {
+      expect(canonicalMarketStateIdentity({ symbol: "BTC", timeframe: "5m", extHours: false }).session).toBe("24X7");
+      expect(canonicalMarketStateIdentity({ symbol: "BTC", timeframe: "5m", extHours: true }).session).toBe("24X7");
+      expect(canonicalMarketStateIdentity({ symbol: "ETH", timeframe: "1h" }).session).toBe("24X7");
+    });
+
+    it("equity identity still honours the extHours toggle", () => {
+      expect(canonicalMarketStateIdentity({ symbol: "AAPL", timeframe: "5m", extHours: false }).session).toBe("RTH");
+      expect(canonicalMarketStateIdentity({ symbol: "AAPL", timeframe: "5m", extHours: true }).session).toBe("EXTENDED");
+    });
+  });
 });

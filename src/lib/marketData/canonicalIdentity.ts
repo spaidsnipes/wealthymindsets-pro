@@ -269,7 +269,12 @@ export function canonicalMarketStateIdentity(input: {
   }
   return {
     instrumentId: canonicalInstrumentId(input.symbol, cls),
-    session: canonicalSession(input.extHours === true),
+    // MUST pass the asset class. `session` is part of canonicalMarketStateKey,
+    // so producer and reader have to agree exactly. Omitting `cls` here made
+    // the chart publish a crypto snapshot under session "24X7" while every
+    // reader looked it up under "RTH" — the canvas would read a key nothing
+    // ever writes and silently render as unresolved.
+    session: canonicalSession(input.extHours === true, cls),
     timeframeContext: [normalized],
   };
 }
