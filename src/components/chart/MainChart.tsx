@@ -4299,17 +4299,40 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     const levelStep = range / numLev;
     const bucketLo = lo;
 
+    // Half-open binning: [start, end), with the final bucket inclusive of `hi`.
+    //
+    // This previously assigned ticks with `Math.abs(price - center) < half`,
+    // a STRICT comparison against the bucket half-width. Any tick landing
+    // exactly on a bucket edge satisfied no bucket and was silently dropped
+    // from bid, ask AND delta.
+    //
+    // That is not a rare edge case here: market prices are quantised to the
+    // tick size (0.25 futures, 0.01 equities), so whenever levelStep is a
+    // multiple of that tick, real traded prices land on bucket boundaries
+    // systematically. The bar's own low and high are always boundaries, so the
+    // extremes — exactly where absorption and rejection evidence lives — were
+    // discarded from every bar.
+    //
+    // Verified with exact binary fractions: lo=0, hi=1, numLev=4 → step 0.25,
+    // half 0.125; ticks at 0.0, 0.25, 0.5 and 1.0 were ALL dropped. The old
+    // code only appeared to work on decimal prices because floating-point
+    // error nudged |price - center| just under `half`.
+    //
+    // Indexing directly is also O(ticks) rather than O(ticks x levels).
+    const bidByLevel = new Array<number>(numLev).fill(0);
+    const askByLevel = new Array<number>(numLev).fill(0);
+    for (const t of tickEntries) {
+      const raw = Math.floor((t.price - bucketLo) / levelStep);
+      const idx = Math.max(0, Math.min(numLev - 1, raw));
+      bidByLevel[idx]! += t.bid;
+      askByLevel[idx]! += t.ask;
+    }
+
     const levels: Array<{ priceLevel: number; bid: number; ask: number; total: number; delta: number }> = [];
     for (let i = 0; i < numLev; i++) {
       const priceLevel = +(bucketLo + i * levelStep + levelStep / 2).toFixed(dp);
-      const half = levelStep / 2;
-      let bid = 0, ask = 0;
-      for (const t of tickEntries) {
-        if (Math.abs(t.price - priceLevel) < half) {
-          bid += t.bid;
-          ask += t.ask;
-        }
-      }
+      const bid = bidByLevel[i]!;
+      const ask = askByLevel[i]!;
       const total = bid + ask;
       if (total <= 0) continue;
       const delta = ask - bid; // aggressive buy − aggressive sell
