@@ -37,6 +37,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import styles from "./paper.module.css";
+import { modelBand, longOptionUnrealised } from "@/lib/optionModelBand";
 import { validateTicketLevels, purposeOrderType, purposeSentence, purposeTradeoff,
          TICKET_PURPOSES, type OrderPurpose, type TicketLevelIssue } from "@/lib/orderPurpose";
 
@@ -784,9 +785,10 @@ function OptionsChain({
       {strikes.map(k=>{
         const c = blackScholes(spot,k,tYears,iv,true);
         const p = blackScholes(spot,k,tYears,iv,false);
-        const spread = (mid:number)=>Math.max(0.02, mid*0.03);
-        const cAsk = c.price+spread(c.price), cBid = Math.max(0,c.price-spread(c.price));
-        const pAsk = p.price+spread(p.price), pBid = Math.max(0,p.price-spread(p.price));
+        // Single-sourced modelling assumption (see optionModelBand.ts).
+        const cBand = modelBand(c.price), pBand = modelBand(p.price);
+        const cAsk = cBand?.ask ?? 0, cBid = cBand?.bid ?? 0;
+        const pAsk = pBand?.ask ?? 0, pBid = pBand?.bid ?? 0;
         const itmC = k < spot, itmP = k > spot, atmRow = Math.abs(k-atm)<step/2;
         return (
           <div key={k} className={clsx("grid items-center border-b border-wm-border/20 px-3 py-1.5 text-[10px]",
@@ -819,7 +821,7 @@ function OptionsChain({
         Open Contracts ({optionPositions.length})
       </div>
       {optionPositions.length===0 ? (
-        <div className="px-3 py-4 text-[10px] text-wm-text-muted text-center">Click any bid/ask to buy a contract.</div>
+        <div className="px-3 py-4 text-[10px] text-wm-text-muted text-center">Click any modelled band to buy a contract.</div>
       ) : optionPositions.map(op=>{
         const uPx = actionablePaperQuotePrice(quoteReadiness[op.underlying]);
         if (uPx == null) {
@@ -841,7 +843,11 @@ function OptionsChain({
         }
         const t   = Math.max((op.expiryTs-Date.now())/86_400_000,0)/365;
         const g   = blackScholes(uPx, op.strike, t, underlyingIV(op.underlying), op.type==="call");
-        const pnl = (g.price - op.entryPrem) * op.qty * OPT_MULTIPLIER;
+        // Canon §21: a long's sell-now reference is the BID. Marking to the
+        // mid showed every open contract a half-spread better than it could
+        // actually be closed for — entry already paid the ask.
+        const markBid = modelBand(g.price)?.bid ?? null;
+        const pnl = longOptionUnrealised(g.price, op.entryPrem, op.qty, OPT_MULTIPLIER);
         const dte = Math.max(0,Math.ceil((op.expiryTs-Date.now())/86_400_000));
         return (
           <div key={op.id} className="grid items-center border-b border-wm-border/20 px-3 py-1.5 text-[10px]"
@@ -853,9 +859,13 @@ function OptionsChain({
             </span>
             <span className="font-mono text-wm-text-muted">{dte}d</span>
             <span className="font-mono text-wm-text-muted" title="entry premium">${fmt2(op.entryPrem)}</span>
-            <span className="font-mono font-bold text-wm-text" title="mark">${fmt2(g.price)}</span>
-            <span className={clsx("font-mono font-black", pnl>=0?"text-wm-green":"text-wm-red")}>
-              {pnl>=0?"+":""}{fmt2(pnl)}
+            <span className="font-mono font-bold text-wm-text"
+              title={`Sell-now mark (modelled bid). Model mid is $${fmt2(g.price)}.`}>
+              {markBid == null ? "—" : `$${fmt2(markBid)}`}
+            </span>
+            <span className={clsx("font-mono font-black", (pnl ?? 0)>=0?"text-wm-green":"text-wm-red")}
+              title="Marked to the modelled bid — what closing now would return.">
+              {pnl == null ? "—" : `${pnl>=0?"+":""}${fmt2(pnl)}`}
             </span>
             <button onClick={()=>onClose(op.id, g.price)} disabled={!quoteReadiness[op.underlying]?.actionable}
               className="text-[9px] font-bold px-2 py-1 rounded border border-wm-border text-wm-text-muted hover:text-wm-red hover:border-wm-red/40 transition-all">
@@ -1202,7 +1212,9 @@ export default function PaperTradingPage() {
     if (uPx == null) return;
     const t   = Math.max((p.expiryTs-Date.now())/86_400_000,0.0001)/365;
     const g   = blackScholes(uPx, p.strike, t, underlyingIV(p.underlying), p.type==="call");
-    const ask = g.price + Math.max(0.02, g.price*0.03); // pay the ask
+    const band = modelBand(g.price);
+    if (!band) return;
+    const ask = band.ask; // pay the ask
     // Options bypass the order ledger entirely — they move cash directly, so
     // the fill-loop buying-power gate never saw them. Without this an option
     // buy could still drive the account negative through the side door.
@@ -1233,7 +1245,9 @@ export default function PaperTradingPage() {
     if (!op) return;
     if (actionablePaperQuotePrice(quoteReadiness[op.underlying]) == null) return;
 
-    const bid = Math.max(0, exitPrem - Math.max(0.02, exitPrem*0.03)); // sell the bid
+    const exitBand = modelBand(exitPrem);
+    if (!exitBand) return;
+    const bid = exitBand.bid; // sell the bid
     const proceeds = bid * op.qty * OPT_MULTIPLIER;
     const pnl = (bid - op.entryPrem) * op.qty * OPT_MULTIPLIER;
 
