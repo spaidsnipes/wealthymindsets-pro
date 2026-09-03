@@ -37,7 +37,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import styles from "./paper.module.css";
-import { validateTicketLevels, type TicketLevelIssue } from "@/lib/orderPurpose";
+import { validateTicketLevels, purposeOrderType, purposeSentence, purposeTradeoff,
+         TICKET_PURPOSES, type OrderPurpose, type TicketLevelIssue } from "@/lib/orderPurpose";
 
 /* ── Symbol universe with live-ish prices ────────────────── */
 const UNIVERSE: Record<string,{ name:string; base:number; tick:number }> = {
@@ -303,6 +304,8 @@ function OrderTicket({
   const [stopPx, setStopPx] = useState("");
   const [flash,  setFlash]  = useState(false);
   const [levelIssues, setLevelIssues] = useState<readonly TicketLevelIssue[]>([]);
+  // §7: the trader states a PURPOSE; the order type is compiled from it.
+  const [purpose, setPurpose] = useState<OrderPurpose | null>(null);
 
   const readiness = quoteReadiness[sym] ?? initialPaperQuoteReadiness();
   const px  = readiness.price ?? prices[sym] ?? 0;
@@ -375,12 +378,46 @@ function OrderTicket({
         ))}
       </div>
 
+      {/* Purpose — §7 ORDER PURPOSE BEFORE ORDER TYPE. */}
+      <div className="mb-3">
+        <label className="text-[9px] text-wm-text-dim uppercase tracking-wider block mb-1">
+          What are you trying to do?
+        </label>
+        <div className="grid grid-cols-1 gap-1">
+          {TICKET_PURPOSES.map(pp => (
+            <button key={pp}
+              onClick={()=>{setPurpose(pp); setType(purposeOrderType(pp)); setLevelIssues([]);}}
+              aria-pressed={purpose===pp}
+              className={clsx("py-1.5 px-2 rounded text-[10px] font-bold border text-left transition-all",
+                purpose===pp ? "bg-wm-gold/20 text-wm-gold border-wm-gold/40" : "text-wm-text-muted border-wm-border hover:text-wm-text")}>
+              {purposeSentence(pp).replace(/\.$/, "")}
+            </button>
+          ))}
+        </div>
+        {purpose && (
+          <div className="mt-1.5 px-2 py-1.5 rounded-lg bg-wm-surface/40 border border-wm-border/50">
+            <div className="text-[9px] leading-snug text-wm-text-muted">
+              <span className="text-wm-green font-bold">Prioritises</span>{" "}
+              {purposeTradeoff(purpose).prioritises}
+            </div>
+            <div className="text-[9px] leading-snug text-wm-text-muted mt-0.5">
+              <span className="text-wm-red font-bold">Costs you</span>{" "}
+              {purposeTradeoff(purpose).sacrifices}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Order type */}
       <div className="mb-3">
         <label className="text-[9px] text-wm-text-dim uppercase tracking-wider block mb-1">Order Type</label>
         <div className="grid grid-cols-2 gap-1">
           {(["market","limit","stop","stop-limit"] as OrderType[]).map(t=>(
-            <button key={t} onClick={()=>{setType(t);setLevelIssues([]);}}
+            <button key={t} onClick={()=>{
+                setType(t); setLevelIssues([]);
+                // Never let a purpose label outlive the order it described.
+                setPurpose(cur => (cur && purposeOrderType(cur) === t ? cur : null));
+              }}
               className={clsx("py-1 rounded text-[10px] font-bold border transition-all",
                 type===t ? "bg-wm-blue/20 text-wm-blue border-wm-blue/40" : "text-wm-text-muted border-wm-border hover:text-wm-text")}>
               {t.charAt(0).toUpperCase()+t.slice(1).replace("-"," ")}

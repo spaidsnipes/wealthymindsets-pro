@@ -480,3 +480,21 @@ export function validateTicketLevels(input: TicketLevelInput): TicketLevels {
 
   return issues.length > 0 ? { ok: false, issues } : { ok: true, limitPx, stopPx };
 }
+
+/** The broker primitive a purpose compiles to, independent of side/position. */
+export function purposeOrderType(purpose: OrderPurpose): BrokerOrderType {
+  return SPECS[purpose].type;
+}
+
+/**
+ * Purposes offered on a ticket that knows the trader's SIDE but not their
+ * position. Exit purposes needing position knowledge are withheld rather than
+ * guessed — offering "flatten everything" from a ticket that cannot see the
+ * book would be a promise the surface cannot keep.
+ */
+export const TICKET_PURPOSES: readonly OrderPurpose[] = Object.freeze([
+  "GET_ME_IN_NOW",
+  "GET_ME_IN_DO_NOT_CHASE",
+  "WORK_FOR_A_BETTER_PRICE",
+  "EXIT_IF_THESIS_FAILS",
+]);

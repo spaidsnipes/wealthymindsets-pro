@@ -55,3 +55,34 @@ describe("paper ticket level truth", () => {
     expect(page).toContain('placeholder="Required — no default"');
   });
 });
+
+/**
+ * §7 ORDER PURPOSE BEFORE ORDER TYPE — mounted on the ticket.
+ *
+ * A trader wants "get me in without chasing", not "limit". The purpose row
+ * states the intent first and compiles the broker primitive from it, and every
+ * purpose discloses what it costs before the trader commits.
+ */
+describe("paper ticket purpose-first", () => {
+  it("asks the human question before offering broker vocabulary", () => {
+    const purposeIdx = page.indexOf("What are you trying to do?");
+    const typeIdx = page.indexOf("{/* Order type */}");
+    expect(purposeIdx).toBeGreaterThan(-1);
+    expect(typeIdx).toBeGreaterThan(purposeIdx);
+  });
+
+  it("compiles the order type from the purpose rather than hardcoding it", () => {
+    expect(page).toContain("setType(purposeOrderType(pp))");
+  });
+
+  it("shows both halves of the tradeoff — never benefits alone", () => {
+    expect(page).toContain("purposeTradeoff(purpose).prioritises");
+    expect(page).toContain("purposeTradeoff(purpose).sacrifices");
+  });
+
+  it("drops the purpose when a manual type change contradicts it", () => {
+    // A purpose chip left standing over a different order type would be a
+    // label describing an order that no longer exists.
+    expect(page).toContain("purposeOrderType(cur) === t ? cur : null");
+  });
+});
