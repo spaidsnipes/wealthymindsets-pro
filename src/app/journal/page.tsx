@@ -1862,13 +1862,18 @@ Trade the system, trust the process, winners every day 🚀`,
             </button>
           ))}
           {/* J-Bkt 11: reset filters — hidden when nothing is filtered. */}
-          {(filterRes !== "all" || filterProcessOutcome !== "all" || filterDayModel !== "all" || filterContract !== "all" || filterStarred || filterTag) && (
+          {/* filterMisread is a real active filter (applied in the entry filter
+              above). Omitting it here meant "Clear every active filter" left it
+              set — and when Misread was the ONLY active filter the button did
+              not render at all, so it could never be cleared from here. */}
+          {(filterRes !== "all" || filterProcessOutcome !== "all" || filterDayModel !== "all" || filterContract !== "all" || filterMisread !== "all" || filterStarred || filterTag) && (
             <button
               onClick={() => {
                 setFilterRes("all");
                 setFilterProcessOutcome("all");
                 setFilterDayModel("all");
                 setFilterContract("all");
+                setFilterMisread("all");
                 setFilterStarred(false);
                 setFilterTag("");
               }}

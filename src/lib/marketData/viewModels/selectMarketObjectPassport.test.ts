@@ -200,71 +200,30 @@ describe("selectMarketObjectPassport", () => {
    * /charts ended with ".." because producers supply `unknowns` as complete
    * sentences and summarise() appended another period. */
   describe("summary punctuation", () => {
-    function dim(over = {}) {
-      return {
-        resolution: "UNKNOWN",
-        value: null,
-        confidence: null,
-        evidence: [],
-        contradictions: [],
-        unknowns: ["No verified evidence supplied at snapshot time."],
-        ...over,
-      };
-    }
-    function stateWith(d) {
-      return {
-        schemaVersion: "wm.market-state.v1",
-        sealed: true,
-        snapshotId: "s1",
-        capturedAt: 1_000,
-        availableAt: 1_000,
-        instrumentId: "BTC-USD",
-        normalizedSymbol: "BTC",
-        executableIdentity: "BTC-USD",
-        assetClass: "crypto",
-        exchange: null,
-        session: "24X7",
-        timeframeContext: ["5m"],
-        qualityState: "LIVE",
-        price: { last: 1, bid: null, ask: null, eventAt: 1_000, availableAt: 1_000 },
-        coverage: [],
-        direction: d,
-        location: d,
-        aggression: d,
-        regime: d,
-        structure: d,
-        volatility: d,
-        profile: d,
-        orderFlow: d,
-        contradictions: [],
-        unknowns: [],
-      };
-    }
-
     it("never emits a double period on an unresolved row", () => {
-      const vm = selectMarketObjectPassport(stateWith(dim()));
+      const vm = selectMarketObjectPassport(sealCanonicalMarketState(input()));
       for (const o of vm.objects) {
         expect(o.summary).not.toMatch(/\.\./);
         expect(o.summary.endsWith(".")).toBe(true);
       }
     });
 
-    it("handles an unknown reason with no trailing period", () => {
-      const vm = selectMarketObjectPassport(stateWith(dim({ unknowns: ["tape offline"] })));
-      expect(vm.objects[0].summary).toBe("Direction unresolved — tape offline.");
+    it("handles an unknown reason that has no trailing period", () => {
+      const vm = selectMarketObjectPassport(
+        sealCanonicalMarketState(input({ direction: unknown("tape offline") })),
+      );
+      const dir = vm.objects.find(o => o.id === "direction")!;
+      expect(dir.summary).toBe("Direction unresolved — tape offline.");
     });
 
-    it("never emits a double period on a resolved row", () => {
-      const vm = selectMarketObjectPassport(stateWith(dim({
-        resolution: "RESOLVED",
-        value: "AGGRESSIVE BUY DOMINANT.",
-        unknowns: [],
-        evidence: [{
-          eventId: "e1", observedAt: 900, availableAt: 950,
-          source: "coinbase", fidelity: "DERIVED", basis: "test",
-        }],
-      })));
-      expect(vm.objects[0].summary).not.toMatch(/\.\./);
+    it("never emits a double period on a resolved row whose value ends in a period", () => {
+      const vm = selectMarketObjectPassport(
+        sealCanonicalMarketState(
+          input({ direction: { ...resolvedDirection, value: "UP." } }),
+        ),
+      );
+      const dir = vm.objects.find(o => o.id === "direction")!;
+      expect(dir.summary).not.toMatch(/\.\./);
     });
   });
 });
