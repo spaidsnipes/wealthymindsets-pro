@@ -258,6 +258,15 @@ export function TickerTape() {
     ...activeTapeSymbols.filter(t => t.sym !== activeSymbol),
   ].slice(0, 4);
   const requestedTapeSymbols = pathname === "/charts" ? chartPulseSymbols : activeTapeSymbols;
+  // Depend on the CONTENT of the requested list, not the array identity.
+  // `customSyms` is state holding an array: the after-mount effect calls
+  // setCustomSyms(stored), which produces a NEW array even when the contents
+  // are identical to the default. The polling effect below listed `customSyms`
+  // as a dependency, so every mount ran a full fetch round for each new
+  // identity — measured on prod as 39 quote requests per page load where 13
+  // would do, on every route (this tape lives in the shell).
+  // Canon §MACHINE PERFORMANCE: bounded compute, no duplicate subscriptions.
+  const requestedTapeKey = requestedTapeSymbols.map(t => t.sym).join(",");
 
   /* ── Yahoo REST fetch on mount + every 10s ────────────── */
   useEffect(() => {
@@ -290,7 +299,10 @@ export function TickerTape() {
     const onVisible = () => { if (document.visibilityState === "visible") doFetch(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
-  }, [activeSymbol, customSyms, pathname]);
+    // requestedTapeKey is a stable string: re-subscribe only when the SET of
+    // symbols actually changes, never merely because a new array was allocated.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedTapeKey]);
 
   const handleClick = (sym: string) => {
     setActiveSymbol(sym);
