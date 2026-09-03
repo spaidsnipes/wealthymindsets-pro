@@ -623,6 +623,9 @@ function CommandDeckInner() {
               overscroll-behavior-x: contain;
               padding-top: 12px;
             }
+            .wm-cd-chapter-history:not([open]) > .wm-cd-chapter-history-content {
+              display: none;
+            }
             @media (max-width: 640px) {
               .wm-cd-header {
                 flex-wrap: wrap !important;

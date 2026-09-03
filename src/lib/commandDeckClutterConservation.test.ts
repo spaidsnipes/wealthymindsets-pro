@@ -23,6 +23,12 @@ describe("Command Deck clutter conservation", () => {
     expect(block).toContain("<summary>Market chapter history</summary>");
     expect(page.slice(start, page.indexOf(">", start))).not.toMatch(/\b(?:open|defaultOpen)\b/);
     expect(block).toContain('<div className="wm-cd-chapter-history-content">');
+    expect(page).toContain(
+      ".wm-cd-chapter-history:not([open]) > .wm-cd-chapter-history-content",
+    );
+    expect(page).toMatch(
+      /\.wm-cd-chapter-history:not\(\[open\]\)\s*>\s*\.wm-cd-chapter-history-content\s*\{[\s\S]*?display:\s*none;/,
+    );
   });
 
   it("keeps the disclosure touchable, focus-visible and horizontally contained", () => {
