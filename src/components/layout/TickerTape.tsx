@@ -51,11 +51,15 @@ const ALL_TAPE_SYMS = [
   "EUR/USD","GBP/USD","USD/JPY","AUD/USD",
 ];
 
+import { selectQuoteChange } from "@/lib/quoteChange";
+
 interface TickerState {
   sym:   string;
   price: number;
   chg:   number;
   pct:   number;
+  /** False when the provider gave a price but no session change. */
+  chgObserved: boolean;
   up:    boolean;
   poly:  string | null;
   base:  number;
@@ -76,7 +80,7 @@ const CRYPTO_SYMS  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX",
 // three surfaces consult one predicate. See yahooQuoteObserved.ts +
 // yahooQuoteObserved.test.ts for the truth contract.
 
-async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:number; src:string } | null> {
+async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:number; chgObserved:boolean; src:string } | null> {
   const up = sym.toUpperCase();
 
   // Futures → Yahoo (only free source for futures)
@@ -84,8 +88,8 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
     try {
       const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
       const price = j?.price ?? 0;
-      const prev  = j?.prevClose ?? price;
-      if (price > 0 && yahooQuoteObserved(j)) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
+      const yc = selectQuoteChange({ price, prevClose: j?.prevClose });
+      if (price > 0 && yahooQuoteObserved(j)) return { price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
     } catch {}
     return null;
   }
@@ -96,14 +100,14 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
   if (CRYPTO_SYMS.has(up)) {
     try {
       const j = await fetch(`/api/exchange?ex=coinbase&coin=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-      if (j?.price > 0) return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0, src: "coinbase" };
+      if (j?.price > 0) { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "coinbase" }; }
     } catch {}
     // Fallback to Yahoo for crypto
     try {
       const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
       const price = j?.price ?? 0;
-      const prev  = j?.prevClose ?? price;
-      if (price > 0 && yahooQuoteObserved(j)) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
+      const yc = selectQuoteChange({ price, prevClose: j?.prevClose });
+      if (price > 0 && yahooQuoteObserved(j)) return { price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
     } catch {}
     return null;
   }
@@ -113,22 +117,22 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
   try {
     const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
     const price = j?.price ?? 0;
-    const prev  = j?.prevClose ?? price;
-    if (price > 0 && yahooQuoteObserved(j)) return { price, chg: +(price-prev).toFixed(2), pct: prev ? +((price-prev)/prev*100).toFixed(2) : 0, src: "yahoo" };
+    const yc = selectQuoteChange({ price, prevClose: j?.prevClose });
+    if (price > 0 && yahooQuoteObserved(j)) return { price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
   } catch {}
   try {
     const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-    if (j?.price > 0 && j.source === "alpaca") return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0, src: "alpaca" };
+    if (j?.price > 0 && j.source === "alpaca") { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "alpaca" }; }
   } catch {}
   try {
     const j = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-    if (j?.price > 0) return { price: j.price, chg: j.change ?? 0, pct: j.changePct ?? 0, src: "finnhub" };
+    if (j?.price > 0) { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "finnhub" }; }
   } catch {}
   return null;
 }
 
-async function fetchPolygonPrices(symbols: readonly (typeof TAPE_SYMBOLS)[number][]): Promise<Record<string, { price:number; chg:number; pct:number; src:string }>> {
-  const results: Record<string, { price:number; chg:number; pct:number; src:string }> = {};
+async function fetchPolygonPrices(symbols: readonly (typeof TAPE_SYMBOLS)[number][]): Promise<Record<string, { price:number; chg:number; pct:number; chgObserved:boolean; src:string }>> {
+  const results: Record<string, { price:number; chg:number; pct:number; chgObserved:boolean; src:string }> = {};
   await Promise.all(symbols.filter(t => !t.sym.includes("/")).map(async t => {
     const q = await fetchQuote(t.sym);
     if (q) results[t.sym.toUpperCase()] = q;
@@ -142,7 +146,7 @@ function TickerItem({ item, onClick, active }: {
   onClick: () => void;
   active: boolean;
 }) {
-  const { sym, price, chg, pct, up, live, src } = item;
+  const { sym, price, chg, pct, chgObserved, up, live, src } = item;
   const dp = price > 10_000 ? 0 : price > 100 ? 2 : price > 1 ? 4 : 6;
   // Provenance: name the feed each quote came from so a value that differs from
   // the chart header or watchlist is explainable, not a silent contradiction.
@@ -173,10 +177,19 @@ function TickerItem({ item, onClick, active }: {
           <span className="font-mono text-[11px] text-wm-text-muted">
             {price.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp })}
           </span>
-          <span className={`flex items-center gap-0.5 font-mono text-[10px] ${up ? "text-wm-green" : "text-wm-red"}`}>
-            {up ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
-            {chg >= 0 ? "+" : ""}{chg.toFixed(dp > 2 ? 4 : 2)} ({pct >= 0 ? "+" : ""}{pct.toFixed(2)}%)
-          </span>
+          {chgObserved ? (
+            <span className={`flex items-center gap-0.5 font-mono text-[10px] ${up ? "text-wm-green" : "text-wm-red"}`}>
+              {up ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
+              {chg >= 0 ? "+" : ""}{chg.toFixed(dp > 2 ? 4 : 2)} ({pct >= 0 ? "+" : ""}{pct.toFixed(2)}%)
+            </span>
+          ) : (
+            // Price observed, session change was not. "+0.00 (+0.00%)" here
+            // would assert this symbol is flat on the day.
+            <span className="font-mono text-[10px] text-wm-text-dim"
+              title={`${sym}: this feed returned a price but no session change.`}>
+              chg —
+            </span>
+          )}
         </>
       ) : (
         <span className="font-mono text-[10px] text-wm-text-dim">quote pending</span>
@@ -207,7 +220,7 @@ export function TickerTape() {
   // is non-deterministic vs SSR and caused React #418) runs in the after-mount
   // effect below.
   const [tickers, setTickers] = useState<TickerState[]>(() =>
-    TAPE_SYMBOLS.map(t => ({ sym: t.sym, poly: t.poly, base: t.base, price: t.base, chg: 0, pct: 0, up: true, _open: t.base, live: false }))
+    TAPE_SYMBOLS.map(t => ({ sym: t.sym, poly: t.poly, base: t.base, price: t.base, chg: 0, pct: 0, chgObserved: false, up: true, _open: t.base, live: false }))
   );
 
   // After mount (client only): pull the persisted symbol list + cached prices.
@@ -223,8 +236,9 @@ export function TickerTape() {
         setTickers(TAPE_SYMBOLS.map(t => {
           const p = w[t.sym.toUpperCase()];
           return p && p.verified === true && p.price > 0
-            ? { sym: t.sym, poly: t.poly, base: t.base, price: p.price, chg: p.chg, pct: p.pct, up: p.chg >= 0, _open: t.base, live: true, src: p.src }
-            : { sym: t.sym, poly: t.poly, base: t.base, price: t.base, chg: 0, pct: 0, up: true, _open: t.base, live: false };
+            ? { sym: t.sym, poly: t.poly, base: t.base, price: p.price, chg: p.chg, pct: p.pct,
+                chgObserved: p.chgObserved === true, up: p.chg >= 0, _open: t.base, live: true, src: p.src }
+            : { sym: t.sym, poly: t.poly, base: t.base, price: t.base, chg: 0, pct: 0, chgObserved: false, up: true, _open: t.base, live: false };
         }));
       }
     } catch {}
@@ -277,15 +291,15 @@ export function TickerTape() {
         const updated = prev.map(t => {
           const key = t.sym.toUpperCase();
           if (live[key] && live[key].price > 0) {
-            const { price, chg, pct, src } = live[key];
-            return { ...t, price, chg, pct, up: chg >= 0, live: true, src };
+            const { price, chg, pct, chgObserved, src } = live[key];
+            return { ...t, price, chg, pct, chgObserved, up: chg >= 0, live: true, src };
           }
           return t;
         });
         // Write to window cache + localStorage so future HMR/reloads start with correct prices
         const priceCache: Record<string, any> = { _ts: Date.now() };
         for (const t of updated) {
-          if (t.live) priceCache[t.sym] = { price: t.price, chg: t.chg, pct: t.pct, verified: true, src: t.src };
+          if (t.live) priceCache[t.sym] = { price: t.price, chg: t.chg, pct: t.pct, chgObserved: t.chgObserved, verified: true, src: t.src };
         }
         try { (window as any).__wmTicker = priceCache; } catch {}
         // NOTE: Not persisting to localStorage — cleared on init to prevent stale day-change%
@@ -340,7 +354,7 @@ export function TickerTape() {
       };
       const base = BASES[s] ?? 100;
       (TAPE_SYMBOLS as any[]).push({ sym: s, poly: s.includes("1!") || s.includes("/") ? null : s, base });
-      setTickers(prev => [...prev, { sym:s, poly: s.includes("1!") || s.includes("/") ? null : s, base, price:base, chg:0, pct:0, up:true, _open:base, live:false }]);
+      setTickers(prev => [...prev, { sym:s, poly: s.includes("1!") || s.includes("/") ? null : s, base, price:base, chg:0, pct:0, chgObserved:false, up:true, _open:base, live:false }]);
     }
     setCustomSyms(prev => [...prev, s]);
   };

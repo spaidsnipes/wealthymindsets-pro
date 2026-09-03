@@ -48,7 +48,9 @@ function getSymName(sym: string): string {
 }
 
 /* ── Yahoo Finance quotes — all symbols including futures ─── */
-interface FinnhubQuote { price: number; change: number; changePct: number; src: string; }
+import { selectQuoteChange } from "@/lib/quoteChange";
+
+interface FinnhubQuote { price: number; change: number; changePct: number; changeObserved: boolean; src: string; }
 
 const FUTURES_WL = new Set(["NQ1!","ES1!","RTY1!","YM1!","GC1!","SI1!","CL1!","NG1!","ZB1!","ZN1!","ZF1!","HG1!","MNQ1!","MES1!","MYM1!","M2K1!","MGC1!","MCL1!","VX1!"]);
 const CRYPTO_WL  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC"]);
@@ -66,17 +68,17 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
       // of the crypto watchlist path.
       if (isCrypto) {
         const j = await fetch(`/api/exchange?ex=coinbase&coin=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-        if ((j?.price ?? 0) > 0) { result[up] = { price: j.price, change: j.change ?? 0, changePct: j.changePct ?? 0, src: "coinbase" }; return; }
+        if ((j?.price ?? 0) > 0) { result[up] = { price: j.price, ...(() => { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { change: qc.observed ? qc.chg : 0, changePct: qc.observed ? qc.pct : 0, changeObserved: qc.observed }; })(), src: "coinbase" }; return; }
         // Fallback to Yahoo
         const y = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-        if ((y?.price ?? 0) > 0) { result[up] = { price: y.price, change: y.change ?? 0, changePct: y.changePct ?? 0, src: "yahoo" }; return; }
+        if ((y?.price ?? 0) > 0) { result[up] = { price: y.price, ...(() => { const qc = selectQuoteChange({ price: y.price, prevClose: y?.prevClose, change: y?.change, changePct: y?.changePct }); return { change: qc.observed ? qc.chg : 0, changePct: qc.observed ? qc.pct : 0, changeObserved: qc.observed }; })(), src: "yahoo" }; return; }
         return;
       }
 
       // Futures → Yahoo only
       if (isFutures) {
         const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-        if ((j?.price ?? 0) > 0) result[up] = { price: j.price, change: j.change ?? 0, changePct: j.changePct ?? 0, src: "yahoo" };
+        if ((j?.price ?? 0) > 0) result[up] = { price: j.price, ...(() => { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { change: qc.observed ? qc.chg : 0, changePct: qc.observed ? qc.pct : 0, changeObserved: qc.observed }; })(), src: "yahoo" };
         return;
       }
 
@@ -84,13 +86,13 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
       // TickerTape. A same-screen value must not become LIVE merely because an
       // independent consumer happened to receive an IEX-only print first.
       const yhJ = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if (yhJ?.price > 0) { result[up] = { price: yhJ.price, change: yhJ.change ?? 0, changePct: yhJ.changePct ?? 0, src: "yahoo" }; return; }
+      if (yhJ?.price > 0) { result[up] = { price: yhJ.price, ...(() => { const qc = selectQuoteChange({ price: yhJ.price, prevClose: yhJ?.prevClose, change: yhJ?.change, changePct: yhJ?.changePct }); return { change: qc.observed ? qc.chg : 0, changePct: qc.observed ? qc.pct : 0, changeObserved: qc.observed }; })(), src: "yahoo" }; return; }
 
       const alpacaJ = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if ((alpacaJ?.price ?? 0) > 0) { result[up] = { price: alpacaJ.price, change: alpacaJ.change ?? 0, changePct: alpacaJ.changePct ?? 0, src: "alpaca" }; return; }
+      if ((alpacaJ?.price ?? 0) > 0) { result[up] = { price: alpacaJ.price, ...(() => { const qc = selectQuoteChange({ price: alpacaJ.price, prevClose: alpacaJ?.prevClose, change: alpacaJ?.change, changePct: alpacaJ?.changePct }); return { change: qc.observed ? qc.chg : 0, changePct: qc.observed ? qc.pct : 0, changeObserved: qc.observed }; })(), src: "alpaca" }; return; }
 
       const fhJ = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if (fhJ?.price > 0) result[up] = { price: fhJ.price, change: fhJ.change ?? 0, changePct: fhJ.changePct ?? 0, src: "finnhub" };
+      if (fhJ?.price > 0) result[up] = { price: fhJ.price, ...(() => { const qc = selectQuoteChange({ price: fhJ.price, prevClose: fhJ?.prevClose, change: fhJ?.change, changePct: fhJ?.changePct }); return { change: qc.observed ? qc.chg : 0, changePct: qc.observed ? qc.pct : 0, changeObserved: qc.observed }; })(), src: "finnhub" };
     } catch {}
   }));
   return result;
@@ -101,6 +103,8 @@ interface WatchItem {
   price: number;
   change: number;
   changePct: number;
+  /** False when a price was observed but the session change was not. */
+  changeObserved: boolean;
   history: number[]; // last 20 prices for sparkline
   src?: string;
 }
@@ -276,7 +280,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
     // Clear any old caches to prevent stale change% from persisting
     try { localStorage.removeItem("wm-watchlist-prices"); } catch {}
     try { delete (window as any).__wmWatchlist; } catch {}
-    let cached: Record<string, { price: number; change: number; changePct: number }> = {};
+    let cached: Record<string, { price: number; change: number; changePct: number; changeObserved?: boolean }> = {};
     try {
       // Window cache (fastest — survives HMR module re-eval)
       const w = (window as any).__wmWatchlist as (typeof cached & { _ts?: number }) | undefined;
@@ -296,6 +300,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
           price: +c.price.toFixed(dp),
           change: c.change,
           changePct: c.changePct,
+          changeObserved: c.changeObserved === true,
           history: Array.from({ length: 20 }, () => +c.price.toFixed(dp)),
         };
       }
@@ -304,6 +309,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
         price: 0,
         change: 0,
         changePct: 0,
+        changeObserved: false,
         history: [],
       };
     });
@@ -320,15 +326,15 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
           const updated = prev.map(item => {
             const q = liveMap[item.sym.toUpperCase()];
             if (!q) return item;
-            const { price, change, changePct, src } = q;
+            const { price, change, changePct, changeObserved, src } = q;
             SEED_PRICES[item.sym.toUpperCase()] = price;
             const dp = price < 10 ? 4 : 2;
-            return { ...item, price: +price.toFixed(dp), change, changePct, src };
+            return { ...item, price: +price.toFixed(dp), change, changePct, changeObserved, src };
           });
           // Persist to window cache only (localStorage cleared on init to prevent stale change%)
           try {
             const cache: Record<string, any> = { _ts: Date.now() };
-            for (const it of updated) cache[it.sym.toUpperCase()] = { price: it.price, change: it.change, changePct: it.changePct };
+            for (const it of updated) cache[it.sym.toUpperCase()] = { price: it.price, change: it.change, changePct: it.changePct, changeObserved: it.changeObserved };
             (window as any).__wmWatchlist = cache;
           } catch {}
           return updated;
@@ -345,13 +351,17 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
   const filtered = React.useMemo(() => {
     const rows = items.filter(i => {
       if (search && !i.sym.toLowerCase().includes(search.toLowerCase())) return false;
-      if (viewFilter === "gainers") return i.changePct > 0;
-      if (viewFilter === "losers")  return i.changePct < 0;
+      // An unobserved change is not a 0% move; it cannot qualify either way.
+      if (viewFilter === "gainers") return i.changeObserved && i.changePct > 0;
+      if (viewFilter === "losers")  return i.changeObserved && i.changePct < 0;
       return true;
     });
     switch (sortMode) {
-      case "chgDesc": return [...rows].sort((a, b) => b.changePct - a.changePct);
-      case "chgAsc":  return [...rows].sort((a, b) => a.changePct - b.changePct);
+      // Rows with no observed change sort last rather than interleaving at 0%.
+      case "chgDesc": return [...rows].sort((a, b) =>
+        Number(b.changeObserved) - Number(a.changeObserved) || b.changePct - a.changePct);
+      case "chgAsc":  return [...rows].sort((a, b) =>
+        Number(b.changeObserved) - Number(a.changeObserved) || a.changePct - b.changePct);
       case "symAsc":  return [...rows].sort((a, b) => a.sym.localeCompare(b.sym));
       default:        return rows;   // "manual" preserves the user's own ordering
     }
@@ -662,7 +672,10 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
             {/* Symbol rows */}
             <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
               {filtered.map(item => {
-                const up = item.change >= 0;
+                const up = item.changeObserved && item.change >= 0;
+                // With no observed change there is no direction to assert. Red
+                // here would be a fabricated decline, green a fabricated rally.
+                const dirColor = !item.changeObserved ? "#8A90A8" : up ? "#00C076" : "#FF4D67";
                 const isActive = item.sym === activeSymbol;
                 const base = getBase(item.sym);
                 const dp = base < 10 ? 4 : 2;
@@ -722,13 +735,20 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
                               });
                               return <CanonicalFidelityBadge badge={b} variant="compact" titleSuffix={`— ${item.sym}`} capabilityReport={capabilityReport} />;
                             })()}
-                            <div style={{ fontSize: 11, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace", fontWeight: 600 }}>
+                            <div style={{ fontSize: 11, color: dirColor, fontFamily: "monospace", fontWeight: 600 }}>
                               {item.price.toFixed(dp)}
                             </div>
                           </div>
-                          <div style={{ fontSize: 9, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace" }}>
-                            {up ? "+" : ""}{item.changePct.toFixed(2)}%
-                          </div>
+                          {item.changeObserved ? (
+                            <div style={{ fontSize: 9, color: dirColor, fontFamily: "monospace" }}>
+                              {up ? "+" : ""}{item.changePct.toFixed(2)}%
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: 9, color: "#4A5070", fontFamily: "monospace" }}
+                              title={`${item.sym}: this feed returned a price but no session change.`}>
+                              chg —
+                            </div>
+                          )}
                         </>
                       ) : (
                         <div style={{ fontSize: 9, color: "#4A5070", fontFamily: "monospace" }}>quote pending</div>
