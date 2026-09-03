@@ -1,5 +1,6 @@
 "use client";
 
+import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDisplay";
 import React, { useState, useEffect } from "react";
 import { Eye } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -12,8 +13,11 @@ function IndexTicker({ label, symbol }: { label: string; symbol: string }) {
   // a real subscription. Rendering "0.00 +0.00 +0.00%" for every index is
   // fabricated data. Only paint values when a real quote actually arrived.
   const hasQuote = Number.isFinite(ticker.price) && ticker.price > 0;
-  const hasChange = hasQuote && Number.isFinite(ticker.change) && Number.isFinite(ticker.changePct);
-  const up = hasChange && ticker.change >= 0;
+  // Shared guard: finiteness alone does not prove a provider reference close
+  // exists (0 and 0 are finite). See selectTickerChangeDisplay.
+  const chg = selectTickerChangeDisplay(ticker);
+  const hasChange = hasQuote && chg.displayable;
+  const up = chg.direction === "up";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 14px", borderLeft: "1px solid #1E2030" }}>
       <span style={{ color: "#8B8FA8", fontSize: 11 }}>{label}</span>
@@ -29,7 +33,7 @@ function IndexTicker({ label, symbol }: { label: string; symbol: string }) {
       )}
       {hasChange ? (
         <span style={{ color: up ? "#00C076" : "#FF4D67", fontSize: 11, fontFamily: "monospace" }}>
-          {up ? "▲" : "▼"} {up ? "+" : ""}{ticker.change.toFixed(2)} {up ? "+" : ""}{ticker.changePct.toFixed(2)}%
+          {up ? "▲" : "▼"} {up ? "+" : ""}{chg.change.toFixed(2)} {up ? "+" : ""}{chg.changePct.toFixed(2)}%
         </span>
       ) : null}
     </div>

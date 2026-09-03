@@ -1,5 +1,6 @@
 "use client";
 
+import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDisplay";
 import React from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
@@ -60,7 +61,11 @@ export function SymbolInfoHeader({ symbol, timeframe, currentPrice, dayHigh, day
   const range = high - low || 1;
   const pct   = Math.max(0, Math.min(1, (price - low) / range));
   const dp    = price > 100 ? 2 : price > 10 ? 3 : 4;
-  const up    = ticker.change >= 0;
+  // `changePct?.toFixed(2) ?? "0.00"` used to manufacture a zero when the value
+  // was absent, and `>= 0` painted an exactly-zero change green. Both go
+  // through the shared guard now.
+  const chg   = selectTickerChangeDisplay(ticker);
+  const up    = chg.direction === "up";
 
   return (
     <div style={{
@@ -126,9 +131,16 @@ export function SymbolInfoHeader({ symbol, timeframe, currentPrice, dayHigh, day
 
       {/* Change */}
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", flexShrink: 0 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace" }}>
-          {up ? "+" : ""}{ticker.changePct?.toFixed(2) ?? "0.00"}%
-        </span>
+        {chg.displayable ? (
+          <span style={{ fontSize: 11, fontWeight: 700, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace" }}>
+            {up ? "+" : ""}{chg.changePct.toFixed(2)}%
+          </span>
+        ) : (
+          <span
+            style={{ fontSize: 11, fontWeight: 700, color: "#8B8FA8", fontFamily: "monospace" }}
+            title="Change unavailable — no verified reference close from the current quote provider."
+          >—</span>
+        )}
         <span style={{ fontSize: 10, color: "#4A5580" }}>{info.sessionNote}</span>
       </div>
     </div>

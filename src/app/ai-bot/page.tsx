@@ -11,6 +11,7 @@ import { WM } from "@/lib/design/wmTokens";
 // this "Market Intelligence · Live market monitor" page has a real per-context
 // symbol identity (activeSymbol) but the canvas VM was computing for it with no
 // visible consumer. Same class of gap Shift-Z Z1 closed on /nectar/[symbol].
+import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDisplay";
 import { useMarketCanvasVM } from "@/lib/marketData/viewModels/useMarketCanvasVM";
 import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
@@ -25,6 +26,7 @@ export default function AIBotPage() {
   const price = market.ticker.price;
   const connected = market.connected && price > 0 && market.source !== "unavailable";
   const dp = price >= 100 ? 2 : price >= 1 ? 4 : 6;
+  const tickerChange = selectTickerChangeDisplay(market.ticker);
 
   // Shift-SPAIDBOT: Market Canvas VM — fourth canonical consumer of the shared
   // composeMarketCanvasVM compiler. Identity is built from the active symbol +
@@ -126,8 +128,15 @@ export default function AIBotPage() {
               </div>
               <div className="text-right">
                 <div className="font-mono text-3xl font-black">{connected ? price.toFixed(dp) : "—"}</div>
-                <div className={`mt-1 font-mono text-sm font-bold ${market.ticker.changePct >= 0 ? "text-wm-green" : "text-wm-red"}`}>
-                  {connected ? `${market.ticker.changePct >= 0 ? "+" : ""}${market.ticker.changePct.toFixed(2)}%` : "Unavailable"}
+                {/* `>= 0` painted an exactly-zero change green, and a zero with
+                    no reference close is not flat — it is unknown. */}
+                <div className={`mt-1 font-mono text-sm font-bold ${
+                  !tickerChange.displayable ? "text-wm-text-dim"
+                    : tickerChange.direction === "up" ? "text-wm-green" : "text-wm-red"
+                }`}>
+                  {connected && tickerChange.displayable
+                    ? `${tickerChange.direction === "up" ? "+" : ""}${tickerChange.changePct.toFixed(2)}%`
+                    : "Unavailable"}
                 </div>
               </div>
             </div>

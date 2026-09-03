@@ -1,5 +1,6 @@
 "use client";
 
+import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDisplay";
 import React, { useState, useRef, useEffect } from "react";
 import { Heart, Bell, ChevronDown } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -135,7 +136,10 @@ export function StockInfoPanel({ symbol }: Props) {
     return s + (t.side === "sell" ? t.size : -t.size);
   }, 0);
 
-  const up = ticker.change >= 0;
+  // Shared guard — finiteness/sign alone cannot tell "flat" from "no reference
+  // close yet". See selectTickerChangeDisplay.
+  const chg = selectTickerChangeDisplay(ticker);
+  const up = chg.direction === "up";
   const name = getSymbolName(symbol);
 
   // Session facts render only when the provider fields were observed.
@@ -185,11 +189,20 @@ export function StockInfoPanel({ symbol }: Props) {
           <span style={{ fontSize: 22, fontWeight: 700, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace" }}>
             {ticker.price.toFixed(3)}
           </span>
-          <span style={{ fontSize: 13, color: up ? "#00C076" : "#FF4D67" }}>{up ? "↑" : "↓"}</span>
+          {chg.displayable && (
+            <span style={{ fontSize: 13, color: up ? "#00C076" : "#FF4D67" }}>{up ? "↑" : "↓"}</span>
+          )}
         </div>
-        <div style={{ fontSize: 12, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace" }}>
-          {up ? "+" : ""}{ticker.change.toFixed(3)}&nbsp;&nbsp;{up ? "+" : ""}{ticker.changePct.toFixed(2)}%
-        </div>
+        {chg.displayable ? (
+          <div style={{ fontSize: 12, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace" }}>
+            {up ? "+" : ""}{chg.change.toFixed(3)}&nbsp;&nbsp;{up ? "+" : ""}{chg.changePct.toFixed(2)}%
+          </div>
+        ) : (
+          <div
+            style={{ fontSize: 12, color: "#8B8FA8", fontFamily: "monospace" }}
+            title="Change unavailable — no verified reference close from the current quote provider."
+          >— change unavailable</div>
+        )}
 
         {/* Prev close */}
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
