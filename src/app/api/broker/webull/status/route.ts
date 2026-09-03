@@ -36,6 +36,22 @@ export interface WebullStatus {
    * connected OR the failure is not a config gap (e.g. RATE_LIMITED).
    */
   readonly missing: readonly string[];
+  /** Presence-only receipt. Values never leave the server. */
+  readonly credentialPresence: {
+    readonly appKey: boolean;
+    readonly appSecret: boolean;
+    readonly accessToken: boolean;
+  };
+}
+
+export function webullCredentialPresence(
+  env: Readonly<Record<string, string | undefined>>,
+): WebullStatus["credentialPresence"] {
+  return {
+    appKey: Boolean((env.WEBULL_APP_KEY || env.WEBULL_API_KEY)?.trim()),
+    appSecret: Boolean((env.WEBULL_APP_SECRET || env.WEBULL_API_SECRET)?.trim()),
+    accessToken: Boolean(env.WEBULL_ACCESS_TOKEN?.trim()),
+  };
 }
 
 /**
@@ -79,6 +95,7 @@ export async function GET(request: Request): Promise<Response> {
     note: live.note,
     checkedAt: live.checkedAt,
     missing: missingSecretsForState(live.state, process.env),
+    credentialPresence: webullCredentialPresence(process.env),
   };
   return NextResponse.json(body, {
     status: 200,

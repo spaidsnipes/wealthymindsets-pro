@@ -8,7 +8,7 @@ vi.mock("@/lib/requireAuth", () => ({
   requireAuth: vi.fn(async () => ({ ok: true, user: { sub: "u1" } })),
 }));
 
-import { GET, missingSecretsForState } from "./route";
+import { GET, missingSecretsForState, webullCredentialPresence } from "./route";
 import { requireAuth } from "@/lib/requireAuth";
 
 function req(): Request {
@@ -35,6 +35,11 @@ describe("/api/broker/webull/status — canon §12 truth", () => {
     expect(Array.isArray(body.missing)).toBe(true);
     expect(body.missing.length).toBeGreaterThan(0);
     expect(body.missing.some((m: string) => m.includes("WEBULL_APP_KEY"))).toBe(true);
+    expect(body.credentialPresence).toEqual({
+      appKey: false,
+      appSecret: false,
+      accessToken: false,
+    });
     // Anti-value-leak Sentinel — a config gap must never surface actual
     // secret values (keys, tokens, passwords). We check the SHAPE, not
     // the word content: the response body must not carry secret-holding
@@ -76,6 +81,20 @@ describe("/api/broker/webull/status — canon §12 truth", () => {
     expect(JSON.stringify(missing)).not.toContain(key);
     expect(JSON.stringify(missing)).not.toContain(secret);
     expect(JSON.stringify(missing)).not.toContain(token);
+  });
+
+  it("reports credential presence without returning credential values", () => {
+    const env = {
+      WEBULL_API_KEY: "founder-key-value",
+      WEBULL_API_SECRET: "founder-secret-value",
+      WEBULL_ACCESS_TOKEN: "founder-token-value",
+    };
+    const presence = webullCredentialPresence(env);
+    expect(presence).toEqual({ appKey: true, appSecret: true, accessToken: true });
+    const serialized = JSON.stringify(presence);
+    expect(serialized).not.toContain(env.WEBULL_API_KEY);
+    expect(serialized).not.toContain(env.WEBULL_API_SECRET);
+    expect(serialized).not.toContain(env.WEBULL_ACCESS_TOKEN);
   });
 
   it("never caches — no-store", async () => {

@@ -502,6 +502,11 @@ interface ManagedConnectionReceipt {
    * (server may omit) so we render defensively.
    */
   missing?: readonly string[];
+  credentialPresence?: {
+    appKey: boolean;
+    appSecret: boolean;
+    accessToken: boolean;
+  };
 }
 
 function ManagedConnectionStatus({ broker }: { broker: Broker }) {
@@ -555,6 +560,11 @@ function ManagedConnectionStatus({ broker }: { broker: Broker }) {
               </div>
             )}
             <p className="mt-1 text-[10px] leading-relaxed text-wm-text-muted">{receipt.note}</p>
+            {receipt.credentialPresence && (
+              <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">
+                Runtime receipt · key {receipt.credentialPresence.appKey ? "present" : "absent"} · secret {receipt.credentialPresence.appSecret ? "present" : "absent"} · 2FA token {receipt.credentialPresence.accessToken ? "present" : "not set"}
+              </p>
+            )}
             {connected && (
               <p className="mt-1 text-[10px] text-wm-text-dim">
                 {receipt.accountCount} account{receipt.accountCount === 1 ? "" : "s"}
