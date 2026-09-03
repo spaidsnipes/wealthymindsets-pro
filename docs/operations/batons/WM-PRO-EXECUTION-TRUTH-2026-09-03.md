@@ -111,6 +111,37 @@ Two label-overreach hits ("AI Coaching", "Live Prices") were false positives —
 the grep matched explanatory comments documenting an EARLIER fix. Verified
 before touching.
 
+## DEPLOY BLOCKER — needs the Founder (highest priority before Monday)
+
+**Production is roughly 8 commits behind main.** Everything below is committed,
+pushed, gates-green and builds clean locally — it is simply not on the site.
+
+Observed in the Founder's own Chrome on https://wealthymindsetspro.com/paper:
+- `What are you trying to do?` IS live  → build includes 51eee80
+- `AI Trading Bot` still renders        → 86c1c39 NOT live
+- `bid/ask` still renders on the chain  → options provenance NOT live
+
+So prod sits at approximately 5fc80a8.
+
+Why it cannot be fixed from this seat:
+- `npm run deploy:cf` BUILDS fine, then wrangler refuses: no
+  `CLOUDFLARE_API_TOKEN` and no `~/.wrangler` login in this environment. That
+  token is a secret — it must not be created, pasted or stored here.
+- **`npm run deploy:cf` exits 0 even when the publish fails.** Never trust its
+  exit code; verify the live surface.
+- The two `failure` commit statuses on GitHub are **Vercel** ("Account is
+  blocked"). That is the superseded 2026-08-22 billing block from before prod
+  moved to Cloudflare Workers — stale noise, not the live pipeline.
+
+**Founder action:** run `wrangler login` (or export `CLOUDFLARE_API_TOKEN`) and
+then `npm run deploy:cf` from the repo — or confirm the Cloudflare Workers Build
+GitHub integration is still connected and not erroring.
+
+Verification method note: `curl` on the site reads a Cloudflare-cached HTML
+(`cache-control: s-maxage=31536000`) that lists STALE chunk filenames, so a
+chunk scan can report "not deployed" for work that is deployed, and vice versa.
+Verify in a real browser.
+
 ## EXACT_NEXT_ATOM
 
 Exit purposes (`FLATTEN_EVERYTHING`, `EXIT_NOW_CERTAINTY`) are deliberately
