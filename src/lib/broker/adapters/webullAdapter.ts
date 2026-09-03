@@ -51,37 +51,19 @@ export const webullAdapter: BrokerAdapter = {
   },
 
   async capabilities(_accountId: string): Promise<BrokerCapabilities> {
-    void _accountId;
-    // Founder canon §Capability Honesty — OBSERVED tier. Values below
-    // are the shape the Webull OpenAPI MCP surfaced live in-session on
-    // 2026-08-21. This is what a real host-runtime adapter WILL
-    // support once wired; asserting it here so downstream planning
-    // consumers (order ticket, capability chip, asset-class filter)
-    // can build against real Webull shape rather than an empty stub.
-    //
-    // Rubric §12 change-risk: this is an under-claim about the
-    // account level (paper/live), NOT a promise the current build
-    // can execute. Order-lifecycle methods still return honest
-    // rejected/unknown until the real adapter lands.
-    return {
-      assetClasses: ["equity", "option", "future", "crypto"], // event contracts + funds not in universal enum yet
-      orderTypes: ["market", "limit", "stop", "stop-limit"],
-      supportsPaper: false,   // no separate paper account observed; live-only surface
-      supportsLive: true,     // MARGIN + EVENTS_CASH accounts confirmed
-      supportsBracketOrders: false, // not confirmed via read-only probes; leave false until observed
-      supportsShort: true,    // margin account supports shorting per Webull product
-      notes: [
-        "Webull broker MCP verified in-session (US_STOCK/HK_STOCK/JP_STOCK/CN_STOCK; options/futures/crypto/funds/events).",
-        "Server-side host-runtime integration (Cloudflare Workers) is a future atom — this stub still returns rejected/unknown on order-lifecycle methods.",
-      ],
-    };
+    // Connector observations are not account-specific runtime certification.
+    // Unknown must throw per BrokerAdapter, not advertise executable primitives
+    // (or report an empty, supposedly verified capability set).
+    throw new NotImplementedError("verify account-specific execution capabilities");
   },
 
   async listAccounts(): Promise<readonly CanonicalAccount[]> {
     // Account-list proof is exposed through the authenticated status route
     // without returning identifiers. Canonical account balance wrapping is a
     // separate atom because this contract requires cash/equity/buying power.
-    return [];
+    // [] means a successful query proved zero accounts. No such query runs
+    // here: preserve UNKNOWN until balance/account normalization is wired.
+    throw new NotImplementedError("list canonical account snapshots");
   },
 
   async getAccount(accountId: string): Promise<CanonicalAccount> {
