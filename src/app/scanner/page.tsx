@@ -1,4 +1,5 @@
 "use client";
+import { strengthDisclosure } from "@/lib/scannerStrength";
 
 /**
  * Scanner — Real-time multi-filter market scanner
@@ -761,6 +762,7 @@ export default function ScannerPage() {
                   </div>
                   <div className="px-2">
                     <span className="text-[10px] font-black px-1.5 py-0.5 rounded"
+                      title={strengthDisclosure(r.changePct, r.volRatio)}
                       style={{ background:`${STRENGTH_COLOR[r.strength]}22`,color:STRENGTH_COLOR[r.strength] }}>
                       {r.strength}
                     </span>
@@ -837,6 +839,7 @@ export default function ScannerPage() {
                     {SIGNAL_META[selected.signal].label}
                   </span>
                   <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 rounded"
+                    title={strengthDisclosure(selected.changePct, selected.volRatio)}
                     style={{ background:`${STRENGTH_COLOR[selected.strength]}22`,color:STRENGTH_COLOR[selected.strength] }}>
                     {selected.strength}
                   </span>
