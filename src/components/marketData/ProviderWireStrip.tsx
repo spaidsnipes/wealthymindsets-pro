@@ -175,6 +175,13 @@ export function matrixProviderWireView(
   const entitlement = rejected.find((row) => row.reason.includes("BLOCKED_ENTITLEMENT"));
   if (entitlement) return { source, tone: "BLOCKED", label: "Entitlement blocked", detail: entitlement.note || entitlement.reason };
   const detail = rejected.find((row) => row.note)?.note || rejected[0]?.reason || "No canonical capability evidence returned.";
+  // A provider-denied request is more specific than the generic absence of
+  // observations, even when the provider did not identify whether policy,
+  // permission, or subscription caused the denial. Keep that uncertainty
+  // explicit instead of flattening a witnessed HTTP 403 into "Not receiving".
+  if (/HTTP 403/i.test(detail) && /not proven/i.test(detail)) {
+    return { source, tone: "BLOCKED", label: "Access unproven", detail };
+  }
   return { source, tone: "OFFLINE", label: rejected.length > 0 ? "Not receiving" : "Status unavailable", detail };
 }
 

@@ -96,6 +96,19 @@ describe("matrixProviderWireView", () => {
     expect(matrixProviderWireView(matrix, "webull")).toMatchObject({ tone: "BLOCKED", label: "Authentication blocked", detail: "HTTP 401 from provider" });
     expect(matrixProviderWireView(matrix, "tastytrade")).toMatchObject({ tone: "OFFLINE", label: "Not receiving", detail: "refresh token missing" });
   });
+
+  it("names an observed but unclassified HTTP 403 as access unproven", () => {
+    const detail = "Webull Data API returned HTTP 403. Access was denied, but the failed edge was not proven.";
+    const matrix = buildAthosCapabilityMatrix([
+      { certification: certifySource("webull", [{ capability: "TICKS", status: "NOT_IMPLEMENTED", note: detail }]), providerTier: "CERTIFIED_NEW" },
+    ], session);
+    expect(matrixProviderWireView(matrix, "webull")).toEqual({
+      source: "webull",
+      tone: "BLOCKED",
+      label: "Access unproven",
+      detail,
+    });
+  });
 });
 
 describe("ProviderWireStrip touch truth surface", () => {
