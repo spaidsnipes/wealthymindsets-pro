@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { certifySource } from "@/lib/marketData/sourceCapabilityCertification";
 import {
   alpacaReadinessWireView,
+  classifyProviderReceiptFailure,
   moomooTickWireView,
   matrixProviderWireView,
   providerWireView,
@@ -40,6 +41,15 @@ describe("providerWireView", () => {
     expect(moomooTickWireView({ label: "AUTH BLOCKED", detail: "Sign in required.", eventCount: 0 })).toMatchObject({ tone: "BLOCKED", label: "AUTH BLOCKED" });
     expect(moomooTickWireView({ label: "NO EVENTS RECEIVED", detail: "No prints returned.", eventCount: 0 })).toMatchObject({ tone: "LIMITED", label: "NO EVENTS RECEIVED" });
     expect(moomooTickWireView({ label: "RECEIVING", receiving: true, eventCount: 4 })).toMatchObject({ tone: "LIMITED", label: "Ticks receiving" });
+    expect(moomooTickWireView({ label: "ACCESS UNPROVEN", detail: "HTTP 403 did not classify the failed edge.", eventCount: 0 })).toMatchObject({ tone: "BLOCKED", label: "ACCESS UNPROVEN" });
+  });
+
+  it("does not turn an unclassified provider 403 into an authentication claim", () => {
+    expect(classifyProviderReceiptFailure(401, "moomoo")).toMatchObject({ label: "AUTH BLOCKED", receiving: false, eventCount: 0 });
+    const denied = classifyProviderReceiptFailure(403, "longbridge");
+    expect(denied).toMatchObject({ label: "ACCESS UNPROVEN", receiving: false, eventCount: 0 });
+    expect(denied.detail).toContain("failed edge");
+    expect(classifyProviderReceiptFailure(503, "moomoo")).toMatchObject({ label: "UNKNOWN" });
   });
 
   it("keeps Longbridge receiving below live until entitlement is certified", () => {

@@ -48,13 +48,42 @@ export function moomooTickWireView(receipt: MoomooTickReceipt): ProviderWireView
   if (label === "NOT CONFIGURED") {
     return { source: "moomoo", tone: "OFFLINE", label: "Not configured", detail };
   }
-  if (label === "AUTH BLOCKED" || label === "BRIDGE UNREACHABLE" || label === "SUBSCRIPTION FAILED") {
+  if (label === "AUTH BLOCKED" || label === "ACCESS UNPROVEN" || label === "BRIDGE UNREACHABLE" || label === "SUBSCRIPTION FAILED") {
     return { source: "moomoo", tone: "BLOCKED", label, detail };
   }
   if (label === "NO EVENTS RECEIVED" || label === "STALE" || label === "RECONNECTING") {
     return { source: "moomoo", tone: "LIMITED", label, detail };
   }
   return { source: "moomoo", tone: "OFFLINE", label: "Unknown", detail };
+}
+
+export function classifyProviderReceiptFailure(
+  status: number,
+  source: "moomoo" | "longbridge",
+): MoomooTickReceipt {
+  const name = source === "moomoo" ? "Moomoo" : "Longbridge";
+  if (status === 401) {
+    return {
+      label: "AUTH BLOCKED",
+      detail: `The authenticated ${name} tick route returned HTTP 401.`,
+      receiving: false,
+      eventCount: 0,
+    };
+  }
+  if (status === 403) {
+    return {
+      label: "ACCESS UNPROVEN",
+      detail: `${name} denied the tick request with HTTP 403, but the failed edge (authorization, subscription, entitlement, or policy) was not proven.`,
+      receiving: false,
+      eventCount: 0,
+    };
+  }
+  return {
+    label: "UNKNOWN",
+    detail: `The ${name} tick route returned HTTP ${status}.`,
+    receiving: false,
+    eventCount: 0,
+  };
 }
 
 export function longbridgeTickWireView(receipt: MoomooTickReceipt): ProviderWireView {
@@ -226,10 +255,7 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
       const response = await fetch(`/api/market-data/${source}/ticks?symbol=TSLA`, { cache: "no-store", signal: controller.signal });
       const body = await response.json().catch(() => null) as MoomooTickReceipt | null;
       if (body?.label) return body;
-      if (response.status === 401 || response.status === 403) {
-        return { label: "AUTH BLOCKED", detail: `Sign in is required for the authenticated ${source === "moomoo" ? "Moomoo" : "Longbridge"} tick receipt.`, receiving: false, eventCount: 0 };
-      }
-      if (!response.ok) return { label: "UNKNOWN", detail: `The ${source === "moomoo" ? "Moomoo" : "Longbridge"} tick route returned HTTP ${response.status}.`, receiving: false, eventCount: 0 };
+      if (!response.ok) return classifyProviderReceiptFailure(response.status, source);
       return { label: "UNKNOWN", detail: `The ${source === "moomoo" ? "Moomoo" : "Longbridge"} tick route returned no classified receipt.`, receiving: false, eventCount: 0 };
     };
     const refresh = () => {
