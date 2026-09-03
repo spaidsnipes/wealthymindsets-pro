@@ -23,7 +23,6 @@ import { CustomIndicatorBuilder } from "@/components/pine/CustomIndicatorBuilder
 import { PineCommunityLibrary } from "@/components/pine/PineCommunityLibrary";
 import { DrawingToolsPanel, DEFAULT_DRAWING_STYLE, type DrawingStyle } from "./DrawingToolsPanel";
 import { LeftDrawingSidebar } from "./LeftDrawingSidebar";
-import { WMSessionVP } from "./WMSessionVP";
 import { WatchlistPanel } from "./WatchlistPanel";
 import { AlertsPanel, type PriceAlert } from "./AlertsPanel";
 import { ChartSettingsModal, type ChartSettings, DEFAULT_CHART_SETTINGS } from "./ChartSettingsModal";
@@ -317,7 +316,6 @@ export function ChartsDashboard() {
   // strips those bars, which is what made TSLA look like it was "missing" the
   // last few hourly candles vs. those platforms.
   const [extHours,   setExtHours]   = useState<boolean>(() => lsGet("wm_extHours", true) as boolean);
-  const [sessionVPOpen, setSessionVPOpen] = useState(false);
   // Show open paper-trade positions as horizontal entry lines w/ live P&L on the chart.
   const [paperTradesOn, setPaperTradesOn] = useState(true);
   // Smart Money read-out panel (real order-flow signals; honest N/A for feeds we lack).
@@ -1710,16 +1708,22 @@ export function ChartsDashboard() {
                 {vpDomOpen && <DOMPanel key={symbol} symbol={symbol} onClose={() => setVpDomOpen(false)} />}
               </div>
 
-              {sessionVPOpen && (
-                <WMSessionVP
-                  symbol={symbol}
-                  timeframe={timeframe}
-                  candles={chartBars}
-                  dataVersion={dataVersion}
-                  provider={source}
-                  onClose={() => setSessionVPOpen(false)}
-                />
-              )}
+              {/* The stationary Session VP side panel was REMOVED per spec (see
+                  the DOM-ladder note above). Its mount lingered here behind
+                  `sessionVPOpen`, whose ONLY setter was the panel's own
+                  onClose(false) — nothing could ever set it true, so the branch
+                  was unreachable and <WMSessionVP> could never render.
+
+                  That dead branch actively misled: it looks like a working
+                  feature that merely needs a toggle, and reads as the reason
+                  §13 says "Live VP production visual behavior still requires
+                  direct proof" — when the real reason is that the panel was
+                  intentionally retired. Wiring it back would reverse the spec.
+
+                  src/components/chart/WMSessionVP.tsx is retained (git history
+                  + possible future use) but has no live mount. The surviving VP
+                  surfaces are the on-chart Session VP (`sessionVPChart`) and
+                  the on-chart Fixed VP. */}
 
               <BarReplayControls
                 active={replayActive}
