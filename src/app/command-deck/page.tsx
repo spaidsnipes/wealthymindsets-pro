@@ -598,6 +598,31 @@ function CommandDeckInner() {
               outline: 2px solid #d4af37;
               outline-offset: 2px;
             }
+            .wm-cd-chapter-history { min-width: 0; }
+            .wm-cd-chapter-history > summary {
+              min-height: 44px;
+              min-width: 0;
+              display: flex;
+              align-items: center;
+              padding: 10px 12px;
+              border: 1px solid rgba(212, 175, 55, 0.2);
+              border-radius: 10px;
+              color: #c9a55c;
+              cursor: pointer;
+              font-size: 11px;
+              letter-spacing: 0.5px;
+              overflow-wrap: anywhere;
+            }
+            .wm-cd-chapter-history > summary:focus-visible {
+              outline: 2px solid #d4af37;
+              outline-offset: 2px;
+            }
+            .wm-cd-chapter-history-content {
+              min-width: 0;
+              overflow-x: auto;
+              overscroll-behavior-x: contain;
+              padding-top: 12px;
+            }
             @media (max-width: 640px) {
               .wm-cd-header {
                 flex-wrap: wrap !important;
@@ -1183,14 +1208,15 @@ function CommandDeckInner() {
               >
                 Deep read · story · auction lens · decision chain · steward · fidelity
               </summary>
-            {/* STORY RIBBON — Market state → progression → evidence */}
-            {chainVm && (
-              <div>
-                <SectionBanner number={1} label="Story Ribbon · Market Narrative" tagline="the sequence of chapters" />
-                <div style={{ height: 12 }} />
+            {/* One Story owns the primary read. Preserve the full market
+                chronology one deliberate layer deeper instead of repeating it
+                as another large numbered gold section. */}
+            <details className="wm-cd-chapter-history">
+              <summary>Market chapter history</summary>
+              <div className="wm-cd-chapter-history-content">
                 <StoryRibbon state={state} history={history} />
               </div>
-            )}
+            </details>
 
             {/* DIRECTION × LOCATION × AGGRESSION × RESPONSE strip */}
             {chainVm && (
