@@ -761,11 +761,25 @@ function OptionsChain({
         <span className="text-[9px] text-wm-text-dim ml-auto">IV {(iv*100).toFixed(0)}% · {OPT_MULTIPLIER}×/contract · BS model</span>
       </div>
 
+      {/* Provenance. Every number below is model output, not market data:
+          an ASSUMED IV feeds Black-Scholes, and the "spread" is a flat 3% band
+          invented in this file. Calling that bid/ask would teach the trader
+          they know their execution cost — and in options the spread is where
+          the money goes. */}
+      <div
+        className="px-3 py-1.5 border-b border-wm-border bg-wm-gold/5 text-[9px] leading-snug text-wm-text-dim"
+        title="No option quotes are received. Premiums are Black-Scholes values computed from an assumed volatility, and the ± band is a fixed 3% modelling assumption — not a quoted spread."
+      >
+        <span className="font-black text-wm-gold uppercase tracking-wider">Modeled</span>{" "}
+        Black-Scholes premiums at an assumed {(iv * 100).toFixed(0)}% IV. The ± band is a fixed
+        3% assumption, not a quoted spread — real option spreads differ, often by a lot.
+      </div>
+
       {/* Chain table */}
       <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-3 py-1.5 sticky bg-wm-dark" style={{ top:49, gridTemplateColumns:"1fr 60px 46px 46px 46px 70px 1fr" }}>
-        <span className="text-wm-green text-right pr-2">CALL bid/ask · δ</span><span className="text-center">CallMid</span>
+        <span className="text-wm-green text-right pr-2">CALL model band · δ</span><span className="text-center">Call model</span>
         <span></span><span className="text-center">Strike</span><span></span>
-        <span className="text-center">PutMid</span><span className="text-wm-red pl-2">δ · PUT bid/ask</span>
+        <span className="text-center">Put model</span><span className="text-wm-red pl-2">δ · PUT model band</span>
       </div>
       {strikes.map(k=>{
         const c = blackScholes(spot,k,tYears,iv,true);
@@ -780,6 +794,7 @@ function OptionsChain({
             style={{ gridTemplateColumns:"1fr 60px 46px 46px 46px 70px 1fr" }}>
             {/* CALL side */}
             <button onClick={()=>onTrade({underlying:sym,type:"call",strike:k,expiryTs,qty},"buy")} disabled={!readiness.actionable}
+              title={`Modeled band around a Black-Scholes premium of ${fmt2(c.price)} — not a quoted bid or ask.`}
               className={clsx("text-right pr-2 font-mono hover:bg-wm-green/10 rounded py-0.5 transition-colors",
                 itmC?"text-wm-green":"text-wm-text-muted")}>
               {fmt2(cBid)}/{fmt2(cAsk)} · {c.delta.toFixed(2)}
@@ -790,6 +805,7 @@ function OptionsChain({
             <span></span>
             <span className={clsx("text-center font-mono font-bold", itmP?"text-wm-red":"text-wm-text")}>{fmt2(p.price)}</span>
             <button onClick={()=>onTrade({underlying:sym,type:"put",strike:k,expiryTs,qty},"buy")} disabled={!readiness.actionable}
+              title={`Modeled band around a Black-Scholes premium of ${fmt2(p.price)} — not a quoted bid or ask.`}
               className={clsx("text-left pl-2 font-mono hover:bg-wm-red/10 rounded py-0.5 transition-colors",
                 itmP?"text-wm-red":"text-wm-text-muted")}>
               {p.delta.toFixed(2)} · {fmt2(pBid)}/{fmt2(pAsk)}
