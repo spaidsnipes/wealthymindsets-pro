@@ -899,7 +899,7 @@ function JournalPageInner() {
   const journalCanvasIdentity = React.useMemo(() => {
     if (!selected?.symbol) return null;
     try {
-      return canonicalMarketStateIdentity({ symbol: selected.symbol, timeframe: "15" });
+      return canonicalMarketStateIdentity({ symbol: selected.symbol, timeframe: "15m" });
     } catch {
       // Unknown symbol shape (option OCC / futures) — treat as no-op.
       return null;

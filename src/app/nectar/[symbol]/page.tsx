@@ -93,7 +93,7 @@ export default function NectarSymbolDetailPage() {
   const nectarCanvasIdentity = React.useMemo(() => {
     if (!symbol) return null;
     try {
-      return canonicalMarketStateIdentity({ symbol, timeframe: "15" });
+      return canonicalMarketStateIdentity({ symbol, timeframe: "15m" });
     } catch {
       // Unknown symbol shape (option OCC, non-canonical futures) — no-op.
       return null;
