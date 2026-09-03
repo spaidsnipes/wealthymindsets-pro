@@ -127,7 +127,7 @@ describe("responsive P0 command surfaces", () => {
     expect(readiness).toContain("This provider still needs setup in the current runtime.");
     expect(brokers).toContain("Signed OpenAPI check · read-only account proof");
     expect(brokers).toContain("Webull Connect OAuth—authorize, callback, token refresh");
-    expect(brokers).toContain("Signing into Webull&apos;s website cannot connect this app.");
+    expect(brokers).toContain("Signing into Webull&apos;s website is separate and does not connect this app.");
   });
 
   it("keeps long-form Nectar and Command Deck surfaces vertically reachable", () => {
