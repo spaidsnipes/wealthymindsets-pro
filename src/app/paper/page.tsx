@@ -860,6 +860,11 @@ export default function PaperTradingPage() {
   // Start from deterministic defaults so server and client render identically,
   // then hydrate persisted state in a post-mount effect (avoids React #418).
   const [cash,      setCash]      = useState(STARTING_CASH);
+  // openOption() is a useCallback that must not close over a stale balance.
+  const cashRef = useRef(cash);
+  useEffect(() => { cashRef.current = cash; }, [cash]);
+  // A refused option buy must SAY so — a silent no-op reads as a broken button.
+  const [optionReject, setOptionReject] = useState<string | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [orders,    setOrders]    = useState<Order[]>([]);
   const [trades,    setTrades]    = useState<Trade[]>([]);
@@ -1115,6 +1120,15 @@ export default function PaperTradingPage() {
     const t   = Math.max((p.expiryTs-Date.now())/86_400_000,0.0001)/365;
     const g   = blackScholes(uPx, p.strike, t, underlyingIV(p.underlying), p.type==="call");
     const ask = g.price + Math.max(0.02, g.price*0.03); // pay the ask
+    // Options bypass the order ledger entirely — they move cash directly, so
+    // the fill-loop buying-power gate never saw them. Without this an option
+    // buy could still drive the account negative through the side door.
+    const reject = selectOrderRejection({
+      side: "buy", qty: p.qty, price: ask, cash: cashRef.current,
+      multiplier: OPT_MULTIPLIER,
+    });
+    if (reject) { setOptionReject(reject); return; }
+    setOptionReject(null);
     const cost = ask * p.qty * OPT_MULTIPLIER;
     setCash(c => c - cost);
     setOptionPositions(prev => [
@@ -1501,6 +1515,15 @@ export default function PaperTradingPage() {
           )}
 
           {/* Options chain */}
+          {tab==="options" && optionReject && (
+            <div
+              role="alert"
+              className="mx-3 mt-3 rounded-lg border px-3 py-2 text-[11px]"
+              style={{ borderColor: "#c05a4a55", background: "#c05a4a14", color: "#e0a58c" }}
+            >
+              Order not placed — {optionReject}
+            </div>
+          )}
           {tab==="options" && (
             <OptionsChain
               prices={prices}

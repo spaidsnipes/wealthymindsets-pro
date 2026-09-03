@@ -191,3 +191,38 @@ describe("buying power", () => {
     expect(r).toContain("$100,000");
   });
 });
+
+const paperPage = fs.readFileSync(
+  path.join(process.cwd(), "src/app/paper/page.tsx"), "utf8")
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/(^|[^:])\/\/.*$/gm, "$1");
+
+/**
+ * The options path bypasses the order ledger entirely — openOption() moves cash
+ * directly with no Order record, so the fill-loop buying-power gate never saw
+ * it. Without its own guard an option buy could still drive the account
+ * negative through the side door.
+ */
+describe("option buying power side door", () => {
+  it("openOption consults the same rejection selector", () => {
+    expect(paperPage).toContain("selectOrderRejection({");
+    expect(paperPage).toContain("multiplier: OPT_MULTIPLIER");
+  });
+
+  it("it reads a live balance, not a stale closure", () => {
+    expect(paperPage).toContain("cash: cashRef.current");
+    expect(paperPage).toContain("cashRef.current = cash");
+  });
+
+  it("a refused option buy is surfaced, never a silent no-op", () => {
+    // A button that does nothing reads as broken; name the blocker.
+    expect(paperPage).toContain("setOptionReject(reject)");
+    expect(paperPage).toContain("Order not placed");
+    expect(paperPage).toContain('role="alert"');
+  });
+
+  it("the fill loop settles rejects so they are never retried", () => {
+    expect(paperPage).toContain('status: "rejected" as const');
+    expect(paperPage).toContain("rejects.push({ id: ord.id, reason: reject })");
+  });
+});
