@@ -57,3 +57,20 @@ describe("broker panel failure truth", () => {
     expect(panel).toContain('role="alert"');
   });
 });
+
+/**
+ * loadAccount already surfaced a body-level `error`, but a non-ok response
+ * whose body simply lacked that field fell through to
+ * `setAccount(data as AlpacaAccount)` — an unvalidated cast that would render
+ * an account built from undefined numbers.
+ */
+describe("broker account load truth", () => {
+  it("rejects a non-ok account response instead of casting it", () => {
+    expect(panel).toContain("Account request failed (${res.status}).");
+  });
+
+  it("validates the shape before trusting the cast", () => {
+    expect(panel).toContain("Account response was not in the expected shape.");
+    expect(panel).toContain('typeof data.equity === "undefined"');
+  });
+});

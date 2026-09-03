@@ -130,7 +130,20 @@ export function AlpacaTradingPanel({
     try {
       const res = await fetch("/api/alpaca-trading?action=account", { cache: "no-store" });
       const data = await res.json();
-      if (data.error) { setAcctError(data.error); setLoading(false); return; }
+      if (data?.error) { setAcctError(data.error); setLoading(false); return; }
+      // A non-ok response whose body simply lacks an `error` field would
+      // otherwise be cast straight to AlpacaAccount and rendered as an
+      // account made of undefined numbers.
+      if (!res.ok) {
+        setAcctError(`Account request failed (${res.status}).`);
+        setLoading(false);
+        return;
+      }
+      if (!data || typeof data !== "object" || typeof data.equity === "undefined") {
+        setAcctError("Account response was not in the expected shape.");
+        setLoading(false);
+        return;
+      }
       setAccount(data as AlpacaAccount);
       setAcctError("");
     } catch (e) { setAcctError(String(e)); }
