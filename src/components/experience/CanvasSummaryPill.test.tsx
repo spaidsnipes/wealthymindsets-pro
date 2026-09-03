@@ -71,7 +71,10 @@ describe("CanvasSummaryPill — canon §Phase 3 Market Canvas summary", () => {
       />,
     );
     expect(html).toContain("WAIT");
-    expect(html).toContain("1 missing");
+    // state.unknowns are unresolved DIMENSIONS, which do not gate the verdict.
+    // Labelling them "missing" beside a verdict read as a contradiction.
+    expect(html).toContain("1 unresolved");
+    expect(html).not.toContain("1 missing");
     expect(html).toContain("2 blockers");
     expect(html).not.toContain("would-invalidate");
   });
@@ -127,7 +130,8 @@ describe("CanvasSummaryPill — canon §Phase 3 Market Canvas summary", () => {
     expect(html).toContain("Right-of-way is withheld");
     expect(html).toContain("Why not");
     expect(html).toContain("regime");
-    expect(html).toContain("Missing");
+    expect(html).toContain("Unresolved dimensions");
+    expect(html).toContain("do not gate the verdict");
   });
 
   it("honors a custom aria-label", () => {
