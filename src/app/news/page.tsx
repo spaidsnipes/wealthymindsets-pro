@@ -25,7 +25,7 @@ interface NewsItem {
   summary:   string;
   url?:      string;
   tags:      string[];
-  sentiment: { score: number; label: "Bullish" | "Bearish" | "Neutral"; confidence: number };
+  sentiment: { score: number; label: "Bullish" | "Bearish" | "Neutral"; keywordHits: number };
   breaking?: boolean;
 }
 
@@ -233,9 +233,19 @@ function scoreSentiment(item: Omit<NewsItem, "sentiment" | "ageMs">): NewsItem["
   const label: "Bullish" | "Bearish" | "Neutral" =
     score >= 62 ? "Bullish" : score <= 38 ? "Bearish" : "Neutral";
 
-  const confidence = 60 + Math.round(Math.abs(score - 50) * 0.8);
+  // Canon weakness #4 SCORE ADDICTION: a "confidence" percentage derived from
+  // the score's own distance from neutral measures nothing about reliability —
+  // it just restates the score. It previously read
+  // `60 + |score-50| * 0.8`, so a headline with more keyword hits looked more
+  // certain purely because it had more keyword hits.
+  //
+  // What we actually know is how many sentiment keywords matched. Report that
+  // directly and let the reader judge; never dress a tally as certainty.
+  const keywordHits =
+    BULLISH_WORDS.filter(w => text.includes(w)).length +
+    BEARISH_WORDS.filter(w => text.includes(w)).length;
 
-  return { score, label, confidence };
+  return { score, label, keywordHits };
 }
 
 function hydrate(items: Omit<NewsItem, "sentiment" | "ageMs">[]): NewsItem[] {
@@ -950,9 +960,12 @@ export default function NewsPage() {
                             #{t}
                           </span>
                         ))}
-                        <span className="ml-auto flex items-center gap-1 text-[9px] text-wm-text-dim">
+                        <span
+                          className="ml-auto flex items-center gap-1 text-[9px] text-wm-text-dim"
+                          title="Sentiment is a keyword heuristic over the headline and summary — not a model prediction. This is the number of sentiment keywords matched, not a confidence score."
+                        >
                           <Brain size={8} />
-                          {item.sentiment?.confidence}% confidence
+                          {item.sentiment?.keywordHits ?? 0} keyword{(item.sentiment?.keywordHits ?? 0) === 1 ? "" : "s"} matched
                         </span>
                         {item.sym && item.sym !== "MARKET" && (
                           <button
