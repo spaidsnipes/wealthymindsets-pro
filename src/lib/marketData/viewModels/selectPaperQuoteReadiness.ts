@@ -3,6 +3,29 @@ import { YAHOO_QUOTE_OBSERVATION_SPEC_VERSION } from "../yahooQuoteObservation";
 
 export const PAPER_DELAYED_QUOTE_MAX_AGE_MS = 15 * 60_000;
 
+/**
+ * Tolerance for SERVER-STAMPED transport timestamps compared against the
+ * CLIENT wall clock.
+ *
+ * `observedAt` is observation chronology and is compared strictly — a price
+ * cannot be observed in the future, full stop. But `receivedAt` / `availableAt`
+ * are stamped by the edge server when it handles the request, then compared
+ * against `Date.now()` in the browser. Those are two different clock domains.
+ *
+ * Real from-USE P0 (2026-09-03): with the browser clock only 8ms behind the
+ * Cloudflare edge clock, `receivedAt <= capturedAt` failed for every symbol,
+ * every poll. That single strict comparison put all 16 UNIVERSE symbols into
+ * UNKNOWN, disabled the Order Ticket, the AI Trading Bot, and the options
+ * chain — the whole /paper route was unusable for any user whose clock was
+ * even milliseconds behind the server's.
+ *
+ * This bound still catches genuinely absurd transport chronology (a provider
+ * stamping hours or days ahead) while surviving ordinary NTP drift. It does
+ * NOT loosen freshness: `ageMs` is derived from `observedAt` and the
+ * `staleAfterMs` budget is unchanged.
+ */
+export const TRANSPORT_CLOCK_SKEW_TOLERANCE_MS = 5 * 60_000;
+
 export type PaperQuoteReadinessStatus = "LOADING" | "DELAYED" | "STALE" | "UNKNOWN";
 
 export interface PaperQuoteReadiness {
@@ -111,7 +134,9 @@ export function selectPaperQuoteReadiness(
     return priorAsStale(prior, capturedAt, "Canonical quote observation is UNKNOWN.");
   }
 
-  const valid =
+  // Shape + internal-consistency checks. These are provider-payload truths and
+  // are evaluated entirely within the observation's own clock domain.
+  const shapeValid =
     observation.specVersion === YAHOO_QUOTE_OBSERVATION_SPEC_VERSION &&
     finitePositive(quote.price) &&
     finitePositive(observation.price) &&
@@ -127,13 +152,34 @@ export function selectPaperQuoteReadiness(
     observation.availableAt === Math.max(
       observation.observedAt as number,
       observation.receivedAt as number,
-    ) &&
-    observation.observedAt <= capturedAt &&
-    observation.receivedAt <= capturedAt &&
-    observation.availableAt <= capturedAt;
+    );
 
-  if (!valid) {
+  if (!shapeValid) {
     return priorAsStale(prior, capturedAt, "Canonical quote chronology was malformed.");
+  }
+
+  // Observation chronology — strict. A price cannot be observed in the future.
+  if ((observation.observedAt as number) > capturedAt) {
+    return priorAsStale(
+      prior,
+      capturedAt,
+      "Canonical quote was observed ahead of the evaluation clock.",
+    );
+  }
+
+  // Transport chronology — server-stamped, so compared with a bounded
+  // cross-clock-domain tolerance. Monday Test 2: when this DOES trip, name the
+  // real failure class (clock domains) instead of blaming the payload.
+  const transportBound = capturedAt + TRANSPORT_CLOCK_SKEW_TOLERANCE_MS;
+  if (
+    (observation.receivedAt as number) > transportBound ||
+    (observation.availableAt as number) > transportBound
+  ) {
+    return priorAsStale(
+      prior,
+      capturedAt,
+      "Canonical quote transport timestamps exceeded the client/server clock-skew tolerance.",
+    );
   }
 
   const observedAt = observation.observedAt as number;
