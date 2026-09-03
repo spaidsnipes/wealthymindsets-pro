@@ -21,6 +21,7 @@ import { Panel } from "@/components/ui/Panel";
 import { WM } from "@/lib/design/wmTokens";
 import { fmtNum, formatMemoryAge, fidelityToTone } from "@/lib/nectarFormat";
 import { ContextRibbonContainer, ContextRibbonTile } from "@/components/command/CommandContextRibbon";
+import { selectChannelCoverageHealth } from "@/lib/marketData/selectChannelCoverageHealth";
 
 const subscribeHydration = () => () => {};
 const getHydratedClientSnapshot = () => true;
@@ -117,6 +118,7 @@ export default function NectarVaultPage() {
             return acc == null || ts < acc ? ts : acc;
           }, null);
           const gaps = (nectar?.channels ?? []).reduce((a, c) => a + c.gapCount, 0);
+          const coverageHealth = selectChannelCoverageHealth(nectar?.channels);
           const channelCount = nectar?.channels.length ?? 0;
           return (
             <ContextRibbonContainer ariaLabel="Market Evidence context ribbon">
@@ -132,11 +134,17 @@ export default function NectarVaultPage() {
                 detail={totalTrades === 0 ? "no browser-local observations" : "trades observed across symbols"}
                 tone={totalTrades === 0 ? "unknown" : "resolved"}
               />
+              {/* CHANNELS reads the ONE canonical coverage-health reduction.
+                  Previously this tile inspected only channelCount + gapCount and
+                  ignored coverageState, so six STALE channels with zero recorded
+                  gaps rendered as a gold "no gaps recorded" all-clear while the
+                  Session Intelligence Strip below proved STALE 6 / OBSERVING 0.
+                  Both surfaces now share selectChannelCoverageHealth. */}
               <ContextRibbonTile
                 label="CHANNELS"
-                value={channelCount === 0 ? "NONE" : String(channelCount)}
-                detail={channelCount === 0 ? "no channel coverage yet" : gaps > 0 ? `${gaps} coverage gap${gaps === 1 ? "" : "s"}` : "no gaps recorded"}
-                tone={channelCount === 0 ? "unknown" : gaps > 0 ? "warn" : "resolved"}
+                value={coverageHealth.total === 0 ? "NONE" : String(coverageHealth.total)}
+                detail={coverageHealth.detail}
+                tone={coverageHealth.tone}
               />
               <ContextRibbonTile
                 label="EARLIEST"
@@ -475,10 +483,14 @@ function SessionIntelligenceStrip({
   // CoverageState describes collector activity, not licensed feed fidelity.
   // COLLECTING is therefore presented as observing and must never be
   // promoted into a public LIVE claim.
-  const observingChannels = channels.filter(c => c.coverageState === "COLLECTING").length;
-  const staleChannels = channels.filter(c => c.coverageState === "STALE").length;
-  const unavailableChannels = channels.filter(c => c.coverageState === "UNAVAILABLE").length;
-  const totalGaps = channels.reduce((a, c) => a + c.gapCount, 0);
+  //
+  // Reduced by the SAME canonical selector the Vault Ribbon CHANNELS tile
+  // reads, so the two panels cannot drift apart again.
+  const health = selectChannelCoverageHealth(channels);
+  const observingChannels = health.observing;
+  const staleChannels = health.stale;
+  const unavailableChannels = health.unavailable;
+  const totalGaps = health.gaps;
 
   return (
     <div
