@@ -2215,7 +2215,13 @@ Trade the system, trust the process, winners every day 🚀`,
                   !filterTag ? "bg-wm-purple/20 text-wm-purple border-wm-purple/40" : "text-wm-text-muted border-transparent hover:border-wm-border")}>
                 All
               </button>
-              {ALL_TAGS.slice(0, 8).map(t => (
+              {/* Every tag must be reachable. This row is already
+                  overflow-x-auto with min-w-max, so it scrolls — there was no
+                  layout reason to slice. Truncating to 8 left 5 tags
+                  (breakeven, morning session, supply rejection, EOD, momentum)
+                  permanently unfilterable, hiding whole classes of tagged
+                  entries from review. */}
+              {ALL_TAGS.map(t => (
                 <button key={t} onClick={() => setFilterTag(t === filterTag ? "" : t)}
                   className={clsx("px-2 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap transition-all",
                     filterTag === t ? "bg-wm-gold/20 text-wm-gold border-wm-gold/40" : "text-wm-text-muted border-transparent hover:border-wm-border")}>

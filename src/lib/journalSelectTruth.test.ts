@@ -107,3 +107,27 @@ describe("journal session-R coverage truth", () => {
     expect(derivation).not.toMatch(/\?\?\s*0/);
   });
 });
+
+/**
+ * Tag reachability Sentinel.
+ *
+ * The tag filter row rendered ALL_TAGS.slice(0, 8) out of 13, leaving
+ * breakeven / morning session / supply rejection / EOD / momentum permanently
+ * unfilterable — a trader could tag an entry and then never review that class
+ * of entries again. The row is already overflow-x-auto + min-w-max, so it
+ * scrolls; the truncation bought nothing.
+ */
+describe("journal tag reachability", () => {
+  it("every tag in ALL_TAGS is rendered as a filter chip", () => {
+    expect(page).not.toContain("ALL_TAGS.slice(0, 8)");
+    expect(page).not.toMatch(/ALL_TAGS\.slice\(/);
+    expect(page).toContain("{ALL_TAGS.map(t => (");
+  });
+
+  it("the tag row remains horizontally scrollable so all chips stay usable", () => {
+    const i = page.indexOf("{ALL_TAGS.map(t => (");
+    const region = page.slice(Math.max(0, i - 700), i);
+    expect(region).toContain("overflow-x-auto");
+    expect(region).toContain("min-w-max");
+  });
+});
