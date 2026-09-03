@@ -530,7 +530,11 @@ export default function MorningPrepPage() {
             open the market — a natural morning reflection surface. */}
         <MorningPrepMirror userId={user?.id ?? ""} />
 
-        <FabioInsights variant="inline" surface="morning" title="WM Playbook — Today's Focus" limit={3} />
+        {/* Title says "WM Playbook", not "Today's Focus": with surface="morning" and
+            no symbol/regime/indicator context the note set is deterministic and
+            identical every day. Promising a daily focus the page cannot deliver is
+            label-overreach. */}
+        <FabioInsights variant="inline" surface="morning" title="WM Playbook" limit={3} />
         <section className="rounded-2xl p-5" style={{ background: "linear-gradient(135deg,rgba(0,212,170,0.11),rgba(240,180,41,0.08))", border: "1px solid rgba(240,180,41,0.26)" }}>
           <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
             <div>

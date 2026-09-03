@@ -47,3 +47,36 @@ describe("morning-prep truth", () => {
     expect(fn).not.toMatch(/case "NONE":\s*return "LIVE"/);
   });
 });
+
+const fabio = fs.readFileSync(
+  path.join(process.cwd(), "src/components/fabio/FabioInsights.tsx"),
+  "utf8",
+);
+
+/**
+ * FABIO label-overreach Sentinel.
+ *
+ * While FABIO_CONTENT_IS_PLACEHOLDER is true the note library is a static
+ * curated set. Two labels claimed more than that:
+ *   - "WM Playbook — Today's Focus" implied per-day personalization, but with
+ *     surface="morning" and no symbol/regime/indicators the selection is
+ *     deterministic and identical every day.
+ *   - a "context-aware" chip sat directly above a banner that (honestly)
+ *     described the content as general playbook notes.
+ */
+describe("fabio label truth", () => {
+  it("morning-prep does not promise a daily focus it cannot deliver", () => {
+    // Assert on the JSX prop, not prose — the explanatory comment above the
+    // call site legitimately quotes the old label.
+    expect(page).not.toMatch(/title="WM Playbook — Today's Focus"/);
+    expect(page).toContain('title="WM Playbook"');
+  });
+
+  it("the context chip reflects placeholder status", () => {
+    expect(fabio).toContain('FABIO_CONTENT_IS_PLACEHOLDER ? "curated notes" : "context-aware"');
+  });
+
+  it("the honest placeholder banner is still shown", () => {
+    expect(fabio).toContain("Educational context, not financial advice");
+  });
+});

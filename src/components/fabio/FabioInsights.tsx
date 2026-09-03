@@ -144,7 +144,12 @@ export function FabioInsights({
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           {header}
-          <span style={{ fontSize: 9, color: "#4A5070" }}>context-aware</span>
+          {/* While the library is placeholder content, "context-aware" overclaims:
+              ranking varies by surface/symbol, but the notes themselves are a
+              static curated set, identical every day. Say which one it is. */}
+          <span style={{ fontSize: 9, color: "#4A5070" }}>
+            {FABIO_CONTENT_IS_PLACEHOLDER ? "curated notes" : "context-aware"}
+          </span>
         </div>
         <PlaceholderBanner />
         {insights.map(ins => (
