@@ -192,8 +192,15 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             transition={{ duration: 0.18 }}
             style={{
-              position: "fixed", top: 64, left: "calc(50% - 260px)",
-              width: 520, maxHeight: "80vh",
+              // Multi-device acceptance contract (iPhone ~375/390/393/430):
+              // a fixed 520px width centred by `calc(50% - 260px)` computes
+              // left = -65px at 390px viewport, so the modal hung off BOTH
+              // edges at once and its controls were unreachable on phone.
+              // Clamp the width to the viewport and never let left go under
+              // the gutter. Desktop (>=568px) is byte-identical to before.
+              position: "fixed", top: 64,
+              left: "max(12px, calc(50% - 260px))",
+              width: "min(520px, calc(100vw - 24px))", maxHeight: "80vh",
               background: "#0B0E1A",
               border: "1px solid #263050",
               borderRadius: 12,

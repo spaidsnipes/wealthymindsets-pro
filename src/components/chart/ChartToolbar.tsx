@@ -825,8 +825,14 @@ export function ChartToolbar({
           const r = indRef.current?.getBoundingClientRect();
           return (
           <div style={{
-            position:"fixed", top:(r?.bottom ?? 36)+4, left:r?.left ?? 0,
-            zIndex:9999, width:420,
+            // Anchored to its trigger with a fixed 420px width, this popover
+            // ran ~130px off the right edge at a 390px viewport, hiding the
+            // right-hand controls of the Indicators picker. Clamp the width to
+            // the viewport and pull the left edge back when it would overflow,
+            // never past the 8px gutter. Desktop layout is unchanged.
+            position:"fixed", top:(r?.bottom ?? 36)+4,
+            left:`max(8px, min(${r?.left ?? 0}px, calc(100vw - 428px)))`,
+            zIndex:9999, width:"min(420px, calc(100vw - 16px))",
             background:"var(--wm-card,#131520)", border:"1px solid var(--wm-border,#1E2030)",
             borderRadius:12, boxShadow:"0 12px 40px rgba(0,0,0,0.8)",
             overflow:"hidden", display:"flex", flexDirection:"column", maxHeight:520,

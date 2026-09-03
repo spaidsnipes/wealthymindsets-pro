@@ -315,16 +315,31 @@ export function DrawingToolsPanel({
 
   // Anchor portal dropdowns to their triggers with fixed coords so they
   // escape the toolbar's `overflow` clipping.
+  //
+  // The trigger's raw `left` is not safe on its own: these panels are up to
+  // 620px wide (clamped to 94vw), so on the phone widths the multi-device
+  // acceptance contract names (~375/390/393/430) a panel anchored near the
+  // middle of the toolbar ran off the right edge and its controls became
+  // unreachable. Pull the left edge back so the panel always fits, never
+  // past the 8px gutter.
+  const clampLeft = (left: number, panelWidth: number): number => {
+    if (typeof window === "undefined") return left;
+    const maxLeft = window.innerWidth - panelWidth - 8;
+    return Math.max(8, Math.min(left, maxLeft));
+  };
+  const panelWidthFor = (max: number): number =>
+    typeof window === "undefined" ? max : Math.min(max, window.innerWidth * 0.94);
+
   useEffect(() => {
     if (open && triggerRef.current) {
       const r = triggerRef.current.getBoundingClientRect();
-      setMenuPos({ left: r.left, top: r.bottom + 6 });
+      setMenuPos({ left: clampLeft(r.left, panelWidthFor(620)), top: r.bottom + 6 });
     }
   }, [open]);
   useEffect(() => {
     if (showStyle && styleRef.current) {
       const r = styleRef.current.getBoundingClientRect();
-      setStylePos({ left: r.left, top: r.bottom + 6 });
+      setStylePos({ left: clampLeft(r.left, panelWidthFor(320)), top: r.bottom + 6 });
     }
   }, [showStyle]);
 
