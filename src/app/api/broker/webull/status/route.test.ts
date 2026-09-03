@@ -8,8 +8,9 @@ vi.mock("@/lib/requireAuth", () => ({
   requireAuth: vi.fn(async () => ({ ok: true, user: { sub: "u1" } })),
 }));
 
-import { GET, missingSecretsForState, webullCredentialPresence } from "./route";
+import { GET } from "./route";
 import { requireAuth } from "@/lib/requireAuth";
+import { missingSecretsForState, webullCredentialPresence } from "@/lib/broker/webullStatus";
 
 function req(): Request {
   return new Request("http://localhost/api/broker/webull/status");

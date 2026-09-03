@@ -4,8 +4,12 @@ import { getAdapter } from "../../../../../lib/broker/adapters";
 import {
   probeWebullBrokerConnection,
   webullBrokerConfigFromEnv,
-  type WebullBrokerConnectionState,
 } from "@/lib/broker/adapters/webullBrokerConnection";
+import {
+  missingSecretsForState,
+  webullCredentialPresence,
+  type WebullStatus,
+} from "@/lib/broker/webullStatus";
 
 /**
  * /api/broker/webull/status
@@ -18,63 +22,6 @@ import {
  *
  * Never returns tokens or secret values.
  */
-export interface WebullStatus {
-  readonly provider: "webull";
-  readonly authMode: "SIGNED_OPENAPI";
-  readonly implemented: boolean;
-  readonly configured: boolean;
-  readonly connected: boolean;
-  readonly state: WebullBrokerConnectionState;
-  readonly accountCount: number;
-  readonly accountTypes: readonly string[];
-  readonly note: string;
-  readonly checkedAt: string;
-  /**
-   * Monday Test 2 canonical shape: when the wire cannot connect because
-   * a host-runtime secret is missing, name it exactly so the founder
-   * pastes it in Cloudflare and re-checks. Empty array when the wire is
-   * connected OR the failure is not a config gap (e.g. RATE_LIMITED).
-   */
-  readonly missing: readonly string[];
-  /** Presence-only receipt. Values never leave the server. */
-  readonly credentialPresence: {
-    readonly appKey: boolean;
-    readonly appSecret: boolean;
-    readonly accessToken: boolean;
-  };
-}
-
-export function webullCredentialPresence(
-  env: Readonly<Record<string, string | undefined>>,
-): WebullStatus["credentialPresence"] {
-  return {
-    appKey: Boolean((env.WEBULL_APP_KEY || env.WEBULL_API_KEY)?.trim()),
-    appSecret: Boolean((env.WEBULL_APP_SECRET || env.WEBULL_API_SECRET)?.trim()),
-    accessToken: Boolean(env.WEBULL_ACCESS_TOKEN?.trim()),
-  };
-}
-
-/**
- * Map a WebullBrokerConnectionState to the exact env-var names the
- * founder must set to move it forward. Anti-fabrication: only NAME
- * variables, never emit values.
- */
-export function missingSecretsForState(
-  state: WebullBrokerConnectionState,
-  env: Readonly<Record<string, string | undefined>>,
-): readonly string[] {
-  if (state !== "UNCONFIGURED") return [];
-
-  const missing: string[] = [];
-  if (!(env.WEBULL_APP_KEY || env.WEBULL_API_KEY)?.trim()) {
-    missing.push("WEBULL_APP_KEY (or WEBULL_API_KEY)");
-  }
-  if (!(env.WEBULL_APP_SECRET || env.WEBULL_API_SECRET)?.trim()) {
-    missing.push("WEBULL_APP_SECRET (or WEBULL_API_SECRET)");
-  }
-  return missing;
-}
-
 export async function GET(request: Request): Promise<Response> {
   // Gated behind a WM session — infra recon consistency with the
   // /api/broker/{status,certification,readiness} routes.
