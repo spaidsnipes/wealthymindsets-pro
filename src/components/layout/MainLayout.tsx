@@ -727,7 +727,10 @@ function SettingsPanel({
               <Row label="News & Events" sub="Breaking news that may impact your positions">
                 <Toggle label="News & Events" on={newsAlert} set={setNewsAlert} />
               </Row>
-              <div className="text-[10px] text-wm-text-dim uppercase tracking-wider mb-3 mt-4">AI Coaching Alerts</div>
+              {/* Win-rate threshold, trade-count limit and pattern matching are
+                  deterministic rules over the trader's own journal — no model
+                  runs. "AI Coaching" promised an engine that does not exist. */}
+              <div className="text-[10px] text-wm-text-dim uppercase tracking-wider mb-3 mt-4">Discipline Alerts</div>
               <Row label="Win Rate Warning" sub="Alert when strategy win rate drops below 40%">
                 <Toggle label="Win Rate Warning" on={wrAlert} set={setWrAlert} />
               </Row>
@@ -827,7 +830,10 @@ const NAV_WORKBENCH = [
   { href: "/paper",        icon: TrendingUp,    label: "Paper Trade",  tier: 2 },
   { href: "/copy-trading", icon: Copy,          label: "Copy Trading", tier: 2 },
   { href: "/backtesting",  icon: FlaskConical,  label: "Backtest",     tier: 2 },
-  { href: "/ai-bot",       icon: Zap,           label: "AI Bot",       tier: 2 },
+  // The page at /ai-bot is titled "Market Intelligence · Observed market data
+  // only · no generated signals" and runs the canonical Market Canvas — it does
+  // not operate a bot or emit signals. Nav must not promise one.
+  { href: "/ai-bot",       icon: Zap,           label: "Market Intel", tier: 2 },
 ];
 const NAV_BOTTOM = [
   { href: "/lounge",       icon: Users,         label: "Lounge"       },
