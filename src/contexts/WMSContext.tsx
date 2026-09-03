@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 
 /* ── Deployed contract info ─────────────────────────────────── */
 export const WMS_CONTRACT = {
@@ -69,6 +69,19 @@ export function WMSProvider({ children }: { children: React.ReactNode }) {
   const [creatorCoin, setCreatorCoin]   = useState<CreatorCoin | null>(null);
   const [recentEarnings, setRecentEarnings] = useState<{ amount: number; reason: string; ts: number }[]>([]);
 
+  // Live mirrors of the ledger. earnWMS/spendWMS must read and write the
+  // balance WITHOUT doing so from inside a setState updater — React requires
+  // updaters to be pure and may replay them, which on a currency ledger means
+  // crediting or debiting twice.
+  const balanceRef = useRef(0);
+  const totalEarnedRef = useRef(0);
+  const creatorCoinRef = useRef<CreatorCoin | null>(null);
+  const recentEarningsRef = useRef<{ amount: number; reason: string; ts: number }[]>([]);
+  useEffect(() => { balanceRef.current = wmsBalance; }, [wmsBalance]);
+  useEffect(() => { totalEarnedRef.current = totalEarned; }, [totalEarned]);
+  useEffect(() => { creatorCoinRef.current = creatorCoin; }, [creatorCoin]);
+  useEffect(() => { recentEarningsRef.current = recentEarnings; }, [recentEarnings]);
+
   useEffect(() => {
     const s = loadState();
     if (s) {
@@ -76,6 +89,12 @@ export function WMSProvider({ children }: { children: React.ReactNode }) {
       setTotalEarned(s.totalEarned ?? 0);
       setCreatorCoin(s.creatorCoin ?? null);
       setRecentEarnings(s.recentEarnings ?? []);
+      // Seed the refs synchronously — an earn/spend firing before the mirroring
+      // effects run must not compute from a zero balance and wipe the ledger.
+      balanceRef.current = s.balance ?? 0;
+      totalEarnedRef.current = s.totalEarned ?? 0;
+      creatorCoinRef.current = s.creatorCoin ?? null;
+      recentEarningsRef.current = s.recentEarnings ?? [];
     }
   }, []);
 
@@ -86,29 +105,45 @@ export function WMSProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const earnWMS = useCallback((amount: number, reason: string) => {
-    setWmsBalance(b => {
-      const next = b + amount;
-      setTotalEarned(e => {
-        const nextE = e + amount;
-        setRecentEarnings(prev => {
-          const nextR = [{ amount, reason, ts: Date.now() }, ...prev].slice(0, 20);
-          setCreatorCoin(c => { persist(next, nextE, c, nextR); return c; });
-          return nextR;
-        });
-        return nextE;
-      });
-      return next;
-    });
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    // Previously four setState updaters were nested inside one another, with a
+    // localStorage write in the innermost. React requires updaters to be pure
+    // and may invoke them more than once (StrictMode does so deliberately;
+    // concurrent rendering can discard and replay a render). On a currency
+    // ledger a replay credits the balance and totalEarned twice and duplicates
+    // the earnings entry — the user is paid for the same action repeatedly.
+    //
+    // Compute from refs, then apply flat pure updates and persist once.
+    const nextBalance = balanceRef.current + amount;
+    const nextEarned = totalEarnedRef.current + amount;
+    const nextRecent = [{ amount, reason, ts: Date.now() }, ...recentEarningsRef.current].slice(0, 20);
+
+    balanceRef.current = nextBalance;
+    totalEarnedRef.current = nextEarned;
+    recentEarningsRef.current = nextRecent;
+
+    setWmsBalance(nextBalance);
+    setTotalEarned(nextEarned);
+    setRecentEarnings(nextRecent);
+    persist(nextBalance, nextEarned, creatorCoinRef.current, nextRecent);
   }, [persist]);
 
   const spendWMS = useCallback((amount: number): boolean => {
-    let success = false;
-    setWmsBalance(b => {
-      if (b >= amount) { success = true; return b - amount; }
-      return b;
-    });
-    return success;
-  }, []);
+    // The old shape set `success` from inside the setState updater and then
+    // returned it synchronously. React does not run updaters at call time, so
+    // the flag was read BEFORE it was ever assigned — spendWMS reported failure
+    // even when it debited the balance. It has no callers yet, so this was a
+    // latent trap rather than an observed loss, but the first caller would have
+    // seen points deducted and the purchase reported as failed.
+    if (!Number.isFinite(amount) || amount <= 0) return false;
+    if (balanceRef.current < amount) return false;
+
+    const nextBalance = balanceRef.current - amount;
+    balanceRef.current = nextBalance;
+    setWmsBalance(nextBalance);
+    persist(nextBalance, totalEarnedRef.current, creatorCoinRef.current, recentEarningsRef.current);
+    return true;
+  }, [persist]);
 
   const launchCreatorCoin = useCallback((coin: Omit<CreatorCoin, "deployedAt" | "logoColor">) => {
     const full: CreatorCoin = {
