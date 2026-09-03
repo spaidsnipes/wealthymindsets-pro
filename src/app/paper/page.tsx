@@ -878,12 +878,17 @@ function OptionsChain({
   );
 }
 
-/* ── AI Trading Bot (paper-sim only) ─────────────────────────
+/* ── Signal Bot (paper-sim only) ─────────────────────────────
+ * NOT AI. The rule is a 20-period SMA deviation threshold —
+ * `dev > 0.0012 → buy` — evaluated on an interval. No model is
+ * called, nothing is inferred and nothing is learned. It was
+ * labelled "AI Trading Bot", the same overreach already corrected
+ * in /journal ("AI Strategy Coach" → "Strategy Evidence Coach").
  * Generates signals from a mean-reversion / momentum read on the
  * live paper price walk and auto-submits paper orders through the
  * SAME order flow. Never touches real money or real brokerage. */
 type BotStrategy = "momentum" | "meanrev";
-function AIBot({
+function SignalBot({
   prices, quoteReadiness, onSignalOrder, running, setRunning, strategy, setStrategy, log,
 }: {
   prices: Record<string,number>;
@@ -899,11 +904,17 @@ function AIBot({
     <div className="rounded-xl border border-wm-blue/30 bg-gradient-to-br from-wm-blue/10 to-transparent p-3.5 mt-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1.5 text-xs font-black text-wm-text">
-          <Zap size={13} className="text-wm-blue"/> AI Trading Bot
+          <Zap size={13} className="text-wm-blue"/> Signal Bot
         </div>
         <span className={clsx("text-[8px] font-black px-1.5 py-0.5 rounded", running?"bg-wm-green/20 text-wm-green":"bg-wm-text-dim/10 text-wm-text-dim")}>
           {running?"● RUNNING":"○ IDLE"}
         </span>
+      </div>
+      {/* Name the actual rule. A bot that says nothing about how it decides
+          invites the trader to imagine something cleverer than arithmetic. */}
+      <div className="mb-2 text-[9px] leading-snug text-wm-text-dim"
+        title="Deterministic rule: price deviation from a 20-period simple moving average, evaluated every 3s. No model is called.">
+        Deviation from a 20-period SMA. A deterministic rule — no model runs.
       </div>
       <div className="mb-2"><SymbolSearch value={botSym} onChange={s=>s&&UNIVERSE[s]&&setBotSym(s)} placeholder="Bot symbol…"/></div>
       <div className="grid grid-cols-2 gap-1 mb-2">
@@ -999,7 +1010,7 @@ export default function PaperTradingPage() {
     });
   }, [applyStoredState]);
 
-  // AI bot state
+  // Signal bot state
   const [botRunning,  setBotRunning]  = useState(false);
   const [botStrategy, setBotStrategy] = useState<BotStrategy>("momentum");
   const [botLog,      setBotLog]      = useState<{ ts:number; msg:string; side:OrderSide }[]>([]);
@@ -1156,7 +1167,7 @@ export default function PaperTradingPage() {
     // once (rejects included), so no order is re-filled or re-rejected.
   }, [prices, quoteReadiness, orders, earnWMS, cash]);
 
-  // AI bot: evaluate a simple momentum / mean-reversion signal on an
+  // Signal bot: evaluate a simple momentum / mean-reversion rule on an
   // interval and auto-submit PAPER orders through the same flow.
   useEffect(() => {
     if (!botRunning) return;
@@ -1416,7 +1427,7 @@ export default function PaperTradingPage() {
         <div className={clsx(styles.ticket, "w-64 border-r border-wm-border shrink-0 overflow-y-auto p-3")} style={{ scrollbarWidth:"thin" }}>
           <OrderTicket key={resetKey} prices={prices} quoteReadiness={quoteReadiness} onSubmit={handleOrder} initialSymbol={UNIVERSE[activeSymbol] ? activeSymbol : undefined}/>
 
-          <AIBot
+          <SignalBot
             prices={prices}
             quoteReadiness={quoteReadiness}
             onSignalOrder={handleOrder}
