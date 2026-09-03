@@ -30,6 +30,7 @@ import { moomooNextPollDelayMs, selectFreshMoomooTapeEvents } from "@/lib/market
 import { selectFreshLongbridgeObservedEvents } from "@/lib/marketData/adapters/longbridgeTicksBrowser";
 import { selectFreshWebullObservedEvents } from "@/lib/marketData/adapters/webullTicksBrowser";
 import { electProviderTapeSource, type ProviderTapeSource } from "@/lib/marketData/providerTapeElection";
+import { selectObservedProviderFallback } from "@/lib/marketData/selectObservedProviderFallback";
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
 
@@ -1038,34 +1039,48 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       moomooAbort = new AbortController();
       let nextDelayMs = 60_000;
       try {
-        const response = await fetch(`/api/market-data/moomoo/ticks?symbol=${encodeURIComponent(symbol.toUpperCase())}`, {
-          cache: "no-store",
-          signal: moomooAbort.signal,
-        });
-        const body = response.ok && !disposed ? await response.json().catch(() => null) : null;
-        let electedSource: "moomoo" | "longbridge" | "webull" = "moomoo";
-        let events = selectFreshMoomooTapeEvents(body, symbol, Date.now());
-        // Moomoo is the deterministic first choice. Longbridge may contribute
-        // only unsigned observed price/volume, then Webull is the final bounded
-        // fallback. A diagnostics receipt alone never reaches any consumer.
-        if (events.length === 0 && !disposed) {
-          const longbridgeResponse = await fetch(`/api/market-data/longbridge/ticks?symbol=${encodeURIComponent(symbol.toUpperCase())}`, {
-            cache: "no-store",
-            signal: moomooAbort.signal,
-          });
-          const longbridgeBody = longbridgeResponse.ok ? await longbridgeResponse.json().catch(() => null) : null;
-          events = selectFreshLongbridgeObservedEvents(longbridgeBody, symbol, Date.now());
-          electedSource = "longbridge";
-        }
-        if (events.length === 0 && !disposed) {
-          const webullResponse = await fetch(`/api/market-data/webull/ticks?symbol=${encodeURIComponent(symbol.toUpperCase())}`, {
-            cache: "no-store",
-            signal: moomooAbort.signal,
-          });
-          const webullBody = webullResponse.ok ? await webullResponse.json().catch(() => null) : null;
-          events = selectFreshWebullObservedEvents(webullBody, symbol, Date.now());
-          electedSource = "webull";
-        }
+        // Each provider attempt owns its transport and parse failure. A broken
+        // Moomoo or Longbridge request must not suppress a healthy later lane.
+        // Cancellation still aborts the complete poll.
+        const selection = await selectObservedProviderFallback([
+          {
+            source: "moomoo",
+            read: async () => {
+              const response = await fetch(`/api/market-data/moomoo/ticks?symbol=${encodeURIComponent(symbol.toUpperCase())}`, {
+                cache: "no-store",
+                signal: moomooAbort!.signal,
+              });
+              const body = response.ok && !disposed ? await response.json() : null;
+              return selectFreshMoomooTapeEvents(body, symbol, Date.now());
+            },
+          },
+          {
+            source: "longbridge",
+            read: async () => {
+              if (disposed) return [];
+              const response = await fetch(`/api/market-data/longbridge/ticks?symbol=${encodeURIComponent(symbol.toUpperCase())}`, {
+                cache: "no-store",
+                signal: moomooAbort!.signal,
+              });
+              const longbridgeBody = response.ok ? await response.json() : null;
+              return selectFreshLongbridgeObservedEvents(longbridgeBody, symbol, Date.now());
+            },
+          },
+          {
+            source: "webull",
+            read: async () => {
+              if (disposed) return [];
+              const response = await fetch(`/api/market-data/webull/ticks?symbol=${encodeURIComponent(symbol.toUpperCase())}`, {
+                cache: "no-store",
+                signal: moomooAbort!.signal,
+              });
+              const webullBody = response.ok ? await response.json() : null;
+              return selectFreshWebullObservedEvents(webullBody, symbol, Date.now());
+            },
+          },
+        ]);
+        const electedSource = selection?.source ?? "moomoo";
+        const events = selection?.events ?? [];
         // Preserve a responsive five-second tape only while this exact symbol
         // is producing fresh provider events. Missing config, auth blockers,
         // stale/no-event states, and malformed receipts back off to one minute
