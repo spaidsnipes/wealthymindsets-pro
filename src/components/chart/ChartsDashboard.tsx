@@ -1000,10 +1000,25 @@ export function ChartsDashboard() {
             // reference close. Before this, the header would render whatever the
             // hook returned even if a seed-derived fake had leaked through — see
             // useWebSocket flush() for the source-side guard that pairs with this.
+            // useWebSocket only writes change/changePct once prevCloseRef holds a
+            // REAL prior close; until then it deliberately leaves them at their
+            // initial 0 while still updating price and volume (see flush()).
+            //
+            // The previous guard required change, changePct AND volume to all be
+            // zero before suppressing. Volume accumulates from live ticks, so on
+            // BTC the header rendered "77,556.11 ↑ +0.00 +0.00%" in green beside
+            // a LIVE badge while the TickerTape showed +2.49% for the same asset
+            // — a fabricated direction and a multi-price disagreement on one page.
+            //
+            // A zero change with no reference close is UNKNOWN, not flat. If price
+            // genuinely equals the prior close we simply omit the change until it
+            // moves, which is honest; painting a green up-arrow on unknown data is
+            // not.
             const hasReal = ticker.price > 0
               && Number.isFinite(ticker.change) && Number.isFinite(ticker.changePct)
-              && !(ticker.change === 0 && ticker.changePct === 0 && ticker.volume === 0);
-            const up = hasReal && ticker.changePct >= 0;
+              && !(ticker.change === 0 && ticker.changePct === 0);
+            // Three-state direction: never call an exactly-zero change "up".
+            const up = hasReal && ticker.changePct > 0;
             return (
               <span style={{
                 color: hasReal ? (up ? "#00C076" : "#FF4D67") : "#8B92AC",
