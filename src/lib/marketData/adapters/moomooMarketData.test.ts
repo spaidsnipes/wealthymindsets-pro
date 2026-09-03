@@ -129,6 +129,21 @@ describe("probeMoomooMarketData — honest bridge-state → certification mappin
     expect(status(cert, "PRICE")).toBe("BLOCKED_AUTH");
   });
 
+  it("does not convert an unclassified bridge 403 into auth or entitlement", async () => {
+    const cert = await probeMoomooMarketData(
+      mockFetch([
+        { match: "/health", status: 200, body: { ok: true, opend_reachable: true } },
+        { match: "/quote", status: 403, body: { ok: false } },
+      ]),
+      { bridgeUrl: "https://bridge.example", bridgeToken: "secret", canarySymbol: "US.AAPL" },
+    );
+    const price = cert.rows.find((row) => row.capability === "PRICE")!;
+    expect(price.status).toBe("NOT_IMPLEMENTED");
+    expect(price.note).toMatch(/ACCESS UNPROVEN/i);
+    expect(price.note).toMatch(/failed edge/i);
+    expect(price.note).not.toMatch(/entitlement blocked/i);
+  });
+
   it("bounds a hanging authenticated quote probe", async () => {
     vi.useFakeTimers();
     try {

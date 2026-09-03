@@ -204,10 +204,16 @@ export async function probeMoomooMarketData(
         timeoutMs,
       );
       const body = (await res.json()) as QuoteEnvelope;
-      if (res.status === 401 || res.status === 403) {
+      if (res.status === 401) {
         reports.push(
           report("PRICE", "BLOCKED_AUTH", {
-            note: "moomoo-bridge rejected the read-only quote credential.",
+            note: "moomoo-bridge rejected the read-only quote credential with HTTP 401.",
+          }),
+        );
+      } else if (res.status === 403) {
+        reports.push(
+          report("PRICE", "NOT_IMPLEMENTED", {
+            note: "ACCESS UNPROVEN — moomoo denied the quote probe with HTTP 403, but the failed edge (authorization, subscription, entitlement, or policy) was not proven.",
           }),
         );
       } else if (res.ok && body.ok === true && Array.isArray(body.quotes) && body.quotes.some((row) => isValidCanaryQuote(row, config.canarySymbol!))) {
