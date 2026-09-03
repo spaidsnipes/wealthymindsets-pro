@@ -73,8 +73,8 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     label: "Webull market data",
     lane: "market-data",
     required: ["WEBULL_APP_KEY", "WEBULL_APP_SECRET"],
-    recommended: ["WEBULL_ACCESS_TOKEN", "WEBULL_API_HOST", "WEBULL_DATA_URL", "WEBULL_CANARY_SYMBOL"],
-    note: "Signed tick reads. WEBULL_ACCESS_TOKEN is optional unless Webull OpenAPI 2FA requires it; WEBULL_API_HOST defaults to Webull's production Data API host.",
+    recommended: ["WEBULL_API_HOST", "WEBULL_DATA_URL", "WEBULL_CANARY_SYMBOL"],
+    note: "Signed tick reads use the Webull App Key/Secret. A trading/account access token is a separate lane and is never inferred missing from a Data API 401; WEBULL_API_HOST defaults to Webull's production Data API host.",
   },
   {
     provider: "webull-broker",

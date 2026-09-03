@@ -9,7 +9,7 @@ export interface WebullDataConfig {
   readonly dataUrl?: string;
   readonly appKey?: string;
   readonly appSecret?: string;
-  /** Active Webull OpenAPI token required only when the account has 2FA enabled. */
+  /** Optional account token. Its necessity cannot be inferred from a Data API 401. */
   readonly accessToken?: string;
   readonly apiHost?: string;
   readonly canarySymbol?: string;
@@ -189,8 +189,8 @@ export async function fetchWebullTickSnapshot(
       "x-signature-nonce": nonce,
       "x-version": "v2",
     };
-    // Webull requires this header only when OpenAPI 2FA is enabled. It is not
-    // one of the signing headers, so it must not alter the HMAC input.
+    // Preserve an explicitly configured token without making it part of the
+    // HMAC. A Data API 401 alone does not prove that this token was required.
     if (accessToken) headers["x-access-token"] = accessToken;
 
     response = await fetchImpl(url, {
@@ -212,8 +212,8 @@ export async function fetchWebullTickSnapshot(
       return unavailable(
         "BLOCKED_AUTH",
         accessToken
-          ? "Webull Data API returned HTTP 401 with an access token configured. The token may be invalid or expired, or the App Key/Secret may belong to a different Webull environment; no tick observation was returned."
-          : "Webull Data API returned HTTP 401 and no 2FA access token is configured in this runtime. If OpenAPI 2FA is enabled, create and verify a token in the Webull App; otherwise confirm the App Key/Secret and production API environment. No tick observation was returned.",
+          ? "Webull Data API returned HTTP 401 with an optional account token configured. The rejected edge may be the App Key/Secret, request signature, token, API host, or environment; the provider did not identify which one. No tick observation was returned."
+          : "Webull Data API returned HTTP 401 for the signed market-data request. Verify the App Key/Secret, request signature, API host, and environment. A trading/account token requirement was not proven by this response. No tick observation was returned.",
       );
     }
     if (response.status === 403) {

@@ -109,7 +109,8 @@ describe("Webull Data API market-data certification", () => {
     });
     const ticks = cert.rows.find((row) => row.capability === "TICKS")!;
     expect(ticks.status).toBe("BLOCKED_AUTH");
-    expect(ticks.note).toMatch(/no 2FA access token is configured/i);
+    expect(ticks.note).toMatch(/trading\/account token requirement was not proven/i);
+    expect(ticks.note).not.toMatch(/missing.*token|token.*not (?:set|configured)/i);
     expect(JSON.stringify(cert)).not.toContain("app-secret");
     expect(JSON.stringify(cert)).not.toContain("secret provider detail");
   });
@@ -125,7 +126,8 @@ describe("Webull Data API market-data certification", () => {
     });
     const ticks = cert.rows.find((row) => row.capability === "TICKS")!;
     expect(ticks.status).toBe("BLOCKED_AUTH");
-    expect(ticks.note).toMatch(/access token configured/i);
+    expect(ticks.note).toMatch(/optional account token configured/i);
+    expect(ticks.note).toMatch(/provider did not identify which one/i);
     expect(JSON.stringify(cert)).not.toContain("expired-token");
   });
 
