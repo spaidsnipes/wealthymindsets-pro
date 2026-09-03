@@ -6,6 +6,13 @@ const raw = fs.readFileSync(
   path.join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"),
   "utf8",
 );
+const mainChart = fs.readFileSync(
+  path.join(process.cwd(), "src/components/chart/MainChart.tsx"),
+  "utf8",
+)
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/(^|[^:])\/\/.*$/gm, "$1");
+
 const src = raw
   .replace(/\/\*[\s\S]*?\*\//g, "")
   .replace(/(^|[^:])\/\/.*$/gm, "$1");
@@ -60,5 +67,31 @@ describe("chart header day-change truth", () => {
   it("never renders a non-finite change", () => {
     expect(headerShowsChange(Number.NaN, 1, 100)).toBe(false);
     expect(headerShowsChange(1, Number.POSITIVE_INFINITY, 100)).toBe(false);
+  });
+
+  /* SECOND SITE — found on prod after the ChartsDashboard fix shipped.
+   * MainChart's own price row rendered "381.33 +0.00 (+0.00%)" in green beside
+   * HISTORICAL BARS VERIFIED while the tape showed TSLA +24.04 (+6.73%).
+   * Its guard checked only finiteness, and 0/0 are finite. */
+  describe("MainChart price row (sibling site)", () => {
+    it("finiteness alone no longer proves a provider reference", () => {
+      expect(mainChart).toContain("!(ticker.change === 0 && ticker.changePct === 0)");
+    });
+
+    it("an exactly-zero change is not painted as up", () => {
+      expect(mainChart).toContain("const up        = change > 0;");
+      expect(mainChart).not.toContain("const up        = change >= 0;");
+    });
+
+    it("keeps the honest fallback branch it already had", () => {
+      expect(mainChart).toContain("(change unavailable)");
+      expect(mainChart).toContain("no verified reference close");
+    });
+
+    it("both change-display sites share the same guard shape", () => {
+      const guard = "!(ticker.change === 0 && ticker.changePct === 0)";
+      expect(src).toContain(guard);
+      expect(mainChart).toContain(guard);
+    });
   });
 });

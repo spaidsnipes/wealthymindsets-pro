@@ -6125,10 +6125,20 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   // change reference produced a fabricated ~ -18.78% header on TSLA when the real
   // day-change was +0.06%. Only trust a change value that came from a real quote
   // provider (ticker.change/changePct). Otherwise render "—" and label truthfully.
-  const hasProviderChange = Number.isFinite(ticker.change) && Number.isFinite(ticker.changePct);
+  // useWebSocket.flush() only writes change/changePct once prevCloseRef holds a
+  // REAL prior close; until then it leaves them at their initial 0 while still
+  // updating price. Finiteness alone therefore does NOT prove a provider
+  // reference exists — 0 and 0 are perfectly finite. Observed on prod:
+  // "381.33 +0.00 (+0.00%)" rendered in green beside HISTORICAL BARS VERIFIED
+  // while the tape showed TSLA +24.04 (+6.73%) for the same symbol.
+  // Sibling of the ChartsDashboard header fix (00373bd).
+  const hasProviderChange = Number.isFinite(ticker.change)
+    && Number.isFinite(ticker.changePct)
+    && !(ticker.change === 0 && ticker.changePct === 0);
   const change    = hasProviderChange ? (ticker.change as number) : 0;
   const changePct = hasProviderChange ? (ticker.changePct as number).toFixed(2) : "—";
-  const up        = change >= 0;
+  // Three-state: an exactly-zero change is flat, never "up".
+  const up        = change > 0;
   const last      = candles[candles.length - 1];
   const dp        = base < 10 ? 4 : 2;
 
