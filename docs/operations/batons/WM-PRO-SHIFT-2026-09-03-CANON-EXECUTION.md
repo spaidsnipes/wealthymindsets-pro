@@ -105,8 +105,11 @@ Any drawer-geometry audit must assert `visibilityState === "visible"` first.
 - selectChannelCoverageHealth — TESTED + PROVEN (live-verified on /nectar)
 - evidence-debt count integrity — TESTED + PROVEN (live-verified /command-deck)
 - Passport punctuation — TESTED + PROVEN (live-verified)
+- 24X7 session identity — TESTED + **PROVEN**. Prod snapshot id now reads
+  `chart:BTC:24X7:1m:...` (was `:RTH:`), and the Market Object Passport control
+  returned for BTC once producer/reader key agreement was restored — confirming
+  the 528dcc3 diagnosis end to end.
 - /journal Setup unset visibility — TESTED (not yet live-verified)
-- 24X7 session identity — TESTED (live verification pending rebuild)
 - /morning-prep data health — TESTED (not yet live-verified)
 
 ## TEST POSTURE
@@ -117,8 +120,6 @@ Any drawer-geometry audit must assert `visibilityState === "visible"` first.
   stale indicator while the same page proves those channels are STALE. The
   card surfaces static fidelityClass and never surfaces coverageState. This is
   the same class as the ribbon defect and is the strongest next atom.
-- PASSPORT control renders for TSLA but not BTC — re-check after 528dcc3
-  deploys; the key-mismatch fix is the likely cause and may already resolve it.
 - `/journal` "AI Strategy Coach" tab label; panel is pure JS aggregation.
 - Provider truth unchanged: Webull BLOCKED_AUTH (401), Longbridge NOT
   CONFIGURED, moomoo bridge absent, Tastytrade refresh token absent.
