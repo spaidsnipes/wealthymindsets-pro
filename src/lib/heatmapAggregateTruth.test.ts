@@ -53,7 +53,10 @@ describe("Heat Map aggregate truth", () => {
     expect(page).not.toContain("allStocks.reduce((sum, st) => sum + (pcts[st.sym] ?? 0)");
     expect(page).not.toContain("const industryPct");
     expect(page).toContain("setActiveSymbol(sym)");
-    expect(page).toContain('router.push("/charts")');
+    // Canonical chart route is still the ONLY navigation owner. The symbol is
+    // now carried in the query so the resulting chart is shareable and survives
+    // reload (Founding Contract §13 Scanner → Deck → Chart continuity).
+    expect(page).toMatch(/router\.push\(`\/charts\?symbol=\$\{encodeURIComponent\(sym\)\}`\)/);
   });
 
   it("fails closed in the Industry Tooltip and Markov scenario surface", () => {

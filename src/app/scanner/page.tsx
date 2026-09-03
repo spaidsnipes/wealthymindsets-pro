@@ -776,7 +776,7 @@ export default function ScannerPage() {
                       className={clsx("p-1 rounded transition-colors",r.alerted?"text-wm-gold":"text-wm-text-dim hover:text-wm-gold")}>
                       <Bell size={11} className={r.alerted?"fill-wm-gold":""}/>
                     </button>
-                    <button onClick={e=>{e.stopPropagation();setActiveSymbol(r.symbol);router.push("/charts");}}
+                    <button onClick={e=>{e.stopPropagation();setActiveSymbol(r.symbol);router.push(`/charts?symbol=${encodeURIComponent(r.symbol)}`);}}
                       aria-label={`Open ${r.symbol} chart`}
                       className="p-1 rounded text-wm-text-dim hover:text-wm-blue transition-colors" title={`Open ${r.symbol} chart`}>
                       <BarChart2 size={11}/>
@@ -863,7 +863,7 @@ export default function ScannerPage() {
                       selected.alerted ? "bg-wm-gold/15 text-wm-gold border-wm-gold/40" : "bg-wm-surface border-wm-border text-wm-text-muted hover:text-wm-gold hover:border-wm-gold/40")}>
                     <Bell size={12}/> {selected.alerted?"Alert ON":"Set Alert"}
                   </button>
-                  <button onClick={()=>{setActiveSymbol(selected.symbol);router.push("/charts");}}
+                  <button onClick={()=>{setActiveSymbol(selected.symbol);router.push(`/charts?symbol=${encodeURIComponent(selected.symbol)}`);}}
                     className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold bg-wm-blue/15 text-wm-blue border border-wm-blue/40 hover:bg-wm-blue/25 transition-all">
                     <BarChart2 size={12}/> Open Chart
                   </button>

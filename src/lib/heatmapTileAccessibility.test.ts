@@ -34,7 +34,10 @@ describe("Heat Map stock tile accessibility and missing-row truth", () => {
     expect(page).toContain('WebkitOverflowScrolling: "touch"');
     expect(page).toContain('touchAction: "pan-x pan-y"');
     expect(page).toContain("setActiveSymbol(sym)");
-    expect(page).toContain('router.push("/charts")');
+    // Canonical chart route is still the ONLY navigation owner. The symbol is
+    // now carried in the query so the resulting chart is shareable and survives
+    // reload (Founding Contract §13 Scanner → Deck → Chart continuity).
+    expect(page).toMatch(/router\.push\(`\/charts\?symbol=\$\{encodeURIComponent\(sym\)\}`\)/);
     expect(page).toContain("onClick={() => goToChart(st.sym)}");
   });
 });

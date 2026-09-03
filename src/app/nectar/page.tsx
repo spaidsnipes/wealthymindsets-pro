@@ -72,7 +72,9 @@ export default function NectarVaultPage() {
   const { setActiveSymbol, activeSymbol } = useActiveSymbol();
   const openOnChart = React.useCallback((symbol: string) => {
     setActiveSymbol(symbol);
-    router.push("/charts");
+    // Carry the symbol in the URL so the resulting chart is shareable and
+    // survives reload — context alone leaves a bare /charts address.
+    router.push(`/charts?symbol=${encodeURIComponent(symbol)}`);
   }, [router, setActiveSymbol]);
 
   // On SSR + pre-mount client: both trees see the same empty session

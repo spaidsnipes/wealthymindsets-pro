@@ -876,7 +876,7 @@ export default function HeatmapsPage() {
 
   const goToChart = useCallback((sym: string) => {
     setActiveSymbol(sym);
-    router.push("/charts");
+    router.push(`/charts?symbol=${encodeURIComponent(sym)}`);
   }, [setActiveSymbol, router]);
 
   const totalWeight = SECTORS.reduce((s, sec) => s + sec.weight, 0);

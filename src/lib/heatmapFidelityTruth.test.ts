@@ -51,7 +51,10 @@ describe("Heat Map fidelity truth", () => {
     expect(route).toContain("fetchMultiDay(syms, daysForPeriod(period))");
     expect(route).toContain("sourceProvenance: \"yahoo-finance-proxy\"");
     expect(page).toContain('const HM_CACHE_PREFIX = "wm_heatmap_"');
-    expect(page).toContain('router.push("/charts")');
+    // Canonical chart route is still the ONLY navigation owner. The symbol is
+    // now carried in the query so the resulting chart is shareable and survives
+    // reload (Founding Contract §13 Scanner → Deck → Chart continuity).
+    expect(page).toMatch(/router\.push\(`\/charts\?symbol=\$\{encodeURIComponent\(sym\)\}`\)/);
   });
 
   it("deduplicates provider refreshes and prevents overlapping client polls", () => {

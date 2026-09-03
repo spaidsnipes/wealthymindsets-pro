@@ -645,7 +645,7 @@ export default function NewsPage() {
   const goToChart = useCallback((sym: string) => {
     if (!sym || sym === "MARKET") return;
     setActiveSymbol(sym);
-    router.push("/charts");
+    router.push(`/charts?symbol=${encodeURIComponent(sym)}`);
   }, [setActiveSymbol, router]);
 
   /* Fetch real news from Finnhub on mount + every 2 minutes */

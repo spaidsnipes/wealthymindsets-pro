@@ -81,7 +81,7 @@ export default function NectarSymbolDetailPage() {
   const { setActiveSymbol } = useActiveSymbol();
   const openOnChart = React.useCallback(() => {
     setActiveSymbol(symbol);
-    router.push("/charts");
+    router.push(`/charts?symbol=${encodeURIComponent(symbol)}`);
   }, [router, setActiveSymbol, symbol]);
 
   // Shift-Z Z1: Market Canvas VM — third canonical consumer of the shared

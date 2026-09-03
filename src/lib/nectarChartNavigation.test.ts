@@ -8,13 +8,15 @@ const detailPage = readFileSync(resolve(__dirname, "../app/nectar/[symbol]/page.
 describe("Nectar chart navigation contract", () => {
   it("sets the card symbol before navigating to the canonical chart route", () => {
     expect(indexPage).toContain("const openOnChart = React.useCallback((symbol: string) => {");
-    expect(indexPage).toMatch(/setActiveSymbol\(symbol\);\s+router\.push\("\/charts"\);/);
+    // Symbol is still set BEFORE navigation, and the route is still /charts —
+    // the symbol now also rides in the query so the chart is shareable.
+    expect(indexPage).toMatch(/setActiveSymbol\(symbol\);[\s\S]{0,220}?router\.push\(`\/charts\?symbol=\$\{encodeURIComponent\(symbol\)\}`\);/);
     expect(indexPage).toContain("onOpen={() => openOnChart(symbol)}");
   });
 
   it("uses the same exact-symbol transition for observed and unobserved detail states", () => {
     expect(detailPage).toContain("const openOnChart = React.useCallback(() => {");
-    expect(detailPage).toMatch(/setActiveSymbol\(symbol\);\s+router\.push\("\/charts"\);/);
+    expect(detailPage).toMatch(/setActiveSymbol\(symbol\);\s+router\.push\(`\/charts\?symbol=\$\{encodeURIComponent\(symbol\)\}`\);/);
     expect(detailPage).toContain("<UnobservedState symbol={symbol} onOpen={openOnChart} />");
     expect(detailPage).toContain("onOpen={openOnChart}");
   });
