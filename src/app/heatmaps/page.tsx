@@ -627,6 +627,7 @@ function useLivePct(tf: string) {
   const [qualityState, setQualityState] = useState<ContextDataState>("UNKNOWN");
   const [fidelityReason, setFidelityReason] = useState("Market-data fidelity has not been established.");
   const [resolvedTf, setResolvedTf] = useState(tf);
+  const [retainedSnapshot, setRetainedSnapshot] = useState(false);
   const retainedRowsRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
@@ -638,6 +639,7 @@ function useLivePct(tf: string) {
         setReceivedAt(null);
         setQualityState("UNKNOWN");
         setFidelityReason("No retained heat-map data is available.");
+        setRetainedSnapshot(false);
         setLoading(true);
         setResolvedTf(tf);
         return;
@@ -651,6 +653,7 @@ function useLivePct(tf: string) {
       setFidelityReason(Object.keys(cached.data ?? {}).length
         ? "Retained browser snapshot; current refresh is not yet confirmed."
         : "No retained heat-map data is available.");
+      setRetainedSnapshot(Object.keys(cachedRows).length > 0);
       setLoading(Object.keys(cachedRows).length === 0);
       setResolvedTf(tf);
     } catch {
@@ -659,6 +662,7 @@ function useLivePct(tf: string) {
       setReceivedAt(null);
       setQualityState("UNKNOWN");
       setFidelityReason("Retained heat-map data could not be read.");
+      setRetainedSnapshot(false);
       setLoading(true);
       setResolvedTf(tf);
     }
@@ -697,6 +701,10 @@ function useLivePct(tf: string) {
           setReceivedAt(receivedAt);
           setQualityState(json.qualityState ?? "UNKNOWN");
           setFidelityReason(json.fidelityReason ?? "Market-data fidelity has not been established.");
+          // A successful HTTP response can still be a retained server cache.
+          // Keep the calm primary label bound to the route's explicit cache
+          // receipt so it cannot contradict the detailed fidelity reason.
+          setRetainedSnapshot(json.cacheHit === true);
           setResolvedTf(tf);
           // Cache to localStorage for instant re-load
           try { localStorage.setItem(HM_CACHE_PREFIX + tf, JSON.stringify({ data: json.results, ts: receivedAt })); } catch {}
@@ -710,6 +718,7 @@ function useLivePct(tf: string) {
           setFidelityReason(hasRetainedRows
             ? "Refresh failed; showing a retained browser snapshot."
             : "Heat-map data is unavailable and fidelity is unknown.");
+          setRetainedSnapshot(hasRetainedRows);
         }
       }
       finally {
@@ -737,10 +746,11 @@ function useLivePct(tf: string) {
       receivedAt: null,
       qualityState: "UNKNOWN" as const,
       fidelityReason: "Checking the selected timeframe; fidelity is not established yet.",
+      retainedSnapshot: false,
     };
   }
 
-  return { pcts, loading, receivedAt, qualityState, fidelityReason };
+  return { pcts, loading, receivedAt, qualityState, fidelityReason, retainedSnapshot };
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -859,7 +869,7 @@ export default function HeatmapsPage() {
   const [activeTF,   setActiveTF]   = useState("1D");
   const [hovered,    setHovered]    = useState<{ industry: Industry; x: number; y: number } | null>(null);
   const [search,     setSearch]     = useState("");
-  const { pcts, loading: heatLoading, receivedAt, qualityState, fidelityReason } = useLivePct(activeTF);
+  const { pcts, loading: heatLoading, receivedAt, qualityState, fidelityReason, retainedSnapshot } = useLivePct(activeTF);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { setActiveSymbol } = useActiveSymbol();
@@ -984,25 +994,69 @@ export default function HeatmapsPage() {
             style={{ fontSize: 10, color: "#4FA3E0", marginLeft: 4 }}
           >Loading…</span>
         )}
-        {/* Replaces the previous inline single-color span with the shared
-            QualityBadge primitive. Receipt time stays secondary and is never
-            passed as market-observation freshness. */}
-        <div
-          title="Heat-map returns are observed snapshots, not an executable quote feed."
-          style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }}
-        >
+        {/* Calm primary truth: stale retained rows are named before the trader
+            reaches the map. Provenance and receipt chronology remain one
+            deliberate disclosure away; receipt time never masquerades as
+            market-observation freshness. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <QualityBadge
             state={qualityState}
           />
-          <span style={{ fontSize: 9, color: "#8892A0", letterSpacing: 0.2, maxWidth: 250 }}>
-            {fidelityReason}
+          <span
+            style={{
+              fontSize: 10,
+              color: retainedSnapshot ? "#F0B429" : "#8892A0",
+              fontWeight: 800,
+              letterSpacing: 0.5,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {retainedSnapshot
+              ? "RETAINED SNAPSHOT"
+              : Object.keys(pcts).length > 0
+                ? "OBSERVED SNAPSHOT"
+                : "NO MAP DATA"}
           </span>
-          {receivedAt && (
-            <span style={{ fontSize: 9, color: "#5A6575", letterSpacing: 0.3 }}>
-              received {new Date(receivedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · receipt time only
-            </span>
-          )}
         </div>
+        <details className="wm-heatmap-receipt-details">
+          <summary
+            style={{
+              minHeight: 44,
+              display: "inline-flex",
+              alignItems: "center",
+              cursor: "pointer",
+              color: "#8892A0",
+              fontSize: 10,
+              fontWeight: 700,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Data receipt
+          </summary>
+          <div
+            role="note"
+            style={{
+              position: "absolute",
+              zIndex: 30,
+              maxWidth: 320,
+              padding: "10px 12px",
+              border: "1px solid #2D3748",
+              borderRadius: 8,
+              background: "#111620",
+              color: "#A5ADBA",
+              fontSize: 10,
+              lineHeight: 1.5,
+              boxShadow: "0 12px 30px rgba(0,0,0,.45)",
+            }}
+          >
+            <div>{fidelityReason}</div>
+            {receivedAt && (
+              <div style={{ marginTop: 4, color: "#697386" }}>
+                Received {new Date(receivedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · receipt time only
+              </div>
+            )}
+          </div>
+        </details>
         <div style={{ flex: 1 }} />
         <input
           value={search}

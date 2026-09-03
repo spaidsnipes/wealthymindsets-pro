@@ -28,6 +28,10 @@ describe("Heat Map fidelity truth", () => {
     expect(page).toContain("if (Object.keys(retainedRowsRef.current).length === 0) setLoading(true)");
     expect(page).toContain("if (resolvedTf !== tf)");
     expect(page).toContain("Checking the selected timeframe; fidelity is not established yet");
+    expect(page).toContain("setRetainedSnapshot(hasRetainedRows)");
+    expect(page).toContain("setRetainedSnapshot(json.cacheHit === true)");
+    expect(page).toContain('retainedSnapshot: false');
+    expect(page).toContain('"RETAINED SNAPSHOT"');
     expect(page).not.toContain('setQualityState(json.qualityState ?? "DELAYED")');
     expect(page).not.toContain("freshnessMs={receivedAt");
     expect(page).toContain("receipt time only");

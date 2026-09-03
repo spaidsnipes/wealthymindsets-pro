@@ -19,4 +19,14 @@ describe("heatmap toolbar transformation", () => {
     expect(page).toContain("onChange={event => setActiveTF(event.target.value)}");
     expect(page).toContain("{TIMEFRAMES.map(tf => <option");
   });
+
+  it("keeps retained-snapshot truth primary and receipt chronology progressive", () => {
+    expect(page).toContain('? "RETAINED SNAPSHOT"');
+    expect(page).toContain('? "OBSERVED SNAPSHOT"');
+    expect(page).toContain(': "NO MAP DATA"');
+    expect(page).toContain('className="wm-heatmap-receipt-details"');
+    expect(page).toContain("Data receipt");
+    expect(page).toContain('role="note"');
+    expect(page).toContain("receipt time only");
+  });
 });
