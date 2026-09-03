@@ -37,7 +37,12 @@ describe("Paper options actionability enforcement", () => {
     expect(openHandler).toContain("actionablePaperQuotePrice(quoteReadiness[p.underlying])");
     expect(openHandler).toContain("if (uPx == null) return");
     expect(closeHandler).toContain("actionablePaperQuotePrice(quoteReadiness[op.underlying])");
-    expect(closeHandler).toContain("return prev");
+    // The guard now bails BEFORE any state mutation rather than from inside a
+    // setState updater. React requires updaters to be pure and may replay them,
+    // so the old shape risked crediting proceeds twice; the readiness guard
+    // itself is unchanged and still blocks the close.
+    expect(closeHandler).toMatch(/== null\) return;/);
+    expect(closeHandler).not.toContain("setCash(c => c + proceeds);\n      setTrades");
   });
 
   it("withholds current equity and leaderboard return when any option is unmarked", () => {
@@ -57,5 +62,44 @@ describe("Paper options actionability enforcement", () => {
     expect(paperStyles).toContain("@media (max-width: 767px)");
     expect(paperStyles).toContain("flex-direction: column");
     expect(paperStyles).toContain("min-height: 44px");
+  });
+});
+
+/**
+ * setState updaters must stay pure.
+ *
+ * closeOption() performed setCash, setTrades and earnWMS from INSIDE the
+ * setOptionPositions updater. React requires updaters to be pure and may
+ * invoke them more than once — StrictMode does so deliberately, and concurrent
+ * rendering can discard and replay a render. A replay would have credited the
+ * proceeds twice, duplicated the blotter row and awarded the points again.
+ * Relying on single invocation is undefined behaviour, not a guarantee.
+ */
+describe("paper state updaters are pure", () => {
+  const page = paperPage;
+
+  function updaterBody(startMarker: string, endMarker: string): string {
+    const a = page.indexOf(startMarker);
+    const b = page.indexOf(endMarker, a);
+    expect(a).toBeGreaterThan(-1);
+    expect(b).toBeGreaterThan(a);
+    return page.slice(a, b);
+  }
+
+  it("closeOption performs no state mutation inside the positions updater", () => {
+    const body = updaterBody("const closeOption = useCallback", "const cancelOrder");
+    const updaterStart = body.indexOf("setOptionPositions(prev =>");
+    expect(updaterStart).toBeGreaterThan(-1);
+    // The updater is a single pure filter expression.
+    const updater = body.slice(updaterStart, body.indexOf(");", updaterStart));
+    expect(updater).toContain("prev.filter");
+    expect(updater).not.toContain("setCash");
+    expect(updater).not.toContain("setTrades");
+    expect(updater).not.toContain("earnWMS");
+  });
+
+  it("closeOption reads the position from a ref, not from updater state", () => {
+    const body = updaterBody("const closeOption = useCallback", "const cancelOrder");
+    expect(body).toContain("optionPositionsRef.current.find");
   });
 });

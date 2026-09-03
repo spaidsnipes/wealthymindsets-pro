@@ -878,6 +878,10 @@ export default function PaperTradingPage() {
 
   // Options positions (Black-Scholes paper sim)
   const [optionPositions, setOptionPositions] = useState<OptionPosition[]>([]);
+  // Mirror for callbacks that must read the current list without depending on
+  // it (and without reading it from inside a setState updater).
+  const optionPositionsRef = useRef<OptionPosition[]>([]);
+  useEffect(() => { optionPositionsRef.current = optionPositions; }, [optionPositions]);
 
   const applyStoredState = useCallback((saved: PaperState) => {
     paperRevisionRef.current = saved.revision;
@@ -1139,22 +1143,30 @@ export default function PaperTradingPage() {
 
   const closeOption = useCallback((id:string, exitPrem:number) => {
     if (!Number.isFinite(exitPrem) || exitPrem < 0) return;
-    setOptionPositions(prev => {
-      const op = prev.find(o => o.id===id);
-      if (!op) return prev;
-      if (actionablePaperQuotePrice(quoteReadiness[op.underlying]) == null) return prev;
-      const bid = Math.max(0, exitPrem - Math.max(0.02, exitPrem*0.03)); // sell the bid
-      const proceeds = bid * op.qty * OPT_MULTIPLIER;
-      const pnl = (bid - op.entryPrem) * op.qty * OPT_MULTIPLIER;
-      setCash(c => c + proceeds);
-      setTrades(t => [{
-        id:uid(),
-        symbol:`${op.underlying} ${op.strike}${op.type==="call"?"C":"P"}`,
-        side:"sell", qty:op.qty, px:bid, ts:Date.now(), pnl,
-      }, ...t]);
-      if (pnl > 0) earnWMS(25, `📈 Options win on ${op.underlying}`);
-      return prev.filter(o => o.id!==id);
-    });
+    // Side effects must NOT live inside a setState updater. React requires
+    // updaters to be pure and may invoke them more than once — StrictMode does
+    // so deliberately, and concurrent rendering can discard and replay a
+    // render. This previously called setCash, setTrades and earnWMS from
+    // inside the setOptionPositions updater, so a replay would credit the
+    // proceeds twice, duplicate the blotter row and award the points again.
+    // Relying on single invocation is undefined behaviour, not a guarantee.
+    const op = optionPositionsRef.current.find(o => o.id===id);
+    if (!op) return;
+    if (actionablePaperQuotePrice(quoteReadiness[op.underlying]) == null) return;
+
+    const bid = Math.max(0, exitPrem - Math.max(0.02, exitPrem*0.03)); // sell the bid
+    const proceeds = bid * op.qty * OPT_MULTIPLIER;
+    const pnl = (bid - op.entryPrem) * op.qty * OPT_MULTIPLIER;
+
+    // Pure updater: removal only. Idempotent if replayed.
+    setOptionPositions(prev => prev.filter(o => o.id!==id));
+    setCash(c => c + proceeds);
+    setTrades(t => [{
+      id:uid(),
+      symbol:`${op.underlying} ${op.strike}${op.type==="call"?"C":"P"}`,
+      side:"sell", qty:op.qty, px:bid, ts:Date.now(), pnl,
+    }, ...t]);
+    if (pnl > 0) earnWMS(25, `📈 Options win on ${op.underlying}`);
   }, [earnWMS, quoteReadiness]);
 
   const cancelOrder = (id: string) => {
