@@ -20,7 +20,12 @@ describe("Options Chain truth and responsive surface", () => {
   it("gives loading precedence and suppresses stale chain statistics", () => {
     expect(optionsChain).toContain('const hasAvailableData = !loading && dataSource === "fmp" && chain.length > 0');
     expect(optionsChain).toContain('loading\n    ? "CHECKING · FIDELITY UNKNOWN"');
-    expect(optionsChain).toContain("{hasAvailableData && <>");
+    // Footer stats moved into an IIFE to derive an observed-only OI summary.
+    // The gate itself is the invariant: statistics must not render without
+    // available data. Assert the gate, and that the summary sits INSIDE it.
+    const gate = optionsChain.indexOf("{hasAvailableData && (() => {");
+    expect(gate).toBeGreaterThan(-1);
+    expect(optionsChain.indexOf("summariseOpenInterest(chain)")).toBeGreaterThan(gate);
     expect(optionsChain).toContain("{hasAvailableData && atm && (");
     expect(optionsChain).toContain('loading\n            ? "Checking options availability · fidelity UNKNOWN"');
   });

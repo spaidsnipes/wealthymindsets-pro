@@ -10,15 +10,23 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { X, TrendingUp, RefreshCw, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 import { clsx } from "clsx";
+import { formatOptionCount, formatOptionNumber, formatOptionPercent,
+         summariseOpenInterest } from "@/lib/optionCellFormat";
+
+/**
+ * Every quoted field is optional: an unquoted strike has NO number, and must
+ * not be coerced to 0. Only `strike` and `itm` are always known.
+ */
+type Quoted = number | undefined;
 
 interface OptionRow {
   strike:   number;
-  cBid:     number;  cAsk:   number;  cLast:  number;
-  cIV:      number;  cDelta: number;  cGamma: number;
-  cTheta:   number;  cVega:  number;  cOI:    number;  cVol: number;
-  pBid:     number;  pAsk:   number;  pLast:  number;
-  pIV:      number;  pDelta: number;  pGamma: number;
-  pTheta:   number;  pVega:  number;  pOI:    number;  pVol: number;
+  cBid:     Quoted;  cAsk:   Quoted;  cLast:  Quoted;
+  cIV:      Quoted;  cDelta: Quoted;  cGamma: Quoted;
+  cTheta:   Quoted;  cVega:  Quoted;  cOI:    Quoted;  cVol: Quoted;
+  pBid:     Quoted;  pAsk:   Quoted;  pLast:  Quoted;
+  pIV:      Quoted;  pDelta: Quoted;  pGamma: Quoted;
+  pTheta:   Quoted;  pVega:  Quoted;  pOI:    Quoted;  pVol: Quoted;
   itm:      "call" | "put" | "atm" | "unknown";
 }
 
@@ -71,16 +79,18 @@ function buildChain(contracts: FMPContract[], spot: number, expiry: string): Opt
     const itm: OptionRow["itm"] = atm == null ? "unknown" : strike === atm ? "atm" : strike < spot ? "call" : "put";
     return {
       strike,
-      cBid:   call?.bid   ?? 0,  cAsk:  call?.ask  ?? 0,  cLast: call?.last ?? 0,
-      cIV:    call?.impliedVolatility ?? 0,
-      cDelta: call?.delta ?? 0,  cGamma: call?.gamma ?? 0,
-      cTheta: call?.theta ?? 0,  cVega:  call?.vega  ?? 0,
-      cOI:    call?.openInterest ?? 0, cVol: call?.volume ?? 0,
-      pBid:   put?.bid   ?? 0,   pAsk:  put?.ask   ?? 0,  pLast: put?.last ?? 0,
-      pIV:    put?.impliedVolatility ?? 0,
-      pDelta: put?.delta ?? 0,   pGamma: put?.gamma ?? 0,
-      pTheta: put?.theta ?? 0,   pVega:  put?.vega  ?? 0,
-      pOI:    put?.openInterest ?? 0, pVol: put?.volume ?? 0,
+      // No `?? 0`: an unquoted contract stays undefined all the way to the
+      // cell, which renders it as "—" instead of a confident zero.
+      cBid:   call?.bid,   cAsk:  call?.ask,  cLast: call?.last,
+      cIV:    call?.impliedVolatility,
+      cDelta: call?.delta, cGamma: call?.gamma,
+      cTheta: call?.theta, cVega:  call?.vega,
+      cOI:    call?.openInterest, cVol: call?.volume,
+      pBid:   put?.bid,    pAsk:  put?.ask,   pLast: put?.last,
+      pIV:    put?.impliedVolatility,
+      pDelta: put?.delta,  pGamma: put?.gamma,
+      pTheta: put?.theta,  pVega:  put?.vega,
+      pOI:    put?.openInterest, pVol: put?.volume,
       itm,
     };
   });
@@ -195,8 +205,8 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
         </span>
         {hasAvailableData && atm && (
           <div className="ml-3 flex items-center gap-2 text-[10px] text-wm-text-dim">
-            <span>ATM IV: <span className="text-wm-gold font-bold">{(atm.cIV * 100).toFixed(1)}%</span></span>
-            <span>ATM Δ: <span className="text-wm-blue font-bold">{atm.cDelta.toFixed(2)}</span></span>
+            <span>ATM IV: <span className="text-wm-gold font-bold">{formatOptionPercent(atm.cIV)}</span></span>
+            <span>ATM Δ: <span className="text-wm-blue font-bold">{formatOptionNumber(atm.cDelta, 2)}</span></span>
           </div>
         )}
         <div className="ml-auto flex items-center gap-2">
@@ -308,17 +318,17 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
                     isATM ? "bg-wm-gold/05 border-y border-wm-gold/20" : "")}>
                   {tab !== "puts" && <>
                     {showGreeks ? <>
-                      <td className={clsx("px-2 py-1.5 font-mono", callITM ? "text-wm-green font-semibold" : "text-wm-text-dim")}>{row.cDelta.toFixed(2)}</td>
-                      <td className="px-2 py-1.5 font-mono text-wm-text-dim">{row.cGamma.toFixed(4)}</td>
-                      <td className="px-2 py-1.5 font-mono text-wm-text-dim">{row.cTheta.toFixed(2)}</td>
-                      <td className="px-2 py-1.5 font-mono text-wm-text-dim">{row.cVega.toFixed(2)}</td>
+                      <td className={clsx("px-2 py-1.5 font-mono", callITM ? "text-wm-green font-semibold" : "text-wm-text-dim")}>{formatOptionNumber(row.cDelta, 2)}</td>
+                      <td className="px-2 py-1.5 font-mono text-wm-text-dim">{formatOptionNumber(row.cGamma, 4)}</td>
+                      <td className="px-2 py-1.5 font-mono text-wm-text-dim">{formatOptionNumber(row.cTheta, 2)}</td>
+                      <td className="px-2 py-1.5 font-mono text-wm-text-dim">{formatOptionNumber(row.cVega, 2)}</td>
                     </> : <>
-                      <td className={clsx("px-2 py-1.5 font-mono", callITM ? "text-wm-text" : "text-wm-text-dim")}>{row.cOI.toLocaleString()}</td>
-                      <td className="px-2 py-1.5 font-mono text-wm-text-dim">{row.cVol.toLocaleString()}</td>
+                      <td className={clsx("px-2 py-1.5 font-mono", callITM ? "text-wm-text" : "text-wm-text-dim")}>{formatOptionCount(row.cOI)}</td>
+                      <td className="px-2 py-1.5 font-mono text-wm-text-dim">{formatOptionCount(row.cVol)}</td>
                     </>}
-                    <td className="px-2 py-1.5 font-mono text-wm-gold">{(row.cIV * 100).toFixed(1)}%</td>
-                    <td className={clsx("px-2 py-1.5 font-mono font-semibold", callITM ? "text-wm-green" : "text-wm-text-muted")}>{row.cBid.toFixed(2)}</td>
-                    <td className={clsx("px-2 py-1.5 font-mono font-semibold", callITM ? "text-wm-green" : "text-wm-text-muted")}>{row.cAsk.toFixed(2)}</td>
+                    <td className="px-2 py-1.5 font-mono text-wm-gold">{formatOptionPercent(row.cIV)}</td>
+                    <td className={clsx("px-2 py-1.5 font-mono font-semibold", callITM ? "text-wm-green" : "text-wm-text-muted")}>{formatOptionNumber(row.cBid, 2)}</td>
+                    <td className={clsx("px-2 py-1.5 font-mono font-semibold", callITM ? "text-wm-green" : "text-wm-text-muted")}>{formatOptionNumber(row.cAsk, 2)}</td>
                   </>}
                   <td className={clsx("px-3 py-1.5 text-center font-mono font-bold",
                     isATM ? "text-wm-gold bg-wm-gold/08" : "text-wm-text bg-wm-surface/20")}>
@@ -326,17 +336,17 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
                     {isATM && <span className="ml-1 text-[8px] text-wm-gold">ATM</span>}
                   </td>
                   {tab !== "calls" && <>
-                    <td className={clsx("px-2 py-1.5 font-mono text-right font-semibold", putITM ? "text-wm-red" : "text-wm-text-muted")}>{row.pBid.toFixed(2)}</td>
-                    <td className={clsx("px-2 py-1.5 font-mono text-right font-semibold", putITM ? "text-wm-red" : "text-wm-text-muted")}>{row.pAsk.toFixed(2)}</td>
-                    <td className="px-2 py-1.5 font-mono text-right text-wm-gold">{(row.pIV * 100).toFixed(1)}%</td>
+                    <td className={clsx("px-2 py-1.5 font-mono text-right font-semibold", putITM ? "text-wm-red" : "text-wm-text-muted")}>{formatOptionNumber(row.pBid, 2)}</td>
+                    <td className={clsx("px-2 py-1.5 font-mono text-right font-semibold", putITM ? "text-wm-red" : "text-wm-text-muted")}>{formatOptionNumber(row.pAsk, 2)}</td>
+                    <td className="px-2 py-1.5 font-mono text-right text-wm-gold">{formatOptionPercent(row.pIV)}</td>
                     {showGreeks ? <>
-                      <td className={clsx("px-2 py-1.5 font-mono text-right", putITM ? "text-wm-red font-semibold" : "text-wm-text-dim")}>{row.pDelta.toFixed(2)}</td>
-                      <td className="px-2 py-1.5 font-mono text-right text-wm-text-dim">{row.pGamma.toFixed(4)}</td>
-                      <td className="px-2 py-1.5 font-mono text-right text-wm-text-dim">{row.pTheta.toFixed(2)}</td>
-                      <td className="px-2 py-1.5 font-mono text-right text-wm-text-dim">{row.pVega.toFixed(2)}</td>
+                      <td className={clsx("px-2 py-1.5 font-mono text-right", putITM ? "text-wm-red font-semibold" : "text-wm-text-dim")}>{formatOptionNumber(row.pDelta, 2)}</td>
+                      <td className="px-2 py-1.5 font-mono text-right text-wm-text-dim">{formatOptionNumber(row.pGamma, 4)}</td>
+                      <td className="px-2 py-1.5 font-mono text-right text-wm-text-dim">{formatOptionNumber(row.pTheta, 2)}</td>
+                      <td className="px-2 py-1.5 font-mono text-right text-wm-text-dim">{formatOptionNumber(row.pVega, 2)}</td>
                     </> : <>
-                      <td className="px-2 py-1.5 font-mono text-right text-wm-text-dim">{row.pVol.toLocaleString()}</td>
-                      <td className={clsx("px-2 py-1.5 font-mono text-right", putITM ? "text-wm-text" : "text-wm-text-dim")}>{row.pOI.toLocaleString()}</td>
+                      <td className="px-2 py-1.5 font-mono text-right text-wm-text-dim">{formatOptionCount(row.pVol)}</td>
+                      <td className={clsx("px-2 py-1.5 font-mono text-right", putITM ? "text-wm-text" : "text-wm-text-dim")}>{formatOptionCount(row.pOI)}</td>
                     </>}
                   </>}
                 </tr>
@@ -349,19 +359,34 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
 
       {/* Footer stats */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1 px-4 py-2 border-t border-wm-border shrink-0 bg-wm-dark">
-        {hasAvailableData && <>
-          <div className="text-[9px] text-wm-text-dim">
-            Calls OI: <span className="text-wm-green font-mono">{chain.reduce((s,r) => s+r.cOI,0).toLocaleString()}</span>
-          </div>
-          <div className="text-[9px] text-wm-text-dim">
-            Puts OI: <span className="text-wm-red font-mono">{chain.reduce((s,r) => s+r.pOI,0).toLocaleString()}</span>
-          </div>
-          <div className="text-[9px] text-wm-text-dim">
-            P/C Ratio: <span className="text-wm-gold font-mono">
-              {(chain.reduce((s,r)=>s+r.pOI,0)/Math.max(1,chain.reduce((s,r)=>s+r.cOI,0))).toFixed(2)}
-            </span>
-          </div>
-        </>}
+        {hasAvailableData && (() => {
+          // Totals derived only from quoted strikes; coverage stated when partial.
+          const oi = summariseOpenInterest(chain);
+          const coverage = oi.complete
+            ? "Every strike in this expiry reported open interest."
+            : `Derived from ${oi.observedCalls} call and ${oi.observedPuts} put strikes of ${oi.totalRows} listed.`;
+          return <>
+            <div className="text-[9px] text-wm-text-dim" title={coverage}>
+              Calls OI: <span className="text-wm-green font-mono">{oi.callsOI.toLocaleString("en-US")}</span>
+            </div>
+            <div className="text-[9px] text-wm-text-dim" title={coverage}>
+              Puts OI: <span className="text-wm-red font-mono">{oi.putsOI.toLocaleString("en-US")}</span>
+            </div>
+            <div className="text-[9px] text-wm-text-dim"
+              title={oi.putCallRatio == null
+                ? "No call open interest was observed, so a put/call ratio is not defined."
+                : coverage}>
+              P/C Ratio: <span className="text-wm-gold font-mono">
+                {formatOptionNumber(oi.putCallRatio, 2)}
+              </span>
+            </div>
+            {!oi.complete && (
+              <div className="text-[9px] text-wm-text-muted italic">
+                partial coverage · {oi.observedCalls}/{oi.totalRows} calls, {oi.observedPuts}/{oi.totalRows} puts
+              </div>
+            )}
+          </>;
+        })()}
         <div className="text-[9px] text-wm-text-dim italic sm:ml-auto">
           {loading
             ? "Checking options availability · fidelity UNKNOWN"
