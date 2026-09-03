@@ -618,7 +618,7 @@ function ManagedConnectionStatus({ broker }: { broker: Broker }) {
       </div>
       <p className="px-0.5 text-[9px] leading-snug text-wm-text-dim">
         This verifies WM Pro&apos;s server-side signed OpenAPI wire. Webull Connect OAuth—authorize, callback, token refresh,
-        per-user vault, and disconnect—is not implemented yet. Signing into Webull&apos;s website cannot connect this app.
+        per-user vault, and disconnect—is not implemented yet. Signing into Webull&apos;s website is separate and does not connect this app.
       </p>
     </div>
   );
