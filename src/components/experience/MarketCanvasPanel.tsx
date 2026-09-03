@@ -97,8 +97,12 @@ export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): Re
           data-testid="market-canvas-missing"
           style={{ marginBottom: (vm.blockers.length || vm.invalidators.length) ? 10 : 0 }}
         >
+          {/* These are state.unknowns — canonical DIMENSIONS that have not
+              resolved. They do not gate the verdict; blockers do. "Missing"
+              implied they were unpaid required evidence, so the panel appeared
+              to contradict an ACTION verdict rendered right above it. */}
           <div style={{ fontSize: 9, letterSpacing: 0.5, color: MUTED, marginBottom: 4, textTransform: "uppercase" }}>
-            Missing ({vm.missing.length})
+            Unresolved ({vm.missing.length})
           </div>
           {vm.missing.slice(0, 6).map((m, i) => (
             <div key={i} style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>{m}</div>

@@ -55,7 +55,7 @@ describe("MarketCanvasPanel — canon §Phase 3 Market Canvas", () => {
       <MarketCanvasPanel vm={vm({ missing: ["direction:unresolved", "regime:unresolved"] })} />,
     );
     expect(populated).toContain("market-canvas-missing");
-    expect(populated).toContain("Missing (2)");
+    expect(populated).toContain("Unresolved (2)");
     expect(populated).toContain("direction:unresolved");
     expect(populated).toContain("regime:unresolved");
   });
