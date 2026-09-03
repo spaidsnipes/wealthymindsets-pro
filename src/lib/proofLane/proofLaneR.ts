@@ -82,7 +82,30 @@ export function evaluateShutdown(input: DayShutdownInput): {
   cumulativeR: number;
   reason: string;
 } {
-  const maxLoss = input.maxDailyLossR ?? -2;
+  // This is a RISK CONTROL — the gate that stops a spiralling session. It must
+  // not silently return the permissive "OPEN" when its inputs are unresolvable.
+  //
+  // A non-finite R makes BOTH comparisons below false (NaN <= x and NaN >= y are
+  // each false), so a corrupted entry would have reported "Session open." while
+  // the chip rendered "NaNR" — the hard stop simply never fires. The live caller
+  // (/journal) filters with Number.isFinite first, so this was latent, but the
+  // primitive must defend itself rather than trust every future caller. This
+  // module already throws on unresolvable input (see realizedR), so failing loud
+  // is the established convention here rather than a new one.
+  for (const r of input.closedRs) {
+    if (!Number.isFinite(r)) {
+      throw new Error(
+        "proofLaneR: closedRs contains a non-finite R — the daily-loss stop cannot be evaluated from unresolved input (canon §5: if state cannot be resolved, do not report a permissive state).",
+      );
+    }
+  }
+
+  // Sign-convention guard. The default is -2 (negative = loss), but a caller
+  // passing `maxDailyLossR: 2` meaning "2R of loss" would make `cumulative <= 2`
+  // true for almost any session and trip the hard stop immediately. Normalise to
+  // a negative magnitude so both spellings mean the same thing.
+  const rawMaxLoss = input.maxDailyLossR ?? -2;
+  const maxLoss = rawMaxLoss > 0 ? -rawMaxLoss : rawMaxLoss;
   const target = input.shutdownTargetR ?? 3;
   const cumulative = input.closedRs.reduce((a, b) => a + b, 0);
   if (cumulative <= maxLoss) {
