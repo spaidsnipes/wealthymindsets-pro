@@ -437,19 +437,28 @@ export default function MorningPrepPage() {
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6,
                 padding: "5px 10px", borderRadius: 999,
-                background: "rgba(139,106,41,0.10)",
+                background: growthState === "unavailable" ? "rgba(139,106,41,0.05)" : "rgba(139,106,41,0.10)",
                 border: "1px solid rgba(139,106,41,0.35)",
-                color: "#c9a55c",
+                color: growthState === "unavailable" ? "#8a8271" : "#c9a55c",
                 fontSize: 11, fontWeight: 700, letterSpacing: 0.16,
                 fontVariantNumeric: "tabular-nums",
               }}
+              title={growthState === "unavailable"
+                ? "Growth Rings could not be reached this session. This chip shows no count because none was retrieved — it is not a tally of zero."
+                : undefined}
             >
               <Target size={13} />
+              {/* §Silence Is A Feature: a failed branch names the real failure
+                  class. It must NOT swap a different metric into the same
+                  affordance — this slot previously rendered the local journal
+                  entry count on failure, under the same Target icon that means
+                  Growth Rings, so an unreachable feature read as a real tally
+                  of zero. */}
               {growthState === "connected"
                 ? `${growthRecords} Growth Ring${growthRecords === 1 ? "" : "s"}`
                 : growthState === "loading"
                   ? "Opening Growth Rings…"
-                  : `${entries.length} local record${entries.length === 1 ? "" : "s"}`}
+                  : "Growth Rings unavailable"}
             </div>
             <div style={{ flex: 1, minWidth: 8 }} />
             <button
