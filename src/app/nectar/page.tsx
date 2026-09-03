@@ -19,7 +19,7 @@ import { WmWordmark } from "@/components/brand/WmWordmark";
 import { SectionBanner } from "@/components/brand/SectionBanner";
 import { Panel } from "@/components/ui/Panel";
 import { WM } from "@/lib/design/wmTokens";
-import { fmtNum, formatMemoryAge, fidelityToTone } from "@/lib/nectarFormat";
+import { fmtNum, formatMemoryAge, selectChannelLiveness } from "@/lib/nectarFormat";
 import { ContextRibbonContainer, ContextRibbonTile } from "@/components/command/CommandContextRibbon";
 import { selectChannelCoverageHealth } from "@/lib/marketData/selectChannelCoverageHealth";
 
@@ -219,6 +219,7 @@ export default function NectarVaultPage() {
                     slot={slot}
                     isActive={symbol === activeSymbol}
                     fidelity={tradeChannel?.fidelity ?? null}
+                    coverageState={tradeChannel?.coverageState ?? null}
                     gapCount={tradeChannel?.gapCount ?? 0}
                     onOpen={() => openOnChart(symbol)}
                   />
@@ -710,15 +711,19 @@ interface SymbolCardProps {
   slot: SessionSymbolSlot;
   isActive: boolean;
   fidelity: string | null;
+  /** Live coverage state for this symbol's trade channel. Fidelity class and
+   *  liveness are independent — only the pair is the truth. */
+  coverageState: string | null;
   gapCount: number;
   onOpen: () => void;
 }
 
-function SymbolCard({ symbol, tapeSource, slot, isActive, fidelity, gapCount, onOpen }: SymbolCardProps) {
+function SymbolCard({ symbol, tapeSource, slot, isActive, fidelity, coverageState, gapCount, onOpen }: SymbolCardProps) {
   const d = slot.stats.delta;
   const deltaTone = d > 0 ? WM.state.ok : d < 0 ? WM.state.warn : WM.text.muted;
   const memoryAge = slot.horizon ? formatMemoryAge(slot.horizon.startedAtSec) : "no horizon yet";
-  const fidelityTone = fidelityToTone(fidelity);
+  const liveness = selectChannelLiveness(fidelity, coverageState);
+  const fidelityTone = liveness.tone;
   return (
     <Panel
       label={`${symbol} · ${tapeSource.toUpperCase()}`}
@@ -778,6 +783,22 @@ function SymbolCard({ symbol, tapeSource, slot, isActive, fidelity, gapCount, on
           stays UNKNOWN — never fabricated. */}
       <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
         <FidelityChip fidelity={fidelity} tone={fidelityTone} />
+        {liveness.badge && (
+          <span
+            title={liveness.badgeTitle ?? undefined}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "2px 7px", borderRadius: 999,
+              border: `1px solid ${fidelityTone}55`,
+              background: `${fidelityTone}14`,
+              color: fidelityTone,
+              fontSize: 9, letterSpacing: 0.32, fontWeight: 800,
+              textTransform: "uppercase",
+            }}
+          >
+            {liveness.badge}
+          </span>
+        )}
         {gapCount > 0 && (
           <span
             title={`${gapCount} coverage gap${gapCount === 1 ? "" : "s"} detected on this symbol's trade channel this session`}

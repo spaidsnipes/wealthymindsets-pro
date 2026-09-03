@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  selectChannelLiveness,
   fmtNum,
   formatMemoryAge,
   relTime,
@@ -114,5 +115,63 @@ describe("nectarFormat.persistenceRightTone", () => {
     expect(persistenceRightTone("ALLOWED")).toBe(WM.state.ok);
     expect(persistenceRightTone("UNKNOWN")).toBe(WM.state.warn);
     expect(persistenceRightTone("DENIED")).toBe(WM.state.warn);
+  });
+});
+
+/* Real from-USE defect (2026-09-03): /nectar symbol cards showed a green
+ * "OBSERVED" chip for BTC/ETH while the same page proved CHANNELS STALE 6 /
+ * OBSERVING 0. Fidelity class and coverage liveness are independent; only the
+ * pair is the truth. LIVING-PIXEL LAW: no stale state presented as live. */
+describe("selectChannelLiveness", () => {
+  it("never renders a STALE channel in the live/ok tone", () => {
+    const live = selectChannelLiveness("OBSERVED", "COLLECTING");
+    const stale = selectChannelLiveness("OBSERVED", "STALE");
+    expect(stale.tone).not.toBe(live.tone);
+    expect(stale.degraded).toBe(true);
+    expect(stale.badge).toBe("STALE");
+    expect(stale.badgeTitle).toContain("stopped emitting");
+  });
+
+  it("keeps the evidence class label intact — only liveness is downgraded", () => {
+    const stale = selectChannelLiveness("OBSERVED", "STALE");
+    // The channel really did produce OBSERVED evidence; that stays true.
+    expect(stale.fidelity).toBe("OBSERVED");
+  });
+
+  it("flags UNAVAILABLE and CONNECTING as degraded", () => {
+    expect(selectChannelLiveness("OBSERVED", "UNAVAILABLE").badge).toBe("UNAVAILABLE");
+    expect(selectChannelLiveness("OBSERVED", "CONNECTING").badge).toBe("CONNECTING");
+    expect(selectChannelLiveness("OBSERVED", "UNAVAILABLE").degraded).toBe(true);
+    expect(selectChannelLiveness("OBSERVED", "CONNECTING").degraded).toBe(true);
+  });
+
+  it("leaves an actively collecting channel undegraded", () => {
+    const c = selectChannelLiveness("OBSERVED", "COLLECTING");
+    expect(c.degraded).toBe(false);
+    expect(c.badge).toBeNull();
+    expect(c.tone).toBe(fidelityToTone("OBSERVED"));
+  });
+
+  it("does not double-badge GAPPED — the card already shows ! GAPS n", () => {
+    const g = selectChannelLiveness("OBSERVED", "GAPPED");
+    expect(g.badge).toBeNull();
+  });
+
+  it("tolerates a missing or unknown coverage state without inventing liveness", () => {
+    for (const s of [null, undefined, "", "WAT"]) {
+      const r = selectChannelLiveness("OBSERVED", s);
+      expect(r.badge).toBeNull();
+      expect(r.fidelity).toBe("OBSERVED");
+    }
+  });
+
+  it("is case-insensitive on coverage state", () => {
+    expect(selectChannelLiveness("OBSERVED", "stale").badge).toBe("STALE");
+  });
+
+  it("a null fidelity stays null and never becomes a live claim", () => {
+    const r = selectChannelLiveness(null, "STALE");
+    expect(r.fidelity).toBeNull();
+    expect(r.degraded).toBe(true);
   });
 });
