@@ -19,7 +19,7 @@ interface OptionRow {
   pBid:     number;  pAsk:   number;  pLast:  number;
   pIV:      number;  pDelta: number;  pGamma: number;
   pTheta:   number;  pVega:  number;  pOI:    number;  pVol: number;
-  itm:      "call" | "put" | "atm";
+  itm:      "call" | "put" | "atm" | "unknown";
 }
 
 // FMP returns contracts grouped by expiration date YYYY-MM-DD
@@ -59,12 +59,16 @@ function buildChain(contracts: FMPContract[], spot: number, expiry: string): Opt
     else if (type === "put") puts.set(c.strike, c);
   }
   const strikes = [...new Set([...calls.keys(), ...puts.keys()])].sort((a, b) => a - b);
-  // Find ATM strike (closest to spot)
-  const atm = strikes.reduce((best, s) => Math.abs(s - spot) < Math.abs(best - spot) ? s : best, strikes[0] ?? spot);
+  // A missing quote is represented upstream as zero. Never turn that sentinel
+  // into an ATM/ITM assertion: strike classification needs an observed spot.
+  const hasObservedSpot = Number.isFinite(spot) && spot > 0;
+  const atm = hasObservedSpot
+    ? strikes.reduce((best, s) => Math.abs(s - spot) < Math.abs(best - spot) ? s : best, strikes[0] ?? spot)
+    : null;
   return strikes.map(strike => {
     const call = calls.get(strike);
     const put  = puts.get(strike);
-    const itm: "call" | "put" | "atm" = strike === atm ? "atm" : strike < spot ? "call" : "put";
+    const itm: OptionRow["itm"] = atm == null ? "unknown" : strike === atm ? "atm" : strike < spot ? "call" : "put";
     return {
       strike,
       cBid:   call?.bid   ?? 0,  cAsk:  call?.ask  ?? 0,  cLast: call?.last ?? 0,
@@ -155,6 +159,7 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
   }, [expiry, allContracts, priceKey, dataSource]);
 
   const atm = chain.find(r => r.itm === "atm");
+  const hasObservedSpot = Number.isFinite(price) && price > 0;
   const hasAvailableData = !loading && dataSource === "fmp" && chain.length > 0;
   const dataStatus = loading
     ? "CHECKING · FIDELITY UNKNOWN"
@@ -185,8 +190,8 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
           <span className={clsx("w-1.5 h-1.5 rounded-full", (loading || hasAvailableData) ? "bg-wm-gold" : "bg-wm-red")} aria-hidden="true" />
           {dataStatus}
         </div>
-        <span className="text-[10px] font-mono text-wm-text-muted ml-1">
-          Spot: <span className="text-wm-text font-bold">{price.toLocaleString("en-US",{minimumFractionDigits:2})}</span>
+        <span className="text-[10px] font-mono text-wm-text-muted ml-1" title={hasObservedSpot ? "Observed underlying quote" : "Underlying quote has not been observed"}>
+          Spot: <span className="text-wm-text font-bold">{hasObservedSpot ? price.toLocaleString("en-US",{minimumFractionDigits:2}) : "—"}</span>
         </span>
         {hasAvailableData && atm && (
           <div className="ml-3 flex items-center gap-2 text-[10px] text-wm-text-dim">
@@ -214,9 +219,9 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
 
       {/* Error banner */}
       {error && dataSource === "unavailable" && (
-        <div className="flex items-center gap-2 px-4 py-1.5 bg-wm-red/10 border-b border-wm-red/20 text-[10px] text-wm-red shrink-0">
-          <AlertTriangle size={10} />
-          <span>Real options data is unavailable for {symbol}. No contracts were generated. Error: {error}</span>
+        <div className="flex min-w-0 items-start gap-2 border-b border-wm-red/20 bg-wm-red/10 px-3 py-2 text-[10px] leading-relaxed text-wm-red shrink-0 sm:px-4">
+          <AlertTriangle size={10} className="mt-0.5 shrink-0" />
+          <span className="min-w-0 break-words">Real options data is unavailable for {symbol}. No contracts were generated. Error: {error}</span>
         </div>
       )}
 

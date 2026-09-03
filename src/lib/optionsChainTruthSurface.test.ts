@@ -35,6 +35,15 @@ describe("Options Chain truth and responsive surface", () => {
     expect(optionsChain).toContain("aria-pressed={tab === t}");
     expect(optionsChain).toContain("min-h-11 min-w-11");
     expect(optionsChain).toContain("min-w-max");
+    expect(optionsChain).toContain('className="min-w-0 break-words"');
+  });
+
+  it("does not present a missing underlying quote as a real zero-dollar spot", () => {
+    expect(optionsChain).toContain("const hasObservedSpot = Number.isFinite(price) && price > 0");
+    expect(optionsChain).toContain('hasObservedSpot ? price.toLocaleString("en-US",{minimumFractionDigits:2}) : "—"');
+    expect(optionsChain).toContain("Underlying quote has not been observed");
+    expect(optionsChain).toContain('const itm: OptionRow["itm"] = atm == null ? "unknown"');
+    expect(optionsChain).not.toContain('Spot: <span className="text-wm-text font-bold">{price.toLocaleString');
   });
 
   it("preserves the canonical fetch and fail-closed chain construction", () => {
