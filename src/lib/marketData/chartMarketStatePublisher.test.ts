@@ -99,4 +99,63 @@ describe("chart Market State publisher", () => {
     expect(publication.state.executableIdentity).toBeNull();
     expect(publication.qualityState).toBe("PARTIAL");
   });
+
+  /* ── Real from-USE defect (2026-09-03) ──────────────────────────────
+   * /command-deck displayed FOUR different missing-counts for one snapshot:
+   * header pill "1 missing", panel "MISSING (1)", Passport "0/8 resolved",
+   * decision chain "9 unknown". Root cause: `unknowns` held a single COMPOUND
+   * sentence naming all eight dimensions, so `unknowns.length` was 1 while the
+   * real evidence debt was 8.
+   *
+   * Canon: Visual Systems Execution Canon Asset 07 — evidence debt is a LEDGER
+   * of individually payable questions, not one lump narrative. */
+  describe("evidence-debt count agreement", () => {
+    it("emits one unknown entry per unresolved dimension, never a compound sentence", () => {
+      const publication = createChartMarketStatePublication(base());
+      const unknowns = publication.state.unknowns ?? [];
+
+      // Every entry names exactly one dimension.
+      expect(unknowns.length).toBeGreaterThan(1);
+      for (const u of unknowns) {
+        expect(u).toMatch(/ is unresolved until a verified engine publishes evidence\.$/);
+        // No compound "A, B, and C are unresolved" lump.
+        expect(u).not.toContain(" are unresolved");
+        expect(u.split(",").length).toBe(1);
+      }
+    });
+
+    it("unknowns.length equals the number of dimensions NOT resolved by the publisher", () => {
+      const publication = createChartMarketStatePublication(base());
+      const unknowns = publication.state.unknowns ?? [];
+      const dims = publication.state.dimensions ?? {};
+
+      // The publisher derives orderFlow + volatility; the other six canonical
+      // dimensions have no engine yet. Total canonical dimensions = 8.
+      const TOTAL_DIMENSIONS = 8;
+      const resolvedByPublisher = Object.values(dims).filter(
+        (d) => d && (d as { resolution?: string }).resolution === "RESOLVED",
+      ).length;
+
+      expect(unknowns.length).toBe(TOTAL_DIMENSIONS - resolvedByPublisher);
+    });
+
+    it("a resolved dimension is removed from the debt ledger, not just reworded", () => {
+      // Rich tape → orderFlow and volatility both resolve.
+      const ticks = [];
+      for (let i = 0; i < 30; i++) {
+        ticks.push({
+          price: 65_000 + (i % 7) * 3,
+          size: 0.1,
+          side: (i % 3 === 0 ? "sell" : "buy") as "buy" | "sell",
+          time: 1_900 + i,
+          trade: true,
+        });
+      }
+      const rich = createChartMarketStatePublication({ ...base(), recentTicks: ticks });
+      const lean = createChartMarketStatePublication({ ...base(), recentTicks: [] });
+
+      expect(rich.state.unknowns!.length).toBeLessThan(lean.state.unknowns!.length);
+      expect(rich.state.unknowns!.some((u) => u.startsWith("Order flow"))).toBe(false);
+    });
+  });
 });

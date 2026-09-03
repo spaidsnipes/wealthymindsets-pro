@@ -121,22 +121,30 @@ export function createChartMarketStatePublication(
     snapshotIdSeed: snapshotId,
   });
 
-  const resolvedNames: string[] = [];
-  if (orderFlow.resolution === "RESOLVED") resolvedNames.push("order flow");
-  if (volatility.resolution === "RESOLVED") resolvedNames.push("volatility");
-  const dimensionsList = [
+  // ONE UNKNOWN PER UNRESOLVED DIMENSION.
+  //
+  // Real from-USE defect (2026-09-03): this previously emitted a single
+  // COMPOUND sentence naming all eight dimensions. Every consumer that counts
+  // `state.unknowns.length` therefore read 1, while the Passport counted 8
+  // dimensions and the decision chain counted 9 nodes — /command-deck showed
+  // "1 missing", "MISSING (1)", "0/8 resolved" and "9 unknown" for the SAME
+  // snapshot. Four numbers, one truth (LIVING-PIXEL LAW + single-writer canon).
+  //
+  // Canon grammar: Visual Systems Execution Canon Asset 07 — evidence debt is
+  // a LEDGER of individually payable questions, not one lump narrative.
+  const unresolvedDimensions: readonly string[] = [
     "Direction",
-    "location",
-    "aggression",
-    "regime",
-    "structure",
-    ...(volatility.resolution === "RESOLVED" ? [] : ["volatility"]),
-    "profile",
-    ...(orderFlow.resolution === "RESOLVED" ? [] : ["order flow"]),
+    "Location",
+    "Aggression",
+    "Regime",
+    "Structure",
+    ...(volatility.resolution === "RESOLVED" ? [] : ["Volatility"]),
+    "Profile",
+    ...(orderFlow.resolution === "RESOLVED" ? [] : ["Order flow"]),
   ];
-  const unknowns = [
-    `${dimensionsList.join(", ").replace(/, ([^,]+)$/, ", and $1")} are unresolved until verified engines publish evidence.`,
-  ];
+  const unknowns = unresolvedDimensions.map(
+    name => `${name} is unresolved until a verified engine publishes evidence.`,
+  );
   const contradictions: string[] = [];
   if (input.ticker.price > 0 && !priceTick) {
     contradictions.push("Displayed ticker price has no matching timestamped runtime tick; canonical price evidence omitted.");
