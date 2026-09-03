@@ -35,6 +35,17 @@ describe("chart progressive disclosure", () => {
     expect(dashboard).toContain("Open Decision Why");
   });
 
+  it("lets the global shell own product identity and starts with chart orientation", () => {
+    expect(dashboard).not.toContain('import WmWordmark from "@/components/brand/WmWordmark"');
+    expect(dashboard).not.toContain("the trader's chart");
+    expect(dashboard).toContain('aria-label="Breadcrumb"');
+    expect(dashboard).toContain("{symbol}");
+    expect(dashboard).toContain('{activeTab !== "Chart"');
+    expect(dashboard).toContain("<CanvasSummaryPill");
+    expect(dashboard).toContain("Open Decision Why");
+    expect(dashboard).toContain("Open Market Object Passport");
+  });
+
   it("keeps the menu viewport-bound instead of extending the toolbar", () => {
     expect(toolbar).toContain('position: "fixed"');
     expect(toolbar).toContain("window.innerWidth - (rect?.right ?? window.innerWidth)");

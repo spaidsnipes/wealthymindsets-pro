@@ -5,7 +5,6 @@ import { AnimatePresence } from "framer-motion";
 import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity } from "lucide-react";
 import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
 import { WMLogo } from "@/components/ui/WMLogo";
-import WmWordmark from "@/components/brand/WmWordmark";
 import { ChartToolbar } from "./ChartToolbar";
 import { MainChart } from "./MainChart";
 import { WatchlistGrid } from "./WatchlistGrid";
@@ -739,12 +738,10 @@ export function ChartsDashboard() {
         data-ctx={JSON.stringify({ symbol, price: ticker.price, change: ticker.change, changePct: ticker.changePct })}
         style={{ display: "none" }}
       />
-      {/* ── WM brand strip above chart tabs — integrates the chart into
-             the same visual DNA as /command-deck, /profile Growth,
-             /morning-prep, /journal (Founder Aug-14 acceptance criterion:
-             'The chart should now look integrated into WM instead of a
-             legacy chart surrounded by newer widgets'). The row owns a real
-             44px touch target instead of letting Passport overlap the tabs. */}
+      {/* ── Chart orientation and decision strip. The global shell owns
+             product identity; this row begins with the trader's location and
+             keeps the 44px touch target that prevents disclosure controls from
+             overlapping the tabs. */}
       <div
         style={{
           minHeight: 44,
@@ -765,25 +762,13 @@ export function ChartsDashboard() {
           scrollbarWidth: "none",
         }}
       >
-        <WmWordmark size="compact" />
-        <span
-          style={{
-            fontFamily: "Georgia, 'Times New Roman', serif",
-            fontSize: 10,
-            letterSpacing: 0.32,
-            color: "#8a8271",
-            fontStyle: "italic",
-          }}
-        >
-          the trader's chart
-        </span>
         {/* Founder 2026-09-02: breadcrumb — orientation truth. The user
             can always see WHERE in the OS they are and jump one level
             up. activeTab renders as the terminal segment so switching
             categories updates the crumb without a route change. */}
         <nav
           aria-label="Breadcrumb"
-          style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 4, fontSize: 10, color: "#6d7288", letterSpacing: 0.2 }}
+          style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#6d7288", letterSpacing: 0.2 }}
         >
           <span aria-hidden="true" style={{ color: "#3a3f52" }}>›</span>
           <a
