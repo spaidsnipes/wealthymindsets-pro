@@ -26,6 +26,7 @@ import type { PermissionVM } from "@/lib/traderMemory/viewModels/selectPermissio
 import {
   computeEvidenceDebt,
   computeRightOfWay,
+  hiddenRemainder,
   type EvidenceDebt,
   type RightOfWayReading,
 } from "./decisionPermissionCompiler";
@@ -93,11 +94,12 @@ function contradictionSentence(story: StoryVM | null): string | null {
 
 function missingPhrase(debt: EvidenceDebt | null): string | null {
   if (!debt || debt.missing === 0) return null;
-  const desc = debt.missingLabels
-    .slice(0, 2)
-    .map(l => l.toLowerCase())
-    .join(" + ");
-  const rest = debt.missingLabels.length > 2 ? " +" + (debt.missingLabels.length - 2) : "";
+  const shown = debt.missingLabels.slice(0, 2);
+  const desc = shown.map(l => l.toLowerCase()).join(" + ");
+  // Remainder derives from the AUTHORITATIVE count, never the capped array —
+  // otherwise "9 evidence nodes unpaid: regime + direction +1" contradicts
+  // itself in one sentence.
+  const rest = hiddenRemainder(debt.missing, shown.length);
   return `${debt.missing} evidence node${debt.missing === 1 ? "" : "s"} unpaid: ${desc}${rest}`;
 }
 

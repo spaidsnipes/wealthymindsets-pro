@@ -29,10 +29,36 @@ export interface EvidenceDebt {
   readonly resolved: number;
   readonly missing: number;
   readonly warn: number;
-  /** First-few UNKNOWN-indicator node labels for surface detail. */
+  /**
+   * First-few UNKNOWN-indicator node labels for surface detail.
+   * TRUNCATED — never use `.length` as a count of missing evidence.
+   * The authoritative count is `missing`. See hiddenRemainder().
+   */
   readonly missingLabels: readonly string[];
-  /** First-few WARN-indicator node labels for surface detail. */
+  /**
+   * First-few WARN-indicator node labels for surface detail.
+   * TRUNCATED — the authoritative count is `warn`.
+   */
   readonly warnLabels: readonly string[];
+}
+
+/** Max labels retained for surface detail. Counts are never capped. */
+export const EVIDENCE_LABEL_SAMPLE_LIMIT = 3;
+
+/**
+ * Suffix for "a + b +N" label lists.
+ *
+ * Real from-USE defect (2026-09-03): both /command-deck surfaces computed this
+ * from `missingLabels.length` — an array capped at 3 — while the leading count
+ * came from the true `missing` total. With 9 missing nodes the strip rendered
+ * "9 evidence nodes unpaid: regime + direction +1", so the "+1" contradicted
+ * the "9" in the same sentence (LIVING-PIXEL LAW: the 1 had no owner).
+ *
+ * The remainder MUST derive from the authoritative count.
+ */
+export function hiddenRemainder(trueCount: number, shownLabels: number): string {
+  const hidden = trueCount - shownLabels;
+  return hidden > 0 ? ` +${hidden}` : "";
 }
 
 export type RightOfWay = "ACTION" | "WAIT" | "NO TRADE" | "CAUTION" | "UNKNOWN";
@@ -65,10 +91,10 @@ export function computeEvidenceDebt(
       resolved += 1;
     } else if (n.indicator === "UNKNOWN") {
       missing += 1;
-      if (missingLabels.length < 3) missingLabels.push(n.label);
+      if (missingLabels.length < EVIDENCE_LABEL_SAMPLE_LIMIT) missingLabels.push(n.label);
     } else if (n.indicator === "WARN") {
       warn += 1;
-      if (warnLabels.length < 3) warnLabels.push(n.label);
+      if (warnLabels.length < EVIDENCE_LABEL_SAMPLE_LIMIT) warnLabels.push(n.label);
     }
     // WATCH is neither paid nor blocking — not counted; render as
     // observed-but-not-blocking downstream if surface wants to show it.
@@ -91,11 +117,10 @@ export function computeRightOfWay(
 ): RightOfWayReading {
   // Rule 1 — Missing evidence blocks Right of Way (canon rejection #1).
   if (debt && debt.missing > 0) {
-    const missingDesc = debt.missingLabels
-      .slice(0, 2)
-      .map(l => l.toLowerCase())
-      .join(" + ");
-    const rest = debt.missingLabels.length > 2 ? " +" + (debt.missingLabels.length - 2) : "";
+    const shown = debt.missingLabels.slice(0, 2);
+    const missingDesc = shown.map(l => l.toLowerCase()).join(" + ");
+    // Remainder derives from the AUTHORITATIVE count, never the capped array.
+    const rest = hiddenRemainder(debt.missing, shown.length);
     return {
       value: "WAIT",
       detail: `evidence debt: need ${missingDesc}${rest}`,

@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   computeEvidenceDebt,
   computeRightOfWay,
+  hiddenRemainder,
+  EVIDENCE_LABEL_SAMPLE_LIMIT,
   type EvidenceDebt,
 } from "./decisionPermissionCompiler";
 import type { DecisionChainNode } from "./selectDecisionChain";
@@ -169,5 +171,59 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
     const r = computeRightOfWay(perm("RESTRICTED", longReason), null);
     expect(r.detail.length).toBeLessThanOrEqual(41); // 40 + '…'
     expect(r.detail.endsWith("…")).toBe(true);
+  });
+
+  /* ── Real from-USE defect (2026-09-03) ──────────────────────────
+   * /command-deck rendered "9 evidence nodes unpaid: regime + direction +1".
+   * The leading 9 came from the true `missing` count; the "+1" came from
+   * `missingLabels.length - 2` where missingLabels is capped at 3. The two
+   * numbers in one sentence contradicted each other and the 1 had no owner
+   * (LIVING-PIXEL LAW). Canon reference: Asset 07 Evidence Debt ledger. */
+  describe("hidden-remainder count consistency", () => {
+    it("derives the remainder from the true count, not the capped label array", () => {
+      const nodes: DecisionChainNode[] = [];
+      for (let i = 0; i < 9; i++) nodes.push(node(`Node${i}`, "UNKNOWN"));
+      const debt = computeEvidenceDebt(nodes)!;
+
+      expect(debt.missing).toBe(9);
+      // Labels are intentionally sampled, not exhaustive.
+      expect(debt.missingLabels.length).toBe(EVIDENCE_LABEL_SAMPLE_LIMIT);
+
+      const r = computeRightOfWay(null, debt);
+      // 9 missing, 2 shown → 7 hidden. Never "+1".
+      expect(r.detail).toContain("+7");
+      expect(r.detail).not.toContain("+1");
+    });
+
+    it("hiddenRemainder returns empty when nothing is hidden", () => {
+      expect(hiddenRemainder(2, 2)).toBe("");
+      expect(hiddenRemainder(1, 2)).toBe("");
+      expect(hiddenRemainder(0, 0)).toBe("");
+    });
+
+    it("hiddenRemainder counts every unshown item", () => {
+      expect(hiddenRemainder(9, 2)).toBe(" +7");
+      expect(hiddenRemainder(3, 2)).toBe(" +1");
+    });
+
+    it("the sum of shown labels and hidden remainder always equals the true count", () => {
+      for (const missingCount of [1, 2, 3, 5, 8, 9, 20]) {
+        const nodes: DecisionChainNode[] = [];
+        for (let i = 0; i < missingCount; i++) nodes.push(node(`N${i}`, "UNKNOWN"));
+        const debt = computeEvidenceDebt(nodes)!;
+        const shown = Math.min(2, debt.missingLabels.length);
+        const suffix = hiddenRemainder(debt.missing, shown);
+        const hidden = suffix ? Number(suffix.trim().slice(1)) : 0;
+        expect(shown + hidden).toBe(debt.missing);
+      }
+    });
+
+    it("counts are never capped even though labels are", () => {
+      const nodes: DecisionChainNode[] = [];
+      for (let i = 0; i < 12; i++) nodes.push(node(`W${i}`, "WARN"));
+      const debt = computeEvidenceDebt(nodes)!;
+      expect(debt.warn).toBe(12);
+      expect(debt.warnLabels.length).toBe(EVIDENCE_LABEL_SAMPLE_LIMIT);
+    });
   });
 });
