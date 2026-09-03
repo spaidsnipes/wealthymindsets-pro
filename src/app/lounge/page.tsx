@@ -306,7 +306,7 @@ function PostCard({ post, myHandle, myName, myAvatar, myColor, onDelete }:
           {post.tags?.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-2">
               {post.tags.map(t=>(
-                <span key={t} className="text-[10px] px-2 py-0.5 rounded-full cursor-pointer transition-all hover:scale-105"
+                <span key={t} className="text-[10px] px-2 py-0.5 rounded-full"
                   style={{ background:"rgba(232,185,35,0.12)", color:"#E8B923", border:"1px solid rgba(232,185,35,0.25)" }}>{t}</span>
               ))}
             </div>
