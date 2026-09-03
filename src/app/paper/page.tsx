@@ -27,6 +27,7 @@ import {
   applyFill as applyFillShared,
   canCancelOrder,
   selectCloseOrderPlan,
+  selectOrderRejection,
   loadPaperState,
   savePaperState,
   subscribePaperState,
@@ -985,6 +986,8 @@ export default function PaperTradingPage() {
     if (pend.length === 0) return;
 
     const fills: { ord: Order; fillPx: number }[] = [];
+    const rejects: { id: string; reason: string }[] = [];
+    let cashRunning = cash;
     for (const ord of pend) {
       const readiness = quoteReadiness[ord.symbol];
       if (!readiness?.actionable || readiness.price == null) continue;
@@ -1000,8 +1003,31 @@ export default function PaperTradingPage() {
         if (triggered) fill = ord.side==="buy" ? px <= (ord.limitPx??px) : px >= (ord.limitPx??px);
       }
       if (!fill) continue;
+
+      // Buying-power gate at the boundary where cash actually moves. There was
+      // no such check anywhere: a $100k simulated account could fund millions
+      // of dollars of orders and simply go negative, which is the one habit
+      // paper trading exists to teach (canon weakness #9 PAPER-FILL
+      // OVERCONFIDENCE). Running cash forward across this batch so several
+      // fills in one tick cannot each pass against the same starting balance.
+      const fillPx = ord.limitPx ?? px;
+      const reject = selectOrderRejection({
+        side: ord.side, qty: ord.qty, price: fillPx, cash: cashRunning,
+      });
+      if (reject) {
+        filledRef.current.add(ord.id);          // settled — never retried
+        rejects.push({ id: ord.id, reason: reject });
+        continue;
+      }
+      if (ord.side === "buy") cashRunning -= ord.qty * fillPx;
+
       filledRef.current.add(ord.id);            // exactly-once guard
-      fills.push({ ord, fillPx: ord.limitPx ?? px });
+      fills.push({ ord, fillPx });
+    }
+    if (rejects.length > 0) {
+      const byId = new Map(rejects.map(r => [r.id, r.reason]));
+      setOrders(prev => prev.map(o =>
+        byId.has(o.id) ? { ...o, status: "rejected" as const } : o));
     }
     if (fills.length === 0) return;
 
@@ -1026,7 +1052,11 @@ export default function PaperTradingPage() {
     setOrders(prev => prev.map(o => fillPxById.has(o.id)
       ? { ...o, status:"filled", fillPx: fillPxById.get(o.id)! } : o));
     wins.forEach(sym => earnWMS(25, `📈 Paper trade win on ${sym}`));
-  }, [prices, quoteReadiness, orders, earnWMS]);
+    // `cash` participates in the buying-power gate above, so it must be a
+    // dependency — otherwise the gate evaluates a stale balance. Re-running on
+    // a cash change is safe and desirable: filledRef settles each order exactly
+    // once (rejects included), so no order is re-filled or re-rejected.
+  }, [prices, quoteReadiness, orders, earnWMS, cash]);
 
   // AI bot: evaluate a simple momentum / mean-reversion signal on an
   // interval and auto-submit PAPER orders through the same flow.

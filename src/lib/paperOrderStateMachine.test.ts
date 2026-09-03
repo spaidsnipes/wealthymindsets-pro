@@ -130,3 +130,64 @@ describe("close-position sizing", () => {
     expect(10 + net).toBe(0);
   });
 });
+
+import { selectOrderRejection } from "./paperTrade";
+
+/**
+ * Buying power — canon weakness #9 PAPER-FILL OVERCONFIDENCE.
+ *
+ * /paper had no cash check anywhere: submit() gated on quote readiness and
+ * qty > 0, openOption() ran `setCash(c => c - cost)` unconditionally, and fills
+ * applied cashDelta unconditionally. A $100,000 simulated account could fund
+ * millions of dollars of contracts and go deeply negative.
+ *
+ * Position sizing is the habit paper trading exists to build, and an account
+ * that can never run out of money cannot teach it. The OrderStatus enum already
+ * declared "rejected" for exactly this case and nothing ever produced it.
+ */
+describe("buying power", () => {
+  const cash = 100_000;
+
+  it("rejects a buy that costs more than the account holds", () => {
+    const r = selectOrderRejection({ side: "buy", qty: 100, price: 29_000, cash });
+    expect(r).toContain("Insufficient cash");
+  });
+
+  it("allows a buy the account can fund", () => {
+    expect(selectOrderRejection({ side: "buy", qty: 1, price: 29_000, cash })).toBeNull();
+  });
+
+  it("allows a buy that spends the balance exactly", () => {
+    expect(selectOrderRejection({ side: "buy", qty: 2, price: 50_000, cash })).toBeNull();
+  });
+
+  it("applies the contract multiplier for options", () => {
+    // 10 contracts x $12 premium x 100 = $12,000 — affordable.
+    expect(selectOrderRejection({ side: "buy", qty: 10, price: 12, cash, multiplier: 100 })).toBeNull();
+    // 200 contracts x $12 x 100 = $240,000 — not affordable.
+    expect(selectOrderRejection({ side: "buy", qty: 200, price: 12, cash, multiplier: 100 }))
+      .toContain("Insufficient cash");
+  });
+
+  it("does not invent a margin model for sells", () => {
+    // Short selling needs a margin model that is NOT decided here.
+    expect(selectOrderRejection({ side: "sell", qty: 1000, price: 29_000, cash })).toBeNull();
+  });
+
+  it("rejects a non-positive quantity", () => {
+    expect(selectOrderRejection({ side: "buy", qty: 0, price: 100, cash })).toContain("greater than zero");
+    expect(selectOrderRejection({ side: "buy", qty: -5, price: 100, cash })).toContain("greater than zero");
+  });
+
+  it("does not manufacture a funding reason for an unusable price", () => {
+    // Quote readiness gates price upstream; a bad price is not a cash failure.
+    expect(selectOrderRejection({ side: "buy", qty: 1, price: 0, cash })).toBeNull();
+    expect(selectOrderRejection({ side: "buy", qty: 1, price: Number.NaN, cash })).toBeNull();
+  });
+
+  it("the reason names both the cost and the balance", () => {
+    const r = selectOrderRejection({ side: "buy", qty: 10, price: 29_000, cash })!;
+    expect(r).toContain("$290,000");
+    expect(r).toContain("$100,000");
+  });
+});

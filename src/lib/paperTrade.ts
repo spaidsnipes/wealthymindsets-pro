@@ -79,6 +79,57 @@ export function canCancelOrder(status: OrderStatus): boolean {
  * Returns null when nothing further is required — no position, or pending
  * market orders already cover it.
  */
+/**
+ * Reject a BUY the simulated account cannot fund.
+ *
+ * /paper had no buying-power check anywhere. submit() gated on quote
+ * readiness and qty > 0; openOption() ran `setCash(c => c - cost)`
+ * unconditionally; fills applied cashDelta unconditionally. A $100,000
+ * simulated account could therefore buy millions of dollars of contracts and
+ * simply go deeply negative.
+ *
+ * Canon weakness #9 PAPER-FILL OVERCONFIDENCE: paper that does not behave like
+ * a funded account teaches the wrong lesson — position sizing is the habit
+ * paper trading exists to build, and an account that can never run out of money
+ * cannot teach it. The OrderStatus enum already declared "rejected" for exactly
+ * this and nothing ever produced it.
+ *
+ * Deliberately narrow: this rejects only a BUY whose cost exceeds available
+ * cash — unambiguous, since you cannot spend money you do not have. Short
+ * selling needs a margin model, which is a separate decision and is NOT
+ * invented here; sells are left alone.
+ *
+ * Returns a human reason for the reject, or null when the order may stand.
+ */
+export function selectOrderRejection(input: {
+  readonly side: OrderSide;
+  readonly qty: number;
+  readonly price: number;
+  readonly cash: number;
+  /** 100 for options contracts, 1 for shares. */
+  readonly multiplier?: number;
+}): string | null {
+  const { side, qty, price, cash } = input;
+  const multiplier = input.multiplier ?? 1;
+
+  if (!Number.isFinite(qty) || qty <= 0) return "Quantity must be greater than zero.";
+  // Price is gated upstream by quote readiness; an unusable price is not a
+  // funding failure, so do not manufacture a rejection reason for it.
+  if (!Number.isFinite(price) || price <= 0) return null;
+  if (side !== "buy") return null;
+
+  const cost = qty * price * multiplier;
+  if (!Number.isFinite(cash)) return null;
+  if (cost > cash) {
+    return `Insufficient cash — this order costs ${cost.toLocaleString("en-US", {
+      style: "currency", currency: "USD", maximumFractionDigits: 0,
+    })} and the account holds ${cash.toLocaleString("en-US", {
+      style: "currency", currency: "USD", maximumFractionDigits: 0,
+    })}.`;
+  }
+  return null;
+}
+
 export function selectCloseOrderPlan(
   positionQty: number,
   pendingOrders: readonly Pick<Order, "symbol" | "side" | "type" | "qty" | "status">[],
