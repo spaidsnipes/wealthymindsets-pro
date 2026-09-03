@@ -26,6 +26,7 @@ import {
   STARTING_CASH,
   applyFill as applyFillShared,
   canCancelOrder,
+  selectCloseOrderPlan,
   loadPaperState,
   savePaperState,
   subscribePaperState,
@@ -1126,11 +1127,19 @@ export default function PaperTradingPage() {
   const closePosition = (symbol: string) => {
     const pos = updatedPositions.find(p => p.symbol===symbol);
     if (!pos) return;
-    const closeOrd: Order = {
-      id:uid(), symbol, side:pos.qty>0?"sell":"buy",
-      type:"market", qty:Math.abs(pos.qty), status:"pending", ts:Date.now(),
-    };
-    setOrders(prev => [closeOrd, ...prev]);
+    // Size against pending MARKET orders on this symbol. The Close control has
+    // no disabled state and fills land on the next quote tick, so two quick
+    // clicks used to create two full-size close orders — both filled, and a
+    // trader asking to go flat ended up with the opposite position.
+    setOrders(prev => {
+      const plan = selectCloseOrderPlan(pos.qty, prev, symbol);
+      if (!plan) return prev;                    // already covered by pending
+      const closeOrd: Order = {
+        id: uid(), symbol, side: plan.side,
+        type: "market", qty: plan.qty, status: "pending", ts: Date.now(),
+      };
+      return [closeOrd, ...prev];
+    });
   };
 
   const resetAccount = () => {

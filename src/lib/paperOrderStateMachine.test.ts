@@ -62,3 +62,71 @@ describe("paper order state machine", () => {
     expect(page).not.toMatch(/o\.id\s*===\s*id\s*\?\s*\{\s*\.\.\.o,\s*status:\s*"cancelled"\s*\}/);
   });
 });
+
+import { selectCloseOrderPlan } from "./paperTrade";
+
+type PendingLike = Parameters<typeof selectCloseOrderPlan>[1][number];
+const mkt = (symbol: string, side: "buy" | "sell", qty: number): PendingLike =>
+  ({ symbol, side, type: "market", qty, status: "pending" });
+
+/**
+ * Close-position sizing — §13 reconciliation realism.
+ *
+ * closePosition() sized the flattening order from the CURRENT position only.
+ * The Close control has no disabled state and fills land on the next quote
+ * tick, so two quick clicks on a long 10 created TWO pending sell-10 orders —
+ * the position is still 10 when the second is built. Both fill, and a trader
+ * who asked to go flat ends up SHORT 10.
+ */
+describe("close-position sizing", () => {
+  it("flattens a long with a single sell", () => {
+    expect(selectCloseOrderPlan(10, [], "NQ1!")).toEqual({ side: "sell", qty: 10 });
+  });
+
+  it("flattens a short with a single buy", () => {
+    expect(selectCloseOrderPlan(-7, [], "NQ1!")).toEqual({ side: "buy", qty: 7 });
+  });
+
+  it("a second close click is a no-op — the first already covers it", () => {
+    const afterFirst = [mkt("NQ1!", "sell", 10)];
+    expect(selectCloseOrderPlan(10, afterFirst, "NQ1!")).toBeNull();
+  });
+
+  it("orders only the residual when a partial close is pending", () => {
+    expect(selectCloseOrderPlan(10, [mkt("NQ1!", "sell", 4)], "NQ1!"))
+      .toEqual({ side: "sell", qty: 6 });
+  });
+
+  it("ignores pending orders for other symbols", () => {
+    expect(selectCloseOrderPlan(10, [mkt("ES1!", "sell", 10)], "NQ1!"))
+      .toEqual({ side: "sell", qty: 10 });
+  });
+
+  it("ignores resting limit/stop orders — they may never fill", () => {
+    const resting = [{ symbol: "NQ1!", side: "sell" as const, type: "limit" as const, qty: 10, status: "pending" as const }];
+    expect(selectCloseOrderPlan(10, resting, "NQ1!")).toEqual({ side: "sell", qty: 10 });
+  });
+
+  it("ignores already-settled orders", () => {
+    const settled = [{ symbol: "NQ1!", side: "sell" as const, type: "market" as const, qty: 10, status: "filled" as const }];
+    expect(selectCloseOrderPlan(10, settled, "NQ1!")).toEqual({ side: "sell", qty: 10 });
+  });
+
+  it("returns null for a flat or invalid position", () => {
+    expect(selectCloseOrderPlan(0, [], "NQ1!")).toBeNull();
+    expect(selectCloseOrderPlan(Number.NaN, [], "NQ1!")).toBeNull();
+  });
+
+  it("never manufactures an opposite position from repeated clicks", () => {
+    // Simulate five rapid clicks before any fill lands.
+    let pending: PendingLike[] = [];
+    for (let i = 0; i < 5; i++) {
+      const plan = selectCloseOrderPlan(10, pending, "NQ1!");
+      if (plan) pending = [mkt("NQ1!", plan.side, plan.qty), ...pending];
+    }
+    const net = pending.reduce((s, o) => s + (o.side === "buy" ? o.qty : -o.qty), 0);
+    // Exactly one sell-10 — flat, never short.
+    expect(pending).toHaveLength(1);
+    expect(10 + net).toBe(0);
+  });
+});

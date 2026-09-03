@@ -58,6 +58,49 @@ export function canCancelOrder(status: OrderStatus): boolean {
   return status === "pending";
 }
 
+/**
+ * Size a flattening order against a position, accounting for market orders
+ * that are already pending on the same symbol.
+ *
+ * /paper's closePosition() sized the close from the CURRENT position only:
+ *
+ *   qty: Math.abs(pos.qty), side: pos.qty > 0 ? "sell" : "buy"
+ *
+ * The Close control has no disabled state and fills happen on the next quote
+ * tick, so two quick clicks on a long 10 produced TWO pending sell-10 orders —
+ * the position is still 10 when the second is created. Both fill, and the
+ * trader who asked to go flat ends up SHORT 10. Canon §13 reconciliation
+ * realism: the ledger must not manufacture an opposite position out of a
+ * close request.
+ *
+ * Only pending MARKET orders are netted. A resting limit or stop may never
+ * fill, so counting it would under-size a genuine flatten.
+ *
+ * Returns null when nothing further is required — no position, or pending
+ * market orders already cover it.
+ */
+export function selectCloseOrderPlan(
+  positionQty: number,
+  pendingOrders: readonly Pick<Order, "symbol" | "side" | "type" | "qty" | "status">[],
+  symbol: string,
+): { side: OrderSide; qty: number } | null {
+  if (!Number.isFinite(positionQty) || positionQty === 0) return null;
+
+  let pendingNet = 0;
+  for (const o of pendingOrders) {
+    if (o.symbol !== symbol) continue;
+    if (o.status !== "pending") continue;
+    if (o.type !== "market") continue;          // resting orders may never fill
+    const q = Math.abs(Number(o.qty) || 0);
+    if (q <= 0) continue;
+    pendingNet += o.side === "buy" ? q : -q;
+  }
+
+  const projected = positionQty + pendingNet;
+  if (projected === 0) return null;             // already fully covered
+  return { side: projected > 0 ? "sell" : "buy", qty: Math.abs(projected) };
+}
+
 export interface Order {
   id: string;
   symbol: string;
