@@ -1,7 +1,7 @@
 # BATON — Execution Truth lane (§7 + options chain)
 
 START_OBSERVED_AT: 2026-09-03T21:22:23Z
-Suite at seal: 3334 tests passing, tsc clean.
+Suite at seal: 3395 tests passing, tsc clean. `npm run build` exit 0.
 
 ## FOUNDERVISIBLE_DELTA
 
@@ -62,6 +62,54 @@ longer has to remember that a blank price box means "market".
 - Order ticket cannot be exercised end-to-end until quotes are actionable
   (market open). Refusal path is unit-tested + Sentinel-asserted, not yet
   visually confirmed on a live fill.
+
+## Second block — defect sweep by class
+
+Ran each established defect class as a codebase-wide sweep rather than
+file-by-file. Confirmed fixes:
+
+**Fabricated zeros / absence-as-measurement**
+- Options chain: `call?.bid ?? 0` × 20 fields rendered unquoted strikes as
+  bid 0.00 / ask 0.00 / IV 0.0% / delta 0.00 — real, worthless, free to buy.
+- Chain footer: `puts / Math.max(1, calls)` invented a P/C sentiment ratio.
+- Ticker tape + watchlist (9 sites): `chg: j.change ?? 0` and
+  `prevClose ?? price` asserted a flat session in green with an up-arrow.
+  The tape is on every page.
+- DOM header: `(close ?? 0) >= (open ?? 0)` is `0 >= 0` — a MISSING bar
+  painted the headline price green. Silent and always bullish.
+
+**Silent-catch / unchecked fetch** (broker panel)
+- `fetch` does not reject on 4xx/5xx. loadPositions/loadOrders swallowed
+  failures, leaving an empty list that renders "No open positions" — telling a
+  trader holding risk that they hold none.
+- `cancelOrder` swallowed everything: a broker-REJECTED cancel looked
+  successful, so the trader walked away still exposed.
+
+**Design theater**
+- Options chain rows had `cursor-pointer` + hover with no onClick.
+- Lounge tags styled as filters with no filter state.
+
+**Coverage non-disclosure**
+- Market Canvas rendered `blockers.slice(0, 6)`. A blocker you cannot read is
+  one you cannot clear.
+
+**Label overreach / provenance** (highest value for Monday)
+- /paper options chain labelled columns "CALL bid/ask" over three stacked
+  layers of modelling: hardcoded IV → Black-Scholes → an INVENTED
+  `Math.max(0.02, mid*0.03)` band. No option quote is received on that path.
+  In options the spread IS the cost of the trade.
+- Open longs marked to the MID while entry paid the ask and closes paid the
+  bid — every open contract displayed better than it could be closed for.
+  Now marked to the bid per §21; the band assumption is single-sourced in
+  `src/lib/optionModelBand.ts`.
+
+Classes swept and found CLEAN: permissive risk gates (`?? true` / `|| true`
+on any allow/valid/ready predicate — no hits); unchecked fetches on any other
+trading/account/position surface (only the broker panel had them).
+
+Two label-overreach hits ("AI Coaching", "Live Prices") were false positives —
+the grep matched explanatory comments documenting an EARLIER fix. Verified
+before touching.
 
 ## EXACT_NEXT_ATOM
 
