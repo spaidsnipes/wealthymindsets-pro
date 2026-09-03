@@ -5,6 +5,7 @@
  * Notes save browser-locally with exact readback. Quizzes shuffle questions on every retake.
  */
 
+import { shufflePick } from "@/lib/shufflePick";
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -115,9 +116,7 @@ function getBank(title: string): QQ[] {
   return BANK_GEN;
 }
 
-function shufflePick(bank: QQ[], n = 10): QQ[] {
-  return [...bank].sort(() => Math.random() - 0.5).slice(0, Math.min(n, bank.length));
-}
+
 
 /* ── Modules ─────────────────────────────────────────────── */
 const MODULES: Module[] = [
