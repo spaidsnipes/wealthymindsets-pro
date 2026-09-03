@@ -93,6 +93,11 @@ export function AlpacaTradingPanel({
   const [orders,    setOrders]    = useState<Order[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [acctError, setAcctError] = useState("");
+  // A failed load is NOT an empty book. These distinguish "you hold nothing"
+  // from "we could not find out what you hold".
+  const [positionsLoad, setPositionsLoad] = useState<"pending" | "ok" | "failed">("pending");
+  const [ordersLoad,    setOrdersLoad]    = useState<"pending" | "ok" | "failed">("pending");
+  const [cancelError,   setCancelError]   = useState("");
   const [activeTab, setActiveTab] = useState<ActiveTab>("trade");
 
   // Order ticket state
@@ -135,17 +140,29 @@ export function AlpacaTradingPanel({
   const loadPositions = useCallback(async () => {
     try {
       const res  = await fetch("/api/alpaca-trading?action=positions", { cache: "no-store" });
+      // fetch() does not throw on 4xx/5xx — an unchecked response would leave
+      // the previous (often empty) list standing as if it were confirmed.
+      if (!res.ok) { setPositionsLoad("failed"); return; }
       const data = await res.json();
-      if (Array.isArray(data)) setPositions(data);
-    } catch {}
+      if (!Array.isArray(data)) { setPositionsLoad("failed"); return; }
+      setPositions(data);
+      setPositionsLoad("ok");
+    } catch {
+      setPositionsLoad("failed");
+    }
   }, []);
 
   const loadOrders = useCallback(async () => {
     try {
       const res  = await fetch("/api/alpaca-trading?action=orders&status=all", { cache: "no-store" });
+      if (!res.ok) { setOrdersLoad("failed"); return; }
       const data = await res.json();
-      if (Array.isArray(data)) setOrders(data.slice(0, 20));
-    } catch {}
+      if (!Array.isArray(data)) { setOrdersLoad("failed"); return; }
+      setOrders(data.slice(0, 20));
+      setOrdersLoad("ok");
+    } catch {
+      setOrdersLoad("failed");
+    }
   }, []);
 
   useEffect(() => {
@@ -223,10 +240,20 @@ export function AlpacaTradingPanel({
   };
 
   const cancelOrder = async (orderId: string) => {
+    setCancelError("");
     try {
-      await fetch(`/api/alpaca-trading?action=order&id=${orderId}`, { method: "DELETE" });
+      const res = await fetch(`/api/alpaca-trading?action=order&id=${orderId}`, { method: "DELETE" });
+      // A rejected cancel resolves normally. Without this check a still-working
+      // order looks cancelled, and the trader walks away still exposed.
+      if (!res.ok) {
+        setCancelError(`Cancel was not accepted (${res.status}). The order may still be working — check with your broker.`);
+        loadOrders();
+        return;
+      }
       loadOrders();
-    } catch {}
+    } catch {
+      setCancelError("Cancel could not be sent. The order may still be working — check with your broker.");
+    }
   };
 
   const TABS: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
@@ -564,10 +591,18 @@ export function AlpacaTradingPanel({
           {/* ─── POSITIONS TAB ─── */}
           {!disconnected && activeTab === "positions" && (
             <div className="p-3 space-y-2">
-              {positions.length === 0 ? (
+              {positionsLoad === "failed" ? (
+                <div role="alert" className="text-center py-12 text-wm-red text-[12px]">
+                  <Activity size={28} className="mx-auto mb-3 opacity-40" />
+                  Could not load positions.
+                  <div className="text-wm-text-dim text-[10px] mt-1">
+                    This is not a confirmation that you hold none.
+                  </div>
+                </div>
+              ) : positions.length === 0 ? (
                 <div className="text-center py-12 text-wm-text-dim text-[12px]">
                   <Activity size={28} className="mx-auto mb-3 opacity-30" />
-                  No open positions
+                  {positionsLoad === "pending" ? "Loading positions…" : "No open positions"}
                 </div>
               ) : positions.map(pos => {
                 const pl = parseFloat(pos.unrealized_pl ?? "0");
@@ -601,10 +636,23 @@ export function AlpacaTradingPanel({
           {/* ─── ORDERS TAB ─── */}
           {!disconnected && activeTab === "orders" && (
             <div className="p-3 space-y-2">
-              {orders.length === 0 ? (
+              {cancelError && (
+                <div role="alert" className="mb-2 rounded-lg border border-wm-red/50 bg-wm-red/10 px-2.5 py-2 text-[10px] text-wm-text">
+                  {cancelError}
+                </div>
+              )}
+              {ordersLoad === "failed" ? (
+                <div role="alert" className="text-center py-12 text-wm-red text-[12px]">
+                  <Clock size={28} className="mx-auto mb-3 opacity-40" />
+                  Could not load orders.
+                  <div className="text-wm-text-dim text-[10px] mt-1">
+                    This is not a confirmation that you have none working.
+                  </div>
+                </div>
+              ) : orders.length === 0 ? (
                 <div className="text-center py-12 text-wm-text-dim text-[12px]">
                   <Clock size={28} className="mx-auto mb-3 opacity-30" />
-                  No recent orders
+                  {ordersLoad === "pending" ? "Loading orders…" : "No recent orders"}
                 </div>
               ) : orders.map(ord => {
                 const isOpen   = ["new", "partially_filled", "accepted", "pending_new"].includes(ord.status);
