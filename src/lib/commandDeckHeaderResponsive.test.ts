@@ -7,6 +7,13 @@ const dlar = readFileSync(resolve(__dirname, "../components/command-deck/DLARStr
 const realms = readFileSync(resolve(__dirname, "../components/brand/RealmGateway.tsx"), "utf8");
 
 describe("Command Deck header responsive contract", () => {
+  it("uses one calm page identity beneath the global shell brand", () => {
+    expect(page).not.toContain('import WmWordmark from "@/components/brand/WmWordmark"');
+    expect(page).not.toContain('subtitle="COMMAND CENTER"');
+    expect(page).toContain('<h1\n          className="wm-cd-header-identity"');
+    expect(page.match(/>\s*Command Deck\s*<\/h1>/g)).toHaveLength(1);
+  });
+
   it("keeps all three primary actions reachable on phone widths", () => {
     expect(page).toContain('className="wm-cd-header"');
     expect(page).toContain('className="wm-cd-header-actions"');

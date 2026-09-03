@@ -30,7 +30,6 @@ import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonal
 import HeroTruth from "@/components/command-deck/HeroTruth";
 import DLARStrip, { type DLARDimensionKey } from "@/components/command-deck/DLARStrip";
 import WhyInspector, { type WhyTarget } from "@/components/command-deck/WhyInspector";
-import WmWordmark from "@/components/brand/WmWordmark";
 import SectionBanner from "@/components/brand/SectionBanner";
 import RealmGateway from "@/components/brand/RealmGateway";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
@@ -400,12 +399,21 @@ function CommandDeckInner() {
           <ArrowLeft size={12} />
           Charts
         </button>
-        <div className="wm-cd-header-identity" style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <WmWordmark size="compact" subtitle="COMMAND CENTER" />
-          <h1 style={{ margin: 0, fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800, whiteSpace: "nowrap" }}>
-            ◆ Command Deck
-          </h1>
-        </div>
+        <h1
+          className="wm-cd-header-identity"
+          style={{
+            margin: 0,
+            minWidth: 0,
+            fontSize: 11,
+            letterSpacing: 0.6,
+            textTransform: "uppercase",
+            color: "#c9a55c",
+            fontWeight: 800,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Command Deck
+        </h1>
         {/* canon §Phase 3 Market Canvas — one-line summary in the
             sticky header. Renders nothing when the canvas is fully
             silent (§Silence Is A Feature). */}
