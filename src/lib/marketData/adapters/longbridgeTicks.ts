@@ -9,6 +9,7 @@ import { certifySource, type SourceCertification } from "../sourceCapabilityCert
 export type LongbridgeWireLabel =
   | "NOT CONFIGURED"
   | "AUTH BLOCKED"
+  | "ACCESS UNPROVEN"
   | "BRIDGE UNREACHABLE"
   | "NO EVENTS RECEIVED"
   | "STALE"
@@ -135,7 +136,13 @@ export async function readLongbridgeTicks(
     let body: LongbridgeTicksEnvelope | null = null;
     try { body = await response.json() as LongbridgeTicksEnvelope; } catch { body = null; }
     const error = typeof body?.error === "string" ? body.error.trim() : "";
-    if (response.status === 401 || response.status === 403) return none("AUTH BLOCKED", error || "Longbridge bridge rejected the read credential.");
+    if (response.status === 401) return none("AUTH BLOCKED", error || "Longbridge bridge rejected the read credential with HTTP 401.");
+    if (response.status === 403) {
+      return none(
+        "ACCESS UNPROVEN",
+        error || "Longbridge denied the tick request with HTTP 403, but the failed edge (authorization, subscription, entitlement, or policy) was not proven.",
+      );
+    }
     if (!response.ok || body?.ok !== true || !Array.isArray(body.trades)) {
       return none("UNKNOWN", error || `Longbridge bridge returned HTTP ${response.status}.`);
     }

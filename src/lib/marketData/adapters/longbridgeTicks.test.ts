@@ -37,6 +37,11 @@ describe("Longbridge runtime wire", () => {
   it("keeps auth, empty, and transport failures distinct", async () => {
     const auth = vi.fn(async () => new Response(JSON.stringify({ ok: false, error: "bad token" }), { status: 401 })) as unknown as typeof fetch;
     expect((await readLongbridgeTicks(auth, { bridgeUrl: "https://b", bridgeToken: "x" }, { providerCode: "TSLA.US", appSymbol: "TSLA" })).status.label).toBe("AUTH BLOCKED");
+
+    const denied = vi.fn(async () => new Response(null, { status: 403 })) as unknown as typeof fetch;
+    const deniedResult = await readLongbridgeTicks(denied, { bridgeUrl: "https://b", bridgeToken: "x" }, { providerCode: "TSLA.US", appSymbol: "TSLA" });
+    expect(deniedResult.status.label).toBe("ACCESS UNPROVEN");
+    expect(deniedResult.status.detail).toMatch(/failed edge/i);
     const empty = vi.fn(async () => new Response(JSON.stringify({ ok: true, trades: [] }), { status: 200 })) as unknown as typeof fetch;
     expect((await readLongbridgeTicks(empty, { bridgeUrl: "https://b", bridgeToken: "x" }, { providerCode: "TSLA.US", appSymbol: "TSLA" })).status.label).toBe("NO EVENTS RECEIVED");
     const down = vi.fn(async () => { throw new Error("ECONNREFUSED"); }) as unknown as typeof fetch;
