@@ -142,6 +142,17 @@ function distinctSources(evidence: readonly MarketStateEvidenceRef[]): string[] 
   return out;
 }
 
+/**
+ * Producers supply `unknowns` as complete sentences (they are rendered
+ * verbatim in the MISSING / INVALIDATION list), so interpolating one into
+ * another sentence and appending "." yields a stray double period. Observed on
+ * prod /charts: "Direction unresolved — No verified evidence supplied at
+ * snapshot time.." on all six unresolved rows.
+ */
+function stripTerminalPeriod(text: string): string {
+  return text.replace(/\s*\.+\s*$/, "");
+}
+
 function summarise(
   label: string,
   lifecycle: PassportLifecycle,
@@ -150,13 +161,13 @@ function summarise(
 ): string {
   if (lifecycle === "RESOLVED") {
     const via = fidelity ? ` (${fidelity.toLowerCase()} evidence)` : "";
-    return `${label} resolved to ${d.value}${via}.`;
+    return `${label} resolved to ${stripTerminalPeriod(String(d.value ?? ""))}${via}.`;
   }
   if (lifecycle === "FORMING") {
-    const need = d.unknowns[0] ? ` — still needs ${d.unknowns[0]}` : "";
+    const need = d.unknowns[0] ? ` — still needs ${stripTerminalPeriod(d.unknowns[0])}` : "";
     return `${label} is forming${need}.`;
   }
-  const why = d.unknowns[0] ?? "no verified evidence yet";
+  const why = stripTerminalPeriod(d.unknowns[0] ?? "no verified evidence yet");
   return `${label} unresolved — ${why}.`;
 }
 
