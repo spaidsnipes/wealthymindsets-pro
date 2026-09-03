@@ -118,9 +118,48 @@ const evaluateMaxLosses: Evaluator = (rule, input) => {
   };
 };
 
+/**
+ * Cumulative session R for the drawdown rule.
+ *
+ * `cumulativeSessionR` is optional and NO production caller supplies it —
+ * composeMarketCanvasVM (which drives the Canvas verdict on /command-deck,
+ * /charts, /nectar/[symbol] and /ai-bot) omits it. The old code did
+ * `input.cumulativeSessionR ?? 0`, so `cum` was always 0 and `0 <= -3` was
+ * always false: the Founder's declared HARD daily-drawdown floor was
+ * configured in defaultFounderRules(), surfaced as a rule, and structurally
+ * incapable of ever engaging.
+ *
+ * The evidence was already in scope — `sessionDecisions` carries
+ * `outcome.realizedR`, which the max-losses rule already reads. Derive from it
+ * when the caller does not supply an explicit value.
+ *
+ * Non-finite outcomes are skipped rather than summed: one NaN would poison the
+ * total and `NaN <= threshold` is false, which would silently return the rule
+ * to never engaging — the exact permissive failure this fixes. Skipping
+ * excludes UNRESOLVED outcomes, it does not discard measured losses. Note that
+ * `?? 0` alone never guarded this, since ?? passes NaN through.
+ */
+function resolveCumulativeSessionR(input: PermissionInput): number {
+  if (typeof input.cumulativeSessionR === "number" && Number.isFinite(input.cumulativeSessionR)) {
+    return input.cumulativeSessionR;
+  }
+  let sum = 0;
+  for (const d of input.sessionDecisions) {
+    const r = d.outcome?.realizedR;
+    if (typeof r === "number" && Number.isFinite(r)) sum += r;
+  }
+  return sum;
+}
+
 const evaluateMaxDailyDrawdown: Evaluator = (rule, input) => {
-  const cum = input.cumulativeSessionR ?? 0;
-  const threshold = rule.threshold ?? Number.NEGATIVE_INFINITY;
+  const cum = resolveCumulativeSessionR(input);
+  const rawThreshold = rule.threshold;
+  // A non-finite threshold must not disable a HARD rule by making every
+  // comparison false. Fall back to the permissive-but-explicit -Infinity only
+  // when no threshold was configured at all.
+  const threshold = typeof rawThreshold === "number" && Number.isFinite(rawThreshold)
+    ? rawThreshold
+    : Number.NEGATIVE_INFINITY;
   // threshold is a NEGATIVE R value (e.g. -3). Rule engages when cum <= threshold.
   const engaged = cum <= threshold;
   return {
