@@ -73,3 +73,37 @@ describe("journal label truth", () => {
     expect(coachRegion.slice(0, 4000)).not.toMatch(/fetch\(|anthropic|openai|\/api\/ai/i);
   });
 });
+
+/**
+ * Session R coverage Sentinel — LIVING-PIXEL LAW.
+ *
+ * The header Session R chip renders cumulative R and the shutdown gate
+ * (HARD STOP / +3R OBJECTIVE / session open) from `todayRs`, which keeps ONLY
+ * entries with a finite realizedR. A trader with 5 logged trades and 2 R-tagged
+ * saw a gate verdict derived from 2 while the pixel implied the whole session.
+ *
+ * The sibling Week Edge chip already discloses "R-tagged / total"; the session
+ * chip must be equally honest about its coverage.
+ */
+describe("journal session-R coverage truth", () => {
+  it("the Session R chip discloses R-tagged coverage when it is partial", () => {
+    expect(page).toContain("R-tagged`}");
+    expect(page).toContain("todayRs.length < todayEntries.length");
+  });
+
+  it("the chip title names the exact coverage it was derived from", () => {
+    expect(page).toContain("derived from ${todayRs.length} R-tagged of ${todayEntries.length} entries today");
+  });
+
+  it("the gate still reads only finite realizedR values — no zero-filling", () => {
+    // Coercing untagged entries to 0R would silently invent flat trades and
+    // corrupt the -2R hard stop. Coverage is disclosed, never fabricated.
+    // Scoped to the todayRs derivation: `realizedR ?? 0` is legitimate
+    // elsewhere as a boolean guard (undefined ?? 0 > 0 === false).
+    const i = page.indexOf("const todayRs");
+    expect(i).toBeGreaterThan(-1);
+    const derivation = page.slice(i, i + 300);
+    expect(derivation).toContain('Number.isFinite(r)');
+    expect(derivation).not.toMatch(/\?\?\s*0/);
+  });
+});

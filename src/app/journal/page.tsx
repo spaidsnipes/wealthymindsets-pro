@@ -1522,7 +1522,7 @@ Trade the system, trust the process, winners every day 🚀`,
               -2R hard stop, +3R baseline objective (not a quota). */}
           {todayRs.length > 0 && (
             <span
-              title={`${sessionShutdown.reason} · ${todayModelCounts.M0 ?? 0}·M0 / ${todayModelCounts.M1 ?? 0}·M1 / ${todayModelCounts.M2 ?? 0}·M2`}
+              title={`${sessionShutdown.reason} · derived from ${todayRs.length} R-tagged of ${todayEntries.length} entries today${todayRs.length < todayEntries.length ? " — untagged entries are NOT counted, so cumulative R covers only part of the session" : ""} · ${todayModelCounts.M0 ?? 0}·M0 / ${todayModelCounts.M1 ?? 0}·M1 / ${todayModelCounts.M2 ?? 0}·M2`}
               className={clsx(
                 "px-2 py-0.5 rounded-full text-[10px] font-bold border",
                 sessionShutdown.state === "AT_TWO_R_STOP" && "bg-wm-red/15 text-wm-red border-wm-red/40",
@@ -1534,6 +1534,13 @@ Trade the system, trust the process, winners every day 🚀`,
               {sessionShutdown.state === "AT_TWO_R_STOP" && " · HARD STOP"}
               {sessionShutdown.state === "AT_THREE_R_TARGET" && " · +3R OBJECTIVE"}
               {sessionShutdown.state === "OPEN" && " · session open"}
+              {/* Coverage disclosure — the gate reads ONLY R-tagged entries.
+                  Without this the chip presents a subset as the whole session's
+                  cumulative R and can show HARD STOP / +3R OBJECTIVE while
+                  untagged trades sit outside the calculation entirely. */}
+              {todayRs.length < todayEntries.length && (
+                <span className="ml-1 opacity-70">{` · ${todayRs.length}/${todayEntries.length} R-tagged`}</span>
+              )}
             </span>
           )}
           {/* Week Edge chip — I-Bkt 3, canon §11 + §21 Week-One. Silent
