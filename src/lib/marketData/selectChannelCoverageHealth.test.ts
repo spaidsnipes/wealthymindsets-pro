@@ -130,4 +130,39 @@ describe("selectChannelCoverageHealth", () => {
       }
     }
   });
+
+  /* /morning-prep consumes this verdict as the Opening Bell "Market data
+   * health verified" owner. selectOpeningBell only evaluates that required
+   * item when dataQuality is supplied, and /morning-prep supplied nothing —
+   * so it sat permanently NOT DONE and blocked the readiness verdict while
+   * /command-deck evaluated the same item correctly. These lock the property
+   * the mapping depends on: only a genuinely observing session may map to a
+   * passing quality. */
+  describe("opening-bell data-health contract", () => {
+    it("only OBSERVING may map to a passing (LIVE) data-health verdict", () => {
+      const passing = ["OBSERVING"];
+      const cases: Array<[string, CoverageHealthInputChannel[]]> = [
+        ["OBSERVING", [ch("COLLECTING")]],
+        ["STALE", [ch("STALE")]],
+        ["GAPPED", [ch("COLLECTING", 2)]],
+        ["PARTIAL", [ch("COLLECTING"), ch("STALE")]],
+        ["UNAVAILABLE", [ch("UNAVAILABLE")]],
+        ["CONNECTING", [ch("CONNECTING")]],
+        ["NONE", []],
+      ];
+      for (const [expected, channels] of cases) {
+        const h = selectChannelCoverageHealth(channels);
+        expect(h.verdict).toBe(expected);
+        if (!passing.includes(h.verdict)) {
+          expect(h.tone).not.toBe("resolved");
+        }
+      }
+    });
+
+    it("an empty session reports NONE — never an implied healthy feed", () => {
+      const h = selectChannelCoverageHealth([]);
+      expect(h.verdict).toBe("NONE");
+      expect(h.observing).toBe(0);
+    });
+  });
 });

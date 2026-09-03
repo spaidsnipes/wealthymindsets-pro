@@ -17,6 +17,9 @@ import {
   DEFAULT_PREPARATION_TEMPLATE,
   type PreparationItem,
 } from "@/lib/traderMemory/viewModels/selectOpeningBell";
+import { selectChannelCoverageHealth } from "@/lib/marketData/selectChannelCoverageHealth";
+import { getSessionNectarSnapshot, subscribeToSessionNectar } from "@/lib/marketData/sessionNectar";
+import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
@@ -152,10 +155,49 @@ function MorningPrepMirror({ userId }: { userId: string }) {
   return <MirrorPanel vm={vm} />;
 }
 
+/**
+ * Map real channel-coverage health onto the canonical market-quality
+ * vocabulary the Opening Bell consumes.
+ *
+ * selectOpeningBell only evaluates the "Market data health verified" item when
+ * `dataQuality` is supplied — and /morning-prep never supplied it, so that
+ * required item sat permanently NOT DONE and blocked the readiness verdict
+ * while /command-deck (which does pass it) evaluated the same item correctly.
+ *
+ * Coverage health is a real data owner: it reports what the session's channels
+ * actually did. No channels observed is honestly UNAVAILABLE, not a pass.
+ */
+function coverageHealthToQuality(
+  verdict: ReturnType<typeof selectChannelCoverageHealth>["verdict"],
+): MarketQualityState {
+  switch (verdict) {
+    case "OBSERVING": return "LIVE";
+    case "STALE": return "STALE";
+    case "GAPPED":
+    case "PARTIAL":
+    case "CONNECTING": return "PARTIAL";
+    case "UNAVAILABLE":
+    case "NONE":
+    default: return "UNAVAILABLE";
+  }
+}
+
 function MorningPrepOpeningBell({ entriesCount, userId }: { entriesCount: number; userId: string }) {
   // Deterministic derivation — no wall clock reads inside the selector.
   const nowMs = React.useMemo(() => Date.now(), []);
   const hasTodayEntry = entriesCount > 0;
+  // Real owner for the data-health item — the session's own channel coverage.
+  const [coverageQuality, setCoverageQuality] = React.useState<MarketQualityState>(() =>
+    coverageHealthToQuality(selectChannelCoverageHealth(getSessionNectarSnapshot().channels).verdict),
+  );
+  React.useEffect(() => {
+    const apply = () =>
+      setCoverageQuality(
+        coverageHealthToQuality(selectChannelCoverageHealth(getSessionNectarSnapshot().channels).verdict),
+      );
+    apply();
+    return subscribeToSessionNectar(apply);
+  }, []);
   const items: PreparationItem[] = DEFAULT_PREPARATION_TEMPLATE.map((t) => ({
     ...t,
     // A morning entry existing today counts as personal reflection + body
@@ -169,6 +211,7 @@ function MorningPrepOpeningBell({ entriesCount, userId }: { entriesCount: number
     sessionIdentity: `session-${new Date(nowMs).toISOString().slice(0, 10)}`,
     items,
     minutesUntilOpen: null,
+    dataQuality: coverageQuality,
     nowMs,
   });
   return <OpeningBellPanel vm={vm} />;
