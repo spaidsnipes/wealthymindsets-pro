@@ -96,9 +96,19 @@ function buildChain(contracts: FMPContract[], spot: number, expiry: string): Opt
   });
 }
 
-interface Props { symbol: string; price: number; onClose: () => void; }
+interface Props {
+  symbol: string;
+  price: number;
+  onClose: () => void;
+  /**
+   * Optional strike handler. The row only ADVERTISES itself as clickable when
+   * this is supplied — a hand cursor with no handler behind it is a promise
+   * the surface cannot keep (LIVING-PIXEL LAW: no design theater).
+   */
+  onSelectStrike?: (row: OptionRow) => void;
+}
 
-export function OptionsChain({ symbol, price, onClose }: Props) {
+export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) {
   const [chain,      setChain]      = useState<OptionRow[]>([]);
   const [expirations, setExpirations] = useState<string[]>([]);
   const [expiry,     setExpiry]     = useState<string>("");
@@ -314,7 +324,16 @@ export function OptionsChain({ symbol, price, onClose }: Props) {
               const putITM = row.itm === "put";
               return (
                 <tr key={row.strike}
-                  className={clsx("border-b border-wm-border/25 hover:bg-wm-surface/30 transition-colors cursor-pointer",
+                  onClick={onSelectStrike ? () => onSelectStrike(row) : undefined}
+                  tabIndex={onSelectStrike ? 0 : undefined}
+                  role={onSelectStrike ? "button" : undefined}
+                  onKeyDown={onSelectStrike
+                    ? e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectStrike(row); } }
+                    : undefined}
+                  aria-label={onSelectStrike ? `Select ${row.strike} strike` : undefined}
+                  className={clsx("border-b border-wm-border/25 transition-colors",
+                    // Interactive styling is earned by an actual handler.
+                    onSelectStrike && "hover:bg-wm-surface/30 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold",
                     isATM ? "bg-wm-gold/05 border-y border-wm-gold/20" : "")}>
                   {tab !== "puts" && <>
                     {showGreeks ? <>

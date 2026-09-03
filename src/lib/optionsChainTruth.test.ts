@@ -69,3 +69,32 @@ describe("options chain footer truth", () => {
     expect(chain).toContain("a put/call ratio is not defined");
   });
 });
+
+/**
+ * Dead-affordance Sentinel — LIVING-PIXEL LAW ("no design theater").
+ *
+ * Every chain row carried `cursor-pointer` and a hover highlight, but the
+ * <tr> had no onClick. The surface told the trader "this strike is clickable"
+ * — hand cursor, row lights up — and then did nothing. An affordance that
+ * cannot act is a promise the product does not keep.
+ *
+ * The interactive styling is now earned: it appears only when a real
+ * onSelectStrike handler is supplied, so the affordance and the behaviour
+ * cannot drift apart again.
+ */
+describe("options chain affordance truth", () => {
+  it("does not advertise clickability unconditionally", () => {
+    expect(chain).not.toContain('"border-b border-wm-border/25 hover:bg-wm-surface/30 transition-colors cursor-pointer"');
+    expect(chain).toContain('onSelectStrike && "hover:bg-wm-surface/30 cursor-pointer');
+  });
+
+  it("binds the click to the handler that justifies the cursor", () => {
+    expect(chain).toContain("onClick={onSelectStrike ? () => onSelectStrike(row) : undefined}");
+  });
+
+  it("an interactive row is reachable by keyboard, not mouse only", () => {
+    expect(chain).toContain('role={onSelectStrike ? "button" : undefined}');
+    expect(chain).toContain("tabIndex={onSelectStrike ? 0 : undefined}");
+    expect(chain).toContain('e.key === "Enter" || e.key === " "');
+  });
+});
