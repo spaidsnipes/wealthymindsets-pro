@@ -29,6 +29,35 @@ export type OrderSide = "buy" | "sell";
 export type OrderType = "market" | "limit" | "stop" | "stop-limit";
 export type OrderStatus = "pending" | "filled" | "cancelled" | "rejected";
 
+/**
+ * Terminal order states. Once an order reaches one of these it is settled and
+ * must never transition again — a filled order moved cash and positions, so
+ * relabelling it later makes the ledger contradict the account.
+ */
+export const TERMINAL_ORDER_STATUSES: readonly OrderStatus[] = ["filled", "cancelled", "rejected"];
+
+export function isTerminalOrderStatus(status: OrderStatus): boolean {
+  return TERMINAL_ORDER_STATUSES.includes(status);
+}
+
+/**
+ * Whether an order may still be cancelled.
+ *
+ * /paper renders its Cancel control only for `pending` orders, but this module
+ * already holds the principle that UI gating must not be the sole guard —
+ * selectPaperQuoteReadiness exists specifically to stop "UI-disabled controls
+ * from becoming the sole guard against ... direct handler invocation".
+ * The order state machine had no such guard: cancelOrder() relabelled ANY
+ * order, so a filled order could be marked "cancelled" while its cash movement
+ * and position stayed on the books.
+ *
+ * Canon §13 "paper execution state machine / order ledger / reconciliation
+ * realism": a real venue rejects a cancel against a settled order.
+ */
+export function canCancelOrder(status: OrderStatus): boolean {
+  return status === "pending";
+}
+
 export interface Order {
   id: string;
   symbol: string;

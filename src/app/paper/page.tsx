@@ -25,6 +25,7 @@ import {
 import {
   STARTING_CASH,
   applyFill as applyFillShared,
+  canCancelOrder,
   loadPaperState,
   savePaperState,
   subscribePaperState,
@@ -1112,7 +1113,14 @@ export default function PaperTradingPage() {
   }, [earnWMS, quoteReadiness]);
 
   const cancelOrder = (id: string) => {
-    setOrders(prev => prev.map(o => o.id===id ? { ...o, status:"cancelled" } : o));
+    // Guard the TRANSITION, not just the button. The Cancel control renders
+    // only for pending orders, but this module's own readiness boundary exists
+    // because "UI-disabled controls must not become the sole guard against
+    // direct handler invocation". A cancel applied to a filled order would
+    // relabel it while its cash movement and position remain on the books —
+    // the order ledger would contradict the account.
+    setOrders(prev => prev.map(o =>
+      o.id === id && canCancelOrder(o.status) ? { ...o, status: "cancelled" } : o));
   };
 
   const closePosition = (symbol: string) => {
