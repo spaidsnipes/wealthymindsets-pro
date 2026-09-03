@@ -240,13 +240,21 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
           <span style={{ color: "#55503f" }}>session</span>{" "}
           <span style={{ color: "#ede6d3" }}>{state?.session ?? "unknown"}</span>
         </span>
+        {/* No sealed state means we know NOTHING — not zero. Rendering
+            "coverage 0 channels · unknowns 0" for a null state inverted the
+            truth: "unknowns 0" is the most reassuring number on the strip and
+            it appeared precisely when nothing had been resolved. The `session`
+            field above already degrades honestly with "unknown"; these now
+            match it. */}
         <span>
           <span style={{ color: "#55503f" }}>coverage</span>{" "}
-          <span style={{ color: "#ede6d3" }}>{state?.coverage.length ?? 0} channel{state?.coverage.length === 1 ? "" : "s"}</span>
+          <span style={{ color: "#ede6d3" }}>
+            {state ? `${state.coverage.length} channel${state.coverage.length === 1 ? "" : "s"}` : "unknown"}
+          </span>
         </span>
         <span>
           <span style={{ color: "#55503f" }}>unknowns</span>{" "}
-          <span style={{ color: "#c9a55c" }}>{state?.unknowns.length ?? 0}</span>
+          <span style={{ color: "#c9a55c" }}>{state ? state.unknowns.length : "unknown"}</span>
         </span>
         {state?.contradictions && state.contradictions.length > 0 && (
           <span>
