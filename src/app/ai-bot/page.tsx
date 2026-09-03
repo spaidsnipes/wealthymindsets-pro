@@ -36,7 +36,11 @@ export default function AIBotPage() {
   const canvasIdentity = React.useMemo(() => {
     if (!activeSymbol) return null;
     try {
-      return canonicalMarketStateIdentity({ symbol: activeSymbol, timeframe: "15" });
+      // "15" is NOT a TFId and has no LEGACY alias, so normalizeTFId returned
+      // null, canonicalMarketStateIdentity threw, the catch below nulled the
+      // identity, and the Market Canvas silently never rendered on this page —
+      // the very orphan this block was added to close. The canonical id is "15m".
+      return canonicalMarketStateIdentity({ symbol: activeSymbol, timeframe: "15m" });
     } catch {
       // Unknown symbol shape (option OCC, non-canonical futures) — no-op.
       return null;
