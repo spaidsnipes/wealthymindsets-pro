@@ -59,8 +59,15 @@ export function CanvasSummaryPill({
     vm.invalidators.length > 0;
   if (!hasAnything) return null;
 
+  // `vm.missing` is state.unknowns — canonical DIMENSIONS that have not
+  // resolved. They do NOT gate the verdict; `blockers` do. Labelling them
+  // "missing" beside an ACTION verdict read as a direct contradiction
+  // ("ACTION · 8 missing"), implying the decision was authorized despite
+  // unpaid evidence — the exact appearance canon rejection #1 forbids, even
+  // though the underlying authorization was correct. Name them for what they
+  // are; the authorization logic is untouched.
   const parts: string[] = [];
-  if (vm.missing.length > 0) parts.push(`${vm.missing.length} missing`);
+  if (vm.missing.length > 0) parts.push(`${vm.missing.length} unresolved`);
   if (vm.blockers.length > 0) parts.push(`${vm.blockers.length} blockers`);
   if (vm.clearances.length > 0) parts.push(`${vm.clearances.length} cleared`);
   if (vm.invalidators.length > 0) parts.push(`${vm.invalidators.length} would-invalidate`);
@@ -85,7 +92,14 @@ export function CanvasSummaryPill({
   if (vm.headline) tooltipLines.push("", vm.headline);
   if (vm.blockers.length > 0) tooltipLines.push("", "Why not:", ...vm.blockers.slice(0, 3).map((b) => `  · ${b}`));
   if (vm.invalidators.length > 0) tooltipLines.push("", "Would invalidate:", ...vm.invalidators.slice(0, 3).map((s) => `  · ${s}`));
-  if (vm.missing.length > 0) tooltipLines.push("", `Missing: ${vm.missing.slice(0, 4).join(", ")}${vm.missing.length > 4 ? " …" : ""}`);
+  if (vm.missing.length > 0) {
+    tooltipLines.push(
+      "",
+      `Unresolved dimensions (${vm.missing.length}) — these do not gate the verdict; blockers do:`,
+      ...vm.missing.slice(0, 4).map((m) => `  · ${m}`),
+    );
+    if (vm.missing.length > 4) tooltipLines.push("  …");
+  }
   const tooltip = tooltipLines.join("\n");
 
   const scroll = React.useCallback(() => {
