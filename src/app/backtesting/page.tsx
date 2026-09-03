@@ -240,13 +240,12 @@ export default function BacktestingPage() {
     setResult(null);
     setError(null);
 
-    // Progress ticks while the real fetch + simulation run.
-    let p = 0;
-    const iv = setInterval(() => {
-      p += Math.random() * 12;
-      setProgress(Math.min(p, 92));
-      if (p >= 92) clearInterval(iv);
-    }, 90);
+    // The backtest exposes no incremental progress signal: fetchBars() is a
+    // single await and runRealBacktest() is synchronous. The old code animated
+    // `p += Math.random() * 12` and rendered it as "N%", so the number was
+    // decorative motion presented as measurement (LIVING-PIXEL LAW — every
+    // material pixel needs a real owner). We now show an INDETERMINATE
+    // indicator instead of inventing a percentage.
 
     try {
       const bars = await fetchBars(symbol, tf);
@@ -259,11 +258,9 @@ export default function BacktestingPage() {
       if (approxDaysCovered < dateRange.days * 0.6) {
         r.meta.rangeNote = `Yahoo intraday history is range-limited at ${tf}; covered ~${Math.round(approxDaysCovered)}d of the requested ${dateRange.days}d.`;
       }
-      clearInterval(iv);
       setProgress(100);
       setResult(r);
     } catch (e) {
-      clearInterval(iv);
       setError(e instanceof Error ? e.message : "Backtest failed — could not load data.");
     } finally {
       setRunning(false);
@@ -459,14 +456,22 @@ export default function BacktestingPage() {
             <div className="mb-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-wm-text-muted">Fetching real {tf} bars for {symbol} & running strategy...</span>
-                <span className="text-xs font-mono text-wm-green">{Math.round(progress)}%</span>
+                {/* No percentage: the run reports no incremental progress, so any
+                    number here would be fabricated. Indeterminate is the honest
+                    state. */}
+                <span className="text-xs font-mono text-wm-text-dim">working…</span>
               </div>
-              <div className="h-1.5 bg-wm-surface rounded-full overflow-hidden">
+              <div
+                className="h-1.5 bg-wm-surface rounded-full overflow-hidden"
+                role="progressbar"
+                aria-busy="true"
+                aria-label={`Running backtest for ${symbol} at ${tf}`}
+              >
                 <motion.div
                   className="h-full rounded-full"
-                  style={{ background: "linear-gradient(90deg,#00D4AA,#4FA3E0)" }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.1 }}
+                  style={{ background: "linear-gradient(90deg,#00D4AA,#4FA3E0)", width: "35%" }}
+                  animate={{ x: ["-40%", "180%"] }}
+                  transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
                 />
               </div>
             </div>
