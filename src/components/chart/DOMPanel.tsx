@@ -260,8 +260,16 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
             {realConnected ? "● LIVE" : "○ REST"}
           </span>
         )}
+        {/* With no observed bar, `(close ?? 0) >= (open ?? 0)` is 0 >= 0 — true —
+            so a missing bar painted this price GREEN, asserting an up move that
+            was never measured. No bar means no direction. */}
         <span style={{ marginLeft:"auto", fontFamily:"monospace", fontWeight:800, fontSize:16,
-          color: (liveBar?.close ?? 0) >= (liveBar?.open ?? 0) ? "#00C076" : "#FF4D67" }}>
+          color: Number.isFinite(liveBar?.close) && Number.isFinite(liveBar?.open)
+            ? ((liveBar as { close:number; open:number }).close >= (liveBar as { close:number; open:number }).open ? "#00C076" : "#FF4D67")
+            : "#8A90A8" }}
+          title={Number.isFinite(liveBar?.close) && Number.isFinite(liveBar?.open)
+            ? undefined
+            : "No bar observed for this interval, so no direction is shown."}>
           {center.toFixed(dp)}
         </span>
       </div>
