@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { MarketEventGuard } from "../marketEvent";
+import { normalizeLongbridgeTrade } from "./longbridgeTicks";
 import { selectFreshLongbridgeObservedEvents } from "./longbridgeTicksBrowser";
 
 const now = 1_800_000_000_000;
@@ -38,6 +40,22 @@ const body = (overrides: Record<string, unknown> = {}) => ({
 describe("Longbridge browser observation boundary", () => {
   it("admits current exact-symbol unsigned prints", () => {
     expect(selectFreshLongbridgeObservedEvents(body(), "tsla", now)).toHaveLength(1);
+  });
+
+  it("admits the server normalizer output through the canonical ingress guard", () => {
+    const normalized = normalizeLongbridgeTrade(
+      { price: "350.25", volume: "12", timestamp: now - 1_000, direction: "neutral" },
+      "TSLA.US",
+      "TSLA",
+      "DELAYED",
+      now,
+      now,
+      0,
+    );
+    expect(normalized).not.toBeNull();
+    const selected = selectFreshLongbridgeObservedEvents(body({ events: [normalized] }), "TSLA", now);
+    expect(selected).toHaveLength(1);
+    expect(new MarketEventGuard().inspect(selected[0]!)).toMatchObject({ status: "ACCEPTED" });
   });
 
   it.each([
