@@ -288,35 +288,108 @@ describe("render geometry — a VP row must be a price the bars reached", () => 
       time: i, open: low, high, low, close: high, volume,
     }));
 
+  /**
+   * Place a high deliberately in the MIDDLE of a derived bucket.
+   *
+   * This exists because the first version of this suite was nearly vacuous and
+   * nobody could have seen it by reading it. Six hand-picked fixtures looked
+   * varied; when the `Math.ceil` defect was deliberately revived to check the
+   * test could still catch it, only ONE of the six went red. The other five
+   * happened to have highs sitting exactly on a grid edge, and on an edge
+   * `ceil === floor`, so the broken code produced the correct answer. The test
+   * was passing for a reason that had nothing to do with the code being right.
+   *
+   * The trap is that the grid is not the instrument's tick — `chooseTickSize`
+   * derives it from the RANGE, so range and grid are mutually dependent. You
+   * cannot pick a mid-bucket high without knowing the tick, and you do not know
+   * the tick until you have picked the high. This iterates to the fixed point
+   * (one or two steps; the tick only moves when the range crosses a decade).
+   */
+  const offGridHigh = (lo: number, approxRange: number): number => {
+    let tick = chooseTickSize(approxRange, 320);
+    for (let i = 0; i < 8; i++) {
+      // k·tick + tick/2 — as far from either bucket edge as a price can be.
+      const hi = Math.floor((lo + approxRange) / tick) * tick + tick / 2;
+      const settled = chooseTickSize(hi - lo, 320);
+      if (settled === tick) return hi;
+      tick = settled;
+    }
+    throw new Error(`offGridHigh(${lo}, ${approxRange}) did not converge`);
+  };
+
+  /** Shapes across four price magnitudes; highs computed, never guessed. */
+  const shapes: Array<{ name: string; lo: number; range: number }> = [
+    { name: "tight equity bar", lo: 100.0, range: 0.05 },
+    { name: "normal equity bar", lo: 100.0, range: 0.55 },
+    { name: "wide equity bar", lo: 100.0, range: 4.0 },
+    { name: "index future", lo: 21_750.0, range: 3.25 },
+    { name: "sub-dollar", lo: 0.45, range: 0.0099 },
+    { name: "BTC", lo: 59_800.0, range: 340.5 },
+  ];
+  const midBucketCases = shapes.map((s) => ({
+    ...s,
+    bars: barsOf([[s.lo, offGridHigh(s.lo, s.range), 1000]]),
+  }));
+
+  /**
+   * VACUITY GUARD. Proves the fixtures above really do exercise the geometry
+   * that broke. Without this, a future change to `chooseTickSize` could quietly
+   * slide every high back onto a grid edge and the assertions below would go
+   * green forever while testing nothing.
+   */
+  it("FIXTURE GUARD: every high lands mid-bucket, not on a grid edge", () => {
+    for (const c of midBucketCases) {
+      const hi = c.bars[0]!.high;
+      const tick = computeProfileFromBars(c.bars).tickSize;
+      const offset = hi / tick - Math.floor(hi / tick);
+      expect(
+        offset,
+        `${c.name}: high ${hi} sits on a grid edge (tick ${tick}) — ` +
+          `floor and ceil agree there, so this fixture cannot detect the defect`,
+      ).toBeGreaterThan(0.05);
+      expect(offset, `${c.name}: high ${hi} sits on a grid edge`).toBeLessThan(0.95);
+      // And the defect really is reachable from here: the old form names a
+      // bucket strictly above the one holding the high.
+      expect(Math.ceil(hi / tick), `${c.name}: ceil must overshoot floor`)
+        .toBeGreaterThan(Math.floor(hi / tick));
+    }
+  });
+
   it("never places volume above the highest high or below the lowest low", () => {
-    // A grid of shapes: tight bars, wide bars, edge-aligned bars, and bars whose
-    // high lands mid-bucket (the case that used to leak).
-    const cases: ProfileBar[][] = [
-      barsOf([[100.0, 100.05, 1000]]),                       // 1 bucket wide
-      barsOf([[100.0, 100.55, 1000]]),                       // mid-bucket high
-      barsOf([[100.0, 101.0, 1000]]),                        // edge-aligned high
-      barsOf([[21750.0, 21752.0, 500], [21751.0, 21753.25, 900]]),
-      barsOf([[0.4521, 0.4599, 12], [0.4500, 0.4530, 7]]),   // sub-dollar
-      barsOf([[59_800.0, 60_140.5, 3.25]]),                  // BTC
+    const cases: Array<{ name: string; bars: ProfileBar[] }> = [
+      ...midBucketCases,
+      // Edge-aligned and multi-bar shapes are legitimate inputs too; they just
+      // cannot carry the proof on their own, which is why they come last.
+      { name: "edge-aligned high", bars: barsOf([[100.0, 101.0, 1000]]) },
+      {
+        name: "overlapping futures bars",
+        bars: barsOf([[21750.0, 21752.0, 500], [21751.0, 21753.25, 900]]),
+      },
+      {
+        name: "overlapping sub-dollar bars",
+        bars: barsOf([[0.4521, 0.4599, 12], [0.45, 0.453, 7]]),
+      },
     ];
 
-    for (const bars of cases) {
+    // Collect every offender before asserting. A bare `expect` inside the loop
+    // aborts on the first failure, which hides HOW MANY shapes leak — and that
+    // count is exactly what tells you whether the fixture set is pulling its
+    // weight or one lucky case is carrying the whole suite.
+    const leaks: string[] = [];
+    for (const { name, bars } of cases) {
       const lo = Math.min(...bars.map((b) => b.low));
       const hi = Math.max(...bars.map((b) => b.high));
       const snap = computeProfileFromBars(bars);
 
-      const above = snap.rows.filter((r) => r.price > hi);
-      const below = snap.rows.filter((r) => r.price + snap.tickSize <= lo);
-
-      expect(
-        above.map((r) => r.price),
-        `${lo}-${hi}: a volume shelf was drawn ABOVE the highest price these bars reached`,
-      ).toEqual([]);
-      expect(
-        below.map((r) => r.price),
-        `${lo}-${hi}: a volume shelf was drawn BELOW the lowest price these bars reached`,
-      ).toEqual([]);
+      for (const r of snap.rows.filter((r) => r.price > hi)) {
+        leaks.push(`${name}: volume drawn at ${r.price}, ABOVE the high of ${hi}`);
+      }
+      for (const r of snap.rows.filter((r) => r.price + snap.tickSize <= lo)) {
+        leaks.push(`${name}: volume drawn at ${r.price}, BELOW the low of ${lo}`);
+      }
     }
+
+    expect(leaks, "the profile drew shelves at prices the bars never reached").toEqual([]);
   });
 
   it("conserves every lot — the profile totals what the bars totalled", () => {
