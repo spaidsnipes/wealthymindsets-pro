@@ -1195,6 +1195,42 @@ export function ChartsDashboard() {
               clipped ("cut off"). Natural left flow lets the row scroll cleanly and
               keeps every control fully reachable. pr-3 gives the last button breathing
               room so it never sits flush against the clip edge. */}
+          {/* ── WM-BRAND-W-TRIGGER-01 · Smart Money identity strip ──
+              FOUNDER INSTRUCTION (2026-09-04): "the wm pro smartmoney button was taken
+              from the charts and i dont know why it should be on the charts section
+              still with the new logo".
+
+              ROOT CAUSE: e3ce41f "refactor(charts): disclose advanced study controls on
+              demand" moved the ENTIRE second toolbar row behind `studyToolsOpen`, which
+              defaults to false. The branded Smart Money trigger lived inside that row,
+              so from the trader's seat it read as deleted — its only remaining path was
+              ChartToolbar → Advanced → "Flow & studies", a label that never says
+              "Smart Money".
+
+              FIX: the branded, identity-bearing control is NOT a study tool. It renders
+              in its own always-visible strip, gated ONLY by the chart-surface rule — it
+              never depends on `studyToolsOpen`. Progressive disclosure still governs the
+              dense study row below; the room stays quiet. Exactly one Smart Money
+              trigger exists in this file (single writer, no duplicate). */}
+          {(activeTab === "Chart" || activeTab === "Options") && <div className="wm-chart-identity-strip flex items-center justify-start border-b shrink-0 overflow-x-auto overflow-y-hidden px-2 gap-2"
+            style={{ minHeight: 34, background: "#0D0E14", borderColor: "#1E2030" }}>
+            <button
+              onClick={() => setSmartMoneyOpen(o => !o)}
+              className={`flex items-center gap-1.5 pl-1.5 pr-2.5 h-8 rounded text-[12px] font-semibold border transition-all shrink-0`}
+              style={{
+                background: smartMoneyOpen ? "rgba(139,92,246,0.15)" : "#131520",
+                borderColor: smartMoneyOpen ? "rgba(139,92,246,0.45)" : "#1E2030",
+                color: smartMoneyOpen ? "#8B5CF6" : "#E2E8F0",
+                minHeight: 32, minWidth: 44,
+              }}
+              title="Smart Money — real order-flow read (VWAP, CVD, imbalance); honest N/A for feeds we don't have"
+              aria-label="Open Smart Money panel"
+              aria-pressed={smartMoneyOpen}
+            >
+              <WMLogo size={18} showGlow={smartMoneyOpen} /> Smart Money
+            </button>
+          </div>}
+
           {(activeTab === "Chart" || activeTab === "Options") && studyToolsOpen && <div className="wm-chart-tools flex items-center justify-start border-b shrink-0 overflow-x-auto overflow-y-hidden pr-3"
             style={{ height: 30, background: "#0D0E14", borderColor: "#1E2030" }}>
             <div className="flex items-center shrink-0">
@@ -1350,25 +1386,6 @@ export function ChartsDashboard() {
                   </div>
                 )}
               </AnimatePresence>
-
-              {/* WM-BRAND-W-TRIGGER-01: the panel interior uses <WMLogo /> as its
-                  identity mark; the trigger was a generic Activity icon. Restored
-                  the branded W so the button and panel read as one product. */}
-              <button
-                onClick={() => setSmartMoneyOpen(o => !o)}
-                className={`flex items-center gap-1.5 pl-1.5 pr-2.5 h-8 rounded text-[12px] font-semibold border transition-all`}
-                style={{
-                  background: smartMoneyOpen ? "rgba(139,92,246,0.15)" : "#131520",
-                  borderColor: smartMoneyOpen ? "rgba(139,92,246,0.45)" : "#1E2030",
-                  color: smartMoneyOpen ? "#8B5CF6" : "#E2E8F0",
-                  minHeight: 32, minWidth: 44,
-                }}
-                title="Smart Money — real order-flow read (VWAP, CVD, imbalance); honest N/A for feeds we don't have"
-                aria-label="Open Smart Money panel"
-                aria-pressed={smartMoneyOpen}
-              >
-                <WMLogo size={18} showGlow={smartMoneyOpen} /> Smart Money
-              </button>
 
               <button
                 onClick={() => setPaperTradesOn(o => !o)}
