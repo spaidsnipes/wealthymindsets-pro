@@ -176,9 +176,17 @@ export async function fetchWebullTickSnapshot(
   const url = new URL(`https://${host}${STOCK_TICKS_PATH}`);
   Object.entries(query).forEach(([key, value]) => url.searchParams.set(key, value));
 
-  let response: Response;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let timeout: ReturnType<typeof setTimeout>;
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      controller.abort();
+      reject(new Error("Webull tick deadline exceeded"));
+    }, timeoutMs);
+  });
+  // One deadline covers headers and either the success or error body.
+  try {
+  let response: Response;
   try {
     const headers: Record<string, string> = {
       "x-app-key": appKey,
@@ -193,21 +201,19 @@ export async function fetchWebullTickSnapshot(
     // HMAC. A Data API 401 alone does not prove that this token was required.
     if (accessToken) headers["x-access-token"] = accessToken;
 
-    response = await fetchImpl(url, {
+    response = await Promise.race([fetchImpl(url, {
       method: "GET",
       // Do not forward signed credentials or an optional token to redirects.
       redirect: "manual",
       cache: "no-store",
       headers,
       signal: controller.signal,
-    });
+    }), deadline]);
   } catch {
     if (controller.signal.aborted) {
       return unavailable("TIMEOUT", `Webull Data API did not respond within ${timeoutMs} ms; no tick observation was returned.`);
     }
     return unavailable("UNAVAILABLE", "Webull Data API could not be reached; no tick observation was returned.");
-  } finally {
-    clearTimeout(timeout);
   }
   if (!response.ok) {
     if (response.status === 401) {
@@ -219,7 +225,7 @@ export async function fetchWebullTickSnapshot(
       );
     }
     if (response.status === 403) {
-      const providerCode = await readWebullErrorCode(response);
+      const providerCode = await Promise.race([readWebullErrorCode(response), deadline]);
       if (providerCode === "MARKET_DATA_NOT_SUBSCRIBED") {
         return unavailable(
           "BLOCKED_ENTITLEMENT",
@@ -240,7 +246,7 @@ export async function fetchWebullTickSnapshot(
     return unavailable("UNAVAILABLE", `Webull Data API returned HTTP ${response.status}; no tick observation was returned.`);
   }
 
-  const payload = await response.json().catch(() => null);
+  const payload = await Promise.race([response.json().catch(() => null), deadline]);
   const envelope = payload && typeof payload === "object"
     ? payload as { symbol?: unknown; result?: unknown }
     : null;
@@ -269,6 +275,13 @@ export async function fetchWebullTickSnapshot(
     ticks,
     note: "Bounded on-demand stock prints; this is not a streaming, futures, or broker-execution connection.",
   };
+  } catch {
+    return controller.signal.aborted
+      ? unavailable("TIMEOUT", `Webull tick response did not complete within ${timeoutMs} ms; no tick observation was accepted.`)
+      : unavailable("PROVIDER_ERROR", "Webull tick response could not be read; no tick observation was accepted.");
+  } finally {
+    clearTimeout(timeout!);
+  }
 }
 
 /**

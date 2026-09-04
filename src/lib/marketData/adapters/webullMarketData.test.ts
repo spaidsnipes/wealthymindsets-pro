@@ -1,7 +1,28 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchWebullTickSnapshot, parseWebullTickEnvelope, probeWebullMarketData, signWebullRequest, webullDataConfigFromEnv } from "./webullMarketData";
 
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+
 describe("Webull Data API market-data certification", () => {
+  it.each([0, 200, 403])("bounds stalled headers/body for status %i even when abort is ignored", async (status) => {
+    vi.useFakeTimers();
+    const never = () => new Promise<never>(() => {});
+    const fetchImpl = vi.fn(status === 0 ? never : async () => ({ status, ok: status === 200, json: never }));
+    const pending = fetchWebullTickSnapshot(fetchImpl as unknown as typeof fetch, {
+      appKey: "test-key", appSecret: "test-secret", timeoutMs: 250,
+    });
+    await vi.advanceTimersByTimeAsync(250);
+    expect(await pending).toMatchObject({ state: "TIMEOUT", ticks: [], fidelity: "NONE" });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([200, 401, 403])("clears the deadline after a completed HTTP %i response", async (status) => {
+    vi.useFakeTimers();
+    await fetchWebullTickSnapshot(vi.fn(async () => new Response("not json", { status })) as typeof fetch, {
+      appKey: "test-key", appSecret: "test-secret",
+    });
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it.each([301, 302, 303, 307, 308])("rejects HTTP %i without forwarding signed data credentials", async (status) => {
     const fetchImpl = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
       expect(init?.redirect).toBe("manual");
