@@ -134,21 +134,26 @@ export async function probeWebullBrokerConnection(
 
   const controller = new AbortController();
   const timeoutMs = Math.max(250, Math.min(30_000, config.timeoutMs ?? 8_000));
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let timeout: ReturnType<typeof setTimeout>;
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      controller.abort();
+      reject(new Error("Webull account deadline exceeded"));
+    }, timeoutMs);
+  });
+  try {
   let response: Response;
   try {
-    response = await fetchImpl(`https://${host}${ACCOUNT_LIST_PATH}`, {
+    response = await Promise.race([fetchImpl(`https://${host}${ACCOUNT_LIST_PATH}`, {
       method: "GET",
       cache: "no-store",
       headers,
       signal: controller.signal,
-    });
+    }), deadline]);
   } catch {
     return controller.signal.aborted
       ? receipt("TIMEOUT", `Webull Trading API did not respond within ${timeoutMs} ms.`)
       : receipt("UNAVAILABLE", "Webull Trading API could not be reached.");
-  } finally {
-    clearTimeout(timeout);
   }
 
   if (response.status === 401) {
@@ -167,7 +172,15 @@ export async function probeWebullBrokerConnection(
     return receipt("UNAVAILABLE", `Webull Trading API returned HTTP ${response.status}; account access was not proven.`);
   }
 
-  const parsed = parseAccounts(await response.json().catch(() => null));
+  let payload: unknown;
+  try {
+    payload = await Promise.race([response.json(), deadline]);
+  } catch {
+    return controller.signal.aborted
+      ? receipt("TIMEOUT", `Webull account response did not complete within ${timeoutMs} ms.`)
+      : receipt("PROVIDER_ERROR", "Webull returned an unreadable account-list response.");
+  }
+  const parsed = parseAccounts(payload);
   if (!parsed) {
     return receipt("PROVIDER_ERROR", "Webull returned an unrecognized account-list envelope.");
   }
@@ -188,4 +201,7 @@ export async function probeWebullBrokerConnection(
     accounts.length,
     accountTypes,
   );
+  } finally {
+    clearTimeout(timeout!);
+  }
 }

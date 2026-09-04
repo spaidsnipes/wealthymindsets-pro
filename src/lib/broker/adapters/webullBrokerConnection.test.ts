@@ -12,9 +12,32 @@ const config = {
   nonce: () => "fixednonce",
 };
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+});
 
 describe("Webull signed broker connection proof", () => {
+  it.each(["headers", "body"])("bounds a stalled %s even if the transport ignores abort", async (edge) => {
+    vi.useFakeTimers();
+    const never = () => new Promise<never>(() => {});
+    const fetchImpl = vi.fn(edge === "headers" ? never : async () => ({
+      status: 200, ok: true, json: never,
+    }));
+    const pending = probeWebullBrokerConnection(fetchImpl as unknown as typeof fetch, { ...config, timeoutMs: 250 });
+    await vi.advanceTimersByTimeAsync(250);
+    expect(await pending).toMatchObject({ state: "TIMEOUT", connected: false });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("cleans up its deadline after a malformed body", async () => {
+    vi.useFakeTimers();
+    const receipt = await probeWebullBrokerConnection(
+      vi.fn(async () => new Response("not json")) as unknown as typeof fetch, config,
+    );
+    expect(receipt).toMatchObject({ state: "PROVIDER_ERROR", connected: false });
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it("accepts canonical and legacy key names without exposing values", () => {
     expect(webullBrokerConfigFromEnv({ WEBULL_API_KEY: "k", WEBULL_API_SECRET: "s" })).toMatchObject({ appKey: "k", appSecret: "s" });
   });

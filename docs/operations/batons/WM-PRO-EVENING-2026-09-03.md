@@ -56,3 +56,24 @@ the provider contract supports them. Do not fabricate zero cash or permissions.
 AFTER: same-Decision identity/shared-store gap, preserving existing owners.
 
 No FULL_SHIFT, CONNECTED execution, or PROVEN claim is earned here.
+
+## 19:44 CDT continuation (2026-09-04 00:44Z)
+
+Repo remained at 5e7453e; dirty chart work and unrelated untracked paths
+preserved. No intervening active work inferred from elapsed wall time.
+
+Webull official Trading API docs name `/trading/assets/balances/get`:
+https://developer.webull.com/apis/docs/reference/account-balance/
+The readable reference did not expose balance field schema; do not substitute
+the separate Broker API schema or invent account normalization.
+
+Same read-path reliability defect fixed: the account probe cleared its timer
+on headers and could hang on JSON body completion. One deadline now covers
+headers and body, races even an abort-ignoring transport, cleans up on every
+return, and emits TIMEOUT rather than CONNECTED on a stalled response.
+Focused tests: 3 files / 30 passed, including stalled headers, stalled body,
+malformed body cleanup. TypeScript clean. No upstream request or order sent.
+
+NEXT: review scoped account probe changes and establish deployment identity;
+obtain exact Trading API account balance schema before canonical mapping.
+Current production and multi-device proof remain UNKNOWN, not completed.
