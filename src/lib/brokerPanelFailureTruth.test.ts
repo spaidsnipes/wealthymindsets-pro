@@ -23,6 +23,14 @@ const panel = fs.readFileSync(
  *    trader believed they were out.
  */
 describe("broker panel failure truth", () => {
+  it("bounds order bodies and rejects superseded reads", () => {
+    const read = panel.slice(panel.indexOf("const loadOrders ="), panel.indexOf("const disconnect ="));
+    expect(read).toContain("orderRead.current?.cancel()");
+    expect(read).toContain("signal: controller.signal");
+    expect(read).toContain("12_000");
+    expect(read).toMatch(/const data = await res.json\(\);\s*if \(!active\) return;/);
+    expect(read).toContain('if (active) setOrdersLoad("failed")');
+  });
   it("checks the HTTP response instead of trusting a resolved fetch", () => {
     expect(panel).toContain('if (!res.ok) { setPositionsLoad("failed"); return; }');
     expect(panel).toContain('if (!res.ok) { setOrdersLoad("failed"); return; }');

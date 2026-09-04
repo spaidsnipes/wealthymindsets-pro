@@ -124,3 +124,32 @@ whole-body stall class; keep DecisionMemory schema-version atom collision-held
 because Claude screenshot identifies it as unfinished work there. After that,
 bind exact deployment/source and review real broker-read evidence. Scheduled
 continuation remains active until17:02:32Z; no3hour completion claim.
+
+Follow-up: second atom sealed a48f0dc3a07dd6cc9edf008a5fe63df0b359031d.
+Webpack build for this candidate exited0 (session2955), log
+/private/tmp/wm-position-recovery-build.log. All unrelated dirty paths retained;
+our two commits remain local, no push. Fresh Contract and ATHOS fetches matched
+Sep1 20:06:39Z / Sep4 04:23:23Z modifications, current provider-composition,
+closure, queue-admission and P0 sections re-read. Full documents not claimed.
+Next heartbeat should advance account/order read recovery, not re-run closed
+position-aging work unless the candidate changes. Shift active, not completed.
+
+## 14:09–14:12Z — order-read recovery continuation
+
+Resumed exact a48f0dc; no other commits appeared. Added the same12second
+whole-body deadline and obsolete-read cancellation to existing loadOrders,
+including disconnect/unmount teardown. No submit/cancel order path changed.
+Full381files3640testsPASS and tsc --noEmit --incremental false exit0.
+Synthetic GET-only fixture passed all5viewports: stalled orders cannot render
+No recent orders; retry recovers. No real orders/account or production proof.
+Logs /private/tmp/wm-order-read-tests.log and wm-order-read-proof.log;
+fixture closes server. No additional production build for this small atom yet.
+Panel SHA2562b3d4464692207302efa41ad038b263d8f03e1c28c606d70ae01f840f597a4d0
+Fixture SHA2567b80449c4c43ee23b9e4d7340c92da77b4c29d154c811afefe5b0b7f75530537
+
+NEXT concrete source defect: ordersLoad failed currently replaces the entire
+known working-order list with an error, unlike positions. Preserve last-known
+working orders visibly under explicit unverified labels and test with a
+synthetic working buy. Do not imply cancellation or fill; no mutations.
+Account read deadline/recovery remains RESERVE. Do not touch Claude schema lane.
+No Drive refresh due yet (last14:08); hourly refresh about15:02. No push/deploy.

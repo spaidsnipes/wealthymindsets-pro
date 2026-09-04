@@ -127,7 +127,9 @@ export function AlpacaTradingPanel({
   /** When the broker last actually reconciled. null until it has ever succeeded. */
   const [positionsAsOf, setPositionsAsOf] = useState<number | null>(null);
   const positionRead = useRef<{ cancel: () => void } | null>(null);
+  const orderRead = useRef<{ cancel: () => void } | null>(null);
   useEffect(() => () => positionRead.current?.cancel(), []);
+  useEffect(() => () => orderRead.current?.cancel(), []);
   const [positionClock, setPositionClock] = useState(0);
   // Start the clock after hydration. A received snapshot must age even when
   // no rerender or new broker event happens, including tab foreground return.
@@ -234,15 +236,34 @@ export function AlpacaTradingPanel({
   }, []);
 
   const loadOrders = useCallback(async () => {
+    orderRead.current?.cancel();
+    const controller = new AbortController();
+    let active = true;
+    const cancel = () => {
+      active = false;
+      clearTimeout(deadline);
+      controller.abort();
+    };
+    const deadline = setTimeout(() => {
+      if (!active) return;
+      setOrdersLoad("failed");
+      cancel();
+    }, 12_000);
+    orderRead.current = { cancel };
     try {
-      const res  = await fetch("/api/alpaca-trading?action=orders&status=all", { cache: "no-store" });
+      const res  = await fetch("/api/alpaca-trading?action=orders&status=all", { cache: "no-store", signal: controller.signal });
+      if (!active) return;
       if (!res.ok) { setOrdersLoad("failed"); return; }
       const data = await res.json();
+      if (!active) return;
       if (!Array.isArray(data)) { setOrdersLoad("failed"); return; }
       setOrders(data.slice(0, 20));
       setOrdersLoad("ok");
     } catch {
-      setOrdersLoad("failed");
+      if (active) setOrdersLoad("failed");
+    } finally {
+      cancel();
+      if (orderRead.current?.cancel === cancel) orderRead.current = null;
     }
   }, []);
 
@@ -255,6 +276,7 @@ export function AlpacaTradingPanel({
 
   const disconnect = () => {
     positionRead.current?.cancel();
+    orderRead.current?.cancel();
     localStorage.setItem("wm_alpaca_disconnected", "1");
     setDisconnected(true);
     setAccount(null); setPositions([]); setOrders([]);

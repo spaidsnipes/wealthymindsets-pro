@@ -89,6 +89,9 @@ const server = createServer((req, res) => {
       ],envPresence:[]})); return;
     }
     if (url.pathname === '/api/alpaca-trading') {
+      if (fault === 'order-hang' && url.searchParams.get('action') === 'orders') {
+        res.writeHead(200); res.write('['); return;
+      }
       if (fault === 'position-hang' && url.searchParams.get('action') === 'positions') {
         res.writeHead(200); res.write('['); return;
       }
@@ -238,10 +241,21 @@ try {
     await dialog.getByText('Last observed empty — current positions unverified',{exact:true}).waitFor();
     await page.screenshot({path:join(output,device+'-aged-empty.png')});
     emptyPositions = false;
+    await dialog.getByRole('button',{name:'Orders',exact:true}).click();
+    fault = 'order-hang';
+    const stalledOrder = page.waitForResponse(response => response.url().includes('action=orders&status=all'));
+    await dialog.getByRole('button',{name:'Refresh paper account',exact:true}).click();
+    await stalledOrder;
+    await page.clock.runFor(12_100);
+    await dialog.getByText('Could not load orders.',{exact:false}).waitFor();
+    if (await dialog.getByText('No recent orders',{exact:true}).count()) throw new Error(device + ': hung orders claimed empty');
+    fault = false;
+    await dialog.getByRole('button',{name:'Refresh paper account',exact:true}).click();
+    await dialog.getByText('No recent orders',{exact:true}).waitFor();
     await page.keyboard.press('Escape');
     await dialog.waitFor({state:'detached'});
     if (!(await page.getByRole('button',{name:'Connect brokers',exact:true}).evaluate(el=>el===document.activeElement))) throw new Error(device + ': focus not restored');
-    rows.push({device,width,height,drawerContained:true,escapeVisible:true,snapshotAges:true,emptySnapshotAges:true,stalledPositionBodyBounded:true,retainedPositionOnFailure:true,focusTrap:true,escapeCloses:true,focusRestored:true});
+    rows.push({device,width,height,drawerContained:true,escapeVisible:true,snapshotAges:true,emptySnapshotAges:true,stalledPositionBodyBounded:true,stalledOrderBodyBounded:true,orderReadRetryRecovers:true,retainedPositionOnFailure:true,focusTrap:true,escapeCloses:true,focusRestored:true});
     await context.close();
   }
   if (errors.length) throw new Error(JSON.stringify(errors));
