@@ -158,3 +158,20 @@ NEXT: commit only the Webull path/error-code correction and this receipt, then
 select the next collision-safe Founder-visible/truth-strengthening atom. AFTER:
 subscription activation by the provider/account owner, followed by two advancing
 TSLA/SPY event receipts, canonical consumption and device-visible proof.
+
+## HUMAN proof — multi-provider connection surface
+
+The same isolated production Chrome tab opened `Connect brokers` from Charts.
+The drawer visibly states one workspace can use one or several independently
+verified providers. Alpaca and Webull were queued together; the receipt changed
+from one to two providers queued and retained independent-verification wording.
+No login, credential entry, order, account or permission action occurred.
+
+Production currently reports a different/stale Webull state from the tested
+local candidate: the market-data wire card says signed-request HTTP 401 and the
+broker card says the 2FA token is not set. Therefore host parity and current
+source deployment are not proven. This receipt establishes the connection
+workflow UI and its truthful limitation, not working Webull execution.
+
+NEXT: commit this append-only browser receipt; fetch remote freshness and
+review the exact three-commit candidate before any push/deploy decision.
