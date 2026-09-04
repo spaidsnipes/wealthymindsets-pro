@@ -14,6 +14,7 @@
 
 import { NextResponse } from "next/server";
 import { resolveAlpacaLiveCredentials } from "@/lib/broker/alpacaCredentials";
+import type { ChangeWindow } from "@/lib/marketData/changeWindow";
 
 // WM-ENV-P1-02: server-only. NEXT_PUBLIC_* prefix on a broker-secret env var
 // invites a future client-side read that would leak the key into the browser
@@ -141,6 +142,23 @@ const CRYPTO_SYMS = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","
 function isCryptoSym(sym: string) { return CRYPTO_SYMS.has(sym.toUpperCase()); }
 function isFuturesSym(sym: string) { return sym.endsWith("1!") || sym.includes("=F"); }
 
+/**
+ * Is this a reference price we can honestly measure a day-change against?
+ *
+ * Mirrors `referenceCandidate` in resolveQuoteDayChange, deliberately: finite,
+ * positive, and NOT merely the current price echoed back. The echo case is the
+ * signature of a `?? price` fallback, which turns an absent reference into
+ * `change = 0` — an assertion of "flat" built out of missing data.
+ *
+ * `value === price` is rejected even though a symbol CAN genuinely be unchanged,
+ * because at this layer the two are indistinguishable and the shared resolver
+ * downstream would reject it anyway. Withholding a true flat costs one row
+ * reading "chg —"; publishing a fabricated one is a lie about the market.
+ */
+function usableReference(value: unknown, price: number): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 && value !== price;
+}
+
 // Alpaca crypto symbols use "BTC/USD" format
 function toCryptoSym(sym: string): string {
   const up = sym.replace(/[/-]USD$/i, "").toUpperCase();
@@ -169,7 +187,15 @@ export async function GET(request: Request) {
     if (type === "quote") {
       if (!rawSym) return NextResponse.json({ error: "sym required" }, { status: 400 });
 
-      let price = 0, open = 0, high = 0, low = 0, prevClose = 0, volume = 0;
+      let price = 0, open = 0, high = 0, low = 0, volume = 0;
+      // NULLABLE on purpose. "No reference was observed" is a real state, and
+      // collapsing it into a number is how `change = price - price = 0` — a
+      // fabricated "flat" — used to leave this handler. See the two doors below.
+      let prevClose: number | null = null;
+      // WHICH reference `changePct` is measured against. Alpaca does not always
+      // have a prior daily close; when it falls back to the session open that is
+      // a genuinely weaker measure and must not wear the stronger one's name.
+      let changeWindow: ChangeWindow = "UNKNOWN";
 
       if (crypto) {
         // Crypto bars — no key needed
@@ -187,7 +213,17 @@ export async function GET(request: Request) {
           high      = last.h;
           low       = last.l;
           volume    = last.v;
-          prevClose = prev2 ? prev2.c : last.o;
+          // WAS: `prevClose = prev2 ? prev2.c : last.o` — a one-bar response
+          // silently substituted the day's OPEN for a prior CLOSE. Both are real
+          // observations; they are not the same measure, and the response gave
+          // the caller no way to tell which one it got.
+          if (usableReference(prev2?.c, price)) {
+            prevClose = prev2.c;
+            changeWindow = "PRIOR_CLOSE";
+          } else if (usableReference(last.o, price)) {
+            prevClose = last.o;
+            changeWindow = "SESSION_OPEN";
+          }
         }
       } else {
         // Stocks/ETFs — requires key
@@ -201,7 +237,16 @@ export async function GET(request: Request) {
         high      = json?.dailyBar?.h     ?? price;
         low       = json?.dailyBar?.l     ?? price;
         volume    = json?.dailyBar?.v     ?? 0;
-        prevClose = json?.prevDailyBar?.c ?? price;
+        // WAS: `prevClose = json?.prevDailyBar?.c ?? price`. When Alpaca omitted
+        // the prior daily bar this pointed the reference at the price itself, so
+        // `price - prevClose` was EXACTLY ZERO — a "this symbol is unchanged on
+        // the session" assertion manufactured out of missing data. Named in
+        // resolveQuoteDayChange.test.ts:67, but that guard lives one layer down
+        // and could not stop this route from emitting it.
+        if (usableReference(json?.prevDailyBar?.c, price)) {
+          prevClose = json.prevDailyBar.c;
+          changeWindow = "PRIOR_CLOSE";
+        }
 
         // STALENESS GUARD: Alpaca's free IEX feed does NOT receive pre/post-market
         // trades, so outside regular hours its "latestTrade" is stuck on the prior
@@ -224,8 +269,14 @@ export async function GET(request: Request) {
         low,
         prevClose,
         volume,
-        change:    +(price - prevClose).toFixed(4),
-        changePct: prevClose ? +(((price - prevClose) / prevClose) * 100).toFixed(4) : 0,
+        // WAS: `changePct: prevClose ? ... : 0`. That trailing `: 0` is a CLAIM —
+        // "unchanged on the session" — emitted precisely when we had nothing to
+        // measure against. Null withholds instead of asserting; every consumer
+        // (selectQuoteChange, resolveQuoteDayChange) already treats null as
+        // not-observed and renders "chg —".
+        change:    prevClose !== null ? +(price - prevClose).toFixed(4) : null,
+        changePct: prevClose !== null ? +(((price - prevClose) / prevClose) * 100).toFixed(4) : null,
+        changeWindow,
         ts:        Date.now(),
         source:    "alpaca",
       });

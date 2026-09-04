@@ -13,6 +13,7 @@ import {
   type ExchangeTimeframe,
   type PublicCryptoExchange,
 } from "@/lib/marketData/exchangeTimeframes";
+import { resolveRollingChange, type ChangeWindow } from "@/lib/marketData/changeWindow";
 
 type Ex = PublicCryptoExchange;
 type Bar = { time: number; open: number; high: number; low: number; close: number; volume: number };
@@ -41,36 +42,84 @@ async function cached(key: string, ttl: number, fn: () => Promise<unknown>) {
 const UA = { "User-Agent": "Mozilla/5.0 WM" };
 const j = (url: string) => fetch(url, { headers: UA, cache: "no-store" }).then(r => r.json());
 
-/* ── QUOTE: latest price + 24h change ─────────────────────────── */
-async function getQuote(ex: Ex, coin: string): Promise<{ price: number; change: number; changePct: number }> {
+/* ── QUOTE: latest price + 24h change ───────────────────────────
+ *
+ * Every venue below reports a ROLLING 24-HOUR change, not a change against a
+ * daily close — crypto trades continuously and has no close. That distinction
+ * used to live only in this comment, while the response published a bare
+ * `changePct` that consumers rendered in the same slot as equity day-changes.
+ * It is now published as `changeWindow` so a surface can disclose the measure.
+ * See src/lib/marketData/changeWindow.ts for the full defect note.
+ *
+ * Two fabrication doors were also closed here:
+ *   - `open = parseFloat(...) || price` treated a missing 24h stat as "open
+ *     equals price", manufacturing change = 0 out of absent data.
+ *   - `changePct: open ? ... : 0` — parseFloat of an unknown symbol yields NaN,
+ *     and NaN is FALSY, so an instrument the venue had never heard of was
+ *     published as `price: null, changePct: 0`: a flat quote for a thing that
+ *     does not exist.
+ * resolveRollingChange refuses both, returning nulls instead of a zero.
+ */
+type ExchangeQuote = {
+  price: number | null;
+  change: number | null;
+  changePct: number | null;
+  changeWindow: ChangeWindow;
+  referenceOpen: number | null;
+};
+
+/** Number-or-null; `parseFloat` returns NaN, which is falsy and must not pass. */
+function f(value: unknown): number | null {
+  const n = typeof value === "string" || typeof value === "number" ? parseFloat(String(value)) : NaN;
+  return Number.isFinite(n) ? n : null;
+}
+
+function quote(price: unknown, open: unknown): ExchangeQuote {
+  const p = f(price);
+  const r = resolveRollingChange(p, f(open), "ROLLING_24H");
+  return { price: p, change: r.change, changePct: r.changePct, changeWindow: r.changeWindow, referenceOpen: r.referenceOpen };
+}
+
+async function getQuote(ex: Ex, coin: string): Promise<ExchangeQuote> {
   const p = pair(ex, coin);
   if (ex === "coinbase") {
     const [t, s] = await Promise.all([
       j(`https://api.exchange.coinbase.com/products/${p}/ticker`),
       j(`https://api.exchange.coinbase.com/products/${p}/stats`),
     ]);
-    const price = parseFloat(t.price), open = parseFloat(s.open) || price;
-    return { price, change: +(price - open).toFixed(2), changePct: open ? +((price - open) / open * 100).toFixed(2) : 0 };
+    return quote(t?.price, s?.open);
   }
   if (ex === "kraken") {
     const r = await j(`https://api.kraken.com/0/public/Ticker?pair=${p}`);
-    const k = Object.values(r.result ?? {})[0] as any;
-    const price = parseFloat(k.c[0]), open = parseFloat(k.o) || price;
-    return { price, change: +(price - open).toFixed(2), changePct: open ? +((price - open) / open * 100).toFixed(2) : 0 };
+    const k = Object.values(r?.result ?? {})[0] as any;
+    return quote(k?.c?.[0], k?.o);
   }
   if (ex === "bitstamp") {
     const r = await j(`https://www.bitstamp.net/api/v2/ticker/${p}/`);
-    const price = parseFloat(r.last), open = parseFloat(r.open) || price;
-    return { price, change: +(price - open).toFixed(2), changePct: open ? +((price - open) / open * 100).toFixed(2) : 0 };
+    return quote(r?.last, r?.open);
   }
   if (ex === "binanceus") {
+    // Binance publishes the 24h delta directly. Prefer the venue's own
+    // arithmetic (as resolveQuoteDayChange does) so a healthy quote renders
+    // byte-identically, but derive the reference open so the window is provable.
     const r = await j(`https://api.binance.us/api/v3/ticker/24hr?symbol=${p}`);
-    return { price: parseFloat(r.lastPrice), change: +parseFloat(r.priceChange).toFixed(2), changePct: +parseFloat(r.priceChangePercent).toFixed(2) };
+    const price = f(r?.lastPrice);
+    const change = f(r?.priceChange);
+    const changePct = f(r?.priceChangePercent);
+    if (price === null || price <= 0 || change === null || changePct === null || change === 0) {
+      return quote(r?.lastPrice, r?.openPrice);
+    }
+    return {
+      price,
+      change: +change.toFixed(2),
+      changePct: +changePct.toFixed(2),
+      changeWindow: "ROLLING_24H",
+      referenceOpen: +(price - change).toFixed(8),
+    };
   }
   // gemini
   const r = await j(`https://api.gemini.com/v1/pubticker/${p}`);
-  const price = parseFloat(r.last), open = parseFloat(r.open ?? r.last) || price;
-  return { price, change: +(price - open).toFixed(2), changePct: open ? +((price - open) / open * 100).toFixed(2) : 0 };
+  return quote(r?.last, r?.open);
 }
 
 /* ── CANDLES: normalized OHLCV ────────────────────────────────── */
@@ -148,8 +197,18 @@ export async function GET(req: Request) {
         timeframe: resolution.timeframe,
       });
     }
-    const q = await cached(`q:${ex}:${coin}`, 1500, () => getQuote(ex, coin));
-    return NextResponse.json({ ex, coin, ...(q as object) });
+    const q = await cached(`q:${ex}:${coin}`, 1500, () => getQuote(ex, coin)) as ExchangeQuote;
+    // A venue that has never heard of this symbol returns a shape parseFloat
+    // turns into NaN. That used to leave here as HTTP 200 with
+    // `price: null, changePct: 0` — an unknown exchange was rejected with 400,
+    // but an unknown COIN was answered with a flat quote. Match the precedent.
+    if (q.price === null || q.price <= 0) {
+      return NextResponse.json(
+        { ex, coin, error: "Unknown or unquoted symbol", price: null, change: null, changePct: null, changeWindow: "UNKNOWN" },
+        { status: 404 },
+      );
+    }
+    return NextResponse.json({ ex, coin, ...q });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 502 });
   }

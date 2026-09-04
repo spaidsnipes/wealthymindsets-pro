@@ -49,11 +49,45 @@ function getSymName(sym: string): string {
 
 /* ── Yahoo Finance quotes — all symbols including futures ─── */
 import { selectQuoteChange } from "@/lib/quoteChange";
+import { changeWindowSuffix, coerceChangeWindow, describeChangeWindow, type ChangeWindow } from "@/lib/marketData/changeWindow";
 
-interface FinnhubQuote { price: number; change: number; changePct: number; changeObserved: boolean; src: string; }
+interface FinnhubQuote { price: number; change: number; changePct: number; changeObserved: boolean; changeWindow: ChangeWindow; src: string; }
 
 const FUTURES_WL = new Set(["NQ1!","ES1!","RTY1!","YM1!","GC1!","SI1!","CL1!","NG1!","ZB1!","ZN1!","ZF1!","HG1!","MNQ1!","MES1!","MYM1!","M2K1!","MGC1!","MCL1!","VX1!"]);
 const CRYPTO_WL  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC"]);
+
+/**
+ * The change fields for one row, WITH the measure that produced them.
+ *
+ * All six branches below built these inline, identically, and dropped the
+ * question the percent answers. That mattered because the branches do not
+ * agree on the question:
+ *
+ *   crypto  → /api/exchange   change vs the price 24 HOURS AGO (rolling)
+ *   others  → /api/yahoo|alpaca|finnhub   change vs the PRIOR DAILY CLOSE
+ *
+ * Both are correct for their asset — crypto trades continuously and has no
+ * close. Rendered in one unlabelled column they read as one measure. See
+ * src/lib/marketData/changeWindow.ts for the full defect note.
+ *
+ * When the change was NOT observed the window is UNKNOWN: an unobserved change
+ * has no reference, and naming one would assert a reference we do not have.
+ */
+function changeFields(
+  j: { price: number; prevClose?: number | null; change?: number | null; changePct?: number | null; changeWindow?: unknown },
+  declared: ChangeWindow,
+): Pick<FinnhubQuote, "change" | "changePct" | "changeObserved" | "changeWindow"> {
+  const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct });
+  return {
+    change: qc.observed ? qc.chg : 0,
+    changePct: qc.observed ? qc.pct : 0,
+    changeObserved: qc.observed,
+    // Prefer the measure the provider states about itself; fall back to what
+    // this call site knows. Coerced, because the wire is not trusted to name
+    // a window we would then render verbatim beside a price.
+    changeWindow: qc.observed ? coerceChangeWindow(j?.changeWindow, declared) : "UNKNOWN",
+  };
+}
 
 async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, FinnhubQuote>> {
   const result: Record<string, FinnhubQuote> = {};
@@ -68,17 +102,20 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
       // of the crypto watchlist path.
       if (isCrypto) {
         const j = await fetch(`/api/exchange?ex=coinbase&coin=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-        if ((j?.price ?? 0) > 0) { result[up] = { price: j.price, ...(() => { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { change: qc.observed ? qc.chg : 0, changePct: qc.observed ? qc.pct : 0, changeObserved: qc.observed }; })(), src: "coinbase" }; return; }
-        // Fallback to Yahoo
+        if ((j?.price ?? 0) > 0) { result[up] = { price: j.price, ...changeFields(j, "ROLLING_24H"), src: "coinbase" }; return; }
+        // Fallback to Yahoo. NOTE the measure changes with the provider: Yahoo
+        // prices crypto against a synthetic prior close, the exchange against
+        // 24h ago. Same symbol, same column, different question — which is
+        // exactly why the window travels with the number.
         const y = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-        if ((y?.price ?? 0) > 0) { result[up] = { price: y.price, ...(() => { const qc = selectQuoteChange({ price: y.price, prevClose: y?.prevClose, change: y?.change, changePct: y?.changePct }); return { change: qc.observed ? qc.chg : 0, changePct: qc.observed ? qc.pct : 0, changeObserved: qc.observed }; })(), src: "yahoo" }; return; }
+        if ((y?.price ?? 0) > 0) { result[up] = { price: y.price, ...changeFields(y, "PRIOR_CLOSE"), src: "yahoo" }; return; }
         return;
       }
 
       // Futures → Yahoo only
       if (isFutures) {
         const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-        if ((j?.price ?? 0) > 0) result[up] = { price: j.price, ...(() => { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { change: qc.observed ? qc.chg : 0, changePct: qc.observed ? qc.pct : 0, changeObserved: qc.observed }; })(), src: "yahoo" };
+        if ((j?.price ?? 0) > 0) result[up] = { price: j.price, ...changeFields(j, "PRIOR_CLOSE"), src: "yahoo" };
         return;
       }
 
@@ -86,13 +123,16 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
       // TickerTape. A same-screen value must not become LIVE merely because an
       // independent consumer happened to receive an IEX-only print first.
       const yhJ = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if (yhJ?.price > 0) { result[up] = { price: yhJ.price, ...(() => { const qc = selectQuoteChange({ price: yhJ.price, prevClose: yhJ?.prevClose, change: yhJ?.change, changePct: yhJ?.changePct }); return { change: qc.observed ? qc.chg : 0, changePct: qc.observed ? qc.pct : 0, changeObserved: qc.observed }; })(), src: "yahoo" }; return; }
+      if (yhJ?.price > 0) { result[up] = { price: yhJ.price, ...changeFields(yhJ, "PRIOR_CLOSE"), src: "yahoo" }; return; }
 
+      // Alpaca declares its own window: it falls back to the session OPEN when
+      // no prior daily bar is available, which is a weaker reference than a
+      // close. `declared` is only the floor if the route stayed silent.
       const alpacaJ = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if ((alpacaJ?.price ?? 0) > 0) { result[up] = { price: alpacaJ.price, ...(() => { const qc = selectQuoteChange({ price: alpacaJ.price, prevClose: alpacaJ?.prevClose, change: alpacaJ?.change, changePct: alpacaJ?.changePct }); return { change: qc.observed ? qc.chg : 0, changePct: qc.observed ? qc.pct : 0, changeObserved: qc.observed }; })(), src: "alpaca" }; return; }
+      if ((alpacaJ?.price ?? 0) > 0) { result[up] = { price: alpacaJ.price, ...changeFields(alpacaJ, "PRIOR_CLOSE"), src: "alpaca" }; return; }
 
       const fhJ = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if (fhJ?.price > 0) result[up] = { price: fhJ.price, ...(() => { const qc = selectQuoteChange({ price: fhJ.price, prevClose: fhJ?.prevClose, change: fhJ?.change, changePct: fhJ?.changePct }); return { change: qc.observed ? qc.chg : 0, changePct: qc.observed ? qc.pct : 0, changeObserved: qc.observed }; })(), src: "finnhub" };
+      if (fhJ?.price > 0) result[up] = { price: fhJ.price, ...changeFields(fhJ, "PRIOR_CLOSE"), src: "finnhub" };
     } catch {}
   }));
   return result;
@@ -105,6 +145,13 @@ interface WatchItem {
   changePct: number;
   /** False when a price was observed but the session change was not. */
   changeObserved: boolean;
+  /**
+   * WHICH reference `changePct` was measured against. Travels with the number
+   * because this list mixes assets whose measures genuinely differ — crypto has
+   * no daily close, so its change is a rolling 24h figure while every equity
+   * row beside it is against the prior close.
+   */
+  changeWindow: ChangeWindow;
   history: number[]; // last 20 prices for sparkline
   src?: string;
 }
@@ -280,7 +327,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
     // Clear any old caches to prevent stale change% from persisting
     try { localStorage.removeItem("wm-watchlist-prices"); } catch {}
     try { delete (window as any).__wmWatchlist; } catch {}
-    let cached: Record<string, { price: number; change: number; changePct: number; changeObserved?: boolean }> = {};
+    let cached: Record<string, { price: number; change: number; changePct: number; changeObserved?: boolean; changeWindow?: unknown }> = {};
     try {
       // Window cache (fastest — survives HMR module re-eval)
       const w = (window as any).__wmWatchlist as (typeof cached & { _ts?: number }) | undefined;
@@ -301,6 +348,10 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
           change: c.change,
           changePct: c.changePct,
           changeObserved: c.changeObserved === true,
+          // A cache entry may have been written by a previous build that had no
+          // window at all. Coerce rather than trust: an unlabelled cached row
+          // must not inherit the label of whatever renders next to it.
+          changeWindow: c.changeObserved === true ? coerceChangeWindow(c.changeWindow) : ("UNKNOWN" as ChangeWindow),
           history: Array.from({ length: 20 }, () => +c.price.toFixed(dp)),
         };
       }
@@ -310,6 +361,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
         change: 0,
         changePct: 0,
         changeObserved: false,
+        changeWindow: "UNKNOWN" as ChangeWindow,
         history: [],
       };
     });
@@ -326,15 +378,15 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
           const updated = prev.map(item => {
             const q = liveMap[item.sym.toUpperCase()];
             if (!q) return item;
-            const { price, change, changePct, changeObserved, src } = q;
+            const { price, change, changePct, changeObserved, changeWindow, src } = q;
             SEED_PRICES[item.sym.toUpperCase()] = price;
             const dp = price < 10 ? 4 : 2;
-            return { ...item, price: +price.toFixed(dp), change, changePct, changeObserved, src };
+            return { ...item, price: +price.toFixed(dp), change, changePct, changeObserved, changeWindow, src };
           });
           // Persist to window cache only (localStorage cleared on init to prevent stale change%)
           try {
             const cache: Record<string, any> = { _ts: Date.now() };
-            for (const it of updated) cache[it.sym.toUpperCase()] = { price: it.price, change: it.change, changePct: it.changePct, changeObserved: it.changeObserved };
+            for (const it of updated) cache[it.sym.toUpperCase()] = { price: it.price, change: it.change, changePct: it.changePct, changeObserved: it.changeObserved, changeWindow: it.changeWindow };
             (window as any).__wmWatchlist = cache;
           } catch {}
           return updated;
@@ -740,8 +792,21 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
                             </div>
                           </div>
                           {item.changeObserved ? (
-                            <div style={{ fontSize: 9, color: dirColor, fontFamily: "monospace" }}>
-                              {up ? "+" : ""}{item.changePct.toFixed(2)}%
+                            // The suffix is EMPTY for PRIOR_CLOSE by design: a bare
+                            // percent on a trading screen already means "today, vs
+                            // the prior close". Only the deviation gets labelled —
+                            // crypto's rolling 24h figure, which answers a different
+                            // question than the equity row directly above it.
+                            <div
+                              style={{ fontSize: 9, color: dirColor, fontFamily: "monospace", display: "flex", alignItems: "baseline", justifyContent: "flex-end", gap: 3 }}
+                              title={`${item.sym}: ${describeChangeWindow(item.changeWindow)}`}
+                            >
+                              <span>{up ? "+" : ""}{item.changePct.toFixed(2)}%</span>
+                              {changeWindowSuffix(item.changeWindow) && (
+                                <span style={{ fontSize: 8, color: "#6B7194", fontWeight: 600, letterSpacing: 0.2 }}>
+                                  {changeWindowSuffix(item.changeWindow)}
+                                </span>
+                              )}
                             </div>
                           ) : (
                             <div style={{ fontSize: 9, color: "#4A5070", fontFamily: "monospace" }}
