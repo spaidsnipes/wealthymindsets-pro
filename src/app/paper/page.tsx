@@ -1262,6 +1262,10 @@ export default function PaperTradingPage() {
     const proceeds = bid * op.qty * OPT_MULTIPLIER;
     const pnl = (bid - op.entryPrem) * op.qty * OPT_MULTIPLIER;
 
+    // Claim this local simulated close synchronously. Two calls can arrive
+    // before React commits the removal and refreshes this ref in its effect.
+    // This is not cross-device or broker idempotency.
+    optionPositionsRef.current = optionPositionsRef.current.filter(o => o.id !== id);
     // Pure updater: removal only. Idempotent if replayed.
     setOptionPositions(prev => prev.filter(o => o.id!==id));
     setCash(c => c + proceeds);
