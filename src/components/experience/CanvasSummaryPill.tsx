@@ -66,9 +66,17 @@ export function CanvasSummaryPill({
   // unpaid evidence — the exact appearance canon rejection #1 forbids, even
   // though the underlying authorization was correct. Name them for what they
   // are; the authorization logic is untouched.
+  // "blockers" is the ONLY counter here whose label is a countable noun;
+  // "unresolved", "cleared", and "would-invalidate" are participles and read
+  // correctly at any count. A single blocker is the most common real state on
+  // a live chart — the pill was shipping "NO TRADE · 8 unresolved · 1 blockers
+  // · 1 cleared" on production /charts. Sloppy copy on the surface that
+  // explains WHY a trade is refused undercuts the refusal itself.
   const parts: string[] = [];
   if (vm.missing.length > 0) parts.push(`${vm.missing.length} unresolved`);
-  if (vm.blockers.length > 0) parts.push(`${vm.blockers.length} blockers`);
+  if (vm.blockers.length > 0) {
+    parts.push(`${vm.blockers.length} ${vm.blockers.length === 1 ? "blocker" : "blockers"}`);
+  }
   if (vm.clearances.length > 0) parts.push(`${vm.clearances.length} cleared`);
   if (vm.invalidators.length > 0) parts.push(`${vm.invalidators.length} would-invalidate`);
 

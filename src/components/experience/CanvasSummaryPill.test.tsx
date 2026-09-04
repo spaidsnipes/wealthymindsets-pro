@@ -54,8 +54,32 @@ describe("CanvasSummaryPill — canon §Phase 3 Market Canvas summary", () => {
       />,
     );
     expect(html).toContain("WAIT");
-    expect(html).toContain("1 blockers");
+    expect(html).toContain("1 blocker");
     expect(html).toContain("2 cleared");
+  });
+
+  it("says 'blocker' at one and 'blockers' above one", () => {
+    const render = (blockers: string[]) =>
+      renderToStaticMarkup(
+        <CanvasSummaryPill vm={vm({ verdict: "NO TRADE", hasSnapshot: true, blockers })} />,
+      );
+
+    // Production /charts was rendering "NO TRADE · 8 unresolved · 1 blockers ·
+    // 1 cleared". One blocker is the single most common real state on a live
+    // chart, so this was the DEFAULT reading, not an edge case.
+    //
+    // Asserted with a NEGATIVE on the plural rather than only a positive on
+    // the singular: "1 blocker" is a substring of "1 blockers", so a
+    // toContain("1 blocker") check alone stays green while the bug is fully
+    // present. That shape of test looks like proof and proves nothing.
+    const one = render(["regime"]);
+    expect(one).toContain("1 blocker");
+    expect(one).not.toContain("1 blockers");
+
+    // The plural half must keep working — a fix that hard-codes the singular
+    // is the same defect wearing the other hat.
+    const two = render(["regime", "Active contradiction"]);
+    expect(two).toContain("2 blockers");
   });
 
   it("appends missing / blockers / would-invalidate counts when present", () => {
