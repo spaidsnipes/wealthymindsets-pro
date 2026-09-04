@@ -754,9 +754,11 @@ function BrokerCard({ broker, selected, onToggle }: { broker: Broker; selected: 
 export function BrokerConnectPanel({
   onClose,
   fallbackTriggerRef,
+  onOpenPaperAccount,
 }: {
   onClose: () => void;
   fallbackTriggerRef: React.RefObject<HTMLButtonElement | null>;
+  onOpenPaperAccount?: () => void;
 }) {
   const [tab,    setTab]    = useState<BrokerCategory>("broker");
   const [search, setSearch] = useState("");
@@ -812,6 +814,20 @@ export function BrokerConnectPanel({
       titleIcon={<Zap size={16} className="text-wm-gold" aria-hidden="true" />}
       footer={footer}
     >
+
+        {onOpenPaperAccount && (
+          <div className="border-b border-wm-border px-4 py-3">
+            <button
+              type="button"
+              onClick={onOpenPaperAccount}
+              className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border border-wm-border px-3 text-left text-sm text-wm-text hover:bg-wm-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
+            >
+              <span>Open Alpaca paper account</span>
+              <ExternalLink size={14} aria-hidden="true" />
+            </button>
+            <p className="mt-2 text-[11px] text-wm-text-muted">Inspect paper positions and working orders. This does not enable live trading.</p>
+          </div>
+        )}
 
         <div className="px-4 py-3 border-b border-wm-border shrink-0">
           <ProviderWireStrip compact />

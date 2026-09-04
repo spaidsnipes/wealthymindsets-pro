@@ -97,12 +97,8 @@ function orphanedPanels(code: string): string[] {
 const KNOWN_ORPHANS = [
   // PnLStatsPanel — session P&L statistics. Imported, mounted, no caller.
   "pnlOpen",
-  // AlpacaTradingPanel — the live order ticket, including SELL. Orphaned by
-  // b08f818 on 2026-09-01. Repair: give the toolbar a Trade control that calls
-  // setTradeOpen(true), or delete the mount and the panel if the live order
-  // path is intentionally closed while the broker adapters are uncertified.
-  // Either resolution is fine. Leaving it mounted-and-unreachable is not.
-  "tradeOpen",
+  // AlpacaTradingPanel now has a paper-labelled doorway in Connect brokers.
+  // It is PAPER ONLY, not a certified live brokerage exit.
 ].sort();
 
 /**
@@ -163,12 +159,11 @@ describe("chart panels — a mounted panel must have a door", () => {
     expect(orphanedPanels(CODE)).toEqual(KNOWN_ORPHANS);
   });
 
-  it("BLOCKER: the SELL ticket is currently unreachable (§14.6 — the exit needs a door)", () => {
-    // Spelled out separately from the set above because this one is not a
-    // tidiness issue. AlpacaTradingPanel is where a trader closes a position.
+  it("opens the paper account from broker controls without implying live execution", () => {
     expect(CODE).toMatch(/\{\s*tradeOpen\s*&&/);
     expect(CODE).toContain("<AlpacaTradingPanel");
-    expect(CODE).not.toMatch(/setTradeOpen\s*\(\s*true\s*\)/);
+    expect(CODE).toMatch(/onOpenPaperAccount=\{\(\) => \{\s*setBrokerOpen\(false\);\s*setTradeOpen\(true\);/);
+    expect(CODE).toContain('initialTab="positions"');
   });
 
   it("the panels that DO have doors are not falsely reported as orphans", () => {
@@ -255,7 +250,6 @@ function sweep(): { entries: string[]; fileCount: number; flagCount: number } {
  */
 const KNOWN_ORPHANS_REPO_WIDE = [
   "src/components/chart/ChartsDashboard.tsx: pnlOpen",
-  "src/components/chart/ChartsDashboard.tsx: tradeOpen",
 ].sort();
 
 describe("every mounted panel in the app must have a door", () => {

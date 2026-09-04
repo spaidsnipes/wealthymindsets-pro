@@ -18,6 +18,7 @@ import {
   selectPositionTruth,
 } from "@/lib/positionTruth";
 import { selectExitPermission } from "@/lib/exitPermission";
+import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 
 /* ── Types ─────────────────────────────────────────────── */
 interface AlpacaAccount {
@@ -92,10 +93,14 @@ export function AlpacaTradingPanel({
   onClose,
   defaultSymbol = "AAPL",
   onSwitchBroker,
+  initialTab = "positions",
+  fallbackTriggerRef,
 }: {
   onClose: () => void;
   defaultSymbol?: string;
   onSwitchBroker?: () => void;
+  initialTab?: ActiveTab;
+  fallbackTriggerRef: React.RefObject<HTMLButtonElement | null>;
 }) {
   const [disconnected, setDisconnected] = useState<boolean>(
     () => typeof window !== "undefined" && localStorage.getItem("wm_alpaca_disconnected") === "1"
@@ -112,7 +117,7 @@ export function AlpacaTradingPanel({
   const [positionsAsOf, setPositionsAsOf] = useState<number | null>(null);
   const [ordersLoad,    setOrdersLoad]    = useState<"pending" | "ok" | "failed">("pending");
   const [cancelError,   setCancelError]   = useState("");
-  const [activeTab, setActiveTab] = useState<ActiveTab>("trade");
+  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
 
   // Order ticket state
   const [symbol,      setSymbol]      = useState(defaultSymbol.toUpperCase());
@@ -330,56 +335,31 @@ export function AlpacaTradingPanel({
   const isLive = false;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[200] flex items-start justify-end"
-      style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    <ShellModalDrawer
+      id="wm-alpaca-paper-account"
+      titleId="wm-alpaca-paper-account-title"
+      descriptionId="wm-alpaca-paper-account-description"
+      title="Alpaca paper account"
+      description="Paper capital only. Live brokerage access is disabled."
+      closeLabel="Close Alpaca paper account"
+      width={440}
+      onClose={onClose}
+      fallbackTriggerRef={fallbackTriggerRef}
+      headerActions={
+        <button type="button" onClick={refresh} aria-label="Refresh paper account"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-wm-text-muted hover:bg-wm-surface hover:text-wm-text">
+          <RefreshCw size={16} aria-hidden="true" />
+        </button>
+      }
+      footer={
+        <a href="https://app.alpaca.markets/account/login" target="_blank" rel="noopener noreferrer"
+          className="flex min-h-11 items-center justify-center rounded-lg border border-wm-border px-3 text-sm text-wm-text hover:bg-wm-surface">
+          Open broker — select your paper account ↗
+        </a>
+      }
     >
-      <motion.div
-        initial={{ x: 440 }}
-        animate={{ x: 0 }}
-        exit={{ x: 440 }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="relative h-full flex flex-col border-l border-wm-border bg-wm-dark shadow-2xl"
-        style={{ width: 400 }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* ── Header ── */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-wm-border shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm"
-              style={{ background: "rgba(255,206,0,0.15)", border: "1.5px solid rgba(255,206,0,0.4)", color: "#FFCE00" }}>
-              A
-            </div>
-            <div>
-              <div className="text-sm font-black text-wm-text">Alpaca Paper Trading</div>
-              <div className="flex items-center gap-1.5">
-                {loading ? (
-                  <Loader2 size={9} className="animate-spin text-wm-text-dim" />
-                ) : account ? (
-                  <>
-                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: isLive ? "#ef4444" : "#00C076" }} />
-                    <span className="text-[9px] font-bold" style={{ color: isLive ? "#ef4444" : "#00C076" }}>
-                      PAPER · {account.account_number}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-[9px] text-wm-red font-bold">NOT CONNECTED</span>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button onClick={refresh} className="p-1.5 rounded text-wm-text-dim hover:text-wm-text hover:bg-wm-surface transition-colors">
-              <RefreshCw size={13} />
-            </button>
-            <button onClick={onClose} className="p-1.5 rounded text-wm-text-dim hover:text-wm-text hover:bg-wm-surface transition-colors">
-              <X size={14} />
-            </button>
-          </div>
+        <div role="status" className="border-b border-wm-border px-4 py-2 text-[11px] text-wm-text-muted">
+          {loading ? "Checking paper account…" : acctError ? "PAPER ACCOUNT UNVERIFIED — inspect positions separately." : account ? "PAPER ACCOUNT OBSERVED — positions and orders have separate status below." : "PAPER ACCOUNT UNVERIFIED"}
         </div>
 
         {/* ── Account error (actionable) ── */}
@@ -872,7 +852,6 @@ export function AlpacaTradingPanel({
             </div>
           )}
         </div>
-      </motion.div>
-    </motion.div>
+    </ShellModalDrawer>
   );
 }

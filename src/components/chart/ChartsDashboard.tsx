@@ -1782,6 +1782,10 @@ export function ChartsDashboard() {
         <BrokerConnectPanel
           onClose={() => setBrokerOpen(false)}
           fallbackTriggerRef={brokerTriggerRef}
+          onOpenPaperAccount={() => {
+            setBrokerOpen(false);
+            setTradeOpen(true);
+          }}
         />
       )}
       <AnimatePresence>
@@ -1799,6 +1803,8 @@ export function ChartsDashboard() {
           <AlpacaTradingPanel
             onClose={() => setTradeOpen(false)}
             defaultSymbol={symbol}
+            initialTab="positions"
+            fallbackTriggerRef={brokerTriggerRef}
             onSwitchBroker={() => setBrokerOpen(true)}
           />
         )}

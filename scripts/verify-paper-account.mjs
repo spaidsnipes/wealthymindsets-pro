@@ -1,0 +1,154 @@
+/**
+ * Actual component interaction fixture, not production/account proof.
+ * All API traffic is synthetic, GET-only, loopback-only. Never signs in or
+ * submits/cancels an order. Run from repository root with installed deps.
+ */
+import { build } from 'esbuild';
+import { readFileSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { chromium } from 'playwright';
+import postcss from 'postcss';
+import tailwindcss from 'tailwindcss';
+
+const root = process.cwd();
+const output = mkdtempSync(join(tmpdir(), 'wm-paper-account-proof-'));
+const files = [
+  'src/components/broker/AlpacaTradingPanel.tsx',
+  'src/components/broker/BrokerConnectPanel.tsx',
+  'src/components/chart/ChartsDashboard.tsx',
+  'src/components/layout/ShellModalDrawer.tsx',
+  'src/components/layout/useShellModalFocus.ts',
+  'src/app/globals.css',
+];
+const manifest = Object.fromEntries(files.map(path => [path,
+  createHash('sha256').update(readFileSync(path)).digest('hex')]));
+const entry = `
+  import React, {useRef, useState} from 'react';
+  import {createRoot} from 'react-dom/client';
+  import {BrokerConnectPanel} from './src/components/broker/BrokerConnectPanel';
+  import {AlpacaTradingPanel} from './src/components/broker/AlpacaTradingPanel';
+  function Fixture() {
+    const trigger = useRef(null);
+    const [brokerOpen, setBrokerOpen] = useState(false);
+    const [tradeOpen, setTradeOpen] = useState(false);
+    return <main>
+      <h1>WM paper-account component fixture</h1>
+      <p>Synthetic paper position. No broker connection or execution.</p>
+      <button ref={trigger} onClick={() => setBrokerOpen(true)}>Connect brokers</button>
+      {brokerOpen && <BrokerConnectPanel onClose={() => setBrokerOpen(false)} fallbackTriggerRef={trigger}
+        onOpenPaperAccount={() => {setBrokerOpen(false); setTradeOpen(true);}} />}
+      {tradeOpen && <AlpacaTradingPanel defaultSymbol="TSLA" initialTab="positions"
+        fallbackTriggerRef={trigger} onClose={() => setTradeOpen(false)}
+        onSwitchBroker={() => setBrokerOpen(true)} />}
+    </main>;
+  }
+  createRoot(document.getElementById('root')).render(<React.StrictMode><Fixture/></React.StrictMode>);
+`;
+const bundle = await build({stdin: {contents: entry, loader: 'tsx', resolveDir: root},
+  bundle: true, write: false, platform: 'browser', format: 'iife',
+  // Match the client build's empty, non-secret environment in this fixture.
+  define: {'process.env.NODE_ENV': '"development"', 'process.env':'{}'},
+});
+const css = await postcss([tailwindcss('./tailwind.config.ts')])
+  .process(readFileSync('src/app/globals.css', 'utf8'), {from: 'src/app/globals.css'});
+let fault = false;
+const apiRequests = [];
+const server = createServer((req, res) => {
+  const url = new URL(req.url, 'http://127.0.0.1');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'none'; font-src 'none'");
+  if (req.method !== 'GET') {res.writeHead(405).end(); return;}
+  if (url.pathname === '/bundle.js') {res.setHeader('Content-Type', 'text/javascript'); res.end(bundle.outputFiles[0].text); return;}
+  if (url.pathname === '/fixture.css') {res.setHeader('Content-Type', 'text/css'); res.end(css.css); return;}
+  if (url.pathname.startsWith('/api/')) {
+    apiRequests.push(url.pathname + url.search);
+    res.setHeader('Content-Type', 'application/json');
+    if (url.pathname === '/api/alpaca-trading') {
+      if (fault) {res.writeHead(503).end(JSON.stringify({error:'Fixture account refresh unavailable'})); return;}
+      const action = url.searchParams.get('action');
+      if (action === 'account') {res.end(JSON.stringify({status:'ACTIVE', cash:'1000', equity:'1100', buying_power:'1000', portfolio_value:'1100', pattern_day_trader:false, trading_blocked:false, account_number:'FIXTURE', _env:'paper', _connected:true})); return;}
+      if (action === 'positions') {res.end(JSON.stringify([{symbol:'TSLA', qty:'1', avg_entry_price:'100', current_price:'101', market_value:'101', unrealized_pl:'1', unrealized_plpc:'0.01', side:'long'}])); return;}
+      if (action === 'orders') {res.end('[]'); return;}
+    }
+    res.writeHead(503).end(JSON.stringify({error:'Fixture: provider unavailable', configured:false, connected:false})); return;
+  }
+  if (url.pathname !== '/') {res.writeHead(404).end(); return;}
+  res.setHeader('Content-Type', 'text/html');
+  res.end(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WM paper account — TEST FIXTURE</title><link rel="stylesheet" href="/fixture.css"><style>body{background:#07080a;color:#eee;font:14px system-ui}main{padding:24px}main>button{min-height:44px;padding:12px;border:1px solid #aaa}body:after{content:'LOCAL TEST FIXTURE — SYNTHETIC ACCOUNT DATA';position:fixed;bottom:0;left:0;z-index:999;color:#fff;background:#702b20;font:9px system-ui;padding:2px;pointer-events:none}</style><div id="root"></div><script src="/bundle.js"></script></html>`);
+});
+await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+const origin = `http://127.0.0.1:${server.address().port}`;
+let browser;
+const rows = [];
+const errors = [];
+let failure = null;
+try {
+  browser = await chromium.launch({channel:'chrome',headless:true});
+  for (const [device, width, height] of [
+    ['computer-1280',1280,900], ['computer-1920',1920,1080],
+    ['iphone-390',390,844], ['ipad-portrait',834,1194], ['ipad-landscape',1194,834],
+  ]) {
+    fault = false;
+    const context = await browser.newContext({viewport:{width,height}});
+    const page = await context.newPage();
+    page.on('pageerror', e => errors.push({device, error:e.message}));
+    await context.route('**/*', async route => {
+      const request = route.request();
+      if (!request.url().startsWith(origin + '/') || request.method() !== 'GET') {
+        errors.push({device, blocked:request.method() + ' ' + request.url()});
+        await route.abort(); return;
+      }
+      await route.continue();
+    });
+    await page.goto(origin);
+    await page.getByRole('button', {name:'Connect brokers',exact:true}).click();
+    await page.getByRole('button', {name:'Open Alpaca paper account',exact:true}).click();
+    const dialog = page.getByRole('dialog', {name:'Alpaca paper account',exact:true});
+    await dialog.getByText('TSLA', {exact:true}).waitFor();
+    const escape = dialog.getByRole('link', {name:/Open broker/});
+    await escape.waitFor();
+    // Wait for the real drawer spring to settle, not just its children to mount.
+    await page.waitForFunction(() => {
+      const el = document.getElementById('wm-alpaca-paper-account');
+      if (!el) return false;
+      const rect = el.getBoundingClientRect();
+      return rect.x >= -1 && rect.right <= innerWidth + 1;
+    }, null, {timeout:5000});
+    const box = await dialog.boundingBox();
+    const escapeBox = await escape.boundingBox();
+    if (!box || box.x < -1 || box.x+box.width > width+1) throw new Error(device + ': drawer escaped viewport');
+    if (!escapeBox || escapeBox.y < 0 || escapeBox.y+escapeBox.height > height+1) throw new Error(device + ': broker escape clipped');
+    await page.screenshot({path:join(output,device+'-observed.png')});
+    fault = true;
+    await dialog.getByRole('button',{name:'Refresh paper account',exact:true}).click();
+    await dialog.getByText(/PAPER ACCOUNT UNVERIFIED/).waitFor();
+    await dialog.getByText('TSLA',{exact:true}).waitFor();
+    if (!(await escape.isVisible())) throw new Error(device + ': broker escape lost during failure');
+    await page.screenshot({path:join(output,device+'-failed-refresh.png')});
+    await escape.focus();
+    await page.keyboard.press('Tab');
+    if (!(await dialog.getByRole('button',{name:'Refresh paper account'}).evaluate(el=>el===document.activeElement))) throw new Error(device + ': focus escaped dialog');
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({state:'detached'});
+    if (!(await page.getByRole('button',{name:'Connect brokers',exact:true}).evaluate(el=>el===document.activeElement))) throw new Error(device + ': focus not restored');
+    rows.push({device,width,height,drawerContained:true,escapeVisible:true,retainedPositionOnFailure:true,focusTrap:true,escapeCloses:true,focusRestored:true});
+    await context.close();
+  }
+  if (errors.length) throw new Error(JSON.stringify(errors));
+} catch (error) {
+  failure = String(error);
+  throw error;
+} finally {
+  await browser?.close();
+  await new Promise(resolve=>server.close(resolve));
+  const receipt = {claim:'LOCAL COMPONENT FIXTURE ONLY — NOT BROKER OR PRODUCTION PROOF',
+    at:new Date().toISOString(),head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
+    manifest,rows,errors,failure,passed:failure === null && rows.length === 5,
+    apiRequests: [...new Set(apiRequests)],serverClosed:!server.listening};
+  writeFileSync(join(output,'receipt.json'),JSON.stringify(receipt,null,2));
+  console.log(JSON.stringify({output,receipt},null,2));
+}
