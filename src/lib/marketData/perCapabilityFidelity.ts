@@ -110,16 +110,42 @@ export function strongestCapability(
 }
 
 /**
+ * The capabilities a displayed PRICE actually rests on.
+ *
+ * BUILD ORDER §14.7 — "missing Greeks cannot dirty a verified last price."
+ * Greeks, depth, options and derived order-flow are real capabilities, but a
+ * price does not depend on any of them. A surface that reports the weakest of
+ * ALL SEVEN next to a quote will announce a blocked Greek as the thing wrong
+ * with a price that was verified a second ago — technically named, and still
+ * the wrong impression at a glance.
+ */
+export const PRICE_BEARING_CAPABILITIES: readonly CanonicalCapability[] = [
+  "bars",
+  "quotes",
+  "ticks",
+];
+
+/** The other three: real, but they never determine whether a price is good. */
+export const NON_PRICE_CAPABILITIES: readonly CanonicalCapability[] =
+  CANONICAL_CAPABILITIES.filter((c) => !PRICE_BEARING_CAPABILITIES.includes(c));
+
+/**
  * Return the WEAKEST evaluated capability + label — used by
  * Sentinel-style surfaces (Evidence Debt tile, degraded-state
  * dashboards) that want to show the trader what's currently
  * blocking a decision.
+ *
+ * `scope` narrows which capabilities may answer. Price-adjacent surfaces pass
+ * PRICE_BEARING_CAPABILITIES so §14.7 holds: nothing outside the price's own
+ * evidence chain can be reported as the weakness of the price. Passing no
+ * scope keeps the all-seven behaviour for surfaces that genuinely mean it.
  */
 export function weakestCapability(
   report: PerCapabilityFidelityReport,
+  scope: readonly CanonicalCapability[] = CANONICAL_CAPABILITIES,
 ): { capability: CanonicalCapability; label: CanonicalFidelityLabel } | null {
   let worst: { capability: CanonicalCapability; label: CanonicalFidelityLabel; score: number } | null = null;
-  for (const cap of CANONICAL_CAPABILITIES) {
+  for (const cap of scope) {
     const label = report[cap];
     if (!label) continue;
     const score = LABEL_STRENGTH[label];
@@ -128,6 +154,27 @@ export function weakestCapability(
     }
   }
   return worst ? { capability: worst.capability, label: worst.label } : null;
+}
+
+/**
+ * Evaluated capabilities outside the price's evidence chain that are in a
+ * non-normal state. Named so a price surface can still DISCLOSE them (§14.7
+ * forbids conflating, not disclosing) without letting them speak for the price.
+ */
+export function degradedNonPriceCapabilities(
+  report: PerCapabilityFidelityReport,
+): readonly { capability: CanonicalCapability; label: CanonicalFidelityLabel }[] {
+  return NON_PRICE_CAPABILITIES.flatMap((cap) => {
+    const label = report[cap];
+    if (!label) return [];
+    if (
+      label === CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE ||
+      label === CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED
+    ) {
+      return [];
+    }
+    return [{ capability: cap, label }];
+  });
 }
 
 /**

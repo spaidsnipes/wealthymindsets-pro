@@ -79,15 +79,51 @@ describe("buildCanonicalFidelityTooltip — canon 7-question enrichment", () => 
       expect(t).toContain("Capabilities evaluated: 3 / 7 — all normal");
     });
 
-    it("LIVE badge + a degraded capability → tooltip flags weakest capability by name", () => {
+    /**
+     * This test previously asserted `Weakest capability: depth · BLOCKED BY
+     * ENTITLEMENT` for exactly this input — a LIVE bars+quotes report with a
+     * blocked DEPTH entitlement. It was locking in the defect BUILD ORDER §14.7
+     * names: "missing Greeks cannot dirty a verified last price." Depth is a
+     * real capability, but no price rests on it, and a chip that labels a PRICE
+     * must not answer "what's weakest here?" with something the price does not
+     * depend on. The assertion is rewritten, not deleted — depth is still
+     * disclosed, on a line that speaks only for depth.
+     */
+    it("a degraded NON-price capability is disclosed without describing the price (§14.7)", () => {
       const b = priceSourceBadge("polygon", true);
       const t = buildCanonicalFidelityTooltip(b, undefined, {
         bars: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
         quotes: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
         depth: CANONICAL_FIDELITY_LABELS.BLOCKED_BY_ENTITLEMENT,
       });
-      expect(t).toContain("Weakest capability: depth · BLOCKED BY ENTITLEMENT");
+      expect(t).toContain("Not affecting this price: depth · BLOCKED BY ENTITLEMENT");
+      expect(t).not.toContain("Weakest price capability");
       expect(t).toContain("Capabilities evaluated: 3 / 7");
+    });
+
+    it("a degraded PRICE capability IS named as the weakness (§14.7 is not a mute button)", () => {
+      const b = priceSourceBadge("polygon", true);
+      const t = buildCanonicalFidelityTooltip(b, undefined, {
+        bars: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
+        ticks: CANONICAL_FIDELITY_LABELS.STALE_PIPELINE,
+        greeks: CANONICAL_FIDELITY_LABELS.BLOCKED_BY_ENTITLEMENT,
+      });
+      expect(t).toContain("Weakest price capability: ticks · STALE PIPELINE");
+      // …and the Greek is still on the record, just not speaking for the price.
+      expect(t).toContain("Not affecting this price: greeks · BLOCKED BY ENTITLEMENT");
+    });
+
+    it("a blocked Greek behind a live quote never reads as the price being weak", () => {
+      const b = priceSourceBadge("polygon", true);
+      const t = buildCanonicalFidelityTooltip(b, undefined, {
+        bars: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
+        quotes: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
+        ticks: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
+        greeks: CANONICAL_FIDELITY_LABELS.BLOCKED_BY_ENTITLEMENT,
+      });
+      expect(t).not.toContain("Weakest price capability");
+      expect(t).toContain("Not affecting this price: greeks · BLOCKED BY ENTITLEMENT");
+      expect(t).toContain("Capabilities evaluated: 4 / 7");
     });
 
     it("no capabilityReport supplied → tooltip shape unchanged (backwards-compat)", () => {

@@ -6,6 +6,8 @@ import { fidelityLabelToFailureReport } from "@/lib/systemHealth/fidelityToHealt
 import {
   weakestCapability,
   evaluatedCapabilityCount,
+  degradedNonPriceCapabilities,
+  PRICE_BEARING_CAPABILITIES,
   type PerCapabilityFidelityReport,
 } from "@/lib/marketData/perCapabilityFidelity";
 import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
@@ -90,11 +92,23 @@ export function buildCanonicalFidelityTooltip(
   // capability is non-NORMAL, tell the trader on hover which
   // capability is weakest. NORMAL badge state with all-NORMAL
   // capabilities keeps the calm one-line tooltip.
-  const weakest = capabilityReport ? weakestCapability(capabilityReport) : null;
+  //
+  // §14.7 — "missing Greeks cannot dirty a verified last price." This chip
+  // labels a PRICE, so the weakness it reports is scoped to the capabilities
+  // the price actually rests on (bars / quotes / ticks). Before this scope, a
+  // blocked Greek entitlement was reported as "Weakest capability" on a quote
+  // verified one second earlier. Greeks, depth and options are still
+  // disclosed — on their own line, where they speak only for themselves.
+  const weakest = capabilityReport
+    ? weakestCapability(capabilityReport, PRICE_BEARING_CAPABILITIES)
+    : null;
   const weakestIsProblem =
     weakest !== null &&
     weakest.label !== CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE &&
     weakest.label !== CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED;
+  const nonPriceDegraded = capabilityReport
+    ? degradedNonPriceCapabilities(capabilityReport)
+    : [];
   const evaluatedCount = capabilityReport ? evaluatedCapabilityCount(capabilityReport) : 0;
 
   // Early return only when there's NOTHING to add: badge is NORMAL,
@@ -118,7 +132,20 @@ export function buildCanonicalFidelityTooltip(
 
   if (weakestIsProblem && weakest) {
     lines.push("");
-    lines.push(`Weakest capability: ${weakest.capability} · ${weakest.label}`);
+    lines.push(`Weakest price capability: ${weakest.capability} · ${weakest.label}`);
+    lines.push(`Capabilities evaluated: ${evaluatedCount} / 7`);
+    if (nonPriceDegraded.length > 0) {
+      lines.push(
+        `Not affecting this price: ${nonPriceDegraded.map((c) => `${c.capability} · ${c.label}`).join("; ")}`,
+      );
+    }
+  } else if (nonPriceDegraded.length > 0) {
+    // The price's own chain is fine. Say so plainly, then name the other
+    // capabilities WITHOUT letting them describe the price.
+    lines.push("");
+    lines.push(
+      `Not affecting this price: ${nonPriceDegraded.map((c) => `${c.capability} · ${c.label}`).join("; ")}`,
+    );
     lines.push(`Capabilities evaluated: ${evaluatedCount} / 7`);
   } else if (capabilityReport && evaluatedCount > 0) {
     // Report supplied but everything is NORMAL — still tell the trader
