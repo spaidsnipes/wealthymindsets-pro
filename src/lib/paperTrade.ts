@@ -30,6 +30,69 @@ export type OrderType = "market" | "limit" | "stop" | "stop-limit";
 export type OrderStatus = "pending" | "filled" | "cancelled" | "rejected";
 
 /**
+ * Contract point value — the dollars one FULL POINT of price movement is worth
+ * for one contract.
+ *
+ * /paper's universe carries five CME futures alongside equities, ETFs and
+ * crypto, and every money path treated all of them as 1x:
+ *
+ *   applyFill      cashDelta = -signedQty * fillPx
+ *   applyFill      realized  = closeQty * (fillPx - avgPx) * sign
+ *   /paper page    unrealPnl = (mark - avgPx) * qty
+ *   /paper page    equity    = cash + SUM(qty * marketPx)
+ *   fill loop      buying power gate called with no multiplier
+ *
+ * So a 10-point move on one NQ contract showed $10 of P&L. It is worth $200.
+ * Crude was the worst case at 1000x: a $1.00 move on one CL contract showed
+ * $1 instead of $1,000.
+ *
+ * This is the H-Bkt 5 defect one surface over — the Journal shipped the same
+ * bug for options ("computed 100x too low") and it was fixed there. The
+ * options path here already applies OPT_MULTIPLIER correctly; futures were
+ * simply never given a point value.
+ *
+ * Why it is the dangerous direction: canon weakness #9 PAPER-FILL
+ * OVERCONFIDENCE, and the reason paper exists at all — position sizing is the
+ * habit it is supposed to build. A trader practising on this sim read a
+ * 10-point NQ stop as $10 of risk when it is $200, and a $1 crude stop as $1
+ * when it is $1,000. That is not a rounding error, it is the wrong lesson
+ * taught confidently, and it understates loss by up to three orders of
+ * magnitude.
+ *
+ * Values are CME contract specifications, not estimates:
+ *   NQ  E-mini Nasdaq-100     $20 x index
+ *   ES  E-mini S&P 500        $50 x index
+ *   RTY E-mini Russell 2000   $50 x index
+ *   GC  Gold                  100 troy oz  -> $100 per $1
+ *   CL  Crude Oil             1,000 barrels -> $1,000 per $1
+ *
+ * Anything absent is 1x: shares, ETFs and spot crypto quote in the same
+ * dollars they settle in. Options do NOT belong here — they are contracts on
+ * an underlying and are multiplied by OPT_MULTIPLIER on their own path.
+ */
+export const CONTRACT_MULTIPLIERS: Readonly<Record<string, number>> = Object.freeze({
+  "NQ1!": 20,
+  "ES1!": 50,
+  "RTY1!": 50,
+  "GC1!": 100,
+  "CL1!": 1_000,
+});
+
+/**
+ * Dollars per point for `symbol`. Unknown symbols are 1x.
+ *
+ * The 1x default is right for equities/ETFs/crypto but is NOT self-policing:
+ * a futures contract added to the /paper universe without an entry above would
+ * silently inherit 1x and under-report P&L exactly the way this fixes. The
+ * Sentinel in paperContractMultiplier.test.ts cross-checks the universe
+ * against this table so that omission fails the suite instead of the trader.
+ */
+export function contractMultiplier(symbol: string): number {
+  const m = CONTRACT_MULTIPLIERS[symbol];
+  return typeof m === "number" && Number.isFinite(m) && m > 0 ? m : 1;
+}
+
+/**
  * Terminal order states. Once an order reaches one of these it is settled and
  * must never transition again — a filled order moved cash and positions, so
  * relabelling it later makes the ledger contradict the account.
@@ -220,9 +283,20 @@ export function applyFill(
   positions: Position[],
   ord: Order,
   fillPx: number,
+  /**
+   * Dollars per point. Defaults to 1 so equities are unchanged and every
+   * pre-existing caller keeps its exact semantics; futures callers pass
+   * contractMultiplier(symbol).
+   *
+   * `avgPx` and `marketPx` stay QUOTED PRICES, never notional — the blotter
+   * shows them to the trader and they must match the tape. Only the money
+   * lines (cashDelta, realized) are scaled.
+   */
+  multiplier: number = 1,
 ): { positions: Position[]; trade: Trade; cashDelta: number; realized: number } {
+  const mult = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
   const signedQty = ord.side === "buy" ? ord.qty : -ord.qty; // signed fill size
-  const cashDelta = -signedQty * fillPx;                     // pay to buy, receive to sell
+  const cashDelta = -signedQty * fillPx * mult;              // pay to buy, receive to sell
   const trade: Trade = {
     id: uid(), symbol: ord.symbol, side: ord.side,
     qty: ord.qty, px: fillPx, ts: Date.now(),
@@ -247,7 +321,7 @@ export function applyFill(
     newPos = { ...pos, qty: newQty, avgPx: newAvg, marketPx: fillPx };
   } else {
     const closeQty = Math.min(Math.abs(signedQty), Math.abs(pos.qty));
-    realized = closeQty * (fillPx - pos.avgPx) * Math.sign(pos.qty);
+    realized = closeQty * (fillPx - pos.avgPx) * Math.sign(pos.qty) * mult;
     const newQty = pos.qty + signedQty;
     if (newQty === 0) {
       newPos = null;
@@ -375,7 +449,10 @@ export function placeChartMarketOrder(
     id: uid(), symbol, side, type: "market", qty,
     fillPx, status: "filled", ts: Date.now(),
   };
-  const { positions, trade, cashDelta, realized } = applyFill(state.positions, ord, fillPx);
+  // Futures move contractMultiplier() dollars per point. Without this a
+  // one-click chart BUY on NQ debited the account 1/20th of what it should.
+  const { positions, trade, cashDelta, realized } =
+    applyFill(state.positions, ord, fillPx, contractMultiplier(symbol));
   const cash = state.cash + cashDelta;
 
   const next: PaperState = {

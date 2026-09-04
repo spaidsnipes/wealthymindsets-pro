@@ -25,6 +25,7 @@ import {
 import {
   STARTING_CASH,
   applyFill as applyFillShared,
+  contractMultiplier,
   canCancelOrder,
   selectCloseOrderPlan,
   selectOrderRejection,
@@ -117,7 +118,12 @@ function applyFill(
   ord: Order,
   fillPx: number,
 ): { positions: Position[]; trade: Trade; cashDelta: number; realized: number } {
-  return applyFillShared(positions, ord, fillPx) as {
+  // Point value is a property of the CONTRACT, so it is derived here from
+  // ord.symbol rather than passed in. Every /paper fill path — ticket, bot,
+  // close-position — routes through this adapter, so none of them can forget
+  // it. Futures were previously settled at 1x: a 10-point NQ move showed $10
+  // instead of $200, and a $1 crude move showed $1 instead of $1,000.
+  return applyFillShared(positions, ord, fillPx, contractMultiplier(ord.symbol)) as {
     positions: Position[]; trade: Trade; cashDelta: number; realized: number;
   };
 }
@@ -1023,11 +1029,14 @@ export default function PaperTradingPage() {
   useEffect(() => { posRef.current = positions; }, [positions]);
   const filledRef = useRef<Set<string>>(new Set());
 
-  // Update unrealized P&L whenever prices change
+  // Update unrealized P&L whenever prices change.
+  // marketPx stays a QUOTED PRICE so the blotter matches the tape; only the
+  // money line carries the contract's point value.
   const updatedPositions = positions.map(pos => ({
     ...pos,
     marketPx:   prices[pos.symbol] ?? pos.avgPx,
-    unrealPnl:  ((prices[pos.symbol] ?? pos.avgPx) - pos.avgPx) * pos.qty,
+    unrealPnl:  ((prices[pos.symbol] ?? pos.avgPx) - pos.avgPx) * pos.qty
+                  * contractMultiplier(pos.symbol),
   }));
 
   // Real P&L = unrealized sum across all positions
@@ -1048,7 +1057,11 @@ export default function PaperTradingPage() {
     return s + g.price * op.qty * OPT_MULTIPLIER;
   }, 0);
   // Signed market value: a long adds +qty*px, a short subtracts (you owe it).
-  const totalEquity = cash + updatedPositions.reduce((s,p) => s + p.qty*p.marketPx, 0) + optionsMark;
+  // Notional, so the contract point value applies — cash was debited at that
+  // same scale on the fill, and an equity curve that mixed the two would drift.
+  const totalEquity = cash + updatedPositions.reduce(
+    (s,p) => s + p.qty*p.marketPx*contractMultiplier(p.symbol), 0,
+  ) + optionsMark;
   const totalRealPnl = trades.reduce((s,t) => s + (t.pnl ?? 0), 0);
   const dayPnl = totalRealPnl + totalUnreal;
 
@@ -1120,15 +1133,20 @@ export default function PaperTradingPage() {
       // OVERCONFIDENCE). Running cash forward across this batch so several
       // fills in one tick cannot each pass against the same starting balance.
       const fillPx = ord.limitPx ?? px;
+      // Point value belongs in the funding test too: one NQ contract at 21,750
+      // is $435,000 of notional, not $21,750. Without it a $100k account was
+      // told it could afford four of them.
+      const mult = contractMultiplier(ord.symbol);
       const reject = selectOrderRejection({
         side: ord.side, qty: ord.qty, price: fillPx, cash: cashRunning,
+        multiplier: mult,
       });
       if (reject) {
         filledRef.current.add(ord.id);          // settled — never retried
         rejects.push({ id: ord.id, reason: reject });
         continue;
       }
-      if (ord.side === "buy") cashRunning -= ord.qty * fillPx;
+      if (ord.side === "buy") cashRunning -= ord.qty * fillPx * mult;
 
       filledRef.current.add(ord.id);            // exactly-once guard
       fills.push({ ord, fillPx });
