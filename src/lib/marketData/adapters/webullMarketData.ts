@@ -3,7 +3,10 @@ import { createHash, createHmac, randomUUID } from "crypto";
 import { certifySource, type SourceCapabilityReport, type SourceCertification } from "../sourceCapabilityCertification";
 
 const DEFAULT_HOST = "api.webull.com";
-const STOCK_TICKS_PATH = "/market-data/stocks/ticks/list";
+// Webull's current official SDK request contract. The older
+// `/market-data/stocks/ticks/list` path returns an access-looking failure even
+// when the same provider account can read stock ticks through the SDK.
+const STOCK_TICKS_PATH = "/openapi/market-data/stock/tick";
 
 export interface WebullDataConfig {
   readonly dataUrl?: string;
@@ -151,8 +154,8 @@ function zeroState(note: string): SourceCertification {
 async function readWebullErrorCode(response: Response): Promise<string | null> {
   const payload = await response.json().catch(() => null);
   if (!payload || typeof payload !== "object") return null;
-  const code = (payload as { code?: unknown; errorCode?: unknown }).code
-    ?? (payload as { errorCode?: unknown }).errorCode;
+  const providerError = payload as { code?: unknown; errorCode?: unknown; error_code?: unknown };
+  const code = providerError.code ?? providerError.errorCode ?? providerError.error_code;
   return typeof code === "string" ? code.trim().toUpperCase() : null;
 }
 

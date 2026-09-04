@@ -93,3 +93,68 @@ NEXT: commit only this strict-number atom and this append-only receipt, then
 verify the already-restored Smart Money trigger in an isolated visible browser.
 AFTER: reconcile provider/runtime audit and select the next collision-safe
 SOURCE → SYSTEM → HUMAN truth edge.
+
+## HUMAN proof — restored Smart Money control
+
+At 13:44–13:45 CDT, an isolated agent-created Chrome tab loaded the current
+production `/charts` surface; the Founder's existing charts/trading tabs were
+not claimed or changed. The visible desktop surface contained exactly one
+always-visible branded `WMLogo + Smart Money` checkbox outside the collapsed
+Tools menu. Activating it opened `Smart Money Tools` for TSLA in the same view.
+The panel disclosed `INSUFFICIENT EVIDENCE`, `1 / 5 lenses measured`, `NO TAPE`,
+and `TAPE UNAVAILABLE`; it did not invent aggressor flow or an entry signal.
+
+Boundary: this is one current production desktop/browser receipt. It is not a
+source-to-deployment SHA binding, phone/iPad proof, certified tape receipt, or
+broker execution proof. The separate phone-layout worktree remains untouched.
+
+NEXT: reconcile the provider/runtime audit and continue the highest-leverage
+collision-safe truth edge. Smart Money requires no duplicate implementation.
+
+## NOW 3 — Webull app-side tick-path and entitlement truth
+
+Fresh read-only provider audit established two distinct lanes. The connected
+Webull tool returned genuine TSLA ticks and TSLA/SPY snapshots, but WM Pro's
+own signed Data API request returned HTTP 403 with zero events. The local
+runtime has the required Webull key/secret names and an optional access token;
+no values were printed. Without the token the request returned 401, so removing
+it is not a fix.
+
+Official current Webull sources identify the stock tick request as
+`GET /openapi/market-data/stock/tick`. WM Pro was signing and calling the stale
+`/market-data/stocks/ticks/list` path. That source contract is corrected and
+locked by test. A bounded diagnostic then showed the 403 body uses
+`error_code`, while WM only recognized `code` and `errorCode`. The parser now
+accepts all three machine-code spellings without exposing the provider message.
+
+Real TSLA canary after both corrections at 2026-09-04T19:00:49Z:
+
+- state: `BLOCKED_ENTITLEMENT`
+- fidelity: `NONE`
+- events: 0
+- provider proof: `MARKET_DATA_NOT_SUBSCRIBED`
+
+This is the first precise app-side failed-edge receipt. It is not a live tick
+receipt. WM's app credential still needs the applicable Webull market-data
+subscription before this route can lawfully become receiving/live.
+
+Evidence on base 0ea3089 candidate:
+
+- Focused: 3 files / 59 tests PASS.
+- Full: 389 files / 3747 tests PASS.
+- TypeScript: exit 0, empty output.
+- Turbopack build: environmental RETURN — sandbox process/port bind EPERM.
+- Webpack production build: PASS, 79/79 static pages generated.
+- Adapter SHA256: 0d6fd79ee23b0e582fa9a9fe4249631cae70eb1bd4f59cc6388e230d436b753f.
+- Test SHA256: 7567f98a583291ee3577416c131a151273c5b862d3aa1611b926977b8b65f2f8.
+
+Cloudflare host secret/version parity remains UNKNOWN because noninteractive
+management auth was unavailable. Supabase project health is ACTIVE_HEALTHY,
+which does not prove provider or brokerage wiring. Webull account discovery,
+OAuth callback/token vault, order preview and execution are still not
+implemented; no order, account mutation, secret write, push or deploy occurred.
+
+NEXT: commit only the Webull path/error-code correction and this receipt, then
+select the next collision-safe Founder-visible/truth-strengthening atom. AFTER:
+subscription activation by the provider/account owner, followed by two advancing
+TSLA/SPY event receipts, canonical consumption and device-visible proof.

@@ -127,7 +127,8 @@ describe("Webull Data API market-data certification", () => {
     expect(cert.cvd).toBe("UNAVAILABLE");
 
     const [url, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(String(url)).toContain("/market-data/stocks/ticks/list?");
+    expect(String(url)).toContain("/openapi/market-data/stock/tick?");
+    expect(String(url)).not.toContain("/market-data/stocks/ticks/list");
     expect(String(url)).toContain("symbol=TSLA");
     expect(init.headers["x-app-key"]).toBe("app-key");
     expect(init.headers["x-signature"]).toMatch(/^[A-Za-z0-9+/]+=*$/);
@@ -198,9 +199,9 @@ describe("Webull Data API market-data certification", () => {
     expect(JSON.stringify(cert)).not.toContain("subscription maybe");
   });
 
-  it("reports entitlement only when Webull proves the market-data subscription edge", async () => {
+  it.each(["code", "errorCode", "error_code"])("reports entitlement from Webull's %s machine-code field", async (field) => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      code: "MARKET_DATA_NOT_SUBSCRIBED",
+      [field]: "MARKET_DATA_NOT_SUBSCRIBED",
       message: "private provider detail",
     }), { status: 403, headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
     const cert = await probeWebullMarketData(fetchImpl, {
