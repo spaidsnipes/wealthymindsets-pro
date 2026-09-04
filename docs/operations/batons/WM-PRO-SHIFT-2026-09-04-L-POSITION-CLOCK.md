@@ -177,3 +177,31 @@ NEXT account-read timeout/obsolete-response recovery; still no account deadline.
 RESERVE review working-order age when no refresh happens, which is distinct
 from this failed-read recovery. No broker/production/device certification.
 No push/deploy, no secret mutations. Shift remains active to17:02:32Z.
+
+## 14:19–14:26Z — account read deadline and fixture measurement repair
+
+Resumed2a22cc4 with unrelated paths preserved. Red synthetic experiment:
+account response headers arrive but body stalls; expected timeout/retry state
+never appeared (wm-account-read-red.log). Existing account read now has12second
+whole-body deadline, supersession fence and disconnect/unmount cleanup. A timed
+out read cannot keep Refresh checking forever or restore late account success.
+No financial submit/cancel action changed or performed.
+
+Full381files3642testsPASS; tsc exit0; Webpack production build exit0. First
+browser green passed, final rerun exposed intermittent drawer containment
+measurement during spring movement. Async wait variant failed too. Diagnostic
+captured x1194.65,width440 in1280viewport, so not ignored or called pass.
+Fixture now requires6stable actual bounding-box samples at50ms intervals with
+unchanged bounds; final five-viewport run passed, server closed, no errors.
+Logs wm-account-read-final-stable.log / wm-account-read-tests.log /
+wm-account-read-build.log under/private/tmp. This is synthetic local evidence,
+not a host/broker/physical-device certification.
+Panel SHA2569493769016661a6c4c1f80aacc3bffbfe3d9c8b0d50fd0786eb479c19d265ef9
+Fixture SHA256e26640f440207a5106fa4f441733b49ee6a33301adb9129e0929a8fd244a68e2
+
+NEXT higher-consequence source edge: exitPermission input still treats retained
+account !==null as accountObserved after failed refresh; heldQty still uses
+parseFloat and ignores snapshot aging. Inspect canonical risk selector before
+changing inputs; preserve broker escape, do not test by placing orders.
+RESERVE working-order aging without refresh. Claude schema lane remains held.
+No push/deploy. Current fresh shift incomplete; target17:02:32Z unchanged.

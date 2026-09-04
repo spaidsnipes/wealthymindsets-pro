@@ -128,8 +128,10 @@ export function AlpacaTradingPanel({
   const [positionsAsOf, setPositionsAsOf] = useState<number | null>(null);
   const positionRead = useRef<{ cancel: () => void } | null>(null);
   const orderRead = useRef<{ cancel: () => void } | null>(null);
+  const accountRead = useRef<{ cancel: () => void } | null>(null);
   useEffect(() => () => positionRead.current?.cancel(), []);
   useEffect(() => () => orderRead.current?.cancel(), []);
+  useEffect(() => () => accountRead.current?.cancel(), []);
   const [positionClock, setPositionClock] = useState(0);
   // Start the clock after hydration. A received snapshot must age even when
   // no rerender or new broker event happens, including tab foreground return.
@@ -177,9 +179,26 @@ export function AlpacaTradingPanel({
   }, []);
 
   const loadAccount = useCallback(async () => {
+    accountRead.current?.cancel();
+    const controller = new AbortController();
+    let active = true;
+    const cancel = () => {
+      active = false;
+      clearTimeout(deadline);
+      controller.abort();
+    };
+    const deadline = setTimeout(() => {
+      if (!active) return;
+      setAcctError("Account check timed out. Current account state is unverified.");
+      setLoading(false);
+      cancel();
+    }, 12_000);
+    accountRead.current = { cancel };
     try {
-      const res = await fetch("/api/alpaca-trading?action=account", { cache: "no-store" });
+      const res = await fetch("/api/alpaca-trading?action=account", { cache: "no-store", signal: controller.signal });
+      if (!active) return;
       const data = await res.json();
+      if (!active) return;
       if (data?.error) { setAcctError(data.error); setLoading(false); return; }
       // A non-ok response whose body simply lacks an `error` field would
       // otherwise be cast straight to AlpacaAccount and rendered as an
@@ -196,8 +215,13 @@ export function AlpacaTradingPanel({
       }
       setAccount(data as AlpacaAccount);
       setAcctError("");
-    } catch (e) { setAcctError(String(e)); }
-    setLoading(false);
+    } catch (e) {
+      if (active) setAcctError(String(e));
+    } finally {
+      if (active) setLoading(false);
+      cancel();
+      if (accountRead.current?.cancel === cancel) accountRead.current = null;
+    }
   }, []);
 
   const loadPositions = useCallback(async () => {
@@ -275,6 +299,7 @@ export function AlpacaTradingPanel({
   }, [loadAccount, loadPositions, loadOrders, disconnected]);
 
   const disconnect = () => {
+    accountRead.current?.cancel();
     positionRead.current?.cancel();
     orderRead.current?.cancel();
     localStorage.setItem("wm_alpaca_disconnected", "1");

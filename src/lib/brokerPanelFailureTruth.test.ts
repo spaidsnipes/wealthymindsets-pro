@@ -84,6 +84,15 @@ describe("broker panel failure truth", () => {
  * an account built from undefined numbers.
  */
 describe("broker account load truth", () => {
+  it("bounds account body reads and prevents stale completion changing account state", () => {
+    const read = panel.slice(panel.indexOf("const loadAccount ="), panel.indexOf("const loadPositions ="));
+    expect(read).toContain("accountRead.current?.cancel()");
+    expect(read).toContain("signal: controller.signal");
+    expect(read).toContain("12_000");
+    expect(read).toMatch(/const data = await res.json\(\);\s*if \(!active\) return;/);
+    expect(read).toContain('Account check timed out. Current account state is unverified.');
+    expect(read).toContain('if (active) setLoading(false)');
+  });
   it("rejects a non-ok account response instead of casting it", () => {
     expect(panel).toContain("Account request failed (${res.status}).");
   });

@@ -90,6 +90,9 @@ const server = createServer((req, res) => {
       ],envPresence:[]})); return;
     }
     if (url.pathname === '/api/alpaca-trading') {
+      if (fault === 'account-hang' && url.searchParams.get('action') === 'account') {
+        res.writeHead(200); res.write('{'); return;
+      }
       if (fault === 'order-hang' && url.searchParams.get('action') === 'orders') {
         res.writeHead(200); res.write('['); return;
       }
@@ -196,15 +199,19 @@ try {
     const escape = dialog.getByRole('link', {name:/Open broker/});
     await escape.waitFor();
     // Wait for the real drawer spring to settle, not just its children to mount.
-    await page.waitForFunction(() => {
-      const el = document.getElementById('wm-alpaca-paper-account');
-      if (!el) return false;
-      const rect = el.getBoundingClientRect();
-      return rect.x >= -1 && rect.right <= innerWidth + 1;
-    }, null, {timeout:5000});
+    let stableSamples = 0;
+    let previousX = Number.NaN;
+    for (let sample = 0; sample < 100 && stableSamples < 6; sample++) {
+      const rect = await dialog.boundingBox();
+      stableSamples = rect && rect.x >= -1 && rect.x + rect.width <= width + 1 &&
+        Math.abs(rect.x - previousX) < 0.1 ? stableSamples + 1 : 0;
+      previousX = rect?.x ?? Number.NaN;
+      await page.waitForTimeout(50);
+    }
+    if (stableSamples < 6) throw new Error(device + ': drawer never settled inside viewport');
     const box = await dialog.boundingBox();
     const escapeBox = await escape.boundingBox();
-    if (!box || box.x < -1 || box.x+box.width > width+1) throw new Error(device + ': drawer escaped viewport');
+    if (!box || box.x < -1 || box.x+box.width > width+1) throw new Error(device + ': drawer escaped viewport ' + JSON.stringify({box,width,dom:await dialog.evaluate(el=>({x:el.getBoundingClientRect().x,right:el.getBoundingClientRect().right,innerWidth}))}));
     if (!escapeBox || escapeBox.y < 0 || escapeBox.y+escapeBox.height > height+1) throw new Error(device + ': broker escape clipped');
     await page.screenshot({path:join(output,device+'-observed.png')});
     // Advancing a browser clock is synthetic evidence, never market time proof.
@@ -261,10 +268,23 @@ try {
     workingOrder = false;
     await dialog.getByRole('button',{name:'Refresh paper account',exact:true}).click();
     await dialog.getByText('No recent orders',{exact:true}).waitFor();
+    fault = 'account-hang';
+    const stalledAccount = page.waitForResponse(response => response.url().endsWith('action=account'));
+    await dialog.getByRole('button',{name:'Refresh paper account',exact:true}).click();
+    await stalledAccount;
+    await page.clock.runFor(12_100);
+    await dialog.getByText('Account check timed out. Current account state is unverified.',{exact:true}).waitFor({timeout:5000});
+    const retryAccount = dialog.getByRole('button',{name:'Refresh paper account',exact:true});
+    if (!(await retryAccount.isEnabled())) throw new Error(device + ': timed-out account trapped refresh');
+    if (!(await escape.isVisible())) throw new Error(device + ': account timeout lost broker escape');
+    await page.screenshot({path:join(output,device+'-account-timeout.png')});
+    fault = false;
+    await retryAccount.click();
+    await dialog.getByText(/PAPER ACCOUNT OBSERVED/).waitFor();
     await page.keyboard.press('Escape');
     await dialog.waitFor({state:'detached'});
     if (!(await page.getByRole('button',{name:'Connect brokers',exact:true}).evaluate(el=>el===document.activeElement))) throw new Error(device + ': focus not restored');
-    rows.push({device,width,height,drawerContained:true,escapeVisible:true,snapshotAges:true,emptySnapshotAges:true,stalledPositionBodyBounded:true,stalledOrderBodyBounded:true,workingOrderRetainedOnFailure:true,orderReadRetryRecovers:true,retainedPositionOnFailure:true,focusTrap:true,escapeCloses:true,focusRestored:true});
+    rows.push({device,width,height,drawerContained:true,escapeVisible:true,snapshotAges:true,emptySnapshotAges:true,stalledPositionBodyBounded:true,stalledOrderBodyBounded:true,workingOrderRetainedOnFailure:true,orderReadRetryRecovers:true,stalledAccountBodyBounded:true,accountReadRetryRecovers:true,retainedPositionOnFailure:true,focusTrap:true,escapeCloses:true,focusRestored:true});
     await context.close();
   }
   if (errors.length) throw new Error(JSON.stringify(errors));
