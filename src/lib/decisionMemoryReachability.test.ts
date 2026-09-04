@@ -184,24 +184,50 @@ describe("decision memory reachability", () => {
     ]);
   });
 
-  it("BLOCKER: two modules stamp the same schema version on different record shapes", () => {
+  it("RESOLVED: the two schema-version constants can never collide again", () => {
     const orphan = readFileSync(join(REPO_ROOT, ORPHAN_MODULE), "utf8");
     const live = readFileSync(join(REPO_ROOT, WRITE_MODULE), "utf8");
 
-    // Same version string in both.
-    const VERSION = '"wm.decision-memory.v1"';
-    expect(orphan).toContain(`DECISION_MEMORY_SCHEMA_VERSION = ${VERSION}`);
-    expect(live).toContain(`DECISION_MEMORY_SCHEMA_VERSION = ${VERSION}`);
+    const versionOf = (code: string): string | null =>
+      code.match(/DECISION_MEMORY_SCHEMA_VERSION = "([^"]+)"/)?.[1] ?? null;
 
-    // Different record shapes behind it.
+    // POSITIVE CONTROL. The extractor must genuinely read a version out of a
+    // declaration AND return null when there is none. Without both halves, a
+    // regex that quietly stopped matching would make every assertion below
+    // compare null to null — and `expect(null).not.toEqual(null)` is exactly
+    // the shape of test that looks like proof and proves nothing.
+    expect(versionOf('export const DECISION_MEMORY_SCHEMA_VERSION = "probe.v9" as const;'))
+      .toBe("probe.v9");
+    expect(versionOf("export const SOMETHING_ELSE = 1;")).toBeNull();
+
+    const orphanVersion = versionOf(orphan);
+    const liveVersion = versionOf(live);
+    expect(orphanVersion).not.toBeNull();
+    expect(liveVersion).not.toBeNull();
+
+    // The record shapes are still different. That was never the bug and is not
+    // what got fixed — two modules are allowed to model different things.
     expect(orphan).toContain("interface SealedDecisionMemory");
     expect(live).toContain("interface DecisionMemoryRecord");
 
-    // The hazard is latent only because src/lib/decisionMemory.ts is reachable
-    // from nothing in production — its sole importer is its own unit test. If
-    // it ever gains a production importer, two incompatible payloads can carry
-    // the identical version tag and no reader can tell them apart. That is a
-    // migration gate that cannot gate.
+    // THE FIX: they no longer carry the identical version tag. Before
+    // 2026-09-04 both read "wm.decision-memory.v1", so two incompatible
+    // payloads could present the same version and no reader could tell them
+    // apart — a migration gate that cannot gate. The hazard was latent only
+    // because ORPHAN_MODULE is reachable from nothing in production; the
+    // moment it gained a production importer it would have become real.
+    expect(orphanVersion).not.toEqual(liveVersion);
+
+    // Pinned by exact value, not merely by inequality. "They differ" is
+    // satisfiable by renaming the LIVE tag, which is the one three production
+    // surfaces read and therefore the one that must not move.
+    expect(liveVersion).toBe("wm.decision-memory.v1");
+    expect(orphanVersion).toBe("wm.decision-seal.v1");
+  });
+
+  it("BLOCKER: the orphan module still has zero production importers", () => {
+    // The rename removed the collision's TEETH, not the orphan itself. This
+    // module is still dead weight in production and is still tracked as such.
     const importers = walkProduction(SRC)
       .map((abs) => relative(REPO_ROOT, abs))
       .filter((rel) => rel !== ORPHAN_MODULE)

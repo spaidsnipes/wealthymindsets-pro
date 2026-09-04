@@ -1,7 +1,25 @@
 import type { AvailableRResult } from "./riskKernel";
 import { CANONICAL_MARKET_STATE_SCHEMA_VERSION } from "./marketData/canonicalMarketState";
 
-export const DECISION_MEMORY_SCHEMA_VERSION = "wm.decision-memory.v1" as const;
+/**
+ * COLLISION REPAIR (2026-09-04): this constant used to read
+ * "wm.decision-memory.v1" — byte-identical to the one exported by
+ * src/lib/traderMemory/decisionMemory.ts, which stamps a COMPLETELY DIFFERENT
+ * record shape (DecisionMemoryRecord, with frozen sub-objects) than the
+ * SealedDecisionMemory declared below (flat, `sealed: true`, `sealedAt`).
+ *
+ * Two incompatible payloads carrying the identical version tag is a migration
+ * gate that cannot gate: no reader can tell them apart, and a version check
+ * would wave both through. The hazard was latent only because this module has
+ * zero production importers — see decisionMemoryReachability.test.ts.
+ *
+ * THIS module was renamed rather than the other one, deliberately. The
+ * traderMemory module is the one three production surfaces already read from,
+ * so its tag is load-bearing identity; this one is reachable from nothing, so
+ * renaming it is provably zero-risk. "seal" also names what this shape
+ * actually is — a sealed, frozen decision — rather than restating the folder.
+ */
+export const DECISION_MEMORY_SCHEMA_VERSION = "wm.decision-seal.v1" as const;
 export const DECISION_AMENDMENT_SCHEMA_VERSION = "wm.decision-amendment.v1" as const;
 
 export type TradingDecisionAction = "ENTER" | "WAIT" | "PASS" | "MANAGE";

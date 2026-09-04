@@ -53,7 +53,7 @@ const waitDecision = (overrides: Partial<DecisionMemoryInput> = {}): DecisionMem
 describe("sealed Decision Memory", () => {
   it("seals a truthful WAIT without manufacturing risk geometry", () => {
     const memory = sealDecisionMemory(waitDecision(), 10_020);
-    expect(memory).toMatchObject({ schemaVersion: "wm.decision-memory.v1", sealed: true, action: "WAIT" });
+    expect(memory).toMatchObject({ schemaVersion: "wm.decision-seal.v1", sealed: true, action: "WAIT" });
     expect(Object.isFrozen(memory)).toBe(true);
     expect(Object.isFrozen(memory.risk)).toBe(true);
   });
