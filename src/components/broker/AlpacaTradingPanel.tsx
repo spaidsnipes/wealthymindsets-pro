@@ -407,15 +407,16 @@ export function AlpacaTradingPanel({
     return held.side?.toLowerCase() === "short" ? -Math.abs(n) : n;
   })();
 
+  const accountObserved = account !== null && !acctError && !loading;
   const exitPermission = selectExitPermission({
     side,
     qty: parseFloat(qty),
     heldQty,
-    // A failed or misshapen account response leaves `account` null. That is
-    // exactly the state that used to grey out SELL.
-    accountObserved: account !== null,
+    // A retained account is history, not a successful current read.
+    // The canonical selector still preserves reduction of known exposure.
+    accountObserved,
     degraded: [
-      account === null ? "Account" : null,
+      !accountObserved ? "Account" : null,
       positionsLoad === "failed" ? "Positions" : null,
     ].filter((d): d is string => d !== null),
     inFlight: orderStatus === "submitting",

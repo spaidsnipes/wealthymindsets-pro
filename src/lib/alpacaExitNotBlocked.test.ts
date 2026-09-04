@@ -30,9 +30,10 @@ describe("Alpaca panel — §14.6 the exit is never blocked by a dependency", ()
   });
 
   it("passes the real degraded dependencies rather than a hardcoded list", () => {
-    expect(CODE).toContain('account === null ? "Account" : null');
+    expect(CODE).toContain('!accountObserved ? "Account" : null');
     expect(CODE).toContain('positionsLoad === "failed" ? "Positions" : null');
-    expect(CODE).toContain('accountObserved: account !== null');
+    expect(CODE).toContain('const accountObserved = account !== null && !acctError && !loading');
+    expect(CODE).toContain('accountObserved,');
   });
 
   it("treats an unloaded book as unknown, not as flat (§14.1)", () => {

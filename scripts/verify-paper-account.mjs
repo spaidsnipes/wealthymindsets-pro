@@ -90,6 +90,9 @@ const server = createServer((req, res) => {
       ],envPresence:[]})); return;
     }
     if (url.pathname === '/api/alpaca-trading') {
+      if (fault === 'account-only-fail' && url.searchParams.get('action') === 'account') {
+        res.writeHead(503).end(JSON.stringify({error:'Synthetic account-only failure'})); return;
+      }
       if (fault === 'account-hang' && url.searchParams.get('action') === 'account') {
         res.writeHead(200); res.write('{'); return;
       }
@@ -99,7 +102,7 @@ const server = createServer((req, res) => {
       if (fault === 'position-hang' && url.searchParams.get('action') === 'positions') {
         res.writeHead(200); res.write('['); return;
       }
-      if (fault) {res.writeHead(503).end(JSON.stringify({error:'Fixture account refresh unavailable'})); return;}
+      if (fault && fault !== 'account-only-fail') {res.writeHead(503).end(JSON.stringify({error:'Fixture account refresh unavailable'})); return;}
       const action = url.searchParams.get('action');
       if (action === 'account') {res.end(JSON.stringify({status:'ACTIVE', cash:'1000', equity:'1100', buying_power:'1000', portfolio_value:'1100', pattern_day_trader:false, trading_blocked:false, account_number:'FIXTURE', _env:'paper', _connected:true})); return;}
       if (action === 'positions') {res.end(JSON.stringify(emptyPositions ? [] : [{symbol:'TSLA', qty:'1', avg_entry_price:'100', current_price:'99', market_value:'99', unrealized_pl:'-1', unrealized_plpc:'-0.01', side:'long'}])); return;}
@@ -281,6 +284,15 @@ try {
     fault = false;
     await retryAccount.click();
     await dialog.getByText(/PAPER ACCOUNT OBSERVED/).waitFor();
+    fault = 'account-only-fail';
+    await retryAccount.click();
+    await dialog.getByText('Synthetic account-only failure',{exact:true}).waitFor();
+    await dialog.getByRole('button',{name:'Trade',exact:true}).click();
+    await dialog.getByText('Buying power is unknown, so an order that adds risk cannot be shown as funded.',{exact:true}).waitFor();
+    if (await dialog.getByRole('button',{name:'BUY 1 TSLA — MARKET',exact:true}).isEnabled()) throw new Error(device + ': retained account funded a new buy after failure');
+    await dialog.getByRole('button',{name:'SELL',exact:true}).click();
+    if (!(await dialog.getByRole('button',{name:'SELL 1 TSLA — MARKET',exact:true}).isEnabled())) throw new Error(device + ': account failure blocked known-position reduction');
+    // Inspect controls only. Never click submit; server rejects every non-GET.
     await page.keyboard.press('Escape');
     await dialog.waitFor({state:'detached'});
     if (!(await page.getByRole('button',{name:'Connect brokers',exact:true}).evaluate(el=>el===document.activeElement))) throw new Error(device + ': focus not restored');

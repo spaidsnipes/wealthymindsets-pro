@@ -205,3 +205,26 @@ parseFloat and ignores snapshot aging. Inspect canonical risk selector before
 changing inputs; preserve broker escape, do not test by placing orders.
 RESERVE working-order aging without refresh. Claude schema lane remains held.
 No push/deploy. Current fresh shift incomplete; target17:02:32Z unchanged.
+
+## 14:26–14:30Z — retained account is not current funding evidence
+
+Base6535b14. Existing account object survives read failure for historical
+display, but exitPermission was passed accountObserved:account!==null.
+Red source guard failed1/6; corrected input also requires no error and no
+pending load. Degraded Account disclosure follows the same boolean. Canonical
+permission selector unchanged; this is not new buying-power/execution authority.
+
+Full381files3642testsPASS; tsc exit0; synthetic browser passed5viewports.
+New scenario succeeds reading account and held1TSLA, fails ACCOUNT ONLY while
+positions still succeed, verifies BUY1disabled with funding-unknown reason,
+switches side and verifies SELL1enabled for known-position reduction. Never
+clicks submit; fixture rejects every non-GET. ServerClosed true/no errors.
+Log/private/tmp/wm-account-observed-browser.log. No new build after small input
+correction; prior6535b14 build remains prior-candidate evidence.
+Panel SHA256f578c6dd29b7401def218d69b592e0fbfb2ae7f3dd05e00637ed766e5e7ddf00
+Fixture SHA25650fd12bf560c0d91eb83a86eade3a8fcd81ade3f4f85ea82ad4fb13eca292ece
+
+NEXT inspect heldQty parser/freshness inputs without changing the canonical
+exit policy (UNKNOWN_EFFECT intentionally delegates to broker; do not claim it
+blocks additions). Then exact source/deployment review, not endless label work.
+No orders, push, deploy or secret/DB changes. Claude schema atom still held.
