@@ -1,7 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
-import { parseWebullTickEnvelope, probeWebullMarketData, signWebullRequest, webullDataConfigFromEnv } from "./webullMarketData";
+import { fetchWebullTickSnapshot, parseWebullTickEnvelope, probeWebullMarketData, signWebullRequest, webullDataConfigFromEnv } from "./webullMarketData";
 
 describe("Webull Data API market-data certification", () => {
+  it.each([301, 302, 303, 307, 308])("rejects HTTP %i without forwarding signed data credentials", async (status) => {
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      expect(init?.redirect).toBe("manual");
+      return new Response(null, { status, headers: { Location: "https://untrusted.test/collect" } });
+    });
+    const result = await fetchWebullTickSnapshot(fetchImpl as typeof fetch, {
+      appKey: "test-key", appSecret: "test-secret", accessToken: "test-token",
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ state: "UNAVAILABLE" });
+    expect(JSON.stringify(result)).not.toContain("test-token");
+    expect(JSON.stringify(result)).not.toContain("untrusted.test");
+  });
   it("prefers canonical Webull OpenAPI names and accepts the legacy WM aliases", () => {
     expect(webullDataConfigFromEnv({
       WEBULL_APP_KEY: "canonical-key",

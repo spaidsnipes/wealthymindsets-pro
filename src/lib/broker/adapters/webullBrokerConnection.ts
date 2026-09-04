@@ -146,6 +146,8 @@ export async function probeWebullBrokerConnection(
   try {
     response = await Promise.race([fetchImpl(`https://${host}${ACCOUNT_LIST_PATH}`, {
       method: "GET",
+      // Signed credentials belong to this exact endpoint, never a redirect target.
+      redirect: "manual",
       cache: "no-store",
       headers,
       signal: controller.signal,

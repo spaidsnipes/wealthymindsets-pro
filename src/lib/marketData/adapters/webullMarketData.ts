@@ -195,6 +195,8 @@ export async function fetchWebullTickSnapshot(
 
     response = await fetchImpl(url, {
       method: "GET",
+      // Do not forward signed credentials or an optional token to redirects.
+      redirect: "manual",
       cache: "no-store",
       headers,
       signal: controller.signal,

@@ -68,6 +68,7 @@ describe("Webull signed broker connection proof", () => {
     const headers = init.headers as Record<string, string>;
     expect(url).toBe("https://api.webull.test/trading/accounts/list");
     expect(init.method).toBe("GET");
+    expect(init.redirect).toBe("manual");
     expect(headers["x-signature"]).toBeTruthy();
     expect(JSON.stringify(headers)).not.toContain("test-app-secret");
   });
@@ -78,6 +79,21 @@ describe("Webull signed broker connection proof", () => {
       config,
     );
     expect(receipt).toMatchObject({ state: "NO_ACCOUNTS", connected: false, accountCount: 0 });
+  });
+
+  it.each([301, 302, 303, 307, 308])("does not follow HTTP %i with signed credentials", async (status) => {
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      expect(init?.redirect).toBe("manual");
+      return new Response(null, { status, headers: { Location: "https://untrusted.test/collect" } });
+    });
+    const receipt = await probeWebullBrokerConnection(fetchImpl as typeof fetch, {
+      ...config, accessToken: "test-token",
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(receipt).toMatchObject({ state: "UNAVAILABLE", connected: false, accountCount: 0 });
+    expect(receipt.note).toContain(`HTTP ${status}`);
+    expect(JSON.stringify(receipt)).not.toContain("test-token");
+    expect(JSON.stringify(receipt)).not.toContain("untrusted.test");
   });
 
   it.each([
