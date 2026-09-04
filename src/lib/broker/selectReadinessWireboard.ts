@@ -32,7 +32,7 @@ export interface ReadinessPayload {
 }
 
 /** A blocker-class label from the Monday Test 2 acceptable set. */
-export type WireboardBlockerClass = "READY" | "NOT CONFIGURED";
+export type WireboardBlockerClass = "SETUP PRESENT" | "NOT CONFIGURED";
 
 export interface WireboardRow {
   readonly provider: string;
@@ -57,7 +57,7 @@ export interface ReadinessWireboard {
   readonly rows: readonly WireboardRow[];
   readonly readyCount: number;
   readonly totalCount: number;
-  /** "1/6 providers READY" — safe, value-free headline. */
+  /** Configuration count only, not a connection or execution readiness verdict. */
   readonly summary: string;
   /** Count of env NAMES present across the whole fleet (presence-only). */
   readonly envPresentCount: number;
@@ -85,7 +85,7 @@ export function selectReadinessWireboard(payload: ReadinessPayload | null | unde
     label: r.label,
     lane: r.lane,
     status: r.status,
-    blockerClass: r.status === "READY" ? "READY" : "NOT CONFIGURED",
+    blockerClass: r.status === "READY" ? "SETUP PRESENT" : "NOT CONFIGURED",
     blockerDetail: blockerDetailFor(r),
     missing: r.missing,
     missingRecommended: r.missingRecommended,
@@ -97,7 +97,7 @@ export function selectReadinessWireboard(payload: ReadinessPayload | null | unde
     rows,
     readyCount,
     totalCount: rows.length,
-    summary: `${readyCount}/${rows.length} providers READY`,
+    summary: `${readyCount}/${rows.length} providers configured`,
     envPresentCount: envPresence.filter((e) => e.present).length,
     envTotalCount: envPresence.length,
     empty: rows.length === 0,

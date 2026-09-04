@@ -15,6 +15,7 @@ import postcss from 'postcss';
 import tailwindcss from 'tailwindcss';
 
 const root = process.cwd();
+const readinessOnly = process.argv.includes('--readiness');
 const output = mkdtempSync(join(tmpdir(), 'wm-paper-account-proof-'));
 const files = [
   'src/components/broker/AlpacaTradingPanel.tsx',
@@ -23,6 +24,8 @@ const files = [
   'src/components/layout/ShellModalDrawer.tsx',
   'src/components/layout/useShellModalFocus.ts',
   'src/app/globals.css',
+  'src/app/readiness/page.tsx',
+  'src/lib/broker/selectReadinessWireboard.ts',
 ];
 const manifest = Object.fromEntries(files.map(path => [path,
   createHash('sha256').update(readFileSync(path)).digest('hex')]));
@@ -31,6 +34,7 @@ const entry = `
   import {createRoot} from 'react-dom/client';
   import {BrokerConnectPanel} from './src/components/broker/BrokerConnectPanel';
   import {AlpacaTradingPanel} from './src/components/broker/AlpacaTradingPanel';
+  import ReadinessPage from './src/app/readiness/page';
   function Fixture() {
     const trigger = useRef(null);
     const [brokerOpen, setBrokerOpen] = useState(false);
@@ -46,7 +50,7 @@ const entry = `
         onSwitchBroker={() => setBrokerOpen(true)} />}
     </main>;
   }
-  createRoot(document.getElementById('root')).render(<React.StrictMode><Fixture/></React.StrictMode>);
+  createRoot(document.getElementById('root')).render(<React.StrictMode>${readinessOnly ? '<ReadinessPage/>' : '<Fixture/>'}</React.StrictMode>);
 `;
 const bundle = await build({stdin: {contents: entry, loader: 'tsx', resolveDir: root},
   bundle: true, write: false, platform: 'browser', format: 'iife',
@@ -67,6 +71,14 @@ const server = createServer((req, res) => {
   if (url.pathname.startsWith('/api/')) {
     apiRequests.push(url.pathname + url.search);
     res.setHeader('Content-Type', 'application/json');
+    if (url.pathname === '/api/broker/readiness') {
+      if (fault) {res.writeHead(503).end(JSON.stringify({error:'Fixture readiness unavailable'})); return;}
+      res.end(JSON.stringify({providers:[
+        {provider:'webull-data', label:'Webull market data', lane:'market-data', status:'READY', missing:[], missingRecommended:[], note:'Synthetic configuration presence only'},
+        {provider:'alpaca-live', label:'Alpaca (live)', lane:'broker', status:'READY', missing:[], missingRecommended:[], note:'Synthetic configuration presence only'},
+        {provider:'moomoo', label:'Moomoo (OpenD bridge)', lane:'broker', status:'BLOCKED', missing:['MOOMOO_BRIDGE_URL'], missingRecommended:[], note:'Synthetic missing configuration'},
+      ],envPresence:[]})); return;
+    }
     if (url.pathname === '/api/alpaca-trading') {
       if (fault) {res.writeHead(503).end(JSON.stringify({error:'Fixture account refresh unavailable'})); return;}
       const action = url.searchParams.get('action');
@@ -105,6 +117,21 @@ try {
       await route.continue();
     });
     await page.goto(origin);
+    if (readinessOnly) {
+      await page.getByText('2/3 providers configured',{exact:true}).waitFor();
+      if (await page.getByText('READY',{exact:true}).count()) throw new Error(device + ': presence promoted to READY');
+      if (await page.getByText('SETUP PRESENT',{exact:true}).count() !== 2) throw new Error(device + ': setup labels missing');
+      const overflow = await page.locator('main').evaluate(el => el.scrollWidth > el.clientWidth + 1);
+      if (overflow) throw new Error(device + ': readiness horizontal overflow');
+      await page.screenshot({path:join(output,device+'-readiness.png'),fullPage:true});
+      fault = true;
+      await page.reload();
+      await page.getByText(/Could not load \/api\/broker\/readiness/).waitFor();
+      if (await page.getByText('SETUP PRESENT',{exact:true}).count()) throw new Error(device + ': stale setup after failed read');
+      rows.push({device,width,height,setupNotReady:true,contained:true,failureDoesNotCertify:true});
+      await context.close();
+      continue;
+    }
     await page.getByRole('button', {name:'Connect brokers',exact:true}).click();
     await page.getByRole('button', {name:'Open Alpaca paper account',exact:true}).click();
     const dialog = page.getByRole('dialog', {name:'Alpaca paper account',exact:true});
@@ -149,6 +176,7 @@ try {
   await browser?.close();
   await new Promise(resolve=>server.close(resolve));
   const receipt = {claim:'LOCAL COMPONENT FIXTURE ONLY — NOT BROKER OR PRODUCTION PROOF',
+    surface:readinessOnly ? 'readiness' : 'paper-account',
     at:new Date().toISOString(),head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
     manifest,rows,errors,failure,passed:failure === null && rows.length === 5,
     apiRequests: [...new Set(apiRequests)],serverClosed:!server.listening};

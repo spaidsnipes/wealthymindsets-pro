@@ -55,7 +55,7 @@ describe("selectReadinessWireboard", () => {
   it("labels a READY provider honestly as not-yet-connected, never certified", () => {
     const wb = selectReadinessWireboard(payload([ready]));
     const row = wb.rows[0];
-    expect(row.blockerClass).toBe("READY");
+    expect(row.blockerClass).toBe("SETUP PRESENT");
     expect(row.blockerDetail.toLowerCase()).toContain("not yet connected");
     expect(row.blockerDetail.toLowerCase()).not.toContain("certified — ");
   });
@@ -77,7 +77,8 @@ describe("selectReadinessWireboard", () => {
 
   it("computes a value-free headline summary and ready count", () => {
     const wb = selectReadinessWireboard(payload([ready, blocked]));
-    expect(wb.summary).toBe("1/2 providers READY");
+    expect(wb.summary).toBe("1/2 providers configured");
+    expect(wb.summary).not.toContain("READY");
     expect(wb.readyCount).toBe(1);
     expect(wb.totalCount).toBe(2);
   });
@@ -91,6 +92,6 @@ describe("selectReadinessWireboard", () => {
   it("treats a null / empty payload as empty, never throwing", () => {
     expect(selectReadinessWireboard(null).empty).toBe(true);
     expect(selectReadinessWireboard(undefined).rows).toEqual([]);
-    expect(selectReadinessWireboard({}).summary).toBe("0/0 providers READY");
+    expect(selectReadinessWireboard({}).summary).toBe("0/0 providers configured");
   });
 });

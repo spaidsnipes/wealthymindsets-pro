@@ -152,9 +152,8 @@ export default function ReadinessPage() {
                           : "border-[#f0b429]/20 bg-[#f0b429]/[0.045] hover:border-[#f0b429]/35"
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <span aria-hidden="true" className={`h-2 w-2 rounded-full ${isReady ? "bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]" : "bg-[#f0b429] shadow-[0_0_12px_rgba(240,180,41,0.55)]"}`} />
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-semibold text-neutral-100">{row.label}</span>
                           <span className="rounded border border-white/5 bg-black/40 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-neutral-500">
                             {row.lane}
@@ -170,7 +169,7 @@ export default function ReadinessPage() {
                       </div>
                       <p className="mt-3 text-xs leading-relaxed text-neutral-300">
                         {isReady
-                          ? "WM Pro has the required setup names and can attempt verification."
+                          ? "Setup present — verification required. Charts and trading are not certified by this receipt."
                           : "This provider still needs setup in the current runtime."}
                       </p>
                       <details className="mt-3 border-t border-white/5 pt-2 text-[11px] leading-relaxed text-neutral-500">
@@ -187,7 +186,7 @@ export default function ReadinessPage() {
             <p className="mt-7 rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 text-[11px] leading-relaxed text-neutral-500">
               This wireboard is observability, not a second source of authority. Presence of a key never
               certifies a live connection — the broker Certification Harness owns that proof. Blocker classes
-              here are limited to what presence can prove: READY or NOT CONFIGURED. AUTH BLOCKED, BRIDGE
+              here are limited to what presence can prove: SETUP PRESENT or NOT CONFIGURED. AUTH BLOCKED, BRIDGE
               UNREACHABLE, ENTITLEMENT, and the rest require a live probe and are never guessed from a missing
               variable.
             </p>
