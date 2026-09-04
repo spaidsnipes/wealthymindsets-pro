@@ -18,7 +18,7 @@ describe("Options Chain truth and responsive surface", () => {
   });
 
   it("gives loading precedence and suppresses stale chain statistics", () => {
-    expect(optionsChain).toContain('const hasAvailableData = !loading && dataSource === "fmp" && chain.length > 0');
+    expect(optionsChain).toContain('const hasAvailableData = !loading && receivedSymbol === symbol && dataSource === "fmp" && chain.length > 0');
     expect(optionsChain).toContain('loading\n    ? "CHECKING · FIDELITY UNKNOWN"');
     // Footer stats moved into an IIFE to derive an observed-only OI summary.
     // The gate itself is the invariant: statistics must not render without
@@ -28,6 +28,17 @@ describe("Options Chain truth and responsive surface", () => {
     expect(optionsChain.indexOf("summariseOpenInterest(chain)")).toBeGreaterThan(gate);
     expect(optionsChain).toContain("{hasAvailableData && atm && (");
     expect(optionsChain).toContain('loading\n            ? "Checking options availability · fidelity UNKNOWN"');
+  });
+
+  it("fences superseded contract reads and bounds stalled bodies", () => {
+    expect(optionsChain).toContain('contractRead.current?.cancel();');
+    expect(optionsChain).toContain('signal: controller.signal');
+    expect(optionsChain).toMatch(/await res\.json\(\);\s*if \(!active\) return;/);
+    expect(optionsChain).toContain('Options check timed out. Contract availability is unverified.');
+    expect(optionsChain).toContain('}, 12_000);');
+    expect(optionsChain).toContain('return () => contractRead.current?.cancel();');
+    expect(optionsChain).toContain('setAllContracts([])');
+    expect(optionsChain).toContain(') : !hasAvailableData ? (');
   });
 
   it("keeps the panel contained and its primary controls touch reachable", () => {

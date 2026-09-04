@@ -118,6 +118,8 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
   const [error,      setError]      = useState<string | null>(null);
   const [dataSource, setDataSource] = useState<"fmp"|"unavailable">("unavailable");
   const [allContracts, setAllContracts] = useState<FMPContract[]>([]);
+  const [receivedSymbol, setReceivedSymbol] = useState<string | null>(null);
+  const contractRead = useRef<{ cancel: () => void } | null>(null);
 
   // Keep latest price in a ref so the network fetch does NOT re-run on every
   // live price tick (that caused setLoading(true) to fire repeatedly → blink).
@@ -129,12 +131,35 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
 
   // Fetch all contracts for this symbol from FMP
   const fetchContracts = useCallback(async () => {
+    contractRead.current?.cancel();
+    const controller = new AbortController();
+    let active = true;
+    const cancel = () => {
+      active = false;
+      clearTimeout(deadline);
+      controller.abort();
+    };
+    const deadline = setTimeout(() => {
+      if (!active) return;
+      setError("Options check timed out. Contract availability is unverified.");
+      setLoading(false);
+      cancel();
+    }, 12_000);
+    contractRead.current = { cancel };
     setLoading(true);
     setError(null);
+    setReceivedSymbol(null);
+    setDataSource("unavailable");
+    setAllContracts([]);
+    setExpirations([]);
+    setExpiry("");
+    setChain([]);
     try {
-      const res = await fetch(`/api/fmp?path=/v3/options/${encodeURIComponent(symbol)}`);
+      const res = await fetch(`/api/fmp?path=/v3/options/${encodeURIComponent(symbol)}`, { signal: controller.signal });
+      if (!active) return;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+      if (!active) return;
       // FMP returns { chain: [...] } or just [...]
       const contracts: FMPContract[] = Array.isArray(data) ? data : (data?.chain ?? data?.optionChain ?? []);
       if (contracts.length === 0) throw new Error("No options data");
@@ -152,23 +177,29 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
       if (!rows.length) throw new Error("No contracts for the selected expiration");
       setChain(rows);
       setDataSource("fmp");
+      setReceivedSymbol(symbol);
     } catch (e) {
+      if (!active) return;
       setError(String(e));
       setDataSource("unavailable");
       setExpirations([]);
       setExpiry("");
       setChain([]);
     } finally {
-      setLoading(false);
+      if (active) setLoading(false);
+      cancel();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol]);
 
-  useEffect(() => { fetchContracts(); }, [fetchContracts]);
+  useEffect(() => {
+    fetchContracts();
+    return () => contractRead.current?.cancel();
+  }, [fetchContracts]);
 
   // When expiry changes, rebuild chain
   useEffect(() => {
-    if (!expiry) return;
+    if (!expiry || receivedSymbol !== symbol) return;
     if (dataSource === "fmp" && allContracts.length) {
       // Find the ISO date for this label
       const isoDate = allContracts.find(c => fmtExp(c.expirationDate) === expiry)?.expirationDate ?? "";
@@ -176,11 +207,11 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
       if (rows.length) { setChain(rows); return; }
     }
     setChain([]);
-  }, [expiry, allContracts, priceKey, dataSource]);
+  }, [expiry, allContracts, priceKey, dataSource, receivedSymbol, symbol]);
 
   const atm = chain.find(r => r.itm === "atm");
   const hasObservedSpot = Number.isFinite(price) && price > 0;
-  const hasAvailableData = !loading && dataSource === "fmp" && chain.length > 0;
+  const hasAvailableData = !loading && receivedSymbol === symbol && dataSource === "fmp" && chain.length > 0;
   const dataStatus = loading
     ? "CHECKING · FIDELITY UNKNOWN"
     : hasAvailableData
@@ -249,7 +280,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
       <div className="flex items-center gap-1 px-3 py-1.5 border-b border-wm-border shrink-0 overflow-x-auto" style={{ scrollbarWidth:"none" }}>
         {loading ? (
           <span className="text-[10px] text-wm-text-dim animate-pulse">Loading expirations...</span>
-        ) : expirations.map(e => (
+        ) : (hasAvailableData ? expirations : []).map(e => (
           <button key={e} onClick={() => setExpiry(e)} aria-pressed={expiry === e}
             className={clsx("inline-flex min-h-11 min-w-11 items-center justify-center px-3 rounded-full text-[10px] font-semibold whitespace-nowrap border transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold",
               expiry === e ? "bg-wm-green/15 text-wm-green border-wm-green/35"
@@ -276,7 +307,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
           <div className="flex items-center justify-center h-full text-wm-text-dim text-xs">
             <RefreshCw size={14} className="animate-spin mr-2" /> Loading options data from FMP...
           </div>
-        ) : chain.length === 0 ? (
+        ) : !hasAvailableData ? (
           <div className="flex flex-col items-center justify-center h-full px-8 text-center">
             <AlertTriangle size={22} className="text-wm-red mb-3" />
             <div className="text-sm font-bold text-wm-text">Real options chain unavailable</div>
