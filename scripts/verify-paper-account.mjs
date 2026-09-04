@@ -63,6 +63,7 @@ const css = await postcss([tailwindcss('./tailwind.config.ts')])
   .process(readFileSync('src/app/globals.css', 'utf8'), {from: 'src/app/globals.css'});
 let fault = false;
 let emptyPositions = false;
+let workingOrder = false;
 const apiRequests = [];
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
@@ -99,7 +100,7 @@ const server = createServer((req, res) => {
       const action = url.searchParams.get('action');
       if (action === 'account') {res.end(JSON.stringify({status:'ACTIVE', cash:'1000', equity:'1100', buying_power:'1000', portfolio_value:'1100', pattern_day_trader:false, trading_blocked:false, account_number:'FIXTURE', _env:'paper', _connected:true})); return;}
       if (action === 'positions') {res.end(JSON.stringify(emptyPositions ? [] : [{symbol:'TSLA', qty:'1', avg_entry_price:'100', current_price:'99', market_value:'99', unrealized_pl:'-1', unrealized_plpc:'-0.01', side:'long'}])); return;}
-      if (action === 'orders') {res.end('[]'); return;}
+      if (action === 'orders') {res.end(JSON.stringify(workingOrder ? [{id:'fixture-order',symbol:'TSLA',side:'buy',qty:'1',filled_qty:'0',type:'limit',limit_price:'90',status:'new',submitted_at:'2026-09-04T13:00:00Z'}] : [])); return;}
     }
     res.writeHead(503).end(JSON.stringify({error:'Fixture: provider unavailable', configured:false, connected:false})); return;
   }
@@ -242,20 +243,28 @@ try {
     await page.screenshot({path:join(output,device+'-aged-empty.png')});
     emptyPositions = false;
     await dialog.getByRole('button',{name:'Orders',exact:true}).click();
+    workingOrder = true;
+    await dialog.getByRole('button',{name:'Refresh paper account',exact:true}).click();
+    await dialog.getByText('NEW',{exact:true}).waitFor();
     fault = 'order-hang';
     const stalledOrder = page.waitForResponse(response => response.url().includes('action=orders&status=all'));
     await dialog.getByRole('button',{name:'Refresh paper account',exact:true}).click();
     await stalledOrder;
     await page.clock.runFor(12_100);
     await dialog.getByText('Could not load orders.',{exact:false}).waitFor();
+    await dialog.getByText('Last observed status: NEW',{exact:true}).waitFor({timeout:5000});
+    await dialog.getByText('TSLA',{exact:true}).waitFor();
+    if (!(await escape.isVisible())) throw new Error(device + ': order failure lost broker escape');
+    await page.screenshot({path:join(output,device+'-working-order-unverified.png')});
     if (await dialog.getByText('No recent orders',{exact:true}).count()) throw new Error(device + ': hung orders claimed empty');
     fault = false;
+    workingOrder = false;
     await dialog.getByRole('button',{name:'Refresh paper account',exact:true}).click();
     await dialog.getByText('No recent orders',{exact:true}).waitFor();
     await page.keyboard.press('Escape');
     await dialog.waitFor({state:'detached'});
     if (!(await page.getByRole('button',{name:'Connect brokers',exact:true}).evaluate(el=>el===document.activeElement))) throw new Error(device + ': focus not restored');
-    rows.push({device,width,height,drawerContained:true,escapeVisible:true,snapshotAges:true,emptySnapshotAges:true,stalledPositionBodyBounded:true,stalledOrderBodyBounded:true,orderReadRetryRecovers:true,retainedPositionOnFailure:true,focusTrap:true,escapeCloses:true,focusRestored:true});
+    rows.push({device,width,height,drawerContained:true,escapeVisible:true,snapshotAges:true,emptySnapshotAges:true,stalledPositionBodyBounded:true,stalledOrderBodyBounded:true,workingOrderRetainedOnFailure:true,orderReadRetryRecovers:true,retainedPositionOnFailure:true,focusTrap:true,escapeCloses:true,focusRestored:true});
     await context.close();
   }
   if (errors.length) throw new Error(JSON.stringify(errors));

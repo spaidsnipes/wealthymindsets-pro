@@ -153,3 +153,27 @@ working orders visibly under explicit unverified labels and test with a
 synthetic working buy. Do not imply cancellation or fill; no mutations.
 Account read deadline/recovery remains RESERVE. Do not touch Claude schema lane.
 No Drive refresh due yet (last14:08); hourly refresh about15:02. No push/deploy.
+
+## 14:14–14:18Z — known working orders remain visible
+
+Base4a12197 unchanged on resume. Red browser experiment first: known synthetic
+BUY1TSLA, then stalled order body; last-observed order label disappeared and
+5second assertion failed (wm-orders-retain-red.log). The fixed panel keeps
+last-known orders beneath the failure disclosure, labels Last observed status,
+avoids green verified-status coloring on failure, and warns potentially working
+orders may still execute. Unknown latest state never implies cancel/fill.
+Cancel/submit behavior untouched and never exercised by these GET-only tests.
+
+Final full381files3641testsPASS; TypeScript passed before final wording tweak;
+final Webpack production build including TypeScript exited0. Final synthetic
+fixture ijr0uT passed all5viewports, with workingOrderRetainedOnFailure true,
+retry recovery, serverClosed true and zero console errors. iPhone screenshot
+of pre-final wording also visually inspected; retained order and escape fit.
+Current receipt /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/wm-paper-account-proof-ijr0uT/receipt.json
+Panel SHA256049b6ab56d9a432c3d0a94e4c3ebede9fdff057a8a2ccc3d6c9f3bd19f81f9c9
+Fixture SHA2563bd26e0bda4c327770cdf38245af3823ab15d4803bd65fffe4fc5948c8a6ef9c
+
+NEXT account-read timeout/obsolete-response recovery; still no account deadline.
+RESERVE review working-order age when no refresh happens, which is distinct
+from this failed-read recovery. No broker/production/device certification.
+No push/deploy, no secret mutations. Shift remains active to17:02:32Z.

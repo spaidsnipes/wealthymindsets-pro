@@ -23,6 +23,13 @@ const panel = fs.readFileSync(
  *    trader believed they were out.
  */
 describe("broker panel failure truth", () => {
+  it("retains known orders when their refresh fails and qualifies their status", () => {
+    expect(panel).not.toContain('{ordersLoad === "failed" ? (');
+    expect(panel).toContain('{ordersLoad === "failed" && (');
+    expect(panel).toContain('Last observed status: ${ord.status.toUpperCase()}');
+    expect(panel).toContain('Current order state unverified.');
+    expect(panel).toContain('isOpen ? "This order may still execute. " : ""');
+  });
   it("bounds order bodies and rejects superseded reads", () => {
     const read = panel.slice(panel.indexOf("const loadOrders ="), panel.indexOf("const disconnect ="));
     expect(read).toContain("orderRead.current?.cancel()");

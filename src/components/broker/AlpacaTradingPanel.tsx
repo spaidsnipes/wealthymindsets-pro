@@ -805,7 +805,7 @@ export function AlpacaTradingPanel({
                   {cancelError}
                 </div>
               )}
-              {ordersLoad === "failed" ? (
+              {ordersLoad === "failed" && (
                 <div role="alert" className="text-center py-12 text-wm-red text-[12px]">
                   <Clock size={28} className="mx-auto mb-3 opacity-40" />
                   Could not load orders.
@@ -813,15 +813,16 @@ export function AlpacaTradingPanel({
                     This is not a confirmation that you have none working.
                   </div>
                 </div>
-              ) : orders.length === 0 ? (
+              )}
+              {orders.length === 0 ? (ordersLoad === "failed" ? null : (
                 <div className="text-center py-12 text-wm-text-dim text-[12px]">
                   <Clock size={28} className="mx-auto mb-3 opacity-30" />
                   {ordersLoad === "pending" ? "Loading orders…" : "No recent orders"}
                 </div>
-              ) : orders.map(ord => {
+              )) : orders.map(ord => {
                 const isOpen   = ["new", "partially_filled", "accepted", "pending_new"].includes(ord.status);
                 const isFilled = ord.status === "filled";
-                const statusColor = isFilled ? "#00C076" : isOpen ? "#F0B429" : "#8B8FA8";
+                const statusColor = ordersLoad === "failed" ? "#F0B429" : isFilled ? "#00C076" : isOpen ? "#F0B429" : "#8B8FA8";
                 return (
                   <div key={ord.id} className="rounded-xl p-3 border border-wm-border bg-wm-card">
                     <div className="flex items-start justify-between">
@@ -833,9 +834,14 @@ export function AlpacaTradingPanel({
                           <span className="font-black text-sm text-wm-text">{ord.symbol}</span>
                           <span className="text-[9px] px-1.5 py-0.5 rounded font-bold"
                             style={{ background: `${statusColor}18`, color: statusColor, border: `1px solid ${statusColor}33` }}>
-                            {ord.status.toUpperCase()}
+                            {ordersLoad === "failed" ? `Last observed status: ${ord.status.toUpperCase()}` : ord.status.toUpperCase()}
                           </span>
                         </div>
+                        {ordersLoad === "failed" && (
+                          <div className="text-[10px] text-wm-gold mt-1">
+                            Current order state unverified. {isOpen ? "This order may still execute. " : ""}Check the broker before adding exposure.
+                          </div>
+                        )}
                         <div className="text-[10px] text-wm-text-dim mt-0.5">
                           {ord.filled_qty}/{ord.qty} shares · {ord.type?.toUpperCase().replace("_", " ")}
                           {ord.limit_price ? ` @ ${fmt$(ord.limit_price)}` : ""}
