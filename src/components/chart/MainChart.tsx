@@ -45,6 +45,7 @@ import {
   type DeltaTick,
   type DeltaBubbleLevel,
 } from "@/lib/deltaBubbleLevels";
+import { computeProfileFromBars } from "@/lib/vpEngine";
 import type { DrawingStyle, LogicalPt, DrawStyle, ChartDrawing } from "@/types/chart";
 import { DEFAULT_DRAWING_STYLE } from "@/types/chart";
 import { showAlertToast } from "./AlertsPanel";
@@ -5517,44 +5518,59 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // silhouette at close zoom, matching the older build. (Extreme-zoom sub-row
         // LOD is the next lever if still coarse.)
         const rows = 320;
-        let tickSz = rawRange / rows;
-        // Snap to the NEAREST clean increment (1/2/2.5/5/10 · 10ⁿ) so bucket edges are
-        // still readable prices but the grid never coarsens (nearest, not ceil).
-        const magnitude = Math.pow(10, Math.floor(Math.log10(tickSz)));
-        const tickCands = [1, 2, 2.5, 5, 10].map(m => m * magnitude);
-        tickSz = tickCands.reduce((best, v) =>
-          Math.abs(v - tickSz) < Math.abs(best - tickSz) ? v : best, tickCands[0]);
 
-        // VP is a TOTAL-volume study. Historical OHLCV gives us truthful bar volume
-        // and high/low ranges, but not aggressor-side volume at each price. Spread
-        // each bar's observed volume evenly across only the price buckets it touched.
-        // Bid/ask footprint modes remain tape-only elsewhere.
+        /* ── WHERE THE VOLUME GOES — owned by src/lib/vpEngine.ts ──────────────
+         *
+         * VP is a TOTAL-volume study. Historical OHLCV gives truthful per-bar
+         * volume and a high–low range, but not volume-at-price, so each bar's
+         * volume is spread evenly across the buckets its range TOUCHED. That
+         * estimate is honest; the bucket arithmetic underneath it was not.
+         *
+         * This block used to compute the grid inline:
+         *
+         *     const first = Math.floor(b.low  / tickSz);
+         *     const last  = Math.ceil (b.high / tickSz);
+         *
+         * `Math.ceil` on the HIGH is one bucket too far. Bucket k covers
+         * [k·tick, (k+1)·tick), so the bucket holding the high is FLOOR(high/tick).
+         * Ceil names the bucket ABOVE it whenever the high does not land exactly
+         * on a grid edge — which, since the grid is rawRange/320 and not the
+         * instrument's tick, is nearly always. So every bar deposited a share of
+         * its volume at prices STRICTLY ABOVE its own high, and the histogram
+         * drew a shelf where that bar never traded.
+         *
+         * It is not a rounding nicety. `touched` is one too large, so the phantom
+         * bucket's share is 1/(n+1) of the bar:
+         *
+         *     bar spanning 1 bucket  → 50.0% of its volume above the high
+         *     bar spanning 2 buckets → 33.3%
+         *     bar spanning 6 buckets → 14.3%
+         *
+         * and every REAL level was diluted by the same factor. The error is
+         * one-directional, so the whole profile — POC, VAH and VAL with it —
+         * was smeared upward. A trader reads the POC as the price the market
+         * accepted; it must not be an artifact of a ceil.
+         *
+         * `computeProfileFromBars` already had this right (it floors both edges)
+         * and already had a test suite — it simply had no callers, so the shipped
+         * surface and the canonical engine had drifted apart with only the engine
+         * under test. One writer now. Same tick derivation (range/320 snapped to
+         * the nearest 1/2/2.5/5/10·10ⁿ), same even spread, same up/down split by
+         * candle direction, same 70% value area — only the geometry is corrected.
+         */
+        const snap = computeProfileFromBars(barsToUse, { targetRows: rows, valueAreaPct: 0.7 });
+        if (snap.rows.length === 0 || snap.totalVolume <= 0) return;
+        const tickSz = snap.tickSize;
+
+        // Re-key onto this renderer's grid convention (bucketIndex · tick) so the
+        // draw loop below, which reconstructs a price from `loKey + i·tick`, finds
+        // its bucket by an identical float expression. One canonical key form.
+        const gridKey = (p: number) => Math.round(p / tickSz) * tickSz;
         const volMap = new Map<number, { up: number; down: number }>();
-        barsToUse.forEach(b => {
-          if (!(b.volume > 0) || !(b.high >= b.low)) return;
-          const first = Math.floor(b.low / tickSz);
-          const last = Math.ceil(b.high / tickSz);
-          const touched = Math.max(1, last - first + 1);
-          const perBucket = b.volume / touched;
-          const isUpBar = b.close >= b.open;
-          for (let bucket = first; bucket <= last; bucket++) {
-            const key = bucket * tickSz;
-            const existing = volMap.get(key) ?? { up: 0, down: 0 };
-            volMap.set(key, {
-              up: existing.up + (isUpBar ? perBucket : 0),
-              down: existing.down + (isUpBar ? 0 : perBucket),
-            });
-          }
-        });
+        for (const r of snap.rows) volMap.set(gridKey(r.price), { up: r.up, down: r.down });
         if (volMap.size === 0) return;
         const allPrices = Array.from(volMap.keys()).sort((a, b) => a - b);
-        const maxVol    = Math.max(...Array.from(volMap.values()).map(v => v.up + v.down));
-        if (maxVol === 0) return;
-        let pocPrice = allPrices[0]; let pocVol = 0;
-        volMap.forEach((v, p) => {
-          const total = v.up + v.down;
-          if (total > pocVol) { pocVol = total; pocPrice = p; }
-        });
+        const pocPrice = gridKey(snap.poc);
 
         // ── Bar-WIDTH reference = 3.5× the MEDIAN populated-level volume ──────────
         // ACCURATE normalization: scale bar length to the REAL peak volume-at-
@@ -5588,21 +5604,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // level (above or below) holds the larger volume, until 70% of total
         // traded volume is enclosed. The highest enclosed price = VAH, the
         // lowest = VAL — exactly the standard market-profile value area.
-        const volAt = (p: number) => {
-          const volume = volMap.get(p);
-          return volume ? volume.up + volume.down : 0;
-        };
-        const totalVol = allPrices.reduce((s, p) => s + volAt(p), 0);
+        // Expansion itself is the engine's (`snap.vah` / `snap.val`); this maps the
+        // two boundary prices back to row indices so the straddle rule below can
+        // still nudge them apart for the draw guard.
         let pocIdx = allPrices.indexOf(pocPrice);
         if (pocIdx < 0) pocIdx = 0;
-        let vaLo = pocIdx, vaHi = pocIdx, vaAcc = volAt(allPrices[pocIdx]);
-        const vaTarget = totalVol * 0.7;
-        while (vaAcc < vaTarget && (vaLo > 0 || vaHi < allPrices.length - 1)) {
-          const below = vaLo > 0 ? volAt(allPrices[vaLo - 1]) : -1;
-          const above = vaHi < allPrices.length - 1 ? volAt(allPrices[vaHi + 1]) : -1;
-          if (above >= below) { vaHi++; vaAcc += above; }
-          else                { vaLo--; vaAcc += below; }
-        }
+        let vaLo = allPrices.indexOf(gridKey(snap.val));
+        let vaHi = allPrices.indexOf(gridKey(snap.vah));
+        if (vaLo < 0) vaLo = pocIdx;
+        if (vaHi < 0) vaHi = pocIdx;
         // Guarantee the value area straddles the POC by at least one populated
         // level on EACH side whenever such a level exists. Without this, a POC
         // sitting near the top/bottom of the distribution (all 70% accumulates on

@@ -269,3 +269,144 @@ describe("VP determinism matrix — founder XI acceptance", () => {
     expect(p.totalVolume).toBe(30);
   });
 });
+
+/**
+ * RENDER GEOMETRY — the Founder gate.
+ *
+ * The chart draws one horizontal shelf per populated row, spanning exactly
+ * [price, price + tickSize) on the price axis, and tags the POC with its price.
+ * That is a claim: "this much volume traded at this price." So the same law the
+ * delta bubbles are held to applies here — a rendered level must be a price the
+ * input actually reached.
+ *
+ * MainChart used to compute the grid itself and got the top edge wrong. The
+ * renderer now delegates to this engine, so these tests cover the shipped path.
+ */
+describe("render geometry — a VP row must be a price the bars reached", () => {
+  const barsOf = (spec: Array<[low: number, high: number, vol: number]>): ProfileBar[] =>
+    spec.map(([low, high, volume], i) => ({
+      time: i, open: low, high, low, close: high, volume,
+    }));
+
+  it("never places volume above the highest high or below the lowest low", () => {
+    // A grid of shapes: tight bars, wide bars, edge-aligned bars, and bars whose
+    // high lands mid-bucket (the case that used to leak).
+    const cases: ProfileBar[][] = [
+      barsOf([[100.0, 100.05, 1000]]),                       // 1 bucket wide
+      barsOf([[100.0, 100.55, 1000]]),                       // mid-bucket high
+      barsOf([[100.0, 101.0, 1000]]),                        // edge-aligned high
+      barsOf([[21750.0, 21752.0, 500], [21751.0, 21753.25, 900]]),
+      barsOf([[0.4521, 0.4599, 12], [0.4500, 0.4530, 7]]),   // sub-dollar
+      barsOf([[59_800.0, 60_140.5, 3.25]]),                  // BTC
+    ];
+
+    for (const bars of cases) {
+      const lo = Math.min(...bars.map((b) => b.low));
+      const hi = Math.max(...bars.map((b) => b.high));
+      const snap = computeProfileFromBars(bars);
+
+      const above = snap.rows.filter((r) => r.price > hi);
+      const below = snap.rows.filter((r) => r.price + snap.tickSize <= lo);
+
+      expect(
+        above.map((r) => r.price),
+        `${lo}-${hi}: a volume shelf was drawn ABOVE the highest price these bars reached`,
+      ).toEqual([]);
+      expect(
+        below.map((r) => r.price),
+        `${lo}-${hi}: a volume shelf was drawn BELOW the lowest price these bars reached`,
+      ).toEqual([]);
+    }
+  });
+
+  it("conserves every lot — the profile totals what the bars totalled", () => {
+    const bars = barsOf([[100.0, 100.55, 1000], [100.2, 100.9, 700], [99.5, 100.1, 450]]);
+    const snap = computeProfileFromBars(bars);
+    const expected = bars.reduce((s, b) => s + b.volume, 0);
+    expect(snap.totalVolume).toBeCloseTo(expected, 6);
+    expect(snap.rows.reduce((s, r) => s + r.total, 0)).toBeCloseTo(expected, 6);
+  });
+
+  it("puts the POC on the level that actually holds the most volume", () => {
+    // Every bar overlaps 100.00-100.20; only one reaches up to 100.60. The
+    // accepted price is at the bottom. A grid that leaks upward can hand the
+    // POC to a level the crowd never traded.
+    const bars: ProfileBar[] = [
+      ...Array.from({ length: 20 }, (_, i) => ({
+        time: i, open: 100.0, high: 100.2, low: 100.0, close: 100.1, volume: 1000,
+      })),
+      { time: 99, open: 100.2, high: 100.6, low: 100.2, close: 100.55, volume: 50 },
+    ];
+    const snap = computeProfileFromBars(bars);
+    expect(snap.poc).toBeGreaterThanOrEqual(100.0);
+    expect(snap.poc).toBeLessThanOrEqual(100.2);
+  });
+
+  it("keeps VAH and VAL inside the traded range", () => {
+    const bars = barsOf([[100.0, 100.55, 1000], [100.3, 101.05, 400], [99.8, 100.4, 620]]);
+    const lo = 99.8, hi = 101.05;
+    const snap = computeProfileFromBars(bars);
+    for (const [tag, p] of [["VAL", snap.val], ["POC", snap.poc], ["VAH", snap.vah]] as const) {
+      expect(p, `${tag} sits outside the traded range`).toBeGreaterThanOrEqual(lo - snap.tickSize);
+      expect(p, `${tag} sits outside the traded range`).toBeLessThanOrEqual(hi);
+    }
+    expect(snap.val).toBeLessThanOrEqual(snap.poc);
+    expect(snap.vah).toBeGreaterThanOrEqual(snap.poc);
+  });
+
+  /**
+   * The renderer stores each row at `round(price / tick) * tick` and the draw
+   * loop re-derives it as `round((loKey + i * tick) / tick) * tick`. Those two
+   * float expressions must produce the SAME number or the row silently draws
+   * nothing — the identity-by-float-key failure mode. Pinned here because the
+   * contract spans two files and neither one alone shows it.
+   */
+  it("bucket prices survive the renderer's grid-key round trip", () => {
+    const gridKey = (p: number, tick: number) => Math.round(p / tick) * tick;
+    let mismatches = 0;
+    for (const tick of [0.0001, 0.00025, 0.01, 0.025, 0.1, 0.25, 1, 2.5, 25, 250]) {
+      for (const k0 of [0, 1, 7, 401, 59_999, 217_500]) {
+        const loKey = gridKey(k0 * tick, tick);
+        for (let i = 0; i < 320; i++) {
+          const stored = gridKey((k0 + i) * tick, tick);
+          const looked = gridKey(loKey + i * tick, tick);
+          if (!Object.is(stored, looked)) mismatches++;
+        }
+      }
+    }
+    expect(mismatches, "a populated VP row would look up as a miss and draw nothing").toBe(0);
+  });
+});
+
+/**
+ * Historical record of the defect, kept because it explains the comment block in
+ * MainChart's drawWMVP and is cheap to keep honest. NOT the shipped code.
+ */
+describe("regression record — Math.ceil on the bar's high", () => {
+  /** The old inline MainChart accumulation, reproduced exactly. */
+  function ceilBuckets(low: number, high: number, tick: number): number[] {
+    const first = Math.floor(low / tick);
+    const last = Math.ceil(high / tick);
+    const out: number[] = [];
+    for (let b = first; b <= last; b++) out.push(b * tick);
+    return out;
+  }
+
+  it("deposited volume above the bar's own high, worst on the tightest bars", () => {
+    const tick = 0.1;
+    // [high, share of the bar's volume landing above the high]
+    for (const [high, pct] of [[100.05, 50], [100.15, 100 / 3], [100.25, 25], [100.55, 100 / 7]] as const) {
+      const buckets = ceilBuckets(100.0, high, tick);
+      const phantom = buckets.filter((p) => p > high + 1e-9);
+      expect(phantom.length, `high=${high} should have exactly one phantom bucket`).toBe(1);
+      expect(100 / buckets.length).toBeCloseTo(pct, 6);
+    }
+  });
+
+  it("the shipped engine does not reproduce it", () => {
+    const snap = computeProfileFromBars([
+      { time: 0, open: 100.0, high: 100.05, low: 100.0, close: 100.05, volume: 1000 },
+    ]);
+    expect(snap.rows.filter((r) => r.price > 100.05)).toEqual([]);
+  });
+});
