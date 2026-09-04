@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Zap, ExternalLink, Search, Key, Check, ChevronDown, ChevronUp, AlertCircle, Loader2 } from "lucide-react";
 import { clsx } from "clsx";
@@ -514,13 +514,31 @@ function ManagedConnectionStatus({ broker }: { broker: Broker }) {
   const [loading, setLoading] = useState(true);
   const [receipt, setReceipt] = useState<ManagedConnectionReceipt | null>(null);
   const [error, setError] = useState("");
+  const requestSequence = useRef(0);
+  const activeRequest = useRef<AbortController | null>(null);
 
   const check = React.useCallback(async () => {
+    const sequence = ++requestSequence.current;
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
+    let expired = false;
+    const isCurrent = () => sequence === requestSequence.current && !expired;
     setLoading(true);
     setError("");
+    setReceipt(null);
+    const deadline = setTimeout(() => {
+      if (!isCurrent()) return;
+      expired = true;
+      setReceipt(null);
+      setError("Connection check timed out. Account access is unverified; retry when ready.");
+      setLoading(false);
+      controller.abort();
+    }, 12_000);
     try {
-      const response = await fetch(managed.endpoint, { cache: "no-store" });
+      const response = await fetch(managed.endpoint, { cache: "no-store", signal: controller.signal });
       const json = await response.json().catch(() => null) as ManagedConnectionReceipt | null;
+      if (!isCurrent()) return;
       if (!response.ok || !json) {
         setReceipt(null);
         setError(response.status === 401 ? "Sign in to WM Pro to check this connection." : `Connection check failed (HTTP ${response.status}).`);
@@ -528,14 +546,24 @@ function ManagedConnectionStatus({ broker }: { broker: Broker }) {
         setReceipt(json);
       }
     } catch {
-      setReceipt(null);
-      setError("WM Pro could not reach the broker connection check.");
+      if (isCurrent()) {
+        setReceipt(null);
+        setError("WM Pro could not reach the broker connection check.");
+      }
     } finally {
-      setLoading(false);
+      clearTimeout(deadline);
+      controller.abort();
+      if (isCurrent()) setLoading(false);
     }
   }, [managed.endpoint]);
 
-  useEffect(() => { void check(); }, [check]);
+  useEffect(() => {
+    void check();
+    return () => {
+      ++requestSequence.current;
+      activeRequest.current?.abort();
+    };
+  }, [check]);
 
   const connected = receipt?.connected === true;
   return (
@@ -548,7 +576,7 @@ function ManagedConnectionStatus({ broker }: { broker: Broker }) {
           background: connected ? "rgba(0,192,118,0.06)" : "rgba(255,255,255,0.025)",
         }}
       >
-        <div className="flex items-center gap-2 text-[11px] font-black" style={{ color: connected ? "#00C076" : broker.color }}>
+        <div className="flex items-center gap-2 text-[11px] font-black" style={{ color: connected ? "#00C076" : "#d1d5db" }}>
           {loading ? <Loader2 size={12} className="animate-spin" /> : connected ? <Check size={12} /> : <AlertCircle size={12} />}
           {loading ? "Checking signed connection…" : connected ? "Webull account wire connected" : (receipt?.state || "Connection not proven")}
         </div>

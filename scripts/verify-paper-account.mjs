@@ -16,6 +16,7 @@ import tailwindcss from 'tailwindcss';
 
 const root = process.cwd();
 const readinessOnly = process.argv.includes('--readiness');
+const webullOnly = process.argv.includes('--webull');
 const output = mkdtempSync(join(tmpdir(), 'wm-paper-account-proof-'));
 const files = [
   'src/components/broker/AlpacaTradingPanel.tsx',
@@ -71,6 +72,11 @@ const server = createServer((req, res) => {
   if (url.pathname.startsWith('/api/')) {
     apiRequests.push(url.pathname + url.search);
     res.setHeader('Content-Type', 'application/json');
+    if (url.pathname === '/api/broker/webull/status' && webullOnly) {
+      if (fault === 'hang') {res.writeHead(200); res.write('{"provider":"webull",'); return;}
+      if (fault) {res.writeHead(503).end(JSON.stringify({error:'Synthetic connection check failed'})); return;}
+      res.end(JSON.stringify({provider:'webull',authMode:'SIGNED_OPENAPI',configured:true,connected:true,state:'CONNECTED',accountCount:1,accountTypes:['CASH'],note:'Synthetic signed account-list read only. No real broker connection or order access.'})); return;
+    }
     if (url.pathname === '/api/broker/readiness') {
       if (fault === 'hang') {res.writeHead(200); res.write('{"providers":['); return;}
       if (fault) {res.writeHead(503).end(JSON.stringify({error:'Fixture readiness unavailable'})); return;}
@@ -148,6 +154,32 @@ try {
       continue;
     }
     await page.getByRole('button', {name:'Connect brokers',exact:true}).click();
+    if (webullOnly) {
+      await page.getByText('Webull account wire connected',{exact:true}).waitFor();
+      await page.clock.install();
+      const check = page.getByRole('button',{name:'Check wire',exact:true});
+      fault = true;
+      await check.click();
+      await page.getByText('Connection check failed (HTTP 503).',{exact:true}).waitFor();
+      if (await page.getByText('Webull account wire connected',{exact:true}).count()) throw new Error(device + ': stale Webull success after failed check');
+      fault = 'hang';
+      const stalled = page.waitForResponse(response => response.url().endsWith('/api/broker/webull/status'));
+      await check.click();
+      await stalled;
+      await page.clock.runFor(12_100);
+      await page.getByText('Connection check timed out. Account access is unverified; retry when ready.',{exact:true}).waitFor();
+      if (!(await check.isEnabled())) throw new Error(device + ': Webull retry stayed disabled');
+      await check.scrollIntoViewIfNeeded();
+      await page.screenshot({path:join(output,device+'-webull-timeout.png')});
+      fault = false;
+      await check.click();
+      await page.getByText('Webull account wire connected',{exact:true}).waitFor();
+      await page.keyboard.press('Escape');
+      await page.getByRole('button',{name:'Connect brokers',exact:true}).waitFor();
+      rows.push({device,width,height,failedReadClearsSuccess:true,stalledBodyBounded:true,retryEnabled:true,retryRecovers:true});
+      await context.close();
+      continue;
+    }
     await page.getByRole('button', {name:'Open Alpaca paper account',exact:true}).click();
     const dialog = page.getByRole('dialog', {name:'Alpaca paper account',exact:true});
     await dialog.getByText('TSLA', {exact:true}).waitFor();
@@ -191,7 +223,7 @@ try {
   await browser?.close();
   await new Promise(resolve=>server.close(resolve));
   const receipt = {claim:'LOCAL COMPONENT FIXTURE ONLY — NOT BROKER OR PRODUCTION PROOF',
-    surface:readinessOnly ? 'readiness' : 'paper-account',
+    surface:readinessOnly ? 'readiness' : webullOnly ? 'webull-account-check' : 'paper-account',
     at:new Date().toISOString(),head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
     manifest,rows,errors,failure,passed:failure === null && rows.length === 5,
     apiRequests: [...new Set(apiRequests)],serverClosed:!server.listening};

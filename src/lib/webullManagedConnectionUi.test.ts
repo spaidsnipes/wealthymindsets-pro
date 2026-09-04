@@ -20,7 +20,8 @@ describe("Webull managed connection UI", () => {
 
   it("does not ask the browser to transmit Webull credentials", () => {
     const managedSection = panel.slice(panel.indexOf("function ManagedConnectionStatus"), panel.indexOf("/* ── Broker Card"));
-    expect(managedSection).toContain('fetch(managed.endpoint, { cache: "no-store" })');
+    expect(managedSection).toContain('fetch(managed.endpoint, { cache: "no-store", signal: controller.signal })');
+    expect(managedSection).not.toMatch(/method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/);
     expect(managedSection).not.toContain("body: JSON.stringify");
     expect(managedSection).not.toContain('type="password"');
   });
