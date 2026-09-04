@@ -3,6 +3,10 @@ import { DecisionMemoryStore } from "../decisionMemoryStore";
 import {
   DECISION_MEMORY_SCHEMA_VERSION,
   sealDecision,
+  appendManagement,
+  attachOutcome,
+  attachReview,
+  amendDecision,
   type FrozenState,
   type DecisionPlan,
 } from "../decisionMemory";
@@ -43,6 +47,89 @@ describe("DecisionMemoryStore", () => {
 
   it("get returns null for missing", () => {
     expect(store.get("o1", "missing")).toBeNull();
+  });
+
+  it("rejects replay that would erase an observed outcome", () => {
+    const original = sealDecision({decisionId:"d1", ownerId:"o1", sessionIdentity:"s1", frozen:frozen("o1"), plan});
+    const closed = attachOutcome(original, {closedAt:1_800_000_000_100, realizedR:1, reason:"MANUAL"});
+    store.put(closed);
+    expect(() => store.put(original)).toThrow(/outcome/);
+    expect(store.get("o1", "d1")).toBe(closed);
+  });
+
+  it("rejects a same-ID plan rewrite without notifying or invalidating snapshots", () => {
+    const original = sealDecision({decisionId:"d1", ownerId:"o1", sessionIdentity:"s1", frozen:frozen("o1"), plan});
+    store.put(original);
+    const snapshot = store.list("o1");
+    let calls = 0;
+    store.subscribe("o1", () => calls++);
+    expect(() => store.put({...original, plan:{...plan, intendedSize:999}})).toThrow(/sealed/);
+    expect(store.list("o1")).toBe(snapshot);
+    expect(calls).toBe(1);
+  });
+
+  it("allows append-only management but rejects truncation or rewriting history", () => {
+    const original = sealDecision({decisionId:"d1", ownerId:"o1", sessionIdentity:"s1", frozen:frozen("o1"), plan});
+    const event = {id:"e1", type:"USER_NOTE" as const, at:1_800_000_000_001, detail:"first"};
+    const advanced = appendManagement(original, event);
+    store.put(original); store.put(advanced);
+    expect(() => store.put(original)).toThrow(/management/);
+    expect(() => store.put({...advanced, management:[{...event, detail:"rewritten"}]})).toThrow(/management/);
+    expect(store.get("o1", "d1")).toBe(advanced);
+  });
+
+  it("treats an identical serialized replay as a no-op", () => {
+    const original = sealDecision({decisionId:"d1", ownerId:"o1", sessionIdentity:"s1", frozen:frozen("o1"), plan});
+    store.put(original);
+    const list = store.list("o1");
+    store.put(JSON.parse(JSON.stringify(original)));
+    expect(store.get("o1", "d1")).toBe(original);
+    expect(store.list("o1")).toBe(list);
+  });
+
+  it("freezes hydrated nested input so history cannot change behind the store", () => {
+    const record = JSON.parse(JSON.stringify(sealDecision({decisionId:"d1", ownerId:"o1", sessionIdentity:"s1", frozen:frozen("o1"), plan})));
+    Object.freeze(record);
+    store.put(record);
+    expect(Object.isFrozen(record.plan)).toBe(true);
+    expect(() => { record.plan.intendedSize = 999; }).toThrow();
+    expect(store.get("o1", "d1")?.plan.intendedSize).toBe(100);
+  });
+
+  it("rejects a forged inner owner without creating a bucket", () => {
+    const record = sealDecision({decisionId:"d1", ownerId:"o1", sessionIdentity:"s1", frozen:frozen("o1"), plan});
+    expect(() => store.put({...record, ownerId:"o2"})).toThrow(/owner/);
+    expect(store.list("o2")).toEqual([]);
+  });
+
+  it("accepts serialized replays with different property order", () => {
+    const original = sealDecision({decisionId:"d1", ownerId:"o1", sessionIdentity:"s1", frozen:frozen("o1"), plan});
+    store.put(original);
+    const reordered = Object.fromEntries(Object.entries(original).reverse()) as unknown as typeof original;
+    store.put(reordered);
+    expect(store.get("o1", "d1")).toBe(original);
+  });
+
+  it("preserves review and amendments while accepting a lawful amendment", () => {
+    const original = sealDecision({decisionId:"d1", ownerId:"o1", sessionIdentity:"s1", frozen:frozen("o1"), plan});
+    const closed = attachOutcome(original, {closedAt:1_800_000_000_100, realizedR:1, reason:"MANUAL"});
+    const reviewed = attachReview(closed, {reviewedAt:1_800_000_000_200, marketOpportunityQuality:3,
+      playbookMatch:3, riskQuality:3, executionQuality:3, processAdherence:3, lessons:["observed"]});
+    const amended = amendDecision(reviewed, {id:"am1", at:1_800_000_000_300, authorOwnerId:"o1",
+      reason:"correction", target:"review", note:"append-only clarification"});
+    store.put(reviewed); store.put(amended);
+    expect(() => store.put(reviewed)).toThrow(/amendments/);
+    expect(() => store.put({...amended, review:undefined})).toThrow(/review/);
+    expect(() => store.put({...amended, outcome:{...closed.outcome!, realizedR:99}})).toThrow(/outcome/);
+    expect(store.get("o1", "d1")).toBe(amended);
+  });
+
+  it("rejects a same-ID session or frozen-state rewrite", () => {
+    const original = sealDecision({decisionId:"d1", ownerId:"o1", sessionIdentity:"s1", frozen:frozen("o1"), plan});
+    store.put(original);
+    expect(() => store.put({...original, sessionIdentity:"s2"})).toThrow(/sealed/);
+    expect(() => store.put({...original, frozen:{...original.frozen, capturedAt:1}})).toThrow(/sealed/);
+    expect(store.get("o1", "d1")).toBe(original);
   });
 
   it("list is owner-scoped — never leaks across owners", () => {

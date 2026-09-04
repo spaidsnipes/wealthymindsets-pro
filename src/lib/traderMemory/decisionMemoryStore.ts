@@ -26,6 +26,45 @@ export type DecisionMemoryListener = (
   ownerId: string,
 ) => void;
 
+// Records are JSON-shaped. Compare keys independent of transport ordering so
+// an identical hydrated replay is idempotent, not another UI mutation.
+function sameValue(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const left = Object.keys(a).sort();
+  const right = Object.keys(b).sort();
+  return left.length === right.length && left.every((key, i) =>
+    key === right[i] && sameValue((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
+}
+
+function assertProgress(previous: DecisionMemoryRecord, next: DecisionMemoryRecord): void {
+  if (previous.sessionIdentity !== next.sessionIdentity ||
+      !sameValue(previous.frozen, next.frozen) || !sameValue(previous.plan, next.plan)) {
+    throw new Error("DecisionMemoryStore: sealed decision cannot be rewritten");
+  }
+  for (const key of ["management", "amendments"] as const) {
+    if (next[key].length < previous[key].length ||
+        previous[key].some((entry, i) => !sameValue(entry, next[key][i]))) {
+      throw new Error(`DecisionMemoryStore: ${key} must remain append-only`);
+    }
+  }
+  for (const key of ["outcome", "review"] as const) {
+    if (previous[key] && !sameValue(previous[key], next[key])) {
+      throw new Error(`DecisionMemoryStore: ${key} cannot be erased or rewritten; append an amendment`);
+    }
+  }
+}
+
+function freezeRecordTree(value: unknown, seen = new WeakSet<object>()): void {
+  if (!value || typeof value !== "object" || seen.has(value)) return;
+  seen.add(value);
+  // Hydrated JSON may not have gone through sealDecision. Freeze nested
+  // values even when a caller already froze only the outer record.
+  for (const child of Object.values(value)) freezeRecordTree(child, seen);
+  Object.freeze(value);
+}
+
 export class DecisionMemoryStore {
   private readonly recordsByOwner = new Map<string, Map<string, DecisionMemoryRecord>>();
   private readonly listeners = new Map<string, Set<DecisionMemoryListener>>();
@@ -40,6 +79,16 @@ export class DecisionMemoryStore {
   private static readonly EMPTY_SNAPSHOTS: readonly DecisionMemorySnapshot[] = Object.freeze([]);
 
   put(record: DecisionMemoryRecord): void {
+    if (!record.ownerId.trim() || !record.decisionId.trim() ||
+        record.frozen.traderState.ownerId !== record.ownerId) {
+      throw new Error("DecisionMemoryStore: invalid decision owner/identity");
+    }
+    const previous = this.get(record.ownerId, record.decisionId);
+    if (previous) {
+      assertProgress(previous, record);
+      if (sameValue(previous, record)) return;
+    }
+    freezeRecordTree(record);
     const bucket = this.recordsByOwner.get(record.ownerId) ?? new Map<string, DecisionMemoryRecord>();
     bucket.set(record.decisionId, record);
     this.recordsByOwner.set(record.ownerId, bucket);
