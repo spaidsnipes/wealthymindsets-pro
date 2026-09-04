@@ -318,3 +318,25 @@ currentcandidateclaim. No orders/auth/DB/push/deploy changes. Unrelatedpaths
 preserved. NEXT examine executable quote provenance/provider contract identity
 validation; current FMP response has no earned freshness/execution certificate.
 Drive refresh due15:02Z; target17:02:32Z unchanged and incomplete.
+
+## 14:50–14:53Z — options response structural validation
+
+Base8042229. Canonical FMP proxy forwards provider JSON; OptionsChain formerly
+cast it directly before calendar/strike math. Added pure parseOptionContractResponse
+for existing array/chain/optionChain envelopes. Rejects invalid dates, missing
+identity/type, nonpositive/nonfinite strikes, invalid quoted numeric fields,
+and ambiguous duplicateexpiry/type/strike rather than silently choosinglast.
+Null/missing quote fields remain absent; observedzeros and signedGreeks kept.
+This does NOT validate underlying identity against a certified instrument
+registry, market entitlement, provider timestamps or executability.
+
+382files3664testsPASS, tsc exit0.19newdeterministiccases. All5syntheticbrowser
+viewports PASS including malformedstrike rejection, nooldtable, retryrecovery,
+previoussymbolrace/deadline checks. Noactualprovider/orders/authcalls.
+Receipt /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/wm-options-identity-3xQAel/receipt.json
+Logs /private/tmp/wm-option-contract-tests.log and /private/tmp/wm-option-contract-browser.log.
+No new productionbuild for this small parsed-input module (tsc verified);
+previousbuild priorcandidate only. Unrelatedfilespreserved; no push/deploy.
+NEXT refresh changedDriveauthority at15:02Z; pursue source/system provenance
+without treating structure as broker/executioncertification. Cloudflare exact
+binding remains sign-inheld; DecisionMemoryschema remains collision-held.

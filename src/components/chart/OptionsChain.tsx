@@ -12,6 +12,7 @@ import { motion } from "framer-motion";
 import { clsx } from "clsx";
 import { formatOptionCount, formatOptionNumber, formatOptionPercent,
          summariseOpenInterest } from "@/lib/optionCellFormat";
+import { parseOptionContractResponse, type OptionContract as FMPContract } from "@/lib/optionContractResponse";
 
 /**
  * Every quoted field is optional: an unquoted strike has NO number, and must
@@ -32,23 +33,6 @@ interface OptionRow {
 
 // FMP returns contracts grouped by expiration date YYYY-MM-DD
 // We pull all available expirations from the API response
-interface FMPContract {
-  symbol: string;
-  contractType?: string;
-  type?: string;             // some versions use "type" instead
-  expirationDate: string;
-  strike: number;
-  bid: number;
-  ask: number;
-  last: number;
-  impliedVolatility?: number;
-  delta?: number;
-  gamma?: number;
-  theta?: number;
-  vega?: number;
-  openInterest?: number;
-  volume?: number;
-}
 
 function fmtExp(d: string): string {
   // "2025-07-18" → "Jul 18 '25"
@@ -61,7 +45,7 @@ function buildChain(contracts: FMPContract[], spot: number, expiry: string): Opt
   const calls = new Map<number, FMPContract>();
   const puts  = new Map<number, FMPContract>();
   for (const c of contracts) {
-    const type = (c.contractType ?? c.type ?? "").toLowerCase();
+    const type = c.contractType;
     if (c.expirationDate !== expiry) continue;
     if (type === "call") calls.set(c.strike, c);
     else if (type === "put") puts.set(c.strike, c);
@@ -161,7 +145,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
       const data = await res.json();
       if (!active) return;
       // FMP returns { chain: [...] } or just [...]
-      const contracts: FMPContract[] = Array.isArray(data) ? data : (data?.chain ?? data?.optionChain ?? []);
+      const contracts = parseOptionContractResponse(data);
       if (contracts.length === 0) throw new Error("No options data");
       setAllContracts(contracts);
       // Extract unique expiration dates

@@ -64,6 +64,7 @@ describe("Options Chain truth and responsive surface", () => {
 
   it("preserves the canonical fetch and fail-closed chain construction", () => {
     expect(optionsChain).toContain("/api/fmp?path=/v3/options/");
+    expect(optionsChain).toContain("parseOptionContractResponse(data)");
     expect(optionsChain).toContain('throw new Error("No options data")');
     expect(optionsChain).toContain('throw new Error("No contracts for the selected expiration")');
     expect(optionsChain).toContain("buildChain(allContracts, priceKey, isoDate)");
