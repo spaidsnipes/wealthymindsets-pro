@@ -72,6 +72,7 @@ const server = createServer((req, res) => {
     apiRequests.push(url.pathname + url.search);
     res.setHeader('Content-Type', 'application/json');
     if (url.pathname === '/api/broker/readiness') {
+      if (fault === 'hang') {res.writeHead(200); res.write('{"providers":['); return;}
       if (fault) {res.writeHead(503).end(JSON.stringify({error:'Fixture readiness unavailable'})); return;}
       res.end(JSON.stringify({providers:[
         {provider:'webull-data', label:'Webull market data', lane:'market-data', status:'READY', missing:[], missingRecommended:[], note:'Synthetic configuration presence only'},
@@ -128,7 +129,21 @@ try {
       await page.reload();
       await page.getByText(/Could not load \/api\/broker\/readiness/).waitFor();
       if (await page.getByText('SETUP PRESENT',{exact:true}).count()) throw new Error(device + ': stale setup after failed read');
-      rows.push({device,width,height,setupNotReady:true,contained:true,failureDoesNotCertify:true});
+      fault = false;
+      await page.getByRole('button',{name:'Retry connection check',exact:true}).click();
+      await page.getByText('2/3 providers configured',{exact:true}).waitFor();
+      await page.clock.install();
+      fault = 'hang';
+      const stalled = page.waitForResponse(response => response.url().endsWith('/api/broker/readiness'));
+      await page.reload();
+      await stalled;
+      await page.clock.runFor(12_100);
+      await page.getByRole('alert').filter({hasText:'Connection setup check timed out'}).waitFor();
+      if (await page.getByText('SETUP PRESENT',{exact:true}).count()) throw new Error(device + ': stalled body retained configuration');
+      fault = false;
+      await page.getByRole('button',{name:'Retry connection check',exact:true}).click();
+      await page.getByText('2/3 providers configured',{exact:true}).waitFor();
+      rows.push({device,width,height,setupNotReady:true,contained:true,failureDoesNotCertify:true,httpRetry:true,stalledBodyBounded:true,timeoutRetry:true});
       await context.close();
       continue;
     }

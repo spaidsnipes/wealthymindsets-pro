@@ -12,7 +12,7 @@
  * value-free) through the pure selectReadinessWireboard view-model. The
  * visible blocker for any BLOCKED provider names the ACTUAL proven edge —
  * the exact missing config NAME(s) as "NOT CONFIGURED" — and NEVER
- * "DELAYED BY ENTITLEMENT". READY is shown as "credentials present",
+ * "DELAYED BY ENTITLEMENT". READY is shown as "SETUP PRESENT",
  * strictly weaker than connected/certified, and labelled as such on-screen.
  *
  * The same page runs on BOTH lanes (local `next dev` and the deployed host);
@@ -40,28 +40,46 @@ export default function ReadinessPage() {
   const [state, setState] = useState<LoadState>({ phase: "loading" });
   const [origin, setOrigin] = useState<string>("");
   const [connectOpen, setConnectOpen] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const connectTriggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setOrigin(typeof window !== "undefined" ? window.location.origin : "");
     let cancelled = false;
+    let settled = false;
+    const controller = new AbortController();
+    setState({ phase: "loading" });
+    // Bound the complete read, including a response whose JSON body stalls.
+    // A late result may never restore an expired configuration receipt.
+    const deadline = setTimeout(() => {
+      if (cancelled || settled) return;
+      settled = true;
+      setState({ phase: "error", message: "Connection setup check timed out. No current receipt is available" });
+      controller.abort();
+    }, 12_000);
     (async () => {
       try {
-        const res = await fetch("/api/broker/readiness", { cache: "no-store" });
+        const res = await fetch("/api/broker/readiness", { cache: "no-store", signal: controller.signal });
         if (!res.ok) {
-          if (!cancelled) setState({ phase: "error", message: `Endpoint returned HTTP ${res.status}` });
+          if (!cancelled && !settled) setState({ phase: "error", message: `Endpoint returned HTTP ${res.status}` });
           return;
         }
         const payload = (await res.json()) as ReadinessPayload;
-        if (!cancelled) setState({ phase: "ready", wireboard: selectReadinessWireboard(payload) });
+        if (!cancelled && !settled) setState({ phase: "ready", wireboard: selectReadinessWireboard(payload) });
       } catch (e) {
-        if (!cancelled) setState({ phase: "error", message: e instanceof Error ? e.message : "Network error" });
+        if (!cancelled && !settled) setState({ phase: "error", message: e instanceof Error ? e.message : "Network error" });
+      } finally {
+        settled = true;
+        clearTimeout(deadline);
+        controller.abort();
       }
     })();
     return () => {
       cancelled = true;
+      clearTimeout(deadline);
+      controller.abort();
     };
-  }, []);
+  }, [attempt]);
 
   return (
     <div className="min-h-screen bg-[#050506] text-neutral-100">
@@ -105,15 +123,18 @@ export default function ReadinessPage() {
         </header>
 
         {state.phase === "loading" && (
-          <div className="rounded-xl border border-[#f0b429]/15 bg-black/60 px-4 py-8 text-sm text-neutral-400">
+          <div role="status" className="rounded-xl border border-[#f0b429]/15 bg-black/60 px-4 py-8 text-sm text-neutral-400">
             Loading readiness receipt…
           </div>
         )}
 
         {state.phase === "error" && (
-          <div className="rounded-lg border border-rose-800/50 bg-rose-950/20 px-4 py-6 text-sm text-rose-200">
-            Could not load /api/broker/readiness — {state.message}. This is itself a truthful blocker: the
-            wireboard is UNREACHABLE, not "ready".
+          <div role="alert" className="rounded-lg border border-rose-800/50 bg-rose-950/20 px-4 py-6 text-sm text-rose-200">
+            <p>Could not load /api/broker/readiness — {state.message}. Connection status is unverified.</p>
+            <button type="button" onClick={() => setAttempt(value => value + 1)}
+              className="mt-4 min-h-11 rounded-lg border border-rose-300/40 px-4 py-2 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300">
+              Retry connection check
+            </button>
           </div>
         )}
 
