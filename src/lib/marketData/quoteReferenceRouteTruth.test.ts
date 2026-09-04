@@ -134,6 +134,12 @@ describe("quote routes — reference truth at the source", () => {
     expect(alpaca).toContain("SESSION_OPEN");
   });
 
+  it("the crypto quote route rejects numeric-prefix garbage instead of parseFloat coercion", () => {
+    const exchange = readStripped(ROUTES[0]);
+    expect(exchange).toContain("strictProviderNumber");
+    expect(exchange).not.toMatch(/parseFloat\(String\(value\)\)/);
+  });
+
   // ── Disclosure reaches a HUMAN ─────────────────────────────────────────────
   // The whole point is a visible chip beside a percent. A window threaded
   // perfectly through the data layer and never rendered discloses nothing.

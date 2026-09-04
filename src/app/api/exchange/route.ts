@@ -14,6 +14,7 @@ import {
   type PublicCryptoExchange,
 } from "@/lib/marketData/exchangeTimeframes";
 import { resolveRollingChange, type ChangeWindow } from "@/lib/marketData/changeWindow";
+import { strictProviderNumber } from "@/lib/marketData/strictProviderNumber";
 
 type Ex = PublicCryptoExchange;
 type Bar = { time: number; open: number; high: number; low: number; close: number; volume: number };
@@ -68,15 +69,9 @@ type ExchangeQuote = {
   referenceOpen: number | null;
 };
 
-/** Number-or-null; `parseFloat` returns NaN, which is falsy and must not pass. */
-function f(value: unknown): number | null {
-  const n = typeof value === "string" || typeof value === "number" ? parseFloat(String(value)) : NaN;
-  return Number.isFinite(n) ? n : null;
-}
-
 function quote(price: unknown, open: unknown): ExchangeQuote {
-  const p = f(price);
-  const r = resolveRollingChange(p, f(open), "ROLLING_24H");
+  const p = strictProviderNumber(price);
+  const r = resolveRollingChange(p, strictProviderNumber(open), "ROLLING_24H");
   return { price: p, change: r.change, changePct: r.changePct, changeWindow: r.changeWindow, referenceOpen: r.referenceOpen };
 }
 
@@ -103,9 +98,9 @@ async function getQuote(ex: Ex, coin: string): Promise<ExchangeQuote> {
     // arithmetic (as resolveQuoteDayChange does) so a healthy quote renders
     // byte-identically, but derive the reference open so the window is provable.
     const r = await j(`https://api.binance.us/api/v3/ticker/24hr?symbol=${p}`);
-    const price = f(r?.lastPrice);
-    const change = f(r?.priceChange);
-    const changePct = f(r?.priceChangePercent);
+    const price = strictProviderNumber(r?.lastPrice);
+    const change = strictProviderNumber(r?.priceChange);
+    const changePct = strictProviderNumber(r?.priceChangePercent);
     if (price === null || price <= 0 || change === null || changePct === null || change === 0) {
       return quote(r?.lastPrice, r?.openPrice);
     }

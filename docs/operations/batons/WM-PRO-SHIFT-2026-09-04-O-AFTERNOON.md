@@ -64,3 +64,32 @@ NEXT: strict numeric parsing at `/api/exchange`; current `parseFloat` accepts
 numeric-prefix garbage as confident price/reference. Preserve all dirty lanes.
 AFTER: verify the already-restored Smart Money control in an isolated visible
 browser and reconcile provider/runtime audit without calling labels proof.
+
+## NOW 2 — strict provider-number boundary for `/api/exchange`
+
+Closed on local candidate based on e8adeee. The route no longer uses
+`parseFloat` for quote truth. A shared strict parser accepts only an entire,
+finite decimal/scientific numeric representation and rejects prefixes or
+decorated strings such as `79418.9junk`, `$12`, `1,000`, blanks, hexadecimal,
+objects and non-finite values. Binance and the other public crypto quote paths
+now share that boundary before change-window arithmetic.
+
+Evidence:
+
+- Focused: 3 files / 50 tests PASS.
+- Full: 389 files / 3745 tests PASS.
+- TypeScript: exit 0, empty output.
+- `git diff --check` for the four owned paths: PASS.
+- Exchange route SHA256: 876673ab128f38dd0d7d1fdb7f3d4fbf60c69fc188b435e936b7f36f319f2099.
+- Parser SHA256: a6346ae06646b6ed9f87faa20cbff5ecfeeae559205c550b2e50f60874ff4bb7.
+- Parser test SHA256: d3640df59291c7ac84169526ad3ead585487fabe87dbb17167cba62a72e66c17.
+- Source guard SHA256: 34f7495e408e1bf9a9201069b23010560a1ae4ee6bdc8f2fe8499487e5a46a71.
+
+Limitations: deterministic parsing and route-source tests are not a real
+provider receipt, deployment binding or authenticated browser/device proof.
+No push/deploy occurred and all unrelated dirty paths remain preserved.
+
+NEXT: commit only this strict-number atom and this append-only receipt, then
+verify the already-restored Smart Money trigger in an isolated visible browser.
+AFTER: reconcile provider/runtime audit and select the next collision-safe
+SOURCE → SYSTEM → HUMAN truth edge.
