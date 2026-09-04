@@ -65,7 +65,7 @@ export function formatOptionCount(v: number | null | undefined): string {
 export interface OpenInterestSummary {
   readonly callsOI: number;
   readonly putsOI: number;
-  /** Ratio, or undefined when no call open interest was observed. */
+  /** Ratio, or undefined without both observations and a positive denominator. */
   readonly putCallRatio: number | undefined;
   readonly observedCalls: number;
   readonly observedPuts: number;
@@ -93,8 +93,8 @@ export function summariseOpenInterest(
   return {
     callsOI,
     putsOI,
-    // Withheld rather than forced: no call interest means no ratio exists.
-    putCallRatio: callsOI > 0 ? putsOI / callsOI : undefined,
+    // No put observations are not a measured zero numerator.
+    putCallRatio: callsOI > 0 && observedPuts > 0 ? putsOI / callsOI : undefined,
     observedCalls,
     observedPuts,
     totalRows: rows.length,

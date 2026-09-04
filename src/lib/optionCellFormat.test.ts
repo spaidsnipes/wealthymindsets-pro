@@ -72,6 +72,16 @@ describe("open interest summary — totals only from what was observed", () => {
     expect(s.complete).toBe(true);
   });
 
+  it("does not turn absent put observations into a zero ratio", () => {
+    const s = summariseOpenInterest([{ cOI: 200 }]);
+    expect(s.observedPuts).toBe(0);
+    expect(s.putCallRatio).toBeUndefined();
+  });
+
+  it("preserves a genuinely observed zero put ratio", () => {
+    expect(summariseOpenInterest([{ cOI: 200, pOI: 0 }]).putCallRatio).toBe(0);
+  });
+
   it("reports incomplete for an empty chain rather than complete-by-vacuity", () => {
     expect(summariseOpenInterest([]).complete).toBe(false);
     expect(summariseOpenInterest([]).putCallRatio).toBeUndefined();

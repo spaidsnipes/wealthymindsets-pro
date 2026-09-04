@@ -417,14 +417,14 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
             : `Derived from ${oi.observedCalls} call and ${oi.observedPuts} put strikes of ${oi.totalRows} listed.`;
           return <>
             <div className="text-[9px] text-wm-text-dim" title={coverage}>
-              Calls OI: <span className="text-wm-green font-mono">{oi.callsOI.toLocaleString("en-US")}</span>
+              Calls OI: <span className="text-wm-green font-mono">{formatOptionCount(oi.observedCalls > 0 ? oi.callsOI : undefined)}</span>
             </div>
             <div className="text-[9px] text-wm-text-dim" title={coverage}>
-              Puts OI: <span className="text-wm-red font-mono">{oi.putsOI.toLocaleString("en-US")}</span>
+              Puts OI: <span className="text-wm-red font-mono">{formatOptionCount(oi.observedPuts > 0 ? oi.putsOI : undefined)}</span>
             </div>
             <div className="text-[9px] text-wm-text-dim"
               title={oi.putCallRatio == null
-                ? "No call open interest was observed, so a put/call ratio is not defined."
+                ? "Both sides must report open interest with a positive call total; otherwise a put/call ratio is not defined."
                 : coverage}>
               P/C Ratio: <span className="text-wm-gold font-mono">
                 {formatOptionNumber(oi.putCallRatio, 2)}

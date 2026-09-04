@@ -77,6 +77,10 @@ try{
   await page.evaluate(()=>window.releaseOptions('SPY',501));
   await page.getByText('DATA AVAILABLE · FIDELITY UNKNOWN',{exact:true}).waitFor();
   await page.screenshot({path:join(output,device+'.png'),fullPage:true});
+  const puts = page.getByText('Puts OI:',{exact:false});
+  if (!(await puts.innerText()).includes('—')) throw new Error(device+': unobserved put OI became zero');
+  const ratio = page.getByText('P/C Ratio:',{exact:false});
+  if (!(await ratio.innerText()).includes('—')) throw new Error(device+': unobserved put side became zero ratio');
   rows.push({device,width,height,staleSymbolRejected:true,refreshClears:true,deadlineRejectsLateSuccess:true,retryRecovers:true});
   await context.close();
  }

@@ -295,3 +295,26 @@ shortened). Native automation ACTIVE updated with current NOW; no time-complete
 claim. NEXT screenshot surfaced CallsOI1/PutsOI0/PCRatio0.00 despite zero put
 observations. Inspect summariseOpenInterest coverage before changing semantics;
 absence must not silently become a measured zero. No push/deploy.
+
+## 14:45–14:48Z — missing open interest is not a zero observation
+
+Base4c9f5fd. Synthetic screenshot exposed putOI0 and ratio0.00 with zero put
+observations. New deterministic test first failed (received0, expectedundefined).
+Ratio now requires a put observation as well as positive call denominator.
+Footer totals render dash when their side has no observations; observedzero
+is preserved. Partial observed subsets still carry existing coverage disclosure;
+this is not a complete-market sentiment claim or executable options proof.
+
+381files3645testsPASS, tsc exit0. Five synthetic viewports passed prior identity,
+deadline/retry checks plus absentputOI/ratio dash assertions. iPhone screenshot
+independently inspected: CallsOI1/PutsOI—/PCRatio—,0/1putcoverage. No errors,
+serverClosedtrue. Receipt /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/wm-options-identity-biD7BA/receipt.json
+Logs /private/tmp/wm-option-oi-tests.log and /private/tmp/wm-option-oi-browser.log.
+Panel SHA256d9251602d89159af93b925f4e13237fe75bafe56b2e9401c0e7875a3800e1ecc
+Summary SHA25622b0066f3a2eb33a8e20d09e3b6a02a6192c9c55010a60ceba8513b4f7ce8d7b
+Fixture SHA2569a2eb02fdebff2dfdf76e55afd91bdd4f21d94ee8c159c9b0bda4d2e22e33c45
+No new build for small aggregation/display change; previous4c9f5fdbuild not
+currentcandidateclaim. No orders/auth/DB/push/deploy changes. Unrelatedpaths
+preserved. NEXT examine executable quote provenance/provider contract identity
+validation; current FMP response has no earned freshness/execution certificate.
+Drive refresh due15:02Z; target17:02:32Z unchanged and incomplete.
