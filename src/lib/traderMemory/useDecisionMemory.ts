@@ -51,13 +51,14 @@ export function useDecisionMemoryRecords(
   );
 
   const getSnapshot = useCallback((): readonly DecisionMemoryRecord[] => {
-    if (!ownerId) return [];
+    if (!ownerId) return EMPTY_RECORDS;
     return store.list(ownerId);
   }, [ownerId, store]);
 
-  const getServerSnapshot = useCallback((): readonly DecisionMemoryRecord[] => [], []);
+  const getServerSnapshot = useCallback((): readonly DecisionMemoryRecord[] => EMPTY_RECORDS, []);
 
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
 const EMPTY: readonly DecisionMemorySnapshot[] = Object.freeze([]);
+const EMPTY_RECORDS: readonly DecisionMemoryRecord[] = Object.freeze([]);

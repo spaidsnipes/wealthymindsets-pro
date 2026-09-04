@@ -1,12 +1,11 @@
 "use client";
 /**
- * decisionMemoryStore — durable-in-runtime store for DecisionMemoryRecord.
+ * decisionMemoryStore — in-memory client store for DecisionMemoryRecord.
  *
  * Parallels canonicalMarketStateStore's shape (subscribable, single-source-
- * of-truth for the running app). NOT a persistence layer — server-durable
- * storage lives behind the market-memory + rights-gated observation
- * routes shipped by origin/main (PR#23 + related). This store is the
- * in-memory client-side authority the UI subscribes to.
+ * of-truth for the running app). NOT a persistence layer. Market-memory
+ * observation routes do not establish persistence for these Decision records.
+ * This client store alone cannot provide reload or cross-device continuity.
  *
  * Owner-scoped by design — subscribers pass their own ownerId, never
  * receive cross-owner records. Enforces the Founder privacy doctrine
