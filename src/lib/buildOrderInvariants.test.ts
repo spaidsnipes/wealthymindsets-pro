@@ -8,6 +8,13 @@ import {
 } from "./marketData/viewModels/selectPaperQuoteReadiness";
 import { selectCloseOrderPlan, selectOrderRejection, canCancelOrder, PAPER_KEY } from "./paperTrade";
 import { CANONICAL_FIDELITY_LABELS } from "./marketData/canonicalFidelityLabels";
+import { selectExitPermission } from "./exitPermission";
+import {
+  weakestCapability,
+  PRICE_BEARING_CAPABILITIES,
+} from "./marketData/perCapabilityFidelity";
+import { selectSessionEdge, type EdgeEntry } from "./proofLane/selectSessionEdge";
+import { PACE_TRUTH_LABEL, theoreticalBalanceAtSession } from "./proofLane/proofLanePace";
 
 /**
  * BUILD ORDER §14 — "TESTS THAT MATTER MORE THAN COMPONENT TESTS".
@@ -104,6 +111,141 @@ describe("BUILD ORDER §14 invariants", () => {
   it("14.9 paper state is namespaced to its own store key", () => {
     expect(PAPER_KEY).toBe("wm_paper_state");
     expect(PAPER_KEY).toContain("paper");
+  });
+
+  /* §14.5 — "A journal close cannot change execution."
+   *
+   * Structural, because the invariant is about who is ALLOWED to write, and no
+   * runtime call can prove the absence of a future one. Every module that
+   * touches the journal store is enumerated, and each is checked for a write
+   * into the paper execution store. A reflection surface may read execution
+   * truth; it may never author it. */
+  it("14.5 no journal writer mutates paper execution state", () => {
+    const JOURNAL_TOUCHING = [
+      "src/app/journal/page.tsx",
+      "src/app/morning-prep/page.tsx",
+      "src/components/chart/PnLStatsPanel.tsx",
+      "src/lib/traderMemory/adapters/journalStorage.ts",
+      "src/lib/traderMemory/adapters/useJournalSnapshots.ts",
+      "src/lib/learningGenome/useLearningGenomeBundle.ts",
+    ];
+
+    for (const rel of JOURNAL_TOUCHING) {
+      const src = readFileSync(resolve(process.cwd(), rel), "utf8");
+      // Sanity: the file must still be a journal module, or this list has
+      // rotted and the invariant is silently guarding nothing.
+      expect(src, `${rel} no longer references the journal store`)
+        .toMatch(/wm_journal_entries|JOURNAL_STORAGE_KEY/);
+
+      expect(src, `${rel} writes paper execution state`)
+        .not.toMatch(/setItem\(\s*["'`]wm_paper_state/);
+      expect(src, `${rel} calls the paper state writer`)
+        .not.toContain("savePaperState");
+      expect(src, `${rel} applies a fill`).not.toContain("applyFill(");
+      expect(src, `${rel} places an order`).not.toContain("placeChartMarketOrder");
+    }
+  });
+
+  /* §14.6 — "Nectar being down cannot block a flatten."
+   *
+   * The live defect this replaced: AlpacaTradingPanel disabled its whole order
+   * form on `!account`, so a read-only ACCOUNT BALANCE failure greyed out SELL
+   * and trapped a trader in a position while it moved against him. */
+  it("14.6 a degraded dependency never blocks an order that reduces risk", () => {
+    const flatten = selectExitPermission({
+      side: "sell", qty: 4, heldQty: 4,
+      accountObserved: false,
+      degraded: ["Nectar", "Account", "Positions"],
+    });
+    expect(flatten.allowed).toBe(true);
+    expect(flatten.effect).toBe("REDUCES_RISK");
+
+    // A short cover is an exit too — the sign, not just the word "sell".
+    const cover = selectExitPermission({
+      side: "buy", qty: 3, heldQty: -3, accountObserved: false, degraded: ["Nectar"],
+    });
+    expect(cover.allowed).toBe(true);
+    expect(cover.effect).toBe("REDUCES_RISK");
+  });
+
+  it("14.6 the asymmetry holds — degradation may still withhold ADDING risk", () => {
+    // The law is not "allow everything when degraded". It is: degradation
+    // removes the ability to add risk, never the ability to shed it.
+    const opening = selectExitPermission({
+      side: "buy", qty: 10, heldQty: 0, accountObserved: false,
+    });
+    expect(opening.allowed).toBe(false);
+    expect(opening.effect).toBe("INCREASES_RISK");
+
+    // And a refusal must name the exit that IS available, or it is a trap
+    // with better manners.
+    const oversized = selectExitPermission({
+      side: "sell", qty: 10, heldQty: 4, accountObserved: false,
+    });
+    expect(oversized.riskReducingQty).toBe(4);
+    expect(oversized.reason).toContain("close up to 4");
+  });
+
+  /* §14.7 — "Missing Greeks cannot dirty a verified last price." */
+  it("14.7 a non-price capability cannot be reported as the price's weakness", () => {
+    const report = {
+      bars:   CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
+      quotes: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
+      greeks: CANONICAL_FIDELITY_LABELS.BLOCKED_BY_ENTITLEMENT,
+      depth:  CANONICAL_FIDELITY_LABELS.BLOCKED_BY_ENTITLEMENT,
+    };
+    const priceWeakness = weakestCapability(report, PRICE_BEARING_CAPABILITIES);
+    expect(priceWeakness?.label).toBe(CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE);
+
+    // …and the scope is not a mute button: a stale tick feed IS the price's.
+    const stale = weakestCapability(
+      { ...report, ticks: CANONICAL_FIDELITY_LABELS.STALE_PIPELINE },
+      PRICE_BEARING_CAPABILITIES,
+    );
+    expect(stale?.capability).toBe("ticks");
+  });
+
+  /* §14.10 — "A counterfactual cannot enter live statistics." */
+  it("14.10 an entry with no realized R cannot move measured expectancy", () => {
+    const realized: EdgeEntry[] = [
+      { date: "2026-09-01", result: "win",  realizedR: 2, processQuality: "FOLLOWED_PLAN" },
+      { date: "2026-09-02", result: "loss", realizedR: -1, processQuality: "FOLLOWED_PLAN" },
+    ];
+    // A trade that was logged but never carried a realized R — the "what if I
+    // had held" entry. It is counted as unclassified, never as performance.
+    const withCounterfactual: EdgeEntry[] = [
+      ...realized,
+      { date: "2026-09-03", result: "win", processQuality: "FOLLOWED_PLAN" },
+    ];
+
+    const a = selectSessionEdge(realized);
+    const b = selectSessionEdge(withCounterfactual);
+
+    expect(b.expectancyR).toBe(a.expectancyR);
+    expect(b.cumulativeR).toBe(a.cumulativeR);
+    expect(b.rTaggedEntries).toBe(2);
+    expect(b.unclassifiedEntries).toBe(1);
+  });
+
+  it("14.10 an empty measured sample reports UNDEFINED, never a flat 0.0R", () => {
+    // A 0 here would render as "flat performance" — a statistic nobody earned.
+    const none = selectSessionEdge([
+      { date: "2026-09-01", result: "win", processQuality: "UNRESOLVED" },
+    ]);
+    expect(none.expectancyR).toBeUndefined();
+    expect(none.avgWinnerR).toBeUndefined();
+    expect(none.rulesAdheredPct).toBeUndefined();
+  });
+
+  it("14.10 the projected curve is labelled THEORETICAL and is not a measured R", () => {
+    // theoreticalBalanceAtSession is compound arithmetic on a target, not an
+    // observation. It carries its own label and shares no field with SessionEdge.
+    expect(PACE_TRUTH_LABEL).toBe("THEORETICAL");
+    // 3-month horizon, session 21 of 63, $2,000 → $10,000.
+    const projected = theoreticalBalanceAtSession(3, 21, 2_000, 10_000);
+    expect(projected).toBeGreaterThan(2_000);
+    expect(projected).toBeLessThan(10_000);
+    expect(Object.keys(selectSessionEdge([]))).not.toContain("theoreticalBalance");
   });
 
   /* §14.13 — "Halted is not closed." NAMED BLOCKER, not a silent skip. */
