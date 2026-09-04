@@ -5,7 +5,7 @@
  * Live execution is unavailable until the canonical firewall is certified.
  */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, TrendingUp, RefreshCw, Loader2, CheckCircle2,
@@ -126,6 +126,8 @@ export function AlpacaTradingPanel({
   const [positionsLoad, setPositionsLoad] = useState<"pending" | "ok" | "failed">("pending");
   /** When the broker last actually reconciled. null until it has ever succeeded. */
   const [positionsAsOf, setPositionsAsOf] = useState<number | null>(null);
+  const positionRead = useRef<{ cancel: () => void } | null>(null);
+  useEffect(() => () => positionRead.current?.cancel(), []);
   const [positionClock, setPositionClock] = useState(0);
   // Start the clock after hydration. A received snapshot must age even when
   // no rerender or new broker event happens, including tab foreground return.
@@ -197,18 +199,37 @@ export function AlpacaTradingPanel({
   }, []);
 
   const loadPositions = useCallback(async () => {
+    positionRead.current?.cancel();
+    const controller = new AbortController();
+    let active = true;
+    const cancel = () => {
+      active = false;
+      clearTimeout(deadline);
+      controller.abort();
+    };
+    const deadline = setTimeout(() => {
+      if (!active) return;
+      setPositionsLoad("failed");
+      cancel();
+    }, 12_000);
+    positionRead.current = { cancel };
     try {
-      const res  = await fetch("/api/alpaca-trading?action=positions", { cache: "no-store" });
+      const res  = await fetch("/api/alpaca-trading?action=positions", { cache: "no-store", signal: controller.signal });
+      if (!active) return;
       // fetch() does not throw on 4xx/5xx — an unchecked response would leave
       // the previous (often empty) list standing as if it were confirmed.
       if (!res.ok) { setPositionsLoad("failed"); return; }
       const data = await res.json();
+      if (!active) return;
       if (!Array.isArray(data)) { setPositionsLoad("failed"); return; }
       setPositions(data);
       setPositionsAsOf(Date.now());
       setPositionsLoad("ok");
     } catch {
-      setPositionsLoad("failed");
+      if (active) setPositionsLoad("failed");
+    } finally {
+      cancel();
+      if (positionRead.current?.cancel === cancel) positionRead.current = null;
     }
   }, []);
 
@@ -233,6 +254,7 @@ export function AlpacaTradingPanel({
   }, [loadAccount, loadPositions, loadOrders, disconnected]);
 
   const disconnect = () => {
+    positionRead.current?.cancel();
     localStorage.setItem("wm_alpaca_disconnected", "1");
     setDisconnected(true);
     setAccount(null); setPositions([]); setOrders([]);

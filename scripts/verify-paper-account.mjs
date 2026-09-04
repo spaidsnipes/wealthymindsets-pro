@@ -89,6 +89,9 @@ const server = createServer((req, res) => {
       ],envPresence:[]})); return;
     }
     if (url.pathname === '/api/alpaca-trading') {
+      if (fault === 'position-hang' && url.searchParams.get('action') === 'positions') {
+        res.writeHead(200); res.write('['); return;
+      }
       if (fault) {res.writeHead(503).end(JSON.stringify({error:'Fixture account refresh unavailable'})); return;}
       const action = url.searchParams.get('action');
       if (action === 'account') {res.end(JSON.stringify({status:'ACTIVE', cash:'1000', equity:'1100', buying_power:'1000', portfolio_value:'1100', pattern_day_trader:false, trading_blocked:false, account_number:'FIXTURE', _env:'paper', _connected:true})); return;}
@@ -207,6 +210,14 @@ try {
     await dialog.getByText('LONG 1 — LAST KNOWN, not confirmed',{exact:true}).waitFor();
     if (!(await escape.isVisible())) throw new Error(device + ': escape lost when position ages');
     await page.screenshot({path:join(output,device+'-aged-position.png')});
+    fault = 'position-hang';
+    const stalledPosition = page.waitForResponse(response => response.url().endsWith('action=positions'));
+    await dialog.getByRole('button',{name:'Refresh paper account',exact:true}).click();
+    await stalledPosition;
+    await page.clock.runFor(12_100);
+    await dialog.getByText('Could not refresh positions.',{exact:false}).waitFor();
+    await dialog.getByText('TSLA',{exact:true}).waitFor();
+    if (!(await escape.isVisible())) throw new Error(device + ': broker escape lost during stalled position body');
     fault = true;
     await dialog.getByRole('button',{name:'Refresh paper account',exact:true}).click();
     await dialog.getByText(/PAPER ACCOUNT UNVERIFIED/).waitFor();
@@ -230,7 +241,7 @@ try {
     await page.keyboard.press('Escape');
     await dialog.waitFor({state:'detached'});
     if (!(await page.getByRole('button',{name:'Connect brokers',exact:true}).evaluate(el=>el===document.activeElement))) throw new Error(device + ': focus not restored');
-    rows.push({device,width,height,drawerContained:true,escapeVisible:true,snapshotAges:true,emptySnapshotAges:true,retainedPositionOnFailure:true,focusTrap:true,escapeCloses:true,focusRestored:true});
+    rows.push({device,width,height,drawerContained:true,escapeVisible:true,snapshotAges:true,emptySnapshotAges:true,stalledPositionBodyBounded:true,retainedPositionOnFailure:true,focusTrap:true,escapeCloses:true,focusRestored:true});
     await context.close();
   }
   if (errors.length) throw new Error(JSON.stringify(errors));

@@ -93,3 +93,34 @@ and unfinished DecisionMemory schema review; do not overlap that atom blindly.
 Our position-clock candidate has full local tests/build/typecheck plus five
 synthetic viewport proofs. NOW scoped seal; NEXT existing broker position read
 recovery/canonical freshness path. No live execution or release claim.
+
+## 14:07Z — next same-P0 position read correction
+
+Position aging sealed locally in6ae7437, not pushed. Next defect inspected:
+overlapping position reads had no stale-response fence or full-body deadline.
+The existing consumer now cancels obsolete reads, ignores late completion,
+bounds the whole response body at12seconds, retains held risk on failure,
+and cancels on disconnect/unmount. No order action changed.
+
+Fresh full suite381files3639testsPASS; tsc --noEmit --incremental false exit0.
+The expanded synthetic GET-only fixture passed all5viewport rows, including
+stalled body → failure with held TSLA still visible → empty-book retry → aging.
+Receipt folder wm-paper-account-proof-CFaans under system temporary directory;
+serverClosed true, no console errors. Out-of-order cancellation is source-
+guarded, not yet a separately delayed-response runtime experiment.
+Panel SHA256 ea69790da5530d7116cfe531d65f72f1dd179b8536c67530c95642248715ed6b
+Fixture SHA256293ccc4b3e1a0c8b9256b38479b0d725bdf40bcdc063aaa539d93973ba687c78
+Prior build applied to6ae7437; this subsequent small read-control change has
+focused/full tests and tsc, not a second build or production deployment.
+
+Separate Chrome review tab773531321 (Chrome2), production /command-deck:
+reduced primary nav and collapsed detail surfaces visibly present. TSLA hero
+357.13, PARTIAL, OBSERVATION AGE UNVERIFIED; WAIT/8unresolved/4blockers.
+This is a browser observation, not provider certification or exact SHA binding.
+Founder original chart tab left untouched. No trades or settings changed.
+
+NEXT: review existing account/order read paths for the same stale-response and
+whole-body stall class; keep DecisionMemory schema-version atom collision-held
+because Claude screenshot identifies it as unfinished work there. After that,
+bind exact deployment/source and review real broker-read evidence. Scheduled
+continuation remains active until17:02:32Z; no3hour completion claim.

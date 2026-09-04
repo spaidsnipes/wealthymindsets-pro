@@ -15,6 +15,16 @@ const SOURCE = fs.readFileSync(
 const CODE = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 describe("Alpaca panel — position truth surface (§14.1)", () => {
+  it("bounds the whole position body and fences superseded reads", () => {
+    const read = CODE.slice(CODE.indexOf("const loadPositions ="), CODE.indexOf("const loadOrders ="));
+    expect(read).toContain("positionRead.current?.cancel()");
+    expect(read).toContain("signal: controller.signal");
+    expect(read).toContain("12_000");
+    expect(read).toMatch(/const data = await res.json\(\);\s*if \(!active\) return;/);
+    expect(read).toContain('if (active) setPositionsLoad("failed")');
+    expect(read).toContain("clearTimeout(deadline)");
+    expect(CODE).toContain("useEffect(() => () => positionRead.current?.cancel(), [])");
+  });
   it("asks the reducer what is held instead of deciding for itself", () => {
     expect(CODE).toContain('from "@/lib/positionTruth"');
     expect(CODE).toContain("selectPositionTruth({");
