@@ -36,7 +36,10 @@ describe("broker panel failure truth", () => {
 
   it("distinguishes an empty book from an unknown one", () => {
     // The whole point: "No open positions" must be a finding, not a default.
-    expect(panel).toContain("Could not load positions.");
+    // The verb moved from "load" to "refresh" when the failure stopped
+    // REPLACING the position list and became a banner above it. The disclosure
+    // is the invariant; the wording followed the safer behaviour.
+    expect(panel).toContain("Could not refresh positions.");
     expect(panel).toContain("This is not a confirmation that you hold none.");
     expect(panel).toContain("This is not a confirmation that you have none working.");
   });

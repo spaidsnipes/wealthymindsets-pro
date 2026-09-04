@@ -13,6 +13,10 @@ import {
   Clock, Trash2,
 } from "lucide-react";
 import { clsx } from "clsx";
+import {
+  RANK_RECONCILIATION,
+  selectPositionTruth,
+} from "@/lib/positionTruth";
 
 /* ── Types ─────────────────────────────────────────────── */
 interface AlpacaAccount {
@@ -75,6 +79,13 @@ const fmtTime = (iso: string) => {
   return new Date(iso).toLocaleString("en-US", { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" });
 };
 
+/** Wall-clock for an epoch-ms observation, so "last confirmed" is a real time. */
+const fmtClock = (ms: number) =>
+  new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" });
+
+/** Amber: pending / estimated / caution. Never green, which would read as safe. */
+const CAUTION = "#D9A441";
+
 /* ── Panel ────────────────────────────────────────────── */
 export function AlpacaTradingPanel({
   onClose,
@@ -96,6 +107,8 @@ export function AlpacaTradingPanel({
   // A failed load is NOT an empty book. These distinguish "you hold nothing"
   // from "we could not find out what you hold".
   const [positionsLoad, setPositionsLoad] = useState<"pending" | "ok" | "failed">("pending");
+  /** When the broker last actually reconciled. null until it has ever succeeded. */
+  const [positionsAsOf, setPositionsAsOf] = useState<number | null>(null);
   const [ordersLoad,    setOrdersLoad]    = useState<"pending" | "ok" | "failed">("pending");
   const [cancelError,   setCancelError]   = useState("");
   const [activeTab, setActiveTab] = useState<ActiveTab>("trade");
@@ -159,6 +172,7 @@ export function AlpacaTradingPanel({
       const data = await res.json();
       if (!Array.isArray(data)) { setPositionsLoad("failed"); return; }
       setPositions(data);
+      setPositionsAsOf(Date.now());
       setPositionsLoad("ok");
     } catch {
       setPositionsLoad("failed");
@@ -604,28 +618,60 @@ export function AlpacaTradingPanel({
           {/* ─── POSITIONS TAB ─── */}
           {!disconnected && activeTab === "positions" && (
             <div className="p-3 space-y-2">
-              {positionsLoad === "failed" ? (
-                <div role="alert" className="text-center py-12 text-wm-red text-[12px]">
-                  <Activity size={28} className="mx-auto mb-3 opacity-40" />
-                  Could not load positions.
-                  <div className="text-wm-text-dim text-[10px] mt-1">
+              {/* A failed refresh may reduce capability. It may not remove the
+                  position from the screen — risk that goes invisible is the same
+                  harm as a false FLAT. So this is a banner, not a replacement. */}
+              {positionsLoad === "failed" && (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-wm-red/25 bg-wm-red/10 px-3 py-2.5 text-[11px] font-semibold text-wm-red"
+                >
+                  Could not refresh positions.
+                  <div className="text-wm-text-dim text-[10px] font-normal mt-1">
                     This is not a confirmation that you hold none.
+                    {positionsAsOf !== null && ` Last confirmed ${fmtClock(positionsAsOf)}.`}
                   </div>
                 </div>
-              ) : positions.length === 0 ? (
-                <div className="text-center py-12 text-wm-text-dim text-[12px]">
-                  <Activity size={28} className="mx-auto mb-3 opacity-30" />
-                  {positionsLoad === "pending" ? "Loading positions…" : "No open positions"}
-                </div>
+              )}
+
+              {positions.length === 0 ? (
+                positionsLoad === "failed" ? null : (
+                  <div className="text-center py-12 text-wm-text-dim text-[12px]">
+                    <Activity size={28} className="mx-auto mb-3 opacity-30" />
+                    {positionsLoad === "pending" ? "Loading positions…" : "No open positions"}
+                  </div>
+                )
               ) : positions.map(pos => {
                 const pl = parseFloat(pos.unrealized_pl ?? "0");
                 const pos_color = pl >= 0 ? "#00C076" : "#FF4D67";
+                // §14.1 — the panel does not get to decide what is held. It asks
+                // the reducer, and repeats the answer.
+                const truth = selectPositionTruth({
+                  reports: positionsAsOf === null ? [] : [{
+                    source: "Alpaca reconciliation",
+                    qty: parseFloat(pos.qty ?? ""),
+                    observedAt: positionsAsOf,
+                    rank: RANK_RECONCILIATION,
+                  }],
+                  unobservedSources:
+                    positionsLoad === "failed" ? ["the latest refresh"] : undefined,
+                  // The observation is its own clock. This panel loads on mount
+                  // rather than polling, and a Date.now() read during render is the
+                  // documented cause of WM's #418 hydration mismatches. Freshness is
+                  // disclosed as an explicit as-of time instead of inferred here.
+                  now: positionsAsOf ?? 0,
+                });
                 return (
                   <div key={pos.symbol} className="rounded-xl p-3 border border-wm-border bg-wm-card">
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <div className="font-black text-sm text-wm-text">{pos.symbol}</div>
                         <div className="text-[10px] text-wm-text-dim">{pos.qty} shares · avg {fmt$(pos.avg_entry_price)}</div>
+                        {truth.confidence !== "CONFIRMED" && (
+                          <div className="text-[10px] font-semibold mt-0.5" style={{ color: CAUTION }}>
+                            {truth.sentence}
+                          </div>
+                        )}
                       </div>
                       <div className="text-right">
                         <div className="font-bold text-sm" style={{ color: pos_color }}>
