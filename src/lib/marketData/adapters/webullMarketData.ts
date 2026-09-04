@@ -105,6 +105,14 @@ function parseSide(value: unknown): WebullTickObservation["side"] {
   return "UNKNOWN";
 }
 
+function providerNumber(value: unknown): number {
+  if (typeof value !== "string" && typeof value !== "number") return NaN;
+  const text = String(value).trim();
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(text)) return NaN;
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
 export function parseWebullTickEnvelope(payload: unknown, expectedSymbol: string): readonly WebullTickObservation[] {
   if (!payload || typeof payload !== "object") return [];
   const envelope = payload as { symbol?: unknown; result?: unknown };
@@ -114,9 +122,9 @@ export function parseWebullTickEnvelope(payload: unknown, expectedSymbol: string
   return envelope.result.flatMap((raw) => {
     if (!raw || typeof raw !== "object") return [];
     const row = raw as Record<string, unknown>;
-    const price = Number(row.price);
-    const volume = Number(row.volume);
-    const observedAtMs = Number(row.time);
+    const price = providerNumber(row.price);
+    const volume = providerNumber(row.volume);
+    const observedAtMs = providerNumber(row.time);
     const plausibleMilliseconds = observedAtMs >= Date.UTC(2000, 0, 1) && observedAtMs <= 8_640_000_000_000_000;
     if (!(price > 0) || !(volume > 0) || !Number.isFinite(observedAtMs) || !plausibleMilliseconds) return [];
     return [{

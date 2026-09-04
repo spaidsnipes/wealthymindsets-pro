@@ -69,6 +69,24 @@ describe("Webull Data API market-data certification", () => {
     expect(parseWebullTickEnvelope({ symbol: "TSLA", result: [{ time: "99999999999999999", price: "351", volume: "1" }] }, "TSLA")).toEqual([]);
   });
 
+  it.each([Infinity, "Infinity", true, [1], {value:1}, "0x10"])("rejects coerced or nonfinite price/size %j", (value) => {
+    const valid = {time:"1788515126400", price:"367.5101", volume:"10", side:"N", trading_session:"PRE"};
+    for (const field of ["price", "volume"] as const) {
+      expect(parseWebullTickEnvelope({symbol:"TSLA", result:[{...valid, [field]:value}]}, "TSLA")).toEqual([]);
+    }
+  });
+
+  it("preserves the observed connector envelope without inventing neutral aggressor direction", () => {
+    const rows = parseWebullTickEnvelope({symbol:"TSLA", result:[
+      {time:"1788515126400", price:"367.5101", volume:"10", side:"N", trading_session:"PRE"},
+      {time:"1788515120404", price:"367.5112", volume:"1", side:"N", trading_session:"PRE"},
+      {time:"1788515119579", price:"367.5700", volume:"2", side:"B", trading_session:"PRE"},
+    ]}, "TSLA");
+    expect(rows.map(r => r.volume)).toEqual([10,1,2]);
+    expect(rows.map(r => r.side)).toEqual(["UNKNOWN","UNKNOWN","BUY"]);
+    expect(rows[0]).toMatchObject({observedAtMs:1788515126400, price:367.5101, tradingSession:"PRE"});
+  });
+
   it("keeps every capability unimplemented with no runtime credentials", async () => {
     const fetchImpl = vi.fn() as unknown as typeof fetch;
     const cert = await probeWebullMarketData(fetchImpl, {});
