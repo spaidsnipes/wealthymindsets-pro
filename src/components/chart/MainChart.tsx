@@ -40,6 +40,11 @@ import type { PineOutput } from "@/lib/pine/types";
 import { interpretPine } from "@/lib/pine/interpreter";
 import * as IND from "./indicators";
 import { computeDeltaVP, type DeltaVPLevel } from "@/lib/deltaVP";
+import {
+  computeDeltaBubbleLevels,
+  type DeltaTick,
+  type DeltaBubbleLevel,
+} from "@/lib/deltaBubbleLevels";
 import type { DrawingStyle, LogicalPt, DrawStyle, ChartDrawing } from "@/types/chart";
 import { DEFAULT_DRAWING_STYLE } from "@/types/chart";
 import { showAlertToast } from "./AlertsPanel";
@@ -4273,101 +4278,25 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
    * Delta Bubbles ONLY — net aggressive delta per price zone (6–10 bins).
    * Separate from Big Trades; still tickAccRef-only, no synthetic footprint.
    */
-  const getDeltaBubbleLevels = useCallback((bar: Bar): Array<{
-    priceLevel: number; bid: number; ask: number; total: number; delta: number;
-  }> => {
-    const barTime = bar.time as number;
-    const realData = deltaTickAccRef.current.get(barTime);
+  /**
+   * Delegates to the shared pure owner in src/lib/deltaBubbleLevels.ts.
+   *
+   * This binning and ranking used to live inline here, which meant the only
+   * coverage possible was a re-typed COPY of the loop plus a string match on
+   * this file. The shipped code is now the tested code. See that module's
+   * header for what "level ownership" means and for the two defects it fixes:
+   * a bubble printing a bucket CENTRE as the price flow happened at, and a
+   * rounded price used as a bucket identity (which silently merged buckets on
+   * tight bars and dropped their aggressor volume).
+   */
+  const getDeltaBubbleLevels = useCallback((bar: Bar): DeltaBubbleLevel[] => {
+    const realData = deltaTickAccRef.current.get(bar.time as number);
     if (!realData || realData.size === 0) return [];
 
-    const priceTick = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
-    const dp = base > 100 ? 2 : 4;
+    const ticks: DeltaTick[] = [];
+    for (const [px, rt] of realData) ticks.push({ price: Number(px), bid: rt.bid, ask: rt.ask });
 
-    const tickEntries: Array<{ price: number; bid: number; ask: number }> = [];
-    let lo = bar.low, hi = bar.high;
-    for (const [px, rt] of realData) {
-      const p = Number(px);
-      tickEntries.push({ price: p, bid: rt.bid, ask: rt.ask });
-      lo = Math.min(lo, p);
-      hi = Math.max(hi, p);
-    }
-
-    let range = hi - lo;
-    if (range <= 0) range = priceTick * 6;
-
-    const numLev = Math.max(6, Math.min(10, Math.floor(range / priceTick * 1.5) || 6));
-    const levelStep = range / numLev;
-    const bucketLo = lo;
-
-    // Half-open binning: [start, end), with the final bucket inclusive of `hi`.
-    //
-    // This previously assigned ticks with `Math.abs(price - center) < half`,
-    // a STRICT comparison against the bucket half-width. Any tick landing
-    // exactly on a bucket edge satisfied no bucket and was silently dropped
-    // from bid, ask AND delta.
-    //
-    // That is not a rare edge case here: market prices are quantised to the
-    // tick size (0.25 futures, 0.01 equities), so whenever levelStep is a
-    // multiple of that tick, real traded prices land on bucket boundaries
-    // systematically. The bar's own low and high are always boundaries, so the
-    // extremes — exactly where absorption and rejection evidence lives — were
-    // discarded from every bar.
-    //
-    // Verified with exact binary fractions: lo=0, hi=1, numLev=4 → step 0.25,
-    // half 0.125; ticks at 0.0, 0.25, 0.5 and 1.0 were ALL dropped. The old
-    // code only appeared to work on decimal prices because floating-point
-    // error nudged |price - center| just under `half`.
-    //
-    // Indexing directly is also O(ticks) rather than O(ticks x levels).
-    const bidByLevel = new Array<number>(numLev).fill(0);
-    const askByLevel = new Array<number>(numLev).fill(0);
-    for (const t of tickEntries) {
-      const raw = Math.floor((t.price - bucketLo) / levelStep);
-      const idx = Math.max(0, Math.min(numLev - 1, raw));
-      bidByLevel[idx]! += t.bid;
-      askByLevel[idx]! += t.ask;
-    }
-
-    const levels: Array<{ priceLevel: number; bid: number; ask: number; total: number; delta: number }> = [];
-    for (let i = 0; i < numLev; i++) {
-      const priceLevel = +(bucketLo + i * levelStep + levelStep / 2).toFixed(dp);
-      const bid = bidByLevel[i]!;
-      const ask = askByLevel[i]!;
-      const total = bid + ask;
-      if (total <= 0) continue;
-      const delta = ask - bid; // aggressive buy − aggressive sell
-      levels.push({ priceLevel, bid, ask, total, delta });
-    }
-    if (levels.length === 0) return [];
-
-    const meanAbsDelta = levels.reduce((s, l) => s + Math.abs(l.delta), 0) / levels.length;
-    // Data-relative threshold (no absolute lot floor) so it works on any asset:
-    // BTC (deltas ~0.05 BTC) and stocks (deltas ~50 sh) alike. Above-average zones.
-    const threshold = meanAbsDelta;
-
-    // Deterministic level cap: the user preference (5/7/10/15, default 7) is the
-    // MAXIMUM number of ranked qualifying levels shown. Stable ranking: |delta|
-    // desc, tie-broken by price asc — identical data always yields identical
-    // bubbles. Levels with no valid data were already skipped above (never
-    // invented/interpolated).
-    const cap = deltaLevelsPrefRef.current;
-    const rank = (a: { delta: number; priceLevel: number }, z: { delta: number; priceLevel: number }) =>
-      Math.abs(z.delta) - Math.abs(a.delta) || a.priceLevel - z.priceLevel;
-
-    const pickMap = new Map<number, typeof levels[0]>();
-    for (const l of levels
-      .filter(x => Math.abs(x.delta) >= threshold)
-      .sort(rank)
-      .slice(0, cap)) {
-      pickMap.set(l.priceLevel, l);
-    }
-    // Guaranteed buy + sell leaders so every active bar shows both sides.
-    const topBuy = levels.filter(l => l.delta > 0).sort((a, z) => z.delta - a.delta || a.priceLevel - z.priceLevel)[0];
-    const topSell = levels.filter(l => l.delta < 0).sort((a, z) => a.delta - z.delta || a.priceLevel - z.priceLevel)[0];
-    if (topBuy) pickMap.set(topBuy.priceLevel, topBuy);
-    if (topSell) pickMap.set(topSell.priceLevel, topSell);
-
-    return [...pickMap.values()].sort(rank).slice(0, cap);
+    return computeDeltaBubbleLevels(ticks, bar.low, bar.high, base, deltaLevelsPrefRef.current);
   }, [base]);
 
   footprintSnapRef.current = (bar, n) => getBarFootprint(bar, n).map(l => ({ priceLevel: l.priceLevel, total: l.total }));
@@ -4894,7 +4823,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             if (ranked.length === 0) return;
             const maxAbsD = Math.max(...ranked.map(l => Math.abs(l.delta)), 1e-9);
             ranked.forEach((lv, rankIdx) => {
-              const spawnKey = `dt:${c.time}:${lv.priceLevel}`;
+              // Keyed by bucket INDEX, not by the price. Two buckets can round
+              // to the same displayed price on a tight bar; keying by price
+              // suppressed the second bubble and lost its aggressor volume.
+              const spawnKey = `dt:${c.time}:L${lv.levelIdx}`;
               if (deltaBubbleSpawnRef.current.has(spawnKey)) return;
               deltaBubbleSpawnRef.current.add(spawnKey);
               const absDelta = Math.abs(lv.delta);
