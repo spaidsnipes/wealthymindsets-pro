@@ -100,10 +100,12 @@ export function selectPerCapabilityFidelity(
   const quotesBadge = priceSourceBadge(input.source, input.connected);
   report.quotes = quotesBadge.label;
 
-  // TICKS — only when the caller confirms the tape channel exists.
-  // Canon: undefined ≠ unavailable; caller must explicitly signal.
+  // TICKS — a transport/buffer-presence boolean is observation, not
+  // certification. It carries no symbol, provider timestamp, sequence,
+  // freshness budget, or canonical consumer receipt. Keep the capability
+  // visible without upgrading it to LIVE merely because a buffer is nonempty.
   if (input.tapeConnected === true) {
-    report.ticks = CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE;
+    report.ticks = CANONICAL_FIDELITY_LABELS.ACTIVE_DEGRADED;
   } else if (input.tapeConnected === false) {
     report.ticks = CANONICAL_FIDELITY_LABELS.STALE_PIPELINE;
   }
@@ -131,13 +133,10 @@ export function selectPerCapabilityFidelity(
     report.greeks = CANONICAL_FIDELITY_LABELS.BLOCKED_BY_ENTITLEMENT;
   }
 
-  // ORDER FLOW — derived from ticks. Only meaningful when ticks are
-  // live AND the derivation runs; otherwise silent.
-  if (input.orderFlowDerived === true && input.tapeConnected === true) {
-    report.orderFlow = CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE;
-  } else if (input.orderFlowDerived === true && input.tapeConnected !== true) {
-    // Caller says they're deriving flow but we don't have live ticks
-    // — that's degraded, not blocked. Canon: name the actual condition.
+  // Derivation does not add certification missing from its input ticks.
+  // A future live upgrade must consume canonical per-capability evidence,
+  // not another caller-supplied positive boolean.
+  if (input.orderFlowDerived === true) {
     report.orderFlow = CANONICAL_FIDELITY_LABELS.ACTIVE_DEGRADED;
   }
 

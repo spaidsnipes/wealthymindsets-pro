@@ -39,12 +39,12 @@ describe("selectPerCapabilityFidelity — canon derivation", () => {
     expect(r.quotes).toBe(L.ACTIVE_DEGRADED);
   });
 
-  it("tapeConnected=true → ticks LIVE", () => {
+  it("tapeConnected=true keeps observed ticks visible without certifying them", () => {
     const r = selectPerCapabilityFidelity({
       source: "polygon", connected: true, hasCandles: true,
       tapeConnected: true,
     });
-    expect(r.ticks).toBe(L.LIVE_CERTIFIED_QUOTE);
+    expect(r.ticks).toBe(L.ACTIVE_DEGRADED);
   });
 
   it("tapeConnected=false → ticks STALE (caller tried and failed)", () => {
@@ -114,13 +114,23 @@ describe("selectPerCapabilityFidelity — canon derivation", () => {
     expect(proven.greeks).toBe(L.BLOCKED_BY_ENTITLEMENT);
   });
 
-  it("orderFlowDerived=true + tapeConnected=true → orderFlow LIVE", () => {
+  it("derived flow cannot certify an uncertified tape boolean", () => {
     const r = selectPerCapabilityFidelity({
       source: "polygon", connected: true, hasCandles: true,
       tapeConnected: true,
       orderFlowDerived: true,
     });
-    expect(r.orderFlow).toBe(L.LIVE_CERTIFIED_QUOTE);
+    expect(r.orderFlow).toBe(L.ACTIVE_DEGRADED);
+  });
+
+  it.each(["yahoo", "unavailable", "alpaca", "webull"] as const)("does not certify a nonempty tape from %s without provenance", (source) => {
+    for (const connected of [true, false]) {
+      const r = selectPerCapabilityFidelity({source, connected, hasCandles: true,
+        tapeConnected: true, orderFlowDerived: true});
+      expect(r.ticks).toBe(L.ACTIVE_DEGRADED);
+      expect(r.orderFlow).toBe(L.ACTIVE_DEGRADED);
+      expect(r.ticks).not.toBe(L.BLOCKED_BY_ENTITLEMENT);
+    }
   });
 
   it("orderFlowDerived=true but tapeConnected!=true → orderFlow ACTIVE_DEGRADED (canon: name actual condition)", () => {
