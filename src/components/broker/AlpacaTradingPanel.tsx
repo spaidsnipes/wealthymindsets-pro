@@ -15,6 +15,7 @@ import {
 import { clsx } from "clsx";
 import {
   RANK_RECONCILIATION,
+  DEFAULT_POSITION_STALENESS_MS,
   selectPositionTruth,
 } from "@/lib/positionTruth";
 import { selectExitPermission } from "@/lib/exitPermission";
@@ -125,6 +126,22 @@ export function AlpacaTradingPanel({
   const [positionsLoad, setPositionsLoad] = useState<"pending" | "ok" | "failed">("pending");
   /** When the broker last actually reconciled. null until it has ever succeeded. */
   const [positionsAsOf, setPositionsAsOf] = useState<number | null>(null);
+  const [positionClock, setPositionClock] = useState(0);
+  // Start the clock after hydration. A received snapshot must age even when
+  // no rerender or new broker event happens, including tab foreground return.
+  useEffect(() => {
+    const update = () => setPositionClock(Date.now());
+    update();
+    const timer = setInterval(update, 1_000);
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", update);
+    };
+  }, []);
+  const positionSnapshotCurrent = positionsAsOf !== null &&
+    positionClock >= positionsAsOf &&
+    positionClock - positionsAsOf <= DEFAULT_POSITION_STALENESS_MS;
   const [ordersLoad,    setOrdersLoad]    = useState<"pending" | "ok" | "failed">("pending");
   const [cancelError,   setCancelError]   = useState("");
   const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
@@ -683,7 +700,9 @@ export function AlpacaTradingPanel({
                 positionsLoad === "failed" ? null : (
                   <div className="text-center py-12 text-wm-text-dim text-[12px]">
                     <Activity size={28} className="mx-auto mb-3 opacity-30" />
-                    {positionsLoad === "pending" ? "Loading positions…" : "No open positions"}
+                    {positionsLoad === "pending" ? "Loading positions…" : positionSnapshotCurrent
+                      ? "No open positions"
+                      : "Last observed empty — current positions unverified"}
                   </div>
                 )
               ) : positions.map(pos => {
@@ -694,17 +713,13 @@ export function AlpacaTradingPanel({
                 const truth = selectPositionTruth({
                   reports: positionsAsOf === null ? [] : [{
                     source: "Alpaca reconciliation",
-                    qty: parseFloat(pos.qty ?? ""),
+                    qty: displayNumber(pos.qty) ?? Number.NaN,
                     observedAt: positionsAsOf,
                     rank: RANK_RECONCILIATION,
                   }],
                   unobservedSources:
                     positionsLoad === "failed" ? ["the latest refresh"] : undefined,
-                  // The observation is its own clock. This panel loads on mount
-                  // rather than polling, and a Date.now() read during render is the
-                  // documented cause of WM's #418 hydration mismatches. Freshness is
-                  // disclosed as an explicit as-of time instead of inferred here.
-                  now: positionsAsOf ?? 0,
+                  now: positionClock,
                 });
                 return (
                   <div key={pos.symbol} className="rounded-xl p-3 border border-wm-border bg-wm-card">

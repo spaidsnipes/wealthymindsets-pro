@@ -20,6 +20,32 @@ const NOW = 1_700_000_000_000;
 const fresh = NOW - 1_000;
 const ancient = NOW - 10 * 60_000;
 
+describe("untrusted reconciliation timing", () => {
+  it.each([Number.NaN, Infinity, -Infinity, 0])("does not confirm flat with an invalid clock %s", now => {
+    const truth = selectPositionTruth({reports:[{source:"broker",qty:0,observedAt:fresh}],now});
+    expect(truth.label).toBe("POSITION UNCONFIRMED");
+    expect(truth.confidence).toBe("TIME UNVERIFIED");
+  });
+  it.each([Number.NaN, Infinity, -1])("does not confirm flat with invalid age tolerance %s", stalenessMs => {
+    expect(selectPositionTruth({reports:[{source:"broker",qty:0,observedAt:fresh}],now:NOW,stalenessMs}).label).not.toBe("FLAT");
+  });
+  it("retains reported risk but cannot certify a future observation", () => {
+    const truth = selectPositionTruth({reports:[{source:"broker",qty:3,observedAt:NOW+1}],now:NOW});
+    expect(truth.qty).toBe(3);
+    expect(truth.confidence).toBe("TIME UNVERIFIED");
+    expect(truth.sentence).toContain("observation time is unverified");
+  });
+  it.each([Number.NaN, Infinity, -Infinity])("does not crash or override broker risk on invalid rank %s", rank => {
+    const truth = selectPositionTruth({reports:[
+      {source:"broker",qty:5,observedAt:fresh,rank:RANK_RECONCILIATION},
+      {source:"malformed",qty:0,observedAt:NOW,rank},
+    ],now:NOW});
+    expect(truth.qty).toBe(5);
+    expect(truth.confidence).toBe("UNOBSERVED");
+    expect(truth.sentence).toContain("malformed did not report");
+  });
+});
+
 describe("§14.1 — the UI never says FLAT while broker quantity > 0", () => {
   it("says FLAT only when every expected source was observed at zero", () => {
     const t = selectPositionTruth({

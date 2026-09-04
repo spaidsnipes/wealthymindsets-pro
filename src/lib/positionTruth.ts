@@ -31,6 +31,8 @@ export type PositionConfidence =
   | "CONFIRMED"
   /** Observed, but the freshest report is older than the tolerance. */
   | "STALE"
+  /** An invalid clock, tolerance or future observation prevents age proof. */
+  | "TIME UNVERIFIED"
   /** A source was expected and never reported. */
   | "UNOBSERVED"
   /** Sources disagree on quantity at the same or newer recency. */
@@ -92,7 +94,9 @@ function usable(r: PositionReport): boolean {
     typeof r.qty === "number" &&
     Number.isFinite(r.qty) &&
     typeof r.observedAt === "number" &&
-    Number.isFinite(r.observedAt)
+    Number.isFinite(r.observedAt) &&
+    r.observedAt > 0 &&
+    (r.rank === undefined || (typeof r.rank === "number" && Number.isFinite(r.rank)))
   );
 }
 
@@ -147,13 +151,17 @@ export function selectPositionTruth(input: PositionTruthInput): PositionTruth {
     .filter((r) => r.qty !== authority.qty)
     .map((r) => r.source);
 
-  const stale = input.now - newestAt > staleness;
+  const timeUnverified = !Number.isFinite(input.now) || input.now <= 0 ||
+    !Number.isFinite(staleness) || staleness < 0 || newestAt > input.now;
+  const stale = !timeUnverified && input.now - newestAt > staleness;
 
   const confidence: PositionConfidence =
     disputedBy.length > 0
       ? "DISPUTED"
       : unobserved.length > 0
         ? "UNOBSERVED"
+        : timeUnverified
+          ? "TIME UNVERIFIED"
         : stale
           ? "STALE"
           : "CONFIRMED";
@@ -162,7 +170,7 @@ export function selectPositionTruth(input: PositionTruthInput): PositionTruth {
 
   // §14.1 — FLAT is only sayable when flatness was observed everywhere.
   const flatObserved =
-    qty === 0 && unobserved.length === 0 && disputedBy.length === 0 && !stale;
+    qty === 0 && confidence === "CONFIRMED";
 
   let label: PositionLabel;
   if (flatObserved) label = "FLAT";
@@ -198,6 +206,9 @@ function describe(
     if (unobserved.length > 0) {
       return `POSITION UNCONFIRMED — ${unobserved.join(", ")} did not report. This is not a confirmation that you are flat.`;
     }
+    if (confidence === "TIME UNVERIFIED") {
+      return "POSITION UNCONFIRMED — observation time is unverified. This is not a confirmation that you are flat.";
+    }
     return "POSITION UNCONFIRMED — last report is stale. This is not a confirmation that you are flat.";
   }
 
@@ -206,6 +217,8 @@ function describe(
   const qualifier =
     confidence === "CONFIRMED"
       ? ""
+      : confidence === "TIME UNVERIFIED"
+        ? " — LAST KNOWN, observation time is unverified"
       : confidence === "STALE"
         ? " — LAST KNOWN, not confirmed"
         : ` — ${unobserved.join(", ")} did not report`;

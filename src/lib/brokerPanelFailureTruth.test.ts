@@ -45,7 +45,8 @@ describe("broker panel failure truth", () => {
   });
 
   it("does not claim an empty book while the first load is still pending", () => {
-    expect(panel).toContain('positionsLoad === "pending" ? "Loading positions…" : "No open positions"');
+    expect(panel).toContain('positionsLoad === "pending" ? "Loading positions…" : positionSnapshotCurrent');
+    expect(panel).toMatch(/positionSnapshotCurrent\s*\? "No open positions"\s*: "Last observed empty — current positions unverified"/);
     expect(panel).toContain('ordersLoad === "pending" ? "Loading orders…" : "No recent orders"');
   });
 

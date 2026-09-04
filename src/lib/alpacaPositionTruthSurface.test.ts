@@ -62,6 +62,9 @@ describe("Alpaca panel — position truth surface (§14.1)", () => {
     // "No open positions" may only render on a non-failed load.
     const emptyState = CODE.indexOf('"No open positions"');
     expect(emptyState).toBeGreaterThan(-1);
-    expect(CODE).toContain('positionsLoad === "pending" ? "Loading positions…" : "No open positions"');
+    expect(CODE).toContain('positionsLoad === "pending" ? "Loading positions…" : positionSnapshotCurrent');
+    expect(CODE).toMatch(/positionSnapshotCurrent\s*\? "No open positions"\s*: "Last observed empty — current positions unverified"/);
+    expect(CODE).toContain('positionClock - positionsAsOf <= DEFAULT_POSITION_STALENESS_MS');
+    expect(CODE).toContain('now: positionClock');
   });
 });

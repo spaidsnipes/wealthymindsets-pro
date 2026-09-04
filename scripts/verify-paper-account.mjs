@@ -27,6 +27,7 @@ const files = [
   'src/app/globals.css',
   'src/app/readiness/page.tsx',
   'src/lib/broker/selectReadinessWireboard.ts',
+  'src/lib/positionTruth.ts',
 ];
 const manifest = Object.fromEntries(files.map(path => [path,
   createHash('sha256').update(readFileSync(path)).digest('hex')]));
@@ -61,6 +62,7 @@ const bundle = await build({stdin: {contents: entry, loader: 'tsx', resolveDir: 
 const css = await postcss([tailwindcss('./tailwind.config.ts')])
   .process(readFileSync('src/app/globals.css', 'utf8'), {from: 'src/app/globals.css'});
 let fault = false;
+let emptyPositions = false;
 const apiRequests = [];
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
@@ -90,7 +92,7 @@ const server = createServer((req, res) => {
       if (fault) {res.writeHead(503).end(JSON.stringify({error:'Fixture account refresh unavailable'})); return;}
       const action = url.searchParams.get('action');
       if (action === 'account') {res.end(JSON.stringify({status:'ACTIVE', cash:'1000', equity:'1100', buying_power:'1000', portfolio_value:'1100', pattern_day_trader:false, trading_blocked:false, account_number:'FIXTURE', _env:'paper', _connected:true})); return;}
-      if (action === 'positions') {res.end(JSON.stringify([{symbol:'TSLA', qty:'1', avg_entry_price:'100', current_price:'99', market_value:'99', unrealized_pl:'-1', unrealized_plpc:'-0.01', side:'long'}])); return;}
+      if (action === 'positions') {res.end(JSON.stringify(emptyPositions ? [] : [{symbol:'TSLA', qty:'1', avg_entry_price:'100', current_price:'99', market_value:'99', unrealized_pl:'-1', unrealized_plpc:'-0.01', side:'long'}])); return;}
       if (action === 'orders') {res.end('[]'); return;}
     }
     res.writeHead(503).end(JSON.stringify({error:'Fixture: provider unavailable', configured:false, connected:false})); return;
@@ -198,6 +200,13 @@ try {
     if (!box || box.x < -1 || box.x+box.width > width+1) throw new Error(device + ': drawer escaped viewport');
     if (!escapeBox || escapeBox.y < 0 || escapeBox.y+escapeBox.height > height+1) throw new Error(device + ': broker escape clipped');
     await page.screenshot({path:join(output,device+'-observed.png')});
+    // Advancing a browser clock is synthetic evidence, never market time proof.
+    // The actual component must stop treating an old position as current.
+    await page.clock.install();
+    await page.clock.runFor(31_100);
+    await dialog.getByText('LONG 1 — LAST KNOWN, not confirmed',{exact:true}).waitFor();
+    if (!(await escape.isVisible())) throw new Error(device + ': escape lost when position ages');
+    await page.screenshot({path:join(output,device+'-aged-position.png')});
     fault = true;
     await dialog.getByRole('button',{name:'Refresh paper account',exact:true}).click();
     await dialog.getByText(/PAPER ACCOUNT UNVERIFIED/).waitFor();
@@ -209,10 +218,19 @@ try {
     await escape.focus();
     await page.keyboard.press('Tab');
     if (!(await dialog.getByRole('button',{name:'Refresh paper account'}).evaluate(el=>el===document.activeElement))) throw new Error(device + ': focus escaped dialog');
+    fault = false;
+    emptyPositions = true;
+    await dialog.getByRole('button',{name:'Refresh paper account',exact:true}).click();
+    await page.clock.runFor(1_100);
+    await dialog.getByText('No open positions',{exact:true}).waitFor();
+    await page.clock.runFor(31_100);
+    await dialog.getByText('Last observed empty — current positions unverified',{exact:true}).waitFor();
+    await page.screenshot({path:join(output,device+'-aged-empty.png')});
+    emptyPositions = false;
     await page.keyboard.press('Escape');
     await dialog.waitFor({state:'detached'});
     if (!(await page.getByRole('button',{name:'Connect brokers',exact:true}).evaluate(el=>el===document.activeElement))) throw new Error(device + ': focus not restored');
-    rows.push({device,width,height,drawerContained:true,escapeVisible:true,retainedPositionOnFailure:true,focusTrap:true,escapeCloses:true,focusRestored:true});
+    rows.push({device,width,height,drawerContained:true,escapeVisible:true,snapshotAges:true,emptySnapshotAges:true,retainedPositionOnFailure:true,focusTrap:true,escapeCloses:true,focusRestored:true});
     await context.close();
   }
   if (errors.length) throw new Error(JSON.stringify(errors));
