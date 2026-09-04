@@ -64,15 +64,25 @@ type TimeInForce = "day" | "gtc" | "ioc" | "fok";
 type ActiveTab = "trade" | "positions" | "orders" | "account";
 
 /* ── helpers ─────────────────────────────────────────── */
+const displayNumber = (v: unknown): number | null => {
+  if (typeof v !== "string" && typeof v !== "number") return null;
+  const text = String(v).trim();
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(text)) return null;
+  const n = Number(text);
+  return Number.isFinite(n) ? n : null;
+};
+
 const fmt$ = (v: string | number | null | undefined, digits = 2) => {
-  const n = parseFloat(String(v ?? "0"));
-  if (isNaN(n)) return "—";
-  return `$${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+  const n = displayNumber(v);
+  if (n === null) return "UNKNOWN";
+  return `${n < 0 ? "−" : ""}$${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 };
 
 const fmtPct = (v: string | null | undefined) => {
-  const n = parseFloat(String(v ?? "0")) * 100;
-  if (isNaN(n)) return "—";
+  const value = displayNumber(v);
+  if (value === null) return "UNKNOWN";
+  const n = value * 100;
+  if (!Number.isFinite(n)) return "UNKNOWN";
   return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
 };
 
@@ -421,7 +431,7 @@ export function AlpacaTradingPanel({
           {TABS.map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
               className={clsx(
-                "flex-1 flex items-center justify-center gap-1 py-2 text-[10px] font-bold transition-colors",
+                "min-h-11 flex-1 flex items-center justify-center gap-1 py-2 text-[11px] font-bold transition-colors",
                 activeTab === t.id
                   ? "text-wm-green border-b-2 border-wm-green bg-wm-green/5"
                   : "text-wm-text-muted hover:text-wm-text"
@@ -677,8 +687,8 @@ export function AlpacaTradingPanel({
                   </div>
                 )
               ) : positions.map(pos => {
-                const pl = parseFloat(pos.unrealized_pl ?? "0");
-                const pos_color = pl >= 0 ? "#00C076" : "#FF4D67";
+                const pl = displayNumber(pos.unrealized_pl);
+                const pos_color = pl !== null ? (pl >= 0 ? "#00C076" : "#FF4D67") : "#8B95A5";
                 // §14.1 — the panel does not get to decide what is held. It asks
                 // the reducer, and repeats the answer.
                 const truth = selectPositionTruth({
@@ -709,8 +719,9 @@ export function AlpacaTradingPanel({
                         )}
                       </div>
                       <div className="text-right">
+                        <div className="text-[10px] text-wm-text-muted">{positionsLoad === "failed" ? "Last observed P&L" : "Observed P&L"}</div>
                         <div className="font-bold text-sm" style={{ color: pos_color }}>
-                          {pl >= 0 ? "+" : ""}{fmt$(pos.unrealized_pl)}
+                          {pl !== null && pl >= 0 ? "+" : ""}{fmt$(pos.unrealized_pl)}
                         </div>
                         <div className="text-[10px] font-semibold" style={{ color: pos_color }}>
                           {fmtPct(pos.unrealized_plpc)}
@@ -719,7 +730,7 @@ export function AlpacaTradingPanel({
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-wm-text-dim">
                       <span>Mkt Val: {fmt$(pos.market_value)}</span>
-                      <span>Cur: {fmt$(pos.current_price)}</span>
+                      <span>{positionsLoad === "failed" ? "Last observed mark" : "Broker mark"}: {fmt$(pos.current_price)}</span>
                     </div>
                   </div>
                 );
