@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -182,5 +182,108 @@ describe("chart panels — a mounted panel must have a door", () => {
     expect(orphans).not.toContain("vpDomOpen");       // functional toggle
     expect(orphans).not.toContain("pineBuilderOpen"); // direct setX(true)
     expect(orphans).not.toContain("gridView");        // child forwards a value
+  });
+});
+
+/**
+ * THE SAME DETECTOR, POINTED AT THE WHOLE APP.
+ *
+ * Everything above reads ONE file. That was the shape of the original defect
+ * report, and it was too narrow — a detector aimed at a single file can only
+ * ever find the orphan you already knew about.
+ *
+ * Run across every component instead and it found a worse one immediately.
+ * `src/app/profile/page.tsx` held `showLaunchCoin`: a mounted, fully-wired
+ * "Launch Creator Coin" form whose opener had been deleted by b6c08db on
+ * 2026-07-20. Behind it sat `launchCreatorCoin`, which wrote a CreatorCoin
+ * carrying `deployedAt: new Date().toISOString()` into local storage with no
+ * wallet, no signed transaction and no chain receipt, and raised
+ * `🚀 X launched!` — forty lines below the page's own honest disclosure that
+ * "This app does not deploy one yet."
+ *
+ * That is the real lesson of this file, and it is not about charts. An orphaned
+ * panel is not merely dead weight; it is unreviewed code that no longer has to
+ * survive contact with a user. The chart orphans are inert. That one was a
+ * fabrication engine, sitting behind a closed door, one `onClick` from live.
+ * Both were invisible for the same reason: the file compiles, the import is
+ * used, and the tests pass.
+ *
+ * Deleted in 27cfc13 and locked by creatorCoinFabricationLock.test.ts. This
+ * sweep is what makes the NEXT one findable without luck.
+ */
+
+const REPO_ROOT = resolve(__dirname, "..", "..");
+const SRC = join(REPO_ROOT, "src");
+
+function walkComponents(dir: string): string[] {
+  const out: string[] = [];
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) {
+      if (name === "node_modules" || name === ".next") continue;
+      out.push(...walkComponents(p));
+      continue;
+    }
+    if (/\.tsx$/.test(name) && !/\.test\.tsx$/.test(name)) out.push(p);
+  }
+  return out;
+}
+
+/** Every `path: flag` pair the detector currently reports, repo-wide. */
+function sweep(): { entries: string[]; fileCount: number; flagCount: number } {
+  const files = walkComponents(SRC);
+  const entries: string[] = [];
+  let flagCount = 0;
+  for (const abs of files) {
+    const code = readFileSync(abs, "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    flagCount += declaredBooleanPanelFlags(code).length;
+    for (const flag of orphanedPanels(code)) {
+      entries.push(`${relative(REPO_ROOT, abs)}: ${flag}`);
+    }
+  }
+  return { entries: entries.sort(), fileCount: files.length, flagCount };
+}
+
+/**
+ * REPO-WIDE ORPHAN LEDGER.
+ *
+ * Path-qualified, so wiring the chart orphans does not silently license a new
+ * orphan of the same name somewhere else. Both remaining entries are the chart
+ * ones, held by another thread — see the ledger above for the repair.
+ */
+const KNOWN_ORPHANS_REPO_WIDE = [
+  "src/components/chart/ChartsDashboard.tsx: pnlOpen",
+  "src/components/chart/ChartsDashboard.tsx: tradeOpen",
+].sort();
+
+describe("every mounted panel in the app must have a door", () => {
+  it("the sweep actually reaches the components (not a clean bill of health over nothing)", () => {
+    // A walk that silently matched zero files would report "no orphans"
+    // forever, and that reads exactly like safety. Bound it from below on both
+    // axes: files found, and panel flags found inside them.
+    const { fileCount, flagCount } = sweep();
+    expect(fileCount).toBeGreaterThan(100);
+    expect(flagCount).toBeGreaterThan(40);
+  });
+
+  it("BLOCKER: exactly these mounted panels have no opener, app-wide", () => {
+    // Fails in BOTH directions on purpose. A new orphan anywhere in src means
+    // someone is about to ship dead UI — and, as /profile proved, possibly a
+    // primitive that could not have survived review on a reachable surface.
+    // A resolved orphan means this ledger is stale; delete the entry by hand.
+    expect(sweep().entries).toEqual(KNOWN_ORPHANS_REPO_WIDE);
+  });
+
+  it("the creator-coin launch form has not come back", () => {
+    // Named separately from the set because this one was a fabrication engine,
+    // not dead weight. The set assertion above would catch its return, but only
+    // as an anonymous diff entry; this says what it was.
+    const profile = readFileSync(join(SRC, "app", "profile", "page.tsx"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    expect(orphanedPanels(profile)).toEqual([]);
+    expect(profile).not.toContain("showLaunchCoin");
   });
 });
