@@ -83,6 +83,8 @@ describe("Webull signed broker connection proof", () => {
   it.each([
     [[{}]],
     [{ data: [{ message: "ok" }] }],
+    [[{ account_id: "valid-private-id" }, {}]],
+    [{ result: [{ account_id: "valid-private-id" }, null] }],
   ])("rejects nonempty envelopes that do not prove an account identifier", async (payload) => {
     const receipt = await probeWebullBrokerConnection(
       vi.fn(async () => new Response(JSON.stringify(payload), { status: 200 })) as unknown as typeof fetch,

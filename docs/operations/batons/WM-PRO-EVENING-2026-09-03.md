@@ -77,3 +77,35 @@ malformed body cleanup. TypeScript clean. No upstream request or order sent.
 NEXT: review scoped account probe changes and establish deployment identity;
 obtain exact Trading API account balance schema before canonical mapping.
 Current production and multi-device proof remain UNKNOWN, not completed.
+
+## Fresh 19:45:59 CDT shift; 19:53 checkpoint
+
+New requested window is 19:45:59–22:45:59 CDT. This checkpoint is minutes of
+observed work, not a completed three-hour shift. Existing heartbeat extended
+to that window with seven-minute checkpoint grace; idle gaps are not work.
+
+Fresh fetch confirmed origin/main 5e2bc359. Full regression on becdd55:
+366 files / 3404 tests passed; TypeScript exit 0. Pushed 5e7453e and becdd55
+to origin/main successfully. Unrelated chart changes, scratchpad, and
+positionTruth.ts remain preserved and excluded.
+
+Fresh Chrome Cloudflare dashboard binds 100% version 63cf1b43 to
+5e2bc359b585bc21cd25b1f61626a620bf7c9841. This supersedes the earlier inferred
+eight-commits-behind production claim. Newly pushed becdd55 not yet proven
+deployed. Separate audit chart tab opened and broker menu inspected:
+Webull signed account probe returned HTTP 401, key/secret present, token not
+set. This does not prove the absent token caused the 401. Official Webull
+authentication overview makes that token conditional on enabled 2FA.
+Moomoo/Longbridge/Tastytrade displayed not configured; Alpaca not receiving.
+No orders, auth settings, secrets, or account state mutated.
+
+Additional bounded correction: reject a partially malformed account list
+instead of filtering invalid rows and certifying an incomplete account count.
+Two added mixed-row regression cases; focused 2 files / 23 tests and tsc passed.
+Drive WM search after 23:30Z returned no matching updated files; not a claim
+that all Drive files were re-read.
+
+NOW: verify candidate rollout/build identity. NEXT: actual Trading API
+account/balance schema and canonical account read flow; do not fabricate
+balances/permissions or create a parallel state owner. OAuth and actual
+execution remain unimplemented/unproven. Phone/tablet proof not performed.

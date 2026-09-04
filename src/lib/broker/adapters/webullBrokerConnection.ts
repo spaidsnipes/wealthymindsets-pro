@@ -185,10 +185,10 @@ export async function probeWebullBrokerConnection(
     return receipt("PROVIDER_ERROR", "Webull returned an unrecognized account-list envelope.");
   }
   const accounts = parsed.accounts;
+  if (accounts.length !== parsed.rawCount) {
+    return receipt("PROVIDER_ERROR", "Webull returned an incomplete or malformed account list; account access and count were not accepted.");
+  }
   if (accounts.length === 0) {
-    if (parsed.rawCount > 0) {
-      return receipt("PROVIDER_ERROR", "Webull returned account-list rows without a valid account identifier; connection was not accepted.");
-    }
     return receipt("NO_ACCOUNTS", "Webull accepted the signed request but returned no accounts available to OpenAPI.");
   }
   const accountTypes = [...new Set(accounts.flatMap((account) => {
