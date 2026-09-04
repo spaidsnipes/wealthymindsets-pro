@@ -111,19 +111,45 @@ Two label-overreach hits ("AI Coaching", "Live Prices") were false positives —
 the grep matched explanatory comments documenting an EARLIER fix. Verified
 before touching.
 
-## DEPLOY BLOCKER — needs the Founder (highest priority before Monday)
+## DEPLOY LAG — CORRECTED 2026-09-03, later the same day
 
-**Production is roughly 8 commits behind main.** Everything below is committed,
-pushed, gates-green and builds clean locally — it is simply not on the site.
+**The earlier version of this section was wrong and is retracted here rather
+than quietly edited away.** It claimed "production is roughly 8 commits behind
+main", that `AI Trading Bot` still rendered, and that "prod sits at
+approximately 5fc80a8". A later live read in the Founder's own Chrome disproves
+all three. The record is corrected because a false blocker sends the Founder to
+fix a pipeline that is working.
 
-Observed in the Founder's own Chrome on https://wealthymindsetspro.com/paper:
-- `What are you trying to do?` IS live  → build includes 51eee80
-- `AI Trading Bot` still renders        → 86c1c39 NOT live
-- `bid/ask` still renders on the chain  → options provenance NOT live
+Observed in the Founder's own Chrome on https://wealthymindsetspro.com/paper
+(tabId 773530904), bundle probe across 14 scripts / 943131 bytes:
 
-So prod sits at approximately 5fc80a8.
+| Marker | In bundle | Meaning |
+| --- | --- | --- |
+| `What are you trying to do?` | TRUE | §5 intent-before-order-type is live |
+| `Required — no default` | TRUE | purpose has no silent default, live |
+| `Signal Bot` | TRUE | the honest rename shipped |
+| `AI Trading Bot` | FALSE | the overclaiming label is GONE from prod |
+| `optModelBand` | TRUE | options band assumption is live |
+| `26be209_buyGate` | FALSE | prod is BEHIND 26be209 |
 
-Why it cannot be fixed from this seat:
+DOM read on the same page: the four purpose buttons render live — "Get me in
+now", "Get me in, but do not chase", "Work for a better price", "Exit if my
+thesis fails". `aiTradingBot: false`, `signalBot: true`.
+
+**So prod sits AFTER the orderPurpose / optionModelBand commits and BEFORE
+26be209.** The pipeline moved past where this baton had recorded it as stuck.
+The lag is real but small, and it is not a blocker requiring Founder action.
+
+Honest caveats on that same probe, so it is not over-read:
+- `Could not refresh positions.` / `Could not load positions.` both FALSE is
+  **not** evidence about the Alpaca panel. `AlpacaTradingPanel` is not loaded
+  on `/paper`, so neither string can appear in that route's bundle either way.
+  That marker is inconclusive, not negative.
+- `hasPurposeRow: false` / `hasRequiredNoDefault: false` in the DOM while both
+  are TRUE in the bundle is expected: those render only in specific order-type
+  states. Present-in-bundle, absent-in-DOM is the correct reading here.
+
+The deploy environment limits below remain true and are kept for the next seat:
 - `npm run deploy:cf` BUILDS fine, then wrangler refuses: no
   `CLOUDFLARE_API_TOKEN` and no `~/.wrangler` login in this environment. That
   token is a secret — it must not be created, pasted or stored here.
@@ -133,9 +159,11 @@ Why it cannot be fixed from this seat:
   blocked"). That is the superseded 2026-08-22 billing block from before prod
   moved to Cloudflare Workers — stale noise, not the live pipeline.
 
-**Founder action:** run `wrangler login` (or export `CLOUDFLARE_API_TOKEN`) and
-then `npm run deploy:cf` from the repo — or confirm the Cloudflare Workers Build
-GitHub integration is still connected and not erroring.
+**Founder action: none required.** The earlier version of this baton asked the
+Founder to run `wrangler login` / `npm run deploy:cf`. That ask is withdrawn —
+the live read shows the pipeline is publishing. If a specific commit is ever
+needed on prod faster than the pipeline delivers it, that manual path is still
+the fallback, but it is not an outstanding request.
 
 Verification method note: `curl` on the site reads a Cloudflare-cached HTML
 (`cache-control: s-maxage=31536000`) that lists STALE chunk filenames, so a
