@@ -45,17 +45,40 @@ export async function GET(request: Request) {
     return NextResponse.json(cached.data);
   }
 
+  const controller = new AbortController();
+  let timedOut = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const sep = path.includes("?") ? "&" : "?";
     const url = `${FMP_BASE}${path}${sep}apikey=${FMP_KEY}${extra}`;
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) {
-      return NextResponse.json({ error: `FMP HTTP ${res.status}` }, { status: res.status });
+    // Keep the deadline alive through JSON consumption, not just headers.
+    // Race as well as abort so an uncooperative transport cannot hold the route.
+    const result = await Promise.race([
+      (async () => {
+        const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+        return { ok: res.ok, status: res.status, data: res.ok ? await res.json() : null };
+      })(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          timedOut = true;
+          controller.abort();
+          reject(new Error("FMP request deadline exceeded"));
+        }, 8_000);
+      }),
+    ]);
+    if (!result.ok) {
+      return NextResponse.json({ error: `FMP HTTP ${result.status}` }, { status: result.status });
     }
-    const data = await res.json();
+    const data = result.data;
     CACHE.set(cacheKey, { data, ts: Date.now() });
     return NextResponse.json(data);
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+  } catch {
+    // Raw fetch exceptions can contain the upstream URL, including its key.
+    return NextResponse.json(
+      { error: timedOut ? "FMP request timed out" : "FMP provider request failed", source: "fmp", edge: timedOut ? "TIMEOUT" : "PROVIDER ERROR" },
+      { status: timedOut ? 504 : 502 },
+    );
+  } finally {
+    clearTimeout(timer);
   }
 }
