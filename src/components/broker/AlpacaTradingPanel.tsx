@@ -17,6 +17,7 @@ import {
   RANK_RECONCILIATION,
   selectPositionTruth,
 } from "@/lib/positionTruth";
+import { selectExitPermission } from "@/lib/exitPermission";
 
 /* ── Types ─────────────────────────────────────────────── */
 interface AlpacaAccount {
@@ -282,6 +283,42 @@ export function AlpacaTradingPanel({
       setCancelError("Cancel could not be sent. The order may still be working — check with your broker.");
     }
   };
+
+  /**
+   * §14.6 — the order button does not decide whether the trader may act. It
+   * asks, so that no dependency outage can quietly take away the exit.
+   *
+   * The book is UNKNOWN, not flat, whenever the position refresh failed or has
+   * never succeeded (§14.1). Passing null rather than 0 is the whole point:
+   * 0 would let a stale screen call a real short "no position".
+   */
+  const ticketSymbol = symbol.trim().toUpperCase();
+  const heldQty: number | null = (() => {
+    if (positionsLoad !== "ok" || positionsAsOf === null) return null;
+    const held = positions.find(p => p.symbol?.toUpperCase() === ticketSymbol);
+    if (!held) return 0;             // observed, and it is not in the book
+    const n = parseFloat(held.qty ?? "");
+    if (!Number.isFinite(n)) return null;
+    // Alpaca reports a short as a negative qty, but the sign is not worth
+    // trusting on its own: `side` is the field that always states the
+    // direction. An unsigned short read as +n would turn a cover into an
+    // "add to position" and refuse it during an outage.
+    return held.side?.toLowerCase() === "short" ? -Math.abs(n) : n;
+  })();
+
+  const exitPermission = selectExitPermission({
+    side,
+    qty: parseFloat(qty),
+    heldQty,
+    // A failed or misshapen account response leaves `account` null. That is
+    // exactly the state that used to grey out SELL.
+    accountObserved: account !== null,
+    degraded: [
+      account === null ? "Account" : null,
+      positionsLoad === "failed" ? "Positions" : null,
+    ].filter((d): d is string => d !== null),
+    inFlight: orderStatus === "submitting",
+  });
 
   const TABS: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
     { id: "trade",     label: "Trade",     icon: <TrendingUp size={12} /> },
@@ -562,9 +599,15 @@ export function AlpacaTradingPanel({
               )}
 
               {/* Submit */}
+              {/*
+                §14.6 — this used to read `disabled={... || !account}`, so a
+                failed ACCOUNT BALANCE fetch greyed out SELL and trapped a
+                trader in a live position. The gate is now asymmetric: an
+                outage may withhold the ability to ADD risk, never to shed it.
+              */}
               <button
                 onClick={placeOrder}
-                disabled={orderStatus === "submitting" || !account}
+                disabled={!exitPermission.allowed}
                 className={clsx(
                   "w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm transition-all disabled:opacity-50",
                   side === "buy"
@@ -577,6 +620,18 @@ export function AlpacaTradingPanel({
                   ? "Submitting…"
                   : `${side.toUpperCase()} ${qty || "0"} ${symbol} — ${orderType.toUpperCase().replace("_", " ")}`}
               </button>
+
+              {/* Why it is refused, or what is missing while it goes through. */}
+              {exitPermission.reason && (
+                <div role="status" className="text-[11px] font-semibold text-wm-text-dim">
+                  {exitPermission.reason}
+                </div>
+              )}
+              {exitPermission.allowed && exitPermission.disclosure && (
+                <div className="text-[11px] font-semibold" style={{ color: CAUTION }}>
+                  {exitPermission.disclosure}
+                </div>
+              )}
 
               {/* Order result */}
               <AnimatePresence>
