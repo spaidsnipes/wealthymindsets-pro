@@ -32,6 +32,7 @@ import { selectFreshWebullObservedEvents } from "@/lib/marketData/adapters/webul
 import { electProviderTapeSource, type ProviderTapeSource } from "@/lib/marketData/providerTapeElection";
 import { selectObservedProviderFallback } from "@/lib/marketData/selectObservedProviderFallback";
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
+import { resolveQuoteDayChange } from "@/lib/marketData/resolveQuoteDayChange";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
 
 export interface Tick {
@@ -111,6 +112,16 @@ type RealQuote = {
   changePct: number;
   source: string;
   /**
+   * True only when a REAL reference close backs `change` / `changePct`.
+   *
+   * Load-bearing: it gates the `prevCloseRef` seed below. A provider with no
+   * prior close publishes `change: 0`, which is finite, so the seed used to
+   * accept it and store the CURRENT PRICE as if it were yesterday's close —
+   * after which every websocket tick reported a day-change measured from that
+   * arbitrary intraday snapshot. See resolveQuoteDayChange.ts.
+   */
+  hasReferenceClose: boolean;
+  /**
    * SF-D01: the REAL observation epoch-ms when the source returned a RESOLVED
    * YahooQuoteObservation; null otherwise (UNKNOWN observation, or a legacy
    * source that carries no observation). Used to stamp the synthesized tick's
@@ -128,7 +139,17 @@ async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
     try {
       const ex = exMatch[2].toLowerCase();
       const j = await fetch(`/api/exchange?ex=${ex}&coin=${exMatch[1]}&type=quote`, { cache: "no-store" }).then(r => r.json());
-      if ((j?.price ?? 0) > 0) return { price: j.price, change: j.change ?? 0, changePct: j.changePct ?? 0, source: "binance", observedAt: null };
+      if ((j?.price ?? 0) > 0) {
+        const d = resolveQuoteDayChange(j, j.price);
+        return {
+          price: j.price,
+          change: d.change,
+          changePct: d.changePct,
+          source: "binance",
+          hasReferenceClose: d.hasReferenceClose,
+          observedAt: null,
+        };
+      }
     } catch {}
     return null;
   }
@@ -140,10 +161,16 @@ async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
   const mk = (j: any, source: string): RealQuote | null => {
     const price = j?.price ?? j?.c ?? 0;
     if (!(price > 0)) return null;
-    // prefer explicit change fields; otherwise derive from open/prevClose
-    const prev  = j?.prevClose ?? j?.pc ?? j?.open ?? price;
-    const change    = j?.change    ?? +(price - prev).toFixed(4);
-    const changePct = j?.changePct ?? (prev > 0 ? +((price - prev) / prev * 100).toFixed(4) : 0);
+    // Day-change requires a REAL reference close. The previous expression here
+    // was `prevClose ?? pc ?? open ?? price` — that final `?? price` is not a
+    // reference, it manufactures `change = price - price = 0` out of missing
+    // data, and the fabricated zero then seeded prevCloseRef with the current
+    // price. resolveQuoteDayChange refuses to treat price as its own reference
+    // and honors /api/yahoo's `ohlcObservation.prevClose: false` flag, which
+    // already states outright when its prevClose is a compatibility fallback.
+    const day = resolveQuoteDayChange(j, price);
+    const change = day.change;
+    const changePct = day.changePct;
     // SF-D01: only a RESOLVED observation carries a real observation time.
     // UNKNOWN (stale meta / no live trade) → null, so we never claim its age.
     const obs = j?.observation;
@@ -151,7 +178,7 @@ async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
       obs && obs.resolution === "RESOLVED" && typeof obs.observedAt === "number" && obs.observedAt > 0
         ? obs.observedAt
         : null;
-    return { price, change, changePct, source, observedAt };
+    return { price, change, changePct, source, hasReferenceClose: day.hasReferenceClose, observedAt };
   };
 
   // Crypto display quotes come from the public exchange route, while the
@@ -1225,7 +1252,16 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         // updated and the candles stayed frozen.
         const side: "buy" | "sell" = realPrice >= prevPrice ? "buy" : "sell";
         // Capture the REAL prior close so flush() computes the correct day-change.
-        if (Number.isFinite(q.change)) prevCloseRef.current = realPrice - q.change;
+        // `Number.isFinite(q.change)` alone was NOT sufficient: a provider with
+        // no prior close publishes change 0, which is finite, so this stored
+        // `realPrice - 0` — the current price — as the reference. flush() then
+        // saw prevCloseRef > 0 and reported `price - <that snapshot>` as the day
+        // change on every tick: a NON-ZERO fabrication, which is invisible to
+        // selectTickerChangeDisplay because its only "no reference" signature is
+        // exactly-zero. Seed only from a quote that carries a real reference.
+        if (q.hasReferenceClose && Number.isFinite(q.change)) {
+          prevCloseRef.current = realPrice - q.change;
+        }
         // SF-D01: stamp the synthesized tick with the REAL observation time when
         // the source resolved one (q.observedAt); only fall back to server
         // Date.now() when there is genuinely no observation time (legacy source
