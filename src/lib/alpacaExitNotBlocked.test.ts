@@ -31,7 +31,7 @@ describe("Alpaca panel — §14.6 the exit is never blocked by a dependency", ()
 
   it("passes the real degraded dependencies rather than a hardcoded list", () => {
     expect(CODE).toContain('!accountObserved ? "Account" : null');
-    expect(CODE).toContain('positionsLoad === "failed" ? "Positions" : null');
+    expect(CODE).toContain('heldQty === null ? "Positions" : null');
     expect(CODE).toContain('const accountObserved = account !== null && !acctError && !loading');
     expect(CODE).toContain('accountObserved,');
   });
@@ -39,7 +39,10 @@ describe("Alpaca panel — §14.6 the exit is never blocked by a dependency", ()
   it("treats an unloaded book as unknown, not as flat (§14.1)", () => {
     // Passing 0 here would let a stale screen call a real short "no position"
     // and then refuse the cover as if it were a new trade.
-    expect(CODE).toContain('if (positionsLoad !== "ok" || positionsAsOf === null) return null;');
+    expect(CODE).toContain('if (positionsLoad !== "ok" || !positionSnapshotCurrent) return null;');
+    expect(CODE).toContain('const n = displayNumber(held.qty);');
+    expect(CODE).toContain('if (n === null) return null;');
+    expect(CODE).not.toContain('parseFloat(held.qty');
   });
 
   it("reads the short direction from `side`, not from the sign alone", () => {

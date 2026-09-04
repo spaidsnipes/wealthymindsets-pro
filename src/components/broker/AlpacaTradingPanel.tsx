@@ -395,11 +395,11 @@ export function AlpacaTradingPanel({
    */
   const ticketSymbol = symbol.trim().toUpperCase();
   const heldQty: number | null = (() => {
-    if (positionsLoad !== "ok" || positionsAsOf === null) return null;
+    if (positionsLoad !== "ok" || !positionSnapshotCurrent) return null;
     const held = positions.find(p => p.symbol?.toUpperCase() === ticketSymbol);
     if (!held) return 0;             // observed, and it is not in the book
-    const n = parseFloat(held.qty ?? "");
-    if (!Number.isFinite(n)) return null;
+    const n = displayNumber(held.qty);
+    if (n === null) return null;
     // Alpaca reports a short as a negative qty, but the sign is not worth
     // trusting on its own: `side` is the field that always states the
     // direction. An unsigned short read as +n would turn a cover into an
@@ -417,7 +417,7 @@ export function AlpacaTradingPanel({
     accountObserved,
     degraded: [
       !accountObserved ? "Account" : null,
-      positionsLoad === "failed" ? "Positions" : null,
+      heldQty === null ? "Positions" : null,
     ].filter((d): d is string => d !== null),
     inFlight: orderStatus === "submitting",
   });

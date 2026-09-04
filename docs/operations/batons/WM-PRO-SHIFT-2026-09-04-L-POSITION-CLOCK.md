@@ -228,3 +228,27 @@ NEXT inspect heldQty parser/freshness inputs without changing the canonical
 exit policy (UNKNOWN_EFFECT intentionally delegates to broker; do not claim it
 blocks additions). Then exact source/deployment review, not endless label work.
 No orders, push, deploy or secret/DB changes. Claude schema atom still held.
+
+## 14:33–14:37Z — ticket holdings use the display freshness boundary
+
+Base f908ea61e8e4626f6cc88345e7e64de10ec9067a. Ticket heldQty previously
+accepted expired books and parseFloat numeric prefixes while the position
+display correctly aged them. It now requires positionSnapshotCurrent and
+uses the existing strict whole-value parser. Unknown quantities name Positions
+as degraded. Canonical exitPermission policy is unchanged: UNKNOWN_EFFECT
+delegates to broker with disclosure; this is NOT a new entry-blocking policy.
+
+Red guard:2failed/4passed before correction. Final381files3642testsPASS;
+tsc exit0. Synthetic GET-only browser all5viewports PASS, no page errors,
+serverClosed true. Added assertions: valid holdings -> 31.1second expiry ->
+unknown-risk disclosure; malformed1oops -> uncertainty; valid refreshed1 ->
+disclosure clears. No submit/cancel calls. No physical-device/real-broker proof.
+Receipt /var/folders/0f/pxfdr_0513d6p3zzbbp3_z140000gn/T/wm-paper-account-proof-xuneqb/receipt.json
+Logs /private/tmp/wm-heldqty-tests.log and /private/tmp/wm-heldqty-browser.log.
+Panel SHA2568399be24430100325b9b9c6674b30918e787c58a66d5ecaed53092b6fe3c7e22
+Fixture SHA256debce862d37c39c1d99a3cdb5ba183a25bd5be6dd254a4b852c52f2fcbf80f19
+No new build for this small input correction; prior build is prior-candidate
+evidence. Unrelated chart/CSS/baton/scratchpad paths preserved and unstaged.
+NEXT exact remote/source/deployment reconciliation before any release action;
+shared DecisionMemory schema lane remains collision-held. Hourly Drive due
+around15:02Z. Shift remains partial, target17:02:32Z, not continuous-work proof.

@@ -64,6 +64,7 @@ const css = await postcss([tailwindcss('./tailwind.config.ts')])
 let fault = false;
 let emptyPositions = false;
 let workingOrder = false;
+let positionQuantity = '1';
 const apiRequests = [];
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
@@ -105,7 +106,7 @@ const server = createServer((req, res) => {
       if (fault && fault !== 'account-only-fail') {res.writeHead(503).end(JSON.stringify({error:'Fixture account refresh unavailable'})); return;}
       const action = url.searchParams.get('action');
       if (action === 'account') {res.end(JSON.stringify({status:'ACTIVE', cash:'1000', equity:'1100', buying_power:'1000', portfolio_value:'1100', pattern_day_trader:false, trading_blocked:false, account_number:'FIXTURE', _env:'paper', _connected:true})); return;}
-      if (action === 'positions') {res.end(JSON.stringify(emptyPositions ? [] : [{symbol:'TSLA', qty:'1', avg_entry_price:'100', current_price:'99', market_value:'99', unrealized_pl:'-1', unrealized_plpc:'-0.01', side:'long'}])); return;}
+      if (action === 'positions') {res.end(JSON.stringify(emptyPositions ? [] : [{symbol:'TSLA', qty:positionQuantity, avg_entry_price:'100', current_price:'99', market_value:'99', unrealized_pl:'-1', unrealized_plpc:'-0.01', side:'long'}])); return;}
       if (action === 'orders') {res.end(JSON.stringify(workingOrder ? [{id:'fixture-order',symbol:'TSLA',side:'buy',qty:'1',filled_qty:'0',type:'limit',limit_price:'90',status:'new',submitted_at:'2026-09-04T13:00:00Z'}] : [])); return;}
     }
     res.writeHead(503).end(JSON.stringify({error:'Fixture: provider unavailable', configured:false, connected:false})); return;
@@ -292,11 +293,26 @@ try {
     if (await dialog.getByRole('button',{name:'BUY 1 TSLA — MARKET',exact:true}).isEnabled()) throw new Error(device + ': retained account funded a new buy after failure');
     await dialog.getByRole('button',{name:'SELL',exact:true}).click();
     if (!(await dialog.getByRole('button',{name:'SELL 1 TSLA — MARKET',exact:true}).isEnabled())) throw new Error(device + ': account failure blocked known-position reduction');
+    await page.clock.runFor(31_100);
+    const unknownRisk = dialog.getByText(/Your position could not be confirmed, so this order cannot be confirmed to reduce risk\./);
+    await unknownRisk.waitFor();
+    // UNKNOWN_EFFECT keeps the existing broker-delegated exit policy. It must
+    // disclose uncertainty, not certify a reduction against an expired book.
+    positionQuantity = '1oops';
+    await retryAccount.click();
+    await dialog.getByText('Synthetic account-only failure',{exact:true}).waitFor();
+    await page.clock.runFor(1_100);
+    await unknownRisk.waitFor();
+    positionQuantity = '1';
+    await retryAccount.click();
+    await dialog.getByText('Synthetic account-only failure',{exact:true}).waitFor();
+    await page.clock.runFor(1_100);
+    await unknownRisk.waitFor({state:'hidden'});
     // Inspect controls only. Never click submit; server rejects every non-GET.
     await page.keyboard.press('Escape');
     await dialog.waitFor({state:'detached'});
     if (!(await page.getByRole('button',{name:'Connect brokers',exact:true}).evaluate(el=>el===document.activeElement))) throw new Error(device + ': focus not restored');
-    rows.push({device,width,height,drawerContained:true,escapeVisible:true,snapshotAges:true,emptySnapshotAges:true,stalledPositionBodyBounded:true,stalledOrderBodyBounded:true,workingOrderRetainedOnFailure:true,orderReadRetryRecovers:true,stalledAccountBodyBounded:true,accountReadRetryRecovers:true,retainedPositionOnFailure:true,focusTrap:true,escapeCloses:true,focusRestored:true});
+    rows.push({device,width,height,drawerContained:true,escapeVisible:true,snapshotAges:true,emptySnapshotAges:true,stalledPositionBodyBounded:true,stalledOrderBodyBounded:true,workingOrderRetainedOnFailure:true,orderReadRetryRecovers:true,stalledAccountBodyBounded:true,accountReadRetryRecovers:true,staleAndMalformedHoldingsDisclosed:true,holdingsRetryRecovers:true,retainedPositionOnFailure:true,focusTrap:true,escapeCloses:true,focusRestored:true});
     await context.close();
   }
   if (errors.length) throw new Error(JSON.stringify(errors));
