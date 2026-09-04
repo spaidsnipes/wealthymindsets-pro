@@ -31,7 +31,6 @@ interface WMSContextValue {
   creatorCoin: CreatorCoin | null;
   earnWMS: (amount: number, reason: string) => void;
   spendWMS: (amount: number) => boolean;
-  launchCreatorCoin: (coin: Omit<CreatorCoin, "deployedAt" | "logoColor">) => void;
   recentEarnings: { amount: number; reason: string; ts: number }[];
   totalEarned: number;
   isDeployed: boolean;
@@ -41,7 +40,6 @@ interface WMSContextValue {
 const WMSContext = createContext<WMSContextValue | null>(null);
 
 const LS_KEY = "wm_token_state";
-const LOGO_COLORS = ["#00D4AA","#F0B429","#7C3AED","#EF4444","#3B82F6","#EC4899","#10B981"];
 
 function loadState() {
   try {
@@ -145,20 +143,32 @@ export function WMSProvider({ children }: { children: React.ReactNode }) {
     return true;
   }, [persist]);
 
-  const launchCreatorCoin = useCallback((coin: Omit<CreatorCoin, "deployedAt" | "logoColor">) => {
-    const full: CreatorCoin = {
-      ...coin,
-      deployedAt: new Date().toISOString(),
-      logoColor: LOGO_COLORS[Math.floor(Math.random() * LOGO_COLORS.length)],
-    };
-    setCreatorCoin(full);
-    persist(wmsBalance, totalEarned, full, recentEarnings);
-  }, [wmsBalance, totalEarned, recentEarnings, persist]);
+  /*
+   * launchCreatorCoin was REMOVED on 2026-09-03.
+   *
+   * It took a name and a symbol and wrote a CreatorCoin carrying
+   * `deployedAt: new Date().toISOString()` straight into local storage. No
+   * wallet, no signed transaction, no chain receipt — a deployment record
+   * manufactured from a form. `loadState` above already calls this out: v1
+   * "allowed local-only coin launches" and refuses to migrate them. That
+   * migration gate cleaned up the records the function produced while leaving
+   * the function itself in place to produce more.
+   *
+   * Its only caller was an unreachable form on /profile, removed in the same
+   * commit. There is no honest version of this function without a wallet
+   * connection and a confirmed on-chain receipt, so it is deleted rather than
+   * disabled — a disabled fabricator is one edit away from being a fabricator.
+   *
+   * The surface it fed already tells the truth and still does: "Creator Coin
+   * Deployment Not Connected … This app does not deploy one yet."
+   *
+   * Sentinel: src/lib/creatorCoinFabricationLock.test.ts
+   */
 
   return (
     <WMSContext.Provider value={{
       wmsBalance, creatorCoin, earnWMS, spendWMS,
-      launchCreatorCoin, recentEarnings, totalEarned,
+      recentEarnings, totalEarned,
       // A configured address alone does not prove contract identity, ownership,
       // token metadata, or wallet balance integration.
       isDeployed: false,

@@ -24,13 +24,28 @@ const code = src
  * trap rather than an observed loss; the first caller would have seen points
  * deducted and the purchase reported as failed.
  */
+/**
+ * Slice the source between two markers, refusing to guess.
+ *
+ * These assertions used to call `code.slice(start, code.indexOf(marker))`
+ * inline. When `launchCreatorCoin` was deleted on 2026-09-03, that `indexOf`
+ * became -1 and `slice(start, -1)` silently widened the body to the whole rest
+ * of the file: the assertions kept running, over the wrong text, and would have
+ * passed or failed for reasons unrelated to the function under test. A
+ * text-boundary test that survives the disappearance of its own boundary is
+ * reporting on nothing. Fail loudly instead.
+ */
+function bodyBetween(startMarker: string, endMarker: string): string {
+  const start = code.indexOf(startMarker);
+  const end = code.indexOf(endMarker);
+  expect(start, `marker "${startMarker}" is gone from WMSContext.tsx`).toBeGreaterThan(-1);
+  expect(end, `marker "${endMarker}" is gone from WMSContext.tsx`).toBeGreaterThan(start);
+  return code.slice(start, end);
+}
+
 describe("WMS ledger integrity", () => {
   it("earnWMS does not nest setState updaters", () => {
-    const start = code.indexOf("const earnWMS");
-    const end = code.indexOf("const spendWMS");
-    expect(start).toBeGreaterThan(-1);
-    expect(end).toBeGreaterThan(start);
-    const body = code.slice(start, end);
+    const body = bodyBetween("const earnWMS", "const spendWMS");
     // No updater form at all — flat value assignments only.
     expect(body).not.toMatch(/set[A-Z]\w*\(\s*\w+\s*=>/);
     expect(body).toContain("setWmsBalance(nextBalance)");
@@ -38,15 +53,14 @@ describe("WMS ledger integrity", () => {
   });
 
   it("earnWMS persists exactly once", () => {
-    const start = code.indexOf("const earnWMS");
-    const body = code.slice(start, code.indexOf("const spendWMS"));
+    const body = bodyBetween("const earnWMS", "const spendWMS");
     expect((body.match(/persist\(/g) ?? []).length).toBe(1);
   });
 
   it("spendWMS decides from a ref, not from inside an updater", () => {
-    const start = code.indexOf("const spendWMS");
-    const end = code.indexOf("const launchCreatorCoin");
-    const body = code.slice(start, end);
+    // End marker is the provider's return — spendWMS is the last callback in
+    // the file now that launchCreatorCoin is gone.
+    const body = bodyBetween("const spendWMS", "return (");
     expect(body).toContain("balanceRef.current < amount");
     // The broken pattern must not return.
     expect(body).not.toMatch(/let success/);
@@ -54,7 +68,7 @@ describe("WMS ledger integrity", () => {
   });
 
   it("both entry points reject non-positive and non-finite amounts", () => {
-    const body = code.slice(code.indexOf("const earnWMS"), code.indexOf("const launchCreatorCoin"));
+    const body = bodyBetween("const earnWMS", "return (");
     expect((body.match(/Number\.isFinite\(amount\)/g) ?? []).length).toBe(2);
   });
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Settings, Edit3, Music, TrendingUp, Users, Star, Shield, Zap, Play, Heart, Share2, BarChart2, Save, X, CheckCircle, Coins, Rocket, ExternalLink, Plus, GraduationCap } from "lucide-react";
+import { Settings, Edit3, Music, TrendingUp, Users, Star, Shield, Zap, Play, Heart, Share2, BarChart2, Save, CheckCircle, Coins, Rocket, ExternalLink, Plus, GraduationCap } from "lucide-react";
 import { clsx } from "clsx";
 import toast from "react-hot-toast";
 import { useWMS, WMS_CONTRACT } from "@/contexts/WMSContext";
@@ -84,10 +84,8 @@ function ProfilePageInner() {
   const searchParams = useSearchParams();
   const tab = parseProfileTab(searchParams.get("tab"));
   const [sessionMetric, setSessionMetric] = useState<SessionEdgeMetric>("avg_realized_r");
-  const { wmsBalance, creatorCoin, totalEarned, recentEarnings, launchCreatorCoin, isDeployed } = useWMS();
+  const { wmsBalance, creatorCoin, totalEarned, recentEarnings, isDeployed } = useWMS();
   const { user, updateProfile: saveToAuth } = useAuth();
-  const [showLaunchCoin, setShowLaunchCoin] = useState(false);
-  const [newCoin, setNewCoin] = useState({ name: "", symbol: "", supply: 1000000, feeRate: 300, category: "Trading" });
   const [editMode, setEditMode] = useState(false);
   // Setup/onboarding only for genuinely-new users. A saved profile in
   // localStorage is authoritative — we must NOT drop into the empty setup form
@@ -1052,54 +1050,28 @@ function ProfilePageInner() {
                 </div>
               )}
 
-              {/* Launch Creator Coin form */}
-              {showLaunchCoin && (
-                <div className="rounded-xl border border-[#7C3AED]/40 bg-[#7C3AED]/5 p-4 space-y-3">
-                  <div className="text-sm font-black text-wm-text flex items-center justify-between">
-                    <span>🪙 Launch Creator Coin</span>
-                    <button onClick={() => setShowLaunchCoin(false)} aria-label="Close creator coin form" title="Close creator coin form"><X size={14} className="text-wm-text-dim"/></button>
-                  </div>
-                  {[
-                    { label: "Coin Name",   key: "name",   placeholder: "e.g. SpaidFX Coin" },
-                    { label: "Symbol",      key: "symbol", placeholder: "e.g. SPAID" },
-                  ].map(({ label, key, placeholder }) => (
-                    <div key={key}>
-                      <label className="text-[9px] text-wm-text-dim uppercase tracking-wider block mb-1">{label}</label>
-                      <input
-                        value={(newCoin as any)[key]}
-                        onChange={e => setNewCoin(c => ({ ...c, [key]: e.target.value }))}
-                        placeholder={placeholder}
-                        className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-xs text-wm-text outline-none focus:border-[#7C3AED]/50"
-                      />
-                    </div>
-                  ))}
-                  <div>
-                    <label className="text-[9px] text-wm-text-dim uppercase tracking-wider block mb-1">Category</label>
-                    <select value={newCoin.category} onChange={e => setNewCoin(c => ({ ...c, category: e.target.value }))}
-                      className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-xs text-wm-text outline-none">
-                      {["Trading","Music","Art","Business","Brand","Gaming","Education","Fitness"].map(c => <option key={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[9px] text-wm-text-dim uppercase tracking-wider block mb-1">Transfer Fee: {(newCoin.feeRate/100).toFixed(1)}%</label>
-                    <input type="range" min={200} max={500} step={50} value={newCoin.feeRate}
-                      onChange={e => setNewCoin(c => ({ ...c, feeRate: +e.target.value }))}
-                      className="w-full accent-[#7C3AED]"/>
-                    <div className="flex justify-between text-[8px] text-wm-text-dim"><span>2% min</span><span>5% max</span></div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (!newCoin.name || !newCoin.symbol) return toast.error("Name and symbol required");
-                      launchCreatorCoin({ name: newCoin.name, symbol: newCoin.symbol.toUpperCase(), supply: newCoin.supply, feeRate: newCoin.feeRate, category: newCoin.category });
-                      setShowLaunchCoin(false);
-                      toast.success(`🚀 ${newCoin.symbol.toUpperCase()} launched! +500 WM$`);
-                    }}
-                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#7C3AED] to-[#00D4AA] text-white text-xs font-black hover:opacity-90 transition-all"
-                  >
-                    🚀 Launch {newCoin.symbol.toUpperCase() || "My Coin"}
-                  </button>
-                </div>
-              )}
+              {/*
+                The "Launch Creator Coin" form stood here until 2026-09-03.
+                It was mounted behind `showLaunchCoin`, and the control that
+                set that flag true was removed by b6c08db ("Remove synthetic
+                signals and token claims", 2026-07-20) — the same commit that
+                added the honest "Deployment Not Connected" panel above. The
+                door was closed correctly; the room was left standing.
+
+                What was left standing mattered. Its submit button called
+                launchCreatorCoin(), which wrote a coin record carrying
+                `deployedAt: new Date()` to local storage with no wallet, no
+                signed transaction and no chain receipt, then raised
+                `🚀 X launched! +500 WM$` — a toast that was wrong twice, since
+                nothing was deployed and no WM$ was ever credited.
+
+                That is the panel above contradicted from forty lines below:
+                "This app does not deploy one yet" over a form that claimed it
+                just had. Deleted, along with launchCreatorCoin itself, rather
+                than left dormant one edit away from firing.
+
+                Sentinel: src/lib/creatorCoinFabricationLock.test.ts
+              */}
             </div>
           )}
         </div>
