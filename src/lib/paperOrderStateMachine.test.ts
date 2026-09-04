@@ -133,6 +133,24 @@ describe("close-position sizing", () => {
 
 import { selectOrderRejection } from "./paperTrade";
 
+describe("paper buy capital must be finite and valued", () => {
+  it.each([NaN, Infinity, -Infinity])("rejects unverified cash %s", (cash) => {
+    expect(selectOrderRejection({ side: "buy", qty: 1, price: 2, multiplier: 100, cash }))
+      .toContain("cash is unverified");
+  });
+  it.each([NaN, Infinity, -Infinity, 0, -100])("rejects invalid multiplier %s", (multiplier) => {
+    expect(selectOrderRejection({ side: "buy", qty: 1, price: 2, multiplier, cash: 1000 }))
+      .toContain("multiplier is invalid");
+  });
+  it("rejects arithmetic overflow instead of presenting infinite buying-power math", () => {
+    expect(selectOrderRejection({ side: "buy", qty: Number.MAX_VALUE, price: 2, cash: 1000 }))
+      .toContain("Order cost is invalid");
+  });
+  it("does not turn unknown cash into an invented sell-side margin gate", () => {
+    expect(selectOrderRejection({ side: "sell", qty: 1, price: 2, cash: NaN })).toBeNull();
+  });
+});
+
 /**
  * Buying power — canon weakness #9 PAPER-FILL OVERCONFIDENCE.
  *

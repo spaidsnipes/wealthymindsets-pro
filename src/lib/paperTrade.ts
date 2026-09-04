@@ -118,8 +118,10 @@ export function selectOrderRejection(input: {
   if (!Number.isFinite(price) || price <= 0) return null;
   if (side !== "buy") return null;
 
+  if (!Number.isFinite(cash)) return "Available paper cash is unverified; this buy cannot be funded.";
+  if (!Number.isFinite(multiplier) || multiplier <= 0) return "Contract multiplier is invalid; this buy cannot be valued.";
   const cost = qty * price * multiplier;
-  if (!Number.isFinite(cash)) return null;
+  if (!Number.isFinite(cost)) return "Order cost is invalid; this buy cannot be valued.";
   if (cost > cash) {
     return `Insufficient cash — this order costs ${cost.toLocaleString("en-US", {
       style: "currency", currency: "USD", maximumFractionDigits: 0,
