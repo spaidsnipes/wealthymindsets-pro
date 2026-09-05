@@ -4,7 +4,6 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
 import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity } from "lucide-react";
 import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
-import { WMLogo } from "@/components/ui/WMLogo";
 import { ChartToolbar } from "./ChartToolbar";
 import { MainChart } from "./MainChart";
 import { WatchlistGrid } from "./WatchlistGrid";
@@ -1172,6 +1171,8 @@ export function ChartsDashboard() {
             timeframe={timeframe}   setTimeframe={setTimeframe}
             onConnectBrokers={() => setBrokerOpen(true)}
             connectBrokersTriggerRef={brokerTriggerRef}
+            onSmartMoney={() => setSmartMoneyOpen(o => !o)}
+            smartMoneyActive={smartMoneyOpen}
             onDOM={() => setVpDomOpen(o => !o)}
             onPineScript={() => setPineBuilderOpen(true)}
             onCommunity={() => setCommunityOpen(true)}
@@ -1203,7 +1204,7 @@ export function ChartsDashboard() {
               clipped ("cut off"). Natural left flow lets the row scroll cleanly and
               keeps every control fully reachable. pr-3 gives the last button breathing
               room so it never sits flush against the clip edge. */}
-          {/* ── WM-BRAND-W-TRIGGER-01 · Smart Money identity strip ──
+          {/* ── WM-BRAND-W-TRIGGER-01 · Smart Money identity ──
               FOUNDER INSTRUCTION (2026-09-04): "the wm pro smartmoney button was taken
               from the charts and i dont know why it should be on the charts section
               still with the new logo".
@@ -1215,29 +1216,11 @@ export function ChartsDashboard() {
               ChartToolbar → Advanced → "Flow & studies", a label that never says
               "Smart Money".
 
-              FIX: the branded, identity-bearing control is NOT a study tool. It renders
-              in its own always-visible strip, gated ONLY by the chart-surface rule — it
-              never depends on `studyToolsOpen`. Progressive disclosure still governs the
-              dense study row below; the room stays quiet. Exactly one Smart Money
-              trigger exists in this file (single writer, no duplicate). */}
-          {(activeTab === "Chart" || activeTab === "Options") && <div className="wm-chart-identity-strip flex items-center justify-start border-b shrink-0 overflow-x-auto overflow-y-hidden px-2 gap-2"
-            style={{ minHeight: 34, background: "#0D0E14", borderColor: "#1E2030" }}>
-            <button
-              onClick={() => setSmartMoneyOpen(o => !o)}
-              className={`flex items-center gap-1.5 pl-1.5 pr-2.5 h-8 rounded text-[12px] font-semibold border transition-all shrink-0`}
-              style={{
-                background: smartMoneyOpen ? "rgba(139,92,246,0.15)" : "#131520",
-                borderColor: smartMoneyOpen ? "rgba(139,92,246,0.45)" : "#1E2030",
-                color: smartMoneyOpen ? "#8B5CF6" : "#E2E8F0",
-                minHeight: 32, minWidth: 44,
-              }}
-              title="Smart Money — real order-flow read (VWAP, CVD, imbalance); honest N/A for feeds we don't have"
-              aria-label="Open Smart Money panel"
-              aria-pressed={smartMoneyOpen}
-            >
-              <WMLogo size={18} showGlow={smartMoneyOpen} /> Smart Money
-            </button>
-          </div>}
+              FIX: the branded, identity-bearing control is NOT a study tool. It now
+              lives in ChartToolbar's always-visible pinned action cluster, beside the
+              broker connection path. That keeps it one-tap and logo-branded without
+              charging the chart an entire permanent row. Progressive disclosure still
+              governs the dense study row below. */}
 
           {(activeTab === "Chart" || activeTab === "Options") && studyToolsOpen && <div className="wm-chart-tools flex items-center justify-start border-b shrink-0 overflow-x-auto overflow-y-hidden pr-3"
             style={{ height: 30, background: "#0D0E14", borderColor: "#1E2030" }}>

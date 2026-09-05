@@ -12,6 +12,7 @@ import { type ChartLayout } from "./ChartLayoutManager";
 import { isConfigurable } from "./indicatorConfig";
 import { getIndicatorInfo } from "./indicatorDescriptions";
 import { CHART_TF_SHIPPED, getTimeframe } from "@/lib/timeframes";
+import { WMLogo } from "@/components/ui/WMLogo";
 
 /* ══════════════════════════════════════════════════════════════
    SYMBOL CATALOGUE  (100+ symbols across 5 categories)
@@ -451,6 +452,8 @@ interface ChartToolbarProps {
   setTimeframe:        (t: string) => void;
   onConnectBrokers:    () => void;
   connectBrokersTriggerRef: React.RefObject<HTMLButtonElement | null>;
+  onSmartMoney:        () => void;
+  smartMoneyActive?:   boolean;
   onDOM:               () => void;
   onPineScript:        () => void;
   onCommunity?:        () => void;
@@ -510,7 +513,8 @@ function SymbolRow({ s, symbol, onSelect }: { s: SymbolEntry; symbol: string; on
 
 export function ChartToolbar({
   symbol, setSymbol, timeframe, setTimeframe,
-  onConnectBrokers, connectBrokersTriggerRef, onDOM, onPineScript, onCommunity,
+  onConnectBrokers, connectBrokersTriggerRef, onSmartMoney, smartMoneyActive,
+  onDOM, onPineScript, onCommunity,
   pineActive,
   initialActiveInds, onActiveIndsChange, onIndicatorSettings, onExtHoursChange,
   onAlerts, alertsActive, onSettings,
@@ -1055,6 +1059,22 @@ export function ChartToolbar({
         className="wm-chart-toolbar-pinned flex items-center gap-1 shrink-0 pl-1.5 h-full"
         style={{ position: "sticky", right: 0, background: "#0D0E14", borderLeft: "1px solid #1E2030", zIndex: 5 }}
       >
+        <button
+          type="button"
+          onClick={onSmartMoney}
+          aria-label="Open Smart Money panel"
+          aria-pressed={smartMoneyActive}
+          className={clsx(
+            "flex min-h-11 items-center gap-1.5 rounded border px-2 text-[11px] font-semibold transition-colors",
+            smartMoneyActive
+              ? "border-wm-purple/40 bg-wm-purple/20 text-wm-purple"
+              : "border-wm-border text-wm-text hover:border-wm-purple/40",
+          )}
+          title="Smart Money — real order-flow evidence"
+        >
+          <WMLogo size={18} showGlow={smartMoneyActive} />
+          <span>Smart Money</span>
+        </button>
         <div className="relative" ref={advancedRef}>
           <button
             type="button"

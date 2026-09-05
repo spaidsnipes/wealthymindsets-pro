@@ -29,7 +29,8 @@
  * This deliberately does NOT assert the study row is visible. The row stays
  * gated; that part of e3ce41f was correct and is pinned by
  * chartProgressiveDisclosure.test.ts. The only claim here is that the Smart
- * Money trigger renders OUTSIDE it.
+ * Money trigger stays one-tap in the pinned toolbar cluster, outside it and
+ * without consuming a second permanent row.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -50,12 +51,8 @@ const toolbar = readFileSync(
 const STUDY_ROW_GATE =
   '{(activeTab === "Chart" || activeTab === "Options") && studyToolsOpen && <div className="wm-chart-tools';
 
-/** The always-visible identity strip, matched from its opening brace. */
-const IDENTITY_STRIP_GATE =
-  '{(activeTab === "Chart" || activeTab === "Options") && <div className="wm-chart-identity-strip';
-
 /** The branded trigger itself — the logo is the Founder-named requirement. */
-const TRIGGER_LOGO = "<WMLogo size={18} showGlow={smartMoneyOpen} /> Smart Money";
+const TRIGGER_LOGO = "<WMLogo size={18} showGlow={smartMoneyActive} />";
 
 /**
  * Find the `}` closing the JSX expression container that starts at `open`.
@@ -113,9 +110,7 @@ describe("smart money trigger reachability", () => {
     // every containment assertion below would compare against [-1, -1] and pass
     // for the wrong reason. Fail loudly here instead.
     const [studyStart, studyEnd] = blockRange(dashboard, STUDY_ROW_GATE);
-    const [stripStart, stripEnd] = blockRange(dashboard, IDENTITY_STRIP_GATE);
     expect(studyStart).toBeGreaterThan(-1);
-    expect(stripStart).toBeGreaterThan(-1);
 
     // Axis 3 — POSITIVE CONTROL. The brace matcher must actually close the
     // block. FootprintControls and DrawingToolsPanel are known-good residents
@@ -125,29 +120,29 @@ describe("smart money trigger reachability", () => {
     // that contains nothing reports "nothing is buried" forever, and that reads
     // exactly like a clean bill of health.
     expect(studyEnd).toBeGreaterThan(studyStart);
-    expect(stripEnd).toBeGreaterThan(stripStart);
     const studyRow = dashboard.slice(studyStart, studyEnd);
     expect(studyRow).toContain("<FootprintControls");
     expect(studyRow).toContain("<DrawingToolsPanel");
 
-    // Axis 4: the two blocks are disjoint siblings, not nested. Nesting would
-    // make "outside the study row" unprovable by offset comparison.
-    expect(stripEnd).toBeLessThan(studyStart);
+    // Axis 4: the branded trigger belongs to the toolbar, while the dense
+    // study row remains in the dashboard. Separate files make accidental
+    // containment impossible and remove the extra full-width identity row.
+    expect(toolbar).toContain('className="wm-chart-toolbar-pinned');
   });
 
   it("renders exactly one Smart Money trigger — no duplicate, single writer", () => {
-    const triggers = dashboard.match(/aria-label="Open Smart Money panel"/g) ?? [];
+    const triggers = `${dashboard}\n${toolbar}`.match(/aria-label="Open Smart Money panel"/g) ?? [];
     expect(triggers).toHaveLength(1);
 
-    const logos = dashboard.split(TRIGGER_LOGO).length - 1;
+    const logos = toolbar.split(TRIGGER_LOGO).length - 1;
     expect(logos).toBe(1);
   });
 
   it("FOUNDER GATE: the trigger carries the WM logo, not a generic icon", () => {
     // "it should be on the charts section still with the new logo"
     //   — Founder, 2026-09-04
-    expect(dashboard).toContain(TRIGGER_LOGO);
-    expect(dashboard).toContain('import { WMLogo } from "@/components/ui/WMLogo"');
+    expect(toolbar).toContain(TRIGGER_LOGO);
+    expect(toolbar).toContain('import { WMLogo } from "@/components/ui/WMLogo"');
   });
 
   it("FOUNDER GATE: the trigger is NOT inside the studyToolsOpen-gated row", () => {
@@ -160,20 +155,12 @@ describe("smart money trigger reachability", () => {
     expect(studyRow).not.toContain("setSmartMoneyOpen");
   });
 
-  it("FOUNDER GATE: the trigger sits in a strip gated only by the chart surface", () => {
-    const [stripStart, stripEnd] = blockRange(dashboard, IDENTITY_STRIP_GATE);
-    const strip = dashboard.slice(stripStart, stripEnd);
-
-    // Present in the always-visible strip...
-    expect(strip).toContain(TRIGGER_LOGO);
-    expect(strip).toContain("setSmartMoneyOpen");
-
-    // ...and that strip depends on NOTHING that defaults to closed. Any
-    // `*Open` state name appearing in its gate expression would reintroduce a
-    // default-hidden path. The gate is the text before the opening <div.
-    const gateExpr = strip.slice(0, strip.indexOf("<div"));
-    expect(gateExpr).toContain('activeTab === "Chart"');
-    expect(gateExpr).not.toMatch(/Open\b/);
+  it("FOUNDER GATE: the trigger is pinned without consuming its own row", () => {
+    expect(toolbar).toContain(TRIGGER_LOGO);
+    expect(toolbar).toContain("onClick={onSmartMoney}");
+    expect(toolbar).toContain('className="wm-chart-toolbar-pinned');
+    expect(dashboard).toContain("onSmartMoney={() => setSmartMoneyOpen(o => !o)}");
+    expect(dashboard).not.toContain("wm-chart-identity-strip");
   });
 
   it("records WHY the menu path alone was not enough", () => {
