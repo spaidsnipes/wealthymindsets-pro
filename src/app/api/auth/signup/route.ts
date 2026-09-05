@@ -4,7 +4,7 @@ import {
 } from "@/lib/auth";
 import { sendWelcomeEmail } from "@/lib/email";
 import { CANONICAL_URL } from "@/lib/canonicalUrl";
-import { supabaseConfigStatus, notConfiguredBody } from "@/lib/supabaseConfigStatus";
+import { supabaseConfigStatus, notConfiguredBody, SupabaseAuthShapeError } from "@/lib/supabaseConfigStatus";
 import { randomBytes } from "crypto";
 
 export async function POST(req: Request) {
@@ -23,14 +23,25 @@ export async function POST(req: Request) {
     try {
       data = await supabaseSignUp(email, password, redirectTo);
     } catch (e) {
-      // Monday Test 2 truth: preserve the provider's actual error class instead of
-      // collapsing to a generic "unreachable" (which historically masked a paused
-      // Supabase project vs a bad key vs a real network failure).
-      console.error("[signup] Supabase call threw — auth backend unreachable/misconfigured:", e);
+      console.error("[signup] Supabase call threw — request never completed:", e);
+      // The copy this replaces offered "the Supabase project may be paused" as
+      // the likely cause. On 2026-09-05 the project was probed directly while
+      // sign-up was down and found alive and answering JSON, so that sentence
+      // was confidently wrong for every reader who saw it. Name the class that
+      // was actually observed instead of the one that sounds plausible.
+      if (e instanceof SupabaseAuthShapeError) {
+        // The one error whose message is safe to repeat: built from origin,
+        // status and content-type alone, never from a header or a body.
+        return NextResponse.json(
+          { error: `Sign-up failed: ${e.message}`, edge: "AUTH BACKEND MISDIRECTED" },
+          { status: 503 },
+        );
+      }
+      const cls = e instanceof Error ? e.name : "Error";
       return NextResponse.json(
         {
-          error: "Sign-up service is temporarily unavailable. If this persists, the Supabase project may be paused or an env var changed.",
-          edge: "UPSTREAM UNREACHABLE",
+          error: `Sign-up could not complete a request to the auth backend (${cls}). The request threw before a response was read, which means the backend was unreachable from this host or a Supabase env var is present but unusable.`,
+          edge: "AUTH BACKEND UNREACHABLE",
         },
         { status: 503 },
       );

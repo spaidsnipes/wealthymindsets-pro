@@ -184,12 +184,13 @@ export async function supabaseSignUp(email: string, password: string, redirectTo
   // confirmation link that points at localhost / a stale preview and can't sign
   // in. Must be an allowed redirect URL in Supabase Auth settings.
   const qs = redirectTo ? `?redirect_to=${encodeURIComponent(redirectTo)}` : "";
-  const res = await fetch(`${SB_URL()}/auth/v1/signup${qs}`, {
+  const url = `${SB_URL()}/auth/v1/signup${qs}`;
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: SB_KEY() },
     body: JSON.stringify({ email, password }),
   });
-  return res.json();
+  return supabaseJson(res, url);
 }
 
 export async function supabaseResendSignup(email: string, redirectTo?: string) {

@@ -32,9 +32,23 @@ const API_ROOT = resolve(__dirname, "..", "app", "api");
 const FORBIDDEN_PATTERNS: RegExp[] = [
   /account service is not configured/i,
   /account service could not be reached/i, // superseded by typed UPSTREAM UNREACHABLE
+  // On 2026-09-05 sign-in and sign-up were both down and both blamed a paused
+  // project. The project was probed directly during the outage and found alive,
+  // answering JSON — the real cause was NEXT_PUBLIC_SUPABASE_URL holding a key.
+  // A guess that reads like a diagnosis sends every operator to the wrong dial.
+  /project (may be|might be|is|was) paused/i,
 ];
 
 const HELPER_IMPORT = "@/lib/supabaseConfigStatus";
+
+/**
+ * The bans are on shipped COPY. A comment explaining why a sentence was removed
+ * has to be able to quote it, or the record of the correction cannot be kept
+ * next to the code it corrects.
+ */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+}
 
 function isRouteFile(path: string): boolean {
   return path.endsWith("/route.ts") || path.endsWith("/route.tsx");
@@ -62,10 +76,10 @@ describe("supabaseConfigStatus — single-writer enforcement across /api/auth", 
     expect(routes.length).toBeGreaterThanOrEqual(5);
   });
 
-  it("no auth route contains the forbidden vague 'account service' copy", () => {
+  it("no auth route ships copy that was vague, or that was probed and disproven", () => {
     const violations: string[] = [];
     for (const path of routes) {
-      const body = readFileSync(path, "utf8");
+      const body = stripComments(readFileSync(path, "utf8"));
       for (const pattern of FORBIDDEN_PATTERNS) {
         if (pattern.test(body)) {
           violations.push(`${path} matches ${pattern}`);
@@ -104,12 +118,8 @@ describe("api-tree NOT CONFIGURED shape — every route follows Monday Test 2 co
     // Any of those + a missing:… field satisfies the contract.
     const offenders: string[] = [];
     for (const path of allRoutes) {
-      const raw = readFileSync(path, "utf8");
-      // Strip line comments and block comments so we don't false-positive on
-      // documentation that mentions the phrase.
-      const code = raw
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/\/\/[^\n]*/g, "");
+      // Strip comments so documentation that mentions the phrase is not a hit.
+      const code = stripComments(readFileSync(path, "utf8"));
       if (!/NOT CONFIGURED/.test(code)) continue;
       const hasEdgeLiteral = /edge\s*[:=]\s*["']NOT CONFIGURED["']/.test(code);
       const importsHelper = /@\/lib\/supabaseConfigStatus/.test(code);
