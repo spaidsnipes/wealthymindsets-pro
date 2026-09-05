@@ -6,6 +6,7 @@ import {
   allProviderEnvNames,
   computeEnvParity,
   detectEnvNameNearMisses,
+  detectUnaccountedEnvNameNearMisses,
   isEnvPresent,
   readinessSummary,
   type EnvPresence,
@@ -384,5 +385,59 @@ describe("detectEnvNameNearMisses (canon: a lookalike is not agreement)", () => 
     const parity = computeEnvParity(["FINNHUB_KEY"], {}, host);
     expect(parity.inParity).toBe(true);            // the blind spot, documented
     expect(detectEnvNameNearMisses(["FINNHUB_KEY"], host)).toHaveLength(1); // and covered
+  });
+});
+
+describe("detectUnaccountedEnvNameNearMisses (the one-call receipt entry point)", () => {
+  it("reproduces the 2026-09-05 host: names FINNHUB_KEY_ as the explanation", () => {
+    // The Cloudflare account as it actually stood — a working legacy Alpaca
+    // pair alongside the typo'd Finnhub secret.
+    const hits = detectUnaccountedEnvNameNearMisses({
+      ALPACA_BROKERAGE_KEY: "redacted",
+      ALPACA_BROKERAGE_KEY_SECRET_: "redacted",
+      FINNHUB_KEY_: "redacted",
+    });
+    expect(hits).toContainEqual({
+      expected: "FINNHUB_KEY",
+      found: "FINNHUB_KEY_",
+      confidence: "EXACT_MODULO_PUNCTUATION",
+    });
+  });
+
+  it("does NOT flag a declared alternative as a mystery lookalike", () => {
+    // ALPACA_BROKERAGE_KEY is a declared alternativeGroup member. It is
+    // accounted for, so it must not be offered as an explanation for the
+    // absent canonical ALPACA_KEY. Declaring a fallback silences it here.
+    const hits = detectUnaccountedEnvNameNearMisses({
+      ALPACA_BROKERAGE_KEY: "redacted",
+      ALPACA_BROKERAGE_KEY_SECRET_: "redacted",
+    });
+    expect(hits.map((h) => h.found)).not.toContain("ALPACA_BROKERAGE_KEY");
+    expect(hits.map((h) => h.found)).not.toContain("ALPACA_BROKERAGE_KEY_SECRET_");
+  });
+
+  it("does NOT flag a declared recommended var against a missing required one", () => {
+    // WEBULL_API_HOST is declared (recommended). It is a known var doing its
+    // job, not a candidate explanation for the absent WEBULL_APP_KEY.
+    const hits = detectUnaccountedEnvNameNearMisses({ WEBULL_API_HOST: "https://api.example" });
+    expect(hits.map((h) => h.found)).not.toContain("WEBULL_API_HOST");
+  });
+
+  it("stays completely silent on a fully-configured host", () => {
+    const complete: EnvPresence = Object.fromEntries(
+      allProviderEnvNames().map((n) => [n, "redacted"]),
+    );
+    expect(detectUnaccountedEnvNameNearMisses(complete)).toEqual([]);
+  });
+
+  it("returns nothing for an empty host rather than flagging every name", () => {
+    // Absent everything is a BLOCKED story, not a near-miss story. There is
+    // no lookalike to point at, so the detector must not manufacture one.
+    expect(detectUnaccountedEnvNameNearMisses({})).toEqual([]);
+  });
+
+  it("emits NAMES only — never a value (secrets boundary)", () => {
+    const hits = detectUnaccountedEnvNameNearMisses({ FINNHUB_KEY_: "super-secret-value" });
+    expect(JSON.stringify(hits)).not.toContain("super-secret-value");
   });
 });

@@ -409,3 +409,31 @@ export function detectEnvNameNearMisses(
     return a.expected.localeCompare(b.expected) || a.found.localeCompare(b.found);
   });
 }
+
+/**
+ * The canonical one-call entry point for a runtime's env receipt.
+ *
+ * Two things happen here that a raw detectEnvNameNearMisses call does not do:
+ *
+ *  1. The expected set is `allProviderEnvNames()` — every name any declared
+ *     provider references. Callers cannot accidentally scan a narrower list
+ *     and miss the lane that is actually down.
+ *
+ *  2. Any hit whose `found` name is ITSELF a declared name is dropped. A host
+ *     carrying WEBULL_API_HOST is not a mysterious lookalike for a missing
+ *     WEBULL_APP_KEY — it is a known variable doing its job, and reporting it
+ *     would be exactly the cry-wolf noise that gets a Sentinel ignored. This
+ *     is why declaring a fallback in PROVIDER_REQUIREMENTS (as an alias or an
+ *     alternativeGroup) also silences it here: accounted-for names stop being
+ *     suspects.
+ *
+ * The presence short-circuit still runs against the FULL host env, so a name
+ * that actually resolved stays silent no matter what its neighbours look like.
+ */
+export function detectUnaccountedEnvNameNearMisses(
+  hostEnv: EnvPresence,
+): readonly EnvNameNearMiss[] {
+  const declared = allProviderEnvNames();
+  const declaredSet = new Set(declared);
+  return detectEnvNameNearMisses(declared, hostEnv).filter((h) => !declaredSet.has(h.found));
+}

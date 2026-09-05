@@ -148,6 +148,46 @@ export default function ReadinessPage() {
               </div>
             </div>
 
+            {state.wireboard.nearMisses.length > 0 && (
+              <section
+                aria-labelledby="wm-near-miss-heading"
+                className="mb-6 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] px-4 py-4"
+              >
+                <h2 id="wm-near-miss-heading" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-300">
+                  Name mismatch suspected
+                </h2>
+                <p className="mt-2 text-xs leading-relaxed text-neutral-300">
+                  A blocked provider above may not be missing its credential at all — this runtime carries
+                  a variable whose NAME closely resembles one the code reads. Renaming is a different fix
+                  from adding a secret, so it is called out separately.
+                </p>
+                <ul className="mt-3 space-y-2">
+                  {state.wireboard.nearMisses.map((miss) => (
+                    <li
+                      key={`${miss.expected}→${miss.found}`}
+                      className="rounded-lg border border-white/5 bg-black/40 px-3 py-2"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-widest text-amber-200 ring-1 ring-amber-400/30">
+                          {miss.strength}
+                        </span>
+                        <span className="font-mono text-[11px] text-neutral-200">
+                          code reads <span className="text-emerald-300">{miss.expected}</span>
+                          {" · "}
+                          host has <span className="text-amber-300">{miss.found}</span>
+                        </span>
+                      </div>
+                      <p className="mt-1.5 text-[11px] leading-relaxed text-neutral-500">{miss.detail}</p>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-[10px] leading-relaxed text-neutral-500">
+                  Names only — no secret value is read or shown on either side of a pairing. A matching name
+                  does not prove the value behind it is valid; that still needs a live probe.
+                </p>
+              </section>
+            )}
+
             {state.wireboard.empty ? (
               <div className="rounded-lg border border-neutral-800 bg-black/40 px-4 py-6 text-sm text-neutral-400">
                 The receipt contained no providers. Nothing to display — reported honestly rather than as

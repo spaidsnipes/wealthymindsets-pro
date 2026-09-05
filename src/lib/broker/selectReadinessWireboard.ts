@@ -20,7 +20,7 @@
  * selector is totally testable.
  */
 
-import type { ProviderReadiness, ReadinessStatus } from "./providerReadiness";
+import type { EnvNameNearMiss, ProviderReadiness, ReadinessStatus } from "./providerReadiness";
 
 /** Shape of the JSON returned by GET /api/broker/readiness. */
 export interface ReadinessPayload {
@@ -28,6 +28,7 @@ export interface ReadinessPayload {
   readonly summary?: string;
   readonly providers?: readonly ProviderReadiness[];
   readonly envPresence?: readonly { readonly name: string; readonly present: boolean }[];
+  readonly nearMisses?: readonly EnvNameNearMiss[];
   readonly accountService?: {
     readonly configured: boolean;
     readonly missing: readonly string[];
@@ -57,6 +58,21 @@ export interface WireboardRow {
   readonly note: string;
 }
 
+/**
+ * One suspected name mismatch, phrased for a human reading the wireboard.
+ *
+ * Deliberately NOT a verdict. The detector proves only that a host name looks
+ * like a name the code reads; it cannot prove the value behind it is correct,
+ * so the copy says "check", never "fix this and it works".
+ */
+export interface WireboardNearMiss {
+  readonly expected: string;
+  readonly found: string;
+  /** NEAR-CERTAIN for a punctuation-only difference, LEAD for a token overlap. */
+  readonly strength: "NEAR-CERTAIN" | "LEAD";
+  readonly detail: string;
+}
+
 export interface ReadinessWireboard {
   readonly rows: readonly WireboardRow[];
   readonly readyCount: number;
@@ -66,6 +82,12 @@ export interface ReadinessWireboard {
   /** Count of env NAMES present across the whole fleet (presence-only). */
   readonly envPresentCount: number;
   readonly envTotalCount: number;
+  /**
+   * Host names that LOOK like a name the code reads but are not it. Empty is
+   * the normal case. A non-empty list is the difference between "this needs a
+   * secret" and "this secret is installed under the wrong name".
+   */
+  readonly nearMisses: readonly WireboardNearMiss[];
   readonly accountService: {
     readonly blockerClass: WireboardBlockerClass;
     readonly detail: string;
@@ -83,6 +105,18 @@ function blockerDetailFor(r: ProviderReadiness): string {
   }
   const names = r.missing.join(", ");
   return `NOT CONFIGURED — missing required ${r.missing.length === 1 ? "variable" : "variables"}: ${names}.`;
+}
+
+function nearMissRow(h: EnvNameNearMiss): WireboardNearMiss {
+  const nearCertain = h.confidence === "EXACT_MODULO_PUNCTUATION";
+  return {
+    expected: h.expected,
+    found: h.found,
+    strength: nearCertain ? "NEAR-CERTAIN" : "LEAD",
+    detail: nearCertain
+      ? `This runtime carries ${h.found}, which differs from ${h.expected} only in punctuation. The code reads ${h.expected} and does not fall back to ${h.found}, so the value behind it is never used.`
+      : `This runtime carries ${h.found}, which shares a distinctive name part with the absent ${h.expected}. A lead worth checking, not a diagnosis.`,
+  };
 }
 
 /** Build the wireboard view-model from a readiness API payload. */
@@ -114,6 +148,7 @@ export function selectReadinessWireboard(payload: ReadinessPayload | null | unde
     summary: `${readyCount}/${rows.length} providers configured`,
     envPresentCount: envPresence.filter((e) => e.present).length,
     envTotalCount: envPresence.length,
+    nearMisses: (payload?.nearMisses ?? []).map(nearMissRow),
     accountService: {
       blockerClass: accountConfigured ? "SETUP PRESENT" : "NOT CONFIGURED",
       detail: accountConfigured

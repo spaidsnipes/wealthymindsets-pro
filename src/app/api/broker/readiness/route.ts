@@ -5,6 +5,7 @@ import {
   allProviderEnvNames,
   readinessSummary,
   isEnvPresent,
+  detectUnaccountedEnvNameNearMisses,
   type EnvPresence,
 } from "../../../../lib/broker/providerReadiness";
 import { supabaseConfigStatus } from "@/lib/supabaseConfigStatus";
@@ -48,12 +49,20 @@ export async function GET(request: Request) {
   const names = allProviderEnvNames();
   const envPresence = names.map((name) => ({ name, present: isEnvPresent(env, name) }));
 
+  // Why a BLOCKED row might be blocked by a TYPO rather than a missing secret.
+  // On 2026-09-05 this host carried `FINNHUB_KEY_` while the code read
+  // `FINNHUB_KEY`; the parity view scored that name ABSENT_BOTH and called it
+  // agreement, so the receipt stayed quiet while the tape was dead. Emitting
+  // NAMES only — never a value, on either side of the pairing.
+  const nearMisses = detectUnaccountedEnvNameNearMisses(env);
+
   return NextResponse.json(
     {
       surface: "broker-readiness",
       summary: readinessSummary(providers),
       providers,
       envPresence,
+      nearMisses,
       accountService,
       note: "Presence-only. READY means credentials are present, not that the provider is connected or certified. No secret value is ever returned.",
     },

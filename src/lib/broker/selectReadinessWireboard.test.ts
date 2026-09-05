@@ -111,3 +111,53 @@ describe("selectReadinessWireboard", () => {
     expect(selectReadinessWireboard({}).summary).toBe("0/0 providers configured");
   });
 });
+
+describe("selectReadinessWireboard near-miss section", () => {
+  it("is empty when the payload carries no near misses (the normal case)", () => {
+    expect(selectReadinessWireboard({ providers: [] }).nearMisses).toEqual([]);
+    expect(selectReadinessWireboard(null).nearMisses).toEqual([]);
+    expect(selectReadinessWireboard({ providers: [], nearMisses: [] }).nearMisses).toEqual([]);
+  });
+
+  it("renders the 2026-09-05 typo as NEAR-CERTAIN and names both sides", () => {
+    const wb = selectReadinessWireboard({
+      providers: [],
+      nearMisses: [
+        { expected: "FINNHUB_KEY", found: "FINNHUB_KEY_", confidence: "EXACT_MODULO_PUNCTUATION" },
+      ],
+    });
+    expect(wb.nearMisses).toHaveLength(1);
+    const [miss] = wb.nearMisses;
+    expect(miss.strength).toBe("NEAR-CERTAIN");
+    expect(miss.expected).toBe("FINNHUB_KEY");
+    expect(miss.found).toBe("FINNHUB_KEY_");
+    expect(miss.detail).toContain("FINNHUB_KEY_");
+    expect(miss.detail).toContain("FINNHUB_KEY");
+  });
+
+  it("demotes a token overlap to LEAD and refuses to call it a diagnosis", () => {
+    const wb = selectReadinessWireboard({
+      providers: [],
+      nearMisses: [
+        { expected: "LIVEKIT_API_KEY", found: "ATH_LIVEKIT_KEY_", confidence: "SHARED_DISTINCTIVE_TOKENS" },
+      ],
+    });
+    expect(wb.nearMisses[0].strength).toBe("LEAD");
+    expect(wb.nearMisses[0].detail).toContain("not a diagnosis");
+  });
+
+  it("never claims renaming will make the provider work (values are unproven)", () => {
+    // The detector compares NAMES. It cannot know the value behind the
+    // lookalike is valid, so the copy must not promise a working connection.
+    const wb = selectReadinessWireboard({
+      providers: [],
+      nearMisses: [
+        { expected: "FINNHUB_KEY", found: "FINNHUB_KEY_", confidence: "EXACT_MODULO_PUNCTUATION" },
+      ],
+    });
+    const copy = wb.nearMisses.map((m) => m.detail).join(" ").toLowerCase();
+    for (const forbidden of ["will work", "will fix", "connected", "live", "certified"]) {
+      expect(copy).not.toContain(forbidden);
+    }
+  });
+});
