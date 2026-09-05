@@ -7,6 +7,7 @@ import {
   isEnvPresent,
   type EnvPresence,
 } from "../../../../lib/broker/providerReadiness";
+import { supabaseConfigStatus } from "@/lib/supabaseConfigStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,7 @@ export async function GET(request: Request) {
 
   const env = process.env as unknown as EnvPresence;
   const providers = computeAllProviderReadiness(env);
+  const accountService = supabaseConfigStatus(env);
 
   // Presence-only env inventory across every var any provider references.
   const names = allProviderEnvNames();
@@ -52,6 +54,7 @@ export async function GET(request: Request) {
       summary: readinessSummary(providers),
       providers,
       envPresence,
+      accountService,
       note: "Presence-only. READY means credentials are present, not that the provider is connected or certified. No secret value is ever returned.",
     },
     { status: 200, headers: { "Cache-Control": "no-store" } },

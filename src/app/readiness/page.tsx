@@ -126,7 +126,7 @@ export default function ReadinessPage() {
 
         {state.phase === "ready" && (
           <>
-            <div className="mb-6 grid gap-3 sm:grid-cols-2">
+            <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div className="rounded-xl border border-[#f0b429]/20 bg-gradient-to-br from-[#f0b429]/10 to-black/50 px-4 py-4">
                 <div className="text-[10px] uppercase tracking-[0.2em] text-[#f0b429]/75">Providers configured</div>
                 <div className="mt-2 font-mono text-2xl text-neutral-50">{state.wireboard.summary}</div>
@@ -138,6 +138,13 @@ export default function ReadinessPage() {
                   {state.wireboard.envPresentCount}/{state.wireboard.envTotalCount}
                 </div>
                 <div className="mt-1 text-[10px] text-neutral-500">Values stay sealed in approved runtime stores.</div>
+              </div>
+              <div className={`rounded-xl border px-4 py-4 ${state.wireboard.accountService.blockerClass === "SETUP PRESENT" ? "border-emerald-500/15 bg-gradient-to-br from-emerald-500/[0.07] to-black/50" : "border-rose-500/20 bg-gradient-to-br from-rose-500/[0.08] to-black/50"}`}>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-400">Account service</div>
+                <div className={`mt-2 font-mono text-sm font-semibold ${state.wireboard.accountService.blockerClass === "SETUP PRESENT" ? "text-emerald-300" : "text-rose-300"}`}>
+                  {state.wireboard.accountService.blockerClass}
+                </div>
+                <div className="mt-2 text-[10px] leading-relaxed text-neutral-500">{state.wireboard.accountService.detail}</div>
               </div>
             </div>
 

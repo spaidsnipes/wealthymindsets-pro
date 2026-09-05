@@ -33,6 +33,22 @@ const payload = (providers: ProviderReadiness[]): ReadinessPayload => ({
 });
 
 describe("selectReadinessWireboard", () => {
+  it("projects Supabase account-service presence without claiming authentication", () => {
+    const configured = selectReadinessWireboard({
+      providers: [ready],
+      accountService: { configured: true, missing: [] },
+    });
+    expect(configured.accountService.blockerClass).toBe("SETUP PRESENT");
+    expect(configured.accountService.detail).toContain("still requires a successful auth receipt");
+
+    const blocked = selectReadinessWireboard({
+      providers: [ready],
+      accountService: { configured: false, missing: ["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] },
+    });
+    expect(blocked.accountService.blockerClass).toBe("NOT CONFIGURED");
+    expect(blocked.accountService.detail).toContain("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
+  });
+
   it("maps providers to rows preserving identity, lane, and status", () => {
     const wb = selectReadinessWireboard(payload([ready, blocked]));
     expect(wb.rows).toHaveLength(2);

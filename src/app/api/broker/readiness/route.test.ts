@@ -32,6 +32,8 @@ describe("GET /api/broker/readiness", () => {
     expect(body.surface).toBe("broker-readiness");
     expect(Array.isArray(body.providers)).toBe(true);
     expect(Array.isArray(body.envPresence)).toBe(true);
+    expect(typeof body.accountService.configured).toBe("boolean");
+    expect(Array.isArray(body.accountService.missing)).toBe(true);
     expect(typeof body.summary).toBe("string");
   });
 
@@ -48,5 +50,6 @@ describe("GET /api/broker/readiness", () => {
       expect(p).not.toHaveProperty("value");
       expect(p).not.toHaveProperty("secret");
     }
+    expect(Object.keys(body.accountService).sort()).toEqual(["configured", "missing"]);
   });
 });

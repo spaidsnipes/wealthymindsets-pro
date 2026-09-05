@@ -28,6 +28,10 @@ export interface ReadinessPayload {
   readonly summary?: string;
   readonly providers?: readonly ProviderReadiness[];
   readonly envPresence?: readonly { readonly name: string; readonly present: boolean }[];
+  readonly accountService?: {
+    readonly configured: boolean;
+    readonly missing: readonly string[];
+  };
   readonly note?: string;
 }
 
@@ -62,6 +66,10 @@ export interface ReadinessWireboard {
   /** Count of env NAMES present across the whole fleet (presence-only). */
   readonly envPresentCount: number;
   readonly envTotalCount: number;
+  readonly accountService: {
+    readonly blockerClass: WireboardBlockerClass;
+    readonly detail: string;
+  };
   /** True when the payload had no providers (endpoint empty / not reachable). */
   readonly empty: boolean;
 }
@@ -93,6 +101,12 @@ export function selectReadinessWireboard(payload: ReadinessPayload | null | unde
   }));
   const readyCount = rows.filter((r) => r.status === "READY").length;
   const envPresence = payload?.envPresence ?? [];
+  const accountService = payload?.accountService;
+  const accountConfigured = accountService?.configured === true;
+  const missingAccountConfig = accountService?.missing ?? [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)",
+  ];
   return {
     rows,
     readyCount,
@@ -100,6 +114,12 @@ export function selectReadinessWireboard(payload: ReadinessPayload | null | unde
     summary: `${readyCount}/${rows.length} providers configured`,
     envPresentCount: envPresence.filter((e) => e.present).length,
     envTotalCount: envPresence.length,
+    accountService: {
+      blockerClass: accountConfigured ? "SETUP PRESENT" : "NOT CONFIGURED",
+      detail: accountConfigured
+        ? "Supabase URL and public client key are present on this runtime. Sign-in still requires a successful auth receipt."
+        : `Supabase auth is NOT CONFIGURED on this runtime — missing: ${missingAccountConfig.join(", ")}.`,
+    },
     empty: rows.length === 0,
   };
 }
