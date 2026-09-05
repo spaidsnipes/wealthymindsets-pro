@@ -205,13 +205,44 @@ export async function supabaseResendSignup(email: string, redirectTo?: string) {
   };
 }
 
-export async function supabaseResetPassword(email: string, redirectTo: string) {
-  const res = await fetch(`${SB_URL()}/auth/v1/recover`, {
+/**
+ * Ask Supabase to send a recovery email and report the STATUS it answered with.
+ *
+ * The previous version returned `res.ok` and the only caller discarded it, so a
+ * rejected request was indistinguishable from a sent email. The status is the
+ * whole answer here; the parsed body is deliberately not returned, because
+ * GoTrue's `msg` is free text that can carry the submitted address back out.
+ */
+export async function supabaseResetPassword(email: string, redirectTo: string): Promise<number> {
+  const url = `${SB_URL()}/auth/v1/recover`;
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: SB_KEY() },
     body: JSON.stringify({ email, redirect_to: redirectTo }),
   });
-  return res.ok;
+
+  // Status alone cannot prove the request reached Supabase — a misdirected URL
+  // can answer 200 with an HTML page as easily as it answers 403. Parsing is the
+  // proof. An empty body is GoTrue's own shape for "accepted" and is not a defect.
+  const raw = (await res.text()).trim();
+  if (raw) {
+    try {
+      JSON.parse(raw);
+    } catch {
+      throw authShapeError(res, url);
+    }
+  }
+  return res.status;
+}
+
+/**
+ * The one error whose message is safe to surface: built from the request's
+ * origin, status and content-type only, never from a header or a response body.
+ */
+function authShapeError(res: Response, url: string): SupabaseAuthShapeError {
+  return new SupabaseAuthShapeError(
+    nonJsonAuthResponseMessage({ url, status: res.status, contentType: res.headers.get("content-type") }),
+  );
 }
 
 /**
@@ -225,9 +256,7 @@ async function supabaseJson(res: Response, url: string): Promise<any> {
   try {
     return JSON.parse(raw);
   } catch {
-    throw new SupabaseAuthShapeError(
-      nonJsonAuthResponseMessage({ url, status: res.status, contentType: res.headers.get("content-type") }),
-    );
+    throw authShapeError(res, url);
   }
 }
 
