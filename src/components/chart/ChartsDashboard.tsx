@@ -33,7 +33,7 @@ import { BottomIndexBar } from "./BottomIndexBar";
 import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { priceSourceBadge } from "@/lib/priceSource";
-import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
+import { useProvenSessionClosure, useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
@@ -65,6 +65,11 @@ import { selectAggressorFlow } from "@/lib/marketData/selectAggressorFlow";
 import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassportPanel";
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import { useCanonicalMarketState } from "@/lib/marketData/useCanonicalMarketState";
+// The REGIME chip's truth guard. Observed live 2026-09-05 printing
+// "REGIME SIDE -0.34% today" on a closed Saturday session; the classification
+// and the period word both live in this one owner now, so a component edit
+// cannot reintroduce either untruth. See selectRegimeBadge.ts.
+import { selectRegimeBadge } from "@/lib/marketData/selectRegimeBadge";
 // Asset 07 (Evidence Debt / Question Mode) canon: dedicated
 // question-mode surface exposing the decisionWhy compilation.
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
@@ -572,6 +577,10 @@ export function ChartsDashboard() {
   // Saturday. `null` until mount and on every weekday, so provider labelling
   // is untouched the rest of the time.
   const sessionOpen = useProvenSessionClosure(symbol);
+  // Read at component level, never inside the REGIME chip's render callback —
+  // a hook called from inside JSX is the React #310 defect. `null` until mount,
+  // which is exactly what selectRegimeBadge treats as "no period word yet".
+  const sessionClockDate = useSessionClockDate();
   usePublishChartMarketState({
     symbol,
     timeframe,
@@ -1618,13 +1627,26 @@ export function ChartsDashboard() {
                   <div style={{ flex: 1, display:"flex", overflow:"hidden", minWidth:0, minHeight:0, position:"relative",
                     ...(chartLayout === "4" ? { width: "50%", flexShrink: 0 } : {}),
                   }}>
-                    {/* ── Regime + live daily % HUD (top-center overlay) ─────────────
-                         REAL data only: regime is classified from the live ticker's
-                         daily % (same ±1.5% thresholds as the Markov state model), and
-                         the % is the actual day return — nothing fabricated here. */}
+                    {/* ── Regime + daily % HUD (top-center overlay) ──────────────────
+                         Every claim here is delegated to selectRegimeBadge, because
+                         this call site shipped two untruths at once (seen live on the
+                         Founder's screen, 2026-09-05):
+                           - `Number.isFinite(x) ? x : 0` turned "no quote" into a
+                             printed "+0.00%" AND a market state of "SIDE" — a regime
+                             fabricated out of the absence of data.
+                           - "today" was hardcoded, so a Saturday chip called the last
+                             completed session's move today's (Canon §8, stale-as-live).
+                         The chip now renders nothing without a verified change, and the
+                         period word is earned from proven session closure. */}
                     {(() => {
-                      const p = Number.isFinite(ticker.changePct) ? ticker.changePct : 0;
-                      const reg = p > 1.5 ? "BULL" : p < -1.5 ? "BEAR" : "SIDE";
+                      const badge = selectRegimeBadge({
+                        changePct: ticker.changePct,
+                        symbol,
+                        at: sessionClockDate,
+                      });
+                      if (!badge.displayable) return null;
+                      const p = badge.changePct;
+                      const reg = badge.regime;
                       const rc = reg === "BULL" ? "#00D4AA" : reg === "BEAR" ? "#FF4D6A" : "#F0B429";
                       const pc = p >= 0 ? "#00D4AA" : "#FF4D6A";
                       return (
@@ -1644,7 +1666,7 @@ export function ChartsDashboard() {
                           <span style={{ fontSize:11, fontWeight:900, color:rc, letterSpacing:"0.04em" }}>{reg}</span>
                           <span style={{ width:1, height:10, background:"#2A3048" }} />
                           <span style={{ fontSize:10.5, fontWeight:800, color:pc, fontFamily:"monospace" }}>
-                            {p >= 0 ? "+" : ""}{p.toFixed(2)}% today
+                            {p >= 0 ? "+" : ""}{p.toFixed(2)}%{badge.periodLabel ? ` ${badge.periodLabel}` : ""}
                           </span>
                         </div>
                       );
