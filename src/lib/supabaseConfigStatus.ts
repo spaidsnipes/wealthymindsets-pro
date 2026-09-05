@@ -135,6 +135,103 @@ export function supabaseConfigStatus(env: EnvPresence = process.env): SupabaseCo
 }
 
 /**
+ * What a configured value LOOKS LIKE — never what it is.
+ *
+ * `supabaseConfigStatus` answers "is it set", which was enough while the only
+ * failure was an empty box. On 2026-09-05 the boxes were all full and sign-in
+ * was still dead, because NEXT_PUBLIC_SUPABASE_URL held a publishable key. A
+ * presence check calls that configured, and the operator has no way to tell
+ * which of three variables is holding the wrong thing.
+ *
+ * Shape is the missing fact, and it is safe to publish where the value is not:
+ * "this variable holds something shaped like a key" identifies the box to fix
+ * without disclosing one character of what is in it. Every branch below returns
+ * a fixed label — no input is ever echoed.
+ */
+export type SupabaseEnvShape =
+  | "ABSENT"
+  | "SUPABASE_PROJECT_URL"
+  | "OTHER_URL"
+  | "PUBLISHABLE_KEY"
+  | "SECRET_KEY"
+  | "JWT"
+  | "UNRECOGNISED";
+
+export function supabaseEnvShape(raw: string | undefined): SupabaseEnvShape {
+  const v = (raw ?? "").trim();
+  if (!v) return "ABSENT";
+  if (/^sb_publishable_/.test(v)) return "PUBLISHABLE_KEY";
+  if (/^sb_secret_/.test(v)) return "SECRET_KEY";
+  // Legacy anon/service keys are JWTs: three base64url segments.
+  if (/^ey[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(v)) return "JWT";
+  try {
+    const host = new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`).hostname;
+    // A bare token like `sb_publishable_x` parses as a hostname, so a URL verdict
+    // requires a dot — otherwise every unrecognised string would look like a URL.
+    if (!host.includes(".")) return "UNRECOGNISED";
+    return /(^|\.)supabase\.(co|in|net)$/i.test(host) ? "SUPABASE_PROJECT_URL" : "OTHER_URL";
+  } catch {
+    return "UNRECOGNISED";
+  }
+}
+
+export interface SupabaseEnvDefect {
+  readonly variable: string;
+  readonly holds: SupabaseEnvShape;
+  readonly expected: string;
+  readonly severity: "BLOCKING" | "SECURITY";
+}
+
+const URL_VAR = "NEXT_PUBLIC_SUPABASE_URL";
+const KEY_VARS = ["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY"] as const;
+
+/**
+ * Name every variable whose contents are the wrong KIND of thing.
+ *
+ * The two defects this exists to catch are both real and both invisible to a
+ * presence check: a key pasted into the URL box (auth dies, and the key is
+ * echoed by any message that quotes the URL), and a SECRET key pasted into a
+ * NEXT_PUBLIC_ box, which ships it to every browser that loads the app.
+ */
+export function supabaseEnvDefects(env: EnvPresence = process.env): readonly SupabaseEnvDefect[] {
+  const defects: SupabaseEnvDefect[] = [];
+
+  const urlShape = supabaseEnvShape(env[URL_VAR]);
+  if (urlShape !== "ABSENT" && urlShape !== "SUPABASE_PROJECT_URL") {
+    defects.push({
+      variable: URL_VAR,
+      holds: urlShape,
+      expected: "a project URL ending in .supabase.co",
+      severity: "BLOCKING",
+    });
+  }
+
+  for (const name of KEY_VARS) {
+    const shape = supabaseEnvShape(env[name]);
+    if (shape === "ABSENT") continue;
+    if (shape === "SECRET_KEY") {
+      defects.push({
+        variable: name,
+        holds: shape,
+        // NEXT_PUBLIC_ is inlined into the client bundle by design, so a secret
+        // key here is not merely misplaced — it is already published.
+        expected: "a publishable key; a secret key in a NEXT_PUBLIC_ variable is exposed to every browser and must be rotated",
+        severity: "SECURITY",
+      });
+    } else if (shape === "SUPABASE_PROJECT_URL" || shape === "OTHER_URL") {
+      defects.push({
+        variable: name,
+        holds: shape,
+        expected: "a key, not a URL — this variable and " + URL_VAR + " appear to be swapped",
+        severity: "BLOCKING",
+      });
+    }
+  }
+
+  return defects;
+}
+
+/**
  * Build the standard honest 503 body for a WM auth route when Supabase is
  * NOT CONFIGURED on this runtime. `verb` is a short human phrase describing
  * what the caller was trying to do (e.g. "Sign-in", "Password recovery",

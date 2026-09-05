@@ -6,6 +6,8 @@ import {
   normalizeSupabaseUrl,
   nonJsonAuthResponseMessage,
   SupabaseAuthShapeError,
+  supabaseEnvShape,
+  supabaseEnvDefects,
 } from "./supabaseConfigStatus";
 
 describe("supabaseConfigStatus", () => {
@@ -217,5 +219,83 @@ describe("notConfiguredBody", () => {
     );
     expect(body.error).toContain("variable:");
     expect(body.error).not.toContain("variables:");
+  });
+});
+
+describe("supabaseEnvShape", () => {
+  it("classifies each kind of value an operator can paste", () => {
+    expect(supabaseEnvShape(undefined)).toBe("ABSENT");
+    expect(supabaseEnvShape("   ")).toBe("ABSENT");
+    expect(supabaseEnvShape("https://abc.supabase.co")).toBe("SUPABASE_PROJECT_URL");
+    expect(supabaseEnvShape("abc.supabase.co")).toBe("SUPABASE_PROJECT_URL");
+    expect(supabaseEnvShape("https://example.com")).toBe("OTHER_URL");
+    expect(supabaseEnvShape("sb_publishable_AbC123")).toBe("PUBLISHABLE_KEY");
+    expect(supabaseEnvShape("sb_secret_AbC123")).toBe("SECRET_KEY");
+    expect(supabaseEnvShape("eyJhbGciOi.eyJzdWIi.SflKxwRJ")).toBe("JWT");
+    expect(supabaseEnvShape("not a url or a key")).toBe("UNRECOGNISED");
+  });
+
+  it("does not mistake a bare token for a URL", () => {
+    // `new URL("https://sb_publishable_x")` parses, so a dot is required before
+    // anything is called a URL — otherwise every stray string reads as one.
+    expect(supabaseEnvShape("sb_publishable_x")).toBe("PUBLISHABLE_KEY");
+    expect(supabaseEnvShape("localhost")).toBe("UNRECOGNISED");
+  });
+});
+
+describe("supabaseEnvDefects", () => {
+  it("names the exact live 2026-09-05 defect: a key in the URL variable", () => {
+    const defects = supabaseEnvDefects({
+      NEXT_PUBLIC_SUPABASE_URL: "sb_publishable_AbC123",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_AbC123",
+    });
+    expect(defects).toHaveLength(1);
+    expect(defects[0].variable).toBe("NEXT_PUBLIC_SUPABASE_URL");
+    expect(defects[0].holds).toBe("PUBLISHABLE_KEY");
+    expect(defects[0].severity).toBe("BLOCKING");
+  });
+
+  it("calls a swap a swap, so the operator moves values instead of hunting", () => {
+    const defects = supabaseEnvDefects({
+      NEXT_PUBLIC_SUPABASE_URL: "sb_publishable_AbC123",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "https://abc.supabase.co",
+    });
+    expect(defects.map((d) => d.variable)).toEqual([
+      "NEXT_PUBLIC_SUPABASE_URL",
+      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    ]);
+    expect(defects[1].expected).toContain("swapped");
+  });
+
+  it("SECURITY: a secret key in a NEXT_PUBLIC_ variable is flagged as already published", () => {
+    const defects = supabaseEnvDefects({
+      NEXT_PUBLIC_SUPABASE_URL: "https://abc.supabase.co",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_secret_AbC123",
+    });
+    expect(defects).toHaveLength(1);
+    expect(defects[0].severity).toBe("SECURITY");
+    expect(defects[0].expected).toContain("rotated");
+  });
+
+  it("is silent when the host is correctly wired", () => {
+    expect(supabaseEnvDefects({
+      NEXT_PUBLIC_SUPABASE_URL: "https://abc.supabase.co",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_AbC123",
+    })).toEqual([]);
+  });
+
+  it("SECURITY: no configured value ever appears in the report", () => {
+    // The whole justification for serving this without a session. Every branch
+    // must be reachable here or the guarantee is untested.
+    const secrets = {
+      NEXT_PUBLIC_SUPABASE_URL: "sb_secret_URL_SLOT_SECRET",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "https://PUB_SLOT_SECRET.example.com",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_secret_ANON_SLOT_SECRET",
+    };
+    const serialised = JSON.stringify(supabaseEnvDefects(secrets));
+    for (const value of Object.values(secrets)) {
+      expect(serialised).not.toContain(value);
+    }
+    expect(serialised).not.toContain("SLOT_SECRET");
   });
 });
