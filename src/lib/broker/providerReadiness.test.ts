@@ -100,6 +100,119 @@ describe("computeProviderReadiness", () => {
   });
 });
 
+/**
+ * The market-data and realtime lanes the receipt could not see.
+ *
+ * Until now PROVIDER_REQUIREMENTS listed brokers only. That is why
+ * /api/broker/readiness reported "1/7 providers READY" and said nothing at
+ * all while /api/finnhub was answering 503 and the stock tape was dead: the
+ * var that actually broke the product was not in the table, so no row could
+ * turn BLOCKED. A receipt that cannot mention a lane cannot report it.
+ */
+describe("market-data & realtime lanes (the ones the receipt was blind to)", () => {
+  it("finnhub BLOCKED names the same var the live 503 named", () => {
+    const r = computeProviderReadiness("finnhub", {});
+    expect(r.status).toBe("BLOCKED");
+    // Production answered {"edge":"NOT CONFIGURED","missing":["FINNHUB_KEY"]}.
+    // The receipt must name it identically or the two disagree.
+    expect(r.missing).toEqual(["FINNHUB_KEY"]);
+    expect(r.lane).toBe("market-data");
+  });
+
+  it("finnhub accepts the NEXT_PUBLIC_ fallback the route actually reads", () => {
+    // /api/finnhub: process.env.FINNHUB_KEY ?? process.env.NEXT_PUBLIC_FINNHUB_KEY
+    const r = computeProviderReadiness("finnhub", { NEXT_PUBLIC_FINNHUB_KEY: "k" });
+    expect(r.status).toBe("READY");
+    expect(r.missing).toEqual([]);
+  });
+
+  it("finnhub is NOT satisfied by the trailing-underscore host name", () => {
+    // The exact Cloudflare secret that was installed on 2026-09-05. The code
+    // never reads it, so the table must never round it up to READY — that
+    // would restore the original lie in a new place.
+    const r = computeProviderReadiness("finnhub", { FINNHUB_KEY_: "redacted" });
+    expect(r.status).toBe("BLOCKED");
+    expect(r.missing).toEqual(["FINNHUB_KEY"]);
+  });
+
+  it("polygon accepts its NEXT_PUBLIC_ fallback, blocks with neither", () => {
+    expect(computeProviderReadiness("polygon", { NEXT_PUBLIC_POLYGON_KEY: "k" }).status).toBe("READY");
+    expect(computeProviderReadiness("polygon", {}).missing).toEqual(["POLYGON_KEY"]);
+  });
+
+  it("livekit needs the token pair AND the browser-facing host", () => {
+    const r = computeProviderReadiness("livekit", {
+      LIVEKIT_API_KEY: "k",
+      LIVEKIT_API_SECRET: "s",
+    });
+    expect(r.status).toBe("BLOCKED");
+    // A minted token with no wss host cannot open a room.
+    expect(r.missing).toEqual(["NEXT_PUBLIC_LIVEKIT_URL"]);
+    expect(r.lane).toBe("realtime");
+  });
+
+  it("livekit is NOT satisfied by the ATH_-prefixed host names", () => {
+    const r = computeProviderReadiness("livekit", {
+      ATH_LIVEKIT_KEY_: "redacted",
+      ATH_LIVEKIT_KEY_SECRET_: "redacted",
+    });
+    expect(r.status).toBe("BLOCKED");
+    expect(r.missing).toEqual([
+      "LIVEKIT_API_KEY",
+      "LIVEKIT_API_SECRET",
+      "NEXT_PUBLIC_LIVEKIT_URL",
+    ]);
+  });
+});
+
+describe("declarative aliases & alternative groups", () => {
+  it("an alias satisfies its canonical name independently (webull)", () => {
+    const r = computeProviderReadiness("webull-data", {
+      WEBULL_API_KEY: "k",
+      WEBULL_APP_SECRET: "s",
+    });
+    expect(r.status).toBe("READY");
+  });
+
+  it("an alternative GROUP is all-or-nothing, unlike a per-name alias", () => {
+    // Half the legacy pair does not satisfy either canonical name — proven by
+    // the incomplete-pair case below and by alpaca-live's own tests.
+    expect(computeProviderReadiness("alpaca-live", {
+      ALPACA_BROKERAGE_KEY: "legacy-key",
+    }).missing).toEqual(["ALPACA_KEY", "ALPACA_SECRET"]);
+  });
+
+  it("every alias key names a var that is actually required", () => {
+    // A typo'd alias key is silently inert — it would look like a declared
+    // fallback while doing nothing. Fail loudly instead.
+    for (const r of PROVIDER_REQUIREMENTS) {
+      for (const key of Object.keys(r.aliases ?? {})) {
+        expect(r.required).toContain(key);
+      }
+    }
+  });
+
+  it("no alias or group name collides with a required name of the same provider", () => {
+    for (const r of PROVIDER_REQUIREMENTS) {
+      const alternates = [
+        ...Object.values(r.aliases ?? {}).flat(),
+        ...(r.alternativeGroups ?? []).flat(),
+      ];
+      for (const name of alternates) {
+        expect(r.required).not.toContain(name);
+      }
+    }
+  });
+
+  it("no alternative group is empty (an empty group must never grant READY)", () => {
+    for (const r of PROVIDER_REQUIREMENTS) {
+      for (const group of r.alternativeGroups ?? []) {
+        expect(group.length).toBeGreaterThan(0);
+      }
+    }
+  });
+});
+
 describe("requirement table integrity", () => {
   it("has no duplicate provider ids", () => {
     const ids = PROVIDER_REQUIREMENTS.map((r) => r.provider);
@@ -118,7 +231,15 @@ describe("requirement table integrity", () => {
     expect([...names]).toEqual([...names].sort());
     expect(new Set(names).size).toBe(names.length);
     for (const r of PROVIDER_REQUIREMENTS) {
-      for (const n of [...r.required, ...r.recommended]) {
+      // Aliases and alternative groups are real host names. If they were not
+      // in the union, a host carrying only the legacy/fallback name would show
+      // an empty presence row and the receipt would understate what is set.
+      for (const n of [
+        ...r.required,
+        ...r.recommended,
+        ...Object.values(r.aliases ?? {}).flat(),
+        ...(r.alternativeGroups ?? []).flat(),
+      ]) {
         expect(names).toContain(n);
       }
     }

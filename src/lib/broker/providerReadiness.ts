@@ -40,11 +40,14 @@ export type ProviderId =
   | "moomoo"
   | "longbridge-data"
   | "alpaca-paper"
-  | "alpaca-live";
+  | "alpaca-live"
+  | "finnhub"
+  | "polygon"
+  | "livekit";
 
 export type ReadinessStatus = "READY" | "BLOCKED";
 
-export type ProviderLane = "market-data" | "broker";
+export type ProviderLane = "market-data" | "broker" | "realtime";
 
 /**
  * Declarative requirement for one provider lane. `required` names MUST all
@@ -57,6 +60,21 @@ export interface ProviderRequirement {
   readonly lane: ProviderLane;
   readonly required: readonly string[];
   readonly recommended: readonly string[];
+  /**
+   * Per-name accepted alternatives, mirroring a `??` fallback the consuming
+   * code actually performs (e.g. `FINNHUB_KEY ?? NEXT_PUBLIC_FINNHUB_KEY`).
+   * Each canonical required NAME is satisfied independently by any one of its
+   * alternatives. Declared here rather than hard-coded in the compute function
+   * so the table stays the single place a connection's env contract lives.
+   */
+  readonly aliases?: Readonly<Record<string, readonly string[]>>;
+  /**
+   * All-or-nothing alternative credential sets. If EVERY name in one group is
+   * present, the whole `required` list is satisfied. This is stricter than
+   * `aliases` on purpose: a legacy PAIR must not be mixable with half of the
+   * canonical pair, because neither half-set can authenticate.
+   */
+  readonly alternativeGroups?: readonly (readonly string[])[];
   /** One-line human explanation surfaced in the readiness receipt. */
   readonly note: string;
 }
@@ -73,6 +91,10 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     label: "Webull market data",
     lane: "market-data",
     required: ["WEBULL_APP_KEY", "WEBULL_APP_SECRET"],
+    aliases: {
+      WEBULL_APP_KEY: ["WEBULL_API_KEY"],
+      WEBULL_APP_SECRET: ["WEBULL_API_SECRET"],
+    },
     recommended: ["WEBULL_API_HOST", "WEBULL_DATA_URL", "WEBULL_CANARY_SYMBOL"],
     note: "Signed tick reads use the Webull App Key/Secret. A trading/account access token is a separate lane and is never inferred missing from a Data API 401; WEBULL_API_HOST defaults to Webull's production Data API host.",
   },
@@ -81,6 +103,10 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     label: "Webull broker execution",
     lane: "broker",
     required: ["WEBULL_APP_KEY", "WEBULL_APP_SECRET"],
+    aliases: {
+      WEBULL_APP_KEY: ["WEBULL_API_KEY"],
+      WEBULL_APP_SECRET: ["WEBULL_API_SECRET"],
+    },
     recommended: ["WEBULL_ACCESS_TOKEN", "WEBULL_API_HOST", "WEBULL_CLIENT_ID"],
     note: "The App Key/Secret can prove the founder's signed Trading API account lane. WEBULL_CLIENT_ID is only required for the separate multi-user Connect OAuth flow. Credentials alone do not authorize orders.",
   },
@@ -121,8 +147,35 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     label: "Alpaca (live)",
     lane: "broker",
     required: ["ALPACA_KEY", "ALPACA_SECRET"],
+    alternativeGroups: [["ALPACA_BROKERAGE_KEY", "ALPACA_BROKERAGE_KEY_SECRET_"]],
     recommended: [],
-    note: "Live-account key/secret pair. The legacy Cloudflare ALPACA_BROKERAGE_KEY / ALPACA_BROKERAGE_KEY_SECRET_ pair is accepted without exposing values.",
+    note: "Live-account key/secret pair. The legacy Cloudflare ALPACA_BROKERAGE_KEY / ALPACA_BROKERAGE_KEY_SECRET_ pair is accepted as a COMPLETE alternative set (resolveAlpacaLiveCredentials) without exposing values; half of one pair plus half of the other authenticates nothing.",
+  },
+  {
+    provider: "finnhub",
+    label: "Finnhub market data",
+    lane: "market-data",
+    required: ["FINNHUB_KEY"],
+    aliases: { FINNHUB_KEY: ["NEXT_PUBLIC_FINNHUB_KEY"] },
+    recommended: [],
+    note: "Server-side quote/candle proxy behind /api/finnhub and /api/market. When absent in production both routes answer 503 with edge NOT CONFIGURED rather than signing a request with the committed dev fallback — the stock tape simply does not render.",
+  },
+  {
+    provider: "polygon",
+    label: "Polygon symbol search",
+    lane: "market-data",
+    required: ["POLYGON_KEY"],
+    aliases: { POLYGON_KEY: ["NEXT_PUBLIC_POLYGON_KEY"] },
+    recommended: [],
+    note: "Backs /api/symbol-search (stocks, ETFs, forex, crypto, indices, futures). Absent means symbol lookup returns nothing; it does not degrade an already-loaded chart.",
+  },
+  {
+    provider: "livekit",
+    label: "LiveKit realtime (Lounge)",
+    lane: "realtime",
+    required: ["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "NEXT_PUBLIC_LIVEKIT_URL"],
+    recommended: [],
+    note: "The API key/secret mint room tokens server-side; NEXT_PUBLIC_LIVEKIT_URL is the wss host the browser dials. All three are required — a minted token with no host, or a host with no token, cannot open a room.",
   },
 ];
 
@@ -162,15 +215,16 @@ export function computeProviderReadiness(
   env: EnvPresence,
 ): ProviderReadiness {
   const req = requirementFor(provider);
-  const hasLegacyAlpacaLivePair = provider === "alpaca-live"
-    && isEnvPresent(env, "ALPACA_BROKERAGE_KEY")
-    && isEnvPresent(env, "ALPACA_BROKERAGE_KEY_SECRET_");
-  const missing = hasLegacyAlpacaLivePair
+  // A complete alternative credential set satisfies the whole required list.
+  // Empty groups are ignored so a stray `[]` can never declare READY.
+  const satisfiedByGroup = (req.alternativeGroups ?? []).some(
+    (group) => group.length > 0 && group.every((name) => isEnvPresent(env, name)),
+  );
+  const missing = satisfiedByGroup
     ? []
     : req.required.filter((name) => {
-        if (provider.startsWith("webull-") && name === "WEBULL_APP_KEY" && isEnvPresent(env, "WEBULL_API_KEY")) return false;
-        if (provider.startsWith("webull-") && name === "WEBULL_APP_SECRET" && isEnvPresent(env, "WEBULL_API_SECRET")) return false;
-        return !isEnvPresent(env, name);
+        if (isEnvPresent(env, name)) return false;
+        return !(req.aliases?.[name] ?? []).some((alt) => isEnvPresent(env, alt));
       });
   const missingRecommended = req.recommended.filter((name) => !isEnvPresent(env, name));
   return {
@@ -199,11 +253,12 @@ export function allProviderEnvNames(): readonly string[] {
   for (const r of PROVIDER_REQUIREMENTS) {
     for (const n of r.required) set.add(n);
     for (const n of r.recommended) set.add(n);
+    // Alias and alternative-group names are real host names a reader must be
+    // able to see in the receipt. Deriving them from the table (rather than
+    // re-listing them here) means declaring a fallback in ONE place is enough.
+    for (const alts of Object.values(r.aliases ?? {})) for (const n of alts) set.add(n);
+    for (const group of r.alternativeGroups ?? []) for (const n of group) set.add(n);
   }
-  set.add("ALPACA_BROKERAGE_KEY");
-  set.add("ALPACA_BROKERAGE_KEY_SECRET_");
-  set.add("WEBULL_API_KEY");
-  set.add("WEBULL_API_SECRET");
   return [...set].sort();
 }
 
