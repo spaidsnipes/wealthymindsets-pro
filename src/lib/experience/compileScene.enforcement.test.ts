@@ -225,6 +225,128 @@ describe("compileScene enforcement — /command-deck breadcrumb", () => {
   });
 });
 
+describe("compileScene enforcement — §10 admission is OBEYED, not merely announced", () => {
+  /**
+   * ── Why this block exists (§22, ORKIN G — a SURVIVED attempt, then closed) ──
+   *
+   * `SceneAdmits` shipped with 9 tests and every one of them passed while
+   * /command-deck rendered the One Story strip UNGATED. Deleting the
+   * `<SceneAdmits>` wrapper from the page left the whole suite green — because
+   * the component tests prove the gate WORKS, and nothing proved the page USES
+   * it. That is precisely how the original defect shipped: a compiler that
+   * withheld ONE_STORY, a panel that printed "Withheld · One story", and a
+   * strip that rendered anyway thirteen lines above it.
+   *
+   * A gate nothing calls is not admission. These two locks bind the pair.
+   */
+
+  const surfaceFiles = ALL_FILES.filter((f) => !isTestFile(f));
+
+  function mounts(content: string, component: string): boolean {
+    // `<Name` catches the JSX mount and ignores a bare type-only import.
+    return new RegExp(`<${component}\\b`).test(content);
+  }
+
+  it("no surface discloses WITHHELD without also gating on it", () => {
+    // The panel names what was refused. If nothing on that screen actually
+    // refuses it, the panel is reporting a decision no one honoured — §H19
+    // dead vocabulary, and worse than silence because it sounds like proof.
+    const violations: string[] = [];
+    for (const file of surfaceFiles) {
+      const content = codeOf(file);
+      if (content === null) continue;
+      if (!mounts(content, "SceneAdmissionPanel")) continue;
+      if (!mounts(content, "SceneAdmits")) violations.push(rel(file));
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it("no surface withholds silently without disclosing what it withheld", () => {
+    // The converse, and the reason the gate is allowed to render `null` at all.
+    // A gate with no panel removes cards and never says so — the trader cannot
+    // tell "WM has nothing to say" from "WM is refusing to say it", and those
+    // are very different claims about their money.
+    const violations: string[] = [];
+    for (const file of surfaceFiles) {
+      const content = codeOf(file);
+      if (content === null) continue;
+      if (!mounts(content, "SceneAdmits")) continue;
+      if (!mounts(content, "SceneAdmissionPanel")) violations.push(rel(file));
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it("at least one real surface adopts the gate — the locks above are not vacuous", () => {
+    // Both assertions are satisfied by a repo with zero gates. This is the
+    // positive control that makes them mean something.
+    const adopters = surfaceFiles.filter((f) => {
+      const c = codeOf(f);
+      return c !== null && mounts(c, "SceneAdmits");
+    });
+    expect(adopters.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * ── §22 ORKIN H: why this is a tag scan and not a regex ─────────────────────
+   *
+   * The first version of the lock below was:
+   *
+   *     /<SceneAdmits[^>]*element="ONE_STORY"[\s\S]{0,400}?<OneStoryStrip/
+   *
+   * and it SURVIVED an attack. A decoy gate wrapping nothing —
+   *
+   *     <SceneAdmits compilation={c} element="ONE_STORY"><span /></SceneAdmits>
+   *     <div><OneStoryStrip vm={oneStory} /></div>
+   *
+   * — matched it, because the regex proves the two tokens are NEAR each other,
+   * and "near" is not "inside". That decoy is exactly the shipped defect with a
+   * paper hat on: the strip still renders in CLOSED.
+   *
+   * Proximity is not containment. So this walks the tags.
+   */
+  function gatedBody(source: string, element: string): string | null {
+    const open = new RegExp(
+      `<SceneAdmits\\b[^>]*element=(?:"${element}"|\\{"${element}"\\})[^>]*>`,
+    );
+    const m = open.exec(source);
+    if (m === null) return null;
+    if (m[0].endsWith("/>")) return ""; // self-closing gate: gates nothing
+
+    let depth = 1;
+    let i = m.index + m[0].length;
+    const start = i;
+    while (i < source.length && depth > 0) {
+      const nextOpen = source.indexOf("<SceneAdmits", i);
+      const nextClose = source.indexOf("</SceneAdmits>", i);
+      if (nextClose === -1) return null; // unbalanced — treat as no gate
+      if (nextOpen !== -1 && nextOpen < nextClose) {
+        depth++;
+        i = nextOpen + "<SceneAdmits".length;
+      } else {
+        depth--;
+        if (depth === 0) return source.slice(start, nextClose);
+        i = nextClose + "</SceneAdmits>".length;
+      }
+    }
+    return null;
+  }
+
+  it("/command-deck gates the One Story strip — THE regression, pinned to the page", () => {
+    const deck = stripComments(
+      readFileSync(resolve(SRC, "app/command-deck/page.tsx"), "utf8"),
+    );
+    const body = gatedBody(deck, "ONE_STORY");
+    expect(body).not.toBeNull();
+    // INSIDE the gate's children, not merely somewhere nearby on the page.
+    expect(body).toContain("<OneStoryStrip");
+    // And the page must not ALSO render an ungated copy alongside it — one
+    // escaped strip is the whole defect, however many gated ones exist.
+    const total = (deck.match(/<OneStoryStrip/g) ?? []).length;
+    const inside = ((body ?? "").match(/<OneStoryStrip/g) ?? []).length;
+    expect(inside).toBe(total);
+  });
+});
+
 describe("compileScene enforcement — §H19 the panel is not a badge", () => {
   const panel = stripComments(
     readFileSync(resolve(SRC, "components/experience/SceneAdmissionPanel.tsx"), "utf8"),

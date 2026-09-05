@@ -36,6 +36,7 @@ import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import CommandContextRibbon from "@/components/command/CommandContextRibbon";
 import OneStoryStrip from "@/components/command/OneStoryStrip";
 import SceneAdmissionPanel from "@/components/experience/SceneAdmissionPanel";
+import SceneAdmits from "@/components/experience/SceneAdmits";
 import { compileScene } from "@/lib/experience/compileScene";
 import { deckSceneSignals } from "@/lib/experience/deckSceneSignals";
 import {
@@ -767,10 +768,20 @@ function CommandDeckInner() {
                   PRIMARY / CONTRADICTION / MISSING / DECISION so the
                   trader gets the at-most-four-outputs read before hunting
                   the numbered sections below. Consumes shared canonical
-                  selectors — never invents. */}
-              <div style={{ order: surfaceOrder(deckEmphasis, "STORY") }}>
-                <OneStoryStrip vm={oneStory} />
-              </div>
+                  selectors — never invents.
+
+                  ADMISSION-GATED (BUILD ORDER §10). A CLOSED session and an
+                  unresolved PREGAME both withhold ONE_STORY: there is no live
+                  story to tell when the market is shut, and WM does not narrate
+                  a state it has not resolved. Before this gate existed the strip
+                  rendered here unconditionally while the panel below it printed
+                  "Withheld · One story" — the surface contradicting the compiler
+                  on the same screen. The scene decides; this obeys. */}
+              <SceneAdmits compilation={sceneCompilation} element="ONE_STORY">
+                <div style={{ order: surfaceOrder(deckEmphasis, "STORY") }}>
+                  <OneStoryStrip vm={oneStory} />
+                </div>
+              </SceneAdmits>
 
               {/* SCENE — BUILD ORDER §10 SCENE COMPILER, NOT PAGES.
                   The OS layer, and the first surface in WM Pro that answers
