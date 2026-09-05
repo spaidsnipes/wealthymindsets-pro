@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import type { SourceCertification } from "@/lib/marketData/sourceCapabilityCertification";
 import type { AthosCapabilityMatrix } from "@/lib/marketData/canonicalCapabilityResolver";
-import { readJsonReceipt } from "@/lib/marketData/readJsonReceipt";
+import { readClassifiedJsonReceipt, readJsonReceipt } from "@/lib/marketData/readJsonReceipt";
 import {
   selectReadinessWireboard,
   type ReadinessPayload,
@@ -250,8 +250,12 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
     const readJson = <T,>(url: string): Promise<T> =>
       readJsonReceipt<T>(fetch, url, controller.signal);
     const readProviderReceipt = async (source: "moomoo" | "longbridge"): Promise<MoomooTickReceipt> => {
-      const response = await fetch(`/api/market-data/${source}/ticks?symbol=TSLA`, { cache: "no-store", signal: controller.signal });
-      const body = await response.json().catch(() => null) as MoomooTickReceipt | null;
+      const response = await readClassifiedJsonReceipt<MoomooTickReceipt>(
+        fetch,
+        `/api/market-data/${source}/ticks?symbol=TSLA`,
+        controller.signal,
+      );
+      const body = response.body;
       if (body?.label) return body;
       if (!response.ok) return classifyProviderReceiptFailure(response.status, source);
       return { label: "UNKNOWN", detail: `The ${source === "moomoo" ? "Moomoo" : "Longbridge"} tick route returned no classified receipt.`, receiving: false, eventCount: 0 };
