@@ -331,6 +331,52 @@ describe("compileScene enforcement — §10 admission is OBEYED, not merely anno
     return null;
   }
 
+  it("every element a route declares as GOVERNED has a real gate on that page", () => {
+    /**
+     * `governed` is how the panel decides what counts as a refusal. An element
+     * named there but never gated would let the panel print "Withheld · X"
+     * while X renders — the original defect, re-entering through the prop
+     * instead of the page. The declaration is a claim; this checks it.
+     */
+    const violations: string[] = [];
+    for (const file of surfaceFiles) {
+      const content = codeOf(file);
+      if (content === null) continue;
+      if (!mounts(content, "SceneAdmissionPanel")) continue;
+
+      const list = /GOVERNED_ELEMENTS[^=]*=\s*\[([^\]]*)\]/.exec(content);
+      if (list === null) {
+        violations.push(`${rel(file)}: mounts the panel with no GOVERNED_ELEMENTS list`);
+        continue;
+      }
+      const declared = [...list[1].matchAll(/"([A-Z_]+)"/g)].map((m) => m[1]);
+      if (declared.length === 0) {
+        violations.push(`${rel(file)}: declares an empty governed list`);
+        continue;
+      }
+      for (const element of declared) {
+        if (!new RegExp(`<SceneAdmits\\b[^>]*element="${element}"`).test(content)) {
+          violations.push(`${rel(file)}: declares ${element} governed but never gates it`);
+        }
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it("the panel cannot report a refusal it was not told it governs", () => {
+    // The prop must be REQUIRED. An optional `governed` with a
+    // default-to-everything would silently restore the overclaim for the next
+    // surface that forgets to pass it.
+    const panel = stripComments(
+      readFileSync(resolve(SRC, "components/experience/SceneAdmissionPanel.tsx"), "utf8"),
+    );
+    expect(panel).toMatch(/readonly governed:\s*readonly SurfaceElement\[\]/);
+    expect(panel).not.toMatch(/governed\?\s*:/);
+    expect(panel).not.toMatch(/governed\s*=\s*SURFACE_ELEMENTS/);
+    // And withheld must be the GOVERNED complement, not the whole enum.
+    expect(panel).toMatch(/governedSet\.has\(e\)\s*&&\s*!admittedSet\.has\(e\)/);
+  });
+
   it("/command-deck gates the One Story strip — THE regression, pinned to the page", () => {
     const deck = stripComments(
       readFileSync(resolve(SRC, "app/command-deck/page.tsx"), "utf8"),

@@ -37,7 +37,7 @@ import CommandContextRibbon from "@/components/command/CommandContextRibbon";
 import OneStoryStrip from "@/components/command/OneStoryStrip";
 import SceneAdmissionPanel from "@/components/experience/SceneAdmissionPanel";
 import SceneAdmits from "@/components/experience/SceneAdmits";
-import { compileScene } from "@/lib/experience/compileScene";
+import { compileScene, type SurfaceElement } from "@/lib/experience/compileScene";
 import { deckSceneSignals } from "@/lib/experience/deckSceneSignals";
 import {
   computeEvidenceDebt as computeSceneEvidenceDebt,
@@ -106,6 +106,23 @@ const PHASES: readonly { id: CommandPhase; label: string }[] = [
   { id: "POST_EXIT", label: "Post-Exit" },
   { id: "REVIEW", label: "Review" },
 ];
+
+/**
+ * The §10 surface elements /command-deck actually routes through admission.
+ *
+ * This is a CLAIM, and a sentinel checks it: every element named here must have
+ * a real `<SceneAdmits element="…">` gate on this page. Naming one without
+ * gating it puts the panel straight back to reporting refusals nothing honours.
+ *
+ * It is deliberately short. The compiler rules on twelve elements; this route
+ * applies one. The panel prints that ratio rather than hiding it, because
+ * "Withheld · 9" on a route with one gate was flattering the OS — eight of
+ * those nine were verdicts the scene has no power to enforce here.
+ *
+ * Growing this list is the work. Every addition is a real card that a real
+ * market state can now refuse.
+ */
+const DECK_GOVERNED_ELEMENTS: readonly SurfaceElement[] = ["ONE_STORY"];
 
 export default function CommandDeckPage() {
   // useSearchParams must be inside a Suspense boundary during SSG. The
@@ -798,6 +815,7 @@ function CommandDeckInner() {
                   provenance={sceneInput.provenance}
                   observedCount={sceneInput.observedCount}
                   totalCount={sceneInput.totalCount}
+                  governed={DECK_GOVERNED_ELEMENTS}
                 />
               </div>
 

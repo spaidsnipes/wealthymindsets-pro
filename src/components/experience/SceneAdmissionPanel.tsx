@@ -17,6 +17,37 @@
  * ones — §14.1 (FLAT is a finding, never a default) applies to the wiring as
  * much as to the compiler.
  *
+ * ── The second overclaim, and why `governed` is required ─────────────────────
+ *
+ * The first version of this panel printed "Withheld · 9" on /command-deck and
+ * struck through nine chips — Thesis geometry, Flatten control, Receipt sheet,
+ * Open broker… Exactly ONE of those nine named a surface this route routes
+ * through admission. The other eight were refusals of things the scene has no
+ * power over here.
+ *
+ * That is the mirror image of the defect the gate closed. There the SURFACE
+ * overclaimed by rendering what the compiler refused; here the PANEL
+ * overclaimed by reporting refusals it could not enforce. Nine struck-through
+ * chips read as "WM has a Flatten control and is choosing not to show it." WM
+ * has no Flatten control on this route. That is a claim with no owner behind
+ * it — LIVING-PIXEL LAW, and §H19 dead vocabulary.
+ *
+ * So a caller must declare which elements it actually routes through
+ * `SceneAdmits`, and the panel splits the scene's verdict three ways:
+ *
+ *   ADMITTED   — governed, and the scene allowed it. It is on this screen.
+ *   WITHHELD   — governed, and the scene removed it. A real refusal.
+ *   NOT GOVERNED — the scene compiled a verdict this route does not apply.
+ *
+ * `governed` is REQUIRED, not optional-with-a-default. A default would let the
+ * next surface silently inherit whatever flatters it, which is how the first
+ * overclaim happened. And because the list is a claim, a sentinel checks it:
+ * every element named here must have a real `<SceneAdmits>` on that page.
+ *
+ * The honest consequence is that this panel now shows how much of the screen
+ * the OS actually governs — 1 of 12 on the deck today. That number is meant to
+ * be uncomfortable and to rise. It is the §10 progress meter, not decoration.
+ *
  * Presentation only. Reads canonical owners, decides no facts.
  */
 
@@ -38,8 +69,14 @@ const GOLD_DIM = "#c9a55c";
 const MUTED = "#8a8271";
 const WARN = "#e07b5c";
 
-/** Human-readable names. The enum is for code; the trader reads English. */
-const ELEMENT_LABEL: Record<SurfaceElement, string> = {
+/**
+ * Human-readable names. The enum is for code; the trader reads English.
+ *
+ * Exported so tests can read a refusal back off the rendered panel by its real
+ * label. A test that hard-codes "One story" would keep passing after the label
+ * changed, and would then be proving nothing about this screen.
+ */
+export const ELEMENT_LABEL: Record<SurfaceElement, string> = {
   MARKET_CANVAS: "Market canvas",
   THESIS_GEOMETRY: "Thesis geometry",
   EXPRESSION_CARD: "Expression shortlist",
@@ -67,16 +104,47 @@ export interface SceneAdmissionPanelProps {
   readonly provenance: Readonly<Record<SignalGroup, SignalProvenance>>;
   readonly observedCount: number;
   readonly totalCount: number;
+  /**
+   * The elements this surface actually routes through `SceneAdmits`.
+   *
+   * Required on purpose. This is the difference between "the scene refused it"
+   * and "the scene has no say here", and only the caller knows which.
+   */
+  readonly governed: readonly SurfaceElement[];
 }
+
+type ChipTone = "admitted" | "withheld" | "ungoverned";
 
 function Chip({
   text,
   tone,
 }: {
   readonly text: string;
-  readonly tone: "admitted" | "withheld";
+  readonly tone: ChipTone;
 }): React.ReactElement {
-  const admitted = tone === "admitted";
+  // A refusal is struck through; an ungoverned element must NOT be, or the
+  // panel goes straight back to claiming refusals it cannot enforce.
+  const style: React.CSSProperties =
+    tone === "admitted"
+      ? {
+          border: "1px solid rgba(212,175,55,0.45)",
+          background: "rgba(212,175,55,0.10)",
+          color: GOLD,
+        }
+      : tone === "withheld"
+        ? {
+            border: "1px solid rgba(138,130,113,0.32)",
+            background: "rgba(255,255,255,0.02)",
+            color: MUTED,
+            textDecoration: "line-through",
+          }
+        : {
+            border: "1px dashed rgba(138,130,113,0.28)",
+            background: "transparent",
+            color: "rgba(138,130,113,0.75)",
+            fontStyle: "italic",
+          };
+
   return (
     <span
       style={{
@@ -85,11 +153,8 @@ function Chip({
         borderRadius: 5,
         fontSize: 10,
         letterSpacing: 0.3,
-        border: `1px solid ${admitted ? "rgba(212,175,55,0.45)" : "rgba(138,130,113,0.32)"}`,
-        background: admitted ? "rgba(212,175,55,0.10)" : "rgba(255,255,255,0.02)",
-        color: admitted ? GOLD : MUTED,
-        textDecoration: admitted ? "none" : "line-through",
         whiteSpace: "nowrap",
+        ...style,
       }}
     >
       {text}
@@ -102,14 +167,31 @@ export function SceneAdmissionPanel({
   provenance,
   observedCount,
   totalCount,
+  governed,
 }: SceneAdmissionPanelProps): React.ReactElement {
   const admittedSet = React.useMemo(
     () => new Set<SurfaceElement>(compilation.admits),
     [compilation.admits],
   );
+  const governedSet = React.useMemo(
+    () => new Set<SurfaceElement>(governed),
+    [governed],
+  );
+
+  // Only a GOVERNED element can be admitted or withheld here. The scene's
+  // verdict on anything else is real, but this route does not apply it, and
+  // reporting it as a refusal would claim an authority the surface lacks.
+  const admitted = React.useMemo(
+    () => SURFACE_ELEMENTS.filter((e) => governedSet.has(e) && admittedSet.has(e)),
+    [governedSet, admittedSet],
+  );
   const withheld = React.useMemo(
-    () => SURFACE_ELEMENTS.filter((e) => !admittedSet.has(e)),
-    [admittedSet],
+    () => SURFACE_ELEMENTS.filter((e) => governedSet.has(e) && !admittedSet.has(e)),
+    [governedSet, admittedSet],
+  );
+  const ungoverned = React.useMemo(
+    () => SURFACE_ELEMENTS.filter((e) => !governedSet.has(e)),
+    [governedSet],
   );
 
   const headlineTone = compilation.degraded ? WARN : GOLD;
@@ -194,10 +276,10 @@ export function SceneAdmissionPanel({
               marginBottom: 5,
             }}
           >
-            Admitted · {compilation.admits.length}
+            Admitted · {admitted.length}
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-            {compilation.admits.map((e) => (
+            {admitted.map((e) => (
               <Chip key={e} text={ELEMENT_LABEL[e]} tone="admitted" />
             ))}
           </div>
@@ -219,7 +301,7 @@ export function SceneAdmissionPanel({
           </div>
           {withheld.length === 0 ? (
             <span style={{ fontSize: 11, color: MUTED }}>
-              Nothing is withheld in this scene.
+              Nothing this route governs is withheld in this scene.
             </span>
           ) : (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
@@ -229,6 +311,39 @@ export function SceneAdmissionPanel({
             </div>
           )}
         </div>
+
+        {/* NOT GOVERNED — the §10 build-completeness meter.
+            These are elements the compiler ruled on and this route does not
+            route through admission. Printing them as refusals would be the
+            panel claiming a power the surface does not have. Printing them at
+            all is the honest alternative to quietly dropping them: the Founder
+            can see exactly how much of the screen the OS actually runs. */}
+        {ungoverned.length > 0 && (
+          <div>
+            <div
+              style={{
+                fontSize: 9,
+                letterSpacing: 0.6,
+                textTransform: "uppercase",
+                color: MUTED,
+                marginBottom: 5,
+              }}
+            >
+              Not governed here · {ungoverned.length}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+              {ungoverned.map((e) => (
+                <Chip key={e} text={ELEMENT_LABEL[e]} tone="ungoverned" />
+              ))}
+            </div>
+            <p style={{ margin: "7px 0 0", fontSize: 10.5, lineHeight: 1.5, color: MUTED }}>
+              The scene governs {governed.length} of {SURFACE_ELEMENTS.length}{" "}
+              surface elements on this route. The rest are compiled but not
+              applied here — the scene has an opinion about them and no power
+              over them, so they are not counted as refusals.
+            </p>
+          </div>
+        )}
 
         <div
           style={{
