@@ -44,6 +44,48 @@ export interface ClassifiedJsonReceipt<T> {
 }
 
 /**
+ * Submit a JSON request and preserve the provider's classified response body,
+ * while bounding headers and body with the same abortable deadline used by
+ * read-only wire receipts. This is intentionally stateless: callers receive
+ * one verification receipt and remain responsible for durable OAuth wiring.
+ */
+export async function submitClassifiedJsonReceipt<T>(
+  fetchImpl: typeof fetch,
+  url: string,
+  init: RequestInit,
+  parentSignal: AbortSignal,
+  timeoutMs = 12_000,
+): Promise<ClassifiedJsonReceipt<T>> {
+  const controller = new AbortController();
+  const abortFromParent = () => controller.abort(parentSignal.reason);
+  if (parentSignal.aborted) abortFromParent();
+  else parentSignal.addEventListener("abort", abortFromParent, { once: true });
+
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const request = (async () => {
+      const response = await fetchImpl(url, {
+        ...init,
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      const body = await response.json().catch(() => null) as T | null;
+      return { ok: response.ok, status: response.status, body };
+    })();
+    const timeout = new Promise<never>((_, reject) => {
+      deadline = setTimeout(() => {
+        controller.abort(new DOMException("Receipt deadline exceeded", "TimeoutError"));
+        reject(new Error("Receipt timed out"));
+      }, timeoutMs);
+    });
+    return await Promise.race([request, timeout]);
+  } finally {
+    if (deadline) clearTimeout(deadline);
+    parentSignal.removeEventListener("abort", abortFromParent);
+  }
+}
+
+/**
  * Variant for provider routes whose non-2xx JSON body contains the canonical
  * blocker classification. It preserves HTTP status while applying the same
  * complete-response deadline and never throws merely because an error body is

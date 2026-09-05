@@ -6,6 +6,7 @@ import { X, Zap, ExternalLink, Search, Key, Check, ChevronDown, ChevronUp, Alert
 import { clsx } from "clsx";
 import ProviderWireStrip from "@/components/marketData/ProviderWireStrip";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
+import { submitClassifiedJsonReceipt } from "@/lib/marketData/readJsonReceipt";
 
 type BrokerCategory = "broker" | "crypto" | "forex" | "prop";
 
@@ -360,23 +361,34 @@ function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => v
   const [loading, setLoading] = useState(false);
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [error,   setError]   = useState("");
+  const requestRef = useRef<AbortController | null>(null);
+  const requestSequenceRef = useRef(0);
+
+  useEffect(() => () => {
+    requestSequenceRef.current += 1;
+    requestRef.current?.abort();
+  }, []);
 
   const connect = async () => {
     if (!key.trim()) { setError(`${api.keyLabel} is required`); return; }
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+    const requestSequence = ++requestSequenceRef.current;
     setLoading(true); setError(""); setAccount(null);
     try {
       // Validate the credentials with the broker FIRST. Nothing is persisted and
       // nothing reads as "connected" until the API confirms a real handshake.
-      const res  = await fetch(api.endpoint, {
+      const receipt = await submitClassifiedJsonReceipt<AccountInfo>(fetch, api.endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: key.trim(), secret: secret.trim() }),
-      });
-      const json = await res.json().catch(() => ({ error: "Bad response from broker" })) as AccountInfo;
+      }, controller.signal);
+      if (requestSequence !== requestSequenceRef.current) return;
+      const json = receipt.body ?? { error: "Broker returned no verification receipt" };
 
-      if (!res.ok || json.error) {
-        setError(json.error || `Connection failed (HTTP ${res.status})`);
-        setLoading(false);
+      if (!receipt.ok || json.error) {
+        setError(json.error || `Connection failed (HTTP ${receipt.status})`);
         return;
       }
 
@@ -384,9 +396,16 @@ function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => v
       // is deliberately not presented as a persistent trading connection.
       setAccount(json);
     } catch (e) {
-      setError(String(e));
+      if (requestSequence !== requestSequenceRef.current || controller.signal.aborted && e instanceof DOMException && e.name === "AbortError") return;
+      setError(e instanceof Error && e.message === "Receipt timed out"
+        ? "Verification timed out — no broker connection was recorded. Try again."
+        : "Verification failed — no broker connection was recorded.");
+    } finally {
+      if (requestSequence === requestSequenceRef.current) {
+        setLoading(false);
+        requestRef.current = null;
+      }
     }
-    setLoading(false);
   };
 
   const disconnect = () => {

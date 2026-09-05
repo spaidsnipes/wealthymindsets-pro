@@ -22,4 +22,10 @@ describe("broker connection truth UI", () => {
     expect(panel).toContain("Inspect wire");
     expect(panel).toContain("Provider setup");
   });
+
+  it("bounds manual API verification and never records a stalled request as connected", () => {
+    expect(panel).toContain("submitClassifiedJsonReceipt<AccountInfo>");
+    expect(panel).toContain("Verification timed out — no broker connection was recorded. Try again.");
+    expect(panel).toContain("requestRef.current?.abort()");
+  });
 });

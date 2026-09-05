@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { readClassifiedJsonReceipt, readJsonReceipt } from "./readJsonReceipt";
+import { readClassifiedJsonReceipt, readJsonReceipt, submitClassifiedJsonReceipt } from "./readJsonReceipt";
 
 describe("readJsonReceipt", () => {
   it("bounds a stalled JSON body and aborts the late request", async () => {
@@ -59,6 +59,54 @@ describe("readJsonReceipt", () => {
       } as unknown as Response;
     }) as unknown as typeof fetch;
     const pending = readClassifiedJsonReceipt(fetchImpl, "/provider", new AbortController().signal, 50);
+    const rejected = expect(pending).rejects.toThrow("Receipt timed out");
+    await vi.advanceTimersByTimeAsync(50);
+    await rejected;
+    expect(requestSignal?.aborted).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it("bounds a submitted broker verification and preserves its classified body", async () => {
+    const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => ({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: "Authentication blocked" }),
+      requestInit: init,
+    }) as unknown as Response) as unknown as typeof fetch;
+
+    const result = await submitClassifiedJsonReceipt<{ error: string }>(
+      fetchImpl,
+      "/api/broker/alpaca",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+      new AbortController().signal,
+    );
+
+    expect(result).toEqual({ ok: false, status: 401, body: { error: "Authentication blocked" } });
+    expect(fetchImpl).toHaveBeenCalledWith("/api/broker/alpaca", expect.objectContaining({
+      method: "POST",
+      cache: "no-store",
+      signal: expect.any(AbortSignal),
+    }));
+  });
+
+  it("aborts a submitted broker verification whose JSON body stalls", async () => {
+    vi.useFakeTimers();
+    let requestSignal: AbortSignal | undefined;
+    const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      requestSignal = init?.signal ?? undefined;
+      return {
+        ok: true,
+        status: 200,
+        json: () => new Promise<never>(() => undefined),
+      } as unknown as Response;
+    }) as unknown as typeof fetch;
+    const pending = submitClassifiedJsonReceipt(
+      fetchImpl,
+      "/api/broker/alpaca",
+      { method: "POST", body: "{}" },
+      new AbortController().signal,
+      50,
+    );
     const rejected = expect(pending).rejects.toThrow("Receipt timed out");
     await vi.advanceTimersByTimeAsync(50);
     await rejected;
