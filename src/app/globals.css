@@ -124,6 +124,20 @@
 .wm-mobile-nav { display: none; }
 .wm-mobile-only { display: none; }
 
+.wm-chart-orientation-context,
+.wm-chart-orientation-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.wm-chart-orientation-context { flex: 0 1 auto; }
+.wm-chart-orientation-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 @media (max-width: 1023px) {
   .wm-primary-sidebar,
   .wm-chart-primary-rail,
@@ -196,6 +210,82 @@
   .wm-spaidbot-panel {
     bottom: calc(126px + env(safe-area-inset-bottom)) !important;
     max-height: calc(100dvh - 150px) !important;
+  }
+}
+
+/* Phone chart chrome: keep decisions and actions visible, while giving the
+   timeframe rail its own honest, touch-sized scroll surface. */
+@media (max-width: 639px) {
+  .wm-chart-orientation-strip {
+    flex-wrap: wrap !important;
+    align-items: stretch !important;
+    padding: 6px 8px !important;
+    gap: 6px !important;
+    overflow-x: hidden !important;
+  }
+
+  .wm-chart-orientation-context {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .wm-chart-orientation-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+    margin-left: 0 !important;
+  }
+
+  .wm-chart-orientation-action {
+    display: inline-flex;
+    flex: 1 1 96px;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 44px !important;
+    margin-left: 0 !important;
+    text-align: center;
+  }
+
+  .wm-chart-toolbar {
+    height: auto !important;
+    min-height: 88px;
+    flex-wrap: wrap;
+    align-content: stretch;
+    overflow-x: hidden !important;
+    mask-image: none !important;
+  }
+
+  .wm-chart-timeframes {
+    order: -2;
+    display: flex;
+    flex: 0 0 100%;
+    min-width: 0;
+    min-height: 44px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: auto !important;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .wm-chart-timeframe {
+    min-width: 44px;
+    min-height: 44px;
+    scroll-snap-align: start;
+  }
+
+  .wm-chart-toolbar-pinned {
+    position: static !important;
+    height: auto !important;
+    margin-left: auto;
+    border-left: 0 !important;
   }
 }
 

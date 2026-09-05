@@ -639,7 +639,7 @@ export function ChartToolbar({
     >
 
       {/* ══ Symbol Search — inline autocomplete ════════════ */}
-      <div className="relative shrink-0" ref={symRef}>
+      <div className="wm-chart-symbol-search relative shrink-0" ref={symRef}>
         {/* Always-visible input box that IS the search */}
         <div
           className="flex items-center gap-1.5 px-2 h-7 rounded bg-wm-surface border border-wm-border focus-within:border-wm-blue/50 transition-colors min-w-[130px] cursor-text"
@@ -767,11 +767,11 @@ export function ChartToolbar({
       <div className="w-px h-5 bg-wm-border mx-0.5 shrink-0" />
 
       {/* ══ Timeframes ══════════════════════════════════════ */}
-      <div className="flex items-center gap-0.5 shrink-0">
+      <div className="wm-chart-timeframes flex items-center gap-0.5 shrink-0" aria-label="Chart timeframes">
         {TIMEFRAMES.map(tf => (
           <button key={tf.key} onClick={() => setTimeframe(tf.emit)}
             className={clsx(
-              "px-1.5 h-6 rounded text-[11px] font-mono transition-colors",
+              "wm-chart-timeframe px-1.5 h-6 rounded text-[11px] font-mono transition-colors",
               tf.emit === timeframe
                 ? "bg-wm-blue/20 text-wm-blue border border-wm-blue/40"
                 : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface"
@@ -1052,7 +1052,7 @@ export function ChartToolbar({
       {/* ══ Pinned right cluster — always visible, never clipped ══════
           (sticky so it stays put even when the middle toolbar overflows) */}
       <div
-        className="flex items-center gap-1 shrink-0 pl-1.5 h-full"
+        className="wm-chart-toolbar-pinned flex items-center gap-1 shrink-0 pl-1.5 h-full"
         style={{ position: "sticky", right: 0, background: "#0D0E14", borderLeft: "1px solid #1E2030", zIndex: 5 }}
       >
         <div className="relative" ref={advancedRef}>

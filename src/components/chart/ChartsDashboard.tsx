@@ -742,6 +742,7 @@ export function ChartsDashboard() {
              keeps the 44px touch target that prevents disclosure controls from
              overlapping the tabs. */}
       <div
+        className="wm-chart-orientation-strip"
         style={{
           minHeight: 44,
           borderBottom: "1px solid rgba(139,106,41,0.25)",
@@ -761,6 +762,7 @@ export function ChartsDashboard() {
           scrollbarWidth: "none",
         }}
       >
+        <div className="wm-chart-orientation-context">
         {/* Founder 2026-09-02: breadcrumb — orientation truth. The user
             can always see WHERE in the OS they are and jump one level
             up. activeTab renders as the terminal segment so switching
@@ -803,6 +805,7 @@ export function ChartsDashboard() {
             ariaLabel="Chart market canvas summary"
           />
         </div>
+        </div>
         {/* Internal depth readiness stays in the broker/capability drawer.
             A missing L2 wire must not occupy permanent chart chrome, and the
             canvas verdict already owns the decision state. */}
@@ -810,8 +813,10 @@ export function ChartsDashboard() {
             Silent when there's no decisionWhy compilation yet
             (§Silence Is A Feature). Opens the SAME DecisionWhyPanel
             /command-deck ships so trader sees identical WHY on both. */}
+        <div className="wm-chart-orientation-actions">
         {chartCanvasVM.decisionWhy && (
           <button
+            className="wm-chart-orientation-action wm-chart-why-trigger"
             ref={whyTriggerRef}
             type="button"
             onClick={() => setWhyOpen(o => !o)}
@@ -837,6 +842,7 @@ export function ChartsDashboard() {
         )}
         {chartPassportVM.capturedAt !== null && (
           <button
+            className="wm-chart-orientation-action wm-chart-passport-trigger"
             ref={passportTriggerRef}
             type="button"
             onClick={() => setPassportOpen(o => !o)}
@@ -862,6 +868,7 @@ export function ChartsDashboard() {
           </button>
         )}
         <a
+          className="wm-chart-orientation-action wm-chart-command-deck-link"
           href="/command-deck"
           style={{
             marginLeft: "auto",
@@ -890,6 +897,7 @@ export function ChartsDashboard() {
         >
           Command Deck →
         </a>
+        </div>
       </div>
       {/* ── Top-level category tab strip ──────────────────────
           Founder directive 2026-09-02: the per-symbol view
