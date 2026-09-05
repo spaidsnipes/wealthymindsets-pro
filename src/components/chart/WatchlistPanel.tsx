@@ -784,15 +784,23 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
                               // SHIFT-R atom 5 — CanonicalFidelityBadge (compact
                               // variant) — canon 7-question tooltip enrichment
                               // arrives on every watchlist row for free.
+                              // Computed ONCE and shared: when the chip and its
+                              // own tooltip each derived closure separately, the
+                              // tooltip silently kept the pre-closure verdict.
+                              // One row, one fact — so one variable.
+                              const sessionOpen = sessionNow
+                                ? provenSessionClosure(item.sym, sessionNow)
+                                : null;
                               const b = priceSourceBadge(
                                 item.src ?? "unavailable",
                                 item.price > 0,
-                                sessionNow ? provenSessionClosure(item.sym, sessionNow) : null,
+                                sessionOpen,
                               );
                               const capabilityReport = selectPerCapabilityFidelity({
                                 source: item.src ?? "unavailable",
                                 connected: item.price > 0,
                                 hasCandles: item.price > 0,
+                                sessionOpen,
                               });
                               return <CanonicalFidelityBadge badge={b} variant="compact" titleSuffix={`— ${item.sym}`} capabilityReport={capabilityReport} />;
                             })()}

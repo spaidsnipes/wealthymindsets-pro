@@ -159,7 +159,14 @@ export function resolveChartSurfaceBadge(
   return b;
 }
 
-/** A recent UI update cannot promote a delayed provider into LIVE market data. */
+/**
+ * A recent UI update cannot promote a delayed provider into LIVE market data.
+ *
+ * `sessionOpen` is the same tri-state closure signal the badges take, and it
+ * is LAST in the parameter list on purpose: every existing caller and test
+ * keeps working untouched, and omitting it is indistinguishable from the
+ * pre-closure behaviour. Only an explicit `false` can change a verdict.
+ */
 export function candleDataStatus(
   source: PriceSource,
   connected: boolean,
@@ -167,8 +174,16 @@ export function candleDataStatus(
   lastTickAt: number,
   now = Date.now(),
   staleAfterMs = 20_000,
+  sessionOpen?: boolean | null,
 ): CandleDataStatus {
-  const badge = priceSourceBadge(source, connected);
+  // Threaded, not re-implemented: closure precedence and the crypto
+  // carve-out live in priceSourceBadge, so this chip can never disagree
+  // with the rail above it. A proven-closed session yields
+  // SESSION CLOSED — LAST VERIFIED with live=false and unresolved=false,
+  // which falls through to the `!badge.live` branch below and prints
+  // "SESSION CLOSED — LAST VERIFIED · LAST <time>" instead of the
+  // canon-§8-banned "ACTIVE DEGRADED" on a closed session.
+  const badge = priceSourceBadge(source, connected, sessionOpen);
   const L = CANONICAL_FIDELITY_LABELS;
   // Genuine no-data — no candles rendered. Canon §"CLOSED IS NOT
   // DELAYED": the honest state is SESSION CLOSED — LAST VERIFIED when

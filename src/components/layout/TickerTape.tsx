@@ -162,6 +162,10 @@ function TickerItem({ item, onClick, active }: {
     source: src ?? "unavailable",
     connected: live,
     hasCandles: price > 0,
+    // The visible chip took closure into account one line above; omitting
+    // it here made the HOVER tooltip contradict the very chip it explains.
+    // Canon §Provider Status: one fact, one answer, per capability.
+    sessionOpen,
   });
   return (
     <button

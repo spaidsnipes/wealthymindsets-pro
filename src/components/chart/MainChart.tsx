@@ -6911,6 +6911,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               connected,
               candleSource !== "__unresolved__" && candles.length > 0,
               lastTickAtRef.current,
+              undefined,
+              undefined,
+              // Canon §8 — this chip sat beside a rail already reading
+              // SESSION CLOSED and printed ACTIVE DEGRADED on a Saturday.
+              sessionOpen,
             );
             const noFeed = status.state === "UNAVAILABLE";
             return (

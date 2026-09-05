@@ -199,6 +199,56 @@ describe("candleDataStatus", () => {
       expect(candleDataStatus("coinbase", true, true, 0, 20_000).state).toBe("STALE");
       expect(candleDataStatus("coinbase", true, true, 1, 20_000).state).toBe("LIVE");
     });
+
+    // Founder-observed live on wealthymindsetspro.com/charts, Saturday
+    // 2026-09-05: the rail, the watchlist and the symbol chip all read
+    // SESSION CLOSED — LAST VERIFIED while THIS chip, inches away, read
+    // "ACTIVE DEGRADED · LAST 03:30 PM". Canon §8 bans that word on a
+    // closed session; canon §Provider Status also bans two writers
+    // disagreeing about one fact on one screen.
+    describe("closed-session precedence (canon §8 — CLOSED IS NOT DEGRADED)", () => {
+      it("sessionOpen=false replaces the degraded provider label on a bar-bearing chart", () => {
+        const s = candleDataStatus("yahoo", true, true, 9_999, 10_000, 20_000, false);
+        expect(s.label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+        expect(s.label).not.toBe(L.ACTIVE_DEGRADED);
+        expect(s.live).toBe(false);
+      });
+
+      it("closure outranks a certified realtime provider with a fresh tick", () => {
+        // Without closure this is the LIVE branch — proving precedence, not
+        // merely that a dead path stays dead.
+        expect(candleDataStatus("polygon", true, true, 9_999, 10_000).state).toBe("LIVE");
+        const s = candleDataStatus("polygon", true, true, 9_999, 10_000, 20_000, false);
+        expect(s.label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+        expect(s.live).toBe(false);
+        expect(s.state).not.toBe("LIVE");
+      });
+
+      it("never prints SESSION CLOSED over a continuous crypto tape (mirror-image bug)", () => {
+        for (const source of ["binance", "coinbase"] as const) {
+          const s = candleDataStatus(source, true, true, 9_999, 10_000, 20_000, false);
+          expect(s.label).toBe(L.LIVE_CERTIFIED_QUOTE);
+          expect(s.live).toBe(true);
+        }
+      });
+
+      it("undefined / null / true sessionOpen leave every verdict byte-identical", () => {
+        for (const source of ["yahoo", "polygon", "unavailable", "coinbase"] as const) {
+          const reference = candleDataStatus(source, true, true, 9_999, 10_000);
+          for (const sessionOpen of [undefined, null, true]) {
+            expect(candleDataStatus(source, true, true, 9_999, 10_000, 20_000, sessionOpen))
+              .toEqual(reference);
+          }
+        }
+      });
+
+      it("a closed session is never reported as a STALE pipeline (bug alarm, not a fact)", () => {
+        // Zero last-tick would be STALE for a live provider; closure must win.
+        const s = candleDataStatus("polygon", true, true, 0, 10_000, 20_000, false);
+        expect(s.state).not.toBe("STALE");
+        expect(s.label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+      });
+    });
   });
 
   // H-Bkt 8 nest closure — pure helper protects future chart-chrome pills.

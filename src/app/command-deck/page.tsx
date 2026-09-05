@@ -12,6 +12,7 @@ import { useCanvasClock } from "@/lib/marketData/viewModels/canvasClock";
 import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
 import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 import { selectDecisionChain, type TradePhase } from "@/lib/marketData/viewModels/selectDecisionChain";
 import { selectMarketStory } from "@/lib/marketData/viewModels/selectMarketStory";
 import DecisionChainPanel from "@/components/chart/DecisionChainPanel";
@@ -182,6 +183,11 @@ function CommandDeckInner() {
   // still populates the store. The tape hub dedupes so double-connect
   // with an open /charts tab is safe.
   const wsFeed = useWebSocket({ symbol, timeframe });
+  // Canon §8 "CLOSED IS NOT DELAYED". Called HERE, at the top of the
+  // component, not inside the capability IIFE further down — a hook inside
+  // JSX is the React #310 defect this codebase has already paid for twice.
+  // `null` until mount and on every weekday: provider labelling unchanged.
+  const sessionOpen = useProvenSessionClosure(symbol);
   usePublishChartMarketState({
     symbol,
     timeframe,
@@ -1085,6 +1091,10 @@ function CommandDeckInner() {
                 source: wsFeed.source ?? "unavailable",
                 connected: wsFeed.connected,
                 hasCandles: !!state,
+                // Canon §8 — the deck's bars/quotes slots claimed an active
+                // session on a closed one. ticks/orderFlow below keep their
+                // own owners; closure governs market-data capabilities only.
+                sessionOpen,
                 // TICKS lit from real wsFeed tape signal
                 tapeConnected: !wsFeed.connected
                   ? undefined
