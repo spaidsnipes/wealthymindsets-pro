@@ -11,11 +11,17 @@
  */
 
 import { NextResponse } from "next/server";
-import { supabaseConfigStatus, supabaseEnvDefects, supabaseEnvShape } from "@/lib/supabaseConfigStatus";
+import {
+  supabaseCapabilityGaps,
+  supabaseConfigStatus,
+  supabaseEnvDefects,
+  supabaseEnvShape,
+} from "@/lib/supabaseConfigStatus";
 
 export async function GET() {
   const status = supabaseConfigStatus();
   const defects = supabaseEnvDefects();
+  const capabilityGaps = supabaseCapabilityGaps();
 
   return NextResponse.json(
     {
@@ -27,11 +33,16 @@ export async function GET() {
         NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseEnvShape(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
       },
       defects,
+      // Absent variables whose absence silently disables something. Distinct from
+      // `defects` (a variable holding the wrong KIND of value) and reported here
+      // so one reading of this endpoint yields the whole fix list — see
+      // supabaseCapabilityGaps for why splitting it costs a second outage.
+      capabilityGaps,
       // Presence-only, and deliberately never shape-checked: a service role key
       // is read server-side only, so reporting anything about its contents would
       // add disclosure without adding a fix an operator could act on here.
       serviceRoleKeyPresent: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
-      healthy: status.configured && defects.length === 0,
+      healthy: status.configured && defects.length === 0 && capabilityGaps.length === 0,
     },
     { status: 200, headers: { "Cache-Control": "no-store" } },
   );

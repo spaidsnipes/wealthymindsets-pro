@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { supabaseGetUser, supabaseResendSignup, supabaseVerifyEmail } from "./auth";
+import {
+  supabaseGetSessionEpoch,
+  supabaseGetUser,
+  supabaseResendSignup,
+  supabaseVerifyEmail,
+} from "./auth";
 import { SupabaseAuthShapeError } from "./supabaseConfigStatus";
 
 describe("supabaseResendSignup", () => {
@@ -122,5 +127,74 @@ describe("auth helpers reject a non-JSON body instead of degrading to {}", () =>
     const verified = await supabaseVerifyEmail({ tokenHash: "hash" });
 
     expect(verified).toEqual({ ok: true, data: { access_token: "at" } });
+  });
+});
+
+/**
+ * The SECOND blocker on the 2026-09-05 production host, recorded here as an
+ * executed proof rather than an assertion from reading.
+ *
+ * `GET /api/diagnostics/supabase` reported `serviceRoleKeyPresent: false` while
+ * Supabase auth was enabled. Session revocation is checked on every guarded
+ * request through `supabaseGetSessionEpoch`, which reads the user through the
+ * ADMIN api and therefore needs the service role key. Without it the lookup
+ * cannot be performed, so it returns `null` — and `requireAuth` correctly fails
+ * CLOSED on `null`, answering 503 "Session verification is temporarily
+ * unavailable" for every authenticated route.
+ *
+ * Why this matters more than it looks: it is invisible while sign-in is broken,
+ * because nobody can obtain a session to trip it. Repair the Supabase URL alone
+ * and the host trades one outage for a second one — sign-in succeeds and then
+ * every route behind it answers 503. Both variables have to be set in the same
+ * visit, which is only knowable if this link is proven before the first is
+ * fixed.
+ */
+describe("session revocation depends on the service role key", () => {
+  const original = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    if (original === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = original;
+  });
+
+  it("cannot verify revocation when SUPABASE_SERVICE_ROLE_KEY is absent", async () => {
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    // `null` is the value requireAuth turns into a 503 — see requireAuth.test.ts
+    // "fails closed when revocation state cannot be verified".
+    await expect(supabaseGetSessionEpoch("user-1")).resolves.toBeNull();
+    // And it is decided locally: no request is attempted, so this is a property
+    // of the configuration and not of the network.
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("treats a whitespace-only service role key as absent", async () => {
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "   ";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(supabaseGetSessionEpoch("user-1")).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("reports epoch 0 — never revoked — when the admin lookup succeeds", async () => {
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "sb_secret_test";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: "user-1", user_metadata: {} }), { status: 200 }),
+    ));
+
+    await expect(supabaseGetSessionEpoch("user-1")).resolves.toBe(0);
+  });
+
+  it("reports the stored epoch when one has been set", async () => {
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "sb_secret_test";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: "user-1", user_metadata: { sessionEpoch: 1234 } }), { status: 200 }),
+    ));
+
+    await expect(supabaseGetSessionEpoch("user-1")).resolves.toBe(1234);
   });
 });

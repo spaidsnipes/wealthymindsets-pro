@@ -231,6 +231,43 @@ export function supabaseEnvDefects(env: EnvPresence = process.env): readonly Sup
   return defects;
 }
 
+export interface SupabaseCapabilityGap {
+  readonly capability: string;
+  readonly variable: string;
+  readonly consequence: string;
+}
+
+/**
+ * Defects above are variables holding the WRONG KIND of value. This is the other
+ * half of the operator's question: which variables are simply ABSENT, and what
+ * stops working because of it.
+ *
+ * The gap that forced this to exist is invisible by construction. On 2026-09-05
+ * the production host had no SUPABASE_SERVICE_ROLE_KEY. Session revocation runs
+ * on every guarded request and reads the user through the admin API, so without
+ * that key `supabaseGetSessionEpoch` returns null and `requireAuth` fails CLOSED
+ * with 503 — correctly, and for every authenticated route at once.
+ *
+ * Nobody could observe it, because sign-in was also broken and a session is
+ * required to trip it. Repairing NEXT_PUBLIC_SUPABASE_URL on its own would have
+ * traded one outage for another: sign-in succeeds, then the whole app answers
+ * 503. Reporting both in one place is what makes that a single visit to the
+ * secrets box instead of two.
+ *
+ * Only reported when auth is actually configured — a local host with no Supabase
+ * at all skips the revocation check entirely, so nothing is degraded there.
+ */
+export function supabaseCapabilityGaps(env: EnvPresence = process.env): readonly SupabaseCapabilityGap[] {
+  if (!supabaseConfigStatus(env).configured) return [];
+  if (env.SUPABASE_SERVICE_ROLE_KEY?.trim()) return [];
+  return [{
+    capability: "Session verification (and 'log out all devices')",
+    variable: "SUPABASE_SERVICE_ROLE_KEY",
+    consequence:
+      "Supabase auth is configured, so every guarded route checks session revocation through the admin API. Without this key that check cannot be performed and fails closed, so all authenticated routes answer 503 'Session verification is temporarily unavailable' — even once sign-in works.",
+  }];
+}
+
 /**
  * Build the standard honest 503 body for a WM auth route when Supabase is
  * NOT CONFIGURED on this runtime. `verb` is a short human phrase describing

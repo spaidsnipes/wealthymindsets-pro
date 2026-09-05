@@ -176,6 +176,13 @@ const SB_URL  = () => normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)
 const SB_KEY  = () => normalizeSupabaseKey(
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
 );
+// The admin key arrives from the same paste-into-a-box path and so earns the
+// same trim. Bare `!serviceKey` used to guard the admin helpers, and a
+// whitespace-only value is a truthy string: the guard passed, an empty `apikey`
+// went out, and every admin call failed for a host the operator believed was
+// wired. It also disagreed with GET /api/diagnostics/supabase, which trims —
+// the diagnostic would report the key absent while the code reported it present.
+const SB_SERVICE_KEY = () => normalizeSupabaseKey(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 export async function supabaseSignUp(email: string, password: string, redirectTo?: string) {
   // GoTrue honours `redirect_to` as a query param — it becomes the target of the
@@ -314,7 +321,7 @@ export async function supabaseUpdateUserMetadata(
   userId: string,
   metadata: Record<string, unknown>
 ): Promise<boolean> {
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey = SB_SERVICE_KEY();
   if (!serviceKey || !userId) return false;
   try {
     const res = await fetch(`${SB_URL()}/auth/v1/admin/users/${userId}`, {
@@ -339,7 +346,7 @@ export async function supabaseUpdateUserMetadata(
 
 /** Fetch a single user by id via the admin API. Returns the raw GoTrue user. */
 export async function supabaseGetUserById(userId: string): Promise<Record<string, unknown> | null> {
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey = SB_SERVICE_KEY();
   if (!serviceKey || !userId) return null;
   try {
     const res = await fetch(`${SB_URL()}/auth/v1/admin/users/${userId}`, {

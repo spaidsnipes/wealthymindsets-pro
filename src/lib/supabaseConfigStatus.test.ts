@@ -1,13 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
-  supabaseConfigStatus,
-  notConfiguredBody,
+  SupabaseAuthShapeError,
+  nonJsonAuthResponseMessage,
   normalizeSupabaseKey,
   normalizeSupabaseUrl,
-  nonJsonAuthResponseMessage,
-  SupabaseAuthShapeError,
-  supabaseEnvShape,
+  notConfiguredBody,
+  supabaseCapabilityGaps,
+  supabaseConfigStatus,
   supabaseEnvDefects,
+  supabaseEnvShape,
 } from "./supabaseConfigStatus";
 
 describe("supabaseConfigStatus", () => {
@@ -297,5 +298,51 @@ describe("supabaseEnvDefects", () => {
       expect(serialised).not.toContain(value);
     }
     expect(serialised).not.toContain("SLOT_SECRET");
+  });
+});
+
+/**
+ * The gap that is invisible until the outage in front of it is repaired.
+ * See supabaseCapabilityGaps for the 2026-09-05 chain this locks.
+ */
+describe("supabaseCapabilityGaps", () => {
+  const CONFIGURED = {
+    NEXT_PUBLIC_SUPABASE_URL: "https://project.supabase.co",
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_abc",
+  } as const;
+
+  it("names the service role key when auth is configured without it", () => {
+    const gaps = supabaseCapabilityGaps(CONFIGURED);
+
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0].variable).toBe("SUPABASE_SERVICE_ROLE_KEY");
+    // The consequence is the whole point: an operator who reads only "absent"
+    // has no reason to treat it as urgent.
+    expect(gaps[0].consequence).toContain("503");
+    expect(gaps[0].consequence).toContain("authenticated routes");
+  });
+
+  it("is silent once the service role key is present", () => {
+    expect(supabaseCapabilityGaps({ ...CONFIGURED, SUPABASE_SERVICE_ROLE_KEY: "sb_secret_abc" })).toEqual([]);
+  });
+
+  it("treats a whitespace-only service role key as absent, matching the code path", () => {
+    // supabaseGetUserById normalizes before the guard, so a padded value is not
+    // usable. A diagnostic that called it present would contradict the runtime.
+    expect(supabaseCapabilityGaps({ ...CONFIGURED, SUPABASE_SERVICE_ROLE_KEY: "   " })).toHaveLength(1);
+  });
+
+  it("reports nothing when Supabase auth is not configured at all", () => {
+    // requireAuth skips the revocation check entirely on such a host, so there
+    // is no degradation to report — claiming one would be a false alarm.
+    expect(supabaseCapabilityGaps({})).toEqual([]);
+  });
+
+  it("SECURITY: no configured value appears in a capability gap", () => {
+    const env = {
+      ...CONFIGURED,
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_GAP_SLOT_SECRET",
+    };
+    expect(JSON.stringify(supabaseCapabilityGaps(env))).not.toContain("GAP_SLOT_SECRET");
   });
 });
