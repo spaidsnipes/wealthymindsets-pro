@@ -56,9 +56,18 @@ export async function POST(req: Request) {
     try {
       data = await supabaseSignIn(email, password);
     } catch (e) {
-      console.error("[login] Supabase sign-in threw — auth backend unreachable/misconfigured:", e);
+      // Name the failure CLASS, never a guess. The previous copy blamed a paused
+      // project; on 2026-09-05 that was probed and disproven while sign-in was
+      // still down, so the sentence was confidently wrong for every reader. The
+      // error NAME is safe to surface; the message is not, because a rejected
+      // header can echo the value that was rejected.
+      const cls = e instanceof Error ? e.name : "Error";
+      console.error("[login] Supabase sign-in threw — request never completed:", e);
       return NextResponse.json(
-        { error: "Sign-in service is temporarily unavailable. If this persists, the Supabase project may be paused or an env var changed." },
+        {
+          error: `Sign-in could not complete a request to the auth backend (${cls}). The request threw before a response was read, which means the backend was unreachable from this host or a Supabase env var is present but unusable.`,
+          edge: "AUTH BACKEND UNREACHABLE",
+        },
         { status: 503 },
       );
     }

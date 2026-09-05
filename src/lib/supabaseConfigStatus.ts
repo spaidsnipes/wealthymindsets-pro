@@ -28,6 +28,45 @@ export interface SupabaseConfigStatus {
   readonly missing: readonly string[];
 }
 
+/**
+ * Trim the key at the boundary.
+ *
+ * Measured rather than assumed, because the obvious story is wrong: the
+ * platform SILENTLY TRIMS leading and trailing whitespace from a header value,
+ * so the trailing newline that `echo "$KEY" | wrangler secret put` leaves
+ * behind does not break the request at all.
+ *
+ * What it breaks is the CONFIGURED verdict. A whitespace-only value is a truthy
+ * string, so a bare presence check calls it configured, sends an empty `apikey`,
+ * and Supabase answers "No API key found" for a host the operator believes is
+ * wired. Trimming makes the verdict describe the value that will actually be
+ * sent — see `useSupabase` in ./auth.
+ *
+ * (An INTERNAL newline does throw, and the platform's error message echoes the
+ * offending value. That is why the login route surfaces the error NAME and
+ * never its message.)
+ */
+export function normalizeSupabaseKey(raw: string | undefined): string {
+  return (raw ?? "").trim();
+}
+
+/**
+ * The URL is where a config defect really can throw. A value with no scheme —
+ * `abc.supabase.co`, easily produced by pasting a hostname into a dashboard —
+ * is not an absolute URL, so `new URL()` and therefore `fetch` raise
+ * `TypeError: Invalid URL` before any request leaves the host. To the caller
+ * that is indistinguishable from a dead backend.
+ *
+ * A trailing slash does not throw; it silently yields `//auth/v1/token`, which
+ * is a different resource. Both are repaired here. The scheme is forced to
+ * https because Supabase serves nothing else.
+ */
+export function normalizeSupabaseUrl(raw: string | undefined): string {
+  const trimmed = (raw ?? "").trim().replace(/\/+$/, "");
+  if (!trimmed) return "";
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
 export function supabaseConfigStatus(env: EnvPresence = process.env): SupabaseConfigStatus {
   const hasUrl  = present(env, "NEXT_PUBLIC_SUPABASE_URL");
   const hasAnon = present(env, "NEXT_PUBLIC_SUPABASE_ANON_KEY");

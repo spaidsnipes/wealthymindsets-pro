@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { supabaseConfigStatus, notConfiguredBody } from "./supabaseConfigStatus";
+import {
+  supabaseConfigStatus,
+  notConfiguredBody,
+  normalizeSupabaseKey,
+  normalizeSupabaseUrl,
+} from "./supabaseConfigStatus";
 
 describe("supabaseConfigStatus", () => {
   it("reports configured when URL + ANON key are present", () => {
@@ -40,6 +45,76 @@ describe("supabaseConfigStatus", () => {
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "eyJhbG…",
     });
     expect(s.missing).toEqual(["NEXT_PUBLIC_SUPABASE_URL"]);
+  });
+});
+
+describe("normalizeSupabaseKey", () => {
+  it("strips the trailing newline that `echo $KEY | wrangler secret put` leaves behind", () => {
+    expect(normalizeSupabaseKey("eyJhbG.abc\n")).toBe("eyJhbG.abc");
+  });
+
+  it("strips leading/trailing whitespace from a pasted value", () => {
+    expect(normalizeSupabaseKey("  eyJhbG.abc  ")).toBe("eyJhbG.abc");
+    expect(normalizeSupabaseKey("\r\neyJhbG.abc\r\n")).toBe("eyJhbG.abc");
+  });
+
+  it("collapses a whitespace-only key to empty, so it can be judged NOT CONFIGURED", () => {
+    // This is the defect the trim actually closes. "   " is a truthy string: a
+    // bare presence check calls it configured and then sends an empty apikey.
+    expect(normalizeSupabaseKey("   ")).toBe("");
+    expect(normalizeSupabaseKey("\n")).toBe("");
+  });
+
+  it("does NOT claim to prevent a header throw — the platform already trims edges", () => {
+    // Measured behaviour, kept as a test so the claim cannot silently invert:
+    // edge whitespace is normalized away by the platform, so an untrimmed key
+    // is not what makes fetch throw. An INTERNAL newline is, and trimming
+    // cannot repair that one.
+    expect(new Headers({ apikey: "eyJhbG.abc\n" }).get("apikey")).toBe("eyJhbG.abc");
+    expect(() => new Headers({ apikey: "eyJhbG\nabc" })).toThrow();
+  });
+
+  it("leaves an already-clean key byte-identical", () => {
+    expect(normalizeSupabaseKey("eyJhbG.abc")).toBe("eyJhbG.abc");
+  });
+
+  it("returns empty string for undefined rather than the string 'undefined'", () => {
+    expect(normalizeSupabaseKey(undefined)).toBe("");
+  });
+});
+
+describe("normalizeSupabaseUrl", () => {
+  it("repairs the one config defect that genuinely throws: a missing scheme", () => {
+    expect(() => new URL("abc.supabase.co/auth/v1/token")).toThrow();
+    expect(normalizeSupabaseUrl("abc.supabase.co")).toBe("https://abc.supabase.co");
+    expect(() => new URL(`${normalizeSupabaseUrl("abc.supabase.co")}/auth/v1/token`)).not.toThrow();
+  });
+
+  it("strips a trailing slash so the path does not become //auth/v1/token", () => {
+    expect(new URL("https://abc.supabase.co/" + "/auth/v1/token").pathname).toBe("//auth/v1/token");
+    expect(normalizeSupabaseUrl("https://abc.supabase.co/")).toBe("https://abc.supabase.co");
+    expect(normalizeSupabaseUrl("https://abc.supabase.co///")).toBe("https://abc.supabase.co");
+  });
+
+  it("trims whitespace and newlines", () => {
+    expect(normalizeSupabaseUrl("  https://abc.supabase.co\n")).toBe("https://abc.supabase.co");
+  });
+
+  it("preserves an explicit http scheme rather than silently upgrading it", () => {
+    expect(normalizeSupabaseUrl("http://localhost:54321")).toBe("http://localhost:54321");
+  });
+
+  it("returns empty string for absent or whitespace-only values", () => {
+    expect(normalizeSupabaseUrl(undefined)).toBe("");
+    expect(normalizeSupabaseUrl("   ")).toBe("");
+  });
+
+  it("yields a parseable token endpoint for every repaired shape", () => {
+    for (const raw of ["abc.supabase.co", "https://abc.supabase.co/", "  https://abc.supabase.co\n"]) {
+      const u = new URL(`${normalizeSupabaseUrl(raw)}/auth/v1/token`);
+      expect(u.pathname).toBe("/auth/v1/token");
+      expect(u.host).toBe("abc.supabase.co");
+    }
   });
 });
 

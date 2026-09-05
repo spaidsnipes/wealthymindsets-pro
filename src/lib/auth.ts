@@ -12,6 +12,8 @@
 import { createHmac, pbkdf2Sync, randomBytes, timingSafeEqual } from "crypto";
 import type { ResponseCookies } from "next/dist/compiled/@edge-runtime/cookies";
 
+import { normalizeSupabaseKey, normalizeSupabaseUrl } from "./supabaseConfigStatus";
+
 const DEV_JWT_SECRET = "wm-dev-secret-CHANGE-IN-PROD-4f8a2b1c";
 
 // JWT secret is resolved LAZILY on first sign/verify call, not at module
@@ -154,14 +156,21 @@ declare global {
 export const userStore: Map<string, { id: string; email: string; passwordHash: string; createdAt: number }> =
   globalThis.__wmUsers ?? (globalThis.__wmUsers = new Map());
 
+// Judged on the NORMALIZED values, so this gate answers the only question that
+// matters: is what we will actually send usable? A whitespace-padded value must
+// not report CONFIGURED and then fail at the fetch.
 export function useSupabase(): boolean {
-  return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) &&
-    process.env.NEXT_PUBLIC_SUPABASE_URL.length > 10);
+  return SB_URL().length > 10 && SB_KEY().length > 0;
 }
 
 /* ── Supabase helpers (raw fetch, no package) ───────────── */
-const SB_URL  = () => process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SB_KEY  = () => (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!;
+// Both values arrive from a host runtime secret store an operator typed or
+// pasted into. Normalize at this single boundary — see normalizeSupabaseKey
+// for why an untrimmed key makes a healthy backend look unreachable.
+const SB_URL  = () => normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
+const SB_KEY  = () => normalizeSupabaseKey(
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+);
 
 export async function supabaseSignUp(email: string, password: string, redirectTo?: string) {
   // GoTrue honours `redirect_to` as a query param — it becomes the target of the
