@@ -36,7 +36,7 @@ import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import CommandContextRibbon from "@/components/command/CommandContextRibbon";
 import OneStoryStrip from "@/components/command/OneStoryStrip";
 import SceneAdmissionPanel from "@/components/experience/SceneAdmissionPanel";
-import SceneAdmits from "@/components/experience/SceneAdmits";
+import SceneAdmits, { SceneAdmitsAmbient } from "@/components/experience/SceneAdmits";
 import { compileScene, type SurfaceElement } from "@/lib/experience/compileScene";
 import { deckSceneSignals } from "@/lib/experience/deckSceneSignals";
 import {
@@ -948,9 +948,22 @@ function CommandDeckInner() {
                   either the bundle is still hydrating or the trader
                   hasn't logged enough plan-adherence / MFE data to
                   measure two dimensions comparably. */}
-              {(experienceContext.mode === "REVIEW" || experienceContext.mode === "LEARN") &&
+              {/* §9 INTERRUPTION LAW: "Only capital truth and material
+                  invalidation may take the room. Academy may not." The Learning
+                  Genome is Academy — a backward-looking diagnostic. It is the
+                  one surface on this route the law names by category, so it is
+                  the one that carries the ambient gate.
+
+                  Honest scope: this route's capital column is permanently
+                  UNOBSERVED, so `admitsAmbient` is true in all four scenes it
+                  can reach and nothing is withheld here today. The gate exists
+                  so the panel's "Ambient surfaces are withheld" sentence is
+                  true the first time it renders, rather than false on the first
+                  screen where money is actually exposed. */}
+              <SceneAdmitsAmbient compilation={sceneCompilation}>
+                {(experienceContext.mode === "REVIEW" || experienceContext.mode === "LEARN") &&
                 learningGenome &&
-                learningGenome.genome.headlineWeakness && (
+                learningGenome.genome.headlineWeakness ? (
                   <details style={{ marginTop: 8 }}>
                     <summary
                       style={{
@@ -979,7 +992,8 @@ function CommandDeckInner() {
                       />
                     </div>
                   </details>
-                )}
+                ) : null}
+              </SceneAdmitsAmbient>
             </div>
 
             {/* Connection diagnostics are operational evidence, not the

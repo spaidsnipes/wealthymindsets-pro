@@ -15,11 +15,13 @@ import { describe, it, expect } from "vitest";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import SceneAdmits from "./SceneAdmits";
+import SceneAdmits, { SceneAdmitsAmbient } from "./SceneAdmits";
 import SceneAdmissionPanel, { ELEMENT_LABEL } from "./SceneAdmissionPanel";
 import {
   SURFACE_ELEMENTS,
   compileScene,
+  type SceneCompilation,
+  type SceneSignals,
   type SurfaceElement,
 } from "@/lib/experience/compileScene";
 import { deckSceneSignals } from "@/lib/experience/deckSceneSignals";
@@ -248,6 +250,90 @@ describe("the screen never contradicts itself", () => {
     for (const state of DECK_STATES) {
       const c = compilationFor(state);
       expect(c.admits.length).toBeLessThan(SURFACE_ELEMENTS.length);
+    }
+  });
+});
+
+describe("SceneAdmitsAmbient — §9 INTERRUPTION LAW is obeyed, not announced", () => {
+  function ambientHtml(compilation: SceneCompilation, body = "ACADEMY"): string {
+    return renderToStaticMarkup(
+      <SceneAdmitsAmbient compilation={compilation}>
+        <div>{body}</div>
+      </SceneAdmitsAmbient>,
+    );
+  }
+
+  /**
+   * These use hand-built compilations from `compileScene` rather than the deck
+   * adapter, because the deck cannot reach a capital-at-risk scene today. That
+   * is stated plainly rather than papered over: the gate is inert on the deck
+   * right now, and these tests prove it will bind the moment the capital column
+   * is real.
+   */
+  function signalsWith(over: Partial<SceneSignals>): SceneSignals {
+    return {
+      position: "POSITION UNCONFIRMED",
+      positionConfidence: "UNOBSERVED",
+      intentInFlight: false,
+      exposureIncreasingWorkingOrders: 0,
+      linkVerified: null,
+      sessionOpen: true,
+      rightOfWay: "WAIT",
+      composingIntent: false,
+      hadCapitalEvent: false,
+      receiptWritten: false,
+      ...over,
+    };
+  }
+
+  it("withholds ambient surfaces while capital is exposed", () => {
+    // §9: "Only capital truth and material invalidation may take the room.
+    // Academy may not." A LONG position is the plainest case.
+    const c = compileScene(
+      signalsWith({ position: "LONG", positionConfidence: "CONFIRMED" }),
+    );
+    expect(c.capitalAtRisk).toBe(true);
+    expect(c.admitsAmbient).toBe(false);
+    expect(ambientHtml(c)).toBe("");
+  });
+
+  it("withholds ambient surfaces in DEGRADED even with nothing exposed", () => {
+    // A screen that cannot prove the basics has not earned the right to teach.
+    const c = compileScene(
+      signalsWith({ intentInFlight: true, linkVerified: false }),
+    );
+    expect(c.scene).toBe("DEGRADED");
+    expect(c.admitsAmbient).toBe(false);
+    expect(ambientHtml(c)).toBe("");
+  });
+
+  it("admits ambient surfaces in a quiet scene (positive control)", () => {
+    const c = compileScene(signalsWith({}));
+    expect(c.admitsAmbient).toBe(true);
+    expect(ambientHtml(c)).toContain("ACADEMY");
+  });
+
+  it("withholds silently — no 'hidden by scene' stub", () => {
+    const c = compileScene(signalsWith({ intentInFlight: true }));
+    expect(c.admitsAmbient).toBe(false);
+    expect(ambientHtml(c)).toBe("");
+  });
+
+  it("HONEST SCOPE: inert on /command-deck today, and this records why", () => {
+    // The deck has no broker panel, so its capital column is permanently
+    // UNOBSERVED and no reachable scene puts capital at risk. Nothing is
+    // withheld by this gate on the live route right now.
+    //
+    // This test is not a pass mark — it is a tripwire. When the capital column
+    // becomes real and a deck scene finally withholds ambient surfaces, this
+    // fails, and whoever is here then must confirm the Learning Genome
+    // disappearing from the deck is intended §9 behaviour rather than a
+    // surprise.
+    for (const state of DECK_STATES) {
+      const c = compilationFor(state);
+      expect(c.capitalAtRisk).toBe(false);
+      expect(c.admitsAmbient).toBe(true);
+      expect(ambientHtml(c)).toContain("ACADEMY");
     }
   });
 });

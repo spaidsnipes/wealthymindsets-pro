@@ -304,31 +304,53 @@ describe("compileScene enforcement — §10 admission is OBEYED, not merely anno
    *
    * Proximity is not containment. So this walks the tags.
    */
-  function gatedBody(source: string, element: string): string | null {
-    const open = new RegExp(
-      `<SceneAdmits\\b[^>]*element=(?:"${element}"|\\{"${element}"\\})[^>]*>`,
-    );
+  /**
+   * The children of the first `<tag …>` matching `openAttrs`, or null if there
+   * is no such gate.
+   *
+   * `tag` is a parameter and the scans below are word-boundary anchored for a
+   * concrete reason: `SceneAdmits` is a strict PREFIX of `SceneAdmitsAmbient`.
+   * An `indexOf("<SceneAdmits")` walk counts every ambient gate as a nested
+   * element gate while never finding its closing tag, so depth drifts and the
+   * scan reports whatever it happens to land on. That is not a hypothetical —
+   * it is one rename away from silently disarming the ONE_STORY lock.
+   */
+  function gatedBody(source: string, tag: string, openAttrs = ""): string | null {
+    const open = new RegExp(`<${tag}\\b${openAttrs}[^>]*>`);
     const m = open.exec(source);
     if (m === null) return null;
     if (m[0].endsWith("/>")) return ""; // self-closing gate: gates nothing
+
+    // `\b` after the name stops `<SceneAdmits` matching `<SceneAdmitsAmbient`.
+    const openTag = new RegExp(`<${tag}\\b`, "g");
+    const closeTag = new RegExp(`</${tag}\\s*>`, "g");
+    const find = (re: RegExp, from: number): number => {
+      re.lastIndex = from;
+      const hit = re.exec(source);
+      return hit === null ? -1 : hit.index;
+    };
 
     let depth = 1;
     let i = m.index + m[0].length;
     const start = i;
     while (i < source.length && depth > 0) {
-      const nextOpen = source.indexOf("<SceneAdmits", i);
-      const nextClose = source.indexOf("</SceneAdmits>", i);
+      const nextOpen = find(openTag, i);
+      const nextClose = find(closeTag, i);
       if (nextClose === -1) return null; // unbalanced — treat as no gate
       if (nextOpen !== -1 && nextOpen < nextClose) {
         depth++;
-        i = nextOpen + "<SceneAdmits".length;
+        i = nextOpen + tag.length + 1;
       } else {
         depth--;
         if (depth === 0) return source.slice(start, nextClose);
-        i = nextClose + "</SceneAdmits>".length;
+        i = nextClose + tag.length + 3;
       }
     }
     return null;
+  }
+
+  function gatedElementBody(source: string, element: string): string | null {
+    return gatedBody(source, "SceneAdmits", `[^>]*element=(?:"${element}"|\\{"${element}"\\})`);
   }
 
   it("every element a route declares as GOVERNED has a real gate on that page", () => {
@@ -363,6 +385,46 @@ describe("compileScene enforcement — §10 admission is OBEYED, not merely anno
     expect(violations).toEqual([]);
   });
 
+  it("no surface discloses the AMBIENT verdict without also obeying it", () => {
+    /**
+     * §9 INTERRUPTION LAW: "Only capital truth and material invalidation may
+     * take the room. Academy may not. Nectar may not."
+     *
+     * `admitsAmbient` was computed by the compiler and rendered as a sentence
+     * by the panel, and a grep for its readers found the panel, the compiler's
+     * own tests, and nothing else. Announced by one surface, obeyed by none —
+     * the same defect as the One Story strip and the over-counted refusals,
+     * third location.
+     *
+     * The disclosure travels with `SceneAdmissionPanel` (which always prints
+     * one of the two ambient sentences), so mounting the panel is the claim,
+     * and `SceneAdmitsAmbient` is the only thing that makes it true.
+     */
+    const violations: string[] = [];
+    for (const file of surfaceFiles) {
+      const content = codeOf(file);
+      if (content === null) continue;
+      if (!mounts(content, "SceneAdmissionPanel")) continue;
+      if (!mounts(content, "SceneAdmitsAmbient")) {
+        violations.push(`${rel(file)}: prints the ambient verdict but gates no ambient surface`);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it("the ambient gate reads the compiler and nothing else", () => {
+    // The failure mode this forbids: an ambient gate that takes a boolean prop.
+    // A caller could then hand it `true` and call the result §9 compliance. It
+    // must take the whole compilation, exactly like `SceneAdmits`, so the value
+    // can only have come from `compileScene`.
+    const gate = stripComments(
+      readFileSync(resolve(SRC, "components/experience/SceneAdmits.tsx"), "utf8"),
+    );
+    expect(gate).toMatch(/readonly compilation:\s*SceneCompilation/);
+    expect(gate).toMatch(/if\s*\(!compilation\.admitsAmbient\)\s*return null/);
+    expect(gate).not.toMatch(/admitsAmbient\s*\?\?/);
+  });
+
   it("the panel cannot report a refusal it was not told it governs", () => {
     // The prop must be REQUIRED. An optional `governed` with a
     // default-to-everything would silently restore the overclaim for the next
@@ -381,7 +443,7 @@ describe("compileScene enforcement — §10 admission is OBEYED, not merely anno
     const deck = stripComments(
       readFileSync(resolve(SRC, "app/command-deck/page.tsx"), "utf8"),
     );
-    const body = gatedBody(deck, "ONE_STORY");
+    const body = gatedElementBody(deck, "ONE_STORY");
     expect(body).not.toBeNull();
     // INSIDE the gate's children, not merely somewhere nearby on the page.
     expect(body).toContain("<OneStoryStrip");
@@ -389,6 +451,22 @@ describe("compileScene enforcement — §10 admission is OBEYED, not merely anno
     // escaped strip is the whole defect, however many gated ones exist.
     const total = (deck.match(/<OneStoryStrip/g) ?? []).length;
     const inside = ((body ?? "").match(/<OneStoryStrip/g) ?? []).length;
+    expect(inside).toBe(total);
+  });
+
+  it("/command-deck puts Academy INSIDE the ambient gate — §9, pinned to the page", () => {
+    // §9 names Academy explicitly. The Learning Genome is the deck's Academy
+    // surface, so it is the one the ambient gate must actually contain — a gate
+    // wrapped around nothing would satisfy the mount-level lock above while
+    // leaving the law unenforced.
+    const deck = stripComments(
+      readFileSync(resolve(SRC, "app/command-deck/page.tsx"), "utf8"),
+    );
+    const body = gatedBody(deck, "SceneAdmitsAmbient");
+    expect(body).not.toBeNull();
+    expect(body).toContain("<LearningGenomeInspector");
+    const total = (deck.match(/<LearningGenomeInspector/g) ?? []).length;
+    const inside = ((body ?? "").match(/<LearningGenomeInspector/g) ?? []).length;
     expect(inside).toBe(total);
   });
 });
