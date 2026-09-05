@@ -210,6 +210,59 @@ export function selectUsCashSessionBarLabel(
     : US_CASH_SESSION_UNKNOWN_LABEL;
 }
 
+/**
+ * Bare cash-index names. Each names an INDEX, not a tradeable contract.
+ *
+ * Held as data because the rule below has to be executable: a comment saying
+ * "don't call ES1! the S&P 500" is not enforceable, and this exact mislabel
+ * shipped to production and was read off the Founder's screen on 2026-09-05.
+ */
+export const CASH_INDEX_DISPLAY_NAMES = [
+  "S&P 500", "SPX", "NASDAQ", "NASDAQ 100", "NDX",
+  "DOW JONES", "DOW", "DJIA", "RUSSELL 2000", "RUT",
+] as const;
+
+/**
+ * True when `label` names a cash index while `symbol` is a futures contract.
+ *
+ * The distinction is not pedantry. ES1! and the S&P 500 differ by basis, they
+ * keep different sessions, and they settle differently — so a bar that prints
+ * one number under both names teaches the trader they are the same instrument.
+ * They are not, and on the first night the trader acts on a futures move as if
+ * the cash index had moved, the product has lied to him about what he owns.
+ */
+export function labelMisnamesInstrument(label: string, symbol: string): boolean {
+  if (canonicalAssetClass(symbol) !== "futures") return false;
+  const norm = label.trim().toUpperCase().replace(/\s+/g, " ");
+  return CASH_INDEX_DISPLAY_NAMES.some((n) => n === norm);
+}
+
+/**
+ * The one owner of the bottom index bar's symbol -> label pairing.
+ *
+ * OBSERVED LIVE 2026-09-05 on the Founder's screen: this bar rendered
+ *   "NASDAQ 29565.25 +40.50 +0.14%"   and   "S&P 500 7722.00 -32.75 -0.42%"
+ * while the ticker rail on the SAME screen carried byte-identical changes as
+ *   "NQ1! SESSION CLOSED - LAST VERIFIED"  and  "ES1! SESSION CLOSED - LAST VERIFIED".
+ * One price, two identities, one screen — the label named an instrument the
+ * pixel did not hold, which is the LIVING-PIXEL LAW violation in its purest
+ * form. The component was already careful about WHETHER to paint a number
+ * (it renders an em-dash without a verified quote); nobody had checked WHAT
+ * the number was called.
+ *
+ * Fixed by renaming the pixel, deliberately NOT by switching to a cash-index
+ * feed: this codebase holds no such feed, and inventing one to satisfy a label
+ * would trade an honest mislabel for fabricated data.
+ *
+ * Pairs live here, not in the component, so the symbol and the name it is
+ * displayed under cannot drift apart in a later edit.
+ */
+export const US_INDEX_BAR_INSTRUMENTS = [
+  { symbol: "YM1!", label: "Dow Futures" },
+  { symbol: "NQ1!", label: "Nasdaq Futures" },
+  { symbol: "ES1!", label: "S&P Futures" },
+] as const;
+
 const CRYPTO_TICKERS = new Set([
   "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX",
   "LINK", "DOT", "LTC", "ATOM", "UNI",

@@ -4,7 +4,7 @@ import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDi
 import React, { useState, useEffect } from "react";
 import { Eye } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { selectUsCashSessionBarLabel } from "@/lib/marketData/canonicalIdentity";
+import { selectUsCashSessionBarLabel, US_INDEX_BAR_INSTRUMENTS } from "@/lib/marketData/canonicalIdentity";
 import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 
 /* ── Individual index ticker ─────────────────────────────── */
@@ -83,9 +83,13 @@ export function BottomIndexBar() {
         <span style={{ fontSize: 11, color: "#8B8FA8", fontWeight: 500 }}>{sessionLabel}</span>
       </div>
 
-      <IndexTicker label="Dow Jones" symbol="YM1!" />
-      <IndexTicker label="NASDAQ" symbol="NQ1!" />
-      <IndexTicker label="S&P 500" symbol="ES1!" />
+      {/* Names come from the canonical owner, never inlined here: these three
+          are FUTURES, and labelling them "S&P 500" / "NASDAQ" put a cash-index
+          name on a futures price — contradicting the ticker rail one screen
+          above, which carried the identical numbers as ES1! / NQ1!. */}
+      {US_INDEX_BAR_INSTRUMENTS.map((instrument) => (
+        <IndexTicker key={instrument.symbol} label={instrument.label} symbol={instrument.symbol} />
+      ))}
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
