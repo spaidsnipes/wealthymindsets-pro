@@ -6,6 +6,7 @@
 import { NextRequest } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { formatChartContextNote, type ChartContextInput } from "@/lib/marketData/formatChartContextNote";
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY ?? "";
 const MODEL      = "gemini-2.0-flash";
@@ -80,19 +81,18 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as {
       messages: { role: "user" | "assistant"; content: string }[];
-      context?: { symbol?: string; price?: number; changePct?: number };
+      context?: ChartContextInput;
     };
 
     const { messages, context } = body;
 
-    let ctxNote = "";
-    if (context?.symbol) {
-      ctxNote = `\n\n[Current chart: ${context.symbol}`;
-      if (context.price) ctxNote += ` @ $${context.price.toLocaleString()}`;
-      if (context.changePct !== undefined)
-        ctxNote += ` (${context.changePct >= 0 ? "+" : ""}${context.changePct.toFixed(2)}%)`;
-      ctxNote += "]";
-    }
+    // Built by an owner that refuses to print an unbacked percentage and
+    // discloses the gap instead. Inline, this was `if (changePct !== undefined)`
+    // — which is true of the zero-pair absence sentinel, so a closed Saturday
+    // reached the model as "(+0.00%)" while SYSTEM_PROMPT above told it never
+    // to invent a price. Re-derived server-side on purpose: this route accepts
+    // a client-supplied body and must not be talked into the claim.
+    const ctxNote = formatChartContextNote(context);
 
     const contents = messages.map((m, i) => ({
       role: m.role === "assistant" ? "model" : "user",

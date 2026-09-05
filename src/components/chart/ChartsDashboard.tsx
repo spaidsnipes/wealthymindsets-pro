@@ -70,6 +70,12 @@ import { useCanonicalMarketState } from "@/lib/marketData/useCanonicalMarketStat
 // and the period word both live in this one owner now, so a component edit
 // cannot reintroduce either untruth. See selectRegimeBadge.ts.
 import { selectRegimeBadge } from "@/lib/marketData/selectRegimeBadge";
+// Same owner, second consumer: the hidden #wm-chart-context span below is a
+// real wire, not a debug attribute. SpaidBotButton parses it and POSTs it to
+// /api/spaidbot, where it becomes a factual claim inside the model's prompt.
+// It published raw change/changePct, so the zero-pair reached the assistant as
+// "(+0.00%)" on a closed Saturday.
+import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDisplay";
 // Asset 07 (Evidence Debt / Question Mode) canon: dedicated
 // question-mode surface exposing the decisionWhy compilation.
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
@@ -745,10 +751,29 @@ export function ChartsDashboard() {
       style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden", background: theme === "neon" ? "#02060a" : "#0D0E14" }}
     >
       {theme === "neon" && <div className="wm-neon-scan" />}
-      {/* Hidden context tag for SpaidBot to read current chart state */}
+      {/* Hidden context tag for SpaidBot to read current chart state.
+          This is a real wire, not a debug attribute: SpaidBotButton parses it
+          and POSTs it to /api/spaidbot, which injects it into the model's
+          prompt. It therefore carries the same truth obligation as a rendered
+          pixel. It used to publish ticker.change / ticker.changePct raw, so on
+          a closed session the assistant was handed "(+0.00%)" as fact — the
+          zero-pair absence sentinel laundered into prose that arrives with no
+          fidelity badge beside it. The route guards independently; this end
+          simply stops emitting a number it cannot back. */}
       <span
         id="wm-chart-context"
-        data-ctx={JSON.stringify({ symbol, price: ticker.price, change: ticker.change, changePct: ticker.changePct })}
+        data-ctx={JSON.stringify(
+          (() => {
+            const chg = selectTickerChangeDisplay(ticker);
+            return {
+              symbol,
+              price: ticker.price,
+              ...(chg.displayable
+                ? { change: chg.change, changePct: chg.changePct }
+                : {}),
+            };
+          })(),
+        )}
         style={{ display: "none" }}
       />
       {/* ── Chart orientation and decision strip. The global shell owns
