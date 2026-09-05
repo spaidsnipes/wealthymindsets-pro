@@ -4,7 +4,7 @@ import {
   userStore, useSupabase, supabaseSignIn,
 } from "@/lib/auth";
 import { sendLoginAlertEmail, loginAlertDetailsFromRequest } from "@/lib/email";
-import { supabaseConfigStatus, notConfiguredBody } from "@/lib/supabaseConfigStatus";
+import { supabaseConfigStatus, notConfiguredBody, SupabaseAuthShapeError } from "@/lib/supabaseConfigStatus";
 
 // Long-lived, httpOnly marker cookie that identifies a browser we've already
 // seen sign in. Absent = a genuinely new device → send the sign-in alert email.
@@ -61,8 +61,18 @@ export async function POST(req: Request) {
       // still down, so the sentence was confidently wrong for every reader. The
       // error NAME is safe to surface; the message is not, because a rejected
       // header can echo the value that was rejected.
-      const cls = e instanceof Error ? e.name : "Error";
       console.error("[login] Supabase sign-in threw — request never completed:", e);
+      // SupabaseAuthShapeError is the one error whose message is safe by
+      // construction (origin + status + content-type only), so it is surfaced
+      // verbatim — it names the misconfigured value instead of describing a
+      // symptom. Every other error contributes its NAME and nothing more.
+      if (e instanceof SupabaseAuthShapeError) {
+        return NextResponse.json(
+          { error: `Sign-in failed: ${e.message}`, edge: "AUTH BACKEND MISDIRECTED" },
+          { status: 503 },
+        );
+      }
+      const cls = e instanceof Error ? e.name : "Error";
       return NextResponse.json(
         {
           error: `Sign-in could not complete a request to the auth backend (${cls}). The request threw before a response was read, which means the backend was unreachable from this host or a Supabase env var is present but unusable.`,

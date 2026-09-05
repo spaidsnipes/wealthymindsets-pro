@@ -12,7 +12,12 @@
 import { createHmac, pbkdf2Sync, randomBytes, timingSafeEqual } from "crypto";
 import type { ResponseCookies } from "next/dist/compiled/@edge-runtime/cookies";
 
-import { normalizeSupabaseKey, normalizeSupabaseUrl } from "./supabaseConfigStatus";
+import {
+  normalizeSupabaseKey,
+  normalizeSupabaseUrl,
+  nonJsonAuthResponseMessage,
+  SupabaseAuthShapeError,
+} from "./supabaseConfigStatus";
 
 const DEV_JWT_SECRET = "wm-dev-secret-CHANGE-IN-PROD-4f8a2b1c";
 
@@ -209,13 +214,31 @@ export async function supabaseResetPassword(email: string, redirectTo: string) {
   return res.ok;
 }
 
+/**
+ * `res.json()` on a non-JSON body throws a bare SyntaxError that names nothing —
+ * the same symptom a dead backend produces. Read the body as text and, when it
+ * will not parse, raise an error that names the origin, status and content-type
+ * that were actually observed. The text itself is discarded, never surfaced.
+ */
+async function supabaseJson(res: Response, url: string): Promise<any> {
+  const raw = await res.text();
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new SupabaseAuthShapeError(
+      nonJsonAuthResponseMessage({ url, status: res.status, contentType: res.headers.get("content-type") }),
+    );
+  }
+}
+
 export async function supabaseSignIn(email: string, password: string) {
-  const res = await fetch(`${SB_URL()}/auth/v1/token?grant_type=password`, {
+  const url = `${SB_URL()}/auth/v1/token?grant_type=password`;
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: SB_KEY() },
     body: JSON.stringify({ email, password }),
   });
-  return res.json();
+  return supabaseJson(res, url);
 }
 
 export async function supabaseGetUser(accessToken: string) {

@@ -67,6 +67,49 @@ export function normalizeSupabaseUrl(raw: string | undefined): string {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
+/**
+ * Thrown when the configured auth backend answers with something that is not
+ * JSON. Distinct from a generic Error because its message is SAFE BY
+ * CONSTRUCTION — built only from the response's origin, status and
+ * content-type, never from a header value or a response body. That is what
+ * lets a route surface this message while still refusing to surface the
+ * message of any other error (see the login route).
+ */
+export class SupabaseAuthShapeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SupabaseAuthShapeError";
+  }
+}
+
+/**
+ * A Supabase auth endpoint answers JSON for every request, including rejected
+ * ones — a missing key, a mangled path and a bad password all return a JSON
+ * body. So a non-JSON answer does not mean "auth failed"; it means the request
+ * never reached Supabase at all and some other server replied. The usual cause
+ * is `NEXT_PUBLIC_SUPABASE_URL` pointing somewhere that is not the project
+ * (a dashboard link, the site's own origin), which returns an HTML page that
+ * `res.json()` then rejects with a SyntaxError — indistinguishable, from the
+ * outside, from a dead backend.
+ *
+ * Only the ORIGIN is named. The path is omitted because some auth paths carry
+ * a token, and the body is never included because it is attacker-influenced.
+ */
+export function nonJsonAuthResponseMessage(input: {
+  readonly url: string;
+  readonly status: number;
+  readonly contentType?: string | null;
+}): string {
+  let origin: string;
+  try {
+    origin = new URL(input.url).origin;
+  } catch {
+    origin = "an unparseable URL";
+  }
+  const ct = input.contentType?.trim() ? `"${input.contentType.trim()}"` : "no content-type";
+  return `The auth backend at ${origin} answered HTTP ${input.status} with ${ct}, which is not JSON. Every Supabase auth endpoint answers JSON even when it rejects a request, so this host's NEXT_PUBLIC_SUPABASE_URL does not point at the Supabase project. Correct that value in the host runtime secrets (e.g. Cloudflare) and redeploy.`;
+}
+
 export function supabaseConfigStatus(env: EnvPresence = process.env): SupabaseConfigStatus {
   const hasUrl  = present(env, "NEXT_PUBLIC_SUPABASE_URL");
   const hasAnon = present(env, "NEXT_PUBLIC_SUPABASE_ANON_KEY");

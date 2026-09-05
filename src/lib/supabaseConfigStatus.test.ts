@@ -4,6 +4,8 @@ import {
   notConfiguredBody,
   normalizeSupabaseKey,
   normalizeSupabaseUrl,
+  nonJsonAuthResponseMessage,
+  SupabaseAuthShapeError,
 } from "./supabaseConfigStatus";
 
 describe("supabaseConfigStatus", () => {
@@ -115,6 +117,52 @@ describe("normalizeSupabaseUrl", () => {
       expect(u.pathname).toBe("/auth/v1/token");
       expect(u.host).toBe("abc.supabase.co");
     }
+  });
+});
+
+describe("nonJsonAuthResponseMessage", () => {
+  it("names the origin, status and content-type that were actually observed", () => {
+    const msg = nonJsonAuthResponseMessage({
+      url: "https://wealthymindsetspro.com/auth/v1/token?grant_type=password",
+      status: 404,
+      contentType: "text/html; charset=utf-8",
+    });
+    expect(msg).toContain("https://wealthymindsetspro.com");
+    expect(msg).toContain("404");
+    expect(msg).toContain("text/html; charset=utf-8");
+    expect(msg).toContain("NEXT_PUBLIC_SUPABASE_URL");
+  });
+
+  it("names ONLY the origin — a path can carry a token and must not be echoed", () => {
+    const msg = nonJsonAuthResponseMessage({
+      url: "https://example.test/auth/v1/verify?token=SECRET-TOKEN-VALUE",
+      status: 200,
+      contentType: "text/html",
+    });
+    expect(msg).toContain("https://example.test");
+    expect(msg).not.toContain("SECRET-TOKEN-VALUE");
+    expect(msg).not.toContain("/auth/v1/verify");
+  });
+
+  it("says 'no content-type' rather than printing null or an empty quote pair", () => {
+    for (const ct of [undefined, null, "   "]) {
+      const msg = nonJsonAuthResponseMessage({ url: "https://example.test", status: 502, contentType: ct });
+      expect(msg).toContain("no content-type");
+      expect(msg).not.toContain("null");
+      expect(msg).not.toContain('""');
+    }
+  });
+
+  it("degrades honestly when the URL itself will not parse", () => {
+    const msg = nonJsonAuthResponseMessage({ url: "not a url", status: 500 });
+    expect(msg).toContain("an unparseable URL");
+  });
+
+  it("SupabaseAuthShapeError carries a stable name so a route can branch on it", () => {
+    const err = new SupabaseAuthShapeError("shape");
+    expect(err).toBeInstanceOf(Error);
+    expect(err.name).toBe("SupabaseAuthShapeError");
+    expect(err.message).toBe("shape");
   });
 });
 
