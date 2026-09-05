@@ -255,3 +255,102 @@ export function readinessSummary(readiness: readonly ProviderReadiness[]): strin
   const ready = readiness.filter((r) => r.status === "READY").length;
   return `${ready}/${readiness.length} providers READY`;
 }
+
+/* ── Near-miss env names (the FINNHUB_KEY_ class) ────────────────────
+ *
+ * WHY THIS EXISTS — a defect observed in production on 2026-09-05.
+ *
+ * /api/finnhub answered 503 {"edge":"NOT CONFIGURED","missing":["FINNHUB_KEY"]}
+ * while the Cloudflare host carried a secret named `FINNHUB_KEY_`. One
+ * trailing underscore took the entire real-time US equity tape off the air,
+ * and nothing in this module could see it:
+ *
+ *   - `FINNHUB_KEY` is absent everywhere, so computeEnvParity scores it
+ *     ABSENT_BOTH, which that function documents as "agreement — not drift."
+ *   - `FINNHUB_KEY_` is not in allProviderEnvNames(), so it is never even
+ *     looked at.
+ *
+ * Net effect: a parity report reading `inParity: true` beside a dead tape.
+ * That is the silent-failure shape this codebase exists to abolish, so a
+ * missing name whose LOOKALIKE is present in the host must be the loudest
+ * row in the receipt, not the quietest.
+ *
+ * Presence-only, like everything else here: it compares NAMES. No value is
+ * read, returned, or logged.
+ */
+
+/**
+ * HIGH — identical once punctuation is discarded (`FINNHUB_KEY_` vs
+ *        `FINNHUB_KEY`). Effectively always a typo.
+ * MEDIUM — shares a distinctive, non-generic token (`ATH_LIVEKIT_KEY_` vs
+ *        `LIVEKIT_API_KEY`). A lead to check, not a verdict.
+ */
+export type NearMissConfidence = "EXACT_MODULO_PUNCTUATION" | "SHARED_DISTINCTIVE_TOKENS";
+
+export interface EnvNameNearMiss {
+  /** The name the CODE reads — the source of truth. */
+  readonly expected: string;
+  /** The lookalike the host actually carries. */
+  readonly found: string;
+  readonly confidence: NearMissConfidence;
+}
+
+/**
+ * Tokens too common to imply kinship. Without this filter every *_KEY var
+ * looks like every other *_KEY var and the report drowns in noise — the
+ * failure mode where a Sentinel gets whitelisted into uselessness.
+ */
+const GENERIC_TOKENS: ReadonlySet<string> = new Set([
+  "KEY", "SECRET", "API", "URL", "TOKEN", "ID", "PUBLIC", "NEXT", "APP", "TRADE",
+]);
+
+function normalizeName(name: string): string {
+  return name.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function distinctiveTokens(name: string): ReadonlySet<string> {
+  return new Set(
+    name.toUpperCase().split(/[^A-Z0-9]+/).filter((t) => t && !GENERIC_TOKENS.has(t)),
+  );
+}
+
+/**
+ * For every expected name that is ABSENT from `hostEnv`, report any present
+ * host key that looks like it. Sorted HIGH-confidence first so the most
+ * actionable row reads first in any receipt.
+ */
+export function detectEnvNameNearMisses(
+  expectedNames: readonly string[],
+  hostEnv: EnvPresence,
+): readonly EnvNameNearMiss[] {
+  const presentHostKeys = Object.keys(hostEnv).filter((k) => isEnvPresent(hostEnv, k));
+  const out: EnvNameNearMiss[] = [];
+
+  for (const expected of expectedNames) {
+    // A name that resolved is not a near miss, however odd its neighbours look.
+    if (isEnvPresent(hostEnv, expected)) continue;
+
+    const expectedNorm = normalizeName(expected);
+    const expectedTokens = distinctiveTokens(expected);
+
+    for (const found of presentHostKeys) {
+      if (found === expected) continue;
+      if (normalizeName(found) === expectedNorm) {
+        out.push({ expected, found, confidence: "EXACT_MODULO_PUNCTUATION" });
+        continue;
+      }
+      const foundTokens = distinctiveTokens(found);
+      const shares = [...expectedTokens].some((t) => foundTokens.has(t));
+      if (shares) {
+        out.push({ expected, found, confidence: "SHARED_DISTINCTIVE_TOKENS" });
+      }
+    }
+  }
+
+  return out.sort((a, b) => {
+    if (a.confidence !== b.confidence) {
+      return a.confidence === "EXACT_MODULO_PUNCTUATION" ? -1 : 1;
+    }
+    return a.expected.localeCompare(b.expected) || a.found.localeCompare(b.found);
+  });
+}

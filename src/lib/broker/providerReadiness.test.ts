@@ -5,6 +5,7 @@ import {
   computeAllProviderReadiness,
   allProviderEnvNames,
   computeEnvParity,
+  detectEnvNameNearMisses,
   isEnvPresent,
   readinessSummary,
   type EnvPresence,
@@ -180,5 +181,87 @@ describe("Alpaca legacy Cloudflare readiness", () => {
       ALPACA_KEY: "canonical-key",
       ALPACA_BROKERAGE_KEY_SECRET_: "legacy-secret",
     }).status).toBe("BLOCKED");
+  });
+});
+
+/**
+ * §22 Orkin — these cases are transcriptions of a REAL production incident
+ * (2026-09-05), not invented fixtures. On that day wealthymindsetspro.com
+ * answered:
+ *
+ *   GET /api/finnhub?sym=TSLA  →  503
+ *   {"edge":"NOT CONFIGURED","missing":["FINNHUB_KEY"],"source":"finnhub"}
+ *
+ * while the Cloudflare host carried a secret literally named `FINNHUB_KEY_`.
+ * A Sentinel written against a hypothetical typo would be theatre; these are
+ * the exact strings that were on the screen.
+ */
+describe("detectEnvNameNearMisses (canon: a lookalike is not agreement)", () => {
+  it("catches the trailing-underscore typo that killed the live tape", () => {
+    const hits = detectEnvNameNearMisses(["FINNHUB_KEY"], { FINNHUB_KEY_: "redacted" });
+    expect(hits).toEqual([
+      { expected: "FINNHUB_KEY", found: "FINNHUB_KEY_", confidence: "EXACT_MODULO_PUNCTUATION" },
+    ]);
+  });
+
+  it("catches the ATH_-prefixed LiveKit pair as a lower-confidence lead", () => {
+    const hits = detectEnvNameNearMisses(
+      ["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET"],
+      { ATH_LIVEKIT_KEY_: "redacted", ATH_LIVEKIT_KEY_SECRET_: "redacted" },
+    );
+    // Both host keys share the distinctive token LIVEKIT with both expected
+    // names, so every pairing is a legitimate lead to check.
+    expect(hits.length).toBeGreaterThanOrEqual(2);
+    expect(hits.every((h) => h.confidence === "SHARED_DISTINCTIVE_TOKENS")).toBe(true);
+    expect(hits.map((h) => h.found)).toEqual(
+      expect.arrayContaining(["ATH_LIVEKIT_KEY_", "ATH_LIVEKIT_KEY_SECRET_"]),
+    );
+  });
+
+  it("stays silent when the expected name actually resolved", () => {
+    // The whole point: a working var must not generate noise just because an
+    // odd-looking neighbour exists. A Sentinel that cries wolf gets ignored.
+    expect(detectEnvNameNearMisses(["FINNHUB_KEY"], {
+      FINNHUB_KEY: "resolved",
+      FINNHUB_KEY_: "leftover",
+    })).toEqual([]);
+  });
+
+  it("does not pair unrelated providers that merely share a generic token", () => {
+    // FINNHUB_KEY and ALPACA_KEY both end in _KEY. If generic tokens counted,
+    // every credential in the account would 'match' every other one.
+    expect(detectEnvNameNearMisses(["FINNHUB_KEY"], { ALPACA_KEY: "k" })).toEqual([]);
+    expect(detectEnvNameNearMisses(["ALPACA_SECRET"], { TASTYTRADE_SECRET: "s" })).toEqual([]);
+  });
+
+  it("ranks the near-certain typo above the merely-plausible lead", () => {
+    const hits = detectEnvNameNearMisses(
+      ["FINNHUB_KEY", "LIVEKIT_API_KEY"],
+      { FINNHUB_KEY_: "redacted", ATH_LIVEKIT_KEY_: "redacted" },
+    );
+    expect(hits[0].confidence).toBe("EXACT_MODULO_PUNCTUATION");
+    expect(hits[0].expected).toBe("FINNHUB_KEY");
+  });
+
+  it("ignores host keys that are present-but-empty", () => {
+    // isEnvPresent is the single definition of 'present'. An empty secret is
+    // absent, so it cannot be the explanation for a missing one.
+    expect(detectEnvNameNearMisses(["FINNHUB_KEY"], { FINNHUB_KEY_: "   " })).toEqual([]);
+  });
+
+  it("emits NAMES only — never a value (secrets boundary)", () => {
+    const hits = detectEnvNameNearMisses(["FINNHUB_KEY"], { FINNHUB_KEY_: "super-secret-value" });
+    expect(JSON.stringify(hits)).not.toContain("super-secret-value");
+    expect(Object.keys(hits[0]).sort()).toEqual(["confidence", "expected", "found"]);
+  });
+
+  it("closes the ABSENT_BOTH blind spot that let this ship", () => {
+    // computeEnvParity scores FINNHUB_KEY as ABSENT_BOTH and calls that
+    // agreement — inParity stays true while the tape is dead. The near-miss
+    // detector is what makes the same env legible.
+    const host: EnvPresence = { FINNHUB_KEY_: "redacted" };
+    const parity = computeEnvParity(["FINNHUB_KEY"], {}, host);
+    expect(parity.inParity).toBe(true);            // the blind spot, documented
+    expect(detectEnvNameNearMisses(["FINNHUB_KEY"], host)).toHaveLength(1); // and covered
   });
 });
