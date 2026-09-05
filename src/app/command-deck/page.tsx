@@ -35,6 +35,13 @@ import RealmGateway from "@/components/brand/RealmGateway";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import CommandContextRibbon from "@/components/command/CommandContextRibbon";
 import OneStoryStrip from "@/components/command/OneStoryStrip";
+import SceneAdmissionPanel from "@/components/experience/SceneAdmissionPanel";
+import { compileScene } from "@/lib/experience/compileScene";
+import { deckSceneSignals } from "@/lib/experience/deckSceneSignals";
+import {
+  computeEvidenceDebt as computeSceneEvidenceDebt,
+  computeRightOfWay as computeSceneRightOfWay,
+} from "@/lib/marketData/viewModels/decisionPermissionCompiler";
 import { PerCapabilityFidelityGrid } from "@/components/marketData/PerCapabilityFidelityGrid";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { selectAggressorFlow } from "@/lib/marketData/selectAggressorFlow";
@@ -250,6 +257,27 @@ function CommandDeckInner() {
   const oneStory = canvasCompilation.oneStory;
   const decisionWhy = canvasCompilation.decisionWhy;
   const marketCanvas = canvasCompilation.canvas;
+
+  // ── BUILD ORDER §10 SCENE COMPILER ─────────────────────────────────────────
+  // The OS layer: given the state, what is ADMITTED to the surface. This is not
+  // emphasis (shellEmphasis already does that) — it is admission, and the panel
+  // renders the WITHHELD list so the refusal is visible rather than implied.
+  //
+  // Right-of-way is computed through the SAME canonical owners the context
+  // ribbon uses (computeEvidenceDebt → computeRightOfWay). A second caller of
+  // one owner is fine; a second implementation would not be (§24).
+  //
+  // The capital column is UNOBSERVED on this route and `deckSceneSignals` says
+  // so explicitly rather than defaulting it to flat. §14.1.
+  const sceneInput = React.useMemo(() => {
+    const debt = computeSceneEvidenceDebt(chainVm?.nodes);
+    const row = computeSceneRightOfWay(permission, debt);
+    return deckSceneSignals({ session: identity.session, rightOfWay: row.value });
+  }, [chainVm?.nodes, permission, identity.session]);
+  const sceneCompilation = React.useMemo(
+    () => compileScene(sceneInput.signals),
+    [sceneInput],
+  );
 
   // The Question Router (canon P26/P6) compiles the ONE dominant question the
   // surface is currently answering: a function of the human's job (mode) and
@@ -742,6 +770,24 @@ function CommandDeckInner() {
                   selectors — never invents. */}
               <div style={{ order: surfaceOrder(deckEmphasis, "STORY") }}>
                 <OneStoryStrip vm={oneStory} />
+              </div>
+
+              {/* SCENE — BUILD ORDER §10 SCENE COMPILER, NOT PAGES.
+                  The OS layer, and the first surface in WM Pro that answers
+                  "given the state, what is ALLOWED on the screen" rather than
+                  "how much room does this get". Emphasis shrinks; admission
+                  refuses. The panel leads with WITHHELD precisely so the
+                  refusal is visible — a scene name alone would be a badge, and
+                  §H19 calls badges dead vocabulary. Signal provenance is shown
+                  because this route has no broker panel: the capital column is
+                  UNOBSERVED here and is never defaulted to flat (§14.1). */}
+              <div style={{ order: surfaceOrder(deckEmphasis, "STORY") }}>
+                <SceneAdmissionPanel
+                  compilation={sceneCompilation}
+                  provenance={sceneInput.provenance}
+                  observedCount={sceneInput.observedCount}
+                  totalCount={sceneInput.totalCount}
+                />
               </div>
 
               {/* Exit Ramp / Completion Receipt — canon §Exit Ramp (2026-08-29
