@@ -85,8 +85,17 @@ function PlaceholderBanner() {
       }}
     >
       <Info size={12} style={{ color: "#F0B429", flexShrink: 0, marginTop: 1 }} />
+      {/* This banner's ONLY job is to disclose that the notes are placeholders
+          (see fabio.ts: "so nothing here is ever mistaken for verified
+          proprietary content"). It previously read "proven order-flow &
+          smart-money principles" — never saying "placeholder" at all, and
+          calling the content PROVEN, which is both the strongest claim the
+          canon has and the exact opposite of what a placeholder notice is
+          for. It also contradicted the card directly beneath it, which says
+          the reads are "not proof of who is trading". */}
       <span style={{ fontSize: 9.5, color: "#C9A94A", lineHeight: 1.4 }}>
-        Playbook notes — proven order-flow &amp; smart-money principles to frame your reads.
+        Framework placeholder — generic, widely-taught order-flow &amp; smart-money
+        concepts, not material from any named trader.
         Educational context, not financial advice.
       </span>
     </div>

@@ -79,4 +79,55 @@ describe("fabio label truth", () => {
   it("the honest placeholder banner is still shown", () => {
     expect(fabio).toContain("Educational context, not financial advice");
   });
+
+  /**
+   * READ OFF THE LIVE SITE 2026-09-05 (/journal, WM Playbook panel). The
+   * assertion directly above is named "the honest placeholder banner" but
+   * only pins the SECOND half of the sentence. The first half read:
+   *
+   *   "Playbook notes — proven order-flow & smart-money principles ..."
+   *
+   * so the banner whose entire job is to say "this is a placeholder" never
+   * said "placeholder", and instead called the content PROVEN — the single
+   * strongest word the canon has, reserved for live observation. It also
+   * contradicted the card rendered immediately beneath it, which correctly
+   * says the read is "not proof of who is trading".
+   *
+   * A toContain on the innocuous clause cannot see an overclaim sitting
+   * beside it. These two assertions close that gap from both directions:
+   * the banner must DISCLOSE, and it may not CLAIM.
+   */
+  /**
+   * SCOPING NOTE — this cost me a real Orkin receipt, so it is written down.
+   *
+   * My first attempt at the ban below sliced the file between the NEW wording
+   * and the trailing clause:
+   *
+   *   fabio.slice(fabio.indexOf("Framework placeholder"), fabio.indexOf("Educational…"))
+   *
+   * On a revive that string is gone, so indexOf returns -1, and
+   * slice(-1, n) degenerates to an empty-ish window that contains no "proven".
+   * The assertion PASSED against the exact source it exists to reject. A
+   * Sentinel keyed to the presence of the fix cannot detect the fix's absence.
+   *
+   * Both assertions now share one window anchored on structure that survives
+   * any rewording — the function declaration and the next top-level export —
+   * with block comments stripped, because the explanatory comment inside
+   * PlaceholderBanner legitimately quotes the old "proven" wording.
+   */
+  const bannerBody = () => {
+    const start = fabio.indexOf("function PlaceholderBanner");
+    const end = fabio.indexOf("export interface FabioInsightsProps");
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    return fabio.slice(start, end).replace(/\/\*[\s\S]*?\*\//g, "");
+  };
+
+  it("the banner actually discloses that the content is a placeholder", () => {
+    expect(bannerBody()).toMatch(/framework placeholder/i);
+  });
+
+  it("the banner never calls placeholder content proven", () => {
+    expect(bannerBody()).not.toMatch(/\bproven\b/i);
+  });
 });
