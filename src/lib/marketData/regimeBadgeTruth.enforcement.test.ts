@@ -64,18 +64,64 @@ describe("the chip's claims are delegated, not hand-rolled", () => {
   });
 });
 
+/**
+ * SECOND LIVE OBSERVATION, same day, after the fix above shipped. /charts read:
+ *
+ *   REGIME  SIDE  +0.00% last session
+ *   4,476.60  — (change unavailable)     ← header price line, one row below
+ *
+ * The date word was repaired; the fabrication was not. The component now
+ * forwarded a real value, so the ban on `: 0` above passed — and the chip still
+ * named a market state the header simultaneously said was unknown.
+ *
+ * The zero-pair (`change === 0 && changePct === 0`) is this ticker's "no
+ * reference close yet" sentinel, set by useWebSocket.flush(). A caller that
+ * forwards only `changePct` destroys the evidence needed to see it. So the wire
+ * itself is pinned, not just the arithmetic: the bans above cannot detect an
+ * argument that was never passed.
+ */
+describe("the call site forwards enough evidence to detect absence", () => {
+  it("ChartsDashboard passes change alongside changePct", () => {
+    // Comments are stripped BEFORE the argument object is delimited. A fixed
+    // character window fails the moment someone documents the call site — this
+    // assertion already broke once that way, on the very comment explaining
+    // why the argument is required.
+    const stripped = src().replace(/\/\/[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+    const call = stripped.match(/selectRegimeBadge\(\{[^}]*\}\)/);
+    expect(call, "selectRegimeBadge call site not found").not.toBeNull();
+    expect(call![0]).toMatch(/\bchange:\s*ticker\.change\b/);
+    expect(call![0]).toMatch(/\bchangePct:\s*ticker\.changePct\b/);
+  });
+});
+
 describe("the owner still refuses to classify silence", () => {
   it("returns nothing displayable without a verified change", () => {
     // Pinned here as well as in the unit suite: if someone softens the guard
     // in selectRegimeBadge itself, the component ban above would still pass.
     const at = new Date("2026-09-05T19:59:00Z");
     for (const absent of [undefined, null, NaN, "0"]) {
-      expect(selectRegimeBadge({ changePct: absent, symbol: "GC1!", at }).displayable).toBe(false);
+      expect(selectRegimeBadge({ change: -3.4, changePct: absent, symbol: "GC1!", at }).displayable).toBe(false);
     }
   });
 
+  it("refuses the zero-pair that was rendering as '+0.00% last session'", () => {
+    const at = new Date("2026-09-05T19:59:00Z");
+    const view = selectRegimeBadge({ change: 0, changePct: 0, symbol: "GC1!", at });
+    expect(view.displayable).toBe(false);
+    expect(JSON.stringify(view)).not.toContain("SIDE");
+  });
+
+  it("delegates the evidence test rather than re-deriving it", () => {
+    // Hand-rolled finiteness is what let the zero-pair through. There is one
+    // owner of "is this change backed by a real reference close".
+    const owner = readFileSync(resolve(__dirname, "./selectRegimeBadge.ts"), "utf8");
+    expect(owner).toContain("selectTickerChangeDisplay");
+    const body = owner.slice(owner.indexOf("export function selectRegimeBadge"));
+    expect(body).not.toMatch(/Number\.isFinite/);
+  });
+
   it("earns 'last session' on the proven-closed Saturday that was observed", () => {
-    expect(selectRegimeBadge({ changePct: -0.34, symbol: "GC1!", at: new Date("2026-09-05T19:59:00Z") }))
+    expect(selectRegimeBadge({ change: -15.2, changePct: -0.34, symbol: "GC1!", at: new Date("2026-09-05T19:59:00Z") }))
       .toMatchObject({ regime: "SIDE", periodLabel: "last session" });
   });
 });

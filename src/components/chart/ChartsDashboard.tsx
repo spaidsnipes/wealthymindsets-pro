@@ -1640,6 +1640,14 @@ export function ChartsDashboard() {
                          period word is earned from proven session closure. */}
                     {(() => {
                       const badge = selectRegimeBadge({
+                        // BOTH numbers, deliberately. useWebSocket leaves change
+                        // and changePct at their initial 0 until a real prior
+                        // close arrives, so the zero-PAIR is this ticker's
+                        // "no reference close" sentinel — invisible to anything
+                        // that only sees the percentage. Forwarding changePct
+                        // alone is how "+0.00% last session / SIDE" survived
+                        // beside the header's own "— (change unavailable)".
+                        change: ticker.change,
                         changePct: ticker.changePct,
                         symbol,
                         at: sessionClockDate,
