@@ -36,7 +36,7 @@ interface AuthState {
   user:       WMUser | null;
   loading:    boolean;
   signUp:     (email: string, password: string) => Promise<{ error?: string; verificationRequired?: boolean }>;
-  signIn:     (email: string, password: string) => Promise<{ error?: string }>;
+  signIn:     (email: string, password: string) => Promise<{ error?: string; status?: number; edge?: string }>;
   resendConfirmation: (email: string) => Promise<{ error?: string }>;
   signOut:    () => Promise<void>;
   signOutAllDevices: () => Promise<void>;
@@ -175,11 +175,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         credentials: "include",
       });
       const data = await readResponseJson(res);
-      if (!res.ok) return { error: typeof data.error === "string" ? data.error : "Login failed" };
+      if (!res.ok) {
+        // Carry the STATUS and the route's named `edge` through. Without them the
+        // caller can only guess at the failure class by reading the prose, and a
+        // configuration outage gets mis-worded as a wrong password.
+        return {
+          error: typeof data.error === "string" ? data.error : "Login failed",
+          status: res.status,
+          edge: typeof data.edge === "string" ? data.edge : undefined,
+        };
+      }
       await refreshUser();
       return {};
     } catch {
-      return { error: "We could not reach the account service. Check your connection and try again." };
+      return {
+        error: "We could not reach the account service. Check your connection and try again.",
+        status: 0,
+      };
     }
   }, [refreshUser]);
 

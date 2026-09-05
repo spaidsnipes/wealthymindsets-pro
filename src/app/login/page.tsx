@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, Mail, Lock, TrendingUp, Zap, Shield, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { classifySignInFailure } from "@/lib/signInErrorMessage";
 import { useSearchParams } from "next/navigation";
 import WmWordmark from "@/components/brand/WmWordmark";
 
@@ -103,16 +104,13 @@ function LoginPage() {
       setSubmitting(true);
       const result = await signIn(email, password).finally(() => setSubmitting(false));
       if (result.error) {
-        // Friendly error messages
-        const msg = result.error.toLowerCase();
-        if (msg.includes("email not confirmed")) {
-          setVerificationEmail(email.trim().toLowerCase());
-          setError("Please check your email and confirm your account, then try again.");
-        } else if (msg.includes("invalid") || msg.includes("credentials") || msg.includes("password")) {
-          setError("Incorrect email or password. Please try again.");
-        } else {
-          setError(result.error);
-        }
+        const failure = classifySignInFailure({
+          status: result.status ?? 0,
+          edge: result.edge,
+          error: result.error,
+        });
+        if (failure.kind === "UNCONFIRMED_EMAIL") setVerificationEmail(email.trim().toLowerCase());
+        setError(failure.message);
       }
       return;
     }

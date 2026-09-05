@@ -121,41 +121,70 @@ describe("normalizeSupabaseUrl", () => {
 });
 
 describe("nonJsonAuthResponseMessage", () => {
-  it("names the origin, status and content-type that were actually observed", () => {
+  it("names a Supabase project host, which is public by design", () => {
     const msg = nonJsonAuthResponseMessage({
-      url: "https://wealthymindsetspro.com/auth/v1/token?grant_type=password",
+      url: "https://zrzaifaxecwgpfrqctkp.supabase.co/auth/v1/token?grant_type=password",
       status: 404,
       contentType: "text/html; charset=utf-8",
     });
-    expect(msg).toContain("https://wealthymindsetspro.com");
+    expect(msg).toContain("https://zrzaifaxecwgpfrqctkp.supabase.co");
     expect(msg).toContain("404");
     expect(msg).toContain("text/html; charset=utf-8");
     expect(msg).toContain("NEXT_PUBLIC_SUPABASE_URL");
   });
 
-  it("names ONLY the origin — a path can carry a token and must not be echoed", () => {
+  it("SECURITY: never echoes a non-Supabase URL — it may be a key pasted into the URL box", () => {
+    // This is the real observed production defect: NEXT_PUBLIC_SUPABASE_URL held
+    // a Supabase publishable key, so a message that quotes the URL publishes a
+    // credential to any anonymous caller of /api/auth/login.
+    const pastedKey = "sb_publishable_EXAMPLE_NOT_A_REAL_KEY";
     const msg = nonJsonAuthResponseMessage({
-      url: "https://example.test/auth/v1/verify?token=SECRET-TOKEN-VALUE",
+      url: `https://${pastedKey}/auth/v1/token?grant_type=password`,
+      status: 403,
+      contentType: "text/plain; charset=UTF-8",
+    });
+    expect(msg).not.toContain(pastedKey);
+    expect(msg).not.toContain("sb_publishable");
+    expect(msg).toContain("not a Supabase project URL");
+    expect(msg).toContain("withheld");
+    // Still says what was observed, so the operator can act.
+    expect(msg).toContain("403");
+    expect(msg).toContain("text/plain; charset=UTF-8");
+    expect(msg).toContain("KEY pasted into the URL variable");
+  });
+
+  it("SECURITY: a look-alike host must not satisfy the supabase.co check", () => {
+    for (const host of ["notsupabase.co.evil.test", "supabase.co.attacker.test", "fakesupabase.com"]) {
+      const msg = nonJsonAuthResponseMessage({ url: `https://${host}/auth/v1/token`, status: 500 });
+      expect(msg).not.toContain(host);
+      expect(msg).toContain("not a Supabase project URL");
+    }
+  });
+
+  it("never echoes the path, which can carry a token", () => {
+    const msg = nonJsonAuthResponseMessage({
+      url: "https://abc.supabase.co/auth/v1/verify?token=SECRET-TOKEN-VALUE",
       status: 200,
       contentType: "text/html",
     });
-    expect(msg).toContain("https://example.test");
+    expect(msg).toContain("https://abc.supabase.co");
     expect(msg).not.toContain("SECRET-TOKEN-VALUE");
     expect(msg).not.toContain("/auth/v1/verify");
   });
 
   it("says 'no content-type' rather than printing null or an empty quote pair", () => {
     for (const ct of [undefined, null, "   "]) {
-      const msg = nonJsonAuthResponseMessage({ url: "https://example.test", status: 502, contentType: ct });
+      const msg = nonJsonAuthResponseMessage({ url: "https://abc.supabase.co", status: 502, contentType: ct });
       expect(msg).toContain("no content-type");
       expect(msg).not.toContain("null");
       expect(msg).not.toContain('""');
     }
   });
 
-  it("degrades honestly when the URL itself will not parse", () => {
+  it("falls to the withholding branch when the URL itself will not parse", () => {
     const msg = nonJsonAuthResponseMessage({ url: "not a url", status: 500 });
-    expect(msg).toContain("an unparseable URL");
+    expect(msg).toContain("not a Supabase project URL");
+    expect(msg).not.toContain("not a url");
   });
 
   it("SupabaseAuthShapeError carries a stable name so a route can branch on it", () => {

@@ -92,22 +92,36 @@ export class SupabaseAuthShapeError extends Error {
  * `res.json()` then rejects with a SyntaxError — indistinguishable, from the
  * outside, from a dead backend.
  *
- * Only the ORIGIN is named. The path is omitted because some auth paths carry
- * a token, and the body is never included because it is attacker-influenced.
+ * DISCLOSURE RULE — the reason this is not simply "print the URL": the value
+ * being described is whatever an operator typed into NEXT_PUBLIC_SUPABASE_URL,
+ * and operators paste the wrong thing into that box. A Supabase KEY pasted
+ * there would be echoed straight into a public HTTP response by any message
+ * that quotes the value. So the value is only ever named when its hostname is
+ * a Supabase project host, which is public by design; anything else is
+ * described by SHAPE and never quoted. The path is always omitted because some
+ * auth paths carry a token, and the response body is never included because it
+ * is attacker-influenced.
  */
 export function nonJsonAuthResponseMessage(input: {
   readonly url: string;
   readonly status: number;
   readonly contentType?: string | null;
 }): string {
-  let origin: string;
-  try {
-    origin = new URL(input.url).origin;
-  } catch {
-    origin = "an unparseable URL";
-  }
   const ct = input.contentType?.trim() ? `"${input.contentType.trim()}"` : "no content-type";
-  return `The auth backend at ${origin} answered HTTP ${input.status} with ${ct}, which is not JSON. Every Supabase auth endpoint answers JSON even when it rejects a request, so this host's NEXT_PUBLIC_SUPABASE_URL does not point at the Supabase project. Correct that value in the host runtime secrets (e.g. Cloudflare) and redeploy.`;
+  const answered = `answered HTTP ${input.status} with ${ct} instead of JSON`;
+
+  let hostname: string | null = null;
+  try {
+    hostname = new URL(input.url).hostname;
+  } catch {
+    hostname = null;
+  }
+
+  if (hostname && /(^|\.)supabase\.(co|in|net)$/i.test(hostname)) {
+    return `The auth backend at https://${hostname} ${answered}. Every Supabase auth endpoint answers JSON even when it rejects a request, so NEXT_PUBLIC_SUPABASE_URL on this host does not point at a working Supabase project. Correct it in the host runtime secrets (e.g. Cloudflare) and redeploy.`;
+  }
+
+  return `NEXT_PUBLIC_SUPABASE_URL on this host is not a Supabase project URL — its hostname does not end in .supabase.co. Whatever it points at ${answered}. The usual cause is a Supabase KEY pasted into the URL variable. Correct NEXT_PUBLIC_SUPABASE_URL in the host runtime secrets (e.g. Cloudflare) and redeploy. The configured value is withheld here because it may be a secret.`;
 }
 
 export function supabaseConfigStatus(env: EnvPresence = process.env): SupabaseConfigStatus {
