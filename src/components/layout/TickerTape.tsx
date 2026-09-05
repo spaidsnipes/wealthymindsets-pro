@@ -9,6 +9,7 @@ import { priceSourceBadge } from "@/lib/priceSource";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { yahooQuoteObserved } from "@/lib/marketData/yahooQuoteObserved";
+import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 
 // WM-SEC-P0-05 (2026-08-08): client-side Polygon key read removed. The
 // NEXT_PUBLIC_POLYGON_KEY that used to live here shipped the API key
@@ -150,7 +151,11 @@ function TickerItem({ item, onClick, active }: {
   const dp = price > 10_000 ? 0 : price > 100 ? 2 : price > 1 ? 4 : 6;
   // Provenance: name the feed each quote came from so a value that differs from
   // the chart header or watchlist is explainable, not a silent contradiction.
-  const badge = priceSourceBadge(src ?? "unavailable", live);
+  // Canon "CLOSED IS NOT DELAYED": on a proven-closed session the rail must
+  // not print ACTIVE over a market that is not trading. `null` until mount and
+  // on every weekday, so provider labelling is untouched the rest of the time.
+  const sessionOpen = useProvenSessionClosure(sym);
+  const badge = priceSourceBadge(src ?? "unavailable", live, sessionOpen);
   // SHIFT-U continuation — per-capability tooltip enrichment: bars +
   // quotes lit from the ticker's own source; other slots silent.
   const capabilityReport = selectPerCapabilityFidelity({

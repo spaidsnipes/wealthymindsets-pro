@@ -12,6 +12,59 @@ import {
  * every test here asserts on the canon-approved labels.
  */
 
+/**
+ * Founder-observed defect, 2026-09-05 (Saturday, screenshot of /charts):
+ * the ticker rail and every watchlist row read "ACTIVE DEGRADED" while the
+ * US market was closed. `priceSourceBadge` switched on provider alone, so the
+ * word ACTIVE was asserted on a closed session — the §8 class "may never say
+ * LIVE on a closed session". BTC read "LIVE — CERTIFIED QUOTE" correctly on
+ * the same screen, which is what made the contradiction visible.
+ */
+describe("priceSourceBadge — closed session dominates the provider verdict", () => {
+  it("retires the false ACTIVE DEGRADED claim when the session is proven closed", () => {
+    for (const src of ["yahoo", "finnhub"] as const) {
+      expect(priceSourceBadge(src, true).label).toBe(L.ACTIVE_DEGRADED); // the defect, unguarded
+      const closed = priceSourceBadge(src, true, false);
+      expect(closed.label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+      expect(closed.live).toBe(false);
+      expect(closed.title).not.toMatch(/delayed/i); // closed is not delayed
+    }
+  });
+
+  it("outranks every non-continuous provider verdict, including live ones", () => {
+    expect(priceSourceBadge("polygon", true, false).label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+    expect(priceSourceBadge("polygon", true, false).live).toBe(false);
+    expect(priceSourceBadge("alpaca", true, false).label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+    expect(priceSourceBadge("unavailable", false, false).label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+  });
+
+  it("never prints SESSION CLOSED over a continuous crypto tape (mirror-image bug)", () => {
+    for (const src of ["binance", "coinbase"] as const) {
+      const b = priceSourceBadge(src, true, false);
+      expect(b.label).toBe(L.LIVE_CERTIFIED_QUOTE);
+      expect(b.live).toBe(true);
+    }
+  });
+
+  it("treats an unestablished session as no information — never rounds it into a claim", () => {
+    for (const unknown of [undefined, null] as const) {
+      expect(priceSourceBadge("yahoo", true, unknown).label).toBe(L.ACTIVE_DEGRADED);
+      expect(priceSourceBadge("polygon", true, unknown).label).toBe(L.LIVE_CERTIFIED_QUOTE);
+      expect(priceSourceBadge("unavailable", false, unknown).unresolved).toBe(true);
+    }
+    // sessionOpen === true is not a promotion either: a delayed provider stays degraded.
+    expect(priceSourceBadge("yahoo", true, true).label).toBe(L.ACTIVE_DEGRADED);
+  });
+
+  it("keeps the closed verdict intact through the chart-surface guard", () => {
+    // resolveChartSurfaceBadge promotes unresolved+candles to HISTORICAL BARS
+    // VERIFIED. Closed must not be downgraded into it — canon ranks closed higher.
+    const b = resolveChartSurfaceBadge("unavailable", false, true);
+    expect(b.label).toBe(L.HISTORICAL_BARS_VERIFIED);
+    expect(priceSourceBadge("unavailable", false, false).unresolved).toBe(false);
+  });
+});
+
 describe("priceSourceBadge (WM-CHART-P0-05 provenance)", () => {
   it("labels real-time streams as live", () => {
     expect(priceSourceBadge("polygon", true).live).toBe(true);

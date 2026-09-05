@@ -56,8 +56,40 @@ export interface CandleDataStatus {
   live: boolean;
 }
 
-export function priceSourceBadge(source: PriceSource, connected: boolean): PriceSourceBadge {
+/**
+ * Continuous markets have no session to close. Honouring `sessionOpen: false`
+ * for one of these would print SESSION CLOSED over a genuinely streaming
+ * crypto tape — the mirror image of the defect this parameter exists to fix —
+ * so the writer defends the invariant itself rather than trusting callers.
+ */
+const CONTINUOUS_MARKET_SOURCES: ReadonlySet<PriceSource> = new Set(["binance", "coinbase"]);
+
+/**
+ * @param sessionOpen Tri-state session truth. ONLY an explicit `false`
+ *   changes the verdict; `undefined`/`null` mean "not established" and leave
+ *   provider-derived labelling exactly as it was. An unknown session may
+ *   never be rounded into a claim in either direction.
+ */
+export function priceSourceBadge(
+  source: PriceSource,
+  connected: boolean,
+  sessionOpen?: boolean | null,
+): PriceSourceBadge {
   const L = CANONICAL_FIDELITY_LABELS;
+  // Canon "CLOSED IS NOT DELAYED" + §8 (the screen may never imply an active
+  // session on a closed one). Closed dominates every provider verdict, exactly
+  // as it does in resolveCanonicalFidelityLabel — where `sessionOpen === false`
+  // is checked before entitlement, freshness and staleness. Without this the
+  // yahoo/finnhub arms below assert ACTIVE DEGRADED every weekend.
+  if (sessionOpen === false && !CONTINUOUS_MARKET_SOURCES.has(source)) {
+    return {
+      label: L.SESSION_CLOSED_LAST_VERIFIED,
+      title: "Market session is closed. Showing the last verified values — nothing is streaming.",
+      live: false,
+      provenance: String(source ?? "unavailable"),
+      unresolved: false,
+    };
+  }
   switch (source) {
     case "polygon":
       return { label: L.LIVE_CERTIFIED_QUOTE, title: "Real-time trade stream", live: true, provenance: "polygon", unresolved: false };

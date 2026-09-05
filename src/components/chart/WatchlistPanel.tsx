@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Plus, TrendingUp, TrendingDown, LayoutGrid, List } from "lucide-react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { priceSourceBadge } from "@/lib/priceSource";
+import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
+import { provenSessionClosure } from "@/lib/marketData/canonicalIdentity";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 
@@ -293,6 +295,9 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
     });
   };
 
+  // Canon "CLOSED IS NOT DELAYED" — one mount-safe clock for the whole list.
+  // Rows call the pure provenSessionClosure(sym, now) so no hook runs in the map.
+  const sessionNow = useSessionClockDate();
   const [items, setItems] = useState<WatchItem[]>([]);
   const [search, setSearch] = useState("");
   const [addInput, setAddInput] = useState("");
@@ -779,7 +784,11 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
                               // SHIFT-R atom 5 — CanonicalFidelityBadge (compact
                               // variant) — canon 7-question tooltip enrichment
                               // arrives on every watchlist row for free.
-                              const b = priceSourceBadge(item.src ?? "unavailable", item.price > 0);
+                              const b = priceSourceBadge(
+                                item.src ?? "unavailable",
+                                item.price > 0,
+                                sessionNow ? provenSessionClosure(item.sym, sessionNow) : null,
+                              );
                               const capabilityReport = selectPerCapabilityFidelity({
                                 source: item.src ?? "unavailable",
                                 connected: item.price > 0,

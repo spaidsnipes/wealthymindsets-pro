@@ -6,8 +6,52 @@ import {
   canonicalMarketStateIdentity,
   selectCanonicalFuturesSessionTruth,
   selectCanonicalSessionPresentation,
+  provenSessionClosure,
   US_CASH_SESSION_UNKNOWN_LABEL,
 } from "./canonicalIdentity";
+
+describe("provenSessionClosure", () => {
+  // 2026-09-05 is the Saturday the Founder screenshotted /charts showing
+  // "ACTIVE DEGRADED" across the ticker rail and every watchlist row.
+  const saturday = new Date(2026, 8, 5);
+  const sunday = new Date(2026, 8, 6);
+  const wednesday = new Date(2026, 8, 2);
+
+  it("proves Saturday closed for every non-continuous market", () => {
+    for (const sym of ["TSLA", "SPY", "NQ1!", "EUR/USD"]) {
+      expect(provenSessionClosure(sym, saturday)).toBe(false);
+    }
+  });
+
+  it("proves Sunday closed for US cash only — futures and FX reopen Sunday evening", () => {
+    expect(provenSessionClosure("TSLA", sunday)).toBe(false);
+    expect(provenSessionClosure("SPY", sunday)).toBe(false);
+    expect(provenSessionClosure("NQ1!", sunday)).toBeNull();
+    expect(provenSessionClosure("EUR/USD", sunday)).toBeNull();
+  });
+
+  it("never claims closure for crypto — a continuous market has no session to close", () => {
+    for (const at of [saturday, sunday, wednesday]) {
+      expect(provenSessionClosure("BTC", at)).toBeNull();
+      expect(provenSessionClosure("ETH", at)).toBeNull();
+    }
+  });
+
+  it("returns null on weekdays — it holds no holiday calendar and may not guess", () => {
+    for (const sym of ["TSLA", "NQ1!", "BTC"]) {
+      expect(provenSessionClosure(sym, wednesday)).toBeNull();
+    }
+  });
+
+  it("never returns true — proving a session OPEN is outside its authority (§8)", () => {
+    const days = Array.from({ length: 7 }, (_, i) => new Date(2026, 8, 1 + i));
+    for (const at of days) {
+      for (const sym of ["TSLA", "SPY", "NQ1!", "EUR/USD", "BTC"]) {
+        expect(provenSessionClosure(sym, at)).not.toBe(true);
+      }
+    }
+  });
+});
 
 describe("canonicalAssetClass", () => {
   it("classifies known crypto tickers", () => {

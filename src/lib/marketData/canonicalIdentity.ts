@@ -200,6 +200,35 @@ export function canonicalAssetClass(symbol: string): CanonicalAssetClass {
 }
 
 /**
+ * Establish session closure WITHOUT an authoritative exchange calendar.
+ *
+ * Deliberately asymmetric — it returns only:
+ *   false → the session is PROVEN closed
+ *   null  → not established (a weekday, an unseen holiday, an intraday hour
+ *           for which this codebase holds no calendar)
+ *
+ * It never returns `true`. Proving a session OPEN needs a real calendar plus
+ * intraday hours, and §8 forbids implying an active session that has not been
+ * established. Downstream, only an explicit `false` may change a label — so
+ * this helper can retire a false ACTIVE claim and can never manufacture one.
+ *
+ * Day rules, narrowed to what is certain:
+ *   Saturday — closed for every non-continuous market.
+ *   Sunday   — closed for US cash markets only. Futures and FX reopen Sunday
+ *              evening, so claiming Sunday closure for them would be the same
+ *              overreach in the opposite direction.
+ *   Crypto   — continuous; there is no session to close, ever.
+ */
+export function provenSessionClosure(symbol: string, at: Date): false | null {
+  const cls = canonicalAssetClass(symbol);
+  if (cls === "crypto") return null;
+  const day = at.getDay();
+  if (day === 6) return false;
+  if (day === 0 && (cls === "equity" || cls === "etf" || cls === "options")) return false;
+  return null;
+}
+
+/**
  * Canonical instrument identifier — the string used as the primary key of
  * the canonical market state store and coverage records. Provider adapters
  * may translate to/from this form, but every canonical consumer MUST use
