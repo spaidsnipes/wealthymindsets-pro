@@ -4,7 +4,8 @@ import {
 } from "@/lib/auth";
 import { sendWelcomeEmail } from "@/lib/email";
 import { CANONICAL_URL } from "@/lib/canonicalUrl";
-import { supabaseConfigStatus, notConfiguredBody, SupabaseAuthShapeError } from "@/lib/supabaseConfigStatus";
+import { supabaseConfigStatus, notConfiguredBody } from "@/lib/supabaseConfigStatus";
+import { classifyAuthBackendFault } from "@/lib/authBackendFault";
 import { randomBytes } from "crypto";
 
 export async function POST(req: Request) {
@@ -29,22 +30,8 @@ export async function POST(req: Request) {
       // sign-up was down and found alive and answering JSON, so that sentence
       // was confidently wrong for every reader who saw it. Name the class that
       // was actually observed instead of the one that sounds plausible.
-      if (e instanceof SupabaseAuthShapeError) {
-        // The one error whose message is safe to repeat: built from origin,
-        // status and content-type alone, never from a header or a body.
-        return NextResponse.json(
-          { error: `Sign-up failed: ${e.message}`, edge: "AUTH BACKEND MISDIRECTED" },
-          { status: 503 },
-        );
-      }
-      const cls = e instanceof Error ? e.name : "Error";
-      return NextResponse.json(
-        {
-          error: `Sign-up could not complete a request to the auth backend (${cls}). The request threw before a response was read, which means the backend was unreachable from this host or a Supabase env var is present but unusable.`,
-          edge: "AUTH BACKEND UNREACHABLE",
-        },
-        { status: 503 },
-      );
+      const fault = classifyAuthBackendFault("Sign-up", e);
+      return NextResponse.json(fault.body, { status: fault.httpStatus });
     }
     if (data.error) return NextResponse.json({ error: data.error.message ?? "Signup failed" }, { status: 400 });
     const user = data.user;

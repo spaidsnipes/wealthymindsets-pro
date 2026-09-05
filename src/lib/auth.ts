@@ -195,15 +195,13 @@ export async function supabaseSignUp(email: string, password: string, redirectTo
 
 export async function supabaseResendSignup(email: string, redirectTo?: string) {
   const qs = redirectTo ? `?redirect_to=${encodeURIComponent(redirectTo)}` : "";
-  const res = await fetch(`${SB_URL()}/auth/v1/resend${qs}`, {
+  const url = `${SB_URL()}/auth/v1/resend${qs}`;
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: SB_KEY() },
     body: JSON.stringify({ email, type: "signup" }),
   });
-  return {
-    ok: res.ok,
-    data: await res.json().catch(() => ({})) as Record<string, unknown>,
-  };
+  return { ok: res.ok, data: await supabaseJson(res, url) as Record<string, unknown> };
 }
 
 /**
@@ -272,10 +270,11 @@ export async function supabaseSignIn(email: string, password: string) {
 }
 
 export async function supabaseGetUser(accessToken: string) {
-  const res = await fetch(`${SB_URL()}/auth/v1/user`, {
+  const url = `${SB_URL()}/auth/v1/user`;
+  const res = await fetch(url, {
     headers: { apikey: SB_KEY(), Authorization: `Bearer ${accessToken}` },
   });
-  return res.json();
+  return supabaseJson(res, url);
 }
 
 /**
@@ -289,12 +288,18 @@ export async function supabaseVerifyEmail(input: { email?: string; token?: strin
   const body = input.tokenHash
     ? { token_hash: input.tokenHash, type: "email" }
     : { email: input.email, token: input.token, type: "email" };
-  const res = await fetch(`${SB_URL()}/auth/v1/verify`, {
+  const url = `${SB_URL()}/auth/v1/verify`;
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: SB_KEY() },
     body: JSON.stringify(body),
   });
-  return { ok: res.ok, data: await res.json().catch(() => ({})) as Record<string, unknown> };
+  // `.catch(() => ({}))` used to stand here. It turned a backend that answered
+  // HTML into an empty object, and the caller reads an empty object as "that
+  // code is not valid" — so a host with a misconfigured NEXT_PUBLIC_SUPABASE_URL
+  // told every user their correct code was wrong, forever. A body that will not
+  // parse is a fact about the service; raise it as one.
+  return { ok: res.ok, data: await supabaseJson(res, url) as Record<string, unknown> };
 }
 
 /**

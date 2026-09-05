@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { setAuthCookie, signJWT, supabaseGetUser, supabaseVerifyEmail, useSupabase } from "@/lib/auth";
 import { supabaseConfigStatus, notConfiguredBody } from "@/lib/supabaseConfigStatus";
+import { classifyAuthBackendFault } from "@/lib/authBackendFault";
 
 type SupabaseUser = {
   id?: string;
@@ -37,7 +38,24 @@ export async function POST(request: Request) {
       { status: 503 },
     );
   }
-  const body = await request.json().catch(() => ({})) as { accessToken?: string; email?: string; token?: string; tokenHash?: string };
+  const body = await request.json().catch(() => ({})) as ConfirmBody;
+  try {
+    return await confirmWithSupabase(body);
+  } catch (e) {
+    // A throw means no answer was ever read, so nothing judged this person's
+    // code. The 401 below is reserved for a verdict that actually came back from
+    // Supabase: on 2026-09-05 a host whose NEXT_PUBLIC_SUPABASE_URL held a
+    // publishable key told users their correct code had expired, and they would
+    // have gone on requesting fresh ones forever.
+    console.error("[confirm] auth backend threw — verification never completed:", e);
+    const fault = classifyAuthBackendFault("Account verification", e);
+    return NextResponse.json(fault.body, { status: fault.httpStatus });
+  }
+}
+
+type ConfirmBody = { accessToken?: string; email?: string; token?: string; tokenHash?: string };
+
+async function confirmWithSupabase(body: ConfirmBody) {
   const accessToken = body.accessToken?.trim();
   if (accessToken) {
     const user = await supabaseGetUser(accessToken) as SupabaseUser;
