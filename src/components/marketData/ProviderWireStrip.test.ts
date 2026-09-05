@@ -128,6 +128,7 @@ describe("ProviderWireStrip touch truth surface", () => {
     expect(source).toContain('data-provider-tone={wire.tone}');
     expect(source).toContain('href="/readiness"');
     expect(source).toContain('readJson<ReadinessPayload>("/api/broker/readiness")');
+    expect(source).toContain("readJsonReceipt<T>(fetch, url, controller.signal)");
     expect(source).toContain("Inspect wire →");
     expect(source).toContain('{compact ? "Connections" : "Market data wires"}');
     expect(source).toContain('compact ? "View details →"');

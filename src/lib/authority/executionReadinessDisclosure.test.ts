@@ -116,6 +116,8 @@ describe("execution readiness disclosure", () => {
       "Setup present — verification required. Charts and trading are not certified by this receipt.",
     );
     expect(src).toContain("Presence of a key never");
+    expect(src).toContain('readJsonReceipt<ReadinessPayload>(');
+    expect(src).not.toContain("await res.json()");
   });
 
   it("a READY provider is never rendered as connected, live, or tradable", () => {

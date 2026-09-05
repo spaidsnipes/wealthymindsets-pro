@@ -25,6 +25,7 @@ import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
 import { Plug2 } from "lucide-react";
 import { BrokerConnectPanel } from "@/components/broker/BrokerConnectPanel";
+import { readJsonReceipt } from "@/lib/marketData/readJsonReceipt";
 import {
   selectReadinessWireboard,
   type ReadinessPayload,
@@ -46,37 +47,22 @@ export default function ReadinessPage() {
   useEffect(() => {
     setOrigin(typeof window !== "undefined" ? window.location.origin : "");
     let cancelled = false;
-    let settled = false;
     const controller = new AbortController();
     setState({ phase: "loading" });
-    // Bound the complete read, including a response whose JSON body stalls.
-    // A late result may never restore an expired configuration receipt.
-    const deadline = setTimeout(() => {
-      if (cancelled || settled) return;
-      settled = true;
-      setState({ phase: "error", message: "Connection setup check timed out. No current receipt is available" });
-      controller.abort();
-    }, 12_000);
     (async () => {
       try {
-        const res = await fetch("/api/broker/readiness", { cache: "no-store", signal: controller.signal });
-        if (!res.ok) {
-          if (!cancelled && !settled) setState({ phase: "error", message: `Endpoint returned HTTP ${res.status}` });
-          return;
-        }
-        const payload = (await res.json()) as ReadinessPayload;
-        if (!cancelled && !settled) setState({ phase: "ready", wireboard: selectReadinessWireboard(payload) });
+        const payload = await readJsonReceipt<ReadinessPayload>(
+          fetch,
+          "/api/broker/readiness",
+          controller.signal,
+        );
+        if (!cancelled) setState({ phase: "ready", wireboard: selectReadinessWireboard(payload) });
       } catch (e) {
-        if (!cancelled && !settled) setState({ phase: "error", message: e instanceof Error ? e.message : "Network error" });
-      } finally {
-        settled = true;
-        clearTimeout(deadline);
-        controller.abort();
+        if (!cancelled) setState({ phase: "error", message: e instanceof Error ? e.message : "Network error" });
       }
     })();
     return () => {
       cancelled = true;
-      clearTimeout(deadline);
       controller.abort();
     };
   }, [attempt]);

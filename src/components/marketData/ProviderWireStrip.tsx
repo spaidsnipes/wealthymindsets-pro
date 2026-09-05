@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import type { SourceCertification } from "@/lib/marketData/sourceCapabilityCertification";
 import type { AthosCapabilityMatrix } from "@/lib/marketData/canonicalCapabilityResolver";
+import { readJsonReceipt } from "@/lib/marketData/readJsonReceipt";
 import {
   selectReadinessWireboard,
   type ReadinessPayload,
@@ -246,11 +247,8 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
         return next;
       });
     };
-    const readJson = async <T,>(url: string): Promise<T> => {
-      const response = await fetch(url, { cache: "no-store", signal: controller.signal });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json() as Promise<T>;
-    };
+    const readJson = <T,>(url: string): Promise<T> =>
+      readJsonReceipt<T>(fetch, url, controller.signal);
     const readProviderReceipt = async (source: "moomoo" | "longbridge"): Promise<MoomooTickReceipt> => {
       const response = await fetch(`/api/market-data/${source}/ticks?symbol=TSLA`, { cache: "no-store", signal: controller.signal });
       const body = await response.json().catch(() => null) as MoomooTickReceipt | null;
