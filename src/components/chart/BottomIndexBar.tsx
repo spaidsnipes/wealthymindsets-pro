@@ -4,7 +4,8 @@ import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDi
 import React, { useState, useEffect } from "react";
 import { Eye } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { US_CASH_SESSION_UNKNOWN_LABEL } from "@/lib/marketData/canonicalIdentity";
+import { selectUsCashSessionBarLabel } from "@/lib/marketData/canonicalIdentity";
+import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 
 /* ── Individual index ticker ─────────────────────────────── */
 function IndexTicker({ label, symbol }: { label: string; symbol: string }) {
@@ -42,6 +43,9 @@ function IndexTicker({ label, symbol }: { label: string; symbol: string }) {
 
 export function BottomIndexBar() {
   const [time, setTime] = useState("");
+  // Mount-safe: null on the server and the first client render, so the chip
+  // hydrates as STATUS UNKNOWN and only ever sharpens afterwards.
+  const sessionLabel = selectUsCashSessionBarLabel(useSessionClockDate());
 
   useEffect(() => {
     const update = () => {
@@ -76,7 +80,7 @@ export function BottomIndexBar() {
       {/* Session status */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 14px" }}>
         <span style={{ fontSize: 10, color: "#8B8FA8" }}>🇺🇸</span>
-        <span style={{ fontSize: 11, color: "#8B8FA8", fontWeight: 500 }}>{US_CASH_SESSION_UNKNOWN_LABEL}</span>
+        <span style={{ fontSize: 11, color: "#8B8FA8", fontWeight: 500 }}>{sessionLabel}</span>
       </div>
 
       <IndexTicker label="Dow Jones" symbol="YM1!" />

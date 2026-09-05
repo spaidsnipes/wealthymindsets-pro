@@ -33,6 +33,7 @@ import { BottomIndexBar } from "./BottomIndexBar";
 import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { priceSourceBadge } from "@/lib/priceSource";
+import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
@@ -566,6 +567,11 @@ export function ChartsDashboard() {
   }, []);
 
   const { ticker, recentTicks, source, connected } = useWebSocket({ symbol, timeframe });
+  // Canon "CLOSED IS NOT DELAYED" — a proven-closed session outranks the
+  // provider verdict, so the /charts chrome cannot print ACTIVE DEGRADED on a
+  // Saturday. `null` until mount and on every weekday, so provider labelling
+  // is untouched the rest of the time.
+  const sessionOpen = useProvenSessionClosure(symbol);
   usePublishChartMarketState({
     symbol,
     timeframe,
@@ -1049,7 +1055,7 @@ export function ChartsDashboard() {
             // Dividend). The SHIFT-Q 7-question tooltip enrichment now
             // ships to every surface for free, and any future canon
             // vocabulary or color change touches ONE component.
-            const b = priceSourceBadge(source, connected);
+            const b = priceSourceBadge(source, connected, sessionOpen);
             // SHIFT-U continuation — pass the per-capability report so
             // the trader hovering the chip sees "Weakest capability"
             // hint + coverage count. Canon §Provider Status Per
@@ -1059,6 +1065,8 @@ export function ChartsDashboard() {
               source: source ?? "unavailable",
               connected,
               hasCandles: true, // chart already rendered by this render path
+              // Closure outranks the provider verdict for bars + quotes.
+              sessionOpen,
               // ticks / depth / options / greeks: unwired on
               // ChartsDashboard; silent per canon §no-silent-override.
               // orderFlow lights when the aggressor selector proves

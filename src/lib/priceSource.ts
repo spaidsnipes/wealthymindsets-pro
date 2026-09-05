@@ -137,8 +137,13 @@ export function resolveChartSurfaceBadge(
   source: PriceSource,
   connected: boolean,
   hasCandles: boolean,
+  sessionOpen?: boolean | null,
 ): PriceSourceBadge {
-  const b = priceSourceBadge(source, connected);
+  const b = priceSourceBadge(source, connected, sessionOpen);
+  // A proven-closed session already produced SESSION CLOSED — LAST VERIFIED
+  // with unresolved=false, so the promotion below is skipped by construction.
+  // That matches resolveCanonicalFidelityLabel, where closure outranks
+  // historicalBarsVerified rather than being overridden by it.
   // Canon §Living Market Visual Systems (2026-08-27): when we have
   // verified bars on screen but no live provider resolved, the honest
   // per-capability truth is HISTORICAL BARS VERIFIED — never STALE

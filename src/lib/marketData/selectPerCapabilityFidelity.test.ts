@@ -161,3 +161,53 @@ describe("selectPerCapabilityFidelity — canon derivation", () => {
     expect(r.depth).toBeUndefined();
   });
 });
+
+// Founder-observed 2026-09-05 (Saturday): /charts printed ACTIVE DEGRADED
+// across the chrome while the market was closed. Closure now outranks the
+// provider verdict for the market-data capabilities.
+describe("selectPerCapabilityFidelity — closed-session precedence", () => {
+  it("sessionOpen=false makes bars AND quotes read SESSION CLOSED — LAST VERIFIED", () => {
+    const r = selectPerCapabilityFidelity({
+      source: "yahoo", connected: true, hasCandles: true, sessionOpen: false,
+    });
+    expect(r.bars).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+    expect(r.quotes).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+  });
+
+  it("closure outranks a certified realtime provider — no LIVE on a closed session (§8)", () => {
+    const r = selectPerCapabilityFidelity({
+      source: "polygon", connected: true, hasCandles: true, sessionOpen: false,
+    });
+    expect(r.bars).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+    expect(r.quotes).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+  });
+
+  it("never prints SESSION CLOSED over a continuous crypto tape (mirror-image bug)", () => {
+    for (const source of ["binance", "coinbase"] as const) {
+      const r = selectPerCapabilityFidelity({
+        source, connected: true, hasCandles: true, sessionOpen: false,
+      });
+      expect(r.bars).toBe(L.LIVE_CERTIFIED_QUOTE);
+      expect(r.quotes).toBe(L.LIVE_CERTIFIED_QUOTE);
+    }
+  });
+
+  it("undefined / null / true sessionOpen leave the provider verdict untouched", () => {
+    const base = { source: "yahoo" as const, connected: true, hasCandles: true };
+    const reference = selectPerCapabilityFidelity(base);
+    for (const sessionOpen of [undefined, null, true]) {
+      expect(selectPerCapabilityFidelity({ ...base, sessionOpen })).toEqual(reference);
+    }
+  });
+
+  it("closure does NOT bleed into ticks / depth / options / greeks — they keep their own owners", () => {
+    const r = selectPerCapabilityFidelity({
+      source: "yahoo", connected: true, hasCandles: true, sessionOpen: false,
+      tapeConnected: true, depthSubscribed: true,
+    });
+    expect(r.ticks).toBe(L.ACTIVE_DEGRADED);
+    expect(r.depth).toBe(L.LIVE_CERTIFIED_QUOTE);
+    expect(r.options).toBeUndefined();
+    expect(r.greeks).toBeUndefined();
+  });
+});

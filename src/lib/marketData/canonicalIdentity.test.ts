@@ -8,6 +8,8 @@ import {
   selectCanonicalSessionPresentation,
   provenSessionClosure,
   US_CASH_SESSION_UNKNOWN_LABEL,
+  US_CASH_SESSION_CLOSED_LABEL,
+  selectUsCashSessionBarLabel,
 } from "./canonicalIdentity";
 
 describe("provenSessionClosure", () => {
@@ -154,6 +156,54 @@ describe("selectCanonicalFuturesSessionTruth", () => {
 
   it("keeps the cash-session footer fail-closed", () => {
     expect(US_CASH_SESSION_UNKNOWN_LABEL).toBe("US CASH SESSION · STATUS UNKNOWN");
+  });
+});
+
+describe("selectUsCashSessionBarLabel", () => {
+  // The Founder's 2026-09-05 screenshot: the bottom bar read
+  // "US CASH SESSION · STATUS UNKNOWN" on a Saturday, while the ticker rail
+  // above it read ACTIVE DEGRADED. Two writers, one fact, both wrong.
+  const saturday = new Date(2026, 8, 5);
+  const sunday = new Date(2026, 8, 6);
+  const wednesday = new Date(2026, 8, 2);
+
+  it("says CLOSED on a proven-closed weekend rather than withholding a fact we hold", () => {
+    expect(selectUsCashSessionBarLabel(saturday)).toBe(US_CASH_SESSION_CLOSED_LABEL);
+    expect(selectUsCashSessionBarLabel(sunday)).toBe(US_CASH_SESSION_CLOSED_LABEL);
+  });
+
+  it("stays STATUS UNKNOWN on a weekday — no intraday calendar exists to prove RTH", () => {
+    expect(selectUsCashSessionBarLabel(wednesday)).toBe(US_CASH_SESSION_UNKNOWN_LABEL);
+  });
+
+  it("is STATUS UNKNOWN before mount so the chip hydrates identically on both sides", () => {
+    expect(selectUsCashSessionBarLabel(null)).toBe(US_CASH_SESSION_UNKNOWN_LABEL);
+  });
+
+  it("never claims the session is OPEN — only CLOSED or UNKNOWN are reachable", () => {
+    const reachable = new Set<string>();
+    for (let d = 0; d < 7; d++) reachable.add(selectUsCashSessionBarLabel(new Date(2026, 8, 1 + d)));
+    reachable.add(selectUsCashSessionBarLabel(null));
+    expect([...reachable].sort()).toEqual(
+      [US_CASH_SESSION_CLOSED_LABEL, US_CASH_SESSION_UNKNOWN_LABEL].sort(),
+    );
+  });
+});
+
+describe("canonicalSession KNOWN GAP (store-key coupling)", () => {
+  // Documented, deliberately NOT repaired here: `session` participates in
+  // canonicalMarketStateKey, so making this calendar-dependent would move the
+  // key under producers and readers at different moments. This test pins the
+  // gap so the next engineer meets the constraint instead of the symptom.
+  it("still reports RTH on a Saturday — closure must not be routed through the key", () => {
+    expect(canonicalSession(false, "equity")).toBe("RTH");
+  });
+
+  it("keeps identity.session equal to canonicalSession for the same inputs", () => {
+    for (const extHours of [false, true]) {
+      const identity = canonicalMarketStateIdentity({ symbol: "TSLA", timeframe: "5m", extHours });
+      expect(identity.session).toBe(canonicalSession(extHours, "equity"));
+    }
   });
 });
 

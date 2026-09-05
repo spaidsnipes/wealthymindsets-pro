@@ -34,6 +34,7 @@ import { getRuntimeTapeCapability, hasVerifiedAggressorTape } from "@/lib/market
 import { overlayFrameBudgetMs, shouldDrawOverlay } from "@/lib/chartOverlayGovernor";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { candleDataStatus, priceSourceBadge, resolveChartSurfaceBadge } from "@/lib/priceSource";
+import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import type { PineOutput } from "@/lib/pine/types";
@@ -1292,6 +1293,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   }, []);
 
   const { liveBar, ticker, recentTicks, tapeSource, source, connected } = useWebSocket({ symbol, timeframe });
+  // Canon "CLOSED IS NOT DELAYED" — closure outranks the provider verdict, so
+  // the chart chrome cannot claim an active session on a closed one (§8).
+  // `null` until mount and on every weekday: provider labelling is unchanged.
+  const sessionOpen = useProvenSessionClosure(symbol);
 
   // ── Tick accumulator: EVERY real executed trade (no synthetic / quote-poll noise) ──
   // Map<barTime, Map<priceRounded, {bid, ask}>>
@@ -6852,9 +6857,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             // atom 4 → SHIFT-R atom 3-5 uniformity). Truth stays in
             // resolveChartSurfaceBadge (the H-Bkt 1/8 guard); the
             // primitive only renders it.
-            const b = resolveChartSurfaceBadge(source, connected, candles.length > 0);
+            const b = resolveChartSurfaceBadge(source, connected, candles.length > 0, sessionOpen);
             const capabilityReport = selectPerCapabilityFidelity({
-              source, connected, hasCandles: candles.length > 0,
+              source, connected, hasCandles: candles.length > 0, sessionOpen,
             });
             return <CanonicalFidelityBadge badge={b} variant="chrome" capabilityReport={capabilityReport} />;
           })()}

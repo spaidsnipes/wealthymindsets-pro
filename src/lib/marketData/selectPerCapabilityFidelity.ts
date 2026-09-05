@@ -76,6 +76,14 @@ export interface PerCapabilityFidelityInput {
    * to derive it from. Same silence rule.
    */
   readonly orderFlowDerived?: boolean;
+  /**
+   * Tri-state session truth. Only an explicit `false` changes a verdict;
+   * `undefined`/`null` mean "not established" and leave provider-derived
+   * labelling untouched. Closure applies to the market-data capabilities
+   * (bars / quotes) — NOT to ticks / depth / options / greeks, whose slots
+   * are governed by their own observation flags below.
+   */
+  readonly sessionOpen?: boolean | null;
 }
 
 /**
@@ -92,12 +100,17 @@ export function selectPerCapabilityFidelity(
 
   // BARS — the H-Bkt 1/8 truth guard already lives in
   // resolveChartSurfaceBadge. Its output is per-bars.
-  const barsBadge = resolveChartSurfaceBadge(input.source, input.connected, input.hasCandles);
+  const barsBadge = resolveChartSurfaceBadge(
+    input.source,
+    input.connected,
+    input.hasCandles,
+    input.sessionOpen,
+  );
   report.bars = barsBadge.label;
 
   // QUOTES — priceSourceBadge covers the quote fidelity independent
   // of whether candles are on-screen.
-  const quotesBadge = priceSourceBadge(input.source, input.connected);
+  const quotesBadge = priceSourceBadge(input.source, input.connected, input.sessionOpen);
   report.quotes = quotesBadge.label;
 
   // TICKS — a transport/buffer-presence boolean is observation, not

@@ -184,6 +184,32 @@ export function selectCanonicalSessionPresentation(
 
 export const US_CASH_SESSION_UNKNOWN_LABEL = "US CASH SESSION · STATUS UNKNOWN" as const;
 
+export const US_CASH_SESSION_CLOSED_LABEL = "US CASH SESSION · CLOSED" as const;
+
+/**
+ * The one writer for the bottom index bar's session chip.
+ *
+ * "STATUS UNKNOWN" is honest on a Tuesday — this codebase holds no intraday
+ * exchange calendar, so it genuinely cannot prove RTH from ETH. But printing
+ * it on a Saturday is false humility: closure IS established there, and canon
+ * §8 is equally violated by withholding a fact we hold as by inventing one.
+ *
+ * @param at `null` before mount (and on the server) — the caller must not read
+ *   the clock during render; see useSessionClockDate. `null` yields the
+ *   unknown label, so the settle can only ever sharpen the claim.
+ */
+export function selectUsCashSessionBarLabel(
+  at: Date | null,
+): typeof US_CASH_SESSION_UNKNOWN_LABEL | typeof US_CASH_SESSION_CLOSED_LABEL {
+  if (!at) return US_CASH_SESSION_UNKNOWN_LABEL;
+  // Delegated on purpose: the weekend rules live in exactly one function, so
+  // a future holiday calendar lands here and in the badges simultaneously.
+  // "SPY" stands for the US cash market this bar reports on.
+  return provenSessionClosure("SPY", at) === false
+    ? US_CASH_SESSION_CLOSED_LABEL
+    : US_CASH_SESSION_UNKNOWN_LABEL;
+}
+
 const CRYPTO_TICKERS = new Set([
   "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX",
   "LINK", "DOT", "LTC", "ATOM", "UNI",
@@ -263,6 +289,24 @@ export function canonicalInstrumentId(symbol: string, assetClass?: CanonicalAsse
  *
  * `assetClass` is optional for backward compatibility; omit it only where the
  * instrument is known not to be continuous.
+ */
+/**
+ * KNOWN GAP — do NOT "fix" this by returning "CLOSED" on a weekend.
+ *
+ * `CanonicalSession` includes "CLOSED", but this function can never produce
+ * it, so the canonical store records `session: "RTH"` on a Saturday and
+ * `sessionOpenFrom()` maps that to `true`. That is a genuine §8 overclaim.
+ *
+ * It is NOT repairable here: `session` is part of `canonicalMarketStateKey`
+ * (see canonicalMarketStateIdentity below). Making this calendar-dependent
+ * would move the key under producers and readers at different moments —
+ * precisely the "reader looks up a key nothing ever writes" P0 documented
+ * there. Closure is a property of the STATE, not of the IDENTITY.
+ *
+ * The fix is to stop encoding session in the key, or to carry closure as a
+ * separate state field, with a producer/reader contract test. Until then the
+ * user-visible surfaces get their truth from `provenSessionClosure()`, which
+ * is calendar-dependent by design and touches no key.
  */
 export function canonicalSession(
   extHours: boolean,
