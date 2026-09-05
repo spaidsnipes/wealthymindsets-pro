@@ -104,14 +104,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } : null;
         setUser(u);
         writeCachedUser(u);
-      } else {
-        // Cookie gone — clear cache only if we have no cached user
-        // (avoid signing out on transient network errors)
-        const cached = readCachedUser();
-        if (!cached) setUser(null);
-        else setUser(cached); // keep showing cached user
+      } else if (res.status === 401 || res.status === 403) {
+        // Only an explicit authentication rejection invalidates this cache.
+        // A 429/5xx response does not prove that the session expired.
         writeCachedUser(null);
         setUser(null);
+      } else {
+        // Preserve the last account display during a service interruption,
+        // matching network-error recovery below. Protected API routes still
+        // verify the cookie and revocation state on every request.
+        const cached = readCachedUser();
+        if (cached) setUser(cached);
       }
     } catch {
       // Network error — keep cached session alive
