@@ -25,6 +25,7 @@
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { resolveSupabaseServiceKey } from "./supabaseConfigStatus";
 
 let _cached: SupabaseClient | null = null;
 
@@ -39,7 +40,10 @@ let _cached: SupabaseClient | null = null;
 export function getSupabaseAdmin(): SupabaseClient | null {
   if (_cached) return _cached;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Accepts SUPABASE_SECRET_KEY as well as SUPABASE_SERVICE_ROLE_KEY, and
+  // trims: a whitespace-only value is truthy, so a bare check would build a
+  // client that authenticates as nothing. See SERVICE_KEY_VARS.
+  const key = resolveSupabaseServiceKey(process.env);
   if (!url || !key) return null;
   _cached = createClient(url, key);
   return _cached;

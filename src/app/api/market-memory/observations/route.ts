@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveSupabaseServiceKey, SERVICE_KEY_VARS } from "@/lib/supabaseConfigStatus";
 import { requireAuth } from "@/lib/requireAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import type { CanonicalMarketEvent } from "@/lib/marketData/marketEvent";
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
   }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey = resolveSupabaseServiceKey(process.env);
   if (!url || !serviceKey) return NextResponse.json({ status: "WRITE_FAILED" }, { status: 503 });
   const store = new SupabaseMarketObservationStore(auth.user.sub, url, serviceKey);
   const result = await persistMarketObservation(

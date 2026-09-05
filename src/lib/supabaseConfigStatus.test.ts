@@ -315,7 +315,12 @@ describe("supabaseCapabilityGaps", () => {
     const gaps = supabaseCapabilityGaps(CONFIGURED);
 
     expect(gaps).toHaveLength(1);
-    expect(gaps[0].variable).toBe("SUPABASE_SERVICE_ROLE_KEY");
+    // Names BOTH accepted variables. Naming only the legacy one is what sent the
+    // operator to the wrong box on 2026-09-05: he had installed
+    // SUPABASE_SECRET_KEY, exactly as Supabase's own onboarding panel instructs,
+    // and the receipt reported a variable he had never been handed as missing.
+    expect(gaps[0].variable).toContain("SUPABASE_SERVICE_ROLE_KEY");
+    expect(gaps[0].variable).toContain("SUPABASE_SECRET_KEY");
     // The consequence is the whole point: an operator who reads only "absent"
     // has no reason to treat it as urgent.
     expect(gaps[0].consequence).toContain("503");

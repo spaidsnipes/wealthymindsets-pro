@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveSupabaseServiceKey, SERVICE_KEY_VARS } from "@/lib/supabaseConfigStatus";
 import { requireAuth } from "@/lib/requireAuth";
 
 /**
@@ -22,12 +23,12 @@ export async function GET(request: Request) {
   if (!auth.ok) return auth.response;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey = resolveSupabaseServiceKey(process.env);
   if (!url || !serviceKey) {
     {
       const missing: string[] = [];
       if (!url) missing.push("NEXT_PUBLIC_SUPABASE_URL");
-      if (!serviceKey) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+      if (!serviceKey) missing.push(SERVICE_KEY_VARS.join(" (or ") + ")");
       return NextResponse.json(
         {
           error: `Coverage inspection is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,

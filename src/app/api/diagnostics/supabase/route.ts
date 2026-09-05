@@ -12,6 +12,9 @@
 
 import { NextResponse } from "next/server";
 import {
+  resolveSupabaseServiceKey,
+  supabaseServiceKeySource,
+  SERVICE_KEY_VARS,
   supabaseCapabilityGaps,
   supabaseConfigStatus,
   supabaseEnvDefects,
@@ -41,7 +44,13 @@ export async function GET() {
       // Presence-only, and deliberately never shape-checked: a service role key
       // is read server-side only, so reporting anything about its contents would
       // add disclosure without adding a fix an operator could act on here.
-      serviceRoleKeyPresent: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
+      serviceRoleKeyPresent: Boolean(resolveSupabaseServiceKey(process.env)),
+      // WHICH accepted name carried it. Presence alone sent an operator to the
+      // wrong box on 2026-09-05: Supabase's own panel issues SUPABASE_SECRET_KEY,
+      // this codebase historically read SUPABASE_SERVICE_ROLE_KEY, and "absent"
+      // does not say which of the two to go and set. A NAME, never a value.
+      serviceRoleKeySource: supabaseServiceKeySource(process.env),
+      serviceRoleKeyAcceptedNames: SERVICE_KEY_VARS,
       healthy: status.configured && defects.length === 0 && capabilityGaps.length === 0,
     },
     { status: 200, headers: { "Cache-Control": "no-store" } },

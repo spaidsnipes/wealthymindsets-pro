@@ -257,12 +257,61 @@ export interface SupabaseCapabilityGap {
  * Only reported when auth is actually configured — a local host with no Supabase
  * at all skips the revocation check entirely, so nothing is degraded there.
  */
+/**
+ * The NAMES this codebase accepts for the privileged server-side key, in
+ * precedence order.
+ *
+ * Supabase replaced the `anon` / `service_role` JWT pair with the
+ * `sb_publishable_` / `sb_secret_` API-key system, and RENAMED the variables
+ * its own onboarding panel hands out: `SUPABASE_PUBLISHABLE_KEY` and
+ * `SUPABASE_SECRET_KEY`. The publishable half was adopted long ago — see
+ * `KEY_VARS` above and `lib/supabase.ts` — but the secret half was not, so an
+ * operator who followed Supabase's current instructions installed
+ * `SUPABASE_SECRET_KEY` while every reader here looked for
+ * `SUPABASE_SERVICE_ROLE_KEY` and found nothing.
+ *
+ * That is the 2026-09-05 `FINNHUB_KEY_` failure with a different name: a
+ * correctly-installed secret, invisible because the code reads a name nobody
+ * issues any more. Following the vendor's own documentation should not break
+ * the app.
+ *
+ * LEGACY FIRST, deliberately. This is additive: a host that works today has
+ * SUPABASE_SERVICE_ROLE_KEY set and keeps resolving to exactly the value it
+ * resolves to now. The new name is a pure fallback that can only change
+ * behaviour on a host where the old name is absent — i.e. where the current
+ * behaviour is already "broken".
+ */
+export const SERVICE_KEY_VARS = ["SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SECRET_KEY"] as const;
+
+/**
+ * The privileged key value, or "" when no accepted name carries one.
+ *
+ * Returns the trimmed value for the same reason `normalizeSupabaseKey` exists:
+ * a whitespace-only secret is a truthy string that passes a bare presence check
+ * and then authenticates as nothing.
+ */
+export function resolveSupabaseServiceKey(env: EnvPresence = process.env): string {
+  for (const name of SERVICE_KEY_VARS) {
+    const v = normalizeSupabaseKey(env[name]);
+    if (v) return v;
+  }
+  return "";
+}
+
+/** Which accepted NAME supplied the key, or null when none did. NAME only. */
+export function supabaseServiceKeySource(env: EnvPresence = process.env): string | null {
+  for (const name of SERVICE_KEY_VARS) {
+    if (normalizeSupabaseKey(env[name])) return name;
+  }
+  return null;
+}
+
 export function supabaseCapabilityGaps(env: EnvPresence = process.env): readonly SupabaseCapabilityGap[] {
   if (!supabaseConfigStatus(env).configured) return [];
-  if (env.SUPABASE_SERVICE_ROLE_KEY?.trim()) return [];
+  if (resolveSupabaseServiceKey(env)) return [];
   return [{
     capability: "Session verification (and 'log out all devices')",
-    variable: "SUPABASE_SERVICE_ROLE_KEY",
+    variable: SERVICE_KEY_VARS.join(" (or ") + ")",
     consequence:
       "Supabase auth is configured, so every guarded route checks session revocation through the admin API. Without this key that check cannot be performed and fails closed, so all authenticated routes answer 503 'Session verification is temporarily unavailable' — even once sign-in works.",
   }];

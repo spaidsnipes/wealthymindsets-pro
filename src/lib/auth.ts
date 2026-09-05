@@ -16,6 +16,7 @@ import {
   normalizeSupabaseKey,
   normalizeSupabaseUrl,
   nonJsonAuthResponseMessage,
+  resolveSupabaseServiceKey,
   SupabaseAuthShapeError,
 } from "./supabaseConfigStatus";
 
@@ -182,7 +183,10 @@ const SB_KEY  = () => normalizeSupabaseKey(
 // went out, and every admin call failed for a host the operator believed was
 // wired. It also disagreed with GET /api/diagnostics/supabase, which trims —
 // the diagnostic would report the key absent while the code reported it present.
-const SB_SERVICE_KEY = () => normalizeSupabaseKey(process.env.SUPABASE_SERVICE_ROLE_KEY);
+// Accepts SUPABASE_SECRET_KEY too — Supabase renamed this variable when it
+// replaced service_role with the sb_secret_ API-key system, exactly as it
+// renamed anon -> publishable on the line above. See SERVICE_KEY_VARS.
+const SB_SERVICE_KEY = () => resolveSupabaseServiceKey(process.env);
 
 export async function supabaseSignUp(email: string, password: string, redirectTo?: string) {
   // GoTrue honours `redirect_to` as a query param — it becomes the target of the
