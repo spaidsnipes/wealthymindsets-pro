@@ -97,7 +97,7 @@ const LOCAL_SYMBOLS = [
   { sym:"MATICUSD",label:"Polygon / USD",           cat:"Crypto", aliases:["matic","polygon"] },
   { sym:"PEPEUSD",label:"Pepe Coin / USD",          cat:"Crypto", aliases:["pepe","meme"] },
   { sym:"SHIBUSD",label:"Shiba Inu / USD",          cat:"Crypto", aliases:["shib","shiba"] },
-  { sym:"SUITEUSD",label:"Sui / USD",               cat:"Crypto", aliases:["sui"] },
+  { sym:"SUIUSD", label:"Sui / USD",                cat:"Crypto", aliases:["sui"] },
   { sym:"WIFUSD", label:"dogwifhat / USD",          cat:"Crypto", aliases:["wif","dogwifhat"] },
   { sym:"BONKUSD",label:"Bonk / USD",               cat:"Crypto", aliases:["bonk"] },
   { sym:"FLOKIUSD",label:"Floki / USD",             cat:"Crypto", aliases:["floki"] },

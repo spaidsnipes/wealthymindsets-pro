@@ -42,6 +42,27 @@ export interface HeroTruthProps {
    *  when the underlying engine cannot resolve a chapter. */
   marketState?: string | null;
   marketStateResolution?: "RESOLVED" | "PARTIAL" | "UNKNOWN";
+  /**
+   * The PRESENTED session, from the one session owner
+   * (`selectCanonicalSessionToken` / `selectCanonicalSessionPresentation`).
+   *
+   * This prop exists because the truth strip used to render
+   * `state?.session`, and `CanonicalMarketState.session` is NOT a session
+   * observation — it is the STORE KEY. `canonicalMarketStateStore` builds its
+   * key out of that field, so `canonicalSession()` deliberately answers "RTH"
+   * for every non-crypto instrument on every day of the week; if it varied by
+   * day the store would fragment at midnight. The producers are correct. The
+   * RENDER was the defect: a keyspace label printed to a human under the bare
+   * word "session".
+   *
+   * On Saturday 2026-09-05 production showed `session RTH` in this strip while
+   * the scene panel directly below it read "SESSION CLOSED — LAST VERIFIED."
+   * One page, one instant, one instrument, two contradicting claims.
+   *
+   * When the caller cannot supply this, the strip says "unknown". It must
+   * never fall back to `state.session` — that fallback IS the bug.
+   */
+  sessionPresented?: { readonly value: string; readonly detail?: string } | null;
   className?: string;
 }
 
@@ -60,7 +81,7 @@ export function shouldShowMarketStateResolutionQualifier(
   return marketState.trim().toUpperCase() !== resolution;
 }
 
-export function HeroTruth({ symbol, timeframe, state, marketState, marketStateResolution, className }: HeroTruthProps) {
+export function HeroTruth({ symbol, timeframe, state, marketState, marketStateResolution, sessionPresented, className }: HeroTruthProps) {
   const qualityKey: keyof typeof QUALITY_STYLES = state?.qualityState ?? "UNKNOWN";
   const style = QUALITY_STYLES[qualityKey];
   const price = state?.price.last ?? null;
@@ -236,9 +257,16 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
 
       {/* Truth strip — what canonical evidence exists RIGHT NOW */}
       <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid rgba(139,106,41,0.2)", display: "flex", gap: 20, flexWrap: "wrap", fontSize: 10, color: "#8a8271", letterSpacing: 0.24 }}>
+        {/* The session owner answers here, NOT the snapshot's store key. See
+            the `sessionPresented` prop doc: `state.session` is the keyspace
+            ("RTH" on a Saturday, by design), and printing it produced a strip
+            that contradicted the scene panel below it. There is deliberately
+            no `?? state?.session` fallback — that fallback is the defect. */}
         <span>
           <span style={{ color: "#55503f" }}>session</span>{" "}
-          <span style={{ color: "#ede6d3" }}>{state?.session ?? "unknown"}</span>
+          <span style={{ color: "#ede6d3" }} title={sessionPresented?.detail}>
+            {sessionPresented?.value ?? "unknown"}
+          </span>
         </span>
         {/* No sealed state means we know NOTHING — not zero. Rendering
             "coverage 0 channels · unknowns 0" for a null state inverted the

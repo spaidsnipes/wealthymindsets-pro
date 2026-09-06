@@ -439,18 +439,149 @@ export const US_INDEX_BAR_INSTRUMENTS = [
   { symbol: "ES1!", label: "S&P Futures" },
 ] as const;
 
+/**
+ * Base tickers of continuous (24/7) markets.
+ *
+ * Every entry is a truth claim — "this instrument has no session to close" —
+ * so this set may only grow with instruments that genuinely trade continuously.
+ *
+ * ── Where this list comes from, and why it is exactly this long ──────────────
+ *
+ * It is the union of every symbol the product itself presents under the
+ * "Crypto" category — SymbolSearch.tsx, MainLayout.tsx and ChartToolbar.tsx —
+ * reduced to its base, plus the bases MainChart's Polygon `cryptoMap` already
+ * resolves. Before this it held 20 bases while those pickers offered 88
+ * symbols, so choosing most of them classified the instrument EQUITY and the
+ * weekend heuristic stamped a 24/7 market CLOSED mid-trade.
+ *
+ * `pickerCryptoClassification.test.ts` re-derives that union from the picker
+ * sources on every run, so adding a coin to a picker without teaching this set
+ * fails CI by name rather than shipping a false CLOSED.
+ *
+ * ── The one honest caveat ───────────────────────────────────────────────────
+ *
+ * A bare base is claimed crypto product-wide, and a few of these strings name
+ * a real equity elsewhere in the world — "W" is Wayfair on the NYSE. That
+ * collision is not reachable here: no picker offers an equity by any of these
+ * names (the cross-category audit found zero overlaps), and the free-text box
+ * routes through the same identity layer. If an equity by one of these tickers
+ * is ever added, the pair form ("WUSD") stays unambiguous and the bare form
+ * must move out of this set.
+ */
 const CRYPTO_TICKERS = new Set([
-  "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX",
-  "LINK", "DOT", "LTC", "ATOM", "UNI",
+  "AAVE", "ACT", "ADA", "AEVO", "ALGO", "ALT", "APT", "ARB", "ATOM", "AVAX",
+  "BNB", "BOME", "BONK", "BRETT", "BTC", "DOGE", "DOT", "ENA", "ETH", "ETHFI",
+  "FARTCOIN", "FIL", "FLOKI", "FTM", "GOAT", "HBAR", "ICP", "INJ", "JUP", "LINK",
+  "LTC", "MANTA", "MATIC", "MELANIA", "MEME", "MOG", "MYRO", "NEAR", "NEIRO", "OP",
+  "PENDLE", "PEPE", "PNUT", "POPCAT", "PYTH", "RENDER", "SHIB", "SOL", "STRK", "SUI",
+  "TON", "TRUMP", "TRX", "TURBO", "UNI", "VET", "W", "WEN", "WIF", "XLM",
+  "XRP", "ZETA",
 ]);
+
+/**
+ * Quote-currency suffixes a crypto pair may carry. Longest first so
+ * "BTCUSDT" strips "USDT" and never leaves a stray "T".
+ */
+const CRYPTO_QUOTE_SUFFIXES = ["USDT", "USDC", "USD"] as const;
+
+/**
+ * Recover the base ticker from a crypto PAIR string, or null if this is not a
+ * pair over a known crypto base.
+ *
+ * ── Why this exists ─────────────────────────────────────────────────────────
+ *
+ * `CRYPTO_TICKERS` holds BARE bases ("BTC"). Every crypto symbol the product
+ * actually hands a user holds the PAIR form: SymbolSearch and MainLayout both
+ * list "BTCUSD — Bitcoin / USD". So `canonicalAssetClass("BTCUSD")` answered
+ * "equity", `provenSessionClosure` then read Saturday and returned `false`
+ * (PROVEN CLOSED), and the scene compiled to
+ * "SESSION CLOSED — LAST VERIFIED. Nothing is streaming." for Bitcoin — a
+ * market with no close, mid-trade, on the weekend.
+ *
+ * That is precisely the overreach `selectCanonicalSessionPresentation` already
+ * names in prose: stamping CLOSED over a live market is the same error as
+ * inventing a session, inverted. The transport layer had known the truth all
+ * along — /api/yahoo maps "BTCUSD" and /api/finnhub maps it to
+ * BINANCE:BTCUSDT — but the IDENTITY layer, the one that decides what the
+ * screen SAYS, did not.
+ *
+ * Matching is deliberately narrow: a suffix is stripped only when what remains
+ * is a base already declared crypto. "EURUSD" leaves "EUR", which is not in the
+ * set, so FX still falls through to the forex branch. Nothing is guessed.
+ */
+export function cryptoBaseTicker(symbol: string): string | null {
+  const raw = symbol.trim().toUpperCase();
+  if (!raw) return null;
+  // ChartToolbar offers venue-pinned rows — "BTC.COINBASE", "ETH.KRAKEN" —
+  // so the venue is dropped before matching. Dropping it cannot widen the
+  // claim: what remains must still be a declared base, so an equity class
+  // suffix like "BRK.B" leaves "BRK" and correctly matches nothing.
+  const compact = raw.replace(/\.[A-Z0-9]+$/, "").replace(/[-/]/g, "");
+  if (!compact) return null;
+  if (CRYPTO_TICKERS.has(compact)) return compact;
+  for (const suffix of CRYPTO_QUOTE_SUFFIXES) {
+    if (compact.length > suffix.length && compact.endsWith(suffix)) {
+      const base = compact.slice(0, -suffix.length);
+      if (CRYPTO_TICKERS.has(base)) return base;
+    }
+  }
+  return null;
+}
+
+/**
+ * Currency and precious-metal codes that may appear on either side of a pair.
+ *
+ * Held as data so the compact form can be recognised BY CONSTRUCTION rather
+ * than by a list of pairs: two known codes concatenated is a currency pair,
+ * and nothing else six characters long qualifies.
+ */
+const FX_CODES = new Set([
+  "AUD", "BRL", "CAD", "CHF", "CNH", "EUR", "GBP", "HKD", "INR", "JPY",
+  "KRW", "MXN", "NOK", "NZD", "SEK", "SGD", "TRY", "USD", "ZAR",
+  "XAG", "XAU",
+]);
+
+/**
+ * Recover the two legs of a currency pair, or null if this is not one.
+ *
+ * ── Why the compact form needs recognising ──────────────────────────────────
+ *
+ * `canonicalAssetClass` detected forex solely by the presence of a slash, but
+ * the pickers offer BOTH spellings: SymbolSearch lists "EURUSD" while
+ * ChartToolbar lists "EUR/USD". The compact twelve therefore classified as
+ * EQUITY, and `provenSessionClosure` stamps equities PROVEN CLOSED on a
+ * Sunday — so the screen declared FX closed on the very evening it reopens.
+ *
+ * That is the exact overreach `provenSessionClosure`'s own doc comment forbids
+ * ("Futures and FX reopen Sunday evening, so claiming Sunday closure for them
+ * would be the same overreach in the opposite direction"). The rule was
+ * already written; the classifier simply could not see the symbol form the
+ * product actually hands the user.
+ *
+ * Matching is narrow on purpose: BOTH halves must be declared codes, so a
+ * six-letter equity ticker cannot be mistaken for a pair, and nothing is
+ * guessed from shape alone.
+ */
+export function forexPairCodes(symbol: string): readonly [string, string] | null {
+  const compact = symbol.trim().toUpperCase().replace(/[-/]/g, "");
+  if (compact.length !== 6) return null;
+  const base = compact.slice(0, 3);
+  const quote = compact.slice(3);
+  if (!FX_CODES.has(base) || !FX_CODES.has(quote)) return null;
+  return [base, quote];
+}
 
 /** Deterministic asset-class inference from a raw symbol string. */
 export function canonicalAssetClass(symbol: string): CanonicalAssetClass {
   const upper = symbol.trim().toUpperCase();
   if (!upper) return "equity";
   if (upper.endsWith("1!") || upper.includes("=F")) return "futures";
-  if (CRYPTO_TICKERS.has(upper)) return "crypto";
+  // Crypto is tested BEFORE forex on purpose: "BTC/USD" contains a slash but
+  // is not a currency pair, and calling it forex would hand it the weekday
+  // session rules of a market that never closes.
+  if (cryptoBaseTicker(upper) !== null) return "crypto";
   if (upper.includes("/")) return "forex";
+  if (forexPairCodes(upper) !== null) return "forex";
   return "equity";
 }
 

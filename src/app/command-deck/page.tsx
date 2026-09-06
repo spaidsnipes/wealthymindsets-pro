@@ -315,12 +315,22 @@ function CommandDeckInner() {
   // closure changes at local midnight, so the scene must not recompile on the
   // 5s cadence, and the first paint must make no day claim at all.
   const sessionClockDate = useSessionClockDate();
+  // Hoisted out of the scene memo deliberately. The scene compiler AND the hero
+  // truth strip are both consumers of the session, and until now they were not
+  // reading the same thing: the scene read this owner while the strip rendered
+  // `state.session` — the STORE KEY — so on Saturday 2026-09-05 production
+  // printed "session RTH" a few nodes above "SESSION CLOSED — LAST VERIFIED".
+  // §24: a second CALLER of one owner is fine; a second ANSWER is not.
+  // One call, one answer, two consumers.
+  const sessionTruth = React.useMemo(
+    () => selectCanonicalSessionToken({ symbol, at: sessionClockDate }),
+    [symbol, sessionClockDate],
+  );
   const sceneInput = React.useMemo(() => {
     const debt = computeSceneEvidenceDebt(chainVm?.nodes);
     const row = computeSceneRightOfWay(permission, debt);
-    const sessionTruth = selectCanonicalSessionToken({ symbol, at: sessionClockDate });
     return deckSceneSignals({ session: sessionTruth.token, rightOfWay: row.value });
-  }, [chainVm?.nodes, permission, symbol, sessionClockDate]);
+  }, [chainVm?.nodes, permission, sessionTruth]);
   const sceneCompilation = React.useMemo(
     () => compileScene(sceneInput.signals),
     [sceneInput],
@@ -761,6 +771,7 @@ function CommandDeckInner() {
                     state={state}
                     marketState={story?.current?.chapter ?? (story ? "UNKNOWN" : null)}
                     marketStateResolution={story?.resolution ?? undefined}
+                    sessionPresented={{ value: sessionTruth.token, detail: sessionTruth.detail }}
                   />
                 </button>
               );
