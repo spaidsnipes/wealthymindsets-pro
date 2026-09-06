@@ -132,7 +132,7 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
     const r = computeRightOfWay(perm("ALLOWED"), debt);
     expect(r.value).toBe("ACTION");
     expect(r.tone).toBe("resolved");
-    expect(r.detail).toContain("all evidence paid");
+    expect(r.detail).toContain("required evidence paid");
   });
 
   it("Rule 4b: ALLOWED with no missing but warn present → CAUTION (not ACTION)", () => {
@@ -146,10 +146,26 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
     expect(r.detail).toContain("2 watch nodes");
   });
 
-  it("Rule 4a with null debt (no chain): ALLOWED → ACTION", () => {
-    // When there is no decision chain, Rule 1 cannot block; ALLOWED stands.
+  it("does not turn a missing decision chain into permission to act", () => {
+    // Observed on the host: ACTION beside a 0/8 unresolved passport. Absence
+    // of an evaluated prerequisite ledger is not proof every prerequisite paid.
     const r = computeRightOfWay(perm("ALLOWED"), null);
-    expect(r.value).toBe("ACTION");
+    expect(r.value).toBe("UNKNOWN");
+    expect(r.detail).toContain("not evaluated");
+  });
+
+  it.each([0, 3])("requires paid evidence, not an empty or WATCH-only ledger (total %s)", total => {
+    const debt: EvidenceDebt = { total, resolved: 0, missing: 0, warn: 0, missingLabels: [], warnLabels: [] };
+    expect(computeRightOfWay(perm("ALLOWED"), debt).value).toBe("UNKNOWN");
+  });
+
+  it("does not make explicitly nonblocking WATCH evidence a new hard rule", () => {
+    const debt = computeEvidenceDebt([node("Required", "OK"), node("Optional", "WATCH")]);
+    expect(computeRightOfWay(perm("ALLOWED"), debt).value).toBe("ACTION");
+  });
+
+  it("keeps an explicit hard block even when no evidence ledger was evaluated", () => {
+    expect(computeRightOfWay(perm("RESTRICTED"), null).value).toBe("NO TRADE");
   });
 
   it("Rule 5: UNKNOWN permission → UNKNOWN Right of Way", () => {

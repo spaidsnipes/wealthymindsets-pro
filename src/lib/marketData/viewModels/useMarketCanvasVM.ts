@@ -94,7 +94,10 @@ export function useMarketCanvasVM(
         ownerId: input.ownerId ?? "",
         nowMs,
         phase: input.phase,
-        chain: input.chain ?? null,
+        // Omitted means compile from the snapshot; explicit null means the
+        // caller has no chain. Collapsing those states skipped prerequisites
+        // on /charts and allowed ACTION beside an entirely unresolved passport.
+        chain: input.chain,
       }),
     [state, history, sessionDecisions, input.ownerId, input.phase, input.chain, nowMs],
   );

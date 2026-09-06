@@ -137,7 +137,8 @@ export function computeRightOfWay(
     const reason = (perm as unknown as { reason?: string }).reason;
     return { value: "CAUTION", detail: trim(reason, "soft rule engaged"), tone: "pending" };
   }
-  // Rule 4 — Permission ALLOWED and no missing evidence.
+  // Rule 4 — ALLOWED only clears the trader-rule layer. It cannot certify a
+  // prerequisite ledger that was never evaluated (or contains only WATCH).
   if (perm?.verdict === "ALLOWED") {
     if (debt && debt.warn > 0) {
       // Warn nodes exist but no missing — downgrade ACTION to CAUTION.
@@ -147,9 +148,16 @@ export function computeRightOfWay(
         tone: "pending",
       };
     }
+    if (!debt || !(debt.total > 0) || !(debt.resolved > 0)) {
+      return {
+        value: "UNKNOWN",
+        detail: "required evidence not evaluated",
+        tone: "unknown",
+      };
+    }
     return {
       value: "ACTION",
-      detail: "all evidence paid · steward allows",
+      detail: "required evidence paid · steward allows",
       tone: "resolved",
     };
   }
