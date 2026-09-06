@@ -131,15 +131,68 @@ export function selectCanonicalFuturesSessionTruth(
 
 export interface CanonicalSessionPresentationInput {
   readonly symbol: string;
+  /**
+   * The requested hours FILTER — a user preference (RTH vs EXTENDED), not a
+   * fact about the market. It is read to pick the filter and (historically) to
+   * pick the detail wording. It is NEVER echoed as the visible session value;
+   * see the note on the non-futures branch below.
+   */
   readonly requestedSession: string;
   readonly connected: boolean;
-  readonly dayOfWeek: number;
+  /**
+   * The wall clock, or `null` before mount and on the server.
+   *
+   * This REPLACES a former `dayOfWeek: number`. A bare day number cannot
+   * express "not established yet", so the one production caller passed
+   * `new Date(nowMs ?? 0).getDay()` — and `new Date(0)` is 1970-01-01, a
+   * WEEKDAY. Every Saturday, the first paint of the SESSION tile therefore
+   * asserted a weekday before settling. A `Date | null` makes the unsettled
+   * case unrepresentable as a claim, so the settle can only ever sharpen.
+   *
+   * It is also a real Date rather than a day index because closure is proven
+   * by `provenSessionClosure`, and duplicating that function's day rules here
+   * is precisely the second-owner mistake this presenter exists to avoid.
+   */
+  readonly at: Date | null;
   readonly observedActivityAt: number | null;
   readonly evaluatedAt: number;
   readonly authoritativeCalendarFact?: AuthoritativeSessionFact | null;
 }
 
-/** One production presenter shared by the Command ribbon and its tests. */
+/**
+ * One production presenter shared by the Command ribbon and its tests.
+ *
+ * FOUND LIVE, 2026-09-05 (a Saturday). The SESSION tile on /command-deck
+ * contradicted ITSELF, in one tile, in adjacent DOM nodes:
+ *
+ *     value  →  "RTH"            (the headline the eye reads)
+ *     detail →  "market closed"  (the caption underneath it)
+ *
+ * The `detail` branch had already computed `isWeekend` and used it. The
+ * `value` branch, one line above, echoed `input.requestedSession` — which is
+ * `canonicalSession(extHours, cls)`, a STORE KEY that returns "RTH" for every
+ * non-crypto instrument on every day of the week. The truth was computed and
+ * then printed under the opposite claim.
+ *
+ * This is canon Weakness #1 (multi-truth disagreement) collapsed from two
+ * surfaces down into a single component, and §8 violated in both directions at
+ * once: false confidence in the value, correct fact in the caption.
+ *
+ * The reason it survived a green suite is worth naming. Every assertion in
+ * sessionDetailText.test.ts, and the equity case in canonicalIdentity.test.ts,
+ * read `.detail` and never `.value`. The shift-H fix (I-Bkt 6) corrected the
+ * caption and locked it — and in locking the part that was fixed, certified the
+ * tile while the headline above it kept lying. A test that asserts the repaired
+ * half and never the untouched half is the same standing lesson in a new dress.
+ *
+ * The value now comes from `selectCanonicalSessionToken` — the same owner the
+ * mobile header pill and the cash-index bar read, so all three surfaces answer
+ * for one instrument with one voice.
+ *
+ * On the apparent loss of precision: "RTH" is not more specific than
+ * "SESSION ?", it is differently WRONG. It carried zero bits about the actual
+ * session — it said RTH on Saturday too. Nothing true was traded away here.
+ */
 export function selectCanonicalSessionPresentation(
   input: CanonicalSessionPresentationInput,
 ): { readonly value: string; readonly detail: string; readonly activity: FuturesActivityState } {
@@ -156,7 +209,22 @@ export function selectCanonicalSessionPresentation(
       evaluatedAt: input.evaluatedAt,
       authoritativeCalendarFact: input.authoritativeCalendarFact,
     });
-    return { value: truth.label, detail: truth.detail, activity: truth.activity };
+    // PRECEDENCE, stated so it can be argued with: a RESOLVED calendar fact
+    // and a DIRECTLY OBSERVED trade both outrank a weekend heuristic. If we
+    // actually saw a print, the market demonstrably is not closed, and
+    // stamping CLOSED over live evidence would be this same overreach
+    // inverted. Only the doubly-unresolved case falls through.
+    if (truth.resolution === "RESOLVED" || truth.activity === "OBSERVED") {
+      return { value: truth.label, detail: truth.detail, activity: truth.activity };
+    }
+    // Nothing observed and no calendar fact. "SESSION UNKNOWN" is right on a
+    // Wednesday and false humility on a Saturday, so ask the owner that knows
+    // the difference. Note this stays UNKNOWN for futures on a Sunday — they
+    // reopen Sunday evening, and claiming otherwise is the same error again.
+    const token = selectCanonicalSessionToken({ symbol: input.symbol, at: input.at, assetClass });
+    return token.established
+      ? { value: token.token, detail: token.detail, activity: truth.activity }
+      : { value: truth.label, detail: truth.detail, activity: truth.activity };
   }
 
   // Continuous markets never close. Echoing the requested RTH/EXTENDED filter
@@ -165,17 +233,22 @@ export function selectCanonicalSessionPresentation(
   // trading — two false statements from one fall-through.
   if (assetClass === "crypto") {
     return {
-      value: "24X7",
+      value: SESSION_TOKEN_CONTINUOUS,
       detail: input.connected ? "continuous market · connected" : "continuous market · no data connection",
       activity: "UNKNOWN",
     };
   }
 
-  const session = input.requestedSession.toUpperCase();
-  const isWeekend = input.dayOfWeek === 0 || input.dayOfWeek === 6;
+  // The value is the OWNER's, never the caller's requested filter. The detail
+  // wording is unchanged from I-Bkt 6 and still reads the requested token,
+  // because "market closed" vs "no data connection" is a statement about why
+  // the tape is quiet, not about which session is running.
+  const token = selectCanonicalSessionToken({ symbol: input.symbol, at: input.at, assetClass });
+  const day = input.at ? input.at.getDay() : null;
+  const isWeekend = day === 0 || day === 6;
   return {
-    value: session,
-    detail: session === "CLOSED" || isWeekend
+    value: token.token,
+    detail: input.requestedSession.toUpperCase() === "CLOSED" || isWeekend
       ? "market closed"
       : input.connected ? "connected" : "no data connection",
     activity: "UNKNOWN",

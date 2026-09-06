@@ -333,7 +333,7 @@ describe("canonicalMarketStateIdentity — contract test", () => {
         symbol: "BTC",
         requestedSession: "RTH",
         connected: true,
-        dayOfWeek: 3,
+        at: new Date(2026, 8, 9), // Wed
         observedActivityAt: null,
         evaluatedAt: 1_788_000_000_000,
       });
@@ -348,7 +348,7 @@ describe("canonicalMarketStateIdentity — contract test", () => {
           symbol: "ETH",
           requestedSession: "RTH",
           connected: true,
-          dayOfWeek,
+          at: dayOfWeek === 0 ? new Date(2026, 8, 6) : new Date(2026, 8, 5),
           observedActivityAt: null,
           evaluatedAt: 1_788_000_000_000,
         });
@@ -362,7 +362,7 @@ describe("canonicalMarketStateIdentity — contract test", () => {
         symbol: "BTC",
         requestedSession: "EXTENDED",
         connected: false,
-        dayOfWeek: 2,
+        at: new Date(2026, 8, 8), // Tue
         observedActivityAt: null,
         evaluatedAt: 1_788_000_000_000,
       });
@@ -375,7 +375,7 @@ describe("canonicalMarketStateIdentity — contract test", () => {
         symbol: "AAPL",
         requestedSession: "RTH",
         connected: true,
-        dayOfWeek: 0,
+        at: new Date(2026, 8, 6), // Sun
         observedActivityAt: null,
         evaluatedAt: 1_788_000_000_000,
       });

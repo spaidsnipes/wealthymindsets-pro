@@ -236,3 +236,63 @@ describe("MobileSessionPill delegates the session chip to the canonical owner", 
     expect(src).toContain("sessionTruth.detail");
   });
 });
+
+/* ── The nest: the same defect on the DESKTOP surface ────────────────────
+ *
+ * The pill was not alone. /command-deck's CommandContextRibbon receives
+ * `session={identity.session}` — the same store key — and its SESSION tile
+ * rendered, on the same Saturday, in two adjacent DOM nodes:
+ *
+ *     value  →  "RTH"
+ *     detail →  "market closed"
+ *
+ * Not two surfaces disagreeing. ONE TILE disagreeing with itself, where the
+ * detail branch had already computed `isWeekend` and the value branch, one
+ * line above, refused to use it. A third voice joined in: `sessionTone` was
+ * called with the raw `session` prop, hit its `s === "RTH"` case, and painted
+ * the tile the ESTABLISHED colour on a day its own caption called closed.
+ *
+ * The presenter's own behaviour is asserted in sessionDetailText.test.ts.
+ * These are the CALL-SITE bans — the three defects lived in how the ribbon
+ * called a presenter, which is exactly where a selector-only test cannot see.
+ */
+
+const ribbonSrc = (): string =>
+  readFileSync(resolve(__dirname, "../../components/command/CommandContextRibbon.tsx"), "utf8");
+
+describe("CommandContextRibbon derives the SESSION tile from the owner, not the store key", () => {
+  it("PROOF the stripper leaves this file's real code intact", () => {
+    // Same neutering hazard as above, re-proved against THIS file: a stripper
+    // that returned "" would make all four bans below vacuously true.
+    const src = stripComments(ribbonSrc());
+    expect(src).toContain("selectCanonicalSessionPresentation");
+    expect(src.length).toBeGreaterThan(1000);
+  });
+
+  it("BANS the fabricated weekday — new Date(0) is 1970-01-01, a Thursday in UTC", () => {
+    const src = stripComments(ribbonSrc());
+    // `dayOfWeek: new Date(nowMs ?? 0).getDay()` asserted a WEEKDAY on the
+    // first paint of every Saturday, before the clock effect had run.
+    expect(src).not.toMatch(/dayOfWeek\s*:/);
+    expect(src).not.toMatch(/new Date\(\s*nowMs\s*\?\?\s*0\s*\)/);
+  });
+
+  it("passes a nullable clock, so the unsettled first paint makes no day claim", () => {
+    const src = stripComments(ribbonSrc());
+    expect(src).toMatch(/at:\s*nowMs == null \? null : new Date\(nowMs\)/);
+  });
+
+  it("BANS toning the tile from the raw store-key prop", () => {
+    const src = stripComments(ribbonSrc());
+    // `sessionTone(session, wsConnected)` is what painted Saturday green.
+    expect(src).not.toMatch(/sessionTone\(\s*session\s*,/);
+    expect(src).toMatch(/sessionTone\(\s*sessionPresentation\.value\s*,/);
+  });
+
+  it("BANS a dead 'RTH' branch in the tone function — the presenter cannot return it", () => {
+    const src = stripComments(ribbonSrc());
+    // Leaving the branch in place would be a second dead predicate, and a dead
+    // predicate is what started this entire thread of defects.
+    expect(src).not.toMatch(/s === "RTH"/);
+  });
+});

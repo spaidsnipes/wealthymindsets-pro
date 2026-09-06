@@ -43,7 +43,11 @@ import {
   selectContextDataReading,
   type ContextDataState,
 } from "@/lib/marketData/contextDataTruth";
-import { selectCanonicalSessionPresentation } from "@/lib/marketData/canonicalIdentity";
+import {
+  selectCanonicalSessionPresentation,
+  SESSION_TOKEN_CLOSED,
+  SESSION_TOKEN_CONTINUOUS,
+} from "@/lib/marketData/canonicalIdentity";
 
 export interface CommandContextRibbonProps {
   readonly symbol: string;
@@ -205,12 +209,28 @@ export function ContextRibbonContainer({ ariaLabel, children }: ContextRibbonCon
   );
 }
 
-function sessionTone(session: string, connected: boolean): Tone {
-  const s = session.toUpperCase();
-  if (s === "CLOSED") return "unknown";
+/**
+ * Tone for the SESSION tile — derived from the PRESENTED value, never from the
+ * raw `session` prop.
+ *
+ * The prop is `identity.session`, i.e. canonicalSession(extHours, cls): a STORE
+ * KEY that reads "RTH" for every non-crypto instrument on every day. The old
+ * body hit `s === "RTH" → "resolved"`, so on a Saturday this tile was painted
+ * the ESTABLISHED colour while its own caption read "market closed". Colour is
+ * a claim too, and this one was a third voice disagreeing inside one tile.
+ *
+ * There is deliberately no "RTH" case left: the presenter cannot return it, so
+ * a branch for it would be a dead predicate — and a dead predicate is what
+ * started this whole thread of defects.
+ */
+function sessionTone(presentedValue: string, connected: boolean): Tone {
+  const s = presentedValue.toUpperCase();
+  // Closed is not an alarm. It is the correct, established state of a market
+  // on a Saturday, and colouring it "warn" would teach the trader that a
+  // normal weekend is a malfunction.
+  if (s === SESSION_TOKEN_CLOSED) return "unknown";
+  if (s === SESSION_TOKEN_CONTINUOUS) return connected ? "resolved" : "warn";
   if (!connected) return "warn";
-  if (s === "RTH") return "resolved";
-  if (s === "OVERNIGHT" || s === "ETH") return "pending";
   return "unknown";
 }
 
@@ -319,7 +339,12 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
     symbol,
     requestedSession: session,
     connected: wsConnected,
-    dayOfWeek: new Date(nowMs ?? 0).getDay(),
+    // Was `dayOfWeek: new Date(nowMs ?? 0).getDay()`. Before the clock effect
+    // runs, `nowMs` is null and `new Date(0)` is 1970-01-01 — a WEEKDAY. So on
+    // every Saturday the first paint of this tile asserted a weekday and only
+    // then settled. `Date | null` cannot express a fabricated day: null means
+    // "not established", and the settle can only ever sharpen.
+    at: nowMs == null ? null : new Date(nowMs),
     observedActivityAt: nectar.lastTradeAtMs,
     evaluatedAt: nowMs ?? 0,
   });
@@ -330,7 +355,13 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
       label: "SESSION",
       value: sessionPresentation.value,
       detail: sessionPresentation.detail,
-      tone: sessionPresentation.activity === "OBSERVED" ? "pending" : sessionTone(session, wsConnected),
+      // Tone from the PRESENTED value, not the raw `session` store key. Passing
+      // `session` here painted the tile "resolved" green on a Saturday because
+      // canonicalSession() reads "RTH" every day of the week — a third voice
+      // disagreeing with the caption directly beneath it.
+      tone: sessionPresentation.activity === "OBSERVED"
+        ? "pending"
+        : sessionTone(sessionPresentation.value, wsConnected),
     },
     (() => {
       // The first render uses the snapshot's deterministic capture time so SSR
