@@ -13,9 +13,18 @@ describe("chart Market Object Passport transformation", () => {
     expect(drawer).toContain("aria-modal=\"true\"");
   });
 
-  it("binds the trigger to the drawer and keeps its tap target usable", () => {
-    expect(dashboard).toContain('aria-controls="chart-market-object-passport"');
-    expect(dashboard).toContain("fallbackTriggerRef={passportTriggerRef}");
+  it("keeps lineage inside WHY with a native keyboard-operable disclosure", () => {
+    const start = dashboard.indexOf('id="chart-decision-why"');
+    const end = dashboard.indexOf("{/* ── Toolbar", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const why = dashboard.slice(start, end);
+    expect(why).toContain("fallbackTriggerRef={whyTriggerRef}");
+    expect(why).toContain('<details className="mt-3 border-t border-wm-border" id="chart-market-object-passport"');
+    expect(why).toContain('<summary className="min-h-11');
+    expect(why).toContain("<MarketObjectPassportPanel vm={chartPassportVM} />");
+    expect(why).toContain('key={`${symbol}:${timeframe}`}');
+    expect(dashboard).not.toContain("passportOpen");
     expect(dashboard).toContain("minHeight: 44");
     expect(dashboard).not.toContain("height: 28,");
   });
@@ -24,5 +33,7 @@ describe("chart Market Object Passport transformation", () => {
     expect(drawer).toContain("useShellModalFocus");
     expect(drawer).toContain("onKeyDown={onKeyDown}");
     expect(drawer).toContain("initialFocusRef: closeRef");
+    const focus = readFileSync(resolve(process.cwd(), "src/components/layout/useShellModalFocus.ts"), "utf8");
+    expect(focus).toContain('"summary"');
   });
 });

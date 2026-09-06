@@ -8,6 +8,13 @@ const modalFocus = source("../components/layout/useShellModalFocus.ts");
 const layout = source("../components/layout/MainLayout.tsx");
 
 describe("shared shell modal drawer accessibility", () => {
+  it("escapes chart stacking contexts without accessing document during SSR", () => {
+    expect(drawer).toContain('import { createPortal } from "react-dom"');
+    expect(drawer).toContain("useSyncExternalStore(subscribeShellModalPortalHost, getShellModalPortalHost, getServerModalPortalHost)");
+    expect(drawer).toContain("portalHost ? createPortal(<ShellModalDrawerContent {...props} />, portalHost) : null");
+    expect(drawer).toContain("function ShellModalDrawerContent");
+  });
+
   it("owns dialog naming, initial focus, keyboard containment, Escape, and focus restoration", () => {
     expect(drawer).toContain('role="dialog"');
     expect(drawer).toContain('aria-modal="true"');

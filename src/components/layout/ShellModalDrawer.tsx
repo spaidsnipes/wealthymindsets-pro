@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useShellModalFocus } from "./useShellModalFocus";
+import { getShellModalPortalHost, getServerModalPortalHost, subscribeShellModalPortalHost } from "./shellModalPortalHost";
 
 type ShellModalDrawerProps = {
   id: string;
@@ -21,7 +23,17 @@ type ShellModalDrawerProps = {
   children: React.ReactNode;
 };
 
-export function ShellModalDrawer({
+export function ShellModalDrawer(props: ShellModalDrawerProps) {
+  const portalHost = useSyncExternalStore(subscribeShellModalPortalHost, getShellModalPortalHost, getServerModalPortalHost);
+
+  // Chart/layout stacking contexts can otherwise put even z-200 underneath
+  // the shell header and phone navigation. Mount the focus owner only after
+  // the client portal exists; SSR and initial hydration both return null.
+  // Native fullscreen creates a top layer: body siblings cannot cover it.
+  return portalHost ? createPortal(<ShellModalDrawerContent {...props} />, portalHost) : null;
+}
+
+function ShellModalDrawerContent({
   id,
   titleId,
   descriptionId,

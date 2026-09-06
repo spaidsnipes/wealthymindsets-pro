@@ -8,13 +8,27 @@ const FOCUSABLE = [
   "input:not([disabled])",
   "select:not([disabled])",
   "textarea:not([disabled])",
+  "summary",
   "[tabindex]:not([tabindex='-1'])",
 ].join(",");
+
+export function isHiddenByClosedDetails(element: HTMLElement) {
+  // Some engines retain client rects for descendants of a closed <details>.
+  // Only its first summary (and descendants of that summary) stays focusable.
+  // Check every ancestor: an inner summary can still be hidden by outer details.
+  for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+    if (ancestor.tagName !== "DETAILS" || ancestor.hasAttribute("open")) continue;
+    const summary = Array.from(ancestor.children).find(child => child.tagName === "SUMMARY");
+    if (!summary?.contains(element)) return true;
+  }
+  return false;
+}
 
 function focusableElements(container: HTMLElement) {
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(element =>
     element.getAttribute("aria-hidden") !== "true"
     && element.getClientRects().length > 0
+    && !isHiddenByClosedDetails(element)
   );
 }
 

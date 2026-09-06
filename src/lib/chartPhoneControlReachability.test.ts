@@ -11,7 +11,7 @@ describe("phone chart control reachability", () => {
     expect(dashboard).toContain('className="wm-chart-orientation-strip"');
     expect(dashboard).toContain('className="wm-chart-orientation-actions"');
     expect(dashboard).toContain("wm-chart-why-trigger");
-    expect(dashboard).toContain("wm-chart-passport-trigger");
+    expect(dashboard).not.toContain("wm-chart-passport-trigger");
     expect(dashboard).toContain("wm-chart-command-deck-link");
     expect(css).toMatch(/\.wm-chart-orientation-action\s*\{[\s\S]*?min-height:\s*44px\s*!important/);
     expect(css).toMatch(/\.wm-chart-orientation-actions\s*\{[\s\S]*?width:\s*100%/);

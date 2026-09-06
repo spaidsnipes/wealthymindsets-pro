@@ -634,10 +634,8 @@ export function ChartsDashboard() {
     () => selectMarketObjectPassport(chartCanvasState),
     [chartCanvasState],
   );
-  const [passportOpen, setPassportOpen] = useState(false);
   // Asset 07 canon — Evidence Debt / Question Mode toggle.
   const [whyOpen, setWhyOpen] = useState(false);
-  const passportTriggerRef = useRef<HTMLButtonElement>(null);
   const whyTriggerRef = useRef<HTMLButtonElement>(null);
 
   // Track day high/low from ticker
@@ -853,7 +851,7 @@ export function ChartsDashboard() {
             (§Silence Is A Feature). Opens the SAME DecisionWhyPanel
             /command-deck ships so trader sees identical WHY on both. */}
         <div className="wm-chart-orientation-actions">
-        {chartCanvasVM.decisionWhy && (
+        {(chartCanvasVM.decisionWhy || chartPassportVM.capturedAt !== null) && (
           <button
             className="wm-chart-orientation-action wm-chart-why-trigger"
             ref={whyTriggerRef}
@@ -877,33 +875,6 @@ export function ChartsDashboard() {
             }}
           >
             {whyOpen ? "▾ Why" : "▸ Why"}
-          </button>
-        )}
-        {chartPassportVM.capturedAt !== null && (
-          <button
-            className="wm-chart-orientation-action wm-chart-passport-trigger"
-            ref={passportTriggerRef}
-            type="button"
-            onClick={() => setPassportOpen(o => !o)}
-            aria-label={passportOpen ? "Close Market Object Passport" : "Open Market Object Passport"}
-            aria-expanded={passportOpen}
-            aria-controls="chart-market-object-passport"
-            style={{
-              fontSize: 10,
-              letterSpacing: 0.3,
-              textTransform: "uppercase",
-              color: passportOpen ? "#e8b923" : "#c9a55c",
-              background: passportOpen ? "rgba(232, 185, 35, 0.12)" : "transparent",
-              border: passportOpen ? "1px solid rgba(232, 185, 35, 0.5)" : "1px solid rgba(139,106,41,0.35)",
-              minHeight: 44,
-              padding: "3px 10px",
-              borderRadius: 4,
-              fontWeight: 700,
-              cursor: "pointer",
-              marginLeft: 4,
-            }}
-          >
-            {passportOpen ? "▾ Passport" : "▸ Passport"}
           </button>
         )}
         <a
@@ -1155,40 +1126,16 @@ export function ChartsDashboard() {
 
         {/* Center: toolbar + chart area — fullscreen target includes all controls */}
         <div ref={fullscreenRef} style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0, position:"relative" }}>
-          {/* Asset 14/16 canon — accessible responsive Passport drawer.
-              Same VM shape the deck consumes; the shared shell owner gives
-              phone-width containment, focus trapping, Escape close, and
-              focus restoration to the chart trigger. */}
-          {passportOpen && (activeTab === "Chart" || activeTab === "Options") && (
-            <ShellModalDrawer
-              id="chart-market-object-passport"
-              titleId="chart-market-object-passport-title"
-              descriptionId="chart-market-object-passport-description"
-              title="Market Object Passport"
-              description="Lineage, ownership, evidence, and invalidation for this chart object."
-              closeLabel="Close Market Object Passport"
-              width={440}
-              onClose={() => setPassportOpen(false)}
-              fallbackTriggerRef={passportTriggerRef}
-            >
-              <div style={{ padding: 12 }}>
-                <MarketObjectPassportPanel vm={chartPassportVM} />
-              </div>
-            </ShellModalDrawer>
-          )}
-
-          {/* Asset 07 canon — Evidence Debt / Question Mode drawer.
-              Same DecisionWhyPanel the deck renders + same ShellModalDrawer
-              containment used by the Passport drawer above. Same VM
-              (chartCanvasVM.decisionWhy) so the trader sees identical WHY
-              reasoning on both /charts and /command-deck. */}
+          {/* One evidence gateway: decision first, object lineage on demand.
+              Retires the competing Passport trigger/drawer, not its truth.
+              Both panels keep their existing canonical selectors. */}
           {whyOpen && (activeTab === "Chart" || activeTab === "Options") && (
             <ShellModalDrawer
               id="chart-decision-why"
               titleId="chart-decision-why-title"
               descriptionId="chart-decision-why-description"
               title="Decision Why"
-              description="Compiled reasoning behind the current market canvas — evidence gaps, blockers, clearances."
+              description="Decision evidence, blockers, and clearances. Expand the passport for object lineage and invalidation."
               closeLabel="Close Decision Why"
               width={440}
               onClose={() => setWhyOpen(false)}
@@ -1196,6 +1143,12 @@ export function ChartsDashboard() {
             >
               <div style={{ padding: 12 }}>
                 <DecisionWhyPanel vm={chartCanvasVM.decisionWhy} />
+                <details className="mt-3 border-t border-wm-border" id="chart-market-object-passport" key={`${symbol}:${timeframe}`}>
+                  <summary className="min-h-11 cursor-pointer py-3 text-sm text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
+                    Market object passport
+                  </summary>
+                  <MarketObjectPassportPanel vm={chartPassportVM} />
+                </details>
               </div>
             </ShellModalDrawer>
           )}
