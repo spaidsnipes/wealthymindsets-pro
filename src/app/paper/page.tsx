@@ -38,7 +38,11 @@ import {
 } from "@/lib/paperTrade";
 import SceneAdmissionPanel from "@/components/experience/SceneAdmissionPanel";
 import SceneAdmits, { SceneAdmitsAmbient } from "@/components/experience/SceneAdmits";
-import { compileScene, type SurfaceElement } from "@/lib/experience/compileScene";
+import {
+  compileScene,
+  type SceneCompilation,
+  type SurfaceElement,
+} from "@/lib/experience/compileScene";
 import {
   isExposureIncreasingOrder,
   netQtyFor,
@@ -559,8 +563,24 @@ const RANK_BADGES = [
   { rank: 5, label: "5th Place", color: "#00D4AA", icon: "🏅" },
 ];
 
-function Leaderboard({ myPct, myPnl, myTrades, myWin }: {
+/**
+ * §9 INTERRUPTION LAW reaches into this component.
+ *
+ * The leaderboard carries two "Visit Partner" calls-to-action for an external
+ * commercial site. A tab the trader deliberately opened is not an interruption,
+ * so the TABLE stays — but a CTA pushing the trader off WM Pro while they hold
+ * exposure is the same class of surface as the Academy banner §9 names, and
+ * "THE MOMENT CAPITAL IS LIVE, WM SHOULD REDUCE NAVIGATION" is the canon that
+ * settles it.
+ *
+ * It takes the whole `SceneCompilation` rather than an `ambient: boolean`
+ * deliberately. A boolean prop could be handed `true` by any caller and the
+ * result called §9 compliance; a compilation can only have come from
+ * `compileScene`.
+ */
+function Leaderboard({ myPct, myPnl, myTrades, myWin, compilation }: {
   myPct: number; myPnl: number; myTrades: number; myWin: number;
+  compilation: SceneCompilation;
 }) {
   // Insert "You" into leaderboard at correct rank
   const myEntry = { name: "You ⭐", pct: myPct, pnl: myPnl, trades: myTrades, win: myWin, isMe: true };
@@ -578,12 +598,14 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin }: {
             <Trophy size={16} className="text-[#FFD700]"/>
             <span className="text-sm font-black text-wm-text">External Challenge Status</span>
           </div>
+          <SceneAdmitsAmbient compilation={compilation}>
           <button
             onClick={() => window.open("https://www.upsideonly.com", "_blank", "noopener,noreferrer")}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#00C853] text-black text-[10px] font-black hover:bg-[#00E060] transition-all"
           >
             Visit Partner <ExternalLink size={9}/>
           </button>
+          </SceneAdmitsAmbient>
         </div>
 
         {/* Local paper rank badges — not prize or payment claims. */}
@@ -689,7 +711,10 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin }: {
         })}
       </div>
 
-      {/* Bottom CTA */}
+      {/* Bottom CTA — §9 gated. The disclaimer travels WITH the button rather
+          than outliving it: a sentence disclaiming a partner offer that is not
+          on screen is dead vocabulary (§H19). */}
+      <SceneAdmitsAmbient compilation={compilation}>
       <div className="shrink-0 p-4 border-t border-wm-border bg-gradient-to-r from-[#00C853]/10 to-transparent">
         <button
           onClick={() => window.open("https://www.upsideonly.com", "_blank", "noopener,noreferrer")}
@@ -701,6 +726,7 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin }: {
           WM Pro does not verify external contest availability, eligibility, prizes, or payment.
         </p>
       </div>
+      </SceneAdmitsAmbient>
     </div>
   );
 }
@@ -1486,18 +1512,38 @@ export default function PaperTradingPage() {
 
       {/* Header */}
       <div className={clsx(styles.header, "flex items-center gap-3 px-4 border-b border-wm-border bg-wm-dark shrink-0")} style={{ height:44 }}>
-        <Activity size={15} className="text-wm-green shrink-0"/>
+        <Activity size={15} className="text-wm-text-dim shrink-0" aria-hidden="true"/>
         <h1 className="text-sm font-bold text-wm-text">Paper Trading</h1>
-        <div className="flex items-center gap-1.5 ml-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-wm-green animate-pulse"/>
-          <span className="text-[10px] text-wm-green font-bold">PAPER SIMULATION</span>
-        </div>
+        {/* §B5 ENVIRONMENT FIREWALL + §9 COLOR / MOTION LAW.
+          *
+          * This chip was a GREEN PULSING DOT next to the words "PAPER
+          * SIMULATION". Green-plus-pulse is the universal interface grammar
+          * for "a live feed is arriving here", so the pixel and the word were
+          * making opposite claims on the one screen in WM Pro where nothing is
+          * live and no order reaches a broker. §9 forbids both halves by name:
+          * no green LIVE pip, and WAIT and CLOSED do not pulse — and /paper is
+          * in WAIT or CLOSED most of the day.
+          *
+          * The replacement is static, neutral and SAYS what it means. §B5 wants
+          * the environment unmissable, not decorated: a trader must never have
+          * to infer from styling whether money is real. Colour cannot carry
+          * that claim; a sentence can. */}
+        <span
+          role="note"
+          className="ml-1 rounded-md border border-wm-border bg-wm-black/60 px-2 py-1 text-[9px] font-bold tracking-wider text-wm-text-muted"
+        >
+          PAPER · NO REAL MONEY · NO BROKER
+        </span>
         <div
           role="status"
           aria-live="polite"
           className={clsx(
             "rounded-md border px-2 py-1 text-[9px] font-bold",
-            persistenceState === "PERSISTED" && "border-wm-green/30 text-wm-green",
+            // §9 COLOR LAW: no green shield. A green "VERIFIED" badge sells a
+            // successful localStorage round-trip as an achievement; it is the
+            // baseline, and the baseline is neutral. Amber and red below keep
+            // their colour because each carries a word and a real degradation.
+            persistenceState === "PERSISTED" && "border-wm-border text-wm-text-muted",
             persistenceState === "CONFLICT" && "border-amber-500/40 text-amber-300",
             persistenceState === "FAILED" && "border-wm-red/40 text-wm-red",
             persistenceState === "UNKNOWN" && "border-wm-border text-wm-text-dim",
@@ -1712,7 +1758,17 @@ export default function PaperTradingPage() {
             ))}
           </div>
 
-          {/* Upside Only Banner */}
+          {/* Upside Only Banner — §9 INTERRUPTION LAW.
+              "Only capital truth and material invalidation may take the room.
+              Academy may not. Nectar may not. A beautiful card may not."
+              A commercial promotion for an EXTERNAL site is the least
+              defensible ambient surface in the product: it is not WM truth at
+              all. It shipped ungated, so it sat beside an open position with a
+              gradient, a glow and a call to action while the trader had money
+              exposed. The ambient gate removes it whenever a position is open,
+              a working order can still open exposure, or the ledger cannot
+              prove its own last write. */}
+          <SceneAdmitsAmbient compilation={sceneCompilation}>
           <div className="mt-4">
             <div className="text-[9px] text-wm-text-dim uppercase tracking-wider mb-2 font-bold">Partner Platform</div>
             <div className="rounded-xl border border-[#00C853]/30 bg-gradient-to-br from-[#00C853]/10 via-[#00C853]/5 to-transparent p-3.5 relative overflow-hidden">
@@ -1737,12 +1793,16 @@ export default function PaperTradingPage() {
                 Visit Upside Only <ExternalLink size={10}/>
               </button>
 
+              {/* §9 MOTION: the pulse is gone. A pulsing dot is the universal
+                  grammar for "something is streaming here"; nothing streams on
+                  a partner ad. Motion that reports no event is theatre. */}
               <div className="flex items-center gap-1 mt-2 justify-center">
-                <span className="w-1 h-1 rounded-full bg-[#00C853] animate-pulse"/>
+                <span className="w-1 h-1 rounded-full bg-[#00C853]"/>
                 <span className="text-[8px] text-[#00C853] font-bold">EXTERNAL SITE</span>
               </div>
             </div>
           </div>
+          </SceneAdmitsAmbient>
         </div>
 
         {/* Center: Equity curve + positions/orders */}
@@ -1993,6 +2053,7 @@ export default function PaperTradingPage() {
                 </div>
               ) : (
                 <Leaderboard
+                  compilation={sceneCompilation}
                   myPct={((totalEquity - STARTING_CASH) / STARTING_CASH) * 100}
                   myPnl={totalEquity - STARTING_CASH}
                   myTrades={trades.length}

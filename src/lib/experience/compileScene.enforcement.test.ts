@@ -412,6 +412,43 @@ describe("compileScene enforcement — §10 admission is OBEYED, not merely anno
     return gatedBody(source, "SceneAdmits", `[^>]*element=(?:"${element}"|\\{"${element}"\\})`);
   }
 
+  /**
+   * EVERY gate body of `tag`, concatenated — not just the first.
+   *
+   * `gatedBody` answers "what does the first gate contain", which was enough
+   * while each page had exactly one ambient gate. /paper now has four, and a
+   * first-gate-only scan has a nasty failure mode: it does not merely miss a
+   * violation, it reports a PASS turning into a FAIL when an unrelated gate is
+   * added earlier in the file. A surface moved out of one gate and into no
+   * gate at all must fail; a surface moved between two real gates must not.
+   */
+  function allGatedBodies(source: string, tag: string, openAttrs = ""): string {
+    const bodies: string[] = [];
+    let rest = source;
+    for (;;) {
+      const body = gatedBody(rest, tag, openAttrs);
+      if (body === null) break;
+      bodies.push(body);
+      const at = rest.indexOf(body);
+      if (at === -1) break;
+      rest = rest.slice(at + body.length);
+    }
+    return bodies.join("\n");
+  }
+
+  /** How many times `marker` appears in the file vs inside any `tag` gate. */
+  function containment(
+    source: string,
+    tag: string,
+    marker: RegExp,
+  ): { readonly total: number; readonly inside: number } {
+    const re = (): RegExp => new RegExp(marker.source, "g");
+    return {
+      total: (source.match(re()) ?? []).length,
+      inside: (allGatedBodies(source, tag).match(re()) ?? []).length,
+    };
+  }
+
   it("every element a route declares as GOVERNED has a real gate on that page", () => {
     /**
      * `governed` is how the panel decides what counts as a refusal. An element
@@ -565,12 +602,57 @@ describe("compileScene enforcement — §10 admission is OBEYED, not merely anno
      * wrapper were deleted.
      */
     const paper = stripComments(readFileSync(resolve(SRC, "app/paper/page.tsx"), "utf8"));
-    const body = gatedBody(paper, "SceneAdmitsAmbient");
-    expect(body).not.toBeNull();
-    expect(body).toContain('id="academy-challenge"');
-    const total = (paper.match(/id="academy-challenge"/g) ?? []).length;
-    const inside = ((body ?? "").match(/id="academy-challenge"/g) ?? []).length;
-    expect(inside).toBe(total);
+    const { total, inside } = containment(paper, "SceneAdmitsAmbient", /id="academy-challenge"/);
+    expect(total).toBeGreaterThan(0);
+    expect(`academy in ambient gate: ${inside}/${total}`).toBe(
+      `academy in ambient gate: ${total}/${total}`,
+    );
+  });
+
+  it("/paper puts the PARTNER PROMOTION inside the ambient gate — §9, the clearest case", () => {
+    /**
+     * §9: "Only capital truth and material invalidation may take the room.
+     * Academy may not. Nectar may not. A beautiful card may not."
+     *
+     * A commercial promotion for an EXTERNAL site is the least defensible
+     * ambient surface in the product, because it is not WM truth at all. It
+     * shipped ungated on /paper, so a gradient, a glow and a call-to-action
+     * sat beside an open position while the trader had exposure.
+     *
+     * The scan counts across ALL ambient gates on the page. /paper has more
+     * than one, and EVERY link to the partner must be inside one of them —
+     * including the two inside the leaderboard tab, which is why that
+     * component takes the compilation as a prop rather than being left alone
+     * as "the trader opened it deliberately".
+     */
+    const paper = stripComments(readFileSync(resolve(SRC, "app/paper/page.tsx"), "utf8"));
+    const { total, inside } = containment(paper, "SceneAdmitsAmbient", /upsideonly\.com/);
+    expect(total).toBeGreaterThan(0);
+    expect(`promo in ambient gate: ${inside}/${total}`).toBe(
+      `promo in ambient gate: ${total}/${total}`,
+    );
+  });
+
+  it("/paper's header does not wear a green pulsing pip — §9 COLOR + MOTION law", () => {
+    /**
+     * The defect: a green pulsing dot rendered immediately beside the words
+     * "PAPER SIMULATION". Green-plus-pulse is the universal grammar for "a
+     * live feed is arriving", so the pixel and the word made opposite claims
+     * on the one screen in WM Pro where nothing is live and no order reaches
+     * a broker. §9 forbids both halves by name: no green LIVE pip, and WAIT
+     * and CLOSED do not pulse — which is /paper for most of the day.
+     *
+     * This scans the whole file rather than the header alone, because the same
+     * two-class pattern is one copy-paste away from any other surface here.
+     */
+    const paper = readFileSync(resolve(SRC, "app/paper/page.tsx"), "utf8");
+    const offenders = [...paper.matchAll(/className="([^"]*animate-pulse[^"]*)"/g)]
+      .map((m) => m[1])
+      .filter((cls) => /green|#00C853|#00E060|emerald/i.test(cls));
+    expect(offenders).toEqual([]);
+
+    // And §B5: the environment must be stated in words, not implied by colour.
+    expect(paper).toContain("NO REAL MONEY");
   });
 
   it("/paper's exit ramp lives INSIDE the FLATTEN_CONFIRM gate — §9 PHONE law", () => {
@@ -605,12 +687,15 @@ describe("compileScene enforcement — §10 admission is OBEYED, not merely anno
     const deck = stripComments(
       readFileSync(resolve(SRC, "app/command-deck/page.tsx"), "utf8"),
     );
-    const body = gatedBody(deck, "SceneAdmitsAmbient");
-    expect(body).not.toBeNull();
-    expect(body).toContain("<LearningGenomeInspector");
-    const total = (deck.match(/<LearningGenomeInspector/g) ?? []).length;
-    const inside = ((body ?? "").match(/<LearningGenomeInspector/g) ?? []).length;
-    expect(inside).toBe(total);
+    const { total, inside } = containment(
+      deck,
+      "SceneAdmitsAmbient",
+      /<LearningGenomeInspector/,
+    );
+    expect(total).toBeGreaterThan(0);
+    expect(`genome in ambient gate: ${inside}/${total}`).toBe(
+      `genome in ambient gate: ${total}/${total}`,
+    );
   });
 });
 

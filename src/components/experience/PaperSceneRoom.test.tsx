@@ -65,6 +65,14 @@ function Room(input: PaperSceneInput): React.ReactElement {
       <SceneAdmitsAmbient compilation={compilation}>
         <div>ACADEMY-CHALLENGE</div>
       </SceneAdmitsAmbient>
+      {/* The partner promotion is a SECOND ambient gate on the real page (four,
+          in fact). Modelled separately here because the two surfaces have
+          different failure stories: Academy is §9's named example, while the
+          promo is the clearest case in the product — an external commercial
+          call-to-action beside an open position. */}
+      <SceneAdmitsAmbient compilation={compilation}>
+        <div>PARTNER-PROMO</div>
+      </SceneAdmitsAmbient>
       <SceneAdmissionPanel
         compilation={compilation}
         provenance={projection.provenance}
@@ -115,6 +123,27 @@ describe("/paper room — §9 INTERRUPTION LAW is finally enforced by something"
     expect(html).not.toContain("ACADEMY-CHALLENGE");
     expect(html).toContain("EXPOSURE-BANNER");
     expect(html).toContain("NOT DONE");
+  });
+
+  it("REMOVES the partner promotion the moment a position is open", () => {
+    // §9 does not name partner advertising, because it did not need to: "a
+    // beautiful card may not" take the room covers a gradient, a glow and a
+    // button pointing off WM Pro. This is the least defensible ambient
+    // surface in the product — it is not WM truth at all — and it shipped
+    // ungated beside the trader's own open exposure.
+    const flat = room();
+    expect(flat).toContain("PARTNER-PROMO"); // control
+
+    const held = room({ ledger: ledger({ positions: [{ symbol: "TSLA", qty: 10 }] }) });
+    expect(held).not.toContain("PARTNER-PROMO");
+    expect(held).toContain("EXIT-RAMP"); // the way out survives what the ad does not
+  });
+
+  it("REMOVES the partner promotion while a working order can still open exposure", () => {
+    const html = room({
+      ledger: ledger({ orders: [{ symbol: "TSLA", side: "buy", status: "pending" }] }),
+    });
+    expect(html).not.toContain("PARTNER-PROMO");
   });
 
   it("REMOVES Academy when the ledger's last write did not survive", () => {
