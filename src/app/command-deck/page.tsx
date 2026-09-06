@@ -10,9 +10,15 @@ import {
 } from "@/lib/marketData/useCanonicalMarketState";
 import { useCanvasClock } from "@/lib/marketData/viewModels/canvasClock";
 import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
-import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
+import {
+  canonicalMarketStateIdentity,
+  selectCanonicalSessionToken,
+} from "@/lib/marketData/canonicalIdentity";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
+import {
+  useProvenSessionClosure,
+  useSessionClockDate,
+} from "@/lib/marketData/useProvenSessionClosure";
 import { selectDecisionChain, type TradePhase } from "@/lib/marketData/viewModels/selectDecisionChain";
 import { selectMarketStory } from "@/lib/marketData/viewModels/selectMarketStory";
 import DecisionChainPanel from "@/components/chart/DecisionChainPanel";
@@ -293,11 +299,28 @@ function CommandDeckInner() {
   //
   // The capital column is UNOBSERVED on this route and `deckSceneSignals` says
   // so explicitly rather than defaulting it to flat. §14.1.
+  //
+  // The session comes from `selectCanonicalSessionToken` — the SAME owner the
+  // mobile pill and the context ribbon read — and NOT from `identity.session`.
+  // That field is the store key; `canonicalSession()` answers "RTH" for every
+  // non-crypto instrument on every day of the week. Passing it here made
+  // `sessionOpen` permanently true, which made compileScene's CLOSED branch
+  // (compileScene.ts, "SESSION CLOSED — LAST VERIFIED. Nothing is streaming.")
+  // unreachable on this route. On Saturday 2026-09-05 production rendered SCENE
+  // WAIT — "holding is the action" — on a page that was simultaneously printing
+  // "SESSION CLOSED — LAST VERIFIED" in eight other nodes. Same market, same
+  // instant, four different claims.
+  //
+  // `sessionClockDate` is the mount-safe day clock, deliberately NOT `nowMs`:
+  // closure changes at local midnight, so the scene must not recompile on the
+  // 5s cadence, and the first paint must make no day claim at all.
+  const sessionClockDate = useSessionClockDate();
   const sceneInput = React.useMemo(() => {
     const debt = computeSceneEvidenceDebt(chainVm?.nodes);
     const row = computeSceneRightOfWay(permission, debt);
-    return deckSceneSignals({ session: identity.session, rightOfWay: row.value });
-  }, [chainVm?.nodes, permission, identity.session]);
+    const sessionTruth = selectCanonicalSessionToken({ symbol, at: sessionClockDate });
+    return deckSceneSignals({ session: sessionTruth.token, rightOfWay: row.value });
+  }, [chainVm?.nodes, permission, symbol, sessionClockDate]);
   const sceneCompilation = React.useMemo(
     () => compileScene(sceneInput.signals),
     [sceneInput],

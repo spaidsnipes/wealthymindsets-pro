@@ -46,7 +46,19 @@ export const SIGNAL_GROUPS: readonly SignalGroup[] = [
 ] as const;
 
 export interface DeckSceneInput {
-  /** Canonical session presentation: RTH / ETH / OVERNIGHT / CLOSED / UNKNOWN. */
+  /**
+   * The PRESENTED session token, from `selectCanonicalSessionToken` (or the
+   * `.value` of `selectCanonicalSessionPresentation`) — CLOSED / 24X7 /
+   * "SESSION ?" / a genuinely-established running session.
+   *
+   * NOT `identity.session`. That field is a STORE KEY: `canonicalSession()`
+   * returns "RTH" for every non-crypto instrument on every day of the week,
+   * including Saturday. Feeding it here makes `sessionOpen` permanently `true`,
+   * which makes compileScene's CLOSED branch unreachable on this route — and,
+   * worse, marks SESSION as OBSERVED in the provenance record below, so the
+   * one mechanism built to expose a guess counts the guess as a real signal.
+   * /command-deck did exactly this until the day this comment was written.
+   */
   readonly session: string | null | undefined;
   /** The compiled right-of-way verdict, if the Decision owner produced one. */
   readonly rightOfWay: RightOfWay | null | undefined;
@@ -61,15 +73,26 @@ export interface DeckSceneSignals {
 }
 
 /**
- * Map the canonical session string to the compiler's tri-state.
+ * Map the PRESENTED session token to the compiler's tri-state.
  *
- * UNKNOWN and unrecognised values both map to `null` — "not yet known" — never
- * to `true`. §8 forbids implying a live session that has not been established.
+ * UNKNOWN, "SESSION ?" and unrecognised values all map to `null` — "not yet
+ * known" — never to `true`. §8 forbids implying a live session that has not
+ * been established. They are deliberately handled by the final fall-through
+ * rather than by a named branch, so a token this function has never heard of
+ * is treated with the same humility as one it has.
+ *
+ * "24X7" maps to `true` because a continuous market's session genuinely IS
+ * open and that fact IS established — it has no close to miss. Before this,
+ * 24X7 fell through to `null`, so the deck reported crypto's session as
+ * UNOBSERVED while reporting a Saturday equity's as OBSERVED: the two halves
+ * of one mapper wrong in opposite directions, withholding an established fact
+ * on one branch and inventing one on the other.
  */
 export function sessionOpenFrom(session: string | null | undefined): boolean | null {
   if (typeof session !== "string") return null;
   const s = session.trim().toUpperCase();
   if (s === "CLOSED") return false;
+  if (s === "24X7") return true;
   if (s === "RTH" || s === "ETH" || s === "OVERNIGHT" || s === "PREMARKET" || s === "AFTERHOURS") {
     return true;
   }
