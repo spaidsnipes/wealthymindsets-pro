@@ -210,7 +210,10 @@ export function WMSessionVP({ symbol, timeframe, candles, dataVersion = 0, provi
       <div className="flex items-center justify-between px-2 border-b border-wm-border shrink-0" style={{ height: 34 }}>
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] font-black text-wm-purple uppercase tracking-widest">wmSession VP</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-wm-green animate-pulse" />
+          {/* §9 COLOR + MOTION LAW: a green pulsing dot used to sit here,
+              conditioned on NOTHING. It reported no event and proved no feed —
+              it simply made the panel look alive. Deleted rather than
+              recoloured, because there is no true statement it was making. */}
         </div>
         <div className="flex items-center gap-1">
           {/* Session Window Picker */}

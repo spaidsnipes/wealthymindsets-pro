@@ -726,7 +726,13 @@ export function ChartToolbar({
             <div className="overflow-y-auto flex-1" style={{ scrollbarWidth:"thin" }}>
               {liveSearching && (
                 <div className="px-3 py-1 flex items-center gap-2 border-b border-wm-border/50">
-                  <div className="w-2 h-2 rounded-full bg-wm-green animate-pulse" />
+                  {/* §9 COLOR LAW: this pulse is HONEST — it is gated on
+                      `liveSearching`, so it reports a request genuinely in
+                      flight. Only the colour was wrong. A search that has not
+                      returned is a PENDING state, and §9 assigns pending to
+                      amber with a word beside it; green said "resolved, and
+                      resolved well" about an answer that had not arrived. */}
+                  <div className="w-2 h-2 rounded-full bg-[#F0B429] animate-pulse" />
                   <span className="text-[11px] text-wm-text-dim">Searching all global markets…</span>
                 </div>
               )}

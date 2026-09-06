@@ -6956,9 +6956,20 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                     {lastBarT ? `HISTORICAL ONLY · LAST ${lastStr}` : "DATA UNAVAILABLE"}
                   </span>
                 ) : status.live ? (
+                  /* §9 COLOR LAW names this pip specifically: "no green LIVE
+                     pip". The MOTION here is earned — it is gated on
+                     `status.live`, a certified quote, so something really is
+                     arriving while it animates, and it keeps its pulse.
+                     The COLOUR was the lie. Green is the "safe / go" signal,
+                     and a certified quote proves the DATA is current; it
+                     proves nothing whatever about whether the trade is safe.
+                     The words "LIVE — CERTIFIED QUOTE" already carry the
+                     entire claim, and they carry it to a colour-blind trader
+                     too. Pearl says the same thing and promises nothing
+                     extra. */
                   <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-wm-green animate-pulse" />
-                    <span className="text-[10px] text-wm-green font-semibold">LIVE — CERTIFIED QUOTE</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-wm-text animate-pulse" aria-hidden="true" />
+                    <span className="text-[10px] text-wm-text font-semibold">LIVE — CERTIFIED QUOTE</span>
                   </span>
                 ) : (
                   <span className="text-[10px] font-semibold" style={{ color: "#F0B429" }}>{status.label} · LAST {lastStr}</span>

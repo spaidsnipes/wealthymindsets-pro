@@ -60,7 +60,13 @@ export function PnLStatsPanel({ onClose }: { onClose: () => void }) {
       <div className="flex items-center px-3 h-7 border-b border-wm-border">
         <span className="text-[10px] font-semibold text-wm-text-muted uppercase tracking-wider">P&L Stats</span>
         <div className="flex items-center gap-1 ml-3">
-          <span className={`w-1.5 h-1.5 rounded-full ${isPos ? "bg-wm-green animate-pulse" : "bg-wm-red animate-pulse"}`} />
+          {/* §9 MOTION LAW: this dot pulsed in BOTH branches. The number beside
+              it is labelled "from journal" — a settled historical total, not a
+              stream. A pulse claims "this is changing right now", which was
+              false whether the trader was up or down. The sign, the arrow and
+              the colour already carry direction; the motion carried only
+              urgency it had not earned. */}
+          <span className={`w-1.5 h-1.5 rounded-full ${isPos ? "bg-wm-green" : "bg-wm-red"}`} />
           <span className={`text-xs font-bold font-mono ${isPos ? "text-wm-green" : "text-wm-red"}`}>
             {isPos ? <TrendingUp size={11} className="inline mr-0.5" /> : <TrendingDown size={11} className="inline mr-0.5" />}
             {isPos ? "+" : ""}${Math.abs(netPnl).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}

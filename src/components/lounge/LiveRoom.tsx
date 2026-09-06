@@ -118,7 +118,21 @@ function VideoTile({ identity, isSpeaking, videoTrack, isLocal }: {
         <span className="text-[10px] text-white font-semibold bg-black/60 rounded-full px-2 py-0.5">
           {identity}{isLocal ? " (you)" : ""}
         </span>
-        {isSpeaking && <span className="w-1.5 h-1.5 rounded-full bg-wm-green animate-pulse" />}
+        {/* The one pulse in WM Pro that keeps its motion. It is gated on
+            `isSpeaking` in a real-time audio room, so it reports an event that
+            is genuinely happening at the instant it animates — the exact
+            opposite of the decorative dots removed elsewhere.
+            §9 still applies to the COLOUR: green was carrying the whole claim
+            with no word attached, which is unreadable to a colour-blind
+            trader and, on a screen where green means "safe", ambiguous even
+            to one who is not. Neutral white plus a screen-reader word says
+            the same thing to everyone. */}
+        {isSpeaking && (
+          <span className="flex items-center">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" aria-hidden="true" />
+            <span className="sr-only">{identity} is speaking</span>
+          </span>
+        )}
       </div>
     </div>
   );
@@ -501,7 +515,13 @@ export default function LiveRoom({ roomName, roomLabel, color, userName, isHost,
     <div className={fullscreen ? "flex flex-col h-full" : ""}>
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
-        <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: color }} />
+        {/* §9 MOTION LAW: this dot pulsed unconditionally. It was not wired to
+            connection state, participant count, or anything else — it animated
+            identically whether the room was full, empty, or failing to
+            connect. The red LIVE badge two elements along already makes the
+            claim in a word. Motion removed; the colour still identifies the
+            room. */}
+        <span className="w-2 h-2 rounded-full" style={{ background: color }} />
         <span className="text-xs font-black text-wm-text">{roomLabel}</span>
         <span className="text-[8px] px-1.5 py-0.5 rounded font-bold text-wm-red bg-wm-red/15 border border-wm-red/30">LIVE</span>
         {isHost && (
