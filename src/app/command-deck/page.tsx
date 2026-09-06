@@ -122,14 +122,42 @@ const PHASES: readonly { id: CommandPhase; label: string }[] = [
  * gating it puts the panel straight back to reporting refusals nothing honours.
  *
  * It is deliberately short. The compiler rules on twelve elements; this route
- * applies one. The panel prints that ratio rather than hiding it, because
+ * applies two. The panel prints that ratio rather than hiding it, because
  * "Withheld · 9" on a route with one gate was flattering the OS — eight of
  * those nine were verdicts the scene has no power to enforce here.
  *
  * Growing this list is the work. Every addition is a real card that a real
  * market state can now refuse.
+ *
+ * ── Why THESIS_GEOMETRY and not the other nine ──────────────────────────────
+ *
+ * The test for adding an element is not "does the compiler have an opinion
+ * about it" — it has an opinion about all twelve. It is: does this element
+ * both ADMIT and REFUSE in scenes this route can actually reach? An element
+ * admitted everywhere reachable is a gate that never says no, which is
+ * decoration (§H19). An element refused everywhere reachable would silently
+ * delete a working surface.
+ *
+ * /command-deck has no broker panel, so it reaches exactly four scenes:
+ * PREGAME, WAIT, PERMISSION, CLOSED. Against that set:
+ *
+ *   MARKET_CANVAS / FIDELITY_CHIPS / HUMILITY_PANEL — admitted in all four.
+ *     Never refuse. Decoration.
+ *   EXPRESSION_CARD — admitted only in PERMISSION, and the deck's expression
+ *     surfaces are not built to disappear yet.
+ *   PENDING_BANNER / PROTECTION_GRADE / HOT_PATH_REMOTE / FLATTEN_CONFIRM /
+ *     RECEIPT_SHEET / OPEN_BROKER — refused in all four. Gating them would
+ *     delete real surfaces on every render, which is a bug wearing a law.
+ *   ONE_STORY — admitted in WAIT/PERMISSION, refused in PREGAME/CLOSED. Real.
+ *   THESIS_GEOMETRY — same split. Real.
+ *
+ * So the honest list is two, and it is two because the route is small, not
+ * because the ambition is.
  */
-const DECK_GOVERNED_ELEMENTS: readonly SurfaceElement[] = ["ONE_STORY"];
+const DECK_GOVERNED_ELEMENTS: readonly SurfaceElement[] = [
+  "ONE_STORY",
+  "THESIS_GEOMETRY",
+];
 
 export default function CommandDeckPage() {
   // useSearchParams must be inside a Suspense boundary during SSG. The
@@ -1354,8 +1382,33 @@ function CommandDeckInner() {
               </div>
             </details>
 
-            {/* DIRECTION × LOCATION × AGGRESSION × RESPONSE strip */}
-            {chainVm && (
+            {/* §10 THESIS_GEOMETRY — sections 2 and 3 are ONE admission.
+                Both render the same claim at two resolutions: the auction lens
+                is the four-dimension summary, the decision chain is the nine
+                nodes underneath it. Admitting one without the other would put
+                a conclusion on screen with its own workings withheld, which is
+                the "SHOW FIRST, EXPLAIN SECOND" order run backwards.
+
+                Withheld in PREGAME (nothing has traded yet) and in CLOSED
+                (§9: candles remain, last verified time remains, no fake
+                stream — a live directional read over a dead tape IS a fake
+                stream wearing a chart). Admitted in WAIT and PERMISSION.
+
+                The note is required rather than optional here: these are
+                NUMBERED sections inside a collapsed drawer. A trader who
+                opens "Deep read" and finds 1 then 4 has no way to tell a
+                refusal from a bug. */}
+            <SceneAdmits
+              compilation={sceneCompilation}
+              element="THESIS_GEOMETRY"
+              withheldNote={
+                sceneCompilation.scene === "CLOSED"
+                  ? "Sections 2–3 (auction lens · decision chain) are withheld while the session is closed. The tape is not moving, so a directional read would be describing a market that is not there."
+                  : "Sections 2–3 (auction lens · decision chain) are withheld until this session has produced something to read."
+              }
+            >
+              {/* DIRECTION × LOCATION × AGGRESSION × RESPONSE strip */}
+              {chainVm && (
               <div>
                 <SectionBanner number={2} label="Direction · Location · Aggression · Response" tagline="the auction lens" />
                 <div style={{ height: 12 }} />
@@ -1364,10 +1417,10 @@ function CommandDeckInner() {
                   onDrillClick={(dim: DLARDimensionKey) => openWhy({ kind: "dlar", dim })}
                 />
               </div>
-            )}
+              )}
 
-            {/* AVAILABLE R / PROCESS / STEWARD — the full 9-node chain */}
-            {chainVm && (
+              {/* AVAILABLE R / PROCESS / STEWARD — the full 9-node chain */}
+              {chainVm && (
               <div>
                 <SectionBanner number={3} label="Decision Chain" tagline="regime → management" />
                 <div style={{ height: 12 }} />
@@ -1386,9 +1439,15 @@ function CommandDeckInner() {
                 }}
               />
               </div>
-            )}
+              )}
+            </SceneAdmits>
 
-            {/* Structure context — surfaces external vs internal contradictions */}
+            {/* Structure context — surfaces external vs internal contradictions.
+                Deliberately OUTSIDE the THESIS_GEOMETRY gate above. This is not
+                a thesis; it is the note that says the thesis and the tape
+                disagree. §9 names material invalidation as one of the only two
+                things allowed to take the room, and it renders null unless a
+                contradiction actually exists, so it can never become furniture. */}
             {chainVm && <StructureContextNote vm={chainVm} />}
 
             {/* Steward / Permission — rules-informing surface. Now lists

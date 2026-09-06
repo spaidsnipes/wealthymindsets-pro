@@ -12,6 +12,8 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -95,20 +97,30 @@ const LABEL_TO_ELEMENT = new Map<string, SurfaceElement>(
 );
 
 /**
+ * What /command-deck declares governed today.
+ *
+ * Kept as a named constant rather than an inline literal because these tests
+ * make claims ABOUT THE DECK ("the deck routes exactly N of them"), and an
+ * inline literal lets the page grow its list while the sentences here quietly
+ * describe a route that no longer exists. The page-level pin that this really
+ * IS the deck's list lives in the compileScene enforcement suite, which reads
+ * page.tsx directly.
+ */
+const DECK_GOVERNED: readonly SurfaceElement[] = ["ONE_STORY", "THESIS_GEOMETRY"];
+
+/**
  * Governance scopes under test.
  *
- * `["ONE_STORY"]` mirrors what /command-deck declares today — the page-level
- * pin that this really is the deck's list lives in the compileScene enforcement
- * suite, which reads page.tsx directly. The all-elements scope is here because
- * a law checked only against a one-element route would go quiet the moment that
- * element is admitted, and a law checked only against a fully governed route is
- * exactly the assumption that produced the panel's own overclaim.
+ * The all-elements scope is here because a law checked only against a
+ * two-element route would go quiet the moment both are admitted, and a law
+ * checked only against a fully governed route is exactly the assumption that
+ * produced the panel's own overclaim.
  */
 const GOVERNANCE_SCOPES: ReadonlyArray<{
   readonly name: string;
   readonly governed: readonly SurfaceElement[];
 }> = [
-  { name: "the deck as shipped", governed: ["ONE_STORY"] },
+  { name: "the deck as shipped", governed: DECK_GOVERNED },
   { name: "a fully governed route", governed: SURFACE_ELEMENTS },
 ];
 
@@ -152,6 +164,75 @@ describe("SceneAdmits — the gate obeys the compiler", () => {
     // satisfy a weaker assertion than the one above. It must do both jobs.
     expect(admitted).toBeGreaterThan(0);
     expect(withheld).toBeGreaterThan(0);
+  });
+});
+
+describe("SceneAdmits withheldNote — a refusal far from the panel must still explain itself", () => {
+  /**
+   * Silence is the right default and stays the default. It stops being honest
+   * in one specific place: a NUMBERED section inside a collapsed drawer, a
+   * thousand lines from the admission panel that accounts for it. The trader
+   * opens "Deep read", finds section 1 then section 4, and cannot tell a
+   * refusal from a bug — and a product that looks broken teaches people to
+   * distrust the parts that work.
+   */
+  function noteHtml(
+    state: { session: string; rightOfWay: RightOfWay | null },
+    element: SurfaceElement,
+    note: string,
+  ): string {
+    return renderToStaticMarkup(
+      <SceneAdmits compilation={compilationFor(state)} element={element} withheldNote={note}>
+        <div>BODY</div>
+      </SceneAdmits>,
+    );
+  }
+
+  it("leaves the note in place of a refused surface", () => {
+    const html = noteHtml(DECK_STATES[2], "THESIS_GEOMETRY", "Sections 2-3 withheld.");
+    expect(html).toContain("Sections 2-3 withheld.");
+    expect(html).not.toContain("BODY");
+  });
+
+  it("does NOT print the note when the element is admitted", () => {
+    // The failure this forbids is a permanent caption — a sentence explaining a
+    // refusal that is not happening is dead vocabulary (§H19), and worse, it
+    // teaches the trader to stop reading the one line that matters.
+    const html = noteHtml(DECK_STATES[0], "ONE_STORY", "Withheld because ...");
+    expect(html).toContain("BODY");
+    expect(html).not.toContain("Withheld because");
+  });
+
+  it("still withholds SILENTLY when no note is supplied — silence stays the default", () => {
+    expect(gateHtml(DECK_STATES[2], "THESIS_GEOMETRY", "THESIS")).toBe("");
+  });
+
+  it("cannot be used to smuggle the refused surface back on screen", () => {
+    /**
+     * The whole design turns on `withheldNote` being `string` and not
+     * `React.ReactNode`. A ReactNode fallback would be defeated on the first
+     * busy afternoon: someone passes a "lightweight" version of the same card
+     * and admission quietly becomes a style prop.
+     *
+     * A type is not enough on its own — types are erased at runtime and edited
+     * by whoever is in a hurry. So this asserts the TYPE in the source, and
+     * asserts at runtime that a note is rendered as text: JSX handed to it
+     * would appear as markup, a string appears escaped.
+     */
+    const source = readFileSync(
+      resolve(__dirname, "SceneAdmits.tsx"),
+      "utf8",
+    );
+    expect(source).toMatch(/readonly withheldNote\?:\s*string;/);
+    expect(source).not.toMatch(/withheldNote\?:\s*React\.ReactNode/);
+
+    const html = noteHtml(DECK_STATES[2], "THESIS_GEOMETRY", "<button>Flatten</button>");
+    expect(html).not.toContain("<button>");
+    expect(html).toContain("&lt;button&gt;");
+  });
+
+  it("marks the note as a note, so a screen reader does not read it as content", () => {
+    expect(noteHtml(DECK_STATES[2], "THESIS_GEOMETRY", "Withheld.")).toContain('role="note"');
   });
 });
 
@@ -199,39 +280,43 @@ describe("the screen never contradicts itself", () => {
     // refused; this stops the PANEL refusing what the surface never routed.
     //
     // In CLOSED the compiler withholds nine of twelve elements. The deck routes
-    // exactly one of them through admission, so exactly one refusal may be
-    // printed. The other eight are verdicts with no owner on this screen —
+    // exactly two of them through admission, so exactly two refusals may be
+    // printed. The other seven are verdicts with no owner on this screen —
     // "WM has a Flatten control and is choosing not to show it" is a claim
     // about a control WM does not have here.
     const closed = compilationFor(DECK_STATES[2]);
     expect(SURFACE_ELEMENTS.length - closed.admits.length).toBe(9);
 
-    const panelHtml = panelHtmlFor(DECK_STATES[2], ["ONE_STORY"]);
-    expect(panelHtml).toContain("Withheld · 1");
-    expect(struckThroughLabels(panelHtml)).toEqual([ELEMENT_LABEL.ONE_STORY]);
+    const panelHtml = panelHtmlFor(DECK_STATES[2], DECK_GOVERNED);
+    expect(panelHtml).toContain("Withheld · 2");
+    expect(new Set(struckThroughLabels(panelHtml))).toEqual(
+      new Set([ELEMENT_LABEL.ONE_STORY, ELEMENT_LABEL.THESIS_GEOMETRY]),
+    );
   });
 
   it("an ungoverned element is disclosed, not struck through and not dropped", () => {
-    // Two wrong answers were available. Dropping the other eleven silently
+    // Two wrong answers were available. Dropping the other ten silently
     // would hide how little of the screen the OS actually governs; striking
     // them through would claim refusals WM cannot enforce. The panel must
     // disclose them as NOT GOVERNED and count them.
-    const panelHtml = panelHtmlFor(DECK_STATES[0], ["ONE_STORY"]);
+    const panelHtml = panelHtmlFor(DECK_STATES[0], DECK_GOVERNED);
 
     // PERMISSION does not admit FLATTEN_CONFIRM, so the old panel struck it
     // through. It is ungoverned here, so it must be named without a strike.
     expect(compilationFor(DECK_STATES[0]).admits).not.toContain("FLATTEN_CONFIRM");
     expect(panelHtml).toContain(ELEMENT_LABEL.FLATTEN_CONFIRM);
     expect(struckThroughLabels(panelHtml)).not.toContain(ELEMENT_LABEL.FLATTEN_CONFIRM);
-    expect(panelHtml).toContain("Not governed here · 11");
+    expect(panelHtml).toContain("Not governed here · 10");
   });
 
   it("§10 progress meter: the panel states how much of the screen the OS governs", () => {
-    // The uncomfortable number, on purpose. If admission covers one element of
+    // The uncomfortable number, on purpose. If admission covers two elements of
     // twelve, the Founder should be able to read that off the screen rather
     // than infer it from a flattering refusal count.
-    const panelHtml = panelHtmlFor(DECK_STATES[2], ["ONE_STORY"]);
-    expect(panelHtml).toContain(`governs 1 of ${SURFACE_ELEMENTS.length}`);
+    const panelHtml = panelHtmlFor(DECK_STATES[2], DECK_GOVERNED);
+    expect(panelHtml).toContain(
+      `governs ${DECK_GOVERNED.length} of ${SURFACE_ELEMENTS.length}`,
+    );
   });
 
   it("§9 CLOSED: the story is withheld by the gate, not merely labelled", () => {

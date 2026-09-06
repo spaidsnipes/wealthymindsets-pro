@@ -513,6 +513,44 @@ describe("compileScene enforcement — §10 admission is OBEYED, not merely anno
     expect(inside).toBe(total);
   });
 
+  it("/command-deck gates the auction lens AND the decision chain as one THESIS_GEOMETRY", () => {
+    /**
+     * Sections 2 and 3 are the same claim at two resolutions: DLAR is the
+     * four-dimension verdict, the decision chain is the nine nodes that
+     * produced it. Splitting them across two gates would eventually let one
+     * be admitted while the other is refused — a conclusion on screen with
+     * its own workings withheld, which is "SHOW FIRST, EXPLAIN SECOND" run
+     * backwards. So this asserts BOTH live in the SAME gate body.
+     */
+    const deck = stripComments(
+      readFileSync(resolve(SRC, "app/command-deck/page.tsx"), "utf8"),
+    );
+    const body = gatedElementBody(deck, "THESIS_GEOMETRY");
+    expect(body).not.toBeNull();
+    expect(body).toContain("<DLARStrip");
+    expect(body).toContain("<DecisionChainPanel");
+    for (const mount of ["<DLARStrip", "<DecisionChainPanel"]) {
+      const re = new RegExp(mount, "g");
+      const total = (deck.match(re) ?? []).length;
+      const inside = ((body ?? "").match(re) ?? []).length;
+      expect(`${mount}: ${inside}/${total}`).toBe(`${mount}: ${total}/${total}`);
+    }
+  });
+
+  it("/command-deck explains a THESIS_GEOMETRY refusal instead of leaving a hole", () => {
+    /**
+     * These are NUMBERED sections inside a collapsed "Deep read" drawer. A
+     * trader who opens it and finds 1 then 4 cannot tell a refusal from a
+     * bug, and a product that looks broken teaches people to distrust the
+     * parts that work. Silent withholding is only honest when the admission
+     * panel is beside the hole; here it is a thousand lines away.
+     */
+    const deck = stripComments(
+      readFileSync(resolve(SRC, "app/command-deck/page.tsx"), "utf8"),
+    );
+    expect(deck).toMatch(/element="THESIS_GEOMETRY"[\s\S]{0,400}?withheldNote=/);
+  });
+
   it("/paper puts the Academy Challenge INSIDE the ambient gate — §9, pinned to the page", () => {
     /**
      * The deck's ambient gate is a law obeyed on a route where the capital

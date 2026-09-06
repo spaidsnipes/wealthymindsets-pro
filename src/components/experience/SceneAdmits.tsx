@@ -50,6 +50,31 @@ export interface SceneAdmitsProps {
   /** The surface element being gated. */
   readonly element: SurfaceElement;
   readonly children: React.ReactNode;
+  /**
+   * One sentence to leave in place of the refused surface.
+   *
+   * ── Why this is `string` and not `React.ReactNode` ─────────────────────────
+   *
+   * A `ReactNode` fallback would defeat the gate on the first busy afternoon:
+   * a developer under pressure would pass a "lightweight" version of the same
+   * card, and admission would quietly become a style prop. You cannot smuggle
+   * a chart, a shortlist or a flatten button through a `string`. The type IS
+   * the lock.
+   *
+   * ── Why it is allowed at all ───────────────────────────────────────────────
+   *
+   * The file doc below argues withholding must be silent BECAUSE
+   * `SceneAdmissionPanel` accounts for it on the same screen. That holds when
+   * the panel is next to the surface. It stops holding when the refused
+   * surface is a numbered section a thousand lines further down, inside a
+   * collapsed drawer: the trader opens "Deep read", finds section 2 missing
+   * between 1 and 3, and has no way to know whether WM refused it or broke.
+   * "Missing with no explanation" reads as a bug, and a product that looks
+   * broken teaches people to distrust the parts that are working.
+   *
+   * So: optional, one line, muted, and never the surface itself.
+   */
+  readonly withheldNote?: string;
 }
 
 /**
@@ -64,8 +89,26 @@ export function SceneAdmits({
   compilation,
   element,
   children,
+  withheldNote,
 }: SceneAdmitsProps): React.ReactElement | null {
-  if (!compilation.admits.includes(element)) return null;
+  if (!compilation.admits.includes(element)) {
+    if (withheldNote === undefined) return null;
+    return (
+      <p
+        role="note"
+        style={{
+          margin: "8px 0",
+          fontSize: 11,
+          lineHeight: 1.6,
+          color: "#8a8271",
+          borderLeft: "2px solid rgba(212,175,55,0.28)",
+          paddingLeft: 10,
+        }}
+      >
+        {withheldNote}
+      </p>
+    );
+  }
   return <>{children}</>;
 }
 
@@ -93,20 +136,29 @@ export interface SceneAdmitsAmbientProps {
  * no power to enforce. Same defect, third location, and this one carries a named
  * law rather than a build-order preference.
  *
- * ── Honest scope: this changes NOTHING on screen today ───────────────────────
+ * ── Scope: inert on /command-deck, LOAD-BEARING on /paper ────────────────────
  *
- * /command-deck has no broker panel, so its capital column is permanently
- * `POSITION UNCONFIRMED / UNOBSERVED` with no intent and no working orders.
- * `capitalIsAtRisk` is therefore false in all four scenes the route can reach
- * (PERMISSION, WAIT, CLOSED, PREGAME), and `admitsAmbient` is true in all four.
- * Nothing is withheld by this gate right now.
+ * This gate shipped inert and was honest about it. /command-deck has no broker
+ * panel, so its capital column is permanently `POSITION UNCONFIRMED /
+ * UNOBSERVED` with no intent and no working orders; `capitalIsAtRisk` is false
+ * in all four scenes that route can reach (PREGAME, WAIT, PERMISSION, CLOSED),
+ * `admitsAmbient` is true in all four, and nothing is withheld there to this
+ * day. It was shipped anyway so the panel's WARN-coloured sentence — "Ambient
+ * surfaces are withheld" — would not first render on a screen with money
+ * exposed and be false there.
  *
- * It is worth shipping anyway, and the reason is not the count of gates. The
- * panel's WARN-coloured branch — "Ambient surfaces are withheld — only capital
- * truth and material invalidation may take the room" — is code that first
- * renders on the day a position goes live. Without this gate, the first screen
- * that sentence ever appears on is a screen with money exposed, and it is false
- * there. Closing a lie before it can be told beats catching it afterwards.
+ * That day arrived. /paper adopted the compiler, and /paper has a real book:
+ * open positions, working orders, a persistence disposition that can say the
+ * last write did not survive. The Academy Challenge banner on that route had
+ * been rendering unconditionally — §9's own named example ("Academy may not")
+ * violated by the literal surface the law names, on the one route in WM Pro
+ * where a position can actually exist. This gate now removes it the moment a
+ * position is open, the moment a working order can still open exposure, and
+ * the moment the ledger cannot prove its own last write.
+ *
+ * Keep both facts in view when reading this file: a gate can be correct and
+ * still be inert on the route you happen to be looking at. Inert is not dead.
+ * It is a lock installed before the door is ever used.
  *
  * ── Why a sibling and not a second organism (§24) ────────────────────────────
  *
