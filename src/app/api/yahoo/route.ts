@@ -9,61 +9,7 @@
 import { NextResponse } from "next/server";
 import { aggregateYahooBars, resolveYahooTimeframe, type YahooOhlcvBar } from "@/lib/yahooTimeframes";
 import { buildYahooQuoteObservation } from "@/lib/marketData/yahooQuoteObservation";
-
-/* ── Symbol mapping: WM internal → Yahoo Finance ticker ─────── */
-const YF_MAP: Record<string, string> = {
-  // Futures
-  "NQ1!":  "NQ=F",   "MNQ1!": "MNQ=F",
-  "ES1!":  "ES=F",   "MES1!": "MES=F",
-  "YM1!":  "YM=F",   "MYM1!": "MYM=F",
-  "RTY1!": "RTY=F",  "M2K1!": "M2K=F",
-  "GC1!":  "GC=F",   "MGC1!": "MGC=F",
-  "SI1!":  "SI=F",
-  "CL1!":  "CL=F",   "MCL1!": "MCL=F",
-  "NG1!":  "NG=F",
-  "HG1!":  "HG=F",
-  "ZB1!":  "ZB=F",
-  "ZN1!":  "ZN=F",
-  "ZF1!":  "ZF=F",
-  "ZT1!":  "ZT=F",
-  "ZC1!":  "ZC=F",
-  "ZW1!":  "ZW=F",
-  "ZS1!":  "ZS=F",
-  "LE1!":  "LE=F",
-  "VX1!":  "^VIX",
-  // Crypto (Yahoo uses -USD suffix) — also accept common aliases like BTCUSD
-  "BTC":    "BTC-USD",  "BTCUSD":  "BTC-USD",
-  "ETH":    "ETH-USD",  "ETHUSD":  "ETH-USD",
-  "SOL":    "SOL-USD",  "SOLUSD":  "SOL-USD",
-  "BNB":   "BNB-USD",
-  "XRP":   "XRP-USD",
-  "DOGE":  "DOGE-USD",
-  "ADA":   "ADA-USD",
-  "AVAX":  "AVAX-USD",
-  "LINK":  "LINK-USD",
-  "DOT":   "DOT-USD",
-  "MATIC": "MATIC-USD",
-  "LTC":   "LTC-USD",
-  "ATOM":  "ATOM-USD",
-  "UNI":   "UNI-USD",
-};
-
-function toYFSym(sym: string): string {
-  const up = sym.toUpperCase();
-  if (YF_MAP[up]) return YF_MAP[up];
-  // Precious-metals spot (XAUUSD = gold, XAGUSD = silver, etc.) — Yahoo has no
-  // spot FX ticker for these, so map to the nearest continuous futures contract.
-  const metal = up.replace("/", "");
-  if (metal === "XAUUSD" || metal === "XAU") return "GC=F"; // gold
-  if (metal === "XAGUSD" || metal === "XAG") return "SI=F"; // silver
-  if (metal === "XPTUSD") return "PL=F"; // platinum
-  if (metal === "XPDUSD") return "PA=F"; // palladium
-  // Forex pairs: Yahoo uses the "EURUSD=X" format (no slash).
-  // Handles "EUR/USD", "GBP/JPY", and also bare 6-letter pairs like "EURUSD".
-  if (up.includes("/")) return `${up.replace("/", "")}=X`;
-  if (/^(EUR|GBP|USD|JPY|AUD|NZD|CAD|CHF|CNH)(USD|JPY|EUR|GBP|AUD|NZD|CAD|CHF|CNH)$/.test(up)) return `${up}=X`;
-  return up;
-}
+import { toYahooSymbol } from "@/lib/yahooSymbol";
 
 const CACHE = new Map<string, { data: unknown; ts: number }>();
 
@@ -92,7 +38,7 @@ export async function GET(request: Request) {
   const parsedBars = parseInt(searchParams.get("bars") ?? "300", 10);
   const bars = Number.isFinite(parsedBars) ? Math.max(1, Math.min(3000, parsedBars)) : 300;
 
-  const yfSym  = toYFSym(rawSym);
+  const yfSym  = toYahooSymbol(rawSym);
 
   try {
     if (type === "quote") {

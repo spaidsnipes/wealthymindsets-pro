@@ -22,7 +22,14 @@ export default defineConfig({
     // Nested Claude worktrees are separate historical checkouts, not part of
     // this repository candidate. Running their copied suites mixes stale
     // expectations into the root receipt and can double/triple execution.
-    exclude: [...configDefaults.exclude, ".claude/worktrees/**"],
+    //
+    // `scratchpad/` is the same hazard one directory over: it holds the §22
+    // Orkin revive harness, whose whole method is keeping byte-copies of real
+    // suites to restore after each revive. Those copies were being discovered
+    // and run. A stale duplicate of a Sentinel passing in the root receipt is
+    // worse than one failing — it reports as green a guard that is no longer
+    // guarding the shipped file.
+    exclude: [...configDefaults.exclude, ".claude/worktrees/**", "scratchpad/**"],
   },
   resolve: {
     alias: {
