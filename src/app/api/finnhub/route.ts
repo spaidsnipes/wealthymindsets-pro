@@ -9,6 +9,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { toFinnhubSym } from "@/lib/finnhubSymbol";
 
 /**
  * Server-only Finnhub key. In production, unset or committed-fallback-equal
@@ -67,27 +68,6 @@ function getFinnhubKey(): string {
   return _finnhubKeyCache;
 }
 
-/* ── Symbol mapping: WM internal → Finnhub ─────────────────── */
-// Finnhub does not support futures directly on the free plan; we fall back to Yahoo for those.
-// Crypto uses Binance exchange format.
-const FH_MAP: Record<string, string> = {
-  // Crypto (Binance)
-  "BTC":    "BINANCE:BTCUSDT", "BTCUSD": "BINANCE:BTCUSDT",
-  "ETH":    "BINANCE:ETHUSDT", "ETHUSD": "BINANCE:ETHUSDT",
-  "SOL":    "BINANCE:SOLUSDT", "SOLUSD": "BINANCE:SOLUSDT",
-  "BNB":   "BINANCE:BNBUSDT",
-  "XRP":   "BINANCE:XRPUSDT",
-  "DOGE":  "BINANCE:DOGEUSDT",
-  "ADA":   "BINANCE:ADAUSDT",
-  "AVAX":  "BINANCE:AVAXUSDT",
-  "LINK":  "BINANCE:LINKUSDT",
-  "DOT":   "BINANCE:DOTUSDT",
-  "LTC":   "BINANCE:LTCUSDT",
-  "ATOM":  "BINANCE:ATOMUSDT",
-  "UNI":   "BINANCE:UNIUSDT",
-  // Futures → NOT supported by Finnhub REST for candles; return null so caller falls back to Yahoo
-};
-
 // Finnhub candle resolution mapping — FAIL-CLOSED (WM-CHART-P0-03).
 // Only intervals Finnhub serves NATIVELY are mapped here. Requests for
 // intervals Finnhub does not support natively (2m, 3m, 10m, 2h, 4h)
@@ -110,15 +90,6 @@ const FH_NATIVE_RES: Record<string, string> = {
   "M":  "M",
   "1M": "M",
 };
-
-function toFinnhubSym(sym: string): string | null {
-  const up = sym.toUpperCase();
-  if (FH_MAP[up]) return FH_MAP[up];
-  // Futures not supported
-  if (up.endsWith("1!") || up.includes("=F") || up.includes("/")) return null;
-  // Plain stock/ETF — use as-is
-  return up;
-}
 
 const CACHE = new Map<string, { data: unknown; ts: number }>();
 
@@ -196,6 +167,12 @@ export async function GET(request: Request) {
       if (!price) return NextResponse.json({ error: "No data from Finnhub" }, { status: 404 });
       return NextResponse.json({
         sym:       rawSym,
+        // The instrument actually fetched. Crypto resolves to a Binance USDT
+        // pair, so a request naming USD ("BTCUSD") is answered from BTCUSDT.
+        // That substitution is small but real, and §8 is violated symmetrically
+        // — withholding an established fact is as much a violation as inventing
+        // one — so the caller is told which market the number came from.
+        providerSymbol: fhSym,
         price,
         open,
         high,
@@ -258,7 +235,7 @@ export async function GET(request: Request) {
           volume: json.v?.[i] ?? 0,
         });
       }
-      return NextResponse.json({ sym: rawSym, tf, candles, source: "finnhub" });
+      return NextResponse.json({ sym: rawSym, providerSymbol: fhSym, tf, candles, source: "finnhub" });
     }
 
     /* ── News (general or per-category) ─────────────────────── */
