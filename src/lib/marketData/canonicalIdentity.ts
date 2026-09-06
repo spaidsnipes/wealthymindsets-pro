@@ -210,6 +210,109 @@ export function selectUsCashSessionBarLabel(
     : US_CASH_SESSION_UNKNOWN_LABEL;
 }
 
+/** Continuous markets have no session to close. */
+export const SESSION_TOKEN_CONTINUOUS = "24X7" as const;
+/** Closure is ESTABLISHED — see provenSessionClosure's day rules. */
+export const SESSION_TOKEN_CLOSED = "CLOSED" as const;
+/** Not established. Honest on a weekday; this codebase holds no intraday calendar. */
+export const SESSION_TOKEN_UNKNOWN = "SESSION ?" as const;
+
+export interface CanonicalSessionTokenInput {
+  readonly symbol: string;
+  /**
+   * Local wall-clock time, or `null` on the server and the first client
+   * render. See useSessionClockDate — reading the clock during render is the
+   * mechanism behind five prior React #418 hydration bugs here.
+   */
+  readonly at: Date | null;
+  readonly assetClass?: CanonicalAssetClass;
+}
+
+export interface CanonicalSessionTokenResult {
+  /** The compact chip text. Safe for 8px chrome; never longer than "SESSION ?". */
+  readonly token: string;
+  /** Why the token says what it says — for the title/aria, never invented. */
+  readonly detail: string;
+  /** True when the token rests on an established fact, not on the absence of one. */
+  readonly established: boolean;
+}
+
+/**
+ * The ONE writer for a compact session chip in tight chrome.
+ *
+ * THE DEFECT, AS FOUND (live, 2026-09-05, a Saturday)
+ *
+ *   MobileSessionPill — the phone header, and mobile is the PRIMARY form
+ *   factor — decided its session chip with a single ternary:
+ *
+ *     const sessionToken = futuresTruth ? "SESSION ?" : session;
+ *
+ *   Both halves were wrong, in opposite directions, on the same day:
+ *
+ *     futures     → printed "SESSION ?" while /charts, one element away and
+ *                   for the SAME instrument, printed "SESSION CLOSED". A
+ *                   one-screen contradiction, and the shrug was the false
+ *                   one: provenSessionClosure("GC1!", saturday) is `false`,
+ *                   i.e. PROVEN CLOSED.
+ *     non-futures → printed `identity.session`, which is
+ *                   canonicalSession(extHours, cls) — a STORE KEY, not a
+ *                   display truth. It returns "RTH" for every non-crypto
+ *                   instrument on every day of the week, so the phone header
+ *                   asserted the US Regular session was running on a Saturday.
+ *
+ *   `futuresTruth` is also a dead predicate: selectCanonicalFuturesSessionTruth
+ *   returns a non-nullable object, so for futures that ternary was a constant.
+ *   The branch tested the RESULT'S EXISTENCE and discarded everything the
+ *   canonical owner had computed — the same "check written against presence
+ *   rather than shape" defect this codebase has now found five times.
+ *
+ * WHY "SESSION ?" IS STILL RIGHT ON A TUESDAY
+ *
+ *   §8 is violated symmetrically. Inventing RTH is an overclaim; withholding
+ *   an established Saturday closure is false humility. This codebase holds no
+ *   INTRADAY exchange calendar, so it genuinely cannot separate RTH from ETH
+ *   at 11am — but the weekend it can prove. The token therefore only ever
+ *   sharpens: `at: null` and every unproven weekday yield the unknown token,
+ *   exactly as selectUsCashSessionBarLabel does for the index bar.
+ *
+ *   The extHours toggle is a USER PREFERENCE, not a market fact, and so can
+ *   never appear here. That is what made "RTH" reachable on a weekend.
+ */
+export function selectCanonicalSessionToken(
+  input: CanonicalSessionTokenInput,
+): CanonicalSessionTokenResult {
+  const cls = input.assetClass ?? canonicalAssetClass(input.symbol);
+
+  // Asked first: a continuous market has no session to close, so "CLOSED"
+  // could never be right for it and "SESSION ?" would be false humility of
+  // its own — 24/7 IS the established answer.
+  if (cls === "crypto") {
+    return {
+      token: SESSION_TOKEN_CONTINUOUS,
+      detail: "continuous market — this instrument has no session to close",
+      established: true,
+    };
+  }
+
+  // Delegated on purpose, like the index bar above: the weekend rules live in
+  // exactly one function, so a future holiday calendar reaches every surface
+  // at once. `=== false` and not a truthiness test — provenSessionClosure
+  // returns `false | null`, and `null` must NOT be read as "open".
+  if (input.at && provenSessionClosure(input.symbol, input.at) === false) {
+    return {
+      token: SESSION_TOKEN_CLOSED,
+      detail: "closure is established for this market today",
+      established: true,
+    };
+  }
+
+  return {
+    token: SESSION_TOKEN_UNKNOWN,
+    detail: "no exchange calendar — the current session is not established",
+    established: false,
+  };
+}
+
 /**
  * Bare cash-index names. Each names an INDEX, not a tradeable contract.
  *

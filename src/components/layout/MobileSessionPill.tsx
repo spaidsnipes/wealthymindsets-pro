@@ -8,6 +8,12 @@
  * now" signal from the phone header. That's Market-Truth-by-omission.
  *
  * This compact chip fills that gap with a canonical-owner read:
+ *   · SESSION, via selectCanonicalSessionToken — CLOSED only where closure
+ *     is PROVEN, 24X7 for continuous markets, "SESSION ?" otherwise. It used
+ *     to render `identity.session`, which is a STORE KEY: that is how the
+ *     phone header came to claim "RTH" on a Saturday, while the futures
+ *     branch shrugged "SESSION ?" at an instrument /charts was simultaneously
+ *     calling SESSION CLOSED. One owner now answers for both.
  *   · ACTIVE SYMBOL (from SymbolContext) — the room-shared identity.
  *   · TRADES observed for that symbol across all tape sources
  *     (sessionSymbolStore — same owner /nectar, /profile Nectar tab,
@@ -34,7 +40,9 @@ import {
   canonicalAssetClass,
   canonicalMarketStateIdentity,
   selectCanonicalFuturesSessionTruth,
+  selectCanonicalSessionToken,
 } from "@/lib/marketData/canonicalIdentity";
+import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { useCanvasClock } from "@/lib/marketData/viewModels/canvasClock";
 
 const FRESH_WINDOW_MS = 30_000; // "live" = fresh trade within 30s
@@ -81,14 +89,21 @@ export function MobileSessionPill(): React.ReactElement | null {
   const symbol = (activeSymbol || "").toUpperCase() || "TSLA";
   const reading = useActiveSymbolReading(symbol);
 
-  // Canonical session identity — RTH / ETH / OVERNIGHT / CLOSED. Same
-  // helper the Command Deck ribbon and every chart-state publisher uses;
-  // never assemble literals.
+  // Canonical STORE identity. `identity.session` is part of the store key —
+  // canonicalSession(extHours, cls) — and is deliberately NOT read as a
+  // display truth here: it returns "RTH" for every non-crypto instrument on
+  // every day of the week, which is how this pill came to assert the US
+  // Regular session was running on a Saturday. Only `instrumentId` is used.
   const identity = React.useMemo(
     () => canonicalMarketStateIdentity({ symbol, timeframe: "1m", extHours: false }),
     [symbol],
   );
-  const session = identity.session.toUpperCase();
+
+  // Day-boundary clock, separate from the tape-freshness clock below on
+  // purpose: closure changes at local midnight, freshness changes every few
+  // seconds. Returns null on the server and the first client render, so the
+  // settle can only ever sharpen the claim (never introduce one).
+  const sessionClockDate = useSessionClockDate();
 
   // Live cadence clock so freshness ("live tape" green dot) DEGRADES on its
   // own even when the tape goes silent. Reading Date.now() at render alone
@@ -123,10 +138,31 @@ export function MobileSessionPill(): React.ReactElement | null {
         evaluatedAt: now,
       })
     : null;
-  const sessionToken = futuresTruth ? "SESSION ?" : session;
-  const accessibleStatus = futuresTruth
-    ? `${futuresTruth.activity === "OBSERVED" ? "futures activity observed" : "futures activity unknown"}; session classification unknown`
-    : `session ${session}, ${status}`;
+
+  // The one owner for this chip. Previously `futuresTruth ? "SESSION ?" :
+  // session` — a ternary whose futures half was a dead predicate (the
+  // selector's return type is non-nullable, so it was a constant `true`) and
+  // whose other half rendered a store key. It printed a shrug where Saturday
+  // closure is PROVEN, and "RTH" where it is equally proven. Both halves are
+  // now one delegated call, so the chip can never disagree with /charts about
+  // the same instrument on the same screen again.
+  const sessionTruth = selectCanonicalSessionToken({
+    symbol,
+    at: sessionClockDate,
+    assetClass,
+  });
+  const sessionToken = sessionTruth.token;
+
+  // Derived from the SAME owner as the visible chip. Before this the aria
+  // string distinguished "futures activity observed" from "unknown" while the
+  // chip showed one indistinguishable glyph for both — the accessible name
+  // carried more truth than the pixel, which is the LIVING-PIXEL LAW upside
+  // down. The activity clause stays; it now sits beside a session token that
+  // agrees with it.
+  const activityPhrase = futuresTruth
+    ? (futuresTruth.activity === "OBSERVED" ? "futures activity observed" : "no futures activity observed")
+    : status;
+  const accessibleStatus = `session ${sessionToken}, ${sessionTruth.detail}; ${activityPhrase}`;
 
   return (
     <Link
