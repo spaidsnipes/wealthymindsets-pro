@@ -46,6 +46,7 @@ import {
   type DeltaTick,
   type DeltaBubbleLevel,
 } from "@/lib/deltaBubbleLevels";
+import { describeBubbleClaim } from "@/lib/bubbleClaim";
 import { computeProfileFromBars } from "@/lib/vpEngine";
 import type { DrawingStyle, LogicalPt, DrawStyle, ChartDrawing } from "@/types/chart";
 import { DEFAULT_DRAWING_STYLE } from "@/types/chart";
@@ -833,6 +834,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     big:     boolean;  // kept for compat; every bubble is now a real trade
     side:    "buy" | "sell";
     value:   number;   // notional (signed by side for display)
+    // Both aggressor sides, carried so the tooltip can say what the bubble's
+    // number actually IS. `value` means a different quantity per kind — a
+    // two-sided total for big trades, a net for delta zones — and one sentence
+    // used to describe both with the same one-sided words. See bubbleClaim.ts.
+    bid:     number;   // seller-initiated volume in this level / zone
+    ask:     number;   // buyer-initiated volume in this level / zone
     born:    number;   // performance.now() at spawn (newest-N cap ordering)
     anchorTime: number; // bar time (unix s) → home X re-anchor on scroll
     anchorPrice: number; // price → home Y re-anchor on scroll/zoom
@@ -909,8 +916,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       osc.start(now); osc.stop(now + 0.18);
     } catch { /* audio not available */ }
   }, []);
+  // `heading` and `headline` are carried as STRINGS from bubbleClaim.ts rather
+  // than re-derived here from a raw `value`. The renderer used to format the
+  // number itself and pair it with a hard-coded AGGRESSIVE BUY / SELL chip,
+  // which is how a big trade's two-sided total and a delta zone's net came to
+  // wear the same one-sided label. One owner writes both, so they cannot drift.
   const [bubbleTip, setBubbleTip] = useState<
-    { x: number; y: number; side: "buy" | "sell"; value: number; text: string } | null
+    { x: number; y: number; side: "buy" | "sell"; heading: string; headline: string; text: string } | null
   >(null);
 
   // ── Drawing state ─────────────────────────────────────────────
@@ -4851,6 +4863,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                 baseR, r: baseR * 0.35, phase, big: false,
                 side,
                 value: (side === "buy" ? 1 : -1) * absDelta,
+                bid: lv.bid,
+                ask: lv.ask,
                 born: (c.time as number) * 1000 + rankIdx + 500,
                 anchorTime: c.time as number,
                 anchorPrice: lv.priceLevel,
@@ -5330,6 +5344,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               big:   true,
               side,
               value,
+              bid:   lv.bid,
+              ask:   lv.ask,
               born:  (c.time as number) * 1000 + rankIdx,
               anchorTime:  c.time as number,
               anchorPrice: lv.priceLevel,
@@ -6695,24 +6711,33 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     }
     if (hit) {
       if (bubbleHoverRef.current !== hit.id) {
+        // The words are owned by bubbleClaim.ts, because `hit.value` means a
+        // DIFFERENT quantity per bubble kind and this one call site serves
+        // both. It used to print one sentence for the two of them:
+        //
+        //   `${vstr} ${base > 100 ? "shares" : "vol"} aggressive ${side} at ${pstr}`
+        //
+        // which labelled a big trade's two-sided TOTAL and a delta zone's NET
+        // with the same one-sided words, and called both of them "shares" —
+        // on NQ, ES and BTC alike — because `base > 100` is a price test
+        // standing in for an instrument-class question. See that module's
+        // header for the full account.
+        const claim = describeBubbleClaim({
+          kind: hit.kind, bid: hit.bid, ask: hit.ask, price: hit.anchorPrice,
+        });
+        // No aggressor volume behind the bubble means nothing honest to say,
+        // so no tooltip — rather than a confident "0".
+        if (!claim) {
+          if (bubbleHoverRef.current !== null) { bubbleHoverRef.current = null; setBubbleTip(null); }
+          return;
+        }
         bubbleHoverRef.current = hit.id;
-        // Plain-English, honest label — e.g. "12.4M aggressive sell orders at this
-        // level". Never "absorbed"; this is one real print's aggressor size.
-        const av = Math.abs(hit.value);
-        const vstr = av >= 1_000_000 ? `${(av / 1_000_000).toFixed(1)}M`
-                   : av >= 1000       ? `${(av / 1000).toFixed(1)}k`
-                   : av >= 1          ? `${Math.round(av)}`
-                   : av > 0           ? av.toFixed(av >= 0.1 ? 2 : 4)
-                   : "0";
-        const p = hit.anchorPrice;
-        const pstr = p >= 10000 ? Math.round(p).toLocaleString("en-US")
-                   : p >= 100   ? p.toFixed(2)
-                   : p >= 1     ? p.toFixed(2)
-                   :              p.toFixed(4);
         setBubbleTip({
           x: hit.x, y: hit.y - hit.r,
-          side: hit.side, value: hit.value,
-          text: `${vstr} ${base > 100 ? "shares" : "vol"} aggressive ${hit.side === "buy" ? "buy" : "sell"} at ${pstr}`,
+          side: claim.side,
+          heading: claim.heading,
+          headline: claim.headline,
+          text: claim.detail,
         });
       }
     } else if (bubbleHoverRef.current !== null) {
@@ -7177,10 +7202,6 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         {bubbleTip && (() => {
           const buy   = bubbleTip.side === "buy";
           const accent = buy ? "#00E696" : "#FF465A";
-          const sign   = bubbleTip.value >= 0 ? "+" : "−";
-          const absVal = Math.abs(bubbleTip.value) >= 1
-            ? Math.abs(bubbleTip.value).toLocaleString("en-US", { maximumFractionDigits: 0 })
-            : Math.abs(bubbleTip.value).toLocaleString("en-US", { maximumFractionDigits: 4 });
           // clamp within view
           const left = Math.max(70, Math.min((wrapRef.current?.clientWidth ?? 800) - 70, bubbleTip.x));
           const top  = Math.max(54, bubbleTip.y - 14);
@@ -7208,15 +7229,23 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                     color: "#06080F", fontWeight: 900, fontSize: 13, lineHeight: 1,
                     boxShadow: `0 0 8px ${accent}88`,
                   }}>W</span>
+                {/* Owned by bubbleClaim.ts. A delta bubble reads NET BUY /
+                    SELL PRESSURE because its number is a net; only a big
+                    trade's dominant-side volume earns the bare word
+                    AGGRESSIVE. This chip was hard-coded to the one-sided
+                    wording for both kinds. */}
                   <span style={{ color: accent, fontWeight: 800, fontSize: 11, letterSpacing: 0.3 }}>
-                    {buy ? "AGGRESSIVE BUY" : "AGGRESSIVE SELL"}
+                    {bubbleTip.heading}
                   </span>
                 </div>
-                {/* Exact aggressor notional — the headline number */}
+                {/* The headline number — written by the same owner as the
+                    heading above it, so the two can never describe different
+                    quantities. */}
                 <div style={{ color: "#fff", fontWeight: 900, fontSize: 18, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
-                  {sign}{absVal}
+                  {bubbleTip.headline}
                 </div>
-                {/* Plain-English explanation — e.g. "12.4M aggressive sell orders at this level" */}
+                {/* Both aggressor sides, so the trader can see what the
+                    headline is a total OF — e.g. "20.0k bought · 7.6k sold". */}
                 <div style={{ color: "#9AA3BF", fontWeight: 600, fontSize: 9.5, marginTop: 3, maxWidth: 172 }}>
                   {bubbleTip.text}
                 </div>
