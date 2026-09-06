@@ -240,7 +240,30 @@ describe("option buying power side door", () => {
   });
 
   it("the fill loop settles rejects so they are never retried", () => {
-    expect(paperPage).toContain('status: "rejected" as const');
+    // RE-KEYED 2026-09-05 to the property this test's own NAME claims.
+    //
+    // It used to assert `status: "rejected" as const` — an incidental spelling
+    // of the inline `.map()` that happened to live in the fill loop, and never
+    // the mechanism that stops a retry. That mechanism is filledRef: an order
+    // is added to it in the SAME branch that records the reject, so the loop
+    // cannot re-evaluate it on the next quote tick.
+    //
+    // The old assertion broke the moment the status transition moved into
+    // applyOrderRejections — a correct refactor that carried the rejection
+    // reason through to the trader instead of dropping it. A Sentinel keyed to
+    // a spelling goes red on a fix and stays green on a regression, which is
+    // the inverse of its job.
     expect(paperPage).toContain("rejects.push({ id: ord.id, reason: reject })");
+    expect(paperPage).toMatch(/filledRef\.current\.add\(ord\.id\);\s*\n\s*rejects\.push/);
+  });
+
+  it("the recorded reason reaches the order, not just the status", () => {
+    // The reason was computed and discarded: the fill loop built a Map of
+    // id -> reason and then called only has() on it, so the blotter rendered a
+    // bare red "rejected" chip. applyOrderRejections owns carrying it now.
+    // Pinned here as well as in paperOrderRejectionDisclosure.test.ts because
+    // THIS is the file a future editor of the fill loop will read first.
+    expect(paperPage).toContain("applyOrderRejections(prev, rejects)");
+    expect(paperPage).not.toMatch(/byId\.has\(o\.id\)\s*\?/);
   });
 });

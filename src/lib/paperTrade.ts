@@ -228,6 +228,65 @@ export interface Order {
   fillPx?: number;
   status: OrderStatus;
   ts: number;
+  /**
+   * Why a `rejected` order was rejected, in the trader's words.
+   *
+   * Only meaningful on `status:"rejected"`. Optional because orders persisted
+   * before this field existed cannot have one — the blotter discloses that
+   * absence rather than rendering silence, since a rejection with no reason
+   * shown reads as "there was no reason".
+   */
+  rejectReason?: string;
+}
+
+/**
+ * Stamp rejection reasons onto the orders they belong to.
+ *
+ * WHY THIS IS A FUNCTION AND NOT TWO LINES IN THE FILL LOOP. /paper computed a
+ * real, human reason for every rejected order and then threw it away:
+ *
+ *   const reject = selectOrderRejection({ ... });
+ *   if (reject) rejects.push({ id: ord.id, reason: reject });
+ *   ...
+ *   const byId = new Map(rejects.map(r => [r.id, r.reason]));
+ *   setOrders(prev => prev.map(o =>
+ *     byId.has(o.id) ? { ...o, status: "rejected" } : o));   // <- reason dropped
+ *
+ * The Map carried the reason and only `has()` was ever called on it. The
+ * blotter then rendered the bare word "rejected" in a red chip and nothing
+ * else, so the trader saw that something was refused and never learned what.
+ *
+ * That is the whole lesson, lost. Canon weakness #9 PAPER-FILL OVERCONFIDENCE:
+ * position sizing is the habit paper trading exists to build. "Rejected" does
+ * not teach it. "This order costs $435,000 and the account holds $100,000"
+ * does. selectOrderRejection was written to return that sentence — its doc says
+ * "Returns a human reason for the reject" — and the surface discarded it.
+ *
+ * The sibling options path did NOT have this bug (`setOptionReject(reject)`
+ * renders the sentence in a role="alert" box), so one surface honoured the
+ * owner's output and the other silently dropped it.
+ *
+ * Carrying the reason is now the function's only job, which is why it cannot
+ * be re-lost by editing a `.map()` in place.
+ *
+ * Generic over the order shape because /paper declares its own structurally
+ * identical `Order` locally.
+ */
+export function applyOrderRejections<T extends { id: string; status: OrderStatus }>(
+  orders: readonly T[],
+  rejects: readonly { readonly id: string; readonly reason: string }[],
+): T[] {
+  if (rejects.length === 0) return orders.slice();
+  const byId = new Map(rejects.map(r => [r.id, r.reason]));
+  return orders.map(o => {
+    const reason = byId.get(o.id);
+    if (reason === undefined) return o;
+    // A settled order must never transition again (see TERMINAL_ORDER_STATUSES):
+    // a filled order already moved cash and positions, so relabelling it
+    // "rejected" would make the ledger contradict the account.
+    if (isTerminalOrderStatus(o.status)) return o;
+    return { ...o, status: "rejected" as OrderStatus, rejectReason: reason };
+  });
 }
 
 export interface Position {
@@ -445,6 +504,35 @@ export function placeChartMarketOrder(
   if (!Number.isFinite(fillPx) || fillPx <= 0) return { ...base, error: "No live price yet" };
 
   const state = loadPaperState();
+
+  /**
+   * Buying-power gate — the SECOND door into the same ledger.
+   *
+   * /paper's fill loop consults selectOrderRejection before cash moves. This
+   * path did not: it validated symbol, qty and price and then applied the fill
+   * unconditionally, so a one-click chart BUY could drive the simulated
+   * $100,000 account arbitrarily negative — precisely the defect
+   * selectOrderRejection exists to prevent, reached through a different door.
+   *
+   * NOT A LIVE DEFECT, and this comment says so on purpose:
+   * placeChartMarketOrder has ZERO production callers today. The Smart Money
+   * one-click caller was removed in 8f71d9e, and chartOrderContractCoverage
+   * .test.ts asserts the zero-caller state as a named blocker. So this was a
+   * latent hole, not something a trader could reach. It is closed now so that
+   * whoever wires this path up inherits the guard instead of having to
+   * rediscover it — the same "Orkin nest" shape this repo has been bitten by
+   * twice, where a fix lands on one surface and the second door stays open.
+   *
+   * Rejected before anything is written: the early returns above already
+   * decline without touching the ledger, and an order that never reached the
+   * book should not appear in it.
+   */
+  const funding = selectOrderRejection({
+    side, qty, price: fillPx, cash: state.cash,
+    multiplier: contractMultiplier(symbol),
+  });
+  if (funding) return { ...base, cash: state.cash, error: funding };
+
   const ord: Order = {
     id: uid(), symbol, side, type: "market", qty,
     fillPx, status: "filled", ts: Date.now(),

@@ -25,6 +25,7 @@ import {
 import {
   STARTING_CASH,
   applyFill as applyFillShared,
+  applyOrderRejections,
   contractMultiplier,
   canCancelOrder,
   selectCloseOrderPlan,
@@ -77,6 +78,8 @@ interface Order {
   fillPx?:   number;
   status:    OrderStatus;
   ts:        number;
+  /** Why a rejected order was rejected. See applyOrderRejections. */
+  rejectReason?: string;
 }
 
 interface Position {
@@ -1152,9 +1155,14 @@ export default function PaperTradingPage() {
       fills.push({ ord, fillPx });
     }
     if (rejects.length > 0) {
-      const byId = new Map(rejects.map(r => [r.id, r.reason]));
-      setOrders(prev => prev.map(o =>
-        byId.has(o.id) ? { ...o, status: "rejected" as const } : o));
+      // The reason travels WITH the status. This used to build the same Map and
+      // then call only `has()` on it, so the sentence selectOrderRejection had
+      // just written — "this order costs $435,000 and the account holds
+      // $100,000" — was computed, carried one line, and dropped. The blotter
+      // rendered a bare red "rejected" chip and the trader never learned why,
+      // which is the exact lesson paper trading exists to teach (canon
+      // weakness #9). Carrying it is now applyOrderRejections' only job.
+      setOrders(prev => applyOrderRejections(prev, rejects));
     }
     if (fills.length === 0) return;
 
@@ -1615,7 +1623,8 @@ export default function PaperTradingPage() {
                     <span>Limit Px</span><span>Fill Px</span><span>Status</span><span></span>
                   </div>
                   {orders.map(ord=>(
-                    <div key={ord.id} className="grid items-center border-b border-wm-border/30 px-3 py-2"
+                    <div key={ord.id} className="border-b border-wm-border/30">
+                    <div className="grid items-center px-3 py-2"
                       style={{ gridTemplateColumns:"70px 50px 50px 60px 80px 80px 90px 48px" }}>
                       <span className="text-xs font-bold text-wm-text">{ord.symbol}</span>
                       <span className={clsx("text-xs font-bold", ord.side==="buy"?"text-wm-green":"text-wm-red")}>
@@ -1645,6 +1654,21 @@ export default function PaperTradingPage() {
                           <X size={12}/>
                         </button>
                       )}
+                    </div>
+                    {/* The reason, not just the verdict. A red "rejected" chip
+                        on its own tells the trader something was refused and
+                        never what to do differently — and position sizing is
+                        the habit /paper exists to build. Orders persisted
+                        before this field existed carry no reason, and that
+                        absence is DISCLOSED rather than rendered as silence:
+                        an empty space under "rejected" reads as "there was no
+                        reason", which is a claim this page cannot back. */}
+                    {ord.status==="rejected" && (
+                      <p role="note"
+                        className="px-3 pb-2 text-[10px] leading-relaxed text-wm-red/90">
+                        {ord.rejectReason ?? "Reason not recorded for this rejection."}
+                      </p>
+                    )}
                     </div>
                   ))}
                 </>
