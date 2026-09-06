@@ -19,6 +19,21 @@
  * ticker** — all 13 USD pair forms (`DOGEUSD`), all 10 venue forms
  * (`BTC.COINBASE`), and 48 bare bases (`PEPE`, `SUI`, `TON`). They were passed
  * to Yahoo verbatim and came back empty.
+ *
+ * ── The defect that closure CREATED, and this table closes ──────────────────
+ *
+ * Deriving `${base}-USD` made those 48 bare bases resolve. It did not make them
+ * resolve to the RIGHT COIN. Yahoo's crypto namespace has collisions, and the
+ * bare ticker is held by whichever token Yahoo listed first — usually not the
+ * one a trader means. Asked for the eleven bases below, Yahoo answered with a
+ * different asset every time: `SUI-USD` is Salmonation, `APT-USD` is Apricot
+ * Finance, `UNI-USD` is UNICORN Token, `PEPE-USD` is PEPEGOLD.
+ *
+ * That is the SAME LIVING-PIXEL violation the crypto derivation was written to
+ * fix — the label and the number owned by different assets — just moved one
+ * layer down, from equity-vs-coin to coin-vs-coin. It is strictly worse than
+ * the empty response it replaced: an absent price is honestly absent, while
+ * Salmonation's price under the word "Sui" is a wrong number that looks right.
  */
 
 import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
@@ -59,6 +74,54 @@ export const YF_MAP: Record<string, string> = {
  */
 const UNLISTED_CRYPTO_QUOTES = /(?:USDT|USDC)$/;
 
+/**
+ * One coin whose Yahoo ticker is NOT `{BASE}-USD`, with the evidence that made
+ * the pin defensible. Every field is a RECORDED OBSERVATION, not a belief.
+ */
+export interface YahooCryptoPin {
+  /** The Yahoo ticker that returns the coin the product actually offers. */
+  readonly ticker: string;
+  /** Yahoo's own `meta.longName` for `ticker`, minus its " USD" suffix. */
+  readonly yahooName: string;
+  /** Yahoo's name for the naive `{BASE}-USD` — the wrong coin this pin displaces. */
+  readonly displacedName: string;
+}
+
+/**
+ * Crypto bases whose bare Yahoo ticker belongs to a DIFFERENT coin.
+ *
+ * Yahoo disambiguates by appending a numeric listing id, so the coin a trader
+ * means is `SUI20947-USD` while `SUI-USD` is an unrelated token. There is no
+ * rule that derives the id — it must be looked up and checked by a human — so
+ * this is a table, and each row carries the two names that justify it.
+ *
+ * ── How the rows were established, and what they do NOT claim ───────────────
+ *
+ * Each base offered under the pickers' "Crypto" category was fetched from
+ * Yahoo as `{BASE}-USD` and its `meta.longName` compared to the name the picker
+ * prints. Eleven disagreed; each was then re-looked-up through Yahoo's own
+ * search and the replacement confirmed by name. Observed 2026-09-05.
+ *
+ * This table is therefore COMPLETE FOR WHAT WAS MEASURED and nothing more. It
+ * does not claim Yahoo has no other collision, and a coin listed after that
+ * date can collide without appearing here. Re-running the comparison is the
+ * only way to know; a passing test suite is not evidence of a new coin's
+ * correctness. The Sentinel proves these rows are right, not that they are all.
+ */
+export const YF_CRYPTO_PINS: Readonly<Record<string, YahooCryptoPin>> = {
+  ACT:     { ticker: "ACT33566-USD",     yahooName: "Act I : The AI Prophecy", displacedName: "Achain" },
+  ALT:     { ticker: "ALT29073-USD",     yahooName: "Altlayer",                displacedName: "Alt.Estate token" },
+  APT:     { ticker: "APT21794-USD",     yahooName: "Aptos",                   displacedName: "Apricot Finance" },
+  MELANIA: { ticker: "MELANIA35347-USD", yahooName: "Official Melania Meme",   displacedName: "Melania Trump Parody (melania.world)" },
+  MEME:    { ticker: "MEME28301-USD",    yahooName: "Memecoin",                displacedName: "Memetic / PepeCoin" },
+  PEPE:    { ticker: "PEPE24478-USD",    yahooName: "Pepe",                    displacedName: "PEPEGOLD" },
+  STRK:    { ticker: "STRK22691-USD",    yahooName: "Starknet",                displacedName: "Strike" },
+  SUI:     { ticker: "SUI20947-USD",     yahooName: "Sui",                     displacedName: "Salmonation" },
+  TON:     { ticker: "TON11419-USD",     yahooName: "Toncoin",                 displacedName: "TON Token" },
+  TRUMP:   { ticker: "TRUMP35336-USD",   yahooName: "OFFICIAL TRUMP",          displacedName: "FreeTrump" },
+  UNI:     { ticker: "UNI7083-USD",      yahooName: "Uniswap",                 displacedName: "UNICORN Token" },
+};
+
 export function toYahooSymbol(sym: string): string {
   const up = sym.trim().toUpperCase();
   if (YF_MAP[up]) return YF_MAP[up];
@@ -76,7 +139,12 @@ export function toYahooSymbol(sym: string): string {
   // pair, and `BTCUSD=X` is not a ticker Yahoo has.
   if (!UNLISTED_CRYPTO_QUOTES.test(up.replace(/[-/]/g, ""))) {
     const base = cryptoBaseTicker(up);
-    if (base) return `${base}-USD`;
+    if (base) {
+      // A pinned base is one whose bare `{BASE}-USD` belongs to a different
+      // coin. The pin must win over the derivation, or the screen prints one
+      // coin's name over another coin's price.
+      return YF_CRYPTO_PINS[base]?.ticker ?? `${base}-USD`;
+    }
   }
 
   // Forex pairs: Yahoo uses the "EURUSD=X" format (no slash).

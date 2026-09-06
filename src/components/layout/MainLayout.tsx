@@ -114,7 +114,7 @@ const ALL_SYMBOLS = [
   { sym:"DOGEUSD",label:"Dogecoin / USD",            cat:"Crypto", aliases:["doge","dogecoin"] },
   { sym:"ADAUSD", label:"Cardano / USD",             cat:"Crypto", aliases:["ada"] },
   { sym:"AVAXUSD",label:"Avalanche / USD",           cat:"Crypto", aliases:["avax"] },
-  { sym:"PEPEUSD",label:"Pepe Coin / USD",           cat:"Crypto", aliases:["pepe","meme"] },
+  { sym:"PEPEUSD",label:"Pepe / USD",                cat:"Crypto", aliases:["pepe","meme"] },
   { sym:"SHIBUSD",label:"Shiba Inu / USD",           cat:"Crypto", aliases:["shib","shiba"] },
   { sym:"WIFUSD", label:"dogwifhat / USD",           cat:"Crypto", aliases:["wif","dogwifhat"] },
   { sym:"BONKUSD",label:"Bonk / USD",                cat:"Crypto", aliases:["bonk"] },
