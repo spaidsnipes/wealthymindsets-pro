@@ -49,9 +49,12 @@ function qualityFor(
   source: MarketState["source"],
   connected: boolean,
   hasCanonicalPrice: boolean,
+  fresh: boolean,
 ): MarketQualityState {
-  const badge = priceSourceBadge(source, connected);
+  const badge = priceSourceBadge(source, connected, undefined, {present: hasCanonicalPrice, fresh});
+  if (badge.availability === "unavailable") return "UNAVAILABLE";
   if (badge.live) return hasCanonicalPrice ? "LIVE" : "PARTIAL";
+  if (badge.label === "STALE PIPELINE") return "STALE";
   if (badge.label.startsWith("DELAYED")) return "DELAYED";
   // ACTIVE DEGRADED means a usable observation exists but its realtime
   // fidelity is not certified. The canonical state vocabulary represents
@@ -81,7 +84,8 @@ export function createChartMarketStatePublication(
     channel.instrumentId.toUpperCase() === normalizedSymbol ||
     channel.instrumentId.toUpperCase() === executableIdentityFor(normalizedSymbol, assetClass)
   );
-  const qualityState = qualityFor(input.source, input.connected, hasCanonicalPrice);
+  const qualityState = qualityFor(input.source, input.connected, hasCanonicalPrice,
+    priceTick != null && input.capturedAt - priceTick.time < 20_000);
 
   const eventAt = priceTick?.time ?? null;
   const coverageVersion = input.nectar.updatedAt ?? input.nectar.startedAt;

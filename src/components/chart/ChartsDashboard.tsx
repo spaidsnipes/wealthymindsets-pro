@@ -1060,7 +1060,8 @@ export function ChartsDashboard() {
             // Dividend). The SHIFT-Q 7-question tooltip enrichment now
             // ships to every surface for free, and any future canon
             // vocabulary or color change touches ONE component.
-            const b = priceSourceBadge(source, connected, sessionOpen);
+            const quoteObservation = {present: Number.isFinite(ticker.price) && ticker.price > 0};
+            const b = priceSourceBadge(source, connected, sessionOpen, quoteObservation);
             // SHIFT-U continuation — pass the per-capability report so
             // the trader hovering the chip sees "Weakest capability"
             // hint + coverage count. Canon §Provider Status Per
@@ -1069,7 +1070,8 @@ export function ChartsDashboard() {
             const capabilityReport = selectPerCapabilityFidelity({
               source: source ?? "unavailable",
               connected,
-              hasCandles: true, // chart already rendered by this render path
+              hasCandles: chartBars.length > 0,
+              quoteObservation,
               // Closure outranks the provider verdict for bars + quotes.
               sessionOpen,
               // ticks / depth / options / greeks: unwired on

@@ -84,8 +84,11 @@ export function buildCanonicalFidelityTooltip(
   titleSuffix?: string,
   capabilityReport?: PerCapabilityFidelityReport,
 ): string {
-  const report = fidelityLabelToFailureReport(badge.label);
   const base = titleSuffix ? `${badge.title} ${titleSuffix}` : badge.title;
+  // No observation means no fidelity assessment, not a recovering pipeline
+  // or a normal closed session. Do not synthesize health from a fallback label.
+  if (badge.availability === "unavailable") return base;
+  const report = fidelityLabelToFailureReport(badge.label);
 
   // Canon §Provider Status Is Resolved Per Capability — if a
   // per-capability report is supplied AND at least one evaluated
@@ -166,6 +169,12 @@ export function CanonicalFidelityBadge({
   capabilityReport,
 }: CanonicalFidelityBadgeProps): React.ReactElement {
   const tooltip = buildCanonicalFidelityTooltip(badge, titleSuffix, capabilityReport);
+  if (badge.availability === "unavailable") {
+    return <span title={tooltip} aria-label="DATA UNAVAILABLE" style={{
+      display: "inline-flex", flexShrink: 0, color: "#8B92AC",
+      fontSize: variant === "chrome" ? 11 : 10, fontWeight: 600,
+    }}>DATA UNAVAILABLE</span>;
+  }
   const isLive = badge.live;
   const dotColor  = isLive ? "#00E88A" : "#F5A623";
   const textColor = isLive ? "#00E88A" : "#F5A623";

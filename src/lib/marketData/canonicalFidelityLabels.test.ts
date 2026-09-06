@@ -78,10 +78,8 @@ describe("resolveCanonicalFidelityLabel — priority ordering", () => {
     expect(
       resolveCanonicalFidelityLabel({ sessionOpen: false, historicalBarsVerified: true }),
     ).toBe(CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED);
-    // Even without historical bars, closed dominates — never STALE.
-    expect(resolveCanonicalFidelityLabel({ sessionOpen: false })).toBe(
-      CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED,
-    );
+    // Closure alone does not prove that a last observation exists.
+    expect(resolveCanonicalFidelityLabel({ sessionOpen: false })).toBeUndefined();
   });
 
   it("entitlement wall beats pipeline health (canon: policy verdict distinct)", () => {

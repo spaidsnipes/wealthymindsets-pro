@@ -46,6 +46,21 @@ const base = (): ChartMarketStatePublicationInput => ({
 });
 
 describe("chart Market State publisher", () => {
+  it.each(["moomoo", "longbridge", "webull"] as const)("preserves observed %s prices as partial, missing as unavailable, stale as stale", (source) => {
+    const input = {...base(), source};
+    const observed = createChartMarketStatePublication(input);
+    expect(observed.qualityState).toBe("PARTIAL");
+    expect(observed.state.price.last).toBe(65_000);
+    expect(createChartMarketStatePublication({...input, recentTicks: []}).qualityState).toBe("UNAVAILABLE");
+    expect(createChartMarketStatePublication({...input, capturedAt: 21_950}).qualityState).toBe("STALE");
+  });
+  it("retains an observed stale price without calling it live or absent", () => {
+    const input = {...base(), capturedAt: 21_950};
+    const publication = createChartMarketStatePublication(input);
+    expect(publication.qualityState).toBe("STALE");
+    expect(publication.state.price.last).toBe(65_000);
+    expect(publication.state.price.eventAt).toBe(1_950);
+  });
   it("maps a matching timestamped live tick and current Nectar coverage", () => {
     const publication = createChartMarketStatePublication(base());
 
@@ -61,7 +76,7 @@ describe("chart Market State publisher", () => {
     value.ticker.price = 66_000;
     const publication = createChartMarketStatePublication(value);
 
-    expect(publication.qualityState).toBe("PARTIAL");
+    expect(publication.qualityState).toBe("UNAVAILABLE");
     expect(publication.state.price.last).toBeNull();
     expect(publication.state.contradictions).toContain(
       "Displayed ticker price has no matching timestamped runtime tick; canonical price evidence omitted.",
@@ -75,7 +90,7 @@ describe("chart Market State publisher", () => {
     };
     const publication = createChartMarketStatePublication(value);
 
-    expect(publication.qualityState).toBe("PARTIAL");
+    expect(publication.qualityState).toBe("UNAVAILABLE");
     expect(publication.state.price.last).toBeNull();
   });
 

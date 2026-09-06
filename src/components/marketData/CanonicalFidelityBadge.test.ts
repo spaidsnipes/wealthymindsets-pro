@@ -3,6 +3,10 @@ import { buildCanonicalFidelityTooltip } from "./CanonicalFidelityBadge";
 import { priceSourceBadge } from "@/lib/priceSource";
 import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
 
+// Tooltip tests below use a real-observation fixture, not provider names as proof.
+const observedQuote = (source: string, connected: boolean, sessionOpen?: boolean | null) =>
+  priceSourceBadge(source, connected, sessionOpen, {present: true, fresh: true});
+
 /**
  * buildCanonicalFidelityTooltip — canon §Simplification Dividend +
  * §Failure Recovery Grammar. Every non-NORMAL badge produces a
@@ -16,7 +20,7 @@ import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLab
  */
 describe("buildCanonicalFidelityTooltip — canon 7-question enrichment", () => {
   it("LIVE badge → one-line tooltip (canon: normal inactivity is not failure)", () => {
-    const b = priceSourceBadge("polygon", true);
+    const b = observedQuote("polygon", true);
     expect(b.label).toBe(CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE);
     const t = buildCanonicalFidelityTooltip(b);
     expect(t).toBe(b.title);
@@ -25,7 +29,7 @@ describe("buildCanonicalFidelityTooltip — canon 7-question enrichment", () => 
   });
 
   it("ACTIVE_DEGRADED badge → tooltip carries all seven canon narrative fields", () => {
-    const b = priceSourceBadge("yahoo", true);
+    const b = observedQuote("yahoo", true);
     expect(b.label).toBe(CANONICAL_FIDELITY_LABELS.ACTIVE_DEGRADED);
     const t = buildCanonicalFidelityTooltip(b);
     expect(t.startsWith(b.title)).toBe(true);
@@ -38,21 +42,22 @@ describe("buildCanonicalFidelityTooltip — canon 7-question enrichment", () => 
     expect(t).toContain("Recovered when:");
   });
 
-  it("STALE_PIPELINE badge (unresolved provider) → tooltip flags RECOVERING", () => {
-    const b = priceSourceBadge("unavailable", false);
+  it("unresolved provider → availability, without inventing a recovering pipeline", () => {
+    const b = observedQuote("unavailable", false);
     expect(b.label).toBe(CANONICAL_FIDELITY_LABELS.STALE_PIPELINE);
     const t = buildCanonicalFidelityTooltip(b);
-    expect(t).toContain("State: RECOVERING");
+    expect(t).toContain("No price observation received");
+    expect(t).not.toContain("RECOVERING");
   });
 
   it("titleSuffix is appended to the base title, not the narrative", () => {
-    const b = priceSourceBadge("polygon", true);
+    const b = observedQuote("polygon", true);
     const t = buildCanonicalFidelityTooltip(b, "Click to chart.");
     expect(t).toBe(`${b.title} Click to chart.`);
   });
 
   it("titleSuffix + non-NORMAL badge → suffix stays on the first line", () => {
-    const b = priceSourceBadge("yahoo", true);
+    const b = observedQuote("yahoo", true);
     const t = buildCanonicalFidelityTooltip(b, "TSLA — Click to chart.");
     const lines = t.split("\n");
     expect(lines[0]).toBe(`${b.title} TSLA — Click to chart.`);
@@ -62,7 +67,7 @@ describe("buildCanonicalFidelityTooltip — canon 7-question enrichment", () => 
 
   it("every canon fidelity label produces a non-empty tooltip (no consumer can break rendering)", () => {
     for (const src of ["polygon", "binance", "coinbase", "alpaca", "finnhub", "yahoo", "unavailable"]) {
-      const b = priceSourceBadge(src, true);
+      const b = observedQuote(src, true);
       const t = buildCanonicalFidelityTooltip(b);
       expect(t.length).toBeGreaterThan(0);
     }
@@ -70,7 +75,7 @@ describe("buildCanonicalFidelityTooltip — canon 7-question enrichment", () => 
 
   describe("capabilityReport enrichment — canon §Provider Status Per Capability", () => {
     it("LIVE badge + all-NORMAL capabilities → tooltip mentions coverage count (canon §Vector, not god score)", () => {
-      const b = priceSourceBadge("polygon", true);
+      const b = observedQuote("polygon", true);
       const t = buildCanonicalFidelityTooltip(b, undefined, {
         bars: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
         quotes: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
@@ -90,7 +95,7 @@ describe("buildCanonicalFidelityTooltip — canon 7-question enrichment", () => 
      * disclosed, on a line that speaks only for depth.
      */
     it("a degraded NON-price capability is disclosed without describing the price (§14.7)", () => {
-      const b = priceSourceBadge("polygon", true);
+      const b = observedQuote("polygon", true);
       const t = buildCanonicalFidelityTooltip(b, undefined, {
         bars: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
         quotes: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
@@ -102,7 +107,7 @@ describe("buildCanonicalFidelityTooltip — canon 7-question enrichment", () => 
     });
 
     it("a degraded PRICE capability IS named as the weakness (§14.7 is not a mute button)", () => {
-      const b = priceSourceBadge("polygon", true);
+      const b = observedQuote("polygon", true);
       const t = buildCanonicalFidelityTooltip(b, undefined, {
         bars: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
         ticks: CANONICAL_FIDELITY_LABELS.STALE_PIPELINE,
@@ -114,7 +119,7 @@ describe("buildCanonicalFidelityTooltip — canon 7-question enrichment", () => 
     });
 
     it("a blocked Greek behind a live quote never reads as the price being weak", () => {
-      const b = priceSourceBadge("polygon", true);
+      const b = observedQuote("polygon", true);
       const t = buildCanonicalFidelityTooltip(b, undefined, {
         bars: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
         quotes: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE,
@@ -127,19 +132,19 @@ describe("buildCanonicalFidelityTooltip — canon 7-question enrichment", () => 
     });
 
     it("no capabilityReport supplied → tooltip shape unchanged (backwards-compat)", () => {
-      const b = priceSourceBadge("polygon", true);
+      const b = observedQuote("polygon", true);
       expect(buildCanonicalFidelityTooltip(b)).toBe(b.title);
     });
 
     it("empty capabilityReport → tooltip omits coverage line (silent per canon)", () => {
-      const b = priceSourceBadge("polygon", true);
+      const b = observedQuote("polygon", true);
       const t = buildCanonicalFidelityTooltip(b, undefined, {});
       expect(t).toBe(b.title);
       expect(t).not.toContain("Capabilities evaluated");
     });
 
     it("SESSION_CLOSED weakest capability does NOT count as a problem (canon §closed-is-not-delayed)", () => {
-      const b = priceSourceBadge("polygon", true);
+      const b = observedQuote("polygon", true);
       const t = buildCanonicalFidelityTooltip(b, undefined, {
         bars: CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED,
         quotes: CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED,

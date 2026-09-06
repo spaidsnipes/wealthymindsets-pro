@@ -5,6 +5,11 @@ import {
   ALL_CANONICAL_FIDELITY_LABELS,
 } from "./marketData/canonicalFidelityLabels";
 
+// These legacy source/session cases have an observed, fresh quote. Missing
+// receipts are exercised against the raw API in unavailableFidelity.test.ts.
+const observedQuote = (source: string, connected: boolean, sessionOpen?: boolean | null) =>
+  priceSourceBadge(source, connected, sessionOpen, {present: true, fresh: true});
+
 /**
  * Labels updated 2026-08-28 SHIFT-P: priceSource emits canonical
  * Living Market Visual Systems vocabulary (2026-08-27 canon). Legacy
@@ -23,8 +28,8 @@ import {
 describe("priceSourceBadge — closed session dominates the provider verdict", () => {
   it("retires the false ACTIVE DEGRADED claim when the session is proven closed", () => {
     for (const src of ["yahoo", "finnhub"] as const) {
-      expect(priceSourceBadge(src, true).label).toBe(L.ACTIVE_DEGRADED); // the defect, unguarded
-      const closed = priceSourceBadge(src, true, false);
+      expect(observedQuote(src, true).label).toBe(L.ACTIVE_DEGRADED); // the defect, unguarded
+      const closed = observedQuote(src, true, false);
       expect(closed.label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
       expect(closed.live).toBe(false);
       expect(closed.title).not.toMatch(/delayed/i); // closed is not delayed
@@ -32,15 +37,15 @@ describe("priceSourceBadge — closed session dominates the provider verdict", (
   });
 
   it("outranks every non-continuous provider verdict, including live ones", () => {
-    expect(priceSourceBadge("polygon", true, false).label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
-    expect(priceSourceBadge("polygon", true, false).live).toBe(false);
-    expect(priceSourceBadge("alpaca", true, false).label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
-    expect(priceSourceBadge("unavailable", false, false).label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+    expect(observedQuote("polygon", true, false).label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+    expect(observedQuote("polygon", true, false).live).toBe(false);
+    expect(observedQuote("alpaca", true, false).label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+    expect(observedQuote("unavailable", false, false).availability).toBe("unavailable");
   });
 
   it("never prints SESSION CLOSED over a continuous crypto tape (mirror-image bug)", () => {
     for (const src of ["binance", "coinbase"] as const) {
-      const b = priceSourceBadge(src, true, false);
+      const b = observedQuote(src, true, false);
       expect(b.label).toBe(L.LIVE_CERTIFIED_QUOTE);
       expect(b.live).toBe(true);
     }
@@ -48,12 +53,12 @@ describe("priceSourceBadge — closed session dominates the provider verdict", (
 
   it("treats an unestablished session as no information — never rounds it into a claim", () => {
     for (const unknown of [undefined, null] as const) {
-      expect(priceSourceBadge("yahoo", true, unknown).label).toBe(L.ACTIVE_DEGRADED);
-      expect(priceSourceBadge("polygon", true, unknown).label).toBe(L.LIVE_CERTIFIED_QUOTE);
-      expect(priceSourceBadge("unavailable", false, unknown).unresolved).toBe(true);
+      expect(observedQuote("yahoo", true, unknown).label).toBe(L.ACTIVE_DEGRADED);
+      expect(observedQuote("polygon", true, unknown).label).toBe(L.LIVE_CERTIFIED_QUOTE);
+      expect(observedQuote("unavailable", false, unknown).unresolved).toBe(true);
     }
     // sessionOpen === true is not a promotion either: a delayed provider stays degraded.
-    expect(priceSourceBadge("yahoo", true, true).label).toBe(L.ACTIVE_DEGRADED);
+    expect(observedQuote("yahoo", true, true).label).toBe(L.ACTIVE_DEGRADED);
   });
 
   it("keeps the closed verdict intact through the chart-surface guard", () => {
@@ -61,30 +66,30 @@ describe("priceSourceBadge — closed session dominates the provider verdict", (
     // VERIFIED. Closed must not be downgraded into it — canon ranks closed higher.
     const b = resolveChartSurfaceBadge("unavailable", false, true);
     expect(b.label).toBe(L.HISTORICAL_BARS_VERIFIED);
-    expect(priceSourceBadge("unavailable", false, false).unresolved).toBe(false);
+    expect(observedQuote("unavailable", false, false).unresolved).toBe(true);
   });
 });
 
 describe("priceSourceBadge (WM-CHART-P0-05 provenance)", () => {
   it("labels real-time streams as live", () => {
-    expect(priceSourceBadge("polygon", true).live).toBe(true);
-    expect(priceSourceBadge("coinbase", true).live).toBe(true);
-    expect(priceSourceBadge("binance", true).live).toBe(true);
-    expect(priceSourceBadge("binance", false).live).toBe(true); // crypto stream is live regardless of the stock-feed flag
+    expect(observedQuote("polygon", true).live).toBe(true);
+    expect(observedQuote("coinbase", true).live).toBe(true);
+    expect(observedQuote("binance", true).live).toBe(true);
+    expect(observedQuote("binance", false).live).toBe(false); // A disconnected transport cannot certify a live stream.
   });
 
   it("does NOT present delayed feeds as live", () => {
-    expect(priceSourceBadge("finnhub", true).live).toBe(false);
-    expect(priceSourceBadge("yahoo", true).live).toBe(false);
+    expect(observedQuote("finnhub", true).live).toBe(false);
+    expect(observedQuote("yahoo", true).live).toBe(false);
   });
 
   it("ties alpaca liveness to the connection state (IEX is real-time only while connected in RTH)", () => {
-    expect(priceSourceBadge("alpaca", true).live).toBe(true);
-    expect(priceSourceBadge("alpaca", false).live).toBe(false);
+    expect(observedQuote("alpaca", true).live).toBe(true);
+    expect(observedQuote("alpaca", false).live).toBe(false);
   });
 
   it("emits STALE_PIPELINE + unresolved=true before any source resolves", () => {
-    const b = priceSourceBadge("unavailable", false);
+    const b = observedQuote("unavailable", false);
     expect(b.label).toBe(L.STALE_PIPELINE);
     expect(b.live).toBe(false);
     expect(b.unresolved).toBe(true);
@@ -92,13 +97,13 @@ describe("priceSourceBadge (WM-CHART-P0-05 provenance)", () => {
 
   it("resolved providers never carry unresolved=true", () => {
     for (const s of ["polygon", "coinbase", "binance", "alpaca", "finnhub", "yahoo"]) {
-      expect(priceSourceBadge(s, true).unresolved).toBe(false);
+      expect(observedQuote(s, true).unresolved).toBe(false);
     }
   });
 
   it("every emitted label is one of the seven canon-approved strings", () => {
     for (const s of ["polygon", "coinbase", "binance", "alpaca", "finnhub", "yahoo", "unavailable"]) {
-      const b = priceSourceBadge(s, true);
+      const b = observedQuote(s, true);
       expect(ALL_CANONICAL_FIDELITY_LABELS as readonly string[]).toContain(b.label);
       expect(b.label.toLowerCase()).not.toContain(s);
       expect(b.title.toLowerCase()).not.toContain(s);
@@ -132,10 +137,10 @@ describe("candleDataStatus", () => {
       expect(s.label).toBe(L.HISTORICAL_BARS_VERIFIED);
       expect(s.live).toBe(false);
     });
-    it("emits SESSION_CLOSED_LAST_VERIFIED when there are no candles at all (canon: closed is not delayed)", () => {
+    it("emits DATA UNAVAILABLE when there are no candles, without inventing session or last-bar proof", () => {
       const s = candleDataStatus("unavailable", false, false, 0, 10_000);
       expect(s.state).toBe("UNAVAILABLE");
-      expect(s.label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+      expect(s.label).toBe("DATA UNAVAILABLE");
     });
     it("passes through the honest degraded label for delayed providers (no unproven entitlement claim)", () => {
       expect(candleDataStatus("yahoo", true, true, 9_999, 10_000).label).toBe(L.ACTIVE_DEGRADED);
@@ -150,23 +155,24 @@ describe("candleDataStatus", () => {
       const s = candleDataStatus("polygon", true, true, 9_999, 10_000);
       expect(s).toEqual({ state: "LIVE", label: L.LIVE_CERTIFIED_QUOTE, live: true });
     });
-    it("polygon connected + no candles → UNAVAILABLE / SESSION_CLOSED_LAST_VERIFIED", () => {
+    it("polygon connected + no candles → DATA UNAVAILABLE", () => {
       const s = candleDataStatus("polygon", true, false, 0, 10_000);
       expect(s.state).toBe("UNAVAILABLE");
-      expect(s.label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+      expect(s.label).toBe("DATA UNAVAILABLE");
     });
     it("alpaca connected + candles + fresh tick → LIVE (equity IEX-only path)", () => {
       const s = candleDataStatus("alpaca", true, true, 9_999, 10_000);
       expect(s.state).toBe("LIVE");
     });
-    it("alpaca DISCONNECTED + candles → DELAYED / STALE_PIPELINE (reconnecting)", () => {
+    it("alpaca DISCONNECTED + fresh observation → degraded, not certified streaming", () => {
       const s = candleDataStatus("alpaca", false, true, 9_999, 10_000);
       expect(s.state).toBe("DELAYED");
-      expect(s.label).toBe(L.STALE_PIPELINE);
+      expect(s.label).toBe(L.ACTIVE_DEGRADED);
     });
-    it("binance connected=false + candles + fresh tick → LIVE (crypto stream is live regardless)", () => {
+    it("binance connected=false + candles + fresh tick cannot certify a live transport", () => {
       const s = candleDataStatus("binance", false, true, 9_999, 10_000);
-      expect(s.state).toBe("LIVE");
+      expect(s.state).toBe("DELAYED");
+      expect(s.live).toBe(false);
     });
     it("coinbase live source + candles + no tick ever (lastTickAt=0) → STALE / STALE_PIPELINE", () => {
       const s = candleDataStatus("coinbase", true, true, 0, 10_000);
@@ -185,10 +191,10 @@ describe("candleDataStatus", () => {
       expect(s.state).toBe("DELAYED");
       expect(s.label).toBe(L.HISTORICAL_BARS_VERIFIED);
     });
-    it("unknown source string + no candles → SESSION_CLOSED_LAST_VERIFIED", () => {
+    it("unknown source string + no candles → DATA UNAVAILABLE", () => {
       const s = candleDataStatus("mystery", false, false, 0, 10_000);
       expect(s.state).toBe("UNAVAILABLE");
-      expect(s.label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+      expect(s.label).toBe("DATA UNAVAILABLE");
     });
     it("live=false paths never claim live=true (rejection guarantee)", () => {
       for (const s of ["yahoo", "finnhub", "unknown"] as const) {
@@ -262,9 +268,9 @@ describe("candleDataStatus", () => {
     it("keeps STALE_PIPELINE when there are no candles to display (unresolved fallthrough)", () => {
       expect(resolveChartSurfaceBadge("unavailable", false, false).label).toBe(L.STALE_PIPELINE);
     });
-    it("preserves live-source LIVE_CERTIFIED_QUOTE labels regardless of hasCandles", () => {
-      expect(resolveChartSurfaceBadge("polygon", true, true).label).toBe(L.LIVE_CERTIFIED_QUOTE);
-      expect(resolveChartSurfaceBadge("polygon", true, false).label).toBe(L.LIVE_CERTIFIED_QUOTE);
+    it("bar presence alone does not certify realtime freshness, absence stays unavailable", () => {
+      expect(resolveChartSurfaceBadge("polygon", true, true).label).toBe(L.ACTIVE_DEGRADED);
+      expect(resolveChartSurfaceBadge("polygon", true, false).availability).toBe("unavailable");
     });
     it("preserves delayed-provider canon labels — never over-promotes, never claims entitlement", () => {
       expect(resolveChartSurfaceBadge("yahoo", true, true).label).toBe(L.ACTIVE_DEGRADED);

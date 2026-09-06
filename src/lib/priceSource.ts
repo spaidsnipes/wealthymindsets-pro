@@ -26,6 +26,13 @@ import {
 export type PriceSource =
   | "polygon" | "coinbase" | "binance" | "alpaca" | "finnhub" | "yahoo" | "unavailable" | string;
 
+export interface PriceObservationEvidence {
+  /** A real price was received for this selection, not merely a configured source. */
+  present: boolean;
+  /** Provider/event timestamp is within budget; omitted means not established. */
+  fresh?: boolean;
+}
+
 export interface PriceSourceBadge {
   /** Vendor-agnostic user-visible text. Canon §Living Market Visual
    *  Systems: one of the seven CANONICAL_FIDELITY_LABELS values. */
@@ -38,6 +45,8 @@ export interface PriceSourceBadge {
    *  Internal sentinel — replaces `label === "NO FEED"` filtering so
    *  callers stay decoupled from display copy. */
   unresolved: boolean;
+  /** No observation to grade. Availability is separate from the seven fidelity labels. */
+  availability?: "unavailable";
 }
 
 export interface CandleDataStatus {
@@ -74,8 +83,20 @@ export function priceSourceBadge(
   source: PriceSource,
   connected: boolean,
   sessionOpen?: boolean | null,
+  observation?: PriceObservationEvidence,
 ): PriceSourceBadge {
   const L = CANONICAL_FIDELITY_LABELS;
+  // Session closure does not manufacture a last observation. Keep unknown
+  // providers unresolved before applying the closed-market presentation rule.
+  const unresolved = !["polygon", "coinbase", "binance", "alpaca", "finnhub", "yahoo", "moomoo", "longbridge", "webull"].includes(source);
+  if (unresolved || observation?.present !== true) {
+    return {
+      label: L.STALE_PIPELINE, // legacy internal fallback; availability governs rendering
+      title: "No price observation received for this selection. Waiting for market data.",
+      live: false, provenance: String(source ?? "unavailable"),
+      unresolved, availability: "unavailable",
+    };
+  }
   // Canon "CLOSED IS NOT DELAYED" + §8 (the screen may never imply an active
   // session on a closed one). Closed dominates every provider verdict, exactly
   // as it does in resolveCanonicalFidelityLabel — where `sessionOpen === false`
@@ -90,7 +111,36 @@ export function priceSourceBadge(
       unresolved: false,
     };
   }
+  // Every recognized provider must honor an explicit freshness failure.
+  // A fallback provider is not exempt from the observation's expiry budget.
+  if (observation.fresh === false) {
+    return {
+      label: L.STALE_PIPELINE,
+      title: "The received price is outside its freshness budget. Waiting for a current observation.",
+      live: false, provenance: source, unresolved: false,
+    };
+  }
+  // A transport flag or a provider name is not a freshness receipt.
+  // Observed-but-ungraded prices remain usable without a LIVE certificate.
+  if (["polygon", "coinbase", "binance", "alpaca"].includes(source)
+      && (!connected || observation?.fresh !== true)) {
+    return {
+      label: L.ACTIVE_DEGRADED,
+      title: "Price observed. Realtime freshness is not verified for this selection.",
+      live: false, provenance: source, unresolved: false,
+    };
+  }
   switch (source) {
+    case "moomoo":
+    case "longbridge":
+    case "webull":
+      // These are active WM providers, not unresolved names. Observing their
+      // price does not by itself certify every upstream fidelity requirement.
+      return {
+        label: L.ACTIVE_DEGRADED,
+        title: "Price observed. Realtime feed certification is not yet established.",
+        live: false, provenance: source, unresolved: false,
+      };
     case "polygon":
       return { label: L.LIVE_CERTIFIED_QUOTE, title: "Real-time trade stream", live: true, provenance: "polygon", unresolved: false };
     case "binance":
@@ -139,11 +189,7 @@ export function resolveChartSurfaceBadge(
   hasCandles: boolean,
   sessionOpen?: boolean | null,
 ): PriceSourceBadge {
-  const b = priceSourceBadge(source, connected, sessionOpen);
-  // A proven-closed session already produced SESSION CLOSED — LAST VERIFIED
-  // with unresolved=false, so the promotion below is skipped by construction.
-  // That matches resolveCanonicalFidelityLabel, where closure outranks
-  // historicalBarsVerified rather than being overridden by it.
+  const b = priceSourceBadge(source, connected, sessionOpen, {present: hasCandles});
   // Canon §Living Market Visual Systems (2026-08-27): when we have
   // verified bars on screen but no live provider resolved, the honest
   // per-capability truth is HISTORICAL BARS VERIFIED — never STALE
@@ -151,8 +197,13 @@ export function resolveChartSurfaceBadge(
   if (b.unresolved && hasCandles) {
     return {
       ...b,
-      label: CANONICAL_FIDELITY_LABELS.HISTORICAL_BARS_VERIFIED,
-      title: "Historical OHLCV loaded. No realtime tape resolved yet — chart trustworthy for past-tense analysis only.",
+      availability: undefined,
+      label: sessionOpen === false
+        ? CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED
+        : CANONICAL_FIDELITY_LABELS.HISTORICAL_BARS_VERIFIED,
+      title: sessionOpen === false
+        ? "Market session is closed. Historical bars are loaded; no realtime tape is implied."
+        : "Historical OHLCV loaded. No realtime tape resolved yet — chart trustworthy for past-tense analysis only.",
       live: false,
     };
   }
@@ -183,21 +234,21 @@ export function candleDataStatus(
   // which falls through to the `!badge.live` branch below and prints
   // "SESSION CLOSED — LAST VERIFIED · LAST <time>" instead of the
   // canon-§8-banned "ACTIVE DEGRADED" on a closed session.
-  const badge = priceSourceBadge(source, connected, sessionOpen);
+  const fresh = Number.isFinite(lastTickAt) && lastTickAt > 0
+    && lastTickAt <= now && now - lastTickAt < staleAfterMs;
+  const badge = priceSourceBadge(source, connected, sessionOpen, {present: hasCandles, fresh});
   const L = CANONICAL_FIDELITY_LABELS;
-  // Genuine no-data — no candles rendered. Canon §"CLOSED IS NOT
-  // DELAYED": the honest state is SESSION CLOSED — LAST VERIFIED when
-  // this happens outside an active session. We surface the closed
-  // label even without hasCandles because a red "NO FEED" bug alarm
-  // is banned by canon.
+  // Neither a calendar nor provider configuration proves a last bar exists.
   if (!hasCandles) {
-    return { state: "UNAVAILABLE", label: L.SESSION_CLOSED_LAST_VERIFIED, live: false };
+    return { state: "UNAVAILABLE", label: "DATA UNAVAILABLE", live: false };
   }
   // Candles exist but no realtime feed is resolved — bars are the
   // verified capability.
   if (badge.unresolved) {
-    return { state: "DELAYED", label: L.HISTORICAL_BARS_VERIFIED, live: false };
+    return { state: "DELAYED", label: sessionOpen === false
+      ? L.SESSION_CLOSED_LAST_VERIFIED : L.HISTORICAL_BARS_VERIFIED, live: false };
   }
+  if (badge.label === L.STALE_PIPELINE) return {state: "STALE", label: badge.label, live: false};
   if (!badge.live) {
     return { state: "DELAYED", label: badge.label, live: false };
   }

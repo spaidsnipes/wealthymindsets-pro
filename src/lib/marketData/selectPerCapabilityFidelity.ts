@@ -28,7 +28,7 @@
  * evaluated capabilities by default.
  */
 
-import { priceSourceBadge, resolveChartSurfaceBadge, type PriceSource } from "../priceSource";
+import { priceSourceBadge, resolveChartSurfaceBadge, type PriceSource, type PriceObservationEvidence } from "../priceSource";
 import {
   CANONICAL_FIDELITY_LABELS,
   type CanonicalFidelityLabel,
@@ -42,6 +42,8 @@ export interface PerCapabilityFidelityInput {
   readonly connected: boolean;
   /** Are candles rendered on the chart right now? */
   readonly hasCandles: boolean;
+  /** Independent quote receipt. Bars or a transport connection cannot supply this. */
+  readonly quoteObservation?: PriceObservationEvidence;
   /**
    * Optional — populated when a per-trade tape stream is active.
    * When undefined, the ticks capability is left undefined (silent
@@ -106,12 +108,12 @@ export function selectPerCapabilityFidelity(
     input.hasCandles,
     input.sessionOpen,
   );
-  report.bars = barsBadge.label;
+  if (input.hasCandles && barsBadge.availability !== "unavailable") report.bars = barsBadge.label;
 
   // QUOTES — priceSourceBadge covers the quote fidelity independent
   // of whether candles are on-screen.
-  const quotesBadge = priceSourceBadge(input.source, input.connected, input.sessionOpen);
-  report.quotes = quotesBadge.label;
+  const quotesBadge = priceSourceBadge(input.source, input.connected, input.sessionOpen, input.quoteObservation);
+  if (quotesBadge.availability !== "unavailable") report.quotes = quotesBadge.label;
 
   // TICKS — a transport/buffer-presence boolean is observation, not
   // certification. It carries no symbol, provider timestamp, sequence,

@@ -795,11 +795,13 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
                                 item.src ?? "unavailable",
                                 item.price > 0,
                                 sessionOpen,
+                                {present: Number.isFinite(item.price) && item.price > 0},
                               );
                               const capabilityReport = selectPerCapabilityFidelity({
                                 source: item.src ?? "unavailable",
                                 connected: item.price > 0,
-                                hasCandles: item.price > 0,
+                                hasCandles: false, // A quote is not an OHLCV bar receipt.
+                                quoteObservation: {present: Number.isFinite(item.price) && item.price > 0},
                                 sessionOpen,
                               });
                               return <CanonicalFidelityBadge badge={b} variant="compact" titleSuffix={`— ${item.sym}`} capabilityReport={capabilityReport} />;

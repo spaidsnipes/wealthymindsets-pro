@@ -9,11 +9,12 @@ import { CANONICAL_FIDELITY_LABELS as L } from "./canonicalFidelityLabels";
  * evidence.
  */
 describe("selectPerCapabilityFidelity — canon derivation", () => {
-  it("live source + candles → bars LIVE, quotes LIVE, everything else undefined (silent)", () => {
+  it("fresh quote receipt certifies quotes without certifying bar freshness", () => {
     const r = selectPerCapabilityFidelity({
       source: "polygon", connected: true, hasCandles: true,
+      quoteObservation: {present: true, fresh: true},
     });
-    expect(r.bars).toBe(L.LIVE_CERTIFIED_QUOTE);
+    expect(r.bars).toBe(L.ACTIVE_DEGRADED);
     expect(r.quotes).toBe(L.LIVE_CERTIFIED_QUOTE);
     expect(r.ticks).toBeUndefined();
     expect(r.options).toBeUndefined();
@@ -22,18 +23,19 @@ describe("selectPerCapabilityFidelity — canon derivation", () => {
     expect(r.orderFlow).toBeUndefined();
   });
 
-  it("unresolved source + candles → bars HISTORICAL, quotes STALE, else silent", () => {
+  it("unresolved source + candles → bars HISTORICAL, quotes ungraded, else silent", () => {
     const r = selectPerCapabilityFidelity({
       source: "unavailable", connected: false, hasCandles: true,
     });
     expect(r.bars).toBe(L.HISTORICAL_BARS_VERIFIED);
-    expect(r.quotes).toBe(L.STALE_PIPELINE);
+    expect(r.quotes).toBeUndefined();
     expect(r.ticks).toBeUndefined();
   });
 
   it("uncertified realtime provider → bars + quotes = ACTIVE_DEGRADED without inventing entitlement", () => {
     const r = selectPerCapabilityFidelity({
       source: "yahoo", connected: true, hasCandles: true,
+      quoteObservation: {present: true},
     });
     expect(r.bars).toBe(L.ACTIVE_DEGRADED);
     expect(r.quotes).toBe(L.ACTIVE_DEGRADED);
@@ -169,6 +171,7 @@ describe("selectPerCapabilityFidelity — closed-session precedence", () => {
   it("sessionOpen=false makes bars AND quotes read SESSION CLOSED — LAST VERIFIED", () => {
     const r = selectPerCapabilityFidelity({
       source: "yahoo", connected: true, hasCandles: true, sessionOpen: false,
+      quoteObservation: {present: true},
     });
     expect(r.bars).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
     expect(r.quotes).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
@@ -177,6 +180,7 @@ describe("selectPerCapabilityFidelity — closed-session precedence", () => {
   it("closure outranks a certified realtime provider — no LIVE on a closed session (§8)", () => {
     const r = selectPerCapabilityFidelity({
       source: "polygon", connected: true, hasCandles: true, sessionOpen: false,
+      quoteObservation: {present: true, fresh: true},
     });
     expect(r.bars).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
     expect(r.quotes).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
@@ -186,8 +190,9 @@ describe("selectPerCapabilityFidelity — closed-session precedence", () => {
     for (const source of ["binance", "coinbase"] as const) {
       const r = selectPerCapabilityFidelity({
         source, connected: true, hasCandles: true, sessionOpen: false,
+        quoteObservation: {present: true, fresh: true},
       });
-      expect(r.bars).toBe(L.LIVE_CERTIFIED_QUOTE);
+      expect(r.bars).toBe(L.ACTIVE_DEGRADED);
       expect(r.quotes).toBe(L.LIVE_CERTIFIED_QUOTE);
     }
   });

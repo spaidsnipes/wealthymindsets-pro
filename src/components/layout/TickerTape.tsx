@@ -155,13 +155,15 @@ function TickerItem({ item, onClick, active }: {
   // not print ACTIVE over a market that is not trading. `null` until mount and
   // on every weekday, so provider labelling is untouched the rest of the time.
   const sessionOpen = useProvenSessionClosure(sym);
-  const badge = priceSourceBadge(src ?? "unavailable", live, sessionOpen);
+  const quoteObservation = {present: Boolean(src) && Number.isFinite(price) && price > 0};
+  const badge = priceSourceBadge(src ?? "unavailable", live, sessionOpen, quoteObservation);
   // SHIFT-U continuation — per-capability tooltip enrichment: bars +
   // quotes lit from the ticker's own source; other slots silent.
   const capabilityReport = selectPerCapabilityFidelity({
     source: src ?? "unavailable",
     connected: live,
-    hasCandles: price > 0,
+    hasCandles: false, // The rail owns quote receipts, not candle observations.
+    quoteObservation,
     // The visible chip took closure into account one line above; omitting
     // it here made the HOVER tooltip contradict the very chip it explains.
     // Canon §Provider Status: one fact, one answer, per capability.

@@ -160,7 +160,7 @@ export function resolveCanonicalFidelityLabel(
   if (input.sessionOpen === false) {
     return input.historicalBarsVerified
       ? CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED
-      : CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED;
+      : undefined;
   }
   // Entitlement wall — a policy verdict, distinct from pipeline health.
   if (input.entitlementBlocked === true) {
