@@ -92,10 +92,30 @@ export async function GET(request: Request) {
         liveVolume = vo.reduce<number>((sum, value) => sum + (value ?? 0), 0);
       }
 
-      if (!meta && !livePrice) return NextResponse.json({ error: "No data" }, { status: 404 });
+      /* ── An answer is not a price ───────────────────────────────────────────
+         Yahoo replies for listings it holds but has no quote for with `meta`
+         present and every price field zero or absent. Observed on BRETT-USD:
+         regularMarketPrice 0, previousClose undefined, zero daily closes — and a
+         real chartPreviousClose of 0.0023591456 alongside them.
 
-      // Live price preferred; fall back to regular-market meta.
-      const price = livePrice || meta?.regularMarketPrice || meta?.previousClose || 0;
+         The guard here used to read `!meta && !livePrice`, which asks "did Yahoo
+         answer", not "was a price observed". `meta` was present, so it passed,
+         and the chain below terminated in `|| 0` — so the answer became "yes,
+         zero". Zero measured against that real prevClose ships
+         `change: -0.0024, changePct: -100`: a total wipeout the market never had.
+
+         This was never on screen. All ten `type=quote` consumers independently
+         guard on `price > 0` and drop the row, so the fabrication was held back
+         by a convention repeated in ten call sites rather than by the producer
+         that emits it — one new consumer away from being rendered.
+
+         `!== 0`, not `> 0`: zero is Yahoo's absence marker, but a negative
+         settlement is a real observation (CL settled at -$37.63 in April 2020)
+         and the `||` chain passed it through. Rejecting it here would be a new
+         defect wearing the fix's clothes. */
+      const price = [livePrice, meta?.regularMarketPrice, meta?.previousClose]
+        .find((v): v is number => typeof v === "number" && Number.isFinite(v) && v !== 0);
+      if (price === undefined) return NextResponse.json({ error: "No data" }, { status: 404 });
       const open  = liveOpen  || meta?.regularMarketOpen   || price;
       const high  = Math.max(liveHigh || 0, meta?.regularMarketDayHigh || 0) || price;
       const low   = (liveLow && meta?.regularMarketDayLow) ? Math.min(liveLow, meta.regularMarketDayLow)
