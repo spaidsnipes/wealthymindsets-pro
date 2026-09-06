@@ -181,6 +181,29 @@ export function netQtyFor(
  * Only `pending` counts. `filled`, `cancelled` and `rejected` are terminal
  * (`TERMINAL_ORDER_STATUSES`) and cannot reopen anything.
  */
+export function isExposureIncreasingOrder(
+  order: PaperOrderView | null | undefined,
+  symbol: string,
+  net: number,
+): boolean {
+  if (!order || typeof order.symbol !== "string") return false;
+  if (order.status !== "pending") return false;
+  if (!sameSymbol(order.symbol, symbol)) return false;
+  if (net > 0 && order.side !== "buy") return false;
+  if (net < 0 && order.side !== "sell") return false;
+  return true;
+}
+
+/**
+ * The COUNT of those orders — the number `compileScene` reads.
+ *
+ * Deliberately a thin wrapper over the predicate rather than a second walk of
+ * the same rules. §B14 draws a line between CANCEL EXPOSURE-INCREASING ORDERS
+ * and FLATTEN POSITION, which means a surface offering the cancel control must
+ * select exactly the orders this count is counting. Two implementations of
+ * "exposure-increasing" would let the banner say 2 while the button cancelled 1
+ * — a screen that states a risk and then does not act on it.
+ */
 export function exposureIncreasingWorkingOrders(
   orders: readonly PaperOrderView[],
   symbol: string,
@@ -188,12 +211,7 @@ export function exposureIncreasingWorkingOrders(
 ): number {
   let count = 0;
   for (const o of orders) {
-    if (!o || typeof o.symbol !== "string") continue;
-    if (o.status !== "pending") continue;
-    if (!sameSymbol(o.symbol, symbol)) continue;
-    if (net > 0 && o.side !== "buy") continue;
-    if (net < 0 && o.side !== "sell") continue;
-    count++;
+    if (isExposureIncreasingOrder(o, symbol, net)) count++;
   }
   return count;
 }

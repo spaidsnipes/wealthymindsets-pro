@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   PAPER_LEDGER_SOURCE,
   exposureIncreasingWorkingOrders,
+  isExposureIncreasingOrder,
   linkVerifiedFrom,
   netQtyFor,
   paperSceneSignals,
@@ -80,6 +81,36 @@ describe("exposureIncreasingWorkingOrders — §B14 direction", () => {
 
   it("ignores other symbols", () => {
     expect(exposureIncreasingWorkingOrders([order({ symbol: "AAPL" })], "TSLA", 0)).toBe(0);
+  });
+});
+
+describe("isExposureIncreasingOrder — the count and the cancel button share one rule", () => {
+  // §B14 gives the trader a CANCEL EXPOSURE-INCREASING ORDERS act that is
+  // distinct from FLATTEN. The banner states a number and the button acts on a
+  // set; if those were two implementations they could disagree, and a screen
+  // that says "2 working" while cancelling 1 has told the trader they are safe
+  // when they are not.
+  it("selects exactly the orders the counter counts", () => {
+    const orders: PaperOrderView[] = [
+      order({ side: "buy" }),                        // adds to the long
+      order({ side: "sell" }),                       // reduces the long
+      order({ side: "buy", status: "filled" }),      // terminal
+      order({ side: "buy", symbol: "AAPL" }),        // other symbol
+      order({ side: "buy" }),                        // adds to the long
+    ];
+    const selected = orders.filter((o) => isExposureIncreasingOrder(o, "TSLA", 10));
+    expect(selected.length).toBe(exposureIncreasingWorkingOrders(orders, "TSLA", 10));
+    expect(selected.length).toBe(2);
+  });
+
+  it("selects both sides while flat — either one opens exposure", () => {
+    const orders: PaperOrderView[] = [order({ side: "buy" }), order({ side: "sell" })];
+    expect(orders.filter((o) => isExposureIncreasingOrder(o, "TSLA", 0)).length).toBe(2);
+  });
+
+  it("is total on junk input rather than throwing inside a render", () => {
+    expect(isExposureIncreasingOrder(null, "TSLA", 0)).toBe(false);
+    expect(isExposureIncreasingOrder(undefined, "TSLA", 0)).toBe(false);
   });
 });
 

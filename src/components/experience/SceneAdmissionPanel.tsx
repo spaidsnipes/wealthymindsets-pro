@@ -194,6 +194,28 @@ export function SceneAdmissionPanel({
     [governedSet],
   );
 
+  /**
+   * The signals that were NOT read, named.
+   *
+   * The first version of this line said "This route has no broker panel, so WM
+   * has not read a book, an order or a fill here." That was true on
+   * /command-deck and became a LIE the moment a route with a real book adopted
+   * the panel: /paper reads positions, working orders and a persistence result,
+   * and may still be missing only the DECISION signal. Printing "no broker
+   * panel" over an observed book is the same class of overclaim this file was
+   * written to kill — a sentence with no owner behind it.
+   *
+   * So the sentence is derived from `provenance` rather than assumed from the
+   * route. It can only ever name groups that actually came back UNOBSERVED.
+   */
+  const unobservedLabels = React.useMemo(
+    () =>
+      SIGNAL_GROUPS.filter((g) => provenance[g] !== "OBSERVED").map(
+        (g) => GROUP_LABEL[g].toLowerCase(),
+      ),
+    [provenance],
+  );
+
   const headlineTone = compilation.degraded ? WARN : GOLD;
 
   return (
@@ -392,11 +414,11 @@ export function SceneAdmissionPanel({
               );
             })}
           </div>
-          {observedCount < totalCount && (
+          {unobservedLabels.length > 0 && (
             <p style={{ margin: "7px 0 0", fontSize: 10.5, lineHeight: 1.5, color: MUTED }}>
-              This route has no broker panel, so WM has not read a book, an order
-              or a fill here. The unobserved signals above are not assumed flat —
-              the scene below them is compiled only from what was actually seen.
+              WM has not read {unobservedLabels.join(", ")} on this screen. Those
+              signals are not assumed flat or safe — the scene above them is
+              compiled only from what was actually seen.
             </p>
           )}
         </div>

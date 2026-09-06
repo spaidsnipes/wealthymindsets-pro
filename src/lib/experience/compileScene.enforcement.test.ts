@@ -50,7 +50,14 @@ const CODE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx"]);
  * producer", and it should come with tests that prove it does not invent.
  */
 const COMPILER_FILES = new Set<string>(["compileScene.ts"]);
-const SIGNAL_ADAPTER_FILES = new Set<string>(["deckSceneSignals.ts"]);
+const SIGNAL_ADAPTER_FILES = new Set<string>([
+  "deckSceneSignals.ts",
+  // Added 2026-09-06 with the /paper cutover. This one is the opposite of the
+  // deck adapter: it REPORTS the capital column instead of refusing to. That
+  // makes it the higher-risk producer of the two, so it carries 30 tests of its
+  // own, and the block below pins the two claims it is forbidden to invent.
+  "paperSceneSignals.ts",
+]);
 
 function basename(path: string): string {
   return path.split("/").pop() ?? "";
@@ -203,6 +210,58 @@ describe("compileScene enforcement — the /command-deck adapter stays honest", 
     expect(adapter).toMatch(/POSITION:\s*"UNOBSERVED"/);
     expect(adapter).toMatch(/ORDERS:\s*"UNOBSERVED"/);
     expect(adapter).toMatch(/LINK:\s*"UNOBSERVED"/);
+  });
+});
+
+describe("compileScene enforcement — the /paper adapter reports without inventing", () => {
+  const adapter = stripComments(
+    readFileSync(resolve(SRC, "lib/experience/paperSceneSignals.ts"), "utf8"),
+  );
+
+  it("routes the position through selectPositionTruth, never a hand-written label", () => {
+    // The deck adapter is safe because it says UNOBSERVED and stops. This one
+    // has a real book, so the failure mode inverts: it could write
+    // `position: "FLAT"` straight from `positions.length === 0` and skip the
+    // owner that knows about staleness and unobserved sources entirely.
+    expect(adapter).toContain("selectPositionTruth");
+    expect(adapter).toMatch(/position:\s*truth\.label/);
+    expect(adapter).toMatch(/positionConfidence:\s*truth\.confidence/);
+    expect(adapter).not.toContain('position: "FLAT"');
+    expect(adapter).not.toContain('positionConfidence: "CONFIRMED"');
+  });
+
+  it("keeps the episode claims false — paper has no DECISION_ID (§B1)", () => {
+    // The tempting move is `hadCapitalEvent: trades.length > 0`. That makes a
+    // lifetime fact wear an episode's clothes and leaves RECEIPT owed forever
+    // for a decision nobody can name.
+    expect(adapter).toContain("hadCapitalEvent: false");
+    expect(adapter).toContain("receiptWritten: false");
+  });
+
+  it("refuses to read an unhydrated ledger as an observation (§14.1)", () => {
+    expect(adapter).toMatch(/hydrated\s*===\s*true/);
+    expect(adapter).toContain("unobservedSources");
+  });
+});
+
+describe("compileScene enforcement — /paper breadcrumb", () => {
+  const page = stripComments(readFileSync(resolve(SRC, "app/paper/page.tsx"), "utf8"));
+
+  it("routes through the paper adapter and the compiler, and mounts the panel", () => {
+    expect(page).toContain("paperSceneSignals");
+    expect(page).toContain("compileScene");
+    expect(page).toContain("SceneAdmissionPanel");
+  });
+
+  it("feeds the ledger's own persistence result as the LINK signal, not a constant", () => {
+    // `linkVerified: true` typed on this page would make DEGRADED unreachable
+    // on the one route in WM Pro that can currently reach it.
+    expect(page).toMatch(/persistence:\s*persistenceState/);
+    expect(page).not.toMatch(/linkVerified\s*:/);
+  });
+
+  it("reads the session from the canonical owner, not from a local guess", () => {
+    expect(page).toContain("selectCanonicalSessionToken");
   });
 });
 
@@ -452,6 +511,52 @@ describe("compileScene enforcement — §10 admission is OBEYED, not merely anno
     const total = (deck.match(/<OneStoryStrip/g) ?? []).length;
     const inside = ((body ?? "").match(/<OneStoryStrip/g) ?? []).length;
     expect(inside).toBe(total);
+  });
+
+  it("/paper puts the Academy Challenge INSIDE the ambient gate — §9, pinned to the page", () => {
+    /**
+     * The deck's ambient gate is a law obeyed on a route where the capital
+     * column is permanently UNOBSERVED, which means `admitsAmbient` there is
+     * essentially always true — obeyed, but never yet TESTED by reality.
+     *
+     * /paper is the first route where it bites. The Academy Challenge banner
+     * shipped unconditionally on the one page in WM Pro where a position can
+     * actually be open, so §9's named example — "Academy may not take the
+     * room" — was violated by the literal surface §9 names. This pins the fix
+     * to the page, not to a component test that would keep passing if the
+     * wrapper were deleted.
+     */
+    const paper = stripComments(readFileSync(resolve(SRC, "app/paper/page.tsx"), "utf8"));
+    const body = gatedBody(paper, "SceneAdmitsAmbient");
+    expect(body).not.toBeNull();
+    expect(body).toContain('id="academy-challenge"');
+    const total = (paper.match(/id="academy-challenge"/g) ?? []).length;
+    const inside = ((body ?? "").match(/id="academy-challenge"/g) ?? []).length;
+    expect(inside).toBe(total);
+  });
+
+  it("/paper's exit ramp lives INSIDE the FLATTEN_CONFIRM gate — §9 PHONE law", () => {
+    // A flatten control rendered outside the gate would appear in PREGAME and
+    // CLOSED with nothing to close — §H19 dead vocabulary sitting on the most
+    // dangerous button on the page.
+    const paper = stripComments(readFileSync(resolve(SRC, "app/paper/page.tsx"), "utf8"));
+    const body = gatedElementBody(paper, "FLATTEN_CONFIRM");
+    expect(body).not.toBeNull();
+    expect(body).toContain("closePosition(activeSymbol)");
+    const total = (paper.match(/closePosition\(activeSymbol\)/g) ?? []).length;
+    const inside = ((body ?? "").match(/closePosition\(activeSymbol\)/g) ?? []).length;
+    expect(inside).toBe(total);
+  });
+
+  it("/paper's §B14 cancel control lives INSIDE the PENDING_BANNER gate", () => {
+    const paper = stripComments(readFileSync(resolve(SRC, "app/paper/page.tsx"), "utf8"));
+    const body = gatedElementBody(paper, "PENDING_BANNER");
+    expect(body).not.toBeNull();
+    expect(body).toContain("cancelExposureIncreasingOrders");
+    const total = (paper.match(/onClick=\{cancelExposureIncreasingOrders\}/g) ?? []).length;
+    const inside = ((body ?? "").match(/onClick=\{cancelExposureIncreasingOrders\}/g) ?? []).length;
+    expect(inside).toBe(total);
+    expect(total).toBe(1);
   });
 
   it("/command-deck puts Academy INSIDE the ambient gate — §9, pinned to the page", () => {

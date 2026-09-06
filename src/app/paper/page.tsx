@@ -36,6 +36,16 @@ import {
   type PaperPersistenceResult,
   type PaperState,
 } from "@/lib/paperTrade";
+import SceneAdmissionPanel from "@/components/experience/SceneAdmissionPanel";
+import SceneAdmits, { SceneAdmitsAmbient } from "@/components/experience/SceneAdmits";
+import { compileScene, type SurfaceElement } from "@/lib/experience/compileScene";
+import {
+  isExposureIncreasingOrder,
+  netQtyFor,
+  paperSceneSignals,
+} from "@/lib/experience/paperSceneSignals";
+import { selectCanonicalSessionToken } from "@/lib/marketData/canonicalIdentity";
+import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import styles from "./paper.module.css";
@@ -961,6 +971,33 @@ function SignalBot({
   );
 }
 
+/**
+ * The surface elements /paper actually routes through `<SceneAdmits>`.
+ *
+ * BUILD ORDER §10 admission, declared as a claim the enforcement sentinel
+ * checks: every element named here must have a real gate on this page, and the
+ * SceneAdmissionPanel reports refusals only from this list. Everything else the
+ * compiler has an opinion about is shown as NOT GOVERNED, because it is.
+ *
+ * Both entries exist because /paper is the first route in WM Pro with an
+ * OBSERVED capital column, which means it is the first route where these two
+ * scenes can occur at all:
+ *
+ *   PENDING_BANNER  — §B14 POTENTIAL EXPOSURE. Withheld in every scene except
+ *                     PENDING, so it cannot become permanent furniture.
+ *   FLATTEN_CONFIRM — §9 PHONE law: the way out survives every scene where
+ *                     capital is exposed, including DEGRADED. Withheld when
+ *                     there is nothing to exit, so it is never a dead button.
+ *
+ * The positions table, the blotter and the order ticket are deliberately NOT
+ * governed. Admission may remove a card WM chose to show; it may never remove
+ * the trader's own book from the screen.
+ */
+const PAPER_GOVERNED_ELEMENTS: readonly SurfaceElement[] = [
+  "PENDING_BANNER",
+  "FLATTEN_CONFIRM",
+];
+
 /* ── Main page ───────────────────────────────────────────── */
 export default function PaperTradingPage() {
   const { activeSymbol } = useActiveSymbol();
@@ -1371,6 +1408,78 @@ export default function PaperTradingPage() {
   const pendingOrders = orders.filter(o=>o.status==="pending");
   const filledOrders  = orders.filter(o=>o.status==="filled");
 
+  /* ── BUILD ORDER §10 — the scene ──────────────────────────────────────────
+   *
+   * Until this block, `compileScene` had exactly one adapter in the product and
+   * that adapter hard-codes the capital column UNOBSERVED, because /command-deck
+   * has no book. The consequence was not "the deck is cautious" — it was that
+   * MANAGE, PENDING and DEGRADED were UNREACHABLE branches. The compiler's most
+   * consequential scenes, the ones that exist because money is exposed, had
+   * never once rendered for a human.
+   *
+   * /paper is where that ends. The ledger is a genuinely OBSERVED book: real
+   * positions, real working orders, and a real persistence disposition that a
+   * second tab can invalidate. Within the PAPER environment (§B5) it IS the
+   * broker's book, so reporting what it says is not fabrication.
+   *
+   * The session comes from `selectCanonicalSessionToken` — the same owner the
+   * deck reads — and `sessionClockDate` is the mount-safe day clock, so the
+   * first paint makes no day claim and the scene does not recompile on the
+   * price cadence just to re-answer "is the market open".
+   *
+   * `rightOfWay` is null ON PURPOSE. /paper has no decision engine wired, and
+   * the panel discloses DECISION · UNOBSERVED rather than letting the scene
+   * borrow a permission verdict this route never computed.
+   */
+  // Two-step, because FLATTEN is a capital act. §5: WM never shows a state it
+  // wished for, and a single-click flatten next to a scrolling book is one
+  // mis-tap away from closing a position the trader meant to keep.
+  const [flattenArmed, setFlattenArmed] = useState(false);
+  const sessionClockDate = useSessionClockDate();
+  const sessionToken = useMemo(
+    () => selectCanonicalSessionToken({ symbol: activeSymbol, at: sessionClockDate }).token,
+    [activeSymbol, sessionClockDate],
+  );
+  const sceneInput = useMemo(
+    () => paperSceneSignals({
+      session: sessionToken,
+      rightOfWay: null,
+      symbol: activeSymbol,
+      // `positions`, deliberately NOT `updatedPositions`. The scene reads
+      // symbol and signed qty; the marked copy adds a mark that changes on
+      // every price tick. Feeding the marked array would recompile the scene
+      // several times a second to re-derive an answer that did not change.
+      ledger: {
+        hydrated,
+        persistence: persistenceState,
+        positions,
+        orders,
+      },
+      now: Date.now(),
+    }),
+    [sessionToken, activeSymbol, hydrated, persistenceState, positions, orders],
+  );
+  const sceneCompilation = useMemo(() => compileScene(sceneInput.signals), [sceneInput]);
+
+  // The focused symbol's net, recomputed through the SAME owner the adapter
+  // used. §24: one implementation of "what do I hold in this symbol", two
+  // callers — the scene above and the exit controls below.
+  const focusedNet = hydrated ? netQtyFor(positions, activeSymbol) : 0;
+  const exposureIncreasingIds = hydrated
+    ? orders.filter(o => isExposureIncreasingOrder(o, activeSymbol, focusedNet)).map(o => o.id)
+    : [];
+
+  /**
+   * §B14: CANCEL EXPOSURE-INCREASING ORDERS is a different act from FLATTEN
+   * POSITION, and conflating them is how a trader who asked to stop opening
+   * risk ends up closing a position they meant to keep. This cancels only the
+   * orders the banner is counting — same predicate, so the number and the
+   * button can never disagree.
+   */
+  const cancelExposureIncreasingOrders = () => {
+    for (const id of exposureIncreasingIds) cancelOrder(id);
+  };
+
   return (
     <div style={{ display:"flex",flexDirection:"column",width:"100%",height:"100%",overflow:"hidden" }}
          className={clsx(styles.page, "bg-wm-black")}>
@@ -1430,25 +1539,144 @@ export default function PaperTradingPage() {
         </div>
       </div>
 
-      <section
-        id="academy-challenge"
-        aria-labelledby="academy-challenge-title"
-        className="flex shrink-0 flex-col items-stretch gap-2 border-b border-amber-700/30 bg-amber-950/20 px-4 py-2 sm:flex-row sm:items-center sm:gap-3"
-      >
-        <Trophy size={15} className="shrink-0 text-amber-300" aria-hidden="true" />
-        <div className="min-w-0 flex-1">
-          <h2 id="academy-challenge-title" className="text-[11px] font-bold text-amber-100">Academy Challenge rehearsal</h2>
-          <p className="text-[9px] leading-relaxed text-wm-text-dim">
-            PAPER SIMULATION · BROWSER-LOCAL. Your existing $100,000 simulated account is preserved; this does not create a $100 funded account, deposit, contest entry, or live order.
-          </p>
-        </div>
-        <Link
-          href="/proof-lane#academy-challenge"
-          className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg border border-amber-600/40 px-3 text-[10px] font-semibold text-amber-200 transition-colors hover:border-amber-400/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold sm:w-auto"
+      {/* ── SCENE BAND — BUILD ORDER §10 made physical ─────────────────────
+        *
+        * SHOW FIRST, EXPLAIN SECOND, RAW THIRD: the scene sentence is always
+        * visible, the admission ledger is one disclosure away, and neither is
+        * a badge — the panel leads with what the scene REFUSED.
+        */}
+      <div className="shrink-0 space-y-2 border-b border-wm-border/60 bg-wm-black px-4 py-2.5">
+
+        {/* §B14 POTENTIAL EXPOSURE. Admitted in PENDING only — a flat book with
+          * nothing working never sees this, so it can never become furniture. */}
+        <SceneAdmits compilation={sceneCompilation} element="PENDING_BANNER">
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex flex-col gap-2 rounded-lg border border-amber-500/40 bg-amber-950/25 px-3 py-2 sm:flex-row sm:items-center sm:gap-3"
+          >
+            <Clock size={14} className="shrink-0 text-amber-300" aria-hidden="true" />
+            <p className="min-w-0 flex-1 font-mono text-[10px] font-bold leading-relaxed text-amber-100">
+              {sceneCompilation.reason}
+            </p>
+            {exposureIncreasingIds.length > 0 && (
+              <button
+                type="button"
+                onClick={cancelExposureIncreasingOrders}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border border-amber-500/50 px-3 text-[10px] font-bold text-amber-100 transition-colors hover:border-amber-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+              >
+                Cancel {exposureIncreasingIds.length} exposure-increasing order
+                {exposureIncreasingIds.length === 1 ? "" : "s"}
+              </button>
+            )}
+          </div>
+        </SceneAdmits>
+
+        {/* §9 PHONE law — the way out survives every scene where capital is
+          * exposed, DEGRADED included. Withheld when there is nothing to exit,
+          * so it is never a button that does nothing (§H19). */}
+        <SceneAdmits compilation={sceneCompilation} element="FLATTEN_CONFIRM">
+          <div className="flex flex-col gap-2 rounded-lg border border-wm-red/35 bg-wm-red/5 px-3 py-2 sm:flex-row sm:items-center sm:gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-[9px] font-bold uppercase tracking-wider text-wm-text-dim">
+                Exit ramp · {activeSymbol}
+              </div>
+              <p className="text-[10px] leading-relaxed text-wm-text-muted">
+                {focusedNet !== 0
+                  ? `${focusedNet > 0 ? "LONG" : "SHORT"} ${Math.abs(focusedNet)} open. Flatten sends a simulated market order to close the whole position.`
+                  : "No open position in this symbol — flatten has nothing to close. Cancelling the working orders above is the act that stops exposure here (§B14)."}
+              </p>
+            </div>
+            {focusedNet !== 0 && (
+              flattenArmed ? (
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { closePosition(activeSymbol); setFlattenArmed(false); }}
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg border border-wm-red bg-wm-red/15 px-3 text-[10px] font-black text-wm-red transition-colors hover:bg-wm-red/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+                  >
+                    Confirm flatten {activeSymbol}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFlattenArmed(false)}
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg border border-wm-border px-3 text-[10px] font-bold text-wm-text-muted transition-colors hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+                  >
+                    Keep it
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setFlattenArmed(true)}
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border border-wm-red/50 px-3 text-[10px] font-bold text-wm-red transition-colors hover:border-wm-red focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+                >
+                  Flatten {activeSymbol}
+                </button>
+              )
+            )}
+          </div>
+        </SceneAdmits>
+
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center gap-2.5 py-1">
+            <span
+              className={clsx(
+                "rounded border px-1.5 py-0.5 font-mono text-[9px] font-black tracking-wider",
+                sceneCompilation.degraded
+                  ? "border-wm-red/50 text-wm-red"
+                  : "border-wm-gold/45 text-wm-gold",
+              )}
+            >
+              SCENE · {sceneCompilation.scene}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[10px] leading-relaxed text-wm-text-muted">
+              {sceneCompilation.reason}
+            </span>
+            <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-wm-text-dim">
+              Signals {sceneInput.observedCount}/{sceneInput.totalCount} ·{" "}
+              <span className="group-open:hidden">show admission</span>
+              <span className="hidden group-open:inline">hide admission</span>
+            </span>
+          </summary>
+          <div className="pt-2">
+            <SceneAdmissionPanel
+              compilation={sceneCompilation}
+              provenance={sceneInput.provenance}
+              observedCount={sceneInput.observedCount}
+              totalCount={sceneInput.totalCount}
+              governed={PAPER_GOVERNED_ELEMENTS}
+            />
+          </div>
+        </details>
+      </div>
+
+      {/* §9 INTERRUPTION LAW: "Only capital truth and material invalidation may
+        * take the room. Academy may not." This banner used to render
+        * unconditionally — including while a paper position was open and while
+        * the browser save had FAILED. It is now the first Academy surface in WM
+        * Pro that a named law physically removes. */}
+      <SceneAdmitsAmbient compilation={sceneCompilation}>
+        <section
+          id="academy-challenge"
+          aria-labelledby="academy-challenge-title"
+          className="flex shrink-0 flex-col items-stretch gap-2 border-b border-amber-700/30 bg-amber-950/20 px-4 py-2 sm:flex-row sm:items-center sm:gap-3"
         >
-          Review Proof Lane
-        </Link>
-      </section>
+          <Trophy size={15} className="shrink-0 text-amber-300" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <h2 id="academy-challenge-title" className="text-[11px] font-bold text-amber-100">Academy Challenge rehearsal</h2>
+            <p className="text-[9px] leading-relaxed text-wm-text-dim">
+              PAPER SIMULATION · BROWSER-LOCAL. Your existing $100,000 simulated account is preserved; this does not create a $100 funded account, deposit, contest entry, or live order.
+            </p>
+          </div>
+          <Link
+            href="/proof-lane#academy-challenge"
+            className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg border border-amber-600/40 px-3 text-[10px] font-semibold text-amber-200 transition-colors hover:border-amber-400/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold sm:w-auto"
+          >
+            Review Proof Lane
+          </Link>
+        </section>
+      </SceneAdmitsAmbient>
 
       {/* Body */}
       <div className={styles.body} style={{ flex:1,display:"flex",overflow:"hidden",minHeight:0 }}>
