@@ -12,7 +12,8 @@ import { motion } from "framer-motion";
 import { clsx } from "clsx";
 import { formatOptionCount, formatOptionNumber, formatOptionPercent,
          summariseOpenInterest } from "@/lib/optionCellFormat";
-import { parseOptionContractResponse, type OptionContract as FMPContract } from "@/lib/optionContractResponse";
+import { type OptionContract as FMPContract } from "@/lib/optionContractResponse";
+import { readOptionsResponse, optionsReadFailure, type OptionsReadFailure } from "@/lib/optionsChainRead";
 
 /**
  * Every quoted field is optional: an unquoted strike has NO number, and must
@@ -99,7 +100,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
   const [tab,        setTab]        = useState<"chain"|"calls"|"puts">("chain");
   const [showGreeks, setShowGreeks] = useState(false);
   const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState<string | null>(null);
+  const [error,      setError]      = useState<OptionsReadFailure | null>(null);
   const [dataSource, setDataSource] = useState<"fmp"|"unavailable">("unavailable");
   const [allContracts, setAllContracts] = useState<FMPContract[]>([]);
   const [receivedSymbol, setReceivedSymbol] = useState<string | null>(null);
@@ -125,7 +126,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
     };
     const deadline = setTimeout(() => {
       if (!active) return;
-      setError("Options check timed out. Contract availability is unverified.");
+      setError(optionsReadFailure("TIMEOUT"));
       setLoading(false);
       cancel();
     }, 12_000);
@@ -141,12 +142,13 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
     try {
       const res = await fetch(`/api/fmp?path=/v3/options/${encodeURIComponent(symbol)}`, { signal: controller.signal });
       if (!active) return;
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const result = await readOptionsResponse(res);
       if (!active) return;
-      // FMP returns { chain: [...] } or just [...]
-      const contracts = parseOptionContractResponse(data);
-      if (contracts.length === 0) throw new Error("No options data");
+      if (!result.ok) {
+        setError(result.failure);
+        return;
+      }
+      const contracts = result.contracts;
       setAllContracts(contracts);
       // Extract unique expiration dates
       const expDates = [...new Set(contracts.map((c: FMPContract) => c.expirationDate))].sort();
@@ -158,13 +160,19 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
       // Build chain for first expiry
       const p = priceRef.current;
       const rows = buildChain(contracts, p, firstExp);
-      if (!rows.length) throw new Error("No contracts for the selected expiration");
+      if (!rows.length) {
+        setError(optionsReadFailure("NO EVENTS"));
+        setAllContracts([]);
+        setExpirations([]);
+        setExpiry("");
+        return;
+      }
       setChain(rows);
       setDataSource("fmp");
       setReceivedSymbol(symbol);
-    } catch (e) {
+    } catch {
       if (!active) return;
-      setError(String(e));
+      setError(optionsReadFailure("NETWORK ERROR"));
       setDataSource("unavailable");
       setExpirations([]);
       setExpiry("");
@@ -254,9 +262,9 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
 
       {/* Error banner */}
       {error && dataSource === "unavailable" && (
-        <div className="flex min-w-0 items-start gap-2 border-b border-wm-red/20 bg-wm-red/10 px-3 py-2 text-[10px] leading-relaxed text-wm-red shrink-0 sm:px-4">
+        <div role="status" className="flex min-w-0 items-start gap-2 border-b border-wm-red/20 bg-wm-red/10 px-3 py-2 text-[10px] leading-relaxed text-wm-red shrink-0 sm:px-4">
           <AlertTriangle size={10} className="mt-0.5 shrink-0" />
-          <span className="min-w-0 break-words">Real options data is unavailable for {symbol}. No contracts were generated. Error: {error}</span>
+          <span className="min-w-0 break-words"><strong>{error.edge}</strong> · {error.message}</span>
         </div>
       )}
 
@@ -295,7 +303,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
           <div className="flex flex-col items-center justify-center h-full px-8 text-center">
             <AlertTriangle size={22} className="text-wm-red mb-3" />
             <div className="text-sm font-bold text-wm-text">Real options chain unavailable</div>
-            <div className="text-[11px] text-wm-text-dim mt-1">Connect a supported options-data provider and refresh. WealthyMindsets will not fabricate contracts.</div>
+            <div className="text-[11px] text-wm-text-dim mt-1">{error?.recovery ?? "Refresh to check options availability."} WealthyMindsets will not fabricate contracts.</div>
           </div>
         ) : (
         <table className="w-full min-w-max text-[10px] border-collapse">

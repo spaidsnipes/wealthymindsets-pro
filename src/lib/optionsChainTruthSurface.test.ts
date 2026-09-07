@@ -6,6 +6,7 @@ const optionsChain = fs.readFileSync(
   path.join(process.cwd(), "src/components/chart/OptionsChain.tsx"),
   "utf8",
 );
+const optionsRead = fs.readFileSync(path.join(process.cwd(), "src/lib/optionsChainRead.ts"), "utf8");
 
 describe("Options Chain truth and responsive surface", () => {
   it("never promotes a successful provider response to live fidelity", () => {
@@ -33,8 +34,9 @@ describe("Options Chain truth and responsive surface", () => {
   it("fences superseded contract reads and bounds stalled bodies", () => {
     expect(optionsChain).toContain('contractRead.current?.cancel();');
     expect(optionsChain).toContain('signal: controller.signal');
-    expect(optionsChain).toMatch(/await res\.json\(\);\s*if \(!active\) return;/);
-    expect(optionsChain).toContain('Options check timed out. Contract availability is unverified.');
+    expect(optionsChain).toMatch(/await readOptionsResponse\(res\);\s*if \(!active\) return;/);
+    expect(optionsRead).toContain('Options check timed out. Contract availability is unverified.');
+    expect(optionsChain).toContain('setError(optionsReadFailure("TIMEOUT"))');
     expect(optionsChain).toContain('}, 12_000);');
     expect(optionsChain).toContain('return () => contractRead.current?.cancel();');
     expect(optionsChain).toContain('setAllContracts([])');
@@ -64,9 +66,12 @@ describe("Options Chain truth and responsive surface", () => {
 
   it("preserves the canonical fetch and fail-closed chain construction", () => {
     expect(optionsChain).toContain("/api/fmp?path=/v3/options/");
-    expect(optionsChain).toContain("parseOptionContractResponse(data)");
-    expect(optionsChain).toContain('throw new Error("No options data")');
-    expect(optionsChain).toContain('throw new Error("No contracts for the selected expiration")');
+    expect(optionsRead).toContain("parseOptionContractResponse(data)");
+    expect(optionsRead).toContain('failure: optionsReadFailure("NO EVENTS")');
+    expect(optionsChain).toContain('setError(optionsReadFailure("NO EVENTS"))');
+    expect(optionsChain).toMatch(/if \(!result.ok\) \{\s*setError\(result.failure\);\s*return;/);
+    expect(optionsChain).not.toContain("setError(String(e))");
+    expect(optionsChain).toContain("{error?.recovery");
     expect(optionsChain).toContain("buildChain(allContracts, priceKey, isoDate)");
     expect(optionsChain).toContain("WealthyMindsets will not fabricate contracts");
   });
