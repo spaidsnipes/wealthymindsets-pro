@@ -87,6 +87,14 @@ import {
   parseLinkedDecisionIds,
   withoutLinkedDecisions,
 } from "@/lib/journalDecisionFilter";
+import {
+  hydrateJournalEntries,
+  type JournalEntry,
+  type Mood,
+  type NectarSnapshot,
+  type TradeResult,
+} from "@/lib/journal/hydrateJournalEntries";
+import type { JournalRecordCoverage } from "@/lib/journal/journalRecordShape";
 
 /* ── Emoji palette ───────────────────────────────────────── */
 const EMOJIS = [
@@ -97,8 +105,12 @@ const EMOJIS = [
 ];
 
 /* ── Types ───────────────────────────────────────────────── */
-type Mood = "confident" | "anxious" | "neutral" | "fomo" | "disciplined";
-type TradeResult = "win" | "loss" | "be";
+/**
+ * Mood, TradeResult, NectarSnapshot and JournalEntry now live in
+ * `@/lib/journal/hydrateJournalEntries`, beside the one reader that turns
+ * stored bytes into them. The shape and the guard that proves a record HAS
+ * that shape belong together; when they lived apart, this page cast.
+ */
 
 interface VoiceMemo {
   blob: Blob;
@@ -106,71 +118,6 @@ interface VoiceMemo {
   sec:  number;
 }
 
-/**
- * NectarSnapshot — REMEMBER→REFLECT bridge.
- *
- * Captured from the canonical sessionSymbolStore at the moment a
- * journal entry is created, so the trader can review not just what
- * happened but WHAT WM ACTUALLY OBSERVED about that symbol at
- * journal-creation time. Optional: pre-existing entries have no
- * snapshot; new entries capture one when Nectar had any trades for
- * the entry's symbol. Zero fabrication — if nothing was observed,
- * the snapshot is null and the review says so honestly.
- */
-export interface NectarSnapshot {
-  readonly capturedAtMs: number;
-  readonly channels: number;       // count of tape sources for this symbol at capture
-  readonly tradeCount: number;
-  readonly delta: number;
-  readonly buyVol: number;
-  readonly sellVol: number;
-  readonly bigTradeCount: number;
-  readonly horizonSec: number | null;      // first observation
-  readonly lastTradeAtMs: number | null;   // most recent observation (real freshness)
-}
-
-interface JournalEntry {
-  id:        string;
-  date:      string;
-  symbol:    string;
-  side:      "long" | "short";
-  entry:     number;
-  exit:      number;
-  size:      number;
-  pnl:       number;
-  pct:       number;
-  tags:      string[];
-  notes:     string;
-  mood:      Mood;
-  result:    TradeResult;
-  processQuality: ProcessQuality;
-  processOutcome: ProcessOutcome;
-  starred:   boolean;
-  images:    string[];   // base64 data URLs
-  voiceSec:  number;     // 0 = no memo
-  setup:     string;
-  mistakes:  string;
-  lessons:   string;
-  emojis:    string[];
-  nectarSnapshot?: NectarSnapshot | null;
-  // Proof Lane §21 launch fields (2026-08-24). Optional / additive so
-  // pre-existing entries keep loading. §3 day model + §4 planned R
-  // dollars + §24 realized R (computed as pnl / plannedRDollars).
-  dayModel?: DayModel;
-  plannedRDollars?: number;
-  realizedR?: number;
-  // Contract lens (canon §6). Multiplier is required for options: a
-  // $1.00→$1.20 option with 1 contract is +$20 P&L, not +$0.20.
-  // "stock" default keeps legacy entries computing exactly as before.
-  contractType?: "stock" | "option";
-  // Management Studio (canon §7). Trader-observed maximum favorable
-  // excursion (best unrealized R the trade printed while open) and
-  // maximum adverse excursion (worst unrealized R). Used with
-  // realizedR to compute capture efficiency = realizedR / mfeR.
-  // Optional; absent for legacy entries and skipped for M0 no-trade days.
-  mfeR?: number;
-  maeR?: number;
-}
 
 const ALL_TAGS = ["CLC","VWAP reclaim","Wyckoff","dark pool","CVD","absorption","chased","FOMO","breakeven","morning session","supply rejection","EOD","momentum"];
 const SETUPS   = ["CLC Long","CLC Short","VWAP Reclaim","Wyckoff","Dark Pool","CVD Divergence","Absorption","Stop Run","Imbalance","Momentum","Breakout","Reversal"];
@@ -845,16 +792,32 @@ function JournalPageInner() {
   const hydrationRef = useRef<JournalStorageRead | null>(null);
   const persistenceAllowedRef = useRef(false);
   const persistenceArmedRef = useRef(false);
+  // What WM could not read out of the saved book. Held so the page can SAY so —
+  // a book that quietly shrinks teaches the trader he traded less than he did.
+  const coverageRef = useRef<JournalRecordCoverage | null>(null);
   const [entries, setEntriesState] = useState<JournalEntry[]>(() => {
     if (typeof window === "undefined") return [];
     const read = readJournalStorage(localStorage);
     hydrationRef.current = read;
     persistenceAllowedRef.current = read.status === "RESOLVED_CANONICAL" || read.status === "ABSENT";
-    const saved = read.status === "RESOLVED_CANONICAL" || read.status === "RESOLVED_LEGACY"
-      ? read.records as JournalEntry[]
-      : [];
-    return saved.filter((e: JournalEntry) => !LEGACY_DEMO_TRADES.has(`${e.id}|${e.date}|${e.symbol}`));
+    // No cast. `read.records` is `unknown[]` because that is all
+    // `readJournalStorage` verified. Casting it here put a `null` into
+    // `${e.id}` one line later — inside a useState initializer, so /journal did
+    // not degrade, it never rendered at all.
+    const hydration = hydrateJournalEntries(
+      read.status === "RESOLVED_CANONICAL" || read.status === "RESOLVED_LEGACY"
+        ? read.records
+        : [],
+    );
+    coverageRef.current = hydration.coverage;
+    return hydration.entries.filter(
+      (e) => !LEGACY_DEMO_TRADES.has(`${e.id}|${e.date}|${e.symbol}`),
+    );
   });
+  // Read after mount: the initializer runs during render, and the note is
+  // browser-local truth that must not be part of the server-rendered markup.
+  const [hydrationCoverage, setHydrationCoverage] = useState<JournalRecordCoverage | null>(null);
+  useEffect(() => { setHydrationCoverage(coverageRef.current); }, []);
   const setEntries = useCallback<React.Dispatch<React.SetStateAction<JournalEntry[]>>>((update) => {
     persistenceArmedRef.current = true;
     setEntriesState(update);
@@ -1037,12 +1000,13 @@ function JournalPageInner() {
   const noTradeHeldOut = entries.length - tradeRecords.length;
   const wins     = tradeRecords.filter(e => e.result === "win").length;
   const losses   = tradeRecords.filter(e => e.result === "loss").length;
-  // `entries` arrives from an UNCHECKED cast (`read.records as JournalEntry[]`
-  // — readJournalStorage validates array-ness and nothing else), so `e.pnl` is
-  // only a number by convention. Summing it raw produced a silent breakeven
-  // for null, "-$NaN" in red for undefined, and string concatenation for a
-  // stored "250.00". One owner now sums only what it can read and says how
-  // much of the book that covers.
+  // `e.pnl` was once a number only by convention — `entries` arrived from an
+  // UNCHECKED cast, and summing it raw produced a silent breakeven for null,
+  // "-$NaN" in red for undefined, and string concatenation for a stored
+  // "250.00". The cast is gone (hydrateJournalEntries reads every field), and
+  // this owner still sums only what it can read and says how much of the book
+  // that covers — two guards, because a total is the number the trader trusts
+  // most.
   const recordedTotal = selectRecordedTotal(tradeRecords);
   const winRate  = tradeRecords.length ? ((wins / tradeRecords.length) * 100).toFixed(0) : "0";
 
@@ -2002,6 +1966,18 @@ Trade the system, trust the process, winners every day 🚀`,
       {recordedTotal.note !== null && (
         <p role="note" className="px-4 py-1.5 text-[10px] leading-relaxed text-wm-text-dim border-b border-wm-border bg-wm-dark shrink-0">
           {recordedTotal.note}
+        </p>
+      )}
+
+      {/* A DIFFERENT refusal from the one above. `recordedTotal.note` is about
+          rows WM could not price; this is about rows it could not open at all —
+          records that never became entries, so they are absent from the list,
+          the counts, the export and every panel on this page. Without it the
+          book simply looks shorter than it is. Same words, same owner, same
+          quiet §9 treatment: nothing failed, WM refused to guess. */}
+      {hydrationCoverage?.note != null && (
+        <p role="note" className="px-4 py-1.5 text-[10px] leading-relaxed text-wm-text-dim border-b border-wm-border bg-wm-dark shrink-0">
+          {hydrationCoverage.note}
         </p>
       )}
 

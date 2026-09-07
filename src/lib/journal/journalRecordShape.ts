@@ -12,10 +12,14 @@
  *   journalEdgeAdapter        hand-rolled isRecord / finite / result checks
  *   useLearningGenomeBundle   a SECOND hand-rolled copy of the same checks
  *
- * Two of those are now gone. /morning-prep routes through
- * `projectJournalRecordsToEdge`, and `useJournalSnapshots` hands its raw
- * `unknown[]` to `journalEntriesToSnapshots`, which asks this module about
- * every field it reads. /journal's cast is the one that remains.
+ * ALL THREE CASTS ARE NOW GONE. /morning-prep routes through
+ * `projectJournalRecordsToEdge`, `useJournalSnapshots` hands its raw
+ * `unknown[]` to `journalEntriesToSnapshots`, and /journal reads its own book
+ * through `hydrateJournalEntries`. Each of the three asks THIS module what a
+ * record is; none of them tells the compiler.
+ *
+ * `hydrateJournalEntries.sentinel.test.ts` asserts that, so a fourth cast fails
+ * CI rather than being noticed in a header comment six months later.
  *
  * The last two are near-identical: same object guard, same finite-number
  * guard, same win/loss/be check, same processQuality and dayModel narrowing,
