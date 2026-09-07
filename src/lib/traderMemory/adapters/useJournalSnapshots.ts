@@ -1,9 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import {
-  journalEntriesToSnapshots,
-  type AdaptableJournalEntry,
-} from "./journalEntryToSnapshot";
+import { journalEntriesToSnapshots } from "./journalEntryToSnapshot";
 import type { DecisionMemorySnapshot } from "../viewModels/selectProcessLandscape";
 import {
   JOURNAL_STORAGE_KEY,
@@ -61,8 +58,11 @@ export function readJournalSnapshots(
     // trust an older cache). ABSENT with no legacy also empty.
     return EMPTY;
   }
-  const entries = read.records as readonly AdaptableJournalEntry[];
-  return journalEntriesToSnapshots(entries, ownerId);
+  // No cast. `read.records` is `unknown[]` because that is all
+  // `readJournalStorage` verified, and the adapter asks the record-shape owner
+  // about every field it reads. Asserting an entry type here is what fed a
+  // `null` into `entry.symbol` and threw on four mounted surfaces.
+  return journalEntriesToSnapshots(read.records, ownerId);
 }
 
 export function useJournalSnapshots(

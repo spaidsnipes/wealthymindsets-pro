@@ -12,6 +12,11 @@
  *   journalEdgeAdapter        hand-rolled isRecord / finite / result checks
  *   useLearningGenomeBundle   a SECOND hand-rolled copy of the same checks
  *
+ * Two of those are now gone. /morning-prep routes through
+ * `projectJournalRecordsToEdge`, and `useJournalSnapshots` hands its raw
+ * `unknown[]` to `journalEntriesToSnapshots`, which asks this module about
+ * every field it reads. /journal's cast is the one that remains.
+ *
  * The last two are near-identical: same object guard, same finite-number
  * guard, same win/loss/be check, same processQuality and dayModel narrowing,
  * written twice. Two copies of a rule is how the first one stops being true.
@@ -28,6 +33,7 @@
  */
 
 export type StoredTradeResult = "win" | "loss" | "be";
+export type StoredSide = "long" | "short";
 export type StoredDayModel = "M0" | "M1" | "M2";
 export type StoredProcessQuality = "FOLLOWED_PLAN" | "BROKE_RULES" | "UNRESOLVED";
 
@@ -48,9 +54,28 @@ export function readStoredNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+/** A non-empty string, or undefined. Whitespace is not content. */
+export function readStoredText(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() !== "" ? value : undefined;
+}
+
 /** A non-empty date string, or undefined. A blank date is not a date. */
 export function readStoredDate(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() !== "" ? value : undefined;
+  return readStoredText(value);
+}
+
+/**
+ * WHICH WAY THE TRADER WENT — or undefined, which is a real answer.
+ *
+ * The defect this exists to stop: `entry.side === "long" ? "LONG" : "SHORT"`.
+ * That expression has no branch for "the record does not say". A journal row
+ * saved without a side came out of the snapshot adapter as a SHORT — a
+ * direction the trader never took, on the surfaces that then tell him what his
+ * process looks like. §14.1: absence must not resolve toward a definite answer,
+ * and a coin-flip default is the most definite answer of all.
+ */
+export function readStoredSide(value: unknown): StoredSide | undefined {
+  return value === "long" || value === "short" ? value : undefined;
 }
 
 /** Only the three outcomes WM actually writes. Anything else is unknown. */
