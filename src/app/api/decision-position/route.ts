@@ -62,17 +62,17 @@ async function probeAuthority(): Promise<
 
   // A read for a decision id that cannot exist. Success means the RPC is
   // present and callable; zero rows is the expected, healthy answer.
-  const { error } = await admin.rpc("wm_read_decision_position", {
+  const { error } = await Promise.resolve(admin.rpc("wm_read_decision_position", {
     p_owner_id: "00000000-0000-0000-0000-000000000000",
     p_decision_id: "__wm_authority_probe__",
-  });
+  })).catch(() => ({ error: { code: "TRANSPORT_UNVERIFIED" } }));
 
   if (error) {
     return {
       reachable: false,
       because:
-        "The shared position table has not been created on this database yet, so "
-        + "WM has nowhere to put a position that every device can see.",
+        "The shared position store did not answer this check. Its availability "
+        + "is unverified; this response does not establish that the table is missing.",
     };
   }
 
@@ -177,8 +177,10 @@ export async function POST(request: Request) {
   const claimedRecon = write.role === "RECONCILIATION";
   const role = claimedRecon && isReconciliationWorker(request) ? "RECONCILIATION" : "CLIENT_INTENT";
 
+  const version = await currentVersion(auth.user.sub, write.decisionId);
+  if (version === null) return unavailableWrite();
   const decision = decideWrite(
-    await currentVersion(auth.user.sub, write.decisionId),
+    version,
     { ...(write as object), role } as AuthorityWrite,
   );
 
@@ -208,7 +210,7 @@ export async function POST(request: Request) {
   // the same check at the same moment. A null return means the other one won.
   const applied =
     role === "RECONCILIATION"
-      ? await admin.rpc("wm_apply_decision_reconciliation", {
+      ? await Promise.resolve(admin.rpc("wm_apply_decision_reconciliation", {
           p_owner_id: auth.user.sub,
           p_decision_id: write.decisionId,
           p_base_version: write.baseReconVersion,
@@ -216,16 +218,18 @@ export async function POST(request: Request) {
           p_quantity_protected: write.quantityProtected ?? null,
           p_execution_state: write.executionState ?? null,
           p_protection_state: write.protectionState ?? null,
-        })
-      : await admin.rpc("wm_record_decision_intent", {
+        })).catch(unverifiedTransport)
+      : await Promise.resolve(admin.rpc("wm_record_decision_intent", {
           p_owner_id: auth.user.sub,
           p_decision_id: write.decisionId,
           p_base_version: write.baseReconVersion,
           p_intent: typeof write.intent === "string" ? write.intent : null,
           p_device_id: typeof write.deviceId === "string" ? write.deviceId : null,
-        });
+        })).catch(unverifiedTransport);
 
-  if (applied.error || applied.data === null) {
+  if (applied.error) return unavailableWrite();
+
+  if (applied.data === null) {
     return NextResponse.json(
       {
         verdict: "REJECT_STALE",
@@ -240,10 +244,25 @@ export async function POST(request: Request) {
     );
   }
 
+  const appliedVersion = readVersion(applied.data);
+  if (appliedVersion === null) return unavailableWrite();
   return NextResponse.json(
-    { ...decision, nextReconVersion: Number(applied.data) },
+    { ...decision, nextReconVersion: appliedVersion },
     { status: 200 },
   );
+}
+
+function unavailableWrite() {
+  return NextResponse.json({
+    verdict: "UNVERIFIED",
+    nextReconVersion: null,
+    lawVersion: RECON_LAW_VERSION,
+    note: "WM could not verify the shared position write. Re-read the position before retrying; this response does not prove a conflicting device or a saved change.",
+  }, { status: 503 });
+}
+
+function unverifiedTransport() {
+  return { data: null, error: { code: "TRANSPORT_UNVERIFIED" } };
 }
 
 /**
@@ -251,17 +270,25 @@ export async function POST(request: Request) {
  * at version 0, so a first intent write names 0 and lands at 1 — the same
  * arithmetic as every later write, with no special case for "new".
  */
-async function currentVersion(ownerId: string, decisionId: string): Promise<number> {
+async function currentVersion(ownerId: string, decisionId: string): Promise<number | null> {
   const admin = getSupabaseAdmin();
-  if (!admin) return 0;
+  if (!admin) return null;
 
-  const { data, error } = await admin.rpc("wm_read_decision_position", {
+  const { data, error } = await Promise.resolve(admin.rpc("wm_read_decision_position", {
     p_owner_id: ownerId,
     p_decision_id: decisionId,
-  });
+  })).catch(() => ({ data: null, error: { code: "TRANSPORT_UNVERIFIED" } }));
 
-  if (error || !Array.isArray(data) || data.length === 0) return 0;
+  if (error || !Array.isArray(data)) return null;
+  if (data.length === 0) return 0;
 
-  const row = data[0] as { recon_version?: unknown };
-  return typeof row.recon_version === "number" ? row.recon_version : Number(row.recon_version ?? 0);
+  const row: unknown = data[0];
+  if (!row || typeof row !== "object") return null;
+  return readVersion((row as { recon_version?: unknown }).recon_version);
+}
+
+function readVersion(value: unknown): number | null {
+  if (typeof value !== "number" && (typeof value !== "string" || !/^\d+$/.test(value))) return null;
+  const version = Number(value);
+  return Number.isSafeInteger(version) && version >= 0 ? version : null;
 }
