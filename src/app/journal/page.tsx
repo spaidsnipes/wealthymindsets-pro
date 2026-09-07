@@ -21,7 +21,7 @@ import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
-import { computeJournalPnl, computeJournalRealizedR } from "@/lib/journal/computePnl";
+import { computeJournalPnl, computeJournalRealizedR, selectJournalPricing } from "@/lib/journal/computePnl";
 import { journalToCsv } from "@/lib/journal/journalToCsv";
 import { journalToJson } from "@/lib/journal/journalToJson";
 import {
@@ -1153,7 +1153,24 @@ function JournalPageInner() {
   );
   const setupGradeSummary = summarizeSetupGrades(weekSetupGrades);
 
+  /**
+   * Can what is currently in the form be priced?
+   *
+   * The modal's live Realized-R tile has always said "Awaiting entry/exit/size"
+   * for the unpriceable state — it was only the SAVE that fabricated a
+   * breakeven at 0.00R. One owner now answers for both, so the tile and the
+   * button can never again disagree about the same form.
+   */
+  const formPricing = selectJournalPricing({
+    entry: form.entry, exit: form.exit, size: form.size,
+    isNoTradeDay: form.dayModel === "M0",
+  });
+
   const saveEntry = () => {
+    // §24 F: the refusal is enforced in the handler, not only by a disabled
+    // button. A disabled control is a courtesy; it is not a guard, and this
+    // page has keyboard and programmatic paths to the same function.
+    if (formPricing.status === "UNPRICEABLE") return;
     const e = { ...(form as JournalEntry) };
     e.id       = uid();
     // Canon §6 Contract Lens: options carry a 100x standard multiplier.
@@ -3087,9 +3104,32 @@ Trade the system, trust the process, winners every day 🚀`,
                 <VoiceMemoRow recorder={voiceRec} />
               </div>
 
+              {/* The reason is rendered as TEXT above the control, never as a
+                  title tooltip. A tooltip is not a label, and on the phone —
+                  the founder-path primary device — it does not exist at all.
+                  The trader must be able to read WHY the save is held and
+                  which value fixes it, without hovering anything. */}
+              {formPricing.status === "UNPRICEABLE" && (
+                <p role="alert" className="mb-2 text-[11px] leading-relaxed text-wm-text-muted">
+                  {formPricing.note}
+                </p>
+              )}
               <button onClick={saveEntry}
-                className="w-full py-2.5 rounded-xl text-sm font-bold text-wm-black transition-all hover:opacity-90 active:scale-[0.99]"
-                style={{ background:"linear-gradient(135deg,#00D4AA,#4FA3E0)" }}>
+                disabled={formPricing.status === "UNPRICEABLE"}
+                aria-label={formPricing.status === "UNPRICEABLE"
+                  ? "Save unavailable — this trade cannot be priced yet"
+                  : "Save trade entry"}
+                className={clsx(
+                  "w-full py-2.5 rounded-xl text-sm font-bold transition-all",
+                  formPricing.status === "UNPRICEABLE"
+                    // §9: a held control is quiet, not alarmed. Nothing here is
+                    // broken — the form is simply not finished.
+                    ? "cursor-not-allowed border border-wm-border bg-wm-surface text-wm-text-dim"
+                    : "text-wm-black hover:opacity-90 active:scale-[0.99]",
+                )}
+                style={formPricing.status === "UNPRICEABLE"
+                  ? undefined
+                  : { background:"linear-gradient(135deg,#00D4AA,#4FA3E0)" }}>
                 Save Trade Entry
               </button>
             </motion.div>

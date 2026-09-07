@@ -3,6 +3,7 @@ import {
   computeJournalPnl,
   computeJournalRealizedR,
   contractMultiplierFor,
+  selectJournalPricing,
   OPTION_MULTIPLIER,
 } from "./computePnl";
 
@@ -116,5 +117,114 @@ describe("computeJournalRealizedR — canon §4 + §24 R math", () => {
     expect(computeJournalRealizedR({ entry: 1.0, exit: 0.8, size: 1, side: "long", contractType: "option", plannedRDollars: 20 })).toBeCloseTo(-1, 6);
     // option short up = -$20 → -1R
     expect(computeJournalRealizedR({ entry: 1.0, exit: 1.2, size: 1, side: "short", contractType: "option", plannedRDollars: 20 })).toBeCloseTo(-1, 6);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CAN THIS TRADE BE PRICED AT ALL?
+//
+// The lie these stop: `computeJournalPnl` returns 0 for a trade it cannot
+// price, `classifyFinancialOutcome(0)` returns "be", and the journal recorded
+// a trade that never had a price as a BREAKEVEN AT 0.00R — which then counted
+// in win rate, setup grades, and the -2R daily shutdown circuit breaker.
+//
+// The modal's live Realized-R tile already renders "Awaiting entry/exit/size"
+// for this exact state. The screen was honest and the save was not.
+// ---------------------------------------------------------------------------
+
+describe("selectJournalPricing — absence is not breakeven", () => {
+  const priced = { entry: 100, exit: 110, size: 10 };
+
+  it("a fully priced trade is PRICEABLE and says nothing", () => {
+    const v = selectJournalPricing(priced);
+    expect(v.status).toBe("PRICEABLE");
+    expect(v.note).toBeNull();
+    expect(v.missing).toEqual([]);
+  });
+
+  it("THE DEFECT: the state the modal calls 'Awaiting entry/exit/size' is refused", () => {
+    // Exactly what the live tile guards against, now guarded at the write.
+    expect(selectJournalPricing({}).status).toBe("UNPRICEABLE");
+    expect(selectJournalPricing({ entry: 100, size: 10 }).status).toBe("UNPRICEABLE");
+  });
+
+  it("names WHICH value is missing, so the trader can act on it", () => {
+    const v = selectJournalPricing({ entry: 100, size: 10 });
+    expect(v.missing).toEqual(["exit"]);
+    expect(v.note).toContain("exit price");
+    expect(v.note).not.toContain("entry price");
+  });
+
+  it("lists several missing values as English, not as a template", () => {
+    const v = selectJournalPricing({});
+    expect(v.missing).toEqual(["entry", "exit", "size"]);
+    expect(v.note).toContain("entry price, exit price and size");
+  });
+
+  it("says what WM would otherwise have silently written down", () => {
+    // The refusal has to name the alternative. A trader who is only told
+    // "invalid" assumes a validation nit; they need to know the fallback was a
+    // fabricated breakeven that would pollute their statistics.
+    const note = selectJournalPricing({}).note!;
+    expect(note).toContain("breakeven");
+    expect(note).toContain("0.00R");
+    expect(note).toMatch(/win rate|grades|daily R stop/);
+  });
+
+  it("0 and negative are ABSENCE of a price, not a price", () => {
+    for (const bad of [0, -1, -0.01]) {
+      expect(selectJournalPricing({ ...priced, exit: bad }).status).toBe("UNPRICEABLE");
+    }
+  });
+
+  it("NaN is absence — the realistic shape of an empty numeric input", () => {
+    // parseFloat("") is NaN, and classifyFinancialOutcome maps non-finite
+    // straight to "be" as well, so this is the same lie by a second route.
+    expect(selectJournalPricing({ ...priced, entry: NaN }).status).toBe("UNPRICEABLE");
+    expect(selectJournalPricing({ ...priced, size: Infinity }).status).toBe("UNPRICEABLE");
+  });
+
+  it("M0 NO TRADE is a third state — not rounded to either neighbour", () => {
+    // Canon §3: entry/exit/size are deliberately absent on a no-trade day. If
+    // this rounded DOWN to UNPRICEABLE a legitimate reflective record could
+    // never be saved; if it rounded UP to PRICEABLE a trade that never happened
+    // would be priced.
+    const v = selectJournalPricing({ isNoTradeDay: true });
+    expect(v.status).toBe("NO_TRADE_DAY");
+    expect(v.note).toBeNull();
+    expect(v.status).not.toBe("UNPRICEABLE");
+    expect(v.status).not.toBe("PRICEABLE");
+  });
+
+  it("a no-trade day stays a no-trade day even with stray numbers in the form", () => {
+    // The trader may have typed values and THEN classified the day M0. The day
+    // model wins: canon §3 M0 means no trade happened, whatever the inputs say.
+    expect(selectJournalPricing({ ...priced, isNoTradeDay: true }).status).toBe("NO_TRADE_DAY");
+  });
+
+  it("a note exists if and only if the trade is refused", () => {
+    const cases = [
+      selectJournalPricing(priced),
+      selectJournalPricing({ isNoTradeDay: true }),
+      selectJournalPricing({}),
+      selectJournalPricing({ entry: 1 }),
+    ];
+    for (const v of cases) {
+      expect(v.note === null).toBe(v.status !== "UNPRICEABLE");
+    }
+  });
+
+  it("is never an alarm and never a stub (§8 vocabulary)", () => {
+    const note = selectJournalPricing({}).note!;
+    expect(note).not.toMatch(/\b(ERROR|INVALID|FAILED|FATAL)\b/);
+    expect(note).not.toMatch(/coming soon|needs wiring|try again later/i);
+    expect(note.trim().length).toBeGreaterThan(60);
+  });
+
+  it("is pure — same input, equal verdict, no shared state", () => {
+    const a = selectJournalPricing({ entry: 1 });
+    const b = selectJournalPricing({ entry: 1 });
+    expect(a).toEqual(b);
+    expect(a).not.toBe(b);
   });
 });
