@@ -94,6 +94,14 @@ describe("providerWireView", () => {
 describe("matrixProviderWireView", () => {
   const session = { state: "UNKNOWN" as const, asOf: "2026-08-31T00:00:00.000Z", reason: "calendar owner pending" };
 
+  it("counts only certified realtime capabilities as certified in mixed receipts", () => {
+    const matrix = buildAthosCapabilityMatrix([{ certification: certifySource("alpaca", [
+      { capability: "PRICE", status: "ACTIVE_CERTIFIED", fidelity: "REALTIME" },
+      { capability: "TICKS", status: "ACTIVE_DEGRADED", fidelity: "SNAPSHOT" },
+    ]), providerTier: "CANONICAL" }], session);
+    expect(matrixProviderWireView(matrix, "alpaca").label).toBe("1 certified · 1 observed");
+  });
+
   it("renders observed snapshot truth below live", () => {
     const matrix = buildAthosCapabilityMatrix([{ certification: certifySource("alpaca", [
       { capability: "PRICE", status: "ACTIVE_DEGRADED", fidelity: "SNAPSHOT", stalenessMs: 500, note: "bounded IEX trade" },

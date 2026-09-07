@@ -213,11 +213,14 @@ export function matrixProviderWireView(
   if (!matrix) return { source, tone: "CHECKING", label: "Checking", detail: "Canonical capability receipt in progress." };
   const selected = matrix.capabilities.filter((row) => row.provider === source);
   if (selected.length > 0) {
-    const certifiedRealtime = selected.some((row) => row.status === "ACTIVE_CERTIFIED" && row.fidelity === "REALTIME");
+    const certifiedCount = selected.filter((row) => row.status === "ACTIVE_CERTIFIED" && row.fidelity === "REALTIME").length;
+    const observedCount = selected.length - certifiedCount;
     return {
       source,
-      tone: certifiedRealtime ? "LIVE" : "LIMITED",
-      label: certifiedRealtime ? `${selected.length} certified` : `${selected.length} observed`,
+      tone: certifiedCount > 0 ? "LIVE" : "LIMITED",
+      label: certifiedCount > 0
+        ? `${certifiedCount} certified${observedCount > 0 ? ` · ${observedCount} observed` : ""}`
+        : `${observedCount} observed`,
       detail: selected.map((row) => `${row.capability} ${row.fidelity.toLowerCase()}`).join(" · "),
     };
   }
@@ -275,9 +278,24 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
   React.useEffect(() => {
     const controller = new AbortController();
     let active = true;
+    let refreshing = false;
+    let visibilityRevision = 0;
+    const isHidden = () => document.visibilityState === "hidden";
+    const invalidateReceipts = () => {
+      setMatrix(null);
+      setReadiness(null);
+      setMoomooTicks(null);
+      setLongbridgeTicks(null);
+    };
 
     const recordFailure = (source: string, error: unknown) => {
       if (!active || (error instanceof DOMException && error.name === "AbortError")) return;
+      // A failed refresh invalidates the previous receipt. Retaining it here
+      // would keep an earlier receiving/certified claim on screen indefinitely.
+      if (source === "market") setMatrix(null);
+      if (source === "readiness") setReadiness(null);
+      if (source === "moomoo") setMoomooTicks(null);
+      if (source === "longbridge") setLongbridgeTicks(null);
       setFailures((current) => new Set(current).add(source));
     };
     const clearFailure = (source: string) => {
@@ -302,29 +320,48 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
       if (!response.ok) return classifyProviderReceiptFailure(response.status, source);
       return { label: "UNKNOWN", detail: `The ${source === "moomoo" ? "Moomoo" : "Longbridge"} tick route returned no classified receipt.`, receiving: false, eventCount: 0 };
     };
-    const refresh = () => {
-      if (document.visibilityState === "hidden") return;
-      void readJson<AthosCapabilityMatrix>("/api/athos/market-data/capabilities")
-        .then((body) => { if (active) setMatrix(body); clearFailure("market"); })
-        .catch((error: unknown) => recordFailure("market", error));
-      void readJson<ReadinessPayload>("/api/broker/readiness")
-        .then((body) => { if (active) setReadiness(body); clearFailure("readiness"); })
-        .catch((error: unknown) => recordFailure("readiness", error));
-      void readProviderReceipt("moomoo")
-        .then((body) => { if (active) setMoomooTicks(body); clearFailure("moomoo"); })
-        .catch((error: unknown) => recordFailure("moomoo", error));
-      void readProviderReceipt("longbridge")
-        .then((body) => { if (active) setLongbridgeTicks(body); clearFailure("longbridge"); })
-        .catch((error: unknown) => recordFailure("longbridge", error));
+    const refresh = async () => {
+      if (!active || refreshing || isHidden()) return;
+      refreshing = true;
+      const revision = visibilityRevision;
+      const acceptsReceipt = () => active && revision === visibilityRevision && !isHidden();
+      invalidateReceipts();
+      // Interval and foreground events share one bounded request batch so an
+      // older response cannot overwrite a newer failure or recovery receipt.
+      await Promise.allSettled([
+      readJson<AthosCapabilityMatrix>("/api/athos/market-data/capabilities")
+        .then((body) => { if (acceptsReceipt()) { setMatrix(body); clearFailure("market"); } })
+        .catch((error: unknown) => recordFailure("market", error)),
+      readJson<ReadinessPayload>("/api/broker/readiness")
+        .then((body) => { if (acceptsReceipt()) { setReadiness(body); clearFailure("readiness"); } })
+        .catch((error: unknown) => recordFailure("readiness", error)),
+      readProviderReceipt("moomoo")
+        .then((body) => { if (acceptsReceipt()) { setMoomooTicks(body); clearFailure("moomoo"); } })
+        .catch((error: unknown) => recordFailure("moomoo", error)),
+      readProviderReceipt("longbridge")
+        .then((body) => { if (acceptsReceipt()) { setLongbridgeTicks(body); clearFailure("longbridge"); } })
+        .catch((error: unknown) => recordFailure("longbridge", error)),
+      ]);
+      // A background response must not leave a current-looking receipt ready
+      // for the next foreground render. Recheck on return to the app.
+      if (active && isHidden()) invalidateReceipts();
+      refreshing = false;
+      if (active && revision !== visibilityRevision && !isHidden()) void refresh();
+    };
+
+    const visibilityChanged = () => {
+      visibilityRevision += 1;
+      invalidateReceipts();
+      void refresh();
     };
 
     refresh();
     const interval = window.setInterval(refresh, 60_000);
-    document.addEventListener("visibilitychange", refresh);
+    document.addEventListener("visibilitychange", visibilityChanged);
     return () => {
       active = false;
       window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", refresh);
+      document.removeEventListener("visibilitychange", visibilityChanged);
       controller.abort();
     };
   }, []);
