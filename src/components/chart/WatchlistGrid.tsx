@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
+import { readSymbolList } from "@/lib/marketData/storedSymbolList";
 
 /**
  * WatchlistGrid — Moomoo-style grid of live mini-chart cards.
@@ -27,7 +28,15 @@ function loadActiveSymbols(): string[] {
     const lists = JSON.parse(localStorage.getItem("wm_watchlists") || "{}");
     const active = localStorage.getItem("wm_active_watchlist") || Object.keys(lists)[0];
     const syms = lists[active] || lists[Object.keys(lists)[0]] || [];
-    return Array.isArray(syms) ? syms : [];
+    // The THIRD reader of wm_watchlists, and the same rule as the other two
+    // (§24/H21). `Array.isArray(syms) ? syms : []` checked the container and
+    // never the contents, so a non-string entry became a card whose symbol was
+    // sent to /api/yahoo as a candle request.
+    //
+    // `[]` is the right answer here, unlike in WatchlistPanel: the grid does
+    // not OWN the trader's list, it mirrors it. An empty grid is "the list I
+    // mirror has nothing readable", and the panel is where he fixes that.
+    return readSymbolList(syms) ?? [];
   } catch { return []; }
 }
 
