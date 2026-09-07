@@ -26,6 +26,9 @@ import { clsx } from "clsx";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { WMSBar } from "@/components/wms/WMSBar";
 import { isPublicAuthPath } from "@/lib/authRoutes";
+import { useCapitalObservation } from "@/lib/experience/useActiveScene";
+import { useDecisionContext } from "@/lib/experience/useDecisionContext";
+import { selectNavEmphasis } from "@/lib/experience/selectNavEmphasis";
 
 /* ── All searchable symbols ─────────────────────────────── */
 const ALL_SYMBOLS = [
@@ -939,6 +942,35 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const router   = useRouter();
   const { user, signOut, signOutAllDevices } = useAuth();
 
+  /* ── Capital right-of-way over the primary rail ────────────────────────────
+     Canon: "THE MOMENT CAPITAL IS LIVE, WM SHOULD REDUCE NAVIGATION."
+
+     Two INDEPENDENT inputs, doing two different jobs — see the v2 note in
+     selectNavEmphasis.ts:
+
+       experienceContext.mode  — a PREFERENCE. Drives EMPHASIS only.
+       capital                 — a FACT from compileScene, republished by the
+                                 route that owns a book. Drives ADMISSION.
+
+     `capital` is UNOBSERVED on every route that has no broker panel, which is
+     currently most of them. UNOBSERVED withholds nothing and asserts nothing:
+     it is not a claim that the trader is flat (§14.1 — FLAT is a finding,
+     never a default). Today only /paper publishes, so this rail reduces there
+     and nowhere else. That is a wiring limit, not a behavioural one — the day
+     a live broker panel lands it publishes the same way and the shell already
+     obeys. */
+  const { context: experienceContext } = useDecisionContext();
+  const capital = useCapitalObservation();
+  const navEmphasis = React.useMemo(
+    () => selectNavEmphasis(experienceContext.mode, capital, NAV_CORE),
+    [experienceContext.mode, capital],
+  );
+  const railWithheld = navEmphasis.railWithheld;
+  const railItems = React.useMemo(
+    () => NAV_CORE.filter(item => !railWithheld.includes(item.href)),
+    [railWithheld],
+  );
+
   const unreadCount = INITIAL_NOTIFS.filter(n => !n.read).length;
 
   const openSearch = useCallback(() => {
@@ -1167,7 +1199,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           {/* Five-job decision dock. The full product remains reachable from
               Workspace without forcing every destination into the live rail. */}
           <nav aria-label="Primary" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", scrollbarWidth: "none", paddingTop: 4 }}>
-            {NAV_CORE.map(({ href, icon: Icon, label }) => {
+            {railItems.map(({ href, icon: Icon, label }) => {
               const active = isPrimaryDestinationActive(pathname, href);
               return (
                 <Link href={href} title={label}
@@ -1203,6 +1235,28 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               );
             })}
+
+            {/* §9 "…and a word". A destination that disappears without a
+                sentence is a worse version of the thing the colour clauses
+                exist to prevent: the trader sees a changed screen and has to
+                guess whether the product broke or is protecting them.
+                `role="note"` + aria-live so it is announced, not just seen.
+                No amber, no pulse — this is a calm reduction, not an alarm;
+                §9 is explicit that WAIT and CLOSED do not pulse. */}
+            {navEmphasis.reductionNote !== null && (
+              <div
+                role="note"
+                aria-live="polite"
+                style={{
+                  margin: "8px 6px 4px", padding: "8px 6px",
+                  borderTop: "1px solid #1E2030",
+                  color: "#8B8FA8", fontSize: 8, lineHeight: 1.5,
+                  textAlign: "center", letterSpacing: "0.01em",
+                }}
+              >
+                {navEmphasis.reductionNote}
+              </div>
+            )}
           </nav>
 
           <div style={{ borderTop: "1px solid #1E2030", padding: "6px 0 8px" }}>
@@ -1241,6 +1295,19 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 <div style={{ padding: "2px 16px 20px" }}>
 
                   {[
+                    /* Withheld-from-rail surfaces land HERE, first, so the
+                       reduction is a MOVE and not a deletion. Without this
+                       section the rail filter would make Academy and Journal
+                       unreachable while a position is open — trapping a
+                       trader inside a screen to "protect" them, which is a
+                       worse failure than the noise it was fixing. The section
+                       title states where they went and why. */
+                    ...(railWithheld.length > 0
+                      ? [{
+                          title: "Moved here while capital is live",
+                          items: NAV_CORE.filter(item => railWithheld.includes(item.href)),
+                        }]
+                      : []),
                     { title: "Market tools", items: NAV_WORKBENCH },
                     { title: "Community & business", items: NAV_BOTTOM },
                   ].map(section => (

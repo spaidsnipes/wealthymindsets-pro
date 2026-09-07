@@ -48,6 +48,7 @@ import {
   netQtyFor,
   paperSceneSignals,
 } from "@/lib/experience/paperSceneSignals";
+import { usePublishScene } from "@/lib/experience/useActiveScene";
 import { selectCanonicalSessionToken } from "@/lib/marketData/canonicalIdentity";
 import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1486,6 +1487,22 @@ export default function PaperTradingPage() {
     [sessionToken, activeSymbol, hydrated, persistenceState, positions, orders],
   );
   const sceneCompilation = useMemo(() => compileScene(sceneInput.signals), [sceneInput]);
+
+  /* Publish this scene to the app shell for the duration of the mount.
+     /paper is the ONE route today that owns a real capital column — it reads
+     an actual book through paperSceneSignals — so it is the one route
+     entitled to answer "is money exposed". The shell reduces the primary rail
+     off this and nothing else; see activeSceneBus.ts for why /command-deck
+     deliberately stays silent rather than publishing a `false` it cannot back.
+
+     §B5 ENVIRONMENT FIREWALL note: the exposure here is PAPER. The scene is
+     still true — a paper position IS an open position in a simulated book,
+     and the navigation law is about the trader's attention, which a paper
+     trade occupies exactly as a live one does. The firewall governs whether
+     an ORDER reaches a broker, not whether the human is currently managing
+     something. Nothing published here claims live capital: the route header
+     says PAPER · NO REAL MONEY · NO BROKER two lines above. */
+  usePublishScene("/paper", sceneCompilation);
 
   // The focused symbol's net, recomputed through the SAME owner the adapter
   // used. §24: one implementation of "what do I hold in this symbol", two
