@@ -582,6 +582,60 @@ export function describePaperBookIntegrity(integrity: PaperBookIntegrity): strin
     + "and are not counted in any total on this page.";
 }
 
+/**
+ * THE EXIT FROM THE RECOVERY BARRIER.
+ *
+ * The barrier itself is right: bytes WM cannot read must never be overwritten
+ * by a partial re-write. But the barrier as first shipped disabled saving,
+ * every action, every total AND Reset, while the screen told the trader to
+ * "recover the original book". Nothing in the product could do that. The
+ * instruction named an owner that did not exist, so the honest-looking screen
+ * was in fact a dead end whose only real exit was devtools.
+ *
+ * A refusal that leaves no legal move is not protection, it is a brick. So the
+ * owner of the bytes now hands them back. WM still refuses to REPAIR the book —
+ * it genuinely cannot tell a real fill from noise, and guessing would be the
+ * capital lie the barrier exists to prevent — but "we will not guess for you"
+ * only stays honest if "you may take it and look yourself" is real.
+ */
+export function readPreservedPaperBook(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(PAPER_KEY);
+  } catch {
+    // A storage read can throw on a locked-down or evicted origin. That is not
+    // "the book is empty" — an empty string would claim we looked and found
+    // nothing. null is the only truthful answer to a read that did not happen.
+    return null;
+  }
+}
+
+/** Names the rescued file after the moment it was rescued, not "paper-book". */
+export function preservedPaperBookFilename(now: Date): string {
+  const stamp = now.toISOString().replace(/[:.]/g, "-").replace(/Z$/, "");
+  return `wm-paper-book-unreadable-${stamp}.json`;
+}
+
+/**
+ * What the trader may do next, in their words.
+ *
+ * Two states, because the legal moves genuinely differ. Before a copy is taken
+ * the only safe move is to take one; after it, discarding stops being data loss
+ * and becomes a choice. The sentence never promises the copy can be repaired,
+ * because WM does not know that.
+ */
+export function describePaperRecoveryExit(copyTaken: boolean): string {
+  return copyTaken
+    ? "You have downloaded the saved book in this session. Reset is now available: "
+    + "it will overwrite the stored bytes with a fresh $100,000 account. "
+    + "WM cannot tell you whether the downloaded file can be repaired — keep it "
+    + "somewhere safe before you reset."
+    : "Download the saved book before anything overwrites it. WM will not repair "
+    + "it for you and will not guess at the records it could not read, so the "
+    + "file is the only copy of what you had. Reset stays unavailable until you "
+    + "have taken it.";
+}
+
 function keepValid<T>(
   value: unknown,
   isValid: (v: unknown) => boolean,
@@ -695,6 +749,35 @@ export function savePaperState(
       return { status: "CONFLICT", state: current };
     }
     const accepted = { ...state, revision: expectedRevision + 1 };
+    const serialized = JSON.stringify(accepted);
+    window.localStorage.setItem(PAPER_KEY, serialized);
+    return window.localStorage.getItem(PAPER_KEY) === serialized
+      ? { status: "PERSISTED", state: accepted }
+      : { status: "FAILED", state: null };
+  } catch {
+    return { status: "FAILED", state: null };
+  }
+}
+
+/**
+ * Overwrite an unreadable book on purpose, after the trader has been given it.
+ *
+ * `savePaperState` must keep refusing — it is the general-purpose writer that
+ * every incidental fill, bot tick and chart order flows through, and none of
+ * those callers has any business destroying bytes WM could not read. The
+ * refusal is not a bug to be relaxed; it is the whole barrier.
+ *
+ * So the discard gets its own door with its own name. A caller cannot arrive
+ * here by accident or by forgetting an argument: it has to say the word
+ * "replacePreserved". That is the difference between a guard with a documented
+ * exception and a guard someone quietly turned off.
+ */
+export function replacePreservedPaperBook(state: PaperState): PaperPersistenceResult {
+  if (typeof window === "undefined") return { status: "FAILED", state: null };
+  try {
+    // Revision restarts at 1. Continuing the old counter would inherit a number
+    // read out of the very bytes we just declared unreadable.
+    const accepted = { ...state, revision: 1 };
     const serialized = JSON.stringify(accepted);
     window.localStorage.setItem(PAPER_KEY, serialized);
     return window.localStorage.getItem(PAPER_KEY) === serialized

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import {
   parsePaperSnapshot,
   isValidPosition,
@@ -7,6 +7,11 @@ import {
   isValidEquityPoint,
   isAddressableOptionRecord,
   describePaperBookIntegrity,
+  describePaperRecoveryExit,
+  preservedPaperBookFilename,
+  readPreservedPaperBook,
+  replacePreservedPaperBook,
+  savePaperState,
   STARTING_CASH,
   type PaperState,
 } from "./paperTrade";
@@ -315,3 +320,196 @@ describe("describePaperBookIntegrity — say what was lost", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// THE EXIT FROM THE BARRIER.
+//
+// The barrier shipped correct and complete except for one thing: it left the
+// trader nowhere to go. Saving blocked, every action disabled, every total
+// UNKNOWN, Reset disabled — and the screen's own words told them to "recover
+// the original book", which nothing in the product could do.
+//
+// These tests hold two lines at once, and they are in tension on purpose:
+//   1. the trader can ALWAYS leave with their own bytes;
+//   2. the incidental writer NEVER gets to destroy those bytes.
+// A change that satisfies one by breaking the other is the regression.
+// ---------------------------------------------------------------------------
+
+class ExitMemStorage {
+  private store = new Map<string, string>();
+  getItem(k: string) { return this.store.has(k) ? this.store.get(k)! : null; }
+  setItem(k: string, v: string) { this.store.set(k, v); }
+  removeItem(k: string) { this.store.delete(k); }
+  clear() { this.store.clear(); }
+  get length() { return this.store.size; }
+  key(_i: number) { return null; }
+}
+
+const exitGlobal = globalThis as unknown as {
+  window?: { localStorage: unknown };
+  localStorage?: unknown;
+};
+
+function mountStorage(): ExitMemStorage {
+  const ls = new ExitMemStorage();
+  exitGlobal.window = { localStorage: ls };
+  exitGlobal.localStorage = ls;
+  return ls;
+}
+
+function unmountStorage() {
+  delete exitGlobal.window;
+  delete exitGlobal.localStorage;
+}
+
+const CORRUPT = '{"revision":4,"cash":5000,"positions":[{"nope":true}],"orders":[],"trades":[],"equity":[]}';
+
+describe("readPreservedPaperBook — the trader may always leave with their book", () => {
+  afterEach(unmountStorage);
+
+  it("THE DEFECT: bytes the barrier refuses to overwrite can still be retrieved", () => {
+    const ls = mountStorage();
+    ls.setItem("wm_paper_state", CORRUPT);
+    // The writer refuses — that is the barrier working.
+    expect(savePaperState(freshLike(), 4).status).toBe("RECOVERY REQUIRED");
+    // And yet the trader is not trapped: the exact bytes come back.
+    expect(readPreservedPaperBook()).toBe(CORRUPT);
+  });
+
+  it("returns the bytes VERBATIM — a re-serialised book is a different book", () => {
+    const ls = mountStorage();
+    // Deliberately ugly: trailing whitespace and key order that JSON.parse +
+    // JSON.stringify would silently normalise away. If this ever round-trips
+    // through the parser, the trader is handed WM's reading of their book
+    // rather than their book, and the one thing the file is for is lost.
+    const ugly = '  {"trades":[],"cash":1,"revision":2}  ';
+    ls.setItem("wm_paper_state", ugly);
+    expect(readPreservedPaperBook()).toBe(ugly);
+  });
+
+  it("an absent book is null, not an empty string", () => {
+    mountStorage();
+    expect(readPreservedPaperBook()).toBeNull();
+  });
+
+  it("a read that could not happen is null — never a fabricated empty book", () => {
+    // SSR, or an origin that throws on storage access. "" would claim we looked.
+    unmountStorage();
+    expect(readPreservedPaperBook()).toBeNull();
+  });
+});
+
+describe("preservedPaperBookFilename — names the rescue, not the product", () => {
+  it("carries the moment so two rescues never collide in a downloads folder", () => {
+    const a = preservedPaperBookFilename(new Date("2026-09-07T03:22:11.500Z"));
+    const b = preservedPaperBookFilename(new Date("2026-09-07T03:22:12.500Z"));
+    expect(a).not.toEqual(b);
+  });
+
+  it("is a filesystem-safe .json name on every platform", () => {
+    const name = preservedPaperBookFilename(new Date("2026-09-07T03:22:11.500Z"));
+    expect(name.endsWith(".json")).toBe(true);
+    // Colons break Windows and are hostile on macOS Finder; dots before the
+    // extension confuse "open with".
+    expect(name.slice(0, -".json".length)).not.toMatch(/[:.]/);
+    expect(name).not.toMatch(/[/\\<>"|?*]/);
+  });
+
+  it("says what the file IS, so it is not mistaken for a healthy export", () => {
+    expect(preservedPaperBookFilename(new Date())).toContain("unreadable");
+  });
+});
+
+describe("describePaperRecoveryExit — the legal move, in the trader's words", () => {
+  it("before a copy is taken, names the ONE action available", () => {
+    const s = describePaperRecoveryExit(false);
+    expect(s).toMatch(/Download the saved book/);
+    expect(s).toMatch(/Reset stays unavailable/);
+  });
+
+  it("after a copy is taken, reset stops being data loss and says so", () => {
+    const s = describePaperRecoveryExit(true);
+    expect(s).toMatch(/Reset is now available/);
+    expect(s).toMatch(/overwrite/);
+  });
+
+  it("never promises the downloaded file can be repaired", () => {
+    // WM cannot tell a real fill from noise. That was the entire reason it
+    // refused to guess; promising a repair here would reintroduce the lie at
+    // the exit instead of the entrance.
+    for (const s of [describePaperRecoveryExit(false), describePaperRecoveryExit(true)]) {
+      expect(s).not.toMatch(/we will (fix|repair|restore)/i);
+      expect(s).not.toMatch(/\b(recovered|repaired|restored) (automatically|for you)\b/i);
+      expect(s).not.toMatch(/don't worry|no data (was )?lost|safely/i);
+    }
+  });
+
+  it("is never a designed boundary dressed as a failure, and never a stub", () => {
+    for (const s of [describePaperRecoveryExit(false), describePaperRecoveryExit(true)]) {
+      expect(s).not.toMatch(/\b(ERROR|FATAL|CRITICAL)\b/);
+      expect(s).not.toMatch(/coming soon|needs wiring|try again later|contact support/i);
+      expect(s.trim().length).toBeGreaterThan(40);
+    }
+  });
+
+  it("the two states are genuinely different advice, not one sentence reused", () => {
+    expect(describePaperRecoveryExit(false)).not.toEqual(describePaperRecoveryExit(true));
+  });
+});
+
+describe("replacePreservedPaperBook — a door with a name, not a relaxed guard", () => {
+  afterEach(unmountStorage);
+
+  it("THE TENSION: it overwrites the very bytes savePaperState refuses to touch", () => {
+    const ls = mountStorage();
+    ls.setItem("wm_paper_state", CORRUPT);
+    expect(savePaperState(freshLike(), 4).status).toBe("RECOVERY REQUIRED");
+    const result = replacePreservedPaperBook(freshLike());
+    expect(result.status).toBe("PERSISTED");
+    expect(ls.getItem("wm_paper_state")).not.toBe(CORRUPT);
+  });
+
+  it("the general-purpose writer is NOT relaxed by the existence of this door", () => {
+    // The regression that would matter: someone "simplifies" by making
+    // savePaperState fall through to the replace path. Then every bot tick and
+    // chart order silently destroys an unreadable book and the barrier is gone
+    // while all its words remain on screen.
+    const ls = mountStorage();
+    ls.setItem("wm_paper_state", CORRUPT);
+    expect(savePaperState(freshLike(), 4).status).toBe("RECOVERY REQUIRED");
+    expect(ls.getItem("wm_paper_state")).toBe(CORRUPT);
+  });
+
+  it("restarts revision at 1 rather than inheriting a number it called unreadable", () => {
+    const ls = mountStorage();
+    ls.setItem("wm_paper_state", CORRUPT);
+    const result = replacePreservedPaperBook({ ...freshLike(), revision: 99 });
+    expect(result.status).toBe("PERSISTED");
+    expect(result.state!.revision).toBe(1);
+    expect(JSON.parse(ls.getItem("wm_paper_state")!).revision).toBe(1);
+  });
+
+  it("the replacement it writes is readable — the exit does not create a new brick", () => {
+    const ls = mountStorage();
+    ls.setItem("wm_paper_state", CORRUPT);
+    replacePreservedPaperBook(freshLike());
+    const snapshot = parsePaperSnapshot(ls.getItem("wm_paper_state")!);
+    expect(snapshot).not.toBeNull();
+    expect(snapshot!.integrity.rejected).toBe(0);
+    expect(snapshot!.integrity.unreadable).toBe(false);
+  });
+
+  it("fails honestly rather than pretending when there is no storage at all", () => {
+    unmountStorage();
+    expect(replacePreservedPaperBook(freshLike()).status).toBe("FAILED");
+  });
+});
+
+function freshLike(): PaperState {
+  return {
+    revision: 1,
+    cash: STARTING_CASH,
+    positions: [], orders: [], trades: [], optionPositions: [],
+    equity: [{ ts: 1_757_000_000_000, equity: STARTING_CASH }],
+  };
+}

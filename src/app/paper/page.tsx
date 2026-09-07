@@ -13,7 +13,7 @@ import {
   TrendingUp, TrendingDown, Plus, Minus, X, RefreshCw,
   BarChart2, DollarSign, Activity, Target, AlertCircle,
   ChevronUp, ChevronDown, Trash2, Clock, Zap, BookOpen,
-  ExternalLink, ArrowUpRight, Trophy, Medal, Crown, Users, Gift,
+  ExternalLink, ArrowUpRight, Trophy, Medal, Crown, Users, Gift, Download,
 } from "lucide-react";
 import { SymbolSearch } from "@/components/ui/SymbolSearch";
 import {
@@ -36,6 +36,10 @@ import {
   PAPER_STORE_FACTS,
   CLEAN_BOOK_INTEGRITY,
   describePaperBookIntegrity,
+  describePaperRecoveryExit,
+  preservedPaperBookFilename,
+  readPreservedPaperBook,
+  replacePreservedPaperBook,
   type PaperBookIntegrity,
   type PaperPersistenceResult,
   type PaperState,
@@ -1100,6 +1104,27 @@ export default function PaperTradingPage() {
     [bookIntegrity],
   );
   const bookRecoveryRequired = bookIntegrity.unreadable || bookIntegrity.rejected > 0;
+  /**
+   * Whether the trader has taken their book out of the barrier IN THIS SESSION.
+   *
+   * Deliberately not persisted. Persisting it would mean a flag written into
+   * the very store we have declared unreadable, and a stale `true` there would
+   * unlock the destructive action for a trader who never saw the file. Session
+   * scope makes the claim exactly as strong as the evidence: WE handed you the
+   * bytes, just now, in this tab. After a refresh the claim expires and so does
+   * the permission — which is the correct, conservative direction.
+   */
+  const [bookCopyTaken, setBookCopyTaken] = useState(false);
+  /**
+   * Reset is blocked by recovery ONLY while the book is still trapped. Once the
+   * trader holds a copy, the block has nothing left to protect and keeping it
+   * would be the brick again wearing a safety label.
+   */
+  const resetBlockedByRecovery = bookRecoveryRequired && !bookCopyTaken;
+  const bookRecoveryExitNote = useMemo(
+    () => (bookRecoveryRequired ? describePaperRecoveryExit(bookCopyTaken) : null),
+    [bookRecoveryRequired, bookCopyTaken],
+  );
   const paperRevisionRef = useRef(0);
   const skipNextPersistRef = useRef(false);
 
@@ -1478,10 +1503,36 @@ export default function PaperTradingPage() {
     });
   };
 
+  /**
+   * Hand the trader the exact bytes the barrier is protecting.
+   *
+   * This is the action the screen has been TELLING them to take since the
+   * barrier shipped ("recover the original book") while providing no way to
+   * take it. Everything else on this page was disabled and every total read
+   * UNKNOWN, so the only real exit was devtools.
+   */
+  const downloadPreservedBook = () => {
+    const raw = readPreservedPaperBook();
+    // Nothing to hand over is not a success. Claiming the copy was taken here
+    // would unlock the destructive reset on the strength of an empty gesture.
+    if (raw === null) return;
+    const url = URL.createObjectURL(new Blob([raw], { type: "application/json" }));
+    try {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = preservedPaperBookFilename(new Date());
+      a.click();
+      setBookCopyTaken(true);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  };
+
   const resetAccount = () => {
-    // Reset is an overwrite. A human may choose a recovery workflow later,
-    // but this general-purpose action must never replace bytes WM cannot read.
-    if (bookRecoveryRequired) return;
+    // Reset is an overwrite. It must never replace bytes WM cannot read UNTIL
+    // the trader has been handed those bytes — at which point discarding them
+    // stops being data loss and becomes their decision to make.
+    if (bookRecoveryRequired && !bookCopyTaken) return;
     // Paper trading is real learning history for the founder-canon trader
     // memory loop (Observe → Remember → Reflect). One-click Reset would
     // silently destroy cash, positions, orders, blotter, equity curve,
@@ -1492,9 +1543,17 @@ export default function PaperTradingPage() {
     const parts: string[] = [];
     if (positionCount > 0) parts.push(`${positionCount} open position${positionCount === 1 ? "" : "s"}`);
     if (tradeCount > 0)    parts.push(`${tradeCount} blotter trade${tradeCount === 1 ? "" : "s"}`);
-    const summary = parts.length > 0
-      ? `This will permanently delete ${parts.join(" and ")} plus your cash balance and equity curve. This cannot be undone.`
-      : "This will reset cash to $100,000 and clear the equity curve.";
+    // Under recovery these counts came from a book WM could not fully read, so
+    // quoting them would put a precise-sounding number on the one thing we
+    // just told the trader we do not know. Name the uncertainty instead.
+    const summary = bookRecoveryRequired
+      ? "This will overwrite the saved book WM could not read, and start a fresh "
+        + "$100,000 account. WM does not know how many positions or trades that "
+        + "book held. The downloaded file is the only remaining copy. This cannot "
+        + "be undone."
+      : parts.length > 0
+        ? `This will permanently delete ${parts.join(" and ")} plus your cash balance and equity curve. This cannot be undone.`
+        : "This will reset cash to $100,000 and clear the equity curve.";
     if (!window.confirm(`Reset paper trading?\n\n${summary}\n\nContinue?`)) return;
     const fresh: PaperState = {
       revision: paperRevisionRef.current,
@@ -1502,7 +1561,13 @@ export default function PaperTradingPage() {
       positions: [], orders: [], trades: [], optionPositions: [],
       equity: [{ ts:Date.now(), equity:STARTING_CASH }],
     };
-    const result = savePaperState(fresh, paperRevisionRef.current);
+    // Two writers on purpose (§24): the general-purpose one still refuses an
+    // unreadable book, and the deliberate discard has its own named door. A
+    // single writer with a "force" flag is how the barrier gets turned off by
+    // a caller that only wanted to save an order.
+    const result = bookRecoveryRequired
+      ? replacePreservedPaperBook(fresh)
+      : savePaperState(fresh, paperRevisionRef.current);
     setPersistenceState(result.status);
     if (result.status === "CONFLICT") {
       skipNextPersistRef.current = true;
@@ -1515,6 +1580,13 @@ export default function PaperTradingPage() {
     setBotRunning(false); setBotLog([]);
     setResetKey(k=>k+1);
     filledRef.current.clear(); posRef.current = [];
+    // The book that could not be read no longer exists, so the barrier must
+    // come down with it. Leaving the integrity state stale would keep every
+    // total UNKNOWN and every action disabled over a book that is now clean —
+    // the page would stay bricked by a memory of a file it just replaced.
+    setBookIntegrity(CLEAN_BOOK_INTEGRITY);
+    // And the permission expires with the thing it was granted over.
+    setBookCopyTaken(false);
   };
 
   const pendingOrders = orders.filter(o=>o.status==="pending");
@@ -1691,10 +1763,10 @@ export default function PaperTradingPage() {
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={resetAccount}
-            disabled={bookRecoveryRequired}
-            aria-label={bookRecoveryRequired ? "Reset unavailable while paper book recovery is required" : "Reset paper trading account (requires confirmation)"}
-            title={bookRecoveryRequired ? "Recover the saved paper book before reset can overwrite it." : undefined}
-            className={clsx("inline-flex items-center justify-center gap-1 px-2.5 rounded-lg text-[10px] font-bold border transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold", bookRecoveryRequired ? "cursor-not-allowed border-wm-red/30 text-wm-red/60" : "border-wm-border text-wm-text-muted hover:text-wm-red hover:border-wm-red/40")}
+            disabled={resetBlockedByRecovery}
+            aria-label={resetBlockedByRecovery ? "Reset unavailable until the saved paper book has been downloaded" : "Reset paper trading account (requires confirmation)"}
+            title={resetBlockedByRecovery ? "Download the saved paper book first — reset would overwrite it." : undefined}
+            className={clsx("inline-flex items-center justify-center gap-1 px-2.5 rounded-lg text-[10px] font-bold border transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold", resetBlockedByRecovery ? "cursor-not-allowed border-wm-red/30 text-wm-red/60" : "border-wm-border text-wm-text-muted hover:text-wm-red hover:border-wm-red/40")}
             style={{ minHeight: 44 }}
           >
             <RefreshCw size={10} aria-hidden="true"/> Reset
@@ -1749,6 +1821,33 @@ export default function PaperTradingPage() {
           <p role="alert" className="text-[10px] leading-relaxed text-wm-red">
             {bookIntegrityNote}
           </p>
+        )}
+
+        {/* THE EXIT. The barrier above states what was lost; this states what
+          * the trader may DO, and then provides it. Shipping the first without
+          * the second is what turned an honest refusal into a dead end — the
+          * screen said "recover the original book" and nothing in the product
+          * could. An instruction with no owner is the same defect as a guard
+          * with no teeth: it reads like the case is handled.
+          *
+          * §9: the control is bordered, not filled, and carries no identity
+          * gold — this is a way out, not a celebrated primary action. The note
+          * is dim rather than red because the sentence above already owns the
+          * alarm; two reds would make neither one mean anything. */}
+        {bookRecoveryExitNote !== null && (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
+            <button
+              type="button"
+              onClick={downloadPreservedBook}
+              className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-lg border border-wm-border px-3 py-1.5 text-[10px] font-bold text-wm-text transition-all hover:border-wm-text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+            >
+              <Download size={11} aria-hidden="true" />
+              Download saved book
+            </button>
+            <p role="note" className="text-[10px] leading-relaxed text-wm-text-dim">
+              {bookRecoveryExitNote}
+            </p>
+          </div>
         )}
 
         {/* §B14 POTENTIAL EXPOSURE. Admitted in PENDING only — a flat book with
