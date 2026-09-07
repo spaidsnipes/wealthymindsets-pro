@@ -58,7 +58,10 @@ describe("navigation reduction — the chain from a real book to a real rail", (
     // chain was already written and already tested.
     const shell = read(SHELL);
     expect(shell).toMatch(/import \{ selectNavEmphasis \} from "@\/lib\/experience\/selectNavEmphasis"/);
-    expect(shell).toMatch(/import \{ useCapitalObservation \} from "@\/lib\/experience\/useActiveScene"/);
+    // Asserted on the SPECIFIER, not the whole import line: the shell now also
+    // pulls `useCapitalReach` from the same module, and a test pinned to the
+    // exact text of an import statement fails on every legitimate addition.
+    expect(shell).toMatch(/import \{[^}]*\buseCapitalObservation\b[^}]*\} from "@\/lib\/experience\/useActiveScene"/);
   });
 
   it("the shell asks the selector using CAPITAL, not just a mode", () => {
@@ -116,7 +119,7 @@ describe("navigation reduction — the chain from a real book to a real rail", (
   it("/paper publishes the scene it compiles", () => {
     const paper = read(PAPER);
     expect(paper).toMatch(/import \{ usePublishScene \} from "@\/lib\/experience\/useActiveScene"/);
-    expect(paper).toMatch(/usePublishScene\("\/paper", sceneCompilation\)/);
+    expect(paper).toMatch(/usePublishScene\("\/paper", sceneCompilation, paperReach\)/);
   });
 
   it("/command-deck stays SILENT — it may not assert a safety it cannot see", () => {
@@ -170,6 +173,145 @@ describe("navigation reduction — the chain from a real book to a real rail", (
     const pure = states(read("lib/experience/selectNavEmphasis.ts"), "NavCapitalObservation");
     expect(hook.length).toBe(3);
     expect(pure).toEqual(hook);
+  });
+});
+
+/**
+ * ── CROSS-DEVICE REACH ───────────────────────────────────────────────────────
+ *
+ * The reduction this file was written to enforce created a NEW divergence the
+ * moment it shipped: the rail reduces on the desktop that holds the book and
+ * does not reduce on any other device the trader picks up, because the book is
+ * in one browser's localStorage. Nothing on either screen said so.
+ *
+ * Known Holes Owned H16 and BUILD ORDER §22A both own the underlying gap and
+ * both use the same words — "CROSS-DEVICE BLOCKED, not simulated parity" — and
+ * the Master Index parity law is explicit that a limitation must be "explicit,
+ * intentional and canonically owned, not accidental drift". The gap stays open
+ * until a server-side position authority exists. What these tests protect is
+ * that it can never be SILENT again.
+ */
+describe("cross-device reach — the limitation must be structural, not remembered", () => {
+  it("the bus REQUIRES a reach on every publication", () => {
+    // The teeth. If `reach` ever becomes optional, a future capital-owning
+    // route can publish without answering the question and the divergence goes
+    // quiet again — exactly how this one appeared.
+    const bus = read("lib/experience/activeSceneBus.ts");
+    expect(bus).toMatch(/readonly reach: CapitalReachVerdict;/);
+    expect(bus).not.toMatch(/readonly reach\?:/);
+    expect(bus).toMatch(/reach: CapitalReachVerdict,\s*\)/);
+    expect(bus).not.toMatch(/reach\?: CapitalReachVerdict/);
+  });
+
+  it("the publish hook requires it too, positionally before the injectable bus", () => {
+    const hook = read("lib/experience/useActiveScene.ts");
+    expect(hook).toMatch(/reach: CapitalReachVerdict,\s*\n\s*bus: ActiveSceneBus = activeSceneBus/);
+  });
+
+  it("the paper store declares its OWN facts, next to its own writes", () => {
+    /**
+     * The facts live in paperTrade.ts, the module that calls localStorage, so
+     * that a migration to a server store edits the persistence and the claim
+     * about the persistence in one place. A facts table maintained in the UI
+     * would survive the migration unchanged and start lying that day.
+     */
+    const store = read("lib/paperTrade.ts");
+    expect(store).toMatch(/PAPER_STORE_FACTS/);
+    expect(store).toMatch(/satisfies CapitalStoreFacts/);
+    expect(store).toMatch(/medium: "BROWSER_LOCAL"/);
+    // The one that must stay false until a real table exists. H16.
+    expect(store).toMatch(/serverAuthority: null/);
+  });
+
+  it("no surface hand-writes a reach verdict instead of deriving one", () => {
+    /**
+     * The lie this design exists to prevent. `selectCapitalReach` cannot return
+     * ALL_DEVICES without a named authority — but that guarantee is worth
+     * nothing if a component can construct the verdict object literally. The
+     * only file allowed to name the reach strings is the module that owns them,
+     * plus tests.
+     */
+    const OWNER = resolve(SRC, "lib/experience/capitalReach.ts");
+    for (const file of walk(SRC)) {
+      if (file === OWNER) continue;
+      if (/\.test\.tsx?$/.test(file)) continue;
+      const src = readFileSync(file, "utf8");
+      expect(
+        src.includes('reach: "ALL_DEVICES"'),
+        `${file} constructs an ALL_DEVICES verdict by hand instead of deriving it`,
+      ).toBe(false);
+      expect(
+        src.includes('crossDeviceBlocked: false'),
+        `${file} asserts cross-device parity by hand`,
+      ).toBe(false);
+    }
+  });
+
+  it("/paper derives its reach from the store rather than asserting one", () => {
+    const paper = read(PAPER);
+    expect(paper).toMatch(/import \{ selectCapitalReach \} from "@\/lib\/experience\/capitalReach"/);
+    expect(paper).toMatch(/selectCapitalReach\(PAPER_STORE_FACTS\)/);
+  });
+
+  it("/paper SHOWS the note — deriving it and hiding it would be the same silence", () => {
+    // The defect class this shift has now found six times: computed, announced,
+    // obeyed by none. A reach on the bus that no surface prints is that shape
+    // again with an extra module.
+    const paper = read(PAPER);
+    expect(paper).toMatch(/\{paperReach\.deviceNote\}/);
+  });
+
+  it("the /paper note is unconditional, not gated on an open position", () => {
+    /**
+     * A note that appeared only while a position was open would teach the
+     * opposite of the truth: that a quiet screen means the devices agree. The
+     * store's reach does not vary with the book, so neither may the sentence.
+     * Asserted by absence: the note must not sit inside a SceneAdmits wrapper.
+     */
+    const paper = read(PAPER);
+    const at = paper.indexOf("{paperReach.deviceNote}");
+    expect(at).toBeGreaterThan(-1);
+    const before = paper.slice(Math.max(0, at - 400), at);
+    expect(before).not.toMatch(/<SceneAdmits/);
+    expect(before).not.toMatch(/capitalAtRisk\s*&&/);
+  });
+
+  it("the shell says it too, in the same breath as the reduction", () => {
+    /**
+     * The reduction is what creates the divergence, so the reduction note is
+     * where the disclosure belongs. Putting it anywhere else would let a
+     * trader see the rail change without ever meeting the explanation.
+     */
+    const shell = read(SHELL);
+    expect(shell).toMatch(/useCapitalReach/);
+    const at = shell.indexOf("navEmphasis.reductionNote !== null");
+    const block = shell.slice(at, at + 2000);
+    expect(block).toMatch(/reach\.shellClause/);
+  });
+
+  it("the shell clause stays out of selectNavEmphasis", () => {
+    /**
+     * ADMISSION vs EMPHASIS. `selectNavEmphasis` answers "what does this MODE
+     * emphasise" — a preference the human can click. Reach is capital
+     * provenance, which no preference may touch. Routing it through that
+     * selector would put a fact and a preference through one function, and its
+     * own tests assert those never cross.
+     */
+    // Matched at IDENTIFIER level, not on the word: the module's prose
+    // legitimately says "unreachable" about the drawer, and a test that a
+    // comment may not use an English word is a test nobody can keep.
+    const selector = read("lib/experience/selectNavEmphasis.ts");
+    expect(selector).not.toMatch(/CapitalReach|selectCapitalReach|capitalReach/);
+    expect(selector).not.toMatch(/\breach\s*[:.]/);
+  });
+
+  it("the reach note is not styled as an alarm", () => {
+    // §9 again: nothing has failed. This is a designed boundary behaving as
+    // built, and a permanent alarm is read as noise by the second day.
+    const shell = read(SHELL);
+    const at = shell.indexOf("reach.shellClause");
+    const block = shell.slice(Math.max(0, at - 300), at + 300);
+    expect(block).not.toMatch(/animate-pulse|#F0B429|amber|wm-red/i);
   });
 });
 

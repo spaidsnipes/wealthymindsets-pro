@@ -9,8 +9,36 @@
  * chart-originated order with a stale React snapshot.
  */
 
+import type { CapitalStoreFacts } from "@/lib/experience/capitalReach";
+
 export const PAPER_KEY = "wm_paper_state";
 export const STARTING_CASH = 100_000;
+
+/**
+ * PAPER_STORE_FACTS — what is TRUE about this store's reach, declared next to
+ * the `window.localStorage` calls that make it true.
+ *
+ * These facts feed `selectCapitalReach` (src/lib/experience/capitalReach.ts),
+ * which computes the CROSS-DEVICE verdict the shell and /paper display. They
+ * live HERE, not in the consumer, for one reason: the day this store grows a
+ * server authority, the code that changes and the facts that describe it are
+ * in the same edit. A facts table maintained in the UI layer would go stale
+ * the first time persistence moved, and a stale fact here is a lie on screen.
+ *
+ * `crossTabInvalidation` is true because `subscribePaperState` listens to the
+ * `storage` event — that is a second TAB of the SAME browser profile on the
+ * SAME machine, and it is recorded as such. It is not device parity and
+ * `selectCapitalReach` is tested to never let it become that.
+ *
+ * `serverAuthority` is null and must stay null until a real table/endpoint
+ * holds the book. Known Holes Owned H16 / BUILD ORDER §22A: "if no shared
+ * store exists, status is CROSS-DEVICE BLOCKED, not simulated parity."
+ */
+export const PAPER_STORE_FACTS = {
+  medium: "BROWSER_LOCAL",
+  crossTabInvalidation: true,
+  serverAuthority: null,
+} as const satisfies CapitalStoreFacts;
 
 /**
  * clearPaperState — hard reset of the browser-local paper-trading store.

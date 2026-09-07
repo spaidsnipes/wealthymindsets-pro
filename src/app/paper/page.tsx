@@ -33,6 +33,7 @@ import {
   loadPaperState,
   savePaperState,
   subscribePaperState,
+  PAPER_STORE_FACTS,
   type PaperPersistenceResult,
   type PaperState,
 } from "@/lib/paperTrade";
@@ -49,6 +50,7 @@ import {
   paperSceneSignals,
 } from "@/lib/experience/paperSceneSignals";
 import { usePublishScene } from "@/lib/experience/useActiveScene";
+import { selectCapitalReach } from "@/lib/experience/capitalReach";
 import { selectCanonicalSessionToken } from "@/lib/marketData/canonicalIdentity";
 import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1488,6 +1490,18 @@ export default function PaperTradingPage() {
   );
   const sceneCompilation = useMemo(() => compileScene(sceneInput.signals), [sceneInput]);
 
+  /* HOW FAR this book reaches — derived from the store's OWN declared facts,
+     never asserted here. PAPER_STORE_FACTS lives beside the `localStorage`
+     calls in paperTrade.ts precisely so this cannot drift from the truth.
+     Memoised because it is published on the bus and an unstable object would
+     defeat the bus's idempotence guard on every render.
+
+     Today this necessarily computes THIS_BROWSER_ONLY. That is not a bug this
+     module can fix — Known Holes Owned H16 / BUILD ORDER §22A own it, and the
+     fix is a server-side position authority keyed by DECISION_ID. What changes
+     here is that the limitation stops being SILENT. */
+  const paperReach = useMemo(() => selectCapitalReach(PAPER_STORE_FACTS), []);
+
   /* Publish this scene to the app shell for the duration of the mount.
      /paper is the ONE route today that owns a real capital column — it reads
      an actual book through paperSceneSignals — so it is the one route
@@ -1502,7 +1516,7 @@ export default function PaperTradingPage() {
      an ORDER reaches a broker, not whether the human is currently managing
      something. Nothing published here claims live capital: the route header
      says PAPER · NO REAL MONEY · NO BROKER two lines above. */
-  usePublishScene("/paper", sceneCompilation);
+  usePublishScene("/paper", sceneCompilation, paperReach);
 
   // The focused symbol's net, recomputed through the SAME owner the adapter
   // used. §24: one implementation of "what do I hold in this symbol", two
@@ -1609,6 +1623,29 @@ export default function PaperTradingPage() {
         * a badge — the panel leads with what the scene REFUSED.
         */}
       <div className="shrink-0 space-y-2 border-b border-wm-border/60 bg-wm-black px-4 py-2.5">
+
+        {/* ── CROSS-DEVICE REACH — H16 / §22A made visible ──────────────────
+          *
+          * Placed FIRST in the band, directly beneath the persistence chip,
+          * because it is the sentence that qualifies it. "BROWSER SAVE
+          * VERIFIED" is true and reads as reassurance; what it does not say is
+          * that the verification stops at this browser. A trader who opens a
+          * position here, sees VERIFIED, and then picks up an iPad finds a
+          * screen that knows nothing about the book and a navigation rail that
+          * does not reduce — with no explanation anywhere. That gap is real and
+          * this note does not close it. It ends the SILENCE, which is the part
+          * that was drift rather than an owned limitation.
+          *
+          * §9 COLOUR: neutral, not amber. Nothing has failed or degraded — the
+          * store is doing exactly what it was built to do. Amber here would be
+          * an alarm for a designed boundary, and alarms that never clear stop
+          * being read. Unconditional, not admission-gated: the reach of the
+          * store does not vary with the scene, and a note that appeared only
+          * when a position was open would teach that a quiet screen means
+          * cross-device parity. */}
+        <p role="note" className="text-[10px] leading-relaxed text-wm-text-dim">
+          {paperReach.deviceNote}
+        </p>
 
         {/* §B14 POTENTIAL EXPOSURE. Admitted in PENDING only — a flat book with
           * nothing working never sees this, so it can never become furniture. */}

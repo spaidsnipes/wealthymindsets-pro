@@ -11,6 +11,7 @@
 import { describe, it, expect } from "vitest";
 import { ActiveSceneBus, ACTIVE_SCENE_BUS_VERSION } from "./activeSceneBus";
 import { compileScene, type SceneSignals, type SceneCompilation } from "./compileScene";
+import { selectCapitalReach } from "./capitalReach";
 
 function signals(over: Partial<SceneSignals> = {}): SceneSignals {
   return {
@@ -31,6 +32,15 @@ function signals(over: Partial<SceneSignals> = {}): SceneSignals {
 const FLAT: SceneCompilation = compileScene(signals());
 const LONG: SceneCompilation = compileScene(signals({ position: "LONG" }));
 
+/** Today's real answer for every publisher in the product. */
+const LOCAL = selectCapitalReach({
+  medium: "BROWSER_LOCAL", crossTabInvalidation: true, serverAuthority: null,
+});
+/** The verdict that does not exist yet. Used to prove the bus carries change. */
+const SHARED = selectCapitalReach({
+  medium: "SERVER_SHARED", crossTabInvalidation: true, serverAuthority: "wm.positions",
+});
+
 describe("activeSceneBus — a transport, not a second owner", () => {
   it("starts UNOBSERVED, which is not a claim that capital is safe", () => {
     const bus = new ActiveSceneBus();
@@ -43,7 +53,7 @@ describe("activeSceneBus — a transport, not a second owner", () => {
   it("hands back the EXACT compilation it was given — it synthesises nothing", () => {
     const bus = new ActiveSceneBus();
     const token = bus.claim();
-    bus.publish(token, "/paper", LONG);
+    bus.publish(token, "/paper", LONG, LOCAL);
     const published = bus.getActiveScene();
     // Identity, not deep-equality: a transport that rebuilt the object could
     // quietly drop or default a field, which is how a second owner of capital
@@ -58,8 +68,8 @@ describe("activeSceneBus — a transport, not a second owner", () => {
     let notifications = 0;
     bus.subscribe(() => { notifications++; });
     const token = bus.claim();
-    bus.publish(token, "/paper", FLAT);
-    bus.publish(token, "/paper", LONG);
+    bus.publish(token, "/paper", FLAT, LOCAL);
+    bus.publish(token, "/paper", LONG, LOCAL);
     expect(notifications).toBe(2);
   });
 
@@ -71,16 +81,16 @@ describe("activeSceneBus — a transport, not a second owner", () => {
     let notifications = 0;
     bus.subscribe(() => { notifications++; });
     const token = bus.claim();
-    bus.publish(token, "/paper", LONG);
-    bus.publish(token, "/paper", LONG);
-    bus.publish(token, "/paper", LONG);
+    bus.publish(token, "/paper", LONG, LOCAL);
+    bus.publish(token, "/paper", LONG, LOCAL);
+    bus.publish(token, "/paper", LONG, LOCAL);
     expect(notifications).toBe(1);
   });
 
   it("clears on release — a route that left cannot keep speaking for the book", () => {
     const bus = new ActiveSceneBus();
     const token = bus.claim();
-    bus.publish(token, "/paper", LONG);
+    bus.publish(token, "/paper", LONG, LOCAL);
     bus.release(token);
     expect(bus.getActiveScene()).toBeNull();
   });
@@ -95,10 +105,10 @@ describe("activeSceneBus — a transport, not a second owner", () => {
      */
     const bus = new ActiveSceneBus();
     const outgoing = bus.claim();
-    bus.publish(outgoing, "/paper", LONG);
+    bus.publish(outgoing, "/paper", LONG, LOCAL);
 
     const incoming = bus.claim();          // new route mounts…
-    bus.publish(incoming, "/live", LONG);  // …and publishes…
+    bus.publish(incoming, "/live", LONG, LOCAL);  // …and publishes…
     bus.release(outgoing);                 // …then the old route unmounts.
 
     expect(bus.getActiveScene()?.route).toBe("/live");
@@ -109,8 +119,8 @@ describe("activeSceneBus — a transport, not a second owner", () => {
     const bus = new ActiveSceneBus();
     const outgoing = bus.claim();
     const incoming = bus.claim();
-    bus.publish(outgoing, "/paper", LONG);
-    bus.publish(incoming, "/live", LONG);
+    bus.publish(outgoing, "/paper", LONG, LOCAL);
+    bus.publish(incoming, "/live", LONG, LOCAL);
     let notifications = 0;
     bus.subscribe(() => { notifications++; });
     bus.release(outgoing);
@@ -122,25 +132,87 @@ describe("activeSceneBus — a transport, not a second owner", () => {
     let notifications = 0;
     const off = bus.subscribe(() => { notifications++; });
     const token = bus.claim();
-    bus.publish(token, "/paper", FLAT);
+    bus.publish(token, "/paper", FLAT, LOCAL);
     off();
-    bus.publish(token, "/paper", LONG);
+    bus.publish(token, "/paper", LONG, LOCAL);
     expect(notifications).toBe(1);
   });
 
   it("carries capitalAtRisk truthfully in both directions", () => {
     const bus = new ActiveSceneBus();
     const token = bus.claim();
-    bus.publish(token, "/paper", LONG);
+    bus.publish(token, "/paper", LONG, LOCAL);
     expect(bus.getActiveScene()?.compilation.capitalAtRisk).toBe(true);
-    bus.publish(token, "/paper", FLAT);
+    bus.publish(token, "/paper", FLAT, LOCAL);
     expect(bus.getActiveScene()?.compilation.capitalAtRisk).toBe(false);
   });
 
   it("keeps instances isolated — the singleton is a convenience, not a global", () => {
     const a = new ActiveSceneBus();
     const b = new ActiveSceneBus();
-    a.publish(a.claim(), "/paper", LONG);
+    a.publish(a.claim(), "/paper", LONG, LOCAL);
     expect(b.getActiveScene()).toBeNull();
+  });
+});
+
+describe("activeSceneBus — a capital column may not travel without declaring its reach", () => {
+  it("carries the reach verdict alongside the compilation", () => {
+    const bus = new ActiveSceneBus();
+    bus.publish(bus.claim(), "/paper", LONG, LOCAL);
+    expect(bus.getActiveScene()?.reach.reach).toBe("THIS_BROWSER_ONLY");
+    expect(bus.getActiveScene()?.reach.crossDeviceBlocked).toBe(true);
+  });
+
+  it("clears reach on release — a reach with no book behind it is a stale claim", () => {
+    const bus = new ActiveSceneBus();
+    const token = bus.claim();
+    bus.publish(token, "/paper", LONG, LOCAL);
+    bus.release(token);
+    // Not "reach is null" — the whole publication goes, so there is no way to
+    // read a reach for a route that has left the screen.
+    expect(bus.getActiveScene()).toBeNull();
+  });
+
+  it("notifies when ONLY the reach changed", () => {
+    // The migration-day case. If a server authority appears mid-session, the
+    // book is identical and the compilation object may even be reused — but
+    // what the shell must SAY has changed completely. An idempotence guard
+    // that ignored reach would keep the old sentence on screen indefinitely.
+    const bus = new ActiveSceneBus();
+    let notifications = 0;
+    bus.subscribe(() => { notifications++; });
+    const token = bus.claim();
+    bus.publish(token, "/paper", LONG, LOCAL);
+    bus.publish(token, "/paper", LONG, SHARED);
+    expect(notifications).toBe(2);
+    expect(bus.getActiveScene()?.reach.reach).toBe("ALL_DEVICES");
+  });
+
+  it("still suppresses re-notification for an equal-VALUE reach object", () => {
+    // `selectCapitalReach` is pure and returns a fresh object every call, so
+    // /paper hands the bus a new reference on any render where the memo is
+    // dropped. Comparing by identity here would make the guard dead code and
+    // re-notify the shell on every tick.
+    const bus = new ActiveSceneBus();
+    let notifications = 0;
+    bus.subscribe(() => { notifications++; });
+    const token = bus.claim();
+    const facts = { medium: "BROWSER_LOCAL", crossTabInvalidation: true, serverAuthority: null } as const;
+    bus.publish(token, "/paper", LONG, selectCapitalReach(facts));
+    bus.publish(token, "/paper", LONG, selectCapitalReach(facts));
+    expect(notifications).toBe(1);
+  });
+
+  it("does not let the bus soften or synthesise a reach", () => {
+    // §24: the transport computes nothing. It must hand back exactly what the
+    // store's own facts produced, including the UNKNOWN case, which is the one
+    // a well-meaning default would quietly upgrade.
+    const bus = new ActiveSceneBus();
+    const unproven = selectCapitalReach({
+      medium: "SERVER_SHARED", crossTabInvalidation: false, serverAuthority: null,
+    });
+    bus.publish(bus.claim(), "/paper", LONG, unproven);
+    expect(bus.getActiveScene()?.reach).toEqual(unproven);
+    expect(bus.getActiveScene()?.reach.reach).toBe("UNKNOWN");
   });
 });

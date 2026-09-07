@@ -26,7 +26,7 @@ import { clsx } from "clsx";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { WMSBar } from "@/components/wms/WMSBar";
 import { isPublicAuthPath } from "@/lib/authRoutes";
-import { useCapitalObservation } from "@/lib/experience/useActiveScene";
+import { useCapitalObservation, useCapitalReach } from "@/lib/experience/useActiveScene";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { selectNavEmphasis } from "@/lib/experience/selectNavEmphasis";
 
@@ -961,6 +961,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
      obeys. */
   const { context: experienceContext } = useDecisionContext();
   const capital = useCapitalObservation();
+  /* Read alongside `capital`, from the same publication, so the two can never
+     describe different books. Kept as a separate hook call rather than folded
+     into the emphasis selector — see the render-site note by `shellClause`. */
+  const reach = useCapitalReach();
   const navEmphasis = React.useMemo(
     () => selectNavEmphasis(experienceContext.mode, capital, NAV_CORE),
     [experienceContext.mode, capital],
@@ -1255,6 +1259,29 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 }}
               >
                 {navEmphasis.reductionNote}
+                {/* ── REACH, as a second sentence ────────────────────────────
+                    The rail has just reduced because a book is open. The
+                    trader's other devices cannot see that book, so they will
+                    NOT reduce — and until this line existed, nothing on any
+                    screen said so. That divergence was introduced by the
+                    reduction itself, which makes it this component's debt to
+                    disclose. Master Index parity law: a limitation one surface
+                    cannot support must be explicit and owned, not accidental
+                    drift.
+
+                    Deliberately NOT routed through `selectNavEmphasis`. That
+                    selector answers "what does this MODE emphasise"; reach is
+                    capital provenance, which no preference may influence.
+                    Feeding it in would put a fact and a preference through one
+                    function and its own test asserts they never cross.
+
+                    Rendered only when there is a clause — ALL_DEVICES returns
+                    null, and a shell that narrates the happy path is noise. */}
+                {reach !== null && reach.shellClause !== null && (
+                  <span style={{ display: "block", marginTop: 4, color: "#6F7490" }}>
+                    {reach.shellClause}
+                  </span>
+                )}
               </div>
             )}
           </nav>

@@ -6,6 +6,7 @@ import {
   type ActiveScenePublication,
 } from "./activeSceneBus";
 import type { SceneCompilation } from "./compileScene";
+import type { CapitalReachVerdict } from "./capitalReach";
 
 /**
  * React bindings over the ActiveSceneBus singleton — mirrors the
@@ -29,10 +30,16 @@ import type { SceneCompilation } from "./compileScene";
  * Only call this from a route that actually OWNS a capital column. A route
  * without a broker or a book publishes a `capitalAtRisk: false` it cannot
  * back — see the `/command-deck` note in activeSceneBus.ts.
+ *
+ * `reach` is REQUIRED and must come from `selectCapitalReach(<the store's own
+ * facts>)`. It is a positional parameter before `bus` so that no existing or
+ * future caller can publish a capital column without answering "how far does
+ * this travel?" — the compiler rejects the three-argument call.
  */
 export function usePublishScene(
   route: string,
   compilation: SceneCompilation | null,
+  reach: CapitalReachVerdict,
   bus: ActiveSceneBus = activeSceneBus,
 ): void {
   // One token per mounted instance, so unmount can only clear its own claim.
@@ -42,8 +49,8 @@ export function usePublishScene(
 
   useEffect(() => {
     if (compilation === null) return;
-    bus.publish(token, route, compilation);
-  }, [bus, token, route, compilation]);
+    bus.publish(token, route, compilation, reach);
+  }, [bus, token, route, compilation, reach]);
 
   // Separate effect with an empty dep list: the release must run at UNMOUNT,
   // not on every compilation change. Folding it into the effect above would
@@ -78,4 +85,18 @@ export function useCapitalObservation(bus: ActiveSceneBus = activeSceneBus): Cap
     if (publication === null) return "UNOBSERVED";
     return publication.compilation.capitalAtRisk ? "AT_RISK" : "NO_EXPOSURE_OBSERVED";
   }, [publication]);
+}
+
+/**
+ * How far the currently-published capital column reaches, or `null` when no
+ * route on screen owns one.
+ *
+ * Kept as its own hook rather than folded into `useCapitalObservation` because
+ * the two answer different questions and a caller may legitimately need one
+ * without the other. `null` here means UNOBSERVED, same as everywhere else: it
+ * is NOT a claim that the trader's other devices agree.
+ */
+export function useCapitalReach(bus: ActiveSceneBus = activeSceneBus): CapitalReachVerdict | null {
+  const publication = useActiveScene(bus);
+  return publication === null ? null : publication.reach;
 }

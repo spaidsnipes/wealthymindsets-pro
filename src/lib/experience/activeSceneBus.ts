@@ -65,6 +65,7 @@
  */
 
 import type { SceneCompilation } from "./compileScene";
+import type { CapitalReachVerdict } from "./capitalReach";
 
 export const ACTIVE_SCENE_BUS_VERSION = "wm.active-scene.v1" as const;
 
@@ -77,6 +78,17 @@ export interface ActiveScenePublication {
   readonly compilation: SceneCompilation;
   /** Which route published it — for provenance in the shell and in tests. */
   readonly route: string;
+  /**
+   * HOW FAR the published capital column travels — see capitalReach.ts.
+   *
+   * Required, not optional, and that is the entire point. A route that owns a
+   * book knows what medium holds it; a route that cannot answer "does the
+   * trader's other device see this?" has no business steering the shell.
+   * Making the field optional would have let /paper keep publishing exactly as
+   * it did before and left the iPad divergence silent forever, which is the
+   * failure this field exists to end.
+   */
+  readonly reach: CapitalReachVerdict;
 }
 
 export class ActiveSceneBus {
@@ -95,17 +107,29 @@ export class ActiveSceneBus {
    * identical compilation from the same holder does not notify, so a route
    * re-rendering every tick cannot thrash the shell.
    */
-  publish(token: SceneClaimToken, route: string, compilation: SceneCompilation): void {
+  publish(
+    token: SceneClaimToken,
+    route: string,
+    compilation: SceneCompilation,
+    reach: CapitalReachVerdict,
+  ): void {
     if (
       this.holder === token &&
       this.publication !== null &&
       this.publication.compilation === compilation &&
-      this.publication.route === route
+      this.publication.route === route &&
+      // Compared BY VALUE, not by identity: `selectCapitalReach` is pure and
+      // returns a fresh object on every call, so an identity check would make
+      // the idempotence guard dead code and every route re-render would emit.
+      // `deviceNote` is included because it carries the authority NAME — two
+      // different servers both yielding ALL_DEVICES is a real change.
+      this.publication.reach.reach === reach.reach &&
+      this.publication.reach.deviceNote === reach.deviceNote
     ) {
       return;
     }
     this.holder = token;
-    this.publication = { version: ACTIVE_SCENE_BUS_VERSION, compilation, route };
+    this.publication = { version: ACTIVE_SCENE_BUS_VERSION, compilation, route, reach };
     this.emit();
   }
 
