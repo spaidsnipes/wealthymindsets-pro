@@ -31,7 +31,7 @@ import OpeningBellPanel from "@/components/opening-bell/OpeningBellPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { selectOpeningBell, DEFAULT_PREPARATION_TEMPLATE } from "@/lib/traderMemory/viewModels/selectOpeningBell";
 import { useDecisionMemory, useDecisionMemoryRecords } from "@/lib/traderMemory/useDecisionMemory";
-import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
+import { useJournalBook } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import HeroTruth from "@/components/command-deck/HeroTruth";
@@ -243,7 +243,11 @@ function CommandDeckInner() {
   const nowMs = useCanvasClock() ?? Date.now();
   const storeDecisions = useDecisionMemory(user?.id ?? null);
   const decisionRecords = useDecisionMemoryRecords(user?.id ?? null);
-  const journalDecisions = useJournalSnapshots(user?.id ?? null);
+  // One subscription, two readers: the decisions the deck merges, and how
+  // much of the stored book they were built from.
+  const { snapshots: journalDecisions, coverage: journalCoverage } = useJournalBook(
+    user?.id ?? null,
+  );
   const sessionDecisions = React.useMemo(
     () => {
       const ids = new Set(storeDecisions.map((d) => d.decisionId));
@@ -1274,6 +1278,22 @@ function CommandDeckInner() {
 
             {/* Personal Edge chip — one-line 'where do I perform' summary. */}
             {sessionDecisions.length > 0 && <PersonalEdgeChip vm={personalEdgeVm} />}
+
+            {/* HOW MUCH OF THE BOOK THE EDGE CHIP IS SPEAKING FOR.
+                Deliberately NOT gated on sessionDecisions.length: a book
+                whose records were ALL unreadable produces zero decisions,
+                which is the exact case where an unqualified silence would
+                read as 'you have no history' rather than 'WM could not
+                read it'. §24 D — WM may refuse a record, but not quietly. */}
+            {journalCoverage.note != null && (
+              <p
+                role="note"
+                className="text-[10px] leading-relaxed text-wm-text-dim"
+                style={{ marginTop: 8 }}
+              >
+                {journalCoverage.note}
+              </p>
+            )}
 
             {/* When no state, show the deck structure as an INDEX so the
                 trader sees what will appear once the chart publisher

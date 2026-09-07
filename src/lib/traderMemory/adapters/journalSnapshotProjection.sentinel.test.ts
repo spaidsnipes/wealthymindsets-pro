@@ -35,8 +35,25 @@ describe("the door the bad records came through is shut", () => {
     expect(hook).not.toMatch(/as readonly AdaptableJournalEntry/);
   });
 
-  it("it hands the raw unknown[] straight to the adapter", () => {
-    expect(hook).toMatch(/journalEntriesToSnapshots\(\s*read\.records\s*,/);
+  it("nothing but a checked value reaches the adapter", () => {
+    // SUPERSEDED, ON PURPOSE. This originally pinned the literal
+    // `journalEntriesToSnapshots(read.records, ...)` — handing the raw
+    // `unknown[]` straight through. That was the right shape for Atom 10,
+    // whose only job was to remove the cast.
+    //
+    // The coverage atom then put a reader in between: `hydrateJournalEntries`
+    // answers "what is this record" and the adapter answers "what is this
+    // decision", which is what lets `skipped` count what HYDRATION refused
+    // rather than `total - snapshots` (an M0 no-trade day reads perfectly and
+    // legitimately is not a decision).
+    //
+    // So the MECHANISM changed and the INVARIANT did not: whatever reaches the
+    // adapter has been through a guard. Pinned as such — the one thing that
+    // must never come back is `read.records` arriving anywhere unchecked, and
+    // the assertion above still holds that door shut.
+    expect(hook).toMatch(/hydrateJournalEntries\(read\.records\)/);
+    expect(hook).toMatch(/journalEntriesToSnapshots\(hydration\.entries\s*,/);
+    expect(hook).not.toMatch(/journalEntriesToSnapshots\(\s*read\.records/);
   });
 
   it("and it no longer needs the entry type at all", () => {
