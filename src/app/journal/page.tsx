@@ -23,6 +23,7 @@ import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
 import { computeJournalPnl, computeJournalRealizedR, selectJournalPricing } from "@/lib/journal/computePnl";
 import { describeNoTradeExclusion, describeRecordOutcome, selectTradeRecords } from "@/lib/journal/tradeRecords";
+import { selectRecordedTotal } from "@/lib/journal/selectRecordedTotal";
 import { journalToCsv } from "@/lib/journal/journalToCsv";
 import { journalToJson } from "@/lib/journal/journalToJson";
 import {
@@ -470,9 +471,18 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
   const wins   = entries.filter(e => e.result === "win");
   const losses = entries.filter(e => e.result === "loss");
   const wr     = entries.length ? (wins.length / entries.length) * 100 : 0;
-  const totalPnl = entries.reduce((s, e) => s + e.pnl, 0);
-  const avgWin   = wins.length   ? wins.reduce((s, e) => s + e.pnl, 0) / wins.length : 0;
-  const avgLoss  = losses.length ? Math.abs(losses.reduce((s, e) => s + e.pnl, 0) / losses.length) : 0;
+  // Same unchecked-cast hazard as the header: `e.pnl` is a number only by
+  // convention. One owner sums what it can read; the coach's stat tile says
+  // UNKNOWN rather than printing a total built out of coercion.
+  const coachTotal = selectRecordedTotal(entries);
+  const totalPnl = coachTotal.total ?? 0;
+  // Averages carry the same hazard as the total and feed R:R and profit
+  // factor. Divide by what was actually READ, not by how many rows there were
+  // — dividing a partial sum by the full count invents a smaller average.
+  const winTotal  = selectRecordedTotal(wins);
+  const lossTotal = selectRecordedTotal(losses);
+  const avgWin   = winTotal.counted  ? (winTotal.total  ?? 0) / winTotal.counted : 0;
+  const avgLoss  = lossTotal.counted ? Math.abs((lossTotal.total ?? 0) / lossTotal.counted) : 0;
   const rr       = avgLoss > 0 ? avgWin / avgLoss : 0;
   const pf       = losses.length && avgLoss ? (avgWin * wins.length) / (avgLoss * losses.length) : 0;
 
@@ -552,7 +562,12 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
           { l:"Win Rate",   v:`${wr.toFixed(0)}%`,         good: wr >= 50 },
           { l:"Avg R:R",    v:`${rr.toFixed(1)}:1`,         good: rr >= 1.5 },
           { l:"Profit Fac.",v:`${pf.toFixed(2)}`,           good: pf >= 1.5 },
-          { l:"Total P&L",  v:`${totalPnl >= 0 ? "+" : ""}$${Math.abs(totalPnl).toLocaleString("en-US",{maximumFractionDigits:0})}`, good: totalPnl >= 0 },
+          { l:"Total P&L",
+            v: coachTotal.total === null
+              ? "UNKNOWN"
+              : `${totalPnl >= 0 ? "+" : ""}$${Math.abs(totalPnl).toLocaleString("en-US",{maximumFractionDigits:0})}`,
+            // §9: a total WM could not compute is not a loss and is not painted red.
+            good: coachTotal.total === null ? true : totalPnl >= 0 },
         ].map(m => (
           <div key={m.l} className="glass rounded-xl p-3 text-center">
             <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">{m.l}</div>
@@ -1022,7 +1037,13 @@ function JournalPageInner() {
   const noTradeHeldOut = entries.length - tradeRecords.length;
   const wins     = tradeRecords.filter(e => e.result === "win").length;
   const losses   = tradeRecords.filter(e => e.result === "loss").length;
-  const totalPnl = tradeRecords.reduce((s, e) => s + e.pnl, 0);
+  // `entries` arrives from an UNCHECKED cast (`read.records as JournalEntry[]`
+  // — readJournalStorage validates array-ness and nothing else), so `e.pnl` is
+  // only a number by convention. Summing it raw produced a silent breakeven
+  // for null, "-$NaN" in red for undefined, and string concatenation for a
+  // stored "250.00". One owner now sums only what it can read and says how
+  // much of the book that covers.
+  const recordedTotal = selectRecordedTotal(tradeRecords);
   const winRate  = tradeRecords.length ? ((wins / tradeRecords.length) * 100).toFixed(0) : "0";
 
   // Proof Lane §21 launch — today's session R evaluation. Composes the
@@ -1561,7 +1582,16 @@ Trade the system, trust the process, winners every day 🚀`,
           ) : (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-wm-surface text-wm-text-dim border border-wm-border">WR UNKNOWN · no trades taken</span>
           )}
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${totalPnl >= 0 ? "bg-wm-green/10 text-wm-green border-wm-green/25" : "bg-wm-red/10 text-wm-red border-wm-red/25"}`}>{fmtPnl(totalPnl)}</span>
+          {/* §9: red is money actually lost. A total WM could not compute is
+              not a loss, so it is never painted as one. */}
+          {recordedTotal.total === null ? (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-wm-surface text-wm-text-dim border-wm-border">P&amp;L UNKNOWN</span>
+          ) : (
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${recordedTotal.total >= 0 ? "bg-wm-green/10 text-wm-green border-wm-green/25" : "bg-wm-red/10 text-wm-red border-wm-red/25"}`}>
+              {fmtPnl(recordedTotal.total)}
+              {recordedTotal.status === "PARTIAL" && ` · ${recordedTotal.counted} of ${recordedTotal.counted + recordedTotal.unreadable}`}
+            </span>
+          )}
           <span className="text-[10px] text-wm-text-dim">{wins}W / {losses}L</span>
           {/* Proof Lane §21 — today's Session R gate. Silent when the
               trader hasn't logged any R for today (empty proof-lane
@@ -1964,6 +1994,16 @@ Trade the system, trust the process, winners every day 🚀`,
           </button>
         </div>
       </div>
+
+      {/* The total says how much of the book it covers, as TEXT below the
+          header. H18's lesson on a third surface: a tooltip is not a label,
+          and on the founder-path phone it does not exist at all. §9 — a
+          partly-readable book is not an alarm, so it is not styled as one. */}
+      {recordedTotal.note !== null && (
+        <p role="note" className="px-4 py-1.5 text-[10px] leading-relaxed text-wm-text-dim border-b border-wm-border bg-wm-dark shrink-0">
+          {recordedTotal.note}
+        </p>
+      )}
 
       {/* Learning Genome full-view panel — expanded via the GENOME chip.
           Silent until the trader clicks the chip; then the four-dim

@@ -60,7 +60,11 @@ describe("/journal — an M0 no-trade day is never scored as a trade", () => {
     // is a new wrong number rather than a repaired one.
     expect(code).toMatch(/const wins\s*=\s*tradeRecords\.filter/);
     expect(code).toMatch(/const losses\s*=\s*tradeRecords\.filter/);
-    expect(code).toMatch(/const totalPnl\s*=\s*tradeRecords\.reduce/);
+    // The total is summed over the SAME trade set, and — since `e.pnl` reaches
+    // this page through an unchecked cast — through the owner that refuses to
+    // coerce a null, a missing field or a stored string into money.
+    expect(code).toMatch(/const recordedTotal = selectRecordedTotal\(tradeRecords\)/);
+    expect(code).not.toMatch(/reduce\(\(s, e\) => s \+ e\.pnl, 0\)/);
   });
 
   it("THE SHARPEST ONE: no-trade days cannot unlock the evidence gate", () => {
@@ -109,6 +113,37 @@ describe("/journal — an M0 no-trade day is never scored as a trade", () => {
     const row = code.slice(at, at + 1600);
     expect(row).toMatch(/\{fmtPnl\(e\.pnl\)\}/);
     expect(row.indexOf("outcome.hasMoney")).toBeLessThan(row.indexOf("{fmtPnl(e.pnl)}"));
+  });
+
+  it("no total is rendered straight out of an unchecked cast", () => {
+    // `entries` is `read.records as JournalEntry[]` — readJournalStorage
+    // validates array-ness and nothing else. Both totals on this page must
+    // route through the owner, not just the header one.
+    expect(code).toMatch(
+      /import \{ selectRecordedTotal \} from "@\/lib\/journal\/selectRecordedTotal"/,
+    );
+    expect(code).toMatch(/const coachTotal = selectRecordedTotal\(entries\)/);
+    const sums = code.match(/\.reduce\(\(s, e\) => s \+ e\.pnl/g) ?? [];
+    expect(sums).toHaveLength(0);
+  });
+
+  it("§9: a total WM could not compute is never painted as a loss", () => {
+    // fmtPnl(NaN) rendered "-$NaN", and `totalPnl >= 0` is false for NaN, so
+    // the chip took the red treatment reserved for money actually lost.
+    expect(code).toMatch(/recordedTotal\.total === null \?/);
+    expect(code).toMatch(/P&amp;L UNKNOWN/);
+    const at = code.indexOf("P&amp;L UNKNOWN");
+    const chip = code.slice(code.lastIndexOf("<span", at), code.indexOf("</span>", at));
+    expect(chip).not.toMatch(/wm-red|#d4af37/);
+  });
+
+  it("a partial total says so as TEXT, not only in a tooltip", () => {
+    // H18 on a third surface: a tooltip is not a label, and on the
+    // founder-path phone it does not exist at all.
+    expect(code).toMatch(/\{recordedTotal\.note\}/);
+    expect(code).not.toMatch(/title=\{recordedTotal\.note\}/);
+    const at = code.indexOf("{recordedTotal.note}");
+    expect(code.slice(Math.max(0, at - 400), at)).toMatch(/role="note"/);
   });
 
   it("§8/§9: an unscored record is not an error and is not alarmed", () => {
