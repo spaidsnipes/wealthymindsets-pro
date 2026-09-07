@@ -109,3 +109,178 @@ describe("expression card (§2/§3)", () => {
     expect(c.currentR).toBeNull();
   });
 });
+
+/**
+ * H4 — STOCK SESSION IS NOT OPTION SESSION.
+ *
+ * Canon: "If optionTradableNow is NO: do not pretend GET ME IN NOW is
+ * available. Say OPTION SESSION CLOSED or OPTION NOT TRADABLE NOW."
+ *
+ * The defect this guards is not a wrong number — it is a RIGHT number
+ * presented as an offer. A BID captured at 15:59 is still a true bid at 19:00;
+ * what stops being true is that anyone will take it. So every case below
+ * separates WHAT IS IT WORTH from CAN I ACT, and asserts they never merge.
+ */
+describe("H4 — the contract has its own clock", () => {
+  const openBook = { ...base, bid: 3.60, ask: 3.90 };
+
+  it("grants sell-now only when the CONTRACT's own market is open", () => {
+    const c = selectExpressionCard({
+      ...openBook,
+      underlyingSession: "RTH",
+      optionSession: "RTH",
+    });
+    expect(c.tradability.optionTradableNow).toBe("YES");
+    expect(c.sellNowAvailable).toBe(true);
+    expect(c.tradability.note).toBeNull();
+    expect(c.tradability.sessionsDiverged).toBe(false);
+  });
+
+  it("a closed contract keeps its premium but loses its offer", () => {
+    const c = selectExpressionCard({
+      ...openBook,
+      underlyingSession: "CLOSED",
+      optionSession: "CLOSED",
+    });
+    // The number survives — it is real provenance, not a guess.
+    expect(c.currentPremium).toBe(3.60);
+    expect(c.currentPremiumRole).toBe("BID");
+    // The permission does not.
+    expect(c.tradability.optionTradableNow).toBe("NO");
+    expect(c.sellNowAvailable).toBe(false);
+    expect(c.tradability.note).toContain("OPTION SESSION CLOSED");
+  });
+
+  it("THE H4 CASE: stock printing in EXTENDED, contract shut", () => {
+    const c = selectExpressionCard({
+      ...openBook,
+      underlyingSession: "EXTENDED",
+      optionSession: "CLOSED",
+    });
+    expect(c.sellNowAvailable).toBe(false);
+    expect(c.tradability.sessionsDiverged).toBe(true);
+    // Verdict first, reason second — never a blended sentence.
+    expect(c.tradability.note).toMatch(/^OPTION SESSION CLOSED/);
+    expect(c.tradability.note).toContain("EXTENDED");
+    expect(c.tradability.note).toContain("different market");
+  });
+
+  it("the UNDERLYING's session never votes on the contract", () => {
+    // Stock wide open. Contract shut. The stock does not rescue it.
+    const shut = selectExpressionCard({
+      ...openBook,
+      underlyingSession: "RTH",
+      optionSession: "CLOSED",
+    });
+    expect(shut.sellNowAvailable).toBe(false);
+
+    // And the reverse: a closed stock does not shut a contract its own
+    // venue reports as open.
+    const open = selectExpressionCard({
+      ...openBook,
+      underlyingSession: "CLOSED",
+      optionSession: "RTH",
+    });
+    expect(open.tradability.optionTradableNow).toBe("YES");
+    expect(open.sellNowAvailable).toBe(true);
+  });
+
+  it("DROPPING the sessions fails CLOSED, never open", () => {
+    // This is the exact shape that let the CLOSED/DELAYED defect survive on
+    // /charts: an optional argument silently omitted. Here omission may only
+    // ever cost a capability.
+    const c = selectExpressionCard(openBook);
+    expect(c.tradability.optionTradableNow).toBe("UNKNOWN");
+    expect(c.sellNowAvailable).toBe(false);
+    expect(c.tradability.note).toContain("OPTION SESSION UNKNOWN");
+    expect(c.tradability.underlyingSession).toBe("UNKNOWN");
+    // UNKNOWN is not divergence — two absences are not a disagreement.
+    expect(c.tradability.sessionsDiverged).toBe(false);
+  });
+
+  it("null sessions are treated as absent, not as a state", () => {
+    const c = selectExpressionCard({ ...openBook, underlyingSession: null, optionSession: null });
+    expect(c.tradability.optionTradableNow).toBe("UNKNOWN");
+    expect(c.sellNowAvailable).toBe(false);
+  });
+
+  it("EXTENDED and OVERNIGHT contracts fail closed and say which", () => {
+    for (const s of ["EXTENDED", "OVERNIGHT"] as const) {
+      const c = selectExpressionCard({ ...openBook, underlyingSession: s, optionSession: s });
+      expect(c.tradability.optionTradableNow).toBe("NO");
+      expect(c.sellNowAvailable).toBe(false);
+      expect(c.tradability.note).toContain("OPTION NOT TRADABLE NOW");
+      expect(c.tradability.note).toContain(s);
+    }
+  });
+
+  it("a MODELED premium is never actionable, even in a wide-open market", () => {
+    // H18. An open market does not turn a model into a counterparty.
+    const c = selectExpressionCard({
+      ...base,
+      bid: null,
+      ask: null,
+      modeledPremium: 3.75,
+      underlyingSession: "RTH",
+      optionSession: "RTH",
+    });
+    expect(c.currentPremiumRole).toBe("MODELED");
+    expect(c.tradability.optionTradableNow).toBe("YES");
+    expect(c.sellNowAvailable).toBe(false);
+  });
+
+  it("no premium at all is not actionable in any session", () => {
+    const c = selectExpressionCard({
+      ...base,
+      bid: null,
+      ask: null,
+      optionSession: "RTH",
+      underlyingSession: "RTH",
+    });
+    expect(c.currentPremium).toBeNull();
+    expect(c.sellNowAvailable).toBe(false);
+  });
+
+  it("sellNowAvailable is true ONLY when the note is null", () => {
+    // The surface renders the note and hides the action off the same fact,
+    // so the two may never disagree.
+    const sessions = ["RTH", "EXTENDED", "OVERNIGHT", "CLOSED", "24X7", null] as const;
+    for (const u of sessions) {
+      for (const o of sessions) {
+        const c = selectExpressionCard({ ...openBook, underlyingSession: u, optionSession: o });
+        if (c.sellNowAvailable) {
+          expect(c.tradability.note).toBeNull();
+          expect(c.tradability.optionTradableNow).toBe("YES");
+        }
+        if (c.tradability.optionTradableNow !== "YES") {
+          expect(c.tradability.note).not.toBeNull();
+          expect(c.sellNowAvailable).toBe(false);
+        }
+      }
+    }
+  });
+
+  it("never tells a trader to wait for something that is already available", () => {
+    const sessions = ["RTH", "EXTENDED", "OVERNIGHT", "CLOSED", "24X7", null] as const;
+    for (const u of sessions) {
+      for (const o of sessions) {
+        const note = selectExpressionCard({ ...openBook, underlyingSession: u, optionSession: o })
+          .tradability.note;
+        if (note === null) continue;
+        expect(note).not.toMatch(/coming soon|eventually|needs wiring|try again later/i);
+        // A designed market boundary is not an error condition.
+        expect(note).not.toMatch(/\b(ERROR|FAILED|CRITICAL|WARNING)\b/);
+      }
+    }
+  });
+
+  it("tradability does not disturb the money numbers", () => {
+    const open = selectExpressionCard({ ...openBook, optionSession: "RTH", underlyingSession: "RTH" });
+    const shut = selectExpressionCard({ ...openBook, optionSession: "CLOSED", underlyingSession: "CLOSED" });
+    // Closing a market changes what you may DO, not what you HOLD.
+    expect(shut.capitalDeployed).toBe(open.capitalDeployed);
+    expect(shut.currentPremium).toBe(open.currentPremium);
+    expect(shut.contractReturnPct).toBe(open.contractReturnPct);
+    expect(shut.protection.grade).toBe(open.protection.grade);
+  });
+});

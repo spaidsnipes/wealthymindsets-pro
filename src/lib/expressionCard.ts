@@ -24,14 +24,47 @@
  * §21: "LONG OPTION EXIT REFERENCE = BID for conservative sell-now reference."
  * A long position's sell-now value uses the BID, and the role is stated.
  *
+ * H4 — STOCK SESSION IS NOT OPTION SESSION. A quote having a role does not
+ * make it actionable. The underlying can be printing in EXTENDED while the
+ * contract's own market is shut, and a BID carried over from the close is a
+ * memory, not an offer. Canon: "If optionTradableNow is NO: do not pretend
+ * GET ME IN NOW is available. Say OPTION SESSION CLOSED or OPTION NOT
+ * TRADABLE NOW." So the card now answers two separate questions —
+ * WHAT IS IT WORTH (premium + role) and CAN I ACT (tradability) — and never
+ * lets the first imply the second.
+ *
  * PURE — no I/O, no clock.
  */
 
 import { selectResponseEnvelope, type ResponseEnvelope } from "./responseEnvelope";
 import { selectProtectionState, type ProtectionState } from "./protectionState";
+import type { CanonicalSession } from "./marketData/canonicalIdentity";
 
 /** BUILD ORDER §7 quote roles. Any tradable number must name its role. */
 export type QuoteRole = "LAST" | "BID" | "ASK" | "MID" | "LOCKED AT CLICK" | "MODELED" | "UNKNOWN";
+
+/** H4 — three-valued on purpose. "not YES" is not the same as "NO". */
+export type OptionTradability = "YES" | "NO" | "UNKNOWN";
+
+/** A session WM was told about, or the honest absence of one. */
+export type DeclaredSession = CanonicalSession | "UNKNOWN";
+
+export interface ExpressionTradability {
+  /** The stock's session. Informational — it does NOT decide the contract. */
+  readonly underlyingSession: DeclaredSession;
+  /** The contract's own session. This is what decides tradability. */
+  readonly optionSession: DeclaredSession;
+  readonly optionTradableNow: OptionTradability;
+  /**
+   * True when the two markets are in genuinely different states. This is the
+   * H4 headline made queryable, and the same shape the XTSLA amendment needs:
+   * one underlying, two venues, two clocks, never one blended sentence.
+   */
+  readonly sessionsDiverged: boolean;
+  /** Canon sentence for the surface. null ONLY when the contract is tradable. */
+  readonly note: string | null;
+}
+
 
 export interface ExpressionCardInput {
   readonly underlyingSymbol: string;
@@ -63,6 +96,18 @@ export interface ExpressionCardInput {
   readonly iv?: number | null;
   readonly ivSource?: string;
   readonly contractMultiplier?: number;
+
+  /**
+   * H4 sessions. Both OPTIONAL, and both default to UNKNOWN — which resolves
+   * to optionTradableNow: "UNKNOWN" and suppresses the sell-now claim.
+   *
+   * The optional-argument shape is the same one that let the CLOSED/DELAYED
+   * defect survive a repair pass on /charts, so the polarity here is chosen
+   * deliberately: dropping the argument fails CLOSED. A caller who forgets to
+   * pass a session loses a capability; it cannot gain a permission.
+   */
+  readonly underlyingSession?: CanonicalSession | null;
+  readonly optionSession?: CanonicalSession | null;
 }
 
 export interface ExpressionCard {
@@ -75,6 +120,18 @@ export interface ExpressionCard {
   /** Current sell-now reference and the role it came from. */
   readonly currentPremium: number | null;
   readonly currentPremiumRole: QuoteRole;
+
+  /** H4 — the contract's own clock, kept separate from the stock's. */
+  readonly tradability: ExpressionTradability;
+  /**
+   * Whether the trader can act on `currentPremium` RIGHT NOW.
+   *
+   * This is deliberately a different question from "is there a premium".
+   * A number can be perfectly well-sourced and completely unactionable, and
+   * conflating the two is how a closed-market screen grows a live-looking
+   * exit button. MODELED is never actionable at any hour (H18).
+   */
+  readonly sellNowAvailable: boolean;
 
   /** Capital actually deployed (debit). NOT the planned loss. */
   readonly capitalDeployed: number | null;
@@ -104,6 +161,67 @@ function finite(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v);
 }
 
+function declared(s: CanonicalSession | null | undefined): DeclaredSession {
+  return s == null ? "UNKNOWN" : s;
+}
+
+/**
+ * H4 resolver. The ONLY input that may grant tradability is the OPTION's own
+ * session — the underlying's session is carried for the divergence sentence
+ * and never votes.
+ *
+ * EXTENDED and OVERNIGHT resolve to NO rather than UNKNOWN. That is a
+ * deliberate fail-closed reading of the P0 contract shape (H3: one single-leg
+ * US equity option): the contract's continuous market is the regular session,
+ * and WM has no venue evidence that this specific contract is quotable outside
+ * it. If a provider later proves per-contract extended quoting, this is the one
+ * function that changes — not eleven screens.
+ */
+export function selectExpressionTradability(
+  underlying: CanonicalSession | null | undefined,
+  option: CanonicalSession | null | undefined,
+): ExpressionTradability {
+  const underlyingSession = declared(underlying);
+  const optionSession = declared(option);
+  const sessionsDiverged =
+    underlyingSession !== "UNKNOWN" &&
+    optionSession !== "UNKNOWN" &&
+    underlyingSession !== optionSession;
+
+  let optionTradableNow: OptionTradability;
+  let note: string | null;
+
+  switch (optionSession) {
+    case "RTH":
+    case "24X7":
+      optionTradableNow = "YES";
+      note = null;
+      break;
+    case "CLOSED":
+      optionTradableNow = "NO";
+      note = "OPTION SESSION CLOSED — this contract is not tradable now.";
+      break;
+    case "EXTENDED":
+    case "OVERNIGHT":
+      optionTradableNow = "NO";
+      note = `OPTION NOT TRADABLE NOW — the contract market is ${optionSession}.`;
+      break;
+    default:
+      optionTradableNow = "UNKNOWN";
+      note = "OPTION SESSION UNKNOWN — WM cannot confirm this contract is tradable now.";
+      break;
+  }
+
+  // The divergence sentence is APPENDED, never substituted: a trader about to
+  // act needs the verdict first and the reason second. `sessionsDiverged`
+  // already guarantees both sessions are named, so neither reads "UNKNOWN".
+  if (note !== null && sessionsDiverged) {
+    note = `${note} The stock is in ${underlyingSession} — that is a different market from this contract.`;
+  }
+
+  return { underlyingSession, optionSession, optionTradableNow, sessionsDiverged, note };
+}
+
 export function selectExpressionCard(input: ExpressionCardInput): ExpressionCard {
   const multiplier = finite(input.contractMultiplier) ? input.contractMultiplier : 100;
 
@@ -122,6 +240,20 @@ export function selectExpressionCard(input: ExpressionCardInput): ExpressionCard
     currentPremium = input.modeledPremium;
     currentPremiumRole = "MODELED";
   }
+
+  const tradability = selectExpressionTradability(input.underlyingSession, input.optionSession);
+  // Two independent gates, both required: an open market does not make a
+  // modeled number executable, and a real BID does not survive its market
+  // closing.
+  //
+  // Stated as a DENY list, not an allow list. tsc proved an allow list here is
+  // partly unreachable today (this selector emits only BID/MID/MODELED/UNKNOWN),
+  // and an allow list also fails the wrong way: a QuoteRole added later would
+  // silently become unactionable for reasons nobody wrote down. The real
+  // invariant is narrower and permanent — MODELED and UNKNOWN are not prices
+  // anyone can hit (H18), and every other role is an observed venue quote.
+  const roleIsActionable = currentPremiumRole !== "MODELED" && currentPremiumRole !== "UNKNOWN";
+  const sellNowAvailable = tradability.optionTradableNow === "YES" && roleIsActionable;
 
   const qtyFilled = finite(input.qtyFilled) && input.qtyFilled > 0 ? Math.floor(input.qtyFilled) : 0;
   const entryPremium = finite(input.entryPremium) && input.entryPremium >= 0 ? input.entryPremium : 0;
@@ -175,6 +307,8 @@ export function selectExpressionCard(input: ExpressionCardInput): ExpressionCard
     entryPremium,
     currentPremium,
     currentPremiumRole,
+    tradability,
+    sellNowAvailable,
     capitalDeployed,
     plannedLoss,
     currentR,
