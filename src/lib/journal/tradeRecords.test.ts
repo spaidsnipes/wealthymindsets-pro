@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   describeNoTradeExclusion,
+  describeRecordOutcome,
   isTradeRecord,
   selectTradeRecords,
 } from "./tradeRecords";
@@ -108,5 +109,49 @@ describe("describeNoTradeExclusion — a denominator never shrinks in silence", 
   it("explains WHY, so the trader can learn the rule from the note alone", () => {
     const note = describeNoTradeExclusion([M0]) ?? "";
     expect(note).toContain("no trade was taken");
+  });
+});
+
+describe("describeRecordOutcome — a no-trade day is not labelled a breakeven", () => {
+  it("THE DEFECT: an M0 record stops reporting a trade outcome", () => {
+    // Holding M0 out of the STATISTICS stopped it being counted. It did not
+    // stop it being LABELLED: the row still said "be" and "$0.00".
+    const o = describeRecordOutcome({ dayModel: "M0", result: "be" });
+    expect(o.isTrade).toBe(false);
+    expect(o.label).toBe("NO TRADE");
+  });
+
+  it("H13: no money moved, so no dollar figure may be shown", () => {
+    // "$0.00" is a PRICE. It says money changed hands and came back level —
+    // a real trade scratched at entry. On a no-trade day nothing was paid.
+    expect(describeRecordOutcome({ dayModel: "M0", result: "be" }).hasMoney).toBe(false);
+    expect(describeRecordOutcome({ dayModel: "M1", result: "be" }).hasMoney).toBe(true);
+  });
+
+  it("a genuine scratch trade keeps its breakeven label", () => {
+    // The distinction this whole module exists for, in one assertion: two
+    // records, both pnl 0, and they must NOT read the same.
+    const scratched = describeRecordOutcome({ dayModel: "M1", result: "be" });
+    const neverTaken = describeRecordOutcome({ dayModel: "M0", result: "be" });
+    expect(scratched.label).toBe("BE");
+    expect(neverTaken.label).toBe("NO TRADE");
+    expect(scratched.label).not.toBe(neverTaken.label);
+  });
+
+  it("wins and losses are untouched", () => {
+    expect(describeRecordOutcome({ dayModel: "M1", result: "win" }).label).toBe("WIN");
+    expect(describeRecordOutcome({ result: "loss" }).label).toBe("LOSS");
+  });
+
+  it("an unrecognised stored value reports UNKNOWN, never a silent breakeven", () => {
+    // The exact substitution this module exists to end: when WM does not know
+    // what a record says, it says so instead of picking the flat answer.
+    expect(describeRecordOutcome({ dayModel: "M1", result: "scratch" }).label).toBe("UNKNOWN");
+    expect(describeRecordOutcome({ dayModel: "M1" }).label).toBe("UNKNOWN");
+  });
+
+  it("§8: an unscored record is not phrased as a failure", () => {
+    const o = describeRecordOutcome({ dayModel: "M0" });
+    expect(o.label).not.toMatch(/ERROR|INVALID|FAILED|MISSING/);
   });
 });

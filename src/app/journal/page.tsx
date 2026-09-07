@@ -22,7 +22,7 @@ import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
 import { computeJournalPnl, computeJournalRealizedR, selectJournalPricing } from "@/lib/journal/computePnl";
-import { describeNoTradeExclusion, selectTradeRecords } from "@/lib/journal/tradeRecords";
+import { describeNoTradeExclusion, describeRecordOutcome, selectTradeRecords } from "@/lib/journal/tradeRecords";
 import { journalToCsv } from "@/lib/journal/journalToCsv";
 import { journalToJson } from "@/lib/journal/journalToJson";
 import {
@@ -2288,7 +2288,12 @@ Trade the system, trust the process, winners every day 🚀`,
               </div>
             )}
             {filtered.map(e => {
-              const up = e.result === "win";
+              // H13 — separate facts, separate labels. Before this, a §3 M0
+              // no-trade day rendered "$0.00" in the same muted grey as a real
+              // trade scratched at its entry price: discipline and a flat
+              // outcome, pixel-for-pixel identical.
+              const outcome = describeRecordOutcome(e);
+              const up = outcome.isTrade && e.result === "win";
               return (
                 <div key={e.id}
                   onClick={() => { setSelected(e); setNewMode(false); }}
@@ -2297,13 +2302,18 @@ Trade the system, trust the process, winners every day 🚀`,
                     selected?.id === e.id ? "bg-wm-surface" : ""
                   )}
                 >
-                  <div className={clsx("w-1 rounded-full shrink-0 mt-1", up ? "bg-wm-green" : e.result === "loss" ? "bg-wm-red" : "bg-wm-text-dim")} style={{ minHeight:40 }} />
+                  <div className={clsx("w-1 rounded-full shrink-0 mt-1", up ? "bg-wm-green" : outcome.isTrade && e.result === "loss" ? "bg-wm-red" : "bg-wm-text-dim")} style={{ minHeight:40 }} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
                       <span className="text-xs font-bold text-wm-text">{e.symbol}</span>
-                      <span className={`text-[10px] font-mono font-bold ${up ? "text-wm-green" : e.result === "loss" ? "text-wm-red" : "text-wm-text-muted"}`}>
-                        {fmtPnl(e.pnl)}
-                      </span>
+                      {outcome.hasMoney ? (
+                        <span className={`text-[10px] font-mono font-bold ${up ? "text-wm-green" : e.result === "loss" ? "text-wm-red" : "text-wm-text-muted"}`}>
+                          {fmtPnl(e.pnl)}
+                        </span>
+                      ) : (
+                        /* §9: no money moved, so nothing is coloured as money. */
+                        <span className="text-[10px] font-mono font-bold text-wm-text-dim">{outcome.label}</span>
+                      )}
                     </div>
                     <div className="text-[10px] text-wm-text-dim truncate">{e.setup}</div>
                     {/* Proof Lane §21 read-side (H-Bkt 6): render Model + R

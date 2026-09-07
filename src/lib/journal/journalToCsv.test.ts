@@ -129,3 +129,45 @@ describe("journalToCsv — header + row shape", () => {
     expect(csv).toContain(`""quoted""`);
   });
 });
+
+describe("a §3 M0 no-trade day never exports as a flat trade", () => {
+  // The export is where a journal leaves WM: a spreadsheet, a tax tool, a coach.
+  // Handing it "0.00, 0.0000, be" for a day nobody traded launders the lie into
+  // systems that have no way to know better.
+  const cols = (row: string) => row.split(",");
+  const idx = {
+    pnl: JOURNAL_CSV_COLUMNS.indexOf("PnL"),
+    pct: JOURNAL_CSV_COLUMNS.indexOf("PctChange"),
+    result: JOURNAL_CSV_COLUMNS.indexOf("Result"),
+  };
+
+  it("THE DEFECT: result is 'no-trade', not 'be'", () => {
+    const row = cols(journalRowToCsv(mk({ dayModel: "M0", result: "be", pnl: 0, pct: 0 })));
+    expect(row[idx.result]).toBe("no-trade");
+  });
+
+  it("pnl and pct are EMPTY cells, not fabricated zeroes", () => {
+    // Empty is the CSV's own way of saying "no value". 0.00 is a price.
+    const row = cols(journalRowToCsv(mk({ dayModel: "M0", result: "be", pnl: 0, pct: 0 })));
+    expect(row[idx.pnl]).toBe("");
+    expect(row[idx.pct]).toBe("");
+  });
+
+  it("a REAL trade scratched at entry still exports its breakeven and its 0.00", () => {
+    // The two rows must not be identical — that is the whole point.
+    const scratched = cols(journalRowToCsv(mk({ dayModel: "M1", result: "be", pnl: 0, pct: 0 })));
+    expect(scratched[idx.result]).toBe("be");
+    expect(scratched[idx.pnl]).toBe("0.00");
+  });
+
+  it("wins and losses are untouched by the M0 rule", () => {
+    const win = cols(journalRowToCsv(mk({ dayModel: "M1", result: "win", pnl: 250.5, pct: 3 })));
+    expect(win[idx.result]).toBe("win");
+    expect(win[idx.pnl]).toBe("250.50");
+  });
+
+  it("the M0 row still carries its DayModel, so the record is not anonymised", () => {
+    const row = cols(journalRowToCsv(mk({ dayModel: "M0", result: "be" })));
+    expect(row[JOURNAL_CSV_COLUMNS.indexOf("DayModel")]).toBe("M0");
+  });
+});

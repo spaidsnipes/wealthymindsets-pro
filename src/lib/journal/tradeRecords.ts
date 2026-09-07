@@ -53,6 +53,58 @@ export function selectTradeRecords<T extends DayModelRecord>(records: readonly T
 }
 
 /**
+ * WHAT A RECORD'S OUTCOME ACTUALLY SAYS.
+ *
+ * THE SECOND HALF OF THE SAME DEFECT: holding M0 days out of the statistics
+ * stopped them being COUNTED as breakevens. It did not stop them being LABELLED
+ * as breakevens. An M0 row still renders `result "be"` and `$0.00`, and exports
+ * to CSV as `be` — pixel-for-pixel identical to a real trade the trader entered,
+ * managed and scratched at their entry price.
+ *
+ * Those are two completely different days. One is discipline, one is a flat
+ * outcome, and H13 is explicit that separate facts get separate labels and are
+ * never merged. "$0.00" is a PRICE; on a no-trade day no price was paid.
+ *
+ * DELIBERATELY NOT DONE: adding a fourth member to the stored FinancialOutcome
+ * union. That union is persisted on every historical entry and is read by seven
+ * adapters across traderMemory, proofLane and learningGenome; widening it is a
+ * large migration and is not what is wrong. On an M0 record `result` is not
+ * holding a WRONG value — it is holding a MEANINGLESS one, because no trade
+ * happened to have an outcome. The repair is that no surface reads it raw.
+ */
+export interface RecordOutcome {
+  readonly isTrade: boolean;
+  /** What the outcome chip says. Uppercase; already display-ready. */
+  readonly label: string;
+  /**
+   * Whether a dollar figure may be shown. False on a no-trade day: rendering
+   * "$0.00" would state that money changed hands and came back level.
+   */
+  readonly hasMoney: boolean;
+}
+
+const TRADE_OUTCOME_LABELS: Record<string, string> = {
+  win: "WIN",
+  loss: "LOSS",
+  be: "BE",
+};
+
+export function describeRecordOutcome(
+  record: DayModelRecord & { readonly result?: string },
+): RecordOutcome {
+  if (!isTradeRecord(record)) {
+    return { isTrade: false, label: "NO TRADE", hasMoney: false };
+  }
+  return {
+    isTrade: true,
+    // An unrecognised stored value is reported as UNKNOWN rather than silently
+    // shown as a breakeven — the exact substitution this module exists to end.
+    label: TRADE_OUTCOME_LABELS[record.result ?? ""] ?? "UNKNOWN",
+    hasMoney: true,
+  };
+}
+
+/**
  * Say out loud that records were held out of a statistic, or return null when
  * none were.
  *

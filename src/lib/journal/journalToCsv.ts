@@ -18,7 +18,12 @@
  *    spreadsheet reader gets stable columns.
  *  - Missing Proof Lane fields render as empty cells, NEVER fabricated
  *    zeroes (canon §4 opt-in R math).
+ *  - A canon §3 M0 no-trade day exports with EMPTY pnl / pct cells and
+ *    result "no-trade". The pricing verdict is not re-derived here; it is
+ *    read from the one owner in ./tradeRecords.
  */
+
+import { describeRecordOutcome as recordOutcome } from "./tradeRecords";
 
 export interface JournalCsvEntry {
   date: string;
@@ -98,9 +103,13 @@ export function journalRowToCsv(e: JournalCsvEntry): string {
     fmtNum(e.entry, 4),
     fmtNum(e.exit, 4),
     csvEscape(String(e.size)),
-    fmtNum(e.pnl, 2),
-    fmtNum(e.pct, 4),
-    csvEscape(e.result),
+    // A canon §3 M0 no-trade day has no price and no outcome. Exporting its
+    // stored pnl 0 / result "be" would hand the trader — and any spreadsheet
+    // or tax tool downstream — a flat TRADE that never happened. Empty cells
+    // are the CSV's way of saying "no value", which is the truth here.
+    csvEscape(recordOutcome(e).hasMoney ? fmtNum(e.pnl, 2) : ""),
+    csvEscape(recordOutcome(e).hasMoney ? fmtNum(e.pct, 4) : ""),
+    csvEscape(recordOutcome(e).isTrade ? e.result : "no-trade"),
     csvEscape(e.dayModel ?? ""),
     fmtNum(e.plannedRDollars, 2),
     fmtNum(e.realizedR, 4),

@@ -98,6 +98,19 @@ describe("/journal — an M0 no-trade day is never scored as a trade", () => {
     expect(code).toMatch(/WR UNKNOWN/);
   });
 
+  it("the journal ROW asks the owner what the record says", () => {
+    // Holding M0 out of the statistics stopped it being COUNTED as a
+    // breakeven. It did not stop it being LABELLED one: the row still read
+    // "$0.00" in the same muted grey as a trade scratched at its entry price.
+    expect(code).toMatch(/const outcome = describeRecordOutcome\(e\)/);
+    // "$0.00" is a price. It may only render when money actually moved.
+    expect(code).toMatch(/outcome\.hasMoney \?/);
+    const at = code.indexOf("const outcome = describeRecordOutcome(e)");
+    const row = code.slice(at, at + 1600);
+    expect(row).toMatch(/\{fmtPnl\(e\.pnl\)\}/);
+    expect(row.indexOf("outcome.hasMoney")).toBeLessThan(row.indexOf("{fmtPnl(e.pnl)}"));
+  });
+
   it("§8/§9: an unscored record is not an error and is not alarmed", () => {
     // Scoped to the UNKNOWN chip's own element — the neighbouring P&L chip
     // legitimately uses wm-red for a negative total, which IS money lost.
