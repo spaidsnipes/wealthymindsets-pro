@@ -205,6 +205,26 @@ export function matrixProviderWireView(
   const entitlement = rejected.find((row) => row.reason.includes("BLOCKED_ENTITLEMENT"));
   if (entitlement) return { source, tone: "BLOCKED", label: "Entitlement blocked", detail: entitlement.note || entitlement.reason };
   const detail = rejected.find((row) => row.note)?.note || rejected[0]?.reason || "No canonical capability evidence returned.";
+  // A negative runtime receipt is more useful than the internal default
+  // NOT_IMPLEMENTED classification used for capability rows with no accepted
+  // observation. Preserve the witnessed edge on the compact wireboard: a
+  // provider failure, deadline, rate limit, stale print, or empty response is
+  // not the same claim as an unwired adapter.
+  if (/\bHTTP 5\d\d\b|provider (?:failed|error)|unrecognized .*envelope/i.test(detail)) {
+    return { source, tone: "OFFLINE", label: "Provider error", detail };
+  }
+  if (/\b(?:timed? out|deadline exceeded|did not respond within)\b/i.test(detail)) {
+    return { source, tone: "OFFLINE", label: "Timed out", detail };
+  }
+  if (/\b(?:HTTP 429|rate limit)/i.test(detail)) {
+    return { source, tone: "LIMITED", label: "Rate limited", detail };
+  }
+  if (/\bno (?:valid,? )?(?:symbol-matched )?(?:tick )?(?:observations|events|prints)\b/i.test(detail)) {
+    return { source, tone: "LIMITED", label: "No events", detail };
+  }
+  if (/\bstale (?:prints?|data)|prints? .* old\b/i.test(detail)) {
+    return { source, tone: "LIMITED", label: "Stale data", detail };
+  }
   // A provider-denied request is more specific than the generic absence of
   // observations, even when the provider did not identify whether policy,
   // permission, or subscription caused the denial. Keep that uncertainty

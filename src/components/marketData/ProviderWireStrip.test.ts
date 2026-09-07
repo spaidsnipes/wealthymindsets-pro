@@ -119,6 +119,19 @@ describe("matrixProviderWireView", () => {
       detail,
     });
   });
+
+  it.each([
+    ["Webull Data API returned HTTP 500. The provider failed before a tick observation was returned.", "Provider error", "OFFLINE"],
+    ["Webull Data API did not respond within 8000 ms; no tick observation was returned.", "Timed out", "OFFLINE"],
+    ["Webull Data API returned HTTP 429. The bounded read was rate limited; no tick observation was returned.", "Rate limited", "LIMITED"],
+    ["Webull Data API returned no valid, symbol-matched tick observations.", "No events", "LIMITED"],
+    ["Webull Data API returned symbol-matched prints, but the newest provider timestamp was 65000 ms old; stale prints were not exposed as current.", "Stale data", "LIMITED"],
+  ])("keeps the observed runtime edge '%s' out of the unwired bucket", (detail, label, tone) => {
+    const matrix = buildAthosCapabilityMatrix([
+      { certification: certifySource("webull", [{ capability: "TICKS", status: "NOT_IMPLEMENTED", note: detail }]), providerTier: "CERTIFIED_NEW" },
+    ], session);
+    expect(matrixProviderWireView(matrix, "webull")).toMatchObject({ label, tone, detail });
+  });
 });
 
 describe("ProviderWireStrip touch truth surface", () => {
