@@ -40,6 +40,8 @@ describe("providerWireView", () => {
     expect(moomooTickWireView({ label: "NOT CONFIGURED", detail: "MOOMOO_BRIDGE_URL is not configured.", eventCount: 0 })).toMatchObject({ tone: "OFFLINE", label: "Not configured" });
     expect(moomooTickWireView({ label: "AUTH BLOCKED", detail: "Sign in required.", eventCount: 0 })).toMatchObject({ tone: "BLOCKED", label: "AUTH BLOCKED" });
     expect(moomooTickWireView({ label: "NO EVENTS RECEIVED", detail: "No prints returned.", eventCount: 0 })).toMatchObject({ tone: "LIMITED", label: "NO EVENTS RECEIVED" });
+    expect(moomooTickWireView({ label: "PROVIDER ERROR", detail: "HTTP 503 before a receipt.", eventCount: 0 })).toMatchObject({ tone: "OFFLINE", label: "Provider error" });
+    expect(moomooTickWireView({ label: "RATE LIMITED", detail: "HTTP 429 before a receipt.", eventCount: 0 })).toMatchObject({ tone: "LIMITED", label: "Rate limited" });
     expect(moomooTickWireView({ label: "RECEIVING", receiving: true, eventCount: 4 })).toMatchObject({ tone: "LIMITED", label: "Ticks receiving" });
     expect(moomooTickWireView({ label: "ACCESS UNPROVEN", detail: "HTTP 403 did not classify the failed edge.", eventCount: 0 })).toMatchObject({ tone: "BLOCKED", label: "ACCESS UNPROVEN" });
   });
@@ -49,7 +51,8 @@ describe("providerWireView", () => {
     const denied = classifyProviderReceiptFailure(403, "longbridge");
     expect(denied).toMatchObject({ label: "ACCESS UNPROVEN", receiving: false, eventCount: 0 });
     expect(denied.detail).toContain("failed edge");
-    expect(classifyProviderReceiptFailure(503, "moomoo")).toMatchObject({ label: "UNKNOWN" });
+    expect(classifyProviderReceiptFailure(429, "moomoo")).toMatchObject({ label: "RATE LIMITED", receiving: false, eventCount: 0 });
+    expect(classifyProviderReceiptFailure(503, "moomoo")).toMatchObject({ label: "PROVIDER ERROR", receiving: false, eventCount: 0 });
   });
 
   it("keeps Longbridge receiving below live until entitlement is certified", () => {

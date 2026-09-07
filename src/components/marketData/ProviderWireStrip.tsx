@@ -52,8 +52,14 @@ export function moomooTickWireView(receipt: MoomooTickReceipt): ProviderWireView
   if (label === "AUTH BLOCKED" || label === "ACCESS UNPROVEN" || label === "BRIDGE UNREACHABLE" || label === "SUBSCRIPTION FAILED") {
     return { source: "moomoo", tone: "BLOCKED", label, detail };
   }
+  if (label === "PROVIDER ERROR") {
+    return { source: "moomoo", tone: "OFFLINE", label: "Provider error", detail };
+  }
   if (label === "NO EVENTS RECEIVED" || label === "STALE" || label === "RECONNECTING") {
     return { source: "moomoo", tone: "LIMITED", label, detail };
+  }
+  if (label === "RATE LIMITED") {
+    return { source: "moomoo", tone: "LIMITED", label: "Rate limited", detail };
   }
   return { source: "moomoo", tone: "OFFLINE", label: "Unknown", detail };
 }
@@ -75,6 +81,22 @@ export function classifyProviderReceiptFailure(
     return {
       label: "ACCESS UNPROVEN",
       detail: `${name} denied the tick request with HTTP 403, but the failed edge (authorization, subscription, entitlement, or policy) was not proven.`,
+      receiving: false,
+      eventCount: 0,
+    };
+  }
+  if (status === 429) {
+    return {
+      label: "RATE LIMITED",
+      detail: `The authenticated ${name} tick route returned HTTP 429. The provider did not return a tick receipt.`,
+      receiving: false,
+      eventCount: 0,
+    };
+  }
+  if (status >= 500) {
+    return {
+      label: "PROVIDER ERROR",
+      detail: `The authenticated ${name} tick route returned HTTP ${status} before a tick receipt was returned.`,
       receiving: false,
       eventCount: 0,
     };
