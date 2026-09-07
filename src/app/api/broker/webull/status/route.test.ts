@@ -10,7 +10,7 @@ vi.mock("@/lib/requireAuth", () => ({
 
 import { GET } from "./route";
 import { requireAuth } from "@/lib/requireAuth";
-import { missingSecretsForState, webullCredentialPresence } from "@/lib/broker/webullStatus";
+import { missingSecretsForState, webullConnectOAuthReadiness, webullCredentialPresence } from "@/lib/broker/webullStatus";
 
 function req(): Request {
   return new Request("http://localhost/api/broker/webull/status");
@@ -40,6 +40,10 @@ describe("/api/broker/webull/status — canon §12 truth", () => {
       appKey: false,
       appSecret: false,
       accessToken: false,
+    });
+    expect(body.connectOAuth).toMatchObject({
+      state: "NOT_CONFIGURED",
+      missing: ["WEBULL_CONNECT_CLIENT_ID", "WEBULL_CONNECT_CLIENT_SECRET"],
     });
     // Anti-value-leak Sentinel — a config gap must never surface actual
     // secret values (keys, tokens, passwords). We check the SHAPE, not
@@ -96,6 +100,23 @@ describe("/api/broker/webull/status — canon §12 truth", () => {
     expect(serialized).not.toContain(env.WEBULL_API_KEY);
     expect(serialized).not.toContain(env.WEBULL_API_SECRET);
     expect(serialized).not.toContain(env.WEBULL_ACCESS_TOKEN);
+  });
+
+  it("separates unconfigured Connect OAuth from the signed OpenAPI lane", () => {
+    const missing = webullConnectOAuthReadiness({ WEBULL_CONNECT_CLIENT_ID: "client-id" });
+    expect(missing).toEqual(expect.objectContaining({
+      state: "NOT_CONFIGURED",
+      missing: ["WEBULL_CONNECT_CLIENT_SECRET"],
+    }));
+    const configured = webullConnectOAuthReadiness({
+      WEBULL_CONNECT_CLIENT_ID: "client-id",
+      WEBULL_CONNECT_CLIENT_SECRET: "client-secret",
+    });
+    expect(configured).toEqual(expect.objectContaining({
+      state: "CONFIGURED_NOT_IMPLEMENTED",
+      missing: [],
+    }));
+    expect(JSON.stringify(configured)).not.toContain("client-secret");
   });
 
   it("never caches — no-store", async () => {

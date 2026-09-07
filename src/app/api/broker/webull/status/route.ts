@@ -7,6 +7,7 @@ import {
 } from "@/lib/broker/adapters/webullBrokerConnection";
 import {
   missingSecretsForState,
+  webullConnectOAuthReadiness,
   webullCredentialPresence,
   type WebullStatus,
 } from "@/lib/broker/webullStatus";
@@ -43,6 +44,7 @@ export async function GET(request: Request): Promise<Response> {
     checkedAt: live.checkedAt,
     missing: missingSecretsForState(live.state, process.env),
     credentialPresence: webullCredentialPresence(process.env),
+    connectOAuth: webullConnectOAuthReadiness(process.env),
   };
   return NextResponse.json(body, {
     status: 200,

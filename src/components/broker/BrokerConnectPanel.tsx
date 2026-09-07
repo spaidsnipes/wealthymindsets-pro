@@ -526,6 +526,11 @@ interface ManagedConnectionReceipt {
     appSecret: boolean;
     accessToken: boolean;
   };
+  connectOAuth?: {
+    state: "NOT_CONFIGURED" | "CONFIGURED_NOT_IMPLEMENTED";
+    missing: readonly string[];
+    note: string;
+  };
 }
 
 function ManagedConnectionStatus({ broker }: { broker: Broker }) {
@@ -609,8 +614,23 @@ function ManagedConnectionStatus({ broker }: { broker: Broker }) {
             <p className="mt-1 text-[10px] leading-relaxed text-wm-text-muted">{receipt.note}</p>
             {receipt.credentialPresence && (
               <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">
-                Runtime receipt · key {receipt.credentialPresence.appKey ? "present" : "absent"} · secret {receipt.credentialPresence.appSecret ? "present" : "absent"} · 2FA token {receipt.credentialPresence.accessToken ? "present" : "not set"}
+                Runtime receipt · key {receipt.credentialPresence.appKey ? "present" : "absent"} · secret {receipt.credentialPresence.appSecret ? "present" : "absent"} · access token {receipt.credentialPresence.accessToken ? "present" : "not set"}
               </p>
+            )}
+            {receipt.connectOAuth && (
+              <div className="mt-2 rounded-lg border px-2 py-1.5" style={{ borderColor: "rgba(139, 146, 172, 0.35)", background: "rgba(139, 146, 172, 0.06)" }}>
+                <div className="text-[9px] font-black uppercase tracking-wider text-wm-text-muted">
+                  Connect OAuth · {receipt.connectOAuth.state === "NOT_CONFIGURED" ? "not configured" : "callback not implemented"}
+                </div>
+                <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">{receipt.connectOAuth.note}</p>
+                {receipt.connectOAuth.missing.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {receipt.connectOAuth.missing.map(name => (
+                      <code key={name} className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: "#0b0b0d", border: "1px solid #333", color: "#aeb6d3" }}>{name}</code>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
             {connected && (
               <p className="mt-1 text-[10px] text-wm-text-dim">

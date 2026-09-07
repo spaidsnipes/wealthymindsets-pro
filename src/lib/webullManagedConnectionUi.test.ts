@@ -18,6 +18,12 @@ describe("Webull managed connection UI", () => {
     expect(panel).toContain("receipt.accountTypes");
   });
 
+  it("keeps Connect OAuth configuration distinct from a signed account wire", () => {
+    expect(panel).toContain("Connect OAuth ·");
+    expect(panel).toContain("callback not implemented");
+    expect(panel).toContain("receipt.connectOAuth.missing.map");
+  });
+
   it("does not ask the browser to transmit Webull credentials", () => {
     const managedSection = panel.slice(panel.indexOf("function ManagedConnectionStatus"), panel.indexOf("/* ── Broker Card"));
     expect(managedSection).toContain('fetch(managed.endpoint, { cache: "no-store", signal: controller.signal })');
