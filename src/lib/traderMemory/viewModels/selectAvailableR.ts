@@ -12,9 +12,41 @@
  * The stop is an INPUT, never an output. This selector will refuse to
  * emit a number when the structural invalidation is unknown — it will
  * not "solve for" a stop that makes R look acceptable.
+ *
+ * ── WHY THE ARITHMETIC MOVED OUT ─────────────────────────────────────────────
+ *
+ * WM had TWO Available R engines. `riskKernel.calculateAvailableR` — canon §4
+ * owner D, CAPITAL PROTECTION — and this selector, which had its own copy of
+ * the formula. They disagreed, and it was measured, not suspected.
+ *
+ * ONE trade: LONG, entry 100, structural stop 98, destination 106, round-trip
+ * spread 0.02, slippage 0.02, fees 1.00.
+ *
+ *   riskKernel        1.63R
+ *   this selector     2.48R      <- 52% MORE EDGE THAN EXISTS
+ *
+ * The gap is WHERE COSTS ARE CHARGED. The kernel charges them to both sides —
+ * `(reward - costs) / (risk + costs)` — because a trade that is stopped out
+ * loses the stop distance AND the round trip. This selector charged them only
+ * to the reward, understating the denominator and inflating every R.
+ *
+ * And `selectPermission` gates whether the trader MAY TAKE THE TRADE on
+ * `conservativeR`. So the inflated number was not a cosmetic readout; it was
+ * loosening the capital-protection gate.
+ *
+ * Second disagreement, same trade family: when costs consume the reward space
+ * the kernel returns UNAVAILABLE and refuses. This selector returned
+ * resolution "RESOLVED" with conservativeR -0.1 and a warning — a RESOLVED
+ * number for a trade with no edge left in it.
+ *
+ * H21: one owner, never a second copy of a rule. The kernel now answers what
+ * an R IS. This selector keeps what it is actually for and what the kernel has
+ * no opinion on — that a destination is a REGION rather than a magic price,
+ * how much WM trusts that region, and which cost assumptions were resolved.
  */
 
 import type { CanonicalMarketState } from "../../marketData/canonicalMarketState";
+import { calculateAvailableR } from "../../riskKernel";
 
 export type AvailableRResolution = "RESOLVED" | "PARTIAL" | "UNKNOWN";
 
@@ -129,24 +161,46 @@ export function selectAvailableR(input: AvailableRInput): AvailableRVM {
   const slip = c?.slippagePerSide ?? null;
   const fees = c?.feesPerUnit ?? null;
   const costsKnown = halfSpread != null && slip != null && fees != null;
-  const totalCostPerUnit = costsKnown ? (halfSpread! + slip!) * 2 + fees! : null;
 
   if (!costsKnown) {
     warnings.push("Cost assumptions incomplete — R shown is GROSS of spread/slippage/fees");
   }
 
-  const grossConservative = Math.abs(nearEdge - entry);
-  const grossOptimistic = Math.abs(farEdge - entry);
-  const netConservative = totalCostPerUnit != null ? grossConservative - totalCostPerUnit : grossConservative;
-  const netOptimistic = totalCostPerUnit != null ? grossOptimistic - totalCostPerUnit : grossOptimistic;
+  // THE ARITHMETIC IS THE KERNEL'S. This selector owns the DESTINATION REGION
+  // and how much WM trusts it; `calculateAvailableR` owns what an R is. See
+  // the header for the two answers this used to give.
+  //
+  // Unit bridge, exact in both directions: the kernel takes ROUND-TRIP cost
+  // points, this VM takes PER-SIDE, so each side doubles. `pointValue: 1`
+  // keeps the kernel in price units, which is the unit `feesPerUnit` is
+  // already documented in here.
+  const rFor = (edge: number) =>
+    calculateAvailableR({
+      side: input.side,
+      entry,
+      structuralStop: stop,
+      barrier: edge,
+      pointValue: 1,
+      spreadPoints: halfSpread != null ? halfSpread * 2 : 0,
+      slippagePoints: slip != null ? slip * 2 : 0,
+      feesPerUnit: fees ?? 0,
+    });
 
-  const conservativeR = netConservative / riskPerUnit;
-  const optimisticR = netOptimistic / riskPerUnit;
-  const costDragR = totalCostPerUnit != null ? totalCostPerUnit / riskPerUnit : "UNKNOWN";
+  const near = rFor(nearEdge);
+  const far = rFor(farEdge);
 
-  if (conservativeR <= 0) {
-    warnings.push("Conservative R is non-positive after costs — near edge of destination does not clear the cost floor");
+  // The kernel REFUSES a trade whose costs consume the reward space. This
+  // selector used to return RESOLVED with a negative conservative R and a
+  // warning — a resolved number for a trade with no edge left in it. §14.1:
+  // that is the reassuring answer, and permission is gated on this field.
+  if (near.status !== "AVAILABLE") {
+    return UNKNOWN_VM(["costs"], near.reason);
   }
+
+  const conservativeR = near.value;
+  const optimisticR = far.status === "AVAILABLE" ? far.value : near.value;
+  const costDragR = costsKnown ? near.estimatedCosts / near.riskPerUnit : "UNKNOWN";
+
   if (dest.confidence === "LOW") {
     warnings.push("Destination confidence LOW — treat R range as indicative only");
   }

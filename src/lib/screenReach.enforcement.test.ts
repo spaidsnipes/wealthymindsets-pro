@@ -18,10 +18,14 @@
  *
  * It is not alone. A transitive walk of the import graph, rooted at every file
  * under `src/app` and `src/components`, finds the modules listed in LEDGER
- * below unreachable from any screen. Among them: the entire decision chain
- * (`riskKernel` → `protectionState` / `responseEnvelope` → `expressionCard` →
+ * below unreachable from any screen. Among them: most of the decision chain
+ * (`protectionState` / `responseEnvelope` → `expressionCard`, and
  * `decisionMemory`), the §Truth Resolution Matrix claim gate, the §4 Auto-Quiet
  * materiality gate, and nine Learning Genome selectors.
+ *
+ * `riskKernel` was on that list until 2026-09-07, when `selectAvailableR` gave
+ * up its private copy of the R formula and started calling it. Reaching one
+ * node revived nothing else in the chain — see the SUBTREE lock below.
  *
  * Several of these were shipped as named atoms in past shifts, tested,
  * committed, and recorded as complete in batons. Every one of those claims was
@@ -125,7 +129,7 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
   },
   "src/lib/expressionCard.ts": {
     reason: "AWAITING_SURFACE",
-    note: "§10 EXPRESSION_CARD — the element that alone separates PERMISSION from WAIT. The compiler exists and is tested; the surface does not exist, which is one of the two reasons /command-deck governs 1 of 12.",
+    note: "§10 EXPRESSION_CARD — the element that alone separates PERMISSION from WAIT. The compiler exists and is tested; the surface does not exist. Since riskKernel was wired on 2026-09-07 this is the last §10 compiler with no screen.",
   },
   "src/lib/learningGenome/learningGenomeScoreScale.ts": {
     reason: "AWAITING_SURFACE",
@@ -191,10 +195,13 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "AWAITING_SURFACE",
     note: "Honest premium band at the invalidation level. Reached only by expressionCard.",
   },
-  "src/lib/riskKernel.ts": {
-    reason: "AWAITING_SURFACE",
-    note: "§10 THESIS_GEOMETRY — underlying entry, invalidation and planned 1R. The other reason /command-deck governs 1 of 12: the compiler exists, the surface does not.",
-  },
+  // REMOVED 2026-09-07: "§10 THESIS_GEOMETRY — the compiler exists, the surface
+  // does not." It has one now. `selectAvailableR` deleted its private copy of
+  // the R formula and calls `calculateAvailableR`, and that selector is
+  // rendered by CommandContextRibbon — so the kernel's arithmetic is what a
+  // trader reads on the deck. Not a new panel: an existing panel that stopped
+  // doing its own arithmetic. See selectAvailableR.ts for the two answers the
+  // two engines used to give.
   "src/lib/sfx.ts": {
     reason: "AWAITING_SURFACE",
     note: "Sound effects. §9 governs what may take the room; nothing currently calls this.",
@@ -345,27 +352,44 @@ describe("screen reach — IMPLEMENTED is not REACHABLE", () => {
     }
   });
 
-  it("the §10 gap is named: the deck governs 1 of 12 because these two have no surface", () => {
-    // THESIS_GEOMETRY and EXPRESSION_CARD are the only surface elements whose
-    // admission actually flips across the four scenes /command-deck can reach.
-    // Their compilers are built and tested. Neither reaches a screen — so the
-    // route has nothing to gate, and the honest number stays 1.
-    //
-    // This test exists so that "1 of 12" is never mistaken for laziness or for
-    // a compiler defect. It is a missing surface, and here is its file.
-    expect(LEDGER["src/lib/riskKernel.ts"]?.reason).toBe("AWAITING_SURFACE");
+  it("the §10 gap is now ONE file: EXPRESSION_CARD still has no surface", () => {
+    // EXPRESSION_CARD is the element that alone separates PERMISSION from WAIT.
+    // Its compiler is built and tested and no screen reaches it, so the route
+    // has nothing to gate there. Named here so the gap is never mistaken for
+    // laziness or for a compiler defect: it is a missing surface, and this is
+    // its file.
     expect(LEDGER["src/lib/expressionCard.ts"]?.reason).toBe("AWAITING_SURFACE");
-    expect(UNREACHED_LIB).toContain("src/lib/riskKernel.ts");
     expect(UNREACHED_LIB).toContain("src/lib/expressionCard.ts");
   });
 
+  it("riskKernel stays on a screen — the R a trader reads is the kernel's", () => {
+    // This assertion used to say the opposite, and the flip is the point of the
+    // ledger. `selectAvailableR` had its own copy of the Available-R formula
+    // that charged costs only to the reward; the kernel charges them to both
+    // sides. On one measured trade they answered 2.48R and 1.63R, and
+    // `selectPermission` gates entry on that number.
+    //
+    // Deleting the second copy is what put the kernel on a screen, so this is a
+    // reachability lock AND a duplication lock: if the kernel ever falls off
+    // the graph again, the most likely cause is a surface growing a private
+    // formula back.
+    expect(UNREACHED_LIB).not.toContain("src/lib/riskKernel.ts");
+    expect(
+      REACHED.has(path.join(SRC_DIR, "lib/traderMemory/viewModels/selectAvailableR.ts")),
+      "selectAvailableR is the path by which the kernel reaches a screen",
+    ).toBe(true);
+  });
+
   it("the decision chain is a dead SUBTREE, not four unrelated dead leaves", () => {
-    // riskKernel → decisionMemory, and protectionState + responseEnvelope →
-    // expressionCard. Wiring any single one of these to a screen does not
-    // revive the others; this records the shape so a future session does not
-    // mistake one wire for the whole fix.
+    // protectionState + responseEnvelope → expressionCard, and decisionMemory
+    // sits alone. Wiring any single one of these to a screen does not revive
+    // the others; this records the shape so a future session does not mistake
+    // one wire for the whole fix.
+    //
+    // riskKernel was the fifth member and is deliberately no longer listed: it
+    // was reached, and reaching it did NOT revive the four below — which is
+    // exactly the claim this test was written to make.
     for (const file of [
-      "src/lib/riskKernel.ts",
       "src/lib/protectionState.ts",
       "src/lib/responseEnvelope.ts",
       "src/lib/expressionCard.ts",

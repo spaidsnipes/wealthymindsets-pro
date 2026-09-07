@@ -15,6 +15,7 @@ import {
   selectAvailableR,
   type DestinationRegion,
 } from "./selectAvailableR";
+import { calculateAvailableR } from "@/lib/riskKernel";
 
 function dest(low: number, high: number, confidence: DestinationRegion["confidence"] = "HIGH"): DestinationRegion {
   return { low, high, basis: "test-region", confidence };
@@ -128,10 +129,20 @@ describe("selectAvailableR — M29 Available-R selector truth-lock", () => {
     expect(vm.optimisticR).toBeCloseTo(3);
   });
 
-  it("subtracts cost drag from R when costs are known", () => {
-    // halfSpread=0.05 per side, slip=0.05 per side, fees=0.1 per unit
-    // totalCostPerUnit = (0.05 + 0.05) * 2 + 0.1 = 0.3
-    // conservativeR = (110 - 100 - 0.3) / 5 = 9.7 / 5 = 1.94
+  it("charges costs to BOTH sides, as the risk kernel does", () => {
+    // UPDATED, WITH THE REASON. This pinned 1.94, which came from
+    // (reward - costs) / risk — costs charged only to the reward.
+    //
+    // A trade that is stopped out loses the stop distance AND the round trip,
+    // so the risk denominator carries them too. riskKernel has always said so;
+    // this selector had a second copy of the formula that did not.
+    //
+    //   totalCostPerUnit = (0.05 + 0.05) * 2 + 0.1 = 0.3
+    //   OLD  (110 - 100 - 0.3) / 5           = 1.94   <- 6% more edge
+    //   NEW  (110 - 100 - 0.3) / (5 + 0.3)   = 1.83
+    //
+    // The old number was not merely displayed: selectPermission gates entry on
+    // conservativeR, so the inflation loosened the capital-protection gate.
     const vm = selectAvailableR({
       side: "LONG",
       entryPrice: 100,
@@ -139,8 +150,26 @@ describe("selectAvailableR — M29 Available-R selector truth-lock", () => {
       destination: dest(110, 120),
       costs: { halfSpread: 0.05, slippagePerSide: 0.05, feesPerUnit: 0.1 },
     });
-    expect(vm.conservativeR).toBeCloseTo(1.94);
-    expect(vm.costDragR).toBeCloseTo(0.06); // 0.3 / 5
+    expect(vm.conservativeR).toBeCloseTo(1.83, 2);
+    // Cost drag is now a fraction of the SAME denominator the R uses.
+    expect(vm.costDragR).toBeCloseTo(0.3 / 5.3, 3);
+  });
+
+  it("agrees with the risk kernel exactly — there is one formula now", () => {
+    const kernel = calculateAvailableR({
+      side: "LONG", entry: 100, structuralStop: 95, barrier: 110,
+      pointValue: 1, spreadPoints: 0.1, slippagePoints: 0.1, feesPerUnit: 0.1,
+    });
+    const vm = selectAvailableR({
+      side: "LONG", entryPrice: 100, structuralStop: 95,
+      destination: dest(110, 120),
+      costs: { halfSpread: 0.05, slippagePerSide: 0.05, feesPerUnit: 0.1 },
+    });
+    expect(kernel.status).toBe("AVAILABLE");
+    // The VM rounds for display; the value underneath is the kernel's.
+    expect(vm.conservativeR).toBe(
+      kernel.status === "AVAILABLE" ? Number(kernel.value.toFixed(3)) : null,
+    );
   });
 
   it("warns when costs are unknown (R shown gross of spread/slippage/fees)", () => {
@@ -195,9 +224,23 @@ describe("selectAvailableR — M29 Available-R selector truth-lock", () => {
     expect(vm.warnings.some((w) => /confidence LOW/i.test(w))).toBe(true);
   });
 
-  it("warns when conservative R is non-positive after costs (near edge doesn't clear cost floor)", () => {
-    // halfSpread=1 per side, slip=1 per side, fees=0.5 → totalCost = 4.5
-    // conservative = (100.5 - 100 - 4.5) / 5 = -4 / 5 = -0.8 (non-positive)
+  it("REFUSES when costs consume the reward space — it does not warn and resolve", () => {
+    // UPDATED, WITH THE REASON. This pinned a WARNING, which meant the VM came
+    // back resolution "RESOLVED" carrying conservativeR -0.8.
+    //
+    // A resolved negative R is a contradiction: the number says there is no
+    // trade here and the resolution says WM worked it out and is confident.
+    // §14.1 — an unresolvable state must not settle on the reassuring answer,
+    // and "RESOLVED" is the reassuring one. riskKernel has always refused this
+    // case outright; the selector's private formula did not.
+    //
+    // It matters because selectPermission reads conservativeR: a negative
+    // number compares as "below threshold" the same way a modest positive one
+    // does, so the gate's behaviour depended on a value that should never have
+    // been emitted.
+    //
+    // halfSpread=1 per side, slip=1 per side, fees=0.5 → round-trip cost 4.5
+    // against 0.5 of reward space.
     const vm = selectAvailableR({
       side: "LONG",
       entryPrice: 100,
@@ -205,6 +248,10 @@ describe("selectAvailableR — M29 Available-R selector truth-lock", () => {
       destination: dest(100.5, 120),
       costs: { halfSpread: 1, slippagePerSide: 1, feesPerUnit: 0.5 },
     });
-    expect(vm.warnings.some((w) => /Conservative R is non-positive/i.test(w))).toBe(true);
+    expect(vm.resolution).toBe("UNKNOWN");
+    expect(vm.conservativeR).toBe("UNKNOWN");
+    expect(vm.reason).toMatch(/costs consume the available reward space/i);
+    // §8: this is a designed boundary, not a failure. No alarm vocabulary.
+    expect(vm.reason).not.toMatch(/ERROR|FAILED|INVALID/);
   });
 });
