@@ -22,6 +22,7 @@ import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLane/proofLaneR";
 import { computeJournalPnl, computeJournalRealizedR, selectJournalPricing } from "@/lib/journal/computePnl";
+import { describeNoTradeExclusion, selectTradeRecords } from "@/lib/journal/tradeRecords";
 import { journalToCsv } from "@/lib/journal/journalToCsv";
 import { journalToJson } from "@/lib/journal/journalToJson";
 import {
@@ -432,7 +433,14 @@ function NotesEditor({
 }
 
 /* ── AI Strategy Coach ───────────────────────────────────── */
-function StrategyCoach({ entries }: { entries: JournalEntry[] }) {
+function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
+  // Canon §3 M0 = NO TRADE. Every number below this line is an OUTCOME
+  // statistic, and a day on which no trade was taken has no outcome to
+  // contribute — including to the minimum-sample gate that decides whether
+  // WM is allowed to make a claim about the strategy at all.
+  const entries = selectTradeRecords(records);
+  const noTradeNote = describeNoTradeExclusion(records);
+
   if (!hasJournalCoachEvidence(entries.length)) {
     return (
       <div className="p-4 space-y-4">
@@ -451,6 +459,9 @@ function StrategyCoach({ entries }: { entries: JournalEntry[] }) {
             Next useful action: journal the process, evidence, invalidation, management, and outcome of each decision.
             WAIT and NO TRADE decisions count as evidence when recorded truthfully.
           </p>
+          {noTradeNote !== null && (
+            <p role="note" className="text-[10px] text-wm-text-dim mt-3 leading-relaxed">{noTradeNote}</p>
+          )}
         </div>
       </div>
     );
@@ -531,6 +542,9 @@ function StrategyCoach({ entries }: { entries: JournalEntry[] }) {
         <span className="text-sm font-black text-wm-text">Journal Evidence Coach</span>
         <span className="text-[10px] text-wm-text-dim">Based on {entries.length} journaled trades</span>
       </div>
+      {noTradeNote !== null && (
+        <p role="note" className="text-[10px] text-wm-text-dim leading-relaxed">{noTradeNote}</p>
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-4 gap-2">
@@ -1000,10 +1014,16 @@ function JournalPageInner() {
   });
   const linkedMatchCount = linkedFilterActive ? linkedEntries.length : 0;
 
-  const wins     = entries.filter(e => e.result === "win").length;
-  const losses   = entries.filter(e => e.result === "loss").length;
-  const totalPnl = entries.reduce((s, e) => s + e.pnl, 0);
-  const winRate  = entries.length ? ((wins / entries.length) * 100).toFixed(0) : "0";
+  // Canon §3 M0 = NO TRADE. The header chips are OUTCOME statistics, so the
+  // denominator is trades taken — not records kept. `entries` remains the
+  // record list everywhere a RECORD is counted (the list, the export, the
+  // day-model coverage meter): an M0 day is real and stays visible.
+  const tradeRecords = selectTradeRecords(entries);
+  const noTradeHeldOut = entries.length - tradeRecords.length;
+  const wins     = tradeRecords.filter(e => e.result === "win").length;
+  const losses   = tradeRecords.filter(e => e.result === "loss").length;
+  const totalPnl = tradeRecords.reduce((s, e) => s + e.pnl, 0);
+  const winRate  = tradeRecords.length ? ((wins / tradeRecords.length) * 100).toFixed(0) : "0";
 
   // Proof Lane §21 launch — today's session R evaluation. Composes the
   // canon §4 shutdown gate over TODAY's entries only. Founder sees
@@ -1525,12 +1545,22 @@ Trade the system, trust the process, winners every day 🚀`,
             </button>
           ))}
         </div>
-        <span className="text-[10px] text-wm-text-dim">{entries.length} entries</span>
+        <span className="text-[10px] text-wm-text-dim">
+          {entries.length} entries
+          {noTradeHeldOut > 0 && ` · ${noTradeHeldOut} M0 NO TRADE not scored`}
+        </span>
         {/* flex-wrap so the WR/PnL/Session-R/Week-Edge/GENOME/TREND/MISREAD
             chip stack reflows on narrow viewports (390px mobile) instead
             of overflowing the header. Canon §Cross-device Continuity. */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-wm-green/15 text-wm-green border border-wm-green/30">{winRate}% WR</span>
+          {/* H1: absence is not zero. A journal of nothing but M0 no-trade days
+              has no win rate — printing "0% WR" would read as a column of
+              losses to a trader who correctly took none. §9: unknown is quiet. */}
+          {tradeRecords.length > 0 ? (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-wm-green/15 text-wm-green border border-wm-green/30">{winRate}% WR</span>
+          ) : (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-wm-surface text-wm-text-dim border border-wm-border">WR UNKNOWN · no trades taken</span>
+          )}
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${totalPnl >= 0 ? "bg-wm-green/10 text-wm-green border-wm-green/25" : "bg-wm-red/10 text-wm-red border-wm-red/25"}`}>{fmtPnl(totalPnl)}</span>
           <span className="text-[10px] text-wm-text-dim">{wins}W / {losses}L</span>
           {/* Proof Lane §21 — today's Session R gate. Silent when the
