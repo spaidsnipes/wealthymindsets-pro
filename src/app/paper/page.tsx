@@ -1994,8 +1994,17 @@ export default function PaperTradingPage() {
                 )}
               </div>
               <div className="flex flex-col items-end gap-1">
-                <EquitySparkline points={equity}/>
-                <div className="text-[9px] text-wm-text-dim">{equity.length} data points</div>
+                {bookRecoveryRequired ? (
+                  <div className="text-right text-[9px] font-bold text-wm-red" role="status">
+                    EQUITY HISTORY UNKNOWN<br />
+                    RECOVER ORIGINAL BOOK TO RESTORE
+                  </div>
+                ) : (
+                  <>
+                    <EquitySparkline points={equity}/>
+                    <div className="text-[9px] text-wm-text-dim">{equity.length} data points</div>
+                  </>
+                )}
               </div>
             </div>
           </div>

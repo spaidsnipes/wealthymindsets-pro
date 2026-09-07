@@ -25,6 +25,8 @@ describe("paper recovery surface", () => {
       "Order ledger unknown while paper book recovery is required.",
       "Blotter unknown while paper book recovery is required.",
       "OPTIONS BOOK UNKNOWN",
+      "EQUITY HISTORY UNKNOWN",
+      "RECOVER ORIGINAL BOOK TO RESTORE",
       'if (bookRecoveryRequired) return;',
       'disabled={bookRecoveryRequired}',
     ]) {
