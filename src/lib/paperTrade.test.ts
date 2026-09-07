@@ -256,6 +256,21 @@ describe("loadPaperState — SSR fallback + corrupt-payload tolerance", () => {
 });
 
 describe("canonical paper persistence owner", () => {
+  it("preserves unreadable bytes instead of rewriting them as a clean book", () => {
+    const original = "{this-is-not-json";
+    g.window!.localStorage.setItem(PAPER_KEY, original);
+    const attempted = savePaperState(loadPaperState());
+    expect(attempted.status).toBe("RECOVERY REQUIRED");
+    expect(g.window!.localStorage.getItem(PAPER_KEY)).toBe(original);
+  });
+
+  it("preserves a partially readable book until explicit recovery", () => {
+    const original = JSON.stringify({ cash: 90_000, positions: [{ symbol: null }], orders: [], trades: [], equity: [] });
+    g.window!.localStorage.setItem(PAPER_KEY, original);
+    const attempted = savePaperState(loadPaperState());
+    expect(attempted.status).toBe("RECOVERY REQUIRED");
+    expect(g.window!.localStorage.getItem(PAPER_KEY)).toBe(original);
+  });
   it("reports PERSISTED only after exact browser readback", () => {
     const state = loadPaperState();
     const result = savePaperState(state);
