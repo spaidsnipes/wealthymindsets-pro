@@ -1304,7 +1304,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     return () => window.removeEventListener("wm-vp-colors", load);
   }, []);
 
-  const { liveBar, ticker, recentTicks, tapeSource, source, connected } = useWebSocket({ symbol, timeframe });
+  const { liveBar, ticker, recentTicks, tapeSource, source, connected, quoteRefusal } = useWebSocket({ symbol, timeframe });
   // Canon "CLOSED IS NOT DELAYED" — closure outranks the provider verdict, so
   // the chart chrome cannot claim an active session on a closed one (§8).
   // `null` until mount and on every weekday: provider labelling is unchanged.
@@ -6859,11 +6859,56 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       >
         {/* Price + change + source provenance (WM-CHART-P0-05) */}
         <div className="flex items-baseline gap-2">
-          <span className="font-mono font-bold text-base text-wm-text leading-none">
-            {(ticker.price > 0 ? ticker.price : lastPrice).toLocaleString("en-US", {
-              minimumFractionDigits: dp, maximumFractionDigits: dp,
-            })}
-          </span>
+          {(() => {
+            /* The headline price has THREE possible answers and used to render
+               only one. Measured 2026-09-07 on /charts?symbol=NQ1!: this span
+               read `29,565.25` while the data-truth strip six elements to its
+               right read `DATA UNAVAILABLE`. That number was
+               /api/yahoo's `prevClose` — identical to `price` to the cent,
+               because on an UNKNOWN SF-D01 resolution the legacy `price` field
+               falls back to the previous close. A Friday settlement, rendered
+               in the live price's chair, under a label saying there is no data.
+
+               useWebSocket now refuses that quote at the source (ticker.price
+               is 0, and `quoteRefusal` carries the endpoint's own words), which
+               exposed the SECOND half of the defect: the old fallback was a
+               bare `lastPrice`, and `lastPrice` INITIALISES to
+               `getBase(symbol)` — a hardcoded seed constant (NQ1! → 30476).
+               Falling back to that would have replaced a real Friday close with
+               a number no market ever printed. `candles.length > 0` is the
+               proof that `lastPrice` came from a real bar; without it there is
+               no price to show, and the honest glyph is an em dash. */
+            const certified = ticker.price > 0;
+            const shown = certified ? ticker.price : (candles.length > 0 ? lastPrice : 0);
+            if (!(shown > 0)) {
+              return (
+                <span
+                  className="font-mono font-bold text-base text-wm-text-dim leading-none"
+                  title={
+                    quoteRefusal
+                      ? `No price to show. A quote provider answered and WM declined the answer: ${quoteRefusal}\n\nThis is a refusal, not a delay — WM looked and said no.`
+                      : "No price to show. No quote has been observed and no candle has loaded for this symbol."
+                  }
+                >
+                  —
+                </span>
+              );
+            }
+            return (
+              <span
+                className={`font-mono font-bold text-base leading-none ${certified ? "text-wm-text" : "text-wm-text-dim"}`}
+                title={
+                  certified
+                    ? undefined
+                    : `Last bar close — not a live quote.${quoteRefusal ? ` The quote provider answered and WM declined the answer: ${quoteRefusal}` : ""}`
+                }
+              >
+                {shown.toLocaleString("en-US", {
+                  minimumFractionDigits: dp, maximumFractionDigits: dp,
+                })}
+              </span>
+            );
+          })()}
           <span
             className={`text-xs font-mono font-semibold ${hasProviderChange ? (up ? "text-wm-green" : "text-wm-red") : "text-wm-textDim"}`}
             title={hasProviderChange ? undefined : "Change unavailable — no verified reference close from the current quote provider."}
@@ -6946,14 +6991,27 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             return (
               <div
                 className="flex items-center gap-1.5"
-                title={`Candles: ${status.state.toLowerCase()} · session ${extendedHours ? "ETH" : "RTH"} · last bar ${lastStr}${status.live ? " · live ticks flowing" : " · no real-time candle claim"}`}
+                title={
+                  `Candles: ${status.state.toLowerCase()} · session ${extendedHours ? "ETH" : "RTH"} · last bar ${lastStr}${status.live ? " · live ticks flowing" : " · no real-time candle claim"}` +
+                  (quoteRefusal ? `\n\nQUOTE NOT CERTIFIED — ${quoteRefusal}` : "")
+                }
               >
                 {/* An unavailable feed does not prove session closure. A
                     timestamped bar can support a historical-only receipt;
                     zero bars can support only data unavailable. */}
                 {noFeed ? (
                   <span className="text-[10px] font-semibold" style={{ color: "#8B92AC" }}>
-                    {lastBarT ? `HISTORICAL ONLY · LAST ${lastStr}` : "DATA UNAVAILABLE"}
+                    {/* §8 — a designed refusal must not wear a transient
+                        state's vocabulary. "DATA UNAVAILABLE" says nothing
+                        arrived. When `quoteRefusal` is set, something DID
+                        arrive, on time, and WM declined to certify it; the
+                        reason is in this element's title. Two different facts
+                        had one sentence between them, exactly as the ticker
+                        tape's "quote pending" did. A timestamped bar still
+                        earns the historical receipt either way. */}
+                    {lastBarT
+                      ? `HISTORICAL ONLY · LAST ${lastStr}`
+                      : quoteRefusal ? "QUOTE NOT CERTIFIED" : "DATA UNAVAILABLE"}
                   </span>
                 ) : status.live ? (
                   /* §9 COLOR LAW names this pip specifically: "no green LIVE

@@ -26,29 +26,73 @@ import path from "node:path";
 const SRC = path.join(process.cwd(), "src");
 const read = (rel: string) => fs.readFileSync(path.join(SRC, rel), "utf8");
 
-/**
- * Every file that consults the SF-D01 gate, found by search rather than by
- * memory — a fourth consumer added later is enumerated automatically and must
- * satisfy the rule, instead of quietly inheriting the old defect.
- */
-function gateConsumers(): string[] {
+/** Every non-test source file, walked rather than remembered. */
+function sourceFiles(): string[] {
   const found: string[] = [];
   const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) { walk(full); continue; }
-      if (!/\.(ts|tsx)$/.test(entry.name)) continue;
+      if (!/\.(tsx|ts)$/.test(entry.name)) continue;
       if (entry.name.includes(".test.")) continue;
-      // The owner defines the gate; it does not consume it.
-      if (full.endsWith(path.join("marketData", "yahooQuoteObserved.ts"))) continue;
-      if (fs.readFileSync(full, "utf8").includes("yahooQuoteObserved(")) {
-        found.push(path.relative(SRC, full));
-      }
+      found.push(path.relative(SRC, full));
     }
   };
   walk(SRC);
   return found.sort();
 }
+
+/**
+ * Files that consult the SF-D01 gate — by EITHER function. `yahooQuoteRefusal`
+ * is the strictly-more-informative sibling: non-null exactly when the boolean
+ * would say no AND a provider actually answered, an equivalence pinned by the
+ * PARTITION test in yahooQuoteObserved.test.ts. A file that reads only the
+ * reason has consulted the gate and kept more of it, not less.
+ */
+function gateConsumers(): string[] {
+  return sourceFiles().filter((rel) => {
+    // The owner defines the gate; it does not consume it.
+    if (rel === path.join("lib", "marketData", "yahooQuoteObserved.ts")) return false;
+    return /yahooQuote(Observed|Refusal)\(/.test(read(rel));
+  });
+}
+
+/**
+ * Files that ASK `/api/yahoo` for a quote. This is the set that matters, and
+ * it is not the same set as the one above — that was the hole this file
+ * originally had. The first version of this Sentinel enumerated gate CALLERS
+ * and required each to carry the reason, which is a real rule but an
+ * unfalsifiable one: a surface that reads the endpoint and never asks the gate
+ * at all was not enumerated, so it passed by saying nothing.
+ *
+ * `useWebSocket.ts` was exactly that file. It fetched
+ * /api/yahoo?type=quote, read `observation` ONLY to decide whether to stamp a
+ * timestamp, and returned the price regardless — so `29565.25` reached
+ * `state.ticker.price` and rendered in the chart header while the strip beside
+ * it read DATA UNAVAILABLE. It passed every test in this file.
+ */
+function yahooQuoteReaders(): string[] {
+  return sourceFiles().filter((rel) => {
+    if (rel.startsWith(path.join("app", "api") + path.sep)) return false; // the endpoints themselves
+    if (rel === path.join("lib", "marketData", "yahooQuoteObserved.ts")) return false;
+    return /\/api\/yahoo\?[^`'"]*type=quote/.test(read(rel));
+  });
+}
+
+/**
+ * Readers that do NOT yet consult the gate. This list may only SHRINK.
+ *
+ * It is written down rather than skipped because an unlisted gap is an
+ * invisible one: each of these renders an /api/yahoo price with no SF-D01
+ * check, which is the same "fake-fresh" defect MainChart had, on a surface
+ * that has not been fixed yet. Naming them converts an unknown into a queue.
+ */
+const UNGATED_DEBT = [
+  "app/paper/page.tsx",
+  "components/chart/MainChart.tsx",
+  "components/chart/StockInfoPanel.tsx",
+  "components/chart/WatchlistPanel.tsx",
+].sort();
 
 describe("SF-D01 refusal — every gate consumer also carries the reason", () => {
   it("finds the consumers it is meant to protect", () => {
@@ -58,12 +102,87 @@ describe("SF-D01 refusal — every gate consumer also carries the reason", () =>
     expect(consumers.length).toBeGreaterThan(0);
     expect(consumers).toContain("components/layout/TickerTape.tsx");
     expect(consumers).toContain("app/scanner/page.tsx");
+    expect(consumers).toContain("hooks/useWebSocket.ts");
   });
 
   it.each(gateConsumers())("%s reads WHY, not only WHETHER", (rel) => {
     const src = read(rel);
     expect(src, `${rel} must import the one owner of the reason`).toContain("yahooQuoteRefusal");
     expect(src, `${rel} must actually call it`).toMatch(/yahooQuoteRefusal\(/);
+  });
+});
+
+describe("SF-D01 — asking Yahoo for a quote obliges you to consult the gate", () => {
+  it("finds the readers it is meant to police", () => {
+    const readers = yahooQuoteReaders();
+    expect(readers.length).toBeGreaterThan(0);
+    expect(readers).toContain("hooks/useWebSocket.ts");
+  });
+
+  it("the un-gated debt is exactly what is written down — and may only shrink", () => {
+    const ungated = yahooQuoteReaders().filter((rel) => !/yahooQuote(Observed|Refusal)\(/.test(read(rel)));
+    // A NEW un-gated reader fails here rather than shipping silently. A FIXED
+    // one fails too, with the instruction to delete its line — so the debt
+    // list can never quietly grow back after being paid down.
+    expect(ungated.sort()).toEqual(UNGATED_DEBT);
+  });
+});
+
+describe("chart quote — a refused price is retracted, not relabelled", () => {
+  const HOOK = read("hooks/useWebSocket.ts");
+  const CHART = read("components/chart/MainChart.tsx");
+
+  it("consults the gate BEFORE reading the price, not after", () => {
+    // Measured: /api/yahoo?sym=NQ1!&type=quote returns price 29565.25 ===
+    // prevClose 29565.25 with resolution UNKNOWN. The old code read
+    // `observation` only to decide `observedAt` and returned the price anyway.
+    const mkAt = HOOK.indexOf("const mk = ");
+    // The body contains `};` on inner returns, so close on the declaration's
+    // own indentation instead.
+    const mk = HOOK.slice(mkAt, HOOK.indexOf("\n  };", mkAt));
+    const gateAt = mk.indexOf("yahooQuoteRefusal(");
+    const priceAt = mk.indexOf("j?.price ?? j?.c");
+    expect(gateAt, "mk() must consult the gate").toBeGreaterThan(-1);
+    expect(priceAt).toBeGreaterThan(-1);
+    expect(gateAt, "the price must not be read before the gate answers").toBeLessThan(priceAt);
+  });
+
+  it("zeroes ticker.price on refusal so existing `price > 0` consumers degrade", () => {
+    // Fifteen surfaces already spell "no price" as `price > 0` being false.
+    // Routing a refusal into that path is what makes the fix reach all of them
+    // without each having to learn a new flag.
+    expect(HOOK).toMatch(/ticker:\s*\{\s*price:\s*0,\s*change:\s*0,\s*changePct:\s*0/);
+  });
+
+  it("a live aggressor tape outranks a REST refusal", () => {
+    // The tape observes real trades. The quote endpoint declining to certify
+    // its own snapshot says nothing about those prints, so it must not wipe
+    // a price the tape is actively producing.
+    expect(HOOK).toMatch(/if \(tapeSourceRef\.current == null\) \{/);
+  });
+
+  it("a certified answer clears the previous round's refusal", () => {
+    // Otherwise a resolved condition becomes a permanent accusation.
+    expect(HOOK).toMatch(/quoteRefusal:\s*null,\n\s*ticker:\s*\{\s*price:\s*realPrice/);
+  });
+
+  it("the chart never falls back to the hardcoded seed price", () => {
+    // `lastPrice` initialises to getBase(symbol) — a constant (NQ1! → 30476).
+    // Once the refused quote is retracted, a bare `: lastPrice` fallback would
+    // print a number no market ever produced. candles.length is the proof that
+    // lastPrice came from a real bar.
+    expect(CHART).toMatch(/ticker\.price\s*:\s*\(candles\.length\s*>\s*0\s*\?\s*lastPrice\s*:\s*0\)/);
+    expect(CHART, "an unproven price must render as a dash, not a number").toMatch(
+      /if \(!\(shown > 0\)\) \{/,
+    );
+  });
+
+  it("§8 — a refusal does not wear the vocabulary of an empty feed", () => {
+    // "DATA UNAVAILABLE" says nothing arrived. Something did arrive, on time.
+    expect(CHART).toMatch(/quoteRefusal \? "QUOTE NOT CERTIFIED" : "DATA UNAVAILABLE"/);
+    expect(CHART, "the reason must be reachable from the strip").toContain(
+      "QUOTE NOT CERTIFIED — ${quoteRefusal}",
+    );
   });
 });
 

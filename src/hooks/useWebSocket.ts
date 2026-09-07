@@ -34,6 +34,7 @@ import { selectObservedProviderFallback } from "@/lib/marketData/selectObservedP
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { resolveQuoteDayChange } from "@/lib/marketData/resolveQuoteDayChange";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
+import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 
 export interface Tick {
   price: number;
@@ -73,6 +74,16 @@ export interface MarketState {
   /** Aggressor tape feed — set only by trade WebSockets, never downgraded by REST quotes. */
   tapeSource:  ProviderTapeSource | null;
   latency:     number; // ms to last update
+  /**
+   * SF-D01 — WHY the REST quote provider's answer was not accepted, in the
+   * endpoint's own words, or null when there is nothing to explain.
+   *
+   * A refusal is NOT the same as "no answer": it is set only when a provider
+   * responded and WM declined the response. `ticker.price` is zeroed for the
+   * same round, so every existing `price > 0` consumer degrades into the path
+   * it already has — and this field is the reason that path exists.
+   */
+  quoteRefusal: string | null;
 }
 
 /* ── Symbol seed prices ─────────────────────────────────── */
@@ -130,7 +141,17 @@ type RealQuote = {
   observedAt: number | null;
 };
 
-async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
+/**
+ * Three outcomes, not two. `null` means NO ANSWER (a thrown fetch, a body with
+ * no price); `refused` means a provider answered and the SF-D01 gate declined
+ * the answer. Collapsing the second into the first is what let a day close
+ * reach the chart header dressed as the live price.
+ */
+type QuoteAnswer =
+  | ({ kind: "quote" } & RealQuote)
+  | { kind: "refused"; reason: string };
+
+async function fetchRealQuote(sym: string): Promise<QuoteAnswer | null> {
   const upper = sym.toUpperCase();
 
   // Per-exchange crypto (e.g. "BTC.COINBASE") → that exchange's quote
@@ -142,6 +163,7 @@ async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
       if ((j?.price ?? 0) > 0) {
         const d = resolveQuoteDayChange(j, j.price);
         return {
+          kind: "quote",
           price: j.price,
           change: d.change,
           changePct: d.changePct,
@@ -158,7 +180,28 @@ async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
   const isCrypto  = CRYPTO_SET.has(upper);
   const isForex   = upper.includes("/");
 
-  const mk = (j: any, source: string): RealQuote | null => {
+  const mk = (j: any, source: string): QuoteAnswer | null => {
+    // SF-D01 gate, FIRST — before the price is read at all.
+    //
+    // MEASURED 2026-09-07: /api/yahoo?sym=NQ1!&type=quote returns
+    // `price: 29565.25` and `prevClose: 29565.25` — the identical number,
+    // because on an UNKNOWN resolution the legacy `price` field falls back to
+    // the previous close — with
+    //   observation.resolution = "UNKNOWN"
+    //   reasons[0] = "No live traded price in the pre/post-aware intraday
+    //     series; a day/meta close must not be presented as a live observation."
+    // The old code read `observation` ONLY to decide `observedAt`, then
+    // returned the price anyway. That price became `state.ticker.price` and
+    // rendered as `29,565.25` in the chart header — directly above this
+    // component's own "DATA UNAVAILABLE" strip. A day close, in the live
+    // price's chair, under a label saying there is no data.
+    //
+    // `yahooQuoteRefusal` is the strictly-more-informative sibling of
+    // `yahooQuoteObserved`: non-null exactly when the gate would say no AND a
+    // provider actually answered. That equivalence is not an assumption — it
+    // is pinned by the PARTITION test in yahooQuoteObserved.test.ts.
+    const refusal = yahooQuoteRefusal(j);
+    if (refusal) return { kind: "refused", reason: refusal };
     const price = j?.price ?? j?.c ?? 0;
     if (!(price > 0)) return null;
     // Day-change requires a REAL reference close. The previous expression here
@@ -178,16 +221,24 @@ async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
       obs && obs.resolution === "RESOLVED" && typeof obs.observedAt === "number" && obs.observedAt > 0
         ? obs.observedAt
         : null;
-    return { price, change, changePct, source, hasReferenceClose: day.hasReferenceClose, observedAt };
+    return { kind: "quote", price, change, changePct, source, hasReferenceClose: day.hasReferenceClose, observedAt };
   };
 
   // Crypto display quotes come from the public exchange route, while the
   // executed tape remains the Coinbase/Binance WebSocket path below. Never
   // send crypto symbols through the Alpaca equity fallback.
+  // A refusal is only FINAL once no untried provider is left. Yahoo declining
+  // an equity quote while Alpaca can still answer is not a refusal of the
+  // symbol — so the reason is held here and returned only if the chain runs
+  // out. (Same rule the ticker tape follows; see TickerTape.tsx.)
+  let heldRefusal: string | null = null;
+
   if (isCrypto) {
     try {
       const j = await fetch(`/api/exchange?ex=coinbase&coin=${encodeURIComponent(upper)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-      const q = mk(j, "coinbase"); if (q) return q;
+      const q = mk(j, "coinbase");
+      if (q?.kind === "quote") return q;
+      if (q?.kind === "refused") heldRefusal ??= q.reason;
     } catch {}
   }
 
@@ -200,27 +251,36 @@ async function fetchRealQuote(sym: string): Promise<RealQuote | null> {
   if (!isFutures && !isForex && !isCrypto) {
     try {
       const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-      const q = mk(j, "yahoo"); if (q) return q;
+      const q = mk(j, "yahoo");
+      if (q?.kind === "quote") return q;
+      if (q?.kind === "refused") heldRefusal ??= q.reason;
     } catch {}
     try {
       const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(upper)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-      const q = mk(j, "alpaca"); if (q) return q;
+      const q = mk(j, "alpaca");
+      if (q?.kind === "quote") return q;
+      if (q?.kind === "refused") heldRefusal ??= q.reason;
     } catch {}
     if (!isCrypto) {
       try {
         const j = await fetch(`/api/finnhub?sym=${encodeURIComponent(upper)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-        const q = mk(j, "finnhub"); if (q) return q;
+        const q = mk(j, "finnhub");
+        if (q?.kind === "quote") return q;
+        if (q?.kind === "refused") heldRefusal ??= q.reason;
       } catch {}
     }
   }
 
   // ── Futures + Crypto + final fallback: Yahoo Finance proxy ──────────────
+  // For futures this IS the only free source, so a refusal here is final.
   try {
     const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-    const q = mk(j, "yahoo"); if (q) return q;
+    const q = mk(j, "yahoo");
+    if (q?.kind === "quote") return q;
+    if (q?.kind === "refused") heldRefusal ??= q.reason;
   } catch {}
 
-  return null;
+  return heldRefusal ? { kind: "refused", reason: heldRefusal } : null;
 }
 
 function getTickSize(base: number) {
@@ -880,6 +940,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     source:      "unavailable",
     tapeSource:  null,
     latency:     0,
+    quoteRefusal: null,
   });
 
   // Flag: ignore non-observed ticks once real data arrives
@@ -1026,6 +1087,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       source:      "unavailable",
       tapeSource:  null,
       latency:     0,
+      quoteRefusal: null,
     });
 
     // ── Real data strategy ───────────────────────────────────
@@ -1240,8 +1302,37 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     const doRestFetch = () => {
       if (disposed || document.visibilityState === "hidden" || restFetchInFlight) return;
       restFetchInFlight = true;
-      fetchRealQuote(symbol).then(q => {
-        if (!q) return;
+      fetchRealQuote(symbol).then(answer => {
+        if (!answer) return;
+        if (answer.kind === "refused") {
+          // RETRACTION, not omission. Every price consumer in this codebase
+          // already spells "I have no price" as `price > 0` being false —
+          // MainChart falls back to the last candle close under its own
+          // HISTORICAL ONLY / DATA UNAVAILABLE strip, BottomIndexBar hides,
+          // DOMPanel uses the live bar. Zeroing here routes a refused quote
+          // into the honest path all of them already own, instead of handing
+          // fifteen surfaces a number and hoping each one checks a new flag.
+          //
+          // The reason is NOT discarded on the way: quoteRefusal carries it.
+          //
+          // A live aggressor tape outranks this. The tape observes real
+          // trades; the REST quote endpoint declining to certify its own
+          // snapshot says nothing about those prints, so a refusal must never
+          // wipe a price the tape is actively producing.
+          if (tapeSourceRef.current == null) {
+            priceRef.current = 0;
+            setState(prev2 => ({
+              ...prev2,
+              quoteRefusal: answer.reason,
+              connected: false,
+              ticker: { price: 0, change: 0, changePct: 0, volume: prev2.ticker.volume },
+            }));
+          } else {
+            setState(prev2 => ({ ...prev2, quoteRefusal: answer.reason }));
+          }
+          return;
+        }
+        const q = answer;
         const realPrice = q.price;
         const prevPrice = priceRef.current;
         priceRef.current = realPrice;
@@ -1282,6 +1373,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
             : tape ?? (q.observedAt != null ? (q.source as MarketState["source"]) : prev2.source),
           tapeSource: tape,
           connected: tape != null || q.observedAt != null,
+          // A certified answer clears the previous round's refusal. Leaving it
+          // set would turn a resolved condition into a permanent accusation.
+          quoteRefusal: null,
           ticker: { price: realPrice, change: q.change, changePct: q.changePct, volume: prev2.ticker.volume },
           orderBook: bookRef.current,
         }));
