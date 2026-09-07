@@ -19,8 +19,8 @@ function harness(actionable = true) {
   const trades = vi.fn();
   const positions = vi.fn();
   const earn = vi.fn();
-  const close = new Function("useCallback", "optionPositionsRef", "actionablePaperQuotePrice", "quoteReadiness", "modelBand", "OPT_MULTIPLIER", "setOptionPositions", "setCash", "setTrades", "earnWMS", "uid", `${js}; return closeOption;`)(
-    (callback: unknown) => callback, ref, () => actionable ? 350 : null, {},
+  const close = new Function("useCallback", "bookRecoveryRequired", "optionPositionsRef", "actionablePaperQuotePrice", "quoteReadiness", "modelBand", "OPT_MULTIPLIER", "setOptionPositions", "setCash", "setTrades", "earnWMS", "uid", `${js}; return closeOption;`)(
+    (callback: unknown) => callback, false, ref, () => actionable ? 350 : null, {},
     (premium: number) => ({ bid: premium, ask: premium }), 100,
     positions, cash, trades, earn, () => "trade-1",
   ) as (id: string, premium: number) => void;
