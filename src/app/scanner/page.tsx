@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import WmWordmark from "@/components/brand/WmWordmark";
 import { YahooCandleConsumer } from "@/lib/yahooCandleConsumer";
-import { yahooQuoteObserved } from "@/lib/marketData/yahooQuoteObserved";
+import { yahooQuoteObserved, yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import {
   compareScannerRsiIdentity, scannerRsiIdentity, scannerRsiIdentityDomToken,
   scannerRsiIdentityKey, type ScannerRsiIdentity,
@@ -223,8 +223,31 @@ async function fetchRSI(
 
 interface QuoteData { price:number; change:number; changePct:number; volume:number; avgVolume:number; rsi:number|null; rsiFailure:RsiFailure|null; receivedAt:number }
 
-async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFailureCache): Promise<Map<string, QuoteData>> {
+/**
+ * A scan is a COMPLETENESS claim, so it must carry its own denominator.
+ *
+ * MEASURED on /scanner 2026-09-07: the header read "28 delayed-quote
+ * signals" against a 30-symbol universe. The two absent symbols were NQ1!
+ * and ES1! — the only two futures in the universe — and they were absent
+ * because `/api/yahoo` answered for both and WM declined to certify the
+ * answers ("a day/meta close must not be presented as a live observation").
+ *
+ * The gate is right. What was wrong is that the refusal left no trace: a
+ * count with no denominator reads as "I scanned and found 28", when the
+ * truth is "I could not certify 2 of 30, and found 28 among the rest".
+ * §H19 — a number on screen needs a producer the trader can interrogate.
+ */
+interface ScannerQuoteRound {
+  quotes: Map<string, QuoteData>;
+  /** symbol → the provider's own reason, from the one owner of that fact. */
+  refusals: Map<string, string>;
+  /** How many symbols the round actually asked about. */
+  attempted: number;
+}
+
+async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFailureCache): Promise<ScannerQuoteRound> {
   const results = new Map<string, QuoteData>();
+  const refusals = new Map<string, string>();
   // Use the app's server-side Yahoo proxy for real pre/post-market price and
   // actual intraday volume. No client-side vendor key and no fabricated volume.
   const scannerSymbols = [...SCANNER_STOCKS, ...SCANNER_FUTURES];
@@ -249,12 +272,18 @@ async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFa
           const avgVolume = Number(quoteJson?.avgVolume ?? 0);
           const receivedAt = Number(quoteJson?.ts);
           results.set(sym, { price, change, changePct, volume, avgVolume, rsi: rsiResult.rsi, rsiFailure: rsiResult.failure, receivedAt });
+        } else {
+          // Same owner the ticker tape reads — the reason is not re-derived
+          // here, so the two surfaces cannot come to disagree about WHY a
+          // symbol is missing.
+          const refusal = yahooQuoteRefusal(quoteJson);
+          if (refusal) refusals.set(sym, refusal);
         }
       } catch {}
     }));
     if (i + BATCH < scannerSymbols.length) await new Promise(r => setTimeout(r, 120));
   }
-  return results;
+  return { quotes: results, refusals, attempted: scannerSymbols.length };
 }
 
 function buildResults(
@@ -343,6 +372,10 @@ export default function ScannerPage() {
   const router = useRouter();
   const { setActiveSymbol } = useActiveSymbol();
   const [results,       setResults]       = useState<ScanResult[]>([]);
+  // What the last round ASKED and what it was refused. Held separately from
+  // `results` because a refused symbol is not a result — it is the reason a
+  // result is missing, and the header needs both to state a denominator.
+  const [round,         setRound]         = useState<ScannerQuoteRound | null>(null);
   const [loading,       setLoading]       = useState(true);
   const [search,        setSearch]        = useState("");
   const [preset,        setPreset]        = useState("all");
@@ -383,11 +416,12 @@ export default function ScannerPage() {
   const refresh = useCallback(async (explicitRetry = false) => {
     if (explicitRetry) rsiFailuresRef.current.clear();
     try {
-      const [quotes, profiles] = await Promise.all([
+      const [round, profiles] = await Promise.all([
         fetchScannerQuotes(yahooConsumerRef.current!, rsiFailuresRef.current),
         fetchFmpProfiles(),
       ]);
-      setResults(prev => buildResults(quotes, profiles, prev));
+      setRound(round);
+      setResults(prev => buildResults(round.quotes, profiles, prev));
       setLastRefresh(Date.now());
       setLoading(false);
     } catch {
@@ -889,8 +923,22 @@ export default function ScannerPage() {
         </AnimatePresence>
       </div>
 
-      {/* Status bar */}
-      <div className="flex items-center gap-3 px-4 py-1 border-t border-wm-border bg-wm-dark shrink-0 text-[9px] text-wm-text-dim">
+      {/* Status bar — the row that already speaks about the DATA rather than
+          about the view: how many results, how fresh, what quote state. The
+          scan's certification denominator belongs here, beside QUOTE STATE,
+          and NOT in the header strip.
+
+          Measured, 375px viewport: in the header the chip had nowhere to go.
+          `.wm-scanner-stats` begins at left:272 with its sibling label already
+          wrapped to three lines (w:56 h:60); the chip rendered at right:393 —
+          clipped past the 375 edge — and pushed `.wm-scanner-actions` to w:0,
+          collapsing the pre-existing Filters button. A new truth that breaks an
+          existing control is not an improvement.
+
+          `flex-wrap` here is what makes the phone honest: this row has no
+          controls to displace, so under pressure it takes a second line
+          instead of pushing a fact off the screen. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-4 py-1 border-t border-wm-border bg-wm-dark shrink-0 text-[9px] text-wm-text-dim">
         <span suppressHydrationWarning>
           {lastRefresh ? `Received: ${new Date(lastRefresh).toLocaleTimeString()}` : "Not yet received"}
         </span>
@@ -899,6 +947,25 @@ export default function ScannerPage() {
         <span>·</span>
         <span className="text-wm-gold">QUOTE STATE: DELAYED</span>
         <span>·</span>
+        {/* The scan's own denominator. Silent when nothing was refused — a
+            "0 not certified" chip on every clean round is noise, and noise is
+            what stops it being read on the round that matters. */}
+        {round && round.refusals.size > 0 && (
+          <>
+            <span
+              className="wm-scanner-uncertified text-wm-text-dim border border-wm-border rounded px-1.5"
+              title={
+                `${round.refusals.size} of ${round.attempted} scanned symbols are NOT CERTIFIED. ` +
+                `A provider answered for each and WM declined the answer, so they are absent from ` +
+                `the results below — this is not "no signal" and not a delay.\n\n` +
+                [...round.refusals].map(([sym, reason]) => `${sym}: ${reason}`).join("\n")
+              }
+            >
+              {round.refusals.size} of {round.attempted} not certified
+            </span>
+            <span>·</span>
+          </>
+        )}
         <span className={live?"text-wm-blue":""}>{live ? "↻ AUTO REFRESH (30s)" : "— PAUSED"}</span>
         <span>·</span>
         <span>{activeSignals.length} signal types</span>
