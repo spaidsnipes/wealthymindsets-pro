@@ -52,6 +52,7 @@ import {
 import { usePublishScene } from "@/lib/experience/useActiveScene";
 import { selectCapitalReach } from "@/lib/experience/capitalReach";
 import { selectCanonicalSessionToken } from "@/lib/marketData/canonicalIdentity";
+import { selectOptionTradability } from "@/lib/marketData/optionTradability";
 import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
@@ -749,6 +750,22 @@ function OptionsChain({
   const [expIdx, setExpIdx] = useState(2); // default 30D
   const [qty, setQty] = useState(1);
 
+  /**
+   * H4 — the contract has its own clock, and WM does not observe it.
+   *
+   * This panel had exactly one session concept and it belonged to the stock:
+   * the Close control was gated on `quoteReadiness[op.underlying].actionable`,
+   * so the UNDERLYING was being asked whether the CONTRACT could be closed.
+   * No option venue feed exists here, so the contract session is genuinely
+   * UNKNOWN — and UNKNOWN is the honest answer, not a reason to stay silent.
+   *
+   * Both arguments are null deliberately. Passing the stock's real session
+   * would change nothing today (the divergence clause requires BOTH sessions
+   * known, and the contract's is not), so threading it through would be dead
+   * weight that reads like evidence.
+   */
+  const contractTradability = useMemo(() => selectOptionTradability(null, null), []);
+
   const readiness = quoteReadiness[sym] ?? initialPaperQuoteReadiness();
   const spot = actionablePaperQuotePrice(readiness);
 
@@ -868,6 +885,11 @@ function OptionsChain({
       <div className="px-3 py-2 text-[9px] font-black text-wm-text-dim uppercase tracking-wider border-b border-t border-wm-border mt-2">
         Open Contracts ({optionPositions.length})
       </div>
+      {optionPositions.length > 0 && contractTradability.note !== null && (
+        <p role="note" className="px-3 pt-2 text-[9px] leading-relaxed text-wm-text-dim">
+          {contractTradability.note} Marks below are MODELED, not quotes.
+        </p>
+      )}
       {optionPositions.length===0 ? (
         <div className="px-3 py-4 text-[10px] text-wm-text-muted text-center">Click any modelled band to buy a contract.</div>
       ) : optionPositions.map(op=>{
@@ -907,15 +929,31 @@ function OptionsChain({
             </span>
             <span className="font-mono text-wm-text-muted">{dte}d</span>
             <span className="font-mono text-wm-text-muted" title="entry premium">${fmt2(op.entryPrem)}</span>
+            {/* H18 — a modeled number may never masquerade as BID/ASK/LAST.
+                This carried the same weight and colour as a real price with
+                the word "modelled" hidden in a tooltip; a tooltip is not a
+                label, and it does not exist at all on touch. */}
             <span className="font-mono font-bold text-wm-text"
               title={`Sell-now mark (modelled bid). Model mid is $${fmt2(g.price)}.`}>
               {markBid == null ? "—" : `$${fmt2(markBid)}`}
+              <span className="ml-1 font-sans text-[8px] font-black tracking-wide text-wm-text-dim">
+                MODELED
+              </span>
             </span>
             <span className={clsx("font-mono font-black", (pnl ?? 0)>=0?"text-wm-green":"text-wm-red")}
               title="Marked to the modelled bid — what closing now would return.">
               {pnl == null ? "—" : `${pnl>=0?"+":""}${fmt2(pnl)}`}
             </span>
-            <button onClick={()=>onClose(op.id, g.price)} disabled={!quoteReadiness[op.underlying]?.actionable}
+            {/* H4 — this read `disabled={!quoteReadiness[op.underlying].actionable}`,
+                asking the UNDERLYING whether the CONTRACT could be closed. It
+                was also dead: `actionablePaperQuotePrice` returns non-null only
+                when readiness.actionable is true, so reaching this branch at all
+                proves the flag. A dead guard stating a false law is worse than
+                no guard — it reads like the rule is handled. The structural
+                guard above owns unavailability; §9 also holds that an exit
+                control is never blocked once a mark exists. */}
+            <button onClick={()=>onClose(op.id, g.price)}
+              title="Simulated close at a modeled premium. No option venue is observed here."
               className="text-[9px] font-bold px-2 py-1 rounded border border-wm-border text-wm-text-muted hover:text-wm-red hover:border-wm-red/40 transition-all">
               Close
             </button>
