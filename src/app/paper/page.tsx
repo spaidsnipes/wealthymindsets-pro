@@ -1234,6 +1234,10 @@ export default function PaperTradingPage() {
   // re-invoke), then committed with pure functional updaters — no side effects
   // inside a setState updater, so cash/positions/trades never double-apply.
   useEffect(() => {
+    // Recovery means the persisted book is incomplete. Pending orders are part
+    // of that unknown ledger, so a fresh quote must not turn a subset into a
+    // new claimed fill while its original bytes are protected.
+    if (bookRecoveryRequired) return;
     const pend = orders.filter(o => o.status === "pending" && !filledRef.current.has(o.id));
     if (pend.length === 0) return;
 
@@ -1318,11 +1322,15 @@ export default function PaperTradingPage() {
     // dependency — otherwise the gate evaluates a stale balance. Re-running on
     // a cash change is safe and desirable: filledRef settles each order exactly
     // once (rejects included), so no order is re-filled or re-rejected.
-  }, [prices, quoteReadiness, orders, earnWMS, cash]);
+  }, [prices, quoteReadiness, orders, earnWMS, cash, bookRecoveryRequired]);
 
   // Signal bot: evaluate a simple momentum / mean-reversion rule on an
   // interval and auto-submit PAPER orders through the same flow.
   useEffect(() => {
+    if (bookRecoveryRequired) {
+      setBotRunning(false);
+      return;
+    }
     if (!botRunning) return;
     const iv = setInterval(() => {
       // Read the bot symbol off the rendered control (set by AIBot).
@@ -1363,15 +1371,23 @@ export default function PaperTradingPage() {
       }, ...prev].slice(0,40));
     }, 3000);
     return () => clearInterval(iv);
-  }, [botRunning, botStrategy, prices, quoteReadiness, botLog]);
+  }, [bookRecoveryRequired, botRunning, botStrategy, prices, quoteReadiness, botLog]);
 
   const handleOrder = (ord: Order) => {
+    // The persisted book is the authority for a paper account. When it needs
+    // recovery, accepting a new simulated order would create an in-memory
+    // subset that cannot be safely persisted beside the unreadable original.
+    if (bookRecoveryRequired) return;
     if (!quoteReadiness[ord.symbol]?.actionable) return;
     setOrders(prev => [ord, ...prev]);
   };
 
   /* ── Options: open / close (paper sim, Black-Scholes) ──── */
   const openOption = useCallback((p: Omit<OptionPosition,"id"|"entryTs"|"entryPrem">, _side:"buy"|"sell") => {
+    if (bookRecoveryRequired) {
+      setOptionReject("Paper book recovery is required before simulated options can change.");
+      return;
+    }
     const uPx = actionablePaperQuotePrice(quoteReadiness[p.underlying]);
     if (uPx == null) return;
     const t   = Math.max((p.expiryTs-Date.now())/86_400_000,0.0001)/365;
@@ -1394,9 +1410,10 @@ export default function PaperTradingPage() {
       { ...p, id:uid(), entryTs:Date.now(), entryPrem:ask },
       ...prev,
     ]);
-  }, [quoteReadiness]);
+  }, [bookRecoveryRequired, quoteReadiness]);
 
   const closeOption = useCallback((id:string, exitPrem:number) => {
+    if (bookRecoveryRequired) return;
     if (!Number.isFinite(exitPrem) || exitPrem < 0) return;
     // Side effects must NOT live inside a setState updater. React requires
     // updaters to be pure and may invoke them more than once — StrictMode does
@@ -1428,9 +1445,10 @@ export default function PaperTradingPage() {
       side:"sell", qty:op.qty, px:bid, ts:Date.now(), pnl,
     }, ...t]);
     if (pnl > 0) earnWMS(25, `📈 Options win on ${op.underlying}`);
-  }, [earnWMS, quoteReadiness]);
+  }, [bookRecoveryRequired, earnWMS, quoteReadiness]);
 
   const cancelOrder = (id: string) => {
+    if (bookRecoveryRequired) return;
     // Guard the TRANSITION, not just the button. The Cancel control renders
     // only for pending orders, but this module's own readiness boundary exists
     // because "UI-disabled controls must not become the sole guard against
@@ -1442,6 +1460,7 @@ export default function PaperTradingPage() {
   };
 
   const closePosition = (symbol: string) => {
+    if (bookRecoveryRequired) return;
     const pos = updatedPositions.find(p => p.symbol===symbol);
     if (!pos) return;
     // Size against pending MARKET orders on this symbol. The Close control has
@@ -1460,6 +1479,9 @@ export default function PaperTradingPage() {
   };
 
   const resetAccount = () => {
+    // Reset is an overwrite. A human may choose a recovery workflow later,
+    // but this general-purpose action must never replace bytes WM cannot read.
+    if (bookRecoveryRequired) return;
     // Paper trading is real learning history for the founder-canon trader
     // memory loop (Observe → Remember → Reflect). One-click Reset would
     // silently destroy cash, positions, orders, blotter, equity curve,
@@ -1550,7 +1572,7 @@ export default function PaperTradingPage() {
       },
       now: Date.now(),
     }),
-    [sessionToken, activeSymbol, hydrated, persistenceState, positions, orders],
+    [sessionToken, activeSymbol, hydrated, persistenceState, positions, orders, bookRecoveryRequired],
   );
   const sceneCompilation = useMemo(() => compileScene(sceneInput.signals), [sceneInput]);
 
@@ -1669,8 +1691,10 @@ export default function PaperTradingPage() {
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={resetAccount}
-            aria-label="Reset paper trading account (requires confirmation)"
-            className="inline-flex items-center justify-center gap-1 px-2.5 rounded-lg text-[10px] font-bold border border-wm-border text-wm-text-muted hover:text-wm-red hover:border-wm-red/40 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+            disabled={bookRecoveryRequired}
+            aria-label={bookRecoveryRequired ? "Reset unavailable while paper book recovery is required" : "Reset paper trading account (requires confirmation)"}
+            title={bookRecoveryRequired ? "Recover the saved paper book before reset can overwrite it." : undefined}
+            className={clsx("inline-flex items-center justify-center gap-1 px-2.5 rounded-lg text-[10px] font-bold border transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold", bookRecoveryRequired ? "cursor-not-allowed border-wm-red/30 text-wm-red/60" : "border-wm-border text-wm-text-muted hover:text-wm-red hover:border-wm-red/40")}
             style={{ minHeight: 44 }}
           >
             <RefreshCw size={10} aria-hidden="true"/> Reset
@@ -1878,10 +1902,10 @@ export default function PaperTradingPage() {
           <div className="mt-3 space-y-2">
             <div className="text-[9px] text-wm-text-dim uppercase tracking-wider mb-2 font-bold">Quick Stats</div>
             {[
-              { l:"Positions",  v:updatedPositions.length },
-              { l:"Pending",    v:pendingOrders.length    },
-              { l:"Total Trades",v:trades.length          },
-              { l:"Win Rate",   v:trades.length
+              { l:"Positions",  v:bookRecoveryRequired ? "UNKNOWN" : updatedPositions.length },
+              { l:"Pending",    v:bookRecoveryRequired ? "UNKNOWN" : pendingOrders.length    },
+              { l:"Total Trades",v:bookRecoveryRequired ? "UNKNOWN" : trades.length          },
+              { l:"Win Rate",   v:bookRecoveryRequired ? "UNKNOWN" : trades.length
                   ? `${Math.round(trades.filter(t=>(t.pnl??0)>0).length/trades.length*100)}%`
                   : "—" },
             ].map(({l,v})=>(
@@ -1979,10 +2003,10 @@ export default function PaperTradingPage() {
           {/* Tabs */}
           <div className="flex border-b border-wm-border shrink-0">
             {([
-              ["positions",`Positions (${updatedPositions.length})`],
-              ["orders",`Orders (${pendingOrders.length} pending)`],
-              ["options",`Options (${optionPositions.length})`],
-              ["trades",`Blotter (${trades.length})`],
+              ["positions",bookRecoveryRequired ? "Positions · UNKNOWN" : `Positions (${updatedPositions.length})`],
+              ["orders",bookRecoveryRequired ? "Orders · UNKNOWN" : `Orders (${pendingOrders.length} pending)`],
+              ["options",bookRecoveryRequired ? "Options · UNKNOWN" : `Options (${optionPositions.length})`],
+              ["trades",bookRecoveryRequired ? "Blotter · UNKNOWN" : `Blotter (${trades.length})`],
             ] as [string,string][]).map(([t,l])=>(
               <button key={t} onClick={()=>setTab(t as any)}
                 className={clsx("px-4 py-2 text-xs font-bold border-b-2 transition-all",
@@ -2044,7 +2068,13 @@ export default function PaperTradingPage() {
           {/* Orders */}
           {tab==="orders" && (
             <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
-              {orders.length===0 ? (
+              {bookRecoveryRequired ? (
+                <div role="alert" className="flex flex-col items-center justify-center h-full px-6 text-center text-wm-red gap-2">
+                  <BookOpen size={28} className="opacity-60"/>
+                  <span className="text-xs font-bold">Order ledger unknown while paper book recovery is required.</span>
+                  <span className="max-w-md text-[10px] text-wm-text-muted">WM will not show, cancel, or add a subset of orders until the original saved book is recovered.</span>
+                </div>
+              ) : orders.length===0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-wm-text-muted gap-2">
                   <AlertCircle size={28} className="opacity-20"/>
                   <span className="text-xs">No orders yet.</span>
@@ -2121,20 +2151,31 @@ export default function PaperTradingPage() {
             </div>
           )}
           {tab==="options" && (
-            <OptionsChain
-              prices={prices}
-              quoteReadiness={quoteReadiness}
-              optionPositions={optionPositions}
-              onTrade={openOption}
-              onClose={closeOption}
-              initialSymbol={UNIVERSE[activeSymbol] ? activeSymbol : undefined}
-            />
+            bookRecoveryRequired ? (
+              <div role="alert" className="m-4 rounded-xl border border-wm-red/40 bg-wm-red/5 px-4 py-6 text-center">
+                <div className="text-xs font-black text-wm-red">OPTIONS BOOK UNKNOWN</div>
+                <p className="mt-2 text-[10px] text-wm-text-muted">WM will not show or alter a subset of simulated option positions until the saved paper book is recovered.</p>
+              </div>
+            ) : <OptionsChain
+                prices={prices}
+                quoteReadiness={quoteReadiness}
+                optionPositions={optionPositions}
+                onTrade={openOption}
+                onClose={closeOption}
+                initialSymbol={UNIVERSE[activeSymbol] ? activeSymbol : undefined}
+              />
           )}
 
           {/* Blotter / trades */}
           {tab==="trades" && (
             <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
-              {trades.length===0 ? (
+              {bookRecoveryRequired ? (
+                <div role="alert" className="flex flex-col items-center justify-center h-full px-6 text-center text-wm-red gap-2">
+                  <BookOpen size={28} className="opacity-60"/>
+                  <span className="text-xs font-bold">Blotter unknown while paper book recovery is required.</span>
+                  <span className="max-w-md text-[10px] text-wm-text-muted">WM will not derive trade count, wins, losses, or realized return from a partial saved book.</span>
+                </div>
+              ) : trades.length===0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-wm-text-muted gap-2">
                   <BarChart2 size={28} className="opacity-20"/>
                   <span className="text-xs">No trades yet.</span>
