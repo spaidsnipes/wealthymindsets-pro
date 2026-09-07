@@ -249,7 +249,13 @@ describe("cross-device reach — the limitation must be structural, not remember
 
   it("/paper derives its reach from the store rather than asserting one", () => {
     const paper = read(PAPER);
-    expect(paper).toMatch(/import \{ selectCapitalReach \} from "@\/lib\/experience\/capitalReach"/);
+    // The IMPORT SOURCE is the law here, not the exact brace contents. The
+    // owner has since grown selectCrossDeviceProgress and /paper imports both;
+    // pinning the literal single-name form made this fire on a change that
+    // strengthened the very thing it protects.
+    expect(paper).toMatch(
+      /import \{[^}]*\bselectCapitalReach\b[^}]*\} from "@\/lib\/experience\/capitalReach"/,
+    );
     expect(paper).toMatch(/selectCapitalReach\(PAPER_STORE_FACTS\)/);
   });
 

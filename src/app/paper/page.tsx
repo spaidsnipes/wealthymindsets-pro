@@ -57,7 +57,8 @@ import {
   paperSceneSignals,
 } from "@/lib/experience/paperSceneSignals";
 import { usePublishScene } from "@/lib/experience/useActiveScene";
-import { selectCapitalReach } from "@/lib/experience/capitalReach";
+import { selectCapitalReach, selectCrossDeviceProgress } from "@/lib/experience/capitalReach";
+import { useSharedAuthorityProbe } from "@/lib/experience/useSharedAuthorityProbe";
 import { selectCanonicalSessionToken } from "@/lib/marketData/canonicalIdentity";
 import { selectOptionTradability } from "@/lib/marketData/optionTradability";
 import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
@@ -1660,6 +1661,17 @@ export default function PaperTradingPage() {
      here is that the limitation stops being SILENT. */
   const paperReach = useMemo(() => selectCapitalReach(PAPER_STORE_FACTS), []);
 
+  /* Whether the shared authority is actually THERE — asked, not assumed. The
+     probe is what stops the progress block below from being an architecture
+     diagram: an unapplied migration and a missing env var both answer null,
+     and the block says NOT YET for both because they are the same fact to a
+     trader holding a phone that cannot see his position. */
+  const authorityObservation = useSharedAuthorityProbe();
+  const crossDeviceProgress = useMemo(
+    () => selectCrossDeviceProgress(paperReach, authorityObservation),
+    [paperReach, authorityObservation],
+  );
+
   /* Publish this scene to the app shell for the duration of the mount.
      /paper is the ONE route today that owns a real capital column — it reads
      an actual book through paperSceneSignals — so it is the one route
@@ -1807,6 +1819,45 @@ export default function PaperTradingPage() {
         <p role="note" className="text-[10px] leading-relaxed text-wm-text-dim">
           {paperReach.deviceNote}
         </p>
+
+        {/* ── CROSS-DEVICE PROGRESS ──────────────────────────────────────────
+          * The line above ended the silence. It did not end the DEAD END: the
+          * trader reads "no shared position authority exists yet" and cannot
+          * tell whether that is a permanent property of the product, work in
+          * flight, or a switch nobody threw. All three read identically, and
+          * only one of them is something he can act on.
+          *
+          * So this states which step is done and which is not — and it states
+          * it from what the authority actually ANSWERED on this device just
+          * now, not from what exists in the repo. A migration sitting in
+          * source control is not a shared record.
+          *
+          * Rendered only once the probe has come back with something to say.
+          * While UNOBSERVED every step is UNOBSERVED and there is no next
+          * dependency, and a block that says "WM has not asked yet" three
+          * times would be noise a trader learns to skip.
+          *
+          * §9 COLOUR: no green tick, no red cross, no gold. Identity metal is
+          * not a status light and a green mark here would read as "protected".
+          * The WORD carries the state; DONE is simply brighter than NOT YET,
+          * which is the only difference a limitation is entitled to. */}
+        {crossDeviceProgress.steps.some(s => s.state !== "UNOBSERVED") && (
+          <div role="note" className="flex flex-col gap-1 border-l border-wm-border pl-2">
+            {crossDeviceProgress.steps.map(step => (
+              <p key={step.label} className="text-[10px] leading-relaxed">
+                <span className="text-wm-text-muted">
+                  {step.state === "DONE" ? "DONE" : step.state === "NOT_YET" ? "NOT YET" : "NOT CHECKED"}
+                </span>
+                <span className="text-wm-text-dim"> · {step.label} — {step.detail}</span>
+              </p>
+            ))}
+            {crossDeviceProgress.nextDependency !== null && (
+              <p className="text-[10px] leading-relaxed text-wm-text-muted">
+                {crossDeviceProgress.nextDependency}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* §24 D — records the store refused on read.
           * Renders ONLY when something was actually rejected, so it can never

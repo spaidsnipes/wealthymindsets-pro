@@ -166,3 +166,135 @@ export function selectCapitalReach(facts: CapitalStoreFacts): CapitalReachVerdic
     shellClause: null,
   };
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * CROSS-DEVICE PROGRESS — the second sentence the reach note could not say.
+ *
+ * `selectCapitalReach` ends the SILENCE. It does not end the DEAD END. Today
+ * the trader reads "CROSS-DEVICE: BLOCKED — no shared position authority
+ * exists yet" and has no way to know whether that is a permanent property of
+ * the product, a thing someone is building, or a switch nobody threw. All
+ * three read identically, and the third one is the one he could fix in a
+ * minute.
+ *
+ * The shared authority now EXISTS in the repo (sharedPositionAuthority.ts,
+ * /api/decision-position, and a migration). Existing in the repo is not
+ * existing. So this selector takes an OBSERVATION — what the authority route
+ * actually answered on this device, just now — and turns the flat limitation
+ * into an ordered account of which step is done, which is not, and exactly
+ * what the next dependency is.
+ *
+ * WHY IT LIVES HERE AND NOT IN A NEW MODULE (H21). This answers the same
+ * question `selectCapitalReach` answers — "how far does this book reach" —
+ * one turn further down. A second module would be a second place where the
+ * word ALL_DEVICES is decided, and the first one would stop being true.
+ *
+ * THE RULE THIS MUST NOT BREAK: an observed authority is NOT parity. The
+ * table answering proves a shared record exists; it does not prove THIS book
+ * is written to it. Step 2 below is therefore derived from the reach verdict,
+ * never from the observation — so a reachable authority can never, by itself,
+ * light up "your devices see this position".
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+/** What this device actually learned by asking the authority route. */
+export interface SharedAuthorityObservation {
+  /**
+   * UNOBSERVED is a first-class answer, not a loading spinner rendered as a
+   * fact. Before the probe returns, WM knows nothing, and saying nothing is
+   * different from saying no.
+   */
+  readonly status: "UNOBSERVED" | "SIGNED_OUT" | "OBSERVED";
+  /** The authority the route named, or null when it named none. */
+  readonly authority: string | null;
+  /** The route's own sentence about why, passed through rather than rewritten. */
+  readonly note: string | null;
+}
+
+export type ProgressState = "DONE" | "NOT_YET" | "UNOBSERVED";
+
+export interface CrossDeviceStep {
+  readonly label: string;
+  readonly state: ProgressState;
+  readonly detail: string;
+}
+
+export interface CrossDeviceProgress {
+  readonly version: typeof CAPITAL_REACH_VERSION;
+  readonly steps: readonly CrossDeviceStep[];
+  /**
+   * The one thing that has to happen next, in the founder's words, or null
+   * when nothing is outstanding. This is the field that turns a dead end into
+   * an instruction.
+   */
+  readonly nextDependency: string | null;
+}
+
+export function selectCrossDeviceProgress(
+  verdict: CapitalReachVerdict,
+  observation: SharedAuthorityObservation,
+): CrossDeviceProgress {
+  const authorityNamed =
+    observation.status === "OBSERVED" &&
+    observation.authority !== null &&
+    observation.authority.trim() !== "";
+
+  const authorityStep: CrossDeviceStep =
+    observation.status === "UNOBSERVED"
+      ? {
+          label: "A shared record every device can read",
+          state: "UNOBSERVED",
+          detail: "WM has not asked yet.",
+        }
+      : observation.status === "SIGNED_OUT"
+        ? {
+            label: "A shared record every device can read",
+            state: "UNOBSERVED",
+            detail:
+              "WM cannot check without a signed-in session — a shared book is per-trader, "
+              + "so there is nothing to look up until WM knows whose book it is.",
+          }
+        : authorityNamed
+          ? {
+              label: "A shared record every device can read",
+              state: "DONE",
+              detail: `${observation.authority} answered on this device.`,
+            }
+          : {
+              label: "A shared record every device can read",
+              state: "NOT_YET",
+              detail: observation.note ?? "The authority did not answer on this device.",
+            };
+
+  // DERIVED FROM THE REACH VERDICT, NEVER FROM THE OBSERVATION. See the header:
+  // a reachable table does not mean this book is written to it.
+  const bookStep: CrossDeviceStep =
+    verdict.reach === "ALL_DEVICES"
+      ? {
+          label: "This book written to that record",
+          state: "DONE",
+          detail: "Every signed-in device projects the same position.",
+        }
+      : {
+          label: "This book written to that record",
+          state: "NOT_YET",
+          detail:
+            "This book is still held in this browser. Nothing here is written where "
+            + "your phone could read it.",
+        };
+
+  const steps = [authorityStep, bookStep] as const;
+
+  const nextDependency =
+    authorityStep.state === "UNOBSERVED"
+      ? null
+      : authorityStep.state === "NOT_YET"
+        ? "The shared position table has not been created on this database yet. "
+          + "That is one migration, and it is the only thing standing between here "
+          + "and your phone seeing this position."
+        : bookStep.state === "NOT_YET"
+          ? "The shared record exists. The paper book is not written to it yet — "
+            + "that is the next build step, not a setting."
+          : null;
+
+  return { version: CAPITAL_REACH_VERSION, steps, nextDependency };
+}
