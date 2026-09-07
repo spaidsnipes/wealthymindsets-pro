@@ -55,7 +55,11 @@ describe("same-screen market truth contract", () => {
     expect(tickerTape).toContain(".slice(0, 4)");
     expect(tickerTape).toContain('pathname === "/charts" ? chartPulseSymbols');
     expect(tickerTape).toContain('{ animation: "none" }');
-    expect(tickerTape).toContain("fetchPolygonPrices(requestedTapeSymbols)");
+    // The invariant is that the fetch is SCOPED to the bounded requested set —
+    // on /charts that is the 4-symbol pulse, never a full catalogue. The
+    // fetcher's NAME is not the contract: it was `fetchPolygonPrices` back when
+    // Polygon was the source, and the Polygon key was removed in WM-SEC-P0-05.
+    expect(tickerTape).toMatch(/\bfetch\w*\(requestedTapeSymbols\)/);
   });
 
   it("does not manufacture Stock Info session facts from a current quote", () => {

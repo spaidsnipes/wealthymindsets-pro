@@ -21,38 +21,27 @@ import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosur
 // server proxy once POLYGON_KEY is set server-only in Vercel.
 const POLYGON_KEY = "";
 
-/* ── Ticker catalogue ──────────────────────────────────────────
-   `base` is an internal formatting/fetch bootstrap only. It must never be
-   rendered or restored as a verified quote.
+/* ── The trader's tape ─────────────────────────────────────────
+   The list of symbols is owned by `@/lib/marketData/tapeSymbols`, NOT by this
+   component. A hardcoded catalogue used to sit here doing three jobs — the
+   default list, the fetch allowlist and the row seed — so a symbol the trader
+   added but the catalogue had never heard of was kept by the editor below and
+   dropped by the rail. See that module's header for the measurement.
+
+   It also carried a `base` price for every symbol under a comment saying they
+   must never be rendered as a verified quote. There are no prices here now: a
+   row starts with no price and gains one only from a provider.
 ─────────────────────────────────────────────────────────────── */
-// Verified against MooMoo + TradingView on Jun 16, 2026
-// Updated Jun 17 2026 — Yahoo Finance proxy corrects these at load
-const TAPE_SYMBOLS = [
-  { sym:"NQ1!",   poly:null,          base:30_476  },
-  { sym:"ES1!",   poly:null,          base: 7_595  },
-  { sym:"RTY1!",  poly:null,          base: 2_968  },
-  { sym:"YM1!",   poly:null,          base:52_464  },
-  { sym:"GC1!",   poly:null,          base: 4_349  },
-  { sym:"CL1!",   poly:null,          base: 75.68  },
-  { sym:"AAPL",   poly:"AAPL",        base:   299  },
-  { sym:"TSLA",   poly:"TSLA",        base:   405  },
-  { sym:"NVDA",   poly:"NVDA",        base:   207  },
-  { sym:"SPY",    poly:"SPY",         base:   750  },
-  { sym:"QQQ",    poly:"QQQ",         base:   730  },
-  { sym:"BTC",    poly:"X:BTCUSD",    base:64_500  },
-  { sym:"ETH",    poly:"X:ETHUSD",    base: 1_760  },
-];
-
-/* ── All available tape symbols ─────────────────────────── */
-const ALL_TAPE_SYMS = [
-  "NQ1!","ES1!","RTY1!","YM1!","GC1!","CL1!","SI1!","ZB1!",
-  "AAPL","TSLA","NVDA","AMZN","META","MSFT","GOOG","AMD","INTC","NFLX",
-  "JPM","GS","V","MA","LLY","UNH","SPY","QQQ","IWM","GLD","TLT","XLK","XLF",
-  "BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX",
-  "EUR/USD","GBP/USD","USD/JPY","AUD/USD",
-];
-
 import { selectQuoteChange } from "@/lib/quoteChange";
+import {
+  DEFAULT_TAPE_SYMBOLS,
+  TAPE_SYMBOL_SUGGESTIONS,
+  readStoredTapeSymbols,
+  withTapeSymbol,
+  withoutTapeSymbol,
+} from "@/lib/marketData/tapeSymbols";
+
+const TAPE_STORAGE_KEY = "wm-tape-symbols";
 
 interface TickerState {
   sym:   string;
@@ -62,11 +51,45 @@ interface TickerState {
   /** False when the provider gave a price but no session change. */
   chgObserved: boolean;
   up:    boolean;
-  poly:  string | null;
-  base:  number;
-  _open: number;
   live:  boolean;
   src?:  string;
+}
+
+/**
+ * A row for a symbol nothing has been observed about yet.
+ *
+ * `price: 0` with `live: false` is the honest starting state and the renderer
+ * shows "quote pending" for it. The previous seed put a hardcoded catalogue
+ * price in this field, which nothing rendered — but a real price sitting in
+ * state behind a boolean is one careless read away from being printed.
+ */
+const unobservedRow = (sym: string): TickerState => ({
+  sym, price: 0, chg: 0, pct: 0, chgObserved: false, up: true, live: false,
+});
+
+/** What a provider answered for one symbol. Absence means no answer, not zero. */
+interface Quote {
+  price: number;
+  chg: number;
+  pct: number;
+  chgObserved: boolean;
+  src: string;
+}
+
+/** The row for one symbol: the provider's answer, or the honest absence of one. */
+function rowFor(sym: string, quotes: Record<string, Quote>): TickerState {
+  const q = quotes[sym.toUpperCase()];
+  if (!q || !(q.price > 0)) return unobservedRow(sym);
+  return {
+    sym,
+    price: q.price,
+    chg: q.chg,
+    pct: q.pct,
+    chgObserved: q.chgObserved,
+    up: q.chg >= 0,
+    live: true,
+    src: q.src,
+  };
 }
 
 /* ── Multi-source quote fetcher ───────────────────────────────── *
@@ -132,11 +155,20 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
   return null;
 }
 
-async function fetchPolygonPrices(symbols: readonly (typeof TAPE_SYMBOLS)[number][]): Promise<Record<string, { price:number; chg:number; pct:number; chgObserved:boolean; src:string }>> {
+/**
+ * One fetch round for the trader's tape.
+ *
+ * `allSettled`, not `all`: a symbol that throws is one symbol WM could not
+ * quote, and it may not take the round down with it. Under `Promise.all` a
+ * single rejection stopped the whole rail from updating — every symbol, not
+ * just the bad one — and the only thing that had been preventing it was the
+ * hardcoded catalogue filtering unknown entries out before they got here.
+ */
+async function fetchTapeQuotes(symbols: readonly string[]): Promise<Record<string, { price:number; chg:number; pct:number; chgObserved:boolean; src:string }>> {
   const results: Record<string, { price:number; chg:number; pct:number; chgObserved:boolean; src:string }> = {};
-  await Promise.all(symbols.filter(t => !t.sym.includes("/")).map(async t => {
-    const q = await fetchQuote(t.sym);
-    if (q) results[t.sym.toUpperCase()] = q;
+  await Promise.allSettled(symbols.filter(sym => !sym.includes("/")).map(async sym => {
+    const q = await fetchQuote(sym);
+    if (q) results[sym.toUpperCase()] = q;
   }));
   return results;
 }
@@ -215,42 +247,50 @@ export function TickerTape() {
   const router   = useRouter();
   const pathname = usePathname();
 
-  // Custom symbol list (persisted to localStorage).
+  // THE TRADER'S LIST. One list, and every row on the rail is derived from it.
+  // There is deliberately no second collection of symbols to fall out of sync
+  // with this one: the editor below and the rail read the same array.
+  //
   // HYDRATION-SAFE: the first render MUST match the server HTML, so we seed with
   // the deterministic default list and load the localStorage override in an
   // after-mount effect below. Reading localStorage in the initializer caused a
   // server/client text mismatch (React #418) for users with a customized tape.
-  const [customSyms, setCustomSyms] = useState<string[]>(() => TAPE_SYMBOLS.map(t => t.sym));
+  const [customSyms, setCustomSyms] = useState<readonly string[]>(() => DEFAULT_TAPE_SYMBOLS);
   const [hydrated, setHydrated]   = useState(false);
   const [editOpen, setEditOpen]   = useState(false);
   const [addInput, setAddInput]   = useState("");
   const editRef = useRef<HTMLDivElement>(null);
 
-  // HYDRATION-SAFE: seed with deterministic base prices so the first client
-  // render matches the server HTML exactly. The window-cache fast-path (which
-  // is non-deterministic vs SSR and caused React #418) runs in the after-mount
-  // effect below.
-  const [tickers, setTickers] = useState<TickerState[]>(() =>
-    TAPE_SYMBOLS.map(t => ({ sym: t.sym, poly: t.poly, base: t.base, price: t.base, chg: 0, pct: 0, chgObserved: false, up: true, _open: t.base, live: false }))
-  );
+  // WHAT A PROVIDER ACTUALLY ANSWERED, keyed by symbol. A symbol with no entry
+  // here has no quote, which is a different statement from a quote of zero —
+  // the renderer says "quote pending" and prints nothing.
+  const [quotes, setQuotes] = useState<Record<string, Quote>>({});
 
   // After mount (client only): pull the persisted symbol list + cached prices.
   useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem("wm-tape-symbols") ?? "null");
-      if (Array.isArray(stored) && stored.length) setCustomSyms(stored);
-    } catch {}
+    let storedRaw: string | null = null;
+    try { storedRaw = localStorage.getItem(TAPE_STORAGE_KEY); } catch {}
+    const stored = readStoredTapeSymbols(storedRaw);
+    if (stored !== null) setCustomSyms(stored);
+
     try {
       const w = (window as any).__wmTicker as Record<string, any> | undefined;
       const wAge = w?._ts ? Date.now() - w._ts : Infinity;
-      if (w && Object.keys(w).length > 0 && wAge < 30_000) {
-        setTickers(TAPE_SYMBOLS.map(t => {
-          const p = w[t.sym.toUpperCase()];
-          return p && p.verified === true && p.price > 0
-            ? { sym: t.sym, poly: t.poly, base: t.base, price: p.price, chg: p.chg, pct: p.pct,
-                chgObserved: p.chgObserved === true, up: p.chg >= 0, _open: t.base, live: true, src: p.src }
-            : { sym: t.sym, poly: t.poly, base: t.base, price: t.base, chg: 0, pct: 0, chgObserved: false, up: true, _open: t.base, live: false };
-        }));
+      if (w && wAge < 30_000) {
+        const cached: Record<string, Quote> = {};
+        for (const [sym, p] of Object.entries(w)) {
+          if (sym === "_ts" || !p || typeof p !== "object") continue;
+          const q = p as Record<string, unknown>;
+          if (q.verified !== true || typeof q.price !== "number" || !(q.price > 0)) continue;
+          cached[sym.toUpperCase()] = {
+            price: q.price,
+            chg: typeof q.chg === "number" ? q.chg : 0,
+            pct: typeof q.pct === "number" ? q.pct : 0,
+            chgObserved: q.chgObserved === true,
+            src: typeof q.src === "string" ? q.src : "unavailable",
+          };
+        }
+        if (Object.keys(cached).length > 0) setQuotes(cached);
       }
     } catch {}
     setHydrated(true);
@@ -260,7 +300,7 @@ export function TickerTape() {
   // clobber the stored list before the after-mount load runs).
   useEffect(() => {
     if (!hydrated) return;
-    try { localStorage.setItem("wm-tape-symbols", JSON.stringify(customSyms)); } catch {}
+    try { localStorage.setItem(TAPE_STORAGE_KEY, JSON.stringify(customSyms)); } catch {}
   }, [customSyms, hydrated]);
 
   // Close edit panel on outside click
@@ -275,14 +315,16 @@ export function TickerTape() {
   // Resolve the user's tape once. Charts already has a full watchlist and
   // symbol header, so its global rail becomes a calm four-symbol pulse rather
   // than a second competing watchlist. Other routes keep the full custom tape.
-  const activeTapeSymbols = customSyms
-    .map(sym => TAPE_SYMBOLS.find(t => t.sym === sym))
-    .filter((t): t is typeof TAPE_SYMBOLS[0] => t !== undefined);
+  //
+  // This used to run each symbol through `TAPE_SYMBOLS.find` and drop anything
+  // the catalogue did not hold — which is precisely how a symbol the trader had
+  // added survived in the editor and vanished from the rail. The trader's list
+  // now passes through whole.
   const chartPulseSymbols = [
-    ...activeTapeSymbols.filter(t => t.sym === activeSymbol),
-    ...activeTapeSymbols.filter(t => t.sym !== activeSymbol),
+    ...customSyms.filter(sym => sym === activeSymbol),
+    ...customSyms.filter(sym => sym !== activeSymbol),
   ].slice(0, 4);
-  const requestedTapeSymbols = pathname === "/charts" ? chartPulseSymbols : activeTapeSymbols;
+  const requestedTapeSymbols = pathname === "/charts" ? chartPulseSymbols : customSyms;
   // Depend on the CONTENT of the requested list, not the array identity.
   // `customSyms` is state holding an array: the after-mount effect calls
   // setCustomSyms(stored), which produces a NEW array even when the contents
@@ -291,26 +333,19 @@ export function TickerTape() {
   // identity — measured on prod as 39 quote requests per page load where 13
   // would do, on every route (this tape lives in the shell).
   // Canon §MACHINE PERFORMANCE: bounded compute, no duplicate subscriptions.
-  const requestedTapeKey = requestedTapeSymbols.map(t => t.sym).join(",");
+  const requestedTapeKey = requestedTapeSymbols.join(",");
 
   /* ── Yahoo REST fetch on mount + every 10s ────────────── */
   useEffect(() => {
     const doFetch = async () => {
-      const live = await fetchPolygonPrices(requestedTapeSymbols);
-      if (!Object.keys(live).length) return;
-      setTickers(prev => {
-        const updated = prev.map(t => {
-          const key = t.sym.toUpperCase();
-          if (live[key] && live[key].price > 0) {
-            const { price, chg, pct, chgObserved, src } = live[key];
-            return { ...t, price, chg, pct, chgObserved, up: chg >= 0, live: true, src };
-          }
-          return t;
-        });
-        // Write to window cache + localStorage so future HMR/reloads start with correct prices
+      const answered = await fetchTapeQuotes(requestedTapeSymbols);
+      if (!Object.keys(answered).length) return;
+      setQuotes(prev => {
+        const updated = { ...prev, ...answered };
+        // Write to window cache so future HMR/reloads start with correct prices
         const priceCache: Record<string, any> = { _ts: Date.now() };
-        for (const t of updated) {
-          if (t.live) priceCache[t.sym] = { price: t.price, chg: t.chg, pct: t.pct, chgObserved: t.chgObserved, verified: true, src: t.src };
+        for (const [sym, q] of Object.entries(updated)) {
+          priceCache[sym] = { price: q.price, chg: q.chg, pct: q.pct, chgObserved: q.chgObserved, verified: true, src: q.src };
         }
         try { (window as any).__wmTicker = priceCache; } catch {}
         // NOTE: Not persisting to localStorage — cleared on init to prevent stale day-change%
@@ -336,38 +371,27 @@ export function TickerTape() {
     }
   };
 
-  // Visible tickers = only those in customSyms, in order
-  const visibleTickers = (pathname === "/charts" ? chartPulseSymbols.map(t => t.sym) : customSyms)
-    .map(sym => tickers.find(t => t.sym === sym))
-    .filter((t): t is TickerState => t !== undefined);
+  // Visible tickers = the trader's list, in his order, every one of them.
+  // Nothing is filtered out here: a symbol WM has no quote for renders as
+  // "quote pending", which is a statement. Removing the row is not.
+  const visibleTickers = (pathname === "/charts" ? chartPulseSymbols : customSyms)
+    .map(sym => rowFor(sym, quotes));
 
   /* Charts keeps one stable pulse; other routes retain the seamless loop. */
   const renderedTickers: TickerState[] = pathname === "/charts"
     ? visibleTickers
     : [...visibleTickers, ...visibleTickers];
 
+  /**
+   * Add a symbol to the trader's tape. That is the whole operation.
+   *
+   * This used to also `(TAPE_SYMBOLS as any[]).push(...)` — mutating a module
+   * constant at runtime so the new symbol would pass the catalogue filter. It
+   * worked until the next page load, when the module was fresh and the symbol
+   * silently stopped rendering. There is no catalogue to teach any more.
+   */
   const handleAddSym = (sym: string) => {
-    const s = sym.trim().toUpperCase();
-    if (!s || customSyms.includes(s)) return;
-    // Allow any symbol — add to TAPE_SYMBOLS runtime if not already there
-    if (!TAPE_SYMBOLS.find(t => t.sym === s)) {
-      // Determine a base price from common symbols or default
-      const BASES: Record<string,number> = {
-        "NQ1!":30_476,"ES1!":7_595,"RTY1!":2_968,"YM1!":52_464,
-        "GC1!":4_349,"CL1!":75.68,"SI1!":69.97,"ZB1!":113.06,"ZN1!":109.88,"HG1!":4.50,
-        "BTC":64_500,"ETH":1_760,"SOL":71.77,"XRP":1.188,"DOGE":0.086,
-        "ADA":0.75,"AVAX":25,"BNB":601,
-        "AAPL":299,"TSLA":405,"NVDA":207,"SPY":750,"QQQ":730,
-        "GLD":398,"AMZN":246,"META":600,"MSFT":394,"GOOG":371,
-        "AMD":507,"INTC":22,"NFLX":78.72,"IWM":292,"XLK":240,
-        "JPM":331,"GS":1_091,"BAC":46,"V":360,"MA":560,"UNH":310,"LLY":870,
-        "EUR/USD":1.13,"GBP/USD":1.34,"USD/JPY":144,"AUD/USD":0.645,
-      };
-      const base = BASES[s] ?? 100;
-      (TAPE_SYMBOLS as any[]).push({ sym: s, poly: s.includes("1!") || s.includes("/") ? null : s, base });
-      setTickers(prev => [...prev, { sym:s, poly: s.includes("1!") || s.includes("/") ? null : s, base, price:base, chg:0, pct:0, chgObserved:false, up:true, _open:base, live:false }]);
-    }
-    setCustomSyms(prev => [...prev, s]);
+    setCustomSyms(prev => withTapeSymbol(prev, sym));
   };
 
   return (
@@ -415,7 +439,7 @@ export function TickerTape() {
                 <div key={sym} className="flex items-center justify-between px-3 py-1.5 hover:bg-wm-surface/50 group">
                   <span className="text-[11px] font-bold text-wm-text">{sym}</span>
                   <button
-                    onClick={() => setCustomSyms(prev => prev.filter(s => s !== sym))}
+                    onClick={() => setCustomSyms(prev => withoutTapeSymbol(prev, sym))}
                     className="opacity-0 group-hover:opacity-100 transition-opacity text-wm-text-muted hover:text-wm-red"
                   >
                     <X size={11} />
@@ -445,7 +469,7 @@ export function TickerTape() {
                 </button>
               </div>
               <datalist id="tape-syms-list">
-                {ALL_TAPE_SYMS.map(s => (
+                {TAPE_SYMBOL_SUGGESTIONS.map(s => (
                   <option key={s} value={s} />
                 ))}
               </datalist>

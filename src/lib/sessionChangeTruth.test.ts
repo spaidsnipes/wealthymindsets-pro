@@ -71,8 +71,23 @@ describe("session change direction is not asserted without evidence", () => {
   });
 
   it("the observation flag survives the window cache round trip", () => {
-    expect(tape).toContain("chgObserved: t.chgObserved");
-    expect(tape).toContain("chgObserved: p.chgObserved === true");
+    // Rename-resilient. Two things must hold and neither is a spelling:
+    //   WRITE — the flag is carried INTO the window cache, not dropped, so a
+    //           reload cannot silently downgrade "observed" to "assumed".
+    //   READ  — it comes back through a STRICT `=== true`, never a truthy
+    //           coercion, so an absent or junk flag reads as UNobserved.
+    // The local names here have changed (`t`/`p` → `q`) without either
+    // property changing; a Sentinel pinned to the identifier guards nothing.
+    // The WRITE must be checked ON THE CACHE STATEMENT ITSELF. A loose
+    // repo-wide match for `chgObserved: <x>.chgObserved` is satisfied by the
+    // row-mapping helper and stays green while the cache write drops the flag
+    // entirely — verified by deleting it, 2026-09-07. Slice the statement.
+    const cacheWrite = tape.slice(
+      tape.indexOf("priceCache[sym] ="),
+      tape.indexOf(";", tape.indexOf("priceCache[sym] =")),
+    );
+    expect(cacheWrite, "the window-cache write statement").toContain("chgObserved");
+    expect(tape).toMatch(/chgObserved:\s*\w+\.chgObserved === true/);
     expect(watch).toContain("changeObserved: it.changeObserved");
     expect(watch).toContain("changeObserved: c.changeObserved === true");
   });

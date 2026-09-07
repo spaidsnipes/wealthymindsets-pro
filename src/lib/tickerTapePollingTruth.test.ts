@@ -50,7 +50,15 @@ describe("ticker tape polling subscription", () => {
   });
 
   it("the key is derived from the requested symbol set", () => {
-    expect(src).toMatch(/requestedTapeKey\s*=\s*requestedTapeSymbols\.map\(t => t\.sym\)\.join\(","\)/);
+    // Rename-resilient: what must hold is that the key is a STRING JOIN of the
+    // requested symbols — so equal contents in a new array give an equal key.
+    // It must not be pinned to one spelling of the list. When the tape stopped
+    // carrying row objects and became a plain string list, `.map(t => t.sym)`
+    // correctly disappeared; a Sentinel that failed on that was guarding the
+    // old identifier, not the invariant.
+    expect(src).toMatch(
+      /requestedTapeKey\s*=\s*requestedTapeSymbols(?:\.map\([^)]*\))?\.join\(","\)/,
+    );
   });
 
   it("a re-allocated array with identical contents yields an identical key", () => {
