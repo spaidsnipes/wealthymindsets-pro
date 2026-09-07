@@ -1947,17 +1947,23 @@ export default function PaperTradingPage() {
             <div className="flex items-center justify-between mb-2">
               <div>
                 <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">
-                  {hasUnmarkedOptions ? "Portfolio valuation unavailable" : "Portfolio Equity"}
+                  {bookRecoveryRequired || hasUnmarkedOptions ? "Portfolio valuation unavailable" : "Portfolio Equity"}
                 </div>
-                <div className={clsx("text-xl font-black font-mono", hasUnmarkedOptions?"text-wm-red":"text-wm-text")}>
-                  {hasUnmarkedOptions ? "UNKNOWN" : `$${totalEquity.toLocaleString("en-US",{maximumFractionDigits:0})}`}
+                <div className={clsx("text-xl font-black font-mono", bookRecoveryRequired || hasUnmarkedOptions?"text-wm-red":"text-wm-text")}>
+                  {bookRecoveryRequired || hasUnmarkedOptions ? "UNKNOWN" : `$${totalEquity.toLocaleString("en-US",{maximumFractionDigits:0})}`}
                 </div>
-                <div className={clsx("text-xs font-bold font-mono", dayPnl>=0?"text-wm-green":"text-wm-red")}>
-                  {hasUnmarkedOptions
+                <div className={clsx("text-xs font-bold font-mono", bookRecoveryRequired ? "text-wm-red" : dayPnl>=0?"text-wm-green":"text-wm-red")}>
+                  {bookRecoveryRequired
+                    ? "UNKNOWN · recovery required before portfolio totals can be stated"
+                    : hasUnmarkedOptions
                     ? `${dayPnl>=0?"+":""}${fmt2(dayPnl)} known P&L · excludes ${unmarkedOptionCount} unmarked option${unmarkedOptionCount===1?"":"s"}`
                     : `${dayPnl>=0?"+":""}${fmt2(dayPnl)} today (${((dayPnl/STARTING_CASH)*100).toFixed(2)}%)`}
                 </div>
-                {hasUnmarkedOptions && (
+                {bookRecoveryRequired ? (
+                  <div className="mt-1 text-[9px] font-bold text-wm-red" role="status" aria-live="polite">
+                    RECOVERY REQUIRED · original stored bytes are preserved and automatic writes are blocked
+                  </div>
+                ) : hasUnmarkedOptions && (
                   <div className="mt-1 text-[9px] font-bold text-wm-gold" role="status" aria-live="polite">
                     PARTIAL COST BASIS ONLY · current option mark and portfolio return are not available
                   </div>
@@ -2164,8 +2170,8 @@ export default function PaperTradingPage() {
                   <div className="px-3 py-2 border-t border-wm-border bg-wm-surface/20">
                     <div className="flex justify-between text-xs">
                       <span className="font-bold text-wm-text">Realized P&L</span>
-                      <span className={clsx("font-black font-mono", totalRealPnl>=0?"text-wm-green":"text-wm-red")}>
-                        {totalRealPnl>=0?"+":""}{fmt2(totalRealPnl)}
+                      <span className={clsx("font-black font-mono", bookRecoveryRequired ? "text-wm-red" : totalRealPnl>=0?"text-wm-green":"text-wm-red")}>
+                        {bookRecoveryRequired ? "UNKNOWN" : `${totalRealPnl>=0?"+":""}${fmt2(totalRealPnl)}`}
                       </span>
                     </div>
                     <div className="flex justify-between text-[10px] mt-1 text-wm-text-muted">
@@ -2186,10 +2192,10 @@ export default function PaperTradingPage() {
           {/* Leaderboard */}
           {tab==="leaderboard" && (
             <div className="flex-1 overflow-hidden">
-              {hasUnmarkedOptions ? (
+              {bookRecoveryRequired || hasUnmarkedOptions ? (
                 <div className="m-4 rounded-xl border border-wm-gold/30 bg-wm-gold/5 px-4 py-6 text-center" role="status">
                   <div className="text-xs font-black text-wm-gold">RETURN AND RANK UNKNOWN</div>
-                  <p className="mt-2 text-[10px] text-wm-text-muted">Leaderboard return is withheld until every open option has a current actionable quote.</p>
+                  <p className="mt-2 text-[10px] text-wm-text-muted">{bookRecoveryRequired ? "Leaderboard return is withheld until the saved paper book is recovered." : "Leaderboard return is withheld until every open option has a current actionable quote."}</p>
                 </div>
               ) : (
                 <Leaderboard
