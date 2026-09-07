@@ -30,10 +30,13 @@ import {
   canCancelOrder,
   selectCloseOrderPlan,
   selectOrderRejection,
-  loadPaperState,
+  loadPaperSnapshot,
   savePaperState,
   subscribePaperState,
   PAPER_STORE_FACTS,
+  CLEAN_BOOK_INTEGRITY,
+  describePaperBookIntegrity,
+  type PaperBookIntegrity,
   type PaperPersistenceResult,
   type PaperState,
 } from "@/lib/paperTrade";
@@ -1086,6 +1089,17 @@ export default function PaperTradingPage() {
   const [resetKey,  setResetKey]  = useState(0);
   const [hydrated,  setHydrated]  = useState(false);
   const [persistenceState, setPersistenceState] = useState<PaperPersistenceResult["status"] | "UNKNOWN">("UNKNOWN");
+  /**
+   * What the stored book cost to read. Records the store could not validate are
+   * dropped rather than coerced, and a book that silently shrank is still a
+   * capital lie — so the count is held here to be said out loud.
+   */
+  const [bookIntegrity, setBookIntegrity] = useState<PaperBookIntegrity>(CLEAN_BOOK_INTEGRITY);
+  const bookIntegrityNote = useMemo(
+    () => describePaperBookIntegrity(bookIntegrity),
+    [bookIntegrity],
+  );
+  const bookRecoveryRequired = bookIntegrity.unreadable || bookIntegrity.rejected > 0;
   const paperRevisionRef = useRef(0);
   const skipNextPersistRef = useRef(false);
 
@@ -1109,14 +1123,23 @@ export default function PaperTradingPage() {
   // Hydrate through the canonical owner, then follow chart-originated writes
   // from other tabs so stale page state cannot overwrite newer orders.
   useEffect(() => {
-    const saved = loadPaperState();
-    applyStoredState(saved);
+    const snapshot = loadPaperSnapshot();
+    applyStoredState(snapshot.state);
+    setBookIntegrity(snapshot.integrity);
     setHydrated(true);
     return subscribePaperState(update => {
       skipNextPersistRef.current = true;
       applyStoredState(update.state);
+      // A cross-tab write is exactly when a stale build can hand this tab
+      // records it no longer understands, so the incoming report replaces the
+      // mount-time one rather than accumulating with it: this is a statement
+      // about the book being displayed NOW, not a running tally of everything
+      // ever refused.
+      setBookIntegrity(update.integrity);
       setPersistenceState(
-        update.disposition === "PERSISTED"
+        update.integrity.unreadable || update.integrity.rejected > 0
+          ? "RECOVERY REQUIRED"
+          : update.disposition === "PERSISTED"
           ? "PERSISTED"
           : update.disposition === "INVALID" ? "FAILED" : "UNKNOWN",
       );
@@ -1464,7 +1487,7 @@ export default function PaperTradingPage() {
       applyStoredState(result.state);
       return;
     }
-    if (result.status === "FAILED") return;
+    if (result.status !== "PERSISTED") return;
     skipNextPersistRef.current = true;
     applyStoredState(result.state);
     setBotRunning(false); setBotLog([]);
@@ -1517,7 +1540,10 @@ export default function PaperTradingPage() {
       // every price tick. Feeding the marked array would recompile the scene
       // several times a second to re-derive an answer that did not change.
       ledger: {
-        hydrated,
+        // A parsed subset is not an observed book. Keeping the compiler
+        // unhydrated here prevents it from narrating FLAT, MANAGE or verified
+        // capital while recovery has deliberately blocked totals and writes.
+        hydrated: hydrated && !bookRecoveryRequired,
         persistence: persistenceState,
         positions,
         orders,
@@ -1614,23 +1640,24 @@ export default function PaperTradingPage() {
             // their colour because each carries a word and a real degradation.
             persistenceState === "PERSISTED" && "border-wm-border text-wm-text-muted",
             persistenceState === "CONFLICT" && "border-amber-500/40 text-amber-300",
-            persistenceState === "FAILED" && "border-wm-red/40 text-wm-red",
+            (persistenceState === "FAILED" || persistenceState === "RECOVERY REQUIRED") && "border-wm-red/40 text-wm-red",
             persistenceState === "UNKNOWN" && "border-wm-border text-wm-text-dim",
           )}
         >
           {persistenceState === "PERSISTED" && "BROWSER SAVE VERIFIED"}
           {persistenceState === "CONFLICT" && "UPDATED FROM ANOTHER TAB"}
           {persistenceState === "FAILED" && "BROWSER SAVE FAILED"}
+          {persistenceState === "RECOVERY REQUIRED" && "BOOK RECOVERY REQUIRED"}
           {persistenceState === "UNKNOWN" && "BROWSER SAVE CHECKING"}
         </div>
 
         {/* Account stats in header */}
         <div className={clsx(styles.accountStats, "flex items-center gap-4 ml-6")}>
           {[
-            { l:hasUnmarkedOptions?"Equity":"Equity", v:hasUnmarkedOptions?"UNKNOWN":`$${totalEquity.toLocaleString("en-US",{maximumFractionDigits:0})}`, c:hasUnmarkedOptions?"text-wm-red":"text-wm-text" },
-            { l:"Cash",     v:`$${cash.toLocaleString("en-US",{maximumFractionDigits:0})}`,          c:"text-wm-text-muted" },
-            { l:hasUnmarkedOptions?"Known P&L":"Day P&L", v:`${dayPnl>=0?"+":""}$${fmt2(Math.abs(dayPnl))}`, c:dayPnl>=0?"text-wm-green":"text-wm-red" },
-            { l:"Realized", v:`${totalRealPnl>=0?"+":""}$${fmt2(Math.abs(totalRealPnl))}`,          c:totalRealPnl>=0?"text-wm-green":"text-wm-red" },
+            { l:hasUnmarkedOptions?"Equity":"Equity", v:bookRecoveryRequired || hasUnmarkedOptions?"UNKNOWN":`$${totalEquity.toLocaleString("en-US",{maximumFractionDigits:0})}`, c:bookRecoveryRequired || hasUnmarkedOptions?"text-wm-red":"text-wm-text" },
+            { l:"Cash",     v:bookRecoveryRequired?"UNKNOWN":`$${cash.toLocaleString("en-US",{maximumFractionDigits:0})}`, c:bookRecoveryRequired?"text-wm-red":"text-wm-text-muted" },
+            { l:hasUnmarkedOptions?"Known P&L":"Day P&L", v:bookRecoveryRequired?"UNKNOWN":`${dayPnl>=0?"+":""}$${fmt2(Math.abs(dayPnl))}`, c:bookRecoveryRequired?"text-wm-red":dayPnl>=0?"text-wm-green":"text-wm-red" },
+            { l:"Realized", v:bookRecoveryRequired?"UNKNOWN":`${totalRealPnl>=0?"+":""}$${fmt2(Math.abs(totalRealPnl))}`, c:bookRecoveryRequired?"text-wm-red":totalRealPnl>=0?"text-wm-green":"text-wm-red" },
           ].map(({l,v,c})=>(
             <div key={l} className="text-center">
               <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">{l}</div>
@@ -1684,6 +1711,21 @@ export default function PaperTradingPage() {
         <p role="note" className="text-[10px] leading-relaxed text-wm-text-dim">
           {paperReach.deviceNote}
         </p>
+
+        {/* §24 D — records the store refused on read.
+          * Renders ONLY when something was actually rejected, so it can never
+          * become furniture; a healthy book says nothing here. §9 permits red
+          * for rejected state provided a WORD carries the meaning, and the word
+          * is in the sentence — the colour is not doing the work alone.
+          * role="alert" rather than "note": unlike the reach line above, this
+          * is not a designed boundary. It is data the trader had and no longer
+          * has, and it is the one thing on this page a screen reader must not
+          * reach only by chance. */}
+        {bookIntegrityNote !== null && (
+          <p role="alert" className="text-[10px] leading-relaxed text-wm-red">
+            {bookIntegrityNote}
+          </p>
+        )}
 
         {/* §B14 POTENTIAL EXPOSURE. Admitted in PENDING only — a flat book with
           * nothing working never sees this, so it can never become furniture. */}
@@ -1952,7 +1994,13 @@ export default function PaperTradingPage() {
           {/* Positions */}
           {tab==="positions" && (
             <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
-              {updatedPositions.length===0 ? (
+              {bookRecoveryRequired ? (
+                <div role="alert" className="flex flex-col items-center justify-center h-full px-6 text-center text-wm-red gap-2">
+                  <BookOpen size={28} className="opacity-60"/>
+                  <span className="text-xs font-bold">Book recovery required before WM can claim this account is flat.</span>
+                  <span className="max-w-md text-[10px] text-wm-text-muted">The displayed subset is not a complete paper book. Automatic saves and capital totals are blocked to preserve the original stored record.</span>
+                </div>
+              ) : updatedPositions.length===0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-wm-text-muted gap-2">
                   <BookOpen size={28} className="opacity-20"/>
                   <span className="text-xs">No open positions. Place an order to start.</span>

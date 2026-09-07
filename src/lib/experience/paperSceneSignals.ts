@@ -90,13 +90,14 @@ export const PAPER_LEDGER_SOURCE = "paper-ledger";
  * The paper ledger's own answer about whether its last write survived.
  *
  * This is the LINK signal for the paper environment and it has a real producer:
- * `savePaperState` returns PERSISTED / CONFLICT / FAILED, and `/paper` already
+ * `savePaperState` returns PERSISTED / CONFLICT / RECOVERY REQUIRED / FAILED, and `/paper` already
  * tracks the result. CONFLICT means another tab wrote a newer revision, i.e.
  * this client's view may be superseded — §14.4 is the whole reason that matters.
  */
 export type PaperPersistenceDisposition =
   | "PERSISTED"
   | "CONFLICT"
+  | "RECOVERY REQUIRED"
   | "FAILED"
   /** Nothing has been written yet this session, so nothing is proven either way. */
   | "UNKNOWN";
@@ -230,7 +231,7 @@ export function linkVerifiedFrom(
   disposition: PaperPersistenceDisposition,
 ): boolean | null {
   if (disposition === "PERSISTED") return true;
-  if (disposition === "CONFLICT" || disposition === "FAILED") return false;
+  if (disposition === "CONFLICT" || disposition === "RECOVERY REQUIRED" || disposition === "FAILED") return false;
   return null;
 }
 

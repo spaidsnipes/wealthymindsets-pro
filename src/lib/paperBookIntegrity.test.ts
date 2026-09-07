@@ -6,6 +6,7 @@ import {
   isValidTrade,
   isValidEquityPoint,
   isAddressableOptionRecord,
+  describePaperBookIntegrity,
   STARTING_CASH,
   type PaperState,
 } from "./paperTrade";
@@ -139,7 +140,9 @@ describe("parsePaperSnapshot — refuse, count, never repair", () => {
       positions: [{}, {}], orders: [1], trades: ["x"], equity: [null], optionPositions: [{}],
     });
     const { rejected, ...books } = s.integrity;
-    expect(Object.values(books).reduce((a, b) => a + b, 0)).toBe(rejected);
+    expect(Object.entries(books)
+      .filter(([key]) => key !== "unreadable")
+      .reduce((sum, [, value]) => sum + (value as number), 0)).toBe(rejected);
   });
 
   it("never invents a number to replace one it refused", () => {
@@ -149,10 +152,12 @@ describe("parsePaperSnapshot — refuse, count, never repair", () => {
     expect(JSON.stringify(s.state)).not.toContain("abc");
   });
 
-  it("a non-finite cash figure falls back rather than poisoning the book", () => {
+  it("a non-finite cash figure is disclosed and blocks a false clean book", () => {
     // NaN survives JSON.stringify as null, which is the realistic corruption.
     const s = snap({ cash: null });
     expect(s.state.cash).toBe(STARTING_CASH);
+    expect(s.integrity.cash).toBe(1);
+    expect(s.integrity.rejected).toBe(1);
   });
 
   it("a missing array is absence, not corruption", () => {
@@ -162,12 +167,13 @@ describe("parsePaperSnapshot — refuse, count, never repair", () => {
     expect(s.state.orders).toEqual([]);
   });
 
-  it("a non-array where an array belongs is absence, not a silent scalar", () => {
+  it("a non-array where an array belongs is counted rather than silently erased", () => {
     const s = snap({ positions: "TSLA", orders: 7 });
     expect(s.state.positions).toEqual([]);
     expect(s.state.orders).toEqual([]);
-    // Nothing was "rejected" because nothing was ever a record.
-    expect(s.integrity.rejected).toBe(0);
+    expect(s.integrity.positions).toBe(1);
+    expect(s.integrity.orders).toBe(1);
+    expect(s.integrity.rejected).toBe(2);
   });
 
   it("an empty equity curve is still seeded so the chart has an origin", () => {
@@ -227,5 +233,85 @@ describe("parsePaperSnapshot — refuse, count, never repair", () => {
     const s = snap({ positions: [...many, { broken: true }] });
     expect(s.state.positions).toHaveLength(25);
     expect(s.integrity.positions).toBe(1);
+  });
+});
+
+/**
+ * The sentence the trader actually reads. It lives beside the count so the
+ * words and the number can never drift apart, and it is tested because a
+ * disclosure nobody can read is not a disclosure.
+ */
+describe("describePaperBookIntegrity — say what was lost", () => {
+  const clean = { positions: 0, orders: 0, trades: 0, equity: 0, optionPositions: 0, cash: 0, rejected: 0, unreadable: false };
+
+  it("a clean book says nothing at all", () => {
+    expect(describePaperBookIntegrity(clean)).toBeNull();
+  });
+
+  it("never speaks on a negative or nonsense count", () => {
+    expect(describePaperBookIntegrity({ ...clean, rejected: -1 })).toBeNull();
+  });
+
+  it("states when the whole book is unreadable and automatic saves are blocked", () => {
+    const s = describePaperBookIntegrity({ ...clean, unreadable: true })!;
+    expect(s).toMatch(/could not be read/i);
+    expect(s).toMatch(/blocked automatic saves/i);
+    expect(s).not.toMatch(/restored|recovered/i);
+  });
+
+  it("singular reads like English, not like a template", () => {
+    const s = describePaperBookIntegrity({ ...clean, positions: 1, rejected: 1 })!;
+    expect(s).toContain("1 stored record");
+    expect(s).toContain("was REJECTED");
+    expect(s).toContain("1 position");
+    expect(s).not.toContain("1 positions");
+    expect(s).not.toContain("were REJECTED");
+  });
+
+  it("plural agrees across the count and every book", () => {
+    const s = describePaperBookIntegrity({ ...clean, trades: 3, rejected: 3 })!;
+    expect(s).toContain("3 stored records");
+    expect(s).toContain("were REJECTED");
+    expect(s).toContain("3 trades");
+  });
+
+  it("lists several books with a readable conjunction", () => {
+    const s = describePaperBookIntegrity({
+      ...clean, positions: 2, orders: 1, equity: 4, rejected: 7,
+    })!;
+    expect(s).toContain("2 positions, 1 order and 4 equity points");
+    // Books with nothing rejected are not mentioned at all.
+    expect(s).not.toContain("trade");
+    expect(s).not.toContain("option position");
+  });
+
+  it("carries the meaning in a WORD, never in colour alone (§9)", () => {
+    const s = describePaperBookIntegrity({ ...clean, orders: 1, rejected: 1 })!;
+    expect(s).toContain("REJECTED");
+  });
+
+  it("does not offer reassurance it has no grounds for", () => {
+    const s = describePaperBookIntegrity({ ...clean, positions: 1, rejected: 1 })!;
+    // WM cannot tell whether a refused record was a real fill or noise.
+    expect(s).not.toMatch(/don'?t worry|no impact|safely|harmless|nothing was lost/i);
+    // Nor may it promise a repair that does not exist.
+    expect(s).not.toMatch(/coming soon|will be restored|we will recover|try again/i);
+  });
+
+  it("says the records are excluded from totals, because they are", () => {
+    const s = describePaperBookIntegrity({ ...clean, positions: 1, rejected: 1 })!;
+    expect(s).toMatch(/not counted in any total/i);
+  });
+
+  it("the sentence and the count can never disagree", () => {
+    // Every book, swept, always naming its own number.
+    const books = ["positions", "orders", "trades", "equity", "optionPositions"] as const;
+    for (const b of books) {
+      for (const n of [1, 2, 9]) {
+        const s = describePaperBookIntegrity({ ...clean, [b]: n, rejected: n })!;
+        expect(s).toContain(`${n} `);
+        expect(s.startsWith(n === 1 ? "1 stored record " : `${n} stored records `)).toBe(true);
+      }
+    }
   });
 });

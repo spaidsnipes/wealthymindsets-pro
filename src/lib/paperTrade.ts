@@ -352,6 +352,8 @@ export interface PaperState {
 export type PaperPersistenceResult =
   | { status: "PERSISTED"; state: PaperState }
   | { status: "CONFLICT"; state: PaperState }
+  /** The existing browser book cannot be safely replaced by a partial read. */
+  | { status: "RECOVERY REQUIRED"; state: null }
   | { status: "FAILED"; state: null };
 
 export type PaperExternalDisposition = "PERSISTED" | "CLEARED" | "INVALID";
@@ -522,12 +524,17 @@ export interface PaperBookIntegrity {
   readonly trades: number;
   readonly equity: number;
   readonly optionPositions: number;
+  /** A present cash value that was not a finite number. */
+  readonly cash: number;
   /** Total rejected records. 0 means the snapshot was fully readable. */
   readonly rejected: number;
+  /** JSON or its root container could not be read at all. */
+  readonly unreadable: boolean;
 }
 
 export const CLEAN_BOOK_INTEGRITY: PaperBookIntegrity = {
-  positions: 0, orders: 0, trades: 0, equity: 0, optionPositions: 0, rejected: 0,
+  positions: 0, orders: 0, trades: 0, equity: 0, optionPositions: 0, cash: 0,
+  rejected: 0, unreadable: false,
 };
 
 export interface PaperSnapshot {
@@ -535,11 +542,54 @@ export interface PaperSnapshot {
   readonly integrity: PaperBookIntegrity;
 }
 
+type PaperBookRecord = Exclude<keyof PaperBookIntegrity, "rejected" | "unreadable">;
+const BOOK_LABELS: readonly (readonly [PaperBookRecord, string, string])[] = [
+  ["positions", "position", "positions"],
+  ["orders", "order", "orders"],
+  ["trades", "trade", "trades"],
+  ["equity", "equity point", "equity points"],
+  ["optionPositions", "option position", "option positions"],
+  ["cash", "cash value", "cash values"],
+];
+
+/**
+ * The rejection stated in a trader's words, or null when the book was clean.
+ *
+ * Lives here rather than in JSX so the sentence is testable and so both the
+ * count and the words describing it have one owner. It names WHAT was lost and
+ * WHY it cannot be recovered, and it does not offer reassurance it has no
+ * grounds for — WM genuinely cannot tell whether a refused record was a real
+ * fill or noise, and saying "don't worry" would be inventing that answer.
+ */
+export function describePaperBookIntegrity(integrity: PaperBookIntegrity): string | null {
+  if (integrity.unreadable) {
+    return "Your saved paper book could not be read. WM preserved the stored bytes and blocked automatic saves, totals, and empty-book claims. Reset only after you decide the original book is no longer needed.";
+  }
+  if (integrity.rejected <= 0) return null;
+  const parts = BOOK_LABELS
+    .filter(([key]) => (integrity[key] as number) > 0)
+    .map(([key, one, many]) => {
+      const n = integrity[key] as number;
+      return `${n} ${n === 1 ? one : many}`;
+    });
+  const list = parts.length === 1
+    ? parts[0]
+    : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+  return `${integrity.rejected === 1 ? "1 stored record" : `${integrity.rejected} stored records`} `
+    + `could not be read and ${integrity.rejected === 1 ? "was" : "were"} REJECTED — ${list}. `
+    + "Your saved book was written in a form this build does not recognise. "
+    + "WM will not guess at the missing values, so those records are not shown "
+    + "and are not counted in any total on this page.";
+}
+
 function keepValid<T>(
   value: unknown,
   isValid: (v: unknown) => boolean,
 ): { kept: T[]; dropped: number } {
-  if (!Array.isArray(value)) return { kept: [], dropped: 0 };
+  // An absent collection is a normal older-book omission. A present scalar or
+  // object is corruption: counting it prevents a later write from turning it
+  // into a clean-looking empty array.
+  if (!Array.isArray(value)) return { kept: [], dropped: value === undefined ? 0 : 1 };
   const kept: T[] = [];
   let dropped = 0;
   for (const entry of value) {
@@ -560,6 +610,7 @@ export function parsePaperSnapshot(raw: string): PaperSnapshot | null {
     const equity = keepValid<EquityPoint>(s.equity, isValidEquityPoint);
     const optionPositions = keepValid<unknown>(s.optionPositions, isAddressableOptionRecord);
 
+    const cashRejected = s.cash === undefined || num(s.cash) ? 0 : 1;
     return {
       state: {
         revision: Number.isSafeInteger(s.revision) && (s.revision as number) >= 0
@@ -580,10 +631,12 @@ export function parsePaperSnapshot(raw: string): PaperSnapshot | null {
         positions: positions.dropped,
         orders: orders.dropped,
         trades: trades.dropped,
-        equity: equity.dropped,
-        optionPositions: optionPositions.dropped,
-        rejected: positions.dropped + orders.dropped + trades.dropped
-          + equity.dropped + optionPositions.dropped,
+          equity: equity.dropped,
+          optionPositions: optionPositions.dropped,
+          cash: cashRejected,
+          rejected: positions.dropped + orders.dropped + trades.dropped
+          + equity.dropped + optionPositions.dropped + cashRejected,
+          unreadable: false,
       },
     };
   } catch {
@@ -609,7 +662,10 @@ export function loadPaperSnapshot(): PaperSnapshot {
   try {
     const raw = window.localStorage.getItem(PAPER_KEY);
     if (!raw) return fresh;
-    return parsePaperSnapshot(raw) ?? fresh;
+    return parsePaperSnapshot(raw) ?? {
+      state: freshPaperState(),
+      integrity: { ...CLEAN_BOOK_INTEGRITY, unreadable: true },
+    };
   } catch {
     return fresh;
   }
@@ -626,7 +682,15 @@ export function savePaperState(
 ): PaperPersistenceResult {
   if (typeof window === "undefined") return { status: "FAILED", state: null };
   try {
-    const current = loadPaperState();
+    const raw = window.localStorage.getItem(PAPER_KEY);
+    const snapshot = raw == null ? null : parsePaperSnapshot(raw);
+    // A reader must never rewrite bytes it only partially understood. This is
+    // intentionally at the canonical writer, so chart and page callers get
+    // the same recovery barrier.
+    if (raw != null && (!snapshot || snapshot.integrity.rejected > 0)) {
+      return { status: "RECOVERY REQUIRED", state: null };
+    }
+    const current = snapshot?.state ?? freshPaperState();
     if (current.revision !== expectedRevision) {
       return { status: "CONFLICT", state: current };
     }
@@ -658,7 +722,7 @@ export function subscribePaperState(listener: (update: PaperSubscriptionUpdate) 
     const parsed = parsePaperSnapshot(event.newValue);
     listener(parsed
       ? { disposition: "PERSISTED", state: parsed.state, integrity: parsed.integrity }
-      : { disposition: "INVALID", state: freshPaperState(), integrity: CLEAN_BOOK_INTEGRITY });
+      : { disposition: "INVALID", state: freshPaperState(), integrity: { ...CLEAN_BOOK_INTEGRITY, unreadable: true } });
   };
   window.addEventListener("storage", onStorage);
   return () => window.removeEventListener("storage", onStorage);
