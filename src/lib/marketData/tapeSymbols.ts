@@ -48,7 +48,12 @@
  * PURE — no React, no I/O, no clock, no storage.
  */
 
-import { readStoredText } from "@/lib/storedShape";
+import {
+  normalizeSymbol,
+  readStoredSymbolList,
+  withSymbol,
+  withoutSymbol,
+} from "./storedSymbolList";
 
 /**
  * The tape a trader who has never customised anything sees.
@@ -123,9 +128,7 @@ export const TAPE_SYMBOL_SUGGESTIONS: readonly string[] = SUGGESTION_CANDIDATES.
  * than three rows quoting the same instrument.
  */
 export function normalizeTapeSymbol(value: unknown): string | null {
-  const text = readStoredText(value);
-  if (text === undefined) return null;
-  return text.trim().toUpperCase();
+  return normalizeSymbol(value);
 }
 
 /**
@@ -138,25 +141,7 @@ export function normalizeTapeSymbol(value: unknown): string | null {
  * with the default. Never throws: unparseable bytes are the same answer.
  */
 export function readStoredTapeSymbols(raw: string | null | undefined): string[] | null {
-  if (raw == null) return null;
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-  if (!Array.isArray(parsed)) return null;
-
-  const symbols: string[] = [];
-  const seen = new Set<string>();
-  for (const entry of parsed) {
-    const symbol = normalizeTapeSymbol(entry);
-    if (symbol === null || seen.has(symbol)) continue;
-    seen.add(symbol);
-    symbols.push(symbol);
-  }
-  return symbols.length > 0 ? symbols : null;
+  return readStoredSymbolList(raw);
 }
 
 /**
@@ -168,16 +153,10 @@ export function readStoredTapeSymbols(raw: string | null | undefined): string[] 
  * than by re-deriving the rule.
  */
 export function withTapeSymbol(symbols: readonly string[], value: unknown): readonly string[] {
-  const symbol = normalizeTapeSymbol(value);
-  if (symbol === null) return symbols;
-  if (symbols.some((s) => s === symbol)) return symbols;
-  return [...symbols, symbol];
+  return withSymbol(symbols, value);
 }
 
 /** Remove a symbol from a tape list, or return the list unchanged. */
 export function withoutTapeSymbol(symbols: readonly string[], value: unknown): readonly string[] {
-  const symbol = normalizeTapeSymbol(value);
-  if (symbol === null) return symbols;
-  const next = symbols.filter((s) => s !== symbol);
-  return next.length === symbols.length ? symbols : next;
+  return withoutSymbol(symbols, value);
 }

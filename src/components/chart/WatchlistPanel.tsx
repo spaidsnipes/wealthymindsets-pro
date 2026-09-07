@@ -51,6 +51,7 @@ function getSymName(sym: string): string {
 
 /* ── Yahoo Finance quotes — all symbols including futures ─── */
 import { selectQuoteChange } from "@/lib/quoteChange";
+import { readSymbolList } from "@/lib/marketData/storedSymbolList";
 import { changeWindowSuffix, coerceChangeWindow, describeChangeWindow, type ChangeWindow } from "@/lib/marketData/changeWindow";
 
 interface FinnhubQuote { price: number; change: number; changePct: number; changeObserved: boolean; changeWindow: ChangeWindow; src: string; }
@@ -202,12 +203,24 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
       if (raw) {
         const p = JSON.parse(raw);
         if (p && typeof p === "object" && Object.keys(p).length) {
-          // Dedupe any symbols that were persisted before the dedupe-on-add fix.
+          // Every stored list goes through the ONE reader (§24/H21). This used
+          // to be `Array.isArray(p[k]) ? Array.from(new Set(p[k])) : p[k]`,
+          // which de-duped without ever asking whether an entry was a symbol —
+          // and passed a NON-array straight through, so `symbols.filter(...)`
+          // downstream had no array to filter. Measured on /charts with
+          // {"My Watchlist":["AAPL",42,"NVDA"]}: `sym.toUpperCase is not a
+          // function` destroyed the entire panel via its ErrorBoundary, taking
+          // AAPL and NVDA — both readable, both the trader's — off the screen
+          // along with the add field he would have used to repair it.
           const cleaned: Record<string, string[]> = {};
           for (const k of Object.keys(p)) {
-            cleaned[k] = Array.isArray(p[k]) ? Array.from(new Set(p[k])) : p[k];
+            // A list with nothing readable in it is dropped rather than kept as
+            // an empty one: an empty watchlist is a claim the trader made a
+            // choice, and no such choice was read.
+            const list = readSymbolList(p[k]);
+            if (list) cleaned[k] = list;
           }
-          return cleaned;
+          if (Object.keys(cleaned).length) return cleaned;
         }
       }
     } catch {}
@@ -264,9 +277,17 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
       try {
         const parsed = JSON.parse(String(reader.result));
         if (parsed && typeof parsed === "object") {
+          // The same ONE reader as the localStorage path above. This branch
+          // used `String(s).toUpperCase()`, which does not reject a non-symbol
+          // — it INVENTS one: 42 becomes the symbol "42" and {} becomes
+          // "[OBJECT OBJECT]", neither of which any feed can answer and neither
+          // of which the trader chose. §14.1: an unreadable value must not be
+          // resolved into a confident one. This is an imported FILE, the least
+          // trusted input in the component.
           const cleaned: Record<string, string[]> = {};
           for (const k of Object.keys(parsed)) {
-            if (Array.isArray(parsed[k])) cleaned[k] = Array.from(new Set(parsed[k].map((s: any) => String(s).toUpperCase())));
+            const list = readSymbolList(parsed[k]);
+            if (list) cleaned[k] = list;
           }
           if (Object.keys(cleaned).length) {
             setLists(prev => ({ ...prev, ...cleaned }));
