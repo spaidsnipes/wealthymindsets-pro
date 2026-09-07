@@ -11,6 +11,7 @@ import {
   TAPE_SYMBOL_SUGGESTIONS,
   normalizeTapeSymbol,
   readStoredTapeSymbols,
+  tapeQuoteBlocker,
   withTapeSymbol,
   withoutTapeSymbol,
 } from "./tapeSymbols";
@@ -99,6 +100,51 @@ describe("tapeSymbols — add and remove are the same rule the reader uses", () 
   it("a symbol added then removed leaves the tape exactly as it was", () => {
     const tape = ["NQ1!", "AAPL"];
     expect(withoutTapeSymbol(withTapeSymbol(tape, "amd"), "AMD")).toEqual(tape);
+  });
+});
+
+describe("tapeSymbols — the tape does not offer what it cannot serve", () => {
+  it("THE MEASURED FAILURE: a suggested pair sat at 'quote pending' forever", () => {
+    // Measured in the running app with stored ["AAPL","EUR/USD"]:
+    //   AAPL     320.01  -8.20 (-2.50%)
+    //   EUR/USD  quote pending          <- and always would be
+    // The add field offered EUR/USD; the fetcher silently dropped every symbol
+    // containing "/" via an uncommented filter; fetchQuote has no forex branch
+    // at all. "Pending" promised a request that was never sent.
+    expect(tapeQuoteBlocker("EUR/USD")).toBe("no forex feed on the tape");
+    expect(TAPE_SYMBOL_SUGGESTIONS).not.toContain("EUR/USD");
+  });
+
+  it("offers nothing the tape cannot quote — the menu matches the kitchen", () => {
+    // The lock. Re-adding an unservable instrument to the offered list fails
+    // here rather than in front of a trader.
+    for (const symbol of TAPE_SYMBOL_SUGGESTIONS) {
+      expect(tapeQuoteBlocker(symbol), `suggested: ${symbol}`).toBeNull();
+    }
+  });
+
+  it("still serves everything the tape CAN quote", () => {
+    // The filter must not become a blunt instrument: futures, crypto and
+    // equities all stay offered.
+    for (const symbol of ["NQ1!", "GC1!", "AAPL", "SPY", "BTC", "ETH", "AMD"]) {
+      expect(tapeQuoteBlocker(symbol), symbol).toBeNull();
+      expect(TAPE_SYMBOL_SUGGESTIONS, symbol).toContain(symbol);
+    }
+  });
+
+  it("blocks a pair the trader types himself, not just a suggested one", () => {
+    // He can still ADD it — the tape is his list (§24). What changes is that
+    // the row tells the truth about it instead of promising a quote.
+    expect(tapeQuoteBlocker("gbp/usd")).toBe("no forex feed on the tape");
+    expect(withTapeSymbol(["AAPL"], "gbp/usd")).toEqual(["AAPL", "GBP/USD"]);
+  });
+
+  it("answers null for a non-symbol rather than inventing a blocker", () => {
+    // A blocker string is a CLAIM about a real instrument. Junk is not an
+    // instrument the tape is refusing to serve; it is not an instrument.
+    for (const value of [null, undefined, 42, {}, "", "   "]) {
+      expect(tapeQuoteBlocker(value)).toBeNull();
+    }
   });
 });
 

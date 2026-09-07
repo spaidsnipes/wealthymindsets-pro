@@ -37,6 +37,7 @@ import {
   DEFAULT_TAPE_SYMBOLS,
   TAPE_SYMBOL_SUGGESTIONS,
   readStoredTapeSymbols,
+  tapeQuoteBlocker,
   withTapeSymbol,
   withoutTapeSymbol,
 } from "@/lib/marketData/tapeSymbols";
@@ -166,7 +167,11 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
  */
 async function fetchTapeQuotes(symbols: readonly string[]): Promise<Record<string, { price:number; chg:number; pct:number; chgObserved:boolean; src:string }>> {
   const results: Record<string, { price:number; chg:number; pct:number; chgObserved:boolean; src:string }> = {};
-  await Promise.allSettled(symbols.filter(sym => !sym.includes("/")).map(async sym => {
+  // Named, not anonymous: `tapeQuoteBlocker` is the one owner of "the tape has
+  // no feed for this". The row reads the same predicate, so a symbol dropped
+  // here is a symbol the rail explicitly says it cannot serve — never one that
+  // sits at "quote pending" waiting for a request that was never sent.
+  await Promise.allSettled(symbols.filter(sym => tapeQuoteBlocker(sym) === null).map(async sym => {
     const q = await fetchQuote(sym);
     if (q) results[sym.toUpperCase()] = q;
   }));
@@ -187,6 +192,7 @@ function TickerItem({ item, onClick, active }: {
   // not print ACTIVE over a market that is not trading. `null` until mount and
   // on every weekday, so provider labelling is untouched the rest of the time.
   const sessionOpen = useProvenSessionClosure(sym);
+  const blocker = tapeQuoteBlocker(sym);
   const quoteObservation = {present: Boolean(src) && Number.isFinite(price) && price > 0};
   const badge = priceSourceBadge(src ?? "unavailable", live, sessionOpen, quoteObservation);
   // SHIFT-U continuation — per-capability tooltip enrichment: bars +
@@ -234,6 +240,18 @@ function TickerItem({ item, onClick, active }: {
             </span>
           )}
         </>
+      ) : blocker ? (
+        // §8: a designed boundary does not wear a transient state's clothes.
+        // No request is in flight for this symbol and none ever will be under
+        // the current feeds, so "quote pending" would be a promise the tape
+        // cannot keep. Say what is true and why, and keep the row — the trader
+        // put it there and removing it silently would repeat the older bug.
+        <span
+          className="font-mono text-[10px] text-wm-text-dim"
+          title={`${sym}: ${blocker}. This is not a delay — no request is made for this symbol.`}
+        >
+          no feed
+        </span>
       ) : (
         <span className="font-mono text-[10px] text-wm-text-dim">quote pending</span>
       )}

@@ -63,17 +63,58 @@ export const DEFAULT_TAPE_SYMBOLS: readonly string[] = [
 ] as const;
 
 /**
- * Autocomplete suggestions for the add field. A convenience list only — typing
- * something absent from it is expected and supported, which is the entire point
- * of this module.
+ * Why the tape cannot quote a symbol, or null when it can.
+ *
+ * ── The measured failure ─────────────────────────────────────────────────────
+ *
+ * The fetcher carried an anonymous `symbols.filter(sym => !sym.includes("/"))`
+ * with no comment and no reason attached. The suggestion list offered EUR/USD,
+ * GBP/USD, USD/JPY and AUD/USD. So the add field invited the trader to pick a
+ * pair, the filter silently dropped it, and the row rendered:
+ *
+ *   EUR/USD   quote pending
+ *
+ * forever. "Pending" is a promise that something is coming. Nothing was coming:
+ * `fetchQuote` has a branch for futures, one for crypto and a fall-through for
+ * equities, and NO branch for forex at all. §8 — a designed boundary must not
+ * wear the vocabulary of a transient state.
+ *
+ * This predicate is the ONE place that fact is written down. Three callers read
+ * it: the fetcher (which symbols to request), the row (what to say when it will
+ * never arrive), and the suggestion list below (what to offer at all). A second
+ * copy would let the offer and the capability drift apart again — which is
+ * exactly how EUR/USD came to be on a menu the kitchen could not cook.
  */
-export const TAPE_SYMBOL_SUGGESTIONS: readonly string[] = [
+export function tapeQuoteBlocker(value: unknown): string | null {
+  const symbol = normalizeTapeSymbol(value);
+  if (symbol === null) return null;
+  // The tape's feeds are Yahoo (futures), Coinbase (crypto) and Finnhub/Alpaca
+  // (equities). None of them is wired for FX pairs here.
+  if (symbol.includes("/")) return "no forex feed on the tape";
+  return null;
+}
+
+/**
+ * Symbols the add field offers, DERIVED from what the tape can actually serve.
+ *
+ * A convenience list only — typing something absent from it is expected and
+ * supported, which is the entire point of this module. But what is OFFERED is
+ * filtered by `tapeQuoteBlocker`, so the menu can never again advertise an
+ * instrument no feed can answer. The forex pairs stay in the candidate list on
+ * purpose: the day an FX feed is wired, they return by themselves rather than
+ * waiting for someone to remember to re-add them.
+ */
+const SUGGESTION_CANDIDATES: readonly string[] = [
   "NQ1!", "ES1!", "RTY1!", "YM1!", "GC1!", "CL1!", "SI1!", "ZB1!",
   "AAPL", "TSLA", "NVDA", "AMZN", "META", "MSFT", "GOOG", "AMD", "INTC", "NFLX",
   "JPM", "GS", "V", "MA", "LLY", "UNH", "SPY", "QQQ", "IWM", "GLD", "TLT", "XLK", "XLF",
   "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX",
   "EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD",
 ] as const;
+
+export const TAPE_SYMBOL_SUGGESTIONS: readonly string[] = SUGGESTION_CANDIDATES.filter(
+  (symbol) => tapeQuoteBlocker(symbol) === null,
+);
 
 /**
  * The canonical form of a symbol on the tape, or null if it is not one.
