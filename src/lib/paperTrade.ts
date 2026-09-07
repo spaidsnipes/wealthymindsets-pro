@@ -358,6 +358,12 @@ export type PaperExternalDisposition = "PERSISTED" | "CLEARED" | "INVALID";
 export interface PaperSubscriptionUpdate {
   disposition: PaperExternalDisposition;
   state: PaperState;
+  /**
+   * What the incoming snapshot cost to read. A cross-tab write is exactly the
+   * moment a stale build can hand this tab records it no longer understands,
+   * so the disposition alone ("PERSISTED") is not the whole truth.
+   */
+  integrity: PaperBookIntegrity;
 }
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
@@ -434,32 +440,183 @@ function freshPaperState(): PaperState {
   };
 }
 
-function parsePaperState(raw: string): PaperState | null {
+/* ── Book integrity ──────────────────────────────────────────
+ *
+ * OBSERVED DEFECT: the deserializer validated CONTAINERS, not CONTENTS.
+ * `Array.isArray(s.positions) ? s.positions : []` accepts
+ * `[{ symbol: null, qty: "abc" }]` and hands it downstream typed as
+ * `Position[]`. Every money calculation in the app then trusts those fields,
+ * so one malformed element — from a schema change, a partial write, or a hand
+ * edit — becomes NaN cash and a NaN equity curve with no failure anywhere.
+ *
+ * The medium makes this reachable rather than theoretical: capitalReach
+ * already establishes this book lives in BROWSER_LOCAL storage, which is to
+ * say, in a place the user, an extension, or an older build of this app can
+ * all write to.
+ *
+ * Elements that fail validation are DROPPED, not repaired — a coerced position
+ * is an invented one. But dropping quietly is its own capital lie, so the
+ * parse also counts what it rejected. The count deliberately does NOT live on
+ * PaperState: savePaperState spreads the whole state into localStorage, so a
+ * field there would round-trip and become permanent.
+ */
+
+const ORDER_SIDES: readonly string[] = ["buy", "sell"];
+const ORDER_TYPES: readonly string[] = ["market", "limit", "stop", "stop-limit"];
+const ORDER_STATUSES: readonly string[] = ["pending", "filled", "cancelled", "rejected"];
+
+function num(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v);
+}
+function str(v: unknown): v is string {
+  return typeof v === "string" && v.length > 0;
+}
+/** Optional fields must be absent or valid — never present and junk. */
+function optNum(v: unknown): boolean {
+  return v === undefined || num(v);
+}
+function rec(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+export function isValidPosition(v: unknown): v is Position {
+  return rec(v) && str(v.symbol) && num(v.qty) && num(v.avgPx)
+    && num(v.unrealPnl) && num(v.marketPx);
+}
+
+export function isValidOrder(v: unknown): v is Order {
+  return rec(v) && str(v.id) && str(v.symbol)
+    && ORDER_SIDES.includes(v.side as string)
+    && ORDER_TYPES.includes(v.type as string)
+    && ORDER_STATUSES.includes(v.status as string)
+    && num(v.qty) && num(v.ts)
+    && optNum(v.limitPx) && optNum(v.stopPx) && optNum(v.fillPx)
+    && (v.rejectReason === undefined || typeof v.rejectReason === "string");
+}
+
+export function isValidTrade(v: unknown): v is Trade {
+  return rec(v) && str(v.id) && str(v.symbol)
+    && ORDER_SIDES.includes(v.side as string)
+    && num(v.qty) && num(v.px) && num(v.ts) && optNum(v.pnl);
+}
+
+export function isValidEquityPoint(v: unknown): v is EquityPoint {
+  return rec(v) && num(v.ts) && num(v.equity);
+}
+
+/**
+ * Option positions are stored as `unknown[]` by design — /paper owns their
+ * shape. This validates only the invariant the STORE depends on: that an entry
+ * is an object with an id, so the book can be counted and addressed. It
+ * deliberately does not assert strike/expiry/premium; claiming to validate a
+ * shape this module does not own is how a second owner is born (§24).
+ */
+export function isAddressableOptionRecord(v: unknown): boolean {
+  return rec(v) && str(v.id);
+}
+
+/** What the parse refused, by book. Zero everywhere is the healthy state. */
+export interface PaperBookIntegrity {
+  readonly positions: number;
+  readonly orders: number;
+  readonly trades: number;
+  readonly equity: number;
+  readonly optionPositions: number;
+  /** Total rejected records. 0 means the snapshot was fully readable. */
+  readonly rejected: number;
+}
+
+export const CLEAN_BOOK_INTEGRITY: PaperBookIntegrity = {
+  positions: 0, orders: 0, trades: 0, equity: 0, optionPositions: 0, rejected: 0,
+};
+
+export interface PaperSnapshot {
+  readonly state: PaperState;
+  readonly integrity: PaperBookIntegrity;
+}
+
+function keepValid<T>(
+  value: unknown,
+  isValid: (v: unknown) => boolean,
+): { kept: T[]; dropped: number } {
+  if (!Array.isArray(value)) return { kept: [], dropped: 0 };
+  const kept: T[] = [];
+  let dropped = 0;
+  for (const entry of value) {
+    if (isValid(entry)) kept.push(entry as T);
+    else dropped += 1;
+  }
+  return { kept, dropped };
+}
+
+export function parsePaperSnapshot(raw: string): PaperSnapshot | null {
   try {
     const s = JSON.parse(raw);
+    if (!rec(s)) return null;
+
+    const positions = keepValid<Position>(s.positions, isValidPosition);
+    const orders = keepValid<Order>(s.orders, isValidOrder);
+    const trades = keepValid<Trade>(s.trades, isValidTrade);
+    const equity = keepValid<EquityPoint>(s.equity, isValidEquityPoint);
+    const optionPositions = keepValid<unknown>(s.optionPositions, isAddressableOptionRecord);
+
     return {
-      revision: Number.isSafeInteger(s.revision) && s.revision >= 0 ? s.revision : 0,
-      cash: typeof s.cash === "number" ? s.cash : STARTING_CASH,
-      positions: Array.isArray(s.positions) ? s.positions : [],
-      orders: Array.isArray(s.orders) ? s.orders : [],
-      trades: Array.isArray(s.trades) ? s.trades : [],
-      equity: Array.isArray(s.equity) && s.equity.length ? s.equity : [{ ts: Date.now(), equity: STARTING_CASH }],
-      optionPositions: Array.isArray(s.optionPositions) ? s.optionPositions : [],
+      state: {
+        revision: Number.isSafeInteger(s.revision) && (s.revision as number) >= 0
+          ? (s.revision as number)
+          : 0,
+        cash: num(s.cash) ? s.cash : STARTING_CASH,
+        positions: positions.kept,
+        orders: orders.kept,
+        trades: trades.kept,
+        // An empty equity curve is not a reading — seed it so the chart has an
+        // origin, exactly as before.
+        equity: equity.kept.length
+          ? equity.kept
+          : [{ ts: Date.now(), equity: STARTING_CASH }],
+        optionPositions: optionPositions.kept,
+      },
+      integrity: {
+        positions: positions.dropped,
+        orders: orders.dropped,
+        trades: trades.dropped,
+        equity: equity.dropped,
+        optionPositions: optionPositions.dropped,
+        rejected: positions.dropped + orders.dropped + trades.dropped
+          + equity.dropped + optionPositions.dropped,
+      },
     };
   } catch {
     return null;
   }
 }
 
-export function loadPaperState(): PaperState {
-  if (typeof window === "undefined") return freshPaperState();
+function parsePaperState(raw: string): PaperState | null {
+  return parsePaperSnapshot(raw)?.state ?? null;
+}
+
+/**
+ * Read the book AND what had to be refused to read it.
+ *
+ * `loadPaperState` remains the shape every existing caller uses; this is the
+ * same read for callers that intend to DISCLOSE the rejection rather than
+ * absorb it. Both go through one parse — the integrity report is a byproduct
+ * of reading, never a second pass that could disagree with the first.
+ */
+export function loadPaperSnapshot(): PaperSnapshot {
+  const fresh = { state: freshPaperState(), integrity: CLEAN_BOOK_INTEGRITY };
+  if (typeof window === "undefined") return fresh;
   try {
     const raw = window.localStorage.getItem(PAPER_KEY);
-    if (!raw) return freshPaperState();
-    return parsePaperState(raw) ?? freshPaperState();
+    if (!raw) return fresh;
+    return parsePaperSnapshot(raw) ?? fresh;
   } catch {
-    return freshPaperState();
+    return fresh;
   }
+}
+
+export function loadPaperState(): PaperState {
+  return loadPaperSnapshot().state;
 }
 
 /** Persist one canonical paper snapshot with compare-and-swap protection. */
@@ -491,13 +648,17 @@ export function subscribePaperState(listener: (update: PaperSubscriptionUpdate) 
     if (event.key !== PAPER_KEY) return;
     if (event.storageArea && event.storageArea !== window.localStorage) return;
     if (event.newValue === null) {
-      listener({ disposition: "CLEARED", state: freshPaperState() });
+      listener({
+        disposition: "CLEARED",
+        state: freshPaperState(),
+        integrity: CLEAN_BOOK_INTEGRITY,
+      });
       return;
     }
-    const parsed = parsePaperState(event.newValue);
+    const parsed = parsePaperSnapshot(event.newValue);
     listener(parsed
-      ? { disposition: "PERSISTED", state: parsed }
-      : { disposition: "INVALID", state: freshPaperState() });
+      ? { disposition: "PERSISTED", state: parsed.state, integrity: parsed.integrity }
+      : { disposition: "INVALID", state: freshPaperState(), integrity: CLEAN_BOOK_INTEGRITY });
   };
   window.addEventListener("storage", onStorage);
   return () => window.removeEventListener("storage", onStorage);
