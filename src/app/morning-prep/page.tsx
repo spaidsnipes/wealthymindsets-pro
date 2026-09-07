@@ -24,8 +24,8 @@ import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import { readJournalStorage } from "@/lib/traderMemory/adapters/journalStorage";
-import type { AdaptableJournalEntry } from "@/lib/traderMemory/adapters/journalEntryToSnapshot";
-import { journalEntriesToEdgeEntries } from "@/lib/traderMemory/adapters/journalEntryToEdgeEntry";
+import { projectJournalRecordsToEdge } from "@/lib/proofLane/journalEdgeAdapter";
+import type { JournalRecordCoverage } from "@/lib/journal/journalRecordShape";
 import { selectFocusStreak } from "@/lib/learningGenome/selectFocusStreak";
 import { selectRuleAdherenceStreak } from "@/lib/learningGenome/selectRuleAdherenceStreak";
 import type { EdgeEntry } from "@/lib/proofLane/selectSessionEdge";
@@ -80,23 +80,36 @@ const MOODS = ["😴", "🙂", "😃", "🔥", "🧠", "💪", "🎯", "☕"];
  */
 function MorningPrepStreakBadge({ userId }: { userId: string }) {
   const [edge, setEdge] = React.useState<readonly EdgeEntry[]>([]);
+  const [coverage, setCoverage] = React.useState<JournalRecordCoverage | null>(null);
   React.useEffect(() => {
     if (!userId || typeof window === "undefined") return;
     const read = readJournalStorage(window.localStorage);
     if (read.status === "UNAVAILABLE" || read.status === "INVALID" || read.status === "ABSENT") {
       setEdge([]);
+      setCoverage(null);
       return;
     }
-    // Journal entries are stored newest-first; selectFocusStreak
-    // depends on that order for `current`, so pass through as-is.
-    // Map the AdaptableJournalEntry shape into EdgeEntry — only
-    // fields the streak selectors read (date + result + processQuality).
-    const records = read.records as readonly AdaptableJournalEntry[];
-    setEdge(journalEntriesToEdgeEntries(records));
+    // Journal entries are stored newest-first; selectFocusStreak depends on
+    // that order for `current`, so pass through as-is.
+    //
+    // THE ONE PROJECTION. This used to cast to AdaptableJournalEntry[] and run
+    // a SECOND stored-record-to-session map that derived the outcome from
+    // `pnl` — so a record with no result and no pnl became a BREAKEVEN session
+    // here and no session at all on the Proof Lane, from the same book. A day
+    // with no trade on it was extending the discipline streak on this badge.
+    const projection = projectJournalRecordsToEdge(read.records);
+    setEdge(projection.entries);
+    setCoverage(projection.coverage);
   }, [userId]);
   const focusStreak = React.useMemo(() => selectFocusStreak(edge), [edge]);
   const dayStreak = React.useMemo(() => selectRuleAdherenceStreak(edge), [edge]);
-  if (focusStreak.current === 0 && dayStreak.current === 0) return null;
+  /* Silence is still a feature (§14) — no streak, no badge. But a book WM
+     could only partly read is not silence, it is a missing piece of the very
+     number this badge exists to state. If records were skipped the trader must
+     be told, including (especially) when the streaks came back zero, because
+     "you have no streak" and "WM could not read four of your records" look
+     identical on a screen that renders nothing. */
+  if (focusStreak.current === 0 && dayStreak.current === 0 && coverage?.note == null) return null;
   return (
     <section
       aria-label="Morning discipline continuity"
@@ -140,6 +153,19 @@ function MorningPrepStreakBadge({ userId }: { userId: string }) {
           </span>
         )}
       </div>
+      {/* §24 D — what the streak was NOT computed from.
+        * Renders only when something was actually skipped, so it can never
+        * become furniture; a fully readable book says nothing here. The
+        * sentence comes from describeRecordCoverage — the same words /journal
+        * will use — rather than being written again beside the badge.
+        * §9: dim and quiet. Nothing has failed; WM refused to guess, and the
+        * note's own last clause ("Nothing was deleted") is the reassurance,
+        * not a colour. */}
+      {coverage?.note != null && (
+        <p role="note" className="mt-2 text-[10px] leading-relaxed text-wm-text-dim">
+          {coverage.note}
+        </p>
+      )}
     </section>
   );
 }
