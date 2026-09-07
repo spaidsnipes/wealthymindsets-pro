@@ -41,27 +41,17 @@ export type StoredSide = "long" | "short";
 export type StoredDayModel = "M0" | "M1" | "M2";
 export type StoredProcessQuality = "FOLLOWED_PLAN" | "BROKE_RULES" | "UNRESOLVED";
 
-/** A parsed object. Arrays and null are not records, despite `typeof`. */
-export function isJournalRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /**
- * A number WM can do arithmetic with, or undefined.
- *
- * `null` (what `JSON.stringify` writes for NaN), missing fields, numeric
- * STRINGS and Infinity are all undefined here. The string case matters most:
- * `100 + "250.00"` is `"100250.00"`, so a stored string does not merely fail
- * to add — it fabricates a number three orders of magnitude wrong.
+ * The three domain-free questions now live in `@/lib/storedShape`, because
+ * identity, receipts and the book all ask them and three private copies is
+ * exactly the drift this module was created to end (H21). Re-exported under
+ * the names the journal already uses so no call site had to move.
  */
-export function readStoredNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
-}
+import { readStoredText } from "@/lib/storedShape";
+export { readStoredNumber, readStoredText } from "@/lib/storedShape";
 
-/** A non-empty string, or undefined. Whitespace is not content. */
-export function readStoredText(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() !== "" ? value : undefined;
-}
+/** A parsed object. Arrays and null are not records, despite `typeof`. */
+export { isStoredRecord as isJournalRecord } from "@/lib/storedShape";
 
 /** A non-empty date string, or undefined. A blank date is not a date. */
 export function readStoredDate(value: unknown): string | undefined {

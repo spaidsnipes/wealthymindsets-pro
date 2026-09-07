@@ -16,21 +16,12 @@ import { clearAllSessionSymbols } from "@/lib/marketData/sessionSymbolStore";
 import { clearPaperState } from "@/lib/paperTrade";
 import { clearWMSState } from "@/contexts/WMSContext";
 import { clearOwnerScopedLocalStorage, completeLocalSignOut } from "@/lib/logoutIsolation";
+import { hydrateCachedUser, readCachedSession, type WMUser } from "@/lib/auth/cachedSession";
 
-export interface WMUser {
-  id:             string;
-  email:          string;
-  displayName?:   string;
-  handle?:        string;
-  avatar?:        string;        // data URL or remote URL
-  bio?:           string;
-  botName?:       string;        // durable, follows the account
-  timezone?:      string;
-  bgColor?:       string;        // profile background color pref
-  profileComplete: boolean;
-  verified?:      boolean;       // blue checkmark
-  ceo?:           boolean;       // WM core team crown badge
-}
+// The account shape lives next to the only code that can PROVE a stored value
+// has it. Re-exported here because this is where the app has always imported
+// it from.
+export type { WMUser } from "@/lib/auth/cachedSession";
 
 interface AuthState {
   user:       WMUser | null;
@@ -63,12 +54,15 @@ async function readResponseJson(response: Response): Promise<Record<string, unkn
   return response.json().catch(() => ({})) as Promise<Record<string, unknown>>;
 }
 
+/**
+ * No cast. A truthy blob out of localStorage used to become a signed-in
+ * trader — measured: `{}` trapped them on /profile?setup=1 on every
+ * navigation, and `{"id":123}` ran the whole app under a numeric identity.
+ * The cache only saves a login flash; `/api/auth/me` is the authority.
+ */
 function readCachedUser(): WMUser | null {
   if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    return raw ? (JSON.parse(raw) as WMUser) : null;
-  } catch { return null; }
+  return readCachedSession(localStorage, SESSION_KEY);
 }
 
 function writeCachedUser(u: WMUser | null) {
@@ -96,12 +90,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res  = await fetch("/api/auth/me", { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
-        const raw = data.user ?? null;
-        const u: WMUser | null = raw ? {
-          ...raw,
-          verified: raw.verified === true,
-          ceo: isCoreTeam(raw.handle, raw.email),
-        } : null;
+        // Through the same reader as the cache. `{ ...raw }` trusted the
+        // response to be an account, and it is this branch that WRITES the
+        // cache — so an id-less 200 body did not just render wrong once, it
+        // was persisted and re-read on every subsequent load.
+        const hydrated = hydrateCachedUser(data.user);
+        const u: WMUser | null = hydrated && {
+          ...hydrated,
+          // Core-team status is DERIVED here, never read from the payload.
+          ceo: isCoreTeam(hydrated.handle, hydrated.email),
+        };
         setUser(u);
         writeCachedUser(u);
       } else if (res.status === 401 || res.status === 403) {
