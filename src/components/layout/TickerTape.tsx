@@ -8,7 +8,7 @@ import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { priceSourceBadge } from "@/lib/priceSource";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
-import { yahooQuoteObserved } from "@/lib/marketData/yahooQuoteObserved";
+import { yahooQuoteObserved, yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 
 // WM-SEC-P0-05 (2026-08-08): client-side Polygon key read removed. The
@@ -54,6 +54,12 @@ interface TickerState {
   up:    boolean;
   live:  boolean;
   src?:  string;
+  /**
+   * Set when a provider ANSWERED and WM declined to certify the answer.
+   * Distinct from `live: false` with no refusal, which is "no answer yet".
+   * See yahooQuoteRefusal — the tape had one word for both facts.
+   */
+  refusal?: string;
 }
 
 /**
@@ -78,9 +84,17 @@ interface Quote {
 }
 
 /** The row for one symbol: the provider's answer, or the honest absence of one. */
-function rowFor(sym: string, quotes: Record<string, Quote>): TickerState {
-  const q = quotes[sym.toUpperCase()];
-  if (!q || !(q.price > 0)) return unobservedRow(sym);
+function rowFor(
+  sym: string,
+  quotes: Record<string, Quote>,
+  refusals: Record<string, string> = {},
+): TickerState {
+  const key = sym.toUpperCase();
+  const q = quotes[key];
+  if (!q || !(q.price > 0)) {
+    const refusal = refusals[key];
+    return refusal ? { ...unobservedRow(sym), refusal } : unobservedRow(sym);
+  }
   return {
     sym,
     price: q.price,
@@ -105,7 +119,18 @@ const CRYPTO_SYMS  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX",
 // three surfaces consult one predicate. See yahooQuoteObserved.ts +
 // yahooQuoteObserved.test.ts for the truth contract.
 
-async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:number; chgObserved:boolean; src:string } | null> {
+/**
+ * What one provider round produced for one symbol.
+ *
+ * Three outcomes, not two. `null` (no answer) and REFUSED (an answer WM
+ * declined to certify) had been folded together, and the rail printed
+ * "quote pending" for both — see yahooQuoteRefusal for the measurement.
+ */
+type QuoteAnswer =
+  | ({ kind: "quote" } & Quote)
+  | { kind: "refused"; reason: string };
+
+async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
   const up = sym.toUpperCase();
 
   // Futures → Yahoo (only free source for futures)
@@ -114,7 +139,11 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
       const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
       const price = j?.price ?? 0;
       const yc = selectQuoteChange({ price, prevClose: j?.prevClose });
-      if (price > 0 && yahooQuoteObserved(j)) return { price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
+      if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
+      // Yahoo is the ONLY free futures source, so its refusal is the tape's
+      // final answer for this symbol — there is no next provider to try.
+      const refusal = yahooQuoteRefusal(j);
+      if (refusal) return { kind: "refused", reason: refusal };
     } catch {}
     return null;
   }
@@ -125,34 +154,41 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
   if (CRYPTO_SYMS.has(up)) {
     try {
       const j = await fetch(`/api/exchange?ex=coinbase&coin=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-      if (j?.price > 0) { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "coinbase" }; }
+      if (j?.price > 0) { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "coinbase" }; }
     } catch {}
     // Fallback to Yahoo for crypto
     try {
       const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
       const price = j?.price ?? 0;
       const yc = selectQuoteChange({ price, prevClose: j?.prevClose });
-      if (price > 0 && yahooQuoteObserved(j)) return { price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
+      if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
+      const refusal = yahooQuoteRefusal(j);
+      if (refusal) return { kind: "refused", reason: refusal };
     } catch {}
     return null;
   }
 
   // Stocks/ETFs use the same consolidated-first semantic as MainChart and the
   // watchlist. Independent consumers must not disagree on LIVE vs DELAYED.
+  // Yahoo's refusal is held, not returned: two more providers may still
+  // observe this symbol. It becomes the row's answer only if they do not.
+  let yahooRefusal: string | null = null;
   try {
     const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
     const price = j?.price ?? 0;
     const yc = selectQuoteChange({ price, prevClose: j?.prevClose });
-    if (price > 0 && yahooQuoteObserved(j)) return { price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
+    if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
+    yahooRefusal = yahooQuoteRefusal(j);
   } catch {}
   try {
     const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-    if (j?.price > 0 && j.source === "alpaca") { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "alpaca" }; }
+    if (j?.price > 0 && j.source === "alpaca") { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "alpaca" }; }
   } catch {}
   try {
     const j = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
-    if (j?.price > 0) { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "finnhub" }; }
+    if (j?.price > 0) { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "finnhub" }; }
   } catch {}
+  if (yahooRefusal) return { kind: "refused", reason: yahooRefusal };
   return null;
 }
 
@@ -165,17 +201,27 @@ async function fetchQuote(sym: string): Promise<{ price:number; chg:number; pct:
  * just the bad one — and the only thing that had been preventing it was the
  * hardcoded catalogue filtering unknown entries out before they got here.
  */
-async function fetchTapeQuotes(symbols: readonly string[]): Promise<Record<string, { price:number; chg:number; pct:number; chgObserved:boolean; src:string }>> {
-  const results: Record<string, { price:number; chg:number; pct:number; chgObserved:boolean; src:string }> = {};
+async function fetchTapeQuotes(
+  symbols: readonly string[],
+): Promise<{ quotes: Record<string, Quote>; refusals: Record<string, string> }> {
+  const quotes: Record<string, Quote> = {};
+  const refusals: Record<string, string> = {};
   // Named, not anonymous: `tapeQuoteBlocker` is the one owner of "the tape has
   // no feed for this". The row reads the same predicate, so a symbol dropped
   // here is a symbol the rail explicitly says it cannot serve — never one that
   // sits at "quote pending" waiting for a request that was never sent.
   await Promise.allSettled(symbols.filter(sym => tapeQuoteBlocker(sym) === null).map(async sym => {
-    const q = await fetchQuote(sym);
-    if (q) results[sym.toUpperCase()] = q;
+    const answer = await fetchQuote(sym);
+    if (!answer) return;
+    const key = sym.toUpperCase();
+    if (answer.kind === "quote") {
+      const { kind: _kind, ...quote } = answer;
+      quotes[key] = quote;
+    } else {
+      refusals[key] = answer.reason;
+    }
   }));
-  return results;
+  return { quotes, refusals };
 }
 
 /* ── Individual item ───────────────────────────────────────── */
@@ -252,6 +298,20 @@ function TickerItem({ item, onClick, active }: {
         >
           no feed
         </span>
+      ) : item.refusal ? (
+        // §8 again, one step further in: a request WAS sent and a provider DID
+        // answer — WM read the answer and declined to certify it. That is a
+        // decision, not a delay. "quote pending" was measured here on NQ1!
+        // ES1! RTY1! YM1! GC1! CL1! forever, while /api/yahoo returned inside
+        // 200ms every ten seconds. The refused number is deliberately NOT
+        // printed: refusing to certify it and then showing it is the same lie
+        // with extra steps.
+        <span
+          className="font-mono text-[10px] text-wm-text-dim"
+          title={`${sym}: not certified — ${item.refusal} This is not a delay; a provider answered and WM declined the answer.`}
+        >
+          not certified
+        </span>
       ) : (
         <span className="font-mono text-[10px] text-wm-text-dim">quote pending</span>
       )}
@@ -283,6 +343,10 @@ export function TickerTape() {
   // here has no quote, which is a different statement from a quote of zero —
   // the renderer says "quote pending" and prints nothing.
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
+  // Symbols a provider answered for and WM declined to certify, with the
+  // provider's own reason. Kept beside `quotes` rather than inside it so a
+  // refusal can never be mistaken for a price of zero.
+  const [refusals, setRefusals] = useState<Record<string, string>>({});
 
   // After mount (client only): pull the persisted symbol list + cached prices.
   useEffect(() => {
@@ -356,10 +420,18 @@ export function TickerTape() {
   /* ── Yahoo REST fetch on mount + every 10s ────────────── */
   useEffect(() => {
     const doFetch = async () => {
-      const answered = await fetchTapeQuotes(requestedTapeSymbols);
-      if (!Object.keys(answered).length) return;
+      const { quotes: answered, refusals: declined } = await fetchTapeQuotes(requestedTapeSymbols);
+      setRefusals(declined);
+      // A round that produced only refusals still has work to do: it must
+      // retract the quotes those symbols are no longer certified for.
+      if (!Object.keys(answered).length && !Object.keys(declined).length) return;
       setQuotes(prev => {
-        const updated = { ...prev, ...answered };
+        // A symbol WM now refuses to certify must not keep rendering the price
+        // it certified on an earlier round. The refusal IS the current answer.
+        const kept = Object.fromEntries(
+          Object.entries(prev).filter(([sym]) => !(sym in declined)),
+        );
+        const updated = { ...kept, ...answered };
         // Write to window cache so future HMR/reloads start with correct prices
         const priceCache: Record<string, any> = { _ts: Date.now() };
         for (const [sym, q] of Object.entries(updated)) {
@@ -393,7 +465,7 @@ export function TickerTape() {
   // Nothing is filtered out here: a symbol WM has no quote for renders as
   // "quote pending", which is a statement. Removing the row is not.
   const visibleTickers = (pathname === "/charts" ? chartPulseSymbols : customSyms)
-    .map(sym => rowFor(sym, quotes));
+    .map(sym => rowFor(sym, quotes, refusals));
 
   /* Charts keeps one stable pulse; other routes retain the seamless loop. */
   const renderedTickers: TickerState[] = pathname === "/charts"
