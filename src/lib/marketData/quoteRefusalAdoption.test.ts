@@ -88,9 +88,36 @@ function yahooQuoteReaders(): string[] {
  * that has not been fixed yet. Naming them converts an unknown into a queue.
  */
 const UNGATED_DEBT = [
-  "app/paper/page.tsx",
   "components/chart/MainChart.tsx",
 ].sort();
+
+/**
+ * Owners that validate the SF-D01 envelope THEMSELVES, so a reader routing its
+ * response through one is gated even though the string `yahooQuoteRefusal(`
+ * never appears in it.
+ *
+ * WHY THIS EXISTS: the debt list above carried `app/paper/page.tsx` on the
+ * strength of a text match, and the comment above it asserted that every entry
+ * "renders an /api/yahoo price with no SF-D01 check". That was FALSE for
+ * /paper, which routes every quote through `selectPaperQuoteReadiness` — a
+ * STRICTER gate than the one being looked for. It refuses any resolution that
+ * is not RESOLVED, and additionally re-derives the observation's own clock
+ * before it will call a price actionable.
+ *
+ * A queue that lists work already done is a queue people stop reading. But the
+ * fix cannot be "match more strings", because then any function with a
+ * reassuring name would launder an ungated read. So delegation is an
+ * ENUMERATED act, and the test below re-proves each delegate actually refuses.
+ */
+const SF_D01_DELEGATES: Record<string, string> = {
+  selectPaperQuoteReadiness: "lib/marketData/viewModels/selectPaperQuoteReadiness.ts",
+};
+
+/** Does this file consult SF-D01 at all — directly, or through a delegate? */
+function consultsTheGate(src: string): boolean {
+  if (/yahooQuote(Observed|Refusal)\(/.test(src)) return true;
+  return Object.keys(SF_D01_DELEGATES).some(fn => new RegExp(`\\b${fn}\\(`).test(src));
+}
 
 describe("SF-D01 refusal — every gate consumer also carries the reason", () => {
   it("finds the consumers it is meant to protect", () => {
@@ -117,8 +144,26 @@ describe("SF-D01 — asking Yahoo for a quote obliges you to consult the gate", 
     expect(readers).toContain("hooks/useWebSocket.ts");
   });
 
+  it.each(Object.entries(SF_D01_DELEGATES))(
+    "%s may only stand in for the gate while it still refuses",
+    (fn, rel) => {
+      // The allowlist is the dangerous part of the rule above: name a function
+      // here and every caller is declared safe. So the delegate has to keep
+      // earning it. If someone relaxes this selector, the surfaces hiding
+      // behind it must fall back into the debt list rather than stay silent.
+      const src = read(rel);
+      expect(src, `${fn} must be declared in ${rel}`).toMatch(
+        new RegExp(`export function ${fn}\\(`),
+      );
+      expect(src, `${fn} must read the SF-D01 resolution`).toMatch(/observation\.resolution/);
+      expect(src, `${fn} must REFUSE anything that is not RESOLVED`).toMatch(
+        /observation\.resolution !== "RESOLVED"/,
+      );
+    },
+  );
+
   it("the un-gated debt is exactly what is written down — and may only shrink", () => {
-    const ungated = yahooQuoteReaders().filter((rel) => !/yahooQuote(Observed|Refusal)\(/.test(read(rel)));
+    const ungated = yahooQuoteReaders().filter((rel) => !consultsTheGate(read(rel)));
     // A NEW un-gated reader fails here rather than shipping silently. A FIXED
     // one fails too, with the instruction to delete its line — so the debt
     // list can never quietly grow back after being paid down.
