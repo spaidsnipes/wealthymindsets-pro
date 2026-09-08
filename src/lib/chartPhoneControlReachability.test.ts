@@ -15,6 +15,8 @@ describe("phone chart control reachability", () => {
     expect(dashboard).toContain("wm-chart-command-deck-link");
     expect(css).toMatch(/\.wm-chart-orientation-action\s*\{[\s\S]*?min-height:\s*44px\s*!important/);
     expect(css).toMatch(/\.wm-chart-orientation-actions\s*\{[\s\S]*?width:\s*100%/);
+    expect(css).toMatch(/\.wm-chart-orientation-actions\s*\{[\s\S]*?flex-wrap:\s*nowrap/);
+    expect(css).toMatch(/\.wm-chart-command-deck-link\s*\{[\s\S]*?display:\s*none\s*!important/);
   });
 
   it("gives all timeframes their own touch-sized horizontal rail", () => {

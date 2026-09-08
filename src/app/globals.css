@@ -236,7 +236,7 @@
 
   .wm-chart-orientation-actions {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 6px;
     width: 100%;
     margin-left: 0 !important;
@@ -244,13 +244,20 @@
 
   .wm-chart-orientation-action {
     display: inline-flex;
-    flex: 1 1 96px;
+    flex: 1 1 0;
     align-items: center;
     justify-content: center;
     min-width: 0;
     min-height: 44px !important;
     margin-left: 0 !important;
     text-align: center;
+  }
+
+  /* Command Deck already has a persistent 58px target in the phone nav.
+     Repeating it here forced the chart actions onto a second row and took
+     canvas height without adding a new way through the OS. */
+  .wm-chart-command-deck-link {
+    display: none !important;
   }
 
   .wm-chart-toolbar {
