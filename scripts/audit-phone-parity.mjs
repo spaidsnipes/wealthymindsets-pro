@@ -45,7 +45,14 @@ const WIDTH = Number(flag("width", 375));
 const HEIGHT = Number(flag("height", 812));
 const SETTLE = Number(flag("settle", 4000));
 const routes = argv.filter((a, i) => !a.startsWith("--") && !argv[i - 1]?.startsWith("--"));
-const ROUTES = routes.length ? routes : ["/login"];
+/**
+ * Default set = every route reachable WITHOUT a session, which is exactly the
+ * set this harness can honestly audit today. `/signup` is omitted deliberately:
+ * it is a `router.replace` alias for `/login?mode=signup`, so auditing the bare
+ * path would measure the login form twice and report the signup form as clean
+ * without ever rendering it.
+ */
+const ROUTES = routes.length ? routes : ["/login", "/login?mode=signup", "/reset-password"];
 
 /**
  * Minimum comfortable touch target. WCAG 2.5.5 / Apple HIG both land on 44.
@@ -143,7 +150,12 @@ for (const route of ROUTES) {
     continue;
   }
 
-  const redirected = result.landed !== route;
+  // Compare PATHNAMES. A route may legitimately carry a query that selects a
+  // rendered state rather than a page — `/login?mode=signup` is the signup form
+  // and must be auditable. Comparing the raw string would report every such
+  // route as redirected and quietly refuse to audit exactly the states that
+  // need it.
+  const redirected = result.landed !== route.split(/[?#]/)[0];
   const note = redirected ? `  NOT AUDITED — redirected to ${result.landed}` : "";
   console.log(
     `${route}  offenders=${result.offenderCount}  under-${MIN_TAP}px-taps=${result.smallTapCount}${note}`,

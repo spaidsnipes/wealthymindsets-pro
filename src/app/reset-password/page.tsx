@@ -96,7 +96,10 @@ export default function ResetPasswordPage() {
           </button>
         </form>
         {message && <p className="mt-4 text-sm text-white/70" role="status">{message}</p>}
-        <Link href="/login" className="mt-6 inline-block text-sm text-[#E8B923] hover:underline">Return to sign in</Link>
+        {/* MEASURED 105.5x20 at 375px on production 2026-09-08 — under the 44px
+            floor, on the password-recovery path, where it is the only way back.
+            The TEXT stays `text-sm`; the TARGET is what grows. */}
+        <Link href="/login" className="mt-6 inline-flex min-h-11 items-center text-sm text-[#E8B923] hover:underline">Return to sign in</Link>
       </section>
     </main>
   );
