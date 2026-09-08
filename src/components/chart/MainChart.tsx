@@ -37,6 +37,7 @@ import { candleDataStatus, priceSourceBadge, resolveChartSurfaceBadge } from "@/
 import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
+import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import type { PineOutput } from "@/lib/pine/types";
 import { interpretPine } from "@/lib/pine/interpreter";
 import * as IND from "./indicators";
@@ -1645,9 +1646,22 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
       // Fetch real spot price in parallel to validate that candle data is at the
       // correct price level.
+      //
+      // SF-D01: this value is never rendered — it holds a VETO. Fifty lines
+      // down, candles more than 5% from it are thrown away entirely. When the
+      // quote is refused, `j.price` silently falls back to `prevClose`, so an
+      // uncertified number was free to reject real, correctly-provenanced
+      // candles from Alpaca/Finnhub/Polygon and leave the chart empty — worst
+      // exactly when it matters, across a weekend or a gap, where prevClose is
+      // furthest from the truth. WM declining to certify a price is not
+      // grounds for it to overrule data WM does trust.
+      //
+      // Retract to 0 and the existing `spotPrice > 0` guard already skips the
+      // check: the candles then stand on their own provenance, which is the
+      // honest fallback this code path already owns.
       const spotFetch = fetch(`/api/yahoo?sym=${encodeURIComponent(symbol)}&type=quote`, { cache: "no-store", signal: myAbortSignal })
         .then(r => r.json())
-        .then(j => (j?.price ?? 0) as number)
+        .then(j => (yahooQuoteRefusal(j) ? 0 : (j?.price ?? 0)) as number)
         .catch(() => 0);
 
       // Bar count scales with timeframe so higher timeframes pull years of history

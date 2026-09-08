@@ -87,9 +87,7 @@ function yahooQuoteReaders(): string[] {
  * check, which is the same "fake-fresh" defect MainChart had, on a surface
  * that has not been fixed yet. Naming them converts an unknown into a queue.
  */
-const UNGATED_DEBT = [
-  "components/chart/MainChart.tsx",
-].sort();
+const UNGATED_DEBT: string[] = [].sort();
 
 /**
  * Owners that validate the SF-D01 envelope THEMSELVES, so a reader routing its
@@ -195,6 +193,27 @@ describe("chart quote — a refused price is retracted, not relabelled", () => {
     // Routing a refusal into that path is what makes the fix reach all of them
     // without each having to learn a new flag.
     expect(HOOK).toMatch(/ticker:\s*\{\s*price:\s*0,\s*change:\s*0,\s*changePct:\s*0/);
+  });
+
+  it("a refused quote may not VETO candles it never certified", () => {
+    // `spotFetch` is not a display value — it holds a veto. Fifty lines later,
+    // `stalePct > 0.05` throws away the entire candle set. On refusal
+    // `j.price` falls back to prevClose, so an uncertified number could reject
+    // real Alpaca/Finnhub/Polygon candles and blank the chart — worst across a
+    // weekend or a gap, precisely where prevClose is furthest from the truth.
+    const at = CHART.indexOf("const spotFetch = fetch(");
+    expect(at, "spotFetch must still exist").toBeGreaterThan(-1);
+    const spot = CHART.slice(at, CHART.indexOf(".catch(() => 0);", at));
+    const gateAt = spot.indexOf("yahooQuoteRefusal(");
+    const priceAt = spot.indexOf("j?.price");
+    expect(gateAt, "spotFetch must consult the gate").toBeGreaterThan(-1);
+    expect(gateAt, "the veto must not be armed before the gate answers").toBeLessThan(priceAt);
+
+    // And the refusal must RETRACT to 0, because `spotPrice > 0` is the
+    // existing guard that disarms the veto. Any other value re-arms it.
+    expect(spot).toMatch(/yahooQuoteRefusal\(j\)\s*\?\s*0\s*:/);
+    expect(CHART, "the veto must stay gated on a positive spot")
+      .toMatch(/candleData\.length > 0 && spotPrice > 0/);
   });
 
   it("a live aggressor tape outranks a REST refusal", () => {
