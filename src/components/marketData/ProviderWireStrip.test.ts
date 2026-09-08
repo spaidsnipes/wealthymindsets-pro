@@ -161,6 +161,10 @@ describe("ProviderWireStrip touch truth surface", () => {
     expect(source).toContain("{!compact && (");
     expect(source).toContain("WebkitLineClamp: 3");
     expect(source).not.toContain('whiteSpace: "nowrap" }}>{wire.detail}');
+    expect(source).toContain('minmax(min(100%, 180px), 1fr)');
+    expect(source).toContain('flexWrap: "wrap"');
+    expect(source).not.toContain('whiteSpace: "nowrap" }}>{wire.label}');
+    expect(source).not.toContain('"1 0 126px"');
   });
 
   it("uses compact connection summaries on the chart and command deck surfaces", () => {

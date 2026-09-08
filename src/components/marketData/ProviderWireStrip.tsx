@@ -403,7 +403,7 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
         <Link href="/readiness" style={{ color: "#8b92ac", fontSize: 9, textDecoration: "none", whiteSpace: "nowrap" }}>{compact ? "View details →" : "read-only · capability truth"}</Link>
       </div>
       <div style={compact
-        ? { display: "flex", gap: 7, overflowX: "auto", scrollbarWidth: "thin" }
+        ? { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 7 }
         : { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 7 }}>
         {wires.map((wire) => (
           <Link
@@ -413,11 +413,11 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
             aria-label={`${wire.source}: ${wire.label}. ${wire.detail} Open provider readiness wireboard.`}
             data-provider={wire.source}
             data-provider-tone={wire.tone}
-            style={{ minWidth: compact ? 126 : 0, flex: compact ? "1 0 126px" : undefined, border: "1px solid rgba(240,180,41,0.18)", borderRadius: 8, padding: compact ? "6px 8px" : "7px 8px", background: "linear-gradient(145deg, rgba(240,180,41,0.045), rgba(255,255,255,0.012))", textDecoration: "none" }}
+            style={{ minWidth: 0, border: "1px solid rgba(240,180,41,0.18)", borderRadius: 8, padding: compact ? "6px 8px" : "7px 8px", background: "linear-gradient(145deg, rgba(240,180,41,0.045), rgba(255,255,255,0.012))", textDecoration: "none" }}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
               <span style={{ color: "#d9dce7", fontSize: 10, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase" }}>{wire.source}</span>
-              <span style={{ color: TONE_COLOR[wire.tone], fontSize: 9, fontWeight: 800, whiteSpace: "nowrap" }}>{wire.label}</span>
+              <span style={{ color: TONE_COLOR[wire.tone], fontSize: 9, fontWeight: 800, overflowWrap: "anywhere" }}>{wire.label}</span>
             </div>
             {!compact && (
               <>
