@@ -115,16 +115,27 @@ describe("UNOBSERVED is not NO — §14.1", () => {
 });
 
 describe("the dead end becomes an instruction", () => {
-  it("an absent table names the migration as the single outstanding thing", () => {
+  it("an unavailable authority does not guess the cause or promise migration alone gives parity", () => {
     const p = progress(LOCAL, ABSENT);
     expect(p.steps[0].state).toBe("NOT_YET");
     expect(p.nextDependency).toContain("migration");
+    expect(p.nextDependency).toContain("does not establish");
+    expect(p.nextDependency).toContain("book must also be written");
+    expect(p.nextDependency).not.toContain("has not been created");
   });
 
   it("passes the route's own sentence through instead of rewriting it", () => {
     // Two descriptions of the same condition is how the first one stops being
     // true. The route knows why; this selector repeats it.
     expect(progress(LOCAL, ABSENT).steps[0].detail).toBe(ABSENT.note);
+  });
+
+  it("does not turn an inconclusive transport receipt into a missing-table diagnosis", () => {
+    const note = "The shared position store did not answer this check. Its availability is unverified.";
+    const p = progress(LOCAL, { status: "OBSERVED", authority: null, note });
+    expect(p.steps[0].detail).toBe(note);
+    expect(p.nextDependency).not.toMatch(/has not been created|only thing standing/);
+    expect(p.nextDependency).toContain("Verify shared position access");
   });
 
   it("still says something when the route gave no reason", () => {

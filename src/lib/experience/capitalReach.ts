@@ -293,9 +293,9 @@ export function selectCrossDeviceProgress(
     authorityStep.state === "UNOBSERVED"
       ? null
       : authorityStep.state === "NOT_YET"
-        ? "The shared position table has not been created on this database yet. "
-          + "That is one migration, and it is the only thing standing between here "
-          + "and your phone seeing this position."
+        ? "Verify shared position access before connecting this browser's book. "
+          + "This check does not establish whether a migration is needed. "
+          + "The book must also be written to the shared record before another device can read it."
         : bookStep.state === "NOT_YET"
           ? "The shared record exists. The paper book is not written to it yet — "
             + "that is the next build step, not a setting."
