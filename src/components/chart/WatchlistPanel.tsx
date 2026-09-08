@@ -232,9 +232,29 @@ interface Props {
   onToggle: () => void;
   gridView?: boolean;
   onGridViewChange?: (v: boolean) => void;
+  /**
+   * WHERE this watchlist is being presented.
+   *
+   * "rail"  — the desktop column left of the chart. Carries the
+   *           `.wm-chart-watchlist` class and the 0→200px width animation.
+   * "sheet" — inside a drawer, because at ≤1023px the rail is hidden by CSS
+   *           and so is the button that toggles it.
+   *
+   * A variant rather than a second component: this panel owns watchlist
+   * identity — named lists, persistence, the SF-D01 refusal rendering, the
+   * §24/H21 stored-list reader. A copy for phones would be a second place for
+   * all of that to drift, and the drift would be invisible precisely because
+   * nobody reviews on a phone.
+   *
+   * "sheet" MUST NOT carry `.wm-chart-watchlist`: that class is
+   * `display: none !important` under the very breakpoint the sheet exists to
+   * serve, so wearing it would hide the drawer's own contents.
+   */
+  variant?: "rail" | "sheet";
 }
 
-export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Props) {
+export function WatchlistPanel({ open, gridView = false, onGridViewChange, variant = "rail" }: Props) {
+  const isSheet = variant === "sheet";
   const { activeSymbol, setActiveSymbol } = useActiveSymbol();
   // ── Named custom watchlists (persisted) ──────────────────────
   const [lists, setLists] = useState<Record<string, string[]>>(() => {
@@ -539,21 +559,32 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
   };
 
   return (
-    <div className="wm-chart-watchlist" style={{ display: "flex", alignItems: "stretch", flexShrink: 0, position: "relative" }}>
+    <div
+      // `.wm-chart-watchlist` is display:none !important at <=1023px. The sheet
+      // IS the <=1023px arrangement, so it must not wear the class that hides it.
+      className={isSheet ? "wm-chart-watchlist-sheet" : "wm-chart-watchlist"}
+      style={isSheet
+        ? { display: "flex", alignItems: "stretch", position: "relative", width: "100%", height: "100%", minHeight: 0 }
+        : { display: "flex", alignItems: "stretch", flexShrink: 0, position: "relative" }}
+    >
       <AnimatePresence initial={false}>
-        {open && (
+        {(open || isSheet) && (
           <motion.div
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 200, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
+            // In a drawer the container already animates in, and the panel has
+            // been given the full width on purpose. Animating 0->200px here
+            // would fight it and settle at a width narrower than the sheet.
+            initial={isSheet ? false : { width: 0, opacity: 0 }}
+            animate={isSheet ? { opacity: 1 } : { width: 200, opacity: 1 }}
+            exit={isSheet ? { opacity: 0 } : { width: 0, opacity: 0 }}
             transition={{ duration: 0.18, ease: "easeInOut" }}
             style={{
               overflow: "hidden",
-              borderLeft: "1px solid #1E2030",
+              borderLeft: isSheet ? "none" : "1px solid #1E2030",
               background: "#0D0E14",
               display: "flex",
               flexDirection: "column",
               flexShrink: 0,
+              ...(isSheet ? { width: "100%", height: "100%", minHeight: 0 } : null),
             }}
           >
             {/* Header — "Watchlists ▼" + grid/list icons */}

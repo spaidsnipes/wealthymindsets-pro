@@ -23,6 +23,54 @@ describe("responsive P0 command surfaces", () => {
     expect(css).toContain("border-right: 1px solid rgba(232,185,35,.18)");
   });
 
+  it("hides the watchlist rail only where something else offers the watchlist", () => {
+    // MEASURED on the running app at 375px before this Sentinel existed:
+    // `.wm-chart-watchlist` display:none (still mounted), `.wm-chart-primary-rail`
+    // display:none (the toggle that would reveal it), and all four watchlist
+    // controls present with zero client rects. The capability had no surface AND
+    // no door. Master Index parity law: a limitation must be explicit and owned,
+    // not accidental drift. The CSS hide rule above is correct — a 200px rail
+    // does not belong on a phone — so the fix RELOCATES the capability.
+    const dashboard = source("../components/chart/ChartsDashboard.tsx");
+    const panel = source("../components/chart/WatchlistPanel.tsx");
+
+    // One owner of "this screen is too narrow", shared with the CSS below.
+    expect(dashboard).toContain("useNarrowViewport");
+
+    // Exactly one instance at any width: rail OR sheet, never both. Two live
+    // copies would mean two poll loops against the same quote endpoint.
+    expect(dashboard, "the rail must not render where CSS is hiding it")
+      .toContain("{!narrowViewport && (");
+    expect(dashboard, "the narrow-viewport surface is the drawer, not a second rail")
+      .toContain("{narrowViewport && watchlistSheetOpen && (");
+
+    // A reachable door, wired to the drawer it opens.
+    expect(dashboard).toContain('id="chart-watchlist-sheet"');
+    expect(dashboard).toContain('aria-controls="chart-watchlist-sheet"');
+
+    // Reuse, not a phone-specific fork of the watchlist.
+    expect(dashboard).toContain('variant="sheet"');
+    expect(panel, "the sheet must not wear the class globals.css hides")
+      .toContain('isSheet ? "wm-chart-watchlist-sheet" : "wm-chart-watchlist"');
+  });
+
+  it("keeps the JS relocation breakpoint and the CSS hide breakpoint the same number", () => {
+    // If these drift, both failure modes are silent:
+    //   CSS hides at 1023, JS relocates at 768  -> 768–1023px has no watchlist.
+    //   CSS hides at 1023, JS relocates at 1280 -> 1023–1280px has two.
+    const responsive = source("./responsive/narrowViewport.ts");
+    const declared = responsive.match(/NARROW_VIEWPORT_MAX_PX\s*=\s*(\d+)/);
+    expect(declared, "narrowViewport.ts must export a literal breakpoint").not.toBeNull();
+
+    const px = declared![1];
+    const at = css.indexOf(`@media (max-width: ${px}px)`);
+    expect(at, `globals.css has no @media (max-width: ${px}px) block to match`).toBeGreaterThan(-1);
+
+    const block = css.slice(at, css.indexOf("}", css.indexOf("{", at)));
+    expect(block, "the watchlist must be hidden by the same breakpoint JS relocates at")
+      .toContain(".wm-chart-watchlist,");
+  });
+
   it("compresses the desktop product map into five human jobs plus one workspace menu", () => {
     const layout = source("../components/layout/MainLayout.tsx");
     const coreBlock = layout.slice(layout.indexOf("const NAV_CORE"), layout.indexOf("const NAV_WORKBENCH"));
