@@ -29,11 +29,16 @@ export function WMSBar() {
       {/* Floating earn notification */}
       <AnimatePresence>
         {lastEarning && (
+          // The -50% centering is a TRANSFORM PROP, not a `-translate-x-1/2`
+          // class: Framer owns `transform` on a motion element, so a class
+          // would be overwritten by the y/scale animation and the toast would
+          // hang half its width to the right of its anchor. Same root cause as
+          // the install prompt.
           <motion.div
-            initial={{ opacity: 0, y: 8, scale: 0.8 }}
-            animate={{ opacity: 1, y: -4, scale: 1 }}
-            exit={{ opacity: 0, y: -16, scale: 0.8 }}
-            className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap bg-wm-green text-wm-black text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
+            initial={{ opacity: 0, y: 8, scale: 0.8, x: "-50%" }}
+            animate={{ opacity: 1, y: -4, scale: 1, x: "-50%" }}
+            exit={{ opacity: 0, y: -16, scale: 0.8, x: "-50%" }}
+            className="absolute -top-8 left-1/2 whitespace-nowrap bg-wm-green text-wm-black text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
           >
             +{lastEarning.amount} WM points
           </motion.div>

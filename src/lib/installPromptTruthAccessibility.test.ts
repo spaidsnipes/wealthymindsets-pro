@@ -27,7 +27,20 @@ describe("PWA install prompt truth and accessibility", () => {
     expect(prompt).toContain('aria-labelledby="wm-install-prompt-title"');
     expect(prompt).toContain('aria-describedby="wm-install-prompt-description"');
     expect(prompt).toContain('aria-label="Dismiss install prompt"');
-    expect(prompt).toContain("w-[calc(100%-2rem)] max-w-sm");
+    // RE-ANCHORED 2026-09-08. This rule pinned the literal string
+    // `w-[calc(100%-2rem)] max-w-sm` and called the result "touch reachable".
+    // It was green at 375px while the dismiss button sat ENTIRELY off screen
+    // (measured: card left 188, right 531, viewport 375), because the sibling
+    // `-translate-x-1/2` that did the centering was silently discarded by
+    // Framer. A class name cannot witness geometry.
+    //
+    // What is actually required is that the card be bounded by the VIEWPORT
+    // without depending on a transform. Insets do that; a width plus a
+    // transform does not. Real geometry is asserted by measurement, and the
+    // transform-ownership rule lives in design/motionTransformOwnership.
+    expect(prompt).toMatch(/inset-x-\d/);
+    expect(prompt).toContain("max-w-sm");
+    expect(prompt).not.toMatch(/className="[^"]*-translate-x-/);
     expect(prompt).toContain("min-h-11 min-w-11");
     expect(prompt).toContain("inline-flex min-h-11");
   });

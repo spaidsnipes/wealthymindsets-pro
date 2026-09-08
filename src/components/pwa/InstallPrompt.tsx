@@ -72,12 +72,18 @@ export function InstallPrompt() {
   return (
     <AnimatePresence>
       {show && (
+        // Centered by INSETS, never by a transform utility. Framer owns
+        // `transform` on a motion element and rewrites it every frame —
+        // including `none` at rest — so a `-translate-x-1/2` class here is
+        // silently discarded and the card sits at left:50% uncompensated.
+        // MEASURED at 375px before this change: left 188, right 531 — 156px of
+        // a 343px card (45%) off screen, taking the dismiss button with it.
         <motion.div
           initial={{ y: 80, opacity: 0 }}
           animate={{ y: 0,  opacity: 1 }}
           exit={{   y: 80, opacity: 0 }}
           transition={{ type: "spring", stiffness: 350, damping: 30 }}
-          className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-1/2 z-[200] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2"
+          className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] inset-x-4 mx-auto z-[200] max-w-sm"
           style={{ filter: "drop-shadow(0 8px 32px rgba(0,212,170,0.25))" }}
           role="region"
           aria-live="polite"
