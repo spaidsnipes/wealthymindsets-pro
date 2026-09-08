@@ -250,7 +250,12 @@ describe("compileScene enforcement — /paper breadcrumb", () => {
   it("routes through the paper adapter and the compiler, and mounts the panel", () => {
     expect(page).toContain("paperSceneSignals");
     expect(page).toContain("compileScene");
-    expect(page).toContain("SceneAdmissionPanel");
+    // The NAME alone is satisfied by the IMPORT LINE. This rule's own title
+    // says "mounts the panel" while it proved only that the file mentioned it
+    // — deleting the JSX left it green. Assert the ELEMENT. (`mounts()` further
+    // down this same file was written for exactly this and was never used here.)
+    expect(page, "/paper imports SceneAdmissionPanel but never renders it")
+      .toMatch(/<SceneAdmissionPanel\b/);
   });
 
   it("feeds the ledger's own persistence result as the LINK signal, not a constant", () => {
@@ -273,7 +278,8 @@ describe("compileScene enforcement — /command-deck breadcrumb", () => {
   it("routes through the adapter and the compiler, and mounts the panel", () => {
     expect(page).toContain("deckSceneSignals");
     expect(page).toContain("compileScene");
-    expect(page).toContain("SceneAdmissionPanel");
+    expect(page, "/command-deck imports SceneAdmissionPanel but never renders it")
+      .toMatch(/<SceneAdmissionPanel\b/);
   });
 
   it("computes right-of-way through the canonical Decision owner, not a local copy", () => {

@@ -82,14 +82,24 @@ describe("<MarketCanvasPanel> enforcement — canon §Single-Writer / Many-Reade
     expect(violations).toEqual([]);
   });
 
-  it("current Phase 3 consumers import MarketCanvasPanel (breadcrumb)", () => {
+  it("current Phase 3 consumers RENDER MarketCanvasPanel, not merely import it", () => {
+    // Strengthened 2026-09-08. This asserted only that the NAME appeared in the
+    // consumer, which the IMPORT LINE satisfies — so deleting the JSX would
+    // have left the rule green while nothing reached the screen. That exact
+    // mutation survived an equivalent rule on ContractStance the same day, so
+    // the weakness is proven, not theoretical: an imported-but-never-rendered
+    // component is the orphan shape these breadcrumbs exist to prevent, and an
+    // import-graph walk cannot tell the difference either.
     const expected = [
       "app/command-deck/page.tsx",
     ];
     for (const rel of expected) {
       const p = resolve(SRC_ROOT, rel);
       const content = readFileSync(p, "utf8");
-      expect(content).toContain("MarketCanvasPanel");
+      expect(content, `${rel} does not import MarketCanvasPanel`)
+        .toContain("MarketCanvasPanel");
+      expect(content, `${rel} imports MarketCanvasPanel but never renders it`)
+        .toMatch(/<MarketCanvasPanel[\s/>]/);
     }
   });
 });

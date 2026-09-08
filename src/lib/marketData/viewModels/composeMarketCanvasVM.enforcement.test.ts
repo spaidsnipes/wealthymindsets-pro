@@ -148,11 +148,16 @@ describe("composeMarketCanvasVM enforcement — canon §Single-Writer / Many-Rea
     // Decision Why — must consume chartCanvasVM.decisionWhy and mount
     // the shared DecisionWhyPanel component (single-writer canon).
     expect(content).toMatch(/chartCanvasVM\.decisionWhy/);
-    expect(content).toContain("DecisionWhyPanel");
+    // The word MOUNT in the comment above was the intent; `toContain` was not
+    // that assertion — an import line satisfies it, so deleting the JSX left
+    // this green. Same class as M118 on ContractStance. Assert the ELEMENT.
+    expect(content, "/charts imports DecisionWhyPanel but never renders it")
+      .toMatch(/<DecisionWhyPanel\b/);
     // Passport — must consume selectMarketObjectPassport and mount
     // the shared MarketObjectPassportPanel.
     expect(content).toContain("selectMarketObjectPassport");
-    expect(content).toContain("MarketObjectPassportPanel");
+    expect(content, "/charts imports MarketObjectPassportPanel but never renders it")
+      .toMatch(/<MarketObjectPassportPanel\b/);
     // Unresolved depth readiness belongs in the capability drawer, not
     // permanent chart chrome. Silence is preferable to an infrastructure chip.
     expect(content).not.toContain("LIQUIDITY WEATHER · NOT WIRED");
