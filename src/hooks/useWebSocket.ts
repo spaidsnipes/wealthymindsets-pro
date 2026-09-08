@@ -34,6 +34,15 @@ import { selectObservedProviderFallback } from "@/lib/marketData/selectObservedP
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 import { coalesceQuoteRequest } from "@/lib/marketData/quoteRequestCoalescer";
+import { InFlightRounds } from "@/lib/marketData/inFlightRounds";
+
+/**
+ * Provider-tick rounds share one identity space, separate from quotes, so a
+ * tick round and a quote round for the same symbol can never answer each
+ * other's question. The key carries its own `ticks:` namespace for the same
+ * reason.
+ */
+const providerTickRounds = new InFlightRounds();
 import { resolveQuoteDayChange } from "@/lib/marketData/resolveQuoteDayChange";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
@@ -163,6 +172,65 @@ type QuoteAnswer =
  */
 async function fetchRealQuote(sym: string): Promise<QuoteAnswer | null> {
   return coalesceQuoteRequest(sym, () => fetchRealQuoteUncoalesced(sym));
+}
+
+/**
+ * The observed-provider tick chain, at MODULE scope and free of every
+ * per-instance flag.
+ *
+ * That independence is the whole reason this function exists separately. The
+ * chain used to live inside the effect and to close over that instance's
+ * `disposed`. A shared round built from such a closure would carry ONE
+ * instance's lifecycle: if the instance that happened to start the round
+ * unmounted mid-flight, its `disposed` would short-circuit the longbridge and
+ * webull lanes to `[]` and null the moomoo body — and every joined instance,
+ * still mounted and still needing the tape, would receive that emptiness as
+ * the provider's answer. Disposal is a property of a CONSUMER, never of the
+ * observation, so it is applied to the RESULT by each consumer instead.
+ *
+ * The signal is likewise owned by the round, not by any joiner. No single
+ * unmounting consumer may cancel a round the others are still waiting on.
+ */
+function fetchProviderTickSelection(symbol: string, signal: AbortSignal) {
+  const upper = encodeURIComponent(symbol.toUpperCase());
+  const read = async (provider: string) => {
+    const response = await fetch(`/api/market-data/${provider}/ticks?symbol=${upper}`, {
+      cache: "no-store",
+      signal,
+    });
+    return response.ok ? await response.json() : null;
+  };
+  return selectObservedProviderFallback([
+    {
+      source: "moomoo" as const,
+      read: async () => selectFreshMoomooTapeEvents(await read("moomoo"), symbol, Date.now()),
+    },
+    {
+      source: "longbridge" as const,
+      read: async () => selectFreshLongbridgeObservedEvents(await read("longbridge"), symbol, Date.now()),
+    },
+    {
+      source: "webull" as const,
+      read: async () => selectFreshWebullObservedEvents(await read("webull"), symbol, Date.now()),
+    },
+  ]);
+}
+
+/**
+ * MEASURED /charts 2026-09-08, 13s across a client-side route re-mount:
+ *
+ *   moomoo:AMZN      12 requests   min gap 1ms   (58, 60, 77, 84, 85, 86 ...)
+ *   longbridge:AMZN   6 requests   min gap 6ms
+ *   webull:AMZN       6 requests   min gap 16ms
+ *
+ * Six identical moomoo requests inside 28ms, repeating every round. Nothing
+ * schedules work 1ms apart — that is six live hook instances, each running the
+ * full provider chain for the same symbol, each guarded only by its own
+ * `moomooInFlight`, which cannot see across instances. Same defect family as
+ * the quote path fixed in 98221e1, one layer down.
+ */
+function fetchProviderTicks(symbol: string, signal: AbortSignal) {
+  return providerTickRounds.run(`ticks:${symbol}`, () => fetchProviderTickSelection(symbol, signal));
 }
 
 async function fetchRealQuoteUncoalesced(sym: string): Promise<QuoteAnswer | null> {
@@ -1131,6 +1199,12 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     let moomooInFlight = false;
     let moomooAbort: AbortController | null = null;
     let moomooTimer: ReturnType<typeof setTimeout> | null = null;
+    let moomooLastRoundStartedAt: number | null = null;
+    // The cadence the visibility handler must TOP UP rather than bypass. It is
+    // not a constant: moomooNextPollDelayMs backs off to a minute when a
+    // provider is unavailable, and a returning tab must respect that backoff
+    // instead of resetting it to the five-second healthy cadence.
+    let moomooIntervalMs = 60_000;
     const scheduleMoomooPoll = (delayMs: number) => {
       if (disposed || isFuture || isCrypto || document.visibilityState === "hidden") return;
       if (moomooTimer) clearTimeout(moomooTimer);
@@ -1139,49 +1213,17 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     const pollMoomooTicks = async () => {
       if (disposed || isFuture || isCrypto || document.visibilityState === "hidden" || moomooInFlight) return;
       moomooInFlight = true;
+      moomooLastRoundStartedAt = Date.now();
       moomooAbort = new AbortController();
       let nextDelayMs = 60_000;
       try {
         // Each provider attempt owns its transport and parse failure. A broken
         // Moomoo or Longbridge request must not suppress a healthy later lane.
         // Cancellation still aborts the complete poll.
-        const selection = await selectObservedProviderFallback([
-          {
-            source: "moomoo",
-            read: async () => {
-              const response = await fetch(`/api/market-data/moomoo/ticks?symbol=${encodeURIComponent(symbol.toUpperCase())}`, {
-                cache: "no-store",
-                signal: moomooAbort!.signal,
-              });
-              const body = response.ok && !disposed ? await response.json() : null;
-              return selectFreshMoomooTapeEvents(body, symbol, Date.now());
-            },
-          },
-          {
-            source: "longbridge",
-            read: async () => {
-              if (disposed) return [];
-              const response = await fetch(`/api/market-data/longbridge/ticks?symbol=${encodeURIComponent(symbol.toUpperCase())}`, {
-                cache: "no-store",
-                signal: moomooAbort!.signal,
-              });
-              const longbridgeBody = response.ok ? await response.json() : null;
-              return selectFreshLongbridgeObservedEvents(longbridgeBody, symbol, Date.now());
-            },
-          },
-          {
-            source: "webull",
-            read: async () => {
-              if (disposed) return [];
-              const response = await fetch(`/api/market-data/webull/ticks?symbol=${encodeURIComponent(symbol.toUpperCase())}`, {
-                cache: "no-store",
-                signal: moomooAbort!.signal,
-              });
-              const webullBody = response.ok ? await response.json() : null;
-              return selectFreshWebullObservedEvents(webullBody, symbol, Date.now());
-            },
-          },
-        ]);
+        const selection = await fetchProviderTicks(symbol, moomooAbort.signal);
+        // Disposal is applied to the RESULT, by this consumer, rather than
+        // inside the shared round — see fetchProviderTickSelection.
+        if (disposed) return;
         const electedSource = selection?.source ?? "moomoo";
         const events = selection?.events ?? [];
         // Preserve a responsive five-second tape only while this exact symbol
@@ -1231,12 +1273,28 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         }
       } finally {
         moomooInFlight = false;
+        moomooIntervalMs = nextDelayMs;
         scheduleMoomooPoll(nextDelayMs);
       }
     };
     void pollMoomooTicks();
+    /**
+     * This was a bare "visible? poll." handler — the exact defect
+     * visibilityRefetch.ts was written for in 6e2c817, sitting in the SAME FILE
+     * as the call site that commit did fix. It survived because that commit's
+     * Sentinel matched on the spelling `restTimer` instead of on the invariant,
+     * so it walked straight past a handler named `moomooTimer`. The Sentinel
+     * has been generalised alongside this fix.
+     */
     const onVisibleMoomoo = () => {
-      if (document.visibilityState !== "visible") return;
+      const verdict = selectVisibilityRefetch({
+        visibilityState: document.visibilityState,
+        lastRoundStartedAt: moomooLastRoundStartedAt,
+        inFlight: moomooInFlight,
+        now: Date.now(),
+        intervalMs: moomooIntervalMs,
+      });
+      if (verdict.kind !== "REFETCH") return;
       if (moomooTimer) clearTimeout(moomooTimer);
       void pollMoomooTicks();
     };

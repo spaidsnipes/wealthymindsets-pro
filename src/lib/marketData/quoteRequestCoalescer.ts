@@ -47,74 +47,23 @@
  *     originator saw, which is the same outcome it would have reached alone.
  */
 
+import { InFlightRounds, normalizeRoundKey } from "./inFlightRounds";
+
 /**
- * A coalescer instance. Exported as a class so tests get a clean one rather
- * than reaching into module state through a reset hatch — the same seam
- * `YahooCandleConsumer` offers.
+ * The mechanism lives in inFlightRounds.ts. It was extracted there when the
+ * provider-tick path became the second consumer — the abstraction is earned by
+ * a real second caller, not anticipated. This module keeps the QUOTE
+ * measurement above, and the instance the quote callers share.
  */
-export class QuoteRequestCoalescer {
-  private readonly inFlight = new Map<string, Promise<unknown>>();
-
-  /**
-   * Run `start` under `key`, or join the round already running under it.
-   *
-   * An EMPTY key is not an identity. A caller that cannot say what it is
-   * asking about must not be joined to anyone — it runs alone, uncoalesced.
-   * The alternative is that every anonymous request collapses into one shared
-   * answer, which is a correctness bug wearing a performance fix's clothes.
-   */
-  run<T>(key: string, start: () => Promise<T>): Promise<T> {
-    const id = normalizeQuoteKey(key);
-    if (!id) return start();
-
-    const existing = this.inFlight.get(id) as Promise<T> | undefined;
-    if (existing) return existing;
-
-    // `start()` may throw SYNCHRONOUSLY. If it does, nothing was ever in
-    // flight, so nothing may be registered — otherwise the map would hold a
-    // key that no `finally` will ever clear and that symbol would be
-    // permanently unfetchable.
-    let pending: Promise<T>;
-    try {
-      pending = start();
-    } catch (err) {
-      return Promise.reject(err);
-    }
-
-    // Delete only if the entry is still OURS. A slow round that settles after
-    // its key was already reclaimed by a newer round must not evict the newer
-    // round's entry — that would silently disable coalescing for that symbol.
-    const tracked = pending.finally(() => {
-      if (this.inFlight.get(id) === tracked) this.inFlight.delete(id);
-    });
-    this.inFlight.set(id, tracked);
-    return tracked;
-  }
-
-  /** Diagnostic seam. Whether a round is open for this key right now. */
-  isInFlight(key: string): boolean {
-    const id = normalizeQuoteKey(key);
-    return id ? this.inFlight.has(id) : false;
-  }
-
-  /** Diagnostic seam. How many distinct rounds are open right now. */
-  inFlightCount(): number {
-    return this.inFlight.size;
-  }
-}
+export const quoteRequestCoalescer = new InFlightRounds();
 
 /**
  * The identity of a quote question is its symbol, case- and whitespace-
  * insensitive. "nq1!" and " NQ1! " are the same question and must join.
  */
-export function normalizeQuoteKey(key: string): string {
-  return typeof key === "string" ? key.trim().toUpperCase() : "";
-}
+export const normalizeQuoteKey = normalizeRoundKey;
 
-/** The one coalescer the app's quote callers share. */
-export const quoteRequestCoalescer = new QuoteRequestCoalescer();
-
-/** Convenience wrapper over the shared instance. */
+/** Join the open round for this symbol, or start one. */
 export function coalesceQuoteRequest<T>(key: string, start: () => Promise<T>): Promise<T> {
   return quoteRequestCoalescer.run(key, start);
 }

@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  QuoteRequestCoalescer,
   coalesceQuoteRequest,
   normalizeQuoteKey,
   quoteRequestCoalescer,
 } from "./quoteRequestCoalescer";
+import { InFlightRounds } from "./inFlightRounds";
 
 /**
  * Guards the rule established by the /charts measurement recorded in
@@ -26,7 +26,7 @@ function deferred<T>() {
 
 describe("quote request coalescer — the rule", () => {
   it("joins a second caller to the round already in flight", async () => {
-    const c = new QuoteRequestCoalescer();
+    const c = new InFlightRounds();
     const d = deferred<string>();
     let starts = 0;
     const start = () => { starts += 1; return d.promise; };
@@ -41,7 +41,7 @@ describe("quote request coalescer — the rule", () => {
   });
 
   it("does not cache — once settled, the next caller starts a fresh round", async () => {
-    const c = new QuoteRequestCoalescer();
+    const c = new InFlightRounds();
     let starts = 0;
     const start = () => { starts += 1; return Promise.resolve(starts); };
 
@@ -55,7 +55,7 @@ describe("quote request coalescer — the rule", () => {
   });
 
   it("never merges two different questions", async () => {
-    const c = new QuoteRequestCoalescer();
+    const c = new InFlightRounds();
     const nq = deferred<string>();
     const es = deferred<string>();
 
@@ -69,7 +69,7 @@ describe("quote request coalescer — the rule", () => {
   });
 
   it("treats casing and surrounding whitespace as the same question", async () => {
-    const c = new QuoteRequestCoalescer();
+    const c = new InFlightRounds();
     const d = deferred<string>();
     let starts = 0;
     const start = () => { starts += 1; return d.promise; };
@@ -83,7 +83,7 @@ describe("quote request coalescer — the rule", () => {
   it("does NOT join callers that could not say what they were asking about", async () => {
     // An empty key is not an identity. Collapsing every anonymous request into
     // one shared answer would be a correctness bug wearing a perf fix's clothes.
-    const c = new QuoteRequestCoalescer();
+    const c = new InFlightRounds();
     let starts = 0;
     const start = () => { starts += 1; return Promise.resolve(starts); };
 
@@ -95,7 +95,7 @@ describe("quote request coalescer — the rule", () => {
   });
 
   it("gives a joiner the same rejection the originator saw", async () => {
-    const c = new QuoteRequestCoalescer();
+    const c = new InFlightRounds();
     const d = deferred<string>();
     const boom = new Error("provider refused");
 
@@ -113,7 +113,7 @@ describe("quote request coalescer — the rule", () => {
     // If `start()` throws before returning a promise, nothing was ever in
     // flight. Registering it would leave a key no `finally` can ever clear,
     // and that symbol would be permanently unfetchable.
-    const c = new QuoteRequestCoalescer();
+    const c = new InFlightRounds();
     const boom = new Error("sync");
     await expect(c.run("NQ1!", () => { throw boom; })).rejects.toBe(boom);
     expect(c.inFlightCount()).toBe(0);
@@ -139,7 +139,7 @@ describe("quote request coalescer — the rule", () => {
      * What IS worth pinning is the observable behaviour: round N releases its
      * key so round N+1 can own it, and round N+1 is joinable while open.
      */
-    const c = new QuoteRequestCoalescer();
+    const c = new InFlightRounds();
     const slow = deferred<string>();
     const next = deferred<string>();
 
@@ -161,7 +161,7 @@ describe("quote request coalescer — the rule", () => {
   });
 
   it("reproduces the measured burst: 6 near-simultaneous asks become 1 round", async () => {
-    const c = new QuoteRequestCoalescer();
+    const c = new InFlightRounds();
     const d = deferred<number>();
     let starts = 0;
     const start = () => { starts += 1; return d.promise; };

@@ -111,22 +111,73 @@ describe("every visibility-triggered refetch consults the one owner", () => {
     });
 
     it(`${what} has no bare "visible? fetch" handler left`, () => {
-      // The exact shape of the defect, in all three files. A second copy of
-      // this rule is a second place for it to drift back.
-      expect(src).not.toMatch(
-        /visibilityState\s*===\s*"visible"\s*\)\s*(do|doFetch|doRestFetch)/,
-      );
-      expect(src).not.toMatch(/visibilityState\s*!==\s*"visible"\s*\)\s*return;\s*\n\s*if \(restTimer\)/);
+      /**
+       * GENERALISED 2026-09-08, and the reason matters more than the regex.
+       *
+       * The previous version of this Sentinel spelled out the two handlers that
+       * existed when 6e2c817 was written — it matched the identifier `restTimer`
+       * by name. useWebSocket.ts contained a THIRD bare handler, guarding
+       * `moomooTimer`, and this Sentinel walked straight past it while claiming
+       * the file was clean. It was guarding the fix I had made, not the rule.
+       *
+       * A bare handler has a recognisable SHAPE regardless of what its timer or
+       * its poll function are called: it tests visibilityState, and then acts,
+       * without a verdict in between. That shape is what is matched now.
+       */
+      const bare =
+        /visibilityState\s*(===\s*"visible"|!==\s*"visible"\s*\)\s*return;)[\s\S]{0,160}?\b(?:void\s+)?\w*(?:[Ff]etch|[Pp]oll)\w*\(\)/g;
+      const hits = (src.match(bare) ?? []).filter(h => !/selectVisibilityRefetch/.test(h));
+      expect(hits).toEqual([]);
     });
 
-    it(`${what} tracks when its last round STARTED`, () => {
+    /**
+     * Read back the identifiers each call site actually hands the owner, so the
+     * assertions below can be made PER CONSUMER.
+     *
+     * The previous versions of the two tests below were file-wide `toMatch`es.
+     * A file-wide match cannot COUNT. useWebSocket.ts has two independent
+     * pollers — the REST quote fallback and the moomoo tick poll — and when
+     * mutation M53 deleted `moomooLastRoundStartedAt = Date.now()` entirely,
+     * the regex happily matched the REST poller's surviving
+     * `lastRestStartedAt = Date.now()` and reported the file clean. One
+     * satisfied poller was vouching for the other. Same failure family as the
+     * bare-handler Sentinel above: the rule was written against the shape of
+     * the code that existed, not against the invariant.
+     */
+    const consumers = (src.match(/selectVisibilityRefetch\(\{[\s\S]*?\n\s*\}\)/g) ?? []).map(call => {
+      // Both `lastRoundStartedAt: someName` and shorthand `lastRoundStartedAt,`
+      // are in use; shorthand means the identifier is its own name.
+      const read = (field: string) =>
+        call.match(new RegExp(`${field}:\\s*([A-Za-z_$][\\w$]*)`))?.[1]
+        ?? (new RegExp(`\\b${field}\\s*,`).test(call) ? field : null);
+      return { started: read("lastRoundStartedAt"), inFlight: read("inFlight") };
+    });
+
+    it(`${what} tracks when EVERY poller's last round STARTED`, () => {
       // Without this the owner has nothing to judge and every verdict would be
       // NEVER_FETCHED — i.e. the defect, wearing the fix's clothes.
-      expect(src).toMatch(/last(Round|Rest)StartedAt = Date\.now\(\)/);
+      expect(consumers.length).toBeGreaterThan(0);
+      for (const { started } of consumers) {
+        expect(started).not.toBeNull();
+        expect(src).toContain(`${started} = Date.now()`);
+      }
     });
 
-    it(`${what} guards against a round overlapping itself`, () => {
-      expect(src).toMatch(/(inFlight|restFetchInFlight)/);
+    it(`${what} guards EVERY poller against a round overlapping itself`, () => {
+      expect(consumers.length).toBeGreaterThan(0);
+      for (const { inFlight } of consumers) {
+        expect(inFlight).not.toBeNull();
+        expect(src).toContain(`${inFlight} = true`);
+      }
+    });
+
+    it(`${what} passes a real interval, never a bare visible-edge`, () => {
+      // Every call site must hand the owner the cadence it is topping up.
+      // Without intervalMs the owner falls back to its 10s default, which is
+      // wrong for any surface that polls on a different or backing-off clock.
+      const calls = src.match(/selectVisibilityRefetch\(\{[\s\S]*?\}\)/g) ?? [];
+      expect(calls.length).toBeGreaterThan(0);
+      for (const call of calls) expect(call).toMatch(/intervalMs:/);
     });
   }
 });
