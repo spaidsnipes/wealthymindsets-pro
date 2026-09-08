@@ -1,4 +1,5 @@
 import { InFlightRounds } from "./inFlightRounds";
+import { readClassifiedJsonReceipt } from "./readJsonReceipt";
 
 /**
  * MEASURED /charts 2026-09-08, client-side route re-mount, stack-attributed
@@ -57,11 +58,13 @@ const yahooQuoteRounds = new InFlightRounds();
 export function fetchYahooQuoteBody(symbol: string): Promise<unknown> {
   const up = symbol.toUpperCase();
   return yahooQuoteRounds.run(`yahoo:quote:${up}`, async () => {
-    const response = await fetch(
+    // The deadline belongs to the shared round, not a consumer. It covers
+    // headers AND body so a stalled response cannot retain this key forever.
+    const response = await readClassifiedJsonReceipt<unknown>(fetch,
       `/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`,
-      { cache: "no-store" },
+      new AbortController().signal,
     );
-    return await response.json();
+    return response.body;
   });
 }
 

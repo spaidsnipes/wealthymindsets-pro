@@ -59,7 +59,8 @@ describe("the Yahoo quote round has exactly one owner", () => {
 
   it("the owner is the only place the URL is built", () => {
     const owner = strip(read("src/lib/marketData/yahooQuoteRounds.ts"));
-    expect(owner).toMatch(/fetch\(\s*\n?\s*`\/api\/yahoo\?sym=\$\{encodeURIComponent\(up\)\}&type=quote`/);
+    expect(owner).toContain("`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`");
+    expect(owner).toContain("readClassifiedJsonReceipt<unknown>(fetch,");
     expect(owner).toContain("yahooQuoteRounds.run(`yahoo:quote:${up}`");
   });
 
@@ -82,7 +83,8 @@ describe("the Yahoo quote round has exactly one owner", () => {
      * belongs to a CONSUMER, applied to the RESULT.
      */
     const owner = strip(read("src/lib/marketData/yahooQuoteRounds.ts"));
-    expect(owner).not.toContain("signal");
+    expect(owner).toContain("fetchYahooQuoteBody(symbol: string)");
+    expect(owner).toContain("new AbortController().signal");
 
     const chart = strip(read("src/components/chart/MainChart.tsx"));
     expect(chart).toContain("myAbortSignal.aborted || yahooQuoteRefusal(j)");

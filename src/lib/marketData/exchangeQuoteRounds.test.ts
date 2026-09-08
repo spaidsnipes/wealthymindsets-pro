@@ -138,7 +138,8 @@ describe("the exchange quote round has exactly one owner", () => {
 
   it("NO consumer's AbortSignal enters the shared round", () => {
     const owner = strip(read("src/lib/marketData/exchangeQuoteRounds.ts"));
-    expect(owner).not.toContain("signal");
+    expect(owner).toContain("fetchExchangeQuoteBody(exchange: string, coin: string)");
+    expect(owner).toContain("new AbortController().signal");
   });
 
   it("the owner does not cache — a later poll still reaches the exchange", async () => {

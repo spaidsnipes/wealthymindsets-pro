@@ -1,4 +1,5 @@
 import { InFlightRounds } from "./inFlightRounds";
+import { readClassifiedJsonReceipt } from "./readJsonReceipt";
 
 /**
  * Owner of the `/api/exchange?type=quote` round.
@@ -56,11 +57,12 @@ export function fetchExchangeQuoteBody(exchange: string, coin: string): Promise<
   const ex = exchange.toLowerCase();
   const up = coin.toUpperCase();
   return exchangeQuoteRounds.run(`exchange:quote:${ex}:${up}`, async () => {
-    const response = await fetch(
+    // Bound the complete shared response; no individual joiner owns its abort.
+    const response = await readClassifiedJsonReceipt<unknown>(fetch,
       `/api/exchange?ex=${encodeURIComponent(ex)}&coin=${encodeURIComponent(up)}&type=quote`,
-      { cache: "no-store" },
+      new AbortController().signal,
     );
-    return await response.json();
+    return response.body;
   });
 }
 
