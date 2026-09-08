@@ -67,6 +67,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import styles from "./paper.module.css";
 import { modelBand, longOptionUnrealised } from "@/lib/optionModelBand";
+import { WM } from "@/lib/design/wmTokens";
 import { mintDecisionId } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { recordDecisionIntent } from "@/lib/traderMemory/recordDecisionIntent";
@@ -346,6 +347,28 @@ function OrderTicket({
   const [levelIssues, setLevelIssues] = useState<readonly TicketLevelIssue[]>([]);
   // §7: the trader states a PURPOSE; the order type is compiled from it.
   const [purpose, setPurpose] = useState<OrderPurpose | null>(null);
+  /**
+   * Set only when a placed decision did NOT reach the shared record.
+   *
+   * `null` deliberately means "nothing to disclose", never "confirmed
+   * recorded". WM affirms nothing here — there is no success banner, because
+   * a decision reaching its own account's record is the ordinary case and
+   * canon asks for the normal state to be calm. The absence of this note is
+   * not a claim.
+   */
+  const [reachNote, setReachNote] = useState<string | null>(null);
+
+  /**
+   * The decision the notice above is allowed to speak for.
+   *
+   * The write is not awaited, so a trader who submits twice quickly has two
+   * answers in flight and they can land out of order. Without this, a slow
+   * answer about decision A could paint a notice sitting under decision B —
+   * the trader would be told THIS decision is stranded when it is not, or
+   * worse, a silent screen while an actually-stranded one was overwritten.
+   * A late answer about a superseded decision is simply dropped.
+   */
+  const reachSubjectRef = useRef<string | null>(null);
 
   const readiness = quoteReadiness[sym] ?? initialPaperQuoteReadiness();
   const px  = readiness.price ?? prices[sym] ?? 0;
@@ -361,6 +384,10 @@ function OrderTicket({
     });
     if (!levels.ok) { setLevelIssues(levels.issues); return; }
     setLevelIssues([]);
+    // A new decision is being made. The previous decision's reach is no
+    // longer what this notice is about, so it is cleared before the new
+    // answer arrives rather than left to look like it describes this one.
+    setReachNote(null);
 
     /**
      * THE BIRTH ACT. §4: a DECISION_ID is "born at permission or first
@@ -411,16 +438,31 @@ function OrderTicket({
      * quantity or fills, so this is structurally incapable of pretending to
      * be a broker (§11).
      *
-     * The UNRECORDED result is not yet shown anywhere. That is a known gap,
-     * named in the commit rather than hidden: the trader is not currently
-     * told when his phone will not see this decision. It is the next atom.
+     * THE ANSWER IS SHOWN. An UNRECORDED result becomes words on the ticket,
+     * because a decision WM failed to write down is a decision the trader's
+     * phone will not have, and he is the only one who can decide what to do
+     * about that. RECORDED says nothing: reaching the shared record is the
+     * ordinary case, and WM does not congratulate itself for it.
      */
     if (born.ok) {
+      reachSubjectRef.current = born.identity.decisionId;
       void recordDecisionIntent({
         decisionId: born.identity.decisionId,
         intent: purpose ? purposeSentence(purpose) : "Purpose not stated",
         deviceId: thisDeviceId(),
+      }).then((result) => {
+        if (reachSubjectRef.current !== born.identity.decisionId) return;
+        setReachNote(result.status === "UNRECORDED" ? result.note : null);
       });
+    } else {
+      reachSubjectRef.current = null;
+      // Identity could not be minted, so nothing was even attempted. The
+      // consequence for the trader is identical — no other device will see
+      // this decision — so he is told the same thing.
+      setReachNote(
+        "This decision is held on this device only. WM could not give it a "
+        + "shared identity, so your other devices will not see it.",
+      );
     }
 
     setFlash(true);
@@ -578,6 +620,34 @@ function OrderTicket({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/*
+        REACH — where this decision lives. NOT a refusal: the order above was
+        sent. §8 forbids ERROR/FAILED for a designed boundary, so this names
+        the consequence the trader can act on ("your other devices will not
+        see it") instead of a status code. Amber, not red: nothing about the
+        order is uncovered, and red here would read as a rejected order.
+
+        The colour comes from `WM.state.watch` — the canonical advisory tone —
+        by inline style, because there is no amber in the Tailwind palette
+        (tailwind.config.ts has gold/red/green and no warn colour). A
+        `wm-amber` class would have compiled fine and painted nothing.
+      */}
+      {reachNote && (
+        <div
+          role="status"
+          className="mb-3 rounded-lg border px-2.5 py-2"
+          style={{ borderColor: WM.state.watch, background: WM.halo.watch }}
+        >
+          <div
+            className="text-[9px] font-black uppercase tracking-wider mb-1"
+            style={{ color: WM.state.watch }}
+          >
+            On this device only
+          </div>
+          <p className="text-[10px] leading-snug text-wm-text">{reachNote}</p>
         </div>
       )}
 

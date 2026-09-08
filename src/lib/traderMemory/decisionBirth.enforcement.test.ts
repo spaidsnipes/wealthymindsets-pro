@@ -100,3 +100,78 @@ describe("decision birth — the intent surface mints identity", () => {
     expect(src).toMatch(/\.\.\.\(born\.ok\s*\?\s*\{\s*decisionId:/);
   });
 });
+
+/**
+ * THE ANSWER REACHES THE HUMAN.
+ *
+ * The write arrow could already fail honestly; nobody was told. A trader whose
+ * decision never left the tab would walk to his phone expecting to find it.
+ * These prove the UNRECORDED result becomes words, and — the harder half —
+ * that WM stays silent when it succeeded and never speaks for the wrong
+ * decision.
+ */
+describe("decision reach — the trader is told when a decision stayed on the device", () => {
+  it("renders the reach notice at all", () => {
+    expect(src).toContain("reachNote");
+    expect(src).toMatch(/\{reachNote\s*&&\s*\(/);
+    expect(src).toMatch(/On this device only/);
+  });
+
+  it("is a status, not an alert — the order WAS sent", () => {
+    // The ticket already has a role="alert" refusal block headed "Order not
+    // sent". This is a different fact: the order went through and only WM's
+    // own record did not. Reusing the alert would tell the trader his trade
+    // was rejected.
+    const block = src.slice(src.indexOf("{reachNote && ("), src.indexOf("{/* Submit */}"));
+    expect(block, "reach notice block not found").not.toBe("");
+    expect(block).toMatch(/role="status"/);
+    expect(block).not.toMatch(/role="alert"/);
+    expect(block).not.toMatch(/Order not sent/);
+  });
+
+  it("says nothing when the decision WAS recorded — anti-vacuity", () => {
+    // If the notice appeared on success too, every test above would still
+    // pass and the surface would be decoration. RECORDED must produce null.
+    expect(src).toMatch(/result\.status === "UNRECORDED" \? result\.note : null/);
+  });
+
+  it("also speaks when identity could not be minted", () => {
+    // Nothing was even attempted, but the consequence for the trader is
+    // identical, so he is told the same thing rather than left with silence.
+    const elseBranch = src.slice(src.indexOf("} else {", src.indexOf("recordDecisionIntent({")));
+    expect(elseBranch.slice(0, 600)).toMatch(/setReachNote\(\s*$|setReachNote\(/m);
+    expect(src).toMatch(/held on this device only/);
+  });
+
+  it("clears the previous decision's notice when a new decision is made", () => {
+    // A stale notice under a fresh ticket describes the wrong decision.
+    const clear = src.indexOf("setReachNote(null);");
+    const mint = src.indexOf("mintDecisionId({");
+    expect(clear, "no clear-on-submit").toBeGreaterThan(-1);
+    expect(clear).toBeLessThan(mint);
+  });
+
+  it("never lets a late answer speak for a superseded decision", () => {
+    // The write is not awaited, so two quick submits race. Without this
+    // guard a slow answer about decision A paints a notice sitting under B.
+    expect(src).toContain("reachSubjectRef");
+    expect(src).toMatch(
+      /if \(reachSubjectRef\.current !== born\.identity\.decisionId\) return;/,
+    );
+  });
+
+  it("names the consequence, not a fault (§8)", () => {
+    const block = src.slice(src.indexOf("{reachNote && ("), src.indexOf("{/* Submit */}"));
+    expect(block).not.toMatch(/\berror\b|\bfailed\b|\binvalid\b/i);
+  });
+
+  it("paints with a real token, not an invented colour class", () => {
+    // `wm-amber` does not exist in tailwind.config.ts. It would have compiled
+    // clean and rendered nothing — a silent visual failure. The advisory tone
+    // has a canonical owner and this uses it.
+    const block = src.slice(src.indexOf("{reachNote && ("), src.indexOf("{/* Submit */}"));
+    expect(block).not.toMatch(/wm-amber/);
+    expect(block).toContain("WM.state.watch");
+    expect(src).toContain("@/lib/design/wmTokens");
+  });
+});
