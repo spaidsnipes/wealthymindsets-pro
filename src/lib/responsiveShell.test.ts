@@ -219,6 +219,33 @@ describe("responsive P0 command surfaces", () => {
       .toContain("onClick={disabledReason ? undefined : onClick}");
   });
 
+  it("keeps relocation subscribed to the viewport, not read once at mount", () => {
+    // A tablet rotating portrait->landscape crosses 1023px WITHOUT a reload.
+    // If useNarrowViewport ever degrades to a one-shot read, the CSS still
+    // flips (it is a live media query) but the JS does not: the rails become
+    // display:none while their drawers stay unrendered and their triggers
+    // stay hidden — every capability this file exists to protect strands
+    // again, in a state no reload reproduces.
+    //
+    // This is a SOURCE guard, and deliberately so. The suite has no DOM
+    // environment, and the live instrument cannot reach this: preview_resize
+    // changes viewport metrics via CDP without dispatching resize or
+    // matchMedia change to the page — measured, crossing 375->1280 fired 0
+    // resize and 0 change events. So the rotation path is correct by
+    // inspection and UNVERIFIED BY EXECUTION; this asserts the subscription
+    // that makes it correct cannot be removed silently.
+    const responsive = source("./responsive/narrowViewport.ts");
+    expect(responsive, "the hook must subscribe to breakpoint changes")
+      .toContain('mq.addEventListener("change", sync)');
+    expect(responsive, "the subscription must be torn down")
+      .toContain('mq.removeEventListener("change", sync)');
+    expect(responsive, "Safari <14 has no addEventListener on MediaQueryList")
+      .toMatch(/mq\.addListener\(sync\)/);
+    expect(responsive).toMatch(/mq\.removeListener\(sync\)/);
+    expect(responsive, "the initial value must still be synced on mount")
+      .toMatch(/const sync = \(\) => setNarrow\(mq\.matches\);\s*\n\s*sync\(\);/);
+  });
+
   it("compresses the desktop product map into five human jobs plus one workspace menu", () => {
     const layout = source("../components/layout/MainLayout.tsx");
     const coreBlock = layout.slice(layout.indexOf("const NAV_CORE"), layout.indexOf("const NAV_WORKBENCH"));
