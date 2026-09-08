@@ -6941,7 +6941,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               ? `${up ? "+" : ""}${change.toFixed(dp)} (${up ? "+" : ""}${changePct}%)`
               : "— (change unavailable)"}
           </span>
-          {showFidelityChrome && (() => {
+          {showFidelityChrome ? (() => {
             // SHIFT-T cutover — canon §BINDING LEGACY DATA + SURFACE
             // CUTOVER LAW (2026-08-29): "OLD PROVIDER CHROME AND OLD
             // CHART-APP SURFACES ARE QUARANTINED FROM THE NEW OS PATH."
@@ -6956,7 +6956,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               source, connected, hasCandles: candles.length > 0, sessionOpen,
             });
             return <CanonicalFidelityBadge badge={b} variant="chrome" capabilityReport={capabilityReport} />;
-          })()}
+          })() : null}
         </div>
 
         {/* OHLCV */}
