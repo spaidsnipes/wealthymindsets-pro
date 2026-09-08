@@ -10,6 +10,11 @@ import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelit
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { yahooQuoteObserved, yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
+import {
+  TAPE_QUOTE_FRESH_MS,
+  formatQuoteAge,
+  selectTapeQuoteFreshness,
+} from "@/lib/marketData/tapeQuoteFreshness";
 
 // WM-SEC-P0-05 (2026-08-08): client-side Polygon key read removed. The
 // NEXT_PUBLIC_POLYGON_KEY that used to live here shipped the API key
@@ -60,6 +65,13 @@ interface TickerState {
    * See yahooQuoteRefusal — the tape had one word for both facts.
    */
   refusal?: string;
+  /**
+   * Set when a price WAS observed and is now older than the tape's freshness
+   * boundary. Distinct from every other non-live state: a stale row HAS a
+   * number and a provenance, it simply may no longer be presented as current.
+   * See tapeQuoteFreshness for the measurement that produced this field.
+   */
+  staleAgeMs?: number;
 }
 
 /**
@@ -81,19 +93,50 @@ interface Quote {
   pct: number;
   chgObserved: boolean;
   src: string;
+  /**
+   * WHEN a provider answered. Without this the rail could only ask whether a
+   * price EXISTS, never whether it is CURRENT — and 39 seconds of dead feeds
+   * rendered identically to a healthy tape. See tapeQuoteFreshness.
+   */
+  observedAt: number;
 }
 
-/** The row for one symbol: the provider's answer, or the honest absence of one. */
+/**
+ * The row for one symbol: the provider's answer, or the honest absence of one.
+ *
+ * `now` is a parameter, not a `Date.now()` read inside: staleness is the whole
+ * point of this function, so the clock it judges against must be visible to a
+ * test rather than sampled behind its back.
+ */
 function rowFor(
   sym: string,
   quotes: Record<string, Quote>,
   refusals: Record<string, string> = {},
+  now: number = Date.now(),
 ): TickerState {
   const key = sym.toUpperCase();
   const q = quotes[key];
   if (!q || !(q.price > 0)) {
     const refusal = refusals[key];
     return refusal ? { ...unobservedRow(sym), refusal } : unobservedRow(sym);
+  }
+  const freshness = selectTapeQuoteFreshness(q.observedAt, now);
+  // An observation with no readable time cannot be certified at all, so it is
+  // not shown as a price. An observation that is merely OLD keeps its number
+  // and its source and loses only the claim that it is current.
+  if (freshness.kind === "UNOBSERVED") return unobservedRow(sym);
+  if (freshness.kind === "STALE") {
+    return {
+      sym,
+      price: q.price,
+      chg: q.chg,
+      pct: q.pct,
+      chgObserved: q.chgObserved,
+      up: q.chg >= 0,
+      live: false,
+      src: q.src,
+      staleAgeMs: freshness.ageMs,
+    };
   }
   return {
     sym,
@@ -127,7 +170,10 @@ const CRYPTO_SYMS  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX",
  * "quote pending" for both — see yahooQuoteRefusal for the measurement.
  */
 type QuoteAnswer =
-  | ({ kind: "quote" } & Quote)
+  // The provider states the price; only the caller can state when it arrived,
+  // so `observedAt` is stamped once at the point of acceptance below rather
+  // than at each of the six provider return sites, where it could drift.
+  | ({ kind: "quote" } & Omit<Quote, "observedAt">)
   | { kind: "refused"; reason: string };
 
 async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
@@ -216,7 +262,10 @@ async function fetchTapeQuotes(
     const key = sym.toUpperCase();
     if (answer.kind === "quote") {
       const { kind: _kind, ...quote } = answer;
-      quotes[key] = quote;
+      // Stamped where the answer ARRIVES, per symbol. `Promise.allSettled` runs
+      // this callback the moment that symbol's provider resolves, so a slow
+      // symbol in a fast round is not credited with the round's start time.
+      quotes[key] = { ...quote, observedAt: Date.now() };
     } else {
       refusals[key] = answer.reason;
     }
@@ -259,7 +308,16 @@ function TickerItem({ item, onClick, active }: {
       className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded transition-colors group cursor-pointer ${
         active ? "bg-wm-surface" : "hover:bg-wm-surface/50"
       }`}
-      title={live ? `${sym} — ${badge.title}. Click to chart.` : `${sym}: waiting for a verified market quote`}
+      title={
+        live
+          ? `${sym} — ${badge.title}. Click to chart.`
+          : item.staleAgeMs !== undefined
+            // A stale row is NOT waiting for a first quote — it has one, and it
+            // has gone cold. Saying "waiting" here would describe a symbol that
+            // has never been observed, which is a different failure entirely.
+            ? `${sym}: last observed ${formatQuoteAge(item.staleAgeMs)} ago from ${src ?? "an unnamed source"}. The feed has stopped answering — this price is not current.`
+            : `${sym}: waiting for a verified market quote`
+      }
     >
       <span className={`text-[11px] font-bold ${active ? "text-wm-green" : "text-wm-text group-hover:text-wm-green"}`}>{sym}</span>
       {live ? (
@@ -285,6 +343,28 @@ function TickerItem({ item, onClick, active }: {
               chg —
             </span>
           )}
+        </>
+      ) : item.staleAgeMs !== undefined ? (
+        // OBSERVED, /command-deck 2026-09-08: with every quote route forced to
+        // fail for 39 seconds, this rail rendered byte-identical prices under
+        // live badges and the page text contained no staleness word at all.
+        //
+        // The price is still shown — WM really did observe it, and a trader
+        // reading a dead tape is better served by "this was 29,565.25 forty
+        // seconds ago" than by a blank row. What is REMOVED is every part of
+        // the claim that has expired: the fidelity badge, the live styling and
+        // the session change. The age replaces them, and it is a measurement,
+        // not an adjective.
+        <>
+          <span className="font-mono text-[11px] text-wm-text-dim">
+            {price.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp })}
+          </span>
+          <span
+            className="font-mono text-[10px] text-wm-text-dim"
+            title={`${sym}: no provider has answered for ${formatQuoteAge(item.staleAgeMs)}. Last observed via ${src ?? "an unnamed source"}.`}
+          >
+            stale {formatQuoteAge(item.staleAgeMs)}
+          </span>
         </>
       ) : blocker ? (
         // §8: a designed boundary does not wear a transient state's clothes.
@@ -347,6 +427,15 @@ export function TickerTape() {
   // provider's own reason. Kept beside `quotes` rather than inside it so a
   // refusal can never be mistaken for a price of zero.
   const [refusals, setRefusals] = useState<Record<string, string>>({});
+  // WHEN THE LAST ROUND FINISHED, whatever it produced.
+  //
+  // This exists to make the rail re-render on a dead feed. Staleness is the
+  // only state that appears with NO new data arriving, and a round in which
+  // every provider fails returns early without touching `quotes` or
+  // `refusals` — so without this the component would simply never render
+  // again, and prices would sit on screen ageing invisibly. That was the
+  // measured failure: 39 seconds of total feed death, zero visible change.
+  const [, setRoundAt] = useState<number | null>(null);
 
   // After mount (client only): pull the persisted symbol list + cached prices.
   useEffect(() => {
@@ -358,7 +447,11 @@ export function TickerTape() {
     try {
       const w = (window as any).__wmTicker as Record<string, any> | undefined;
       const wAge = w?._ts ? Date.now() - w._ts : Infinity;
-      if (w && wAge < 30_000) {
+      // Same boundary the rail uses to decide a rendered price has gone stale.
+      // One rule for "too old to adopt" and another for "too old to keep
+      // showing" would let a price become trustworthy merely by already being
+      // on screen. See tapeQuoteFreshness.
+      if (w && wAge < TAPE_QUOTE_FRESH_MS) {
         const cached: Record<string, Quote> = {};
         for (const [sym, p] of Object.entries(w)) {
           if (sym === "_ts" || !p || typeof p !== "object") continue;
@@ -370,6 +463,10 @@ export function TickerTape() {
             pct: typeof q.pct === "number" ? q.pct : 0,
             chgObserved: q.chgObserved === true,
             src: typeof q.src === "string" ? q.src : "unavailable",
+            // The cache's own write time. A rehydrated price must age from
+            // when it was OBSERVED, not from when this tab happened to mount,
+            // or a reload would reset the clock on every stale number.
+            observedAt: typeof w._ts === "number" ? w._ts : 0,
           };
         }
         if (Object.keys(cached).length > 0) setQuotes(cached);
@@ -421,6 +518,10 @@ export function TickerTape() {
   useEffect(() => {
     const doFetch = async () => {
       const { quotes: answered, refusals: declined } = await fetchTapeQuotes(requestedTapeSymbols);
+      // Recorded BEFORE the early return below, unconditionally. A round that
+      // produced nothing is still a round that happened, and it is exactly the
+      // round after which the rail must repaint to show its prices ageing.
+      setRoundAt(Date.now());
       setRefusals(declined);
       // A round that produced only refusals still has work to do: it must
       // retract the quotes those symbols are no longer certified for.
@@ -464,8 +565,13 @@ export function TickerTape() {
   // Visible tickers = the trader's list, in his order, every one of them.
   // Nothing is filtered out here: a symbol WM has no quote for renders as
   // "quote pending", which is a statement. Removing the row is not.
+  // `Date.now()` here, not the round stamp, so an age is as accurate as the
+  // moment it is painted. The round stamp above is what GUARANTEES this render
+  // happens; this is what makes the number it prints correct. Safe against
+  // hydration mismatch because `quotes` is empty on the server and on the
+  // first client render, so no age is computed until after mount.
   const visibleTickers = (pathname === "/charts" ? chartPulseSymbols : customSyms)
-    .map(sym => rowFor(sym, quotes, refusals));
+    .map(sym => rowFor(sym, quotes, refusals, Date.now()));
 
   /* Charts keeps one stable pulse; other routes retain the seamless loop. */
   const renderedTickers: TickerState[] = pathname === "/charts"
