@@ -36,6 +36,7 @@ import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 import { coalesceQuoteRequest } from "@/lib/marketData/quoteRequestCoalescer";
 import { InFlightRounds } from "@/lib/marketData/inFlightRounds";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
+import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
 
 /**
  * Provider-tick rounds share one identity space, separate from quotes, so a
@@ -241,8 +242,7 @@ async function fetchRealQuoteUncoalesced(sym: string): Promise<QuoteAnswer | nul
   const exMatch = upper.match(/^([A-Z]{2,6})\.(COINBASE|KRAKEN|BITSTAMP|BINANCEUS|GEMINI)$/);
   if (exMatch) {
     try {
-      const ex = exMatch[2].toLowerCase();
-      const j = await fetch(`/api/exchange?ex=${ex}&coin=${exMatch[1]}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      const j = await fetchExchangeQuoteBody(exMatch[2], exMatch[1]) as any;
       if ((j?.price ?? 0) > 0) {
         const d = resolveQuoteDayChange(j, j.price);
         return {
@@ -318,7 +318,7 @@ async function fetchRealQuoteUncoalesced(sym: string): Promise<QuoteAnswer | nul
 
   if (isCrypto) {
     try {
-      const j = await fetch(`/api/exchange?ex=coinbase&coin=${encodeURIComponent(upper)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      const j = await fetchExchangeQuoteBody("coinbase", upper) as any;
       const q = mk(j, "coinbase");
       if (q?.kind === "quote") return q;
       if (q?.kind === "refused") heldRefusal ??= q.reason;

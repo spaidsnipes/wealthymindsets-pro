@@ -17,6 +17,7 @@ import {
 } from "@/lib/marketData/tapeQuoteFreshness";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
+import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
 
 /** The rail's poll cadence. Also the interval the visibility handler tops up. */
 const TAPE_POLL_INTERVAL_MS = 10_000;
@@ -204,7 +205,7 @@ async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
   // route or claim a broker connection.
   if (CRYPTO_SYMS.has(up)) {
     try {
-      const j = await fetch(`/api/exchange?ex=coinbase&coin=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      const j = await fetchExchangeQuoteBody("coinbase", up) as any;
       if (j?.price > 0) { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "coinbase" }; }
     } catch {}
     // Fallback to Yahoo for crypto

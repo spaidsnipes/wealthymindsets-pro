@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
+import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Plus, TrendingUp, TrendingDown, LayoutGrid, List } from "lucide-react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
@@ -140,7 +141,7 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
       // Crypto → public Coinbase quote. Keep broker/equity Alpaca requests out
       // of the crypto watchlist path.
       if (isCrypto) {
-        const j = await fetch(`/api/exchange?ex=coinbase&coin=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+        const j = await fetchExchangeQuoteBody("coinbase", up) as any;
         if ((j?.price ?? 0) > 0) { result[up] = { price: j.price, ...changeFields(j, "ROLLING_24H"), src: "coinbase" }; return; }
         // Fallback to Yahoo. NOTE the measure changes with the provider: Yahoo
         // prices crypto against a synthetic prior close, the exchange against

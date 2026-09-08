@@ -35,7 +35,14 @@ describe("same-screen market truth contract", () => {
     const watchlistCrypto = watchlist.slice(watchlist.indexOf("Crypto → public Coinbase"), watchlist.indexOf("Futures → Yahoo only"));
     const tickerCrypto = tickerTape.slice(tickerTape.indexOf("Crypto → public Coinbase"), tickerTape.indexOf("Stocks/ETFs use the same"));
     for (const policy of [hookCrypto, watchlistCrypto, tickerCrypto]) {
-      expect(policy).toContain("/api/exchange?ex=coinbase");
+      // RE-ANCHORED 2026-09-08 on the ASK, not the URL — the same repair made
+      // to the Yahoo ordering rule above. The invariant is WHICH PROVIDER is
+      // asked; the transport moved into exchangeQuoteRounds.ts and the literal
+      // URL now lives in exactly one file, as it should.
+      expect(
+        policy.includes("fetchExchangeQuoteBody(\"coinbase\"") ||
+          policy.includes("/api/exchange?ex=coinbase"),
+      ).toBe(true);
       expect(policy).not.toContain("/api/alpaca");
     }
   });
