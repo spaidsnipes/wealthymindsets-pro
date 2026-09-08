@@ -1155,7 +1155,7 @@ export function ChartsDashboard() {
         {/* Asset class switcher (Stocks / Crypto / Futures / Forex / Indices / Metals) */}
         <AssetClassSwitcher symbol={symbol} onSelect={setSymbol} />
         {/* Symbol + live price */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 16, flexShrink: 0 }}>
+        <div className="wm-chart-market-summary" style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 16, flexShrink: 0 }}>
           <span style={{ color: "#E2E8F0", fontWeight: 700, fontSize: 14 }}>{symbol}</span>
           {(() => {
             // Truth guard: header must never paint a change value without a real
@@ -1187,10 +1187,10 @@ export function ChartsDashboard() {
                 fontWeight: 700, fontSize: 13, fontFamily: "monospace",
               }}>
                 {ticker.price > 0 ? ticker.price.toFixed(2) : "—"}
-                {hasReal && <> {up ? "↑" : "↓"}
+                {hasReal && <span className="wm-chart-header-change"> {up ? "↑" : "↓"}
                   &nbsp;{up ? "+" : ""}{ticker.change.toFixed(2)}
                   &nbsp;{up ? "+" : ""}{ticker.changePct.toFixed(2)}%
-                </>}
+                </span>}
               </span>
             );
           })()}

@@ -185,6 +185,7 @@ export function CanonicalFidelityBadge({
     // Framed pill — matches ChartsDashboard historic size (SHIFT-Q).
     return (
       <span
+        className="wm-fidelity-badge wm-fidelity-badge--chrome"
         title={tooltip}
         aria-label={ariaLabel ?? badge.label}
         style={{
