@@ -69,6 +69,7 @@ import styles from "./paper.module.css";
 import { modelBand, longOptionUnrealised } from "@/lib/optionModelBand";
 import { mintDecisionId } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
+import { recordDecisionIntent } from "@/lib/traderMemory/recordDecisionIntent";
 import { validateTicketLevels, purposeOrderType, purposeSentence, purposeTradeoff,
          TICKET_PURPOSES, type OrderPurpose, type TicketLevelIssue } from "@/lib/orderPurpose";
 
@@ -397,6 +398,31 @@ function OrderTicket({
       ...(born.ok ? { decisionId: born.identity.decisionId } : {}),
     };
     onSubmit(order);
+
+    /**
+     * THE WRITE ARROW. The decision now exists; this is what carries it off
+     * the device so a second one can ask about it.
+     *
+     * NOT AWAITED, DELIBERATELY. The order is already placed by the line
+     * above. Blocking the ticket on a network round trip would make WM's
+     * bookkeeping a gate on the trader's capital, which inverts who is
+     * serving whom. What is written down is INTENT — the human's purpose, not
+     * the order type (§5 step 5) — and `ClientIntentWrite` cannot carry
+     * quantity or fills, so this is structurally incapable of pretending to
+     * be a broker (§11).
+     *
+     * The UNRECORDED result is not yet shown anywhere. That is a known gap,
+     * named in the commit rather than hidden: the trader is not currently
+     * told when his phone will not see this decision. It is the next atom.
+     */
+    if (born.ok) {
+      void recordDecisionIntent({
+        decisionId: born.identity.decisionId,
+        intent: purpose ? purposeSentence(purpose) : "Purpose not stated",
+        deviceId: thisDeviceId(),
+      });
+    }
+
     setFlash(true);
     setTimeout(()=>setFlash(false), 600);
   };

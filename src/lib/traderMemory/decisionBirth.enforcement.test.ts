@@ -62,6 +62,36 @@ describe("decision birth — the intent surface mints identity", () => {
     expect(src).toMatch(/decisionId:\s*born\.identity\.decisionId/);
   });
 
+  it("carries the decision off the device — the write arrow is wired", () => {
+    expect(src).toContain("recordDecisionIntent");
+    expect(src).toContain("@/lib/traderMemory/recordDecisionIntent");
+  });
+
+  it("records intent AFTER the order is submitted, and does not await it", () => {
+    // WM's own bookkeeping may never become a gate on the trader's capital.
+    // If this were awaited, a slow network would hold the order ticket open.
+    const submit = src.indexOf("onSubmit(order);");
+    const record = src.indexOf("recordDecisionIntent({");
+    expect(submit).toBeGreaterThan(-1);
+    expect(record).toBeGreaterThan(submit);
+    expect(src).toMatch(/void recordDecisionIntent\(/);
+    expect(src).not.toMatch(/await recordDecisionIntent\(/);
+  });
+
+  it("writes the human's PURPOSE, never the order type (§5 step 5)", () => {
+    const call = src.slice(src.indexOf("recordDecisionIntent({"), src.indexOf("setFlash(true)"));
+    expect(call).toMatch(/purposeSentence\(purpose\)/);
+    // "market" / "limit" / "stop" are broker primitives, not intent.
+    expect(call).not.toMatch(/intent:\s*type\b/);
+  });
+
+  it("does not record intent for an order that has no identity", () => {
+    // An intent write naming no decision is a row nothing can ever read back.
+    const record = src.indexOf("recordDecisionIntent({");
+    const guard = src.lastIndexOf("if (born.ok) {", record);
+    expect(guard, "recordDecisionIntent is not guarded by born.ok").toBeGreaterThan(-1);
+  });
+
   it("lets the order through when identity could not be minted, without inventing one", () => {
     // WM does not refuse a trader's order because its own bookkeeping failed,
     // and it does not paper over the failure with a fabricated id either. The
