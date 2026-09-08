@@ -160,16 +160,50 @@ export function selectSteward(input: StewardSelectorInput): StewardVM {
   }
 
   // Daily R spent
+  //
+  // REALIZED R IS A FLOOR, NOT A TOTAL. A decision with no `outcome` yet has
+  // not lost 0R — it has not reported. `?? 0` made those two the same number,
+  // and the rule then affirmed IN_PLAN on the strength of it: three open
+  // losers, none closed, produced "Spent 0.00R / 3R" and a budget in plan.
+  //
+  // The rule directly above already refuses that move — it answers UNKNOWN
+  // rather than guess open R — so one and the same input was being treated as
+  // unmeasurable by one rule and as zero by the very next one.
+  //
+  // THE ASYMMETRY IS THE POINT. A breach proven by CLOSED losses alone cannot
+  // be undone by decisions still open; unsettled risk can only push further
+  // past the limit. So BREACHED survives incomplete data, while DRIFT and
+  // IN_PLAN — the two verdicts that tell a trader he still has room — do not.
+  // §14: a failure may reduce capability, it may not increase certainty.
   if (plan.maxDailyR != null) {
+    const unsettled = decisionsToday.filter((d) => d.outcome === undefined).length;
     const spent = decisionsToday.reduce((s, d) => s + (d.outcome?.realizedR ?? 0), 0);
     const spentAbs = Math.abs(Math.min(0, spent)); // only losses count against budget
+    const floorNote = unsettled > 0
+      ? `${spentAbs.toFixed(2)}R realized so far — ${unsettled} decision(s) today have no outcome yet`
+      : `Spent ${spentAbs.toFixed(2)}R / ${plan.maxDailyR}R`;
+
     if (spentAbs > plan.maxDailyR) {
       rules.push({
         id: "daily-r-budget",
         description: `Max daily R loss ${plan.maxDailyR}`,
         verdict: "BREACHED",
         evidence: [`Spent ${spentAbs.toFixed(2)}R vs limit ${plan.maxDailyR}R`],
-        reason: `Daily R budget breached by ${(spentAbs - plan.maxDailyR).toFixed(2)}R`,
+        reason: `Daily R budget breached by ${(spentAbs - plan.maxDailyR).toFixed(2)}R`
+          + (unsettled > 0
+            ? ` on closed decisions alone — ${unsettled} still open, so the day cannot come back under the limit.`
+            : ""),
+      });
+    } else if (unsettled > 0) {
+      rules.push({
+        id: "daily-r-budget",
+        description: `Max daily R loss ${plan.maxDailyR}`,
+        verdict: "UNKNOWN",
+        evidence: [floorNote],
+        reason:
+          "Realized R is a floor, not the day's total — a decision without an outcome "
+          + "has not reported, which is not the same as having lost nothing. WM cannot "
+          + "confirm you are inside the daily budget.",
       });
     } else if (spentAbs > plan.maxDailyR * 0.75) {
       rules.push({
@@ -184,7 +218,7 @@ export function selectSteward(input: StewardSelectorInput): StewardVM {
         id: "daily-r-budget",
         description: `Max daily R loss ${plan.maxDailyR}`,
         verdict: "IN_PLAN",
-        evidence: [`Spent ${spentAbs.toFixed(2)}R / ${plan.maxDailyR}R`],
+        evidence: [floorNote],
       });
     }
   }

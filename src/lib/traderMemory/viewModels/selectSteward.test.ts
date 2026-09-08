@@ -266,8 +266,103 @@ describe("selectSteward — M30 diagnostic (never a gate)", () => {
     expect(vm.rules.find((x) => x.id === "open-r-exposure")?.verdict).toBe("IN_PLAN");
   });
 
-  it("BREACHED beats DRIFT beats IN_PLAN in aggregation", () => {
-    // BREACHED trade-count + DRIFT rushing + IN_PLAN daily-R → OUT_OF_PLAN
+  // ── Daily-R budget: realized R is a FLOOR, not the day's total ────────────
+  //
+  // `outcome` is optional on DecisionMemoryRecord. Reducing it with `?? 0`
+  // made "has not reported" and "lost nothing" the same number, and the rule
+  // then affirmed IN_PLAN off the back of it. These Sentinels hold the
+  // asymmetry: a verdict that GRANTS the trader room may not survive
+  // incomplete data; a verdict that TAKES room away may.
+
+  it("daily-R is UNKNOWN — not IN_PLAN — while any decision today has no outcome", () => {
+    const vm = selectSteward({
+      plan: plan({ maxDailyR: 3 }),
+      decisionsToday: [seal(), seal(), seal()], // three open, none closed
+      openDecisions: [],
+    });
+    const r = vm.rules.find((x) => x.id === "daily-r-budget")!;
+    expect(r.verdict).toBe("UNKNOWN");
+    expect(r.verdict).not.toBe("IN_PLAN");
+    // The trader must never be told he is inside a budget WM cannot measure.
+    expect(r.evidence.join(" ")).not.toMatch(/Spent 0\.00R \/ 3R/);
+    expect(r.reason).toMatch(/floor, not the day's total/i);
+  });
+
+  it("daily-R UNKNOWN evidence names how many decisions have not reported", () => {
+    const vm = selectSteward({
+      plan: plan({ maxDailyR: 3 }),
+      decisionsToday: [sealWithR(-1), seal(), seal()],
+      openDecisions: [],
+    });
+    const r = vm.rules.find((x) => x.id === "daily-r-budget")!;
+    expect(r.verdict).toBe("UNKNOWN");
+    // Names the floor AND the gap — not one or the other.
+    expect(r.evidence.join(" ")).toMatch(/1\.00R realized so far/);
+    expect(r.evidence.join(" ")).toMatch(/2 decision\(s\) today have no outcome yet/);
+  });
+
+  it("daily-R a win does not settle an unreported decision (unsettled still wins)", () => {
+    // Net +5 on closed books, but one decision has not reported. Spent-abs is
+    // 0 — the pre-fix code called this IN_PLAN. It is UNKNOWN.
+    const vm = selectSteward({
+      plan: plan({ maxDailyR: 2 }),
+      decisionsToday: [sealWithR(5), seal()],
+      openDecisions: [],
+    });
+    expect(vm.rules.find((x) => x.id === "daily-r-budget")?.verdict).toBe("UNKNOWN");
+  });
+
+  it("daily-R BREACHED SURVIVES incomplete data — closed losses alone prove it", () => {
+    // The asymmetry. Unsettled decisions can only push the day FURTHER past
+    // the limit, so a breach already proven by closed losses is not softened
+    // into UNKNOWN by them.
+    const vm = selectSteward({
+      plan: plan({ maxDailyR: 1 }),
+      decisionsToday: [sealWithR(-2.3), seal(), seal()],
+      openDecisions: [],
+    });
+    const r = vm.rules.find((x) => x.id === "daily-r-budget")!;
+    expect(r.verdict).toBe("BREACHED");
+    expect(r.reason).toMatch(/breached by 1\.30R/);
+    expect(r.reason).toMatch(/on closed decisions alone — 2 still open/);
+    expect(vm.verdict).toBe("OUT_OF_PLAN");
+  });
+
+  it("daily-R still reaches DRIFT and IN_PLAN when every decision has reported", () => {
+    // ANTI-VACUITY. A rule that answered UNKNOWN to everything would pass the
+    // Sentinels above while saying nothing. Both room-granting verdicts must
+    // remain reachable on complete data.
+    const drift = selectSteward({
+      plan: plan({ maxDailyR: 2 }),
+      decisionsToday: [sealWithR(-1.6)],
+      openDecisions: [],
+    });
+    expect(drift.rules.find((x) => x.id === "daily-r-budget")?.verdict).toBe("DRIFT");
+
+    const inPlan = selectSteward({
+      plan: plan({ maxDailyR: 2 }),
+      decisionsToday: [sealWithR(-0.3)],
+      openDecisions: [],
+    });
+    const r = inPlan.rules.find((x) => x.id === "daily-r-budget")!;
+    expect(r.verdict).toBe("IN_PLAN");
+    // On complete data the evidence is the plain total — no floor hedge.
+    expect(r.evidence.join(" ")).toMatch(/Spent 0\.30R \/ 2R/);
+    expect(r.evidence.join(" ")).not.toMatch(/no outcome yet/);
+  });
+
+  it("daily-R with an empty day is IN_PLAN — nothing unreported means nothing unknown", () => {
+    const vm = selectSteward({
+      plan: plan({ maxDailyR: 2 }),
+      decisionsToday: [],
+      openDecisions: [],
+    });
+    expect(vm.rules.find((x) => x.id === "daily-r-budget")?.verdict).toBe("IN_PLAN");
+  });
+
+  it("BREACHED beats DRIFT beats UNKNOWN in aggregation", () => {
+    // BREACHED trade-count + DRIFT rushing + UNKNOWN daily-R → OUT_OF_PLAN.
+    // (daily-R is UNKNOWN here, not IN_PLAN: both decisions are unreported.)
     const vm = selectSteward({
       plan: plan({ maxTradesToday: 0, maxDailyR: 5, rushingFlagged: true }),
       decisionsToday: [seal(), seal()],
