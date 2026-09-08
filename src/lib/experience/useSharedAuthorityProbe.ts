@@ -29,6 +29,7 @@
 
 import { useEffect, useState } from "react";
 import type { SharedAuthorityObservation } from "./capitalReach";
+import { readClassifiedJsonReceipt } from "../marketData/readJsonReceipt";
 
 const UNOBSERVED: SharedAuthorityObservation = {
   status: "UNOBSERVED",
@@ -41,14 +42,13 @@ export function useSharedAuthorityProbe(): SharedAuthorityObservation {
 
   useEffect(() => {
     let live = true;
+    const controller = new AbortController();
 
     (async () => {
       try {
-        const res = await fetch("/api/decision-position", {
-          method: "GET",
-          credentials: "same-origin",
-          headers: { accept: "application/json" },
-        });
+        const res = await readClassifiedJsonReceipt<{ serverAuthority?: unknown; note?: unknown }>(
+          fetch, "/api/decision-position", controller.signal,
+        );
 
         if (!live) return;
 
@@ -65,8 +65,13 @@ export function useSharedAuthorityProbe(): SharedAuthorityObservation {
           return;
         }
 
-        const body = (await res.json()) as { serverAuthority?: unknown; note?: unknown };
+        const body = res.body;
         if (!live) return;
+        if (!body || typeof body !== "object" || Array.isArray(body)
+          || !(body.serverAuthority === null || typeof body.serverAuthority === "string")) {
+          setObservation(UNOBSERVED);
+          return;
+        }
 
         setObservation({
           status: "OBSERVED",
@@ -82,6 +87,7 @@ export function useSharedAuthorityProbe(): SharedAuthorityObservation {
 
     return () => {
       live = false;
+      controller.abort();
     };
   }, []);
 
