@@ -841,6 +841,11 @@ export function BrokerConnectPanel({
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [selectedOnly, setSelectedOnly] = useState(false);
+  const [receiptOrigin, setReceiptOrigin] = useState("");
+
+  useEffect(() => {
+    setReceiptOrigin(window.location.origin);
+  }, []);
 
   const toggleSelected = (id: string) => {
     setSelected(current => {
@@ -908,6 +913,11 @@ export function BrokerConnectPanel({
 
         <div className="px-4 py-3 border-b border-wm-border shrink-0">
           <ProviderWireStrip compact />
+          {receiptOrigin && (
+            <p className="mt-2 text-[9px] leading-snug text-wm-text-dim" data-provider-receipt-origin={receiptOrigin}>
+              Verifying this runtime only · <span className="font-mono text-wm-text-muted">{receiptOrigin}</span>. Local and hosted receipts must each pass; one never proves the other.
+            </p>
+          )}
         </div>
 
         {/* Category tabs */}
