@@ -304,6 +304,7 @@ async function readPosition(ownerId: string, decisionId: string): Promise<Positi
 
   if (error || !Array.isArray(data)) return { ok: false };
   if (data.length === 0) return { ok: true, row: null };
+  if (data.length !== 1) return { ok: false };
 
   const row: unknown = data[0];
   if (!row || typeof row !== "object" || Array.isArray(row)) return { ok: false };

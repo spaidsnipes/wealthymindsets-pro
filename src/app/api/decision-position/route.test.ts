@@ -151,6 +151,15 @@ describe("shared position projection", () => {
     expect(body.note).toContain("does not mean the position is flat");
   });
 
+  it("does not select an arbitrary record from a duplicated authority receipt", async () => {
+    mocks.rpc.mockResolvedValue({ data: [{ ...ROW }, { ...ROW }], error: null });
+    const result = await GET(read("decision-one"));
+    expect(result.status).toBe(503);
+    const body = await result.json();
+    expect(body.status).toBe("UNVERIFIED");
+    expect(body.position).toBeNull();
+  });
+
   it("separates a decision the authority has never heard of from an unreachable one", async () => {
     mocks.rpc.mockResolvedValue({ data: [], error: null });
     const result = await GET(read("decision-one"));
