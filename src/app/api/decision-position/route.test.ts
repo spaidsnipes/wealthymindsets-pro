@@ -78,3 +78,101 @@ describe("shared position transport truth", () => {
     expect(mocks.rpc).toHaveBeenCalledTimes(1);
   });
 });
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * PROJECTION — the read arrow that made the authority stop being write-only.
+ * These rules exist because the cheapest way to write this endpoint is also
+ * the one that turns an outage into "FLAT" and a null quantity into 0.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+const read = (decisionId?: string) =>
+  new Request(
+    "http://localhost/api/decision-position"
+      + (decisionId === undefined ? "" : `?decisionId=${encodeURIComponent(decisionId)}`),
+  );
+
+const ROW = {
+  decision_id: "decision-one",
+  recon_version: 4,
+  intent: "GET ME IN NOW",
+  intent_device_id: "phone-1",
+  quantity_filled: null,
+  quantity_protected: null,
+  execution_state: null,
+  protection_state: null,
+};
+
+describe("shared position projection", () => {
+  it("projects the record a second device asks for", async () => {
+    mocks.rpc.mockResolvedValue({ data: [ROW], error: null });
+    const body = await (await GET(read("decision-one"))).json();
+    expect(body.status).toBe("PROJECTED");
+    expect(body.position.reconVersion).toBe(4);
+    expect(body.position.intent).toBe("GET ME IN NOW");
+    expect(body.position.decisionId).toBe("decision-one");
+  });
+
+  it("scopes the read to the signed-in owner, never to the caller's claim", async () => {
+    mocks.rpc.mockResolvedValue({ data: [ROW], error: null });
+    await GET(read("decision-one"));
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "wm_read_decision_position",
+      expect.objectContaining({ p_owner_id: "owner-one", p_decision_id: "decision-one" }),
+    );
+  });
+
+  it("keeps NOT YET RECONCILED absent instead of defaulting it to zero", async () => {
+    mocks.rpc.mockResolvedValue({ data: [ROW], error: null });
+    const { position } = await (await GET(read("decision-one"))).json();
+    for (const field of ["quantityFilled", "quantityProtected", "executionState", "protectionState"]) {
+      expect(position[field], `${field} must stay absent`).toBeNull();
+    }
+  });
+
+  it("reads a numeric quantity that arrives as a PostgREST string", async () => {
+    mocks.rpc.mockResolvedValue({ data: [{ ...ROW, quantity_filled: "3", quantity_protected: "0" }], error: null });
+    const { position } = await (await GET(read("decision-one"))).json();
+    expect(position.quantityFilled).toBe(3);
+    // A REAL zero survives. The rule is "absence is not zero", not "zero is absence".
+    expect(position.quantityProtected).toBe(0);
+  });
+
+  it.each([
+    ["transport error", { data: null, error: { code: "network" } }],
+    ["unreadable payload", { data: "ok", error: null }],
+    ["unverifiable version", { data: [{ ...ROW, recon_version: "garbage" }], error: null }],
+  ])("does not let %s read as a flat position", async (_name, receipt) => {
+    mocks.rpc.mockResolvedValue(receipt);
+    const result = await GET(read("decision-one"));
+    expect(result.status).toBe(503);
+    const body = await result.json();
+    expect(body.status).toBe("UNVERIFIED");
+    expect(body.position).toBeNull();
+    expect(body.note).toContain("does not mean the position is flat");
+  });
+
+  it("separates a decision the authority has never heard of from an unreachable one", async () => {
+    mocks.rpc.mockResolvedValue({ data: [], error: null });
+    const result = await GET(read("decision-one"));
+    expect(result.status).toBe(200);
+    const body = await result.json();
+    expect(body.status).toBe("NOT_RECORDED");
+    expect(body.position).toBeNull();
+    expect(body.note).toContain("not the same as a position of size zero");
+  });
+
+  it("still answers the reach probe when no decision is named", async () => {
+    mocks.rpc.mockResolvedValue({ data: [], error: null });
+    for (const url of [read(), read(""), read("   ")]) {
+      const body = await (await GET(url)).json();
+      expect(body.serverAuthority, `${url.url} must stay a reach probe`).not.toBeNull();
+      expect(body.status).toBeUndefined();
+    }
+  });
+
+  it("refuses to project anything to a caller with no session", async () => {
+    mocks.auth.mockResolvedValue({ ok: false, response: new Response(null, { status: 401 }) });
+    expect((await GET(read("decision-one"))).status).toBe(401);
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+});

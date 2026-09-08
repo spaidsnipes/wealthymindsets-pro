@@ -80,16 +80,31 @@ async function probeAuthority(): Promise<
 }
 
 /**
- * GET — "how far does this book reach, really?"
+ * GET — two questions through one door.
  *
- * The answer is the evidence `PAPER_STORE_FACTS`/`selectCapitalReach` needs,
- * and it is deliberately shaped as that seam's input rather than as a status
- * page: a surface should not have to interpret this, it should be able to
- * hand it straight to the selector that already knows the law.
+ * Without `decisionId`: "how far does this book reach, really?" The answer is
+ * the evidence `PAPER_STORE_FACTS`/`selectCapitalReach` needs, and it is
+ * deliberately shaped as that seam's input rather than as a status page.
+ *
+ * With `decisionId`: "what does the authority hold for THIS decision?" — the
+ * arrow that was missing. Until this existed the authority was WRITE-ONLY:
+ * POST could record an intent and nothing could ever project it back, so §5
+ * STEP 9 ("the phone is the same position") named a record no second device
+ * could read. A record nobody can read is not shared truth, it is storage.
+ *
+ * WHY ONE ROUTE AND NOT A SECOND (H21). Both questions are answered by the
+ * same authority under the same session and the same law version. A second
+ * endpoint would be a second place where "is the store reachable" is decided,
+ * and the two would eventually disagree about whether it is.
  */
 export async function GET(request: Request) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+
+  const decisionId = new URL(request.url).searchParams.get("decisionId");
+  if (decisionId !== null && decisionId.trim() !== "") {
+    return projectPosition(auth.user.sub, decisionId);
+  }
 
   const probe = await probeAuthority();
 
@@ -266,25 +281,140 @@ function unverifiedTransport() {
 }
 
 /**
- * The version the authority currently holds. A record that does not exist is
- * at version 0, so a first intent write names 0 and lands at 1 — the same
- * arithmetic as every later write, with no special case for "new".
+ * THE ONE READ. Both the version check before a write and the projection a
+ * second device asks for come through here, so there is exactly one place
+ * that decides what "the authority did not answer" means. Two readers would
+ * eventually disagree, and the disagreement would be invisible: one of them
+ * would quietly treat an unreachable store as an empty one.
+ *
+ * `{ ok: false }` is NOT `{ ok: true, row: null }`. The first is "WM could not
+ * ask"; the second is "WM asked and this decision is not there." Collapsing
+ * them is how an outage starts reading as FLAT.
  */
-async function currentVersion(ownerId: string, decisionId: string): Promise<number | null> {
+type PositionRead = { ok: true; row: Record<string, unknown> | null } | { ok: false };
+
+async function readPosition(ownerId: string, decisionId: string): Promise<PositionRead> {
   const admin = getSupabaseAdmin();
-  if (!admin) return null;
+  if (!admin) return { ok: false };
 
   const { data, error } = await Promise.resolve(admin.rpc("wm_read_decision_position", {
     p_owner_id: ownerId,
     p_decision_id: decisionId,
   })).catch(() => ({ data: null, error: { code: "TRANSPORT_UNVERIFIED" } }));
 
-  if (error || !Array.isArray(data)) return null;
-  if (data.length === 0) return 0;
+  if (error || !Array.isArray(data)) return { ok: false };
+  if (data.length === 0) return { ok: true, row: null };
 
   const row: unknown = data[0];
-  if (!row || typeof row !== "object") return null;
-  return readVersion((row as { recon_version?: unknown }).recon_version);
+  if (!row || typeof row !== "object" || Array.isArray(row)) return { ok: false };
+  return { ok: true, row: row as Record<string, unknown> };
+}
+
+/**
+ * The version the authority currently holds. A record that does not exist is
+ * at version 0, so a first intent write names 0 and lands at 1 — the same
+ * arithmetic as every later write, with no special case for "new".
+ */
+async function currentVersion(ownerId: string, decisionId: string): Promise<number | null> {
+  const read = await readPosition(ownerId, decisionId);
+  if (!read.ok) return null;
+  if (read.row === null) return 0;
+  return readVersion(read.row.recon_version);
+}
+
+/**
+ * Project the canonical record for one decision onto whichever device asked.
+ *
+ * THREE ANSWERS, THREE MEANINGS — and the reason this is not a bare row dump:
+ *
+ *   UNVERIFIED — WM could not ask the authority. It does not know. It must not
+ *     answer "no position", because a phone that reads absence as FLAT while
+ *     the broker holds three contracts is §14's very first forbidden state.
+ *
+ *   NOT_RECORDED — WM asked and the authority has never heard of this
+ *     decision. Real, healthy, and NOT the same as a position of size zero.
+ *
+ *   PROJECTED — the record, exactly as the authority holds it. `null` in a
+ *     settled-truth column stays `null`: H1 — absence is not zero. Nothing
+ *     here is defaulted, because a default is this route inventing broker
+ *     truth, and §11 says only reconciliation may speak it.
+ */
+async function projectPosition(ownerId: string, decisionId: string) {
+  const read = await readPosition(ownerId, decisionId);
+
+  if (!read.ok) {
+    return NextResponse.json({
+      lawVersion: RECON_LAW_VERSION,
+      status: "UNVERIFIED",
+      position: null,
+      note:
+        "WM could not read the shared record for this decision, so it is not reporting "
+        + "one. This does not mean the position is flat or that the decision is unknown.",
+    }, { status: 503 });
+  }
+
+  if (read.row === null) {
+    return NextResponse.json({
+      lawVersion: RECON_LAW_VERSION,
+      status: "NOT_RECORDED",
+      position: null,
+      note:
+        "The shared record holds nothing for this decision. Nothing has been written "
+        + "here yet — that is not the same as a position of size zero.",
+    }, { status: 200 });
+  }
+
+  const reconVersion = readVersion(read.row.recon_version);
+  if (reconVersion === null) {
+    // A row whose version cannot be read cannot be safely amended later: the
+    // next write would name a base version WM invented. Refuse to project it
+    // rather than hand a device a record it could overwrite from.
+    return NextResponse.json({
+      lawVersion: RECON_LAW_VERSION,
+      status: "UNVERIFIED",
+      position: null,
+      note:
+        "WM read a shared record it could not verify the version of, so it is not "
+        + "projecting it. This does not mean the position is flat.",
+    }, { status: 503 });
+  }
+
+  return NextResponse.json({
+    lawVersion: RECON_LAW_VERSION,
+    status: "PROJECTED",
+    authority: SHARED_POSITION_AUTHORITY,
+    position: {
+      decisionId,
+      reconVersion,
+      intent: nullableString(read.row.intent),
+      intentDeviceId: nullableString(read.row.intent_device_id),
+      // §11 / H1: these are the broker's words or they are absent. Never 0.
+      quantityFilled: nullableNumber(read.row.quantity_filled),
+      quantityProtected: nullableNumber(read.row.quantity_protected),
+      executionState: nullableString(read.row.execution_state),
+      protectionState: nullableString(read.row.protection_state),
+    },
+    note: "Every signed-in device projects this record. Nothing here was defaulted.",
+  }, { status: 200 });
+}
+
+/** Absent stays absent. A missing value may not become "" on the way out. */
+function nullableString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+/**
+ * Absent stays absent. NOT YET RECONCILED is not zero — the migration says so
+ * in the schema comment and this is the only place that could betray it.
+ * Postgres `numeric` arrives over PostgREST as a string, so a digit string is
+ * a real number here; anything unparseable is treated as absent rather than
+ * coerced to 0 by `Number("")` or `Number(null)`.
+ */
+function nullableNumber(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function readVersion(value: unknown): number | null {
