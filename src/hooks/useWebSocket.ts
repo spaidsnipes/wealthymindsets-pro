@@ -33,6 +33,7 @@ import { electProviderTapeSource, type ProviderTapeSource } from "@/lib/marketDa
 import { selectObservedProviderFallback } from "@/lib/marketData/selectObservedProviderFallback";
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
+import { coalesceQuoteRequest } from "@/lib/marketData/quoteRequestCoalescer";
 import { resolveQuoteDayChange } from "@/lib/marketData/resolveQuoteDayChange";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
@@ -152,7 +153,19 @@ type QuoteAnswer =
   | ({ kind: "quote" } & RealQuote)
   | { kind: "refused"; reason: string };
 
+/**
+ * The in-flight guard inside `doRestFetch` stops ONE hook instance from racing
+ * itself. It cannot see a second instance. MEASURED on /charts: NQ1! left here
+ * at t=279 and t=283 ms — two subscriptions, 4ms apart, each running a full
+ * round; AMZN made 18 quote requests in 13 seconds where the tape needed 2.
+ * Request identity is owned above the instance, by the coalescer. See
+ * quoteRequestCoalescer.ts for the measurement and for what joining does NOT do.
+ */
 async function fetchRealQuote(sym: string): Promise<QuoteAnswer | null> {
+  return coalesceQuoteRequest(sym, () => fetchRealQuoteUncoalesced(sym));
+}
+
+async function fetchRealQuoteUncoalesced(sym: string): Promise<QuoteAnswer | null> {
   const upper = sym.toUpperCase();
 
   // Per-exchange crypto (e.g. "BTC.COINBASE") → that exchange's quote
