@@ -90,7 +90,6 @@ function yahooQuoteReaders(): string[] {
 const UNGATED_DEBT = [
   "app/paper/page.tsx",
   "components/chart/MainChart.tsx",
-  "components/chart/StockInfoPanel.tsx",
 ].sort();
 
 describe("SF-D01 refusal — every gate consumer also carries the reason", () => {
@@ -336,5 +335,41 @@ describe("scanner — a count without a denominator is not a scan result", () =>
       branch.slice(branch.indexOf("else")),
       "the refusal branch must not write a quote",
     ).not.toContain("results.set(");
+  });
+});
+
+describe("stock info panel — zero is not a price, and it has no colour", () => {
+  const SIP = read("components/chart/StockInfoPanel.tsx");
+
+  it("the headline price is guarded before it is formatted", () => {
+    // This defect was introduced BY the refusal work, not found by it. Once
+    // useWebSocket began retracting a refused price to 0, this panel's
+    // unconditional `ticker.price.toFixed(3)` started rendering `0.000` —
+    // three decimals of false precision — painted green or red by `up`,
+    // asserting a direction the number does not have. A retraction is only
+    // honest if every consumer of the retracted field degrades with it.
+    expect(SIP, "the headline price must not be formatted without a guard")
+      .toMatch(/\{ticker\.price > 0 \? \(/);
+
+    const priceBlock = SIP.slice(SIP.indexOf("{/* Price */}"), SIP.indexOf("{chg.displayable ? ("));
+    expect(priceBlock, "no price block found").not.toHaveLength(0);
+    expect(priceBlock, "the retracted case needs a neutral placeholder").toContain('>—</span>');
+    expect(priceBlock, "the placeholder must carry the reason WM declined")
+      .toContain("quoteRefusal");
+    // The direction arrow is an assertion about a price; with no price there
+    // is nothing to point at.
+    expect(priceBlock, "the arrow must not survive a retracted price")
+      .toMatch(/\{ticker\.price > 0 && chg\.displayable &&/);
+  });
+
+  it("a refused quote cannot authorise the session facts", () => {
+    // SF-D01: on refusal `j.price` silently falls back to prevClose, so the
+    // old `j.price > 0` admission test was a refused number granting itself
+    // permission. The gate owner must be asked first.
+    const effect = SIP.slice(SIP.indexOf("const url = `/api/yahoo"), SIP.indexOf("}, [symbol]);"));
+    const gateAt = effect.indexOf("yahooQuoteRefusal(j)");
+    const setAt = effect.indexOf("setRealOHLC({");
+    expect(gateAt, "the OHLC read must consult the refusal gate").toBeGreaterThanOrEqual(0);
+    expect(gateAt, "the gate must run before the session facts are accepted").toBeLessThan(setAt);
   });
 });

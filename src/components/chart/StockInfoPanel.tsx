@@ -1,6 +1,7 @@
 "use client";
 
 import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDisplay";
+import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import React, { useState, useRef, useEffect } from "react";
 import { Heart, Bell, ChevronDown } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -99,7 +100,7 @@ type TabType = "Quotes" | "Analysis" | "Comments" | "News";
 type SubTabType = "Ticks" | "Summary";
 
 export function StockInfoPanel({ symbol }: Props) {
-  const { ticker, recentTicks, orderBook } = useWebSocket({ symbol, timeframe: "1m" });
+  const { ticker, recentTicks, orderBook, quoteRefusal } = useWebSocket({ symbol, timeframe: "1m" });
   const [activeTab, setActiveTab] = useState<TabType>("Quotes");
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>("Ticks");
   const [favorited, setFavorited] = useState(false);
@@ -120,6 +121,12 @@ export function StockInfoPanel({ symbol }: Props) {
     void isFutures; void isCrypto;
     const url = `/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`;
     fetch(url, { cache: "no-store" }).then(r => r.json()).then(j => {
+      // SF-D01: when the quote is refused, `j.price` silently falls back to
+      // prevClose — so `j.price > 0` was a refused number authorising the
+      // session facts below. Ask the owner of the gate instead of trusting
+      // the fallback. The OHLC fields keep their own ohlcObservation gate;
+      // this only removes the refused price from the admission decision.
+      if (yahooQuoteRefusal(j)) return;
       const observed = j?.ohlcObservation;
       if (j?.price > 0 && observed?.open && observed?.high && observed?.low && observed?.prevClose) setRealOHLC({
         open:      j.open,
@@ -186,10 +193,23 @@ export function StockInfoPanel({ symbol }: Props) {
 
         {/* Price */}
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 2 }}>
-          <span style={{ fontSize: 22, fontWeight: 700, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace" }}>
-            {ticker.price.toFixed(3)}
-          </span>
-          {chg.displayable && (
+          {/* A refusal RETRACTS the price to 0 (see useWebSocket). Rendering
+              that unconditionally printed a green-or-red `0.000` — three
+              decimals of false precision, wearing a direction it does not
+              have. Zero is not a price, and it has no colour. */}
+          {ticker.price > 0 ? (
+            <span style={{ fontSize: 22, fontWeight: 700, color: up ? "#00C076" : "#FF4D67", fontFamily: "monospace" }}>
+              {ticker.price.toFixed(3)}
+            </span>
+          ) : (
+            <span
+              style={{ fontSize: 22, fontWeight: 700, color: "#8B8FA8", fontFamily: "monospace" }}
+              title={quoteRefusal
+                ? `No price to show. A provider answered and WM declined the answer: ${quoteRefusal}\n\nThis is a refusal, not a delay.`
+                : "No price to show. No quote has been observed for this symbol yet."}
+            >—</span>
+          )}
+          {ticker.price > 0 && chg.displayable && (
             <span style={{ fontSize: 13, color: up ? "#00C076" : "#FF4D67" }}>{up ? "↑" : "↓"}</span>
           )}
         </div>
