@@ -212,10 +212,13 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "AWAITING_SURFACE",
     note: "Sound effects. §9 governs what may take the room; nothing currently calls this.",
   },
-  "src/lib/traderMemory/projectDecision.ts": {
-    reason: "AWAITING_SURFACE",
-    note: "The read arrow, unreached ON ARRIVAL and declared rather than discovered. It closes the mirror gap — /api/decision-position's GET has had no client caller since it was built — but a reader nothing renders cannot show a trader his position either. Its own doc comment makes exactly this criticism of the route; declaring it here rather than quietly repeating the defect. Wiring it must delete this line.",
-  },
+  // REMOVED 2026-09-08: "projectDecision.ts — the read arrow, unreached ON
+  // ARRIVAL." Declared AWAITING_SURFACE in 8ab142d and given a surface in the
+  // very next commit: /paper's blotter now lets the trader ask his account
+  // whether a decision reached it, and renders the four answers apart. The
+  // ATHOS "NO ORPHAN BREAKTHROUGHS" law names this exact shape — an internal
+  // engine computing into nowhere — and this ledger's reciprocal sentinel
+  // demanded the deletion. See decisionReach.enforcement.test.ts.
   "src/lib/traderMemory/viewModels/selectSteward.ts": {
     reason: "AWAITING_SURFACE",
     note: "Steward view model with no panel consuming it.",

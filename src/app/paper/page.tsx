@@ -44,6 +44,12 @@ import {
   type PaperBookIntegrity,
   type PaperPersistenceResult,
   type PaperState,
+  type Order,
+  type OrderSide,
+  type OrderStatus,
+  type OrderType,
+  type Position,
+  type Trade,
 } from "@/lib/paperTrade";
 import SceneAdmissionPanel from "@/components/experience/SceneAdmissionPanel";
 import SceneAdmits, { SceneAdmitsAmbient } from "@/components/experience/SceneAdmits";
@@ -68,6 +74,7 @@ import { clsx } from "clsx";
 import styles from "./paper.module.css";
 import { modelBand, longOptionUnrealised } from "@/lib/optionModelBand";
 import { WM } from "@/lib/design/wmTokens";
+import { DecisionReachCheck } from "@/components/paper/DecisionReachCheck";
 import { mintDecisionId } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { recordDecisionIntent } from "@/lib/traderMemory/recordDecisionIntent";
@@ -94,58 +101,47 @@ const UNIVERSE: Record<string,{ name:string; base:number; tick:number }> = {
   "ETH":  { name:"Ethereum",        base:3_800,  tick:0.10 },
 };
 
-type OrderType   = "market" | "limit" | "stop" | "stop-limit";
-type OrderSide   = "buy" | "sell";
-type OrderStatus = "pending" | "filled" | "cancelled" | "rejected";
-
-interface Order {
-  id:        string;
-  symbol:    string;
-  side:      OrderSide;
-  type:      OrderType;
-  qty:       number;
-  limitPx?:  number;
-  stopPx?:   number;
-  fillPx?:   number;
-  status:    OrderStatus;
-  ts:        number;
-  /** Why a rejected order was rejected. See applyOrderRejections. */
-  rejectReason?: string;
-}
-
-interface Position {
-  symbol:  string;
-  qty:     number;   // negative = short
-  avgPx:   number;
-  unrealPnl: number;
-  marketPx:  number;
-}
-
-interface Trade {
-  id:     string;
-  symbol: string;
-  side:   OrderSide;
-  qty:    number;
-  px:     number;
-  ts:     number;
-  pnl?:  number; // for closing trades
-}
+/**
+ * THE ORDER CONTRACT HAS ONE OWNER, AND IT IS NOT THIS FILE.
+ *
+ * This page used to declare its own `Order`, `Position`, `Trade`, `OrderSide`,
+ * `OrderType` and `OrderStatus` — byte-for-byte copies of `paperTrade.ts`'s
+ * exports — with a comment claiming the duplication was safe because
+ * "structural typing makes the two shapes interchangeable" and "if either
+ * drifts, the compiler catches it here."
+ *
+ * IT DID NOT CATCH IT. When the canonical `Order` gained the OPTIONAL
+ * `decisionId` (§4's decision identity) in 1588556, the shadow stayed
+ * structurally assignable — optional fields do not break assignability — so
+ * the compiler said nothing while this surface quietly lost the ability to
+ * SEE the field. `submit()` spread a real decisionId onto every order at
+ * runtime, persistence carried it, and the blotter could not read it back,
+ * because as far as this file was concerned the property did not exist. The
+ * artery's identity reached the tab and became invisible on arrival.
+ *
+ * That is the exact failure mode structural typing hides: a duplicate is
+ * "compatible" right up until the canonical owner learns something new, and
+ * then it silently teaches the surface less than the truth. §6/§24 and H21 —
+ * ONE OWNER PER RULE — are not stylistic. The types come from the owner now.
+ */
 
 interface EquityPoint { ts: number; equity: number; }
 
 function uid() { return Math.random().toString(36).slice(2,9); }
 
 /**
- * SHIFT-J J-Bkt 3: the local applyFill is now a thin type-adapter
- * over the shared src/lib/paperTrade.ts `applyFill` — canonically
- * tested by the 18-branch state matrix in src/lib/paperTrade.test.ts.
- * Structural typing makes the two Position/Order/Trade shapes
- * interchangeable; this indirection preserves the local call sites
- * while eliminating the duplicated money math the pre-J file-header
- * warned about.
+ * The local applyFill wraps the shared src/lib/paperTrade.ts `applyFill` —
+ * canonically tested by the 18-branch state matrix in paperTrade.test.ts.
+ * The money math lives in one place; this wrapper exists only to derive
+ * contract point value from ord.symbol so no call site can forget it.
  *
- * If either the local types or the shared reducer types drift, the
- * compiler catches it here — the money math itself lives in one place.
+ * IT IS NO LONGER A TYPE ADAPTER. It used to be described as one, bridging
+ * this file's private Order/Position/Trade to the shared reducer's, on the
+ * claim that "if either drifts, the compiler catches it here." That claim was
+ * false in the direction that mattered: an OPTIONAL field added to the
+ * canonical Order kept the shadow assignable, so the drift was silent and the
+ * blotter lost sight of decisionId without a single error. The shadows are
+ * gone and both sides now name the same type.
  */
 function applyFill(
   positions: Position[],
@@ -2419,6 +2415,14 @@ export default function PaperTradingPage() {
                         {ord.rejectReason ?? "Reason not recorded for this rejection."}
                       </p>
                     )}
+                    {/* The artery's last visible step: browser/iPad/phone
+                        projection. The trader asks and his ACCOUNT answers —
+                        not this tab. Asked on demand rather than on mount,
+                        because N rows projecting themselves would fire N
+                        requests at the shared authority outside the quote
+                        coalescer, which is the duplicate-subscription shape
+                        this repo has already had to fix three times. */}
+                    <DecisionReachCheck decisionId={ord.decisionId} />
                     </div>
                   ))}
                 </>
