@@ -9,6 +9,8 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { getFabioInsights, inferAssetClass } from "@/lib/fabio";
 import { evaluateClcEvidence } from "@/lib/decisionIntegrity";
 import { hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
+import { selectAggressorFlow } from "@/lib/marketData/selectAggressorFlow";
+import { formatImbalanceRatio } from "@/lib/marketData/formatImbalanceRatio";
 import { getSmartMoneyPanelLayout } from "./smartMoneyLayout";
 import { computeConfluence as computeConfluenceV1 } from "@/lib/marketData/confluence";
 
@@ -52,7 +54,16 @@ interface Flow {
   cvd: number;         // cumulative volume delta = askVol - bidVol (REAL)
   askVol: number;      // aggressive-buy volume (lifting the offer)
   bidVol: number;      // aggressive-sell volume (hitting the bid)
-  imbRatio: number;    // dominant/passive % (REAL)
+  imbRatio: number;    // dominant/passive % (REAL) — see oneSided before DISPLAYING it
+  /**
+   * True when the weaker aggressor side has ZERO volume, so the true ratio is
+   * UNBOUNDED and `imbRatio` is carrying a 300 SENTINEL rather than a
+   * measurement. The canonical selector has warned about this since it was
+   * written — "display layers MUST NOT paint 300 as a measured 300:100 ratio;
+   * that number has no owner in the tape" — but this panel never received the
+   * field, because it never adopted the selector that owns it.
+   */
+  oneSided: boolean;
   askDom: boolean;     // askVol >= bidVol
   candleUp: boolean;   // live bar close >= open (REAL)
 }
@@ -100,7 +111,11 @@ function generateSignals(symbol: string, price: number, f: Flow): Signal[] {
     // per-trade aggressor side. When it doesn't (askVol+bidVol == 0) we must NOT
     // fabricate a "100% buy-heavy / real buying on tape" reading — report N/A.
     f.hasFlow
-      ? { name: "Order Flow Imbalance", value: `${imbRatio}% ${askDom ? "Ask (buy)" : "Bid (sell)"}-heavy`, strength: imbRatio > 160 ? "strong" : "moderate", bullish: askDom, description: `Aggressive ${askDom ? "buyers lifting offers" : "sellers hitting bids"} dominate the tape` }
+      // The ratio is spoken through the CANONICAL formatter, which owns both the
+      // one-sided sentinel and the unbounded crypto tail. This panel used to
+      // print `${imbRatio}%` raw — so it could render "300% Ask (buy)-heavy"
+      // from a sentinel, or "27261700%" from a fractional opposing side.
+      ? { name: "Order Flow Imbalance", value: `${formatImbalanceRatio(f.imbRatio, f.oneSided)} ${askDom ? "Ask (buy)" : "Bid (sell)"}-heavy`, strength: f.oneSided || imbRatio > 160 ? "strong" : "moderate", bullish: askDom, description: f.oneSided ? `Every aggressor print in this window ${askDom ? "lifted the offer" : "hit the bid"} — there is no opposing volume to form a ratio` : `Aggressive ${askDom ? "buyers lifting offers" : "sellers hitting bids"} dominate the tape` }
       : { name: "Order Flow Imbalance", value: "N/A — no aggressor tape", strength: "neutral", bullish: null, description: "This feed has no per-trade buy/sell side; imbalance can't be measured" },
     f.hasFlow
       ? { name: "Aggressive Buyers vs Sellers", value: `Buyers ${fmt(f.askVol,0)} · Sellers ${fmt(f.bidVol,0)}`, strength: "strong", bullish: askDom, description: "Market-order volume by side (real ticks)" }
@@ -273,36 +288,37 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
 
   // ── Build the REAL order-flow snapshot from live ticks + the live 1m bar ────
   const flow: Flow = React.useMemo(() => {
+    // CANDLE DIRECTION IS NOT FLOW. It reads the live bar, not the tape, so it
+    // stays here and is NOT pushed into the aggressor selector.
+    const candleUp = liveBar ? Number(liveBar.close) >= Number(liveBar.open) : true;
+
     if (!realTape) {
       return {
         haveData: false, hasFlow: false, vwap: livePrice || 0, cvd: 0,
-        askVol: 0, bidVol: 0, imbRatio: 100, askDom: true,
-        candleUp: liveBar ? Number(liveBar.close) >= Number(liveBar.open) : true,
+        askVol: 0, bidVol: 0, imbRatio: 100, oneSided: false, askDom: true,
+        candleUp,
       };
     }
-    // Delta flow uses EVERY real executed trade (tick.trade) with NO lot floor —
-    // the old minAggressorLot filter (≥2 BTC on crypto) discarded ~100% of real
-    // Coinbase flow and starved this whole panel to "NO TAPE". Real trades only.
-    const ticks = (Array.isArray(recentTicks) ? recentTicks : [])
-      .filter(t => t?.trade === true && (Number(t?.size) || 0) > 0);
-    let askVol = 0, bidVol = 0, pv = 0, vol = 0;
-    for (const t of ticks) {
-      const size = Number(t?.size) || 0;
-      const px = Number(t?.price) || 0;
-      if (size <= 0 || px <= 0) continue;
-      if (t?.side === "buy") askVol += size; else bidVol += size;
-      pv += px * size; vol += size;
-    }
-    const cvd = askVol - bidVol;
-    const vwap = vol > 0 ? pv / vol : (livePrice || 0);
-    const hi = Math.max(askVol, bidVol), lo = Math.min(askVol, bidVol);
-    const imbRatio = lo > 0 ? (hi / lo) * 100 : (hi > 0 ? 300 : 100);
-    const candleUp = liveBar ? Number(liveBar.close) >= Number(liveBar.open) : true;
+
+    // §24 / H21 — ONE OWNER PER RULE. `selectAggressorFlow` says in its own
+    // first line that it "extracts SmartMoneyPanel's inline math into a
+    // canonical, testable, reusable selector". The extraction happened; the
+    // CUTOVER never did, so this panel kept running a private second copy of
+    // the rule — and quietly missed the `oneSided` correction the owner gained
+    // afterwards. Delta flow still uses EVERY real executed trade with NO lot
+    // floor (the old ≥2 BTC filter discarded ~100% of real Coinbase flow); that
+    // behaviour lives in the selector's `trade === true && size > 0` filter.
+    const snap = selectAggressorFlow(recentTicks, livePrice || 0);
     return {
-      haveData: ticks.length > 0,
-      hasFlow: (askVol + bidVol) > 0,
-      vwap, cvd, askVol, bidVol, imbRatio,
-      askDom: askVol >= bidVol,
+      haveData: snap.haveData,
+      hasFlow: snap.hasFlow,
+      vwap: snap.vwap,
+      cvd: snap.cvd,
+      askVol: snap.askVol,
+      bidVol: snap.bidVol,
+      imbRatio: snap.imbRatio,
+      oneSided: snap.oneSided,
+      askDom: snap.askDom,
       candleUp,
     };
   }, [recentTicks, liveBar, livePrice, realTape]);

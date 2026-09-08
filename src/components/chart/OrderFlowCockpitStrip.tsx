@@ -26,6 +26,7 @@ import {
   selectAggressorFlow,
   type AggressorTick,
 } from "@/lib/marketData/selectAggressorFlow";
+import { formatImbalanceRatio } from "@/lib/marketData/formatImbalanceRatio";
 
 export interface OrderFlowCockpitStripProps {
   readonly ticks: readonly AggressorTick[];
@@ -54,24 +55,13 @@ function formatSignedVolume(v: number): string {
 }
 
 /**
- * Format the aggressor imbalance ratio for the chip. Values are
- * derived from real per-trade sizes so crypto's fractional volumes
- * can push the ratio into the millions when one side is tiny. Show
- * an honest cap ("≥100k:1") instead of a 27,261,700:100 string that
- * reads as noise. The unbounded number is preserved in aria-label
- * for keyboard/screen-reader users who want the raw value.
+ * MOVED to @/lib/marketData/formatImbalanceRatio.
+ *
+ * The two rules below it enforced — the 300 one-sided sentinel and the
+ * unbounded crypto tail — were correct here and invisible everywhere else,
+ * because a private function is not an owner. SmartMoneyPanel was printing the
+ * raw ratio and was exposed to both. The behaviour is unchanged for this strip.
  */
-function formatImbalanceRatio(ratio: number, oneSided = false): string {
-  // One-sided flow has an UNBOUNDED ratio — the selector's 300 sentinel is not
-  // a measurement. Painting it as "300:100" invents a 3:1 reading the tape
-  // never produced (LIVING-PIXEL LAW).
-  if (oneSided) return "one-sided";
-  if (!Number.isFinite(ratio) || ratio <= 100) return "1:1";
-  if (ratio >= 1e6) return "≥10k:1";
-  if (ratio >= 1e5) return "≥1k:1";
-  return `${ratio.toFixed(0)}:100`;
-}
-
 export function OrderFlowCockpitStrip({
   ticks,
   livePrice,
