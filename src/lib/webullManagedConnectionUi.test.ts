@@ -24,6 +24,14 @@ describe("Webull managed connection UI", () => {
     expect(panel).toContain("receipt.connectOAuth.missing.map");
   });
 
+  it("turns a tokenless 401 into an honest OpenAPI 2FA checkpoint", () => {
+    expect(panel).toContain('receipt.state === "BLOCKED_AUTH"');
+    expect(panel).toContain('!receipt.credentialPresence.accessToken');
+    expect(panel).toContain("2FA checkpoint · token not set");
+    expect(panel).toContain("Webull requires <code>WEBULL_ACCESS_TOKEN</code> only when OpenAPI 2FA is enabled");
+    expect(panel).toContain("This HTTP 401 does not prove 2FA is the rejected edge.");
+  });
+
   it("does not ask the browser to transmit Webull credentials", () => {
     const managedSection = panel.slice(panel.indexOf("function ManagedConnectionStatus"), panel.indexOf("/* ── Broker Card"));
     expect(managedSection).toContain('fetch(managed.endpoint, { cache: "no-store", signal: controller.signal })');

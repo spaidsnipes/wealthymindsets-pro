@@ -617,6 +617,16 @@ function ManagedConnectionStatus({ broker }: { broker: Broker }) {
                 Runtime receipt · key {receipt.credentialPresence.appKey ? "present" : "absent"} · secret {receipt.credentialPresence.appSecret ? "present" : "absent"} · access token {receipt.credentialPresence.accessToken ? "present" : "not set"}
               </p>
             )}
+            {receipt.state === "BLOCKED_AUTH" && receipt.credentialPresence && !receipt.credentialPresence.accessToken && (
+              <div className="mt-2 rounded-lg border px-2 py-1.5" style={{ borderColor: "rgba(244, 200, 107, 0.35)", background: "rgba(244, 200, 107, 0.06)" }}>
+                <div className="text-[9px] font-black uppercase tracking-wider" style={{ color: "#f4c86b" }}>
+                  2FA checkpoint · token not set
+                </div>
+                <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">
+                  Webull requires <code>WEBULL_ACCESS_TOKEN</code> only when OpenAPI 2FA is enabled. If it is enabled for this App Key, create the reusable token, approve it in the Webull app, store it server-side, then check this wire again. This HTTP 401 does not prove 2FA is the rejected edge.
+                </p>
+              </div>
+            )}
             {receipt.connectOAuth && (
               <div className="mt-2 rounded-lg border px-2 py-1.5" style={{ borderColor: "rgba(139, 146, 172, 0.35)", background: "rgba(139, 146, 172, 0.06)" }}>
                 <div className="text-[9px] font-black uppercase tracking-wider text-wm-text-muted">

@@ -52,7 +52,7 @@ describe("computeProviderReadiness", () => {
     const r = computeProviderReadiness("webull-data", env);
     expect(r.status).toBe("READY");
     expect(r.missingRecommended).not.toContain("WEBULL_API_HOST");
-    expect(r.missingRecommended).not.toContain("WEBULL_ACCESS_TOKEN");
+    expect(r.missingRecommended).toContain("WEBULL_ACCESS_TOKEN");
     expect(r.missingRecommended).toContain("WEBULL_DATA_URL");
     expect(r.missingRecommended).toContain("WEBULL_CANARY_SYMBOL");
   });
@@ -65,7 +65,7 @@ describe("computeProviderReadiness", () => {
     expect(r.status).toBe("READY");
     expect(r.missing).toEqual([]);
     expect(r.missingRecommended).toContain("WEBULL_API_HOST");
-    expect(r.missingRecommended).not.toContain("WEBULL_ACCESS_TOKEN");
+    expect(r.missingRecommended).toContain("WEBULL_ACCESS_TOKEN");
   });
 
   it("tastytrade needs the client pair AND a refresh token", () => {

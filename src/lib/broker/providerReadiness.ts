@@ -95,8 +95,8 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
       WEBULL_APP_KEY: ["WEBULL_API_KEY"],
       WEBULL_APP_SECRET: ["WEBULL_API_SECRET"],
     },
-    recommended: ["WEBULL_API_HOST", "WEBULL_DATA_URL", "WEBULL_CANARY_SYMBOL"],
-    note: "Signed tick reads use the Webull App Key/Secret. A trading/account access token is a separate lane and is never inferred missing from a Data API 401; WEBULL_API_HOST defaults to Webull's production Data API host.",
+    recommended: ["WEBULL_ACCESS_TOKEN", "WEBULL_API_HOST", "WEBULL_DATA_URL", "WEBULL_CANARY_SYMBOL"],
+    note: "Signed tick reads use the Webull App Key/Secret. Webull requires WEBULL_ACCESS_TOKEN only when OpenAPI 2FA is enabled, so its absence is reported as a checkpoint without being invented as the cause of a Data API 401. WEBULL_API_HOST defaults to Webull's production Data API host.",
   },
   {
     provider: "webull-broker",
