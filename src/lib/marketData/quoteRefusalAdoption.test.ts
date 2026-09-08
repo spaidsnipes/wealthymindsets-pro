@@ -91,7 +91,6 @@ const UNGATED_DEBT = [
   "app/paper/page.tsx",
   "components/chart/MainChart.tsx",
   "components/chart/StockInfoPanel.tsx",
-  "components/chart/WatchlistPanel.tsx",
 ].sort();
 
 describe("SF-D01 refusal — every gate consumer also carries the reason", () => {
@@ -183,6 +182,96 @@ describe("chart quote — a refused price is retracted, not relabelled", () => {
     expect(CHART, "the reason must be reachable from the strip").toContain(
       "QUOTE NOT CERTIFIED — ${quoteRefusal}",
     );
+  });
+});
+
+describe("watchlist — a circular zero is not a quiet market", () => {
+  const WL = read("components/chart/WatchlistPanel.tsx");
+
+  it("refuses on every Yahoo branch, not just the one that was easy", () => {
+    // Three separate call sites read /api/yahoo here (crypto fallback,
+    // futures-only, stock-first). A gate on two of three is a gate on none:
+    // the ungated branch is where the next refused price gets in.
+    //
+    // This assertion used to COUNT — `gateCalls.length >= yahooCalls.length`.
+    // A mutation proved that false green: deleting the futures branch's gate
+    // outright still left 3 gates against 3 calls, so 3 >= 3 passed while
+    // NQ1! walked back through the hole. Counting cannot see WHICH branch a
+    // gate belongs to. So bind each gate to its branch by POSITION: for every
+    // call site, a gate must appear after the fetch and before that response's
+    // price is spent.
+    const callSites: number[] = [];
+    for (let i = WL.indexOf("/api/yahoo?sym="); i !== -1; i = WL.indexOf("/api/yahoo?sym=", i + 1)) {
+      callSites.push(i);
+    }
+    expect(callSites.length, "expected three /api/yahoo quote branches").toBeGreaterThanOrEqual(3);
+
+    for (const [n, at] of callSites.entries()) {
+      // A branch ends where the next one begins; the last runs to end of file.
+      const branch = WL.slice(at, callSites[n + 1] ?? WL.length);
+      const gateAt = branch.indexOf("yahooQuoteRefusal(");
+      const spendAt = branch.indexOf("result[up] = { price:");
+
+      expect(gateAt, `the /api/yahoo branch at index ${n} reads a quote with no refusal gate at all`)
+        .toBeGreaterThanOrEqual(0);
+
+      if (spendAt !== -1) {
+        expect(gateAt, `branch ${n} spends the price before asking whether WM accepted it`)
+          .toBeLessThan(spendAt);
+      }
+    }
+  });
+
+  it("a refused row renders no price and no percentage", () => {
+    // MEASURED before the fix: `NQ1! ACTIVE DEGRADED 29565.25 +0.00%` on four
+    // rows. The +0.00% was circular — /api/yahoo returned price === prevClose,
+    // so selectQuoteChange computed prevClose − prevClose = 0 and reported it
+    // as OBSERVED, with two decimals of false precision.
+    expect(WL).toMatch(/\{item\.refusal \? "—" : item\.price\.toFixed\(dp\)\}/);
+    expect(WL).toMatch(/\{item\.refusal \? "not certified" : "chg —"\}/);
+  });
+
+  it("the refusal copy is REACHABLE, not merely present in the file", () => {
+    // The bug this catches was mine, and only the running app found it. Both
+    // assertions above passed while the strings were DEAD: a refusal retracts
+    // the price to 0, and the block containing them was gated on
+    // `item.price > 0`, so every refused row fell through to the
+    // "quote pending" placeholder instead. MEASURED with /api/yahoo forced to
+    // resolution UNKNOWN: four futures rows read "quote pending" — a delay's
+    // words on a decision, the §8 violation the atom exists to remove.
+    //
+    // Asserting a string EXISTS proves nothing about whether a user can ever
+    // see it. The gate that admits the row is the real invariant.
+    const gate = WL.match(/\{item\.price > 0 \|\| item\.refusal \? \(/);
+    expect(gate, "the price/change block must admit refused rows, which have no price")
+      .not.toBeNull();
+
+    // ...and the placeholder must remain the honest answer for its own case:
+    // a row that genuinely has not been asked about yet.
+    const gateAt = WL.indexOf("{item.price > 0 || item.refusal ? (");
+    const pendingAt = WL.indexOf("quote pending", gateAt);
+    expect(pendingAt, "the pending placeholder should still exist for un-asked rows")
+      .toBeGreaterThan(gateAt);
+  });
+
+  it("a refused price never reaches the seed table or the cache", () => {
+    // Either one would let WM re-serve, on the next mount, exactly the number
+    // it just declined — laundered of the refusal that produced it.
+    // `__wmWatchlist` also appears earlier (the cache is cleared on init), so
+    // the window has to close on the ASSIGNMENT, not the first mention.
+    const updater = WL.slice(WL.indexOf("const q = liveMap["), WL.indexOf("__wmWatchlist = cache"));
+    const refusalBranch = updater.slice(updater.indexOf("if (refusal) {"), updater.indexOf("SEED_PRICES["));
+    expect(refusalBranch, "no refusal branch found").not.toHaveLength(0);
+    expect(refusalBranch, "the refusal branch must return before SEED_PRICES is written").toContain("return {");
+    expect(WL, "a refused row must be skipped when caching").toMatch(/if \(it\.refusal\) continue;/);
+  });
+
+  it("holds a refusal while an untried provider remains", () => {
+    // Yahoo declining an EQUITY quote is not a refusal of the symbol while
+    // Alpaca and Finnhub are still unasked. Futures are the opposite case —
+    // Yahoo is the only free source, so its refusal there is final.
+    expect(WL).toMatch(/heldRefusal \?\?= yahooQuoteRefusal\(yhJ\)/);
+    expect(WL).toMatch(/if \(heldRefusal\) result\[up\] = refusedQuote\(heldRefusal/);
   });
 });
 

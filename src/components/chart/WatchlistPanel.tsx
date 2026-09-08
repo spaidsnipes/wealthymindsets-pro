@@ -8,6 +8,7 @@ import { priceSourceBadge } from "@/lib/priceSource";
 import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { provenSessionClosure } from "@/lib/marketData/canonicalIdentity";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
+import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 
 const DEFAULT_SYMBOLS = [
@@ -54,7 +55,15 @@ import { selectQuoteChange } from "@/lib/quoteChange";
 import { readSymbolList } from "@/lib/marketData/storedSymbolList";
 import { changeWindowSuffix, coerceChangeWindow, describeChangeWindow, type ChangeWindow } from "@/lib/marketData/changeWindow";
 
-interface FinnhubQuote { price: number; change: number; changePct: number; changeObserved: boolean; changeWindow: ChangeWindow; src: string; }
+interface FinnhubQuote {
+  price: number; change: number; changePct: number; changeObserved: boolean; changeWindow: ChangeWindow; src: string;
+  /**
+   * SF-D01 — set only when a provider ANSWERED and WM declined the answer.
+   * `price` is 0 in that case: a number WM refuses to certify does not get to
+   * sit in the price column while a badge two elements away hedges about it.
+   */
+  refusal?: string;
+}
 
 const FUTURES_WL = new Set(["NQ1!","ES1!","RTY1!","YM1!","GC1!","SI1!","CL1!","NG1!","ZB1!","ZN1!","ZF1!","HG1!","MNQ1!","MES1!","MYM1!","M2K1!","MGC1!","MCL1!","VX1!"]);
 const CRYPTO_WL  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC"]);
@@ -92,11 +101,33 @@ function changeFields(
   };
 }
 
+/**
+ * A row WM declined to certify. Price 0 — deliberately, and not as a sentinel
+ * for "missing".
+ *
+ * MEASURED 2026-09-07 on /charts, before this existed: every futures row read
+ *   NQ1!  ACTIVE DEGRADED  29565.25  +0.00%
+ * and the +0.00% was not a quiet market. /api/yahoo answered with
+ * `price: 29565.25` and `prevClose: 29565.25` — the SAME number, because on an
+ * UNKNOWN SF-D01 resolution the legacy `price` field falls back to the
+ * previous close. So `selectQuoteChange` computed prevClose − prevClose = 0
+ * and reported it as OBSERVED. A perfectly circular zero, rendered with two
+ * decimal places of false precision, on four rows at once.
+ *
+ * Zeroing the price routes the row into `changeObserved: false`, the honest
+ * path this panel already owns, and `refusal` carries the reason there.
+ */
+function refusedQuote(reason: string, src: string): FinnhubQuote {
+  return { price: 0, change: 0, changePct: 0, changeObserved: false, changeWindow: "UNKNOWN", src, refusal: reason };
+}
+
 async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, FinnhubQuote>> {
   const result: Record<string, FinnhubQuote> = {};
   const fetchable = syms.filter(s => !s.includes("/"));
   await Promise.all(fetchable.map(async sym => {
     const up = sym.toUpperCase();
+    // Held, not spent: a refusal is only final once no untried provider remains.
+    let heldRefusal: string | null = null;
     try {
       const isFutures = FUTURES_WL.has(up) || up.endsWith("1!");
       const isCrypto  = CRYPTO_WL.has(up);
@@ -111,13 +142,18 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
         // 24h ago. Same symbol, same column, different question — which is
         // exactly why the window travels with the number.
         const y = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+        const yRefusal = yahooQuoteRefusal(y);
+        if (yRefusal) { result[up] = refusedQuote(yRefusal, "yahoo"); return; }
         if ((y?.price ?? 0) > 0) { result[up] = { price: y.price, ...changeFields(y, "PRIOR_CLOSE"), src: "yahoo" }; return; }
         return;
       }
 
-      // Futures → Yahoo only
+      // Futures → Yahoo only. It is the sole free source here, so its refusal
+      // is final: there is no second opinion to wait for.
       if (isFutures) {
         const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+        const refusal = yahooQuoteRefusal(j);
+        if (refusal) { result[up] = refusedQuote(refusal, "yahoo"); return; }
         if ((j?.price ?? 0) > 0) result[up] = { price: j.price, ...changeFields(j, "PRIOR_CLOSE"), src: "yahoo" };
         return;
       }
@@ -126,7 +162,8 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
       // TickerTape. A same-screen value must not become LIVE merely because an
       // independent consumer happened to receive an IEX-only print first.
       const yhJ = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if (yhJ?.price > 0) { result[up] = { price: yhJ.price, ...changeFields(yhJ, "PRIOR_CLOSE"), src: "yahoo" }; return; }
+      heldRefusal ??= yahooQuoteRefusal(yhJ);
+      if (!heldRefusal && yhJ?.price > 0) { result[up] = { price: yhJ.price, ...changeFields(yhJ, "PRIOR_CLOSE"), src: "yahoo" }; return; }
 
       // Alpaca declares its own window: it falls back to the session OPEN when
       // no prior daily bar is available, which is a weaker reference than a
@@ -135,7 +172,9 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
       if ((alpacaJ?.price ?? 0) > 0) { result[up] = { price: alpacaJ.price, ...changeFields(alpacaJ, "PRIOR_CLOSE"), src: "alpaca" }; return; }
 
       const fhJ = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-      if (fhJ?.price > 0) result[up] = { price: fhJ.price, ...changeFields(fhJ, "PRIOR_CLOSE"), src: "finnhub" };
+      if (fhJ?.price > 0) { result[up] = { price: fhJ.price, ...changeFields(fhJ, "PRIOR_CLOSE"), src: "finnhub" }; return; }
+      // Every provider is spent. NOW the held refusal is the answer.
+      if (heldRefusal) result[up] = refusedQuote(heldRefusal, "yahoo");
     } catch {}
   }));
   return result;
@@ -157,6 +196,8 @@ interface WatchItem {
   changeWindow: ChangeWindow;
   history: number[]; // last 20 prices for sparkline
   src?: string;
+  /** SF-D01 — a provider answered and WM declined it. `price` is 0. */
+  refusal?: string;
 }
 
 function Sparkline({ data, up }: { data: number[]; up: boolean }) {
@@ -404,15 +445,31 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
           const updated = prev.map(item => {
             const q = liveMap[item.sym.toUpperCase()];
             if (!q) return item;
-            const { price, change, changePct, changeObserved, changeWindow, src } = q;
+            const { price, change, changePct, changeObserved, changeWindow, src, refusal } = q;
+            if (refusal) {
+              // Retract. Leaving the previous round's price on the row would
+              // let a quote certified at 13:00 keep rendering after WM stopped
+              // certifying it — a claim that ages into a lie with nothing on
+              // screen saying so. And a refused number must not reach
+              // SEED_PRICES either, or it would be reborn as the seed on the
+              // next mount, laundered of the refusal that produced it.
+              return { ...item, price: 0, change: 0, changePct: 0, changeObserved: false, changeWindow: "UNKNOWN" as ChangeWindow, src, refusal };
+            }
             SEED_PRICES[item.sym.toUpperCase()] = price;
             const dp = price < 10 ? 4 : 2;
-            return { ...item, price: +price.toFixed(dp), change, changePct, changeObserved, changeWindow, src };
+            return { ...item, price: +price.toFixed(dp), change, changePct, changeObserved, changeWindow, src, refusal: undefined };
           });
           // Persist to window cache only (localStorage cleared on init to prevent stale change%)
           try {
             const cache: Record<string, any> = { _ts: Date.now() };
-            for (const it of updated) cache[it.sym.toUpperCase()] = { price: it.price, change: it.change, changePct: it.changePct, changeObserved: it.changeObserved, changeWindow: it.changeWindow };
+            // A refused row is not cached. The cache exists to survive an HMR
+            // re-mount with correct data; persisting a refusal's zero would
+            // just replay it, and persisting the price it replaced would
+            // resurrect exactly the number WM declined.
+            for (const it of updated) {
+              if (it.refusal) continue;
+              cache[it.sym.toUpperCase()] = { price: it.price, change: it.change, changePct: it.changePct, changeObserved: it.changeObserved, changeWindow: it.changeWindow };
+            }
             (window as any).__wmWatchlist = cache;
           } catch {}
           return updated;
@@ -798,7 +855,16 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
 
                     {/* Price + % change stacked */}
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      {item.price > 0 ? (
+                      {/* A refusal RETRACTS the price to 0, so gating this
+                          block on `price > 0` alone sent every refused row to
+                          the "quote pending" placeholder below — handing a
+                          designed refusal a transient state's vocabulary, the
+                          exact §8 failure this atom exists to remove. MEASURED
+                          in the running app: with /api/yahoo forced to
+                          resolution UNKNOWN, all four futures rows read
+                          "quote pending". The refused row has no price but it
+                          DOES have something to say, so it must enter here. */}
+                      {item.price > 0 || item.refusal ? (
                         <>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
                             {(() => {
@@ -827,8 +893,11 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
                               });
                               return <CanonicalFidelityBadge badge={b} variant="compact" titleSuffix={`— ${item.sym}`} capabilityReport={capabilityReport} />;
                             })()}
-                            <div style={{ fontSize: 11, color: dirColor, fontFamily: "monospace", fontWeight: 600 }}>
-                              {item.price.toFixed(dp)}
+                            <div
+                              style={{ fontSize: 11, color: item.refusal ? "#4A5070" : dirColor, fontFamily: "monospace", fontWeight: 600 }}
+                              title={item.refusal ? `${item.sym}: not certified — ${item.refusal}\n\nA provider answered and WM declined the answer. This is a refusal, not a delay.` : undefined}
+                            >
+                              {item.refusal ? "—" : item.price.toFixed(dp)}
                             </div>
                           </div>
                           {item.changeObserved ? (
@@ -849,9 +918,17 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange }: Pro
                               )}
                             </div>
                           ) : (
+                            // §8 — "this feed returned a price but no session
+                            // change" is a true sentence about a DIFFERENT
+                            // fact. When WM refused the quote outright, the
+                            // row has no price either, and saying otherwise
+                            // gives a designed refusal a transient state's
+                            // vocabulary.
                             <div style={{ fontSize: 9, color: "#4A5070", fontFamily: "monospace" }}
-                              title={`${item.sym}: this feed returned a price but no session change.`}>
-                              chg —
+                              title={item.refusal
+                                ? `${item.sym}: not certified — ${item.refusal}`
+                                : `${item.sym}: this feed returned a price but no session change.`}>
+                              {item.refusal ? "not certified" : "chg —"}
                             </div>
                           )}
                         </>
