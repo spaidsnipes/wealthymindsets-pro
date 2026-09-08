@@ -44,6 +44,7 @@ import {
   type PaperBookIntegrity,
   type PaperPersistenceResult,
   type PaperState,
+  type EquityPoint,
   type Order,
   type OrderSide,
   type OrderStatus,
@@ -123,9 +124,15 @@ const UNIVERSE: Record<string,{ name:string; base:number; tick:number }> = {
  * "compatible" right up until the canonical owner learns something new, and
  * then it silently teaches the surface less than the truth. §6/§24 and H21 —
  * ONE OWNER PER RULE — are not stylistic. The types come from the owner now.
+ *
+ * A SEVENTH SHADOW SURVIVED THE FIRST SWEEP. `EquityPoint` sat three lines
+ * below this comment while the comment claimed the types came from the owner.
+ * The guard written alongside that sweep listed the six names the compiler had
+ * just burned us with — so it certified this file green while the defect was
+ * still in it. A rule derived from an injury only ever covers the injury. The
+ * guard now derives its list from paperTrade.ts's actual export surface, so a
+ * type added there tomorrow is protected here without anyone remembering to.
  */
-
-interface EquityPoint { ts: number; equity: number; }
 
 function uid() { return Math.random().toString(36).slice(2,9); }
 

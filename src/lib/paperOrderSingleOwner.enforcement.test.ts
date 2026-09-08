@@ -36,13 +36,62 @@ import { resolve } from "node:path";
 
 const PAGE = resolve(process.cwd(), "src/app/paper/page.tsx");
 const src = readFileSync(PAGE, "utf8");
+const OWNER = resolve(process.cwd(), "src/lib/paperTrade.ts");
+const ownerSrc = readFileSync(OWNER, "utf8");
 
-/** Names paperTrade.ts owns. /paper may USE these; it may not DEFINE them. */
-const OWNED_BY_PAPERTRADE = [
+/**
+ * Names paperTrade.ts owns — DERIVED FROM THE OWNER, NOT HAND-LISTED.
+ *
+ * The first version of this file hardcoded the six names the compiler had just
+ * burned us with. `EquityPoint` was a seventh shadow in the same file, and the
+ * hand-written list walked straight past it and reported green. A guard built
+ * from the injury covers only the injury; the owner's export surface is the
+ * actual thing being protected, so the owner's export surface is what we read.
+ */
+const OWNED_BY_PAPERTRADE: readonly string[] = Array.from(
+  ownerSrc.matchAll(/^export\s+(?:interface|type)\s+([A-Z][A-Za-z0-9_]*)/gm),
+  (m) => m[1],
+);
+
+/**
+ * The names /paper actually uses. Only these must be IMPORTED — the owner
+ * exports plenty this surface has no business knowing about, and demanding it
+ * import them would teach the next person to add unused imports to appease a
+ * test.
+ */
+const USED_BY_PAPER = [
   "Order", "Position", "Trade", "OrderSide", "OrderType", "OrderStatus",
+  "EquityPoint",
 ] as const;
 
 describe("paper order contract — one owner", () => {
+  /**
+   * THE GUARD ON THE GUARD. `it.each([])` registers NO tests and reports a
+   * green file. If the derivation regex ever stops matching — someone
+   * reformats the owner's exports, or a build step rewrites them — this whole
+   * rule set would evaporate silently and we would learn nothing until the
+   * next shadow shipped. That is the same class of failure as the shadow
+   * itself: a check that has quietly stopped checking.
+   */
+  it("derives a real list from the owner, and would notice if it did not", () => {
+    expect(
+      OWNED_BY_PAPERTRADE.length,
+      "derived zero names from paperTrade.ts — every rule below is now vacuous",
+    ).toBeGreaterThanOrEqual(10);
+    // Spot-anchors: the contract's spine must be in the derived list.
+    for (const anchor of ["Order", "Position", "Trade", "EquityPoint"]) {
+      expect(OWNED_BY_PAPERTRADE, `${anchor} vanished from the owner`).toContain(anchor);
+    }
+  });
+
+  it("every name /paper claims to use is genuinely owned by paperTrade", () => {
+    // Stops USED_BY_PAPER drifting into a list of names nobody owns, which
+    // would make the import rule below assert something meaningless.
+    for (const name of USED_BY_PAPER) {
+      expect(OWNED_BY_PAPERTRADE, `${name} is not exported by paperTrade.ts`).toContain(name);
+    }
+  });
+
   it.each(OWNED_BY_PAPERTRADE)(
     "/paper does not declare its own %s",
     (name) => {
@@ -61,7 +110,7 @@ describe("paper order contract — one owner", () => {
 
   it("imports the contract from its canonical owner", () => {
     expect(src).toContain("@/lib/paperTrade");
-    for (const name of OWNED_BY_PAPERTRADE) {
+    for (const name of USED_BY_PAPER) {
       expect(src, `${name} is not imported from the owner`)
         .toMatch(new RegExp(`type\\s+${name}\\s*,`));
     }
