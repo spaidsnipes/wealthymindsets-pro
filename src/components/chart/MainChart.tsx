@@ -452,6 +452,10 @@ interface Props {
   paperTradesVisible?: boolean;
   // Fullscreen delegation — parent provides the element to fullscreen
   onRequestFullscreen?: () => void;
+  // ChartsDashboard already owns the workspace-level fidelity verdict. Hide
+  // this chart-local copy when embedded there so one market state has one
+  // visible writer; standalone charts keep the badge by default.
+  showFidelityChrome?: boolean;
 }
 
 /* ── Heikin Ashi transform ───────────────────────────────── */
@@ -687,6 +691,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   bigTradesOverlay = false,
   paperTradesVisible = true,
   onRequestFullscreen,
+  showFidelityChrome = true,
 }: Props) {
   const containerRef  = useRef<HTMLDivElement>(null);
   const wrapRef       = useRef<HTMLDivElement>(null);
@@ -6936,7 +6941,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               ? `${up ? "+" : ""}${change.toFixed(dp)} (${up ? "+" : ""}${changePct}%)`
               : "— (change unavailable)"}
           </span>
-          {(() => {
+          {showFidelityChrome && (() => {
             // SHIFT-T cutover — canon §BINDING LEGACY DATA + SURFACE
             // CUTOVER LAW (2026-08-29): "OLD PROVIDER CHROME AND OLD
             // CHART-APP SURFACES ARE QUARANTINED FROM THE NEW OS PATH."
@@ -7028,7 +7033,9 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                         had one sentence between them, exactly as the ticker
                         tape's "quote pending" did. A timestamped bar still
                         earns the historical receipt either way. */}
-                    {lastBarT
+                    {!showFidelityChrome
+                      ? `LAST ${lastStr}`
+                      : lastBarT
                       ? `HISTORICAL ONLY · LAST ${lastStr}`
                       : quoteRefusal ? "QUOTE NOT CERTIFIED" : "DATA UNAVAILABLE"}
                   </span>
@@ -7046,10 +7053,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
                      extra. */
                   <span className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-wm-text animate-pulse" aria-hidden="true" />
-                    <span className="text-[10px] text-wm-text font-semibold">LIVE — CERTIFIED QUOTE</span>
+                    <span className="text-[10px] text-wm-text font-semibold">
+                      {showFidelityChrome ? "LIVE — CERTIFIED QUOTE" : `LAST ${lastStr}`}
+                    </span>
                   </span>
                 ) : (
-                  <span className="text-[10px] font-semibold" style={{ color: "#F0B429" }}>{status.label} · LAST {lastStr}</span>
+                  <span className="text-[10px] font-semibold" style={{ color: "#F0B429" }}>
+                    {showFidelityChrome ? `${status.label} · LAST ${lastStr}` : `LAST ${lastStr}`}
+                  </span>
                 )}
               </div>
             );

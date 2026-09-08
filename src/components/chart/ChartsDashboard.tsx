@@ -1893,6 +1893,7 @@ export function ChartsDashboard() {
                       sessionVPActive={sessionVPChart}
                       paperTradesVisible={paperTradesOn}
                       onRequestFullscreen={handleRequestFullscreen}
+                      showFidelityChrome={false}
                     />
                     </ErrorBoundary>
                   </div>
@@ -1912,6 +1913,7 @@ export function ChartsDashboard() {
                         candleType={candleType}
                         chartSettings={effChartSettings}
                         paperTradesVisible={paperTradesOn}
+                        showFidelityChrome={false}
                       />
                     </div>
                   )}
@@ -1919,10 +1921,10 @@ export function ChartsDashboard() {
                   {chartLayout === "4" && (
                     <>
                       <div style={{ width:"50%", flexShrink:0, borderTop:"1px solid #1E2030", display:"flex", overflow:"hidden", minHeight:0 }}>
-                        <MainChart symbol={symbol} timeframe="5m" footprintType={footprintType} footprintEnabled={footprintEnabled} bigTradesOverlay={bigTradesSimul && bigTradesOverlay} candleType={candleType} chartSettings={effChartSettings} />
+                        <MainChart symbol={symbol} timeframe="5m" footprintType={footprintType} footprintEnabled={footprintEnabled} bigTradesOverlay={bigTradesSimul && bigTradesOverlay} candleType={candleType} chartSettings={effChartSettings} showFidelityChrome={false} />
                       </div>
                       <div style={{ width:"50%", flexShrink:0, borderTop:"1px solid #1E2030", borderLeft:"1px solid #1E2030", display:"flex", overflow:"hidden", minHeight:0 }}>
-                        <MainChart symbol={symbol} timeframe="15m" footprintType={footprintType} footprintEnabled={footprintEnabled} bigTradesOverlay={bigTradesSimul && bigTradesOverlay} candleType={candleType} chartSettings={effChartSettings} />
+                        <MainChart symbol={symbol} timeframe="15m" footprintType={footprintType} footprintEnabled={footprintEnabled} bigTradesOverlay={bigTradesSimul && bigTradesOverlay} candleType={candleType} chartSettings={effChartSettings} showFidelityChrome={false} />
                       </div>
                     </>
                   )}
