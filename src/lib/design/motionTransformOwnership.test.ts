@@ -45,9 +45,8 @@ function tsxFiles(dir: string, out: string[] = []): string[] {
  * className could fall outside the captured text — the rule would then pass by
  * simply failing to look.
  */
-function motionOpeningTags(src: string): string[] {
+function scanOpeningTags(src: string, marker: RegExp): string[] {
   const tags: string[] = [];
-  const marker = /<motion\.[A-Za-z][\w.]*/g;
   let m: RegExpExecArray | null;
   while ((m = marker.exec(src))) {
     let depth = 0;
@@ -66,6 +65,9 @@ function motionOpeningTags(src: string): string[] {
   }
   return tags;
 }
+
+const motionOpeningTags = (src: string) => scanOpeningTags(src, /<motion\.[A-Za-z][\w.]*/g);
+const openingTags = (src: string) => scanOpeningTags(src, /<[A-Za-z][\w.]*(?=[\s/>])/g);
 
 /** Tailwind utilities that compile to `transform`. Framer will overwrite them. */
 const TRANSFORM_UTILITY =
@@ -94,6 +96,28 @@ describe("Framer owns `transform` on a motion element", () => {
         for (const cls of classNamesIn(tag)) {
           if (TRANSFORM_UTILITY.test(cls)) {
             offenders.push(`${path.relative(process.cwd(), file)}: ${cls.trim().slice(0, 90)}`);
+          }
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("no element hands `transform` to both a class and an inline style", () => {
+    /**
+     * The same rule one step out. `transform` has exactly one owner per
+     * element; an inline `style={{ transform }}` wins over a utility class
+     * silently, exactly as Framer does. VERIFIED 0 conflicts at the time this
+     * was written — this rule holds that line rather than discovers it.
+     */
+    const offenders: string[] = [];
+    for (const file of files) {
+      const src = fs.readFileSync(file, "utf8");
+      for (const tag of openingTags(src)) {
+        if (!/style\s*=/.test(tag) || !/transform\s*:/.test(tag)) continue;
+        for (const cls of classNamesIn(tag)) {
+          if (TRANSFORM_UTILITY.test(cls)) {
+            offenders.push(`${path.relative(process.cwd(), file)}: ${cls.trim().slice(0, 80)}`);
           }
         }
       }
