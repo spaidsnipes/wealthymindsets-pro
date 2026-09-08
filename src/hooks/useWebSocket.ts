@@ -35,6 +35,7 @@ import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 import { coalesceQuoteRequest } from "@/lib/marketData/quoteRequestCoalescer";
 import { InFlightRounds } from "@/lib/marketData/inFlightRounds";
+import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 
 /**
  * Provider-tick rounds share one identity space, separate from quotes, so a
@@ -332,7 +333,7 @@ async function fetchRealQuoteUncoalesced(sym: string): Promise<QuoteAnswer | nul
   // the accurate primary; Alpaca/Finnhub are fallbacks only if Yahoo fails. ───
   if (!isFutures && !isForex && !isCrypto) {
     try {
-      const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      const j = await fetchYahooQuoteBody(sym) as any;
       const q = mk(j, "yahoo");
       if (q?.kind === "quote") return q;
       if (q?.kind === "refused") heldRefusal ??= q.reason;
@@ -356,7 +357,7 @@ async function fetchRealQuoteUncoalesced(sym: string): Promise<QuoteAnswer | nul
   // ── Futures + Crypto + final fallback: Yahoo Finance proxy ──────────────
   // For futures this IS the only free source, so a refusal here is final.
   try {
-    const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+    const j = await fetchYahooQuoteBody(sym) as any;
     const q = mk(j, "yahoo");
     if (q?.kind === "quote") return q;
     if (q?.kind === "refused") heldRefusal ??= q.reason;

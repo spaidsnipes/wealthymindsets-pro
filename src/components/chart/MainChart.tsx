@@ -38,6 +38,7 @@ import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosur
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
+import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import type { PineOutput } from "@/lib/pine/types";
 import { interpretPine } from "@/lib/pine/interpreter";
 import * as IND from "./indicators";
@@ -1659,9 +1660,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       // Retract to 0 and the existing `spotPrice > 0` guard already skips the
       // check: the candles then stand on their own provenance, which is the
       // honest fallback this code path already owns.
-      const spotFetch = fetch(`/api/yahoo?sym=${encodeURIComponent(symbol)}&type=quote`, { cache: "no-store", signal: myAbortSignal })
-        .then(r => r.json())
-        .then(j => (yahooQuoteRefusal(j) ? 0 : (j?.price ?? 0)) as number)
+      // The round is SHARED with the tape and useWebSocket, so `myAbortSignal`
+      // deliberately does not enter it: this chart unmounting mid-flight must
+      // not cancel a request the other two are waiting on, or they would read
+      // the abort as the provider's answer. Cancellation is a property of a
+      // consumer and is applied here, to the RESULT.
+      const spotFetch = fetchYahooQuoteBody(symbol)
+        .then(j => (myAbortSignal.aborted || yahooQuoteRefusal(j) ? 0 : ((j as any)?.price ?? 0)) as number)
         .catch(() => 0);
 
       // Bar count scales with timeframe so higher timeframes pull years of history

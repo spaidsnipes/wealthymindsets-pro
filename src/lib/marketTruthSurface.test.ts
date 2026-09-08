@@ -11,8 +11,19 @@ describe("same-screen market truth contract", () => {
 
     const watchlistStockPolicy = watchlist.slice(watchlist.indexOf("Stocks/ETFs use the same"));
     const tickerStockPolicy = tickerTape.slice(tickerTape.indexOf("Stocks/ETFs use the same"));
-    expect(watchlistStockPolicy.indexOf("/api/yahoo")).toBeLessThan(watchlistStockPolicy.indexOf("/api/alpaca"));
-    expect(tickerStockPolicy.indexOf("/api/yahoo")).toBeLessThan(tickerStockPolicy.indexOf("/api/alpaca"));
+    // Both surfaces now ask the shared Yahoo round owner instead of building
+    // the URL, so the Yahoo leg is located by the ASK. Anchoring on the URL
+    // still "found" a match here — a stray mention in a comment ~40k
+    // characters downstream — and so reported Yahoo as running AFTER Alpaca.
+    // The ORDER of the two providers is the invariant; the transport is not.
+    const askedYahooAt = (policy: string) => {
+      const at = policy.indexOf("fetchYahooQuoteBody(");
+      return at === -1 ? policy.indexOf("/api/yahoo") : at;
+    };
+    expect(askedYahooAt(watchlistStockPolicy)).toBeGreaterThan(-1);
+    expect(askedYahooAt(tickerStockPolicy)).toBeGreaterThan(-1);
+    expect(askedYahooAt(watchlistStockPolicy)).toBeLessThan(watchlistStockPolicy.indexOf("/api/alpaca"));
+    expect(askedYahooAt(tickerStockPolicy)).toBeLessThan(tickerStockPolicy.indexOf("/api/alpaca"));
   });
 
   it("never routes crypto display quotes through the Alpaca equity fallback", () => {

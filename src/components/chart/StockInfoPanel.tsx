@@ -1,6 +1,7 @@
 "use client";
 
 import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDisplay";
+import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import React, { useState, useRef, useEffect } from "react";
 import { Heart, Bell, ChevronDown } from "lucide-react";
@@ -119,8 +120,7 @@ export function StockInfoPanel({ symbol }: Props) {
     // Yahoo for everything — it includes pre/post-market (matches TradingView);
     // Finnhub free is regular-hours-only and goes stale outside RTH.
     void isFutures; void isCrypto;
-    const url = `/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`;
-    fetch(url, { cache: "no-store" }).then(r => r.json()).then(j => {
+    fetchYahooQuoteBody(up).then((j: any) => {
       // SF-D01: when the quote is refused, `j.price` silently falls back to
       // prevClose — so `j.price > 0` was a refused number authorising the
       // session facts below. Ask the owner of the gate instead of trusting

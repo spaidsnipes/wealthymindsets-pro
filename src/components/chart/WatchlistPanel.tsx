@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Plus, TrendingUp, TrendingDown, LayoutGrid, List } from "lucide-react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
@@ -145,7 +146,7 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
         // prices crypto against a synthetic prior close, the exchange against
         // 24h ago. Same symbol, same column, different question — which is
         // exactly why the window travels with the number.
-        const y = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+        const y = await fetchYahooQuoteBody(up) as any;
         const yRefusal = yahooQuoteRefusal(y);
         if (yRefusal) { result[up] = refusedQuote(yRefusal, "yahoo"); return; }
         if ((y?.price ?? 0) > 0) { result[up] = { price: y.price, ...changeFields(y, "PRIOR_CLOSE"), src: "yahoo" }; return; }
@@ -155,7 +156,7 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
       // Futures → Yahoo only. It is the sole free source here, so its refusal
       // is final: there is no second opinion to wait for.
       if (isFutures) {
-        const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+        const j = await fetchYahooQuoteBody(up) as any;
         const refusal = yahooQuoteRefusal(j);
         if (refusal) { result[up] = refusedQuote(refusal, "yahoo"); return; }
         if ((j?.price ?? 0) > 0) result[up] = { price: j.price, ...changeFields(j, "PRIOR_CLOSE"), src: "yahoo" };
@@ -165,7 +166,7 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
       // Stocks/ETFs use the same consolidated-first semantic as MainChart and
       // TickerTape. A same-screen value must not become LIVE merely because an
       // independent consumer happened to receive an IEX-only print first.
-      const yhJ = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
+      const yhJ = await fetchYahooQuoteBody(up).catch(() => null) as any;
       heldRefusal ??= yahooQuoteRefusal(yhJ);
       if (!heldRefusal && yhJ?.price > 0) { result[up] = { price: yhJ.price, ...changeFields(yhJ, "PRIOR_CLOSE"), src: "yahoo" }; return; }
 

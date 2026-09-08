@@ -75,7 +75,20 @@ function yahooQuoteReaders(): string[] {
   return sourceFiles().filter((rel) => {
     if (rel.startsWith(path.join("app", "api") + path.sep)) return false; // the endpoints themselves
     if (rel === path.join("lib", "marketData", "yahooQuoteObserved.ts")) return false;
-    return /\/api\/yahoo\?[^`'"]*type=quote/.test(read(rel));
+    // The TRANSPORT owner issues the request and interprets nothing. Requiring
+    // it to consult SF-D01 would move interpretation into the transport, which
+    // is precisely what it exists not to do: its three consumers want three
+    // different readings of one body. It is excluded for the same reason the
+    // endpoints above are — neither renders a price to anybody.
+    if (rel === path.join("lib", "marketData", "yahooQuoteRounds.ts")) return false;
+    const src = read(rel);
+    // RE-ANCHORED 2026-09-08. This used to detect a reader by the /api/yahoo
+    // URL it built. Once the duplicate-request fix gave the round a single
+    // owner, exactly ONE file still contained that URL and the entire rule
+    // silently emptied out — the seven real readers were no longer "readers"
+    // by this definition, and the debt ledger below went vacuously green.
+    // Asking the endpoint is now a CALL, not a string, so both forms count.
+    return /\/api\/yahoo\?[^`'"]*type=quote/.test(src) || /fetchYahooQuoteBody\(/.test(src);
   });
 }
 
@@ -201,11 +214,16 @@ describe("chart quote — a refused price is retracted, not relabelled", () => {
     // `j.price` falls back to prevClose, so an uncertified number could reject
     // real Alpaca/Finnhub/Polygon candles and blank the chart — worst across a
     // weekend or a gap, precisely where prevClose is furthest from the truth.
-    const at = CHART.indexOf("const spotFetch = fetch(");
+    // Anchored on the binding, not on `fetch(`: the request is now issued by
+    // the shared round owner, but the veto and its gate still live here.
+    const at = CHART.indexOf("const spotFetch = ");
     expect(at, "spotFetch must still exist").toBeGreaterThan(-1);
     const spot = CHART.slice(at, CHART.indexOf(".catch(() => 0);", at));
     const gateAt = spot.indexOf("yahooQuoteRefusal(");
-    const priceAt = spot.indexOf("j?.price");
+    // `?.price`, not `j?.price`: the shared round hands back an `unknown` body,
+    // so the read is now cast at the point of use. WHERE the price is read is
+    // the invariant; the spelling of the binding it is read from is not.
+    const priceAt = spot.indexOf("?.price");
     expect(gateAt, "spotFetch must consult the gate").toBeGreaterThan(-1);
     expect(gateAt, "the veto must not be armed before the gate answers").toBeLessThan(priceAt);
 
@@ -263,8 +281,12 @@ describe("watchlist — a circular zero is not a quiet market", () => {
     // gate belongs to. So bind each gate to its branch by POSITION: for every
     // call site, a gate must appear after the fetch and before that response's
     // price is spent.
+    // Re-anchored to the CALL rather than the URL: the three branches now ask
+    // the shared round owner instead of building three identical URLs. The
+    // rule — a gate per branch, bound by position — is untouched.
+    const ASK = "fetchYahooQuoteBody(";
     const callSites: number[] = [];
-    for (let i = WL.indexOf("/api/yahoo?sym="); i !== -1; i = WL.indexOf("/api/yahoo?sym=", i + 1)) {
+    for (let i = WL.indexOf(ASK); i !== -1; i = WL.indexOf(ASK, i + 1)) {
       callSites.push(i);
     }
     expect(callSites.length, "expected three /api/yahoo quote branches").toBeGreaterThanOrEqual(3);
@@ -430,7 +452,7 @@ describe("stock info panel — zero is not a price, and it has no colour", () =>
     // SF-D01: on refusal `j.price` silently falls back to prevClose, so the
     // old `j.price > 0` admission test was a refused number granting itself
     // permission. The gate owner must be asked first.
-    const effect = SIP.slice(SIP.indexOf("const url = `/api/yahoo"), SIP.indexOf("}, [symbol]);"));
+    const effect = SIP.slice(SIP.indexOf("fetchYahooQuoteBody("), SIP.indexOf("}, [symbol]);"));
     const gateAt = effect.indexOf("yahooQuoteRefusal(j)");
     const setAt = effect.indexOf("setRealOHLC({");
     expect(gateAt, "the OHLC read must consult the refusal gate").toBeGreaterThanOrEqual(0);

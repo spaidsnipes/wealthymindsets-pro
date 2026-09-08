@@ -16,6 +16,7 @@ import {
   selectTapeQuoteFreshness,
 } from "@/lib/marketData/tapeQuoteFreshness";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
+import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 
 /** The rail's poll cadence. Also the interval the visibility handler tops up. */
 const TAPE_POLL_INTERVAL_MS = 10_000;
@@ -186,7 +187,7 @@ async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
   // Futures → Yahoo (only free source for futures)
   if (FUTURES_SYMS.has(up) || up.endsWith("1!")) {
     try {
-      const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      const j = await fetchYahooQuoteBody(up) as any;
       const price = j?.price ?? 0;
       const yc = selectQuoteChange({ price, prevClose: j?.prevClose });
       if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
@@ -208,7 +209,7 @@ async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
     } catch {}
     // Fallback to Yahoo for crypto
     try {
-      const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      const j = await fetchYahooQuoteBody(up) as any;
       const price = j?.price ?? 0;
       const yc = selectQuoteChange({ price, prevClose: j?.prevClose });
       if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
@@ -224,7 +225,7 @@ async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
   // observe this symbol. It becomes the row's answer only if they do not.
   let yahooRefusal: string | null = null;
   try {
-    const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+    const j = await fetchYahooQuoteBody(up) as any;
     const price = j?.price ?? 0;
     const yc = selectQuoteChange({ price, prevClose: j?.prevClose });
     if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };

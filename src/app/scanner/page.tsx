@@ -1,5 +1,6 @@
 "use client";
 import { strengthDisclosure } from "@/lib/scannerStrength";
+import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 
 /**
  * Scanner — Real-time multi-filter market scanner
@@ -258,7 +259,7 @@ async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFa
       try {
         const identity = scannerRsiIdentity(sym);
         const [quoteJson, rsiResult] = await Promise.all([
-          fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json()),
+          fetchYahooQuoteBody(sym) as Promise<any>,
           fetchRSI(identity, consumer, failures),
         ]);
         const price = quoteJson?.price ?? 0;

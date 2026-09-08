@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import Link from "next/link";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useWMS } from "@/contexts/WMSContext";
@@ -259,7 +260,7 @@ function useLivePrices() {
       const nextReadiness = { ...readinessRef.current };
       await Promise.all(Object.keys(UNIVERSE).map(async sym => {
         try {
-          const j = await fetch(`/api/yahoo?sym=${encodeURIComponent(sym)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+          const j = await fetchYahooQuoteBody(sym) as any;
           const readiness = selectPaperQuoteReadiness(
             j,
             readinessRef.current[sym] ?? initialPaperQuoteReadiness(),
