@@ -10,7 +10,7 @@ import {
   type ReadinessPayload,
 } from "@/lib/broker/selectReadinessWireboard";
 
-type WireTone = "LIVE" | "LIMITED" | "BLOCKED" | "OFFLINE" | "CHECKING";
+type WireTone = "LIVE" | "LIMITED" | "BLOCKED" | "OFFLINE" | "CHECKING" | "SUSPENDED";
 
 export interface ProviderWireView {
   readonly source: string;
@@ -206,6 +206,33 @@ export function providerWireView(source: SourceCertification): ProviderWireView 
   return { source: source.source, tone: "OFFLINE", label: "Not runtime-wired", detail: source.rows.find((row) => row.note)?.note || "No capability evidence returned." };
 }
 
+/**
+ * A withdrawn receipt has TWO causes and they are not the same claim.
+ *
+ * A probe that is genuinely in flight is CHECKING. A probe this surface
+ * deliberately declined to issue — because the document is hidden and polling
+ * a backgrounded tab burns a phone's battery and a provider's rate limit — is
+ * SUSPENDED. Rendering the second as "Canonical capability receipt in
+ * progress." states that work is happening when no request exists.
+ *
+ * This is not a rare edge on a phone. iOS marks the tab hidden on every app
+ * switch, screen lock and notification-shade pull, and `visibilitychange`
+ * invalidates the previous receipt on the way out. So the trader who comes
+ * back to WM Pro is told his wires are being checked at the exact moment
+ * nothing is being checked.
+ *
+ * SUSPENDED must therefore also carry its own recovery: the reason it stopped
+ * and the action that restarts it.
+ */
+export function suspendedProviderWireView(source: string): ProviderWireView {
+  return {
+    source,
+    tone: "SUSPENDED",
+    label: "Paused",
+    detail: "Not checked while this surface is in the background. Reopen it to re-probe the wire.",
+  };
+}
+
 export function matrixProviderWireView(
   matrix: AthosCapabilityMatrix | null | undefined,
   source: string,
@@ -260,12 +287,75 @@ export function matrixProviderWireView(
   return { source, tone: "OFFLINE", label: rejected.length > 0 ? "Not receiving" : "Status unavailable", detail };
 }
 
+export const PROVIDER_SOURCES = ["moomoo", "longbridge", "webull", "tastytrade", "alpaca"] as const;
+
+export interface ProviderWireInputs {
+  readonly matrix: AthosCapabilityMatrix | null;
+  readonly readiness: ReadinessPayload | null;
+  readonly moomooTicks: MoomooTickReceipt | null;
+  readonly longbridgeTicks: MoomooTickReceipt | null;
+  readonly failures: ReadonlySet<string>;
+  readonly suspended: boolean;
+}
+
+/**
+ * The single owner of which claim a wire is allowed to make.
+ *
+ * This lived inline in the render body, which meant the precedence between
+ * "paused", "failed" and "observed" could only be checked by reading JSX. It
+ * is the rule most likely to produce a beautiful lie, so it gets to be a
+ * function with a name and a test.
+ */
+export function selectProviderWires(inputs: ProviderWireInputs): ProviderWireView[] {
+  const { matrix, readiness, moomooTicks, longbridgeTicks, failures, suspended } = inputs;
+
+  // A pause may only speak for a strip holding NO verdict at all — no receipt
+  // and no observed failure. "We stopped checking" must never erase "we
+  // checked, and it was blocked". Those were earned; a pause is the absence
+  // of work, and absence of work outranks nothing.
+  const holdsNoVerdict = !matrix && !readiness && !moomooTicks && !longbridgeTicks && failures.size === 0;
+  if (suspended && holdsNoVerdict) {
+    return PROVIDER_SOURCES.map((source) => suspendedProviderWireView(source));
+  }
+
+  const marketWires: ProviderWireView[] = failures.has("market") && !matrix
+    ? PROVIDER_SOURCES.map((source) => ({ source, tone: "OFFLINE" as const, label: "Status unavailable", detail: "The canonical capability probe did not return." }))
+    : PROVIDER_SOURCES.map((source) => matrixProviderWireView(matrix, source));
+  const moomooWire = failures.has("moomoo") && !moomooTicks
+    ? { source: "moomoo", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated tick receipt did not return." }
+    : moomooTicks ? moomooTickWireView(moomooTicks) : null;
+  const longbridgeWire = failures.has("longbridge") && !longbridgeTicks
+    ? { source: "longbridge", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated Longbridge tick receipt did not return." }
+    : longbridgeTicks ? longbridgeTickWireView(longbridgeTicks) : null;
+  const readinessOverrides = {
+    tastytrade: providerConfigReadinessWireView(readiness, "tastytrade", ["tastytrade"]),
+    alpaca: providerConfigReadinessWireView(readiness, "alpaca", ["alpaca-paper", "alpaca-live"]),
+  } as const;
+
+  return marketWires.map((wire) => {
+    if (wire.source === "moomoo" && moomooWire) return moomooWire;
+    if (wire.source === "longbridge" && longbridgeWire) return longbridgeWire;
+    if (wire.source === "tastytrade" || wire.source === "alpaca") {
+      const override = readinessOverrides[wire.source];
+      // Missing required configuration is a more exact cause than a generic
+      // no-receipt result. Never replace an observed/auth/entitlement probe,
+      // and never promote configured-to-attempt over a failed live probe.
+      if (override && override.tone === "OFFLINE" && wire.tone === "OFFLINE") return override;
+      if (override && (wire.label === "Status unavailable" || wire.label === "Not runtime-wired")) return override;
+    }
+    return wire;
+  });
+}
+
 const TONE_COLOR: Record<WireTone, string> = {
   LIVE: "#46d39a",
   LIMITED: "#f0b429",
   BLOCKED: "#ff6b6b",
   OFFLINE: "#8b92ac",
   CHECKING: "#8b92ac",
+  // Deliberately dimmer than CHECKING. A paused wire is not a wire being
+  // worked on, and the colour must not imply motion that is not happening.
+  SUSPENDED: "#6b7189",
 };
 
 export default function ProviderWireStrip({ compact = false }: { readonly compact?: boolean }) {
@@ -274,6 +364,10 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
   const [moomooTicks, setMoomooTicks] = React.useState<MoomooTickReceipt | null>(null);
   const [longbridgeTicks, setLongbridgeTicks] = React.useState<MoomooTickReceipt | null>(null);
   const [failures, setFailures] = React.useState<ReadonlySet<string>>(() => new Set());
+  // Declared LAST on purpose: the refresh lifecycle tests address this
+  // component's state positionally, so a new hook inserted above would
+  // silently renumber the receipts they assert on.
+  const [suspended, setSuspended] = React.useState(false);
 
   React.useEffect(() => {
     const controller = new AbortController();
@@ -321,6 +415,9 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
       return { label: "UNKNOWN", detail: `The ${source === "moomoo" ? "Moomoo" : "Longbridge"} tick route returned no classified receipt.`, receiving: false, eventCount: 0 };
     };
     const refresh = async () => {
+      // Report the suspension at the exact point it is decided. Setting this
+      // anywhere else lets the flag and the actual probing behaviour drift.
+      if (active) setSuspended(isHidden());
       if (!active || refreshing || isHidden()) return;
       refreshing = true;
       const revision = visibilityRevision;
@@ -344,7 +441,7 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
       ]);
       // A background response must not leave a current-looking receipt ready
       // for the next foreground render. Recheck on return to the app.
-      if (active && isHidden()) invalidateReceipts();
+      if (active && isHidden()) { invalidateReceipts(); setSuspended(true); }
       refreshing = false;
       if (active && revision !== visibilityRevision && !isHidden()) void refresh();
     };
@@ -366,35 +463,7 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
     };
   }, []);
 
-  const providerSources = ["moomoo", "longbridge", "webull", "tastytrade", "alpaca"] as const;
-  const marketWires: ProviderWireView[] = failures.has("market") && !matrix
-    ? providerSources.map((source) => ({ source, tone: "OFFLINE", label: "Status unavailable", detail: "The canonical capability probe did not return." }))
-    : providerSources.map((source) => matrixProviderWireView(matrix, source));
-  const moomooWire = failures.has("moomoo") && !moomooTicks
-    ? { source: "moomoo", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated tick receipt did not return." }
-    : moomooTicks ? moomooTickWireView(moomooTicks) : null;
-  const longbridgeWire = failures.has("longbridge") && !longbridgeTicks
-    ? { source: "longbridge", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated Longbridge tick receipt did not return." }
-    : longbridgeTicks ? longbridgeTickWireView(longbridgeTicks) : null;
-  const readinessOverrides = {
-    tastytrade: providerConfigReadinessWireView(readiness, "tastytrade", ["tastytrade"]),
-    alpaca: providerConfigReadinessWireView(readiness, "alpaca", ["alpaca-paper", "alpaca-live"]),
-  } as const;
-  const wires = [
-    ...marketWires.map((wire) => {
-      if (wire.source === "moomoo" && moomooWire) return moomooWire;
-      if (wire.source === "longbridge" && longbridgeWire) return longbridgeWire;
-      if (wire.source === "tastytrade" || wire.source === "alpaca") {
-        const override = readinessOverrides[wire.source];
-        // Missing required configuration is a more exact cause than a generic
-        // no-receipt result. Never replace an observed/auth/entitlement probe,
-        // and never promote configured-to-attempt over a failed live probe.
-        if (override && override.tone === "OFFLINE" && wire.tone === "OFFLINE") return override;
-        if (override && (wire.label === "Status unavailable" || wire.label === "Not runtime-wired")) return override;
-      }
-      return wire;
-    }),
-  ];
+  const wires = selectProviderWires({ matrix, readiness, moomooTicks, longbridgeTicks, failures, suspended });
 
   return (
     <section aria-label="Market data provider wires" style={{ marginTop: compact ? 0 : 8, border: "1px solid rgba(240,180,41,0.18)", borderRadius: compact ? 8 : 10, background: "rgba(5,5,6,0.76)", padding: compact ? "6px 8px" : "9px 10px", flexShrink: 0 }}>
