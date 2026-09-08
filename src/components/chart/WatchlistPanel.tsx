@@ -255,6 +255,31 @@ interface Props {
 
 export function WatchlistPanel({ open, gridView = false, onGridViewChange, variant = "rail" }: Props) {
   const isSheet = variant === "sheet";
+
+  /**
+   * PHONE TAP GEOMETRY.
+   *
+   * The rail's header controls are mouse targets: MEASURED in the shipped
+   * sheet at 375px, they came out 12, 12, 16, 17, 18, 20 and 21px tall
+   * against this repo's 44px phone standard (globals.css enforces
+   * `min-height: 44px !important` on .wm-shell-action, and
+   * responsiveShell.test.ts Sentinel-locks it).
+   *
+   * The tempting fix — leave them small and stretch an invisible 44px hit
+   * area over each — is wrong HERE. These controls sit 4-8px apart, so the
+   * expanded areas would overlap and taps would land on whichever element
+   * won the z-order rather than the one under the finger. A control that
+   * silently steals its neighbour's tap is worse than a small honest one.
+   *
+   * So the sheet gets real size AND real spacing: 44x44 boxes whose hit area
+   * IS their visible box, with the icons scaled up to match. The rail is
+   * untouched — it has a mouse.
+   */
+  const tap = isSheet
+    ? { width: 44, height: 44, alignItems: "center", justifyContent: "center", padding: 0 }
+    : null;
+  const iconPx = isSheet ? 18 : 12;
+
   const { activeSymbol, setActiveSymbol } = useActiveSymbol();
   // ── Named custom watchlists (persisted) ──────────────────────
   const [lists, setLists] = useState<Record<string, string[]>>(() => {
@@ -589,11 +614,11 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
           >
             {/* Header — "Watchlists ▼" + grid/list icons */}
             <div style={{
-              height: 36,
+              height: isSheet ? 52 : 36,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              padding: "0 10px",
+              padding: isSheet ? "0 4px" : "0 10px",
               borderBottom: "1px solid #1E2030",
               flexShrink: 0,
             }}>
@@ -601,16 +626,17 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                 <button
                   onClick={() => setShowLists(v => !v)}
                   title="Switch or create a custom watchlist"
-                  style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                  style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer",
+                    padding: isSheet ? "0 8px" : 0, minHeight: isSheet ? 44 : undefined }}
                 >
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: isSheet ? 14 : 12, fontWeight: 700, color: "#E2E8F0", maxWidth: isSheet ? 104 : 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {activeList}
                   </span>
                   <span style={{ fontSize: 10, color: "#8B8FA8", transform: showLists ? "rotate(180deg)" : "none" }}>▼</span>
                 </button>
                 {showLists && (
                   <div style={{
-                    position: "absolute", top: 24, left: 0, zIndex: 9999, width: 210,
+                    position: "absolute", top: isSheet ? 48 : 24, left: 0, zIndex: 9999, width: 210,
                     background: "#0C0F1A", border: "1px solid #252a3a", borderRadius: 8,
                     boxShadow: "0 14px 40px rgba(0,0,0,0.7)", overflow: "hidden", padding: 4,
                   }}>
@@ -619,7 +645,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                         <button
                           onClick={() => { setActiveList(name); setShowLists(false); }}
                           style={{
-                            flex: 1, textAlign: "left", padding: "7px 9px", borderRadius: 5, border: "none", cursor: "pointer",
+                            flex: 1, textAlign: "left", padding: isSheet ? "13px 10px" : "7px 9px", borderRadius: 5, border: "none", cursor: "pointer",
                             fontSize: 12, fontWeight: name === activeList ? 800 : 600,
                             color: name === activeList ? "#00D4AA" : "#cdd6e8",
                             background: name === activeList ? "rgba(0,212,170,0.1)" : "transparent",
@@ -681,31 +707,35 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                   </div>
                 )}
               </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{ display: "flex", gap: isSheet ? 0 : 8, alignItems: "center" }}>
                 <button onClick={() => onGridViewChange?.(true)} title="Grid view — live mini-chart cards"
-                  style={{ background: "none", border: "none", cursor: "pointer", color: gridView ? "#00D4AA" : "#4A5070", display: "flex", padding: 0 }}>
-                  <LayoutGrid size={12} />
+                  aria-label="Grid view"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: gridView ? "#00D4AA" : "#4A5070", display: "flex", padding: 0, ...tap }}>
+                  <LayoutGrid size={iconPx} />
                 </button>
                 <button onClick={() => onGridViewChange?.(false)} title="List view"
-                  style={{ background: "none", border: "none", cursor: "pointer", color: !gridView ? "#00D4AA" : "#4A5070", display: "flex", padding: 0 }}>
-                  <List size={12} />
+                  aria-label="List view"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: !gridView ? "#00D4AA" : "#4A5070", display: "flex", padding: 0, ...tap }}>
+                  <List size={iconPx} />
                 </button>
                 <button onClick={createList} title="Create new watchlist"
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "#4A5070", fontSize: 13 }}>⊞</button>
+                  aria-label="Create new watchlist"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#4A5070", fontSize: isSheet ? 18 : 13, display: "flex", ...tap }}>⊞</button>
                 <button
                   onClick={() => setShowAdd(v => !v)}
-                  style={{ color: "#8B8FA8", background: "none", border: "none", cursor: "pointer", padding: 2, borderRadius: 4 }}
+                  aria-label="Add symbol to this watchlist"
+                  style={{ color: "#8B8FA8", background: "none", border: "none", cursor: "pointer", padding: 2, borderRadius: 4, display: "flex", ...tap }}
                   title="Add symbol to this watchlist"
                 >
-                  <Plus size={12} />
+                  <Plus size={iconPx} />
                 </button>
               </div>
             </div>
 
             {/* Filter bar — "All ▼" + sort icon */}
             <div style={{
-              height: 28, display: "flex", alignItems: "center", gap: 6,
-              padding: "0 8px", borderBottom: "1px solid #1E2030", flexShrink: 0,
+              height: isSheet ? 52 : 28, display: "flex", alignItems: "center", gap: isSheet ? 8 : 6,
+              padding: isSheet ? "0 6px" : "0 8px", borderBottom: "1px solid #1E2030", flexShrink: 0,
             }}>
               <div style={{ position: "relative" }}>
                 <button
@@ -713,15 +743,16 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                   title="Filter rows: all, gainers only, or losers only"
                   style={{
                     display: "flex", alignItems: "center", gap: 3, background: "#131520",
-                    border: "1px solid #1E2030", borderRadius: 4, padding: "2px 8px",
-                    color: viewFilter === "all" ? "#8B8FA8" : "#FF8C00", fontSize: 10, cursor: "pointer",
+                    border: "1px solid #1E2030", borderRadius: 4,
+                    padding: isSheet ? "0 14px" : "2px 8px", minHeight: isSheet ? 44 : undefined,
+                    color: viewFilter === "all" ? "#8B8FA8" : "#FF8C00", fontSize: isSheet ? 13 : 10, cursor: "pointer",
                   }}>
                   {viewFilter === "all" ? "All" : viewFilter === "gainers" ? "Gainers" : "Losers"}{" "}
                   <span style={{ transform: showFilterMenu ? "rotate(180deg)" : "none" }}>▼</span>
                 </button>
                 {showFilterMenu && (
                   <div style={{
-                    position: "absolute", top: 22, left: 0, zIndex: 9999, width: 110,
+                    position: "absolute", top: isSheet ? 48 : 22, left: 0, zIndex: 9999, width: isSheet ? 140 : 110,
                     background: "#0C0F1A", border: "1px solid #252a3a", borderRadius: 6,
                     boxShadow: "0 12px 32px rgba(0,0,0,0.7)", overflow: "hidden", padding: 3,
                   }}>
@@ -729,8 +760,8 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                       <button key={key}
                         onClick={() => { setViewFilter(key); setShowFilterMenu(false); }}
                         style={{
-                          width: "100%", textAlign: "left", padding: "6px 8px", borderRadius: 4, border: "none",
-                          cursor: "pointer", fontSize: 11, fontWeight: viewFilter === key ? 800 : 600,
+                          width: "100%", textAlign: "left", padding: isSheet ? "13px 10px" : "6px 8px", borderRadius: 4, border: "none",
+                          cursor: "pointer", fontSize: isSheet ? 13 : 11, fontWeight: viewFilter === key ? 800 : 600,
                           color: viewFilter === key ? "#00D4AA" : "#cdd6e8",
                           background: viewFilter === key ? "rgba(0,212,170,0.1)" : "transparent",
                         }}>{lbl}</button>
@@ -747,7 +778,9 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                   sortMode === "chgAsc"  ? "Sort: % change ↑ (click for symbol A–Z)" :
                                            "Sort: symbol A–Z (click to restore manual order)"
                 }
-                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11,
+                aria-label="Change row sort order"
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: isSheet ? 15 : 11,
+                  display: "flex", ...tap,
                   color: sortMode === "manual" ? "#4A5070" : "#FF8C00" }}>
                 {sortMode === "chgDesc" ? "↓" : sortMode === "chgAsc" ? "↑" : sortMode === "symAsc" ? "A–Z" : "⇅"}
               </button>

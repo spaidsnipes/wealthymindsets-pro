@@ -54,6 +54,45 @@ describe("responsive P0 command surfaces", () => {
       .toContain('isSheet ? "wm-chart-watchlist-sheet" : "wm-chart-watchlist"');
   });
 
+  it("gives the watchlist sheet the phone tap standard the rail does not need", () => {
+    // MEASURED in the sheet at 375px when it first shipped: header controls
+    // came out 12, 12, 16, 17, 18, 20 and 21px — the rail's mouse geometry,
+    // relocated onto a phone. This repo's phone standard is 44px, already
+    // enforced above for .wm-shell-action.
+    //
+    // Deliberately NOT fixed by stretching invisible hit areas over small
+    // controls: at their 4-8px spacing those areas would overlap and a tap
+    // would land on whichever won the z-order rather than what was under the
+    // finger. The sheet gets real size AND real spacing, so each control's
+    // hit area IS its visible box.
+    const panel = source("../components/chart/WatchlistPanel.tsx");
+
+    // The 44px box is conditional on the sheet — the rail keeps its density.
+    const tap = panel.match(/const tap = isSheet[\s\S]{0,220}?;/);
+    expect(tap, "the sheet tap box must be declared and gated on isSheet").not.toBeNull();
+    expect(tap![0]).toMatch(/width:\s*44/);
+    expect(tap![0]).toMatch(/height:\s*44/);
+    expect(tap![0], "the rail must not inherit the phone box").toMatch(/:\s*null/);
+
+    // Every icon-only header control must actually wear it. Icon buttons are
+    // the ones that were 12px; a new one added without ...tap is the drift.
+    const spreads = panel.match(/\.\.\.tap/g) ?? [];
+    expect(spreads.length, "each icon-only header control must spread ...tap")
+      .toBeGreaterThanOrEqual(5);
+
+    // Text controls hit 44 via minHeight rather than a square box.
+    expect(panel).toMatch(/minHeight:\s*isSheet\s*\?\s*44/);
+
+    // Icons scale with the box, otherwise a 44px button holds a 12px glyph.
+    expect(panel).toMatch(/const iconPx = isSheet \? \d+ : 12/);
+
+    // Icon-only controls must still say what they are.
+    expect(panel).toContain('aria-label="Grid view"');
+    expect(panel).toContain('aria-label="List view"');
+    expect(panel).toContain('aria-label="Create new watchlist"');
+    expect(panel).toContain('aria-label="Change row sort order"');
+  });
+
   it("keeps the JS relocation breakpoint and the CSS hide breakpoint the same number", () => {
     // If these drift, both failure modes are silent:
     //   CSS hides at 1023, JS relocates at 768  -> 768–1023px has no watchlist.
