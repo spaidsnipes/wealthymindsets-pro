@@ -1,12 +1,24 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchYahooQuoteBody, yahooQuoteRoundInFlight } from "./yahooQuoteRounds";
 import { fetchExchangeQuoteBody, exchangeQuoteRoundInFlight } from "./exchangeQuoteRounds";
+import {
+  fetchAlpacaQuoteBody,
+  fetchFinnhubQuoteBody,
+  providerQuoteRoundInFlight,
+} from "./providerQuoteRounds";
 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe.each([
   ["yahoo", () => fetchYahooQuoteBody("DEADLINE"), () => yahooQuoteRoundInFlight("DEADLINE")],
   ["exchange", () => fetchExchangeQuoteBody("kraken", "DEADLINE"), () => exchangeQuoteRoundInFlight("kraken", "DEADLINE")],
+  // Every owner in the chain, not just the two that had owners first. An
+  // unbounded leg would hold its key while the provider stalls, so each later
+  // ask JOINS a request that never answers — one hung response becoming an
+  // indefinitely stuck symbol on all three surfaces. Finnhub is the leg known
+  // to 429-storm, so it is the last one that should be left unbounded.
+  ["alpaca", () => fetchAlpacaQuoteBody("DEADLINE"), () => providerQuoteRoundInFlight("alpaca", "DEADLINE")],
+  ["finnhub", () => fetchFinnhubQuoteBody("DEADLINE"), () => providerQuoteRoundInFlight("finnhub", "DEADLINE")],
 ] as const)("%s shared round recovery", (_name, read, inFlight) => {
   it.each(["headers", "body"])("releases a stalled %s round for every joiner and permits retry", async phase => {
     vi.useFakeTimers();

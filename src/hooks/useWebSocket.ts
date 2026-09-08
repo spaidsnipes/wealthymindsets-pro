@@ -37,6 +37,7 @@ import { coalesceQuoteRequest } from "@/lib/marketData/quoteRequestCoalescer";
 import { InFlightRounds } from "@/lib/marketData/inFlightRounds";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
+import { fetchAlpacaQuoteBody, fetchFinnhubQuoteBody } from "@/lib/marketData/providerQuoteRounds";
 
 /**
  * Provider-tick rounds share one identity space, separate from quotes, so a
@@ -339,14 +340,14 @@ async function fetchRealQuoteUncoalesced(sym: string): Promise<QuoteAnswer | nul
       if (q?.kind === "refused") heldRefusal ??= q.reason;
     } catch {}
     try {
-      const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(upper)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+      const j = await fetchAlpacaQuoteBody(upper) as any;
       const q = mk(j, "alpaca");
       if (q?.kind === "quote") return q;
       if (q?.kind === "refused") heldRefusal ??= q.reason;
     } catch {}
     if (!isCrypto) {
       try {
-        const j = await fetch(`/api/finnhub?sym=${encodeURIComponent(upper)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+        const j = await fetchFinnhubQuoteBody(upper) as any;
         const q = mk(j, "finnhub");
         if (q?.kind === "quote") return q;
         if (q?.kind === "refused") heldRefusal ??= q.reason;

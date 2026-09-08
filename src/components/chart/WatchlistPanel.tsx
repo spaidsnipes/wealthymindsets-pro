@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
+import { fetchAlpacaQuoteBody, fetchFinnhubQuoteBody } from "@/lib/marketData/providerQuoteRounds";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Plus, TrendingUp, TrendingDown, LayoutGrid, List } from "lucide-react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
@@ -174,10 +175,13 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
       // Alpaca declares its own window: it falls back to the session OPEN when
       // no prior daily bar is available, which is a weaker reference than a
       // close. `declared` is only the floor if the route stayed silent.
-      const alpacaJ = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
+      // The `.catch` stays HERE, on the result: swallowing a failure is this
+      // surface's policy, and pushing it into the shared round would hand the
+      // other consumers a null they never asked for.
+      const alpacaJ = await fetchAlpacaQuoteBody(up).catch(() => null) as any;
       if ((alpacaJ?.price ?? 0) > 0) { result[up] = { price: alpacaJ.price, ...changeFields(alpacaJ, "PRIOR_CLOSE"), src: "alpaca" }; return; }
 
-      const fhJ = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
+      const fhJ = await fetchFinnhubQuoteBody(up).catch(() => null) as any;
       if (fhJ?.price > 0) { result[up] = { price: fhJ.price, ...changeFields(fhJ, "PRIOR_CLOSE"), src: "finnhub" }; return; }
       // Every provider is spent. NOW the held refusal is the answer.
       if (heldRefusal) result[up] = refusedQuote(heldRefusal, "yahoo");

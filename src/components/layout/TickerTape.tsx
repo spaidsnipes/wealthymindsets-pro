@@ -18,6 +18,7 @@ import {
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
+import { fetchAlpacaQuoteBody, fetchFinnhubQuoteBody } from "@/lib/marketData/providerQuoteRounds";
 
 /** The rail's poll cadence. Also the interval the visibility handler tops up. */
 const TAPE_POLL_INTERVAL_MS = 10_000;
@@ -233,11 +234,11 @@ async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
     yahooRefusal = yahooQuoteRefusal(j);
   } catch {}
   try {
-    const j = await fetch(`/api/alpaca?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+    const j = await fetchAlpacaQuoteBody(up) as any;
     if (j?.price > 0 && j.source === "alpaca") { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "alpaca" }; }
   } catch {}
   try {
-    const j = await fetch(`/api/finnhub?sym=${encodeURIComponent(up)}&type=quote`, { cache: "no-store" }).then(r => r.json());
+    const j = await fetchFinnhubQuoteBody(up) as any;
     if (j?.price > 0) { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "finnhub" }; }
   } catch {}
   if (yahooRefusal) return { kind: "refused", reason: yahooRefusal };

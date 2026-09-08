@@ -16,14 +16,25 @@ describe("same-screen market truth contract", () => {
     // still "found" a match here — a stray mention in a comment ~40k
     // characters downstream — and so reported Yahoo as running AFTER Alpaca.
     // The ORDER of the two providers is the invariant; the transport is not.
-    const askedYahooAt = (policy: string) => {
-      const at = policy.indexOf("fetchYahooQuoteBody(");
-      return at === -1 ? policy.indexOf("/api/yahoo") : at;
+    //
+    // 2026-09-08: that repair was applied to the YAHOO half only. When Alpaca
+    // got the same treatment, `indexOf("/api/alpaca")` went to -1 and the rule
+    // failed asserting `249 < -1` — it had been comparing a real position
+    // against "not found" and would have passed for the wrong reason if the
+    // ordering ever inverted. Both ends are now located by the ASK, and both
+    // are asserted PRESENT before their order is compared, so an absent leg
+    // fails loudly instead of arithmetically.
+    const askedAt = (policy: string, owner: string, url: string) => {
+      const at = policy.indexOf(owner);
+      return at === -1 ? policy.indexOf(url) : at;
     };
-    expect(askedYahooAt(watchlistStockPolicy)).toBeGreaterThan(-1);
-    expect(askedYahooAt(tickerStockPolicy)).toBeGreaterThan(-1);
-    expect(askedYahooAt(watchlistStockPolicy)).toBeLessThan(watchlistStockPolicy.indexOf("/api/alpaca"));
-    expect(askedYahooAt(tickerStockPolicy)).toBeLessThan(tickerStockPolicy.indexOf("/api/alpaca"));
+    for (const policy of [watchlistStockPolicy, tickerStockPolicy]) {
+      const yahoo = askedAt(policy, "fetchYahooQuoteBody(", "/api/yahoo");
+      const alpaca = askedAt(policy, "fetchAlpacaQuoteBody(", "/api/alpaca");
+      expect(yahoo).toBeGreaterThan(-1);
+      expect(alpaca).toBeGreaterThan(-1);
+      expect(yahoo).toBeLessThan(alpaca);
+    }
   });
 
   it("never routes crypto display quotes through the Alpaca equity fallback", () => {
