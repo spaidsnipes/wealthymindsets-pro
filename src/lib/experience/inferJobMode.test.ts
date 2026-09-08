@@ -12,7 +12,7 @@ import {
 } from "./inferJobMode";
 
 const NONE: JobModeSignals = {
-  hasOpenPosition: false,
+  position: "UNOBSERVED",
   hasUnreviewedClose: false,
   decision: null,
   hasResolvedMarketState: false,
@@ -24,14 +24,14 @@ describe("inferJobMode", () => {
   });
 
   it("suggests MANAGE with HIGH confidence when a position is open", () => {
-    const r = inferJobMode({ ...NONE, hasOpenPosition: true, decision: "ACTION" });
+    const r = inferJobMode({ ...NONE, position: "AT_RISK", decision: "ACTION" });
     expect(r.suggested).toBe("MANAGE");
     expect(r.confidence).toBe("HIGH");
     expect(r.reason).toMatch(/open position/i);
   });
 
   it("prioritises an open position over an unreviewed close", () => {
-    const r = inferJobMode({ ...NONE, hasOpenPosition: true, hasUnreviewedClose: true });
+    const r = inferJobMode({ ...NONE, position: "AT_RISK", hasUnreviewedClose: true });
     expect(r.suggested).toBe("MANAGE");
   });
 
@@ -89,7 +89,7 @@ describe("inferJobMode", () => {
   it("never emits an empty reason", () => {
     const cases: JobModeSignals[] = [
       NONE,
-      { ...NONE, hasOpenPosition: true },
+      { ...NONE, position: "AT_RISK" },
       { ...NONE, hasUnreviewedClose: true },
       { ...NONE, decision: "ACTION" },
       { ...NONE, decision: "WAIT" },
@@ -98,5 +98,55 @@ describe("inferJobMode", () => {
     for (const c of cases) {
       expect(inferJobMode(c).reason.length).toBeGreaterThan(0);
     }
+  });
+});
+
+/**
+ * §14.1 — FLAT IS A FINDING, NEVER A DEFAULT.
+ *
+ * `hasOpenPosition` was a boolean, and /command-deck fed it `false` from a store
+ * whose only ingress has zero production callers. So the deck rendered "Market
+ * state is resolving WITH NO POSITION — watch." to a trader who could well have
+ * been holding one. The engine did not lie; it was handed a collapsed signal and
+ * spoke it faithfully. These rules keep the third state alive.
+ */
+describe("inferJobMode — an unobservable position is not a flat one", () => {
+  it("UNOBSERVED never earns MANAGE — silence is not a position", () => {
+    const r = inferJobMode({ ...NONE, position: "UNOBSERVED", hasResolvedMarketState: true });
+    expect(r.suggested).not.toBe("MANAGE");
+  });
+
+  it("UNOBSERVED never CLAIMS the trader is flat", () => {
+    // THE RULE THIS BLOCK EXISTS FOR. The suggestion may stay OBSERVE; what is
+    // forbidden is the positive assertion of flatness.
+    const r = inferJobMode({ ...NONE, position: "UNOBSERVED", hasResolvedMarketState: true });
+    expect(r.suggested).toBe("OBSERVE");
+    expect(r.reason, "asserts a flatness no surface observed").not.toMatch(/with no position/i);
+    expect(r.reason).toMatch(/not visible|no position is visible/i);
+  });
+
+  it("NO_EXPOSURE_OBSERVED still says it plainly — the distinction is real, not a deleted phrase", () => {
+    // ANTI-VACUITY for the rule above. If the fix were "remove the sentence",
+    // the previous test would pass while the product lost a true statement. An
+    // observed flat IS a finding and must still be spoken.
+    const r = inferJobMode({
+      ...NONE,
+      position: "NO_EXPOSURE_OBSERVED",
+      hasResolvedMarketState: true,
+    });
+    expect(r.suggested).toBe("OBSERVE");
+    expect(r.reason).toMatch(/with no position/i);
+  });
+
+  it("the two observations produce DIFFERENT sentences", () => {
+    const unobserved = inferJobMode({ ...NONE, position: "UNOBSERVED", hasResolvedMarketState: true });
+    const flat = inferJobMode({ ...NONE, position: "NO_EXPOSURE_OBSERVED", hasResolvedMarketState: true });
+    expect(unobserved.reason).not.toBe(flat.reason);
+  });
+
+  it("AT_RISK still outranks everything — the loud case did not regress", () => {
+    const r = inferJobMode({ ...NONE, position: "AT_RISK", hasUnreviewedClose: true, decision: "ACTION" });
+    expect(r.suggested).toBe("MANAGE");
+    expect(r.confidence).toBe("HIGH");
   });
 });

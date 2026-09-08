@@ -22,7 +22,7 @@ import type { OneStoryVM } from "../marketData/viewModels/selectOneStory";
 import type { RightOfWayReading } from "../marketData/viewModels/decisionPermissionCompiler";
 
 const BASE_SIGNALS: JobModeSignals = {
-  hasOpenPosition: false,
+  position: "UNOBSERVED",
   hasUnreviewedClose: false,
   decision: null,
   hasResolvedMarketState: false,
@@ -75,7 +75,7 @@ describe("NO TRADE seam — inferJobMode ⊗ questionRouter (canon §RightOfWay)
     const inferred = inferJobMode({
       ...BASE_SIGNALS,
       decision: "NO TRADE",
-      hasOpenPosition: true,
+      position: "AT_RISK",
     });
     expect(inferred.suggested).toBe("MANAGE");
   });

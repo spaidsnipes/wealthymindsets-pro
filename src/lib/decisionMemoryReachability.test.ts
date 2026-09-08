@@ -52,6 +52,11 @@ const STORE_MODULE = "src/lib/traderMemory/decisionMemoryStore.ts";
 const HOOK_MODULE = "src/lib/traderMemory/useDecisionMemory.ts";
 const ORPHAN_MODULE = "src/lib/decisionMemory.ts";
 
+/** Block + line comments removed, so rules judge CODE and never prose. */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+}
+
 /** Production sources only: no test files, no __tests__ fixtures. */
 function walkProduction(dir: string): string[] {
   const out: string[] = [];
@@ -242,5 +247,42 @@ describe("decision memory reachability", () => {
       .sort();
 
     expect(importers).toEqual([]);
+  });
+
+  /**
+   * The consequence this file DESCRIBED for two commits without enforcing.
+   *
+   * The header already said it: "/command-deck derives `hasOpenPosition` ...
+   * from `decisionRecords` alone ... Because the store can never be written,
+   * both are pinned false in production." Writing that down did not stop the
+   * deck from feeding that structural `false` into `inferJobMode`, which then
+   * printed "with no position" at a trader. A named blocker that names a
+   * consequence should also FORBID it.
+   */
+  it("the deck does not derive POSITION truth from the provably-empty store", () => {
+    // Comments are stripped first. The deck's own comment EXPLAINS the defect by
+    // name, and the first version of this rule failed on that prose — a guard
+    // that forbids describing a bug would push the explanation out of the file
+    // and leave the next reader with a bare literal and no reason for it.
+    const deck = stripComments(readFileSync(join(SRC, "app/command-deck/page.tsx"), "utf8"));
+
+    // It must hand the inference the honest three-state value, not a boolean.
+    expect(deck, "deck no longer passes an honest position observation")
+      .toMatch(/position:\s*"UNOBSERVED"/);
+
+    // And it must not reconstruct the collapsed signal from decision records.
+    expect(deck, "hasOpenPosition was rebuilt from the dead store")
+      .not.toMatch(/hasOpenPosition/);
+  });
+
+  it("no production caller collapses an unobservable position into `false`", () => {
+    // Rename-resilient: any surface calling inferJobMode must pass a
+    // CapitalObservation string, never a boolean literal.
+    for (const abs of walkProduction(SRC)) {
+      const code = readFileSync(abs, "utf8");
+      if (!code.includes("inferJobMode(")) continue;
+      expect(code, `${relative(REPO_ROOT, abs)} passes a boolean position`)
+        .not.toMatch(/position:\s*(true|false)\b/);
+    }
   });
 });

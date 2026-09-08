@@ -409,12 +409,22 @@ function CommandDeckInner() {
   // is most likely in from concrete decision state, so the shell can gently
   // SUGGEST it. Never auto-switches — the human's manual selection always wins.
   const jobInference = React.useMemo(() => {
-    const hasOpenPosition = decisionRecords.some(
-      (r) => (r.plan.action === "ENTER_LONG" || r.plan.action === "ENTER_SHORT") && !r.outcome,
-    );
+    // POSITION STATE IS NOT OBSERVABLE FROM THIS SURFACE, and saying so is the
+    // fix. The old code derived `hasOpenPosition` from `decisionRecords` alone.
+    // That store's only ingress is `DecisionMemoryStore.put()`, which has ZERO
+    // production callers (decisionMemoryReachability.test.ts pins this), so the
+    // array is provably empty for every owner, forever — the boolean was
+    // structurally `false`, and the inference then printed "with no position"
+    // to a trader who might be holding one.
+    //
+    // The scene bus cannot rescue it either: /command-deck deliberately does
+    // not publish, because it owns no book (see activeSceneBus.ts). So the
+    // honest value here is UNOBSERVED, not `false`. §14.1 — FLAT is a finding,
+    // never a default. This does NOT invent a position source; it stops the
+    // deck from asserting flatness it never checked.
     const hasUnreviewedClose = decisionRecords.some((r) => !!r.outcome && !r.review);
     return inferJobMode({
-      hasOpenPosition,
+      position: "UNOBSERVED",
       hasUnreviewedClose,
       decision: oneStory.decision.value,
       hasResolvedMarketState: passport.resolvedCount > 0,

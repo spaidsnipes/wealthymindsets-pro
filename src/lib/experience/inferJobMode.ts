@@ -21,14 +21,34 @@
 
 import type { ExperienceMode } from "./decisionContextBus";
 import type { RightOfWay } from "../marketData/viewModels/decisionPermissionCompiler";
+/**
+ * TYPE-ONLY, and therefore erased — this module stays runtime-pure. The type is
+ * imported rather than redeclared because `CapitalObservation` already IS the
+ * question "is capital live, and can anything on screen even tell?", and §24
+ * forbids a second spelling of one vocabulary.
+ */
+import type { CapitalObservation } from "./useActiveScene";
 
 export const INFER_JOB_MODE_VERSION = "wm.infer-job-mode.v1" as const;
 
 export type InferenceConfidence = "HIGH" | "MEDIUM" | "LOW";
 
 export interface JobModeSignals {
-  /** The trader holds an open position (an ENTER_* record with no outcome). */
-  readonly hasOpenPosition: boolean;
+  /**
+   * Whether the trader holds an open position — THREE-STATE, deliberately.
+   *
+   * This was `hasOpenPosition: boolean` and that boolean was a lie machine.
+   * `useActiveScene` already states the reason in its own words: "the
+   * difference between 'no exposure observed' and 'nothing on screen can
+   * observe exposure' is exactly the distinction §14.1 exists to protect. A
+   * boolean would collapse them, and it would collapse them in the dangerous
+   * direction." That argument was written one module away and never applied
+   * here, so this selector spent its life receiving `false` from a caller that
+   * could not see a position and printing "with no position" to the screen.
+   *
+   * §14.1: FLAT IS A FINDING, NEVER A DEFAULT.
+   */
+  readonly position: CapitalObservation;
   /** A decision has closed but the trader has not reviewed it yet. */
   readonly hasUnreviewedClose: boolean;
   /** The compiled right-of-way verdict, if the engine has one. */
@@ -53,7 +73,8 @@ export interface JobModeInference {
  */
 export function inferJobMode(signals: JobModeSignals): JobModeInference {
   // 1. An open position is the highest-stakes concrete state — steward it.
-  if (signals.hasOpenPosition) {
+  //    Only AT_RISK earns this. UNOBSERVED is not a quiet "no".
+  if (signals.position === "AT_RISK") {
     return build("MANAGE", "An open position needs stewarding.", "HIGH");
   }
 
@@ -83,8 +104,20 @@ export function inferJobMode(signals: JobModeSignals): JobModeInference {
   }
 
   // 5. Market state is resolving but there is no thesis yet — watch.
+  //
+  //    THE SENTENCE ITSELF WAS THE DEFECT. "with no position" is a POSITIVE
+  //    CLAIM about the trader's exposure, and it was rendered on /command-deck
+  //    — a surface that publishes no capital column and therefore cannot check
+  //    it. The suggestion stays the same (watching is right either way); what
+  //    changes is that WM stops asserting a flatness it never observed.
   if (signals.hasResolvedMarketState) {
-    return build("OBSERVE", "Market state is resolving with no position — watch.", "LOW");
+    return signals.position === "NO_EXPOSURE_OBSERVED"
+      ? build("OBSERVE", "Market state is resolving with no position — watch.", "LOW")
+      : build(
+          "OBSERVE",
+          "Market state is resolving; no position is visible from this surface — watch.",
+          "LOW",
+        );
   }
 
   // 6. Nothing resolved yet — the honest default is to prepare.
