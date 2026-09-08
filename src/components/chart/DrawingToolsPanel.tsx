@@ -185,6 +185,19 @@ interface StylePopoverProps {
   onClose:  () => void;
 }
 
+/**
+ * The popover's own width, exported because its CALLER has to know it.
+ *
+ * The popover renders in a fixed-position portal at `anchor.left`, so
+ * whoever computes that anchor is the only code able to keep it on screen —
+ * and it cannot do that without this number. Beside a 40px desktop rail the
+ * question never came up; inside a 320px phone drawer, an anchor computed
+ * without it puts the whole panel past the right edge.
+ *
+ * Exported rather than copied so the two cannot drift apart silently.
+ */
+export const DRAWING_STYLE_POPOVER_WIDTH_PX = 220;
+
 export function DrawingStylePopover({ style, onChange, anchor, onClose }: StylePopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -211,7 +224,7 @@ export function DrawingStylePopover({ style, onChange, anchor, onClose }: StyleP
       style={{
         position: "fixed", left: anchor.left, top: anchor.top, zIndex: 99999,
         background: "#0D0E14", border: "1px solid #1E2030", borderRadius: 10,
-        padding: "10px 12px", width: 220,
+        padding: "10px 12px", width: DRAWING_STYLE_POPOVER_WIDTH_PX,
         boxShadow: "0 12px 40px rgba(0,0,0,0.8)",
       }}
       onMouseDown={e => e.stopPropagation()}

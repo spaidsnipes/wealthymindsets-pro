@@ -110,6 +110,60 @@ describe("responsive P0 command surfaces", () => {
       .toContain(".wm-chart-watchlist,");
   });
 
+  it("hides the drawing rail only where something else offers the drawing tools", () => {
+    // globals.css hides .wm-draw-rail at the same breakpoint it hides the
+    // watchlist. Twenty tools — trend line, ray, fib retracement — were mounted
+    // at zero size with no visible control reaching any of them: a trader on a
+    // phone could not draw a trendline. Hiding is not relocating.
+    const dashboard = source("../components/chart/ChartsDashboard.tsx");
+    const sidebar = source("../components/chart/LeftDrawingSidebar.tsx");
+
+    expect(dashboard, "the rail must not render where CSS is hiding it")
+      .toContain("{!narrowViewport && <LeftDrawingSidebar");
+    expect(dashboard, "the narrow-viewport surface is the drawer, not a second rail")
+      .toContain("{narrowViewport && drawSheetOpen &&");
+    expect(dashboard).toContain('id="chart-draw-sheet"');
+    expect(dashboard).toContain('aria-controls="chart-draw-sheet"');
+    expect(dashboard).toContain('<LeftDrawingSidebar {...drawingSidebarProps} variant="sheet" />');
+
+    // One props object, spread into both call sites. Written out twice, the
+    // rail and the sheet quietly become two different drawing surfaces.
+    const declarations = dashboard.match(/const drawingSidebarProps\b/g) ?? [];
+    expect(declarations.length, "drawingSidebarProps must be declared exactly once").toBe(1);
+    const spreads = dashboard.match(/\{\.\.\.drawingSidebarProps\}/g) ?? [];
+    expect(spreads.length, "both the rail and the sheet must spread the same props").toBe(2);
+
+    expect(sidebar, "the sheet must not wear the class globals.css hides")
+      .toContain('isSheet ? "wm-draw-sheet" : "wm-draw-rail"');
+    expect(sidebar, "the sheet's tool buttons must meet the phone tap standard")
+      .toMatch(/\.wm-draw-sheet \.wm-draw-btn[\s\S]{0,80}?44px/);
+  });
+
+  it("keeps the drawing rail hidden by the same breakpoint that opens its drawer", () => {
+    const responsive = source("./responsive/narrowViewport.ts");
+    const px = responsive.match(/NARROW_VIEWPORT_MAX_PX\s*=\s*(\d+)/)![1];
+    const at = css.indexOf(`@media (max-width: ${px}px)`);
+    const block = css.slice(at, css.indexOf("}", css.indexOf("{", at)));
+    expect(block, "the draw rail must be hidden by the same breakpoint JS relocates at")
+      .toContain(".wm-draw-rail");
+  });
+
+  it("clamps the drawing style popover to the viewport instead of off its right edge", () => {
+    // The popover anchors at rail.right + 6. In a 320px drawer on a 375px
+    // phone that puts a 220px panel past the screen edge, so the style
+    // controls exist but cannot be reached.
+    const sidebar = source("../components/chart/LeftDrawingSidebar.tsx");
+    const panel = source("../components/chart/DrawingToolsPanel.tsx");
+
+    expect(panel, "the popover's width must be exported, not copied")
+      .toMatch(/export const DRAWING_STYLE_POPOVER_WIDTH_PX\s*=\s*\d+/);
+    expect(panel, "the popover must consume its own exported width")
+      .toContain("width: DRAWING_STYLE_POPOVER_WIDTH_PX");
+    expect(sidebar, "the caller must clamp using that same exported number")
+      .toContain("DRAWING_STYLE_POPOVER_WIDTH_PX");
+    expect(sidebar).toMatch(/Math\.max\(8,\s*Math\.min\(left,\s*maxLeft\)\)/);
+  });
+
   it("compresses the desktop product map into five human jobs plus one workspace menu", () => {
     const layout = source("../components/layout/MainLayout.tsx");
     const coreBlock = layout.slice(layout.indexOf("const NAV_CORE"), layout.indexOf("const NAV_WORKBENCH"));

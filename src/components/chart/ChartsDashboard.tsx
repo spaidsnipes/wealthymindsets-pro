@@ -654,6 +654,28 @@ export function ChartsDashboard() {
   // modal covering the rail that now renders the very same watchlist.
   useEffect(() => { if (!narrowViewport) setWatchlistSheetOpen(false); }, [narrowViewport]);
 
+  // Same arrangement for the 20 drawing tools: globals.css hides .wm-draw-rail
+  // at the same breakpoint, and nothing else on a phone reached a trend line.
+  const [drawSheetOpen, setDrawSheetOpen] = useState(false);
+  const drawSheetTriggerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => { if (!narrowViewport) setDrawSheetOpen(false); }, [narrowViewport]);
+  // Declared ONCE and spread into both call sites. Writing these eleven props
+  // out twice is how the rail and the sheet quietly become two different
+  // drawing surfaces — one wired to clearTrigger, one not.
+  const drawingSidebarProps = {
+    activeTool: drawingTool,
+    onToolChange: setDrawingTool,
+    onClearAll: () => setClearTrigger(t => t + 1),
+    style: drawingStyle,
+    onStyleChange: patchDrawingStyle,
+    magnetActive,
+    onMagnetToggle: () => setMagnetActive(v => !v),
+    lockActive,
+    onLockToggle: () => setLockActive(v => !v),
+    visible: drawingsVisible,
+    onVisToggle: () => setDrawingsVisible(v => !v),
+  };
+
   // Track day high/low from ticker
   useEffect(() => {
     if (ticker.price > 0) {
@@ -897,6 +919,37 @@ export function ChartsDashboard() {
             }}
           >
             Watchlist
+          </button>
+        )}
+        {/* The phone/tablet door to the 20 drawing tools, on the same terms:
+            mounted only where .wm-draw-rail is hidden, so there is never a
+            trigger sitting beside the rail it would duplicate. Gated on the
+            chart tabs because drawing tools are meaningless on Financials. */}
+        {narrowViewport && (activeTab === "Chart" || activeTab === "Options") && (
+          <button
+            className="wm-chart-orientation-action wm-chart-draw-trigger"
+            ref={drawSheetTriggerRef}
+            type="button"
+            onClick={() => setDrawSheetOpen(o => !o)}
+            aria-label={drawSheetOpen ? "Close drawing tools" : "Open drawing tools"}
+            aria-expanded={drawSheetOpen}
+            aria-controls="chart-draw-sheet"
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: "uppercase",
+              color: drawSheetOpen ? "#e8b923" : "#c9a55c",
+              background: drawSheetOpen ? "rgba(232, 185, 35, 0.12)" : "transparent",
+              border: drawSheetOpen ? "1px solid rgba(232, 185, 35, 0.5)" : "1px solid rgba(139,106,41,0.35)",
+              minHeight: 44,
+              padding: "3px 10px",
+              borderRadius: 4,
+              fontWeight: 700,
+              cursor: "pointer",
+              marginLeft: 4,
+            }}
+          >
+            Draw
           </button>
         )}
         {(chartCanvasVM.decisionWhy || chartPassportVM.capturedAt !== null) && (
@@ -1210,6 +1263,26 @@ export function ChartsDashboard() {
                 gridView={gridView}
                 onGridViewChange={(v) => { setGridView(v); if (v) setGridRefresh(k => k + 1); }}
               />
+            </ShellModalDrawer>
+          )}
+
+          {/* The SAME LeftDrawingSidebar the desktop rail renders — variant
+              only, and the identical props object, so a tool selected here is
+              the tool the chart draws with. A second copy would mean one
+              surface wired to clearTrigger and one not. */}
+          {narrowViewport && drawSheetOpen && (activeTab === "Chart" || activeTab === "Options") && (
+            <ShellModalDrawer
+              id="chart-draw-sheet"
+              titleId="chart-draw-sheet-title"
+              descriptionId="chart-draw-sheet-description"
+              title="Drawing tools"
+              description="Pick a tool, then draw on the chart. Your selection stays active after this closes."
+              closeLabel="Close drawing tools"
+              width={320}
+              onClose={() => setDrawSheetOpen(false)}
+              fallbackTriggerRef={drawSheetTriggerRef}
+            >
+              <LeftDrawingSidebar {...drawingSidebarProps} variant="sheet" />
             </ShellModalDrawer>
           )}
 
@@ -1665,20 +1738,14 @@ export function ChartsDashboard() {
             <div ref={chartWrapRef} style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0, position:"relative" }}>
               {gridView && <WatchlistGrid refreshKey={gridRefresh} timeframe={timeframe} />}
               <div style={{ flex:1, display: gridView ? "none" : "flex", overflow:"hidden" }}>
-                {/* TradingView-style persistent left drawing rail */}
-                <LeftDrawingSidebar
-                  activeTool={drawingTool}
-                  onToolChange={setDrawingTool}
-                  onClearAll={() => setClearTrigger(t => t + 1)}
-                  style={drawingStyle}
-                  onStyleChange={patchDrawingStyle}
-                  magnetActive={magnetActive}
-                  onMagnetToggle={() => setMagnetActive(v => !v)}
-                  lockActive={lockActive}
-                  onLockToggle={() => setLockActive(v => !v)}
-                  visible={drawingsVisible}
-                  onVisToggle={() => setDrawingsVisible(v => !v)}
-                />
+                {/* TradingView-style persistent left drawing rail.
+                    Hidden by globals.css at the same breakpoint as the
+                    watchlist, so at narrow widths it moves into the drawer
+                    below instead — same component, ONE instance at any
+                    width. The eleven props live in `drawingSidebarProps`
+                    above precisely so the two call sites cannot drift into
+                    two differently-wired drawing surfaces. */}
+                {!narrowViewport && <LeftDrawingSidebar {...drawingSidebarProps} />}
                 <div style={{
                   flex: 1, display:"flex", overflow:"hidden",
                   ...(chartLayout === "2h" ? { flexDirection: "row" } :
