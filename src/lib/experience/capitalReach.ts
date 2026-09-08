@@ -243,7 +243,12 @@ export function selectCrossDeviceProgress(
       ? {
           label: "A shared record every device can read",
           state: "UNOBSERVED",
-          detail: "WM has not asked yet.",
+          // UNOBSERVED covers two facts that are NOT the same: WM has never
+          // asked, and WM asked but cannot stand behind the answer right now.
+          // "WM has not asked yet." is only true of the first. When the probe
+          // hands over a reason, that reason is the sentence — §8: a designed
+          // boundary must not borrow another state's vocabulary.
+          detail: observation.note ?? "WM has not asked yet.",
         }
       : observation.status === "SIGNED_OUT"
         ? {

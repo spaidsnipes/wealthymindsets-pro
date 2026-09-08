@@ -90,15 +90,35 @@ describe("the probe reports what it learned, and nothing more", () => {
   const hook = code(HOOK);
 
   it("starts UNOBSERVED — a spinner is not a finding", () => {
+    // Bound to the INVARIANT, not to one constant's name: whatever the initial
+    // constant is called, it must be an UNOBSERVED-status observation whose
+    // `note` is null — null note is what earns the selector's "has not asked
+    // yet." sentence, and at mount that sentence is the true one.
     expect(hook).toMatch(/status:\s*"UNOBSERVED"/);
-    expect(hook).toMatch(/useState<SharedAuthorityObservation>\(UNOBSERVED\)/);
+    const initial = hook.match(/useState<SharedAuthorityObservation>\((\w+)\)/);
+    expect(initial, "the initial observation must be a named constant, not an inline literal").not.toBeNull();
+    const declared = hook.match(
+      new RegExp(`const ${initial![1]}: SharedAuthorityObservation = \\{[^}]*\\}`),
+    );
+    expect(declared, `${initial![1]} must be declared in this file`).not.toBeNull();
+    expect(declared![0]).toMatch(/status:\s*"UNOBSERVED"/);
+    expect(declared![0], "the never-asked state is the only one entitled to a null note")
+      .toMatch(/note:\s*null/);
   });
 
   it("a lost connection does not become 'the table is absent'", () => {
     // catch { setObserved(...null) } would manufacture a finding out of an
-    // offline phone. The catch must return to silence.
+    // offline phone. The catch must return to silence — but a silence that
+    // still remembers WM asked, so it may not reuse the never-asked constant.
     const catchBlock = hook.slice(hook.indexOf("} catch {"));
-    expect(catchBlock).toMatch(/setObservation\(UNOBSERVED\)/);
+    const set = catchBlock.match(/setObservation\((\w+)\)/);
+    expect(set, "the catch must set an observation constant").not.toBeNull();
+    const declared = hook.match(
+      new RegExp(`const ${set![1]}: SharedAuthorityObservation = \\{[\\s\\S]*?\\n\\};`),
+    );
+    expect(declared![0]).toMatch(/status:\s*"UNOBSERVED"/);
+    expect(declared![0], "a failed re-check must explain itself rather than claim WM never asked")
+      .not.toMatch(/note:\s*null/);
     expect(catchBlock).not.toMatch(/status:\s*"OBSERVED"/);
   });
 

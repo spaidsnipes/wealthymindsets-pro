@@ -87,6 +87,22 @@ describe("UNOBSERVED is not NO — §14.1", () => {
     expect(progress(LOCAL, UNOBSERVED).nextDependency).toBeNull();
   });
 
+  it("only a probe that has never asked gets to say 'has not asked'", () => {
+    // §8. UNOBSERVED is three silences wearing one word: never asked, cannot
+    // re-check, could not read the reply. The probe distinguishes them with
+    // `note`; if this selector ignores it, all three read as "has not asked
+    // yet" — which is false for two of them and hides that WM tried.
+    const RECHECKING: SharedAuthorityObservation = {
+      status: "UNOBSERVED",
+      authority: null,
+      note: "WM cannot re-check the shared record from a device that is offline.",
+    };
+    expect(progress(LOCAL, RECHECKING).steps[0].detail).toBe(RECHECKING.note);
+    expect(progress(LOCAL, RECHECKING).steps[0].detail).not.toContain("has not asked");
+    // The never-asked case keeps its own sentence.
+    expect(progress(LOCAL, UNOBSERVED).steps[0].detail).toContain("has not asked");
+  });
+
   it("a signed-out device reports UNOBSERVED, not ABSENT", () => {
     const p = progress(LOCAL, SIGNED_OUT);
     expect(p.steps[0].state).toBe("UNOBSERVED");
