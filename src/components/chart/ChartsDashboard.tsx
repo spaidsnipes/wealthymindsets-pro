@@ -676,6 +676,24 @@ export function ChartsDashboard() {
     onVisToggle: () => setDrawingsVisible(v => !v),
   };
 
+  // And the same for the seven-control primary rail: measured at 375px it was
+  // display:none at 0x0, so publish idea, screenshot, voice note and video
+  // note had no door on a phone at all.
+  const [toolsSheetOpen, setToolsSheetOpen] = useState(false);
+  const toolsSheetTriggerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => { if (!narrowViewport) setToolsSheetOpen(false); }, [narrowViewport]);
+  // One object, spread twice — the rail and the sheet must capture the SAME
+  // node and publish the SAME symbol, or the phone silently screenshots
+  // something else. All six are declared above (266/344/473/574).
+  const primarySidebarProps = {
+    watchlistOpen,
+    onToggleWatchlist: () => setWatchlistOpen(v => !v),
+    chartLayout,
+    onLayoutChange: setChartLayout,
+    captureRef: fullscreenRef,
+    symbol,
+  };
+
   // Track day high/low from ticker
   useEffect(() => {
     if (ticker.price > 0) {
@@ -952,6 +970,33 @@ export function ChartsDashboard() {
             Draw
           </button>
         )}
+        {narrowViewport && (
+          <button
+            className="wm-chart-orientation-action wm-chart-tools-trigger"
+            ref={toolsSheetTriggerRef}
+            type="button"
+            onClick={() => setToolsSheetOpen(o => !o)}
+            aria-label={toolsSheetOpen ? "Close capture and share" : "Open capture and share"}
+            aria-expanded={toolsSheetOpen}
+            aria-controls="chart-tools-sheet"
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: "uppercase",
+              color: toolsSheetOpen ? "#e8b923" : "#c9a55c",
+              background: toolsSheetOpen ? "rgba(232, 185, 35, 0.12)" : "transparent",
+              border: toolsSheetOpen ? "1px solid rgba(232, 185, 35, 0.5)" : "1px solid rgba(139,106,41,0.35)",
+              minHeight: 44,
+              padding: "3px 10px",
+              borderRadius: 4,
+              fontWeight: 700,
+              cursor: "pointer",
+              marginLeft: 4,
+            }}
+          >
+            Capture
+          </button>
+        )}
         {(chartCanvasVM.decisionWhy || chartPassportVM.capturedAt !== null) && (
           <button
             className="wm-chart-orientation-action wm-chart-why-trigger"
@@ -1210,14 +1255,7 @@ export function ChartsDashboard() {
 
         {/* Left tool strip (TradingView-style): watchlist toggle, layout,
             publish idea, record video, speak your mind, screenshot, screen rec */}
-        <LeftSidebar
-          watchlistOpen={watchlistOpen}
-          onToggleWatchlist={() => setWatchlistOpen(v => !v)}
-          chartLayout={chartLayout}
-          onLayoutChange={setChartLayout}
-          captureRef={fullscreenRef}
-          symbol={symbol}
-        />
+        {!narrowViewport && <LeftSidebar {...primarySidebarProps} />}
 
         {/* Watchlist (left side, MooMoo places it left of chart).
             EXACTLY ONE INSTANCE. On a narrow viewport the rail is hidden by
@@ -1283,6 +1321,24 @@ export function ChartsDashboard() {
               fallbackTriggerRef={drawSheetTriggerRef}
             >
               <LeftDrawingSidebar {...drawingSidebarProps} variant="sheet" />
+            </ShellModalDrawer>
+          )}
+
+          {/* The SAME LeftSidebar, spreading the SAME props — so the phone
+              screenshots and publishes the same node the desktop does. */}
+          {narrowViewport && toolsSheetOpen && (
+            <ShellModalDrawer
+              id="chart-tools-sheet"
+              titleId="chart-tools-sheet-title"
+              descriptionId="chart-tools-sheet-description"
+              title="Capture & share"
+              description="Publish an idea, record a note, or capture this chart. Controls your browser cannot run are shown with the reason."
+              closeLabel="Close capture and share"
+              width={320}
+              onClose={() => setToolsSheetOpen(false)}
+              fallbackTriggerRef={toolsSheetTriggerRef}
+            >
+              <LeftSidebar {...primarySidebarProps} variant="sheet" />
             </ShellModalDrawer>
           )}
 

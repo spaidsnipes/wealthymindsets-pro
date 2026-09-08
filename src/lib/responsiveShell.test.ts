@@ -164,6 +164,61 @@ describe("responsive P0 command surfaces", () => {
     expect(sidebar).toMatch(/Math\.max\(8,\s*Math\.min\(left,\s*maxLeft\)\)/);
   });
 
+  it("hides the primary tool rail only where something else offers capture and share", () => {
+    // Measured at 375px: .wm-chart-primary-rail was display:none at 0x0 with
+    // seven controls mounted — Publish idea, Record video idea, Speak your
+    // mind, Screenshot chart (PNG), Record screen, Chart layout — none of
+    // which any visible control on a phone could reach.
+    const dashboard = source("../components/chart/ChartsDashboard.tsx");
+    const sidebar = source("../components/chart/LeftSidebar.tsx");
+
+    expect(dashboard, "the rail must not render where CSS is hiding it")
+      .toContain("{!narrowViewport && <LeftSidebar");
+    expect(dashboard).toContain("{narrowViewport && toolsSheetOpen &&");
+    expect(dashboard).toContain('id="chart-tools-sheet"');
+    expect(dashboard).toContain('aria-controls="chart-tools-sheet"');
+    expect(dashboard).toContain('<LeftSidebar {...primarySidebarProps} variant="sheet" />');
+
+    // The rail and the sheet must capture the SAME node and publish the SAME
+    // symbol. Two prop literals is how a phone screenshots something else.
+    const declared = dashboard.match(/const primarySidebarProps\b/g) ?? [];
+    expect(declared.length, "primarySidebarProps must be declared exactly once").toBe(1);
+    const spreads = dashboard.match(/\{\.\.\.primarySidebarProps\}/g) ?? [];
+    expect(spreads.length, "both the rail and the sheet must spread the same props").toBe(2);
+
+    expect(sidebar, "the sheet must not wear the class globals.css hides")
+      .toContain('isSheet ? "wm-chart-primary-sheet" : "wm-chart-primary-rail"');
+    expect(sidebar, "sheet controls must meet the phone tap standard")
+      .toMatch(/isSheet[\s\S]{0,120}?minHeight:\s*44/);
+  });
+
+  it("does not give the watchlist a second door it cannot open", () => {
+    // The narrow-viewport watchlist already has a door: the Watchlist trigger
+    // onto #chart-watchlist-sheet. The rail's own toggle flips `watchlistOpen`,
+    // which governs a rail that is display:none there — repeating it in the
+    // sheet would ship a control that looks live and changes nothing.
+    const sidebar = source("../components/chart/LeftSidebar.tsx");
+    expect(sidebar, "the watchlist toggle must be rail-only")
+      .toMatch(/\{!isSheet && \([\s\S]{0,400}?onClick=\{onToggleWatchlist\}/);
+  });
+
+  it("states why a relocated control is unavailable instead of shipping it dead", () => {
+    // LeftSidebar's own header: "Every action is REAL — no placeholder
+    // buttons." getDisplayMedia does not exist on iOS Safari at any width, so
+    // an unconditional Record screen button in a phone drawer would be exactly
+    // that placeholder. Detected at runtime — the desktop browser emulating a
+    // 375px viewport is not the browser a phone runs.
+    const sidebar = source("../components/chart/LeftSidebar.tsx");
+    expect(sidebar).toMatch(/typeof navigator\.mediaDevices\?\.getDisplayMedia !== "function"/);
+    expect(sidebar, "the reason must be shown, not just the disabled state")
+      .toContain("disabledReason={screenCaptureUnavailable}");
+    expect(sidebar).toMatch(/disabled=\{!!disabledReason\}/);
+    expect(sidebar, "an unavailable control must announce why to a screen reader")
+      .toContain("unavailable: ${disabledReason}");
+    expect(sidebar, "an unavailable control must not still fire its action")
+      .toContain("onClick={disabledReason ? undefined : onClick}");
+  });
+
   it("compresses the desktop product map into five human jobs plus one workspace menu", () => {
     const layout = source("../components/layout/MainLayout.tsx");
     const coreBlock = layout.slice(layout.indexOf("const NAV_CORE"), layout.indexOf("const NAV_WORKBENCH"));
@@ -216,7 +271,10 @@ describe("responsive P0 command surfaces", () => {
     const dashboard = source("../components/chart/ChartsDashboard.tsx");
     expect(dashboard).toContain('lsGet("wm_chart_watchlist_open", false)');
     expect(dashboard).toContain('localStorage.setItem("wm_chart_watchlist_open"');
-    expect(dashboard).toContain("onToggleWatchlist={() => setWatchlistOpen(v => !v)}");
+    // The rail's toggle moved from a JSX literal into primarySidebarProps when
+    // the rail gained a narrow-viewport sheet. Same wiring, same persisted
+    // state — assert the invariant rather than the punctuation it was in.
+    expect(dashboard).toContain("onToggleWatchlist: () => setWatchlistOpen(v => !v)");
   });
 
   it("keeps chart appearance available without two competing theme buttons", () => {

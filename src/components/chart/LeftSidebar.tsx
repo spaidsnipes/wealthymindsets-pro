@@ -125,18 +125,43 @@ interface Props {
   /** node to snapshot for Screenshot / Publish (the chart column). */
   captureRef: React.RefObject<HTMLElement | null>;
   symbol: string;
+  /**
+   * "rail"  — the 46px desktop strip. globals.css hides it below 1024px.
+   * "sheet" — the SAME controls inside the narrow-viewport drawer, because
+   *           hiding a surface is not relocating it. Measured at 375px:
+   *           .wm-chart-primary-rail is display:none at 0x0 with all seven
+   *           controls mounted and unreachable — publish, screenshot, voice
+   *           note and video note simply did not exist on a phone.
+   */
+  variant?: "rail" | "sheet";
 }
 
 type ModalKind = null | "publish" | "video" | "audio";
 
 export default function LeftSidebar({
   watchlistOpen, onToggleWatchlist, chartLayout, onLayoutChange, captureRef, symbol,
+  variant = "rail",
 }: Props) {
+  const isSheet = variant === "sheet";
   const [layoutOpen, setLayoutOpen] = useState(false);
   const [modal, setModal] = useState<ModalKind>(null);
   const [flash, setFlash] = useState(false);          // screenshot flash feedback
   const [shotOk, setShotOk] = useState(false);        // screenshot ✓ tick
   const [busy, setBusy] = useState(false);            // capture in progress
+
+  /* Screen capture is not universal. Resolved AFTER mount so the server and
+     the first client render agree (both assume available); an unavailable
+     browser then downgrades the control to an explained, disabled state
+     instead of a button that throws when tapped. */
+  const [screenCaptureUnavailable, setScreenCaptureUnavailable] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    if (typeof navigator.mediaDevices?.getDisplayMedia !== "function") {
+      setScreenCaptureUnavailable("This browser cannot capture the screen");
+    } else if (typeof MediaRecorder === "undefined") {
+      setScreenCaptureUnavailable("This browser cannot record media");
+    }
+  }, []);
 
   /* screen recording state (lives at strip level so the button pulses) */
   const [screenRec, setScreenRec] = useState(false);
@@ -208,57 +233,105 @@ export default function LeftSidebar({
   }, [screenRec, startScreenRec, stopScreenRec]);
 
   /* ── strip button ───────────────────────────────────────────────────── */
-  const Btn = ({ icon, label, active, danger, onClick }: {
-    icon: React.ReactNode; label: string; active?: boolean; danger?: boolean; onClick: () => void;
+  /* In the rail this is a 38px icon with a hover tooltip. In the sheet it is
+     a full-width 44px row with the label WRITTEN OUT: a tooltip needs a
+     hover, and a finger cannot hover, so an icon-only drawer would relocate
+     the buttons without relocating the ability to know what they do. */
+  const Btn = ({ icon, label, active, danger, onClick, disabledReason }: {
+    icon: React.ReactNode; label: string; active?: boolean; danger?: boolean;
+    onClick: () => void;
+    /** Present = this browser cannot do it. Explained, never silently dead. */
+    disabledReason?: string;
   }) => (
     <button
-      onClick={onClick}
-      title={label}
+      onClick={disabledReason ? undefined : onClick}
+      disabled={!!disabledReason}
+      aria-disabled={!!disabledReason}
+      aria-pressed={active}
+      aria-label={disabledReason ? `${label} — unavailable: ${disabledReason}` : label}
+      title={disabledReason ? `${label} — unavailable: ${disabledReason}` : label}
       style={{
         position: "relative",
-        width: 38, height: 38, borderRadius: 8,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        cursor: "pointer",
+        ...(isSheet
+          ? { width: "100%", minHeight: 44, borderRadius: 8, padding: "0 10px",
+              justifyContent: "flex-start", gap: 12, fontSize: 13, textAlign: "left" as const }
+          : { width: 38, height: 38, borderRadius: 8, justifyContent: "center" }),
+        display: "flex", alignItems: "center",
+        cursor: disabledReason ? "not-allowed" : "pointer",
+        opacity: disabledReason ? 0.55 : 1,
         background: active ? (danger ? "rgba(255,71,87,0.16)" : "rgba(47,128,237,0.16)") : "transparent",
         border: `1px solid ${active ? (danger ? "rgba(255,71,87,0.5)" : "rgba(47,128,237,0.45)") : "transparent"}`,
         color: active ? (danger ? REC : ACCENT) : "#8896BE",
         transition: "all 0.14s",
       }}
-      onMouseEnter={e => { if (!active) { const b = e.currentTarget; b.style.background = "rgba(255,255,255,0.05)"; b.style.color = "#C7D0E8"; } }}
-      onMouseLeave={e => { if (!active) { const b = e.currentTarget; b.style.background = "transparent"; b.style.color = "#8896BE"; } }}
+      onMouseEnter={e => { if (!active && !disabledReason) { const b = e.currentTarget; b.style.background = "rgba(255,255,255,0.05)"; b.style.color = "#C7D0E8"; } }}
+      onMouseLeave={e => { if (!active && !disabledReason) { const b = e.currentTarget; b.style.background = "transparent"; b.style.color = "#8896BE"; } }}
     >
-      {icon}
+      <span style={{ display: "flex", flexShrink: 0 }}>{icon}</span>
+      {isSheet && (
+        <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+          <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+          {disabledReason && (
+            <span style={{ fontSize: 10, color: "#6B7391", whiteSpace: "normal", lineHeight: 1.3 }}>
+              {disabledReason}
+            </span>
+          )}
+        </span>
+      )}
     </button>
   );
 
   return (
     <>
       {/* ═══ vertical strip ═══ */}
-      <div className="wm-chart-primary-rail" style={{
-        width: 46, flexShrink: 0,
-        background: "#0A0B10",
-        borderRight: "1px solid #1E2030",
-        display: "flex", flexDirection: "column", alignItems: "center",
-        padding: "8px 0", gap: 4,
-      }}>
-        {/* Watchlist toggle */}
-        <Btn
-          icon={<PanelLeft size={19} />}
-          label={watchlistOpen ? "Hide watchlist" : "Show watchlist"}
-          active={watchlistOpen}
-          onClick={onToggleWatchlist}
-        />
+      <div
+        className={isSheet ? "wm-chart-primary-sheet" : "wm-chart-primary-rail"}
+        style={isSheet ? {
+          width: "100%",
+          background: "#0A0B10",
+          display: "flex", flexDirection: "column", alignItems: "stretch",
+          padding: 8, gap: 4,
+        } : {
+          width: 46, flexShrink: 0,
+          background: "#0A0B10",
+          borderRight: "1px solid #1E2030",
+          display: "flex", flexDirection: "column", alignItems: "center",
+          padding: "8px 0", gap: 4,
+        }}
+      >
+        {/* Watchlist toggle — RAIL ONLY, and that is a decision, not an
+            oversight. On a narrow viewport the watchlist has its own door
+            (the Watchlist trigger -> #chart-watchlist-sheet). Repeating it
+            here would give one capability two doors, and this one toggles
+            `watchlistOpen`, which governs a rail that is display:none —
+            a control that would appear to work and change nothing. */}
+        {!isSheet && (
+          <Btn
+            icon={<PanelLeft size={19} />}
+            label={watchlistOpen ? "Hide watchlist" : "Show watchlist"}
+            active={watchlistOpen}
+            onClick={onToggleWatchlist}
+          />
+        )}
 
         {/* Layout grid */}
-        <div ref={layoutBtnRef} style={{ position: "relative" }}>
+        <div ref={layoutBtnRef} style={{ position: "relative", width: isSheet ? "100%" : undefined }}>
           <Btn icon={<LayoutGrid size={19} />} label="Chart layout" active={layoutOpen} onClick={() => setLayoutOpen(o => !o)} />
           <AnimatePresence>
             {layoutOpen && (
               <motion.div
-                initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -6 }}
+                initial={{ opacity: 0, x: isSheet ? 0 : -6, y: isSheet ? -4 : 0 }}
+                animate={{ opacity: 1, x: 0, y: 0 }}
+                exit={{ opacity: 0, x: isSheet ? 0 : -6, y: isSheet ? -4 : 0 }}
                 transition={{ duration: 0.12 }}
                 style={{
-                  position: "absolute", left: "calc(100% + 8px)", top: 0,
+                  /* The rail flies this out to its right. Inside a 320px
+                     drawer that lands past the edge of the screen, so the
+                     sheet opens it IN PLACE and wraps instead. */
+                  ...(isSheet
+                    ? { position: "relative", left: 0, top: 0, marginTop: 6,
+                        flexWrap: "wrap" as const, justifyContent: "space-between" }
+                    : { position: "absolute", left: "calc(100% + 8px)", top: 0 }),
                   background: "#141824", border: "1px solid #263050", borderRadius: 10,
                   padding: 8, zIndex: 400, display: "flex", gap: 6,
                   boxShadow: "0 10px 34px rgba(0,0,0,0.55)",
@@ -270,7 +343,10 @@ export default function LeftSidebar({
                     title={lo.label}
                     style={{
                       display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-                      padding: "7px 9px", borderRadius: 7, cursor: "pointer",
+                      padding: isSheet ? "8px 10px" : "7px 9px",
+                      minHeight: isSheet ? 44 : undefined,
+                      minWidth: isSheet ? 68 : undefined,
+                      borderRadius: 7, cursor: "pointer",
                       background: chartLayout === lo.id ? "rgba(47,128,237,0.15)" : "transparent",
                       border: `1px solid ${chartLayout === lo.id ? "rgba(47,128,237,0.4)" : "transparent"}`,
                     }}
@@ -286,7 +362,7 @@ export default function LeftSidebar({
           </AnimatePresence>
         </div>
 
-        <div style={{ width: 26, height: 1, background: "#1E2030", margin: "5px 0" }} />
+        <div style={{ width: isSheet ? "100%" : 26, height: 1, background: "#1E2030", margin: "5px 0" }} />
 
         {/* Publish Idea */}
         <Btn icon={<Share2 size={18} />} label="Publish idea" onClick={() => setModal("publish")} />
@@ -295,7 +371,7 @@ export default function LeftSidebar({
         {/* Speak Your Mind */}
         <Btn icon={<Mic size={19} />} label="Speak your mind" onClick={() => setModal("audio")} />
 
-        <div style={{ width: 26, height: 1, background: "#1E2030", margin: "5px 0" }} />
+        <div style={{ width: isSheet ? "100%" : 26, height: 1, background: "#1E2030", margin: "5px 0" }} />
 
         {/* Screenshot */}
         <Btn
@@ -303,11 +379,23 @@ export default function LeftSidebar({
           label="Screenshot chart (PNG)"
           onClick={doScreenshot}
         />
-        {/* Screen recording */}
+        {/* Screen recording.
+            This file's own contract is "Every action is REAL — no placeholder
+            buttons." getDisplayMedia does not exist on iOS Safari at any
+            width, so relocating this control to a phone drawer unconditionally
+            would ship exactly the placeholder the header forbids: a button
+            that looks live and throws NotAllowedError on tap. Detected at
+            runtime rather than assumed, because the narrow viewport a desktop
+            browser emulates is NOT the browser a phone actually runs — the
+            emulator here reports getDisplayMedia available; a real iPhone
+            will not, and that is the case this branch exists for. The
+            limitation is then STATED, which is what the parity law asks:
+            explicit and owned, not accidental. */}
         <Btn
           icon={screenRec ? <Square size={15} fill={REC} /> : <MonitorPlay size={19} />}
           label={screenRec ? "Stop screen recording" : "Record screen"}
           active={screenRec} danger
+          disabledReason={screenCaptureUnavailable}
           onClick={toggleScreenRec}
         />
         {screenRec && (
