@@ -62,12 +62,12 @@ async function probeAuthority(): Promise<
 
   // A read for a decision id that cannot exist. Success means the RPC is
   // present and callable; zero rows is the expected, healthy answer.
-  const { error } = await Promise.resolve(admin.rpc("wm_read_decision_position", {
+  const { data, error } = await Promise.resolve(admin.rpc("wm_read_decision_position", {
     p_owner_id: "00000000-0000-0000-0000-000000000000",
     p_decision_id: "__wm_authority_probe__",
-  })).catch(() => ({ error: { code: "TRANSPORT_UNVERIFIED" } }));
+  })).catch(() => ({ data: null, error: { code: "TRANSPORT_UNVERIFIED" } }));
 
-  if (error) {
+  if (error || !Array.isArray(data) || data.length !== 0) {
     return {
       reachable: false,
       because:

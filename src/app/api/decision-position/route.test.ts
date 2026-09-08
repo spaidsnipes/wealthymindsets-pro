@@ -16,6 +16,18 @@ beforeEach(() => {
 });
 
 describe("shared position transport truth", () => {
+  it.each([null, undefined, {}, "ok", [{ recon_version: 1 }]])("does not certify a malformed probe receipt %s", async (data) => {
+    mocks.rpc.mockResolvedValue({ data, error: null });
+    const result = await GET(new Request("http://localhost/api/decision-position"));
+    expect((await result.json()).serverAuthority).toBeNull();
+  });
+
+  it("accepts the expected empty probe receipt", async () => {
+    mocks.rpc.mockResolvedValue({ data: [], error: null });
+    const result = await GET(new Request("http://localhost/api/decision-position"));
+    expect((await result.json()).serverAuthority).not.toBeNull();
+  });
+
   it("does not call an unavailable store an absent table", async () => {
     mocks.rpc.mockResolvedValue({ data: null, error: { code: "network" } });
     const result = await GET(new Request("http://localhost/api/decision-position"));
