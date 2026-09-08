@@ -10,6 +10,7 @@
  */
 
 import type { CapitalStoreFacts } from "@/lib/experience/capitalReach";
+import type { DecisionId } from "@/lib/traderMemory/decisionIdentity";
 
 export const PAPER_KEY = "wm_paper_state";
 export const STARTING_CASH = 100_000;
@@ -265,6 +266,22 @@ export interface Order {
    * shown reads as "there was no reason".
    */
   rejectReason?: string;
+  /**
+   * The decision this order is an ATTEMPT AT — §4's DECISION_ID.
+   *
+   * `id` above is the order's own id: it dies at reject and the retry gets a
+   * new one. This does not. A reject, a retry, a partial, a protect, a
+   * replace, an exit and the final receipt all carry the same value, which is
+   * what makes "the phone is the same position" (§5 step 9) a question with
+   * an answer.
+   *
+   * OPTIONAL, AND IT MUST STAY OPTIONAL. Orders in the blotter from before
+   * this field existed have no decision identity, and they cannot be given
+   * one retroactively without inventing which decision they belonged to. H1:
+   * absence is not zero, and it is not a fresh id either. Readers disclose
+   * the absence; they never mint over it.
+   */
+  decisionId?: DecisionId;
 }
 
 /**

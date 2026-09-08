@@ -67,6 +67,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import styles from "./paper.module.css";
 import { modelBand, longOptionUnrealised } from "@/lib/optionModelBand";
+import { mintDecisionId } from "@/lib/traderMemory/decisionIdentity";
+import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { validateTicketLevels, purposeOrderType, purposeSentence, purposeTradeoff,
          TICKET_PURPOSES, type OrderPurpose, type TicketLevelIssue } from "@/lib/orderPurpose";
 
@@ -358,6 +360,29 @@ function OrderTicket({
     });
     if (!levels.ok) { setLevelIssues(levels.issues); return; }
     setLevelIssues([]);
+
+    /**
+     * THE BIRTH ACT. §4: a DECISION_ID is "born at permission or first
+     * explicit intent." This press is that intent — the first moment a human
+     * has said what he wants, on a surface he can actually reach.
+     *
+     * IT IS MINTED HERE AND NOT ONE LINE EARLIER, on purpose. Both guards
+     * above decline the ticket: an unactionable quote, and a price level the
+     * trader left blank. Minting before them would burn an identity on a
+     * decision that was never made, and the blotter would carry decision ids
+     * belonging to nothing.
+     *
+     * It is also not derived from `uid()` below. The order id dies at reject
+     * and the retry gets a new one; this does not. They are two different
+     * questions and they get two different answers.
+     */
+    const born = mintDecisionId({
+      cause: "EXPLICIT_INTENT",
+      deviceId: thisDeviceId(),
+      nowMs: Date.now(),
+      nonce: uid() + uid(),
+    });
+
     const order: Order = {
       id:     uid(),
       symbol: sym,
@@ -365,6 +390,11 @@ function OrderTicket({
       ts:     Date.now(),
       limitPx: levels.limitPx,
       stopPx:  levels.stopPx,
+      // If identity could not be minted the order still goes through: WM does
+      // not refuse a trader's order because its own bookkeeping failed. The
+      // field stays absent and readers disclose that, which is the honest
+      // outcome — a fabricated id here would be worse than none.
+      ...(born.ok ? { decisionId: born.identity.decisionId } : {}),
     };
     onSubmit(order);
     setFlash(true);

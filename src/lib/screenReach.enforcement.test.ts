@@ -115,18 +115,12 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "TEST_FIXTURE",
     note: "Offline shape lock for the Webull MCP. Correct that it never ships.",
   },
-  "src/lib/traderMemory/decisionIdentity.ts": {
-    reason: "AWAITING_SURFACE",
-    note:
-      "DECISION_ID owner (§4). Deliberately unreached ON ARRIVAL, and this entry "
-      + "is the admission. Nothing in src/ has ever produced a DECISION_ID — that "
-      + "absence is what blocks BUILD ORDER steps 5, 6, 9 and 10, all of which are "
-      + "phrased as 'the same decision, later'. The birth act it needs (permission "
-      + "GRANTED, or a human's first explicit intent) is a transition no surface "
-      + "currently fires; computeRightOfWay is a per-render reading, so minting "
-      + "there would produce a new identity per frame. Law before wire, exactly as "
-      + "sharedPositionAuthority.ts preceded the route that now imports it.",
-  },
+  // REMOVED 2026-09-08: "decisionIdentity.ts — DECISION_ID owner, unreached on
+  // arrival." It was declared AWAITING_SURFACE in 1ffd79d and given one in the
+  // very next commit: /paper's order ticket now mints the id at the human's
+  // first explicit intent. This ledger's reciprocal sentinel demanded the
+  // deletion within the hour, which is the behaviour it was written for. See
+  // decisionBirth.enforcement.test.ts for the wiring proof.
   "src/lib/decisionMemory.ts": {
     reason: "AWAITING_SURFACE",
     note: "§13: 'Decision Memory sealing has zero production callers.' Confirmed. useDecisionMemory reaches screens; the sealing module underneath does not.",
