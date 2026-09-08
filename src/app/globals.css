@@ -216,6 +216,14 @@
 /* Phone chart chrome: keep decisions and actions visible, while giving the
    timeframe rail its own honest, touch-sized scroll surface. */
 @media (max-width: 639px) {
+  /* Phone semantic zoom: the verdict stays visible; the complete counts and
+     reasons remain in the control's accessible tooltip and the WHY surface.
+     Repeating all four counters in permanent chrome steals market-canvas
+     width without changing the trader's next action. */
+  .wm-canvas-summary-detail {
+    display: none !important;
+  }
+
   .wm-chart-orientation-strip {
     flex-wrap: wrap !important;
     align-items: stretch !important;

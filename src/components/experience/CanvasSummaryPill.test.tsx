@@ -27,6 +27,14 @@ function vm(over: Partial<MarketCanvasVM> = {}): MarketCanvasVM {
 }
 
 describe("CanvasSummaryPill — canon §Phase 3 Market Canvas summary", () => {
+  it("marks secondary counts for phone semantic zoom while preserving the verdict", () => {
+    const html = renderToStaticMarkup(
+      <CanvasSummaryPill vm={vm({ verdict: "WAIT", hasSnapshot: true, blockers: ["Market data"] })} />,
+    );
+    expect(html).toContain("wm-canvas-summary-detail");
+    expect(html).toContain("WAIT");
+  });
+
   it("renders nothing when the VM is fully silent (canon §Silence Is A Feature)", () => {
     const html = renderToStaticMarkup(<CanvasSummaryPill vm={vm()} />);
     expect(html).toBe("");

@@ -137,10 +137,10 @@ export function CanvasSummaryPill({
         {vm.verdict}
       </span>
       {parts.length > 0 && (
-        <span style={{ color: "#8a8271" }}>·</span>
+        <span className="wm-canvas-summary-detail" style={{ color: "#8a8271" }}>·</span>
       )}
       {parts.length > 0 && (
-        <span style={{ color: "#d8cfb8" }}>{parts.join(" · ")}</span>
+        <span className="wm-canvas-summary-detail" style={{ color: "#d8cfb8" }}>{parts.join(" · ")}</span>
       )}
     </>
   );
