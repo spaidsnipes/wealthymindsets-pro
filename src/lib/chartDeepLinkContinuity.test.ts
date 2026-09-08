@@ -42,6 +42,35 @@ describe("chart deep-link continuity", () => {
     expect(charts).toContain("useActiveSymbol");
   });
 
+  it("a seed is not a leash — the URL may not re-assert over the trader", () => {
+    // This test is the one that was missing. The test above is NAMED for the
+    // seed-not-owner property and only checked that two identifiers appear,
+    // so the URL was free to become an owner without any Sentinel objecting.
+    //
+    // MEASURED before the fix, localStorage spy on the desktop rail: a single
+    // watchlist row click wrote wm_last_symbol twice — ["TSLA", "NQ1!"]. The
+    // seeding effect listed `activeSymbol` as a dependency, so every user
+    // selection re-ran it and it wrote the stale URL symbol straight back.
+    const effect = charts.slice(
+      charts.indexOf("React.useEffect(() => {"),
+      charts.indexOf("return <ChartsDashboard />"),
+    );
+    expect(effect, "the seeding effect must be findable").toContain("SYMBOL_PATTERN.test");
+
+    const deps = effect.slice(effect.lastIndexOf("}, ["));
+    expect(deps, "activeSymbol as a dependency turns the seed into a leash")
+      .not.toMatch(/\bactiveSymbol\b/);
+
+    // Seeding must be latched, so a re-run cannot re-apply an already-used
+    // deep link over a selection the trader has since made.
+    expect(effect, "the applied deep link must be remembered").toMatch(/seededUrlSymbol\.current/);
+    expect(effect, "an already-seeded URL symbol must return early")
+      .toMatch(/seededUrlSymbol\.current === up[\s\S]*?return/);
+
+    // A genuinely new deep link must still win.
+    expect(charts).toMatch(/\[urlSymbol, setActiveSymbol\]/);
+  });
+
   it("useSearchParams is wrapped in Suspense for SSG", () => {
     expect(charts).toContain("Suspense");
   });
