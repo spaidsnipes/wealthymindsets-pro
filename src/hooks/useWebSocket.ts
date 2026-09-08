@@ -32,6 +32,7 @@ import { selectFreshWebullObservedEvents } from "@/lib/marketData/adapters/webul
 import { electProviderTapeSource, type ProviderTapeSource } from "@/lib/marketData/providerTapeElection";
 import { selectObservedProviderFallback } from "@/lib/marketData/selectObservedProviderFallback";
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
+import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 import { resolveQuoteDayChange } from "@/lib/marketData/resolveQuoteDayChange";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
@@ -1293,6 +1294,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
     // ── REST polling — REAL price drives the live bar (no faked movement) ──
     let restFetchInFlight = false;
+    let lastRestStartedAt: number | null = null;
     let restTimer: ReturnType<typeof setTimeout> | null = null;
     const scheduleRestFetch = (delayMs: number) => {
       if (disposed || document.visibilityState === "hidden") return;
@@ -1302,6 +1304,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     const doRestFetch = () => {
       if (disposed || document.visibilityState === "hidden" || restFetchInFlight) return;
       restFetchInFlight = true;
+      lastRestStartedAt = Date.now();
       fetchRealQuote(symbol).then(answer => {
         if (!answer) return;
         if (answer.kind === "refused") {
@@ -1388,9 +1391,22 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // Fetch immediately at mount to correct stale seed price
     doRestFetch();
 
-    // Fire REST fetch immediately when tab becomes visible (fixes background-tab throttling)
+    // Top up a REST schedule the browser may have throttled while hidden.
+    //
+    // This already had an in-flight guard, so it could not stack concurrent
+    // requests — but it still cancelled the pending timer and fired a fresh
+    // request on EVERY visible edge, however brief. Same defect as TickerTape
+    // and WatchlistPanel, one severity lower. The rule now lives in one place:
+    // see visibilityRefetch.ts for the measurement.
     const onVisibleWS = () => {
-      if (document.visibilityState !== "visible") return;
+      const verdict = selectVisibilityRefetch({
+        visibilityState: document.visibilityState,
+        lastRoundStartedAt: lastRestStartedAt,
+        inFlight: restFetchInFlight,
+        now: Date.now(),
+        intervalMs: restQuoteNextPollDelayMs(tapeSourceRef.current),
+      });
+      if (verdict.kind !== "REFETCH") return;
       if (restTimer) clearTimeout(restTimer);
       doRestFetch();
     };

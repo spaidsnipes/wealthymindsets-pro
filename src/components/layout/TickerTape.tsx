@@ -15,6 +15,10 @@ import {
   formatQuoteAge,
   selectTapeQuoteFreshness,
 } from "@/lib/marketData/tapeQuoteFreshness";
+import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
+
+/** The rail's poll cadence. Also the interval the visibility handler tops up. */
+const TAPE_POLL_INTERVAL_MS = 10_000;
 
 // WM-SEC-P0-05 (2026-08-08): client-side Polygon key read removed. The
 // NEXT_PUBLIC_POLYGON_KEY that used to live here shipped the API key
@@ -516,7 +520,27 @@ export function TickerTape() {
 
   /* ── Yahoo REST fetch on mount + every 10s ────────────── */
   useEffect(() => {
+    // Closure state, not refs: this effect re-subscribes only when the SET of
+    // symbols changes, and the guards below are meaningless across a
+    // re-subscription anyway (a new symbol list is genuinely owed a round).
+    let inFlight = false;
+    let lastRoundStartedAt: number | null = null;
+
     const doFetch = async () => {
+      // A round must not overlap itself. Two concurrent rounds do not produce
+      // fresher prices — they race over which one writes last, and double the
+      // requests to rate-limited free providers.
+      if (inFlight) return;
+      inFlight = true;
+      lastRoundStartedAt = Date.now();
+      try {
+        await runRound();
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const runRound = async () => {
       const { quotes: answered, refusals: declined } = await fetchTapeQuotes(requestedTapeSymbols);
       // Recorded BEFORE the early return below, unconditionally. A round that
       // produced nothing is still a round that happened, and it is exactly the
@@ -545,9 +569,27 @@ export function TickerTape() {
     };
 
     doFetch();
-    const id = setInterval(doFetch, 10_000);
-    // Fire immediately when tab becomes visible (fixes background-tab throttling)
-    const onVisible = () => { if (document.visibilityState === "visible") doFetch(); };
+    const id = setInterval(doFetch, TAPE_POLL_INTERVAL_MS);
+    // Returning to the foreground TOPS UP a schedule the browser may have
+    // throttled away while hidden. It does not bypass the schedule.
+    //
+    // This used to fetch unconditionally on any visible edge. Measured on a
+    // freshly reloaded /command-deck: four visibilitychange events — four
+    // 140ms flickers out to hidden and straight back — produced 28 quote
+    // requests against a 10-second interval. On a phone the dispatcher is real
+    // and constant: iOS fires this on every app switch, screen lock and
+    // notification-shade pull, so a trader glancing at his broker app pays a
+    // full 14-symbol provider round per glance. See visibilityRefetch.ts.
+    const onVisible = () => {
+      const verdict = selectVisibilityRefetch({
+        visibilityState: document.visibilityState,
+        lastRoundStartedAt,
+        inFlight,
+        now: Date.now(),
+        intervalMs: TAPE_POLL_INTERVAL_MS,
+      });
+      if (verdict.kind === "REFETCH") doFetch();
+    };
     document.addEventListener("visibilitychange", onVisible);
     return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
     // requestedTapeKey is a stable string: re-subscribe only when the SET of

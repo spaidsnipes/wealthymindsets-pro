@@ -74,7 +74,13 @@ describe("ticker tape polling subscription", () => {
   });
 
   it("still polls on an interval and on tab visibility", () => {
-    expect(src).toContain("setInterval(doFetch, 10_000)");
+    // Rename-resilient, for the reason spelled out three tests above: this
+    // guards that a TEN-SECOND interval drives the poll, not that the literal
+    // `10_000` is typed at the setInterval call. The cadence is now a named
+    // constant shared with the visibility handler, which must top up THAT
+    // interval rather than a second, independently drifting copy of it.
+    expect(src).toMatch(/setInterval\(doFetch, TAPE_POLL_INTERVAL_MS\)/);
+    expect(src).toMatch(/const TAPE_POLL_INTERVAL_MS = 10_000;/);
     expect(src).toContain("visibilitychange");
   });
 });

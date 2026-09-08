@@ -10,6 +10,10 @@ import { provenSessionClosure } from "@/lib/marketData/canonicalIdentity";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
+import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
+
+/** The watchlist's poll cadence — and the interval its visibility handler tops up. */
+const WATCHLIST_POLL_INTERVAL_MS = 10_000;
 
 const DEFAULT_SYMBOLS = [
   "ES1!", "NQ1!", "RTY1!", "YM1!", "SPY", "QQQ",
@@ -483,7 +487,15 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
   // Re-fetch real prices from Yahoo every 10s (fires immediately on mount)
   // Persists prices to localStorage so HMR re-mounts start with correct data
   useEffect(() => {
+    // Same guards, same owner, same reason as TickerTape's polling effect.
+    // These two rails poll the same free providers from the same page.
+    let inFlight = false;
+    let lastRoundStartedAt: number | null = null;
+
     const doFetch = () => {
+      if (inFlight) return;
+      inFlight = true;
+      lastRoundStartedAt = Date.now();
       fetchPolygonSnapshot(symbols).then(liveMap => {
         if (!Object.keys(liveMap).length) return;
         setItems(prev => {
@@ -519,11 +531,23 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
           } catch {}
           return updated;
         });
-      });
+      }).finally(() => { inFlight = false; });
     };
     doFetch();
-    const iv = setInterval(doFetch, 10_000);
-    const onVisible = () => { if (document.visibilityState === "visible") doFetch(); };
+    const iv = setInterval(doFetch, WATCHLIST_POLL_INTERVAL_MS);
+    // Tops up a throttled schedule; does not bypass it. See visibilityRefetch.ts
+    // for the measurement — a 140ms flicker out to hidden and back used to buy
+    // a full provider round here, and on a phone those flickers are constant.
+    const onVisible = () => {
+      const verdict = selectVisibilityRefetch({
+        visibilityState: document.visibilityState,
+        lastRoundStartedAt,
+        inFlight,
+        now: Date.now(),
+        intervalMs: WATCHLIST_POLL_INTERVAL_MS,
+      });
+      if (verdict.kind === "REFETCH") doFetch();
+    };
     document.addEventListener("visibilitychange", onVisible);
     return () => { clearInterval(iv); document.removeEventListener("visibilitychange", onVisible); };
   }, [symbols]);
