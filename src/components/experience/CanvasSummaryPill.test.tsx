@@ -7,6 +7,8 @@
 import { describe, it, expect } from "vitest";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { CanvasSummaryPill } from "./CanvasSummaryPill";
 import type { MarketCanvasVM } from "@/lib/marketData/viewModels/selectMarketCanvas";
 
@@ -27,12 +29,21 @@ function vm(over: Partial<MarketCanvasVM> = {}): MarketCanvasVM {
 }
 
 describe("CanvasSummaryPill — canon §Phase 3 Market Canvas summary", () => {
-  it("marks secondary counts for phone semantic zoom while preserving the verdict", () => {
+  it("marks secondary counts for permanent-chrome semantic zoom while preserving the verdict", () => {
     const html = renderToStaticMarkup(
       <CanvasSummaryPill vm={vm({ verdict: "WAIT", hasSnapshot: true, blockers: ["Market data"] })} />,
     );
     expect(html).toContain("wm-canvas-summary-detail");
     expect(html).toContain("WAIT");
+  });
+
+  it("keeps the ledger out of permanent chart chrome on every viewport", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+    const rule = css.indexOf(".wm-canvas-summary-detail {");
+    const phoneQuery = css.indexOf("@media (max-width: 639px)");
+    expect(rule).toBeGreaterThan(-1);
+    expect(rule).toBeLessThan(phoneQuery);
+    expect(css.slice(rule, phoneQuery)).toContain("display: none !important");
   });
 
   it("renders nothing when the VM is fully silent (canon §Silence Is A Feature)", () => {
