@@ -76,6 +76,8 @@ import styles from "./paper.module.css";
 import { modelBand, longOptionUnrealised } from "@/lib/optionModelBand";
 import { WM } from "@/lib/design/wmTokens";
 import { DecisionReachCheck } from "@/components/paper/DecisionReachCheck";
+import { ContractStance } from "@/components/paper/ContractStance";
+import { selectExpressionCard } from "@/lib/expressionCard";
 import { mintDecisionId } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { recordDecisionIntent } from "@/lib/traderMemory/recordDecisionIntent";
@@ -1057,6 +1059,40 @@ function OptionsChain({
         const markBid = modelBand(g.price)?.bid ?? null;
         const pnl = longOptionUnrealised(g.price, op.entryPrem, op.qty, OPT_MULTIPLIER);
         const dte = Math.max(0,Math.ceil((op.expiryTs-Date.now())/86_400_000));
+        /* §10 EXPRESSION_CARD. The row above says what the contract is WORTH;
+           this says what it IS — how much of it is unprotected, and that no
+           planned 1R was ever collected so R has no denominator. Inputs that
+           /paper genuinely does not hold are passed as absent, never invented:
+           there are no real bid/ask (H18 — modelled only), no structural
+           invalidation for an option, and no planned R. Each becomes a stated
+           UNKNOWN rather than a fabricated number. */
+        const stance = selectExpressionCard({
+          underlyingSymbol: op.underlying,
+          contractLabel: `${op.underlying} ${fmt2(op.strike)}${op.type==="call"?"C":"P"}`,
+          isCall: op.type === "call",
+          strike: op.strike,
+          expiryMs: op.expiryTs,
+          nowMs: Date.now(),
+          qtyRequested: op.qty,
+          qtyFilled: op.qty,
+          // No protective order exists on the paper path, so nothing is ACKed.
+          // §14.2: BROKER-WORKING is unsayable without an acknowledgement.
+          brokerAckedProtectedQty: 0,
+          entryPremium: op.entryPrem,
+          bid: null,
+          ask: null,
+          modeledPremium: markBid,
+          // Absent on this path — the option ticket never collected them.
+          underlyingEntry: Number.NaN,
+          underlyingInvalidation: Number.NaN,
+          plannedRDollars: null,
+          iv: underlyingIV(op.underlying),
+          ivSource: "assumed volatility (paper simulator)",
+          contractMultiplier: OPT_MULTIPLIER,
+          // H4 — same honest UNKNOWN the row header already declares.
+          underlyingSession: null,
+          optionSession: null,
+        });
         return (
           <div key={op.id} className="grid items-center border-b border-wm-border/20 px-3 py-1.5 text-[10px]"
             style={{ gridTemplateColumns:"1.4fr 60px 60px 70px 60px 60px" }}>
@@ -1095,6 +1131,7 @@ function OptionsChain({
               className="text-[9px] font-bold px-2 py-1 rounded border border-wm-border text-wm-text-muted hover:text-wm-red hover:border-wm-red/40 transition-all">
               Close
             </button>
+            <ContractStance card={stance} />
           </div>
         );
       })}

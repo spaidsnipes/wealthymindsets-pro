@@ -133,10 +133,12 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "AWAITING_SURFACE",
     note: "Cross-surface link resolution, unrouted.",
   },
-  "src/lib/expressionCard.ts": {
-    reason: "AWAITING_SURFACE",
-    note: "§10 EXPRESSION_CARD — the element that alone separates PERMISSION from WAIT. The compiler exists and is tested; the surface does not exist. Since riskKernel was wired on 2026-09-07 this is the last §10 compiler with no screen.",
-  },
+  // REMOVED 2026-09-08: "expressionCard.ts — §10 EXPRESSION_CARD, the last §10
+  // compiler with no screen." /paper's open-contracts list now compiles one per
+  // contract and renders it: the §7 protection grade with its uncovered size,
+  // and R as a stated UNKNOWN because no planned 1R is ever collected on this
+  // path. Inputs /paper genuinely lacks are passed absent, so the card reports
+  // named holes instead of invented numbers. See contractStance.enforcement.test.ts.
   "src/lib/learningGenome/learningGenomeScoreScale.ts": {
     reason: "AWAITING_SURFACE",
     note: "Score scale primitive; adopted in a past shift, never rendered.",
@@ -193,14 +195,16 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "AWAITING_SURFACE",
     note: "Transition model with no surface.",
   },
-  "src/lib/protectionState.ts": {
-    reason: "AWAITING_SURFACE",
-    note: "§10 PROTECTION_GRADE input. Reached only by expressionCard, which is itself unreachable — a dead subtree, not a dead leaf.",
-  },
-  "src/lib/responseEnvelope.ts": {
-    reason: "AWAITING_SURFACE",
-    note: "Honest premium band at the invalidation level. Reached only by expressionCard.",
-  },
+  // REMOVED 2026-09-08: "protectionState.ts — a dead subtree, not a dead leaf."
+  // The subtree now has a root. expressionCard reaches a screen, so §7's grade
+  // and uncovered quantity reach the trader: every open paper contract reads
+  // UNPROTECTED with its size numbered, which was true all along and never said.
+  // REMOVED 2026-09-08: "Honest premium band at the invalidation level. Reached
+  // only by expressionCard." Revived by the same wire, and this entry is the
+  // one I FORGOT — the ledger's own sentinel named it, which is the behaviour
+  // it was written for. On /paper the band renders UNKNOWN with its reason,
+  // because no structural invalidation is recorded for an option there; a named
+  // missing input is a real answer, and it is what makes the gap visible.
   // REMOVED 2026-09-07: "§10 THESIS_GEOMETRY — the compiler exists, the surface
   // does not." It has one now. `selectAvailableR` deleted its private copy of
   // the R formula and calls `calculateAvailableR`, and that selector is
@@ -365,14 +369,18 @@ describe("screen reach — IMPLEMENTED is not REACHABLE", () => {
     }
   });
 
-  it("the §10 gap is now ONE file: EXPRESSION_CARD still has no surface", () => {
-    // EXPRESSION_CARD is the element that alone separates PERMISSION from WAIT.
-    // Its compiler is built and tested and no screen reaches it, so the route
-    // has nothing to gate there. Named here so the gap is never mistaken for
-    // laziness or for a compiler defect: it is a missing surface, and this is
-    // its file.
-    expect(LEDGER["src/lib/expressionCard.ts"]?.reason).toBe("AWAITING_SURFACE");
-    expect(UNREACHED_LIB).toContain("src/lib/expressionCard.ts");
+  it("the §10 gap is CLOSED: EXPRESSION_CARD has a surface", () => {
+    // This assertion said the opposite until 2026-09-08, and the flip is the
+    // point of the ledger. EXPRESSION_CARD is the element that alone separates
+    // PERMISSION from WAIT; its compiler was built and tested and no screen
+    // reached it, so the route had nothing to gate. /paper's open-contracts
+    // list now compiles one card per contract.
+    //
+    // It is a REACHABILITY lock now: if this ever fails again, a surface has
+    // stopped asking the §10 compiler what a contract is, and the answer the
+    // trader reads has quietly become someone else's.
+    expect(LEDGER["src/lib/expressionCard.ts"]).toBeUndefined();
+    expect(UNREACHED_LIB).not.toContain("src/lib/expressionCard.ts");
   });
 
   it("riskKernel stays on a screen — the R a trader reads is the kernel's", () => {
@@ -393,22 +401,29 @@ describe("screen reach — IMPLEMENTED is not REACHABLE", () => {
     ).toBe(true);
   });
 
-  it("the decision chain is a dead SUBTREE, not four unrelated dead leaves", () => {
-    // protectionState + responseEnvelope → expressionCard, and decisionMemory
-    // sits alone. Wiring any single one of these to a screen does not revive
-    // the others; this records the shape so a future session does not mistake
-    // one wire for the whole fix.
+  it("the decision SUBTREE revived as a unit — reaching the ROOT reached all of it", () => {
+    // THIS TEST WAS WRONG IN AN INSTRUCTIVE WAY, and the correction is kept
+    // rather than deleted. It claimed "wiring any single one of these to a
+    // screen does not revive the others." That held while riskKernel — a
+    // SIBLING — was wired. It was false for the ROOT: on 2026-09-08 /paper
+    // rendered expressionCard, and protectionState and responseEnvelope came
+    // back with it in the same commit, because both are its imports.
     //
-    // riskKernel was the fifth member and is deliberately no longer listed: it
-    // was reached, and reaching it did NOT revive the four below — which is
-    // exactly the claim this test was written to make.
+    // The real shape is: reviving a LEAF revives one file, reviving a ROOT
+    // revives the subtree. I removed two of the three entries by hand and
+    // forgot responseEnvelope; the ledger's own sentinel named it. That is the
+    // behaviour this file exists for, and it is why the count is asserted
+    // rather than trusted to a human sweep.
     for (const file of [
       "src/lib/protectionState.ts",
       "src/lib/responseEnvelope.ts",
       "src/lib/expressionCard.ts",
-      "src/lib/decisionMemory.ts",
     ]) {
-      expect(UNREACHED_LIB, `${file} is expected to have no screen`).toContain(file);
+      expect(UNREACHED_LIB, `${file} lost its screen again`).not.toContain(file);
     }
+    // decisionMemory was never part of this subtree — it sits alone, and
+    // reaching the expression chain did NOT revive it. The distinction is the
+    // one the original test was reaching for, stated where it is actually true.
+    expect(UNREACHED_LIB, "decisionMemory is a separate orphan").toContain("src/lib/decisionMemory.ts");
   });
 });
