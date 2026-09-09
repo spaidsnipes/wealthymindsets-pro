@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
-import { fetchWebullTickSnapshot, webullDataConfigFromEnv } from "@/lib/marketData/adapters/webullMarketData";
+import { fetchWebullTickSnapshot, webullDataConfigFromEnv, type WebullSigningProfile } from "@/lib/marketData/adapters/webullMarketData";
 
 export const dynamic = "force-dynamic";
 
@@ -15,16 +15,25 @@ export async function GET(request: NextRequest) {
   if (!auth.ok) return auth.response;
 
   const symbol = (request.nextUrl.searchParams.get("symbol") || "TSLA").trim().toUpperCase();
+  const requestedProfile = request.nextUrl.searchParams.get("profile");
   if (!SYMBOL_PATTERN.test(symbol)) {
     return NextResponse.json(
       { source: "webull", state: "INVALID_SYMBOL", fidelity: "NONE", symbol, ticks: [], note: "Pass one US stock symbol." },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
+  if (requestedProfile !== null && requestedProfile !== "legacy-sha1" && requestedProfile !== "sdk-sha256") {
+    return NextResponse.json(
+      { source: "webull", state: "INVALID_PROFILE", fidelity: "NONE", symbol, ticks: [], note: "Pass legacy-sha1 or sdk-sha256." },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  const signingProfile: WebullSigningProfile = requestedProfile ?? "legacy-sha1";
 
   const body = await fetchWebullTickSnapshot(fetch, {
     ...webullDataConfigFromEnv(process.env),
     canarySymbol: symbol,
+    signingProfile,
   });
   return NextResponse.json(body, {
     status: 200,

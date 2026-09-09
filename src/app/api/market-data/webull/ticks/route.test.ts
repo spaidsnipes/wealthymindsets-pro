@@ -29,6 +29,7 @@ describe("GET /api/market-data/webull/ticks", () => {
       fidelity: "SNAPSHOT",
       symbol: "TSLA",
       requestedAt: "2026-08-31T14:30:00Z",
+      signingProfile: "legacy-sha1",
       ticks: [{ symbol: "TSLA", price: 351.12, volume: 10, observedAtMs: 1788186600000, side: "UNKNOWN" }],
       note: "Bounded on-demand stock prints.",
     });
@@ -61,6 +62,19 @@ describe("GET /api/market-data/webull/ticks", () => {
   it("rejects malformed symbols without calling Webull", async () => {
     const response = await GET(new NextRequest("http://localhost/api/market-data/webull/ticks?symbol=TSLA%26account%3D1"));
     expect(response.status).toBe(400);
+    expect(mocks.fetchWebullTickSnapshot).not.toHaveBeenCalled();
+  });
+
+  it("runs exactly one explicit signing profile and rejects unknown profiles", async () => {
+    const response = await GET(new NextRequest("http://localhost/api/market-data/webull/ticks?symbol=TSLA&profile=sdk-sha256"));
+    expect(response.status).toBe(200);
+    expect(mocks.fetchWebullTickSnapshot).toHaveBeenCalledTimes(1);
+    expect(mocks.fetchWebullTickSnapshot).toHaveBeenCalledWith(fetch, expect.objectContaining({ signingProfile: "sdk-sha256" }));
+
+    mocks.fetchWebullTickSnapshot.mockClear();
+    const invalid = await GET(new NextRequest("http://localhost/api/market-data/webull/ticks?symbol=TSLA&profile=auto"));
+    expect(invalid.status).toBe(400);
+    expect(await invalid.json()).toMatchObject({ source: "webull", state: "INVALID_PROFILE" });
     expect(mocks.fetchWebullTickSnapshot).not.toHaveBeenCalled();
   });
 });

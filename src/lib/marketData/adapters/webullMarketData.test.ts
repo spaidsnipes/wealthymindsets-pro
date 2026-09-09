@@ -19,6 +19,17 @@ describe("Webull Data API market-data certification", () => {
     expect(ticks[1]).toMatchObject({price:368.956, observedAtMs:1788978052153, side:"UNKNOWN"});
     expect(ticks.reduce((total,tick) => total+tick.volume,0)).toBe(351);
   });
+  it("binds the requested profile to the response and performs no fallback request", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: "MARKET_DATA_NOT_SUBSCRIBED" }), { status: 403 }));
+    const result = await fetchWebullTickSnapshot(fetchMock as unknown as typeof fetch, {
+      appKey: "public-test-key", appSecret: "public-test-secret", canarySymbol: "TSLA",
+      signingProfile: "sdk-sha256", now: () => new Date("2026-09-09T20:00:00Z"), nonce: () => "nonce",
+    });
+    expect(result).toMatchObject({ state: "BLOCKED_ENTITLEMENT", signingProfile: "sdk-sha256" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>;
+    expect(headers["x-signature-algorithm"]).toBe("HMAC-SHA256");
+  });
   it.each([0, 200, 403])("bounds stalled headers/body for status %i even when abort is ignored", async (status) => {
     vi.useFakeTimers();
     const never = () => new Promise<never>(() => {});

@@ -20,6 +20,8 @@ export interface WebullDataConfig {
   readonly timeoutMs?: number;
   readonly now?: () => Date;
   readonly nonce?: () => string;
+  /** Explicit diagnostic/profile selection. Never retries with another profile. */
+  readonly signingProfile?: WebullSigningProfile;
 }
 
 /** Resolve canonical Webull OpenAPI names while preserving WM's older aliases. */
@@ -61,6 +63,7 @@ export interface WebullTickSnapshotResult {
   readonly fidelity: "SNAPSHOT" | "NONE";
   readonly symbol: string;
   readonly requestedAt: string;
+  readonly signingProfile: WebullSigningProfile;
   readonly ticks: readonly WebullTickObservation[];
   readonly note: string;
 }
@@ -195,10 +198,11 @@ export async function fetchWebullTickSnapshot(
   const now = config.now || (() => new Date());
   const timestamp = isoSeconds(now());
   const timeoutMs = Math.max(250, Math.min(30_000, config.timeoutMs ?? 8_000));
+  const signingProfile = config.signingProfile ?? "legacy-sha1";
   const unavailable = (
     state: WebullTickSnapshotResult["state"],
     note: string,
-  ): WebullTickSnapshotResult => ({ source: "webull", state, fidelity: "NONE", symbol, requestedAt: timestamp, ticks: [], note });
+  ): WebullTickSnapshotResult => ({ source: "webull", state, fidelity: "NONE", symbol, requestedAt: timestamp, signingProfile, ticks: [], note });
 
   if (!appKey || !appSecret) {
     return unavailable("UNCONFIGURED", "Webull Data API credentials are not configured together in this runtime.");
@@ -207,7 +211,7 @@ export async function fetchWebullTickSnapshot(
   const host = cleanHost(config.apiHost);
   const nonce = (config.nonce || (() => randomUUID().replace(/-/g, "")))();
   const query = { category: "US_STOCK", count: "5", symbol, trading_sessions: "PRE,RTH,ATH,OVN" };
-  const signedHeaders = buildWebullSignedHeaders({ path: STOCK_TICKS_PATH, query, appKey, appSecret, host, timestamp, nonce, apiVersion: "v2", profile: "legacy-sha1" });
+  const signedHeaders = buildWebullSignedHeaders({ path: STOCK_TICKS_PATH, query, appKey, appSecret, host, timestamp, nonce, apiVersion: "v2", profile: signingProfile });
   const url = new URL(`https://${host}${STOCK_TICKS_PATH}`);
   Object.entries(query).forEach(([key, value]) => url.searchParams.set(key, value));
 
@@ -299,6 +303,7 @@ export async function fetchWebullTickSnapshot(
     fidelity: "SNAPSHOT",
     symbol,
     requestedAt: timestamp,
+    signingProfile,
     ticks,
     note: "Bounded on-demand stock prints; this is not a streaming, futures, or broker-execution connection.",
   };
