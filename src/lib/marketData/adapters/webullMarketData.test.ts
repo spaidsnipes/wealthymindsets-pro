@@ -4,6 +4,21 @@ import { fetchWebullTickSnapshot, parseWebullTickEnvelope, probeWebullMarketData
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe("Webull Data API market-data certification", () => {
+  it("preserves distinct same-millisecond prints and unknown side codes from the Sep9 connector receipt", () => {
+    // Real connector observation, not proof the WM server received this response.
+    const ticks = parseWebullTickEnvelope({ symbol: "TSLA", result: [
+      { time: "1788978052153", price: "369.02", volume: "40", side: "B", trading_session: "RTH" },
+      { time: "1788978052153", price: "368.956", volume: "200", side: "L", trading_session: "RTH" },
+      { time: "1788978052044", price: "368.975", volume: "10", side: "N", trading_session: "RTH" },
+      { time: "1788978051885", price: "368.9927", volume: "1", side: "N", trading_session: "RTH" },
+      { time: "1788978051810", price: "368.99", volume: "100", side: "N", trading_session: "RTH" },
+    ] }, "TSLA");
+    expect(ticks).toHaveLength(5);
+    expect(ticks.map(({volume}) => volume)).toEqual([40, 200, 10, 1, 100]);
+    expect(ticks[0]).toMatchObject({price:369.02, observedAtMs:1788978052153, side:"BUY"});
+    expect(ticks[1]).toMatchObject({price:368.956, observedAtMs:1788978052153, side:"UNKNOWN"});
+    expect(ticks.reduce((total,tick) => total+tick.volume,0)).toBe(351);
+  });
   it.each([0, 200, 403])("bounds stalled headers/body for status %i even when abort is ignored", async (status) => {
     vi.useFakeTimers();
     const never = () => new Promise<never>(() => {});
