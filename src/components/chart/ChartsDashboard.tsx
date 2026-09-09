@@ -17,6 +17,8 @@ import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
 import { FootprintControls } from "./FootprintControls";
 import { SchemePresets } from "./SchemePresets";
 import { OptionsChain } from "./OptionsChain";
+import { OptionExpressionIntent } from "./OptionExpressionIntent";
+import type { OptionContract } from "@/lib/optionContractResponse";
 import { FearGreedWidget } from "./FearGreedWidget";
 import { CustomIndicatorBuilder } from "@/components/pine/CustomIndicatorBuilder";
 import { PineCommunityLibrary } from "@/components/pine/PineCommunityLibrary";
@@ -252,6 +254,8 @@ export function ChartsDashboard() {
   const brokerTriggerRef = useRef<HTMLButtonElement>(null);
   const [tradeOpen,       setTradeOpen]       = useState(false);
   const [optionsOpen,     setOptionsOpen]     = useState(false);
+  const [optionSelection, setOptionSelection] = useState<{ underlying: string; owner: string; contract: OptionContract } | null>(null);
+  const clearOptionSelection = useCallback(() => setOptionSelection(null), []);
   const [pineBuilderOpen, setPineBuilderOpen] = useState(false);
   const [footprintType,   setFootprintType]   = useState<FootprintType>(() => lsGet("wm_footprint", "bid-ask") as FootprintType);
   const [footprintEnabled, setFootprintEnabled] = useState<boolean>(() => lsGet("wm_fp_enabled", true) as boolean);
@@ -1979,7 +1983,13 @@ export function ChartsDashboard() {
             {/* Options chain */}
             <AnimatePresence>
               {optionsOpen && (
-                <OptionsChain symbol={symbol} price={ticker.price} onClose={() => setOptionsOpen(false)} />
+                <OptionsChain key={`${symbol}:${canvasUser?.id ?? "signed-out"}`} symbol={symbol} price={ticker.price}
+                  onClose={() => { clearOptionSelection(); setOptionsOpen(false); }}
+                  onInvalidateSelection={clearOptionSelection}
+                  onSelectContract={contract => setOptionSelection({ underlying: symbol, owner: canvasUser?.id ?? "signed-out", contract })}
+                  expression={optionSelection?.underlying === symbol && optionSelection.owner === (canvasUser?.id ?? "signed-out")
+                    ? <OptionExpressionIntent key={`${optionSelection.owner}:${optionSelection.contract.symbol}:${optionSelection.contract.expirationDate}:${optionSelection.contract.contractType}:${optionSelection.contract.strike}`}
+                        ownerId={canvasUser?.id ?? ""} underlying={symbol} contract={optionSelection.contract} onClear={clearOptionSelection} /> : null} />
               )}
             </AnimatePresence>
 

@@ -22,6 +22,8 @@ import { readOptionsResponse, optionsReadFailure, type OptionsReadFailure } from
 type Quoted = number | undefined;
 
 interface OptionRow {
+  call?: FMPContract;
+  put?: FMPContract;
   strike:   number;
   cBid:     Quoted;  cAsk:   Quoted;  cLast:  Quoted;
   cIV:      Quoted;  cDelta: Quoted;  cGamma: Quoted;
@@ -63,6 +65,8 @@ function buildChain(contracts: FMPContract[], spot: number, expiry: string): Opt
     const put  = puts.get(strike);
     const itm: OptionRow["itm"] = atm == null ? "unknown" : strike === atm ? "atm" : strike < spot ? "call" : "put";
     return {
+      call,
+      put,
       strike,
       // No `?? 0`: an unquoted contract stays undefined all the way to the
       // cell, which renders it as "—" instead of a confident zero.
@@ -91,9 +95,12 @@ interface Props {
    * the surface cannot keep (LIVING-PIXEL LAW: no design theater).
    */
   onSelectStrike?: (row: OptionRow) => void;
+  onSelectContract?: (contract: FMPContract) => void;
+  onInvalidateSelection?: () => void;
+  expression?: React.ReactNode;
 }
 
-export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) {
+export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectContract, onInvalidateSelection, expression }: Props) {
   const [chain,      setChain]      = useState<OptionRow[]>([]);
   const [expirations, setExpirations] = useState<string[]>([]);
   const [expiry,     setExpiry]     = useState<string>("");
@@ -105,6 +112,8 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
   const [allContracts, setAllContracts] = useState<FMPContract[]>([]);
   const [receivedSymbol, setReceivedSymbol] = useState<string | null>(null);
   const contractRead = useRef<{ cancel: () => void } | null>(null);
+  const invalidateSelection = useRef(onInvalidateSelection);
+  invalidateSelection.current = onInvalidateSelection;
 
   // Keep latest price in a ref so the network fetch does NOT re-run on every
   // live price tick (that caused setLoading(true) to fire repeatedly → blink).
@@ -116,6 +125,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
 
   // Fetch all contracts for this symbol from FMP
   const fetchContracts = useCallback(async () => {
+    invalidateSelection.current?.();
     contractRead.current?.cancel();
     const controller = new AbortController();
     let active = true;
@@ -273,7 +283,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
         {loading ? (
           <span className="text-[10px] text-wm-text-dim animate-pulse">Loading expirations...</span>
         ) : (hasAvailableData ? expirations : []).map(e => (
-          <button key={e} onClick={() => setExpiry(e)} aria-pressed={expiry === e}
+          <button key={e} onClick={() => { if (e === expiry) return; invalidateSelection.current?.(); setChain([]); setExpiry(e); }} aria-pressed={expiry === e}
             className={clsx("inline-flex min-h-11 min-w-11 items-center justify-center px-3 rounded-full text-[10px] font-semibold whitespace-nowrap border transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold",
               expiry === e ? "bg-wm-green/15 text-wm-green border-wm-green/35"
                           : "text-wm-text-muted border-transparent hover:border-wm-border")}>
@@ -310,6 +320,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
           <thead className="sticky top-0 bg-wm-dark z-10">
             <tr className="border-b border-wm-border">
               {tab !== "puts" && <>
+                {onSelectContract && <th scope="col" className="px-2">Call</th>}
                 {showGreeks ? <>
                   <th className="px-2 py-1.5 text-left text-wm-green font-semibold">Δ</th>
                   <th className="px-2 py-1.5 text-left text-wm-green font-semibold">Γ</th>
@@ -325,6 +336,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
               </>}
               <th className="px-3 py-1.5 text-center font-bold text-wm-text bg-wm-surface/50">Strike</th>
               {tab !== "calls" && <>
+                {onSelectContract && <th scope="col" className="px-2">Put</th>}
                 <th className="px-2 py-1.5 text-right text-wm-red font-semibold">Bid</th>
                 <th className="px-2 py-1.5 text-right text-wm-red font-semibold">Ask</th>
                 <th className="px-2 py-1.5 text-right text-wm-red font-semibold">IV%</th>
@@ -359,6 +371,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
                     onSelectStrike && "hover:bg-wm-surface/30 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold",
                     isATM ? "bg-wm-gold/05 border-y border-wm-gold/20" : "")}>
                   {tab !== "puts" && <>
+                    {onSelectContract && <td className="px-2 py-1.5">{row.call ? <button type="button" className="rounded border border-wm-green/40 px-2 py-1 text-wm-green focus-visible:outline focus-visible:outline-2" aria-label={`Review call ${row.call.symbol}`} onClick={e => { e.stopPropagation(); onSelectContract(row.call!); }}>Review call</button> : "—"}</td>}
                     {showGreeks ? <>
                       <td className={clsx("px-2 py-1.5 font-mono", callITM ? "text-wm-green font-semibold" : "text-wm-text-dim")}>{formatOptionNumber(row.cDelta, 2)}</td>
                       <td className="px-2 py-1.5 font-mono text-wm-text-dim">{formatOptionNumber(row.cGamma, 4)}</td>
@@ -378,6 +391,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
                     {isATM && <span className="ml-1 text-[8px] text-wm-gold">ATM</span>}
                   </td>
                   {tab !== "calls" && <>
+                    {onSelectContract && <td className="px-2 py-1.5">{row.put ? <button type="button" className="rounded border border-wm-red/40 px-2 py-1 text-wm-red focus-visible:outline focus-visible:outline-2" aria-label={`Review put ${row.put.symbol}`} onClick={e => { e.stopPropagation(); onSelectContract(row.put!); }}>Review put</button> : "—"}</td>}
                     <td className={clsx("px-2 py-1.5 font-mono text-right font-semibold", putITM ? "text-wm-red" : "text-wm-text-muted")}>{formatOptionNumber(row.pBid, 2)}</td>
                     <td className={clsx("px-2 py-1.5 font-mono text-right font-semibold", putITM ? "text-wm-red" : "text-wm-text-muted")}>{formatOptionNumber(row.pAsk, 2)}</td>
                     <td className="px-2 py-1.5 font-mono text-right text-wm-gold">{formatOptionPercent(row.pIV)}</td>
@@ -399,6 +413,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike }: Props) 
         )}
       </div>
 
+      {expression && <div className="max-h-[45%] overflow-y-auto shrink-0">{expression}</div>}
       {/* Footer stats */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1 px-4 py-2 border-t border-wm-border shrink-0 bg-wm-dark">
         {hasAvailableData && (() => {

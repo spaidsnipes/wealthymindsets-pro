@@ -16,6 +16,19 @@ beforeEach(() => {
 });
 
 describe("shared position transport truth", () => {
+  it.each(["GET", "POST"])("rejects a draft from another account before any store access (%s)", async method => {
+    const req = new Request("http://localhost/api/decision-position?decisionId=decision-one", { method, headers: { "x-wm-intent-owner": "previous-owner" } });
+    const result = await (method === "POST" ? POST(req) : GET(req));
+    expect(result.status).toBe(409);
+    expect((await result.json()).verdict).toBe("REJECT_OWNER");
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  it("allows the matching owner precondition without trusting it as authentication", async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: [], error: null });
+    const result = await GET(new Request("http://localhost/api/decision-position?decisionId=decision-one", { headers: { "x-wm-intent-owner": "owner-one" } }));
+    expect(result.status).toBe(200);
+    expect(mocks.rpc).toHaveBeenCalledWith("wm_read_decision_position", expect.objectContaining({ p_owner_id: "owner-one" }));
+  });
   it.each([null, undefined, {}, "ok", [{ recon_version: 1 }]])("does not certify a malformed probe receipt %s", async (data) => {
     mocks.rpc.mockResolvedValue({ data, error: null });
     const result = await GET(new Request("http://localhost/api/decision-position"));

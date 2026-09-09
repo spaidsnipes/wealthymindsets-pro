@@ -39,6 +39,15 @@ import {
 
 export const runtime = "nodejs";
 
+// A draft belongs to the account that witnessed its creation. The header is
+// only a precondition, never authentication or authority to select an owner.
+function changedIntentOwner(request: Request, authenticatedOwner: string) {
+  const expected = request.headers.get("x-wm-intent-owner");
+  return expected !== null && expected !== authenticatedOwner
+    ? NextResponse.json({ status: "UNVERIFIED", verdict: "REJECT_OWNER", note: "The signed-in account changed. Reopen this expression under the intended account before recording it." }, { status: 409 })
+    : null;
+}
+
 /**
  * Does the authority actually answer?
  *
@@ -100,6 +109,8 @@ async function probeAuthority(): Promise<
 export async function GET(request: Request) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  const mismatch = changedIntentOwner(request, auth.user.sub);
+  if (mismatch) return mismatch;
 
   const decisionId = new URL(request.url).searchParams.get("decisionId");
   if (decisionId !== null && decisionId.trim() !== "") {
@@ -143,6 +154,8 @@ function isReconciliationWorker(request: Request): boolean {
 export async function POST(request: Request) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  const mismatch = changedIntentOwner(request, auth.user.sub);
+  if (mismatch) return mismatch;
 
   let body: unknown;
   try {
