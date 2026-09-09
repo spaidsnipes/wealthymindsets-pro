@@ -7,6 +7,10 @@ const optionsChain = fs.readFileSync(
   "utf8",
 );
 const optionsRead = fs.readFileSync(path.join(process.cwd(), "src/lib/optionsChainRead.ts"), "utf8");
+const dashboard = fs.readFileSync(
+  path.join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"),
+  "utf8",
+);
 
 describe("Options Chain truth and responsive surface", () => {
   it("never promotes a successful provider response to live fidelity", () => {
@@ -97,5 +101,10 @@ describe("Options Chain truth and responsive surface", () => {
     expect(optionsChain).toContain("expressionHeading.current?.focus()");
     expect(optionsChain).toContain("Selection is not an order.");
     expect(optionsChain).toContain("Recording intent does not submit an order or establish protection.");
+    expect(optionsChain).toContain("Connect or inspect brokers");
+    expect(optionsChain).toContain("onOpenBrokerConnect(event.currentTarget)");
+    expect(dashboard).toContain("brokerFallbackTriggerRef.current = trigger");
+    expect(dashboard).toContain("onOpenBrokerConnect={openBrokerConnect}");
+    expect(dashboard).toContain("fallbackTriggerRef={brokerFallbackTriggerRef}");
   });
 });

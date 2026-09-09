@@ -252,6 +252,11 @@ export function ChartsDashboard() {
   const [pnlOpen,         setPnlOpen]         = useState(false);
   const [brokerOpen,      setBrokerOpen]      = useState(false);
   const brokerTriggerRef = useRef<HTMLButtonElement>(null);
+  const brokerFallbackTriggerRef = useRef<HTMLButtonElement>(null);
+  const openBrokerConnect = useCallback((trigger: HTMLButtonElement | null) => {
+    brokerFallbackTriggerRef.current = trigger;
+    setBrokerOpen(true);
+  }, []);
   const [tradeOpen,       setTradeOpen]       = useState(false);
   const [optionsOpen,     setOptionsOpen]     = useState(false);
   const [optionSelection, setOptionSelection] = useState<{ underlying: string; owner: string; contract: OptionContract } | null>(null);
@@ -1381,7 +1386,7 @@ export function ChartsDashboard() {
           {(activeTab === "Chart" || activeTab === "Options") && <ChartToolbar
             symbol={symbol}         setSymbol={setSymbol}
             timeframe={timeframe}   setTimeframe={setTimeframe}
-            onConnectBrokers={() => setBrokerOpen(true)}
+            onConnectBrokers={() => openBrokerConnect(brokerTriggerRef.current)}
             connectBrokersTriggerRef={brokerTriggerRef}
             onSmartMoney={() => setSmartMoneyOpen(o => !o)}
             smartMoneyActive={smartMoneyOpen}
@@ -1987,6 +1992,7 @@ export function ChartsDashboard() {
                   onClose={() => { clearOptionSelection(); setOptionsOpen(false); }}
                   onInvalidateSelection={clearOptionSelection}
                   onSelectContract={contract => setOptionSelection({ underlying: symbol, owner: canvasUser?.id ?? "signed-out", contract })}
+                  onOpenBrokerConnect={openBrokerConnect}
                   expression={optionSelection?.underlying === symbol && optionSelection.owner === (canvasUser?.id ?? "signed-out")
                     ? <OptionExpressionIntent key={`${optionSelection.owner}:${optionSelection.contract.symbol}:${optionSelection.contract.expirationDate}:${optionSelection.contract.contractType}:${optionSelection.contract.strike}`}
                         ownerId={canvasUser?.id ?? ""} underlying={symbol} contract={optionSelection.contract} onClear={clearOptionSelection} /> : null} />
@@ -2024,7 +2030,7 @@ export function ChartsDashboard() {
       {brokerOpen && (
         <BrokerConnectPanel
           onClose={() => setBrokerOpen(false)}
-          fallbackTriggerRef={brokerTriggerRef}
+          fallbackTriggerRef={brokerFallbackTriggerRef}
           onOpenPaperAccount={() => {
             setBrokerOpen(false);
             setTradeOpen(true);
