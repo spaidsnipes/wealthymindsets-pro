@@ -78,4 +78,24 @@ describe("Options Chain truth and responsive surface", () => {
     expect(optionsChain).toContain("buildChain(allContracts, priceKey, isoDate)");
     expect(optionsChain).toContain("WealthyMindsets will not fabricate contracts");
   });
+
+  it("makes expression the primary job while keeping raw contracts inspectable", () => {
+    expect(optionsChain).toContain('useState<"expression" | "inspect">("expression")');
+    expect(optionsChain).toContain("Underlying → expression → shared intent");
+    expect(optionsChain).toContain("Keep the thesis on the chart");
+    expect(optionsChain).toContain("Inspect contracts");
+    expect(optionsChain).toContain('hidden={scene !== "expression"}');
+    expect(optionsChain).toContain('hidden={scene !== "inspect"}');
+    expect(optionsChain).toContain("{expression}");
+    expect(optionsChain).not.toContain('scene === "expression" && expression');
+    expect(optionsChain).toContain('aria-pressed={scene === "expression"}');
+    expect(optionsChain).toContain('aria-pressed={scene === "inspect"}');
+    expect(optionsChain).toContain('scene === "expression" ? "border-wm-gold/60 bg-wm-gold/10 text-wm-gold"');
+    expect(optionsChain).toContain('scene === "inspect" ? "border-wm-gold/60 bg-wm-gold/10 text-wm-gold"');
+    expect(optionsChain).toContain("onSelectContract?.(contract)");
+    expect(optionsChain).toContain('setScene("expression")');
+    expect(optionsChain).toContain("expressionHeading.current?.focus()");
+    expect(optionsChain).toContain("Selection is not an order.");
+    expect(optionsChain).toContain("Recording intent does not submit an order or establish protection.");
+  });
 });

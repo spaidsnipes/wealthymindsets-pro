@@ -101,6 +101,9 @@ interface Props {
 }
 
 export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectContract, onInvalidateSelection, expression }: Props) {
+  const [scene, setScene] = useState<"expression" | "inspect">("expression");
+  const expressionHeading = useRef<HTMLHeadingElement>(null);
+  const focusExpression = useRef(false);
   const [chain,      setChain]      = useState<OptionRow[]>([]);
   const [expirations, setExpirations] = useState<string[]>([]);
   const [expiry,     setExpiry]     = useState<string>("");
@@ -114,6 +117,20 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
   const contractRead = useRef<{ cancel: () => void } | null>(null);
   const invalidateSelection = useRef(onInvalidateSelection);
   invalidateSelection.current = onInvalidateSelection;
+
+  // Inspection is a projection, not a new expression owner. Keep the intent
+  // subtree mounted across modes so a lost ACK retains its same-ID retry.
+  useEffect(() => {
+    if (scene === "expression" && focusExpression.current) {
+      expressionHeading.current?.focus();
+      focusExpression.current = false;
+    }
+  }, [scene, expression]);
+  function reviewContract(contract: FMPContract) {
+    onSelectContract?.(contract);
+    focusExpression.current = true;
+    setScene("expression");
+  }
 
   // Keep latest price in a ref so the network fetch does NOT re-run on every
   // live price tick (that caused setLoading(true) to fire repeatedly → blink).
@@ -231,7 +248,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
       {/* Header */}
       <div className="flex min-h-11 flex-wrap items-center gap-2 border-b border-wm-border px-3 py-2 sm:px-4 shrink-0">
         <TrendingUp size={13} className="text-wm-green" />
-        <span className="text-sm font-bold text-wm-text">{symbol} Options</span>
+        <span className="text-sm font-bold text-wm-text">{symbol} Options · Expression</span>
         <div
           className={clsx("flex items-center gap-1 text-[10px]", (loading || hasAvailableData) ? "text-wm-gold" : "text-wm-red")}
           title={loading
@@ -257,7 +274,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded transition-colors hover:bg-wm-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold">
             <RefreshCw size={12} className={clsx("text-wm-text-muted", loading && "animate-spin")} />
           </button>
-          <button onClick={() => setShowGreeks(g => !g)} aria-pressed={showGreeks}
+          <button style={{ display: scene === "inspect" ? undefined : "none" }} onClick={() => setShowGreeks(g => !g)} aria-pressed={showGreeks}
             className={clsx("inline-flex min-h-11 min-w-11 items-center justify-center px-3 rounded text-[10px] font-semibold border transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold",
               showGreeks ? "bg-wm-purple/20 text-wm-purple border-wm-purple/40"
                         : "text-wm-text-muted border-wm-border hover:text-wm-text")}>
@@ -270,6 +287,37 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
         </div>
       </div>
 
+      <div className="flex shrink-0 gap-2 border-b border-wm-border px-3 py-2" aria-label="Options workspace view">
+        <button type="button" aria-pressed={scene === "expression"} onClick={() => setScene("expression")}
+          className={clsx("min-h-11 rounded border px-3 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold",
+            scene === "expression" ? "border-wm-gold/60 bg-wm-gold/10 text-wm-gold" : "border-wm-border text-wm-text-muted")}>Expression</button>
+        <button type="button" aria-pressed={scene === "inspect"} onClick={() => setScene("inspect")}
+          className={clsx("min-h-11 rounded border px-3 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold",
+            scene === "inspect" ? "border-wm-gold/60 bg-wm-gold/10 text-wm-gold" : "border-wm-border text-wm-text-muted")}>Inspect contracts</button>
+      </div>
+
+      <div hidden={scene !== "expression"} className="min-h-0 flex-1 overflow-y-auto">
+        <section aria-label="Option expression workflow" className="px-4 py-5 text-wm-text">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-wm-gold">Underlying → expression → shared intent</p>
+          <h2 ref={expressionHeading} tabIndex={-1} className="mt-3 text-xl font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
+            {expression ? "Review your expression" : "Keep the thesis on the chart"}
+          </h2>
+          <p className="mt-2 text-xs leading-relaxed text-wm-text-muted">The underlying tells the story. Inspect a sourced contract, then record why it expresses your thesis. Selection is not an order.</p>
+          {!expression && <div className="mt-5 border-l-2 border-wm-gold/60 pl-3">
+            <h3 className="text-sm font-semibold">{loading ? "Checking contract evidence" : hasAvailableData ? "Choose an expression" : "Contract evidence is missing"}</h3>
+            {!loading && error && <p role="status" className="mt-2 text-xs text-wm-gold"><strong>{error.edge}</strong> · {error.message}</p>}
+            <p className="mt-2 text-xs leading-relaxed text-wm-text-muted">{loading ? "No contract is selected while the source is being checked." : hasAvailableData ? `${allContracts.length} source contracts are available for inspection. Freshness and broker binding remain unverified.` : error?.recovery ?? "Refresh to check options availability."}</p>
+            <button type="button" disabled={!hasAvailableData} onClick={() => setScene("inspect")} className="mt-3 min-h-11 rounded border border-wm-gold/50 px-3 text-xs text-wm-gold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">Choose from source contracts</button>
+          </div>}
+        </section>
+        {expression}
+        <section aria-label="Execution boundary" className="mx-4 mb-4 border-t border-wm-border pt-4 text-xs leading-relaxed text-wm-text-muted">
+          <h3 className="font-semibold text-wm-text">Before capital can move</h3>
+          <p className="mt-2">Executable quote, contract binding, buying power and broker support are not established by this reference feed. Recording intent does not submit an order or establish protection.</p>
+        </section>
+      </div>
+
+      <div hidden={scene !== "inspect"} className="min-h-0 flex-1 flex-col overflow-y-auto" style={{ display: scene === "inspect" ? "flex" : "none" }}>
       {/* Error banner */}
       {error && dataSource === "unavailable" && (
         <div role="status" className="flex min-w-0 items-start gap-2 border-b border-wm-red/20 bg-wm-red/10 px-3 py-2 text-[10px] leading-relaxed text-wm-red shrink-0 sm:px-4">
@@ -371,7 +419,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
                     onSelectStrike && "hover:bg-wm-surface/30 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold",
                     isATM ? "bg-wm-gold/05 border-y border-wm-gold/20" : "")}>
                   {tab !== "puts" && <>
-                    {onSelectContract && <td className="px-2 py-1.5">{row.call ? <button type="button" className="rounded border border-wm-green/40 px-2 py-1 text-wm-green focus-visible:outline focus-visible:outline-2" aria-label={`Review call ${row.call.symbol}`} onClick={e => { e.stopPropagation(); onSelectContract(row.call!); }}>Review call</button> : "—"}</td>}
+                    {onSelectContract && <td className="px-2 py-1.5">{row.call ? <button type="button" className="min-h-11 rounded border border-wm-green/40 px-2 py-1 text-wm-green focus-visible:outline focus-visible:outline-2" aria-label={`Review call ${row.call.symbol}`} onClick={e => { e.stopPropagation(); reviewContract(row.call!); }}>Review call</button> : "—"}</td>}
                     {showGreeks ? <>
                       <td className={clsx("px-2 py-1.5 font-mono", callITM ? "text-wm-green font-semibold" : "text-wm-text-dim")}>{formatOptionNumber(row.cDelta, 2)}</td>
                       <td className="px-2 py-1.5 font-mono text-wm-text-dim">{formatOptionNumber(row.cGamma, 4)}</td>
@@ -391,7 +439,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
                     {isATM && <span className="ml-1 text-[8px] text-wm-gold">ATM</span>}
                   </td>
                   {tab !== "calls" && <>
-                    {onSelectContract && <td className="px-2 py-1.5">{row.put ? <button type="button" className="rounded border border-wm-red/40 px-2 py-1 text-wm-red focus-visible:outline focus-visible:outline-2" aria-label={`Review put ${row.put.symbol}`} onClick={e => { e.stopPropagation(); onSelectContract(row.put!); }}>Review put</button> : "—"}</td>}
+                    {onSelectContract && <td className="px-2 py-1.5">{row.put ? <button type="button" className="min-h-11 rounded border border-wm-red/40 px-2 py-1 text-wm-red focus-visible:outline focus-visible:outline-2" aria-label={`Review put ${row.put.symbol}`} onClick={e => { e.stopPropagation(); reviewContract(row.put!); }}>Review put</button> : "—"}</td>}
                     <td className={clsx("px-2 py-1.5 font-mono text-right font-semibold", putITM ? "text-wm-red" : "text-wm-text-muted")}>{formatOptionNumber(row.pBid, 2)}</td>
                     <td className={clsx("px-2 py-1.5 font-mono text-right font-semibold", putITM ? "text-wm-red" : "text-wm-text-muted")}>{formatOptionNumber(row.pAsk, 2)}</td>
                     <td className="px-2 py-1.5 font-mono text-right text-wm-gold">{formatOptionPercent(row.pIV)}</td>
@@ -413,7 +461,6 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
         )}
       </div>
 
-      {expression && <div className="max-h-[45%] overflow-y-auto shrink-0">{expression}</div>}
       {/* Footer stats */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1 px-4 py-2 border-t border-wm-border shrink-0 bg-wm-dark">
         {hasAvailableData && (() => {
@@ -451,6 +498,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
               ? "Source response: Financial Modeling Prep · freshness UNKNOWN"
               : "No contracts available"}
         </div>
+      </div>
       </div>
     </motion.div>
   );
