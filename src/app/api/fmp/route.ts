@@ -24,9 +24,23 @@ const CACHE = new Map<string, { data: unknown; ts: number }>();
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const path = searchParams.get("path") ?? "";
-  const extra = searchParams.get("limit") ? `&limit=${searchParams.get("limit")}` : "";
+  const limit = searchParams.get("limit");
 
   if (!path) return NextResponse.json({ error: "path required" }, { status: 400 });
+  // Treat caller input as a relative provider path, never as URL authority.
+  // Build and validate before adding a credential. Do not follow redirects
+  // with a query-string key to an unverified destination.
+  let upstream: URL;
+  try {
+    if (!path.startsWith("/v3/") || /[\\#\r\n]/.test(path)) throw new Error("invalid path");
+    upstream = new URL(path, FMP_BASE);
+    if (upstream.origin !== FMP_BASE || !upstream.pathname.startsWith("/v3/") || upstream.username || upstream.password) throw new Error("invalid origin");
+    if (limit !== null && !/^(?:[1-9]\d?|100)$/.test(limit)) throw new Error("invalid limit");
+    upstream.searchParams.delete("apikey");
+    if (limit !== null) upstream.searchParams.set("limit", limit);
+  } catch {
+    return NextResponse.json({ error: "Invalid provider request" }, { status: 400 });
+  }
   if (!FMP_KEY) {
     // Monday Test 2 canonical config-honesty contract — every WM API surface
     // that hits a missing host secret responds with {edge, missing:[…exact
@@ -38,7 +52,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const cacheKey = path + extra;
+  const cacheKey = upstream.pathname + upstream.search;
   const ttl = path.includes("/options/") ? 60_000 : path.includes("/profile/") ? 300_000 : 300_000;
   const cached = CACHE.get(cacheKey);
   if (cached && Date.now() - cached.ts < ttl) {
@@ -49,13 +63,13 @@ export async function GET(request: Request) {
   let timedOut = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const sep = path.includes("?") ? "&" : "?";
-    const url = `${FMP_BASE}${path}${sep}apikey=${FMP_KEY}${extra}`;
+    upstream.searchParams.set("apikey", FMP_KEY);
+    const url = upstream.toString();
     // Keep the deadline alive through JSON consumption, not just headers.
     // Race as well as abort so an uncooperative transport cannot hold the route.
     const result = await Promise.race([
       (async () => {
-        const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+        const res = await fetch(url, { cache: "no-store", redirect: "error", signal: controller.signal });
         return { ok: res.ok, status: res.status, data: res.ok ? await res.json() : null };
       })(),
       new Promise<never>((_, reject) => {

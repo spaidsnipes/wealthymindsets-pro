@@ -3,6 +3,25 @@ beforeEach(()=>{vi.resetModules();vi.stubEnv("FMP_KEY","synthetic-test-key");});
 afterEach(()=>{vi.unstubAllGlobals();vi.unstubAllEnvs();vi.useRealTimers();});
 const request=()=>new Request("http://localhost/api/fmp?path=/v3/options/TSLA");
 describe("FMP proxy full-response deadline",()=>{
+ it.each(["@example.invalid/options", "//example.invalid/v3/options", "https://example.invalid/v3/options", "/v3/../../other", "/v3/\\\\example.invalid", "/v3/options/TSLA#fragment"])("rejects untrusted path %s before sending credentials",async(path)=>{
+  const fetch=vi.fn();vi.stubGlobal("fetch",fetch);const {GET}=await import("./route");
+  const response=await GET(new Request(`http://localhost/api/fmp?path=${encodeURIComponent(path)}`));
+  expect(response.status).toBe(400);expect(fetch).not.toHaveBeenCalled();
+  expect(await response.text()).not.toContain("synthetic-test-key");
+ });
+ it("preserves supported query parameters but owns the key and disables redirects",async()=>{
+  const fetch=vi.fn().mockResolvedValue(Response.json([]));vi.stubGlobal("fetch",fetch);const {GET}=await import("./route");
+  await GET(new Request(`http://localhost/api/fmp?path=${encodeURIComponent("/v3/income-statement/TSLA?period=quarter&limit=5&apikey=caller-value")}`));
+  const url=new URL(fetch.mock.calls[0][0]);
+  expect(url.origin).toBe("https://financialmodelingprep.com");expect(url.searchParams.get("period")).toBe("quarter");
+  expect(url.searchParams.get("limit")).toBe("5");expect(url.searchParams.getAll("apikey")).toEqual(["synthetic-test-key"]);
+  expect(fetch.mock.calls[0][1].redirect).toBe("error");
+ });
+ it("rejects injected outer limit parameters",async()=>{
+  const fetch=vi.fn();vi.stubGlobal("fetch",fetch);const {GET}=await import("./route");
+  const response=await GET(new Request("http://localhost/api/fmp?path=/v3/options/TSLA&limit=5%26apikey%3Dother"));
+  expect(response.status).toBe(400);expect(fetch).not.toHaveBeenCalled();
+ });
  it("returns and caches a completed response",async()=>{
   const fetch=vi.fn().mockResolvedValue(Response.json([{symbol:"synthetic"}]));vi.stubGlobal("fetch",fetch);
   const {GET}=await import("./route");
