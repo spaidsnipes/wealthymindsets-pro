@@ -73,8 +73,9 @@ function isoSeconds(date: Date): string {
   return date.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
-/** Webull signature algorithm 1.0, exported for deterministic vector tests. */
-export function signWebullRequest(input: {
+export type WebullSigningProfile = "legacy-sha1" | "sdk-sha256";
+
+interface WebullSigningInput {
   readonly path: string;
   readonly query: Readonly<Record<string, string>>;
   readonly appKey: string;
@@ -83,22 +84,45 @@ export function signWebullRequest(input: {
   readonly timestamp: string;
   readonly nonce: string;
   readonly body?: string;
-}): string {
+  /** Explicit only: production callers retain legacy until a controlled canary. */
+  readonly profile?: WebullSigningProfile;
+}
+
+/** SDK tree 8e970dbe: modern profile; legacy retained for compatibility proof. */
+export function signWebullRequest(input: WebullSigningInput): string {
+  const modern = input.profile === "sdk-sha256";
   const fields: Record<string, string> = {
     ...input.query,
     host: input.host,
     "x-app-key": input.appKey,
-    "x-signature-algorithm": "HMAC-SHA1",
+    "x-signature-algorithm": modern ? "HMAC-SHA256" : "HMAC-SHA1",
     "x-signature-nonce": input.nonce,
     "x-signature-version": "1.0",
     "x-timestamp": input.timestamp,
   };
   const canonical = Object.keys(fields).sort().map((key) => `${key}=${fields[key]}`).join("&");
-  const bodyDigest = input.body
-    ? `&${createHash("md5").update(input.body).digest("hex").toUpperCase()}`
+  const bodyDigest = (modern ? input.body !== undefined : Boolean(input.body))
+    ? `&${createHash(modern ? "sha256" : "md5").update(input.body!).digest("hex").toUpperCase()}`
     : "";
   const encoded = encodeURIComponent(`${input.path}&${canonical}${bodyDigest}`);
-  return createHmac("sha1", `${input.appSecret}&`).update(encoded).digest("base64");
+  // Python urllib.parse.quote(..., safe='') also escapes these five characters.
+  const signingText = modern
+    ? encoded.replace(/[!'()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`)
+    : encoded;
+  return createHmac(modern ? "sha256" : "sha1", `${input.appSecret}&`).update(signingText).digest("base64");
+}
+
+/** One owner for advertised signing headers and the algorithm actually used. */
+export function buildWebullSignedHeaders(input: WebullSigningInput & { readonly apiVersion: string }): Record<string, string> {
+  return {
+    "x-app-key": input.appKey,
+    "x-timestamp": input.timestamp,
+    "x-signature": signWebullRequest(input),
+    "x-signature-algorithm": input.profile === "sdk-sha256" ? "HMAC-SHA256" : "HMAC-SHA1",
+    "x-signature-version": "1.0",
+    "x-signature-nonce": input.nonce,
+    "x-version": input.apiVersion,
+  };
 }
 
 function parseSide(value: unknown): WebullTickObservation["side"] {
@@ -183,7 +207,7 @@ export async function fetchWebullTickSnapshot(
   const host = cleanHost(config.apiHost);
   const nonce = (config.nonce || (() => randomUUID().replace(/-/g, "")))();
   const query = { category: "US_STOCK", count: "5", symbol, trading_sessions: "PRE,RTH,ATH,OVN" };
-  const signature = signWebullRequest({ path: STOCK_TICKS_PATH, query, appKey, appSecret, host, timestamp, nonce });
+  const signedHeaders = buildWebullSignedHeaders({ path: STOCK_TICKS_PATH, query, appKey, appSecret, host, timestamp, nonce, apiVersion: "v2", profile: "legacy-sha1" });
   const url = new URL(`https://${host}${STOCK_TICKS_PATH}`);
   Object.entries(query).forEach(([key, value]) => url.searchParams.set(key, value));
 
@@ -199,15 +223,7 @@ export async function fetchWebullTickSnapshot(
   try {
   let response: Response;
   try {
-    const headers: Record<string, string> = {
-      "x-app-key": appKey,
-      "x-timestamp": timestamp,
-      "x-signature": signature,
-      "x-signature-algorithm": "HMAC-SHA1",
-      "x-signature-version": "1.0",
-      "x-signature-nonce": nonce,
-      "x-version": "v2",
-    };
+    const headers = signedHeaders;
     // Preserve an explicitly configured token without making it part of the
     // HMAC. A Data API 401 alone does not prove that this token was required.
     if (accessToken) headers["x-access-token"] = accessToken;

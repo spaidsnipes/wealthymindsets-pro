@@ -1,6 +1,6 @@
 /** Bounded, read-only proof of the founder's Webull Trading API connection. */
 import { randomUUID } from "crypto";
-import { signWebullRequest } from "@/lib/marketData/adapters/webullMarketData";
+import { buildWebullSignedHeaders } from "@/lib/marketData/adapters/webullMarketData";
 
 const DEFAULT_HOST = "api.webull.com";
 const ACCOUNT_LIST_PATH = "/trading/accounts/list";
@@ -112,7 +112,7 @@ export async function probeWebullBrokerConnection(
 
   const host = cleanHost(config.apiHost);
   const nonce = (config.nonce || (() => randomUUID().replace(/-/g, "")))();
-  const signature = signWebullRequest({
+  const headers = buildWebullSignedHeaders({
     path: ACCOUNT_LIST_PATH,
     query: {},
     appKey,
@@ -120,16 +120,9 @@ export async function probeWebullBrokerConnection(
     host,
     timestamp: checkedAt,
     nonce,
+    apiVersion: "v2",
+    profile: "legacy-sha1",
   });
-  const headers: Record<string, string> = {
-    "x-app-key": appKey,
-    "x-timestamp": checkedAt,
-    "x-signature": signature,
-    "x-signature-algorithm": "HMAC-SHA1",
-    "x-signature-version": "1.0",
-    "x-signature-nonce": nonce,
-    "x-version": "v2",
-  };
   if (accessToken) headers["x-access-token"] = accessToken;
 
   const controller = new AbortController();

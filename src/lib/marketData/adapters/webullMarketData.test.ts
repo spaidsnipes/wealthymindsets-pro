@@ -49,7 +49,7 @@ describe("Webull Data API market-data certification", () => {
     })).toMatchObject({ appKey: "legacy-key", appSecret: "legacy-secret" });
   });
 
-  it("matches Webull's published signature vector", () => {
+  it("preserves Webull's published legacy SHA1/MD5 signature vector", () => {
     expect(signWebullRequest({
       path: "/trade/place_order",
       query: { a1: "webull", a2: "123", a3: "xxx", q1: "yyy" },
@@ -131,7 +131,11 @@ describe("Webull Data API market-data certification", () => {
     expect(String(url)).not.toContain("/market-data/stocks/ticks/list");
     expect(String(url)).toContain("symbol=TSLA");
     expect(init.headers["x-app-key"]).toBe("app-key");
-    expect(init.headers["x-signature"]).toMatch(/^[A-Za-z0-9+/]+=*$/);
+    expect(init.headers).toMatchObject({
+      "x-signature": "30WsgVcvHJMC74RU6fwHMXybePk=",
+      "x-signature-algorithm": "HMAC-SHA1", "x-signature-version": "1.0",
+      "x-signature-nonce": "fixed-nonce", "x-timestamp": "2026-08-31T11:57:05Z", "x-version": "v2",
+    });
     expect(init.headers["x-access-token"]).toBeUndefined();
   });
 
@@ -149,7 +153,7 @@ describe("Webull Data API market-data certification", () => {
     });
     const [, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(init.headers["x-access-token"]).toBe("active-2fa-token");
-    expect(init.headers["x-signature"]).toMatch(/^[A-Za-z0-9+/]+=*$/);
+    expect(init.headers["x-signature"]).toBe("30WsgVcvHJMC74RU6fwHMXybePk=");
   });
 
   it("maps HTTP 401 to auth uncertainty without leaking response bodies or secrets", async () => {

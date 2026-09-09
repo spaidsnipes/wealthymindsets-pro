@@ -69,7 +69,11 @@ describe("Webull signed broker connection proof", () => {
     expect(url).toBe("https://api.webull.test/trading/accounts/list");
     expect(init.method).toBe("GET");
     expect(init.redirect).toBe("manual");
-    expect(headers["x-signature"]).toBeTruthy();
+    expect(headers).toMatchObject({
+      "x-signature": "cmSClhmGvEzqBUc/jXwOKqSfT7g=",
+      "x-signature-algorithm": "HMAC-SHA1", "x-signature-version": "1.0",
+      "x-signature-nonce": "fixednonce", "x-timestamp": "2026-09-02T08:00:00Z", "x-version": "v2",
+    });
     expect(JSON.stringify(headers)).not.toContain("test-app-secret");
   });
 
