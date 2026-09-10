@@ -19,6 +19,12 @@ describe("selected option source truth", () => {
     expect(expression).toContain('!purpose.trim() || !canRecord');
     expect(expression).toContain('Reference timing is unverified for both the exact quote and trade.');
     expect(expression).toContain('{source === "alpaca" ? "Alpaca" : "Unknown source"} reference');
+    expect(expression).toContain("Source OSI identity matches the selected underlying, side, expiry, and strike.");
+    expect(expression).toContain("Executable broker instrument mapping and support remain unverified.");
+    expect(expression).toContain("source OSI identity matches the selected underlying, side, expiry, and strike; executable quote and broker instrument mapping/support remain unverified. No order requested.");
+    expect(expression).toContain("This review does not open a position.");
+    expect(expression).not.toContain("Contract-to-underlying binding and broker support need verification.");
+    expect(expression).not.toContain("executable quote and contract binding unverified");
     expect(expression).not.toContain("FMP reference");
     expect(expression).not.toContain("Reference source FMP");
   });

@@ -52,7 +52,7 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
         const born = mintDecisionId({ cause: "EXPLICIT_INTENT", deviceId, nowMs: Date.now(), nonce: crypto.randomUUID() });
         if (!born.ok) { setReceipt(born.reason); return; }
         identity.current = { decisionId: born.identity.decisionId, deviceId,
-          intent: `Review ${underlying} expression: ${contract.symbol}; ${contract.contractType}; strike ${contract.strike}; expiry ${contract.expirationDate}. Purpose: ${purpose.trim()}. Reference source ${source}; fidelity ${fidelity}; quote timestamp ${contract.quoteTimestamp ?? "not observed"}; quote timing ${observationTiming.quote.timing}; trade timestamp ${contract.tradeTimestamp ?? "not observed"}; trade timing ${observationTiming.trade.timing}; executable quote and contract binding unverified. No order requested.` };
+          intent: `Review ${underlying} expression: ${contract.symbol}; ${contract.contractType}; strike ${contract.strike}; expiry ${contract.expirationDate}. Purpose: ${purpose.trim()}. Reference source ${source}; fidelity ${fidelity}; quote timestamp ${contract.quoteTimestamp ?? "not observed"}; quote timing ${observationTiming.quote.timing}; trade timestamp ${contract.tradeTimestamp ?? "not observed"}; trade timing ${observationTiming.trade.timing}; source OSI identity matches the selected underlying, side, expiry, and strike; executable quote and broker instrument mapping/support remain unverified. No order requested.` };
         setDecisionId(born.identity.decisionId);
       }
       const result = await recordExpressionIntent(identity.current, fetch, controller.signal, ownerId);
@@ -74,7 +74,7 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
       {source === "alpaca" ? "Alpaca" : "Unknown source"} reference · {fidelity.toLowerCase()} · quote {quoteTiming} · trade {tradeTiming} · not an executable quote
     </p>
     {!canRecord && <p role="status" className="mt-1 text-wm-gold">Reference timing is unverified for both the exact quote and trade. Recording stays unavailable until a provider observation has verifiable chronology.</p>}
-    <p className="mt-1 text-wm-text-muted">Contract-to-underlying binding and broker support need verification. This review does not open a position.</p>
+    <p className="mt-1 text-wm-text-muted">Source OSI identity matches the selected underlying, side, expiry, and strike. Executable broker instrument mapping and support remain unverified. This review does not open a position.</p>
     <label className="mt-2 block">Purpose
       <input value={purpose} disabled={busy || !!identity.current} maxLength={500} onChange={e => setPurpose(e.target.value)} placeholder="What is the underlying thesis?" className="mt-1 w-full rounded border border-wm-border bg-wm-surface p-2" />
     </label>
