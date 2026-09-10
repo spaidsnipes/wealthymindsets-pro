@@ -35,7 +35,7 @@ import { StockInfoPanel } from "./StockInfoPanel";
 import { BottomIndexBar } from "./BottomIndexBar";
 import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { priceSourceBadge } from "@/lib/priceSource";
+import { resolveChartSurfaceBadge } from "@/lib/priceSource";
 import { useProvenSessionClosure, useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
@@ -1226,7 +1226,24 @@ export function ChartsDashboard() {
             // ships to every surface for free, and any future canon
             // vocabulary or color change touches ONE component.
             const quoteObservation = {present: Number.isFinite(ticker.price) && ticker.price > 0};
-            const b = priceSourceBadge(source, connected, sessionOpen, quoteObservation);
+            // 2026-09-10 — measured live in production on /charts?symbol=NQ1!:
+            // this header read "NQ1! — DATA UNAVAILABLE" while `chartBars`
+            // (read six lines below for the tooltip) held three sessions of
+            // real candles that were rendering underneath it, and the tape
+            // one row above read ACTIVE DEGRADED with a price and a change.
+            //
+            // The bar evidence was already in hand at this exact point and
+            // simply was not given to the badge: the raw `priceSourceBadge`
+            // grades the QUOTE only, so a refused quote printed a total-data
+            // absence claim. `resolveChartSurfaceBadge` is the single guard
+            // that exists to stop "no feed beside rendered candles" — the
+            // sibling chip in MainChart.tsx has always routed through it, and
+            // this surface never did. Passing the quote observation keeps the
+            // refusal visible instead of letting bar presence launder it into
+            // a quote claim.
+            const b = resolveChartSurfaceBadge(
+              source, connected, chartBars.length > 0, sessionOpen, quoteObservation,
+            );
             // SHIFT-U continuation — pass the per-capability report so
             // the trader hovering the chip sees "Weakest capability"
             // hint + coverage count. Canon §Provider Status Per

@@ -182,19 +182,46 @@ export function priceSourceBadge(
  * on-screen pass hasCandles=true; if the raw badge label is NO FEED but
  * candles exist, the label is promoted to HISTORICAL with an honest
  * tooltip. Everything else passes through unchanged.
+ *
+ * 2026-09-10 — THIRD NESTING of the same defect, measured live on
+ * /charts?symbol=NQ1! in production: the header read
+ * `NQ1! — DATA UNAVAILABLE` while three sessions of real candles rendered
+ * directly beneath it, and the ticker tape one row above read
+ * `ACTIVE DEGRADED 29,150 -299.00 (-1.02%)`. Three answers about one
+ * instrument inside ~180px — canon Weakness #1 (multi-price disagreement
+ * on one page) on the primary trading surface.
+ *
+ * The guard could not catch it because it only inspected `b.unresolved`.
+ * When the QUOTE is refused but the provider NAME resolves (yahoo/finnhub),
+ * priceSourceBadge returns `unresolved: false` with `availability:
+ * "unavailable"` — a different door into the same room. `availability:
+ * "unavailable"` renders the words "DATA UNAVAILABLE", which is a claim
+ * about ALL data; the actual fact was "no certified QUOTE, bars verified".
+ *
+ * `quoteObservation` is OPTIONAL and LAST so every existing caller keeps
+ * its exact behaviour (bar presence standing in for observation presence).
+ * Callers that can distinguish a refused quote from a missing bar should
+ * pass it, because only then can the two facts be told apart.
  */
 export function resolveChartSurfaceBadge(
   source: PriceSource,
   connected: boolean,
   hasCandles: boolean,
   sessionOpen?: boolean | null,
+  quoteObservation?: PriceObservationEvidence,
 ): PriceSourceBadge {
-  const b = priceSourceBadge(source, connected, sessionOpen, {present: hasCandles});
+  const b = priceSourceBadge(
+    source, connected, sessionOpen, quoteObservation ?? {present: hasCandles},
+  );
   // Canon §Living Market Visual Systems (2026-08-27): when we have
   // verified bars on screen but no live provider resolved, the honest
   // per-capability truth is HISTORICAL BARS VERIFIED — never STALE
   // PIPELINE (which implies active-session failure).
-  if (b.unresolved && hasCandles) {
+  //
+  // `availability === "unavailable"` joins `unresolved` here for the reason
+  // above: with bars on screen, neither state may print a total-absence
+  // claim. Bars are the verified capability; the quote is the missing one.
+  if ((b.unresolved || b.availability === "unavailable") && hasCandles) {
     return {
       ...b,
       availability: undefined,
