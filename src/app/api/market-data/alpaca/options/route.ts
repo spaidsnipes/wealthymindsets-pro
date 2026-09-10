@@ -30,6 +30,17 @@ function upstreamEdge(status: number): string {
   return "UNKNOWN";
 }
 
+type InvalidResponseStage = "TRANSPORT" | "DECODE" | "NORMALIZE";
+
+function invalidResponse(stage: InvalidResponseStage) {
+  return NextResponse.json({
+    source: "alpaca",
+    edge: "INVALID RESPONSE",
+    stage,
+    error: "The WM options gateway could not validate the provider response",
+  }, { status: 502 });
+}
+
 /**
  * Read-only Alpaca indicative option snapshots. This route does not submit,
  * preview, or prepare an order, and never serializes its credential pair.
@@ -68,6 +79,7 @@ export async function GET(request: Request) {
 
   const controller = new AbortController();
   let timedOut = false;
+  let invalidStage: InvalidResponseStage = "TRANSPORT";
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const result = await Promise.race([
@@ -82,7 +94,9 @@ export async function GET(request: Request) {
             "APCA-API-SECRET-KEY": credentials.secret,
           },
         });
-        return { response, body: response.ok ? await response.json() : null };
+        if (!response.ok) return { response, body: null };
+        invalidStage = "DECODE";
+        return { response, body: await response.json() };
       })(),
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => {
@@ -97,15 +111,17 @@ export async function GET(request: Request) {
       const edge = upstreamEdge(result.response.status);
       return NextResponse.json({ source: "alpaca", edge, error: `Alpaca option request failed (HTTP ${result.response.status})` }, { status: result.response.status });
     }
+    invalidStage = "NORMALIZE";
     return NextResponse.json(normalizeAlpacaOptionChain(result.body, symbol), {
       headers: { "Cache-Control": "no-store" },
     });
   } catch {
+    if (!timedOut) return invalidResponse(invalidStage);
     return NextResponse.json({
       source: "alpaca",
-      edge: timedOut ? "TIMEOUT" : "INVALID RESPONSE",
-      error: timedOut ? "Alpaca option request timed out" : "Alpaca option response was invalid",
-    }, { status: timedOut ? 504 : 502 });
+      edge: "TIMEOUT",
+      error: "Alpaca option request timed out",
+    }, { status: 504 });
   } finally {
     clearTimeout(timer);
   }

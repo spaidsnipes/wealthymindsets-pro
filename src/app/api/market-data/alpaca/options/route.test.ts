@@ -99,4 +99,35 @@ describe("GET /api/market-data/alpaca/options", () => {
     expect(response.status).toBe(504);
     expect((await response.json()).edge).toBe("TIMEOUT");
   });
+
+  it("identifies a transport failure without exposing its exception", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("https://provider.invalid?token=private"); }));
+    const { GET } = await loadRoute();
+    const response = await GET(request());
+    const body = await response.json();
+    expect(response.status).toBe(502);
+    expect(body).toMatchObject({ source: "alpaca", edge: "INVALID RESPONSE", stage: "TRANSPORT" });
+    expect(JSON.stringify(body)).not.toMatch(/provider\.invalid|private|token/);
+  });
+
+  it("identifies an undecodable success body without reflecting it", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("private malformed body", {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    })));
+    const { GET } = await loadRoute();
+    const response = await GET(request());
+    const body = await response.json();
+    expect(body).toMatchObject({ source: "alpaca", edge: "INVALID RESPONSE", stage: "DECODE" });
+    expect(JSON.stringify(body)).not.toContain("private malformed body");
+  });
+
+  it("identifies a schema failure without reflecting provider fields", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ private_payload: "do-not-reflect" })));
+    const { GET } = await loadRoute();
+    const response = await GET(request());
+    const body = await response.json();
+    expect(body).toMatchObject({ source: "alpaca", edge: "INVALID RESPONSE", stage: "NORMALIZE" });
+    expect(JSON.stringify(body)).not.toContain("do-not-reflect");
+  });
 });

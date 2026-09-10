@@ -44,6 +44,27 @@ describe("options chain failed-edge projection", () => {
     expect(JSON.stringify(result)).not.toContain("private route detail");
   });
 
+  it.each([
+    ["TRANSPORT", "could not complete the provider request"],
+    ["DECODE", "received a response it could not decode"],
+    ["NORMALIZE", "could not validate the provider contract schema"],
+  ])("projects the exact %s stage through reviewed static copy", async (stage, copy) => {
+    const result = await readOptionsResponse(response(502, {
+      source: "alpaca", edge: "INVALID RESPONSE", stage,
+      error: "private provider detail",
+    }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.failure.message).toContain(copy);
+    expect(JSON.stringify(result)).not.toContain("private provider detail");
+  });
+
+  it("ignores an unrecognized invalid-response stage", async () => {
+    const result = await readOptionsResponse(response(502, {
+      source: "alpaca", edge: "INVALID RESPONSE", stage: "PRIVATE_STAGE",
+    }));
+    expect(result).toEqual({ ok: false, failure: optionsReadFailure("INVALID RESPONSE") });
+  });
+
   it("does not let a contradictory body override an HTTP authentication failure", async () => {
     expect(await readOptionsResponse(response(401, { source: "fmp", edge: "NOT CONFIGURED" })))
       .toEqual({ ok: false, failure: optionsReadFailure("AUTH BLOCKED") });

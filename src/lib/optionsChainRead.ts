@@ -11,6 +11,8 @@ export interface OptionsReadFailure {
   recovery: string;
 }
 
+type InvalidResponseStage = "TRANSPORT" | "DECODE" | "NORMALIZE";
+
 // Only static, reviewed copy crosses into the trader surface. Provider errors,
 // URLs, credentials and arbitrary `missing`/`error` fields are never reflected.
 const failures: Record<OptionsFailureEdge, Omit<OptionsReadFailure, "edge">> = {
@@ -30,6 +32,24 @@ export function optionsReadFailure(edge: OptionsFailureEdge): OptionsReadFailure
   return { edge, ...failures[edge] };
 }
 
+function stagedInvalidResponse(stage: InvalidResponseStage): OptionsReadFailure {
+  if (stage === "TRANSPORT") return {
+    edge: "INVALID RESPONSE",
+    message: "The WM options gateway could not complete the provider request.",
+    recovery: "Refresh to retry the request. Provider availability and entitlement remain unverified.",
+  };
+  if (stage === "DECODE") return {
+    edge: "INVALID RESPONSE",
+    message: "The WM options gateway received a response it could not decode.",
+    recovery: "Refresh to request a new response. No contracts from the unreadable response were accepted.",
+  };
+  return {
+    edge: "INVALID RESPONSE",
+    message: "The WM options gateway could not validate the provider contract schema.",
+    recovery: "Refresh to request a new response. Contracts that fail schema validation remain hidden.",
+  };
+}
+
 function responseFailure(status: number, body: unknown): OptionsReadFailure {
   const envelope = body && typeof body === "object" && !Array.isArray(body)
     ? body as Record<string, unknown> : null;
@@ -42,7 +62,10 @@ function responseFailure(status: number, body: unknown): OptionsReadFailure {
   // JSON parsing, or normalization fails. Preserve that distinction instead
   // of incorrectly projecting every 502 as an upstream provider failure.
   if (status === 502 && envelope?.source === "alpaca" && envelope.edge === "INVALID RESPONSE") {
-    return optionsReadFailure("INVALID RESPONSE");
+    const stage = envelope.stage;
+    return stage === "TRANSPORT" || stage === "DECODE" || stage === "NORMALIZE"
+      ? stagedInvalidResponse(stage)
+      : optionsReadFailure("INVALID RESPONSE");
   }
   if (status === 401) return optionsReadFailure("AUTH BLOCKED");
   if (status === 403) return optionsReadFailure("REQUEST DENIED");
