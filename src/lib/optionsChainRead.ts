@@ -38,6 +38,12 @@ function responseFailure(status: number, body: unknown): OptionsReadFailure {
   if (status === 503 && (envelope?.source === "fmp" || envelope?.source === "alpaca") && envelope.edge === "NOT CONFIGURED") {
     return optionsReadFailure("NOT CONFIGURED");
   }
+  // The WM-owned Alpaca route uses this exact 502 receipt when transport,
+  // JSON parsing, or normalization fails. Preserve that distinction instead
+  // of incorrectly projecting every 502 as an upstream provider failure.
+  if (status === 502 && envelope?.source === "alpaca" && envelope.edge === "INVALID RESPONSE") {
+    return optionsReadFailure("INVALID RESPONSE");
+  }
   if (status === 401) return optionsReadFailure("AUTH BLOCKED");
   if (status === 403) return optionsReadFailure("REQUEST DENIED");
   if (status === 429) return optionsReadFailure("RATE LIMITED");

@@ -34,6 +34,16 @@ describe("options chain failed-edge projection", () => {
     expect(result).toEqual({ ok: false, failure: optionsReadFailure("PROVIDER ERROR") });
   });
 
+  it("preserves the WM Alpaca route's exact invalid-response receipt", async () => {
+    const result = await readOptionsResponse(response(502, {
+      source: "alpaca",
+      edge: "INVALID RESPONSE",
+      error: "private route detail",
+    }));
+    expect(result).toEqual({ ok: false, failure: optionsReadFailure("INVALID RESPONSE") });
+    expect(JSON.stringify(result)).not.toContain("private route detail");
+  });
+
   it("does not let a contradictory body override an HTTP authentication failure", async () => {
     expect(await readOptionsResponse(response(401, { source: "fmp", edge: "NOT CONFIGURED" })))
       .toEqual({ ok: false, failure: optionsReadFailure("AUTH BLOCKED") });
