@@ -54,9 +54,10 @@ describe("Options Chain truth and responsive surface", () => {
 
   it("keeps the panel contained and its primary controls touch reachable", () => {
     expect(optionsChain).toContain("w-full max-w-[700px] min-w-0");
-    // Desktop/tablet inspection may open the chain, but it must not consume
-    // nearly all of a portrait tablet's underlying canvas. Phone stays full.
-    expect(optionsChain).toContain("md:w-[45%]");
+    // Tablet inspection gets enough width to remain legible while preserving
+    // a meaningful slice of the underlying canvas. Phone stays full; the
+    // denser desktop composition returns to the narrower rail.
+    expect(optionsChain).toContain("md:w-[55%] xl:w-[45%]");
     expect(optionsChain).not.toContain('className="w-[700px]');
     expect(optionsChain).toContain('aria-label="Refresh options data"');
     expect(optionsChain).toContain('aria-label="Close options chain"');

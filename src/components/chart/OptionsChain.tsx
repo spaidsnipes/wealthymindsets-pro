@@ -261,11 +261,12 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
 
   return (
     <motion.div
+      data-options-workspace
       initial={{ x: "100%", opacity: 0 }}
       animate={{ x: 0,       opacity: 1 }}
       exit={{   x: "100%",  opacity: 0 }}
       transition={{ type: "spring", stiffness: 350, damping: 35 }}
-      className="w-full max-w-[700px] min-w-0 md:w-[45%] border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden"
+      className="w-full max-w-[700px] min-w-0 md:w-[55%] xl:w-[45%] border-l border-wm-border bg-wm-dark flex flex-col shrink-0 overflow-hidden"
     >
       {/* Header */}
       <div className="flex min-h-11 flex-wrap items-center gap-2 border-b border-wm-border px-3 py-2 sm:px-4 shrink-0">

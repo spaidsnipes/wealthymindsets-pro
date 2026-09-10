@@ -2008,7 +2008,7 @@ export function ChartsDashboard() {
         </div>
 
         {/* ── Right: StockInfoPanel (collapsible) ───────────── */}
-        <div style={{ display:"flex", flexShrink:0 }}>
+        {!narrowViewport || !optionsOpen ? <div style={{ display:"flex", flexShrink:0 }}>
           {/* Collapse toggle strip */}
           <button
             onClick={() => setInfoOpen(v => !v)}
@@ -2023,7 +2023,7 @@ export function ChartsDashboard() {
             <span style={{ fontSize:9, transform: infoOpen ? "none" : "rotate(180deg)", display:"block" }}>›</span>
           </button>
           {infoOpen && <StockInfoPanel symbol={symbol} />}
-        </div>
+        </div> : null}
       </div>
 
       {/* ── Bottom index bar ─────────────────────────────────── */}
