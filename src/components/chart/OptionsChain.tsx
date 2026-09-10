@@ -13,7 +13,7 @@ import { clsx } from "clsx";
 import { formatOptionCount, formatOptionNumber, formatOptionPercent,
          summariseOpenInterest } from "@/lib/optionCellFormat";
 import { type OptionContract } from "@/lib/optionContractResponse";
-import { readOptionsResponse, optionsReadFailure, type OptionsReadFailure, type OptionsSourceReceipt } from "@/lib/optionsChainRead";
+import { optionsReceiptAge, readOptionsResponse, optionsReadFailure, type OptionsReadFailure, type OptionsSourceReceipt } from "@/lib/optionsChainRead";
 
 /**
  * Every quoted field is optional: an unquoted strike has NO number, and must
@@ -114,6 +114,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
   const [error,      setError]      = useState<OptionsReadFailure | null>(null);
   const [dataSource, setDataSource] = useState<"alpaca"|"unavailable">("unavailable");
   const [sourceReceipt, setSourceReceipt] = useState<OptionsSourceReceipt>({ source: "unknown", fidelity: "UNKNOWN", coverage: "UNKNOWN", newestProviderTimestamp: null });
+  const [receiptClock, setReceiptClock] = useState<number | null>(null);
   const [allContracts, setAllContracts] = useState<OptionContract[]>([]);
   const [receivedSymbol, setReceivedSymbol] = useState<string | null>(null);
   const contractRead = useRef<{ cancel: () => void } | null>(null);
@@ -128,6 +129,13 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
       focusExpression.current = false;
     }
   }, [scene, expression]);
+
+  useEffect(() => {
+    const tick = () => setReceiptClock(Date.now());
+    tick();
+    const clock = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(clock);
+  }, []);
   function reviewContract(contract: OptionContract) {
     onSelectContract?.(contract, sourceReceipt);
     focusExpression.current = true;
@@ -242,10 +250,13 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
   const atm = chain.find(r => r.itm === "atm");
   const hasObservedSpot = Number.isFinite(price) && price > 0;
   const hasAvailableData = !loading && receivedSymbol === symbol && dataSource === "alpaca" && sourceReceipt.source === "alpaca" && chain.length > 0;
+  const receiptAge = receiptClock === null
+    ? { label: "age checking", recorded: true }
+    : optionsReceiptAge(sourceReceipt.newestProviderTimestamp, receiptClock);
   const dataStatus = loading
     ? "CHECKING · FIDELITY UNKNOWN"
     : hasAvailableData
-      ? "REFERENCE AVAILABLE · INDICATIVE"
+      ? `${receiptAge.recorded ? "RECORDED REFERENCE" : "REFERENCE AVAILABLE"} · INDICATIVE`
       : "UNAVAILABLE";
 
   return (
@@ -317,7 +328,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
           {!expression && <div className="mt-5 border-l-2 border-wm-gold/60 pl-3">
             <h3 className="text-sm font-semibold">{loading ? "Checking contract evidence" : hasAvailableData ? "Choose an expression" : "Contract evidence is missing"}</h3>
             {!loading && error && <p role="status" className="mt-2 text-xs text-wm-gold"><strong>{error.edge}</strong> · {error.message}</p>}
-            <p className="mt-2 text-xs leading-relaxed text-wm-text-muted">{loading ? "No contract is selected while the source is being checked." : hasAvailableData ? `${allContracts.length} source contracts are available for inspection. Freshness and broker binding remain unverified.` : error?.recovery ?? "Refresh to check options availability."}</p>
+            <p className="mt-2 text-xs leading-relaxed text-wm-text-muted">{loading ? "No contract is selected while the source is being checked." : hasAvailableData ? `${allContracts.length} source contracts are available for inspection. Provider observation: ${receiptAge.label}. Broker binding remains unverified.` : error?.recovery ?? "Refresh to check options availability."}</p>
             <button type="button" disabled={!hasAvailableData} onClick={() => setScene("inspect")} className="mt-3 min-h-11 rounded border border-wm-gold/50 px-3 text-xs text-wm-gold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">Choose from source contracts</button>
           </div>}
         </section>
@@ -507,7 +518,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
           {loading
             ? "Checking options availability · fidelity UNKNOWN"
             : hasAvailableData
-              ? `Source response: Alpaca · ${sourceReceipt.fidelity} · ${sourceReceipt.coverage.toLowerCase()} coverage · provider ${sourceReceipt.newestProviderTimestamp ?? "timestamp unavailable"}`
+              ? `Source response: Alpaca · ${sourceReceipt.fidelity} · response page ${sourceReceipt.coverage.toLowerCase()} · provider ${receiptAge.label}`
               : "No contracts available"}
         </div>
       </div>

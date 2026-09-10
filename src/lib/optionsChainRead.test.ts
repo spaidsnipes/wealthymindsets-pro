@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { optionsReadFailure, readOptionsResponse } from "./optionsChainRead";
+import { optionsReadFailure, optionsReceiptAge, readOptionsResponse } from "./optionsChainRead";
 
 const contract = { symbol: "TSLA260918C00350000", contractType: "call", expirationDate: "2026-09-18", strike: 350, bid: 2.1, ask: 2.3, volume: 37 };
 const response = (status: number, body: unknown) => ({ ok: status >= 200 && status < 300, status, json: vi.fn(async () => body) });
@@ -136,5 +136,30 @@ describe("options chain failed-edge projection", () => {
     expect(settled).toBe(false);
     complete([contract]);
     expect((await result).ok).toBe(true);
+  });
+});
+
+describe("options receipt age", () => {
+  const now = Date.parse("2026-09-10T05:15:00Z");
+
+  it.each([
+    ["2026-09-10T05:14:30Z", "less than 1m old", false],
+    ["2026-09-10T04:55:00Z", "20m old", false],
+    ["2026-09-10T04:45:00Z", "30m old", false],
+    ["2026-09-10T04:44:59.999Z", "30m old", true],
+    ["2026-09-10T04:44:00Z", "31m old", true],
+    ["2026-09-10T04:35:00Z", "40m old", true],
+    ["2026-09-10T04:15:00Z", "1h 0m old", true],
+    ["2026-09-09T19:59:00Z", "9h 16m old", true],
+  ])("formats %s as an observed age without session inference", (timestamp, label, recorded) => {
+    expect(optionsReceiptAge(timestamp, now)).toEqual({ label, recorded });
+  });
+
+  it.each([
+    [null, "timestamp unavailable"],
+    ["not-a-date", "timestamp unavailable"],
+    ["2026-09-10T05:17:00Z", "provider timestamp ahead"],
+  ])("fails closed for timestamp %s", (timestamp, label) => {
+    expect(optionsReceiptAge(timestamp, now)).toEqual({ label, recorded: true });
   });
 });

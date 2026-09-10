@@ -14,9 +14,14 @@ const dashboard = fs.readFileSync(
 
 describe("Options Chain truth and responsive surface", () => {
   it("never promotes a successful provider response to live fidelity", () => {
-    expect(optionsChain).toContain("REFERENCE AVAILABLE · INDICATIVE");
+    expect(optionsChain).toContain('receiptAge.recorded ? "RECORDED REFERENCE" : "REFERENCE AVAILABLE"');
     expect(optionsChain).toContain("Indicative quotes are modified and trades are delayed; this is not an executable quote.");
     expect(optionsChain).toContain("Source response: Alpaca");
+    expect(optionsChain).toContain("response page ${sourceReceipt.coverage.toLowerCase()}");
+    expect(optionsChain).toContain("provider ${receiptAge.label}");
+    expect(optionsChain).toContain("Provider observation: ${receiptAge.label}");
+    expect(optionsChain).toContain("window.setInterval(tick, 60_000)");
+    expect(optionsChain).toContain("window.clearInterval(clock)");
     expect(optionsChain).not.toContain("LIVE • FMP");
     expect(optionsChain).not.toContain("Real data: Financial Modeling Prep API");
     expect(optionsChain).not.toContain("bg-wm-green animate-pulse");

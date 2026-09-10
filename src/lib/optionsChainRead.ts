@@ -86,6 +86,29 @@ export interface OptionsSourceReceipt {
   newestProviderTimestamp: string | null;
 }
 
+export interface OptionsReceiptAge {
+  label: string;
+  recorded: boolean;
+}
+
+const RECORDED_REFERENCE_AGE_MS = 30 * 60_000;
+
+/** Format only observed provider age. This does not infer market-session state,
+ * freshness entitlement, or whether a quote is executable.
+ */
+export function optionsReceiptAge(timestamp: string | null, nowMs = Date.now()): OptionsReceiptAge {
+  const observedMs = timestamp ? Date.parse(timestamp) : Number.NaN;
+  if (!Number.isFinite(observedMs)) return { label: "timestamp unavailable", recorded: true };
+  const ageMs = nowMs - observedMs;
+  if (ageMs < -60_000) return { label: "provider timestamp ahead", recorded: true };
+  const minutes = Math.max(0, Math.floor(ageMs / 60_000));
+  if (minutes < 1) return { label: "less than 1m old", recorded: false };
+  if (minutes < 60) return { label: `${minutes}m old`, recorded: ageMs > RECORDED_REFERENCE_AGE_MS };
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return { label: `${hours}h ${remainder}m old`, recorded: true };
+}
+
 type OptionsReadResult = { ok: true; contracts: OptionContract[]; receipt: OptionsSourceReceipt }
   | { ok: false; failure: OptionsReadFailure };
 
