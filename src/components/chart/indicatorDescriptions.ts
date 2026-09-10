@@ -59,7 +59,11 @@ const AUTHORED: Record<string, Author> = {
   },
   "Imbalance": {
     definition:
-      "The Imbalance overlay highlights price levels where buy or sell aggression overwhelmed the opposite side by a large ratio (≥2.5×), marking spots where one side of the book was run over and trapped traders may be forced to cover.",
+      // "trapped traders may be forced to cover" is a POSITIONING claim. It
+      // needs open-interest or book data this overlay does not have — the
+      // Smart Money panel says so in as many words. The measured fact is the
+      // ratio; the forced-cover story was inference sold as a reading.
+      "The Imbalance overlay highlights price levels where buy or sell aggression overwhelmed the opposite side by a large ratio (≥2.5×), marking spots where one side of the book was run over.",
     calculation:
       "At each price row the diagonal bid/ask ratio is computed; rows where the dominant side exceeds the other by the threshold (default 2.5×) are flagged as imbalances. Consecutive flagged rows form stacked imbalances.",
     howToUse:
@@ -67,7 +71,7 @@ const AUTHORED: Record<string, Author> = {
     whatToLookFor:
       "Stacked (consecutive) imbalances, unfilled imbalances acting as magnets, and imbalances at the extreme of a move signaling exhaustion.",
     summary:
-      "Levels where one side ran the other over (≥2.5×). Marks trapped traders and high-conviction support/resistance. Stacked imbalances = strong initiative.",
+      "Levels where one side ran the other over (≥2.5×). Marks high-conviction support/resistance. Stacked imbalances = strong initiative.",
   },
   "Agg/Passive": {
     definition:
@@ -82,16 +86,26 @@ const AUTHORED: Record<string, Author> = {
       "Teal = aggressive buyers lifting the ask, purple = aggressive sellers hitting the bid. Separates who's driving price from who's providing liquidity.",
   },
   "Big Trades": {
+    // WHO placed a print is not in the tape. This entry used to call the
+    // bubbles "institutional-sized order flow" and read clusters as
+    // "institutional accumulation" — a claim about participant IDENTITY and
+    // MOTIVE derived from time-and-sales, which carries neither.
+    // truthResolutionMatrix marks INSTITUTIONAL_INTENT as DISALLOWED at every
+    // resolution for exactly this reason, and SmartMoneyPanel already declines
+    // the same question honestly ("Trapped Traders: N/A — needs positioning
+    // data"). The chart's own help text was contradicting the panel two clicks
+    // away. What IS measured — notional size against a rolling baseline — is
+    // still here, and is still the useful part.
     definition:
-      "Big Trades plots circles on the chart for unusually large individual prints, surfacing institutional-sized order flow that a normal candle would hide inside its body.",
+      "Big Trades plots circles on the chart for individual prints whose notional size is unusually large for this instrument, surfacing size that a normal candle would hide inside its body.",
     calculation:
       "Each trade's notional size is compared to a rolling baseline; prints above the large-trade threshold are drawn as bubbles sized by notional and colored by side (buy vs sell), positioned at the trade's price and time.",
     howToUse:
-      "Track where size is hitting: clusters of large buys at a level signal institutional accumulation; large sells into a rally warn of distribution. Combine with Volume Profile to see if big prints land on key nodes.",
+      "Track where size is hitting: repeated large buys at one level show sustained demand there, and large sells into a rally show supply meeting it. The tape does not say who placed a print or why, so read these as where size went, not as a participant's plan. Combine with Volume Profile to see if big prints land on key nodes.",
     whatToLookFor:
       "Clusters of same-side big prints, a single outsized print marking a reversal, and big trades being absorbed without moving price.",
     summary:
-      "Institutional-sized prints as bubbles. Buy clusters = accumulation, sell clusters into strength = distribution. Shows the size that candles hide.",
+      "Unusually large prints as bubbles, sized by notional and colored by side. Shows the size that candles hide — size only; the tape carries no participant identity.",
   },
   "EMA *": {
     definition:
