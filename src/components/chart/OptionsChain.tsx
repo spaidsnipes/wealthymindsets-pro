@@ -426,6 +426,9 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
           </div>
         ) : (
         <table className="w-full min-w-max text-[10px] border-collapse">
+          <caption className="caption-top border-b border-wm-border px-3 py-2 text-left text-[10px] text-wm-text-muted">
+            IV and Greek fields have no field-level provider timestamp. Quote and trade reference age does not date them.
+          </caption>
           <thead className="sticky top-0 bg-wm-dark z-10">
             <tr className="border-b border-wm-border">
               {tab !== "puts" && <>

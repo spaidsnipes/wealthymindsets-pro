@@ -57,6 +57,18 @@ describe("Options Chain truth and responsive surface", () => {
     expect(optionsChain).not.toContain("atm.pDelta");
   });
 
+  it("associates every row-level IV and Greek with visible unverified timing", () => {
+    const table = optionsChain.indexOf('<table className="w-full min-w-max');
+    const caption = optionsChain.indexOf("IV and Greek fields have no field-level provider timestamp.");
+    const head = optionsChain.indexOf('<thead className="sticky top-0', table);
+    expect(table).toBeGreaterThan(-1);
+    expect(caption).toBeGreaterThan(table);
+    expect(caption).toBeLessThan(head);
+    expect(optionsChain).toContain("Quote and trade reference age does not date them.");
+    expect(optionsChain).toContain('<caption className="caption-top');
+    expect(optionsChain).not.toContain("IV and Greek fields are recent");
+  });
+
   it("fences superseded contract reads and bounds stalled bodies", () => {
     expect(optionsChain).toContain('contractRead.current?.cancel();');
     expect(optionsChain).toContain('signal: controller.signal');
