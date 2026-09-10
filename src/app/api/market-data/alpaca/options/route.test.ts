@@ -37,8 +37,10 @@ describe("GET /api/market-data/alpaca/options", () => {
   });
   it("uses the official indicative chain endpoint and keeps credentials server-side", async () => {
     let sentUrl = "";
+    let sentResourceWasString = false;
     let sentHeaders: Record<string, string> = {};
-    globalThis.fetch = vi.fn(async (url: URL, init: RequestInit) => {
+    globalThis.fetch = vi.fn(async (url: string | URL | Request, init: RequestInit) => {
+      sentResourceWasString = typeof url === "string";
       sentUrl = String(url);
       sentHeaders = init.headers as Record<string, string>;
       return Response.json({ snapshots: {
@@ -55,6 +57,7 @@ describe("GET /api/market-data/alpaca/options", () => {
     const upstream = new URL(sentUrl);
     expect(response.status).toBe(200);
     expect(upstream.origin + upstream.pathname).toBe("https://data.alpaca.markets/v1beta1/options/snapshots/TSLA");
+    expect(sentResourceWasString).toBe(true);
     expect(upstream.searchParams.get("feed")).toBe("indicative");
     expect(upstream.searchParams.get("strike_price_gte")).toBe("310");
     expect(upstream.searchParams.get("strike_price_lte")).toBe("420");
@@ -129,5 +132,30 @@ describe("GET /api/market-data/alpaca/options", () => {
     const body = await response.json();
     expect(body).toMatchObject({ source: "alpaca", edge: "INVALID RESPONSE", stage: "NORMALIZE" });
     expect(JSON.stringify(body)).not.toContain("do-not-reflect");
+  });
+
+  it("refuses to forward credentials across a provider redirect", async () => {
+    let redirectMode: RequestRedirect | undefined;
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => {
+      redirectMode = init.redirect;
+      return new Response(null, { status: 302, headers: { Location: "https://private.invalid" } });
+    }));
+    const { GET } = await loadRoute();
+    const response = await GET(request());
+    const body = await response.json();
+    expect(redirectMode).toBe("manual");
+    expect(response.status).toBe(502);
+    expect(body).toMatchObject({ source: "alpaca", edge: "REDIRECT BLOCKED" });
+    expect(JSON.stringify(body)).not.toContain("private.invalid");
+  });
+
+  it("does not call a non-redirect 304 response a redirect", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 304 })));
+    const { GET } = await loadRoute();
+    const response = await GET(request());
+    const body = await response.json();
+    expect(response.status).toBe(502);
+    expect(body).toMatchObject({ source: "alpaca", edge: "UNKNOWN" });
+    expect(JSON.stringify(body)).not.toMatch(/redirect/i);
   });
 });

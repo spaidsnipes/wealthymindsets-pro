@@ -65,6 +65,16 @@ describe("options chain failed-edge projection", () => {
     expect(result).toEqual({ ok: false, failure: optionsReadFailure("INVALID RESPONSE") });
   });
 
+  it("preserves only the WM route's exact redirect-blocked receipt", async () => {
+    const exact = await readOptionsResponse(response(502, {
+      source: "alpaca", edge: "REDIRECT BLOCKED", error: "private redirect target",
+    }));
+    expect(exact).toEqual({ ok: false, failure: optionsReadFailure("REDIRECT BLOCKED") });
+    expect(JSON.stringify(exact)).not.toContain("private redirect target");
+    expect(await readOptionsResponse(response(502, { source: "other", edge: "REDIRECT BLOCKED" })))
+      .toEqual({ ok: false, failure: optionsReadFailure("PROVIDER ERROR") });
+  });
+
   it("does not let a contradictory body override an HTTP authentication failure", async () => {
     expect(await readOptionsResponse(response(401, { source: "fmp", edge: "NOT CONFIGURED" })))
       .toEqual({ ok: false, failure: optionsReadFailure("AUTH BLOCKED") });

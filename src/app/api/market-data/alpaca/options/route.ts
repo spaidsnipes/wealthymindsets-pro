@@ -31,6 +31,7 @@ function upstreamEdge(status: number): string {
 }
 
 type InvalidResponseStage = "TRANSPORT" | "DECODE" | "NORMALIZE";
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 function invalidResponse(stage: InvalidResponseStage) {
   return NextResponse.json({
@@ -84,9 +85,12 @@ export async function GET(request: Request) {
   try {
     const result = await Promise.race([
       (async () => {
-        const response = await fetch(upstream, {
+        const response = await fetch(upstream.toString(), {
           cache: "no-store",
-          redirect: "error",
+          // Never forward credential headers across a redirect. `manual` also
+          // lets the route name that security boundary instead of collapsing
+          // a redirect rejection into an indistinct transport failure.
+          redirect: "manual",
           signal: controller.signal,
           headers: {
             Accept: "application/json",
@@ -108,8 +112,18 @@ export async function GET(request: Request) {
     ]);
 
     if (!result.response.ok) {
+      if (REDIRECT_STATUSES.has(result.response.status)) {
+        return NextResponse.json({
+          source: "alpaca",
+          edge: "REDIRECT BLOCKED",
+          error: "The Alpaca options endpoint attempted a redirect; credential forwarding was refused",
+        }, { status: 502 });
+      }
       const edge = upstreamEdge(result.response.status);
-      return NextResponse.json({ source: "alpaca", edge, error: `Alpaca option request failed (HTTP ${result.response.status})` }, { status: result.response.status });
+      const responseStatus = result.response.status >= 300 && result.response.status <= 399
+        ? 502
+        : result.response.status;
+      return NextResponse.json({ source: "alpaca", edge, error: `Alpaca option request failed (HTTP ${result.response.status})` }, { status: responseStatus });
     }
     invalidStage = "NORMALIZE";
     return NextResponse.json(normalizeAlpacaOptionChain(result.body, symbol), {

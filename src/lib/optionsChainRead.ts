@@ -2,7 +2,7 @@ import { parseOptionContractResponse, type OptionContract } from "./optionContra
 
 export type OptionsFailureEdge =
   | "NOT CONFIGURED" | "AUTH BLOCKED" | "REQUEST DENIED" | "RATE LIMITED"
-  | "TIMEOUT" | "NETWORK ERROR" | "PROVIDER ERROR" | "INVALID RESPONSE"
+  | "TIMEOUT" | "NETWORK ERROR" | "PROVIDER ERROR" | "INVALID RESPONSE" | "REDIRECT BLOCKED"
   | "NO EVENTS" | "UNKNOWN";
 
 export interface OptionsReadFailure {
@@ -24,6 +24,7 @@ const failures: Record<OptionsFailureEdge, Omit<OptionsReadFailure, "edge">> = {
   "NETWORK ERROR": { message: "The options-data request could not be completed.", recovery: "Check your connection and refresh. Provider authentication and entitlement remain unverified." },
   "PROVIDER ERROR": { message: "The options-data service returned an error. No contracts were accepted.", recovery: "Refresh to check recovery. This error does not prove an entitlement restriction." },
   "INVALID RESPONSE": { message: "The options response could not be validated.", recovery: "Refresh to request a new response. Unverified contracts will not be displayed." },
+  "REDIRECT BLOCKED": { message: "The options endpoint attempted to redirect the server request.", recovery: "Credential forwarding was refused. The host operator must verify the configured endpoint before retrying." },
   "NO EVENTS": { message: "The provider returned no contracts for this selection.", recovery: "Check the selected symbol and refresh. An empty response does not prove an entitlement restriction." },
   "UNKNOWN": { message: "The options request failed for an unconfirmed reason.", recovery: "Refresh to make a new check. Availability and entitlement remain unverified." },
 };
@@ -66,6 +67,9 @@ function responseFailure(status: number, body: unknown): OptionsReadFailure {
     return stage === "TRANSPORT" || stage === "DECODE" || stage === "NORMALIZE"
       ? stagedInvalidResponse(stage)
       : optionsReadFailure("INVALID RESPONSE");
+  }
+  if (status === 502 && envelope?.source === "alpaca" && envelope.edge === "REDIRECT BLOCKED") {
+    return optionsReadFailure("REDIRECT BLOCKED");
   }
   if (status === 401) return optionsReadFailure("AUTH BLOCKED");
   if (status === 403) return optionsReadFailure("REQUEST DENIED");
