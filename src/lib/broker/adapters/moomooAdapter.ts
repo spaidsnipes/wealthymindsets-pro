@@ -72,21 +72,35 @@ export const moomooAdapter: BrokerAdapter = {
 
   async capabilities(_accountId: string): Promise<BrokerCapabilities> {
     void _accountId;
-    // OBSERVED tier — moomoo's documented product surface (US/HK/CN/JP equity,
-    // options, futures, FX) and OpenD's TrdEnv.SIMULATE paper environment. This is
-    // what a fully-wired adapter WILL support; order-lifecycle methods still return
-    // honest rejected/unknown until the trade path lands.
+    // Canon §W4 (ACCOUNT-AWARE CAPABILITY DISCOVERY) + the BrokerAdapter
+    // docstring: "Must return account-aware results — never hard-code
+    // assumptions the broker can answer."
+    //
+    // This previously returned moomoo's DOCUMENTED PRODUCT SURFACE — a populated
+    // orderTypes array plus supportsLive/supportsShort true. That is marketing
+    // truth, not account truth, and the two can disagree outright: a broker can
+    // authorize a given API client as read-only/Non-Trading on every account it
+    // owns, at which case "this account can place a stop order" is simply false.
+    // `supportedPurposes()` in src/lib/orderPurpose.ts builds its entire order
+    // menu by filtering on orderTypes, so a populated array here is the exact
+    // input that would render an order primitive the account cannot execute.
+    //
+    // The v1 bridge is read-only and exposes no account route, so no
+    // account-aware answer exists to give. Under-claim until it does. The
+    // product surface stays in notes/, where it is documentation and cannot be
+    // mistaken for a per-account grant.
     return {
-      assetClasses: ["equity", "option", "future", "fx"],
-      orderTypes: ["market", "limit", "stop", "stop-limit"],
-      supportsPaper: true, // OpenD TrdEnv.SIMULATE
-      supportsLive: true,  // TrdEnv.REAL (requires trade-unlock in OpenD)
-      supportsBracketOrders: false, // not confirmed via read-only path; leave false until observed
-      supportsShort: true, // margin accounts support shorting per moomoo product
+      assetClasses: [],
+      orderTypes: [],
+      supportsPaper: false,
+      supportsLive: false,
+      supportsBracketOrders: false,
+      supportsShort: false,
       notes: [
         "moomoo reaches the app through services/moomoo-bridge → OpenD (127.0.0.1:11111); OpenD cannot run on Cloudflare Workers.",
-        "v1 bridge is read-only (quotes). Order execution is a future atom — submitOrder/cancelOrder return honest rejected/unknown until then.",
-        "Live real-time US quotes may require a moomoo market-data subscription; paper (SIMULATE) works without one.",
+        "v1 bridge is read-only (quotes) and exposes no account route, so per-account capability discovery has never run. Empty = UNKNOWN, not 'moomoo supports nothing'.",
+        "Documented product surface (NOT an account grant): US/HK/CN/JP equity, options, futures, FX; market/limit/stop/stop-limit; TrdEnv.SIMULATE paper and TrdEnv.REAL live. Do not hard-code from this line — the broker must answer per account.",
+        "A broker can authorize an API client as Non-Trading on an account whose product tier supports orders. Only account-aware discovery can tell those apart.",
       ],
     };
   },
