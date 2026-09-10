@@ -74,6 +74,25 @@ export interface CandleDataStatus {
 const CONTINUOUS_MARKET_SOURCES: ReadonlySet<PriceSource> = new Set(["binance", "coinbase"]);
 
 /**
+ * Providers whose price arrives as a polled REST quote rather than a per-trade
+ * tape. They publish on a minutes cadence BY DESIGN.
+ *
+ * This set exists because a tick-recency window is not a universal freshness
+ * receipt. Measuring a REST-quote provider against a seconds-scale tape budget
+ * and reporting `fresh: false` makes `priceSourceBadge` short-circuit to
+ * STALE PIPELINE, slandering a provider that is behaving exactly as specified.
+ * Canon: FIDELITY IS PER CAPABILITY, NOT A SYMBOL-WIDE INSULT — the absence of
+ * a per-trade tape is a MISSING CAPABILITY, not a stalled pipeline.
+ *
+ * Callers that derive `fresh` from tape recency MUST pass `undefined` for
+ * these sources ("not established", per `PriceObservationEvidence.fresh`) and
+ * let the provider arm return the honest ACTIVE DEGRADED verdict.
+ */
+export const REST_QUOTE_SOURCES: ReadonlySet<PriceSource> = new Set([
+  "yahoo", "finnhub",
+]);
+
+/**
  * @param sessionOpen Tri-state session truth. ONLY an explicit `false`
  *   changes the verdict; `undefined`/`null` mean "not established" and leave
  *   provider-derived labelling exactly as it was. An unknown session may

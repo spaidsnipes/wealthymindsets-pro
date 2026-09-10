@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { MarketState, Tick } from "../../hooks/useWebSocket";
-import { priceSourceBadge } from "../priceSource";
+import { priceSourceBadge, REST_QUOTE_SOURCES } from "../priceSource";
 import { publishCanonicalMarketState } from "./publishCanonicalMarketState";
 import {
   getSessionNectarSnapshot,
@@ -49,8 +49,21 @@ function qualityFor(
   source: MarketState["source"],
   connected: boolean,
   hasCanonicalPrice: boolean,
-  fresh: boolean,
+  tapeFresh: boolean,
 ): MarketQualityState {
+  // A per-trade-tape recency window is only a freshness receipt for sources
+  // that actually carry a per-trade tape. Handing `fresh: false` to a
+  // REST-quote provider (yahoo / finnhub) short-circuits priceSourceBadge to
+  // STALE PIPELINE, which is how /command-deck came to render "! STALE" for
+  // NQ1! at the same instant the ticker tape 300px above it — grading the
+  // SAME quote through the SAME function, but supplying no freshness field —
+  // rendered ACTIVE DEGRADED. Canon Weakness #1 (multi-fidelity disagreement
+  // on one page), sourced not to the evidence but to WHO ASKED.
+  //
+  // `undefined` is the documented "not established" value for
+  // PriceObservationEvidence.fresh, and it lets the provider arm return the
+  // honest ACTIVE DEGRADED -> PARTIAL verdict below.
+  const fresh = REST_QUOTE_SOURCES.has(source) ? undefined : tapeFresh;
   const badge = priceSourceBadge(source, connected, undefined, {present: hasCanonicalPrice, fresh});
   if (badge.availability === "unavailable") return "UNAVAILABLE";
   if (badge.live) return hasCanonicalPrice ? "LIVE" : "PARTIAL";
