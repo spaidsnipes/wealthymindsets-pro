@@ -139,12 +139,64 @@ Gates, run unpiped (a pipe masks the exit code):
 **Gate 5 — ONE SHARED AUTHORITY.** Runtime question, one discriminator:
 
 > `/api/decision-position` — is `serverAuthority` `null`, or
-> `SHARED_POSITION_AUTHORITY`?
+> `SHARED_POSITION_AUTHORITY` (`"wm_decision_positions"`)?
 
 Null means no server-backed record exists and device copies are winning capital
 truth. This is the single PASS/FAIL discriminator for Gate 5 and the only
-structural gate not externally blocked. It requires an authenticated browser
-session; it is blocked solely on the Chrome MCP roster being empty.
+structural gate not externally blocked. The route is `requireAuth`-gated, so the
+probe needs an authenticated browser session; it is blocked solely on the Chrome
+MCP roster being empty.
+
+### Root-dam narrowing done this window (no browser required)
+
+Traced the Gate 5 code path end to end by static read. **The chain is NOT
+orphaned** — this is materially different from the Decision Memory sealing gap,
+and it changes the next repair:
+
+| Link | Status | Location |
+|---|---|---|
+| Migration SQL | **present in repo** | `supabase/migrations/20260907080000_wm_decision_position_shared_authority.sql` — creates table + `wm_read_decision_position` RPC |
+| Server read | present | `route.ts:74` `probeAuthority()` → `admin.rpc("wm_read_decision_position", …)` |
+| Server project-by-id | present | `route.ts:313` |
+| **Writer** | **present, in production code** | `/paper` `page.tsx:454` → `recordDecisionIntent()` → POST |
+| **Reader** | **present, in production code** | `/paper` `page.tsx:1836` → `useSharedAuthorityProbe()` → GET |
+| Rendering surface | present | `/paper` `page.tsx:1829` → `selectCapitalReach(PAPER_STORE_FACTS)` |
+
+Every link exists. Gate 5 therefore reduces to exactly **one unverified infra
+fact**:
+
+> **Has migration `20260907080000` been applied to the production Supabase
+> project?**
+
+`probeAuthority()` is deliberately fail-closed and cannot distinguish "table
+missing" from "transport failed" — it returns the same honest `null` for both,
+and says so in its own note. So the answer cannot be inferred from the route's
+output alone; it must be read from Supabase.
+
+The codebase already names this exact distinction, at
+`src/lib/experience/capitalReach.ts:180`:
+
+> "The shared authority now EXISTS in the repo … Existing in the repo is not
+> existing." — and it enumerates the three states that read identically to the
+> trader: a permanent product property, a thing someone is building, or **"a
+> switch nobody threw … the one he could fix in a minute."**
+
+Current evidence points at the third. **This is the root dam.**
+
+### Two ways to answer it, neither available to me right now
+
+1. Query the production Supabase project for the presence of the
+   `wm_read_decision_position` RPC. Requires service-role credentials. I
+   attempted to check which credential names exist locally; the action was
+   **denied by the sandbox**, correctly, and I did not work around it.
+2. Load `/paper` in an authenticated browser and read the cross-device strip.
+   Blocked on the empty Chrome MCP roster.
+
+**Founder-actionable, likely a one-minute fix:** confirm in the Supabase
+dashboard for project `zrzaifaxecwgpfrqctkp` whether
+`20260907080000_wm_decision_position_shared_authority.sql` has been applied, and
+apply it if not. If it is already applied, Gate 5 may already be passing and
+simply unobserved.
 
 Second probe once a browser is available:
 `/api/market-data/alpaca/options?symbol=TSLA` — does the chain carry real
