@@ -91,6 +91,13 @@ export interface OptionsReceiptAge {
   timing: "RECENT" | "STALE" | "UNVERIFIED";
 }
 
+export interface OptionContractObservationTiming {
+  readonly quote: OptionsReceiptAge;
+  readonly trade: OptionsReceiptAge;
+  /** At least one exact contract observation has a verifiable chronology. */
+  readonly reviewable: boolean;
+}
+
 const RECORDED_REFERENCE_AGE_MS = 30 * 60_000;
 
 /** Format only observed provider age. This does not infer market-session state,
@@ -99,6 +106,7 @@ const RECORDED_REFERENCE_AGE_MS = 30 * 60_000;
 export function optionsReceiptAge(timestamp: string | null, nowMs = Date.now()): OptionsReceiptAge {
   const observedMs = timestamp ? Date.parse(timestamp) : Number.NaN;
   if (!Number.isFinite(observedMs)) return { label: "timestamp unavailable", timing: "UNVERIFIED" };
+  if (!Number.isFinite(nowMs)) return { label: "time comparison unavailable", timing: "UNVERIFIED" };
   const ageMs = nowMs - observedMs;
   if (ageMs < 0) return { label: "provider timestamp ahead", timing: "UNVERIFIED" };
   const minutes = Math.max(0, Math.floor(ageMs / 60_000));
@@ -107,6 +115,24 @@ export function optionsReceiptAge(timestamp: string | null, nowMs = Date.now()):
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
   return { label: `${hours}h ${remainder}m old`, timing: "STALE" };
+}
+
+/** Classify the two observations that belong to one exact contract. Page-level
+ * receipt time must never substitute for either field. A contract remains
+ * researchable when one edge has verifiable chronology; both unverified edges
+ * fail closed before selection or shared-intent recording.
+ */
+export function optionContractObservationTiming(
+  contract: Pick<OptionContract, "quoteTimestamp" | "tradeTimestamp">,
+  nowMs: number,
+): OptionContractObservationTiming {
+  const quote = optionsReceiptAge(contract.quoteTimestamp ?? null, nowMs);
+  const trade = optionsReceiptAge(contract.tradeTimestamp ?? null, nowMs);
+  return {
+    quote,
+    trade,
+    reviewable: quote.timing !== "UNVERIFIED" || trade.timing !== "UNVERIFIED",
+  };
 }
 
 type OptionsReadResult = { ok: true; contracts: OptionContract[]; receipt: OptionsSourceReceipt }

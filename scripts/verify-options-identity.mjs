@@ -15,10 +15,13 @@ const bundle = await build({stdin:{contents:`
 import React,{useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {OptionsChain} from './src/components/chart/OptionsChain';
-function Fixture(){const [symbol,setSymbol]=useState('TSLA');return <main>
+import {OptionExpressionIntent} from './src/components/chart/OptionExpressionIntent';
+function Fixture(){const [symbol,setSymbol]=useState('TSLA');const [selected,setSelected]=useState(null);return <main>
 <p>SYNTHETIC OPTIONS FIXTURE — NOT EXECUTABLE QUOTES</p>
 <button onClick={()=>setSymbol('SPY')}>Switch to SPY</button>
-<OptionsChain symbol={symbol} price={500} onClose={()=>{}}/></main>}
+<OptionsChain symbol={symbol} price={500} onClose={()=>{}} onInvalidateSelection={()=>setSelected(null)}
+ onSelectContract={(contract,receipt,timing)=>setSelected({contract,receipt,timing})}
+ expression={selected?<OptionExpressionIntent ownerId="synthetic-owner" underlying={symbol} contract={selected.contract} source="alpaca" fidelity="INDICATIVE" onClear={()=>setSelected(null)}/>:null}/></main>}
 createRoot(document.getElementById('root')).render(<React.StrictMode><Fixture/></React.StrictMode>);`,
 loader:'tsx',resolveDir:process.cwd()},bundle:true,write:false,platform:'browser',format:'iife',
 define:{'process.env.NODE_ENV':'"development"'}});
@@ -49,12 +52,15 @@ try{
   await page.addInitScript(()=>{
    const original=window.fetch.bind(window);window.pendingOptions=[];
    window.fetch=(url,options)=>String(url).startsWith('/api/market-data/alpaca/options?')?new Promise(resolve=>window.pendingOptions.push({url:String(url),resolve})):original(url,options);
-   window.releaseOptions=(symbol,strike)=>{
+   window.releaseOptions=(symbol,strike,timing='now')=>{
     const matches=p=>new URL(p.url,location.origin).searchParams.get('symbol')===symbol;
     const pending=window.pendingOptions.filter(matches);
     window.pendingOptions=window.pendingOptions.filter(p=>!matches(p));
-    const timestamp=new Date().toISOString();
-    for(const p of pending)p.resolve(new Response(JSON.stringify({source:'alpaca',fidelity:'INDICATIVE',coverage:'COMPLETE',newestProviderTimestamp:timestamp,chain:[{symbol:symbol+'261218C00500000',contractType:'call',expirationDate:'2026-12-18',strike,bid:1,ask:2,last:1.5,openInterest:1,quoteTimestamp:timestamp,tradeTimestamp:timestamp}]}),{status:200}));
+    const now=Date.now();
+    const quoteTimestamp=new Date(timing==='future'?now+60_000:timing==='mixed'?now+60_000:now).toISOString();
+    const tradeTimestamp=new Date(timing==='future'?now+60_000:now).toISOString();
+    const newestProviderTimestamp=timing==='future'?quoteTimestamp:tradeTimestamp;
+    for(const p of pending)p.resolve(new Response(JSON.stringify({source:'alpaca',fidelity:'INDICATIVE',coverage:'COMPLETE',newestProviderTimestamp,chain:[{symbol:symbol+'261218C00500000',contractType:'call',expirationDate:'2026-12-18',strike,bid:1,ask:2,last:1.5,openInterest:1,quoteTimestamp,tradeTimestamp}]}),{status:200}));
    };
   });
   await page.clock.install();
@@ -68,7 +74,38 @@ try{
   await page.evaluate(()=>window.releaseOptions('TSLA',999));
   await page.waitForTimeout(100);
   if((await page.locator('tbody').innerText()).includes('999'))throw new Error(device+': stale TSLA overwrote SPY');
-  await page.clock.runFor(31 * 60_000);
+  await page.getByRole('button',{name:/Review call/}).first().click();
+  await page.getByText(/quote RECENT REFERENCE/).waitFor();
+  await page.getByRole('button',{name:'Clear expression',exact:true}).click();
+  await page.getByRole('button',{name:'Inspect contracts',exact:true}).click();
+
+  await page.getByRole('button',{name:'Refresh options data',exact:true}).click();
+  await page.waitForFunction(()=>window.pendingOptions.some(p=>new URL(p.url,location.origin).searchParams.get('symbol')==='SPY'));
+  await page.evaluate(()=>window.releaseOptions('SPY',502,'future'));
+  await page.getByText('REFERENCE TIMING UNVERIFIED · INDICATIVE',{exact:true}).waitFor();
+  const unverifiedReview=page.getByRole('button',{name:/timing unverified/i}).first();
+  if(!(await unverifiedReview.isDisabled()))throw new Error(device+': future-dated contract remained reviewable');
+  if((await page.getByRole('button',{name:'Inspect contracts',exact:true}).getAttribute('aria-pressed'))!=='true')throw new Error(device+': rejected contract changed scene');
+  await page.clock.runFor(2 * 60_000);
+  const recoveredReview=page.getByRole('button',{name:/Review call/}).first();
+  if(await recoveredReview.isDisabled())throw new Error(device+': clock recovery did not restore review');
+  await recoveredReview.click();
+  await page.getByText(/quote RECENT REFERENCE/).waitFor();
+  await page.getByRole('button',{name:'Clear expression',exact:true}).click();
+  await page.getByRole('button',{name:'Inspect contracts',exact:true}).click();
+
+  await page.getByRole('button',{name:'Refresh options data',exact:true}).click();
+  await page.waitForFunction(()=>window.pendingOptions.some(p=>new URL(p.url,location.origin).searchParams.get('symbol')==='SPY'));
+  await page.evaluate(()=>window.releaseOptions('SPY',503,'mixed'));
+  await page.getByRole('button',{name:/Review call/}).first().click();
+  await page.getByText(/quote REFERENCE TIMING UNVERIFIED/).waitFor();
+  await page.getByText(/trade RECENT REFERENCE/).waitFor();
+  await page.getByLabel('Purpose').fill('Synthetic timing-boundary inspection only');
+  if(await page.getByRole('button',{name:'Record expression intent',exact:true}).isDisabled())throw new Error(device+': mixed verifiable chronology was blocked');
+  await page.getByRole('button',{name:'Clear expression',exact:true}).click();
+  await page.getByRole('button',{name:'Inspect contracts',exact:true}).click();
+
+  await page.clock.runFor(32 * 60_000);
   await page.getByText('STALE REFERENCE · INDICATIVE',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Refresh options data',exact:true}).click();
   if(await page.locator('tbody').count())throw new Error(device+': old contracts remained during refresh');
@@ -100,7 +137,7 @@ try{
   await page.waitForFunction(()=>window.pendingOptions.some(p=>new URL(p.url,location.origin).searchParams.get('symbol')==='SPY'));
   await page.evaluate(()=>window.releaseOptions('SPY',501));
   await page.getByText('RECENT REFERENCE · INDICATIVE',{exact:true}).waitFor();
-  rows.push({device,width,height,panelWidth:panelBox.width,viewportContained:true,staleReferenceNamed:true,staleSymbolRejected:true,refreshClears:true,deadlineRejectsLateSuccess:true,retryRecovers:true});
+  rows.push({device,width,height,panelWidth:panelBox.width,viewportContained:true,futureContractRejected:true,rejectedSceneStable:true,clockRecovery:true,mixedTimingNamed:true,staleReferenceNamed:true,staleSymbolRejected:true,refreshClears:true,deadlineRejectsLateSuccess:true,retryRecovers:true});
   await context.close();
  }
  if(errors.length)throw new Error(JSON.stringify(errors));

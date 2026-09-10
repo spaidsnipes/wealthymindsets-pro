@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { OptionContract } from "@/lib/optionContractResponse";
 import { formatOptionNumber } from "@/lib/optionCellFormat";
-import { optionsReceiptAge } from "@/lib/optionsChainRead";
+import { optionContractObservationTiming, type OptionsReceiptAge } from "@/lib/optionsChainRead";
 import { mintDecisionId, type DecisionId } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { recordExpressionIntent } from "@/lib/traderMemory/recordExpressionIntent";
@@ -29,15 +29,18 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
     return () => window.clearInterval(clock);
   }, []);
 
-  const quoteAge = contract.quoteTimestamp
-    ? receiptClock === null ? "age checking" : optionsReceiptAge(contract.quoteTimestamp, receiptClock).label
-    : "not observed";
-  const tradeAge = contract.tradeTimestamp
-    ? receiptClock === null ? "age checking" : optionsReceiptAge(contract.tradeTimestamp, receiptClock).label
-    : "not observed";
+  const observationTiming = optionContractObservationTiming(contract, receiptClock ?? Number.NaN);
+  const timingLabel = (age: OptionsReceiptAge) => age.timing === "RECENT"
+    ? `RECENT REFERENCE · ${age.label}`
+    : age.timing === "STALE"
+      ? `STALE REFERENCE · ${age.label}`
+      : `REFERENCE TIMING UNVERIFIED · ${age.label}`;
+  const quoteTiming = timingLabel(observationTiming.quote);
+  const tradeTiming = timingLabel(observationTiming.trade);
+  const canRecord = receiptClock !== null && observationTiming.reviewable;
 
   async function record() {
-    if (pending.current || recorded || !purpose.trim()) return;
+    if (pending.current || recorded || !purpose.trim() || !canRecord) return;
     pending.current = true;
     setBusy(true);
     const controller = new AbortController();
@@ -49,7 +52,7 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
         const born = mintDecisionId({ cause: "EXPLICIT_INTENT", deviceId, nowMs: Date.now(), nonce: crypto.randomUUID() });
         if (!born.ok) { setReceipt(born.reason); return; }
         identity.current = { decisionId: born.identity.decisionId, deviceId,
-          intent: `Review ${underlying} expression: ${contract.symbol}; ${contract.contractType}; strike ${contract.strike}; expiry ${contract.expirationDate}. Purpose: ${purpose.trim()}. Reference source ${source}; fidelity ${fidelity}; quote timestamp ${contract.quoteTimestamp ?? "not observed"}; trade timestamp ${contract.tradeTimestamp ?? "not observed"}; executable quote and contract binding unverified. No order requested.` };
+          intent: `Review ${underlying} expression: ${contract.symbol}; ${contract.contractType}; strike ${contract.strike}; expiry ${contract.expirationDate}. Purpose: ${purpose.trim()}. Reference source ${source}; fidelity ${fidelity}; quote timestamp ${contract.quoteTimestamp ?? "not observed"}; quote timing ${observationTiming.quote.timing}; trade timestamp ${contract.tradeTimestamp ?? "not observed"}; trade timing ${observationTiming.trade.timing}; executable quote and contract binding unverified. No order requested.` };
         setDecisionId(born.identity.decisionId);
       }
       const result = await recordExpressionIntent(identity.current, fetch, controller.signal, ownerId);
@@ -68,13 +71,14 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
     <p className="mt-1 break-all font-mono text-wm-text-muted">{contract.symbol}</p>
     <p className="mt-2">Reference bid {formatOptionNumber(contract.bid, 2)} · ask {formatOptionNumber(contract.ask, 2)} · last {formatOptionNumber(contract.last, 2)}</p>
     <p className="mt-1 text-wm-gold" title={`Quote timestamp: ${contract.quoteTimestamp ?? "not observed"}; trade timestamp: ${contract.tradeTimestamp ?? "not observed"}`}>
-      {source === "alpaca" ? "Alpaca" : "Unknown source"} reference · {fidelity.toLowerCase()} · quote {quoteAge} · trade {tradeAge} · not an executable quote
+      {source === "alpaca" ? "Alpaca" : "Unknown source"} reference · {fidelity.toLowerCase()} · quote {quoteTiming} · trade {tradeTiming} · not an executable quote
     </p>
+    {!canRecord && <p role="status" className="mt-1 text-wm-gold">Reference timing is unverified for both the exact quote and trade. Recording stays unavailable until a provider observation has verifiable chronology.</p>}
     <p className="mt-1 text-wm-text-muted">Contract-to-underlying binding and broker support need verification. This review does not open a position.</p>
     <label className="mt-2 block">Purpose
       <input value={purpose} disabled={busy || !!identity.current} maxLength={500} onChange={e => setPurpose(e.target.value)} placeholder="What is the underlying thesis?" className="mt-1 w-full rounded border border-wm-border bg-wm-surface p-2" />
     </label>
-    <button type="button" disabled={!ownerId || busy || recorded || !purpose.trim()} onClick={() => void record()} className="mt-2 rounded border border-wm-gold px-3 py-2 text-wm-gold disabled:opacity-50">{!ownerId ? "Sign in to record intent" : busy ? "Checking shared record…" : recorded ? "Intent recorded" : decisionId ? "Retry same intent" : "Record expression intent"}</button>
+    <button type="button" disabled={!ownerId || busy || recorded || !purpose.trim() || !canRecord} onClick={() => void record()} className="mt-2 rounded border border-wm-gold px-3 py-2 text-wm-gold disabled:opacity-50">{!ownerId ? "Sign in to record intent" : busy ? "Checking shared record…" : recorded ? "Intent recorded" : !canRecord ? "Reference timing unverified" : decisionId ? "Retry same intent" : "Record expression intent"}</button>
     <p role="status" className="mt-2">{receipt}</p>
     {decisionId && <p className="mt-1 break-all text-wm-text-muted">Decision: {decisionId}. Only intent text is shared; structured contract recovery is not yet supported.</p>}
   </section>;

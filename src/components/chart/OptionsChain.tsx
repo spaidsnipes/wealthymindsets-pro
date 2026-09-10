@@ -13,7 +13,7 @@ import { clsx } from "clsx";
 import { formatOptionCount, formatOptionNumber, formatOptionPercent,
          summariseOpenInterest } from "@/lib/optionCellFormat";
 import { type OptionContract } from "@/lib/optionContractResponse";
-import { optionsReceiptAge, readOptionsResponse, optionsReadFailure, type OptionsReadFailure, type OptionsSourceReceipt } from "@/lib/optionsChainRead";
+import { optionContractObservationTiming, optionsReceiptAge, readOptionsResponse, optionsReadFailure, type OptionContractObservationTiming, type OptionsReadFailure, type OptionsSourceReceipt } from "@/lib/optionsChainRead";
 
 /**
  * Every quoted field is optional: an unquoted strike has NO number, and must
@@ -95,7 +95,7 @@ interface Props {
    * the surface cannot keep (LIVING-PIXEL LAW: no design theater).
    */
   onSelectStrike?: (row: OptionRow) => void;
-  onSelectContract?: (contract: OptionContract, receipt: OptionsSourceReceipt) => void;
+  onSelectContract?: (contract: OptionContract, receipt: OptionsSourceReceipt, timing: OptionContractObservationTiming) => void;
   onInvalidateSelection?: () => void;
   expression?: React.ReactNode;
   onOpenBrokerConnect?: (trigger: HTMLButtonElement) => void;
@@ -115,6 +115,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
   const [dataSource, setDataSource] = useState<"alpaca"|"unavailable">("unavailable");
   const [sourceReceipt, setSourceReceipt] = useState<OptionsSourceReceipt>({ source: "unknown", fidelity: "UNKNOWN", coverage: "UNKNOWN", newestProviderTimestamp: null });
   const [receiptClock, setReceiptClock] = useState<number | null>(null);
+  const [selectionNotice, setSelectionNotice] = useState("");
   const [allContracts, setAllContracts] = useState<OptionContract[]>([]);
   const [receivedSymbol, setReceivedSymbol] = useState<string | null>(null);
   const contractRead = useRef<{ cancel: () => void } | null>(null);
@@ -137,7 +138,13 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
     return () => window.clearInterval(clock);
   }, []);
   function reviewContract(contract: OptionContract) {
-    onSelectContract?.(contract, sourceReceipt);
+    const timing = optionContractObservationTiming(contract, receiptClock ?? Number.NaN);
+    if (!timing.reviewable) {
+      setSelectionNotice("Reference timing is unverified for both the exact quote and trade. WM did not select this contract; wait for a verifiable provider observation or refresh.");
+      return;
+    }
+    setSelectionNotice("");
+    onSelectContract?.(contract, sourceReceipt, timing);
     focusExpression.current = true;
     setScene("expression");
   }
@@ -169,6 +176,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
     }, 12_000);
     contractRead.current = { cancel };
     setLoading(true);
+    setSelectionNotice("");
     setError(null);
     setReceivedSymbol(null);
     setDataSource("unavailable");
@@ -358,6 +366,11 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
           <span className="min-w-0 break-words"><strong>{error.edge}</strong> · {error.message}</span>
         </div>
       )}
+      {selectionNotice && (
+        <p role="status" className="min-w-0 border-b border-wm-gold/20 bg-wm-gold/5 px-3 py-2 text-[10px] leading-relaxed text-wm-gold sm:px-4">
+          {selectionNotice}
+        </p>
+      )}
 
       {/* Expiry selector */}
       <div className="flex items-center gap-1 px-3 py-1.5 border-b border-wm-border shrink-0 overflow-x-auto" style={{ scrollbarWidth:"none" }}>
@@ -452,7 +465,10 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
                     onSelectStrike && "hover:bg-wm-surface/30 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold",
                     isATM ? "bg-wm-gold/05 border-y border-wm-gold/20" : "")}>
                   {tab !== "puts" && <>
-                    {onSelectContract && <td className="px-2 py-1.5">{row.call ? <button type="button" className="min-h-11 rounded border border-wm-green/40 px-2 py-1 text-wm-green focus-visible:outline focus-visible:outline-2" aria-label={`Review call ${row.call.symbol}`} onClick={e => { e.stopPropagation(); reviewContract(row.call!); }}>Review call</button> : "—"}</td>}
+                    {onSelectContract && <td className="px-2 py-1.5">{row.call ? (() => {
+                      const reviewable = optionContractObservationTiming(row.call, receiptClock ?? Number.NaN).reviewable;
+                      return <button type="button" disabled={!reviewable} title={reviewable ? "Review this indicative contract" : "Quote and trade timing are both unverified"} className="min-h-11 rounded border border-wm-green/40 px-2 py-1 text-wm-green disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2" aria-label={reviewable ? `Review call ${row.call.symbol}` : `Call ${row.call.symbol} timing unverified` } onClick={e => { e.stopPropagation(); reviewContract(row.call!); }}>{reviewable ? "Review call" : "Timing unverified"}</button>;
+                    })() : "—"}</td>}
                     {showGreeks ? <>
                       <td className={clsx("px-2 py-1.5 font-mono", callITM ? "text-wm-green font-semibold" : "text-wm-text-dim")}>{formatOptionNumber(row.cDelta, 2)}</td>
                       <td className="px-2 py-1.5 font-mono text-wm-text-dim">{formatOptionNumber(row.cGamma, 4)}</td>
@@ -472,7 +488,10 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
                     {isATM && <span className="ml-1 text-[8px] text-wm-gold">ATM</span>}
                   </td>
                   {tab !== "calls" && <>
-                    {onSelectContract && <td className="px-2 py-1.5">{row.put ? <button type="button" className="min-h-11 rounded border border-wm-red/40 px-2 py-1 text-wm-red focus-visible:outline focus-visible:outline-2" aria-label={`Review put ${row.put.symbol}`} onClick={e => { e.stopPropagation(); reviewContract(row.put!); }}>Review put</button> : "—"}</td>}
+                    {onSelectContract && <td className="px-2 py-1.5">{row.put ? (() => {
+                      const reviewable = optionContractObservationTiming(row.put, receiptClock ?? Number.NaN).reviewable;
+                      return <button type="button" disabled={!reviewable} title={reviewable ? "Review this indicative contract" : "Quote and trade timing are both unverified"} className="min-h-11 rounded border border-wm-red/40 px-2 py-1 text-wm-red disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2" aria-label={reviewable ? `Review put ${row.put.symbol}` : `Put ${row.put.symbol} timing unverified`} onClick={e => { e.stopPropagation(); reviewContract(row.put!); }}>{reviewable ? "Review put" : "Timing unverified"}</button>;
+                    })() : "—"}</td>}
                     <td className={clsx("px-2 py-1.5 font-mono text-right font-semibold", putITM ? "text-wm-red" : "text-wm-text-muted")}>{formatOptionNumber(row.pBid, 2)}</td>
                     <td className={clsx("px-2 py-1.5 font-mono text-right font-semibold", putITM ? "text-wm-red" : "text-wm-text-muted")}>{formatOptionNumber(row.pAsk, 2)}</td>
                     <td className="px-2 py-1.5 font-mono text-right text-wm-gold">{formatOptionPercent(row.pIV)}</td>

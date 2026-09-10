@@ -107,7 +107,21 @@ describe("Options Chain truth and responsive surface", () => {
     expect(optionsChain).toContain('aria-pressed={scene === "inspect"}');
     expect(optionsChain).toContain('scene === "expression" ? "border-wm-gold/60 bg-wm-gold/10 text-wm-gold"');
     expect(optionsChain).toContain('scene === "inspect" ? "border-wm-gold/60 bg-wm-gold/10 text-wm-gold"');
-    expect(optionsChain).toContain("onSelectContract?.(contract, sourceReceipt)");
+    expect(optionsChain).toContain("onSelectContract?.(contract, sourceReceipt, timing)");
+    expect(optionsChain).toContain("optionContractObservationTiming(contract, receiptClock ?? Number.NaN)");
+    expect(optionsChain).toContain("if (!timing.reviewable)");
+    expect(optionsChain).toContain("WM did not select this contract");
+    expect(optionsChain).toContain("disabled={!reviewable}");
+    expect(optionsChain).toContain('reviewable ? "Review call" : "Timing unverified"');
+    const review = optionsChain.slice(
+      optionsChain.indexOf("function reviewContract"),
+      optionsChain.indexOf("// Keep latest price"),
+    );
+    const failClosedGuard = /if \(!timing\.reviewable\) \{[\s\S]*?setSelectionNotice\([\s\S]*?\);\s*return;\s*\}\s*setSelectionNotice\(""\);\s*onSelectContract\?\.\(contract, sourceReceipt, timing\);[\s\S]*?setScene\("expression"\);/;
+    expect(review).toMatch(failClosedGuard);
+    // Anti-vacuity mutation: removing the early return must make the Sentinel
+    // fail, because both forbidden effects would otherwise run.
+    expect(review.replace("return;", "")).not.toMatch(failClosedGuard);
     expect(optionsChain).toContain('setScene("expression")');
     expect(optionsChain).toContain("expressionHeading.current?.focus()");
     expect(optionsChain).toContain("Selection is not an order.");

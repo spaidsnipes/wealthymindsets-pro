@@ -19,6 +19,7 @@ import { SchemePresets } from "./SchemePresets";
 import { OptionsChain } from "./OptionsChain";
 import { OptionExpressionIntent } from "./OptionExpressionIntent";
 import type { OptionContract } from "@/lib/optionContractResponse";
+import type { OptionContractObservationTiming } from "@/lib/optionsChainRead";
 import { FearGreedWidget } from "./FearGreedWidget";
 import { CustomIndicatorBuilder } from "@/components/pine/CustomIndicatorBuilder";
 import { PineCommunityLibrary } from "@/components/pine/PineCommunityLibrary";
@@ -1991,9 +1992,9 @@ export function ChartsDashboard() {
                 <OptionsChain key={`${symbol}:${canvasUser?.id ?? "signed-out"}`} symbol={symbol} price={ticker.price}
                   onClose={() => { clearOptionSelection(); setOptionsOpen(false); }}
                   onInvalidateSelection={clearOptionSelection}
-                  onSelectContract={(contract, receipt) => {
+                  onSelectContract={(contract, receipt, timing: OptionContractObservationTiming) => {
                     if (receipt.source !== "alpaca" || receipt.fidelity !== "INDICATIVE"
-                        || (!contract.quoteTimestamp && !contract.tradeTimestamp)) return;
+                        || !timing.reviewable) return;
                     setOptionSelection({ underlying: symbol, owner: canvasUser?.id ?? "signed-out", contract, source: receipt.source, fidelity: receipt.fidelity });
                   }}
                   onOpenBrokerConnect={openBrokerConnect}

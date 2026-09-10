@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { optionsReadFailure, optionsReceiptAge, readOptionsResponse } from "./optionsChainRead";
+import { optionContractObservationTiming, optionsReadFailure, optionsReceiptAge, readOptionsResponse } from "./optionsChainRead";
 
 const contract = { symbol: "TSLA260918C00350000", contractType: "call", expirationDate: "2026-09-18", strike: 350, bid: 2.1, ask: 2.3, volume: 37 };
 const response = (status: number, body: unknown) => ({ ok: status >= 200 && status < 300, status, json: vi.fn(async () => body) });
@@ -163,5 +163,37 @@ describe("options receipt age", () => {
     ["2026-09-10T05:17:00Z", "provider timestamp ahead"],
   ])("fails closed for timestamp %s", (timestamp, label) => {
     expect(optionsReceiptAge(timestamp, now)).toEqual({ label, timing: "UNVERIFIED" });
+  });
+
+  it("fails closed when the comparison clock is unavailable", () => {
+    expect(optionsReceiptAge("2026-09-10T05:14:30Z", Number.NaN))
+      .toEqual({ label: "time comparison unavailable", timing: "UNVERIFIED" });
+  });
+});
+
+describe("exact option-contract observation timing", () => {
+  const now = Date.parse("2026-09-10T05:15:00Z");
+
+  it.each([
+    [{}, "UNVERIFIED", "UNVERIFIED", false],
+    [{ quoteTimestamp: "not-a-date", tradeTimestamp: "still-not-a-date" }, "UNVERIFIED", "UNVERIFIED", false],
+    [{ quoteTimestamp: "2026-09-10T05:15:00.001Z", tradeTimestamp: "2026-09-10T05:16:00Z" }, "UNVERIFIED", "UNVERIFIED", false],
+    [{ quoteTimestamp: "2026-09-10T04:45:00Z" }, "RECENT", "UNVERIFIED", true],
+    [{ quoteTimestamp: "2026-09-10T04:44:59.999Z" }, "STALE", "UNVERIFIED", true],
+    [{ quoteTimestamp: "2026-09-10T04:55:00Z", tradeTimestamp: "2026-09-10T05:16:00Z" }, "RECENT", "UNVERIFIED", true],
+    [{ quoteTimestamp: "2026-09-10T04:00:00Z", tradeTimestamp: "2026-09-10T04:45:00Z" }, "STALE", "RECENT", true],
+  ] as const)("classifies exact observations %#", (contract, quote, trade, reviewable) => {
+    expect(optionContractObservationTiming(contract, now)).toMatchObject({
+      quote: { timing: quote },
+      trade: { timing: trade },
+      reviewable,
+    });
+  });
+
+  it("recovers after the local clock advances beyond a provider timestamp", () => {
+    const contract = { quoteTimestamp: "2026-09-10T05:15:00.001Z" };
+    expect(optionContractObservationTiming(contract, now).reviewable).toBe(false);
+    expect(optionContractObservationTiming(contract, now + 2).quote.timing).toBe("RECENT");
+    expect(optionContractObservationTiming(contract, now + 2).reviewable).toBe(true);
   });
 });
