@@ -8,7 +8,7 @@ const projected = (intent = input.intent) => response({ status: "PROJECTED", pos
 
 describe("expression intent shared-authority recovery", () => {
   it("only writes after authoritative absence and keeps broker fields out", async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(response({ status: "NOT_RECORDED" })).mockResolvedValueOnce(response({ verdict: "ACCEPT" }));
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(response({ status: "NOT_RECORDED" })).mockResolvedValueOnce(response({ verdict: "ACCEPT", nextReconVersion: 1 }));
     expect((await recordExpressionIntent(input, fetcher, new AbortController().signal, "owner-one")).recorded).toBe(true);
     const write = JSON.parse(String(fetcher.mock.calls[1][1]?.body));
     expect(write).toEqual({ ...input, role: "CLIENT_INTENT", baseReconVersion: 0 });
@@ -16,6 +16,20 @@ describe("expression intent shared-authority recovery", () => {
   it("recovers a lost write acknowledgement without a duplicate POST", async () => {
     const first = vi.fn<typeof fetch>().mockResolvedValueOnce(response({ status: "NOT_RECORDED" })).mockRejectedValueOnce(new Error("lost ACK"));
     expect((await recordExpressionIntent(input, first, new AbortController().signal, "owner-one")).recorded).toBe(false);
+    const retry = vi.fn<typeof fetch>().mockResolvedValueOnce(projected());
+    expect((await recordExpressionIntent(input, retry, new AbortController().signal, "owner-one")).recorded).toBe(true);
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(retry.mock.calls[0][1]?.method).not.toBe("POST");
+  });
+  it("recovers an incomplete ACCEPT acknowledgement without a duplicate POST", async () => {
+    const first = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(response({ status: "NOT_RECORDED" }))
+      .mockResolvedValueOnce(response({ verdict: "ACCEPT" }));
+    const unconfirmed = await recordExpressionIntent(input, first, new AbortController().signal, "owner-one");
+    expect(unconfirmed.recorded).toBe(false);
+    expect(unconfirmed.note).toMatch(/receipt unconfirmed/i);
+    expect(first).toHaveBeenCalledTimes(2);
+
     const retry = vi.fn<typeof fetch>().mockResolvedValueOnce(projected());
     expect((await recordExpressionIntent(input, retry, new AbortController().signal, "owner-one")).recorded).toBe(true);
     expect(retry).toHaveBeenCalledTimes(1);

@@ -34,7 +34,7 @@ describe("recordDecisionIntent", () => {
   it("writes CLIENT_INTENT at base version 0 and cannot express broker truth", async () => {
     // §11 at the wire. The type forbids quantity; this proves the payload
     // agrees, so a future edit cannot smuggle one through as a loose object.
-    const f = vi.fn(async () => jsonResponse({ verdict: "ACCEPT" }));
+    const f = vi.fn(async () => jsonResponse({ verdict: "ACCEPT", nextReconVersion: 1 }));
     await recordDecisionIntent(input(), f as unknown as typeof fetch);
 
     const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
@@ -67,6 +67,21 @@ describe("recordDecisionIntent", () => {
     expect(r.status).toBe("UNRECORDED");
     // The trader is told the CONSEQUENCE, not a status code.
     expect(r.note).toMatch(/other devices will not see it|held on this device only/i);
+  });
+
+  it.each([
+    ["is missing", undefined],
+    ["is a string", "1"],
+    ["is zero", 0],
+    ["is negative", -1],
+    ["is fractional", 1.5],
+    ["is unsafe", Number.MAX_SAFE_INTEGER + 1],
+    ["belongs to another write", 2],
+  ])("does not certify ACCEPT when nextReconVersion %s", async (_label, nextReconVersion) => {
+    const f = vi.fn(async () => jsonResponse({ verdict: "ACCEPT", nextReconVersion }));
+    const r = await recordDecisionIntent(input(), f as unknown as typeof fetch);
+    expect(r.status).toBe("UNRECORDED");
+    expect(r.note).toMatch(/other devices will not see it/i);
   });
 
   it("never says 'error' or 'failed' — a designed boundary is not a fault (§8)", async () => {

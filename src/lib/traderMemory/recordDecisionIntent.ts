@@ -118,8 +118,14 @@ export async function recordDecisionIntent(
     return UNREACHED;
   }
 
-  const verdict = readVerdict(body);
-  if (verdict !== "ACCEPT") return UNREACHED;
+  const receipt = readWriteReceipt(body);
+  // This call always proposes the first version (base 0), so only the
+  // authority-minted version 1 proves that exact write landed.  A bare
+  // ACCEPT, a malformed version, or a version from another write is not an
+  // acknowledgement WM may turn into cross-device certainty.
+  if (receipt.verdict !== "ACCEPT" || receipt.nextReconVersion !== 1) {
+    return UNREACHED;
+  }
 
   return {
     status: "RECORDED",
@@ -127,8 +133,21 @@ export async function recordDecisionIntent(
   };
 }
 
-function readVerdict(body: unknown): string | null {
-  if (typeof body !== "object" || body === null) return null;
-  const verdict = (body as Record<string, unknown>).verdict;
-  return typeof verdict === "string" ? verdict : null;
+function readWriteReceipt(body: unknown): {
+  readonly verdict: string | null;
+  readonly nextReconVersion: number | null;
+} {
+  if (typeof body !== "object" || body === null) {
+    return { verdict: null, nextReconVersion: null };
+  }
+  const record = body as Record<string, unknown>;
+  return {
+    verdict: typeof record.verdict === "string" ? record.verdict : null,
+    nextReconVersion:
+      typeof record.nextReconVersion === "number"
+      && Number.isSafeInteger(record.nextReconVersion)
+      && record.nextReconVersion > 0
+        ? record.nextReconVersion
+        : null,
+  };
 }
