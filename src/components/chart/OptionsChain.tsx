@@ -213,6 +213,10 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
         return;
       }
       setChain(rows);
+      // Compare provider time with a client clock sampled at the acceptance
+      // boundary. Reusing the prior minute tick can make a just-received
+      // timestamp appear to be in the future by milliseconds.
+      setReceiptClock(Date.now());
       setSourceReceipt(result.receipt);
       setDataSource("alpaca");
       setReceivedSymbol(symbol);
@@ -251,12 +255,17 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
   const hasObservedSpot = Number.isFinite(price) && price > 0;
   const hasAvailableData = !loading && receivedSymbol === symbol && dataSource === "alpaca" && sourceReceipt.source === "alpaca" && chain.length > 0;
   const receiptAge = receiptClock === null
-    ? { label: "age checking", recorded: true }
+    ? { label: "age checking", timing: "UNVERIFIED" as const }
     : optionsReceiptAge(sourceReceipt.newestProviderTimestamp, receiptClock);
+  const referenceTiming = receiptAge.timing === "RECENT"
+    ? "RECENT REFERENCE"
+    : receiptAge.timing === "STALE"
+      ? "STALE REFERENCE"
+      : "REFERENCE TIMING UNVERIFIED";
   const dataStatus = loading
     ? "CHECKING · FIDELITY UNKNOWN"
     : hasAvailableData
-      ? `${receiptAge.recorded ? "RECORDED REFERENCE" : "REFERENCE AVAILABLE"} · INDICATIVE`
+      ? `${referenceTiming} · INDICATIVE`
       : "UNAVAILABLE";
 
   return (
@@ -277,7 +286,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
           title={loading
             ? "Checking options availability; delivery freshness and entitlement are not established."
             : hasAvailableData
-              ? "Alpaca indicative option snapshots received. Indicative quotes are modified and trades are delayed; this is not an executable quote."
+              ? `Alpaca indicative option snapshots received; provider observation ${receiptAge.label}. Indicative quotes are modified and trades are delayed; this is not an executable quote.`
               : "Options contracts are unavailable."}
         >
           <span className={clsx("w-1.5 h-1.5 rounded-full", (loading || hasAvailableData) ? "bg-wm-gold" : "bg-wm-red")} aria-hidden="true" />

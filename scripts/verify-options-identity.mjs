@@ -57,17 +57,19 @@ try{
     for(const p of pending)p.resolve(new Response(JSON.stringify({source:'alpaca',fidelity:'INDICATIVE',coverage:'COMPLETE',newestProviderTimestamp:timestamp,chain:[{symbol:symbol+'261218C00500000',contractType:'call',expirationDate:'2026-12-18',strike,bid:1,ask:2,last:1.5,openInterest:1,quoteTimestamp:timestamp,tradeTimestamp:timestamp}]}),{status:200}));
    };
   });
+  await page.clock.install();
   await page.goto(origin);
   await page.waitForFunction(()=>window.pendingOptions.some(p=>new URL(p.url,location.origin).searchParams.get('symbol')==='TSLA'));
   await page.getByRole('button',{name:'Switch to SPY'}).click();
   await page.waitForFunction(()=>window.pendingOptions.some(p=>new URL(p.url,location.origin).searchParams.get('symbol')==='SPY'));
   await page.evaluate(()=>window.releaseOptions('SPY',500));
-  await page.getByText('REFERENCE AVAILABLE · INDICATIVE',{exact:true}).waitFor();
+  await page.getByText('RECENT REFERENCE · INDICATIVE',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Inspect contracts',exact:true}).click();
   await page.evaluate(()=>window.releaseOptions('TSLA',999));
   await page.waitForTimeout(100);
   if((await page.locator('tbody').innerText()).includes('999'))throw new Error(device+': stale TSLA overwrote SPY');
-  await page.clock.install();
+  await page.clock.runFor(31 * 60_000);
+  await page.getByText('STALE REFERENCE · INDICATIVE',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Refresh options data',exact:true}).click();
   if(await page.locator('tbody').count())throw new Error(device+': old contracts remained during refresh');
   await page.clock.runFor(12_100);
@@ -78,7 +80,7 @@ try{
   await page.getByRole('button',{name:'Refresh options data',exact:true}).click();
   await page.waitForFunction(()=>window.pendingOptions.some(p=>new URL(p.url,location.origin).searchParams.get('symbol')==='SPY'));
   await page.evaluate(()=>window.releaseOptions('SPY',501));
-  await page.getByText('REFERENCE AVAILABLE · INDICATIVE',{exact:true}).waitFor();
+  await page.getByText('RECENT REFERENCE · INDICATIVE',{exact:true}).waitFor();
   const panel=page.locator('[data-options-workspace]');
   const panelBox=await panel.boundingBox();
   if(!panelBox||panelBox.x < -1||panelBox.x+panelBox.width > width+1)throw new Error(device+': options workspace escaped viewport '+JSON.stringify({panelBox,width}));
@@ -97,8 +99,8 @@ try{
   await page.getByRole('button',{name:'Refresh options data',exact:true}).click();
   await page.waitForFunction(()=>window.pendingOptions.some(p=>new URL(p.url,location.origin).searchParams.get('symbol')==='SPY'));
   await page.evaluate(()=>window.releaseOptions('SPY',501));
-  await page.getByText('REFERENCE AVAILABLE · INDICATIVE',{exact:true}).waitFor();
-  rows.push({device,width,height,panelWidth:panelBox.width,viewportContained:true,staleSymbolRejected:true,refreshClears:true,deadlineRejectsLateSuccess:true,retryRecovers:true});
+  await page.getByText('RECENT REFERENCE · INDICATIVE',{exact:true}).waitFor();
+  rows.push({device,width,height,panelWidth:panelBox.width,viewportContained:true,staleReferenceNamed:true,staleSymbolRejected:true,refreshClears:true,deadlineRejectsLateSuccess:true,retryRecovers:true});
   await context.close();
  }
  if(errors.length)throw new Error(JSON.stringify(errors));

@@ -143,23 +143,25 @@ describe("options receipt age", () => {
   const now = Date.parse("2026-09-10T05:15:00Z");
 
   it.each([
-    ["2026-09-10T05:14:30Z", "less than 1m old", false],
-    ["2026-09-10T04:55:00Z", "20m old", false],
-    ["2026-09-10T04:45:00Z", "30m old", false],
-    ["2026-09-10T04:44:59.999Z", "30m old", true],
-    ["2026-09-10T04:44:00Z", "31m old", true],
-    ["2026-09-10T04:35:00Z", "40m old", true],
-    ["2026-09-10T04:15:00Z", "1h 0m old", true],
-    ["2026-09-09T19:59:00Z", "9h 16m old", true],
-  ])("formats %s as an observed age without session inference", (timestamp, label, recorded) => {
-    expect(optionsReceiptAge(timestamp, now)).toEqual({ label, recorded });
+    ["2026-09-10T05:14:30Z", "less than 1m old", "RECENT"],
+    ["2026-09-10T04:55:00Z", "20m old", "RECENT"],
+    ["2026-09-10T04:45:00Z", "30m old", "RECENT"],
+    ["2026-09-10T04:44:59.999Z", "30m old", "STALE"],
+    ["2026-09-10T04:44:00Z", "31m old", "STALE"],
+    ["2026-09-10T04:35:00Z", "40m old", "STALE"],
+    ["2026-09-10T04:15:00Z", "1h 0m old", "STALE"],
+    ["2026-09-09T19:59:00Z", "9h 16m old", "STALE"],
+  ])("formats %s as an observed age without session inference", (timestamp, label, timing) => {
+    expect(optionsReceiptAge(timestamp, now)).toEqual({ label, timing });
   });
 
   it.each([
     [null, "timestamp unavailable"],
     ["not-a-date", "timestamp unavailable"],
+    ["2026-09-10T05:15:00.001Z", "provider timestamp ahead"],
+    ["2026-09-10T05:16:00Z", "provider timestamp ahead"],
     ["2026-09-10T05:17:00Z", "provider timestamp ahead"],
   ])("fails closed for timestamp %s", (timestamp, label) => {
-    expect(optionsReceiptAge(timestamp, now)).toEqual({ label, recorded: true });
+    expect(optionsReceiptAge(timestamp, now)).toEqual({ label, timing: "UNVERIFIED" });
   });
 });

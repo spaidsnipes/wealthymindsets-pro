@@ -88,7 +88,7 @@ export interface OptionsSourceReceipt {
 
 export interface OptionsReceiptAge {
   label: string;
-  recorded: boolean;
+  timing: "RECENT" | "STALE" | "UNVERIFIED";
 }
 
 const RECORDED_REFERENCE_AGE_MS = 30 * 60_000;
@@ -98,15 +98,15 @@ const RECORDED_REFERENCE_AGE_MS = 30 * 60_000;
  */
 export function optionsReceiptAge(timestamp: string | null, nowMs = Date.now()): OptionsReceiptAge {
   const observedMs = timestamp ? Date.parse(timestamp) : Number.NaN;
-  if (!Number.isFinite(observedMs)) return { label: "timestamp unavailable", recorded: true };
+  if (!Number.isFinite(observedMs)) return { label: "timestamp unavailable", timing: "UNVERIFIED" };
   const ageMs = nowMs - observedMs;
-  if (ageMs < -60_000) return { label: "provider timestamp ahead", recorded: true };
+  if (ageMs < 0) return { label: "provider timestamp ahead", timing: "UNVERIFIED" };
   const minutes = Math.max(0, Math.floor(ageMs / 60_000));
-  if (minutes < 1) return { label: "less than 1m old", recorded: false };
-  if (minutes < 60) return { label: `${minutes}m old`, recorded: ageMs > RECORDED_REFERENCE_AGE_MS };
+  if (minutes < 1) return { label: "less than 1m old", timing: "RECENT" };
+  if (minutes < 60) return { label: `${minutes}m old`, timing: ageMs > RECORDED_REFERENCE_AGE_MS ? "STALE" : "RECENT" };
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
-  return { label: `${hours}h ${remainder}m old`, recorded: true };
+  return { label: `${hours}h ${remainder}m old`, timing: "STALE" };
 }
 
 type OptionsReadResult = { ok: true; contracts: OptionContract[]; receipt: OptionsSourceReceipt }
