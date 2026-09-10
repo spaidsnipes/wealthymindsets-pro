@@ -45,4 +45,17 @@ describe("Webull managed connection UI", () => {
     expect(managedSection).not.toContain("body: JSON.stringify");
     expect(managedSection).not.toContain('type="password"');
   });
+
+  it("runs both market-data signing contracts explicitly without hidden fallback or order access", () => {
+    expect(panel).toContain("WEBULL_SIGNING_PROFILES.map(readProfile)");
+    expect(panel).toContain("/api/market-data/webull/ticks?symbol=TSLA&profile=${profile}");
+    expect(panel).toContain("Two independent read-only TSLA snapshots");
+    expect(panel).toContain("No automatic fallback, account access, or order action.");
+    expect(panel).not.toContain("profile=auto");
+
+    const canarySection = panel.slice(panel.indexOf("function WebullSigningCanary"), panel.indexOf("function ManagedConnectionStatus"));
+    expect(canarySection).not.toMatch(/\/api\/(?:broker|orders?)\/[^`\"']*(?:submit|place|cancel)/i);
+    expect(canarySection).not.toContain("WEBULL_APP_SECRET");
+    expect(canarySection).not.toContain("WEBULL_ACCESS_TOKEN");
+  });
 });

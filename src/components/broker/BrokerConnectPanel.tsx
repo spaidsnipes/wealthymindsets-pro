@@ -6,7 +6,14 @@ import { X, Zap, ExternalLink, Search, Key, Check, ChevronDown, ChevronUp, Alert
 import { clsx } from "clsx";
 import ProviderWireStrip from "@/components/marketData/ProviderWireStrip";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
-import { submitClassifiedJsonReceipt } from "@/lib/marketData/readJsonReceipt";
+import { readClassifiedJsonReceipt, submitClassifiedJsonReceipt } from "@/lib/marketData/readJsonReceipt";
+import {
+  WEBULL_SIGNING_PROFILES,
+  failedWebullCanaryReceipt,
+  summarizeWebullCanaryReceipt,
+  type WebullCanaryReceipt,
+  type WebullSigningProfile,
+} from "@/lib/marketData/webullSigningCanary";
 
 type BrokerCategory = "broker" | "crypto" | "forex" | "prop";
 
@@ -533,6 +540,123 @@ interface ManagedConnectionReceipt {
   };
 }
 
+const WEBULL_CANARY_LABELS: Record<WebullCanaryReceipt["state"], string> = {
+  OBSERVED: "Observed snapshot",
+  UNCONFIGURED: "Not configured",
+  BLOCKED_AUTH: "Authentication blocked",
+  BLOCKED_ENTITLEMENT: "Entitlement blocked",
+  ACCESS_UNPROVEN: "Access unproven",
+  RATE_LIMITED: "Rate limited",
+  PROVIDER_ERROR: "Provider error",
+  NO_EVENTS: "No events",
+  STALE: "Stale",
+  CLOCK_INVALID: "Clock invalid",
+  TIMEOUT: "Timed out",
+  UNAVAILABLE: "Unavailable",
+  INVALID_RECEIPT: "Invalid receipt",
+  REQUEST_FAILED: "Request failed",
+};
+
+function WebullSigningCanary() {
+  const [loading, setLoading] = useState(false);
+  const [receipts, setReceipts] = useState<readonly WebullCanaryReceipt[]>([]);
+  const requestSequence = useRef(0);
+  const activeRequest = useRef<AbortController | null>(null);
+
+  const runCanary = React.useCallback(async () => {
+    const sequence = ++requestSequence.current;
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
+    setLoading(true);
+    setReceipts([]);
+
+    const readProfile = async (profile: WebullSigningProfile): Promise<WebullCanaryReceipt> => {
+      try {
+        const result = await readClassifiedJsonReceipt<unknown>(
+          fetch,
+          `/api/market-data/webull/ticks?symbol=TSLA&profile=${profile}`,
+          controller.signal,
+        );
+        if (!result.ok) return failedWebullCanaryReceipt(profile);
+        return summarizeWebullCanaryReceipt(result.body, profile);
+      } catch {
+        return failedWebullCanaryReceipt(profile);
+      }
+    };
+
+    try {
+      const next = await Promise.all(WEBULL_SIGNING_PROFILES.map(readProfile));
+      if (sequence === requestSequence.current && !controller.signal.aborted) setReceipts(next);
+    } finally {
+      if (sequence === requestSequence.current) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => () => {
+    ++requestSequence.current;
+    activeRequest.current?.abort();
+  }, []);
+
+  return (
+    <div className="rounded-xl border border-wm-border bg-wm-surface/60 px-3 py-2.5" data-webull-signing-canary>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-black uppercase tracking-wider text-wm-text-muted">Market-data signature check</div>
+          <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">
+            Two independent read-only TSLA snapshots. No automatic fallback, account access, or order action.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={event => { event.stopPropagation(); void runCanary(); }}
+          disabled={loading}
+          className="flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-wm-border bg-wm-card px-3 text-[9px] font-black uppercase tracking-wider text-wm-text-muted transition-colors hover:text-wm-text disabled:opacity-60"
+        >
+          {loading ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
+          {loading ? "Testing…" : "Test data"}
+        </button>
+      </div>
+
+      {receipts.length > 0 && (
+        <div className="mt-2 grid gap-1.5 sm:grid-cols-2" aria-live="polite">
+          {receipts.map(receipt => {
+            const observed = receipt.state === "OBSERVED" && receipt.tickCount > 0;
+            return (
+              <div
+                key={receipt.profile}
+                className="rounded-lg border px-2 py-2"
+                style={{
+                  borderColor: observed ? "rgba(0,192,118,0.35)" : "rgba(255,255,255,0.1)",
+                  background: observed ? "rgba(0,192,118,0.06)" : "rgba(255,255,255,0.025)",
+                }}
+              >
+                <div className="text-[9px] font-black uppercase tracking-wider text-wm-text-muted">
+                  {receipt.profile === "legacy-sha1" ? "Legacy SHA-1" : "SDK SHA-256"}
+                </div>
+                <div className="mt-0.5 text-[10px] font-bold" style={{ color: observed ? "#00C076" : "#d1d5db" }}>
+                  {WEBULL_CANARY_LABELS[receipt.state]}
+                </div>
+                {observed && (
+                  <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">
+                    {receipt.tickCount} print{receipt.tickCount === 1 ? "" : "s"}
+                    {receipt.newestPrice !== null ? ` · $${receipt.newestPrice.toFixed(2)}` : ""}
+                    {receipt.newestSize !== null ? ` · size ${receipt.newestSize}` : ""}
+                    {receipt.newestObservedAt ? ` · ${new Date(receipt.newestObservedAt).toLocaleTimeString()}` : ""}
+                  </p>
+                )}
+                <p className="mt-1 text-[8px] uppercase tracking-wider text-wm-text-dim">
+                  {receipt.fidelity} · one receipt, not a live-stream claim
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ManagedConnectionStatus({ broker }: { broker: Broker }) {
   const managed = broker.managedConnection!;
   const [loading, setLoading] = useState(true);
@@ -693,6 +817,7 @@ function ManagedConnectionStatus({ broker }: { broker: Broker }) {
           <ExternalLink size={10} /> Webull API
         </a>
       </div>
+      <WebullSigningCanary />
       <p className="px-0.5 text-[9px] leading-snug text-wm-text-dim">
         This verifies WM Pro&apos;s server-side signed OpenAPI wire. Webull Connect OAuth—authorize, callback, token refresh,
         per-user vault, and disconnect—is not implemented yet. Signing into Webull&apos;s website is separate and does not connect this app.
