@@ -147,6 +147,9 @@ describe("Options Chain truth and responsive surface", () => {
     expect(optionsChain).toContain("expressionHeading.current?.focus()");
     expect(optionsChain).toContain("Selection is not an order.");
     expect(optionsChain).toContain("Recording intent does not submit an order or establish protection.");
+    expect(optionsChain).toContain("When a source contract is accepted, its OSI identity has matched the selected underlying, side, expiry, and strike.");
+    expect(optionsChain).toContain("That does not establish an executable broker instrument mapping, quote, buying power, or broker support.");
+    expect(optionsChain).not.toContain("Executable quote, contract binding, buying power and broker support are not established");
     expect(optionsChain).toContain("Connect or inspect brokers");
     expect(optionsChain).toContain("onOpenBrokerConnect(event.currentTarget)");
     expect(dashboard).toContain("brokerFallbackTriggerRef.current = trigger");

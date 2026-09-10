@@ -368,7 +368,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
         {expression}
         <section aria-label="Execution boundary" className="mx-4 mb-4 border-t border-wm-border pt-4 text-xs leading-relaxed text-wm-text-muted">
           <h3 className="font-semibold text-wm-text">Before capital can move</h3>
-          <p className="mt-2">Executable quote, contract binding, buying power and broker support are not established by this reference feed. Recording intent does not submit an order or establish protection.</p>
+          <p className="mt-2">When a source contract is accepted, its OSI identity has matched the selected underlying, side, expiry, and strike. That does not establish an executable broker instrument mapping, quote, buying power, or broker support. Recording intent does not submit an order or establish protection.</p>
           {onOpenBrokerConnect && <button type="button" onClick={event => onOpenBrokerConnect(event.currentTarget)} className="mt-3 min-h-11 rounded border border-wm-border px-3 text-xs font-semibold text-wm-text hover:border-wm-gold/50 hover:text-wm-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">Connect or inspect brokers</button>}
         </section>
       </div>
