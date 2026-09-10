@@ -8,8 +8,8 @@ import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { recordExpressionIntent } from "@/lib/traderMemory/recordExpressionIntent";
 
 /** An expression under review, never a position or an executable quote. */
-export function OptionExpressionIntent({ ownerId, underlying, contract, onClear }: {
-  ownerId: string; underlying: string; contract: OptionContract; onClear: () => void;
+export function OptionExpressionIntent({ ownerId, underlying, contract, source, fidelity, providerTimestamp, onClear }: {
+  ownerId: string; underlying: string; contract: OptionContract; source: "alpaca"; fidelity: "INDICATIVE"; providerTimestamp: string; onClear: () => void;
 }) {
   const identity = useRef<{ decisionId: DecisionId; deviceId: string; intent: string } | null>(null);
   const pending = useRef(false);
@@ -34,7 +34,7 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, onClear 
         const born = mintDecisionId({ cause: "EXPLICIT_INTENT", deviceId, nowMs: Date.now(), nonce: crypto.randomUUID() });
         if (!born.ok) { setReceipt(born.reason); return; }
         identity.current = { decisionId: born.identity.decisionId, deviceId,
-          intent: `Review ${underlying} expression: ${contract.symbol}; ${contract.contractType}; strike ${contract.strike}; expiry ${contract.expirationDate}. Purpose: ${purpose.trim()}. Reference source FMP; quote freshness and contract binding unverified. No order requested.` };
+          intent: `Review ${underlying} expression: ${contract.symbol}; ${contract.contractType}; strike ${contract.strike}; expiry ${contract.expirationDate}. Purpose: ${purpose.trim()}. Reference source ${source}; fidelity ${fidelity}; provider timestamp ${providerTimestamp}; executable quote and contract binding unverified. No order requested.` };
         setDecisionId(born.identity.decisionId);
       }
       const result = await recordExpressionIntent(identity.current, fetch, controller.signal, ownerId);
@@ -52,7 +52,7 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, onClear 
     </div>
     <p className="mt-1 break-all font-mono text-wm-text-muted">{contract.symbol}</p>
     <p className="mt-2">Reference bid {formatOptionNumber(contract.bid, 2)} · ask {formatOptionNumber(contract.ask, 2)} · last {formatOptionNumber(contract.last, 2)}</p>
-    <p className="mt-1 text-wm-gold">FMP reference · freshness unknown · not an executable quote</p>
+    <p className="mt-1 text-wm-gold">{source === "alpaca" ? "Alpaca" : "Unknown source"} reference · {fidelity.toLowerCase()} · provider {providerTimestamp} · not an executable quote</p>
     <p className="mt-1 text-wm-text-muted">Contract-to-underlying binding and broker support need verification. This review does not open a position.</p>
     <label className="mt-2 block">Purpose
       <input value={purpose} disabled={busy || !!identity.current} maxLength={500} onChange={e => setPurpose(e.target.value)} placeholder="What is the underlying thesis?" className="mt-1 w-full rounded border border-wm-border bg-wm-surface p-2" />

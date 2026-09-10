@@ -2,7 +2,7 @@
 
 /**
  * Options Chain Panel
- * Real options data via Financial Modeling Prep API (/api/fmp proxy).
+ * Read-only option snapshots via WM Pro's explicit Alpaca market-data route.
  * Never fabricates contracts when the provider returns no data.
  */
 
@@ -12,8 +12,8 @@ import { motion } from "framer-motion";
 import { clsx } from "clsx";
 import { formatOptionCount, formatOptionNumber, formatOptionPercent,
          summariseOpenInterest } from "@/lib/optionCellFormat";
-import { type OptionContract as FMPContract } from "@/lib/optionContractResponse";
-import { readOptionsResponse, optionsReadFailure, type OptionsReadFailure } from "@/lib/optionsChainRead";
+import { type OptionContract } from "@/lib/optionContractResponse";
+import { readOptionsResponse, optionsReadFailure, type OptionsReadFailure, type OptionsSourceReceipt } from "@/lib/optionsChainRead";
 
 /**
  * Every quoted field is optional: an unquoted strike has NO number, and must
@@ -22,8 +22,8 @@ import { readOptionsResponse, optionsReadFailure, type OptionsReadFailure } from
 type Quoted = number | undefined;
 
 interface OptionRow {
-  call?: FMPContract;
-  put?: FMPContract;
+  call?: OptionContract;
+  put?: OptionContract;
   strike:   number;
   cBid:     Quoted;  cAsk:   Quoted;  cLast:  Quoted;
   cIV:      Quoted;  cDelta: Quoted;  cGamma: Quoted;
@@ -34,7 +34,7 @@ interface OptionRow {
   itm:      "call" | "put" | "atm" | "unknown";
 }
 
-// FMP returns contracts grouped by expiration date YYYY-MM-DD
+// The normalized route returns contracts grouped by expiration date YYYY-MM-DD.
 // We pull all available expirations from the API response
 
 function fmtExp(d: string): string {
@@ -44,9 +44,9 @@ function fmtExp(d: string): string {
   return `${months[+mm - 1]} ${+dd} '${d.slice(2, 4)}`;
 }
 
-function buildChain(contracts: FMPContract[], spot: number, expiry: string): OptionRow[] {
-  const calls = new Map<number, FMPContract>();
-  const puts  = new Map<number, FMPContract>();
+function buildChain(contracts: OptionContract[], spot: number, expiry: string): OptionRow[] {
+  const calls = new Map<number, OptionContract>();
+  const puts  = new Map<number, OptionContract>();
   for (const c of contracts) {
     const type = c.contractType;
     if (c.expirationDate !== expiry) continue;
@@ -95,7 +95,7 @@ interface Props {
    * the surface cannot keep (LIVING-PIXEL LAW: no design theater).
    */
   onSelectStrike?: (row: OptionRow) => void;
-  onSelectContract?: (contract: FMPContract) => void;
+  onSelectContract?: (contract: OptionContract, receipt: OptionsSourceReceipt) => void;
   onInvalidateSelection?: () => void;
   expression?: React.ReactNode;
   onOpenBrokerConnect?: (trigger: HTMLButtonElement) => void;
@@ -112,8 +112,9 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
   const [showGreeks, setShowGreeks] = useState(false);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState<OptionsReadFailure | null>(null);
-  const [dataSource, setDataSource] = useState<"fmp"|"unavailable">("unavailable");
-  const [allContracts, setAllContracts] = useState<FMPContract[]>([]);
+  const [dataSource, setDataSource] = useState<"alpaca"|"unavailable">("unavailable");
+  const [sourceReceipt, setSourceReceipt] = useState<OptionsSourceReceipt>({ source: "unknown", fidelity: "UNKNOWN", coverage: "UNKNOWN", newestProviderTimestamp: null });
+  const [allContracts, setAllContracts] = useState<OptionContract[]>([]);
   const [receivedSymbol, setReceivedSymbol] = useState<string | null>(null);
   const contractRead = useRef<{ cancel: () => void } | null>(null);
   const invalidateSelection = useRef(onInvalidateSelection);
@@ -127,8 +128,8 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
       focusExpression.current = false;
     }
   }, [scene, expression]);
-  function reviewContract(contract: FMPContract) {
-    onSelectContract?.(contract);
+  function reviewContract(contract: OptionContract) {
+    onSelectContract?.(contract, sourceReceipt);
     focusExpression.current = true;
     setScene("expression");
   }
@@ -141,7 +142,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
   // table on every poll. Cents-level moves still update via the live ticker.
   const priceKey = Math.round(price * 100) / 100;
 
-  // Fetch all contracts for this symbol from FMP
+  // Fetch an explicitly sourced Alpaca indicative chain for this symbol.
   const fetchContracts = useCallback(async () => {
     invalidateSelection.current?.();
     contractRead.current?.cancel();
@@ -163,12 +164,16 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
     setError(null);
     setReceivedSymbol(null);
     setDataSource("unavailable");
+    setSourceReceipt({ source: "unknown", fidelity: "UNKNOWN", coverage: "UNKNOWN", newestProviderTimestamp: null });
     setAllContracts([]);
     setExpirations([]);
     setExpiry("");
     setChain([]);
     try {
-      const res = await fetch(`/api/fmp?path=/v3/options/${encodeURIComponent(symbol)}`, { signal: controller.signal });
+      const spotParam = Number.isFinite(priceRef.current) && priceRef.current > 0
+        ? `&spot=${encodeURIComponent(String(priceRef.current))}`
+        : "";
+      const res = await fetch(`/api/market-data/alpaca/options?symbol=${encodeURIComponent(symbol)}${spotParam}`, { signal: controller.signal });
       if (!active) return;
       const result = await readOptionsResponse(res);
       if (!active) return;
@@ -177,9 +182,13 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
         return;
       }
       const contracts = result.contracts;
+      if (result.receipt.source !== "alpaca" || result.receipt.fidelity !== "INDICATIVE") {
+        setError(optionsReadFailure("INVALID RESPONSE"));
+        return;
+      }
       setAllContracts(contracts);
       // Extract unique expiration dates
-      const expDates = [...new Set(contracts.map((c: FMPContract) => c.expirationDate))].sort();
+      const expDates = [...new Set(contracts.map((c: OptionContract) => c.expirationDate))].sort();
       const expLabels = expDates.map(fmtExp);
       setExpirations(expLabels);
       // Select nearest expiry by default
@@ -196,7 +205,8 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
         return;
       }
       setChain(rows);
-      setDataSource("fmp");
+      setSourceReceipt(result.receipt);
+      setDataSource("alpaca");
       setReceivedSymbol(symbol);
     } catch {
       if (!active) return;
@@ -220,7 +230,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
   // When expiry changes, rebuild chain
   useEffect(() => {
     if (!expiry || receivedSymbol !== symbol) return;
-    if (dataSource === "fmp" && allContracts.length) {
+    if (dataSource === "alpaca" && allContracts.length) {
       // Find the ISO date for this label
       const isoDate = allContracts.find(c => fmtExp(c.expirationDate) === expiry)?.expirationDate ?? "";
       const rows = buildChain(allContracts, priceKey, isoDate);
@@ -231,11 +241,11 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
 
   const atm = chain.find(r => r.itm === "atm");
   const hasObservedSpot = Number.isFinite(price) && price > 0;
-  const hasAvailableData = !loading && receivedSymbol === symbol && dataSource === "fmp" && chain.length > 0;
+  const hasAvailableData = !loading && receivedSymbol === symbol && dataSource === "alpaca" && sourceReceipt.source === "alpaca" && chain.length > 0;
   const dataStatus = loading
     ? "CHECKING · FIDELITY UNKNOWN"
     : hasAvailableData
-      ? "DATA AVAILABLE · FIDELITY UNKNOWN"
+      ? "REFERENCE AVAILABLE · INDICATIVE"
       : "UNAVAILABLE";
 
   return (
@@ -255,7 +265,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
           title={loading
             ? "Checking options availability; delivery freshness and entitlement are not established."
             : hasAvailableData
-              ? "Options contracts received; delivery freshness and entitlement are not established."
+              ? "Alpaca indicative option snapshots received. Indicative quotes are modified and trades are delayed; this is not an executable quote."
               : "Options contracts are unavailable."}
         >
           <span className={clsx("w-1.5 h-1.5 rounded-full", (loading || hasAvailableData) ? "bg-wm-gold" : "bg-wm-red")} aria-hidden="true" />
@@ -357,7 +367,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
       <div className="flex-1 overflow-auto">
         {loading ? (
           <div className="flex items-center justify-center h-full text-wm-text-dim text-xs">
-            <RefreshCw size={14} className="animate-spin mr-2" /> Loading options data from FMP...
+            <RefreshCw size={14} className="animate-spin mr-2" /> Checking Alpaca indicative option snapshots...
           </div>
         ) : !hasAvailableData ? (
           <div className="flex flex-col items-center justify-center h-full px-8 text-center">
@@ -497,7 +507,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
           {loading
             ? "Checking options availability · fidelity UNKNOWN"
             : hasAvailableData
-              ? "Source response: Financial Modeling Prep · freshness UNKNOWN"
+              ? `Source response: Alpaca · ${sourceReceipt.fidelity} · ${sourceReceipt.coverage.toLowerCase()} coverage · provider ${sourceReceipt.newestProviderTimestamp ?? "timestamp unavailable"}`
               : "No contracts available"}
         </div>
       </div>

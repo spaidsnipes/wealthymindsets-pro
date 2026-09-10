@@ -14,16 +14,16 @@ const dashboard = fs.readFileSync(
 
 describe("Options Chain truth and responsive surface", () => {
   it("never promotes a successful provider response to live fidelity", () => {
-    expect(optionsChain).toContain("DATA AVAILABLE · FIDELITY UNKNOWN");
-    expect(optionsChain).toContain("delivery freshness and entitlement are not established");
-    expect(optionsChain).toContain("Source response: Financial Modeling Prep · freshness UNKNOWN");
+    expect(optionsChain).toContain("REFERENCE AVAILABLE · INDICATIVE");
+    expect(optionsChain).toContain("Indicative quotes are modified and trades are delayed; this is not an executable quote.");
+    expect(optionsChain).toContain("Source response: Alpaca");
     expect(optionsChain).not.toContain("LIVE • FMP");
     expect(optionsChain).not.toContain("Real data: Financial Modeling Prep API");
     expect(optionsChain).not.toContain("bg-wm-green animate-pulse");
   });
 
   it("gives loading precedence and suppresses stale chain statistics", () => {
-    expect(optionsChain).toContain('const hasAvailableData = !loading && receivedSymbol === symbol && dataSource === "fmp" && chain.length > 0');
+    expect(optionsChain).toContain('const hasAvailableData = !loading && receivedSymbol === symbol && dataSource === "alpaca" && sourceReceipt.source === "alpaca" && chain.length > 0');
     expect(optionsChain).toContain('loading\n    ? "CHECKING · FIDELITY UNKNOWN"');
     // Footer stats moved into an IIFE to derive an observed-only OI summary.
     // The gate itself is the invariant: statistics must not render without
@@ -72,7 +72,8 @@ describe("Options Chain truth and responsive surface", () => {
   });
 
   it("preserves the canonical fetch and fail-closed chain construction", () => {
-    expect(optionsChain).toContain("/api/fmp?path=/v3/options/");
+    expect(optionsChain).toContain("/api/market-data/alpaca/options?symbol=");
+    expect(optionsChain).not.toContain("/api/fmp?path=/v3/options/");
     expect(optionsRead).toContain("parseOptionContractResponse(data)");
     expect(optionsRead).toContain('failure: optionsReadFailure("NO EVENTS")');
     expect(optionsChain).toContain('setError(optionsReadFailure("NO EVENTS"))');
@@ -96,7 +97,7 @@ describe("Options Chain truth and responsive surface", () => {
     expect(optionsChain).toContain('aria-pressed={scene === "inspect"}');
     expect(optionsChain).toContain('scene === "expression" ? "border-wm-gold/60 bg-wm-gold/10 text-wm-gold"');
     expect(optionsChain).toContain('scene === "inspect" ? "border-wm-gold/60 bg-wm-gold/10 text-wm-gold"');
-    expect(optionsChain).toContain("onSelectContract?.(contract)");
+    expect(optionsChain).toContain("onSelectContract?.(contract, sourceReceipt)");
     expect(optionsChain).toContain('setScene("expression")');
     expect(optionsChain).toContain("expressionHeading.current?.focus()");
     expect(optionsChain).toContain("Selection is not an order.");

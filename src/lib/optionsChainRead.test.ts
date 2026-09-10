@@ -56,8 +56,29 @@ describe("options chain failed-edge projection", () => {
 
   it("preserves observed sizes and quotes without adding missing values or certification", async () => {
     const result = await readOptionsResponse(response(200, { chain: [contract] }));
-    expect(result).toEqual({ ok: true, contracts: [contract] });
+    expect(result).toEqual({ ok: true, contracts: [contract], receipt: {
+      source: "unknown", fidelity: "UNKNOWN", coverage: "UNKNOWN", newestProviderTimestamp: null,
+    } });
     expect(JSON.stringify(result)).not.toMatch(/certified|live|entitlement|last/);
+  });
+
+  it("accepts only an exact Alpaca indicative source receipt", async () => {
+    const result = await readOptionsResponse(response(200, {
+      source: "alpaca", fidelity: "INDICATIVE", coverage: "PARTIAL",
+      newestProviderTimestamp: "2026-09-09T19:59:59Z", chain: [contract],
+    }));
+    expect(result).toEqual({ ok: true, contracts: [contract], receipt: {
+      source: "alpaca", fidelity: "INDICATIVE", coverage: "PARTIAL",
+      newestProviderTimestamp: "2026-09-09T19:59:59Z",
+    } });
+  });
+
+  it("withholds an Alpaca source receipt when no provider timestamp is proven", async () => {
+    const result = await readOptionsResponse(response(200, {
+      source: "alpaca", fidelity: "INDICATIVE", coverage: "COMPLETE",
+      newestProviderTimestamp: null, chain: [contract],
+    }));
+    expect(result.ok && result.receipt.source).toBe("unknown");
   });
 
   it("has no sticky failure state: a new response can recover normally", async () => {

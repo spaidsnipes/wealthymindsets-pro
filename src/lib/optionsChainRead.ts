@@ -33,9 +33,9 @@ export function optionsReadFailure(edge: OptionsFailureEdge): OptionsReadFailure
 function responseFailure(status: number, body: unknown): OptionsReadFailure {
   const envelope = body && typeof body === "object" && !Array.isArray(body)
     ? body as Record<string, unknown> : null;
-  // Accept only the exact WM FMP route's structured config receipt. HTTP 503
+  // Accept only an exact WM-owned route's structured config receipt. HTTP 503
   // alone (or a provider's arbitrary prose) is not evidence of missing config.
-  if (status === 503 && envelope?.source === "fmp" && envelope.edge === "NOT CONFIGURED") {
+  if (status === 503 && (envelope?.source === "fmp" || envelope?.source === "alpaca") && envelope.edge === "NOT CONFIGURED") {
     return optionsReadFailure("NOT CONFIGURED");
   }
   if (status === 401) return optionsReadFailure("AUTH BLOCKED");
@@ -46,8 +46,38 @@ function responseFailure(status: number, body: unknown): OptionsReadFailure {
   return optionsReadFailure("UNKNOWN");
 }
 
-type OptionsReadResult = { ok: true; contracts: OptionContract[] }
+export interface OptionsSourceReceipt {
+  source: "alpaca" | "unknown";
+  fidelity: "INDICATIVE" | "UNKNOWN";
+  coverage: "COMPLETE" | "PARTIAL" | "UNKNOWN";
+  newestProviderTimestamp: string | null;
+}
+
+type OptionsReadResult = { ok: true; contracts: OptionContract[]; receipt: OptionsSourceReceipt }
   | { ok: false; failure: OptionsReadFailure };
+
+function sourceReceipt(data: unknown): OptionsSourceReceipt {
+  const envelope = data && typeof data === "object" && !Array.isArray(data)
+    ? data as Record<string, unknown>
+    : null;
+  if (envelope?.source !== "alpaca" || envelope.fidelity !== "INDICATIVE"
+      || (envelope.coverage !== "COMPLETE" && envelope.coverage !== "PARTIAL")) {
+    return { source: "unknown", fidelity: "UNKNOWN", coverage: "UNKNOWN", newestProviderTimestamp: null };
+  }
+  const timestamp = typeof envelope.newestProviderTimestamp === "string"
+    && Number.isFinite(Date.parse(envelope.newestProviderTimestamp))
+    ? envelope.newestProviderTimestamp
+    : null;
+  if (!timestamp) {
+    return { source: "unknown", fidelity: "UNKNOWN", coverage: "UNKNOWN", newestProviderTimestamp: null };
+  }
+  return {
+    source: "alpaca",
+    fidelity: "INDICATIVE",
+    coverage: envelope.coverage,
+    newestProviderTimestamp: timestamp,
+  };
+}
 
 /** Read the error body before classifying the failed edge. The caller owns
  * cancellation/deadline and must recheck its active request after this await.
@@ -64,7 +94,7 @@ export async function readOptionsResponse(response: Pick<Response, "ok" | "statu
   try {
     const contracts = parseOptionContractResponse(data);
     return contracts.length
-      ? { ok: true, contracts }
+      ? { ok: true, contracts, receipt: sourceReceipt(data) }
       : { ok: false, failure: optionsReadFailure("NO EVENTS") };
   } catch {
     return { ok: false, failure: optionsReadFailure("INVALID RESPONSE") };

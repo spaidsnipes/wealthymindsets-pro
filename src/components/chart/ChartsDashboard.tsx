@@ -259,7 +259,7 @@ export function ChartsDashboard() {
   }, []);
   const [tradeOpen,       setTradeOpen]       = useState(false);
   const [optionsOpen,     setOptionsOpen]     = useState(false);
-  const [optionSelection, setOptionSelection] = useState<{ underlying: string; owner: string; contract: OptionContract } | null>(null);
+  const [optionSelection, setOptionSelection] = useState<{ underlying: string; owner: string; contract: OptionContract; source: "alpaca"; fidelity: "INDICATIVE"; providerTimestamp: string } | null>(null);
   const clearOptionSelection = useCallback(() => setOptionSelection(null), []);
   const [pineBuilderOpen, setPineBuilderOpen] = useState(false);
   const [footprintType,   setFootprintType]   = useState<FootprintType>(() => lsGet("wm_footprint", "bid-ask") as FootprintType);
@@ -1991,11 +1991,14 @@ export function ChartsDashboard() {
                 <OptionsChain key={`${symbol}:${canvasUser?.id ?? "signed-out"}`} symbol={symbol} price={ticker.price}
                   onClose={() => { clearOptionSelection(); setOptionsOpen(false); }}
                   onInvalidateSelection={clearOptionSelection}
-                  onSelectContract={contract => setOptionSelection({ underlying: symbol, owner: canvasUser?.id ?? "signed-out", contract })}
+                  onSelectContract={(contract, receipt) => {
+                    if (receipt.source !== "alpaca" || receipt.fidelity !== "INDICATIVE" || !receipt.newestProviderTimestamp) return;
+                    setOptionSelection({ underlying: symbol, owner: canvasUser?.id ?? "signed-out", contract, source: receipt.source, fidelity: receipt.fidelity, providerTimestamp: receipt.newestProviderTimestamp });
+                  }}
                   onOpenBrokerConnect={openBrokerConnect}
                   expression={optionSelection?.underlying === symbol && optionSelection.owner === (canvasUser?.id ?? "signed-out")
                     ? <OptionExpressionIntent key={`${optionSelection.owner}:${optionSelection.contract.symbol}:${optionSelection.contract.expirationDate}:${optionSelection.contract.contractType}:${optionSelection.contract.strike}`}
-                        ownerId={canvasUser?.id ?? ""} underlying={symbol} contract={optionSelection.contract} onClear={clearOptionSelection} /> : null} />
+                        ownerId={canvasUser?.id ?? ""} underlying={symbol} contract={optionSelection.contract} source={optionSelection.source} fidelity={optionSelection.fidelity} providerTimestamp={optionSelection.providerTimestamp} onClear={clearOptionSelection} /> : null} />
               )}
             </AnimatePresence>
 
