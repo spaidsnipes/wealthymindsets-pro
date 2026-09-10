@@ -14,6 +14,7 @@ import { formatOptionCount, formatOptionNumber, formatOptionPercent,
          summariseOpenInterest } from "@/lib/optionCellFormat";
 import { type OptionContract } from "@/lib/optionContractResponse";
 import { optionContractObservationTiming, optionsReceiptAge, readOptionsResponse, optionsReadFailure, type OptionContractObservationTiming, type OptionsReadFailure, type OptionsSourceReceipt } from "@/lib/optionsChainRead";
+import type { IdentifiedOptionSpot } from "@/lib/optionsSpotIdentity";
 
 /**
  * Every quoted field is optional: an unquoted strike has NO number, and must
@@ -87,7 +88,7 @@ function buildChain(contracts: OptionContract[], spot: number, expiry: string): 
 
 interface Props {
   symbol: string;
-  price: number;
+  spot: IdentifiedOptionSpot | null;
   onClose: () => void;
   /**
    * Optional strike handler. The row only ADVERTISES itself as clickable when
@@ -101,7 +102,7 @@ interface Props {
   onOpenBrokerConnect?: (trigger: HTMLButtonElement) => void;
 }
 
-export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectContract, onInvalidateSelection, expression, onOpenBrokerConnect }: Props) {
+export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectContract, onInvalidateSelection, expression, onOpenBrokerConnect }: Props) {
   const [scene, setScene] = useState<"expression" | "inspect">("expression");
   const expressionHeading = useRef<HTMLHeadingElement>(null);
   const focusExpression = useRef(false);
@@ -121,6 +122,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
   const contractRead = useRef<{ cancel: () => void } | null>(null);
   const invalidateSelection = useRef(onInvalidateSelection);
   invalidateSelection.current = onInvalidateSelection;
+  const spotPrice = spot?.symbol === symbol ? spot.price : 0;
 
   // Inspection is a projection, not a new expression owner. Keep the intent
   // subtree mounted across modes so a lost ACK retains its same-ID retry.
@@ -151,11 +153,15 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
 
   // Keep latest price in a ref so the network fetch does NOT re-run on every
   // live price tick (that caused setLoading(true) to fire repeatedly → blink).
-  const priceRef = useRef(price);
-  priceRef.current = price;
+  const priceRef = useRef(spotPrice);
+  priceRef.current = spotPrice;
+  // A symbol remount can legitimately begin before its first owned ticker.
+  // Fetch without a spot, then perform one bounded narrowing request when the
+  // first identity-qualified spot arrives. Ordinary ticks never refetch.
+  const spotBoundSymbol = useRef<string | null>(spotPrice > 0 ? symbol : null);
   // Round price for chain-math dependencies so sub-dollar ticks don't churn the
   // table on every poll. Cents-level moves still update via the live ticker.
-  const priceKey = Math.round(price * 100) / 100;
+  const priceKey = Math.round(spotPrice * 100) / 100;
 
   // Fetch an explicitly sourced Alpaca indicative chain for this symbol.
   const fetchContracts = useCallback(async () => {
@@ -247,6 +253,12 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
     return () => contractRead.current?.cancel();
   }, [fetchContracts]);
 
+  useEffect(() => {
+    if (spotPrice <= 0 || spotBoundSymbol.current === symbol) return;
+    spotBoundSymbol.current = symbol;
+    fetchContracts();
+  }, [spotPrice, symbol, fetchContracts]);
+
   // When expiry changes, rebuild chain
   useEffect(() => {
     if (!expiry || receivedSymbol !== symbol) return;
@@ -260,7 +272,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
   }, [expiry, allContracts, priceKey, dataSource, receivedSymbol, symbol]);
 
   const atm = chain.find(r => r.itm === "atm");
-  const hasObservedSpot = Number.isFinite(price) && price > 0;
+  const hasObservedSpot = spotPrice > 0;
   const hasAvailableData = !loading && receivedSymbol === symbol && dataSource === "alpaca" && sourceReceipt.source === "alpaca" && chain.length > 0;
   const receiptAge = receiptClock === null
     ? { label: "age checking", timing: "UNVERIFIED" as const }
@@ -301,7 +313,7 @@ export function OptionsChain({ symbol, price, onClose, onSelectStrike, onSelectC
           {dataStatus}
         </div>
         <span className="text-[10px] font-mono text-wm-text-muted ml-1" title={hasObservedSpot ? "Observed underlying quote" : "Underlying quote has not been observed"}>
-          Spot: <span className="text-wm-text font-bold">{hasObservedSpot ? price.toLocaleString("en-US",{minimumFractionDigits:2}) : "—"}</span>
+          Spot: <span className="text-wm-text font-bold">{hasObservedSpot ? spotPrice.toLocaleString("en-US",{minimumFractionDigits:2}) : "—"}</span>
         </span>
         {hasAvailableData && atm && (
           <div className="ml-3 flex items-center gap-2 text-[10px] text-wm-text-dim">

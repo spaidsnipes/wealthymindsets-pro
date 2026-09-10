@@ -16,10 +16,11 @@ import React,{useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {OptionsChain} from './src/components/chart/OptionsChain';
 import {OptionExpressionIntent} from './src/components/chart/OptionExpressionIntent';
-function Fixture(){const [symbol,setSymbol]=useState('TSLA');const [selected,setSelected]=useState(null);return <main>
+function Fixture(){const [symbol,setSymbol]=useState('TSLA');const [spots,setSpots]=useState({TSLA:250});const [selected,setSelected]=useState(null);const spot=spots[symbol]?{symbol,price:spots[symbol]}:null;return <main>
 <p>SYNTHETIC OPTIONS FIXTURE — NOT EXECUTABLE QUOTES</p>
 <button onClick={()=>setSymbol('SPY')}>Switch to SPY</button>
-<OptionsChain symbol={symbol} price={500} onClose={()=>{}} onInvalidateSelection={()=>setSelected(null)}
+<button onClick={()=>setSpots(s=>({...s,SPY:500}))}>Receive SPY spot</button>
+<OptionsChain symbol={symbol} spot={spot} onClose={()=>{}} onInvalidateSelection={()=>setSelected(null)}
  onSelectContract={(contract,receipt,timing)=>setSelected({contract,receipt,timing})}
  expression={selected?<OptionExpressionIntent ownerId="synthetic-owner" underlying={symbol} contract={selected.contract} source="alpaca" fidelity="INDICATIVE" onClear={()=>setSelected(null)}/>:null}/></main>}
 createRoot(document.getElementById('root')).render(<React.StrictMode><Fixture/></React.StrictMode>);`,
@@ -59,7 +60,7 @@ try{
     const now=Date.now();
     const quoteTimestamp=new Date(timing==='future'?now+60_000:timing==='mixed'?now+60_000:now).toISOString();
     const tradeTimestamp=new Date(timing==='future'?now+60_000:now).toISOString();
-    const newestProviderTimestamp=timing==='future'?quoteTimestamp:tradeTimestamp;
+    const newestProviderTimestamp=timing==='future'||timing==='mixed'?quoteTimestamp:tradeTimestamp;
     for(const p of pending)p.resolve(new Response(JSON.stringify({source:'alpaca',fidelity:'INDICATIVE',coverage:'COMPLETE',newestProviderTimestamp,chain:[{symbol:symbol+'261218C00500000',contractType:'call',expirationDate:'2026-12-18',strike,bid:1,ask:2,last:1.5,openInterest:1,quoteTimestamp,tradeTimestamp}]}),{status:200}));
    };
   });
@@ -68,12 +69,23 @@ try{
   await page.waitForFunction(()=>window.pendingOptions.some(p=>new URL(p.url,location.origin).searchParams.get('symbol')==='TSLA'));
   await page.getByRole('button',{name:'Switch to SPY'}).click();
   await page.waitForFunction(()=>window.pendingOptions.some(p=>new URL(p.url,location.origin).searchParams.get('symbol')==='SPY'));
+  const firstSpyUrl=await page.evaluate(()=>window.pendingOptions.find(p=>new URL(p.url,location.origin).searchParams.get('symbol')==='SPY').url);
+  if(new URL(firstSpyUrl,origin).searchParams.has('spot'))throw new Error(device+': SPY inherited the TSLA spot');
+  await page.getByRole('button',{name:'Receive SPY spot'}).click();
+  await page.waitForFunction(()=>window.pendingOptions.filter(p=>new URL(p.url,location.origin).searchParams.get('symbol')==='SPY').some(p=>new URL(p.url,location.origin).searchParams.get('spot')==='500'));
+  const boundSpyRequests=await page.evaluate(()=>window.pendingOptions.filter(p=>{const u=new URL(p.url,location.origin);return u.searchParams.get('symbol')==='SPY'&&u.searchParams.get('spot')==='500'}).length);
+  if(boundSpyRequests!==1)throw new Error(device+': first SPY spot did not trigger exactly one bounded request');
   await page.evaluate(()=>window.releaseOptions('SPY',500));
   await page.getByText('RECENT REFERENCE · INDICATIVE',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Inspect contracts',exact:true}).click();
+  await page.locator('tbody tr').first().waitFor({state:'visible'});
   await page.evaluate(()=>window.releaseOptions('TSLA',999));
   await page.waitForTimeout(100);
   if((await page.locator('tbody').innerText()).includes('999'))throw new Error(device+': stale TSLA overwrote SPY');
+  if(!await page.getByRole('button',{name:/Review call/}).count()){
+   const callState=await page.getByRole('button',{name:/call/i}).first().getAttribute('aria-label');
+   throw new Error(device+': current SPY contract was not reviewable: '+callState);
+  }
   await page.getByRole('button',{name:/Review call/}).first().click();
   await page.getByText(/quote RECENT REFERENCE/).waitFor();
   await page.getByRole('button',{name:'Clear expression',exact:true}).click();

@@ -38,6 +38,7 @@ import { InFlightRounds } from "@/lib/marketData/inFlightRounds";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
 import { fetchAlpacaQuoteBody, fetchFinnhubQuoteBody } from "@/lib/marketData/providerQuoteRounds";
+import { quoteRoundIsCurrent } from "@/lib/marketData/quoteSymbolFence";
 
 /**
  * Provider-tick rounds share one identity space, separate from quotes, so a
@@ -990,6 +991,10 @@ function tryAlpacaRelay(
 
 /* ── Main hook ──────────────────────────────────────────── */
 export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe: string }) {
+  // Updated during render so a promise from the prior effect cannot land in
+  // the gap before React runs that effect's cleanup.
+  const activeSymbolRef = useRef(symbol);
+  activeSymbolRef.current = symbol;
   const base      = getBasePrice(symbol);
 
   // Hot path refs — no re-render on every tick
@@ -1379,6 +1384,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       restFetchInFlight = true;
       lastRestStartedAt = Date.now();
       fetchRealQuote(symbol).then(answer => {
+        if (!quoteRoundIsCurrent(symbol, activeSymbolRef.current, disposed)) return;
         if (!answer) return;
         if (answer.kind === "refused") {
           // RETRACTION, not omission. Every price consumer in this codebase

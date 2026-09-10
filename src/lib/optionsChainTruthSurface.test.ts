@@ -74,11 +74,19 @@ describe("Options Chain truth and responsive surface", () => {
   });
 
   it("does not present a missing underlying quote as a real zero-dollar spot", () => {
-    expect(optionsChain).toContain("const hasObservedSpot = Number.isFinite(price) && price > 0");
-    expect(optionsChain).toContain('hasObservedSpot ? price.toLocaleString("en-US",{minimumFractionDigits:2}) : "—"');
+    expect(optionsChain).toContain("const spotPrice = spot?.symbol === symbol ? spot.price : 0");
+    expect(optionsChain).toContain("const hasObservedSpot = spotPrice > 0");
+    expect(optionsChain).toContain('hasObservedSpot ? spotPrice.toLocaleString("en-US",{minimumFractionDigits:2}) : "—"');
     expect(optionsChain).toContain("Underlying quote has not been observed");
     expect(optionsChain).toContain('const itm: OptionRow["itm"] = atm == null ? "unknown"');
     expect(optionsChain).not.toContain('Spot: <span className="text-wm-text font-bold">{price.toLocaleString');
+  });
+
+  it("binds chain narrowing to a current-symbol spot exactly once", () => {
+    expect(dashboard).toContain("identifiedOptionSpot(symbol, tickerOwner, ticker.price)");
+    expect(optionsChain).toContain("const spotBoundSymbol = useRef<string | null>(spotPrice > 0 ? symbol : null)");
+    expect(optionsChain).toContain("if (spotPrice <= 0 || spotBoundSymbol.current === symbol) return;");
+    expect(optionsChain).toContain("spotBoundSymbol.current = symbol;");
   });
 
   it("preserves the canonical fetch and fail-closed chain construction", () => {

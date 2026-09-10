@@ -49,6 +49,7 @@ import { normalizeTFId } from "@/lib/timeframes";
 import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
 import { canonicalSession, canonicalAssetClass, canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
 import { categoryTabsFor, effectiveCategoryTab } from "@/lib/charts/categoryTabsFor";
+import { identifiedOptionSpot } from "@/lib/optionsSpotIdentity";
 // Micah + Noah 2026-09-02 — /charts joins the Phase 3 Market Canvas.
 // Composes the SAME canonical compiler /command-deck already routes through
 // (composeMarketCanvasVM via useMarketCanvasVM), rendering the canvas verdict
@@ -591,6 +592,14 @@ export function ChartsDashboard() {
   }, []);
 
   const { ticker, recentTicks, source, connected } = useWebSocket({ symbol, timeframe });
+  // The hook clears ticker state after a symbol transition. Retain the symbol
+  // that actually owns the current render's ticker until that clear lands, so
+  // the next Options request can never inherit the prior underlying's spot.
+  const [tickerOwner, setTickerOwner] = useState(symbol);
+  useEffect(() => {
+    if (ticker.price === 0) setTickerOwner(symbol);
+  }, [symbol, ticker.price]);
+  const optionSpot = identifiedOptionSpot(symbol, tickerOwner, ticker.price);
   // Canon "CLOSED IS NOT DELAYED" — a proven-closed session outranks the
   // provider verdict, so the /charts chrome cannot print ACTIVE DEGRADED on a
   // Saturday. `null` until mount and on every weekday, so provider labelling
@@ -1989,7 +1998,7 @@ export function ChartsDashboard() {
             {/* Options chain */}
             <AnimatePresence>
               {optionsOpen && (
-                <OptionsChain key={`${symbol}:${canvasUser?.id ?? "signed-out"}`} symbol={symbol} price={ticker.price}
+                <OptionsChain key={`${symbol}:${canvasUser?.id ?? "signed-out"}`} symbol={symbol} spot={optionSpot}
                   onClose={() => { clearOptionSelection(); setActiveTab("Chart"); }}
                   onInvalidateSelection={clearOptionSelection}
                   onSelectContract={(contract, receipt, timing: OptionContractObservationTiming) => {
