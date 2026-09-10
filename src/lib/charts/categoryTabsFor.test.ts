@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { categoryTabsFor, ALL_CATEGORY_TABS } from "./categoryTabsFor";
+import { categoryTabsFor, effectiveCategoryTab, ALL_CATEGORY_TABS } from "./categoryTabsFor";
 
 describe("categoryTabsFor — asset-class-aware category strip", () => {
   it("equity gets the full 8-tab set (baseline)", () => {
@@ -66,5 +66,22 @@ describe("categoryTabsFor — asset-class-aware category strip", () => {
       const tabs = categoryTabsFor(cls);
       expect(new Set(tabs).size).toBe(tabs.length);
     });
+  });
+
+  it.each([
+    ["equity", "Options", "Options"],
+    ["etf", "Options", "Options"],
+    ["crypto", "Options", "Chart"],
+    ["futures", "Options", "Chart"],
+    ["forex", "Options", "Chart"],
+    ["options", "Options", "Chart"],
+    ["equity", "Chart", "Chart"],
+  ] as const)("resolves %s / %s synchronously to %s", (assetClass, requested, expected) => {
+    expect(effectiveCategoryTab(assetClass, requested)).toBe(expected);
+  });
+
+  it("keeps ETF Options open across a valid transition to equity", () => {
+    expect(effectiveCategoryTab("etf", "Options")).toBe("Options");
+    expect(effectiveCategoryTab("equity", "Options")).toBe("Options");
   });
 });

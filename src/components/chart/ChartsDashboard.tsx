@@ -48,7 +48,7 @@ import type { ChartLayout } from "./ChartLayoutManager";
 import { normalizeTFId } from "@/lib/timeframes";
 import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
 import { canonicalSession, canonicalAssetClass, canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
-import { categoryTabsFor } from "@/lib/charts/categoryTabsFor";
+import { categoryTabsFor, effectiveCategoryTab } from "@/lib/charts/categoryTabsFor";
 // Micah + Noah 2026-09-02 — /charts joins the Phase 3 Market Canvas.
 // Composes the SAME canonical compiler /command-deck already routes through
 // (composeMarketCanvasVM via useMarketCanvasVM), rendering the canvas verdict
@@ -259,7 +259,6 @@ export function ChartsDashboard() {
     setBrokerOpen(true);
   }, []);
   const [tradeOpen,       setTradeOpen]       = useState(false);
-  const [optionsOpen,     setOptionsOpen]     = useState(false);
   const [optionSelection, setOptionSelection] = useState<{ underlying: string; owner: string; contract: OptionContract; source: "alpaca"; fidelity: "INDICATIVE" } | null>(null);
   const clearOptionSelection = useCallback(() => setOptionSelection(null), []);
   const [pineBuilderOpen, setPineBuilderOpen] = useState(false);
@@ -302,18 +301,21 @@ export function ChartsDashboard() {
   const [pineCode,        setPineCode]        = useState<string>("");
   const [chartBars,       setChartBars]       = useState<OHLCVBar[]>([]);
   const [communityOpen,   setCommunityOpen]   = useState(false);
-  const [activeTab,       setActiveTab]       = useState("Chart");
+  const [requestedTab,    setActiveTab]       = useState("Chart");
+  const assetClass = canonicalAssetClass(symbol);
+  const activeTab = effectiveCategoryTab(assetClass, requestedTab);
+  const optionsOpen = activeTab === "Options";
   // Founder 2026-09-02: category tabs are filtered per asset class,
   // so switching from an equity (Financials selected) to crypto/futures
   // would strand the user on a tab that no longer exists in the strip.
   // Snap back to Chart whenever the current tab is not valid for the
   // new asset class. Pure state reset — no data fetches triggered.
   useEffect(() => {
-    const allowed = categoryTabsFor(canonicalAssetClass(symbol));
-    if (!allowed.includes(activeTab as (typeof allowed)[number])) {
+    if (requestedTab !== activeTab) {
+      clearOptionSelection();
       setActiveTab("Chart");
     }
-  }, [symbol, activeTab]);
+  }, [requestedTab, activeTab, clearOptionSelection]);
   const [infoOpen,        setInfoOpen]        = useState(false); // collapsible right panel
   const [vpDomOpen,       setVpDomOpen]       = useState(false); // Open only when the trader asks for depth
   const [studyToolsOpen,  setStudyToolsOpen]  = useState(false); // Advanced controls stay quiet until requested
@@ -1123,11 +1125,9 @@ export function ChartsDashboard() {
                   if (e.key === "End") nextIdx = tabs.length - 1;
                   const nextTab = tabs[nextIdx];
                   setActiveTab(nextTab);
-                  if (nextTab === "Options") setOptionsOpen(true);
                 }}
                 onClick={() => {
                   setActiveTab(tab);
-                  if (tab === "Options") setOptionsOpen(true);
                 }}
                 style={{
                   padding: "0 14px",
@@ -1990,7 +1990,7 @@ export function ChartsDashboard() {
             <AnimatePresence>
               {optionsOpen && (
                 <OptionsChain key={`${symbol}:${canvasUser?.id ?? "signed-out"}`} symbol={symbol} price={ticker.price}
-                  onClose={() => { clearOptionSelection(); setOptionsOpen(false); }}
+                  onClose={() => { clearOptionSelection(); setActiveTab("Chart"); }}
                   onInvalidateSelection={clearOptionSelection}
                   onSelectContract={(contract, receipt, timing: OptionContractObservationTiming) => {
                     if (receipt.source !== "alpaca" || receipt.fidelity !== "INDICATIVE"

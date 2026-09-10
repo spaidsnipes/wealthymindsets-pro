@@ -63,3 +63,15 @@ export function categoryTabsFor(cls: CanonicalAssetClass): readonly CategoryTab[
     }
   }
 }
+
+/** Resolve category ownership synchronously during render. A prior selection
+ * can never keep a surface mounted after the new asset class removes it. */
+export function effectiveCategoryTab(
+  cls: CanonicalAssetClass,
+  requested: string,
+): CategoryTab {
+  const allowed = categoryTabsFor(cls);
+  return allowed.includes(requested as CategoryTab)
+    ? requested as CategoryTab
+    : "Chart";
+}
