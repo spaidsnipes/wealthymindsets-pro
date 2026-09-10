@@ -6,6 +6,10 @@ export interface OptionContract {
   contractType: "call" | "put";
   expirationDate: string;
   strike: number;
+  /** Provider observation times for this exact contract. Page-level receipt
+   * times must never be substituted for these fields. */
+  quoteTimestamp?: string;
+  tradeTimestamp?: string;
   bid?: number; ask?: number; last?: number;
   impliedVolatility?: number; delta?: number; gamma?: number;
   theta?: number; vega?: number; openInterest?: number; volume?: number;
@@ -15,6 +19,11 @@ function validDate(value: unknown): value is string {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(value + "T00:00:00Z");
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function validTimestamp(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0
+    && Number.isFinite(Date.parse(value));
 }
 
 export function parseOptionContractResponse(data: unknown): OptionContract[] {
@@ -39,6 +48,14 @@ export function parseOptionContractResponse(data: unknown): OptionContract[] {
     seen.add(identity);
     const contract: OptionContract = {symbol:row.symbol.trim(),contractType:kind,
       expirationDate:row.expirationDate,strike:row.strike};
+    for (const key of ["quoteTimestamp", "tradeTimestamp"] as const) {
+      const timestamp = row[key];
+      if (timestamp === undefined || timestamp === null) continue;
+      if (!validTimestamp(timestamp)) {
+        throw new Error("Malformed options response: invalid provider timestamp");
+      }
+      contract[key] = timestamp;
+    }
     for (const key of ["bid","ask","last","impliedVolatility","delta","gamma","theta","vega","openInterest","volume"] as const) {
       const number = row[key];
       if (number === undefined || number === null) continue;

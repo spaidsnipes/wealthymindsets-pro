@@ -9,8 +9,11 @@ describe("selected option source truth", () => {
   it("carries the exact Alpaca indicative receipt into display and shared intent", () => {
     expect(dashboard).toContain('receipt.source !== "alpaca"');
     expect(dashboard).toContain('receipt.fidelity !== "INDICATIVE"');
-    expect(dashboard).toContain('providerTimestamp={optionSelection.providerTimestamp}');
-    expect(expression).toContain('Reference source ${source}; fidelity ${fidelity}; provider timestamp ${providerTimestamp}');
+    expect(dashboard).toContain('!contract.quoteTimestamp && !contract.tradeTimestamp');
+    expect(dashboard).not.toContain('providerTimestamp: receipt.newestProviderTimestamp');
+    expect(expression).toContain('quote timestamp ${contract.quoteTimestamp ?? "not observed"}');
+    expect(expression).toContain('trade timestamp ${contract.tradeTimestamp ?? "not observed"}');
+    expect(expression).toContain('quote {quoteAge} · trade {tradeAge}');
     expect(expression).toContain('{source === "alpaca" ? "Alpaca" : "Unknown source"} reference');
     expect(expression).not.toContain("FMP reference");
     expect(expression).not.toContain("Reference source FMP");

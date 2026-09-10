@@ -27,9 +27,26 @@ describe("Alpaca option-chain normalization", () => {
       newestProviderTimestamp: "2026-09-09T19:59:59.666559Z",
     });
     expect(result.chain).toEqual([
-      expect.objectContaining({ symbol: "TSLA260918C00365000", contractType: "call", expirationDate: "2026-09-18", strike: 365, bid: 11.22, ask: 11.58, last: 11.55, delta: 0.554 }),
-      expect.objectContaining({ symbol: "TSLA260918P00365000", contractType: "put", expirationDate: "2026-09-18", strike: 365, bid: 8.21, ask: 8.23, delta: -0.4442 }),
+      expect.objectContaining({ symbol: "TSLA260918C00365000", contractType: "call", expirationDate: "2026-09-18", strike: 365, bid: 11.22, ask: 11.58, last: 11.55, quoteTimestamp: "2026-09-09T19:59:59.467463Z", tradeTimestamp: "2026-09-09T19:59:11.582810Z", delta: 0.554 }),
+      expect.objectContaining({ symbol: "TSLA260918P00365000", contractType: "put", expirationDate: "2026-09-18", strike: 365, bid: 8.21, ask: 8.23, quoteTimestamp: "2026-09-09T19:59:59.666559Z", delta: -0.4442 }),
     ]);
+  });
+
+  it("keeps each contract's observation times separate from the page-newest receipt", () => {
+    const mixed = normalizeAlpacaOptionChain({ snapshots: {
+      TSLA260918C00365000: payload.snapshots.TSLA260918C00365000,
+      TSLA260918P00365000: {
+        latestQuote: { t: "2026-09-09T18:00:00Z", bp: 8.21, ap: 8.23 },
+        latestTrade: { t: "2026-09-09T17:55:00Z", p: 8.22 },
+      },
+    } }, "TSLA");
+    const stalePut = mixed.chain.find(contract => contract.contractType === "put");
+    expect(mixed.newestProviderTimestamp).toBe("2026-09-09T19:59:59.467463Z");
+    expect(stalePut).toMatchObject({
+      quoteTimestamp: "2026-09-09T18:00:00Z",
+      tradeTimestamp: "2026-09-09T17:55:00Z",
+    });
+    expect(stalePut?.quoteTimestamp).not.toBe(mixed.newestProviderTimestamp);
   });
 
   it("does not relabel latest trade size as volume or invent absent fields", () => {

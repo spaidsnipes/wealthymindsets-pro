@@ -14,10 +14,14 @@ describe("options response structural truth", () => {
     expect(result.bid).toBeUndefined();
     expect(result.volume).toBeUndefined();
   });
+  it("preserves valid contract-specific quote and trade timestamps", () => {
+    const row = {...valid, quoteTimestamp:"2026-09-09T19:59:59Z", tradeTimestamp:"2026-09-09T19:58:00Z"};
+    expect(parseOptionContractResponse([row])[0]).toMatchObject(row);
+  });
   it.each([null,{}, {chain:{}},[null],[{}]])("rejects malformed containers %j", response => {
     expect(()=>parseOptionContractResponse(response)).toThrow(/Malformed options/);
   });
-  it.each([{expirationDate:"2026-02-30"},{expirationDate:"2026-1-1"},{strike:NaN},{strike:0},{strike:"100"},{contractType:"unknown"},{symbol:" "},{bid:Infinity},{ask:-1},{volume:"12"}])("rejects invalid identity/value %j", patch => {
+  it.each([{expirationDate:"2026-02-30"},{expirationDate:"2026-1-1"},{strike:NaN},{strike:0},{strike:"100"},{contractType:"unknown"},{symbol:" "},{bid:Infinity},{ask:-1},{volume:"12"},{quoteTimestamp:"not-a-time"},{tradeTimestamp:42}])("rejects invalid identity/value %j", patch => {
     expect(()=>parseOptionContractResponse([{...valid,...patch}])).toThrow(/Malformed options/);
   });
   it("does not silently choose one duplicate contract", () => {

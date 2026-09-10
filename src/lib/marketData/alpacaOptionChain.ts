@@ -85,6 +85,8 @@ export function normalizeAlpacaOptionChain(
     if (bid !== undefined) contract.bid = bid;
     if (ask !== undefined) contract.ask = ask;
     if (last !== undefined) contract.last = last;
+    if (hasQuoteObservation && quoteTimestamp) contract.quoteTimestamp = quoteTimestamp;
+    if (hasTradeObservation && tradeTimestamp) contract.tradeTimestamp = tradeTimestamp;
     if (impliedVolatility !== undefined) contract.impliedVolatility = impliedVolatility;
     if (delta !== undefined) contract.delta = delta;
     if (gamma !== undefined) contract.gamma = gamma;
