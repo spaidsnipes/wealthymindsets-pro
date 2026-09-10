@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { optionContractObservationTiming, optionsReadFailure, optionsReceiptAge, readOptionsResponse } from "./optionsChainRead";
 
 const contract = { symbol: "TSLA260918C00350000", contractType: "call", expirationDate: "2026-09-18", strike: 350, bid: 2.1, ask: 2.3, volume: 37 };
+const observedContract = { ...contract, quoteTimestamp: "2026-09-09T19:59:59Z" };
 const response = (status: number, body: unknown) => ({ ok: status >= 200 && status < 300, status, json: vi.fn(async () => body) });
 
 describe("options chain failed-edge projection", () => {
@@ -106,12 +107,33 @@ describe("options chain failed-edge projection", () => {
   it("accepts only an exact Alpaca indicative source receipt", async () => {
     const result = await readOptionsResponse(response(200, {
       source: "alpaca", fidelity: "INDICATIVE", coverage: "PARTIAL",
-      newestProviderTimestamp: "2026-09-09T19:59:59Z", chain: [contract],
+      newestProviderTimestamp: "2026-09-09T19:59:59Z", chain: [observedContract],
     }));
-    expect(result).toEqual({ ok: true, contracts: [contract], receipt: {
+    expect(result).toEqual({ ok: true, contracts: [observedContract], receipt: {
       source: "alpaca", fidelity: "INDICATIVE", coverage: "PARTIAL",
       newestProviderTimestamp: "2026-09-09T19:59:59Z",
     } });
+  });
+
+  it.each([
+    [{ ...observedContract, quoteTimestamp: undefined }],
+    [{ ...observedContract, bid: undefined, ask: undefined }],
+    [{ ...observedContract, last: 2.2 }],
+    [{ ...observedContract, tradeTimestamp: "2026-09-09T19:59:58Z" }],
+  ])("rejects an Alpaca envelope with an unbound price or timestamp leg", async forged => {
+    const result = await readOptionsResponse(response(200, {
+      source: "alpaca", fidelity: "INDICATIVE", coverage: "COMPLETE",
+      newestProviderTimestamp: "2026-09-09T19:59:59Z", chain: forged,
+    }));
+    expect(result).toEqual({ ok: false, failure: optionsReadFailure("INVALID RESPONSE") });
+  });
+
+  it("rejects a page-newest timestamp not derived from accepted contract observations", async () => {
+    const result = await readOptionsResponse(response(200, {
+      source: "alpaca", fidelity: "INDICATIVE", coverage: "COMPLETE",
+      newestProviderTimestamp: "2026-09-09T20:00:00Z", chain: [observedContract],
+    }));
+    expect(result).toEqual({ ok: false, failure: optionsReadFailure("INVALID RESPONSE") });
   });
 
   it("withholds an Alpaca source receipt when no provider timestamp is proven", async () => {

@@ -161,6 +161,30 @@ function sourceReceipt(data: unknown): OptionsSourceReceipt {
   };
 }
 
+function hasExactAlpacaObservationBindings(
+  contracts: readonly OptionContract[],
+  receipt: OptionsSourceReceipt,
+): boolean {
+  if (receipt.source !== "alpaca") return true;
+  const observedTimes: number[] = [];
+  for (const contract of contracts) {
+    const hasQuotePrice = contract.bid !== undefined || contract.ask !== undefined;
+    const hasTradePrice = contract.last !== undefined;
+    const hasQuoteTime = contract.quoteTimestamp !== undefined;
+    const hasTradeTime = contract.tradeTimestamp !== undefined;
+    if (hasQuotePrice !== hasQuoteTime || hasTradePrice !== hasTradeTime) return false;
+    if (!hasQuotePrice && !hasTradePrice) return false;
+    if (hasQuoteTime) observedTimes.push(Date.parse(contract.quoteTimestamp!));
+    if (hasTradeTime) observedTimes.push(Date.parse(contract.tradeTimestamp!));
+  }
+  const newest = receipt.newestProviderTimestamp
+    ? Date.parse(receipt.newestProviderTimestamp)
+    : Number.NaN;
+  return observedTimes.length > 0
+    && Number.isFinite(newest)
+    && newest === Math.max(...observedTimes);
+}
+
 /** Read the error body before classifying the failed edge. The caller owns
  * cancellation/deadline and must recheck its active request after this await.
  * Success validates contract structure only; it never certifies LIVE or rights.
@@ -175,8 +199,12 @@ export async function readOptionsResponse(response: Pick<Response, "ok" | "statu
   if (!response.ok) return { ok: false, failure: responseFailure(response.status, data) };
   try {
     const contracts = parseOptionContractResponse(data);
+    const receipt = sourceReceipt(data);
+    if (!hasExactAlpacaObservationBindings(contracts, receipt)) {
+      return { ok: false, failure: optionsReadFailure("INVALID RESPONSE") };
+    }
     return contracts.length
-      ? { ok: true, contracts, receipt: sourceReceipt(data) }
+      ? { ok: true, contracts, receipt }
       : { ok: false, failure: optionsReadFailure("NO EVENTS") };
   } catch {
     return { ok: false, failure: optionsReadFailure("INVALID RESPONSE") };

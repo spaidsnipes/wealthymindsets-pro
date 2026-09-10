@@ -76,6 +76,39 @@ describe("Alpaca option-chain normalization", () => {
     expect(result.newestProviderTimestamp).toBeNull();
   });
 
+  it("binds each displayed price leg to its own valid provider timestamp", () => {
+    const result = normalizeAlpacaOptionChain({ snapshots: {
+      TSLA260918C00365000: {
+        latestQuote: { t: "not-a-time", bp: 1.11, ap: 1.22 },
+        latestTrade: { t: "2026-09-09T19:59:11Z", p: 1.18 },
+      },
+      TSLA260918P00365000: {
+        latestQuote: { t: "2026-09-09T19:59:12Z", bp: 1.31, ap: 1.42 },
+        latestTrade: { t: "not-a-time", p: 1.37 },
+      },
+    } }, "TSLA");
+
+    expect(result.chain).toEqual([
+      expect.objectContaining({
+        symbol: "TSLA260918C00365000",
+        last: 1.18,
+        tradeTimestamp: "2026-09-09T19:59:11Z",
+      }),
+      expect.objectContaining({
+        symbol: "TSLA260918P00365000",
+        bid: 1.31,
+        ask: 1.42,
+        quoteTimestamp: "2026-09-09T19:59:12Z",
+      }),
+    ]);
+    expect(result.chain[0]).not.toHaveProperty("bid");
+    expect(result.chain[0]).not.toHaveProperty("ask");
+    expect(result.chain[0]).not.toHaveProperty("quoteTimestamp");
+    expect(result.chain[1]).not.toHaveProperty("last");
+    expect(result.chain[1]).not.toHaveProperty("tradeTimestamp");
+    expect(result.newestProviderTimestamp).toBe("2026-09-09T19:59:12Z");
+  });
+
   it("rejects a malformed provider envelope", () => {
     expect(() => normalizeAlpacaOptionChain({ snapshots: [] }, "TSLA")).toThrow(/Malformed/);
   });
