@@ -1,9 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
-import { optionContractObservationTiming, optionsReadFailure, optionsReceiptAge, readOptionsResponse } from "./optionsChainRead";
+import {
+  optionContractObservationTiming,
+  optionsReadFailure,
+  optionsReceiptAge,
+  readOptionsResponse as readOptionsResponseForUnderlying,
+} from "./optionsChainRead";
 
 const contract = { symbol: "TSLA260918C00350000", contractType: "call", expirationDate: "2026-09-18", strike: 350, bid: 2.1, ask: 2.3, volume: 37 };
 const observedContract = { ...contract, quoteTimestamp: "2026-09-09T19:59:59Z" };
 const response = (status: number, body: unknown) => ({ ok: status >= 200 && status < 300, status, json: vi.fn(async () => body) });
+const readOptionsResponse = (value: Pick<Response, "ok" | "status" | "json">) =>
+  readOptionsResponseForUnderlying(value, "TSLA");
 
 describe("options chain failed-edge projection", () => {
   it("consumes the body of a rejected response to retain a proven host-config edge", async () => {
@@ -113,6 +120,29 @@ describe("options chain failed-edge projection", () => {
       source: "alpaca", fidelity: "INDICATIVE", coverage: "PARTIAL",
       newestProviderTimestamp: "2026-09-09T19:59:59Z",
     } });
+  });
+
+  it.each([
+    ["another underlying", [{ ...observedContract, symbol: "SPY260918C00350000" }]],
+    ["mixed underlyings", [observedContract, { ...observedContract, symbol: "SPY260918P00350000", contractType: "put", strike: 350 }]],
+    ["a non-OSI symbol", [{ ...observedContract, symbol: "TSLA-CALL-350" }]],
+    ["a mismatched side", [{ ...observedContract, contractType: "put" }]],
+    ["a mismatched expiry", [{ ...observedContract, expirationDate: "2026-09-19" }]],
+    ["a mismatched strike", [{ ...observedContract, strike: 351 }]],
+  ])("rejects %s rather than stamping it with the requested underlying", async (_label, chain) => {
+    const result = await readOptionsResponseForUnderlying(response(200, {
+      source: "alpaca", fidelity: "INDICATIVE", coverage: "COMPLETE",
+      newestProviderTimestamp: "2026-09-09T19:59:59Z", chain,
+    }), "TSLA");
+    expect(result).toEqual({ ok: false, failure: optionsReadFailure("INVALID RESPONSE") });
+  });
+
+  it("normalizes the requested underlying before validating exact OSI identity", async () => {
+    const result = await readOptionsResponseForUnderlying(response(200, {
+      source: "alpaca", fidelity: "INDICATIVE", coverage: "COMPLETE",
+      newestProviderTimestamp: "2026-09-09T19:59:59Z", chain: [observedContract],
+    }), " tsla ");
+    expect(result.ok).toBe(true);
   });
 
   it.each([

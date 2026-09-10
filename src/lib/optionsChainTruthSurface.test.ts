@@ -60,7 +60,7 @@ describe("Options Chain truth and responsive surface", () => {
   it("fences superseded contract reads and bounds stalled bodies", () => {
     expect(optionsChain).toContain('contractRead.current?.cancel();');
     expect(optionsChain).toContain('signal: controller.signal');
-    expect(optionsChain).toMatch(/await readOptionsResponse\(res\);\s*if \(!active\) return;/);
+    expect(optionsChain).toMatch(/await readOptionsResponse\(res, symbol\);\s*if \(!active\) return;/);
     expect(optionsRead).toContain('Options check timed out. Contract availability is unverified.');
     expect(optionsChain).toContain('setError(optionsReadFailure("TIMEOUT"))');
     expect(optionsChain).toContain('}, 12_000);');

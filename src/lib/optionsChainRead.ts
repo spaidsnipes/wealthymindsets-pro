@@ -185,11 +185,31 @@ function hasExactAlpacaObservationBindings(
     && newest === Math.max(...observedTimes);
 }
 
+function hasExactRequestedContractIdentity(
+  contracts: readonly OptionContract[],
+  expectedUnderlying: string,
+): boolean {
+  const underlying = expectedUnderlying.trim().toUpperCase();
+  if (!/^[A-Z0-9.]{1,10}$/.test(underlying)) return false;
+  return contracts.every(contract => {
+    const match = /^([A-Z0-9.]{1,10})(\d{6})([CP])(\d{8})$/.exec(contract.symbol);
+    if (!match || match[1] !== underlying) return false;
+    const [, , date, side, strikeDigits] = match;
+    const expirationDate = `20${date.slice(0, 2)}-${date.slice(2, 4)}-${date.slice(4, 6)}`;
+    return contract.contractType === (side === "C" ? "call" : "put")
+      && contract.expirationDate === expirationDate
+      && contract.strike === Number(strikeDigits) / 1000;
+  });
+}
+
 /** Read the error body before classifying the failed edge. The caller owns
  * cancellation/deadline and must recheck its active request after this await.
  * Success validates contract structure only; it never certifies LIVE or rights.
  */
-export async function readOptionsResponse(response: Pick<Response, "ok" | "status" | "json">): Promise<OptionsReadResult> {
+export async function readOptionsResponse(
+  response: Pick<Response, "ok" | "status" | "json">,
+  expectedUnderlying: string,
+): Promise<OptionsReadResult> {
   let data: unknown;
   try {
     data = await response.json();
@@ -200,7 +220,8 @@ export async function readOptionsResponse(response: Pick<Response, "ok" | "statu
   try {
     const contracts = parseOptionContractResponse(data);
     const receipt = sourceReceipt(data);
-    if (!hasExactAlpacaObservationBindings(contracts, receipt)) {
+    if (!hasExactRequestedContractIdentity(contracts, expectedUnderlying)
+        || !hasExactAlpacaObservationBindings(contracts, receipt)) {
       return { ok: false, failure: optionsReadFailure("INVALID RESPONSE") };
     }
     return contracts.length

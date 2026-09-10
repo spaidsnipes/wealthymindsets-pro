@@ -197,7 +197,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
         : "";
       const res = await fetch(`/api/market-data/alpaca/options?symbol=${encodeURIComponent(symbol)}${spotParam}`, { signal: controller.signal });
       if (!active) return;
-      const result = await readOptionsResponse(res);
+      const result = await readOptionsResponse(res, symbol);
       if (!active) return;
       if (!result.ok) {
         setError(result.failure);
