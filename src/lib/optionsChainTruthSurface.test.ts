@@ -44,6 +44,19 @@ describe("Options Chain truth and responsive surface", () => {
     expect(optionsChain).toContain('loading\n            ? "Checking options availability · fidelity UNKNOWN"');
   });
 
+  it("identifies ATM Greeks as call-side values with unverified field timing", () => {
+    expect(optionsChain).toContain("ATM CALL IV · TIMING UNVERIFIED:");
+    expect(optionsChain).toContain("ATM CALL Δ · TIMING UNVERIFIED:");
+    expect(optionsChain).toContain("When present, these call-side fields have no field-level Greek or IV timestamp.");
+    expect(optionsChain).toContain("Quote and trade receipt age does not date them.");
+    expect(optionsChain).toContain("formatOptionPercent(atm.cIV)");
+    expect(optionsChain).toContain("formatOptionNumber(atm.cDelta, 2)");
+    expect(optionsChain).not.toContain("<span>ATM IV:");
+    expect(optionsChain).not.toContain("<span>ATM Δ:");
+    expect(optionsChain).not.toContain("atm.pIV");
+    expect(optionsChain).not.toContain("atm.pDelta");
+  });
+
   it("fences superseded contract reads and bounds stalled bodies", () => {
     expect(optionsChain).toContain('contractRead.current?.cancel();');
     expect(optionsChain).toContain('signal: controller.signal');

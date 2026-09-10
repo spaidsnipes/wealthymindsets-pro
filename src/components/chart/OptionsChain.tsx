@@ -316,9 +316,12 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
           Spot: <span className="text-wm-text font-bold">{hasObservedSpot ? spotPrice.toLocaleString("en-US",{minimumFractionDigits:2}) : "—"}</span>
         </span>
         {hasAvailableData && atm && (
-          <div className="ml-3 flex items-center gap-2 text-[10px] text-wm-text-dim">
-            <span>ATM IV: <span className="text-wm-gold font-bold">{formatOptionPercent(atm.cIV)}</span></span>
-            <span>ATM Δ: <span className="text-wm-blue font-bold">{formatOptionNumber(atm.cDelta, 2)}</span></span>
+          <div
+            className="ml-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-wm-text-dim sm:ml-3"
+            title="When present, these call-side fields have no field-level Greek or IV timestamp. Quote and trade receipt age does not date them."
+          >
+            <span>ATM CALL IV · TIMING UNVERIFIED: <span className="text-wm-gold font-bold">{formatOptionPercent(atm.cIV)}</span></span>
+            <span>ATM CALL Δ · TIMING UNVERIFIED: <span className="text-wm-blue font-bold">{formatOptionNumber(atm.cDelta, 2)}</span></span>
           </div>
         )}
         <div className="ml-auto flex items-center gap-2">
