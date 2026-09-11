@@ -16,6 +16,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { stripComments } from "@/lib/sourceScan";
 import {
   classifySymbol,
   toYahooSymbol,
@@ -162,23 +163,26 @@ function read(rel: string): string {
 /**
  * Judge what a route RUNS, not what it says about itself.
  *
- * This guard caught its own author. The comment I wrote above the repaired
- * predicate in `/api/market` QUOTES the old one verbatim — that is the whole
- * point of the comment, so the next reader knows which defect was removed — and
- * a raw `toContain` scan read the quotation as the defect still being present.
- * The prose claim "comments are allowed to quote history" was true of the
- * intent and false of the executable check underneath it.
+ * This guard caught its own author twice, in two different ways.
  *
- * Same defect class as `sentinelsHaveAMachine.test.ts` (a workflow's own header
- * comment kept a deleted `vitest` step looking wired) and
- * `repoFrontDoorAuthority.test.ts`. A document that DESCRIBES a thing is not a
- * document that DOES it — in either direction.
+ * FIRST: it scanned raw file text, and the comment I wrote above the repaired
+ * predicate in `/api/market` QUOTES the old one verbatim — that is the whole
+ * point of the comment, so the next reader knows which defect was removed. The
+ * guard read the epitaph as the corpse. Same defect class as
+ * `sentinelsHaveAMachine.test.ts`, where a workflow's own header comment kept a
+ * deleted `vitest` step looking wired, and as `repoFrontDoorAuthority.test.ts`.
+ * A document that DESCRIBES a thing is not a document that DOES it — and the
+ * mistake runs in both directions.
+ *
+ * SECOND: the fix for that was a four-line comment stripper typed right here —
+ * in an atom whose entire subject is that a fact typed in four places is four
+ * opinions. `src/lib/sourceScan.mjs` already owns the stripper and its own
+ * header records that a private copy is exactly how the prose-vs-code blind
+ * spot survived its first repair. So this delegates. The shortest possible
+ * demonstration that knowing the principle does not make you immune to it.
  */
 function readCode(rel: string): string {
-  return read(rel)
-    .split("\n")
-    .filter(line => !/^\s*(\/\/|\/\*|\*)/.test(line))
-    .join("\n");
+  return stripComments(read(rel));
 }
 
 describe("symbolAssetClass — adoption guard", () => {

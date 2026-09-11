@@ -22,7 +22,8 @@
     "test": "vitest run",
     "preview:cf": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy:cf": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv env.d.ts"
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv env.d.ts",
+    "receipt:ghost-host": "node scripts/ghost-host-receipt.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
