@@ -175,6 +175,24 @@ export function isUnsupportedByEquityVendors(symbol: string): boolean {
 }
 
 /**
+ * Does this instrument trade on the US equity session clock — pre 04:00 ET,
+ * regular 09:30–16:00 ET, post 16:00–20:00 ET?
+ *
+ * Asked by any surface that STRIPS bars outside regular hours. Getting it wrong
+ * deletes real candles from a 24-hour instrument, which is why the answer for
+ * an unrecognised symbol is FALSE: we hide observed prints only when we can
+ * name the session that justifies hiding them. `MainChart` previously defaulted
+ * the other way and read "/ES" as an equity, so a futures contract was being
+ * RTH-filtered.
+ *
+ * Indices are true: a cash index is quoted on the same bell as the names in it.
+ */
+export function observesUsEquitySession(symbol: string): boolean {
+  const k = classifySymbol(symbol);
+  return k === "EQUITY" || k === "INDEX";
+}
+
+/**
  * A human-readable reason, so every route that declines gives the SAME reason
  * in the same words. A per-route sentence is how "not supported on free tier"
  * and "no data" came to mean the same thing to the code and different things

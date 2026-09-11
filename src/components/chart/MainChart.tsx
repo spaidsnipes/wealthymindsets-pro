@@ -31,6 +31,11 @@ import {
   subscribeSessionSymbolStore,
 } from "@/lib/marketData/sessionSymbolStore";
 import { getRuntimeTapeCapability, hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
+import {
+  classifySymbol,
+  isUnsupportedByEquityVendors,
+  observesUsEquitySession,
+} from "@/lib/marketData/symbolAssetClass";
 import { overlayFrameBudgetMs, shouldDrawOverlay } from "@/lib/chartOverlayGovernor";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { candleDataStatus, priceSourceBadge, resolveChartSurfaceBadge } from "@/lib/priceSource";
@@ -164,8 +169,12 @@ function formatCountdown(remaining: number, intervalSec: number): string {
 /* ── Polygon symbol mapping ─────────────────────────────── */
 function toPolygonTicker(sym: string): string | null {
   const s = normalizeSym(sym.toUpperCase());
-  // Futures not supported on basic Polygon tier
-  if (s.endsWith("1!") || s === "VX1!" || s === "SR3M4") return null;
+  // Futures not supported on basic Polygon tier. VX1! and SR3M4 are declined
+  // separately and deliberately: the class owner resolves VX1! to the ^VIX
+  // INDEX (which is true — it is not a tradable contract here), and SR3M4 is a
+  // dated SOFR contract Polygon's basic tier does not carry either. Both are
+  // refusals about THIS VENUE, which is a fact this function owns.
+  if (classifySymbol(s) === "FUTURES" || s === "VX1!" || s === "SR3M4") return null;
   // Tick-level timeframes not supported via aggs
   // Crypto
   const cryptoMap: Record<string,string> = {
@@ -258,7 +267,7 @@ async function fetchPolygonOHLCV(sym: string, tf: string, count: number, signal?
  * for the still-open fail-closed correctness work on the server map. */
 async function fetchFinnhubCandles(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<Bar[] | null> {
   const upper = sym.toUpperCase();
-  if (upper.includes("1!") || upper.includes("/")) return null; // futures/forex unsupported by the proxy
+  if (isUnsupportedByEquityVendors(upper)) return null; // futures/forex unsupported by the proxy
   try {
     const url = `/api/finnhub?sym=${encodeURIComponent(upper)}&type=candles&tf=${encodeURIComponent(tf)}&bars=${count}`;
     const res = await fetch(url, { cache: "no-store", signal });
@@ -280,13 +289,12 @@ async function fetchFinnhubCandles(sym: string, tf: string, count: number, signa
  * continuous. Futures / crypto / forex trade ~24h and are never filtered.
  */
 function isEquitySymbol(sym: string): boolean {
-  const up = sym.toUpperCase();
-  if (up.endsWith("1!") || up.includes("=F")) return false;            // futures
-  if (up.endsWith("=X") || /^[A-Z]{3}\/[A-Z]{3}$/.test(up)) return false; // forex
-  if (up.includes(".") ) return false;                                  // exchange-qualified crypto e.g. BTC.COINBASE
-  if (up.endsWith("USD") || up.endsWith("USDT") || up.endsWith("USDC")) return false; // crypto pairs
-  if (["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LTC","DOT","MATIC","SHIB","PEPE","XAU","XAG"].includes(up)) return false;
-  return true; // default: treat as a US equity / ETF
+  // Was five hand-typed rules ending in "default: treat as a US equity / ETF".
+  // That default read "/ES" as a stock and RTH-filtered a futures contract, and
+  // the crypto list it carried had to be edited every time a coin was added.
+  // The owner answers both, and answers FALSE when it does not recognise the
+  // symbol — bars are hidden only when a session can be named.
+  return observesUsEquitySession(sym);
 }
 
 // Returns ET wall-clock minutes-since-midnight + weekday for a unix-seconds ts.
@@ -340,8 +348,7 @@ function filterSession(bars: Bar[], sym: string, intervalSec: number, extendedHo
 // ── Alpaca candles (primary for stocks/ETFs/crypto when key is set) ──────
 async function fetchAlpacaCandles(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<Bar[] | null> {
   const up = sym.toUpperCase();
-  const isFutures = up.endsWith("1!") || up.includes("=F");
-  if (isFutures) return null; // Alpaca doesn't support futures
+  if (classifySymbol(up) === "FUTURES") return null; // Alpaca doesn't support futures
   try {
     const url = `/api/alpaca?sym=${encodeURIComponent(up)}&type=candles&tf=${tf}&bars=${count}`;
     const res = await fetch(url, { cache: "no-store", signal });
@@ -356,10 +363,10 @@ async function fetchAlpacaCandles(sym: string, tf: string, count: number, signal
 
 async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number, signal?: AbortSignal): Promise<Bar[] | null> {
   // Only for stocks/ETFs — futures/crypto fall back to Yahoo
-  const up = sym.toUpperCase();
-  const isFutures = up.endsWith("1!") || ["NQ1!","ES1!","RTY1!","YM1!","GC1!","SI1!","CL1!","NG1!","ZB1!","ZN1!","HG1!"].includes(up);
-  const isCrypto  = ["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","BTCUSD","ETHUSD","SOLUSD"].includes(up);
-  if (isFutures || isCrypto) return null;
+  // The crypto list here named eleven coins and none of the `-USD` forms the
+  // app's own pickers emit, so BTC-USD was being asked of an equity vendor.
+  const klass = classifySymbol(sym);
+  if (klass === "FUTURES" || klass === "CRYPTO") return null;
   try {
     const url = `/api/finnhub?sym=${encodeURIComponent(sym)}&type=candles&tf=${tf}&bars=${count}`;
     const json = await fetch(url, { cache: "no-store", signal }).then(r => r.json());

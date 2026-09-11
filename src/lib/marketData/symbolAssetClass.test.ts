@@ -23,6 +23,7 @@ import {
   toYahooSymbol,
   isUnsupportedByEquityVendors,
   unsupportedAssetClassReason,
+  observesUsEquitySession,
 } from "./symbolAssetClass";
 
 /**
@@ -246,5 +247,52 @@ describe("symbolAssetClass — adoption guard", () => {
     const heatmap = readCode("src/app/api/heatmap/route.ts");
     expect(heatmap).not.toContain('"NQ1!":"NQ=F"');
     expect(heatmap).toContain("toYahooSymbol(");
+  });
+});
+
+/**
+ * `observesUsEquitySession` decides whether a surface may DELETE bars. It is
+ * the one predicate here whose wrong answer removes observed prints from the
+ * screen, so it is the one whose default has to lean toward showing them.
+ */
+describe("US equity session membership", () => {
+  it("THE MEASURED FAILURE: a futures contract was being RTH-filtered", () => {
+    // MainChart's old rule ended in "default: treat as a US equity / ETF", and
+    // "/ES" matched none of the escapes above it.
+    expect(observesUsEquitySession("/ES")).toBe(false);
+    expect(observesUsEquitySession("NQ1!")).toBe(false);
+    expect(observesUsEquitySession("NQ=F")).toBe(false);
+  });
+
+  it("does not strip bars from instruments that trade around the clock", () => {
+    for (const symbol of ["BTC-USD", "ETH-USD", "BTC.COINBASE", "EURUSD=X", "EUR/USD"]) {
+      expect(observesUsEquitySession(symbol), `${symbol} trades outside the bell`).toBe(false);
+    }
+  });
+
+  it("holds equities and cash indices to the bell", () => {
+    for (const symbol of ["AAPL", "SPY", "QQQ", "^VIX", "^GSPC"]) {
+      expect(observesUsEquitySession(symbol), `${symbol} trades the equity session`).toBe(true);
+    }
+  });
+
+  it("refuses to hide prints from a symbol it cannot name a session for", () => {
+    // The honest direction for a default that DELETES data.
+    expect(observesUsEquitySession("NOTATICKERATALL")).toBe(false);
+    expect(observesUsEquitySession("")).toBe(false);
+  });
+});
+
+describe("MainChart asks the owner instead of retyping the predicate", () => {
+  it("no longer carries its own futures, forex or crypto tests", () => {
+    const src = readCode("src/components/chart/MainChart.tsx");
+    expect(src).toContain("observesUsEquitySession(");
+    expect(src).toContain("isUnsupportedByEquityVendors(");
+    expect(src).not.toMatch(/endsWith\("1!"\)/);
+    expect(src).not.toMatch(/includes\("1!"\)/);
+    expect(src).not.toMatch(/includes\("=F"\)/);
+    // The coin list that had to be edited every time a coin was added, and
+    // which never knew the `-USD` form the app's own pickers emit.
+    expect(src).not.toMatch(/\["BTC","ETH"/);
   });
 });
