@@ -123,6 +123,17 @@ export function SymbolSearch({ value, onChange, placeholder = "Search symbol…"
   const [open, setOpen] = useState(false);
   const [liveResults, setLiveResults] = useState<{ sym: string; label: string; cat: string }[]>([]);
   const [searching, setSearching] = useState(false);
+  /**
+   * Why the LIVE half of this dropdown is empty, when it is empty for a reason
+   * other than "no such ticker".
+   *
+   * `doSearch` used to `catch { /* ignore *\/ }` and read `json.results ?? []`,
+   * so a route that had answered 503 with the exact missing variable named
+   * rendered as "No results for ..." — a sentence about the MARKET, produced by
+   * a failure in this app. The trader's next move after those two messages is
+   * different, so they may not look the same.
+   */
+  const [liveFailure, setLiveFailure] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -161,19 +172,31 @@ export function SymbolSearch({ value, onChange, placeholder = "Search symbol…"
   // Debounced Polygon search
   const doSearch = useCallback((q: string) => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (q.length < 1) { setLiveResults([]); setSearching(false); return; }
+    if (q.length < 1) { setLiveResults([]); setLiveFailure(null); setSearching(false); return; }
     setSearching(true);
     timerRef.current = setTimeout(async () => {
       try {
         const res = await fetch(`/api/symbol-search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
-        const json = await res.json();
-        const hits = (json.results ?? []).slice(0, 8).map((r: { sym: string; label: string; cat: string }) => ({
+        const json = await res.json() as {
+          results?: { sym: string; label: string; cat: string }[];
+          error?: string;
+        };
+        if (json.error) {
+          setLiveResults([]);
+          setLiveFailure(json.error);
+          return;
+        }
+        const hits = (json.results ?? []).slice(0, 8).map((r) => ({
           sym: r.sym,
           label: r.label,
           cat: r.cat,
         }));
         setLiveResults(hits);
-      } catch { /* ignore */ }
+        setLiveFailure(null);
+      } catch (err) {
+        setLiveResults([]);
+        setLiveFailure(`Symbol search could not be reached (${String(err)}). Local symbols are still listed.`);
+      }
       finally { setSearching(false); }
     }, 300);
   }, []);
@@ -243,9 +266,22 @@ export function SymbolSearch({ value, onChange, placeholder = "Search symbol…"
               </span>
             </button>
           ))}
+          {/*
+            A failure to ASK is reported even when local symbols matched, because
+            otherwise a partial list looks like a complete one.
+          */}
+          {liveFailure && !searching && (
+            <div className="px-3 py-2 border-b border-wm-border/60 text-[9px] leading-relaxed text-wm-gold">
+              Live search unavailable — showing built-in symbols only. {liveFailure}
+            </div>
+          )}
           {query && allResults.length === 0 && !searching && (
             <div className="px-3 py-3 text-center">
-              <div className="text-wm-text-dim text-xs mb-1">No results for &ldquo;{query}&rdquo;</div>
+              <div className="text-wm-text-dim text-xs mb-1">
+                {liveFailure
+                  ? `No built-in symbol matches “${query}”`
+                  : `No results for “${query}”`}
+              </div>
               <button onMouseDown={() => pick(query.toUpperCase())} className="text-wm-blue text-xs hover:underline">
                 Use &ldquo;{query.toUpperCase()}&rdquo; anyway →
               </button>

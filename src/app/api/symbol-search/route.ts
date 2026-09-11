@@ -1,12 +1,31 @@
 /**
- * /api/symbol-search — Polygon.io ticker search
- * Covers stocks, ETFs, forex, crypto, indices, commodities, futures, meme coins.
+ * /api/symbol-search — ticker search across stocks, ETFs, forex, crypto,
+ * indices and futures.
  *
  * GET /api/symbol-search?q=bitcoin
- * GET /api/symbol-search?q=BTC&type=crypto
+ *
+ * ── Two vendors, on purpose (2026-09-11) ────────────────────────────────────
+ *
+ * Polygon is preferred and needs a key. Yahoo needs none, and is the fallback.
+ *
+ * This is not redundancy for its own sake. MEASURED on the live host:
+ * `POLYGON_KEY` is unset on the Cloudflare runtime, so this route returned 503
+ * for every query — symbol search was dead in production for every asset class
+ * at once, and the only fix was an owner action nobody had taken. A keyless
+ * vendor that covers the same six classes was one fetch away the entire time.
+ *
+ * A missing provider key is now a DEGRADATION (search still works, via a
+ * vendor the response names) instead of an OUTAGE. The 503 survives for the
+ * case where both vendors are gone, because "we cannot search" is still a
+ * sentence worth being able to say honestly.
  */
 
 import { NextResponse } from "next/server";
+import {
+  polygonCategory,
+  reconcileSearchCategory,
+  yahooQuoteTypeCategory,
+} from "@/lib/marketData/searchResultCategory";
 
 // WM-SEC-P0-05 (2026-08-08): prefer server-only POLYGON_KEY. NEXT_PUBLIC_
 // fallback stays as a transitional secondary so an in-flight rotation
@@ -36,16 +55,39 @@ type PolyTicker = {
   primary_exchange?: string;
 };
 
-function marketToCategory(market: string, type: string): string {
-  const m = market.toLowerCase();
-  const t = type.toLowerCase();
-  if (m === "crypto" || t === "crypto") return "Crypto";
-  if (m === "fx" || t === "fx" || t === "forex") return "Forex";
-  if (t === "etf") return "ETF";
-  if (t === "index" || t === "indices") return "Index";
-  if (t === "fund" || t === "mutual_fund") return "Fund";
-  if (m === "stocks" || t === "cs" || t === "common_stock" || t === "adrc") return "Stock";
-  return "Stock";
+type YahooQuote = {
+  symbol?: string;
+  shortname?: string;
+  longname?: string;
+  quoteType?: string;
+  exchange?: string;
+};
+
+type SearchHit = { sym: string; label: string; cat: string; exchange: string };
+
+/**
+ * Yahoo's keyless search. No API key, so this is reachable on any runtime, in
+ * any environment, without an owner first provisioning a secret.
+ */
+async function yahooSearch(q: string): Promise<SearchHit[]> {
+  const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=20&newsCount=0`;
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Yahoo ${res.status}`);
+  const json = (await res.json()) as { quotes?: YahooQuote[] };
+  return (json.quotes ?? [])
+    .filter((r): r is YahooQuote & { symbol: string } => Boolean(r.symbol))
+    .map((r) => ({
+      sym: r.symbol,
+      label: r.shortname ?? r.longname ?? r.symbol,
+      cat: reconcileSearchCategory(r.symbol, yahooQuoteTypeCategory(r.quoteType)),
+      exchange: r.exchange ?? "",
+    }));
 }
 
 export async function GET(request: Request) {
@@ -53,37 +95,58 @@ export async function GET(request: Request) {
   const q = (searchParams.get("q") ?? "").trim();
   if (!q) return NextResponse.json({ results: [] });
 
-  if (!POLYGON_KEY) {
-    // Monday Test 2 truth: name the exact missing var and use 503 (config gap)
-    // instead of a generic 500 (server error). Presence-only.
-    return NextResponse.json(
-      {
-        error: "Symbol search is NOT CONFIGURED on this host runtime — missing required variable: POLYGON_KEY (server-only) or NEXT_PUBLIC_POLYGON_KEY. Set POLYGON_KEY in the host runtime secrets (e.g. Cloudflare) and redeploy.",
-        edge: "NOT CONFIGURED",
-        missing: ["POLYGON_KEY"],
-      },
-      { status: 503 },
-    );
+  if (POLYGON_KEY) {
+    try {
+      // Search across all markets
+      const url = `https://api.polygon.io/v3/reference/tickers?search=${encodeURIComponent(q)}&active=true&limit=20&apiKey=${POLYGON_KEY}`;
+      const json = (await polyFetch(url)) as { results?: PolyTicker[]; error?: string };
+
+      if (!json.error) {
+        const results: SearchHit[] = (json.results ?? []).map((r: PolyTicker) => ({
+          sym: r.ticker,
+          label: r.name,
+          cat: reconcileSearchCategory(r.ticker, polygonCategory(r.market, r.type)),
+          exchange: r.primary_exchange ?? r.market ?? "",
+        }));
+        // An empty Polygon result set is an ANSWER ("no such ticker"), not a
+        // failure, so it is returned rather than retried against Yahoo.
+        return NextResponse.json({ results, vendor: "polygon" });
+      }
+      // Polygon answered with an error (bad/expired/over-quota key). Fall
+      // through: the trader's question is still answerable.
+    } catch {
+      // Network or HTTP failure. Same reasoning — fall through.
+    }
   }
 
   try {
-    // Search across all markets
-    const url = `https://api.polygon.io/v3/reference/tickers?search=${encodeURIComponent(q)}&active=true&limit=20&apiKey=${POLYGON_KEY}`;
-    const json = await polyFetch(url) as { results?: PolyTicker[]; error?: string };
-
-    if (json.error) {
-      return NextResponse.json({ error: json.error }, { status: 400 });
-    }
-
-    const results = (json.results ?? []).map((r: PolyTicker) => ({
-      sym:      r.ticker,
-      label:    r.name,
-      cat:      marketToCategory(r.market, r.type),
-      exchange: r.primary_exchange ?? r.market ?? "",
-    }));
-
-    return NextResponse.json({ results });
+    const results = await yahooSearch(q);
+    return NextResponse.json({
+      results,
+      vendor: "yahoo",
+      // Named so a caller can tell "this is the backup vendor" from "this is
+      // the one we prefer" without inferring it from the shape of the data.
+      degraded: POLYGON_KEY
+        ? "Polygon search did not answer; these results are from Yahoo, which needs no key."
+        : "POLYGON_KEY is not set on this host runtime; these results are from Yahoo, which needs no key.",
+    });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    // BOTH vendors are gone. This is the only case that is still an outage,
+    // and it says which two things failed rather than naming one variable.
+    return NextResponse.json(
+      {
+        // "NOT CONFIGURED" is a RESERVED edge state in this repo, carrying the
+        // `{edge, missing}` contract an inspector renders — see
+        // supabaseConfigStatus.enforcement.test.ts, which caught this sentence
+        // using the reserved token as prose. This route no longer HAS that
+        // state: an unset key is a degradation now, not an outage, so the
+        // phrase is deliberately lowercase here.
+        error:
+          `Symbol search is UNAVAILABLE: Polygon is ${POLYGON_KEY ? "configured but did not answer" : "not configured (POLYGON_KEY is unset)"}, and the keyless Yahoo fallback also failed (${String(err)}).`,
+        edge: "UNAVAILABLE",
+        vendorsTried: ["polygon", "yahoo"],
+      },
+      { status: 503 },
+    );
   }
 }
