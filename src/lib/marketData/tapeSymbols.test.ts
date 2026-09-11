@@ -15,6 +15,7 @@ import {
   withTapeSymbol,
   withoutTapeSymbol,
 } from "./tapeSymbols";
+import { toYahooSymbol } from "@/lib/yahooSymbol";
 
 describe("tapeSymbols — the stored tape survives a reload", () => {
   it("keeps a symbol the default list has never heard of", () => {
@@ -107,12 +108,39 @@ describe("tapeSymbols — the tape does not offer what it cannot serve", () => {
   it("THE MEASURED FAILURE: a suggested pair sat at 'quote pending' forever", () => {
     // Measured in the running app with stored ["AAPL","EUR/USD"]:
     //   AAPL     320.01  -8.20 (-2.50%)
-    //   EUR/USD  quote pending          <- and always would be
-    // The add field offered EUR/USD; the fetcher silently dropped every symbol
-    // containing "/" via an uncommented filter; fetchQuote has no forex branch
-    // at all. "Pending" promised a request that was never sent.
-    expect(tapeQuoteBlocker("EUR/USD")).toBe("no forex feed on the tape");
-    expect(TAPE_SYMBOL_SUGGESTIONS).not.toContain("EUR/USD");
+    //   EUR/USD  quote pending          <- a request that was never sent
+    // Naming that boundary was right. The REASON attached to it was not.
+    expect(tapeQuoteBlocker("EUR/USD")).toBeNull();
+    expect(TAPE_SYMBOL_SUGGESTIONS).toContain("EUR/USD");
+  });
+
+  it("THE SECOND FAILURE: the tape disowned a feed that already worked", () => {
+    // `03deb2c` (09-07) wrote "no forex feed on the tape" from fetchQuote's
+    // branch shape. `b90886f` (09-06) had already taught the resolver
+    // EUR/USD -> EURUSD=X. The notice was one day younger than the capability.
+    //
+    // Measured against the running route, every offered pair RESOLVED/OBSERVED
+    // with a real prevClose — USD/JPY 154.468994 at 3.7s old, while the US
+    // equity session was closed and FX was the class actually trading.
+    for (const pair of ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD"]) {
+      expect(tapeQuoteBlocker(pair), pair).toBeNull();
+      expect(TAPE_SYMBOL_SUGGESTIONS, pair).toContain(pair);
+    }
+  });
+
+  it("SENTINEL: every offered pair resolves through the REAL resolver", () => {
+    // Driven against `toYahooSymbol` itself rather than asserting literals.
+    // A test that hard-codes "EURUSD=X" keeps passing on the day the resolver
+    // loses FX — which is precisely how the last notice came to be false. If
+    // the resolver stops answering a pair, the menu offering it fails HERE.
+    for (const pair of ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD"]) {
+      expect(toYahooSymbol(pair), pair).toMatch(/=X$/);
+    }
+    // Running the real resolver inherits its precedence for free — both of
+    // these carry a slash and neither is a currency pair. The character match
+    // this replaced got both wrong.
+    expect(toYahooSymbol("BTC/USD")).not.toMatch(/=X$/);
+    expect(toYahooSymbol("XAU/USD")).toBe("GC=F");
   });
 
   it("offers nothing the tape cannot quote — the menu matches the kitchen", () => {
@@ -132,10 +160,10 @@ describe("tapeSymbols — the tape does not offer what it cannot serve", () => {
     }
   });
 
-  it("blocks a pair the trader types himself, not just a suggested one", () => {
-    // He can still ADD it — the tape is his list (§24). What changes is that
-    // the row tells the truth about it instead of promising a quote.
-    expect(tapeQuoteBlocker("gbp/usd")).toBe("no forex feed on the tape");
+  it("serves a pair the trader types himself, not just a suggested one", () => {
+    // The tape is his list (§24) — a typed pair is normalized and kept, and now
+    // it is also QUOTED rather than answered with a confident false reason.
+    expect(tapeQuoteBlocker("gbp/usd")).toBeNull();
     expect(withTapeSymbol(["AAPL"], "gbp/usd")).toEqual(["AAPL", "GBP/USD"]);
   });
 
