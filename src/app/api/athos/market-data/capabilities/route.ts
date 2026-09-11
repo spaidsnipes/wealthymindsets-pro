@@ -6,8 +6,8 @@ import { probeAlpacaMarketData } from "../../../../../lib/marketData/adapters/al
 import { certifyTastytradeMarketData } from "../../../../../lib/marketData/adapters/tastytradeMarketData";
 import {
   buildAthosCapabilityMatrix,
+  deriveSessionTruth,
   type AthosCapabilityMatrix,
-  type SessionTruth,
 } from "../../../../../lib/marketData/canonicalCapabilityResolver";
 import { resolveAlpacaLiveCredentials } from "../../../../../lib/broker/alpacaCredentials";
 import { getTastytradeCapabilities } from "../../../../../lib/tastytrade";
@@ -16,18 +16,20 @@ import { probeLongbridgeMarketData } from "../../../../../lib/marketData/adapter
 /**
  * ATHOS capability matrix — one canonical decision per market-data capability.
  *
- * Session remains UNKNOWN until the canonical exchange-calendar owner is wired;
- * provider connectivity must never be promoted into session truth.
+ * Session is resolved by the canonical closure owner (`deriveSessionTruth` →
+ * `provenSessionClosure`), not by a literal in this file. Provider
+ * connectivity must never be promoted into session truth: a provider
+ * answering us is evidence about the PROVIDER, not about the exchange.
  */
 export const dynamic = "force-dynamic";
 
 async function buildMatrix(): Promise<AthosCapabilityMatrix> {
-  const generatedAt = new Date().toISOString();
-  const session: SessionTruth = {
-    state: "UNKNOWN",
-    asOf: generatedAt,
-    reason: "canonical exchange-calendar session owner is not wired to this endpoint yet",
-  };
+  const now = new Date();
+  const generatedAt = now.toISOString();
+  // Session truth is DERIVED from the canonical closure owner, never typed
+  // here. See deriveSessionTruth for the account of what a hard-coded
+  // "UNKNOWN" literal cost this endpoint.
+  const session = deriveSessionTruth(now, generatedAt);
   const alpacaCredentials = resolveAlpacaLiveCredentials();
   const [moomoo, webull, alpaca, longbridge, tastytradeObservation] = await Promise.all([
     probeMoomooMarketData(fetch, {

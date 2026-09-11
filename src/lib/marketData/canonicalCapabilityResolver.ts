@@ -15,6 +15,7 @@ import {
   type DataCapability,
   type SourceCertification,
 } from "./sourceCapabilityCertification";
+import { provenSessionClosure } from "./canonicalIdentity";
 
 export const CAPABILITY_MATRIX_SCHEMA_VERSION = "wm.capability-matrix.v1" as const;
 
@@ -30,6 +31,74 @@ export interface SessionTruth {
   readonly state: MarketSessionState;
   readonly asOf: string;
   readonly reason: string;
+}
+
+/**
+ * The instrument that stands for "the US cash market" when a surface reports
+ * on the market as a whole rather than on one symbol.
+ *
+ * Chosen to match `selectUsCashSessionBarLabel`, which already uses SPY for
+ * exactly this purpose. Two surfaces answering the same question must not pick
+ * two different proxies, or they will disagree on a holiday calendar later.
+ */
+const US_CASH_MARKET_PROXY = "SPY" as const;
+
+/**
+ * Derive session truth from the canonical closure owner.
+ *
+ * WHAT THIS REPLACES, AND WHY IT MATTERED (2026-09-11).
+ *
+ * `/api/athos/market-data/capabilities` built its `SessionTruth` by typing a
+ * literal into the route:
+ *
+ *     const session = { state: "UNKNOWN", asOf: generatedAt,
+ *       reason: "canonical exchange-calendar session owner is not wired to
+ *                this endpoint yet" };
+ *
+ * That reason was TRUE WHEN WRITTEN and quietly stopped being true. The
+ * codebase does hold a closure owner — `provenSessionClosure()` — and the
+ * user-visible surfaces already consult it: the bottom index bar via
+ * `selectUsCashSessionBarLabel`, the phone header and /charts via
+ * `selectCanonicalSessionToken`. The endpoint alone kept answering from a
+ * constant, on every one of its eleven capability rows.
+ *
+ * The cost is a one-app contradiction, and it only appears on the days the
+ * owner can actually prove something. On a Saturday /charts prints
+ * "US CASH SESSION · CLOSED" while this endpoint — the surface ATHOS reads —
+ * reports `UNKNOWN` and blames a missing owner that is imported two modules
+ * away. Nothing throws; `tsc --noEmit` stays at exit 0, because a hard-coded
+ * object literal is type-correct no matter what the repo knows. It is the same
+ * defect class as the retyped broker list in `/api/broker/status` and the dead
+ * `.vercel.app` suffix in the middleware: one side restates what another side
+ * owns, and the restatement cannot drift-check itself.
+ *
+ * WHAT IS DELIBERATELY *NOT* FIXED HERE.
+ *
+ * `UNKNOWN` on a Tuesday remains correct and must stay. This codebase holds no
+ * INTRADAY exchange calendar, so it cannot separate PRE_MARKET / OPEN /
+ * AFTER_HOURS at 11am, and inventing `OPEN` from "a provider answered us" is
+ * precisely the promotion of connectivity into session truth that the module
+ * header forbids. The repair is narrow: stop hard-coding the shrug, and let
+ * the owner sharpen it on the days it can. A future holiday calendar lands in
+ * `provenSessionClosure` and reaches this endpoint for free.
+ */
+export function deriveSessionTruth(at: Date | null, asOf: string): SessionTruth {
+  // `=== false` and not a truthiness test: provenSessionClosure returns
+  // `false | null`, and `null` must never be read as "open".
+  if (at && provenSessionClosure(US_CASH_MARKET_PROXY, at) === false) {
+    return {
+      state: "CLOSED",
+      asOf,
+      reason: "US cash market closure is established for this calendar day",
+    };
+  }
+  return {
+    state: "UNKNOWN",
+    asOf,
+    reason:
+      "no intraday exchange calendar — closure is not established for this " +
+      "calendar day, and provider connectivity is never promoted into session truth",
+  };
 }
 
 export type ProviderTier = "CERTIFIED_NEW" | "CANONICAL" | "LEGACY" | "MOCK";
