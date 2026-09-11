@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
 import { describe, it, expect } from "vitest";
 import { stripComments } from "@/lib/sourceScan";
@@ -92,6 +92,34 @@ describe("host-neutrality lock — bound Vercel coupling (migration portability)
       offenders,
       `HOST ASSUMPTION: these modules read process.env.VERCEL* — a Vercel-only runtime ` +
         `signal that will be undefined on another host:\n  ${offenders.join("\n  ")}`,
+    ).toEqual([]);
+  });
+
+  /**
+   * THE FOURTH MECHANISM — host config that is not code at all (2026-09-11).
+   *
+   * The locks in this file scan `src/`. A repository can also declare its host
+   * in a file no scanner reads: `vercel.json` sat at the repo root declaring
+   * `framework`, `installCommand` and `buildCommand` for a platform that has
+   * not built this app since the Cloudflare cutover. Nothing imported it, so
+   * every src-scanning lock was green; nothing executed it, so nothing failed.
+   * It was a build instruction for a host that no longer builds us — the kind
+   * of artifact that makes a future engineer believe there are two deploy
+   * targets and reason about the wrong one.
+   *
+   * Deployment is declared by `wrangler.jsonc` + `open-next.config.ts` and the
+   * `deploy:cf` script. One host, one set of instructions.
+   */
+  it("no retired-host deployment config sits at the repo root", () => {
+    const strays = ["vercel.json", ".vercelignore", "now.json"].filter((f) =>
+      existsSync(join(REPO_ROOT, f)),
+    );
+    expect(
+      strays,
+      `RETIREMENT DEBT: these files instruct a retired host how to build this app. ` +
+        `Deployment is declared by wrangler.jsonc + open-next.config.ts. A build ` +
+        `instruction for a host that no longer builds us is not portability, it is a ` +
+        `second imagined deploy target:\n  ${strays.join("\n  ")}`,
     ).toEqual([]);
   });
 
