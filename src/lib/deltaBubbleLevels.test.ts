@@ -222,3 +222,95 @@ describe("ranking is deterministic and capped", () => {
     expect([...mags].sort((a, b) => b - a)).toEqual(mags);
   });
 });
+
+/**
+ * THE BOTH-SIDES GUARANTEE — the module's own documented contract.
+ *
+ * `computeDeltaBubbleLevels` promises "guaranteed buy + sell leaders so every
+ * active bar shows both sides". Nothing tested that sentence, and it was false.
+ *
+ * The leaders were inserted into `picked` AFTER the threshold picks had already
+ * been trimmed to `limit`, so the final `.slice(0, limit)` — which ranks by
+ * |delta| desc — could evict the level the guarantee had just forced in. It did
+ * so exactly on the one-sided bar the guarantee exists for, because the lone
+ * opposing level has, by construction, the smallest |delta| on such a bar.
+ *
+ * Nothing threw and tsc stayed at exit 0: the output was a well-formed array of
+ * the right length. The only symptom was a sell bubble that never appeared, and
+ * a bubble that is never drawn is indistinguishable, on the chart, from flow
+ * that never happened. Same shape as the vocabulary-drift defect on the deck.
+ *
+ * These cases pin BOTH directions: the leaders must survive the trim, and the
+ * fix must not start inventing a side that has no flow at all.
+ */
+describe("delta bubbles — both-sides guarantee survives the cap", () => {
+  /** Five buckets of heavy buying and one lone seller — the defect's own shape. */
+  const oneSidedBuyTicks = [
+    tick(150.00, 0, 100),
+    tick(150.01, 0, 100),
+    tick(150.02, 0, 100),
+    tick(150.03, 0, 100),
+    tick(150.04, 0, 100),
+    tick(150.05, 10, 0), // the lone opposing print
+  ];
+
+  it("keeps the lone seller on an overwhelmingly one-sided buy bar", () => {
+    // Before the fix this returned [100, 100, 100, 100, 100] — five buy
+    // bubbles and no sell bubble, at the trader's default cap.
+    const levels = computeDeltaBubbleLevels(oneSidedBuyTicks, 150.00, 150.05, 150, 5);
+    expect(levels.some((l) => l.delta < 0)).toBe(true);
+    expect(levels.some((l) => l.delta > 0)).toBe(true);
+  });
+
+  it("keeps the lone buyer on the mirrored one-sided sell bar", () => {
+    // Mirrored so the fix cannot be a special case that only helps sellers.
+    const mirrored = oneSidedBuyTicks.map((t) => tick(t.price, t.ask, t.bid));
+    const levels = computeDeltaBubbleLevels(mirrored, 150.00, 150.05, 150, 5);
+    expect(levels.some((l) => l.delta > 0)).toBe(true);
+    expect(levels.some((l) => l.delta < 0)).toBe(true);
+  });
+
+  it("holds the guarantee at every cap the trader can actually pick", () => {
+    // The preference offers 5/7/10/15. The defect fired at all of them,
+    // because the opposing level loses on |delta| rank regardless of cap.
+    for (const cap of [5, 7, 10, 15]) {
+      const levels = computeDeltaBubbleLevels(oneSidedBuyTicks, 150.00, 150.05, 150, cap);
+      expect(levels.some((l) => l.delta < 0), `cap ${cap} lost the sell side`).toBe(true);
+    }
+  });
+
+  it("never returns more levels than the cap", () => {
+    // ANTI-OVERCORRECTION: reserving two slots must not let the result exceed
+    // the trader's cap. A guarantee that leaks past the limit is a new defect.
+    for (const cap of [1, 2, 5, 7]) {
+      const levels = computeDeltaBubbleLevels(oneSidedBuyTicks, 150.00, 150.05, 150, cap);
+      expect(levels.length, `cap ${cap} overflowed`).toBeLessThanOrEqual(cap);
+    }
+  });
+
+  it("invents no sell side on a bar where nothing sold", () => {
+    // ANTI-VACUITY: the guarantee is "show both sides WHEN both sides traded",
+    // not "always print a sell bubble". A fix that fabricated one would pass
+    // every test above while lying about the tape.
+    const allBuy = [tick(150.00, 0, 50), tick(150.02, 0, 80), tick(150.04, 0, 30)];
+    const levels = computeDeltaBubbleLevels(allBuy, 150.00, 150.05, 150, 5);
+    expect(levels.length).toBeGreaterThan(0);
+    expect(levels.every((l) => l.delta > 0)).toBe(true);
+  });
+
+  it("at cap 1 shows the stronger side rather than dropping both", () => {
+    // One slot cannot hold two sides. The honest answer is the dominant flow,
+    // and it must still be exactly one level — not zero, not two.
+    const levels = computeDeltaBubbleLevels(oneSidedBuyTicks, 150.00, 150.05, 150, 1);
+    expect(levels).toHaveLength(1);
+    expect(levels[0]!.delta).toBeGreaterThan(0);
+  });
+
+  it("still yields identical output for identical input", () => {
+    // Reserving slots must not make the result order-dependent — bubbles that
+    // reshuffle between frames on unchanged data would read as fake motion.
+    const a = computeDeltaBubbleLevels(oneSidedBuyTicks, 150.00, 150.05, 150, 5);
+    const b = computeDeltaBubbleLevels(oneSidedBuyTicks, 150.00, 150.05, 150, 5);
+    expect(a).toEqual(b);
+  });
+});

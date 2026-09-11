@@ -211,11 +211,24 @@ export function computeDeltaBubbleLevels(
   // Keyed by bucket index, never by the price. See the header: a rounded price
   // is a display value, and using one as an identity silently merged buckets.
   const picked = new Map<number, DeltaBubbleLevel>();
-  for (const l of levels.filter((x) => Math.abs(x.delta) >= threshold).sort(rank).slice(0, limit)) {
-    picked.set(l.levelIdx, l);
-  }
 
   // Guaranteed buy + sell leaders so every active bar shows both sides.
+  //
+  // These claim their slots FIRST. They used to be added AFTER the threshold
+  // picks had already been trimmed to `limit`, which meant the final
+  // `.slice(0, limit)` could evict the very level the guarantee had just
+  // forced in — and it did so precisely on the bar the guarantee exists for.
+  //
+  // On a one-sided bar (five buckets at delta +100, one lone seller at -10,
+  // cap 5) the five buys clear the average-|delta| threshold, `topSell` is
+  // inserted as the sixth entry, and the trim then ranks by |delta| desc and
+  // drops it. The chart showed five buy bubbles and no sell bubble.
+  //
+  // That lone opposing print is not noise to be trimmed — on a one-sided bar
+  // it IS the absorption/rejection evidence, the only mark that someone was
+  // willing to take the other side. Ranking it against the flow that
+  // overwhelmed it guarantees it loses, which is why it needs a reserved slot
+  // rather than a good rank.
   const topBuy = levels.filter((l) => l.delta > 0)
     .sort((a, z) => z.delta - a.delta || a.priceLevel - z.priceLevel)[0];
   const topSell = levels.filter((l) => l.delta < 0)
@@ -223,5 +236,14 @@ export function computeDeltaBubbleLevels(
   if (topBuy) picked.set(topBuy.levelIdx, topBuy);
   if (topSell) picked.set(topSell.levelIdx, topSell);
 
+  // Fill the remaining slots with the above-average zones, best-ranked first.
+  for (const l of levels.filter((x) => Math.abs(x.delta) >= threshold).sort(rank)) {
+    if (picked.size >= limit) break;
+    picked.set(l.levelIdx, l);
+  }
+
+  // At cap 1 both sides cannot be shown; the stronger side wins, which is the
+  // only honest answer in one slot. The guarantee holds for every real cap
+  // (5/7/10/15) because two reserved slots always fit.
   return [...picked.values()].sort(rank).slice(0, limit);
 }
