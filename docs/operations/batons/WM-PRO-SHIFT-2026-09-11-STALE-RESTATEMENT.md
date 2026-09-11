@@ -260,3 +260,136 @@ thing that had gone stale.
 Verification for every commit in this baton: `vitest run` and `tsc --noEmit`,
 both **unpiped** — a pipe masks the exit code. Final state: **500 files, 5625
 tests, exit 0; `tsc --noEmit` exit 0.**
+
+---
+
+# ADDENDUM — instances five, six and seven (`be87e41`, `cfdc1c0`, `6ce3853`)
+
+The baton above was sealed after four instances. Sweeping every consumer of one
+owner — `selectAggressorFlow` — turned up three more, and they are the most
+instructive of the shift, because they show the class getting **worse as it
+moves inward**: from a rendered pixel, to a typed seam, to a sealed fact.
+
+## The seam variant — a consumer restates what an owner publishes, MINUS the qualifier
+
+`selectAggressorFlow` publishes `provenance: "PROVIDER" | "INFERRED" | "MIXED" |
+"UNDISCLOSED"` — how the aggressor side of each print was established. Per
+provider: coinbase/binance `MAKER_SIDE_INVERTED` (conf 1), webull/moomoo
+`PROVIDER` (conf 1), **alpaca relay `TICK_RULE` (conf 0.5)**.
+
+No rendering surface read it. On a live US equity chart, a tick-rule guess was
+wearing the exact chrome a venue-asserted Coinbase aggressor gets. That is
+certainty manufactured **by omission** at a type boundary.
+
+**Fix:** one owner for the disclosure words —
+`src/lib/marketData/aggressorProvenanceNote.ts` — imported by both
+`OrderFlowCockpitStrip` and `SmartMoneyPanel`. The words describe the FACT, not
+either component's chrome, so they live in `lib/`, beside the type. A
+component→component import would have pointed the arrow the wrong way; retyping
+them would have been the very drift the atom exists to kill.
+
+## Instance five — `SmartMoneyPanel` restated the selector's SHAPE three times
+
+An `interface Flow` with ten hand-typed members; a field-by-field object
+projection; and a zeroed `{ hasFlow: false, askVol: 0, ... }` literal for the
+no-tape case. **The panel's own in-file comment recorded that this had already
+cost a live defect**: the selector gained `oneSided` — the honest signal that a
+zero-volume opposing side makes the ratio UNBOUNDED, not 3:1 — and the panel did
+not receive it, painting the `300` sentinel as a measured ratio. It would have
+happened a second time on `provenance`.
+
+> A retyped list is not a shape. It is a snapshot of a shape, taken on the day
+> someone typed it.
+
+**Cure is structural, not vigilant:** `interface Flow extends
+AggressorFlowSnapshot` plus `...selectAggressorFlow(realTape ? recentTicks :
+null, ...)`. The empty case is expressed by giving the selector **nothing**, not
+by typing a zeroed twin — the selector already owns its own empty answer, and
+stamps `provenance: "UNDISCLOSED"` on it, which a hand-typed literal would not.
+The owner adds a field; every consumer has it; there is no list anywhere to
+forget.
+
+## Instance seven — the DURABLE variant (`6ce3853`)
+
+`deriveOrderFlowDimension` does not merely paint the flow; it **seals** it into
+`CanonicalMarketState` as a decision-grade dimension other surfaces then trust.
+Forty classified trades earned `RESOLVED` / `confidence: 0.75` /
+`fidelity: "DERIVED"` / **`unknowns: []`** — which is not silence but an
+affirmative claim that nothing about the verdict is unknown. Every one of those
+forty sides was an Alpaca tick-rule reconstruction. The sealed Passport claimed
+more certainty than its own source claims *per print*, in a field whose only
+input was volume.
+
+Three corrections, all sourced from the flow's own `provenance`:
+
+1. **`confidence` is capped by method** (PROVIDER 1, INFERRED/MIXED 0.5,
+   UNDISCLOSED 0.35). More prints narrow a heuristic's sampling error; they do
+   not turn the heuristic into an observation. There is no independent
+   observation anywhere in the chain to raise it.
+2. **`fidelity` is `INFERRED`, not `DERIVED`.** `MarketFidelityClass` has
+   published that distinction all along; the bridge hard-coded past it.
+3. **`unknowns` carries the disclosure even when RESOLVED**, and the evidence
+   `basis` names the method.
+
+The verdict STRING is deliberately unchanged. **Direction is what the tape says;
+provenance is how well it says it.** Hedging "AGGRESSIVE BUY DOMINANT" would
+hide a real observation — the opposite error, and equally forbidden.
+
+## Two new rules, both learned by being caught
+
+**1. Prose pins a guard green.** My own adoption guard matched the bare module
+path `@/lib/marketData/aggressorProvenanceNote`. The first Orkin revive deleted
+the import outright — and the guard **passed**, because a nearby *code comment*
+I had written contained the path. A guard must match the real edge:
+`from "<path>"`. Two of this shift's earlier stale restatements had survived
+inside their own test files by the same mechanism.
+
+**2. A fixture that names a provider must supply that provider's method.**
+`deriveOrderFlowDimension.test.ts` named `source: "coinbase"` in every fixture
+while its `tradeTick` helper supplied no `aggressorMethod` at all — so the
+selector honestly resolved `UNDISCLOSED` beneath assertions that read as though
+a venue had asserted the side. The defect class *inside its own test*. The
+helper now defaults to coinbase's real `MAKER_SIDE_INVERTED`, so the two
+pre-existing assertions hold because the fixture means what it says — **not**
+because they were loosened.
+
+## The revive ledger — the evidence that matters
+
+| # | Defect revived | `tsc --noEmit` | Guards failing |
+|---|---|---|---|
+| 1 | Disclosure words retyped in the second surface | **exit 0** | 2, by name |
+| 2 | Shape retyped, consumer still reads `provenance` | exit 2 | (type error) |
+| 3 | Shape retyped **and** no consumer — the historical state that let `oneSided` drift | **exit 0** | 4, by name |
+| 4 | Count-only confidence + hard-coded `DERIVED` + empty `unknowns` | **exit 0** | 6, by name |
+
+Row 2 is the honest caveat and row 3 is the answer to it: the type system
+catches this class **only while somebody is still reading the dropped field**.
+The moment the last consumer goes, `tsc` goes silent — which is precisely the
+condition under which the drift occurred historically. Row 4 makes the point
+sharpest: `tsc` tolerated even an unused `provenance` parameter on a function
+that had stopped consulting it.
+
+All four revives restored **byte-identical** (`cp` from `/tmp`, `diff` clean).
+
+## Sweep closing the nest
+
+Every other consumer of `selectAggressorFlow` was checked and is clean, with the
+reasoning recorded so the next sweep does not redo it:
+
+- **`deriveVolatilityDimension`** reads only `price` from the tick. A print's
+  price is observed regardless of who lifted it, so `DERIVED` is honest there.
+- **`ChartsDashboard.tsx:652`** and **`command-deck/page.tsx:1162`** read only
+  the `hasFlow` boolean — a presence claim, carrying no certainty qualifier.
+  Neither restates a shape.
+
+## State at addendum seal
+
+- Commits on `main`: `be87e41`, `cfdc1c0`, `6ce3853`.
+- **502 files, 5659 tests, exit 0; `tsc --noEmit` exit 0.**
+- **NOT LIVE.** CI is Sentinels-only; there is no auto-deploy. Every fix in this
+  baton is green on `main` and none of it is in front of a trader until
+  `npm run deploy:cf` runs. That requires `wrangler login` in an interactive
+  terminal, or `CLOUDFLARE_API_TOKEN` — **the top blocker, and a Founder
+  action.** Last checked: `wrangler whoami` → "Not logged in. Your auth token
+  has expired and could not be refreshed, and the environment is
+  non-interactive."
