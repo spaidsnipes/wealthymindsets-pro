@@ -91,6 +91,21 @@ export interface OptionsSourceReceipt {
   fidelity: OptionChainFidelity | "UNKNOWN";
   coverage: "COMPLETE" | "PARTIAL" | "UNKNOWN";
   newestProviderTimestamp: string | null;
+  /**
+   * The REVIEWED identity, carried from `capabilityRegistry` by the producer.
+   *
+   * `source`/`fidelity` above are the producer's own vocabulary — they say WHO
+   * spoke and HOW GOOD the number is. They do not say WHAT WE MAY DO WITH IT.
+   * These two fields do, and they are the reason a downstream surface can ask
+   * "may we retain this?" and get a reviewed answer rather than silence.
+   *
+   * `null` means the registry could not resolve the producer. The producer's
+   * doc comment has always promised that is an honest UNKNOWN which "must fail
+   * closed at the gate, exactly like an UNKNOWN right" — `sourceReceipt` below
+   * is the gate that finally keeps that promise.
+   */
+  providerPath: string | null;
+  rightsPolicyId: string | null;
 }
 
 export interface OptionsReceiptAge {
@@ -145,26 +160,54 @@ export function optionContractObservationTiming(
 type OptionsReadResult = { ok: true; contracts: OptionContract[]; receipt: OptionsSourceReceipt }
   | { ok: false; failure: OptionsReadFailure };
 
+/** One spelling of "we could not verify this chain", so no caller has to
+ * reconstruct the fail-closed shape and risk getting a field wrong. */
+export const UNREVIEWED_RECEIPT: OptionsSourceReceipt = {
+  source: "unknown",
+  fidelity: "UNKNOWN",
+  coverage: "UNKNOWN",
+  newestProviderTimestamp: null,
+  providerPath: null,
+  rightsPolicyId: null,
+};
+
+function reviewedString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
 function sourceReceipt(data: unknown): OptionsSourceReceipt {
   const envelope = data && typeof data === "object" && !Array.isArray(data)
     ? data as Record<string, unknown>
     : null;
   if (envelope?.source !== OPTION_CHAIN_SOURCE || envelope.fidelity !== OPTION_CHAIN_FIDELITY
       || (envelope.coverage !== "COMPLETE" && envelope.coverage !== "PARTIAL")) {
-    return { source: "unknown", fidelity: "UNKNOWN", coverage: "UNKNOWN", newestProviderTimestamp: null };
+    return UNREVIEWED_RECEIPT;
   }
   const timestamp = typeof envelope.newestProviderTimestamp === "string"
     && Number.isFinite(Date.parse(envelope.newestProviderTimestamp))
     ? envelope.newestProviderTimestamp
     : null;
-  if (!timestamp) {
-    return { source: "unknown", fidelity: "UNKNOWN", coverage: "UNKNOWN", newestProviderTimestamp: null };
-  }
+  if (!timestamp) return UNREVIEWED_RECEIPT;
+
+  // THE GATE THE PRODUCER'S DOC COMMENT ALREADY PROMISED. A chain whose
+  // producer the rights registry cannot resolve is travelling ANONYMOUSLY: the
+  // trader would be shown quoted values, and could form an intent against
+  // them, while "may we retain / redistribute / train on this?" has no
+  // reviewed answer at all. That is not the same as an UNKNOWN right — an
+  // UNKNOWN right is a reviewed refusal. This is silence, and silence must
+  // fail closed or it will read as a grant the moment anything downstream
+  // treats "no objection recorded" as "no objection".
+  const providerPath = reviewedString(envelope.providerPath);
+  const rightsPolicyId = reviewedString(envelope.rightsPolicyId);
+  if (!providerPath || !rightsPolicyId) return UNREVIEWED_RECEIPT;
+
   return {
     source: OPTION_CHAIN_SOURCE,
     fidelity: OPTION_CHAIN_FIDELITY,
     coverage: envelope.coverage,
     newestProviderTimestamp: timestamp,
+    providerPath,
+    rightsPolicyId,
   };
 }
 

@@ -5,6 +5,15 @@ import {
   optionsReceiptAge,
   readOptionsResponse as readOptionsResponseForUnderlying,
 } from "./optionsChainRead";
+import { getOptionChainCapability } from "./marketData/capabilityRegistry";
+
+/**
+ * DERIVED from the rights registry, never retyped. These stand in for what the
+ * real producer attaches, so if the registry entry is renamed or removed these
+ * fixtures move with it instead of asserting a fossil.
+ */
+const REVIEWED_PROVIDER = getOptionChainCapability()!.providerPath;
+const REVIEWED_RIGHTS = getOptionChainCapability()!.rightsPolicyId;
 
 const contract = { symbol: "TSLA260918C00350000", contractType: "call", expirationDate: "2026-09-18", strike: 350, bid: 2.1, ask: 2.3, volume: 37 };
 const observedContract = { ...contract, quoteTimestamp: "2026-09-09T19:59:59Z" };
@@ -107,19 +116,47 @@ describe("options chain failed-edge projection", () => {
     const result = await readOptionsResponse(response(200, { chain: [contract] }));
     expect(result).toEqual({ ok: true, contracts: [contract], receipt: {
       source: "unknown", fidelity: "UNKNOWN", coverage: "UNKNOWN", newestProviderTimestamp: null,
+      providerPath: null, rightsPolicyId: null,
     } });
     expect(JSON.stringify(result)).not.toMatch(/certified|live|entitlement|last/);
   });
 
   it("accepts only an exact Alpaca indicative source receipt", async () => {
     const result = await readOptionsResponse(response(200, {
-      source: "alpaca", fidelity: "INDICATIVE", coverage: "PARTIAL",
+      source: "alpaca", providerPath: REVIEWED_PROVIDER, rightsPolicyId: REVIEWED_RIGHTS, fidelity: "INDICATIVE", coverage: "PARTIAL",
       newestProviderTimestamp: "2026-09-09T19:59:59Z", chain: [observedContract],
     }));
     expect(result).toEqual({ ok: true, contracts: [observedContract], receipt: {
-      source: "alpaca", fidelity: "INDICATIVE", coverage: "PARTIAL",
+      source: "alpaca", providerPath: REVIEWED_PROVIDER, rightsPolicyId: REVIEWED_RIGHTS, fidelity: "INDICATIVE", coverage: "PARTIAL",
       newestProviderTimestamp: "2026-09-09T19:59:59Z",
     } });
+  });
+
+  it.each([
+    ["no provider identity", { rightsPolicyId: REVIEWED_RIGHTS }],
+    ["no rights policy", { providerPath: REVIEWED_PROVIDER }],
+    ["neither", {}],
+    ["a blank provider identity", { providerPath: "   ", rightsPolicyId: REVIEWED_RIGHTS }],
+  ])("fails an otherwise-perfect chain closed when it carries %s", async (_label, provenance) => {
+    // The producer's doc comment has always said that a chain the rights
+    // registry cannot resolve is an honest UNKNOWN which "must fail closed at
+    // the gate". Nothing implemented that gate: the chain reached the trader
+    // ANONYMOUSLY, and "may we retain / redistribute / train on this?" had no
+    // reviewed answer — not a refusal, SILENCE. Silence reads as a grant the
+    // moment anything downstream treats "no objection recorded" as "no
+    // objection". The contracts stay readable; what is withheld is the
+    // provider's NAME and the right to write this into the shared record.
+    const result = await readOptionsResponse(response(200, {
+      source: "alpaca", fidelity: "INDICATIVE", coverage: "COMPLETE",
+      newestProviderTimestamp: "2026-09-09T19:59:59Z", chain: [observedContract],
+      ...provenance,
+    }));
+    expect(result.ok, "the contracts themselves remain readable").toBe(true);
+    if (!result.ok) return;
+    expect(result.receipt.source, "an unreviewed chain must not wear the provider's name")
+      .toBe("unknown");
+    expect(result.receipt.providerPath).toBeNull();
+    expect(result.receipt.rightsPolicyId).toBeNull();
   });
 
   it.each([
@@ -131,7 +168,7 @@ describe("options chain failed-edge projection", () => {
     ["a mismatched strike", [{ ...observedContract, strike: 351 }]],
   ])("rejects %s rather than stamping it with the requested underlying", async (_label, chain) => {
     const result = await readOptionsResponseForUnderlying(response(200, {
-      source: "alpaca", fidelity: "INDICATIVE", coverage: "COMPLETE",
+      source: "alpaca", providerPath: REVIEWED_PROVIDER, rightsPolicyId: REVIEWED_RIGHTS, fidelity: "INDICATIVE", coverage: "COMPLETE",
       newestProviderTimestamp: "2026-09-09T19:59:59Z", chain,
     }), "TSLA");
     expect(result).toEqual({ ok: false, failure: optionsReadFailure("INVALID RESPONSE") });
@@ -139,7 +176,7 @@ describe("options chain failed-edge projection", () => {
 
   it("normalizes the requested underlying before validating exact OSI identity", async () => {
     const result = await readOptionsResponseForUnderlying(response(200, {
-      source: "alpaca", fidelity: "INDICATIVE", coverage: "COMPLETE",
+      source: "alpaca", providerPath: REVIEWED_PROVIDER, rightsPolicyId: REVIEWED_RIGHTS, fidelity: "INDICATIVE", coverage: "COMPLETE",
       newestProviderTimestamp: "2026-09-09T19:59:59Z", chain: [observedContract],
     }), " tsla ");
     expect(result.ok).toBe(true);
@@ -152,7 +189,7 @@ describe("options chain failed-edge projection", () => {
     [{ ...observedContract, tradeTimestamp: "2026-09-09T19:59:58Z" }],
   ])("rejects an Alpaca envelope with an unbound price or timestamp leg", async forged => {
     const result = await readOptionsResponse(response(200, {
-      source: "alpaca", fidelity: "INDICATIVE", coverage: "COMPLETE",
+      source: "alpaca", providerPath: REVIEWED_PROVIDER, rightsPolicyId: REVIEWED_RIGHTS, fidelity: "INDICATIVE", coverage: "COMPLETE",
       newestProviderTimestamp: "2026-09-09T19:59:59Z", chain: forged,
     }));
     expect(result).toEqual({ ok: false, failure: optionsReadFailure("INVALID RESPONSE") });
@@ -160,7 +197,7 @@ describe("options chain failed-edge projection", () => {
 
   it("rejects a page-newest timestamp not derived from accepted contract observations", async () => {
     const result = await readOptionsResponse(response(200, {
-      source: "alpaca", fidelity: "INDICATIVE", coverage: "COMPLETE",
+      source: "alpaca", providerPath: REVIEWED_PROVIDER, rightsPolicyId: REVIEWED_RIGHTS, fidelity: "INDICATIVE", coverage: "COMPLETE",
       newestProviderTimestamp: "2026-09-09T20:00:00Z", chain: [observedContract],
     }));
     expect(result).toEqual({ ok: false, failure: optionsReadFailure("INVALID RESPONSE") });
@@ -168,7 +205,7 @@ describe("options chain failed-edge projection", () => {
 
   it("withholds an Alpaca source receipt when no provider timestamp is proven", async () => {
     const result = await readOptionsResponse(response(200, {
-      source: "alpaca", fidelity: "INDICATIVE", coverage: "COMPLETE",
+      source: "alpaca", providerPath: REVIEWED_PROVIDER, rightsPolicyId: REVIEWED_RIGHTS, fidelity: "INDICATIVE", coverage: "COMPLETE",
       newestProviderTimestamp: null, chain: [contract],
     }));
     expect(result.ok && result.receipt.source).toBe("unknown");

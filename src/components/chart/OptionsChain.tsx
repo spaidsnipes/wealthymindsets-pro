@@ -18,7 +18,7 @@ import {
   type OptionChainSource,
   type OptionContract,
 } from "@/lib/optionContractResponse";
-import { optionContractObservationTiming, optionsReceiptAge, readOptionsResponse, optionsReadFailure, type OptionContractObservationTiming, type OptionsReadFailure, type OptionsSourceReceipt } from "@/lib/optionsChainRead";
+import { optionContractObservationTiming, optionsReceiptAge, readOptionsResponse, optionsReadFailure, UNREVIEWED_RECEIPT, type OptionContractObservationTiming, type OptionsReadFailure, type OptionsSourceReceipt } from "@/lib/optionsChainRead";
 import type { IdentifiedOptionSpot } from "@/lib/optionsSpotIdentity";
 
 /**
@@ -119,7 +119,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState<OptionsReadFailure | null>(null);
   const [dataSource, setDataSource] = useState<OptionChainSource|"unavailable">("unavailable");
-  const [sourceReceipt, setSourceReceipt] = useState<OptionsSourceReceipt>({ source: "unknown", fidelity: "UNKNOWN", coverage: "UNKNOWN", newestProviderTimestamp: null });
+  const [sourceReceipt, setSourceReceipt] = useState<OptionsSourceReceipt>(UNREVIEWED_RECEIPT);
   const [receiptClock, setReceiptClock] = useState<number | null>(null);
   const [selectionNotice, setSelectionNotice] = useState("");
   const [allContracts, setAllContracts] = useState<OptionContract[]>([]);
@@ -191,7 +191,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
     setError(null);
     setReceivedSymbol(null);
     setDataSource("unavailable");
-    setSourceReceipt({ source: "unknown", fidelity: "UNKNOWN", coverage: "UNKNOWN", newestProviderTimestamp: null });
+    setSourceReceipt(UNREVIEWED_RECEIPT);
     setAllContracts([]);
     setExpirations([]);
     setExpiry("");
