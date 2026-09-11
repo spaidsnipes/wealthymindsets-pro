@@ -102,7 +102,11 @@ function chartFutures(): [string, string][] {
 describe("chart order path — contract coverage", () => {
   it("the catalog parser is not vacuous and sees the real futures list", () => {
     const futures = chartFutures();
-    expect(futures.length).toBeGreaterThanOrEqual(15);
+    // Was 15 until 2026-09-11. `VX1!` left this list because its label stopped
+    // claiming to be futures: the app resolves it to the `^VIX` CASH INDEX, so
+    // it is not a contract and can never have a point value. One fewer row
+    // here is the parser reporting a correction, not losing sight of one.
+    expect(futures.length).toBeGreaterThanOrEqual(14);
 
     const syms = futures.map((f) => f[0]);
     expect(syms).toContain("NQ1!"); // covered
@@ -152,7 +156,11 @@ describe("chart order path — contract coverage", () => {
       "6E1! (Euro Futures)",
       "6J1! (Yen Futures)",
       "6B1! (British Pound Futures)",
-      "VX1! (VIX Futures)",
+      // `VX1! (VIX Futures)` was here until 2026-09-11 and is GONE for a good
+      // reason, not a covered one: it never was a contract in this app. It
+      // resolves to `^VIX`, the cash index, so there is no CME specification
+      // to look up. It was listed here only because its picker label said
+      // "Futures" while the data said otherwise.
       "NG1! (Natural Gas Futures)",
     ]);
   });

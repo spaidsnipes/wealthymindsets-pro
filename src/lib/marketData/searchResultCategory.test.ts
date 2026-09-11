@@ -147,4 +147,50 @@ describe("the picker does not turn an app failure into a claim about the market"
     expect(picker).toMatch(/Live search unavailable/);
     expect(picker).toMatch(/No built-in symbol matches/);
   });
+
+  it("runs its BUILT-IN list through the same reconciliation as the live one", () => {
+    // Two halves of one dropdown, visible at the same moment. If only the
+    // live half asks the owner, the trader can watch them disagree.
+    expect(picker).toMatch(/RAW_LOCAL_SYMBOLS/);
+    expect(picker).toMatch(/reconcileSearchCategory\(s\.sym/);
+  });
+
+  it("corrects every built-in badge that contradicted the owner", () => {
+    // Parsed from the component's real list, so this cannot drift from what
+    // ships. These three were MEASURED wrong on 2026-09-11.
+    const raw = new Map<string, string>();
+    const re = /\{\s*sym:\s*"([^"]+)",\s*label:\s*"([^"]*)",\s*cat:\s*"([^"]+)"/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(picker))) raw.set(m[1], m[3]);
+
+    // Contradictions the owner must overrule.
+    expect(reconcileSearchCategory("VX1!", raw.get("VX1!") as SearchCategory)).toBe("Index");
+    expect(reconcileSearchCategory("XAUUSD", raw.get("XAUUSD") as SearchCategory)).toBe("Futures");
+    expect(reconcileSearchCategory("XAGUSD", raw.get("XAGUSD") as SearchCategory)).toBe("Futures");
+
+    // A row may not promise a contract the app will not load. `VX1!` charts
+    // the cash index, so its label may not call itself futures.
+    const vixLabel = [...picker.matchAll(re)].find((x) => x[1] === "VX1!")?.[2] ?? "";
+    expect(vixLabel, "VX1! loads ^VIX; the label must not say 'Futures'").not.toMatch(/futures/i);
+  });
+
+  it("KEEPS the curator where it is legitimately better informed", () => {
+    // Refinement inside equity — the owner cannot see a fund wrapper.
+    expect(reconcileSearchCategory("SPY", "ETF")).toBe("ETF");
+    expect(reconcileSearchCategory("TQQQ", "ETF")).toBe("ETF");
+  });
+
+  it("leaves the DISCLOSED CFD gap disclosed instead of badging around it", () => {
+    // US30/US500/US100/USOIL/UKOIL are offered by the picker and answer
+    // {"error":"No data"} — MEASURED this session. It is tempting to map them
+    // to ^DJI/^GSPC/^NDX/CL=F/BZ=F, which all return live prices, and that was
+    // tried and reverted: see yahooSymbol.ts. A near-neighbour presented as
+    // the instrument asked for is a worse defect than a blank chart, because
+    // the trader cannot see it happen.
+    //
+    // So the curator's "Forex" badge stands where the owner has no opinion,
+    // and the rows stay honestly broken until they are sourced or withdrawn.
+    expect(classifySymbol("US30")).toBe("UNKNOWN");
+    expect(reconcileSearchCategory("US30", "Forex")).toBe("Forex");
+  });
 });

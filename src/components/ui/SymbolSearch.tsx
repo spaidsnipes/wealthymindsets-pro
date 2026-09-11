@@ -2,8 +2,18 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Search, X } from "lucide-react";
+import {
+  reconcileSearchCategory,
+  type SearchCategory,
+} from "@/lib/marketData/searchResultCategory";
 
-const LOCAL_SYMBOLS = [
+/**
+ * The built-in shortlist. Its `cat` is a CURATOR'S OPINION, and is treated
+ * exactly like a search vendor's: authoritative where the class owner has none,
+ * allowed to refine an equity into an ETF, and overruled where it contradicts.
+ * See `CURATED_SYMBOLS` below for what that reconciliation changed and why.
+ */
+const RAW_LOCAL_SYMBOLS = [
   // ── Futures ──────────────────────────────────────────────
   { sym:"NQ1!",  label:"Nasdaq-100 Futures",        cat:"Futures", aliases:["nasdaq","nq","tech futures","mnq"] },
   { sym:"ES1!",  label:"S&P 500 Futures",           cat:"Futures", aliases:["sp500","es","spy futures","mes"] },
@@ -18,7 +28,10 @@ const LOCAL_SYMBOLS = [
   { sym:"6E1!",  label:"Euro Futures",              cat:"Futures", aliases:["euro","eurusd futures","6e"] },
   { sym:"6J1!",  label:"Yen Futures",               cat:"Futures", aliases:["yen","usdjpy futures","6j"] },
   { sym:"6B1!",  label:"British Pound Futures",     cat:"Futures", aliases:["pound","gbpusd futures","6b"] },
-  { sym:"VX1!",  label:"VIX Futures",               cat:"Futures", aliases:["vix","volatility","fear"] },
+  // Labelled for what LOADS, not for what the ticker looks like: this app
+  // resolves `VX1!` to the `^VIX` cash index (yahooSymbol.ts), so a trader who
+  // picked "VIX Futures" here was handed the index and told it was a contract.
+  { sym:"VX1!",  label:"VIX Index (via VX1!)",      cat:"Index",   aliases:["vix","volatility","fear"] },
   { sym:"NG1!",  label:"Natural Gas Futures",       cat:"Futures", aliases:["natgas","natural gas"] },
   // ── Forex / FX ───────────────────────────────────────────
   { sym:"EURUSD", label:"Euro / US Dollar",         cat:"Forex", aliases:["euro dollar","6e","eur"] },
@@ -102,6 +115,35 @@ const LOCAL_SYMBOLS = [
   { sym:"BONKUSD",label:"Bonk / USD",               cat:"Crypto", aliases:["bonk"] },
   { sym:"FLOKIUSD",label:"Floki / USD",             cat:"Crypto", aliases:["floki"] },
 ];
+
+/**
+ * The shortlist, reconciled against the class owner — the SAME rule the live
+ * vendor results go through, so the two halves of one dropdown cannot disagree
+ * in front of the trader.
+ *
+ * MEASURED before this was added (2026-09-11), local badge vs owner:
+ *
+ *   KEPT, curator is more specific — the owner cannot see a fund wrapper:
+ *     SPY QQQ IWM GLD SLV TLT XLK XLF XLE SOXL SOXS TQQQ SQQQ UVXY VXX → ETF
+ *   KEPT, owner has NO opinion, so the curator is the only source:
+ *     US30 US500 US100 USOIL UKOIL → Forex
+ *   CORRECTED, curator contradicted the owner:
+ *     VX1!   Futures → Index    resolves to ^VIX, a cash index
+ *     XAUUSD Forex   → Futures  resolves to GC=F
+ *     XAGUSD Forex   → Futures  resolves to SI=F
+ *
+ * SEPARATELY KNOWN AND STILL BROKEN: those five CFD rows answer
+ * {"error":"No data"}. They are offered here and cannot be charted. Mapping
+ * them to ^DJI/CL=F was tried this session and reverted — see yahooSymbol.ts.
+ * The badge is not the defect and must not be used to hide it.
+ *
+ * The last three are the point. A badge saying "Forex" over a row whose data
+ * arrives from a CME futures contract names a venue the price never came from.
+ */
+const LOCAL_SYMBOLS = RAW_LOCAL_SYMBOLS.map((s) => ({
+  ...s,
+  cat: reconcileSearchCategory(s.sym, s.cat as SearchCategory),
+}));
 
 const CAT_COLOR: Record<string, string> = {
   Futures: "text-wm-gold",

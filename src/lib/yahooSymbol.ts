@@ -64,6 +64,23 @@ export const YF_MAP: Record<string, string> = {
   "ZS1!":  "ZS=F",
   "LE1!":  "LE=F",
   "VX1!":  "^VIX",
+
+  /**
+   * NOT MAPPED, on purpose: US30, US500, US100, USOIL, UKOIL, DXY.
+   *
+   * These were mapped to ^DJI / ^GSPC / ^NDX / CL=F / BZ=F during this session
+   * because the pickers offer them and /api/yahoo answers {"error":"No data"}
+   * for every one — measurably dead rows in a live dropdown. The mapping was
+   * REVERTED the same hour: the negative control in this module's test spells
+   * out why, and it is right. A CFD proxy is not the index it tracks, and a
+   * spot oil row is not the front-month contract. Filling a blank chart by
+   * quietly serving a near-neighbour replaces an absence the trader can see
+   * with a substitution they cannot.
+   *
+   * The gap is real and stays DISCLOSED rather than papered over. Fixing it
+   * means either sourcing the actual instrument or withdrawing the rows — not
+   * renaming a different market.
+   */
 };
 
 /**
