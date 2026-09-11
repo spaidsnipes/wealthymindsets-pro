@@ -7,6 +7,7 @@ import { optionContractObservationTiming, type OptionsReceiptAge } from "@/lib/o
 import { mintDecisionId, type DecisionId } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { recordExpressionIntent } from "@/lib/traderMemory/recordExpressionIntent";
+import { OptionDecisionReceipt } from "./OptionDecisionReceipt";
 
 /** An expression under review, never a position or an executable quote. */
 export function OptionExpressionIntent({ ownerId, underlying, contract, source, fidelity, onClear }: {
@@ -81,5 +82,6 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
     <button type="button" disabled={!ownerId || busy || recorded || !purpose.trim() || !canRecord} onClick={() => void record()} className="mt-2 rounded border border-wm-gold px-3 py-2 text-wm-gold disabled:opacity-50">{!ownerId ? "Sign in to record intent" : busy ? "Checking shared record…" : recorded ? "Intent recorded" : !canRecord ? "Reference timing unverified" : decisionId ? "Retry same intent" : "Record expression intent"}</button>
     <p role="status" className="mt-2">{receipt}</p>
     {decisionId && <p className="mt-1 break-all text-wm-text-muted">Decision: {decisionId}. Only intent text is shared; structured contract recovery is not yet supported.</p>}
+    {decisionId && !busy && <OptionDecisionReceipt key={`${ownerId}:${decisionId}`} decisionId={decisionId} ownerId={ownerId} />}
   </section>;
 }

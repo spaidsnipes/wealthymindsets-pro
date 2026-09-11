@@ -201,3 +201,75 @@ ownership; Live VP render geometry proof; Decision Memory sealing has zero
 production callers (architectural — surface, do not rush-wire); executionConnectivity
 orphaned (not a live defect, `/readiness` discloses it honestly); paper execution
 state machine realism.
+
+## Append-only evening continuation — 2026-09-10 19:24 CDT
+
+The accepted window is 18:51–21:51 CDT, checkpoint grace through 21:58.
+This is an intermediate checkpoint, NOT a completed three-hour shift.
+Fresh fetch confirms local base and origin/main at
+`fc3e7a2274c25f327bfd3e8c510316c00a2d8b36`. The last-team chart-fidelity
+and Command Deck quote grading corrections are present; no reimplementation.
+
+### Current authority and source reconciliation
+
+The [Team Board](https://docs.google.com/document/d/1peysUCXnYtFjfYFLfbz2uj0FB1FqyexkDSJ0bb7qZ6Q/edit)
+was freshly retrieved.
+Authoritative Team Board ID: `1peysUCXnYtFjfYFLfbz2uj0FB1FqyexkDSJ0bb7qZ6Q`,
+modified 2026-09-10T21:31:53.217Z, content-read during this continuation.
+Its current MTO/browser-first routing requires coherent human workflow
+transformation, not a sequence of status chips. September 10 adds canonical
+capability-owner reuse and in-context learning; it does not authorize cloning
+Academy state, new position books, or mutating broker authority.
+The [Living Market Visual Systems Canon](https://docs.google.com/document/d/1HEKhUy15GBgkI41two1WdhR12jvntDRWEho1u4Zwm9g/edit)
+requires chart dominance, progressive disclosure, and context-preserving drawers.
+
+### Observed normal-route baseline
+
+The controlled production `/charts` tab signed in and rendered TSLA.
+Options displayed 704 source contracts, an approximately four-hour-old
+indicative reference receipt, and an unverified broker binding. This is
+not an executable quote, real option order proof, or current deployment binding.
+The previous separate chart account-record readback was absent.
+
+### Candidate — not deployed
+
+Three scoped files: `OptionExpressionIntent.tsx`, `OptionDecisionReceipt.tsx`,
+`OptionDecisionReceipt.test.tsx` under `src/components/chart`.
+The selected expression can now ask the existing `projectDecision` owner for
+the same decision's account record. GET only; expected-owner precondition;
+12-second cancellation; retry; absent execution/fills/protection are not zero.
+Raw intent and identity are disclosed on demand. No order action, store, schema,
+auth, secret, or provider change. The final guard hides readback during intent
+writes so it cannot preserve a pre-write absence answer across a retry.
+
+Focused: 14/14 tests and tsc passed before that final guard; focused rerun
+14/14 after guard, tsc pending receipt. Full pre-guard working tree: 491 files /
+5472 tests passed; webpack build and build typecheck passed. Existing middleware
+deprecation warning remains. Final candidate full build not yet rerun.
+
+Loopback-only fixture imported the candidate component and built CSS. Browser
+proved 503/retry, same-ID readback, null/zero distinction, and identity disclosure.
+Three requests were GET with fixture-decision and fixture-owner; no production
+account was read or written by this fixture. Measured viewport width equals
+document scroll width at 390, 834 portrait and 1194 landscape. These are emulated
+component checks, NOT normal-route/device/account/release closure.
+Fixture process 10458 stopped; temporary artifacts retained at
+`/private/tmp/wm-decision-receipt-UHVYEI`.
+
+Independent options reviewer hit a usage limit before returning analysis.
+No independent PASS; no whole-team-active claim. No push/deploy this continuation.
+MTO gate closure: NONE. Candidate supports Gates 5/9/11, pending normal-route proof.
+
+CURRENT: seal exact final candidate tests/hash and review before release.
+NEXT: coherent selected-expression decision/risk handoff using existing owners;
+shared authority and broker proof remain separate gates.
+RESERVE: discriminate existing executable option/source evidence without orders.
+Unrelated evening baton, older untracked checkpoints and scratchpad preserved.
+
+19:26 final-candidate check: full 491-file / 5472-test suite, tsc and webpack
+build passed after the busy-write guard. `git diff --check` clean. SHA256:
+- OptionExpressionIntent.tsx: `6eb603fe0fb6ec1b4d433327ceaa2be0bf97a1ee1bc258b28a97d35da3730794`
+- OptionDecisionReceipt.tsx: `b1ae6cfca0dc7042de081f16c512dd42b14d5e8cb313b19771b85fa662cebaf6`
+- OptionDecisionReceipt.test.tsx: `371186a25a1d827a2d2fd34b992fcde3281ee5ab2255e5772d67be0d407f4b29`
+The normal integrated route has NOT been exercised with a real shared decision.
+Do not convert component-fixture proof into production or cross-device closure.
