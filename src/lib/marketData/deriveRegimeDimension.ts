@@ -43,6 +43,28 @@ const UNKNOWN_DIMENSION: MarketStateDimension = {
 /** Regime needs at least as much tape as direction does — it is composed of it. */
 export const REGIME_RESOLVE_MIN_TRADES = DIRECTION_RESOLVE_MIN_TRADES;
 
+/**
+ * THE ENTIRE VOCABULARY THIS PRODUCER CAN EMIT.
+ *
+ * The doc above already says the vocabulary must be readable by
+ * selectMarketStory's DEFAULT_MATCHERS — but a sentence in a comment is not a
+ * guard. The volatility dimension carried exactly the same instruction and
+ * still shipped "LOW VOLATILITY" against a matcher listening for "low", which
+ * made the BALANCE chapter structurally unreachable while tsc stayed at exit 0
+ * and every test stayed green (fixed 51d6fa3).
+ *
+ * Naming the vocabulary as data lets DEFAULT_MATCHERS be built FROM it and lets
+ * one Sentinel assert the correspondence in both directions, so the next person
+ * to reword "TREND" into "TRENDING UP" gets a red test instead of a silently
+ * dead hero word.
+ */
+export const REGIME_VERDICTS = {
+  TREND: "TREND",
+  BALANCE: "BALANCE",
+} as const;
+
+export type RegimeVerdict = (typeof REGIME_VERDICTS)[keyof typeof REGIME_VERDICTS];
+
 export interface DeriveRegimeInput {
   readonly direction: MarketStateDimension;
   readonly volatility: MarketStateDimension;
@@ -94,7 +116,7 @@ export function deriveRegimeDimension(input: DeriveRegimeInput): MarketStateDime
   if (direction.resolution === "RESOLVED") {
     return {
       resolution: "RESOLVED",
-      value: "TREND",
+      value: REGIME_VERDICTS.TREND,
       confidence: minConfidence(direction, volatility),
       evidence: unionEvidence(direction, volatility),
       contradictions: unionContradictions(direction, volatility),
@@ -108,7 +130,7 @@ export function deriveRegimeDimension(input: DeriveRegimeInput): MarketStateDime
     // finding here, not a fallback for "we don't know".
     return {
       resolution: "RESOLVED",
-      value: "BALANCE",
+      value: REGIME_VERDICTS.BALANCE,
       confidence: minConfidence(direction, volatility) ?? volatility.confidence,
       evidence: unionEvidence(direction, volatility),
       contradictions: unionContradictions(direction, volatility),

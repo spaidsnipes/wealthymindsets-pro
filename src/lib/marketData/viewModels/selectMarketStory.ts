@@ -24,6 +24,7 @@ import type {
 // Value import, deliberately: DEFAULT_MATCHERS must be built FROM the shipping
 // producer's vocabulary, not from a retyped copy of it that can drift.
 import { VOLATILITY_VERDICTS } from "../deriveVolatilityDimension";
+import { REGIME_VERDICTS } from "../deriveRegimeDimension";
 
 /**
  * Suggested chapter vocabulary. Callers may extend or replace.
@@ -131,9 +132,13 @@ const looseMatch = (accepted: readonly string[]): DimensionMatcher => ({
 });
 
 export const DEFAULT_MATCHERS: Required<NonNullable<StoryConfig["matchers"]>> = {
+  // The regime producer's tokens happen to coincide with the bare adjectives
+  // today, which is exactly what made the volatility break so easy to miss:
+  // coincidence reads identically to contract until someone edits one side.
+  // Referencing the producer's constants makes the dependency real.
   regime: {
-    balance: looseMatch(["balance", "balanced", "range", "ranging"]),
-    trend: looseMatch(["trend", "trending", "trendup", "trenddown"]),
+    balance: looseMatch(["balance", "balanced", "range", "ranging", REGIME_VERDICTS.BALANCE]),
+    trend: looseMatch(["trend", "trending", "trendup", "trenddown", REGIME_VERDICTS.TREND]),
     rotation: looseMatch(["rotation", "rotating", "meanreversion"]),
   },
   // VOCABULARY THE VOLATILITY PRODUCER ACTUALLY SPEAKS.

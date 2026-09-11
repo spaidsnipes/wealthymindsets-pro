@@ -1,5 +1,11 @@
 /**
- * VOLATILITY VOCABULARY SYMMETRY — the producer's words vs the matcher's ears.
+ * DIMENSION VOCABULARY SYMMETRY — the producers' words vs the matchers' ears.
+ *
+ * Covers every dimension whose VALUE a selectMarketStory chapter guard reads:
+ * volatility (where the defect was found) and regime (where the identical break
+ * was one careless rewording away). Direction is deliberately absent — the
+ * BREAKOUT guard reads `direction.resolution`, never `direction.value`, so
+ * direction has no vocabulary contract to keep and a fake one would be theatre.
  *
  * ── The defect this file exists to make impossible ──────────────────────────
  *
@@ -44,6 +50,7 @@ import {
 } from "../deriveVolatilityDimension";
 import type { AggressorTick } from "../selectAggressorFlow";
 import type { CanonicalMarketState, MarketStateDimension } from "../canonicalMarketState";
+import { deriveRegimeDimension, REGIME_VERDICTS } from "../deriveRegimeDimension";
 import { DEFAULT_MATCHERS, selectMarketStory } from "./selectMarketStory";
 
 const trade = (price: number): AggressorTick => ({ side: "buy", size: 1, price, trade: true });
@@ -190,5 +197,55 @@ describe("volatility vocabulary — the hero word can now leave UNKNOWN", () => 
     );
     expect(vm.current).toBeNull();
     expect(vm.resolution).toBe("UNKNOWN");
+  });
+});
+
+describe("regime vocabulary — producer ↔ DEFAULT_MATCHERS symmetry", () => {
+  const sealedVol = sealedAtRangePct(0.01);
+  const dirAt = (resolution: "RESOLVED" | "PARTIAL"): MarketStateDimension => ({
+    resolution, value: resolution === "RESOLVED" ? "UP" : null, confidence: 0.55,
+    evidence: [{ eventId: "d", observedAt: 1, availableAt: 2, source: "test", fidelity: "DERIVED", basis: "b" }],
+    contradictions: [], unknowns: [],
+  });
+  const regimeFrom = (resolution: "RESOLVED" | "PARTIAL") =>
+    deriveRegimeDimension({ direction: dirAt(resolution), volatility: sealedVol, tradeCount: 40 });
+
+  const regimeBuckets = (dim: MarketStateDimension): string[] => {
+    const m = DEFAULT_MATCHERS.regime;
+    return (["balance", "trend", "rotation"] as const).filter((k) => m[k]?.matches(dim));
+  };
+
+  it("names exactly two verdicts, so the cases below are exhaustive", () => {
+    expect(Object.values(REGIME_VERDICTS)).toEqual(["TREND", "BALANCE"]);
+  });
+
+  it("the REAL producer reaches both verdicts (anti-vacuity)", () => {
+    expect(regimeFrom("RESOLVED").value).toBe(REGIME_VERDICTS.TREND);
+    expect(regimeFrom("PARTIAL").value).toBe(REGIME_VERDICTS.BALANCE);
+  });
+
+  it("TREND is heard by the trend matcher, and only by it", () => {
+    expect(regimeBuckets(regimeFrom("RESOLVED"))).toEqual(["trend"]);
+  });
+
+  it("BALANCE is heard by the balance matcher, and only by it", () => {
+    expect(regimeBuckets(regimeFrom("PARTIAL"))).toEqual(["balance"]);
+  });
+
+  it("ROTATION has no producer — the matcher exists but nothing in this repo can trip it", () => {
+    // Recorded, not fixed. The rotation matcher is dead weight today; naming
+    // that here stops a future reader assuming ROTATION is wired and reasoning
+    // from a chapter that cannot occur.
+    for (const r of ["RESOLVED", "PARTIAL"] as const) {
+      expect(regimeBuckets(regimeFrom(r))).not.toContain("rotation");
+    }
+  });
+
+  it("an UNSEALED regime is heard by no bucket", () => {
+    const thin = deriveRegimeDimension({
+      direction: dirAt("PARTIAL"), volatility: sealedVol, tradeCount: 1,
+    });
+    expect(thin.resolution).not.toBe("RESOLVED");
+    expect(regimeBuckets(thin)).toEqual([]);
   });
 });
