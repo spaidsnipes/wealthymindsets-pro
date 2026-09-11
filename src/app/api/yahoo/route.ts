@@ -32,7 +32,38 @@ async function yfFetch(url: string, ttlMs = 10_000): Promise<unknown> {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const rawSym = (searchParams.get("sym") ?? "NQ1!").toUpperCase();
+
+  /**
+   * NO SILENT DEFAULT SYMBOL.
+   *
+   * This used to read `searchParams.get("sym") ?? "NQ1!"`. A caller that
+   * omitted or misspelled the parameter therefore received a fully-populated,
+   * confident quote — correct price, correct volume, correct OHLC — for an
+   * instrument it never asked for. The response was indistinguishable from a
+   * correct one, because it WAS a correct one: just for the wrong thing.
+   *
+   * That is the worst shape a data defect can take here. An unknown symbol
+   * already 404s with "No data" (an honest absence), so the one input that
+   * produced a confident wrong answer was the one nobody would think to check.
+   * It was found on 2026-09-11 by a live probe that used `symbol=` instead of
+   * `sym=` and got NQ futures back for AAPL, SPY, QQQ, NVDA and TSLA alike —
+   * five different questions, one identical answer, no error anywhere.
+   *
+   * Every caller in this repo passes `sym` explicitly, so nothing depended on
+   * the fallback. A missing symbol is now a 400: the caller has a bug, and
+   * silence about it is what let this sit.
+   */
+  const symParam = searchParams.get("sym")?.trim();
+  if (!symParam) {
+    return NextResponse.json(
+      {
+        error: "Missing required `sym` parameter",
+        hint: "e.g. /api/yahoo?sym=AAPL&type=quote. This endpoint never guesses a symbol.",
+      },
+      { status: 400 },
+    );
+  }
+  const rawSym = symParam.toUpperCase();
   const type   = searchParams.get("type") ?? "quote";   // "quote" | "candles"
   const tf     = searchParams.get("tf")   ?? "1m";
   const parsedBars = parseInt(searchParams.get("bars") ?? "300", 10);

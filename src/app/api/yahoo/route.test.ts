@@ -147,3 +147,56 @@ describe("/api/yahoo quote — an answer is not a price", () => {
     expect(body.price).toBe(12.5);
   });
 });
+
+/**
+ * SYMBOL IDENTITY — an answer must be about the thing that was asked for.
+ *
+ * Found live on 2026-09-11. The route resolved its symbol as
+ * `searchParams.get("sym") ?? "NQ1!"`. A probe written with `symbol=` instead
+ * of `sym=` asked for AAPL, SPY, QQQ, NVDA and TSLA and received the SAME NQ
+ * futures quote five times — correct price, correct volume, correct OHLC, HTTP
+ * 200, no warning anywhere. Five different questions, one identical answer.
+ *
+ * This is a nastier shape than a wrong number. The payload is internally
+ * consistent and fully populated, so every downstream freshness/observation
+ * check passes: the data is real, it is simply about something else. An unknown
+ * symbol already 404s honestly, which meant the only input capable of producing
+ * a confident wrong answer was the one no one thought to test.
+ */
+describe("/api/yahoo — the route never guesses a symbol", () => {
+  it("THE REGRESSION: a missing `sym` is a 400, not a silent NQ1! quote", async () => {
+    const res = await GET(new Request("http://wm.test/api/yahoo?type=quote"));
+    const body = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(400);
+    expect(String(body.error)).toMatch(/sym/i);
+    // The tell of the old defect: a populated quote for an unrequested instrument.
+    expect(body.price).toBeUndefined();
+    expect(body.sym).toBeUndefined();
+  });
+
+  it("a blank or whitespace-only `sym` is also refused — empty is not a symbol", async () => {
+    for (const raw of ["", "   ", "%20%20"]) {
+      const res = await GET(new Request(`http://wm.test/api/yahoo?sym=${raw}&type=quote`));
+      expect(res.status, `sym="${raw}" must not resolve to a default`).toBe(400);
+    }
+  });
+
+  it("a missing `sym` is refused on the candles path too, not only quotes", async () => {
+    const res = await GET(new Request("http://wm.test/api/yahoo?type=candles&tf=1m&bars=10"));
+    expect(res.status).toBe(400);
+  });
+
+  it("the refusal names the parameter, so a caller can fix its own bug", async () => {
+    const res = await GET(new Request("http://wm.test/api/yahoo"));
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(`${body.error} ${body.hint}`).toContain("sym");
+  });
+
+  it("NEGATIVE CONTROL: a symbol that IS supplied still answers about that symbol", async () => {
+    stubYahoo(chart({ regularMarketPrice: 42, chartPreviousClose: 40 }), null);
+    const { status, body } = await quote("IDENTITYA");
+    expect(status).toBe(200);
+    expect(body.sym).toBe("IDENTITYA");
+  });
+});
