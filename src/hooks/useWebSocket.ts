@@ -32,6 +32,7 @@ import { selectFreshWebullObservedEvents } from "@/lib/marketData/adapters/webul
 import { electProviderTapeSource, type ProviderTapeSource } from "@/lib/marketData/providerTapeElection";
 import { selectObservedProviderFallback } from "@/lib/marketData/selectObservedProviderFallback";
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
+import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 import { coalesceQuoteRequest } from "@/lib/marketData/quoteRequestCoalescer";
 import { InFlightRounds } from "@/lib/marketData/inFlightRounds";
@@ -129,8 +130,9 @@ function getBasePrice(sym: string) {
    Yahoo Finance via /api/yahoo covers futures (NQ=F, ES=F etc),
    crypto, stocks. Finnhub used as fallback for stocks/crypto.
 ────────────────────────────────────────────────────────────── */
-const FUTURES_SET = new Set(["NQ1!","ES1!","RTY1!","YM1!","GC1!","SI1!","CL1!","NG1!","ZB1!","ZN1!","ZF1!","ZT1!","HG1!","MNQ1!","MES1!","MYM1!","M2K1!","MGC1!","MCL1!","VX1!"]);
-const CRYPTO_SET  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","ATOM","UNI"]);
+// Two curated sets stood here. Every member classified as the class its set
+// claimed — except VX1!, which they called futures and which is the ^VIX INDEX.
+// The routing they existed for is preserved by asking the owner.
 
 type RealQuote = {
   price: number;
@@ -261,9 +263,13 @@ async function fetchRealQuoteUncoalesced(sym: string): Promise<QuoteAnswer | nul
     return null;
   }
 
-  const isFutures = FUTURES_SET.has(upper) || upper.endsWith("1!");
-  const isCrypto  = CRYPTO_SET.has(upper);
-  const isForex   = upper.includes("/");
+  // Which providers may be ASKED for this symbol. The equity chain below is
+  // entered only for instruments those providers carry; everything else falls
+  // through to the Yahoo lane at the bottom, which is the sole free source for
+  // futures, forex and cash indices alike.
+  const klass = classifySymbol(upper);
+  const isCrypto = klass === "CRYPTO";
+  const isEquityLane = klass === "EQUITY";
 
   const mk = (j: any, source: string): QuoteAnswer | null => {
     // SF-D01 gate, FIRST — before the price is read at all.
@@ -333,7 +339,7 @@ async function fetchRealQuoteUncoalesced(sym: string): Promise<QuoteAnswer | nul
   // IEX's own thin prints — which match in RTH but diverge by dollars in
   // pre/post-market (e.g. TSLA 377 on IEX vs 380.89 consolidated). So Yahoo is
   // the accurate primary; Alpaca/Finnhub are fallbacks only if Yahoo fails. ───
-  if (!isFutures && !isForex && !isCrypto) {
+  if (isEquityLane) {
     try {
       const j = await fetchYahooQuoteBody(sym) as any;
       const q = mk(j, "yahoo");
@@ -1191,8 +1197,12 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // key and are already client-safe).
     const finnhubKey: string | null = null;
 
-    // Identify instrument class
-    const isFuture = symbol.endsWith("1!") || symbol.includes("=F");
+    // Identify instrument class. The provider tick lane is asked ONLY for
+    // equities, which is what `capabilityRegistry` says those three rows carry
+    // (`moomoo`, `webull` and `longbridge` are all `assetClass: "equity"`).
+    // Testing for "not futures" let indices through to an equity tick route
+    // that could only ever answer nothing.
+    const isFuture = classifySymbol(symbol) !== "EQUITY";
     const isCrypto = binancePair(symbol) != null;
     let disposed = false;
 

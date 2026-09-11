@@ -60,6 +60,7 @@ function getSymName(sym: string): string {
 /* ── Yahoo Finance quotes — all symbols including futures ─── */
 import { selectQuoteChange } from "@/lib/quoteChange";
 import { readSymbolList } from "@/lib/marketData/storedSymbolList";
+import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { changeWindowSuffix, coerceChangeWindow, describeChangeWindow, type ChangeWindow } from "@/lib/marketData/changeWindow";
 
 interface FinnhubQuote {
@@ -72,8 +73,9 @@ interface FinnhubQuote {
   refusal?: string;
 }
 
-const FUTURES_WL = new Set(["NQ1!","ES1!","RTY1!","YM1!","GC1!","SI1!","CL1!","NG1!","ZB1!","ZN1!","ZF1!","HG1!","MNQ1!","MES1!","MYM1!","M2K1!","MGC1!","MCL1!","VX1!"]);
-const CRYPTO_WL  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC"]);
+// Two curated sets stood here and were deleted: every member classified as the
+// class its set claimed, so they restated the owner, and the crypto one could
+// not see `BTC-USD` — the form this app's own pickers emit.
 
 /**
  * The change fields for one row, WITH the measure that produced them.
@@ -136,8 +138,14 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
     // Held, not spent: a refusal is only final once no untried provider remains.
     let heldRefusal: string | null = null;
     try {
-      const isFutures = FUTURES_WL.has(up) || up.endsWith("1!");
-      const isCrypto  = CRYPTO_WL.has(up);
+      // Yahoo-only covers futures AND cash indices, for the same reason: no
+      // free equity provider on this fallback chain carries either. `VX1!` sat
+      // in the old futures set because of that routing need, but it is not a
+      // futures contract — the class owner reads it as the ^VIX INDEX, which
+      // is why the class is asked and the routing decision is named separately.
+      const klass = classifySymbol(up);
+      const isYahooOnly = klass === "FUTURES" || klass === "INDEX";
+      const isCrypto  = klass === "CRYPTO";
 
       // Crypto → public Coinbase quote. Keep broker/equity Alpaca requests out
       // of the crypto watchlist path.
@@ -157,7 +165,7 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
 
       // Futures → Yahoo only. It is the sole free source here, so its refusal
       // is final: there is no second opinion to wait for.
-      if (isFutures) {
+      if (isYahooOnly) {
         const j = await fetchYahooQuoteBody(up) as any;
         const refusal = yahooQuoteRefusal(j);
         if (refusal) { result[up] = refusedQuote(refusal, "yahoo"); return; }

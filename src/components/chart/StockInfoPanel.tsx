@@ -115,11 +115,10 @@ export function StockInfoPanel({ symbol }: Props) {
   useEffect(() => {
     setRealOHLC(null);
     const up = symbol.toUpperCase();
-    const isFutures = up.endsWith("1!") || up.includes("=F");
-    const isCrypto  = ["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC"].includes(up);
     // Yahoo for everything — it includes pre/post-market (matches TradingView);
-    // Finnhub free is regular-hours-only and goes stale outside RTH.
-    void isFutures; void isCrypto;
+    // Finnhub free is regular-hours-only and goes stale outside RTH. Two class
+    // predicates were computed here and immediately discarded with `void`; they
+    // routed nothing and could only rot, so they are gone rather than ported.
     fetchYahooQuoteBody(up).then((j: any) => {
       // SF-D01: when the quote is refused, `j.price` silently falls back to
       // prevClose — so `j.price > 0` was a refused number authorising the

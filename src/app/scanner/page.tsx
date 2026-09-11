@@ -19,6 +19,7 @@ import { useActiveSymbol } from "@/contexts/SymbolContext";
 import WmWordmark from "@/components/brand/WmWordmark";
 import { YahooCandleConsumer } from "@/lib/yahooCandleConsumer";
 import { yahooQuoteObserved, yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
+import { classifySymbol, isUnsupportedByEquityVendors } from "@/lib/marketData/symbolAssetClass";
 import {
   compareScannerRsiIdentity, scannerRsiIdentity, scannerRsiIdentityDomToken,
   scannerRsiIdentityKey, type ScannerRsiIdentity,
@@ -133,9 +134,9 @@ function strengthFromData(changePct: number, volRatio: number): AlertStrength {
 }
 
 // Fetch real quotes from Finnhub for scanner symbols (stocks only)
-const SCANNER_STOCKS = SYMS.filter(([s]) => !s.includes("1!") && !s.includes("/")).map(([s]) => s);
+const SCANNER_STOCKS = SYMS.filter(([s]) => !isUnsupportedByEquityVendors(s)).map(([s]) => s);
 // Futures symbols (Finnhub has no free futures quotes — use Yahoo via /api/yahoo)
-const SCANNER_FUTURES = SYMS.filter(([s]) => s.includes("1!")).map(([s]) => s);
+const SCANNER_FUTURES = SYMS.filter(([s]) => classifySymbol(s) === "FUTURES").map(([s]) => s);
 
 // Cache FMP profiles (mktcap, float) — changes slowly, cache 10 min
 let fmpProfileCache: Map<string, { mktcap: string; float: string }> | null = null;

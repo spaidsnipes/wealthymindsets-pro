@@ -16,6 +16,7 @@ import {
   selectTapeQuoteFreshness,
 } from "@/lib/marketData/tapeQuoteFreshness";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
+import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
 import { fetchAlpacaQuoteBody, fetchFinnhubQuoteBody } from "@/lib/marketData/providerQuoteRounds";
@@ -162,8 +163,11 @@ function rowFor(
  *  Futures/Crypto → Yahoo /api/yahoo (15-min delayed but best   *
  *    available free source for these instruments)                *
  * ────────────────────────────────────────────────────────────── */
-const FUTURES_SYMS = new Set(["NQ1!","ES1!","RTY1!","YM1!","GC1!","SI1!","CL1!","NG1!","ZB1!","ZN1!","ZF1!","ZT1!","HG1!","MNQ1!","MES1!","MYM1!","M2K1!","MGC1!","MCL1!"]);
-const CRYPTO_SYMS  = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","ATOM","UNI"]);
+// The two curated sets that stood here — nineteen futures symbols and thirteen
+// coins — were measured against `classifySymbol` and every member landed in the
+// class the set claimed. They were a restatement, not knowledge, and the
+// restatement was already narrower than the world: neither knew `NQ=F`, and the
+// coin set could not grow without an edit here.
 
 // SF-D01 consumer gate — shared with paper + scanner consumers so all
 // three surfaces consult one predicate. See yahooQuoteObserved.ts +
@@ -187,7 +191,7 @@ async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
   const up = sym.toUpperCase();
 
   // Futures → Yahoo (only free source for futures)
-  if (FUTURES_SYMS.has(up) || up.endsWith("1!")) {
+  if (classifySymbol(up) === "FUTURES") {
     try {
       const j = await fetchYahooQuoteBody(up) as any;
       const price = j?.price ?? 0;
@@ -204,7 +208,7 @@ async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
   // Crypto → public Coinbase quote. The real executed tape is owned by the
   // WebSocket path; this bounded quote request must never hit Alpaca's equity
   // route or claim a broker connection.
-  if (CRYPTO_SYMS.has(up)) {
+  if (classifySymbol(up) === "CRYPTO") {
     try {
       const j = await fetchExchangeQuoteBody("coinbase", up) as any;
       if (j?.price > 0) { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "coinbase" }; }

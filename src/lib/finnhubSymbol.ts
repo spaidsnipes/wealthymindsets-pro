@@ -27,6 +27,7 @@
  */
 
 import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
+import { isUnsupportedByEquityVendors } from "@/lib/marketData/symbolAssetClass";
 
 /**
  * Explicit overrides. Deliberately empty of crypto: the thirteen coins this
@@ -71,8 +72,11 @@ export function toFinnhubSym(sym: string): string | null {
     return `BINANCE:${base}USDT`;
   }
 
-  // Futures and currency pairs are not supported on this lane.
-  if (up.endsWith("1!") || up.includes("=F") || up.includes("/")) return null;
+  // Futures and currency pairs are not supported on this lane. Asked of the
+  // class owner, which reads a LEADING slash as the futures convention rather
+  // than as a BASE/QUOTE pair — this line used to refuse "/ES" for the right
+  // reason by accident.
+  if (isUnsupportedByEquityVendors(up)) return null;
   // Plain stock/ETF — use as-is
   return up;
 }
