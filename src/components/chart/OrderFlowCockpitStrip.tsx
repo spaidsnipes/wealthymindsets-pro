@@ -17,6 +17,15 @@
  * the canonical selector's real imbRatio and cvd are surfaced
  * as-is with formatting; nothing derived past what the selector
  * says.
+ *
+ * PROVENANCE CHIP (2026-09-11). "Nothing derived past what the selector says"
+ * was true of the NUMBERS and false of the CONFIDENCE. The selector now also
+ * reports HOW the sides were established, and this strip renders it, because
+ * on a live US equity chart the aggressor is a tick-rule reconstruction from
+ * the Alpaca relay — confidence 0.5 — and it was being painted in exactly the
+ * chrome a venue-asserted Coinbase aggressor gets. See selectAggressorFlow's
+ * header for the full account. A PROVIDER flow shows no chip: disclosure is
+ * for the qualified case, not decoration for the clean one.
  */
 
 "use client";
@@ -24,6 +33,7 @@
 import * as React from "react";
 import {
   selectAggressorFlow,
+  type AggressorProvenance,
   type AggressorTick,
 } from "@/lib/marketData/selectAggressorFlow";
 import { formatImbalanceRatio } from "@/lib/marketData/formatImbalanceRatio";
@@ -62,6 +72,46 @@ function formatSignedVolume(v: number): string {
  * because a private function is not an owner. SmartMoneyPanel was printing the
  * raw ratio and was exposed to both. The behaviour is unchanged for this strip.
  */
+/**
+ * The disclosure a non-PROVIDER flow owes the trader.
+ *
+ * `null` for PROVIDER — a venue-asserted aggressor needs no asterisk, and
+ * hanging one on it would train the eye to ignore the asterisk that matters.
+ *
+ * Exported so the words are tested rather than retyped in a test file: a test
+ * that restated "INFERRED" inline would keep passing after someone softened
+ * the shipped copy, which is how the labels in this repo have drifted before.
+ */
+export function aggressorProvenanceNote(
+  provenance: AggressorProvenance,
+): { readonly chip: string; readonly title: string } | null {
+  switch (provenance) {
+    case "PROVIDER":
+      return null;
+    case "INFERRED":
+      return {
+        chip: "SIDE INFERRED",
+        title:
+          "No venue supplied an aggressor flag. Each side was reconstructed by " +
+          "comparing the print to the prior price (tick rule) — directional, not ground truth.",
+      };
+    case "MIXED":
+      return {
+        chip: "SIDE PART-INFERRED",
+        title:
+          "Some prints carried a venue-asserted aggressor and some were reconstructed " +
+          "by tick rule. The combined figure is only as strong as its weakest print.",
+      };
+    case "UNDISCLOSED":
+    default:
+      return {
+        chip: "SIDE UNDISCLOSED",
+        title:
+          "The tape did not state how these aggressor sides were established.",
+      };
+  }
+}
+
 export function OrderFlowCockpitStrip({
   ticks,
   livePrice,
@@ -91,6 +141,7 @@ export function OrderFlowCockpitStrip({
     return null;
   }
 
+  const provenanceNote = aggressorProvenanceNote(snap.provenance);
   const buyColor = snap.askDom ? "#00C076" : "#4A8560";
   const sellColor = !snap.askDom ? "#FF4D67" : "#7A4550";
   const netColor = snap.cvd > 0 ? "#00C076" : snap.cvd < 0 ? "#FF4D67" : "#8B8FA8";
@@ -99,11 +150,32 @@ export function OrderFlowCockpitStrip({
     <div
       className="wm-order-flow-cockpit-strip"
       style={containerStyle}
-      aria-label={`Order flow cockpit — ${snap.askDom ? "aggressive buy" : "aggressive sell"} dominant, ratio ${formatImbalanceRatio(snap.imbRatio, snap.oneSided)}`}
+      aria-label={`Order flow cockpit — ${snap.askDom ? "aggressive buy" : "aggressive sell"} dominant, ratio ${formatImbalanceRatio(snap.imbRatio, snap.oneSided)}${provenanceNote ? `, ${provenanceNote.chip.toLowerCase()}` : ""}`}
     >
       <span style={{ color: "#c9a55c", letterSpacing: 0.4, fontWeight: 700, textTransform: "uppercase" }}>
         {label}
       </span>
+
+      {provenanceNote && (
+        <span
+          className="wm-order-flow-provenance"
+          title={provenanceNote.title}
+          style={{
+            color: "#C9A55C",
+            border: "1px solid #4A4020",
+            background: "#1A1608",
+            borderRadius: 3,
+            padding: "1px 5px",
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: 0.3,
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          {provenanceNote.chip}
+        </span>
+      )}
 
       <span style={{ display: "inline-flex", alignItems: "baseline", gap: 6 }}>
         <span style={{ color: "#6B7094", fontSize: 9, letterSpacing: 0.3, textTransform: "uppercase" }}>

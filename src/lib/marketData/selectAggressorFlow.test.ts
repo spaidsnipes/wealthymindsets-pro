@@ -131,3 +131,102 @@ describe("selectAggressorFlow — canon aggressor-flow selector", () => {
     expect(s.hasFlow).toBe(false);
   });
 });
+
+/**
+ * AGGRESSOR PROVENANCE — "how do you know these sides?" (2026-09-11)
+ *
+ * `CanonicalMarketEvent` has always published `aggressorMethod`. Nothing in
+ * `src/` rendered it, and `AggressorTick` narrowed the fact away at the seam,
+ * so a tick-rule reconstruction from the Alpaca relay (confidence 0.5, and the
+ * only live equity tape today) was painted in exactly the chrome a
+ * venue-asserted Coinbase aggressor gets.
+ *
+ * These tests drive the DERIVATION. A test that retyped "INFERRED" for a
+ * fixture without asking the selector would pin the next provider migration's
+ * bug green the same way the retyped broker list did.
+ */
+describe("selectAggressorFlow — provenance is derived, never assumed", () => {
+  const sided = (
+    side: "buy" | "sell",
+    method: string | undefined,
+    size = 10,
+  ): AggressorTick => ({
+    trade: true,
+    size,
+    price: 100,
+    side,
+    marketEvent: method === undefined
+      ? undefined
+      : { aggressorMethod: method as never },
+  });
+
+  it("REGRESSION: a pure tick-rule tape is INFERRED, not silently trustworthy", () => {
+    const s = selectAggressorFlow([
+      sided("buy", "TICK_RULE"),
+      sided("sell", "TICK_RULE", 4),
+    ]);
+    expect(s.provenance).toBe("INFERRED");
+    expect(s.provenance).not.toBe("PROVIDER");
+    // The numbers themselves are unchanged — this is a disclosure, not a filter.
+    expect(s.askVol).toBe(10);
+    expect(s.bidVol).toBe(4);
+    expect(s.cvd).toBe(6);
+  });
+
+  it("a venue-asserted tape is PROVIDER", () => {
+    expect(selectAggressorFlow([sided("buy", "PROVIDER")]).provenance).toBe("PROVIDER");
+  });
+
+  it("MAKER_SIDE_INVERTED counts as PROVIDER — inverting a maker flag is deterministic, not a guess", () => {
+    expect(selectAggressorFlow([sided("sell", "MAKER_SIDE_INVERTED")]).provenance).toBe("PROVIDER");
+  });
+
+  it("QUOTE_TEST is INFERRED — a quote comparison reconstructs, it does not observe", () => {
+    expect(selectAggressorFlow([sided("buy", "QUOTE_TEST")]).provenance).toBe("INFERRED");
+  });
+
+  it("weakest link: one guessed print among venue-asserted prints makes the whole figure MIXED", () => {
+    const s = selectAggressorFlow([
+      sided("buy", "PROVIDER", 1000),
+      sided("buy", "PROVIDER", 1000),
+      sided("sell", "TICK_RULE", 1),
+    ]);
+    // NOT a majority vote. 2000 good prints do not vouch for the third.
+    expect(s.provenance).toBe("MIXED");
+    expect(s.provenance).not.toBe("PROVIDER");
+  });
+
+  it("a tape that says nothing about method is UNDISCLOSED, never PROVIDER by default", () => {
+    expect(selectAggressorFlow([sided("buy", undefined)]).provenance).toBe("UNDISCLOSED");
+    expect(selectAggressorFlow([sided("buy", "NONE")]).provenance).toBe("UNDISCLOSED");
+  });
+
+  it("an empty snapshot is UNDISCLOSED — absence of flow is not a clean bill of health", () => {
+    expect(selectAggressorFlow([]).provenance).toBe("UNDISCLOSED");
+    expect(selectAggressorFlow(null).provenance).toBe("UNDISCLOSED");
+  });
+
+  it("REGRESSION: an unsided print is NOT counted as a sell", () => {
+    // The old `else` branch turned "we do not know the side" into bidVol,
+    // fabricating seller-initiated volume out of an absent field — and then
+    // reported askDom=false from it, painting the strip red.
+    const s = selectAggressorFlow([
+      { trade: true, size: 50, price: 100, side: "buy", marketEvent: { aggressorMethod: "PROVIDER" } },
+      { trade: true, size: 999, price: 100 },
+    ]);
+    expect(s.bidVol).toBe(0);
+    expect(s.askVol).toBe(50);
+    expect(s.askDom).toBe(true);
+    // It is still a real print: it moves VWAP and it is disclosed.
+    expect(s.haveData).toBe(true);
+    expect(s.provenance).toBe("MIXED");
+  });
+
+  it("an unsided print still contributes to VWAP — it is a real trade, just an unattributed one", () => {
+    const s = selectAggressorFlow([
+      { trade: true, size: 1, price: 100, side: "buy" },
+      { trade: true, size: 1, price: 200 },
+    ]);
+    expect(s.vwap).toBe(150);
+  });
+});
