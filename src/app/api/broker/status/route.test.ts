@@ -9,6 +9,7 @@ vi.mock("@/lib/requireAuth", () => ({
 }));
 
 import { GET, type BrokerStatusResponse } from "./route";
+import { listAdapters } from "@/lib/broker/adapters";
 import { requireAuth } from "@/lib/requireAuth";
 import { NextResponse } from "next/server";
 
@@ -46,9 +47,56 @@ describe("/api/broker/status — canon §12 truthful aggregate", () => {
     }
   });
 
-  it("reports 4 providers with stable order", async () => {
+  /**
+   * EXHAUSTIVENESS LOCK — this replaces a verbatim four-name list.
+   *
+   * The old assertion read:
+   *
+   *     expect(s.providers.map(p => p.provider))
+   *       .toEqual(["webull", "tastytrade", "alpaca", "gemini"]);
+   *
+   * which is a RETYPED COPY of the route's own hard-coded array. Two
+   * hand-written copies of the same list cannot disagree with each other,
+   * so the pair was green by construction — and stayed green when
+   * `moomooAdapter` shipped, was registered in the adapter REGISTRY, and
+   * was then omitted from the Founder's unified "which brokers are wired?"
+   * answer. The test did not miss the omission; it PINNED it.
+   *
+   * The list is now derived from the registry, so adding a fifth adapter
+   * fails this suite until the route reports it.
+   */
+  it("reports every registered adapter, in registry order, then the AI row", async () => {
     const s = await readBrokerStatus();
-    expect(s.providers.map(p => p.provider)).toEqual(["webull", "tastytrade", "alpaca", "gemini"]);
+    const registered = listAdapters().map(a => a.id);
+    expect(registered.length).toBeGreaterThan(0); // vacuity guard
+    expect(s.providers.map(p => p.provider)).toEqual([...registered, "gemini"]);
+  });
+
+  it("no registered adapter is missing from the aggregate", async () => {
+    const s = await readBrokerStatus();
+    const reported = new Set(s.providers.map(p => p.provider));
+    for (const a of listAdapters()) {
+      expect(reported.has(a.id), `adapter "${a.id}" is registered but absent from /api/broker/status`).toBe(true);
+    }
+  });
+
+  it("moomoo — the adapter the hard-coded list dropped — is reported honestly", async () => {
+    const s = await readBrokerStatus();
+    const m = s.providers.find(p => p.provider === "moomoo");
+    expect(m, "moomoo adapter is registered and must appear in the wire report").toBeDefined();
+    expect(m!.kind).toBe("broker");
+    expect(m!.implemented).toBe(true);
+    // The bridge is read-only and the Worker holds no moomoo credential, so a
+    // live connection must never be claimed from health().
+    expect(m!.connected).toBe(false);
+  });
+
+  it("every broker row's note is the adapter's own, never this route's invention", async () => {
+    const s = await readBrokerStatus();
+    for (const a of listAdapters()) {
+      const row = s.providers.find(p => p.provider === a.id)!;
+      expect(row.note).toBe(a.health().note);
+    }
   });
 
   it("Webull reports its signed account probe implemented without fabricating configuration", async () => {
@@ -109,9 +157,10 @@ describe("/api/broker/status — canon §12 truthful aggregate", () => {
     process.env.TASTYTRADE_REFRESH_TOKEN = "z";
     process.env.GEMINI_API_KEY = "k";
     const s = await readBrokerStatus();
-    // All four have an implementation rung; Webull account probing remains
-    // unconfigured in this deterministic setup and is never counted connected.
-    expect(s.implementedCount).toBe(4);
+    // Every registered adapter has an implementation rung, plus the gemini AI
+    // row. Derived from the registry, not a literal — a hard-coded count is the
+    // same drift trap that hid moomoo (see the exhaustiveness lock above).
+    expect(s.implementedCount).toBe(listAdapters().length + 1);
     // 2 envConfigured in this setup (tastytrade + gemini)
     expect(s.envConfiguredCount).toBe(2);
   });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
-import { getAdapter } from "../../../../lib/broker/adapters";
+import { listAdapters } from "../../../../lib/broker/adapters";
 import { computeCertificationLevel, type CertLevel, type CertStageReport } from "../../../../lib/broker/certification";
 import type { BrokerId } from "../../../../lib/broker/BrokerAdapter";
 
@@ -17,12 +17,34 @@ import type { BrokerId } from "../../../../lib/broker/BrokerAdapter";
  * server-side adapter exists AND whether the required env names
  * are present at all.
  *
- * Add a new provider here by:
- *   1. Adding its ProviderReport entry to REPORT.
- *   2. Setting `implemented` true only when a real server-side
- *      adapter path exists.
- *   3. Setting `envConfigured` true only when the required env
- *      NAMES are all present (never reads values into the response).
+ * HOW A PROVIDER GETS INTO THIS REPORT — read this before editing.
+ *
+ * Broker rows are ENUMERATED FROM the adapter registry
+ * (`lib/broker/adapters`), never retyped here. Registering an adapter
+ * is the whole act of wiring it; this route then reports it.
+ *
+ * It did not used to work that way, and the cost was a silent lie on the
+ * one surface whose entire job is to answer "which brokers are actually
+ * wired?". The list was hard-coded as webull / tastytrade / alpaca /
+ * gemini, with a comment instructing the next person to add a fourth
+ * entry by hand. `moomooAdapter` was then written, registered in
+ * REGISTRY, given a bridge topology, capability discovery and honesty
+ * notes — and NEVER APPEARED. Nothing threw. `tsc --noEmit` stayed at
+ * exit 0, because a hard-coded array of four function calls is
+ * type-correct no matter how many adapters exist. The route's own test
+ * asserted the four-name list verbatim, so the omission was not merely
+ * uncaught — it was PINNED GREEN.
+ *
+ * That is the same defect class as the producer/matcher vocabulary drift
+ * fixed in selectMarketStory (51d6fa3): one half of a pair retypes what
+ * the other half owns, and the two drift apart in silence. The cure is
+ * the same — one side EXPORTS the list as data, the other side IMPORTS
+ * it, and a Sentinel iterates the exported list so a fifth adapter fails
+ * the suite until this route reports it.
+ *
+ * Gemini stays hand-written on purpose: it is an AI provider, not a
+ * BrokerAdapter, so it has no registry entry to be enumerated from. It
+ * is appended after the broker rows and is the ONLY hand-written row.
  */
 
 export type ProviderKind = "broker" | "ai";
@@ -72,39 +94,35 @@ function deriveCertReports(implemented: boolean, envConfigured: boolean, connect
   return [{ stage: "auth", status: "PENDING", note: "Adapter present; live cert harness has not run." }];
 }
 
-function fromRegistry(
-  id: "webull" | "alpaca" | "tastytrade",
-  fallbackNote: string,
-): ProviderReport {
-  const adapter = getAdapter(id);
-  const h = adapter?.health();
-  const implemented = h?.implemented ?? false;
-  const envConfigured = h?.envConfigured ?? false;
-  const connected = h?.connected ?? false;
-  const reports = deriveCertReports(implemented, envConfigured, connected);
-  const cert = computeCertificationLevel(id as BrokerId, reports);
+/**
+ * One broker row, built from the adapter's OWN health() answer.
+ *
+ * The adapter is the single writer of implemented/envConfigured/
+ * connected/note. This function adds no judgement of its own — if a
+ * row here disagreed with `/api/broker/{id}/status`, the Founder would
+ * have two answers to one question.
+ */
+function brokerReport(adapter: { readonly id: BrokerId; health(): BrokerHealthLike }): ProviderReport {
+  const h = adapter.health();
+  const reports = deriveCertReports(h.implemented, h.envConfigured, h.connected);
+  const cert = computeCertificationLevel(adapter.id, reports);
   return {
-    provider: id,
+    provider: adapter.id,
     kind: "broker",
-    implemented,
-    envConfigured,
-    connected,
-    note: h?.note ?? fallbackNote,
+    implemented: h.implemented,
+    envConfigured: h.envConfigured,
+    connected: h.connected,
+    note: h.note,
     certLevel: cert.level,
     certPassedStages: cert.passedStages.length,
   };
 }
 
-function webullReport(): ProviderReport {
-  return fromRegistry("webull", "Webull adapter is not implemented in this build.");
-}
-
-function tastytradeReport(): ProviderReport {
-  return fromRegistry("tastytrade", "Tastytrade adapter is not registered.");
-}
-
-function alpacaReport(): ProviderReport {
-  return fromRegistry("alpaca", "Alpaca adapter is not registered.");
+interface BrokerHealthLike {
+  readonly implemented: boolean;
+  readonly envConfigured: boolean;
+  readonly connected: boolean;
+  readonly note: string;
 }
 
 function geminiReport(): ProviderReport {
@@ -131,10 +149,10 @@ export interface BrokerStatusResponse {
 }
 
 function buildBrokerStatus(): BrokerStatusResponse {
+  // Every registered adapter, in the registry's own stable order, then the
+  // non-adapter AI row. No broker name is typed in this file.
   const providers: readonly ProviderReport[] = [
-    webullReport(),
-    tastytradeReport(),
-    alpacaReport(),
+    ...listAdapters().map(brokerReport),
     geminiReport(),
   ];
   return {
