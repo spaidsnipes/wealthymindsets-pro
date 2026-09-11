@@ -3,6 +3,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, TrendingUp, Bitcoin, BarChart3, DollarSign, LineChart, Gem } from "lucide-react";
+import {
+  classifySymbol,
+  toYahooSymbol,
+  type AssetClass,
+} from "@/lib/marketData/symbolAssetClass";
 
 /* Asset classes → representative symbols. Picking one loads that symbol. */
 const ASSET_CLASSES: { id: string; label: string; icon: React.ReactNode; symbols: { sym: string; name: string }[] }[] = [
@@ -33,15 +38,66 @@ const ASSET_CLASSES: { id: string; label: string; icon: React.ReactNode; symbols
   ]},
 ];
 
+/**
+ * Which TAB does a symbol open on?
+ *
+ * ─── The measured failure (2026-09-11) ──────────────────────────────────────
+ *
+ * `classOf` used to hand-type its own predicate — the seventh in this repo —
+ * and two of its lists were verbatim restatements of the menu six lines above
+ * it. They had already drifted apart, and the drift was visible:
+ *
+ *   GC1!  → metals      GC=F  → futures     ← the SAME contract, two tabs
+ *   /ES   → forex                           ← `includes("/")` read the futures
+ *                                             slash convention as BASE/QUOTE
+ *   XAUUSD → stocks     ^VIX  → stocks
+ *
+ * ─── What this owns now ─────────────────────────────────────────────────────
+ *
+ * Two things, neither of them "what kind of instrument is this":
+ *
+ *  1. WHICH SYMBOLS ARE ON THE MENU — read off `ASSET_CLASSES` itself, so the
+ *     pinning cannot drift from the list being rendered. Adding GLD to the
+ *     metals tab now pins GLD to metals with no second edit; under the old
+ *     code that took two, and the day someone made one of them was the day
+ *     the tab lied.
+ *  2. WHICH TAB an off-menu symbol opens on — a presentation decision, mapped
+ *     from the class owner's answer.
+ *
+ * Pins are keyed on BOTH the literal symbol and its canonical notation, so a
+ * contract that arrives in the other notation (`GC=F` for `GC1!`) lands on the
+ * tab the trader picked it from.
+ */
+const MENU_TAB_OF_SYMBOL: ReadonlyMap<string, string> = new Map(
+  ASSET_CLASSES.flatMap((klass) =>
+    klass.symbols.flatMap(({ sym }) => [
+      [sym.toUpperCase(), klass.id] as const,
+      [toYahooSymbol(sym).toUpperCase(), klass.id] as const,
+    ]),
+  ),
+);
+
+/**
+ * `UNKNOWN → "stocks"` is a MENU DEFAULT — which tab to open when nothing is
+ * known — and not a claim that the instrument is a stock. Every tab this
+ * component can show is a curated list; there is no "unrecognised" tab, and
+ * refusing to open one would leave the picker blank.
+ */
+const TAB_OF_CLASS: Record<AssetClass, string> = {
+  CRYPTO: "crypto",
+  FUTURES: "futures",
+  FOREX: "forex",
+  EQUITY: "stocks",
+  INDEX: "indices",
+  UNKNOWN: "stocks",
+};
+
 /** Which asset class does the current symbol belong to? */
-function classOf(sym: string): string {
-  const u = sym.toUpperCase();
-  if (u.includes("/")) return "forex";
-  if (["BTC","ETH","SOL","XRP","ADA","LINK","DOGE","BNB","AVAX","DOT","LTC","MATIC"].some(c => u === c || u.startsWith(c + "."))) return "crypto";
-  if (["GC1!","SI1!","HG1!","PL1!","PA1!","GLD","SLV"].includes(u)) return "metals";
-  if (["SPY","QQQ","IWM","DIA","VIX"].includes(u)) return "indices";
-  if (u.endsWith("1!") || u.includes("=F")) return "futures";
-  return "stocks";
+export function classOf(sym: string): string {
+  const raw = (sym ?? "").trim().toUpperCase();
+  const pinned = MENU_TAB_OF_SYMBOL.get(raw) ?? MENU_TAB_OF_SYMBOL.get(toYahooSymbol(raw).toUpperCase());
+  if (pinned) return pinned;
+  return TAB_OF_CLASS[classifySymbol(raw)];
 }
 
 export function AssetClassSwitcher({ symbol, onSelect }: { symbol: string; onSelect: (sym: string) => void }) {
