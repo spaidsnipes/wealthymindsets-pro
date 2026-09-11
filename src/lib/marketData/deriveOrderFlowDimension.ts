@@ -16,13 +16,58 @@
  *
  * PURE — no I/O, no clock. Never fabricates evidence: with too few real
  * trades, returns an honest UNKNOWN dimension.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * COUNTING A GUESS MORE TIMES DOES NOT MAKE IT KNOWLEDGE (2026-09-11)
+ *
+ * This module is the most dangerous consumer of `selectAggressorFlow`,
+ * because it does not merely PAINT the flow — it SEALS it into canonical
+ * state as a decision-grade dimension that other surfaces then trust.
+ *
+ * It scaled `confidence` on `tradeCount` alone: 40 classified trades earned
+ * `resolution: "RESOLVED"`, `value: "AGGRESSIVE BUY DOMINANT"`,
+ * `confidence: 0.75`, `fidelity: "DERIVED"` and — most sharply —
+ * `unknowns: []`, which is not silence but an affirmative claim that nothing
+ * about this verdict is unknown.
+ *
+ * On a live US equity chart every one of those 40 sides came from the Alpaca
+ * relay, which has no aggressor flag and reconstructs each one by comparing
+ * the print to the prior price. It says so honestly on the event:
+ * `aggressorMethod: "TICK_RULE"`, `aggressorConfidence: 0.5`,
+ * `fidelityClass: "PROXY"`. This bridge read none of it.
+ *
+ * So the sealed Passport claimed MORE certainty than its own source claimed,
+ * and claimed it in a field (`confidence`) whose only input was volume. That
+ * is the shift's defect class in its costliest form: a consumer restating
+ * what an owner publishes, minus the qualifier that made it true — except
+ * here the restatement is DURABLE, because it is sealed.
+ *
+ * Three corrections, all sourced from the flow's own `provenance`:
+ *
+ *   1. `confidence` is CAPPED by method. More prints narrow the sampling
+ *      error of a heuristic; they do not turn the heuristic into an
+ *      observation. A tick-rule tape cannot outrank the per-print confidence
+ *      its own producer stamps on it.
+ *   2. `fidelity` is `INFERRED`, not `DERIVED`, when the sides were
+ *      reconstructed. `MarketFidelityClass` has published that distinction
+ *      all along; this module hard-coded `DERIVED` past it.
+ *   3. `unknowns` carries the disclosure even when RESOLVED. An empty
+ *      `unknowns` on an inferred verdict is the lie; the verdict itself is
+ *      still useful and still ships.
+ *
+ * The verdict STRING is deliberately unchanged. Direction is what the tape
+ * says; provenance is how well it says it. Weakening "AGGRESSIVE BUY
+ * DOMINANT" into a hedge would hide a real observation, which is the
+ * opposite error and equally forbidden.
  */
 
 import {
   selectAggressorFlow,
+  type AggressorProvenance,
   type AggressorTick,
 } from "./selectAggressorFlow";
 import type { MarketStateDimension, MarketStateEvidenceRef } from "./canonicalMarketState";
+import type { MarketFidelityClass } from "./marketEvent";
 
 const UNKNOWN_DIMENSION: MarketStateDimension = {
   resolution: "UNKNOWN",
@@ -67,15 +112,85 @@ function verdictFor(snap: ReturnType<typeof selectAggressorFlow>): string {
 }
 
 /**
- * Confidence — bounded by observed trade count. Never claims high certainty
- * from a thin tape.
- *   ≥40 trades → 0.75, ≥15 → 0.55, ≥5 → 0.35, else 0.
+ * The most confidence a flow may earn, given HOW its sides were established.
+ *
+ * `PROVIDER` is uncapped (1) — the venue asserted the side, so only trade
+ * count limits us, exactly as before.
+ *
+ * `INFERRED` is capped at 0.5. That ceiling is not arbitrary and it is not a
+ * copy of a constant: the producers of inferred sides stamp `0.5` on each
+ * individual print because a tick rule is right about half the time it is
+ * tested against a real flag. An AGGREGATE of such prints may be more stable
+ * than any one of them, but it cannot be more TRUSTWORTHY than the method
+ * that produced every input — there is no independent observation anywhere in
+ * the chain to raise it.
+ *
+ * `MIXED` shares the `INFERRED` ceiling, weakest-link: a blend of one venue
+ * print and thirty-nine guesses is not "mostly observed".
+ *
+ * `UNDISCLOSED` is capped hardest. A tape that will not say how it knows has
+ * given us no basis to rank it above an admitted heuristic.
  */
-function confidenceFor(tradeCount: number): number {
-  if (tradeCount >= 40) return 0.75;
-  if (tradeCount >= 15) return 0.55;
-  if (tradeCount >= ORDER_FLOW_RESOLVE_MIN_TRADES) return 0.35;
-  return 0;
+const CONFIDENCE_CEILING: Record<AggressorProvenance, number> = {
+  PROVIDER: 1,
+  INFERRED: 0.5,
+  MIXED: 0.5,
+  UNDISCLOSED: 0.35,
+};
+
+/**
+ * Confidence — bounded by observed trade count, then capped by method.
+ *   ≥40 trades → 0.75, ≥15 → 0.55, ≥5 → 0.35, else 0.
+ *
+ * The count ladder is unchanged; the cap is the new floor-of-honesty applied
+ * over it. A PROVIDER tape is numerically identical to what this function
+ * returned before, so the fix costs nothing where nothing was wrong.
+ */
+function confidenceFor(tradeCount: number, provenance: AggressorProvenance): number {
+  const byCount =
+    tradeCount >= 40 ? 0.75
+    : tradeCount >= 15 ? 0.55
+    : tradeCount >= ORDER_FLOW_RESOLVE_MIN_TRADES ? 0.35
+    : 0;
+  return Math.min(byCount, CONFIDENCE_CEILING[provenance]);
+}
+
+/**
+ * `DERIVED` means "computed from observed facts". A tick-rule side is not an
+ * observed fact, and `MarketFidelityClass` already publishes the word for what
+ * it is. Stamping `DERIVED` on a reconstruction was the qualifier going
+ * missing at the seam.
+ */
+function fidelityFor(provenance: AggressorProvenance): MarketFidelityClass {
+  return provenance === "PROVIDER" ? "DERIVED" : "INFERRED";
+}
+
+/**
+ * The disclosure this dimension owes even when it RESOLVES.
+ *
+ * Returned as an `unknowns` entry rather than folded into `value`, because the
+ * DIRECTION is genuinely known — buyers really did lift more than sellers on
+ * the prints we saw. What is unknown is how the sides were attributed. Those
+ * are different facts and the Passport has separate homes for them.
+ */
+function provenanceUnknowns(provenance: AggressorProvenance): string[] {
+  switch (provenance) {
+    case "PROVIDER":
+      return [];
+    case "INFERRED":
+      return [
+        "No venue supplied an aggressor flag — every side was reconstructed by " +
+        "tick rule, so this verdict is directional, not ground truth.",
+      ];
+    case "MIXED":
+      return [
+        "Some sides were venue-asserted and some were reconstructed by tick rule — " +
+        "this verdict is only as strong as its weakest print.",
+      ];
+    case "UNDISCLOSED":
+    default:
+      return ["The tape did not state how these aggressor sides were established."];
+  }
 }
 
 /**
@@ -84,7 +199,11 @@ function confidenceFor(tradeCount: number): number {
  * would balloon every snapshot. The basis carries the honest count so the
  * lineage is still auditable.
  */
-function evidenceRefFor(input: DeriveOrderFlowInput, tradeCount: number): MarketStateEvidenceRef {
+function evidenceRefFor(
+  input: DeriveOrderFlowInput,
+  tradeCount: number,
+  provenance: AggressorProvenance,
+): MarketStateEvidenceRef {
   const source = (input.source && input.source.trim()) || "chart-runtime";
   const observedAt = input.latestTickAtMs && input.latestTickAtMs > 0
     ? Math.min(input.latestTickAtMs, input.capturedAt)
@@ -95,8 +214,14 @@ function evidenceRefFor(input: DeriveOrderFlowInput, tradeCount: number): Market
     observedAt,
     availableAt,
     source,
-    fidelity: "DERIVED",
-    basis: `${tradeCount} per-trade tick${tradeCount === 1 ? "" : "s"} classified by aggressor side`,
+    fidelity: fidelityFor(provenance),
+    // The basis is the audit trail. "classified by aggressor side" answered
+    // WHAT was counted and left HOW to the reader's assumption — and the
+    // assumption a reader makes about a sealed canonical dimension is
+    // "the venue told us". Name the method so the lineage cannot be misread.
+    basis:
+      `${tradeCount} per-trade tick${tradeCount === 1 ? "" : "s"} classified by ` +
+      `aggressor side (method: ${provenance})`,
   };
 }
 
@@ -123,11 +248,12 @@ export function deriveOrderFlowDimension(input: DeriveOrderFlowInput): MarketSta
     return {
       resolution: "PARTIAL",
       value: null,
-      confidence: confidenceFor(tradeCount),
-      evidence: [evidenceRefFor(input, tradeCount)],
+      confidence: confidenceFor(tradeCount, snap.provenance),
+      evidence: [evidenceRefFor(input, tradeCount, snap.provenance)],
       contradictions: [],
       unknowns: [
         `Only ${tradeCount} classified trade${tradeCount === 1 ? "" : "s"} observed — below the ${ORDER_FLOW_RESOLVE_MIN_TRADES}-trade seal threshold.`,
+        ...provenanceUnknowns(snap.provenance),
       ],
     };
   }
@@ -135,9 +261,11 @@ export function deriveOrderFlowDimension(input: DeriveOrderFlowInput): MarketSta
   return {
     resolution: "RESOLVED",
     value: verdictFor(snap),
-    confidence: confidenceFor(tradeCount),
-    evidence: [evidenceRefFor(input, tradeCount)],
+    confidence: confidenceFor(tradeCount, snap.provenance),
+    evidence: [evidenceRefFor(input, tradeCount, snap.provenance)],
     contradictions: [],
-    unknowns: [],
+    // NOT `[]`. An empty `unknowns` is an affirmative claim that nothing about
+    // this verdict is unknown — false for a tick-rule reconstruction.
+    unknowns: provenanceUnknowns(snap.provenance),
   };
 }

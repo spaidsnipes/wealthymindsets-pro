@@ -12,9 +12,29 @@ import {
   ORDER_FLOW_RESOLVE_MIN_TRADES,
 } from "./deriveOrderFlowDimension";
 import type { AggressorTick } from "./selectAggressorFlow";
+import type { AggressorMethod } from "./marketEvent";
 
-function tradeTick(side: "buy" | "sell", size: number, price = 100): AggressorTick {
-  return { side, size, price, trade: true };
+/**
+ * Every fixture below names a real venue in `source` ("coinbase", "webull").
+ * Before 2026-09-11 the helper supplied NO `aggressorMethod`, so the selector
+ * honestly resolved `UNDISCLOSED` while the assertions read as though a venue
+ * had asserted the side. That is this shift's defect class inside its own test:
+ * a fixture restating a provider's name minus the qualifier that made it a
+ * provider. The default is coinbase's REAL method, so "source: coinbase" and
+ * the sealed fidelity now agree.
+ */
+function tradeTick(
+  side: "buy" | "sell",
+  size: number,
+  price = 100,
+  aggressorMethod: AggressorMethod = "MAKER_SIDE_INVERTED",
+): AggressorTick {
+  return { side, size, price, trade: true, marketEvent: { aggressorMethod } };
+}
+
+/** A print whose side the relay reconstructed by tick rule — Alpaca's reality. */
+function inferredTick(side: "buy" | "sell", size: number, price = 100): AggressorTick {
+  return tradeTick(side, size, price, "TICK_RULE");
 }
 
 describe("deriveOrderFlowDimension", () => {
@@ -210,6 +230,129 @@ describe("deriveOrderFlowDimension", () => {
     expect(low.confidence).toBeLessThan(mid.confidence!);
     expect(mid.confidence).toBeLessThan(high.confidence!);
     expect(high.confidence).toBeLessThanOrEqual(1);
+  });
+
+  describe("a sealed verdict may not out-claim the method that produced it", () => {
+    function build(
+      count: number,
+      mk: (side: "buy" | "sell", size: number) => AggressorTick,
+      seed: string,
+    ) {
+      const ticks: AggressorTick[] = [];
+      // Buy-dominant so the verdict RESOLVES — we are testing the qualifiers
+      // that ride alongside the verdict, not the verdict.
+      for (let i = 0; i < count; i++) ticks.push(mk("buy", 100));
+      for (let i = 0; i < 2; i++) ticks.push(mk("sell", 100));
+      return deriveOrderFlowDimension({
+        ticks,
+        livePrice: 100,
+        source: "alpaca",
+        latestTickAtMs: 1_999_500,
+        capturedAt: 2_000_000,
+        snapshotIdSeed: seed,
+      });
+    }
+
+    it("caps confidence at the tick rule's own per-print confidence, however many prints", () => {
+      // 40 prints is the top count bucket (0.75 for a venue-asserted tape).
+      // More samples narrow a heuristic's sampling error; they do not turn the
+      // heuristic into an observation, and there is no independent observation
+      // anywhere in the chain to raise it.
+      const inferred = build(40, inferredTick, "chart:SPY:inferred-40");
+      expect(inferred.resolution).toBe("RESOLVED");
+      expect(inferred.confidence).toBeLessThanOrEqual(0.5);
+
+      const provider = build(40, (s, z) => tradeTick(s, z), "chart:BTC:provider-40");
+      expect(provider.confidence).toBeGreaterThan(inferred.confidence!);
+    });
+
+    it("stamps INFERRED, not DERIVED, when every side was reconstructed", () => {
+      const d = build(40, inferredTick, "chart:SPY:inferred-fidelity");
+      expect(d.evidence[0]!.fidelity).toBe("INFERRED");
+    });
+
+    it("names the method in the evidence basis so the lineage cannot be misread", () => {
+      expect(build(40, inferredTick, "chart:SPY:basis").evidence[0]!.basis).toContain(
+        "method: INFERRED",
+      );
+    });
+
+    it("keeps the disclosure in `unknowns` even when RESOLVED", () => {
+      // An empty `unknowns` is not silence — it is an affirmative claim that
+      // nothing about this verdict is unknown. On a reconstruction that is the
+      // lie, and it is the one that gets sealed into canonical state.
+      const d = build(40, inferredTick, "chart:SPY:unknowns");
+      expect(d.unknowns.length).toBeGreaterThan(0);
+      expect(d.unknowns.join(" ")).toContain("tick rule");
+    });
+
+    it("says nothing extra when the venue asserted the side", () => {
+      const d = build(40, (s, z) => tradeTick(s, z), "chart:BTC:clean");
+      expect(d.unknowns).toHaveLength(0);
+      expect(d.evidence[0]!.fidelity).toBe("DERIVED");
+    });
+
+    it("does NOT weaken the verdict string — direction is still what the tape says", () => {
+      // Hedging "AGGRESSIVE BUY DOMINANT" into a maybe would hide a real
+      // observation: buyers genuinely did lift more than sellers on these
+      // prints. Provenance qualifies HOW WELL we know, not WHAT we saw.
+      expect(build(40, inferredTick, "chart:SPY:verdict").value).toBe(
+        "AGGRESSIVE BUY DOMINANT",
+      );
+    });
+
+    it("treats a mixed tape as weakest-link, not mostly-observed", () => {
+      const ticks: AggressorTick[] = [tradeTick("buy", 100)];
+      for (let i = 0; i < 39; i++) ticks.push(inferredTick("buy", 100));
+      ticks.push(inferredTick("sell", 100), inferredTick("sell", 100));
+      const d = deriveOrderFlowDimension({
+        ticks,
+        livePrice: 100,
+        source: "alpaca",
+        latestTickAtMs: 1_999_500,
+        capturedAt: 2_000_000,
+        snapshotIdSeed: "chart:SPY:mixed",
+      });
+      expect(d.confidence).toBeLessThanOrEqual(0.5);
+      expect(d.evidence[0]!.fidelity).toBe("INFERRED");
+      expect(d.unknowns.join(" ")).toContain("weakest print");
+    });
+
+    it("caps an undisclosed tape hardest of all", () => {
+      const ticks: AggressorTick[] = [];
+      for (let i = 0; i < 40; i++) {
+        ticks.push({ side: "buy", size: 100, price: 100, trade: true });
+      }
+      for (let i = 0; i < 2; i++) {
+        ticks.push({ side: "sell", size: 100, price: 100, trade: true });
+      }
+      const d = deriveOrderFlowDimension({
+        ticks,
+        livePrice: 100,
+        source: "unknown-relay",
+        latestTickAtMs: 1_999_500,
+        capturedAt: 2_000_000,
+        snapshotIdSeed: "chart:???:undisclosed",
+      });
+      // A tape that will not say how it knows has given us no basis to rank it
+      // above an admitted heuristic.
+      expect(d.confidence).toBeLessThan(0.5);
+      expect(d.unknowns.length).toBeGreaterThan(0);
+    });
+
+    it("carries the disclosure on the PARTIAL branch too", () => {
+      const d = deriveOrderFlowDimension({
+        ticks: [inferredTick("buy", 100), inferredTick("sell", 100)],
+        livePrice: 100,
+        source: "alpaca",
+        latestTickAtMs: 1_999_500,
+        capturedAt: 2_000_000,
+        snapshotIdSeed: "chart:SPY:partial",
+      });
+      expect(d.resolution).toBe("PARTIAL");
+      expect(d.unknowns[0]).toContain("below the");
+      expect(d.unknowns.join(" ")).toContain("tick rule");
+    });
   });
 
   it("ORDER_FLOW_RESOLVE_MIN_TRADES is exported so callers can align UI thresholds", () => {
