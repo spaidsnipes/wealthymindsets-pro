@@ -1,4 +1,5 @@
 import type { OptionContract } from "@/lib/optionContractResponse";
+import { getOptionChainCapability } from "@/lib/marketData/capabilityRegistry";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -8,6 +9,21 @@ export interface AlpacaOptionChainReceipt {
   readonly coverage: "COMPLETE" | "PARTIAL";
   readonly newestProviderTimestamp: string | null;
   readonly chain: OptionContract[];
+  /**
+   * Reviewed identity, DERIVED from `capabilityRegistry` — never retyped here.
+   *
+   * `source`/`fidelity` above are this producer's own vocabulary, and five
+   * files hand-copy that pair. Those stay put: rewriting them is a separate
+   * atom and this one must not grow into a refactor. What changes is that the
+   * chain no longer travels ANONYMOUSLY — it now carries the registry's
+   * providerPath and rights policy id, so a downstream gate can finally ask
+   * "what may we do with this?" and get a reviewed answer instead of silence.
+   *
+   * `null` when the registry cannot resolve the producer. That is an honest
+   * UNKNOWN and must fail closed at the gate, exactly like an UNKNOWN right.
+   */
+  readonly providerPath: string | null;
+  readonly rightsPolicyId: string | null;
 }
 
 function record(value: unknown): UnknownRecord | null {
@@ -109,6 +125,8 @@ export function normalizeAlpacaOptionChain(
     || a.strike - b.strike
     || a.contractType.localeCompare(b.contractType));
 
+  const reviewed = getOptionChainCapability();
+
   return {
     source: "alpaca",
     fidelity: "INDICATIVE",
@@ -117,5 +135,7 @@ export function normalizeAlpacaOptionChain(
       : "COMPLETE",
     newestProviderTimestamp,
     chain,
+    providerPath: reviewed?.providerPath ?? null,
+    rightsPolicyId: reviewed?.rightsPolicyId ?? null,
   };
 }

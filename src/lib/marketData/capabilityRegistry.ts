@@ -10,6 +10,7 @@ export type MarketProviderPath =
   | "binance-us-client-ws"
   | "alpaca-external-relay"
   | "alpaca-rest"
+  | "alpaca-options-snapshot"
   | "moomoo-opend-bridge"
   | "longbridge-openapi-bridge"
   | "webull-openapi-ticks"
@@ -215,6 +216,33 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     evidence: "src/app/api/alpaca/route.ts",
   }),
   capability({
+    // The FIRST reviewed `options` entry. `MarketAssetClass` has declared
+    // "options" as a first-class asset class for as long as this file has
+    // existed, while the shipping option-chain producer
+    // (`normalizeAlpacaOptionChain`) reached three UI surfaces — OptionsChain,
+    // OptionExpressionIntent and ChartsDashboard — with no registry entry at
+    // all. So "may we retain this?" was not refused; it was UNASKABLE. Same
+    // shape as the webull tape gap: absence wearing the costume of a decision.
+    providerPath: "alpaca-options-snapshot",
+    assetClass: "options",
+    eventType: "quote",
+    availability: "PARTIAL",
+    collectionScope: "REQUEST_SCOPED",
+    // OBSERVED is about the CONTRACT ROWS, which is what this entry governs:
+    // the producer drops any contract carrying neither a timestamped quote
+    // observation nor a timestamped trade observation. Greeks and implied
+    // volatility on those rows are provider MODEL output, not observations —
+    // recorded in sessionCoverage below rather than smuggled under OBSERVED.
+    fidelityClass: "OBSERVED",
+    timestampFields: ["PROVIDER", "RECEIVED", "PROCESSED"],
+    sequenceSupported: false,
+    aggressorMethod: "NONE",
+    sessionCoverage: "Request-scoped Alpaca option snapshot page; the producer labels it INDICATIVE and it is NOT an executable quote. Greeks/impliedVolatility are provider-derived model values, not observations. Page coverage may be PARTIAL when a next_page_token is present, and freshness remains the age gate's job",
+    fallbackSemantics: "EXPLICIT",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
+    evidence: "src/app/api/market-data/alpaca/options/route.ts + marketData/alpacaOptionChain.ts; consumed by OptionsChain.tsx, OptionExpressionIntent.tsx and ChartsDashboard.tsx",
+  }),
+  capability({
     providerPath: "moomoo-opend-bridge",
     assetClass: "equity",
     eventType: "trade",
@@ -390,12 +418,37 @@ const TAPE_SOURCE_PATHS: Partial<Record<Exclude<RuntimeTapeSource, null>, {
   webull: { providerPath: "webull-openapi-ticks", assetClass: "equity" },
 };
 
+/**
+ * Did this entry come from the REVIEWED list, or is it the placeholder that
+ * `getMarketDataCapability` synthesizes for a triple nobody has ever reviewed?
+ *
+ * ROOT CAUSE THIS EXPOSES: `getMarketDataCapability` cannot return null. On a
+ * miss it mints a fresh `availability: "UNAVAILABLE"` entry carrying
+ * `evidence: "No matching registry entry"`. That is a deliberate and correct
+ * fail-closed posture for RIGHTS — every action stays UNKNOWN and every gate
+ * says no. But it makes "reviewed and unavailable" indistinguishable from
+ * "never heard of it" to any caller that only checks for a non-null object,
+ * and a caller reading `.providerPath` off the placeholder gets back the very
+ * string it passed in: provenance that looks real and means nothing.
+ *
+ * Identity is the honest test. The placeholder is built fresh per call and can
+ * never be a member of the frozen reviewed list.
+ */
+export function isReviewedCapability(entry: MarketDataCapability): boolean {
+  return MARKET_DATA_CAPABILITIES.includes(entry);
+}
+
 /** Runtime tape truth must come from the reviewed capability registry. */
 export function getRuntimeTapeCapability(source: string | null): MarketDataCapability | null {
   if (!source) return null;
   const identity = TAPE_SOURCE_PATHS[source as Exclude<RuntimeTapeSource, null>];
   if (!identity) return null;
-  return getMarketDataCapability(identity.providerPath, identity.assetClass, "trade");
+  const entry = getMarketDataCapability(identity.providerPath, identity.assetClass, "trade");
+  // An unreviewed triple must read as "we do not know", not as a capability
+  // object. Before this line, a source listed in TAPE_SOURCE_PATHS but absent
+  // from the reviewed list resolved to the synthesized placeholder — so a null
+  // check passed while no review had happened.
+  return isReviewedCapability(entry) ? entry : null;
 }
 
 export function hasVerifiedAggressorTape(source: string | null): boolean {
@@ -403,4 +456,24 @@ export function hasVerifiedAggressorTape(source: string | null): boolean {
   return capabilityEntry != null &&
     capabilityEntry.availability !== "UNAVAILABLE" &&
     capabilityEntry.aggressorMethod !== "NONE";
+}
+
+/**
+ * The reviewed identity of the shipping option-chain producer.
+ *
+ * Exported so `normalizeAlpacaOptionChain` can ATTACH this registry's answer
+ * to its receipt rather than travelling anonymously. Before this existed, an
+ * option chain reached the Option Expression surface — where a trader forms a
+ * real intent against real contracts — carrying no providerPath and no rights
+ * policy id, so no gate downstream could ask what may be done with it.
+ *
+ * Returns null when the producer is UNREVIEWED — an honest "we do not know",
+ * never an invented permission. The `isReviewedCapability` filter is what
+ * makes that null reachable at all: without it this could only ever return
+ * the synthesized placeholder, and the `| null` in the signature would be a
+ * promise the function could not keep.
+ */
+export function getOptionChainCapability(): MarketDataCapability | null {
+  const entry = getMarketDataCapability("alpaca-options-snapshot", "options", "quote");
+  return isReviewedCapability(entry) ? entry : null;
 }
