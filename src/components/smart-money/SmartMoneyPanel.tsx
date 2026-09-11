@@ -9,7 +9,11 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { getFabioInsights, inferAssetClass } from "@/lib/fabio";
 import { evaluateClcEvidence } from "@/lib/decisionIntegrity";
 import { hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
-import { selectAggressorFlow } from "@/lib/marketData/selectAggressorFlow";
+import {
+  selectAggressorFlow,
+  type AggressorFlowSnapshot,
+} from "@/lib/marketData/selectAggressorFlow";
+import { aggressorProvenanceNote } from "@/lib/marketData/aggressorProvenanceNote";
 import { formatImbalanceRatio } from "@/lib/marketData/formatImbalanceRatio";
 import { getSmartMoneyPanelLayout } from "./smartMoneyLayout";
 import { computeConfluence as computeConfluenceV1 } from "@/lib/marketData/confluence";
@@ -47,25 +51,25 @@ function fmtDelta(v: number): string {
 
 // Real order-flow snapshot measured from live WebSocket ticks + the live 1m bar.
 // Everything the panel votes on is derived from THESE numbers — no seeded bias.
-interface Flow {
-  haveData: boolean;   // any real ticks yet?
-  hasFlow: boolean;    // real aggressor volume present (askVol+bidVol > 0)
-  vwap: number;        // volume-weighted avg price of recent ticks (REAL)
-  cvd: number;         // cumulative volume delta = askVol - bidVol (REAL)
-  askVol: number;      // aggressive-buy volume (lifting the offer)
-  bidVol: number;      // aggressive-sell volume (hitting the bid)
-  imbRatio: number;    // dominant/passive % (REAL) — see oneSided before DISPLAYING it
-  /**
-   * True when the weaker aggressor side has ZERO volume, so the true ratio is
-   * UNBOUNDED and `imbRatio` is carrying a 300 SENTINEL rather than a
-   * measurement. The canonical selector has warned about this since it was
-   * written — "display layers MUST NOT paint 300 as a measured 300:100 ratio;
-   * that number has no owner in the tape" — but this panel never received the
-   * field, because it never adopted the selector that owns it.
-   */
-  oneSided: boolean;
-  askDom: boolean;     // askVol >= bidVol
-  candleUp: boolean;   // live bar close >= open (REAL)
+/**
+ * The panel's flow shape is the CANONICAL SNAPSHOT plus one field the tape
+ * does not own.
+ *
+ * It used to be a hand-retyped copy of every field in `AggressorFlowSnapshot`,
+ * and the comment that used to sit on `oneSided` right here explained exactly
+ * what that costs: the selector gained the `oneSided` correction, this panel
+ * "never received the field, because it never adopted the selector that owns
+ * it", and for that whole window it painted a 300 sentinel as a measured
+ * ratio. The list was retyped once, so it drifted once. It would have drifted
+ * again on `provenance` (2026-09-11) — a retyped list is not a shape, it is a
+ * snapshot of a shape taken on the day someone typed it.
+ *
+ * `extends` is the fix that cannot drift: the owner adds a field, this panel
+ * has it, and there is no list here to forget to update.
+ */
+interface Flow extends AggressorFlowSnapshot {
+  /** Live bar close >= open. NOT flow — it reads the bar, not the tape. */
+  candleUp: boolean;
 }
 
 // Combine the three INDEPENDENT real reads (delta, price-vs-VWAP, candle body) into
@@ -292,33 +296,28 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
     // stays here and is NOT pushed into the aggressor selector.
     const candleUp = liveBar ? Number(liveBar.close) >= Number(liveBar.open) : true;
 
-    if (!realTape) {
-      return {
-        haveData: false, hasFlow: false, vwap: livePrice || 0, cvd: 0,
-        askVol: 0, bidVol: 0, imbRatio: 100, oneSided: false, askDom: true,
-        candleUp,
-      };
-    }
-
-    // §24 / H21 — ONE OWNER PER RULE. `selectAggressorFlow` says in its own
-    // first line that it "extracts SmartMoneyPanel's inline math into a
-    // canonical, testable, reusable selector". The extraction happened; the
-    // CUTOVER never did, so this panel kept running a private second copy of
-    // the rule — and quietly missed the `oneSided` correction the owner gained
-    // afterwards. Delta flow still uses EVERY real executed trade with NO lot
-    // floor (the old ≥2 BTC filter discarded ~100% of real Coinbase flow); that
-    // behaviour lives in the selector's `trade === true && size > 0` filter.
-    const snap = selectAggressorFlow(recentTicks, livePrice || 0);
+    // §24 / H21 — ONE OWNER PER RULE, and ONE SHAPE.
+    //
+    // `selectAggressorFlow` says in its own first line that it "extracts
+    // SmartMoneyPanel's inline math into a canonical, testable, reusable
+    // selector". The extraction happened; the CUTOVER only went half way — the
+    // panel called the selector and then COPIED ITS SNAPSHOT OUT FIELD BY FIELD
+    // into a retyped object literal. A hand-written projection is a second
+    // shape, and a second shape drifts: it is how this panel missed `oneSided`
+    // and would have missed `provenance`.
+    //
+    // Spreading is the whole cutover. No field list survives here.
+    //
+    // NO TAPE is expressed by giving the selector NOTHING, not by typing a
+    // zeroed literal beside it — the selector already owns what "no flow" looks
+    // like (and stamps it `provenance: "UNDISCLOSED"`, which a hand-typed
+    // literal would have had to guess at).
+    //
+    // Delta flow still uses EVERY real executed trade with NO lot floor (the old
+    // ≥2 BTC filter discarded ~100% of real Coinbase flow); that behaviour lives
+    // in the selector's `trade === true && size > 0` filter.
     return {
-      haveData: snap.haveData,
-      hasFlow: snap.hasFlow,
-      vwap: snap.vwap,
-      cvd: snap.cvd,
-      askVol: snap.askVol,
-      bidVol: snap.bidVol,
-      imbRatio: snap.imbRatio,
-      oneSided: snap.oneSided,
-      askDom: snap.askDom,
+      ...selectAggressorFlow(realTape ? recentTicks : null, livePrice || 0),
       candleUp,
     };
   }, [recentTicks, liveBar, livePrice, realTape]);
@@ -441,6 +440,10 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
   const buyPct   = totAgg > 0 ? Math.round((flow.askVol / totAgg) * 100) : 50;
   const sellPct  = 100 - buyPct;
   const deltaVal = flow.cvd;                                   // REAL net delta (unrounded)
+  // How the aggressor SIDES behind buyPct/sellPct/deltaVal were established.
+  // Owned by @/lib/marketData/aggressorProvenanceNote so this panel and
+  // OrderFlowCockpitStrip make the identical disclosure in identical words.
+  const provenanceNote = aggressorProvenanceNote(flow.provenance);
   const domSide: "buyers" | "sellers" | "even" | "none" =
     !flow.hasFlow ? "none"
     : buyPct >= 55 ? "buyers"
@@ -979,11 +982,26 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           background: flow.hasFlow ? "rgba(0,212,170,0.06)" : "rgba(240,180,41,0.06)",
         }}
       >
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <AlertCircle size={11} className={flow.hasFlow ? "text-wm-green" : "text-wm-gold"} />
           <span className={clsx("text-[10px] font-bold", flow.hasFlow ? "text-wm-green" : "text-wm-gold")}>
             {flow.hasFlow ? "LIVE TAPE OBSERVATION" : "TAPE UNAVAILABLE"}
           </span>
+          {/* The banner says the tape was OBSERVED. It must also say how the
+              SIDES were established, or "LIVE TAPE OBSERVATION" reads as a
+              venue-asserted aggressor when today it is an Alpaca tick-rule
+              reconstruction at confidence 0.5. Suppressed when there is no
+              flow — "TAPE UNAVAILABLE" already answers the question, and a
+              second chip beside it is noise, not disclosure. */}
+          {flow.hasFlow && provenanceNote && (
+            <span
+              className="wm-smart-money-provenance text-[9px] font-bold rounded px-1 py-px leading-tight"
+              title={provenanceNote.title}
+              style={{ color: "#C9A55C", border: "1px solid #4A4020", background: "#1A1608" }}
+            >
+              {provenanceNote.chip}
+            </span>
+          )}
         </div>
         <div className="text-[10px] text-wm-text mt-0.5">
           {flow.hasFlow
@@ -991,6 +1009,7 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
               ? `Observed aggressor tape on ${symbol} currently favors ${domSide}. Location is not confirmed because no validated structure zone is available.`
               : `Observed aggressor tape on ${symbol} is balanced. Location is not confirmed because no validated structure zone is available.`
             : `No aggressor-tagged tape is available for ${symbol}. Directional order-flow claims are suppressed.`}
+          {flow.hasFlow && provenanceNote ? ` ${provenanceNote.title}` : ""}
         </div>
       </div>
       {/* ── end SCROLLABLE BODY ── */}

@@ -33,9 +33,9 @@
 import * as React from "react";
 import {
   selectAggressorFlow,
-  type AggressorProvenance,
   type AggressorTick,
 } from "@/lib/marketData/selectAggressorFlow";
+import { aggressorProvenanceNote } from "@/lib/marketData/aggressorProvenanceNote";
 import { formatImbalanceRatio } from "@/lib/marketData/formatImbalanceRatio";
 
 export interface OrderFlowCockpitStripProps {
@@ -73,44 +73,18 @@ function formatSignedVolume(v: number): string {
  * raw ratio and was exposed to both. The behaviour is unchanged for this strip.
  */
 /**
- * The disclosure a non-PROVIDER flow owes the trader.
+ * MOVED to @/lib/marketData/aggressorProvenanceNote.
  *
- * `null` for PROVIDER — a venue-asserted aggressor needs no asterisk, and
- * hanging one on it would train the eye to ignore the asterisk that matters.
+ * `aggressorProvenanceNote` was born here and exported so a test could drive
+ * the shipped words. That was correct for one surface. `SmartMoneyPanel` then
+ * needed the same disclosure off the same `AggressorProvenance`, and a second
+ * consumer is exactly when a helper stops being a component detail: the words
+ * describe the FACT, not this strip's chrome. Importing them from a chart
+ * component would have pointed the arrow the wrong way; retyping them would
+ * have been the very drift this atom exists to kill.
  *
- * Exported so the words are tested rather than retyped in a test file: a test
- * that restated "INFERRED" inline would keep passing after someone softened
- * the shipped copy, which is how the labels in this repo have drifted before.
+ * The rendering below is unchanged.
  */
-export function aggressorProvenanceNote(
-  provenance: AggressorProvenance,
-): { readonly chip: string; readonly title: string } | null {
-  switch (provenance) {
-    case "PROVIDER":
-      return null;
-    case "INFERRED":
-      return {
-        chip: "SIDE INFERRED",
-        title:
-          "No venue supplied an aggressor flag. Each side was reconstructed by " +
-          "comparing the print to the prior price (tick rule) — directional, not ground truth.",
-      };
-    case "MIXED":
-      return {
-        chip: "SIDE PART-INFERRED",
-        title:
-          "Some prints carried a venue-asserted aggressor and some were reconstructed " +
-          "by tick rule. The combined figure is only as strong as its weakest print.",
-      };
-    case "UNDISCLOSED":
-    default:
-      return {
-        chip: "SIDE UNDISCLOSED",
-        title:
-          "The tape did not state how these aggressor sides were established.",
-      };
-  }
-}
 
 export function OrderFlowCockpitStrip({
   ticks,
