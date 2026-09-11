@@ -28,6 +28,7 @@ import { describe, it, expect } from "vitest";
 // The manifest module is authored as .mjs (Node ESM CLI); Vitest's
 // module resolver handles .mjs the same as .ts here.
 import { buildManifest } from "./env-manifest.mjs";
+import { stripComments } from "../src/lib/sourceScan.mjs";
 
 interface ManifestEntry {
   name: string;
@@ -47,6 +48,30 @@ interface Manifest {
 }
 
 describe("env-manifest — canon §11.10 Environment Truth Law", () => {
+  /**
+   * POSITIVE CONTROL for the shared stripper — required of every consumer by
+   * src/lib/sourceScan.ts.
+   *
+   * buildManifest() now scans stripped source so a comment naming a retired
+   * host's variable is not reported as a variable this app reads. That fix has
+   * a failure mode: a stripper that grew too greedy would blank every file,
+   * the scan would find nothing, and the drift check would report a
+   * permanently clean manifest — passing by seeing nothing at all. This proves
+   * it deletes prose and keeps code.
+   */
+  it("stripComments removes commentary but preserves executable code", () => {
+    const out = stripComments(
+      [
+        "// mentions process.env.GHOST_ONLY_IN_PROSE historically",
+        "/** block prose naming process.env.ALSO_ONLY_PROSE */",
+        'const k = process.env.REAL_READ;',
+      ].join("\n"),
+    );
+    expect(out).not.toContain("GHOST_ONLY_IN_PROSE");
+    expect(out).not.toContain("ALSO_ONLY_PROSE");
+    expect(out).toContain("process.env.REAL_READ");
+  });
+
   it("buildManifest returns a well-formed schema", () => {
     const m = buildManifest() as unknown as Manifest;
     expect(typeof m.entry_count).toBe("number");

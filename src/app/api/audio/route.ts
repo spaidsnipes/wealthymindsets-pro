@@ -6,13 +6,12 @@
  *   body: { trackId: number | string, url: string, title?: string, artist?: string }
  *
  * For actual file hosting, upload MP3s to:
- *   - Vercel Blob:     vercel.com/docs/storage/vercel-blob
  *   - Cloudflare R2:   r2.cloudflarestorage.com
  *   - AWS S3 / CDN
  * Then paste the public URL here via POST.
  *
- * URLs are stored in memory (Vercel edge). For persistence, connect
- * a database (Supabase, Vercel Postgres, etc.) and replace the Map below.
+ * URLs are stored in memory (per worker instance). For persistence, connect
+ * a database (Supabase, or any managed Postgres) and replace the Map below.
  */
 
 import { NextResponse } from "next/server";

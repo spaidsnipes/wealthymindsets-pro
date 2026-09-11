@@ -28,6 +28,10 @@
 import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+// Shared with the two vitest-side scanners. Do NOT retype the stripper here:
+// three scanners each owning a private copy is how the prose-vs-code blind
+// spot survived its first repair. See src/lib/sourceScan.ts for the account.
+import { stripComments } from "../src/lib/sourceScan.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const REPO_ROOT = dirname(dirname(__filename));
@@ -60,7 +64,9 @@ export function scanEnvReferences() {
   const refs = new Map();
   for (const file of walk(SRC_DIR)) {
     if (/\.test\.(ts|tsx|js|jsx)$/.test(file)) continue;
-    const body = readFileSync(file, "utf8");
+    // Scan CODE, not commentary. A comment explaining why a retired host's
+    // variable must never be read is not a read of that variable.
+    const body = stripComments(readFileSync(file, "utf8"));
     let m;
     while ((m = ENV_REF_RE.exec(body))) {
       const name = m[1];

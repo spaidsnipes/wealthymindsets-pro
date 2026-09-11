@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { describe, it, expect } from "vitest";
+import { stripComments } from "@/lib/sourceScan";
 
 /**
  * ENV MANIFEST GATE — platform-independence / Cloudflare migration.
@@ -46,7 +47,9 @@ function referencedEnvNames(): Set<string> {
   const dotRe = /process\.env\.([A-Za-z_][A-Za-z0-9_]*)/g;
   for (const file of walk(SRC)) {
     if (/\.test\.(ts|tsx|js|jsx)$/.test(file)) continue;
-    const src = readFileSync(file, "utf8");
+    // Scan CODE, not commentary: a comment naming process.env.VERCEL must not
+    // be reported as a variable this app actually reads. See src/lib/sourceScan.ts.
+    const src = stripComments(readFileSync(file, "utf8"));
     let m: RegExpExecArray | null;
     while ((m = dotRe.exec(src)) !== null) names.add(m[1]);
   }

@@ -13,7 +13,7 @@
 // AUTH MODEL (tastytrade-recommended for server apps): a long-lived refresh
 // token (generated once in the tastytrade dashboard → OAuth Applications →
 // Manage → Create Grant; refresh tokens never expire) is exchanged for a
-// 15-minute access token as needed. Add it to Vercel as TASTYTRADE_REFRESH_TOKEN
+// 15-minute access token as needed. Provision it in the deployment environment as TASTYTRADE_REFRESH_TOKEN
 // (server-only). client_id/secret are already set.
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -22,7 +22,7 @@ import { toFinnhubSym } from "@/lib/finnhubSymbol";
 const COMMITTED_FALLBACK = "d8efu9hr01qth3ch5f20d8efu9hr01qth3ch5f2g";
 const BASE = "https://finnhub.io/api/v1";
 
-// Lazy resolution so Vercel's build-time page-data collection doesn't
+// Lazy resolution so Next.js build-time page-data collection doesn't
 // crash when the prod key isn't available in the build environment. Real
 // GET handlers still fail-fast in production at the first request.
 let _finnhubKeyCache: string | null = null;

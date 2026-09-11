@@ -142,7 +142,12 @@ export function SpadeBotButton() {
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
       const msg = String(err).includes("ANTHROPIC_API_KEY")
-        ? "SpaidBot needs an Anthropic API key. Add **ANTHROPIC_API_KEY** to your Vercel environment variables."
+        // Host-neutral remediation text. This used to name Vercel — a retired
+        // host — so the only in-product instruction for fixing a broken SpaidBot
+        // pointed the Founder at a dashboard that no longer runs this app.
+        // The variable NAME is the durable fact; where it is set is the current
+        // host's business, and naming a host here goes stale on every migration.
+        ? "SpaidBot needs an Anthropic API key. Set **ANTHROPIC_API_KEY** in the server environment for this deployment."
         : String(err).replace("Error: ", "");
       setMessages(prev => {
         const u = [...prev];

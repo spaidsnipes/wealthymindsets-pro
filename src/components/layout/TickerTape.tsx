@@ -30,7 +30,7 @@ const TAPE_POLL_INTERVAL_MS = 10_000;
 // docs/operations/AUDIT_2026-08-08_10-POINT.md CRITICAL-A. Any Polygon
 // call chain originating here no-ops via the empty-key guards below;
 // tape falls back to the Yahoo / Alpaca REST paths. Rebuild via a
-// server proxy once POLYGON_KEY is set server-only in Vercel.
+// server proxy once POLYGON_KEY is set server-only in the deployment environment.
 const POLYGON_KEY = "";
 
 /* ── The trader's tape ─────────────────────────────────────────

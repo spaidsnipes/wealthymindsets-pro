@@ -3,10 +3,10 @@ import { NextResponse } from "next/server";
 /**
  * WM-SEC-P0-07 — lightweight per-user + per-route rate limiter.
  *
- * Serverless caveat: this is IN-MEMORY per lambda instance. Vercel spawns
+ * Serverless caveat: this is IN-MEMORY per worker/lambda instance. Serverless platforms spawn
  * multiple parallel warm lambdas under load, so a truly distributed abuse can
  * still burn 2-4× the limit while it spreads across instances. For strict
- * cross-instance ceilings, wire Upstash Redis / Vercel KV — filed as a
+ * cross-instance ceilings, wire Upstash Redis or an equivalent shared KV store — filed as a
  * follow-up. This limiter still catches naive scripts + honest UI mistakes,
  * which is the majority of the attack surface today.
  *

@@ -670,7 +670,7 @@ function UploadModal({ onClose, onAdd, uploader }: {
       } else {
         if (!file) { setError("Please select a file"); setUploading(false); return; }
 
-        // Upload directly browser → Supabase Storage (avoids Vercel 4.5MB body limit)
+        // Upload directly browser → Supabase Storage (avoids the serverless request-body size limit)
         const ext  = file.name.split(".").pop() ?? "mp3";
         const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 

@@ -1493,12 +1493,14 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
     // ── Real-time per-trade tape via an always-on external WS proxy ─────────
     // REAL executed trades for EVERY US stock, so Big Trades bubbles populate on
-    // all symbols — not just the handful the Finnhub WS happens to serve. Vercel
-    // serverless can't host a persistent Alpaca websocket (the function freezes),
-    // so the proxy runs OFF Vercel (e.g. a Railway service) holding the Alpaca IEX
-    // socket and relaying trades. It keeps the Alpaca key/secret — WM only knows
+    // all symbols — not just the handful the Finnhub WS happens to serve. A
+    // request-scoped serverless runtime cannot host a persistent Alpaca websocket
+    // (the invocation ends), so the proxy runs OFF the app host (e.g. a Railway
+    // service, a VPS) holding the Alpaca IEX socket and relaying trades. This is
+    // a property of request-scoped compute, not of any one vendor, so it stays
+    // true across host migrations. It keeps the Alpaca key/secret — WM only knows
     // the proxy's public WS URL. Configure via NEXT_PUBLIC_ALPACA_PROXY_URL
-    // (Vercel) or localStorage wm_alpaca_proxy (quick testing). No-op until a URL
+    // (server env) or localStorage wm_alpaca_proxy (quick testing). No-op until a URL
     // is set → zero churn, no regression. Real trades only, never synthetic.
     //
     // Protocol the proxy must speak: accept the symbol as `?sym=TSLA` (and/or a
@@ -1507,7 +1509,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // accepted below. `t` may be ms-epoch or an RFC3339 string.
     // Default to the live Railway relay so real-time stock trades/bubbles work for
     // every user out of the box — no env var or localStorage required. Still
-    // overridable via NEXT_PUBLIC_ALPACA_PROXY_URL (Vercel) or wm_alpaca_proxy
+    // overridable via NEXT_PUBLIC_ALPACA_PROXY_URL (server env) or wm_alpaca_proxy
     // (localStorage) if the proxy URL ever changes. The proxy URL is not a secret
     // (the Alpaca key/secret live only on the Railway service). Fails gracefully to
     // a no-op if the proxy is ever down.

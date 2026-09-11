@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       // Defeat intermediary/serverless response buffering: an immediate ~2KB
       // comment padding forces the SSE stream to flush and open right away, and
       // an instant heartbeat proves to the client the stream is live before any
-      // trade arrives. Without this, Vercel can hold the whole response buffered.
+      // trade arrives. Without this, an intermediary proxy can hold the whole response buffered.
       try {
         controller.enqueue(encoder.encode(":" + " ".repeat(2048) + "\n\n"));
       } catch { /* stream gone */ }

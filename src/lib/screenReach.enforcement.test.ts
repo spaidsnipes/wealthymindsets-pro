@@ -121,6 +121,10 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
   // first explicit intent. This ledger's reciprocal sentinel demanded the
   // deletion within the hour, which is the behaviour it was written for. See
   // decisionBirth.enforcement.test.ts for the wiring proof.
+  "src/lib/sourceScan.ts": {
+    reason: "OPS_TOOLING",
+    note: "Comment stripper shared by the repo's three static guards (host-neutrality lock, both env-manifest gates). It is read by CI, never by a trader. Correct that no screen reaches it.",
+  },
   "src/lib/decisionMemory.ts": {
     reason: "AWAITING_SURFACE",
     note: "§13: 'Decision Memory sealing has zero production callers.' Confirmed. useDecisionMemory reaches screens; the sealing module underneath does not.",

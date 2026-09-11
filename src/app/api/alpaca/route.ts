@@ -19,7 +19,7 @@ import type { ChangeWindow } from "@/lib/marketData/changeWindow";
 // WM-ENV-P1-02: server-only. NEXT_PUBLIC_* prefix on a broker-secret env var
 // invites a future client-side read that would leak the key into the browser
 // bundle — the exact failure mode WM-SEC-P0-03 just closed for Finnhub.
-// After confirming ALPACA_KEY / ALPACA_SECRET are set server-side in Vercel,
+// After confirming ALPACA_KEY / ALPACA_SECRET are set server-side in the deployment environment,
 // the NEXT_PUBLIC_ALPACA_KEY / NEXT_PUBLIC_ALPACA_SECRET vars can be deleted.
 const { key: ALPACA_KEY, secret: ALPACA_SECRET } = resolveAlpacaLiveCredentials();
 

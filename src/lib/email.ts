@@ -568,9 +568,54 @@ export async function sendLoginAlertEmail(
 }
 
 /**
+ * Edge geo header names, in resolution order, keyed by the field they carry.
+ *
+ * WHY THIS IS A TABLE AND NOT THREE `h.get()` CALLS — read before editing.
+ *
+ * This function used to read `x-vercel-ip-city` / `x-vercel-ip-country-region`
+ * / `x-vercel-ip-country` and nothing else. Those headers are injected by the
+ * Vercel edge and by NOTHING ELSE. When production moved to Cloudflare
+ * Workers/OpenNext, all three went permanently absent — so `location` became
+ * `undefined` on every single login-alert email, and the email shipped anyway
+ * with the location line simply missing.
+ *
+ * Nothing threw. `tsc --noEmit` stayed at exit 0: reading an absent header is
+ * type-correct, it just returns `null`. The host-neutrality lock did not catch
+ * it either, because that lock bounded `@vercel/*` IMPORTS and
+ * `process.env.VERCEL*` READS — two of the three ways a codebase can couple to
+ * a host. Request headers were the third, and were unguarded. The lock has
+ * since been extended to cover header names too.
+ *
+ * The cure is host-neutrality, not a Cloudflare rename: a rename would simply
+ * arm the identical failure for the NEXT migration. Header names are data here,
+ * so adding a host is appending a string, and a missing geo header degrades to
+ * an honestly absent location rather than a fabricated one.
+ *
+ * Vercel's names are deliberately NOT in this table. Vercel is a retired host
+ * (Command Center 2026-09-11, RETIREMENT / GHOST-HOST LAW); carrying header
+ * names that can never populate again is retirement debt, not portability.
+ */
+const GEO_HEADERS = {
+  // Cloudflare Workers — current production host. Populated when the
+  // "Add visitor location headers" managed transform is enabled.
+  city:    ["cf-ipcity"],
+  region:  ["cf-region"],
+  country: ["cf-ipcountry"],
+} as const;
+
+/** First non-empty value among candidate header names, or undefined. */
+function firstHeader(h: Headers, names: readonly string[]): string | undefined {
+  for (const n of names) {
+    const v = h.get(n);
+    if (v && v.trim().length > 0) return v.trim();
+  }
+  return undefined;
+}
+
+/**
  * Extract sign-in metadata from an incoming request for the login-alert email.
- * Uses Vercel's edge geo/ip headers when present (they only exist in prod),
- * and falls back gracefully so local dev still produces a sane payload.
+ * Uses the current host's edge geo/ip headers when present (they only exist in
+ * prod), and falls back gracefully so local dev still produces a sane payload.
  */
 export function loginAlertDetailsFromRequest(
   req: Request,
@@ -581,9 +626,9 @@ export function loginAlertDetailsFromRequest(
     h.get("x-real-ip") ||
     undefined;
 
-  const city    = h.get("x-vercel-ip-city");
-  const region  = h.get("x-vercel-ip-country-region");
-  const country = h.get("x-vercel-ip-country");
+  const city    = firstHeader(h, GEO_HEADERS.city);
+  const region  = firstHeader(h, GEO_HEADERS.region);
+  const country = firstHeader(h, GEO_HEADERS.country);
   const location = [city && decodeURIComponent(city), region, country]
     .filter(Boolean)
     .join(", ") || undefined;

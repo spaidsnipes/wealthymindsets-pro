@@ -23,6 +23,7 @@ import {
   buildVerificationEmail,
   buildLoginAlertEmail,
   emailConfigStatus,
+  loginAlertDetailsFromRequest,
 } from "@/lib/email";
 
 describe("email.ts — template builders (truth-lock)", () => {
@@ -175,5 +176,86 @@ describe("email.ts — template builders (truth-lock)", () => {
         if (prior !== undefined) process.env.RESEND_API_KEY = prior;
       }
     });
+  });
+});
+
+/**
+ * LOGIN-ALERT GEO RESOLUTION — the function had ZERO tests when the host moved.
+ *
+ * `loginAlertDetailsFromRequest` fills the location line of the "new sign-in to
+ * your account" security email. It read `x-vercel-ip-*` headers exclusively.
+ * When production moved from Vercel to Cloudflare Workers/OpenNext those
+ * headers went permanently absent, so `location` became `undefined` on every
+ * alert and the email shipped with the line missing. No test noticed, because
+ * there were none; `tsc --noEmit` could not notice, because reading an absent
+ * header is type-correct and returns null.
+ *
+ * These tests pin the behaviour the migration needed: resolve from the CURRENT
+ * host's header names, and when geo is genuinely unavailable report it absent
+ * rather than fabricating a location.
+ */
+describe("loginAlertDetailsFromRequest — host-neutral sign-in geo", () => {
+  function reqWith(headers: Record<string, string>): Request {
+    return new Request("https://wealthymindsetspro.com/api/auth/login", { headers });
+  }
+
+  it("resolves location from Cloudflare edge headers (current production host)", () => {
+    const d = loginAlertDetailsFromRequest(reqWith({
+      "cf-ipcity": "Atlanta",
+      "cf-region": "Georgia",
+      "cf-ipcountry": "US",
+    }));
+    expect(d.location).toBe("Atlanta, Georgia, US");
+  });
+
+  it("REGRESSION: x-vercel-ip-* alone yields NO location — the retired host cannot supply geo", () => {
+    // This is the exact header set the code used to depend on. It must not be
+    // resurrected: on the current host these headers are never sent, so relying
+    // on them is indistinguishable from having no geo at all.
+    const d = loginAlertDetailsFromRequest(reqWith({
+      "x-vercel-ip-city": "Atlanta",
+      "x-vercel-ip-country-region": "Georgia",
+      "x-vercel-ip-country": "US",
+    }));
+    expect(d.location).toBeUndefined();
+  });
+
+  it("degrades honestly to undefined when no geo header is present (local dev)", () => {
+    const d = loginAlertDetailsFromRequest(reqWith({}));
+    expect(d.location).toBeUndefined();
+  });
+
+  it("partial geo renders only what the edge actually supplied — no filler", () => {
+    const d = loginAlertDetailsFromRequest(reqWith({ "cf-ipcountry": "US" }));
+    expect(d.location).toBe("US");
+  });
+
+  it("percent-encoded city names are decoded", () => {
+    const d = loginAlertDetailsFromRequest(reqWith({
+      "cf-ipcity": "S%C3%A3o%20Paulo",
+      "cf-ipcountry": "BR",
+    }));
+    expect(d.location).toBe("São Paulo, BR");
+  });
+
+  it("blank header values are treated as absent, not as an empty location segment", () => {
+    const d = loginAlertDetailsFromRequest(reqWith({
+      "cf-ipcity": "   ",
+      "cf-ipcountry": "US",
+    }));
+    expect(d.location).toBe("US");
+  });
+
+  it("ip comes from x-forwarded-for's first hop; device from user-agent", () => {
+    const d = loginAlertDetailsFromRequest(reqWith({
+      "x-forwarded-for": "203.0.113.9, 70.41.3.18",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+    }));
+    expect(d.ip).toBe("203.0.113.9");
+    expect(d.device).toBeTruthy();
+  });
+
+  it("always returns a time string even with an empty request", () => {
+    expect(loginAlertDetailsFromRequest(reqWith({})).time).toMatch(/ET$/);
   });
 });

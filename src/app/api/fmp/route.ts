@@ -11,7 +11,7 @@
 
 import { NextResponse } from "next/server";
 
-// Accept EITHER env name so a key set in Vercel as FMP_KEY *or*
+// Accept EITHER env name so a key provisioned as FMP_KEY *or*
 // NEXT_PUBLIC_FMP_KEY both work (a name mismatch was silently 503-ing Options +
 // Financials with "provider not configured"). Prefer the non-public FMP_KEY —
 // this is a server-only route, so a NEXT_PUBLIC_ key needlessly ships in the

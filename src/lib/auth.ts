@@ -23,7 +23,7 @@ import {
 const DEV_JWT_SECRET = "wm-dev-secret-CHANGE-IN-PROD-4f8a2b1c";
 
 // JWT secret is resolved LAZILY on first sign/verify call, not at module
-// load. Reason: Vercel's build-time page-data collection imports every
+// load. Reason: Next.js build-time page-data collection imports every
 // route module (and therefore this module) with NODE_ENV=production. If
 // JWT_SECRET is not set in the build environment (e.g. build-only worker
 // context), a top-level throw fails the entire deploy even though the
