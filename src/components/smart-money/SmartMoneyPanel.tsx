@@ -14,6 +14,7 @@ import {
   type AggressorFlowSnapshot,
 } from "@/lib/marketData/selectAggressorFlow";
 import { aggressorProvenanceNote } from "@/lib/marketData/aggressorProvenanceNote";
+import { aggressorTapeReason } from "@/lib/marketData/aggressorTapeReason";
 import { formatImbalanceRatio } from "@/lib/marketData/formatImbalanceRatio";
 import { getSmartMoneyPanelLayout } from "./smartMoneyLayout";
 import { computeConfluence as computeConfluenceV1 } from "@/lib/marketData/confluence";
@@ -357,6 +358,16 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
   }, [recentTicks, realTape, livePrice]);
   const maxAbsDelta = deltaLevels.reduce((m, l) => Math.max(m, Math.abs(l.delta)), 0);
 
+  // Why THIS symbol has no signed tape. Null whenever one is flowing, so the
+  // absence copy below cannot survive into a render that has data. The asset
+  // -class facts live in `capabilityRegistry` and are read, never retyped: the
+  // paragraph this replaced recited every class at once and told equity traders
+  // to wait for an opening bell that would not have fixed an unwired provider.
+  const tapeAbsence = React.useMemo(
+    () => aggressorTapeReason(symbol, flow.hasFlow),
+    [symbol, flow.hasFlow],
+  );
+
   // Derived directly from the SAME `flow` snapshot the Delta Domination card
   // reads, in the SAME render — so the two can never contradict each other.
   const signals = React.useMemo(() => generateSignals(symbol, livePrice, flow), [symbol, livePrice, flow]);
@@ -691,9 +702,8 @@ export function SmartMoneyPanel({ onClose, symbol }: { onClose: () => void; symb
           </>
         ) : (
           <div className="text-[9px] text-wm-text-dim leading-relaxed">
-            No per-trade buy/sell side on this feed yet, so we can't measure the tug-of-war honestly.
-            Delta domination needs aggressor-tagged ticks. Crypto (BTC/ETH/SOL…) carries them 24/7; stocks carry them
-            while the market is open. Futures have no aggressor tape wired up here yet. We won&apos;t fake a winner.
+            {tapeAbsence?.sentence} Delta domination needs aggressor-tagged ticks, and we won&apos;t fake a winner
+            without them.
           </div>
         )}
 
