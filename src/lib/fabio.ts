@@ -19,6 +19,12 @@
  * for verified proprietary content.
  */
 
+import {
+  classifySymbol,
+  toYahooSymbol,
+  type AssetClass,
+} from "@/lib/marketData/symbolAssetClass";
+
 export const FABIO_CONTENT_IS_PLACEHOLDER = true;
 
 export type FabioCategory =
@@ -182,16 +188,80 @@ export interface FabioContext {
   surface?: string;
 }
 
-/** Infer a coarse asset class from a symbol string (mirrors chart conventions). */
+/**
+ * Metals futures roots that this playbook has a macro insight for.
+ *
+ * Fabio legitimately owns THIS, because "which metals do we have a playbook
+ * for" is a fact about the playbook, not about the market. What it does NOT
+ * own is which symbols ARE those contracts — that is read from the canonical
+ * notation below, so `XAU/USD`, `XAUUSD`, `GC1!` and `GC=F` all arrive here as
+ * the same root, and `SIRI` never does.
+ */
+const METALS_FUTURES_ROOTS = new Set(["GC", "MGC", "SI", "SIL", "HG", "PL", "PA"]);
+
+/**
+ * Which Fabio playbook vocabulary does this symbol belong to?
+ *
+ * ─── THE MEASURED FAILURE (2026-09-11) ──────────────────────────────────────
+ *
+ * This was the SIXTH hand-typed answer to "what kind of instrument is this" in
+ * the repo, written before `symbolAssetClass` existed to own the question. It
+ * was measured against that owner, and four of its answers were wrong about
+ * symbols the product itself hands it:
+ *
+ *   BTC-USD   → stocks   (the crypto set held BARE bases only, and every
+ *   ETH-USD   → stocks    picker in this app emits the `-USD` form — so the
+ *   SOL-USD   → stocks    "Crypto has no bell" playbook could never fire for
+ *                         an actual crypto symbol, and the stocks session
+ *                         playbook fired instead: an opening-range insight
+ *                         handed to a market that has no open.)
+ *   EURUSD=X  → stocks   (Yahoo pair notation matched no branch.)
+ *   /ES       → forex    (`includes("/")` read the futures slash convention as
+ *                         a BASE/QUOTE pair. This is the identical bug
+ *                         `classifySymbol` documents and orders around.)
+ *   SIRI      → metals   (`startsWith("SI")`. Sirius XM was given the
+ *   GCT       → metals    gold-and-real-yields macro playbook. So was GCT.)
+ *
+ * Every one of those is a wrong ANSWER shown to a trader, not a style problem.
+ *
+ * ─── WHAT CHANGED ───────────────────────────────────────────────────────────
+ *
+ * Class is now asked of the owner. Only the mapping into Fabio's own coarser
+ * vocabulary stays here, as a total Record, so adding an `AssetClass` member
+ * fails this typecheck instead of silently defaulting to "stocks" on screen.
+ */
 export function inferAssetClass(symbol?: string): FabioAssetClass {
   if (!symbol) return "any";
-  const s = symbol.toUpperCase();
-  if (["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX", "LINK", "DOT", "LTC"].includes(s)) return "crypto";
-  if (s.includes("XAU") || s.includes("XAG") || s.startsWith("GC") || s.startsWith("SI")) return "metals";
-  if (s.endsWith("1!") || s.includes("=F")) return "futures";
-  if (s.includes("/") || /^[A-Z]{6}$/.test(s)) return "forex";
-  return "stocks";
+
+  const klass = classifySymbol(symbol);
+
+  // The metals overlay is a SUBSET of futures, not a rival classification, so
+  // it is applied only where the owner already said futures. That ordering is
+  // what keeps an equity ticker out of the macro playbook.
+  if (klass === "FUTURES") {
+    const canonical = toYahooSymbol(symbol).toUpperCase();
+    const root = canonical.endsWith("=F") ? canonical.slice(0, -2) : "";
+    if (METALS_FUTURES_ROOTS.has(root)) return "metals";
+  }
+
+  return FABIO_CLASS_OF[klass];
 }
+
+/**
+ * INDEX collapses to "stocks" deliberately: this vocabulary has no index
+ * member, and the insights "stocks" selects are the bell-driven session ones
+ * (opening range, first thirty minutes), which are as true of a cash index as
+ * of a single name. UNKNOWN collapses to "any" — an unreadable symbol earns no
+ * asset-specific playbook rather than a guessed one.
+ */
+const FABIO_CLASS_OF: Record<AssetClass, FabioAssetClass> = {
+  CRYPTO: "crypto",
+  FUTURES: "futures",
+  FOREX: "forex",
+  EQUITY: "stocks",
+  INDEX: "stocks",
+  UNKNOWN: "any",
+};
 
 function scoreInsight(ins: FabioInsight, ctx: FabioContext): number {
   let score = 1; // base — everything is at least eligible
