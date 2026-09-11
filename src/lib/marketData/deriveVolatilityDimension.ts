@@ -87,10 +87,35 @@ function aggregateFor(ticks: readonly AggressorTick[]): VolatilityAggregate | nu
   return { count, min, max, mean, rangePct };
 }
 
-function verdictFor(rangePct: number): string {
-  if (rangePct <= VOLATILITY_LOW_MAX_PCT) return "LOW VOLATILITY";
-  if (rangePct >= VOLATILITY_HIGH_MIN_PCT) return "HIGH VOLATILITY";
-  return "NORMAL VOLATILITY";
+/**
+ * THE ENTIRE VOCABULARY THIS PRODUCER CAN EMIT.
+ *
+ * Named as data, not as three string literals buried in a branch, because the
+ * only consumer that matters — `selectMarketStory`'s DEFAULT_MATCHERS — reads
+ * this dimension BY VALUE. When the matcher list and the producer's words drift
+ * apart nothing throws, nothing fails tsc, and no test turns red: the chapter
+ * guard simply never fires, and /command-deck prints UNKNOWN in its largest
+ * type forever. That is exactly how the BALANCE chapter came to be unreachable
+ * (the matcher accepted "low"; this file has always said "LOW VOLATILITY").
+ *
+ * Exporting the vocabulary lets the matcher side be tested against THIS list
+ * rather than against a second hand-written copy of it — the same symmetry
+ * discipline the DecisionId mint/reader pair uses. Adding a fourth verdict here
+ * fails the symmetry Sentinel until a matcher claims it or a test declares it
+ * deliberately unmatched.
+ */
+export const VOLATILITY_VERDICTS = {
+  LOW: "LOW VOLATILITY",
+  NORMAL: "NORMAL VOLATILITY",
+  HIGH: "HIGH VOLATILITY",
+} as const;
+
+export type VolatilityVerdict = (typeof VOLATILITY_VERDICTS)[keyof typeof VOLATILITY_VERDICTS];
+
+function verdictFor(rangePct: number): VolatilityVerdict {
+  if (rangePct <= VOLATILITY_LOW_MAX_PCT) return VOLATILITY_VERDICTS.LOW;
+  if (rangePct >= VOLATILITY_HIGH_MIN_PCT) return VOLATILITY_VERDICTS.HIGH;
+  return VOLATILITY_VERDICTS.NORMAL;
 }
 
 function confidenceFor(count: number): number {

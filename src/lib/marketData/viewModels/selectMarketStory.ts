@@ -21,6 +21,9 @@ import type {
   MarketStateEvidenceRef,
   MarketStateResolution,
 } from "../canonicalMarketState";
+// Value import, deliberately: DEFAULT_MATCHERS must be built FROM the shipping
+// producer's vocabulary, not from a retyped copy of it that can drift.
+import { VOLATILITY_VERDICTS } from "../deriveVolatilityDimension";
 
 /**
  * Suggested chapter vocabulary. Callers may extend or replace.
@@ -133,9 +136,25 @@ export const DEFAULT_MATCHERS: Required<NonNullable<StoryConfig["matchers"]>> = 
     trend: looseMatch(["trend", "trending", "trendup", "trenddown"]),
     rotation: looseMatch(["rotation", "rotating", "meanreversion"]),
   },
+  // VOCABULARY THE VOLATILITY PRODUCER ACTUALLY SPEAKS.
+  //
+  // `VOLATILITY_VERDICTS.LOW` is the string "LOW VOLATILITY", and looseMatch
+  // compares whole normalized words — "lowvolatility" is not "low". So for as
+  // long as this list held only the bare adjectives, `m.volatility.low` could
+  // not match anything the shipping producer emits, the BALANCE guard's
+  // `supports` was structurally false, and /command-deck printed UNKNOWN in its
+  // largest type on every symbol in every session. Nothing threw and tsc stayed
+  // green, because a matcher that matches nothing is indistinguishable from a
+  // market that is not in that state.
+  //
+  // The producer's tokens are referenced by IMPORT rather than retyped, so the
+  // two halves cannot silently drift again; volatilityVocabulary.test.ts locks
+  // the correspondence in both directions. The bare adjectives stay because
+  // DEFAULT_MATCHERS is documented as accepting common variants from producers
+  // whose vocabulary is not known here.
   volatility: {
-    low: looseMatch(["low", "compressed", "quiet"]),
-    high: looseMatch(["high", "elevated", "expansion"]),
+    low: looseMatch(["low", "compressed", "quiet", VOLATILITY_VERDICTS.LOW]),
+    high: looseMatch(["high", "elevated", "expansion", VOLATILITY_VERDICTS.HIGH]),
     shock: looseMatch(["shock", "extreme"]),
   },
   aggression: {
