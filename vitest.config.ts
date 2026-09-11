@@ -34,6 +34,13 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // `server-only` is a framework-supplied build-time tripwire with no
+      // runtime behaviour and no entry in node_modules, so any test that
+      // value-imports a server module fails to LOAD — a resolution error that
+      // reads nothing like the gap it represents. See the stub's header for
+      // why this is a stub rather than an install, and why it does not weaken
+      // the real client-bundle guard.
+      "server-only": fileURLToPath(new URL("./src/test/serverOnlyStub.ts", import.meta.url)),
     },
   },
 });

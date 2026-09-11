@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
-import { probeMoomooMarketData } from "../../../../lib/marketData/adapters/moomooMarketData";
-import { probeWebullMarketData, webullDataConfigFromEnv } from "../../../../lib/marketData/adapters/webullMarketData";
 import {
   aggregateSourceCertifications,
   type FleetSourceCertification,
 } from "../../../../lib/marketData/sourceCertificationRegistry";
+import { probeMarketDataFleet } from "@/lib/marketData/providerProbeFleet";
 
 /**
  * /api/market-data/certification — the DATA-side companion to
@@ -25,18 +24,14 @@ import {
 export const dynamic = "force-dynamic";
 
 async function buildFleet(): Promise<FleetSourceCertification> {
-  const moomoo = await probeMoomooMarketData(fetch, {
-    bridgeUrl: (process.env.MOOMOO_BRIDGE_URL ?? "").replace(/\/+$/, ""),
-    bridgeToken: process.env.MOOMOO_BRIDGE_TOKEN,
-    canarySymbol: process.env.MOOMOO_CANARY_SYMBOL || undefined,
-  });
-  const webull = await probeWebullMarketData(fetch, {
-    ...webullDataConfigFromEnv(process.env),
-    canarySymbol: process.env.WEBULL_CANARY_SYMBOL || undefined,
-  });
-  // Future sources (Alpaca, …) slot in here as their probes land — one array
-  // entry each, no new truth engine.
-  return aggregateSourceCertifications([moomoo, webull]);
+  // Membership comes from `providerProbeFleet`, the owner. What stood here was
+  // a two-source array under the comment "Future sources (Alpaca, …) slot in
+  // here as their probes land" — and the probes HAD landed, with shipping
+  // callers one directory over. Three sources WM genuinely reads, including
+  // longbridge (a live tape lane in `useWebSocket`), were absent from this
+  // surface: not RED, not UNKNOWN, simply unasked.
+  const fleet = await probeMarketDataFleet(fetch);
+  return aggregateSourceCertifications(fleet.map(entry => entry.certification));
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse<FleetSourceCertification> | Response> {
