@@ -158,6 +158,41 @@ export function mintDecisionId(input: MintDecisionIdInput): MintResult {
 }
 
 /**
+ * The reader-side half of the mint. Does this untrusted value carry a decision
+ * identity this system would have been willing to MINT?
+ *
+ * WHY THIS EXISTS. `DecisionId` is a nominal brand, and a brand is only worth
+ * the checks performed at the places untrusted bytes cross into it. Paper-book
+ * records come back from localStorage as `JSON.parse` output and are asserted
+ * to be `Order` / `Trade` by predicates that never looked at `decisionId` at
+ * all — so a persisted `decisionId: 42`, `decisionId: ""`, or a hand-edited
+ * `decisionId: "wmd_ord-9"` was accepted and handed downstream wearing a brand
+ * that promised it had been minted. Nothing downstream re-checks, because the
+ * type says it does not have to. That is a brand that lies.
+ *
+ * SYMMETRY IS THE WHOLE POINT: this is defined against the SAME
+ * `BROKER_ID_SHAPES` list `mintDecisionId` refuses, not a second hand-written
+ * list that can drift away from it. What the minter will not produce, the
+ * reader will not accept. If the two ever disagree, an id the law forbids
+ * could re-enter the system through the back door of persistence — which is
+ * precisely the §4 failure the brand was introduced to prevent.
+ *
+ * Absence is NOT handled here. `undefined` is not a DecisionId, and this
+ * returns false for it. The H1 rule — absence is not zero and is not a fresh
+ * id either — is the CALLER's to honour: an optional field must test presence
+ * first and disclose absence, never route it through here and mint over it.
+ */
+export function isDecisionId(v: unknown): v is DecisionId {
+  if (typeof v !== "string") return false;
+  if (!v.startsWith("wmd_")) return false;
+  const nonce = v.slice("wmd_".length);
+  // The minter trims before joining, so a minted id never carries edge
+  // whitespace. An id that does was not produced by this mint.
+  if (nonce === "" || nonce.trim() !== nonce) return false;
+  return !BROKER_ID_SHAPES.some((shape) => shape.test(nonce));
+}
+
+/**
  * The events §4 says an identity must SURVIVE. Named as data so the survival
  * rule can be tested exhaustively rather than by whichever three a reviewer
  * happened to think of.

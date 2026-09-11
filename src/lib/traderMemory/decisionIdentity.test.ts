@@ -8,6 +8,7 @@
 import { describe, it, expect } from "vitest";
 import {
   mintDecisionId,
+  isDecisionId,
   decisionIdAfter,
   checkChildId,
   SURVIVED_EVENTS,
@@ -78,6 +79,56 @@ describe("decisionIdentity — §4 birth", () => {
     const r = mintDecisionId({ cause: "EXPLICIT_INTENT", deviceId: "", nowMs: 1, nonce: "x" });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason.length).toBeGreaterThan(10);
+  });
+});
+
+/**
+ * The reader-side half of the mint. The guard that matters most here is
+ * SYMMETRY: `isDecisionId` must accept exactly what `mintDecisionId` produces
+ * and refuse exactly what it refuses. If the two drift apart, an id the §4 law
+ * forbids re-enters the system through persistence — the exact failure the
+ * nominal brand was introduced to prevent.
+ */
+describe("decisionIdentity — §4 reader-side recognition", () => {
+  it("accepts every id this mint produces (round-trip symmetry)", () => {
+    for (const nonce of ["3f9c1e", "a", "550e8400-e29b-41d4-a716-446655440000", "Z9"]) {
+      const r = mintDecisionId({
+        cause: "EXPLICIT_INTENT", deviceId: "ipad-1", nowMs: 1, nonce,
+      });
+      expect(r.ok).toBe(true);
+      if (r.ok) expect(isDecisionId(r.identity.decisionId)).toBe(true);
+    }
+  });
+
+  it("refuses the broker/order/fill shapes the MINT refuses — same list, both directions", () => {
+    for (const nonce of ["ord-1", "order_9", "brk-7", "brok_2", "fill-3", "exec_4"]) {
+      // The mint will not produce it...
+      expect(mintDecisionId({
+        cause: "EXPLICIT_INTENT", deviceId: "ipad-1", nowMs: 1, nonce,
+      }).ok).toBe(false);
+      // ...and the reader will not accept it arriving pre-formed from storage.
+      expect(isDecisionId(`wmd_${nonce}`)).toBe(false);
+    }
+  });
+
+  it("refuses non-strings — absence, zero and objects are not identities", () => {
+    for (const v of [undefined, null, 42, 0, true, {}, [], Symbol("x")]) {
+      expect(isDecisionId(v)).toBe(false);
+    }
+  });
+
+  it("refuses a string that never went through the mint", () => {
+    expect(isDecisionId("")).toBe(false);
+    expect(isDecisionId("wmd_")).toBe(false);      // prefix with no uniqueness
+    expect(isDecisionId("3f9c1e")).toBe(false);    // bare nonce, unprefixed
+    expect(isDecisionId("WMD_3f9c1e")).toBe(false); // prefix is case-sensitive
+    expect(isDecisionId("xwmd_3f9c1e")).toBe(false); // prefix must lead
+  });
+
+  it("refuses edge whitespace — the mint trims, so a minted id never carries it", () => {
+    expect(isDecisionId("wmd_ 3f9c1e")).toBe(false);
+    expect(isDecisionId("wmd_3f9c1e ")).toBe(false);
+    expect(isDecisionId("wmd_   ")).toBe(false);
   });
 });
 

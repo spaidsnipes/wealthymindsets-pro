@@ -10,7 +10,7 @@
  */
 
 import type { CapitalStoreFacts } from "@/lib/experience/capitalReach";
-import type { DecisionId } from "@/lib/traderMemory/decisionIdentity";
+import { isDecisionId, type DecisionId } from "@/lib/traderMemory/decisionIdentity";
 
 export const PAPER_KEY = "wm_paper_state";
 export const STARTING_CASH = 100_000;
@@ -534,6 +534,25 @@ export function isValidPosition(v: unknown): v is Position {
     && num(v.unrealPnl) && num(v.marketPx);
 }
 
+/**
+ * An OPTIONAL decision identity, validated the way the mint would validate it.
+ *
+ * Absent is valid — books written before §4 identity existed have no decision
+ * identity, and the H1 rule forbids inventing one for them. But PRESENT means
+ * the record claims to carry a minted `DecisionId`, and these predicates end
+ * in `v is Order` / `v is Trade`, so whatever is here acquires the nominal
+ * brand and nothing downstream re-checks it. localStorage is untrusted input:
+ * without this, a book holding `decisionId: 42` or a hand-edited
+ * `decisionId: "wmd_ord-9"` passed straight through wearing the brand.
+ *
+ * It delegates to `isDecisionId` rather than re-deriving the rule, so this
+ * module cannot become a SECOND owner of what a decision identity is and drift
+ * away from the minter (§24).
+ */
+function optDecisionId(v: unknown): boolean {
+  return v === undefined || isDecisionId(v);
+}
+
 export function isValidOrder(v: unknown): v is Order {
   return rec(v) && str(v.id) && str(v.symbol)
     && ORDER_SIDES.includes(v.side as string)
@@ -541,13 +560,15 @@ export function isValidOrder(v: unknown): v is Order {
     && ORDER_STATUSES.includes(v.status as string)
     && num(v.qty) && num(v.ts)
     && optNum(v.limitPx) && optNum(v.stopPx) && optNum(v.fillPx)
-    && (v.rejectReason === undefined || typeof v.rejectReason === "string");
+    && (v.rejectReason === undefined || typeof v.rejectReason === "string")
+    && optDecisionId(v.decisionId);
 }
 
 export function isValidTrade(v: unknown): v is Trade {
   return rec(v) && str(v.id) && str(v.symbol)
     && ORDER_SIDES.includes(v.side as string)
-    && num(v.qty) && num(v.px) && num(v.ts) && optNum(v.pnl);
+    && num(v.qty) && num(v.px) && num(v.ts) && optNum(v.pnl)
+    && optDecisionId(v.decisionId);
 }
 
 export function isValidEquityPoint(v: unknown): v is EquityPoint {

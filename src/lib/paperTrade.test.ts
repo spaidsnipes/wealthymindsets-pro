@@ -6,6 +6,9 @@ import {
   applyFill,
   clearPaperState,
   loadPaperState,
+  isValidOrder,
+  isValidTrade,
+  parsePaperSnapshot,
   placeChartMarketOrder,
   savePaperState,
   subscribePaperState,
@@ -14,6 +17,7 @@ import {
   type Order,
   type Position,
 } from "./paperTrade";
+import { mintDecisionId } from "./traderMemory/decisionIdentity";
 
 /**
  * SHIFT-J J-Bkt 2 — Orkin §22 state-matrix for applyFill.
@@ -247,6 +251,87 @@ describe("applyFill — decision identity forwarding (P0 artery)", () => {
     expect(r.trade.decisionId).toBe(DID);
     expect(r.trade.id).not.toBe(DID);
     expect(r.trade.id.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * THE BRAND MUST NOT LIE AT THE STORAGE BOUNDARY.
+ *
+ * `isValidOrder` / `isValidTrade` end in `v is Order` / `v is Trade`. Whatever
+ * they wave through acquires the nominal `DecisionId` brand, and nothing
+ * downstream re-checks it — the type says it does not have to. But their input
+ * is `JSON.parse` output from localStorage, which a user or a bad write can put
+ * anything into. Before this, neither predicate looked at `decisionId` at all.
+ *
+ * Absent stays valid: books written before §4 identity existed carry no
+ * decision identity, and the H1 rule forbids inventing one for them.
+ */
+describe("paper persistence — decisionId validated at the trust boundary", () => {
+  const order = (over: Record<string, unknown>) => ({
+    id: "o1", symbol: "TSLA", side: "buy", type: "market",
+    qty: 1, status: "filled", ts: 0, ...over,
+  });
+  const trade = (over: Record<string, unknown>) => ({
+    id: "t1", symbol: "TSLA", side: "buy", qty: 1, px: 100, ts: 0, ...over,
+  });
+
+  it("accepts a record with NO decisionId — pre-§4 books stay readable", () => {
+    expect(isValidOrder(order({}))).toBe(true);
+    expect(isValidTrade(trade({}))).toBe(true);
+  });
+
+  it("accepts a genuinely minted decisionId", () => {
+    const r = mintDecisionId({
+      cause: "EXPLICIT_INTENT", deviceId: "ipad-1", nowMs: 1, nonce: "3f9c1e",
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(isValidOrder(order({ decisionId: r.identity.decisionId }))).toBe(true);
+    expect(isValidTrade(trade({ decisionId: r.identity.decisionId }))).toBe(true);
+  });
+
+  it.each([
+    { what: "a number",            decisionId: 42 },
+    { what: "an empty string",     decisionId: "" },
+    { what: "an object",           decisionId: { id: "wmd_1" } },
+    { what: "null",                decisionId: null },
+    { what: "an unprefixed string", decisionId: "3f9c1e" },
+    { what: "a broker order id",   decisionId: "wmd_ord-9" },
+    { what: "a fill id",           decisionId: "wmd_fill-2" },
+  ])("REJECTS the record when decisionId is $what", ({ decisionId }) => {
+    expect(isValidOrder(order({ decisionId }))).toBe(false);
+    expect(isValidTrade(trade({ decisionId }))).toBe(false);
+  });
+
+  it("a rejected record is DROPPED and COUNTED, never silently repaired", () => {
+    // keepValid drops the entry and raises integrity.rejected, which is what
+    // makes savePaperState answer RECOVERY REQUIRED instead of overwriting
+    // bytes it did not understand. Disclosure, not quiet correction.
+    const raw = JSON.stringify({
+      revision: 1, cash: STARTING_CASH, positions: [], orders: [],
+      trades: [trade({}), trade({ id: "t2", decisionId: "wmd_ord-9" })],
+      equity: [], optionPositions: [],
+    });
+    const snap = parsePaperSnapshot(raw);
+    expect(snap).not.toBeNull();
+    expect(snap!.state.trades.map(t => t.id)).toEqual(["t1"]);
+    expect(snap!.integrity.trades).toBe(1);
+    expect(snap!.integrity.rejected).toBeGreaterThan(0);
+  });
+
+  it("a valid decisionId survives the persistence round-trip intact", () => {
+    const r = mintDecisionId({
+      cause: "EXPLICIT_INTENT", deviceId: "ipad-1", nowMs: 1, nonce: "3f9c1e",
+    });
+    if (!r.ok) throw new Error("mint failed");
+    const raw = JSON.stringify({
+      revision: 1, cash: STARTING_CASH, positions: [], orders: [],
+      trades: [trade({ decisionId: r.identity.decisionId })],
+      equity: [], optionPositions: [],
+    });
+    const snap = parsePaperSnapshot(raw);
+    expect(snap!.integrity.rejected).toBe(0);
+    expect(snap!.state.trades[0].decisionId).toBe(r.identity.decisionId);
   });
 });
 
