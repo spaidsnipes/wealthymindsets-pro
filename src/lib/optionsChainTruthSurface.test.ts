@@ -32,7 +32,12 @@ describe("Options Chain truth and responsive surface", () => {
   });
 
   it("gives loading precedence and suppresses stale chain statistics", () => {
-    expect(optionsChain).toContain('const hasAvailableData = !loading && receivedSymbol === symbol && dataSource === "alpaca" && sourceReceipt.source === "alpaca" && chain.length > 0');
+    // The provenance spelling is owned by `optionContractResponse`, not retyped
+    // here. This assertion used to demand the literal `"alpaca"` in the source
+    // text, which made it a copy of the duplicate truth it sat beside and a
+    // guard preventing its own repair. The GATE is the invariant; the spelling
+    // is enforced by `marketData/optionVocabularySingleOwner.test.ts`.
+    expect(optionsChain).toContain('const hasAvailableData = !loading && receivedSymbol === symbol && dataSource === OPTION_CHAIN_SOURCE && sourceReceipt.source === OPTION_CHAIN_SOURCE && chain.length > 0');
     expect(optionsChain).toContain('loading\n    ? "CHECKING · FIDELITY UNKNOWN"');
     // Footer stats moved into an IIFE to derive an observed-only OI summary.
     // The gate itself is the invariant: statistics must not render without

@@ -1,4 +1,11 @@
-import { parseOptionContractResponse, type OptionContract } from "./optionContractResponse";
+import {
+  OPTION_CHAIN_FIDELITY,
+  OPTION_CHAIN_SOURCE,
+  parseOptionContractResponse,
+  type OptionChainFidelity,
+  type OptionChainSource,
+  type OptionContract,
+} from "./optionContractResponse";
 
 export type OptionsFailureEdge =
   | "NOT CONFIGURED" | "AUTH BLOCKED" | "REQUEST DENIED" | "RATE LIMITED"
@@ -56,19 +63,19 @@ function responseFailure(status: number, body: unknown): OptionsReadFailure {
     ? body as Record<string, unknown> : null;
   // Accept only an exact WM-owned route's structured config receipt. HTTP 503
   // alone (or a provider's arbitrary prose) is not evidence of missing config.
-  if (status === 503 && (envelope?.source === "fmp" || envelope?.source === "alpaca") && envelope.edge === "NOT CONFIGURED") {
+  if (status === 503 && (envelope?.source === "fmp" || envelope?.source === OPTION_CHAIN_SOURCE) && envelope.edge === "NOT CONFIGURED") {
     return optionsReadFailure("NOT CONFIGURED");
   }
   // The WM-owned Alpaca route uses this exact 502 receipt when transport,
   // JSON parsing, or normalization fails. Preserve that distinction instead
   // of incorrectly projecting every 502 as an upstream provider failure.
-  if (status === 502 && envelope?.source === "alpaca" && envelope.edge === "INVALID RESPONSE") {
+  if (status === 502 && envelope?.source === OPTION_CHAIN_SOURCE && envelope.edge === "INVALID RESPONSE") {
     const stage = envelope.stage;
     return stage === "TRANSPORT" || stage === "DECODE" || stage === "NORMALIZE"
       ? stagedInvalidResponse(stage)
       : optionsReadFailure("INVALID RESPONSE");
   }
-  if (status === 502 && envelope?.source === "alpaca" && envelope.edge === "REDIRECT BLOCKED") {
+  if (status === 502 && envelope?.source === OPTION_CHAIN_SOURCE && envelope.edge === "REDIRECT BLOCKED") {
     return optionsReadFailure("REDIRECT BLOCKED");
   }
   if (status === 401) return optionsReadFailure("AUTH BLOCKED");
@@ -80,8 +87,8 @@ function responseFailure(status: number, body: unknown): OptionsReadFailure {
 }
 
 export interface OptionsSourceReceipt {
-  source: "alpaca" | "unknown";
-  fidelity: "INDICATIVE" | "UNKNOWN";
+  source: OptionChainSource | "unknown";
+  fidelity: OptionChainFidelity | "UNKNOWN";
   coverage: "COMPLETE" | "PARTIAL" | "UNKNOWN";
   newestProviderTimestamp: string | null;
 }
@@ -142,7 +149,7 @@ function sourceReceipt(data: unknown): OptionsSourceReceipt {
   const envelope = data && typeof data === "object" && !Array.isArray(data)
     ? data as Record<string, unknown>
     : null;
-  if (envelope?.source !== "alpaca" || envelope.fidelity !== "INDICATIVE"
+  if (envelope?.source !== OPTION_CHAIN_SOURCE || envelope.fidelity !== OPTION_CHAIN_FIDELITY
       || (envelope.coverage !== "COMPLETE" && envelope.coverage !== "PARTIAL")) {
     return { source: "unknown", fidelity: "UNKNOWN", coverage: "UNKNOWN", newestProviderTimestamp: null };
   }
@@ -154,8 +161,8 @@ function sourceReceipt(data: unknown): OptionsSourceReceipt {
     return { source: "unknown", fidelity: "UNKNOWN", coverage: "UNKNOWN", newestProviderTimestamp: null };
   }
   return {
-    source: "alpaca",
-    fidelity: "INDICATIVE",
+    source: OPTION_CHAIN_SOURCE,
+    fidelity: OPTION_CHAIN_FIDELITY,
     coverage: envelope.coverage,
     newestProviderTimestamp: timestamp,
   };
@@ -165,7 +172,7 @@ function hasExactAlpacaObservationBindings(
   contracts: readonly OptionContract[],
   receipt: OptionsSourceReceipt,
 ): boolean {
-  if (receipt.source !== "alpaca") return true;
+  if (receipt.source !== OPTION_CHAIN_SOURCE) return true;
   const observedTimes: number[] = [];
   for (const contract of contracts) {
     const hasQuotePrice = contract.bid !== undefined || contract.ask !== undefined;

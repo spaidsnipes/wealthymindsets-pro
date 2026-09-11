@@ -1,11 +1,17 @@
-import type { OptionContract } from "@/lib/optionContractResponse";
+import {
+  OPTION_CHAIN_FIDELITY,
+  OPTION_CHAIN_SOURCE,
+  type OptionChainFidelity,
+  type OptionChainSource,
+  type OptionContract,
+} from "@/lib/optionContractResponse";
 import { getOptionChainCapability } from "@/lib/marketData/capabilityRegistry";
 
 type UnknownRecord = Record<string, unknown>;
 
 export interface AlpacaOptionChainReceipt {
-  readonly source: "alpaca";
-  readonly fidelity: "INDICATIVE";
+  readonly source: OptionChainSource;
+  readonly fidelity: OptionChainFidelity;
   readonly coverage: "COMPLETE" | "PARTIAL";
   readonly newestProviderTimestamp: string | null;
   readonly chain: OptionContract[];
@@ -128,8 +134,8 @@ export function normalizeAlpacaOptionChain(
   const reviewed = getOptionChainCapability();
 
   return {
-    source: "alpaca",
-    fidelity: "INDICATIVE",
+    source: OPTION_CHAIN_SOURCE,
+    fidelity: OPTION_CHAIN_FIDELITY,
     coverage: typeof envelope.next_page_token === "string" && envelope.next_page_token
       ? "PARTIAL"
       : "COMPLETE",

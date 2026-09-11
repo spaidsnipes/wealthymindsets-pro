@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveAlpacaLiveCredentials } from "@/lib/broker/alpacaCredentials";
 import { normalizeAlpacaOptionChain } from "@/lib/marketData/alpacaOptionChain";
+import { OPTION_CHAIN_SOURCE } from "@/lib/optionContractResponse";
 import { requireAuth } from "@/lib/requireAuth";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +36,7 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 function invalidResponse(stage: InvalidResponseStage) {
   return NextResponse.json({
-    source: "alpaca",
+    source: OPTION_CHAIN_SOURCE,
     edge: "INVALID RESPONSE",
     stage,
     error: "The WM options gateway could not validate the provider response",
@@ -53,13 +54,13 @@ export async function GET(request: Request) {
   const symbol = cleanSymbol(searchParams.get("symbol"));
   const spot = positiveNumber(searchParams.get("spot"));
   if (!symbol) {
-    return NextResponse.json({ source: "alpaca", edge: "INVALID REQUEST", error: "Valid symbol required" }, { status: 400 });
+    return NextResponse.json({ source: OPTION_CHAIN_SOURCE, edge: "INVALID REQUEST", error: "Valid symbol required" }, { status: 400 });
   }
 
   const credentials = resolveAlpacaLiveCredentials();
   if (credentials.source === "missing") {
     return NextResponse.json({
-      source: "alpaca",
+      source: OPTION_CHAIN_SOURCE,
       edge: "NOT CONFIGURED",
       error: "Alpaca market-data credentials are not configured",
       missing: ["ALPACA_KEY + ALPACA_SECRET (or legacy Cloudflare pair)"],
@@ -114,7 +115,7 @@ export async function GET(request: Request) {
     if (!result.response.ok) {
       if (REDIRECT_STATUSES.has(result.response.status)) {
         return NextResponse.json({
-          source: "alpaca",
+          source: OPTION_CHAIN_SOURCE,
           edge: "REDIRECT BLOCKED",
           error: "The Alpaca options endpoint attempted a redirect; credential forwarding was refused",
         }, { status: 502 });
@@ -123,7 +124,7 @@ export async function GET(request: Request) {
       const responseStatus = result.response.status >= 300 && result.response.status <= 399
         ? 502
         : result.response.status;
-      return NextResponse.json({ source: "alpaca", edge, error: `Alpaca option request failed (HTTP ${result.response.status})` }, { status: responseStatus });
+      return NextResponse.json({ source: OPTION_CHAIN_SOURCE, edge, error: `Alpaca option request failed (HTTP ${result.response.status})` }, { status: responseStatus });
     }
     invalidStage = "NORMALIZE";
     return NextResponse.json(normalizeAlpacaOptionChain(result.body, symbol), {
@@ -132,7 +133,7 @@ export async function GET(request: Request) {
   } catch {
     if (!timedOut) return invalidResponse(invalidStage);
     return NextResponse.json({
-      source: "alpaca",
+      source: OPTION_CHAIN_SOURCE,
       edge: "TIMEOUT",
       error: "Alpaca option request timed out",
     }, { status: 504 });

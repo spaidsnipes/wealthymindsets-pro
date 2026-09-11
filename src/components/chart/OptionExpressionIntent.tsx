@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { OptionContract } from "@/lib/optionContractResponse";
+import {
+  OPTION_CHAIN_SOURCE,
+  type OptionChainFidelity,
+  type OptionChainSource,
+  type OptionContract,
+} from "@/lib/optionContractResponse";
 import { formatOptionNumber } from "@/lib/optionCellFormat";
 import { optionContractObservationTiming, type OptionsReceiptAge } from "@/lib/optionsChainRead";
 import { mintDecisionId, type DecisionId } from "@/lib/traderMemory/decisionIdentity";
@@ -11,7 +16,7 @@ import { OptionDecisionReceipt } from "./OptionDecisionReceipt";
 
 /** An expression under review, never a position or an executable quote. */
 export function OptionExpressionIntent({ ownerId, underlying, contract, source, fidelity, onClear }: {
-  ownerId: string; underlying: string; contract: OptionContract; source: "alpaca"; fidelity: "INDICATIVE"; onClear: () => void;
+  ownerId: string; underlying: string; contract: OptionContract; source: OptionChainSource; fidelity: OptionChainFidelity; onClear: () => void;
 }) {
   const identity = useRef<{ decisionId: DecisionId; deviceId: string; intent: string } | null>(null);
   const pending = useRef(false);
@@ -72,7 +77,7 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
     <p className="mt-1 break-all font-mono text-wm-text-muted">{contract.symbol}</p>
     <p className="mt-2">Reference bid {formatOptionNumber(contract.bid, 2)} · ask {formatOptionNumber(contract.ask, 2)} · last {formatOptionNumber(contract.last, 2)}</p>
     <p className="mt-1 text-wm-gold" title={`Quote timestamp: ${contract.quoteTimestamp ?? "not observed"}; trade timestamp: ${contract.tradeTimestamp ?? "not observed"}`}>
-      {source === "alpaca" ? "Alpaca" : "Unknown source"} reference · {fidelity.toLowerCase()} · quote {quoteTiming} · trade {tradeTiming} · not an executable quote
+      {source === OPTION_CHAIN_SOURCE ? "Alpaca" : "Unknown source"} reference · {fidelity.toLowerCase()} · quote {quoteTiming} · trade {tradeTiming} · not an executable quote
     </p>
     {!canRecord && <p role="status" className="mt-1 text-wm-gold">Reference timing is unverified for both the exact quote and trade. Recording stays unavailable until a provider observation has verifiable chronology.</p>}
     <p className="mt-1 text-wm-text-muted">Source OSI identity matches the selected underlying, side, expiry, and strike. Executable broker instrument mapping and support remain unverified. This review does not open a position.</p>

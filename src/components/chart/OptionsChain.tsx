@@ -12,7 +12,12 @@ import { motion } from "framer-motion";
 import { clsx } from "clsx";
 import { formatOptionCount, formatOptionNumber, formatOptionPercent,
          summariseOpenInterest } from "@/lib/optionCellFormat";
-import { type OptionContract } from "@/lib/optionContractResponse";
+import {
+  OPTION_CHAIN_FIDELITY,
+  OPTION_CHAIN_SOURCE,
+  type OptionChainSource,
+  type OptionContract,
+} from "@/lib/optionContractResponse";
 import { optionContractObservationTiming, optionsReceiptAge, readOptionsResponse, optionsReadFailure, type OptionContractObservationTiming, type OptionsReadFailure, type OptionsSourceReceipt } from "@/lib/optionsChainRead";
 import type { IdentifiedOptionSpot } from "@/lib/optionsSpotIdentity";
 
@@ -113,7 +118,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
   const [showGreeks, setShowGreeks] = useState(false);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState<OptionsReadFailure | null>(null);
-  const [dataSource, setDataSource] = useState<"alpaca"|"unavailable">("unavailable");
+  const [dataSource, setDataSource] = useState<OptionChainSource|"unavailable">("unavailable");
   const [sourceReceipt, setSourceReceipt] = useState<OptionsSourceReceipt>({ source: "unknown", fidelity: "UNKNOWN", coverage: "UNKNOWN", newestProviderTimestamp: null });
   const [receiptClock, setReceiptClock] = useState<number | null>(null);
   const [selectionNotice, setSelectionNotice] = useState("");
@@ -204,7 +209,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
         return;
       }
       const contracts = result.contracts;
-      if (result.receipt.source !== "alpaca" || result.receipt.fidelity !== "INDICATIVE") {
+      if (result.receipt.source !== OPTION_CHAIN_SOURCE || result.receipt.fidelity !== OPTION_CHAIN_FIDELITY) {
         setError(optionsReadFailure("INVALID RESPONSE"));
         return;
       }
@@ -232,7 +237,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
       // timestamp appear to be in the future by milliseconds.
       setReceiptClock(Date.now());
       setSourceReceipt(result.receipt);
-      setDataSource("alpaca");
+      setDataSource(OPTION_CHAIN_SOURCE);
       setReceivedSymbol(symbol);
     } catch {
       if (!active) return;
@@ -262,7 +267,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
   // When expiry changes, rebuild chain
   useEffect(() => {
     if (!expiry || receivedSymbol !== symbol) return;
-    if (dataSource === "alpaca" && allContracts.length) {
+    if (dataSource === OPTION_CHAIN_SOURCE && allContracts.length) {
       // Find the ISO date for this label
       const isoDate = allContracts.find(c => fmtExp(c.expirationDate) === expiry)?.expirationDate ?? "";
       const rows = buildChain(allContracts, priceKey, isoDate);
@@ -273,7 +278,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
 
   const atm = chain.find(r => r.itm === "atm");
   const hasObservedSpot = spotPrice > 0;
-  const hasAvailableData = !loading && receivedSymbol === symbol && dataSource === "alpaca" && sourceReceipt.source === "alpaca" && chain.length > 0;
+  const hasAvailableData = !loading && receivedSymbol === symbol && dataSource === OPTION_CHAIN_SOURCE && sourceReceipt.source === OPTION_CHAIN_SOURCE && chain.length > 0;
   const receiptAge = receiptClock === null
     ? { label: "age checking", timing: "UNVERIFIED" as const }
     : optionsReceiptAge(sourceReceipt.newestProviderTimestamp, receiptClock);
@@ -285,7 +290,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
   const dataStatus = loading
     ? "CHECKING · FIDELITY UNKNOWN"
     : hasAvailableData
-      ? `${referenceTiming} · INDICATIVE`
+      ? `${referenceTiming} · ${OPTION_CHAIN_FIDELITY}`
       : "UNAVAILABLE";
 
   return (

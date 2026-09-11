@@ -18,7 +18,13 @@ import { FootprintControls } from "./FootprintControls";
 import { SchemePresets } from "./SchemePresets";
 import { OptionsChain } from "./OptionsChain";
 import { OptionExpressionIntent } from "./OptionExpressionIntent";
-import type { OptionContract } from "@/lib/optionContractResponse";
+import {
+  OPTION_CHAIN_FIDELITY,
+  OPTION_CHAIN_SOURCE,
+  type OptionChainFidelity,
+  type OptionChainSource,
+  type OptionContract,
+} from "@/lib/optionContractResponse";
 import type { OptionContractObservationTiming } from "@/lib/optionsChainRead";
 import { FearGreedWidget } from "./FearGreedWidget";
 import { CustomIndicatorBuilder } from "@/components/pine/CustomIndicatorBuilder";
@@ -260,7 +266,7 @@ export function ChartsDashboard() {
     setBrokerOpen(true);
   }, []);
   const [tradeOpen,       setTradeOpen]       = useState(false);
-  const [optionSelection, setOptionSelection] = useState<{ underlying: string; owner: string; contract: OptionContract; source: "alpaca"; fidelity: "INDICATIVE" } | null>(null);
+  const [optionSelection, setOptionSelection] = useState<{ underlying: string; owner: string; contract: OptionContract; source: OptionChainSource; fidelity: OptionChainFidelity } | null>(null);
   const clearOptionSelection = useCallback(() => setOptionSelection(null), []);
   const [pineBuilderOpen, setPineBuilderOpen] = useState(false);
   const [footprintType,   setFootprintType]   = useState<FootprintType>(() => lsGet("wm_footprint", "bid-ask") as FootprintType);
@@ -2019,7 +2025,7 @@ export function ChartsDashboard() {
                   onClose={() => { clearOptionSelection(); setActiveTab("Chart"); }}
                   onInvalidateSelection={clearOptionSelection}
                   onSelectContract={(contract, receipt, timing: OptionContractObservationTiming) => {
-                    if (receipt.source !== "alpaca" || receipt.fidelity !== "INDICATIVE"
+                    if (receipt.source !== OPTION_CHAIN_SOURCE || receipt.fidelity !== OPTION_CHAIN_FIDELITY
                         || !timing.reviewable) return;
                     setOptionSelection({ underlying: symbol, owner: canvasUser?.id ?? "signed-out", contract, source: receipt.source, fidelity: receipt.fidelity });
                   }}
