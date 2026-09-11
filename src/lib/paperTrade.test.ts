@@ -171,6 +171,85 @@ describe("applyFill — cash-delta invariant (canon: cash = -signedQty * fillPx)
   });
 });
 
+/**
+ * DECISION IDENTITY SURVIVES THE ORDER→TRADE BOUNDARY.
+ *
+ * The §4 P0 artery is DECISION_ID → order → ACK/reject → FILL →
+ * reconciliation → receipt. `Order.decisionId` existed and /paper's submit()
+ * stamped a real one, but `applyFill` minted a Trade with no decision
+ * identity, so the identity died at exactly the step where an order SUCCEEDED.
+ * `trades[]` is the durable ledger persistence carries and any receipt or
+ * reconciliation must read, so this broke receipt continuity for the orders
+ * that worked.
+ *
+ * Two facts are guarded here and they are NOT the same fact:
+ *   1. present → forwarded byte-identical, on every branch of the reducer.
+ *   2. absent  → the trade has NO `decisionId` KEY. Not `undefined`. Persisted
+ *      books are serialized and compared; "present but undefined" reads as a
+ *      different fact from "absent", and the H1 rule is that readers disclose
+ *      absence and never mint over it.
+ */
+describe("applyFill — decision identity forwarding (P0 artery)", () => {
+  const DID = "wmd_test-decision-1" as Order["decisionId"];
+
+  it("forwards the order's decisionId onto the trade when opening a position", () => {
+    const r = applyFill([], mk({ side: "buy", qty: 10, decisionId: DID }), 100);
+    expect(r.trade.decisionId).toBe(DID);
+  });
+
+  it("an order with NO decisionId produces a trade with NO decisionId KEY", () => {
+    const r = applyFill([], mk({ side: "buy", qty: 10 }), 100);
+    // Key-absence, not value-undefined: the reducer must never invent identity
+    // and must never write an explicit `undefined` that serializes differently.
+    expect("decisionId" in r.trade).toBe(false);
+    expect(Object.keys(r.trade)).not.toContain("decisionId");
+  });
+
+  it("never invents a decisionId — an absent one stays absent through a flip", () => {
+    const pos: Position = { symbol: "TSLA", qty: 10, avgPx: 100, unrealPnl: 0, marketPx: 100 };
+    const r = applyFill([pos], mk({ side: "sell", qty: 15 }), 110);
+    expect("decisionId" in r.trade).toBe(false);
+  });
+
+  it.each([
+    {
+      branch: "same-direction add",
+      prior: { symbol: "TSLA", qty: 10, avgPx: 100, unrealPnl: 0, marketPx: 100 } as Position,
+      order: { side: "buy" as const, qty: 5 }, px: 110,
+    },
+    {
+      branch: "opposite partial close",
+      prior: { symbol: "TSLA", qty: 10, avgPx: 100, unrealPnl: 0, marketPx: 100 } as Position,
+      order: { side: "sell" as const, qty: 5 }, px: 110,
+    },
+    {
+      branch: "opposite EXACT close",
+      prior: { symbol: "TSLA", qty: 10, avgPx: 100, unrealPnl: 0, marketPx: 100 } as Position,
+      order: { side: "sell" as const, qty: 10 }, px: 110,
+    },
+    {
+      branch: "opposite OVER-flip",
+      prior: { symbol: "TSLA", qty: 10, avgPx: 100, unrealPnl: 0, marketPx: 100 } as Position,
+      order: { side: "sell" as const, qty: 15 }, px: 110,
+    },
+    {
+      branch: "flat-position replace",
+      prior: { symbol: "TSLA", qty: 0, avgPx: 0, unrealPnl: 0, marketPx: 0 } as Position,
+      order: { side: "buy" as const, qty: 5 }, px: 200,
+    },
+  ])("identity survives the $branch branch", ({ prior, order, px }) => {
+    const r = applyFill([prior], mk({ ...order, decisionId: DID }), px);
+    expect(r.trade.decisionId).toBe(DID);
+  });
+
+  it("the trade's own id is freshly minted and is NOT the decision id", () => {
+    const r = applyFill([], mk({ side: "buy", qty: 1, decisionId: DID }), 100);
+    expect(r.trade.decisionId).toBe(DID);
+    expect(r.trade.id).not.toBe(DID);
+    expect(r.trade.id.length).toBeGreaterThan(0);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // J-Bkt 4 — loadPaperState + placeChartMarketOrder + clearPaperState state
 // matrix. Uses a minimal localStorage polyfill in the Node test environment.

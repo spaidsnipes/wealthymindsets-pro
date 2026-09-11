@@ -350,6 +350,30 @@ export interface Trade {
   px: number;
   ts: number;
   pnl?: number;
+  /**
+   * The decision this fill was an ATTEMPT AT — the SAME §4 DECISION_ID the
+   * originating Order carried.
+   *
+   * WHY THIS FIELD EXISTS (P0 artery, and the third instance of one failure
+   * class). The artery is DECISION_ID → order → ACK/reject → FILL →
+   * reconciliation → receipt. `Order.decisionId` was added and /paper's
+   * `submit()` stamps a real one on every order; a later fix taught the
+   * blotter to READ it back off the order. But the identity still died at the
+   * fill: `applyFill` minted a Trade with no decision identity at all, so the
+   * moment an order became a trade the answer to "which decision was this?"
+   * was gone from the durable ledger. `trades[]` is what survives the order
+   * blotter, what persistence carries, and what a receipt and any
+   * reconciliation must read — so losing it here breaks receipt continuity
+   * for exactly the orders that WORKED.
+   *
+   * OPTIONAL, AND IT MUST STAY OPTIONAL — the same H1 rule that governs
+   * `Order.decisionId`. Trades in a persisted book from before this field
+   * existed have no decision identity and cannot be given one retroactively
+   * without inventing which decision they belonged to. Readers disclose the
+   * absence; they never mint over it. This reducer forwards and never invents:
+   * an order with no decisionId produces a trade with no decisionId.
+   */
+  decisionId?: DecisionId;
 }
 
 export interface EquityPoint { ts: number; equity: number; }
@@ -412,6 +436,13 @@ export function applyFill(
   const trade: Trade = {
     id: uid(), symbol: ord.symbol, side: ord.side,
     qty: ord.qty, px: fillPx, ts: Date.now(),
+    // Carry the decision identity across the order→trade boundary. `id` above
+    // is the TRADE's own id and is freshly minted; this is not minted, it is
+    // FORWARDED. Conditional spread so an order without decision identity
+    // yields a trade with no `decisionId` key at all rather than an explicit
+    // `undefined` — persisted books are compared and serialized, and
+    // "present but undefined" reads as a different fact from "absent".
+    ...(ord.decisionId ? { decisionId: ord.decisionId } : {}),
   };
 
   const idx = positions.findIndex(p => p.symbol === ord.symbol);
