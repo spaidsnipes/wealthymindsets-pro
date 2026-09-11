@@ -16,7 +16,8 @@ import {
 } from "./canonicalIdentity";
 import { deriveOrderFlowDimension } from "./deriveOrderFlowDimension";
 import { deriveVolatilityDimension } from "./deriveVolatilityDimension";
-import { deriveDirectionDimension } from "./deriveDirectionDimension";
+import { deriveDirectionDimension, countTradeTicks } from "./deriveDirectionDimension";
+import { deriveRegimeDimension } from "./deriveRegimeDimension";
 
 export interface ChartMarketStatePublicationInput {
   readonly symbol: string;
@@ -152,6 +153,18 @@ export function createChartMarketStatePublication(
     snapshotIdSeed: snapshotId,
   });
 
+  // REGIME — pure composition of the two dimensions sealed above. It mints no
+  // new evidence because it made no new observation. This is the dimension the
+  // whole hero hangs on: every cheap selectMarketStory chapter guard (BALANCE,
+  // TREND_EXPANSION, ROTATION) reads state.regime, so while regime was
+  // hard-coded unresolved the story engine could never support a chapter and
+  // /command-deck printed "UNKNOWN" in its largest type for every symbol.
+  const regime = deriveRegimeDimension({
+    direction,
+    volatility,
+    tradeCount: countTradeTicks(input.recentTicks),
+  });
+
   // ONE UNKNOWN PER UNRESOLVED DIMENSION.
   //
   // Real from-USE defect (2026-09-03): this previously emitted a single
@@ -167,7 +180,7 @@ export function createChartMarketStatePublication(
     ...(direction.resolution === "RESOLVED" ? [] : ["Direction"]),
     "Location",
     "Aggression",
-    "Regime",
+    ...(regime.resolution === "RESOLVED" ? [] : ["Regime"]),
     "Structure",
     ...(volatility.resolution === "RESOLVED" ? [] : ["Volatility"]),
     "Profile",
@@ -204,7 +217,7 @@ export function createChartMarketStatePublication(
       coverage,
       contradictions,
       unknowns,
-      dimensions: { orderFlow, volatility, direction },
+      dimensions: { orderFlow, volatility, direction, regime },
     },
   };
 }

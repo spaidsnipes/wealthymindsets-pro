@@ -134,6 +134,19 @@ function aggregateFor(ticks: readonly DirectionTick[]): DirectionAggregate | nul
   };
 }
 
+/**
+ * How many ticks in this window are admissible per-trade evidence.
+ *
+ * Exported so composing producers (deriveRegimeDimension) can apply the SAME
+ * sample-sufficiency test against the SAME definition of a trade, instead of
+ * re-counting with a subtly different filter and disagreeing with this module
+ * about how much tape was seen. One counter, one truth.
+ */
+export function countTradeTicks(ticks: readonly DirectionTick[]): number {
+  const agg = aggregateFor(ticks);
+  return agg ? agg.count : 0;
+}
+
 function evidenceRefFor(input: DeriveDirectionInput, agg: DirectionAggregate): MarketStateEvidenceRef {
   const source = (input.source && input.source.trim()) || "chart-runtime";
   const observedAt = input.latestTickAtMs && input.latestTickAtMs > 0

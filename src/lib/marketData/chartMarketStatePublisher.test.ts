@@ -4,6 +4,8 @@ import {
   type ChartMarketStatePublicationInput,
 } from "./chartMarketStatePublisher";
 import type { SessionNectarSnapshot } from "./sessionNectar";
+import { produceCanonicalMarketState } from "./produceCanonicalMarketState";
+import { selectMarketStory } from "./viewModels/selectMarketStory";
 
 const nectar: SessionNectarSnapshot = {
   schemaVersion: "wm.session-nectar.v1",
@@ -225,6 +227,45 @@ describe("chart Market State publisher", () => {
       const dir = (lean.state.dimensions as Record<string, { resolution?: string }>).direction;
       expect(dir?.resolution).toBe("UNKNOWN");
       expect(lean.state.unknowns!.some((u) => u.startsWith("Direction"))).toBe(true);
+    });
+
+    /* THE FOUNDER-VISIBLE CLAIM.
+     *
+     * /command-deck's hero word comes from selectMarketStory, and every cheap
+     * chapter guard in that engine gates on state.regime. While regime was
+     * hard-coded unresolved, the story engine could not support ANY chapter,
+     * so the hero printed "UNKNOWN" for every symbol in every session. This
+     * test walks the real path — publisher → sealer → story engine — and
+     * asserts the word actually changes. */
+    it("a sustained rally moves the deck hero off UNKNOWN — publisher to story engine", () => {
+      const rally = createChartMarketStatePublication({
+        ...base(),
+        recentTicks: trendTicks(65_000, 65_400, 30),
+      });
+      const sealed = produceCanonicalMarketState(rally.state, { qualityState: rally.qualityState });
+      expect(sealed.regime.resolution).toBe("RESOLVED");
+      expect(sealed.regime.value).toBe("TREND");
+
+      // Regime must also leave the evidence-debt ledger — a dimension that is
+      // resolved in `dimensions` but still listed as an unpaid unknown is the
+      // four-numbers-one-truth defect this file already fought once.
+      expect(rally.state.unknowns!.some((u) => u.startsWith("Regime"))).toBe(false);
+
+      const story = selectMarketStory(sealed, []);
+      expect(story.resolution).toBe("RESOLVED");
+      expect(story.current?.chapter).toBe("TREND_EXPANSION");
+      // The chapter must carry the evidence it was decided on — a hero word
+      // with no receipts behind it is exactly what this producer replaces.
+      expect(story.current!.evidence.length).toBeGreaterThan(0);
+    });
+
+    it("an empty tape still yields an honest UNKNOWN hero — no invented chapter", () => {
+      const lean = createChartMarketStatePublication({ ...base(), recentTicks: [] });
+      const sealed = produceCanonicalMarketState(lean.state, { qualityState: lean.qualityState });
+      expect(lean.state.unknowns!.some((u) => u.startsWith("Regime"))).toBe(true);
+      const story = selectMarketStory(sealed, []);
+      expect(story.resolution).toBe("UNKNOWN");
+      expect(story.current).toBeNull();
     });
 
     it("NOT an over-correction — two-sided chop leaves Direction unpaid", () => {
