@@ -1,0 +1,102 @@
+# The Sentinels get a MACHINE.
+#
+# ── The measured failure ──────────────────────────────────────────────────────
+#
+# On 2026-09-11 this repository contained 498 test files and 5,585 tests,
+# including every Sentinel written to enforce the Garden Pass gates: provider
+# rights review, single-owner vocabularies, front-door authority, canonical
+# store ownership. `ls -a` showed NO `.github` directory. No workflows, no
+# hooks, no rulesets. Not one of those 5,585 assertions ran anywhere except on
+# a human's laptop, when that human remembered to type `vitest`.
+#
+# The Garden Pass already named this: branch and doc discipline were documented
+# PROCESS with no MACHINE behind it. What it had not yet named is the harder
+# version — the Sentinels THEMSELVES were PARTIAL_FRUIT. A guard that only runs
+# when someone chooses to run it does not guard; it documents an intention. The
+# first tired push at 2am is the one it was written for, and the one it misses.
+#
+# Every Sentinel this repo has ever written was, until this file existed,
+# a claim about enforcement rather than enforcement.
+#
+# ── Why nothing could see it ──────────────────────────────────────────────────
+#
+# Absence has no file to typecheck. A missing workflow produces no error, no
+# warning, and no red mark anywhere — the suite is green precisely BECAUSE
+# nothing ran. That is the purest form of the accidentally-correct silence this
+# codebase keeps finding: nothing objected, so it read as approval.
+#
+# ── What this runs, and what it honestly cannot ───────────────────────────────
+#
+# PROVEN before this file was committed, from a clean git worktree containing
+# NO `.env.local` and no secrets of any kind — the same condition CI runs in:
+#
+#   tsc --noEmit --skipLibCheck  -> exit 0
+#   vitest run                   -> 498 files / 5,585 tests passed
+#   next build                   -> exit 0
+#
+# So this workflow is not aspirational. It is a recording of three commands
+# already observed to pass under CI conditions.
+#
+# WHAT THIS DOES NOT DO, stated plainly so no one mistakes a green check for
+# more than it is:
+#   · It does not deploy. Production is Cloudflare/OpenNext via `deploy:cf`,
+#     still a human-run command. A green check here means the code is sound,
+#     NOT that it is live. Runtime proof remains a chain, not a noun.
+#   · It does not enforce. GitHub reports zero rulesets on this repo, so a
+#     failing run does not BLOCK a merge until a human turns on branch
+#     protection and marks these checks required. Until then this is a loud
+#     alarm, not a locked door. That step is founder-only and is recorded in
+#     the handoff rather than silently assumed.
+#   · It does not verify any browser scene, any broker wiring, or any live
+#     market data. Those need credentials and a real session.
+
+name: Sentinels
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A second push should cancel the first run rather than burn minutes proving
+# something about a commit nobody is waiting on any more.
+concurrency:
+  group: sentinels-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  sentinels:
+    name: typecheck · sentinels · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the version these three commands were observed to pass on
+          # locally (v24.16.0). The repo declares no `engines` and has no
+          # `.nvmrc`; pinning the major here is the honest minimum, and this
+          # comment is the pointer for whoever adds a real version owner.
+          node-version: '24'
+          cache: npm
+
+      - name: Install from the lockfile
+        run: npm ci
+
+      # Ordered cheapest-first so a type error reports in a minute instead of
+      # waiting behind a full build.
+      - name: Typecheck
+        run: ./node_modules/.bin/tsc --noEmit --skipLibCheck
+
+      - name: Sentinels
+        run: ./node_modules/.bin/vitest run
+
+      - name: Production build
+        run: ./node_modules/.bin/next build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
