@@ -17,21 +17,32 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { stripComments } from "@/lib/sourceScan";
+import { YF_MAP, YF_CRYPTO_PINS } from "@/lib/yahooSymbol";
 import {
   classifySymbol,
   toYahooSymbol,
   isUnsupportedByEquityVendors,
   unsupportedAssetClassReason,
-  FUTURES_CONTRACTS,
-  CRYPTO_BASES,
 } from "./symbolAssetClass";
+
+/**
+ * Driven off `YF_MAP`, the OWNER's table — not a list retyped here.
+ *
+ * The first version of these tests iterated a `FUTURES_CONTRACTS` array that
+ * this module exported itself. That array was the duplicate; deleting it is
+ * what broke these tests, which is the correct and useful thing for a
+ * duplicate's removal to do. Iterating the owner means a contract added there
+ * is covered here on the day it is added, including the six micros (MNQ, MES,
+ * MYM, M2K, MGC, MCL) the duplicate never knew about.
+ */
+const CONTRACT_PAIRS = Object.entries(YF_MAP);
 
 describe("classifySymbol — one answer per instrument, in every notation", () => {
   it("puts both notations of the same contract in the same class", () => {
     // The live defect in one line. Driven off the owner's own table rather
     // than a retyped pair list, so a contract added later is covered on the
     // day it is added.
-    for (const [tv, yahoo] of FUTURES_CONTRACTS) {
+    for (const [tv, yahoo] of CONTRACT_PAIRS) {
       expect(
         classifySymbol(tv),
         `${tv} and ${yahoo} are the same contract and must classify alike`,
@@ -67,11 +78,21 @@ describe("classifySymbol — one answer per instrument, in every notation", () =
     expect(classifySymbol("VX1!")).toBe("INDEX");
   });
 
-  it("classifies crypto in bare and paired notation, from the owner's own set", () => {
-    for (const base of CRYPTO_BASES) {
-      expect(classifySymbol(base)).toBe("CRYPTO");
-      expect(classifySymbol(`${base}-USD`)).toBe("CRYPTO");
+  it("classifies crypto in every notation the pickers actually offer", () => {
+    // `canonicalIdentity` keeps its ticker set private, so this cannot iterate
+    // it and does not pretend to be exhaustive. What it proves is the thing
+    // that changed: the NOTATIONS now work, because the question is asked of
+    // the module that knows them. The hand-typed set this replaced held
+    // fourteen bare bases and would have answered UNKNOWN to all four of the
+    // non-bare forms below — forms the product's own pickers emit.
+    for (const bare of ["BTC", "ETH", "SOL", "DOGE", "ATOM"]) {
+      expect(classifySymbol(bare), `${bare} bare`).toBe("CRYPTO");
+      expect(classifySymbol(`${bare}-USD`), `${bare}-USD paired`).toBe("CRYPTO");
     }
+    expect(classifySymbol("BTC.COINBASE"), "venue-pinned").toBe("CRYPTO");
+    expect(classifySymbol("DOGEUSD"), "quote-suffixed, no separator").toBe("CRYPTO");
+    expect(classifySymbol("BTC/USD"), "slashed pair is a coin, not forex").toBe("CRYPTO");
+    expect(classifySymbol("ETHUSDT"), "unlisted quote currency is still crypto").toBe("CRYPTO");
   });
 
   it("classifies plain US tickers as equities", () => {
@@ -94,17 +115,22 @@ describe("classifySymbol — one answer per instrument, in every notation", () =
 });
 
 describe("toYahooSymbol", () => {
-  it("translates every contract in the table", () => {
-    for (const [tv, yahoo] of FUTURES_CONTRACTS) {
+  it("translates every contract the owner names", () => {
+    for (const [tv, yahoo] of CONTRACT_PAIRS) {
       expect(toYahooSymbol(tv)).toBe(yahoo);
     }
   });
 
-  it("pairs every crypto base the owner knows", () => {
-    // The old private YF_MAP covered eight bases and sent the other six to
-    // Yahoo bare, which Yahoo does not resolve.
-    for (const base of CRYPTO_BASES) {
-      expect(toYahooSymbol(base)).toBe(`${base}-USD`);
+  it("keeps the owner's crypto pins, which a naive base-USD rule would destroy", () => {
+    // The concrete cost of the duplicate this atom removed. `symbolAssetClass`
+    // had shipped `${base}-USD`, which resolves SUI to Salmonation and PEPE to
+    // PEPEGOLD — a different asset's price printed under the right asset's
+    // name. Worse than the empty response it replaced: an absent price is
+    // honestly absent, a wrong one looks right.
+    for (const [base, pin] of Object.entries(YF_CRYPTO_PINS)) {
+      expect(toYahooSymbol(base), `${base} must resolve to ${pin.yahooName}, not ${pin.displacedName}`)
+        .toBe(pin.ticker);
+      expect(toYahooSymbol(base)).not.toBe(`${base}-USD`);
     }
   });
 

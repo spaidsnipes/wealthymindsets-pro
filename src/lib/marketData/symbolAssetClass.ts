@@ -43,7 +43,36 @@
  * futures notation whether or not we have named that contract), but they are
  * written once, here, where a future reader can see all of them at the same
  * time and notice that they disagree.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * WHAT THIS MODULE OWNS, AND WHAT IT REFUSED TO OWN (2026-09-11, same day)
+ *
+ * The first version of this file shipped its own `FUTURES_CONTRACTS` notation
+ * table, its own `CRYPTO_BASES` set, and its own `toYahooSymbol`. All three
+ * were duplicates, and it took less than an hour to find out: `src/lib/
+ * yahooSymbol.ts` has owned WM-symbol→Yahoo-ticker for weeks, and it is
+ * dramatically better than what was typed here. It carries twenty-one futures
+ * contracts including every micro (MNQ, MES, MYM, M2K, MGC, MCL) this file
+ * omitted; precious-metals spot; forex derivation; and eleven hand-verified
+ * crypto pins recording that `SUI-USD` is Salmonation and `PEPE-USD` is
+ * PEPEGOLD — collisions that print one coin's name over another coin's price.
+ * This file's naive `${base}-USD` would have reintroduced every one of them.
+ *
+ * So the module that was written to end four hand-typed copies of a fact had
+ * begun by creating a fifth, and a worse one. It is recorded here rather than
+ * quietly rebased away, because the lesson is not "check for an owner" — that
+ * was already known and written down — it is that KNOWING THE RULE DOES NOT
+ * DETECT THE VIOLATION. Only looking does.
+ *
+ * The division that survived:
+ *   - `yahooSymbol.ts` owns NOTATION — which Yahoo ticker a symbol resolves to.
+ *   - `canonicalIdentity.ts` owns CRYPTO IDENTITY — what counts as a coin.
+ *   - THIS module owns CLASS — what KIND of instrument a symbol is, a question
+ *     neither of the others answers and every route was guessing at.
  */
+
+import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
+import { toYahooSymbol as toCanonicalYahooNotation } from "@/lib/yahooSymbol";
 
 export type AssetClass =
   | "EQUITY"
@@ -52,41 +81,6 @@ export type AssetClass =
   | "FUTURES"
   | "FOREX"
   | "UNKNOWN";
-
-/**
- * Contracts we can name, in both notations the product uses.
- *
- * LEFT is the TradingView-style notation the UI and watchlists speak
- * ("NQ1!"). RIGHT is the Yahoo notation the data routes speak ("NQ=F").
- * `/api/heatmap` used to own this privately; it is the same table, moved
- * where everyone can read it.
- */
-export const FUTURES_CONTRACTS: ReadonlyArray<readonly [tv: string, yahoo: string]> = [
-  ["NQ1!", "NQ=F"],
-  ["ES1!", "ES=F"],
-  ["YM1!", "YM=F"],
-  ["RTY1!", "RTY=F"],
-  ["GC1!", "GC=F"],
-  ["CL1!", "CL=F"],
-  ["SI1!", "SI=F"],
-  ["HG1!", "HG=F"],
-  ["ZB1!", "ZB=F"],
-  ["ZN1!", "ZN=F"],
-  ["NG1!", "NG=F"],
-  // VX1! maps to the INDEX ^VIX, not to a futures notation. Kept here because
-  // the product speaks of it alongside the others, but `classifySymbol` reads
-  // the RIGHT-hand side, so it lands in INDEX where it belongs rather than
-  // being silently miscounted as a tradable futures contract.
-  ["VX1!", "^VIX"],
-];
-
-/** Crypto bases the product speaks, in the bare notation the UI uses. */
-export const CRYPTO_BASES: ReadonlySet<string> = new Set([
-  "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA",
-  "AVAX", "LINK", "DOT", "LTC", "MATIC", "UNI", "ATOM",
-]);
-
-const TV_TO_YAHOO = new Map(FUTURES_CONTRACTS.map(([tv, y]) => [tv, y]));
 
 function normalize(symbol: string): string {
   return (symbol ?? "").trim().toUpperCase();
@@ -104,10 +98,28 @@ export function classifySymbol(symbol: string): AssetClass {
   const s = normalize(symbol);
   if (!s) return "UNKNOWN";
 
-  // Resolve a known TradingView contract to its canonical notation first, so
-  // "NQ1!" and "NQ=F" cannot land in different classes. This is the whole
-  // point of the table.
-  const canonical = TV_TO_YAHOO.get(s) ?? s;
+  // A LEADING slash is the futures convention ("/ES"), and it is read from the
+  // RAW symbol, BEFORE notation resolution, on purpose.
+  //
+  // This ordering was not a design choice; it was a regression caught by an
+  // existing assertion the moment this function started delegating. The
+  // notation owner's forex rule is "contains a slash → `${stripped}=X`", which
+  // turns "/ES" into "ES=X", which reads back as FOREX. Borrowing a better
+  // module does not mean inheriting its answer to a question it was never
+  // asked: it owns which Yahoo TICKER a symbol resolves to, and "/ES" is not a
+  // symbol anyone sends to Yahoo. Classification asks something else, and has
+  // to ask it first.
+  if (s.startsWith("/")) return "FUTURES";
+
+  // Resolve to the canonical Yahoo notation, through the module that
+  // owns notation, so "NQ1!" and "NQ=F" cannot land in different classes. That
+  // resolution is the whole reason this function is reliable, and it is
+  // borrowed rather than restated: see the header.
+  //
+  // Reading the resolved form is also what keeps "VX1!" honest. It resolves to
+  // the INDEX "^VIX", not to a futures notation, so it lands in INDEX where it
+  // belongs instead of being miscounted as a tradable futures contract.
+  const canonical = toCanonicalYahooNotation(s);
 
   // Index notation, e.g. ^VIX, ^GSPC, ^DJI.
   if (canonical.startsWith("^")) return "INDEX";
@@ -120,17 +132,13 @@ export function classifySymbol(symbol: string): AssetClass {
   // Forex. `=X` is Yahoo's pair notation; a slash is the conventional
   // "BASE/QUOTE" the product accepts from free-text entry.
   if (canonical.endsWith("=X")) return "FOREX";
-  if (canonical.includes("/") && !canonical.startsWith("/")) return "FOREX";
-  // A LEADING slash is the futures convention ("/ES"), not forex. The trading
-  // route already treated it that way; the read routes treated it as forex.
-  // They cannot both be right, and rejecting a futures order is the safe
-  // reading, so the futures reading wins.
-  if (canonical.startsWith("/")) return "FUTURES";
+  if (canonical.includes("/")) return "FOREX";
 
-  // Crypto, in either the bare ("BTC") or paired ("BTC-USD") notation.
-  if (CRYPTO_BASES.has(canonical)) return "CRYPTO";
-  const dash = canonical.indexOf("-");
-  if (dash > 0 && CRYPTO_BASES.has(canonical.slice(0, dash))) return "CRYPTO";
+  // Crypto. Asked of `canonicalIdentity`, which owns the question "is this a
+  // coin and what is its base" and knows the venue-pinned ("BTC.COINBASE") and
+  // quote-suffixed ("DOGEUSD") forms the pickers actually offer. The original
+  // hand-typed set here knew fourteen bases; that module knows the product's.
+  if (cryptoBaseTicker(s) !== null) return "CRYPTO";
 
   // Plain alphabetic tickers up to five characters are US equities. Anything
   // else is honestly UNKNOWN rather than being swept into EQUITY, because
@@ -141,17 +149,16 @@ export function classifySymbol(symbol: string): AssetClass {
 }
 
 /**
- * Translate a symbol into the notation Yahoo-backed routes speak. Returns the
- * input unchanged when no translation is known — the caller's vendor can then
- * fail honestly rather than being handed an invented symbol.
+ * Translate a symbol into the notation Yahoo-backed routes speak.
+ *
+ * A RE-EXPORT, not an implementation. `src/lib/yahooSymbol.ts` owns this and
+ * has for weeks; this name exists only so a caller that already imports the
+ * classifier does not have to know there are two modules. If that convenience
+ * ever tempts someone to add "just one special case" here, the special case
+ * belongs in the owner — a second table is how `NQ=F` and `NQ1!` came to mean
+ * different things to different routes in the first place.
  */
-export function toYahooSymbol(symbol: string): string {
-  const s = normalize(symbol);
-  const mapped = TV_TO_YAHOO.get(s);
-  if (mapped) return mapped;
-  if (CRYPTO_BASES.has(s)) return `${s}-USD`;
-  return s || symbol;
-}
+export { toYahooSymbol } from "@/lib/yahooSymbol";
 
 /**
  * Asset classes that free equity vendors (Finnhub's free tier, Alpaca's equity
