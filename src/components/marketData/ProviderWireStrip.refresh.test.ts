@@ -16,6 +16,24 @@ import ProviderWireStrip, { selectProviderWires } from "./ProviderWireStrip";
 
 afterEach(() => { vi.unstubAllGlobals(); hooks.values = []; hooks.index = 0; hooks.effect = null; });
 
+/**
+ * The `useState` stub is POSITIONAL, so these tests are coupled to the order of
+ * the hooks in the component. Naming the slots does not remove that coupling —
+ * nothing can, short of a real renderer — but it makes the coupling visible and
+ * turns a shift into one edit instead of a hunt through magic numbers.
+ *
+ * This mattered immediately: adding the webull tick receipt inserted a state
+ * between the receipts and `failures`, and every bare index below silently
+ * pointed one slot to the left. The failures read `expected Set{} to be true`,
+ * which names the symptom and nothing else.
+ */
+// Slots 0…4: matrix, readiness, moomoo ticks, longbridge ticks, webull ticks.
+const RECEIPT_COUNT = 5;
+const FAILURES_INDEX = 5;
+const SUSPENDED_INDEX = 6;
+/** One request per receipt: capabilities, readiness, and three tick routes. */
+const PROBES_PER_BATCH = 5;
+
 describe("provider refresh lifecycle", () => {
   it("discards a pre-background batch and rechecks on foreground without overlap", async () => {
     let visibilityChanged = () => {};
@@ -31,19 +49,19 @@ describe("provider refresh lifecycle", () => {
     visibilityChanged();
     documentStub.visibilityState = "visible";
     visibilityChanged();
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(PROBES_PER_BATCH);
     const body = { label: "RECEIVING", receiving: true, eventCount: 4 };
     const response = { ok: true, status: 200, json: async () => body };
     pending.splice(0).forEach(resolve => resolve(response));
     await new Promise(resolve => setTimeout(resolve, 0));
-    expect(hooks.values.slice(0, 4)).toEqual([null, null, null, null]);
-    expect(fetchMock).toHaveBeenCalledTimes(8);
+    expect(hooks.values.slice(0, RECEIPT_COUNT)).toEqual(Array(RECEIPT_COUNT).fill(null));
+    expect(fetchMock).toHaveBeenCalledTimes(PROBES_PER_BATCH * 2);
     pending.splice(0).forEach(resolve => resolve(response));
     await new Promise(resolve => setTimeout(resolve, 0));
-    expect(hooks.values.slice(0, 4)).toEqual([body, body, body, body]);
+    expect(hooks.values.slice(0, RECEIPT_COUNT)).toEqual(Array(RECEIPT_COUNT).fill(body));
     documentStub.visibilityState = "hidden";
     visibilityChanged();
-    expect(hooks.values.slice(0, 4)).toEqual([null, null, null, null]);
+    expect(hooks.values.slice(0, RECEIPT_COUNT)).toEqual(Array(RECEIPT_COUNT).fill(null));
     cleanup();
   });
 
@@ -61,20 +79,20 @@ describe("provider refresh lifecycle", () => {
     ProviderWireStrip({});
     const cleanup = hooks.effect!();
     await refresh(); // Initial batch is already in flight; no duplicate calls.
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(PROBES_PER_BATCH);
     await new Promise(resolve => setTimeout(resolve, 0));
-    expect(hooks.values.slice(0, 4)).toEqual([body, body, body, body]);
+    expect(hooks.values.slice(0, RECEIPT_COUNT)).toEqual(Array(RECEIPT_COUNT).fill(body));
     fail = true;
     await refresh();
-    expect(hooks.values.slice(0, 4)).toEqual([null, null, null, null]);
-    expect(hooks.values[4]).toEqual(new Set(["market", "readiness", "moomoo", "longbridge"]));
+    expect(hooks.values.slice(0, RECEIPT_COUNT)).toEqual(Array(RECEIPT_COUNT).fill(null));
+    expect(hooks.values[FAILURES_INDEX]).toEqual(new Set(["market", "readiness", "moomoo", "longbridge", "webull"]));
     fail = false;
     await refresh();
-    expect(hooks.values.slice(0, 4)).toEqual([body, body, body, body]);
-    expect(hooks.values[4]).toEqual(new Set());
+    expect(hooks.values.slice(0, RECEIPT_COUNT)).toEqual(Array(RECEIPT_COUNT).fill(body));
+    expect(hooks.values[FAILURES_INDEX]).toEqual(new Set());
     cleanup();
     await refresh();
-    expect(fetchMock).toHaveBeenCalledTimes(12);
+    expect(fetchMock).toHaveBeenCalledTimes(PROBES_PER_BATCH * 3);
   });
 
   // OBSERVED at 375px on /command-deck: all five wires read "Checking —
@@ -94,13 +112,13 @@ describe("provider refresh lifecycle", () => {
     const cleanup = hooks.effect!();
     // Mounting hidden must issue NO request and must RECORD that it did not.
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(hooks.values[5]).toBe(true);
+    expect(hooks.values[SUSPENDED_INDEX]).toBe(true);
 
     // Returning to the foreground must resume real probing and drop the pause.
     documentStub.visibilityState = "visible";
     visibilityChanged();
-    expect(fetchMock).toHaveBeenCalledTimes(4);
-    expect(hooks.values[5]).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(PROBES_PER_BATCH);
+    expect(hooks.values[SUSPENDED_INDEX]).toBe(false);
     cleanup();
   });
 });
@@ -110,6 +128,7 @@ const NO_RECEIPTS = {
   readiness: null,
   moomooTicks: null,
   longbridgeTicks: null,
+  webullTicks: null,
   failures: new Set<string>(),
 } as const;
 
@@ -138,7 +157,7 @@ describe("provider wire claim precedence", () => {
   it("never lets a pause overwrite an observed failure verdict", () => {
     const wires = selectProviderWires({
       ...NO_RECEIPTS,
-      failures: new Set(["market", "readiness", "moomoo", "longbridge"]),
+      failures: new Set(["market", "readiness", "moomoo", "longbridge", "webull"]),
       suspended: true,
     });
     expect(wires.some((wire) => wire.tone === "SUSPENDED")).toBe(false);

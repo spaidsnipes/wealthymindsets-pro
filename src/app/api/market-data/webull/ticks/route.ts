@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { fetchWebullTickSnapshot, webullDataConfigFromEnv, type WebullSigningProfile } from "@/lib/marketData/adapters/webullMarketData";
+import { classifyWebullTickSnapshot } from "@/lib/marketData/adapters/webullTicksWireStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,13 @@ export async function GET(request: NextRequest) {
     canarySymbol: symbol,
     signingProfile,
   });
-  return NextResponse.json(body, {
+  // The classified receipt is ADDITIVE. `state`, `fidelity`, `ticks` and
+  // `note` are unchanged, so the tape consumers (`selectFreshWebullObservedEvents`,
+  // `selectFreshWebullTapeEvents`) read exactly what they read before. The new
+  // `label`/`receiving`/`eventCount` fields exist so the Founder-visible
+  // provider strip can prove this wire at the same depth it already proves
+  // moomoo and longbridge — see webullTicksWireStatus for the asymmetry.
+  return NextResponse.json({ ...body, ...classifyWebullTickSnapshot(body) }, {
     status: 200,
     headers: { "Cache-Control": "no-store" },
   });

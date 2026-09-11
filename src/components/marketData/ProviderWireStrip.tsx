@@ -64,11 +64,27 @@ export function moomooTickWireView(receipt: MoomooTickReceipt): ProviderWireView
   return { source: "moomoo", tone: "OFFLINE", label: "Unknown", detail };
 }
 
+/**
+ * Providers proven by a LIVE tick receipt rather than by the capability matrix
+ * alone. Named here so the set is one declaration the Sentinel can read,
+ * instead of a union repeated at each call site — which is how webull came to
+ * have a shipping `/ticks` route that this strip never asked.
+ */
+export type TickReceiptSource = "moomoo" | "longbridge" | "webull";
+
+export const TICK_RECEIPT_SOURCES: readonly TickReceiptSource[] = ["moomoo", "longbridge", "webull"];
+
+const PROVIDER_DISPLAY_NAMES: Record<TickReceiptSource, string> = {
+  moomoo: "Moomoo",
+  longbridge: "Longbridge",
+  webull: "Webull",
+};
+
 export function classifyProviderReceiptFailure(
   status: number,
-  source: "moomoo" | "longbridge",
+  source: TickReceiptSource,
 ): MoomooTickReceipt {
-  const name = source === "moomoo" ? "Moomoo" : "Longbridge";
+  const name = PROVIDER_DISPLAY_NAMES[source];
   if (status === 401) {
     return {
       label: "AUTH BLOCKED",
@@ -117,6 +133,38 @@ export function longbridgeTickWireView(receipt: MoomooTickReceipt): ProviderWire
     detail: view.label === "Ticks receiving"
       ? `${receipt.eventCount} accepted Longbridge executed prints · realtime entitlement not certified.`
       : receipt.detail?.trim() || "The Longbridge receipt did not identify a provider state.",
+  };
+}
+
+/**
+ * Webull's tick wire, at the same depth as moomoo's and longbridge's.
+ *
+ * Until this existed the strip proved webull from the capability matrix alone —
+ * a config/entitlement plausibility read — while showing it in the same
+ * uniform row as two providers backed by a live "a print arrived" receipt. See
+ * `webullTicksWireStatus` for why that asymmetry mattered most for THIS
+ * provider specifically.
+ *
+ * ENTITLEMENT BLOCKED gets its own arm rather than falling through to Unknown.
+ * `classifyWebullTickSnapshot` only ever emits it when the PROVIDER proved
+ * entitlement was the failed edge, so it is the one place the strip is
+ * permitted to say that word — and silently degrading a proven entitlement
+ * refusal into "Unknown" would discard the most actionable answer the wire can
+ * give.
+ */
+export function webullTickWireView(receipt: MoomooTickReceipt): ProviderWireView {
+  const label = receipt.label?.trim().toUpperCase() || "UNKNOWN";
+  const detail = receipt.detail?.trim() || "The Webull receipt did not identify a provider state.";
+  if (label === "ENTITLEMENT BLOCKED") {
+    return { source: "webull", tone: "BLOCKED", label: "Entitlement blocked", detail };
+  }
+  const view = moomooTickWireView(receipt);
+  return {
+    ...view,
+    source: "webull",
+    detail: view.label === "Ticks receiving"
+      ? `${receipt.eventCount} accepted Webull executed prints · provider-signed side · streaming continuity not certified.`
+      : detail,
   };
 }
 
@@ -294,6 +342,7 @@ export interface ProviderWireInputs {
   readonly readiness: ReadinessPayload | null;
   readonly moomooTicks: MoomooTickReceipt | null;
   readonly longbridgeTicks: MoomooTickReceipt | null;
+  readonly webullTicks: MoomooTickReceipt | null;
   readonly failures: ReadonlySet<string>;
   readonly suspended: boolean;
 }
@@ -307,13 +356,13 @@ export interface ProviderWireInputs {
  * function with a name and a test.
  */
 export function selectProviderWires(inputs: ProviderWireInputs): ProviderWireView[] {
-  const { matrix, readiness, moomooTicks, longbridgeTicks, failures, suspended } = inputs;
+  const { matrix, readiness, moomooTicks, longbridgeTicks, webullTicks, failures, suspended } = inputs;
 
   // A pause may only speak for a strip holding NO verdict at all — no receipt
   // and no observed failure. "We stopped checking" must never erase "we
   // checked, and it was blocked". Those were earned; a pause is the absence
   // of work, and absence of work outranks nothing.
-  const holdsNoVerdict = !matrix && !readiness && !moomooTicks && !longbridgeTicks && failures.size === 0;
+  const holdsNoVerdict = !matrix && !readiness && !moomooTicks && !longbridgeTicks && !webullTicks && failures.size === 0;
   if (suspended && holdsNoVerdict) {
     return PROVIDER_SOURCES.map((source) => suspendedProviderWireView(source));
   }
@@ -327,6 +376,9 @@ export function selectProviderWires(inputs: ProviderWireInputs): ProviderWireVie
   const longbridgeWire = failures.has("longbridge") && !longbridgeTicks
     ? { source: "longbridge", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated Longbridge tick receipt did not return." }
     : longbridgeTicks ? longbridgeTickWireView(longbridgeTicks) : null;
+  const webullWire = failures.has("webull") && !webullTicks
+    ? { source: "webull", tone: "OFFLINE" as const, label: "Status unavailable", detail: "The authenticated Webull tick receipt did not return." }
+    : webullTicks ? webullTickWireView(webullTicks) : null;
   const readinessOverrides = {
     tastytrade: providerConfigReadinessWireView(readiness, "tastytrade", ["tastytrade"]),
     alpaca: providerConfigReadinessWireView(readiness, "alpaca", ["alpaca-paper", "alpaca-live"]),
@@ -335,6 +387,7 @@ export function selectProviderWires(inputs: ProviderWireInputs): ProviderWireVie
   return marketWires.map((wire) => {
     if (wire.source === "moomoo" && moomooWire) return moomooWire;
     if (wire.source === "longbridge" && longbridgeWire) return longbridgeWire;
+    if (wire.source === "webull" && webullWire) return webullWire;
     if (wire.source === "tastytrade" || wire.source === "alpaca") {
       const override = readinessOverrides[wire.source];
       // Missing required configuration is a more exact cause than a generic
@@ -363,6 +416,7 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
   const [readiness, setReadiness] = React.useState<ReadinessPayload | null>(null);
   const [moomooTicks, setMoomooTicks] = React.useState<MoomooTickReceipt | null>(null);
   const [longbridgeTicks, setLongbridgeTicks] = React.useState<MoomooTickReceipt | null>(null);
+  const [webullTicks, setWebullTicks] = React.useState<MoomooTickReceipt | null>(null);
   const [failures, setFailures] = React.useState<ReadonlySet<string>>(() => new Set());
   // Declared LAST on purpose: the refresh lifecycle tests address this
   // component's state positionally, so a new hook inserted above would
@@ -380,6 +434,7 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
       setReadiness(null);
       setMoomooTicks(null);
       setLongbridgeTicks(null);
+      setWebullTicks(null);
     };
 
     const recordFailure = (source: string, error: unknown) => {
@@ -390,6 +445,7 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
       if (source === "readiness") setReadiness(null);
       if (source === "moomoo") setMoomooTicks(null);
       if (source === "longbridge") setLongbridgeTicks(null);
+      if (source === "webull") setWebullTicks(null);
       setFailures((current) => new Set(current).add(source));
     };
     const clearFailure = (source: string) => {
@@ -403,7 +459,7 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
     };
     const readJson = <T,>(url: string): Promise<T> =>
       readJsonReceipt<T>(fetch, url, controller.signal);
-    const readProviderReceipt = async (source: "moomoo" | "longbridge"): Promise<MoomooTickReceipt> => {
+    const readProviderReceipt = async (source: TickReceiptSource): Promise<MoomooTickReceipt> => {
       const response = await readClassifiedJsonReceipt<MoomooTickReceipt>(
         fetch,
         `/api/market-data/${source}/ticks?symbol=TSLA`,
@@ -412,7 +468,7 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
       const body = response.body;
       if (body?.label) return body;
       if (!response.ok) return classifyProviderReceiptFailure(response.status, source);
-      return { label: "UNKNOWN", detail: `The ${source === "moomoo" ? "Moomoo" : "Longbridge"} tick route returned no classified receipt.`, receiving: false, eventCount: 0 };
+      return { label: "UNKNOWN", detail: `The ${PROVIDER_DISPLAY_NAMES[source]} tick route returned no classified receipt.`, receiving: false, eventCount: 0 };
     };
     const refresh = async () => {
       // Report the suspension at the exact point it is decided. Setting this
@@ -438,6 +494,9 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
       readProviderReceipt("longbridge")
         .then((body) => { if (acceptsReceipt()) { setLongbridgeTicks(body); clearFailure("longbridge"); } })
         .catch((error: unknown) => recordFailure("longbridge", error)),
+      readProviderReceipt("webull")
+        .then((body) => { if (acceptsReceipt()) { setWebullTicks(body); clearFailure("webull"); } })
+        .catch((error: unknown) => recordFailure("webull", error)),
       ]);
       // A background response must not leave a current-looking receipt ready
       // for the next foreground render. Recheck on return to the app.
@@ -463,7 +522,7 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
     };
   }, []);
 
-  const wires = selectProviderWires({ matrix, readiness, moomooTicks, longbridgeTicks, failures, suspended });
+  const wires = selectProviderWires({ matrix, readiness, moomooTicks, longbridgeTicks, webullTicks, failures, suspended });
 
   return (
     <section aria-label="Market data provider wires" style={{ marginTop: compact ? 0 : 8, border: "1px solid rgba(240,180,41,0.18)", borderRadius: compact ? 8 : 10, background: "rgba(5,5,6,0.76)", padding: compact ? "6px 8px" : "9px 10px", flexShrink: 0 }}>
