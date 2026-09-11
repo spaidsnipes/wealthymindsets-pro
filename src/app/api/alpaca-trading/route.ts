@@ -14,6 +14,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import {
   ALPACA_PAPER_BASE,
   alpacaAccountUnauthorizedResponse,
@@ -145,9 +146,30 @@ export async function POST(request: Request) {
       // symbols so a "BUY 1 ES1!" can't produce a misleading failure or, worse,
       // a mis-routed order. (Futures execution routes through a certified futures
       // broker — tastytrade — not Alpaca.)
-      if (/^\/|[!]$|^(ES|NQ|RTY|YM|GC|CL|SI|ZB|ZN|6[A-Z])\d?$/.test(sym) || sym.includes("1!")) {
+      // The local regex is kept and the shared classifier is ORed ON TOP of
+      // it, deliberately — never substituted for it.
+      //
+      // This is an order path. The two predicates do not agree: the regex
+      // rejects bare roots like "CL" and "SI", which are also real NYSE
+      // tickers, so it over-rejects; the classifier recognises notations the
+      // regex misses, such as "NQ=F" and "/ES". Replacing one with the other
+      // would have NARROWED the refusal set on a financial call, turning a
+      // safely-refused order into a placed one. A union can only ever refuse
+      // more. Where safety and tidiness disagree on an order path, safety wins
+      // and the untidiness gets a comment instead of a cleanup.
+      const classified = classifySymbol(sym);
+      const looksLikeFutures =
+        /^\/|[!]$|^(ES|NQ|RTY|YM|GC|CL|SI|ZB|ZN|6[A-Z])\d?$/.test(sym) ||
+        sym.includes("1!") ||
+        classified === "FUTURES" ||
+        classified === "FOREX";
+      if (looksLikeFutures) {
         return NextResponse.json(
-          { error: `Alpaca cannot trade ${sym} (futures). Use a supported equity/crypto symbol.` },
+          {
+            error:
+              `Alpaca cannot trade ${sym} (${classified === "FOREX" ? "forex" : "futures"}). ` +
+              `Use a supported equity/crypto symbol.`,
+          },
           { status: 400 },
         );
       }

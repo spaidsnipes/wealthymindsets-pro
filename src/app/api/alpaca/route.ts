@@ -15,6 +15,7 @@
 import { NextResponse } from "next/server";
 import { resolveAlpacaLiveCredentials } from "@/lib/broker/alpacaCredentials";
 import type { ChangeWindow } from "@/lib/marketData/changeWindow";
+import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 
 // WM-ENV-P1-02: server-only. NEXT_PUBLIC_* prefix on a broker-secret env var
 // invites a future client-side read that would leak the key into the browser
@@ -137,10 +138,16 @@ function toAlpacaTF(tf: string): { timeframe: string; daysBack: number } {
   return hit;
 }
 
-const CRYPTO_SYMS = new Set(["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT","LTC","MATIC","UNI","ATOM"]);
-
-function isCryptoSym(sym: string) { return CRYPTO_SYMS.has(sym.toUpperCase()); }
-function isFuturesSym(sym: string) { return sym.endsWith("1!") || sym.includes("=F"); }
+/**
+ * Both predicates now DELEGATE. They used to be typed here, and they were the
+ * most complete of the four copies in the codebase — this route was the only
+ * one that knew "NQ1!" and "NQ=F" are the same contract. That knowledge being
+ * correct HERE and absent from /api/market is exactly why NQ=F came back
+ * "No data" from that route. Completeness in one copy does not propagate; only
+ * an owner does.
+ */
+function isCryptoSym(sym: string) { return classifySymbol(sym) === "CRYPTO"; }
+function isFuturesSym(sym: string) { return classifySymbol(sym) === "FUTURES"; }
 
 /**
  * Is this a reference price we can honestly measure a day-change against?

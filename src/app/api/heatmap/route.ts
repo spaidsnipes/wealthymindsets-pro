@@ -14,6 +14,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { toYahooSymbol } from "@/lib/marketData/symbolAssetClass";
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36";
 
@@ -40,15 +41,26 @@ async function withCache<T>(key: string, ttlMs: number, fn: () => Promise<T>): P
   }
 }
 
-// Yahoo Finance symbol mapping
-const YF_MAP: Record<string, string> = {
-  "NQ1!":"NQ=F","ES1!":"ES=F","YM1!":"YM=F","RTY1!":"RTY=F",
-  "GC1!":"GC=F","CL1!":"CL=F","SI1!":"SI=F","HG1!":"HG=F",
-  "ZB1!":"ZB=F","ZN1!":"ZN=F","NG1!":"NG=F","VX1!":"^VIX",
-  "BTC":"BTC-USD","ETH":"ETH-USD","SOL":"SOL-USD","BNB":"BNB-USD",
-  "XRP":"XRP-USD","DOGE":"DOGE-USD","ADA":"ADA-USD","AVAX":"AVAX-USD",
-};
-function toYF(sym: string) { return YF_MAP[sym] ?? sym; }
+/**
+ * Yahoo Finance symbol mapping — MOVED to @/lib/marketData/symbolAssetClass.
+ *
+ * The table used to live here as a private `YF_MAP`. It was not merely a
+ * formatting convenience: it encoded the FACT that "NQ1!" and "NQ=F" are the
+ * same contract, and it was the only place in the codebase that knew it.
+ * Because it was private, `/api/market` could not consult it, hand-typed its
+ * own futures test that recognised one notation and not the other, and told
+ * traders asking for NQ=F that the symbol had "No data".
+ *
+ * A fact that two routes need is not a detail of either one.
+ *
+ * Behaviour is identical for every symbol the old private map covered. It is
+ * additionally correct for six crypto bases the old map omitted (LINK, DOT,
+ * LTC, MATIC, UNI, ATOM) — those previously fell through `?? sym` and were sent
+ * to Yahoo bare, which is not a symbol Yahoo resolves. That is a widening, not
+ * a no-op, and saying "unchanged" would have been the same overclaim this
+ * whole atom exists to remove.
+ */
+function toYF(sym: string) { return toYahooSymbol(sym); }
 
 async function yfGet(url: string): Promise<unknown> {
   const res = await fetch(url, {

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { unsupportedAssetClassReason } from "@/lib/marketData/symbolAssetClass";
 
 // Server-only Finnhub key. Same fail-fast pattern as /api/finnhub — refuse to
 // call Finnhub with the committed-fallback value in production (WM-SEC-P0-03).
@@ -23,9 +24,18 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const symbol = (searchParams.get("symbol") ?? "AAPL").toUpperCase();
 
-  // Skip futures and forex — no free real-time data
-  if (symbol.includes("1!") || symbol.includes("/")) {
-    return NextResponse.json({ symbol, price: null, error: "Futures/forex not supported on free tier" });
+  // Skip futures and forex — this vendor does not carry them at all.
+  //
+  // This test used to be `symbol.includes("1!") || symbol.includes("/")`, typed
+  // here and nowhere else. It recognised "NQ1!" and missed "NQ=F" — the SAME
+  // CONTRACT in the notation /api/heatmap and /api/alpaca both speak — so a
+  // request for NQ=F fell through to the equity vendor and came back "No data".
+  // "No data" reads as "not right now"; the truth is "never carried here".
+  // Forex (EURUSD=X) and indices (^VIX) fell through for the same reason.
+  // The predicate now has ONE owner and every route reads it.
+  const unsupported = unsupportedAssetClassReason(symbol);
+  if (unsupported !== null) {
+    return NextResponse.json({ symbol, price: null, error: unsupported });
   }
 
   try {
