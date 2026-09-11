@@ -99,6 +99,24 @@ function stripLineageBlock(body: string): string {
 }
 
 /**
+ * A document that QUOTES a commanding phrase is reporting, not commanding.
+ *
+ * Found by this Sentinel failing on the very receipt written to record the
+ * repair: that receipt cites "single entry point for every ATH employee" as
+ * EVIDENCE of the defect. Treating reportage as a fresh offence would make it
+ * impossible to write down what went wrong — which is how a defect class stops
+ * being learnable. Code spans and double-quoted spans are stripped so the scan
+ * judges what a document ASSERTS in its own voice.
+ */
+function stripQuotedSpans(body: string): string {
+  return body
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`[^`\n]*`/g, " ")
+    .replace(/"[^"\n]*"/g, " ")
+    .replace(/[“][^”\n]*[”]/g, " ");
+}
+
+/**
  * Phrases by which a document claims the right to COMMAND a reader right now.
  *
  * Every entry was read off a real file in this tree, never invented. This list
@@ -204,7 +222,7 @@ describe("the repository front door may teach, but may not command", () => {
     for (const file of opsDocs()) {
       const body = readOpsDoc(file);
       if (isMarkedHistorical(body)) continue;
-      const original = stripLineageBlock(body);
+      const original = stripQuotedSpans(stripLineageBlock(body));
       for (const { id, re } of COMMANDING_PHRASES) {
         if (re.test(original)) offenders.push(`${file} (${id})`);
       }
@@ -223,7 +241,7 @@ describe("the repository front door may teach, but may not command", () => {
     // are skipped by the guard, but their text must still trip the patterns.
     let matched = 0;
     for (const file of opsDocs()) {
-      const original = stripLineageBlock(readOpsDoc(file));
+      const original = stripQuotedSpans(stripLineageBlock(readOpsDoc(file)));
       if (COMMANDING_PHRASES.some(({ re }) => re.test(original))) matched++;
     }
     expect(matched, "no doc matches any commanding phrase — the patterns have gone stale")
