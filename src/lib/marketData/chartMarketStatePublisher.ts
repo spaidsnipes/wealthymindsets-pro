@@ -16,6 +16,7 @@ import {
 } from "./canonicalIdentity";
 import { deriveOrderFlowDimension } from "./deriveOrderFlowDimension";
 import { deriveVolatilityDimension } from "./deriveVolatilityDimension";
+import { deriveDirectionDimension } from "./deriveDirectionDimension";
 
 export interface ChartMarketStatePublicationInput {
   readonly symbol: string;
@@ -137,6 +138,19 @@ export function createChartMarketStatePublication(
     capturedAt: input.capturedAt,
     snapshotIdSeed: snapshotId,
   });
+  // DIRECTION — the dimension the Founder actually reads first, because it is
+  // the word rendered in the largest type on /command-deck. It was hard-coded
+  // unresolved below for as long as this file has existed, so the deck hero
+  // said "UNKNOWN" even while the same tape it was already rendering carried
+  // a net-drift read. The derivation self-degrades to PARTIAL on thin or
+  // two-sided tape — chop is not a direction — so nothing is fabricated.
+  const direction = deriveDirectionDimension({
+    ticks: input.recentTicks,
+    source: typeof input.source === "string" ? input.source : null,
+    latestTickAtMs: latestTickAtMs > 0 ? latestTickAtMs : null,
+    capturedAt: input.capturedAt,
+    snapshotIdSeed: snapshotId,
+  });
 
   // ONE UNKNOWN PER UNRESOLVED DIMENSION.
   //
@@ -150,7 +164,7 @@ export function createChartMarketStatePublication(
   // Canon grammar: Visual Systems Execution Canon Asset 07 — evidence debt is
   // a LEDGER of individually payable questions, not one lump narrative.
   const unresolvedDimensions: readonly string[] = [
-    "Direction",
+    ...(direction.resolution === "RESOLVED" ? [] : ["Direction"]),
     "Location",
     "Aggression",
     "Regime",
@@ -190,7 +204,7 @@ export function createChartMarketStatePublication(
       coverage,
       contradictions,
       unknowns,
-      dimensions: { orderFlow, volatility },
+      dimensions: { orderFlow, volatility, direction },
     },
   };
 }

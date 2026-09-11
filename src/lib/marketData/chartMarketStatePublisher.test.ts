@@ -173,4 +173,69 @@ describe("chart Market State publisher", () => {
       expect(rich.state.unknowns!.some((u) => u.startsWith("Order flow"))).toBe(false);
     });
   });
+
+  /* ── Real from-USE defect (2026-09-10) ──────────────────────────────
+   * /command-deck rendered "UNKNOWN" in the largest type on the lead browser
+   * surface for every symbol, forever — not because direction evidence was
+   * missing, but because this publisher hard-coded "Direction" into the
+   * unresolved list with no producer behind it. The per-trade tape it was
+   * ALREADY rendering two panels lower carries a net-drift read.
+   *
+   * These tests are the revive guard: restoring the hard-code fails
+   * "publishes a real Direction dimension" BY NAME. */
+  describe("Direction is produced from evidence, not hard-coded unresolved", () => {
+    function trendTicks(from: number, to: number, n: number) {
+      const step = (to - from) / (n - 1);
+      return Array.from({ length: n }, (_, i) => ({
+        price: from + step * i,
+        size: 0.1,
+        side: (step > 0 ? "buy" : "sell") as "buy" | "sell",
+        time: 1_900 + i,
+        trade: true,
+      }));
+    }
+
+    it("publishes a real Direction dimension — the key exists on every snapshot", () => {
+      const publication = createChartMarketStatePublication(base());
+      expect(publication.state.dimensions).toHaveProperty("direction");
+    });
+
+    it("a sustained one-way rally clears Direction off the debt ledger", () => {
+      const rally = createChartMarketStatePublication({
+        ...base(),
+        recentTicks: trendTicks(65_000, 65_400, 30),
+      });
+      const dir = (rally.state.dimensions as Record<string, { resolution?: string; value?: unknown }>).direction;
+      expect(dir?.resolution).toBe("RESOLVED");
+      expect(dir?.value).toBe("UP");
+      expect(rally.state.unknowns!.some((u) => u.startsWith("Direction"))).toBe(false);
+    });
+
+    it("a sustained selloff resolves DOWN", () => {
+      const selloff = createChartMarketStatePublication({
+        ...base(),
+        recentTicks: trendTicks(65_400, 65_000, 30),
+      });
+      const dir = (selloff.state.dimensions as Record<string, { value?: unknown }>).direction;
+      expect(dir?.value).toBe("DOWN");
+    });
+
+    it("NOT an over-correction — an empty tape leaves Direction unpaid", () => {
+      const lean = createChartMarketStatePublication({ ...base(), recentTicks: [] });
+      const dir = (lean.state.dimensions as Record<string, { resolution?: string }>).direction;
+      expect(dir?.resolution).toBe("UNKNOWN");
+      expect(lean.state.unknowns!.some((u) => u.startsWith("Direction"))).toBe(true);
+    });
+
+    it("NOT an over-correction — two-sided chop leaves Direction unpaid", () => {
+      const chop = [
+        ...trendTicks(65_000, 65_400, 20),
+        ...trendTicks(65_400, 65_000, 20).map((t, i) => ({ ...t, time: 1_950 + i })),
+      ];
+      const publication = createChartMarketStatePublication({ ...base(), recentTicks: chop });
+      const dir = (publication.state.dimensions as Record<string, { resolution?: string }>).direction;
+      expect(dir?.resolution).toBe("PARTIAL");
+      expect(publication.state.unknowns!.some((u) => u.startsWith("Direction"))).toBe(true);
+    });
+  });
 });
