@@ -94,8 +94,13 @@ describe("/api/broker/status — canon §12 truthful aggregate", () => {
   it("every broker row's note is the adapter's own, never this route's invention", async () => {
     const s = await readBrokerStatus();
     for (const a of listAdapters()) {
-      const row = s.providers.find(p => p.provider === a.id)!;
-      expect(row.note).toBe(a.health().note);
+      const row = s.providers.find(p => p.provider === a.id);
+      // Assert presence FIRST. Reaching through a missing row with `!` makes a
+      // dropped adapter fail as "Cannot read properties of undefined", which
+      // reads like a broken test rather than a broken report — and a lock that
+      // cannot say why it fired is a lock the next person silences.
+      expect(row, `adapter "${a.id}" is registered but absent from the aggregate`).toBeDefined();
+      expect(row!.note, `adapter "${a.id}"`).toBe(a.health().note);
     }
   });
 
