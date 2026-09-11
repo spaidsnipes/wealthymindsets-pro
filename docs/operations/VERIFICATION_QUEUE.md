@@ -1,3 +1,30 @@
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This document is **SUPERSEDED**. It routed work, ranked priorities or asserted
+> operational truth against a milestone that has since been retired — in most cases
+> on the **retired Vercel host**. It may teach what was believed on its date. It may
+> not command a current action, claim a ticket, block a release, or win a conflict
+> against present authority.
+>
+> **The current front door is in Drive, not in this repository:**
+> `00 — Above the Hill Canon — Master Index & Source of Truth` →
+> `ATH — CURRENT COMMAND CENTER — 2026-09-11` →
+> `WM Pro — Operating System BUILD ORDER — Natural Language — 2026-09-03` →
+> `ATH — FULL GARDEN PASS — 2026-09-11` → current GitHub `main` HEAD →
+> current runtime proof chain.
+>
+> **Current production is `https://wealthymindsetspro.com`** (Cloudflare Workers /
+> OpenNext). Any `*.vercel.app` reference below is a `GHOST_HOST` signal, and any
+> `localhost:3000` reference is development only — never production proof.
+>
+> Demoted during P0-A repo front-door repair, 2026-09-11. See `README.md`.
+<!-- END:ath-historical-lineage -->
+
+---
+
 # VERIFICATION QUEUE
 
 **Owner:** Sentinel · **Last updated:** 2026-07-28 10:50 CDT

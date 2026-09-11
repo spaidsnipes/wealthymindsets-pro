@@ -6,28 +6,52 @@
 
 ## 👷 ATH employees start here
 
-**[`docs/operations/ATH_COMMAND_CENTER.md`](docs/operations/ATH_COMMAND_CENTER.md)** — current
-product, milestone, verified HEAD, active P0s, blockers, and the next highest-value action.
-Then [`docs/operations/ACTIVE_TASK_QUEUE.md`](docs/operations/ACTIVE_TASK_QUEUE.md) to claim
-work, and your role's latest handoff in
-[`docs/operations/handoffs/`](docs/operations/handoffs/).
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
 
-This repository is the workforce communication bus — separate AI sessions cannot message each
-other. Read the operating files before starting; update them before ending. Do not work from
-stale chat memory when newer repository documentation exists.
+The current front door is **in Drive, not in this repository**:
+
+1. `00 — Above the Hill Canon — Master Index & Source of Truth`
+2. `ATH — CURRENT COMMAND CENTER — 2026-09-11` (Drive ID `1h82mz0Gx7sYTpyhu6iMOFAup8GSmzBo4RzLn-sJJujQ`)
+3. `WM Pro — Operating System BUILD ORDER — Natural Language — 2026-09-03` (Drive ID `1_GTybVD83kWtJpZpUxO2tSUNN8k8OfyP4alsjvQSom8`)
+4. `ATH — FULL GARDEN PASS — 2026-09-11` (Drive ID `1npNbThYZCfahGP4SDFbhVvkinPncIetA3YrTATLKfV4`) — Garden Gates G0–G13
+5. Current GitHub `main` HEAD
+6. Current runtime proof chain
+
+**`docs/operations/` is HISTORICAL LINEAGE. It may teach; it may not command.**
+`ATH_COMMAND_CENTER.md`, `ACTIVE_TASK_QUEUE.md`, `BUILD_STATUS.md` and
+`RISKS_AND_BLOCKERS.md` describe a July 2026 milestone on a retired Vercel host. Do not
+take a current action from any of them. They carry demotion headers saying so.
+
+Dated files under `docs/operations/` (batons, receipts, checkpoints) are evidence of what
+was true on their date — never a current instruction.
 
 ---
 
-## 🌐 Access the App (RIGHT NOW)
+## 🌐 Access the App
+
+**Production (the only production proof):**
 
 ```
-http://localhost:3000
+https://wealthymindsetspro.com
 ```
 
-Start the dev server:
+Cloudflare Workers / OpenNext. `www` redirects to the apex. Verified `HTTP 200` at
+`/login` on 2026-09-11.
+
+> **Vercel is a RETIRED host.** Any `*.vercel.app` URL, Vercel deployment status or Vercel
+> instruction in this repository is migration lineage only. A retired host may not drive
+> current diagnosis, release blockage or runtime health. Failing Vercel status checks on
+> current commits are GHOST_HOST signals, not evidence that production is unhealthy.
+
+**Development only — never production proof:**
+
 ```bash
-npm run dev
+npm run dev      # http://localhost:3000
 ```
+
+A green `localhost:3000` says nothing about what the Founder's browser actually receives.
+Runtime proof is a chain, not a noun: repo HEAD → deploy target → running release
+fingerprint → public route → human scene → receipt.
 
 ---
 

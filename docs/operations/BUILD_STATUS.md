@@ -1,4 +1,24 @@
-# WM Pro Build Status
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This file is **SUPERSEDED**. Its build/suite/deploy figures were true on their
+> stamped dates and are now `STALE` by construction — a build status is a snapshot,
+> never a standing claim. Do not cite it as current runtime health, current test
+> counts, or current deployment state.
+>
+> **Current runtime proof is a chain, not a noun:** repo HEAD → deploy target →
+> running release fingerprint → public route → human scene → receipt. Current
+> production is `https://wealthymindsetspro.com` (Cloudflare Workers / OpenNext).
+> Any Vercel deployment reference below is a `GHOST_HOST` signal.
+>
+> Demoted during P0-A repo front-door repair, 2026-09-11. See `README.md`.
+<!-- END:ath-historical-lineage -->
+
+---
+
+# WM Pro Build Status *(HISTORICAL — see demotion header above)*
 
 **Updated:** 2026-08-17 00:22 UTC  (previous entry preserved below)
 

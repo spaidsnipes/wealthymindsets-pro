@@ -1,4 +1,23 @@
-# RISKS AND BLOCKERS
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This register is **SUPERSEDED**. Every risk below is stamped against a July 2026
+> milestone on the **retired Vercel host**; an `OPEN` marker here is evidence that a
+> risk was open on that date, never proof it is open now. Do not block a release,
+> drive a diagnosis, or route a shift from this file.
+>
+> **The current front door is in Drive, not in this repository:**
+> `ATH — CURRENT COMMAND CENTER — 2026-09-11` and
+> `ATH — FULL GARDEN PASS — 2026-09-11` (Garden Gates G0–G13) own current risk state.
+>
+> Demoted during P0-A repo front-door repair, 2026-09-11. See `README.md`.
+<!-- END:ath-historical-lineage -->
+
+---
+
+# RISKS AND BLOCKERS *(HISTORICAL — see demotion header above)*
 
 **Owner:** Sentinel · **Last updated:** 2026-07-28 10:50 CDT
 

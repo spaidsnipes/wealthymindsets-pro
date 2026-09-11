@@ -1,4 +1,26 @@
-# ACTIVE TASK QUEUE
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This queue is **SUPERSEDED**. Its tickets, statuses and claim protocol describe a
+> July 2026 milestone on the **retired Vercel host**. No ticket here may be claimed,
+> worked or cited as a current instruction. It is preserved as evidence of what was
+> true on its date.
+>
+> **The current front door is in Drive, not in this repository:**
+> `00 — Above the Hill Canon — Master Index & Source of Truth` →
+> `ATH — CURRENT COMMAND CENTER — 2026-09-11` →
+> `WM Pro — Operating System BUILD ORDER — Natural Language — 2026-09-03` →
+> `ATH — FULL GARDEN PASS — 2026-09-11` → current GitHub `main` HEAD →
+> current runtime proof chain.
+>
+> Demoted during P0-A repo front-door repair, 2026-09-11. See `README.md`.
+<!-- END:ath-historical-lineage -->
+
+---
+
+# ACTIVE TASK QUEUE *(HISTORICAL — see demotion header above)*
 
 **Owner:** Sentinel · **Last updated:** 2026-07-30 (Sentinel reconciliation — see DAILY_OPERATIONS_REPORT Finding 1)
 **Product in this block:** WM Pro · **Base commit:** `708b5c4`

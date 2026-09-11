@@ -1,7 +1,31 @@
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This document is **SUPERSEDED**. It describes a July 2026 milestone on the
+> **retired Vercel host**. Do not take a current action, diagnosis, release decision
+> or task claim from it. It is preserved as evidence of what was true on its date.
+>
+> **The current front door is in Drive, not in this repository:**
+> `00 — Above the Hill Canon — Master Index & Source of Truth` →
+> `ATH — CURRENT COMMAND CENTER — 2026-09-11` →
+> `WM Pro — Operating System BUILD ORDER — Natural Language — 2026-09-03` →
+> `ATH — FULL GARDEN PASS — 2026-09-11` → current GitHub `main` HEAD →
+> current runtime proof chain.
+>
+> **Current production is `https://wealthymindsetspro.com`** (Cloudflare Workers /
+> OpenNext). Any `*.vercel.app` reference below is a `GHOST_HOST` signal.
+>
+> Demoted during P0-A repo front-door repair, 2026-09-11. See `README.md`.
+<!-- END:ath-historical-lineage -->
+
+---
+
 # ATH COMMAND CENTER
 
 **Owner:** Sentinel (COO) · **Last updated:** 2026-07-28 10:50 CDT by Sentinel
-**This file is the single entry point for every ATH employee.** Read it before doing anything.
+**(HISTORICAL)** This file *was* the entry point for ATH employees in July 2026. It is not one now.
 
 > **No one asks the Founder "what should I do next."** Every employee has a standing
 > charter with default-when-idle work in [`TEAM_CHARTERS.md`](TEAM_CHARTERS.md). If
