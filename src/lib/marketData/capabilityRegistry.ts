@@ -12,6 +12,7 @@ export type MarketProviderPath =
   | "alpaca-rest"
   | "moomoo-opend-bridge"
   | "longbridge-openapi-bridge"
+  | "webull-openapi-ticks"
   | "yahoo-rest"
   | "finnhub-rest"
   | "kraken-dom-client-ws"
@@ -69,7 +70,18 @@ export const UNKNOWN_RIGHTS: MarketDataRights = {
 
 export type TimestampField = "EXCHANGE" | "PROVIDER" | "RECEIVED" | "PROCESSED";
 export type FidelityClass = "OBSERVED" | "DERIVED" | "PROXY" | "UNAVAILABLE";
-export type RuntimeTapeSource = "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | "moomoo" | null;
+/**
+ * Runtime tape source names, as `useWebSocket` sets them on chart state.
+ *
+ * This union MUST stay a superset of what `electProviderTapeSource` can
+ * return (`providerTapeElection.ts`), which is the seam that broke: the
+ * elector could return "webull" and did, while this union and
+ * TAPE_SOURCE_PATHS below had never heard of it. `getRuntimeTapeCapability`
+ * takes `string | null` — deliberately widened for callers holding untyped
+ * state — so `tsc` could not see the two halves disagree. A Sentinel drives
+ * the real elector against this union instead.
+ */
+export type RuntimeTapeSource = "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | "moomoo" | "webull" | null;
 export const UNKNOWN_RIGHTS_POLICY_ID = "wm.rights.unknown.v1" as const;
 
 export interface MarketDataCapability {
@@ -233,6 +245,26 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     evidence: "src/app/api/market-data/longbridge/ticks/route.ts + adapters/longbridgeTicks.ts; direction is retained as lineage and never promoted to aggressor side",
   }),
   capability({
+    providerPath: "webull-openapi-ticks",
+    assetClass: "equity",
+    eventType: "trade",
+    availability: "PARTIAL",
+    collectionScope: "REQUEST_SCOPED",
+    fidelityClass: "OBSERVED",
+    timestampFields: ["PROVIDER", "RECEIVED", "PROCESSED"],
+    sequenceSupported: false,
+    // Read off the adapter, not decided here: webullTicksBrowser stamps
+    // `aggressorMethod: "PROVIDER"` with `aggressorConfidence: 1` whenever the
+    // route supplies a side, and `"NONE"`/0 when it does not. Recording NONE
+    // here to be "safe" would be a second lie in the opposite direction — the
+    // runtime already ingests those signed ticks.
+    aggressorMethod: "PROVIDER",
+    sessionCoverage: "Polled Webull OpenAPI recent-ticks route; the adapter stamps dataMode DELAYED, so freshness is NOT implied by this entry and remains the age gate's job",
+    fallbackSemantics: "EXPLICIT",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
+    evidence: "src/app/api/market-data/webull/ticks + adapters/webullTicksBrowser.ts; selectFreshWebullTapeEvents admits provider-sided events only, and events carry rightsPolicyId wm.rights.unknown.v1",
+  }),
+  capability({
     providerPath: "yahoo-rest",
     assetClass: "futures",
     eventType: "bar",
@@ -355,6 +387,7 @@ const TAPE_SOURCE_PATHS: Partial<Record<Exclude<RuntimeTapeSource, null>, {
   binance: { providerPath: "binance-us-client-ws", assetClass: "crypto" },
   alpaca: { providerPath: "alpaca-external-relay", assetClass: "equity" },
   moomoo: { providerPath: "moomoo-opend-bridge", assetClass: "equity" },
+  webull: { providerPath: "webull-openapi-ticks", assetClass: "equity" },
 };
 
 /** Runtime tape truth must come from the reviewed capability registry. */
