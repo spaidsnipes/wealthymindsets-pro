@@ -11,7 +11,12 @@
  *  - ATH_WOW_SUPER_BUILDER_CONTRACT §11.10 (Environment Truth Law)
  *
  * What this does:
- *  1. Greps every `process.env.X` in src/ (deterministic, no runtime eval).
+ *  1. Greps every `process.env.X` in src/ (deterministic, no runtime eval),
+ *     and separately every env-name-shaped MENTION, which is how the
+ *     registry-driven readers (providerReadiness, supabaseConfigStatus) and
+ *     the injectable-env readers (providerProbeFleet, alpacaCredentials)
+ *     reach the environment. The second pass exists ONLY to stop this
+ *     program calling a live credential "retired" — see ENV_NAME_MENTION_RE.
  *  2. Emits a JSON manifest at scripts/.env-manifest.json.
  *  3. Compares code names against the Runbook seed list and surfaces
  *     discrepancies (rename candidates, missing, extra).
@@ -40,6 +45,47 @@ const ENV_EXAMPLE = join(REPO_ROOT, ".env.example");
 const MANIFEST_PATH = join(REPO_ROOT, "scripts", ".env-manifest.json");
 
 const ENV_REF_RE = /process\.env\.([A-Z_][A-Z0-9_]+)/g;
+
+/**
+ * Any UPPER_SNAKE token MENTIONED as a quoted literal or a property access.
+ *
+ * ROOT CAUSE THIS CLOSES: `ENV_REF_RE` above matches only the one spelling
+ * `process.env.FOO`. This repo reads the environment through at least two
+ * other channels that spelling cannot see:
+ *
+ *   · BY INDEX off a const table — `providerReadiness.ts` drives its reads
+ *     from PROVIDER_REQUIREMENTS, and `supabaseConfigStatus.ts` from
+ *     `SERVICE_KEY_VARS = ["SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SECRET_KEY"]`.
+ *     The name exists only as a quoted STRING.
+ *   · DOTTED OFF AN ALIAS — the injectable-env pattern
+ *     (`function f(env = process.env) { ... env.ALPACA_CANARY_SYMBOL }`,
+ *     `providerProbeFleet.ts`, `alpacaCredentials.ts`). The access is dotted
+ *     but the receiver is a parameter, so the literal `process.env.` prefix
+ *     never appears.
+ *
+ * Incompleteness would be survivable. The consequence was not: the CLI printed
+ * 24 actively-read credentials — SUPABASE_SERVICE_ROLE_KEY and the whole
+ * ALPACA and WEBULL sets among them — under "retired candidates", advice that
+ * if followed deletes live credentials from the registry and takes the host
+ * down. A wrong answer stated confidently is worse than the silence it
+ * replaced. (The alias channel was found only by CHECKING the three survivors
+ * of the first, quoted-literal-only version of this pass — two were still
+ * false. A suppression list is not allowed to be believed unexamined either.)
+ *
+ * This pattern deliberately OVER-matches: an unrelated `SomeEnum.MAX_RETRIES`
+ * counts. That asymmetry is the point. A false positive here only means a
+ * genuinely dead row keeps being listed as NOT PROVEN RETIRED and a human
+ * reads one extra line. A false negative means a live credential is
+ * recommended for deletion. The error is pushed entirely into the harmless
+ * direction, and this pass NEVER promotes a name to "referenced" — it can only
+ * WITHHOLD the retirement claim. A mention is evidence of DOUBT, never of a read.
+ */
+// The trailing `_` in `(?:_[A-Z0-9]*)+` is not sloppiness. This host really
+// carries `FINNHUB_KEY_` and `ALPACA_BROKERAGE_KEY_SECRET_` — typo'd names that
+// became load-bearing, and that `alpacaCredentials.ts` reads deliberately. A
+// pattern requiring a name to END in alphanumeric excluded exactly the two
+// rows most likely to be "cleaned up" by someone who had not read the history.
+const ENV_NAME_MENTION_RE = /(?:["'`]|\.)([A-Z][A-Z0-9]*(?:_[A-Z0-9]*)+)/g;
 
 /** Recursively walk src/ collecting .ts/.tsx/.js/.mjs files. */
 function walk(dir) {
@@ -78,6 +124,34 @@ export function scanEnvReferences() {
   for (const [k, v] of [...refs.entries()].sort()) {
     out[k] = [...v].sort();
   }
+  return out;
+}
+
+/**
+ * Scan src/ for env-name-shaped MENTIONS → { name -> file paths }.
+ *
+ * Same exclusions as `scanEnvReferences`: test files are skipped and comments
+ * are stripped through the SHARED `stripComments`, because a comment naming a
+ * retired host's variable is not a read of it — and a private copy of the
+ * stripper is how the prose-vs-code blind spot survived its first repair.
+ *
+ * Used for exactly one purpose: withholding the "retired" claim. See the
+ * account above `ENV_NAME_MENTION_RE`.
+ */
+export function scanEnvNameMentions() {
+  const refs = new Map();
+  for (const file of walk(SRC_DIR)) {
+    if (/\.test\.(ts|tsx|js|jsx)$/.test(file)) continue;
+    const body = stripComments(readFileSync(file, "utf8"));
+    let m;
+    while ((m = ENV_NAME_MENTION_RE.exec(body))) {
+      const name = m[1];
+      if (!refs.has(name)) refs.set(name, new Set());
+      refs.get(name).add(relative(REPO_ROOT, file));
+    }
+  }
+  const out = {};
+  for (const [k, v] of [...refs.entries()].sort()) out[k] = [...v].sort();
   return out;
 }
 
@@ -199,6 +273,7 @@ export function parseEnvExampleNames() {
  */
 export function buildManifest() {
   const refs = scanEnvReferences();
+  const literals = scanEnvNameMentions();
   const codeNames = Object.keys(refs);
   const envExampleNames = parseEnvExampleNames();
   const runbookSeed = new Set(RUNBOOK_SEED_A3);
@@ -229,9 +304,18 @@ export function buildManifest() {
     in_code_missing_env_example: codeNames.filter(
       (n) => !envExampleNames.has(n) && !FRAMEWORK_PROVIDED.has(n),
     ),
+    // PROVEN unread: absent from dotted access AND from every quoted
+    // env-name literal in src/. Only these may be called retirement
+    // candidates, because acting on this list DELETES a credential.
     in_env_example_missing_code: [...envExampleNames].filter(
-      (n) => !codeNames.includes(n),
+      (n) => !codeNames.includes(n) && !literals[n],
     ),
+    // NOT PROVEN retired: this scanner cannot see the read, but the name
+    // appears as a literal in shipping code, so an indexed read through a
+    // const table is live. Reported separately and never as "retired".
+    in_env_example_read_indirectly: [...envExampleNames]
+      .filter((n) => !codeNames.includes(n) && literals[n])
+      .sort(),
     in_runbook_missing_code: [...runbookSeed].filter(
       (n) => !codeNames.includes(n) && !aliasToRunbook.has(n),
     ),
@@ -249,6 +333,12 @@ export function buildManifest() {
     ],
     entry_count: entries.length,
     entries,
+    // Where the indirect evidence came from, for the human who has to judge
+    // whether a row is really dead. Restricted to .env.example rows: the raw
+    // literal scan over-matches by design and is not a general index.
+    indirect_reference_files: Object.fromEntries(
+      drift.in_env_example_read_indirectly.map((n) => [n, literals[n]]),
+    ),
     drift,
   };
 }
@@ -302,7 +392,12 @@ function main() {
   }
   if (manifest.drift.in_env_example_missing_code.length > 0) {
     console.warn(
-      `[env-manifest] retired candidates in .env.example not referenced by code: ${manifest.drift.in_env_example_missing_code.join(", ")}`,
+      `[env-manifest] retirement CANDIDATES — no \`process.env.X\` read and the name is not mentioned anywhere in src/. Still a HUMAN decision: this scanner does not read scripts/, wrangler.jsonc, CI or infra: ${manifest.drift.in_env_example_missing_code.join(", ")}`,
+    );
+  }
+  if (manifest.drift.in_env_example_read_indirectly.length > 0) {
+    console.warn(
+      `[env-manifest] NOT retired — no \`process.env.X\` read, but the name is mentioned in shipping code, so it is reached indirectly (const table + indexed lookup, or dotted off an injected \`env\` parameter). Do NOT delete these: ${manifest.drift.in_env_example_read_indirectly.join(", ")}`,
     );
   }
   if (manifest.drift.rename_candidates.length > 0) {
