@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 import { toFinnhubSym } from "@/lib/finnhubSymbol";
 import { resolveProviderEnv, acceptedEnvNames } from "@/lib/broker/resolveProviderEnv";
 import { classifyFinnhubStatus, finnhubUpstreamMessage } from "@/lib/marketData/finnhubUpstreamStatus";
+import { finnhubQuoteObservedAt } from "@/lib/marketData/finnhubQuoteTime";
 
 /**
  * Server-only Finnhub key. In production, unset or committed-fallback-equal
@@ -181,7 +182,17 @@ export async function GET(request: Request) {
         prevClose,
         change:    +(price - prevClose).toFixed(4),
         changePct: prevClose ? +(((price - prevClose) / prevClose) * 100).toFixed(4) : 0,
-        ts:        json.t ? json.t * 1000 : Date.now(),
+        // `ts` is the LEGACY field. It falls back to `Date.now()` when the
+        // vendor sent no trade time, which means a caller cannot tell "observed
+        // now" from "observation time unknown". Existing consumers reach it
+        // through providerQuoteRounds, so it keeps its shape.
+        ts:        finnhubQuoteObservedAt(json) ?? Date.now(),
+        // `observedAt` is the truthful one: the vendor's own trade time, or
+        // null when the vendor did not say. Added alongside rather than in
+        // place of `ts` for the same reason the Yahoo lane kept legacy `price`
+        // and added `observation` — see yahooQuoteObserved.ts. New consumers
+        // read this; `ts` retires when its last caller does.
+        observedAt: finnhubQuoteObservedAt(json),
         source:    "finnhub",
       });
     }

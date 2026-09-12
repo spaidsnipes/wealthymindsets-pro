@@ -195,6 +195,36 @@ describe("every priceless answer labels itself, not just the ones with prose", (
   });
 });
 
+describe("a priced answer says when the MARKET produced it, not when we asked", () => {
+  // MEASURED on prod 2026-09-12 08:22 UTC, market closed, Founder's session:
+  // AAPL 332.27 carried Finnhub `t` = 2026-09-11T20:00:00Z — 12.38 hours
+  // earlier — while this envelope reported the observation as 0.00h old.
+  const TRADE_TIME_SECONDS = 1757620800; // 2026-09-11T20:00:00Z
+
+  it("carries the vendor's trade time, not the moment of the request", async () => {
+    fetchMock.mockResolvedValue(quoteResponse({ ...okQuote, t: TRADE_TIME_SECONDS }));
+    const { body } = await get("AAPL");
+    expect(body.observedAt).toBe(TRADE_TIME_SECONDS * 1000);
+    // The two clocks must not be the same clock. With the market shut these
+    // differ by half a day; the assertion is that they differ at all.
+    expect(body.fetchedAt).toBeGreaterThan(body.observedAt);
+  });
+
+  it("reports an unknown observation time as null rather than as now", async () => {
+    fetchMock.mockResolvedValue(quoteResponse(okQuote)); // no `t`
+    const { body } = await get("AAPL");
+    expect(body.observedAt).toBeNull();
+    // `fetchedAt` is still honest — we DO know when we asked.
+    expect(typeof body.fetchedAt).toBe("number");
+  });
+
+  it("no longer emits the `timestamp` field that conflated the two", async () => {
+    fetchMock.mockResolvedValue(quoteResponse({ ...okQuote, t: TRADE_TIME_SECONDS }));
+    const { body } = await get("AAPL");
+    expect(body.timestamp).toBeUndefined();
+  });
+});
+
 describe("the private copy is gone, not merely unused", () => {
   it("this route holds no symbol table of its own", () => {
     // Comments are stripped first. The route's own docblock quotes the deleted

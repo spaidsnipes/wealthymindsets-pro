@@ -3,6 +3,7 @@ import { classifySymbol, unsupportedAssetClassReason } from "@/lib/marketData/sy
 import { toFinnhubSym } from "@/lib/finnhubSymbol";
 import { resolveProviderEnv, acceptedEnvNames } from "@/lib/broker/resolveProviderEnv";
 import { classifyFinnhubStatus, finnhubUpstreamMessage } from "@/lib/marketData/finnhubUpstreamStatus";
+import { finnhubQuoteObservedAt } from "@/lib/marketData/finnhubQuoteTime";
 
 // Server-only Finnhub key. Same fail-fast pattern as /api/finnhub — refuse to
 // call Finnhub with the committed-fallback value in production (WM-SEC-P0-03).
@@ -136,7 +137,18 @@ export async function GET(request: Request) {
       prevClose: data.pc, // previous close
       change:    +(data.c - data.pc).toFixed(4),
       changePct: +(((data.c - data.pc) / data.pc) * 100).toFixed(4),
-      timestamp: Date.now(),
+      // WHEN the market produced this price, in the vendor's own words — and,
+      // separately, when WE asked. This line used to read `timestamp:
+      // Date.now()`, which discarded Finnhub's `t` and therefore reported every
+      // quote as brand new. MEASURED 2026-09-12 08:22 UTC with the market shut:
+      // AAPL 332.27 carried `t` = 2026-09-11T20:00:00Z, 12.38 hours earlier,
+      // while this envelope said the observation was zero seconds old.
+      //
+      // Two clocks, never one. Collapsing them is what let a closed-market
+      // close wear a live quote's face — the same fake-fresh failure SF-D01
+      // forbids on the Yahoo lane via `yahooQuoteObserved`.
+      observedAt: finnhubQuoteObservedAt(data),
+      fetchedAt:  Date.now(),
     });
   } catch (err) {
     // A genuine transport/parse fault on an OK response. The upstream's own
