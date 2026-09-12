@@ -62,6 +62,15 @@ import {
 } from "@/lib/bigTradeLevels";
 import { describeBubbleClaim } from "@/lib/bubbleClaim";
 import { computeProfileFromBars } from "@/lib/vpEngine";
+// vpEngine owns WHERE THE VOLUME GOES; vpDrawGeometry owns WHERE THE PIXELS GO.
+// Both halves of the profile are now pure and tested — see vpDrawGeometry.ts.
+import {
+  vpBarSplit,
+  vpBarWidth,
+  vpColumnLayout,
+  vpLabelFits,
+  vpRowRect,
+} from "@/lib/vpDrawGeometry";
 import type { DrawingStyle, LogicalPt, DrawStyle, ChartDrawing } from "@/types/chart";
 import { DEFAULT_DRAWING_STYLE } from "@/types/chart";
 import { showAlertToast } from "./AlertsPanel";
@@ -5683,8 +5692,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         // Cap profile width relative to usable chart area so the histogram never
         // overpowers price action (founder: "profile width overpowers price").
         // Each profile stays a compact right-side lane, not a wall.
-        const vpW   = Math.min(nCols > 1 ? 84 : 116, (W - priceScaleW) * (nCols > 1 ? 0.10 : 0.13));
-        const vpRight = (W - priceScaleW - 6) - colIndex * (vpW + 12);
+        // Owned by src/lib/vpDrawGeometry.ts. `fits` is a real answer: when the
+        // usable span cannot hold this column, the inline arithmetic used to
+        // produce a negative right edge and paint every bar off-canvas — the
+        // profile was requested, the work was done, and nothing appeared.
+        const col = vpColumnLayout(W, priceScaleW, colIndex, nCols);
+        if (!col.fits) return;
+        const vpW = col.width;
+        const vpRight = col.right;
 
         // ── PRICE-ANCHORED vertical scale ───────────────────────────────
         // Anchor every row to its REAL price via the candle series' price scale.
@@ -5741,7 +5756,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               const zyT = yOf(price + tickSz), zyB = yOf(price);
               if (zyT != null && zyB != null) {
                 const zy = Math.round((zyT + zyB) / 2);
-                if (Math.abs(zy - lastLabelY) >= 13) {
+                if (vpLabelFits(zy, lastLabelY)) {
                   ctx.font = "11px monospace";
                   ctx.textAlign = "right"; ctx.textBaseline = "middle";
                   ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.8)";
@@ -5754,21 +5769,15 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             }
             continue;
           }
-          const yTopRaw = yOf(price + tickSz);
-          const yBotRaw = yOf(price);
-          if (yTopRaw == null || yBotRaw == null) continue; // off-screen row
-          const yTop  = yTopRaw;
-          const yBot  = yBotRaw;
-          // Snap BOTH endpoints to integers, then subtract — never round the height
-          // independently. A row's top coordinate yOf(price+tickSz) is the SAME
-          // coordinate as the row above it's bottom, so snapping both makes adjacent
-          // populated rows share the exact boundary pixel = pixel-flush, no hairline
-          // gaps. (round(yTop)+round(yBot-yTop) drifted ±1px → the "spaced-out sticks"
-          // gaps between contiguous VP bars.) Genuinely-empty buckets still draw
-          // nothing, which is the honest gap TradingView shows too.
-          const rowY  = Math.round(yTop);
-          const rowBot = Math.round(yBot);
-          const rowH  = Math.max(2, Math.min(rowCap, rowBot - rowY));
+          // Row rectangle owned by src/lib/vpDrawGeometry.ts: both endpoints are
+          // snapped and then subtracted, so adjacent populated rows share the
+          // exact boundary pixel. null = the price scale could not place this
+          // row, which is off-screen, not zero. Genuinely-empty buckets still
+          // draw nothing — the honest gap TradingView shows too.
+          const rect = vpRowRect(yOf(price + tickSz), yOf(price), rowCap);
+          if (!rect) continue; // off-screen row
+          const rowY = rect.y;
+          const rowH = rect.height;
           const isPOC = price === pocPrice;
           // Bar length ∝ volume, shaped by a 0.6 power curve: the POC (ratio 1) is the
           // ACCURATE bar length: DIRECTLY proportional to this level's real
@@ -5777,12 +5786,11 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // wide and saturated the high levels into one chunky block. A 1px floor
           // only guarantees a genuinely-traded level is not invisible. The result
           // is an honest histogram: POC full width, everything else in true ratio.
-          const barW = Math.max(1, Math.round(vpW * Math.min(1, tot / maxBucket)));
+          const barW = vpBarWidth(tot, maxBucket, vpW);
           const upRatio = volume ? volume.up / tot : 0.5;
-          // Small separation gap so each price row stays individually visible
-          // (many thin rows → smooth OUTER silhouette, not a solid painted slab).
-          const gap = rowH >= 3 ? 1 : 0;
-          const rh  = Math.max(1, rowH - gap);
+          // Separation gap (owner) so each price row stays individually visible:
+          // many thin rows → smooth OUTER silhouette, not a solid painted slab.
+          const rh = rect.drawHeight;
 
           if (isPOC) {
             ctx.fillStyle = vpPocRgba((0.68 * alphaScale).toFixed(2));
@@ -5792,11 +5800,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             // (down-vol) right — the lively bid/ask look. Nothing is drawn into
             // empty price levels (no interpolation). alphaScale gives Session VP
             // a distinct translucent identity vs the solid Fixed VP.
-            const upW = Math.round(barW * upRatio);
+            // The down half is the REMAINDER, never a second rounding — the two
+            // pieces must sum to exactly the bar, or the level is drawn a pixel
+            // wider or narrower than its own volume. Owned by vpDrawGeometry.
+            const { upWidth: upW, downWidth: dnW } = vpBarSplit(barW, upRatio);
             ctx.fillStyle = vpUpRgba(((0.42 + upRatio * 0.13) * alphaScale).toFixed(2));
             ctx.fillRect(vpRight - barW, rowY, upW, rh);
             ctx.fillStyle = vpDnRgba(((0.42 + (1 - upRatio) * 0.13) * alphaScale).toFixed(2));
-            ctx.fillRect(vpRight - barW + upW, rowY, barW - upW, rh);
+            ctx.fillRect(vpRight - barW + upW, rowY, dnW, rh);
           }
           if (isPOC) {
             ctx.strokeStyle = vpPocRgba(0.9); ctx.lineWidth = 1;
@@ -5827,7 +5838,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           // thin zoomed-out rows never stack into a wall) — shows the real value incl a
           // literal 0 when that's the truth. "key" mode: only the ~6 highest levels
           // (clean TradingView look). POC always labels (bold).
-          const hasRoom = rowH >= 8 && Math.abs(midY - lastLabelY) >= 13;
+          const hasRoom = rowH >= 8 && vpLabelFits(midY, lastLabelY);
           const showLabel = isPOC || (hasRoom && (
             vpLabelAll ? true : (topLabelPrices.has(price) && !vpZero)
           ));
