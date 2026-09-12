@@ -31,14 +31,44 @@ import {
   type ReadinessPayload,
   type ReadinessWireboard,
 } from "@/lib/broker/selectReadinessWireboard";
+import {
+  selectCertificationJoint,
+  type CertificationPayload,
+  type CertificationJointBoard,
+  type JointClass,
+} from "@/lib/broker/selectCertificationJoint";
+import { WM } from "@/lib/design/wmTokens";
 
 type LoadState =
   | { phase: "loading" }
   | { phase: "error"; message: string }
   | { phase: "ready"; wireboard: ReadinessWireboard };
 
+/**
+ * The certification board is loaded and rendered SEPARATELY from the readiness
+ * wireboard, on purpose. They answer different questions from different
+ * endpoints, and a shared load state would let one endpoint's failure erase the
+ * other's truth — the page would go blank and imply that nothing is known, when
+ * in fact half of it is.
+ */
+type CertState =
+  | { phase: "loading" }
+  | { phase: "error"; message: string }
+  | { phase: "ready"; board: CertificationJointBoard };
+
+/** What each joint class means, said in the reader's own terms. Never a colour
+ * alone — §9 COLOR+MOTION: colour may reinforce a word, never replace it. */
+const JOINT_LABEL: Readonly<Record<JointClass, string>> = {
+  FULLY_CERTIFIED: "CERTIFIED",
+  NOT_IMPLEMENTED: "NO ADAPTER",
+  UNPROBED: "NOT MEASURED",
+  FAILED: "FAILED",
+  BLOCKED: "UNREACHABLE",
+};
+
 export default function ReadinessPage() {
   const [state, setState] = useState<LoadState>({ phase: "loading" });
+  const [cert, setCert] = useState<CertState>({ phase: "loading" });
   const [origin, setOrigin] = useState<string>("");
   const [connectOpen, setConnectOpen] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -59,6 +89,18 @@ export default function ReadinessPage() {
         if (!cancelled) setState({ phase: "ready", wireboard: selectReadinessWireboard(payload) });
       } catch (e) {
         if (!cancelled) setState({ phase: "error", message: e instanceof Error ? e.message : "Network error" });
+      }
+    })();
+    (async () => {
+      try {
+        const payload = await readJsonReceipt<CertificationPayload>(
+          fetch,
+          "/api/broker/certification",
+          controller.signal,
+        );
+        if (!cancelled) setCert({ phase: "ready", board: selectCertificationJoint(payload) });
+      } catch (e) {
+        if (!cancelled) setCert({ phase: "error", message: e instanceof Error ? e.message : "Network error" });
       }
     })();
     return () => {
@@ -261,9 +303,92 @@ export default function ReadinessPage() {
               </ul>
             )}
 
+            {/*
+              CERTIFICATION JOINT BOARD.
+
+              This section exists because the paragraph below used to be the ONLY
+              mention of the Certification Harness anywhere a human could reach.
+              `/api/broker/certification` had shipped a full twelve-stage read
+              side and no surface consumed it — backend green, frontend dark. The
+              prose pointed at a door that was never cut.
+
+              It deliberately renders ONE row per broker naming the first link
+              that is not holding, rather than forty-eight rows of PENDING. An
+              ordered chain has exactly one interesting element.
+            */}
+            <section className="mt-8" aria-labelledby="cert-joint-heading">
+              <h2
+                id="cert-joint-heading"
+                className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-400"
+              >
+                Certification · next link
+              </h2>
+
+              {cert.phase === "loading" && (
+                <p className="mt-2 text-[11px] text-neutral-500">Reading the certification receipt…</p>
+              )}
+
+              {cert.phase === "error" && (
+                // An unreachable endpoint is NOT "nothing to certify". Saying so
+                // would let a network failure read as a clean board.
+                <p className="mt-2 text-[11px] leading-relaxed text-neutral-400">
+                  Certification receipt UNREACHABLE — {cert.message}. This says nothing about whether any
+                  broker is certified; it says this page could not ask.
+                </p>
+              )}
+
+              {cert.phase === "ready" && (
+                <>
+                  <p className="mt-2 text-[11px] leading-relaxed text-neutral-400">{cert.board.summary}</p>
+                  <ul className="mt-3 space-y-2">
+                    {cert.board.rows.map((row) => (
+                      <li
+                        key={row.brokerId}
+                        className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3"
+                      >
+                        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                          <span className="font-mono text-[12px] font-semibold uppercase tracking-widest text-neutral-200">
+                            {row.brokerId}
+                          </span>
+                          <span
+                            className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em]"
+                            style={{
+                              color:
+                                row.jointClass === "FULLY_CERTIFIED" ? WM.gold.hero : WM.gold.mark,
+                            }}
+                          >
+                            {JOINT_LABEL[row.jointClass]}
+                          </span>
+                          {row.joint && (
+                            <span className="font-mono text-[11px] text-neutral-400">
+                              at {row.joint}
+                            </span>
+                          )}
+                          <span className="ml-auto font-mono text-[10px] text-neutral-500">
+                            {/*
+                              Spelled out rather than rendered as "0/12". A bare
+                              fraction reads as a failing grade; the words carry
+                              the qualifier, and the NOT MEASURED chip above says
+                              whether the zero is a result or an absence of one.
+                            */}
+                            {row.passedCount} of {row.totalStages} stages passed
+                          </span>
+                        </div>
+                        <p className="mt-2 text-[11px] leading-relaxed text-neutral-400">{row.detail}</p>
+                        <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
+                          Owner: {row.owner === "NOBODY" ? "no direct action" : row.owner.toLowerCase()}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </section>
+
             <p className="mt-7 rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 text-[11px] leading-relaxed text-neutral-500">
               This wireboard is observability, not a second source of authority. Presence of a key never
-              certifies a live connection — the broker Certification Harness owns that proof. Blocker classes
+              certifies a live connection — that is what the certification board above measures, and it
+              currently measures nothing until a harness runner exists. Blocker classes
               here are limited to what presence can prove: SETUP PRESENT or NOT CONFIGURED. AUTH BLOCKED, BRIDGE
               UNREACHABLE, ENTITLEMENT, and the rest require a live probe and are never guessed from a missing
               variable.

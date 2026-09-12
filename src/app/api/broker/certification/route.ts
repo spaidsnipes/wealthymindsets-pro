@@ -29,6 +29,27 @@ export interface BrokerCertificationReport {
   readonly failedStages: readonly string[];
   readonly blockedStages: readonly string[];
   readonly fullyCertified: boolean;
+  /**
+   * Whether an adapter for this broker EXISTS in-process.
+   *
+   * ── The identity loss this restores ────────────────────────────────────────
+   *
+   * `deriveReports` produces `[]` for a broker with no adapter and a single
+   * PENDING `auth` for a broker whose adapter is present but has never been
+   * probed. `computeCertificationLevel` then collapses BOTH into the identical
+   * structured payload — `NONE`, 0 passed, 0 failed, 0 blocked, all 12 pending.
+   * The only surviving difference was the freeform `note` PROSE, which no
+   * structured consumer can branch on without string-matching English.
+   *
+   * Those two states have opposite remedies. "No adapter" is ENGINEERING work —
+   * nobody has written the integration. "Adapter present, never probed" is
+   * HARNESS work — the code exists and no one has run it against it. A cert
+   * surface that shows both as "0/12" tells the Founder to go do the wrong
+   * thing, and does it with a number that looks precise.
+   *
+   * The producer already computed this on the line below and threw it away.
+   */
+  readonly implemented: boolean;
   /** Truthful note from the adapter's health(). */
   readonly note: string;
 }
@@ -65,6 +86,7 @@ function buildBrokerCertification(): BrokerCertificationResponse {
       failedStages: result.failedStages,
       blockedStages: result.blockedStages,
       fullyCertified: result.fullyCertified,
+      implemented,
       note: h?.note ?? "Adapter not registered.",
     };
   });
