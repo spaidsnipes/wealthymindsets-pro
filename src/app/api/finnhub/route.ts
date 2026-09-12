@@ -10,6 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { toFinnhubSym } from "@/lib/finnhubSymbol";
+import { resolveProviderEnv, acceptedEnvNames } from "@/lib/broker/resolveProviderEnv";
 
 /**
  * Server-only Finnhub key. In production, unset or committed-fallback-equal
@@ -44,14 +45,22 @@ class FinnhubConfigError extends Error {
 
 function getFinnhubKey(): string {
   if (_finnhubKeyCache !== null) return _finnhubKeyCache;
-  const fromEnv = process.env.FINNHUB_KEY ?? process.env.NEXT_PUBLIC_FINNHUB_KEY;
+  // Resolved through the canonical table rather than a hand-written `??`
+  // chain. The host carries this key as `FINNHUB_KEY_`; a route that reads
+  // only `FINNHUB_KEY` answers 503 beside a present secret. See
+  // resolveProviderEnv for the measured failure.
+  const fromEnv = resolveProviderEnv("FINNHUB_KEY")?.value;
   const isProd  = process.env.NODE_ENV === "production";
   if (isProd) {
     if (!fromEnv) {
       throw new FinnhubConfigError(
-        "FINNHUB_KEY is not set on the host runtime. Refusing to call Finnhub " +
-        "with a committed fallback. Set FINNHUB_KEY in the host runtime secrets " +
-        "and redeploy.",
+        // Naming every name that was tried, not just the canonical one, so a
+        // 503 cannot be read as "the secret is absent" when it is only absent
+        // under one spelling.
+        `No Finnhub key is set on the host runtime under any accepted name (${acceptedEnvNames("FINNHUB_KEY").join(", ")}). ` +
+        "Refusing to call Finnhub with the committed dev fallback. Set one of " +
+        "those names in the host runtime secrets and redeploy.",
+        acceptedEnvNames("FINNHUB_KEY"),
       );
     }
     if (fromEnv === COMMITTED_FALLBACK) {

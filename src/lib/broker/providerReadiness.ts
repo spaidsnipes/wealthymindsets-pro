@@ -156,9 +156,9 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     label: "Finnhub market data",
     lane: "market-data",
     required: ["FINNHUB_KEY"],
-    aliases: { FINNHUB_KEY: ["NEXT_PUBLIC_FINNHUB_KEY"] },
+    aliases: { FINNHUB_KEY: ["FINNHUB_KEY_", "NEXT_PUBLIC_FINNHUB_KEY"] },
     recommended: [],
-    note: "Server-side quote/candle proxy behind /api/finnhub and /api/market. When absent in production both routes answer 503 with edge NOT CONFIGURED rather than signing a request with the committed dev fallback — the stock tape simply does not render.",
+    note: "Server-side quote/candle proxy behind /api/finnhub and /api/market. When absent in production both routes answer 503 with edge NOT CONFIGURED rather than signing a request with the committed dev fallback — the stock tape simply does not render. FINNHUB_KEY_ (trailing underscore) is the name this host actually carries; it is ACCEPTED here so the tape runs, not blessed as correct — see resolveProviderEnv for why the host's naming is treated as a host property rather than an operator error.",
   },
   {
     provider: "polygon",

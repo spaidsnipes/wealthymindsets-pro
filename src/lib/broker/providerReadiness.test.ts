@@ -127,11 +127,41 @@ describe("market-data & realtime lanes (the ones the receipt was blind to)", () 
     expect(r.missing).toEqual([]);
   });
 
-  it("finnhub is NOT satisfied by the trailing-underscore host name", () => {
-    // The exact Cloudflare secret that was installed on 2026-09-05. The code
-    // never reads it, so the table must never round it up to READY — that
-    // would restore the original lie in a new place.
+  /**
+   * SUPERSEDED 2026-09-11 — the PREMISE changed, not the principle.
+   *
+   * This test asserted the opposite: that `FINNHUB_KEY_` must NOT satisfy
+   * finnhub. Its stated reason was exact, and correct at the time —
+   *
+   *   "The code never reads it, so the table must never round it up to READY
+   *    — that would restore the original lie in a new place."
+   *
+   * The rule it protects is: THE RECEIPT MAY DECLARE READY ONLY FOR A NAME THE
+   * CODE ACTUALLY READS. That rule is untouched. What changed is the fact it
+   * was applied to. `/api/finnhub` and `/api/market` now resolve their key
+   * through `resolveProviderEnv`, which reads every alias declared in this
+   * table — so the code DOES read `FINNHUB_KEY_`, and READY became the honest
+   * answer instead of the lie.
+   *
+   * This mattered: the secret was present on the production host the entire
+   * time, and BLOCKED kept the real-time US equity tape dark for six days.
+   * Holding the old answer would not have been caution — it would have been a
+   * receipt that was wrong in the other direction.
+   *
+   * The rule's teeth now live in `resolveProviderEnv.test.ts` ("THE HALF-FIX
+   * GUARD"), which fails if any consumer goes back to hand-writing its own env
+   * names — the only way this READY could become a lie again.
+   */
+  it("finnhub is satisfied by the trailing-underscore host name the code now reads", () => {
     const r = computeProviderReadiness("finnhub", { FINNHUB_KEY_: "redacted" });
+    expect(r.status).toBe("READY");
+    expect(r.missing).toEqual([]);
+  });
+
+  it("finnhub stays BLOCKED for a lookalike NO consumer resolves", () => {
+    // The supersede above is narrow: it turns entirely on the alias being
+    // DECLARED, and therefore read. An undeclared neighbour must still block.
+    const r = computeProviderReadiness("finnhub", { FINNHUB_KEY__: "redacted", FINNHUB_SECRET: "x" });
     expect(r.status).toBe("BLOCKED");
     expect(r.missing).toEqual(["FINNHUB_KEY"]);
   });
@@ -389,19 +419,37 @@ describe("detectEnvNameNearMisses (canon: a lookalike is not agreement)", () => 
 });
 
 describe("detectUnaccountedEnvNameNearMisses (the one-call receipt entry point)", () => {
-  it("reproduces the 2026-09-05 host: names FINNHUB_KEY_ as the explanation", () => {
-    // The Cloudflare account as it actually stood — a working legacy Alpaca
-    // pair alongside the typo'd Finnhub secret.
+  /**
+   * The original fixture here was `FINNHUB_KEY_`, and it was the right one
+   * until 2026-09-11, when that name was DECLARED as a finnhub alias and the
+   * consumers were wired to read it. An accounted-for name must fall silent —
+   * that is this detector's documented contract — so Finnhub can no longer
+   * demonstrate an unaccounted hit.
+   *
+   * Rather than invent a synthetic name, this uses `ATH_LIVEKIT_KEY_` /
+   * `ATH_LIVEKIT_KEY_SECRET_`: names observed on the live production host on
+   * 2026-09-11, still undeclared, and still the reason the Lounge cannot open
+   * a room. The fixture keeps pointing at a real open wound.
+   */
+  it("names the still-undeclared host lookalike as the explanation", () => {
     const hits = detectUnaccountedEnvNameNearMisses({
       ALPACA_BROKERAGE_KEY: "redacted",
       ALPACA_BROKERAGE_KEY_SECRET_: "redacted",
-      FINNHUB_KEY_: "redacted",
+      ATH_LIVEKIT_KEY_: "redacted",
     });
     expect(hits).toContainEqual({
-      expected: "FINNHUB_KEY",
-      found: "FINNHUB_KEY_",
-      confidence: "EXACT_MODULO_PUNCTUATION",
+      expected: "LIVEKIT_API_KEY",
+      found: "ATH_LIVEKIT_KEY_",
+      confidence: "SHARED_DISTINCTIVE_TOKENS",
     });
+  });
+
+  it("a name that has since been DECLARED stops being offered as a suspect", () => {
+    // The graduation the 2026-09-11 fix performed: FINNHUB_KEY_ went from
+    // "mystery lookalike" to "accounted-for alias the code reads". Reporting
+    // it now would be cry-wolf noise against a working wire.
+    const hits = detectUnaccountedEnvNameNearMisses({ FINNHUB_KEY_: "redacted" });
+    expect(hits.map((h) => h.found)).not.toContain("FINNHUB_KEY_");
   });
 
   it("does NOT flag a declared alternative as a mystery lookalike", () => {

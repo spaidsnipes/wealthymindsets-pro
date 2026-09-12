@@ -73,7 +73,12 @@ describe("env-name near-miss detector MUST stay reachable (breadcrumb chain)", (
 
 describe("secrets boundary is structural, not a promise", () => {
   it("a hit carries only names and a confidence label — no value field", () => {
-    const hits = detectUnaccountedEnvNameNearMisses({ FINNHUB_KEY_: "super-secret-value" });
+    // Fixture moved off FINNHUB_KEY_ on 2026-09-11: that name is now a
+    // DECLARED finnhub alias the consumers actually read, so it correctly
+    // produces no hit. ATH_LIVEKIT_KEY_ is a real, still-undeclared name on
+    // the production host — the secrets boundary is asserted against a live
+    // wound rather than a synthetic one.
+    const hits = detectUnaccountedEnvNameNearMisses({ ATH_LIVEKIT_KEY_: "super-secret-value" });
     expect(hits.length).toBeGreaterThan(0);
     for (const hit of hits) {
       expect(Object.keys(hit).sort()).toEqual(["confidence", "expected", "found"]);
