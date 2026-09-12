@@ -29,99 +29,16 @@ import { isPublicAuthPath } from "@/lib/authRoutes";
 import { useCapitalObservation, useCapitalReach } from "@/lib/experience/useActiveScene";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { selectNavEmphasis } from "@/lib/experience/selectNavEmphasis";
+import { matchCuratedSymbols } from "@/lib/marketData/curatedSymbolCatalog";
 
 /* ── All searchable symbols ─────────────────────────────── */
-const ALL_SYMBOLS = [
-  // Futures
-  { sym:"NQ1!",  label:"Nasdaq-100 Futures",         cat:"Futures", aliases:["nasdaq","nq","tech","mnq"] },
-  { sym:"ES1!",  label:"S&P 500 Futures",            cat:"Futures", aliases:["sp500","es","mes","spy"] },
-  { sym:"RTY1!", label:"Russell 2000 Futures",       cat:"Futures", aliases:["rty","russell","m2k"] },
-  { sym:"YM1!",  label:"Dow Jones Futures",          cat:"Futures", aliases:["ym","dow","us30","mym"] },
-  { sym:"GC1!",  label:"Gold Futures",               cat:"Futures", aliases:["gold","xauusd","xau","mgc"] },
-  { sym:"CL1!",  label:"Crude Oil WTI Futures",      cat:"Futures", aliases:["oil","crude","wti","mcl"] },
-  { sym:"SI1!",  label:"Silver Futures",             cat:"Futures", aliases:["silver","xagusd","xag"] },
-  { sym:"HG1!",  label:"Copper Futures",             cat:"Futures", aliases:["copper"] },
-  { sym:"ZB1!",  label:"30-Year T-Bond Futures",     cat:"Futures", aliases:["bonds","treasury"] },
-  { sym:"ZN1!",  label:"10-Year T-Note Futures",     cat:"Futures", aliases:["10yr","notes"] },
-  { sym:"NG1!",  label:"Natural Gas Futures",        cat:"Futures", aliases:["natgas","natural gas"] },
-  { sym:"6E1!",  label:"Euro FX Futures",            cat:"Futures", aliases:["euro","eur"] },
-  { sym:"6J1!",  label:"Yen Futures",                cat:"Futures", aliases:["yen","jpy"] },
-  { sym:"VX1!",  label:"VIX Futures",                cat:"Futures", aliases:["vix","volatility","fear"] },
-  // Forex / Spot
-  { sym:"EURUSD", label:"Euro / US Dollar",          cat:"Forex", aliases:["euro dollar","eur","6e"] },
-  { sym:"GBPUSD", label:"British Pound / USD",       cat:"Forex", aliases:["cable","pound","gbp","sterling"] },
-  { sym:"USDJPY", label:"US Dollar / Japanese Yen",  cat:"Forex", aliases:["dollar yen","jpy","yen"] },
-  { sym:"XAUUSD", label:"Gold / US Dollar (Spot)",   cat:"Forex", aliases:["gold","xau","spot gold","gc1"] },
-  { sym:"XAGUSD", label:"Silver / US Dollar (Spot)", cat:"Forex", aliases:["silver","xag","spot silver"] },
-  { sym:"US30",   label:"Dow Jones Index (Cash)",    cat:"Forex", aliases:["dow","dji","dow jones","ym"] },
-  { sym:"US500",  label:"S&P 500 Index (Cash)",      cat:"Forex", aliases:["spx","s&p","sp500","es"] },
-  { sym:"US100",  label:"Nasdaq 100 Index (Cash)",   cat:"Forex", aliases:["nasdaq","ndx","nq","us100"] },
-  { sym:"USDCAD", label:"US Dollar / Canadian Dollar",cat:"Forex", aliases:["loonie","cad"] },
-  { sym:"AUDUSD", label:"Australian Dollar / USD",   cat:"Forex", aliases:["aussie","aud"] },
-  { sym:"NZDUSD", label:"New Zealand Dollar / USD",  cat:"Forex", aliases:["kiwi","nzd"] },
-  { sym:"USDCHF", label:"US Dollar / Swiss Franc",   cat:"Forex", aliases:["swissy","chf"] },
-  { sym:"GBPJPY", label:"British Pound / Yen",       cat:"Forex", aliases:["guppy"] },
-  { sym:"EURJPY", label:"Euro / Japanese Yen",       cat:"Forex", aliases:["ej"] },
-  { sym:"USOIL",  label:"US Oil (WTI Spot)",         cat:"Forex", aliases:["oil","crude","wti"] },
-  // Stocks
-  { sym:"AAPL",  label:"Apple Inc.",                 cat:"Stock" },
-  { sym:"TSLA",  label:"Tesla Inc.",                 cat:"Stock" },
-  { sym:"NVDA",  label:"NVIDIA Corporation",         cat:"Stock" },
-  { sym:"AMZN",  label:"Amazon.com Inc.",            cat:"Stock" },
-  { sym:"META",  label:"Meta Platforms",             cat:"Stock" },
-  { sym:"MSFT",  label:"Microsoft Corp.",            cat:"Stock" },
-  { sym:"GOOG",  label:"Alphabet Inc.",              cat:"Stock" },
-  { sym:"GOOGL", label:"Alphabet Inc. (A)",          cat:"Stock" },
-  { sym:"AVGO",  label:"Broadcom Inc.",              cat:"Stock" },
-  { sym:"AMD",   label:"Advanced Micro Devices",     cat:"Stock" },
-  { sym:"INTC",  label:"Intel Corporation",          cat:"Stock" },
-  { sym:"NFLX",  label:"Netflix Inc.",               cat:"Stock" },
-  { sym:"JPM",   label:"JPMorgan Chase",             cat:"Stock" },
-  { sym:"GS",    label:"Goldman Sachs",              cat:"Stock" },
-  { sym:"V",     label:"Visa Inc.",                  cat:"Stock" },
-  { sym:"MA",    label:"Mastercard",                 cat:"Stock" },
-  { sym:"LLY",   label:"Eli Lilly",                  cat:"Stock" },
-  { sym:"RIVN",  label:"Rivian Automotive",          cat:"Stock" },
-  { sym:"PLTR",  label:"Palantir Technologies",      cat:"Stock" },
-  { sym:"COIN",  label:"Coinbase Global",            cat:"Stock" },
-  { sym:"HOOD",  label:"Robinhood Markets",          cat:"Stock" },
-  { sym:"GME",   label:"GameStop Corp.",             cat:"Stock" },
-  { sym:"AMC",   label:"AMC Entertainment",          cat:"Stock" },
-  { sym:"MSTR",  label:"MicroStrategy",              cat:"Stock" },
-  { sym:"ARM",   label:"ARM Holdings",               cat:"Stock" },
-  { sym:"DJT",   label:"Trump Media & Technology",   cat:"Stock" },
-  { sym:"SMCI",  label:"Super Micro Computer",       cat:"Stock" },
-  { sym:"RKLB",  label:"Rocket Lab",                 cat:"Stock" },
-  // ETFs
-  { sym:"SPY",   label:"SPDR S&P 500 ETF",           cat:"ETF" },
-  { sym:"QQQ",   label:"Invesco QQQ (Nasdaq 100)",   cat:"ETF" },
-  { sym:"IWM",   label:"iShares Russell 2000 ETF",   cat:"ETF" },
-  { sym:"GLD",   label:"SPDR Gold Shares",           cat:"ETF" },
-  { sym:"SLV",   label:"iShares Silver Trust",       cat:"ETF" },
-  { sym:"TLT",   label:"iShares 20+ Year T-Bond",    cat:"ETF" },
-  { sym:"XLK",   label:"Technology Select SPDR",     cat:"ETF" },
-  { sym:"XLF",   label:"Financial Select SPDR",      cat:"ETF" },
-  { sym:"XLE",   label:"Energy Select SPDR",         cat:"ETF" },
-  { sym:"TQQQ",  label:"ProShares UltraPro QQQ 3x",  cat:"ETF" },
-  { sym:"SQQQ",  label:"ProShares UltraPro Sh QQQ",  cat:"ETF" },
-  { sym:"SOXL",  label:"Direxion Semi Bull 3x",      cat:"ETF" },
-  { sym:"SOXS",  label:"Direxion Semi Bear 3x",      cat:"ETF" },
-  { sym:"UVXY",  label:"ProShares Ultra VIX",         cat:"ETF" },
-  { sym:"VXX",   label:"iPath VIX Short-Term Futures",cat:"ETF" },
-  // Crypto
-  { sym:"BTCUSD", label:"Bitcoin / USD",             cat:"Crypto", aliases:["btc","bitcoin"] },
-  { sym:"ETHUSD", label:"Ethereum / USD",            cat:"Crypto", aliases:["eth","ethereum"] },
-  { sym:"SOLUSD", label:"Solana / USD",              cat:"Crypto", aliases:["sol","solana"] },
-  { sym:"BNBUSD", label:"BNB / USD",                 cat:"Crypto", aliases:["bnb"] },
-  { sym:"XRPUSD", label:"XRP / USD",                cat:"Crypto", aliases:["xrp","ripple"] },
-  { sym:"DOGEUSD",label:"Dogecoin / USD",            cat:"Crypto", aliases:["doge","dogecoin"] },
-  { sym:"ADAUSD", label:"Cardano / USD",             cat:"Crypto", aliases:["ada"] },
-  { sym:"AVAXUSD",label:"Avalanche / USD",           cat:"Crypto", aliases:["avax"] },
-  { sym:"PEPEUSD",label:"Pepe / USD",                cat:"Crypto", aliases:["pepe","meme"] },
-  { sym:"SHIBUSD",label:"Shiba Inu / USD",           cat:"Crypto", aliases:["shib","shiba"] },
-  { sym:"WIFUSD", label:"dogwifhat / USD",           cat:"Crypto", aliases:["wif","dogwifhat"] },
-  { sym:"BONKUSD",label:"Bonk / USD",                cat:"Crypto", aliases:["bonk"] },
-];
+/**
+ * The catalog this dialog offers is NOT declared here. It was, as
+ * `ALL_SYMBOLS`, a second copy of the chart picker's list — and the two had
+ * drifted: this one was missing eight symbols and still called `VX1!` a
+ * futures contract after the picker had corrected it to the cash index it
+ * actually loads. See `curatedSymbolCatalog`.
+ */
 
 const INITIAL_NOTIFS: Array<{ id:number; read:boolean; time:string; icon:string; title:string; body:string }> = [];
 
@@ -177,19 +94,12 @@ function SearchPanel({
     onClose,
   });
 
-  // Local filtered results — matches symbol, label, and aliases
-  const qLow = query.toLowerCase().replace(/[/\-_\s!]/g, "");
-  const localResults = query.length < 1 ? [] : ALL_SYMBOLS.filter(s => {
-    const symClean = s.sym.toLowerCase().replace(/[/\-_\s!]/g, "");
-    return symClean.startsWith(qLow) ||
-           symClean.includes(qLow) ||
-           s.label.toLowerCase().includes(query.toLowerCase()) ||
-           (s as typeof s & { aliases?: string[] }).aliases?.some(a => a.includes(query.toLowerCase()));
-  }).sort((a, b) => {
-    const aE = a.sym.toLowerCase().startsWith(qLow);
-    const bE = b.sym.toLowerCase().startsWith(qLow);
-    return (aE === bE) ? 0 : aE ? -1 : 1;
-  }).slice(0, 10);
+  // Local filtered results — matches symbol, label, and aliases.
+  // The query normalisation that used to live here as `qLow` is gone on
+  // purpose: `matchCuratedSymbols` owns how a typed query is folded against
+  // the catalog. Keeping a local copy of that rule is how the two halves of
+  // this picker drifted apart in the first place.
+  const localResults = matchCuratedSymbols(query, 10);
 
   // Debounced Finnhub live search for any symbol not in local list
   useEffect(() => {
