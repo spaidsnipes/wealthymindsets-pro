@@ -34,10 +34,11 @@
  * KNOWN LIMIT — READ BEFORE TRUSTING A GREEN RUN
  *
  * This harness holds NO session. Every authenticated route client-side
- * redirects to /login, so pointing it at /charts measures the login page and
- * reports it clean. The `landed` field is printed for exactly this reason:
- * if `landed` is not the route you asked for, the route was NOT audited.
- * Auditing interior routes needs a seeded test account.
+ * redirects to /login, so pointing it at /charts LANDS on the login page.
+ * A route that redirected is reported NOT AUDITED and FAILS the run — its
+ * measurements describe a different page and are suppressed, because a
+ * clean number about a page you never reached is the exact lie this file
+ * exists to prevent. Auditing interior routes needs a seeded test account.
  */
 
 import { chromium } from "playwright";
@@ -214,10 +215,28 @@ for (const route of ROUTES) {
   // route as redirected and quietly refuse to audit exactly the states that
   // need it.
   const redirected = result.landed !== route.split(/[?#]/)[0];
-  const note = redirected ? `  NOT AUDITED — redirected to ${result.landed}` : "";
+
+  // A ROUTE THAT WAS ASKED FOR AND NOT MEASURED FAILS THE RUN.
+  //
+  // This used to print NOT AUDITED and then exit 0, which is the same shape as
+  // every defect this harness exists to catch: a clean report about something
+  // that was never looked at. Someone adds `/charts` to the route list, the
+  // session-less browser lands on /login, the login page measures clean, and
+  // the pipeline reports that /charts passed a phone audit it never ran.
+  // Numbers from a route you did not land on describe a DIFFERENT PAGE, so
+  // they are suppressed rather than printed beside a caveat nobody reads.
+  if (redirected) {
+    console.log(
+      `${route}  NOT AUDITED — landed on ${result.landed}. ` +
+        "This harness holds no session; auditing this route needs a seeded test account.",
+    );
+    failed++;
+    continue;
+  }
+
   console.log(
     `${route}  offenders=${result.offenderCount}  evicted-text=${result.evictedCount}` +
-      `  under-${MIN_TAP}px-taps=${result.smallTapCount}${note}`,
+      `  under-${MIN_TAP}px-taps=${result.smallTapCount}`,
   );
   for (const o of result.offenders) console.log(`    off by ${o.offBy}px  ${o.el}`);
   for (const e of result.evicted) console.log(`    evicted ${e.w}px wide  "${e.text}"  ${e.el}`);
