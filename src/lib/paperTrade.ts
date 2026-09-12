@@ -374,6 +374,71 @@ export interface Trade {
    * an order with no decisionId produces a trade with no decisionId.
    */
   decisionId?: DecisionId;
+  /**
+   * When the price this fill used was OBSERVED — not when the fill was booked.
+   *
+   * WHY THESE ARE TWO DIFFERENT FACTS. `ts` above is `Date.now()` at the moment
+   * the reducer ran. `px` is whatever the quote pipeline last handed us, and
+   * /paper's own freshness budget (PAPER_DELAYED_QUOTE_MAX_AGE_MS) permits that
+   * observation to be up to FIFTEEN MINUTES old and still actionable. So a
+   * paper fill can, entirely within the rules, record a fourteen-minute-old
+   * price stamped with the current wall clock.
+   *
+   * That gap was measured and then discarded. `selectPaperQuoteReadiness`
+   * computes `observedAt` and `ageMs` precisely, the surface gates the Order
+   * Ticket on them, and the fill site read `readiness.price` and dropped the
+   * rest — the same shape as the `rejectReason` that was computed, carried one
+   * line and thrown away (see applyOrderRejections above).
+   *
+   * It matters because `trades[]` is the durable ledger. It is what persistence
+   * carries and what the Journal and Proof Lane read to compute realized R. A
+   * fill against a three-second-old price and a fill against a fourteen-minute
+   * old one are materially different events, and nothing downstream could tell
+   * them apart.
+   *
+   * OPTIONAL, AND IT MUST STAY OPTIONAL — the same H1 rule that governs
+   * `decisionId`. Trades persisted before this field existed have no recorded
+   * observation time, and stamping one now would be inventing a freshness we
+   * never measured. Readers disclose the absence (`describeFillPriceAge`
+   * returns null) rather than defaulting it to `ts`, which would silently
+   * assert that every historical fill was perfectly fresh.
+   *
+   * The AGE is deliberately not stored alongside it. Age is `ts - quoteObservedAt`
+   * and storing both invites the two to disagree (gate G2).
+   */
+  quoteObservedAt?: number;
+}
+
+/**
+ * How stale the price behind a fill was, in milliseconds, or null when the
+ * trade never recorded it.
+ *
+ * Null means UNKNOWN and must be rendered as unknown. It does not mean zero.
+ */
+export function fillPriceAgeMs(trade: Trade): number | null {
+  const observedAt = trade.quoteObservedAt;
+  if (typeof observedAt !== "number" || !Number.isFinite(observedAt)) return null;
+  if (!Number.isFinite(trade.ts)) return null;
+  // A price observed after the fill was booked is not a negative age, it is a
+  // chronology we do not believe. Refuse rather than render a negative number.
+  if (observedAt > trade.ts) return null;
+  return trade.ts - observedAt;
+}
+
+/**
+ * A sentence for the blotter, or null when there is nothing honest to say.
+ *
+ * Returning null for an unrecorded observation is the whole point: the caller
+ * then renders "not recorded" instead of a reassuring "0s old".
+ */
+export function describeFillPriceAge(trade: Trade): string | null {
+  const ageMs = fillPriceAgeMs(trade);
+  if (ageMs == null) return null;
+  const seconds = Math.round(ageMs / 1000);
+  if (seconds < 60) return `Filled at a price observed ${seconds}s earlier.`;
+  const minutes = Math.floor(seconds / 60);
+  const rem = seconds % 60;
+  return `Filled at a price observed ${minutes}m ${rem}s earlier.`;
 }
 
 export interface EquityPoint { ts: number; equity: number; }
@@ -429,13 +494,33 @@ export function applyFill(
    * lines (cashDelta, realized) are scaled.
    */
   multiplier: number = 1,
+  /**
+   * When `fillPx` was OBSERVED, if the caller knows. Optional and defaulted to
+   * null so every pre-existing caller keeps its exact behaviour and simply
+   * produces a trade with no recorded observation time — which readers render
+   * as "not recorded" rather than as "fresh".
+   *
+   * FORWARDED, NEVER INVENTED. `Date.now()` is deliberately not used as a
+   * fallback: that would assert the price was observed at the instant of the
+   * fill, which is the precise claim /paper's 15-minute freshness budget makes
+   * false.
+   */
+  quoteObservedAt: number | null = null,
 ): { positions: Position[]; trade: Trade; cashDelta: number; realized: number } {
   const mult = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
   const signedQty = ord.side === "buy" ? ord.qty : -ord.qty; // signed fill size
   const cashDelta = -signedQty * fillPx * mult;              // pay to buy, receive to sell
+  const observedAt =
+    typeof quoteObservedAt === "number" && Number.isFinite(quoteObservedAt) && quoteObservedAt > 0
+      ? quoteObservedAt
+      : null;
   const trade: Trade = {
     id: uid(), symbol: ord.symbol, side: ord.side,
     qty: ord.qty, px: fillPx, ts: Date.now(),
+    // Same conditional-spread rule as decisionId below: absent must be a
+    // MISSING KEY, not `undefined`, because persisted books are serialized and
+    // compared and "present but undefined" reads as a different fact.
+    ...(observedAt != null ? { quoteObservedAt: observedAt } : {}),
     // Carry the decision identity across the order→trade boundary. `id` above
     // is the TRADE's own id and is freshly minted; this is not minted, it is
     // FORWARDED. Conditional spread so an order without decision identity
@@ -568,6 +653,7 @@ export function isValidTrade(v: unknown): v is Trade {
   return rec(v) && str(v.id) && str(v.symbol)
     && ORDER_SIDES.includes(v.side as string)
     && num(v.qty) && num(v.px) && num(v.ts) && optNum(v.pnl)
+    && optNum(v.quoteObservedAt)
     && optDecisionId(v.decisionId);
 }
 
@@ -902,6 +988,13 @@ export function placeChartMarketOrder(
   side: OrderSide,
   qty: number,
   fillPx: number,
+  /**
+   * When `fillPx` was observed, if the caller knows. Optional: this path has no
+   * production callers yet (see the buying-power note below), so rather than
+   * guess on their behalf the parameter is threaded through and whoever wires
+   * it up inherits the obligation to pass the real observation time.
+   */
+  quoteObservedAt: number | null = null,
 ): ChartOrderResult {
   const base: ChartOrderResult = { ok: false, symbol, side, qty, fillPx, realized: 0, cash: 0, position: null };
   if (!symbol) return { ...base, error: "No symbol" };
@@ -945,7 +1038,7 @@ export function placeChartMarketOrder(
   // Futures move contractMultiplier() dollars per point. Without this a
   // one-click chart BUY on NQ debited the account 1/20th of what it should.
   const { positions, trade, cashDelta, realized } =
-    applyFill(state.positions, ord, fillPx, contractMultiplier(symbol));
+    applyFill(state.positions, ord, fillPx, contractMultiplier(symbol), quoteObservedAt);
   const cash = state.cash + cashDelta;
 
   const next: PaperState = {

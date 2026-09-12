@@ -4,6 +4,8 @@ import { describe, it, expect, vi } from "vitest";
 import { afterEach, beforeEach } from "vitest";
 import {
   applyFill,
+  describeFillPriceAge,
+  fillPriceAgeMs,
   clearPaperState,
   loadPaperState,
   isValidOrder,
@@ -16,6 +18,7 @@ import {
   STARTING_CASH,
   type Order,
   type Position,
+  type Trade,
 } from "./paperTrade";
 import { mintDecisionId } from "./traderMemory/decisionIdentity";
 
@@ -588,5 +591,160 @@ describe("clearPaperState — logout-isolation guarantee (canon §Sentinel)", ()
     delete g.window;
     delete g.localStorage;
     expect(() => clearPaperState()).not.toThrow();
+  });
+});
+
+/* ────────────────────────────────────────────────────────────────
+ * FILL-PRICE OBSERVATION AGE
+ *
+ * A paper fill is stamped `ts: Date.now()`, but the quote behind its price
+ * can be up to PAPER_DELAYED_QUOTE_MAX_AGE_MS (15 min) old — the readiness
+ * view model measures that age and, before this, /paper read `.price` and
+ * threw the rest away. The durable ledger therefore recorded a 14-minute-old
+ * price as if it had been struck that instant (canon weakness #9 PAPER-FILL
+ * OVERCONFIDENCE).
+ *
+ * The fix RECORDS what was already measured. It does not invent a slippage
+ * model — minting numbers is the defect, not the cure.
+ *
+ * H1 governs the absent case: absence is not zero. `quoteObservedAt` stays
+ * OPTIONAL, an unrecorded fill omits the KEY entirely (persisted books are
+ * serialized and compared, so `undefined` is not the same as missing), and
+ * readers return null for UNKNOWN rather than defaulting to `ts`.
+ * ──────────────────────────────────────────────────────────────── */
+describe("applyFill — quote observation time is forwarded, never invented", () => {
+  it("records the forwarded observation time on the trade", () => {
+    const r = applyFill([], mk({ side: "buy", qty: 1, id: "o1" }), 100, 1, 1_000);
+    expect(r.trade.quoteObservedAt).toBe(1_000);
+  });
+
+  it("OMITS THE KEY when no observation time is supplied — absent, not undefined", () => {
+    const r = applyFill([], mk({ side: "buy", qty: 1 }), 100);
+    expect(
+      Object.prototype.hasOwnProperty.call(r.trade, "quoteObservedAt"),
+      "an unrecorded observation time must be a MISSING KEY. Persisted books " +
+      "are JSON-serialized and byte-compared; an explicit `undefined` changes " +
+      "the shape on the way in and silently vanishes on the way out.",
+    ).toBe(false);
+  });
+
+  it("refuses a non-finite or non-positive observation time rather than storing it", () => {
+    for (const bad of [Number.NaN, Infinity, 0, -1]) {
+      const r = applyFill([], mk({ side: "buy", qty: 1 }), 100, 1, bad);
+      expect(
+        Object.prototype.hasOwnProperty.call(r.trade, "quoteObservedAt"),
+        `${bad} is not an observation time and must not be recorded as one`,
+      ).toBe(false);
+    }
+  });
+
+  it("does NOT fall back to Date.now() when the caller passes null", () => {
+    const before = Date.now();
+    const r = applyFill([], mk({ side: "buy", qty: 1 }), 100, 1, null);
+    // A Date.now() fallback would assert the price was perfectly fresh, which
+    // is precisely the overclaim being removed. Silence is the honest answer.
+    expect(r.trade.quoteObservedAt).toBeUndefined();
+    expect(r.trade.ts).toBeGreaterThanOrEqual(before);
+  });
+});
+
+describe("fillPriceAgeMs — UNKNOWN is null, never zero", () => {
+  const base = (over: Partial<Trade>): Trade => ({
+    id: "t1", symbol: "TSLA", side: "buy", qty: 1, px: 100, ts: 10_000, ...over,
+  });
+
+  it("derives the age from ts − quoteObservedAt", () => {
+    expect(fillPriceAgeMs(base({ quoteObservedAt: 4_000 }))).toBe(6_000);
+  });
+
+  it("returns null — not 0 — when the trade never recorded an observation time", () => {
+    expect(
+      fillPriceAgeMs(base({})),
+      "an unrecorded age is UNKNOWN. Returning 0 would claim the fill was " +
+      "struck on a perfectly fresh quote.",
+    ).toBeNull();
+  });
+
+  it("returns null for a price observed AFTER the fill was booked", () => {
+    expect(
+      fillPriceAgeMs(base({ ts: 10_000, quoteObservedAt: 11_000 })),
+      "that is not a negative age, it is a chronology we do not believe",
+    ).toBeNull();
+  });
+
+  it("returns 0 for a genuinely simultaneous observation — a real measurement", () => {
+    expect(fillPriceAgeMs(base({ ts: 10_000, quoteObservedAt: 10_000 }))).toBe(0);
+  });
+
+  it("returns null when either timestamp is not finite", () => {
+    expect(fillPriceAgeMs(base({ quoteObservedAt: Number.NaN }))).toBeNull();
+    expect(fillPriceAgeMs(base({ ts: Number.NaN, quoteObservedAt: 1_000 }))).toBeNull();
+  });
+});
+
+describe("describeFillPriceAge — discloses, and stays silent when it cannot", () => {
+  const base = (over: Partial<Trade>): Trade => ({
+    id: "t1", symbol: "TSLA", side: "buy", qty: 1, px: 100, ts: 10_000, ...over,
+  });
+
+  it("names sub-minute staleness in seconds", () => {
+    expect(describeFillPriceAge(base({ ts: 10_000, quoteObservedAt: 6_000 })))
+      .toBe("Filled at a price observed 4s earlier.");
+  });
+
+  it("names multi-minute staleness in minutes and seconds", () => {
+    // 4m 12s — the shape of a real delayed-feed fill.
+    const ts = 1_000_000;
+    expect(describeFillPriceAge(base({ ts, quoteObservedAt: ts - 252_000 })))
+      .toBe("Filled at a price observed 4m 12s earlier.");
+  });
+
+  it("returns null when unrecorded, so callers must render UNKNOWN themselves", () => {
+    expect(describeFillPriceAge(base({}))).toBeNull();
+  });
+});
+
+describe("isValidTrade — quoteObservedAt survives the persistence round trip", () => {
+  it("accepts a trade carrying an observation time", () => {
+    const t = { id: "t1", symbol: "TSLA", side: "buy", qty: 1, px: 100, ts: 10_000, quoteObservedAt: 4_000 };
+    expect(isValidTrade(t)).toBe(true);
+    expect(isValidTrade(JSON.parse(JSON.stringify(t)))).toBe(true);
+  });
+
+  it("STILL accepts a trade without one — the field is optional and must stay optional", () => {
+    expect(
+      isValidTrade({ id: "t1", symbol: "TSLA", side: "buy", qty: 1, px: 100, ts: 10_000 }),
+      "every trade booked before this field existed lives in real saved books. " +
+      "Requiring it would reject those books wholesale and trip recovery.",
+    ).toBe(true);
+  });
+
+  it("rejects a trade whose observation time is the wrong type", () => {
+    expect(isValidTrade({ id: "t1", symbol: "TSLA", side: "buy", qty: 1, px: 100, ts: 10_000, quoteObservedAt: "4000" })).toBe(false);
+  });
+});
+
+describe("/paper fill loop forwards the measurement it used to discard", () => {
+  const page = readFileSync(resolve(__dirname, "../app/paper/page.tsx"), "utf8").replace(/\s+/g, " ");
+
+  it("carries quoteObservedAt alongside fillPx in the fills batch", () => {
+    expect(
+      page,
+      "the fills array dropped readiness.observedAt, so the ledger could not " +
+      "tell a live fill from a 14-minute-old one",
+    ).toMatch(/fills\.push\(\{ ord, fillPx, quoteObservedAt: readiness\.observedAt \}\)/);
+  });
+
+  it("passes it through the page's applyFill adapter to the shared owner", () => {
+    expect(page).toMatch(/applyFill\(work, ord, fillPx, quoteObservedAt\)/);
+    expect(page).toMatch(/applyFillShared\(positions, ord, fillPx, contractMultiplier\(ord\.symbol\), quoteObservedAt\)/);
+  });
+
+  it("never backfills the observation time with a clock read at the fill site", () => {
+    expect(
+      page,
+      "Date.now() as a fallback observation time would restore the exact " +
+      "overclaim this atom removes",
+    ).not.toMatch(/quoteObservedAt: readiness\.observedAt \?\? Date\.now\(\)/);
   });
 });

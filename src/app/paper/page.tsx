@@ -41,6 +41,8 @@ import {
   preservedPaperBookFilename,
   readPreservedPaperBook,
   replacePreservedPaperBook,
+  describeFillPriceAge,
+  fillPriceAgeMs,
   type PaperBookIntegrity,
   type PaperPersistenceResult,
   type PaperState,
@@ -156,15 +158,62 @@ function applyFill(
   positions: Position[],
   ord: Order,
   fillPx: number,
+  // When the quote that produced `fillPx` was OBSERVED, forwarded from the
+  // readiness view model. A paper fill is stamped `ts: Date.now()` but the
+  // price behind it may be up to PAPER_DELAYED_QUOTE_MAX_AGE_MS old. That gap
+  // was measured upstream and then discarded here; carrying it lets the ledger
+  // disclose the staleness instead of implying an instantaneous fill. Absent
+  // (null) means unrecorded — it is never backfilled with Date.now().
+  quoteObservedAt: number | null = null,
 ): { positions: Position[]; trade: Trade; cashDelta: number; realized: number } {
   // Point value is a property of the CONTRACT, so it is derived here from
   // ord.symbol rather than passed in. Every /paper fill path — ticket, bot,
   // close-position — routes through this adapter, so none of them can forget
   // it. Futures were previously settled at 1x: a 10-point NQ move showed $10
   // instead of $200, and a $1 crude move showed $1 instead of $1,000.
-  return applyFillShared(positions, ord, fillPx, contractMultiplier(ord.symbol)) as {
+  return applyFillShared(positions, ord, fillPx, contractMultiplier(ord.symbol), quoteObservedAt) as {
     positions: Position[]; trade: Trade; cashDelta: number; realized: number;
   };
+}
+
+/**
+ * The staleness of the price behind a fill, as a blotter chip.
+ *
+ * A paper fill is stamped with `Date.now()` while the quote that produced its
+ * price can be up to PAPER_DELAYED_QUOTE_MAX_AGE_MS old. Rendering only the
+ * timestamp implies the two are the same instant. This says otherwise.
+ *
+ * Three distinct states, none of them collapsed into another:
+ *   - a measured age  → "quote 4m 12s old"
+ *   - unrecorded      → "quote age not recorded" (every trade booked before
+ *                        quoteObservedAt existed, and any fill whose source
+ *                        never carried an observation time). NOT zero.
+ *   - zero-ish        → still printed, because "0s" is a real measurement.
+ */
+function FillPriceAgeNote({ trade }: { trade: Trade }) {
+  const ageMs = fillPriceAgeMs(trade);
+  if (ageMs == null) {
+    return (
+      <span
+        className="block text-[9px] text-wm-text-muted/70 not-italic"
+        title="This trade was booked without recording when its quote was observed, so the age of the fill price is unknown. Unknown is not zero."
+      >
+        quote age not recorded
+      </span>
+    );
+  }
+  const seconds = Math.round(ageMs / 1000);
+  const label = seconds < 60
+    ? `${seconds}s`
+    : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  return (
+    <span
+      className={clsx("block text-[9px]", seconds >= 60 ? "text-wm-amber" : "text-wm-text-muted/70")}
+      title={describeFillPriceAge(trade) ?? undefined}
+    >
+      quote {label} old
+    </span>
+  );
 }
 
 function fmt2(n: number) {
@@ -1434,7 +1483,12 @@ export default function PaperTradingPage() {
     const pend = orders.filter(o => o.status === "pending" && !filledRef.current.has(o.id));
     if (pend.length === 0) return;
 
-    const fills: { ord: Order; fillPx: number }[] = [];
+    // `quoteObservedAt` rides along with the price it came from. The readiness
+    // view model already measures when the quote was observed; this loop used
+    // to read `.price` and drop the rest, so a fill on a 14-minute-old delayed
+    // quote entered the durable ledger stamped with the CURRENT time and no
+    // trace of the gap (canon weakness #9 PAPER-FILL OVERCONFIDENCE).
+    const fills: { ord: Order; fillPx: number; quoteObservedAt: number | null }[] = [];
     const rejects: { id: string; reason: string }[] = [];
     let cashRunning = cash;
     for (const ord of pend) {
@@ -1476,7 +1530,7 @@ export default function PaperTradingPage() {
       if (ord.side === "buy") cashRunning -= ord.qty * fillPx * mult;
 
       filledRef.current.add(ord.id);            // exactly-once guard
-      fills.push({ ord, fillPx });
+      fills.push({ ord, fillPx, quoteObservedAt: readiness.observedAt });
     }
     if (rejects.length > 0) {
       // The reason travels WITH the status. This used to build the same Map and
@@ -1495,8 +1549,8 @@ export default function PaperTradingPage() {
     let cashDelta = 0;
     const newTrades: Trade[] = [];
     const wins: string[] = [];
-    for (const { ord, fillPx } of fills) {
-      const r = applyFill(work, ord, fillPx);
+    for (const { ord, fillPx, quoteObservedAt } of fills) {
+      const r = applyFill(work, ord, fillPx, quoteObservedAt);
       work = r.positions;
       cashDelta += r.cashDelta;
       newTrades.push(r.trade);
@@ -2530,8 +2584,15 @@ export default function PaperTradingPage() {
                       </span>
                       <span className="text-xs font-mono text-wm-text">{t.qty}</span>
                       <span className="text-xs font-mono text-wm-text">${fmt2(t.px)}</span>
-                      <span className="text-[10px] text-wm-text-dim font-mono">
+                      <span className="text-[10px] text-wm-text-dim font-mono leading-tight">
                         {new Date(t.ts).toLocaleTimeString()}
+                        {/* The fill TIME is Date.now(); the PRICE behind it may be
+                          * minutes old on a delayed feed. Disclose that gap here
+                          * rather than let the timestamp imply an instant fill.
+                          * Both lines derive from fillPriceAgeMs — the single
+                          * owner of this measurement (gate G2). Null is UNKNOWN,
+                          * rendered as unknown, never as zero. */}
+                        <FillPriceAgeNote trade={t} />
                       </span>
                       {t.pnl !== undefined ? (
                         <span className={clsx("text-xs font-black font-mono", t.pnl>=0?"text-wm-green":"text-wm-red")}>

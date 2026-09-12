@@ -144,7 +144,12 @@ describe("the /paper surface applies it on every money line", () => {
   const page = readFileSync(PAPER_PAGE, "utf8");
 
   it("fills route through the adapter, which derives it from ord.symbol", () => {
-    expect(page).toContain("applyFillShared(positions, ord, fillPx, contractMultiplier(ord.symbol))");
+    // Matched as a PREFIX, not an exact call, so that adding a later argument
+    // (quoteObservedAt did exactly this) does not fail a guard whose subject is
+    // the multiplier. What must hold is that the 4th positional argument is
+    // still derived here from ord.symbol rather than passed in by a caller who
+    // could forget it.
+    expect(page).toContain("applyFillShared(positions, ord, fillPx, contractMultiplier(ord.symbol)");
   });
 
   it("the buying-power gate is funded at notional", () => {
