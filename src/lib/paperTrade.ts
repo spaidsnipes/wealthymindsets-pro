@@ -246,6 +246,89 @@ export function selectCloseOrderPlan(
   return { side: projected > 0 ? "sell" : "buy", qty: Math.abs(projected) };
 }
 
+/** The order fields a fill decision is allowed to read. Nothing else matters. */
+export interface OrderFillInput {
+  readonly side: OrderSide;
+  readonly type: OrderType;
+  readonly limitPx?: number;
+  readonly stopPx?: number;
+}
+
+export interface OrderFill {
+  /**
+   * The price recorded for this fill.
+   *
+   * ALWAYS the observed price. See the note on `selectOrderFill` — the limit is
+   * a constraint on WHETHER to fill, not the price that printed.
+   */
+  readonly fillPx: number;
+}
+
+/**
+ * Decide whether a resting order fills against an observed price, and at what
+ * price it is recorded.
+ *
+ * Both halves used to live inline in /paper's quote-tick effect with no owner
+ * and no coverage. The trigger arithmetic was correct; the recorded price was
+ * not:
+ *
+ *   const fillPx = ord.limitPx ?? px;
+ *
+ * That wrote the LIMIT LEVEL into the ledger for every limit and stop-limit
+ * order — a number no quote ever produced. Three consequences, all measured:
+ *
+ *   1. It contradicted `quoteObservedAt`. The trade carried the observation
+ *      time of `px` while `fillPx` was a different number entirely, so the two
+ *      fields on one Trade described two different things. §5 SYSTEM TRUTH LAW.
+ *   2. Price improvement vanished in BOTH directions. A buy limit at 100 that
+ *      triggers because the market is at 98 was booked at 100; a sell limit at
+ *      100 that triggers at 102 was also booked at 100. The trader never saw
+ *      the fill they actually got.
+ *   3. `fillPx` also feeds `selectOrderRejection` and the running cash
+ *      decrement, so the wrong number propagated into the account balance.
+ *
+ * THE PRICE IS THE OBSERVED PRICE, for every order type. The limit answers
+ * WHETHER, never HOW MUCH. This is deliberately not a fill model: no slippage,
+ * no spread, no queue position. Minting a plausible number is the defect, not
+ * the cure — this records the one price that was genuinely observed.
+ *
+ * Returns null when the order does not fill on this observation.
+ */
+export function selectOrderFill(order: OrderFillInput, observedPx: number): OrderFill | null {
+  if (!Number.isFinite(observedPx) || observedPx <= 0) return null;
+  const px = observedPx;
+
+  // A missing level defaults to `px`, which makes its own comparison trivially
+  // true. That preserves the shipped behaviour: an order whose level was never
+  // recorded is treated as unconstrained on that leg rather than silently
+  // frozen forever.
+  const limit = Number.isFinite(order.limitPx as number) ? (order.limitPx as number) : px;
+  const stop = Number.isFinite(order.stopPx as number) ? (order.stopPx as number) : px;
+  const buy = order.side === "buy";
+
+  const triggered = buy ? px >= stop : px <= stop;
+  const withinLimit = buy ? px <= limit : px >= limit;
+
+  let fills: boolean;
+  switch (order.type) {
+    case "market": fills = true; break;
+    case "limit": fills = withinLimit; break;
+    case "stop": fills = triggered; break;
+    case "stop-limit": fills = triggered && withinLimit; break;
+    default: return null;
+  }
+  if (!fills) return null;
+
+  // `order.limitPx ?? px` is what /paper shipped, and it SURVIVED THE
+  // EXTRACTION — copied down here intact, one line below a docblock explaining
+  // at length why it is wrong. Worth a marker: moving a defect into a function
+  // named after the correct behaviour makes it harder to see, not easier. The
+  // only reason it did not ship again is that the tests were written first and
+  // left red. `??` would also have passed a NaN level straight through, since
+  // NaN is neither null nor undefined.
+  return { fillPx: px };
+}
+
 export interface Order {
   id: string;
   symbol: string;

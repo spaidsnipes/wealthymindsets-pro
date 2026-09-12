@@ -30,6 +30,7 @@ import {
   contractMultiplier,
   canCancelOrder,
   selectCloseOrderPlan,
+  selectOrderFill,
   selectOrderRejection,
   loadPaperSnapshot,
   savePaperState,
@@ -1495,16 +1496,12 @@ export default function PaperTradingPage() {
       const readiness = quoteReadiness[ord.symbol];
       if (!readiness?.actionable || readiness.price == null) continue;
       const px = readiness.price;
-      let fill = false;
-      if (ord.type === "market") fill = true;
-      else if (ord.type === "limit") {
-        fill = ord.side==="buy" ? px <= (ord.limitPx??px) : px >= (ord.limitPx??px);
-      } else if (ord.type === "stop") {
-        fill = ord.side==="buy" ? px >= (ord.stopPx??px) : px <= (ord.stopPx??px);
-      } else if (ord.type === "stop-limit") {
-        const triggered = ord.side==="buy" ? px >= (ord.stopPx??px) : px <= (ord.stopPx??px);
-        if (triggered) fill = ord.side==="buy" ? px <= (ord.limitPx??px) : px >= (ord.limitPx??px);
-      }
+      // selectOrderFill owns BOTH halves of this decision: whether the order
+      // triggers, and the price recorded. The price is the OBSERVED price for
+      // every order type — this loop used to book `ord.limitPx ?? px`, a number
+      // no quote ever produced, on the same Trade that carries the observation
+      // time of `px`.
+      const fill = selectOrderFill(ord, px);
       if (!fill) continue;
 
       // Buying-power gate at the boundary where cash actually moves. There was
@@ -1513,7 +1510,7 @@ export default function PaperTradingPage() {
       // paper trading exists to teach (canon weakness #9 PAPER-FILL
       // OVERCONFIDENCE). Running cash forward across this batch so several
       // fills in one tick cannot each pass against the same starting balance.
-      const fillPx = ord.limitPx ?? px;
+      const fillPx = fill.fillPx;
       // Point value belongs in the funding test too: one NQ contract at 21,750
       // is $435,000 of notional, not $21,750. Without it a $100k account was
       // told it could afford four of them.
