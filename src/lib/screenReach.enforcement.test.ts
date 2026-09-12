@@ -115,10 +115,15 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "TEST_FIXTURE",
     note: "Offline shape lock for the Webull MCP. Correct that it never ships.",
   },
-  "src/lib/broker/selectFirstBrokenJoint.ts": {
-    reason: "AWAITING_SURFACE",
-    note: "Executable owner of Ticket B: the ordered capability ladder that names the FIRST broken joint instead of collapsing twelve rungs into one green. Ledgered on arrival, and the arrival is the point — this guard caught it on its first full run, which is the same catch it should have made on /api/broker/status, whose honest four-provider report has had zero UI consumers since F-Bkt 3. The surface owed is BrokerConnectPanel, where moomoo and tastytrade currently render STATIC prose that cannot change and therefore cannot say where the signal dies, while Webull alone measures. Ticket B's HUMAN FRUIT REQUIREMENT is explicit that backend truth does not close the circuit: 'A provider circuit does not close until the actual WM Pro scene that depends on it visibly changes.' So this entry is a debt with a named creditor, not a permanent exemption — and the reciprocal sentinel below will demand its deletion the moment the panel consumes it.",
-  },
+  // REMOVED 2026-09-12, in the commit after the one that added it:
+  // "selectFirstBrokenJoint.ts — capability ladder owner, unreached on
+  // arrival." It was declared AWAITING_SURFACE with BrokerConnectPanel named
+  // as the creditor, and the panel now consumes it: CapabilityLadderStatus
+  // renders the twelve rungs where moomoo and tastytrade previously showed a
+  // static caption. providerReportToStageEvidence is the seam, and it is
+  // reached transitively through the same component. This is the second time
+  // this ledger's reciprocal sentinel has forced a same-session deletion,
+  // which is the behaviour it was written for.
   // REMOVED 2026-09-08: "decisionIdentity.ts — DECISION_ID owner, unreached on
   // arrival." It was declared AWAITING_SURFACE in 1ffd79d and given one in the
   // very next commit: /paper's order ticket now mints the id at the human's

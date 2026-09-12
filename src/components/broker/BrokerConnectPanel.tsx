@@ -15,6 +15,9 @@ import {
   type WebullCanaryReceipt,
   type WebullSigningProfile,
 } from "@/lib/marketData/webullSigningCanary";
+import { selectFirstBrokenJoint, type JointVerdict } from "@/lib/broker/selectFirstBrokenJoint";
+import { providerReportToStageEvidence } from "@/lib/broker/providerReportToStageEvidence";
+import type { ProviderReport } from "@/app/api/broker/status/route";
 
 type BrokerCategory = "broker" | "crypto" | "forex" | "prop";
 
@@ -658,6 +661,185 @@ function WebullSigningCanary() {
   );
 }
 
+/**
+ * CapabilityLadderStatus — Ticket B's human fruit.
+ *
+ * What this replaces, and why it had to be replaced:
+ *
+ * Until now a broker with no `managedConnection` rendered `runtimeConnection`
+ * — a LABEL and a NOTE, both string literals in the BROKERS array above.
+ * Those strings are identical whether the OpenD bridge is down, the
+ * credential was never deployed to this host, or everything is fine and
+ * nobody looked. A panel that cannot change cannot report. It is not a
+ * status; it is a caption.
+ *
+ * The canon names the exact confusion this produced: "Credential present +
+ * bridge absent = TRANSCEIVER/LOCALITY BLOCK, never MISSING_KEY." Those are
+ * opposite findings with opposite next actions, and the caption said the
+ * same words for both.
+ *
+ * The honest evidence already existed. `/api/broker/status` has reported
+ * implemented / envConfigured / connected per provider since F-Bkt 3, and
+ * had ZERO UI consumers — truth computed inside the program that never
+ * reached the Founder's eye. This component is the seam that closes that,
+ * which is why Ticket B's HUMAN FRUIT REQUIREMENT exists: "A provider
+ * circuit does not close until the actual WM Pro scene that depends on it
+ * visibly changes."
+ *
+ * WHAT IT WILL AND WILL NOT SAY
+ *
+ * It renders the ladder verdict and the first joint that is not proven. On
+ * moomoo today that reads AUTHENTICATED — UNMEASURED, with the explicit
+ * line that this is NOT a proven defect. That is a weaker claim than the
+ * caption made, and it is the correct one.
+ *
+ * It shows nine rungs as unmeasured rather than hiding them. A shorter card
+ * would look more finished; those nine blanks are the actual reach of
+ * provider proof today and concealing them is the FALSE_RIPENESS the whole
+ * ladder exists to prevent.
+ *
+ * It never turns green at provider-logo level, because no single flag here
+ * is permitted to mean "this broker works" — the Provider Health Law is
+ * explicit that provider health must be capability-matrix based.
+ */
+function CapabilityLadderStatus({ broker }: { broker: Broker }) {
+  const [state, setState] = useState<
+    | { kind: "loading" }
+    | { kind: "unreadable"; reason: string }
+    | { kind: "read"; verdict: JointVerdict }
+  >({ kind: "loading" });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let live = true;
+    (async () => {
+      try {
+        const response = await fetch("/api/broker/status", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!live) return;
+        if (!response.ok) {
+          setState({
+            kind: "unreadable",
+            reason:
+              response.status === 401
+                ? "Sign in to WM Pro to read this provider's wire state."
+                : `The wire report itself failed (HTTP ${response.status}).`,
+          });
+          return;
+        }
+        const json = (await response.json()) as { providers?: ProviderReport[] } | null;
+        if (!live) return;
+        const report = json?.providers?.find((p) => p.provider === broker.id);
+        if (!report) {
+          // Distinct from a failed fetch on purpose. The report was READ and
+          // this provider was absent from it — that is a registry gap, not a
+          // network problem, and it is the exact omission that let
+          // moomooAdapter be wired and never reported.
+          setState({
+            kind: "unreadable",
+            reason: "The wire report was read and does not list this provider.",
+          });
+          return;
+        }
+        setState({
+          kind: "read",
+          verdict: selectFirstBrokenJoint(providerReportToStageEvidence(report)),
+        });
+      } catch {
+        if (live) {
+          setState({ kind: "unreadable", reason: "WM Pro could not reach the wire report." });
+        }
+      }
+    })();
+    return () => {
+      live = false;
+      controller.abort();
+    };
+  }, [broker.id]);
+
+  if (state.kind === "loading") {
+    return (
+      <div className="flex items-center gap-2 rounded-xl border border-wm-border bg-wm-surface/60 px-3 py-2.5 text-[10px] font-semibold text-wm-text-dim">
+        <Loader2 size={11} className="animate-spin" /> Reading capability ladder…
+      </div>
+    );
+  }
+
+  // UNKNOWN may never be silently converted into GREEN, zero, empty-as-real,
+  // stale-as-live, CONNECTED, SAFE, or COMPLETE. A report we could not read
+  // says so, in place of the rungs it would have filled.
+  if (state.kind === "unreadable") {
+    return (
+      <div
+        role="status"
+        className="rounded-xl border px-3 py-2.5"
+        style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.025)" }}
+      >
+        <div className="flex items-center gap-2 text-[11px] font-black text-wm-text">
+          <AlertCircle size={12} /> Wire state unread
+        </div>
+        <p className="mt-1 text-[9px] leading-relaxed text-wm-text-dim">
+          {state.reason} Nothing about this provider is proven or disproven by that failure.
+        </p>
+      </div>
+    );
+  }
+
+  const { verdict } = state;
+  const proven = verdict.verdictClass === "PROVEN_THROUGH";
+  const broken = verdict.verdictClass === "BROKEN_JOINT";
+  // Three states, three colours. A break is red because it is a FACT; a gap
+  // is neutral because it is an absence of measurement, and painting it red
+  // would manufacture a defect out of a blank.
+  const accent = proven ? "#00C076" : broken ? "#FF4D4D" : "#C8A951";
+
+  return (
+    <div className="space-y-2">
+      <div
+        role="status"
+        className="rounded-xl border px-3 py-2.5"
+        style={{ borderColor: `${accent}59`, background: `${accent}0F` }}
+      >
+        <div className="flex items-center gap-2 text-[11px] font-black" style={{ color: accent }}>
+          {proven ? <Check size={12} /> : <AlertCircle size={12} />}
+          {verdict.headline}
+        </div>
+        <p className="mt-1 text-[9px] leading-relaxed text-wm-text-dim">
+          {verdict.nextDiscriminatingAction}
+        </p>
+      </div>
+
+      <ul className="space-y-0.5">
+        {verdict.stages.map((s) => {
+          const tone =
+            s.state === "PASS"
+              ? "#00C076"
+              : s.state === "FAIL"
+                ? "#FF4D4D"
+                : s.state === "NOT_APPLICABLE"
+                  ? "#6b7280"
+                  : "#9ca3af";
+          return (
+            <li
+              key={s.stage}
+              className="flex items-start gap-2 rounded-md px-2 py-1 text-[9px] leading-relaxed"
+              style={{ background: "rgba(255,255,255,0.02)" }}
+              title={s.question}
+            >
+              <span className="mt-[2px] inline-block h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: tone }} />
+              <span className="w-[128px] shrink-0 font-black tracking-tight text-wm-text-muted">{s.stage}</span>
+              <span className="shrink-0 font-bold" style={{ color: tone }}>{s.state}</span>
+              {s.note ? <span className="text-wm-text-dim">— {s.note}</span> : null}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function ManagedConnectionStatus({ broker }: { broker: Broker }) {
   const managed = broker.managedConnection!;
   const [loading, setLoading] = useState(true);
@@ -906,8 +1088,17 @@ function BrokerCard({ broker, selected, onToggle }: { broker: Broker; selected: 
           </div>
         ) : broker.runtimeConnection ? (
           <div className="space-y-2">
+            {/*
+              The measured ladder leads. The static note below it stays, but
+              it has been demoted from "status" to what it always actually
+              was: setup context about how this provider's wire is supposed
+              to work. It is labelled as such so it can no longer be read as
+              a claim about the current state.
+            */}
+            <CapabilityLadderStatus broker={broker} />
             <div className="rounded-xl border border-wm-border bg-wm-surface/60 px-3 py-2.5">
               <div className="text-[11px] font-black" style={{ color: broker.color }}>{broker.runtimeConnection.label}</div>
+              <p className="mt-1 text-[8px] font-bold uppercase tracking-wider text-wm-text-dim/70">How this wire is meant to work — not a measurement</p>
               <p className="mt-1 text-[9px] leading-relaxed text-wm-text-dim">{broker.runtimeConnection.note}</p>
             </div>
             <div className="grid grid-cols-2 gap-1.5">
