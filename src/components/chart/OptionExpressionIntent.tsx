@@ -10,7 +10,7 @@ import {
 } from "@/lib/optionContractResponse";
 import { selectQuoteStance } from "@/lib/expressionCard";
 import { formatOptionNumber } from "@/lib/optionCellFormat";
-import { optionContractObservationTiming, type OptionsReceiptAge } from "@/lib/optionsChainRead";
+import { optionContractObservationTiming, optionsObservationStamp, type OptionsReceiptAge } from "@/lib/optionsChainRead";
 import { mintDecisionId, type DecisionId } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { recordExpressionIntent } from "@/lib/traderMemory/recordExpressionIntent";
@@ -75,6 +75,24 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
       : `REFERENCE TIMING UNVERIFIED · ${age.label}`;
   const quoteTiming = timingLabel(observationTiming.quote);
   const tradeTiming = timingLabel(observationTiming.trade);
+  // THE INSTANT, NOT THE AGE. `quoteTiming`/`tradeTiming` above are relative —
+  // "4m old" is only as good as the clock that said so, and a trader cannot
+  // check it against anything. These absolute stamps lived ONLY in the `title`
+  // attribute two paragraphs down, which is a pointer affordance: on the phone
+  // and iPad that the mobile-and-visual-confirmation standard names PRIMARY,
+  // there is no hover, so the one auditable fact about a reference price was
+  // unreachable on the devices that matter most. They are rendered as text now.
+  // Null when this browser has not yet stated the time — the same post-mount
+  // gate the stance already waits on, because local zone rendering during SSR
+  // is the #418 hydration defect this repo has shipped before.
+  const quoteStamp = optionsObservationStamp(contract.quoteTimestamp ?? null, receiptClock ?? Number.NaN);
+  const tradeStamp = optionsObservationStamp(contract.tradeTimestamp ?? null, receiptClock ?? Number.NaN);
+  // "not observed" and "we cannot say when yet" are different facts. A provider
+  // that printed a timestamp this browser has not yet been able to localise was
+  // still observed; calling that "not observed" would blame the provider for
+  // our own clock. Three outcomes, three words.
+  const stampText = (raw: string | null | undefined, stamp: string | null) =>
+    stamp ?? (raw ? "awaiting this browser's clock" : "not observed");
   // A chain with no reviewed provenance may be LOOKED at — the trader can see
   // the reference and decide it is useless — but it must not be written into
   // the shared record, because that record outlives the screen and nothing in
@@ -146,6 +164,14 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
     <p className="mt-1 text-wm-text-muted">The sell-now reference is the conservative exit number for a long contract and carries the role it came from. A MID is not an offer anyone has made. Spread health and time fit describe this contract only; neither says the option market is open.</p>
     <p className="mt-1 text-wm-gold" title={`Quote timestamp: ${contract.quoteTimestamp ?? "not observed"}; trade timestamp: ${contract.tradeTimestamp ?? "not observed"}`}>
       {source === OPTION_CHAIN_SOURCE ? "Alpaca" : "Unknown source"} reference · {fidelity.toLowerCase()} · quote {quoteTiming} · trade {tradeTiming} · not an executable quote
+    </p>
+    {/* The same two observations as an INSTANT rather than an age, so the
+        trader can hold them against the clock in front of them. This is the
+        `asOf` half of role/source/asOf; the role sits in the stance grid above
+        and the source in the line above this one. Text, not a tooltip — the
+        primary devices have no hover. */}
+    <p className="mt-1 text-wm-text-muted">
+      Observed at · quote {stampText(contract.quoteTimestamp, quoteStamp)} · trade {stampText(contract.tradeTimestamp, tradeStamp)}. The provider stated the instant; your device stated the time zone.
     </p>
     {reviewedProvenance
       ? <p className="mt-1 text-wm-text-muted">Reviewed provider {providerPath} · rights policy {rightsPolicyId}. Retention, redistribution and training rights are UNKNOWN for this reference; only your intent text is shared.</p>

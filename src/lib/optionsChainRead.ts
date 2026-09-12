@@ -139,6 +139,49 @@ export function optionsReceiptAge(timestamp: string | null, nowMs = Date.now()):
   return { label: `${hours}h ${remainder}m old`, timing: "STALE" };
 }
 
+/**
+ * THE INSTANT ITSELF, not how long ago it was.
+ *
+ * `optionsReceiptAge` above answers "how old" — a RELATIVE claim that can only
+ * be trusted if you already trust the clock that produced it. A trader cannot
+ * cross-check "4m old" against anything. They CAN cross-check "Sep 12, 14:32:07
+ * CDT" against the clock on the wall, and that is the difference between a
+ * number they must accept and a number they can audit.
+ *
+ * This existed only inside a `title=` attribute on the expression surface.
+ * Hover does not exist on a phone or an iPad, which are the PRIMARY devices
+ * under the mobile-and-visual-confirmation standard — so the one auditable
+ * fact about a reference price was unreachable on the devices that matter most.
+ *
+ * `nowMs` is required and is not used in the output. It is a GATE: local time
+ * and time-zone name come from the browser, not the server, so formatting one
+ * during render is the #418 hydration defect this repo has already shipped
+ * once. Callers hold `nowMs` only after mount; demanding it here makes the
+ * unsafe call impossible to write by accident rather than merely discouraged.
+ *
+ * REVIVE LEDGER — broken on purpose 2026-09-12, both restored byte-identically.
+ *   1. Dropped `!Number.isFinite(nowMs)` from the guard below.
+ *      vitest EXIT=1, failed by name on "returns null for a browser that has
+ *      not stated the time yet rather than inventing one"; tsc EXIT=0.
+ *   2. Collapsed the surface's `stampText` so an observation this browser could
+ *      not localise printed "not observed" — blaming the provider for our clock.
+ *      vitest EXIT=1, failed by name on "separates 'not observed' from 'we
+ *      cannot say when yet'"; tsc EXIT=0.
+ * Neither break was type-visible, which matches the ledger on
+ * `selectFirstBrokenJoint`: renames are type-visible, wrong answers are not.
+ * For this behaviour the suite is the ONLY gate standing.
+ */
+export function optionsObservationStamp(timestamp: string | null, nowMs: number): string | null {
+  if (!timestamp || !Number.isFinite(nowMs)) return null;
+  const observedMs = Date.parse(timestamp);
+  if (!Number.isFinite(observedMs)) return null;
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short", day: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false, timeZoneName: "short",
+  }).format(new Date(observedMs));
+}
+
 /** Classify the two observations that belong to one exact contract. Page-level
  * receipt time must never substitute for either field. A contract remains
  * researchable when one edge has verifiable chronology; both unverified edges

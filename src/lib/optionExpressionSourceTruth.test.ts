@@ -35,3 +35,44 @@ describe("selected option source truth", () => {
     expect(expression).not.toContain("Reference source FMP");
   });
 });
+
+describe("asOf is readable without a pointer", () => {
+  /**
+   * The absolute observation instant used to exist ONLY inside a `title=`
+   * attribute. Hover is a pointer affordance; the phone and the iPad — the
+   * PRIMARY devices under the mobile-and-visual-confirmation standard — have
+   * no hover, so the one auditable fact about a reference price was unreachable
+   * exactly where it was needed most. A relative "4m old" is not a substitute:
+   * it can only be trusted if you already trust the clock that produced it.
+   */
+  it("renders the instant as text, not only as a tooltip", () => {
+    expect(expression).toContain("Observed at · quote {stampText(contract.quoteTimestamp, quoteStamp)}");
+    expect(expression).toContain("trade {stampText(contract.tradeTimestamp, tradeStamp)}");
+    // The relative age stays. Both vocabularies are wanted; the defect was
+    // having only the one that cannot be checked.
+    expect(expression).toContain("quote {quoteTiming} · trade {tradeTiming}");
+  });
+
+  /**
+   * Local time and time-zone name come from the browser. Formatting either
+   * during render is the #418 hydration defect this repo has already shipped.
+   * `optionsObservationStamp` demands the post-mount clock as a GATE so the
+   * unsafe call cannot be written by accident — this pins that the surface
+   * actually passes the gated clock and not `Date.now()`.
+   */
+  it("formats the instant only after this browser has stated the time", () => {
+    expect(expression).toContain("optionsObservationStamp(contract.quoteTimestamp ?? null, receiptClock ?? Number.NaN)");
+    expect(expression).toContain("optionsObservationStamp(contract.tradeTimestamp ?? null, receiptClock ?? Number.NaN)");
+    expect(expression).not.toContain("optionsObservationStamp(contract.quoteTimestamp ?? null, Date.now())");
+  });
+
+  /**
+   * A provider timestamp this browser cannot yet localise was still OBSERVED.
+   * Printing "not observed" for it would blame the provider for our own clock,
+   * and those two states have different next actions — wait, versus ask the
+   * provider why it printed nothing.
+   */
+  it("separates 'not observed' from 'we cannot say when yet'", () => {
+    expect(expression).toContain(`stamp ?? (raw ? "awaiting this browser's clock" : "not observed")`);
+  });
+});

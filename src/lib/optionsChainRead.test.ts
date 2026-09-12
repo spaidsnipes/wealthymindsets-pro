@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   optionContractObservationTiming,
   optionsReadFailure,
+  optionsObservationStamp,
   optionsReceiptAge,
   readOptionsResponse as readOptionsResponseForUnderlying,
 } from "./optionsChainRead";
@@ -257,6 +258,44 @@ describe("options receipt age", () => {
   it("fails closed when the comparison clock is unavailable", () => {
     expect(optionsReceiptAge("2026-09-10T05:14:30Z", Number.NaN))
       .toEqual({ label: "time comparison unavailable", timing: "UNVERIFIED" });
+  });
+});
+
+describe("absolute observation stamp", () => {
+  const now = Date.parse("2026-09-10T05:15:00Z");
+
+  /**
+   * The whole point of the stamp: an INSTANT the trader can hold against the
+   * clock on the wall. Locale and zone belong to the machine running the test,
+   * so this asserts the SHAPE that makes it auditable — a named zone, and a
+   * time of day — never a hard-coded rendering that would only pass in one
+   * time zone and quietly fail the build for anyone travelling.
+   */
+  it("renders a zone-named instant, not a relative age", () => {
+    const stamp = optionsObservationStamp("2026-09-10T05:14:30Z", now);
+    expect(stamp).not.toBeNull();
+    expect(stamp).toMatch(/\d{1,2}:\d{2}:\d{2}/);
+    expect(stamp).toMatch(/[A-Za-z]/);
+    expect(stamp).not.toContain("old");
+  });
+
+  /**
+   * `nowMs` is a gate, not an input. It never reaches the output — so the same
+   * observation must format identically no matter when it is read. If this ever
+   * fails, someone has started measuring age here and the two vocabularies have
+   * collapsed into one.
+   */
+  it("ignores the value of the gate clock once the gate is open", () => {
+    expect(optionsObservationStamp("2026-09-10T05:14:30Z", now))
+      .toBe(optionsObservationStamp("2026-09-10T05:14:30Z", now + 86_400_000));
+  });
+
+  it.each([
+    ["no observation", null, now],
+    ["an unparseable observation", "not-a-date", now],
+    ["a browser that has not stated the time yet", "2026-09-10T05:14:30Z", Number.NaN],
+  ])("returns null for %s rather than inventing one", (_case, timestamp, clock) => {
+    expect(optionsObservationStamp(timestamp, clock)).toBeNull();
   });
 });
 
