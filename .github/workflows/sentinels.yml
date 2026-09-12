@@ -100,3 +100,48 @@ jobs:
         run: ./node_modules/.bin/next build
         env:
           NEXT_TELEMETRY_DISABLED: '1'
+
+      # ── Phone geometry ────────────────────────────────────────────────────
+      #
+      # The three steps above read SOURCE. Not one of them can see a rendered
+      # pixel, and twice now this repo has shipped a defect that only geometry
+      # could name: a dismiss button centred 100% off a 375px viewport, and
+      # sixteen watchlist rows whose tickers were laid out at zero width. Both
+      # were green in every source Sentinel, because the markup was correct and
+      # the LAYOUT was not.
+      #
+      # This step serves the artifact the previous step just built and measures
+      # it. Building and then discarding the build was leaving the only thing
+      # that can answer the question on the floor.
+      #
+      # PROVEN before this was committed, under exactly these conditions — a
+      # clean git worktree with NO `.env.local` and no secrets of any kind:
+      #   next build   -> exit 0
+      #   next start   -> /login answered 200
+      #   audit:phone  -> 3 routes, offenders=0 evicted-text=0, exit 0
+      #
+      # SCOPE, stated so a green check is not over-read: this measures the three
+      # routes reachable WITHOUT a session. Every interior route client-side
+      # redirects to /login, and the harness now FAILS rather than reporting a
+      # login page's geometry under an interior route's name. Auditing /charts
+      # needs a seeded test account, which this repo does not yet have.
+      - name: Install a browser to measure with
+        # `playwright` in devDependencies ships the driver, not a binary. The
+        # harness prefers the installed Chrome and falls back to this, naming
+        # which engine measured; with neither it refuses and exits 2.
+        run: npx playwright install --with-deps chromium
+
+      - name: Phone geometry (375px)
+        run: |
+          ./node_modules/.bin/next start -p 3488 &
+          # Poll rather than sleep a guessed number of seconds, and FAIL if the
+          # server never answers. A fixed sleep that is one second short would
+          # report a geometry defect that is really a cold start.
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://localhost:3488/login && break
+            if [ "$i" = 60 ]; then echo "server never answered on :3488"; exit 1; fi
+            sleep 1
+          done
+          npm run audit:phone -- --base http://localhost:3488
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'

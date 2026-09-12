@@ -68,14 +68,23 @@ function workflowSteps(): string {
 }
 
 /**
- * The three commands proven to pass from a clean worktree with NO secrets
- * before the workflow was committed. Each must still be wired, or CI is
- * reporting on less than it claims.
+ * The commands proven to pass from a clean worktree with NO secrets before each
+ * was committed. Each must still be wired, or CI is reporting on less than it
+ * claims.
+ *
+ * `phone-geometry` is the only one that reads a RENDERED PIXEL rather than
+ * source. It was added 2026-09-12 after the second defect that no source
+ * Sentinel could have caught: sixteen watchlist rows laid their tickers out at
+ * zero width, and every string-matching guard in this repo stayed green because
+ * the markup was correct and the LAYOUT was not. It is the slowest step and
+ * therefore the likeliest to be quietly dropped, which is precisely why it is
+ * listed here.
  */
 const REQUIRED_GATES: readonly { readonly id: string; readonly re: RegExp }[] = [
   { id: "typecheck", re: /tsc --noEmit --skipLibCheck/ },
   { id: "sentinels", re: /vitest run/ },
   { id: "production-build", re: /next build/ },
+  { id: "phone-geometry", re: /npm run audit:phone/ },
 ];
 
 describe("the Sentinels run on a machine, not on someone remembering", () => {

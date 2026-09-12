@@ -184,7 +184,38 @@ function probe({ minTap, tolerance }) {
   };
 }
 
-const browser = await chromium.launch({ channel: "chrome" });
+/**
+ * The installed Chrome is preferred: it is the engine the Founder's glass
+ * actually runs, and this harness exists to describe that glass.
+ *
+ * The fallback is to Playwright's bundled Chromium, which is NOT the same
+ * binary and may round a sub-pixel differently. It announces itself on stdout
+ * for that reason — a measurement is only as quotable as its instrument, and a
+ * report that silently changed engines would be a report you cannot compare to
+ * yesterday's. Refusing to run would be worse: a machine with no Chrome would
+ * then be a machine with no geometry check at all.
+ */
+let engine = "chrome";
+const browser = await chromium.launch({ channel: "chrome" }).catch(async (error) => {
+  engine = "bundled-chromium";
+  console.log(
+    `NOTICE  installed Chrome unavailable (${error.message.split("\n")[0]}) — ` +
+      "measuring with Playwright's bundled Chromium instead.",
+  );
+  return chromium.launch().catch((second) => {
+    // MEASURED: `playwright` being in devDependencies does NOT mean a browser
+    // binary exists — the download is a separate `npx playwright install` step.
+    // Without this branch the run dies in a stack trace, and "the harness could
+    // not measure" is indistinguishable from "the harness found a bug".
+    console.log(
+      "REFUSING TO REPORT — no browser to measure with. Neither the installed " +
+        `Chrome nor Playwright's bundled Chromium could launch (${second.message.split("\n")[0]}). ` +
+        "Run `npx playwright install chromium`. This is NOT a clean audit.",
+    );
+    process.exit(2);
+  });
+});
+console.log(`engine=${engine}  viewport=${WIDTH}x${HEIGHT}  base=${BASE}`);
 const context = await browser.newContext({
   viewport: { width: WIDTH, height: HEIGHT },
   deviceScaleFactor: 3,
