@@ -56,6 +56,22 @@ export interface WireboardRow {
   readonly missing: readonly string[];
   readonly missingRecommended: readonly string[];
   readonly note: string;
+  /**
+   * The suspected name mismatches that concern THIS row's own missing names.
+   *
+   * Measured failure (2026-09-05 → 2026-09-11, six days): the finnhub row read
+   * `NOT CONFIGURED — missing required variable: FINNHUB_KEY.` while a separate
+   * section of the same page reported that the host carried `FINNHUB_KEY_`.
+   * Both facts were on screen and neither pointed at the other, so the row a
+   * human actually reads to decide what to do stated an absent credential when
+   * the credential was present under another name. The reader's correct next
+   * action ("declare the alias") and the action the row implied ("go obtain a
+   * key") are not the same action.
+   *
+   * Joining here is the whole point: a blocker sentence must carry its own
+   * counter-evidence, not rely on the reader scrolling to find it.
+   */
+  readonly nameMismatches: readonly WireboardNearMiss[];
 }
 
 /**
@@ -96,7 +112,7 @@ export interface ReadinessWireboard {
   readonly empty: boolean;
 }
 
-function blockerDetailFor(r: ProviderReadiness): string {
+function blockerDetailFor(r: ProviderReadiness, mismatches: readonly WireboardNearMiss[]): string {
   if (r.status === "READY") {
     const gaps = r.missingRecommended.length > 0
       ? ` Fidelity gap — recommended not set: ${r.missingRecommended.join(", ")}.`
@@ -104,7 +120,15 @@ function blockerDetailFor(r: ProviderReadiness): string {
     return `Credentials present — ready to attempt a connection (not yet connected or certified).${gaps}`;
   }
   const names = r.missing.join(", ");
-  return `NOT CONFIGURED — missing required ${r.missing.length === 1 ? "variable" : "variables"}: ${names}.`;
+  const base = `NOT CONFIGURED — missing required ${r.missing.length === 1 ? "variable" : "variables"}: ${names}.`;
+  if (mismatches.length === 0) return base;
+
+  // Deliberately NOT a verdict: presence-only readiness cannot prove the value
+  // behind a lookalike is the right one. It CAN prove the reader is about to
+  // draw the wrong conclusion from the sentence above, which is what this says.
+  const pairs = mismatches.map((m) => `${m.found} (for ${m.expected}, ${m.strength})`).join("; ");
+  return `${base} But this host carries a lookalike for ${mismatches.length === 1 ? "that name" : "those names"}: ${pairs}. ` +
+    "Check for a NAME MISMATCH before concluding the credential is absent — the fix may be to declare the host's real name as an alias, not to obtain a new secret.";
 }
 
 function nearMissRow(h: EnvNameNearMiss): WireboardNearMiss {
@@ -122,17 +146,22 @@ function nearMissRow(h: EnvNameNearMiss): WireboardNearMiss {
 /** Build the wireboard view-model from a readiness API payload. */
 export function selectReadinessWireboard(payload: ReadinessPayload | null | undefined): ReadinessWireboard {
   const providers = payload?.providers ?? [];
-  const rows: WireboardRow[] = providers.map((r) => ({
-    provider: r.provider,
-    label: r.label,
-    lane: r.lane,
-    status: r.status,
-    blockerClass: r.status === "READY" ? "SETUP PRESENT" : "NOT CONFIGURED",
-    blockerDetail: blockerDetailFor(r),
-    missing: r.missing,
-    missingRecommended: r.missingRecommended,
-    note: r.note,
-  }));
+  const nearMisses = (payload?.nearMisses ?? []).map(nearMissRow);
+  const rows: WireboardRow[] = providers.map((r) => {
+    const nameMismatches = nearMisses.filter((h) => r.missing.includes(h.expected));
+    return {
+      provider: r.provider,
+      label: r.label,
+      lane: r.lane,
+      status: r.status,
+      blockerClass: r.status === "READY" ? "SETUP PRESENT" : "NOT CONFIGURED",
+      blockerDetail: blockerDetailFor(r, nameMismatches),
+      missing: r.missing,
+      missingRecommended: r.missingRecommended,
+      note: r.note,
+      nameMismatches,
+    };
+  });
   const readyCount = rows.filter((r) => r.status === "READY").length;
   const envPresence = payload?.envPresence ?? [];
   const accountService = payload?.accountService;
@@ -148,7 +177,7 @@ export function selectReadinessWireboard(payload: ReadinessPayload | null | unde
     summary: `${readyCount}/${rows.length} providers configured`,
     envPresentCount: envPresence.filter((e) => e.present).length,
     envTotalCount: envPresence.length,
-    nearMisses: (payload?.nearMisses ?? []).map(nearMissRow),
+    nearMisses,
     accountService: {
       blockerClass: accountConfigured ? "SETUP PRESENT" : "NOT CONFIGURED",
       detail: accountConfigured

@@ -53,7 +53,23 @@ describe("env-name near-miss detector MUST stay reachable (breadcrumb chain)", (
   it("the wireboard selector consumes nearMisses from the payload", () => {
     const selector = read("lib/broker/selectReadinessWireboard.ts");
     expect(selector).toMatch(/nearMisses\?:/);
-    expect(selector).toContain("nearMisses: (payload?.nearMisses ?? [])");
+    // Anchored on the READ, not on one spelling of it. This previously pinned
+    // the literal `nearMisses: (payload?.nearMisses ?? [])`, which broke on
+    // 2026-09-11 when that expression was hoisted to a const so the hits could
+    // ALSO be joined onto each provider row. Pinning a literal makes a Sentinel
+    // fire on refactors that strengthen the very thing it guards, which is how
+    // a Sentinel earns a reputation for noise and then gets deleted.
+    expect(selector).toMatch(/payload\?\.nearMisses\s*\?\?\s*\[\]/);
+  });
+
+  it("and joins those hits onto the row whose own missing name they concern", () => {
+    // The chain being reachable was never enough. For six days the finnhub row
+    // said "missing FINNHUB_KEY" while a section further down the SAME page
+    // said the host carried FINNHUB_KEY_. Rendering both is not connecting
+    // them; the blocker sentence has to carry its own counter-evidence.
+    const selector = read("lib/broker/selectReadinessWireboard.ts");
+    expect(selector).toContain("nameMismatches");
+    expect(selector).toMatch(/r\.missing\.includes\(h\.expected\)/);
   });
 
   it("the /readiness page RENDERS the near-miss section", () => {

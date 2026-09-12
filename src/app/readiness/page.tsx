@@ -224,8 +224,32 @@ export default function ReadinessPage() {
                       <p className="mt-3 text-xs leading-relaxed text-neutral-300">
                         {isReady
                           ? "Setup present — verification required. Charts and trading are not certified by this receipt."
-                          : "This provider still needs setup in the current runtime."}
+                          : row.nameMismatches.length > 0
+                            ? "This provider is missing a name the code reads — but this host carries a lookalike for it. Check the name mismatch below before obtaining any new secret."
+                            : "This provider still needs setup in the current runtime."}
                       </p>
+                      {/*
+                        Surfaced OUTSIDE the collapsed "Technical receipt". For six days
+                        (2026-09-05 → 09-11) the finnhub lookalike was reported on this page
+                        while this row's visible line read "still needs setup" — the counter-
+                        evidence existed and lost to the summary sentence above it. A fact
+                        that only wins when the reader expands a disclosure is not surfaced.
+                      */}
+                      {row.nameMismatches.length > 0 && (
+                        <ul className="mt-3 space-y-2 rounded-lg border border-[#f0b429]/20 bg-[#f0b429]/[0.06] px-3 py-2">
+                          {row.nameMismatches.map((m) => (
+                            <li key={`${m.expected}->${m.found}`} className="text-[11px] leading-relaxed text-[#f0b429]">
+                              <span className="font-mono font-semibold uppercase tracking-widest">
+                                Name mismatch suspected · {m.strength}
+                              </span>
+                              <span className="mt-1 block font-mono text-neutral-300">
+                                code reads {m.expected} · host carries {m.found}
+                              </span>
+                              <span className="mt-1 block text-neutral-400">{m.detail}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                       <details className="mt-3 border-t border-white/5 pt-2 text-[11px] leading-relaxed text-neutral-500">
                         <summary className="cursor-pointer font-semibold text-neutral-400">Technical receipt</summary>
                         <p className="mt-2">{row.blockerDetail}</p>
