@@ -75,14 +75,30 @@ export function yahooQuoteTypeCategory(quoteType: string | undefined): SearchCat
   }
 }
 
-/** Polygon's `market` + `type` pair. */
+/**
+ * Polygon's `market` + `type` pair.
+ *
+ * Every branch reads BOTH fields. That symmetry is load-bearing, and it was
+ * missing: `indices` was the one market checked only via `type`. MEASURED on
+ * 2026-09-11 — `/api/symbol-search?q=vix` returned twenty rows carrying
+ * `market:"indices"` with an empty `type`, so this function answered `null`,
+ * and `reconcileSearchCategory` turned that `null` into its "no opinion
+ * anywhere" default of `Stock`. `I:DLVIX`, `I:SVIXIV` and eighteen more
+ * volatility INDICES wore a Stock badge in the picker.
+ *
+ * The `I:` prefix is deliberately NOT taught to `classifySymbol`. That owner
+ * reads MARKET notation (`^VIX`, `ES=F`, `BTC-USD`); `I:` is one vendor's
+ * private namespace, and translating vendor dialect is this function's whole
+ * job. Teaching it upstream would put Polygon's vocabulary in a place that is
+ * supposed to be vendor-neutral.
+ */
 export function polygonCategory(market: string | undefined, type: string | undefined): SearchCategory | null {
   const m = (market ?? "").trim().toLowerCase();
   const t = (type ?? "").trim().toLowerCase();
   if (m === "crypto" || t === "crypto") return "Crypto";
   if (m === "fx" || t === "fx" || t === "forex") return "Forex";
   if (t === "etf") return "ETF";
-  if (t === "index" || t === "indices") return "Index";
+  if (m === "indices" || t === "index" || t === "indices") return "Index";
   if (t === "fund" || t === "mutual_fund") return "Fund";
   if (m === "stocks" || t === "cs" || t === "common_stock" || t === "adrc") return "Stock";
   return null;

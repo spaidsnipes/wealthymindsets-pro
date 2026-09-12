@@ -26,6 +26,14 @@ import {
   reconcileSearchCategory,
   yahooQuoteTypeCategory,
 } from "@/lib/marketData/searchResultCategory";
+import { rankSymbolHits } from "@/lib/marketData/symbolSearchRank";
+
+/**
+ * Asked of the vendor vs. returned to the caller. These are different numbers
+ * on purpose — see the ordering note at the Polygon call.
+ */
+const POLYGON_FETCH_LIMIT = 200;
+const RESULT_LIMIT = 20;
 
 // WM-SEC-P0-05 (2026-08-08): prefer server-only POLYGON_KEY. NEXT_PUBLIC_
 // fallback stays as a transitional secondary so an in-flight rotation
@@ -97,17 +105,25 @@ export async function GET(request: Request) {
 
   if (POLYGON_KEY) {
     try {
-      // Search across all markets
-      const url = `https://api.polygon.io/v3/reference/tickers?search=${encodeURIComponent(q)}&active=true&limit=20&apiKey=${POLYGON_KEY}`;
+      // Search across all markets.
+      //
+      // `limit` is deliberately far wider than what is returned. Polygon
+      // orders `?search=` ALPHABETICALLY, so the limit decides WHICH matches
+      // exist, not just how many. MEASURED at limit=20: `q=spy` put `SPY`
+      // fifteenth behind `APYI`/`DNUT`/`JDSPY`, and `q=vix` returned twenty
+      // `I:` rows with no exact match at all. Ranking cannot recover a row the
+      // vendor never sent, so the ask is widened first and cut after.
+      const url = `https://api.polygon.io/v3/reference/tickers?search=${encodeURIComponent(q)}&active=true&limit=${POLYGON_FETCH_LIMIT}&apiKey=${POLYGON_KEY}`;
       const json = (await polyFetch(url)) as { results?: PolyTicker[]; error?: string };
 
       if (!json.error) {
-        const results: SearchHit[] = (json.results ?? []).map((r: PolyTicker) => ({
+        const hits: SearchHit[] = (json.results ?? []).map((r: PolyTicker) => ({
           sym: r.ticker,
           label: r.name,
           cat: reconcileSearchCategory(r.ticker, polygonCategory(r.market, r.type)),
           exchange: r.primary_exchange ?? r.market ?? "",
         }));
+        const results = rankSymbolHits(q, hits, RESULT_LIMIT, { dropUnmatched: false });
         // An empty Polygon result set is an ANSWER ("no such ticker"), not a
         // failure, so it is returned rather than retried against Yahoo.
         return NextResponse.json({ results, vendor: "polygon" });
@@ -120,7 +136,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    const results = await yahooSearch(q);
+    // Ranked through the same owner as the Polygon branch. Yahoo's ordering is
+    // already relevance-ish, but two vendors feeding one dropdown must not
+    // order it by two different rules — that is how the same query starts
+    // looking like two different products depending on which key is set.
+    const results = rankSymbolHits(q, await yahooSearch(q), RESULT_LIMIT, {
+      dropUnmatched: false,
+    });
     return NextResponse.json({
       results,
       vendor: "yahoo",

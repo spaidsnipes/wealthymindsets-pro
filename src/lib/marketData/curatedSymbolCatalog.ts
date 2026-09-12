@@ -39,6 +39,7 @@ import {
   reconcileSearchCategory,
   type SearchCategory,
 } from "@/lib/marketData/searchResultCategory";
+import { rankSymbolHits } from "@/lib/marketData/symbolSearchRank";
 
 export interface CuratedSymbol {
   readonly sym: string;
@@ -156,27 +157,18 @@ export const CURATED_SYMBOLS: readonly CuratedSymbol[] = RAW_CURATED_SYMBOLS.map
 }));
 
 /**
- * Match the catalog the way both search surfaces did — symbol prefix, then
- * substring, then label, then alias. Shared so the two cannot rank the same
- * query differently.
+ * Match and order the catalog through `symbolSearchRank` — the same owner
+ * `/api/symbol-search` ranks its vendor results with.
+ *
+ * The docblock that stood here described four tiers: "symbol prefix, then
+ * substring, then label, then alias." The code below it implemented TWO —
+ * `startsWith` versus everything else — with no exact-match tier at all, so
+ * for `spy` the catalogue could rank `SPYG` level with `SPY`, and the comment
+ * had been describing an intention rather than a behaviour.
+ *
+ * That is the same defect the vendor half had, arrived at independently, which
+ * is the argument for one owner rather than two careful copies.
  */
 export function matchCuratedSymbols(query: string, limit: number): CuratedSymbol[] {
-  const q = query.toLowerCase().replace(/[/\-_\s!]/g, "");
-  if (!q) return [];
-  const raw = query.toLowerCase();
-  return CURATED_SYMBOLS.filter((s) => {
-    const clean = s.sym.toLowerCase().replace(/[/\-_\s!]/g, "");
-    return (
-      clean.startsWith(q) ||
-      clean.includes(q) ||
-      s.label.toLowerCase().includes(raw) ||
-      s.aliases?.some((a) => a.includes(raw))
-    );
-  })
-    .sort((a, b) => {
-      const aE = a.sym.toLowerCase().replace(/[/\-_\s!]/g, "").startsWith(q);
-      const bE = b.sym.toLowerCase().replace(/[/\-_\s!]/g, "").startsWith(q);
-      return aE === bE ? 0 : aE ? -1 : 1;
-    })
-    .slice(0, limit);
+  return rankSymbolHits(query, CURATED_SYMBOLS, limit);
 }
