@@ -154,14 +154,23 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
       </div>
       <div>
         <dt className="text-wm-text-muted">Time fit</dt>
-        <dd title="Measured against the nominal 16:00 New York expiration close. Under Eastern Standard Time the real close is one hour later, so this reads conservatively.">
+        {/* The caveat that used to live here as a `title` said the reading ran
+            one hour conservative under Eastern Standard Time. That was true of
+            a hardcoded 20:00Z and is no longer true of anything —
+            `nominalOptionExpiryMs` now resolves the real New York close — so
+            it is deleted rather than reworded. What survives of it is the
+            genuine remaining limit, and that is rendered as TEXT below, for
+            the same reason the observation stamps were: this surface's primary
+            devices have no hover, and a caveat nobody can reach is a caveat
+            that is not being made. */}
+        <dd>
           {stance.timeFit === "UNKNOWN"
             ? <span className="text-wm-gold">UNKNOWN</span>
             : <><span className={stance.timeFit === "0DTE" || stance.timeFit === "EXPIRED" ? "text-wm-gold" : undefined}>{stance.timeFit}</span>{stance.hoursToExpiry !== null && stance.hoursToExpiry > 0 && <> · {formatOptionNumber(stance.hoursToExpiry, 0)}h to nominal expiry</>}</>}
         </dd>
       </div>
     </dl>
-    <p className="mt-1 text-wm-text-muted">The sell-now reference is the conservative exit number for a long contract and carries the role it came from. A MID is not an offer anyone has made. Spread health and time fit describe this contract only; neither says the option market is open.</p>
+    <p className="mt-1 text-wm-text-muted">The sell-now reference is the conservative exit number for a long contract and carries the role it came from. A MID is not an offer anyone has made. Spread health and time fit describe this contract only; neither says the option market is open. Time fit is measured to the standard 16:00 New York close and does not know about half-days or holidays.</p>
     <p className="mt-1 text-wm-gold" title={`Quote timestamp: ${contract.quoteTimestamp ?? "not observed"}; trade timestamp: ${contract.tradeTimestamp ?? "not observed"}`}>
       {source === OPTION_CHAIN_SOURCE ? "Alpaca" : "Unknown source"} reference · {fidelity.toLowerCase()} · quote {quoteTiming} · trade {tradeTiming} · not an executable quote
     </p>

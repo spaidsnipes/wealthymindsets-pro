@@ -51,21 +51,69 @@ export interface OptionContract {
  *     that still has six hours of life reads EXPIRED;
  *   · local midnight OVER-states it, so an expired contract reads 0DTE.
  *
- * This returns 20:00Z — 16:00 New York, the standard close at which listed
- * equity options stop trading, during Eastern DAYLIGHT time. It is NOMINAL and
- * the name says so. Under Eastern STANDARD time the real close is 21:00Z, so
- * this runs one hour CONSERVATIVE — it can only make a contract look nearer to
- * expiry than it is, never further. That is the safe direction for a time-fit
- * warning, and it is the reason the error is not corrected here: correcting it
- * would require a timezone table this module has no business owning.
+ * This resolves 16:00 in America/New_York — the close at which listed equity
+ * options stop trading — to a real UTC instant, which is 20:00Z under Eastern
+ * DAYLIGHT time and 21:00Z under Eastern STANDARD time.
  *
- * Returns null for a date this module cannot parse. Null is UNKNOWN, and every
- * caller must degrade rather than guess.
+ * ── Why this used to be hardcoded, and why that stopped being acceptable ─────
+ *
+ * It returned a literal `20:00Z` for every date, and the comment here defended
+ * the resulting one-hour error as CONSERVATIVE — it could only make a contract
+ * look nearer to expiry than it is — on the grounds that "correcting it would
+ * require a timezone table this module has no business owning."
+ *
+ * That justification was obsolete. `Intl.DateTimeFormat` resolves a zone from
+ * the standard library, with no table and no dependency, which is what this
+ * function now does. And the error was never as harmless as "conservative"
+ * makes it sound: from early November to mid-March, EVERY contract read one
+ * hour closer to expiry than it was. A Founder looking at a same-day contract
+ * at 15:10 New York in December saw EXPIRED with fifty minutes of trading left.
+ * Being wrong in the safe direction is still being wrong, and a warning that
+ * cries EXPIRED on a live contract is a warning that gets learned around.
+ *
+ * "Nominal" still means nominal: it is the standard 16:00 close and does not
+ * know about half-days, holidays, or the late close some index options keep.
+ *
+ * Returns null for a date this module cannot parse, and null if the runtime
+ * cannot resolve the zone — both are UNKNOWN, and every caller must degrade
+ * rather than guess. Null is never a silent 20:00Z fallback: a guessed instant
+ * is exactly the manufactured certainty the rest of this module refuses.
  */
+const NY_CLOSE_HOUR = 16;
+
+const nyParts = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  hourCycle: "h23",
+  year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit",
+});
+
+/** The wall-clock hour in New York at a given UTC instant, or null. */
+function newYorkHour(ms: number): number | null {
+  const hour = nyParts.formatToParts(new Date(ms)).find(p => p.type === "hour")?.value;
+  const parsed = hour === undefined ? Number.NaN : Number(hour);
+  return Number.isInteger(parsed) ? parsed : null;
+}
+
 export function nominalOptionExpiryMs(expirationDate: string): number | null {
   if (!validDate(expirationDate)) return null;
-  const ms = Date.parse(`${expirationDate}T20:00:00Z`);
-  return Number.isFinite(ms) ? ms : null;
+
+  // Start from the daylight-time answer, then measure what New York actually
+  // calls that instant and correct by the difference. One correction is always
+  // enough: US offsets differ from this guess by at most an hour, and a DST
+  // transition never lands at 16:00 (they occur at 02:00 local on a Sunday,
+  // and listed equity options do not expire on a Sunday).
+  const guess = Date.parse(`${expirationDate}T20:00:00Z`);
+  if (!Number.isFinite(guess)) return null;
+
+  const guessedHour = newYorkHour(guess);
+  if (guessedHour === null) return null;
+
+  const corrected = guess + (NY_CLOSE_HOUR - guessedHour) * 60 * 60 * 1000;
+
+  // VERIFY, never assume. If the correction did not actually land on 16:00 in
+  // New York, this function does not know the instant and must say so rather
+  // than return a number that merely looks plausible.
+  return newYorkHour(corrected) === NY_CLOSE_HOUR ? corrected : null;
 }
 
 function validDate(value: unknown): value is string {

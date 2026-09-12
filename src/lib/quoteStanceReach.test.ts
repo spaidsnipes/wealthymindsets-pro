@@ -120,6 +120,44 @@ describe("nominalOptionExpiryMs", () => {
     expect(nominalOptionExpiryMs("2026-09-18")).toBe(Date.UTC(2026, 8, 18, 20, 0, 0));
   });
 
+  it("MEASURED DEFECT: follows New York across the DST boundary", () => {
+    // This function returned a literal 20:00Z for EVERY date, and the comment
+    // above it defended the resulting one-hour error as "conservative". From
+    // early November to mid-March that made every contract read one hour
+    // closer to expiry than it was — a same-day contract at 15:10 New York in
+    // December rendered EXPIRED with fifty minutes of trading left.
+    //
+    // January is Eastern STANDARD time: 16:00 New York is 21:00Z.
+    expect(nominalOptionExpiryMs("2027-01-15")).toBe(Date.UTC(2027, 0, 15, 21, 0, 0));
+    // July is Eastern DAYLIGHT time: 16:00 New York is 20:00Z.
+    expect(nominalOptionExpiryMs("2026-07-17")).toBe(Date.UTC(2026, 6, 17, 20, 0, 0));
+  });
+
+  it("lands on 16:00 New York on both sides of each 2026 transition", () => {
+    // Bracket the actual switch dates rather than trusting two sample months.
+    // DST began 2026-03-08 and ends 2026-11-01, so each pair straddles one.
+    const EST = 21, EDT = 20;
+    const cases: [string, number][] = [
+      ["2026-03-06", EST], ["2026-03-13", EDT],
+      ["2026-10-30", EDT], ["2026-11-06", EST],
+    ];
+    for (const [date, utcHour] of cases) {
+      const ms = nominalOptionExpiryMs(date);
+      expect(ms, `${date} did not resolve`).not.toBeNull();
+      expect(new Date(ms as number).toISOString(), `${date} is not 16:00 New York`)
+        .toBe(`${date}T${String(utcHour).padStart(2, "0")}:00:00.000Z`);
+    }
+  });
+
+  it("never lets a same-day contract read EXPIRED while New York is still open", () => {
+    // The founder-visible consequence, stated as behaviour rather than as an
+    // offset. 15:10 New York on a January expiry is 20:10Z — under the old
+    // hardcoded 20:00Z this was already past expiry.
+    const expiry = nominalOptionExpiryMs("2027-01-15");
+    const tenPastThree = Date.UTC(2027, 0, 15, 20, 10, 0);
+    expect(selectQuoteStance({ expiryMs: expiry, nowMs: tenPastThree }).timeFit).toBe("0DTE");
+  });
+
   it("is UNKNOWN for a date it cannot parse", () => {
     expect(nominalOptionExpiryMs("2026-13-01")).toBeNull();
     expect(nominalOptionExpiryMs("not-a-date")).toBeNull();
@@ -158,6 +196,19 @@ describe("SENTINEL: the chart consumer delegates and never re-derives", () => {
     expect(expression).toContain("stance.role");
     expect(expression).toContain("stance.spreadHealth");
     expect(expression).toContain("stance.timeFit");
+  });
+
+  it("states the time-fit limit as text, not as a hover nobody can reach", () => {
+    // This surface's primary devices are the phone and the iPad, which have no
+    // hover. The observation stamps were moved out of a `title` for exactly
+    // that reason, and the time-fit caveat was left behind in one — where it
+    // then went stale and spent an unknown period asserting a one-hour
+    // conservative error that had been fixed. A caveat nobody can reach is a
+    // caveat that is not being made, and it is also a caveat nobody proofreads.
+    expect(expression).toContain("standard 16:00 New York close");
+    expect(expression).not.toMatch(/<dd\s+title=/);
+    // The specific false claim, so it cannot be restored by a careless revert.
+    expect(expression).not.toContain("reads conservatively");
   });
 
   it("does not hand-roll the spread grade next to the owner that owns it", () => {
