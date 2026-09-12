@@ -334,3 +334,90 @@ describe("Webull Data API market-data certification", () => {
     expect(result).toMatchObject({ state: "TIMEOUT", ticks: [] });
   });
 });
+
+/**
+ * "THE PROVIDER DID NOT SAY" IS A CLAIM ABOUT THE PROVIDER.
+ *
+ * Measured on production 2026-09-12, the Founder's own session:
+ *
+ *   /api/market-data/webull/ticks?symbol=AAPL                     → BLOCKED_AUTH
+ *   /api/market-data/webull/ticks?symbol=AAPL&profile=sdk-sha256  → BLOCKED_AUTH
+ *
+ * Identical under BOTH signing profiles, which already proved the rejected
+ * edge was upstream of the signature. The note said the provider "did not
+ * identify which one" — but the 401 branch never read the body. The helper
+ * that reads it (readWebullErrorCode) existed, and only the 403 branch called
+ * it. The one field that could name the edge was discarded, and the discarding
+ * was then reported as provider silence.
+ *
+ * Same family as the /api/market SyntaxError (2026-09-11): a knowable,
+ * recoverable state thrown away and replaced with a worse story.
+ */
+describe("a Webull 401 reports the provider's own code when there is one", () => {
+  const creds = {
+    appKey: "app-key",
+    appSecret: "app-secret",
+    now: () => new Date("2026-08-31T12:00:00Z"),
+    nonce: () => "fixed-nonce",
+  };
+  const respond = (body: unknown, status = 401) =>
+    vi.fn().mockResolvedValue(
+      new Response(typeof body === "string" ? body : JSON.stringify(body), {
+        status,
+        headers: { "content-type": "application/json" },
+      }),
+    ) as unknown as typeof fetch;
+
+  it("THE MEASURED FAILURE: the code is named instead of declared unknowable", async () => {
+    const snap = await fetchWebullTickSnapshot(respond({ code: "INVALID_APP_KEY" }), creds);
+    expect(snap.state).toBe("BLOCKED_AUTH");
+    expect(snap.note).toContain("INVALID_APP_KEY");
+    // The old sentence is a falsehood whenever a code was in fact supplied.
+    expect(snap.note).not.toMatch(/did not identify which one/i);
+  });
+
+  it("reads the code under every spelling Webull uses", async () => {
+    for (const body of [{ code: "X_ONE" }, { errorCode: "X_ONE" }, { error_code: "X_ONE" }]) {
+      const snap = await fetchWebullTickSnapshot(respond(body), creds);
+      expect(snap.note).toContain("X_ONE");
+    }
+  });
+
+  it("reports verbatim and does NOT interpret it into a verdict", async () => {
+    // Naming the code is evidence. Translating it into "your key is wrong"
+    // would be the entitlement-guess defect wearing a new hat.
+    const snap = await fetchWebullTickSnapshot(respond({ code: "MARKET_DATA_NOT_SUBSCRIBED" }), creds);
+    expect(snap.state).toBe("BLOCKED_AUTH");
+    expect(snap.note).toContain("not interpreted here");
+  });
+
+  it("keeps the honest fallback when the body truly carries no code", async () => {
+    for (const body of ["not json at all", { message: "nope" }, { code: 42 }]) {
+      const snap = await fetchWebullTickSnapshot(respond(body), creds);
+      expect(snap.state).toBe("BLOCKED_AUTH");
+      expect(snap.note).toMatch(/carried no error code/i);
+      expect(snap.note).toMatch(/did not identify which one|was not proven/i);
+    }
+  });
+
+  it("a body wearing the `code` field's name cannot become the note", async () => {
+    // The note is founder-visible. `code` is only trusted when it is shaped
+    // like a machine token — otherwise this is a body leak with extra steps.
+    const prose = "eyJhbGciOi.SUPER-SECRET-LOOKING PAYLOAD with spaces and 'quotes'";
+    const snap = await fetchWebullTickSnapshot(respond({ code: prose }), creds);
+    expect(snap.note).not.toContain("SUPER-SECRET-LOOKING");
+    expect(snap.note).toMatch(/carried no error code/i);
+  });
+
+  it("never leaks the signing secret through the new path", async () => {
+    const snap = await fetchWebullTickSnapshot(respond({ code: "INVALID_SIGNATURE" }), creds);
+    expect(JSON.stringify(snap)).not.toContain("app-secret");
+  });
+
+  it("the scans are not vacuous — the guard accepts a real code, rejects prose", async () => {
+    const ok = await fetchWebullTickSnapshot(respond({ code: "INVALID_SIGNATURE" }), creds);
+    expect(ok.note).toContain("INVALID_SIGNATURE");
+    const bad = await fetchWebullTickSnapshot(respond({ code: "two words" }), creds);
+    expect(bad.note).not.toContain("two words");
+  });
+});

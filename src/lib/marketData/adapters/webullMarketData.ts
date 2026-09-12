@@ -183,7 +183,14 @@ async function readWebullErrorCode(response: Response): Promise<string | null> {
   if (!payload || typeof payload !== "object") return null;
   const providerError = payload as { code?: unknown; errorCode?: unknown; error_code?: unknown };
   const code = providerError.code ?? providerError.errorCode ?? providerError.error_code;
-  return typeof code === "string" ? code.trim().toUpperCase() : null;
+  if (typeof code !== "string") return null;
+  const normalized = code.trim().toUpperCase();
+  // A provider error code is a short machine token (MARKET_DATA_NOT_SUBSCRIBED).
+  // Anything else is prose or payload wearing the `code` field's name, and this
+  // value is surfaced verbatim in a founder-visible note — so the shape is
+  // enforced here rather than trusted. Rejecting is safe: every caller has an
+  // honest "the provider named no code" path.
+  return /^[A-Z0-9_.-]{1,64}$/.test(normalized) ? normalized : null;
 }
 
 /** Execute one bounded, signed, read-only stock-tick request. */
@@ -248,11 +255,31 @@ export async function fetchWebullTickSnapshot(
   }
   if (!response.ok) {
     if (response.status === 401) {
+      // ASK BEFORE CLAIMING THE PROVIDER STAYED SILENT.
+      //
+      // This branch previously returned "the provider did not identify which
+      // one" WITHOUT reading the body — the helper existed and only the 403
+      // branch called it. Measured on production 2026-09-12: /ticks answered
+      // BLOCKED_AUTH identically under BOTH signing profiles (legacy-sha1 and
+      // sdk-sha256), which already told us the rejected edge was upstream of
+      // the signature. The one field that could name it was being discarded.
+      //
+      // "The provider did not say" is a claim about the provider. It may only
+      // be made after asking.
+      const providerCode = await Promise.race([readWebullErrorCode(response), deadline]);
+      if (providerCode) {
+        return unavailable(
+          "BLOCKED_AUTH",
+          `Webull Data API returned HTTP 401 for the signed market-data request and identified the rejection as ${providerCode}. ` +
+            "This is the provider's own code, reported verbatim and not interpreted here — it is the evidence for which edge to fix " +
+            "(App Key/Secret, request signature, API host, or environment). No tick observation was returned.",
+        );
+      }
       return unavailable(
         "BLOCKED_AUTH",
         accessToken
-          ? "Webull Data API returned HTTP 401 with an optional account token configured. The rejected edge may be the App Key/Secret, request signature, token, API host, or environment; the provider did not identify which one. No tick observation was returned."
-          : "Webull Data API returned HTTP 401 for the signed market-data request. Verify the App Key/Secret, request signature, API host, and environment. A trading/account token requirement was not proven by this response. No tick observation was returned.",
+          ? "Webull Data API returned HTTP 401 with an optional account token configured, and its body carried no error code. The rejected edge may be the App Key/Secret, request signature, token, API host, or environment; the provider did not identify which one. No tick observation was returned."
+          : "Webull Data API returned HTTP 401 for the signed market-data request and its body carried no error code. Verify the App Key/Secret, request signature, API host, and environment. A trading/account token requirement was not proven by this response. No tick observation was returned.",
       );
     }
     if (response.status === 403) {
