@@ -18,6 +18,13 @@
  * script walks elements and reports the INNERMOST ones crossing the viewport
  * edge, which is what actually names the offender.
  *
+ * SECOND FAILURE, SAME LESSON. On 2026-09-12 the live /charts watchlist rendered
+ * sixteen rows whose ticker and company name were laid out at width 0 — present
+ * in the DOM, addressable by every source Sentinel and by getByText, and
+ * invisible to a human. Nothing overflowed, so the check above saw a clean page.
+ * Text crushed to nothing INSIDE the viewport is a distinct defect from text
+ * pushed OUTSIDE it, and this harness now measures both. See `isEvicted`.
+ *
  * USAGE
  *
  *   node scripts/audit-phone-parity.mjs [--base URL] [--width N] [route...]
@@ -98,6 +105,46 @@ function probe({ minTap, tolerance }) {
     return r.width < minTap - tolerance || r.height < minTap - tolerance;
   });
 
+  /**
+   * EVICTED TEXT — words that are laid out and occupy no width.
+   *
+   * MEASURED on prod /charts 2026-09-12: every one of sixteen watchlist rows
+   * rendered its ticker and its company name at width 0 while an honest
+   * fidelity sentence beside them took 172 of the row's 199px. The identity was
+   * in the DOM the whole time, so `getByText("ES1!")` passed, every source
+   * Sentinel passed, and sixteen identical amber sentences shipped with no
+   * instrument names. Presence is not legibility, and only geometry can tell
+   * them apart.
+   *
+   * This is a different failure from `offenders` above. That check finds text
+   * pushed OUTSIDE the viewport. This one finds text crushed to nothing INSIDE
+   * it — the loser of a flex negotiation, which no overflow measurement sees
+   * because nothing overflows.
+   */
+  const isEvicted = (el) => {
+    if (el.children.length > 0) return false;               // leaves carry the text
+    const text = (el.textContent || "").trim();
+    if (!text) return false;
+    if (!shown(el)) return false;
+    const r = el.getBoundingClientRect();
+    if (r.height <= 0) return false;                        // not on a line at all
+    if (r.width >= 1) return false;
+    // Screen-reader-only text is unreadable by eye ON PURPOSE and reachable by
+    // assistive tech — the exact opposite of this defect. Accusing it would be
+    // a false accusation, and a geometry harness that cries wolf gets muted.
+    //
+    // PROVEN load-bearing, not assumed. The common `width:1px` sr-only recipe is
+    // already excluded by the width threshold above, so the guard only earns its
+    // place on CLIPPED text that measures 0. Measured against exactly that shape
+    // (`position:absolute;width:0;clip-path:inset(50%)`): with the guard, clean;
+    // with the guard deleted, "skip to main content" was reported by name.
+    const s = getComputedStyle(el);
+    if (s.clipPath !== "none" || (s.clip && s.clip !== "auto")) return false;
+    if (String(el.className).includes("sr-only")) return false;
+    return true;
+  };
+  const evicted = all.filter(isEvicted);
+
   const describe = (el) => {
     const r = el.getBoundingClientRect();
     return {
@@ -121,6 +168,17 @@ function probe({ minTap, tolerance }) {
       // MEASURED, not rounded to the threshold — rounding up would hide
       // exactly the near-miss this tolerance exists to tolerate.
       return { el: name(el), w: +r.width.toFixed(1), h: +r.height.toFixed(1) };
+    }),
+    evictedCount: evicted.length,
+    evicted: evicted.slice(0, 10).map((el) => {
+      const r = el.getBoundingClientRect();
+      // The TEXT is the whole point of the report: the element selector names
+      // where it lives, but the words name what the founder cannot read.
+      return {
+        el: name(el),
+        text: (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 24),
+        w: +r.width.toFixed(2),
+      };
     }),
   };
 }
@@ -158,11 +216,17 @@ for (const route of ROUTES) {
   const redirected = result.landed !== route.split(/[?#]/)[0];
   const note = redirected ? `  NOT AUDITED — redirected to ${result.landed}` : "";
   console.log(
-    `${route}  offenders=${result.offenderCount}  under-${MIN_TAP}px-taps=${result.smallTapCount}${note}`,
+    `${route}  offenders=${result.offenderCount}  evicted-text=${result.evictedCount}` +
+      `  under-${MIN_TAP}px-taps=${result.smallTapCount}${note}`,
   );
   for (const o of result.offenders) console.log(`    off by ${o.offBy}px  ${o.el}`);
+  for (const e of result.evicted) console.log(`    evicted ${e.w}px wide  "${e.text}"  ${e.el}`);
   for (const t of result.smallTaps) console.log(`    tap ${t.w}x${t.h}  ${t.el}`);
-  if (result.offenderCount > 0) failed++;
+  // Evicted text fails the run for the same reason overflow does: in both cases
+  // something the product put on the glass cannot be read. A sub-threshold tap
+  // target is reported but does NOT fail — it is a comfort finding, not an
+  // illegibility one, and mixing the two would make the gate unactionable.
+  if (result.offenderCount > 0 || result.evictedCount > 0) failed++;
 }
 
 await browser.close();
