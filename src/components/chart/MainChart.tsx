@@ -53,6 +53,13 @@ import {
   type DeltaTick,
   type DeltaBubbleLevel,
 } from "@/lib/deltaBubbleLevels";
+import {
+  bigTradeLevelKey,
+  computeBigTradeLevels,
+  minBigTradeLot,
+  type BigTradeTick,
+  type BigTradeLevel,
+} from "@/lib/bigTradeLevels";
 import { describeBubbleClaim } from "@/lib/bubbleClaim";
 import { computeProfileFromBars } from "@/lib/vpEngine";
 import type { DrawingStyle, LogicalPt, DrawStyle, ChartDrawing } from "@/types/chart";
@@ -1374,13 +1381,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
   const hasRealAggressorTape = hasVerifiedAggressorTape;
 
   // Min single-trade size to count as a "big trade" (real tape only — never
-  // synthetic). Tuned DOWN over several rounds: 2 BTC (~$126k) → 0.5 → 0.15 because
-  // even 0.5 was rare enough that only ~2 bubbles showed. 0.15 BTC (~$10k) is still
-  // a genuine large single print on Coinbase but frequent enough that bubbles render
-  // reliably on live candles. (Bubbles can only mark candles that were LIVE while the
-  // tab was open — historical bars carry no per-trade tape from the free feed.)
-  const minBigTradeLot = (symBase: number) =>
-    symBase > 10_000 ? 0.15 : symBase > 100 ? 2 : symBase > 1 ? 0.03 : 0.001;
+  // synthetic) now lives with the ranking it gates, in @/lib/bigTradeLevels,
+  // so the threshold and the selection cannot drift apart. Imported above.
+  // (Bubbles can only mark candles that were LIVE while the tab was open —
+  // historical bars carry no per-trade tape from the free feed.)
 
   // WM Tape Horizon: timestamp of the first real execution currently retained
   // in this tab for the active symbol/source/timeframe. This is deliberately
@@ -4283,44 +4287,25 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     return levels;
   }, [base]);
 
-  /** Big Trades ONLY — individual large aggressive prints at exact tick prices. */
-  const getRealBigTradeLevels = useCallback((bar: Bar): Array<{
-    priceLevel: number; bid: number; ask: number; total: number;
-  }> => {
-    const barTime = bar.time as number;
-    const realData = tickAccRef.current.get(barTime);
+  /**
+   * Big Trades ONLY — individual large aggressive prints at exact tick prices.
+   *
+   * Delegates to the shared pure owner in src/lib/bigTradeLevels.ts. The
+   * ranking used to live inline here and rounded every print for display
+   * BEFORE using that rounded value as the level's identity — the pickMap key
+   * here and the `bt:<time>:<price>` spawn key in the renderer. On crypto,
+   * where `base > 100` collapses every print to two decimals, two separate
+   * block trades routinely became one key and the second was overwritten:
+   * not merged, just gone. See that module's header.
+   */
+  const getRealBigTradeLevels = useCallback((bar: Bar): BigTradeLevel[] => {
+    const realData = tickAccRef.current.get(bar.time as number);
     if (!realData || realData.size === 0) return [];
 
-    const dp = base > 100 ? 2 : 4;
-    const minLot = minBigTradeLot(base);
-    const levels: Array<{ priceLevel: number; bid: number; ask: number; total: number }> = [];
-    for (const [px, rt] of realData) {
-      const total = rt.bid + rt.ask;
-      if (total < minLot) continue;
-      levels.push({
-        priceLevel: +Number(px).toFixed(dp),
-        bid: rt.bid,
-        ask: rt.ask,
-        total,
-      });
-    }
-    if (levels.length === 0) return [];
+    const ticks: BigTradeTick[] = [];
+    for (const [px, rt] of realData) ticks.push({ price: Number(px), bid: rt.bid, ask: rt.ask });
 
-    const barMean = levels.reduce((s, l) => s + l.total, 0) / levels.length;
-    const threshold = Math.max(minLot, barMean * 1.35);
-
-    const pickMap = new Map<number, typeof levels[0]>();
-    for (const l of levels.filter(x => x.total >= threshold).sort((a, z) => z.total - a.total).slice(0, 5)) {
-      pickMap.set(l.priceLevel, l);
-    }
-    const topBuy = levels.filter(l => l.ask >= l.bid && l.ask >= minLot)
-      .sort((a, z) => z.ask - a.ask)[0];
-    const topSell = levels.filter(l => l.bid > l.ask && l.bid >= minLot)
-      .sort((a, z) => z.bid - a.bid)[0];
-    if (topBuy  && topBuy.total  >= minLot) pickMap.set(topBuy.priceLevel, topBuy);
-    if (topSell && topSell.total >= minLot) pickMap.set(topSell.priceLevel, topSell);
-
-    return [...pickMap.values()].sort((a, z) => z.total - a.total).slice(0, 8);
+    return computeBigTradeLevels(ticks, base);
   }, [base]);
 
   /**
@@ -5352,7 +5337,10 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const barMean = ranked.reduce((s, lv) => s + lv.total, 0) / ranked.length;
 
           ranked.forEach((lv, rankIdx) => {
-            const spawnKey = `bt:${c.time}:${lv.priceLevel}`;
+            // Identity comes from the owner, built on the EXACT printed price.
+            // It used to be built here from a display-rounded one, which merged
+            // separate block trades into a single key on crypto.
+            const spawnKey = bigTradeLevelKey(c.time as number, lv);
             if (bubbleSpawnRef.current.has(spawnKey)) return;
             bubbleSpawnRef.current.add(spawnKey);
 
