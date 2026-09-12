@@ -144,6 +144,60 @@ describe("host-neutrality lock — bound Vercel coupling (migration portability)
    * string scan rather than an allowlist: there is no legitimate reason for
    * current app code to name a retired host's header.
    */
+  /**
+   * THE FIFTH MECHANISM — the INSTALL, which no source scan can see (2026-09-12).
+   *
+   * Every lock above asks what the code SAYS. None asks what the build
+   * INSTALLS. `package.json` dropped `@vercel/analytics` at the Cloudflare
+   * cutover and this file's own header was updated to say "ZERO Vercel runtime
+   * cords remain in app code" — true, and the truth of it is exactly what made
+   * the miss invisible. `package-lock.json` still carried the package in the
+   * root `dependencies` block AND as a resolved tree entry, so `npm ci` on the
+   * Cloudflare build pulled Vercel's analytics package into every production
+   * install. MEASURED 2026-09-12: `grep vercel package.json` → no match, while
+   * `ls node_modules/@vercel` → `analytics`.
+   *
+   * The lockfile is the file that decides what actually lands on the build
+   * machine; `package.json` only decides what was asked for. A retirement
+   * completed in the manifest and not in the lockfile is not a retirement, and
+   * no amount of source scanning can notice, because there is no source.
+   *
+   * BOTH files are checked. Checking only the lockfile would let a re-added
+   * dependency pass until someone reinstalled; checking only the manifest is
+   * the hole that produced this defect.
+   */
+  it("no @vercel/* package is declared or locked as a dependency", () => {
+    const offenders: string[] = [];
+    for (const file of ["package.json", "package-lock.json"]) {
+      const manifest = JSON.parse(readFileSync(join(REPO_ROOT, file), "utf8"));
+      // The root package's own declared deps — in package-lock.json these live
+      // under packages[""], the lockfile's mirror of package.json.
+      const roots = [manifest, manifest.packages?.[""]].filter(Boolean);
+      for (const root of roots) {
+        for (const field of ["dependencies", "devDependencies", "optionalDependencies"]) {
+          for (const name of Object.keys(root[field] ?? {})) {
+            if (name.startsWith("@vercel/")) offenders.push(`${file} → ${field} → ${name}`);
+          }
+        }
+      }
+      // …and the resolved tree, which is what `npm ci` actually materialises.
+      for (const path of Object.keys(manifest.packages ?? {})) {
+        if (/(^|\/)node_modules\/@vercel\//.test(path)) offenders.push(`${file} → ${path}`);
+      }
+    }
+    expect(
+      offenders,
+      `RETIRED-HOST DEPENDENCY: the build installs a Vercel package. Vercel is a ` +
+        `retired host — its runtime packages cannot function here (the analytics ` +
+        `beacon posts to /_vercel/insights, an endpoint the Cloudflare Worker does ` +
+        `not serve), so this is weight and a false signal of a second deploy target, ` +
+        `not portability. Remove it from package.json AND regenerate the lockfile ` +
+        `(\`npm install --package-lock-only\`) — a dependency dropped from the ` +
+        `manifest but left in the lockfile is still installed by \`npm ci\`:\n  ` +
+        offenders.join("\n  "),
+    ).toEqual([]);
+  });
+
   it("no app code reads x-vercel-* request headers (retired-host edge signal)", () => {
     const offenders: string[] = [];
     for (const file of walk(SRC)) {
