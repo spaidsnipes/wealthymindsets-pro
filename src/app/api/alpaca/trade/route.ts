@@ -21,9 +21,10 @@ import {
   type AlpacaOrderAuthorizationRequest,
 } from "@/lib/authority/alpacaOrderAuthorization";
 import type { ProposalSource } from "@/lib/authority/executionAuthority";
+import { resolveAlpacaPaperCredentials } from "@/lib/broker/alpacaCredentials";
 
-const PAPER_KEY = process.env.ALPACA_PAPER_KEY ?? "";
-const PAPER_SECRET = process.env.ALPACA_PAPER_SECRET ?? "";
+// Resolved as a COMPLETE pair. See resolveAlpacaPaperCredentials.
+const { key: PAPER_KEY, secret: PAPER_SECRET } = resolveAlpacaPaperCredentials();
 const ALPACA_OWNER_USER_ID = process.env.ALPACA_OWNER_USER_ID;
 
 const headers = () => ({
@@ -65,9 +66,9 @@ export async function POST(req: NextRequest) {
     if (!PAPER_KEY || !PAPER_SECRET) {
       return NextResponse.json(
         {
-          error: "Alpaca paper trading is NOT CONFIGURED on this host runtime — missing required variables: ALPACA_PAPER_KEY, ALPACA_PAPER_SECRET. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.",
+          error: "Alpaca paper trading is NOT CONFIGURED on this host runtime — no complete credential pair is present under any accepted name (ALPACA_PAPER_KEY + ALPACA_PAPER_SECRET, or ALPACA_PAPER_TRADE_API_KEY + ALPACA_PAPER_TRADE_SECRET_KEY). Set one COMPLETE pair in the host runtime secrets (e.g. Cloudflare) and redeploy.",
           edge: "NOT CONFIGURED",
-          missing: ["ALPACA_PAPER_KEY", "ALPACA_PAPER_SECRET"],
+          missing: ["ALPACA_PAPER_KEY+ALPACA_PAPER_SECRET", "ALPACA_PAPER_TRADE_API_KEY+ALPACA_PAPER_TRADE_SECRET_KEY"],
           environment: "PAPER_ONLY",
         },
         { status: 503 },

@@ -28,7 +28,7 @@ import type {
   CanonicalOrderAck,
   UniversalOrderIntent,
 } from "../BrokerAdapter";
-import { hasAlpacaLiveCredentials } from "../alpacaCredentials";
+import { hasAlpacaLiveCredentials, hasAlpacaPaperCredentials } from "../alpacaCredentials";
 
 function hasNonEmptyEnv(name: string): boolean {
   const v = process.env[name];
@@ -46,7 +46,7 @@ export const alpacaAdapter: BrokerAdapter = {
   id: "alpaca",
 
   health(): BrokerHealth {
-    const paper = hasNonEmptyEnv("ALPACA_PAPER_KEY") && hasNonEmptyEnv("ALPACA_PAPER_SECRET");
+    const paper = hasAlpacaPaperCredentials();
     const live  = hasAlpacaLiveCredentials();
     const anyEnv = paper || live;
     return {
@@ -71,7 +71,7 @@ export const alpacaAdapter: BrokerAdapter = {
     return {
       assetClasses: [],
       orderTypes: [],
-      supportsPaper: hasNonEmptyEnv("ALPACA_PAPER_KEY") && hasNonEmptyEnv("ALPACA_PAPER_SECRET"),
+      supportsPaper: hasAlpacaPaperCredentials(),
       supportsLive: hasAlpacaLiveCredentials(),
       supportsBracketOrders: false,
       supportsShort: false,

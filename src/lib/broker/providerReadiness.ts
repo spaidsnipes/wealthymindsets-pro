@@ -139,8 +139,9 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     label: "Alpaca (paper)",
     lane: "broker",
     required: ["ALPACA_PAPER_KEY", "ALPACA_PAPER_SECRET"],
+    alternativeGroups: [["ALPACA_PAPER_TRADE_API_KEY", "ALPACA_PAPER_TRADE_SECRET_KEY"]],
     recommended: [],
-    note: "Paper-account key/secret pair.",
+    note: "Paper-account key/secret pair. The ALPACA_PAPER_TRADE_API_KEY / ALPACA_PAPER_TRADE_SECRET_KEY pair this host actually carries is accepted as a COMPLETE alternative set (resolveAlpacaPaperCredentials); half of one pair plus half of the other authenticates nothing.",
   },
   {
     provider: "alpaca-live",
