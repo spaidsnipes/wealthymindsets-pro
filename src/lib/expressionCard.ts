@@ -47,6 +47,96 @@ import {
 /** BUILD ORDER §7 quote roles. Any tradable number must name its role. */
 export type QuoteRole = "LAST" | "BID" | "ASK" | "MID" | "LOCKED AT CLICK" | "MODELED" | "UNKNOWN";
 
+export type SpreadHealth = "TIGHT" | "NORMAL" | "WIDE" | "UNKNOWN";
+export type TimeFit = "0DTE" | "SHORT" | "NORMAL" | "LONG" | "EXPIRED" | "UNKNOWN";
+
+/**
+ * QUOTE STANCE — the part of the expression card that needs NO POSITION.
+ *
+ * ROOT CAUSE THIS EXTRACTION FIXES. Three judgements decide whether a contract
+ * is worth expressing at all: WHICH NUMBER IS THIS (role), HOW BADLY DOES THE
+ * MARKET PUNISH ENTRY (spread health), and DOES THE CLOCK FIT THE THESIS
+ * (time-fit). All three already had a canonical owner — but that owner was
+ * `selectExpressionCard`, which requires an entry premium, a filled quantity
+ * and a thesis invalidation level. In other words the three PRE-TRADE
+ * judgements could only be computed AFTER the trade, and so they reached only
+ * /paper. On /charts — the one screen where the decision is actually made —
+ * the Founder saw raw bid/ask/last and did the arithmetic in his head.
+ *
+ * This is composition, not a new engine (BUILD ORDER §6/§15): the arithmetic
+ * below is MOVED, not re-typed, and `selectExpressionCard` now delegates to it.
+ * There is still exactly one place in this repo that decides what "WIDE" means.
+ */
+export interface QuoteStanceInput {
+  readonly bid?: number | null;
+  readonly ask?: number | null;
+  /** Modeled premium, used ONLY when no real quote exists. */
+  readonly modeledPremium?: number | null;
+  /** Contract expiry instant. Absent/non-finite ⇒ timeFit UNKNOWN. */
+  readonly expiryMs?: number | null;
+  readonly nowMs?: number | null;
+}
+
+export interface QuoteStance {
+  /** The sell-now reference, or null when nothing sourced one. */
+  readonly premium: number | null;
+  /** Which number that is. Never omitted — absence is UNKNOWN, not silence. */
+  readonly role: QuoteRole;
+  readonly spreadAbs: number | null;
+  readonly spreadPctOfMid: number | null;
+  readonly spreadHealth: SpreadHealth;
+  readonly hoursToExpiry: number | null;
+  readonly timeFit: TimeFit;
+}
+
+const HOUR_MS = 60 * 60 * 1000;
+
+function finite(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v);
+}
+
+export function selectQuoteStance(input: QuoteStanceInput): QuoteStance {
+  // §21 — a long option's conservative sell-now reference is the BID. Fall back
+  // through MID only when BID is absent, and never silently: the role is
+  // reported alongside the number so no surface can present MID as executable.
+  let premium: number | null = null;
+  let role: QuoteRole = "UNKNOWN";
+  if (finite(input.bid) && input.bid > 0) {
+    premium = input.bid;
+    role = "BID";
+  } else if (finite(input.bid) && finite(input.ask) && input.bid >= 0 && input.ask > 0) {
+    premium = (input.bid + input.ask) / 2;
+    role = "MID";
+  } else if (finite(input.modeledPremium) && input.modeledPremium > 0) {
+    premium = input.modeledPremium;
+    role = "MODELED";
+  }
+
+  let spreadAbs: number | null = null;
+  let spreadPctOfMid: number | null = null;
+  let spreadHealth: SpreadHealth = "UNKNOWN";
+  if (finite(input.bid) && finite(input.ask) && input.ask > 0 && input.ask >= input.bid) {
+    spreadAbs = input.ask - input.bid;
+    const mid = (input.ask + input.bid) / 2;
+    if (mid > 0) {
+      spreadPctOfMid = (spreadAbs / mid) * 100;
+      spreadHealth = spreadPctOfMid <= 5 ? "TIGHT" : spreadPctOfMid <= 15 ? "NORMAL" : "WIDE";
+    }
+  }
+
+  const msToExpiry = finite(input.expiryMs) && finite(input.nowMs) ? input.expiryMs - input.nowMs : null;
+  const hoursToExpiry = msToExpiry != null ? msToExpiry / HOUR_MS : null;
+  const timeFit: TimeFit =
+    hoursToExpiry == null ? "UNKNOWN"
+    : hoursToExpiry <= 0 ? "EXPIRED"
+    : hoursToExpiry <= 8 ? "0DTE"
+    : hoursToExpiry <= 72 ? "SHORT"
+    : hoursToExpiry <= 30 * 24 ? "NORMAL"
+    : "LONG";
+
+  return { premium, role, spreadAbs, spreadPctOfMid, spreadHealth, hoursToExpiry, timeFit };
+}
+
 
 export interface ExpressionCardInput {
   readonly underlyingSymbol: string;
@@ -127,40 +217,24 @@ export interface ExpressionCard {
 
   readonly spreadAbs: number | null;
   readonly spreadPctOfMid: number | null;
-  readonly spreadHealth: "TIGHT" | "NORMAL" | "WIDE" | "UNKNOWN";
+  readonly spreadHealth: SpreadHealth;
 
   readonly protection: ProtectionState;
   /** Honest premium band if the underlying reaches invalidation. */
   readonly atInvalidation: ResponseEnvelope;
 
   readonly hoursToExpiry: number | null;
-  readonly timeFit: "0DTE" | "SHORT" | "NORMAL" | "LONG" | "EXPIRED" | "UNKNOWN";
-}
-
-const HOUR_MS = 60 * 60 * 1000;
-
-function finite(v: unknown): v is number {
-  return typeof v === "number" && Number.isFinite(v);
+  readonly timeFit: TimeFit;
 }
 
 export function selectExpressionCard(input: ExpressionCardInput): ExpressionCard {
   const multiplier = finite(input.contractMultiplier) ? input.contractMultiplier : 100;
 
-  // §21 — a long option's conservative sell-now reference is the BID. Fall back
-  // through ASK/MID only when BID is absent, and never silently: the role is
-  // reported alongside the number so no surface can present MID as executable.
-  let currentPremium: number | null = null;
-  let currentPremiumRole: QuoteRole = "UNKNOWN";
-  if (finite(input.bid) && input.bid > 0) {
-    currentPremium = input.bid;
-    currentPremiumRole = "BID";
-  } else if (finite(input.bid) && finite(input.ask) && input.bid >= 0 && input.ask > 0) {
-    currentPremium = (input.bid + input.ask) / 2;
-    currentPremiumRole = "MID";
-  } else if (finite(input.modeledPremium) && input.modeledPremium > 0) {
-    currentPremium = input.modeledPremium;
-    currentPremiumRole = "MODELED";
-  }
+  // The position-independent half of this card. Delegated, never re-derived —
+  // /charts and /paper must not be able to disagree about what WIDE means.
+  const stance = selectQuoteStance(input);
+  const currentPremium = stance.premium;
+  const currentPremiumRole = stance.role;
 
   const tradability = selectOptionTradability(input.underlyingSession, input.optionSession);
   // Two independent gates, both required: an open market does not make a
@@ -198,28 +272,6 @@ export function selectExpressionCard(input: ExpressionCardInput): ExpressionCard
     ? ((currentPremium - entryPremium) / entryPremium) * 100
     : null;
 
-  let spreadAbs: number | null = null;
-  let spreadPctOfMid: number | null = null;
-  let spreadHealth: ExpressionCard["spreadHealth"] = "UNKNOWN";
-  if (finite(input.bid) && finite(input.ask) && input.ask > 0 && input.ask >= input.bid) {
-    spreadAbs = input.ask - input.bid;
-    const mid = (input.ask + input.bid) / 2;
-    if (mid > 0) {
-      spreadPctOfMid = (spreadAbs / mid) * 100;
-      spreadHealth = spreadPctOfMid <= 5 ? "TIGHT" : spreadPctOfMid <= 15 ? "NORMAL" : "WIDE";
-    }
-  }
-
-  const msToExpiry = finite(input.expiryMs) && finite(input.nowMs) ? input.expiryMs - input.nowMs : null;
-  const hoursToExpiry = msToExpiry != null ? msToExpiry / HOUR_MS : null;
-  const timeFit: ExpressionCard["timeFit"] =
-    hoursToExpiry == null ? "UNKNOWN"
-    : hoursToExpiry <= 0 ? "EXPIRED"
-    : hoursToExpiry <= 8 ? "0DTE"
-    : hoursToExpiry <= 72 ? "SHORT"
-    : hoursToExpiry <= 30 * 24 ? "NORMAL"
-    : "LONG";
-
   return {
     underlyingSymbol: input.underlyingSymbol,
     contractLabel: input.contractLabel,
@@ -234,9 +286,9 @@ export function selectExpressionCard(input: ExpressionCardInput): ExpressionCard
     plannedLoss,
     currentR,
     contractReturnPct,
-    spreadAbs,
-    spreadPctOfMid,
-    spreadHealth,
+    spreadAbs: stance.spreadAbs,
+    spreadPctOfMid: stance.spreadPctOfMid,
+    spreadHealth: stance.spreadHealth,
     protection: selectProtectionState({
       filledQty: qtyFilled,
       brokerAckedProtectedQty: input.brokerAckedProtectedQty ?? 0,
@@ -251,7 +303,7 @@ export function selectExpressionCard(input: ExpressionCardInput): ExpressionCard
       iv: finite(input.iv) ? input.iv : Number.NaN,
       ivSource: input.ivSource,
     }),
-    hoursToExpiry,
-    timeFit,
+    hoursToExpiry: stance.hoursToExpiry,
+    timeFit: stance.timeFit,
   };
 }

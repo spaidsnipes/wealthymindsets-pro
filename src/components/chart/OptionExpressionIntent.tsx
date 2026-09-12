@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import {
   OPTION_CHAIN_SOURCE,
+  nominalOptionExpiryMs,
   type OptionChainFidelity,
   type OptionChainSource,
   type OptionContract,
 } from "@/lib/optionContractResponse";
+import { selectQuoteStance } from "@/lib/expressionCard";
 import { formatOptionNumber } from "@/lib/optionCellFormat";
 import { optionContractObservationTiming, type OptionsReceiptAge } from "@/lib/optionsChainRead";
 import { mintDecisionId, type DecisionId } from "@/lib/traderMemory/decisionIdentity";
@@ -48,6 +50,23 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
     return () => window.clearInterval(clock);
   }, []);
 
+  // THE THREE PRE-TRADE JUDGEMENTS (BUILD ORDER §3, the attached object).
+  //
+  // Delegated to the same owner /paper uses, so the chart and the blotter
+  // cannot hold different opinions about what WIDE means. `receiptClock` is
+  // null until the first post-mount tick, which yields timeFit UNKNOWN — the
+  // honest answer before this browser has stated what time it is, and the
+  // reason the clock is not read during render (that was a live #418
+  // hydration defect in this repo once already).
+  const stance = selectQuoteStance({
+    bid: contract.bid ?? null,
+    ask: contract.ask ?? null,
+    // No modeled premium is offered here. This surface reviews an OBSERVED
+    // chain; inventing a MODELED number where the provider printed nothing
+    // would manufacture certainty at exactly the moment the trader is deciding.
+    expiryMs: nominalOptionExpiryMs(contract.expirationDate),
+    nowMs: receiptClock,
+  });
   const observationTiming = optionContractObservationTiming(contract, receiptClock ?? Number.NaN);
   const timingLabel = (age: OptionsReceiptAge) => age.timing === "RECENT"
     ? `RECENT REFERENCE · ${age.label}`
@@ -94,6 +113,37 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
     </div>
     <p className="mt-1 break-all font-mono text-wm-text-muted">{contract.symbol}</p>
     <p className="mt-2">Reference bid {formatOptionNumber(contract.bid, 2)} · ask {formatOptionNumber(contract.ask, 2)} · last {formatOptionNumber(contract.last, 2)}</p>
+    {/* The attached object's three pre-trade judgements. Every one of them
+        states its own UNKNOWN rather than going quiet, because a missing row
+        reads as "nothing to worry about" and that is the one thing it never
+        means. No colour carries a meaning a word does not also carry. */}
+    <dl className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-3" aria-label="Contract stance">
+      <div>
+        <dt className="text-wm-text-muted">Sell-now reference</dt>
+        <dd>
+          {stance.premium === null
+            ? <span className="text-wm-gold">UNKNOWN · no sourced quote</span>
+            : <>{formatOptionNumber(stance.premium, 2)} · <span className="text-wm-gold">{stance.role}</span></>}
+        </dd>
+      </div>
+      <div>
+        <dt className="text-wm-text-muted">Spread</dt>
+        <dd>
+          {stance.spreadHealth === "UNKNOWN"
+            ? <span className="text-wm-gold">UNKNOWN</span>
+            : <>{formatOptionNumber(stance.spreadAbs, 2)} · {formatOptionNumber(stance.spreadPctOfMid, 1)}% of mid · <span className={stance.spreadHealth === "WIDE" ? "text-wm-gold" : undefined}>{stance.spreadHealth}</span></>}
+        </dd>
+      </div>
+      <div>
+        <dt className="text-wm-text-muted">Time fit</dt>
+        <dd title="Measured against the nominal 16:00 New York expiration close. Under Eastern Standard Time the real close is one hour later, so this reads conservatively.">
+          {stance.timeFit === "UNKNOWN"
+            ? <span className="text-wm-gold">UNKNOWN</span>
+            : <><span className={stance.timeFit === "0DTE" || stance.timeFit === "EXPIRED" ? "text-wm-gold" : undefined}>{stance.timeFit}</span>{stance.hoursToExpiry !== null && stance.hoursToExpiry > 0 && <> · {formatOptionNumber(stance.hoursToExpiry, 0)}h to nominal expiry</>}</>}
+        </dd>
+      </div>
+    </dl>
+    <p className="mt-1 text-wm-text-muted">The sell-now reference is the conservative exit number for a long contract and carries the role it came from. A MID is not an offer anyone has made. Spread health and time fit describe this contract only; neither says the option market is open.</p>
     <p className="mt-1 text-wm-gold" title={`Quote timestamp: ${contract.quoteTimestamp ?? "not observed"}; trade timestamp: ${contract.tradeTimestamp ?? "not observed"}`}>
       {source === OPTION_CHAIN_SOURCE ? "Alpaca" : "Unknown source"} reference · {fidelity.toLowerCase()} · quote {quoteTiming} · trade {tradeTiming} · not an executable quote
     </p>

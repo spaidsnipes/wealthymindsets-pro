@@ -40,6 +40,34 @@ export interface OptionContract {
   theta?: number; vega?: number; openInterest?: number; volume?: number;
 }
 
+/**
+ * NOMINAL expiry instant for a US-listed equity option, from its date alone.
+ *
+ * The chain carries `expirationDate` as a calendar date and nothing else. A
+ * time-fit judgement ("is this 0DTE?") needs an instant, and the two obvious
+ * shortcuts are both wrong in the dangerous direction:
+ *
+ *   · midnight UTC UNDER-states expiry by most of a trading day, so a contract
+ *     that still has six hours of life reads EXPIRED;
+ *   · local midnight OVER-states it, so an expired contract reads 0DTE.
+ *
+ * This returns 20:00Z — 16:00 New York, the standard close at which listed
+ * equity options stop trading, during Eastern DAYLIGHT time. It is NOMINAL and
+ * the name says so. Under Eastern STANDARD time the real close is 21:00Z, so
+ * this runs one hour CONSERVATIVE — it can only make a contract look nearer to
+ * expiry than it is, never further. That is the safe direction for a time-fit
+ * warning, and it is the reason the error is not corrected here: correcting it
+ * would require a timezone table this module has no business owning.
+ *
+ * Returns null for a date this module cannot parse. Null is UNKNOWN, and every
+ * caller must degrade rather than guess.
+ */
+export function nominalOptionExpiryMs(expirationDate: string): number | null {
+  if (!validDate(expirationDate)) return null;
+  const ms = Date.parse(`${expirationDate}T20:00:00Z`);
+  return Number.isFinite(ms) ? ms : null;
+}
+
 function validDate(value: unknown): value is string {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(value + "T00:00:00Z");
