@@ -7,9 +7,9 @@
   "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "build:cloudflare": "opennextjs-cloudflare build",
-    "build:standalone": "NEXT_OUTPUT=standalone next build",
+    "build": "WM_BUILD_SHA=$(git rev-parse HEAD) WM_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) next build",
+    "build:cloudflare": "WM_BUILD_SHA=$(git rev-parse HEAD) WM_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) opennextjs-cloudflare build",
+    "build:standalone": "WM_BUILD_SHA=$(git rev-parse HEAD) WM_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) NEXT_OUTPUT=standalone next build",
     "start": "next start",
     "audit:phone": "node scripts/audit-phone-parity.mjs",
     "lint": "next lint",
@@ -20,10 +20,11 @@
     "electron:build:linux": "npm run build:standalone && electron-builder --linux --config electron-builder.yml",
     "electron:build:all": "npm run build:standalone && electron-builder --mac --win --linux --config electron-builder.yml",
     "test": "vitest run",
-    "preview:cf": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy:cf": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "preview:cf": "npm run build:cloudflare && opennextjs-cloudflare preview",
+    "deploy:cf": "npm run build:cloudflare && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv env.d.ts",
-    "receipt:ghost-host": "node scripts/ghost-host-receipt.mjs"
+    "receipt:ghost-host": "node scripts/ghost-host-receipt.mjs",
+    "verify:prod": "node scripts/verify-prod-parity.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
