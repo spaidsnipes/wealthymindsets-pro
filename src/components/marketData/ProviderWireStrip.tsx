@@ -244,9 +244,35 @@ export function providerConfigReadinessWireView(
   };
 }
 
+/**
+ * Tastytrade's wire claim, capped at the depth a config read can reach.
+ *
+ * Every input here — `configured`, `connected`, `quotes`, `realTime` — is a
+ * field of a BrokerStatus: an account probe and an entitlement flag. None of
+ * them is a market event. Tastytrade ships no `/api/market-data/<id>/ticks`
+ * route, so there is no print for this view to have seen.
+ *
+ * This arm used to return tone LIVE / "Real-time verified" on
+ * `realTime === true`. In the strip's one visually uniform row that would have
+ * made tastytrade the ONLY provider showing the strongest chip, earned from
+ * the weakest evidence, while moomoo, longbridge and webull cap at LIMITED on
+ * actual executed prints. That is the PROVIDER HEALTH LAW run backwards.
+ *
+ * `getTastytradeCapabilities` — the single writer of this fact — already
+ * refuses the claim, pinning `realTime: null` with "we do not claim real-time
+ * without proof". The owner refused and the view accepted anyway. The cap is
+ * restored here so the view cannot outrun its own owner.
+ */
 export function tastytradeWireView(status: BrokerStatus): ProviderWireView {
   if (status.connected && status.quotes && status.realTime === true) {
-    return { source: "tastytrade", tone: "LIVE", label: "Real-time verified", detail: status.note || "Authenticated quote access and real-time entitlement verified." };
+    // Entitlement is a PERMISSION to receive real-time data, not evidence that
+    // any arrived. Named precisely, and capped, rather than promoted.
+    return {
+      source: "tastytrade",
+      tone: "LIMITED",
+      label: "Real-time entitled",
+      detail: status.note || "Account is entitled to real-time quotes · no market event has been received on this wire, which ships no tick route.",
+    };
   }
   if (status.connected && status.quotes) {
     return { source: "tastytrade", tone: "LIMITED", label: "Quote token ready", detail: status.note || "Quote access is available; real-time entitlement is not yet verified." };

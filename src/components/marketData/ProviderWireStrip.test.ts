@@ -34,7 +34,11 @@ describe("providerWireView", () => {
     expect(tastytradeWireView({ configured: true, connected: false })).toMatchObject({ tone: "BLOCKED", label: "Connection failed" });
     expect(tastytradeWireView({ configured: true, connected: true, quotes: false, realTime: null })).toMatchObject({ tone: "LIMITED", label: "Account connected" });
     expect(tastytradeWireView({ configured: true, connected: true, quotes: true, realTime: null })).toMatchObject({ tone: "LIMITED", label: "Quote token ready" });
-    expect(tastytradeWireView({ configured: true, connected: true, quotes: true, realTime: true })).toMatchObject({ tone: "LIVE", label: "Real-time verified" });
+    // Entitlement is PERMISSION to receive real-time data, not evidence any
+    // arrived — and tastytrade ships no /ticks route, so this view has never
+    // seen a print. Capped at LIMITED so a config read cannot outrank the
+    // receipt-proven chips beside it. See providerWireLiveTone.test.ts.
+    expect(tastytradeWireView({ configured: true, connected: true, quotes: true, realTime: true })).toMatchObject({ tone: "LIMITED", label: "Real-time entitled" });
   });
 
   it("names the exact moomoo tick edge and never upgrades receipt presence to live", () => {
