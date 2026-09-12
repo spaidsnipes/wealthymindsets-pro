@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { readMoomooTicks } from "@/lib/marketData/adapters/moomooTicksClient";
+import { WIRE_PROOF_SYMBOL } from "@/lib/marketData/wireProofScope";
 
 export const dynamic = "force-dynamic";
 
@@ -21,13 +22,20 @@ export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
 
-  const symbol = (request.nextUrl.searchParams.get("symbol") || "TSLA").trim().toUpperCase();
+  // NO DEFAULT. This route used to read `... || "TSLA"`, so a caller that
+  // asked about nothing received a confident receipt about a US equity it
+  // never named. A tick route answering an unasked question is the same
+  // substitution the strip's chip was disclosing — one layer further in.
+  const requested = request.nextUrl.searchParams.get("symbol");
+  const symbol = (requested ?? "").trim().toUpperCase();
   if (!SYMBOL_PATTERN.test(symbol)) {
     return NextResponse.json(
       {
         source: "moomoo",
         label: "UNKNOWN",
-        detail: "Pass one symbol, e.g. TSLA (US market assumed) or an explicit provider code like US.TSLA.",
+        detail: symbol === ""
+          ? `No symbol was requested. This route reads prints for ONE named instrument and will not substitute a default — pass ?symbol=, e.g. ${WIRE_PROOF_SYMBOL} (US market assumed) or an explicit provider code like US.${WIRE_PROOF_SYMBOL}.`
+          : `Pass one symbol, e.g. ${WIRE_PROOF_SYMBOL} (US market assumed) or an explicit provider code like US.${WIRE_PROOF_SYMBOL}.`,
         symbol,
         eventCount: 0,
         events: [],

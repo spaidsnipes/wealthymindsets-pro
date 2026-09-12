@@ -15,11 +15,22 @@ export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
 
-  const symbol = (request.nextUrl.searchParams.get("symbol") || "TSLA").trim().toUpperCase();
+  // NO DEFAULT — see the moomoo tick route for the measured substitution.
+  const requested = request.nextUrl.searchParams.get("symbol");
+  const symbol = (requested ?? "").trim().toUpperCase();
   const requestedProfile = request.nextUrl.searchParams.get("profile");
   if (!SYMBOL_PATTERN.test(symbol)) {
     return NextResponse.json(
-      { source: "webull", state: "INVALID_SYMBOL", fidelity: "NONE", symbol, ticks: [], note: "Pass one US stock symbol." },
+      {
+        source: "webull",
+        state: "INVALID_SYMBOL",
+        fidelity: "NONE",
+        symbol,
+        ticks: [],
+        note: symbol === ""
+          ? "No symbol was requested. This route reads prints for ONE named instrument and will not substitute a default — pass ?symbol=."
+          : "Pass one US stock symbol.",
+      },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
