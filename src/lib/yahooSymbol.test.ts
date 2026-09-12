@@ -21,9 +21,15 @@ import { canonicalAssetClass } from "./marketData/canonicalIdentity";
  * nothing passes vacuously and proves nothing at all.
  */
 
+/**
+ * Where a picker's rows actually LIVE — not the components that render them.
+ * `SymbolSearch` and `MainLayout` were consolidated into one exported catalog
+ * on 2026-09-11; scanning the components after that reads two files with zero
+ * rows in them. `ChartToolbar` is still a third hand-typed copy and stays on
+ * this list because it still ships rows.
+ */
 const PICKERS = [
-  "../components/ui/SymbolSearch.tsx",
-  "../components/layout/MainLayout.tsx",
+  "./marketData/curatedSymbolCatalog.ts",
   "../components/chart/ChartToolbar.tsx",
 ] as const;
 

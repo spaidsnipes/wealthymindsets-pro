@@ -125,6 +125,10 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "OPS_TOOLING",
     note: "Comment stripper shared by the repo's three static guards (host-neutrality lock, both env-manifest gates). It is read by CI, never by a trader. Correct that no screen reaches it.",
   },
+  "src/lib/ops/visualReceipt.ts": {
+    reason: "OPS_TOOLING",
+    note: "Executable owner of the canon's NO-ESCAPE VISUAL VERIFICATION BREAKER — it judges whether a BUILDER'S green claim is admissible, not whether a trader's scene is. Its audience is CI and the person writing the receipt. A screen would be the wrong place for it: the one party it must be able to refuse is the party operating the app.",
+  },
   "src/lib/decisionMemory.ts": {
     reason: "AWAITING_SURFACE",
     note: "§13: 'Decision Memory sealing has zero production callers.' Confirmed. useDecisionMemory reaches screens; the sealing module underneath does not.",

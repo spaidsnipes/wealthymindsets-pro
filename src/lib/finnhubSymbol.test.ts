@@ -18,9 +18,22 @@ import { canonicalAssetClass } from "./marketData/canonicalIdentity";
  * collision is what makes the fall-through indefensible.
  */
 
+/**
+ * Where a picker's rows actually LIVE — not the components that render them.
+ *
+ * `SymbolSearch` and `MainLayout` each carried their own copy of this list
+ * until 2026-09-11, when both were consolidated into one exported catalog.
+ * Scanning the components after that reads two files with zero rows in them,
+ * and every assertion below would have passed over an empty array. The
+ * positive controls caught exactly that — which is the only reason they are
+ * written first.
+ *
+ * `ChartToolbar` is still a third hand-typed copy. It stays on this list
+ * because it still ships rows, and its presence here is the standing record
+ * that the consolidation is not finished.
+ */
 const PICKERS = [
-  "../components/ui/SymbolSearch.tsx",
-  "../components/layout/MainLayout.tsx",
+  "./marketData/curatedSymbolCatalog.ts",
   "../components/chart/ChartToolbar.tsx",
 ] as const;
 

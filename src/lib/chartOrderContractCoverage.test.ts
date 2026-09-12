@@ -49,7 +49,12 @@ import { contractMultiplier } from "./paperTrade";
 
 const REPO_ROOT = resolve(__dirname, "..", "..");
 const SRC = join(REPO_ROOT, "src");
-const CATALOG = "src/components/ui/SymbolSearch.tsx";
+// The rows moved out of `SymbolSearch` on 2026-09-11 and into one exported
+// catalog that both search surfaces now import. Pointing at the component
+// after that reads a file with no rows in it, and the uncovered-contract list
+// below would have gone green over an empty array — reading as "every futures
+// contract is covered" when in fact none were being looked at.
+const CATALOG = "src/lib/marketData/curatedSymbolCatalog.ts";
 const ORDER_MODULE = "src/lib/paperTrade.ts";
 
 function walkProduction(dir: string): string[] {

@@ -128,8 +128,26 @@ describe("the search route survives a missing provider key", () => {
 });
 
 describe("the picker does not turn an app failure into a claim about the market", () => {
+  // TWO files, because there are two different claims being checked and they
+  // stopped living in the same place on 2026-09-11.
+  //
+  // `picker` is the COMPONENT: what sentence the trader reads when the live
+  // half of the dropdown fails. That is genuinely a rendering concern and it
+  // is still here.
+  //
+  // `catalog` is the LIST: the built-in rows, which moved out of the component
+  // into one exported owner that both search surfaces now import. Continuing
+  // to parse rows out of the component did not fail loudly — the badge test
+  // below went GREEN over an empty map, because `raw.get("VX1!")` returned
+  // undefined and the owner overruled undefined to the right answer anyway.
+  // A guard that is satisfied by the absence of its own subject is worse than
+  // no guard, so the vacuity control now stands in front of it.
   const picker = fs.readFileSync(
     path.join(REPO_ROOT, "src/components/ui/SymbolSearch.tsx"),
+    "utf8",
+  );
+  const catalog = fs.readFileSync(
+    path.join(REPO_ROOT, "src/lib/marketData/curatedSymbolCatalog.ts"),
     "utf8",
   );
 
@@ -150,18 +168,29 @@ describe("the picker does not turn an app failure into a claim about the market"
 
   it("runs its BUILT-IN list through the same reconciliation as the live one", () => {
     // Two halves of one dropdown, visible at the same moment. If only the
-    // live half asks the owner, the trader can watch them disagree.
-    expect(picker).toMatch(/RAW_LOCAL_SYMBOLS/);
-    expect(picker).toMatch(/reconcileSearchCategory\(s\.sym/);
+    // live half asks the owner, the trader can watch them disagree. The
+    // reconciliation moved into the catalog when the rows did, so this asks
+    // the catalog — but it still asks that the COMPONENT import it, because a
+    // reconciled list nobody renders reconciles nothing.
+    expect(catalog).toMatch(/RAW_CURATED_SYMBOLS/);
+    expect(catalog).toMatch(/reconcileSearchCategory\(s\.sym/);
+    expect(picker).toMatch(/from "@\/lib\/marketData\/curatedSymbolCatalog"/);
   });
 
   it("corrects every built-in badge that contradicted the owner", () => {
-    // Parsed from the component's real list, so this cannot drift from what
+    // Parsed from the catalog's real list, so this cannot drift from what
     // ships. These three were MEASURED wrong on 2026-09-11.
     const raw = new Map<string, string>();
     const re = /\{\s*sym:\s*"([^"]+)",\s*label:\s*"([^"]*)",\s*cat:\s*"([^"]+)"/g;
     let m: RegExpExecArray | null;
-    while ((m = re.exec(picker))) raw.set(m[1], m[3]);
+    while ((m = re.exec(catalog))) raw.set(m[1], m[3]);
+
+    // POSITIVE CONTROL, and it is not decoration. Every assertion after this
+    // reads through `raw.get(...)`, and an absent key reconciles to the right
+    // answer for the wrong reason — so an empty map proves each of them.
+    // This exact test passed over an empty map for one commit.
+    expect(raw.size, "the catalog row parser matched nothing").toBeGreaterThan(50);
+    expect(raw.has("VX1!"), "VX1! is the row this test exists for").toBe(true);
 
     // Contradictions the owner must overrule.
     expect(reconcileSearchCategory("VX1!", raw.get("VX1!") as SearchCategory)).toBe("Index");
@@ -170,7 +199,7 @@ describe("the picker does not turn an app failure into a claim about the market"
 
     // A row may not promise a contract the app will not load. `VX1!` charts
     // the cash index, so its label may not call itself futures.
-    const vixLabel = [...picker.matchAll(re)].find((x) => x[1] === "VX1!")?.[2] ?? "";
+    const vixLabel = [...catalog.matchAll(re)].find((x) => x[1] === "VX1!")?.[2] ?? "";
     expect(vixLabel, "VX1! loads ^VIX; the label must not say 'Futures'").not.toMatch(/futures/i);
   });
 
