@@ -438,3 +438,157 @@ export function detectUnaccountedEnvNameNearMisses(
   const declaredSet = new Set(declared);
   return detectEnvNameNearMisses(declared, hostEnv).filter((h) => !declaredSet.has(h.found));
 }
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────
+ * WORKER SECRET DECLARATION — the deploy manifest's half of the contract.
+ *
+ * FAILURE CLASS: UNDECLARED_REQUIRED_BINDING.
+ *
+ * MEASURED, not hypothetical. `wrangler.jsonc` shipped with no `secrets`
+ * block at all. Wrangler's schema HAS one (`secrets.required`, names only —
+ * verified against node_modules/wrangler/config-schema.json), and when it is
+ * absent wrangler falls back to INFERRING the secret set from .dev.vars /
+ * .env / process.env. Inference from a local file is exactly the mechanism
+ * that lets a deployed Worker be missing a credential that the developer's
+ * laptop happens to have. Nothing in the repo could state, and nothing could
+ * check, what the RUNNING Worker is required to carry.
+ *
+ * The fix is NOT a hand-written list in wrangler.jsonc. A second list is a
+ * second truth, and INVASIVE_DUPLICATE_TRUTH is the failure class this whole
+ * registry exists to abolish. So the list in the manifest is DERIVED here and
+ * a Sentinel asserts the manifest equals this function byte-for-byte. The
+ * manifest is a mirror; PROVIDER_REQUIREMENTS is the source.
+ *
+ * NAMES ONLY. No value is read, returned, or logged — same rule as every
+ * other export in this module.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+
+/**
+ * A non-secret name is CONFIG: which host to dial, which symbol to canary,
+ * which environment to select. Absent config degrades a feature; absent
+ * credentials fail authentication. `secrets.required` is for the latter, so
+ * listing config there would train an operator to ignore the warning.
+ */
+function isNonSecretConfigName(name: string): boolean {
+  if (name.startsWith("NEXT_PUBLIC_")) return true; // build-time public, never a Worker secret
+  return (
+    name.endsWith("_URL") ||
+    name.endsWith("_HOST") ||
+    name.endsWith("_CANARY_SYMBOL") ||
+    name === "TASTYTRADE_ENV"
+  );
+}
+
+/**
+ * Platform secrets are real Worker credentials that belong to no market-data
+ * or broker provider, so PROVIDER_REQUIREMENTS has no row for them.
+ *
+ * `gatesBoot` separates "the Worker cannot serve a core path without this"
+ * from "one feature is dark." Only the former is declared to wrangler: a
+ * warning that fires on a deliberately-unconfigured optional feature is a
+ * PARKED YELLOW, and a warning nobody can clear is a warning nobody reads.
+ */
+export interface PlatformSecret {
+  readonly name: string;
+  /** True when a core server path cannot answer without it. */
+  readonly gatesBoot: boolean;
+  readonly note: string;
+}
+
+export const PLATFORM_SECRETS: readonly PlatformSecret[] = [
+  {
+    name: "SUPABASE_SERVICE_ROLE_KEY",
+    gatesBoot: true,
+    note: "supabaseAdmin.ts mints the server-side client. Without it every privileged read/write path fails, not one feature.",
+  },
+  {
+    name: "JWT_SECRET",
+    gatesBoot: true,
+    note: "auth.ts signs and verifies the session token. Absent means nobody can hold a session.",
+  },
+  {
+    name: "RESEND_API_KEY",
+    gatesBoot: false,
+    note: "email.ts only. Absent means transactional email is dark; every other route still answers.",
+  },
+  {
+    name: "GEMINI_API_KEY",
+    gatesBoot: false,
+    note: "/api/spaidbot only. Absent means the assistant is unavailable and says so.",
+  },
+  {
+    name: "WM_RECONCILIATION_WORKER_SECRET",
+    gatesBoot: false,
+    note: "/api/decision-position shared-secret guard. Absent means that one worker callback is refused, which is the safe direction.",
+  },
+];
+
+/**
+ * The exact set of secret NAMES a deployed Worker is required to carry.
+ *
+ * A provider's required name is EXCLUDED when it has an alias or its provider
+ * declares an alternativeGroup. That is deliberate and is the whole reason
+ * this function is not simply `required.flat()`:
+ *
+ *   MEASURED — this host carries `FINNHUB_KEY_` (trailing underscore), and
+ *   the legacy `ALPACA_BROKERAGE_KEY` / `ALPACA_PAPER_TRADE_API_KEY` pairs.
+ *   Those satisfy the provider through `aliases` / `alternativeGroups`, and
+ *   the tape runs. Declaring the canonical `FINNHUB_KEY` to wrangler would
+ *   emit a missing-secret warning on a host that is CORRECTLY CONFIGURED.
+ *
+ * wrangler's check is a flat name-presence test — it cannot express "either
+ * this name or that one." So the manifest declares only names whose absence
+ * is unambiguously a defect, and the alias-bearing names stay owned by
+ * computeProviderReadiness, which CAN express the alternation. Two checkers,
+ * one source, neither one lying.
+ */
+export function workerRequiredSecretNames(): readonly string[] {
+  const out = new Set<string>();
+  for (const r of PROVIDER_REQUIREMENTS) {
+    const hasAltGroup = (r.alternativeGroups ?? []).some((g) => g.length > 0);
+    if (hasAltGroup) continue;
+    for (const name of r.required) {
+      if (isNonSecretConfigName(name)) continue;
+      if ((r.aliases?.[name] ?? []).length > 0) continue;
+      out.add(name);
+    }
+  }
+  for (const p of PLATFORM_SECRETS) if (p.gatesBoot) out.add(p.name);
+  return [...out].sort();
+}
+
+/**
+ * Provider required names deliberately ABSENT from the manifest, each with the
+ * reason. Exported so the Sentinel can assert the exclusion is justified by
+ * the table rather than by a hard-coded allowlist that would rot — and so a
+ * human reading the receipt sees the gap explained instead of discovering it.
+ */
+export function secretsDeferredToReadiness(): readonly { name: string; reason: string }[] {
+  // De-duplicated by NAME: one credential serving two lanes (WEBULL_APP_KEY is
+  // required by both webull-data and webull-broker) is ONE secret, not two. A
+  // receipt that lists it twice reads like two separate gaps.
+  const byName = new Map<string, string>();
+  for (const r of PROVIDER_REQUIREMENTS) {
+    const hasAltGroup = (r.alternativeGroups ?? []).some((g) => g.length > 0);
+    for (const name of r.required) {
+      if (isNonSecretConfigName(name)) continue;
+      if (byName.has(name)) continue;
+      if (hasAltGroup) {
+        byName.set(
+          name,
+          `${r.provider}: a complete alternative credential set may satisfy this; wrangler cannot express all-or-nothing groups.`,
+        );
+      } else if ((r.aliases?.[name] ?? []).length > 0) {
+        byName.set(
+          name,
+          `${r.provider}: accepted aliases exist (${(r.aliases?.[name] ?? []).join(", ")}); wrangler cannot express alternation.`,
+        );
+      }
+    }
+  }
+  return [...byName.entries()]
+    .map(([name, reason]) => ({ name, reason }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}

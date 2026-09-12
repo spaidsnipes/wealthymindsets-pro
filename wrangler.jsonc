@@ -32,5 +32,40 @@
   },
   "observability": {
     "enabled": true
+  },
+
+  /**
+   * SECRET NAMES — never values. See the SECRETS note above.
+   *
+   * This list is NOT hand-maintained. It is a MIRROR of
+   * `workerRequiredSecretNames()` in src/lib/broker/providerReadiness.ts,
+   * which derives it from the canonical PROVIDER_REQUIREMENTS table plus
+   * PLATFORM_SECRETS. A Sentinel (providerReadiness.wrangler.test.ts) fails
+   * if the two ever disagree, so editing this array by hand without editing
+   * the registry turns CI red by name. Edit the registry.
+   *
+   * Declaring this block also stops wrangler INFERRING the secret set from
+   * .dev.vars / .env / process.env — the mechanism that lets a deployed
+   * Worker silently lack a credential the developer's laptop happens to have.
+   *
+   * Why some credentials are absent: wrangler's check is a flat
+   * name-presence test and cannot express "either this name or that one."
+   * Provider credentials that accept aliases (FINNHUB_KEY) or all-or-nothing
+   * alternative pairs (the ALPACA_* sets) are therefore owned by
+   * computeProviderReadiness instead, which CAN express the alternation.
+   * Listing them here would warn on a host that is correctly configured.
+   */
+  "secrets": {
+    "required": [
+      "JWT_SECRET",
+      "LIVEKIT_API_KEY",
+      "LIVEKIT_API_SECRET",
+      "LONGBRIDGE_BRIDGE_TOKEN",
+      "MOOMOO_BRIDGE_TOKEN",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "TASTYTRADE_CLIENT_ID",
+      "TASTYTRADE_CLIENT_SECRET",
+      "TASTYTRADE_REFRESH_TOKEN"
+    ]
   }
 }
