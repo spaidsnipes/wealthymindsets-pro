@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { unsupportedAssetClassReason } from "@/lib/marketData/symbolAssetClass";
 import { resolveProviderEnv, acceptedEnvNames } from "@/lib/broker/resolveProviderEnv";
+import { classifyFinnhubStatus, finnhubUpstreamMessage } from "@/lib/marketData/finnhubUpstreamStatus";
 
 // Server-only Finnhub key. Same fail-fast pattern as /api/finnhub — refuse to
 // call Finnhub with the committed-fallback value in production (WM-SEC-P0-03).
@@ -45,6 +46,15 @@ export async function GET(request: Request) {
     const finnhubSym = CRYPTO_SYMS.has(symbol) ? `BINANCE:${symbol}USDT` : symbol;
     const url = `https://finnhub.io/api/v1/quote?symbol=${finnhubSym}&token=${getFinnhubKey()}`;
     const res = await fetch(url, { next: { revalidate: 5 } }); // cache 5s
+    // Finnhub answers a throttle with an HTML error page. Parsing it first
+    // turns a recoverable RATE LIMITED into a SyntaxError at HTTP 500, which
+    // points the reader at the wrong subsystem entirely.
+    if (!res.ok) {
+      return NextResponse.json(
+        { symbol, price: null, edge: classifyFinnhubStatus(res.status), error: finnhubUpstreamMessage(res.status), source: "finnhub" },
+        { status: res.status },
+      );
+    }
     const data = await res.json();
 
     if (!data || !data.c || data.c === 0) {
@@ -63,6 +73,12 @@ export async function GET(request: Request) {
       timestamp: Date.now(),
     });
   } catch (err) {
-    return NextResponse.json({ symbol, price: null, error: String(err) }, { status: 500 });
+    // A genuine transport/parse fault on an OK response. The upstream's own
+    // failure classes are handled above; this is the residue, and it is named
+    // as OUR failure rather than dressed up as a provider verdict.
+    return NextResponse.json(
+      { symbol, price: null, edge: "PROXY ERROR", error: `Quote proxy failed after an OK Finnhub response: ${String(err)}`, source: "finnhub" },
+      { status: 500 },
+    );
   }
 }

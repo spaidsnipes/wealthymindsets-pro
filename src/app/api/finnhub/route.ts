@@ -11,6 +11,7 @@
 import { NextResponse } from "next/server";
 import { toFinnhubSym } from "@/lib/finnhubSymbol";
 import { resolveProviderEnv, acceptedEnvNames } from "@/lib/broker/resolveProviderEnv";
+import { classifyFinnhubStatus, finnhubUpstreamMessage } from "@/lib/marketData/finnhubUpstreamStatus";
 
 /**
  * Server-only Finnhub key. In production, unset or committed-fallback-equal
@@ -115,22 +116,13 @@ class FinnhubUpstreamError extends Error {
   }
 }
 
-function classifyFinnhubStatus(status: number): string {
-  if (status === 401) return "AUTH BLOCKED";  // Finnhub rejected the API token (invalid/expired)
-  if (status === 403) return "FORBIDDEN";     // token lacks access to this resource / plan
-  if (status === 429) return "RATE LIMITED";  // Finnhub free-tier throttle
-  if (status === 404) return "NOT FOUND";     // symbol / endpoint not found upstream
-  if (status >= 500) return "PROVIDER ERROR"; // Finnhub-side failure
-  return "UPSTREAM ERROR";
-}
-
 async function fhFetch(url: string, ttlMs = 5_000): Promise<unknown> {
   const cached = CACHE.get(url);
   if (cached && Date.now() - cached.ts < ttlMs) return cached.data;
   const res = await fetch(url, { headers: { "X-Finnhub-Token": getFinnhubKey() }, cache: "no-store" });
   if (!res.ok) {
     const edge = classifyFinnhubStatus(res.status);
-    throw new FinnhubUpstreamError(res.status, edge, `Finnhub ${edge} (HTTP ${res.status})`);
+    throw new FinnhubUpstreamError(res.status, edge, finnhubUpstreamMessage(res.status));
   }
   const data = await res.json();
   CACHE.set(url, { data, ts: Date.now() });
