@@ -1,7 +1,15 @@
+<!-- ath-retirement-evidence -->
 # GARDEN RECEIPT — P0-A REPO FRONT-DOOR RETIREMENT + SEARCH
 
 **This is a dated receipt.** It is evidence of what was true on 2026-09-11. It may teach.
 It may not command.
+
+> This document NAMES the retired Vercel host on purpose — it exists to record that
+> the host was retired, and a retirement record that may not name the retired thing
+> cannot be written. The `<!-- ath-retirement-evidence -->` marker above declares
+> that intent to the GHOST_HOST guard in `src/lib/ops/repoFrontDoorAuthority.test.ts`.
+> It is a declaration of purpose, not an exemption from truth: the host named below
+> is retired and unreachable, and nothing here directs a reader to visit it.
 
 | Field | Value |
 |---|---|

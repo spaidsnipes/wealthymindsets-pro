@@ -65,6 +65,13 @@ const MARKER_CLOSE = "<!-- END:ath-historical-lineage -->";
  */
 const MARKER_MUST_APPEAR_WITHIN_LINES = 3;
 
+/**
+ * Declared by a document whose PURPOSE is to record the retirement, and which
+ * therefore has to be able to name the retired host. A retirement record that
+ * may not name the retired thing cannot be written.
+ */
+const RETIREMENT_EVIDENCE_MARKER = "<!-- ath-retirement-evidence -->";
+
 function readReadme(): string {
   return readFileSync(README, "utf8");
 }
@@ -232,6 +239,71 @@ describe("the repository front door may teach, but may not command", () => {
       "these operations docs assert present command authority but carry no historical-lineage " +
         "marker; the repository may not hold current authority — Drive does",
     ).toEqual([]);
+  });
+
+  /**
+   * GHOST_HOST IN THE SIDE DOORS — added 2026-09-12, Garden Gate G12.
+   *
+   * The README lock above forbids a concrete `*.vercel.app` hostname, because a
+   * concrete host reads as somewhere a worker can GO. Nothing said the same of
+   * `docs/operations`, and the README is not the only way in: a search result, a
+   * shared link or a directory listing drops a worker straight into a file that
+   * never shows them the README's demotion notice.
+   *
+   * MEASURED 2026-09-12: 16 of the 85 operations docs carried no lineage marker
+   * and named `wealthymindsets-pro.vercel.app` — one of them the fully-qualified
+   * `wealthymindsets-o7glzbrut-spaidsnipes-projects.vercel.app`. The Vercel host
+   * was retired 2026-08-24 and its account is blocked; every one of those URLs is
+   * dead. The commanding-phrase guard could not see them, because naming a dead
+   * production URL is not a phrase that claims authority — it is worse. It is a
+   * true-sounding instruction with no verb.
+   *
+   * WHY THIS RULE DOES NOT REUSE `stripQuotedSpans`. It was the obvious move and
+   * it is wrong. Applied to hostnames it returns ZERO offenders across all 85
+   * files — every occurrence sits in backticks, because backticks are simply how
+   * one writes a URL in Markdown. For a PHRASE, a quote mark means "someone else
+   * said this". For an ADDRESS, it means nothing at all. Reusing the helper would
+   * have produced a permanently green guard over a real defect, which is the
+   * vacuity failure this file already guards against in two other places.
+   *
+   * The exemption is DECLARED, not listed. A document whose job is to record the
+   * retirement must be able to name the retired thing, so it says so in its own
+   * body with `<!-- ath-retirement-evidence -->`. A filename allowlist here would
+   * be the retyped truth this whole suite exists to forbid.
+   */
+  it("no operations doc offers the RETIRED host as somewhere to go", () => {
+    const offenders: string[] = [];
+    for (const file of opsDocs()) {
+      const body = readOpsDoc(file);
+      if (isMarkedHistorical(body)) continue;
+      if (body.includes(RETIREMENT_EVIDENCE_MARKER)) continue;
+      const hosts = [...new Set([...body.matchAll(/[\w.*-]*vercel\.app/g)].map(m => m[0]))]
+        .filter(h => h !== "*.vercel.app");
+      if (hosts.length) offenders.push(`${file} → ${hosts.join(", ")}`);
+    }
+    expect(
+      offenders,
+      `GHOST_HOST: these operations docs name a concrete retired Vercel host and carry ` +
+        `no historical-lineage marker. The Vercel host was retired 2026-08-24 and its ` +
+        `account is blocked, so every one of these URLs is dead — a worker who arrives ` +
+        `by search or link, never seeing README, is handed a production address that ` +
+        `cannot answer. Prepend the lineage marker, or declare the document as ` +
+        `retirement evidence with ${RETIREMENT_EVIDENCE_MARKER}:\n  ` +
+        offenders.join("\n  "),
+    ).toEqual([]);
+  });
+
+  it("ANTI-VACUITY: the retired-host pattern still matches the tree it guards", () => {
+    // Symmetric with the commanding-phrase vacuity guard below. If the hostname
+    // pattern stopped matching anything at all, the rule above would be green
+    // forever while enforcing nothing. The docs it was read off of are demoted
+    // now, so they are skipped by the guard — but their text must still trip it.
+    let matched = 0;
+    for (const file of opsDocs()) {
+      if (/[\w.-]+\.vercel\.app/.test(readOpsDoc(file))) matched++;
+    }
+    expect(matched, "no operations doc names a concrete retired host — pattern has gone stale")
+      .toBeGreaterThanOrEqual(10);
   });
 
   it("ANTI-VACUITY: the commanding-phrase scan is looking for something real", () => {

@@ -1,3 +1,25 @@
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This is a **dated session record**. It was true on its date and is preserved as
+> evidence of what was observed then. Do not take a current action, diagnosis,
+> release decision or task claim from it.
+>
+> **The current front door is in Drive, not in this repository:**
+> `00 — Above the Hill Canon — Master Index & Source of Truth` →
+> `ATH — CURRENT COMMAND CENTER — 2026-09-11` →
+> `ATH — FULL GARDEN PASS — 2026-09-11` → current GitHub `main` HEAD →
+> current runtime proof chain.
+>
+> **Current production is `https://wealthymindsetspro.com`** (Cloudflare Workers /
+> OpenNext). Any `*.vercel.app` reference below is a `GHOST_HOST` signal: the
+> Vercel host was retired 2026-08-24 and cannot serve this app.
+>
+> Demoted 2026-09-12 under Garden Gate G12 (RETIREMENT / COMPOST). See `README.md`.
+<!-- END:ath-historical-lineage -->
+
 # CODEX HANDOFF — pick up from Claude one-thread 2026-08-09 evening
 
 **Repo HEAD:** `d37307d` on `main` (deployed to `wealthymindsets-pro.vercel.app`, live-verified).
