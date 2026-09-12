@@ -358,7 +358,30 @@ describe("responsive P0 command surfaces", () => {
     expect(readiness).toContain("<BrokerConnectPanel");
     expect(readiness).toContain("How connection status works");
     expect(readiness).toContain("Technical receipt");
-    expect(readiness).toContain("This provider still needs setup in the current runtime.");
+    /*
+     * Was: "This provider still needs setup in the current runtime."
+     *
+     * Replaced 2026-09-12 from a LIVE observation, not from reading code.
+     * Production /readiness showed Moomoo and Tastytrade as NOT CONFIGURED
+     * with that sentence beneath, while production /api/broker/status on the
+     * same host reported implemented=true, envConfigured=false for both. The
+     * integrations exist. What the deployed host lacks is the credential
+     * NAMES — and "still needs setup" reads as "this product does not
+     * support your broker yet."
+     *
+     * Those imply different next actions: build an integration, versus bind
+     * a secret to THIS environment. That is the canon's 3-RUNTIME TEST — a
+     * key existing in runtime A is not evidence for runtime B — and Weakness
+     * 5's rule that credential-present-plus-bridge-absent is a locality
+     * block, never a missing key.
+     *
+     * The NOT CONFIGURED badge itself is deliberately untouched: it is
+     * canonized Monday Test 2 vocabulary and is not this thread's to rename.
+     * Only the sentence, which was the part making the stronger claim.
+     */
+    expect(readiness).toContain("does not carry the credential name(s) this provider reads");
+    expect(readiness).toContain("not proof the integration is absent");
+    expect(readiness).not.toContain("This provider still needs setup in the current runtime.");
     expect(brokers).toContain("Signed OpenAPI check · read-only account proof");
     expect(brokers).toContain("Webull Connect OAuth—authorize, callback, token refresh");
     expect(brokers).toContain("Signing into Webull&apos;s website is separate and does not connect this app.");

@@ -226,7 +226,7 @@ export default function ReadinessPage() {
                           ? "Setup present — verification required. Charts and trading are not certified by this receipt."
                           : row.nameMismatches.length > 0
                             ? "This provider is missing a name the code reads — but this host carries a lookalike for it. Check the name mismatch below before obtaining any new secret."
-                            : "This provider still needs setup in the current runtime."}
+                            : "This RUNNING host does not carry the credential name(s) this provider reads. That is a deployment binding, not proof the integration is absent — the adapter may already exist in this build."}
                       </p>
                       {/*
                         Surfaced OUTSIDE the collapsed "Technical receipt". For six days
