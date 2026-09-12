@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { SourceCertification } from "@/lib/marketData/sourceCapabilityCertification";
 import type { AthosCapabilityMatrix } from "@/lib/marketData/canonicalCapabilityResolver";
 import { readClassifiedJsonReceipt, readJsonReceipt } from "@/lib/marketData/readJsonReceipt";
+import { WIRE_PROOF_SYMBOL, withWireProofScope } from "@/lib/marketData/wireProofScope";
 import {
   selectReadinessWireboard,
   type ReadinessPayload,
@@ -35,15 +36,36 @@ export type MoomooTickReceipt = {
   readonly eventCount?: number;
 };
 
+/**
+ * Does this receipt affirm that prints arrived?
+ *
+ * Derived from the RECEIPT, not from a display string. `longbridgeTickWireView`
+ * and `webullTickWireView` used to re-detect this by comparing the composed
+ * view's label to the literal `"Ticks receiving"`, so the rendered chip text
+ * was load-bearing control flow — renaming the chip would have silently
+ * switched both providers onto their fallback detail.
+ */
+function receiptIsReceiving(receipt: MoomooTickReceipt): boolean {
+  return (
+    (receipt.label?.trim().toUpperCase() || "UNKNOWN") === "RECEIVING" &&
+    receipt.receiving === true &&
+    (receipt.eventCount ?? 0) > 0
+  );
+}
+
 export function moomooTickWireView(receipt: MoomooTickReceipt): ProviderWireView {
   const label = receipt.label?.trim().toUpperCase() || "UNKNOWN";
   const detail = receipt.detail?.trim() || "The tick receipt did not identify a provider state.";
-  if (label === "RECEIVING" && receipt.receiving === true && (receipt.eventCount ?? 0) > 0) {
+  if (receiptIsReceiving(receipt)) {
     return {
       source: "moomoo",
       tone: "LIMITED",
-      label: "Ticks receiving",
-      detail: `${receipt.eventCount} accepted provider ${receipt.eventCount === 1 ? "event" : "events"} · real-time entitlement not certified.`,
+      // The chip names the instrument it proved. "Ticks receiving" alone is a
+      // claim about the WIRE; the probe only ever asked about one US equity.
+      label: `Ticks receiving (${WIRE_PROOF_SYMBOL})`,
+      detail: withWireProofScope(
+        `${receipt.eventCount} accepted provider ${receipt.eventCount === 1 ? "event" : "events"} · real-time entitlement not certified`,
+      ),
     };
   }
   if (label === "NOT CONFIGURED") {
@@ -130,8 +152,10 @@ export function longbridgeTickWireView(receipt: MoomooTickReceipt): ProviderWire
   return {
     ...view,
     source: "longbridge",
-    detail: view.label === "Ticks receiving"
-      ? `${receipt.eventCount} accepted Longbridge executed prints · realtime entitlement not certified.`
+    detail: receiptIsReceiving(receipt)
+      ? withWireProofScope(
+          `${receipt.eventCount} accepted Longbridge executed prints · realtime entitlement not certified`,
+        )
       : receipt.detail?.trim() || "The Longbridge receipt did not identify a provider state.",
   };
 }
@@ -162,8 +186,10 @@ export function webullTickWireView(receipt: MoomooTickReceipt): ProviderWireView
   return {
     ...view,
     source: "webull",
-    detail: view.label === "Ticks receiving"
-      ? `${receipt.eventCount} accepted Webull executed prints · provider-signed side · streaming continuity not certified.`
+    detail: receiptIsReceiving(receipt)
+      ? withWireProofScope(
+          `${receipt.eventCount} accepted Webull executed prints · provider-signed side · streaming continuity not certified`,
+        )
       : detail,
   };
 }
@@ -462,7 +488,7 @@ export default function ProviderWireStrip({ compact = false }: { readonly compac
     const readProviderReceipt = async (source: TickReceiptSource): Promise<MoomooTickReceipt> => {
       const response = await readClassifiedJsonReceipt<MoomooTickReceipt>(
         fetch,
-        `/api/market-data/${source}/ticks?symbol=TSLA`,
+        `/api/market-data/${source}/ticks?symbol=${WIRE_PROOF_SYMBOL}`,
         controller.signal,
       );
       const body = response.body;

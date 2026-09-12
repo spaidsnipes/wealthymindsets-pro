@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { WIRE_PROOF_SYMBOL } from "@/lib/marketData/wireProofScope";
 import { X, Zap, ExternalLink, Search, Key, Check, ChevronDown, ChevronUp, AlertCircle, Loader2 } from "lucide-react";
 import { clsx } from "clsx";
 import ProviderWireStrip from "@/components/marketData/ProviderWireStrip";
@@ -575,7 +576,7 @@ function WebullSigningCanary() {
       try {
         const result = await readClassifiedJsonReceipt<unknown>(
           fetch,
-          `/api/market-data/webull/ticks?symbol=TSLA&profile=${profile}`,
+          `/api/market-data/webull/ticks?symbol=${WIRE_PROOF_SYMBOL}&profile=${profile}`,
           controller.signal,
         );
         if (!result.ok) return failedWebullCanaryReceipt(profile);
@@ -604,7 +605,7 @@ function WebullSigningCanary() {
         <div>
           <div className="text-[10px] font-black uppercase tracking-wider text-wm-text-muted">Market-data signature check</div>
           <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">
-            Two independent read-only TSLA snapshots. No automatic fallback, account access, or order action.
+            Two independent read-only {WIRE_PROOF_SYMBOL} snapshots. No automatic fallback, account access, or order action.
           </p>
         </div>
         <button

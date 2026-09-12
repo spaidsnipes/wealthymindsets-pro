@@ -13,6 +13,7 @@ vi.mock("react", async (original) => ({
   useEffect: (effect: () => (() => void)) => { hooks.effect = effect; },
 }));
 import ProviderWireStrip, { selectProviderWires } from "./ProviderWireStrip";
+import { WIRE_PROOF_SYMBOL } from "@/lib/marketData/wireProofScope";
 
 afterEach(() => { vi.unstubAllGlobals(); hooks.values = []; hooks.index = 0; hooks.effect = null; });
 
@@ -171,6 +172,6 @@ describe("provider wire claim precedence", () => {
       suspended: true,
     });
     expect(wires.some((wire) => wire.tone === "SUSPENDED")).toBe(false);
-    expect(wires.find((wire) => wire.source === "moomoo")?.label).toBe("Ticks receiving");
+    expect(wires.find((wire) => wire.source === "moomoo")?.label).toBe(`Ticks receiving (${WIRE_PROOF_SYMBOL})`);
   });
 });

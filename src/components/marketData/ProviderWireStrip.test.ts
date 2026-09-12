@@ -12,6 +12,7 @@ import {
   longbridgeTickWireView,
 } from "./ProviderWireStrip";
 import { buildAthosCapabilityMatrix } from "@/lib/marketData/canonicalCapabilityResolver";
+import { WIRE_PROOF_SYMBOL } from "@/lib/marketData/wireProofScope";
 
 describe("providerWireView", () => {
   it("shows bounded snapshot observations as limited, never live", () => {
@@ -42,7 +43,10 @@ describe("providerWireView", () => {
     expect(moomooTickWireView({ label: "NO EVENTS RECEIVED", detail: "No prints returned.", eventCount: 0 })).toMatchObject({ tone: "LIMITED", label: "NO EVENTS RECEIVED" });
     expect(moomooTickWireView({ label: "PROVIDER ERROR", detail: "HTTP 503 before a receipt.", eventCount: 0 })).toMatchObject({ tone: "OFFLINE", label: "Provider error" });
     expect(moomooTickWireView({ label: "RATE LIMITED", detail: "HTTP 429 before a receipt.", eventCount: 0 })).toMatchObject({ tone: "LIMITED", label: "Rate limited" });
-    expect(moomooTickWireView({ label: "RECEIVING", receiving: true, eventCount: 4 })).toMatchObject({ tone: "LIMITED", label: "Ticks receiving" });
+    // The chip now names the instrument the probe actually asked about. The
+    // assertion that matters here is unchanged: RECEIVING stays LIMITED and is
+    // never upgraded to LIVE. See wireProofScope.test.ts for the scope claim.
+    expect(moomooTickWireView({ label: "RECEIVING", receiving: true, eventCount: 4 })).toMatchObject({ tone: "LIMITED", label: `Ticks receiving (${WIRE_PROOF_SYMBOL})` });
     expect(moomooTickWireView({ label: "ACCESS UNPROVEN", detail: "HTTP 403 did not classify the failed edge.", eventCount: 0 })).toMatchObject({ tone: "BLOCKED", label: "ACCESS UNPROVEN" });
   });
 
@@ -56,7 +60,7 @@ describe("providerWireView", () => {
   });
 
   it("keeps Longbridge receiving below live until entitlement is certified", () => {
-    expect(longbridgeTickWireView({ label: "RECEIVING", receiving: true, eventCount: 20 })).toMatchObject({ source: "longbridge", tone: "LIMITED", label: "Ticks receiving" });
+    expect(longbridgeTickWireView({ label: "RECEIVING", receiving: true, eventCount: 20 })).toMatchObject({ source: "longbridge", tone: "LIMITED", label: `Ticks receiving (${WIRE_PROOF_SYMBOL})` });
     expect(longbridgeTickWireView({ label: "NOT CONFIGURED", detail: "LONGBRIDGE_BRIDGE_URL missing", eventCount: 0 })).toMatchObject({ source: "longbridge", tone: "OFFLINE", label: "Not configured" });
   });
 

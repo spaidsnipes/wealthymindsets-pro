@@ -48,8 +48,11 @@ describe("Webull managed connection UI", () => {
 
   it("runs both market-data signing contracts explicitly without hidden fallback or order access", () => {
     expect(panel).toContain("WEBULL_SIGNING_PROFILES.map(readProfile)");
-    expect(panel).toContain("/api/market-data/webull/ticks?symbol=TSLA&profile=${profile}");
-    expect(panel).toContain("Two independent read-only TSLA snapshots");
+    // The ticker is now read from WIRE_PROOF_SYMBOL so the probe and the copy
+    // that describes it cannot disagree. Intent unchanged: both profiles are
+    // probed explicitly, read-only, with no hidden fallback.
+    expect(panel).toContain("/api/market-data/webull/ticks?symbol=${WIRE_PROOF_SYMBOL}&profile=${profile}");
+    expect(panel).toContain("Two independent read-only {WIRE_PROOF_SYMBOL} snapshots");
     expect(panel).toContain("No automatic fallback, account access, or order action.");
     expect(panel).not.toContain("profile=auto");
 
