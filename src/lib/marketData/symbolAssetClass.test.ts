@@ -146,8 +146,17 @@ describe("the decline message distinguishes 'not now' from 'not ever'", () => {
     expect(isUnsupportedByEquityVendors("EURUSD=X")).toBe(true);
     expect(isUnsupportedByEquityVendors("AAPL")).toBe(false);
     expect(isUnsupportedByEquityVendors("BTC")).toBe(false);
-    // An index IS carried — it was only falling through before because the
-    // hand-typed predicate could not see it either way.
+    // An index is not refused BY CLASS: Yahoo-backed lanes carry index levels,
+    // so a class-level predicate that refused ^VIX would delete a working
+    // instrument from the routes that do serve it.
+    //
+    // That is narrower than this line used to assert. The comment here read
+    // "An index IS carried", full stop — an assumption, MEASURED FALSE on
+    // 2026-09-12: Finnhub's free tier returned an empty quote for ^GSPC, ^DJI,
+    // ^IXIC and ^VIX in the same window it priced AAPL, SPY, IWM, GLD and NVDA.
+    // Coverage is per-lane, so it is the LANE's fact to state (/api/market now
+    // states it) and this module keeps stating only the class fact. Both
+    // answers living here is how one question came to have five.
     expect(isUnsupportedByEquityVendors("^VIX")).toBe(false);
   });
 
@@ -155,7 +164,11 @@ describe("the decline message distinguishes 'not now' from 'not ever'", () => {
     // This is the whole user-facing point. "No data" means "try later".
     const reason = unsupportedAssetClassReason("NQ=F");
     expect(reason).not.toBeNull();
-    expect(reason!.toLowerCase()).toContain("not carried here");
+    // Anchored on the DISTINCTION, not on one phrasing of it. The sentence
+    // used to end "not carried HERE" while also naming what "here" carries —
+    // a coverage claim about a caller this module is never told the identity
+    // of. Dropping that clause is what widened the wording.
+    expect(reason!.toLowerCase()).toContain("not carried");
     expect(reason!.toLowerCase()).not.toContain("no data");
     // And it names the symbol, so the message is about THIS request.
     expect(reason).toContain("NQ=F");

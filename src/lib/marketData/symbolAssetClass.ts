@@ -197,14 +197,22 @@ export function observesUsEquitySession(symbol: string): boolean {
  * in the same words. A per-route sentence is how "not supported on free tier"
  * and "no data" came to mean the same thing to the code and different things
  * to the trader.
+ *
+ * The sentence states the CLASS fact and stops there. It used to end "This data
+ * route carries US equities, indices and crypto only" — a claim about the
+ * calling route, made by a module that is never told which route is calling,
+ * and false as written: MEASURED 2026-09-12, `/api/market` returned an empty
+ * quote for ^GSPC, ^DJI, ^IXIC and ^VIX in the same window it priced AAPL, SPY,
+ * IWM, GLD and NVDA. A shared sentence may only assert what is true from every
+ * caller; coverage is the caller's own fact and belongs in the caller.
  */
 export function unsupportedAssetClassReason(symbol: string): string | null {
   const k = classifySymbol(symbol);
   if (k === "FUTURES") {
-    return `${normalize(symbol)} is a futures contract. This data route carries US equities, indices and crypto only — futures are not absent right now, they are not carried here at all.`;
+    return `${normalize(symbol)} is a futures contract. Free equity vendors do not carry futures — this is not absent right now, it is not carried on an equity lane at all.`;
   }
   if (k === "FOREX") {
-    return `${normalize(symbol)} is a forex pair. This data route carries US equities, indices and crypto only — forex is not absent right now, it is not carried here at all.`;
+    return `${normalize(symbol)} is a forex pair. Free equity vendors do not carry currency pairs — this is not absent right now, it is not carried on an equity lane at all.`;
   }
   return null;
 }
