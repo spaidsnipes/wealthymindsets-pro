@@ -13,13 +13,44 @@ import { isConfigurable } from "./indicatorConfig";
 import { getIndicatorInfo } from "./indicatorDescriptions";
 import { CHART_TF_SHIPPED, getTimeframe } from "@/lib/timeframes";
 import { WMLogo } from "@/components/ui/WMLogo";
+import {
+  reconcileSearchCategory,
+  type SearchCategory,
+} from "@/lib/marketData/searchResultCategory";
 
 /* ══════════════════════════════════════════════════════════════
    SYMBOL CATALOGUE  (100+ symbols across 5 categories)
 ══════════════════════════════════════════════════════════════ */
 type SymbolEntry = { sym: string; name: string; cat: string };
 
-const ALL_SYMBOLS: SymbolEntry[] = [
+/**
+ * The chart toolbar's own symbol shortlist — the THIRD copy of this list in
+ * the app, and the one the trader actually opens.
+ *
+ * ── How this was found (2026-09-11) ─────────────────────────────────────────
+ *
+ * Two earlier atoms made the shell dialog and the `SymbolSearch` picker answer
+ * to `symbolAssetClass` via `reconcileSearchCategory`. Both passed their tests.
+ * Then the live app was opened on /charts, this dropdown was typed into, and
+ * the first row read:
+ *
+ *     VX1!   VIX Futures                              [Futures]
+ *     VIX    CBOE Volatility Index                    [ETFs]
+ *
+ * `VX1!` resolves to `^VIX` in this app — the CASH INDEX, not a contract; that
+ * correction had already landed twice and could not reach here. And a badge
+ * reading "ETFs" over the words "CBOE Volatility Index" is the same defect in
+ * the other direction. Neither test suite could see this file, because neither
+ * knew it existed. The rule was known. Only LOOKING detected the violation.
+ *
+ * ── The `cat` field below is a CURATOR'S OPINION ────────────────────────────
+ *
+ * It is reconciled against the class owner exactly like a search vendor's:
+ * authoritative where the owner has no opinion, allowed to refine an equity
+ * into a fund wrapper, OVERRULED where it contradicts. A badge may not promise
+ * an instrument the chart will not load.
+ */
+const RAW_CHART_SYMBOLS: SymbolEntry[] = [
   // ── Futures ──────────────────────────────────────────────
   { sym:"NQ1!",    name:"Nasdaq-100 Futures",       cat:"Futures" },
   { sym:"ES1!",    name:"S&P 500 Futures",          cat:"Futures" },
@@ -46,7 +77,10 @@ const ALL_SYMBOLS: SymbolEntry[] = [
   { sym:"MYM1!",   name:"Micro Dow Futures",        cat:"Futures" },
   { sym:"MGC1!",   name:"Micro Gold Futures",       cat:"Futures" },
   { sym:"MCL1!",   name:"Micro Crude Oil Futures",  cat:"Futures" },
-  { sym:"VX1!",    name:"VIX Futures",              cat:"Futures" },
+  // Label matched to `curatedSymbolCatalog`, which corrected it first: this
+  // app resolves `VX1!` to `^VIX`, the CASH INDEX. Two catalogues naming one
+  // ticker differently is the defect this whole file is being repaired for.
+  { sym:"VX1!",    name:"VIX Index (via VX1!)",     cat:"Futures" },
   { sym:"SR3M4",   name:"SOFR 3-Month Futures",    cat:"Futures" },
   // ── Mega-cap Stocks ──────────────────────────────────────
   { sym:"AAPL",    name:"Apple Inc",               cat:"Stocks" },
@@ -157,7 +191,17 @@ const ALL_SYMBOLS: SymbolEntry[] = [
   { sym:"SQQQ",    name:"ProShares UltraPro Short QQQ", cat:"ETFs" },
   { sym:"SPXL",    name:"Direxion S&P 500 Bull 3×",cat:"ETFs" },
   { sym:"SPXS",    name:"Direxion S&P 500 Bear 3×",cat:"ETFs" },
-  { sym:"VIX",     name:"CBOE Volatility Index",   cat:"ETFs" },
+  /**
+   * Was `sym:"VIX"` wearing an "ETFs" badge. MEASURED on the live host:
+   *   /api/yahoo?sym=VIX   → {"error":"No data"}
+   *   /api/yahoo?sym=^VIX  → 15.84   (the CBOE Volatility Index)
+   * so the row was OFFERED AND UNCHARTABLE, next to a `VX1!` twin that works.
+   * This is a NOTATION correction, not the near-neighbour substitution tried
+   * and reverted for US30 (see yahooSymbol.ts): the row's own label already
+   * said "CBOE Volatility Index", and `^VIX` IS that index. Nothing is being
+   * renamed into something it is not.
+   */
+  { sym:"^VIX",    name:"CBOE Volatility Index",   cat:"Index" },
   { sym:"UVXY",    name:"ProShares Ultra VIX",     cat:"ETFs" },
   { sym:"SVXY",    name:"ProShares Short VIX",     cat:"ETFs" },
   // ── Crypto ────────────────────────────────────────────
@@ -264,6 +308,36 @@ const ALL_SYMBOLS: SymbolEntry[] = [
   { sym:"USD/INR", name:"Dollar / Indian Rupee",    cat:"Forex" },
   { sym:"USD/KRW", name:"Dollar / South Korean Won",cat:"Forex" },
 ];
+
+/**
+ * This list was typed in a PLURAL vocabulary ("Stocks", "ETFs") while the class
+ * owner speaks a singular one ("Stock", "ETF"). Normalised here rather than
+ * edited across 236 rows, so the diff shows the RULE and not 236 near-identical
+ * line changes. Anything the owner does not recognise is passed through
+ * unchanged and reconciliation will treat it as an opinion, which is what it is.
+ */
+const CURATOR_VOCABULARY: Record<string, SearchCategory> = {
+  Stocks: "Stock",
+  ETFs: "ETF",
+  Futures: "Futures",
+  Crypto: "Crypto",
+  Forex: "Forex",
+  Index: "Index",
+};
+
+/**
+ * The catalogue the dropdown renders, with every badge answering to the class
+ * owner. MEASURED corrections this produces on the rows above:
+ *   VX1!  Futures → Index   (this app charts `^VIX`, the cash index)
+ *   VIX   ETFs    → Index   (it is an index, not a fund)
+ * `SPY`, `QQQ` and the rest of the fund wrappers KEEP their curator badge —
+ * the owner sees EQUITY there and cannot see a fund wrapper, so that is the
+ * one refinement a curator is permitted.
+ */
+const ALL_SYMBOLS: SymbolEntry[] = RAW_CHART_SYMBOLS.map((s) => ({
+  ...s,
+  cat: reconcileSearchCategory(s.sym, CURATOR_VOCABULARY[s.cat] ?? null),
+}));
 
 /* ══════════════════════════════════════════════════════════════
    INDICATORS CATALOGUE  (300+)
@@ -480,11 +554,21 @@ interface ChartToolbarProps {
 const ALL_IND_CATS = Array.from(new Set(INDICATORS.map(i => i.cat)));
 const PINNED = ["Order Flow", "Volume", "Trend", "Momentum"];
 const IND_CATS = ["All", ...PINNED, ...ALL_IND_CATS.filter(c => !PINNED.includes(c))];
-const SYM_CATS = ["All", "Futures", "Stocks", "ETFs", "Crypto", "Forex"];
+/**
+ * The filter chips speak the CLASS OWNER's vocabulary, not a display one of
+ * their own. A chip that reads "Stocks" while the badge beside it reads "Stock"
+ * is two names for one category, and the filter compares them for equality —
+ * so a second vocabulary here is not cosmetic, it silently empties the list.
+ *
+ * `Index` is new. It is not a category anyone added on purpose; it is where
+ * `VIX` and `VX1!` belong and had nowhere to sit, which is exactly why they
+ * were wearing a fund badge and a futures badge respectively.
+ */
+const SYM_CATS = ["All", "Futures", "Stock", "ETF", "Index", "Crypto", "Forex"];
 
 const CAT_COLORS: Record<string, string> = {
-  Futures:"#F0B429", Stocks:"#8B95A5", ETFs:"#00D4AA",
-  Crypto:"#8B5CF6",  Forex:"#4FA3E0",
+  Futures:"#F0B429", Stock:"#8B95A5", ETF:"#00D4AA", Fund:"#00D4AA",
+  Crypto:"#8B5CF6",  Forex:"#4FA3E0", Index:"#E06C9F",
 };
 
 function SymbolRow({ s, symbol, onSelect }: { s: SymbolEntry; symbol: string; onSelect: () => void }) {
@@ -538,6 +622,10 @@ export function ChartToolbar({
   const [descOpen,       setDescOpen]      = useState<Set<string>>(new Set());
   const [liveSymbols,    setLiveSymbols]   = useState<SymbolEntry[]>([]);
   const [liveSearching,  setLiveSearching] = useState(false);
+  /** Why the worldwide half is empty, when it is empty for a reason other than
+   *  "no such ticker". An app failure must not be reported as a fact about the
+   *  market, and a partial list must not look like a complete one. */
+  const [liveFailure,    setLiveFailure]   = useState<string | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const symRef  = useRef<HTMLDivElement>(null);
@@ -545,31 +633,58 @@ export function ChartToolbar({
   const advancedRef = useRef<HTMLDivElement>(null);
   const symInputRef = useRef<HTMLInputElement>(null);
 
-  /* ── Finnhub live search (via server proxy to avoid CORS) ── */
-  const searchFinnhub = useCallback(async (q: string) => {
-    if (!q || q.length < 1) { setLiveSymbols([]); setLiveSearching(false); return; }
+  /**
+   * The WORLDWIDE half of this dropdown.
+   *
+   * ── Why it is no longer Finnhub (2026-09-11) ──────────────────────────────
+   *
+   * It called `/api/finnhub?type=search`, and MEASURED against the live host
+   * that route answers:
+   *
+   *   {"error":"FINNHUB_KEY is not set on the host runtime...",
+   *    "edge":"NOT CONFIGURED","missing":["FINNHUB_KEY"]}
+   *
+   * So the footer's promise — "search any symbol worldwide" — had been false in
+   * production for every query, and the `catch { }` below discarded the route's
+   * own sentence naming the exact missing variable. The trader saw four
+   * built-in rows and a footer telling them the world had been searched.
+   *
+   * `/api/symbol-search` needs no key: it prefers Polygon and falls back to
+   * Yahoo, which is keyless and reachable on any runtime. It also returns a
+   * category already reconciled against the class owner, which is why the
+   * private vendor-vocabulary ternary that used to live here is GONE rather
+   * than ported — re-deriving a badge a server already decided is how the two
+   * halves of a dropdown start disagreeing.
+   */
+  const searchWorldwide = useCallback(async (q: string) => {
+    if (!q || q.length < 1) { setLiveSymbols([]); setLiveFailure(null); setLiveSearching(false); return; }
     setLiveSearching(true);
     try {
-      const res = await fetch(`/api/finnhub?q=${encodeURIComponent(q)}&type=search`, { cache: "no-store" });
-      const json = await res.json();
-      // Normalize: proxy returns {results:[{sym,name,type,exchange}]}, direct returns {result:[...]}
-      const raw = json.results ?? json.result ?? [];
-      const results: SymbolEntry[] = raw.slice(0, 50).map((r: any) => ({
-        sym:  r.sym ?? r.symbol,
-        name: r.name ?? r.description,
-        cat:  r.type === "Crypto" ? "Crypto" : r.type === "Forex" ? "Forex" : r.type === "ETF" ? "ETFs" : "Stocks",
-      })).filter((r: SymbolEntry) => r.sym && r.name);
-      // Deduplicate against local results (local takes priority) AND within the
-      // Finnhub set itself — Finnhub returns the same symbol on multiple exchanges,
-      // which otherwise produces duplicate React keys + duplicate visible rows.
+      const res = await fetch(`/api/symbol-search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
+      const json = await res.json() as {
+        results?: { sym: string; label: string; cat: string }[];
+        error?: string;
+      };
+      if (json.error) { setLiveSymbols([]); setLiveFailure(json.error); return; }
+      const results: SymbolEntry[] = (json.results ?? [])
+        .slice(0, 50)
+        .map((r) => ({ sym: r.sym, name: r.label, cat: r.cat }))
+        .filter((r) => r.sym && r.name);
+      // Deduplicate against the built-in rows (they take priority) AND within
+      // the vendor set itself — vendors return the same symbol on multiple
+      // exchanges, which otherwise produces duplicate React keys and duplicate
+      // visible rows.
       const seen = new Set(ALL_SYMBOLS.map(s => s.sym));
-      const freshOnly = results.filter(r => {
+      setLiveSymbols(results.filter(r => {
         if (seen.has(r.sym)) return false;
         seen.add(r.sym);
         return true;
-      });
-      setLiveSymbols(freshOnly);
-    } catch { /* network error — silently fail */ }
+      }));
+      setLiveFailure(null);
+    } catch (err) {
+      setLiveSymbols([]);
+      setLiveFailure(`Worldwide search could not be reached (${String(err)}).`);
+    }
     finally { setLiveSearching(false); }
   }, []);
 
@@ -588,13 +703,13 @@ export function ChartToolbar({
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  /* ── Debounced Finnhub live search ─────────────────── */
+  /* ── Debounced worldwide search ─────────────────────── */
   useEffect(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    if (!symbolSearch) { setLiveSymbols([]); setLiveSearching(false); return; }
-    searchTimerRef.current = setTimeout(() => searchFinnhub(symbolSearch), 300);
+    if (!symbolSearch) { setLiveSymbols([]); setLiveFailure(null); setLiveSearching(false); return; }
+    searchTimerRef.current = setTimeout(() => searchWorldwide(symbolSearch), 300);
     return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
-  }, [symbolSearch, searchFinnhub]);
+  }, [symbolSearch, searchWorldwide]);
 
   /* ── Symbol filtering ───────────────────────────────── */
   const filteredSymbols = ALL_SYMBOLS.filter(s => {
@@ -657,7 +772,7 @@ export function ChartToolbar({
             onFocus={() => setSymbolOpen(true)}
             onKeyDown={e => {
               if (e.key === "Enter") {
-                // Priority: 1) local filtered list, 2) live Finnhub results, 3) raw typed symbol
+                // Priority: 1) built-in filtered list, 2) worldwide results, 3) raw typed symbol
                 const firstLocal = filteredSymbols[0];
                 const firstLive  = liveSymbols[0];
                 const typed      = symbolSearch.trim().toUpperCase();
@@ -736,10 +851,26 @@ export function ChartToolbar({
                   <span className="text-[11px] text-wm-text-dim">Searching all global markets…</span>
                 </div>
               )}
+              {/* A failure to ASK is reported even when built-in rows matched,
+                  because otherwise a partial list looks like a complete one. */}
+              {liveFailure && !liveSearching && (
+                <div className="px-3 py-2 border-b border-wm-border/60 text-[11px] leading-relaxed" style={{ color:"#F0B429" }}>
+                  Worldwide search unavailable — showing built-in symbols only. {liveFailure}
+                </div>
+              )}
               {filteredSymbols.length === 0 && liveSymbols.length === 0 && !liveSearching ? (
                 <div className="px-4 py-8 text-center">
-                  <div className="text-wm-text-muted text-xs">No results for &ldquo;{symbolSearch}&rdquo;</div>
-                  <div className="text-wm-text-dim text-[12px] mt-1">Searching global markets…</div>
+                  {/* Two different sentences, because the trader's next move
+                      after them is different. "No results" is a claim about the
+                      MARKET; it may only be made when the market was asked. */}
+                  <div className="text-wm-text-muted text-xs">
+                    {liveFailure
+                      ? <>No built-in symbol matches &ldquo;{symbolSearch}&rdquo;</>
+                      : <>No results for &ldquo;{symbolSearch}&rdquo;</>}
+                  </div>
+                  {!liveFailure && (
+                    <div className="text-wm-text-dim text-[12px] mt-1">Global markets searched.</div>
+                  )}
                 </div>
               ) : (
                 <>
@@ -765,7 +896,12 @@ export function ChartToolbar({
             {/* footer */}
             <div className="px-3 py-1.5 border-t border-wm-border bg-wm-dark shrink-0 flex items-center justify-between">
               <span className="text-[11px] text-wm-text-dim">
-                {filteredSymbols.length + liveSymbols.length} results · search any symbol worldwide
+                {/* The reach claim is CONDITIONAL. "search any symbol
+                    worldwide" was printed unconditionally while the vendor
+                    behind it answered NOT CONFIGURED on every query. */}
+                {filteredSymbols.length + liveSymbols.length} results · {liveFailure
+                  ? "built-in list only"
+                  : "search any symbol worldwide"}
               </span>
               <span className="text-[11px] text-wm-text-dim">↵ to select first result</span>
             </div>
