@@ -37,7 +37,19 @@ export async function GET(request: Request) {
   // The predicate now has ONE owner and every route reads it.
   const unsupported = unsupportedAssetClassReason(symbol);
   if (unsupported !== null) {
-    return NextResponse.json({ symbol, price: null, error: unsupported });
+    // `edge` and `source` are the envelope, not decoration. Consumers across the
+    // product branch on `edge` and render it as the chip beside the sentence
+    // (OptionsChain: `<strong>{error.edge}</strong> · {error.message}`), and
+    // `optionsChainRead` dispatches on exact edge strings.
+    //
+    // MEASURED on prod 2026-09-12, from the Founder's own session: ^GSPC and
+    // BTC.COINBASE came back carrying `edge: "NOT CARRIED HERE"`, while NQ=F and
+    // EURUSD=X — futures and forex, the two classes this predicate was BUILT for
+    // — came back with no `edge` at all. So the one branch that coined the phrase
+    // was the only branch that did not say it in machine-readable form, and a
+    // consumer showing the chip rendered `undefined` next to a correct sentence.
+    // The prose was right the whole time, which is what kept it invisible.
+    return NextResponse.json({ symbol, price: null, edge: "NOT CARRIED HERE", error: unsupported, source: "finnhub" });
   }
 
   // Which string Finnhub is asked for is owned by `toFinnhubSym`, not by this

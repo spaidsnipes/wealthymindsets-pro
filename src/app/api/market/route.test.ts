@@ -130,6 +130,71 @@ describe("a refusal names which kind of absence it is", () => {
   });
 });
 
+/**
+ * THE ENVELOPE IS PART OF THE ANSWER.
+ *
+ * `edge` is not decoration. Consumers across the product branch on it and
+ * render it as the chip beside the sentence — `OptionsChain` prints
+ * `<strong>{error.edge}</strong> · {error.message}`, and `optionsChainRead`
+ * dispatches on exact edge strings.
+ *
+ * MEASURED on prod 2026-09-12 from the Founder's own authenticated session:
+ *
+ *   ^GSPC         404  edge "NOT CARRIED HERE"
+ *   BTC.COINBASE  200  edge "NOT CARRIED HERE"
+ *   NQ=F          200  edge ABSENT
+ *   EURUSD=X      200  edge ABSENT
+ *
+ * Futures and forex are the two classes `unsupportedAssetClassReason` was built
+ * for, and theirs was the ONE branch that never said its own name in
+ * machine-readable form. A consumer showing the chip rendered `undefined` beside
+ * a perfectly correct sentence. The prose being right the whole time is exactly
+ * what kept it invisible — which is why this block asserts over EVERY priceless
+ * response rather than over a hand-picked example.
+ */
+describe("every priceless answer labels itself, not just the ones with prose", () => {
+  const PRICELESS = ["ES=F", "NQ=F", "EURUSD=X", "^GSPC", "BTC.COINBASE"];
+
+  it("no response with a null price omits its edge or its source", async () => {
+    fetchMock.mockResolvedValue(quoteResponse({ c: 0 }));
+    const unlabelled: string[] = [];
+    for (const symbol of PRICELESS) {
+      const { body } = await get(symbol);
+      expect(body.price).toBeNull();
+      if (typeof body.edge !== "string" || typeof body.source !== "string") {
+        unlabelled.push(`${symbol} (edge=${body.edge}, source=${body.source})`);
+      }
+    }
+    expect(
+      unlabelled,
+      `These answers carry a null price with no machine-readable label. A consumer ` +
+        `rendering the edge chip beside the sentence prints \`undefined\`:\n  ` +
+        unlabelled.join("\n  "),
+    ).toEqual([]);
+  });
+
+  it("the class refusal names the same absence the index refusal does", async () => {
+    // Not merely "some string". Futures and forex are the same KIND of absence
+    // as a cash index on this lane — the venue never carries the asset class —
+    // so they must carry the same word, or two surfaces will style one fact two
+    // ways and a reader will infer a distinction that does not exist.
+    for (const symbol of ["ES=F", "EURUSD=X"]) {
+      const { body } = await get(symbol);
+      expect(body.edge).toBe("NOT CARRIED HERE");
+      expect(body.source).toBe("finnhub");
+    }
+  });
+
+  it("an empty EQUITY quote is still the other kind, so the label discriminates", async () => {
+    // Vacuity guard on the block above: if everything were stamped
+    // "NOT CARRIED HERE" the first test would pass while the label carried no
+    // information at all.
+    fetchMock.mockResolvedValue(quoteResponse({ c: 0 }));
+    const { body } = await get("AAPL");
+    expect(body.edge).toBe("NO OBSERVATION");
+  });
+});
+
 describe("the private copy is gone, not merely unused", () => {
   it("this route holds no symbol table of its own", () => {
     // Comments are stripped first. The route's own docblock quotes the deleted
