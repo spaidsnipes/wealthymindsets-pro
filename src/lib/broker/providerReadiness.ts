@@ -149,8 +149,16 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     lane: "broker",
     required: ["ALPACA_KEY", "ALPACA_SECRET"],
     alternativeGroups: [["ALPACA_BROKERAGE_KEY", "ALPACA_BROKERAGE_KEY_SECRET_"]],
-    recommended: [],
-    note: "Live-account key/secret pair. The legacy Cloudflare ALPACA_BROKERAGE_KEY / ALPACA_BROKERAGE_KEY_SECRET_ pair is accepted as a COMPLETE alternative set (resolveAlpacaLiveCredentials) without exposing values; half of one pair plus half of the other authenticates nothing.",
+    // The Alpaca probe reads ALPACA_CANARY_SYMBOL exactly as its three sibling
+    // providers read theirs (providerProbeFleet.ts:107, alongside the MOOMOO /
+    // WEBULL / LONGBRIDGE canaries) — but only the siblings DECLARED it here.
+    // The omission was not a semantics decision; it made this table an
+    // incomplete account of what Alpaca reads, and anything deriving truth from
+    // the table inherited the hole. It is declared on the LIVE row and not the
+    // paper row because the probe authenticates with resolveAlpacaLiveCredentials:
+    // one read, one owner, so a missing canary is reported once rather than twice.
+    recommended: ["ALPACA_CANARY_SYMBOL"],
+    note: "Live-account key/secret pair. ALPACA_CANARY_SYMBOL names the symbol the market-data probe quotes to prove the lane is answering; absent, the probe falls back to TSLA, so it is recommended rather than required. The legacy Cloudflare ALPACA_BROKERAGE_KEY / ALPACA_BROKERAGE_KEY_SECRET_ pair is accepted as a COMPLETE alternative set (resolveAlpacaLiveCredentials) without exposing values; half of one pair plus half of the other authenticates nothing.",
   },
   {
     provider: "finnhub",

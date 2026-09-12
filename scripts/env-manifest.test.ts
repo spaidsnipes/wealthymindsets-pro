@@ -122,20 +122,28 @@ describe("env-manifest — canon §11.10 Environment Truth Law", () => {
    * reads. The program may say it cannot see the read. It may not say the
    * credential is dead.
    *
-   * KNOWN GAP, measured not assumed. Two REVIVE breaks were run against the
+   * REVIVE record, measured not assumed. Three breaks were run against the
    * scanner on 2026-09-12:
    *   · removing the suppression entirely → this test FAILED by name and
    *     listed 23 of the original 24 credentials. Protected.
    *   · narrowing the pattern back to quoted literals only, dropping the
    *     injected-`env` alias channel → this test PASSED while the CLI again
-   *     called the live `ALPACA_CANARY_SYMBOL` a retirement candidate. NOT
-   *     protected.
-   * Cause: `owned` is built from things the registry DECLARES, and
-   * `ALPACA_CANARY_SYMBOL` is read inline in providerProbeFleet.ts:107 while
-   * its three sibling canaries (MOOMOO / WEBULL / LONGBRIDGE) are declared in
-   * their providers' `recommended` lists. The durable fix is for the Alpaca
-   * rows to declare their canary too — a registry semantics change, left to
-   * the owner of that table rather than guessed at from here.
+   *     called the live `ALPACA_CANARY_SYMBOL` a retirement candidate. A
+   *     REAL GAP, and the shape of it was informative: `owned` is built from
+   *     what the registry DECLARES, and `ALPACA_CANARY_SYMBOL` was read
+   *     inline in providerProbeFleet.ts:107 while its three sibling canaries
+   *     (MOOMOO / WEBULL / LONGBRIDGE) were declared in their providers'
+   *     `recommended` lists. The hole was in the TABLE, not in this test.
+   *   · same break re-run after the `alpaca-live` row was made to declare its
+   *     canary → the CLI printed no retirement-candidates line at all.
+   *     CLOSED, and closed at the source: widening this Sentinel's pattern
+   *     would have hidden an incomplete registry instead of completing it.
+   *
+   * Note what this implies about the guard's reach. It protects exactly the
+   * names the registry declares, so an env var read inline by some future
+   * module with no row in PROVIDER_REQUIREMENTS is still outside it. That is
+   * a deliberate boundary, not an oversight: the remedy for such a name is to
+   * give it an owner in the table, which is the same remedy applied here.
    */
   it("never recommends retiring a name the provider registry or Worker manifest owns", () => {
     const m = buildManifest() as unknown as Manifest;
