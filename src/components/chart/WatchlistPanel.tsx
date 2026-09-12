@@ -7,12 +7,9 @@ import { fetchAlpacaQuoteBody, fetchFinnhubQuoteBody } from "@/lib/marketData/pr
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Plus, TrendingUp, TrendingDown, LayoutGrid, List } from "lucide-react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
-import { priceSourceBadge } from "@/lib/priceSource";
 import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
-import { provenSessionClosure } from "@/lib/marketData/canonicalIdentity";
-import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
+import { WatchlistRow } from "@/components/chart/WatchlistRow";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
-import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 
 /** The watchlist's poll cadence — and the interval its visibility handler tops up. */
@@ -61,7 +58,7 @@ function getSymName(sym: string): string {
 import { selectQuoteChange } from "@/lib/quoteChange";
 import { readSymbolList } from "@/lib/marketData/storedSymbolList";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
-import { changeWindowSuffix, coerceChangeWindow, describeChangeWindow, type ChangeWindow } from "@/lib/marketData/changeWindow";
+import { coerceChangeWindow, type ChangeWindow } from "@/lib/marketData/changeWindow";
 
 interface FinnhubQuote {
   price: number; change: number; changePct: number; changeObserved: boolean; changeWindow: ChangeWindow; src: string;
@@ -919,126 +916,24 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                 const fullName = getSymName(item.sym);
 
                 return (
-                  <div
+                  <WatchlistRow
                     key={item.sym}
-                    onClick={() => setActiveSymbol(item.sym)}
+                    sym={item.sym}
+                    fullName={fullName}
+                    price={item.price}
+                    changePct={item.changePct}
+                    changeObserved={item.changeObserved}
+                    changeWindow={item.changeWindow}
+                    src={item.src}
+                    refusal={item.refusal}
+                    isActive={isActive}
+                    up={up}
+                    dirColor={dirColor}
+                    dp={dp}
+                    sessionNow={sessionNow}
+                    onSelect={() => setActiveSymbol(item.sym)}
                     onContextMenu={e => { e.preventDefault(); setCtxMenu({ sym: item.sym, x: e.clientX, y: e.clientY }); }}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      padding: "5px 8px",
-                      cursor: "pointer",
-                      background: isActive ? "rgba(255,140,0,0.06)" : "transparent",
-                      borderBottom: "1px solid rgba(30,32,48,0.6)",
-                      borderLeft: isActive ? "2px solid #FF8C00" : "2px solid transparent",
-                      transition: "background 0.12s",
-                      gap: 4,
-                    }}
-                    onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.02)"; }}
-                    onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
-                  >
-                    {/* Left: ticker + full name */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{
-                        fontSize: 12, fontWeight: 700,
-                        color: isActive ? "#FF8C00" : "#E2E8F0",
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      }}>
-                        {item.sym}
-                      </div>
-                      <div style={{
-                        fontSize: 9, color: "#4A5070",
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                        marginTop: 1,
-                      }}>
-                        {fullName}
-                      </div>
-                    </div>
-
-                    {/* Price + % change stacked */}
-                    <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      {/* A refusal RETRACTS the price to 0, so gating this
-                          block on `price > 0` alone sent every refused row to
-                          the "quote pending" placeholder below — handing a
-                          designed refusal a transient state's vocabulary, the
-                          exact §8 failure this atom exists to remove. MEASURED
-                          in the running app: with /api/yahoo forced to
-                          resolution UNKNOWN, all four futures rows read
-                          "quote pending". The refused row has no price but it
-                          DOES have something to say, so it must enter here. */}
-                      {item.price > 0 || item.refusal ? (
-                        <>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
-                            {(() => {
-                              // SHIFT-R atom 5 — CanonicalFidelityBadge (compact
-                              // variant) — canon 7-question tooltip enrichment
-                              // arrives on every watchlist row for free.
-                              // Computed ONCE and shared: when the chip and its
-                              // own tooltip each derived closure separately, the
-                              // tooltip silently kept the pre-closure verdict.
-                              // One row, one fact — so one variable.
-                              const sessionOpen = sessionNow
-                                ? provenSessionClosure(item.sym, sessionNow)
-                                : null;
-                              const b = priceSourceBadge(
-                                item.src ?? "unavailable",
-                                item.price > 0,
-                                sessionOpen,
-                                {present: Number.isFinite(item.price) && item.price > 0},
-                              );
-                              const capabilityReport = selectPerCapabilityFidelity({
-                                source: item.src ?? "unavailable",
-                                connected: item.price > 0,
-                                hasCandles: false, // A quote is not an OHLCV bar receipt.
-                                quoteObservation: {present: Number.isFinite(item.price) && item.price > 0},
-                                sessionOpen,
-                              });
-                              return <CanonicalFidelityBadge badge={b} variant="compact" titleSuffix={`— ${item.sym}`} capabilityReport={capabilityReport} />;
-                            })()}
-                            <div
-                              style={{ fontSize: 11, color: item.refusal ? "#4A5070" : dirColor, fontFamily: "monospace", fontWeight: 600 }}
-                              title={item.refusal ? `${item.sym}: not certified — ${item.refusal}\n\nA provider answered and WM declined the answer. This is a refusal, not a delay.` : undefined}
-                            >
-                              {item.refusal ? "—" : item.price.toFixed(dp)}
-                            </div>
-                          </div>
-                          {item.changeObserved ? (
-                            // The suffix is EMPTY for PRIOR_CLOSE by design: a bare
-                            // percent on a trading screen already means "today, vs
-                            // the prior close". Only the deviation gets labelled —
-                            // crypto's rolling 24h figure, which answers a different
-                            // question than the equity row directly above it.
-                            <div
-                              style={{ fontSize: 9, color: dirColor, fontFamily: "monospace", display: "flex", alignItems: "baseline", justifyContent: "flex-end", gap: 3 }}
-                              title={`${item.sym}: ${describeChangeWindow(item.changeWindow)}`}
-                            >
-                              <span>{up ? "+" : ""}{item.changePct.toFixed(2)}%</span>
-                              {changeWindowSuffix(item.changeWindow) && (
-                                <span style={{ fontSize: 8, color: "#6B7194", fontWeight: 600, letterSpacing: 0.2 }}>
-                                  {changeWindowSuffix(item.changeWindow)}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            // §8 — "this feed returned a price but no session
-                            // change" is a true sentence about a DIFFERENT
-                            // fact. When WM refused the quote outright, the
-                            // row has no price either, and saying otherwise
-                            // gives a designed refusal a transient state's
-                            // vocabulary.
-                            <div style={{ fontSize: 9, color: "#4A5070", fontFamily: "monospace" }}
-                              title={item.refusal
-                                ? `${item.sym}: not certified — ${item.refusal}`
-                                : `${item.sym}: this feed returned a price but no session change.`}>
-                              {item.refusal ? "not certified" : "chg —"}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div style={{ fontSize: 9, color: "#4A5070", fontFamily: "monospace" }}>quote pending</div>
-                      )}
-                    </div>
-                  </div>
+                  />
                 );
               })}
             </div>

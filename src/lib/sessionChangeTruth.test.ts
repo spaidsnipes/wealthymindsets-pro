@@ -4,7 +4,17 @@ import path from "node:path";
 
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), "utf8");
 const tape = read("src/components/layout/TickerTape.tsx");
-const watch = read("src/components/chart/WatchlistPanel.tsx");
+/**
+ * THE WATCHLIST IS TWO FILES, NOT ONE. `WatchlistPanel` owns the fetch and the
+ * arithmetic; `WatchlistRow` owns the markup (split 2026-09-12 so the canon
+ * fidelity sentence could stop evicting the instrument name). A Sentinel that
+ * names one file asserts a fact about a location, not about the surface — and
+ * would have gone green the moment the render moved. It reads BOTH.
+ */
+const watch = [
+  read("src/components/chart/WatchlistPanel.tsx"),
+  read("src/components/chart/WatchlistRow.tsx"),
+].join("\n");
 
 /**
  * Session-change truth Sentinel — LIVING-PIXEL LAW.
@@ -44,7 +54,9 @@ describe("session change truth", () => {
   it("both render a dash instead of a fabricated flat session", () => {
     expect(tape).toContain("chgObserved ? (");
     expect(tape).toContain("chg —");
-    expect(watch).toContain("item.changeObserved ? (");
+    // The row receives the flag as a prop now, so the anchor is the branch
+    // itself rather than the object it used to hang off.
+    expect(watch).toContain("changeObserved ? (");
     expect(watch).toContain("chg —");
   });
 });

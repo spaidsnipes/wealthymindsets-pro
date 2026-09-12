@@ -114,7 +114,10 @@ describe("<CanonicalFidelityBadge> enforcement — canon §Single-Writer / Many-
     const expected = [
       "components/chart/ChartsDashboard.tsx",
       "components/layout/TickerTape.tsx",
-      "components/chart/WatchlistPanel.tsx",
+      // The watchlist's chip render moved out of the panel and into the row
+      // 2026-09-12, when the canon sentence was given its own line. The
+      // breadcrumb follows the RENDER, not the directory it used to sit in.
+      "components/chart/WatchlistRow.tsx",
       // SHIFT-T cutover 2026-08-29: MainChart's resolveChartSurfaceBadge
       // site now rendered by the primitive too — protects the migration
       // from silent revert.

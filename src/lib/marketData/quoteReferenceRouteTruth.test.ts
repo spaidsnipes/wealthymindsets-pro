@@ -153,7 +153,7 @@ describe("quote routes — reference truth at the source", () => {
   // a render. These now require a JSX TEXT position and an attribute position.
 
   /** The suffix sitting in JSX text: `>{changeWindowSuffix(...)}</`. */
-  const SUFFIX_RENDERED = />\s*\{\s*changeWindowSuffix\(item\.changeWindow\)\s*\}\s*<\//;
+  const SUFFIX_RENDERED = />\s*\{\s*changeWindowSuffix\((?:item\.)?changeWindow\)\s*\}\s*<\//;
   /**
    * The description inside a title/aria attribute, not merely computed.
    *
@@ -163,7 +163,7 @@ describe("quote routes — reference truth at the source", () => {
    * at the first one. That mistake made this control fail loudly, which is the
    * only reason it is not still sitting here matching nothing.
    */
-  const DESCRIPTION_EXPOSED = /(title|aria-label)=\{[\s\S]{0,120}?describeChangeWindow\(item\.changeWindow\)/;
+  const DESCRIPTION_EXPOSED = /(title|aria-label)=\{[\s\S]{0,120}?describeChangeWindow\((?:item\.)?changeWindow\)/;
 
   it("POSITIVE CONTROL: the render detectors match a correct render and reject a bare call", () => {
     expect(SUFFIX_RENDERED.test(`<span>{changeWindowSuffix(item.changeWindow)}</span>`)).toBe(true);
@@ -173,7 +173,11 @@ describe("quote routes — reference truth at the source", () => {
   });
 
   it("the watchlist RENDERS the measure it received — not merely computes it", () => {
-    const panel = readStripped("src/components/chart/WatchlistPanel.tsx");
+    // Panel + row: the watchlist surface is two files since 2026-09-12.
+    const panel = [
+      readStripped("src/components/chart/WatchlistPanel.tsx"),
+      readStripped("src/components/chart/WatchlistRow.tsx"),
+    ].join("\n");
     expect(panel.length).toBeGreaterThan(2000); // positive control on the read
     expect(
       SUFFIX_RENDERED.test(panel),

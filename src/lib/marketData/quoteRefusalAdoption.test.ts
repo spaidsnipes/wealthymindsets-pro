@@ -267,7 +267,14 @@ describe("chart quote — a refused price is retracted, not relabelled", () => {
 });
 
 describe("watchlist — a circular zero is not a quiet market", () => {
-  const WL = read("components/chart/WatchlistPanel.tsx");
+  // The watchlist surface is TWO files since 2026-09-12: the panel still owns
+  // the fetch, the gates and the cache; the row owns the markup. Reading only
+  // the panel would have turned every render assertion below green-by-absence
+  // the moment the JSX moved one directory over.
+  const WL = [
+    read("components/chart/WatchlistPanel.tsx"),
+    read("components/chart/WatchlistRow.tsx"),
+  ].join("\n");
 
   it("refuses on every Yahoo branch, not just the one that was easy", () => {
     // Three separate call sites read /api/yahoo here (crypto fallback,
@@ -312,8 +319,8 @@ describe("watchlist — a circular zero is not a quiet market", () => {
     // rows. The +0.00% was circular — /api/yahoo returned price === prevClose,
     // so selectQuoteChange computed prevClose − prevClose = 0 and reported it
     // as OBSERVED, with two decimals of false precision.
-    expect(WL).toMatch(/\{item\.refusal \? "—" : item\.price\.toFixed\(dp\)\}/);
-    expect(WL).toMatch(/\{item\.refusal \? "not certified" : "chg —"\}/);
+    expect(WL).toMatch(/\{refusal \? "—" : price\.toFixed\(dp\)\}/);
+    expect(WL).toMatch(/\{refusal \? "not certified" : "chg —"\}/);
   });
 
   it("the refusal copy is REACHABLE, not merely present in the file", () => {
@@ -327,13 +334,19 @@ describe("watchlist — a circular zero is not a quiet market", () => {
     //
     // Asserting a string EXISTS proves nothing about whether a user can ever
     // see it. The gate that admits the row is the real invariant.
-    const gate = WL.match(/\{item\.price > 0 \|\| item\.refusal \? \(/);
+    // The gate is now a NAMED binding in WatchlistRow rather than an inline
+    // JSX condition. That is a better shape — one definition of "this row has
+    // something to price" instead of a condition retyped at each use — but it
+    // means the invariant must be checked in two halves: the definition must
+    // include refusals, and the render must actually branch on it.
+    const gate = WL.match(/const priced = price > 0 \|\| !!refusal;/);
     expect(gate, "the price/change block must admit refused rows, which have no price")
       .not.toBeNull();
 
     // ...and the placeholder must remain the honest answer for its own case:
     // a row that genuinely has not been asked about yet.
-    const gateAt = WL.indexOf("{item.price > 0 || item.refusal ? (");
+    const gateAt = WL.indexOf("{priced ? (");
+    expect(gateAt, "the row must branch on the gate it defined").toBeGreaterThanOrEqual(0);
     const pendingAt = WL.indexOf("quote pending", gateAt);
     expect(pendingAt, "the pending placeholder should still exist for un-asked rows")
       .toBeGreaterThan(gateAt);
