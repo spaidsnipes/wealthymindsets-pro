@@ -311,7 +311,20 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
           title={loading
             ? "Checking options availability; delivery freshness and entitlement are not established."
             : hasAvailableData
-              ? `Alpaca indicative option snapshots received; provider observation ${receiptAge.label}. Indicative quotes are modified and trades are delayed; this is not an executable quote.`
+              // Names ENTITLEMENT as the reason, not just the consequence. The
+              // health-dimension canon forbids collapsing AVAILABLE and
+              // ENTITLED, and this surface was reporting a true consequence
+              // ("not executable") while leaving its cause unsaid — which reads
+              // as a limit of options data rather than a limit of this
+              // account's subscription. A trader who cannot tell those apart
+              // cannot tell what would change it.
+              // The closing sentence is asserted VERBATIM by
+              // optionsChainTruthSurface.test.ts. It is left byte-identical and
+              // the new clause is added BEFORE it: that Sentinel exists to stop
+              // a successful provider response being promoted to live fidelity,
+              // and relaxing its string to fit a rewording would have traded a
+              // real guard for a cosmetic one.
+              ? `Alpaca indicative option snapshots received; provider observation ${receiptAge.label}. INDICATIVE is an entitlement state, not a limit of options data: this account reads Alpaca's indicative feed, not the OPRA feed. Indicative quotes are modified and trades are delayed; this is not an executable quote.`
               : "Options contracts are unavailable."}
         >
           <span className={clsx("w-1.5 h-1.5 rounded-full", (loading || hasAvailableData) ? "bg-wm-gold" : "bg-wm-red")} aria-hidden="true" />

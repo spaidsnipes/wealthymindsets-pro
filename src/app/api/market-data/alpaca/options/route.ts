@@ -68,6 +68,23 @@ export async function GET(request: Request) {
   }
 
   const upstream = new URL(`/v1beta1/options/snapshots/${encodeURIComponent(symbol)}`, DATA_BASE);
+  // `indicative` is an ENTITLEMENT decision, not a default, and it is the
+  // reason the whole option surface is labelled INDICATIVE downstream.
+  //
+  // Measured, Garden Pass 2026-09-11 and recorded in lib/ops/healthDimensions:
+  // this account's Alpaca OPRA feed answers with an explicit subscription
+  // denial while `indicative` answers with fresh bid/ask. Same vendor,
+  // opposite entitlement — the canonical example of why AVAILABLE and ENTITLED
+  // may not collapse into one flag.
+  //
+  // So do not "upgrade" this to `opra` on the assumption it is strictly
+  // better. Without the subscription it returns 403, `upstreamEdge` reports
+  // REQUEST DENIED — correctly refusing to name entitlement as the failed edge
+  // when authorization, subscription and policy are indistinguishable at 403 —
+  // and the trader loses the chain with no statement of what happened. The
+  // change that makes `opra` correct is buying the entitlement, at which point
+  // OPTION_CHAIN_FIDELITY must change with it: that constant is a claim about
+  // THIS feed, and the two are one decision in two files.
   upstream.searchParams.set("feed", "indicative");
   upstream.searchParams.set("limit", "1000");
   const today = new Date();
