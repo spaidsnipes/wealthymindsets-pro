@@ -30,23 +30,18 @@ import {
 } from "@/lib/scannerFailureCache";
 import { scannerQuoteTruth, type ScannerQuoteQuality } from "@/lib/scannerQuoteTruth";
 
-type Signal =
-  | "momentum-long"  | "momentum-short"
-  | "breakout-bull"  | "breakout-bear"
-  | "volume-surge"   | "dark-pool"
-  | "vwap-reclaim"   | "gap-fill"
-  | "wyckoff-accum"  | "wyckoff-dist"
-  | "cvd-div-bull"   | "cvd-div-bear"
-  | "options-flow"   | "earnings-play"
-  | "fib-bounce"     | "supply-reject";
-
-type AlertStrength = "A+" | "A" | "B" | "C";
+import { classifyScan, type AlertStrength, type Signal } from "@/lib/scannerSignalEvidence";
 
 interface ScanResult {
   id: string; symbol: string; name: string;
-  price: number; change: number; changePct: number;
-  volume: number; volRatio: number;
-  signal: Signal; strength: AlertStrength;
+  price: number;
+  /** Null when the provider did not send it. A zero here would be a claim. */
+  change: number | null; changePct: number | null;
+  volume: number | null; volRatio: number | null;
+  /** Null when the row could not be honestly classified. */
+  signal: Signal | null; strength: AlertStrength | null;
+  /** True when a required input was absent; `unratedReason` names which. */
+  unrated: boolean; unratedReason: string;
   rsi: number | null; sector: string; float: string; mktcap: string;
   time: number; starred: boolean; alerted: boolean;
   rsiFailure: RsiFailure | null;
@@ -112,26 +107,10 @@ const SYM_SECTOR: Record<string,string> = {
   "NQ1!":"Futures","ES1!":"Futures",
 };
 
-// Compute a signal from real quote data
-function signalFromQuote(changePct: number, volRatio: number, rsi: number | null): Signal {
-  if (changePct > 3  && volRatio > 3) return "breakout-bull";
-  if (changePct < -3 && volRatio > 3) return "breakout-bear";
-  if (changePct > 1.5 && volRatio > 2) return "momentum-long";
-  if (changePct < -1.5 && volRatio > 2) return "momentum-short";
-  if (volRatio > 5) return "volume-surge";
-  if (rsi != null && rsi < 35) return "fib-bounce";
-  if (rsi != null && rsi > 70) return "supply-reject";
-  if (changePct > 0.5) return "vwap-reclaim";
-  return "gap-fill";
-}
-
-function strengthFromData(changePct: number, volRatio: number): AlertStrength {
-  const score = Math.abs(changePct) * 0.5 + volRatio * 0.3;
-  if (score > 5)  return "A+";
-  if (score > 3)  return "A";
-  if (score > 1.5) return "B";
-  return "C";
-}
+// The signal ladder and the strength bucket both live in
+// `@/lib/scannerSignalEvidence` now. They were duplicated here, and this copy
+// could only be called with numbers, which is why the row builder below used
+// to invent zeros in order to have something to pass.
 
 // Fetch real quotes from Finnhub for scanner symbols (stocks only)
 const SCANNER_STOCKS = SYMS.filter(([s]) => !isUnsupportedByEquityVendors(s)).map(([s]) => s);
@@ -308,26 +287,34 @@ function buildResults(
     const realPrice = q?.price ?? old?.price;
     if (realPrice == null || realPrice <= 0) return null;
     const price     = realPrice;
-    const change    = q?.change    ?? old?.change    ?? 0;
-    const changePct = q?.changePct ?? old?.changePct ?? 0;
-    const volume    = q?.volume    ?? old?.volume    ?? 0;
-    const avgVol    = q?.avgVolume ?? 0;
-    const volRatio  = avgVol > 0 ? +(volume / avgVol).toFixed(1) : 0;
+    // An absent reading stays absent. It used to become 0, which the signal
+    // ladder read as a flat market and graded "Gap Fill / C".
+    const change    = q?.change    ?? old?.change    ?? null;
+    const changePct = q?.changePct ?? old?.changePct ?? null;
+    const volume    = q?.volume    ?? old?.volume    ?? null;
+    const avgVol    = q?.avgVolume ?? null;
+    const volRatio  =
+      volume != null && avgVol != null && avgVol > 0
+        ? +(volume / avgVol).toFixed(1)
+        : null;
     // Real RSI from Finnhub indicator API; fall back to old cached value if available
     const rsi = q?.rsi ?? old?.rsi ?? null;
     const quoteReceivedAt = q?.receivedAt ?? old?.quoteReceivedAt ?? 0;
     const quoteTruth = scannerQuoteTruth({ receivedAt: quoteReceivedAt, reusedPrevious: !q });
+    const cls = classifyScan({ changePct, volRatio, rsi });
     return {
       id:        sym + "-" + i,
       symbol:    sym,
       name,
       price:     +price.toFixed(2),
-      change:    +change.toFixed(2),
-      changePct: +changePct.toFixed(2),
+      change:    change    == null ? null : +change.toFixed(2),
+      changePct: changePct == null ? null : +changePct.toFixed(2),
       volume,
-      volRatio:  Math.max(0.1, volRatio),
-      signal:    signalFromQuote(changePct, volRatio, rsi),
-      strength:  strengthFromData(changePct, volRatio),
+      volRatio,
+      signal:    cls.signal,
+      strength:  cls.strength,
+      unrated:   cls.unrated,
+      unratedReason: cls.reason,
       rsi,
       rsiFailure: q ? q.rsiFailure : old?.rsiFailure ?? null,
       quoteQuality: quoteTruth.quality,
@@ -352,7 +339,19 @@ const PRESETS = [
   { id:"all",      label:"📋 All",           sigs:SIGNALS },
 ];
 
-function ChangeMeter({ changePct }: { changePct: number }) {
+function ChangeMeter({ changePct }: { changePct: number | null }) {
+  // An unmeasured move is not a move of zero. A zero-width bar centred on the
+  // midline reads as "flat", so the meter renders an empty track instead.
+  if (changePct == null) {
+    return (
+      <div
+        className="relative h-3 w-[86px] rounded-full bg-wm-surface overflow-hidden opacity-40"
+        title="Percent change unavailable — this meter has nothing to show"
+      >
+        <div className="absolute left-1/2 inset-y-0 w-px bg-wm-border" />
+      </div>
+    );
+  }
   const magnitude = Math.min(100, Math.abs(changePct) * 18);
   const up = changePct >= 0;
   return (
@@ -501,18 +500,38 @@ export default function ScannerPage() {
     else { setSortKey(key); setSortDir("desc"); }
   };
 
+  // An UNRATED row cannot be tested against a signal or a threshold — the
+  // provider never sent the inputs those filters read. Silently dropping it
+  // would hide a real symbol at a real price; silently keeping it under a
+  // narrowed filter would claim it matched. So it survives the default view
+  // (where the trader has narrowed nothing) and is excluded only once the
+  // trader deliberately asks for a subset it cannot be shown to belong to.
+  const signalFilterNarrowed = activeSignals.length < SIGNALS.length;
+  const thresholdNarrowed = minVol > 0 || minPct > 0;
+  const unratedHidden = signalFilterNarrowed || thresholdNarrowed;
+
   const filtered = results
     .filter(r =>
       (!search || r.symbol.toLowerCase().includes(search.toLowerCase()) || r.name.toLowerCase().includes(search.toLowerCase())) &&
-      activeSignals.includes(r.signal) &&
-      r.volRatio >= minVol &&
-      Math.abs(r.changePct) >= minPct &&
+      (r.unrated
+        ? !unratedHidden
+        : activeSignals.includes(r.signal as Signal) &&
+          (r.volRatio ?? 0) >= minVol &&
+          Math.abs(r.changePct ?? 0) >= minPct) &&
       (selSectors.length === 0 || selSectors.includes(r.sector))
     )
     .sort((a, b) => {
       const ord = {"A+":4,"A":3,"B":2,"C":1};
-      const av = sortKey === "strength" ? ord[a.strength] : ((a as unknown as Record<string,number|null>)[sortKey] ?? -1);
-      const bv = sortKey === "strength" ? ord[b.strength] : ((b as unknown as Record<string,number|null>)[sortKey] ?? -1);
+      // An unrated row has no grade and no measured value. It sorts LAST in
+      // either direction rather than pretending to be a zero or a minimum.
+      const rank = (r: ScanResult) =>
+        sortKey === "strength"
+          ? (r.strength == null ? null : ord[r.strength])
+          : ((r as unknown as Record<string, number | null | undefined>)[sortKey] ?? null);
+      const av = rank(a), bv = rank(b);
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
       return sortDir === "desc" ? bv - av : av - bv;
     });
 
@@ -520,8 +539,12 @@ export default function ScannerPage() {
     .flatMap(row => row.rsiFailure ? [row.rsiFailure.identity] : [])
     .sort(compareScannerRsiIdentity);
 
-  const bullCount = filtered.filter(r => r.changePct > 0).length;
-  const bearCount = filtered.filter(r => r.changePct < 0).length;
+  // Counted over OBSERVED changes only. A row whose change was never sent is
+  // neither bullish nor bearish, and counting it as either would be inventing
+  // a direction out of a gap in the data.
+  const bullCount = filtered.filter(r => r.changePct != null && r.changePct > 0).length;
+  const bearCount = filtered.filter(r => r.changePct != null && r.changePct < 0).length;
+  const unratedCount = filtered.filter(r => r.unrated).length;
 
   const SortIcon = ({ k }: { k: SortKey }) =>
     sortKey === k
@@ -540,10 +563,20 @@ export default function ScannerPage() {
         <div className="wm-scanner-stats flex items-center gap-3 ml-2">
           <div className="flex items-center gap-1.5 text-[10px]">
             <span className="w-2 h-2 rounded-full bg-wm-gold"/>
-            <span className="text-wm-text-muted">{filtered.length} delayed-quote signals</span>
+            {/* An unrated row is a row, not a signal. It is counted apart so
+                the headline number never absorbs rows nothing was read for. */}
+            <span className="text-wm-text-muted">{filtered.length - unratedCount} delayed-quote signals</span>
           </div>
           <span className="wm-scanner-breadth text-[10px] text-wm-green font-bold">{bullCount}▲</span>
           <span className="wm-scanner-breadth text-[10px] text-wm-red font-bold">{bearCount}▼</span>
+          {unratedCount > 0 && (
+            <span
+              className="wm-scanner-breadth text-[10px] text-wm-text-dim font-bold"
+              title="Symbols showing a real price whose percent change or volume the provider did not send. They are listed, but not classified or graded."
+            >
+              {unratedCount} unrated
+            </span>
+          )}
         </div>
         <div className="wm-scanner-presets flex items-center gap-1 ml-2 overflow-x-auto" style={{ scrollbarWidth:"none" }}>
           {PRESETS.map(p => (
@@ -687,8 +720,8 @@ export default function ScannerPage() {
               </div>
             )}
             {filtered.map((r, idx) => {
-              const meta = SIGNAL_META[r.signal];
-              const up   = r.changePct >= 0;
+              const meta = r.signal ? SIGNAL_META[r.signal] : null;
+              const up   = r.changePct != null && r.changePct >= 0;
               const isSel = selected?.id === r.id;
               const rsiIdentity = r.rsiFailure?.identity ?? scannerRsiIdentity(r.symbol);
               const rsiIdentityKey = scannerRsiIdentityKey(rsiIdentity);
@@ -731,21 +764,33 @@ export default function ScannerPage() {
                     </span>
                   </div>
                   <div className="px-2">
-                    <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded"
-                      style={{ background:`${meta.color}18`,color:meta.color }}>
-                      {meta.icon} {meta.label}
-                    </span>
+                    {meta ? (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded"
+                        style={{ background:`${meta.color}18`,color:meta.color }}>
+                        {meta.icon} {meta.label}
+                      </span>
+                    ) : (
+                      <span
+                        className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded border border-wm-border text-wm-text-dim"
+                        title={r.unratedReason}
+                      >
+                        — Unrated
+                      </span>
+                    )}
                   </div>
                   <div className="px-2 text-xs font-mono font-bold text-wm-text">
                     ${r.price.toLocaleString("en-US",{minimumFractionDigits:2})}
                   </div>
-                  <div className={clsx("px-2 text-xs font-mono font-bold",up?"text-wm-green":"text-wm-red")}>
-                    {up?"+":""}{r.changePct.toFixed(2)}%
+                  <div className={clsx("px-2 text-xs font-mono font-bold",
+                    r.changePct==null?"text-wm-text-dim":up?"text-wm-green":"text-wm-red")}
+                    title={r.changePct==null?"Percent change unavailable":undefined}>
+                    {r.changePct==null ? "—" : `${up?"+":""}${r.changePct.toFixed(2)}%`}
                   </div>
                   <div className="px-2">
                     <span className={clsx("text-[10px] font-mono font-bold",
-                      r.volRatio>=4?"text-wm-gold":r.volRatio>=2?"text-wm-blue":"text-wm-text-muted")}>
-                      {r.volRatio}×
+                      r.volRatio==null?"text-wm-text-dim":r.volRatio>=4?"text-wm-gold":r.volRatio>=2?"text-wm-blue":"text-wm-text-muted")}
+                      title={r.volRatio==null?"Volume ratio unavailable":undefined}>
+                      {r.volRatio==null ? "—" : `${r.volRatio}×`}
                     </span>
                   </div>
                   <div className="px-2">
@@ -797,11 +842,21 @@ export default function ScannerPage() {
                     )}
                   </div>
                   <div className="px-2">
-                    <span className="text-[10px] font-black px-1.5 py-0.5 rounded"
-                      title={strengthDisclosure(r.changePct, r.volRatio)}
-                      style={{ background:`${STRENGTH_COLOR[r.strength]}22`,color:STRENGTH_COLOR[r.strength] }}>
-                      {r.strength}
-                    </span>
+                    {/* The disclosure sentence says "from observed data only".
+                        On an unrated row that sentence would be the lie, so
+                        the row states what was missing instead. */}
+                    {r.strength == null ? (
+                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded text-wm-text-dim"
+                        title={r.unratedReason}>
+                        —
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded"
+                        title={strengthDisclosure(r.changePct as number, r.volRatio as number)}
+                        style={{ background:`${STRENGTH_COLOR[r.strength]}22`,color:STRENGTH_COLOR[r.strength] }}>
+                        {r.strength}
+                      </span>
+                    )}
                   </div>
                   <div className="px-2 text-[9px] text-wm-text-dim truncate">{r.sector}</div>
                   <div className="px-1"><ChangeMeter changePct={r.changePct}/></div>
@@ -862,31 +917,44 @@ export default function ScannerPage() {
                   <div className="text-xl font-black text-wm-text">
                     ${selected.price.toLocaleString("en-US",{minimumFractionDigits:2})}
                   </div>
-                  <div className={clsx("text-sm font-bold mt-0.5",selected.changePct>=0?"text-wm-green":"text-wm-red")}>
-                    {selected.changePct>=0?"+":""}{selected.changePct.toFixed(2)}%
+                  <div className={clsx("text-sm font-bold mt-0.5",
+                    selected.changePct==null?"text-wm-text-dim":selected.changePct>=0?"text-wm-green":"text-wm-red")}
+                    title={selected.changePct==null?"Percent change unavailable":undefined}>
+                    {selected.changePct==null
+                      ? "—"
+                      : `${selected.changePct>=0?"+":""}${selected.changePct.toFixed(2)}%`}
                   </div>
                   <div className="mt-3"><ChangeMeter changePct={selected.changePct}/></div>
                 </div>
-                <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
-                  style={{ background:`${SIGNAL_META[selected.signal].color}12`,
-                           border:`1px solid ${SIGNAL_META[selected.signal].color}30` }}>
-                  <span className="text-base">{SIGNAL_META[selected.signal].icon}</span>
-                  <span className="text-xs font-bold" style={{ color:SIGNAL_META[selected.signal].color }}>
-                    {SIGNAL_META[selected.signal].label}
-                  </span>
-                  <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 rounded"
-                    title={strengthDisclosure(selected.changePct, selected.volRatio)}
-                    style={{ background:`${STRENGTH_COLOR[selected.strength]}22`,color:STRENGTH_COLOR[selected.strength] }}>
-                    {selected.strength}
-                  </span>
-                </div>
+                {selected.signal == null || selected.strength == null ? (
+                  <div className="px-2 py-1.5 rounded-lg border border-wm-border bg-wm-surface/30">
+                    <div className="text-[10px] font-black tracking-wide text-wm-text-dim">UNRATED</div>
+                    <div className="mt-1 text-[10px] leading-snug text-wm-text-muted">
+                      {selected.unratedReason}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
+                    style={{ background:`${SIGNAL_META[selected.signal].color}12`,
+                             border:`1px solid ${SIGNAL_META[selected.signal].color}30` }}>
+                    <span className="text-base">{SIGNAL_META[selected.signal].icon}</span>
+                    <span className="text-xs font-bold" style={{ color:SIGNAL_META[selected.signal].color }}>
+                      {SIGNAL_META[selected.signal].label}
+                    </span>
+                    <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 rounded"
+                      title={strengthDisclosure(selected.changePct as number, selected.volRatio as number)}
+                      style={{ background:`${STRENGTH_COLOR[selected.strength]}22`,color:STRENGTH_COLOR[selected.strength] }}>
+                      {selected.strength}
+                    </span>
+                  </div>
+                )}
                 {[
-                  {l:"Vol Ratio",v:`${selected.volRatio}×`,c:selected.volRatio>=3?"#F0B429":"#94A3B8"},
+                  {l:"Vol Ratio",v:selected.volRatio==null?"—":`${selected.volRatio}×`,c:selected.volRatio==null?"#64748B":selected.volRatio>=3?"#F0B429":"#94A3B8"},
                   {l:"RSI",      v:selected.rsi==null?"—":String(selected.rsi),   c:selected.rsi==null?"#64748B":selected.rsi>=70?"#FF4D6A":selected.rsi<=30?"#00D4AA":"#94A3B8"},
                   {l:"Sector",   v:selected.sector,        c:"#94A3B8"},
                   {l:"Mkt Cap",  v:selected.mktcap,        c:"#94A3B8"},
                   {l:"Float",    v:selected.float,         c:"#94A3B8"},
-                  {l:"Volume",   v:(selected.volume/1e6).toFixed(1)+"M",c:"#94A3B8"},
+                  {l:"Volume",   v:selected.volume==null?"—":(selected.volume/1e6).toFixed(1)+"M",c:selected.volume==null?"#64748B":"#94A3B8"},
                 ].map(({l,v,c})=>(
                   <div key={l} className="flex justify-between items-center py-1 border-b border-wm-border/30">
                     <span className="text-[10px] text-wm-text-dim">{l}</span>
