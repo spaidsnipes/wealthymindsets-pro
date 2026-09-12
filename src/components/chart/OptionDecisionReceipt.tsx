@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { projectDecision, type DecisionProjection } from "@/lib/traderMemory/projectDecision";
+import { splitRecordedIntent } from "@/lib/traderMemory/splitRecordedIntent";
 
 /** Read-only projection of the existing account authority, never a local book. */
 export function OptionDecisionReceipt({ decisionId, ownerId }: { decisionId: string; ownerId: string }) {
@@ -47,6 +48,33 @@ export function OptionDecisionReceipt({ decisionId, ownerId }: { decisionId: str
 const unavailable: DecisionProjection = { status: "UNVERIFIED", position: null,
   note: "Could not confirm the account record. Retry this same decision; no order was sent." };
 
+/**
+ * ONE RECORD, ONE IDENTITY, READ THREE WAYS.
+ *
+ * The decision is stored as a single sentence under a single DECISION_ID, and
+ * that does not change here. What changes is the reading: the trader's own
+ * thesis is the only part of that sentence nobody else could have written, and
+ * it used to sit mid-paragraph in a provenance dump, typographically identical
+ * to an OSI symbol and a rights-policy id. A record you cannot find your own
+ * reasoning in is an audit log, not a memory.
+ *
+ * When the split fails the whole record is shown unchanged. Labelling a
+ * machine's provenance "your reasoning" would be worse than showing a blob,
+ * because the trader would believe the label.
+ */
+function RecordedIntent({ intent }: { intent: string | null }) {
+  if (intent === null) return <p className="mt-2">No intent observed.</p>;
+  const parts = splitRecordedIntent(intent);
+  if (!parts.parsed) return <p className="mt-2 whitespace-pre-wrap break-words">{parts.raw}</p>;
+  return <div className="mt-2">
+    <p className="text-wm-text-muted">{parts.contract}</p>
+    <p className="mt-2 text-wm-text-muted">Your thesis</p>
+    <p className="whitespace-pre-wrap break-words text-wm-gold">{parts.thesis}</p>
+    <p className="mt-2 text-wm-text-muted">Attached evidence at the time of recording</p>
+    <p className="whitespace-pre-wrap break-words">{parts.provenance}</p>
+  </div>;
+}
+
 export function OptionDecisionReceiptAnswer({ answer }: { answer: DecisionProjection | null }) {
   if (!answer) return null;
   const position = answer.status === "PROJECTED" ? answer.position : null;
@@ -63,7 +91,7 @@ export function OptionDecisionReceiptAnswer({ answer }: { answer: DecisionProjec
       <p className="mt-2 text-wm-text-muted">Readback only. This does not certify a live position or current protection.</p>
       <details className="mt-3"><summary className="cursor-pointer py-2">Recorded intent and identity</summary>
         <p className="break-all">{position.decisionId} · revision {position.reconVersion}</p>
-        <p className="mt-2 whitespace-pre-wrap break-words">{position.intent ?? "No intent observed."}</p>
+        <RecordedIntent intent={position.intent} />
       </details>
     </>}
   </div>;
