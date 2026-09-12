@@ -129,6 +129,10 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "OPS_TOOLING",
     note: "Executable owner of the canon's NO-ESCAPE VISUAL VERIFICATION BREAKER — it judges whether a BUILDER'S green claim is admissible, not whether a trader's scene is. Its audience is CI and the person writing the receipt. A screen would be the wrong place for it: the one party it must be able to refuse is the party operating the app.",
   },
+  "src/lib/ops/healthDimensions.ts": {
+    reason: "AWAITING_SURFACE",
+    note: "Executable owner of the Garden Pass health-dimension Sentinel — AVAILABLE / ENTITLED / FRESH / AUTHORIZED / EXECUTABLE / RECOVERABLE may not collapse into one green flag. Unlike visualReceipt this one IS eventually a trader-facing concern: a provider health matrix is exactly the thing a human should be able to read instead of a colour. It is ledgered rather than wired because the surface that would render it does not exist yet, and inventing a badge purely to satisfy this guard would be building the screen for the test rather than for the trader. Honest state: the owner exists, the surface is owed.",
+  },
   "src/lib/decisionMemory.ts": {
     reason: "AWAITING_SURFACE",
     note: "§13: 'Decision Memory sealing has zero production callers.' Confirmed. useDecisionMemory reaches screens; the sealing module underneath does not.",
