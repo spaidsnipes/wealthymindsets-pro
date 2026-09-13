@@ -817,27 +817,14 @@ function CommandDeckInner() {
                 canonical scene but does not itself mint decisions (permission
                 crossings are birthed on /charts today). Absence is a sentence,
                 never a fabricated id. */}
-            <DecisionSpineBand
-              decisionId={currentSceneDecision?.decisionId ?? null}
-              decisionIdAbsence={sceneDecisionAbsence}
-              market={{
-                symbol,
-                timeframe,
-                quality: state?.qualityState ?? null,
-                capturedAt: state?.capturedAt ?? null,
-                last: state?.price?.last ?? null,
-              }}
-              oneStory={oneStory}
-              availableR={chainVm?.availableR ?? null}
-              decisionWhy={decisionWhy}
-              expression={selectedExpressionLabel}
-              onOpenWhy={() => openWhy({ kind: "hero" })}
-            />
-
-            {/* Ticket T's actual MARKET / RISK / NEXT working surface belongs
-                on the default Founder scene. It must not sit inside the
-                collapsed proof drawer: the spine summarizes these owners;
-                this surface lets the trader inspect them. */}
+            {/* Founder brief 2026-09-13: "MARKET IS THE ROOM. Not a
+                little chart card inside a dashboard." Before this
+                reorder, the six-column SpineBand summary sat above the
+                chart; blur-test at 1440x723 landed on a card grid
+                (DECISION / NOW / MARKET / RISK / WHY / NEXT text
+                columns) BEFORE the candle geometry. The chart is now
+                first — the SpineBand is the compiled summary that
+                supports the room, not the other way around. */}
             <div
               className="wm-cd-market-workspace"
               aria-label="Market, risk, and next workspace"
@@ -887,6 +874,27 @@ function CommandDeckInner() {
                 )}
               </aside>
             </div>
+
+            {/* SpineBand — the compiled six-column summary (NOW / MARKET
+                / RISK / WHY / NEXT + DECISION) sits BELOW the chart. It
+                is the SUPPORT layer for the room; MARKET is the room
+                itself. Reordering per Founder audit 2026-09-13. */}
+            <DecisionSpineBand
+              decisionId={currentSceneDecision?.decisionId ?? null}
+              decisionIdAbsence={sceneDecisionAbsence}
+              market={{
+                symbol,
+                timeframe,
+                quality: state?.qualityState ?? null,
+                capturedAt: state?.capturedAt ?? null,
+                last: state?.price?.last ?? null,
+              }}
+              oneStory={oneStory}
+              availableR={chainVm?.availableR ?? null}
+              decisionWhy={decisionWhy}
+              expression={selectedExpressionLabel}
+              onOpenWhy={() => openWhy({ kind: "hero" })}
+            />
 
             {/* Today's morning-prep intention (if any) — the PREP→OBSERVE
                 bridge from Founder Aug-14 §14 'Morning Prep intention

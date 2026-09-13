@@ -25,6 +25,20 @@ describe("the deck mounts DecisionSpineBand on the primary Founder scene", () =>
     expect(src).toContain('import DecisionSpineBand from "@/components/experience/DecisionSpineBand";');
   });
 
+  it("sits BELOW the MARKET chart — MARKET is the room, spine is support", () => {
+    // Founder brief 2026-09-13: "MARKET IS THE ROOM. Not a little chart
+    // card inside a dashboard." Before this ordering was fenced, the
+    // SpineBand's six-column summary sat ABOVE the chart; blur-test at
+    // 1440x723 landed on a card grid before candle geometry. The chart
+    // is the room; the spine is the compiled summary that supports it.
+    const src = DECK();
+    const bandIdx = src.indexOf("<DecisionSpineBand");
+    const chartIdx = src.indexOf("<DeckMarketChart");
+    expect(chartIdx, "DeckMarketChart missing").toBeGreaterThan(0);
+    expect(bandIdx, "DecisionSpineBand missing").toBeGreaterThan(0);
+    expect(chartIdx, "SpineBand must sit BELOW the chart").toBeLessThan(bandIdx);
+  });
+
   it("renders it in the primary column, above the deep-read drawer", () => {
     // Position matters: the band summarises the compiled five. Placing it
     // behind a details toggle would repeat the exact "one click away"
