@@ -184,6 +184,40 @@ const SURFACES = [
         },
       }`,
   },
+  {
+    name: "experience-mode-bar",
+    root: '[aria-label="Experience mode"]',
+    from: p("src/components/experience/ExperienceModeBar"),
+    named: "ExperienceModeBar",
+    // No bus: the bar's own no-bus branch is the one a cold page load renders,
+    // and it is the branch most likely to carry the longest hint strings.
+    props: `{}`,
+  },
+  {
+    name: "exit-ramp-card",
+    root: '[aria-label="Exit ramp"]',
+    from: p("src/components/experience/ExitRampCard"),
+    named: "ExitRampCard",
+    // Composed, not hand-written. A hand-written ExitRamp would drift from the
+    // composer and then this gate would measure a shape the Founder never sees.
+    imports: [`import { composeExitRamp } from ${p("src/lib/experience/composeExitRamp")};`],
+    props: `{
+        ramp: composeExitRamp({
+          assessment: {
+            version: "wm.completion-state.v1",
+            state: "HOLDING",
+            reason: "An open position has no attached invalidation level.",
+            safeToLeave: false,
+            criteria: {},
+          },
+          done: ["Thesis compiled and sealed against the 14:46:05Z snapshot."],
+          saved: ["Decision wmd_9f3c1a22 and its full evidence lineage."],
+          open: ["The open TSLA position still has no invalidation attached."],
+          next: "Attach an invalidation level to the open TSLA position.",
+          returnCondition: "Value migrates below 330.10",
+        }),
+      }`,
+  },
 ];
 
 /**
@@ -196,6 +230,7 @@ const ENTRY = `
 import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
 ${SURFACES.map((s, i) => `import { ${s.named} as C${i} } from ${s.from};`).join("\n")}
+${SURFACES.flatMap((s) => s.imports ?? []).join("\n")}
 
 export const surfaces = [
 ${SURFACES.map(
