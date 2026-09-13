@@ -62,16 +62,117 @@ export function WMExperienceShell({
 
   return (
     <div
-      className={className}
+      className={`wm-sanctuary ${className ?? ""}`}
       data-mode={context.mode}
       style={{
+        position: "relative",
         display: "flex",
         flexDirection: "column",
         minHeight: "100%",
         background: WM.surface.deepest,
         color: WM.text.body,
+        // The sanctuary layers below must sit UNDER interactive content.
+        // isolate contains their z-order to this subtree.
+        isolation: "isolate",
       }}
     >
+      {/*
+        THE THREE PLANES (Founder audit 2026-09-13):
+
+          STATIC MATERIAL PLANE — vignette + grain + brass hairline
+          AMBIENT PLANE          — WATER-BREATH, gentle, non-market
+          SEMANTIC MARKET PLANE  — children (chart, decisions, receipts)
+
+        WATER MAY BREATHE. PRICE MAY ONLY MOVE WHEN TRUTH MOVES.
+        NO OWNER = STILL.
+
+        Rules the sanctuary keeps:
+          · The three layers are STATIC CSS.  No JS animation loop,
+            no requestAnimationFrame, no per-frame noise.
+          · Grain is a repeating linear-gradient tile at ~5% opacity —
+            never regenerated per frame.
+          · WATER-BREATH is one 26s transform on ONE element and is
+            AUTOMATICALLY DISABLED under prefers-reduced-motion.
+          · Nothing here is keyed on market state. Green never means
+            bullish; red never means bearish; nothing speeds up when a
+            candle prints. If a future revision wants to drive an
+            atmospheric cue from market truth, it must own the
+            MOTION_OWNER / SOURCE_EVENT / FIDELITY_ROLE / AS_OF quartet
+            or the audit's "NO OWNER = STILL" rule kills it.
+          · pointer-events: none on every atmosphere layer so click/tap
+            never lands on the vignette by accident.
+          · z-index: 0 with the content plane at z-index: 1 keeps focus
+            outlines and drawer transitions above the atmosphere.
+      */}
+      <style>{`
+        .wm-sanctuary::before,
+        .wm-sanctuary::after,
+        .wm-sanctuary > .wm-water-breath {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 0;
+        }
+        /* Vignette — static inset radial darkening so MARKET feels
+           spatially deeper than the outer chrome. Never breathes. */
+        .wm-sanctuary::before {
+          background: radial-gradient(
+            ellipse at center,
+            transparent 45%,
+            rgba(0,0,0,0.35) 100%
+          );
+        }
+        /* Grain — repeating 3px tile at ~5% opacity. One layer, static. */
+        .wm-sanctuary::after {
+          background-image:
+            repeating-linear-gradient(
+              0deg,
+              rgba(255,255,255,0.014) 0,
+              rgba(255,255,255,0.014) 1px,
+              transparent 1px,
+              transparent 3px
+            ),
+            repeating-linear-gradient(
+              90deg,
+              rgba(255,255,255,0.014) 0,
+              rgba(255,255,255,0.014) 1px,
+              transparent 1px,
+              transparent 3px
+            );
+          mix-blend-mode: overlay;
+        }
+        /* WATER-BREATH — very subtle brass radial wash, drifting.
+           Non-market. Zero information. Only present when the OS has
+           NOT asked for reduced motion. Kept intentionally low-contrast
+           and low-amplitude so it reads as room air, not as a signal. */
+        .wm-sanctuary > .wm-water-breath {
+          background: radial-gradient(
+            ellipse 60% 40% at 30% 20%,
+            rgba(201,165,92,0.045) 0%,
+            transparent 60%
+          );
+          opacity: 0.9;
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .wm-sanctuary > .wm-water-breath {
+            animation: wm-breathe 26s ease-in-out infinite;
+            will-change: transform, opacity;
+          }
+        }
+        @keyframes wm-breathe {
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.85; }
+          50%      { transform: translate3d(8px, 4px, 0) scale(1.02); opacity: 1; }
+        }
+        /* Content plane sits above the atmosphere. Direct children of
+           .wm-sanctuary get lifted (except the water-breath layer
+           itself, which stays behind). */
+        .wm-sanctuary > *:not(.wm-water-breath) {
+          position: relative;
+          z-index: 1;
+        }
+      `}</style>
+      <div className="wm-water-breath" aria-hidden="true" />
       {/* Quiet chrome: brand + seven-mode operating-state bar + the one job. */}
       <header
         style={{
