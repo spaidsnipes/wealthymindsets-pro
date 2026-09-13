@@ -7,34 +7,53 @@ const dlar = readFileSync(resolve(__dirname, "../components/command-deck/DLARStr
 const realms = readFileSync(resolve(__dirname, "../components/brand/RealmGateway.tsx"), "utf8");
 
 describe("Command Deck header responsive contract", () => {
-  it("uses one calm page identity beneath the global shell brand", () => {
+  /**
+   * Founder audit 2026-09-13 — G12 hardened. Every assertion in this file
+   * was written when the deck rendered its OWN sub-header (Charts / Command
+   * Deck / Why? / Growth / Journal) and its OWN ExperienceModeBar inside
+   * the sanctuary — three horizontal navigation stripes above MARKET.
+   *
+   * The sanctuary shell (WMExperienceShell) already owns brand identity,
+   * the seven-mode bar, and the one-line job caption. Duplicating any of
+   * them on the deck reads as July. The deck's only top-of-scene
+   * contribution is the italic question and the read-only suggestion
+   * chip. This describe block now fences the ABSENCE of every July stripe.
+   */
+  it("does not re-render the shell's brand identity as a Command Deck header", () => {
+    // The shell owns the wordmark and the Command Deck route label doesn't
+    // need to shout its own name — the mode bar already says OBSERVE / WAIT
+    // / EXECUTE etc. Any local <h1>Command Deck</h1> is a July echo.
     expect(page).not.toContain('import WmWordmark from "@/components/brand/WmWordmark"');
     expect(page).not.toContain('subtitle="COMMAND CENTER"');
-    expect(page).toContain('<h1\n          className="wm-cd-header-identity"');
-    expect(page.match(/>\s*Command Deck\s*<\/h1>/g)).toHaveLength(1);
+    expect(page).not.toMatch(/>\s*Command Deck\s*<\/h1>/);
+    expect(page).not.toContain('className="wm-cd-header-identity"');
   });
 
-  it("keeps all three primary actions reachable on phone widths", () => {
-    expect(page).toContain('className="wm-cd-header"');
-    expect(page).toContain('className="wm-cd-header-actions"');
-    expect(page.match(/className="wm-cd-header-action"/g)).toHaveLength(3);
-    expect(page).toContain("@media (max-width: 640px)");
-    expect(page).toContain("grid-template-columns: repeat(3, minmax(0, 1fr))");
-    expect(page).toContain("flex: 0 0 100%");
+  it("has no wm-cd-header stripe, no wm-cd-header-actions, no wm-cd-header-action buttons", () => {
+    // The nav actions (Why? / Growth / Journal / Back-to-Charts) are all
+    // reachable from INSIDE the composed scene (WHY inspector, WHY panel,
+    // Growth link on profile, Journal link on LEARN affordance). A sub-nav
+    // stripe on the deck's own body is exactly the "card → card → card"
+    // silhouette the Founder brief was written to abolish.
+    expect(page).not.toContain('className="wm-cd-header"');
+    expect(page).not.toContain('className="wm-cd-header-actions"');
+    expect(page).not.toContain('className="wm-cd-header-action"');
   });
 
-  it("provides touch-size and visible-keyboard-focus guarantees", () => {
-    expect(page).toContain(".wm-cd-header-action { min-height: 44px !important; }");
-    expect(page).toContain(".wm-cd-header-action:focus-visible");
-    expect(page).toContain(".wm-cd-header-back:focus-visible");
-    expect(page).toContain("outline: 2px solid #d4af37");
+  it("does not mount a second ExperienceModeBar", () => {
+    // The shell already renders the bar. A second one on the deck was
+    // producing two identical seven-mode strips one above the other,
+    // which the founder-video audit flagged as "new information inside
+    // old composition."
+    expect(page).not.toContain("<ExperienceModeBar");
+    expect(page).not.toContain('from "@/components/experience/ExperienceModeBar"');
   });
 
-  it("preserves a named navigation target for every action", () => {
-    expect(page).toContain('onClick={() => (showEvidence ? setShowEvidence(false) : openWhy({ kind: "hero" }))}');
-    expect(page).toContain('aria-label={showEvidence ? "Hide evidence inspector" : "Show evidence inspector"}');
-    expect(page).toContain('aria-label="Open Growth on your Profile"');
-    expect(page).toContain('aria-label="Open Journal"');
+  it("does not re-render the shell's one-line job caption inside the deck", () => {
+    // WMExperienceShell renders shellEmphasis(mode).job once, in ivory,
+    // beneath the mode bar. The deck must not print the same string again
+    // beside its own italic question.
+    expect(page).not.toContain("{experienceEmphasis.job}");
   });
 
   it("lets dense evidence and realm grids reflow without phone overflow", () => {

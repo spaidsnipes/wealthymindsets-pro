@@ -1,7 +1,6 @@
 "use client";
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight } from "lucide-react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -77,11 +76,9 @@ import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { SanctuarySessionProvider, type SanctuarySessionSignal } from "@/lib/experience/sanctuarySessionContext";
 import type { OptionContract, OptionChainFidelity, OptionChainSource } from "@/lib/optionContractResponse";
 import type { DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
-import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import { composeMarketCanvasVM } from "@/lib/marketData/viewModels/composeMarketCanvasVM";
 import DecisionReceiptPanel from "@/components/experience/DecisionReceiptPanel";
 import { selectDecisionReceipt } from "@/lib/traderMemory/viewModels/selectDecisionReceipt";
-import ExperienceModeBar from "@/components/experience/ExperienceModeBar";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { shellEmphasis } from "@/lib/experience/shellLayout";
 import { routeQuestion } from "@/lib/experience/questionRouter";
@@ -599,250 +596,84 @@ function CommandDeckInner() {
   return (
     <SanctuarySessionProvider value={sanctuarySession}>
     <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #050506 0%, #0b0b0d 100%)", color: "#ede6d3" }}>
-      {/* Nav header */}
-      <header
-        className="wm-cd-header"
-        style={{
-          borderBottom: "1px solid rgba(139,106,41,0.35)",
-          padding: "12px 24px",
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          background: "rgba(11,11,13,0.85)",
-          backdropFilter: "blur(8px)",
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-        }}
-      >
-        {/*
-          A BACK ARROW IS A CLAIM ABOUT HIERARCHY.
+      {/*
+        TICKET T G12: the July shell duplicates are gone.
 
-          This was `← CHARTS` with aria-label "Back to charts", which asserts
-          two things: that the human arrived here FROM charts, and that the deck
-          sits beneath charts in the app's structure. Both were true while
-          /charts was the Founder landing route.
+        Founder audit (2026-09-13): the deck was rendering, INSIDE the
+        sanctuary, its own header (Charts / Command Deck / Why? / Growth /
+        Journal), its own ExperienceModeBar, and its own "Watch the market
+        with no position" job caption — all three of which the sanctuary
+        shell already renders one layer above. Blur-tested, the eye landed
+        on THREE horizontal stripes of navigation before it found MARKET.
+        That is exactly the "card → card → card → chart card" silhouette
+        the ship-today priorities were written to abolish.
 
-          Neither is true now. founderLanding.ts makes the deck the route a
-          human reaches when they have named no destination — bare domain,
-          sign-in, email confirmation. The deck is the room; charts is a room
-          you walk to from it. A back arrow pointing out of the home surface
-          tells the trader he is somewhere temporary, and tells a screen reader
-          the same thing out loud.
+        The single-owner rule applies here too: brand identity, seven-mode
+        bar, and one-line job caption live in ONE component
+        (WMExperienceShell). The deck starts with its own contribution: the
+        italic question and the read-only suggestion chip — both of which
+        REACT to the mode bar the shell owns, without recreating it.
 
-          So it becomes a peer: forward arrow, no "back" in the accessible name.
-          Still the same destination, still INSTRUMENT_VIEW_ROUTE — a human
-          going to charts has named where he wants to be.
-        */}
-        <button
-          className="wm-cd-header-back"
-          onClick={() => router.push(INSTRUMENT_VIEW_ROUTE)}
-          aria-label="Go to charts"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 11,
-            letterSpacing: 0.3,
-            textTransform: "uppercase",
-            color: "#8a8271",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            minHeight: 44,
-            padding: "0 10px",
-          }}
-        >
-          Charts
-          <ArrowRight size={12} />
-        </button>
-        <h1
-          className="wm-cd-header-identity"
-          style={{
-            margin: 0,
-            minWidth: 0,
-            fontSize: 11,
-            letterSpacing: 0.6,
-            textTransform: "uppercase",
-            color: "#c9a55c",
-            fontWeight: 800,
-            whiteSpace: "nowrap",
-          }}
-        >
-          Command Deck
-        </h1>
-        {/* canon §Phase 3 Market Canvas — one-line summary in the
-            sticky header. Renders nothing when the canvas is fully
-            silent (§Silence Is A Feature). */}
-        <CanvasSummaryPill
-          vm={marketCanvas}
-          ariaLabel="Deck canvas summary — jump to Market Canvas"
-          scrollToSelector='[data-testid="market-canvas-panel"]'
-        />
-        <div className="wm-cd-header-actions" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
-          <button
-            className="wm-cd-header-action"
-            type="button"
-            onClick={() => (showEvidence ? setShowEvidence(false) : openWhy({ kind: "hero" }))}
-            aria-label={showEvidence ? "Hide evidence inspector" : "Show evidence inspector"}
-            aria-pressed={showEvidence}
-            style={{
-              fontSize: 10,
-              letterSpacing: 0.3,
-              textTransform: "uppercase",
-              color: showEvidence ? "#d4af37" : "#8a8271",
-              background: showEvidence ? "rgba(212,175,55,0.1)" : "transparent",
-              border: showEvidence ? "1px solid #d4af3760" : "1px solid rgba(139,106,41,0.35)",
-              minHeight: 32,
-              padding: "0 10px",
-              borderRadius: 4,
-              cursor: "pointer",
-              fontWeight: 700,
-            }}
-          >
-            Why?
-          </button>
-          <button
-            className="wm-cd-header-action"
-            type="button"
-            onClick={() => router.push("/profile?tab=growth")}
-            aria-label="Open Growth on your Profile"
-            style={{
-              fontSize: 10,
-              letterSpacing: 0.3,
-              textTransform: "uppercase",
-              color: "#8a8271",
-              background: "transparent",
-              border: "1px solid rgba(139,106,41,0.35)",
-              minHeight: 32,
-              padding: "0 10px",
-              borderRadius: 4,
-              cursor: "pointer",
-            }}
-          >
-            Growth →
-          </button>
-          <button
-            className="wm-cd-header-action"
-            type="button"
-            onClick={() => router.push("/journal")}
-            aria-label="Open Journal"
-            style={{
-              fontSize: 10,
-              letterSpacing: 0.3,
-              textTransform: "uppercase",
-              color: "#8a8271",
-              background: "transparent",
-              border: "1px solid rgba(139,106,41,0.35)",
-              minHeight: 32,
-              padding: "0 10px",
-              borderRadius: 4,
-              cursor: "pointer",
-            }}
-          >
-            Journal →
-          </button>
-        </div>
-      </header>
-
-      {/* Experience mode band (Founder Phase 1 — the WM Experience Shell
-          cutover): the seven operating states, live and switchable, reorganise
-          the shell's emphasis around the human's current job. The market truth
-          below is unchanged — only what the surface EMPHASISES changes. */}
-      <div
-        className="wm-cd-mode-band"
-        style={{
-          maxWidth: 1280,
-          margin: "0 auto",
-          padding: "10px 16px 0",
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-        }}
-      >
-        {/* Mode bar + current-job descriptor. On desktop they share one row
-            (descriptor right-aligned); on mobile the row WRAPS so the descriptor
-            drops below and the mode bar keeps its full width instead of being
-            crushed to a sliver (which previously made the seven tabs overflow
-            and collide with this text). */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          <div style={{ flex: "1 1 260px", minWidth: 240 }}>
-            <ExperienceModeBar />
-          </div>
-          <div
-            style={{
-              flexShrink: 0,
-              fontSize: 11,
-              letterSpacing: 0.3,
-              color: "#8a7a52",
-              whiteSpace: "nowrap",
-              textTransform: "uppercase",
-            }}
-          >
-            {experienceEmphasis.job}
-          </div>
-        </div>
-        {/* The ONE dominant question this surface is currently answering
-            (Question Router, canon P26/P6). Tracks the engine's actual read —
-            never invents a market claim. */}
-        <div
-          style={{
-            fontSize: 13,
-            lineHeight: 1.35,
-            color: "#c9a55c",
-            fontStyle: "italic",
-          }}
-        >
-          {experienceQuestion}
-        </div>
-        {/* Job-mode SUGGESTION (inferJobMode → selectJobSuggestion). Appears
-            only when the inferred job differs from the human's current
-            selection. Read-only nudge: clicking accepts it; WM never
-            auto-switches the job. The chip's insistence scales with confidence
-            — a firm ACTIONABLE divergence gets a gold accent + "Suggested job",
-            a LOW-confidence HINT is muted + "Possibly →" so a weak guess never
-            nags the human off their chosen job. */}
-        {jobSuggestion.strength !== "NONE" && jobSuggestion.inference && (() => {
-          const sug = jobSuggestion.inference;
-          const hint = jobSuggestion.strength === "HINT";
-          return (
-            <button
-              type="button"
-              onClick={() => setExperienceMode(sug.suggested)}
-              title={sug.reason}
-              style={{
-                marginTop: 6,
-                alignSelf: "flex-start",
-                display: "inline-flex",
-                alignItems: "baseline",
-                gap: 6,
-                background: "transparent",
-                border: hint
-                  ? "1px dashed rgba(138,130,113,0.35)"
-                  : "1px solid rgba(212,175,55,0.35)",
-                borderRadius: 999,
-                padding: "3px 10px",
-                cursor: "pointer",
-                fontSize: 10,
-                letterSpacing: 0.4,
-                color: "#c9a55c",
-                textTransform: "uppercase",
-                opacity: hint ? 0.72 : 1,
-              }}
-            >
-              <span style={{ color: "#8a8271" }}>{hint ? "Possibly →" : "Suggested job →"}</span>
-              <span style={{ color: hint ? "#c9a55c" : "#d4af37", fontWeight: 600 }}>
-                {sug.suggested}
-              </span>
-              <span style={{ color: "#8a8271", textTransform: "none", letterSpacing: 0.2 }}>
-                {sug.reason}
-              </span>
-            </button>
-          );
-        })()}
-      </div>
+        openWhy, showEvidence, CanvasSummaryPill, and INSTRUMENT_VIEW_ROUTE
+        are still reachable from inside the composed scene below (WHY panel,
+        Market Canvas anchor, forward-arrow chip). Removing the sub-nav
+        does not lose functionality — it lets the eye reach the room.
+      */}
 
       <main style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 16px", position: "relative" }}>
+        {/* The one dominant question and (when confidence justifies it) the
+            read-only job suggestion. These are the deck's own contribution to
+            the top of the scene — the sanctuary shell owns brand, mode bar
+            and mode caption. Never duplicate them here. */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+          <div
+            style={{
+              fontSize: 13,
+              lineHeight: 1.35,
+              color: "#c9a55c",
+              fontStyle: "italic",
+            }}
+          >
+            {experienceQuestion}
+          </div>
+          {jobSuggestion.strength !== "NONE" && jobSuggestion.inference && (() => {
+            const sug = jobSuggestion.inference;
+            const hint = jobSuggestion.strength === "HINT";
+            return (
+              <button
+                type="button"
+                onClick={() => setExperienceMode(sug.suggested)}
+                title={sug.reason}
+                style={{
+                  alignSelf: "flex-start",
+                  display: "inline-flex",
+                  alignItems: "baseline",
+                  gap: 6,
+                  background: "transparent",
+                  border: hint
+                    ? "1px dashed rgba(138,130,113,0.35)"
+                    : "1px solid rgba(212,175,55,0.35)",
+                  borderRadius: 999,
+                  padding: "3px 10px",
+                  cursor: "pointer",
+                  fontSize: 10,
+                  letterSpacing: 0.4,
+                  color: "#c9a55c",
+                  textTransform: "uppercase",
+                  opacity: hint ? 0.72 : 1,
+                }}
+              >
+                <span style={{ color: "#8a8271" }}>{hint ? "Possibly →" : "Suggested job →"}</span>
+                <span style={{ color: hint ? "#c9a55c" : "#d4af37", fontWeight: 600 }}>
+                  {sug.suggested}
+                </span>
+                <span style={{ color: "#8a8271", textTransform: "none", letterSpacing: 0.2 }}>
+                  {sug.reason}
+                </span>
+              </button>
+            );
+          })()}
+        </div>
         <div style={{ position: "relative", zIndex: 1 }}>
           {/* Responsive shim — mobile viewport should never see the
               two-column layout that would force a 380px WHY panel next
