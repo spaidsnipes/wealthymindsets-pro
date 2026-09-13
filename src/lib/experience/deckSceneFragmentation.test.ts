@@ -53,6 +53,24 @@ describe("workspace pieces read as ONE room, not three sheds", () => {
     expect(src).not.toContain("const borderColor =");
   });
 
+  it("HeroTruth carries a state-tint LEFT ACCENT, not a full-box glow", () => {
+    // The audit specifically bans "glowing orb" backgrounds and asks
+    // for "localized state tint only where semantically owned." HeroTruth
+    // now signals qualityState via a 3px left-edge accent — the same
+    // grammar AvailableRChip uses — instead of a full colored border,
+    // a gradient halo, and a box shadow.
+    const src = READ("components/command-deck/HeroTruth.tsx");
+    expect(src).toContain("borderLeft: `3px solid ${style.color}`");
+    expect(src).not.toMatch(/border:\s*`1px solid \$\{style\.color/);
+    // The halo gradient is what made the hero read as a glowing card.
+    // Its own dictionary entry says "never a glowing orb"; check for its
+    // absence at the wrapper style.
+    expect(src).not.toContain("linear-gradient(180deg, ${style.halo}");
+    // Box shadow is the third leg of the "app card" grammar; also gone.
+    expect(src).not.toContain("boxShadow: `0 0 60px");
+    expect(src).toContain('background: "transparent"');
+  });
+
   it("DeckExpressionShortlist reads as an aspect, not a separate app", () => {
     const src = READ("components/experience/DeckExpressionShortlist.tsx");
     // Same hairline / transparent-background treatment as the chart —

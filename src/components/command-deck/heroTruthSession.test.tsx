@@ -102,7 +102,11 @@ describe("HeroTruth session — the strip reads the owner, not the store key", (
         density="room"
       />,
     );
-    expect(html).toContain("padding:14px 18px");
+    // SCENE_FRAGMENTATION cure (2026-09-13): room density padding
+    // gained a state-tint left accent (borderLeft: 3px) so the box
+    // stopped reading as a walled dashboard card. Padding is now
+    // asymmetric on the left to make room for the accent.
+    expect(html).toContain("padding:10px 14px 10px 18px");
     expect(html).toContain("TSLA");
     expect(html).toContain("CLOSED");
   });

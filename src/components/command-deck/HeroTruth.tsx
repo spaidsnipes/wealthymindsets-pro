@@ -174,11 +174,21 @@ export function HeroTruth({
       aria-label={`${symbol} ${timeframe} — market state ${style.label}`}
       className={["wm-hero-truth", className ?? ""].join(" ")}
       style={{
-        border: `1px solid ${style.color}55`,
-        borderRadius: 14,
-        padding: isRoomDensity ? "14px 18px" : "22px 24px",
-        background: `linear-gradient(180deg, ${style.halo}, rgba(11,11,13,0.9))`,
-        boxShadow: `0 0 60px -30px ${style.color}`,
+        // SCENE_FRAGMENTATION cure (Founder audit 2026-09-13): a full
+        // state-colored border + halo gradient + glow made the hero
+        // read as "the app" — a boxed dashboard card announcing itself.
+        // The founder brief specifically bans the glowing-orb treatment
+        // ("brass radial wash, not a glowing orb") and asks for
+        // "localized state tint only where semantically owned."
+        //
+        // The state tint now lives on ONE left-edge accent (the same
+        // grammar AvailableRChip uses). Padding, spacing, and typography
+        // remain the hero-scale treatment they were — this stops the
+        // component from walling itself off, without dropping the
+        // hierarchy that says "this is the dominant 1-second read."
+        borderLeft: `3px solid ${style.color}`,
+        padding: isRoomDensity ? "10px 14px 10px 18px" : "18px 22px 18px 24px",
+        background: "transparent",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: isRoomDensity ? 6 : 10, flexWrap: "wrap" }}>
