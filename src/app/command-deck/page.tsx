@@ -1510,10 +1510,13 @@ function CommandDeckInner() {
                 role="status"
                 aria-label="Command Deck sections waiting for canonical market state"
                 style={{
-                  border: "1px dashed rgba(139,106,41,0.35)",
-                  borderRadius: 10,
-                  padding: 20,
-                  background: "rgba(11,11,13,0.5)",
+                  // SCENE_FRAGMENTATION cure: even the empty-state INDEX
+                  // was drawn as a bordered box, reading as another app.
+                  // The awaiting state is a section of the room, not a
+                  // placeholder widget.
+                  borderTop: "1px solid rgba(139,106,41,0.22)",
+                  padding: "16px 0 4px",
+                  background: "transparent",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 14 }}>
@@ -1685,10 +1688,9 @@ function CommandDeckInner() {
                 <div style={{ height: 12 }} />
               <div
                 style={{
-                  border: "1px solid rgba(139,106,41,0.35)",
-                  borderRadius: 10,
-                  background: "rgba(11,11,13,0.9)",
-                  padding: 16,
+                  borderTop: "1px solid rgba(139,106,41,0.22)",
+                  background: "transparent",
+                  padding: "12px 0 4px",
                 }}
               >
                 <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800, marginBottom: 8 }}>
@@ -1756,10 +1758,9 @@ function CommandDeckInner() {
                 <div style={{ height: 12 }} />
               <div
                 style={{
-                  border: "1px solid rgba(139,106,41,0.35)",
-                  borderRadius: 10,
-                  background: "rgba(11,11,13,0.9)",
-                  padding: 16,
+                  borderTop: "1px solid rgba(139,106,41,0.22)",
+                  background: "transparent",
+                  padding: "12px 0 4px",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
