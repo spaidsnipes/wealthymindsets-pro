@@ -11,8 +11,16 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { selectExpressionShortlist, shortlistJobLabel } from "./expressionShortlist";
+import {
+  currentDecisionIdentity,
+  adoptSceneDecision,
+  expressionDirectionFromCanonical,
+  expressionScopeIsCurrent,
+  selectExpressionShortlist,
+  shortlistJobLabel,
+} from "./expressionShortlist";
 import type { OptionContract } from "./optionContractResponse";
+import type { DecisionIdentity } from "./traderMemory/decisionIdentity";
 
 function contract(overrides: Partial<OptionContract> & { expirationDate: string; strike: number; contractType: "call" | "put" }): OptionContract {
   return {
@@ -156,5 +164,68 @@ describe("shortlistJobLabel", () => {
     for (const j of jobs) {
       expect(shortlistJobLabel(j).toUpperCase()).not.toContain("BEST");
     }
+  });
+});
+
+describe("expressionDirectionFromCanonical", () => {
+  const dimension = (resolution: "RESOLVED" | "PARTIAL" | "UNKNOWN", value: string | null) => ({
+    resolution,
+    value,
+    confidence: resolution === "RESOLVED" ? 0.8 : null,
+    evidence: resolution === "RESOLVED" ? [{ eventId: "direction-1", observedAt: 1, availableAt: 1, source: "test", fidelity: "OBSERVED" as const, basis: "test" }] : [],
+    contradictions: [],
+    unknowns: resolution === "UNKNOWN" ? ["not observed"] : [],
+  });
+
+  it("maps only resolved directional vocabulary", () => {
+    expect(expressionDirectionFromCanonical(dimension("RESOLVED", "LONG"))).toBe("long");
+    expect(expressionDirectionFromCanonical(dimension("RESOLVED", "bull trend"))).toBe("long");
+    expect(expressionDirectionFromCanonical(dimension("RESOLVED", "DOWN"))).toBe("short");
+    expect(expressionDirectionFromCanonical(dimension("RESOLVED", "BEAR_TREND"))).toBe("short");
+  });
+
+  it("refuses partial, unknown, and unfamiliar values instead of guessing", () => {
+    expect(expressionDirectionFromCanonical(dimension("PARTIAL", "LONG"))).toBeNull();
+    expect(expressionDirectionFromCanonical(dimension("UNKNOWN", null))).toBeNull();
+    expect(expressionDirectionFromCanonical(dimension("RESOLVED", "RANGE_BOUND"))).toBeNull();
+    expect(expressionDirectionFromCanonical(null)).toBeNull();
+  });
+});
+
+describe("expression and decision scope", () => {
+  const identity = {
+    lawVersion: "wm.decision-identity.v1",
+    decisionId: "decision-1",
+    bornAt: 1,
+    bornFrom: "EXPLICIT_INTENT",
+    bornOnDeviceId: "device-1",
+  } as DecisionIdentity;
+
+  it("invalidates a selected expression when direction is lost or reversed", () => {
+    const selection = { underlying: "TSLA", owner: "user-a", direction: "long" as const };
+    expect(expressionScopeIsCurrent(selection, { underlying: "TSLA", owner: "user-a", direction: "long" })).toBe(true);
+    expect(expressionScopeIsCurrent(selection, { underlying: "TSLA", owner: "user-a", direction: null })).toBe(false);
+    expect(expressionScopeIsCurrent(selection, { underlying: "TSLA", owner: "user-a", direction: "short" })).toBe(false);
+  });
+
+  it("invalidates expression and decision identity across symbol or owner changes", () => {
+    const selection = { underlying: "TSLA", owner: "user-a", direction: "long" as const };
+    expect(expressionScopeIsCurrent(selection, { underlying: "SPY", owner: "user-a", direction: "long" })).toBe(false);
+    expect(expressionScopeIsCurrent(selection, { underlying: "TSLA", owner: "user-b", direction: "long" })).toBe(false);
+
+    const scoped = { underlying: "TSLA", owner: "user-a", identity };
+    expect(currentDecisionIdentity(scoped, { underlying: "TSLA", owner: "user-a" })).toBe(identity);
+    expect(currentDecisionIdentity(scoped, { underlying: "SPY", owner: "user-a" })).toBeNull();
+    expect(currentDecisionIdentity(scoped, { underlying: "TSLA", owner: "user-b" })).toBeNull();
+  });
+
+  it("keeps one identity when explicit intent is followed by a permission crossing", () => {
+    const permissionIdentity = { ...identity, decisionId: "decision-2", bornFrom: "PERMISSION_GRANTED" } as DecisionIdentity;
+    const explicit = { underlying: "TSLA", owner: "user-a", identity };
+    const permission = { underlying: "TSLA", owner: "user-a", identity: permissionIdentity };
+
+    expect(adoptSceneDecision(explicit, permission)).toBe(explicit);
+    expect(adoptSceneDecision(null, permission)).toBe(permission);
+    expect(adoptSceneDecision(explicit, { ...permission, underlying: "SPY" })).toEqual({ ...permission, underlying: "SPY" });
   });
 });

@@ -33,6 +33,8 @@
  */
 
 import type { OptionContract } from "./optionContractResponse";
+import type { MarketStateDimension } from "./marketData/canonicalMarketState";
+import type { DecisionIdentity } from "./traderMemory/decisionIdentity";
 
 export type ShortlistJob = "FAST" | "BALANCED" | "MORE_TIME";
 
@@ -58,6 +60,79 @@ export interface ExpressionShortlistInput {
    *             market state does not support.
    */
   readonly direction: "long" | "short" | null;
+}
+
+/**
+ * Translate a resolved canonical direction into the two sides the option
+ * expression selector understands. This deliberately accepts only named,
+ * reviewed directional vocabulary. PARTIAL/UNKNOWN and unfamiliar values
+ * remain null, because choosing CALL or PUT is a market judgement and not a
+ * presentation fallback.
+ */
+export function expressionDirectionFromCanonical(
+  direction: MarketStateDimension | null | undefined,
+): "long" | "short" | null {
+  if (direction?.resolution !== "RESOLVED" || !direction.value) return null;
+  const value = direction.value.trim().toUpperCase().replace(/[\s-]+/g, "_");
+  if (["LONG", "UP", "BULL", "BULLISH", "BULL_TREND"].includes(value)) return "long";
+  if (["SHORT", "DOWN", "BEAR", "BEARISH", "BEAR_TREND"].includes(value)) return "short";
+  return null;
+}
+
+export interface ExpressionScope {
+  readonly underlying: string;
+  readonly owner: string;
+  readonly direction: "long" | "short";
+}
+
+/**
+ * A selected contract is current only in the exact market, account, and
+ * thesis side where it was selected. This synchronous check prevents stale
+ * intent from painting during the render before cleanup effects run.
+ */
+export function expressionScopeIsCurrent(
+  candidate: ExpressionScope | null,
+  current: { underlying: string; owner: string; direction: "long" | "short" | null },
+): boolean {
+  return candidate !== null
+    && current.direction !== null
+    && candidate.underlying === current.underlying
+    && candidate.owner === current.owner
+    && candidate.direction === current.direction;
+}
+
+export interface ScopedDecisionIdentity {
+  readonly underlying: string;
+  readonly owner: string;
+  readonly identity: DecisionIdentity;
+}
+
+/**
+ * Adopt a newly witnessed identity without splitting an already-born decision
+ * on the same owner/instrument scene. A later permission crossing is another
+ * witness to the existing decision, not authority to replace an explicit
+ * intent that has already been recorded against it.
+ */
+export function adoptSceneDecision(
+  current: ScopedDecisionIdentity | null,
+  candidate: ScopedDecisionIdentity,
+): ScopedDecisionIdentity {
+  return current
+    && current.underlying === candidate.underlying
+    && current.owner === candidate.owner
+      ? current
+      : candidate;
+}
+
+/** Return a decision identity only while it still belongs to this room. */
+export function currentDecisionIdentity(
+  candidate: ScopedDecisionIdentity | null,
+  current: { underlying: string; owner: string },
+): DecisionIdentity | null {
+  if (!candidate) return null;
+  return candidate.underlying === current.underlying && candidate.owner === current.owner
+    ? candidate.identity
+    : null;
 }
 
 /**

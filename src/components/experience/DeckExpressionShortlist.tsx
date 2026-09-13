@@ -54,7 +54,7 @@ import {
 
 interface FetchState {
   readonly symbol: string;
-  readonly kind: "IDLE" | "LOADING" | "READY" | "EMPTY" | "UNAVAILABLE";
+  readonly kind: "IDLE" | "WAIT_DIRECTION" | "LOADING" | "READY" | "EMPTY" | "UNAVAILABLE";
   readonly chain?: readonly OptionContract[];
   readonly receipt?: OptionsSourceReceipt;
   readonly reason?: string;
@@ -92,8 +92,10 @@ export function DeckExpressionShortlist({
 }: DeckExpressionShortlistProps): React.ReactElement {
   const [fetchedState, setState] = React.useState<FetchState>({ kind: "IDLE", symbol });
   // Fence the first render of a new underlying, before passive cleanup runs.
-  const state: FetchState = fetchedState.symbol === symbol
-    ? fetchedState : { kind: "LOADING", symbol };
+  const state: FetchState = direction === null
+    ? { kind: "WAIT_DIRECTION", symbol }
+    : fetchedState.symbol === symbol
+      ? fetchedState : { kind: "LOADING", symbol };
   const [nowMs, setNowMs] = React.useState(Number.NaN);
   React.useEffect(() => {
     setNowMs(Date.now());
@@ -103,6 +105,10 @@ export function DeckExpressionShortlist({
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
+    if (direction === null) {
+      setState({ kind: "WAIT_DIRECTION", symbol });
+      return;
+    }
     let cancelled = false;
     setState({ kind: "LOADING", symbol });
     const url = `/api/market-data/alpaca/options?sym=${encodeURIComponent(symbol)}`;
@@ -132,7 +138,7 @@ export function DeckExpressionShortlist({
         setState({ kind: "UNAVAILABLE", symbol, reason: "NETWORK ERROR" });
       });
     return () => { cancelled = true; };
-  }, [symbol, fetcher]);
+  }, [symbol, direction, fetcher]);
 
   const shortlist: readonly ShortlistSlot[] = React.useMemo(() => {
     if (state.kind !== "READY" || !state.chain) return [];
@@ -163,6 +169,13 @@ export function DeckExpressionShortlist({
         <div data-testid="deck-expression-loading"
              style={{ padding: 24, textAlign: "center", color: "#8a8271", fontSize: 11 }}>
           Reading Alpaca INDICATIVE chain…
+        </div>
+      )}
+
+      {state.kind === "WAIT_DIRECTION" && (
+        <div data-testid="deck-expression-wait-direction"
+             style={{ padding: 16, color: "#8a8271", fontSize: 11, letterSpacing: 0.2, lineHeight: 1.5 }}>
+          WAIT FOR DIRECTION · The option side stays unchosen until canonical market evidence resolves the thesis direction.
         </div>
       )}
 

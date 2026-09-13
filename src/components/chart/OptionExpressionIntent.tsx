@@ -17,7 +17,7 @@ import { recordExpressionIntent } from "@/lib/traderMemory/recordExpressionInten
 import { OptionDecisionReceipt } from "./OptionDecisionReceipt";
 
 /** An expression under review, never a position or an executable quote. */
-export function OptionExpressionIntent({ ownerId, underlying, contract, source, fidelity, providerPath, rightsPolicyId, bornDecision, onClear }: {
+export function OptionExpressionIntent({ ownerId, underlying, contract, source, fidelity, providerPath, rightsPolicyId, bornDecision, onIdentity, onClear }: {
   ownerId: string; underlying: string; contract: OptionContract; source: OptionChainSource; fidelity: OptionChainFidelity;
   /**
    * The REVIEWED provider identity and rights policy, carried from
@@ -43,6 +43,9 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
    * is not lawful is minting a fresh id over one that already exists.
    */
   bornDecision?: DecisionIdentity | null;
+  /** Lift the lawful identity back to the containing scene so every visible
+   * projection carries the same decision after explicit-intent birth. */
+  onIdentity?: (identity: DecisionIdentity) => void;
   onClear: () => void;
 }) {
   const identity = useRef<{ decisionId: DecisionId; deviceId: string; intent: string } | null>(null);
@@ -127,6 +130,7 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
         identity.current = { decisionId: born.identity.decisionId, deviceId,
           intent: `Review ${underlying} expression: ${contract.symbol}; ${contract.contractType}; strike ${contract.strike}; expiry ${contract.expirationDate}. Purpose: ${purpose.trim()}. Reference source ${source}; reviewed provider ${providerPath}; rights policy ${rightsPolicyId}; fidelity ${fidelity}; quote timestamp ${contract.quoteTimestamp ?? "not observed"}; quote timing ${observationTiming.quote.timing}; trade timestamp ${contract.tradeTimestamp ?? "not observed"}; trade timing ${observationTiming.trade.timing}; source OSI identity matches the selected underlying, side, expiry, and strike; executable quote and broker instrument mapping/support remain unverified. No order requested.` };
         setDecisionId(born.identity.decisionId);
+        onIdentity?.(born.identity);
       }
       const result = await recordExpressionIntent(identity.current, fetch, controller.signal, ownerId);
       setRecorded(result.recorded);

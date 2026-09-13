@@ -94,7 +94,11 @@ import DecisionSpineBand from "@/components/experience/DecisionSpineBand";
 import { birthOnPermissionCrossing } from "@/lib/traderMemory/permissionBirth";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import type { PermissionVerdict } from "@/lib/traderMemory/viewModels/selectPermission";
-import type { DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
+import {
+  adoptSceneDecision,
+  currentDecisionIdentity,
+  type ScopedDecisionIdentity,
+} from "@/lib/expressionShortlist";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { useNarrowViewport } from "@/lib/responsive/narrowViewport";
 
@@ -692,7 +696,11 @@ export function ChartsDashboard() {
   // The whole identity, not just its id — `OptionExpressionIntent` needs the
   // witnessing device too, so that adopting this decision preserves WHERE it
   // was born rather than re-stamping it with wherever it was later expressed.
-  const [sceneDecision, setSceneDecision] = useState<DecisionIdentity | null>(null);
+  const decisionScope = { underlying: symbol, owner: canvasUser?.id ?? "signed-out" };
+  const [sceneDecision, setSceneDecision] = useState<ScopedDecisionIdentity | null>(null);
+  // Scope synchronously during render. The cleanup effect below releases stale
+  // state, but it cannot prevent one React paint after a symbol/owner switch.
+  const currentSceneDecision = currentDecisionIdentity(sceneDecision, decisionScope);
   const [sceneDecisionAbsence, setSceneDecisionAbsence] = useState(
     "No decision born yet — permission has not crossed.",
   );
@@ -713,8 +721,9 @@ export function ChartsDashboard() {
       setSceneDecisionAbsence(`Decision not minted: ${outcome.mint.reason}`);
       return;
     }
-    setSceneDecision(outcome.mint.identity);
-  }, [permissionVerdict]);
+    const candidate = { ...decisionScope, identity: outcome.mint.identity };
+    setSceneDecision((current) => adoptSceneDecision(current, candidate));
+  }, [permissionVerdict, decisionScope.owner, decisionScope.underlying]);
   // A decision belongs to the instrument it was born about. Carrying
   // a TSLA identity onto BTC would be the aliasing failure the owner
   // wrote its header against, one surface out.
@@ -722,7 +731,7 @@ export function ChartsDashboard() {
     setSceneDecision(null);
     priorPermission.current = null;
     setSceneDecisionAbsence("No decision born yet — permission has not crossed.");
-  }, [symbol]);
+  }, [symbol, canvasUser?.id]);
 
   // ── Watchlist on a phone or a tablet ────────────────────────
   // At <=1023px globals.css hides BOTH `.wm-chart-watchlist` and the
@@ -1246,7 +1255,7 @@ export function ChartsDashboard() {
           composeMarketCanvasVM the drawer and /command-deck read —
           the band computes nothing, so the two cannot diverge. */}
       <DecisionSpineBand
-        decisionId={sceneDecision?.decisionId ?? null}
+        decisionId={currentSceneDecision?.decisionId ?? null}
         decisionIdAbsence={sceneDecisionAbsence}
         market={{
           symbol,
@@ -2138,7 +2147,7 @@ export function ChartsDashboard() {
                   expression={optionSelection?.underlying === symbol && optionSelection.owner === (canvasUser?.id ?? "signed-out")
                     ? <OptionExpressionIntent key={`${optionSelection.owner}:${optionSelection.contract.symbol}:${optionSelection.contract.expirationDate}:${optionSelection.contract.contractType}:${optionSelection.contract.strike}`}
                         ownerId={canvasUser?.id ?? ""} underlying={symbol} contract={optionSelection.contract} source={optionSelection.source} fidelity={optionSelection.fidelity} providerPath={optionSelection.providerPath} rightsPolicyId={optionSelection.rightsPolicyId}
-                        bornDecision={sceneDecision} onClear={clearOptionSelection} /> : null} />
+                        bornDecision={currentSceneDecision} onIdentity={(identity) => setSceneDecision((current) => adoptSceneDecision(current, { ...decisionScope, identity }))} onClear={clearOptionSelection} /> : null} />
               )}
             </AnimatePresence>
 

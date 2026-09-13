@@ -50,20 +50,24 @@ describe("the deck mounts DecisionSpineBand on the primary Founder scene", () =>
     expect(block).toContain("decisionWhy={decisionWhy}");
   });
 
-  it("decisionId is null with a sentence, never a fabricated id", () => {
-    // /command-deck does not run birthOnPermissionCrossing today — decisions
-    // are birthed on /charts. The band's contract requires either a lawful
-    // id or an absence sentence; passing a hand-rolled id would create
-    // exactly the "same DECISION_ID across projections" defect the Founder
-    // is trying to prevent.
+  it("decisionId adopts the lawful scene identity with a sentence while absent", () => {
     const src = DECK();
     const start = src.indexOf("<DecisionSpineBand");
     const end = src.indexOf("/>", start);
     const block = src.slice(start, end);
-    expect(block).toContain("decisionId={null}");
+    expect(block).toContain("decisionId={currentSceneDecision?.decisionId ?? null}");
     expect(block).toContain("decisionIdAbsence=");
     expect(block).not.toMatch(/decisionId=\{`[^`]*`\}/); // no template-literal minting
     expect(block).not.toMatch(/decisionId=\{Math\./);    // no random() mint
     expect(block).not.toMatch(/decisionId=\{Date\./);    // no timestamp mint
+  });
+
+  it("NEXT receives the selected expression instead of a permanent null", () => {
+    const src = DECK();
+    const start = src.indexOf("<DecisionSpineBand");
+    const end = src.indexOf("/>", start);
+    const block = src.slice(start, end);
+    expect(block).toContain("expression={selectedExpressionLabel}");
+    expect(block).toContain("onOpenWhy=");
   });
 });

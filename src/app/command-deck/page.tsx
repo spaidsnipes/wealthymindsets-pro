@@ -64,6 +64,15 @@ import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import DeckMarketChart from "@/components/experience/DeckMarketChart";
 import AvailableRChip from "@/components/experience/AvailableRChip";
 import DeckExpressionShortlist from "@/components/experience/DeckExpressionShortlist";
+import { OptionExpressionIntent } from "@/components/chart/OptionExpressionIntent";
+import {
+  currentDecisionIdentity,
+  expressionDirectionFromCanonical,
+  expressionScopeIsCurrent,
+  type ScopedDecisionIdentity,
+} from "@/lib/expressionShortlist";
+import type { OptionContract, OptionChainFidelity, OptionChainSource } from "@/lib/optionContractResponse";
+import type { DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import { composeMarketCanvasVM } from "@/lib/marketData/viewModels/composeMarketCanvasVM";
 import DecisionReceiptPanel from "@/components/experience/DecisionReceiptPanel";
@@ -164,6 +173,17 @@ const DECK_GOVERNED_ELEMENTS: readonly SurfaceElement[] = [
   "THESIS_GEOMETRY",
 ];
 
+interface DeckOptionSelection {
+  readonly underlying: string;
+  readonly owner: string;
+  readonly direction: "long" | "short";
+  readonly contract: OptionContract;
+  readonly source: OptionChainSource;
+  readonly fidelity: OptionChainFidelity;
+  readonly providerPath: string | null;
+  readonly rightsPolicyId: string | null;
+}
+
 export default function CommandDeckPage() {
   // useSearchParams must be inside a Suspense boundary during SSG. The
   // whole page reads it, so wrap the surface in a Suspense fallback that
@@ -199,6 +219,8 @@ function CommandDeckInner() {
   const [whyTarget, setWhyTarget] = React.useState<WhyTarget | null>(null);
   const [showEvidence, setShowEvidence] = React.useState<boolean>(false);
   const [proofChainOpen, setProofChainOpen] = React.useState(false);
+  const [optionSelection, setOptionSelection] = React.useState<DeckOptionSelection | null>(null);
+  const [sceneDecision, setSceneDecision] = React.useState<ScopedDecisionIdentity | null>(null);
 
   // Experience layer (Founder Phase 1): the seven operating states reorganise
   // the shell's EMPHASIS around the human's current job — the market truth
@@ -324,6 +346,28 @@ function CommandDeckInner() {
   const oneStory = canvasCompilation.oneStory;
   const decisionWhy = canvasCompilation.decisionWhy;
   const marketCanvas = canvasCompilation.canvas;
+  const expressionDirection = expressionDirectionFromCanonical(state?.direction);
+  const expressionOwner = user?.id ?? "signed-out";
+  const selectedExpression = expressionScopeIsCurrent(optionSelection, {
+    underlying: symbol,
+    owner: expressionOwner,
+    direction: expressionDirection,
+  }) ? optionSelection : null;
+  const currentSceneDecision = currentDecisionIdentity(sceneDecision, {
+    underlying: symbol,
+    owner: expressionOwner,
+  });
+  React.useEffect(() => {
+    // The selectors above fence the transition render; these effects remove
+    // stale storage once the room, owner, or thesis side changes.
+    setOptionSelection(null);
+  }, [symbol, expressionOwner, expressionDirection]);
+  React.useEffect(() => {
+    setSceneDecision(null);
+  }, [symbol, expressionOwner]);
+  const selectedExpressionLabel = selectedExpression
+    ? `${selectedExpression.contract.symbol} ${selectedExpression.contract.expirationDate} ${selectedExpression.contract.strike} ${selectedExpression.contract.contractType}`
+    : null;
 
   // ── BUILD ORDER §10 SCENE COMPILER ─────────────────────────────────────────
   // The OS layer: given the state, what is ADMITTED to the surface. This is not
@@ -881,7 +925,7 @@ function CommandDeckInner() {
                 crossings are birthed on /charts today). Absence is a sentence,
                 never a fabricated id. */}
             <DecisionSpineBand
-              decisionId={null}
+              decisionId={currentSceneDecision?.decisionId ?? null}
               decisionIdAbsence="No decision born yet on this scene — permission has not crossed here."
               market={{
                 symbol,
@@ -893,7 +937,8 @@ function CommandDeckInner() {
               oneStory={oneStory}
               availableR={chainVm?.availableR ?? null}
               decisionWhy={decisionWhy}
-              expression={null}
+              expression={selectedExpressionLabel}
+              onOpenWhy={() => openWhy({ kind: "hero" })}
             />
 
             {/* Ticket T's actual MARKET / RISK / NEXT working surface belongs
@@ -917,8 +962,36 @@ function CommandDeckInner() {
                 <DeckExpressionShortlist
                   symbol={symbol}
                   spot={state?.price?.last ?? null}
-                  direction={null}
+                  direction={expressionDirection}
+                  onSelect={(slot, receipt) => {
+                    if (!slot.contract || !expressionDirection || receipt.source === "unknown" || receipt.fidelity === "UNKNOWN") return;
+                    setOptionSelection({
+                      underlying: symbol,
+                      owner: expressionOwner,
+                      direction: expressionDirection,
+                      contract: slot.contract,
+                      source: receipt.source,
+                      fidelity: receipt.fidelity,
+                      providerPath: receipt.providerPath,
+                      rightsPolicyId: receipt.rightsPolicyId,
+                    });
+                  }}
                 />
+                {selectedExpression && (
+                  <OptionExpressionIntent
+                    key={`${expressionOwner}:${symbol}:${selectedExpression.contract.symbol}:${selectedExpression.contract.expirationDate}:${selectedExpression.contract.contractType}:${selectedExpression.contract.strike}`}
+                    ownerId={user?.id ?? ""}
+                    underlying={symbol}
+                    contract={selectedExpression.contract}
+                    source={selectedExpression.source}
+                    fidelity={selectedExpression.fidelity}
+                    providerPath={selectedExpression.providerPath}
+                    rightsPolicyId={selectedExpression.rightsPolicyId}
+                    bornDecision={currentSceneDecision}
+                    onIdentity={(identity: DecisionIdentity) => setSceneDecision({ underlying: symbol, owner: expressionOwner, identity })}
+                    onClear={() => setOptionSelection(null)}
+                  />
+                )}
               </aside>
             </div>
 

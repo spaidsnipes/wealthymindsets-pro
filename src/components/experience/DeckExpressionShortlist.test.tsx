@@ -16,7 +16,7 @@ import { UNREVIEWED_RECEIPT } from "@/lib/optionsChainRead";
  */
 
 describe("DeckExpressionShortlist SSR paint", () => {
-  it("renders the shell without a window (no throw, honest IDLE)", () => {
+  it("renders the shell without a window and quietly withholds when direction is unknown", () => {
     const html = renderToStaticMarkup(
       <DeckExpressionShortlist symbol="TSLA" spot={365} direction={null} />,
     );
@@ -25,7 +25,8 @@ describe("DeckExpressionShortlist SSR paint", () => {
     // Direction is null on the deck today — the label says so, never silently
     // guesses a side.
     expect(html).toContain("direction UNKNOWN");
-    expect(html).toContain('data-testid="deck-expression-idle"');
+    expect(html).toContain('data-testid="deck-expression-wait-direction"');
+    expect(html).toContain("WAIT FOR DIRECTION");
   });
 
   it("does not claim a received fidelity before a response — never LIVE-CERTIFIED or EXECUTABLE", () => {
@@ -85,6 +86,15 @@ describe("shortlist request safety", () => {
     expect(SOURCE()).toContain('reason: "NETWORK ERROR"');
     expect(SOURCE()).not.toContain("err?.message");
   });
+
+  it("does not request an options chain before canonical direction resolves", () => {
+    const src = SOURCE();
+    const guard = src.indexOf('if (direction === null)');
+    const request = src.indexOf('/api/market-data/alpaca/options', guard);
+    expect(guard).toBeGreaterThan(0);
+    expect(guard).toBeLessThan(request);
+    expect(src).toContain('kind: "WAIT_DIRECTION"');
+  });
 });
 
 describe("the deck mounts the shortlist in the desktop operating room", () => {
@@ -119,16 +129,29 @@ describe("the deck mounts the shortlist in the desktop operating room", () => {
     expect(DECK()).toContain('density="room"');
   });
 
-  it("passes null direction — honest, not fabricated", () => {
-    // The deck doesn't yet run permission-crossing decision birth. A default
-    // of "long" would silently commit the trader to a side the scene has not
-    // earned. The shortlist collapses to three "direction UNKNOWN" cells,
-    // which is the honest state until a decision names a side.
+  it("derives direction from canonical state and provides a real attachment path", () => {
+    // The mapper returns null for unresolved/unrecognised directions; the
+    // deck must not hard-code either side or hard-code UNKNOWN forever.
     const src = DECK();
     const start = src.indexOf("<DeckExpressionShortlist");
     const end = src.indexOf("/>", start);
     const block = src.slice(start, end);
-    expect(block).toContain("direction={null}");
+    expect(block).toContain("direction={expressionDirection}");
     expect(block).toContain("spot={state?.price?.last ?? null}");
+    expect(block).toContain("onSelect=");
+    expect(src).toContain("<OptionExpressionIntent");
+    expect(src).toContain("expressionScopeIsCurrent(optionSelection");
+    expect(src).toContain("owner: expressionOwner");
+    expect(src).toContain("direction: expressionDirection");
+    expect(src).toContain("onIdentity={(identity: DecisionIdentity)");
+    expect(src).toContain('key={`${expressionOwner}:${symbol}:');
+  });
+
+  it("the charts path adopts explicit-intent identity into the shared spine", () => {
+    const charts = readFileSync(resolve(__dirname, "../chart/ChartsDashboard.tsx"), "utf8");
+    expect(charts).toContain("bornDecision={currentSceneDecision}");
+    expect(charts).toContain("adoptSceneDecision(current");
+    expect(charts).toContain("currentDecisionIdentity(sceneDecision, decisionScope)");
+    expect(charts).toContain("}, [symbol, canvasUser?.id]);");
   });
 });
