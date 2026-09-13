@@ -29,6 +29,7 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
     // for a conversation, not slip in silently.
     expect([...FOUNDER_ROOM_ROUTES]).toEqual([
       "/command-deck",
+      "/charts",
       "/morning-prep",
       "/journal",
       "/paper",
@@ -36,14 +37,8 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
     ]);
   });
 
-  it("does not include /charts — the audit permits it as advanced-inspect", () => {
-    // The Founder audit 2026-09-13 (Video A 00:44, 00:52, 01:00) permits
-    // /charts to remain a conventional cockpit "as inspect / advanced
-    // mode", not the default operating-system silhouette. Adding it to
-    // this registry would prematurely retire the July shell there before
-    // the chart's rails and watchlists have been reworked to sit inside
-    // the sanctuary.
-    expect(FOUNDER_ROOM_ROUTES).not.toContain("/charts");
+  it("graduates /charts from the July parent while preserving it as the instrument room", () => {
+    expect(FOUNDER_ROOM_ROUTES).toContain("/charts");
   });
 
   it("does not include tool routes that must not dictate Founder scene styling", () => {
@@ -82,12 +77,12 @@ describe("isFounderRoomRoute", () => {
     expect(isFounderRoomRoute("/command-deck-legacy")).toBe(false);
   });
 
-  it("rejects tool routes, /charts, and the bare domain", () => {
+  it("rejects ungraduated tool routes and the bare domain", () => {
     // The bare domain isn't in the registry — it redirects to /command-deck
     // via founderLanding.ts, which is the single owner. Adding it here
     // would double-owner the landing decision.
     expect(isFounderRoomRoute("/")).toBe(false);
-    expect(isFounderRoomRoute("/charts")).toBe(false);
+    expect(isFounderRoomRoute("/charts")).toBe(true);
     expect(isFounderRoomRoute("/scanner")).toBe(false);
     expect(isFounderRoomRoute("/heatmaps")).toBe(false);
     expect(isFounderRoomRoute("/copy-trading")).toBe(false);

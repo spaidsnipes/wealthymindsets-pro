@@ -21,18 +21,18 @@
  * trader is IN the family, MainLayout returns WMExperienceShell — one
  * atmosphere for every room they arrive in.
  *
- * The list is DELIBERATELY narrow. Tools that the audit called out as
- * legitimate advanced-inspect surfaces (/charts, /scanner, /heatmaps,
- * /readiness) stay on the July shell for now — they carry their own
- * primary rails, watchlists, and cockpit controls that are structurally
- * incompatible with the sanctuary's calm hierarchy. Retiring THEM is a
- * later PR ("PR-T3 — Retirement + Receipts"). This PR moves the family.
+ * The list is DELIBERATELY narrow. `/charts` has now graduated because its
+ * own instrument controls remain intact without the legacy application's
+ * ticker/header/primary rail. Scanner, heatmaps and readiness remain advanced
+ * inspect surfaces until their internal layouts receive the same proof.
  *
  * The registry is a single owner. MainLayout imports it, guards import
  * it, and no route decides its own shell. That is the ONLY discipline
  * that prevents "one file gets converted, another silently regresses"
  * — the exact failure mode the Founder brief calls the "loophole."
  */
+
+import { INSTRUMENT_VIEW_ROUTE } from "./founderLanding";
 
 /**
  * Every route that wears the Asset-10 sanctuary shell today. In order of
@@ -44,6 +44,7 @@
  */
 export const FOUNDER_ROOM_ROUTES = [
   "/command-deck",
+  INSTRUMENT_VIEW_ROUTE,
   "/morning-prep",
   "/journal",
   "/paper",
