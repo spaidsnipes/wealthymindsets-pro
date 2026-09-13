@@ -346,8 +346,10 @@ export function readinessSummary(readiness: readonly ProviderReadiness[]): strin
 /**
  * HIGH — identical once punctuation is discarded (`FINNHUB_KEY_` vs
  *        `FINNHUB_KEY`). Effectively always a typo.
- * MEDIUM — shares a distinctive, non-generic token (`ATH_LIVEKIT_KEY_` vs
- *        `LIVEKIT_API_KEY`). A lead to check, not a verdict.
+ * MEDIUM — both names claim the SAME PROVIDER (`ATH_LIVEKIT_KEY_` vs
+ *        `LIVEKIT_API_KEY`). A lead to check, not a verdict. "Distinctive" is
+ *        defined by providerIdentityTokens(), which reads the provider table —
+ *        it is not a judgement about how common an English word is.
  */
 export type NearMissConfidence = "EXACT_MODULO_PUNCTUATION" | "SHARED_DISTINCTIVE_TOKENS";
 
@@ -360,21 +362,51 @@ export interface EnvNameNearMiss {
 }
 
 /**
- * Tokens too common to imply kinship. Without this filter every *_KEY var
- * looks like every other *_KEY var and the report drowns in noise — the
- * failure mode where a Sentinel gets whitelisted into uselessness.
+ * What makes a shared token EVIDENCE of kinship rather than coincidence.
+ *
+ * This used to be a hand-maintained DENYLIST of generic words ("KEY", "SECRET",
+ * "API", "URL", "TOKEN", "ID", "PUBLIC", "NEXT", "APP", "TRADE"). A denylist of
+ * generic words can only ever be as complete as the last person to think of a
+ * word, and the receipt on live Founder glass proved the gap:
+ *
+ *   code reads TASTYTRADE_ENV      · host has NODE_ENV          (shared "ENV")
+ *   code reads WEBULL_DATA_URL     · host has TWELVE_DATA_KEY_   (shared "DATA")
+ *   code reads WEBULL_DATA_URL     · host has TWELVE_DATA_KEY_SECRET
+ *
+ * NODE_ENV is present on every Node runtime that has ever existed. Reporting it
+ * as a candidate misspelling of TASTYTRADE_ENV is noise, and noise beside a real
+ * lead is how a reader learns to skip the panel — the exact
+ * whitelisted-into-uselessness failure the old comment feared, arrived by the
+ * other door.
+ *
+ * Adding "DATA" and "ENV" to the denylist would fix these three rows and leave
+ * the next generic word to be discovered in production. So the question is
+ * inverted: not "is this word too common to count?" but "does this word say
+ * WHICH PROVIDER the variable belongs to?" Two names are kin when they name the
+ * same vendor. That set is not a judgement call — it is already owned by
+ * PROVIDER_REQUIREMENTS, whose ProviderId carries the vendor in its first
+ * segment ("webull-data" → WEBULL, "alpaca-paper" → ALPACA, "livekit" →
+ * LIVEKIT). Deriving from that table means declaring a new provider there is
+ * enough; there is no second registry to keep in step, and no word list to
+ * forget to extend.
  */
-const GENERIC_TOKENS: ReadonlySet<string> = new Set([
-  "KEY", "SECRET", "API", "URL", "TOKEN", "ID", "PUBLIC", "NEXT", "APP", "TRADE",
-]);
+function providerIdentityTokens(): ReadonlySet<string> {
+  return new Set(PROVIDER_REQUIREMENTS.map((r) => r.provider.split("-")[0].toUpperCase()));
+}
 
 function normalizeName(name: string): string {
   return name.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
+/**
+ * The provider-identity tokens present in a var name. A name carrying none —
+ * NODE_ENV, TWELVE_DATA_KEY_ — can be kin to nothing, because nothing in it
+ * claims a vendor.
+ */
 function distinctiveTokens(name: string): ReadonlySet<string> {
+  const identity = providerIdentityTokens();
   return new Set(
-    name.toUpperCase().split(/[^A-Z0-9]+/).filter((t) => t && !GENERIC_TOKENS.has(t)),
+    name.toUpperCase().split(/[^A-Z0-9]+/).filter((t) => t && identity.has(t)),
   );
 }
 

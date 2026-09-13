@@ -407,6 +407,58 @@ describe("detectEnvNameNearMisses (canon: a lookalike is not agreement)", () => 
     expect(Object.keys(hits[0]).sort()).toEqual(["confidence", "expected", "found"]);
   });
 
+  /**
+   * The three rows below were READ OFF THE LIVE /readiness PANEL on authenticated
+   * Founder glass. They are not hypotheticals — each one occupied a line in the
+   * NAME MISMATCH SUSPECTED receipt, next to the genuine leads, teaching the
+   * reader that the panel is skippable.
+   */
+  it("does not accuse NODE_ENV of being a misspelt TASTYTRADE_ENV", () => {
+    // Shared token: ENV. NODE_ENV is present on every Node runtime in existence,
+    // so 'it is present and it shares a word' is evidence of nothing at all.
+    expect(detectEnvNameNearMisses(["TASTYTRADE_ENV"], { NODE_ENV: "production" })).toEqual([]);
+  });
+
+  it("does not pair WEBULL_DATA_URL with a Twelve Data key", () => {
+    // Shared token: DATA. Two different vendors that both move market data are
+    // not two spellings of one variable.
+    expect(detectEnvNameNearMisses(["WEBULL_DATA_URL"], {
+      TWELVE_DATA_KEY_: "redacted",
+      TWELVE_DATA_KEY_SECRET: "redacted",
+    })).toEqual([]);
+  });
+
+  it("still keeps the genuine leads standing beside those rejections", () => {
+    // The rejection must not be bought by deafening the detector. Same env map,
+    // same call: the vendor-named pairs survive.
+    const host: EnvPresence = {
+      NODE_ENV: "production",
+      TWELVE_DATA_KEY_: "redacted",
+      FINNHUB_SECRET: "redacted",
+      ATH_LIVEKIT_KEY_: "redacted",
+    };
+    const hits = detectEnvNameNearMisses(
+      ["TASTYTRADE_ENV", "WEBULL_DATA_URL", "NEXT_PUBLIC_FINNHUB_KEY", "NEXT_PUBLIC_LIVEKIT_URL"],
+      host,
+    );
+    expect(hits.map((h) => `${h.expected}|${h.found}`).sort()).toEqual([
+      "NEXT_PUBLIC_FINNHUB_KEY|FINNHUB_SECRET",
+      "NEXT_PUBLIC_LIVEKIT_URL|ATH_LIVEKIT_KEY_",
+    ]);
+  });
+
+  it("takes its notion of 'distinctive' from the provider table, not a word list", () => {
+    // The regression this fences: someone declares a provider in
+    // PROVIDER_REQUIREMENTS and the detector goes on not recognising its name
+    // because a SECOND list was never updated. Every declared vendor must be a
+    // token the detector can match on, derived — never retyped.
+    for (const req of PROVIDER_REQUIREMENTS) {
+      const vendor = req.provider.split("-")[0].toUpperCase();
+      const hits = detectEnvNameNearMisses([`${vendor}_API_KEY`], { [`ATH_${vendor}_KEY_`]: "x" });
+      expect(hits, `${req.provider} is declared but its name is not distinctive`).toHaveLength(1);
+    }
+  });
+
   it("closes the ABSENT_BOTH blind spot that let this ship", () => {
     // computeEnvParity scores FINNHUB_KEY as ABSENT_BOTH and calls that
     // agreement — inParity stays true while the tape is dead. The near-miss
