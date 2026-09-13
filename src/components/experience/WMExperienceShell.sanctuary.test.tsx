@@ -45,6 +45,12 @@ describe("WMExperienceShell · sanctuary — the three planes are named", () => 
     expect(HTML).toContain('class="wm-sanctuary');
   });
 
+  it("owns one viewport and delegates long-form scrolling to its main plane", () => {
+    expect(HTML).toContain('height:100dvh');
+    expect(HTML).toContain('overflow:hidden');
+    expect(HTML).not.toContain('min-height:100%');
+  });
+
   it("mounts the water-breath layer once, and marks it aria-hidden", () => {
     // Screen readers must not narrate the ambient plane — it says nothing.
     // Missing aria-hidden here would make the ambience appear in an a11y

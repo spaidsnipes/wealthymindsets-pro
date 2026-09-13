@@ -152,6 +152,22 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         flexShrink: 0,
       }}
     >
+      <style>{`
+        @media (max-width: 767px) {
+          .wm-decision-spine {
+            flex-wrap: nowrap !important;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: none;
+          }
+          .wm-decision-spine::-webkit-scrollbar { display: none; }
+          .wm-decision-spine > div {
+            flex: 0 0 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+          }
+        }
+      `}</style>
       {/* DECISION_ID — the thing every other cell is about. */}
       <div style={{ ...CELL, flex: "1 1 220px", minWidth: 200, maxWidth: "100%", borderLeft: "none" }}>
         <span style={LABEL}>Decision</span>

@@ -101,6 +101,14 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
   it("is a landmark the trader can find by name, not a nameless div", () => {
     expect(render()).toContain('aria-label="Decision spine"');
   });
+
+  it("keeps MARKET usable on a phone by scrolling the spine horizontally", () => {
+    const html = render();
+    expect(html).toContain("@media (max-width: 767px)");
+    expect(html).toContain("flex-wrap: nowrap !important");
+    expect(html).toContain("overflow-x: auto");
+    expect(html).toContain("flex: 0 0 180px !important");
+  });
 });
 
 describe("DecisionSpineBand — absence is disclosed, never filled", () => {

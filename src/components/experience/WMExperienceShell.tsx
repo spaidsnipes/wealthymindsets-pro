@@ -102,7 +102,9 @@ export function WMExperienceShell({
         position: "relative",
         display: "flex",
         flexDirection: "column",
-        minHeight: "100%",
+        height: "100dvh",
+        minHeight: 0,
+        overflow: "hidden",
         background: WM.surface.deepest,
         color: WM.text.body,
         // The sanctuary layers below must sit UNDER interactive content.

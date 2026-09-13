@@ -1246,45 +1246,6 @@ export function ChartsDashboard() {
           });
         })()}
       </div>
-      {/* ── Decision spine — NOW / MARKET / RISK / WHY / NEXT ────
-          Founder canon (Asset 10 operating room): the five things the
-          scene must SHOW, not hide. Before this, NOW and RISK were
-          absent from /charts entirely and WHY and NEXT each required
-          opening a drawer the trader had to already know about.
-          Every field is handed in pre-compiled by the SAME
-          composeMarketCanvasVM the drawer and /command-deck read —
-          the band computes nothing, so the two cannot diverge. */}
-      <DecisionSpineBand
-        decisionId={currentSceneDecision?.decisionId ?? null}
-        decisionIdAbsence={sceneDecisionAbsence}
-        market={{
-          symbol,
-          timeframe,
-          quality: chartCanvasState?.qualityState ?? null,
-          capturedAt: chartCanvasState?.capturedAt ?? null,
-          last: chartCanvasState?.price.last ?? null,
-        }}
-        oneStory={chartCanvasVM.oneStory}
-        availableR={chartCanvasVM.chain?.availableR ?? null}
-        decisionWhy={chartCanvasVM.decisionWhy}
-        expression={
-          optionSelection && optionSelection.underlying === symbol
-            ? `${optionSelection.contract.symbol} ${optionSelection.contract.expirationDate} ${optionSelection.contract.strike} ${optionSelection.contract.contractType}`
-            : null
-        }
-        onOpenWhy={() => setWhyOpen(true)}
-      />
-      {/* ── Order Flow Cockpit strip — Asset 10 canon merge ──────
-          Real per-trade tick data → selectAggressorFlow pure selector
-          → honest aggressor volumes / net flow / imbalance. Silent
-          chip when no aggressor evidence yet (§Silence Is A Feature).
-          NO fake bullish-percentage score, NO invented net-buying-
-          pressure gauge — the canon "68% net buying pressure" and
-          "2.84B aggressive buy" numbers from Asset 10 stay in the
-          reference; here we surface the REAL selector output. */}
-      {(activeTab === "Chart" || activeTab === "Options") && (
-        <OrderFlowCockpitStrip ticks={recentTicks} livePrice={ticker.price} />
-      )}
       {/* ── MooMoo-style chart tabs row ──────────────────────── */}
       <div className="wm-chart-tabs" style={{
         height: 40, borderBottom: "1px solid #1E2030", display: "flex", alignItems: "center",
@@ -2173,6 +2134,38 @@ export function ChartsDashboard() {
           {infoOpen && <StockInfoPanel symbol={symbol} />}
         </div> : null}
       </div>
+
+      {/* ── Decision spine — NOW / MARKET / RISK / WHY / NEXT ────
+          MARKET now owns the first and largest field. The decision spine is
+          attached beneath it as the interpretation rail instead of occupying
+          scarce first-view height above the evidence it explains. Every field
+          remains compiled by the same composeMarketCanvasVM as the drawer and
+          /command-deck, so the visual re-order does not fork truth ownership. */}
+      <DecisionSpineBand
+        decisionId={currentSceneDecision?.decisionId ?? null}
+        decisionIdAbsence={sceneDecisionAbsence}
+        market={{
+          symbol,
+          timeframe,
+          quality: chartCanvasState?.qualityState ?? null,
+          capturedAt: chartCanvasState?.capturedAt ?? null,
+          last: chartCanvasState?.price.last ?? null,
+        }}
+        oneStory={chartCanvasVM.oneStory}
+        availableR={chartCanvasVM.chain?.availableR ?? null}
+        decisionWhy={chartCanvasVM.decisionWhy}
+        expression={
+          optionSelection && optionSelection.underlying === symbol
+            ? `${optionSelection.contract.symbol} ${optionSelection.contract.expirationDate} ${optionSelection.contract.strike} ${optionSelection.contract.contractType}`
+            : null
+        }
+        onOpenWhy={() => setWhyOpen(true)}
+      />
+      {/* Real per-trade flow remains silent until canonical aggressor evidence
+          exists; it follows the decision rail instead of pushing MARKET down. */}
+      {(activeTab === "Chart" || activeTab === "Options") && (
+        <OrderFlowCockpitStrip ticks={recentTicks} livePrice={ticker.price} />
+      )}
 
       {/* ── Bottom index bar ─────────────────────────────────── */}
       <BottomIndexBar />
