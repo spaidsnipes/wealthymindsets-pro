@@ -41,10 +41,13 @@ export function MirrorPanel({ vm, onDrill, className }: MirrorPanelProps) {
       aria-label="Mirror — behavioral patterns"
       className={["wm-mirror-panel", className ?? ""].join(" ")}
       style={{
-        border: "1px solid rgba(139,106,41,0.35)",
-        borderRadius: 10,
-        background: "rgba(11,11,13,0.9)",
-        padding: 16,
+        // SCENE_FRAGMENTATION cure: Mirror is a REVIEW-mode inspection
+        // of behavioral patterns; a full-box card made it read as a
+        // "Mirror app". It is a contextual layer of the current
+        // decision, not another destination.
+        borderTop: "1px solid rgba(139,106,41,0.20)",
+        background: "transparent",
+        padding: "12px 0 4px",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>

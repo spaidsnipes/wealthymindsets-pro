@@ -53,10 +53,13 @@ export function OpeningBellPanel({ vm, onItemClick, className }: OpeningBellPane
       aria-label="Opening Bell — session readiness"
       className={["wm-opening-bell-panel", className ?? ""].join(" ")}
       style={{
-        border: "1px solid rgba(139,106,41,0.35)",
-        borderRadius: 10,
-        background: "rgba(11,11,13,0.9)",
-        padding: 16,
+        // SCENE_FRAGMENTATION cure: Opening Bell is a PREP-mode session
+        // readiness reading; a full-box card made it read as a "Bell
+        // app". It is an aspect of the pre-market decision, not another
+        // destination.
+        borderTop: "1px solid rgba(139,106,41,0.20)",
+        background: "transparent",
+        padding: "12px 0 4px",
       }}
     >
       {/* Verdict header */}
