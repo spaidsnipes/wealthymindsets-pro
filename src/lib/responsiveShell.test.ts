@@ -292,6 +292,25 @@ describe("responsive P0 command surfaces", () => {
     expect(deck).not.toContain("DoctrineTagline");
   });
 
+  it("keeps secondary preparation and diagnostics behind one workspace disclosure", () => {
+    const deck = source("../app/command-deck/page.tsx");
+    const room = deck.indexOf('data-testid="deck-market-scene"');
+    const workspace = deck.indexOf('className="wm-cd-secondary-workspace"', room);
+    const content = deck.indexOf('data-testid="secondary-workspace-content"', workspace);
+    const connections = deck.indexOf('className="wm-cd-connection-diagnostics"', content);
+    const system = deck.indexOf("System state · session · data · evidence · right-of-way", content);
+    const deepRead = deck.indexOf("Deep read · story · auction lens · decision chain · steward · fidelity", content);
+    const workspaceEnd = deck.indexOf("{/* Evidence column", deepRead);
+    expect(workspace).toBeGreaterThan(room);
+    expect(content).toBeGreaterThan(workspace);
+    expect(connections).toBeGreaterThan(content);
+    expect(system).toBeGreaterThan(connections);
+    expect(deepRead).toBeGreaterThan(system);
+    expect(deepRead).toBeLessThan(workspaceEnd);
+    expect(deck.slice(workspace, content)).not.toContain("open=");
+    expect(deck.match(/className="wm-cd-secondary-workspace"/g)).toHaveLength(1);
+  });
+
   it("compresses an unresolved room hero without hiding its market-state truth", () => {
     const hero = source("../components/command-deck/HeroTruth.tsx");
     expect(hero).toContain('isRoomDensity && marketStateResolution === "UNKNOWN"');

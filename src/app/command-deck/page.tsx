@@ -998,6 +998,39 @@ function CommandDeckInner() {
               </section>
             </div>
 
+            {/* The market room owns the default Founder read. Preparation,
+                diagnostics, raw system state, fidelity, phase tooling, and
+                retrospective analysis remain intact in one intentional
+                workspace instead of rebuilding a dashboard beneath MARKET. */}
+            <details
+              className="wm-cd-secondary-workspace"
+              style={{
+                borderTop: "1px solid rgba(139,106,41,0.24)",
+                paddingTop: 8,
+              }}
+            >
+              <summary
+                style={{
+                  minHeight: 46,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  cursor: "pointer",
+                  listStyle: "none",
+                  color: "#c9a55c",
+                  fontSize: 10,
+                  letterSpacing: 0.6,
+                  textTransform: "uppercase",
+                }}
+              >
+                <span>Workspace · proof · preparation</span>
+                <span style={{ color: "#8a8271" }}>Open secondary tools</span>
+              </summary>
+              <div
+                data-testid="secondary-workspace-content"
+                style={{ display: "flex", flexDirection: "column", gap: 20, paddingTop: 8 }}
+              >
             {/* Today's morning-prep intention (if any) — the PREP→OBSERVE
                 bridge from Founder Aug-14 §14 'Morning Prep intention
                 appears later in review.' Silent when no entry today
@@ -1767,6 +1800,8 @@ function CommandDeckInner() {
                 })}
               />
             )}
+              </div>
+            </details>
           </div>
 
           {/* Evidence column — appears when user has opened a Why? drill */}
