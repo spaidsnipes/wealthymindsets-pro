@@ -60,6 +60,7 @@ import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassp
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
+import DeckMarketChart from "@/components/experience/DeckMarketChart";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import { composeMarketCanvasVM } from "@/lib/marketData/viewModels/composeMarketCanvasVM";
 import DecisionReceiptPanel from "@/components/experience/DecisionReceiptPanel";
@@ -982,7 +983,17 @@ function CommandDeckInner() {
                   A Feature). The fourth corner (WHY?) stays with
                   WhyInspector because it needs per-target evidence. */}
                   <div style={{ order: surfaceOrder(deckEmphasis, "STORY") }}>
-                    <MarketCanvasPanel vm={marketCanvas} />
+                    {/* Ticket T MARKET requires "real TSLA market/chart
+                        evidence" — until this landed, the section was only
+                        the chip-list panel below. A trader arrived at the
+                        default Founder scene with a decision compilation and
+                        no visible market. The chart carries its own truthful
+                        LOADING/EMPTY/UNAVAILABLE states; nothing is drawn
+                        when nothing has arrived. */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <DeckMarketChart symbol={symbol} timeframe={timeframe} />
+                      <MarketCanvasPanel vm={marketCanvas} />
+                    </div>
                   </div>
 
               {/* Market Object Passports (canon P6 Object DNA) — a contextual
