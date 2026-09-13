@@ -680,12 +680,10 @@ function CommandDeckInner() {
               to a squeezed main column. Use CSS media query via style
               tag so we don't require a global stylesheet touch. */}
           <style>{`
-            .wm-cd-header-action { min-height: 44px !important; }
-            .wm-cd-header-action:focus-visible,
-            .wm-cd-header-back:focus-visible {
-              outline: 2px solid #d4af37;
-              outline-offset: 2px;
-            }
+            /* Founder audit 2026-09-13: the .wm-cd-header* rules that used
+               to live here belonged to the July sub-nav (Charts / Command
+               Deck / Why? / Growth / Journal), which was stripped in
+               fd24a80. They are gone with the DOM they styled. */
             .wm-cd-chapter-history { min-width: 0; }
             .wm-cd-chapter-history > summary {
               min-height: 44px;

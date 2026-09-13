@@ -23,8 +23,10 @@
  *
  * The list is DELIBERATELY narrow. `/charts` has now graduated because its
  * own instrument controls remain intact without the legacy application's
- * ticker/header/primary rail. Scanner, heatmaps and readiness remain advanced
- * inspect surfaces until their internal layouts receive the same proof.
+ * ticker/header/primary rail. `/heatmaps` has also graduated: the treemap is
+ * its market field, while its duplicate page wordmark has been retired.
+ * Scanner and readiness remain advanced inspect surfaces until their internal
+ * layouts receive the same proof.
  *
  * The registry is a single owner. MainLayout imports it, guards import
  * it, and no route decides its own shell. That is the ONLY discipline
@@ -45,6 +47,7 @@ import { INSTRUMENT_VIEW_ROUTE } from "./founderLanding";
 export const FOUNDER_ROOM_ROUTES = [
   "/command-deck",
   INSTRUMENT_VIEW_ROUTE,
+  "/heatmaps",
   "/morning-prep",
   "/journal",
   "/paper",

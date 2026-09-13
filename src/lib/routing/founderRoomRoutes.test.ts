@@ -30,6 +30,7 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
     expect([...FOUNDER_ROOM_ROUTES]).toEqual([
       "/command-deck",
       "/charts",
+      "/heatmaps",
       "/morning-prep",
       "/journal",
       "/paper",
@@ -41,13 +42,13 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
     expect(FOUNDER_ROOM_ROUTES).toContain("/charts");
   });
 
-  it("does not include tool routes that must not dictate Founder scene styling", () => {
-    // Scanner, heatmaps, readiness, and copy-trading are legitimate tools
+  it("does not include ungraduated tool routes that must not dictate Founder scene styling", () => {
+    // Scanner, readiness, and copy-trading are legitimate tools
     // the audit permits — but they must not force the sanctuary tempo
     // onto themselves or be entered from the family without a route
     // change. Adding them here would be the opposite of the audit's law.
     expect(FOUNDER_ROOM_ROUTES).not.toContain("/scanner");
-    expect(FOUNDER_ROOM_ROUTES).not.toContain("/heatmaps");
+    expect(FOUNDER_ROOM_ROUTES).toContain("/heatmaps");
     expect(FOUNDER_ROOM_ROUTES).not.toContain("/readiness");
     expect(FOUNDER_ROOM_ROUTES).not.toContain("/copy-trading");
   });
@@ -84,7 +85,7 @@ describe("isFounderRoomRoute", () => {
     expect(isFounderRoomRoute("/")).toBe(false);
     expect(isFounderRoomRoute("/charts")).toBe(true);
     expect(isFounderRoomRoute("/scanner")).toBe(false);
-    expect(isFounderRoomRoute("/heatmaps")).toBe(false);
+    expect(isFounderRoomRoute("/heatmaps")).toBe(true);
     expect(isFounderRoomRoute("/copy-trading")).toBe(false);
     expect(isFounderRoomRoute("/profile")).toBe(false);
     expect(isFounderRoomRoute("/login")).toBe(false);
