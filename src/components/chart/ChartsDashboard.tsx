@@ -89,6 +89,10 @@ import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDi
 // Asset 07 (Evidence Debt / Question Mode) canon: dedicated
 // question-mode surface exposing the decisionWhy compilation.
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
+import DecisionSpineBand from "@/components/experience/DecisionSpineBand";
+import { birthOnPermissionCrossing } from "@/lib/traderMemory/permissionBirth";
+import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
+import type { PermissionVerdict } from "@/lib/traderMemory/viewModels/selectPermission";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { useNarrowViewport } from "@/lib/responsive/narrowViewport";
 
@@ -666,6 +670,55 @@ export function ChartsDashboard() {
   const [whyOpen, setWhyOpen] = useState(false);
   const whyTriggerRef = useRef<HTMLButtonElement>(null);
 
+  // ── DECISION_ID on the primary surface ──────────────────────────
+  // Until now the ONLY production mint was EXPLICIT_INTENT, inside
+  // OptionExpressionIntent. The identity owner names a second lawful
+  // birth — PERMISSION_GRANTED — and nothing in src/ had ever called
+  // it, so a trader who never opened an option chain had no decision
+  // identity at all and nothing downstream could say "the SAME
+  // decision, later."
+  //
+  // The judgement about what counts as a grant does NOT live here.
+  // `permissionBirth` owns it, pure and tested, precisely because a
+  // surface that mints whenever it sees ALLOWED would mint every
+  // render — "the exact opposite of identity" in the owner's words.
+  // This effect only supplies the clock, the witness, and the nonce,
+  // all of which the pure module refuses to read for itself.
+  const permissionVerdict: PermissionVerdict =
+    chartCanvasVM.permission?.verdict ?? "UNKNOWN";
+  const priorPermission = useRef<PermissionVerdict | null>(null);
+  const [sceneDecisionId, setSceneDecisionId] = useState<string | null>(null);
+  const [sceneDecisionAbsence, setSceneDecisionAbsence] = useState(
+    "No decision born yet — permission has not crossed.",
+  );
+  useEffect(() => {
+    const prev = priorPermission.current;
+    priorPermission.current = permissionVerdict;
+    const outcome = birthOnPermissionCrossing({
+      prev,
+      next: permissionVerdict,
+      deviceId: thisDeviceId(),
+      nowMs: Date.now(),
+      nonce: crypto.randomUUID(),
+    });
+    if (!outcome.born) return;
+    if (!outcome.mint.ok) {
+      // The mint refused. Disclosing the refusal is the whole point —
+      // an id we were not allowed to create must not become a blank.
+      setSceneDecisionAbsence(`Decision not minted: ${outcome.mint.reason}`);
+      return;
+    }
+    setSceneDecisionId(outcome.mint.identity.decisionId);
+  }, [permissionVerdict]);
+  // A decision belongs to the instrument it was born about. Carrying
+  // a TSLA identity onto BTC would be the aliasing failure the owner
+  // wrote its header against, one surface out.
+  useEffect(() => {
+    setSceneDecisionId(null);
+    priorPermission.current = null;
+    setSceneDecisionAbsence("No decision born yet — permission has not crossed.");
+  }, [symbol]);
+
   // ── Watchlist on a phone or a tablet ────────────────────────
   // At <=1023px globals.css hides BOTH `.wm-chart-watchlist` and the
   // `.wm-chart-primary-rail` that toggles it, so the capability had no surface
@@ -1160,6 +1213,34 @@ export function ChartsDashboard() {
           });
         })()}
       </div>
+      {/* ── Decision spine — NOW / MARKET / RISK / WHY / NEXT ────
+          Founder canon (Asset 10 operating room): the five things the
+          scene must SHOW, not hide. Before this, NOW and RISK were
+          absent from /charts entirely and WHY and NEXT each required
+          opening a drawer the trader had to already know about.
+          Every field is handed in pre-compiled by the SAME
+          composeMarketCanvasVM the drawer and /command-deck read —
+          the band computes nothing, so the two cannot diverge. */}
+      <DecisionSpineBand
+        decisionId={sceneDecisionId}
+        decisionIdAbsence={sceneDecisionAbsence}
+        market={{
+          symbol,
+          timeframe,
+          quality: chartCanvasState?.qualityState ?? null,
+          capturedAt: chartCanvasState?.capturedAt ?? null,
+          last: chartCanvasState?.price.last ?? null,
+        }}
+        oneStory={chartCanvasVM.oneStory}
+        availableR={chartCanvasVM.chain?.availableR ?? null}
+        decisionWhy={chartCanvasVM.decisionWhy}
+        expression={
+          optionSelection && optionSelection.underlying === symbol
+            ? `${optionSelection.contract.symbol} ${optionSelection.contract.expirationDate} ${optionSelection.contract.strike} ${optionSelection.contract.contractType}`
+            : null
+        }
+        onOpenWhy={() => setWhyOpen(true)}
+      />
       {/* ── Order Flow Cockpit strip — Asset 10 canon merge ──────
           Real per-trade tick data → selectAggressorFlow pure selector
           → honest aggressor volumes / net flow / imbalance. Silent
