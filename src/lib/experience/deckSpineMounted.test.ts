@@ -26,6 +26,7 @@ describe("the deck projects one decision room without a duplicate spine", () => 
     const support = src.indexOf('data-testid="scene-support"', market);
     const risk = src.indexOf('data-testid="scene-risk"', support);
     const why = src.indexOf('data-testid="scene-why"', risk);
+    const decision = src.indexOf('data-testid="scene-decision"', why);
     const next = src.indexOf('data-testid="scene-next"', why);
     const exitRamp = src.indexOf("<ExitRampCard", next);
     const end = src.indexOf("{/* Today's morning-prep intention", next);
@@ -34,6 +35,8 @@ describe("the deck projects one decision room without a duplicate spine", () => 
     expect(market).toBeLessThan(support);
     expect(support).toBeLessThan(risk);
     expect(risk).toBeLessThan(why);
+    expect(why).toBeLessThan(decision);
+    expect(decision).toBeLessThan(next);
     expect(why).toBeLessThan(next);
     expect(next).toBeLessThan(exitRamp);
     expect(exitRamp).toBeLessThan(end);

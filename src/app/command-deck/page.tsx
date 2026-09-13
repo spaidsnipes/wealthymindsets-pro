@@ -916,15 +916,6 @@ function CommandDeckInner() {
                 <SceneAdmits compilation={sceneCompilation} element="ONE_STORY">
                   <OneStoryStrip vm={oneStory} />
                 </SceneAdmits>
-                <div
-                  data-testid="scene-decision"
-                  data-decision-id={currentSceneDecision?.decisionId ?? undefined}
-                  style={{ marginTop: 6, color: "#8a8271", fontSize: 9, letterSpacing: 0.4 }}
-                >
-                  {currentSceneDecision
-                    ? `DECISION · ${currentSceneDecision.decisionId}`
-                    : sceneDecisionAbsence}
-                </div>
               </div>
 
               <div
@@ -972,6 +963,19 @@ function CommandDeckInner() {
                       {marketCanvas.blockers.length} blocker{marketCanvas.blockers.length === 1 ? "" : "s"} · inspect
                     </span>
                   </summary>
+                  {/* The raw identity is evidence about the decision, not a
+                      fourth NOW headline. Keeping it inside WHY preserves the
+                      inspectable one-id contract without inserting an
+                      engineering-status stripe between the story and MARKET. */}
+                  <div
+                    data-testid="scene-decision"
+                    data-decision-id={currentSceneDecision?.decisionId ?? undefined}
+                    style={{ marginBottom: 8, color: "#8a8271", fontSize: 9, letterSpacing: 0.4 }}
+                  >
+                    {currentSceneDecision
+                      ? `DECISION · ${currentSceneDecision.decisionId}`
+                      : sceneDecisionAbsence}
+                  </div>
                   <DecisionWhyPanel vm={decisionWhy} />
                   {showEvidence && whyTarget && (
                     <div data-testid="scene-why-inspector" style={{ marginTop: 10 }}>
