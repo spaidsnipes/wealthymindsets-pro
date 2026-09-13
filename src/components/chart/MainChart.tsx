@@ -5440,7 +5440,19 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const hx = chart.timeScale().timeToCoordinate(b.anchorTime as any);
           if (hx == null || hx < -80 || hx > W + 80) {
             // free this level's dedupe key so it re-spawns on pan-back
-            bubbleSpawnRef.current.delete(b.spawnKey ?? `bt:${b.anchorTime}:${b.anchorPrice}`);
+            // The `?? \`bt:${b.anchorTime}:${b.anchorPrice}\`` fallback that used
+            // to live here was a second copy of bigTradeLevelKey's formula. It
+            // was unreachable — `spawnKey` is a required field on Bubble and
+            // both spawn sites set it — but an unreachable duplicate of an
+            // IDENTITY formula is a loaded gun: the day `spawnKey` becomes
+            // optional, this cull would delete a key built from a different
+            // price than the one the spawn added, the real key would leak in
+            // bubbleSpawnRef forever, and the print would never re-spawn on
+            // pan-back. Silently: the bubble just stops coming back.
+            //
+            // The delta path one screen up already does exactly this, with no
+            // fallback. Same rule, one owner.
+            bubbleSpawnRef.current.delete(b.spawnKey);
             continue;
           }
           survivors.push(b);
