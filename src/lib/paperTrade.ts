@@ -1137,9 +1137,27 @@ export function placeChartMarketOrder(
 
   const persisted = savePaperState(next, state.revision);
   if (persisted.status !== "PERSISTED") {
+    /**
+     * The fill did NOT land. `cash` above is `state.cash + cashDelta` — the
+     * balance the account WOULD have had if the write had succeeded. Returning
+     * it here reported money that never moved: a caller rendering
+     * `result.cash` after a failed order would print a debited balance beside
+     * an order that is not in the book. That is the §35 PROTECTED TRUTH class
+     * — never fabricate execution — reached not by inventing a fill but by
+     * leaking the arithmetic of one that was rolled back.
+     *
+     * Note the funding-rejection branch twenty lines up already returns
+     * `state.cash`. The two failure exits of the same function disagreed about
+     * what "cash" means, and only one of them was right.
+     *
+     * On CONFLICT `state.cash` is the balance we OBSERVED at load; another tab
+     * has since written. That is still an honest number — it was true when we
+     * read it — and it is never a number that was never true. The error string
+     * is what tells the caller to go re-read the account.
+     */
     return {
       ...base,
-      cash,
+      cash: state.cash,
       error: persisted.status === "CONFLICT"
         ? "Paper state changed in another tab. Review the latest account and try again."
         : "Could not save paper state",

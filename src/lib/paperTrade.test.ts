@@ -578,6 +578,81 @@ describe("placeChartMarketOrder — validation guards + persistence", () => {
   });
 });
 
+/**
+ * §13 "paper execution state machine / order ledger / reconciliation realism"
+ * — the two PERSIST-FAILURE exits, which had no coverage at all.
+ *
+ * `placeChartMarketOrder` computes the post-fill cash BEFORE it tries to write.
+ * When the compare-and-swap loses (CONFLICT) or the write does not stick
+ * (FAILED), the fill is rolled back — nothing is in the book — but the result
+ * object used to carry the post-fill balance anyway. A caller rendering
+ * `result.cash` would have printed a debited account beside an order that does
+ * not exist. §35 PROTECTED TRUTH: never fabricate execution. Leaking the
+ * arithmetic of a rolled-back fill fabricates it just as effectively as
+ * inventing one.
+ *
+ * The funding-rejection exit in the same function has always returned
+ * `state.cash`. These tests hold the three exits to ONE meaning of "cash":
+ * a balance that was actually true at some observed moment.
+ */
+describe("placeChartMarketOrder — a failed write never reports moved money", () => {
+  const seed = () => {
+    g.window!.localStorage.setItem(PAPER_KEY, JSON.stringify({
+      revision: 0, cash: STARTING_CASH, positions: [], orders: [], trades: [],
+      equity: [], optionPositions: [],
+    }));
+  };
+
+  it("CONFLICT (another tab wrote first): cash is the balance we observed, not the fill's", () => {
+    seed();
+    // Second read inside savePaperState sees a bumped revision — exactly the
+    // cross-tab race the compare-and-swap exists to catch.
+    let reads = 0;
+    const real = g.window!.localStorage.getItem.bind(g.window!.localStorage);
+    vi.spyOn(g.window!.localStorage, "getItem").mockImplementation((k: string) => {
+      reads += 1;
+      if (k === PAPER_KEY && reads > 1) {
+        return JSON.stringify({
+          revision: 7, cash: STARTING_CASH, positions: [], orders: [], trades: [],
+          equity: [], optionPositions: [],
+        });
+      }
+      return real(k);
+    });
+
+    const r = placeChartMarketOrder("TSLA", "buy", 10, 100); // would debit $1,000
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/another tab/i);
+    expect(r.cash).toBe(STARTING_CASH);
+    expect(r.cash).not.toBe(STARTING_CASH - 1000);
+    // Nothing partial: no position, no realized P&L handed back either.
+    expect(r.position).toBeNull();
+    expect(r.realized).toBe(0);
+  });
+
+  it("FAILED (the write did not stick): same rule — no debited balance", () => {
+    seed();
+    // setItem accepted silently but the readback disagrees. Real browsers do
+    // this in private modes and under quota pressure.
+    vi.spyOn(g.window!.localStorage, "setItem").mockImplementation(() => {});
+
+    const r = placeChartMarketOrder("TSLA", "buy", 10, 100);
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/could not save/i);
+    expect(r.cash).toBe(STARTING_CASH);
+    expect(r.position).toBeNull();
+  });
+
+  it("all three failure exits agree on what `cash` means", () => {
+    // Funding rejection — the exit that was already right. Asserted beside the
+    // other two so a future edit cannot fix one and drift the others.
+    seed();
+    const funded = placeChartMarketOrder("TSLA", "buy", 100_000, 100);
+    expect(funded.ok).toBe(false);
+    expect(funded.cash).toBe(STARTING_CASH);
+  });
+});
+
 describe("clearPaperState — logout-isolation guarantee (canon §Sentinel)", () => {
   it("removes the paper key entirely; loadPaperState returns a fresh account", () => {
     g.window!.localStorage.setItem(PAPER_KEY, JSON.stringify({ cash: 1, positions: [{ symbol: "X", qty: 10, avgPx: 1, unrealPnl: 0, marketPx: 1 }] }));
