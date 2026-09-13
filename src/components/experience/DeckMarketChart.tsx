@@ -252,19 +252,37 @@ export function DeckMarketChart({
         // inside the room. MARKET is the room, not a card. Only the top
         // hairline stays — a brass structural line, not a container.
         borderTop: "1px solid rgba(139,106,41,0.20)",
-        padding: "12px 0 4px",
+        padding: "8px 0 4px",
         background: "transparent",
       }}
     >
-      <header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
-        <span style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
-          Market · chart evidence
-        </span>
-        <span style={{ fontSize: 9, letterSpacing: 0.3, color: "#8a8271" }}>
-          {symbol} · {timeframe}
-          {state.kind === "READY" ? ` · ${barCount} bars` : ""}
-        </span>
-      </header>
+      {/*
+        SCENE_FRAGMENTATION repair, second pass. This header used to read
+        "MARKET · CHART EVIDENCE" on the left and "TSLA · 15m · 120 bars" on
+        the right. Both halves were redundant against the NOW block sitting
+        directly above it in the same scene owner:
+
+          · the left label announced a card inside a room whose ONLY subject
+            is the market — a section title that tells the trader something
+            the room already is;
+          · the right half re-printed the symbol and timeframe that HeroTruth
+            renders at 34px eleven pixels higher up. Two owners printing one
+            instrument identity is the duplicate-identity shape the audit
+            calls out by name.
+
+        What is NOT redundant is the bar count: it is the only place the
+        trader can see HOW MUCH evidence the candles represent, and deleting
+        it to win vertical space would be trading truth for layout. It stays,
+        alone, right-aligned, at label scale — and only when candles actually
+        arrived, so it can never imply evidence the fetch did not return.
+      */}
+      {state.kind === "READY" && (
+        <header style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+          <span style={{ fontSize: 9, letterSpacing: 0.3, color: "#8a8271" }}>
+            {barCount} bars
+          </span>
+        </header>
+      )}
 
       {/* One and only one visible state at a time — no ghost chart under a
           loading message, no "empty" ambient chart, no error silhouette. */}

@@ -54,15 +54,33 @@ describe("classifyFetch — the state machine of the chart", () => {
 describe("DeckMarketChart SSR paint", () => {
   it("renders the shell with the symbol and timeframe (no throw)", () => {
     // No window at SSR — the effect that reaches /api/yahoo does not run.
-    // The header still labels what the section is FOR so the deck skeleton
-    // is comprehensible before hydration.
     const html = renderToStaticMarkup(<DeckMarketChart symbol="TSLA" timeframe="15m" />);
-    expect(html).toContain("Market · chart evidence");
     expect(html).toContain("TSLA");
     expect(html).toContain("15m");
     expect(html).toContain('data-testid="deck-market-chart"');
     // IDLE is the honest initial state — never a ghost chart shape.
     expect(html).toContain('data-testid="deck-market-chart-idle"');
+  });
+
+  it("does not print a second visible instrument identity above the candles", () => {
+    // SCENE_FRAGMENTATION (Founder audit 2026-09-13). This spec previously
+    // asserted the OPPOSITE — that a "Market · chart evidence" label and a
+    // "TSLA · 15m" echo were present — on the reasoning that the skeleton
+    // should be comprehensible before hydration. In the fused deck room that
+    // reasoning inverted: HeroTruth renders the same symbol and timeframe at
+    // 34px directly above this section, so the echo made ONE instrument read
+    // as TWO owners, and the section label announced a card inside a room
+    // whose only subject is the market.
+    //
+    // The identity is still fully available to assistive technology through
+    // the section's aria-label. Retiring a visual duplicate is not allowed to
+    // cost a screen-reader user the name of what they are on.
+    const html = renderToStaticMarkup(<DeckMarketChart symbol="TSLA" timeframe="15m" />);
+    expect(html).not.toContain("Market · chart evidence");
+    expect(html).toContain('aria-label="TSLA 15m chart"');
+    // The bar count must not render before candles exist — an evidence count
+    // painted in IDLE would claim evidence the fetch never returned.
+    expect(html).not.toContain("bars");
   });
 });
 
