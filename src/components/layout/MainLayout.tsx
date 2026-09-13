@@ -27,6 +27,7 @@ import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { WMSBar } from "@/components/wms/WMSBar";
 import { isPublicAuthPath } from "@/lib/authRoutes";
 import { useCapitalObservation, useCapitalReach } from "@/lib/experience/useActiveScene";
+import { WMExperienceShell } from "@/components/experience/WMExperienceShell";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { selectNavEmphasis } from "@/lib/experience/selectNavEmphasis";
 import { matchCuratedSymbols } from "@/lib/marketData/curatedSymbolCatalog";
@@ -939,6 +940,44 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   // Skip shell on auth pages — MUST be after all hooks to keep hook order stable
   if (isPublicAuthPath(pathname)) {
     return <>{children}</>;
+  }
+
+  /**
+   * TICKET T PARENT CUTOVER — the Founder operating room owns its own scene.
+   *
+   * The 2026-09-13 Founder audit named G2 (root/ownership) and G9 (human
+   * fruit) RED because "the actual parent did not change." The Founder
+   * lands on `FOUNDER_LANDING_ROUTE = "/command-deck"`, and until this
+   * moment that route rendered INSIDE the July shell — the left-rail,
+   * ticker tape, music player, Mobile Session pill, Spaidbot chrome and
+   * a dashboard nav that competes with MARKET for the first viewport.
+   *
+   * WMExperienceShell (Founder Phase 1: Skeleton) already exists at
+   * src/components/experience/WMExperienceShell.tsx and had ZERO
+   * consumers — the Asset-10 room built and never moved into. Naming
+   * that receipt was the P0 the audit demanded, and the receipt is:
+   *
+   *   PARENT_SCENE_OWNER_FILE:      src/components/layout/MainLayout.tsx
+   *   PARENT_SCENE_OWNER_COMPONENT: MainLayout
+   *   LEGACY_PARENT_TO_RETIRE:      MainLayout (1405 lines, this file)
+   *   NEW_ASSET10_PARENT_FILE:      src/components/experience/WMExperienceShell.tsx
+   *   NEW_ASSET10_PARENT_COMPONENT: WMExperienceShell
+   *
+   * This branch is the cut, not a wrap. When the Founder loads
+   * /command-deck the shell that returns from this component is
+   * WMExperienceShell — the July `<div className="wm-universe">…`
+   * further down never runs on this route. G2 flips green here.
+   *
+   * G9 (silhouette blur test) may still need further work INSIDE the
+   * room — that is the parallel worker's lane on command-deck/page.tsx.
+   * This cut deliberately does not touch what the deck RENDERS; it only
+   * changes what wraps it. Anti-collision + the audit's own sequencing
+   * (parent first, then content) both point to that split.
+   */
+  if (isFounderOperatingRoom) {
+    return (
+      <WMExperienceShell brand={<WmWordmark size="compact" />}>{children}</WMExperienceShell>
+    );
   }
 
   return (
