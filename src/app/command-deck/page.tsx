@@ -35,6 +35,7 @@ import { useJournalBook } from "@/lib/traderMemory/adapters/useJournalSnapshots"
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import HeroTruth from "@/components/command-deck/HeroTruth";
+import DecisionSpineBand from "@/components/experience/DecisionSpineBand";
 import DLARStrip, { type DLARDimensionKey } from "@/components/command-deck/DLARStrip";
 import WhyInspector, { type WhyTarget } from "@/components/command-deck/WhyInspector";
 import SectionBanner from "@/components/brand/SectionBanner";
@@ -858,6 +859,33 @@ function CommandDeckInner() {
                 </button>
               );
             })()}
+
+            {/* Ticket T's NOW / MARKET / RISK / WHY / NEXT — the five things
+                the scene must SHOW, not hide (Asset 10 canon). The same
+                DecisionSpineBand /charts renders, fed by the SAME
+                composeMarketCanvasVM this page already computed a few lines
+                above. Every field derives — the band computes nothing, so it
+                cannot disagree with the panels below.
+
+                decisionId is null on this route: /command-deck reads the
+                canonical scene but does not itself mint decisions (permission
+                crossings are birthed on /charts today). Absence is a sentence,
+                never a fabricated id. */}
+            <DecisionSpineBand
+              decisionId={null}
+              decisionIdAbsence="No decision born yet on this scene — permission has not crossed here."
+              market={{
+                symbol,
+                timeframe,
+                quality: state?.qualityState ?? null,
+                capturedAt: state?.capturedAt ?? null,
+                last: state?.price?.last ?? null,
+              }}
+              oneStory={oneStory}
+              availableR={chainVm?.availableR ?? null}
+              decisionWhy={decisionWhy}
+              expression={null}
+            />
 
             {/* Today's morning-prep intention (if any) — the PREP→OBSERVE
                 bridge from Founder Aug-14 §14 'Morning Prep intention
