@@ -24,7 +24,7 @@
 import { describe, it, expect } from "vitest";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import { WMExperienceShell } from "@/components/experience/WMExperienceShell";
@@ -64,7 +64,26 @@ const HTML = renderToStaticMarkup(
  * Written unconditionally at test-load time: vitest imports this file,
  * the write is a side effect, and the sample is refreshed every time the
  * suite runs. No new script, no new build.
+ *
+ * THE SAME BYTES ALSO GO TO `public/founder-room-sample.html`, and that is
+ * not convenience — it is a truth repair.
+ *
+ * `scripts/verify-founder-f8.mjs` probes `/founder-room-sample` on prod as
+ * its ROUTE-SCOPED authority: the one page that needs no auth, is fully
+ * static, and carries ONLY the shell, so a substring check on it tells the
+ * truth about what the Founder route serves. That authority was resting on
+ * a HAND-COPY. Measured 2026-09-13: the tmp render was 10995 bytes and the
+ * served `public/` copy was 10914 bytes — DIVERGED. The gate was green
+ * against markup the shell no longer renders.
+ *
+ * That is the same defect class as a Sentinel green over a button 100% off
+ * viewport: the instrument reports on a copy that has stopped representing
+ * the thing. So the renderer now owns the served artifact directly, and the
+ * assertion below fails BY NAME if the write does not land.
  */
+const PUBLIC_SAMPLE = path.resolve(__dirname, "..", "..", "..", "public", "founder-room-sample.html");
+let SAMPLE_HTML = "";
+let SAMPLE_WRITE_ERROR = "";
 try {
   const sample = `<!doctype html>
 <html lang="en">
@@ -117,12 +136,16 @@ ${renderToStaticMarkup(
 )}
 </body>
 </html>`;
+  SAMPLE_HTML = sample;
   const dest = path.join(tmpdir(), "founder-room-sample.html");
   writeFileSync(dest, sample);
+  writeFileSync(PUBLIC_SAMPLE, sample);
   process.stdout.write(`\n  Founder room sample written to: ${dest}\n`);
-  process.stdout.write(`  Open it: file://${dest}\n\n`);
+  process.stdout.write(`  Open it: file://${dest}\n`);
+  process.stdout.write(`  Served copy refreshed: ${PUBLIC_SAMPLE}\n\n`);
 } catch (err) {
-  process.stderr.write(`  (sample-write skipped: ${err instanceof Error ? err.message : "unknown"})\n`);
+  SAMPLE_WRITE_ERROR = err instanceof Error ? err.message : "unknown";
+  process.stderr.write(`  (sample-write skipped: ${SAMPLE_WRITE_ERROR})\n`);
 }
 
 describe("Founder-route return — the sanctuary DOES render, the July chrome DOES NOT", () => {
@@ -184,6 +207,41 @@ describe("Founder-route return — the sanctuary DOES render, the July chrome DO
     // must survive unmolested — a shell that quietly filters or wraps
     // its children would break the parallel worker's deck content.
     expect(HTML).toContain('data-testid="deck-content">DECK</div>');
+  });
+});
+
+describe("Founder-route sample — the F8 authority probes what the shell RENDERS", () => {
+  it("the sample write is not silently swallowed by its own try/catch", () => {
+    // The generator is wrapped in try/catch so a read-only checkout cannot
+    // take the whole suite down. That mercy is also a hiding place: before
+    // this assertion, a failed write printed one stderr line into a 568-file
+    // run and every downstream gate stayed green over a stale artifact.
+    expect(SAMPLE_WRITE_ERROR, "the founder-room sample failed to write").toBe("");
+    expect(SAMPLE_HTML.length).toBeGreaterThan(2000);
+  });
+
+  it("the SERVED copy is byte-identical to the markup this shell just rendered", () => {
+    // Not a snapshot of intent — the actual file `verify-founder-f8.mjs`
+    // fetches from prod at /founder-room-sample. If these two ever differ,
+    // the F8 verdict is reporting on a copy, and "the deploy is at least as
+    // new as the shell atom" becomes a claim about a hand-edit instead.
+    expect(existsSync(PUBLIC_SAMPLE), `${PUBLIC_SAMPLE} does not exist`).toBe(true);
+    expect(
+      readFileSync(PUBLIC_SAMPLE, "utf8"),
+      "public/founder-room-sample.html has drifted from the rendered shell — " +
+        "the F8 static-shell probe would be vouching for markup this build " +
+        "does not produce",
+    ).toBe(SAMPLE_HTML);
+  });
+
+  it("the served copy carries the sanctuary strings the F8 probe looks for", () => {
+    // Closes the loop on the OTHER end: the probe's substring list. A sample
+    // that writes cleanly but renders an empty div would satisfy both
+    // assertions above and still make F8 meaningless.
+    const served = readFileSync(PUBLIC_SAMPLE, "utf8");
+    expect(served).toContain("wm-sanctuary");
+    expect(served).toContain("wm-water-breath");
+    expect(served).not.toContain("wm-universe");
   });
 });
 
