@@ -158,6 +158,38 @@ export function mintDecisionId(input: MintDecisionIdInput): MintResult {
 }
 
 /**
+ * Adopt an identity that already exists, or mint a new one.
+ *
+ * WHY THIS IS NOT JUST `existing ?? mint(...)` AT THE CALL SITE.
+ *
+ * §4 says the id is "born at permission OR first explicit intent" — the OR is
+ * exclusive in practice. Once permission has already produced an identity for
+ * the decision context the trader is sitting in, the moment they then express
+ * that decision as an option is NOT a second birth. It is the same decision
+ * acquiring an expression, which is exactly the kind of "later" the id was
+ * introduced to survive.
+ *
+ * Before this existed, `OptionExpressionIntent` reached straight for
+ * `mintDecisionId` whenever its own ref was empty. It had no parameter through
+ * which an already-born identity could arrive, so once /charts began minting on
+ * PERMISSION_GRANTED the two would have produced two ids for one decision: the
+ * band showing one, the recorded intent carrying another, and the journal
+ * later showing two decisions where the human made one. A shadow object of the
+ * most expensive kind — both halves internally consistent, disagreeing only
+ * with each other.
+ *
+ * Expressed as a function rather than a convention so that "prefer the existing
+ * identity" is something a caller has to actively delete rather than forget.
+ */
+export function continueOrMint(
+  existing: DecisionIdentity | null | undefined,
+  input: MintDecisionIdInput,
+): MintResult {
+  if (existing) return { ok: true, identity: existing };
+  return mintDecisionId(input);
+}
+
+/**
  * The reader-side half of the mint. Does this untrusted value carry a decision
  * identity this system would have been willing to MINT?
  *

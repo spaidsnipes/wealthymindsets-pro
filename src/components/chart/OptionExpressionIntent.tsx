@@ -11,13 +11,13 @@ import {
 import { selectQuoteStance } from "@/lib/expressionCard";
 import { formatOptionNumber } from "@/lib/optionCellFormat";
 import { optionContractObservationTiming, optionsObservationStamp, type OptionsReceiptAge } from "@/lib/optionsChainRead";
-import { mintDecisionId, type DecisionId } from "@/lib/traderMemory/decisionIdentity";
+import { continueOrMint, type DecisionId, type DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { recordExpressionIntent } from "@/lib/traderMemory/recordExpressionIntent";
 import { OptionDecisionReceipt } from "./OptionDecisionReceipt";
 
 /** An expression under review, never a position or an executable quote. */
-export function OptionExpressionIntent({ ownerId, underlying, contract, source, fidelity, providerPath, rightsPolicyId, onClear }: {
+export function OptionExpressionIntent({ ownerId, underlying, contract, source, fidelity, providerPath, rightsPolicyId, bornDecision, onClear }: {
   ownerId: string; underlying: string; contract: OptionContract; source: OptionChainSource; fidelity: OptionChainFidelity;
   /**
    * The REVIEWED provider identity and rights policy, carried from
@@ -31,6 +31,18 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
    * null here means something bypassed that gate, and recording must refuse.
    */
   providerPath: string | null; rightsPolicyId: string | null;
+  /**
+   * The identity the surrounding scene ALREADY bore for this decision, when it
+   * has one. /charts mints on PERMISSION_GRANTED; attaching an expression to
+   * that context is the same decision acquiring an expression, not a second
+   * birth. Passing it here is how the band and the recorded intent stay one
+   * decision instead of two that agree about everything except who they are.
+   *
+   * `undefined`/`null` means no decision has been born yet, and the first
+   * explicit intent — this press — is the birth. Both paths are lawful; what
+   * is not lawful is minting a fresh id over one that already exists.
+   */
+  bornDecision?: DecisionIdentity | null;
   onClear: () => void;
 }) {
   const identity = useRef<{ decisionId: DecisionId; deviceId: string; intent: string } | null>(null);
@@ -109,8 +121,8 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
     const timeout = setTimeout(() => controller.abort(), 12000);
     try {
       if (!identity.current) {
-        const deviceId = thisDeviceId();
-        const born = mintDecisionId({ cause: "EXPLICIT_INTENT", deviceId, nowMs: Date.now(), nonce: crypto.randomUUID() });
+        const deviceId = bornDecision?.bornOnDeviceId ?? thisDeviceId();
+        const born = continueOrMint(bornDecision, { cause: "EXPLICIT_INTENT", deviceId, nowMs: Date.now(), nonce: crypto.randomUUID() });
         if (!born.ok) { setReceipt(born.reason); return; }
         identity.current = { decisionId: born.identity.decisionId, deviceId,
           intent: `Review ${underlying} expression: ${contract.symbol}; ${contract.contractType}; strike ${contract.strike}; expiry ${contract.expirationDate}. Purpose: ${purpose.trim()}. Reference source ${source}; reviewed provider ${providerPath}; rights policy ${rightsPolicyId}; fidelity ${fidelity}; quote timestamp ${contract.quoteTimestamp ?? "not observed"}; quote timing ${observationTiming.quote.timing}; trade timestamp ${contract.tradeTimestamp ?? "not observed"}; trade timing ${observationTiming.trade.timing}; source OSI identity matches the selected underlying, side, expiry, and strike; executable quote and broker instrument mapping/support remain unverified. No order requested.` };

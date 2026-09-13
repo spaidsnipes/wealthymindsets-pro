@@ -93,6 +93,7 @@ import DecisionSpineBand from "@/components/experience/DecisionSpineBand";
 import { birthOnPermissionCrossing } from "@/lib/traderMemory/permissionBirth";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import type { PermissionVerdict } from "@/lib/traderMemory/viewModels/selectPermission";
+import type { DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { useNarrowViewport } from "@/lib/responsive/narrowViewport";
 
@@ -687,7 +688,10 @@ export function ChartsDashboard() {
   const permissionVerdict: PermissionVerdict =
     chartCanvasVM.permission?.verdict ?? "UNKNOWN";
   const priorPermission = useRef<PermissionVerdict | null>(null);
-  const [sceneDecisionId, setSceneDecisionId] = useState<string | null>(null);
+  // The whole identity, not just its id — `OptionExpressionIntent` needs the
+  // witnessing device too, so that adopting this decision preserves WHERE it
+  // was born rather than re-stamping it with wherever it was later expressed.
+  const [sceneDecision, setSceneDecision] = useState<DecisionIdentity | null>(null);
   const [sceneDecisionAbsence, setSceneDecisionAbsence] = useState(
     "No decision born yet — permission has not crossed.",
   );
@@ -708,13 +712,13 @@ export function ChartsDashboard() {
       setSceneDecisionAbsence(`Decision not minted: ${outcome.mint.reason}`);
       return;
     }
-    setSceneDecisionId(outcome.mint.identity.decisionId);
+    setSceneDecision(outcome.mint.identity);
   }, [permissionVerdict]);
   // A decision belongs to the instrument it was born about. Carrying
   // a TSLA identity onto BTC would be the aliasing failure the owner
   // wrote its header against, one surface out.
   useEffect(() => {
-    setSceneDecisionId(null);
+    setSceneDecision(null);
     priorPermission.current = null;
     setSceneDecisionAbsence("No decision born yet — permission has not crossed.");
   }, [symbol]);
@@ -1222,7 +1226,7 @@ export function ChartsDashboard() {
           composeMarketCanvasVM the drawer and /command-deck read —
           the band computes nothing, so the two cannot diverge. */}
       <DecisionSpineBand
-        decisionId={sceneDecisionId}
+        decisionId={sceneDecision?.decisionId ?? null}
         decisionIdAbsence={sceneDecisionAbsence}
         market={{
           symbol,
@@ -2113,7 +2117,8 @@ export function ChartsDashboard() {
                   onOpenBrokerConnect={openBrokerConnect}
                   expression={optionSelection?.underlying === symbol && optionSelection.owner === (canvasUser?.id ?? "signed-out")
                     ? <OptionExpressionIntent key={`${optionSelection.owner}:${optionSelection.contract.symbol}:${optionSelection.contract.expirationDate}:${optionSelection.contract.contractType}:${optionSelection.contract.strike}`}
-                        ownerId={canvasUser?.id ?? ""} underlying={symbol} contract={optionSelection.contract} source={optionSelection.source} fidelity={optionSelection.fidelity} providerPath={optionSelection.providerPath} rightsPolicyId={optionSelection.rightsPolicyId} onClear={clearOptionSelection} /> : null} />
+                        ownerId={canvasUser?.id ?? ""} underlying={symbol} contract={optionSelection.contract} source={optionSelection.source} fidelity={optionSelection.fidelity} providerPath={optionSelection.providerPath} rightsPolicyId={optionSelection.rightsPolicyId}
+                        bornDecision={sceneDecision} onClear={clearOptionSelection} /> : null} />
               )}
             </AnimatePresence>
 

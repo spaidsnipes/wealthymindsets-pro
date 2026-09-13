@@ -8,6 +8,7 @@
 import { describe, it, expect } from "vitest";
 import {
   mintDecisionId,
+  continueOrMint,
   isDecisionId,
   decisionIdAfter,
   checkChildId,
@@ -89,6 +90,48 @@ describe("decisionIdentity — §4 birth", () => {
  * forbids re-enters the system through persistence — the exact failure the
  * nominal brand was introduced to prevent.
  */
+describe("decisionIdentity — §4 one decision, not two", () => {
+  it("adopts an existing identity instead of minting a second one", () => {
+    const born = mint({ cause: "PERMISSION_GRANTED", nonce: "permission-born" });
+    const r = continueOrMint(born, {
+      cause: "EXPLICIT_INTENT",
+      deviceId: "phone-2",
+      nowMs: 1_900_000_000_000,
+      nonce: "later-intent",
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    // Same id, and ALSO the same birth cause, time and witness. Adopting the
+    // id while re-stamping the birth would say the decision was born at the
+    // option chain, which is the aliasing §4 forbids wearing a correct id.
+    expect(r.identity).toEqual(born);
+    expect(r.identity.bornFrom).toBe("PERMISSION_GRANTED");
+    expect(r.identity.bornOnDeviceId).toBe("ipad-1");
+  });
+
+  it("mints when there is genuinely nothing to continue", () => {
+    for (const absent of [null, undefined]) {
+      const r = continueOrMint(absent, {
+        cause: "EXPLICIT_INTENT",
+        deviceId: "phone-2",
+        nowMs: 1_900_000_000_000,
+        nonce: "first-intent",
+      });
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(r.identity.bornFrom).toBe("EXPLICIT_INTENT");
+      expect(isDecisionId(r.identity.decisionId)).toBe(true);
+    }
+  });
+
+  it("adoption is idempotent — repeating it never drifts the identity", () => {
+    const born = mint({ cause: "PERMISSION_GRANTED", nonce: "stable" });
+    const seed = { cause: "EXPLICIT_INTENT", deviceId: "d", nowMs: 1, nonce: "n" } as const;
+    const once = continueOrMint(born, seed);
+    expect(once.ok && continueOrMint(once.identity, seed)).toEqual(once);
+  });
+});
+
 describe("decisionIdentity — §4 reader-side recognition", () => {
   it("accepts every id this mint produces (round-trip symmetry)", () => {
     for (const nonce of ["3f9c1e", "a", "550e8400-e29b-41d4-a716-446655440000", "Z9"]) {
