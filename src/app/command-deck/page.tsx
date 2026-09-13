@@ -1773,14 +1773,16 @@ function TodayPrepBridge({ userId }: { userId: string | null }) {
       role="region"
       aria-label="Today's morning prep intention"
       style={{
+        // SCENE_FRAGMENTATION cure: the "this morning's intention"
+        // callout had a full border + tint + radius. The 3px gold
+        // left accent already carries the emphasis; the surrounding
+        // wall added nothing.
         display: "flex",
         alignItems: "center",
         gap: 12,
-        padding: "10px 14px",
-        border: "1px solid rgba(212,175,55,0.35)",
+        padding: "10px 14px 10px 18px",
         borderLeft: "3px solid #d4af37",
-        borderRadius: 8,
-        background: "rgba(212,175,55,0.05)",
+        background: "transparent",
       }}
     >
       {prep.mood && (
