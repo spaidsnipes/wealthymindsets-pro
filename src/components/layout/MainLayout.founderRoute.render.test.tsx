@@ -24,6 +24,9 @@
 import { describe, it, expect } from "vitest";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import * as path from "node:path";
 import { WMExperienceShell } from "@/components/experience/WMExperienceShell";
 import WmWordmark from "@/components/brand/WmWordmark";
 
@@ -49,6 +52,78 @@ const HTML = renderToStaticMarkup(
     <div data-testid="deck-content">DECK</div>
   </FounderBranchReturn>,
 );
+
+/**
+ * Also write a viewable sample to /tmp so the Founder can OPEN the file
+ * in any browser and see the exact shell prod will serve — without needing
+ * the local dev server to authenticate. The Founder-facing sample is a
+ * separate file with basic HTML scaffolding around the same markup.
+ *
+ * The path is stable so this fits `open $(node -p "require('os').tmpdir()+'/founder-room-sample.html'")`.
+ *
+ * Written unconditionally at test-load time: vitest imports this file,
+ * the write is a side effect, and the sample is refreshed every time the
+ * suite runs. No new script, no new build.
+ */
+try {
+  const sample = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>WM Pro · Founder room sample</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #050506;
+      color: #d8cfb8; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  </style>
+</head>
+<body>
+${renderToStaticMarkup(
+  <FounderBranchReturn>
+    <div
+      style={{
+        padding: 24,
+        minHeight: "70vh",
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+        color: "#cfc7b4",
+      }}
+    >
+      <div style={{ fontSize: 11, letterSpacing: 0.6, color: "#8a8271" }}>MARKET IS THE ROOM</div>
+      <div style={{ fontSize: 44, fontWeight: 700, color: "#d4af37", letterSpacing: 1 }}>TSLA</div>
+      <div style={{ fontSize: 14, color: "#c2b892", maxWidth: 640, lineHeight: 1.5 }}>
+        WATER MAY BREATHE. PRICE MAY ONLY MOVE WHEN TRUTH MOVES. NO OWNER = STILL.
+      </div>
+      <div
+        style={{
+          marginTop: "auto",
+          padding: 16,
+          border: "1px solid rgba(139,106,41,0.22)",
+          borderRadius: 10,
+          background: "rgba(255,255,255,0.015)",
+          fontSize: 11,
+          color: "#8a8271",
+          lineHeight: 1.5,
+        }}
+      >
+        This is the SHELL only — the sanctuary, WATER-BREATH, seven-mode bar and job
+        caption are the exact JSX MainLayout returns on the Founder route. What sits
+        INSIDE (the deck&apos;s composed scene) is the parallel worker&apos;s lane on
+        command-deck/page.tsx and is deliberately not touched by this cut.
+      </div>
+    </div>
+  </FounderBranchReturn>,
+)}
+</body>
+</html>`;
+  const dest = path.join(tmpdir(), "founder-room-sample.html");
+  writeFileSync(dest, sample);
+  process.stdout.write(`\n  Founder room sample written to: ${dest}\n`);
+  process.stdout.write(`  Open it: file://${dest}\n\n`);
+} catch (err) {
+  process.stderr.write(`  (sample-write skipped: ${err instanceof Error ? err.message : "unknown"})\n`);
+}
 
 describe("Founder-route return — the sanctuary DOES render, the July chrome DOES NOT", () => {
   it("carries the wm-sanctuary class on its root element", () => {

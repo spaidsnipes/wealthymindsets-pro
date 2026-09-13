@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>WM Pro · Founder room sample</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #050506;
+      color: #d8cfb8; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  </style>
+</head>
+<body>
+<link rel="preload" as="image" href="/brand/wm-monogram-mark.png"/><div class="wm-sanctuary " data-mode="OBSERVE" style="position:relative;display:flex;flex-direction:column;min-height:100%;background:#050506;color:#c0b8a0;isolation:isolate"><style>
+        .wm-sanctuary::before,
+        .wm-sanctuary::after,
+        .wm-sanctuary > .wm-water-breath {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 0;
+        }
+        /* Vignette — static inset radial darkening so MARKET feels
+           spatially deeper than the outer chrome. Never breathes. */
+        .wm-sanctuary::before {
+          background: radial-gradient(
+            ellipse at center,
+            transparent 45%,
+            rgba(0,0,0,0.35) 100%
+          );
+        }
+        /* Grain — repeating 3px tile at ~5% opacity. One layer, static. */
+        .wm-sanctuary::after {
+          background-image:
+            repeating-linear-gradient(
+              0deg,
+              rgba(255,255,255,0.014) 0,
+              rgba(255,255,255,0.014) 1px,
+              transparent 1px,
+              transparent 3px
+            ),
+            repeating-linear-gradient(
+              90deg,
+              rgba(255,255,255,0.014) 0,
+              rgba(255,255,255,0.014) 1px,
+              transparent 1px,
+              transparent 3px
+            );
+          mix-blend-mode: overlay;
+        }
+        /* WATER-BREATH — very subtle brass radial wash, drifting.
+           Non-market. Zero information. Only present when the OS has
+           NOT asked for reduced motion. Kept intentionally low-contrast
+           and low-amplitude so it reads as room air, not as a signal. */
+        .wm-sanctuary > .wm-water-breath {
+          background: radial-gradient(
+            ellipse 60% 40% at 30% 20%,
+            rgba(201,165,92,0.045) 0%,
+            transparent 60%
+          );
+          opacity: 0.9;
+        }
+        /* MODE-KEYED (not market-keyed) atmosphere intensity.
+           The audit's law is that market truth cannot drive atmosphere.
+           EXPERIENCE MODE is different: it is the trader's own DECLARED
+           intent — PREP/OBSERVE/WAIT/EXECUTE/MANAGE/REVIEW/LEARN —
+           committed through the seven-mode bar with source=user. That is
+           not a market claim; it is a self-report about which job the
+           trader is on. Dimming the room in WAIT (no pulse baiting a
+           trade) and steadying it in EXECUTE (place the planned
+           decision) is exactly the audit's WAIT/EXECUTE atmosphere spec.
+           No color changes, no red/green — only intensity, so the "state
+           carried by labels, not decoration" law is preserved. */
+        .wm-sanctuary[data-mode="WAIT"] > .wm-water-breath { opacity: 0.55; }
+        .wm-sanctuary[data-mode="EXECUTE"] > .wm-water-breath { opacity: 1; }
+        .wm-sanctuary[data-mode="MANAGE"] > .wm-water-breath { opacity: 0.95; }
+        @media (prefers-reduced-motion: no-preference) {
+          .wm-sanctuary > .wm-water-breath {
+            animation: wm-breathe 26s ease-in-out infinite;
+            will-change: transform, opacity;
+          }
+          /* In WAIT the room is very quiet: the audit's exact word.
+             Slow the ambient cycle by half so the ceremony reads calm. */
+          .wm-sanctuary[data-mode="WAIT"] > .wm-water-breath {
+            animation-duration: 52s;
+          }
+        }
+        @keyframes wm-breathe {
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.85; }
+          50%      { transform: translate3d(8px, 4px, 0) scale(1.02); opacity: 1; }
+        }
+        /* Content plane sits above the atmosphere. Direct children of
+           .wm-sanctuary get lifted (except the water-breath layer
+           itself, which stays behind). */
+        .wm-sanctuary > *:not(.wm-water-breath) {
+          position: relative;
+          z-index: 1;
+        }
+      </style><div class="wm-water-breath" aria-hidden="true"></div><header style="display:flex;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid rgba(139,106,41,0.15);background:#0b0b0d"><div style="flex-shrink:0;opacity:0.9"><div class="wm-wordmark " style="display:inline-flex;flex-direction:column;align-items:flex-start;gap:2px" aria-label="WealthyMindsets Pro"><div style="display:flex;align-items:baseline;gap:6px"><img src="/brand/wm-monogram-mark.png" width="14" height="14" alt="" aria-hidden="true" style="flex-shrink:0;display:block;align-self:center"/><span style="font-family:Georgia, &#x27;Times New Roman&#x27;, serif;font-size:12px;font-weight:400;letter-spacing:0.01px;color:#d4af37;line-height:1">WEALTHYMINDSETS</span><span style="font-size:8px;font-family:Georgia, &#x27;Times New Roman&#x27;, serif;font-weight:400;color:#c9a55c;letter-spacing:0.016px;margin-left:2px;line-height:1">PRO</span></div></div></div><div style="flex:1;min-width:0"><nav aria-label="Experience mode" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;background:#0b0b0d;border:1px solid rgba(139,106,41,0.15);border-radius:8px;padding:3px"><button type="button" aria-pressed="false" title="Plan the session before the bell" style="flex:1 1 auto;min-width:52px;font-size:10px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;padding:5px 8px;border-radius:6px;border:1px solid transparent;color:#8a8271;background:transparent;cursor:pointer;transition:color 120ms, background 120ms, border-color 120ms;white-space:nowrap">PREP</button><button type="button" aria-pressed="true" title="Watch the market with no position" style="flex:1 1 auto;min-width:52px;font-size:10px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;padding:5px 8px;border-radius:6px;border:1px solid rgba(212,175,55,0.5);color:#d4af37;background:rgba(212,175,55,0.10);cursor:pointer;transition:color 120ms, background 120ms, border-color 120ms;white-space:nowrap">OBSERVE</button><button type="button" aria-pressed="false" title="Have a thesis; wait for permission" style="flex:1 1 auto;min-width:52px;font-size:10px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;padding:5px 8px;border-radius:6px;border:1px solid transparent;color:#8a8271;background:transparent;cursor:pointer;transition:color 120ms, background 120ms, border-color 120ms;white-space:nowrap">WAIT</button><button type="button" aria-pressed="false" title="Place the planned decision" style="flex:1 1 auto;min-width:52px;font-size:10px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;padding:5px 8px;border-radius:6px;border:1px solid transparent;color:#8a8271;background:transparent;cursor:pointer;transition:color 120ms, background 120ms, border-color 120ms;white-space:nowrap">EXECUTE</button><button type="button" aria-pressed="false" title="Steward an open position" style="flex:1 1 auto;min-width:52px;font-size:10px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;padding:5px 8px;border-radius:6px;border:1px solid transparent;color:#8a8271;background:transparent;cursor:pointer;transition:color 120ms, background 120ms, border-color 120ms;white-space:nowrap">MANAGE</button><button type="button" aria-pressed="false" title="Study what you and the market did" style="flex:1 1 auto;min-width:52px;font-size:10px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;padding:5px 8px;border-radius:6px;border:1px solid transparent;color:#8a8271;background:transparent;cursor:pointer;transition:color 120ms, background 120ms, border-color 120ms;white-space:nowrap">REVIEW</button><button type="button" aria-pressed="false" title="Train the exact weakness found" style="flex:1 1 auto;min-width:52px;font-size:10px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;padding:5px 8px;border-radius:6px;border:1px solid transparent;color:#8a8271;background:transparent;cursor:pointer;transition:color 120ms, background 120ms, border-color 120ms;white-space:nowrap">LEARN</button></nav></div></header><div style="padding:4px 12px;font-size:11px;letter-spacing:0.3px;color:#c9a55c;background:#0b0b0d;border-bottom:1px solid rgba(139,106,41,0.15)">Watch the market with no position.</div><div style="flex:1;display:flex;min-height:0"><main style="flex:1;min-width:0;min-height:0;overflow:auto"><div style="padding:24px;min-height:70vh;display:flex;flex-direction:column;gap:16px;color:#cfc7b4"><div style="font-size:11px;letter-spacing:0.6px;color:#8a8271">MARKET IS THE ROOM</div><div style="font-size:44px;font-weight:700;color:#d4af37;letter-spacing:1px">TSLA</div><div style="font-size:14px;color:#c2b892;max-width:640px;line-height:1.5">WATER MAY BREATHE. PRICE MAY ONLY MOVE WHEN TRUTH MOVES. NO OWNER = STILL.</div><div style="margin-top:auto;padding:16px;border:1px solid rgba(139,106,41,0.22);border-radius:10px;background:rgba(255,255,255,0.015);font-size:11px;color:#8a8271;line-height:1.5">This is the SHELL only — the sanctuary, WATER-BREATH, seven-mode bar and job caption are the exact JSX MainLayout returns on the Founder route. What sits INSIDE (the deck&#x27;s composed scene) is the parallel worker&#x27;s lane on command-deck/page.tsx and is deliberately not touched by this cut.</div></div></main></div></div>
+</body>
+</html>
