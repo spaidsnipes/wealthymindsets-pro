@@ -88,6 +88,45 @@ export function DecisionReceiptPanel({ vm }: DecisionReceiptPanelProps): React.R
         </span>
       </div>
 
+      {/**
+        * THE RECEIPT NAMES ITS OWN DECISION.
+        *
+        * `selectDecisionReceipt` has always compiled `decisionId`, and this
+        * panel rendered every other field but that one. A receipt is the
+        * artefact the trader carries to their journal and to their own review;
+        * one that does not say WHICH decision it receipts cannot be checked
+        * against anything. Two receipts for two different decisions were
+        * previously distinguishable only by their contents.
+        *
+        * Wrapping, never ellipsised — the same law the decision spine band was
+        * fixed under. A partial id is a filled absence wearing an ellipsis:
+        * two decisions sharing a prefix render identically.
+        *
+        * Null is disclosed rather than hidden. An empty receipt has no id
+        * because nothing was sealed, and that is a fact, not a blank.
+        */}
+      <div style={{ marginBottom: 8 }}>
+        <span style={{ fontSize: 9, letterSpacing: 0.5, color: MUTED }}>DECISION </span>
+        {vm.decisionId ? (
+          <code
+            data-testid="receipt-decision-id"
+            style={{
+              fontSize: 10,
+              color: "#c9a55c",
+              fontWeight: 700,
+              whiteSpace: "normal",
+              overflowWrap: "anywhere",
+            }}
+          >
+            {vm.decisionId}
+          </code>
+        ) : (
+          <span data-testid="receipt-decision-absent" style={{ fontSize: 10, color: MUTED }}>
+            NONE SEALED
+          </span>
+        )}
+      </div>
+
       <div style={{ fontSize: 12, color: "#d8cfb8", lineHeight: 1.4, marginBottom: vm.empty ? 0 : 10 }}>
         {vm.headline}
       </div>

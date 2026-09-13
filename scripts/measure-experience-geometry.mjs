@@ -218,6 +218,72 @@ const SURFACES = [
         }),
       }`,
   },
+  {
+    name: "decision-receipt-panel",
+    root: '[aria-label="Decision receipt"]',
+    from: p("src/components/experience/DecisionReceiptPanel"),
+    named: "DecisionReceiptPanel",
+    // Composed through the real seal → manage → close → review chain, not a
+    // hand-written VM. The receipt is the surface a trader takes to their own
+    // journal; a fixture that drifts from `sealDecision` would have this gate
+    // measuring a receipt nobody is ever shown.
+    //
+    // The FULLEST record is used deliberately: outcome attached, review
+    // attached, lessons recorded, an amendment appended. Every optional block
+    // renders, so this is the widest the panel ever gets.
+    imports: [
+      `import { selectDecisionReceipt } from ${p("src/lib/traderMemory/viewModels/selectDecisionReceipt")};`,
+      `import { DECISION_MEMORY_SCHEMA_VERSION, sealDecision, appendManagement, attachOutcome, attachReview } from ${p("src/lib/traderMemory/decisionMemory")};`,
+      `const RECEIPT_FROZEN = {
+  schemaVersion: DECISION_MEMORY_SCHEMA_VERSION,
+  capturedAt: 1800000000000,
+  marketStateSummary: {
+    regime: "TREND", direction: "LONG", location: "VAL", volatility: "NORMAL",
+    session: "REGULAR", structure: "BOS", aggression: "HIGH", profile: "BALANCED",
+    unresolvedDimensionCount: 0, canonicalStateId: "cms-123",
+  },
+  marketProvenance: {
+    providersUsed: [{ provider: "alpaca", feed: "iex", coverageScope: "IEX", freshness: "LIVE" }],
+  },
+  traderState: {
+    ownerId: "owner-1", capturedAt: 1800000000000, planStatus: "ACTIVE",
+    ruleAdherenceAtDecision: true, externalInfluenceFlagged: false,
+    tradeNumberInSession: 1, coachingShown: false,
+  },
+  playbook: { playbookId: "clc-long-v1", playbookVersion: 1, genomeSnapshot: {} },
+};
+const RECEIPT_VM = (() => {
+  let r = sealDecision({
+    decisionId: "wmd_9f3c1a22-5e77-4a10-b2d4-7c918ee0d311",
+    ownerId: "owner-1",
+    sessionIdentity: "s-1",
+    frozen: RECEIPT_FROZEN,
+    plan: {
+      action: "ENTER_LONG",
+      thesis: "CLC Long at VAL reclaim — value migrated up and held on the retest.",
+      intendedSize: 100, intendedStop: 99.5, intendedTargets: [101, 102],
+      expectedR: 2.0, availableRAtDecision: 2.0,
+      invalidationCriteria: "Break below VAL - 0.5 ATR",
+      expectedBehavior: ["Rejection wick at VAL", "Increasing CVD"],
+    },
+  });
+  r = appendManagement(r, {
+    id: "mg-1", type: "TRAIL_STOP", at: 1800000600000,
+    detail: "Stop trailed to breakeven once the first target printed.",
+    numeric: { newStop: 100 },
+  });
+  r = attachOutcome(r, { closedAt: 1800001200000, realizedR: 1.4, reason: "TARGET", averageFillPrice: 101.4 });
+  r = attachReview(r, {
+    reviewedAt: 1800002000000,
+    marketOpportunityQuality: 4, playbookMatch: 5, riskQuality: 4,
+    executionQuality: 3, processAdherence: 5,
+    lessons: ["Sized correctly but hesitated on the retest entry by two bars."],
+  });
+  return selectDecisionReceipt(r);
+})();`,
+    ],
+    props: `{ vm: RECEIPT_VM }`,
+  },
 ];
 
 /**
