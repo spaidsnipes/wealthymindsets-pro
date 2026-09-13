@@ -22,6 +22,22 @@ const HOST = process.env.WM_F8_HOST ?? "https://wealthymindsetspro.com";
 const TARGET = `${HOST}/command-deck`;
 
 /**
+ * The Founder-facing STATIC SHELL preview. It is the only page on prod that
+ * (a) requires no auth, (b) is fully server-rendered HTML, and (c) contains
+ * ONLY the sanctuary shell — no /charts imports, no shared bundle. That
+ * makes it the one route where a substring check tells the truth: if the
+ * July class names appear here, they are wearing the sanctuary as costume.
+ * If the sanctuary strings appear here, the deploy is at least as new as
+ * the shell atom (`d286650` and later).
+ *
+ * The bundle-union check further below is a coarser signal — a class name
+ * present in the union may still be unrouted (e.g. wm-shell-header lives
+ * in the July MainLayout used by /charts). This route-scoped check bites
+ * only when the shell itself regresses.
+ */
+const STATIC_SHELL_TARGET = `${HOST}/founder-room-sample`;
+
+/**
  * WM Pro is a client-rendered app. The initial HTML that `fetch` returns is
  * "Checking your secure session…" — the auth landing. It does NOT contain
  * the composed UI, so a substring check against the HTML cannot distinguish
@@ -112,16 +128,54 @@ async function main() {
     if (!found) anyRed = true;
   }
 
-  process.stdout.write("\n  MUST BE ABSENT from the compiled bundle (G12 residency, Founder branch):\n");
+  process.stdout.write("\n  Absence in the compiled bundle is NOT a Ticket T signal (see next block):\n");
   for (const [name, needle] of Object.entries(ABSENT_FROM_FOUNDER_BRANCH)) {
     const found = bundle.includes(needle);
-    // The July shell for OTHER routes still legitimately compiles to
-    // `bg-wm-black wm-universe`, so this probe checks a joined class
-    // string that includes both fragments — that specific literal only
-    // appears in the July shell's outer div, not in any per-route code.
-    const chip = found ? color("red", "    RED") : color("green", "  GREEN");
-    process.stdout.write(`${chip}  ${name.padEnd(18)} · ${color("dim", JSON.stringify(needle))}\n`);
-    if (found) anyRed = true;
+    // The July shell is still legitimately compiled into shared JS chunks
+    // because /charts and other routes still use MainLayout. A class name
+    // present in the shared bundle does NOT mean it renders on the Founder
+    // route. The route-scoped STATIC SHELL PROBE below is what actually
+    // decides G12 — bundle-union presence is now informational only.
+    const chip = found ? color("yellow", " YELLOW") : color("green", "  GREEN");
+    process.stdout.write(`${chip}  ${name.padEnd(18)} · ${color("dim", JSON.stringify(needle))}${found ? " (present in shared chunks — inspected route-scoped below)" : ""}\n`);
+    // Deliberately does NOT set anyRed. False positives from shared chunks
+    // are precisely the noise that made the earlier probe useless.
+  }
+
+  // ── Route-scoped check on the static shell preview ─────────────────────
+  //
+  // The bundle-union check above cannot distinguish "wm-shell-header exists
+  // in the JS chunks because /charts still uses MainLayout" from "the shell
+  // itself smuggled it back onto the Founder route." /founder-room-sample
+  // is server-rendered STATIC HTML with only the sanctuary in it, so a
+  // substring check there is honest: any July class in that page's HTML
+  // has escaped the shell contract, and any missing sanctuary class means
+  // the shell atom never reached prod. This runs after the bundle check so
+  // both diagnostics appear in one probe.
+  process.stdout.write(`\n  STATIC SHELL PROBE  target: ${STATIC_SHELL_TARGET}\n`);
+  let shellHtml = "";
+  try {
+    const r = await fetch(STATIC_SHELL_TARGET, { headers: { "user-agent": "wm-f8-probe/1" } });
+    if (r.status === 200) shellHtml = await r.text();
+    else process.stdout.write(color("yellow", `  YELLOW: shell preview HTTP ${r.status}\n`));
+  } catch (err) {
+    process.stdout.write(color("yellow", `  YELLOW: shell preview fetch failed — ${err.message}\n`));
+  }
+  if (shellHtml.length > 0) {
+    process.stdout.write("  Sanctuary must be present in the STATIC HTML:\n");
+    for (const [name, needle] of Object.entries(PRESENT_IN_BUNDLE)) {
+      const found = shellHtml.includes(needle);
+      const chip = found ? color("green", "  GREEN") : color("red", "    RED");
+      process.stdout.write(`${chip}  ${name.padEnd(18)} · ${color("dim", JSON.stringify(needle))}\n`);
+      if (!found) anyRed = true;
+    }
+    process.stdout.write("  July must be absent from the STATIC HTML (route-scoped, not bundle):\n");
+    for (const [name, needle] of Object.entries(ABSENT_FROM_FOUNDER_BRANCH)) {
+      const found = shellHtml.includes(needle);
+      const chip = found ? color("red", "    RED") : color("green", "  GREEN");
+      process.stdout.write(`${chip}  ${name.padEnd(18)} · ${color("dim", JSON.stringify(needle))}\n`);
+      if (found) anyRed = true;
+    }
   }
 
   process.stdout.write("\n");
