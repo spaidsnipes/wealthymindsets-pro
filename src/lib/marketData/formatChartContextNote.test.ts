@@ -199,3 +199,80 @@ describe("timeframe accompanies every claim (TIMEFRAME LAW)", () => {
     expect(note).toContain("[Current chart: TSLA 15m @");
   });
 });
+
+/**
+ * Founder truth-surface law (2026-09-12, Grok-review delta): "Minimum directly
+ * inspectable: role + asOf + source. Missing role = UNKNOWN." The visible
+ * strip carries all three. The Spaidbot wire was still missing ROLE — the
+ * model received a price with no way to know whether it was streaming, twelve
+ * hours stale, or an unavailable placeholder. A stale close could therefore
+ * be quoted with the same confidence as a real print.
+ */
+describe("role accompanies every price (truth-surface law, ROLE half)", () => {
+  it("prints the canonical role right after the price", () => {
+    const note = formatChartContextNote({
+      symbol: "TSLA",
+      timeframe: "15m",
+      role: "STALE",
+      price: 365.25,
+    });
+    expect(note).toContain("$365.25 [role STALE]");
+  });
+
+  it("normalises casing so 'live' still counts as LIVE", () => {
+    // The wire is `unknown` — a caller who lowercased must not accidentally
+    // graduate to "role UNKNOWN" as if they meant nothing.
+    const note = formatChartContextNote({ symbol: "TSLA", role: "live", price: 100 });
+    expect(note).toContain("[role LIVE]");
+  });
+
+  it("prints [role UNKNOWN] when no role is supplied", () => {
+    // Silence in this slot is the whole hazard — the pre-atom-3 sentence
+    // "[Current chart: TSLA 15m @ $365.25]" let the model assume streaming
+    // truth by default. The note now says out loud that it doesn't know.
+    const note = formatChartContextNote({ symbol: "TSLA", price: 365.25 });
+    expect(note).toContain("[role UNKNOWN]");
+  });
+
+  it("rejects roles that are not in the canonical set", () => {
+    // "FRESH" and "REAL_TIME" and "OK" are the kinds of made-up strings a
+    // hostile or careless caller might POST. Every one collapses to UNKNOWN
+    // — the note may not print a verdict the market-data producer would not.
+    for (const bogus of ["FRESH", "REAL_TIME", "OK", "GREEN", "gogogo", ""]) {
+      const note = formatChartContextNote({ symbol: "TSLA", role: bogus, price: 100 });
+      expect(note, `bogus role ${JSON.stringify(bogus)} leaked into the note`).toContain("[role UNKNOWN]");
+    }
+  });
+
+  it("rejects a non-string role (a number, an object) rather than stringifying it", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const n1 = formatChartContextNote({ symbol: "TSLA", role: 42 as any, price: 100 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const n2 = formatChartContextNote({ symbol: "TSLA", role: { name: "LIVE" } as any, price: 100 });
+    expect(n1).toContain("[role UNKNOWN]");
+    expect(n2).toContain("[role UNKNOWN]");
+  });
+});
+
+/**
+ * The canonical role set duplicated in formatChartContextNote.ts must stay in
+ * step with MarketQualityState — a role the producer can emit that this file
+ * doesn't recognise would silently collapse to UNKNOWN, and a role this file
+ * accepts that the producer cannot emit would let a hostile client mint a
+ * verdict. Static assertion, no runtime dependency between the two.
+ */
+import type { MarketQualityState } from "./canonicalMarketState";
+describe("the note's canonical role set matches the producer's", () => {
+  it("every MarketQualityState is recognised by canonicalRole", () => {
+    // Compile-time enumeration: if a new role is added upstream it must be
+    // added below, and this test will fail until formatChartContextNote knows
+    // about it too.
+    const roles: MarketQualityState[] = [
+      "LIVE", "DELAYED", "STALE", "PARTIAL", "PROXY", "REPLAY", "UNAVAILABLE",
+    ];
+    for (const r of roles) {
+      const note = formatChartContextNote({ symbol: "TSLA", role: r, price: 100 });
+      expect(note, `producer role ${r} was not recognised`).toContain(`[role ${r}]`);
+    }
+  });
+});

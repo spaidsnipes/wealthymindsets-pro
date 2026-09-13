@@ -915,6 +915,16 @@ export function ChartsDashboard() {
               // claim arrived at the model as the same sentence. Timeframe is
               // carried here so the note (formatChartContextNote) can print it.
               timeframe,
+              // Founder truth-surface law (2026-09-12): "Minimum directly
+              // inspectable: role + asOf + source... Missing role = UNKNOWN."
+              // The visible strip now carries all three. The Spaidbot wire was
+              // still missing ROLE — the model received a price with no way to
+              // know whether it was LIVE, DELAYED, STALE, PROXY, or UNAVAILABLE,
+              // so a stale close could be quoted as if it were streaming. Same
+              // failure class as the pre-atom-2 timeframe blend, one dimension
+              // up. When canonical state has not resolved a quality yet, the
+              // note surfaces UNKNOWN — never invented.
+              role: chartCanvasState?.qualityState ?? null,
               price: ticker.price,
               ...(chg.displayable
                 ? { change: chg.change, changePct: chg.changePct }

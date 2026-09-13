@@ -58,9 +58,35 @@ export interface ChartContextInput {
    * is a normal state to invent one for.
    */
   readonly timeframe?: unknown;
+  /**
+   * Canonical MarketQualityState — "LIVE" | "DELAYED" | "STALE" | "PARTIAL" |
+   * "PROXY" | "REPLAY" | "UNAVAILABLE". Optional on the wire; when absent the
+   * note prints "role UNKNOWN" so the model cannot assume streaming truth from
+   * silence. The route re-validates against the canonical string set — a
+   * hostile client cannot mint a role of its choosing.
+   */
+  readonly role?: unknown;
   readonly price?: unknown;
   readonly change?: unknown;
   readonly changePct?: unknown;
+}
+
+/**
+ * Only the canonical role strings survive validation. Anything else — a
+ * capitalisation drift, a made-up word, a number — collapses to null and the
+ * note prints "role UNKNOWN". The set is duplicated verbatim from
+ * MarketQualityState so this file has no import into the market-data layer
+ * (kept pure) but a REGRESSION test in spaidbotChartContextTruth pins the two
+ * lists to each other so they cannot drift.
+ */
+const CANONICAL_ROLES = new Set<string>([
+  "LIVE", "DELAYED", "STALE", "PARTIAL", "PROXY", "REPLAY", "UNAVAILABLE",
+]);
+
+function canonicalRole(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim().toUpperCase();
+  return CANONICAL_ROLES.has(t) ? t : null;
 }
 
 const num = (v: unknown): number | null =>
@@ -88,6 +114,13 @@ export function formatChartContextNote(context: ChartContextInput | null | undef
   // > 0, not truthiness: a price of 0 is not a price, and the old `if
   // (context.price)` already skipped it by accident rather than on purpose.
   if (price !== null && price > 0) note += ` @ $${price.toLocaleString("en-US")}`;
+
+  // Role rides right after the price so the model reads "$365.25 STALE" as
+  // one bound fact — the way the strip's role glyph sits beside the price on
+  // the visible surface. Silence is never allowed: an unlabeled price is
+  // exactly what taught the model to quote a stale close as if it were live.
+  const role = canonicalRole(context.role);
+  note += role !== null ? ` [role ${role}]` : ` [role UNKNOWN]`;
 
   const change = selectTickerChangeDisplay({
     change: num(context.change),

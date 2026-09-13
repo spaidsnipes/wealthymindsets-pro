@@ -167,4 +167,25 @@ describe("chart context carries timeframe (TIMEFRAME LAW)", () => {
     expect(src).toContain("context.timeframe");
     expect(src).toContain("(timeframe unspecified)");
   });
+
+  it("the dashboard emits role alongside price", () => {
+    // Publisher-side fence for the ROLE half of the truth-surface law. A
+    // future refactor that drops role sends the model a price with no way to
+    // tell LIVE from STALE, and prose quoted off that carries no fidelity.
+    const src = code(DASHBOARD);
+    const start = src.indexOf('id="wm-chart-context"');
+    const end = src.indexOf("/>", start);
+    const span = src.slice(start, end);
+    expect(span).toContain("role:");
+    expect(span).toContain("chartCanvasState?.qualityState");
+  });
+
+  it("the note prints role UNKNOWN rather than silence when the wire is empty", () => {
+    const NOTE = resolve(__dirname, "./formatChartContextNote.ts");
+    const src = code(NOTE);
+    // Silence in this slot is the whole hazard — the model has been told
+    // "When live evidence is missing, say exactly what is missing." An
+    // omitted role would let it assume streaming truth by default.
+    expect(src).toContain("[role UNKNOWN]");
+  });
 });
