@@ -841,6 +841,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);
   const workspaceTriggerRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
+  // Ticket T's normal Founder room already owns symbol, session, price,
+  // source and fidelity. Repeating the full animated multi-symbol tape above
+  // that room adds a second market narrative, consumes scarce first-viewport
+  // pixels, and runs an unnecessary quote round. Other routes retain the
+  // trader-customizable tape until they graduate into the same room contract.
+  const isFounderOperatingRoom = pathname === "/command-deck";
 
   useEffect(() => setWorkspaceOpen(false), [pathname]);
   // Full-document product surfaces own their vertical rhythm and must remain
@@ -957,10 +963,17 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        {/* Ticker tape (desktop) — hidden on ≤639px via wm-shell-ticker rule */}
-        <div className="wm-shell-ticker flex-1 overflow-hidden mx-2">
-          <TickerTape />
-        </div>
+        {/* The Command Deck is the Asset-10 operating room: its hero and
+            MARKET surface already carry the selected instrument's truth.
+            Suppress the legacy multi-symbol tape there so desktop starts with
+            one story and one source hierarchy. */}
+        {isFounderOperatingRoom ? (
+          <div className="flex-1" aria-hidden="true" data-testid="founder-room-header-space" />
+        ) : (
+          <div className="wm-shell-ticker flex-1 overflow-hidden mx-2">
+            <TickerTape />
+          </div>
+        )}
 
         {/* Mobile Session Pill — fills the phone header when the ticker
             is hidden, giving phone users a canonical "active symbol +
