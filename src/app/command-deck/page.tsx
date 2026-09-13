@@ -61,6 +61,7 @@ import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMa
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import DeckMarketChart from "@/components/experience/DeckMarketChart";
+import AvailableRChip from "@/components/experience/AvailableRChip";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import { composeMarketCanvasVM } from "@/lib/marketData/viewModels/composeMarketCanvasVM";
 import DecisionReceiptPanel from "@/components/experience/DecisionReceiptPanel";
@@ -991,6 +992,13 @@ function CommandDeckInner() {
                         LOADING/EMPTY/UNAVAILABLE states; nothing is drawn
                         when nothing has arrived. */}
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {/* Ticket T RISK pixel — DecisionChainPanel already
+                          receives availableR, but that panel lives in the
+                          "Deep read" drawer collapsed by default. The Founder
+                          asked for VISIBLE RISK pixels, not one-click-away
+                          ones. This chip derives from the same VM the chain
+                          panel does; there is no second computation. */}
+                      <AvailableRChip vm={chainVm?.availableR ?? null} />
                       <DeckMarketChart symbol={symbol} timeframe={timeframe} />
                       <MarketCanvasPanel vm={marketCanvas} />
                     </div>
