@@ -319,7 +319,12 @@ export function HeroTruth({
         ) : (
           <span
             style={{
-              fontSize: isRoomDensity ? "clamp(36px, 7vw, 48px)" : "clamp(40px, 12vw, 60px)",
+              // Founder brief 2026-09-13 five-second test — MARKET must
+              // be dominant. Absence of price is NOT the room's headline;
+              // the chart below is. Room density compresses the "?"
+              // placeholder aggressively so it reads as a chip beside
+              // SPY, not a hero glyph competing with the chart.
+              fontSize: isRoomDensity ? "clamp(18px, 3vw, 24px)" : "clamp(40px, 12vw, 60px)",
               fontWeight: 400,
               color: "#55503f",
               lineHeight: 1.02,
