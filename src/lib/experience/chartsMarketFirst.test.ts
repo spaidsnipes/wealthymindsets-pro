@@ -18,6 +18,14 @@ describe("charts Asset-10 hierarchy", () => {
     expect(bottomBar, "bottom market index bar is missing").toBeGreaterThan(spine);
   });
 
+  it("attaches one desktop rail and falls back to one band on narrow/options views", () => {
+    expect(source).toContain('!narrowViewport && !optionsOpen');
+    expect(source).toContain('<DecisionSpineBand {...decisionSpineProps} presentation="rail" />');
+    expect(source).toContain('(narrowViewport || optionsOpen)');
+    expect(source).toContain('<DecisionSpineBand {...decisionSpineProps} presentation="band" />');
+    expect(source.match(/const decisionSpineProps =/g)).toHaveLength(1);
+  });
+
   it("does not put order-flow diagnostics above MARKET", () => {
     const marketPanel = source.indexOf('id="wm-chart-category-panel-chart"');
     const orderFlow = source.indexOf("<OrderFlowCockpitStrip");

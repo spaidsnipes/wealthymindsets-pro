@@ -69,6 +69,9 @@ export interface DecisionSpineBandProps {
   readonly expression: string | null;
   /** Opens the full WHY drawer. The band is the summary, not a replacement. */
   readonly onOpenWhy?: () => void;
+  /** Desktop charts attach the same compiled spine beside MARKET. Other
+   * surfaces retain the horizontal band without forking truth ownership. */
+  readonly presentation?: "band" | "rail";
 }
 
 /**
@@ -137,23 +140,41 @@ function asOfText(capturedAt: number | null): string {
 
 export function DecisionSpineBand(props: DecisionSpineBandProps) {
   const { decisionId, decisionIdAbsence, market, oneStory, availableR, decisionWhy, expression } = props;
+  const presentation = props.presentation ?? "band";
+  const rail = presentation === "rail";
+  const cellStyle: React.CSSProperties = rail
+    ? {
+        ...CELL,
+        flex: "0 0 auto",
+        minWidth: 0,
+        width: "100%",
+        borderLeft: "none",
+        borderTop: "1px solid rgba(139,106,41,0.16)",
+        padding: "10px 12px",
+      }
+    : CELL;
 
   return (
     <section
-      className="wm-decision-spine"
+      className={`wm-decision-spine${rail ? " wm-decision-spine--rail" : ""}`}
       aria-label="Decision spine"
+      data-presentation={presentation}
       style={{
         display: "flex",
         alignItems: "stretch",
-        flexWrap: "wrap",
+        flexDirection: rail ? "column" : "row",
+        flexWrap: rail ? "nowrap" : "wrap",
         // SCENE_FRAGMENTATION cure (Founder audit 2026-09-13): a
         // lighter-than-sanctuary background (#0D0E14) made the six-cell
         // spine read as a raised dashboard panel floating over MARKET.
         // The sanctuary field is #050506; the spine now inherits that
         // depth and is delineated only by hairlines top and bottom.
         background: "transparent",
-        borderTop: "1px solid rgba(139,106,41,0.20)",
+        borderTop: rail ? "none" : "1px solid rgba(139,106,41,0.20)",
         borderBottom: "1px solid rgba(139,106,41,0.20)",
+        borderLeft: rail ? "1px solid rgba(139,106,41,0.22)" : undefined,
+        width: rail ? 320 : undefined,
+        overflowY: rail ? "auto" : undefined,
         flexShrink: 0,
       }}
     >
@@ -174,7 +195,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         }
       `}</style>
       {/* DECISION_ID — the thing every other cell is about. */}
-      <div style={{ ...CELL, flex: "1 1 220px", minWidth: 200, maxWidth: "100%", borderLeft: "none" }}>
+      <div style={{ ...cellStyle, flex: rail ? "0 0 auto" : "1 1 220px", minWidth: rail ? 0 : 200, maxWidth: "100%", borderLeft: "none", borderTop: "none" }}>
         <span style={LABEL}>Decision</span>
         {decisionId ? (
           <code
@@ -213,14 +234,14 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         )}
       </div>
 
-      <div style={CELL}>
+      <div style={cellStyle}>
         <span style={LABEL}>Now</span>
         <span style={oneStory ? VALUE : MUTED}>
           {oneStory ? oneStory.primary : "No story compiled — evidence insufficient."}
         </span>
       </div>
 
-      <div style={CELL}>
+      <div style={cellStyle}>
         <span style={LABEL}>Market</span>
         <span style={VALUE}>
           {market.symbol} · {market.timeframe} ·{" "}
@@ -231,7 +252,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         </span>
       </div>
 
-      <div style={CELL}>
+      <div style={cellStyle}>
         <span style={LABEL}>Risk</span>
         <span style={availableR ? VALUE : MUTED}>
           {availableR
@@ -245,7 +266,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         </span>
       </div>
 
-      <div style={CELL}>
+      <div style={cellStyle}>
         <span style={LABEL}>Why</span>
         <span style={decisionWhy ? VALUE : MUTED}>
           {decisionWhy ? decisionWhy.headline : "No verdict compiled yet."}
@@ -275,7 +296,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         )}
       </div>
 
-      <div style={CELL}>
+      <div style={cellStyle}>
         <span style={LABEL}>Next</span>
         <span style={VALUE} data-testid="spine-next">
           {expression ?? (oneStory ? oneStory.decision.value : "UNKNOWN")}

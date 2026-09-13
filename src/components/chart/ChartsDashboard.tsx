@@ -893,6 +893,30 @@ export function ChartsDashboard() {
     );
   }
 
+  // One compiled decision spine, projected in two responsive placements.
+  // Desktop attaches it directly to MARKET as a right rail; narrow viewports
+  // keep the proven horizontal, scrollable band below the chart. The
+  // conditions are mutually exclusive, so there is never a second mounted
+  // decision surface or a second truth owner.
+  const decisionSpineProps = {
+    decisionId: currentSceneDecision?.decisionId ?? null,
+    decisionIdAbsence: sceneDecisionAbsence,
+    market: {
+      symbol,
+      timeframe,
+      quality: chartCanvasState?.qualityState ?? null,
+      capturedAt: chartCanvasState?.capturedAt ?? null,
+      last: chartCanvasState?.price.last ?? null,
+    },
+    oneStory: chartCanvasVM.oneStory,
+    availableR: chartCanvasVM.chain?.availableR ?? null,
+    decisionWhy: chartCanvasVM.decisionWhy,
+    expression: optionSelection && optionSelection.underlying === symbol
+      ? `${optionSelection.contract.symbol} ${optionSelection.contract.expirationDate} ${optionSelection.contract.strike} ${optionSelection.contract.contractType}`
+      : null,
+    onOpenWhy: () => setWhyOpen(true),
+  };
+
   return (
     <div
       className={`wm-chart-dashboard${theme === "neon" ? " wm-neon" : ""}`}
@@ -2091,6 +2115,14 @@ export function ChartsDashboard() {
               />
             </div>
 
+            {/* Desktop Asset-10 composition: the canonical decision spine is
+                the chart's attached interpretation edge, not a second
+                dashboard band underneath MARKET. Options keeps the full width
+                it needs; narrow viewports use the proven scrollable band. */}
+            {!narrowViewport && !optionsOpen && (
+              <DecisionSpineBand {...decisionSpineProps} presentation="rail" />
+            )}
+
             {/* DOM panel is now inside VP+DOM collapsible block above */}
 
             {/* Options chain */}
@@ -2135,32 +2167,13 @@ export function ChartsDashboard() {
         </div> : null}
       </div>
 
-      {/* ── Decision spine — NOW / MARKET / RISK / WHY / NEXT ────
-          MARKET now owns the first and largest field. The decision spine is
-          attached beneath it as the interpretation rail instead of occupying
-          scarce first-view height above the evidence it explains. Every field
-          remains compiled by the same composeMarketCanvasVM as the drawer and
-          /command-deck, so the visual re-order does not fork truth ownership. */}
-      <DecisionSpineBand
-        decisionId={currentSceneDecision?.decisionId ?? null}
-        decisionIdAbsence={sceneDecisionAbsence}
-        market={{
-          symbol,
-          timeframe,
-          quality: chartCanvasState?.qualityState ?? null,
-          capturedAt: chartCanvasState?.capturedAt ?? null,
-          last: chartCanvasState?.price.last ?? null,
-        }}
-        oneStory={chartCanvasVM.oneStory}
-        availableR={chartCanvasVM.chain?.availableR ?? null}
-        decisionWhy={chartCanvasVM.decisionWhy}
-        expression={
-          optionSelection && optionSelection.underlying === symbol
-            ? `${optionSelection.contract.symbol} ${optionSelection.contract.expirationDate} ${optionSelection.contract.strike} ${optionSelection.contract.contractType}`
-            : null
-        }
-        onOpenWhy={() => setWhyOpen(true)}
-      />
+      {/* ── Responsive decision spine fallback ───────────────────
+          Desktop Chart mode mounts the same compiled spine beside MARKET.
+          Narrow and Options views retain the horizontal, scrollable band so
+          neither chart width nor option-chain legibility is sacrificed. */}
+      {(narrowViewport || optionsOpen) && (
+        <DecisionSpineBand {...decisionSpineProps} presentation="band" />
+      )}
       {/* Real per-trade flow remains silent until canonical aggressor evidence
           exists; it follows the decision rail instead of pushing MARKET down. */}
       {(activeTab === "Chart" || activeTab === "Options") && (

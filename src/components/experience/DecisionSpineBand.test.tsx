@@ -109,6 +109,23 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
     expect(html).toContain("overflow-x: auto");
     expect(html).toContain("flex: 0 0 180px !important");
   });
+
+  it("can attach the same six truths as a vertical MARKET rail", () => {
+    const html = render({ presentation: "rail" });
+    expect(html).toContain('data-presentation="rail"');
+    expect(html).toContain("flex-direction:column");
+    expect(html).toContain("width:320px");
+    expect(html).toContain("border-left:1px solid rgba(139,106,41,0.22)");
+    for (const label of ["Decision", "Now", "Market", "Risk", "Why", "Next"]) {
+      expect(html).toContain(`>${label}<`);
+    }
+  });
+
+  it("retains the horizontal band as the default responsive projection", () => {
+    const html = render();
+    expect(html).toContain('data-presentation="band"');
+    expect(html).toContain("flex-direction:row");
+  });
 });
 
 describe("DecisionSpineBand — absence is disclosed, never filled", () => {
