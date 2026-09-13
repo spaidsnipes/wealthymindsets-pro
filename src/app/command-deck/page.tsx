@@ -928,36 +928,6 @@ function CommandDeckInner() {
                 (never fabricates). */}
             <TodayPrepBridge userId={user?.id ?? null} />
 
-            {/* Layout-honesty caption — the OS reorders the decision column
-                around the human's job; this one quiet line SAYS why, so the
-                re-emphasis is never silent or mysterious. Sits OUTSIDE the
-                reorderable stack so it always leads the section. Reads the same
-                deckEmphasis.rationale that drives the order. Presentation-only. */}
-            <div
-              aria-live="polite"
-              style={{
-                fontSize: 10,
-                letterSpacing: 0.6,
-                textTransform: "uppercase",
-                color: "#8a8271",
-                display: "flex",
-                gap: 6,
-                alignItems: "baseline",
-                marginBottom: -8,
-              }}
-            >
-              <span style={{ color: "#c9a55c" }}>Layout</span>
-              <span style={{ textTransform: "none", letterSpacing: 0 }}>
-                {deckEmphasis.rationale}
-                {deckEmphasis.refinementNote && (
-                  // A live signal physically moved a surface below the lead; say
-                  // so, so the re-emphasis is never silent. Reads the same pure
-                  // selector that drove the order — no new truth.
-                  <span style={{ color: "#c9a55c" }}> · {deckEmphasis.refinementNote}</span>
-                )}
-              </span>
-            </div>
-
             {/* Decision-surface stack — the four job-reorderable surfaces
                 (STORY / WHY / PASSPORT / RECEIPT). This is its OWN flex column
                 so the job-emphasis `order` reranks ONLY these four (via CSS
@@ -984,25 +954,6 @@ function CommandDeckInner() {
                   <OneStoryStrip vm={oneStory} />
                 </div>
               </SceneAdmits>
-
-              {/* SCENE — BUILD ORDER §10 SCENE COMPILER, NOT PAGES.
-                  The OS layer, and the first surface in WM Pro that answers
-                  "given the state, what is ALLOWED on the screen" rather than
-                  "how much room does this get". Emphasis shrinks; admission
-                  refuses. The panel leads with WITHHELD precisely so the
-                  refusal is visible — a scene name alone would be a badge, and
-                  §H19 calls badges dead vocabulary. Signal provenance is shown
-                  because this route has no broker panel: the capital column is
-                  UNOBSERVED here and is never defaulted to flat (§14.1). */}
-              <div style={{ order: surfaceOrder(deckEmphasis, "STORY") }}>
-                <SceneAdmissionPanel
-                  compilation={sceneCompilation}
-                  provenance={sceneInput.provenance}
-                  observedCount={sceneInput.observedCount}
-                  totalCount={sceneInput.totalCount}
-                  governed={DECK_GOVERNED_ELEMENTS}
-                />
-              </div>
 
               {/* Exit Ramp / Completion Receipt — canon §Exit Ramp (2026-08-29
                   Cognitive Sovereignty audit). The "DONE" half of the grammar:
@@ -1052,6 +1003,39 @@ function CommandDeckInner() {
                   </span>
                 </summary>
                 <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "0 16px 16px" }}>
+                  {/* Scene admission and layout provenance are canonical proof,
+                      not the trader's primary read. Keep them available here
+                      without letting implementation vocabulary interrupt
+                      MARKET → RISK → NEXT in the default Founder room. */}
+                  <div
+                    aria-live="polite"
+                    style={{
+                      fontSize: 10,
+                      color: "#8a8271",
+                      display: "flex",
+                      gap: 6,
+                      alignItems: "baseline",
+                    }}
+                  >
+                    <span style={{ color: "#c9a55c", textTransform: "uppercase", letterSpacing: 0.6 }}>
+                      Scene rationale
+                    </span>
+                    <span>
+                      {deckEmphasis.rationale}
+                      {deckEmphasis.refinementNote && (
+                        <span style={{ color: "#c9a55c" }}> · {deckEmphasis.refinementNote}</span>
+                      )}
+                    </span>
+                  </div>
+
+                  <SceneAdmissionPanel
+                    compilation={sceneCompilation}
+                    provenance={sceneInput.provenance}
+                    observedCount={sceneInput.observedCount}
+                    totalCount={sceneInput.totalCount}
+                    governed={DECK_GOVERNED_ELEMENTS}
+                  />
+
                   {/* WHY / WHY NOT (canon P6) — reverses the right-of-way verdict to
                       its concrete causes so the trader sees exactly what stands
                       between them and entry (or why the path is clear). */}
