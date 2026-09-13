@@ -731,7 +731,6 @@ function CommandDeckInner() {
             }
             @media (max-width: 900px) {
               .wm-cd-layout { grid-template-columns: minmax(0, 1fr) !important; }
-              .wm-cd-why-column { position: static !important; }
             }
             @media (min-width: 1100px) {
               .wm-cd-market-workspace {
@@ -755,14 +754,14 @@ function CommandDeckInner() {
               .wm-cd-market-context { grid-area: context; }
             }
           `}</style>
-        {/* Two-column layout when evidence panel is open, single column otherwise.
-            Below 900px viewport the second column stacks under the first
-            (see <style> above). */}
+        {/* One scene column at every state. Opening WHY must reveal a contextual
+            layer inside the room; it may never shrink MARKET to make space for
+            a second mini-application. */}
         <div
           className="wm-cd-layout"
           style={{
             display: "grid",
-            gridTemplateColumns: showEvidence && whyTarget ? "minmax(0, 1fr) 380px" : "minmax(0, 1fr)",
+            gridTemplateColumns: "minmax(0, 1fr)",
             gap: 20,
             alignItems: "start",
           }}
@@ -930,6 +929,7 @@ function CommandDeckInner() {
                   className="wm-cd-market-why"
                   data-testid="scene-why"
                   data-decision-id={currentSceneDecision?.decisionId ?? undefined}
+                  open={showEvidence || undefined}
                   style={{ borderTop: "1px solid rgba(139,106,41,0.22)", paddingTop: 10 }}
                 >
                   <summary
@@ -954,6 +954,17 @@ function CommandDeckInner() {
                   </summary>
                   <DecisionWhyPanel vm={decisionWhy} />
                   <MarketCanvasPanel vm={marketCanvas} />
+                  {showEvidence && whyTarget && (
+                    <div data-testid="scene-why-inspector" style={{ marginTop: 10 }}>
+                      <WhyInspector
+                        target={whyTarget}
+                        state={state}
+                        dlar={chainVm?.dlar ?? null}
+                        clc={chainVm?.clc ?? null}
+                        onClose={() => setShowEvidence(false)}
+                      />
+                    </div>
+                  )}
                 </details>
                 <div data-testid="scene-next" data-decision-id={currentSceneDecision?.decisionId ?? undefined}>
                   <DeckExpressionShortlist
@@ -1804,18 +1815,6 @@ function CommandDeckInner() {
             </details>
           </div>
 
-          {/* Evidence column — appears when user has opened a Why? drill */}
-          {showEvidence && whyTarget && (
-            <aside className="wm-cd-why-column" style={{ position: "sticky", top: 80, alignSelf: "start" }}>
-              <WhyInspector
-                target={whyTarget}
-                state={state}
-                dlar={chainVm?.dlar ?? null}
-                clc={chainVm?.clc ?? null}
-                onClose={() => setShowEvidence(false)}
-              />
-            </aside>
-          )}
         </div>
 
         {/* Doctrine footer — mirrors the mockup cadence:

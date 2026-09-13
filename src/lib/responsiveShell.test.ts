@@ -275,6 +275,10 @@ describe("responsive P0 command surfaces", () => {
 
   it("keeps contextual WHY in the market room and deeper proof collapsed", () => {
     const deck = source("../app/command-deck/page.tsx");
+    const room = deck.indexOf('data-testid="deck-market-scene"');
+    const why = deck.indexOf('data-testid="scene-why"', room);
+    const inspector = deck.indexOf('data-testid="scene-why-inspector"', why);
+    const roomEnd = deck.indexOf('className="wm-cd-secondary-workspace"', room);
     expect(deck).toContain('data-testid="scene-why"');
     expect(deck).toContain("Why · decision evidence");
     expect(deck).toContain('className="wm-cd-evidence-drawer"');
@@ -290,6 +294,11 @@ describe("responsive P0 command surfaces", () => {
     expect(deck).not.toContain("deckEmphasis.emphasizeWhy || deckEmphasis.passportOpen");
     expect(deck).not.toContain("CinematicAtmosphere");
     expect(deck).not.toContain("DoctrineTagline");
+    expect(inspector).toBeGreaterThan(why);
+    expect(inspector).toBeLessThan(roomEnd);
+    expect(deck).toContain("open={showEvidence || undefined}");
+    expect(deck).not.toContain('className="wm-cd-why-column"');
+    expect(deck).not.toContain('showEvidence && whyTarget ? "minmax(0, 1fr) 380px"');
   });
 
   it("keeps secondary preparation and diagnostics behind one workspace disclosure", () => {
@@ -300,7 +309,7 @@ describe("responsive P0 command surfaces", () => {
     const connections = deck.indexOf('className="wm-cd-connection-diagnostics"', content);
     const system = deck.indexOf("System state · session · data · evidence · right-of-way", content);
     const deepRead = deck.indexOf("Deep read · story · auction lens · decision chain · steward · fidelity", content);
-    const workspaceEnd = deck.indexOf("{/* Evidence column", deepRead);
+    const workspaceEnd = deck.indexOf("{/* Doctrine footer", deepRead);
     expect(workspace).toBeGreaterThan(room);
     expect(content).toBeGreaterThan(workspace);
     expect(connections).toBeGreaterThan(content);
