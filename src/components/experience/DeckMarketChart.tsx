@@ -27,10 +27,37 @@ import * as React from "react";
  * never a placeholder chart, never a stale silhouette. Missing data is not a
  * blank axis; missing data is words.
  *
- * The chart is COMPACT (240px tall) on purpose. This is not a replacement for
- * the /charts trading surface — it is Ticket T's "chart evidence" so a trader
- * reading the deck can see the tape the decision is talking about.
+ * The chart is not a replacement for the /charts trading surface — it is
+ * Ticket T's "chart evidence" so a trader reading the deck can see the tape
+ * the decision is talking about.
+ *
+ * ── On the height ────────────────────────────────────────────────────────────
+ *
+ * It was a fixed 240px, then a fixed 360px, repeated as a literal in five
+ * places (READY / LOADING / EMPTY / UNAVAILABLE / IDLE). Two problems with
+ * that. The DRY one is obvious: five literals drift, and a LOADING box of a
+ * different height than the READY box makes the room jump when candles land.
+ *
+ * The Founder one is the real one. Measured live on production at 1920x847,
+ * a 360px chart owned 18% of the viewport AREA and began 47% of the way down
+ * the page. The Founder audit's required silhouette says "the market field
+ * visually owns most of the viewport" — a fixed pixel height cannot promise
+ * that on any screen, because it does not know how big the screen is.
+ *
+ * MARKET_FIELD_HEIGHT is therefore viewport-proportional with both ends
+ * pinned: never shorter than 320px (below that candles stop being readable,
+ * which would be a prettier lie than a small chart), never taller than 620px
+ * (past that the support column falls entirely below the fold and the room
+ * fragments the other way). Between those, it takes 56% of the viewport so
+ * that MARKET wins the five-second test on a laptop and on a large display
+ * alike.
  */
+
+/**
+ * Single owner of the market field's height. Exported so the geometry test can
+ * name the value it is checking rather than re-typing a literal.
+ */
+export const MARKET_FIELD_HEIGHT = "clamp(320px, 56vh, 620px)";
 
 interface Candle {
   readonly time: number;
@@ -245,14 +272,14 @@ export function DeckMarketChart({
         <div
           ref={containerRef}
           data-testid="deck-market-chart-canvas"
-          style={{ width: "100%", height: 360 }}
+          style={{ width: "100%", height: MARKET_FIELD_HEIGHT }}
         />
       )}
 
       {state.kind === "LOADING" && (
         <div
           data-testid="deck-market-chart-loading"
-          style={{ height: 360, display: "flex", alignItems: "center", justifyContent: "center",
+          style={{ height: MARKET_FIELD_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center",
                    color: "#8a8271", fontSize: 11, letterSpacing: 0.3 }}
         >
           Loading candles…
@@ -262,7 +289,7 @@ export function DeckMarketChart({
       {state.kind === "EMPTY" && (
         <div
           data-testid="deck-market-chart-empty"
-          style={{ height: 360, display: "flex", alignItems: "center", justifyContent: "center",
+          style={{ height: MARKET_FIELD_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center",
                    color: "#8a8271", fontSize: 11, letterSpacing: 0.3, fontStyle: "italic" }}
         >
           No candles yet for {symbol} {timeframe}.
@@ -272,7 +299,7 @@ export function DeckMarketChart({
       {state.kind === "UNAVAILABLE" && (
         <div
           data-testid="deck-market-chart-unavailable"
-          style={{ height: 360, display: "flex", alignItems: "center", justifyContent: "center",
+          style={{ height: MARKET_FIELD_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center",
                    color: "#c05a4a", fontSize: 11, letterSpacing: 0.3 }}
         >
           Chart evidence unavailable — {state.reason}
@@ -280,7 +307,7 @@ export function DeckMarketChart({
       )}
 
       {state.kind === "IDLE" && (
-        <div style={{ height: 360 }} data-testid="deck-market-chart-idle" />
+        <div style={{ height: MARKET_FIELD_HEIGHT }} data-testid="deck-market-chart-idle" />
       )}
     </section>
   );

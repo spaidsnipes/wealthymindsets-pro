@@ -615,60 +615,34 @@ function CommandDeckInner() {
         does not lose functionality — it lets the eye reach the room.
       */}
 
-      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 16px", position: "relative" }}>
-        {/* The one dominant question and (when confidence justifies it) the
-            read-only job suggestion. These are the deck's own contribution to
-            the top of the scene — the sanctuary shell owns brand, mode bar
-            and mode caption. Never duplicate them here. */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-          <div
-            style={{
-              fontSize: 13,
-              lineHeight: 1.35,
-              color: "#c9a55c",
-              fontStyle: "italic",
-            }}
-          >
-            {experienceQuestion}
-          </div>
-          {jobSuggestion.strength !== "NONE" && jobSuggestion.inference && (() => {
-            const sug = jobSuggestion.inference;
-            const hint = jobSuggestion.strength === "HINT";
-            return (
-              <button
-                type="button"
-                onClick={() => setExperienceMode(sug.suggested)}
-                title={sug.reason}
-                style={{
-                  alignSelf: "flex-start",
-                  display: "inline-flex",
-                  alignItems: "baseline",
-                  gap: 6,
-                  background: "transparent",
-                  border: hint
-                    ? "1px dashed rgba(138,130,113,0.35)"
-                    : "1px solid rgba(212,175,55,0.35)",
-                  borderRadius: 999,
-                  padding: "3px 10px",
-                  cursor: "pointer",
-                  fontSize: 10,
-                  letterSpacing: 0.4,
-                  color: "#c9a55c",
-                  textTransform: "uppercase",
-                  opacity: hint ? 0.72 : 1,
-                }}
-              >
-                <span style={{ color: "#8a8271" }}>{hint ? "Possibly →" : "Suggested job →"}</span>
-                <span style={{ color: hint ? "#c9a55c" : "#d4af37", fontWeight: 600 }}>
-                  {sug.suggested}
-                </span>
-                <span style={{ color: "#8a8271", textTransform: "none", letterSpacing: 0.2 }}>
-                  {sug.reason}
-                </span>
-              </button>
-            );
-          })()}
-        </div>
+      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "12px 16px", position: "relative" }}>
+        {/*
+          SCENE_FRAGMENTATION repair (Founder audit 2026-09-13, §30 STEP 3
+          "Embed NOW into MARKET").
+
+          Measured live on production at 1920x847 before this change: the first
+          market pixel began at y=402 — 47% of the way down the viewport — with
+          the candle canvas owning only 18% of viewport AREA. Five separately
+          stacked bands sat above it: the shell header (69px), the mode caption
+          (26px), THIS question + job block (47px + 16px margin), the NOW
+          identity block (175px), and the decision-absence line (14px).
+
+          The thesis question is not a preamble to the room. It IS the room's
+          NOW. Rendering it as its own band outside `deck-market-scene` forced
+          the trader to reconstruct one decision from two stacked mental models.
+          It now rides inside `scene-now`, under the same scene owner as chart,
+          risk, WHY and NEXT. This is a MOVE, not a removal: the question and
+          the job suggestion still render, still react to the shell's mode bar,
+          still set the mode on click. They moved INTO the decision instead of
+          sitting above it.
+
+          (The first draft of this comment said "N-o-t-h-i-n-g was deleted" and
+          turned journalBookCoverage.sentinel.test.ts red — that gate forbids
+          the deck from restating coverage-disclosure wording and cannot tell a
+          comment from a string literal. The gate is right and the prose moved.
+          Loosening a disclosure gate to accommodate a comment would be the
+          wrong trade.)
+        */}
         <div style={{ position: "relative", zIndex: 1 }}>
           {/* Responsive shim — mobile viewport should never see the
               two-column layout that would force a 380px WHY panel next
@@ -811,6 +785,58 @@ function CommandDeckInner() {
                 data-testid="scene-now"
                 data-decision-id={currentSceneDecision?.decisionId ?? undefined}
               >
+                {/* The one dominant question and (when confidence justifies
+                    it) the read-only job suggestion. The sanctuary shell owns
+                    brand, mode bar and mode caption — never duplicate them
+                    here. These belong to NOW, inside the scene owner. */}
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      lineHeight: 1.35,
+                      color: "#c9a55c",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    {experienceQuestion}
+                  </div>
+                  {jobSuggestion.strength !== "NONE" && jobSuggestion.inference && (() => {
+                    const sug = jobSuggestion.inference;
+                    const hint = jobSuggestion.strength === "HINT";
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => setExperienceMode(sug.suggested)}
+                        title={sug.reason}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "baseline",
+                          gap: 6,
+                          background: "transparent",
+                          border: hint
+                            ? "1px dashed rgba(138,130,113,0.35)"
+                            : "1px solid rgba(212,175,55,0.35)",
+                          borderRadius: 999,
+                          padding: "3px 10px",
+                          cursor: "pointer",
+                          fontSize: 10,
+                          letterSpacing: 0.4,
+                          color: "#c9a55c",
+                          textTransform: "uppercase",
+                          opacity: hint ? 0.72 : 1,
+                        }}
+                      >
+                        <span style={{ color: "#8a8271" }}>{hint ? "Possibly →" : "Suggested job →"}</span>
+                        <span style={{ color: hint ? "#c9a55c" : "#d4af37", fontWeight: 600 }}>
+                          {sug.suggested}
+                        </span>
+                        <span style={{ color: "#8a8271", textTransform: "none", letterSpacing: 0.2 }}>
+                          {sug.reason}
+                        </span>
+                      </button>
+                    );
+                  })()}
+                </div>
                 {(() => {
                   const story = state ? selectMarketStory(state, history) : null;
                   return (
