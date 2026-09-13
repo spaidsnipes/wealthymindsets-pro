@@ -321,6 +321,11 @@ describe("responsive P0 command surfaces", () => {
     expect(deck.slice(workspace, content)).not.toContain("open=");
     expect(deck.match(/className="wm-cd-secondary-workspace"/g)).toHaveLength(1);
     expect(deck.match(/<RealmGateway currentKey="wm-pro" \/>/g)).toHaveLength(1);
+    const summary = deck.slice(deck.indexOf("<summary", workspace), content);
+    expect(summary).toContain('display: "inline-flex"');
+    expect(summary).toContain('width: "fit-content"');
+    expect(summary).toContain('marginLeft: "auto"');
+    expect(summary).not.toContain('justifyContent: "space-between"');
   });
 
   it("compresses an unresolved room hero without hiding its market-state truth", () => {

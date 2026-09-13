@@ -1041,21 +1041,24 @@ function CommandDeckInner() {
             >
               <summary
                 style={{
-                  minHeight: 46,
-                  display: "flex",
+                  minHeight: 44,
+                  display: "inline-flex",
                   alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
+                  gap: 8,
                   cursor: "pointer",
                   listStyle: "none",
                   color: "#c9a55c",
                   fontSize: 10,
                   letterSpacing: 0.6,
                   textTransform: "uppercase",
+                  width: "fit-content",
+                  maxWidth: "100%",
+                  marginLeft: "auto",
+                  padding: "0 8px",
                 }}
               >
-                <span>Workspace · proof · preparation</span>
-                <span style={{ color: "#8a8271" }}>Open secondary tools</span>
+                <span>Workspace</span>
+                <span style={{ color: "#8a8271" }}>Proof · preparation · tools</span>
               </summary>
               <div
                 data-testid="secondary-workspace-content"
