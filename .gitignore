@@ -37,5 +37,5 @@ __pycache__/
 *.egg-info/
 .venv/
 
-# Transient build artefact of scripts/measure-spine-band.mjs
-.spine-measure.mjs
+# Transient build artefact of scripts/measure-experience-geometry.mjs
+.geometry-measure.mjs

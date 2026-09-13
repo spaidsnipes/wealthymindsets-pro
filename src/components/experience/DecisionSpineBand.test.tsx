@@ -116,6 +116,20 @@ describe("DecisionSpineBand — absence is disclosed, never filled", () => {
     expect(html).not.toContain('data-testid="spine-decision-id"');
   });
 
+  it("never truncates the id — an ellipsised identity is ambiguous, not merely ugly", () => {
+    // Found by `scripts/measure-experience-geometry.mjs` at 834px: the id box
+    // was 242px and the id 264px, so it rendered `wmd_9f3c1a22-…d3…`. Two
+    // decisions sharing a prefix would then render identically and neither
+    // could be checked against the journal. Static markup cannot see the
+    // overflow, but it CAN see the declarations that cause it.
+    const html = render({ decisionId: "wmd_9f3c1a22-5e77-4a10-b2d4-7c918ee0d311" });
+    const idTag = html.slice(html.indexOf('data-testid="spine-decision-id"') - 400);
+    const style = idTag.slice(idTag.indexOf("style=\""), idTag.indexOf('data-testid="spine-decision-id"'));
+    expect(style).not.toContain("white-space:nowrap");
+    expect(style).not.toContain("text-overflow:ellipsis");
+    expect(style).toContain("overflow-wrap:anywhere");
+  });
+
   it("renders the id verbatim when one exists, and then stops disclosing absence", () => {
     const html = render({ decisionId: "wmd_abc-123" });
     expect(html).toContain('data-testid="spine-decision-id"');

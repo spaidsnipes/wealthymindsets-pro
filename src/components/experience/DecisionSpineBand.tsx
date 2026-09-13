@@ -157,7 +157,32 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         <span style={LABEL}>Decision</span>
         {decisionId ? (
           <code
-            style={{ ...VALUE, color: "#e8b923", fontWeight: 700, whiteSpace: "nowrap" }}
+            /**
+             * THE ID WRAPS AND IS NEVER ELLIPSISED.
+             *
+             * It shipped as `whiteSpace: "nowrap"` on top of VALUE's
+             * `overflow: hidden` + `textOverflow: ellipsis`. Measured at 834px
+             * — the iPad — the box was 242px and the id was 264px, so it
+             * rendered as `wmd_9f3c1a22-5e77-4a10-b2d4-7c918ee0d3…`.
+             *
+             * Truncating a price is ugly. Truncating an IDENTITY is a lie:
+             * two different decisions sharing a prefix render identically, and
+             * the one canonical id the whole band is about becomes unverifiable
+             * against the journal. Absence is disclosed here, never filled —
+             * a partial id is a filled absence wearing an ellipsis.
+             *
+             * So it wraps. `anywhere` because a uuid has no break opportunities
+             * and `break-word` would leave the line overflowing anyway.
+             */
+            style={{
+              ...VALUE,
+              color: "#e8b923",
+              fontWeight: 700,
+              whiteSpace: "normal",
+              overflow: "visible",
+              textOverflow: "clip",
+              overflowWrap: "anywhere",
+            }}
             data-testid="spine-decision-id"
           >
             {decisionId}
