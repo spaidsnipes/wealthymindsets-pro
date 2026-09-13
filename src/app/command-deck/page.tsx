@@ -66,11 +66,14 @@ import AvailableRChip from "@/components/experience/AvailableRChip";
 import DeckExpressionShortlist from "@/components/experience/DeckExpressionShortlist";
 import { OptionExpressionIntent } from "@/components/chart/OptionExpressionIntent";
 import {
+  adoptSceneDecision,
   currentDecisionIdentity,
   expressionDirectionFromCanonical,
   expressionScopeIsCurrent,
   type ScopedDecisionIdentity,
 } from "@/lib/expressionShortlist";
+import { birthOnPermissionCrossing } from "@/lib/traderMemory/permissionBirth";
+import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import type { OptionContract, OptionChainFidelity, OptionChainSource } from "@/lib/optionContractResponse";
 import type { DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
@@ -357,6 +360,49 @@ function CommandDeckInner() {
     underlying: symbol,
     owner: expressionOwner,
   });
+  const permissionVerdict = permission?.verdict ?? "UNKNOWN";
+  const priorPermission = React.useRef<typeof permissionVerdict | null>(null);
+  const [sceneDecisionAbsence, setSceneDecisionAbsence] = React.useState<string>(
+    "No decision born yet on this scene — permission has not crossed here.",
+  );
+  React.useEffect(() => {
+    // Founder Build Order §5 Step 5 (INTENT BEFORE ORDER TYPE) — the decision
+    // is born on the SAME scene the trader is looking at, not on the other
+    // route. Before this effect, /command-deck adopted an id if one had been
+    // birthed on /charts, and rendered "No decision born yet" otherwise
+    // forever. That kept the SpineBand's DECISION column, the Expression
+    // shortlist's scoped selection, and OptionExpressionIntent's
+    // bornDecision all null on the room the Founder actually opens.
+    //
+    // Mirrors ChartsDashboard's mint discipline: read the current
+    // permission verdict, classify the transition against the previous one
+    // held on a ref (never state — a mint is not a render dependency), and
+    // on CROSSED_INTO_GRANTED mint a scoped identity and adopt it. All
+    // other transitions are refusals; the ABSENCE sentence carries the
+    // reason so the SpineBand can name it in words.
+    const prev = priorPermission.current;
+    priorPermission.current = permissionVerdict;
+    const outcome = birthOnPermissionCrossing({
+      prev,
+      next: permissionVerdict,
+      deviceId: thisDeviceId(),
+      nowMs: Date.now(),
+      nonce: crypto.randomUUID(),
+    });
+    if (!outcome.born) return;
+    if (!outcome.mint.ok) {
+      // Refusal is a first-class output. A blank id here would mean the
+      // scene "sort of" has a decision — the worst possible middle state.
+      setSceneDecisionAbsence(`Decision not minted: ${outcome.mint.reason}`);
+      return;
+    }
+    const candidate: ScopedDecisionIdentity = {
+      underlying: symbol,
+      owner: expressionOwner,
+      identity: outcome.mint.identity,
+    };
+    setSceneDecision((current) => adoptSceneDecision(current, candidate));
+  }, [permissionVerdict, symbol, expressionOwner]);
   React.useEffect(() => {
     // The selectors above fence the transition render; these effects remove
     // stale storage once the room, owner, or thesis side changes.
@@ -364,6 +410,8 @@ function CommandDeckInner() {
   }, [symbol, expressionOwner, expressionDirection]);
   React.useEffect(() => {
     setSceneDecision(null);
+    priorPermission.current = null;
+    setSceneDecisionAbsence("No decision born yet on this scene — permission has not crossed here.");
   }, [symbol, expressionOwner]);
   const selectedExpressionLabel = selectedExpression
     ? `${selectedExpression.contract.symbol} ${selectedExpression.contract.expirationDate} ${selectedExpression.contract.strike} ${selectedExpression.contract.contractType}`
@@ -926,7 +974,7 @@ function CommandDeckInner() {
                 never a fabricated id. */}
             <DecisionSpineBand
               decisionId={currentSceneDecision?.decisionId ?? null}
-              decisionIdAbsence="No decision born yet on this scene — permission has not crossed here."
+              decisionIdAbsence={sceneDecisionAbsence}
               market={{
                 symbol,
                 timeframe,
