@@ -36,17 +36,13 @@
  * aspirational: the failure this catches is the TOTAL absence of a caller,
  * which is exactly the failure that occurred.
  *
- * Comments are stripped before matching — see `stripComments` for the measured
- * reason. A module header that NAMES an endpoint is not a caller of it, and the
- * first draft of this guard could not tell the difference.
+ * Comments are stripped before matching — see `stripComments` in ./sourceGraph
+ * for the measured reason. A module header that NAMES an endpoint is not a
+ * caller of it, and the first draft of this guard could not tell the difference.
  */
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
-
-const ROOT = resolve(process.cwd(), "src");
-const API_ROOT = join(ROOT, "app", "api");
+import { apiRoutePaths, sourceFiles } from "./sourceGraph";
 
 /**
  * Why a route legitimately has no in-app caller. Each class is a different
@@ -198,72 +194,38 @@ const NO_IN_APP_CALLER: Readonly<Record<string, OrphanEntry>> = {
   },
 };
 
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) walk(full, out);
-    else out.push(full);
-  }
-  return out;
-}
-
-/** Every API route's public path, e.g. "/api/broker/certification". */
-function apiRoutePaths(): string[] {
-  return walk(API_ROOT)
-    .filter((f) => f.endsWith(`${sep}route.ts`))
-    .map((f) => f.slice(ROOT.length, -`${sep}route.ts`.length).split(sep).join("/"))
-    .map((p) => p.replace(/^\/app/, ""))
-    .sort();
-}
-
-/**
- * Remove comments before matching.
- *
- * MEASURED, not theorised: the first version of this guard did not strip them,
- * and when the /readiness fetch was deliberately typo'd to prove the guard
- * bites, IT STAYED GREEN — because the page's own explanatory JSX comment and
- * the selector's module header both spell the endpoint path. A guard that
- * accepts PROSE as evidence of wiring is the exact defect it was written to
- * catch, one level in: a clean report about something nobody connected.
- *
- * Conservative on purpose. Block comments go entirely; line comments are
- * dropped only when the line's first non-space characters are `//` or `*`, so
- * a `//` inside a real `https://` URL in live code is never touched.
- */
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .split("\n")
-    .filter((line) => {
-      const t = line.trimStart();
-      return !t.startsWith("//") && !t.startsWith("*");
-    })
-    .join("\n");
-}
-
-/** Source files that could plausibly call an endpoint: app + lib + components,
- * minus the API handlers themselves and minus tests. A route referenced only by
- * its own test is exactly the state this guard exists to reject. */
-function callerSources(): { readonly file: string; readonly text: string }[] {
-  const apiPrefix = API_ROOT + sep;
-  return walk(ROOT)
-    .filter((f) => /\.tsx?$/.test(f))
-    .filter((f) => !f.startsWith(apiPrefix))
-    .filter((f) => !/\.(test|spec)\.tsx?$/.test(f))
-    .map((f) => ({ file: f.slice(ROOT.length + 1), text: stripComments(readFileSync(f, "utf8")) }));
-}
-
 const routes = apiRoutePaths();
-const sources = callerSources();
+
+/** Source files that could plausibly CALL an endpoint: everything except the
+ * API handlers themselves. A route referenced only from inside src/app/api is
+ * not reached by the product. */
+const sources = sourceFiles(["app/api"]);
 
 /**
  * The files that reference a route's path.
  *
- * Prefix-safe by construction: a longer route that CONTAINS a shorter one
- * (`/api/broker/status` inside `/api/broker/status/x`) can only ever make the
- * shorter one look MORE called, never less — so this cannot manufacture an
- * orphan, only miss one. Erring toward missing is the right direction for a
- * guard whose failure mode would otherwise be a false accusation.
+ * Substring match, deliberately. A longer route that CONTAINS a shorter one can
+ * only ever make the shorter one look MORE called, never less — so this cannot
+ * manufacture an orphan, only miss one. Erring toward missing is the right
+ * direction for a guard whose failure mode would otherwise be a false
+ * accusation against a route someone does call.
+ *
+ * MEASURED 2026-09-12, so the next reader does not have to re-derive it. The
+ * hazard is real but presently empty. Exactly two route pairs in this repo sit
+ * in a prefix relationship — `/api/alpaca` ⊂ `/api/alpaca/trade` and
+ * `/api/livekit` ⊂ `/api/livekit/approve` — and BOTH shorter routes were
+ * checked by hand and have their own independent callers: MainChart.tsx and
+ * providerQuoteRounds.ts reach `/api/alpaca?…`, LiveRoom.tsx reaches
+ * `/api/livekit?room=…`. Neither is being carried by its longer sibling. So
+ * tightening this to a boundary match would change no verdict today, and was
+ * not done: a behaviour change to a live guard with zero current effect is
+ * risk without benefit. Re-check this note if a new nested route appears whose
+ * parent has no caller of its own.
+ *
+ * The other half of the substring hazard has teeth and was observed directly:
+ * typo-ing the one real caller to `/api/broker/certificationX` left this guard
+ * GREEN, because the typo still contains the route. `certifikation` failed it
+ * correctly. A revive attempt on this guard must not append characters.
  */
 function calledBy(route: string): string[] {
   return sources.filter((s) => s.text.includes(route)).map((s) => s.file);

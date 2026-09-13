@@ -134,6 +134,10 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "OPS_TOOLING",
     note: "Comment stripper shared by the repo's three static guards (host-neutrality lock, both env-manifest gates). It is read by CI, never by a trader. Correct that no screen reaches it.",
   },
+  "src/lib/ops/sourceGraph.ts": {
+    reason: "OPS_TOOLING",
+    note: "The one reader of this repo's own source text — walks src, drops tests, delegates comment-stripping to sourceScan. Two anti-orphan Sentinels (API routes, components) ask the same structural question and now share one answer instead of holding two private opinions about what counts as source. Its audience is CI. A screen reaching it would mean the product was reading its own files at runtime, which is the wrong thing for this module to become.",
+  },
   "src/lib/ops/visualReceipt.ts": {
     reason: "OPS_TOOLING",
     note: "Executable owner of the canon's NO-ESCAPE VISUAL VERIFICATION BREAKER — it judges whether a BUILDER'S green claim is admissible, not whether a trader's scene is. Its audience is CI and the person writing the receipt. A screen would be the wrong place for it: the one party it must be able to refuse is the party operating the app.",
