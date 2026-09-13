@@ -284,6 +284,57 @@ const RECEIPT_VM = (() => {
     ],
     props: `{ vm: RECEIPT_VM }`,
   },
+  {
+    name: "scene-admission-panel",
+    // The accessible name is COMPILED (`Scene ${scene}. ${reason}`), so the
+    // selector matches its stable prefix. Pinning the whole string here would
+    // make this gate fail on a reason-wording change, which is not a geometry
+    // fact and would train the next reader to ignore a red gate.
+    root: 'section[aria-label^="Scene "]',
+    from: p("src/components/experience/SceneAdmissionPanel"),
+    named: "SceneAdmissionPanel",
+    // The WIDEST state this panel ever reaches, chosen deliberately:
+    //
+    //   DEGRADED  — the longest compiled reason sentence in the cascade, and
+    //               the one that must stay readable precisely when capital is
+    //               exposed and unverified.
+    //   governed  — one element, which is the honest /command-deck number. It
+    //               also produces ELEVEN "not governed here" chips, so the chip
+    //               wrap is measured at its real maximum rather than at a
+    //               flattering one.
+    //   provenance— one group unobserved, so the derived "WM has not read…"
+    //               paragraph renders too.
+    //
+    // Compiled through the real `compileScene`, never hand-written: a fixture
+    // that drifted from the compiler would have this gate measuring a scene the
+    // Founder is never shown.
+    imports: [
+      `import { compileScene } from ${p("src/lib/experience/compileScene")};`,
+      `const SCENE_COMPILATION = compileScene({
+  position: "LONG",
+  positionConfidence: "CONFIRMED",
+  intentInFlight: false,
+  exposureIncreasingWorkingOrders: 0,
+  linkVerified: false,
+  sessionOpen: true,
+  rightOfWay: null,
+  composingIntent: false,
+  hadCapitalEvent: true,
+  receiptWritten: false,
+});
+const SCENE_PROVENANCE = {
+  SESSION: "OBSERVED", DECISION: "UNOBSERVED", POSITION: "OBSERVED",
+  ORDERS: "OBSERVED", LINK: "OBSERVED",
+};`,
+    ],
+    props: `{
+        compilation: SCENE_COMPILATION,
+        provenance: SCENE_PROVENANCE,
+        observedCount: 4,
+        totalCount: 5,
+        governed: ["MARKET_CANVAS"],
+      }`,
+  },
 ];
 
 /**
