@@ -73,6 +73,56 @@ function formatPrice(p: number): string {
   return p.toFixed(5);
 }
 
+/**
+ * The vendor half of a provider path.
+ *
+ * Coverage channels stamp `providerPath` as vendor-first slugs — `finnhub-rest`,
+ * `webull-openapi-ticks`, `coinbase-client-ws`. The Founder's 2026-09-12
+ * truth-surface law asks for SOURCE to be directly inspectable, with
+ * FEED/ENTITLEMENT one interaction deeper. Vendor is the source; the rest of
+ * the path is the feed. Taking the segment before the first hyphen makes that
+ * split without a second registry.
+ *
+ * An empty or hyphen-first path collapses to null, which the strip renders as
+ * "unknown" — the honest state when nothing has stamped a vendor onto the
+ * observation. Never invented, never defaulted to a placeholder brand.
+ */
+export function heroSourceVendor(providerPath: string): string | null {
+  const trimmed = providerPath.trim().toLowerCase();
+  if (!trimmed) return null;
+  const vendor = trimmed.split("-")[0];
+  return vendor.length > 0 ? vendor : null;
+}
+
+/**
+ * The SOURCE line for the hero truth strip.
+ *
+ * Distinct vendors, in first-seen order, so one vendor answering on many
+ * channels does not shout louder than another vendor answering on one. The
+ * `label` is the compact form the strip prints; `detail` lists every raw
+ * providerPath and is surfaced via `title` for the one-interaction-deeper
+ * disclosure the law permits.
+ *
+ * No coverage at all → "unknown". A LIVE role beside an unknown source is a
+ * legitimate CONFLICTED read the Founder wants the eye to catch — the strip
+ * must not paper over it with a default brand.
+ */
+export function selectHeroSourceDisclosure(
+  coverage: readonly { providerPath: string }[] | undefined,
+): { label: string; detail: string } {
+  const vendors: string[] = [];
+  const paths: string[] = [];
+  for (const c of coverage ?? []) {
+    const v = heroSourceVendor(c.providerPath);
+    if (!v) continue;
+    paths.push(c.providerPath);
+    if (!vendors.includes(v)) vendors.push(v);
+  }
+  if (vendors.length === 0) return { label: "unknown", detail: "no source has stamped an observation yet" };
+  const label = vendors.length === 1 ? vendors[0] : `${vendors[0]} +${vendors.length - 1}`;
+  return { label, detail: paths.join(", ") };
+}
+
 export function shouldShowMarketStateResolutionQualifier(
   marketState: string | null | undefined,
   resolution: HeroTruthProps["marketStateResolution"],
@@ -93,6 +143,14 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
   // UNVERIFIED — never turning a receipt-time delta into market truth.
   const priceChronology = selectHeroPriceChronology(state ?? null);
   const showResolutionQualifier = shouldShowMarketStateResolutionQualifier(marketState, marketStateResolution);
+  // Founder truth-surface law (2026-09-12): "Minimum directly inspectable: role
+  // + asOf + source." Role is the qualityState glyph above; asOf is the price
+  // chronology label. Source came from nowhere — the strip printed a channel
+  // COUNT ("coverage 1 channel") without ever saying WHICH vendor. A trader
+  // could read LIVE / DELAYED / STALE and not know whether that verdict came
+  // from Finnhub, Webull, or an unreviewed feed. This closes that hole in the
+  // same strip, one interaction deeper for the raw providerPath list.
+  const sourceDisclosure = selectHeroSourceDisclosure(state?.coverage);
 
   return (
     <section
@@ -274,6 +332,21 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
             it appeared precisely when nothing had been resolved. The `session`
             field above already degrades honestly with "unknown"; these now
             match it. */}
+        {/* Source is the vendor that stamped the observation, degraded to
+            "unknown" when nothing has. See selectHeroSourceDisclosure — the
+            trio the Founder's truth-surface law requires (role + asOf +
+            source) is now complete on this strip, with the raw provider path
+            list one hover deeper. */}
+        <span>
+          <span style={{ color: "#55503f" }}>source</span>{" "}
+          <span
+            data-testid="hero-source-vendor"
+            style={{ color: sourceDisclosure.label === "unknown" ? "#c9a55c" : "#ede6d3" }}
+            title={sourceDisclosure.detail}
+          >
+            {sourceDisclosure.label}
+          </span>
+        </span>
         <span>
           <span style={{ color: "#55503f" }}>coverage</span>{" "}
           <span style={{ color: "#ede6d3" }}>

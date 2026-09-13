@@ -193,3 +193,70 @@ describe("/command-deck wires the hero strip from the session owner", () => {
     expect(src).not.toMatch(/selectCanonicalSessionToken\([^)]*nowMs/);
   });
 });
+
+/**
+ * Rendered proof of the 2026-09-12 truth-surface law's SOURCE half.
+ *
+ * The pure helper tests in HeroTruth.test.ts cover the vendor-derivation math.
+ * These tests prove the strip actually PAINTS what those helpers return —
+ * because a helper that returns "finnhub" is worth nothing if the strip forgets
+ * to print it, or prints it behind a colour a trader cannot read.
+ */
+describe("HeroTruth SOURCE trio pixel — role + asOf + source, no DevTools", () => {
+  function withCoverage(providerPaths: readonly string[]) {
+    const identity = canonicalMarketStateIdentity({ symbol: "TSLA", timeframe: "15m" });
+    return produceCanonicalMarketState({
+      snapshotId: "test-source",
+      capturedAt: 1_757_000_000_000,
+      instrumentId: identity.instrumentId,
+      normalizedSymbol: "TSLA",
+      executableIdentity: null,
+      assetClass: "stock",
+      exchange: null,
+      session: identity.session,
+      timeframeContext: identity.timeframeContext,
+      price: { last: null, bid: null, ask: null, eventAt: null },
+      coverage: providerPaths.map((providerPath) => ({
+        // The producer normalises coverage entries; the shape we care about
+        // downstream is the {providerPath, channel} pair.
+        providerPath,
+        channel: "quote",
+        instrumentId: identity.instrumentId,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      })) as any,
+    });
+  }
+
+  function renderWith(state: ReturnType<typeof withCoverage>): string {
+    return renderToStaticMarkup(
+      <HeroTruth
+        symbol="TSLA"
+        timeframe="15m"
+        state={state}
+        sessionPresented={{ value: "RTH", detail: "regular hours" }}
+      />,
+    );
+  }
+
+  it("prints the vendor beside the word 'source' when one is answering", () => {
+    const html = renderWith(withCoverage(["finnhub-rest"]));
+    expect(html).toContain(">source<");
+    expect(html).toContain(">finnhub<");
+  });
+
+  it("renders 'unknown' when zero channels have stamped a source", () => {
+    // This is the CONFLICTED read the Founder's glass-vs-payload law wants
+    // the eye to catch — a role like DELAYED beside a source of 'unknown'
+    // reads as honest, not broken. Silence in this slot would be the lie.
+    const html = renderWith(withCoverage([]));
+    expect(html).toMatch(/>source<\/span>[\s\S]*?>unknown</);
+  });
+
+  it("puts the raw provider paths in the hover disclosure, not the primary label", () => {
+    // Feed/entitlement is one interaction deeper per the Founder's law. The
+    // vendor is the primary word; the raw path list rides on `title`.
+    const html = renderWith(withCoverage(["finnhub-rest", "webull-openapi-ticks"]));
+    expect(html).toContain("finnhub +1");
+    expect(html).toContain('title="finnhub-rest, webull-openapi-ticks"');
+  });
+});
