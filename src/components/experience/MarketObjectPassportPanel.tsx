@@ -57,6 +57,50 @@ function PassportRow({ obj }: { obj: MarketObjectPassport }): React.ReactElement
   const hasDetail =
     obj.evidence.length > 0 || obj.contradictions.length > 0 || obj.unknowns.length > 0;
 
+  /**
+   * THE MOAT NEEDS AN AFFORDANCE.
+   *
+   * This panel's whole claim is the Evidence-Reversibility Moat: every claim
+   * travels backward to an evidence ref. It put that lineage behind a
+   * `<details>` and then set `listStyle: "none"` on the summary, which removes
+   * the disclosure triangle — the ONE native affordance saying "there is more
+   * here". What remained was `cursor: pointer`, which does not exist on a
+   * phone, and phones are primary.
+   *
+   * The result on the 390px sweep screenshot: a RESOLVED row carrying four
+   * evidence refs and an UNRESOLVED row carrying nothing rendered
+   * IDENTICALLY. A moat nobody can find is not a moat.
+   *
+   * Worse, CONTRADICTIONS lived only inside the collapsed block. A
+   * contradiction the trader never opens is indistinguishable from no
+   * contradiction — the panel was quietly holding a disagreement it had
+   * already detected.
+   *
+   * So the summary now states what is behind it, while closed. Counts, not a
+   * decorative chevron: the trader learns there are four refs and one
+   * contradiction before deciding to spend a tap.
+   */
+  const detailChip = hasDetail ? (
+    <span
+      data-testid="passport-dna-affordance"
+      style={{
+        fontSize: 9,
+        letterSpacing: 0.4,
+        color: obj.contradictions.length > 0 ? "#e07b5c" : color,
+        border: `1px solid ${obj.contradictions.length > 0 ? "rgba(224,123,92,0.45)" : HAIR}`,
+        borderRadius: 4,
+        padding: "1px 5px",
+        textTransform: "uppercase",
+        whiteSpace: "nowrap",
+      }}
+    >
+      DNA · {obj.evidence.length} ref{obj.evidence.length === 1 ? "" : "s"}
+      {obj.contradictions.length > 0
+        ? ` · ${obj.contradictions.length} contradiction${obj.contradictions.length === 1 ? "" : "s"}`
+        : ""}
+    </span>
+  ) : null;
+
   const header = (
     <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
       <span style={{ fontSize: 11, letterSpacing: 0.4, color, minWidth: 92, textTransform: "uppercase" }}>
@@ -74,6 +118,10 @@ function PassportRow({ obj }: { obj: MarketObjectPassport }): React.ReactElement
           {obj.confidence != null ? ` · ${Math.round(obj.confidence * 100)}%` : ""}
         </span>
       )}
+      {/* Last in reading order: label, verdict, claim, fidelity, then what
+          stands behind the claim. `marginLeft: auto` already pushed fidelity
+          right, so this trails it rather than competing for the same edge. */}
+      {detailChip}
     </div>
   );
 
