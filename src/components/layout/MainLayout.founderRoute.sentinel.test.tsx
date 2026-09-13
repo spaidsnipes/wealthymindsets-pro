@@ -41,11 +41,15 @@ describe("MainLayout · Founder-route parent — Ticket T G2 gate", () => {
     expect(FOUNDER_LANDING_ROUTE).toBe("/command-deck");
   });
 
-  it("identifies the Founder operating room by pathname", () => {
-    // If someone renames the constant or the check drifts to a different
-    // pathname, the parent cut silently ceases to fire and the Founder
-    // route slides back into the July shell.
-    expect(SOURCE).toMatch(/isFounderOperatingRoom\s*=\s*pathname\s*===\s*"\/command-deck"/);
+  it("identifies the Founder operating room from the registry, not a hard-coded string", () => {
+    // The Asset-10 family expanded on 2026-09-13 to cover morning-prep,
+    // journal, paper, and nectar in addition to command-deck. The
+    // registry (founderRoomRoutes.ts) is the single owner; MainLayout
+    // consults it. A refactor that reintroduces a pathname string literal
+    // for this check would silently narrow the family back to
+    // /command-deck and every other room would slide into July.
+    expect(SOURCE).toMatch(/isFounderOperatingRoom\s*=\s*isFounderRoomRoute\(pathname\)/);
+    expect(SOURCE).toContain('import { isFounderRoomRoute } from "@/lib/routing/founderRoomRoutes"');
   });
 
   it("imports the Asset-10 parent shell", () => {

@@ -6,9 +6,14 @@ const source = (): string =>
   readFileSync(resolve(__dirname, "../components/layout/MainLayout.tsx"), "utf8");
 
 describe("Founder operating-room shell", () => {
-  it("removes the legacy multi-symbol tape only from /command-deck", () => {
+  it("removes the legacy multi-symbol tape from every Asset-10 family route", () => {
+    // The Founder audit 2026-09-13 expanded the Asset-10 family from
+    // /command-deck alone to the registry in founderRoomRoutes.ts. The
+    // tape suppression follows the same registry — a family route
+    // showing the July TickerTape is exactly the kind of "old chrome
+    // inside a calm room" the audit flagged.
     const layout = source();
-    expect(layout).toContain('const isFounderOperatingRoom = pathname === "/command-deck";');
+    expect(layout).toContain('const isFounderOperatingRoom = isFounderRoomRoute(pathname);');
     expect(layout).toContain("{isFounderOperatingRoom ? (");
     expect(layout).toContain('data-testid="founder-room-header-space"');
     expect(layout).toContain("<TickerTape />");

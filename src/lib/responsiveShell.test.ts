@@ -399,10 +399,12 @@ describe("responsive P0 command surfaces", () => {
     expect(brokers).toContain("Signing into Webull&apos;s website is separate and does not connect this app.");
   });
 
-  it("keeps long-form Nectar and Command Deck surfaces vertically reachable", () => {
+  it("keeps long-form Founder-family surfaces vertically reachable via the registry", () => {
+    // Founder audit 2026-09-13: the document-scroll decision must derive
+    // from the same Asset-10 registry that decides the shell. Two separate
+    // pathname lists would drift; one owner cannot.
     const layout = source("../components/layout/MainLayout.tsx");
-    expect(layout).toContain('pathname === "/nectar"');
-    expect(layout).toContain('pathname.startsWith("/nectar/")');
+    expect(layout).toContain('const documentScroll = isFounderOperatingRoom');
     expect(layout).toContain('data-scroll-owner={documentScroll ? "shell" : "workspace"}');
     expect(layout).toContain('overflowY: documentScroll ? "auto" : "hidden"');
     expect(layout).toContain('{ position: "relative", minHeight: "100%" }');

@@ -28,6 +28,7 @@ import { WMSBar } from "@/components/wms/WMSBar";
 import { isPublicAuthPath } from "@/lib/authRoutes";
 import { useCapitalObservation, useCapitalReach } from "@/lib/experience/useActiveScene";
 import { WMExperienceShell } from "@/components/experience/WMExperienceShell";
+import { isFounderRoomRoute } from "@/lib/routing/founderRoomRoutes";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { selectNavEmphasis } from "@/lib/experience/selectNavEmphasis";
 import { matchCuratedSymbols } from "@/lib/marketData/curatedSymbolCatalog";
@@ -847,16 +848,23 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   // that room adds a second market narrative, consumes scarce first-viewport
   // pixels, and runs an unnecessary quote round. Other routes retain the
   // trader-customizable tape until they graduate into the same room contract.
-  const isFounderOperatingRoom = pathname === "/command-deck";
+  // Founder audit 2026-09-13: the Asset-10 sanctuary belongs to the FAMILY of
+  // rooms the trader walks between (deck, morning prep, journal, paper,
+  // nectar), not just one route. The registry (founderRoomRoutes.ts) is the
+  // single owner of that family, so a new sibling route joins the sanctuary
+  // by editing ONE file — not by rediscovering this pathname check.
+  const isFounderOperatingRoom = isFounderRoomRoute(pathname);
 
   useEffect(() => setWorkspaceOpen(false), [pathname]);
   // Full-document product surfaces own their vertical rhythm and must remain
   // reachable inside the fixed application shell. Workspace surfaces (charts,
   // scanner, journal, etc.) keep their existing internally managed overflow.
-  const documentScroll = pathname === "/command-deck"
-    || pathname === "/nectar"
-    || pathname === "/proof-lane"
-    || pathname.startsWith("/nectar/");
+  // Every Asset-10 family route owns its own vertical rhythm; adding
+  // proof-lane and legacy nectar handling on top of the registry so a new
+  // family member joins by editing one file. `/proof-lane` sits outside the
+  // family for now (it is a verification/inspect surface) but still needs
+  // document-scroll semantics.
+  const documentScroll = isFounderOperatingRoom || pathname === "/proof-lane";
   const router   = useRouter();
   const { user, signOut, signOutAllDevices } = useAuth();
 
