@@ -71,9 +71,30 @@ export interface DecisionSpineBandProps {
   readonly onOpenWhy?: () => void;
 }
 
+/**
+ * WHY `flex-basis` IS A REAL NUMBER AND `minWidth` IS NOT 0.
+ *
+ * The band shipped as `flex: "1 1 0"` with `minWidth: 0`. That combination can
+ * never wrap: `flex-wrap` only moves an item to the next line when the items
+ * exceed their BASE size, and a base of 0 with no minimum simply shrinks
+ * forever. Measured in Chrome at 390px — the primary device — the six cells
+ * came out 240 / 30 / 30 / 30 / 30 / 30 px wide and 220px tall: five vertical
+ * noodles of one character per line. Present in the DOM, addressable by every
+ * test, and unreadable by a human.
+ *
+ * That is the defect class `scripts/audit-phone-parity.mjs` already names in
+ * its own header — text crushed to nothing INSIDE the viewport — and the
+ * nineteen `renderToStaticMarkup` tests beside this file were all green while
+ * it was true, because static markup has no geometry.
+ *
+ * A real basis plus a real minimum means the row overflows honestly and wraps,
+ * which is the whole reason `flexWrap: "wrap"` was on the container.
+ */
+const CELL_MIN = 148;
+
 const CELL: React.CSSProperties = {
-  flex: "1 1 0",
-  minWidth: 0,
+  flex: `1 1 ${CELL_MIN}px`,
+  minWidth: CELL_MIN,
   padding: "6px 10px",
   borderLeft: "1px solid rgba(139,106,41,0.22)",
   display: "flex",
@@ -132,7 +153,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
       }}
     >
       {/* DECISION_ID — the thing every other cell is about. */}
-      <div style={{ ...CELL, flex: "0 0 auto", borderLeft: "none", maxWidth: 220 }}>
+      <div style={{ ...CELL, flex: "1 1 220px", minWidth: 200, maxWidth: "100%", borderLeft: "none" }}>
         <span style={LABEL}>Decision</span>
         {decisionId ? (
           <code
