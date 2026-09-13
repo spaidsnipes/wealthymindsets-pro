@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -38,6 +38,7 @@ import HeroTruth from "@/components/command-deck/HeroTruth";
 import DLARStrip, { type DLARDimensionKey } from "@/components/command-deck/DLARStrip";
 import WhyInspector, { type WhyTarget } from "@/components/command-deck/WhyInspector";
 import SectionBanner from "@/components/brand/SectionBanner";
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import RealmGateway from "@/components/brand/RealmGateway";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import CommandContextRibbon from "@/components/command/CommandContextRibbon";
@@ -504,10 +505,29 @@ function CommandDeckInner() {
           zIndex: 10,
         }}
       >
+        {/*
+          A BACK ARROW IS A CLAIM ABOUT HIERARCHY.
+
+          This was `← CHARTS` with aria-label "Back to charts", which asserts
+          two things: that the human arrived here FROM charts, and that the deck
+          sits beneath charts in the app's structure. Both were true while
+          /charts was the Founder landing route.
+
+          Neither is true now. founderLanding.ts makes the deck the route a
+          human reaches when they have named no destination — bare domain,
+          sign-in, email confirmation. The deck is the room; charts is a room
+          you walk to from it. A back arrow pointing out of the home surface
+          tells the trader he is somewhere temporary, and tells a screen reader
+          the same thing out loud.
+
+          So it becomes a peer: forward arrow, no "back" in the accessible name.
+          Still the same destination, still INSTRUMENT_VIEW_ROUTE — a human
+          going to charts has named where he wants to be.
+        */}
         <button
           className="wm-cd-header-back"
-          onClick={() => router.push("/charts")}
-          aria-label="Back to charts"
+          onClick={() => router.push(INSTRUMENT_VIEW_ROUTE)}
+          aria-label="Go to charts"
           style={{
             display: "flex",
             alignItems: "center",
@@ -523,8 +543,8 @@ function CommandDeckInner() {
             padding: "0 10px",
           }}
         >
-          <ArrowLeft size={12} />
           Charts
+          <ArrowRight size={12} />
         </button>
         <h1
           className="wm-cd-header-identity"
@@ -1357,7 +1377,7 @@ function CommandDeckInner() {
                 </div>
                 <div style={{ marginTop: 16, textAlign: "center" }}>
                   <a
-                    href="/charts"
+                    href={INSTRUMENT_VIEW_ROUTE}
                     style={{
                       display: "inline-block",
                       padding: "10px 18px",

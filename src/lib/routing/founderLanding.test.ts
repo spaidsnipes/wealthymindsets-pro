@@ -70,6 +70,24 @@ describe("the Founder landing route has one owner", () => {
     expect(FOUNDER_LANDING_ROUTE).not.toBe(INSTRUMENT_VIEW_ROUTE);
   });
 
+  it("the landing surface does not offer a way BACK out of itself", () => {
+    /**
+     * A back arrow is a claim about hierarchy: that the human arrived from
+     * somewhere else and that this surface sits beneath it. On the route a
+     * human reaches having named NO destination, both halves of that claim are
+     * false — and a screen reader says the false half out loud.
+     *
+     * The deck header carried `← CHARTS` with aria-label "Back to charts" for
+     * exactly as long as /charts was the landing route. The cutover made that
+     * sentence wrong without touching the sentence.
+     */
+    const segment = FOUNDER_LANDING_ROUTE.replace(/^\//, "");
+    const page = read(join("app", segment, "page.tsx"));
+    expect(page, "the landing surface renders a back arrow").not.toContain("ArrowLeft");
+    expect(page, "the landing surface has a control whose accessible name says 'back'")
+      .not.toMatch(/aria-label=["'][^"']*\bback\b/i);
+  });
+
   it("both routes are absolute app paths, not fragments", () => {
     for (const route of [FOUNDER_LANDING_ROUTE, INSTRUMENT_VIEW_ROUTE]) {
       expect(route.startsWith("/")).toBe(true);
