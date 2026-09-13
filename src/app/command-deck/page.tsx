@@ -757,7 +757,13 @@ function CommandDeckInner() {
           }}
         >
           {/* Primary column */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
+          {/* Founder brief 2026-09-13 §6: "MARKET should become the
+              dominant continuous spatial environment." A 20px gap between
+              sections made the workspace read as separate cards floating
+              on the sanctuary field; a 12px gap keeps enough negative
+              space for the eye to distinguish aspects while dissolving
+              the "each section is its own container" mental model. */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
             {/* Ticket T "WHY with Spaidbot on the same object" — the deck used
                 to omit the #wm-chart-context span. Only /charts published it,
                 so on /command-deck the global SpaidBotButton read {} and the
