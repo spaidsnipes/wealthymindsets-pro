@@ -71,6 +71,17 @@ export function ExperienceModeBar({ bus, className }: ExperienceModeBarProps) {
               // Keep each tap target readable when the bar wraps on mobile;
               // ignored on desktop where flex-grow spreads them across one row.
               minWidth: 52,
+              // MEASURED 2026-09-13 at 390x844 by scripts/audit-phone-parity.mjs:
+              // all seven buttons rendered 23px tall. minWidth alone had been
+              // standing in for "tap target" since this bar was written, and the
+              // comment above it asserted a care the code never delivered — a
+              // comment is not a gate. This bar IS the navigation of the new
+              // room, so on a phone it is the first thing a thumb reaches.
+              // 44px is the binding floor.
+              minHeight: 44,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
               fontSize: 10,
               fontWeight: 800,
               letterSpacing: 0.6,
