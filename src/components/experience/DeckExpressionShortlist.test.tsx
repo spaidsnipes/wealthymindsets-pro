@@ -117,8 +117,8 @@ describe("the deck mounts the shortlist in the desktop operating room", () => {
     expect(workspaceIdx).toBeLessThan(chartIdx);
     expect(chartIdx).toBeLessThan(chipIdx);
     expect(chipIdx).toBeLessThan(shortlistIdx);
-    expect(src).toContain('aria-label="Market, risk, and next workspace"');
-    expect(src).toContain('aria-label="Risk and option expression"');
+    expect(src).toContain('aria-label="One decision market room"');
+    expect(src).toContain('aria-label="Risk, why, and next"');
     // Must not be tucked into the deep-read drawer — Gate 3 fruit must be
     // visible on the default Founder scene, not one click away.
     expect(shortlistIdx, "DeckExpressionShortlist must sit BEFORE the collapsed evidence drawer")
@@ -126,7 +126,27 @@ describe("the deck mounts the shortlist in the desktop operating room", () => {
   });
 
   it("uses room-density hero treatment on the normal Founder route", () => {
-    expect(DECK()).toContain('density="room"');
+    const src = DECK();
+    const roomIdx = src.indexOf('aria-label="One decision market room"');
+    const heroIdx = src.indexOf("<HeroTruth", roomIdx);
+    const chartIdx = src.indexOf("<DeckMarketChart", roomIdx);
+    expect(roomIdx).toBeGreaterThan(0);
+    expect(heroIdx).toBeGreaterThan(roomIdx);
+    expect(heroIdx).toBeLessThan(chartIdx);
+    expect(src).toContain('density="room"');
+  });
+
+  it("keeps WHY contextual and the shared spine inside the same market room", () => {
+    const src = DECK();
+    const roomIdx = src.indexOf('aria-label="One decision market room"');
+    const whyIdx = src.indexOf('className="wm-cd-market-why"', roomIdx);
+    const canvasIdx = src.indexOf("<MarketCanvasPanel", whyIdx);
+    const nextIdx = src.indexOf('data-testid="scene-next"', canvasIdx);
+    const roomEnd = src.indexOf("{/* Today's morning-prep intention", nextIdx);
+    expect(whyIdx).toBeGreaterThan(roomIdx);
+    expect(canvasIdx).toBeGreaterThan(whyIdx);
+    expect(nextIdx).toBeGreaterThan(canvasIdx);
+    expect(nextIdx).toBeLessThan(roomEnd);
   });
 
   it("derives direction from canonical state and provides a real attachment path", () => {

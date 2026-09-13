@@ -72,15 +72,16 @@ describe("the deck births its own decision on permission crossing", () => {
     expect(cleanupBlock).toContain('setSceneDecisionAbsence("No decision born yet on this scene');
   });
 
-  it("the SpineBand reads decisionId from the born scene, absence from state", () => {
-    // Hard-coding the absence string beside a live decisionId would let
-    // the two disagree — "No decision born yet" beside `dec_abc123` is
-    // exactly the CROSS_WIRED shape the Founder is fencing against.
+  it("the fused room reads decisionId from the born scene, absence from state", () => {
+    // Hard-coding the absence string beside a live decisionId would let the
+    // two disagree. The scene projects the adopted identity or the exact
+    // refusal/absence state; layout never mints a replacement.
     const src = DECK();
-    const bandStart = src.indexOf("<DecisionSpineBand");
-    const bandEnd = src.indexOf("/>", bandStart);
-    const block = src.slice(bandStart, bandEnd);
-    expect(block).toContain("decisionId={currentSceneDecision?.decisionId ?? null}");
-    expect(block).toContain("decisionIdAbsence={sceneDecisionAbsence}");
+    const roomStart = src.indexOf('data-testid="deck-market-scene"');
+    const roomEnd = src.indexOf("{/* Today's morning-prep intention", roomStart);
+    const block = src.slice(roomStart, roomEnd);
+    expect(block).toContain("currentSceneDecision?.decisionId ?? undefined");
+    expect(block).toContain("currentSceneDecision.decisionId");
+    expect(block).toContain(": sceneDecisionAbsence");
   });
 });

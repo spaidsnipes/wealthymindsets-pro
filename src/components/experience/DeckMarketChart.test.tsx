@@ -75,10 +75,18 @@ describe("the deck actually mounts a real chart in its MARKET section", () => {
     expect(src).toMatch(/<DeckMarketChart\s+symbol=\{symbol\}\s+timeframe=\{timeframe\}/);
   });
 
-  it("the chart sits BESIDE the chip panel, not INSTEAD of it", () => {
-    // MarketCanvasPanel carries the WHY-NOT / would-invalidate compilation.
-    // Ticket T is chart AND evidence, not chart XOR evidence.
+  it("the chart and contextual WHY stay inside one market room", () => {
+    // MarketCanvasPanel carries the WHY-NOT / would-invalidate compilation,
+    // but it is progressive disclosure in the same room rather than a second
+    // permanent panel below MARKET.
     const src = readFileSync(resolve(__dirname, "../../app/command-deck/page.tsx"), "utf8");
-    expect(src).toMatch(/<DeckMarketChart[\s\S]{0,400}<MarketCanvasPanel/);
+    const roomIdx = src.indexOf('aria-label="One decision market room"');
+    const chartIdx = src.indexOf("<DeckMarketChart", roomIdx);
+    const whyIdx = src.indexOf('className="wm-cd-market-why"', chartIdx);
+    const canvasIdx = src.indexOf("<MarketCanvasPanel", whyIdx);
+    expect(roomIdx).toBeGreaterThan(0);
+    expect(chartIdx).toBeGreaterThan(roomIdx);
+    expect(whyIdx).toBeGreaterThan(chartIdx);
+    expect(canvasIdx).toBeGreaterThan(whyIdx);
   });
 });

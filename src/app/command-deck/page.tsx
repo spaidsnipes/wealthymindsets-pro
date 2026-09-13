@@ -34,7 +34,6 @@ import { useJournalBook } from "@/lib/traderMemory/adapters/useJournalSnapshots"
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 import HeroTruth from "@/components/command-deck/HeroTruth";
-import DecisionSpineBand from "@/components/experience/DecisionSpineBand";
 import DLARStrip, { type DLARDimensionKey } from "@/components/command-deck/DLARStrip";
 import WhyInspector, { type WhyTarget } from "@/components/command-deck/WhyInspector";
 import SectionBanner from "@/components/brand/SectionBanner";
@@ -368,7 +367,7 @@ function CommandDeckInner() {
     // is born on the SAME scene the trader is looking at, not on the other
     // route. Before this effect, /command-deck adopted an id if one had been
     // birthed on /charts, and rendered "No decision born yet" otherwise
-    // forever. That kept the SpineBand's DECISION column, the Expression
+    // forever. That kept the room's decision identity, the Expression
     // shortlist's scoped selection, and OptionExpressionIntent's
     // bornDecision all null on the room the Founder actually opens.
     //
@@ -377,7 +376,7 @@ function CommandDeckInner() {
     // held on a ref (never state — a mint is not a render dependency), and
     // on CROSSED_INTO_GRANTED mint a scoped identity and adopt it. All
     // other transitions are refusals; the ABSENCE sentence carries the
-    // reason so the SpineBand can name it in words.
+    // reason so the room can name it in words.
     const prev = priorPermission.current;
     priorPermission.current = permissionVerdict;
     const outcome = birthOnPermissionCrossing({
@@ -411,10 +410,6 @@ function CommandDeckInner() {
     priorPermission.current = null;
     setSceneDecisionAbsence("No decision born yet on this scene — permission has not crossed here.");
   }, [symbol, expressionOwner]);
-  const selectedExpressionLabel = selectedExpression
-    ? `${selectedExpression.contract.symbol} ${selectedExpression.contract.expirationDate} ${selectedExpression.contract.strike} ${selectedExpression.contract.contractType}`
-    : null;
-
   // ── BUILD ORDER §10 SCENE COMPILER ─────────────────────────────────────────
   // The OS layer: given the state, what is ADMITTED to the surface. This is not
   // emphasis (shellEmphasis already does that) — it is admission, and the panel
@@ -739,9 +734,15 @@ function CommandDeckInner() {
             @media (min-width: 1100px) {
               .wm-cd-market-workspace {
                 display: grid !important;
-                grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.75fr);
+                grid-template-columns: minmax(0, 1.8fr) minmax(280px, 0.62fr);
+                grid-template-areas:
+                  "now now"
+                  "market context";
                 align-items: start;
               }
+              .wm-cd-market-now { grid-area: now; }
+              .wm-cd-market-field { grid-area: market; }
+              .wm-cd-market-context { grid-area: context; }
             }
           `}</style>
         {/* Two-column layout when evidence panel is open, single column otherwise.
@@ -782,45 +783,10 @@ function CommandDeckInner() {
               })}
               style={{ display: "none" }}
             />
-            {/* HERO TRUTH — the 1s dominant message. Market-state chapter
-                is derived from the same selectMarketStory the Story Ribbon
-                consumes downstream, so hero and ribbon can never disagree.
-                When no chapter resolves, HeroTruth still renders — the
-                marketState prop is skipped and SYMBOL becomes the dominant
-                element (never a fabricated 'BALANCE'). */}
-            {(() => {
-              const story = state ? selectMarketStory(state, history) : null;
-              return (
-                <button
-                  type="button"
-                  onClick={() => openWhy({ kind: "hero" })}
-                  aria-label="Explain hero truth"
-                  style={{ padding: 0, background: "transparent", border: "none", cursor: "pointer", textAlign: "left", display: "block", width: "100%" }}
-                >
-                  <HeroTruth
-                    symbol={symbol}
-                    timeframe={timeframe}
-                    state={state}
-                    marketState={story?.current?.chapter ?? (story ? "UNKNOWN" : null)}
-                    marketStateResolution={story?.resolution ?? undefined}
-                    sessionPresented={{ value: sessionTruth.token, detail: sessionTruth.detail }}
-                    density="room"
-                  />
-                </button>
-              );
-            })()}
-
-            {/* Ticket T's NOW / MARKET / RISK / WHY / NEXT — the five things
-                the scene must SHOW, not hide (Asset 10 canon). The same
-                DecisionSpineBand /charts renders, fed by the SAME
-                composeMarketCanvasVM this page already computed a few lines
-                above. Every field derives — the band computes nothing, so it
-                cannot disagree with the panels below.
-
-                decisionId is null on this route: /command-deck reads the
-                canonical scene but does not itself mint decisions (permission
-                crossings are birthed on /charts today). Absence is a sentence,
-                never a fabricated id. */}
+            {/* Ticket T's NOW / MARKET / RISK / WHY / NEXT — one scene owner,
+                one canonical compilation, and one adopted decision identity.
+                The page may birth an identity only on a real permission
+                crossing; layout and disclosures never mint one. */}
             {/* Founder brief 2026-09-13: "MARKET IS THE ROOM. Not a
                 little chart card inside a dashboard." Before this
                 reorder, the six-column SpineBand summary sat above the
@@ -831,74 +797,139 @@ function CommandDeckInner() {
                 supports the room, not the other way around. */}
             <div
               className="wm-cd-market-workspace"
-              aria-label="Market, risk, and next workspace"
+              aria-label="One decision market room"
+              data-testid="deck-market-scene"
+              data-decision-id={currentSceneDecision?.decisionId ?? undefined}
               style={{ display: "flex", flexDirection: "column", gap: 10 }}
             >
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
-                <DeckMarketChart symbol={symbol} timeframe={timeframe} />
-                <MarketCanvasPanel vm={marketCanvas} />
+              {/* NOW belongs to MARKET. It is deliberately inside the same
+                  scene owner as chart, risk, WHY, NEXT, and the spine; opening
+                  its explanation only changes the contextual layer and never
+                  creates a second decision. */}
+              <div
+                className="wm-cd-market-now"
+                data-testid="scene-now"
+                data-decision-id={currentSceneDecision?.decisionId ?? undefined}
+              >
+                {(() => {
+                  const story = state ? selectMarketStory(state, history) : null;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => openWhy({ kind: "hero" })}
+                      aria-label="Explain hero truth"
+                      style={{ padding: 0, background: "transparent", border: "none", cursor: "pointer", textAlign: "left", display: "block", width: "100%" }}
+                    >
+                      <HeroTruth
+                        symbol={symbol}
+                        timeframe={timeframe}
+                        state={state}
+                        marketState={story?.current?.chapter ?? (story ? "UNKNOWN" : null)}
+                        marketStateResolution={story?.resolution ?? undefined}
+                        sessionPresented={{ value: sessionTruth.token, detail: sessionTruth.detail }}
+                        density="room"
+                      />
+                    </button>
+                  );
+                })()}
+                <SceneAdmits compilation={sceneCompilation} element="ONE_STORY">
+                  <OneStoryStrip vm={oneStory} />
+                </SceneAdmits>
+                <div
+                  data-testid="scene-decision"
+                  data-decision-id={currentSceneDecision?.decisionId ?? undefined}
+                  style={{ marginTop: 6, color: "#8a8271", fontSize: 9, letterSpacing: 0.4 }}
+                >
+                  {currentSceneDecision
+                    ? `DECISION · ${currentSceneDecision.decisionId}`
+                    : sceneDecisionAbsence}
+                </div>
               </div>
-              <aside
-                aria-label="Risk and option expression"
+
+              <div
+                className="wm-cd-market-field"
+                data-testid="scene-market"
+                data-decision-id={currentSceneDecision?.decisionId ?? undefined}
                 style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}
               >
-                <AvailableRChip vm={chainVm?.availableR ?? null} />
-                <DeckExpressionShortlist
-                  symbol={symbol}
-                  spot={state?.price?.last ?? null}
-                  direction={expressionDirection}
-                  onSelect={(slot, receipt) => {
-                    if (!slot.contract || !expressionDirection || receipt.source === "unknown" || receipt.fidelity === "UNKNOWN") return;
-                    setOptionSelection({
-                      underlying: symbol,
-                      owner: expressionOwner,
-                      direction: expressionDirection,
-                      contract: slot.contract,
-                      source: receipt.source,
-                      fidelity: receipt.fidelity,
-                      providerPath: receipt.providerPath,
-                      rightsPolicyId: receipt.rightsPolicyId,
-                    });
-                  }}
-                />
-                {selectedExpression && (
-                  <OptionExpressionIntent
-                    key={`${expressionOwner}:${symbol}:${selectedExpression.contract.symbol}:${selectedExpression.contract.expirationDate}:${selectedExpression.contract.contractType}:${selectedExpression.contract.strike}`}
-                    ownerId={user?.id ?? ""}
-                    underlying={symbol}
-                    contract={selectedExpression.contract}
-                    source={selectedExpression.source}
-                    fidelity={selectedExpression.fidelity}
-                    providerPath={selectedExpression.providerPath}
-                    rightsPolicyId={selectedExpression.rightsPolicyId}
-                    bornDecision={currentSceneDecision}
-                    onIdentity={(identity: DecisionIdentity) => setSceneDecision({ underlying: symbol, owner: expressionOwner, identity })}
-                    onClear={() => setOptionSelection(null)}
+                <DeckMarketChart symbol={symbol} timeframe={timeframe} />
+              </div>
+              <section
+                className="wm-cd-market-context"
+                aria-label="Risk, why, and next"
+                data-testid="scene-support"
+                data-decision-id={currentSceneDecision?.decisionId ?? undefined}
+                style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}
+              >
+                <div data-testid="scene-risk" data-decision-id={currentSceneDecision?.decisionId ?? undefined}>
+                  <AvailableRChip vm={chainVm?.availableR ?? null} />
+                </div>
+                <details
+                  className="wm-cd-market-why"
+                  data-testid="scene-why"
+                  data-decision-id={currentSceneDecision?.decisionId ?? undefined}
+                  style={{ borderTop: "1px solid rgba(139,106,41,0.22)", paddingTop: 10 }}
+                >
+                  <summary
+                    style={{
+                      minHeight: 38,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      cursor: "pointer",
+                      listStyle: "none",
+                      color: "#c9a55c",
+                      fontSize: 10,
+                      letterSpacing: 0.55,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    <span>Why · decision evidence</span>
+                    <span style={{ color: "#8a8271" }}>
+                      {marketCanvas.blockers.length} blocker{marketCanvas.blockers.length === 1 ? "" : "s"} · inspect
+                    </span>
+                  </summary>
+                  <DecisionWhyPanel vm={decisionWhy} />
+                  <MarketCanvasPanel vm={marketCanvas} />
+                </details>
+                <div data-testid="scene-next" data-decision-id={currentSceneDecision?.decisionId ?? undefined}>
+                  <DeckExpressionShortlist
+                    symbol={symbol}
+                    spot={state?.price?.last ?? null}
+                    direction={expressionDirection}
+                    onSelect={(slot, receipt) => {
+                      if (!slot.contract || !expressionDirection || receipt.source === "unknown" || receipt.fidelity === "UNKNOWN") return;
+                      setOptionSelection({
+                        underlying: symbol,
+                        owner: expressionOwner,
+                        direction: expressionDirection,
+                        contract: slot.contract,
+                        source: receipt.source,
+                        fidelity: receipt.fidelity,
+                        providerPath: receipt.providerPath,
+                        rightsPolicyId: receipt.rightsPolicyId,
+                      });
+                    }}
                   />
-                )}
-              </aside>
+                  {selectedExpression && (
+                    <OptionExpressionIntent
+                      key={`${expressionOwner}:${symbol}:${selectedExpression.contract.symbol}:${selectedExpression.contract.expirationDate}:${selectedExpression.contract.contractType}:${selectedExpression.contract.strike}`}
+                      ownerId={user?.id ?? ""}
+                      underlying={symbol}
+                      contract={selectedExpression.contract}
+                      source={selectedExpression.source}
+                      fidelity={selectedExpression.fidelity}
+                      providerPath={selectedExpression.providerPath}
+                      rightsPolicyId={selectedExpression.rightsPolicyId}
+                      bornDecision={currentSceneDecision}
+                      onIdentity={(identity: DecisionIdentity) => setSceneDecision({ underlying: symbol, owner: expressionOwner, identity })}
+                      onClear={() => setOptionSelection(null)}
+                    />
+                  )}
+                </div>
+              </section>
             </div>
-
-            {/* SpineBand — the compiled six-column summary (NOW / MARKET
-                / RISK / WHY / NEXT + DECISION) sits BELOW the chart. It
-                is the SUPPORT layer for the room; MARKET is the room
-                itself. Reordering per Founder audit 2026-09-13. */}
-            <DecisionSpineBand
-              decisionId={currentSceneDecision?.decisionId ?? null}
-              decisionIdAbsence={sceneDecisionAbsence}
-              market={{
-                symbol,
-                timeframe,
-                quality: state?.qualityState ?? null,
-                capturedAt: state?.capturedAt ?? null,
-                last: state?.price?.last ?? null,
-              }}
-              oneStory={oneStory}
-              availableR={chainVm?.availableR ?? null}
-              decisionWhy={decisionWhy}
-              expression={selectedExpressionLabel}
-              onOpenWhy={() => openWhy({ kind: "hero" })}
-            />
 
             {/* Today's morning-prep intention (if any) — the PREP→OBSERVE
                 bridge from Founder Aug-14 §14 'Morning Prep intention
@@ -913,26 +944,6 @@ function CommandDeckInner() {
                 above/below. Every surface stays in the DOM in every job — the
                 job only decides which physically leads. Presentation-only. */}
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {/* One Story Strip — Founder 2029 Integration Glue canon §7
-                  ONE STORY COMPILER. Compiles the market state into
-                  PRIMARY / CONTRADICTION / MISSING / DECISION so the
-                  trader gets the at-most-four-outputs read before hunting
-                  the numbered sections below. Consumes shared canonical
-                  selectors — never invents.
-
-                  ADMISSION-GATED (BUILD ORDER §10). A CLOSED session and an
-                  unresolved PREGAME both withhold ONE_STORY: there is no live
-                  story to tell when the market is shut, and WM does not narrate
-                  a state it has not resolved. Before this gate existed the strip
-                  rendered here unconditionally while the panel below it printed
-                  "Withheld · One story" — the surface contradicting the compiler
-                  on the same screen. The scene decides; this obeys. */}
-              <SceneAdmits compilation={sceneCompilation} element="ONE_STORY">
-                <div style={{ order: surfaceOrder(deckEmphasis, "STORY") }}>
-                  <OneStoryStrip vm={oneStory} />
-                </div>
-              </SceneAdmits>
-
               {/* Exit Ramp / Completion Receipt — canon §Exit Ramp (2026-08-29
                   Cognitive Sovereignty audit). The "DONE" half of the grammar:
                   when a useful stopping point is reached it answers "can I stop
@@ -1017,10 +1028,6 @@ function CommandDeckInner() {
                   {/* WHY / WHY NOT (canon P6) — reverses the right-of-way verdict to
                       its concrete causes so the trader sees exactly what stands
                       between them and entry (or why the path is clear). */}
-                  <div style={{ order: surfaceOrder(deckEmphasis, "WHY") }}>
-                    <DecisionWhyPanel vm={decisionWhy} />
-                  </div>
-
               {/* Market Object Passports (canon P6 Object DNA) — a contextual
                   drawer, collapsed by default so the canvas stays sacred. Opens
                   to each resolved dimension's evidence lineage / fidelity /
