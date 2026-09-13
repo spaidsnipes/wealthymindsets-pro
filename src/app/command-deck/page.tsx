@@ -973,7 +973,6 @@ function CommandDeckInner() {
                     </span>
                   </summary>
                   <DecisionWhyPanel vm={decisionWhy} />
-                  <MarketCanvasPanel vm={marketCanvas} />
                   {showEvidence && whyTarget && (
                     <div data-testid="scene-why-inspector" style={{ marginTop: 10 }}>
                       <WhyInspector
@@ -1140,6 +1139,12 @@ function CommandDeckInner() {
                     totalCount={sceneInput.totalCount}
                     governed={DECK_GOVERNED_ELEMENTS}
                   />
+
+                  {/* The full resolved/missing/blocker/clearance canvas is
+                      audit evidence, not a second MARKET inside the compact
+                      WHY edge. Keep the concise canonical DecisionWhyPanel in
+                      the room and preserve this deeper projection here. */}
+                  <MarketCanvasPanel vm={marketCanvas} />
 
                   {/* WHY / WHY NOT (canon P6) — reverses the right-of-way verdict to
                       its concrete causes so the trader sees exactly what stands

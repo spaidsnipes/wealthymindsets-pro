@@ -140,12 +140,12 @@ describe("the deck mounts the shortlist in the desktop operating room", () => {
     const src = DECK();
     const roomIdx = src.indexOf('aria-label="One decision market room"');
     const whyIdx = src.indexOf('className="wm-cd-market-why"', roomIdx);
-    const canvasIdx = src.indexOf("<MarketCanvasPanel", whyIdx);
-    const nextIdx = src.indexOf('data-testid="scene-next"', canvasIdx);
+    const decisionWhyIdx = src.indexOf("<DecisionWhyPanel", whyIdx);
+    const nextIdx = src.indexOf('data-testid="scene-next"', decisionWhyIdx);
     const roomEnd = src.indexOf("{/* Today's morning-prep intention", nextIdx);
     expect(whyIdx).toBeGreaterThan(roomIdx);
-    expect(canvasIdx).toBeGreaterThan(whyIdx);
-    expect(nextIdx).toBeGreaterThan(canvasIdx);
+    expect(decisionWhyIdx).toBeGreaterThan(whyIdx);
+    expect(nextIdx).toBeGreaterThan(decisionWhyIdx);
     expect(nextIdx).toBeLessThan(roomEnd);
   });
 

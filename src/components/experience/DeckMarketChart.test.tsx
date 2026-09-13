@@ -93,18 +93,17 @@ describe("the deck actually mounts a real chart in its MARKET section", () => {
     expect(src).toMatch(/<DeckMarketChart\s+symbol=\{symbol\}\s+timeframe=\{timeframe\}/);
   });
 
-  it("the chart and contextual WHY stay inside one market room", () => {
-    // MarketCanvasPanel carries the WHY-NOT / would-invalidate compilation,
-    // but it is progressive disclosure in the same room rather than a second
-    // permanent panel below MARKET.
+  it("the chart and concise contextual WHY stay inside one market room", () => {
     const src = readFileSync(resolve(__dirname, "../../app/command-deck/page.tsx"), "utf8");
     const roomIdx = src.indexOf('aria-label="One decision market room"');
     const chartIdx = src.indexOf("<DeckMarketChart", roomIdx);
     const whyIdx = src.indexOf('className="wm-cd-market-why"', chartIdx);
-    const canvasIdx = src.indexOf("<MarketCanvasPanel", whyIdx);
+    const decisionWhyIdx = src.indexOf("<DecisionWhyPanel", whyIdx);
+    const workspaceIdx = src.indexOf('className="wm-cd-secondary-workspace"', whyIdx);
     expect(roomIdx).toBeGreaterThan(0);
     expect(chartIdx).toBeGreaterThan(roomIdx);
     expect(whyIdx).toBeGreaterThan(chartIdx);
-    expect(canvasIdx).toBeGreaterThan(whyIdx);
+    expect(decisionWhyIdx).toBeGreaterThan(whyIdx);
+    expect(decisionWhyIdx).toBeLessThan(workspaceIdx);
   });
 });
