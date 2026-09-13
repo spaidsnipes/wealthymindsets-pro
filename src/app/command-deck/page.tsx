@@ -756,11 +756,22 @@ function CommandDeckInner() {
                 grid-template-areas:
                   "now now"
                   "market context";
+                /* Fusion, not adjacency. The inherited 10px flex gap became
+                   an empty vertical channel when this element switches to a
+                   grid, making MARKET and its RISK/WHY/NEXT edge read as two
+                   neighboring apps. Remove the channel and let one brass seam
+                   express their relationship inside the same room. */
+                column-gap: 0;
+                row-gap: 8px;
                 align-items: start;
               }
               .wm-cd-market-now { grid-area: now; }
               .wm-cd-market-field { grid-area: market; }
-              .wm-cd-market-context { grid-area: context; }
+              .wm-cd-market-context {
+                grid-area: context;
+                border-left: 1px solid rgba(139,106,41,0.22);
+                padding-left: 14px;
+              }
             }
           `}</style>
         {/* One scene column at every state. Opening WHY must reveal a contextual

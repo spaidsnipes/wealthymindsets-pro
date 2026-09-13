@@ -66,6 +66,10 @@ describe("Founder operating-room shell", () => {
       .toContain("minmax(0, 1fr)");
     expect(columns, "a fr-sized rail shares every new pixel with MARKET")
       .not.toMatch(/0\.\d+fr/);
+    expect(workspace, "an empty gutter disconnects the support edge from MARKET")
+      .toContain("column-gap: 0");
+    expect(workspace, "the fused support edge needs one structural seam")
+      .toContain("border-left: 1px solid rgba(139,106,41,0.22)");
   });
 
   it("keeps the deck and its suspense plane transparent to the sanctuary atmosphere", () => {
