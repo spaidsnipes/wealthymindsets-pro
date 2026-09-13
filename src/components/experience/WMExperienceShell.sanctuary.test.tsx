@@ -130,6 +130,52 @@ describe("WMExperienceShell · sanctuary — the audit's laws are in the source"
   });
 });
 
+describe("WMExperienceShell · sanctuary — mode-keyed (never market-keyed) intensity", () => {
+  it("dims WATER-BREATH in WAIT (the audit's 'very quiet' mode)", () => {
+    // Mode is USER INTENT — a self-report through the seven-mode bar
+    // with source=user — not a market fact. Keying atmosphere by mode
+    // is honest ("I am in WAIT, hush the room"); keying by market is
+    // the lie the previous test bans.
+    const styleBlock = SOURCE.match(/<style>{`[\s\S]*?`}<\/style>/);
+    expect(styleBlock).not.toBeNull();
+    if (styleBlock) {
+      expect(styleBlock[0]).toMatch(
+        /\.wm-sanctuary\[data-mode="WAIT"\]\s*>\s*\.wm-water-breath\s*\{[^}]*opacity:\s*0\.5\d?\b/,
+      );
+    }
+  });
+
+  it("keeps WATER-BREATH steady in EXECUTE", () => {
+    const styleBlock = SOURCE.match(/<style>{`[\s\S]*?`}<\/style>/);
+    if (styleBlock) {
+      expect(styleBlock[0]).toMatch(
+        /\.wm-sanctuary\[data-mode="EXECUTE"\]\s*>\s*\.wm-water-breath\s*\{[^}]*opacity:\s*1\b/,
+      );
+    }
+  });
+
+  it("slows the WAIT cycle to half-speed (52s vs 26s)", () => {
+    const styleBlock = SOURCE.match(/<style>{`[\s\S]*?`}<\/style>/);
+    if (styleBlock) {
+      expect(styleBlock[0]).toMatch(/animation-duration:\s*52s/);
+    }
+  });
+
+  it("still gates every mode override under prefers-reduced-motion", () => {
+    // The WAIT-slow rule sits INSIDE the same @media
+    // (prefers-reduced-motion: no-preference) block. A rule that lived
+    // outside would keep animating under reduced motion — which is the
+    // exact failure the earlier gate on wm-breathe already covers, but
+    // it must extend to the WAIT override too.
+    const mediaBlockRe = /@media\s*\(prefers-reduced-motion:\s*no-preference\)\s*\{[\s\S]*?\}\s*\}/;
+    const mediaMatch = SOURCE.match(mediaBlockRe);
+    expect(mediaMatch).not.toBeNull();
+    if (mediaMatch) {
+      expect(mediaMatch[0]).toMatch(/animation-duration:\s*52s/);
+    }
+  });
+});
+
 describe("WMExperienceShell · sanctuary — accessibility survives the room", () => {
   it("still announces itself as the operating environment", () => {
     // The seven-mode bar's aria-label was the shell's landmark before

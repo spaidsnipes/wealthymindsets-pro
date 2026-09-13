@@ -85,11 +85,14 @@ describe("WMExperienceShell · states — the data-mode selector plane", () => {
 
   it("marks EXACTLY one mode per render", () => {
     // Two modes at once would let a "PREP or WAIT" CSS rule fire twice
-    // and defeat any per-state dimming or hush.
+    // and defeat any per-state dimming or hush. The regex matches only
+    // ATTRIBUTES ( data-mode="..." with a leading space), not
+    // string occurrences inside the shell's <style> block that names
+    // per-mode selectors like `[data-mode="WAIT"]`.
     const html = render("EXECUTE");
-    const marks = html.match(/data-mode="[A-Z]+"/g) || [];
+    const marks = html.match(/ data-mode="[A-Z]+"/g) || [];
     expect(marks.length).toBe(1);
-    expect(marks[0]).toBe('data-mode="EXECUTE"');
+    expect(marks[0]).toBe(' data-mode="EXECUTE"');
   });
 });
 

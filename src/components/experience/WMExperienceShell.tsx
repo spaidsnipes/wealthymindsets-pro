@@ -154,10 +154,29 @@ export function WMExperienceShell({
           );
           opacity: 0.9;
         }
+        /* MODE-KEYED (not market-keyed) atmosphere intensity.
+           The audit's law is that market truth cannot drive atmosphere.
+           EXPERIENCE MODE is different: it is the trader's own DECLARED
+           intent — PREP/OBSERVE/WAIT/EXECUTE/MANAGE/REVIEW/LEARN —
+           committed through the seven-mode bar with source=user. That is
+           not a market claim; it is a self-report about which job the
+           trader is on. Dimming the room in WAIT (no pulse baiting a
+           trade) and steadying it in EXECUTE (place the planned
+           decision) is exactly the audit's WAIT/EXECUTE atmosphere spec.
+           No color changes, no red/green — only intensity, so the "state
+           carried by labels, not decoration" law is preserved. */
+        .wm-sanctuary[data-mode="WAIT"] > .wm-water-breath { opacity: 0.55; }
+        .wm-sanctuary[data-mode="EXECUTE"] > .wm-water-breath { opacity: 1; }
+        .wm-sanctuary[data-mode="MANAGE"] > .wm-water-breath { opacity: 0.95; }
         @media (prefers-reduced-motion: no-preference) {
           .wm-sanctuary > .wm-water-breath {
             animation: wm-breathe 26s ease-in-out infinite;
             will-change: transform, opacity;
+          }
+          /* In WAIT the room is very quiet: the audit's exact word.
+             Slow the ambient cycle by half so the ceremony reads calm. */
+          .wm-sanctuary[data-mode="WAIT"] > .wm-water-breath {
+            animation-duration: 52s;
           }
         }
         @keyframes wm-breathe {
