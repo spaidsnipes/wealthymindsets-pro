@@ -22,6 +22,9 @@ import type { ExitRamp } from "@/lib/experience/composeExitRamp";
 export interface ExitRampCardProps {
   readonly ramp: ExitRamp;
   readonly className?: string;
+  /** Embed the receipt in an existing NEXT region without creating a card
+   * inside a card. The composed truth and all receipt sections are unchanged. */
+  readonly presentation?: "card" | "embedded";
 }
 
 function Section({
@@ -52,7 +55,7 @@ function Section({
   );
 }
 
-export function ExitRampCard({ ramp, className }: ExitRampCardProps) {
+export function ExitRampCard({ ramp, className, presentation = "card" }: ExitRampCardProps) {
   // §Silence Is A Feature — no exit ramp while live work remains.
   if (ramp.state === "ACTIVE") return null;
 
@@ -63,11 +66,13 @@ export function ExitRampCard({ ramp, className }: ExitRampCardProps) {
     <section
       className={className}
       aria-label="Exit ramp"
+      data-presentation={presentation}
       style={{
-        border: `1px solid ${WM.border.line}`,
-        borderRadius: WM.radius.xl,
-        background: WM.surface.deep,
-        padding: WM.space.lg,
+        border: presentation === "card" ? `1px solid ${WM.border.line}` : "none",
+        borderTop: presentation === "embedded" ? `1px solid ${WM.border.hair}` : undefined,
+        borderRadius: presentation === "card" ? WM.radius.xl : 0,
+        background: presentation === "card" ? WM.surface.deep : "transparent",
+        padding: presentation === "card" ? WM.space.lg : `${WM.space.md}px 0 0`,
         display: "flex",
         flexDirection: "column",
         gap: WM.space.md,

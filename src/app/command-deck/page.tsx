@@ -1027,7 +1027,7 @@ function CommandDeckInner() {
                       below the market room. It stays silent while work remains
                       and renders the existing canonical completion receipt when
                       the assessment says the trader may stop carrying it. */}
-                  <ExitRampCard ramp={exitRamp} />
+                  <ExitRampCard ramp={exitRamp} presentation="embedded" />
                 </div>
               </section>
             </div>

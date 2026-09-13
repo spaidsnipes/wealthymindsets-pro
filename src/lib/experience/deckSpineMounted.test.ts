@@ -40,6 +40,7 @@ describe("the deck projects one decision room without a duplicate spine", () => 
     expect(why).toBeLessThan(next);
     expect(next).toBeLessThan(exitRamp);
     expect(exitRamp).toBeLessThan(end);
+    expect(src.slice(exitRamp, end)).toContain('presentation="embedded"');
     expect(next).toBeLessThan(end);
     expect(src.match(/<ExitRampCard/g)).toHaveLength(1);
     expect(src.slice(room, end).match(/data-decision-id=/g)).toHaveLength(8);
