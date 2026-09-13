@@ -289,6 +289,13 @@ describe("responsive P0 command surfaces", () => {
     expect(deck).not.toContain("DoctrineTagline");
   });
 
+  it("compresses an unresolved room hero without hiding its market-state truth", () => {
+    const hero = source("../components/command-deck/HeroTruth.tsx");
+    expect(hero).toContain('isRoomDensity && marketStateResolution === "UNKNOWN"');
+    expect(hero).toContain("Market state {marketState}");
+    expect(hero).toContain('!(isRoomDensity && marketStateResolution === "UNKNOWN")');
+  });
+
   it("keeps the multi-broker entry point visible at the right edge of the chart toolbar", () => {
     const toolbar = source("../components/chart/ChartToolbar.tsx");
     const dashboard = source("../components/chart/ChartsDashboard.tsx");

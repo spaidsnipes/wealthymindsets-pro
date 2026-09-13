@@ -189,6 +189,20 @@ export function HeroTruth({
         <span style={{ fontSize: 10, letterSpacing: 0.3, textTransform: "uppercase", color: "#8a8271" }}>
           hero truth
         </span>
+        {isRoomDensity && marketStateResolution === "UNKNOWN" && marketState && (
+          <span
+            aria-label={`Market state ${marketState}`}
+            style={{
+              marginLeft: "auto",
+              fontSize: 10,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+              color: "#8a8271",
+            }}
+          >
+            Market state {marketState}
+          </span>
+        )}
       </div>
 
       {/* MARKET STATE hero — the founder-defined one-second verdict.
@@ -198,7 +212,7 @@ export function HeroTruth({
           BALANCE. When the caller passes no marketState at all we skip
           this block entirely and let SYMBOL take the dominant role
           (the pre-Aug-16 behavior). */}
-      {marketState && (
+      {marketState && !(isRoomDensity && marketStateResolution === "UNKNOWN") && (
         <div style={{ marginBottom: isRoomDensity ? 3 : 6, minWidth: 0 }}>
           <span
             style={{
