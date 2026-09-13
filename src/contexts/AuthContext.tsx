@@ -12,6 +12,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useRouter, usePathname } from "next/navigation";
 import { isCoreTeam } from "@/lib/coreTeam";
 import { isPublicAuthPath, selectAuthenticatedRouteState } from "@/lib/authRoutes";
+import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
 import { clearAllSessionSymbols } from "@/lib/marketData/sessionSymbolStore";
 import { clearPaperState } from "@/lib/paperTrade";
 import { clearWMSState } from "@/contexts/WMSContext";
@@ -145,7 +146,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (user && isPublic) {
-      router.replace("/charts");
+      // A signed-in human sitting on /login has named no destination. Same
+      // arrival class as the bare domain, so the same owner decides.
+      router.replace(FOUNDER_LANDING_ROUTE);
     }
   }, [user, loading, pathname, router]);
 

@@ -1,6 +1,12 @@
 import { redirect } from "next/navigation";
 
-// Default to the charts dashboard
+import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
+
+/**
+ * The bare domain is one of three no-destination arrivals. It does not get to
+ * hold its own opinion about where that goes — founderLanding.ts records why
+ * three independent opinions was the defect.
+ */
 export default function Home() {
-  redirect("/charts");
+  redirect(FOUNDER_LANDING_ROUTE);
 }

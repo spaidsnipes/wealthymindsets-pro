@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
+
 /**
  * A confirmation-link landing route for a custom Supabase email template.
  * It deliberately accepts only the token hash and immediately hands it to the
@@ -23,7 +25,8 @@ export async function GET(request: Request) {
   if (!verified.ok) {
     return NextResponse.redirect(new URL("/login?auth_error=expired_confirmation", url.origin), 303);
   }
-  const response = NextResponse.redirect(new URL("/charts", url.origin), 303);
+  // Third no-destination arrival: a human who clicked a link in their inbox.
+  const response = NextResponse.redirect(new URL(FOUNDER_LANDING_ROUTE, url.origin), 303);
   const cookie = verified.headers.get("set-cookie");
   if (cookie) response.headers.set("set-cookie", cookie);
   return response;
