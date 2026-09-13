@@ -63,6 +63,12 @@ export interface HeroTruthProps {
    * never fall back to `state.session` — that fallback IS the bug.
    */
   sessionPresented?: { readonly value: string; readonly detail?: string } | null;
+  /**
+   * `room` keeps the same truth hierarchy while returning enough vertical
+   * space for MARKET / RISK / NEXT to enter the Founder desktop viewport.
+   * The default remains the larger standalone hero treatment.
+   */
+  density?: "hero" | "room";
   className?: string;
 }
 
@@ -131,7 +137,17 @@ export function shouldShowMarketStateResolutionQualifier(
   return marketState.trim().toUpperCase() !== resolution;
 }
 
-export function HeroTruth({ symbol, timeframe, state, marketState, marketStateResolution, sessionPresented, className }: HeroTruthProps) {
+export function HeroTruth({
+  symbol,
+  timeframe,
+  state,
+  marketState,
+  marketStateResolution,
+  sessionPresented,
+  density = "hero",
+  className,
+}: HeroTruthProps) {
+  const isRoomDensity = density === "room";
   const qualityKey: keyof typeof QUALITY_STYLES = state?.qualityState ?? "UNKNOWN";
   const style = QUALITY_STYLES[qualityKey];
   const price = state?.price.last ?? null;
@@ -160,12 +176,12 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
       style={{
         border: `1px solid ${style.color}55`,
         borderRadius: 14,
-        padding: "22px 24px",
+        padding: isRoomDensity ? "14px 18px" : "22px 24px",
         background: `linear-gradient(180deg, ${style.halo}, rgba(11,11,13,0.9))`,
         boxShadow: `0 0 60px -30px ${style.color}`,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: isRoomDensity ? 6 : 10, flexWrap: "wrap" }}>
         <span style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
           Command Deck
         </span>
@@ -183,14 +199,14 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
           this block entirely and let SYMBOL take the dominant role
           (the pre-Aug-16 behavior). */}
       {marketState && (
-        <div style={{ marginBottom: 6, minWidth: 0 }}>
+        <div style={{ marginBottom: isRoomDensity ? 3 : 6, minWidth: 0 }}>
           <span
             style={{
               fontFamily: "Georgia, 'Times New Roman', serif",
               // Fluid across device classes: ~28px on a 390px phone, scaling to
               // 44px on desktop. Chapter names like TREND_EXPANSION /
               // OPENING_AUCTION overflowed a phone at a fixed 44px.
-              fontSize: "clamp(26px, 7.5vw, 44px)",
+              fontSize: isRoomDensity ? "clamp(24px, 4vw, 34px)" : "clamp(26px, 7.5vw, 44px)",
               lineHeight: 1.05,
               letterSpacing: 0.6,
               color:
@@ -259,11 +275,11 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
         </span>
       </div>
 
-      <div style={{ marginTop: 14, display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+      <div style={{ marginTop: isRoomDensity ? 8 : 14, display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
         {price != null ? (
           <span
             style={{
-              fontSize: "clamp(40px, 12vw, 60px)",
+              fontSize: isRoomDensity ? "clamp(36px, 7vw, 48px)" : "clamp(40px, 12vw, 60px)",
               fontWeight: 400,
               color: "#ede6d3",
               fontVariantNumeric: "tabular-nums",
@@ -279,7 +295,7 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
         ) : (
           <span
             style={{
-              fontSize: "clamp(40px, 12vw, 60px)",
+              fontSize: isRoomDensity ? "clamp(36px, 7vw, 48px)" : "clamp(40px, 12vw, 60px)",
               fontWeight: 400,
               color: "#55503f",
               lineHeight: 1.02,
@@ -314,7 +330,7 @@ export function HeroTruth({ symbol, timeframe, state, marketState, marketStateRe
       </div>
 
       {/* Truth strip — what canonical evidence exists RIGHT NOW */}
-      <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid rgba(139,106,41,0.2)", display: "flex", gap: 20, flexWrap: "wrap", fontSize: 10, color: "#8a8271", letterSpacing: 0.24 }}>
+      <div style={{ marginTop: isRoomDensity ? 10 : 16, paddingTop: isRoomDensity ? 8 : 12, borderTop: "1px solid rgba(139,106,41,0.2)", display: "flex", gap: isRoomDensity ? 14 : 20, flexWrap: "wrap", fontSize: 10, color: "#8a8271", letterSpacing: 0.24 }}>
         {/* The session owner answers here, NOT the snapshot's store key. See
             the `sessionPresented` prop doc: `state.session` is the keyspace
             ("RTH" on a Saturday, by design), and printing it produced a strip

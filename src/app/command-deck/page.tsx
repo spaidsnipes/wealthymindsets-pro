@@ -801,6 +801,13 @@ function CommandDeckInner() {
               .wm-cd-layout { grid-template-columns: minmax(0, 1fr) !important; }
               .wm-cd-why-column { position: static !important; }
             }
+            @media (min-width: 1100px) {
+              .wm-cd-market-workspace {
+                display: grid !important;
+                grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.75fr);
+                align-items: start;
+              }
+            }
           `}</style>
         {/* Two-column layout when evidence panel is open, single column otherwise.
             Below 900px viewport the second column stacks under the first
@@ -856,6 +863,7 @@ function CommandDeckInner() {
                     marketState={story?.current?.chapter ?? (story ? "UNKNOWN" : null)}
                     marketStateResolution={story?.resolution ?? undefined}
                     sessionPresented={{ value: sessionTruth.token, detail: sessionTruth.detail }}
+                    density="room"
                   />
                 </button>
               );
@@ -892,15 +900,26 @@ function CommandDeckInner() {
                 on the default Founder scene. It must not sit inside the
                 collapsed proof drawer: the spine summarizes these owners;
                 this surface lets the trader inspect them. */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <AvailableRChip vm={chainVm?.availableR ?? null} />
-              <DeckMarketChart symbol={symbol} timeframe={timeframe} />
-              <MarketCanvasPanel vm={marketCanvas} />
-              <DeckExpressionShortlist
-                symbol={symbol}
-                spot={state?.price?.last ?? null}
-                direction={null}
-              />
+            <div
+              className="wm-cd-market-workspace"
+              aria-label="Market, risk, and next workspace"
+              style={{ display: "flex", flexDirection: "column", gap: 10 }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+                <DeckMarketChart symbol={symbol} timeframe={timeframe} />
+                <MarketCanvasPanel vm={marketCanvas} />
+              </div>
+              <aside
+                aria-label="Risk and option expression"
+                style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}
+              >
+                <AvailableRChip vm={chainVm?.availableR ?? null} />
+                <DeckExpressionShortlist
+                  symbol={symbol}
+                  spot={state?.price?.last ?? null}
+                  direction={null}
+                />
+              </aside>
             </div>
 
             {/* Today's morning-prep intention (if any) — the PREP→OBSERVE

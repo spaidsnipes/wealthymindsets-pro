@@ -113,16 +113,19 @@ describe("the deck actually hoists the RISK pixel out of the deep-read drawer", 
     expect(src).toContain("<AvailableRChip vm={chainVm?.availableR ?? null}");
   });
 
-  it("the chip sits BEFORE the DeckMarketChart (primary viewport, not a drawer)", () => {
-    // Order matters: RISK is above the chart, not tucked below a details
-    // toggle. If a future refactor pushes it into the deep-read drawer this
-    // test goes red before the visible-RISK requirement regresses.
+  it("the chip sits in the primary MARKET/RISK/NEXT workspace, not a drawer", () => {
+    // Desktop Asset-10 places MARKET centrally and RISK in the adjacent rail.
+    // Source order is no longer the visual layout contract; membership in the
+    // named primary workspace and position before the proof drawer are.
     const src = readFileSync(resolve(__dirname, "../../app/command-deck/page.tsx"), "utf8");
     const chipIdx = src.indexOf("<AvailableRChip");
     const chartIdx = src.indexOf("<DeckMarketChart");
+    const workspaceIdx = src.indexOf('className="wm-cd-market-workspace"');
     const deepIdx = src.indexOf('<details open={deckEmphasis.deepSectionsOpen}');
     expect(chipIdx, "AvailableRChip is not on the deck").toBeGreaterThan(0);
-    expect(chartIdx, "DeckMarketChart is not on the deck").toBeGreaterThan(chipIdx);
+    expect(chartIdx, "DeckMarketChart is not on the deck").toBeGreaterThan(workspaceIdx);
+    expect(chipIdx, "AvailableRChip must belong to the primary workspace").toBeGreaterThan(workspaceIdx);
     expect(chipIdx, "AvailableRChip must be OUTSIDE the deep-read drawer").toBeLessThan(deepIdx);
+    expect(chartIdx, "DeckMarketChart must be OUTSIDE the deep-read drawer").toBeLessThan(deepIdx);
   });
 });

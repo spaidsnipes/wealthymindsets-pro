@@ -91,6 +91,22 @@ function stripFor(symbol: string, at: Date | null, timeframe = "15m"): string {
 }
 
 describe("HeroTruth session — the strip reads the owner, not the store key", () => {
+  it("room density preserves truth while releasing desktop space to working surfaces", () => {
+    const token = selectCanonicalSessionToken({ symbol: "TSLA", at: SATURDAY });
+    const html = renderToStaticMarkup(
+      <HeroTruth
+        symbol="TSLA"
+        timeframe="15m"
+        state={realState("TSLA")}
+        sessionPresented={{ value: token.token, detail: token.detail }}
+        density="room"
+      />,
+    );
+    expect(html).toContain("padding:14px 18px");
+    expect(html).toContain("TSLA");
+    expect(html).toContain("CLOSED");
+  });
+
   it("THE CORE REGRESSION: a Saturday future reads CLOSED, never RTH", () => {
     const html = stripFor("GC1!", SATURDAY);
     expect(html).toContain("CLOSED");

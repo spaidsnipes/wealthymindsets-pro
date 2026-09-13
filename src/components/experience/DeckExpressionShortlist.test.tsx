@@ -87,7 +87,7 @@ describe("shortlist request safety", () => {
   });
 });
 
-describe("the deck actually mounts the shortlist below its RISK/MARKET pixels", () => {
+describe("the deck mounts the shortlist in the desktop operating room", () => {
   const DECK = () => readFileSync(resolve(__dirname, "../../app/command-deck/page.tsx"), "utf8");
 
   it("imports DeckExpressionShortlist", () => {
@@ -99,15 +99,24 @@ describe("the deck actually mounts the shortlist below its RISK/MARKET pixels", 
     const shortlistIdx = src.indexOf("<DeckExpressionShortlist");
     const chartIdx = src.indexOf("<DeckMarketChart");
     const chipIdx = src.indexOf("<AvailableRChip");
+    const workspaceIdx = src.indexOf('className="wm-cd-market-workspace"');
     const evidenceIdx = src.indexOf('className="wm-cd-evidence-drawer"');
     expect(shortlistIdx, "DeckExpressionShortlist is not mounted").toBeGreaterThan(0);
-    // Order: RISK chip → chart → shortlist. Each is on the primary path.
-    expect(chipIdx).toBeLessThan(chartIdx);
-    expect(chartIdx).toBeLessThan(shortlistIdx);
+    // MARKET is the central column; RISK + NEXT share the adjacent rail.
+    // All three remain on the primary browser path before proof drawers.
+    expect(workspaceIdx).toBeLessThan(chartIdx);
+    expect(chartIdx).toBeLessThan(chipIdx);
+    expect(chipIdx).toBeLessThan(shortlistIdx);
+    expect(src).toContain('aria-label="Market, risk, and next workspace"');
+    expect(src).toContain('aria-label="Risk and option expression"');
     // Must not be tucked into the deep-read drawer — Gate 3 fruit must be
     // visible on the default Founder scene, not one click away.
     expect(shortlistIdx, "DeckExpressionShortlist must sit BEFORE the collapsed evidence drawer")
       .toBeLessThan(evidenceIdx);
+  });
+
+  it("uses room-density hero treatment on the normal Founder route", () => {
+    expect(DECK()).toContain('density="room"');
   });
 
   it("passes null direction — honest, not fabricated", () => {
