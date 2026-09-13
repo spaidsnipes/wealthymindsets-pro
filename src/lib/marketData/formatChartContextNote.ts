@@ -46,6 +46,18 @@ import { selectTickerChangeDisplay } from "./selectTickerChangeDisplay";
 
 export interface ChartContextInput {
   readonly symbol?: unknown;
+  /**
+   * The visible chart timeframe (`1m` / `5m` / `15m` / `1H` / `D` …). Optional
+   * on the wire because a hand-crafted POST may not carry it, but when the
+   * ChartsDashboard is the sender it is always supplied — the whole point of
+   * adding it is to end the CROSS_WIRED sentence the model kept receiving.
+   *
+   * When absent, the note names the absence explicitly rather than silently
+   * dropping it. The route already promises to name what is missing; a
+   * silently-omitted timeframe teaches the model that "timeframe unspecified"
+   * is a normal state to invent one for.
+   */
+  readonly timeframe?: unknown;
   readonly price?: unknown;
   readonly change?: unknown;
   readonly changePct?: unknown;
@@ -63,7 +75,14 @@ export function formatChartContextNote(context: ChartContextInput | null | undef
   const symbol = typeof context.symbol === "string" ? context.symbol.trim() : "";
   if (!symbol) return "";
 
-  let note = `[Current chart: ${symbol}`;
+  // Timeframe rides right after the symbol so the model reads "TSLA 15m @ …"
+  // as one identity — the way a trader reads their own tab. Founder TIMEFRAME
+  // LAW: 1m = execution/response, 5–15m = location/ORB, 1H–D = regime. Blending
+  // any two into one unlabeled sentence is CROSS_WIRED.
+  const timeframe = typeof context.timeframe === "string" ? context.timeframe.trim() : "";
+  const tfLabel = timeframe.length > 0 ? ` ${timeframe}` : " (timeframe unspecified)";
+
+  let note = `[Current chart: ${symbol}${tfLabel}`;
 
   const price = num(context.price);
   // > 0, not truthiness: a price of 0 is not a price, and the old `if

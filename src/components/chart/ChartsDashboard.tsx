@@ -906,6 +906,15 @@ export function ChartsDashboard() {
             const chg = selectTickerChangeDisplay(ticker);
             return {
               symbol,
+              // Founder TIMEFRAME LAW (Build Order, 2026-09-12): "Every material
+              // thesis/evidence fact carries timeframe... Spaidbot and Thesis
+              // must name the timeframe of claims when ambiguity would change
+              // meaning. Blending daily regime with 1m response into one
+              // unlabeled claim is CROSS_WIRED." The Spaidbot payload used to
+              // send symbol+price alone, so a 1H regime claim and a 1m response
+              // claim arrived at the model as the same sentence. Timeframe is
+              // carried here so the note (formatChartContextNote) can print it.
+              timeframe,
               price: ticker.price,
               ...(chg.displayable
                 ? { change: chg.change, changePct: chg.changePct }

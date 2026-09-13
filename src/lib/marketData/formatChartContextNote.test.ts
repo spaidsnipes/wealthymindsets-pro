@@ -153,3 +153,49 @@ describe("the note itself cannot claim liveness", () => {
     expect(note).not.toMatch(/\b(today|last session|live|current(ly)? trading)\b/i);
   });
 });
+
+/**
+ * The Founder's 2026-09-12 TIMEFRAME LAW (WM Pro Operating System Build Order):
+ * "Every material thesis/evidence fact carries timeframe. 1m = execution/response
+ * context. 5–15m = location/ORB context. 1H–D = regime/structure context. Spaidbot
+ * and Thesis must name the timeframe of claims when ambiguity would change
+ * meaning. Blending daily regime with 1m response into one unlabeled claim is
+ * CROSS_WIRED."
+ *
+ * Before this fence, the model received "[Current chart: TSLA @ $365.25]" with
+ * no timeframe. It could not tell whether the trader was reading a 1m response
+ * or a 1H regime, so anything it said blended the two — the exact CROSS_WIRED
+ * shape the Founder's law names.
+ */
+describe("timeframe accompanies every claim (TIMEFRAME LAW)", () => {
+  it("prints the timeframe right after the symbol", () => {
+    // The reader parses "TSLA 15m" as one identity, the way a trader reads
+    // their own chart tab. Any word between the symbol and the price would
+    // fight that reading.
+    const note = formatChartContextNote({ symbol: "TSLA", timeframe: "15m", price: 365.25 });
+    expect(note).toContain("[Current chart: TSLA 15m @");
+  });
+
+  it("names the absence when a caller sends no timeframe", () => {
+    // A hand-crafted POST from a third client (or a mid-migration caller) may
+    // arrive without timeframe. The route already promises the model it will
+    // be told what is missing, so silence is not an option — an unlabeled
+    // claim is precisely CROSS_WIRED.
+    const note = formatChartContextNote({ symbol: "TSLA", price: 365.25 });
+    expect(note).toContain("(timeframe unspecified)");
+    expect(note).not.toContain("[Current chart: TSLA @");
+  });
+
+  it("does not accept a non-string timeframe as a real one", () => {
+    // The wire is `unknown`; a body carrying `timeframe: 5` (a number, or
+    // worse, an object) must not be printed as if a trader chose it.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const note = formatChartContextNote({ symbol: "TSLA", timeframe: 5 as any, price: 365.25 });
+    expect(note).toContain("(timeframe unspecified)");
+  });
+
+  it("trims whitespace so ' 15m ' does not render as double-spaced prose", () => {
+    const note = formatChartContextNote({ symbol: "TSLA", timeframe: "  15m  ", price: 365.25 });
+    expect(note).toContain("[Current chart: TSLA 15m @");
+  });
+});

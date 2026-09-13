@@ -135,3 +135,36 @@ describe("the wire between the two ends is real", () => {
     expect(src).toMatch(/context:\s*getContext\(\)/);
   });
 });
+
+/**
+ * Founder TIMEFRAME LAW (WM Pro OS Build Order, 2026-09-12):
+ * "Every material thesis/evidence fact carries timeframe. Spaidbot and Thesis
+ * must name the timeframe of claims when ambiguity would change meaning.
+ * Blending daily regime with 1m response into one unlabeled claim is
+ * CROSS_WIRED."
+ *
+ * The Spaidbot chart-context wire is the exact conversational-authority
+ * channel that law names — and it used to send symbol+price alone. The tests
+ * below fence both ends: the publisher stamps timeframe onto the data-ctx
+ * payload, and the note builder renders it.
+ */
+describe("chart context carries timeframe (TIMEFRAME LAW)", () => {
+  it("the dashboard emits timeframe alongside symbol and price", () => {
+    // Publisher-side fence. If a future refactor drops timeframe, the model
+    // starts blending 1m responses with 1H regime in one unlabeled sentence.
+    const src = code(DASHBOARD);
+    const start = src.indexOf('id="wm-chart-context"');
+    const end = src.indexOf("/>", start);
+    const span = src.slice(start, end);
+    expect(span).toContain("timeframe,");
+  });
+
+  it("formatChartContextNote renders the timeframe right after the symbol", () => {
+    const NOTE = resolve(__dirname, "./formatChartContextNote.ts");
+    const src = code(NOTE);
+    // The identifier extraction, not the literal template, so a rename cannot
+    // silently disable this without also updating the identifier.
+    expect(src).toContain("context.timeframe");
+    expect(src).toContain("(timeframe unspecified)");
+  });
+});
