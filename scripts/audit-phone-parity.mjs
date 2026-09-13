@@ -96,7 +96,54 @@ function probe({ minTap, tolerance }) {
     return r.right > vw + 1 || r.left < -1;
   });
   // An ancestor is only guilty by containment; report the innermost element.
-  const offenders = crossing.filter((el) => !crossing.some((o) => o !== el && el.contains(o)));
+  const innermost = crossing.filter((el) => !crossing.some((o) => o !== el && el.contains(o)));
+
+  /**
+   * CLIPPED DECORATION — an ambient layer whose rect crosses the edge but
+   * which is provably incapable of costing the human anything.
+   *
+   * MEASURED 2026-09-13. The sanctuary's AMBIENT plane (`div.wm-water-breath`,
+   * the WATER-BREATH layer) animates `translate3d(8px,4px,0) scale(1.02)`, so
+   * at 390px its rect lands 2px past the right edge and it was reported as an
+   * offender. It is not one. Its parent `.wm-sanctuary` carries
+   * `overflow:hidden`, so the 2px is clipped and never painted; the layer is
+   * `aria-hidden`, carries no text, and is `pointer-events:none`. Nothing can
+   * be read there, touched there, or pushed out by it, and
+   * documentElement.scrollWidth was clean.
+   *
+   * THIS IS A RECLASSIFICATION, NOT A SUPPRESSION. Clipped decorations are
+   * counted and printed under their own heading, so a future reader can see
+   * exactly what this rule forgave and argue with it. A silent exclusion would
+   * be a place for a real defect to hide, which is the opposite of why this
+   * file exists.
+   *
+   * The bar for forgiveness is deliberately high — ALL FOUR must hold:
+   *   1. aria-hidden="true"           — it claims to be invisible to a11y
+   *   2. pointer-events: none         — it cannot receive a touch
+   *   3. no text content anywhere     — there are no words to lose
+   *   4. a clipping ancestor whose own box stops at or inside the edge
+   *
+   * Miss any one and it reports as a normal offender. In particular an element
+   * with text is NEVER forgiven, because clipped text is precisely the defect
+   * the 2026-09-08 and 2026-09-12 incidents were made of.
+   */
+  const CLIPS = new Set(["hidden", "clip", "scroll", "auto"]);
+  const isClippedDecoration = (el) => {
+    if (el.getAttribute("aria-hidden") !== "true") return false;
+    if (getComputedStyle(el).pointerEvents !== "none") return false;
+    if ((el.textContent || "").trim() !== "") return false;
+    for (let p = el.parentElement; p; p = p.parentElement) {
+      const ps = getComputedStyle(p);
+      if (!CLIPS.has(ps.overflowX) && !CLIPS.has(ps.overflow)) continue;
+      // The ancestor only helps if it does not itself spill past the edge.
+      const pr = p.getBoundingClientRect();
+      if (pr.right <= vw + 1 && pr.left >= -1) return true;
+    }
+    return false;
+  };
+
+  const offenders = innermost.filter((el) => !isClippedDecoration(el));
+  const clippedDecorations = innermost.filter(isClippedDecoration);
 
   const TAPPABLE = 'a[href], button, [role="button"], [role="tab"], input, select, summary';
   const smallTaps = [...document.body.querySelectorAll(TAPPABLE)].filter((el) => {
@@ -163,6 +210,9 @@ function probe({ minTap, tolerance }) {
     documentOverflowPx: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     offenderCount: offenders.length,
     offenders: offenders.slice(0, 10).map(describe),
+    // Forgiven, but never hidden. See isClippedDecoration.
+    clippedCount: clippedDecorations.length,
+    clipped: clippedDecorations.slice(0, 10).map(describe),
     smallTapCount: smallTaps.length,
     smallTaps: smallTaps.slice(0, 10).map((el) => {
       const r = el.getBoundingClientRect();
@@ -270,6 +320,11 @@ for (const route of ROUTES) {
       `  under-${MIN_TAP}px-taps=${result.smallTapCount}`,
   );
   for (const o of result.offenders) console.log(`    off by ${o.offBy}px  ${o.el}`);
+  // Printed even though forgiven — a reclassification the reader can audit and
+  // argue with. Silence here would be a hiding place. See isClippedDecoration.
+  for (const c of result.clipped) {
+    console.log(`    clipped-decoration ${c.offBy}px  ${c.el}  (aria-hidden, no text, not tappable, clipped by an ancestor)`);
+  }
   for (const e of result.evicted) console.log(`    evicted ${e.w}px wide  "${e.text}"  ${e.el}`);
   for (const t of result.smallTaps) console.log(`    tap ${t.w}x${t.h}  ${t.el}`);
   // Evicted text fails the run for the same reason overflow does: in both cases
