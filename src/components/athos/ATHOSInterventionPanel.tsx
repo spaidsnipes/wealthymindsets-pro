@@ -81,10 +81,14 @@ export function ATHOSInterventionPanel({
       aria-atomic="true"
       className={["wm-athos-panel", className ?? ""].join(" ")}
       style={{
-        border: `1px solid ${style.border}`,
-        borderRadius: 8,
-        padding: 12,
-        background: "rgba(11,11,13,0.9)",
+        // SCENE_FRAGMENTATION cure: verdict-tinted full-box border made
+        // ATHOS interventions read as an "AI alert app". The verdict
+        // colour (NONE / NOTICE / ADVISORY / CAUTION) still carries via
+        // a left accent — the intervention is a contextual layer of the
+        // same trader-decision, not a separate destination.
+        borderLeft: `3px solid ${style.border.replace(/,0\.[3-5]\)/, ",0.7)")}`,
+        padding: "10px 14px 10px 18px",
+        background: "transparent",
         display: "flex",
         flexDirection: "column",
         gap: 8,
