@@ -15,7 +15,6 @@ import {
   subscribeToSessionNectar,
 } from "@/lib/marketData/sessionNectar";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
-import { WmWordmark } from "@/components/brand/WmWordmark";
 import { SectionBanner } from "@/components/brand/SectionBanner";
 import { Panel } from "@/components/ui/Panel";
 import { WM } from "@/lib/design/wmTokens";
@@ -578,7 +577,10 @@ function VaultHeader() {
         >
           <ArrowLeft size={12} /> COMMAND DECK
         </Link>
-        <WmWordmark size="compact" />
+        {/* Founder audit 2026-09-13: the sanctuary shell already renders
+            the compact wordmark on every Asset-10 family route (nectar is
+            now in the family — see founderRoomRoutes.ts). A local copy
+            would stack two brands in the same viewport. */}
       </div>
       <div
         style={{

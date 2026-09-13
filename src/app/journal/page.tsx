@@ -60,7 +60,6 @@ import { selectShutdownAdvice } from "@/lib/learningGenome/selectShutdownAdvice"
 import { selectStewardshipVerdict } from "@/lib/learningGenome/selectStewardshipVerdict";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
-import WmWordmark from "@/components/brand/WmWordmark";
 import { useWMS } from "@/contexts/WMSContext";
 import { getKnownSessionSymbols } from "@/lib/marketData/sessionSymbolStore";
 import {
@@ -1502,9 +1501,14 @@ Trade the system, trust the process, winners every day 🚀`,
          className="bg-wm-black">
 
       {/* ── Header ─────────────────────────────────────────── */}
+      {/*
+        Founder audit 2026-09-13: the sanctuary shell already renders the
+        compact wordmark for every Asset-10 family route. A second copy
+        inside the journal reads as two brands stacked. FileText icon +
+        "Trade Journal" IS legitimate page identity — it names the room,
+        not the app.
+      */}
       <div className="wm-journal-header flex items-center gap-3 px-4 border-b border-wm-border bg-wm-dark shrink-0" style={{ minHeight:44 }}>
-        <WmWordmark size="compact" subtitle="LEGACY JOURNAL" />
-        <div style={{ height: 18, width: 1, background: "rgba(139,106,41,0.3)", margin: "0 4px" }} aria-hidden="true" />
         <FileText size={15} className="text-wm-purple shrink-0" />
         <h1 style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 14, fontWeight: 400, color: "#ede6d3" }}>Trade Journal</h1>
         {/* Main tabs */}

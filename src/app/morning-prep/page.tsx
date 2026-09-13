@@ -9,7 +9,6 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { FabioInsights } from "@/components/fabio/FabioInsights";
-import WmWordmark from "@/components/brand/WmWordmark";
 import RealmGateway from "@/components/brand/RealmGateway";
 import OpeningBellPanel from "@/components/opening-bell/OpeningBellPanel";
 import {
@@ -393,9 +392,14 @@ export default function MorningPrepPage() {
         }}
       >
         <div className="max-w-3xl mx-auto" style={{ padding: "18px clamp(16px, 4vw, 32px) 22px" }}>
-          <div style={{ marginBottom: 12 }}>
-            <WmWordmark size="compact" subtitle="OPENING BELL PROTOCOL" />
-          </div>
+          {/*
+            Founder audit 2026-09-13: the sanctuary shell already renders
+            the compact wordmark. A second copy inside a Founder-family
+            page reads as two brands stacked — the exact "new information
+            inside old composition" silhouette. "Morning Prep" as an <h1>
+            below is the legitimate page identity; the wordmark was the
+            duplicate.
+          */}
           <div className="flex items-center gap-3 mb-3">
             <div
               className="rounded-full flex items-center justify-center shrink-0"
