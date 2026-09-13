@@ -220,10 +220,13 @@ export function DeckMarketChart({
       data-testid="deck-market-chart"
       aria-label={`${symbol} ${timeframe} chart`}
       style={{
-        border: "1px solid rgba(139,106,41,0.25)",
-        borderRadius: 12,
-        padding: 12,
-        background: "rgba(11,11,13,0.55)",
+        // SCENE_FRAGMENTATION repair (Founder audit 2026-09-13): the
+        // full-box brass border made this section read as an "app card"
+        // inside the room. MARKET is the room, not a card. Only the top
+        // hairline stays — a brass structural line, not a container.
+        borderTop: "1px solid rgba(139,106,41,0.20)",
+        padding: "12px 0 4px",
+        background: "transparent",
       }}
     >
       <header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>

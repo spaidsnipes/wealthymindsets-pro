@@ -150,10 +150,14 @@ export function DeckExpressionShortlist({
       data-testid="deck-expression-shortlist"
       aria-label={`Option expression shortlist for ${symbol}`}
       style={{
-        border: "1px solid rgba(139,106,41,0.25)",
-        borderRadius: 12,
-        padding: 12,
-        background: "rgba(11,11,13,0.55)",
+        // SCENE_FRAGMENTATION repair (Founder audit 2026-09-13): the
+        // full-box brass border made NEXT / Expression read as a
+        // separate app. NEXT emerges from the same decision the room
+        // holds; a hairline separator is enough to distinguish it
+        // without walling it off.
+        borderTop: "1px solid rgba(139,106,41,0.20)",
+        padding: "12px 0 4px",
+        background: "transparent",
       }}
     >
       <header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10, gap: 12, flexWrap: "wrap" }}>

@@ -75,17 +75,22 @@ export function AvailableRChip({ vm }: AvailableRChipProps): React.ReactElement 
   const partial = vm?.resolution === "PARTIAL";
 
   const color = resolved ? "#ede6d3" : partial ? "#c9a55c" : "#8a8271";
-  const borderColor = resolved ? "rgba(139,106,41,0.45)" : partial ? "rgba(201,165,92,0.45)" : "rgba(139,106,41,0.25)";
 
   return (
     <section
       data-testid="available-r-chip"
       aria-label={`Available R: ${label}. ${detail}`}
       style={{
-        border: `1px solid ${borderColor}`,
-        borderRadius: 10,
-        padding: "8px 12px",
-        background: "rgba(11,11,13,0.55)",
+        // SCENE_FRAGMENTATION repair (Founder audit 2026-09-13): the
+        // full-box brass border made RISK read as "an app called
+        // Available R". RISK is an aspect of the room, not a resident.
+        // Only the resolved state gets a subtle left-edge accent — a
+        // brass hairline, not a card outline — and only when we HAVE a
+        // resolved value to accent. UNKNOWN reads as calm negative
+        // space, which is what the founder brief asks for.
+        borderLeft: `2px solid ${resolved ? "rgba(139,106,41,0.35)" : partial ? "rgba(201,165,92,0.35)" : "rgba(139,106,41,0.10)"}`,
+        padding: "8px 14px",
+        background: "transparent",
         display: "flex",
         alignItems: "center",
         gap: 14,
