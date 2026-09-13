@@ -222,10 +222,15 @@ export function SceneAdmissionPanel({
     <section
       aria-label={`Scene ${compilation.scene}. ${compilation.reason}`}
       style={{
-        border: `1px solid ${compilation.degraded ? "rgba(224,123,92,0.45)" : "rgba(212,175,55,0.35)"}`,
-        background: compilation.degraded ? "rgba(224,123,92,0.06)" : "rgba(212,175,55,0.04)",
-        borderRadius: 10,
-        padding: "12px 14px",
+        // SCENE_FRAGMENTATION cure (Founder audit 2026-09-13): the
+        // full-box border + tint made scene admission read as an
+        // "app alert card". The scene state IS a headline read; a
+        // left-edge accent carries the same state signal (gold for
+        // normal, warn-red for degraded) without walling itself off
+        // from the room.
+        borderLeft: `3px solid ${compilation.degraded ? "rgba(224,123,92,0.65)" : "rgba(212,175,55,0.55)"}`,
+        background: "transparent",
+        padding: "10px 14px 10px 18px",
       }}
     >
       <div

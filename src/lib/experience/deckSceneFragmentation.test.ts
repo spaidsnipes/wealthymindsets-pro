@@ -93,6 +93,18 @@ describe("workspace pieces read as ONE room, not three sheds", () => {
     expect(src).toContain('background: "transparent"');
   });
 
+  it("SceneAdmissionPanel headlines the scene via a left accent, not a walled alert", () => {
+    // The panel names WHICH scene is admitted (WAIT / EXECUTE / MANAGE /
+    // PERMISSION / …) and whether it is degraded. Its box + tint made it
+    // read as a full alert card lifted above the room. The state signal
+    // (gold or warn-red) moved to a left-edge accent; the sanctuary field
+    // passes through the panel.
+    const src = READ("components/experience/SceneAdmissionPanel.tsx");
+    expect(src).toContain("borderLeft: `3px solid ${compilation.degraded");
+    expect(src).not.toMatch(/border:\s*`1px solid \$\{compilation\.degraded/);
+    expect(src).toContain('background: "transparent"');
+  });
+
   it("DecisionSpineBand is a strip on the field, not a lifted panel", () => {
     // The lighter-than-sanctuary background made the six-cell summary
     // read as a raised dashboard panel. The strip inherits the
