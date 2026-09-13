@@ -250,7 +250,42 @@ export function WMExperienceShell({
           background: WM.surface.deep,
         }}
       >
-        {brand && <div style={{ flexShrink: 0, opacity: 0.9 }}>{brand}</div>}
+        {/* Left cell. It renders even when no brand is supplied, because the
+            job caption below is NOT optional — a shell without a wordmark must
+            still tell the trader what job they are in. */}
+        <div style={{ flexShrink: 0, opacity: 0.9, display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+            {brand}
+            {/*
+              SCENE_FRAGMENTATION repair (Founder audit 2026-09-13). The job
+              sentence used to be its OWN full-width horizontal band directly
+              beneath this header, with its own bottom hairline. Measured live
+              on production at 1920x847: a 69px nav rail, then a 26px stripe
+              carrying one sentence, then the room. Two stacked bars of
+              permanent chrome consumed 11% of the viewport before the trader
+              reached any market pixel, and the audit names permanent chrome
+              as a fragmentation vector by name.
+
+              The sentence is not chrome in its own right — it is the CAPTION
+              OF THE SELECTED MODE, which is the control immediately to its
+              right. Putting it under the wordmark inside the same band makes
+              the relationship visible instead of implied, and removes a
+              horizontal stripe without removing a word.
+            */}
+            <span
+              data-testid="shell-job-caption"
+              style={{
+                fontSize: 10,
+                letterSpacing: 0.3,
+                color: WM.gold.mark,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxWidth: 260,
+              }}
+            >
+              {emphasis.job}
+            </span>
+        </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <ExperienceModeBar bus={bus} />
         </div>
@@ -280,19 +315,11 @@ export function WMExperienceShell({
         )}
       </header>
 
-      {/* The current job, stated once. Gold = identity/ceremony, per canon. */}
-      <div
-        style={{
-          padding: `${WM.space.xs}px ${WM.space.md}px`,
-          fontSize: 11,
-          letterSpacing: 0.3,
-          color: WM.gold.mark,
-          background: WM.surface.deep,
-          borderBottom: `1px solid ${WM.border.hair}`,
-        }}
-      >
-        {emphasis.job}
-      </div>
+      {/* The job caption used to be a standalone band here. It now rides under
+          the wordmark inside the header above — still stated exactly once, and
+          still gold, but no longer costing the room its own horizontal stripe.
+          See the comment at its new site for the measurement that motivated
+          the move. */}
 
       {/* Body: sacred canvas + collapsible guest rail. */}
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
