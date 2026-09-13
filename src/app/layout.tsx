@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   description: "A trading operating system for serious traders. Market intelligence, order flow, volume profile, decision memory, and longitudinal edge — with truthful UNKNOWN, MISSING, STALE, and INSUFFICIENT states.",
   keywords:    ["trading operating system", "order flow", "volume profile", "market intelligence", "decision memory", "trader development", "footprint chart", "trade journal"],
   authors:     [{ name: WM_BRAND.legalEntity }],
-  manifest:    "/manifest.json",
+  manifest:    "/manifest.webmanifest",
   appleWebApp: {
     capable:        true,
     statusBarStyle: "black-translucent",

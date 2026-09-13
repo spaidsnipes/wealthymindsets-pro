@@ -20,6 +20,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import manifest from "../../app/manifest";
 import { SRC_ROOT, stripComments } from "../ops/sourceGraph";
 import { FOUNDER_LANDING_ROUTE, INSTRUMENT_VIEW_ROUTE } from "./founderLanding";
 
@@ -34,6 +35,13 @@ const ARRIVAL_SITES = [
   "app/page.tsx",
   "contexts/AuthContext.tsx",
   "app/auth/confirm/route.ts",
+  // The fourth, found by hunting for what could still hand a Founder to the
+  // July composition after the other three had moved: the installed PWA.
+  // Tapping the home-screen icon names no destination. It lived in
+  // public/manifest.json as `"start_url": "/charts"` — unreachable by the
+  // cutover because static JSON cannot import an owner, which is exactly why it
+  // was the copy left behind.
+  "app/manifest.ts",
 ] as const;
 
 const read = (rel: string): string => stripComments(readFileSync(join(SRC_ROOT, rel), "utf8"));
@@ -86,6 +94,34 @@ describe("the Founder landing route has one owner", () => {
     expect(page, "the landing surface renders a back arrow").not.toContain("ArrowLeft");
     expect(page, "the landing surface has a control whose accessible name says 'back'")
       .not.toMatch(/aria-label=["'][^"']*\bback\b/i);
+  });
+
+  it("the installed app opens on the landing route, not the instrument view", () => {
+    // Source-reading cannot reach this one: start_url is a VALUE the generator
+    // returns, so the guard has to call it. A manifest that imports the owner
+    // and still starts somewhere else is the half-done cutover in its quietest
+    // form — nothing in the repo looks wrong, and the home-screen icon is what
+    // disagrees.
+    const m = manifest();
+    expect(m.start_url, "the installed PWA lands somewhere the owner did not choose")
+      .toBe(FOUNDER_LANDING_ROUTE);
+    const charts = m.shortcuts?.find((s) => s.short_name === "Charts");
+    expect(charts?.url, "a NAMED shortcut must go where it says, not to the landing route")
+      .toBe(INSTRUMENT_VIEW_ROUTE);
+  });
+
+  it("the served manifest link points at a path the app actually serves", () => {
+    // Generating the manifest moves it from /manifest.json to
+    // /manifest.webmanifest. A <link rel="manifest"> left on the old path is an
+    // install that degrades in silence: no error, no icon, no start_url.
+    const layout = read("app/layout.tsx");
+    expect(layout).toContain("/manifest.webmanifest");
+    expect(layout, "layout still links the retired static manifest").not.toContain("/manifest.json");
+    const sw = stripComments(
+      readFileSync(join(SRC_ROOT, "..", "public", "sw.js"), "utf8"),
+    );
+    expect(sw, "the service worker pre-caches a manifest path that 404s")
+      .not.toContain("/manifest.json");
   });
 
   it("both routes are absolute app paths, not fragments", () => {

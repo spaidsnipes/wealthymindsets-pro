@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import manifest from "../app/manifest";
+
 const source = (path: string) => readFileSync(resolve(__dirname, path), "utf8");
 
 describe("responsive P0 command surfaces", () => {
@@ -414,8 +416,12 @@ describe("responsive P0 command surfaces", () => {
   });
 
   it("does not force an installed phone into one orientation", () => {
-    const manifest = JSON.parse(source("../../public/manifest.json"));
-    expect(manifest.orientation).toBe("any");
+    // Reads the manifest the app actually SERVES. This used to JSON.parse
+    // public/manifest.json; that file is gone, because a static manifest could
+    // not derive the landing route and so kept its own copy of it. Calling the
+    // generator is the only way this assertion stays attached to the truth
+    // rather than to a file that no longer ships.
+    expect(manifest().orientation).toBe("any");
   });
 
   it("keeps chart truth and navigation visible without stacking desktop chrome in phone landscape", () => {
