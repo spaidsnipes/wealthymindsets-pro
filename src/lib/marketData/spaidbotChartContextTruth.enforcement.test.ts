@@ -189,3 +189,47 @@ describe("chart context carries timeframe (TIMEFRAME LAW)", () => {
     expect(src).toContain("[role UNKNOWN]");
   });
 });
+
+/**
+ * Ticket T "WHY with Spaidbot on the same object" — SpaidBotButton is on the
+ * global shell and floats over EVERY page. It reads `#wm-chart-context`. Until
+ * this fence, only /charts published that element, so Spaidbot on
+ * /command-deck received `{}` and the model answered decision questions with
+ * no idea which instrument or timeframe the trader was looking at. The deck
+ * now publishes the same wire; the guard below fences both ends.
+ */
+describe("the deck publishes chart context so Spaidbot has the same object", () => {
+  const DECK = resolve(__dirname, "../../app/command-deck/page.tsx");
+
+  it("the deck mounts a #wm-chart-context element", () => {
+    // If a future refactor drops this, the global SpaidBotButton silently
+    // regresses to empty context on the default Founder scene and stops
+    // being "Spaidbot on the same object."
+    expect(code(DECK)).toContain('id="wm-chart-context"');
+  });
+
+  it("the deck's data-ctx carries symbol, timeframe, role, and price", () => {
+    const src = code(DECK);
+    const start = src.indexOf('id="wm-chart-context"');
+    const end = src.indexOf("/>", start);
+    const span = src.slice(start, end);
+    // Same fields the /charts publisher stamps. If any goes missing, either
+    // formatChartContextNote surfaces the disclosure (unspecified/UNKNOWN)
+    // or — worse — the model answers as if it had never known to ask.
+    expect(span).toContain("symbol,");
+    expect(span).toContain("timeframe,");
+    expect(span).toContain("role: state?.qualityState");
+    expect(span).toContain("price: state?.price?.last");
+  });
+
+  it("both publishers write to the SAME element id the reader queries", () => {
+    // Two writers, one reader. If either writer drifts to a different id
+    // (say, `wm-deck-context`), Spaidbot reads empty on that route. The
+    // reader is the join.
+    const dash = code(DASHBOARD);
+    const deck = code(DECK);
+    expect(dash).toContain('id="wm-chart-context"');
+    expect(deck).toContain('id="wm-chart-context"');
+    expect(code(BUTTON)).toContain('getElementById("wm-chart-context")');
+  });
+});

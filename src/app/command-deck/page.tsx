@@ -814,6 +814,24 @@ function CommandDeckInner() {
         >
           {/* Primary column */}
           <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
+            {/* Ticket T "WHY with Spaidbot on the same object" — the deck used
+                to omit the #wm-chart-context span. Only /charts published it,
+                so on /command-deck the global SpaidBotButton read {} and the
+                model answered questions with no idea WHICH INSTRUMENT or WHICH
+                TIMEFRAME the trader was looking at. Same wire the
+                formatChartContextNote validator already re-derives on the
+                server (canonicalRole, timeframe fallback, unknown-collapse),
+                so nothing hostile can be smuggled from this end. */}
+            <span
+              id="wm-chart-context"
+              data-ctx={JSON.stringify({
+                symbol,
+                timeframe,
+                role: state?.qualityState ?? null,
+                price: state?.price?.last ?? null,
+              })}
+              style={{ display: "none" }}
+            />
             {/* HERO TRUTH — the 1s dominant message. Market-state chapter
                 is derived from the same selectMarketStory the Story Ribbon
                 consumes downstream, so hero and ribbon can never disagree.
