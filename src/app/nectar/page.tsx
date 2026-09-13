@@ -22,6 +22,7 @@ import { WM } from "@/lib/design/wmTokens";
 import { fmtNum, formatMemoryAge, selectChannelLiveness } from "@/lib/nectarFormat";
 import { ContextRibbonContainer, ContextRibbonTile } from "@/components/command/CommandContextRibbon";
 import { selectChannelCoverageHealth } from "@/lib/marketData/selectChannelCoverageHealth";
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 
 const subscribeHydration = () => () => {};
 const getHydratedClientSnapshot = () => true;
@@ -1024,7 +1025,7 @@ function EmptyVault() {
       </div>
       <div style={{ marginTop: 18 }}>
         <Link
-          href="/charts"
+          href={INSTRUMENT_VIEW_ROUTE}
           style={{
             display: "inline-flex", alignItems: "center",
             minHeight: 44,

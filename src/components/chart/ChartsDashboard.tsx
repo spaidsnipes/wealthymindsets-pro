@@ -75,6 +75,7 @@ import { selectAggressorFlow } from "@/lib/marketData/selectAggressorFlow";
 import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassportPanel";
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import { useCanonicalMarketState } from "@/lib/marketData/useCanonicalMarketState";
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 // The REGIME chip's truth guard. Observed live 2026-09-05 printing
 // "REGIME SIDE -0.34% today" on a closed Saturday session; the classification
 // and the period word both live in this one owner now, so a component edit
@@ -950,7 +951,7 @@ export function ChartsDashboard() {
         >
           <span aria-hidden="true" style={{ color: "#3a3f52" }}>›</span>
           <a
-            href="/charts"
+            href={INSTRUMENT_VIEW_ROUTE}
             style={{ color: "#a89b6f", textDecoration: "none", fontWeight: 600, letterSpacing: 0.32, textTransform: "uppercase" }}
             aria-current={activeTab === "Chart" ? "page" : undefined}
           >

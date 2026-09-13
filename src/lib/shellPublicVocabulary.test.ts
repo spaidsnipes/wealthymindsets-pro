@@ -15,7 +15,10 @@ describe("global shell public/private vocabulary", () => {
   });
 
   it("routes contextual mobile market health to the public chart workspace", () => {
-    expect(mobileSession).toContain('href="/charts"');
+    // The pill must point at the instrument view by DERIVING it. See
+    // founderLanding.ts: a declared owner that consumers retype past is a
+    // shadow owner, and reads as centralised while being anything but.
+    expect(mobileSession).toContain("href={INSTRUMENT_VIEW_ROUTE}");
     expect(mobileSession).toContain("Open chart.");
     expect(mobileSession).not.toContain("/nectar/");
     expect(mobileSession).not.toContain("Open Nectar");

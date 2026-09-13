@@ -44,6 +44,7 @@ import {
 } from "@/lib/marketData/canonicalIdentity";
 import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { useCanvasClock } from "@/lib/marketData/viewModels/canvasClock";
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 
 const FRESH_WINDOW_MS = 30_000; // "live" = fresh trade within 30s
 
@@ -166,7 +167,7 @@ export function MobileSessionPill(): React.ReactElement | null {
 
   return (
     <Link
-      href="/charts"
+      href={INSTRUMENT_VIEW_ROUTE}
       aria-label={`${symbol} — ${accessibleStatus}, ${detail}. Open chart.`}
       title={`${symbol} · ${sessionToken}\n${accessibleStatus} — ${detail}`}
       className="wm-mobile-session-pill"

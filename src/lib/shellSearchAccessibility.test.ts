@@ -47,6 +47,9 @@ describe("global symbol search accessibility", () => {
     expect(layout).toContain('localStorage.setItem("wm_quick_syms"');
     expect(layout).toContain('/api/finnhub?q=${encodeURIComponent(query)}&type=search');
     expect(layout).toContain("setActiveSymbol(sym.toUpperCase())");
-    expect(layout).toContain('router.push("/charts")');
+    // Asserts the NAVIGATION, not the string. Picking a symbol is a NAMED
+    // destination, so it must derive from INSTRUMENT_VIEW_ROUTE — pinning the
+    // literal here is what let six files each keep their own copy of it.
+    expect(layout).toContain("router.push(INSTRUMENT_VIEW_ROUTE)");
   });
 });

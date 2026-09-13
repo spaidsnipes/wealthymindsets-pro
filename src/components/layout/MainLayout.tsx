@@ -30,6 +30,7 @@ import { useCapitalObservation, useCapitalReach } from "@/lib/experience/useActi
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { selectNavEmphasis } from "@/lib/experience/selectNavEmphasis";
 import { matchCuratedSymbols } from "@/lib/marketData/curatedSymbolCatalog";
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 
 /* ── All searchable symbols ─────────────────────────────── */
 /**
@@ -131,7 +132,7 @@ function SearchPanel({
 
   const pick = useCallback((sym: string) => {
     setActiveSymbol(sym.toUpperCase());
-    router.push("/charts");
+    router.push(INSTRUMENT_VIEW_ROUTE);
     onClose();
   }, [setActiveSymbol, router, onClose]);
 
@@ -732,7 +733,7 @@ function SettingsPanel({
 const NAV_CORE = [
   { href: "/morning-prep", icon: Sun,           label: "Morning Prep", tier: 1 },
   { href: "/command-deck", icon: Crosshair,     label: "Command Deck", tier: 1 },
-  { href: "/charts",       icon: BarChart2,     label: "Charts",       tier: 1 },
+  { href: INSTRUMENT_VIEW_ROUTE,       icon: BarChart2,     label: "Charts",       tier: 1 },
   { href: "/education",    icon: GraduationCap, label: "Academy",      tier: 2 },
   { href: "/journal",      icon: BookOpen,      label: "Journal",      tier: 2 },
 ];
@@ -764,7 +765,7 @@ const NAV_BOTTOM = [
 // OBSERVE (Charts) → DECIDE (Command Deck) → PRACTICE (Paper) →
 // REVIEW (Journal) → IDENTITY (Profile).
 const MOBILE_NAV_ITEMS = [
-  { href: "/charts", icon: BarChart2, label: "Charts" },
+  { href: INSTRUMENT_VIEW_ROUTE, icon: BarChart2, label: "Charts" },
   { href: "/command-deck", icon: Crosshair, label: "Command Deck" },
   { href: "/paper", icon: TrendingUp, label: "Paper" },
   { href: "/journal", icon: BookOpen, label: "Journal" },
@@ -1382,7 +1383,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       <MusicPlayer />
 
       {/* SpaidBot floating button */}
-      <div className={pathname === "/charts" ? "wm-spaidbot-chart-context" : undefined}>
+      <div className={pathname === INSTRUMENT_VIEW_ROUTE ? "wm-spaidbot-chart-context" : undefined}>
         <SpadeBotButton />
       </div>
 

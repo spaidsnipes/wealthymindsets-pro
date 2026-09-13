@@ -82,7 +82,10 @@ describe("same-screen market truth contract", () => {
     const tickerTape = source("../components/layout/TickerTape.tsx");
     expect(tickerTape).toContain("const chartPulseSymbols");
     expect(tickerTape).toContain(".slice(0, 4)");
-    expect(tickerTape).toContain('pathname === "/charts" ? chartPulseSymbols');
+    // "Am I on the instrument view?" is the same decision as "where is the
+    // instrument view" — so the predicate derives too. It read
+    // `pathname === "/charts"` in six places in this one file.
+    expect(tickerTape).toContain("pathname === INSTRUMENT_VIEW_ROUTE ? chartPulseSymbols");
     expect(tickerTape).toContain('{ animation: "none" }');
     // The invariant is that the fetch is SCOPED to the bounded requested set —
     // on /charts that is the 4-symbol pulse, never a full catalogue. The

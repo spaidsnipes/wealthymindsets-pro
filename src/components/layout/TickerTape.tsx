@@ -54,6 +54,7 @@ import {
   withTapeSymbol,
   withoutTapeSymbol,
 } from "@/lib/marketData/tapeSymbols";
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 
 const TAPE_STORAGE_KEY = "wm-tape-symbols";
 
@@ -514,7 +515,7 @@ export function TickerTape() {
     ...customSyms.filter(sym => sym === activeSymbol),
     ...customSyms.filter(sym => sym !== activeSymbol),
   ].slice(0, 4);
-  const requestedTapeSymbols = pathname === "/charts" ? chartPulseSymbols : customSyms;
+  const requestedTapeSymbols = pathname === INSTRUMENT_VIEW_ROUTE ? chartPulseSymbols : customSyms;
   // Depend on the CONTENT of the requested list, not the array identity.
   // `customSyms` is state holding an array: the after-mount effect calls
   // setCustomSyms(stored), which produces a NEW array even when the contents
@@ -606,8 +607,8 @@ export function TickerTape() {
 
   const handleClick = (sym: string) => {
     setActiveSymbol(sym);
-    if (pathname !== "/charts") {
-      router.push("/charts");
+    if (pathname !== INSTRUMENT_VIEW_ROUTE) {
+      router.push(INSTRUMENT_VIEW_ROUTE);
     }
   };
 
@@ -619,11 +620,11 @@ export function TickerTape() {
   // happens; this is what makes the number it prints correct. Safe against
   // hydration mismatch because `quotes` is empty on the server and on the
   // first client render, so no age is computed until after mount.
-  const visibleTickers = (pathname === "/charts" ? chartPulseSymbols : customSyms)
+  const visibleTickers = (pathname === INSTRUMENT_VIEW_ROUTE ? chartPulseSymbols : customSyms)
     .map(sym => rowFor(sym, quotes, refusals, Date.now()));
 
   /* Charts keeps one stable pulse; other routes retain the seamless loop. */
-  const renderedTickers: TickerState[] = pathname === "/charts"
+  const renderedTickers: TickerState[] = pathname === INSTRUMENT_VIEW_ROUTE
     ? visibleTickers
     : [...visibleTickers, ...visibleTickers];
 
@@ -642,13 +643,13 @@ export function TickerTape() {
   return (
     <div className="h-full flex items-center relative" style={{ overflow: "hidden" }}>
       <div className="ticker-wrap flex-1 h-full flex items-center" style={{ overflow: "hidden" }}>
-        <div className="ticker-inner" style={pathname === "/charts" ? { animation: "none" } : undefined}>
+        <div className="ticker-inner" style={pathname === INSTRUMENT_VIEW_ROUTE ? { animation: "none" } : undefined}>
           {renderedTickers.map((t, i) => (
             <React.Fragment key={i}>
               <TickerItem
                 item={t}
                 onClick={() => handleClick(t.sym)}
-                active={t.sym === activeSymbol && pathname === "/charts"}
+                active={t.sym === activeSymbol && pathname === INSTRUMENT_VIEW_ROUTE}
               />
               <span className="text-wm-border text-xs select-none">|</span>
             </React.Fragment>

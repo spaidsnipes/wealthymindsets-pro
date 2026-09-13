@@ -16,6 +16,7 @@ import { useMarketCanvasVM } from "@/lib/marketData/viewModels/useMarketCanvasVM
 import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 
 const SYMBOLS = ["SPY","QQQ","AAPL","NVDA","TSLA","MSFT","META","AMZN","BTC","ETH"];
 
@@ -207,7 +208,7 @@ export default function AIBotPage() {
           )}
 
           <button
-            onClick={() => router.push("/charts")}
+            onClick={() => router.push(INSTRUMENT_VIEW_ROUTE)}
             className="mt-6 flex w-full items-center justify-between rounded-2xl border border-wm-blue/30 bg-wm-blue/10 px-4 py-3 text-sm font-black text-wm-blue transition-colors hover:bg-wm-blue/15"
           >
             Open observed chart data <ChevronRight size={16} />

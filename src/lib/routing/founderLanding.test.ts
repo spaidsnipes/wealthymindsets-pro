@@ -21,7 +21,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import manifest from "../../app/manifest";
-import { SRC_ROOT, stripComments } from "../ops/sourceGraph";
+import { SRC_ROOT, sourceFiles, stripComments } from "../ops/sourceGraph";
 import { FOUNDER_LANDING_ROUTE, INSTRUMENT_VIEW_ROUTE } from "./founderLanding";
 
 /**
@@ -122,6 +122,27 @@ describe("the Founder landing route has one owner", () => {
     );
     expect(sw, "the service worker pre-caches a manifest path that 404s")
       .not.toContain("/manifest.json");
+  });
+
+  it("no file outside the owner retypes the instrument-view route", () => {
+    /**
+     * The arrival-site guards above only watch four files. That left
+     * INSTRUMENT_VIEW_ROUTE a SHADOW OWNER: declared, exported, and consumed by
+     * two files while SIX others — MainLayout, TickerTape (seven times in one
+     * file), MobileSessionPill, ChartsDashboard, nectar, ai-bot — each kept a
+     * private "/charts". That is strictly worse than having no owner at all,
+     * because a reader who finds the constant concludes the decision is
+     * centralised and stops looking.
+     *
+     * Whole-repo, because the defect is not located anywhere in particular —
+     * it is located in every file that did not think of itself as routing.
+     */
+    // sourceFiles() already strips comments and excludes tests, so the only
+    // exemption needed is the owner itself — the one file allowed to say it.
+    const offenders = sourceFiles(["lib/routing/founderLanding.ts"])
+      .filter((f) => f.text.includes(`"${INSTRUMENT_VIEW_ROUTE}"`))
+      .map((f) => f.file);
+    expect(offenders, "these files retype the route instead of importing it").toEqual([]);
   });
 
   it("both routes are absolute app paths, not fragments", () => {
