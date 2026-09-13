@@ -275,6 +275,41 @@ describe("decision memory reachability", () => {
       .not.toMatch(/hasOpenPosition/);
   });
 
+  /**
+   * The blocker was visible in CI and invisible in the product.
+   *
+   * The Decision Receipt's empty headline said "No decision sealed yet —
+   * nothing to receipt." Every word true except "yet", which told the trader
+   * that sealing is something their next action causes. The assertions above
+   * prove it is not: no writer exists, so the receipt can never fill.
+   *
+   * This rule lives HERE rather than beside the selector on purpose. The fact
+   * that makes the disclosure correct — zero production writers — is measured
+   * in this file. Coupling the sentence to the measurement means that the day
+   * somebody wires a writer, the BLOCKER assertions above go red first and
+   * this one goes red with them, so the disclosure cannot outlive the
+   * condition it describes and quietly become the new lie.
+   */
+  it("the receipt DISCLOSES the unwired capability rather than implying a pending one", () => {
+    const vmSource = readFileSync(
+      join(SRC, "lib/traderMemory/viewModels/selectDecisionReceipt.ts"),
+      "utf8",
+    );
+    const headline = vmSource.match(
+      /DECISION_RECEIPT_UNWIRED_HEADLINE\s*=\s*\n?\s*"([^"]+)"/,
+    )?.[1];
+
+    expect(headline, "the empty-receipt headline constant was renamed or inlined").toBeTruthy();
+    // It must name the CAUSE (not wired), not a waiting state.
+    expect(headline).toMatch(/not wired/i);
+    // And it must not promise a future this build cannot deliver.
+    expect(headline, '"yet" implies sealing arrives after the trader acts')
+      .not.toMatch(/\byet\b/i);
+
+    // The selector must actually use the constant, not keep a second literal.
+    expect(stripComments(vmSource)).toContain("headline: DECISION_RECEIPT_UNWIRED_HEADLINE");
+  });
+
   it("no production caller collapses an unobservable position into `false`", () => {
     // Rename-resilient: any surface calling inferJobMode must pass a
     // CapitalObservation string, never a boolean literal.

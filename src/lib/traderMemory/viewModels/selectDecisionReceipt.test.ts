@@ -9,6 +9,7 @@ import { describe, it, expect } from "vitest";
 import {
   selectDecisionReceipt,
   DECISION_RECEIPT_VERSION,
+  DECISION_RECEIPT_UNWIRED_HEADLINE,
 } from "./selectDecisionReceipt";
 import {
   DECISION_MEMORY_SCHEMA_VERSION,
@@ -92,7 +93,16 @@ describe("selectDecisionReceipt", () => {
     expect(vm.empty).toBe(true);
     expect(vm.decisionId).toBeNull();
     expect(vm.commitment).toHaveLength(0);
-    expect(vm.headline).toMatch(/nothing to receipt/i);
+    // This asserted /nothing to receipt/ beside the old copy, "No decision
+    // sealed yet — nothing to receipt." The clause it checked was the true
+    // half; the word that mattered was "yet", and no assertion was looking at
+    // it. Sealing has zero production writers (proved in
+    // decisionMemoryReachability.test.ts), so "yet" promised the trader a
+    // receipt this build can never produce. The headline is now a disclosure
+    // of the unwired capability, and the wording rule lives beside the
+    // measurement that justifies it rather than here.
+    expect(vm.headline).toBe(DECISION_RECEIPT_UNWIRED_HEADLINE);
+    expect(vm.headline).not.toMatch(/\byet\b/i);
   });
 
   it("compiles the verbatim commitment for a sealed trade", () => {

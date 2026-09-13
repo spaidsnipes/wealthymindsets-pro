@@ -135,6 +135,38 @@ function worstFreshness(record: DecisionMemoryRecord): string {
   return worst;
 }
 
+/**
+ * The empty headline is a DISCLOSURE, not a waiting message.
+ *
+ * It read "No decision sealed yet — nothing to receipt." for as long as this
+ * surface has existed. Every word of that is true except the most important
+ * one. "Yet" tells the trader that sealing is something their next action will
+ * cause. It is not. `decisionMemoryReachability.test.ts` proves that
+ * `sealDecision` and every other mutator on the write path has ZERO production
+ * callers, and that `DecisionMemoryStore.put()` — the store's only ingress — is
+ * reached by nothing outside its own unit test. In production the store is not
+ * probably empty; it is provably empty, for every owner, forever, by
+ * construction.
+ *
+ * So the old copy asked a trader to keep trading and wait for a receipt that
+ * this build can never produce. That is a §35 PROTECTED TRUTH problem of the
+ * quietest kind: not a fabricated number, a fabricated FUTURE.
+ *
+ * The Founding Execution Contract §13 entry for this capability says to
+ * SURFACE the gap and explicitly NOT to rush-wire it — sealing needs a real
+ * decision surface and a real trigger, and inventing a caller to make this
+ * sentence true would manufacture exactly the unreachable ceremony the
+ * reachability gate exists to detect. So the capability stays unwired and the
+ * product stops implying otherwise. The blocker was visible in CI for two
+ * commits; it is now visible to the person using the software.
+ *
+ * If a writer is ever wired, `decisionMemoryReachability.test.ts` fails first —
+ * and it also pins this string, so the disclosure cannot outlive the condition
+ * it describes.
+ */
+export const DECISION_RECEIPT_UNWIRED_HEADLINE =
+  "Decision sealing is not wired in this build — no decision can be receipted.";
+
 function emptyReceipt(): DecisionReceiptVM {
   return {
     version: DECISION_RECEIPT_VERSION,
@@ -143,7 +175,7 @@ function emptyReceipt(): DecisionReceiptVM {
     stage: "SEALED",
     action: null,
     isNonTrade: false,
-    headline: "No decision sealed yet — nothing to receipt.",
+    headline: DECISION_RECEIPT_UNWIRED_HEADLINE,
     thesis: null,
     commitment: [],
     processFacts: [],
