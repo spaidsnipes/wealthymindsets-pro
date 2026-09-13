@@ -1086,11 +1086,15 @@ function CommandDeckInner() {
                 open={proofChainOpen}
                 onToggle={event => setProofChainOpen(event.currentTarget.open)}
                 style={{
+                  // SCENE_FRAGMENTATION cure: even when collapsed, the
+                  // full-box brass border + opaque dark fill made this
+                  // read as a distinct "evidence app" sitting inside the
+                  // room. WHY is an aspect of the same decision — a
+                  // hairline delimits it; the room's atmosphere passes
+                  // through.
                   order: surfaceOrder(deckEmphasis, "WHY"),
-                  border: "1px solid rgba(139,106,41,0.28)",
-                  borderRadius: 12,
-                  background: "rgba(10,12,18,0.72)",
-                  overflow: "hidden",
+                  borderTop: "1px solid rgba(139,106,41,0.22)",
+                  background: "transparent",
                 }}
               >
                 <summary
