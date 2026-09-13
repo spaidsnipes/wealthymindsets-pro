@@ -273,13 +273,14 @@ describe("responsive P0 command surfaces", () => {
     expect(challenge).not.toContain('className="min-h-screen');
   });
 
-  it("keeps the Command Deck proof chain available without stacking it into the primary read", () => {
+  it("keeps detailed reasoning collapsed while MARKET stays in the primary read", () => {
     const deck = source("../app/command-deck/page.tsx");
     expect(deck).toContain('className="wm-cd-evidence-drawer"');
     expect(deck).toContain("Evidence &amp; reasoning");
     expect(deck).toContain("Open the proof chain");
     expect(deck.indexOf("wm-cd-evidence-drawer")).toBeLessThan(deck.indexOf("<DecisionWhyPanel"));
-    expect(deck.indexOf("wm-cd-evidence-drawer")).toBeLessThan(deck.indexOf("<MarketCanvasPanel"));
+    expect(deck.indexOf("<MarketCanvasPanel")).toBeLessThan(deck.indexOf("wm-cd-evidence-drawer"));
+    expect(deck.indexOf("<DeckExpressionShortlist")).toBeLessThan(deck.indexOf("wm-cd-evidence-drawer"));
     expect(deck).toContain("setProofChainOpen(deckEmphasis.emphasizeWhy)");
     expect(deck).not.toContain("deckEmphasis.emphasizeWhy || deckEmphasis.passportOpen");
     expect(deck).not.toContain("CinematicAtmosphere");

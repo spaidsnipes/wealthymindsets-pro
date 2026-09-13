@@ -63,6 +63,7 @@ import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import DeckMarketChart from "@/components/experience/DeckMarketChart";
 import AvailableRChip from "@/components/experience/AvailableRChip";
+import DeckExpressionShortlist from "@/components/experience/DeckExpressionShortlist";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import { composeMarketCanvasVM } from "@/lib/marketData/viewModels/composeMarketCanvasVM";
 import DecisionReceiptPanel from "@/components/experience/DecisionReceiptPanel";
@@ -887,6 +888,21 @@ function CommandDeckInner() {
               expression={null}
             />
 
+            {/* Ticket T's actual MARKET / RISK / NEXT working surface belongs
+                on the default Founder scene. It must not sit inside the
+                collapsed proof drawer: the spine summarizes these owners;
+                this surface lets the trader inspect them. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <AvailableRChip vm={chainVm?.availableR ?? null} />
+              <DeckMarketChart symbol={symbol} timeframe={timeframe} />
+              <MarketCanvasPanel vm={marketCanvas} />
+              <DeckExpressionShortlist
+                symbol={symbol}
+                spot={state?.price?.last ?? null}
+                direction={null}
+              />
+            </div>
+
             {/* Today's morning-prep intention (if any) — the PREP→OBSERVE
                 bridge from Founder Aug-14 §14 'Morning Prep intention
                 appears later in review.' Silent when no entry today
@@ -1022,32 +1038,6 @@ function CommandDeckInner() {
                       between them and entry (or why the path is clear). */}
                   <div style={{ order: surfaceOrder(deckEmphasis, "WHY") }}>
                     <DecisionWhyPanel vm={decisionWhy} />
-                  </div>
-
-              {/* canon §Phase 3 Market Canvas — the visible three-corner
-                  canvas (MISSING / WHY NOT / WOULD INVALIDATE). Renders
-                  silently when every corner is empty (canon §Silence Is
-                  A Feature). The fourth corner (WHY?) stays with
-                  WhyInspector because it needs per-target evidence. */}
-                  <div style={{ order: surfaceOrder(deckEmphasis, "STORY") }}>
-                    {/* Ticket T MARKET requires "real TSLA market/chart
-                        evidence" — until this landed, the section was only
-                        the chip-list panel below. A trader arrived at the
-                        default Founder scene with a decision compilation and
-                        no visible market. The chart carries its own truthful
-                        LOADING/EMPTY/UNAVAILABLE states; nothing is drawn
-                        when nothing has arrived. */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      {/* Ticket T RISK pixel — DecisionChainPanel already
-                          receives availableR, but that panel lives in the
-                          "Deep read" drawer collapsed by default. The Founder
-                          asked for VISIBLE RISK pixels, not one-click-away
-                          ones. This chip derives from the same VM the chain
-                          panel does; there is no second computation. */}
-                      <AvailableRChip vm={chainVm?.availableR ?? null} />
-                      <DeckMarketChart symbol={symbol} timeframe={timeframe} />
-                      <MarketCanvasPanel vm={marketCanvas} />
-                    </div>
                   </div>
 
               {/* Market Object Passports (canon P6 Object DNA) — a contextual
