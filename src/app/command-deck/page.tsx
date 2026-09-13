@@ -615,7 +615,35 @@ function CommandDeckInner() {
         does not lose functionality — it lets the eye reach the room.
       */}
 
-      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "12px 16px", position: "relative" }}>
+      {/*
+        SCENE_FRAGMENTATION repair, §30 STEP 2 ("Make MARKET the dominant
+        continuous spatial field").
+
+        This was `maxWidth: 1280`. Measured live on production at 1920x847:
+        the market room rendered 1248px wide starting at x=334, so 672px —
+        35% of the screen — was dead sanctuary field down the left and right
+        edges while the candle canvas itself owned only 29% of viewport AREA.
+
+        1280 is a READING measure. It is the right cap for prose, where a long
+        line is genuinely harder to scan, and it is how nearly every dashboard
+        container in this codebase was born. It is the wrong cap for a market
+        room: price geometry has no comfortable line length, and every pixel
+        the cap refuses is a pixel of structure the trader cannot see. The room
+        was being asked to behave like a document.
+
+        `min(1720px, 100%)` still refuses the extreme — an unbounded room on an
+        ultrawide would stretch the candle field past what one gaze can hold,
+        and the header above is centered chrome that would detach from it. Below
+        1720 this resolves to 100% and behaves exactly as the old cap did at
+        every laptop width, so nothing that already landed at 1280-or-narrower
+        moves.
+
+        The companion change lives in the `.wm-cd-market-workspace` grid below:
+        the context rail was `minmax(280px, 0.62fr)`, which would have spent
+        ~35% of every new pixel widening RISK/WHY/NEXT. It is now bounded, so
+        the width this cap releases goes to MARKET and only to MARKET.
+      */}
+      <main style={{ maxWidth: "min(1720px, 100%)", margin: "0 auto", padding: "12px 16px", position: "relative" }}>
         {/*
           SCENE_FRAGMENTATION repair (Founder audit 2026-09-13, §30 STEP 3
           "Embed NOW into MARKET").
@@ -708,7 +736,15 @@ function CommandDeckInner() {
             @media (min-width: 1100px) {
               .wm-cd-market-workspace {
                 display: grid !important;
-                grid-template-columns: minmax(0, 1.8fr) minmax(280px, 0.62fr);
+                /* The rail is BOUNDED, not proportional. It was
+                   minmax(280px, 0.62fr), which shares every new pixel with
+                   MARKET at roughly 35/65 — so widening the room above would
+                   have quietly widened RISK/WHY/NEXT too. RISK is a chip, WHY
+                   is a closed summary line, NEXT is a shortlist; none of them
+                   read better at 440px than at 340px. MARKET is the only thing
+                   in this scene that gains meaning from width, so it takes
+                   1fr and the rail takes a fixed measure. */
+                grid-template-columns: minmax(0, 1fr) 340px;
                 grid-template-areas:
                   "now now"
                   "market context";
