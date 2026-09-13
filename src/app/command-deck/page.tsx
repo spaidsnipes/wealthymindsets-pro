@@ -1811,47 +1811,50 @@ function CommandDeckInner() {
                 })}
               />
             )}
+
+            {/* Doctrine and cross-realm navigation are useful orientation,
+                but neither belongs on the default trading canvas. Keeping
+                both inside the contextual workspace preserves every route
+                while preventing a second permanent footer/navigation system
+                from rebuilding the dashboard beneath MARKET. */}
+            <div
+              data-testid="secondary-workspace-doctrine"
+              style={{
+                paddingTop: 20,
+                marginTop: 12,
+                borderTop: "1px solid rgba(139,106,41,0.25)",
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "Georgia, 'Times New Roman', serif",
+                  fontSize: 12,
+                  letterSpacing: 0.4,
+                  color: "#c9a55c",
+                  marginBottom: 6,
+                }}
+              >
+                OBSERVE TRUTH · PROTECT PROCESS · COMPOUND WISDOM
+              </div>
+              <div
+                style={{
+                  fontSize: 10,
+                  letterSpacing: 0.3,
+                  textTransform: "uppercase",
+                  color: "#55503f",
+                }}
+              >
+                Regime → Direction → Location → Auction → Aggression → CLC → Available R → Permission → Management
+              </div>
+            </div>
+
+            <RealmGateway currentKey="wm-pro" />
               </div>
             </details>
           </div>
 
         </div>
-
-        {/* Doctrine footer — mirrors the mockup cadence:
-            'THE MIRROR REFLECTS. YOU EVOLVE.' */}
-        <div
-          style={{
-            paddingTop: 20,
-            marginTop: 32,
-            borderTop: "1px solid rgba(139,106,41,0.25)",
-            textAlign: "center",
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "Georgia, 'Times New Roman', serif",
-              fontSize: 12,
-              letterSpacing: 0.4,
-              color: "#c9a55c",
-              marginBottom: 6,
-            }}
-          >
-            OBSERVE TRUTH · PROTECT PROCESS · COMPOUND WISDOM
-          </div>
-          <div
-            style={{
-              fontSize: 10,
-              letterSpacing: 0.3,
-              textTransform: "uppercase",
-              color: "#55503f",
-            }}
-          >
-            Regime → Direction → Location → Auction → Aggression → CLC → Available R → Permission → Management
-          </div>
-        </div>
-
-        {/* Realm Gateway — 5-tile bottom band from Founder mockups. */}
-        <RealmGateway currentKey="wm-pro" />
         </div>{/* end z-index wrapper */}
       </main>
     </div>

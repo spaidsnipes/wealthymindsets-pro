@@ -309,15 +309,18 @@ describe("responsive P0 command surfaces", () => {
     const connections = deck.indexOf('className="wm-cd-connection-diagnostics"', content);
     const system = deck.indexOf("System state · session · data · evidence · right-of-way", content);
     const deepRead = deck.indexOf("Deep read · story · auction lens · decision chain · steward · fidelity", content);
-    const workspaceEnd = deck.indexOf("{/* Doctrine footer", deepRead);
+    const doctrine = deck.indexOf('data-testid="secondary-workspace-doctrine"', deepRead);
+    const gateway = deck.indexOf('<RealmGateway currentKey="wm-pro" />', doctrine);
     expect(workspace).toBeGreaterThan(room);
     expect(content).toBeGreaterThan(workspace);
     expect(connections).toBeGreaterThan(content);
     expect(system).toBeGreaterThan(connections);
     expect(deepRead).toBeGreaterThan(system);
-    expect(deepRead).toBeLessThan(workspaceEnd);
+    expect(doctrine).toBeGreaterThan(deepRead);
+    expect(gateway).toBeGreaterThan(doctrine);
     expect(deck.slice(workspace, content)).not.toContain("open=");
     expect(deck.match(/className="wm-cd-secondary-workspace"/g)).toHaveLength(1);
+    expect(deck.match(/<RealmGateway currentKey="wm-pro" \/>/g)).toHaveLength(1);
   });
 
   it("compresses an unresolved room hero without hiding its market-state truth", () => {
