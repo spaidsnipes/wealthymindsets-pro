@@ -73,10 +73,13 @@ export function DecisionReceiptPanel({ vm }: DecisionReceiptPanelProps): React.R
     <section
       aria-label="Decision receipt"
       style={{
-        border: `1px solid ${HAIR}`,
-        borderRadius: 10,
-        padding: "12px 14px",
-        background: "rgba(255,255,255,0.015)",
+        // SCENE_FRAGMENTATION cure: the receipt panel is REVIEW-mode
+        // material — an aspect of the same decision the deck is
+        // reading, not a separate application. Hairline continues the
+        // room; the full box made it read as "receipt app".
+        borderTop: `1px solid ${HAIR}`,
+        padding: "12px 0 4px",
+        background: "transparent",
       }}
     >
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8 }}>
