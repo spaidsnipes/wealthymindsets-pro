@@ -245,14 +245,14 @@ export function DeckMarketChart({
         <div
           ref={containerRef}
           data-testid="deck-market-chart-canvas"
-          style={{ width: "100%", height: 240 }}
+          style={{ width: "100%", height: 360 }}
         />
       )}
 
       {state.kind === "LOADING" && (
         <div
           data-testid="deck-market-chart-loading"
-          style={{ height: 240, display: "flex", alignItems: "center", justifyContent: "center",
+          style={{ height: 360, display: "flex", alignItems: "center", justifyContent: "center",
                    color: "#8a8271", fontSize: 11, letterSpacing: 0.3 }}
         >
           Loading candles…
@@ -262,7 +262,7 @@ export function DeckMarketChart({
       {state.kind === "EMPTY" && (
         <div
           data-testid="deck-market-chart-empty"
-          style={{ height: 240, display: "flex", alignItems: "center", justifyContent: "center",
+          style={{ height: 360, display: "flex", alignItems: "center", justifyContent: "center",
                    color: "#8a8271", fontSize: 11, letterSpacing: 0.3, fontStyle: "italic" }}
         >
           No candles yet for {symbol} {timeframe}.
@@ -272,7 +272,7 @@ export function DeckMarketChart({
       {state.kind === "UNAVAILABLE" && (
         <div
           data-testid="deck-market-chart-unavailable"
-          style={{ height: 240, display: "flex", alignItems: "center", justifyContent: "center",
+          style={{ height: 360, display: "flex", alignItems: "center", justifyContent: "center",
                    color: "#c05a4a", fontSize: 11, letterSpacing: 0.3 }}
         >
           Chart evidence unavailable — {state.reason}
@@ -280,7 +280,7 @@ export function DeckMarketChart({
       )}
 
       {state.kind === "IDLE" && (
-        <div style={{ height: 240 }} data-testid="deck-market-chart-idle" />
+        <div style={{ height: 360 }} data-testid="deck-market-chart-idle" />
       )}
     </section>
   );
