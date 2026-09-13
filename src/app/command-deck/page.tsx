@@ -74,6 +74,7 @@ import {
 } from "@/lib/expressionShortlist";
 import { birthOnPermissionCrossing } from "@/lib/traderMemory/permissionBirth";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
+import { SanctuarySessionProvider, type SanctuarySessionSignal } from "@/lib/experience/sanctuarySessionContext";
 import type { OptionContract, OptionChainFidelity, OptionChainSource } from "@/lib/optionContractResponse";
 import type { DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
@@ -583,7 +584,20 @@ function CommandDeckInner() {
     setShowEvidence(true);
   };
 
+  // Founder brief (2026-09-13): "CLOSED: last verified market picture remains.
+  // Calm. No fake candle activity." Publish the session signal to the shell's
+  // sanctuary so the WATER-BREATH slows to WAIT tempo when the tape is closed.
+  // The token vocabulary from selectCanonicalSessionToken is "PREMARKET" /
+  // "RTH" / "AFTER" / "CLOSED" / "UNKNOWN" — everything that is not CLOSED
+  // is treated as OPEN (the tape can move), and UNKNOWN reads as UNKNOWN so
+  // silence never implies a decision.
+  const sanctuarySession: SanctuarySessionSignal =
+    sessionTruth.token === "CLOSED" ? "CLOSED" :
+    sessionTruth.token === "UNKNOWN" ? "UNKNOWN" :
+                                       "OPEN";
+
   return (
+    <SanctuarySessionProvider value={sanctuarySession}>
     <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #050506 0%, #0b0b0d 100%)", color: "#ede6d3" }}>
       {/* Nav header */}
       <header
@@ -1905,6 +1919,7 @@ function CommandDeckInner() {
         </div>{/* end z-index wrapper */}
       </main>
     </div>
+    </SanctuarySessionProvider>
   );
 }
 

@@ -3,6 +3,7 @@ import * as React from "react";
 import { WM } from "@/lib/design/wmTokens";
 import type { DecisionContextBus } from "@/lib/experience/decisionContextBus";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
+import { useSanctuarySession } from "@/lib/experience/sanctuarySessionContext";
 import { shellEmphasis } from "@/lib/experience/shellLayout";
 import ExperienceModeBar from "./ExperienceModeBar";
 
@@ -21,6 +22,25 @@ import ExperienceModeBar from "./ExperienceModeBar";
  * the reflection modes. It performs NO market computation and touches NO market
  * logic — it wraps whatever canvas the caller provides.
  */
+/**
+ * Session dimension the sanctuary is allowed to observe.
+ *
+ * The Founder brief (2026-09-13) is explicit that CLOSED reads CALM: "last
+ * verified market picture remains. Calm. No fake candle activity." Ambient
+ * WATER-BREATH is not market truth, but reading like a busy trading room
+ * behind a closed tape is exactly the pretend-alive shape the brief was
+ * written to abolish. So the sanctuary accepts ONE session signal, tunes
+ * its tempo to it, and refuses everything else.
+ *
+ * Kept as a small closed union — never a canonical MarketQualityState —
+ * because those states are producer identities and the sanctuary is a
+ * consumer costume. "OPEN" is the default and covers PREMARKET/RTH/AFTER
+ * as a single "the tape can move" bucket; "CLOSED" is the founder canon
+ * word from §7; "UNKNOWN" is the honest default when the caller has not
+ * yet resolved a session.
+ */
+export type WMExperienceSessionSignal = "OPEN" | "CLOSED" | "UNKNOWN";
+
 export interface WMExperienceShellProps {
   /** Quiet brand slot — caller passes the compact wordmark. */
   readonly brand?: React.ReactNode;
@@ -33,6 +53,12 @@ export interface WMExperienceShellProps {
   /** Injected bus for tests/stories; defaults to the singleton. */
   readonly bus?: DecisionContextBus;
   readonly className?: string;
+  /**
+   * The scene's session, if the caller knows it. When absent or "UNKNOWN"
+   * the sanctuary defaults to OBSERVE tempo — the brief allows breath at
+   * that intensity; what it forbids is BUSY behind a CLOSED tape.
+   */
+  readonly session?: WMExperienceSessionSignal;
 }
 
 export function WMExperienceShell({
@@ -42,9 +68,16 @@ export function WMExperienceShell({
   railLabel = "Context",
   bus,
   className,
+  session = "UNKNOWN",
 }: WMExperienceShellProps) {
   const { context } = useDecisionContext(bus);
   const emphasis = shellEmphasis(context.mode);
+  // The prop wins over the context — an explicit caller (mostly tests and
+  // the founder-room preview) can override the surrounding page's signal
+  // without a Provider hop. When the prop is UNKNOWN (the default), the
+  // context's answer takes over.
+  const contextSession = useSanctuarySession();
+  const resolvedSession = session === "UNKNOWN" ? contextSession : session;
 
   // The guest rail's default follows the current job's emphasis; a mode switch
   // reorganises the environment around the new job. The human may still toggle.
@@ -64,6 +97,7 @@ export function WMExperienceShell({
     <div
       className={`wm-sanctuary ${className ?? ""}`}
       data-mode={context.mode}
+      data-session={resolvedSession}
       style={{
         position: "relative",
         display: "flex",
@@ -177,6 +211,17 @@ export function WMExperienceShell({
              Slow the ambient cycle by half so the ceremony reads calm. */
           .wm-sanctuary[data-mode="WAIT"] > .wm-water-breath {
             animation-duration: 52s;
+          }
+          /* Founder brief (2026-09-13): "CLOSED: last verified market picture
+             remains. Calm. No fake candle activity." Ambient breath is not
+             market truth, but reading BUSY behind a closed tape is exactly the
+             pretend-alive shape the brief was written to abolish. When the
+             session signal is CLOSED, the sanctuary reads at WAIT's tempo
+             regardless of the trader's job — the room is calm because the
+             market is calm, not because the trader is waiting. */
+          .wm-sanctuary[data-session="CLOSED"] > .wm-water-breath {
+            animation-duration: 52s;
+            opacity: 0.55;
           }
         }
         @keyframes wm-breathe {
