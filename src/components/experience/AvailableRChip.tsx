@@ -53,12 +53,42 @@ export function formatAvailableRLabel(vm: AvailableRVM | null): string {
 }
 
 /**
+ * The null-VM disclosure.
+ *
+ * §13 SURFACE, DO NOT RUSH-WIRE. `selectDecisionChain` only produces an
+ * `availableR` when it is handed `availableRInputs`, and that field has ZERO
+ * production referencers — only its own declaration and its unit test. The
+ * deck calls `selectDecisionChain({ state, history, nowMs, phase })`. So on
+ * /command-deck `chainVm.availableR` is not probably null; it is provably
+ * null, for every trader, forever, by construction.
+ *
+ * The old copy read "Available R has not been evaluated on this scene." Every
+ * word true except the tense, which tells a trader that evaluation is
+ * something their next action causes. It is not. That is the same fabricated
+ * FUTURE as the Decision Receipt's "No decision sealed YET" — not a wrong
+ * number, a wrong promise, and no numeric-truth gate can see it.
+ *
+ * This sentence instead names the CONDITION and what would have to exist to
+ * change it. It does not invent an entry, a stop, or an R. Wiring a real
+ * declaration surface is a separate, non-rushed atom.
+ *
+ * The rule that this wording must stay is enforced in
+ * `availableRReachability.test.ts`, BESIDE the zero-producer measurement that
+ * justifies it — so the day somebody wires a producer, the measurement goes
+ * red first and drags this disclosure red with it. The disclosure cannot
+ * outlive its condition and quietly become the new lie.
+ */
+export const AVAILABLE_R_UNWIRED_DETAIL =
+  "Available R needs a declared entry and a declared structural invalidation. " +
+  "No surface in this build declares them, so no R can be computed here.";
+
+/**
  * PURE — one sentence explaining the VM state to a trader who has never read
  * the risk kernel. Missing inputs win over `reason` because a name is more
  * actionable than prose ("stop needed" beats "cannot compute").
  */
 export function selectAvailableRDetail(vm: AvailableRVM | null): string {
-  if (!vm) return "Available R has not been evaluated on this scene.";
+  if (!vm) return AVAILABLE_R_UNWIRED_DETAIL;
   if (vm.missingInputs.length > 0) {
     return `Missing: ${vm.missingInputs.join(", ")}.`;
   }
