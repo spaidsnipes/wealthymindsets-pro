@@ -10,7 +10,7 @@
  * need (alpacaAdapter checks ALPACA_KEY/SECRET, tastytradeAdapter checks
  * three TASTYTRADE_* vars, moomooAdapter checks two MOOMOO_BRIDGE_* vars,
  * webull market-data checks WEBULL_* …). There was no ONE inspectable,
- * testable receipt that says, per provider, READY or BLOCKED(missing VAR) —
+ * testable receipt that says, per provider, CONFIGURED or BLOCKED(missing VAR) —
  * and no way to prove the local `.env.local` and the Cloudflare host carry
  * the SAME set (env parity).
  *
@@ -25,10 +25,10 @@
  *   - PURE / DETERMINISTIC: no clock, no I/O, no randomness, no process.env
  *     read of its own — the caller passes the env map so tests are total.
  *
- * A provider being READY here means "the credentials needed to attempt a
+ * A provider being CONFIGURED here means "the credentials needed to attempt a
  * connection are present." It is deliberately WEAKER than a live health
  * check or the broker Certification Harness (certification.ts) — presence
- * of a key is necessary, not sufficient. Never round READY up to
+ * of a key is necessary, not sufficient. Never round CONFIGURED up to
  * "connected" or "certified."
  */
 
@@ -45,14 +45,14 @@ export type ProviderId =
   | "polygon"
   | "livekit";
 
-export type ReadinessStatus = "READY" | "BLOCKED";
+export type ReadinessStatus = "CONFIGURED" | "BLOCKED";
 
 export type ProviderLane = "market-data" | "broker" | "realtime";
 
 /**
  * Declarative requirement for one provider lane. `required` names MUST all
- * be present & non-empty for READY; `recommended` names improve fidelity
- * (e.g. an explicit host/canary symbol) but do not gate READY.
+ * be present & non-empty for CONFIGURED; `recommended` names improve fidelity
+ * (e.g. an explicit host/canary symbol) but do not gate CONFIGURED.
  */
 export interface ProviderRequirement {
   readonly provider: ProviderId;
@@ -216,7 +216,7 @@ function requirementFor(provider: ProviderId): ProviderRequirement {
 }
 
 /**
- * Compute readiness for a single provider. READY iff every required var is
+ * Compute readiness for a single provider. CONFIGURED iff every required var is
  * present & non-empty. Never inspects values beyond presence.
  */
 export function computeProviderReadiness(
@@ -225,7 +225,7 @@ export function computeProviderReadiness(
 ): ProviderReadiness {
   const req = requirementFor(provider);
   // A complete alternative credential set satisfies the whole required list.
-  // Empty groups are ignored so a stray `[]` can never declare READY.
+  // Empty groups are ignored so a stray `[]` can never declare CONFIGURED.
   const satisfiedByGroup = (req.alternativeGroups ?? []).some(
     (group) => group.length > 0 && group.every((name) => isEnvPresent(env, name)),
   );
@@ -240,7 +240,7 @@ export function computeProviderReadiness(
     provider: req.provider,
     label: req.label,
     lane: req.lane,
-    status: missing.length === 0 ? "READY" : "BLOCKED",
+    status: missing.length === 0 ? "CONFIGURED" : "BLOCKED",
     missing,
     missingRecommended,
     note: req.note,
@@ -316,8 +316,8 @@ export function computeEnvParity(
 
 /** One-line summary for logs / the readiness dashboard. Never emits values. */
 export function readinessSummary(readiness: readonly ProviderReadiness[]): string {
-  const ready = readiness.filter((r) => r.status === "READY").length;
-  return `${ready}/${readiness.length} providers READY`;
+  const ready = readiness.filter((r) => r.status === "CONFIGURED").length;
+  return `${ready}/${readiness.length} provider setups present`;
 }
 
 /* ── Near-miss env names (the FINNHUB_KEY_ class) ────────────────────

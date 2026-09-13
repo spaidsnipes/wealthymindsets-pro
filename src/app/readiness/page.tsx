@@ -12,7 +12,7 @@
  * value-free) through the pure selectReadinessWireboard view-model. The
  * visible blocker for any BLOCKED provider names the ACTUAL proven edge —
  * the exact missing config NAME(s) as "NOT CONFIGURED" — and NEVER
- * "DELAYED BY ENTITLEMENT". READY is shown as "SETUP PRESENT",
+ * "DELAYED BY ENTITLEMENT". CONFIGURED is shown as "SETUP PRESENT",
  * strictly weaker than connected/certified, and labelled as such on-screen.
  *
  * The same page runs on BOTH lanes (local `next dev` and the deployed host);
@@ -238,7 +238,7 @@ export default function ReadinessPage() {
             ) : (
               <ul className="grid gap-3 md:grid-cols-2">
                 {state.wireboard.rows.map((row) => {
-                  const isReady = row.status === "READY";
+                  const isReady = row.status === "CONFIGURED";
                   return (
                     <li
                       key={row.provider}

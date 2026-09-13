@@ -72,7 +72,7 @@ describe("providerWireView", () => {
     const ready = alpacaReadinessWireView({
       providers: [
         { provider: "alpaca-paper", label: "Alpaca (paper)", lane: "broker", status: "BLOCKED", missing: ["ALPACA_PAPER_KEY", "ALPACA_PAPER_SECRET"], missingRecommended: [], note: "Paper pair." },
-        { provider: "alpaca-live", label: "Alpaca (live)", lane: "broker", status: "READY", missing: [], missingRecommended: [], note: "Live pair." },
+        { provider: "alpaca-live", label: "Alpaca (live)", lane: "broker", status: "CONFIGURED", missing: [], missingRecommended: [], note: "Live pair." },
       ],
     });
     expect(ready).toMatchObject({ source: "alpaca", tone: "LIMITED", label: "Configured to attempt" });

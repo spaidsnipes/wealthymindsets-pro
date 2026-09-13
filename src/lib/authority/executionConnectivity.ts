@@ -80,7 +80,7 @@ export function resolveExecutionReady(
     };
   }
 
-  if (readiness.status !== "READY") {
+  if (readiness.status !== "CONFIGURED") {
     const names = readiness.missing.join(", ");
     return {
       state: "AUTHORIZED_BUT_DISCONNECTED",

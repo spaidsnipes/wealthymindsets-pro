@@ -23,7 +23,7 @@ const readyProvider: ProviderReadiness = {
   provider: "alpaca-live",
   label: "Alpaca (live)",
   lane: "broker",
-  status: "READY",
+  status: "CONFIGURED",
   missing: [],
   missingRecommended: [],
   note: "Live-account key/secret pair.",

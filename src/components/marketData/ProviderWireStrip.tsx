@@ -196,7 +196,7 @@ export function webullTickWireView(receipt: MoomooTickReceipt): ProviderWireView
 
 export function alpacaReadinessWireView(payload: ReadinessPayload | null | undefined): ProviderWireView {
   const alpacaRows = selectReadinessWireboard(payload).rows.filter((row) => row.provider.startsWith("alpaca-"));
-  const ready = alpacaRows.filter((row) => row.status === "READY");
+  const ready = alpacaRows.filter((row) => row.status === "CONFIGURED");
   if (ready.length > 0) {
     return {
       source: "alpaca",
@@ -224,7 +224,7 @@ export function providerConfigReadinessWireView(
 ): ProviderWireView | null {
   const rows = selectReadinessWireboard(payload).rows.filter((row) => providerIds.includes(row.provider));
   if (rows.length === 0) return null;
-  const ready = rows.filter((row) => row.status === "READY");
+  const ready = rows.filter((row) => row.status === "CONFIGURED");
   if (ready.length > 0) {
     return {
       source,

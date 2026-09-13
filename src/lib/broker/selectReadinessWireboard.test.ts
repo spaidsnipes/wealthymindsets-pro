@@ -9,7 +9,7 @@ const ready: ProviderReadiness = {
   provider: "alpaca-live",
   label: "Alpaca (live)",
   lane: "broker",
-  status: "READY",
+  status: "CONFIGURED",
   missing: [],
   missingRecommended: [],
   note: "Live-account key/secret pair.",
@@ -55,7 +55,7 @@ describe("selectReadinessWireboard", () => {
   it("maps providers to rows preserving identity, lane, and status", () => {
     const wb = selectReadinessWireboard(payload([ready, blocked]));
     expect(wb.rows).toHaveLength(2);
-    expect(wb.rows[0]).toMatchObject({ provider: "alpaca-live", lane: "broker", status: "READY" });
+    expect(wb.rows[0]).toMatchObject({ provider: "alpaca-live", lane: "broker", status: "CONFIGURED" });
     expect(wb.rows[1]).toMatchObject({ provider: "webull-data", lane: "market-data", status: "BLOCKED" });
   });
 
@@ -71,7 +71,7 @@ describe("selectReadinessWireboard", () => {
     expect(row.blockerDetail.toUpperCase()).not.toContain("DELAYED");
   });
 
-  it("labels a READY provider honestly as not-yet-connected, never certified", () => {
+  it("labels a CONFIGURED provider honestly as not-yet-connected, never certified", () => {
     const wb = selectReadinessWireboard(payload([ready]));
     const row = wb.rows[0];
     expect(row.blockerClass).toBe("SETUP PRESENT");
@@ -79,10 +79,10 @@ describe("selectReadinessWireboard", () => {
     expect(row.blockerDetail.toLowerCase()).not.toContain("certified — ");
   });
 
-  it("surfaces a fidelity gap for a READY provider missing recommended vars, without blocking it", () => {
+  it("surfaces a fidelity gap for a CONFIGURED provider missing recommended vars, without blocking it", () => {
     const readyWithGap: ProviderReadiness = { ...ready, missingRecommended: ["ALPACA_FEED"] };
     const wb = selectReadinessWireboard(payload([readyWithGap]));
-    expect(wb.rows[0].status).toBe("READY");
+    expect(wb.rows[0].status).toBe("CONFIGURED");
     expect(wb.rows[0].blockerDetail).toContain("ALPACA_FEED");
     expect(wb.rows[0].blockerDetail.toLowerCase()).toContain("fidelity gap");
   });

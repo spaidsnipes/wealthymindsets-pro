@@ -25,14 +25,14 @@ describe("isEnvPresent", () => {
 });
 
 describe("computeProviderReadiness", () => {
-  it("READY only when every required var is present & non-empty", () => {
+  it("CONFIGURED only when every required var is present & non-empty", () => {
     const env: EnvPresence = {
       WEBULL_API_KEY: "k",
       WEBULL_API_SECRET: "s",
       WEBULL_API_HOST: "https://api.example",
     };
     const r = computeProviderReadiness("webull-data", env);
-    expect(r.status).toBe("READY");
+    expect(r.status).toBe("CONFIGURED");
     expect(r.missing).toEqual([]);
   });
 
@@ -43,14 +43,14 @@ describe("computeProviderReadiness", () => {
     expect(r.missing).toEqual(["WEBULL_APP_SECRET"]);
   });
 
-  it("recommended vars never gate READY but are reported as fidelity gaps", () => {
+  it("recommended vars never gate CONFIGURED but are reported as fidelity gaps", () => {
     const env: EnvPresence = {
       WEBULL_API_KEY: "k",
       WEBULL_API_SECRET: "s",
       WEBULL_API_HOST: "h",
     };
     const r = computeProviderReadiness("webull-data", env);
-    expect(r.status).toBe("READY");
+    expect(r.status).toBe("CONFIGURED");
     expect(r.missingRecommended).not.toContain("WEBULL_API_HOST");
     expect(r.missingRecommended).toContain("WEBULL_ACCESS_TOKEN");
     expect(r.missingRecommended).toContain("WEBULL_DATA_URL");
@@ -62,7 +62,7 @@ describe("computeProviderReadiness", () => {
       WEBULL_API_KEY: "k",
       WEBULL_API_SECRET: "s",
     });
-    expect(r.status).toBe("READY");
+    expect(r.status).toBe("CONFIGURED");
     expect(r.missing).toEqual([]);
     expect(r.missingRecommended).toContain("WEBULL_API_HOST");
     expect(r.missingRecommended).toContain("WEBULL_ACCESS_TOKEN");
@@ -123,7 +123,7 @@ describe("market-data & realtime lanes (the ones the receipt was blind to)", () 
   it("finnhub accepts the NEXT_PUBLIC_ fallback the route actually reads", () => {
     // /api/finnhub: process.env.FINNHUB_KEY ?? process.env.NEXT_PUBLIC_FINNHUB_KEY
     const r = computeProviderReadiness("finnhub", { NEXT_PUBLIC_FINNHUB_KEY: "k" });
-    expect(r.status).toBe("READY");
+    expect(r.status).toBe("CONFIGURED");
     expect(r.missing).toEqual([]);
   });
 
@@ -154,7 +154,7 @@ describe("market-data & realtime lanes (the ones the receipt was blind to)", () 
    */
   it("finnhub is satisfied by the trailing-underscore host name the code now reads", () => {
     const r = computeProviderReadiness("finnhub", { FINNHUB_KEY_: "redacted" });
-    expect(r.status).toBe("READY");
+    expect(r.status).toBe("CONFIGURED");
     expect(r.missing).toEqual([]);
   });
 
@@ -167,7 +167,7 @@ describe("market-data & realtime lanes (the ones the receipt was blind to)", () 
   });
 
   it("polygon accepts its NEXT_PUBLIC_ fallback, blocks with neither", () => {
-    expect(computeProviderReadiness("polygon", { NEXT_PUBLIC_POLYGON_KEY: "k" }).status).toBe("READY");
+    expect(computeProviderReadiness("polygon", { NEXT_PUBLIC_POLYGON_KEY: "k" }).status).toBe("CONFIGURED");
     expect(computeProviderReadiness("polygon", {}).missing).toEqual(["POLYGON_KEY"]);
   });
 
@@ -202,7 +202,7 @@ describe("declarative aliases & alternative groups", () => {
       WEBULL_API_KEY: "k",
       WEBULL_APP_SECRET: "s",
     });
-    expect(r.status).toBe("READY");
+    expect(r.status).toBe("CONFIGURED");
   });
 
   it("an alternative GROUP is all-or-nothing, unlike a per-name alias", () => {
@@ -304,13 +304,13 @@ describe("computeEnvParity (local ↔ host)", () => {
 });
 
 describe("readinessSummary", () => {
-  it("counts READY providers", () => {
+  it("counts configured provider setups without implying a live wire", () => {
     const env: EnvPresence = {
       ALPACA_KEY: "k",
       ALPACA_SECRET: "s",
     };
     const all = computeAllProviderReadiness(env);
-    expect(readinessSummary(all)).toBe(`1/${all.length} providers READY`);
+    expect(readinessSummary(all)).toBe(`1/${all.length} provider setups present`);
   });
 });
 
@@ -320,7 +320,7 @@ describe("Alpaca legacy Cloudflare readiness", () => {
       ALPACA_BROKERAGE_KEY: "legacy-key",
       ALPACA_BROKERAGE_KEY_SECRET_: "legacy-secret",
     });
-    expect(readiness.status).toBe("READY");
+    expect(readiness.status).toBe("CONFIGURED");
     expect(readiness.missing).toEqual([]);
     expect(allProviderEnvNames()).toEqual(expect.arrayContaining([
       "ALPACA_BROKERAGE_KEY",

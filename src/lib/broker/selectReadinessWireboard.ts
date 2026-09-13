@@ -11,7 +11,7 @@
  *  - The visible blocker names the ACTUAL proven edge — the exact missing
  *    config NAME(s) — never "DELAYED BY ENTITLEMENT". Presence-only truth:
  *    a missing var is `NOT CONFIGURED`, never an entitlement claim.
- *  - READY means "credentials to ATTEMPT a connection are present" — it is
+ *  - CONFIGURED means "credentials to ATTEMPT a connection are present" — it is
  *    strictly weaker than connected/certified and is labelled as such.
  *  - No secret VALUE ever flows through here; the input is presence booleans
  *    and variable NAMES only.
@@ -46,7 +46,7 @@ export interface WireboardRow {
   readonly status: ReadinessStatus;
   /**
    * The honest, proven blocker class. Presence-only readiness can only ever
-   * prove READY or NOT CONFIGURED (missing required var) — it deliberately
+   * prove CONFIGURED or NOT CONFIGURED (missing required var) — it deliberately
    * never claims AUTH BLOCKED / ENTITLEMENT / BRIDGE UNREACHABLE, which need
    * a live probe the certification harness owns.
    */
@@ -113,7 +113,7 @@ export interface ReadinessWireboard {
 }
 
 function blockerDetailFor(r: ProviderReadiness, mismatches: readonly WireboardNearMiss[]): string {
-  if (r.status === "READY") {
+  if (r.status === "CONFIGURED") {
     const gaps = r.missingRecommended.length > 0
       ? ` Fidelity gap — recommended not set: ${r.missingRecommended.join(", ")}.`
       : "";
@@ -154,7 +154,7 @@ export function selectReadinessWireboard(payload: ReadinessPayload | null | unde
       label: r.label,
       lane: r.lane,
       status: r.status,
-      blockerClass: r.status === "READY" ? "SETUP PRESENT" : "NOT CONFIGURED",
+      blockerClass: r.status === "CONFIGURED" ? "SETUP PRESENT" : "NOT CONFIGURED",
       blockerDetail: blockerDetailFor(r, nameMismatches),
       missing: r.missing,
       missingRecommended: r.missingRecommended,
@@ -162,7 +162,7 @@ export function selectReadinessWireboard(payload: ReadinessPayload | null | unde
       nameMismatches,
     };
   });
-  const readyCount = rows.filter((r) => r.status === "READY").length;
+  const readyCount = rows.filter((r) => r.status === "CONFIGURED").length;
   const envPresence = payload?.envPresence ?? [];
   const accountService = payload?.accountService;
   const accountConfigured = accountService?.configured === true;
