@@ -67,4 +67,34 @@ describe("Founder operating-room shell", () => {
     expect(columns, "a fr-sized rail shares every new pixel with MARKET")
       .not.toMatch(/0\.\d+fr/);
   });
+
+  it("keeps the deck and its suspense plane transparent to the sanctuary atmosphere", () => {
+    const raw = readFileSync(
+      resolve(__dirname, "../app/command-deck/page.tsx"),
+      "utf8",
+    );
+    const shell = readFileSync(
+      resolve(__dirname, "../components/experience/WMExperienceShell.tsx"),
+      "utf8",
+    );
+
+    expect(shell).toContain('className="wm-water-breath"');
+    expect(shell).toContain(".wm-sanctuary::before");
+    expect(shell).toContain(".wm-sanctuary::after");
+    expect(raw).toContain('data-testid="deck-suspense-plane"');
+    expect(raw).toContain('data-testid="deck-route-plane"');
+
+    const suspense = raw.slice(
+      raw.indexOf('data-testid="deck-suspense-plane"'),
+      raw.indexOf("<CommandDeckInner />"),
+    );
+    const route = raw.slice(
+      raw.indexOf('data-testid="deck-route-plane"'),
+      raw.indexOf("TICKET T G12"),
+    );
+    expect(suspense).toContain('background: "transparent"');
+    expect(route).toContain('background: "transparent"');
+    expect(suspense).not.toContain("linear-gradient");
+    expect(route).not.toContain("linear-gradient");
+  });
 });

@@ -187,9 +187,11 @@ interface DeckOptionSelection {
 export default function CommandDeckPage() {
   // useSearchParams must be inside a Suspense boundary during SSG. The
   // whole page reads it, so wrap the surface in a Suspense fallback that
-  // shows the deep-obsidian shell instantly.
+  // lets the parent sanctuary's deep-obsidian material plane remain visible
+  // instantly. An opaque route fallback would briefly cover the atmosphere
+  // that the Asset-10 parent owns.
   return (
-    <React.Suspense fallback={<div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #050506 0%, #0b0b0d 100%)" }} />}>
+    <React.Suspense fallback={<div data-testid="deck-suspense-plane" style={{ minHeight: "100vh", background: "transparent" }} />}>
       <CommandDeckInner />
     </React.Suspense>
   );
@@ -590,7 +592,14 @@ function CommandDeckInner() {
 
   return (
     <SanctuarySessionProvider value={sanctuarySession}>
-    <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #050506 0%, #0b0b0d 100%)", color: "#ede6d3" }}>
+    <div
+      data-testid="deck-route-plane"
+      style={{
+        minHeight: "100vh",
+        background: "transparent",
+        color: "#ede6d3",
+      }}
+    >
       {/*
         TICKET T G12: the July shell duplicates are gone.
 
