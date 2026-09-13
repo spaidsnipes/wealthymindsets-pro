@@ -39,8 +39,8 @@ describe("responsive P0 command surfaces", () => {
     // One owner of "this screen is too narrow", shared with the CSS below.
     expect(dashboard).toContain("useNarrowViewport");
 
-    // Exactly one instance at any width: rail OR sheet, never both. Two live
-    // copies would mean two poll loops against the same quote endpoint.
+    // Exactly one instance at any width: rail OR sheet, never both. Desktop
+    // opens its dense rail intentionally; narrow viewports use the sheet.
     expect(dashboard, "the rail must not render where CSS is hiding it")
       .toContain("{!narrowViewport && (");
     expect(dashboard, "the narrow-viewport surface is the drawer, not a second rail")
@@ -48,7 +48,8 @@ describe("responsive P0 command surfaces", () => {
 
     // A reachable door, wired to the drawer it opens.
     expect(dashboard).toContain('id="chart-watchlist-sheet"');
-    expect(dashboard).toContain('aria-controls="chart-watchlist-sheet"');
+    expect(dashboard).toContain('aria-controls={narrowViewport ? "chart-watchlist-sheet" : "chart-watchlist-rail"}');
+    expect(dashboard).toContain('id="chart-watchlist-rail"');
 
     // Reuse, not a phone-specific fork of the watchlist.
     expect(dashboard).toContain('variant="sheet"');
@@ -112,28 +113,23 @@ describe("responsive P0 command surfaces", () => {
       .toContain(".wm-chart-watchlist,");
   });
 
-  it("hides the drawing rail only where something else offers the drawing tools", () => {
-    // globals.css hides .wm-draw-rail at the same breakpoint it hides the
-    // watchlist. Twenty tools — trend line, ray, fib retracement — were mounted
-    // at zero size with no visible control reaching any of them: a trader on a
-    // phone could not draw a trendline. Hiding is not relocating.
+  it("replaces the permanent drawing rail with one contextual drawer", () => {
+    // The 20 drawing tools remain the same component and props at every width,
+    // but no longer form permanent July-style chrome around MARKET.
     const dashboard = source("../components/chart/ChartsDashboard.tsx");
     const sidebar = source("../components/chart/LeftDrawingSidebar.tsx");
 
-    expect(dashboard, "the rail must not render where CSS is hiding it")
-      .toContain("{!narrowViewport && <LeftDrawingSidebar");
-    expect(dashboard, "the narrow-viewport surface is the drawer, not a second rail")
-      .toContain("{narrowViewport && drawSheetOpen &&");
+    expect(dashboard).not.toContain("{!narrowViewport && <LeftDrawingSidebar");
+    expect(dashboard).toContain("{drawSheetOpen &&");
     expect(dashboard).toContain('id="chart-draw-sheet"');
     expect(dashboard).toContain('aria-controls="chart-draw-sheet"');
     expect(dashboard).toContain('<LeftDrawingSidebar {...drawingSidebarProps} variant="sheet" />');
 
-    // One props object, spread into both call sites. Written out twice, the
-    // rail and the sheet quietly become two different drawing surfaces.
+    // One props object, spread into the one canonical drawer call site.
     const declarations = dashboard.match(/const drawingSidebarProps\b/g) ?? [];
     expect(declarations.length, "drawingSidebarProps must be declared exactly once").toBe(1);
     const spreads = dashboard.match(/\{\.\.\.drawingSidebarProps\}/g) ?? [];
-    expect(spreads.length, "both the rail and the sheet must spread the same props").toBe(2);
+    expect(spreads.length, "the drawer must spread the canonical props once").toBe(1);
 
     expect(sidebar, "the sheet must not wear the class globals.css hides")
       .toContain('isSheet ? "wm-draw-sheet" : "wm-draw-rail"');
@@ -166,27 +162,23 @@ describe("responsive P0 command surfaces", () => {
     expect(sidebar).toMatch(/Math\.max\(8,\s*Math\.min\(left,\s*maxLeft\)\)/);
   });
 
-  it("hides the primary tool rail only where something else offers capture and share", () => {
-    // Measured at 375px: .wm-chart-primary-rail was display:none at 0x0 with
-    // seven controls mounted — Publish idea, Record video idea, Speak your
-    // mind, Screenshot chart (PNG), Record screen, Chart layout — none of
-    // which any visible control on a phone could reach.
+  it("replaces the permanent capture rail with one contextual drawer", () => {
+    // Publish, video, voice, screenshot, recording, and layout remain in the
+    // same component without permanently framing MARKET at desktop width.
     const dashboard = source("../components/chart/ChartsDashboard.tsx");
     const sidebar = source("../components/chart/LeftSidebar.tsx");
 
-    expect(dashboard, "the rail must not render where CSS is hiding it")
-      .toContain("{!narrowViewport && <LeftSidebar");
-    expect(dashboard).toContain("{narrowViewport && toolsSheetOpen &&");
+    expect(dashboard).not.toContain("{!narrowViewport && <LeftSidebar");
+    expect(dashboard).toContain("{toolsSheetOpen &&");
     expect(dashboard).toContain('id="chart-tools-sheet"');
     expect(dashboard).toContain('aria-controls="chart-tools-sheet"');
     expect(dashboard).toContain('<LeftSidebar {...primarySidebarProps} variant="sheet" />');
 
-    // The rail and the sheet must capture the SAME node and publish the SAME
-    // symbol. Two prop literals is how a phone screenshots something else.
+    // The one drawer must capture the canonical node and publish its symbol.
     const declared = dashboard.match(/const primarySidebarProps\b/g) ?? [];
     expect(declared.length, "primarySidebarProps must be declared exactly once").toBe(1);
     const spreads = dashboard.match(/\{\.\.\.primarySidebarProps\}/g) ?? [];
-    expect(spreads.length, "both the rail and the sheet must spread the same props").toBe(2);
+    expect(spreads.length, "the drawer must spread the canonical props once").toBe(1);
 
     expect(sidebar, "the sheet must not wear the class globals.css hides")
       .toContain('isSheet ? "wm-chart-primary-sheet" : "wm-chart-primary-rail"');

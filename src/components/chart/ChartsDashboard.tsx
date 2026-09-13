@@ -744,18 +744,16 @@ export function ChartsDashboard() {
   const narrowViewport = useNarrowViewport();
   const [watchlistSheetOpen, setWatchlistSheetOpen] = useState(false);
   const watchlistSheetTriggerRef = useRef<HTMLButtonElement>(null);
-  // Leaving the sheet open while the window grows back to desktop would leave a
-  // modal covering the rail that now renders the very same watchlist.
+  // The watchlist keeps its dense desktop rail when explicitly opened; narrow
+  // viewports relocate the same component into the drawer.
   useEffect(() => { if (!narrowViewport) setWatchlistSheetOpen(false); }, [narrowViewport]);
 
-  // Same arrangement for the 20 drawing tools: globals.css hides .wm-draw-rail
-  // at the same breakpoint, and nothing else on a phone reached a trend line.
+  // Drawing and capture are contextual tools at every width. Their canonical
+  // components live in drawers instead of permanently framing MARKET with two
+  // icon rails; this removes chrome without creating desktop/mobile forks.
   const [drawSheetOpen, setDrawSheetOpen] = useState(false);
   const drawSheetTriggerRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => { if (!narrowViewport) setDrawSheetOpen(false); }, [narrowViewport]);
-  // Declared ONCE and spread into both call sites. Writing these eleven props
-  // out twice is how the rail and the sheet quietly become two different
-  // drawing surfaces — one wired to clearTrigger, one not.
+  // Declared ONCE and spread into the one canonical drawer mount.
   const drawingSidebarProps = {
     activeTool: drawingTool,
     onToolChange: setDrawingTool,
@@ -775,10 +773,7 @@ export function ChartsDashboard() {
   // note had no door on a phone at all.
   const [toolsSheetOpen, setToolsSheetOpen] = useState(false);
   const toolsSheetTriggerRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => { if (!narrowViewport) setToolsSheetOpen(false); }, [narrowViewport]);
-  // One object, spread twice — the rail and the sheet must capture the SAME
-  // node and publish the SAME symbol, or the phone silently screenshots
-  // something else. All six are declared above (266/344/473/574).
+  // One object feeds the one canonical drawer mount at every width.
   const primarySidebarProps = {
     watchlistOpen,
     onToggleWatchlist: () => setWatchlistOpen(v => !v),
@@ -1044,25 +1039,26 @@ export function ChartsDashboard() {
             (§Silence Is A Feature). Opens the SAME DecisionWhyPanel
             /command-deck ships so trader sees identical WHY on both. */}
         <div className="wm-chart-orientation-actions">
-        {/* The phone/tablet door to the watchlist. Mounted only where the rail
-            is hidden, so desktop keeps exactly one way in and never shows a
-            control that duplicates the rail sitting beside it. */}
-        {narrowViewport && (
+        {/* One compact door per contextual capability. Desktop opens the
+            watchlist rail; narrow viewports open its drawer. */}
+        {
           <button
             className="wm-chart-orientation-action wm-chart-watchlist-trigger"
             ref={watchlistSheetTriggerRef}
             type="button"
-            onClick={() => setWatchlistSheetOpen(o => !o)}
-            aria-label={watchlistSheetOpen ? "Close watchlist" : "Open watchlist"}
-            aria-expanded={watchlistSheetOpen}
-            aria-controls="chart-watchlist-sheet"
+            onClick={() => narrowViewport
+              ? setWatchlistSheetOpen(o => !o)
+              : setWatchlistOpen(o => !o)}
+            aria-label={(narrowViewport ? watchlistSheetOpen : watchlistOpen) ? "Close watchlist" : "Open watchlist"}
+            aria-expanded={narrowViewport ? watchlistSheetOpen : watchlistOpen}
+            aria-controls={narrowViewport ? "chart-watchlist-sheet" : "chart-watchlist-rail"}
             style={{
               fontSize: 10,
               letterSpacing: 0.3,
               textTransform: "uppercase",
-              color: watchlistSheetOpen ? "#e8b923" : "#c9a55c",
-              background: watchlistSheetOpen ? "rgba(232, 185, 35, 0.12)" : "transparent",
-              border: watchlistSheetOpen ? "1px solid rgba(232, 185, 35, 0.5)" : "1px solid rgba(139,106,41,0.35)",
+              color: (narrowViewport ? watchlistSheetOpen : watchlistOpen) ? "#e8b923" : "#c9a55c",
+              background: (narrowViewport ? watchlistSheetOpen : watchlistOpen) ? "rgba(232, 185, 35, 0.12)" : "transparent",
+              border: (narrowViewport ? watchlistSheetOpen : watchlistOpen) ? "1px solid rgba(232, 185, 35,0.5)" : "1px solid rgba(139,106,41,0.35)",
               // 44px is the minimum thumb target; the desktop chrome around it
               // is sized for a cursor and this control only exists for thumbs.
               minHeight: 44,
@@ -1075,12 +1071,9 @@ export function ChartsDashboard() {
           >
             Watchlist
           </button>
-        )}
-        {/* The phone/tablet door to the 20 drawing tools, on the same terms:
-            mounted only where .wm-draw-rail is hidden, so there is never a
-            trigger sitting beside the rail it would duplicate. Gated on the
-            chart tabs because drawing tools are meaningless on Financials. */}
-        {narrowViewport && (activeTab === "Chart" || activeTab === "Options") && (
+        }
+        {/* Drawing tools are meaningful only on chart-bearing tabs. */}
+        {(activeTab === "Chart" || activeTab === "Options") && (
           <button
             className="wm-chart-orientation-action wm-chart-draw-trigger"
             ref={drawSheetTriggerRef}
@@ -1107,7 +1100,7 @@ export function ChartsDashboard() {
             Draw
           </button>
         )}
-        {narrowViewport && (
+        {
           <button
             className="wm-chart-orientation-action wm-chart-tools-trigger"
             ref={toolsSheetTriggerRef}
@@ -1133,7 +1126,7 @@ export function ChartsDashboard() {
           >
             Capture
           </button>
-        )}
+        }
         {(chartCanvasVM.decisionWhy || chartPassportVM.capturedAt !== null) && (
           <button
             className="wm-chart-orientation-action wm-chart-why-trigger"
@@ -1396,8 +1389,6 @@ export function ChartsDashboard() {
 
         {/* Left tool strip (TradingView-style): watchlist toggle, layout,
             publish idea, record video, speak your mind, screenshot, screen rec */}
-        {!narrowViewport && <LeftSidebar {...primarySidebarProps} />}
-
         {/* Watchlist (left side, MooMoo places it left of chart).
             EXACTLY ONE INSTANCE. On a narrow viewport the rail is hidden by
             CSS, so rendering it here anyway would mount a watchlist that
@@ -1405,12 +1396,14 @@ export function ChartsDashboard() {
             measured: 14 symbols fetched on a 375px viewport for a panel with
             zero client rects. There, it moves into the drawer below instead. */}
         {!narrowViewport && (
-          <WatchlistPanel
-            open={watchlistOpen}
-            onToggle={() => setWatchlistOpen(v => !v)}
-            gridView={gridView}
-            onGridViewChange={(v) => { setGridView(v); if (v) setGridRefresh(k => k + 1); }}
-          />
+          <div id="chart-watchlist-rail" style={{ display: "flex" }}>
+            <WatchlistPanel
+              open={watchlistOpen}
+              onToggle={() => setWatchlistOpen(v => !v)}
+              gridView={gridView}
+              onGridViewChange={(v) => { setGridView(v); if (v) setGridRefresh(k => k + 1); }}
+            />
+          </div>
         )}
 
         {/* Center: toolbar + chart area — fullscreen target includes all controls */}
@@ -1449,7 +1442,7 @@ export function ChartsDashboard() {
               only, and the identical props object, so a tool selected here is
               the tool the chart draws with. A second copy would mean one
               surface wired to clearTrigger and one not. */}
-          {narrowViewport && drawSheetOpen && (activeTab === "Chart" || activeTab === "Options") && (
+          {drawSheetOpen && (activeTab === "Chart" || activeTab === "Options") && (
             <ShellModalDrawer
               id="chart-draw-sheet"
               titleId="chart-draw-sheet-title"
@@ -1467,7 +1460,7 @@ export function ChartsDashboard() {
 
           {/* The SAME LeftSidebar, spreading the SAME props — so the phone
               screenshots and publishes the same node the desktop does. */}
-          {narrowViewport && toolsSheetOpen && (
+          {toolsSheetOpen && (
             <ShellModalDrawer
               id="chart-tools-sheet"
               titleId="chart-tools-sheet-title"
@@ -1942,7 +1935,6 @@ export function ChartsDashboard() {
                     width. The eleven props live in `drawingSidebarProps`
                     above precisely so the two call sites cannot drift into
                     two differently-wired drawing surfaces. */}
-                {!narrowViewport && <LeftDrawingSidebar {...drawingSidebarProps} />}
                 <div style={{
                   flex: 1, display:"flex", overflow:"hidden",
                   ...(chartLayout === "2h" ? { flexDirection: "row" } :
