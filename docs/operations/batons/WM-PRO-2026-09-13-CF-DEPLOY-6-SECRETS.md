@@ -1,5 +1,16 @@
 # Cloudflare deploy — the 6 declared-but-empty secrets
 
+> ## CORRECTION — this baton's diagnosis was WRONG. Superseded below.
+>
+> Everything from "What is actually happening" through "The exact Founder
+> action that unblocks deploy" is **retracted**. It was reasoned from the log
+> alone, without looking at the platform. When the dashboard was finally read
+> directly, it contradicted the guess. The wrong text is left in place
+> unedited so the failure mode stays legible; read the CORRECTED DIAGNOSIS
+> section at the bottom of this file for what is actually true.
+>
+> No Founder action is required. The deploy is not failing. It already shipped.
+
 Sealed 2026-09-13T09:50Z. Diagnoses the Cloudflare Workers deploy failure the
 Founder screenshot showed at build `c942757e-9c53-4975-af2f-083f78fb3080`.
 
@@ -109,3 +120,90 @@ ROOM everywhere the trader is likely to arrive.
 
 MARKET IS THE ROOM. WATER MAY BREATHE. PRICE MAY ONLY MOVE WHEN TRUTH MOVES.
 NO OWNER = STILL.
+
+---
+
+# CORRECTED DIAGNOSIS — read from the platform, not from the log
+
+Appended 2026-09-13, after the Founder said "go inside Cloudflare and get more
+context" and the dashboard was actually opened and read.
+
+## What the platform says
+
+`Workers & Pages -> wealthymindsets-pro -> Settings -> Variables and Secrets`
+lists 28 secrets. NAMES ONLY were read; every value rendered as
+"Value encrypted" and no value was opened, revealed, copied, or logged.
+
+**NONE of the six names is present.** Not empty — ABSENT:
+
+| required by the failing build    | on the platform                        |
+|----------------------------------|----------------------------------------|
+| `LIVEKIT_API_KEY`                | absent (`ATH_LIVEKIT_KEY_` exists)     |
+| `LIVEKIT_API_SECRET`             | absent (`ATH_LIVEKIT_KEY_SECRET_`)     |
+| `LONGBRIDGE_BRIDGE_TOKEN`        | absent                                 |
+| `MOOMOO_BRIDGE_TOKEN`            | absent                                 |
+| `SUPABASE_SERVICE_ROLE_KEY`      | absent (`SUPABASE_SECRET_KEY` exists — the accepted alias) |
+| `TASTYTRADE_REFRESH_TOKEN`       | absent (`TASTYTRADE_CLIENT_ID`/`_SECRET` exist) |
+
+`JWT_SECRET` — the one name the current manifest declares — IS present.
+
+## So the direction of the error was backwards
+
+The baton claimed the platform declared names the repo did not. The truth is
+the exact mirror image: **the repo declared names the platform does not have.**
+
+    537a803  2026-09-12 04:34  declared NINE required secrets, incl. all six
+    65a659b  2026-09-13 07:16  reduced the array to JWT_SECRET only
+
+Build `c942757e` was cut from a commit in that window. Wrangler did exactly
+what it was told: it compared nine declared names against the Worker's real
+secret set and named the six that were missing. The registry — not the
+platform — was the source, and `secretsDeferredToReadiness` is precisely the
+mechanism `65a659b` introduced to stop declaring them.
+
+## And therefore
+
+**The deploy is not failing. It already succeeded, and no Founder action is
+required.** From the Deployments tab:
+
+    Active deployment   399b69f7
+    Source commit       8dcda56  (this very baton)
+    Deployed            ~17 minutes before this correction
+    Traffic             100%
+    Error rate          0%
+    Median CPU          8.38ms
+    Version history     538 versions; the last ten all landed from main
+
+Every remediation option A/B/C above is moot. Do not delete a secret. Do not
+set one to an empty string. There is nothing to retry.
+
+## G9 — the Founder can see it
+
+`https://wealthymindsetspro.com/command-deck`, observed live in the Founder's
+authenticated Chrome after this deploy, renders THE SANCTUARY:
+
+  · seven-mode bar — PREP OBSERVE **WAIT** EXECUTE MANAGE REVIEW LEARN
+  · job caption "Watch the market with no position."
+  · "What is the market actually doing right now?" + SUGGESTED JOB → WAIT
+  · HERO TRUTH — SPY 15M · MARKET STATE UNKNOWN · session CLOSED ·
+    source unknown · coverage 0 channels · unknowns 8
+  · MARKET · CHART EVIDENCE — real candles, SPY 15m 120 bars, price 764.29
+  · right column AVAILABLE R (UNKNOWN, honestly) and EXPRESSION · SHORTLIST
+    ("WAIT FOR DIRECTION")
+  · MARKET CANVAS — "Right-of-way is withheld — the market has not earned entry."
+
+  · **NO** left primary rail. **NO** ticker tape. **NO** workspace tabs.
+    **NO** `wm-universe` card dashboard.
+
+The July shell is gone from the Founder URL. G2 was green in code; **G9 is now
+green by observation.**
+
+## The lesson this baton is actually worth keeping for
+
+The first diagnosis was internally coherent, cited two "proofs", named a file
+and a line number, and was WRONG — because every input to it was a log and a
+repo, and the claim was about a platform. Reading the platform took four tool
+calls and inverted the conclusion. A confident diagnosis that never touched
+the system it is a diagnosis OF is a hypothesis wearing a receipt's clothes.
+
+NAMES ONLY. NO VALUE WAS READ. THE ROOM IS LIVE.
