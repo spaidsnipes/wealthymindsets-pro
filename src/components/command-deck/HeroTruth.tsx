@@ -191,14 +191,27 @@ export function HeroTruth({
         background: "transparent",
       }}
     >
+      {/* Founder brief 2026-09-13 §7 "NOW MUST BELONG TO MARKET" — the
+          "COMMAND DECK · HERO TRUTH" chip labelled the section as a
+          separate app inside the room. The sanctuary shell already tells
+          the trader they're on the deck; the chip did nothing but shorten
+          the vertical budget for what MARKET actually needs to see. In
+          room density the section rides its state-tint left accent and
+          the symbol below — no separate "this-is-hero-truth" chip. Hero
+          density retains its label because non-room usages (splash-style
+          screens, storybook, tests) still find it descriptive. */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: isRoomDensity ? 6 : 10, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
-          Command Deck
-        </span>
-        <span style={{ fontSize: 10, color: "#55503f" }}>·</span>
-        <span style={{ fontSize: 10, letterSpacing: 0.3, textTransform: "uppercase", color: "#8a8271" }}>
-          hero truth
-        </span>
+        {!isRoomDensity && (
+          <>
+            <span style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
+              Command Deck
+            </span>
+            <span style={{ fontSize: 10, color: "#55503f" }}>·</span>
+            <span style={{ fontSize: 10, letterSpacing: 0.3, textTransform: "uppercase", color: "#8a8271" }}>
+              hero truth
+            </span>
+          </>
+        )}
         {isRoomDensity && marketStateResolution === "UNKNOWN" && marketState && (
           <span
             aria-label={`Market state ${marketState}`}
