@@ -55,10 +55,13 @@ export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): Re
       className={className}
       data-testid="market-canvas-panel"
       style={{
-        border: `1px solid ${HAIR}`,
-        borderRadius: 10,
-        padding: "12px 14px",
-        background: "rgba(255,255,255,0.015)",
+        // SCENE_FRAGMENTATION cure: the market-canvas panel sits directly
+        // beneath the chart; a full-box border made it read as a
+        // separate "MissingEvidence / Blockers" mini-app. It is a
+        // continuation of MARKET, not another card.
+        borderTop: `1px solid ${HAIR}`,
+        padding: "12px 0 4px",
+        background: "transparent",
       }}
     >
       <header style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: anyBodyPresent ? 10 : 0 }}>

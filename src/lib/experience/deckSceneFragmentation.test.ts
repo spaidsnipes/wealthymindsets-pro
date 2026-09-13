@@ -71,6 +71,38 @@ describe("workspace pieces read as ONE room, not three sheds", () => {
     expect(src).toContain('background: "transparent"');
   });
 
+  it("DecisionWhyPanel is an aspect of the current decision, not a WHY app", () => {
+    // Founder brief step 5: "Turn WHY / Spaidbot into contextual
+    // inspection of the SAME canonical decision." A walled-off WHY
+    // panel is the exact "trip to a separate app" the founder is
+    // ending.
+    const src = READ("components/experience/DecisionWhyPanel.tsx");
+    expect(src).toContain("borderTop: `1px solid ${HAIR}`");
+    expect(src).not.toMatch(/border:\s*`1px solid \$\{HAIR\}`/);
+    expect(src).toContain('background: "transparent"');
+  });
+
+  it("MarketCanvasPanel is a continuation of MARKET, not another card below it", () => {
+    // The panel renders WHY-NOT / would-invalidate chips immediately
+    // beneath the chart. A full-box border made those chips a "second
+    // card" — the exact "chart card + evidence card" silhouette the
+    // audit flagged. It is one continuous MARKET section now.
+    const src = READ("components/experience/MarketCanvasPanel.tsx");
+    expect(src).toContain("borderTop: `1px solid ${HAIR}`");
+    expect(src).not.toMatch(/border:\s*`1px solid \$\{HAIR\}`/);
+    expect(src).toContain('background: "transparent"');
+  });
+
+  it("DecisionSpineBand is a strip on the field, not a lifted panel", () => {
+    // The lighter-than-sanctuary background made the six-cell summary
+    // read as a raised dashboard panel. The strip inherits the
+    // sanctuary depth now and is delineated only by hairlines top and
+    // bottom.
+    const src = READ("components/experience/DecisionSpineBand.tsx");
+    expect(src).toContain('background: "transparent"');
+    expect(src).not.toContain('background: "#0D0E14"');
+  });
+
   it("DeckExpressionShortlist reads as an aspect, not a separate app", () => {
     const src = READ("components/experience/DeckExpressionShortlist.tsx");
     // Same hairline / transparent-background treatment as the chart —

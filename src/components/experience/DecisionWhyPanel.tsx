@@ -46,10 +46,13 @@ export function DecisionWhyPanel({ vm }: DecisionWhyPanelProps): React.ReactElem
     <section
       aria-label="Why / why not — decision"
       style={{
-        border: `1px solid ${HAIR}`,
-        borderRadius: 10,
-        padding: "12px 14px",
-        background: "rgba(255,255,255,0.015)",
+        // SCENE_FRAGMENTATION cure: full-box border + tinted background
+        // made WHY read as "another app in the room." Founder brief:
+        // "Turn WHY / Spaidbot into contextual inspection of the SAME
+        // canonical decision" — an aspect, not a resident.
+        borderTop: `1px solid ${HAIR}`,
+        padding: "12px 0 4px",
+        background: "transparent",
       }}
     >
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8 }}>
