@@ -105,13 +105,21 @@ describe("wrangler secret declaration ↔ provider registry", () => {
 });
 
 describe("the deferred secrets are deferred for a stated reason", () => {
-  it("every alias-bearing or alternative-group credential is excluded, with a reason", () => {
+  it("every provider credential is excluded, with a reason", () => {
     // These are NOT oversights. wrangler's check is flat name-presence and
     // cannot express alternation, so declaring them would warn on a host that
     // is correctly configured — MEASURED: this host carries FINNHUB_KEY_ and
     // the legacy ALPACA_* pairs, and the tape runs.
     const deferred = secretsDeferredToReadiness();
     expect(deferred.length).toBeGreaterThan(0);
+    const providerSecretNames = new Set(
+      PROVIDER_REQUIREMENTS.flatMap((provider) =>
+        provider.required.filter((name) => !name.startsWith("NEXT_PUBLIC_") && !name.endsWith("_URL") && !name.endsWith("_HOST") && !name.endsWith("_CANARY_SYMBOL") && name !== "TASTYTRADE_ENV"),
+      ),
+    );
+    for (const name of providerSecretNames) {
+      expect(deferred.some((row) => row.name === name), `${name} has no readiness deferral receipt`).toBe(true);
+    }
     for (const row of deferred) {
       expect(declared, `${row.name} must not be declared: ${row.reason}`).not.toContain(row.name);
       expect(row.reason.length).toBeGreaterThan(20);
@@ -143,10 +151,20 @@ describe("the deferred secrets are deferred for a stated reason", () => {
 });
 
 describe("platform secrets — only boot-gating ones reach the manifest", () => {
-  it("every gatesBoot platform secret is declared", () => {
+  it("every unambiguous gatesBoot platform secret is declared", () => {
     for (const p of PLATFORM_SECRETS) {
-      if (p.gatesBoot) {
+      if (p.gatesBoot && (p.aliases?.length ?? 0) === 0) {
         expect(declared, `${p.name} gates boot: ${p.note}`).toContain(p.name);
+      }
+    }
+  });
+
+  it("defers boot gates with accepted aliases instead of requiring the wrong spelling", () => {
+    const deferred = new Set(secretsDeferredToReadiness().map((row) => row.name));
+    for (const p of PLATFORM_SECRETS) {
+      if (p.gatesBoot && (p.aliases?.length ?? 0) > 0) {
+        expect(declared, `${p.name} has accepted aliases Wrangler cannot express`).not.toContain(p.name);
+        expect(deferred).toContain(p.name);
       }
     }
   });

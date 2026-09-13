@@ -532,6 +532,8 @@ function isNonSecretConfigName(name: string): boolean {
  */
 export interface PlatformSecret {
   readonly name: string;
+  /** Accepted alternate names. Wrangler cannot express this OR relationship. */
+  readonly aliases?: readonly string[];
   /** True when a core server path cannot answer without it. */
   readonly gatesBoot: boolean;
   readonly note: string;
@@ -540,6 +542,7 @@ export interface PlatformSecret {
 export const PLATFORM_SECRETS: readonly PlatformSecret[] = [
   {
     name: "SUPABASE_SERVICE_ROLE_KEY",
+    aliases: ["SUPABASE_SECRET_KEY"],
     gatesBoot: true,
     note: "supabaseAdmin.ts mints the server-side client. Without it every privileged read/write path fails, not one feature.",
   },
@@ -568,9 +571,11 @@ export const PLATFORM_SECRETS: readonly PlatformSecret[] = [
 /**
  * The exact set of secret NAMES a deployed Worker is required to carry.
  *
- * A provider's required name is EXCLUDED when it has an alias or its provider
- * declares an alternativeGroup. That is deliberate and is the whole reason
- * this function is not simply `required.flat()`:
+ * Provider credentials never belong in this FLAT boot gate. Their absence
+ * disables one capability and is reported by computeProviderReadiness with
+ * the exact failed edge; it must not prevent a truthful degraded Worker from
+ * deploying. Platform secrets enter the gate only when they are boot-critical
+ * AND have one unambiguous accepted name.
  *
  *   MEASURED — this host carries `FINNHUB_KEY_` (trailing underscore), and
  *   the legacy `ALPACA_BROKERAGE_KEY` / `ALPACA_PAPER_TRADE_API_KEY` pairs.
@@ -586,16 +591,9 @@ export const PLATFORM_SECRETS: readonly PlatformSecret[] = [
  */
 export function workerRequiredSecretNames(): readonly string[] {
   const out = new Set<string>();
-  for (const r of PROVIDER_REQUIREMENTS) {
-    const hasAltGroup = (r.alternativeGroups ?? []).some((g) => g.length > 0);
-    if (hasAltGroup) continue;
-    for (const name of r.required) {
-      if (isNonSecretConfigName(name)) continue;
-      if ((r.aliases?.[name] ?? []).length > 0) continue;
-      out.add(name);
-    }
+  for (const p of PLATFORM_SECRETS) {
+    if (p.gatesBoot && (p.aliases?.length ?? 0) === 0) out.add(p.name);
   }
-  for (const p of PLATFORM_SECRETS) if (p.gatesBoot) out.add(p.name);
   return [...out].sort();
 }
 
@@ -625,8 +623,20 @@ export function secretsDeferredToReadiness(): readonly { name: string; reason: s
           name,
           `${r.provider}: accepted aliases exist (${(r.aliases?.[name] ?? []).join(", ")}); wrangler cannot express alternation.`,
         );
+      } else {
+        byName.set(
+          name,
+          `${r.provider}: feature-scoped credential; absence is reported by provider readiness and must not block the whole Worker deploy.`,
+        );
       }
     }
+  }
+  for (const p of PLATFORM_SECRETS) {
+    if (!p.gatesBoot || (p.aliases?.length ?? 0) === 0) continue;
+    byName.set(
+      p.name,
+      `platform: accepted aliases exist (${p.aliases?.join(", ")}); wrangler cannot express alternation, so runtime capability readiness owns this gate.`,
+    );
   }
   return [...byName.entries()]
     .map(([name, reason]) => ({ name, reason }))
