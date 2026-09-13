@@ -927,6 +927,11 @@ function CommandDeckInner() {
                       onClear={() => setOptionSelection(null)}
                     />
                   )}
+                  {/* Exit Ramp is the terminal NEXT state, not a second card
+                      below the market room. It stays silent while work remains
+                      and renders the existing canonical completion receipt when
+                      the assessment says the trader may stop carrying it. */}
+                  <ExitRampCard ramp={exitRamp} />
                 </div>
               </section>
             </div>
@@ -937,24 +942,9 @@ function CommandDeckInner() {
                 (never fabricates). */}
             <TodayPrepBridge userId={user?.id ?? null} />
 
-            {/* Decision-surface stack — the four job-reorderable surfaces
-                (STORY / WHY / PASSPORT / RECEIPT). This is its OWN flex column
-                so the job-emphasis `order` reranks ONLY these four (via CSS
-                `order`) without disturbing the hero, ribbon, or phase selector
-                above/below. Every surface stays in the DOM in every job — the
-                job only decides which physically leads. Presentation-only. */}
+            {/* Advanced proof remains available below the market room, but the
+                primary decision story and Exit Ramp now live with NOW/NEXT. */}
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {/* Exit Ramp / Completion Receipt — canon §Exit Ramp (2026-08-29
-                  Cognitive Sovereignty audit). The "DONE" half of the grammar:
-                  when a useful stopping point is reached it answers "can I stop
-                  carrying this now?" with an honest SAFE-TO-LEAVE verdict and a
-                  DONE/SAVED/OPEN/NEXT/RETURN receipt. Renders nothing while live
-                  work remains (§Silence Is A Feature). Reflects the engine — it
-                  never fabricates permission the assessment withheld. */}
-              <div style={{ order: surfaceOrder(deckEmphasis, "STORY") }}>
-                <ExitRampCard ramp={exitRamp} />
-              </div>
-
               {/* The proof chain remains complete, but it no longer competes
                   with the hero and one-story read. Advanced evidence is one
                   intentional disclosure instead of four stacked gold panels. */}

@@ -27,6 +27,7 @@ describe("the deck projects one decision room without a duplicate spine", () => 
     const risk = src.indexOf('data-testid="scene-risk"', support);
     const why = src.indexOf('data-testid="scene-why"', risk);
     const next = src.indexOf('data-testid="scene-next"', why);
+    const exitRamp = src.indexOf("<ExitRampCard", next);
     const end = src.indexOf("{/* Today's morning-prep intention", next);
     expect(room).toBeGreaterThan(0);
     expect(now).toBeLessThan(market);
@@ -34,7 +35,10 @@ describe("the deck projects one decision room without a duplicate spine", () => 
     expect(support).toBeLessThan(risk);
     expect(risk).toBeLessThan(why);
     expect(why).toBeLessThan(next);
+    expect(next).toBeLessThan(exitRamp);
+    expect(exitRamp).toBeLessThan(end);
     expect(next).toBeLessThan(end);
+    expect(src.match(/<ExitRampCard/g)).toHaveLength(1);
     expect(src.slice(room, end).match(/data-decision-id=/g)).toHaveLength(8);
     expect(src.slice(room, end)).toContain("currentSceneDecision?.decisionId ?? undefined");
     expect(src.slice(room, end)).toContain(": sceneDecisionAbsence");
