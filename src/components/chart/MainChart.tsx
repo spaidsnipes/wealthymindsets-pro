@@ -48,6 +48,23 @@ import type { PineOutput } from "@/lib/pine/types";
 import { interpretPine } from "@/lib/pine/interpreter";
 import * as IND from "./indicators";
 import { computeDeltaVP, type DeltaVPLevel } from "@/lib/deltaVP";
+// The `delta-vp` DRAWING TOOL's geometry. Deliberately `dvp*`, not `vp*` — this
+// file also imports vpDrawGeometry below, which governs the VOLUME PROFILE
+// INDICATOR under a different bar-length law. Two pictures, two owners, two
+// names. See the header of deltaVPGeometry.ts.
+import {
+  DVP_GUTTER,
+  DVP_MIN_LABEL_ROW_H,
+  DVP_MIN_CAPTION_W,
+  dvpBinCount,
+  dvpBoxAdmitsProfile,
+  dvpColumns,
+  dvpRowBox,
+  dvpRowCulled,
+  dvpBarWidth,
+  dvpAskWidth,
+  dvpFormatCount,
+} from "@/lib/deltaVPGeometry";
 import {
   computeDeltaBubbleLevels,
   type DeltaTick,
@@ -6320,48 +6337,45 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const tLo = Math.min(d.pts[0].time, d.pts[1].time);
           const tHi = Math.max(d.pts[0].time, d.pts[1].time);
           const bs  = (barsRef.current || []).filter((x: Bar) => x.time >= tLo && x.time <= tHi);
-          const nBins = Math.max(6, Math.min(40, Math.round(rh / 22)));
+          const nBins = dvpBinCount(rh);
           const levels: DeltaVPLevel[] = [];
           for (const b of bs) for (const l of getBarFootprint(b, 14)) levels.push({ priceLevel: l.priceLevel, bid: l.bid, ask: l.ask });
           const dvp = computeDeltaVP(levels, pLo, pHi, nBins);
-          const fmtN = (v: number) => { const a = Math.abs(v); return a >= 1000 ? (a / 1000).toFixed(a >= 10000 ? 0 : 1) + "k" : String(Math.round(a)); };
+          const fmtN = dvpFormatCount;
 
-          if (dvp.rows.length && rw > 56 && rh > 26) {
-            const midX = rx + Math.round(rw * 0.5);
-            const gap = 3;
-            const leftW  = (midX - rx) - gap;
-            const rightW = (rx + rw - midX) - gap;
+          if (dvpBoxAdmitsProfile(rw, rh, dvp.rows.length)) {
+            const { midX, leftW, rightW } = dvpColumns(rx, rw);
+            const gap = DVP_GUTTER;
             ctx.save();
             ctx.beginPath(); ctx.rect(rx, ry, rw, rh); ctx.clip();
             for (const row of dvp.rows) {
               const yT = priceY(row.hiPrice), yB = priceY(row.loPrice);
               if (yT == null || yB == null) continue;
-              const rowTop = Math.min(yT, yB);
-              const rowH   = Math.max(2, Math.abs(yB - yT) - 1);
-              if (rowTop + rowH < ry - 1 || rowTop > ry + rh + 1) continue;
-              const midY  = rowTop + rowH / 2;
+              const rowBox = dvpRowBox(yT, yB);
+              if (dvpRowCulled(rowBox, ry, rh)) continue;
+              const { top: rowTop, height: rowH, midY } = rowBox;
               const isPOC = row.price === dvp.pocPrice;
 
               // RIGHT — volume profile, grows rightward from the gutter
               const volFrac = dvp.maxVolume ? row.volume / dvp.maxVolume : 0;
-              const vBarW   = Math.max(3, Math.round(Math.pow(volFrac, 0.7) * (rightW - 2)));
+              const vBarW   = dvpBarWidth(volFrac, rightW, 3);
               const vx0     = midX + gap;
               if (isPOC) { ctx.fillStyle = "rgba(240,180,41,0.85)"; ctx.fillRect(vx0, rowTop, vBarW, rowH); }
               else {
-                const askW = Math.round(vBarW * (row.volume ? row.buy / row.volume : 0.5));
+                const askW = dvpAskWidth(vBarW, row.buy, row.volume);
                 ctx.fillStyle = "rgba(0,192,118,0.58)"; ctx.fillRect(vx0, rowTop, askW, rowH);
                 ctx.fillStyle = "rgba(255,77,103,0.58)"; ctx.fillRect(vx0 + askW, rowTop, vBarW - askW, rowH);
               }
 
               // LEFT — delta profile, grows leftward from the gutter
               const dFrac = dvp.maxAbsDelta ? Math.abs(row.delta) / dvp.maxAbsDelta : 0;
-              const dBarW = Math.max(2, Math.round(Math.pow(dFrac, 0.7) * (leftW - 2)));
+              const dBarW = dvpBarWidth(dFrac, leftW, 2);
               const up    = row.delta >= 0;
               ctx.fillStyle = up ? "rgba(0,212,170,0.72)" : "rgba(255,77,106,0.72)";
               ctx.fillRect(midX - gap - dBarW, rowTop, dBarW, rowH);
 
               // numbers — signed delta at the gutter, volume at the right edge
-              if (rowH >= 9) {
+              if (rowH >= DVP_MIN_LABEL_ROW_H) {
                 ctx.font = "10px monospace"; ctx.textBaseline = "middle";
                 ctx.shadowColor = "rgba(0,0,0,0.92)"; ctx.shadowBlur = 3;
                 ctx.textAlign = "right"; ctx.fillStyle = up ? "#25E8BE" : "#FF6B82";
@@ -6380,8 +6394,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             chip(`Delta+VP  net ${netUp ? "+" : "−"}${fmtN(dvp.totalDelta)}  vol ${fmtN(dvp.totalVolume)}`, rx + 2, ry - 3, col);
             ctx.font = "9px ui-sans-serif"; ctx.textBaseline = "top";
             ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 2; ctx.fillStyle = "#8B95A5"; ctx.textAlign = "center";
-            if (leftW  > 26) ctx.fillText("DELTA",  (rx + midX) / 2, ry + 2);
-            if (rightW > 26) ctx.fillText("VOLUME", (midX + rx + rw) / 2, ry + 2);
+            if (leftW  > DVP_MIN_CAPTION_W) ctx.fillText("DELTA",  (rx + midX) / 2, ry + 2);
+            if (rightW > DVP_MIN_CAPTION_W) ctx.fillText("VOLUME", (midX + rx + rw) / 2, ry + 2);
             ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
           } else {
             chip("Delta+VP — draw a wider box over bars", rx + 2, ry - 3, col);

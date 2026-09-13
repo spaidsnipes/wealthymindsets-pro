@@ -1,0 +1,295 @@
+/**
+ * deltaVPGeometry — the gate the canvas could never have.
+ *
+ * ── Why this file exists ─────────────────────────────────────────────────────
+ *
+ * This build has now confirmed six times that `tsc --noEmit` stays EXIT=0
+ * through behavioural breaks: renames are type-visible, wrong answers are not.
+ * Every law below is a WRONG-ANSWER law. Each one can be broken while every
+ * other gate in the repo stays green:
+ *
+ *   - Drop the 2px floor in `dvpRowBox` and a squeezed row draws 0px tall. The
+ *     trader sees no volume at a price where volume exists. Numbers in, numbers
+ *     out; `tsc` is content.
+ *   - Replace the 0.7 exponent with 1.0 and every row except the POC collapses
+ *     toward nothing on a thin profile. "Less volume here" reads as "no volume
+ *     here" — a filled absence, which this build forbids by name.
+ *   - Drop the zero-volume guard in `dvpAskWidth` and the width is NaN.
+ *     `fillRect` with a NaN width draws nothing at all, silently.
+ *
+ * The band was gated by geometry measurement and the DOM components by static
+ * markup. A canvas has neither, so the only gate available is to make the
+ * arithmetic a function and stand over the function. That is what this is.
+ *
+ * ── Scope, stated honestly ───────────────────────────────────────────────────
+ *
+ * This proves the ARITHMETIC. It does not prove the pixels. Whether the box
+ * renders correctly on a live chart remains an open item with no automated
+ * channel — it is HUMAN_PROOF_REQUIRED, not green.
+ */
+
+import { describe, it, expect } from "vitest";
+import {
+  DVP_GUTTER,
+  DVP_MIN_BOX_W,
+  DVP_MIN_BOX_H,
+  DVP_MIN_LABEL_ROW_H,
+  DVP_MIN_CAPTION_W,
+  dvpBinCount,
+  dvpBoxAdmitsProfile,
+  dvpColumns,
+  dvpRowBox,
+  dvpRowCulled,
+  dvpBarWidth,
+  dvpAskWidth,
+  dvpFormatCount,
+} from "./deltaVPGeometry";
+
+describe("dvpBinCount — bins come from the box, and are clamped at both ends", () => {
+  it("is roughly one row per 22px in the ordinary middle", () => {
+    expect(dvpBinCount(220)).toBe(10);
+    expect(dvpBinCount(440)).toBe(20);
+  });
+
+  it("never falls below 6 — a two-row profile is a staircase, not a shape", () => {
+    expect(dvpBinCount(0)).toBe(6);
+    expect(dvpBinCount(27)).toBe(6);
+    expect(dvpBinCount(-500)).toBe(6);
+  });
+
+  it("never exceeds 40 — a full-screen box must not melt the draw loop", () => {
+    expect(dvpBinCount(4000)).toBe(40);
+    expect(dvpBinCount(Number.MAX_SAFE_INTEGER)).toBe(40);
+  });
+
+  it("always returns a whole number of bins", () => {
+    for (const h of [100, 133, 267, 501, 888]) {
+      expect(Number.isInteger(dvpBinCount(h))).toBe(true);
+    }
+  });
+});
+
+describe("dvpBoxAdmitsProfile — a box too small for two labelled columns is refused", () => {
+  it("admits a box comfortably past both minimums with rows to draw", () => {
+    expect(dvpBoxAdmitsProfile(200, 180, 12)).toBe(true);
+  });
+
+  it("refuses a box with no rows, however large — nothing is not a profile", () => {
+    expect(dvpBoxAdmitsProfile(900, 700, 0)).toBe(false);
+  });
+
+  it("refuses at and below each minimum, and admits one pixel past it", () => {
+    expect(dvpBoxAdmitsProfile(DVP_MIN_BOX_W, 180, 5)).toBe(false);
+    expect(dvpBoxAdmitsProfile(DVP_MIN_BOX_W + 1, 180, 5)).toBe(true);
+    expect(dvpBoxAdmitsProfile(200, DVP_MIN_BOX_H, 5)).toBe(false);
+    expect(dvpBoxAdmitsProfile(200, DVP_MIN_BOX_H + 1, 5)).toBe(true);
+  });
+
+  it("refusal is the branch that shows the hint — so it must be reachable", () => {
+    // The draw loop's else-branch writes "draw a wider box over bars". If this
+    // predicate could never be false the trader would get an empty box with no
+    // explanation, which is an undisclosed absence.
+    expect(dvpBoxAdmitsProfile(20, 20, 3)).toBe(false);
+  });
+});
+
+describe("dvpColumns — the two columns share the box and never overlap the gutter", () => {
+  it("splits a box down the middle with a gutter on each side", () => {
+    const c = dvpColumns(100, 200);
+    expect(c.midX).toBe(200);
+    expect(c.leftW).toBe(100 - DVP_GUTTER);
+    expect(c.rightW).toBe(100 - DVP_GUTTER);
+  });
+
+  it("keeps both columns inside the box for odd widths — no bar escapes the border", () => {
+    for (const w of [57, 101, 199, 333]) {
+      const c = dvpColumns(40, w);
+      expect(c.midX - DVP_GUTTER - c.leftW).toBe(40);
+      expect(c.midX + DVP_GUTTER + c.rightW).toBe(40 + w);
+    }
+  });
+
+  it("is independent of where the box sits on screen", () => {
+    const a = dvpColumns(0, 240);
+    const b = dvpColumns(915, 240);
+    expect(a.leftW).toBe(b.leftW);
+    expect(a.rightW).toBe(b.rightW);
+    expect(b.midX - 915).toBe(a.midX);
+  });
+});
+
+describe("dvpRowBox — a row is never drawn as nothing", () => {
+  it("takes the edges in either order, because price grows up and y grows down", () => {
+    expect(dvpRowBox(100, 130)).toEqual(dvpRowBox(130, 100));
+  });
+
+  it("leaves a 1px hairline between neighbouring rows", () => {
+    const r = dvpRowBox(100, 130);
+    expect(r.top).toBe(100);
+    expect(r.height).toBe(29);
+  });
+
+  it("floors a squeezed row at 2px — a 0px row silently drops displayed volume", () => {
+    // THE LAW. Remove the floor and `Math.abs(0) - 1` is -1: fillRect draws
+    // nothing, and the trader reads absence where the truth is a tight row.
+    expect(dvpRowBox(400, 400).height).toBe(2);
+    expect(dvpRowBox(400, 401).height).toBe(2);
+    expect(dvpRowBox(400, 402).height).toBe(2);
+    expect(dvpRowBox(400, 403.5).height).toBeGreaterThanOrEqual(2);
+  });
+
+  it("never returns a negative or zero height for any edge pair", () => {
+    for (const [a, b] of [[0, 0], [10, 10.5], [88, 87.2], [-5, -5]] as const) {
+      expect(dvpRowBox(a, b).height).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it("centres midY inside the row it belongs to", () => {
+    const r = dvpRowBox(100, 130);
+    expect(r.midY).toBe(r.top + r.height / 2);
+    expect(r.midY).toBeGreaterThan(r.top);
+    expect(r.midY).toBeLessThan(r.top + r.height);
+  });
+});
+
+describe("dvpRowCulled — only rows genuinely off the box are dropped", () => {
+  const BOX_Y = 100;
+  const BOX_H = 200;
+
+  it("keeps a row sitting squarely inside the box", () => {
+    expect(dvpRowCulled(dvpRowBox(150, 170), BOX_Y, BOX_H)).toBe(false);
+  });
+
+  it("keeps a row straddling either edge — a clipped row is still a true row", () => {
+    expect(dvpRowCulled(dvpRowBox(90, 110), BOX_Y, BOX_H)).toBe(false);
+    expect(dvpRowCulled(dvpRowBox(290, 310), BOX_Y, BOX_H)).toBe(false);
+  });
+
+  it("culls a row entirely above and entirely below the box", () => {
+    expect(dvpRowCulled(dvpRowBox(10, 40), BOX_Y, BOX_H)).toBe(true);
+    expect(dvpRowCulled(dvpRowBox(500, 540), BOX_Y, BOX_H)).toBe(true);
+  });
+
+  it("does not cull on the 1px tolerance band — rounding must not delete a row", () => {
+    // A row whose bottom lands exactly on the box top is touching, not gone.
+    expect(dvpRowCulled(dvpRowBox(80, BOX_Y), BOX_Y, BOX_H)).toBe(false);
+  });
+});
+
+describe("dvpBarWidth — near-zero and absent must never look the same", () => {
+  it("gives the full column, less its 2px inset, to a full fraction", () => {
+    expect(dvpBarWidth(1, 100, 3)).toBe(98);
+  });
+
+  it("compresses the scale so a small fraction is still visible", () => {
+    // THE LAW. With a linear scale a 10% row on a 100px column is 10px and
+    // reads as nothing beside the POC. The 0.7 exponent lifts it to 20px:
+    // "less volume here" instead of "no volume here".
+    const compressed = dvpBarWidth(0.1, 100, 3);
+    expect(compressed).toBeGreaterThan(Math.round(0.1 * 98));
+    expect(compressed).toBe(Math.round(Math.pow(0.1, 0.7) * 98));
+  });
+
+  it("stays monotonic — more volume is never a shorter bar", () => {
+    let prev = -1;
+    for (let f = 0; f <= 1.0001; f += 0.05) {
+      const w = dvpBarWidth(f, 200, 3);
+      expect(w).toBeGreaterThanOrEqual(prev);
+      prev = w;
+    }
+  });
+
+  it("honours the floor so a non-zero row is never drawn as nothing", () => {
+    expect(dvpBarWidth(0, 100, 3)).toBe(3);
+    expect(dvpBarWidth(0.0001, 100, 3)).toBe(3);
+    expect(dvpBarWidth(0.5, 4, 2)).toBeGreaterThanOrEqual(2);
+  });
+
+  it("never returns a width below the floor even in a degenerate column", () => {
+    // A negative column width comes from a box narrower than its own gutters.
+    // The guard is refused there too: the caller must not be handed a negative
+    // fillRect, which paints leftward across the chart.
+    expect(dvpBarWidth(1, -40, 2)).toBe(2);
+  });
+
+  it("returns whole pixels — a fractional fillRect blurs the bar edge", () => {
+    for (const f of [0.13, 0.37, 0.62, 0.99]) {
+      expect(Number.isInteger(dvpBarWidth(f, 137, 3))).toBe(true);
+    }
+  });
+});
+
+describe("dvpAskWidth — the ask/bid split, and the divide-by-zero that would erase it", () => {
+  it("splits in proportion to the buy share", () => {
+    expect(dvpAskWidth(100, 75, 100)).toBe(75);
+    expect(dvpAskWidth(100, 0, 100)).toBe(0);
+    expect(dvpAskWidth(100, 100, 100)).toBe(100);
+  });
+
+  it("splits a zero-volume row evenly rather than dividing by zero", () => {
+    // THE LAW. `0/0` is NaN, and `fillRect(x, y, NaN, h)` draws nothing —
+    // silently. An even split is visibly a row with no imbalance, which is the
+    // truth of a row with no trades.
+    const w = dvpAskWidth(60, 0, 0);
+    expect(Number.isNaN(w)).toBe(false);
+    expect(w).toBe(30);
+  });
+
+  it("leaves a bid remainder that exactly completes the bar", () => {
+    // The draw loop paints ask then bid as `vBarW - askW`. If askW ever
+    // exceeded vBarW the bid rect would have negative width and paint leftward.
+    for (const [buy, vol] of [[1, 3], [2, 3], [7, 9], [0, 5], [5, 5]] as const) {
+      const ask = dvpAskWidth(41, buy, vol);
+      expect(ask).toBeGreaterThanOrEqual(0);
+      expect(ask).toBeLessThanOrEqual(41);
+    }
+  });
+
+  it("returns whole pixels", () => {
+    expect(Number.isInteger(dvpAskWidth(41, 17, 23))).toBe(true);
+  });
+});
+
+describe("dvpFormatCount — compact, but never a different number", () => {
+  it("prints counts below a thousand exactly", () => {
+    expect(dvpFormatCount(0)).toBe("0");
+    expect(dvpFormatCount(7)).toBe("7");
+    expect(dvpFormatCount(999)).toBe("999");
+  });
+
+  it("keeps one decimal in the thousands, where the digit still fits", () => {
+    expect(dvpFormatCount(1000)).toBe("1.0k");
+    expect(dvpFormatCount(1250)).toBe("1.3k");
+    expect(dvpFormatCount(9999)).toBe("10.0k");
+  });
+
+  it("drops the decimal past ten thousand, where it would overflow the gutter", () => {
+    expect(dvpFormatCount(10000)).toBe("10k");
+    expect(dvpFormatCount(384210)).toBe("384k");
+  });
+
+  it("returns magnitude only — the draw loop supplies the sign itself", () => {
+    // The caller writes `${up ? "+" : "−"}${fmtN(row.delta)}`. If this function
+    // also emitted a sign the label would read "+-1.3k".
+    expect(dvpFormatCount(-1250)).toBe("1.3k");
+    expect(dvpFormatCount(-7)).toBe("7");
+    expect(dvpFormatCount(-1250).startsWith("-")).toBe(false);
+  });
+
+  it("rounds rather than truncating, so a count is never understated", () => {
+    expect(dvpFormatCount(6.6)).toBe("7");
+  });
+});
+
+describe("the constants are the shipped constants", () => {
+  it("holds the values lifted verbatim out of the draw loop", () => {
+    // Moving code must not improve it. These numbers are what the Founder has
+    // been looking at; changing one changes the shipped picture, and that is a
+    // decision, not a refactor.
+    expect(DVP_GUTTER).toBe(3);
+    expect(DVP_MIN_BOX_W).toBe(56);
+    expect(DVP_MIN_BOX_H).toBe(26);
+    expect(DVP_MIN_LABEL_ROW_H).toBe(9);
+    expect(DVP_MIN_CAPTION_W).toBe(26);
+  });
+});
