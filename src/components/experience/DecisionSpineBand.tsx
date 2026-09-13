@@ -146,9 +146,14 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         display: "flex",
         alignItems: "stretch",
         flexWrap: "wrap",
-        background: "#0D0E14",
-        borderTop: "1px solid rgba(139,106,41,0.35)",
-        borderBottom: "1px solid rgba(139,106,41,0.35)",
+        // SCENE_FRAGMENTATION cure (Founder audit 2026-09-13): a
+        // lighter-than-sanctuary background (#0D0E14) made the six-cell
+        // spine read as a raised dashboard panel floating over MARKET.
+        // The sanctuary field is #050506; the spine now inherits that
+        // depth and is delineated only by hairlines top and bottom.
+        background: "transparent",
+        borderTop: "1px solid rgba(139,106,41,0.20)",
+        borderBottom: "1px solid rgba(139,106,41,0.20)",
         flexShrink: 0,
       }}
     >
