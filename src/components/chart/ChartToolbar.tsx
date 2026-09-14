@@ -753,8 +753,13 @@ export function ChartToolbar({
 
   return (
     <div
-      className="wm-chart-toolbar flex items-center border-b border-wm-border px-2 gap-1 shrink-0 overflow-x-auto"
-      style={{ scrollbarWidth:"none", height: 36, background: "#0D0E14", borderColor: "#1E2030" }}
+      // SCENE_FRAGMENTATION cure (Founder 2026-09-13): this 36px band sits
+      // directly above MARKET. Opaque #0D0E14 + a hard #1E2030 rule made it
+      // the lid of a box the chart lived in. `wm-room-chrome` carries the
+      // same glass the pinned bands use, so the sanctuary reads through and
+      // the tool row delimits itself with a brass hairline instead.
+      className="wm-room-chrome wm-chart-toolbar flex items-center border-b border-wm-border px-2 gap-1 shrink-0 overflow-x-auto"
+      style={{ scrollbarWidth:"none", height: 36, borderColor: "rgba(139,106,41,0.24)" }}
     >
 
       {/* ══ Symbol Search — inline autocomplete ════════════ */}
@@ -1198,8 +1203,12 @@ export function ChartToolbar({
       {/* ══ Pinned right cluster — always visible, never clipped ══════
           (sticky so it stays put even when the middle toolbar overflows) */}
       <div
-        className="wm-chart-toolbar-pinned flex items-center gap-1 shrink-0 pl-1.5 h-full"
-        style={{ position: "sticky", right: 0, background: "#0D0E14", borderLeft: "1px solid #1E2030", zIndex: 5 }}
+        // `wm-chart-toolbar-pinned` stays FIRST: chartPhoneControlReachability
+        // asserts the quote-prefixed substring `className="wm-chart-toolbar-pinned`,
+        // so prepending a class here silently breaks a phone-reachability gate.
+        // Class order carries no CSS meaning, so ordering is the free repair.
+        className="wm-chart-toolbar-pinned wm-room-chrome flex items-center gap-1 shrink-0 pl-1.5 h-full"
+        style={{ position: "sticky", right: 0, borderLeft: "1px solid rgba(139,106,41,0.24)", zIndex: 5 }}
       >
         <button
           type="button"

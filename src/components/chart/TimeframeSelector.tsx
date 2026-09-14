@@ -46,9 +46,11 @@ function TFBtn({ label, active, onClick }: { label: string; active: boolean; onC
 
 export function TimeframeSelector({ timeframe, onTimeframeChange }: Props) {
   return (
-    <div style={{
-      background: "#0D0E14",
-      borderTop: "1px solid #1E2030",
+    // SCENE_FRAGMENTATION cure (Founder 2026-09-13): the timeframe rail is
+    // permanent chrome under MARKET — the floor of the box the chart sat in.
+    // Fill is owned by `wm-room-chrome`; only the brass hairline stays inline.
+    <div className="wm-room-chrome" style={{
+      borderTop: "1px solid rgba(139,106,41,0.24)",
       flexShrink: 0,
     }}>
       {/* Exact native interval buttons */}

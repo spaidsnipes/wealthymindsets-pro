@@ -161,11 +161,13 @@ export function StockInfoPanel({ symbol }: Props) {
   const SUB_TABS: SubTabType[] = ["Ticks", "Summary"];
 
   return (
-    <div style={{
+    // SCENE_FRAGMENTATION cure (Founder 2026-09-13): the 260px info panel is
+    // permanent chrome down MARKET's right edge. It painted its own opaque
+    // slab, so the sanctuary stopped at the candles on that side too.
+    <div className="wm-room-chrome" style={{
       width: 260,
       flexShrink: 0,
-      background: "#0D0E14",
-      borderLeft: "1px solid #1E2030",
+      borderLeft: "1px solid rgba(139,106,41,0.24)",
       display: "flex",
       flexDirection: "column",
       overflow: "hidden",
@@ -255,9 +257,12 @@ export function StockInfoPanel({ symbol }: Props) {
       </div>
 
       {/* Main tabs */}
+      {/* The tab row is INSIDE the panel, which is now `wm-room-chrome` glass.
+          Its own opaque #0D0E14 would re-occlude the room through the panel it
+          sits in — defeating the dechroming one level down. Fill removed; the
+          panel's material shows through and the divider carries the edge. */}
       <div style={{
         display: "flex", borderBottom: "1px solid #1E2030", flexShrink: 0,
-        background: "#0D0E14",
       }}>
         {TABS.map(tab => (
           <button

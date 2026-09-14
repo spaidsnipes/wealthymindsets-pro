@@ -137,7 +137,13 @@ export function LeftDrawingSidebar({
   return (
     <div
       ref={railRef}
-      className={isSheet ? "wm-draw-sheet" : "wm-draw-rail"}
+      // SCENE_FRAGMENTATION cure (Founder 2026-09-13): the 40px rail is
+      // permanent chrome down MARKET's left edge. Opaque #0D0E14 plus a hard
+      // #1E2030 rule walled the chart in. The sheet variant is a phone
+      // overlay that sits ON the candles, so it keeps an opaque fill —
+      // translucency there would be an accessibility regression, not
+      // atmosphere. Only the permanent rail becomes room chrome.
+      className={isSheet ? "wm-draw-sheet" : "wm-room-chrome wm-draw-rail"}
       style={isSheet
         ? {
             display: "flex", flexDirection: "row", flexWrap: "wrap",
@@ -149,7 +155,7 @@ export function LeftDrawingSidebar({
         : {
             display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
             flexShrink: 0, padding: "6px 0",
-            background: "#0D0E14", borderRight: "1px solid #1E2030",
+            borderRight: "1px solid rgba(139,106,41,0.24)",
             overflowY: "auto", position: "relative", zIndex: 30,
           }}
     >

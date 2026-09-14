@@ -1583,8 +1583,12 @@ export function ChartsDashboard() {
               charging the chart an entire permanent row. Progressive disclosure still
               governs the dense study row below. */}
 
-          {(activeTab === "Chart" || activeTab === "Options") && studyToolsOpen && <div className="wm-chart-tools flex items-center justify-start border-b shrink-0 overflow-x-auto overflow-y-hidden pr-3"
-            style={{ height: 30, background: "#0D0E14", borderColor: "#1E2030" }}>
+          {/* SCENE_FRAGMENTATION cure (Founder 2026-09-13): the study row is a
+              second lid above MARKET when disclosed. Fill is owned by
+              `wm-room-chrome`; brass hairline stays inline so it beats the
+              equal-specificity Tailwind border utility on this element. */}
+          {(activeTab === "Chart" || activeTab === "Options") && studyToolsOpen && <div className="wm-chart-tools wm-room-chrome flex items-center justify-start border-b shrink-0 overflow-x-auto overflow-y-hidden pr-3"
+            style={{ height: 30, borderColor: "rgba(139,106,41,0.24)" }}>
             <div className="flex items-center shrink-0">
               {/* Drawing tools dropdown — lives in the secondary toolbar */}
               <div className="flex items-center px-2 border-r border-wm-border/50 h-full" style={{ gap: 4 }}>
@@ -2162,12 +2166,17 @@ export function ChartsDashboard() {
         {/* ── Right: StockInfoPanel (collapsible) ───────────── */}
         {!narrowViewport || !optionsOpen ? <div style={{ display:"flex", flexShrink:0 }}>
           {/* Collapse toggle strip */}
+          {/* SCENE_FRAGMENTATION cure (Founder 2026-09-13): the 14px collapse
+              strip is the last opaque sliver between MARKET and the info
+              panel. It takes the same room chrome so the right edge of the
+              room is continuous instead of a seam of two dark slabs. */}
           <button
             onClick={() => setInfoOpen(v => !v)}
             title={infoOpen ? "Collapse info panel" : "Expand info panel"}
+            className="wm-room-chrome"
             style={{
-              width:14, background:"#0D0E14",
-              borderLeft:"1px solid #1E2030",
+              width:14,
+              borderLeft:"1px solid rgba(139,106,41,0.24)",
               display:"flex", alignItems:"center", justifyContent:"center",
               cursor:"pointer", color:"#4A5070", flexShrink:0,
             }}

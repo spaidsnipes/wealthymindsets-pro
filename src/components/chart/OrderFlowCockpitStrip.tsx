@@ -102,8 +102,13 @@ export function OrderFlowCockpitStrip({
     gap: 12,
     height: 30,
     padding: "0 12px",
-    background: "#0D0E14",
-    borderBottom: "1px solid #1E2030",
+    // SCENE_FRAGMENTATION cure (Founder 2026-09-13): this strip is permanent
+    // chrome banding MARKET. Its own opaque #0D0E14 stopped the sanctuary's
+    // vignette + grain + WATER-BREATH at the strip's edge. The fill now comes
+    // from `wm-room-chrome` (the one owner shared with `.wm-sticky-glass`);
+    // only the brass hairline is declared here, inline, because these frame
+    // elements also carry Tailwind border utilities of equal specificity.
+    borderBottom: "1px solid rgba(139,106,41,0.24)",
     fontSize: 11,
     lineHeight: 1.2,
     flexShrink: 0,
@@ -122,7 +127,7 @@ export function OrderFlowCockpitStrip({
 
   return (
     <div
-      className="wm-order-flow-cockpit-strip"
+      className="wm-order-flow-cockpit-strip wm-room-chrome"
       style={containerStyle}
       aria-label={`Order flow cockpit — ${snap.askDom ? "aggressive buy" : "aggressive sell"} dominant, ratio ${formatImbalanceRatio(snap.imbRatio, snap.oneSided)}${provenanceNote ? `, ${provenanceNote.chip.toLowerCase()}` : ""}`}
     >

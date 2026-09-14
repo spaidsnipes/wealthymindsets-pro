@@ -131,8 +131,21 @@ describe("responsive P0 command surfaces", () => {
     const spreads = dashboard.match(/\{\.\.\.drawingSidebarProps\}/g) ?? [];
     expect(spreads.length, "the drawer must spread the canonical props once").toBe(1);
 
-    expect(sidebar, "the sheet must not wear the class globals.css hides")
-      .toContain('isSheet ? "wm-draw-sheet" : "wm-draw-rail"');
+    // This asserted the whole ternary as one literal, INCLUDING its closing
+    // quote, so no class could ever be added to the rail branch in any order.
+    // That is stricter than the stated intent: what must hold is that the
+    // SHEET does not wear `wm-draw-rail` (the class the media query hides),
+    // while the rail does. The rail legitimately also carries the shared
+    // `wm-room-chrome` material (see chartsRoomChrome.test.ts), so the
+    // assertion now expresses the invariant instead of one frozen string.
+    const branches = sidebar.match(/isSheet \? "([^"]*)" : "([^"]*)"/);
+    expect(branches, "the sheet/rail class ternary is missing").not.toBeNull();
+    const [, sheetClasses, railClasses] = branches!;
+    expect(sheetClasses.split(/\s+/), "the sheet must not wear the class globals.css hides")
+      .not.toContain("wm-draw-rail");
+    expect(sheetClasses.split(/\s+/)).toContain("wm-draw-sheet");
+    expect(railClasses.split(/\s+/), "the rail must keep the class the breakpoint hides")
+      .toContain("wm-draw-rail");
     expect(sidebar, "the sheet's tool buttons must meet the phone tap standard")
       .toMatch(/\.wm-draw-sheet \.wm-draw-btn[\s\S]{0,80}?44px/);
   });

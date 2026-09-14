@@ -779,7 +779,29 @@ input[type=range]::-webkit-slider-runnable-track {
 
    Every pinned band in a Founder room MUST use this class rather than
    inventing its own rgba — one owner, so themes below can restate it.
+
+   `.wm-room-chrome` is the NON-PINNED sibling, added 2026-09-13.
+
+   The sticky case was only half the defect. /charts also frames MARKET
+   on every side with permanent chrome that is not sticky at all — the
+   36px tool band above the chart, the 40px drawing rail to its left,
+   the 14px info-panel collapse strip and the info panel to its right.
+   Each painted its own opaque `#0D0E14` and hard `#1E2030` border, so
+   the sanctuary's vignette + grain + WATER-BREATH stopped at the edge
+   of the candles and MARKET read as an app pane bolted into a frame.
+
+   Materially this is the identical problem — an opaque slab occluding
+   the room it lives inside — so it takes the identical material rather
+   than a second hand-rolled rgba. Same declaration, two selectors, ONE
+   owner. Themes restate both together below; a future theme cannot
+   drift one and forget the other.
+
+   `.wm-room-chrome` deliberately does NOT apply to floating popovers
+   (drawing-tool palettes, watchlist menus, dropdowns). Those sit ON TOP
+   of live candles and must stay opaque to remain readable. Translucency
+   there would be an accessibility regression dressed as atmosphere.
    ────────────────────────────────────────────────────────────── */
+.wm-room-chrome,
 .wm-sticky-glass {
   background-color: rgba(11, 11, 13, 0.82);
   backdrop-filter: blur(8px);
@@ -788,10 +810,29 @@ input[type=range]::-webkit-slider-runnable-track {
 /* No blur support → fall back to a heavier fill so legibility never
    depends on a progressive-enhancement feature. */
 @supports not ((backdrop-filter: blur(8px)) or (-webkit-backdrop-filter: blur(8px))) {
+  .wm-room-chrome,
   .wm-sticky-glass { background-color: rgba(11, 11, 13, 0.96); }
 }
+.wm-neon  .wm-room-chrome,
 .wm-neon  .wm-sticky-glass { background-color: rgba(4, 16, 26, 0.82); }
+.wm-light .wm-room-chrome,
 .wm-light .wm-sticky-glass { background-color: rgba(255, 255, 255, 0.86); }
+/* The frame's structure survives the dechroming as a brass hairline —
+   the room still has edges, it just no longer has walls.
+
+   The DEFAULT hairline is declared inline on each frame element, not
+   here. These elements also carry Tailwind border utilities of equal
+   specificity, so a class rule would win or lose on stylesheet order —
+   a coin flip that changes when Tailwind's layer output moves. Inline
+   is unambiguous.
+
+   That makes the two theme restatements `!important`: they are
+   overriding an inline declaration, exactly as the pre-existing
+   `.wm-neon [style*="#1E2030"]` rule below had to. Neon and light stay
+   coherent instead of silently keeping a brass edge that belongs to a
+   constitution they are not part of. */
+.wm-neon  .wm-room-chrome { border-color: rgba(47, 243, 255, 0.40) !important; }
+.wm-light .wm-room-chrome { border-color: rgba(15, 23, 42, 0.14) !important; }
 
 /* Fullscreen: ensure dark background and proper z-index stacking */
 :fullscreen, :-webkit-full-screen, :-moz-full-screen {
