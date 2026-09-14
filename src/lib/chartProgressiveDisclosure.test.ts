@@ -51,7 +51,8 @@ describe("chart progressive disclosure", () => {
     expect(dashboard).toContain('title="Capture & share"');
     expect(dashboard).toContain("fallbackTriggerRef={captureFallbackTriggerRef}");
     expect(dashboard).not.toContain("wm-chart-tools-trigger");
-    expect(dashboard).toMatch(/activeTab !== "Chart" && activeTab !== "Options"[\s\S]{0,500}?wm-chart-capture-fallback[\s\S]{0,500}?openCaptureShare\(captureFallbackTriggerRef\.current\)[\s\S]{0,500}?aria-controls="chart-tools-sheet"/);
+    expect(dashboard).toMatch(/activeTab !== "Chart" && activeTab !== "Options"[\s\S]{0,700}?wm-chart-orientation-tools/);
+    expect(dashboard).toContain("openCaptureShare(orientationToolsTriggerRef.current)");
     expect(dashboard).toMatch(/const openCaptureShare = useCallback\(\(trigger: HTMLButtonElement \| null\) => \{\s*captureFallbackTriggerRef\.current = trigger;\s*setToolsSheetOpen\(true\);/);
   });
 
@@ -78,8 +79,18 @@ describe("chart progressive disclosure", () => {
     expect(menu).toContain('aria-controls="chart-watchlist-sheet"');
     expect(dashboard).toContain("onWatchlist={() => openWatchlist(toolsTriggerRef.current)}");
     expect(dashboard).toContain("fallbackTriggerRef={watchlistSheetTriggerRef}");
-    expect(dashboard).toMatch(/activeTab !== "Chart" && activeTab !== "Options"[\s\S]{0,700}?wm-chart-watchlist-trigger/);
+    expect(dashboard).toMatch(/activeTab !== "Chart" && activeTab !== "Options"[\s\S]{0,700}?wm-chart-orientation-tools/);
+    expect(dashboard).toContain("openWatchlist(orientationToolsTriggerRef.current)");
     expect(dashboard).toMatch(/const openWatchlist = useCallback\(\(trigger: HTMLButtonElement \| null\) => \{\s*watchlistSheetTriggerRef\.current = trigger;\s*setWatchlistOpen\(true\);/);
+  });
+
+  it("collapses non-chart watchlist and capture utilities behind one doorway", () => {
+    expect(dashboard).toContain('aria-label="Open secondary view tools"');
+    expect(dashboard).toContain('role="menu"');
+    expect(dashboard).toContain('aria-label="Secondary view tools"');
+    expect(dashboard).toContain("openWatchlist(orientationToolsTriggerRef.current)");
+    expect(dashboard).toContain("openCaptureShare(orientationToolsTriggerRef.current)");
+    expect(dashboard).not.toContain("wm-chart-capture-fallback");
   });
 
   it("keeps the dense flow and study strip closed until the trader asks for it", () => {

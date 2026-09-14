@@ -792,6 +792,18 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     captureFallbackTriggerRef.current = trigger;
     setToolsSheetOpen(true);
   }, []);
+  const [orientationToolsOpen, setOrientationToolsOpen] = useState(false);
+  const orientationToolsRef = useRef<HTMLDivElement>(null);
+  const orientationToolsTriggerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const closeOrientationTools = (event: MouseEvent) => {
+      if (!orientationToolsRef.current?.contains(event.target as Node)) {
+        setOrientationToolsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", closeOrientationTools);
+    return () => document.removeEventListener("mousedown", closeOrientationTools);
+  }, []);
   // One object feeds the one canonical drawer mount at every width.
   const primarySidebarProps = {
     watchlistOpen,
@@ -1083,38 +1095,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             (§Silence Is A Feature). Opens the SAME DecisionWhyPanel
             /command-deck ships so trader sees identical WHY on both. */}
         <div className="wm-chart-orientation-actions">
-        {/* Chart views rehome contextual evidence behind Tools. Non-chart
-            views keep this orientation-level fallback because their chart
-            toolbar is intentionally absent. Both doors open the same drawer. */}
-        {activeTab !== "Chart" && activeTab !== "Options" && (
-          <button
-            className="wm-chart-orientation-action wm-chart-watchlist-trigger"
-            ref={watchlistSheetTriggerRef}
-            type="button"
-            onClick={() => openWatchlist(watchlistSheetTriggerRef.current)}
-            aria-label={watchlistOpen ? "Close watchlist" : "Open watchlist"}
-            aria-expanded={watchlistOpen}
-            aria-controls="chart-watchlist-sheet"
-            style={{
-              fontSize: 10,
-              letterSpacing: 0.3,
-              textTransform: "uppercase",
-              color: watchlistOpen ? "#e8b923" : "#c9a55c",
-              background: watchlistOpen ? "rgba(232, 185, 35, 0.12)" : "transparent",
-              border: watchlistOpen ? "1px solid rgba(232, 185, 35,0.5)" : "1px solid rgba(139,106,41,0.35)",
-              // 44px is the minimum thumb target; the desktop chrome around it
-              // is sized for a cursor and this control only exists for thumbs.
-              minHeight: 44,
-              padding: "3px 10px",
-              borderRadius: 4,
-              fontWeight: 700,
-              cursor: "pointer",
-              marginLeft: 4,
-            }}
-          >
-            Watchlist
-          </button>
-        )}
         {(chartCanvasVM.decisionWhy || chartPassportVM.capturedAt !== null) && (
           <button
             className="wm-chart-orientation-action wm-chart-why-trigger"
@@ -1141,32 +1121,80 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             {whyOpen ? "▾ Why" : "▸ Why"}
           </button>
         )}
+        {/* Secondary utilities share one fallback door on views where the
+            canonical chart toolbar is intentionally absent. */}
         {activeTab !== "Chart" && activeTab !== "Options" && (
-          <button
-            className="wm-chart-orientation-action wm-chart-capture-fallback"
-            ref={captureFallbackTriggerRef}
-            type="button"
-            onClick={() => openCaptureShare(captureFallbackTriggerRef.current)}
-            aria-label="Open capture and share"
-            aria-haspopup="dialog"
-            aria-controls="chart-tools-sheet"
-            style={{
-              fontSize: 10,
-              letterSpacing: 0.3,
-              textTransform: "uppercase",
-              color: "#c9a55c",
-              background: "transparent",
-              border: "1px solid rgba(139,106,41,0.35)",
-              minHeight: 44,
-              padding: "3px 10px",
-              borderRadius: 4,
-              fontWeight: 700,
-              cursor: "pointer",
-              marginLeft: 4,
-            }}
-          >
-            Capture
-          </button>
+          <div ref={orientationToolsRef} className="wm-chart-orientation-tools" style={{ position: "relative", marginLeft: 4 }}>
+            <button
+              className="wm-chart-orientation-action"
+              ref={orientationToolsTriggerRef}
+              type="button"
+              onClick={() => setOrientationToolsOpen(open => !open)}
+              aria-label="Open secondary view tools"
+              aria-expanded={orientationToolsOpen}
+              aria-haspopup="menu"
+              style={{
+                fontSize: 10,
+                letterSpacing: 0.3,
+                textTransform: "uppercase",
+                color: orientationToolsOpen || watchlistOpen || toolsSheetOpen ? "#e8b923" : "#c9a55c",
+                background: orientationToolsOpen || watchlistOpen || toolsSheetOpen ? "rgba(232, 185, 35, 0.12)" : "transparent",
+                border: "1px solid rgba(139,106,41,0.35)",
+                minHeight: 44,
+                padding: "3px 10px",
+                borderRadius: 4,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Tools
+            </button>
+            {orientationToolsOpen && (
+              <div
+                role="menu"
+                aria-label="Secondary view tools"
+                style={{
+                  position: "absolute",
+                  zIndex: 9999,
+                  top: "calc(100% + 4px)",
+                  right: 0,
+                  width: 180,
+                  padding: 6,
+                  border: "1px solid rgba(139,106,41,0.35)",
+                  borderRadius: 8,
+                  background: "var(--wm-card,#131520)",
+                  boxShadow: "0 12px 36px rgba(0,0,0,0.72)",
+                }}
+              >
+                <button
+                  role="menuitem"
+                  aria-haspopup="dialog"
+                  aria-controls="chart-watchlist-sheet"
+                  className="wm-chart-orientation-action"
+                  style={{ display: "block", width: "100%", minHeight: 44, textAlign: "left", padding: "8px 10px" }}
+                  onClick={() => {
+                    setOrientationToolsOpen(false);
+                    openWatchlist(orientationToolsTriggerRef.current);
+                  }}
+                >
+                  Watchlist
+                </button>
+                <button
+                  role="menuitem"
+                  aria-haspopup="dialog"
+                  aria-controls="chart-tools-sheet"
+                  className="wm-chart-orientation-action"
+                  style={{ display: "block", width: "100%", minHeight: 44, textAlign: "left", padding: "8px 10px" }}
+                  onClick={() => {
+                    setOrientationToolsOpen(false);
+                    openCaptureShare(orientationToolsTriggerRef.current);
+                  }}
+                >
+                  Capture &amp; share
+                </button>
+              </div>
+            )}
+          </div>
         )}
         <a
           className="wm-chart-orientation-action wm-chart-command-deck-link"
