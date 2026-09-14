@@ -98,6 +98,46 @@ describe("WMExperienceShell · sanctuary — the audit's laws are in the source"
     expect(animAt).toBeGreaterThan(mediaAt);
   });
 
+  it("T-REDUCED-MOTION: the safety net under the room covers the room's CHILDREN too", () => {
+    // WATER-BREATH gating itself (above) only covers the ONE animation this
+    // shell declares. The repo-wide kill switch that covers everything a
+    // CHILD declares was written for the July shell and scoped to
+    // `.wm-universe` — a class the Founder route deliberately does not carry
+    // (see MainLayout.founderRoute.render.test.tsx). Without `.wm-sanctuary`
+    // in that selector list, every transition inside the operating room runs
+    // at full speed for a trader who asked their OS for stillness.
+    const css = readFileSync(path.resolve(__dirname, "../../app/globals.css"), "utf8");
+    const block = css.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?\}\s*\}/);
+    expect(block).not.toBeNull();
+    const rule = block![0];
+    expect(rule).toContain(".wm-sanctuary *");
+    expect(rule).toContain(".wm-sanctuary *::before");
+    expect(rule).toContain(".wm-sanctuary *::after");
+    // One owner, both houses — never two near-identical blocks that can
+    // drift into disagreeing about what "reduced" means.
+    expect(rule).toContain(".wm-universe *");
+    expect(css.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)/g)?.length).toBe(1);
+    for (const decl of [
+      "animation-duration: .01ms !important",
+      "animation-iteration-count: 1 !important",
+      "transition-duration: .01ms !important",
+    ]) {
+      expect(rule).toContain(decl);
+    }
+  });
+
+  it("T-REDUCED-MOTION: the room the switch protects is really the shell root", () => {
+    // The kill switch reaches CHILDREN of `.wm-sanctuary`. If that class ever
+    // moved off the outermost element — onto an inner atmosphere div, say —
+    // the selector would still match something and the switch would silently
+    // stop covering the header and the market itself.
+    const rootAt = SOURCE.indexOf("wm-sanctuary");
+    expect(rootAt).toBeGreaterThan(0);
+    expect(SOURCE).toContain("className={`wm-sanctuary ${className ?? \"\"}`}");
+    // …and the children really do render inside it.
+    expect(SOURCE).toMatch(/<main[^>]*>\{children\}<\/main>/);
+  });
+
   it("uses compositor-friendly properties only (transform + opacity)", () => {
     // The audit's performance budget: "Animate transform + opacity;
     // avoid layout-heavy width/top/left animation." Any width/top/left/

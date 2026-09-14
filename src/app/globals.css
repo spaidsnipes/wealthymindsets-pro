@@ -571,11 +571,36 @@
   outline: 2px solid var(--heritage-gold);
   outline-offset: 2px;
 }
+/* T-REDUCED-MOTION — the OS asked for stillness, so the room is still.
+ *
+ * This rule was written for the July shell and scoped to `.wm-universe`,
+ * which was correct when `.wm-universe` wrapped every route. The Founder
+ * cutover changed that: MainLayout now RETURNS WMExperienceShell for the
+ * operating room and the July `<div className="wm-universe">` never runs
+ * on that route — MainLayout.founderRoute.render.test.tsx asserts exactly
+ * that absence. So the new house inherited none of this.
+ *
+ * WATER-BREATH itself was never at risk; the shell gates it on
+ * `prefers-reduced-motion: no-preference` inside its own <style>. What
+ * was lost is the SAFETY NET underneath it — every transition and
+ * animation a CHILD of the room declares. The room already has one
+ * (ExperienceModeBar's 120ms colour transition) and every surface added
+ * to the deck from here is free to declare more. A gate that covers the
+ * one animation its author remembered, and nothing a future author
+ * writes, is the "guard that documents an intention" shape again.
+ *
+ * Both houses share ONE owner rather than getting a near-identical copy
+ * each, so the two can never drift into disagreeing about what "reduced"
+ * means. When the July shell retires, its selectors leave and this rule
+ * stays.
+ */
 @media (prefers-reduced-motion: reduce) {
-  .wm-universe *, .wm-universe *::before, .wm-universe *::after {
+  .wm-universe *, .wm-universe *::before, .wm-universe *::after,
+  .wm-sanctuary *, .wm-sanctuary *::before, .wm-sanctuary *::after {
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
