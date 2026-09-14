@@ -239,7 +239,15 @@ export function WMExperienceShell({
         }
       `}</style>
       <div className="wm-water-breath" aria-hidden="true" />
-      {/* Quiet chrome: brand + seven-mode operating-state bar + the one job. */}
+      {/* Quiet chrome: brand + seven-mode operating-state bar + the one job.
+          SCENE_FRAGMENTATION cure (Founder audit continuation): the header
+          used to sit on WM.surface.deep — a solid opaque bar visually
+          separated from the room beneath it. The Founder mandate is that
+          MARKET IS THE ROOM; a chrome band above the room reads as a
+          separate app-header plane. Transparent header + hairline lets the
+          sanctuary atmosphere (vignette + grain + WATER-BREATH) continue
+          all the way to the wordmark, so the top of the first viewport
+          reads as the same room the market sits inside. */}
       <header
         style={{
           display: "flex",
@@ -247,7 +255,7 @@ export function WMExperienceShell({
           gap: WM.space.md,
           padding: `${WM.space.sm}px ${WM.space.md}px`,
           borderBottom: `1px solid ${WM.border.hair}`,
-          background: WM.surface.deep,
+          background: "transparent",
         }}
       >
         {/* Left cell. It renders even when no brand is supplied, because the
@@ -333,7 +341,11 @@ export function WMExperienceShell({
               flexShrink: 0,
               overflow: "auto",
               borderLeft: `1px solid ${WM.border.hair}`,
-              background: WM.surface.deep,
+              // Same reasoning as the header — a chrome-coloured column
+              // beside MARKET reads as a separate rail-plane. Transparent
+              // keeps the guest content inside the sanctuary atmosphere;
+              // the left hairline still delimits it as an ASIDE.
+              background: "transparent",
             }}
           >
             {rail}
