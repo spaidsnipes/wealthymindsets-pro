@@ -112,12 +112,14 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
     expect(html).toContain("flex: 0 0 180px !important");
   });
 
-  it("can attach the same six truths as a vertical MARKET rail", () => {
+  it("compacts decision and MARKET provenance into one desktop rail header", () => {
     const html = render({ presentation: "rail" });
     expect(html).toContain('data-presentation="rail"');
     expect(html).toContain("flex-direction:column");
     expect(html).toContain("width:320px");
     expect(html).toContain("border-left:1px solid rgba(139,106,41,0.22)");
+    expect(html).toContain('data-testid="spine-provenance-header"');
+    expect(html.match(/data-testid="spine-provenance-header"/g)).toHaveLength(1);
     for (const label of ["Decision", "Now", "Market", "Risk", "Why", "Next"]) {
       expect(html).toContain(`>${label}<`);
     }
@@ -127,6 +129,7 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
     const html = render();
     expect(html).toContain('data-presentation="band"');
     expect(html).toContain("flex-direction:row");
+    expect(html).not.toContain('data-testid="spine-provenance-header"');
   });
 });
 

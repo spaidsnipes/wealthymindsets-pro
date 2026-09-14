@@ -163,6 +163,35 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         padding: "10px 12px",
       }
     : CELL;
+  const decisionValue = decisionId ? (
+    <code
+      style={{
+        ...VALUE,
+        color: "#e8b923",
+        fontWeight: 700,
+        whiteSpace: "normal",
+        overflow: "visible",
+        textOverflow: "clip",
+        overflowWrap: "anywhere",
+      }}
+      data-testid="spine-decision-id"
+    >
+      {decisionId}
+    </code>
+  ) : (
+    <span style={MUTED} data-testid="spine-decision-absent">{decisionIdAbsence}</span>
+  );
+  const marketValue = (
+    <>
+      <span style={VALUE} data-price-provenance={priceDisplay.provenance}>
+        {market.symbol} · {market.timeframe} ·{" "}
+        {priceDisplay.text}
+      </span>
+      <span style={MUTED}>
+        {market.quality ?? "QUALITY UNKNOWN"} · {asOfText(market.capturedAt)}
+      </span>
+    </>
+  );
 
   return (
     <section
@@ -204,45 +233,37 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
           }
         }
       `}</style>
-      {/* DECISION_ID — the thing every other cell is about. */}
-      <div style={{ ...cellStyle, flex: rail ? "0 0 auto" : "1 1 220px", minWidth: rail ? 0 : 200, maxWidth: "100%", borderLeft: "none", borderTop: "none" }}>
-        <span style={LABEL}>Decision</span>
-        {decisionId ? (
-          <code
-            /**
-             * THE ID WRAPS AND IS NEVER ELLIPSISED.
-             *
-             * It shipped as `whiteSpace: "nowrap"` on top of VALUE's
-             * `overflow: hidden` + `textOverflow: ellipsis`. Measured at 834px
-             * — the iPad — the box was 242px and the id was 264px, so it
-             * rendered as `wmd_9f3c1a22-5e77-4a10-b2d4-7c918ee0d3…`.
-             *
-             * Truncating a price is ugly. Truncating an IDENTITY is a lie:
-             * two different decisions sharing a prefix render identically, and
-             * the one canonical id the whole band is about becomes unverifiable
-             * against the journal. Absence is disclosed here, never filled —
-             * a partial id is a filled absence wearing an ellipsis.
-             *
-             * So it wraps. `anywhere` because a uuid has no break opportunities
-             * and `break-word` would leave the line overflowing anyway.
-             */
-            style={{
-              ...VALUE,
-              color: "#e8b923",
-              fontWeight: 700,
-              whiteSpace: "normal",
-              overflow: "visible",
-              textOverflow: "clip",
-              overflowWrap: "anywhere",
-            }}
-            data-testid="spine-decision-id"
-          >
-            {decisionId}
-          </code>
-        ) : (
-          <span style={MUTED} data-testid="spine-decision-absent">{decisionIdAbsence}</span>
-        )}
-      </div>
+      {/* DECISION_ID — the thing every other cell is about. On the desktop
+          rail, identity and MARKET provenance are one restrained header,
+          because the adjacent canvas already owns MARKET as the room. Keeping
+          them as separate hairlined cells made the rail read as six dashboard
+          cards. The horizontal band retains the full six-cell projection. */}
+      {rail ? (
+        <div
+          data-testid="spine-provenance-header"
+          style={{
+            ...cellStyle,
+            borderTop: "none",
+            paddingTop: 8,
+            paddingBottom: 8,
+            gap: 8,
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={LABEL}>Decision</span>
+            {decisionValue}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={LABEL}>Market</span>
+            {marketValue}
+          </div>
+        </div>
+      ) : (
+        <div style={{ ...cellStyle, flex: "1 1 220px", minWidth: 200, maxWidth: "100%", borderLeft: "none", borderTop: "none" }}>
+          <span style={LABEL}>Decision</span>
+          {decisionValue}
+        </div>
+      )}
 
       <div style={cellStyle}>
         <span style={LABEL}>Now</span>
@@ -251,16 +272,12 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         </span>
       </div>
 
-      <div style={cellStyle}>
-        <span style={LABEL}>Market</span>
-        <span style={VALUE} data-price-provenance={priceDisplay.provenance}>
-          {market.symbol} · {market.timeframe} ·{" "}
-          {priceDisplay.text}
-        </span>
-        <span style={MUTED}>
-          {market.quality ?? "QUALITY UNKNOWN"} · {asOfText(market.capturedAt)}
-        </span>
-      </div>
+      {!rail && (
+        <div style={cellStyle}>
+          <span style={LABEL}>Market</span>
+          {marketValue}
+        </div>
+      )}
 
       <div style={cellStyle}>
         <span style={LABEL}>Risk</span>
