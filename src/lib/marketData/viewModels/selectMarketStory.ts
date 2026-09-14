@@ -322,6 +322,57 @@ export const DEFAULT_GUARDS: readonly { chapter: StoryChapter; guard: Guard }[] 
   },
 ];
 
+/** The dimensions the shipping guards above actually read, in reading order. */
+const GUARDED_DIMENSIONS = [
+  "direction",
+  "location",
+  "aggression",
+  "regime",
+  "structure",
+  "volatility",
+  "profile",
+  "orderFlow",
+] as const;
+
+/**
+ * Say WHY no chapter resolved — measured from the snapshot, never asserted.
+ *
+ * The previous single hardcoded sentence claimed "Insufficient dimensions
+ * resolved" for EVERY no-chapter outcome, including the case where every
+ * dimension was RESOLVED and the guard table simply has no chapter for that
+ * combination. It then sent the trader to "review evidence/contradictions on
+ * state.direction/regime/structure" — evidence that may be perfectly
+ * complete. A diagnosis that sounds specific and is not checked is a
+ * fabricated diagnosis; §35 forbids it in the same breath as a fabricated
+ * price. Observed live on /charts beside a chart badge reading a resolved
+ * regime — two owners, one instrument, one moment.
+ *
+ * These are two genuinely different situations for a trader:
+ *   - evidence is missing        → name exactly which dimensions, and wait;
+ *   - evidence is complete       → the market is in a state this product has
+ *                                  no chapter for, which is a MODEL gap, not
+ *                                  a DATA gap, and no amount of waiting fixes
+ *                                  it. Saying so is the honest answer.
+ */
+function explainNoChapter(state: CanonicalMarketState): string {
+  const unresolved = GUARDED_DIMENSIONS.filter(
+    (name) => (state[name] as MarketStateDimension).resolution !== "RESOLVED",
+  );
+
+  if (unresolved.length === 0) {
+    return (
+      "All dimensions resolved, but no chapter guard matches this combination. " +
+      "This is a model gap, not missing evidence — waiting will not resolve it."
+    );
+  }
+
+  const resolvedCount = GUARDED_DIMENSIONS.length - unresolved.length;
+  return (
+    `No chapter resolved. Unresolved: ${unresolved.join(", ")} ` +
+    `(${resolvedCount}/${GUARDED_DIMENSIONS.length} dimensions resolved).`
+  );
+}
+
 /**
  * Pure selector. UNKNOWN inputs propagate to UNKNOWN outputs with an
  * explanatory `reason`. Prior chapter is preserved for a bounded freshness
@@ -363,8 +414,7 @@ export function selectMarketStory(
       current: null,
       recent: priorChapters.slice(-config.historyCap),
       resolution: "UNKNOWN",
-      reason:
-        "Insufficient dimensions resolved to identify a chapter. Review evidence/contradictions on state.direction/regime/structure/etc.",
+      reason: explainNoChapter(state),
     };
   }
 

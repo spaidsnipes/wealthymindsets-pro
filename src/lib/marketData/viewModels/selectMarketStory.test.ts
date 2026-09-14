@@ -52,12 +52,86 @@ const mkState = (capturedAt: number, over: Partial<CanonicalMarketState> = {}): 
   ...over,
 } as unknown as CanonicalMarketState);
 
+describe("selectMarketStory — the no-chapter diagnosis must be measured, not asserted", () => {
+  /**
+   * The defect: ONE hardcoded sentence — "Insufficient dimensions resolved …
+   * Review evidence/contradictions on state.direction/regime/structure" — was
+   * emitted for EVERY no-chapter outcome, including when every dimension was
+   * RESOLVED. It sent the trader to inspect evidence that was already
+   * complete. A diagnosis that sounds specific and was never checked is a
+   * fabricated diagnosis; §35 forbids that in the same breath as a fabricated
+   * price. Observed live on /charts beside a chart badge showing a resolved
+   * regime — two owners, one instrument, one moment.
+   */
+
+  // Every dimension RESOLVED, but deliberately no guard-matching combination:
+  // regime BALANCE with HIGH volatility (so BALANCE needs lowVol and fails,
+  // TREND needs a trend token, ROTATION needs rotation), and neutral tokens
+  // everywhere else so SWEEP/BREAKOUT/LIQUIDITY_PROBE/VALUE_MIGRATION miss.
+  const allResolvedNoGuard = () =>
+    mkState(1000, {
+      regime: dim("BALANCE"),
+      volatility: dim("HIGH VOLATILITY"),
+      direction: dim("UP"),
+      location: dim("MIDRANGE"),
+      aggression: dim("NEUTRAL"),
+      structure: dim("INTACT"),
+      profile: dim("STABLE"),
+      orderFlow: dim("NEUTRAL"),
+    });
+
+  it("does NOT blame missing evidence when every dimension is resolved", () => {
+    const vm = selectMarketStory(allResolvedNoGuard());
+    expect(vm.current).toBeNull();
+    expect(vm.resolution).toBe("UNKNOWN");
+    // The specific lie: claiming dimensions are unresolved when none are.
+    expect(vm.reason).not.toMatch(/insufficient/i);
+    expect(vm.reason).not.toMatch(/unresolved:/i);
+  });
+
+  it("names a model gap as a model gap, and says waiting will not help", () => {
+    // A trader who is told "insufficient evidence" waits. That is the wrong
+    // action when the evidence is complete and the product simply has no
+    // chapter for this market state — waiting cannot resolve it.
+    const vm = selectMarketStory(allResolvedNoGuard());
+    expect(vm.reason).toMatch(/model gap/i);
+    expect(vm.reason).toMatch(/waiting will not resolve it/i);
+  });
+
+  it("names exactly which dimensions are unresolved when some are", () => {
+    const vm = selectMarketStory(
+      mkState(1000, { regime: dim("BALANCE"), direction: dim("UP") }),
+    );
+    expect(vm.reason).toMatch(/Unresolved:/);
+    // The resolved two must NOT be accused.
+    expect(vm.reason).not.toMatch(/\bregime\b/);
+    expect(vm.reason).not.toMatch(/\bdirection\b/);
+    // The genuinely unresolved ones must be named.
+    expect(vm.reason).toMatch(/volatility/);
+    expect(vm.reason).toMatch(/structure/);
+    expect(vm.reason).toMatch(/2\/8 dimensions resolved/);
+  });
+
+  it("keeps the two no-chapter causes textually distinguishable", () => {
+    // If these ever collapse to the same sentence the defect is back: the
+    // trader cannot tell "wait for evidence" from "this product has no
+    // chapter for what you are looking at".
+    const missing = selectMarketStory(mkState(1000, { regime: dim("BALANCE") })).reason;
+    const modelGap = selectMarketStory(allResolvedNoGuard()).reason;
+    expect(missing).not.toEqual(modelGap);
+  });
+});
+
 describe("selectMarketStory — UNKNOWN / freshness path", () => {
   it("UNKNOWN when no dimensions resolved AND no prior chapters", () => {
     const vm = selectMarketStory(mkState(1000));
     expect(vm.current).toBeNull();
     expect(vm.resolution).toBe("UNKNOWN");
-    expect(vm.reason).toMatch(/Insufficient dimensions resolved/i);
+    // Names the unresolved dimensions rather than asserting a blanket
+    // "insufficient dimensions" it never measured. See the no-chapter
+    // diagnosis block below.
+    expect(vm.reason).toMatch(/No chapter resolved/i);
+    expect(vm.reason).toMatch(/0\/8 dimensions resolved/);
     expect(vm.recent).toEqual([]);
   });
 
