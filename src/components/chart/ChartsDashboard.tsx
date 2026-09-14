@@ -2466,7 +2466,15 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
         // Truth-in-name: FMP responded 503 with the NOT CONFIGURED
         // contract — name the exact missing env var so a founder can
         // paste it in host secrets and unblock every fundamentals view.
-        <div style={{ background:"#1a1410", border:"1px solid #5b3a12", borderRadius:8, padding:"20px 18px", maxWidth:640 }}>
+        <div
+          data-testid="fundamentals-provider-edge"
+          style={{
+            background:"transparent",
+            borderLeft:"1px solid rgba(183, 138, 52, 0.42)",
+            padding:"10px 0 10px 14px",
+            maxWidth:640,
+          }}
+        >
           <div style={{ fontSize:13, fontWeight:700, color:"#f4c86b", marginBottom:6, letterSpacing:0.4, textTransform:"uppercase" }}>
             Fundamentals provider — {providerEdge.edge}
           </div>

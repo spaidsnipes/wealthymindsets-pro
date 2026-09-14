@@ -38,6 +38,22 @@ describe("charts category scene fusion", () => {
     expect(fundamentalsPanel).not.toContain("{base} — {tab}");
   });
 
+  it("renders the missing fundamentals provider as an honest contextual seam", () => {
+    const fundamentalsPanel = dashboard.slice(dashboard.indexOf("function FundamentalsTabPanel"));
+    const providerEdge = fundamentalsPanel.slice(
+      fundamentalsPanel.indexOf('data-testid="fundamentals-provider-edge"'),
+      fundamentalsPanel.indexOf("No {tab.toLowerCase()} data for {base}"),
+    );
+
+    expect(providerEdge).toContain('background:"transparent"');
+    expect(providerEdge).toContain('borderLeft:"1px solid rgba(183, 138, 52, 0.42)"');
+    expect(providerEdge).not.toContain('background:"#1a1410"');
+    expect(providerEdge).not.toContain('border:"1px solid #5b3a12"');
+    expect(providerEdge).toContain("providerEdge.edge");
+    expect(providerEdge).toContain("providerEdge.missing");
+    expect(providerEdge).toContain("will never fabricate placeholder");
+  });
+
   it("preserves Chart, Options, and every applicable secondary destination", () => {
     expect(categoryTabsFor("equity")).toEqual([
       "Chart",
