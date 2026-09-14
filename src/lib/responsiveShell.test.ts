@@ -49,6 +49,7 @@ describe("responsive P0 command surfaces", () => {
     // A reachable door, wired to the drawer it opens.
     expect(dashboard).toContain('id="chart-watchlist-sheet"');
     expect(dashboard).toContain('aria-controls="chart-watchlist-sheet"');
+    expect(dashboard).toContain("onWatchlist={() => openWatchlist(toolsTriggerRef.current)}");
     expect(dashboard).not.toContain('id="chart-watchlist-rail"');
 
     // Reuse, not a phone-specific fork of the watchlist.

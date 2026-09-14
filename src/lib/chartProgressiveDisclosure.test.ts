@@ -21,6 +21,7 @@ describe("chart progressive disclosure", () => {
     expect(toolbar).toContain("Flow &amp; studies");
     expect(toolbar).toContain("Pine workspace");
     expect(toolbar).toContain("Capture &amp; share");
+    expect(toolbar).toContain("Watchlist");
     expect(toolbar).toContain("Drawing tools");
     expect(toolbar).toContain('aria-controls="wm-broker-connect"');
     expect(toolbar).toContain("onConnectBrokers();");
@@ -66,6 +67,19 @@ describe("chart progressive disclosure", () => {
     expect(dashboard).toContain("fallbackTriggerRef={drawSheetTriggerRef}");
     expect(dashboard).not.toContain("wm-chart-draw-trigger");
     expect(dashboard).toMatch(/const openDrawingTools = useCallback\(\(trigger: HTMLButtonElement \| null\) => \{\s*drawSheetTriggerRef\.current = trigger;\s*setDrawSheetOpen\(true\);/);
+  });
+
+  it("rehomes the chart watchlist behind Tools while preserving a non-chart doorway", () => {
+    const menuStart = toolbar.indexOf('role="menu"');
+    const menuEnd = toolbar.indexOf("</div>", menuStart);
+    const menu = toolbar.slice(menuStart, menuEnd);
+    expect(menu).toContain("onWatchlist();");
+    expect(menu).toContain("Watchlist");
+    expect(menu).toContain('aria-controls="chart-watchlist-sheet"');
+    expect(dashboard).toContain("onWatchlist={() => openWatchlist(toolsTriggerRef.current)}");
+    expect(dashboard).toContain("fallbackTriggerRef={watchlistSheetTriggerRef}");
+    expect(dashboard).toMatch(/activeTab !== "Chart" && activeTab !== "Options"[\s\S]{0,700}?wm-chart-watchlist-trigger/);
+    expect(dashboard).toMatch(/const openWatchlist = useCallback\(\(trigger: HTMLButtonElement \| null\) => \{\s*watchlistSheetTriggerRef\.current = trigger;\s*setWatchlistOpen\(true\);/);
   });
 
   it("keeps the dense flow and study strip closed until the trader asks for it", () => {

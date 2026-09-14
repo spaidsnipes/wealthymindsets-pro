@@ -754,6 +754,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // identity across desktop, tablet and phone.
   const narrowViewport = useNarrowViewport();
   const watchlistSheetTriggerRef = useRef<HTMLButtonElement>(null);
+  const openWatchlist = useCallback((trigger: HTMLButtonElement | null) => {
+    watchlistSheetTriggerRef.current = trigger;
+    setWatchlistOpen(true);
+  }, []);
 
   // Drawing and capture are contextual tools at every width. Their canonical
   // components live in drawers instead of permanently framing MARKET with two
@@ -1079,13 +1083,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             (§Silence Is A Feature). Opens the SAME DecisionWhyPanel
             /command-deck ships so trader sees identical WHY on both. */}
         <div className="wm-chart-orientation-actions">
-        {/* One compact door to the same contextual drawer at every width. */}
-        {
+        {/* Chart views rehome contextual evidence behind Tools. Non-chart
+            views keep this orientation-level fallback because their chart
+            toolbar is intentionally absent. Both doors open the same drawer. */}
+        {activeTab !== "Chart" && activeTab !== "Options" && (
           <button
             className="wm-chart-orientation-action wm-chart-watchlist-trigger"
             ref={watchlistSheetTriggerRef}
             type="button"
-            onClick={() => setWatchlistOpen(o => !o)}
+            onClick={() => openWatchlist(watchlistSheetTriggerRef.current)}
             aria-label={watchlistOpen ? "Close watchlist" : "Open watchlist"}
             aria-expanded={watchlistOpen}
             aria-controls="chart-watchlist-sheet"
@@ -1108,7 +1114,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           >
             Watchlist
           </button>
-        }
+        )}
         {(chartCanvasVM.decisionWhy || chartPassportVM.capturedAt !== null) && (
           <button
             className="wm-chart-orientation-action wm-chart-why-trigger"
@@ -1470,6 +1476,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             onConnectBrokers={() => openBrokerConnect(toolsTriggerRef.current)}
             onCapture={() => openCaptureShare(toolsTriggerRef.current)}
             captureOpen={toolsSheetOpen}
+            onWatchlist={() => openWatchlist(toolsTriggerRef.current)}
+            watchlistOpen={watchlistOpen}
             onDraw={() => openDrawingTools(toolsTriggerRef.current)}
             drawOpen={drawSheetOpen}
             onSmartMoney={() => setSmartMoneyOpen(o => !o)}
