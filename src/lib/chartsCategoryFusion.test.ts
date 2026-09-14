@@ -32,6 +32,12 @@ describe("charts category scene fusion", () => {
     expect(dashboard).toContain("setActiveTab(event.target.value)");
   });
 
+  it("keeps secondary views inside the shared room instead of resetting their scene", () => {
+    const fundamentalsPanel = dashboard.slice(dashboard.indexOf("function FundamentalsTabPanel"));
+    expect(fundamentalsPanel).toContain('background:"transparent"');
+    expect(fundamentalsPanel).not.toContain("{base} — {tab}");
+  });
+
   it("preserves Chart, Options, and every applicable secondary destination", () => {
     expect(categoryTabsFor("equity")).toEqual([
       "Chart",

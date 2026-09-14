@@ -2454,10 +2454,7 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
   const body = loading ? null : renderTab();
 
   return (
-    <div style={{ flex:1, overflow:"auto", background:"#0D0E14", padding:16 }}>
-      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
-        <span style={{ fontSize:14, fontWeight:700, color:"#E2E8F0" }}>{base} — {tab}</span>
-      </div>
+    <div style={{ flex:1, overflow:"auto", background:"transparent", padding:16 }}>
       {loading ? (
         <div style={{ color:"#6B7094", fontSize:13, padding:"24px 4px" }}>Loading {tab.toLowerCase()} data…</div>
       ) : (body && hasData) ? body : providerEdge ? (
