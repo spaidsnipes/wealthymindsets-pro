@@ -99,6 +99,27 @@ describe("/charts permanent frame is room chrome, not opaque slabs", () => {
     expect(css).toMatch(/\.wm-light\s+\.wm-room-chrome\s*\{[^}]*border-color:[^;]*!important/);
   });
 
+  it("never hand-writes a -webkit-backdrop-filter DECLARATION", () => {
+    // MEASURED LIVE, NOT GUESSED. After this material shipped, every
+    // `.wm-room-chrome` element on production computed
+    // `backdrop-filter: none` while its fill applied correctly — the glass
+    // was half-delivered. Cause: the CSS minifier collapses an authored
+    // standard+prefixed pair down to the PREFIXED declaration only, and
+    // Chrome reports `CSS.supports('-webkit-backdrop-filter','blur(8px)')`
+    // as FALSE. So the hand-written prefix is not a safety net; it is the
+    // thing that deletes the blur. `.wm-shell-header` declares ONLY the
+    // standard property and the build emitted BOTH — it blurs correctly.
+    //
+    // A DECLARATION only. The `@supports` CONDITION below legitimately names
+    // the prefixed property so a webkit-only engine is not pushed onto the
+    // opaque fallback; conditions are not collapsed by the minifier.
+    const decls = css
+      .split("\n")
+      .filter((l) => /^\s*-webkit-backdrop-filter\s*:/.test(l));
+    expect(decls, "hand-written vendor prefix suppresses the blur in Chrome")
+      .toEqual([]);
+  });
+
   const FRAME: Array<[string, string]> = [
     ["ChartToolbar.tsx", "the 36px tool band above MARKET"],
     ["LeftDrawingSidebar.tsx", "the 40px drawing rail left of MARKET"],

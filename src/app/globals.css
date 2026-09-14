@@ -661,8 +661,12 @@
   /* Glass panel */
   .glass {
     background: rgba(22, 27, 34, 0.92);
+    /* NO hand-written `-webkit-` twin. See the note at `.wm-room-chrome`:
+       the CSS minifier collapses an authored standard+prefixed pair down to
+       the PREFIXED one only, and Chrome does not implement
+       `-webkit-backdrop-filter` — so writing the prefix by hand is what
+       deletes the blur. The build is the single owner of prefixing. */
     backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(37, 45, 56, 0.9);
   }
 
@@ -804,8 +808,17 @@ input[type=range]::-webkit-slider-runnable-track {
 .wm-room-chrome,
 .wm-sticky-glass {
   background-color: rgba(11, 11, 13, 0.82);
+  /* PREFIXING IS OWNED BY THE BUILD, NOT BY HAND — measured live, not guessed.
+     The emitted production stylesheet for this exact rule was
+     `-webkit-backdrop-filter:blur(8px)` with NO unprefixed twin, and Chrome
+     reports `CSS.supports('-webkit-backdrop-filter','blur(8px)') === false`,
+     so every `.wm-room-chrome` element computed `backdrop-filter: none`:
+     the fill landed and the blur silently did not. `.wm-shell-header`, which
+     declares ONLY the standard property, emitted BOTH and blurs correctly.
+     The minifier collapses an authored standard+prefixed pair to the prefixed
+     one; declaring only the standard property lets it add the prefix itself.
+     `noHandWrittenVendorPrefix` in chartsRoomChrome.test.ts holds this. */
   backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 }
 /* No blur support → fall back to a heavier fill so legibility never
    depends on a progressive-enhancement feature. */
