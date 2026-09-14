@@ -113,23 +113,30 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
   });
 
   it("compacts decision and MARKET provenance into one desktop rail header", () => {
-    const html = render({ presentation: "rail" });
+    const html = render({
+      presentation: "rail",
+      canvasSummary: <span data-testid="canonical-canvas-verdict">WAIT</span>,
+    });
     expect(html).toContain('data-presentation="rail"');
     expect(html).toContain("flex-direction:column");
     expect(html).toContain("width:320px");
     expect(html).toContain("border-left:1px solid rgba(139,106,41,0.22)");
     expect(html).toContain('data-testid="spine-provenance-header"');
     expect(html.match(/data-testid="spine-provenance-header"/g)).toHaveLength(1);
+    expect(html).toContain('data-testid="spine-canvas-summary"');
+    expect(html).toContain('data-testid="canonical-canvas-verdict"');
     for (const label of ["Decision", "Now", "Market", "Risk", "Why", "Next"]) {
       expect(html).toContain(`>${label}<`);
     }
   });
 
   it("retains the horizontal band as the default responsive projection", () => {
-    const html = render();
+    const html = render({ canvasSummary: <span data-testid="canonical-canvas-verdict">WAIT</span> });
     expect(html).toContain('data-presentation="band"');
     expect(html).toContain("flex-direction:row");
     expect(html).not.toContain('data-testid="spine-provenance-header"');
+    expect(html).not.toContain('data-testid="spine-canvas-summary"');
+    expect(html).not.toContain('data-testid="canonical-canvas-verdict"');
   });
 });
 

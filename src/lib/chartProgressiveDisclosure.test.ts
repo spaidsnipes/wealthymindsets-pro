@@ -109,6 +109,7 @@ describe("chart progressive disclosure", () => {
     expect(dashboard).not.toContain("ROW · {chartPermission.verdict}");
     expect(dashboard).toContain("<CanvasSummaryPill");
     expect(dashboard).toContain("(narrowViewport || optionsOpen)");
+    expect(dashboard).toContain("canvasSummary: (");
   });
 
   it("lets the global shell own product identity and starts with chart orientation", () => {

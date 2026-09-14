@@ -78,6 +78,9 @@ export interface DecisionSpineBandProps {
   readonly expression: string | null;
   /** Opens the full WHY drawer. The band is the summary, not a replacement. */
   readonly onOpenWhy?: (trigger: HTMLButtonElement) => void;
+  /** Already-compiled canonical canvas verdict. Desktop may attach this to
+   * the rail; the horizontal fallback keeps it in the orientation strip. */
+  readonly canvasSummary?: React.ReactNode;
   /** Desktop charts attach the same compiled spine beside MARKET. Other
    * surfaces retain the horizontal band without forking truth ownership. */
   readonly presentation?: "band" | "rail";
@@ -257,6 +260,11 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             <span style={LABEL}>Market</span>
             {marketValue}
           </div>
+          {props.canvasSummary && (
+            <div data-testid="spine-canvas-summary" style={{ paddingTop: 2 }}>
+              {props.canvasSummary}
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ ...cellStyle, flex: "1 1 220px", minWidth: 200, maxWidth: "100%", borderLeft: "none", borderTop: "none" }}>

@@ -125,7 +125,8 @@ describe("composeMarketCanvasVM enforcement — canon §Single-Writer / Many-Rea
     // Operating System Overview): /charts is the primary trader surface
     // and must expose the same canonical canvas verdict as the deck.
     // ChartsDashboard.tsx now composes useMarketCanvasVM and renders
-    // CanvasSummaryPill in the wordmark row — same compiler as
+    // CanvasSummaryPill in the attached decision rail on desktop and the
+    // orientation fallback on narrow/Options — same compiler as
     // /command-deck, zero divergent verdict.
     const p = resolve(SRC_ROOT, "src/components/chart/ChartsDashboard.tsx");
     const content = readFileSync(p, "utf8");

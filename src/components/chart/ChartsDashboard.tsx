@@ -954,6 +954,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       ? `${optionSelection.contract.symbol} ${optionSelection.contract.expirationDate} ${optionSelection.contract.strike} ${optionSelection.contract.contractType}`
       : null,
     onOpenWhy: openWhyFrom,
+    canvasSummary: (
+      <CanvasSummaryPill
+        vm={chartMarketCanvas}
+        ariaLabel="Chart market canvas summary"
+      />
+    ),
   };
 
   return (
@@ -1084,12 +1090,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             from the canonical compiler. Founder canon: Asset 10
             "Full Operating System Overview" merge into the primary
             trader surface. */}
-        <div style={{ marginLeft: 4, marginRight: 4, display: "flex", alignItems: "center" }}>
-          <CanvasSummaryPill
-            vm={chartMarketCanvas}
-            ariaLabel="Chart market canvas summary"
-          />
-        </div>
+        {(narrowViewport || optionsOpen) && (
+          <div style={{ marginLeft: 4, marginRight: 4, display: "flex", alignItems: "center" }}>
+            <CanvasSummaryPill
+              vm={chartMarketCanvas}
+              ariaLabel="Chart market canvas summary"
+            />
+          </div>
+        )}
         </div>
         {/* Internal depth readiness stays in the broker/capability drawer.
             A missing L2 wire must not occupy permanent chart chrome, and the
