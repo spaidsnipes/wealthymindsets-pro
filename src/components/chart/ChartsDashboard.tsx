@@ -915,7 +915,14 @@ export function ChartsDashboard() {
   return (
     <div
       className={`wm-chart-dashboard${theme === "neon" ? " wm-neon" : ""}`}
-      style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden", background: theme === "neon" ? "#02060a" : "#0D0E14" }}
+      // SCENE_FRAGMENTATION cure (Founder 2026-09-13): default theme
+      // used to paint #0D0E14 across the entire /charts route, blocking
+      // the sanctuary shell's vignette + grain + WATER-BREATH from
+      // reaching a Founder route that lives INSIDE that shell. Neon
+      // keeps its opaque black (it is an alternate visual constitution
+      // by design). Default is transparent so /charts is the same room
+      // /command-deck is.
+      style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden", background: theme === "neon" ? "#02060a" : "transparent" }}
     >
       {theme === "neon" && <div className="wm-neon-scan" />}
       {/* Hidden context tag for SpaidBot to read current chart state.
@@ -970,8 +977,12 @@ export function ChartsDashboard() {
         className="wm-chart-orientation-strip"
         style={{
           minHeight: 44,
-          borderBottom: "1px solid rgba(139,106,41,0.25)",
-          background: "linear-gradient(180deg, rgba(11,11,13,0.9), #0D0E14)",
+          borderBottom: "1px solid rgba(139,106,41,0.22)",
+          // Chrome bar → hairline. The gradient painted a 44px opaque
+          // band at the top of MARKET, disconnecting the room from the
+          // sanctuary header above. Transparent lets the room read as
+          // one continuous space; the hairline still delimits controls.
+          background: "transparent",
           display: "flex",
           alignItems: "center",
           paddingLeft: 16,
@@ -1202,12 +1213,15 @@ export function ChartsDashboard() {
           // to whatever the buttons need so touch users hit them without
           // fat-fingering an adjacent tab.
           minHeight: 44,
-          borderBottom: "1px solid #1E2030",
+          borderBottom: "1px solid rgba(139,106,41,0.15)",
           display: "flex",
           alignItems: "stretch",
           gap: 0,
           paddingLeft: 16,
-          background: "#0D0E14",
+          // Category strip → hairline. Was opaque #0D0E14 painting a
+          // second chrome band beneath the orientation strip; two solid
+          // bars above MARKET were the exact silhouette the audit named.
+          background: "transparent",
           flexShrink: 0,
           overflowX: "auto",
           scrollbarWidth: "none",
