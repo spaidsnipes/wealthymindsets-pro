@@ -77,6 +77,14 @@ describe("chart progressive disclosure", () => {
     expect(dashboard).not.toContain("wm-chart-passport-trigger");
   });
 
+  it("keeps the canonical WHY doorway operable across every symbol view", () => {
+    expect(dashboard).toContain('aria-label={whyOpen ? "Close Decision Why" : "Open Decision Why"}');
+    expect(dashboard).toContain('id="chart-decision-why"');
+    expect(dashboard).toContain("fallbackTriggerRef={whyTriggerRef}");
+    expect(dashboard).toMatch(/\{whyOpen && \(\s*<ShellModalDrawer/);
+    expect(dashboard).not.toMatch(/\{whyOpen && \(activeTab === "Chart" \|\| activeTab === "Options"\) && \(/);
+  });
+
   it("keeps the menu viewport-bound instead of extending the toolbar", () => {
     expect(toolbar).toContain('position: "fixed"');
     expect(toolbar).toContain("window.innerWidth - (rect?.right ?? window.innerWidth)");

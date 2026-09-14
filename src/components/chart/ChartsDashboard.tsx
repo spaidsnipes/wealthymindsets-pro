@@ -1435,7 +1435,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             </ShellModalDrawer>
           )}
 
-          {whyOpen && (activeTab === "Chart" || activeTab === "Options") && (
+          {/* WHY belongs to the current instrument decision, not to a chart
+              rendering mode. The orientation doorway remains visible on
+              Financials/Valuation/etc., so its canonical drawer must remain
+              mountable there as well; otherwise the button visibly toggles
+              aria-expanded while opening nothing. */}
+          {whyOpen && (
             <ShellModalDrawer
               id="chart-decision-why"
               titleId="chart-decision-why-title"
