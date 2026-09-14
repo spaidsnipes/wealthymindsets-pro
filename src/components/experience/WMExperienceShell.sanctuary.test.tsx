@@ -126,6 +126,31 @@ describe("WMExperienceShell · sanctuary — the audit's laws are in the source"
     }
   });
 
+  it("gives keyboard focus a ring the room actually owns", () => {
+    // Without this rule the room falls back to the browser's 1px system-blue
+    // default — measured, in Chrome, against the built stylesheet. The deck's
+    // disclosures are <summary list-style:none> and its actions are
+    // transparent borderless <button>s, so a keyboard trader with no ring
+    // cannot tell which control they are on.
+    const css = readFileSync(path.resolve(__dirname, "../../app/globals.css"), "utf8");
+    const rule = css.match(/\.wm-sanctuary :is\([^)]*\):focus-visible\s*\{[^}]*\}/);
+    expect(rule).not.toBeNull();
+    const text = rule![0];
+    for (const target of ["button", "a", "summary", "[tabindex]"]) {
+      expect(text).toContain(target);
+    }
+    expect(text).toMatch(/outline:\s*2px solid/);
+    expect(text).toMatch(/outline-offset:\s*2px/);
+    // The token must come from :root, never from a shell class — that scoping
+    // trap is the entire reason this rule had to be written.
+    expect(text).toContain("var(--wm-gold-hero,");
+    expect(css).toMatch(/:root[\s\S]*?--wm-gold-hero:\s*#d4af37/);
+    // And it must carry a literal fallback: an outline shorthand whose var
+    // fails to resolve is invalid at computed-value time, so the ring
+    // DISAPPEARS rather than degrading. That is worse than the default.
+    expect(text).toContain("#d4af37)");
+  });
+
   it("T-REDUCED-MOTION: the room the switch protects is really the shell root", () => {
     // The kill switch reaches CHILDREN of `.wm-sanctuary`. If that class ever
     // moved off the outermost element — onto an inner atmosphere div, say —

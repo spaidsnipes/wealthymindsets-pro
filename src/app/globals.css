@@ -571,6 +571,52 @@
   outline: 2px solid var(--heritage-gold);
   outline-offset: 2px;
 }
+
+/* KEYBOARD FOCUS inside the operating room.
+ *
+ * ── The measured failure ──────────────────────────────────────────────────
+ *
+ * The rule directly above gives the July shell a branded focus ring. The
+ * Founder route does not carry `.wm-universe` — MainLayout RETURNS
+ * WMExperienceShell there, and MainLayout.founderRoute.render.test.tsx
+ * asserts that absence as a success. So the room had no focus rule at all
+ * and fell back to the browser's default.
+ *
+ * Measured in Chrome against this file's own built stylesheet, tabbing to a
+ * button inside each shell:
+ *
+ *   .wm-sanctuary button   ->  1px  auto   rgb(0, 95, 204)   offset 0
+ *
+ * A one-pixel system blue ring, at zero offset, on a #0b0b0d room. It is
+ * the weakest indicator the platform offers and it is the one colour the
+ * sanctuary's palette does not contain, so it reads as a foreign artifact
+ * rather than as the room telling you where you are.
+ *
+ * Keyboard focus is not decoration here. The deck's disclosure triggers are
+ * <summary> elements carrying `list-style: none`, and its actions are
+ * <button>s with transparent backgrounds and no borders. Without a ring, a
+ * keyboard trader cannot tell which of them they are on.
+ *
+ * ── The repair, measured ──────────────────────────────────────────────────
+ *
+ *   .wm-sanctuary button   ->  2px  solid  rgb(212, 175, 55)  offset 2px
+ *   .wm-sanctuary summary  ->  2px  solid  rgb(212, 175, 55)  offset 2px
+ *   .wm-sanctuary a        ->  2px  solid  rgb(212, 175, 55)  offset 2px
+ *
+ * `--wm-gold-hero` is declared on :root, not on a shell class, so it cannot
+ * repeat the scoping trap this whole block is about. The literal fallback is
+ * there because an outline shorthand whose var fails to resolve does not
+ * degrade — it becomes invalid at computed-value time and the ring vanishes
+ * entirely, which is worse than the default it replaced.
+ *
+ * `[tabindex]` is included because roving-tabindex surfaces focus elements
+ * that are neither a button nor a link.
+ */
+.wm-sanctuary :is(button, a, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--wm-gold-hero, #d4af37);
+  outline-offset: 2px;
+}
+
 /* T-REDUCED-MOTION — the OS asked for stillness, so the room is still.
  *
  * This rule was written for the July shell and scoped to `.wm-universe`,
