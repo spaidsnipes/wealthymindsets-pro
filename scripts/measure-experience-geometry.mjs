@@ -27,7 +27,7 @@
  * registry-driven: adding a surface is adding a fixture, and the gate then
  * holds it forever.
  *
- * ── The two laws, and why the first one is not enough ────────────────────────
+ * ── The three laws ───────────────────────────────────────────────────────────
  *
  * NOODLE  — a text-bearing leaf crushed so narrow it wraps to near one word per
  *           line. This is the band's original failure. It is measured as a
@@ -41,7 +41,12 @@
  *           no `flexWrap` whose items are individually wide enough but
  *           collectively too wide, so each one silently truncates.
  *
- * Both laws refuse the same thing: markup that is addressable by a test and
+ * TINY     — a human-readable phrase whose computed font size falls below the
+ *           readable floor. Text can fit its box and still be illegible. The
+ *           phrase-length floor excludes short glyphs and counters, not labels
+ *           or metadata that the trader still has to read.
+ *
+ * All three laws refuse the same thing: markup that is addressable by a test and
  * unreadable by a human.
  *
  * ── Why it renders each surface alone ────────────────────────────────────────
@@ -100,6 +105,8 @@ const PHRASE_CHARS = 12;
 /** Sub-pixel rounding makes exact comparison lie. One pixel of slack. */
 const CLIP_SLACK = 1;
 
+const PHRASE_MIN_PX = 11;
+
 const widths = process.argv.slice(2).map(Number).filter(Boolean);
 const WIDTHS = widths.length > 0 ? widths : [390, 834, 1440];
 
@@ -152,6 +159,7 @@ const SURFACES = [
           invalidators: ["Value migrates below 330.10"],
         },
         expression: null,
+        onOpenWhy: () => {},
       }`,
   },
   {
@@ -410,6 +418,28 @@ const SCENE_PROVENANCE = {
     named: "DeckExpressionShortlist",
     props: `{ symbol: "TSLA", spot: 365.42, direction: null }`,
   },
+  {
+    // READY is effect-owned in DeckExpressionShortlist, so SSR cannot enter it.
+    // Measure the exported canonical tile directly rather than pretending the
+    // WAIT fixture covers timestamps and quote-role metadata it never renders.
+    name: "expression-shortlist-ready-tile",
+    root: '[data-testid="shortlist-tile-fast"]',
+    from: p("src/components/experience/DeckExpressionShortlist"),
+    named: "ShortlistTile",
+    props: `{
+        slot: {
+          job: "FAST", reason: "",
+          contract: {
+            symbol: "TSLA260918C00365000", contractType: "call",
+            expirationDate: "2026-09-18", strike: 365,
+            quoteTimestamp: "2026-09-13T20:00:00.000Z",
+            tradeTimestamp: "2026-09-13T19:59:57.000Z",
+            bid: 4.15, ask: 4.30, last: 4.22,
+          },
+        },
+        nowMs: Date.parse("2026-09-13T20:00:05.000Z"),
+      }`,
+  },
 ];
 
 /**
@@ -480,7 +510,7 @@ for (const surface of surfaces) {
     );
 
     const found = await page.evaluate(
-      ({ root, cellSelector, NOODLE_MIN, PHRASE_CHARS, CLIP_SLACK }) => {
+      ({ root, cellSelector, NOODLE_MIN, PHRASE_CHARS, CLIP_SLACK, PHRASE_MIN_PX }) => {
         const host = document.querySelector(root);
         if (!host) throw new Error(`no ${root} in the rendered markup`);
         const results = [];
@@ -508,6 +538,8 @@ for (const surface of surfaces) {
           if (NON_RENDERED.has(el.tagName)) return false;
           const cs = getComputedStyle(el);
           if (cs.display === "none" || cs.visibility === "hidden") return false;
+          // A visible leaf under a hidden ancestor has no rendered box.
+          if (el.getClientRects().length === 0) return false;
           // aria-hidden decorative glyphs are not phrases a reader parses.
           if (el.getAttribute("aria-hidden") === "true") return false;
           return true;
@@ -530,6 +562,19 @@ for (const surface of surfaces) {
           }
         }
 
+        // LEGIBILITY — the words fit the box and are still too small to read.
+        for (const el of host.querySelectorAll("*")) {
+          const text = (el.textContent ?? "").trim();
+          if (!text) continue;
+          if (!showsTextToAHuman(el)) continue;
+          if ([...el.children].some((c) => (c.textContent ?? "").trim())) continue;
+          if (text.length < PHRASE_CHARS) continue;
+          const px = parseFloat(getComputedStyle(el).fontSize);
+          if (px > 0 && px < PHRASE_MIN_PX) {
+            results.push({ law: "TINY", text: text.slice(0, 48), width: Math.round(px), content: PHRASE_MIN_PX });
+          }
+        }
+
         // NOODLE — a phrase crushed into a column of broken words.
         if (cellSelector) {
           const row = document.querySelector(cellSelector);
@@ -544,7 +589,7 @@ for (const surface of surfaces) {
         }
         return results;
       },
-      { root: surface.root, cellSelector: surface.cellSelector, NOODLE_MIN, PHRASE_CHARS, CLIP_SLACK },
+      { root: surface.root, cellSelector: surface.cellSelector, NOODLE_MIN, PHRASE_CHARS, CLIP_SLACK, PHRASE_MIN_PX },
     );
 
     console.log(`\n=== ${surface.name} @ ${width}px ===`);

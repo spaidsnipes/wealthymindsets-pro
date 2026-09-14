@@ -151,7 +151,7 @@ function Chip({
         display: "inline-block",
         padding: "3px 8px",
         borderRadius: 5,
-        fontSize: 10,
+        fontSize: 11,
         letterSpacing: 0.3,
         whiteSpace: "nowrap",
         ...style,
@@ -243,7 +243,7 @@ export function SceneAdmissionPanel({
       >
         <span
           style={{
-            fontSize: 9,
+            fontSize: 11,
             letterSpacing: 0.7,
             textTransform: "uppercase",
             color: MUTED,
@@ -266,7 +266,7 @@ export function SceneAdmissionPanel({
         {compilation.capitalAtRisk && (
           <span
             style={{
-              fontSize: 9,
+              fontSize: 11,
               letterSpacing: 0.6,
               textTransform: "uppercase",
               color: WARN,
@@ -296,7 +296,7 @@ export function SceneAdmissionPanel({
         <div>
           <div
             style={{
-              fontSize: 9,
+              fontSize: 11,
               letterSpacing: 0.6,
               textTransform: "uppercase",
               color: MUTED,
@@ -317,7 +317,7 @@ export function SceneAdmissionPanel({
         <div>
           <div
             style={{
-              fontSize: 9,
+              fontSize: 11,
               letterSpacing: 0.6,
               textTransform: "uppercase",
               color: MUTED,
@@ -349,7 +349,7 @@ export function SceneAdmissionPanel({
           <div>
             <div
               style={{
-                fontSize: 9,
+                fontSize: 11,
                 letterSpacing: 0.6,
                 textTransform: "uppercase",
                 color: MUTED,
@@ -363,7 +363,7 @@ export function SceneAdmissionPanel({
                 <Chip key={e} text={ELEMENT_LABEL[e]} tone="ungoverned" />
               ))}
             </div>
-            <p style={{ margin: "7px 0 0", fontSize: 10.5, lineHeight: 1.5, color: MUTED }}>
+            <p style={{ margin: "7px 0 0", fontSize: 11, lineHeight: 1.5, color: MUTED }}>
               The scene governs {governed.length} of {SURFACE_ELEMENTS.length}{" "}
               surface elements on this route. The rest are compiled but not
               applied here — the scene has an opinion about them and no power
@@ -389,7 +389,7 @@ export function SceneAdmissionPanel({
         <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 8 }}>
           <div
             style={{
-              fontSize: 9,
+              fontSize: 11,
               letterSpacing: 0.6,
               textTransform: "uppercase",
               color: MUTED,
@@ -405,7 +405,7 @@ export function SceneAdmissionPanel({
                 <span
                   key={g}
                   style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     padding: "3px 8px",
                     borderRadius: 5,
                     border: `1px solid ${observed ? "rgba(212,175,55,0.45)" : "rgba(138,130,113,0.3)"}`,
@@ -420,7 +420,7 @@ export function SceneAdmissionPanel({
             })}
           </div>
           {unobservedLabels.length > 0 && (
-            <p style={{ margin: "7px 0 0", fontSize: 10.5, lineHeight: 1.5, color: MUTED }}>
+            <p style={{ margin: "7px 0 0", fontSize: 11, lineHeight: 1.5, color: MUTED }}>
               WM has not read {unobservedLabels.join(", ")} on this screen. Those
               signals are not assumed flat or safe — the scene above them is
               compiled only from what was actually seen.

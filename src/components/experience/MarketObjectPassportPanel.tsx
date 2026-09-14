@@ -84,7 +84,7 @@ function PassportRow({ obj }: { obj: MarketObjectPassport }): React.ReactElement
     <span
       data-testid="passport-dna-affordance"
       style={{
-        fontSize: 9,
+        fontSize: 11,
         letterSpacing: 0.4,
         color: obj.contradictions.length > 0 ? "#e07b5c" : color,
         border: `1px solid ${obj.contradictions.length > 0 ? "rgba(224,123,92,0.45)" : HAIR}`,
@@ -106,14 +106,14 @@ function PassportRow({ obj }: { obj: MarketObjectPassport }): React.ReactElement
       <span style={{ fontSize: 11, letterSpacing: 0.4, color, minWidth: 92, textTransform: "uppercase" }}>
         {obj.label}
       </span>
-      <span style={{ fontSize: 9, letterSpacing: 0.5, color, opacity: 0.85, textTransform: "uppercase" }}>
+      <span style={{ fontSize: 11, letterSpacing: 0.5, color, opacity: 0.85, textTransform: "uppercase" }}>
         {obj.lifecycle}
       </span>
       <span style={{ fontSize: 12, color: obj.value ? "#d8cfb8" : MUTED, fontStyle: obj.value ? "normal" : "italic" }}>
         {obj.value ?? obj.summary}
       </span>
       {obj.fidelity && (
-        <span style={{ fontSize: 9, letterSpacing: 0.4, color: FIDELITY_TONE[obj.fidelity] ?? MUTED, marginLeft: "auto", textTransform: "uppercase" }}>
+        <span style={{ fontSize: 11, letterSpacing: 0.4, color: FIDELITY_TONE[obj.fidelity] ?? MUTED, marginLeft: "auto", textTransform: "uppercase" }}>
           {obj.fidelity}
           {obj.confidence != null ? ` · ${Math.round(obj.confidence * 100)}%` : ""}
         </span>
@@ -135,7 +135,7 @@ function PassportRow({ obj }: { obj: MarketObjectPassport }): React.ReactElement
       <div style={{ marginTop: 8, paddingLeft: 8, display: "flex", flexDirection: "column", gap: 8 }}>
         {obj.evidence.length > 0 && (
           <div>
-            <div style={{ fontSize: 9, letterSpacing: 0.5, color: MUTED, marginBottom: 4 }}>EVIDENCE LINEAGE</div>
+            <div style={{ fontSize: 11, letterSpacing: 0.5, color: MUTED, marginBottom: 4 }}>EVIDENCE LINEAGE</div>
             {obj.evidence.map((e) => (
               <div key={e.eventId} style={{ fontSize: 11, color: "#c2b892", lineHeight: 1.4 }}>
                 <span style={{ color: FIDELITY_TONE[e.fidelity] ?? MUTED }}>{e.fidelity}</span>
@@ -150,7 +150,7 @@ function PassportRow({ obj }: { obj: MarketObjectPassport }): React.ReactElement
         )}
         {obj.contradictions.length > 0 && (
           <div>
-            <div style={{ fontSize: 9, letterSpacing: 0.5, color: "#e07b5c", marginBottom: 4 }}>CONTRADICTION</div>
+            <div style={{ fontSize: 11, letterSpacing: 0.5, color: "#e07b5c", marginBottom: 4 }}>CONTRADICTION</div>
             {obj.contradictions.map((c, i) => (
               <div key={i} style={{ fontSize: 11, color: "#e0a58c", lineHeight: 1.4 }}>{c}</div>
             ))}
@@ -158,7 +158,7 @@ function PassportRow({ obj }: { obj: MarketObjectPassport }): React.ReactElement
         )}
         {obj.unknowns.length > 0 && (
           <div>
-            <div style={{ fontSize: 9, letterSpacing: 0.5, color: MUTED, marginBottom: 4 }}>MISSING / INVALIDATION</div>
+            <div style={{ fontSize: 11, letterSpacing: 0.5, color: MUTED, marginBottom: 4 }}>MISSING / INVALIDATION</div>
             {obj.unknowns.map((u, i) => (
               <div key={i} style={{ fontSize: 11, color: MUTED, lineHeight: 1.4, fontStyle: "italic" }}>{u}</div>
             ))}
@@ -190,7 +190,7 @@ export function MarketObjectPassportPanel({ vm }: MarketObjectPassportPanelProps
         <span style={{ fontSize: 11, letterSpacing: 0.6, color: "#c9a55c", textTransform: "uppercase" }}>
           Market Object Passports · Object DNA
         </span>
-        <span style={{ fontSize: 10, color: MUTED, marginLeft: "auto" }}>
+        <span style={{ fontSize: 11, color: MUTED, marginLeft: "auto" }}>
           {vm.resolvedCount}/{vm.totalCount} resolved · {vm.qualityState}
         </span>
       </div>
@@ -208,7 +208,7 @@ export function MarketObjectPassportPanel({ vm }: MarketObjectPassportPanelProps
       )}
 
       {vm.snapshotId && (
-        <div style={{ fontSize: 9, color: MUTED, marginTop: 8, letterSpacing: 0.3 }}>
+        <div style={{ fontSize: 11, color: MUTED, marginTop: 8, letterSpacing: 0.3 }}>
           snapshot {vm.snapshotId}
           {vm.capturedAt ? ` · sealed ${fmtTime(vm.capturedAt)}` : ""}
         </div>

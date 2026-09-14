@@ -161,10 +161,10 @@ export function DeckExpressionShortlist({
       }}
     >
       <header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10, gap: 12, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
+        <span style={{ fontSize: 11, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
           Expression · shortlist
         </span>
-        <span style={{ fontSize: 9, letterSpacing: 0.3, color: "#8a8271" }}>
+        <span style={{ fontSize: 11, letterSpacing: 0.3, color: "#8a8271" }}>
           {symbol} · {direction === null ? "direction UNKNOWN" : direction} · reference · {state.receipt?.fidelity ?? "UNKNOWN"}
         </span>
       </header>
@@ -213,7 +213,7 @@ export function DeckExpressionShortlist({
 
       {/* A historical OPRA probe is not evidence of this request's failure. */}
       {state.kind === "READY" && (
-        <p style={{ marginTop: 10, fontSize: 9, letterSpacing: 0.2, color: "#8a8271", lineHeight: 1.5 }}>
+        <p style={{ marginTop: 10, fontSize: 11, letterSpacing: 0.2, color: "#8a8271", lineHeight: 1.5 }}>
           Source {state.receipt?.source ?? "unknown"} · coverage {state.receipt?.coverage ?? "UNKNOWN"} · newest provider observation {state.receipt?.newestProviderTimestamp ?? "not observed"}.
           {" "}Reference only, not an executable fill. Each contract is a different job.
         </p>
@@ -231,7 +231,7 @@ export function DeckExpressionShortlist({
  * contracts existed," which is not always true. Silence at this size is the
  * failure mode.
  */
-function ShortlistTile({ slot, onClick, nowMs }: { slot: ShortlistSlot; onClick?: () => void; nowMs: number }): React.ReactElement {
+export function ShortlistTile({ slot, onClick, nowMs }: { slot: ShortlistSlot; onClick?: () => void; nowMs: number }): React.ReactElement {
   const c = slot.contract;
   const timing = c ? optionContractObservationTiming(c, nowMs) : null;
   const label = shortlistJobLabel(slot.job);
@@ -255,7 +255,7 @@ function ShortlistTile({ slot, onClick, nowMs }: { slot: ShortlistSlot; onClick?
         gap: 6,
       }}
     >
-      <span style={{ fontSize: 9, letterSpacing: 0.6, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
+      <span style={{ fontSize: 11, letterSpacing: 0.6, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
         {label}
       </span>
       {c ? (
@@ -264,16 +264,16 @@ function ShortlistTile({ slot, onClick, nowMs }: { slot: ShortlistSlot; onClick?
             {c.symbol} · {" "}
             {c.strike} {c.contractType.toUpperCase()} · {c.expirationDate}
           </span>
-          <span style={{ fontSize: 9 }}>
+          <span style={{ fontSize: 11 }}>
             Quote {c.quoteTimestamp ?? "not observed"} · {timing?.quote.label} · {timing?.quote.timing}.
             {" "}Trade {c.tradeTimestamp ?? "not observed"} · {timing?.trade.label} · {timing?.trade.timing}.
           </span>
-          <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', ui-monospace, monospace", color: "#8a8271", letterSpacing: 0.2 }}>
+          <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono', ui-monospace, monospace", color: "#8a8271", letterSpacing: 0.2 }}>
             bid {formatOptionNumber(c.bid ?? null, 2)} · ask {formatOptionNumber(c.ask ?? null, 2)} · last {formatOptionNumber(c.last ?? null, 2)}
           </span>
         </>
       ) : (
-        <span style={{ fontSize: 10, fontStyle: "italic", color: "#8a8271" }}>
+        <span style={{ fontSize: 11, fontStyle: "italic", color: "#8a8271" }}>
           {slot.reason}
         </span>
       )}

@@ -65,7 +65,7 @@ export function DecisionChainPanel({
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
           <span
             style={{
-              fontSize: 9,
+              fontSize: 11,
               letterSpacing: 0.4,
               textTransform: "uppercase",
               color: "#c9a55c",
@@ -77,7 +77,7 @@ export function DecisionChainPanel({
           <span style={{ fontSize: 9, color: "#55503f" }}>·</span>
           <span
             style={{
-              fontSize: 9,
+              fontSize: 11,
               letterSpacing: 0.3,
               textTransform: "uppercase",
               color: "#8a8271",
@@ -98,7 +98,7 @@ export function DecisionChainPanel({
         </div>
         <div
           style={{
-            fontSize: 10,
+            fontSize: 11,
             color: "#55503f",
             marginTop: 6,
             letterSpacing: 0.2,
@@ -172,7 +172,7 @@ export function DecisionChainPanel({
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
                   <span
                     style={{
-                      fontSize: 10,
+                      fontSize: 11,
                       letterSpacing: 0.32,
                       textTransform: "uppercase",
                       color: "#8a8271",
@@ -223,7 +223,7 @@ export function DecisionChainPanel({
                           key={`${node.key}-hint-${i}`}
                           title={h}
                           style={{
-                            fontSize: 9,
+                            fontSize: 11,
                             letterSpacing: 0.24,
                             padding: "2px 6px",
                             borderRadius: 3,

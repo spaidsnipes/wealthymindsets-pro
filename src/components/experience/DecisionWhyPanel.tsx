@@ -59,7 +59,7 @@ export function DecisionWhyPanel({ vm }: DecisionWhyPanelProps): React.ReactElem
         <span style={{ fontSize: 11, letterSpacing: 0.6, color: "#c9a55c", textTransform: "uppercase" }}>
           Why {vm.clear ? "" : "not"} · right-of-way
         </span>
-        <span style={{ fontSize: 10, letterSpacing: 0.5, color: accent, marginLeft: "auto", textTransform: "uppercase" }}>
+        <span style={{ fontSize: 11, letterSpacing: 0.5, color: accent, marginLeft: "auto", textTransform: "uppercase" }}>
           {vm.verdict}
         </span>
       </div>
@@ -72,7 +72,7 @@ export function DecisionWhyPanel({ vm }: DecisionWhyPanelProps): React.ReactElem
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: vm.clearances.length ? 10 : 0 }}>
           {vm.blockers.map((b, i) => (
             <div key={i} style={{ display: "flex", gap: 8, alignItems: "baseline", borderBottom: `1px solid ${HAIR}`, paddingBottom: 5 }}>
-              <span style={{ fontSize: 9, letterSpacing: 0.4, color: KIND_TONE[b.kind], minWidth: 96, textTransform: "uppercase" }}>
+              <span style={{ fontSize: 11, letterSpacing: 0.4, color: KIND_TONE[b.kind], minWidth: 96, textTransform: "uppercase" }}>
                 {KIND_LABEL[b.kind]}
               </span>
               <span style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>
@@ -86,7 +86,7 @@ export function DecisionWhyPanel({ vm }: DecisionWhyPanelProps): React.ReactElem
 
       {vm.clearances.length > 0 && (
         <div style={{ marginBottom: vm.invalidators.length ? 10 : 0 }}>
-          <div style={{ fontSize: 9, letterSpacing: 0.5, color: MUTED, marginBottom: 4 }}>CLEARED</div>
+          <div style={{ fontSize: 11, letterSpacing: 0.5, color: MUTED, marginBottom: 4 }}>CLEARED</div>
           {vm.clearances.map((c, i) => (
             <div key={i} style={{ fontSize: 11, color: "#9db88a", lineHeight: 1.4 }}>{c}</div>
           ))}
@@ -101,7 +101,7 @@ export function DecisionWhyPanel({ vm }: DecisionWhyPanelProps): React.ReactElem
           {/* canon §Phase 3 Market Canvas — WHAT WOULD INVALIDATE.
               Only meaningful for ACTION verdicts (the trader is about to
               place; they need to know what observation would flip this). */}
-          <div style={{ fontSize: 9, letterSpacing: 0.5, color: "#c9a55c", marginBottom: 4, textTransform: "uppercase" }}>
+          <div style={{ fontSize: 11, letterSpacing: 0.5, color: "#c9a55c", marginBottom: 4, textTransform: "uppercase" }}>
             Would invalidate
           </div>
           {vm.invalidators.map((s, i) => (

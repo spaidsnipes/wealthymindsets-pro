@@ -284,7 +284,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
               border: "none",
               padding: 0,
               color: "#c9a55c",
-              fontSize: 10,
+              fontSize: 11,
               letterSpacing: 0.3,
               textTransform: "uppercase",
               fontWeight: 700,
