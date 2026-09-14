@@ -18,10 +18,22 @@ describe("charts Asset-10 hierarchy", () => {
   });
 
   it("attaches one desktop rail and falls back to one band on narrow/options views", () => {
-    expect(source).toContain('!narrowViewport && !optionsOpen');
-    expect(source).toContain('<DecisionSpineBand {...decisionSpineProps} presentation="rail" />');
-    expect(source).toContain('(narrowViewport || optionsOpen)');
-    expect(source).toContain('<DecisionSpineBand {...decisionSpineProps} presentation="band" />');
+    const marketRoom = source.indexOf('data-wm-market-room="true"');
+    const secondaryPanel = source.indexOf('id="wm-chart-category-panel"');
+    const chartPanel = source.indexOf('id="wm-chart-category-panel-chart"');
+    const optionsChain = source.indexOf("<OptionsChain", chartPanel);
+    const rail = source.indexOf('<DecisionSpineBand {...decisionSpineProps} presentation="rail" />');
+
+    expect(marketRoom, "shared market room is missing").toBeGreaterThan(0);
+    expect(secondaryPanel).toBeGreaterThan(marketRoom);
+    expect(chartPanel).toBeGreaterThan(secondaryPanel);
+    expect(optionsChain).toBeGreaterThan(chartPanel);
+    expect(rail).toBeGreaterThan(optionsChain);
+    expect(source.match(/<DecisionSpineBand\b/g) ?? []).toHaveLength(2);
+    expect(source.match(/presentation="rail"/g) ?? []).toHaveLength(1);
+    expect(source.match(/presentation="band"/g) ?? []).toHaveLength(1);
+    expect(source).toMatch(/\{!narrowViewport && !optionsOpen && \(\s*<DecisionSpineBand \{\.\.\.decisionSpineProps\} presentation="rail" \/>\s*\)\}/);
+    expect(source).toMatch(/\{\(narrowViewport \|\| optionsOpen\) && \(\s*<DecisionSpineBand \{\.\.\.decisionSpineProps\} presentation="band" \/>\s*\)\}/);
     expect(source.match(/const decisionSpineProps =/g)).toHaveLength(1);
   });
 

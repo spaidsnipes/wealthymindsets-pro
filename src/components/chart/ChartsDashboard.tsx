@@ -1918,15 +1918,19 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             </div>
           </div>}
 
-          {/* ── Non-Chart tab panels ──────────────────────────── */}
-          {activeTab !== "Chart" && activeTab !== "Options" && (
-            <div role="tabpanel" id="wm-chart-category-panel" aria-label={`${activeTab} for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
-              <FundamentalsTabPanel symbol={symbol} tab={activeTab} />
-            </div>
-          )}
+          {/* One Asset-10 market room owns both the selected evidence surface
+              and the canonical decision edge. Changing symbol views must not
+              make NOW / MARKET / RISK / WHY / NEXT leave the room. */}
+          <div data-wm-market-room="true" style={{ flex:1, display:"flex", overflow:"hidden", minWidth:0, minHeight:0 }}>
+            {/* ── Non-Chart tab panels ──────────────────────────── */}
+            {activeTab !== "Chart" && activeTab !== "Options" && (
+              <div role="tabpanel" id="wm-chart-category-panel" aria-label={`${activeTab} for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
+                <FundamentalsTabPanel symbol={symbol} tab={activeTab} />
+              </div>
+            )}
 
-          {/* ── Chart area ─────────────────────────── */}
-          <div role="tabpanel" id="wm-chart-category-panel-chart" aria-label={`Chart for ${symbol}`} style={{ flex:1, overflow:"hidden", minHeight:0, display: (activeTab === "Chart" || activeTab === "Options") ? "flex" : "none" }}>
+            {/* ── Chart area ─────────────────────────── */}
+            <div role="tabpanel" id="wm-chart-category-panel-chart" aria-label={`Chart for ${symbol}`} style={{ flex:1, overflow:"hidden", minHeight:0, display: (activeTab === "Chart" || activeTab === "Options") ? "flex" : "none" }}>
 
             {/* Chart + VP ladder (snapshot target) */}
             <div ref={chartWrapRef} style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0, position:"relative" }}>
@@ -2111,14 +2115,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               />
             </div>
 
-            {/* Desktop Asset-10 composition: the canonical decision spine is
-                the chart's attached interpretation edge, not a second
-                dashboard band underneath MARKET. Options keeps the full width
-                it needs; narrow viewports use the proven scrollable band. */}
-            {!narrowViewport && !optionsOpen && (
-              <DecisionSpineBand {...decisionSpineProps} presentation="rail" />
-            )}
-
             {/* DOM panel is now inside VP+DOM collapsible block above */}
 
             {/* Options chain */}
@@ -2140,6 +2136,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               )}
             </AnimatePresence>
 
+            </div>
+
+            {/* Desktop Asset-10 composition: one canonical decision edge stays
+                attached across Chart and every secondary evidence view.
+                Options keeps the full width it needs; narrow viewports use the
+                proven scrollable band below. */}
+            {!narrowViewport && !optionsOpen && (
+              <DecisionSpineBand {...decisionSpineProps} presentation="rail" />
+            )}
           </div>
 
         </div>
