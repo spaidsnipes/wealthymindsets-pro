@@ -125,6 +125,7 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
     expect(html.match(/data-testid="spine-provenance-header"/g)).toHaveLength(1);
     expect(html).toContain('data-testid="spine-canvas-summary"');
     expect(html).toContain('data-testid="canonical-canvas-verdict"');
+    expect(html).not.toContain("border-top:1px solid rgba(139,106,41,0.16)");
     for (const label of ["Decision", "Now", "Market", "Risk", "Why", "Next"]) {
       expect(html).toContain(`>${label}<`);
     }

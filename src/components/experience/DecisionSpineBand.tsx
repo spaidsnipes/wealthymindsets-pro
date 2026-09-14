@@ -162,7 +162,10 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         minWidth: 0,
         width: "100%",
         borderLeft: "none",
-        borderTop: "1px solid rgba(139,106,41,0.16)",
+        // The desktop rail is one attached decision context, not a stack of
+        // cards. Vertical rhythm separates NOW / RISK / WHY / NEXT without
+        // drawing a new panel boundary between every truth surface.
+        borderTop: "none",
         padding: "10px 12px",
       }
     : CELL;
