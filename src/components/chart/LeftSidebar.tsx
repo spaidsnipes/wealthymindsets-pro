@@ -118,6 +118,41 @@ export function disposeScreenCaptureOnUnmount({
   stopStreamTracksOnce(stream, stoppedStreams);
 }
 
+export interface ScreenCaptureRequestGate {
+  generation: number;
+  pending: boolean;
+}
+
+/** Admit only one display-capture permission request at a time. The browser
+ * may leave the permission sheet unresolved for minutes, so React state is
+ * too late to prevent a second click from creating a second owner. */
+export function beginScreenCaptureRequest(gate: ScreenCaptureRequestGate): number | null {
+  if (gate.pending) return null;
+  gate.pending = true;
+  gate.generation += 1;
+  return gate.generation;
+}
+
+export function isCurrentScreenCaptureRequest(
+  gate: ScreenCaptureRequestGate,
+  generation: number,
+): boolean {
+  return gate.pending && gate.generation === generation;
+}
+
+export function finishScreenCaptureRequest(
+  gate: ScreenCaptureRequestGate,
+  generation: number,
+): void {
+  if (gate.generation === generation) gate.pending = false;
+}
+
+/** Invalidates any unresolved browser permission prompt during drawer close. */
+export function cancelScreenCaptureRequests(gate: ScreenCaptureRequestGate): void {
+  gate.generation += 1;
+  gate.pending = false;
+}
+
 /* ── capture the chart node to a canvas via html2canvas ───────────────── */
 async function captureNode(node: HTMLElement): Promise<HTMLCanvasElement> {
   const html2canvas = (await import("html2canvas")).default;
@@ -221,12 +256,14 @@ export default function LeftSidebar({
   const screenChunks = useRef<Blob[]>([]);
   const stoppedScreenRecorders = useRef(new WeakSet<MediaRecorder>());
   const stoppedScreenStreams = useRef(new WeakSet<MediaStream>());
+  const screenCaptureRequestGate = useRef<ScreenCaptureRequestGate>({ generation: 0, pending: false });
   const mountedRef = useRef(true);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      cancelScreenCaptureRequests(screenCaptureRequestGate.current);
       const recorder = screenRecRef.current;
       const stream = screenStreamRef.current;
       // Clear ownership before stopping: a synchronous onended callback cannot
@@ -275,18 +312,28 @@ export default function LeftSidebar({
     stopRecorderOnce(screenRecRef.current, stoppedScreenRecorders.current);
   }, []);
   const startScreenRec = useCallback(async () => {
+    if (screenRecRef.current) return;
+    const requestGeneration = beginScreenCaptureRequest(screenCaptureRequestGate.current);
+    if (requestGeneration === null) return;
+    let acquiredStream: MediaStream | null = null;
+    let acquiredRecorder: MediaRecorder | null = null;
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: { frameRate: 30 },
         audio: true,
       });
-      if (!mountedRef.current) {
+      acquiredStream = stream;
+      if (
+        !mountedRef.current ||
+        !isCurrentScreenCaptureRequest(screenCaptureRequestGate.current, requestGeneration)
+      ) {
         stopStreamTracksOnce(stream, stoppedScreenStreams.current);
         return;
       }
       screenStreamRef.current = stream;
       const mime = pickMime(VIDEO_MIMES);
       const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      acquiredRecorder = rec;
       screenChunks.current = [];
       rec.ondataavailable = e => { if (e.data && e.data.size) screenChunks.current.push(e.data); };
       rec.onstop = () => {
@@ -303,8 +350,26 @@ export default function LeftSidebar({
       screenRecRef.current = rec;
       setScreenRec(true);
     } catch (e) {
-      console.warn("[LeftSidebar] screen recording denied/failed", e);
-      setScreenRec(false);
+      const isCurrent =
+        mountedRef.current &&
+        isCurrentScreenCaptureRequest(screenCaptureRequestGate.current, requestGeneration);
+      if (screenRecRef.current === acquiredRecorder) screenRecRef.current = null;
+      if (screenStreamRef.current === acquiredStream) screenStreamRef.current = null;
+      disposeScreenCaptureOnUnmount({
+        recorder: acquiredRecorder,
+        stream: acquiredStream,
+        // A superseded permission request must never clear chunks owned by a
+        // newer generation. It may release only the resources it acquired.
+        chunks: isCurrent ? screenChunks.current : [],
+        stoppedRecorders: stoppedScreenRecorders.current,
+        stoppedStreams: stoppedScreenStreams.current,
+      });
+      if (isCurrent) {
+        console.warn("[LeftSidebar] screen recording denied/failed", e);
+        setScreenRec(false);
+      }
+    } finally {
+      finishScreenCaptureRequest(screenCaptureRequestGate.current, requestGeneration);
     }
   }, [stopScreenRec]);
   const toggleScreenRec = useCallback(() => {
