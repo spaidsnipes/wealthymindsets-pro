@@ -554,7 +554,12 @@ function VaultHeader() {
     <header
       style={{
         borderBottom: `1px solid ${WM.border.hair}`,
-        background: `linear-gradient(180deg, ${WM.surface.deep} 0%, rgba(11,11,13,0.6) 100%)`,
+        // SCENE_FRAGMENTATION cure: /nectar lives inside the sanctuary
+        // shell — the room already owns its atmosphere. This gradient
+        // painted an opaque band across the top of MARKET, breaking
+        // the continuous field. Transparent + hairline preserves the
+        // header's structural boundary without occluding the sanctuary.
+        background: "transparent",
         padding: "14px clamp(16px, 4vw, 40px)",
         display: "flex",
         alignItems: "center",

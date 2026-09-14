@@ -379,7 +379,12 @@ export default function MorningPrepPage() {
     <div
       className="w-full h-full overflow-y-auto"
       style={{
-        background: "radial-gradient(1200px 700px at 50% -10%, rgba(212,175,55,0.06), transparent 60%), #050506",
+        // SCENE_FRAGMENTATION cure: /morning-prep is a Founder room
+        // wrapped by WMExperienceShell — the sanctuary owns the room's
+        // background (vignette + grain + WATER-BREATH). Painting #050506
+        // over it blocked that atmosphere and made this route read as a
+        // separate app plane. Transparent lets the sanctuary through.
+        background: "transparent",
       }}
     >
       {/* ── Header ── deep obsidian + warm gold, wmTokens-aligned so the
@@ -387,8 +392,11 @@ export default function MorningPrepPage() {
            Deck and /nectar Vault. Serif hero + tabular metrics. */}
       <div
         style={{
-          borderBottom: "1px solid rgba(139,106,41,0.15)",
-          background: "linear-gradient(180deg, #0b0b0d 0%, rgba(11,11,13,0.6) 100%)",
+          borderBottom: "1px solid rgba(139,106,41,0.22)",
+          // Header chrome dissolved into a hairline. The gradient was
+          // a solid opaque band across the top of the room, breaking
+          // the continuous sanctuary field.
+          background: "transparent",
         }}
       >
         <div className="max-w-3xl mx-auto" style={{ padding: "18px clamp(16px, 4vw, 32px) 22px" }}>
