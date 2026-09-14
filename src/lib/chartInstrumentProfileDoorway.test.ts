@@ -26,3 +26,13 @@ describe("/charts instrument profile is disclosed, not permanent frame chrome", 
     expect(toolbar).toContain("studyToolsOpen || instrumentProfileActive");
   });
 });
+
+describe("/charts appearance is a disclosed room control", () => {
+  it("moves the theme switch out of the permanent market-summary band", () => {
+    expect(dashboard).not.toContain("wm-chart-theme-controls");
+    expect(dashboard).not.toContain("wm-theme-toggle");
+    expect(dashboard).toContain("onAppearanceToggle={() => setTheme");
+    expect(toolbar).toContain("Appearance · {appearanceLabel");
+    expect(toolbar).toContain("onAppearanceToggle();");
+  });
+});

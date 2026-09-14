@@ -540,6 +540,8 @@ interface ChartToolbarProps {
   onAlerts?:           () => void;
   alertsActive?:       boolean;
   onSettings?:         () => void;
+  onAppearanceToggle?: () => void;
+  appearanceLabel?:    string;
   onInstrumentProfile?: () => void;
   instrumentProfileActive?: boolean;
   onReplay?:           () => void;
@@ -603,7 +605,7 @@ export function ChartToolbar({
   onDOM, onPineScript, onCommunity,
   pineActive,
   initialActiveInds, onActiveIndsChange, onIndicatorSettings, onExtHoursChange,
-  onAlerts, alertsActive, onSettings,
+  onAlerts, alertsActive, onSettings, onAppearanceToggle, appearanceLabel,
   onInstrumentProfile, instrumentProfileActive,
   onReplay, replayActive, onCompare, compareActive,
   onToggleStudyTools, studyToolsOpen,
@@ -1272,6 +1274,7 @@ export function ChartToolbar({
                 {onCompare && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onCompare(); }}><GitMerge size={12} /> Compare{compareActive ? " · active" : ""}</button>}
                 {onAlerts && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onAlerts(); }}><Bell size={12} /> Alerts{alertsActive ? " · active" : ""}</button>}
                 {onInstrumentProfile && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onInstrumentProfile(); }}><Info size={12} aria-hidden="true" /> Instrument profile{instrumentProfileActive ? " · open" : ""}</button>}
+                {onAppearanceToggle && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onAppearanceToggle(); }}><span aria-hidden="true">◐</span> Appearance · {appearanceLabel ?? "Original"}</button>}
                 {onSettings && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onSettings(); }}><Settings size={12} /> Chart settings</button>}
               </div>
             );

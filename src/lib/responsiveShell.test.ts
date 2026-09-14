@@ -370,9 +370,11 @@ describe("responsive P0 command surfaces", () => {
 
   it("keeps chart appearance available without two competing theme buttons", () => {
     const dashboard = source("../components/chart/ChartsDashboard.tsx");
-    expect(dashboard).toContain("Chart appearance:");
-    expect(dashboard).toContain("Switch appearance.");
-    expect(dashboard.match(/className={`wm-theme-toggle/g)).toHaveLength(1);
+    const toolbar = source("../components/chart/ChartToolbar.tsx");
+    expect(dashboard).toContain("onAppearanceToggle={() => setTheme");
+    expect(dashboard).toContain('appearanceLabel={theme === "neon" ? "WM Neon" : "Original"}');
+    expect(toolbar).toContain("Appearance · {appearanceLabel");
+    expect(dashboard).not.toContain("wm-theme-toggle");
   });
 
   it("removes the retired Harlem Nights identity from active product surfaces", () => {

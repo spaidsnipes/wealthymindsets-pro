@@ -1402,18 +1402,6 @@ export function ChartsDashboard() {
             (Founder 2026-09-02). Keeping this comment as a breadcrumb
             so a future edit doesn't accidentally re-inline the tabs. */}
 
-        {/* Keep appearance optional and compact; it must not compete with the
-            symbol, market state, or chart navigation. */}
-        <div className="wm-chart-theme-controls" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, paddingRight: 14, flexShrink: 0 }}>
-          <button
-            className={`wm-theme-toggle ${theme === "neon" ? "is-neon" : ""}`}
-            onClick={() => setTheme(theme === "neon" ? "original" : "neon")}
-            title={`Switch to ${theme === "neon" ? "Original" : "WM Neon"} appearance`}
-            aria-label={`Chart appearance: ${theme === "neon" ? "WM Neon" : "Original"}. Switch appearance.`}
-          >
-            Appearance
-          </button>
-        </div>
       </div>
 
       {/* ── Main row ─────────────────────────────────────────── */}
@@ -1561,6 +1549,8 @@ export function ChartsDashboard() {
               ? () => setInfoOpen(open => !open)
               : undefined}
             instrumentProfileActive={(!narrowViewport || !optionsOpen) && infoOpen}
+            onAppearanceToggle={() => setTheme(theme === "neon" ? "original" : "neon")}
+            appearanceLabel={theme === "neon" ? "WM Neon" : "Original"}
             onSettings={() => setSettingsOpen(true)}
             onReplay={() => { if (replayActive) stopReplay(); else startReplay(); }}
             replayActive={replayActive}
