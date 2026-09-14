@@ -845,7 +845,7 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin, compilation }: {
       {/* Leaderboard table */}
       <div className="flex-1 overflow-y-auto mt-3" style={{ scrollbarWidth: "thin" }}>
         {/* Header */}
-        <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-4 py-1.5 sticky top-0 bg-wm-dark"
+        <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-4 py-1.5 sticky top-0 wm-sticky-glass"
           style={{ gridTemplateColumns: "36px 1fr 80px 80px 60px 55px" }}>
           <span>#</span><span>Trader</span><span>Return</span><span>P&L</span><span>Trades</span><span>Win%</span>
         </div>
@@ -962,7 +962,7 @@ function OptionsChain({
   if (spot == null) {
     return (
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
-        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-wm-border bg-wm-dark px-3 py-2.5">
+        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-wm-border wm-sticky-glass px-3 py-2.5">
           <div className="w-44"><SymbolSearch value={sym} onChange={s=>s&&UNIVERSE[s]&&setSym(s)} placeholder="Underlying…"/></div>
           <div className="flex items-center gap-1.5 rounded-lg border border-wm-border/50 bg-wm-surface/40 px-2.5 py-1">
             <span className="text-[9px] text-wm-text-muted">Spot</span>
@@ -992,7 +992,7 @@ function OptionsChain({
   return (
     <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
       {/* Controls */}
-      <div className="sticky top-0 z-10 bg-wm-dark border-b border-wm-border px-3 py-2.5 flex items-center gap-3 flex-wrap">
+      <div className="sticky top-0 z-10 wm-sticky-glass border-b border-wm-border px-3 py-2.5 flex items-center gap-3 flex-wrap">
         <div className="w-44"><SymbolSearch value={sym} onChange={s=>s&&UNIVERSE[s]&&setSym(s)} placeholder="Underlying…"/></div>
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-wm-surface/40 border border-wm-border/50">
           <span className="text-[9px] text-wm-text-muted">Spot</span>
@@ -1032,7 +1032,7 @@ function OptionsChain({
       </div>
 
       {/* Chain table */}
-      <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-3 py-1.5 sticky bg-wm-dark" style={{ top:49, gridTemplateColumns:"1fr 60px 46px 46px 46px 70px 1fr" }}>
+      <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-3 py-1.5 sticky wm-sticky-glass" style={{ top:49, gridTemplateColumns:"1fr 60px 46px 46px 46px 70px 1fr" }}>
         <span className="text-wm-green text-right pr-2">CALL model band · δ</span><span className="text-center">Call model</span>
         <span></span><span className="text-center">Strike</span><span></span>
         <span className="text-center">Put model</span><span className="text-wm-red pl-2">δ · PUT model band</span>
@@ -2423,7 +2423,7 @@ export default function PaperTradingPage() {
               ) : (
                 <>
                   {/* Header */}
-                  <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-2 py-1.5 sticky top-0 bg-wm-dark"
+                  <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-2 py-1.5 sticky top-0 wm-sticky-glass"
                     style={{ gridTemplateColumns:"80px 50px 90px 90px 90px 80px 48px" }}>
                     <span>Symbol</span><span>Side</span><span>Avg Px</span>
                     <span>Market</span><span>Unreal P&L</span><span>%</span><span></span>
@@ -2466,7 +2466,7 @@ export default function PaperTradingPage() {
                 </div>
               ) : (
                 <>
-                  <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-3 py-1.5 sticky top-0 bg-wm-dark"
+                  <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-3 py-1.5 sticky top-0 wm-sticky-glass"
                     style={{ gridTemplateColumns:"70px 50px 50px 60px 80px 80px 90px 48px" }}>
                     <span>Symbol</span><span>Side</span><span>Type</span><span>Qty</span>
                     <span>Limit Px</span><span>Fill Px</span><span>Status</span><span></span>
@@ -2575,7 +2575,7 @@ export default function PaperTradingPage() {
                 </div>
               ) : (
                 <>
-                  <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-3 py-1.5 sticky top-0 bg-wm-dark"
+                  <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-3 py-1.5 sticky top-0 wm-sticky-glass"
                     style={{ gridTemplateColumns:"70px 50px 50px 90px 100px 90px" }}>
                     <span>Symbol</span><span>Side</span><span>Qty</span>
                     <span>Fill Px</span><span>Time</span><span>P&L</span>

@@ -169,4 +169,57 @@ describe("Founder operating-room shell", () => {
     expect(charts, "chart category strip painted an opaque #0D0E14 band")
       .not.toMatch(/background:\s*"#0D0E14",\s*\n?\s*flexShrink: 0/);
   });
+
+  it("pins sticky bands with glass, never an opaque slab", () => {
+    // T-SILHOUETTE, sticky-band case.
+    //
+    // A sticky header is the one honest reason to carry a fill: rows
+    // scroll UNDER it, so with no fill the text collides with the data.
+    // That reason justifies opacity, not an opaque slab — `bg-wm-dark`
+    // is a solid plane, and inside a Founder room a solid plane occludes
+    // the sanctuary and re-reads as "an app inside the room".
+    //
+    // The cure is `.wm-sticky-glass` (globals.css): translucent fill +
+    // blur, with an @supports fallback so legibility never depends on a
+    // progressive-enhancement feature. This test exists so the bands
+    // cannot quietly revert to solid the next time someone answers a
+    // contrast complaint with the nearest opaque token.
+    const css = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
+    expect(css, "the canonical sticky-glass owner must exist")
+      .toMatch(/\.wm-sticky-glass\s*\{/);
+    expect(css, "sticky glass must be translucent, not a solid fill")
+      .toMatch(/\.wm-sticky-glass\s*\{[^}]*background-color:\s*rgba\(11,\s*11,\s*13,\s*0\.8/);
+    expect(css, "sticky glass must diffuse what scrolls beneath it")
+      .toMatch(/\.wm-sticky-glass\s*\{[^}]*backdrop-filter:\s*blur/);
+    expect(css, "legibility must not depend on backdrop-filter support")
+      .toMatch(/@supports not \(\(backdrop-filter/);
+
+    // Every pinned band in a Founder room routes through that one owner.
+    const paper = readFileSync(resolve(__dirname, "../app/paper/page.tsx"), "utf8");
+    const stickyLines = paper
+      .split("\n")
+      .filter((line) => /className="[^"]*\bsticky\b/.test(line));
+    expect(stickyLines.length, "/paper should still have its pinned bands")
+      .toBeGreaterThanOrEqual(7);
+    for (const line of stickyLines) {
+      expect(line, "a /paper sticky band painted an opaque slab over the sanctuary")
+        .not.toMatch(/\bbg-wm-dark\b/);
+      expect(line, "a /paper sticky band must use the canonical glass owner")
+        .toMatch(/\bwm-sticky-glass\b/);
+    }
+
+    // /journal's coverage notes are NOT sticky — nothing scrolls beneath
+    // them, so they get no fill at all rather than a glass one. Carrying
+    // opacity a band does not need is the same fragmentation in miniature.
+    const journal = readFileSync(resolve(__dirname, "../app/journal/page.tsx"), "utf8");
+    const noteBands = journal
+      .split("\n")
+      .filter((line) => line.includes('role="note"') && line.includes("border-b"));
+    expect(noteBands.length, "/journal should still declare its coverage notes")
+      .toBeGreaterThanOrEqual(2);
+    for (const line of noteBands) {
+      expect(line, "a /journal coverage note carried a fill it does not need")
+        .not.toMatch(/\bbg-wm-dark\b/);
+    }
+  });
 });

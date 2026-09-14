@@ -691,6 +691,37 @@ input[type=range]::-webkit-slider-runnable-track {
 @keyframes ping-slow { 75%,100% { transform: scale(1.8); opacity: 0; } }
 .animate-ping-slow { animation: ping-slow 2s cubic-bezier(0,0,0.2,1) infinite; }
 
+/* ──────────────────────────────────────────────────────────────
+   STICKY GLASS — canonical single owner for pinned bands.
+
+   SCENE_FRAGMENTATION cure, sticky-band case. A sticky header must
+   stay legible when rows scroll beneath it, which is why these bands
+   historically carried the opaque `bg-wm-dark` slab. But an opaque
+   slab inside a Founder room paints over the sanctuary (vignette +
+   grain + WATER-BREATH) and re-reads as "an app inside the room".
+
+   Translucent fill + blur satisfies BOTH constraints: scrolling
+   content is diffused enough to keep the header readable, while the
+   sanctuary atmosphere still reads through. This is a static material
+   (Static Material Plane) — it carries no trading meaning and never
+   animates, so it is exempt from the motion law.
+
+   Every pinned band in a Founder room MUST use this class rather than
+   inventing its own rgba — one owner, so themes below can restate it.
+   ────────────────────────────────────────────────────────────── */
+.wm-sticky-glass {
+  background-color: rgba(11, 11, 13, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+/* No blur support → fall back to a heavier fill so legibility never
+   depends on a progressive-enhancement feature. */
+@supports not ((backdrop-filter: blur(8px)) or (-webkit-backdrop-filter: blur(8px))) {
+  .wm-sticky-glass { background-color: rgba(11, 11, 13, 0.96); }
+}
+.wm-neon  .wm-sticky-glass { background-color: rgba(4, 16, 26, 0.82); }
+.wm-light .wm-sticky-glass { background-color: rgba(255, 255, 255, 0.86); }
+
 /* Fullscreen: ensure dark background and proper z-index stacking */
 :fullscreen, :-webkit-full-screen, :-moz-full-screen {
   background: #070A0F !important;
