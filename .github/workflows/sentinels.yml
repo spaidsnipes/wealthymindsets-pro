@@ -145,3 +145,27 @@ jobs:
           npm run audit:phone -- --base http://localhost:3488
         env:
           NEXT_TELEMETRY_DISABLED: '1'
+
+      # ── Interior surface geometry ─────────────────────────────────────────
+      #
+      # The step above measures only the three routes reachable WITHOUT a
+      # session. Every interior surface — the decision spine, the passport
+      # panel, the WHY panel, the decision chain — has been source-gated and
+      # geometry-ungated this whole time, which is the exact standing warning
+      # recorded when DecisionSpineBand shipped nineteen green tests over five
+      # vertical noodles at 390px.
+      #
+      # measure-experience-geometry.mjs answers that by rendering each surface
+      # alone against a real browser at three widths. It existed before this
+      # commit and was never wired in, for a mundane reason worth recording:
+      # it was permanently RED on a false positive (it measured the CSS source
+      # inside an inline <style> child as a 0px-wide crushed phrase), and a
+      # gate that cries wolf cannot be enforced. That is fixed in this commit,
+      # so the gate can finally hold.
+      #
+      # SCOPE, stated so a green check is not over-read: surfaces are measured
+      # in ISOLATION against fixtures, not in the composed scene. It proves no
+      # surface crushes or truncates its own text at 390/834/1440. It does NOT
+      # prove the assembled room reads well — that remains HUMAN_PROOF_REQUIRED.
+      - name: Interior surface geometry (390 / 834 / 1440px)
+        run: node scripts/measure-experience-geometry.mjs 390 834 1440

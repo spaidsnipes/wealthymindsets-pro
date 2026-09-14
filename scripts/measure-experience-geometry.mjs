@@ -57,9 +57,22 @@
  *
  *   node scripts/measure-experience-geometry.mjs [width...]   # default 390 834 1440
  *
- * Exits non-zero on any offence at any width, so it can gate a pipeline
- * anywhere Playwright plus an installed Chrome exist. Screenshots land in
- * /tmp/geometry-<surface>-<width>.png for human inspection.
+ * Exits non-zero on any offence at any width. It prefers the Chrome installed
+ * on the machine and falls back to Playwright's bundled Chromium, naming which
+ * engine measured; with neither it exits 2 rather than report a clean run it
+ * did not perform. It is wired into .github/workflows/sentinels.yml.
+ *
+ * Screenshots land in /tmp/geometry-<surface>-<width>.png for human inspection.
+ *
+ * ── On what "rendered text" means here ───────────────────────────────────────
+ *
+ * Both laws only look at text a HUMAN CAN SEE. That sounds obvious and was not
+ * true until 2026-09-13: `textContent` returns the CSS source inside an inline
+ * <style> child, and several surfaces inject their responsive rules that way,
+ * so the NOODLE law reported a 0px-wide cell holding a 700-character "phrase"
+ * and this gate was permanently, unfixably RED. It therefore could not be
+ * wired into CI, and while it was red a real offence was indistinguishable
+ * from the noise. The `showsTextToAHuman` predicate below is the repair.
  */
 
 import { chromium } from "playwright";
@@ -335,6 +348,43 @@ const SCENE_PROVENANCE = {
         governed: ["MARKET_CANVAS"],
       }`,
   },
+  {
+    // The decision SPINE, mounted on both /command-deck and /charts. It was
+    // dechromed during the 2026-09-13 SCENE_FRAGMENTATION cure and had never
+    // been measured at any width — exactly the "source-gated, geometry-
+    // ungated" position this file's header warns about.
+    //
+    // The fixture is deliberately hostile rather than tidy: long verdicts, a
+    // long narrative, and long HINT strings. The hint chips carry
+    // whiteSpace:nowrap + maxWidth:220 + textOverflow:ellipsis, so if this
+    // surface truncates evidence on the founder-path phone, the gate should
+    // be the thing that says so — not the Founder.
+    name: "decision-chain-panel",
+    root: ".wm-decision-chain",
+    from: p("src/components/chart/DecisionChainPanel"),
+    named: "DecisionChainPanel",
+    props: `{
+        vm: {
+          phase: "IN_POSITION",
+          evaluatedAt: 1757770000000,
+          headline: "Managing an open position — auction balanced, one input missing.",
+          summary: { ok: 5, watch: 2, warn: 1, unknown: 1, total: 9 },
+          nodes: [
+            { key: "regime", label: "Regime", verdict: "BALANCED", indicator: "OK",
+              narrative: "Two-sided auction inside yesterday's value; no directional edge from regime alone." },
+            { key: "availableR", label: "Available R", verdict: "UNKNOWN", indicator: "UNKNOWN",
+              narrative: "Account equity has not been observed this session, so risk-per-trade cannot be derived.",
+              hints: ["account equity not observed this session", "broker link not established"],
+              hintTones: ["missing", "missing"] },
+            { key: "permission", label: "Permission", verdict: "WITHHELD", indicator: "WARN",
+              narrative: "Two rules are engaged against entry and neither has cleared.",
+              hints: ["daily loss limit engaged", "no A+ setup identified"],
+              hintTones: ["warn", "watch"] },
+          ],
+        },
+        showNarratives: true,
+      }`,
+  },
 ];
 
 /**
@@ -370,10 +420,30 @@ execFileSync(join(ROOT, "node_modules/.bin/esbuild"), [
 
 const { surfaces } = await import(pathToFileURL(out).href);
 
-// `channel: "chrome"` uses the Chrome already installed on this machine.
-// `playwright install` downloads nothing here, so a fresh clone measures
-// against the same engine the Founder actually looks through.
-const browser = await chromium.launch({ channel: "chrome" });
+// `channel: "chrome"` uses the Chrome already installed on this machine, so a
+// developer measures against the same engine the Founder actually looks
+// through. CI has no such Chrome, and refusing there would mean the gate can
+// only ever run on one laptop — which is how this script spent its life as a
+// manual command instead of an enforced gate. So it falls back, and NAMES the
+// engine it fell back to, because a measurement is only as quotable as its
+// instrument. With neither browser it refuses outright: "could not measure"
+// must never be reportable as "found nothing".
+let engine = "chrome";
+const browser = await chromium.launch({ channel: "chrome" }).catch(async (error) => {
+  engine = "bundled-chromium";
+  console.log(
+    `NOTICE  installed Chrome unavailable (${error.message.split("\n")[0]}) — ` +
+      "measuring with Playwright's bundled Chromium instead.",
+  );
+  return chromium.launch().catch((second) => {
+    console.log(
+      "REFUSING TO REPORT — no browser to measure with. Neither the installed " +
+        `Chrome nor Playwright's bundled Chromium could launch (${second.message.split("\n")[0]}). ` +
+        "Run `npx playwright install chromium`. This is NOT a clean measurement.",
+    );
+    process.exit(2);
+  });
+});
 const offences = [];
 
 for (const surface of surfaces) {
@@ -390,10 +460,39 @@ for (const surface of surfaces) {
         if (!host) throw new Error(`no ${root} in the rendered markup`);
         const results = [];
 
+        /**
+         * Both laws are about text a HUMAN CAN SEE. `textContent` is not that
+         * test: it happily returns the CSS source inside a <style> element,
+         * the JS inside a <script>, and the contents of anything switched off
+         * with display:none.
+         *
+         * This mattered in practice. Several surfaces inject their responsive
+         * rules with an inline <style> child, and the NOODLE law measured that
+         * element as a 0px-wide cell holding a 700-character "phrase" — a
+         * permanent, unfixable failure report on a perfectly correct surface.
+         *
+         * A gate that cries wolf is worse than no gate: it cannot be wired
+         * into a pipeline, and while it is red a REAL offence is
+         * indistinguishable from the noise. So the predicate lives here, once,
+         * and both laws consult it.
+         */
+        const NON_RENDERED = new Set([
+          "STYLE", "SCRIPT", "TEMPLATE", "NOSCRIPT", "TITLE", "META", "LINK", "HEAD",
+        ]);
+        const showsTextToAHuman = (el) => {
+          if (NON_RENDERED.has(el.tagName)) return false;
+          const cs = getComputedStyle(el);
+          if (cs.display === "none" || cs.visibility === "hidden") return false;
+          // aria-hidden decorative glyphs are not phrases a reader parses.
+          if (el.getAttribute("aria-hidden") === "true") return false;
+          return true;
+        };
+
         // CLIPPED — the words do not fit the box holding them.
         for (const el of host.querySelectorAll("*")) {
           const text = (el.textContent ?? "").trim();
           if (!text) continue;
+          if (!showsTextToAHuman(el)) continue;
           // Only leaves own their text; an ancestor's scrollWidth is its
           // children's business, and flagging it would double-report.
           if ([...el.children].some((c) => (c.textContent ?? "").trim())) continue;
@@ -410,6 +509,7 @@ for (const surface of surfaces) {
         if (cellSelector) {
           const row = document.querySelector(cellSelector);
           for (const cell of row ? [...row.children] : []) {
+            if (!showsTextToAHuman(cell)) continue;
             const text = (cell.textContent ?? "").trim();
             const w = Math.round(cell.getBoundingClientRect().width);
             if (text.length >= PHRASE_CHARS && w < NOODLE_MIN) {
@@ -440,8 +540,8 @@ await browser.close();
 
 if (offences.length > 0) {
   console.error(
-    `\nFAIL — ${offences.length} geometry offence(s). Text crushed or truncated inside the viewport is still unreadable text.`,
+    `\nFAIL — ${offences.length} geometry offence(s), measured with ${engine}. Text crushed or truncated inside the viewport is still unreadable text.`,
   );
   process.exit(1);
 }
-console.log(`\nPASS — ${surfaces.length} surface(s) clear at ${WIDTHS.join(", ")}px. Screenshots in /tmp/geometry-<surface>-<width>.png`);
+console.log(`\nPASS — ${surfaces.length} surface(s) clear at ${WIDTHS.join(", ")}px, measured with ${engine}. Screenshots in /tmp/geometry-<surface>-<width>.png`);
