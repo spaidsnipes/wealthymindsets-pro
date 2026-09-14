@@ -385,6 +385,31 @@ const SCENE_PROVENANCE = {
         showNarratives: true,
       }`,
   },
+  {
+    // T-WAIT, measured rather than asserted.
+    //
+    // The Founder's ship-blocking suite names T-WAIT as its own gate: the room
+    // must be able to WITHHOLD and still read as a room. DeckExpressionShortlist
+    // is where the deck withholds — when canonical market evidence has not
+    // resolved a direction, it refuses to pick a side and says so in a full
+    // sentence. That sentence is the longest single unbroken run of prose the
+    // Founder route renders, and it had never been measured at any width.
+    //
+    // Rendering with direction=null is not a contrivance to reach a rare state.
+    // It is the state the deck is in whenever canonical direction is null,
+    // which is the common case today.
+    //
+    // Only the WITHHELD state is reachable here, and that is stated rather than
+    // papered over: LOADING / READY / UNAVAILABLE are all entered from an
+    // effect, and renderToStaticMarkup runs no effects. Measuring the other
+    // three needs a live session against the real provider, which this harness
+    // deliberately does not hold.
+    name: "expression-shortlist-wait",
+    root: '[data-testid="deck-expression-shortlist"]',
+    from: p("src/components/experience/DeckExpressionShortlist"),
+    named: "DeckExpressionShortlist",
+    props: `{ symbol: "TSLA", spot: 365.42, direction: null }`,
+  },
 ];
 
 /**

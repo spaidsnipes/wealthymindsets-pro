@@ -175,3 +175,78 @@ describe("the deck mounts the shortlist in the desktop operating room", () => {
     expect(charts).toContain("}, [symbol, canvasUser?.id]);");
   });
 });
+
+/**
+ * T-WAIT + OCTOPUS (Founder ship-blocking suite).
+ *
+ * T-WAIT asks whether the room can WITHHOLD and still read as a room. OCTOPUS
+ * asks the harsher version: cut the options/provider cable and see whether the
+ * room is still standing, still saying UNKNOWN/INDICATIVE, rather than blanked.
+ *
+ * Both land on this component, because this is the one surface in the Founder
+ * route whose content comes from a provider that can be severed at will. The
+ * read owner's severance classification is already proven in
+ * `optionsChainRead.test.ts` — every HTTP edge, every unreviewed receipt. What
+ * was NOT proven until this block is the part above the read owner: that a dead
+ * cable degrades only the NEXT slot, and that the withheld state is READABLE
+ * rather than merely present.
+ */
+describe("T-WAIT / OCTOPUS: the room survives a severed options cable", () => {
+  const DECK = readFileSync(resolve(__dirname, "../../app/command-deck/page.tsx"), "utf8");
+  const SRC = readFileSync(resolve(__dirname, "DeckExpressionShortlist.tsx"), "utf8");
+
+  it("mounts the shortlist as a LEAF, so a dead provider cannot take the room with it", () => {
+    // If NEXT ever became a wrapper rather than the last sibling, an options
+    // outage would blank the market read itself — the single worst outcome
+    // available here, because the trader would lose the thing they came for
+    // over the thing they did not.
+    const next = DECK.indexOf('data-testid="scene-next"');
+    expect(next).toBeGreaterThan(0);
+    for (const sibling of [
+      'data-testid="scene-market"',
+      'data-testid="scene-risk"',
+      'data-testid="scene-why"',
+      "<DeckMarketChart",
+      "<AvailableRChip",
+      "<DecisionWhyPanel",
+    ]) {
+      const at = DECK.indexOf(sibling);
+      expect(at).toBeGreaterThan(0);
+      expect(at).toBeLessThan(next);
+    }
+  });
+
+  it("keeps its identity header above every state branch, severed or not", () => {
+    // The header is rendered unconditionally, before the first `state.kind`
+    // branch. A surface that vanishes on failure teaches the trader that
+    // absence means "nothing to say" rather than "the cable is cut."
+    const header = SRC.indexOf("<header");
+    const firstBranch = SRC.indexOf("{state.kind ===");
+    expect(header).toBeGreaterThan(0);
+    expect(header).toBeLessThan(firstBranch);
+    expect(SRC).toContain('{symbol} · {direction === null ? "direction UNKNOWN" : direction} · reference · {state.receipt?.fidelity ?? "UNKNOWN"}');
+  });
+
+  it("names WHICH boundary failed rather than a generic 'unavailable'", () => {
+    // Three distinct severance causes, three distinct sentences. "Unavailable"
+    // alone is indistinguishable from "we did not ask."
+    expect(SRC).toContain("reason: result.failure.edge");
+    expect(SRC).toContain('reason: "PROVENANCE UNKNOWN"');
+    expect(SRC).toContain('reason: "NETWORK ERROR"');
+    expect(SRC).toContain("Expression shortlist unavailable — {state.reason");
+  });
+
+  it("the WITHHELD state is geometry-gated, not merely source-gated", () => {
+    // Adoption guard for the registry entry. Rendering with direction=null is
+    // the only one of the five states reachable from static markup — effects
+    // do not run there — so this measures WAIT, and the registry comment says
+    // so rather than implying the other four are covered.
+    const script = readFileSync(
+      resolve(__dirname, "../../../scripts/measure-experience-geometry.mjs"),
+      "utf8",
+    );
+    expect(script).toContain('name: "expression-shortlist-wait"');
+    expect(script).toContain('root: \'[data-testid="deck-expression-shortlist"]\'');
+    expect(script).toContain('direction: null');
+  });
+});
