@@ -989,6 +989,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         )}
         style={{ display: "none" }}
       />
+      {/* Desktop fuses orientation and symbol truth into one threshold so the
+          market gains a full row of height. Tablet/phone stack the two proven
+          touch-safe rows through `.wm-chart-room-header` media rules. */}
+      <div className="wm-chart-room-header">
       {/* ── Chart orientation and decision strip. The global shell owns
              product identity; this row begins with the trader's location and
              keeps the 44px touch target that prevents disclosure controls from
@@ -997,7 +1001,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         className="wm-chart-orientation-strip"
         style={{
           minHeight: 44,
-          borderBottom: "1px solid rgba(139,106,41,0.22)",
+          borderBottom: "none",
           // Chrome bar → hairline. The gradient painted a 44px opaque
           // band at the top of MARKET, disconnecting the room from the
           // sanctuary header above. Transparent lets the room read as
@@ -1008,7 +1012,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           paddingLeft: 16,
           paddingRight: 16,
           gap: 12,
-          flexShrink: 0,
+          flexShrink: 1,
+          minWidth: 0,
           // The row carries one decision summary plus disclosure
           // controls. Keep it horizontally safe on narrow screens,
           // but do not turn unresolved internal capabilities into a
@@ -1219,8 +1224,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           Chart. A native select keeps every view keyboard/touch reachable
           while returning that space to the room. */}
       <div className="wm-chart-tabs" style={{
-        height: 40, borderBottom: "1px solid rgba(139,106,41,0.15)", display: "flex", alignItems: "center",
-        gap: 0, paddingLeft: 16, background: "transparent", flexShrink: 0, overflowX: "auto",
+        height: 44, borderBottom: "none", display: "flex", alignItems: "center",
+        gap: 0, paddingLeft: 16, background: "transparent", flexShrink: 1, minWidth: 0, overflowX: "auto",
         scrollbarWidth: "none",
       }}>
         {/* Asset class switcher (Stocks / Crypto / Futures / Forex / Indices / Metals) */}
@@ -1355,6 +1360,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           </select>
         </label>
 
+      </div>
       </div>
 
       {/* ── Main row ─────────────────────────────────────────── */}
