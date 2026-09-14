@@ -772,10 +772,15 @@ function TodayIntentStrip({ userId }: { userId: string | null }) {
 }
 
 export default function JournalPage() {
+  // Suspense fallback: transparent so the sanctuary shell (which wraps
+  // this route via MainLayout) shows through during hydration instead of
+  // a black flash.
+  //
+  // This comment is a `//` line comment ON PURPOSE. Between `return (`
+  // and the first tag we are still in a parenthesized JS expression, not
+  // in JSX children, so `{/* ... */}` there parses as a block and breaks
+  // the file. It must stay above `return (`.
   return (
-    {/* Suspense fallback: transparent so the sanctuary shell (which
-        wraps this route via MainLayout) shows through during hydration
-        instead of a black flash. */}
     <React.Suspense fallback={<div className="min-h-screen" />}>
       <JournalPageInner />
     </React.Suspense>
@@ -1976,7 +1981,7 @@ Trade the system, trust the process, winners every day 🚀`,
           and on the founder-path phone it does not exist at all. §9 — a
           partly-readable book is not an alarm, so it is not styled as one. */}
       {recordedTotal.note !== null && (
-        <p role="note" className="px-4 py-1.5 text-[10px] leading-relaxed text-wm-text-dim border-b border-wm-border bg-wm-dark shrink-0">
+        <p role="note" className="px-4 py-1.5 text-[10px] leading-relaxed text-wm-text-dim border-b border-wm-border shrink-0">
           {recordedTotal.note}
         </p>
       )}
@@ -1988,7 +1993,7 @@ Trade the system, trust the process, winners every day 🚀`,
           book simply looks shorter than it is. Same words, same owner, same
           quiet §9 treatment: nothing failed, WM refused to guess. */}
       {hydrationCoverage?.note != null && (
-        <p role="note" className="px-4 py-1.5 text-[10px] leading-relaxed text-wm-text-dim border-b border-wm-border bg-wm-dark shrink-0">
+        <p role="note" className="px-4 py-1.5 text-[10px] leading-relaxed text-wm-text-dim border-b border-wm-border shrink-0">
           {hydrationCoverage.note}
         </p>
       )}
