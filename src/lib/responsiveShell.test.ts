@@ -486,9 +486,10 @@ describe("responsive P0 command surfaces", () => {
     const dashboard = source("../components/chart/ChartsDashboard.tsx");
     const toolbar = source("../components/chart/ChartToolbar.tsx");
     expect(dashboard).toContain("wm-chart-tabs");
+    expect(dashboard).toContain("wm-chart-category-select");
     expect(dashboard).toContain("wm-chart-tools");
     expect(toolbar).toContain("wm-chart-toolbar");
-    expect(css).toContain(".wm-chart-page-tab,");
+    expect(dashboard).toContain('aria-label="Symbol view category"');
     expect(css).toContain('.wm-chart-dashboard [role="status"][aria-live="polite"]');
   });
 

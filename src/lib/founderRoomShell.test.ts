@@ -166,8 +166,8 @@ describe("Founder operating-room shell", () => {
       .toMatch(/theme === "neon" \? "#02060a" : "transparent"/);
     expect(charts, "chart orientation strip painted an opaque gradient band")
       .not.toMatch(/background:\s*"linear-gradient\(180deg,\s*rgba\(11,11,13,0\.9\),\s*#0D0E14\)"/);
-    expect(charts, "chart category strip painted an opaque #0D0E14 band")
-      .not.toMatch(/background:\s*"#0D0E14",\s*\n?\s*flexShrink: 0/);
+    expect(charts, "a detached category strip still fragments MARKET")
+      .not.toContain('className="wm-chart-category-strip"');
   });
 
   it("pins sticky bands with glass, never an opaque slab", () => {

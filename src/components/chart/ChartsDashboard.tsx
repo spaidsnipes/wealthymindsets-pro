@@ -1208,90 +1208,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         </a>
         </div>
       </div>
-      {/* ── Top-level category tab strip ──────────────────────
-          Founder directive 2026-09-02: the per-symbol view
-          categories (Chart / Options / ETFs / Financials /
-          Valuation / Corporate Actions / Shareholders / Profile)
-          were previously wedged into the same MooMoo row as
-          asset-class + symbol + price + fidelity badge, competing
-          for horizontal space and only surfacing after a long
-          scroll. Promoting them to their own row at the top of
-          the chrome makes them read as primary navigation and
-          restores breathing room to the symbol row below. */}
-      <div
-        className="wm-chart-category-strip"
-        style={{
-          // Founder-canon mobile tap target: min 44px. Height stretches
-          // to whatever the buttons need so touch users hit them without
-          // fat-fingering an adjacent tab.
-          minHeight: 44,
-          borderBottom: "1px solid rgba(139,106,41,0.15)",
-          display: "flex",
-          alignItems: "stretch",
-          gap: 0,
-          paddingLeft: 16,
-          // Category strip → hairline. Was opaque #0D0E14 painting a
-          // second chrome band beneath the orientation strip; two solid
-          // bars above MARKET were the exact silhouette the audit named.
-          background: "transparent",
-          flexShrink: 0,
-          overflowX: "auto",
-          scrollbarWidth: "none",
-        }}
-        role="tablist"
-        aria-label="Symbol view categories"
-      >
-        {(() => {
-          const tabs = categoryTabsFor(canonicalAssetClass(symbol));
-          return tabs.map((tab, idx) => {
-            const isActive = tab === activeTab;
-            const panelId = tab === "Chart" || tab === "Options"
-              ? "wm-chart-category-panel-chart"
-              : "wm-chart-category-panel";
-            return (
-              <button
-                key={tab}
-                className="wm-chart-page-tab"
-                role="tab"
-                aria-selected={isActive}
-                aria-controls={panelId}
-                tabIndex={isActive ? 0 : -1}
-                onKeyDown={(e) => {
-                  // WAI-ARIA tab pattern: Left/Right arrows move focus + activate.
-                  // Founder canon: keyboard users MUST reach every category tab
-                  // without the mouse.
-                  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Home" && e.key !== "End") return;
-                  e.preventDefault();
-                  let nextIdx = idx;
-                  if (e.key === "ArrowLeft") nextIdx = (idx - 1 + tabs.length) % tabs.length;
-                  if (e.key === "ArrowRight") nextIdx = (idx + 1) % tabs.length;
-                  if (e.key === "Home") nextIdx = 0;
-                  if (e.key === "End") nextIdx = tabs.length - 1;
-                  const nextTab = tabs[nextIdx];
-                  setActiveTab(nextTab);
-                }}
-                onClick={() => {
-                  setActiveTab(tab);
-                }}
-                style={{
-                  padding: "0 14px",
-                  minHeight: 44,
-                  color: isActive ? "#E2E8F0" : "#8B8FA8",
-                  background: "transparent", border: "none",
-                  borderBottom: isActive ? "2px solid #FF8C00" : "2px solid transparent",
-                  fontSize: 12, fontWeight: isActive ? 600 : 400, cursor: "pointer",
-                  whiteSpace: "nowrap", flexShrink: 0,
-                }}
-              >
-                {tab}
-              </button>
-            );
-          });
-        })()}
-      </div>
-      {/* ── MooMoo-style chart tabs row ──────────────────────── */}
-      {/* Third chrome band → hairline. Asset-class switcher + symbol +
-          fidelity + timeframe belong INSIDE the room, not on top of it. */}
+      {/* Asset class, symbol truth, and secondary views share one compact
+          threshold. The old eight-peer category strip consumed a permanent
+          44px dashboard band above MARKET even when the trader never left
+          Chart. A native select keeps every view keyboard/touch reachable
+          while returning that space to the room. */}
       <div className="wm-chart-tabs" style={{
         height: 40, borderBottom: "1px solid rgba(139,106,41,0.15)", display: "flex", alignItems: "center",
         gap: 0, paddingLeft: 16, background: "transparent", flexShrink: 0, overflowX: "auto",
@@ -1395,8 +1316,39 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           })()}
         </div>
         {/* Tab bar promoted to its own top-level category strip above
-            (Founder 2026-09-02). Keeping this comment as a breadcrumb
-            so a future edit doesn't accidentally re-inline the tabs. */}
+            in the prior shell. Scene-fusion keeps the canonical list but
+            rehomes it here as one doorway instead of eight peer cards. */}
+        <label
+          className="wm-chart-category-doorway"
+          style={{ display: "flex", alignItems: "center", marginLeft: "auto", marginRight: 10, flexShrink: 0 }}
+        >
+          <span style={{ color: "#716b5d", fontSize: 9, letterSpacing: 0.8, marginRight: 6, textTransform: "uppercase" }}>
+            View
+          </span>
+          <select
+            className="wm-chart-category-select"
+            aria-label="Symbol view category"
+            value={activeTab}
+            onChange={(event) => setActiveTab(event.target.value)}
+            style={{
+              minHeight: 32,
+              maxWidth: 172,
+              color: "#c9a55c",
+              background: "rgba(5,5,6,0.72)",
+              border: "1px solid rgba(139,106,41,0.35)",
+              borderRadius: 4,
+              padding: "0 28px 0 9px",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: 0.3,
+              textTransform: "uppercase",
+            }}
+          >
+            {categoryTabsFor(assetClass).map((tab) => (
+              <option key={tab} value={tab}>{tab}</option>
+            ))}
+          </select>
+        </label>
 
       </div>
 
