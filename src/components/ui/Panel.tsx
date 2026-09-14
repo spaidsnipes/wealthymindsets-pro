@@ -55,12 +55,23 @@ export function Panel({
       ref={panelRef}
       role={resolvedRole}
       aria-labelledby={labelId}
+      // SCENE_FRAGMENTATION cure (Founder audit 2026-09-13): "brass
+      // belongs to identity/structure, not every card border." Panel
+      // was the primitive that made every consumer a full-box card —
+      // border 14, brass on all four sides, subtle gradient fill,
+      // inner glow. Now: hairline on top only, transparent fill, no
+      // radius, no inner shadow. The label + sublabel + children keep
+      // their spacing, so consumers still read as a distinct section
+      // of the room — they just no longer read as a separate app card
+      // sitting inside the sanctuary. Halo remains available for the
+      // one moment (an ACTIVE decision surface) where the founder
+      // canon justifies a warm cinematic wash; every other Panel goes
+      // quiet.
       className={[
         "wm-panel",
-        "relative rounded-[14px] px-6 py-5",
-        "border border-[color:var(--wm-gold-hair,#6d5220)]",
-        "bg-[linear-gradient(180deg,rgba(255,255,255,0.015),rgba(255,255,255,0.005))]",
-        "shadow-[inset_0_0_0_1px_rgba(212,175,55,0.04)]",
+        "relative px-6 pt-4 pb-5",
+        "border-t border-[color:var(--wm-gold-hair,#6d5220)]/60",
+        "bg-transparent",
         halo ? "shadow-[0_0_60px_-30px_rgba(212,175,55,0.35)]" : "",
         className ?? "",
       ]
