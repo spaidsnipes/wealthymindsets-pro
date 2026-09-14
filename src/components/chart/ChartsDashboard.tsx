@@ -38,7 +38,6 @@ import { SymbolInfoHeader } from "./SymbolInfoHeader";
 import { BarReplayControls, type ReplaySpeed } from "./BarReplayControls";
 import { ErrorBoundary, SafePanel } from "@/components/ui/ErrorBoundary";
 import { StockInfoPanel } from "./StockInfoPanel";
-import { BottomIndexBar } from "./BottomIndexBar";
 import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { resolveChartSurfaceBadge } from "@/lib/priceSource";
@@ -2166,9 +2165,6 @@ export function ChartsDashboard() {
       {(activeTab === "Chart" || activeTab === "Options") && (
         <OrderFlowCockpitStrip ticks={recentTicks} livePrice={ticker.price} />
       )}
-
-      {/* ── Bottom index bar ─────────────────────────────────── */}
-      <BottomIndexBar />
 
       {pnlOpen && <PnLStatsPanel onClose={() => setPnlOpen(false)} />}
       {smartMoneyOpen && <SmartMoneyPanel onClose={() => setSmartMoneyOpen(false)} symbol={symbol} />}

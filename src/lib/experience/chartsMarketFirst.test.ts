@@ -11,11 +11,10 @@ describe("charts Asset-10 hierarchy", () => {
   it("renders MARKET before the supporting decision spine", () => {
     const marketPanel = source.indexOf('id="wm-chart-category-panel-chart"');
     const spine = source.indexOf("<DecisionSpineBand");
-    const bottomBar = source.indexOf("<BottomIndexBar", spine);
 
     expect(marketPanel, "chart MARKET panel is missing").toBeGreaterThan(0);
     expect(spine, "decision spine is missing").toBeGreaterThan(marketPanel);
-    expect(bottomBar, "bottom market index bar is missing").toBeGreaterThan(spine);
+    expect(source).not.toContain("<BottomIndexBar");
   });
 
   it("attaches one desktop rail and falls back to one band on narrow/options views", () => {
