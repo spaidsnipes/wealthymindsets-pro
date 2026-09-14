@@ -67,6 +67,57 @@ function fmtTime(s: number) {
 const ACCENT = "#2F80ED";
 const REC = "#FF4757";
 
+/** Stop a recorder at most once, even when unmount and the browser's
+ * track-ended callback race each other. */
+export function stopRecorderOnce(
+  recorder: MediaRecorder | null,
+  stopped: WeakSet<MediaRecorder>,
+): void {
+  if (!recorder || stopped.has(recorder)) return;
+  stopped.add(recorder);
+  if (recorder.state === "inactive") return;
+  try { recorder.stop(); } catch { /* the stream cleanup still runs */ }
+}
+
+/** Release every display-capture track at most once. Closing the contextual
+ * drawer must never leave browser capture running behind an unmounted UI. */
+export function stopStreamTracksOnce(
+  stream: MediaStream | null,
+  stopped: WeakSet<MediaStream>,
+): void {
+  if (!stream || stopped.has(stream)) return;
+  stopped.add(stream);
+  for (const track of stream.getTracks()) {
+    try { track.stop(); } catch { /* one failed track must not retain the rest */ }
+  }
+}
+
+/** Dispose an abandoned drawer-owned recording without turning drawer close
+ * into a surprise download. Normal user Stop keeps the live callbacks and
+ * finalizes through `onstop`; unmount severs them before releasing hardware. */
+export function disposeScreenCaptureOnUnmount({
+  recorder,
+  stream,
+  chunks,
+  stoppedRecorders,
+  stoppedStreams,
+}: {
+  recorder: MediaRecorder | null;
+  stream: MediaStream | null;
+  chunks: Blob[];
+  stoppedRecorders: WeakSet<MediaRecorder>;
+  stoppedStreams: WeakSet<MediaStream>;
+}): void {
+  if (recorder) {
+    recorder.ondataavailable = null;
+    recorder.onstop = null;
+  }
+  for (const track of stream?.getVideoTracks() ?? []) track.onended = null;
+  chunks.length = 0;
+  stopRecorderOnce(recorder, stoppedRecorders);
+  stopStreamTracksOnce(stream, stoppedStreams);
+}
+
 /* ── capture the chart node to a canvas via html2canvas ───────────────── */
 async function captureNode(node: HTMLElement): Promise<HTMLCanvasElement> {
   const html2canvas = (await import("html2canvas")).default;
@@ -168,6 +219,29 @@ export default function LeftSidebar({
   const screenRecRef = useRef<MediaRecorder | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const screenChunks = useRef<Blob[]>([]);
+  const stoppedScreenRecorders = useRef(new WeakSet<MediaRecorder>());
+  const stoppedScreenStreams = useRef(new WeakSet<MediaStream>());
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      const recorder = screenRecRef.current;
+      const stream = screenStreamRef.current;
+      // Clear ownership before stopping: a synchronous onended callback cannot
+      // re-enter the stale component and stop/finalize the same session twice.
+      screenRecRef.current = null;
+      screenStreamRef.current = null;
+      disposeScreenCaptureOnUnmount({
+        recorder,
+        stream,
+        chunks: screenChunks.current,
+        stoppedRecorders: stoppedScreenRecorders.current,
+        stoppedStreams: stoppedScreenStreams.current,
+      });
+    };
+  }, []);
 
   const layoutBtnRef = useRef<HTMLDivElement>(null);
 
@@ -198,7 +272,7 @@ export default function LeftSidebar({
 
   /* ── SCREEN RECORDING ───────────────────────────────────────────────── */
   const stopScreenRec = useCallback(() => {
-    try { screenRecRef.current?.stop(); } catch { /* noop */ }
+    stopRecorderOnce(screenRecRef.current, stoppedScreenRecorders.current);
   }, []);
   const startScreenRec = useCallback(async () => {
     try {
@@ -206,6 +280,10 @@ export default function LeftSidebar({
         video: { frameRate: 30 },
         audio: true,
       });
+      if (!mountedRef.current) {
+        stopStreamTracksOnce(stream, stoppedScreenStreams.current);
+        return;
+      }
       screenStreamRef.current = stream;
       const mime = pickMime(VIDEO_MIMES);
       const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
@@ -214,9 +292,10 @@ export default function LeftSidebar({
       rec.onstop = () => {
         const blob = new Blob(screenChunks.current, { type: mime || "video/webm" });
         if (blob.size) downloadBlob(blob, `wm-screen-${Date.now()}.webm`);
-        stream.getTracks().forEach(t => t.stop());
-        screenStreamRef.current = null;
-        setScreenRec(false);
+        stopStreamTracksOnce(stream, stoppedScreenStreams.current);
+        if (screenRecRef.current === rec) screenRecRef.current = null;
+        if (screenStreamRef.current === stream) screenStreamRef.current = null;
+        if (mountedRef.current) setScreenRec(false);
       };
       // browser "Stop sharing" ends the track
       stream.getVideoTracks()[0].onended = () => stopScreenRec();
