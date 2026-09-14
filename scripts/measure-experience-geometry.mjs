@@ -129,6 +129,7 @@ const p = (rel) => JSON.stringify(join(ROOT, rel));
 const SURFACES = [
   {
     name: "spine-band",
+    widths: [390, 834],
     root: ".wm-decision-spine",
     cellSelector: ".wm-decision-spine",
     from: p("src/components/experience/DecisionSpineBand"),
@@ -139,7 +140,8 @@ const SURFACES = [
         market: {
           symbol: "TSLA", timeframe: "5m",
           quality: "SESSION CLOSED — LAST VERIFIED",
-          capturedAt: Date.UTC(2026, 8, 12, 14, 46, 5), last: 332.25,
+          capturedAt: Date.UTC(2026, 8, 12, 14, 46, 5),
+          last: null, lastBarClose: 332.25, lastBarTimeframe: "5m",
         },
         oneStory: {
           primary: "Price is inside value with no resolved direction.",
@@ -157,6 +159,46 @@ const SURFACES = [
           headline: "Right-of-way withheld — evidence debt unpaid.",
           blockers: [], clearances: [],
           invalidators: ["Value migrates below 330.10"],
+        },
+        expression: null,
+        onOpenWhy: () => {},
+      }`,
+  },
+  {
+    // `/charts` mounts the spine as a fixed 320px rail on desktop. Measuring
+    // the default band at a 1440px viewport does not exercise that projection,
+    // especially when BAR_CLOSE adds a qualified provenance sentence.
+    name: "spine-rail-bar-close",
+    widths: [1440],
+    root: ".wm-decision-spine--rail",
+    cellSelector: ".wm-decision-spine--rail",
+    from: p("src/components/experience/DecisionSpineBand"),
+    named: "DecisionSpineBand",
+    props: `{
+        presentation: "rail",
+        decisionId: "wmd_9f3c1a22-5e77-4a10-b2d4-7c918ee0d311",
+        decisionIdAbsence: "No decision born yet — permission has not crossed.",
+        market: {
+          symbol: "TSLA", timeframe: "5m",
+          quality: "SESSION CLOSED — LAST VERIFIED",
+          capturedAt: Date.UTC(2026, 8, 12, 14, 46, 5),
+          last: null, lastBarClose: 332.25, lastBarTimeframe: "5m",
+        },
+        oneStory: {
+          primary: "Price is inside value with no resolved direction.",
+          contradiction: null, missing: null,
+          decision: { value: "WAIT", detail: "Direction unresolved.", tone: "pending" },
+          debt: null,
+        },
+        availableR: {
+          resolution: "PARTIAL", conservativeR: 2.5, optimisticR: 4.1,
+          riskPerUnit: 1.25, costDragR: "UNKNOWN", destination: null,
+          missingInputs: [], warnings: [],
+        },
+        decisionWhy: {
+          version: "wm.decision-why.v1", verdict: "WAIT", clear: false,
+          headline: "Right-of-way withheld — evidence debt unpaid.",
+          blockers: [], clearances: [], invalidators: ["Value migrates below 330.10"],
         },
         expression: null,
         onOpenWhy: () => {},
@@ -458,6 +500,7 @@ export const surfaces = [
 ${SURFACES.map(
   (s, i) =>
     `  { name: ${JSON.stringify(s.name)}, root: ${JSON.stringify(s.root)}, ` +
+    `widths: ${JSON.stringify(s.widths ?? null)}, ` +
     `cellSelector: ${JSON.stringify(s.cellSelector ?? null)}, ` +
     `html: renderToStaticMarkup(React.createElement(C${i}, ${s.props})) },`,
 ).join("\n")}
@@ -502,7 +545,7 @@ const browser = await chromium.launch({ channel: "chrome" }).catch(async (error)
 const offences = [];
 
 for (const surface of surfaces) {
-  for (const width of WIDTHS) {
+  for (const width of surface.widths ?? WIDTHS) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     await page.setContent(
       `<!doctype html><html><body style="margin:0;background:#0D0E14;font-family:system-ui">` +
@@ -614,4 +657,4 @@ if (offences.length > 0) {
   );
   process.exit(1);
 }
-console.log(`\nPASS — ${surfaces.length} surface(s) clear at ${WIDTHS.join(", ")}px, measured with ${engine}. Screenshots in /tmp/geometry-<surface>-<width>.png`);
+console.log(`\nPASS — ${surfaces.length} surface(s) clear at their configured viewports, measured with ${engine}. Screenshots in /tmp/geometry-<surface>-<width>.png`);

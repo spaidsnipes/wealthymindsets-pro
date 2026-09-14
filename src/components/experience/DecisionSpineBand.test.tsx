@@ -199,12 +199,31 @@ describe("DecisionSpineBand — absence is disclosed, never filled", () => {
     });
     expect(html).toContain("asOf 14:46:05Z");
     expect(html).not.toContain("asOf UNKNOWN");
+    expect(html).toContain('data-price-provenance="PRINT"');
   });
 
   it("an absent price says PRICE UNKNOWN, and an absent quality says QUALITY UNKNOWN", () => {
     const html = render();
     expect(html).toContain("PRICE UNKNOWN");
     expect(html).toContain("QUALITY UNKNOWN");
+    expect(html).toContain('data-price-provenance="NONE"');
+  });
+
+  it("renders the canonical bar close with inspectable provenance when no print exists", () => {
+    const html = render({
+      market: {
+        symbol: "AAPL",
+        timeframe: "5m",
+        quality: "HISTORICAL BARS VERIFIED",
+        capturedAt: Date.UTC(2026, 8, 14, 7, 20, 0),
+        last: null,
+        lastBarClose: 332.25,
+        lastBarTimeframe: "5m",
+      },
+    });
+    expect(html).toContain('data-price-provenance="BAR_CLOSE"');
+    expect(html).toContain("AAPL · 5m · 332.25 LAST 5m BAR CLOSE");
+    expect(html).not.toContain("PRICE UNKNOWN");
   });
 
   it("quality is echoed verbatim from the canonical state — never re-worded", () => {

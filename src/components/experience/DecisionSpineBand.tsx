@@ -151,6 +151,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   const { decisionId, decisionIdAbsence, market, oneStory, availableR, decisionWhy, expression } = props;
   const presentation = props.presentation ?? "band";
   const rail = presentation === "rail";
+  const priceDisplay = formatSpinePrice(market.last, market.lastBarClose, market.lastBarTimeframe);
   const cellStyle: React.CSSProperties = rail
     ? {
         ...CELL,
@@ -252,9 +253,9 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
 
       <div style={cellStyle}>
         <span style={LABEL}>Market</span>
-        <span style={VALUE}>
+        <span style={VALUE} data-price-provenance={priceDisplay.provenance}>
           {market.symbol} · {market.timeframe} ·{" "}
-          {formatSpinePrice(market.last, market.lastBarClose, market.lastBarTimeframe).text}
+          {priceDisplay.text}
         </span>
         <span style={MUTED}>
           {market.quality ?? "QUALITY UNKNOWN"} · {asOfText(market.capturedAt)}
