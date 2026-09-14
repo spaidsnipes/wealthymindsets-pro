@@ -1921,7 +1921,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           {/* ── Non-Chart tab panels ──────────────────────────── */}
           {activeTab !== "Chart" && activeTab !== "Options" && (
             <div role="tabpanel" id="wm-chart-category-panel" aria-label={`${activeTab} for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
-              <FundamentalsTabPanel symbol={symbol} tab={activeTab} onBack={() => setActiveTab("Chart")} />
+              <FundamentalsTabPanel symbol={symbol} tab={activeTab} />
             </div>
           )}
 
@@ -2264,7 +2264,7 @@ const fmtShares = (n?: number) => {
   return `${n}`;
 };
 
-function FundamentalsTabPanel({ symbol, tab, onBack }: { symbol: string; tab: string; onBack: () => void }) {
+function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) {
   const base = symbol.toUpperCase();
   const [loading, setLoading] = useState(true);
   const [d, setD] = useState<Record<string, any>>({});
@@ -2456,9 +2456,6 @@ function FundamentalsTabPanel({ symbol, tab, onBack }: { symbol: string; tab: st
   return (
     <div style={{ flex:1, overflow:"auto", background:"#0D0E14", padding:16 }}>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
-        <button onClick={onBack} style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:6, padding:"4px 12px", fontSize:11, color:"#8B8FA8", cursor:"pointer" }}>
-          ← Back to Chart
-        </button>
         <span style={{ fontSize:14, fontWeight:700, color:"#E2E8F0" }}>{base} — {tab}</span>
       </div>
       {loading ? (

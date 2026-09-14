@@ -93,6 +93,12 @@ describe("chart progressive disclosure", () => {
     expect(dashboard).not.toContain("wm-chart-capture-fallback");
   });
 
+  it("uses the canonical view selector instead of a duplicate back-to-chart control", () => {
+    expect(dashboard).toContain('aria-label="Symbol view category"');
+    expect(dashboard).not.toContain("← Back to Chart");
+    expect(dashboard).not.toContain("onBack={() => setActiveTab");
+  });
+
   it("keeps the dense flow and study strip closed until the trader asks for it", () => {
     expect(dashboard).toContain("studyToolsOpen && <div className=\"wm-chart-tools");
     expect(dashboard).toContain("onToggleStudyTools={() => setStudyToolsOpen(open => !open)}");
