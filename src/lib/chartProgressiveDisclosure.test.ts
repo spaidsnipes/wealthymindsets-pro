@@ -108,7 +108,7 @@ describe("chart progressive disclosure", () => {
     expect(dashboard).not.toContain("LIQUIDITY WEATHER · NOT WIRED");
     expect(dashboard).not.toContain("ROW · {chartPermission.verdict}");
     expect(dashboard).toContain("<CanvasSummaryPill");
-    expect(dashboard).toContain("Open Decision Why");
+    expect(dashboard).toContain("(narrowViewport || optionsOpen)");
   });
 
   it("lets the global shell own product identity and starts with chart orientation", () => {
@@ -118,13 +118,16 @@ describe("chart progressive disclosure", () => {
     expect(dashboard).toContain("{symbol}");
     expect(dashboard).toContain('{activeTab !== "Chart"');
     expect(dashboard).toContain("<CanvasSummaryPill");
-    expect(dashboard).toContain("Open Decision Why");
+    expect(dashboard).toContain("(narrowViewport || optionsOpen)");
     expect(dashboard).toContain("Market object passport");
     expect(dashboard).not.toContain("wm-chart-passport-trigger");
   });
 
   it("keeps the canonical WHY doorway operable across every symbol view", () => {
     expect(dashboard).toContain('aria-label={whyOpen ? "Close Decision Why" : "Open Decision Why"}');
+    expect(dashboard).toMatch(/\{\(narrowViewport \|\| optionsOpen\) && \(chartCanvasVM\.decisionWhy \|\| chartPassportVM\.capturedAt !== null\) && \(/);
+    expect(dashboard).toContain("whyTriggerRef.current = event.currentTarget");
+    expect(dashboard).toContain("onOpenWhy: openWhyFrom");
     expect(dashboard).toContain('id="chart-decision-why"');
     expect(dashboard).toContain("fallbackTriggerRef={whyTriggerRef}");
     expect(dashboard).toMatch(/\{whyOpen && \(\s*<ShellModalDrawer/);

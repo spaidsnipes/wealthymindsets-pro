@@ -688,6 +688,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // Asset 07 canon — Evidence Debt / Question Mode toggle.
   const [whyOpen, setWhyOpen] = useState(false);
   const whyTriggerRef = useRef<HTMLButtonElement>(null);
+  const openWhyFrom = (trigger: HTMLButtonElement) => {
+    whyTriggerRef.current = trigger;
+    setWhyOpen(true);
+  };
 
   // ── DECISION_ID on the primary surface ──────────────────────────
   // Until now the ONLY production mint was EXPLICIT_INTENT, inside
@@ -949,7 +953,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     expression: optionSelection && optionSelection.underlying === symbol
       ? `${optionSelection.contract.symbol} ${optionSelection.contract.expirationDate} ${optionSelection.contract.strike} ${optionSelection.contract.contractType}`
       : null,
-    onOpenWhy: () => setWhyOpen(true),
+    onOpenWhy: openWhyFrom,
   };
 
   return (
@@ -1095,12 +1099,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             (§Silence Is A Feature). Opens the SAME DecisionWhyPanel
             /command-deck ships so trader sees identical WHY on both. */}
         <div className="wm-chart-orientation-actions">
-        {(chartCanvasVM.decisionWhy || chartPassportVM.capturedAt !== null) && (
+        {(narrowViewport || optionsOpen) && (chartCanvasVM.decisionWhy || chartPassportVM.capturedAt !== null) && (
           <button
             className="wm-chart-orientation-action wm-chart-why-trigger"
             ref={whyTriggerRef}
             type="button"
-            onClick={() => setWhyOpen(o => !o)}
+            onClick={(event) => {
+              whyTriggerRef.current = event.currentTarget;
+              setWhyOpen(open => !open);
+            }}
             aria-label={whyOpen ? "Close Decision Why" : "Open Decision Why"}
             aria-expanded={whyOpen}
             aria-controls="chart-decision-why"

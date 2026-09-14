@@ -77,7 +77,7 @@ export interface DecisionSpineBandProps {
   /** Human label for the attached expression, or null when the answer is WAIT. */
   readonly expression: string | null;
   /** Opens the full WHY drawer. The band is the summary, not a replacement. */
-  readonly onOpenWhy?: () => void;
+  readonly onOpenWhy?: (trigger: HTMLButtonElement) => void;
   /** Desktop charts attach the same compiled spine beside MARKET. Other
    * surfaces retain the horizontal band without forking truth ownership. */
   readonly presentation?: "band" | "rail";
@@ -284,7 +284,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         {props.onOpenWhy && (
           <button
             type="button"
-            onClick={props.onOpenWhy}
+            onClick={(event) => props.onOpenWhy?.(event.currentTarget)}
             style={{
               alignSelf: "flex-start",
               minHeight: 44,

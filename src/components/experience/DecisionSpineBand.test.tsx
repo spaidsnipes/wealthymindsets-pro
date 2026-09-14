@@ -28,6 +28,8 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DecisionSpineBand, type DecisionSpineBandProps } from "./DecisionSpineBand";
@@ -279,6 +281,11 @@ describe("DecisionSpineBand — the band summarises WHY, it does not replace it"
     expect(render({ onOpenWhy: () => {} })).toContain("Full evidence");
     // A button that opens nothing is a dead control. Absent handler, absent button.
     expect(render()).not.toContain("Full evidence");
+  });
+
+  it("returns the actual full-evidence trigger to the shared WHY opener", () => {
+    const source = readFileSync(resolve(__dirname, "DecisionSpineBand.tsx"), "utf8");
+    expect(source).toContain("onClick={(event) => props.onOpenWhy?.(event.currentTarget)}");
   });
 
   it("surfaces the first invalidator inline so the risk cell is not decorative", () => {
