@@ -779,7 +779,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // display:none at 0x0, so publish idea, screenshot, voice note and video
   // note had no door on a phone at all.
   const [toolsSheetOpen, setToolsSheetOpen] = useState(false);
-  const toolsSheetTriggerRef = useRef<HTMLButtonElement>(null);
+  const captureFallbackTriggerRef = useRef<HTMLButtonElement>(null);
+  const openCaptureShare = useCallback((trigger: HTMLButtonElement | null) => {
+    captureFallbackTriggerRef.current = trigger;
+    setToolsSheetOpen(true);
+  }, []);
   // One object feeds the one canonical drawer mount at every width.
   const primarySidebarProps = {
     watchlistOpen,
@@ -1124,33 +1128,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             Draw
           </button>
         )}
-        {
-          <button
-            className="wm-chart-orientation-action wm-chart-tools-trigger"
-            ref={toolsSheetTriggerRef}
-            type="button"
-            onClick={() => setToolsSheetOpen(o => !o)}
-            aria-label={toolsSheetOpen ? "Close capture and share" : "Open capture and share"}
-            aria-expanded={toolsSheetOpen}
-            aria-controls="chart-tools-sheet"
-            style={{
-              fontSize: 10,
-              letterSpacing: 0.3,
-              textTransform: "uppercase",
-              color: toolsSheetOpen ? "#e8b923" : "#c9a55c",
-              background: toolsSheetOpen ? "rgba(232, 185, 35, 0.12)" : "transparent",
-              border: toolsSheetOpen ? "1px solid rgba(232, 185, 35, 0.5)" : "1px solid rgba(139,106,41,0.35)",
-              minHeight: 44,
-              padding: "3px 10px",
-              borderRadius: 4,
-              fontWeight: 700,
-              cursor: "pointer",
-              marginLeft: 4,
-            }}
-          >
-            Capture
-          </button>
-        }
         {(chartCanvasVM.decisionWhy || chartPassportVM.capturedAt !== null) && (
           <button
             className="wm-chart-orientation-action wm-chart-why-trigger"
@@ -1175,6 +1152,33 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             }}
           >
             {whyOpen ? "▾ Why" : "▸ Why"}
+          </button>
+        )}
+        {activeTab !== "Chart" && activeTab !== "Options" && (
+          <button
+            className="wm-chart-orientation-action wm-chart-capture-fallback"
+            ref={captureFallbackTriggerRef}
+            type="button"
+            onClick={() => openCaptureShare(captureFallbackTriggerRef.current)}
+            aria-label="Open capture and share"
+            aria-haspopup="dialog"
+            aria-controls="chart-tools-sheet"
+            style={{
+              fontSize: 10,
+              letterSpacing: 0.3,
+              textTransform: "uppercase",
+              color: "#c9a55c",
+              background: "transparent",
+              border: "1px solid rgba(139,106,41,0.35)",
+              minHeight: 44,
+              padding: "3px 10px",
+              borderRadius: 4,
+              fontWeight: 700,
+              cursor: "pointer",
+              marginLeft: 4,
+            }}
+          >
+            Capture
           </button>
         )}
         <a
@@ -1419,7 +1423,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               closeLabel="Close capture and share"
               width={320}
               onClose={() => setToolsSheetOpen(false)}
-              fallbackTriggerRef={toolsSheetTriggerRef}
+              fallbackTriggerRef={captureFallbackTriggerRef}
             >
               <LeftSidebar {...primarySidebarProps} variant="sheet" />
             </ShellModalDrawer>
@@ -1477,6 +1481,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             symbol={symbol}         setSymbol={setSymbol}
             timeframe={timeframe}   setTimeframe={setTimeframe}
             onConnectBrokers={() => openBrokerConnect(toolsTriggerRef.current)}
+            onCapture={() => openCaptureShare(toolsTriggerRef.current)}
+            captureOpen={toolsSheetOpen}
             onSmartMoney={() => setSmartMoneyOpen(o => !o)}
             smartMoneyActive={smartMoneyOpen}
             onDOM={() => setVpDomOpen(o => !o)}

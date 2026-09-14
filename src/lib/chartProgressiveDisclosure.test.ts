@@ -20,6 +20,7 @@ describe("chart progressive disclosure", () => {
     expect(toolbar).toContain("Depth ladder");
     expect(toolbar).toContain("Flow &amp; studies");
     expect(toolbar).toContain("Pine workspace");
+    expect(toolbar).toContain("Capture &amp; share");
     expect(toolbar).toContain('aria-controls="wm-broker-connect"');
     expect(toolbar).toContain("onConnectBrokers();");
     expect(toolbar).toContain("Chart settings");
@@ -34,6 +35,22 @@ describe("chart progressive disclosure", () => {
     expect(brokerEntry).toBeLessThan(menuEnd);
     expect(toolbar).not.toContain('aria-label="Connect one or more brokers"');
     expect(dashboard).toContain("openBrokerConnect(toolsTriggerRef.current)");
+  });
+
+  it("rehomes capture and share behind Tools without changing its drawer owner", () => {
+    const menuStart = toolbar.indexOf('role="menu"');
+    const menuEnd = toolbar.indexOf("</div>", menuStart);
+    const menu = toolbar.slice(menuStart, menuEnd);
+    expect(menu).toContain("onCapture();");
+    expect(menu).toContain("Capture &amp; share");
+    expect(menu).toContain('aria-haspopup="dialog"');
+    expect(menu).toContain('aria-controls="chart-tools-sheet"');
+    expect(dashboard).toContain("onCapture={() => openCaptureShare(toolsTriggerRef.current)}");
+    expect(dashboard).toContain('title="Capture & share"');
+    expect(dashboard).toContain("fallbackTriggerRef={captureFallbackTriggerRef}");
+    expect(dashboard).not.toContain("wm-chart-tools-trigger");
+    expect(dashboard).toMatch(/activeTab !== "Chart" && activeTab !== "Options"[\s\S]{0,500}?wm-chart-capture-fallback[\s\S]{0,500}?openCaptureShare\(captureFallbackTriggerRef\.current\)[\s\S]{0,500}?aria-controls="chart-tools-sheet"/);
+    expect(dashboard).toMatch(/const openCaptureShare = useCallback\(\(trigger: HTMLButtonElement \| null\) => \{\s*captureFallbackTriggerRef\.current = trigger;\s*setToolsSheetOpen\(true\);/);
   });
 
   it("keeps the dense flow and study strip closed until the trader asks for it", () => {

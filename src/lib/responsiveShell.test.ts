@@ -184,7 +184,10 @@ describe("responsive P0 command surfaces", () => {
     expect(dashboard).not.toContain("{!narrowViewport && <LeftSidebar");
     expect(dashboard).toContain("{toolsSheetOpen &&");
     expect(dashboard).toContain('id="chart-tools-sheet"');
-    expect(dashboard).toContain('aria-controls="chart-tools-sheet"');
+    expect(dashboard).toContain("onCapture={() => openCaptureShare(toolsTriggerRef.current)}");
+    expect(dashboard).toContain("fallbackTriggerRef={captureFallbackTriggerRef}");
+    expect(dashboard).toContain('activeTab !== "Chart" && activeTab !== "Options"');
+    expect(source("../components/chart/ChartToolbar.tsx")).toContain("Capture &amp; share");
     expect(dashboard).toContain('<LeftSidebar {...primarySidebarProps} variant="sheet" />');
 
     // The one drawer must capture the canonical node and publish its symbol.
