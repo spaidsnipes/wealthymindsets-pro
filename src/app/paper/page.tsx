@@ -2018,7 +2018,10 @@ export default function PaperTradingPage() {
         * visible, the admission ledger is one disclosure away, and neither is
         * a badge — the panel leads with what the scene REFUSED.
         */}
-      <div className="shrink-0 space-y-2 border-b border-wm-border/60 bg-wm-black px-4 py-2.5">
+      {/* Scene band header — hairline only. `bg-wm-black` was an
+          opaque band interrupting the sanctuary; the border-b hairline
+          keeps the section boundary. */}
+      <div className="shrink-0 space-y-2 border-b border-wm-border/60 px-4 py-2.5">
 
         {/* ── CROSS-DEVICE REACH — H16 / §22A made visible ──────────────────
           *

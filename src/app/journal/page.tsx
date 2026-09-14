@@ -773,7 +773,10 @@ function TodayIntentStrip({ userId }: { userId: string | null }) {
 
 export default function JournalPage() {
   return (
-    <React.Suspense fallback={<div className="min-h-screen bg-wm-black" />}>
+    {/* Suspense fallback: transparent so the sanctuary shell (which
+        wraps this route via MainLayout) shows through during hydration
+        instead of a black flash. */}
+    <React.Suspense fallback={<div className="min-h-screen" />}>
       <JournalPageInner />
     </React.Suspense>
   );
