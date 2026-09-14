@@ -368,12 +368,11 @@ export function ChartsDashboard() {
   const [sessionVPChart,  setSessionVPChart]  = useState<boolean>(() => lsGet("wm_sessionVP", false) as boolean);
 
   // ── NEW: Watchlist ──────────────────────────────────────────
-  // Keep price action as the dominant canvas. The watchlist remains one click
-  // away and remembers the trader's choice, but it no longer consumes chart
-  // width before the trader asks for it.
-  const [watchlistOpen, setWatchlistOpen] = useState<boolean>(() =>
-    lsGet("wm_chart_watchlist_open", false) as boolean
-  );
+  // Keep price action as the dominant canvas. Drawer visibility is deliberately
+  // ephemeral: restoring the old rail-open preference would auto-open a modal,
+  // move focus, and obscure MARKET before a fresh user action. Named lists and
+  // grid/list choice keep their own canonical persistence inside the panel.
+  const [watchlistOpen, setWatchlistOpen] = useState(false);
   // Moomoo-style grid view (mini-chart cards) vs single chart
   const [gridView, setGridView] = useState(false);
   const [gridRefresh, setGridRefresh] = useState(0);
@@ -382,10 +381,6 @@ export function ChartsDashboard() {
   const [alertsOpen,   setAlertsOpen]   = useState(false);
   const [allAlerts,    setAllAlerts]    = useState<PriceAlert[]>([]);
   const [currentPrice, setCurrentPrice] = useState(0);
-
-  useEffect(() => {
-    try { localStorage.setItem("wm_chart_watchlist_open", JSON.stringify(watchlistOpen)); } catch {}
-  }, [watchlistOpen]);
 
   // ── Strategies ──────────────────────────────────────────────
   const [strategiesOpen,   setStrategiesOpen]   = useState(false);
@@ -741,20 +736,14 @@ export function ChartsDashboard() {
     setSceneDecisionAbsence("No decision born yet — permission has not crossed.");
   }, [symbol, canvasUser?.id]);
 
-  // ── Watchlist on a phone or a tablet ────────────────────────
-  // At <=1023px globals.css hides BOTH `.wm-chart-watchlist` and the
-  // `.wm-chart-primary-rail` that toggles it, so the capability had no surface
-  // and no door. MEASURED at 375px on the running app: the panel was in the
-  // DOM at display:none and all four of its controls had zero client rects.
-  // Below, the same panel is rendered into a drawer instead — one instance,
-  // never two, so there is never a second poll loop or a second watchlist
-  // identity to drift.
+  // ── Watchlist doorway ───────────────────────────────────────
+  // The watchlist is contextual evidence, not a second room. Keep one
+  // canonical instance in the shared drawer at every width so an explicitly
+  // opened desktop watchlist cannot permanently squeeze MARKET into another
+  // dashboard column. One mount also means one quote poll and one stored-list
+  // identity across desktop, tablet and phone.
   const narrowViewport = useNarrowViewport();
-  const [watchlistSheetOpen, setWatchlistSheetOpen] = useState(false);
   const watchlistSheetTriggerRef = useRef<HTMLButtonElement>(null);
-  // The watchlist keeps its dense desktop rail when explicitly opened; narrow
-  // viewports relocate the same component into the drawer.
-  useEffect(() => { if (!narrowViewport) setWatchlistSheetOpen(false); }, [narrowViewport]);
 
   // Drawing and capture are contextual tools at every width. Their canonical
   // components live in drawers instead of permanently framing MARKET with two
@@ -1067,26 +1056,23 @@ export function ChartsDashboard() {
             (§Silence Is A Feature). Opens the SAME DecisionWhyPanel
             /command-deck ships so trader sees identical WHY on both. */}
         <div className="wm-chart-orientation-actions">
-        {/* One compact door per contextual capability. Desktop opens the
-            watchlist rail; narrow viewports open its drawer. */}
+        {/* One compact door to the same contextual drawer at every width. */}
         {
           <button
             className="wm-chart-orientation-action wm-chart-watchlist-trigger"
             ref={watchlistSheetTriggerRef}
             type="button"
-            onClick={() => narrowViewport
-              ? setWatchlistSheetOpen(o => !o)
-              : setWatchlistOpen(o => !o)}
-            aria-label={(narrowViewport ? watchlistSheetOpen : watchlistOpen) ? "Close watchlist" : "Open watchlist"}
-            aria-expanded={narrowViewport ? watchlistSheetOpen : watchlistOpen}
-            aria-controls={narrowViewport ? "chart-watchlist-sheet" : "chart-watchlist-rail"}
+            onClick={() => setWatchlistOpen(o => !o)}
+            aria-label={watchlistOpen ? "Close watchlist" : "Open watchlist"}
+            aria-expanded={watchlistOpen}
+            aria-controls="chart-watchlist-sheet"
             style={{
               fontSize: 10,
               letterSpacing: 0.3,
               textTransform: "uppercase",
-              color: (narrowViewport ? watchlistSheetOpen : watchlistOpen) ? "#e8b923" : "#c9a55c",
-              background: (narrowViewport ? watchlistSheetOpen : watchlistOpen) ? "rgba(232, 185, 35, 0.12)" : "transparent",
-              border: (narrowViewport ? watchlistSheetOpen : watchlistOpen) ? "1px solid rgba(232, 185, 35,0.5)" : "1px solid rgba(139,106,41,0.35)",
+              color: watchlistOpen ? "#e8b923" : "#c9a55c",
+              background: watchlistOpen ? "rgba(232, 185, 35, 0.12)" : "transparent",
+              border: watchlistOpen ? "1px solid rgba(232, 185, 35,0.5)" : "1px solid rgba(139,106,41,0.35)",
               // 44px is the minimum thumb target; the desktop chrome around it
               // is sized for a cursor and this control only exists for thumbs.
               minHeight: 44,
@@ -1410,34 +1396,14 @@ export function ChartsDashboard() {
 
         {/* Left tool strip (TradingView-style): watchlist toggle, layout,
             publish idea, record video, speak your mind, screenshot, screen rec */}
-        {/* Watchlist (left side, MooMoo places it left of chart).
-            EXACTLY ONE INSTANCE. On a narrow viewport the rail is hidden by
-            CSS, so rendering it here anyway would mount a watchlist that
-            cannot be seen or reached while still running its 10s quote poll —
-            measured: 14 symbols fetched on a 375px viewport for a panel with
-            zero client rects. There, it moves into the drawer below instead. */}
-        {!narrowViewport && (
-          <div id="chart-watchlist-rail" style={{ display: "flex" }}>
-            <WatchlistPanel
-              open={watchlistOpen}
-              onToggle={() => setWatchlistOpen(v => !v)}
-              gridView={gridView}
-              onGridViewChange={(v) => { setGridView(v); if (v) setGridRefresh(k => k + 1); }}
-            />
-          </div>
-        )}
-
         {/* Center: toolbar + chart area — fullscreen target includes all controls */}
         <div ref={fullscreenRef} style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0, position:"relative" }}>
           {/* One evidence gateway: decision first, object lineage on demand.
               Retires the competing Passport trigger/drawer, not its truth.
               Both panels keep their existing canonical selectors. */}
-          {/* The SAME WatchlistPanel the desktop rail renders — variant only.
-              A phone-specific copy would fork watchlist identity: named lists,
-              persistence, the §24/H21 stored-list reader and the SF-D01
-              refusal rendering would all exist twice, and the copy nobody
-              reviews on a phone is the one that rots. */}
-          {narrowViewport && watchlistSheetOpen && (
+          {/* The one canonical WatchlistPanel. A width-specific copy would fork
+              named lists, persistence, refusal rendering and provider polling. */}
+          {watchlistOpen && (
             <ShellModalDrawer
               id="chart-watchlist-sheet"
               titleId="chart-watchlist-sheet-title"
@@ -1446,13 +1412,13 @@ export function ChartsDashboard() {
               description="Your watchlist, on this device. Tap a symbol to load it on the chart."
               closeLabel="Close watchlist"
               width={320}
-              onClose={() => setWatchlistSheetOpen(false)}
+              onClose={() => setWatchlistOpen(false)}
               fallbackTriggerRef={watchlistSheetTriggerRef}
             >
               <WatchlistPanel
                 variant="sheet"
                 open
-                onToggle={() => setWatchlistSheetOpen(false)}
+                onToggle={() => setWatchlistOpen(false)}
                 gridView={gridView}
                 onGridViewChange={(v) => { setGridView(v); if (v) setGridRefresh(k => k + 1); }}
               />

@@ -25,7 +25,7 @@ describe("responsive P0 command surfaces", () => {
     expect(css).toContain("border-right: 1px solid rgba(232,185,35,.18)");
   });
 
-  it("hides the watchlist rail only where something else offers the watchlist", () => {
+  it("keeps one canonical watchlist in the shared drawer at every width", () => {
     // MEASURED on the running app at 375px before this Sentinel existed:
     // `.wm-chart-watchlist` display:none (still mounted), `.wm-chart-primary-rail`
     // display:none (the toggle that would reveal it), and all four watchlist
@@ -39,17 +39,17 @@ describe("responsive P0 command surfaces", () => {
     // One owner of "this screen is too narrow", shared with the CSS below.
     expect(dashboard).toContain("useNarrowViewport");
 
-    // Exactly one instance at any width: rail OR sheet, never both. Desktop
-    // opens its dense rail intentionally; narrow viewports use the sheet.
-    expect(dashboard, "the rail must not render where CSS is hiding it")
-      .toContain("{!narrowViewport && (");
-    expect(dashboard, "the narrow-viewport surface is the drawer, not a second rail")
-      .toContain("{narrowViewport && watchlistSheetOpen && (");
+    // Exactly one instance at every width. Contextual evidence opens over the
+    // room instead of permanently shrinking MARKET into a dashboard column.
+    expect(dashboard).toContain("{watchlistOpen && (");
+    expect(dashboard).not.toContain("{!narrowViewport && (");
+    expect(dashboard).not.toContain("watchlistSheetOpen");
+    expect(dashboard.match(/<WatchlistPanel\b/g) ?? []).toHaveLength(1);
 
     // A reachable door, wired to the drawer it opens.
     expect(dashboard).toContain('id="chart-watchlist-sheet"');
-    expect(dashboard).toContain('aria-controls={narrowViewport ? "chart-watchlist-sheet" : "chart-watchlist-rail"}');
-    expect(dashboard).toContain('id="chart-watchlist-rail"');
+    expect(dashboard).toContain('aria-controls="chart-watchlist-sheet"');
+    expect(dashboard).not.toContain('id="chart-watchlist-rail"');
 
     // Reuse, not a phone-specific fork of the watchlist.
     expect(dashboard).toContain('variant="sheet"');
@@ -360,13 +360,11 @@ describe("responsive P0 command surfaces", () => {
     expect(dashboard).not.toContain("{!narrowViewport || !optionsOpen ? <div");
   });
 
-  it("opens charts around price action while preserving the trader's watchlist choice", () => {
+  it("opens charts around price action without restoring an old rail preference into a modal", () => {
     const dashboard = source("../components/chart/ChartsDashboard.tsx");
-    expect(dashboard).toContain('lsGet("wm_chart_watchlist_open", false)');
-    expect(dashboard).toContain('localStorage.setItem("wm_chart_watchlist_open"');
-    // The rail's toggle moved from a JSX literal into primarySidebarProps when
-    // the rail gained a narrow-viewport sheet. Same wiring, same persisted
-    // state — assert the invariant rather than the punctuation it was in.
+    expect(dashboard).toContain("const [watchlistOpen, setWatchlistOpen] = useState(false)");
+    expect(dashboard).not.toContain('lsGet("wm_chart_watchlist_open"');
+    expect(dashboard).not.toContain('localStorage.setItem("wm_chart_watchlist_open"');
     expect(dashboard).toContain("onToggleWatchlist: () => setWatchlistOpen(v => !v)");
   });
 
