@@ -1496,9 +1496,11 @@ Trade the system, trust the process, winners every day 🚀`,
     a.click();
   };
 
+  // SCENE_FRAGMENTATION cure: /journal is wrapped by WMExperienceShell.
+  // `bg-wm-black` painted the sanctuary's atmosphere out; transparent
+  // lets it through so /journal is the same room as /command-deck.
   return (
-    <div style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden" }}
-         className="bg-wm-black">
+    <div style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden" }}>
 
       {/* ── Header ─────────────────────────────────────────── */}
       {/*
@@ -1508,7 +1510,10 @@ Trade the system, trust the process, winners every day 🚀`,
         "Trade Journal" IS legitimate page identity — it names the room,
         not the app.
       */}
-      <div className="wm-journal-header flex items-center gap-3 px-4 border-b border-wm-border bg-wm-dark shrink-0" style={{ minHeight:44 }}>
+      {/* Header chrome → hairline. `bg-wm-dark` painted an opaque band
+          across the top of MARKET; sanctuary hairline preserves the
+          structural boundary without occluding the atmosphere. */}
+      <div className="wm-journal-header flex items-center gap-3 px-4 border-b border-wm-border shrink-0" style={{ minHeight:44 }}>
         <FileText size={15} className="text-wm-purple shrink-0" />
         <h1 style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 14, fontWeight: 400, color: "#ede6d3" }}>Trade Journal</h1>
         {/* Main tabs */}

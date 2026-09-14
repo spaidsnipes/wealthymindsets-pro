@@ -1926,11 +1926,16 @@ export default function PaperTradingPage() {
   };
 
   return (
+    // SCENE_FRAGMENTATION cure: /paper is a Founder room wrapped by
+    // WMExperienceShell. Both the outer `bg-wm-black` and the header
+    // `bg-wm-dark` painted over the sanctuary atmosphere. Dropping the
+    // fills preserves the sanctuary as the room and keeps the header
+    // hairline as its only chrome.
     <div style={{ display:"flex",flexDirection:"column",width:"100%",height:"100%",overflow:"hidden" }}
-         className={clsx(styles.page, "bg-wm-black")}>
+         className={styles.page}>
 
       {/* Header */}
-      <div className={clsx(styles.header, "flex items-center gap-3 px-4 border-b border-wm-border bg-wm-dark shrink-0")} style={{ height:44 }}>
+      <div className={clsx(styles.header, "flex items-center gap-3 px-4 border-b border-wm-border shrink-0")} style={{ height:44 }}>
         <Activity size={15} className="text-wm-text-dim shrink-0" aria-hidden="true"/>
         <h1 className="text-sm font-bold text-wm-text">Paper Trading</h1>
         {/* §B5 ENVIRONMENT FIREWALL + §9 COLOR / MOTION LAW.
