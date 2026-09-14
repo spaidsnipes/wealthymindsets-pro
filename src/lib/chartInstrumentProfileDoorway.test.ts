@@ -13,16 +13,18 @@ describe("/charts instrument profile is disclosed, not permanent frame chrome", 
   });
 
   it("keeps the existing panel behind a written Tools doorway", () => {
-    expect(dashboard).toContain("onInstrumentProfile={!narrowViewport || !optionsOpen");
-    expect(dashboard).toContain("instrumentProfileActive={(!narrowViewport || !optionsOpen) && infoOpen}");
-    expect(dashboard).toContain("{infoOpen && <StockInfoPanel symbol={symbol} />}");
+    expect(dashboard).toContain("onInstrumentProfile={() => setInfoOpen(open => !open)}");
+    expect(dashboard).toContain("instrumentProfileActive={infoOpen}");
+    expect(dashboard).toContain('id="chart-instrument-profile"');
+    expect(dashboard).toContain("<StockInfoPanel symbol={symbol} />");
     expect(toolbar).toContain("Instrument profile");
     expect(toolbar).toContain("onInstrumentProfile();");
   });
 
-  it("does not offer a no-op doorway where narrow Options suppresses the panel", () => {
-    expect(dashboard).toContain("? () => setInfoOpen(open => !open)");
-    expect(dashboard).toContain(": undefined}");
+  it("uses the shared drawer so the doorway works without compressing MARKET", () => {
+    expect(dashboard).toContain("fallbackTriggerRef={instrumentProfileTriggerRef}");
+    expect(dashboard).toContain("toolsTriggerRef={instrumentProfileTriggerRef}");
+    expect(dashboard).not.toContain("{!narrowViewport || !optionsOpen ? <div");
     expect(toolbar).toContain("studyToolsOpen || instrumentProfileActive");
   });
 });

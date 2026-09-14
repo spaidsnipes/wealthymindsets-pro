@@ -334,6 +334,7 @@ export function ChartsDashboard() {
     }
   }, [requestedTab, activeTab, clearOptionSelection]);
   const [infoOpen,        setInfoOpen]        = useState(false); // collapsible right panel
+  const instrumentProfileTriggerRef = useRef<HTMLButtonElement>(null);
   const [vpDomOpen,       setVpDomOpen]       = useState(false); // Open only when the trader asks for depth
   const [studyToolsOpen,  setStudyToolsOpen]  = useState(false); // Advanced controls stay quiet until requested
 
@@ -1520,6 +1521,22 @@ export function ChartsDashboard() {
             </ShellModalDrawer>
           )}
 
+          {infoOpen && (activeTab === "Chart" || activeTab === "Options") && (
+            <ShellModalDrawer
+              id="chart-instrument-profile"
+              titleId="chart-instrument-profile-title"
+              descriptionId="chart-instrument-profile-description"
+              title={`${symbol} instrument profile`}
+              description="Quotes, session facts, analysis, news, and observed ticks for the chart instrument."
+              closeLabel="Close instrument profile"
+              width={360}
+              onClose={() => setInfoOpen(false)}
+              fallbackTriggerRef={instrumentProfileTriggerRef}
+            >
+              <StockInfoPanel symbol={symbol} />
+            </ShellModalDrawer>
+          )}
+
           {/* ── Toolbar ───────────────────────────────────────── */}
           {/* Founder canon (Drive Launch Board — HANDS-ON REALITY LOCK):
               "controls that visually promise more than they do" are false-green.
@@ -1545,10 +1562,9 @@ export function ChartsDashboard() {
             onExtHoursChange={setExtHours}
             onAlerts={() => setAlertsOpen(o => !o)}
             alertsActive={alertsOpen}
-            onInstrumentProfile={!narrowViewport || !optionsOpen
-              ? () => setInfoOpen(open => !open)
-              : undefined}
-            instrumentProfileActive={(!narrowViewport || !optionsOpen) && infoOpen}
+            toolsTriggerRef={instrumentProfileTriggerRef}
+            onInstrumentProfile={() => setInfoOpen(open => !open)}
+            instrumentProfileActive={infoOpen}
             onAppearanceToggle={() => setTheme(theme === "neon" ? "original" : "neon")}
             appearanceLabel={theme === "neon" ? "WM Neon" : "Original"}
             onSettings={() => setSettingsOpen(true)}
@@ -2170,13 +2186,6 @@ export function ChartsDashboard() {
 
         </div>
 
-        {/* ── Right: StockInfoPanel (disclosed from Toolbar → Tools) ─────
-            The old 14px chevron strip was permanent, unlabeled chrome that
-            divided MARKET even while the panel was closed. The existing
-            panel now has a written Instrument profile doorway in Tools. */}
-        {!narrowViewport || !optionsOpen ? <div style={{ display:"flex", flexShrink:0 }}>
-          {infoOpen && <StockInfoPanel symbol={symbol} />}
-        </div> : null}
       </div>
 
       {/* ── Responsive decision spine fallback ───────────────────

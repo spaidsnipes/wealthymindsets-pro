@@ -161,13 +161,12 @@ export function StockInfoPanel({ symbol }: Props) {
   const SUB_TABS: SubTabType[] = ["Ticks", "Summary"];
 
   return (
-    // SCENE_FRAGMENTATION cure (Founder 2026-09-13): the 260px info panel is
-    // permanent chrome down MARKET's right edge. It painted its own opaque
-    // slab, so the sanctuary stopped at the candles on that side too.
+    // SCENE_FRAGMENTATION cure (Founder 2026-09-14): this canonical panel now
+    // lives in the shared focus-managed drawer instead of taking a permanent
+    // 260px sibling lane from MARKET. Fill the drawer without adding another
+    // structural edge inside it.
     <div className="wm-room-chrome" style={{
-      width: 260,
-      flexShrink: 0,
-      borderLeft: "1px solid rgba(139,106,41,0.24)",
+      width: "100%",
       display: "flex",
       flexDirection: "column",
       overflow: "hidden",

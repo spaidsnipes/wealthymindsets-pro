@@ -350,12 +350,14 @@ describe("responsive P0 command surfaces", () => {
     expect(dashboard).not.toContain("> Brokers");
   });
 
-  it("gives the options workspace the full narrow canvas and removes the competing info rail", () => {
+  it("gives every chart/options width the full canvas and moves instrument detail to a drawer", () => {
     const dashboard = source("../components/chart/ChartsDashboard.tsx");
     const options = source("../components/chart/OptionsChain.tsx");
     expect(options).toContain("data-options-workspace");
     expect(options).toContain("w-full max-w-[700px] min-w-0 md:w-[55%] xl:w-[45%]");
-    expect(dashboard).toContain("{!narrowViewport || !optionsOpen ? <div");
+    expect(dashboard).toContain('id="chart-instrument-profile"');
+    expect(dashboard).toContain("fallbackTriggerRef={instrumentProfileTriggerRef}");
+    expect(dashboard).not.toContain("{!narrowViewport || !optionsOpen ? <div");
   });
 
   it("opens charts around price action while preserving the trader's watchlist choice", () => {

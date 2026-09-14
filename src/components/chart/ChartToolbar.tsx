@@ -542,6 +542,7 @@ interface ChartToolbarProps {
   onSettings?:         () => void;
   onAppearanceToggle?: () => void;
   appearanceLabel?:    string;
+  toolsTriggerRef?: React.RefObject<HTMLButtonElement | null>;
   onInstrumentProfile?: () => void;
   instrumentProfileActive?: boolean;
   onReplay?:           () => void;
@@ -605,7 +606,7 @@ export function ChartToolbar({
   onDOM, onPineScript, onCommunity,
   pineActive,
   initialActiveInds, onActiveIndsChange, onIndicatorSettings, onExtHoursChange,
-  onAlerts, alertsActive, onSettings, onAppearanceToggle, appearanceLabel,
+  onAlerts, alertsActive, onSettings, onAppearanceToggle, appearanceLabel, toolsTriggerRef,
   onInstrumentProfile, instrumentProfileActive,
   onReplay, replayActive, onCompare, compareActive,
   onToggleStudyTools, studyToolsOpen,
@@ -1233,6 +1234,7 @@ export function ChartToolbar({
         </button>
         <div className="relative" ref={advancedRef}>
           <button
+            ref={toolsTriggerRef}
             type="button"
             onClick={() => setAdvancedOpen(open => !open)}
             aria-expanded={advancedOpen}
