@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+import {
+  normalizeMarketSurfaceSymbol,
+  normalizeMarketSurfaceTimeframe,
+  resolveMarketSymbolSeed,
+} from "@/lib/routing/marketSurfaceQuery";
 
 const strip = (s: string) =>
   s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
@@ -9,6 +14,8 @@ const charts = strip(fs.readFileSync(
   path.join(process.cwd(), "src/app/charts/page.tsx"), "utf8"));
 const deck = strip(fs.readFileSync(
   path.join(process.cwd(), "src/app/command-deck/page.tsx"), "utf8"));
+const dashboard = strip(fs.readFileSync(
+  path.join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8"));
 
 /**
  * Scanner → Deck → Chart continuity Sentinel.
@@ -24,8 +31,6 @@ const deck = strip(fs.readFileSync(
  * SymbolContext remains the single owner (canon §6 NO-DUPLICATION); the URL
  * only seeds it.
  */
-const SYMBOL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9.\-!/]{0,14}$/;
-
 describe("chart deep-link continuity", () => {
   it("/charts reads the symbol query param", () => {
     expect(charts).toContain("useSearchParams");
@@ -35,6 +40,19 @@ describe("chart deep-link continuity", () => {
   it("both surfaces use the SAME param name — no second convention", () => {
     expect(deck).toContain('searchParams?.get("symbol")');
     expect(charts).toContain('searchParams?.get("symbol")');
+  });
+
+  it("carries symbol and timeframe across both Founder market surfaces", () => {
+    expect(charts).toContain('searchParams?.get("tf")');
+    expect(charts).toContain("<ChartsDashboard initialTimeframe={normalizeMarketSurfaceTimeframe(urlTimeframe)}");
+    expect(dashboard).toContain('/command-deck?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}');
+    expect(deck).toContain('${INSTRUMENT_VIEW_ROUTE}?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}');
+  });
+
+  it("treats a URL timeframe as a validated seed, not a second owner", () => {
+    expect(dashboard).toContain("normalizeMarketSurfaceTimeframe(initialTimeframe)");
+    expect(dashboard).toContain("seededUrlTimeframe.current === requested");
+    expect(dashboard).toContain("setTimeframe(requested)");
   });
 
   it("the URL only seeds SymbolContext — it is not a second owner", () => {
@@ -53,9 +71,9 @@ describe("chart deep-link continuity", () => {
     // selection re-ran it and it wrote the stale URL symbol straight back.
     const effect = charts.slice(
       charts.indexOf("React.useEffect(() => {"),
-      charts.indexOf("return <ChartsDashboard />"),
+      charts.indexOf("return <ChartsDashboard", charts.indexOf("React.useEffect(() => {")),
     );
-    expect(effect, "the seeding effect must be findable").toContain("SYMBOL_PATTERN.test");
+    expect(effect, "the seeding effect must be findable").toContain("normalizeMarketSurfaceSymbol");
 
     const deps = effect.slice(effect.lastIndexOf("}, ["));
     expect(deps, "activeSymbol as a dependency turns the seed into a leash")
@@ -77,14 +95,63 @@ describe("chart deep-link continuity", () => {
 
   it("accepts the symbols the app actually routes", () => {
     for (const s of ["NVDA", "AMD", "TSLA", "BTC", "ES1!", "NQ1!", "BRK.B", "EUR/USD"]) {
-      expect(SYMBOL_PATTERN.test(s)).toBe(true);
+      expect(normalizeMarketSurfaceSymbol(s)).toBe(s);
     }
   });
 
   it("rejects unvalidated junk before it reaches persisted state", () => {
     // setActiveSymbol writes to localStorage, so a URL must never seed garbage.
     for (const bad of ["", " ", "<script>", "../../etc", "a".repeat(40), "'; DROP--"]) {
-      expect(SYMBOL_PATTERN.test(bad)).toBe(false);
+      expect(normalizeMarketSurfaceSymbol(bad)).toBeNull();
     }
+  });
+
+  it("normalizes legacy timeframe aliases and rejects unsupported input", () => {
+    expect(normalizeMarketSurfaceTimeframe("15m")).toBe("15m");
+    expect(normalizeMarketSurfaceTimeframe("1d")).toBe("1D");
+    for (const bad of ["", "1s", "30s", "7m", "banana"]) {
+      expect(normalizeMarketSurfaceTimeframe(bad)).toBeNull();
+    }
+  });
+
+  it("command-deck consumes only normalized query seeds and does not leash symbol state", () => {
+    expect(deck).toContain("normalizeMarketSurfaceSymbol(urlSymbol)");
+    expect(deck).toContain("normalizeMarketSurfaceTimeframe(urlTf)");
+    expect(deck).toContain("resolveMarketSymbolSeed(requestedSymbol, activeSymbol, seededUrlSymbol.current)");
+    expect(deck).toMatch(/\[requestedSymbol, setActiveSymbol\]/);
+    expect(deck).not.toMatch(/\[urlSymbol, activeSymbol, setActiveSymbol\]/);
+  });
+
+  it("hands a deep-link seed to context once, then yields to trader selection", () => {
+    const arrival = resolveMarketSymbolSeed("NQ1!", "TSLA", null);
+    expect(arrival).toEqual({
+      displaySymbol: "NQ1!",
+      nextSeededSymbol: "NQ1!",
+      shouldSeedContext: true,
+    });
+
+    const settled = resolveMarketSymbolSeed("NQ1!", "NQ1!", arrival.nextSeededSymbol);
+    expect(settled.displaySymbol).toBe("NQ1!");
+    expect(settled.shouldSeedContext).toBe(false);
+
+    const traderChanged = resolveMarketSymbolSeed("NQ1!", "TSLA", arrival.nextSeededSymbol);
+    expect(traderChanged.displaySymbol).toBe("TSLA");
+    expect(traderChanged.shouldSeedContext).toBe(false);
+
+    const newLink = resolveMarketSymbolSeed("NVDA", "TSLA", arrival.nextSeededSymbol);
+    expect(newLink.displaySymbol).toBe("NVDA");
+    expect(newLink.shouldSeedContext).toBe(true);
+
+    const cleared = resolveMarketSymbolSeed(null, "TSLA", arrival.nextSeededSymbol);
+    expect(cleared.nextSeededSymbol).toBeNull();
+    const sameLinkAgain = resolveMarketSymbolSeed("NQ1!", "TSLA", cleared.nextSeededSymbol);
+    expect(sameLinkAgain.displaySymbol).toBe("NQ1!");
+    expect(sameLinkAgain.shouldSeedContext).toBe(true);
+  });
+
+  it("clears route seed latches so remove then re-add of the same value reseeds", () => {
+    expect(charts).toMatch(/if \(!up\) \{\s*seededUrlSymbol\.current = null;/);
+    expect(deck).toContain("seededUrlSymbol.current = seed.nextSeededSymbol");
+    expect(dashboard).toMatch(/if \(!requested\) \{\s*seededUrlTimeframe\.current = null;/);
   });
 });

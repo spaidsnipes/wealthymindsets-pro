@@ -38,6 +38,11 @@ import DLARStrip, { type DLARDimensionKey } from "@/components/command-deck/DLAR
 import WhyInspector, { type WhyTarget } from "@/components/command-deck/WhyInspector";
 import SectionBanner from "@/components/brand/SectionBanner";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
+import {
+  normalizeMarketSurfaceSymbol,
+  normalizeMarketSurfaceTimeframe,
+  resolveMarketSymbolSeed,
+} from "@/lib/routing/marketSurfaceQuery";
 import RealmGateway from "@/components/brand/RealmGateway";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import CommandContextRibbon from "@/components/command/CommandContextRibbon";
@@ -202,21 +207,24 @@ function CommandDeckInner() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const { activeSymbol, setActiveSymbol } = useActiveSymbol();
-  // URL param wins over SymbolContext so external links (/heatmaps cell
-  // click, /scanner row action, docs link) can seed the deck to a
-  // specific market without touching the app-wide symbol state.
   const urlSymbol = searchParams?.get("symbol");
   const urlTf = searchParams?.get("tf");
-  const symbol = (urlSymbol || activeSymbol || "TSLA").toUpperCase();
-  const timeframe = (urlTf || "15m").toLowerCase();
+  const requestedSymbol = normalizeMarketSurfaceSymbol(urlSymbol);
+  const requestedTimeframe = normalizeMarketSurfaceTimeframe(urlTf);
+  const seededUrlSymbol = React.useRef<string | null>(null);
+  const symbolSeed = resolveMarketSymbolSeed(requestedSymbol, activeSymbol, seededUrlSymbol.current);
+
+  // The URL wins the arrival render, then yields to SymbolContext after its
+  // one validated seed. This preserves deep-link fidelity without turning an
+  // old query string into a leash over later watchlist selections.
+  const symbol = symbolSeed.displaySymbol;
+  const timeframe = requestedTimeframe || "15m";
   React.useEffect(() => {
-    // If a URL symbol was supplied, thread it into SymbolContext so a
-    // subsequent nav to /charts keeps the same symbol (Founder Aug-14
-    // §15 'context continuity').
-    if (urlSymbol && urlSymbol.toUpperCase() !== activeSymbol) {
-      setActiveSymbol(urlSymbol.toUpperCase());
-    }
-  }, [urlSymbol, activeSymbol, setActiveSymbol]);
+    const seed = resolveMarketSymbolSeed(requestedSymbol, null, seededUrlSymbol.current);
+    seededUrlSymbol.current = seed.nextSeededSymbol;
+    if (!seed.shouldSeedContext) return;
+    setActiveSymbol(seed.displaySymbol);
+  }, [requestedSymbol, setActiveSymbol]);
   const [phase, setPhase] = React.useState<CommandPhase>("PREPARATION");
   const [whyTarget, setWhyTarget] = React.useState<WhyTarget | null>(null);
   const [showEvidence, setShowEvidence] = React.useState<boolean>(false);
@@ -1555,7 +1563,7 @@ function CommandDeckInner() {
                 </div>
                 <div style={{ marginTop: 16, textAlign: "center" }}>
                   <a
-                    href={INSTRUMENT_VIEW_ROUTE}
+                    href={`${INSTRUMENT_VIEW_ROUTE}?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}`}
                     style={{
                       display: "inline-block",
                       padding: "10px 18px",

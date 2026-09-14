@@ -4,6 +4,10 @@ import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { ChartsDashboard } from "@/components/chart/ChartsDashboard";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
+import {
+  normalizeMarketSurfaceSymbol,
+  normalizeMarketSurfaceTimeframe,
+} from "@/lib/routing/marketSurfaceQuery";
 
 /**
  * Founding Execution Contract §13 open gate — "Scanner → Deck → Chart
@@ -25,12 +29,11 @@ import { useActiveSymbol } from "@/contexts/SymbolContext";
  * SEEDS it, exactly as the deck does — this does not introduce a second symbol
  * source of truth.
  */
-const SYMBOL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9.\-!/]{0,14}$/;
-
 function ChartsInner() {
   const searchParams = useSearchParams();
   const { setActiveSymbol } = useActiveSymbol();
   const urlSymbol = searchParams?.get("symbol") ?? null;
+  const urlTimeframe = searchParams?.get("tf") ?? null;
 
   /**
    * A SEED IS NOT A LEASH.
@@ -63,17 +66,17 @@ function ChartsInner() {
   const seededUrlSymbol = React.useRef<string | null>(null);
 
   React.useEffect(() => {
-    const raw = urlSymbol?.trim();
-    if (!raw) return;
-    // Never write an unvalidated URL value into persisted symbol state.
-    if (!SYMBOL_PATTERN.test(raw)) return;
-    const up = raw.toUpperCase();
+    const up = normalizeMarketSurfaceSymbol(urlSymbol);
+    if (!up) {
+      seededUrlSymbol.current = null;
+      return;
+    }
     if (seededUrlSymbol.current === up) return;
     seededUrlSymbol.current = up;
     setActiveSymbol(up);
   }, [urlSymbol, setActiveSymbol]);
 
-  return <ChartsDashboard />;
+  return <ChartsDashboard initialTimeframe={normalizeMarketSurfaceTimeframe(urlTimeframe)} />;
 }
 
 export default function ChartsPage() {

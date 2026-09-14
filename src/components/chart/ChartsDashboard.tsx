@@ -51,6 +51,7 @@ import type { OHLCVBar } from "@/lib/pine/types";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
 import { normalizeTFId } from "@/lib/timeframes";
+import { normalizeMarketSurfaceTimeframe } from "@/lib/routing/marketSurfaceQuery";
 import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
 import { canonicalSession, canonicalAssetClass, canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
 import { categoryTabsFor, effectiveCategoryTab } from "@/lib/charts/categoryTabsFor";
@@ -250,7 +251,7 @@ export type CandleType =
   | "volume-candles" | "vp-candles" | "orderflow-candles"
   | "renko" | "range-bars";
 
-export function ChartsDashboard() {
+export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?: string | null } = {}) {
   const { activeSymbol, setActiveSymbol } = useActiveSymbol();
 
   // ── Persist helpers ─────────────────────────────────────────
@@ -301,16 +302,27 @@ export function ChartsDashboard() {
   }, []);
 
   const [timeframe,       setTimeframe]       = useState<string>(() => {
+    const requested = normalizeMarketSurfaceTimeframe(initialTimeframe);
+    if (requested) return requested;
     const settings = (() => { try { return JSON.parse(localStorage.getItem("wm_settings") || "{}"); } catch { return {}; } })();
     const defTF = settings.defaultTF as string | undefined;
     let stored = lsGet("wm_timeframe", "5m") as string;
     // Honor a configured Default Timeframe (unless "last"=use last used, "none"=ignore)
     if (defTF && defTF !== "last" && defTF !== "none") stored = defTF;
     // Reject all sub-minute timeframes — they have no data outside market hours
-    const subMinute = ["1t","5t","30t","1s","2s","3s","5s","10s","15s","30s"];
-    if (subMinute.includes(stored)) return "5m";
     return normalizeTFId(stored) ?? "5m";
   });
+  const seededUrlTimeframe = useRef<string | null>(normalizeMarketSurfaceTimeframe(initialTimeframe));
+  useEffect(() => {
+    const requested = normalizeMarketSurfaceTimeframe(initialTimeframe);
+    if (!requested) {
+      seededUrlTimeframe.current = null;
+      return;
+    }
+    if (seededUrlTimeframe.current === requested) return;
+    seededUrlTimeframe.current = requested;
+    setTimeframe(requested);
+  }, [initialTimeframe]);
   const [pineOutput,      setPineOutput]      = useState<PineOutput | null>(null);
   const [pineCode,        setPineCode]        = useState<string>("");
   const [chartBars,       setChartBars]       = useState<OHLCVBar[]>([]);
@@ -1166,7 +1178,7 @@ export function ChartsDashboard() {
         )}
         <a
           className="wm-chart-orientation-action wm-chart-command-deck-link"
-          href="/command-deck"
+          href={`/command-deck?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}`}
           style={{
             marginLeft: "auto",
             fontSize: 10,
