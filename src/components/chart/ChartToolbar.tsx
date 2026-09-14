@@ -5,7 +5,7 @@ import {
   Search, ChevronDown,
   LayoutGrid, Clock, DollarSign, BarChart2, Plug2,
   X, ChevronRight, Star, Check, Bell, Settings,
-  Play, GitMerge, HelpCircle, MoreHorizontal,
+  Play, GitMerge, HelpCircle, MoreHorizontal, Info,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { type ChartLayout } from "./ChartLayoutManager";
@@ -540,6 +540,8 @@ interface ChartToolbarProps {
   onAlerts?:           () => void;
   alertsActive?:       boolean;
   onSettings?:         () => void;
+  onInstrumentProfile?: () => void;
+  instrumentProfileActive?: boolean;
   onReplay?:           () => void;
   replayActive?:       boolean;
   onCompare?:          () => void;
@@ -602,6 +604,7 @@ export function ChartToolbar({
   pineActive,
   initialActiveInds, onActiveIndsChange, onIndicatorSettings, onExtHoursChange,
   onAlerts, alertsActive, onSettings,
+  onInstrumentProfile, instrumentProfileActive,
   onReplay, replayActive, onCompare, compareActive,
   onToggleStudyTools, studyToolsOpen,
   chartLayout = "1", onLayoutChange,
@@ -1234,7 +1237,7 @@ export function ChartToolbar({
             aria-haspopup="menu"
             className={clsx(
               "flex min-h-11 items-center gap-1 rounded border px-2 text-[11px] font-semibold transition-colors",
-              advancedOpen || pineActive || replayActive || compareActive || alertsActive || studyToolsOpen
+              advancedOpen || pineActive || replayActive || compareActive || alertsActive || studyToolsOpen || instrumentProfileActive
                 ? "border-wm-gold/35 bg-wm-gold/10 text-wm-gold"
                 : "border-wm-border text-wm-text-muted hover:text-wm-text",
             )}
@@ -1268,6 +1271,7 @@ export function ChartToolbar({
                 {onReplay && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onReplay(); }}><Play size={12} /> Replay{replayActive ? " · active" : ""}</button>}
                 {onCompare && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onCompare(); }}><GitMerge size={12} /> Compare{compareActive ? " · active" : ""}</button>}
                 {onAlerts && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onAlerts(); }}><Bell size={12} /> Alerts{alertsActive ? " · active" : ""}</button>}
+                {onInstrumentProfile && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onInstrumentProfile(); }}><Info size={12} aria-hidden="true" /> Instrument profile{instrumentProfileActive ? " · open" : ""}</button>}
                 {onSettings && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onSettings(); }}><Settings size={12} /> Chart settings</button>}
               </div>
             );

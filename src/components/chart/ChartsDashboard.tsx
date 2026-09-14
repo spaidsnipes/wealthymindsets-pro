@@ -1557,6 +1557,10 @@ export function ChartsDashboard() {
             onExtHoursChange={setExtHours}
             onAlerts={() => setAlertsOpen(o => !o)}
             alertsActive={alertsOpen}
+            onInstrumentProfile={!narrowViewport || !optionsOpen
+              ? () => setInfoOpen(open => !open)
+              : undefined}
+            instrumentProfileActive={(!narrowViewport || !optionsOpen) && infoOpen}
             onSettings={() => setSettingsOpen(true)}
             onReplay={() => { if (replayActive) stopReplay(); else startReplay(); }}
             replayActive={replayActive}
@@ -2176,26 +2180,11 @@ export function ChartsDashboard() {
 
         </div>
 
-        {/* ── Right: StockInfoPanel (collapsible) ───────────── */}
+        {/* ── Right: StockInfoPanel (disclosed from Toolbar → Tools) ─────
+            The old 14px chevron strip was permanent, unlabeled chrome that
+            divided MARKET even while the panel was closed. The existing
+            panel now has a written Instrument profile doorway in Tools. */}
         {!narrowViewport || !optionsOpen ? <div style={{ display:"flex", flexShrink:0 }}>
-          {/* Collapse toggle strip */}
-          {/* SCENE_FRAGMENTATION cure (Founder 2026-09-13): the 14px collapse
-              strip is the last opaque sliver between MARKET and the info
-              panel. It takes the same room chrome so the right edge of the
-              room is continuous instead of a seam of two dark slabs. */}
-          <button
-            onClick={() => setInfoOpen(v => !v)}
-            title={infoOpen ? "Collapse info panel" : "Expand info panel"}
-            className="wm-room-chrome"
-            style={{
-              width:14,
-              borderLeft:"1px solid rgba(139,106,41,0.24)",
-              display:"flex", alignItems:"center", justifyContent:"center",
-              cursor:"pointer", color:"#4A5070", flexShrink:0,
-            }}
-          >
-            <span style={{ fontSize:9, transform: infoOpen ? "none" : "rotate(180deg)", display:"block" }}>›</span>
-          </button>
           {infoOpen && <StockInfoPanel symbol={symbol} />}
         </div> : null}
       </div>
