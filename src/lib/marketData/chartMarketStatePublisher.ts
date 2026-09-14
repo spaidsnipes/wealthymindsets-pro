@@ -18,6 +18,8 @@ import { deriveOrderFlowDimension } from "./deriveOrderFlowDimension";
 import { deriveVolatilityDimension } from "./deriveVolatilityDimension";
 import { deriveDirectionDimension, countTradeTicks } from "./deriveDirectionDimension";
 import { deriveRegimeDimension } from "./deriveRegimeDimension";
+import { deriveLastBarClose } from "./deriveLastBarClose";
+import type { OHLCVBar } from "../pine/types";
 
 export interface ChartMarketStatePublicationInput {
   readonly symbol: string;
@@ -29,6 +31,13 @@ export interface ChartMarketStatePublicationInput {
   readonly connected: boolean;
   readonly capturedAt: number;
   readonly nectar: SessionNectarSnapshot;
+  /**
+   * The candle array the chart actually loaded, straight from MainChart's
+   * `onBarsReady`. Optional so /command-deck (which owns no bars) is
+   * untouched. This is the ONLY admissible source for a bar close —
+   * `ticker.price` can be a REST quote or a SYMBOL_SEEDS fallback.
+   */
+  readonly bars?: readonly OHLCVBar[] | null;
 }
 
 // Asset class + instrument id + session all delegate to the single canonical
@@ -189,6 +198,12 @@ export function createChartMarketStatePublication(
   const unknowns = unresolvedDimensions.map(
     name => `${name} is unresolved until a verified engine publishes evidence.`,
   );
+  // Bars, not `ticker.price`. `ticker.price` can come from a REST quote or
+  // from the SYMBOL_SEEDS fallback table, so it cannot carry the provenance
+  // word "bar close" (§35 PROTECTED TRUTH). The selector refuses everything
+  // it cannot attribute to a loaded, timestamped bar.
+  const lastBar = deriveLastBarClose(input.bars ?? null, input.timeframe);
+
   const contradictions: string[] = [];
   if (input.ticker.price > 0 && !priceTick) {
     contradictions.push("Displayed ticker price has no matching timestamped runtime tick; canonical price evidence omitted.");
@@ -214,6 +229,13 @@ export function createChartMarketStatePublication(
         ask: null,
         eventAt,
       },
+      // SECOND PRICE OWNER. `price.last` above stays strict — it needs a
+      // matching timestamped print — which is exactly why /charts showed
+      // PRICE UNKNOWN in the MARKET tile beside a chart header rendering the
+      // last candle's close. This publishes that close under its own name so
+      // the trader is not asked to reconcile two owners in their head.
+      // A bar close never promotes qualityState; see produceCanonicalMarketState.
+      lastBar,
       coverage,
       contradictions,
       unknowns,

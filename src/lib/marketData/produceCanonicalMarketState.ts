@@ -31,6 +31,18 @@ export interface ProduceMarketStateInput {
     ask: number | null;
     eventAt: number | null;
   };
+  /**
+   * Optional last VERIFIED BAR CLOSE. Omit it and canonical state publishes
+   * `lastBar: null`, which is what every pre-existing caller gets — this is
+   * purely additive. See the field doc on `CanonicalMarketStateInput`: it is
+   * a second price owner, never a substitute for a trade print, and it is
+   * excluded from the `hasPrice` computation below on purpose.
+   */
+  lastBar?: {
+    close: number;
+    barOpenedAtMs: number;
+    timeframe: string;
+  } | null;
   coverage: readonly MarketChannelCoverage[];
   /** Optional resolved dimensions — omit when we do not have evidence. */
   dimensions?: Partial<{
@@ -141,6 +153,8 @@ export function produceCanonicalMarketStateInput(
       eventAt: hasPrice ? input.price.eventAt : null,
       availableAt: hasPrice ? availableAt : null,
     },
+    // NOT folded into `hasPrice`. A bar close must never make a snapshot LIVE.
+    lastBar: input.lastBar ?? null,
     coverage: input.coverage,
     direction:  input.dimensions?.direction  ?? UNKNOWN_DIMENSION,
     location:   input.dimensions?.location   ?? UNKNOWN_DIMENSION,

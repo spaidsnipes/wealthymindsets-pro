@@ -43,6 +43,34 @@ export interface CanonicalMarketStateInput {
     eventAt: number | null;
     availableAt: number | null;
   };
+  /**
+   * SECOND PRICE OWNER — the newest loaded BAR CLOSE, never a trade print.
+   *
+   * `price.last` means "a live trade printed at this price and we hold the
+   * timestamped tick that proves it." With a cash session closed that is
+   * correctly null — and /charts consequently rendered `PRICE UNKNOWN` in the
+   * MARKET tile while the chart header eight pixels away rendered the last
+   * candle's close beside HISTORICAL BARS VERIFIED. Two owners, one
+   * instrument, one moment. Understating knowledge is a truth defect in the
+   * same family as overclaiming it.
+   *
+   * This is a SEPARATE field, deliberately:
+   *   - it is NOT part of `hasPrice`, so it can never promote qualityState
+   *     to LIVE or satisfy the "LIVE requires price evidence" rule;
+   *   - it carries its own timeframe, because a close without one is not a
+   *     fact a trader can use;
+   *   - `null` stays the honest answer when no bars are loaded.
+   *
+   * Produced only by `deriveLastBarClose`, whose input is the loaded candle
+   * array. `ticker.price` is NOT an acceptable source: it can originate from
+   * a REST quote or from the SYMBOL_SEEDS table, and publishing either as a
+   * "verified bar close" would fabricate provenance (§35 PROTECTED TRUTH).
+   */
+  lastBar?: {
+    close: number;
+    barOpenedAtMs: number;
+    timeframe: string;
+  } | null;
   coverage: readonly MarketChannelCoverage[];
   direction: MarketStateDimension;
   location: MarketStateDimension;
@@ -117,6 +145,19 @@ export function validateCanonicalMarketState(input: CanonicalMarketStateInput): 
   }
   if (input.qualityState === "LIVE" && !hasPrice) errors.push("LIVE Market State requires price evidence.");
 
+  // The bar close is validated on its OWN terms and is deliberately absent
+  // from `hasPrice` above — it must never be able to promote a snapshot to
+  // LIVE or stand in for a trade print. A close without a usable stamp or
+  // timeframe is not a fact; reject rather than publish a half-fact.
+  if (input.lastBar != null) {
+    if (!positiveOrMissing(input.lastBar.close) || input.lastBar.close == null ||
+        !validEpoch(input.lastBar.barOpenedAtMs) ||
+        input.lastBar.barOpenedAtMs > input.capturedAt ||
+        !input.lastBar.timeframe.trim()) {
+      errors.push("Market State last-bar evidence is invalid.");
+    }
+  }
+
   for (const [name, dimension] of Object.entries({
     Direction: input.direction,
     Location: input.location,
@@ -137,6 +178,11 @@ export function sealCanonicalMarketState(input: CanonicalMarketStateInput): Cano
   if (errors.length) throw new Error(errors.join(" "));
   return deepFreeze({
     ...structuredClone(input),
+    // Normalize at the seal so every SEALED packet carries the key explicitly.
+    // The field is optional on the INPUT type purely so this stayed additive —
+    // no existing producer or fixture had to be rewritten to adopt it — but a
+    // consumer must never have to distinguish "absent" from "no bar close".
+    lastBar: input.lastBar ?? null,
     schemaVersion: CANONICAL_MARKET_STATE_SCHEMA_VERSION,
     sealed: true,
   });

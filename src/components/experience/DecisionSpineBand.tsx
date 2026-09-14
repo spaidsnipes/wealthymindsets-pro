@@ -44,6 +44,7 @@ import * as React from "react";
 import type { OneStoryVM } from "@/lib/marketData/viewModels/selectOneStory";
 import type { DecisionWhyVM } from "@/lib/marketData/viewModels/selectDecisionWhyNot";
 import type { AvailableRVM } from "@/lib/traderMemory/viewModels/selectAvailableR";
+import { formatSpinePrice } from "@/lib/marketData/formatSpinePrice";
 
 /** The MARKET cell's evidence. ROLE / SOURCE / asOf, or the absence of them. */
 export interface SpineMarketEvidence {
@@ -54,6 +55,14 @@ export interface SpineMarketEvidence {
   /** Epoch ms the canonical state was captured, or null when nothing sealed. */
   readonly capturedAt: number | null;
   readonly last: number | null;
+  /**
+   * SECOND PRICE OWNER — the newest loaded bar's close, straight off
+   * `canonicalState.lastBar`. Never a trade print; see `formatSpinePrice`.
+   * This cell rendered PRICE UNKNOWN while the chart header a few pixels
+   * away rendered this very number beside HISTORICAL BARS VERIFIED.
+   */
+  readonly lastBarClose?: number | null;
+  readonly lastBarTimeframe?: string | null;
 }
 
 export interface DecisionSpineBandProps {
@@ -245,7 +254,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         <span style={LABEL}>Market</span>
         <span style={VALUE}>
           {market.symbol} · {market.timeframe} ·{" "}
-          {market.last === null ? "PRICE UNKNOWN" : market.last}
+          {formatSpinePrice(market.last, market.lastBarClose, market.lastBarTimeframe).text}
         </span>
         <span style={MUTED}>
           {market.quality ?? "QUALITY UNKNOWN"} · {asOfText(market.capturedAt)}

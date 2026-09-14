@@ -636,6 +636,13 @@ export function ChartsDashboard() {
     recentTicks,
     source,
     connected,
+    // The candles MainChart actually loaded, so canonical state can publish a
+    // last BAR CLOSE under its own provenance. Without this the MARKET tile
+    // read PRICE UNKNOWN while the chart header a few pixels away rendered
+    // that very close beside HISTORICAL BARS VERIFIED — two owners for one
+    // instrument at one moment. `chartBars` is cleared on every symbol and
+    // timeframe change, so symbol A's close can never be attributed to B.
+    bars: chartBars,
   });
 
   // Micah + Noah 2026-09-02 — /charts joins Phase 3 Market Canvas as a
@@ -905,6 +912,12 @@ export function ChartsDashboard() {
       quality: chartCanvasState?.qualityState ?? null,
       capturedAt: chartCanvasState?.capturedAt ?? null,
       last: chartCanvasState?.price.last ?? null,
+      // The MARKET cell said PRICE UNKNOWN while the chart header rendered the
+      // last candle's close. Same instrument, same moment, two owners. This
+      // hands the cell the second fact so it can stop understating what WM
+      // actually knows — labelled as a bar close, never as a print.
+      lastBarClose: chartCanvasState?.lastBar?.close ?? null,
+      lastBarTimeframe: chartCanvasState?.lastBar?.timeframe ?? null,
     },
     oneStory: chartCanvasVM.oneStory,
     availableR: chartCanvasVM.chain?.availableR ?? null,
