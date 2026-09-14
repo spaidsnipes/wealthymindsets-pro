@@ -176,6 +176,61 @@ acceptance law here is explicitly a blur-test:
 `roomChromeInCss: true`, and take the AFTER screenshot for the blur comparison.
 Until that screenshot exists, this atom is SHIPPED but NOT PROVEN.
 
+### 6.1 RESOLVED — and the deploy exposed a SECOND, half-delivered defect
+
+The deploy landed and the rule reached production, but the material arrived
+**half-applied**. Measured in the Founder's authenticated Chrome:
+
+```
+{"roomChromeCount": 3, "roomChromeBackdrop": ["none"]}
+```
+
+The fill was correct and the blur was silently absent — which is worse than a
+visible failure, because the build was green and the rule was present.
+
+**Root cause, measured and not guessed.** The emitted production stylesheet
+carried this rule for `.wm-room-chrome,.wm-sticky-glass`:
+
+```
+-webkit-backdrop-filter:blur(8px);background-color:#0b0b0dd1
+```
+
+with **no unprefixed twin** — and Chrome reports
+
+```
+CSS.supports('-webkit-backdrop-filter','blur(8px)')  ===  false
+```
+
+So the CSS minifier collapses an authored standard+prefixed DECLARATION pair
+down to the **prefixed one only**, and the prefixed one is the property this
+browser does not implement. The hand-written `-webkit-` prefix was not a
+safety net; **it was the thing deleting the blur.** `.wm-shell-header`, which
+declares only the standard property, emitted BOTH and blurred correctly all
+along — that contrast is what located the cause.
+
+`.glass` carried the identical latent defect and was fixed in the same commit.
+
+**Fix:** `d67eb79` — "Restore the blur half of the room-chrome material".
+Removed both hand-written prefixed DECLARATIONS; prefixing is now owned by the
+build alone. The `@supports` CONDITION still names the prefixed property on
+purpose — conditions are not collapsed by the minifier, and keeping it there
+avoids pushing a webkit-only engine onto the opaque fallback.
+
+Held by a new gate, `noHandWrittenVendorPrefix` in `chartsRoomChrome.test.ts`,
+which was broken first and failed by name before earning its keep.
+
+**LIVE-PROVEN.** Re-measured on production after the deploy:
+
+```
+{"roomChromeCount": 3, "roomChromeBackdrop": ["blur(8px)"],
+ "supportsStd": true, "supportsWebkit": false}
+```
+
+All three elements now compute a real blur, and `supportsWebkit: false`
+independently confirms the diagnosis. AFTER screenshot taken. **This atom is
+now GREEN** — the blur-test in the acceptance law above is satisfied for the
+room chrome material.
+
 ## 7. NEXT ATOM — surfaced, deliberately not rushed
 
 Observed live on /charts in the same viewport, at the same moment:
@@ -201,6 +256,63 @@ close into canonical state as a distinct, provenance-labeled field — which mea
 editing the canonical producer that **7 Sentinels guard for single-writer
 canon**. Per §13, surfaced rather than rush-wired. It is the highest-value
 unblocked atom for the next block.
+
+### 7.1 SHIPPED — `c48e814`, additively, without touching the print guarantee
+
+Shipped as "Give the last bar close its own sentence instead of PRICE UNKNOWN".
+
+The repair did **not** relax `price.last`. That field means "a live trade
+printed here and we hold the tick that proves it", and widening it would have
+silently demoted a guarantee every existing consumer relies on. The bar close
+became a **second, separately-labelled price owner**:
+
+- `deriveLastBarClose` reads **only** the loaded candle array. `ticker.price`
+  was rejected as an input: it can originate from a REST quote or from the
+  `SYMBOL_SEEDS` table in `useWebSocket.ts`, so publishing it as a "verified
+  bar close" would fabricate provenance (§35 PROTECTED TRUTH). `liveBar` was
+  rejected too — it is tick-built, so it is null in exactly the no-tape case
+  this atom exists to serve. The derivation does not trust array order,
+  because a close attributed to the wrong bar is a fabricated timestamp even
+  when the number is right. `OHLCVBar.time` is SECONDS; converted once.
+- `lastBar` on canonical state is **excluded from `hasPrice` by design**, so
+  it can never promote `qualityState` to LIVE or satisfy the "LIVE requires
+  price evidence" rule. Optional on the INPUT type so the change stayed
+  additive — no existing producer or fixture in the 7-Sentinel-guarded
+  canon had to be rewritten — and normalized at the seal so no consumer must
+  distinguish "absent" from "no bar close".
+- `formatSpinePrice` keeps **three** states where there were two: PRINT (bare
+  digits), BAR_CLOSE (always carrying the words `LAST <tf> BAR CLOSE`, never
+  bare digits), NONE (`PRICE UNKNOWN` stays honest when we know nothing).
+
+Two new gates, each broken first and FAILURE-PROVEN by name before earning
+their keep: **"never presents a bar close as if it were a print"** and
+**"does NOT assume the array is sorted"**. Restored byte-identically via the
+Edit tool; `tsc` stayed green.
+
+Gates, UNPIPED: `vitest` 577 files / **6595 tests**, `VITEST_EXIT=0`;
+`tsc --noEmit`, `TSC_EXIT=0`.
+
+**STATUS: `HUMAN_PROOF_REQUIRED = YELLOW`. Shipped, NOT visually proven.**
+
+The reproduction condition was not available on production at verification
+time. Both symbols checked carried a live print, so the PRINT path wins on the
+old and new build alike and the two are visually indistinguishable:
+
+```
+ES1! · 1h · 7621      PARTIAL · asOf 04:58:30Z
+SPY  · 1h · 764.48    PARTIAL · asOf 04:58:45Z
+hasPriceUnknown: false   hasBarClose: false
+```
+
+The originally-observed `PRICE UNKNOWN` state is real and is recorded in §7
+above, but it could not be re-observed on demand. Per the NO-ESCAPE VISUAL
+VERIFICATION BREAKER, green gates and a successful push **cannot** stand in
+for the missing observation.
+
+**NEXT (unfinished):** during a genuine no-print window, load /charts and
+confirm the MARKET tile reads `<close> LAST 1h BAR CLOSE` — not bare digits
+(which would be the print overclaim the gate forbids) and not `PRICE UNKNOWN`.
+Only then does this atom go GREEN.
 
 ## 8. Constraints honored
 
