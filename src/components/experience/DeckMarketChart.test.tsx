@@ -107,3 +107,77 @@ describe("the deck actually mounts a real chart in its MARKET section", () => {
     expect(decisionWhyIdx).toBeLessThan(workspaceIdx);
   });
 });
+
+describe("classifyFetch stamps when the candles landed", () => {
+  it("READY carries fetchedAtMs so staleness is computable at all", () => {
+    const s = classifyFetch(true, 200, { candles: [{ time: 1, open: 1, high: 1, low: 1, close: 1 }] }, 1234);
+    expect(s.kind).toBe("READY");
+    if (s.kind === "READY") expect(s.fetchedAtMs).toBe(1234);
+  });
+
+  it("defaults the stamp to now rather than leaving it undefined", () => {
+    // An unstamped READY would make the as-of line print "just now" forever,
+    // which is the exact lie this stamp exists to prevent.
+    const before = Date.now();
+    const s = classifyFetch(true, 200, { candles: [{ time: 1, open: 1, high: 1, low: 1, close: 1 }] });
+    if (s.kind === "READY") {
+      expect(s.fetchedAtMs).toBeGreaterThanOrEqual(before);
+      expect(Number.isFinite(s.fetchedAtMs)).toBe(true);
+    }
+  });
+});
+
+describe("the refresh contract", () => {
+  // NOTE ON METHOD: this repo has no jsdom environment, so timer-driven React
+  // effects cannot be exercised here. These are SOURCE-GRAPH assertions and
+  // are honest about being so — they prove the gates are WRITTEN, not that
+  // they FIRED. The behaviour they guard is small and declarative (three
+  // boolean gates and a cadence), which is the case where a source guard
+  // carries real weight; the pure staleness arithmetic underneath them is
+  // covered behaviourally in marketFieldFreshness.test.ts.
+  const src = readFileSync(resolve(__dirname, "DeckMarketChart.tsx"), "utf8");
+
+  it("refreshes on the freshness budget, not on an invented cadence", () => {
+    // Two numbers would drift apart, and the day they do, the room starts
+    // lying in the gap between "went stale" and "asked again".
+    expect(src).toContain("const refreshEveryMs = freshness?.budgetMs ?? null");
+    expect(src).toContain("window.setInterval(ask, refreshEveryMs)");
+  });
+
+  it("does not poll a closed tape", () => {
+    // Manufactured activity in a sanctuary the canon requires to be calm
+    // when the market is shut.
+    expect(src).toContain('session !== "CLOSED"');
+  });
+
+  it("does not poll for a trader who is not looking", () => {
+    expect(src).toContain('document.visibilityState === "hidden"');
+    expect(src).toContain('document.addEventListener("visibilitychange"');
+  });
+
+  it("only schedules from READY, so a failed load cannot become a retry storm", () => {
+    expect(src).toMatch(/shouldRefresh\s*=\s*state\.kind === "READY"/);
+  });
+
+  it("a refresh does not blank the room back to LOADING", () => {
+    // Flickering between real candles and "Loading candles…" every bar
+    // interval would make the market field unreadable while the trader is
+    // mid-decision.
+    expect(src).toContain("if (!isRefresh) setState({ kind: \"LOADING\" })");
+  });
+
+  it("a failed refresh keeps the candles AND admits the failure", () => {
+    // Both halves are true at once: the candles on screen are real, and the
+    // last attempt to confirm them did not land. Collapsing to UNAVAILABLE
+    // throws away evidence; staying silent hides the failure.
+    expect(src).toContain("refreshFailure");
+    expect(src).toContain('data-testid="deck-market-chart-refresh-failed"');
+    expect(src).toMatch(/prev\.kind === "READY"\s*\n?\s*\?\s*\{ \.\.\.prev, refreshFailure: reason \}/);
+  });
+
+  it("has exactly one door into asking again", () => {
+    const doors = src.match(/setRefreshNonce/g) ?? [];
+    // One declaration in useState's setter position plus one caller.
+    expect(doors.length).toBe(2);
+  });
+});

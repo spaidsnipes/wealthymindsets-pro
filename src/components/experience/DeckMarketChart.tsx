@@ -81,7 +81,17 @@ type FetchState =
    * requested. Without this stamp the room could draw six-hour-old geometry
    * with the same confidence as a live read — see marketFieldFreshness.ts.
    */
-  | { kind: "READY"; candles: readonly Candle[]; fetchedAtMs: number }
+  | {
+      kind: "READY";
+      candles: readonly Candle[];
+      fetchedAtMs: number;
+      /**
+       * Set when a REFRESH failed while these candles were on screen. The
+       * candles stay — they are real — but the room must admit that its last
+       * attempt to confirm them did not land.
+       */
+      refreshFailure?: string | null;
+    }
   | { kind: "EMPTY" }
   | { kind: "UNAVAILABLE"; reason: string };
 
@@ -161,26 +171,60 @@ export function DeckMarketChart({
   const chartRef = React.useRef<unknown>(null);
   const seriesRef = React.useRef<unknown>(null);
 
+  /**
+   * Refresh generation. Bumping this re-runs the fetch effect. It is the ONLY
+   * way candles are re-read, so there is exactly one door into "ask again".
+   */
+  const [refreshNonce, setRefreshNonce] = React.useState(0);
+
   // Fetch effect — one owner of the "am I looking at fresh candles" question.
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     let cancelled = false;
-    setState({ kind: "LOADING" });
+    const isRefresh = refreshNonce > 0;
+
+    // A refresh must NOT blank the room. The trader is mid-read; replacing
+    // real candles with "Loading candles…" every bar interval would make the
+    // market field flicker between evidence and absence. Only the first load
+    // shows LOADING; a refresh happens underneath the chart already on screen.
+    if (!isRefresh) setState({ kind: "LOADING" });
+
     const url = `/api/yahoo?sym=${encodeURIComponent(symbol)}&type=candles&tf=${encodeURIComponent(timeframe)}&bars=${bars}`;
     const doFetch = fetcher ?? ((u: string) => fetch(u, { cache: "no-store" }));
+
+    /**
+     * A failed REFRESH is not the same event as a failed LOAD, and collapsing
+     * them loses truth in both directions. Dropping to UNAVAILABLE would throw
+     * away real candles the trader still has; silently keeping them would hide
+     * that the last attempt to confirm them failed. So we keep the candles AND
+     * record the failure — the surface then says exactly what happened.
+     */
+    const onFailure = (reason: string) => {
+      setState((prev) =>
+        prev.kind === "READY"
+          ? { ...prev, refreshFailure: reason }
+          : { kind: "UNAVAILABLE", reason },
+      );
+    };
+
     doFetch(url)
       .then(async (r) => {
         if (cancelled) return;
         let body: unknown = null;
         try { body = await r.json(); } catch { body = null; }
-        setState(classifyFetch(r.ok, r.status, body));
+        const next = classifyFetch(r.ok, r.status, body);
+        if (next.kind === "READY") { setState(next); return; }
+        if (!isRefresh) { setState(next); return; }
+        onFailure(next.kind === "UNAVAILABLE" ? next.reason : "no candles returned");
       })
       .catch((err) => {
         if (cancelled) return;
-        setState({ kind: "UNAVAILABLE", reason: String(err?.message ?? err) });
+        const reason = String(err?.message ?? err);
+        if (!isRefresh) { setState({ kind: "UNAVAILABLE", reason }); return; }
+        onFailure(reason);
       });
     return () => { cancelled = true; };
-  }, [symbol, timeframe, bars, fetcher]);
+  }, [symbol, timeframe, bars, fetcher, refreshNonce]);
 
   // Chart build/update effect — mounts the canvas when READY, disposes on
   // unmount or when the state leaves READY. The chart is created ONCE per
@@ -288,6 +332,59 @@ export function DeckMarketChart({
         })
       : null;
 
+  // ── The refresh scheduler ───────────────────────────────────────────────────
+  //
+  // Labelling staleness without offering a recovery path would leave the room
+  // permanently and accurately broken. A refetch is the canonical event that
+  // lets price legitimately move: PRICE MAY ONLY MOVE WHEN TRUTH MOVES, and new
+  // candles ARE truth moving. A timer that redraws without new data would not
+  // be — which is exactly why the redraw is downstream of the fetch, never of
+  // the interval.
+  //
+  // Three gates, each of which is a Founder law rather than an optimisation:
+  //
+  //   1. session !== "CLOSED" — a shut tape produces no new bars, so polling it
+  //      would be manufactured activity in a sanctuary the canon requires to be
+  //      calm when the market is closed. UNKNOWN does NOT get this exemption,
+  //      for the same reason it does not get the staleness exemption.
+  //   2. document is visible — a backgrounded tab has no trader to inform, and
+  //      burning provider quota to refresh a chart nobody is looking at steals
+  //      from the read that matters.
+  //   3. only while READY — nothing reschedules a failed first load into a
+  //      retry storm.
+  //
+  // The cadence is the freshness budget itself, so the room refreshes exactly
+  // as often as it would otherwise start lying. One owner, one number.
+  const refreshEveryMs = freshness?.budgetMs ?? null;
+  const shouldRefresh = state.kind === "READY" && session !== "CLOSED" && refreshEveryMs !== null;
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!shouldRefresh || refreshEveryMs === null) return;
+
+    const ask = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      setRefreshNonce((n) => n + 1);
+    };
+
+    const id = window.setInterval(ask, refreshEveryMs);
+
+    // Returning to a tab that sat hidden past the budget should not make the
+    // trader wait a full further interval to see current candles.
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (state.kind !== "READY") return;
+      if (Date.now() - state.fetchedAtMs < refreshEveryMs) return;
+      ask();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [shouldRefresh, refreshEveryMs, state]);
+
   // Colour is the SECOND channel, never the only one. Each state also carries
   // a distinct glyph and distinct words, so a trader who cannot separate brass
   // from rust still receives the warning.
@@ -372,6 +469,14 @@ export function DeckMarketChart({
                 budget from posing as a derived number. */}
             {freshness.budgetIsAssumed && (
               <span style={{ color: "#55503f" }}>· cadence assumed</span>
+            )}
+            {/* The candles on screen are real; the last attempt to CONFIRM
+                them was not. Both halves of that are true at once and the
+                room says both rather than picking the flattering one. */}
+            {state.refreshFailure && (
+              <span data-testid="deck-market-chart-refresh-failed" style={{ color: "#c05a4a" }}>
+                · refresh failed ({state.refreshFailure})
+              </span>
             )}
           </span>
           <span style={{ fontSize: 9, letterSpacing: 0.3, color: "#8a8271" }}>
