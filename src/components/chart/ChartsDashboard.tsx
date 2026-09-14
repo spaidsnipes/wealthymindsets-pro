@@ -63,10 +63,8 @@ import { identifiedOptionSpot } from "@/lib/optionsSpotIdentity";
 import { useMarketCanvasVM } from "@/lib/marketData/viewModels/useMarketCanvasVM";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import { useAuth } from "@/contexts/AuthContext";
-// Founder Visual Canon Asset 10 (Full Operating System Overview): the
-// Order Flow Cockpit is the top-most tile in the canonical OS layout.
-// Real signal only — routes through selectAggressorFlow.
-import { OrderFlowCockpitStrip } from "./OrderFlowCockpitStrip";
+// Real aggressor flow still grades the canonical capability state here;
+// detailed order-flow inspection belongs to the Smart Money doorway.
 import { selectAggressorFlow } from "@/lib/marketData/selectAggressorFlow";
 // Asset 14 (Market Object Passport) + Asset 16 (Chart Workspace Object
 // Passport) canon: passport lineage / owner / birth / touches /
@@ -2160,12 +2158,6 @@ export function ChartsDashboard() {
       {(narrowViewport || optionsOpen) && (
         <DecisionSpineBand {...decisionSpineProps} presentation="band" />
       )}
-      {/* Real per-trade flow remains silent until canonical aggressor evidence
-          exists; it follows the decision rail instead of pushing MARKET down. */}
-      {(activeTab === "Chart" || activeTab === "Options") && (
-        <OrderFlowCockpitStrip ticks={recentTicks} livePrice={ticker.price} />
-      )}
-
       {pnlOpen && <PnLStatsPanel onClose={() => setPnlOpen(false)} />}
       {smartMoneyOpen && <SmartMoneyPanel onClose={() => setSmartMoneyOpen(false)} symbol={symbol} />}
       {brokerOpen && (

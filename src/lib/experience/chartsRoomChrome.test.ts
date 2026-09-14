@@ -125,7 +125,6 @@ describe("/charts permanent frame is room chrome, not opaque slabs", () => {
     ["LeftDrawingSidebar.tsx", "the 40px drawing rail left of MARKET"],
     ["StockInfoPanel.tsx", "the info panel right of MARKET"],
     ["ChartsDashboard.tsx", "the study row and the 14px collapse strip"],
-    ["OrderFlowCockpitStrip.tsx", "the order-flow strip under MARKET"],
     ["TimeframeSelector.tsx", "the timeframe rail under MARKET"],
   ];
 

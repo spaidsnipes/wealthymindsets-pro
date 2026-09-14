@@ -25,10 +25,9 @@ describe("charts Asset-10 hierarchy", () => {
     expect(source.match(/const decisionSpineProps =/g)).toHaveLength(1);
   });
 
-  it("does not put order-flow diagnostics above MARKET", () => {
-    const marketPanel = source.indexOf('id="wm-chart-category-panel-chart"');
-    const orderFlow = source.indexOf("<OrderFlowCockpitStrip");
-
-    expect(orderFlow, "order-flow cockpit is missing").toBeGreaterThan(marketPanel);
+  it("keeps order-flow evidence behind the Smart Money doorway", () => {
+    expect(source).not.toContain("<OrderFlowCockpitStrip");
+    expect(source.match(/<SmartMoneyPanel/g)).toHaveLength(1);
+    expect(source).toContain("smartMoneyOpen");
   });
 });
