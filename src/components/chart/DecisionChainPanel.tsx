@@ -50,10 +50,14 @@ export function DecisionChainPanel({
       role="region"
       aria-label={`Decision chain — ${vm.phase.toLowerCase()} phase`}
       style={{
-        border: "1px solid rgba(139,106,41,0.35)",
-        borderRadius: 10,
-        background: "rgba(11,11,13,0.9)",
-        padding: 16,
+        // SCENE_FRAGMENTATION cure: DecisionChain used to render as
+        // another opaque brass-bordered card inside the deck. The
+        // chain is the SPINE of the decision, not a separate module
+        // beside it. Hairline top + transparent lets the sanctuary
+        // atmosphere continue through it.
+        borderTop: "1px solid rgba(139,106,41,0.22)",
+        background: "transparent",
+        padding: "12px 0 4px",
       }}
     >
       {/* Headline row — 1s hero truth per Founder §A09 */}
