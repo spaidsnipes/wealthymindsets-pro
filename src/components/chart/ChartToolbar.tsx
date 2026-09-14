@@ -525,7 +525,6 @@ interface ChartToolbarProps {
   timeframe:           string;
   setTimeframe:        (t: string) => void;
   onConnectBrokers:    () => void;
-  connectBrokersTriggerRef: React.RefObject<HTMLButtonElement | null>;
   onSmartMoney:        () => void;
   smartMoneyActive?:   boolean;
   onDOM:               () => void;
@@ -602,7 +601,7 @@ function SymbolRow({ s, symbol, onSelect }: { s: SymbolEntry; symbol: string; on
 
 export function ChartToolbar({
   symbol, setSymbol, timeframe, setTimeframe,
-  onConnectBrokers, connectBrokersTriggerRef, onSmartMoney, smartMoneyActive,
+  onConnectBrokers, onSmartMoney, smartMoneyActive,
   onDOM, onPineScript, onCommunity,
   pineActive,
   initialActiveInds, onActiveIndsChange, onIndicatorSettings, onExtHoursChange,
@@ -1276,26 +1275,21 @@ export function ChartToolbar({
                 {onCompare && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onCompare(); }}><GitMerge size={12} /> Compare{compareActive ? " · active" : ""}</button>}
                 {onAlerts && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onAlerts(); }}><Bell size={12} /> Alerts{alertsActive ? " · active" : ""}</button>}
                 {onInstrumentProfile && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onInstrumentProfile(); }}><Info size={12} aria-hidden="true" /> Instrument profile{instrumentProfileActive ? " · open" : ""}</button>}
+                <button
+                  role="menuitem"
+                  aria-haspopup="dialog"
+                  aria-controls="wm-broker-connect"
+                  className={itemClass}
+                  onClick={() => { setAdvancedOpen(false); onConnectBrokers(); }}
+                >
+                  <Plug2 size={12} aria-hidden="true" /> Connect brokers
+                </button>
                 {onAppearanceToggle && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onAppearanceToggle(); }}><span aria-hidden="true">◐</span> Appearance · {appearanceLabel ?? "Original"}</button>}
                 {onSettings && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onSettings(); }}><Settings size={12} /> Chart settings</button>}
               </div>
             );
           })()}
         </div>
-        <button ref={connectBrokersTriggerRef} onClick={onConnectBrokers}
-          aria-label="Connect one or more brokers"
-          aria-haspopup="dialog"
-          aria-controls="wm-broker-connect"
-          className="flex min-h-11 items-center gap-1 px-3 rounded text-[12px] font-semibold border transition-colors shrink-0"
-          style={{
-            background:"linear-gradient(90deg,#0c1517,#0a1815)",
-            borderColor:"rgba(0,192,118,0.45)",
-            color:"#00C076",
-          }}
-          title="Connect one or more brokers">
-          <Plug2 size={11} /> Connect brokers
-        </button>
-
       </div>
 
     </div>

@@ -340,12 +340,14 @@ describe("responsive P0 command surfaces", () => {
     expect(hero).toContain('!(isRoomDensity && marketStateResolution === "UNKNOWN")');
   });
 
-  it("keeps the multi-broker entry point visible at the right edge of the chart toolbar", () => {
+  it("keeps multi-broker setup reachable without permanent provider chrome", () => {
     const toolbar = source("../components/chart/ChartToolbar.tsx");
     const dashboard = source("../components/chart/ChartsDashboard.tsx");
-    expect(toolbar).toContain('aria-label="Connect one or more brokers"');
     expect(toolbar).toContain('style={{ position: "sticky", right: 0');
     expect(toolbar).toContain("Connect brokers");
+    expect(toolbar).toContain('aria-controls="wm-broker-connect"');
+    expect(toolbar).not.toContain('aria-label="Connect one or more brokers"');
+    expect(dashboard).toContain("openBrokerConnect(toolsTriggerRef.current)");
     expect(dashboard).not.toContain('aria-label="Connect one or more brokers"');
     expect(dashboard).not.toContain("> Brokers");
   });
@@ -356,7 +358,7 @@ describe("responsive P0 command surfaces", () => {
     expect(options).toContain("data-options-workspace");
     expect(options).toContain("w-full max-w-[700px] min-w-0 md:w-[55%] xl:w-[45%]");
     expect(dashboard).toContain('id="chart-instrument-profile"');
-    expect(dashboard).toContain("fallbackTriggerRef={instrumentProfileTriggerRef}");
+    expect(dashboard).toContain("fallbackTriggerRef={toolsTriggerRef}");
     expect(dashboard).not.toContain("{!narrowViewport || !optionsOpen ? <div");
   });
 

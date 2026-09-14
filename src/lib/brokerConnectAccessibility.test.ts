@@ -21,18 +21,20 @@ describe("broker connection operating-system drawer", () => {
   });
 
   it("returns focus to the chart or readiness trigger that opened it", () => {
-    expect(toolbar).toContain("ref={connectBrokersTriggerRef}");
+    expect(toolbar).toContain("ref={toolsTriggerRef}");
     expect(toolbar).toContain('aria-haspopup="dialog"');
     expect(toolbar).toContain('aria-controls="wm-broker-connect"');
-    expect(dashboard).toContain("const brokerTriggerRef = useRef<HTMLButtonElement>(null)");
-    expect(dashboard).toContain("fallbackTriggerRef={brokerTriggerRef}");
+    expect(dashboard).toContain("const toolsTriggerRef = useRef<HTMLButtonElement>(null)");
+    expect(dashboard).toContain("openBrokerConnect(toolsTriggerRef.current)");
+    expect(dashboard).toContain("fallbackTriggerRef={toolsTriggerRef}");
     expect(readiness).toContain("const connectTriggerRef = useRef<HTMLButtonElement>(null)");
     expect(readiness).toContain("fallbackTriggerRef={connectTriggerRef}");
     expect(layout).not.toContain("<BrokerConnectPanel");
   });
 
   it("keeps the primary connection controls touch-safe and explicitly named", () => {
-    expect(toolbar).toContain('className="flex min-h-11 items-center gap-1 px-3');
+    expect(toolbar).toContain('role="menuitem"');
+    expect(toolbar).toContain("Connect brokers");
     expect(panel).toContain('aria-label="Search brokers"');
     expect(panel).toContain("min-h-11 rounded-lg px-1 py-2");
     expect(panel).toContain("aria-pressed={tab === t.id}");

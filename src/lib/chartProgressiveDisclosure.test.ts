@@ -6,7 +6,7 @@ const toolbar = readFileSync(resolve(process.cwd(), "src/components/chart/ChartT
 const dashboard = readFileSync(resolve(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8");
 
 describe("chart progressive disclosure", () => {
-  it("keeps the trading decision controls and broker entry primary", () => {
+  it("keeps trading decision controls primary", () => {
     expect(toolbar).toContain("TIMEFRAMES.map");
     expect(toolbar).toContain("RTH — Regular Hours");
     expect(toolbar).toContain("Indicators");
@@ -20,7 +20,20 @@ describe("chart progressive disclosure", () => {
     expect(toolbar).toContain("Depth ladder");
     expect(toolbar).toContain("Flow &amp; studies");
     expect(toolbar).toContain("Pine workspace");
+    expect(toolbar).toContain('aria-controls="wm-broker-connect"');
+    expect(toolbar).toContain("onConnectBrokers();");
     expect(toolbar).toContain("Chart settings");
+  });
+
+  it("keeps provider setup behind the persistent Tools doorway", () => {
+    const menuStart = toolbar.indexOf('role="menu"');
+    const menuEnd = toolbar.indexOf("</div>", menuStart);
+    const brokerEntry = toolbar.indexOf("Connect brokers");
+    expect(menuStart).toBeGreaterThan(-1);
+    expect(brokerEntry).toBeGreaterThan(menuStart);
+    expect(brokerEntry).toBeLessThan(menuEnd);
+    expect(toolbar).not.toContain('aria-label="Connect one or more brokers"');
+    expect(dashboard).toContain("openBrokerConnect(toolsTriggerRef.current)");
   });
 
   it("keeps the dense flow and study strip closed until the trader asks for it", () => {

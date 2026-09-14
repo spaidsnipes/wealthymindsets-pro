@@ -267,7 +267,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // ── Core state ──────────────────────────────────────────────
   const [pnlOpen,         setPnlOpen]         = useState(false);
   const [brokerOpen,      setBrokerOpen]      = useState(false);
-  const brokerTriggerRef = useRef<HTMLButtonElement>(null);
+  // The persistent Tools doorway owns focus return for every drawer launched
+  // from its transient menu, including broker setup and instrument profile.
+  const toolsTriggerRef = useRef<HTMLButtonElement>(null);
   const brokerFallbackTriggerRef = useRef<HTMLButtonElement>(null);
   const openBrokerConnect = useCallback((trigger: HTMLButtonElement | null) => {
     brokerFallbackTriggerRef.current = trigger;
@@ -343,7 +345,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     }
   }, [requestedTab, activeTab, clearOptionSelection]);
   const [infoOpen,        setInfoOpen]        = useState(false); // collapsible right panel
-  const instrumentProfileTriggerRef = useRef<HTMLButtonElement>(null);
   const [vpDomOpen,       setVpDomOpen]       = useState(false); // Open only when the trader asks for depth
   const [studyToolsOpen,  setStudyToolsOpen]  = useState(false); // Advanced controls stay quiet until requested
 
@@ -1458,7 +1459,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               closeLabel="Close instrument profile"
               width={360}
               onClose={() => setInfoOpen(false)}
-              fallbackTriggerRef={instrumentProfileTriggerRef}
+              fallbackTriggerRef={toolsTriggerRef}
             >
               <StockInfoPanel symbol={symbol} />
             </ShellModalDrawer>
@@ -1475,8 +1476,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           {(activeTab === "Chart" || activeTab === "Options") && <ChartToolbar
             symbol={symbol}         setSymbol={setSymbol}
             timeframe={timeframe}   setTimeframe={setTimeframe}
-            onConnectBrokers={() => openBrokerConnect(brokerTriggerRef.current)}
-            connectBrokersTriggerRef={brokerTriggerRef}
+            onConnectBrokers={() => openBrokerConnect(toolsTriggerRef.current)}
             onSmartMoney={() => setSmartMoneyOpen(o => !o)}
             smartMoneyActive={smartMoneyOpen}
             onDOM={() => setVpDomOpen(o => !o)}
@@ -1489,7 +1489,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             onExtHoursChange={setExtHours}
             onAlerts={() => setAlertsOpen(o => !o)}
             alertsActive={alertsOpen}
-            toolsTriggerRef={instrumentProfileTriggerRef}
+            toolsTriggerRef={toolsTriggerRef}
             onInstrumentProfile={() => setInfoOpen(open => !open)}
             instrumentProfileActive={infoOpen}
             onAppearanceToggle={() => setTheme(theme === "neon" ? "original" : "neon")}
@@ -2150,7 +2150,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             onClose={() => setTradeOpen(false)}
             defaultSymbol={symbol}
             initialTab="positions"
-            fallbackTriggerRef={brokerTriggerRef}
+            fallbackTriggerRef={toolsTriggerRef}
             onSwitchBroker={() => setBrokerOpen(true)}
           />
         )}

@@ -22,8 +22,8 @@ describe("/charts instrument profile is disclosed, not permanent frame chrome", 
   });
 
   it("uses the shared drawer so the doorway works without compressing MARKET", () => {
-    expect(dashboard).toContain("fallbackTriggerRef={instrumentProfileTriggerRef}");
-    expect(dashboard).toContain("toolsTriggerRef={instrumentProfileTriggerRef}");
+    expect(dashboard).toContain("fallbackTriggerRef={toolsTriggerRef}");
+    expect(dashboard).toContain("toolsTriggerRef={toolsTriggerRef}");
     expect(dashboard).not.toContain("{!narrowViewport || !optionsOpen ? <div");
     expect(toolbar).toContain("studyToolsOpen || instrumentProfileActive");
   });
