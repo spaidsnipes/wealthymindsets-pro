@@ -884,7 +884,10 @@ export function ChartsDashboard() {
   useEffect(() => { setMounted(true); }, []);
   if (!mounted) {
     return (
-      <div style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden", background:"#0D0E14" }} />
+      // SSR/hydration placeholder — must match the transparent room the
+      // client resolves to, otherwise the first paint is a black flash
+      // where the sanctuary should be.
+      <div style={{ display:"flex", flexDirection:"column", width:"100%", height:"100%", overflow:"hidden", background:"transparent" }} />
     );
   }
 
