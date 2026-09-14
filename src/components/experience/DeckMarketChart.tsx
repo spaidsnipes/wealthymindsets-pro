@@ -1,6 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { useSanctuarySession } from "@/lib/experience/sanctuarySessionContext";
+import {
+  classifyMarketFieldFreshness,
+  type MarketFieldFreshness,
+} from "@/lib/experience/marketFieldFreshness";
 
 /**
  * DeckMarketChart — the deck's MARKET section renders a REAL CHART.
@@ -71,7 +76,12 @@ interface Candle {
 type FetchState =
   | { kind: "IDLE" }
   | { kind: "LOADING" }
-  | { kind: "READY"; candles: readonly Candle[] }
+  /**
+   * READY carries the moment the candles LANDED, not the moment they were
+   * requested. Without this stamp the room could draw six-hour-old geometry
+   * with the same confidence as a live read — see marketFieldFreshness.ts.
+   */
+  | { kind: "READY"; candles: readonly Candle[]; fetchedAtMs: number }
   | { kind: "EMPTY" }
   | { kind: "UNAVAILABLE"; reason: string };
 
@@ -126,12 +136,13 @@ export function classifyFetch(
   ok: boolean,
   status: number,
   payload: unknown,
+  fetchedAtMs: number = Date.now(),
 ): FetchState {
   if (!ok) return { kind: "UNAVAILABLE", reason: `HTTP ${status}` };
   const candles = parseCandles(payload);
   if (candles === null) return { kind: "UNAVAILABLE", reason: "malformed response" };
   if (candles.length === 0) return { kind: "EMPTY" };
-  return { kind: "READY", candles };
+  return { kind: "READY", candles, fetchedAtMs };
 }
 
 export function DeckMarketChart({
@@ -141,6 +152,11 @@ export function DeckMarketChart({
   fetcher,
 }: DeckMarketChartProps): React.ReactElement {
   const [state, setState] = React.useState<FetchState>({ kind: "IDLE" });
+  // The canonical session signal, read from the context the deck page already
+  // publishes. Not a prop, not a second session owner — see
+  // sanctuarySessionContext.ts. A CLOSED tape makes old candles FINAL, not
+  // stale; an UNKNOWN one buys no exemption from aging.
+  const session = useSanctuarySession();
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const chartRef = React.useRef<unknown>(null);
   const seriesRef = React.useRef<unknown>(null);
@@ -242,6 +258,46 @@ export function DeckMarketChart({
 
   const barCount = state.kind === "READY" ? state.candles.length : 0;
 
+  // ── The age ticker ──────────────────────────────────────────────────────────
+  //
+  // MOTION RECEIPT: the ONLY thing this interval moves is the as-of SENTENCE.
+  // No price, no axis, no geometry. Time passing is truth about AGE, and the
+  // Founder motion law permits a surface to move when a canonical event
+  // updates the state it displays — here the canonical event is the wall clock
+  // crossing the stale budget. 30s is slow enough to be invisible as motion
+  // and fast enough that "Read 4m ago" is never off by more than half a minute.
+  //
+  // It runs only while READY, so a LOADING or UNAVAILABLE room is perfectly
+  // still and no timer survives the state leaving READY.
+  const [nowMs, setNowMs] = React.useState<number>(() => Date.now());
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (state.kind !== "READY") return;
+    setNowMs(Date.now());
+    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, [state.kind]);
+
+  const freshness: MarketFieldFreshness | null =
+    state.kind === "READY"
+      ? classifyMarketFieldFreshness({
+          fetchedAtMs: state.fetchedAtMs,
+          nowMs,
+          timeframe,
+          session,
+        })
+      : null;
+
+  // Colour is the SECOND channel, never the only one. Each state also carries
+  // a distinct glyph and distinct words, so a trader who cannot separate brass
+  // from rust still receives the warning.
+  const FRESHNESS_STYLE = {
+    FRESH: { color: "#8a8271", glyph: "●" },
+    AGING: { color: "#c9a55c", glyph: "◐" },
+    STALE: { color: "#c05a4a", glyph: "!" },
+    FINAL: { color: "#8a8271", glyph: "◼" },
+  } as const;
+
   return (
     <section
       data-testid="deck-market-chart"
@@ -276,8 +332,48 @@ export function DeckMarketChart({
         alone, right-aligned, at label scale — and only when candles actually
         arrived, so it can never imply evidence the fetch did not return.
       */}
-      {state.kind === "READY" && (
-        <header style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+      {/*
+        The as-of line is the second half of the same sentence. "120 bars" says
+        HOW MUCH evidence; without an age it does not say whether that evidence
+        still describes the market. The two belong on one row, and the age is
+        on the LEFT — the eye reaches it first, because a stale chart is worth
+        knowing about before the bar count is.
+      */}
+      {state.kind === "READY" && freshness && (
+        <header
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+            gap: 12,
+            marginBottom: 4,
+            flexWrap: "wrap",
+          }}
+        >
+          <span
+            data-testid="deck-market-chart-asof"
+            data-freshness={freshness.kind}
+            role={freshness.kind === "STALE" ? "status" : undefined}
+            style={{
+              fontSize: 9,
+              letterSpacing: 0.3,
+              color: FRESHNESS_STYLE[freshness.kind].color,
+              fontWeight: freshness.kind === "STALE" ? 700 : 400,
+              display: "inline-flex",
+              alignItems: "baseline",
+              gap: 5,
+              minWidth: 0,
+            }}
+          >
+            <span aria-hidden="true">{FRESHNESS_STYLE[freshness.kind].glyph}</span>
+            <span>{freshness.label}</span>
+            {/* When the timeframe could not be parsed we are guessing the
+                refresh cadence. Saying so costs one clause and stops the
+                budget from posing as a derived number. */}
+            {freshness.budgetIsAssumed && (
+              <span style={{ color: "#55503f" }}>· cadence assumed</span>
+            )}
+          </span>
           <span style={{ fontSize: 9, letterSpacing: 0.3, color: "#8a8271" }}>
             {barCount} bars
           </span>
