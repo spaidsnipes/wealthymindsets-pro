@@ -5,7 +5,7 @@ import {
   Search, ChevronDown,
   LayoutGrid, Clock, DollarSign, BarChart2, Plug2,
   X, ChevronRight, Star, Check, Bell, Settings,
-  Play, GitMerge, HelpCircle, MoreHorizontal, Info, Camera,
+  Play, GitMerge, HelpCircle, MoreHorizontal, Info, Camera, Pencil,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { type ChartLayout } from "./ChartLayoutManager";
@@ -527,6 +527,8 @@ interface ChartToolbarProps {
   onConnectBrokers:    () => void;
   onCapture?:          () => void;
   captureOpen?:        boolean;
+  onDraw?:             () => void;
+  drawOpen?:           boolean;
   onSmartMoney:        () => void;
   smartMoneyActive?:   boolean;
   onDOM:               () => void;
@@ -603,7 +605,7 @@ function SymbolRow({ s, symbol, onSelect }: { s: SymbolEntry; symbol: string; on
 
 export function ChartToolbar({
   symbol, setSymbol, timeframe, setTimeframe,
-  onConnectBrokers, onCapture, captureOpen, onSmartMoney, smartMoneyActive,
+  onConnectBrokers, onCapture, captureOpen, onDraw, drawOpen, onSmartMoney, smartMoneyActive,
   onDOM, onPineScript, onCommunity,
   pineActive,
   initialActiveInds, onActiveIndsChange, onIndicatorSettings, onExtHoursChange,
@@ -1242,7 +1244,7 @@ export function ChartToolbar({
             aria-haspopup="menu"
             className={clsx(
               "flex min-h-11 items-center gap-1 rounded border px-2 text-[11px] font-semibold transition-colors",
-              advancedOpen || pineActive || replayActive || compareActive || alertsActive || studyToolsOpen || instrumentProfileActive || captureOpen
+              advancedOpen || pineActive || replayActive || compareActive || alertsActive || studyToolsOpen || instrumentProfileActive || captureOpen || drawOpen
                 ? "border-wm-gold/35 bg-wm-gold/10 text-wm-gold"
                 : "border-wm-border text-wm-text-muted hover:text-wm-text",
             )}
@@ -1277,6 +1279,17 @@ export function ChartToolbar({
                 {onCompare && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onCompare(); }}><GitMerge size={12} /> Compare{compareActive ? " · active" : ""}</button>}
                 {onAlerts && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onAlerts(); }}><Bell size={12} /> Alerts{alertsActive ? " · active" : ""}</button>}
                 {onInstrumentProfile && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onInstrumentProfile(); }}><Info size={12} aria-hidden="true" /> Instrument profile{instrumentProfileActive ? " · open" : ""}</button>}
+                {onDraw && (
+                  <button
+                    role="menuitem"
+                    aria-haspopup="dialog"
+                    aria-controls="chart-draw-sheet"
+                    className={itemClass}
+                    onClick={() => { setAdvancedOpen(false); onDraw(); }}
+                  >
+                    <Pencil size={12} aria-hidden="true" /> Drawing tools{drawOpen ? " · open" : ""}
+                  </button>
+                )}
                 {onCapture && (
                   <button
                     role="menuitem"

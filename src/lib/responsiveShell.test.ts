@@ -117,12 +117,14 @@ describe("responsive P0 command surfaces", () => {
     // The 20 drawing tools remain the same component and props at every width,
     // but no longer form permanent July-style chrome around MARKET.
     const dashboard = source("../components/chart/ChartsDashboard.tsx");
+    const toolbar = source("../components/chart/ChartToolbar.tsx");
     const sidebar = source("../components/chart/LeftDrawingSidebar.tsx");
 
     expect(dashboard).not.toContain("{!narrowViewport && <LeftDrawingSidebar");
     expect(dashboard).toContain("{drawSheetOpen &&");
     expect(dashboard).toContain('id="chart-draw-sheet"');
-    expect(dashboard).toContain('aria-controls="chart-draw-sheet"');
+    expect(toolbar).toContain('aria-controls="chart-draw-sheet"');
+    expect(dashboard).toContain("openDrawingTools(toolsTriggerRef.current)");
     expect(dashboard).toContain('<LeftDrawingSidebar {...drawingSidebarProps} variant="sheet" />');
 
     // One props object, spread into the one canonical drawer call site.

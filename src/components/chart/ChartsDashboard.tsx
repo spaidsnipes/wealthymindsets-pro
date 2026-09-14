@@ -760,6 +760,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // icon rails; this removes chrome without creating desktop/mobile forks.
   const [drawSheetOpen, setDrawSheetOpen] = useState(false);
   const drawSheetTriggerRef = useRef<HTMLButtonElement>(null);
+  const openDrawingTools = useCallback((trigger: HTMLButtonElement | null) => {
+    drawSheetTriggerRef.current = trigger;
+    setDrawSheetOpen(true);
+  }, []);
   // Declared ONCE and spread into the one canonical drawer mount.
   const drawingSidebarProps = {
     activeTool: drawingTool,
@@ -1105,34 +1109,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             Watchlist
           </button>
         }
-        {/* Drawing tools are meaningful only on chart-bearing tabs. */}
-        {(activeTab === "Chart" || activeTab === "Options") && (
-          <button
-            className="wm-chart-orientation-action wm-chart-draw-trigger"
-            ref={drawSheetTriggerRef}
-            type="button"
-            onClick={() => setDrawSheetOpen(o => !o)}
-            aria-label={drawSheetOpen ? "Close drawing tools" : "Open drawing tools"}
-            aria-expanded={drawSheetOpen}
-            aria-controls="chart-draw-sheet"
-            style={{
-              fontSize: 10,
-              letterSpacing: 0.3,
-              textTransform: "uppercase",
-              color: drawSheetOpen ? "#e8b923" : "#c9a55c",
-              background: drawSheetOpen ? "rgba(232, 185, 35, 0.12)" : "transparent",
-              border: drawSheetOpen ? "1px solid rgba(232, 185, 35, 0.5)" : "1px solid rgba(139,106,41,0.35)",
-              minHeight: 44,
-              padding: "3px 10px",
-              borderRadius: 4,
-              fontWeight: 700,
-              cursor: "pointer",
-              marginLeft: 4,
-            }}
-          >
-            Draw
-          </button>
-        )}
         {(chartCanvasVM.decisionWhy || chartPassportVM.capturedAt !== null) && (
           <button
             className="wm-chart-orientation-action wm-chart-why-trigger"
@@ -1494,6 +1470,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             onConnectBrokers={() => openBrokerConnect(toolsTriggerRef.current)}
             onCapture={() => openCaptureShare(toolsTriggerRef.current)}
             captureOpen={toolsSheetOpen}
+            onDraw={() => openDrawingTools(toolsTriggerRef.current)}
+            drawOpen={drawSheetOpen}
             onSmartMoney={() => setSmartMoneyOpen(o => !o)}
             smartMoneyActive={smartMoneyOpen}
             onDOM={() => setVpDomOpen(o => !o)}

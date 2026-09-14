@@ -21,6 +21,7 @@ describe("chart progressive disclosure", () => {
     expect(toolbar).toContain("Flow &amp; studies");
     expect(toolbar).toContain("Pine workspace");
     expect(toolbar).toContain("Capture &amp; share");
+    expect(toolbar).toContain("Drawing tools");
     expect(toolbar).toContain('aria-controls="wm-broker-connect"');
     expect(toolbar).toContain("onConnectBrokers();");
     expect(toolbar).toContain("Chart settings");
@@ -51,6 +52,20 @@ describe("chart progressive disclosure", () => {
     expect(dashboard).not.toContain("wm-chart-tools-trigger");
     expect(dashboard).toMatch(/activeTab !== "Chart" && activeTab !== "Options"[\s\S]{0,500}?wm-chart-capture-fallback[\s\S]{0,500}?openCaptureShare\(captureFallbackTriggerRef\.current\)[\s\S]{0,500}?aria-controls="chart-tools-sheet"/);
     expect(dashboard).toMatch(/const openCaptureShare = useCallback\(\(trigger: HTMLButtonElement \| null\) => \{\s*captureFallbackTriggerRef\.current = trigger;\s*setToolsSheetOpen\(true\);/);
+  });
+
+  it("rehomes drawing tools behind Tools without forking drawing state", () => {
+    const menuStart = toolbar.indexOf('role="menu"');
+    const menuEnd = toolbar.indexOf("</div>", menuStart);
+    const menu = toolbar.slice(menuStart, menuEnd);
+    expect(menu).toContain("onDraw();");
+    expect(menu).toContain("Drawing tools");
+    expect(menu).toContain('aria-controls="chart-draw-sheet"');
+    expect(dashboard).toContain("onDraw={() => openDrawingTools(toolsTriggerRef.current)}");
+    expect(dashboard).toContain('title="Drawing tools"');
+    expect(dashboard).toContain("fallbackTriggerRef={drawSheetTriggerRef}");
+    expect(dashboard).not.toContain("wm-chart-draw-trigger");
+    expect(dashboard).toMatch(/const openDrawingTools = useCallback\(\(trigger: HTMLButtonElement \| null\) => \{\s*drawSheetTriggerRef\.current = trigger;\s*setDrawSheetOpen\(true\);/);
   });
 
   it("keeps the dense flow and study strip closed until the trader asks for it", () => {
