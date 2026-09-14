@@ -500,14 +500,17 @@ function SessionIntelligenceStrip({
       role="group"
       aria-label="Session intelligence: aggregate coverage across all observed channels"
       style={{
+        // SCENE_FRAGMENTATION cure: SessionIntel used to render as a
+        // full-box stats card (rounded 12 + brass border + linear
+        // gradient over WM.surface.deep + inner brass shadow). Inside
+        // the sanctuary that reads as one more app card. Hairline top
+        // preserves the visual boundary; the sanctuary shows through.
         display: "grid",
         gap: 12,
         gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 150px), 1fr))",
-        padding: "14px 16px",
-        borderRadius: 12,
-        border: `1px solid ${WM.border.line}`,
-        background: `linear-gradient(180deg, ${WM.surface.deep} 0%, ${WM.surface.mid} 100%)`,
-        boxShadow: `inset 0 0 0 1px rgba(212,175,55,0.04)`,
+        padding: "14px 0 4px",
+        borderTop: `1px solid ${WM.border.hair}`,
+        background: "transparent",
       }}
     >
       <IntelCell label="SYMBOLS OBSERVED" value={symbolCount} tone={symbolCount > 0 ? WM.state.ok : WM.text.dim} />

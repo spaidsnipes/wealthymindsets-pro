@@ -1278,9 +1278,11 @@ export function ChartsDashboard() {
         })()}
       </div>
       {/* ── MooMoo-style chart tabs row ──────────────────────── */}
+      {/* Third chrome band → hairline. Asset-class switcher + symbol +
+          fidelity + timeframe belong INSIDE the room, not on top of it. */}
       <div className="wm-chart-tabs" style={{
-        height: 40, borderBottom: "1px solid #1E2030", display: "flex", alignItems: "center",
-        gap: 0, paddingLeft: 16, background: "#0D0E14", flexShrink: 0, overflowX: "auto",
+        height: 40, borderBottom: "1px solid rgba(139,106,41,0.15)", display: "flex", alignItems: "center",
+        gap: 0, paddingLeft: 16, background: "transparent", flexShrink: 0, overflowX: "auto",
         scrollbarWidth: "none",
       }}>
         {/* Asset class switcher (Stocks / Crypto / Futures / Forex / Indices / Metals) */}

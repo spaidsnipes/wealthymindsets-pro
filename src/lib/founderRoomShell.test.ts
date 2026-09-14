@@ -101,4 +101,72 @@ describe("Founder operating-room shell", () => {
     expect(suspense).not.toContain("linear-gradient");
     expect(route).not.toContain("linear-gradient");
   });
+
+  /**
+   * T-SILHOUETTE guard (Founder audit 2026-09-13).
+   *
+   * The audit's central law: "IF THE NORMAL FOUNDER URL STILL
+   * BLUR/SQUINTS INTO THE OLD CARD DASHBOARD, TICKET T FAILS." Every
+   * founder-family route lives inside WMExperienceShell, and every
+   * such route that paints its own opaque background CANCELS the
+   * sanctuary's vignette + grain + WATER-BREATH — the room silently
+   * turns back into an app pane.
+   *
+   * This test walks the full FOUNDER_ROOM_ROUTES registry and asserts
+   * that the SHELL header + aside + each route's outer wrapper +
+   * top-of-viewport header are visually room, not chrome. A future PR
+   * that quietly reintroduces `bg-wm-black`, `bg-wm-dark`, an opaque
+   * linear-gradient, or `WM.surface.deep` on any of these surfaces
+   * will fail the silhouette test at CI time rather than after the
+   * Founder video captures another July shell.
+   */
+  it("keeps every Asset-10 room transparent so the sanctuary reaches the trader", () => {
+    const shell = readFileSync(
+      resolve(__dirname, "../components/experience/WMExperienceShell.tsx"),
+      "utf8",
+    );
+    // The shell's header and aside must not paint over the sanctuary.
+    // We assert on the DISAPPEARANCE of the offender rather than the
+    // presence of the fix, because "background: WM.surface.deep" is the
+    // exact grammar that occluded the atmosphere before this cutover.
+    // A future refactor is free to write the fix any way it likes, as
+    // long as it does not resurrect the opaque plane.
+    const shellHeaderStart = shell.indexOf("Quiet chrome:");
+    const shellAsideStart = shell.indexOf("<aside");
+    const shellHeaderBlock = shell.slice(shellHeaderStart, shellHeaderStart + 900);
+    const shellAsideBlock = shell.slice(shellAsideStart, shellAsideStart + 700);
+    expect(shellHeaderBlock, "sanctuary header must not paint WM.surface.deep")
+      .not.toMatch(/background:\s*WM\.surface\.deep/);
+    expect(shellAsideBlock, "sanctuary aside must not paint WM.surface.deep")
+      .not.toMatch(/background:\s*WM\.surface\.deep/);
+
+    // Founder rooms whose outer wrappers used to paint over the shell.
+    const morning = readFileSync(resolve(__dirname, "../app/morning-prep/page.tsx"), "utf8");
+    expect(morning, "/morning-prep painted #050506 over the sanctuary")
+      .not.toMatch(/background:\s*"radial-gradient[^"]*#050506"/);
+    expect(morning, "/morning-prep header painted a #0b0b0d band")
+      .not.toMatch(/background:\s*"linear-gradient\(180deg,\s*#0b0b0d/);
+
+    const nectar = readFileSync(resolve(__dirname, "../app/nectar/page.tsx"), "utf8");
+    expect(nectar, "/nectar VaultHeader painted a WM.surface.deep band")
+      .not.toMatch(/background:\s*`linear-gradient\(180deg,\s*\$\{WM\.surface\.deep\}/);
+
+    const journal = readFileSync(resolve(__dirname, "../app/journal/page.tsx"), "utf8");
+    expect(journal, "/journal outer wrapper wore bg-wm-black over the sanctuary")
+      .not.toMatch(/style=\{\{[^}]*overflow:"hidden"[^}]*\}\}\s*\n?\s*className="bg-wm-black"/);
+
+    const paper = readFileSync(resolve(__dirname, "../app/paper/page.tsx"), "utf8");
+    expect(paper, "/paper outer wrapper wore bg-wm-black over the sanctuary")
+      .not.toMatch(/clsx\(styles\.page,\s*"bg-wm-black"\)/);
+
+    const charts = readFileSync(resolve(__dirname, "../components/chart/ChartsDashboard.tsx"), "utf8");
+    // /charts default theme must be transparent; neon is preserved as an
+    // alternate visual constitution.
+    expect(charts, "/charts default painted #0D0E14 over the sanctuary")
+      .toMatch(/theme === "neon" \? "#02060a" : "transparent"/);
+    expect(charts, "chart orientation strip painted an opaque gradient band")
+      .not.toMatch(/background:\s*"linear-gradient\(180deg,\s*rgba\(11,11,13,0\.9\),\s*#0D0E14\)"/);
+    expect(charts, "chart category strip painted an opaque #0D0E14 band")
+      .not.toMatch(/background:\s*"#0D0E14",\s*\n?\s*flexShrink: 0/);
+  });
 });
