@@ -37,6 +37,8 @@ import {
   DVP_MIN_CAPTION_W,
   dvpBinCount,
   dvpBoxAdmitsProfile,
+  dvpProfileRefusal,
+  dvpRefusalMessage,
   dvpColumns,
   dvpRowBox,
   dvpRowCulled,
@@ -86,10 +88,97 @@ describe("dvpBoxAdmitsProfile — a box too small for two labelled columns is re
   });
 
   it("refusal is the branch that shows the hint — so it must be reachable", () => {
-    // The draw loop's else-branch writes "draw a wider box over bars". If this
-    // predicate could never be false the trader would get an empty box with no
+    // The draw loop's else-branch writes the refusal sentence. If this predicate
+    // could never be false the trader would get an empty box with no
     // explanation, which is an undisclosed absence.
     expect(dvpBoxAdmitsProfile(20, 20, 3)).toBe(false);
+  });
+
+  it("never disagrees with the reason given to the trader", () => {
+    // The predicate is DERIVED from dvpProfileRefusal for exactly this reason.
+    // If they ever drift apart, the box would refuse while the message says
+    // nothing is wrong, or draw while the message names an obstacle.
+    for (const w of [0, 20, DVP_MIN_BOX_W, DVP_MIN_BOX_W + 1, 548]) {
+      for (const h of [0, 10, DVP_MIN_BOX_H, DVP_MIN_BOX_H + 1, 142]) {
+        for (const rows of [0, 1, 12]) {
+          expect(dvpBoxAdmitsProfile(w, h, rows)).toBe(
+            dvpProfileRefusal(w, h, rows) === "none",
+          );
+        }
+      }
+    }
+  });
+});
+
+describe("dvpProfileRefusal — the trader is told the obstacle that is actually there", () => {
+  /**
+   * THE DEFECT THIS BLOCK EXISTS TO KEEP DEAD.
+   *
+   * Observed live on wealthymindsetspro.com on 2026-09-15, TSLA 15m: a delta-vp
+   * box measuring roughly 548x142 CSS px displayed "Delta+VP — draw a wider box
+   * over bars". It was an order of magnitude past BOTH minimums. It was not
+   * narrow. There were simply no per-level rows for those bars, and no amount of
+   * dragging would ever produce one.
+   */
+  it("names a size obstacle only when the size is the obstacle", () => {
+    expect(dvpProfileRefusal(548, 142, 0)).toBe("no-levels");
+    expect(dvpProfileRefusal(40, 142, 12)).toBe("too-narrow");
+    expect(dvpProfileRefusal(548, 12, 12)).toBe("too-short");
+    expect(dvpProfileRefusal(548, 142, 12)).toBe("none");
+  });
+
+  it("puts no-levels AHEAD of both size reasons when a box is both", () => {
+    // A size complaint implies "resize and you will get your profile". That is a
+    // promise this build cannot keep when there is nothing to bin, so the
+    // unfixable cause is named first even though the box is also too small.
+    expect(dvpProfileRefusal(10, 10, 0)).toBe("no-levels");
+    expect(dvpProfileRefusal(0, 0, 0)).toBe("no-levels");
+    expect(dvpProfileRefusal(-100, -100, -3)).toBe("no-levels");
+  });
+
+  it("refuses AT each minimum and admits one pixel past it", () => {
+    expect(dvpProfileRefusal(DVP_MIN_BOX_W, 142, 12)).toBe("too-narrow");
+    expect(dvpProfileRefusal(DVP_MIN_BOX_W + 1, 142, 12)).toBe("none");
+    expect(dvpProfileRefusal(548, DVP_MIN_BOX_H, 12)).toBe("too-short");
+    expect(dvpProfileRefusal(548, DVP_MIN_BOX_H + 1, 12)).toBe("none");
+  });
+
+  it("checks width before height, so the first thing to fix is named once", () => {
+    expect(dvpProfileRefusal(10, 10, 12)).toBe("too-narrow");
+  });
+});
+
+describe("dvpRefusalMessage — one sentence per obstacle, and no false promises", () => {
+  it("gives every refusal its own sentence", () => {
+    const seen = new Set(
+      (["no-levels", "too-narrow", "too-short"] as const).map(dvpRefusalMessage),
+    );
+    expect(seen.size).toBe(3);
+    for (const m of seen) expect(m.length).toBeGreaterThan(0);
+  });
+
+  it("says nothing when nothing is wrong", () => {
+    expect(dvpRefusalMessage("none")).toBe("");
+  });
+
+  it("does NOT ask the trader to resize when resizing cannot help", () => {
+    // This is the whole atom. The old single string said "draw a wider box over
+    // bars" for all three causes, sending the trader on an errand that could
+    // never succeed. The no-levels sentence must not name a box action.
+    const m = dvpRefusalMessage("no-levels");
+    expect(m).toMatch(/no per-level/i);
+    expect(m).not.toMatch(/wider|narrow|short|bigger|larger|resize|box/i);
+  });
+
+  it("DOES ask for a resize on the two causes a resize can fix", () => {
+    expect(dvpRefusalMessage("too-narrow")).toMatch(/narrow/i);
+    expect(dvpRefusalMessage("too-short")).toMatch(/short/i);
+  });
+
+  it("every sentence still identifies the tool it came from", () => {
+    for (const r of ["no-levels", "too-narrow", "too-short"] as const) {
+      expect(dvpRefusalMessage(r)).toContain("Delta+VP");
+    }
   });
 });
 

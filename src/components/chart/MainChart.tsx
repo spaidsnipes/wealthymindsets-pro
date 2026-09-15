@@ -59,6 +59,8 @@ import {
   DVP_MIN_CAPTION_W,
   dvpBinCount,
   dvpBoxAdmitsProfile,
+  dvpProfileRefusal,
+  dvpRefusalMessage,
   dvpColumns,
   dvpRowBox,
   dvpRowCulled,
@@ -6418,7 +6420,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             if (rightW > DVP_MIN_CAPTION_W) ctx.fillText("VOLUME", (midX + rx + rw) / 2, ry + 2);
             ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
           } else {
-            chip("Delta+VP — draw a wider box over bars", rx + 2, ry - 3, col);
+            // WHY not one sentence: the refusal has three unrelated causes and
+            // only two of them can be fixed by resizing. Observed live on
+            // 2026-09-15 (TSLA 15m) a ~548x142px box — an order of magnitude past
+            // both minimums — telling the trader to "draw a wider box". The cause
+            // was no per-level data. Naming the real obstacle is the fix.
+            chip(dvpRefusalMessage(dvpProfileRefusal(rw, rh, dvp.rows.length)), rx + 2, ry - 3, col);
           }
           ctx.restore();
         }

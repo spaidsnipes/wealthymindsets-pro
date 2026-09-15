@@ -159,6 +159,23 @@ describe("deltaVPGeometry adoption — the draw loop must delegate (Sentinel)", 
     ).toEqual([]);
   });
 
+  it("does not hard-code a refusal sentence back into the draw loop", () => {
+    // THE DEFECT: the block used to answer all three refusal causes with one
+    // string, "Delta+VP — draw a wider box over bars". Observed live on
+    // 2026-09-15 on a ~548x142px box, where the cause was no per-level data and
+    // resizing could never help. The sentence now belongs to dvpRefusalMessage,
+    // which is the only place the three causes can be told apart.
+    const hardCoded = /chip\(\s*"Delta\+VP\s*—[^"]*"/.exec(BLOCK);
+    expect(
+      hardCoded?.[0] ?? null,
+      `a refusal sentence is spelled out in the draw loop again. Only ` +
+        `dvpRefusalMessage(dvpProfileRefusal(...)) may decide it — a literal ` +
+        `here cannot tell "no per-level data" from "too narrow" and will send ` +
+        `the trader to resize a box that is already large enough.`,
+    ).toBeNull();
+    expect(BLOCK).toContain("dvpRefusalMessage(dvpProfileRefusal(");
+  });
+
   it("keeps the two bar-length laws under DIFFERENT names", () => {
     // deltaVPGeometry.ts's header records that the first draft exported a second
     // `vpBarWidth` and tsc refused it as a duplicate identifier against

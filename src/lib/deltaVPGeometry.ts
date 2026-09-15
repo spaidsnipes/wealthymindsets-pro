@@ -67,9 +67,69 @@ export function dvpBinCount(boxHeight: number): number {
   return Math.max(6, Math.min(40, Math.round(boxHeight / 22)));
 }
 
-/** True when the box is large enough to draw a profile rather than a hint. */
+/**
+ * True when the box can be drawn as a profile rather than a hint.
+ *
+ * Deliberately DERIVED from `dvpProfileRefusal` rather than repeating the three
+ * conditions. The predicate and the explanation must never be able to disagree:
+ * a box that admits a profile while the refusal says "too-narrow" would put the
+ * draw loop and the message it prints on opposite sides of the same question.
+ */
 export function dvpBoxAdmitsProfile(boxWidth: number, boxHeight: number, rowCount: number): boolean {
-  return rowCount > 0 && boxWidth > DVP_MIN_BOX_W && boxHeight > DVP_MIN_BOX_H;
+  return dvpProfileRefusal(boxWidth, boxHeight, rowCount) === "none";
+}
+
+/**
+ * WHY a box was refused a profile.
+ *
+ * ── The defect this exists to kill ───────────────────────────────────────────
+ * `dvpBoxAdmitsProfile` refuses for THREE unrelated reasons, and the draw loop
+ * used to answer all three with one sentence: "draw a wider box over bars".
+ * Observed live on 2026-09-15 on TSLA 15m — a box measuring roughly 548x142 CSS
+ * px, an order of magnitude past both minimums, showed that message. It was not
+ * too narrow. There were simply no per-level rows for those bars.
+ *
+ * So the trader is told to take an action that CANNOT help, and drags a bigger
+ * and bigger box forever. The honest answer is that no box size will produce a
+ * profile without per-level data.
+ *
+ * ── Why `no-levels` outranks the size reasons ────────────────────────────────
+ * Deliberately checked FIRST, even when the box is also too small. A size
+ * complaint implies "resize and you will get your profile", which is a promise
+ * this build cannot keep when there is nothing to bin. Naming the unfixable
+ * cause first is the difference between a hint and a wild goose chase.
+ *
+ * Absence is not a small number and it is not a narrow box (canon H1).
+ */
+export type DVPRefusal = "none" | "no-levels" | "too-narrow" | "too-short";
+
+export function dvpProfileRefusal(
+  boxWidth: number,
+  boxHeight: number,
+  rowCount: number,
+): DVPRefusal {
+  if (rowCount <= 0) return "no-levels";
+  if (boxWidth <= DVP_MIN_BOX_W) return "too-narrow";
+  if (boxHeight <= DVP_MIN_BOX_H) return "too-short";
+  return "none";
+}
+
+/**
+ * The sentence shown in place of the profile. Each names the ACTUAL obstacle,
+ * and only the two size messages ask the trader to do something — because only
+ * those two can be fixed by doing it.
+ */
+export function dvpRefusalMessage(refusal: DVPRefusal): string {
+  switch (refusal) {
+    case "no-levels":
+      return "Delta+VP — no per-level trade data for these bars";
+    case "too-narrow":
+      return "Delta+VP — box too narrow for two columns";
+    case "too-short":
+      return "Delta+VP — box too short to bin a profile";
+    case "none":
+      return "";
+  }
 }
 
 export interface DVPColumns {
