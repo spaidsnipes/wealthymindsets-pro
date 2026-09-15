@@ -59,6 +59,7 @@ import { selectFillQueueBasis, describeFillQueueBasis } from "@/lib/paperFillQue
 import { selectExecutionRealism, describeExecutionRealism } from "@/lib/paperExecutionRealism";
 import { selectOrderRest, describeRestingBook } from "@/lib/paperOrderTimeInForce";
 import { selectCancelCertainty, selectCancelledOrderNote } from "@/lib/paperCancelCertainty";
+import { selectStopRealism, selectStopOrderNote } from "@/lib/paperStopRealism";
 import { selectPaperWinRate, describePaperWinRate } from "@/lib/paperTradeOutcome";
 import {
   selectPositionMark,
@@ -382,6 +383,41 @@ function CancelCertaintyNote({ orders }: { orders: readonly Order[] }) {
 
 function CancelledOrderNote({ ord }: { ord: Order }) {
   const sentence = selectCancelledOrderNote(ord);
+  if (sentence == null) return null;
+  return (
+    <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed text-wm-amber/90">
+      {sentence}
+    </p>
+  );
+}
+
+/**
+ * The stop that was a guarantee. See paperStopRealism — `selectOrderFill`
+ * returns the OBSERVED price for `type:"stop"`, so the price that triggered the
+ * stop is also the price it filled at. The distance quoted here is derived from
+ * `stopPx` and `fillPx`, which the order already carried; nothing is modelled.
+ */
+function StopRealismNote({ orders }: { orders: readonly Order[] }) {
+  const r = selectStopRealism(orders);
+  if (r.heading == null) return null;
+  return (
+    <div
+      role="note"
+      aria-label="Stops on /paper fill at the price that triggered them"
+      className="px-3 py-2 border-b border-wm-border/40 bg-wm-amber/5"
+    >
+      <p className="text-[10px] font-bold uppercase tracking-wider text-wm-amber/90">
+        {r.heading}
+      </p>
+      {r.sentences.map(s => (
+        <p key={s} className="mt-1 text-[10px] leading-relaxed text-wm-amber/90">{s}</p>
+      ))}
+    </div>
+  );
+}
+
+function StopOrderNote({ ord }: { ord: Order }) {
+  const sentence = selectStopOrderNote(ord);
   if (sentence == null) return null;
   return (
     <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed text-wm-amber/90">
@@ -2708,6 +2744,7 @@ export default function PaperTradingPage() {
                   <ExecutionRealismNote orders={orders} />
                   <RestingBookNote orders={orders} nowMs={restNowMs} />
                   <CancelCertaintyNote orders={orders} />
+                  <StopRealismNote orders={orders} />
                   <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-3 py-1.5 sticky top-0 wm-sticky-glass"
                     style={{ gridTemplateColumns:"70px 50px 50px 60px 80px 80px 90px 48px" }}>
                     <span>Symbol</span><span>Side</span><span>Type</span><span>Qty</span>
@@ -2780,6 +2817,7 @@ export default function PaperTradingPage() {
                         policy they never chose. */}
                     <RestingOrderNote ord={ord} nowMs={restNowMs} />
                     <CancelledOrderNote ord={ord} />
+                    <StopOrderNote ord={ord} />
                     {/* The artery's last visible step: browser/iPad/phone
                         projection. The trader asks and his ACCOUNT answers —
                         not this tab. Asked on demand rather than on mount,
