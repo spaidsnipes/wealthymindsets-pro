@@ -150,6 +150,139 @@ export function tradePriceFact(
  * The symbol itself. `t.symbol ?? "—"` made the row's IDENTITY a glyph — the
  * one field that tells the trader which trade they are looking at.
  */
+/**
+ * ── DEFECT FOUR: THE COLUMN THAT ASKED THE WRONG FIELD ───────────────────
+ *
+ * The row's date cell read:
+ *
+ *     date: t.createdAt ? new Date(t.createdAt).toLocaleDateString(…) : "—",
+ *
+ * `/journal` HAS NEVER WRITTEN `createdAt`. Its save path writes
+ * `date: new Date().toISOString().slice(0, 10)` and nothing else. The ternary's
+ * true arm was therefore UNREACHABLE for every journal-sourced row, and every
+ * one of them printed `—` — while the very object being destructured two lines
+ * above carried the date under `date`, a field the local type even DECLARES.
+ *
+ * WM held the date, in the same expression, and said nothing. That is the
+ * understating-knowledge defect from the /charts header, on a second surface:
+ * the ternary was not measuring absence, it was measuring a typo.
+ *
+ * ── DEFECT FIVE: A DATE-ONLY STRING IS NOT AN INSTANT ────────────────────
+ *
+ * MEASURED, in America/New_York:
+ *
+ *     new Date("2026-03-03").toLocaleDateString("en-US", {month:"short", day:"numeric"})
+ *       → "Mar 2"
+ *
+ * `YYYY-MM-DD` is parsed by the spec as UTC MIDNIGHT, then rendered in local
+ * time — so west of Greenwich every date-only journal entry renders as THE DAY
+ * BEFORE the day the trader logged it. Not a formatting wobble: a wrong date on
+ * the trader's own record, printed with no hedge. A calendar date carries no
+ * timezone, so it must never be routed through an instant to be displayed.
+ *
+ * ── DEFECT SIX: "Invalid Date" IS "NaNR" IN A DATE'S VOCABULARY ──────────
+ *
+ * `t.createdAt ? …` is a TRUTHINESS test, not a parse check. Any non-empty
+ * string passes it, so a corrupt value reaches `toLocaleDateString` and the cell
+ * renders the literal text
+ *
+ *     Invalid Date
+ *
+ * in the same mono as a real date — the exact failure `riskMultipleFact` was
+ * written to end, wearing different words.
+ *
+ * ── DEFECT SEVEN: TWO POPULATIONS WEARING ONE COLUMN ─────────────────────
+ *
+ * The journal mapper feeds this column the date the trade was OPENED; the paper
+ * mapper feeds it the date the trade was CLOSED. They interleave in one list
+ * under no header at all, so two rows showing the same figure are answering two
+ * different questions and nothing on screen says which. The basis now travels
+ * WITH the date.
+ *
+ * ── WHAT IS DELIBERATELY *NOT* CLAIMED ───────────────────────────────────
+ *
+ * Nothing here infers a date from a neighbouring field, and nothing substitutes
+ * "today" for a missing one. A row whose date WM cannot read says so and keeps
+ * its place in the list — a trade the trader took is not erased because one
+ * field is unreadable.
+ */
+
+/** Which question this row's date answers. The two are NOT interchangeable. */
+export type TradeDateBasis = "OPENED" | "CLOSED";
+
+export interface TradeDateFact extends TradeRowFact {
+  /** Rendered beneath the date so the column cannot conflate its two feeds. */
+  readonly basisLabel: string;
+}
+
+const DATE_MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/** `YYYY-MM-DD`, exactly — the shape /journal writes. */
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+function basisWord(basis: TradeDateBasis): string {
+  return basis === "OPENED" ? "opened" : "closed";
+}
+
+export function tradeDateFact(
+  raw: unknown,
+  basis: TradeDateBasis,
+  symbol: string,
+): TradeDateFact {
+  const word = basisWord(basis);
+  const basisLabel = word;
+
+  if (raw == null || (typeof raw === "string" && raw.trim() === "")) {
+    return {
+      text: "No date",
+      state: "NOT_RECORDED",
+      basisLabel,
+      reason: `This ${symbol} trade was saved without a date, so WM cannot say when it was ${word}. WM will not substitute today's date or infer one from the row's position in the list — the list is not ordered by time.`,
+    };
+  }
+
+  if (typeof raw === "string") {
+    const m = DATE_ONLY.exec(raw.trim());
+    if (m) {
+      // A CALENDAR DATE, NOT AN INSTANT. Formatted from its own digits.
+      // Routing it through `new Date(…)` would parse it as UTC midnight and
+      // render the PREVIOUS day everywhere west of Greenwich.
+      const year = Number(m[1]);
+      const month = Number(m[2]);
+      const day = Number(m[3]);
+      if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        return {
+          text: `${DATE_MONTHS[month - 1]} ${day} '${m[1].slice(2)}`,
+          state: "MEASURED",
+          basisLabel,
+          reason: `The date the trader recorded for this ${symbol} trade, the day it was ${word}. It is a calendar date with no time and no timezone, so WM prints its digits as written rather than converting it to an instant — the previous rendering did convert it, and showed the day BEFORE the logged day in every timezone west of Greenwich. The year is shown because a trade from a prior year is not a recent one.`,
+        };
+      }
+    }
+  }
+
+  const parsed =
+    typeof raw === "string" || typeof raw === "number" ? new Date(raw) : new Date(Number.NaN);
+  if (!Number.isFinite(parsed.getTime())) {
+    return {
+      text: "Unreadable",
+      state: "NOT_NUMERIC",
+      basisLabel,
+      reason: `The date stored on this ${symbol} trade is present but WM cannot read it as a date. It is named as unreadable rather than formatted — the previous rendering only tested that the value was truthy, so a corrupt entry reached the formatter and printed the literal text "Invalid Date" in the same mono as a real date.`,
+    };
+  }
+
+  return {
+    text: `${DATE_MONTHS[parsed.getMonth()]} ${parsed.getDate()} '${String(parsed.getFullYear()).slice(2)}`,
+    state: "MEASURED",
+    basisLabel,
+    reason: `The timestamp recorded when this ${symbol} trade was ${word}, shown in this device's local timezone. This value carries a time of day, so unlike a calendar date it genuinely is an instant and WM converts it — but WM does not claim the exchange agreed it was that date.`,
+  };
+}
+
 export function tradeSymbolFact(symbol: unknown): TradeRowFact {
   if (typeof symbol === "string" && symbol.trim().length > 0) {
     return {

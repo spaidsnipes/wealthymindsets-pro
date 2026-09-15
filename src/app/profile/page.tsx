@@ -37,8 +37,10 @@ import { paperPositionsToCsv } from "@/lib/paperPositionsExport";
 import { classifyTradeDirection, tradeDirectionBadge, type TradeDirectionBadge } from "@/lib/profile/tradeRowDirection";
 import {
   riskMultipleFact,
+  tradeDateFact,
   tradePriceFact,
   tradeSymbolFact,
+  type TradeDateFact,
   type TradeRowFact,
 } from "@/lib/profile/tradeRowFacts";
 
@@ -65,7 +67,12 @@ const EMPTY_PROFILE: ProfileData = {
    the word "Unresolved" about the SAME condition, and because `t.rr != null`
    admitted NaN and printed "NaNR" in measurement gold.
    See src/lib/profile/tradeRowFacts.ts. */
-interface TradeRow { sym: TradeRowFact; dir: TradeDirectionBadge; entry: TradeRowFact; exit: TradeRowFact; pnl: string; rr: TradeRowFact; date: string; outcomeResolved: boolean; }
+/* `date` was the last bare string on the row, and the worst of them: it read
+   `t.createdAt`, a field /journal has never written, so it printed `—` on every
+   journal row while the date sat in the same object. It also routed a date-only
+   string through `new Date()` and rendered THE DAY BEFORE west of Greenwich.
+   See tradeDateFact — DEFECTS FOUR through SEVEN. */
+interface TradeRow { sym: TradeRowFact; dir: TradeDirectionBadge; entry: TradeRowFact; exit: TradeRowFact; pnl: string; rr: TradeRowFact; date: TradeDateFact; outcomeResolved: boolean; }
 interface LikedTrack { title: string; artist: string; duration: string; }
 
 const CIRCLE_OF_EXCELLENCE: { name: string; color: string; avatar: string }[] = [];
@@ -228,7 +235,12 @@ function ProfilePageInner() {
             exit: tradePriceFact(t.exitPrice, "exit", sym.text),
             pnl: resolvedPnl !== null ? `${resolvedPnl >= 0 ? "+" : ""}$${Math.abs(resolvedPnl).toFixed(0)}` : "Unresolved",
             rr: riskMultipleFact(t.rr, outcomeResolved, sym.text),
-            date: t.createdAt ? new Date(t.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—",
+            // `createdAt` FIRST because a full timestamp is more precise than a
+            // calendar date — but `date` is the field /journal actually writes,
+            // and reading only `createdAt` made this cell a dash on every
+            // journal row while the date sat in the same object. See
+            // tradeDateFact DEFECT FOUR.
+            date: tradeDateFact(t.createdAt ?? t.date, "OPENED", sym.text),
             outcomeResolved,
           };
         }),
@@ -243,7 +255,9 @@ function ProfilePageInner() {
             exit: tradePriceFact(t.exitPrice, "exit", sym.text),
             pnl: resolvedPnl !== null ? `${resolvedPnl >= 0 ? "+" : ""}$${Math.abs(resolvedPnl).toFixed(0)}` : "Unresolved",
             rr: riskMultipleFact(t.rr, outcomeResolved, sym.text),
-            date: t.closedAt ? new Date(t.closedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—",
+            // CLOSED, not OPENED — the other mapper feeds this same column the
+            // date the trade was opened. The basis travels with the value.
+            date: tradeDateFact(t.closedAt, "CLOSED", sym.text),
             outcomeResolved,
           };
         }),
@@ -867,7 +881,21 @@ function ProfilePageInner() {
                 </div>
               ) : recentTrades.map((t, i) => (
                 <div key={i} className="glass rounded-xl p-3 flex items-center gap-4 hover:border-wm-border/80 transition-all">
-                  <div className="text-xs font-mono text-wm-text-muted w-16 shrink-0">{t.date}</div>
+                  {/* The BASIS rides under the date. This one column is fed the
+                      OPENED date by the journal mapper and the CLOSED date by
+                      the paper mapper, and the rows interleave — without the
+                      word beneath it, two identical-looking cells answer two
+                      different questions and nothing says which. */}
+                  <div
+                    className="w-20 shrink-0 leading-tight"
+                    title={t.date.reason}
+                    aria-label={t.date.reason}
+                  >
+                    <div className={clsx("text-xs font-mono",
+                      t.date.state === "MEASURED" ? "text-wm-text-muted" : "text-wm-text-dim text-[10px]")}
+                    >{t.date.text}</div>
+                    <div className="text-[9px] uppercase tracking-wide text-wm-text-dim">{t.date.basisLabel}</div>
+                  </div>
                   <div
                     className={clsx("font-bold w-14 shrink-0",
                       t.sym.state === "MEASURED" ? "text-wm-text" : "text-wm-text-dim text-[10px] leading-tight")}

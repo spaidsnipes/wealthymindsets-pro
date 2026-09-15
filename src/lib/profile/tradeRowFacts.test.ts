@@ -10,10 +10,83 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   riskMultipleFact,
+  tradeDateFact,
   tradePriceFact,
   tradeSymbolFact,
   type TradeRowFact,
 } from "./tradeRowFacts";
+
+describe("tradeDateFact — the row's anchor in time", () => {
+  it("× THE UTC MIDNIGHT SHIFT: a calendar date is never routed through an instant", () => {
+    // `new Date("2026-03-03")` is UTC midnight; rendered in America/New_York
+    // that is "Mar 2". MEASURED — this is the day BEFORE the trader logged.
+    const f = tradeDateFact("2026-03-03", "OPENED", "NVDA");
+    expect(f.state).toBe("MEASURED");
+    expect(f.text).toBe("Mar 3 '26");
+    expect(f.text).not.toContain("Mar 2");
+    expect(f.reason).toMatch(/day BEFORE the logged day/i);
+  });
+
+  it("× THE DROPPED YEAR: a trade from a prior year is not a recent one", () => {
+    expect(tradeDateFact("2024-12-31", "CLOSED", "TSLA").text).toBe("Dec 31 '24");
+    expect(tradeDateFact("2024-12-31", "CLOSED", "TSLA").text).not.toBe("Dec 31");
+  });
+
+  it('× THE "Invalid Date": a truthy string is not a parsed date', () => {
+    for (const v of ["last tuesday", "2026-13-45x", "{}", 0 / 0]) {
+      const f = tradeDateFact(v, "OPENED", "TSLA");
+      expect(f.state).toBe("NOT_NUMERIC");
+      expect(f.text).toBe("Unreadable");
+      expect(f.text).not.toMatch(/Invalid Date/);
+      expect(f.reason).toMatch(/Invalid Date/);
+    }
+  });
+
+  it("× THE BARE GLYPH: an absent date is named, never a dash, never today", () => {
+    for (const v of [null, undefined, "", "   "]) {
+      const f = tradeDateFact(v, "CLOSED", "TSLA");
+      expect(f.state).toBe("NOT_RECORDED");
+      expect(f.text).toBe("No date");
+      expect(f.text).not.toBe("—");
+      expect(f.reason).toMatch(/will not substitute today's date/i);
+    }
+  });
+
+  it("× TWO POPULATIONS, ONE COLUMN: the basis travels with the date", () => {
+    const opened = tradeDateFact("2026-03-03", "OPENED", "NVDA");
+    const closed = tradeDateFact("2026-03-03", "CLOSED", "NVDA");
+    expect(opened.text).toBe(closed.text);      // identical figure …
+    expect(opened.basisLabel).toBe("opened");   // … distinguishable basis
+    expect(closed.basisLabel).toBe("closed");
+    expect(opened.reason).not.toBe(closed.reason);
+  });
+
+  it("a real timestamp IS an instant and is converted, without claiming more", () => {
+    const f = tradeDateFact("2026-03-03T14:30:00.000Z", "CLOSED", "NVDA");
+    expect(f.state).toBe("MEASURED");
+    expect(f.reason).toMatch(/genuinely is an instant/i);
+    expect(f.reason).toMatch(/does not claim the exchange agreed/i);
+  });
+});
+
+describe("/profile Recent Trades date adoption", () => {
+  const src = readFileSync(join(process.cwd(), "src/app/profile/page.tsx"), "utf8");
+
+  it("× THE FIELD THAT WAS NEVER WRITTEN: the row reads the field /journal saves", () => {
+    // /journal writes `date:`, never `createdAt`. Reading only `createdAt`
+    // made the true arm of the old ternary UNREACHABLE on every journal row.
+    const journal = readFileSync(join(process.cwd(), "src/app/journal/page.tsx"), "utf8");
+    expect(journal).not.toContain("createdAt:");
+    expect(src).toContain("t.createdAt ?? t.date");
+  });
+
+  it("× THE BARE GLYPH ON SCREEN: the date cell no longer ternaries into a dash", () => {
+    expect(src).not.toMatch(/toLocaleDateString\("en-US", \{ month: "short", day: "numeric" \}\) : "—"/);
+    expect(src).toContain("tradeDateFact");
+    expect(src).toContain("t.date.basisLabel");
+    expect(src).toContain("title={t.date.reason}");
+  });
+});
 
 describe("riskMultipleFact", () => {
   it("states a recorded multiple and says WM did not derive it", () => {
