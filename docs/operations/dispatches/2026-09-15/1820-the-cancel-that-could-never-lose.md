@@ -2,7 +2,7 @@
 
 **Atom:** `348d7d6` — /paper discloses that its cancels never race a fill
 **Gate:** Founding Execution Contract §13 — paper execution state machine realism
-**Status:** committed, pushed, **awaiting live confirmation** (deploy poller running)
+**Status:** committed, pushed, **LIVE OBSERVED** on wealthymindsetspro.com/paper
 
 Twin of `165b039` ([the order that could never expire](./1740-the-order-that-could-never-expire.md)).
 Same gate, adjacent truth: an order here never expires, **and** a cancel here
@@ -100,6 +100,48 @@ passed GREEN for `ExecutionRealismNote`.
 
 - `vitest run` — **587 files / 6830 tests PASS**, `VITEST_EXIT=0`
 - `tsc --noEmit` — `TSC_EXIT=0`
+
+## LIVE OBSERVED — production, not localhost
+
+Three probe orders were injected into an isolated copy of the browser book
+(`status:"cancelled"`, types `market` / `limit` / `stop`), the page reloaded, and
+the ORDERS tab opened. Production rendered, verbatim:
+
+```
+3 ORDERS WERE CANCELLED WITH CERTAINTY
+
+A cancel here is decided locally, before any quote is consulted, so it can never
+lose a race to a fill. At a real venue a cancel is a REQUEST: if your order is
+marketable when the request lands, you are filled anyway — and that is exactly
+the moment you most wanted out.
+
+1 of them was a MARKET order. /paper holds a market order as pending until the
+next quote tick, so it can be taken back. At a real broker a market order is
+gone the moment you send it — there is nothing left to cancel.
+
+TSLA  BUY   Market  1       —          —   cancelled
+  This was a MARKET order, and you took it back. At a real broker you could not
+  have: a market order is gone the moment it is sent, with nothing resting at
+  the venue to cancel.
+
+AAPL  SELL  Limit   1  $99,999.00      —   cancelled
+  (no note)
+
+MSFT  BUY   Stop    1       —          —   cancelled
+  (no note)
+```
+
+Three things are proven by that shape, not merely asserted:
+
+1. **The counts disagree on purpose** — `cancelledCount` 3, `cancelledMarketCount` 1.
+2. **The per-row note is reserved.** Only the MARKET row carries one. The limit
+   and stop rows are silent — the anti-wallpaper rule, holding in production.
+3. **Nothing was refused.** All three orders still read `cancelled`.
+
+**Browser-restore receipt:** the Founder's own book was backed up before the
+probe and restored afterwards —
+`restored_identical=true bytes=7501 orders=0 trades=0 backup_key_removed=true`.
+No real order was ever placed; no financial action was taken.
 
 ## What this atom does and does not claim
 
