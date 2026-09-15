@@ -172,6 +172,108 @@ export function validateCanonicalMarketState(input: CanonicalMarketStateInput): 
   return [...new Set(errors)];
 }
 
+/**
+ * THE EIGHT NAMED DIMENSIONS, in one place.
+ *
+ * `/command-deck` renders `0/8 dimensions resolved` from this count; any
+ * claim about "all of WM's determinations" has to agree with it.
+ */
+export const MARKET_STATE_DIMENSION_KEYS = [
+  "direction", "location", "aggression", "regime",
+  "structure", "volatility", "profile", "orderFlow",
+] as const;
+
+export type ContradictionDetectability =
+  /** Fewer than two determinations exist. Nothing COULD have disagreed. */
+  | "NOTHING_TO_COMPARE"
+  /** At least two determinations exist and were compared. */
+  | "COMPARABLE";
+
+export interface ContradictionClaim {
+  /** Never a bare "0" unless two things existed that could have disagreed. */
+  readonly value: string;
+  readonly measured: boolean;
+  readonly warn: boolean;
+  /** Always states the INPUT — how many determinations there were to compare. */
+  readonly detail: string;
+  readonly detectability: ContradictionDetectability;
+  readonly determinationCount: number;
+}
+
+/**
+ * THE SINGLE WRITER for every contradiction claim WM makes.
+ *
+ * `/command-deck` Data Fidelity rendered `CONTRADICTIONS 0` as a bare number in
+ * the OK tone, four pixels from `UNKNOWNS 8` in the watch tone. Read together
+ * those two cells say: *WM determined very little, and found no disagreement in
+ * what it determined.* The second half is not a finding.
+ *
+ * **A contradiction requires two determinations to disagree.** With zero or one
+ * determination on the packet, `contradictions.length === 0` is arithmetic about
+ * an empty set, not evidence of coherence — exactly the shape cured for GAPS in
+ * `coverageMap.describeGapCoverage`. Same law, different cell.
+ *
+ * This deliberately does NOT invent contradiction detectors. LABEL-NOT-MODEL:
+ * the cure for an overclaim is a disclosure sentence, never a fabricated
+ * number and never a changed selector. Widening what WM cross-checks is real
+ * work with real evidence requirements; it is not this commit.
+ */
+export function describeContradictionCoverage(state: {
+  readonly contradictions: readonly string[];
+  readonly price?: { readonly last: number | null } | null;
+  readonly lastBar?: { readonly close: number } | null;
+} & Partial<Record<(typeof MARKET_STATE_DIMENSION_KEYS)[number], MarketStateDimension>>,
+): ContradictionClaim {
+  // A "determination" is anything WM has actually committed to a value for.
+  // Only those can disagree with one another.
+  let determinationCount = 0;
+  for (const key of MARKET_STATE_DIMENSION_KEYS) {
+    if (state[key]?.resolution === "RESOLVED") determinationCount += 1;
+  }
+  if (state.price?.last != null) determinationCount += 1;
+  if (state.lastBar?.close != null) determinationCount += 1;
+
+  const found = state.contradictions.length;
+
+  // An OBSERVED contradiction is always reportable, whatever the denominator.
+  // Finding one proves at least two determinations existed to disagree.
+  if (found > 0) {
+    return {
+      value: String(found),
+      measured: true,
+      warn: true,
+      detail: `${found} contradiction${found === 1 ? "" : "s"} observed between WM's own determinations.`,
+      detectability: "COMPARABLE",
+      determinationCount,
+    };
+  }
+
+  if (determinationCount < 2) {
+    return {
+      value: "n/a",
+      measured: false,
+      warn: false,
+      detail:
+        determinationCount === 0
+          ? "WM has resolved nothing yet, so there is nothing that could contradict anything. " +
+            "Zero contradictions here is not evidence of agreement."
+          : "WM has resolved exactly one thing, and one determination cannot contradict itself. " +
+            "Zero contradictions here is not evidence of agreement.",
+      detectability: "NOTHING_TO_COMPARE",
+      determinationCount,
+    };
+  }
+
+  return {
+    value: "0",
+    measured: true,
+    warn: false,
+    detail: `${determinationCount} determinations were compared and none disagreed.`,
+    detectability: "COMPARABLE",
+    determinationCount,
+  };
+}
+
 /** One sealed, outcome-free packet for all WM market-intelligence consumers. */
 export function sealCanonicalMarketState(input: CanonicalMarketStateInput): CanonicalMarketState {
   const errors = validateCanonicalMarketState(input);

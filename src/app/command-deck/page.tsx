@@ -34,6 +34,11 @@ import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { selectPrepEvidence } from "@/lib/experience/openingBellPrep";
 import OpeningBellEvidence from "@/components/opening-bell/OpeningBellEvidence";
 import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
+// The single writer for every contradiction claim WM makes. A contradiction
+// requires TWO determinations to disagree; with fewer than two on the packet,
+// `contradictions.length === 0` is arithmetic about an empty set, not evidence
+// of coherence. See canonicalMarketState.describeContradictionCoverage.
+import { describeContradictionCoverage } from "@/lib/marketData/canonicalMarketState";
 // The single writer for every gap claim WM makes. See coverageMap.ts —
 // a bare `gapCount` is not evidence unless gaps were detectable at all.
 import { describeGapCoverageTotal } from "@/lib/marketData/coverageMap";
@@ -1862,11 +1867,30 @@ function CommandDeckInner() {
                     {state.qualityState}
                   </span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 10 }}>
-                  <Stat label="Coverage" value={`${state.coverage.length} ch`} />
-                  <Stat label="Unknowns" value={String(state.unknowns.length)} tone={state.unknowns.length > 0 ? "watch" : "ok"} />
-                  <Stat label="Contradictions" value={String(state.contradictions.length)} tone={state.contradictions.length > 0 ? "warn" : "ok"} />
-                </div>
+                {/* CONTRADICTIONS is a CLAIM, so it goes through the claim compiler.
+                  *
+                  * This used to be `String(state.contradictions.length)` in the OK
+                  * tone. It printed `0` — four pixels from `UNKNOWNS 8` in the watch
+                  * tone. Read together those two cells said: *WM determined very
+                  * little, and found no disagreement in what it determined.* The
+                  * second half is not a finding. A contradiction requires TWO
+                  * determinations to disagree, and with 0/8 dimensions resolved
+                  * there were not two. Same shape as the GAPS tile below. */}
+                {(() => {
+                  const contradictionClaim = describeContradictionCoverage(state);
+                  return (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 10 }}>
+                      <Stat label="Coverage" value={`${state.coverage.length} ch`} />
+                      <Stat label="Unknowns" value={String(state.unknowns.length)} tone={state.unknowns.length > 0 ? "watch" : "ok"} />
+                      <Stat
+                        label="Contradictions"
+                        value={contradictionClaim.value}
+                        tone={contradictionClaim.warn ? "warn" : contradictionClaim.measured ? "ok" : "dim"}
+                        title={contradictionClaim.detail}
+                      />
+                    </div>
+                  );
+                })()}
 
                 {/* Nectar memory-age row — how long has WM actually been
                     watching this instrument, and when was the most recent
