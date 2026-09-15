@@ -64,8 +64,7 @@ import {
   dvpColumns,
   dvpRowBox,
   dvpRowCulled,
-  dvpBarWidth,
-  dvpAskWidth,
+  dvpRowPaint,
   dvpFormatCount,
 } from "@/lib/deltaVPGeometry";
 import {
@@ -6366,7 +6365,8 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const fmtN = dvpFormatCount;
 
           if (dvpBoxAdmitsProfile(rw, rh, dvp.rows.length)) {
-            const { midX, leftW, rightW } = dvpColumns(rx, rw);
+            const cols = dvpColumns(rx, rw);
+            const { midX, leftW, rightW } = cols;
             const gap = DVP_GUTTER;
             ctx.save();
             ctx.beginPath(); ctx.rect(rx, ry, rw, rh); ctx.clip();
@@ -6378,23 +6378,34 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               const { top: rowTop, height: rowH, midY } = rowBox;
               const isPOC = row.price === dvp.pocPrice;
 
+              // Every rectangle this row paints is decided by dvpRowPaint, which
+              // a test can hold. What stays here is colour and compositing —
+              // the only part a canvas has to own.
+              const paint = dvpRowPaint({
+                row: rowBox,
+                columns: cols,
+                volumeFraction: dvp.maxVolume ? row.volume / dvp.maxVolume : 0,
+                deltaFraction: dvp.maxAbsDelta ? Math.abs(row.delta) / dvp.maxAbsDelta : 0,
+                buy: row.buy,
+                volume: row.volume,
+                isPOC,
+              });
+              const up = row.delta >= 0;
+
               // RIGHT — volume profile, grows rightward from the gutter
-              const volFrac = dvp.maxVolume ? row.volume / dvp.maxVolume : 0;
-              const vBarW   = dvpBarWidth(volFrac, rightW, 3);
-              const vx0     = midX + gap;
-              if (isPOC) { ctx.fillStyle = "rgba(240,180,41,0.85)"; ctx.fillRect(vx0, rowTop, vBarW, rowH); }
-              else {
-                const askW = dvpAskWidth(vBarW, row.buy, row.volume);
-                ctx.fillStyle = "rgba(0,192,118,0.58)"; ctx.fillRect(vx0, rowTop, askW, rowH);
-                ctx.fillStyle = "rgba(255,77,103,0.58)"; ctx.fillRect(vx0 + askW, rowTop, vBarW - askW, rowH);
+              if (paint.ask && paint.bid) {
+                ctx.fillStyle = "rgba(0,192,118,0.58)";
+                ctx.fillRect(paint.ask.x, paint.ask.y, paint.ask.w, paint.ask.h);
+                ctx.fillStyle = "rgba(255,77,103,0.58)";
+                ctx.fillRect(paint.bid.x, paint.bid.y, paint.bid.w, paint.bid.h);
+              } else {
+                ctx.fillStyle = "rgba(240,180,41,0.85)";
+                ctx.fillRect(paint.volume.x, paint.volume.y, paint.volume.w, paint.volume.h);
               }
 
               // LEFT — delta profile, grows leftward from the gutter
-              const dFrac = dvp.maxAbsDelta ? Math.abs(row.delta) / dvp.maxAbsDelta : 0;
-              const dBarW = dvpBarWidth(dFrac, leftW, 2);
-              const up    = row.delta >= 0;
               ctx.fillStyle = up ? "rgba(0,212,170,0.72)" : "rgba(255,77,106,0.72)";
-              ctx.fillRect(midX - gap - dBarW, rowTop, dBarW, rowH);
+              ctx.fillRect(paint.delta.x, paint.delta.y, paint.delta.w, paint.delta.h);
 
               // numbers — signed delta at the gutter, volume at the right edge
               if (rowH >= DVP_MIN_LABEL_ROW_H) {

@@ -226,6 +226,37 @@ describe("deltaVPGeometry adoption — the draw loop must delegate (Sentinel)", 
     expect(geometrySrc).toContain("captured live only");
   });
 
+  it("lets dvpRowPaint own the rectangles, not just the lengths", () => {
+    // WHY A SECOND, NARROWER GUARD THAN "uses every import".
+    //
+    // The scalar owners were adopted long before the rectangles were. For a
+    // while the draw loop called dvpBarWidth and dvpAskWidth — every import
+    // used, every length gated — and then composed those lengths into origins
+    // INLINE: `midX - gap - dBarW`, `vx0 + askW`, `vBarW - askW`. That passed
+    // every gate in this file. It is also precisely where a bar drawn past the
+    // box edge, a column growing the wrong way, or a one-pixel seam between ask
+    // and bid would live.
+    //
+    // So the block must ask for the RECTANGLE and must not re-derive one from a
+    // length. A length call re-appearing here is the tell.
+    const problems: string[] = [];
+    if (!/\bdvpRowPaint\s*\(/.test(BLOCK)) {
+      problems.push("dvpRowPaint is not called — the rectangles are being composed in the canvas again");
+    }
+    for (const scalar of ["dvpBarWidth", "dvpAskWidth"]) {
+      if (new RegExp(`\\b${scalar}\\s*\\(`).test(BLOCK)) {
+        problems.push(
+          `${scalar}( is called directly in the draw block. It returns a LENGTH; ` +
+            `turning a length into an origin is the step dvpRowPaint exists to own`,
+        );
+      }
+    }
+    expect(
+      problems,
+      `the delta-vp block has taken the rectangle math back:\n  ${problems.join("\n  ")}`,
+    ).toEqual([]);
+  });
+
   it("states honestly that the live-render half is still open", () => {
     // If someone deletes this note, they are claiming a proof this file does not
     // provide. The claim and the gate must stay the same size.

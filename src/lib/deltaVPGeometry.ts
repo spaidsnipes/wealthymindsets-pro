@@ -41,7 +41,16 @@
  * must be able to tell which law governs the bar in front of them.
  *
  * NOTE ON THE LIVE GATE: proving the box RENDERS correctly on a live chart is a
- * separate, still-open item. This proves the arithmetic, not the pixels.
+ * separate item, now partly closed and honestly partly open.
+ *
+ *   CLOSED — the arithmetic, and since `dvpRowPaint` the COMPOSITION of that
+ *   arithmetic into rectangles: origins, containment, the ask/bid tiling. That
+ *   layer used to be inline in the draw loop, where each scalar was gated and
+ *   the sum of scalars was not.
+ *
+ *   OPEN — the raster. Colour, alpha, stacking order and the clip are still the
+ *   canvas's own, and no test in this repo witnesses them. That half is
+ *   HUMAN_PROOF_REQUIRED, not green.
  */
 
 /** Horizontal separation between the delta column, the gutter, and the volume column. */
@@ -202,6 +211,94 @@ export function dvpBarWidth(fraction: number, columnWidth: number, minimum: numb
  */
 export function dvpAskWidth(barWidth: number, buy: number, volume: number): number {
   return Math.round(barWidth * (volume ? buy / volume : 0.5));
+}
+
+/** A rectangle in canvas pixels, in the order `fillRect` takes them. */
+export interface DVPRect {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+/**
+ * Every rectangle one profile row paints, as a value.
+ *
+ * `ask` and `bid` are null on the POC row, which is painted as ONE gold bar
+ * rather than split by aggressor — the POC's job is to mark the price, not to
+ * re-tell the buy/sell story the rows around it already tell.
+ */
+export interface DVPRowPaint {
+  readonly delta: DVPRect;
+  readonly volume: DVPRect;
+  readonly ask: DVPRect | null;
+  readonly bid: DVPRect | null;
+}
+
+/**
+ * ── WHY THIS EXISTS: the half of the gate the refusal atom left open ─────────
+ *
+ * `deltaVPGeometry.ts` closed the SCALAR half — bin counts, bar lengths, row
+ * boxes — and its own header admitted the rest: "proving the box RENDERS
+ * correctly on a live chart is a separate, still-open item. This proves the
+ * arithmetic, not the pixels."
+ *
+ * The reason the pixels stayed open is that the rectangles were never a value.
+ * `dvpBarWidth` returned a LENGTH, and the draw loop turned that length into an
+ * origin — `midX - gap - dBarW`, `vx0 + askW` — inline, against a live `ctx`.
+ * Each scalar was gated; the composition of scalars into a rectangle was not.
+ * That is where a bar drawn past the box edge, or an ask/bid pair that leaves a
+ * one-pixel seam, would live: in arithmetic no test could name.
+ *
+ * Returning the rectangles makes the composition itself assertable without a
+ * canvas and without a DOM. The draw loop keeps the colours and the clip; it no
+ * longer keeps the geometry.
+ *
+ * ── The tiling property, and why it is exact ────────────────────────────────
+ *
+ * `bid.w` is DERIVED as `volume.w - ask.w`, never rounded a second time. Two
+ * independent `Math.round` calls on the two halves would disagree with the whole
+ * by a pixel about half the time, and the trader would see a hairline seam or a
+ * one-pixel overlap darkening the join. Ask and bid must tile the volume bar
+ * exactly: `ask.w + bid.w === volume.w`, `bid.x === ask.x + ask.w`.
+ */
+export function dvpRowPaint(args: {
+  readonly row: DVPRowBox;
+  readonly columns: DVPColumns;
+  readonly volumeFraction: number;
+  readonly deltaFraction: number;
+  readonly buy: number;
+  readonly volume: number;
+  readonly isPOC: boolean;
+}): DVPRowPaint {
+  const { row, columns, volumeFraction, deltaFraction, buy, volume, isPOC } = args;
+  const { midX, leftW, rightW } = columns;
+
+  const volW = dvpBarWidth(volumeFraction, rightW, 3);
+  const volX = midX + DVP_GUTTER;
+  const volumeRect: DVPRect = { x: volX, y: row.top, w: volW, h: row.height };
+
+  const deltaW = dvpBarWidth(deltaFraction, leftW, 2);
+  const deltaRect: DVPRect = {
+    x: midX - DVP_GUTTER - deltaW,
+    y: row.top,
+    w: deltaW,
+    h: row.height,
+  };
+
+  if (isPOC) {
+    return { delta: deltaRect, volume: volumeRect, ask: null, bid: null };
+  }
+
+  const askW = dvpAskWidth(volW, buy, volume);
+  return {
+    delta: deltaRect,
+    volume: volumeRect,
+    ask: { x: volX, y: row.top, w: askW, h: row.height },
+    // NOT dvpAskWidth's complement computed afresh — the remainder, so the two
+    // halves can never fail to add up to the bar they divide.
+    bid: { x: volX + askW, y: row.top, w: volW - askW, h: row.height },
+  };
 }
 
 /**

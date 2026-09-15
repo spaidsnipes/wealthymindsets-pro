@@ -23,9 +23,16 @@
  *
  * ── Scope, stated honestly ───────────────────────────────────────────────────
  *
- * This proves the ARITHMETIC. It does not prove the pixels. Whether the box
- * renders correctly on a live chart remains an open item with no automated
- * channel — it is HUMAN_PROOF_REQUIRED, not green.
+ * This proves the ARITHMETIC, and — since `dvpRowPaint` — the COMPOSITION of
+ * that arithmetic into rectangles: where each bar starts, that it stays inside
+ * the box, that ask and bid tile their bar without seam or overlap. Those were
+ * previously inline in the draw loop and are the layer a scalar test cannot
+ * reach, because every scalar can be right while the origin they are added to
+ * is wrong.
+ *
+ * It still does not prove the RASTER. Whether those rectangles reach the screen
+ * in the colours and stacking order intended remains HUMAN_PROOF_REQUIRED, not
+ * green. The gate and the claim stay the same size.
  */
 
 import { describe, it, expect } from "vitest";
@@ -44,6 +51,7 @@ import {
   dvpRowCulled,
   dvpBarWidth,
   dvpAskWidth,
+  dvpRowPaint,
   dvpFormatCount,
 } from "./deltaVPGeometry";
 
@@ -390,5 +398,123 @@ describe("the constants are the shipped constants", () => {
     expect(DVP_MIN_BOX_H).toBe(26);
     expect(DVP_MIN_LABEL_ROW_H).toBe(9);
     expect(DVP_MIN_CAPTION_W).toBe(26);
+  });
+});
+
+describe("dvpRowPaint — the rectangles, which no scalar test could reach", () => {
+  // A box comfortably past both minimums, so every case below is one the draw
+  // loop would actually paint rather than refuse.
+  const BOX_X = 100;
+  const BOX_W = 548;
+  const COLS = dvpColumns(BOX_X, BOX_W);
+  const ROW = dvpRowBox(200, 222);
+
+  function paint(over: Partial<Parameters<typeof dvpRowPaint>[0]> = {}) {
+    return dvpRowPaint({
+      row: ROW,
+      columns: COLS,
+      volumeFraction: 1,
+      deltaFraction: 1,
+      buy: 60,
+      volume: 100,
+      isPOC: false,
+      ...over,
+    });
+  }
+
+  it("grows the volume bar rightward from the gutter, never from the box edge", () => {
+    const p = paint();
+    expect(p.volume.x).toBe(COLS.midX + DVP_GUTTER);
+    expect(p.ask!.x).toBe(COLS.midX + DVP_GUTTER);
+  });
+
+  it("grows the delta bar leftward so its RIGHT edge sits on the gutter", () => {
+    // The law a length-only test cannot state. dvpBarWidth can be perfectly
+    // correct while the origin is computed as `midX + gap - w`, or as
+    // `boxX + w`, and the bar would grow the wrong way or start in the wrong
+    // place. The delta column reads right-to-left; that is its whole meaning.
+    const p = paint({ deltaFraction: 0.4 });
+    expect(p.delta.x + p.delta.w).toBe(COLS.midX - DVP_GUTTER);
+  });
+
+  it("keeps every rectangle inside the box it was drawn for", () => {
+    // Walks fractions rather than asserting one case: a containment bug that
+    // only appears at full extension is exactly the bug a single mid-range
+    // fixture misses.
+    for (const f of [0, 0.01, 0.25, 0.5, 0.75, 0.999, 1]) {
+      const p = paint({ volumeFraction: f, deltaFraction: f });
+      expect(p.delta.x).toBeGreaterThanOrEqual(BOX_X);
+      expect(p.volume.x + p.volume.w).toBeLessThanOrEqual(BOX_X + BOX_W);
+      expect(p.bid!.x + p.bid!.w).toBeLessThanOrEqual(BOX_X + BOX_W);
+    }
+  });
+
+  it("never lets a bar cross the gutter into the other column", () => {
+    for (const f of [0, 0.5, 1]) {
+      const p = paint({ volumeFraction: f, deltaFraction: f });
+      expect(p.delta.x + p.delta.w).toBeLessThanOrEqual(COLS.midX);
+      expect(p.volume.x).toBeGreaterThanOrEqual(COLS.midX);
+    }
+  });
+
+  it("tiles ask and bid across the volume bar with no seam and no overlap", () => {
+    // THE DEFECT THIS FORBIDS: rounding each half independently. Two Math.round
+    // calls disagree with the whole by a pixel about half the time — a hairline
+    // of box background showing through the bar, or a one-pixel band where the
+    // two translucent fills stack and darken. Either reads as data.
+    for (const buy of [0, 1, 17, 33, 49, 50, 51, 99, 100]) {
+      const p = paint({ buy, volume: 100, volumeFraction: 0.63 });
+      expect(p.ask!.w + p.bid!.w).toBe(p.volume.w);
+      expect(p.bid!.x).toBe(p.ask!.x + p.ask!.w);
+      expect(p.ask!.w).toBeGreaterThanOrEqual(0);
+      expect(p.bid!.w).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("paints the POC as ONE bar — no aggressor split competing with the mark", () => {
+    const p = paint({ isPOC: true });
+    expect(p.ask).toBeNull();
+    expect(p.bid).toBeNull();
+    expect(p.volume.w).toBeGreaterThan(0);
+  });
+
+  it("gives every rectangle in a row the same top and height", () => {
+    // A row is one horizontal band. If the delta bar and the volume bar drifted
+    // apart vertically the trader would be reading two different prices on one
+    // line without being told.
+    const p = paint();
+    for (const r of [p.delta, p.volume, p.ask!, p.bid!]) {
+      expect(r.y).toBe(ROW.top);
+      expect(r.h).toBe(ROW.height);
+    }
+  });
+
+  it("produces finite widths on a zero-volume row", () => {
+    // NaN reaches fillRect and draws NOTHING, silently. Absence must not be
+    // reachable by accident (canon H1).
+    const p = paint({ buy: 0, volume: 0, volumeFraction: 0, deltaFraction: 0 });
+    for (const r of [p.delta, p.volume, p.ask!, p.bid!]) {
+      expect(Number.isFinite(r.x)).toBe(true);
+      expect(Number.isFinite(r.w)).toBe(true);
+    }
+    expect(p.ask!.w + p.bid!.w).toBe(p.volume.w);
+  });
+
+  it("still draws a visible sliver for a near-zero row", () => {
+    // The floors in dvpBarWidth exist so "a little" never looks like "none".
+    // Asserted HERE too, on the rectangle, because a future refactor could keep
+    // dvpBarWidth's floor and then clamp the rect to the column and lose it.
+    const p = paint({ volumeFraction: 0.0001, deltaFraction: 0.0001 });
+    expect(p.volume.w).toBeGreaterThanOrEqual(3);
+    expect(p.delta.w).toBeGreaterThanOrEqual(2);
+  });
+
+  it("agrees with the scalar owners it is built from", () => {
+    // Binds the composition to the laws already gated above, so the two cannot
+    // drift into two different pictures of the same row.
+    const p = paint({ volumeFraction: 0.31, deltaFraction: 0.77, buy: 42, volume: 90 });
+    expect(p.volume.w).toBe(dvpBarWidth(0.31, COLS.rightW, 3));
+    expect(p.delta.w).toBe(dvpBarWidth(0.77, COLS.leftW, 2));
+    expect(p.ask!.w).toBe(dvpAskWidth(p.volume.w, 42, 90));
   });
 });
