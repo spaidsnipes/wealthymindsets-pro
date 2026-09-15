@@ -146,7 +146,7 @@ dropped to make it a prefix match, with a comment recording why.
 | Gate | State |
 |---|---|
 | Delta Bubbles level ownership | **CLOSED.** `deltaBubbleLevels.ts` was already a complete pure owner, MainChart already delegates, the spawn key already uses `levelIdx`. Assessed, not assumed. The adjacent Big Trade lane had the surviving defect — that is `a9f2982`. |
-| Live VP render geometry proof | **CLOSED** by `eaa7417` for the arithmetic. See the caveat below. |
+| Live VP render geometry proof | **FULLY CLOSED.** `eaa7417` proved the arithmetic; the pixels were observed live 2026-09-15 on `https://wealthymindsetspro.com/charts`. See "Caveat on render geometry proof — RETIRED" below. |
 | Decision Memory sealing — zero production callers | **OPEN, deliberately.** Already surfaced in three places: `decisionMemoryReachability.test.ts` pins it as a named blocker, and `screenReach.enforcement.test.ts` carries it in the LEDGER. Directive is explicit — surface, do not rush-wire. Sealing a decision needs a real decision surface and a real trigger; inventing a caller to turn a file green manufactures exactly the unreachable ceremony the guard exists to detect. |
 | `executionConnectivity` orphaned | **OPEN, not a live defect.** Carried in the LEDGER as `AWAITING_SURFACE`. **Correction to the standing brief:** the brief says "/readiness discloses honestly." /readiness is honest about its own subject (credentials-present vs connected, READY shown as "SETUP PRESENT"), but it does NOT render `executionConnectivity` — the LEDGER note says so explicitly. The gate is unreached by every route. |
 | Paper execution state-machine realism | Partially advanced by `d53abc6` (fill-price age). The ordering/queue model itself is untouched. Canon weakness #9 PAPER-FILL OVERCONFIDENCE still stands. |
@@ -155,13 +155,58 @@ dropped to make it a prefix match, with a comment recording why.
 
 ---
 
-## Caveat on "render geometry proof"
+## Caveat on "render geometry proof" — RETIRED 2026-09-15
 
-`eaa7417` proves the ARITHMETIC that produces the rectangles. It does not prove
-what a human sees, because no pixel was observed — see the NOT DEPLOYED section.
-A reader who wants the full proof still needs a screenshot of `/charts` with
-Fixed and Session VP both on. Treat this gate as *arithmetic proven, pixels
-unobserved* until someone takes that screenshot.
+`eaa7417` proved the ARITHMETIC that produces the rectangles. It did not prove
+what a human sees, because no pixel had been observed. That caveat is now
+discharged. The measurement, on the live host, both VP layers on, TSLA 15m:
+
+```
+tab visible (document.hidden === false)
+WM Fixed VP   backgroundColor rgba(240, 180, 41, 0.15)   ← toggle ON
+WM Session VP backgroundColor rgba(139,  92, 246, 0.15)  ← toggle ON
+
+overlay canvas (canvasRef) 1600 × 576
+  ink  pixels  1157  →  13178   when the two toggles went on  (+12,021)
+  gold pixels    520   bbox x∈[1278,1523]  y∈[193,233]
+  purple pixels  290   bbox x∈[1342,1521]  y∈[200,268]
+```
+
+Both colour families land against the RIGHT edge of a 1600px canvas, which is
+what "right-anchored inside chart" claims. Gold spans wider than purple and
+purple nests inside it — the two-column packing (`nVPCols = 2`,
+Session VP at `colIndex 1`) rendering as designed, not one slab. A screenshot of
+the same frame shows the histogram with its up/down split, the gold POC line and
+`VAH 369.00` / `VAL 346.80` labelled. Arithmetic proven AND pixels observed.
+
+### The trap that nearly produced a fabricated defect
+
+The first three attempts at this measurement all read **zero VP ink** and the
+screenshot showed a bare chart. That looked exactly like "the VP layer renders
+nothing" — a P0. It was not. `MainChart`'s overlay runs through
+`shouldDrawOverlay({ hidden: document.hidden, … })`, which by design performs
+**no background paint while the tab is hidden**. Driving the page through the
+Chrome extension makes `document.hidden === true` for the duration of the call,
+so the RAF loop is parked, `draw()` never runs, and the overlay canvas is never
+even sized — it sat at the HTML default `300 × 150` while its sibling drawing
+canvas was correctly `1600 × 662`. Every symptom of a dead layer, produced by a
+governor doing its job.
+
+Two method rules follow, for anyone measuring canvas on this app:
+
+1. **Foreground the tab first** (`switch_to_tab`), then take the reading in the
+   very next call. Visibility survives roughly one call before the tab drops
+   back to hidden.
+2. **Read the toggle's computed style in the SAME call as the pixels.** Toggling
+   and measuring in separate calls produced a reading where the buttons were
+   neutral — a "no ink" result with the feature switched off, which proves
+   nothing at all.
+
+A related false alarm, recorded so it is not re-opened: the toolbar `Tools`
+button reporting `aria-expanded="true"` while `.wm-chart-tools` is absent is
+**not** a disclosure defect. That button is `aria-haspopup="menu"`; the attribute
+describes its dropdown, which does open. The study-tools row is one level deeper,
+behind the menu's `Flow & studies` item.
 
 ---
 
