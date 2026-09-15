@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   createChartMarketStatePublication,
   type ChartMarketStatePublicationInput,
@@ -277,6 +279,96 @@ describe("chart Market State publisher", () => {
       const dir = (publication.state.dimensions as Record<string, { resolution?: string }>).direction;
       expect(dir?.resolution).toBe("PARTIAL");
       expect(publication.state.unknowns!.some((u) => u.startsWith("Direction"))).toBe(true);
+    });
+  });
+
+  /**
+   * THE WIRE, NOT THE SELECTOR.
+   *
+   * `deriveLastBarClose` was fully truth-locked by its own suite and still the
+   * MARKET tile read PRICE UNKNOWN on live /charts beside a header rendering
+   * the very close it refused to name. The defect was never in the selector —
+   * it was in the forwarding: `usePublishChartMarketState` destructured its
+   * argument and did not name `bars`, so the candles were discarded one call
+   * BEFORE the selector ran. A pure-function suite cannot see that, which is
+   * exactly why this section tests the wire.
+   */
+  describe("bar-close wire (the silent drop)", () => {
+    // Mirrors the live measurement: TSLA 1h, 359.02, bar opened 2026-09-15.
+    const BAR_OPEN_SECONDS = 1_789_412_400;
+    const withBars = () => ({
+      ...base(),
+      symbol: "TSLA",
+      timeframe: "1h",
+      capturedAt: BAR_OPEN_SECONDS * 1000 + 600_000,
+      bars: [
+        { time: BAR_OPEN_SECONDS - 3_600, open: 357, high: 360, low: 356, close: 358.11, volume: 5 },
+        { time: BAR_OPEN_SECONDS, open: 358.11, high: 360.5, low: 357.4, close: 359.02, volume: 7 },
+      ],
+    });
+
+    it("carries a forwarded bar close all the way into published state", () => {
+      const publication = createChartMarketStatePublication(withBars());
+      expect(publication.state.lastBar).not.toBeNull();
+      expect(publication.state.lastBar!.close).toBe(359.02);
+      expect(publication.state.lastBar!.timeframe).toBe("1h");
+      expect(publication.state.lastBar!.barOpenedAtMs).toBe(BAR_OPEN_SECONDS * 1000);
+    });
+
+    it("survives canonical sealing — the tile reads the SEALED state, not the draft", () => {
+      const publication = createChartMarketStatePublication(withBars());
+      const sealed = produceCanonicalMarketState(publication.state, {
+        qualityState: publication.qualityState,
+      });
+      expect(sealed.lastBar?.close).toBe(359.02);
+      expect(sealed.lastBar?.timeframe).toBe("1h");
+    });
+
+    it("still refuses to invent a close when no bars are forwarded", () => {
+      // The repair must not become an overclaim. Absent bars stay absent.
+      const publication = createChartMarketStatePublication({ ...withBars(), bars: undefined });
+      expect(publication.state.lastBar).toBeNull();
+    });
+
+    it("does NOT promote a bar close into price.last — provenance stays separate", () => {
+      // `price.last` means a live trade printed. A candle close is not a print.
+      const publication = createChartMarketStatePublication({ ...withBars(), recentTicks: [] });
+      expect(publication.state.price.last).toBeNull();
+      expect(publication.state.lastBar!.close).toBe(359.02);
+    });
+  });
+
+  /**
+   * SOURCE-TEXT SENTINEL against the silent-drop CLASS.
+   *
+   * The behavioural tests above exercise the pure producer, which the old bug
+   * never reached. Only the hook's destructuring list stood between
+   * ChartsDashboard and the producer, and TypeScript cannot flag a forwarder
+   * that omits an OPTIONAL key. So the omission is asserted against directly,
+   * by name, in the source text — the one place the failure was ever visible.
+   */
+  describe("usePublishChartMarketState forwarding enforcement", () => {
+    const source = readFileSync(resolve(__dirname, "chartMarketStatePublisher.ts"), "utf8");
+    const hook = source.slice(source.indexOf("export function usePublishChartMarketState"));
+
+    it("names `bars` in the hook's destructuring — a forwarder must not decide by omission", () => {
+      const destructuring = hook.slice(0, hook.indexOf("): void"));
+      expect(destructuring).toMatch(/\n\s*bars,/);
+    });
+
+    it("forwards `bars` into createChartMarketStatePublication", () => {
+      const call = hook.slice(
+        hook.indexOf("createChartMarketStatePublication({"),
+        hook.indexOf("capturedAt: Date.now()"),
+      );
+      expect(call).toMatch(/\n\s*bars,/);
+    });
+
+    it("depends on `bars` so the published close follows the newest candle", () => {
+      // Forwarding without depending would freeze the close at whatever the
+      // first publish happened to see — its own quiet untruth.
+      const deps = hook.slice(hook.lastIndexOf("}, ["), hook.lastIndexOf("]);"));
+      expect(deps).toContain("bars");
     });
   });
 });

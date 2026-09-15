@@ -245,6 +245,25 @@ export function createChartMarketStatePublication(
 }
 
 /** Publish the chart command surface into the one canonical runtime owner. */
+/**
+ * THE SILENT DROP THIS SIGNATURE ONCE HID.
+ *
+ * `bars` is optional on `ChartMarketStatePublicationInput`, and destructuring
+ * fewer keys than a type declares is perfectly legal TypeScript. So when this
+ * hook forgot to name `bars`, ChartsDashboard passed `bars: chartBars`, the
+ * compiler stayed silent, every unit test stayed green — and the hook threw
+ * the candles away before `createChartMarketStatePublication` ever saw them.
+ *
+ * Measured live on /charts 2026-09-15, TSLA 1h: the dashboard held 178 loaded
+ * bars closing at 359.02, the chart header rendered that close beside
+ * HISTORICAL BARS VERIFIED, and the MARKET tile two inches away read
+ * `TSLA · 1h · PRICE UNKNOWN` because canonical `lastBar` was null. The whole
+ * bar-close feature was built, shipped, deployed and unreachable.
+ *
+ * A dropped input is indistinguishable from absent evidence at the far end of
+ * the wire, which is why the screen could lie without anything failing. Name
+ * every field explicitly; never let a forwarder decide by omission.
+ */
 export function usePublishChartMarketState(
   {
     symbol,
@@ -254,6 +273,7 @@ export function usePublishChartMarketState(
     recentTicks,
     source,
     connected,
+    bars,
   }: Omit<ChartMarketStatePublicationInput, "capturedAt" | "nectar">,
 ): void {
   useEffect(() => {
@@ -265,6 +285,7 @@ export function usePublishChartMarketState(
       recentTicks,
       source,
       connected,
+      bars,
       capturedAt: Date.now(),
       nectar: getSessionNectarSnapshot(),
     });
@@ -276,5 +297,8 @@ export function usePublishChartMarketState(
       // simply not published.
       console.warn("[WM Market State] publication rejected", error);
     }
-  }, [symbol, timeframe, session, ticker, recentTicks, source, connected]);
+    // `bars` belongs here too. Forwarding it without depending on it would
+    // leave the close frozen at whatever the first publish happened to see,
+    // which is its own quiet untruth.
+  }, [symbol, timeframe, session, ticker, recentTicks, source, connected, bars]);
 }
