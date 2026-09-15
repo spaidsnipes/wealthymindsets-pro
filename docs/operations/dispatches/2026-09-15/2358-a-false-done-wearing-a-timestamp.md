@@ -127,19 +127,55 @@ then the file was restored byte-identical.
 
 ---
 
-## Live status — PENDING
+## Live status — OBSERVED on production
 
-**No live observation has been made of this change.** The commit is pushed to
-`main`; Cloudflare's Git integration deploys on its own schedule and a deploy
-identity is not an observation. A poll of production chunks for the literal
-`opening-bell-verdict-withheld` is running.
+Observed in the Founder's browser on `https://wealthymindsetspro.com/morning-prep`
+after `b326282` reached production. The Opening Bell region rendered:
 
-This section will be rewritten **only against a screenshot** of the running
-room showing:
+```
+OPENING BELL
+No morning prep was logged in WM today.
+Market data health right now: STALE.
+No readiness verdict is shown. Your prep list lives in Morning Prep and uses
+your own wording, so this room can count what you checked but cannot tell
+which of the items below you checked — and it will not guess about you.
+```
 
-- the evidence sentence and the withheld-verdict paragraph present, and
-- no row asserting a completion the trader did not perform, and
-- no "Preparation incomplete. Rushing preparation correlates with process
-  failure." advisory.
+Checked in the same read:
 
-Until that screenshot exists, this fix is SHIPPED, not PROVEN.
+| Check | Result |
+|---|---|
+| `[data-testid="opening-bell-evidence"]` present | yes |
+| any `NOT DONE` row | **none** |
+| "Rushing preparation" advisory | **absent** |
+| data health line | `STALE` — a real reading, not a default |
+
+The ABSENT case is the one that rendered, and it rendered as the finding it
+is: *"No morning prep was logged in WM today."* Not incomplete. Not rushing.
+Not a fabricated tick. This fix is **PROVEN**.
+
+---
+
+## What standing in the room found next
+
+Verifying this one exposed a second defect on `/command-deck`, which is fixed
+in the follow-up commit. The deck rendered the Opening Bell as:
+
+```tsx
+{chainVm && phase === "PREPARATION" && <OpeningBellSlot ... />}
+```
+
+`chainVm` is null whenever canonical market state has not resolved. Observed
+live: the deck sat in PREPARATION reading **MARKET STATE UNKNOWN**, and the
+entire Opening Bell was absent from the DOM. The trader was told nothing about
+**their own prep** because the **market** was unreadable.
+
+Those two facts are unrelated — prep evidence comes from the trader's journal
+and never consults the tape — and an unresolved market is exactly when
+PREPARATION matters most. So the panel disappeared precisely when it was most
+useful. H1 in structural form: an unobserved market silencing an observable
+fact about the person.
+
+This is the argument for live verification as a step, not a formality. The
+unit tests were green, the Sentinels were green, the component was correct,
+and the panel still was not on the screen.

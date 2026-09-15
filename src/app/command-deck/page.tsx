@@ -1852,8 +1852,27 @@ function CommandDeckInner() {
             </details>
             )}
 
-            {/* Opening Bell — only during PREPARATION phase */}
-            {chainVm && phase === "PREPARATION" && (
+            {/* Opening Bell — only during PREPARATION phase.
+             *
+             * NOT gated on `chainVm`. It used to be, and that was a coupling
+             * defect found by standing in the room: `chainVm` is null whenever
+             * canonical market state has not resolved, so on a morning where
+             * the deck reads MARKET STATE UNKNOWN the Opening Bell vanished
+             * entirely — and the trader was told nothing about their own prep
+             * because the MARKET was unreadable.
+             *
+             * Those two things have nothing to do with each other. The prep
+             * evidence is compiled from the trader's own journal via
+             * useTodayPrep; it does not consult the tape. Worse, the moment
+             * market state is unresolved is exactly the moment PREPARATION
+             * matters most, so the panel disappeared precisely when it was
+             * most useful.
+             *
+             * The one axis that DOES depend on market state is dataQuality,
+             * and it degrades honestly on its own: `state?.qualityState` is
+             * undefined when there is no state, and OpeningBellEvidence omits
+             * the health line rather than defaulting it. */}
+            {phase === "PREPARATION" && (
               <OpeningBellSlot
                 userId={user?.id ?? null}
                 nowMs={nowMs}

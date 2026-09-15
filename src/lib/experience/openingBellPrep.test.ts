@@ -158,6 +158,31 @@ describe("openingBellPrep — what the deck may say about your morning", () => {
     expect(page).toContain("OpeningBellEvidence");
   });
 
+  /**
+   * FOUND BY STANDING IN THE ROOM, not by reading the diff.
+   *
+   * /command-deck rendered the Opening Bell as:
+   *
+   *     {chainVm && phase === "PREPARATION" && <OpeningBellSlot ... />}
+   *
+   * `chainVm` is null whenever canonical market state has not resolved. So on
+   * a morning where the deck reads MARKET STATE UNKNOWN — observed live on
+   * production — the whole panel was absent, and the trader was told nothing
+   * about THEIR OWN PREP because the MARKET was unreadable.
+   *
+   * The prep evidence is compiled from the trader's journal via useTodayPrep.
+   * It never consults the tape. And an unresolved market is exactly when the
+   * PREPARATION phase matters most, so the panel disappeared precisely when it
+   * was most useful. That is H1 in structural form: an unobserved market
+   * silenced an unrelated, observable fact about the person.
+   */
+  it("prep evidence is not gated behind market-state resolution", () => {
+    const deck = codeOnly(read("src/app/command-deck/page.tsx"));
+    expect(deck).toContain("OpeningBellSlot");
+    expect(deck).not.toMatch(/chainVm && phase === "PREPARATION"/);
+    expect(deck).not.toMatch(/phase === "PREPARATION" && chainVm/);
+  });
+
   it("ONE VOICE: both rooms read the same adapter, so they cannot disagree", () => {
     for (const rel of ["src/app/command-deck/page.tsx", "src/app/morning-prep/page.tsx"]) {
       expect(codeOnly(read(rel))).toContain("useTodayPrep");
