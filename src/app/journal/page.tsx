@@ -40,6 +40,20 @@ import {
 } from "@/lib/traderMemory/adapters/journalStorage";
 import { captureEfficiency } from "@/lib/proofLane/captureEfficiency";
 import { selectSessionEdge } from "@/lib/proofLane/selectSessionEdge";
+import { expectancyFact, type RTone } from "@/lib/proofLane/edgeCellFacts";
+
+/**
+ * The ONLY thing the WEEK chip's colour may be derived from. TOTAL over
+ * `RTone`, so a new R quality fails the build here rather than inheriting
+ * gold. The previous chip was gold UNCONDITIONALLY — a losing week wore a
+ * winning week's clothes.
+ */
+const WEEK_EDGE_TONE: Record<RTone, string> = {
+  GAIN: "border-emerald-400/40 bg-emerald-400/10 text-emerald-300",
+  LOSS: "border-rose-400/40 bg-rose-400/10 text-rose-300",
+  FLAT: "border-wm-border bg-wm-surface text-wm-text-muted",
+  NONE: "border-wm-border bg-transparent text-wm-text-dim",
+};
 import { selectLearningGenome } from "@/lib/learningGenome/selectLearningGenome";
 import { prescribeDrill } from "@/lib/learningGenome/prescribeDrill";
 import { selectMisreadMap, classifyMisread, type MisreadEntry } from "@/lib/learningGenome/selectMisreadMap";
@@ -1622,16 +1636,32 @@ Trade the system, trust the process, winners every day 🚀`,
           )}
           {/* Week Edge chip — I-Bkt 3, canon §11 + §21 Week-One. Silent
               when no R-tagged entries this week (nothing to summarize). */}
-          {weekEdge.rTaggedEntries > 0 && (
-            <span
-              title={`Last 7 days · ${weekEdge.rTaggedEntries} R-tagged / ${weekEdge.totalEntries} total · expectancy ${weekEdge.expectancyR?.toFixed(2)}R · max drawdown ${weekEdge.maxDrawdownR.toFixed(2)}R${
-                weekEdge.rulesAdheredPct != null ? ` · rules ${(weekEdge.rulesAdheredPct * 100).toFixed(0)}%` : ""
-              }`}
-              className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-wm-gold/40 bg-wm-gold/10 text-wm-gold"
-            >
-              WEEK EDGE {weekEdge.expectancyR != null ? `${weekEdge.expectancyR >= 0 ? "+" : ""}${weekEdge.expectancyR.toFixed(2)}R/trade` : "—"}
-            </span>
-          )}
+          {/* ONE QUANTITY MAY NOT HAVE TWO OWNERS. This chip and /proof-lane's
+              Expectancy cell read the SAME `selectSessionEdge` field, but this
+              one formatted it inline — and in a HARDCODED GOLD, so a NEGATIVE
+              week's expectancy wore the same colour as a positive one. The
+              `>= 0` sign was DEFECT TWO from edgeCellFacts surviving on a
+              second surface: exactly flat rendered as a signed "+0.00R/trade".
+              Both are now `expectancyFact`'s to decide, and the sample size
+              that qualifies the word EDGE is on the chip, not only in the
+              tooltip, because a one-trade week is not an edge. */}
+          {weekEdge.rTaggedEntries > 0 && (() => {
+            const cell = expectancyFact(weekEdge.expectancyR, weekEdge.rTaggedEntries);
+            const detail = `Last 7 days · ${weekEdge.rTaggedEntries} R-tagged / ${weekEdge.totalEntries} total · max drawdown ${weekEdge.maxDrawdownR.toFixed(2)}R${
+              weekEdge.rulesAdheredPct != null ? ` · rules ${(weekEdge.rulesAdheredPct * 100).toFixed(0)}%` : ""
+            } · ${cell.reason}`;
+            return (
+              <span
+                title={detail}
+                aria-label={detail}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${WEEK_EDGE_TONE[cell.tone]}`}
+              >
+                {cell.measured
+                  ? `WEEK ${cell.text}/trade · n=${weekEdge.rTaggedEntries}`
+                  : `WEEK ${cell.text}`}
+              </span>
+            );
+          })()}
           {/* Learning Genome chip — canon §9 (Final Helicopter, 2026-08-24).
               Emits a comparative diagnostic only when at least two of the
               four dimensions are measured AND their scores differ. Never
