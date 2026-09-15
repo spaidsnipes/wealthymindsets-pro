@@ -1034,6 +1034,28 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin, compilation }: {
     .slice(0, 12);
   const myRank = board.findIndex(e => (e as any).isMe) + 1;
 
+  /**
+   * H1 ON A COMPETITIVE SURFACE — a field of one is not a first place.
+   *
+   * `board` is built from `[myEntry]`. There are no other competitors: WM Pro
+   * observes nobody else's paper book. So `myRank` was ALWAYS 1, and the page
+   * handed a trader who placed a single paper trade a 👑 "1st Place" crown and
+   * "🎉 You're in the prize zone!" — for winning a contest against nobody —
+   * directly beside two CTAs for an external, unverified prize challenge.
+   *
+   * The number was never wrong; being 1st of 1 is arithmetically true. The
+   * CLAIM was wrong. Rank is a statement about a FIELD, and there is no field.
+   * That is the same overclaim as printing a green 0% win rate over zero
+   * trades: a real computation dressed as an achievement it cannot support.
+   *
+   * So the standing is withheld rather than invented, and — per the empty-book
+   * lesson — the condition is read off the BOARD ITSELF, not off a hardcoded
+   * `false` or a second copy of "are there competitors". If WM ever does
+   * observe a real field, the ranking lights up on its own and this comment
+   * stops applying, without anyone having to remember to come back here.
+   */
+  const hasField = board.length > 1;
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* External partner status — never promote unverified prize claims. */}
@@ -1074,13 +1096,25 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin, compilation }: {
       {myTrades > 0 && (
         <div className="shrink-0 mx-4 mt-3 rounded-xl border border-wm-green/30 bg-wm-green/5 px-3 py-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-wm-green/20 border border-wm-green/40 flex items-center justify-center text-[10px] font-black text-wm-green">
-              #{myRank}
-            </div>
+            {hasField ? (
+              <div className="w-6 h-6 rounded-full bg-wm-green/20 border border-wm-green/40 flex items-center justify-center text-[10px] font-black text-wm-green">
+                #{myRank}
+              </div>
+            ) : (
+              /* §9: unknown is quiet. Never the win tint for a standing that
+                 does not exist. */
+              <div className="w-6 h-6 rounded-full bg-wm-surface border border-wm-border flex items-center justify-center text-[10px] font-black text-wm-text-dim">
+                —
+              </div>
+            )}
             <div>
-              <div className="text-[10px] font-black text-wm-text">Your Current Rank</div>
+              <div className="text-[10px] font-black text-wm-text">
+                {hasField ? "Your Current Rank" : "NO FIELD TO RANK AGAINST"}
+              </div>
               <div className="text-[9px] text-wm-text-muted">
-                {myRank <= 5 ? "🎉 You're in the prize zone!" : `${myRank - 5} spots to top 5`}
+                {!hasField
+                  ? "This board holds only your own paper result."
+                  : myRank <= 5 ? "🎉 You're in the prize zone!" : `${myRank - 5} spots to top 5`}
               </div>
             </div>
           </div>
@@ -1103,7 +1137,8 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin, compilation }: {
 
         {board.map((entry, i) => {
           const isMe = (entry as any).isMe;
-          const badge = RANK_BADGES.find(p => p.rank === i + 1);
+          // No crown for a field of one. A podium icon is a placement claim.
+          const badge = hasField ? RANK_BADGES.find(p => p.rank === i + 1) : undefined;
           return (
             <div key={entry.name}
               className={clsx(
