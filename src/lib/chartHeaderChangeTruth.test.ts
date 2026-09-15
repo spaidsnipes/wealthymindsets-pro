@@ -170,10 +170,40 @@ describe("chart header day-change truth", () => {
       expect(src).toContain("CHANGE_UNAVAILABLE_TEXT");
     });
 
+    /* FIFTH FINDING — THIS SENTINEL WAS PINNED TO A SPELLING, NOT A MEANING.
+     *
+     * It used to read `expect(src).toContain("PRICE_UNAVAILABLE_TITLE")`. When
+     * the price slot was rewritten to consult `chartHeaderPriceFact` — a
+     * STRICTLY STRONGER disclosure, which often names a verified bar close
+     * instead of admitting an absence at all — the constant stopped being
+     * rendered anywhere. The Sentinel went on passing, because the IMPORT LINE
+     * still contained the word. A dead import satisfied a truth test.
+     *
+     * That is the fourth time this codebase has caught a Sentinel pinned to a
+     * spelling. The rule it keeps proving: NEVER DELETE SUCH A SENTINEL —
+     * RE-PIN IT TO THE MEANING, WITH STRONGER ASSERTIONS THAN IT HAD. The
+     * meaning here was never "this identifier appears". It was: THE PRICE SLOT
+     * MAY NOT RENDER AN UNEXPLAINED GLYPH. */
     it("the chrome header names the absence of the PRICE too", () => {
       // This was the literal glyph observed live with no attributes at all.
       expect(src).not.toContain('ticker.price.toFixed(2) : "—"');
-      expect(src).toContain("PRICE_UNAVAILABLE_TITLE");
+      expect(src).not.toContain('aria-label={PRICE_UNAVAILABLE_TITLE}>—</span>');
+      // The slot is owned, and the owner's reason reaches BOTH a sighted reader
+      // and a screen reader. A tooltip alone is a disclosure only a mouse finds.
+      expect(src).toContain("chartHeaderPriceFact");
+      expect(src).toMatch(/title=\{headerPriceFact\.reason\}/);
+      expect(src).toMatch(/aria-label=\{`\$\{symbol\} price: \$\{headerPriceFact\.text\}\./);
+      // Colour must come from declared provenance, never from "is it present".
+      expect(src).toContain("HEADER_PRICE_STYLE[headerPriceFact.kind]");
+    });
+
+    it("× THE DEAD-IMPORT PASS: no absence constant may be imported and never rendered", () => {
+      // The mechanism that let the old spelling-pinned test pass vacuously.
+      for (const name of ["PRICE_UNAVAILABLE_TITLE", "CHANGE_UNAVAILABLE_TEXT", "CHANGE_UNAVAILABLE_TITLE"]) {
+        const total = src.split(name).length - 1;
+        if (total === 0) continue; // not imported at all is fine
+        expect(total, `${name} is imported into ChartsDashboard but never used`).toBeGreaterThan(1);
+      }
     });
 
     it("both sites read the sentence from one owner", () => {

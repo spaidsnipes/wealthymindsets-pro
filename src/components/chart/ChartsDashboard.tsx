@@ -36,8 +36,24 @@ import { AlertsPanel, type PriceAlert } from "./AlertsPanel";
 import { ChartSettingsModal, type ChartSettings, DEFAULT_CHART_SETTINGS } from "./ChartSettingsModal";
 import { SymbolInfoHeader } from "./SymbolInfoHeader";
 import {
-  CHANGE_UNAVAILABLE_TEXT, CHANGE_UNAVAILABLE_TITLE, PRICE_UNAVAILABLE_TITLE,
+  CHANGE_UNAVAILABLE_TEXT, CHANGE_UNAVAILABLE_TITLE,
 } from "@/lib/marketData/changeAbsence";
+// PRICE_UNAVAILABLE_TITLE is deliberately NOT imported here any more. The price
+// slot's disclosure now comes from chartHeaderPriceFact, which says strictly
+// more (it can name a verified bar close instead of admitting an absence).
+// Leaving the import in place kept a truth Sentinel passing on a DEAD IMPORT —
+// see the FIFTH FINDING in chartHeaderChangeTruth.test.ts.
+import { chartHeaderPriceFact, type HeaderPriceKind } from "@/lib/marketData/chartHeaderPriceFact";
+import { deriveLastBarClose } from "@/lib/marketData/deriveLastBarClose";
+
+/* Colour and weight come from a DECLARED PROVENANCE, never from "is a number
+   present". A bar close rendered like a live quote is a fabricated freshness
+   claim — see chartHeaderPriceFact. */
+const HEADER_PRICE_STYLE: Record<HeaderPriceKind, { color: string; weight: number }> = {
+  LIVE_QUOTE: { color: "#E2E8F0", weight: 700 },
+  BAR_CLOSE: { color: "#A8B0C8", weight: 600 },
+  NONE: { color: "#8B92AC", weight: 500 },
+};
 import { BarReplayControls, type ReplaySpeed } from "./BarReplayControls";
 import { ErrorBoundary, SafePanel } from "@/components/ui/ErrorBoundary";
 import { StockInfoPanel } from "./StockInfoPanel";
@@ -1308,14 +1324,39 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             //
             // The sentence is imported, not retyped: a third copy of it would
             // agree with the other two until the day one of them was edited.
+            // THE HEADER MAY NOT WITHHOLD A NUMBER IT HAS ALREADY PUBLISHED.
+            //
+            // The price slot used to fall back to a bare "—" while the badge
+            // beside it announced HISTORICAL BARS VERIFIED — a badge gated on
+            // `chartBars.length > 0`, and therefore itself PROOF that verified
+            // bars were loaded right here. Those same `chartBars` are handed to
+            // usePublishChartMarketState above, which publishes a last bar
+            // close from them. WM knew a number, told one consumer, and said
+            // nothing to the trader. Understating knowledge is a truth defect
+            // in the same family as overclaiming it.
+            //
+            // The bar close does NOT simply fill the slot: it is labelled with
+            // its timeframe and the words BAR CLOSE, and styled from its own
+            // provenance, so it can never be read as what the instrument is
+            // trading at now. See chartHeaderPriceFact for why the easy version
+            // of this fix would have been worse than the dash.
+            const headerPriceFact = chartHeaderPriceFact(
+              ticker.price,
+              deriveLastBarClose(chartBars, timeframe, Date.now()),
+            );
+            const headerPriceStyle = HEADER_PRICE_STYLE[headerPriceFact.kind];
             return (
               <span style={{
                 color: hasReal ? (up ? "#00C076" : "#FF4D67") : "#8B92AC",
                 fontWeight: 700, fontSize: 13, fontFamily: "monospace",
               }}>
-                {ticker.price > 0
-                  ? ticker.price.toFixed(2)
-                  : <span title={PRICE_UNAVAILABLE_TITLE} aria-label={PRICE_UNAVAILABLE_TITLE}>—</span>}
+                <span
+                  style={{ color: headerPriceStyle.color, fontWeight: headerPriceStyle.weight }}
+                  title={headerPriceFact.reason}
+                  aria-label={`${symbol} price: ${headerPriceFact.text}. ${headerPriceFact.reason}`}
+                >
+                  {headerPriceFact.text}
+                </span>
                 {hasReal ? (
                   <span className="wm-chart-header-change"> {up ? "↑" : "↓"}
                     &nbsp;{up ? "+" : ""}{ticker.change.toFixed(2)}
