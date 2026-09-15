@@ -7,15 +7,50 @@ import {
   CHANGE_UNAVAILABLE_TITLE,
   PRICE_UNAVAILABLE_TITLE,
 } from "@/lib/marketData/changeAbsence";
+import { PRICE_ABSENCE_GLYPH, priceAbsenceReason } from "@/lib/marketData/priceAbsence";
+
+/**
+ * The tree-walk, at module scope. A Sentinel that NAMES its subjects is only
+ * as complete as the grep that wrote it, and it passes forever while the
+ * population grows behind it. Every population test in this file walks.
+ */
+const SRC_DIR = path.join(process.cwd(), "src");
+
+function walkSrc(): string[] {
+  const out: string[] = [];
+  const stack = [SRC_DIR];
+  while (stack.length) {
+    const dir = stack.pop()!;
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) stack.push(p);
+      else if (/\.(tsx|ts)$/.test(e.name)) out.push(p);
+    }
+  }
+  return out;
+}
+
+/** Source with comments removed — a literal quoted in prose is not a render. */
+function codeOf(file: string): string {
+  return fs.readFileSync(file, "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+}
 
 const raw = fs.readFileSync(
   path.join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"),
   "utf8",
 );
-const mainChart = fs.readFileSync(
+/**
+ * WITH comments. A breadcrumb IS a comment — asserting one against the
+ * stripped source can never pass, which is how this read came to exist.
+ */
+const mainChartRaw = fs.readFileSync(
   path.join(process.cwd(), "src/components/chart/MainChart.tsx"),
   "utf8",
-)
+);
+
+const mainChart = mainChartRaw
   .replace(/\/\*[\s\S]*?\*\//g, "")
   .replace(/(^|[^:])\/\/.*$/gm, "$1");
 
@@ -184,29 +219,10 @@ describe("chart header day-change truth", () => {
      * A named-subject Sentinel passes forever while the population grows
      * behind it. These tests take no file list. They walk src/ and count.
      */
-    const SRC_DIR = path.join(process.cwd(), "src");
+    // SRC_DIR / walkSrc / codeOf were declared here when only this block
+    // walked the tree. They are now at module scope: "walk, do not list" is
+    // the whole file's law, not this describe's local habit.
     const OWNER = path.join("lib", "marketData", "changeAbsence.ts");
-
-    function walkSrc(): string[] {
-      const out: string[] = [];
-      const stack = [SRC_DIR];
-      while (stack.length) {
-        const dir = stack.pop()!;
-        for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-          const p = path.join(dir, e.name);
-          if (e.isDirectory()) stack.push(p);
-          else if (/\.(tsx|ts)$/.test(e.name)) out.push(p);
-        }
-      }
-      return out;
-    }
-
-    /** Source with comments removed — a literal quoted in prose is not a render. */
-    function codeOf(file: string): string {
-      return fs.readFileSync(file, "utf8")
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/(^|[^:])\/\/.*$/gm, "$1");
-    }
 
     it("no file but the owner spells the sentence", () => {
       const offenders = walkSrc()
@@ -303,6 +319,100 @@ describe("chart header day-change truth", () => {
       // verified bar close — `deriveLastBarClose` often names one. Saying so
       // would be an absence overclaim, the mirror of a fabricated value.
       expect(PRICE_UNAVAILABLE_TITLE).toContain("bar close");
+    });
+  });
+
+  describe("a reason carried only in `title` is not said on a phone", () => {
+    // A phone has no hover. `title` is reachable by a mouse and by some screen
+    // readers and by nothing else. So a glyph whose reason lives only in
+    // `title` is, on the primary device, a BARE GLYPH — the exact defect this
+    // whole chain started from, restored by omission rather than by edit.
+    //
+    // Three of the four sites the previous commits touched happened to carry
+    // both attributes. The one that did not was MainChart — which the
+    // globals.css hide-rule had made the ONLY site a phone can read.
+    // That was luck, not a pattern, and nothing was watching it.
+
+    /** Every `title={X}` in a file, paired with whether `aria-label={X}` also appears. */
+    function titlesWithoutAria(code: string): string[] {
+      const out: string[] = [];
+      const re = /title=\{([^}]*)\}/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(code)) !== null) {
+        const expr = m[1];
+        // Only absence disclosures are in scope. A `title` on a button or an
+        // icon is a different thing and this test has no opinion about it.
+        if (!/UNAVAILABLE_TITLE|priceAbsenceReason/.test(expr)) continue;
+        if (!code.includes(`aria-label={${expr}}`)) out.push(expr);
+      }
+      return out;
+    }
+
+    it("no absence disclosure anywhere in src/ is hover-only", () => {
+      const offenders: string[] = [];
+      for (const f of walkSrc()) {
+        if (f.endsWith(".test.ts") || f.endsWith(".test.tsx")) continue;
+        for (const expr of titlesWithoutAria(codeOf(f))) {
+          offenders.push(`${path.relative(SRC_DIR, f)}  title={${expr}}`);
+        }
+      }
+      // Paths, not a count — a future failure must name the file.
+      expect(offenders).toEqual([]);
+    });
+
+    it("the phone's load-bearing site announces, not merely hovers", () => {
+      // Named explicitly on top of the population walk above, because THIS is
+      // the site globals.css depends on. If the general rule is ever relaxed,
+      // this one must still fail.
+      expect(mainChart).toContain("aria-label={hasProviderChange ? undefined : CHANGE_UNAVAILABLE_TITLE}");
+      expect(mainChartRaw).toContain("absence-reason-must-be-announced-not-only-hovered");
+    });
+  });
+
+  describe("the price refusal sentence has one owner and one parameter", () => {
+    it("no file but the owner spells the refusal sentence", () => {
+      const offenders = walkSrc()
+        .filter((f) => !f.endsWith(path.join("lib", "marketData", "priceAbsence.ts")))
+        .filter((f) => !f.endsWith(".test.ts") && !f.endsWith(".test.tsx"))
+        .filter((f) => /No price to show\./.test(codeOf(f)));
+      expect(offenders.map((f) => path.relative(SRC_DIR, f))).toEqual([]);
+    });
+
+    it("a refusal reads as judgement, not as breakage", () => {
+      // "No data" reads to a trader as a product that is broken or asleep.
+      // "WM looked and said no" reads as a product exercising judgement.
+      // Those are opposite impressions of the same state; only one is true.
+      const r = priceAbsenceReason({ quoteRefusal: "stale sequence", hasCandleSource: true });
+      expect(r).toContain("stale sequence");
+      expect(r).toContain("refusal, not a delay");
+      expect(r).toContain("WM looked and said no");
+    });
+
+    it("a surface with no candles does not claim it checked them", () => {
+      // The ONE legitimate difference between the two former copies. It is a
+      // PARAMETER, not a second owner — deduplication that erases a real
+      // difference would be a fabrication with better hygiene.
+      const withCandles = priceAbsenceReason({ hasCandleSource: true });
+      const without = priceAbsenceReason({ hasCandleSource: false });
+      expect(withCandles).toContain("no candle has loaded");
+      expect(without).not.toContain("candle");
+      expect(withCandles).not.toEqual(without);
+    });
+
+    it("a refusal outranks a silence", () => {
+      // If a provider actually answered and WM declined, saying "nothing has
+      // been observed" would be false — something was observed and rejected.
+      const both = priceAbsenceReason({ quoteRefusal: "crossed book", hasCandleSource: false });
+      expect(both).not.toContain("has been observed for this symbol yet");
+    });
+
+    it("the glyph is never spelled at a call site", () => {
+      // Same law as CHANGE_UNAVAILABLE_GLYPH: a named constant is what lets a
+      // diff distinguish a considered rendering from someone typing a dash.
+      expect(PRICE_ABSENCE_GLYPH).toBe("—");
+      for (const f of ["components/chart/MainChart.tsx", "components/chart/StockInfoPanel.tsx"]) {
+        expect(codeOf(path.join(SRC_DIR, f))).toContain("{PRICE_ABSENCE_GLYPH}");
+      }
     });
   });
 });

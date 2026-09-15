@@ -20,6 +20,7 @@ import { DataVersionGuard } from "@/lib/chartContext";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 import { CHANGE_UNAVAILABLE_TEXT, CHANGE_UNAVAILABLE_TITLE } from "@/lib/marketData/changeAbsence";
+import { PRICE_ABSENCE_GLYPH, priceAbsenceReason } from "@/lib/marketData/priceAbsence";
 import {
   findSessionNectarChannel,
   getSessionNectarSnapshot,
@@ -6990,13 +6991,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               return (
                 <span
                   className="font-mono font-bold text-base text-wm-text-dim leading-none"
-                  title={
-                    quoteRefusal
-                      ? `No price to show. A quote provider answered and WM declined the answer: ${quoteRefusal}\n\nThis is a refusal, not a delay — WM looked and said no.`
-                      : "No price to show. No quote has been observed and no candle has loaded for this symbol."
-                  }
+                  // Was two string literals here, and StockInfoPanel had
+                  // already drifted from them. `aria-label` is not decoration:
+                  // on a phone there is no hover, so `title` alone would leave
+                  // this glyph bare — the original defect, by omission.
+                  title={priceAbsenceReason({ quoteRefusal, hasCandleSource: true })}
+                  aria-label={priceAbsenceReason({ quoteRefusal, hasCandleSource: true })}
                 >
-                  —
+                  {PRICE_ABSENCE_GLYPH}
                 </span>
               );
             }
@@ -7022,7 +7024,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             // have made a third owner that agrees until someone edits one copy.
             // This row is the reference-correct site; it now reads the sentence
             // from the module rather than being the place it is spelled.
+            // THE `aria-label` IS LOAD-BEARING, NOT DECORATION. globals.css
+            // hides the chrome header's copy of this sentence under
+            // (max-width:639px) *because this row renders it*. So on a phone
+            // this is the ONLY statement of the absence on the page — and a
+            // phone has no hover, which means `title` alone says nothing.
+            // SENTINEL: absence-reason-must-be-announced-not-only-hovered
             title={hasProviderChange ? undefined : CHANGE_UNAVAILABLE_TITLE}
+            aria-label={hasProviderChange ? undefined : CHANGE_UNAVAILABLE_TITLE}
           >
             {hasProviderChange
               ? `${up ? "+" : ""}${change.toFixed(dp)} (${up ? "+" : ""}${changePct}%)`

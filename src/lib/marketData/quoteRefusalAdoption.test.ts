@@ -452,9 +452,24 @@ describe("stock info panel — zero is not a price, and it has no colour", () =>
 
     const priceBlock = SIP.slice(SIP.indexOf("{/* Price */}"), SIP.indexOf("{chg.displayable ? ("));
     expect(priceBlock, "no price block found").not.toHaveLength(0);
-    expect(priceBlock, "the retracted case needs a neutral placeholder").toContain('>—</span>');
+
+    // REWRITTEN, NOT RELAXED. This used to assert the literal `>—</span>` and
+    // a bare mention of `quoteRefusal` lived in this file. Both sentences were
+    // then extracted to `priceAbsence.ts`, because MainChart had been spelling
+    // its own drifted copy of them. At that moment this assertion would have
+    // REQUIRED THE DUPLICATION THE EXTRACTION EXISTS TO PREVENT — a Sentinel
+    // forcing a literal to stay at a consumer site.
+    //
+    // So it now asserts the WIRING. The content of the sentence is asserted
+    // exactly once, against its owner, in changeAbsence/priceAbsence tests.
+    expect(priceBlock, "the retracted case needs a neutral placeholder")
+      .toContain("{PRICE_ABSENCE_GLYPH}");
     expect(priceBlock, "the placeholder must carry the reason WM declined")
-      .toContain("quoteRefusal");
+      .toContain("priceAbsenceReason({ quoteRefusal");
+    // ...and it must be ANNOUNCED, not merely hoverable. A phone has no hover,
+    // so `title` alone would leave this a bare glyph on the primary device.
+    expect(priceBlock, "the reason must reach a screen reader, not only a mouse")
+      .toContain("aria-label={priceAbsenceReason(");
     // The direction arrow is an assertion about a price; with no price there
     // is nothing to point at.
     expect(priceBlock, "the arrow must not survive a retracted price")

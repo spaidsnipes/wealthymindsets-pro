@@ -2,6 +2,7 @@
 
 import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDisplay";
 import { CHANGE_UNAVAILABLE_TEXT, CHANGE_UNAVAILABLE_TITLE } from "@/lib/marketData/changeAbsence";
+import { PRICE_ABSENCE_GLYPH, priceAbsenceReason } from "@/lib/marketData/priceAbsence";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import React, { useState, useRef, useEffect } from "react";
@@ -205,10 +206,14 @@ export function StockInfoPanel({ symbol }: Props) {
           ) : (
             <span
               style={{ fontSize: 22, fontWeight: 700, color: "#8B8FA8", fontFamily: "monospace" }}
-              title={quoteRefusal
-                ? `No price to show. A provider answered and WM declined the answer: ${quoteRefusal}\n\nThis is a refusal, not a delay.`
-                : "No price to show. No quote has been observed for this symbol yet."}
-            >—</span>
+              // Had DRIFTED from MainChart's copy before either was noticed:
+              // "A provider" for "A quote provider", and the clause "— WM
+              // looked and said no" simply gone. hasCandleSource is false and
+              // must stay false — this panel has no candle series and would be
+              // claiming to have looked somewhere it never looks.
+              title={priceAbsenceReason({ quoteRefusal, hasCandleSource: false })}
+              aria-label={priceAbsenceReason({ quoteRefusal, hasCandleSource: false })}
+            >{PRICE_ABSENCE_GLYPH}</span>
           )}
           {ticker.price > 0 && chg.displayable && (
             <span style={{ fontSize: 13, color: up ? "#00C076" : "#FF4D67" }}>{up ? "↑" : "↓"}</span>
