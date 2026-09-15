@@ -631,6 +631,12 @@ export function applyFill(
   const pos = positions[idx];
   const sameDir = Math.sign(signedQty) === Math.sign(pos.qty);
   let realized = 0;
+  /**
+   * How much size this fill CLOSED. Tracked separately from `realized` because
+   * the two answer different questions and a close can realise exactly zero.
+   * See the `trade.pnl` assignment below.
+   */
+  let closedQty = 0;
   let newPos: Position | null;
 
   if (sameDir) {
@@ -639,6 +645,7 @@ export function applyFill(
     newPos = { ...pos, qty: newQty, avgPx: newAvg, marketPx: fillPx };
   } else {
     const closeQty = Math.min(Math.abs(signedQty), Math.abs(pos.qty));
+    closedQty = closeQty;
     realized = closeQty * (fillPx - pos.avgPx) * Math.sign(pos.qty) * mult;
     const newQty = pos.qty + signedQty;
     if (newQty === 0) {
@@ -650,7 +657,21 @@ export function applyFill(
     }
   }
 
-  if (realized !== 0) trade.pnl = realized;
+  // A MEASURED ZERO IS A RESULT. The condition is "did this fill close size",
+  // NOT "was the number non-zero" — those differ on exactly the case that
+  // matters, the scratch closed at the average price.
+  //
+  // The old line was `if (realized !== 0)`. It deleted a zero it had just
+  // computed, and absence then meant both "nothing closed" and "zero realised",
+  // which made a correct win rate impossible to compute downstream: an opening
+  // fill and a breakeven close produced identical records. See
+  // `paperTradeOutcome.ts`, which is the reader this enables.
+  //
+  // Still CONDITIONAL, per H1: an opening or add fill realises nothing, and it
+  // must produce a trade with NO `pnl` key rather than an explicit `0`, because
+  // persisted books are serialized and compared and "0" would assert a
+  // breakeven close that never happened.
+  if (closedQty > 0) trade.pnl = realized;
   const next = newPos
     ? positions.map((p, i) => (i === idx ? newPos! : p))
     : positions.filter((_, i) => i !== idx);

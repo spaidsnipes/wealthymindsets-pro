@@ -56,6 +56,7 @@ import {
   type Trade,
 } from "@/lib/paperTrade";
 import { selectFillQueueBasis, describeFillQueueBasis } from "@/lib/paperFillQueueBasis";
+import { selectPaperWinRate, describePaperWinRate } from "@/lib/paperTradeOutcome";
 import SceneAdmissionPanel from "@/components/experience/SceneAdmissionPanel";
 import SceneAdmits, { SceneAdmitsAmbient } from "@/components/experience/SceneAdmits";
 import {
@@ -798,7 +799,13 @@ const RANK_BADGES = [
  * `compileScene`.
  */
 function Leaderboard({ myPct, myPnl, myTrades, myWin, compilation }: {
-  myPct: number; myPnl: number; myTrades: number; myWin: number;
+  /**
+   * NULL WHEN NOTHING HAS CLOSED. Widened from `number` deliberately: the old
+   * call site passed a literal `0` in that case, which ranked the trader as
+   * having lost every trade rather than as having no record yet. Null is
+   * rendered as "—" below and is never coerced.
+   */
+  myPct: number; myPnl: number; myTrades: number; myWin: number | null;
   compilation: SceneCompilation;
 }) {
   // Insert "You" into leaderboard at correct rank
@@ -921,9 +928,14 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin, compilation }: {
               <div className="text-[10px] text-wm-text-muted font-mono">{entry.trades}</div>
 
               {/* Win rate */}
+              {/* An unknown win rate gets the MUTED colour, not the red one.
+                  Colouring "no closed trades yet" as failure is the same
+                  overclaim as printing 0%. */}
               <div className={clsx("text-[10px] font-mono font-bold",
-                entry.win >= 60 ? "text-wm-green" : entry.win >= 50 ? "text-wm-gold" : "text-wm-red")}>
-                {entry.win}%
+                entry.win == null ? "text-wm-text-muted"
+                  : entry.win >= 60 ? "text-wm-green"
+                  : entry.win >= 50 ? "text-wm-gold" : "text-wm-red")}>
+                {entry.win == null ? "—" : `${entry.win}%`}
               </div>
             </div>
           );
@@ -1461,6 +1473,16 @@ export default function PaperTradingPage() {
     (s,p) => s + p.qty*p.marketPx*contractMultiplier(p.symbol), 0,
   ) + optionsMark;
   const totalRealPnl = trades.reduce((s,t) => s + (t.pnl ?? 0), 0);
+  /**
+   * ONE win rate for the whole page, computed by the shared owner.
+   *
+   * Three separate render sites each re-typed
+   * `trades.filter(t=>(t.pnl??0)>0).length / trades.length`, which puts OPENING
+   * fills — which realise nothing and can never be wins — into the denominator.
+   * Buy one, sell one at a profit: two trades, one win, rendered as 50%. See
+   * `paperTradeOutcome.ts`. Computed once here so the three sites cannot drift.
+   */
+  const winRate = selectPaperWinRate(trades);
   const dayPnl = totalRealPnl + totalUnreal;
 
   // PERSISTED means exact immediate browser readback matched; failure is
@@ -2306,9 +2328,11 @@ export default function PaperTradingPage() {
               { l:"Positions",  v:bookRecoveryRequired ? "UNKNOWN" : updatedPositions.length },
               { l:"Pending",    v:bookRecoveryRequired ? "UNKNOWN" : pendingOrders.length    },
               { l:"Total Trades",v:bookRecoveryRequired ? "UNKNOWN" : trades.length          },
-              { l:"Win Rate",   v:bookRecoveryRequired ? "UNKNOWN" : trades.length
-                  ? `${Math.round(trades.filter(t=>(t.pnl??0)>0).length/trades.length*100)}%`
-                  : "—" },
+              // "—" when nothing has CLOSED, not when nothing has been traded.
+              // A trader holding an open position has no win rate; 0% would
+              // assert they lost every trade they took.
+              { l:"Win Rate",   v:bookRecoveryRequired ? "UNKNOWN"
+                  : winRate.pct == null ? "—" : `${winRate.pct}%` },
             ].map(({l,v})=>(
               <div key={l} className="flex justify-between text-[10px]">
                 <span className="text-wm-text-dim">{l}</span>
@@ -2655,9 +2679,7 @@ export default function PaperTradingPage() {
                     <div className="flex justify-between text-[10px] mt-1 text-wm-text-muted">
                       <span>Win Rate</span>
                       <span className="font-mono">
-                        {trades.length
-                          ? `${Math.round(trades.filter(t=>(t.pnl??0)>0).length/trades.length*100)}% (${trades.filter(t=>(t.pnl??0)>0).length}W/${trades.filter(t=>(t.pnl??0)<0).length}L)`
-                          : "—"}
+                        {describePaperWinRate(winRate) ?? "—"}
                       </span>
                     </div>
                   </div>
@@ -2681,7 +2703,7 @@ export default function PaperTradingPage() {
                   myPct={((totalEquity - STARTING_CASH) / STARTING_CASH) * 100}
                   myPnl={totalEquity - STARTING_CASH}
                   myTrades={trades.length}
-                  myWin={trades.length ? Math.round(trades.filter(t=>(t.pnl??0)>0).length/trades.length*100) : 0}
+                  myWin={winRate.pct}
                 />
               )}
             </div>
