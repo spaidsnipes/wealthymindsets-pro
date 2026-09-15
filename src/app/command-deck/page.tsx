@@ -93,6 +93,7 @@ import { selectCompletionState } from "@/lib/experience/selectCompletionState";
 import { deriveCompletionSignals } from "@/lib/experience/deriveCompletionSignals";
 import { composeExitRamp } from "@/lib/experience/composeExitRamp";
 import ExitRampCard from "@/components/experience/ExitRampCard";
+import PracticeHonestyLayer from "@/components/experience/PracticeHonestyLayer";
 import { useLearningGenomeBundle } from "@/lib/learningGenome/useLearningGenomeBundle";
 import { LearningGenomeInspector } from "@/components/learningGenome/LearningGenomeInspector";
 import ProviderWireStrip from "@/components/marketData/ProviderWireStrip";
@@ -1279,6 +1280,24 @@ function CommandDeckInner() {
                   </details>
                 ) : null}
               </SceneAdmitsAmbient>
+
+              {/* PRACTICE HONESTY — the REVIEW/RECEIPT layer the visual
+                  coverage matrix lists as a GAP.
+
+                  Five modules already measure how the practice book was easier
+                  than a real venue (locate, fill, rest, cancel, stop). Until
+                  now every one of those sentences was visible only inside the
+                  legacy /paper page's tabs — truth living in a mini-app, which
+                  is exactly the SCENE_FRAGMENTATION the current repair law
+                  names. The room now consumes truth it already owned.
+
+                  Gated to REVIEW/LEARN for the same reason the Learning Genome
+                  is: this is backward-looking. §9 INTERRUPTION LAW forbids a
+                  retrospective taking the room while capital is exposed, and
+                  the component is a closed drawer even here. */}
+              {(experienceContext.mode === "REVIEW" || experienceContext.mode === "LEARN") && (
+                <PracticeHonestyLayer />
+              )}
             </div>
 
             {/* Connection diagnostics are operational evidence, not the
