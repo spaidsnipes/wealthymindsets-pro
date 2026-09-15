@@ -91,15 +91,19 @@ export interface LastBarCloseEvidence {
  * function stops being testable. Omitting it costs at most one bar of
  * freshness; it can never cause an overclaim.
  */
-export function deriveLastBarClose(
-  bars: readonly OHLCVBar[] | null | undefined,
-  timeframe: string | null | undefined,
-  nowMs?: number | null,
-): LastBarCloseEvidence | null {
-  if (!bars || bars.length === 0) return null;
-  const tf = typeof timeframe === "string" ? timeframe.trim() : "";
-  if (!tf) return null;
-
+/**
+ * Newest + runner-up by bar time, ignoring unusable bars.
+ *
+ * Extracted so `deriveLastBarClose` and `lastBarCloseRecheckAtMs` cannot drift
+ * apart. A scheduler that computed "when does the answer change?" with its own
+ * copy of this arithmetic would be a SECOND OWNER of the same proof — the exact
+ * VACUOUS AGREEMENT shape this codebase keeps finding, since the two copies
+ * agree right up until one of them is edited.
+ */
+function rankBars(bars: readonly OHLCVBar[]): {
+  newest: OHLCVBar | null;
+  runnerUp: OHLCVBar | null;
+} {
   // Do NOT assume the array is sorted. A close attributed to the wrong bar is
   // a fabricated timestamp even when the number happens to be right.
   let newest: OHLCVBar | null = null;
@@ -115,6 +119,69 @@ export function deriveLastBarClose(
       runnerUp = bar;
     }
   }
+  return { newest, runnerUp };
+}
+
+/**
+ * THE MOMENT THIS ANSWER GOES STALE ON ITS OWN.
+ *
+ * `deriveLastBarClose` is pure, but it is not time-invariant: PROOF 2 flips
+ * from false to true purely by the CLOCK ADVANCING, with no change to `bars`
+ * and no change to `timeframe`. A caller that only recomputes when its inputs
+ * change will therefore keep publishing the runner-up bar for up to one whole
+ * interval after the newest bar has provably closed.
+ *
+ * MEASURED LIVE on /charts 2026-09-15T18:23:39Z, TSLA 15m, in ONE DOM read:
+ *
+ *   OHLCV strip   :  C 357.87   ("this bar's interval has fully elapsed")
+ *   decision spine:  357.47 LAST 15m BAR CLOSE   (asOf 18:14:00Z)
+ *
+ * Both owners were internally honest — 357.47 really was the last provably
+ * closed bar AS OF 18:14 — but the spine's snapshot was nine minutes old
+ * because nothing in its input had changed since, and the tape was quiet. So
+ * the page showed two prices, both labelled "close", and the trader had no way
+ * to know one was a bar behind. Canon Weakness #1, multi-price disagreement.
+ *
+ * The repair is NOT to relax PROOF 2 — the conservatism is correct. It is to
+ * RE-ASK the question at the one instant the answer can change by itself.
+ * Returns that instant, or null when there is nothing to wait for (the newest
+ * bar has already closed, or the evidence never supported PROOF 2 anyway — in
+ * both cases only a new bar can change the answer, and a new bar IS an input
+ * change the caller already reacts to).
+ */
+export function lastBarCloseRecheckAtMs(
+  bars: readonly OHLCVBar[] | null | undefined,
+  timeframe: string | null | undefined,
+  nowMs?: number | null,
+): number | null {
+  if (!bars || bars.length === 0) return null;
+  const tf = typeof timeframe === "string" ? timeframe.trim() : "";
+  if (!tf) return null;
+
+  const intervalMs = parseTimeframeMs(tf);
+  if (intervalMs === null) return null;
+  if (!(typeof nowMs === "number" && Number.isFinite(nowMs) && nowMs > 0)) return null;
+
+  const { newest } = rankBars(bars);
+  if (newest === null) return null;
+
+  const closesAt = Math.round(newest.time * 1000) + intervalMs;
+  // Already elapsed — PROOF 2 is satisfied right now, so waiting changes
+  // nothing. Strictly greater: at exactly `closesAt` the deriver already says
+  // closed (`<=`), and returning it would schedule a zero-delay no-op.
+  return closesAt > nowMs ? closesAt : null;
+}
+
+export function deriveLastBarClose(
+  bars: readonly OHLCVBar[] | null | undefined,
+  timeframe: string | null | undefined,
+  nowMs?: number | null,
+): LastBarCloseEvidence | null {
+  if (!bars || bars.length === 0) return null;
+  const tf = typeof timeframe === "string" ? timeframe.trim() : "";
+  if (!tf) return null;
+
+  const { newest, runnerUp } = rankBars(bars);
   if (newest === null) return null;
 
   // PROOF 2 — can we show the newest bar's interval has fully elapsed?

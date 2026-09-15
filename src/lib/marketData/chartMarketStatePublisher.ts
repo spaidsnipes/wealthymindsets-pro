@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { MarketState, Tick } from "../../hooks/useWebSocket";
 import { priceSourceBadge, REST_QUOTE_SOURCES } from "../priceSource";
 import { publishCanonicalMarketState } from "./publishCanonicalMarketState";
@@ -18,7 +18,7 @@ import { deriveOrderFlowDimension } from "./deriveOrderFlowDimension";
 import { deriveVolatilityDimension } from "./deriveVolatilityDimension";
 import { deriveDirectionDimension, countTradeTicks } from "./deriveDirectionDimension";
 import { deriveRegimeDimension } from "./deriveRegimeDimension";
-import { deriveLastBarClose } from "./deriveLastBarClose";
+import { deriveLastBarClose, lastBarCloseRecheckAtMs } from "./deriveLastBarClose";
 import type { OHLCVBar } from "../pine/types";
 
 export interface ChartMarketStatePublicationInput {
@@ -279,6 +279,41 @@ export function usePublishChartMarketState(
     bars,
   }: Omit<ChartMarketStatePublicationInput, "capturedAt" | "nectar">,
 ): void {
+  // THE BAR THAT CLOSES WHILE NOTHING CHANGES.
+  //
+  // Every dependency below is an INPUT. But `lastBar` is not a function of the
+  // inputs alone — `deriveLastBarClose`'s second proof ("barOpen + one interval
+  // <= now") flips from false to true purely because the clock advanced. On a
+  // quiet tape no input changes at that instant, so this effect does not re-run
+  // and canonical state keeps naming the runner-up bar for up to a full
+  // interval after the newest one provably closed.
+  //
+  // Measured live 2026-09-15T18:23:39Z on TSLA 15m: the spine read
+  // `357.47 LAST 15m BAR CLOSE` (asOf 18:14:00Z) beside an OHLCV strip reading
+  // `C 357.87` whose own tooltip said the interval had fully elapsed. Two
+  // prices, one page, both labelled close — canon Weakness #1.
+  //
+  // `recheck` is a nonce bumped by a timer armed for exactly that instant, so
+  // the question is re-asked when — and only when — its answer can have
+  // changed. Not a poll: at most one extra publication per bar boundary, and
+  // none at all once the newest bar has closed.
+  const [recheck, setRecheck] = useState(0);
+  useEffect(() => {
+    const at = lastBarCloseRecheckAtMs(bars ?? null, timeframe, Date.now());
+    if (at === null) return;
+    // +1ms so the deriver's inclusive `<=` is unambiguously satisfied when the
+    // handler runs; a timer that fires a hair early would re-publish the same
+    // stale answer and then never re-arm.
+    const delay = Math.max(0, at - Date.now() + 1);
+    // setTimeout clamps anything past ~24.8 days to a spurious immediate fire.
+    // A daily/weekly timeframe can exceed that, and an immediate fire would
+    // re-arm instantly in a hot loop. Those intervals are far coarser than the
+    // staleness this fixes, so decline rather than spin.
+    if (delay > 2_147_483_647) return;
+    const timer = setTimeout(() => setRecheck(n => n + 1), delay);
+    return () => clearTimeout(timer);
+  }, [bars, timeframe, recheck]);
+
   useEffect(() => {
     const publication = createChartMarketStatePublication({
       symbol,
@@ -303,5 +338,9 @@ export function usePublishChartMarketState(
     // `bars` belongs here too. Forwarding it without depending on it would
     // leave the close frozen at whatever the first publish happened to see,
     // which is its own quiet untruth.
-  }, [symbol, timeframe, session, ticker, recentTicks, source, connected, bars]);
+    //
+    // `recheck` belongs here for the same reason, one level up: without it the
+    // close stays frozen at whatever the last INPUT CHANGE happened to see,
+    // even after the clock alone has made a newer bar provably closed.
+  }, [symbol, timeframe, session, ticker, recentTicks, source, connected, bars, recheck]);
 }
