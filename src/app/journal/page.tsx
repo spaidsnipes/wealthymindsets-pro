@@ -1564,8 +1564,27 @@ Trade the system, trust the process, winners every day 🚀`,
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-wm-surface text-wm-text-dim border border-wm-border">WR UNKNOWN · no trades taken</span>
           )}
           {/* §9: red is money actually lost. A total WM could not compute is
-              not a loss, so it is never painted as one. */}
-          {recordedTotal.total === null ? (
+              not a loss, so it is never painted as one.
+
+              AND: green is money actually MADE. With no trade records at all
+              this strip used to render "+$0.00" in the green tint, sitting
+              directly beside the chip that says "no trades taken" — the same
+              strip asserting both "nothing happened" and a positive dollar
+              result, in the styling reserved for a win.
+
+              The arithmetic was never wrong: the sum of no numbers is 0, and
+              selectRecordedTotal is right to call an empty book COMPLETE.
+              The LABEL was wrong. A trader who took no trades did not break
+              even; there is simply nothing to total. So the empty case gets
+              its own neutral chip and says so, rather than being dressed as
+              a flat-but-green session.
+
+              Discriminated from the owner's own counters, not from a second
+              copy of "is the list empty", so it cannot drift from the sum it
+              describes. */}
+          {recordedTotal.counted === 0 && recordedTotal.unreadable === 0 ? (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-wm-surface text-wm-text-dim border-wm-border">NO P&amp;L TO TOTAL · no trades recorded</span>
+          ) : recordedTotal.total === null ? (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-wm-surface text-wm-text-dim border-wm-border">P&amp;L UNKNOWN</span>
           ) : (
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${recordedTotal.total >= 0 ? "bg-wm-green/10 text-wm-green border-wm-green/25" : "bg-wm-red/10 text-wm-red border-wm-red/25"}`}>

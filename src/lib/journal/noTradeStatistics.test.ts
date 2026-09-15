@@ -137,6 +137,41 @@ describe("/journal — an M0 no-trade day is never scored as a trade", () => {
     expect(chip).not.toMatch(/wm-red|#d4af37/);
   });
 
+  /**
+   * READ OFF THE LIVE SITE (/journal, empty book). The header strip rendered,
+   * on one line:
+   *
+   *     [ WR UNKNOWN · no trades taken ]   [ +$0.00 ]   0W / 0L
+   *
+   * with "+$0.00" in the GREEN tint. The same strip asserted both "nothing
+   * happened" and a positive dollar result, in the styling canon §9 reserves
+   * for money actually made.
+   *
+   * The arithmetic was never wrong — the sum of no numbers is 0, and
+   * selectRecordedTotal is right to call an empty book COMPLETE. The LABEL
+   * was wrong. A trader who took no trades did not break even; there is
+   * nothing to total. This is the sibling of the WR UNKNOWN chip directly
+   * beside it, which had already learned the same lesson.
+   */
+  it("H1: an empty book has nothing to total, and is not a green zero", () => {
+    expect(code).toMatch(/recordedTotal\.counted === 0 && recordedTotal\.unreadable === 0 \?/);
+    expect(code).toMatch(/NO P&amp;L TO TOTAL/);
+    const at = code.indexOf("NO P&amp;L TO TOTAL");
+    const chip = code.slice(code.lastIndexOf("<span", at), code.indexOf("</span>", at));
+    // §9: unknown is quiet. Never the win tint, never the loss tint.
+    expect(chip).not.toMatch(/wm-green|wm-red|wm-gold/);
+    expect(chip).toMatch(/bg-wm-surface|text-wm-text-dim/);
+  });
+
+  it("the empty case is decided by the owner's counters, not a second emptiness test", () => {
+    // `tradeRecords.length === 0` here would be a duplicate notion of "empty"
+    // that can drift away from the sum it is meant to describe. The chip must
+    // read the same object it renders.
+    const at = code.indexOf("NO P&amp;L TO TOTAL");
+    const guard = code.slice(Math.max(0, at - 600), at);
+    expect(guard).not.toMatch(/tradeRecords\.length === 0/);
+  });
+
   it("a partial total says so as TEXT, not only in a tooltip", () => {
     // H18 on a third surface: a tooltip is not a label, and on the
     // founder-path phone it does not exist at all.
