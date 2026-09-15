@@ -19,6 +19,10 @@ import {
   useSessionClockDate,
 } from "@/lib/marketData/useProvenSessionClosure";
 import { selectDecisionChain, type TradePhase } from "@/lib/marketData/viewModels/selectDecisionChain";
+// Sourced from the COMPILER, not from selectPermission directly — the deck
+// routes through composeMarketCanvasVM for everything permission-shaped, and
+// that is what the single-writer Sentinel enforces.
+import { defaultFounderRules } from "@/lib/marketData/viewModels/composeMarketCanvasVM";
 import { selectMarketStory } from "@/lib/marketData/viewModels/selectMarketStory";
 import DecisionChainPanel from "@/components/chart/DecisionChainPanel";
 import StructureContextNote from "@/components/chart/StructureContextNote";
@@ -304,6 +308,21 @@ function CommandDeckInner() {
     [user?.id, sessionDecisions, nowMs],
   );
 
+  /**
+   * `permissionInputs` is REQUIRED here, not optional.
+   *
+   * Without it `selectDecisionChain` leaves its permission node null and the
+   * chain narrates a non-evaluation, while `composeMarketCanvasVM` below
+   * compiles a real verdict off `defaultFounderRules()`. Both rendered on the
+   * same screen: the chain's PERMISSION row and the Steward's RESTRICTED
+   * verdict, ~140px apart, disagreeing about whether the trader has any rules.
+   *
+   * The four values below are the SAME ones handed to composeMarketCanvasVM —
+   * `sessionIdentity` is spelled to match its `defaultSessionIdentity(nowMs)`
+   * exactly. Both are pure selectors, so identical inputs give identical
+   * output; the chain becomes the single writer and the compiler reads it.
+   * If these two call sites ever drift apart, a Sentinel fails.
+   */
   const chainVm = React.useMemo(() => {
     if (!state) return null;
     return selectDecisionChain({
@@ -311,8 +330,14 @@ function CommandDeckInner() {
       history,
       nowMs,
       phase,
+      permissionInputs: {
+        ownerId: user?.id ?? "",
+        sessionIdentity: `session-${new Date(nowMs).toISOString().slice(0, 10)}`,
+        rules: defaultFounderRules(),
+        sessionDecisions,
+      },
     });
-  }, [state, history, phase, nowMs]);
+  }, [state, history, phase, nowMs, user?.id, sessionDecisions]);
 
   const athos = React.useMemo(() => {
     const momentMap: Record<CommandPhase, ATHOSIntervention["moment"]> = {

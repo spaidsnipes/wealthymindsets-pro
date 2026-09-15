@@ -286,7 +286,23 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
           : permission.verdict === "ALLOWED" ? "RESOLVED"
           : "PARTIAL"
           : "UNKNOWN",
-        narrative: permission?.headline ?? "No trader rules configured — Permission not evaluated.",
+        /**
+         * The fallback narrates the INPUT, never the world.
+         *
+         * `permission === null` means exactly one thing: no `permissionInputs`
+         * were handed to this selector. It does NOT mean the trader has no
+         * rules — this selector has no way to know that, and it used to say so
+         * anyway ("No trader rules configured"), which put a flat
+         * contradiction on `/command-deck`: the chain claimed no rules existed
+         * while the Steward four rows below read RESTRICTED off eight of them.
+         *
+         * Every sibling link here already narrates its own inputs and is true
+         * by construction — "No proposed setup — Available R not evaluated.",
+         * "No CLC evaluation available.", "No open position — management not
+         * active." This one reached past its inputs to assert a state of the
+         * world it had not observed. H1: absence is not zero.
+         */
+        narrative: permission?.headline ?? "No rules supplied to this chain — Permission not evaluated here.",
         reason: permission?.reason,
         indicator: permission ? PERMISSION_INDICATOR[permission.verdict] : "UNKNOWN",
         hints: hints.length > 0 ? hints : undefined,

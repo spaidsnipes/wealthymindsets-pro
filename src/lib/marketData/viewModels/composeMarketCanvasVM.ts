@@ -96,7 +96,25 @@ export function composeMarketCanvasVM(
         })
       : null;
 
-  const permission: PermissionVM = selectPermission({
+  /**
+   * canon §Single-Writer / Many-Readers.
+   *
+   * If the chain already compiled a permission, READ IT — do not compile a
+   * second one. `selectDecisionChain` orders its own work correctly (clc →
+   * availableR → permission), so a chain carrying a permission carries one
+   * built from the same evidence this compiler would have used.
+   *
+   * This branch exists because the two computations were observed disagreeing
+   * on `/command-deck`: the chain's PERMISSION row read "not evaluated" while
+   * the Steward, compiled here, read RESTRICTED off eight rules — both on one
+   * screen. The deck now supplies `permissionInputs` to the chain, and the
+   * compiler defers to it rather than re-deriving a rival answer.
+   *
+   * The fallback is NOT dead code: callers with no chain (the /journal/[id]
+   * detail canvas) and callers whose chain was built without
+   * `permissionInputs` still need a permission compiled here.
+   */
+  const permission: PermissionVM = chain?.permission ?? selectPermission({
     ownerId: input.ownerId,
     sessionIdentity,
     nowMs: input.nowMs,
@@ -122,5 +140,17 @@ export function composeMarketCanvasVM(
 
   return { canvas, chain, permission, oneStory, decisionWhy };
 }
+
+/**
+ * Re-exported so decision surfaces can source the founder rule set FROM THE
+ * COMPILER rather than reaching around it into `selectPermission`.
+ *
+ * `/command-deck` needs the rule set to hand `selectDecisionChain` its
+ * `permissionInputs` — without that, the chain's permission node and the
+ * Steward verdict compiled here disagree on screen about whether the trader
+ * has any rules. Routing the import through here keeps one source of rules per
+ * page, and keeps the compiler the thing surfaces depend on.
+ */
+export { defaultFounderRules };
 
 export default composeMarketCanvasVM;

@@ -69,9 +69,32 @@ describe("the Steward is not a market panel", () => {
     // composeMarketCanvasVM must keep an explicit null-chain path, so that
     // `permission` is defined whether or not the market resolved. If this
     // stops being true, ungating the Steward stops being obviously correct.
+    //
+    // RE-ARGUED once, and this test is the reason it had to be.
+    //
+    // This assertion used to demand the exact spelling
+    // `const permission: PermissionVM = selectPermission(`. The single-writer
+    // fix changed it to `chain?.permission ?? selectPermission(` — the compiler
+    // now defers to a chain that already compiled one rather than deriving a
+    // rival answer. This test failed, correctly, and forced the re-argument:
+    //
+    //   `??` falls through on null/undefined, so the right-hand call still runs
+    //   whenever the chain carries no permission — including when there is no
+    //   chain at all. `permission` is still annotated `PermissionVM`, NOT
+    //   `PermissionVM | null`, and tsc accepts it. There is no branch in which
+    //   it is undefined. The Steward is still safe to render ungated.
+    //
+    // So the assertion now checks the INVARIANT — non-nullable type, plus a
+    // reachable selectPermission fallback outside any `if (chain)` — rather
+    // than one spelling of it. Narrowing it back to a literal would make this
+    // Sentinel fail on correct refactors, which is how Sentinels get deleted.
     const compiler = codeOnly(read("src/lib/marketData/viewModels/composeMarketCanvasVM.ts"));
     expect(compiler).toMatch(/const chain: DecisionChainVM \| null/);
-    expect(compiler).toMatch(/const permission: PermissionVM = selectPermission\(/);
+    // The non-nullable annotation is what the whole ungating rests on.
+    expect(compiler).toMatch(/const permission: PermissionVM\s*=/);
+    expect(compiler).not.toMatch(/const permission: PermissionVM \| null/);
+    // selectPermission stays reachable as the fallback, whatever precedes it.
+    expect(compiler).toMatch(/const permission: PermissionVM\s*=[\s\S]{0,120}selectPermission\(/);
     // permission is compiled unconditionally — not inside an `if (chain)`.
     const permIdx = compiler.indexOf("const permission: PermissionVM");
     const before = compiler.slice(0, permIdx);
