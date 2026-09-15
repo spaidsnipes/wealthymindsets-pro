@@ -146,9 +146,50 @@ then the file was restored byte-identical.
 
 ---
 
-## Live status
+## Live status — PARTIALLY PROVEN, and the part that is not is named
 
-**PENDING** — awaiting observation on production. Not PROVEN until seen.
+Observed on `https://wealthymindsetspro.com/paper` → Leaderboard, after the
+route's chunkset digest changed from `6fecd2b2…` (poll 6).
+
+**The podium half: PROVEN.** The board row renders
+
+```
+#   TRADER    RETURN   P&L   TRADES   WIN%
+1   You ⭐    +0.0%    +$0     0       —
+```
+
+and the row's `outerHTML` contains **no 👑**. Before `e714b04` the ungated
+`RANK_BADGES.find(p => p.rank === i + 1)` put the crown on row 0
+unconditionally.
+
+One crown remains on the page and it is **not** the defect: it sits in the
+header's five-tile grid reading `👑 1st Place · 🥈 2nd Place · 🥉 3rd Place ·
+🏅 4th Place · 🏅 5th Place`. That is a description of the *external contest's
+prize structure* — a statement about the partner's rules, not a claim that the
+trader holds any of those places. Checked rather than assumed, because
+"there is still a crown on the page" is exactly the shape of a false all-clear
+in the other direction.
+
+**The callout half: NOT OBSERVABLE TODAY, therefore NOT CLAIMED.** The
+`NO FIELD TO RANK AGAINST` callout lives inside the existing
+`{myTrades > 0 && (…)}` block, and the Founder's paper book reads
+`Blotter (0)` — zero trades. The DOM confirms it: `hasNoField: false`,
+`hasRankLabel: false`, `hasPrizeZone: false`. Neither the defect nor the cure
+renders at zero trades. The unit Sentinels cover it; the pixel does not, and
+this line is here so nobody later reads "PROVEN" and believes more than was
+seen.
+
+---
+
+## What the same read found next
+
+The row that proved the fix contained the next defect. `+0.0%` computed to
+`text-wm-green` — `rgb(0, 212, 170)` — and `+$0` with it, on a book with
+**zero trades**, three cells to the left of the `—` that the WIN% column gets
+right. That is the green zero again, on the surface I had just fixed, inside
+the screenshot I took to prove the fix.
+
+Carried into `2361`.
 
 ---
 
