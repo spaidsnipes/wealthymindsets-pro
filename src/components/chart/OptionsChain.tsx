@@ -20,6 +20,13 @@ import {
 } from "@/lib/optionContractResponse";
 import { optionContractObservationTiming, optionsReceiptAge, readOptionsResponse, optionsReadFailure, UNREVIEWED_RECEIPT, type OptionContractObservationTiming, type OptionsReadFailure, type OptionsSourceReceipt } from "@/lib/optionsChainRead";
 import type { IdentifiedOptionSpot } from "@/lib/optionsSpotIdentity";
+import {
+  classifyOptionSpot,
+  classifyStrikeCell,
+  optionSpotFact,
+  strikeCellFact,
+  strikeCellReason,
+} from "@/lib/chart/optionChainCellFacts";
 
 /**
  * Every quoted field is optional: an unquoted strike has NO number, and must
@@ -145,7 +152,14 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
     return () => window.clearInterval(clock);
   }, []);
   function reviewContract(contract: OptionContract) {
-    const timing = optionContractObservationTiming(contract, receiptClock ?? Number.NaN);
+    // An unread clock is WM's OWN gap. It must not be reported to the trader as
+    // the provider failing to date the contract — the two have different causes
+    // and different cures, and the owner keeps them apart.
+    if (receiptClock === null) {
+      setSelectionNotice(strikeCellReason("WM_CLOCK_UNREAD", contract.contractType === "put" ? "put" : "call", contract.strike, symbol));
+      return;
+    }
+    const timing = optionContractObservationTiming(contract, receiptClock);
     if (!timing.reviewable) {
       setSelectionNotice("Reference timing is unverified for both the exact quote and trade. WM did not select this contract; wait for a verifiable provider observation or refresh.");
       return;
@@ -277,7 +291,24 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
   }, [expiry, allContracts, priceKey, dataSource, receivedSymbol, symbol]);
 
   const atm = chain.find(r => r.itm === "atm");
-  const hasObservedSpot = spotPrice > 0;
+  // The screen reads the owner, not the `: 0` sentinel. The numeric sentinel is
+  // left feeding the fetch-gating control flow it already feeds.
+  const spotState = classifyOptionSpot({ symbol, spot });
+  const spotFact = optionSpotFact(spotState, spot?.price, symbol, spot?.symbol);
+  // One call site decides a strike cell's state for BOTH sides.
+  const strikeCell = (contract: OptionContract | undefined, side: "call" | "put", strike: number) =>
+    strikeCellFact(
+      classifyStrikeCell({
+        contractPresent: contract != null,
+        clockMs: receiptClock,
+        timingReviewable: contract != null && receiptClock !== null
+          ? optionContractObservationTiming(contract, receiptClock).reviewable
+          : false,
+      }),
+      side,
+      strike,
+      symbol,
+    );
   const hasAvailableData = !loading && receivedSymbol === symbol && dataSource === OPTION_CHAIN_SOURCE && sourceReceipt.source === OPTION_CHAIN_SOURCE && chain.length > 0;
   const receiptAge = receiptClock === null
     ? { label: "age checking", timing: "UNVERIFIED" as const }
@@ -330,8 +361,12 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
           <span className={clsx("w-1.5 h-1.5 rounded-full", (loading || hasAvailableData) ? "bg-wm-gold" : "bg-wm-red")} aria-hidden="true" />
           {dataStatus}
         </div>
-        <span className="text-[10px] font-mono text-wm-text-muted ml-1" title={hasObservedSpot ? "Observed underlying quote" : "Underlying quote has not been observed"}>
-          Spot: <span className="text-wm-text font-bold">{hasObservedSpot ? spotPrice.toLocaleString("en-US",{minimumFractionDigits:2}) : "—"}</span>
+        <span
+          className="text-[10px] font-mono text-wm-text-muted ml-1"
+          title={spotFact.reason}
+          aria-label={`Spot for ${symbol}: ${spotFact.text}. ${spotFact.reason}`}
+        >
+          Spot: <span className={clsx("font-bold", spotFact.measured ? "text-wm-text" : "text-wm-text-dim")}>{spotFact.text}</span>
         </span>
         {hasAvailableData && atm && (
           <div
@@ -501,10 +536,11 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
                     onSelectStrike && "hover:bg-wm-surface/30 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold",
                     isATM ? "bg-wm-gold/05 border-y border-wm-gold/20" : "")}>
                   {tab !== "puts" && <>
-                    {onSelectContract && <td className="px-2 py-1.5">{row.call ? (() => {
-                      const reviewable = optionContractObservationTiming(row.call, receiptClock ?? Number.NaN).reviewable;
-                      return <button type="button" disabled={!reviewable} title={reviewable ? "Review this indicative contract" : "Quote and trade timing are both unverified"} className="min-h-11 rounded border border-wm-green/40 px-2 py-1 text-wm-green disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2" aria-label={reviewable ? `Review call ${row.call.symbol}` : `Call ${row.call.symbol} timing unverified` } onClick={e => { e.stopPropagation(); reviewContract(row.call!); }}>{reviewable ? "Review call" : "Timing unverified"}</button>;
-                    })() : "—"}</td>}
+                    {onSelectContract && <td className="px-2 py-1.5">{(() => {
+                      const cell = strikeCell(row.call, "call", row.strike);
+                      const call = row.call;
+                      return <button type="button" disabled={!cell.actionable} title={cell.reason} className={clsx("min-h-11 rounded border px-2 py-1 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2", cell.actionable ? "border-wm-green/40 text-wm-green" : "border-wm-border text-wm-text-dim")} aria-label={`${cell.text}${call ? ` ${call.symbol}` : ` at the ${row.strike} strike`}. ${cell.reason}`} onClick={call ? e => { e.stopPropagation(); reviewContract(call); } : undefined}>{cell.text}</button>;
+                    })()}</td>}
                     {showGreeks ? <>
                       <td className={clsx("px-2 py-1.5 font-mono", callITM ? "text-wm-green font-semibold" : "text-wm-text-dim")}>{formatOptionNumber(row.cDelta, 2)}</td>
                       <td className="px-2 py-1.5 font-mono text-wm-text-dim">{formatOptionNumber(row.cGamma, 4)}</td>
@@ -524,10 +560,11 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
                     {isATM && <span className="ml-1 text-[8px] text-wm-gold">ATM</span>}
                   </td>
                   {tab !== "calls" && <>
-                    {onSelectContract && <td className="px-2 py-1.5">{row.put ? (() => {
-                      const reviewable = optionContractObservationTiming(row.put, receiptClock ?? Number.NaN).reviewable;
-                      return <button type="button" disabled={!reviewable} title={reviewable ? "Review this indicative contract" : "Quote and trade timing are both unverified"} className="min-h-11 rounded border border-wm-red/40 px-2 py-1 text-wm-red disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2" aria-label={reviewable ? `Review put ${row.put.symbol}` : `Put ${row.put.symbol} timing unverified`} onClick={e => { e.stopPropagation(); reviewContract(row.put!); }}>{reviewable ? "Review put" : "Timing unverified"}</button>;
-                    })() : "—"}</td>}
+                    {onSelectContract && <td className="px-2 py-1.5">{(() => {
+                      const cell = strikeCell(row.put, "put", row.strike);
+                      const put = row.put;
+                      return <button type="button" disabled={!cell.actionable} title={cell.reason} className={clsx("min-h-11 rounded border px-2 py-1 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2", cell.actionable ? "border-wm-red/40 text-wm-red" : "border-wm-border text-wm-text-dim")} aria-label={`${cell.text}${put ? ` ${put.symbol}` : ` at the ${row.strike} strike`}. ${cell.reason}`} onClick={put ? e => { e.stopPropagation(); reviewContract(put); } : undefined}>{cell.text}</button>;
+                    })()}</td>}
                     <td className={clsx("px-2 py-1.5 font-mono text-right font-semibold", putITM ? "text-wm-red" : "text-wm-text-muted")}>{formatOptionNumber(row.pBid, 2)}</td>
                     <td className={clsx("px-2 py-1.5 font-mono text-right font-semibold", putITM ? "text-wm-red" : "text-wm-text-muted")}>{formatOptionNumber(row.pAsk, 2)}</td>
                     <td className="px-2 py-1.5 font-mono text-right text-wm-gold">{formatOptionPercent(row.pIV)}</td>

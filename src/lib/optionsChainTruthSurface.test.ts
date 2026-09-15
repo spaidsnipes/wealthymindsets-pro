@@ -105,9 +105,19 @@ describe("Options Chain truth and responsive surface", () => {
 
   it("does not present a missing underlying quote as a real zero-dollar spot", () => {
     expect(optionsChain).toContain("const spotPrice = spot?.symbol === symbol ? spot.price : 0");
-    expect(optionsChain).toContain("const hasObservedSpot = spotPrice > 0");
-    expect(optionsChain).toContain('hasObservedSpot ? spotPrice.toLocaleString("en-US",{minimumFractionDigits:2}) : "—"');
-    expect(optionsChain).toContain("Underlying quote has not been observed");
+    // RE-PINNED TO THE MEANING, NOT THE SPELLING. This Sentinel used to assert
+    // the literal `hasObservedSpot ? spotPrice.toLocaleString(…) : "—"`, which
+    // pinned it to the very dash the cell now refuses to print. The MEANING —
+    // a missing underlying must never render as a real zero-dollar spot — is
+    // now carried by optionChainCellFacts, which additionally distinguishes
+    // "no quote", "a quote for another symbol", "a corrupt quote" and "nothing
+    // printed yet". The assertions below are strictly stronger: the sentinel
+    // number may no longer be formatted onto the screen at all.
+    expect(optionsChain).toContain("classifyOptionSpot({ symbol, spot })");
+    expect(optionsChain).toContain("optionSpotFact(spotState, spot?.price, symbol, spot?.symbol)");
+    expect(optionsChain).toContain("{spotFact.text}");
+    expect(optionsChain).not.toContain("spotPrice.toLocaleString");
+    expect(optionsChain).not.toMatch(/Spot:[\s\S]{0,120}: "—"/);
     expect(optionsChain).toContain('const itm: OptionRow["itm"] = atm == null ? "unknown"');
     expect(optionsChain).not.toContain('Spot: <span className="text-wm-text font-bold">{price.toLocaleString');
   });
@@ -146,13 +156,20 @@ describe("Options Chain truth and responsive surface", () => {
     expect(optionsChain).toContain('scene === "expression" ? "border-wm-gold/60 bg-wm-gold/10 text-wm-gold"');
     expect(optionsChain).toContain('scene === "inspect" ? "border-wm-gold/60 bg-wm-gold/10 text-wm-gold"');
     expect(optionsChain).toContain("onSelectContract?.(contract, sourceReceipt, timing)");
-    expect(optionsChain).toContain("optionContractObservationTiming(contract, receiptClock ?? Number.NaN)");
+    // RE-PINNED TO THE MEANING. The old spelling passed `receiptClock ?? NaN`,
+    // which made WM's own unread clock indistinguishable from the provider
+    // failing to date the contract. The clock gap is now its own guard and the
+    // timing call receives a clock it is known to have.
+    expect(optionsChain).toContain("optionContractObservationTiming(contract, receiptClock)");
+    expect(optionsChain).not.toContain("receiptClock ?? Number.NaN");
+    expect(optionsChain).toContain('strikeCellReason("WM_CLOCK_UNREAD"');
     expect(optionsChain).toContain("if (!timing.reviewable)");
     expect(optionsChain).toContain("WM did not select this contract");
-    expect(optionsChain).toContain("disabled={!reviewable}");
-    expect(optionsChain).toContain('reviewable ? "Review call" : "Timing unverified"');
+    expect(optionsChain).toContain("disabled={!cell.actionable}");
+    expect(optionsChain).toContain('strikeCell(row.call, "call", row.strike)');
+    expect(optionsChain).toContain('strikeCell(row.put, "put", row.strike)');
     const review = optionsChain.slice(
-      optionsChain.indexOf("function reviewContract"),
+      optionsChain.indexOf("const timing = optionContractObservationTiming"),
       optionsChain.indexOf("// Keep latest price"),
     );
     const failClosedGuard = /if \(!timing\.reviewable\) \{[\s\S]*?setSelectionNotice\([\s\S]*?\);\s*return;\s*\}\s*setSelectionNotice\(""\);\s*onSelectContract\?\.\(contract, sourceReceipt, timing\);[\s\S]*?setScene\("expression"\);/;
