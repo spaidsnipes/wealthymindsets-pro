@@ -115,12 +115,45 @@ on `localhost:3000`, then measured in the DOM:
 **50%**. Screenshot confirms `DAY P&L +$200.00`, `REALIZED +$200.00`,
 `Blotter (2)`.
 
-**Why not the live book:** proving this on production would have required
-submitting orders into the Founder's account to manufacture a fill. That is a
-real order and it was not placed. The live book is empty, so the live Win Rate
-tile correctly shows `—` — which is itself the new behaviour (it used to be able
-to show `0%` there).
+**Why not the live book:** proving the filled-book arithmetic on production
+would have required submitting orders into the Founder's account to manufacture
+a fill. That is a real order and it was not placed.
 
-**What is proven:** the arithmetic, the scratch, and the null. **What is not:**
-this exact render on the production host with a real filled book. Do not upgrade
-the second claim from the first.
+### CORRECTION — a claim in the first draft of this dispatch was wrong
+
+The first draft said the Quick Stats `Win Rate` tile "used to be able to show
+0%" on an empty book. **It did not.** `git show 632ade5^` proves the pre-fix
+tile already had a `trades.length ? … : "—"` guard. That tile's `—` is not new
+and must not be counted as evidence.
+
+The call site that **did** pass a literal `0` was the Leaderboard:
+
+```ts
+myWin={trades.length ? Math.round(…) : 0}   // pre-fix, line 2684
+```
+
+`myWin: number` — no null in the type — so an empty book ranked the trader at
+`0%`, coloured **red** (`win >= 60` green / `>= 50` gold / else red). The page
+told a trader who had never placed a trade that they had lost every one.
+
+### Live pixel, on production, observed
+
+`wealthymindsetspro.com/paper` → Leaderboard tab:
+
+```
+#  TRADER          RETURN   P&L   TRADES   WIN%
+🏅 You ⭐ 1st Place  +0.0%    +$0     0       —
+```
+
+**WIN% renders `—` in muted.** Pre-fix that cell read `0%` in red. That is the
+transformation, visible on the production host, on the Founder's own empty book,
+without placing an order.
+
+Bundle probe confirms the module shipped: `2rkyfdd891du2.js` contains the
+literal `not-a-close` (unique to `paperTradeOutcome.ts`) alongside the `W/` and
+`% (` fragments of `describePaperWinRate`.
+
+**What is proven:** the arithmetic (dev instance), the null render (production
+Leaderboard), and the module's presence in the live bundle. **What is not:** the
+filled-book percentage on the production host. Do not upgrade that from the
+others.
