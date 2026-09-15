@@ -10,12 +10,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { FabioInsights } from "@/components/fabio/FabioInsights";
 import RealmGateway from "@/components/brand/RealmGateway";
-import OpeningBellPanel from "@/components/opening-bell/OpeningBellPanel";
-import {
-  selectOpeningBell,
-  DEFAULT_PREPARATION_TEMPLATE,
-  type PreparationItem,
-} from "@/lib/traderMemory/viewModels/selectOpeningBell";
+import OpeningBellEvidence from "@/components/opening-bell/OpeningBellEvidence";
+import { selectPrepEvidence } from "@/lib/experience/openingBellPrep";
+import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import { selectChannelCoverageHealth } from "@/lib/marketData/selectChannelCoverageHealth";
 import { getSessionNectarSnapshot, subscribeToSessionNectar } from "@/lib/marketData/sessionNectar";
 import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
@@ -47,16 +44,44 @@ import {
 const MOODS = ["😴", "🙂", "😃", "🔥", "🧠", "💪", "🎯", "☕"];
 
 /**
- * MorningPrepOpeningBell — thin adapter between /morning-prep local state
- * and the shared selectOpeningBell selector. Renders the OpeningBellPanel
- * with the default preparation template. Personal items stay optional
- * per Founder §D09 — never imposed.
+ * MorningPrepOpeningBell — what this page may say about the morning it owns.
  *
- * Today the completion state is inferred conservatively (today's entry
- * counts as "personal reflection" done + "body ready" done; everything
- * else remains not-done until the founder threads richer state through).
- * When the DecisionMemoryStore + real prep-item persistence land, this
- * will bind to actual completion data — no code change here.
+ * WHAT THIS REPLACES, AND WHY "CONSERVATIVE" WAS THE WRONG WORD
+ * ------------------------------------------------------------
+ * The previous version described itself as inferring completion
+ * "conservatively". What it actually did was:
+ *
+ *     completed:   t.category === "personal" ? hasTodayEntry : false,
+ *     completedAt: t.category === "personal" && hasTodayEntry ? nowMs : undefined,
+ *
+ * Two fabrications pointing in opposite directions.
+ *
+ * Six items were hardcoded NOT DONE, so `selectOpeningBell` returned NOT_READY
+ * with "Preparation incomplete. Rushing preparation correlates with process
+ * failure." — an accusation about the trader's morning, produced without
+ * looking at it. (The same defect ran on /command-deck; see
+ * `openingBellPrep`'s docblock for the full argument.)
+ *
+ * Two items were marked DONE and stamped with a completion TIME of `nowMs` —
+ * a moment at which nothing happened. Worse, `hasTodayEntry` was
+ * `entries.length > 0`, i.e. ANY entry ever written. A trader who logged one
+ * prep in March had "personal reflection, completed at 09:41" asserted about
+ * them today, by a page that never checked the date.
+ *
+ * A fabricated tick is not the gentler error. A false NOT DONE can be argued
+ * with; a false DONE is a record of something the trader never did, wearing a
+ * timestamp.
+ *
+ * WHAT IT DOES NOW
+ * ----------------
+ * Reads today's real entry through `useTodayPrep` — the same adapter
+ * /command-deck uses, so the two rooms cannot disagree about one morning —
+ * and renders the shared `OpeningBellEvidence`. The count is stated; the
+ * verdict is withheld and the withholding is explained, because the trader's
+ * free-text list cannot be mapped onto the eight named template rows.
+ *
+ * Coverage health is a genuine owner and is still passed, because it is the
+ * one axis actually observed.
  */
 /**
  * MorningPrepMirror — journal-backed Mirror surface for the morning.
@@ -207,10 +232,9 @@ function coverageHealthToQuality(
   }
 }
 
-function MorningPrepOpeningBell({ entriesCount, userId }: { entriesCount: number; userId: string }) {
+function MorningPrepOpeningBell({ userId }: { userId: string }) {
   // Deterministic derivation — no wall clock reads inside the selector.
   const nowMs = React.useMemo(() => Date.now(), []);
-  const hasTodayEntry = entriesCount > 0;
   // Real owner for the data-health item — the session's own channel coverage.
   const [coverageQuality, setCoverageQuality] = React.useState<MarketQualityState>(() =>
     coverageHealthToQuality(selectChannelCoverageHealth(getSessionNectarSnapshot().channels).verdict),
@@ -223,23 +247,16 @@ function MorningPrepOpeningBell({ entriesCount, userId }: { entriesCount: number
     apply();
     return subscribeToSessionNectar(apply);
   }, []);
-  const items: PreparationItem[] = DEFAULT_PREPARATION_TEMPLATE.map((t) => ({
-    ...t,
-    // A morning entry existing today counts as personal reflection + body
-    // ready done. All other items stay not-done until the founder wires
-    // richer state through.
-    completed: t.category === "personal" ? hasTodayEntry : false,
-    completedAt: t.category === "personal" && hasTodayEntry ? nowMs : undefined,
-  }));
-  const vm = selectOpeningBell({
-    ownerId: userId,
-    sessionIdentity: `session-${new Date(nowMs).toISOString().slice(0, 10)}`,
-    items,
-    minutesUntilOpen: null,
-    dataQuality: coverageQuality,
-    nowMs,
+  // The trader's OWN list, read through the same adapter /command-deck uses.
+  // One read path, so the two rooms cannot disagree about the same morning.
+  const prep = useTodayPrep(userId || null, nowMs);
+  const evidence = selectPrepEvidence({
+    readState: prep.readState,
+    checklistDone: prep.checklistDone,
+    checklistTotal: prep.checklistTotal,
   });
-  return <OpeningBellPanel vm={vm} />;
+  // showPrepLink={false}: the trader is already standing in Morning Prep.
+  return <OpeningBellEvidence evidence={evidence} dataQuality={coverageQuality} showPrepLink={false} />;
 }
 
 // Trader-canon prep checklist — founder Aug-16 §OPENING BELL PROTOCOL.
@@ -560,7 +577,7 @@ export default function MorningPrepPage() {
             CONTINUITY, not zero-state anxiety. */}
         <MorningPrepStreakBadge userId={user?.id ?? ""} />
 
-        <MorningPrepOpeningBell entriesCount={entries.length} userId={user?.id ?? ""} />
+        <MorningPrepOpeningBell userId={user?.id ?? ""} />
 
         {/* Yesterday's Mirror — retrospective patterns from journal.
             Renders NOTHING when 0 patterns detected (silence-is-a-feature).

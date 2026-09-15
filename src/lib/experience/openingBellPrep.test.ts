@@ -142,6 +142,35 @@ describe("openingBellPrep — what the deck may say about your morning", () => {
     // The exact fabrication that produced a behavioural accusation from nothing.
     expect(deck).not.toMatch(/completed:\s*false/);
     expect(deck).toContain("selectPrepEvidence");
-    expect(deck).toContain("PREP_VERDICT_WITHHELD");
+    expect(deck).toContain("OpeningBellEvidence");
+  });
+
+  it("THE SECOND SURFACE: /morning-prep fabricates neither a NOT DONE nor a DONE", () => {
+    const page = codeOnly(read("src/app/morning-prep/page.tsx"));
+    // Six items hardcoded incomplete — the accusation, same as the deck had.
+    expect(page).not.toMatch(/completed:\s*false/);
+    // And the worse half: two items marked DONE, stamped with a completion time
+    // of `nowMs`, because the trader had ANY entry ever. A false DONE is a
+    // record of something the trader never did, wearing a timestamp.
+    expect(page).not.toMatch(/completedAt:/);
+    expect(page).not.toContain("hasTodayEntry");
+    expect(page).toContain("selectPrepEvidence");
+    expect(page).toContain("OpeningBellEvidence");
+  });
+
+  it("ONE VOICE: both rooms read the same adapter, so they cannot disagree", () => {
+    for (const rel of ["src/app/command-deck/page.tsx", "src/app/morning-prep/page.tsx"]) {
+      expect(codeOnly(read(rel))).toContain("useTodayPrep");
+    }
+  });
+
+  it("THE WORDING IS NOT FORKABLE: only the shared component renders the refusal", () => {
+    const shared = read("src/components/opening-bell/OpeningBellEvidence.tsx");
+    expect(shared).toContain("PREP_VERDICT_WITHHELD");
+    // If a surface ever inlines the constant again it has forked the wording,
+    // and the fix can then rot on one screen while looking healthy on the other.
+    for (const rel of ["src/app/command-deck/page.tsx", "src/app/morning-prep/page.tsx"]) {
+      expect(codeOnly(read(rel))).not.toContain("PREP_VERDICT_WITHHELD");
+    }
   });
 });

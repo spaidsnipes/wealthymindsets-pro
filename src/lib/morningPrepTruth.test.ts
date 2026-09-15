@@ -33,7 +33,14 @@ describe("morning-prep truth", () => {
   });
 
   it("Opening Bell receives a real dataQuality owner", () => {
-    expect(page).toContain("dataQuality: coverageQuality");
+    // Was asserted as the selector argument `dataQuality: coverageQuality`.
+    // The Opening Bell no longer calls selectOpeningBell here — it renders
+    // OpeningBellEvidence, because the trader's free-text checklist cannot be
+    // mapped onto the template's named rows and the old call fabricated the
+    // mapping. Coverage health survived that change intact: it is still a real
+    // observed owner and is still passed. Only the call shape moved, from an
+    // object property to a JSX prop, so the assertion moved with it.
+    expect(page).toContain("dataQuality={coverageQuality}");
     expect(page).toContain("selectChannelCoverageHealth");
   });
 

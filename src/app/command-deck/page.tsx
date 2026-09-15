@@ -27,7 +27,8 @@ import ATHOSInterventionPanel from "@/components/athos/ATHOSInterventionPanel";
 import { selectATHOSIntervention, type ATHOSIntervention } from "@/lib/traderMemory/viewModels/selectATHOSIntervention";
 import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
-import { selectPrepEvidence, PREP_VERDICT_WITHHELD } from "@/lib/experience/openingBellPrep";
+import { selectPrepEvidence } from "@/lib/experience/openingBellPrep";
+import OpeningBellEvidence from "@/components/opening-bell/OpeningBellEvidence";
 import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 import { useDecisionMemory, useDecisionMemoryRecords } from "@/lib/traderMemory/useDecisionMemory";
 import { useJournalBook } from "@/lib/traderMemory/adapters/useJournalSnapshots";
@@ -1969,69 +1970,10 @@ function OpeningBellSlot({
     checklistTotal: prep.checklistTotal,
   });
 
-  return (
-    <div
-      role="region"
-      aria-label="Opening Bell — session preparation"
-      data-testid="opening-bell-slot"
-      style={{
-        borderTop: "1px solid rgba(139,106,41,0.20)",
-        background: "transparent",
-        padding: "12px 0 4px",
-      }}
-    >
-      <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
-        Opening Bell
-      </div>
-
-      <div
-        data-testid="opening-bell-prep-evidence"
-        style={{ fontSize: 13, color: "#ede6d3", fontWeight: 600, marginTop: 6, lineHeight: 1.5 }}
-      >
-        {evidence.sentence}
-      </div>
-
-      {/* Observed, so it may be stated. A reading, never a grade. */}
-      {dataQuality != null && (
-        <div style={{ fontSize: 11, color: "#c0b8a0", marginTop: 8, lineHeight: 1.5 }}>
-          Market data health right now: <span style={{ color: "#ede6d3" }}>{dataQuality}</span>.
-        </div>
-      )}
-
-      {/* The refusal, explained where the verdict used to be. */}
-      <div
-        data-testid="opening-bell-verdict-withheld"
-        style={{
-          fontSize: 11,
-          color: "#8a8271",
-          lineHeight: 1.5,
-          marginTop: 10,
-          paddingLeft: 10,
-          borderLeft: "2px solid rgba(139,106,41,0.35)",
-        }}
-      >
-        {PREP_VERDICT_WITHHELD}
-      </div>
-
-      <a
-        href="/morning-prep"
-        style={{
-          display: "inline-block",
-          marginTop: 10,
-          minHeight: 44,
-          lineHeight: "44px",
-          fontSize: 9,
-          letterSpacing: 0.3,
-          textTransform: "uppercase",
-          color: "#c9a55c",
-          textDecoration: "none",
-        }}
-        aria-label="Open Morning Prep to review or complete your prep list"
-      >
-        Open Morning Prep →
-      </a>
-    </div>
-  );
+  // The wording lives in the shared component, not here. /morning-prep had the
+  // same defect and a forked second copy of the cure is how the accusation
+  // would grow back on one surface only.
+  return <OpeningBellEvidence evidence={evidence} dataQuality={dataQuality} />;
 }
 
 /**
