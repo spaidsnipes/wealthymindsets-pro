@@ -49,10 +49,25 @@ import {
 
 import { classifyScan, type AlertStrength, type Signal } from "@/lib/scannerSignalEvidence";
 import { selectQuoteChange, type QuoteChangeAbsence } from "@/lib/quoteChange";
+import {
+  scannerPriceFact,
+  type ScannerPriceFact,
+  type ScannerPriceTone,
+} from "@/lib/scanner/scannerPriceFact";
+
+/** The ONLY thing the price cell's colour may be derived from. */
+const SCANNER_PRICE_TONE: Record<ScannerPriceTone, string> = {
+  OBSERVED:    "text-wm-text",
+  CARRIED:     "text-wm-text-muted",
+  UNEVIDENCED: "text-wm-text-dim",
+  NONE:        "text-wm-text-dim",
+};
 
 interface ScanResult {
   id: string; symbol: string; name: string;
+  /** For sorting only. `priceFact` is what the cell renders. */
   price: number;
+  priceFact: ScannerPriceFact;
   /** Null when the provider did not send it. A zero here would be a claim. */
   change: number | null; changePct: number | null;
   /* The NUMBERS, for sorting and filtering only. Nothing renders these
@@ -450,6 +465,11 @@ function buildResults(
       rsi,
       rsiFailure,
       quoteQuality: quoteTruth.quality,
+      /* The price is `q?.price ?? old?.price`, so on a STALE row it is a
+         CARRIED-FORWARD figure the latest refresh failed to renew — and it was
+         painted in the same white as a freshly observed one, two cells from a
+         badge rendering STALE in red. See scannerPriceFact. */
+      priceFact: scannerPriceFact(price, quoteTruth.quality, sym),
       quoteReceivedAt,
       sector:    SYM_SECTOR[sym] ?? "Technology",
       /* Real float + mktcap from the FMP profile, falling back to the previous
@@ -927,8 +947,16 @@ export default function ScannerPage() {
                       </span>
                     )}
                   </div>
-                  <div className="px-2 text-xs font-mono font-bold text-wm-text">
-                    ${r.price.toLocaleString("en-US",{minimumFractionDigits:2})}
+                  {/* COLOUR IS A CLAIM. This cell used to be `text-wm-text` on
+                      every row — a carried-forward price in the same white as a
+                      freshly observed one, beside a badge saying STALE. Tone is
+                      chosen from declared provenance, never from presence. */}
+                  <div
+                    className={clsx("px-2 text-xs font-mono font-bold", SCANNER_PRICE_TONE[r.priceFact.tone])}
+                    title={r.priceFact.reason}
+                    aria-label={`Price for ${r.symbol}: ${r.priceFact.text}. ${r.priceFact.reason}`}
+                  >
+                    {r.priceFact.text}
                   </div>
                   <div className={clsx("px-2 text-xs font-mono font-bold",
                     r.changePct==null?"text-wm-text-dim":up?"text-wm-green":"text-wm-red")}
