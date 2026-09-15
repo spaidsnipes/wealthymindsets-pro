@@ -31,6 +31,12 @@ import {
   lookupFailure, recordFailure,
   type RsiFailure, type RsiFailureCache,
 } from "@/lib/scannerFailureCache";
+import {
+  classifyReportedFundamental,
+  unaskedFundamental,
+  preferKnownFundamental,
+  type FundamentalFigure,
+} from "@/lib/scanner/scannerFundamental";
 import { scannerQuoteTruth, type ScannerQuoteQuality } from "@/lib/scannerQuoteTruth";
 
 import { classifyScan, type AlertStrength, type Signal } from "@/lib/scannerSignalEvidence";
@@ -54,7 +60,10 @@ interface ScanResult {
    * cast in between whose only job is to stop the compiler asking.
    */
   disclosure: string | null;
-  rsi: number | null; sector: string; float: string; mktcap: string;
+  /* NOT strings. A figure the provider did not carry is a different fact from
+     one it carried, and neither may be written as a bare glyph — see
+     src/lib/scanner/scannerFundamental.ts. */
+  rsi: number | null; sector: string; float: FundamentalFigure; mktcap: FundamentalFigure;
   time: number; starred: boolean; alerted: boolean;
   rsiFailure: RsiFailure | null;
   quoteQuality: ScannerQuoteQuality;
@@ -130,12 +139,12 @@ const SCANNER_STOCKS = SYMS.filter(([s]) => !isUnsupportedByEquityVendors(s)).ma
 const SCANNER_FUTURES = SYMS.filter(([s]) => classifySymbol(s) === "FUTURES").map(([s]) => s);
 
 // Cache FMP profiles (mktcap, float) — changes slowly, cache 10 min
-let fmpProfileCache: Map<string, { mktcap: string; float: string }> | null = null;
+let fmpProfileCache: Map<string, { mktcap: FundamentalFigure; float: FundamentalFigure }> | null = null;
 let fmpProfileCacheTs = 0;
 
-async function fetchFmpProfiles(): Promise<Map<string, { mktcap: string; float: string }>> {
+async function fetchFmpProfiles(): Promise<Map<string, { mktcap: FundamentalFigure; float: FundamentalFigure }>> {
   if (fmpProfileCache && Date.now() - fmpProfileCacheTs < 600_000) return fmpProfileCache;
-  const map = new Map<string, { mktcap: string; float: string }>();
+  const map = new Map<string, { mktcap: FundamentalFigure; float: FundamentalFigure }>();
   try {
     const syms = SCANNER_STOCKS.join(",");
     const res  = await fetch(`/api/fmp?path=/v3/profile/${encodeURIComponent(syms)}`);
@@ -143,15 +152,14 @@ async function fetchFmpProfiles(): Promise<Map<string, { mktcap: string; float: 
     const data = await res.json();
     const arr: Array<{ symbol: string; mktCap?: number; floatShares?: number }> = Array.isArray(data) ? data : [];
     for (const p of arr) {
-      const mc = p.mktCap ?? 0;
-      const fl = p.floatShares ?? 0;
-      const fmtB = (n: number) => {
-        if (n >= 1e12) return (n/1e12).toFixed(1)+"T";
-        if (n >= 1e9)  return (n/1e9).toFixed(1)+"B";
-        if (n >= 1e6)  return (n/1e6).toFixed(0)+"M";
-        return n > 0 ? n.toLocaleString() : "—";
-      };
-      map.set(p.symbol, { mktcap: mc > 0 ? fmtB(mc) : "—", float: fl > 0 ? fmtB(fl) : "—" });
+      // The row EXISTS, so anything missing here is NOT_REPORTED — a statement
+      // about the provider's payload, not about WM never having asked. The `??
+      // 0` that used to stand in front of this test was itself a sentinel, and
+      // it erased the difference.
+      map.set(p.symbol, {
+        mktcap: classifyReportedFundamental(p.mktCap, "Market cap", p.symbol),
+        float: classifyReportedFundamental(p.floatShares, "Float", p.symbol),
+      });
     }
   } catch {}
   fmpProfileCache = map;
@@ -298,7 +306,7 @@ async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFa
 
 function buildResults(
   quotes: Map<string, QuoteData>,
-  profiles: Map<string, { mktcap: string; float: string }>,
+  profiles: Map<string, { mktcap: FundamentalFigure; float: FundamentalFigure }>,
   prev: ScanResult[],
 ): ScanResult[] {
   const prevMap = new Map(prev.map(r => [r.symbol, r]));
@@ -356,9 +364,16 @@ function buildResults(
       quoteQuality: quoteTruth.quality,
       quoteReceivedAt,
       sector:    SYM_SECTOR[sym] ?? "Technology",
-      // Real float + mktcap from FMP profile; fall back to old cached value
-      float:     prf?.float   ?? old?.float   ?? "—",
-      mktcap:    prf?.mktcap  ?? old?.mktcap  ?? "—",
+      /* Real float + mktcap from the FMP profile, falling back to the previous
+         scan. THIS USED TO BE `prf?.float ?? old?.float ?? "—"` AND THE
+         FALLBACK COULD NEVER FIRE: `prf.float` was already the string "—" when
+         the provider reported nothing, and "—" is neither null nor undefined,
+         so the glyph satisfied the coalesce and shadowed a figure WM had
+         genuinely measured. Only a MEASURED value may displace a MEASURED
+         value — that rule now lives in the owner, where it cannot be rewritten
+         back into a `??` chain by accident. */
+      float:     preferKnownFundamental(prf?.float  ?? unaskedFundamental("Float", sym),      old?.float),
+      mktcap:    preferKnownFundamental(prf?.mktcap ?? unaskedFundamental("Market cap", sym), old?.mktcap),
       time:      Date.now(),
       starred:   starredSet.has(sym) ?? old?.starred ?? false,
       alerted:   alertedSet.has(sym) ?? old?.alerted ?? false,
@@ -988,11 +1003,12 @@ export default function ScannerPage() {
                   {l:"Vol Ratio",v:selected.volRatio==null?"—":`${selected.volRatio}×`,c:selected.volRatio==null?"#64748B":selected.volRatio>=3?"#F0B429":"#94A3B8"},
                   {l:"RSI",      v:selected.rsi==null?"—":String(selected.rsi),   c:selected.rsi==null?"#64748B":selected.rsi>=70?"#FF4D6A":selected.rsi<=30?"#00D4AA":"#94A3B8"},
                   {l:"Sector",   v:selected.sector,        c:"#94A3B8"},
-                  {l:"Mkt Cap",  v:selected.mktcap,        c:"#94A3B8"},
-                  {l:"Float",    v:selected.float,         c:"#94A3B8"},
+                  {l:"Mkt Cap",  v:selected.mktcap.text, c:selected.mktcap.state==="MEASURED"?"#94A3B8":"#64748B", why:selected.mktcap.reason},
+                  {l:"Float",    v:selected.float.text,  c:selected.float.state ==="MEASURED"?"#94A3B8":"#64748B", why:selected.float.reason},
                   {l:"Volume",   v:selected.volume==null?"—":(selected.volume/1e6).toFixed(1)+"M",c:selected.volume==null?"#64748B":"#94A3B8"},
-                ].map(({l,v,c})=>(
-                  <div key={l} className="flex justify-between items-center py-1 border-b border-wm-border/30">
+                ].map(({l,v,c,why})=>(
+                  <div key={l} className="flex justify-between items-center py-1 border-b border-wm-border/30"
+                    title={why} aria-label={why ? `${l}: ${v}. ${why}` : undefined}>
                     <span className="text-[10px] text-wm-text-dim">{l}</span>
                     <span className="text-[10px] font-mono font-bold" style={{ color:c }}>{v}</span>
                   </div>
