@@ -44,6 +44,7 @@ import * as React from "react";
 import type { OneStoryVM } from "@/lib/marketData/viewModels/selectOneStory";
 import type { DecisionWhyVM } from "@/lib/marketData/viewModels/selectDecisionWhyNot";
 import type { AvailableRVM } from "@/lib/traderMemory/viewModels/selectAvailableR";
+import { selectAvailableRDetail } from "@/components/experience/AvailableRChip";
 import { formatSpinePrice } from "@/lib/marketData/formatSpinePrice";
 
 /** The MARKET cell's evidence. ROLE / SOURCE / asOf, or the absence of them. */
@@ -155,6 +156,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   const presentation = props.presentation ?? "band";
   const rail = presentation === "rail";
   const priceDisplay = formatSpinePrice(market.last, market.lastBarClose, market.lastBarTimeframe);
+  const availableRDetail = selectAvailableRDetail(availableR);
   const cellStyle: React.CSSProperties = rail
     ? {
         ...CELL,
@@ -310,7 +312,10 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         <span style={availableR ? VALUE : MUTED}>
           {availableR
             ? `Available R ${rText(availableR.conservativeR)} · risk/unit ${rText(availableR.riskPerUnit)}`
-            : "Available R not computed — no chain."}
+            : "Available R UNKNOWN"}
+        </span>
+        <span style={MUTED} data-testid="spine-available-r-detail">
+          {availableRDetail}
         </span>
         <span style={MUTED}>
           {decisionWhy && decisionWhy.invalidators.length > 0

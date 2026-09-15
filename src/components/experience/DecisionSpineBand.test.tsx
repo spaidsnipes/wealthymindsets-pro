@@ -256,7 +256,9 @@ describe("DecisionSpineBand — absence is disclosed, never filled", () => {
     const html = render({ oneStory: null, decisionWhy: null });
     expect(html).toContain("No story compiled — evidence insufficient.");
     expect(html).toContain("No verdict compiled yet.");
-    expect(html).toContain("Available R not computed — no chain.");
+    expect(html).toContain("Available R UNKNOWN");
+    expect(html).toContain("No surface in this build declares them, so no R can be computed here.");
+    expect(html).toContain('data-testid="spine-available-r-detail"');
     expect(html).toContain("No invalidator published.");
   });
 });

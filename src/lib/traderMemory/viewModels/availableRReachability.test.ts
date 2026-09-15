@@ -139,6 +139,13 @@ describe("availableR disclosure — the chip names the condition, not a pending 
     expect(AVAILABLE_R_UNWIRED_DETAIL).toMatch(/no surface in this build declares them/i);
   });
 
+  it("the permanent chart RISK rail reuses the same disclosure owner", () => {
+    const rail = code(readFileSync(path.join(SRC, "components", "experience", "DecisionSpineBand.tsx"), "utf8"));
+    expect(rail).toContain('import { selectAvailableRDetail } from "@/components/experience/AvailableRChip";');
+    expect(rail).toContain("selectAvailableRDetail(availableR)");
+    expect(rail).not.toContain("Available R not computed — no chain.");
+  });
+
   it("does not tell the trader that evaluation is coming", () => {
     // The exact failure the Decision Receipt had. "yet", "pending",
     // "not been evaluated", "will be" — all of them promise a future this
