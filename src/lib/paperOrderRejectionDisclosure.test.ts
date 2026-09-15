@@ -130,10 +130,22 @@ describe("applyOrderRejections — the reason travels with the status", () => {
  * `rejectReason` mentioned anywhere else in this 1,800-line file cannot vouch
  * for a row that does not render it. A whole-file `toContain` has now passed
  * against a live defect three times in this repo; it is not the mechanism.
+ *
+ * THE ANCHOR IS `{orders.map(ord=>`, NOT `{orders.map(ord=>(`. The trailing
+ * paren pinned one ARROW-BODY SYNTAX — an expression body — so the moment the
+ * row needed a `const` (the blotter price cells now come from an owner and are
+ * computed once each), this Sentinel stopped finding the row at all and its
+ * positive control fired. Correct behaviour, wrong anchor: it was guarding a
+ * punctuation mark rather than a meaning, and would have FORBIDDEN A
+ * LEGITIMATE REFACTOR to protect an assertion about `rejectReason` that the
+ * refactor never touched. Third time in this chain a Sentinel has pinned an
+ * incidental form; the remedy is always to re-anchor on what it means, never
+ * to relax what it checks. The `row.length > 400` + `ord.symbol` + `ord.status`
+ * control below is what actually keeps the window honest.
  */
 function orderRowSource(): string {
   const src = readFileSync(resolve(__dirname, "../app/paper/page.tsx"), "utf8");
-  const start = src.indexOf("{orders.map(ord=>(");
+  const start = src.indexOf("{orders.map(ord=>");
   expect(start, "order blotter map not found in /paper — this Sentinel is guarding nothing").toBeGreaterThan(-1);
   const end = src.indexOf("</>", start);
   expect(end).toBeGreaterThan(start);

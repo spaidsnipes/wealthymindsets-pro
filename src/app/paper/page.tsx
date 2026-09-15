@@ -100,6 +100,7 @@ import { WM } from "@/lib/design/wmTokens";
 import { DecisionReachCheck } from "@/components/paper/DecisionReachCheck";
 import { ContractStance } from "@/components/paper/ContractStance";
 import { selectExpressionCard } from "@/lib/expressionCard";
+import { limitPriceCell, fillPriceCell } from "@/lib/paper/orderBlotterCells";
 import { mintDecisionId } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { recordDecisionIntent } from "@/lib/traderMemory/recordDecisionIntent";
@@ -2881,7 +2882,21 @@ export default function PaperTradingPage() {
                     <span>Symbol</span><span>Side</span><span>Type</span><span>Qty</span>
                     <span>Limit Px</span><span>Fill Px</span><span>Status</span><span></span>
                   </div>
-                  {orders.map(ord=>(
+                  {orders.map(ord=>{
+                  /* ── The two price columns, from their owner ──────────────
+                     WAS `ord.limitPx ? "$"+fmt2(ord.limitPx) : "—"` and the
+                     same shape for fillPx: two expressions, one glyph, FIVE
+                     different facts underneath. A market order HAS no limit;
+                     a stop order's constraint lives in stopPx and had no
+                     column at all; a filled order with no fillPx is a BROKEN
+                     RECORD that rendered identically to a pending one; and
+                     `?` is a truthiness test, so a recorded price of exactly
+                     0 displayed as a dash — a fact we hold shown as one we
+                     lack. See lib/paper/orderBlotterCells.
+                     SENTINEL: blotter-price-cells-have-one-owner */
+                  const limitCell = limitPriceCell(ord);
+                  const fillCell = fillPriceCell(ord);
+                  return (
                     <div key={ord.id} className="border-b border-wm-border/30">
                     <div className="grid items-center px-3 py-2"
                       style={{ gridTemplateColumns:"70px 50px 50px 60px 80px 80px 90px 48px" }}>
@@ -2891,11 +2906,25 @@ export default function PaperTradingPage() {
                       </span>
                       <span className="text-[10px] text-wm-text-muted capitalize">{ord.type}</span>
                       <span className="text-xs font-mono text-wm-text">{ord.qty}</span>
-                      <span className="text-[10px] font-mono text-wm-text-muted">
-                        {ord.limitPx ? "$"+fmt2(ord.limitPx) : "—"}
+                      <span
+                        className={clsx("text-[10px] font-mono",
+                          limitCell.kind === "VALUE" ? "text-wm-text-muted"
+                          : limitCell.kind === "MISSING" ? "text-wm-red"
+                          : "text-wm-text-dim")}
+                        title={limitCell.reason}
+                        aria-label={`Limit price: ${limitCell.text}. ${limitCell.reason}`}
+                      >
+                        {limitCell.text}
                       </span>
-                      <span className="text-[10px] font-mono text-wm-text-muted">
-                        {ord.fillPx ? "$"+fmt2(ord.fillPx) : "—"}
+                      <span
+                        className={clsx("text-[10px] font-mono",
+                          fillCell.kind === "VALUE" ? "text-wm-text-muted"
+                          : fillCell.kind === "MISSING" ? "text-wm-red"
+                          : "text-wm-text-dim")}
+                        title={fillCell.reason}
+                        aria-label={`Fill price: ${fillCell.text}. ${fillCell.reason}`}
+                      >
+                        {fillCell.text}
                       </span>
                       <span className={clsx("text-[10px] font-bold px-1.5 py-0.5 rounded",
                         ord.status==="filled"    ? "bg-wm-green/15 text-wm-green"
@@ -2958,7 +2987,8 @@ export default function PaperTradingPage() {
                         this repo has already had to fix three times. */}
                     <DecisionReachCheck decisionId={ord.decisionId} />
                     </div>
-                  ))}
+                  );
+                  })}
                 </>
               )}
             </div>
