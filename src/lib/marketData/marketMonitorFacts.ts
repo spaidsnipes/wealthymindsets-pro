@@ -243,6 +243,60 @@ export function monitorSourceFact(
 }
 
 /**
+ * The session-change cell — FOUND BY USE, NOT BY READING.
+ *
+ * A live DOM read of the deployed /ai-bot showed two survivors inside the very
+ * block this file rewrote. This is one of them:
+ *
+ *     {connected && tickerChange.displayable
+ *       ? `${…}${tickerChange.changePct.toFixed(2)}%`
+ *       : "Unavailable"}
+ *
+ * ONE word over TWO independent conditions:
+ *
+ *   - the monitor link is down, so no price is arriving at all; or
+ *   - the link is fine, the symbol is printing, and WM has no REFERENCE CLOSE
+ *     to measure today's move against.
+ *
+ * Those have different causes and different cures, and the second one is not a
+ * failure of the price feed at all — it is a percentage missing its second
+ * number. Rendering both as "Unavailable" left the word sitting one line under
+ * "No live price", so the same screen described its one broken link in two
+ * vocabularies again — the exact defect the rest of this file exists to fix.
+ *
+ * `state` here describes the LINK; `measured` describes THIS CELL. They can
+ * legitimately disagree, the same way monitorLatencyFact's "Not measured" does.
+ */
+export function monitorChangeFact(
+  state: MonitorLinkState,
+  change: { displayable: boolean; changePct: unknown; direction: "up" | "down" | "flat" },
+  symbol: string,
+): MonitorFact {
+  if (state !== "OBSERVED") {
+    return {
+      text: "No session change",
+      state,
+      measured: false,
+      reason: `Session change is measured on the same link that carries the price, and that link is not delivering. ${monitorLinkReason(state, symbol)}`,
+    };
+  }
+  if (!change.displayable || !finite(change.changePct)) {
+    return {
+      text: "No reference close",
+      state,
+      measured: false,
+      reason: `WM's socket is up and ${symbol} is printing, but WM has not received a reference close to measure today's move against. This is a SEPARATE gap from the quoted price above, which is live: a percentage needs two numbers and WM has one. WM will not print 0.00% here — a zero with no reference close is not "flat", it is unknown.`,
+    };
+  }
+  return {
+    text: `${change.direction === "up" ? "+" : ""}${change.changePct.toFixed(2)}%`,
+    state,
+    measured: true,
+    reason: `Session change for ${symbol} against the reference close WM received on this link. WM is repeating the provider's own reference, not choosing a session boundary of its own.`,
+  };
+}
+
+/**
  * The trade tape is a SEPARATE feed from the price feed on this hook.
  * `market.tapeSource?.toUpperCase() ?? "Unavailable"` said the same word the
  * price feed said, which invited the reader to conclude one from the other.

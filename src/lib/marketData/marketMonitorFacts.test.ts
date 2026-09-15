@@ -17,6 +17,7 @@ import {
   monitorConnectionFact,
   monitorSourceFact,
   monitorTapeFact,
+  monitorChangeFact,
   type MonitorLinkState,
   type MonitorFact,
 } from "./marketMonitorFacts";
@@ -247,6 +248,52 @@ describe("no cell is a bare glyph", () => {
   });
 });
 
+describe("monitorChangeFact — the survivor found by USE, not by reading", () => {
+  const LIVE = { displayable: true, changePct: 1.234, direction: "up" as const };
+  const NO_REF = { displayable: false, changePct: 0, direction: "flat" as const };
+
+  it("× THE SURVIVOR: a dead link and a missing reference close are not one word", () => {
+    const dead = monitorChangeFact("TRANSPORT_DOWN", NO_REF, "TSLA");
+    const noRef = monitorChangeFact("OBSERVED", NO_REF, "TSLA");
+    expect(dead.text).not.toBe(noRef.text);
+    expect(dead.reason).not.toBe(noRef.reason);
+    expect(dead.measured).toBe(false);
+    expect(noRef.measured).toBe(false);
+  });
+
+  it("× THE WORD ITSELF: no arm of this cell may say \"Unavailable\"", () => {
+    for (const s of ALL) {
+      for (const c of [LIVE, NO_REF]) {
+        expect(monitorChangeFact(s, c, "TSLA").text).not.toMatch(/unavailable/i);
+      }
+    }
+  });
+
+  it("× THE SEPARATE GAP: a missing reference close says the price above is live", () => {
+    const noRef = monitorChangeFact("OBSERVED", NO_REF, "TSLA");
+    expect(noRef.reason).toMatch(/SEPARATE gap/);
+    expect(noRef.reason).toMatch(/which is live/);
+  });
+
+  it("× THE QUIET ZERO: WM must never print 0.00% for an absent reference", () => {
+    expect(monitorChangeFact("OBSERVED", NO_REF, "TSLA").text).not.toMatch(/0\.00/);
+    expect(monitorChangeFact("OBSERVED", { displayable: true, changePct: Number.NaN, direction: "flat" }, "TSLA").measured)
+      .toBe(false);
+  });
+
+  it("a link that is down speaks in the link's own vocabulary", () => {
+    for (const s of ALL.filter(x => x !== "OBSERVED")) {
+      expect(monitorChangeFact(s, LIVE, "TSLA").reason).toContain(monitorLinkReason(s, "TSLA"));
+    }
+  });
+
+  it("a real reading is formatted with its sign and marked measured", () => {
+    const f = monitorChangeFact("OBSERVED", LIVE, "TSLA");
+    expect(f.text).toBe("+1.23%");
+    expect(f.measured).toBe(true);
+  });
+});
+
 describe("/ai-bot page", () => {
   const src = readFileSync(join(process.cwd(), "src/app/ai-bot/page.tsx"), "utf8");
   /* Comments are prose ABOUT the code and are never rendered, so they are
@@ -280,5 +327,27 @@ describe("/ai-bot page", () => {
 
   it("× THE SILENT CELL: the headline price must carry its reason", () => {
     expect(code).toMatch(/priceFact\.reason/);
+  });
+
+  /* THE TWO SURVIVORS. Both of these sat INSIDE the forty lines the first fix
+     rewrote, and neither was visible from the source — they were caught by a
+     DOM read of the deployed page, where "none" and "Unavailable" were still
+     on screen beside the four repaired cells. */
+
+  it("× SURVIVOR ONE: the Source line must not be a second source of truth", () => {
+    expect(code).not.toMatch(/Source: \{connected \? market\.source : "none"\}/);
+    expect(code).toMatch(/Source: \{sourceFact\.text\}/);
+    expect(code).toMatch(/title=\{sourceFact\.reason\}/);
+  });
+
+  it("× SURVIVOR TWO: the session-change cell must not say \"Unavailable\"", () => {
+    expect(code).not.toContain('"Unavailable"');
+    expect(code).not.toMatch(/connected && tickerChange\.displayable/);
+    expect(code).toContain("monitorChangeFact");
+    expect(code).toMatch(/changeFact\.reason/);
+  });
+
+  it("× THE RESIDUE: no cell in the monitor renders a bare em dash", () => {
+    expect(code).not.toMatch(/[:?]\s*"—"/);
   });
 });

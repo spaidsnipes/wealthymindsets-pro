@@ -23,6 +23,7 @@ import {
   monitorConnectionFact,
   monitorSourceFact,
   monitorTapeFact,
+  monitorChangeFact,
 } from "@/lib/marketData/marketMonitorFacts";
 import { useMarketCanvasVM } from "@/lib/marketData/viewModels/useMarketCanvasVM";
 import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
@@ -55,6 +56,7 @@ export default function AIBotPage() {
   const sourceFact = monitorSourceFact(linkState, market.source, activeSymbol);
   const tapeFact = monitorTapeFact(market.tapeSource, activeSymbol);
   const tickerChange = selectTickerChangeDisplay(market.ticker);
+  const changeFact = monitorChangeFact(linkState, tickerChange, activeSymbol);
 
   // Shift-SPAIDBOT: Market Canvas VM — fourth canonical consumer of the shared
   // composeMarketCanvasVM compiler. Identity is built from the active symbol +
@@ -156,8 +158,20 @@ export default function AIBotPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-3xl font-black">{activeSymbol}</div>
-                <div className="mt-1 text-xs text-wm-text-dim" title={connectionFact.reason}>
-                  Source: {connected ? market.source : "none"}
+                {/* SURVIVOR, FOUND BY USE. This line read
+                    `Source: {connected ? market.source : "none"}` — a SECOND
+                    SOURCE OF TRUTH for the Price feed tile three rows below,
+                    and it carried the CONNECTION sentence as its tooltip while
+                    describing the PROVIDER. "none" also asserted that there is
+                    no provider, when the live state was a dead socket: WM
+                    cannot see whether a provider exists when it cannot hear
+                    anything. It now renders the owner, unreshaped. */}
+                <div
+                  className="mt-1 text-xs text-wm-text-dim"
+                  title={sourceFact.reason}
+                  aria-label={`Price provider: ${sourceFact.text}. ${sourceFact.reason}`}
+                >
+                  Source: {sourceFact.text}
                 </div>
               </div>
               <div className="text-right">
@@ -174,14 +188,20 @@ export default function AIBotPage() {
                   {priceFact.text}
                 </div>
                 {/* `>= 0` painted an exactly-zero change green, and a zero with
-                    no reference close is not flat — it is unknown. */}
-                <div className={`mt-1 font-mono text-sm font-bold ${
-                  !tickerChange.displayable ? "text-wm-text-dim"
-                    : tickerChange.direction === "up" ? "text-wm-green" : "text-wm-red"
-                }`}>
-                  {connected && tickerChange.displayable
-                    ? `${tickerChange.direction === "up" ? "+" : ""}${tickerChange.changePct.toFixed(2)}%`
-                    : "Unavailable"}
+                    no reference close is not flat — it is unknown. SURVIVOR,
+                    FOUND BY USE: the `: "Unavailable"` arm spoke one word over
+                    two independent conditions — a dead link, and a live link
+                    with no reference close — and sat one line under the price
+                    cell's own sentence. The owner separates them. */}
+                <div
+                  className={`mt-1 font-mono text-sm font-bold ${
+                    !changeFact.measured ? "text-wm-text-dim"
+                      : tickerChange.direction === "up" ? "text-wm-green" : "text-wm-red"
+                  }`}
+                  title={changeFact.reason}
+                  aria-label={`Session change for ${activeSymbol}: ${changeFact.text}. ${changeFact.reason}`}
+                >
+                  {changeFact.text}
                 </div>
               </div>
             </div>
