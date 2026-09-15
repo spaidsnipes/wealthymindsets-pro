@@ -39,6 +39,13 @@ import {
 } from "@/lib/scanner/scannerFundamental";
 import { scannerQuoteTruth, type ScannerQuoteQuality } from "@/lib/scannerQuoteTruth";
 
+import {
+  volumeMetricFact,
+  volRatioMetricFact,
+  rsiMetricFact,
+  type ScannerMetricFact,
+} from "@/lib/scanner/scannerMetricFacts";
+
 import { classifyScan, type AlertStrength, type Signal } from "@/lib/scannerSignalEvidence";
 import { selectQuoteChange } from "@/lib/quoteChange";
 
@@ -47,7 +54,16 @@ interface ScanResult {
   price: number;
   /** Null when the provider did not send it. A zero here would be a claim. */
   change: number | null; changePct: number | null;
+  /* The NUMBERS, for sorting and filtering only. Nothing renders these
+     directly: a cell that reads a nullable number has to invent a rendering
+     for the null, and every such invention so far has been a bare glyph. The
+     facts below are what the cells read. */
   volume: number | null; volRatio: number | null;
+  /* What the Volume / Vol× / RSI cells SAY, and why — see
+     src/lib/scanner/scannerMetricFacts.ts. */
+  volumeFact: ScannerMetricFact;
+  volRatioFact: ScannerMetricFact;
+  rsiFact: ScannerMetricFact;
   /** Null when the row could not be honestly classified. */
   signal: Signal | null; strength: AlertStrength | null;
   /** True when a required input was absent; `unratedReason` names which. */
@@ -223,7 +239,17 @@ async function fetchRSI(
     });
     if (outcome.status !== "ready") {
       if (!outcome.retryable) {
-        const failure = recordFailure(failures, key, identity, outcome.message || "RSI unavailable");
+        /* The fallback used to be the string "RSI unavailable", which is a
+           restatement of the dash promoted into the failure CACHE — the one
+           place whose entire job is to hold a reason. When the consumer
+           declines without a message, say that, and say it is not retryable. */
+        const failure = recordFailure(
+          failures,
+          key,
+          identity,
+          outcome.message ||
+            `The daily-candle consumer declined the request for ${identity.symbol} and gave no message, and marked the outcome as not retryable.`,
+        );
         return { rsi: null, failure };
       }
       return { rsi: null, failure: null };
@@ -364,12 +390,21 @@ function buildResults(
     const changePct = q ? q.changePct : old?.changePct ?? null;
     const volume    = q?.volume    ?? old?.volume    ?? null;
     const avgVol    = q?.avgVolume ?? null;
-    const volRatio  =
-      volume != null && avgVol != null && avgVol > 0
-        ? +(volume / avgVol).toFixed(1)
-        : null;
+    /* The quotient and the THREE reasons it may not exist are now decided in
+       one place. `avgVol > 0` was right — dividing by zero yields no ratio at
+       all — but as a guard it collapsed "no numerator", "no denominator" and
+       "a denominator of zero" into a single null, and one `—` printed all
+       three. See DEFECT THREE in @/lib/scanner/scannerMetricFacts. */
+    const volRatioFact = volRatioMetricFact(volume, avgVol, sym);
+    const volRatio  = volRatioFact.value;
     // Real RSI from Finnhub indicator API; fall back to old cached value if available
     const rsi = q?.rsi ?? old?.rsi ?? null;
+    /* `fetchRSI` already recorded a SENTENCE for a non-retryable failure. It
+       used to reach a `role="status"` block and nothing else, while the cells
+       that show the number printed `—` under the title "RSI unavailable" —
+       a restatement of the dash. Carry the sentence to the cell. */
+    const rsiFailure = q ? q.rsiFailure : old?.rsiFailure ?? null;
+    const rsiFact = rsiMetricFact(rsi, rsiFailure ? rsiFailure.reason : null, sym);
     const quoteReceivedAt = q?.receivedAt ?? old?.quoteReceivedAt ?? 0;
     const quoteTruth = scannerQuoteTruth({ receivedAt: quoteReceivedAt, reusedPrevious: !q });
     const cls = classifyScan({ changePct, volRatio, rsi });
@@ -382,13 +417,16 @@ function buildResults(
       changePct: changePct == null ? null : +changePct.toFixed(2),
       volume,
       volRatio,
+      volumeFact: volumeMetricFact(volume, sym),
+      volRatioFact,
+      rsiFact,
       signal:    cls.signal,
       strength:  cls.strength,
       unrated:   cls.unrated,
       unratedReason: cls.reason,
       disclosure: cls.disclosure,
       rsi,
-      rsiFailure: q ? q.rsiFailure : old?.rsiFailure ?? null,
+      rsiFailure,
       quoteQuality: quoteTruth.quality,
       quoteReceivedAt,
       sector:    SYM_SECTOR[sym] ?? "Technology",
@@ -871,14 +909,18 @@ export default function ScannerPage() {
                   <div className="px-2">
                     <span className={clsx("text-[10px] font-mono font-bold",
                       r.volRatio==null?"text-wm-text-dim":r.volRatio>=4?"text-wm-gold":r.volRatio>=2?"text-wm-blue":"text-wm-text-muted")}
-                      title={r.volRatio==null?"Volume ratio unavailable":undefined}>
-                      {r.volRatio==null ? "—" : `${r.volRatio}×`}
+                      title={r.volRatioFact.reason}
+                      aria-label={`Volume ratio for ${r.symbol}: ${r.volRatioFact.text}. ${r.volRatioFact.reason}`}>
+                      {r.volRatioFact.text}
                     </span>
                   </div>
                   <div className="px-2">
                     <span className={clsx("text-[10px] font-mono font-bold",
                       r.rsi==null?"text-wm-text-dim":r.rsi>=70?"text-wm-red":r.rsi<=30?"text-wm-green":"text-wm-text-muted")}
-                      title={r.rsi==null?"RSI unavailable":undefined}>{r.rsi==null?"—":r.rsi}</span>
+                      title={r.rsiFact.reason}
+                      aria-label={`RSI for ${r.symbol}: ${r.rsiFact.text}. ${r.rsiFact.reason}`}>
+                      {r.rsiFact.text}
+                    </span>
                     <div className="h-1 mt-0.5 rounded-full bg-wm-surface" style={{ width:36 }}>
                       <div className="h-full rounded-full" style={{ width:`${r.rsi==null?0:r.rsi}%`,
                         background:r.rsi==null?"transparent":r.rsi>=70?"#FF4D6A":r.rsi<=30?"#00D4AA":"#F0B429" }}/>
@@ -1031,12 +1073,16 @@ export default function ScannerPage() {
                   </div>
                 )}
                 {[
-                  {l:"Vol Ratio",v:selected.volRatio==null?"—":`${selected.volRatio}×`,c:selected.volRatio==null?"#64748B":selected.volRatio>=3?"#F0B429":"#94A3B8"},
-                  {l:"RSI",      v:selected.rsi==null?"—":String(selected.rsi),   c:selected.rsi==null?"#64748B":selected.rsi>=70?"#FF4D6A":selected.rsi<=30?"#00D4AA":"#94A3B8"},
+                  /* Every tile below states a FACT and carries the reason it is
+                     that fact. The three that used to end in `—` said nothing
+                     the dash did not already say, while the sentence explaining
+                     them sat one field away. See @/lib/scanner/scannerMetricFacts. */
+                  {l:"Vol Ratio",v:selected.volRatioFact.text, c:selected.volRatioFact.state!=="MEASURED"?"#64748B":selected.volRatioFact.value!=null&&selected.volRatioFact.value>=3?"#F0B429":"#94A3B8", why:selected.volRatioFact.reason},
+                  {l:"RSI",      v:selected.rsiFact.text,      c:selected.rsiFact.state!=="MEASURED"?"#64748B":selected.rsiFact.value!=null&&selected.rsiFact.value>=70?"#FF4D6A":selected.rsiFact.value!=null&&selected.rsiFact.value<=30?"#00D4AA":"#94A3B8", why:selected.rsiFact.reason},
                   {l:"Sector",   v:selected.sector,        c:"#94A3B8"},
                   {l:"Mkt Cap",  v:selected.mktcap.text, c:selected.mktcap.state==="MEASURED"?"#94A3B8":"#64748B", why:selected.mktcap.reason},
                   {l:"Float",    v:selected.float.text,  c:selected.float.state ==="MEASURED"?"#94A3B8":"#64748B", why:selected.float.reason},
-                  {l:"Volume",   v:selected.volume==null?"—":(selected.volume/1e6).toFixed(1)+"M",c:selected.volume==null?"#64748B":"#94A3B8"},
+                  {l:"Volume",   v:selected.volumeFact.text,   c:selected.volumeFact.state==="MEASURED"?"#94A3B8":"#64748B", why:selected.volumeFact.reason},
                 ].map(({l,v,c,why})=>(
                   <div key={l} className="flex justify-between items-center py-1 border-b border-wm-border/30"
                     title={why} aria-label={why ? `${l}: ${v}. ${why}` : undefined}>
