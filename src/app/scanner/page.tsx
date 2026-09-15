@@ -43,11 +43,12 @@ import {
   volumeMetricFact,
   volRatioMetricFact,
   rsiMetricFact,
+  changePctMetricFact,
   type ScannerMetricFact,
 } from "@/lib/scanner/scannerMetricFacts";
 
 import { classifyScan, type AlertStrength, type Signal } from "@/lib/scannerSignalEvidence";
-import { selectQuoteChange } from "@/lib/quoteChange";
+import { selectQuoteChange, type QuoteChangeAbsence } from "@/lib/quoteChange";
 
 interface ScanResult {
   id: string; symbol: string; name: string;
@@ -64,6 +65,10 @@ interface ScanResult {
   volumeFact: ScannerMetricFact;
   volRatioFact: ScannerMetricFact;
   rsiFact: ScannerMetricFact;
+  /* What the Chg% cell SAYS, and why. `selectQuoteChange` distinguishes four
+     reasons a change cannot be stated; both Chg% cells printed one `—` under
+     the title "Percent change unavailable". */
+  changePctFact: ScannerMetricFact;
   /** Null when the row could not be honestly classified. */
   signal: Signal | null; strength: AlertStrength | null;
   /** True when a required input was absent; `unratedReason` names which. */
@@ -283,7 +288,13 @@ async function fetchRSI(
  * `ChangeMeter` and `classifyScan` then all faithfully handled as a REAL flat
  * session, because by the time they saw it, it was one.
  */
-interface QuoteData { price:number; change:number|null; changePct:number|null; volume:number; avgVolume:number; rsi:number|null; rsiFailure:RsiFailure|null; receivedAt:number }
+interface QuoteData { price:number; change:number|null; changePct:number|null;
+  /* WHICH of `selectQuoteChange`'s four refusals produced the null above. Null
+     when the change WAS observed. Carrying it is the difference between a cell
+     that says "Percent change unavailable" — a restatement of the dash — and one
+     that says which of four different things happened. */
+  changeAbsence:QuoteChangeAbsence|null;
+  volume:number; avgVolume:number; rsi:number|null; rsiFailure:RsiFailure|null; receivedAt:number }
 
 /**
  * A scan is a COMPLETENESS claim, so it must carry its own denominator.
@@ -340,10 +351,12 @@ async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFa
           });
           const change    = resolved.observed ? +resolved.chg.toFixed(2) : null;
           const changePct = resolved.observed ? +resolved.pct.toFixed(2) : null;
+          /* The owner knows WHICH of four refusals it just made. Keep it. */
+          const changeAbsence = resolved.observed ? null : resolved.absence;
           const volume = Number(quoteJson?.volume ?? 0);
           const avgVolume = Number(quoteJson?.avgVolume ?? 0);
           const receivedAt = Number(quoteJson?.ts);
-          results.set(sym, { price, change, changePct, volume, avgVolume, rsi: rsiResult.rsi, rsiFailure: rsiResult.failure, receivedAt });
+          results.set(sym, { price, change, changePct, changeAbsence, volume, avgVolume, rsi: rsiResult.rsi, rsiFailure: rsiResult.failure, receivedAt });
         } else {
           // Same owner the ticker tape reads — the reason is not re-derived
           // here, so the two surfaces cannot come to disagree about WHY a
@@ -388,6 +401,14 @@ function buildResults(
     // alive the moment absence became representable.
     const change    = q ? q.change    : old?.change    ?? null;
     const changePct = q ? q.changePct : old?.changePct ?? null;
+    /* `selectQuoteChange` named WHICH of its four refusals it made; keep the
+       name attached to the null. When this round did not observe the symbol at
+       all, the previous round's FACT is carried whole rather than rebuilt —
+       rebuilding it here from a `changePct` whose reason has been dropped is
+       how "Percent change unavailable" got written in the first place. */
+    const changePctFact = q
+      ? changePctMetricFact(changePct, q.changeAbsence, sym)
+      : old?.changePctFact ?? changePctMetricFact(null, null, sym);
     const volume    = q?.volume    ?? old?.volume    ?? null;
     const avgVol    = q?.avgVolume ?? null;
     /* The quotient and the THREE reasons it may not exist are now decided in
@@ -420,6 +441,7 @@ function buildResults(
       volumeFact: volumeMetricFact(volume, sym),
       volRatioFact,
       rsiFact,
+      changePctFact,
       signal:    cls.signal,
       strength:  cls.strength,
       unrated:   cls.unrated,
@@ -459,14 +481,21 @@ const PRESETS = [
   { id:"all",      label:"📋 All",           sigs:SIGNALS },
 ];
 
-function ChangeMeter({ changePct }: { changePct: number | null }) {
+/*
+   The empty track used to carry a title that only restated its own emptiness.
+   The meter is fed by the same fact the cell above it states, so it carries the
+   same sentence: an empty track whose tooltip says WHICH of four refusals
+   emptied it is a different object from one that says "unavailable".
+*/
+function ChangeMeter({ changePct, fact }: { changePct: number | null; fact: ScannerMetricFact }) {
   // An unmeasured move is not a move of zero. A zero-width bar centred on the
   // midline reads as "flat", so the meter renders an empty track instead.
   if (changePct == null) {
     return (
       <div
         className="relative h-3 w-[86px] rounded-full bg-wm-surface overflow-hidden opacity-40"
-        title="Percent change unavailable — this meter has nothing to show"
+        title={fact.reason}
+        aria-label={`No session-change meter: ${fact.text}. ${fact.reason}`}
       >
         <div className="absolute left-1/2 inset-y-0 w-px bg-wm-border" />
       </div>
@@ -903,8 +932,9 @@ export default function ScannerPage() {
                   </div>
                   <div className={clsx("px-2 text-xs font-mono font-bold",
                     r.changePct==null?"text-wm-text-dim":up?"text-wm-green":"text-wm-red")}
-                    title={r.changePct==null?"Percent change unavailable":undefined}>
-                    {r.changePct==null ? "—" : `${up?"+":""}${r.changePct.toFixed(2)}%`}
+                    title={r.changePctFact.reason}
+                    aria-label={`Session change for ${r.symbol}: ${r.changePctFact.text}. ${r.changePctFact.reason}`}>
+                    {r.changePctFact.text}
                   </div>
                   <div className="px-2">
                     <span className={clsx("text-[10px] font-mono font-bold",
@@ -983,7 +1013,7 @@ export default function ScannerPage() {
                     )}
                   </div>
                   <div className="px-2 text-[9px] text-wm-text-dim truncate">{r.sector}</div>
-                  <div className="px-1"><ChangeMeter changePct={r.changePct}/></div>
+                  <div className="px-1"><ChangeMeter changePct={r.changePct} fact={r.changePctFact}/></div>
                   <div className="flex items-center justify-center gap-1">
                     <button onClick={e=>{e.stopPropagation();toggleAlert(r.id)}}
                       aria-label={`${r.alerted ? "Disable" : "Enable"} alert for ${r.symbol}`}
@@ -1043,12 +1073,11 @@ export default function ScannerPage() {
                   </div>
                   <div className={clsx("text-sm font-bold mt-0.5",
                     selected.changePct==null?"text-wm-text-dim":selected.changePct>=0?"text-wm-green":"text-wm-red")}
-                    title={selected.changePct==null?"Percent change unavailable":undefined}>
-                    {selected.changePct==null
-                      ? "—"
-                      : `${selected.changePct>=0?"+":""}${selected.changePct.toFixed(2)}%`}
+                    title={selected.changePctFact.reason}
+                    aria-label={`Session change for ${selected.symbol}: ${selected.changePctFact.text}. ${selected.changePctFact.reason}`}>
+                    {selected.changePctFact.text}
                   </div>
-                  <div className="mt-3"><ChangeMeter changePct={selected.changePct}/></div>
+                  <div className="mt-3"><ChangeMeter changePct={selected.changePct} fact={selected.changePctFact}/></div>
                 </div>
                 {selected.signal == null || selected.strength == null ? (
                   <div className="px-2 py-1.5 rounded-lg border border-wm-border bg-wm-surface/30">

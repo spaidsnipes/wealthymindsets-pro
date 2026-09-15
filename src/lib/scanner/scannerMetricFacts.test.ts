@@ -13,6 +13,7 @@ import {
   volumeMetricFact,
   volRatioMetricFact,
   rsiMetricFact,
+  changePctMetricFact,
   type ScannerMetricFact,
 } from "./scannerMetricFacts";
 
@@ -123,6 +124,51 @@ describe("rsiMetricFact", () => {
   });
 });
 
+describe("changePctMetricFact", () => {
+  it("× THE FABRICATED FLAT: a measured 0% is a reading, not an absence", () => {
+    const f = changePctMetricFact(0, null, "NVDA");
+    expect(f.state).toBe("MEASURED");
+    expect(f.text).toBe("+0.00%");
+    expect(f.value).toBe(0);
+    expect(f.reason).toMatch(/MEASUREMENT/);
+  });
+
+  it("states a real move with its sign", () => {
+    expect(changePctMetricFact(-2.5, null, "NVDA").text).toBe("-2.50%");
+    expect(changePctMetricFact(2.5, null, "NVDA").text).toBe("+2.50%");
+  });
+
+  it("× THE DEFECT: the owner's four refusals must stay four facts", () => {
+    const seen = (
+      [
+        "PRICE_NOT_OBSERVED",
+        "PROVIDER_DISOWNED_PREV_CLOSE",
+        "PREV_CLOSE_EQUALS_PRICE_UNAFFIRMED",
+        "NO_BASIS",
+      ] as const
+    ).map(a => changePctMetricFact(null, a, "NVDA").reason);
+    expect(new Set(seen).size).toBe(4);
+  });
+
+  it("only the unaffirmed-equality case is a gap in what WM OBSERVED", () => {
+    // The other three are properties of figures WM already holds. Calling them
+    // NOT_OBSERVED would promise that another scan might help.
+    expect(changePctMetricFact(null, "PREV_CLOSE_EQUALS_PRICE_UNAFFIRMED", "NVDA").state)
+      .toBe("NOT_OBSERVED");
+    expect(changePctMetricFact(null, "PROVIDER_DISOWNED_PREV_CLOSE", "NVDA").state)
+      .toBe("NOT_DERIVABLE");
+    expect(changePctMetricFact(null, "NO_BASIS", "NVDA").state).toBe("NOT_DERIVABLE");
+    expect(changePctMetricFact(null, "PRICE_NOT_OBSERVED", "NVDA").state).toBe("NOT_DERIVABLE");
+  });
+
+  it("a null with NO recorded reason still says so, and does not claim flat", () => {
+    const f = changePctMetricFact(null, null, "NVDA");
+    expect(f.state).toBe("NOT_OBSERVED");
+    expect(f.value).toBeNull();
+    expect(f.reason).toMatch(/not claiming the symbol was flat/i);
+  });
+});
+
 describe("no state renders a bare glyph", () => {
   const all: ScannerMetricFact[] = [
     volumeMetricFact(1e6, "NVDA"),
@@ -134,6 +180,12 @@ describe("no state renders a bare glyph", () => {
     rsiMetricFact(50, null, "NVDA"),
     rsiMetricFact(null, "why.", "NVDA"),
     rsiMetricFact(null, null, "NVDA"),
+    changePctMetricFact(1.2, null, "NVDA"),
+    changePctMetricFact(null, "NO_BASIS", "NVDA"),
+    changePctMetricFact(null, "PRICE_NOT_OBSERVED", "NVDA"),
+    changePctMetricFact(null, "PROVIDER_DISOWNED_PREV_CLOSE", "NVDA"),
+    changePctMetricFact(null, "PREV_CLOSE_EQUALS_PRICE_UNAFFIRMED", "NVDA"),
+    changePctMetricFact(null, null, "NVDA"),
   ];
 
   it("every fact carries words and a reason", () => {
@@ -189,6 +241,18 @@ describe("/scanner page", () => {
   it("× THE RESTATED DASH: 'unavailable' must not stand in for a real reason", () => {
     expect(code).not.toContain('"RSI unavailable"');
     expect(code).not.toContain('"Volume ratio unavailable"');
+    expect(code).not.toContain("Percent change unavailable");
+  });
+
+  it("× THE FOUR REASONS WEARING ONE DASH: Chg% must route through the owner", () => {
+    // `selectQuoteChange` computes four distinct refusals. Both Chg% cells and
+    // the meter beneath them printed one dash under one restated title.
+    expect(code).not.toMatch(/r\.changePct\s*==\s*null\s*\?\s*"—"/);
+    expect(code).not.toMatch(/selected\.changePct\s*==\s*null\s*\?\s*"—"/);
+    expect(code).toContain("changePctMetricFact");
+    // The absence NAME must survive the trip from the owner to the cell.
+    expect(code).toMatch(/changePctMetricFact\([^)]*changeAbsence/);
+    expect(code).toMatch(/changePctFact\.reason/);
   });
 
   it("× THE RESTATED DASH IN THE CACHE: the recorded reason must not be the dash", () => {

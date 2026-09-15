@@ -55,6 +55,11 @@
  * PURE — no clock, no I/O, no React.
  */
 
+import {
+  quoteChangeAbsenceReason,
+  type QuoteChangeAbsence,
+} from "@/lib/quoteChange";
+
 export type ScannerMetricState =
   /** WM holds the figure. */
   | "MEASURED"
@@ -160,6 +165,58 @@ export function volRatioMetricFact(
     state: "MEASURED",
     value: ratio,
     reason: `${symbol} has traded ${abbreviateShares(volume)} against an average of ${abbreviateShares(avgVolume)}, a ratio of ${ratio}×. WM computed this from two provider figures in the same quote; the ratio itself is a WM calculation.`,
+  };
+}
+
+/**
+ * Session change percent. DEFECT FIVE — THE NEST ONE COLUMN OVER.
+ *
+ * `selectQuoteChange` is a careful owner with a long memory: its header
+ * documents two separate occasions on which a flat session was fabricated from
+ * missing data. It computes FOUR distinct refusals — and returned one
+ * indistinguishable `{ observed: false }` for all of them. `/scanner` then
+ * rendered the collapse as `title="Percent change unavailable"` over a `—`.
+ *
+ * The owner now names its absence; this states it. Note which state each maps
+ * to: only PREV_CLOSE_EQUALS_PRICE_UNAFFIRMED is a genuine gap in what WM
+ * OBSERVED. The other three are properties of what WM already holds, so they
+ * are NOT_DERIVABLE and make no promise that another scan will help.
+ *
+ * Deliberately NOT claimed: none of these say the symbol was flat. A refusal to
+ * state a change is not a statement that the change was zero — that conflation
+ * is the exact defect `selectQuoteChange` was written to end.
+ */
+export function changePctMetricFact(
+  changePct: number | null,
+  absence: QuoteChangeAbsence | null,
+  symbol: string,
+): ScannerMetricFact {
+  if (typeof changePct === "number" && Number.isFinite(changePct)) {
+    const sign = changePct >= 0 ? "+" : "";
+    return {
+      text: `${sign}${changePct.toFixed(2)}%`,
+      state: "MEASURED",
+      value: changePct,
+      reason:
+        changePct === 0
+          ? `${symbol} is flat on the session as WM observed it. This zero is a MEASUREMENT — WM had a real prior close to compare against — not a placeholder standing in for a change it could not compute.`
+          : `Session change for ${symbol} against the prior close WM observed in this scan.`,
+    };
+  }
+  if (absence) {
+    return {
+      text: "Not stated",
+      state:
+        absence === "PREV_CLOSE_EQUALS_PRICE_UNAFFIRMED" ? "NOT_OBSERVED" : "NOT_DERIVABLE",
+      value: null,
+      reason: quoteChangeAbsenceReason(absence, symbol),
+    };
+  }
+  return {
+    text: "Not observed",
+    state: "NOT_OBSERVED",
+    value: null,
+    reason: `WM holds no session change for ${symbol} from this scan, and no recorded reason for its absence — the row was carried over from an earlier round that did not preserve one. WM is not claiming the symbol was flat.`,
   };
 }
 

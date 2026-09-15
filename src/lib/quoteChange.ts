@@ -66,11 +66,75 @@ export interface QuoteChangeInput {
   readonly prevCloseObserved?: boolean;
 }
 
+/**
+ * ── 2026-09-15 (II): FOUR REASONS WEARING ONE `false` ────────────────────
+ *
+ * Every branch below already KNOWS why it is refusing, and every branch
+ * returned the same `NOT_OBSERVED` singleton. `/scanner` then rendered the
+ * collapsed result as
+ *
+ *     title={r.changePct==null?"Percent change unavailable":undefined}>
+ *     {r.changePct==null ? "—" : …}
+ *
+ * — a restatement of the dash, standing in for a diagnosis this module had
+ * computed and discarded one call earlier. That is the same defect as
+ * `if (!res.ok) return map` and the RSI cell's "RSI unavailable": a sharp fact
+ * replaced by a vaguer one on the way downstream.
+ *
+ * The four are NOT interchangeable, and the difference is operationally real:
+ *
+ *   PRICE_NOT_OBSERVED         WM has no usable price, so there is nothing to
+ *                              compare. The row should not be here at all.
+ *   PROVIDER_DISOWNED_PREV_CLOSE
+ *                              The route AFFIRMATIVELY told WM not to trust its
+ *                              own prevClose (`ohlcObservation.prevClose:false`)
+ *                              and everything derived from it. WM is honouring a
+ *                              disclosure, not guessing.
+ *   PREV_CLOSE_EQUALS_PRICE_UNAFFIRMED
+ *                              prevClose equals price and NOBODY said whether
+ *                              that is a genuinely flat session or the
+ *                              `prevClose = price` fallback. Unrecoverable from
+ *                              the payload. This is the only one where WM may
+ *                              actually be withholding a real observation — and
+ *                              saying so is the whole point of saying which.
+ *   NO_BASIS                   No change, no percentage, no usable prior close.
+ *                              A percentage alone cannot be turned into an
+ *                              absolute move without a base.
+ *
+ * Deliberately NOT claimed: none of these say the symbol was flat, and none say
+ * a later scan will fix it. PROVIDER_DISOWNED and NO_BASIS may well repeat
+ * every round; WM does not promise otherwise.
+ */
+export type QuoteChangeAbsence =
+  | "PRICE_NOT_OBSERVED"
+  | "PROVIDER_DISOWNED_PREV_CLOSE"
+  | "PREV_CLOSE_EQUALS_PRICE_UNAFFIRMED"
+  | "NO_BASIS";
+
 export type QuoteChange =
   | { readonly observed: true; readonly chg: number; readonly pct: number }
-  | { readonly observed: false };
+  | { readonly observed: false; readonly absence: QuoteChangeAbsence };
 
-const NOT_OBSERVED: QuoteChange = { observed: false };
+/**
+ * One sentence per absence. PURE, and deliberately a total switch over the
+ * union: adding a fifth absence without a sentence will not compile, which is
+ * the compiler holding the door the `NOT_OBSERVED` singleton left open.
+ */
+export function quoteChangeAbsenceReason(
+  absence: QuoteChangeAbsence,
+  symbol: string,
+): string {
+  switch (absence) {
+    case "PRICE_NOT_OBSERVED":
+      return `WM cannot state a session change for ${symbol} because it holds no usable price for it. Change is price against a prior close, and WM is missing the price itself.`;
+    case "PROVIDER_DISOWNED_PREV_CLOSE":
+      return `The quote route told WM not to trust its own previous close for ${symbol}, and therefore not to trust the change it derived from it. WM is honouring that disclosure rather than rendering a figure the provider disowned. This is not a fetch that failed — waiting will not change it on its own.`;
+    case "PREV_CLOSE_EQUALS_PRICE_UNAFFIRMED":
+      return `The previous close WM received for ${symbol} is exactly equal to the current price, and the provider did not say whether that is a genuinely flat session or its fallback of substituting the price when it has no prior close. The two are indistinguishable from the payload, so WM withholds rather than render a flat session it cannot confirm.`;
+    case "NO_BASIS":
+      return `WM holds no basis to compute a session change for ${symbol}: no stated change, and no usable previous close to derive one from. A percentage on its own cannot be turned back into an absolute move.`;
+  }
+}
 
 function num(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v);
@@ -83,7 +147,7 @@ function num(v: unknown): v is number {
 export function selectQuoteChange(input: QuoteChangeInput): QuoteChange {
   const { price, prevClose, change, changePct, prevCloseObserved } = input;
 
-  if (!num(price) || price <= 0) return NOT_OBSERVED;
+  if (!num(price) || price <= 0) return { observed: false, absence: "PRICE_NOT_OBSERVED" };
 
   // A provider that disowns its own prevClose ALSO disowns everything it
   // derived from it. `/api/yahoo` does not publish `change` as an independent
@@ -96,7 +160,9 @@ export function selectQuoteChange(input: QuoteChangeInput): QuoteChange {
   // forwards `j.change`/`j.changePct` verbatim. The fix would have closed the
   // tape and the scanner while the watchlist kept rendering +0.00% from the
   // identical payload. Refuse the derivation where the derivation was poisoned.
-  if (prevCloseObserved === false) return NOT_OBSERVED;
+  if (prevCloseObserved === false) {
+    return { observed: false, absence: "PROVIDER_DISOWNED_PREV_CLOSE" };
+  }
 
   // 1. Provider stated both directly.
   if (num(change) && num(changePct)) {
@@ -146,5 +212,13 @@ export function selectQuoteChange(input: QuoteChangeInput): QuoteChange {
 
   // 4. A percentage alone cannot be turned into an absolute move without a
   //    base, and half a change chip is not worth a fabricated other half.
-  return NOT_OBSERVED;
+  //
+  //    Two DIFFERENT absences land here, and they used to share one `false`.
+  //    If WM holds a positive prevClose that is merely EQUAL to the price and
+  //    unaffirmed, it is withholding a figure it might genuinely have — that is
+  //    worth saying out loud, and it is not the same as having no basis at all.
+  if (num(prevClose) && prevClose > 0 && prevClose === price) {
+    return { observed: false, absence: "PREV_CLOSE_EQUALS_PRICE_UNAFFIRMED" };
+  }
+  return { observed: false, absence: "NO_BASIS" };
 }
