@@ -1779,6 +1779,35 @@ export default function PaperTradingPage() {
   const winRate = selectPaperWinRate(trades);
   const dayPnl = totalRealPnl + totalUnreal;
 
+  /**
+   * H1 IN THE HEADER — a book that was never put to work has no P&L.
+   *
+   * Found in the live verification screenshot for the leaderboard-row fix,
+   * two rooms up on the same page. The account strip read
+   *
+   *     EQUITY $100,000 · CASH $100,000 · DAY P&L +$0.00 · REALIZED +$0.00
+   *
+   * with both P&L figures in text-wm-green on a book holding zero trades and
+   * zero positions. `0 >= 0` is true, so the WIN tint was arithmetically
+   * earned and factually a lie.
+   *
+   * EQUITY and CASH are NOT part of this. $100,000 of simulated cash really is
+   * held — that is an observed fact about the book and it keeps rendering. The
+   * defect is confined to the two cells that claim a RESULT, because a result
+   * requires the book to have been used.
+   *
+   * This strip already degrades honestly in two other directions —
+   * `bookRecoveryRequired` and `hasUnmarkedOptions` both force UNKNOWN. It was
+   * never a careless surface; it simply had not been asked what it should say
+   * before the first trade.
+   *
+   * Derived from the book's own contents, not from `dayPnl === 0`: a real
+   * trading day CAN close at exactly zero and that is a genuine flat result
+   * which must keep its tint. The question is not "is the number zero" but
+   * "was anything ever traded".
+   */
+  const bookNeverTraded = trades.length === 0 && positions.length === 0;
+
   // PERSISTED means exact immediate browser readback matched; failure is
   // visible and never silently promoted to saved continuity.
   useEffect(() => {
@@ -2330,8 +2359,8 @@ export default function PaperTradingPage() {
           {[
             { l:hasUnmarkedOptions?"Equity":"Equity", v:bookRecoveryRequired || hasUnmarkedOptions?"UNKNOWN":`$${totalEquity.toLocaleString("en-US",{maximumFractionDigits:0})}`, c:bookRecoveryRequired || hasUnmarkedOptions?"text-wm-red":"text-wm-text" },
             { l:"Cash",     v:bookRecoveryRequired?"UNKNOWN":`$${cash.toLocaleString("en-US",{maximumFractionDigits:0})}`, c:bookRecoveryRequired?"text-wm-red":"text-wm-text-muted" },
-            { l:hasUnmarkedOptions?"Known P&L":"Day P&L", v:bookRecoveryRequired?"UNKNOWN":`${dayPnl>=0?"+":""}$${fmt2(Math.abs(dayPnl))}`, c:bookRecoveryRequired?"text-wm-red":dayPnl>=0?"text-wm-green":"text-wm-red" },
-            { l:"Realized", v:bookRecoveryRequired?"UNKNOWN":`${totalRealPnl>=0?"+":""}$${fmt2(Math.abs(totalRealPnl))}`, c:bookRecoveryRequired?"text-wm-red":totalRealPnl>=0?"text-wm-green":"text-wm-red" },
+            { l:hasUnmarkedOptions?"Known P&L":"Day P&L", v:bookRecoveryRequired?"UNKNOWN":bookNeverTraded?"—":`${dayPnl>=0?"+":""}$${fmt2(Math.abs(dayPnl))}`, c:bookRecoveryRequired?"text-wm-red":bookNeverTraded?"text-wm-text-muted":dayPnl>=0?"text-wm-green":"text-wm-red" },
+            { l:"Realized", v:bookRecoveryRequired?"UNKNOWN":bookNeverTraded?"—":`${totalRealPnl>=0?"+":""}$${fmt2(Math.abs(totalRealPnl))}`, c:bookRecoveryRequired?"text-wm-red":bookNeverTraded?"text-wm-text-muted":totalRealPnl>=0?"text-wm-green":"text-wm-red" },
           ].map(({l,v,c})=>(
             <div key={l} className="text-center">
               <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">{l}</div>
@@ -2699,9 +2728,15 @@ export default function PaperTradingPage() {
                 <div className={clsx("text-xl font-black font-mono", bookRecoveryRequired || hasUnmarkedOptions?"text-wm-red":"text-wm-text")}>
                   {bookRecoveryRequired || hasUnmarkedOptions ? "UNKNOWN" : `$${totalEquity.toLocaleString("en-US",{maximumFractionDigits:0})}`}
                 </div>
-                <div className={clsx("text-xs font-bold font-mono", bookRecoveryRequired ? "text-wm-red" : dayPnl>=0?"text-wm-green":"text-wm-red")}>
+                {/* Same law as the strip above, stated in prose rather than a
+                    figure. "+0.00 today (0.00%)" in the win tint is a claim
+                    about a day's trading on a book that has not traded. The
+                    honest line names what is missing instead. */}
+                <div className={clsx("text-xs font-bold font-mono", bookRecoveryRequired ? "text-wm-red" : bookNeverTraded ? "text-wm-text-muted" : dayPnl>=0?"text-wm-green":"text-wm-red")}>
                   {bookRecoveryRequired
                     ? "UNKNOWN · recovery required before portfolio totals can be stated"
+                    : bookNeverTraded
+                    ? "No trades placed — nothing to measure yet"
                     : hasUnmarkedOptions
                     ? `${dayPnl>=0?"+":""}${fmt2(dayPnl)} known P&L · excludes ${unmarkedOptionCount} unmarked option${unmarkedOptionCount===1?"":"s"}`
                     : `${dayPnl>=0?"+":""}${fmt2(dayPnl)} today (${((dayPnl/STARTING_CASH)*100).toFixed(2)}%)`}
