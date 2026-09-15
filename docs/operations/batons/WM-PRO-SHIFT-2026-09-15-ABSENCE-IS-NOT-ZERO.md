@@ -1,6 +1,6 @@
 # Baton — ABSENCE IS NOT ZERO
 
-**Sealed:** 2026-09-15 · **Block:** ten commits, eight defects, one law
+**Sealed:** 2026-09-15 · **Block:** eleven commits, nine defects, one law
 **Law:** H1 — *absence is not zero* · LABEL-NOT-MODEL · canon §9
 
 ---
@@ -31,9 +31,10 @@ diagnosis.
 | 6 | `2c624f9` | `/paper` | `+0.0%` and `+$0` in the GREEN tint on a row reading `TRADES 0`, three cells from the `—` that WIN% gets right |
 | 7 | `6635859` | `/paper` | `DAY P&L +$0.00` · `REALIZED +$0.00` · `+0.00 today (0.00%)`, all GREEN, in the account header of a book holding zero trades and zero positions |
 | 8 | `9bc3844` | `/command-deck` | `MirrorPanel` gated on `chainVm` — an unobserved MARKET erasing the trader's own reflection, **eight lines below the comment that diagnoses this exact coupling** |
+| 9 | `121b27a` | `/command-deck` | The Steward verdict gated on `chainVm` while dereferencing only `permission` — and the whole **Deep read container** gated with it, erasing every sibling that never needed the market |
 
-Receipts: `3088369`, `c5d6435`, `98a7f30`, `3a65192`
-(dispatches `2358`, `2359`, `2360`, `2361`, `2362`).
+Receipts: `3088369`, `c5d6435`, `98a7f30`, `3a65192`, `41fc71f`
+(dispatches `2358`, `2359`, `2360`, `2361`, `2362`, `2363`, `2364`).
 
 ---
 
@@ -67,12 +68,22 @@ wear a fifth disguise. It did not — and then it did not again, twice.
 `2c624f9` wore the **third** (chromatic) in a room the block had already
 visited and fixed. `6635859` wore the **third again**, in a third room on that
 same page. `9bc3844` wore the **second** (structural), in the room where the
-second shape was first named and cured.
+second shape was first named and cured. `121b27a` wore the **second again**,
+in a third room on that same page — and doubled, since the container carried
+the same defect as its child.
 
-Eight defects, four shapes, and the last three were all repeats. The
-prediction was wrong in an instructive direction: **a shape does not retire
-when you name it, and the surface you just cured is not thereby clean.** Left
-uncorrected above, corrected here.
+Nine defects, four shapes, and the last four were all repeats. The prediction
+was wrong in an instructive direction: **a shape does not retire when you name
+it, and the surface you just cured is not thereby clean.** Left uncorrected
+above, corrected here.
+
+The structural shape now has a **sub-shape worth naming separately**, because
+it is the one a panel-by-panel audit nearly misses:
+
+> **Gate the dereference, never the container.**
+> A container gated on one child's input erases every sibling that never
+> needed it — silently, because a missing container leaves nothing behind to
+> explain itself. Every child that needs an input should declare it itself.
 
 ---
 
@@ -99,6 +110,24 @@ beside its own row's RETURN. When one element on a surface gets absence right
 and its neighbour does not, that is not reassurance. Somebody already thought
 about this here and stopped at the cell they were working on. **Look at the
 whole row.**
+
+**Gate the dereference, never the container.** Defect #9's second half. The
+"Deep read" drawer was gated on `chainVm` because three of its eight children
+need it — and those three already declare it themselves. The gate deleted the
+five that never did. Worse, a missing container leaves nothing behind to
+explain itself: the note inside, written because *"a trader who opens Deep read
+and finds 1 then 4 has no way to tell a refusal from a bug,"* could not reach
+one level up to the container it was sitting in. **A refusal with no note
+attached is the failure that note exists to prevent.**
+
+**The selector can be right while the screen is wrong.** Every evaluator in
+`selectPermission` degrades honestly with no market — *"Cannot evaluate —
+conservative R unresolved"*, *"No CLC evaluation available."* — and the
+data-quality rule engages by name with the state spelled out, `UNAVAILABLE`.
+The compiler even carries an explicit null-chain path so `permission` is always
+defined. All of that correctness was thrown away by one conjunct at the render
+layer. **Reading the selector is how you find out the render layer is lying;
+it is not evidence that the screen is honest.**
 
 **Sentinel the over-corrections — twice in a row is a pattern, not a
 precaution.** Both `e714b04` and `2c624f9` needed guards against the two wrong
@@ -136,6 +165,21 @@ these guards re-light on their own.
 deleting the honest half and against inventing opponents. A set that only
 forbids the defect leaves both wrong fixes wide open.
 
+**A screen that looks right is not a screen that proves you right.** On
+`121b27a` the deck rendered every sentence the fix was written to restore — and
+the observation still proved nothing about the fix, because `chainVm` was
+non-null on that load and the same pixels would have appeared before the
+commit. The trap was a **banner that reads the same in two different states**:
+`MARKET STATE UNKNOWN · 0/8 dimensions resolved` is a *non-null* state with
+nothing resolved, while the gates keyed on `state === null`. I had written the
+two as the same condition in the receipt, and the screenshot is what exposed it.
+
+So: **before calling an observation a proof, name the variable the fix keys on
+and show that variable took the value under test.** "The page looks right"
+answers a different question. Where the condition cannot be reached honestly,
+say the claim is Sentinel-proven and stop — do not manufacture the condition to
+photograph it, which would be this block's own sin wearing a lab coat.
+
 **The cure ships in ONE component.** `OpeningBellEvidence` exists because the
 defect was found twice, in two rooms, and the second copy had mutated further
 from the truth. Non-forkable wording cannot rot on one screen while looking
@@ -146,15 +190,28 @@ healthy on the other.
 ## Gates at seal
 
 ```
-Test Files  596 passed (596)
-Tests       6964 passed (6964)
+Test Files  597 passed (597)
+Tests       6972 passed (6972)
 VITEST_EXIT=0
 TSC_EXIT=0
 ```
 
-Test count across the block: 6935 → 6936 → 6938 → 6944 → 6950 → 6957 → 6964.
+Test count across the block:
+6935 → 6936 → 6938 → 6944 → 6950 → 6957 → 6964 → 6972.
+
 REVIVE §22 proven **by name** on every code fix, via the Edit tool only, each
 file restored byte-identical.
+
+**And the revive itself got stronger at the end of the block.** On `121b27a`
+both gates were reinstated *complete with their closing parens*, so the revived
+file was a fully compilable defect — `tsc --noEmit` returned **exit 0** on it.
+The type checker had nothing to say; only the Sentinels caught it.
+
+> A revive that does not compile proves the Sentinel matches a string.
+> A revive that compiles cleanly proves the Sentinel is the **only** thing
+> standing between the codebase and the defect returning.
+
+That is the form to use from now on. It costs two extra edits.
 
 ---
 
@@ -168,6 +225,7 @@ file restored byte-identical.
 | `e714b04` | **PARTIALLY PROVEN** — the podium half observed on `/paper` (row `1 · You ⭐ · +0.0% · +$0 · 0 · —`, no 👑 in the row's `outerHTML`; the remaining crown is the external contest's prize-tier legend, checked not assumed). The `NO FIELD TO RANK AGAINST` callout is gated on `myTrades > 0` and the Founder's book reads `Blotter (0)` — **not observable today, therefore not claimed.** |
 | `2c624f9` | **PROVEN** — observed on `/paper`. The row reads `1 · You ⭐ · — · — · 0 · —` with RETURN and P&L both computing `rgb(139, 149, 165)`; no `+0.0%` anywhere on the page. The surviving green span in the row is the `You ⭐` identity marker (`isMe ? green`), checked not assumed. |
 | `6635859` | **PROVEN** — observed on `/paper`. `DAY P&L —` and `REALIZED —` both `rgb(139, 149, 165)`; `EQUITY $100,000` and `CASH $100,000` untouched; the equity card reads *"No trades placed — nothing to measure yet"*. A scan for leaf nodes matching `^[+-]?\$?0\.00$` returns **0**. |
+| `121b27a` | **SPLIT — half PROVEN, half honestly withheld.** Observed on `/command-deck` with a screenshot: section `4 STEWARD · RULES VERDICT` renders, verdict `STEWARD RULES · RESTRICTED`, headline *"Your rule says Trustworthy market data required."*, `HARD` row *Market data quality is UNAVAILABLE — below your declared floor*, `2/8 engaged · phase: preparation`, Story Ribbon *"Market state cannot be resolved yet."* — **PROVEN.** But the observation **does not discriminate the fix**: the Decision Chain rows are rendering, so `chainVm` is non-null on this load, and the same screen would have appeared before the commit. I had written that `MARKET STATE UNKNOWN · 0/8 dimensions` was the condition under test; **it is not.** That banner is a non-null `state` with nothing resolved. The gates keyed on `state === null`. Corrected in `2364` rather than left standing. The drawer-survives-null claim is **Sentinel-proven (compilable REVIVE, `TSC_EXIT=0`, caught by name), not live-observed.** |
 | `9bc3844` | **CURE NOT OBSERVABLE — not claimed. One over-correction guard PROVEN.** The deck was driven to `Phase: Review` with the page simultaneously reading `MARKET STATE UNKNOWN` (0/8 dimensions resolved) — the exact intersection under test — and **no empty frame appeared**. That proves the self-silencing the ungating depends on, live. It does *not* prove the gate was removed: `MirrorPanel` returns null at zero patterns and the Founder has no decisions, so the panel is absent under old and new code alike. |
 
 ---
@@ -184,12 +242,26 @@ file restored byte-identical.
 - ~~`src/app/command-deck/page.tsx` still has six other `chainVm &&` gates,
   including MirrorPanel.~~ **CLOSED as defect #8 (`9bc3844`).** It *was* the
   same nest in a sibling slot: `selectMirror` was read end to end and touches
-  market state at no depth. Five `chainVm &&` gates remain on that page —
-  1617, 1667, 1679, 1707, 1713 — plus the ATHOS gate at 1846, which is
-  **correct and must stay**, because ATHOS interventions are compiled *with*
-  `chainVm`. Each of the five needs the same question asked individually:
-  *does this panel's content depend on the market, or only on the person?*
-  Stripping them wholesale would be the opposite error.
+  market state at no depth.
+- ~~Five `chainVm &&` gates remain — 1617, 1667, 1679, 1707, 1713 — each needs
+  the same question asked individually.~~ **CLOSED as defect #9 (`121b27a`).**
+  The audit was run panel by panel and split **three correct / two spurious**:
+
+  | Line | Panel | Verdict |
+  |---|---|---|
+  | 1667 | `DLARStrip` | `dlar={chainVm.dlar}` — **correct, kept** |
+  | 1679 | `DecisionChainPanel` | `vm={chainVm}` — **correct, kept** |
+  | 1707 | `StructureContextNote` | `vm={chainVm}` — **correct, kept** |
+  | 1846 | `ATHOSInterventionPanel` | compiled *with* `chainVm` — **correct, kept, Sentinel-required** |
+  | 1713 | Steward · Rules Verdict | **spurious — removed** |
+  | 1617 | the Deep read container | **spurious — removed** |
+
+  **Three of the five were right.** Any sweep that treated them as a class
+  would have been wrong either way round — stripping all five crashes the page,
+  keeping all five keeps the defect. That is the argument for the
+  panel-by-panel rule, made by the codebase.
+
+  **Zero `chainVm &&` gates now remain unaudited on `/command-deck`.**
 
 **Swept clean this block (recorded, not manufactured into atoms):**
 
@@ -199,6 +271,17 @@ file restored byte-identical.
   earnings have been verified and published yet."*
 - Eleven of the twelve green-tint sites — legitimate; a scratched trade really
   is a flat result.
+- **The shape-4 population sweep specified in `2360`/`2361` was run and came
+  back clean.** `src/app` + `src/components`, pattern
+  `percentile | findIndex(…isMe) | streak | rank | leaderboard | top N`, asking
+  each hit *"what is the population, and did we observe it?"*:
+  `/tv` carries an explicit *"No fabricated leaderboards"* comment; `/paper`
+  `RANK_BADGES` and `myRank` already carry the cure and its docblock; MainChart
+  "Percentile Rank" is a technical indicator computed over observed price bars —
+  a **genuine** population, not an unobserved one; the education hits are quiz
+  prose. **Zero new defects.** Recorded as a swept-clean result. A sweep that
+  finds nothing is a finding; inventing an atom to justify the sweep would be
+  the same fabrication this block exists to remove.
 
 **Still blocked, untouched, do not retry:**
 
