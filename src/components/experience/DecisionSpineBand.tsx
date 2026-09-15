@@ -214,7 +214,14 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         // spine read as a raised dashboard panel floating over MARKET.
         // The sanctuary field is #050506; the spine now inherits that
         // depth and is delineated only by hairlines top and bottom.
-        background: "transparent",
+        // A static practical-light falloff crosses the MARKET/decision seam so
+        // the rail reads as the room's attached inspection surface rather than
+        // a flat black application column. It never animates and carries no
+        // market meaning; canonical state still owns every informational
+        // color and motion cue.
+        background: rail
+          ? "linear-gradient(90deg, rgba(232,185,35,0.045) 0%, rgba(11,11,13,0.30) 18%, rgba(5,5,6,0) 72%)"
+          : "transparent",
         borderTop: rail ? "none" : "1px solid rgba(139,106,41,0.20)",
         borderBottom: "1px solid rgba(139,106,41,0.20)",
         borderLeft: rail ? "1px solid rgba(139,106,41,0.22)" : undefined,
@@ -229,6 +236,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         overflowY: rail ? "auto" : undefined,
         flexShrink: 0,
       }}
+      data-material-plane={rail ? "sanctuary-seam" : undefined}
     >
       <style>{`
         @media (max-width: 767px) {

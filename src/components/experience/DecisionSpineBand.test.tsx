@@ -122,6 +122,8 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
     expect(html).toContain("width:clamp(260px, 22vw, 320px)");
     expect(html).not.toContain("width:320px");
     expect(html).toContain("border-left:1px solid rgba(139,106,41,0.22)");
+    expect(html).toContain('data-material-plane="sanctuary-seam"');
+    expect(html).toContain("linear-gradient(90deg, rgba(232,185,35,0.045) 0%");
     expect(html).toContain('data-testid="spine-provenance-header"');
     expect(html.match(/data-testid="spine-provenance-header"/g)).toHaveLength(1);
     expect(html).toContain('data-testid="spine-canvas-summary"');
@@ -138,6 +140,7 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
     expect(html).toContain('data-presentation="band"');
     expect(html).toContain("flex-direction:row");
     expect(html).not.toContain('data-testid="spine-provenance-header"');
+    expect(html).not.toContain('data-material-plane="sanctuary-seam"');
     expect(html).not.toContain('data-testid="spine-canvas-summary"');
     expect(html).not.toContain('data-testid="canonical-canvas-verdict"');
     expect(html).not.toContain("margin-top:auto");
