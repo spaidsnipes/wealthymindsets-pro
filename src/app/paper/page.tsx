@@ -56,6 +56,7 @@ import {
   type Trade,
 } from "@/lib/paperTrade";
 import { selectFillQueueBasis, describeFillQueueBasis } from "@/lib/paperFillQueueBasis";
+import { selectExecutionRealism, describeExecutionRealism } from "@/lib/paperExecutionRealism";
 import { selectPaperWinRate, describePaperWinRate } from "@/lib/paperTradeOutcome";
 import {
   selectPositionMark,
@@ -247,6 +248,47 @@ function FillQueueBasisNote({ ord }: { ord: Order }) {
     <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed text-wm-amber/90">
       {sentence}
     </p>
+  );
+}
+
+/**
+ * What every fill in this book assumed — the standing disclosure.
+ *
+ * /paper already says, loudly and in several places, that the MONEY is not
+ * real. It never said that the FILL is not real. That second fact was written
+ * down twice in this file's own comments — see `selectOrderFill` and
+ * `FillQueueBasisNote` — where no trader will ever read it. Canon weakness #9
+ * is PAPER-FILL OVERCONFIDENCE, and a simulator candid in its source and
+ * confident on its screen is exactly that.
+ *
+ * Renders NOTHING until at least one order has actually filled: before that
+ * there is no fill to caveat, and a permanent banner is a banner nobody reads.
+ * The two sentences are the ones that are universal to every fill and have no
+ * other home — queue priority and quote age already have per-fill owners and
+ * stay there, because hoisting them would state them about fills they are not
+ * true of.
+ */
+function ExecutionRealismNote({ orders }: { orders: readonly Order[] }) {
+  const realism = selectExecutionRealism(orders);
+  const heading = describeExecutionRealism(realism);
+  if (heading == null) return null;
+  return (
+    <section
+      role="note"
+      aria-label="What these fills assumed"
+      className="px-3 py-2 border-b border-wm-border/40 bg-wm-amber/5"
+    >
+      <p className="text-[10px] font-bold uppercase tracking-wider text-wm-amber/90">
+        {heading}
+      </p>
+      <ul className="mt-1 space-y-1">
+        {realism.assumptions.map(a => (
+          <li key={a.id} className="text-[10px] leading-relaxed text-wm-text-muted">
+            {a.sentence}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -2561,6 +2603,7 @@ export default function PaperTradingPage() {
                 </div>
               ) : (
                 <>
+                  <ExecutionRealismNote orders={orders} />
                   <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-3 py-1.5 sticky top-0 wm-sticky-glass"
                     style={{ gridTemplateColumns:"70px 50px 50px 60px 80px 80px 90px 48px" }}>
                     <span>Symbol</span><span>Side</span><span>Type</span><span>Qty</span>
