@@ -773,13 +773,19 @@ const MOBILE_NAV_ITEMS = [
   { href: "/journal", icon: BookOpen, label: "Journal" },
   { href: "/profile", icon: User, label: "Profile" },
 ] as const;
-/* Legacy — kept for any code that may reference NAV_ITEMS */
-const NAV_ITEMS = [
-  ...NAV_CORE,
-  ...NAV_WORKBENCH,
-  ...NAV_BOTTOM,
-  { href: "/veddbuild",   icon: Globe,         label: "VeddBuild"  },
-];
+/* A COMMENT IS NOT A CONSUMER.
+   A `NAV_ITEMS` constant stood here, justified by its own comment: "Legacy —
+   kept for any code that may reference NAV_ITEMS". No code did. The comment
+   was the only thing asserting the need, and a comment cannot be a reference —
+   it argued for its own survival and nothing checked the argument.
+
+   It was not inert. It held the app's only surviving mention of `/veddbuild`,
+   a route that is itself a bare redirect, so a dead constant was quietly
+   keeping a dead destination looking reachable. Retiring the constant is what
+   let the `/vailbuild` detour be seen at all.
+
+   Guarded by `× THE SELF-JUSTIFIED CONSTANT` in
+   src/app/vailbuild/redirectStubChain.test.ts. */
 
 function isPrimaryDestinationActive(pathname: string, href: string): boolean {
   if (pathname.startsWith(href)) return true;
