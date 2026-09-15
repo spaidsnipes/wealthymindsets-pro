@@ -57,6 +57,13 @@ import {
 } from "@/lib/paperTrade";
 import { selectFillQueueBasis, describeFillQueueBasis } from "@/lib/paperFillQueueBasis";
 import { selectPaperWinRate, describePaperWinRate } from "@/lib/paperTradeOutcome";
+import {
+  selectPositionMark,
+  describePositionMark,
+  summarisePositionMarks,
+  describePositionMarkSummary,
+  type PositionMark,
+} from "@/lib/paperPositionMark";
 import SceneAdmissionPanel from "@/components/experience/SceneAdmissionPanel";
 import SceneAdmits, { SceneAdmitsAmbient } from "@/components/experience/SceneAdmits";
 import {
@@ -745,24 +752,37 @@ function OrderTicket({
 }
 
 /* ── Position row ────────────────────────────────────────── */
-function PositionRow({ pos, onClose }: { pos: Position; onClose: ()=>void }) {
-  const up  = pos.unrealPnl >= 0;
-  const pct = pos.avgPx ? ((pos.marketPx - pos.avgPx) / pos.avgPx * 100 * (pos.qty<0?-1:1)) : 0;
+function PositionRow({ pos, mark, onClose }: { pos: Position; mark: PositionMark; onClose: ()=>void }) {
+  /**
+   * `up` is only a colour decision, and it is only allowed to be made when
+   * there is a number to colour. This row used to compute `pos.unrealPnl >= 0`
+   * on a position marked at its own entry price, which made the >= true and
+   * painted `+0.00` GREEN on a position the page had no quote for.
+   */
+  const unreal  = mark.unrealPnl;
+  const pct     = mark.pct;
+  const up      = unreal != null && unreal >= 0;
+  const caveat  = describePositionMark(mark);
+  // Unmarked is muted, never red: "no result yet" is not a loss.
+  const moneyTone = unreal == null ? "text-wm-text-muted" : up ? "text-wm-green" : "text-wm-red";
 
   return (
     <div className="grid items-center border-b border-wm-border/30 px-2 py-2"
-      style={{ gridTemplateColumns:"80px 50px 90px 90px 90px 80px 48px" }}>
+      style={{ gridTemplateColumns:"80px 50px 90px 90px 90px 80px 48px" }}
+      title={caveat ?? undefined}>
       <span className="text-xs font-bold text-wm-text">{pos.symbol}</span>
       <span className={clsx("text-xs font-bold", pos.qty>0?"text-wm-green":"text-wm-red")}>
         {pos.qty>0?"LONG":"SHORT"} {Math.abs(pos.qty)}
       </span>
       <span className="text-xs font-mono text-wm-text">${fmt2(pos.avgPx)}</span>
-      <span className="text-xs font-mono text-wm-text">${fmt2(pos.marketPx)}</span>
-      <span className={clsx("text-xs font-mono font-bold", up?"text-wm-green":"text-wm-red")}>
-        {up?"+":""}{fmt2(pos.unrealPnl)}
+      <span className={clsx("text-xs font-mono", mark.basis==="actionable"?"text-wm-text":"text-wm-text-muted")}>
+        {mark.markPx == null ? "—" : `$${fmt2(mark.markPx)}`}
       </span>
-      <span className={clsx("text-[10px] font-mono", up?"text-wm-green":"text-wm-red")}>
-        {pct>=0?"+":""}{pct.toFixed(2)}%
+      <span className={clsx("text-xs font-mono font-bold", moneyTone)}>
+        {unreal == null ? "—" : `${up?"+":""}${fmt2(unreal)}`}
+      </span>
+      <span className={clsx("text-[10px] font-mono", moneyTone)}>
+        {pct == null ? "—" : `${pct>=0?"+":""}${pct.toFixed(2)}%`}
       </span>
       <button onClick={onClose}
         aria-label={`Close ${pos.symbol} paper position`}
@@ -1439,18 +1459,36 @@ export default function PaperTradingPage() {
   useEffect(() => { posRef.current = positions; }, [positions]);
   const filledRef = useRef<Set<string>>(new Set());
 
-  // Update unrealized P&L whenever prices change.
+  /**
+   * MARK THE BOOK THROUGH THE SHARED OWNER.
+   *
+   * This used to be `prices[pos.symbol] ?? pos.avgPx`, which did two dishonest
+   * things at once. It marked at ENTRY when there was no quote — so an unmarked
+   * position rendered a green `+0.00`, because `PositionRow` reads
+   * `unrealPnl >= 0` — and it read the raw `prices` map, which deliberately
+   * retains a last-known number across the STALE transition so the tape can
+   * keep rendering. `actionablePaperQuotePrice` is documented as "the only
+   * price Paper execution/derivation code may act on" and the option branch
+   * fifteen lines below already honours it. The money line did not.
+   *
+   * Now a mark is `number | null`. Null is unmarked, and unmarked is not zero.
+   */
+  const positionMarks: PositionMark[] = positions.map(pos =>
+    selectPositionMark(pos, quoteReadiness[pos.symbol], contractMultiplier(pos.symbol)),
+  );
   // marketPx stays a QUOTED PRICE so the blotter matches the tape; only the
   // money line carries the contract's point value.
-  const updatedPositions = positions.map(pos => ({
+  const updatedPositions = positions.map((pos, i) => ({
     ...pos,
-    marketPx:   prices[pos.symbol] ?? pos.avgPx,
-    unrealPnl:  ((prices[pos.symbol] ?? pos.avgPx) - pos.avgPx) * pos.qty
-                  * contractMultiplier(pos.symbol),
+    marketPx:   positionMarks[i].markPx ?? pos.avgPx,
+    unrealPnl:  positionMarks[i].unrealPnl ?? 0,
   }));
+  const markSummary = summarisePositionMarks(positionMarks);
+  const markDisclosure = describePositionMarkSummary(markSummary);
 
-  // Real P&L = unrealized sum across all positions
-  const totalUnreal = updatedPositions.reduce((s,p) => s + p.unrealPnl, 0);
+  // Real P&L = unrealized sum across the positions that COULD be marked. Null
+  // when none could: a book of unknown value is not a book worth zero.
+  const totalUnreal = markSummary.unrealPnl ?? 0;
   const unmarkedOptionCount = optionPositions.filter(
     op => actionablePaperQuotePrice(quoteReadiness[op.underlying]) == null,
   ).length;
@@ -2471,6 +2509,14 @@ export default function PaperTradingPage() {
                 </div>
               ) : (
                 <>
+                  {/* What the marks behind this table are worth. Rendered only
+                      when there is something to disclose — a banner on every
+                      screen is wallpaper and stops being read. */}
+                  {markDisclosure && (
+                    <div className="px-2 py-1.5 text-[10px] text-wm-text-muted border-b border-wm-border/40">
+                      {markDisclosure}
+                    </div>
+                  )}
                   {/* Header */}
                   <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-2 py-1.5 sticky top-0 wm-sticky-glass"
                     style={{ gridTemplateColumns:"80px 50px 90px 90px 90px 80px 48px" }}>
@@ -2478,9 +2524,9 @@ export default function PaperTradingPage() {
                     <span>Market</span><span>Unreal P&L</span><span>%</span><span></span>
                   </div>
                   <AnimatePresence>
-                    {updatedPositions.map(pos=>(
+                    {updatedPositions.map((pos,i)=>(
                       <motion.div key={pos.symbol} initial={{ opacity:0,x:-8 }} animate={{ opacity:1,x:0 }} exit={{ opacity:0,x:8 }}>
-                        <PositionRow pos={pos} onClose={()=>closePosition(pos.symbol)}/>
+                        <PositionRow pos={pos} mark={positionMarks[i]} onClose={()=>closePosition(pos.symbol)}/>
                       </motion.div>
                     ))}
                   </AnimatePresence>

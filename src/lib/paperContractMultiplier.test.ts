@@ -41,6 +41,7 @@ import {
   type Order,
   type Position,
 } from "./paperTrade";
+import { selectPositionMark } from "./paperPositionMark";
 
 const REPO_ROOT = resolve(__dirname, "..", "..");
 const PAPER_PAGE = join(REPO_ROOT, "src/app/paper/page.tsx");
@@ -159,8 +160,27 @@ describe("the /paper surface applies it on every money line", () => {
   });
 
   it("unrealized P&L and the equity curve both carry it", () => {
-    expect(page).toContain("* contractMultiplier(pos.symbol)");
+    // The unrealized line used to multiply inline. It now routes through
+    // `selectPositionMark`, which owns the "absence is not the entry price"
+    // rule as well — see paperPositionMark.ts. The multiplier is still DERIVED
+    // HERE from pos.symbol rather than passed in by a caller who could forget
+    // it, which is the property this guard actually defends; only the
+    // arithmetic's address moved.
+    expect(page).toContain("selectPositionMark(pos, quoteReadiness[pos.symbol], contractMultiplier(pos.symbol))");
     expect(page).toContain("p.qty*p.marketPx*contractMultiplier(p.symbol)");
+  });
+
+  it("the money line is the ONLY place the multiplier lands on the mark", () => {
+    // markPx must stay a quoted price so the blotter matches the tape, and pct
+    // is a ratio and therefore multiplier-free. Both are asserted against the
+    // owner directly rather than against page source, because that is where the
+    // rule now lives.
+    const mark = selectPositionMark({ qty: 1, avgPx: 21_750 }, {
+      actionable: true, price: 21_760, ageMs: 0,
+    }, 20);
+    expect(mark.unrealPnl, "10 NQ points at $20/point").toBe(200);
+    expect(mark.markPx).toBe(21_760);
+    expect(mark.pct).toBeCloseTo(0.04598, 5);
   });
 });
 
