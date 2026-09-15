@@ -160,6 +160,35 @@ and must be split in the *domain*, not the *type checker*.
 
 ---
 
+## Live verification — PROVEN, and the observation DISCRIMINATES
+
+Deploy arrived on poll 8 (chunkset `a67b6ff4…` → `92b85bc1…`). Per the law
+sealed on `9b2c185`, the digest was **not** accepted as proof — the page was
+re-read.
+
+| Probe | Before | After |
+|---|---|---|
+| occurrences of *"No active contradiction to the thesis."* | **2** | **0** |
+| `N/8 dimensions resolved` | `0/8` | `0/8` — **unchanged** |
+| "No chapter resolved" present | true | true — **unchanged** |
+| `0/9 evidence nodes paid.` | present, `rgb(157, 184, 138)` | **present, same colour** |
+
+The two unchanged rows are what make this discriminate: the condition under
+test did not move, only the sentence did. The fourth row is over-correction
+guard #3 confirmed **live**, not merely in a Sentinel — the clearance that
+states its denominator was not collateral damage.
+
+Same route, same session, same screen region:
+
+```
+BEFORE                                      AFTER
+CLEARED                                     CLEARED
+No active contradiction to the thesis.      0/9 evidence nodes paid.
+0/9 evidence nodes paid.
+```
+
+---
+
 ## Method lesson sealed
 
 > **An overloaded null is a defect generator.**
