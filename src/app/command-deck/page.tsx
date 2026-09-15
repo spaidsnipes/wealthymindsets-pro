@@ -1613,8 +1613,24 @@ function CommandDeckInner() {
                 REVIEW / LEARN) it opens because the chain IS the material being
                 worked. Open-state is derived from the same canonical deckEmphasis
                 that reorders the surfaces above — presentation-only, every section
-                stays in the DOM and reachable in every job. */}
-            {chainVm && (
+                stays in the DOM and reachable in every job.
+             *
+             * NOT gated on `chainVm`. The drawer is a CONTAINER, and gating a
+             * container on one child's input erases every sibling with it.
+             * Each child that actually dereferences `chainVm` carries its own
+             * gate — the DLAR strip, the Decision Chain, the structure note
+             * and ATHOS. The ones that do not are Story Ribbon (takes `state`
+             * and renders "Market state cannot be resolved yet." on its own),
+             * the SceneAdmits withheld-note, Data Fidelity (gated on `state`)
+             * and the Steward verdict (the trader's own rules).
+             *
+             * The note inside SceneAdmits exists because "a trader who opens
+             * Deep read and finds 1 then 4 has no way to tell a refusal from
+             * a bug." That was exactly right and it guarded one level too
+             * low: with the container gated, the trader found no drawer at
+             * all — a refusal with no note attached, which is the same defect
+             * the note was written to prevent. A comment guards the cell it
+             * sits on and nothing else. */}
             <details open={deckEmphasis.deepSectionsOpen}>
               <summary
                 style={{
@@ -1709,8 +1725,28 @@ function CommandDeckInner() {
             {/* Steward / Permission — rules-informing surface. Now lists
                 EACH engaged rule with its label + reason so the trader
                 can see WHICH rules changed the verdict, not just how many.
-                Founder canon: 'every state must be explainable'. */}
-            {chainVm && (
+                Founder canon: 'every state must be explainable'.
+             *
+             * NOT gated on `chainVm`. It used to be, and that gate was
+             * spurious in the strictest sense: this block dereferences
+             * `permission` and `phase` and NOTHING ELSE. `permission` is
+             * compiled by composeMarketCanvasVM through an explicit
+             * `chain: null` path, so it is always defined — the market being
+             * unresolved has never been able to make it undefined.
+             *
+             * And the verdict it produces in that exact condition is the
+             * most decision-relevant sentence WM can say to this trader:
+             * DATA_QUALITY_FLOOR is a HARD rule, `marketState?.qualityState
+             * ?? "UNAVAILABLE"` resolves to UNAVAILABLE, the rule engages by
+             * name, and the Steward reads RESTRICTED because the tape cannot
+             * be trusted. The deck deleted that sentence for precisely the
+             * reason that made it worth reading. Same inversion as the
+             * Opening Bell (42b4106) and the Mirror (9bc3844).
+             *
+             * Every evaluator already degrades honestly without a market:
+             * MIN_RR returns "Cannot evaluate — conservative R unresolved",
+             * CLC returns "No CLC evaluation available." The selector got
+             * absence right. The render layer erased it wholesale. */}
               <div>
                 <SectionBanner number={4} label="Steward · Rules Verdict" tagline="informs, never gates" />
                 <div style={{ height: 12 }} />
@@ -1777,7 +1813,6 @@ function CommandDeckInner() {
                 )}
               </div>
               </div>
-            )}
 
             {/* NECTAR / DATA FIDELITY — coverage + freshness at a glance */}
             {state && (
@@ -1850,7 +1885,6 @@ function CommandDeckInner() {
               />
             )}
             </details>
-            )}
 
             {/* Opening Bell — only during PREPARATION phase.
              *
