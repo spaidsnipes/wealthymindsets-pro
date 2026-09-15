@@ -32,9 +32,21 @@ diagnosis.
 | 7 | `6635859` | `/paper` | `DAY P&L +$0.00` · `REALIZED +$0.00` · `+0.00 today (0.00%)`, all GREEN, in the account header of a book holding zero trades and zero positions |
 | 8 | `9bc3844` | `/command-deck` | `MirrorPanel` gated on `chainVm` — an unobserved MARKET erasing the trader's own reflection, **eight lines below the comment that diagnoses this exact coupling** |
 | 9 | `121b27a` | `/command-deck` | The Steward verdict gated on `chainVm` while dereferencing only `permission` — and the whole **Deep read container** gated with it, erasing every sibling that never needed the market |
+| 10 | `fa49aee` | `/command-deck` | **Found by LOOKING, not by grep** — in the screenshot taken to verify `121b27a`. The chain's `PERMISSION` row read *"No trader rules configured"* 140px above the Steward reading `RESTRICTED · 2/8 engaged`. Two answers to one question, on one screen |
 
 Receipts: `3088369`, `c5d6435`, `98a7f30`, `3a65192`, `41fc71f`
-(dispatches `2358`, `2359`, `2360`, `2361`, `2362`, `2363`, `2364`).
+(dispatches `2358`, `2359`, `2360`, `2361`, `2362`, `2363`, `2364`, `2365`).
+
+**#10 is the one that changes how the rest of this block should be read.** Nine
+were found by searching source. The tenth could not have been: *nothing is wrong
+in any single file.* `selectDecisionChain` was correct. `composeMarketCanvasVM`
+was correct. `/command-deck` was correct. The contradiction existed only in the
+viewport where two correct files rendered together — and it survived every prior
+sweep of this exact page for that reason.
+
+It was the Founder's standing instruction to verify visually after each
+breakthrough that produced it. The screenshot taken to *close* one atom *opened*
+another.
 
 ---
 
@@ -180,6 +192,46 @@ answers a different question. Where the condition cannot be reached honestly,
 say the claim is Sentinel-proven and stop — do not manufacture the condition to
 photograph it, which would be this block's own sin wearing a lab coat.
 
+`fa49aee` is the counter-example that makes the rule usable rather than
+paralysing. There the variable under test — the chain's permission node — *did*
+take the pre-fix value in the Founder's live session. Before: `PERMISSION ·
+NOT_EVALUATED / "No trader rules configured"`. After: `PERMISSION · RESTRICTED /
+"Your rule says Trustworthy market data required."`, identical to the Steward
+below it. Same route, same session, same screen region, both values observed.
+**PROVEN**, and nothing had to be withheld. The discipline is not "never claim
+proof" — it is "name the variable first, then look."
+
+**The fallback narrates the INPUT, never the world.** `permission === null` in
+`selectDecisionChain` means exactly one thing: no `permissionInputs` were handed
+to that selector. It is not evidence about whether the trader configured rules,
+and the selector has no way to find out. It said *"No trader rules configured"*
+anyway — reaching past its own inputs to assert a state of the world it had not
+observed. Every sibling link in the same chain already got this right and is
+true by construction: *"No proposed setup — Available R not evaluated."*, *"No
+CLC evaluation available."*, *"No open position — management not active."* Each
+names its missing INPUT. Only permission named the WORLD. This is H1 shape 1
+(fabricated absence) hiding inside a fallback string, and fallbacks are where it
+will keep hiding, because nobody reads a default branch looking for a claim.
+
+**Two computations of one value on one page is the defect, not the symptom.**
+The contradiction was not fixed by correcting the wrong string — that would have
+left two rival writers one refactor away from disagreeing again. The deck now
+feeds the chain, and the compiler **reads** `chain?.permission` instead of
+deriving its own. canon §Single-Writer / Many-Readers. The `??` fallback is not
+dead code (`/journal` detail has no chain), and a Sentinel forbids deleting it.
+
+**Sentinels must check the INVARIANT, not one spelling.** Two existing Sentinels
+failed on `fa49aee`, and both were right to. The single-writer breadcrumb
+forbade `/command-deck` importing from `selectPermission` — honored by
+re-exporting `defaultFounderRules` from the compiler rather than routing around
+the rule. Sentinel #4 from `121b27a` demanded the literal `const permission:
+PermissionVM = selectPermission(` and failed on the `??` refactor; `2364` had
+written that this exact change must force a RE-ARGUMENT, so it was re-argued in
+the test file and the assertion broadened to what actually matters — the
+non-nullable annotation, a reachable fallback, and not-inside-`if (chain)`.
+
+> **A Sentinel that fails on correct refactors is a Sentinel that gets deleted.**
+
 **The cure ships in ONE component.** `OpeningBellEvidence` exists because the
 defect was found twice, in two rooms, and the second copy had mutated further
 from the truth. Non-forkable wording cannot rot on one screen while looking
@@ -227,6 +279,7 @@ That is the form to use from now on. It costs two extra edits.
 | `6635859` | **PROVEN** — observed on `/paper`. `DAY P&L —` and `REALIZED —` both `rgb(139, 149, 165)`; `EQUITY $100,000` and `CASH $100,000` untouched; the equity card reads *"No trades placed — nothing to measure yet"*. A scan for leaf nodes matching `^[+-]?\$?0\.00$` returns **0**. |
 | `121b27a` | **SPLIT — half PROVEN, half honestly withheld.** Observed on `/command-deck` with a screenshot: section `4 STEWARD · RULES VERDICT` renders, verdict `STEWARD RULES · RESTRICTED`, headline *"Your rule says Trustworthy market data required."*, `HARD` row *Market data quality is UNAVAILABLE — below your declared floor*, `2/8 engaged · phase: preparation`, Story Ribbon *"Market state cannot be resolved yet."* — **PROVEN.** But the observation **does not discriminate the fix**: the Decision Chain rows are rendering, so `chainVm` is non-null on this load, and the same screen would have appeared before the commit. I had written that `MARKET STATE UNKNOWN · 0/8 dimensions` was the condition under test; **it is not.** That banner is a non-null `state` with nothing resolved. The gates keyed on `state === null`. Corrected in `2364` rather than left standing. The drawer-survives-null claim is **Sentinel-proven (compilable REVIVE, `TSC_EXIT=0`, caught by name), not live-observed.** |
 | `9bc3844` | **CURE NOT OBSERVABLE — not claimed. One over-correction guard PROVEN.** The deck was driven to `Phase: Review` with the page simultaneously reading `MARKET STATE UNKNOWN` (0/8 dimensions resolved) — the exact intersection under test — and **no empty frame appeared**. That proves the self-silencing the ungating depends on, live. It does *not* prove the gate was removed: `MirrorPanel` returns null at zero patterns and the Founder has no decisions, so the panel is absent under old and new code alike. |
+| `fa49aee` | **PROVEN — and the observation DISCRIMINATES.** Unlike `121b27a`, the Founder's live session genuinely exhibited the pre-fix value of the variable under test. **Before** (the screenshot taken to verify `121b27a`, same route, same session, same screen region): `! PERMISSION  NOT_EVALUATED / "No trader rules configured — Permission not evaluated."` ~140px above `STEWARD RULES · RESTRICTED / 2/8 engaged · phase: preparation`. **After** the deploy landed (chunkset `3a940611…` → `864359fe…`), all `<details>` forced open: the string `"No trader rules configured"` is **absent from the page**; the chain row reads `! PERMISSION  RESTRICTED / "Your rule says Trustworthy market data required."` and now carries the rule chips it never had — `HARD: Trustworthy market data req…` `SOFT: CLC setup evidence required`; the Steward four rows below reads `STEWARD RULES · RESTRICTED / "Your rule says Trustworthy market data required." / 2/8 engaged · phase: preparation`. **Both rows, one screen, the same sentence.** No page error. Screenshot captured. |
 
 ---
 
