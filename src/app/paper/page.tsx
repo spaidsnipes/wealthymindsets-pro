@@ -102,6 +102,7 @@ import { ContractStance } from "@/components/paper/ContractStance";
 import { selectExpressionCard } from "@/lib/expressionCard";
 import { limitPriceCell, fillPriceCell } from "@/lib/paper/orderBlotterCells";
 import { paperAccountStats, paperWinRateStat, UNREADABLE_BOOK_REASON } from "@/lib/paper/paperAccountStats";
+import { paperSpotStat } from "@/lib/paper/paperSpotDisclosure";
 import { mintDecisionId } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { recordDecisionIntent } from "@/lib/traderMemory/recordDecisionIntent";
@@ -1279,14 +1280,28 @@ function OptionsChain({
   const readiness = quoteReadiness[sym] ?? initialPaperQuoteReadiness();
   const spot = actionablePaperQuotePrice(readiness);
 
+  /**
+   * `spot` is a PERMISSION — `actionablePaperQuotePrice` says so in its own
+   * docblock ("the only price Paper execution/derivation code may act on").
+   * It still gates the whole chain below, and must.
+   *
+   * It must NOT gate the DISPLAY. `selectPaperQuoteReadiness` keeps a stale
+   * price on purpose ("may remain visible as STALE, but can never authorize a
+   * fill"), and this header used to print `—` over it — erasing a number WM
+   * measured, at a time WM knows. See lib/paper/paperSpotDisclosure.
+   */
+  const spotStat = paperSpotStat(readiness, sym, Date.now());
+
   if (spot == null) {
     return (
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
         <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-wm-border wm-sticky-glass px-3 py-2.5">
           <div className="w-44"><SymbolSearch value={sym} onChange={s=>s&&UNIVERSE[s]&&setSym(s)} placeholder="Underlying…"/></div>
-          <div className="flex items-center gap-1.5 rounded-lg border border-wm-border/50 bg-wm-surface/40 px-2.5 py-1">
-            <span className="text-[9px] text-wm-text-muted">Spot</span>
-            <span className="font-mono text-xs font-black text-wm-text">—</span>
+          <div className="flex items-center gap-1.5 rounded-lg border border-wm-border/50 bg-wm-surface/40 px-2.5 py-1"
+            title={spotStat.reason}
+            aria-label={`${spotStat.label}: ${spotStat.value}. ${spotStat.reason}`}>
+            <span className="text-[9px] text-wm-text-muted">{spotStat.label}</span>
+            <span className={clsx("font-mono text-xs font-black", spotStat.tone === "ALERT" ? "text-wm-red" : "text-wm-text-muted")}>{spotStat.value}</span>
           </div>
           <span className="text-[9px] font-black text-wm-red">{readiness.label}</span>
         </div>
@@ -1314,9 +1329,11 @@ function OptionsChain({
       {/* Controls */}
       <div className="sticky top-0 z-10 wm-sticky-glass border-b border-wm-border px-3 py-2.5 flex items-center gap-3 flex-wrap">
         <div className="w-44"><SymbolSearch value={sym} onChange={s=>s&&UNIVERSE[s]&&setSym(s)} placeholder="Underlying…"/></div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-wm-surface/40 border border-wm-border/50">
-          <span className="text-[9px] text-wm-text-muted">Spot</span>
-          <span className="text-xs font-black font-mono text-wm-text">${fmt2(spot)}</span>
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-wm-surface/40 border border-wm-border/50"
+          title={spotStat.reason}
+          aria-label={`${spotStat.label}: ${spotStat.value}. ${spotStat.reason}`}>
+          <span className="text-[9px] text-wm-text-muted">{spotStat.label}</span>
+          <span className="text-xs font-black font-mono text-wm-text">{spotStat.value}</span>
         </div>
         <span className={clsx("text-[9px] font-black", readiness.actionable ? "text-wm-gold" : "text-wm-red")}>{readiness.label}</span>
         <div className="flex gap-1">
