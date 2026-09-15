@@ -50,7 +50,7 @@
  * PURE / DETERMINISTIC — no clock, no I/O.
  */
 
-import { strengthScore } from "@/lib/scannerStrength";
+import { strengthScore, strengthDisclosure } from "@/lib/scannerStrength";
 
 /** The scanner's signal vocabulary. Moved here so the classifier owns it. */
 export type Signal =
@@ -92,6 +92,27 @@ export interface ScanClassification {
    * volume, or both, because those are different problems.
    */
   readonly reason: string;
+  /**
+   * The grade's own disclosure sentence — the formula, its two real inputs and
+   * the denial of being a validated quality. NULL EXACTLY WHEN `strength` IS,
+   * and that pairing is the point.
+   *
+   * It used to be built at the render site as
+   *
+   *   title={strengthDisclosure(r.changePct as number, r.volRatio as number)}
+   *
+   * on two chips. Both casts were CORRECT — the surrounding JSX only reaches
+   * them when `r.strength != null`, which this function only returns when both
+   * inputs were observed. But that is an invariant owned HERE and asserted
+   * THERE, with an `as number` in between whose whole job is to stop the
+   * compiler from asking. If the ladder ever graded on volume alone, the casts
+   * would keep compiling and the tooltip would read "NaN".
+   *
+   * Emitting it from the same branch that computes the grade makes "a grade
+   * always carries its disclosure" a fact about the type rather than a habit
+   * of two call sites.
+   */
+  readonly disclosure: string | null;
 }
 
 /** The inputs the ladder below actually reads. RSI is optional to it. */
@@ -145,6 +166,11 @@ export function classifyScan(ev: ScanEvidence): ScanClassification {
       signal: null,
       strength: null,
       unrated: true,
+      // No grade, so no grade disclosure. The row shows `unratedReason`
+      // instead, which names WHICH input was missing — the disclosure sentence
+      // says "from observed data only", and on an unrated row that sentence
+      // would itself be the lie.
+      disclosure: null,
       reason:
         `Unrated — the provider did not supply ${list} for this symbol. ` +
         `The price above was observed; the setup and grade were not, and a ` +
@@ -158,6 +184,10 @@ export function classifyScan(ev: ScanEvidence): ScanClassification {
     signal: ladder(changePct, volRatio, ev.rsi),
     strength: bucket(changePct, volRatio),
     unrated: false,
+    // Computed in the SAME branch as the grade, from the SAME two locals the
+    // bucket scored. There is no longer any way to render a grade whose
+    // disclosure was built from different numbers, or from a cast.
+    disclosure: strengthDisclosure(changePct, volRatio),
     reason: "Rated from observed percent change and volume ratio.",
   };
 }

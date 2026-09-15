@@ -1,5 +1,8 @@
 "use client";
-import { strengthDisclosure } from "@/lib/scannerStrength";
+// `strengthDisclosure` is deliberately NOT imported here. The page used to call
+// it at two render sites with `as number` casts; the sentence is now emitted by
+// `classifyScan` from the same branch that computes the grade, so the page only
+// renders `r.disclosure`. Re-adding this import would re-open the cast door.
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 
 /**
@@ -43,6 +46,14 @@ interface ScanResult {
   signal: Signal | null; strength: AlertStrength | null;
   /** True when a required input was absent; `unratedReason` names which. */
   unrated: boolean; unratedReason: string;
+  /**
+   * The grade's own disclosure sentence, emitted by the classifier from the
+   * same branch that computed `strength`. Null exactly when `strength` is.
+   * The page does NOT rebuild it: it used to, from `r.changePct as number`,
+   * which is an invariant owned by the classifier and asserted here with a
+   * cast in between whose only job is to stop the compiler asking.
+   */
+  disclosure: string | null;
   rsi: number | null; sector: string; float: string; mktcap: string;
   time: number; starred: boolean; alerted: boolean;
   rsiFailure: RsiFailure | null;
@@ -339,6 +350,7 @@ function buildResults(
       strength:  cls.strength,
       unrated:   cls.unrated,
       unratedReason: cls.reason,
+      disclosure: cls.disclosure,
       rsi,
       rsiFailure: q ? q.rsiFailure : old?.rsiFailure ?? null,
       quoteQuality: quoteTruth.quality,
@@ -876,7 +888,7 @@ export default function ScannerPage() {
                       </span>
                     ) : (
                       <span className="text-[10px] font-black px-1.5 py-0.5 rounded"
-                        title={strengthDisclosure(r.changePct as number, r.volRatio as number)}
+                        title={r.disclosure ?? undefined}
                         style={{ background:`${STRENGTH_COLOR[r.strength]}22`,color:STRENGTH_COLOR[r.strength] }}>
                         {r.strength}
                       </span>
@@ -966,7 +978,7 @@ export default function ScannerPage() {
                       {SIGNAL_META[selected.signal].label}
                     </span>
                     <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 rounded"
-                      title={strengthDisclosure(selected.changePct as number, selected.volRatio as number)}
+                      title={selected.disclosure ?? undefined}
                       style={{ background:`${STRENGTH_COLOR[selected.strength]}22`,color:STRENGTH_COLOR[selected.strength] }}>
                       {selected.strength}
                     </span>
