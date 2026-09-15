@@ -196,7 +196,11 @@ async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
     try {
       const j = await fetchYahooQuoteBody(up) as any;
       const price = j?.price ?? 0;
-      const yc = selectQuoteChange({ price, prevClose: j?.prevClose });
+      // `ohlcObservation.prevClose` is the route's own statement that its
+      // prevClose is a fallback to the current price. Without it this call
+      // read a substituted prevClose as a real one and published a
+      // manufactured flat session as OBSERVED.
+      const yc = selectQuoteChange({ price, prevClose: j?.prevClose, prevCloseObserved: j?.ohlcObservation?.prevClose });
       if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
       // Yahoo is the ONLY free futures source, so its refusal is the tape's
       // final answer for this symbol — there is no next provider to try.
@@ -212,13 +216,17 @@ async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
   if (classifySymbol(up) === "CRYPTO") {
     try {
       const j = await fetchExchangeQuoteBody("coinbase", up) as any;
-      if (j?.price > 0) { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "coinbase" }; }
+      if (j?.price > 0) { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct, prevCloseObserved: j?.ohlcObservation?.prevClose }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "coinbase" }; }
     } catch {}
     // Fallback to Yahoo for crypto
     try {
       const j = await fetchYahooQuoteBody(up) as any;
       const price = j?.price ?? 0;
-      const yc = selectQuoteChange({ price, prevClose: j?.prevClose });
+      // `ohlcObservation.prevClose` is the route's own statement that its
+      // prevClose is a fallback to the current price. Without it this call
+      // read a substituted prevClose as a real one and published a
+      // manufactured flat session as OBSERVED.
+      const yc = selectQuoteChange({ price, prevClose: j?.prevClose, prevCloseObserved: j?.ohlcObservation?.prevClose });
       if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
       const refusal = yahooQuoteRefusal(j);
       if (refusal) return { kind: "refused", reason: refusal };
@@ -234,17 +242,30 @@ async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
   try {
     const j = await fetchYahooQuoteBody(up) as any;
     const price = j?.price ?? 0;
-    const yc = selectQuoteChange({ price, prevClose: j?.prevClose });
+    // Same rule as the futures/crypto Yahoo paths above — the route's own
+    // fallback flag, honored rather than ignored.
+    const yc = selectQuoteChange({ price, prevClose: j?.prevClose, prevCloseObserved: j?.ohlcObservation?.prevClose });
     if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
     yahooRefusal = yahooQuoteRefusal(j);
   } catch {}
+  // The flag is forwarded from coinbase/alpaca/finnhub too, even though none of
+  // them publishes one today. It reads `undefined` — permissive, behaviour
+  // unchanged — and the day one of them starts disclosing, it is honored with
+  // no edit here. The alternative was an exemption list, and an exemption is
+  // the shape a defect hides in: the Yahoo path was "the one that needed it"
+  // right up until the scanner turned out to need it too.
+  //
+  // HONEST LIMIT, not closed by this change: /api/alpaca runs its own
+  // `prevClose ?? price` and publishes NO ohlcObservation, so its derived
+  // `change: 0` still reaches branch 1 unchallenged. Closing that needs the
+  // alpaca route to disclose, the same way yahoo already does.
   try {
     const j = await fetchAlpacaQuoteBody(up) as any;
-    if (j?.price > 0 && j.source === "alpaca") { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "alpaca" }; }
+    if (j?.price > 0 && j.source === "alpaca") { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct, prevCloseObserved: j?.ohlcObservation?.prevClose }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "alpaca" }; }
   } catch {}
   try {
     const j = await fetchFinnhubQuoteBody(up) as any;
-    if (j?.price > 0) { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "finnhub" }; }
+    if (j?.price > 0) { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct, prevCloseObserved: j?.ohlcObservation?.prevClose }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "finnhub" }; }
   } catch {}
   if (yahooRefusal) return { kind: "refused", reason: yahooRefusal };
   return null;

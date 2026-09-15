@@ -31,6 +31,7 @@ import {
 import { scannerQuoteTruth, type ScannerQuoteQuality } from "@/lib/scannerQuoteTruth";
 
 import { classifyScan, type AlertStrength, type Signal } from "@/lib/scannerSignalEvidence";
+import { selectQuoteChange } from "@/lib/quoteChange";
 
 interface ScanResult {
   id: string; symbol: string; name: string;
@@ -202,7 +203,14 @@ async function fetchRSI(
   }
 }
 
-interface QuoteData { price:number; change:number; changePct:number; volume:number; avgVolume:number; rsi:number|null; rsiFailure:RsiFailure|null; receivedAt:number }
+/**
+ * `change` / `changePct` are NULLABLE, and that is the whole point. The shape
+ * used to be `number`, so the producer below had nowhere to put "the provider
+ * sent no previous close" and wrote a zero instead — which `buildResults`,
+ * `ChangeMeter` and `classifyScan` then all faithfully handled as a REAL flat
+ * session, because by the time they saw it, it was one.
+ */
+interface QuoteData { price:number; change:number|null; changePct:number|null; volume:number; avgVolume:number; rsi:number|null; rsiFailure:RsiFailure|null; receivedAt:number }
 
 /**
  * A scan is a COMPLETENESS claim, so it must carry its own denominator.
@@ -243,12 +251,22 @@ async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFa
           fetchRSI(identity, consumer, failures),
         ]);
         const price = quoteJson?.price ?? 0;
-        const prev  = quoteJson?.prevClose ?? price;
         // SF-D01 consumer gate — shared predicate. A scanner row for a
         // symbol Yahoo could not observe is stale-noise, not a scan hit.
         if (price > 0 && yahooQuoteObserved(quoteJson)) {
-          const change    = +(price - prev).toFixed(2);
-          const changePct = prev > 0 ? +((change / prev) * 100).toFixed(2) : 0;
+          // This line used to read `const prev = quoteJson?.prevClose ?? price`,
+          // which made `change` exactly 0 and `changePct` exactly 0 for any
+          // symbol without a real prior close — and the scan ladder GRADED
+          // that zero, presenting an unobserved symbol as a named setup with
+          // a letter grade. The canonical owner refuses instead, and honors
+          // the route's own `ohlcObservation.prevClose` fallback flag.
+          const resolved = selectQuoteChange({
+            price,
+            prevClose: quoteJson?.prevClose,
+            prevCloseObserved: quoteJson?.ohlcObservation?.prevClose,
+          });
+          const change    = resolved.observed ? +resolved.chg.toFixed(2) : null;
+          const changePct = resolved.observed ? +resolved.pct.toFixed(2) : null;
           const volume = Number(quoteJson?.volume ?? 0);
           const avgVolume = Number(quoteJson?.avgVolume ?? 0);
           const receivedAt = Number(quoteJson?.ts);
@@ -289,8 +307,14 @@ function buildResults(
     const price     = realPrice;
     // An absent reading stays absent. It used to become 0, which the signal
     // ladder read as a flat market and graded "Gap Fill / C".
-    const change    = q?.change    ?? old?.change    ?? null;
-    const changePct = q?.changePct ?? old?.changePct ?? null;
+    // When THIS round observed the symbol, its answer stands alone. Falling
+    // through to `old` would pair a PREVIOUS round's change with the CURRENT
+    // price while `quoteTruth` (computed from `!q`) still reports the row as
+    // freshly observed. The old shape could never reach this branch, because
+    // `q.change` was always a number — the `?? old` was dead code that came
+    // alive the moment absence became representable.
+    const change    = q ? q.change    : old?.change    ?? null;
+    const changePct = q ? q.changePct : old?.changePct ?? null;
     const volume    = q?.volume    ?? old?.volume    ?? null;
     const avgVol    = q?.avgVolume ?? null;
     const volRatio  =

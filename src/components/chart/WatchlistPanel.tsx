@@ -92,10 +92,30 @@ interface FinnhubQuote {
  * has no reference, and naming one would assert a reference we do not have.
  */
 function changeFields(
-  j: { price: number; prevClose?: number | null; change?: number | null; changePct?: number | null; changeWindow?: unknown },
+  j: {
+    price: number; prevClose?: number | null; change?: number | null; changePct?: number | null;
+    changeWindow?: unknown;
+    /** /api/yahoo's own statement about its prevClose. See below. */
+    ohlcObservation?: { prevClose?: boolean } | null;
+  },
   declared: ChangeWindow,
 ): Pick<FinnhubQuote, "change" | "changePct" | "changeObserved" | "changeWindow"> {
-  const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct });
+  // `j.change` is forwarded VERBATIM to the selector, and for /api/yahoo that
+  // field is not an independent measurement — the route derives it from a
+  // prevClose it may have just substituted with the live price, then publishes
+  // `change: 0` and `ohlcObservation.prevClose: false` in the same body.
+  //
+  // Without the flag this call site is the one door the fabrication still fits
+  // through: the tape and the scanner resolve from prevClose (now gated), while
+  // this panel hands the poisoned derivation straight to branch 1 and renders
+  // +0.00% on the row. Pass the provider's disavowal along with the number.
+  const qc = selectQuoteChange({
+    price: j.price,
+    prevClose: j?.prevClose,
+    change: j?.change,
+    changePct: j?.changePct,
+    prevCloseObserved: j?.ohlcObservation?.prevClose,
+  });
   return {
     change: qc.observed ? qc.chg : 0,
     changePct: qc.observed ? qc.pct : 0,
