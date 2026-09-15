@@ -14,6 +14,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import toast from "react-hot-toast";
+import { creatorProgramStats, type CreatorRosterRow } from "@/lib/creator/creatorProgramStats";
 
 /* ── Tier definitions ─────────────────────────────────────── */
 interface Tier {
@@ -104,15 +105,23 @@ const TIERS: Tier[] = [
   },
 ];
 
-/* ── Stats for social proof ───────────────────────────────── */
-const STATS = [
-  { label: "Verified Creators", val: "—", icon: <Users size={16} /> },
-  { label: "Verified Payouts",  val: "—", icon: <DollarSign size={16} /> },
-  { label: "Verified Average",  val: "—", icon: <TrendingUp size={16} /> },
-  { label: "Verified Countries",val: "—", icon: <Globe size={16} /> },
-];
+const CREATORS: CreatorRosterRow[] = [];
 
-const CREATORS: Array<{ rank:number; handle:string; tier:string; earnings:string; subs:number; avatar:string }> = [];
+/* ── Program state, derived from the real roster ──────────────
+   WAS "Stats for social proof": four tiles reading `Verified X  —`.
+   The label was the claim — "Verified" asserts a verification happened, and
+   a dash beside it implies a verified figure exists and is merely withheld.
+   On a strip whose stated purpose is to persuade, that is persuasion with
+   no fact underneath it.
+   The four dashes also looked identical while standing for four DIFFERENT
+   states: two genuine zeros, one undefined mean, and one question the
+   roster schema cannot answer at all. See lib/creator/creatorProgramStats. */
+const STAT_ICONS = [
+  <Users key="u" size={16} />,
+  <DollarSign key="d" size={16} />,
+  <TrendingUp key="t" size={16} />,
+  <Globe key="g" size={16} />,
+];
 
 /* ── FAQ ──────────────────────────────────────────────────── */
 const FAQ = [
@@ -196,10 +205,20 @@ export default function CreatorPage() {
 
           {/* Stats */}
           <div className="grid grid-cols-4 gap-4 max-w-2xl mx-auto mb-10">
-            {STATS.map(s => (
-              <div key={s.label} className="rounded-xl border border-wm-border p-3 bg-wm-dark/50 text-center">
-                <div className="flex justify-center text-wm-gold mb-1">{s.icon}</div>
-                <div className="text-xl font-black text-wm-text">{s.val}</div>
+            {creatorProgramStats(CREATORS).map((s, i) => (
+              <div
+                key={s.label}
+                className="rounded-xl border border-wm-border p-3 bg-wm-dark/50 text-center"
+                // The reason rides on BOTH attributes. A phone has no hover,
+                // so `title` alone would leave these values unexplained on the
+                // primary device.
+                title={s.reason}
+                aria-label={`${s.label}: ${s.value}. ${s.reason}`}
+              >
+                <div className="flex justify-center text-wm-gold mb-1">{STAT_ICONS[i]}</div>
+                <div
+                  className={`font-black ${s.kind === "MEASURED" ? "text-xl text-wm-text" : "text-sm text-wm-text-dim"}`}
+                >{s.value}</div>
                 <div className="text-[9px] text-wm-text-dim uppercase tracking-wider mt-0.5">{s.label}</div>
               </div>
             ))}
