@@ -218,7 +218,14 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         borderTop: rail ? "none" : "1px solid rgba(139,106,41,0.20)",
         borderBottom: "1px solid rgba(139,106,41,0.20)",
         borderLeft: rail ? "1px solid rgba(139,106,41,0.22)" : undefined,
-        width: rail ? 320 : undefined,
+        // MARKET is the dominant desktop surface; this rail is attached
+        // decision context, not a second equal workspace. A fixed 320px rail
+        // consumed almost a third of the room immediately above the 1023px
+        // band fallback. Let it grow to the existing comfortable ceiling on
+        // wide screens, while yielding width back to MARKET on compact
+        // desktop. The responsive owner still swaps this rail for the proven
+        // horizontal band at <=1023px.
+        width: rail ? "clamp(260px, 22vw, 320px)" : undefined,
         overflowY: rail ? "auto" : undefined,
         flexShrink: 0,
       }}

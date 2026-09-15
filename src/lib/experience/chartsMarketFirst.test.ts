@@ -47,4 +47,15 @@ describe("charts Asset-10 hierarchy", () => {
     expect(source.match(/<SmartMoneyPanel/g)).toHaveLength(1);
     expect(source).toContain("smartMoneyOpen");
   });
+
+  it("keeps MARKET dominant while desktop decision context stays attached", () => {
+    const spine = readFileSync(
+      resolve(process.cwd(), "src/components/experience/DecisionSpineBand.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain('data-wm-market-column="true" style={{ flex:1');
+    expect(spine).toContain('width: rail ? "clamp(260px, 22vw, 320px)" : undefined');
+    expect(spine).not.toContain("width: rail ? 320 : undefined");
+  });
 });
