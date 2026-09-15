@@ -19,6 +19,7 @@ import { parseExchangeSymbol } from "@/lib/exchanges";
 import { DataVersionGuard } from "@/lib/chartContext";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
+import { CHANGE_UNAVAILABLE_TEXT, CHANGE_UNAVAILABLE_TITLE } from "@/lib/marketData/changeAbsence";
 import {
   findSessionNectarChannel,
   getSessionNectarSnapshot,
@@ -7016,11 +7017,16 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           })()}
           <span
             className={`text-xs font-mono font-semibold ${hasProviderChange ? (up ? "text-wm-green" : "text-wm-red") : "text-wm-textDim"}`}
-            title={hasProviderChange ? undefined : "Change unavailable — no verified reference close from the current quote provider."}
+            // Was two string literals here. The outer chrome header in
+            // ChartsDashboard needed the SAME sentence, and copying it would
+            // have made a third owner that agrees until someone edits one copy.
+            // This row is the reference-correct site; it now reads the sentence
+            // from the module rather than being the place it is spelled.
+            title={hasProviderChange ? undefined : CHANGE_UNAVAILABLE_TITLE}
           >
             {hasProviderChange
               ? `${up ? "+" : ""}${change.toFixed(dp)} (${up ? "+" : ""}${changePct}%)`
-              : "— (change unavailable)"}
+              : CHANGE_UNAVAILABLE_TEXT}
           </span>
           {showFidelityChrome ? (() => {
             // SHIFT-T cutover — canon §BINDING LEGACY DATA + SURFACE

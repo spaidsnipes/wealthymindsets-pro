@@ -35,6 +35,9 @@ import { WatchlistPanel } from "./WatchlistPanel";
 import { AlertsPanel, type PriceAlert } from "./AlertsPanel";
 import { ChartSettingsModal, type ChartSettings, DEFAULT_CHART_SETTINGS } from "./ChartSettingsModal";
 import { SymbolInfoHeader } from "./SymbolInfoHeader";
+import {
+  CHANGE_UNAVAILABLE_TEXT, CHANGE_UNAVAILABLE_TITLE, PRICE_UNAVAILABLE_TITLE,
+} from "@/lib/marketData/changeAbsence";
 import { BarReplayControls, type ReplaySpeed } from "./BarReplayControls";
 import { ErrorBoundary, SafePanel } from "@/components/ui/ErrorBoundary";
 import { StockInfoPanel } from "./StockInfoPanel";
@@ -1282,16 +1285,48 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               && !(ticker.change === 0 && ticker.changePct === 0);
             // Three-state direction: never call an exactly-zero change "up".
             const up = hasReal && ticker.changePct > 0;
+            // NAMING THE ABSENCE, not merely declining to fill it.
+            //
+            // This block previously rendered `{hasReal && <span …>}`, so when
+            // the guard above said "no verified reference close" the header
+            // rendered NOTHING — no glyph, no tooltip, no element. And the
+            // price fallback beside it was a bare "—" with no title.
+            //
+            // MEASURED LIVE on /charts, TSLA, reading div.wm-chart-market-summary:
+            //     TSLA | — | HISTORICAL BARS VERIFIED
+            // The "—" span carried no title and no aria-label. A trader could
+            // not tell whether the change was flat, unmeasured, or simply not
+            // a thing this header reports — and a badge two elements over was
+            // asserting VERIFIED at the same time.
+            //
+            // MainChart's price row (~7017) already did this correctly, always
+            // rendering the span and reading "— (change unavailable)" with a
+            // reason in the title. `chartHeaderChangeTruth.test.ts` even locked
+            // the two sites to one guard — but only for WHEN to suppress, never
+            // for what the suppression looks like. So they agreed exactly on
+            // the decision and not at all on the disclosure.
+            //
+            // The sentence is imported, not retyped: a third copy of it would
+            // agree with the other two until the day one of them was edited.
             return (
               <span style={{
                 color: hasReal ? (up ? "#00C076" : "#FF4D67") : "#8B92AC",
                 fontWeight: 700, fontSize: 13, fontFamily: "monospace",
               }}>
-                {ticker.price > 0 ? ticker.price.toFixed(2) : "—"}
-                {hasReal && <span className="wm-chart-header-change"> {up ? "↑" : "↓"}
-                  &nbsp;{up ? "+" : ""}{ticker.change.toFixed(2)}
-                  &nbsp;{up ? "+" : ""}{ticker.changePct.toFixed(2)}%
-                </span>}
+                {ticker.price > 0
+                  ? ticker.price.toFixed(2)
+                  : <span title={PRICE_UNAVAILABLE_TITLE} aria-label={PRICE_UNAVAILABLE_TITLE}>—</span>}
+                {hasReal ? (
+                  <span className="wm-chart-header-change"> {up ? "↑" : "↓"}
+                    &nbsp;{up ? "+" : ""}{ticker.change.toFixed(2)}
+                    &nbsp;{up ? "+" : ""}{ticker.changePct.toFixed(2)}%
+                  </span>
+                ) : (
+                  <span className="wm-chart-header-change"
+                    title={CHANGE_UNAVAILABLE_TITLE} aria-label={CHANGE_UNAVAILABLE_TITLE}>
+                    &nbsp;{CHANGE_UNAVAILABLE_TEXT}
+                  </span>
+                )}
               </span>
             );
           })()}
