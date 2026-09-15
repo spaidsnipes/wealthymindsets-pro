@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { traderPerformanceStats } from "@/lib/profile/traderPerformanceStats";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Settings, Edit3, Music, TrendingUp, Users, Star, Shield, Zap, Play, Heart, Share2, BarChart2, Save, CheckCircle, Coins, Rocket, ExternalLink, Plus, GraduationCap } from "lucide-react";
 import { clsx } from "clsx";
@@ -234,30 +235,30 @@ function ProfilePageInner() {
   }, []);
 
   // Compute stats from paper trading & journal
-  const [stats, setStats] = useState({ winRate: "—", avgRR: "—", netPnl: "—", trades: "0" });
+  /* ── The four performance tiles, from their owner ────────────────────
+     WAS computed inline and seeded with three bare dashes, which is the
+     smaller half of the defect. The larger half:
+
+       const avgLoss = losses > 0 ? …mean of losses… : 1;
+       const rr = avgLoss > 0 ? (avgWin / avgLoss).toFixed(1) : "—";
+
+     With NO LOSING TRADES, avgLoss became the sentinel 1, so avgWin/1 is
+     avgWin — A RAW DOLLAR AMOUNT — printed with ":1" glued on and labelled
+     "Avg R:R". Three wins averaging $450 rendered "450.0:1". And since
+     avgLoss was then always ≥ 1, the `avgLoss > 0` guard could never be
+     false: the one branch that tried to refuse was DEAD CODE.
+     See lib/profile/traderPerformanceStats.
+     SENTINEL: profile-perf-stats-have-one-owner */
+  const [closedTrades, setClosedTrades] = useState<Array<{ pnl?: number }>>([]);
   useEffect(() => {
     try {
       const journalEntries = JSON.parse(localStorage.getItem("wm_journal_entries") ?? "[]") as Array<{ pnl?: number }>;
       const paperState = JSON.parse(localStorage.getItem("wm_paper_state") ?? "null");
       const paperTrades: Array<{ pnl?: number }> = paperState?.trades ?? [];
-      const closedTrades = [...journalEntries, ...paperTrades].filter(hasResolvedTradeOutcome);
-      if (closedTrades.length > 0) {
-        const wins = closedTrades.filter(t => (t.pnl ?? 0) > 0).length;
-        const losses = closedTrades.filter(t => (t.pnl ?? 0) < 0).length;
-        const wr = Math.round((wins / closedTrades.length) * 100);
-        const netPnl = closedTrades.reduce((s, t) => s + (t.pnl ?? 0), 0);
-        const avgWin = wins > 0 ? closedTrades.filter(t => (t.pnl ?? 0) > 0).reduce((s, t) => s + (t.pnl ?? 0), 0) / wins : 0;
-        const avgLoss = losses > 0 ? Math.abs(closedTrades.filter(t => (t.pnl ?? 0) < 0).reduce((s, t) => s + (t.pnl ?? 0), 0) / losses) : 1;
-        const rr = avgLoss > 0 ? (avgWin / avgLoss).toFixed(1) : "—";
-        setStats({
-          winRate: `${wr}%`,
-          avgRR: rr !== "—" ? `${rr}:1` : "—",
-          netPnl: `${netPnl >= 0 ? "+" : ""}$${Math.abs(netPnl).toLocaleString("en-US", { maximumFractionDigits: 0 })}`,
-          trades: String(closedTrades.length),
-        });
-      }
+      setClosedTrades([...journalEntries, ...paperTrades].filter(hasResolvedTradeOutcome));
     } catch {}
   }, []);
+  const stats = useMemo(() => traderPerformanceStats(closedTrades), [closedTrades]);
 
   const saveProfile = async () => {
     if (!editProfile.name.trim()) { toast.error("Please enter your name."); return; }
@@ -339,12 +340,10 @@ function ProfilePageInner() {
     );
   };
 
-  const STAT_LIST = [
-    { label: "Win Rate", val: stats.winRate, color: "#00D4AA" },
-    { label: "Avg R:R",  val: stats.avgRR,   color: "#F0B429" },
-    { label: "Net P&L",  val: stats.netPnl,  color: "#00D4AA" },
-    { label: "Trades",   val: stats.trades,  color: "#4FA3E0" },
-  ];
+  const STAT_COLORS: Record<string, string> = {
+    "Win Rate": "#00D4AA", "Avg R:R": "#F0B429",
+    "Net P&L": "#00D4AA", "Trades": "#4FA3E0",
+  };
 
   // ── Setup / onboarding modal ─────────────────────────────────
   if (setupMode) {
@@ -573,9 +572,17 @@ function ProfilePageInner() {
 
           {/* Stats */}
           <div className="flex items-center gap-6 flex-wrap">
-            {STAT_LIST.map(s => (
-              <div key={s.label} className="text-center">
-                <div className="text-base font-black" style={{ color: s.color }}>{s.val}</div>
+            {stats.map(s => (
+              <div
+                key={s.label}
+                className="text-center"
+                title={s.reason}
+                aria-label={`${s.label}: ${s.value}. ${s.reason}`}
+              >
+                <div
+                  className={s.kind === "MEASURED" ? "text-base font-black" : "text-xs font-bold text-wm-text-dim"}
+                  style={s.kind === "MEASURED" ? { color: STAT_COLORS[s.label] } : undefined}
+                >{s.value}</div>
                 <div className="text-[10px] text-wm-text-dim uppercase tracking-wider">{s.label}</div>
               </div>
             ))}
