@@ -52,6 +52,7 @@ import type { DecisionWhyVM } from "@/lib/marketData/viewModels/selectDecisionWh
 import type { AvailableRVM } from "@/lib/traderMemory/viewModels/selectAvailableR";
 import { selectAvailableRDetail } from "@/components/experience/AvailableRChip";
 import { formatSpinePrice } from "@/lib/marketData/formatSpinePrice";
+import { selectOneNextThing } from "@/lib/marketData/viewModels/selectOneNextThing";
 
 /**
  * The NOW cell's TEMPORAL evidence — whether this market is trading at all.
@@ -221,6 +222,15 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   const rail = presentation === "rail";
   const priceDisplay = formatSpinePrice(market.last, market.lastBarClose, market.lastBarTimeframe);
   const availableRDetail = selectAvailableRDetail(availableR);
+  // NEXT is compiled, not echoed. Both the reading and the ledger it was
+  // computed from come from the SAME producer the verdict came from
+  // (`selectOneStory` → `computeRightOfWay`), so this introduces no second
+  // owner of any quantity — it derives a different QUESTION from one truth.
+  const nextThing = selectOneNextThing({
+    rightOfWay: oneStory ? oneStory.decision : null,
+    debt: oneStory ? oneStory.debt : null,
+    hasExpression: expression != null,
+  });
   const cellStyle: React.CSSProperties = rail
     ? {
         ...CELL,
@@ -431,17 +441,21 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         )}
       </div>
 
+      {/* A NEXT THAT REPEATS NOW IS NOT A NEXT.
+          This cell used to print the Right-of-Way verdict itself, so the rail
+          said WAIT in the header chip and WAIT again here, under two different
+          labels, from one producer. (The reverted form is named literally in
+          the Sentinel `× THE RESURRECTED ECHO`, which is why it is not spelled
+          out here — the spelling must appear nowhere but the guard.) NEXT now
+          compiles the single thing capable of CHANGING the job. The attached
+          expression, when one exists, remains the literal next object. */}
       <div style={{ ...cellStyle, marginTop: rail ? "auto" : undefined }}>
         <span style={LABEL}>Next</span>
-        <span style={VALUE} data-testid="spine-next">
-          {expression ?? (oneStory ? oneStory.decision.value : "UNKNOWN")}
+        <span style={VALUE} data-testid="spine-next" data-next-kind={expression ? "ATTACHED_EXPRESSION" : nextThing.kind}>
+          {expression ?? nextThing.headline}
         </span>
         <span style={MUTED}>
-          {expression
-            ? "Attached expression"
-            : oneStory
-              ? `${oneStory.decision.detail} — a decision needs no order.`
-              : "WAIT is a decision — no expression required."}
+          {expression ? "Attached expression" : nextThing.detail}
         </span>
       </div>
     </section>

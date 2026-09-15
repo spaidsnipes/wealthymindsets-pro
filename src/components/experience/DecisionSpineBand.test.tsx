@@ -271,17 +271,40 @@ describe("DecisionSpineBand — absence is disclosed, never filled", () => {
   });
 });
 
-describe("DecisionSpineBand — NEXT: WAIT is a first-class decision", () => {
-  it("with no expression attached, NEXT is the compiled decision and says an order is not required", () => {
-    const html = render({ oneStory: oneStory() });
+/**
+ * SUPERSEDED BY LAW (kk) — A NEXT THAT REPEATS NOW IS NOT A NEXT.
+ *
+ * This block used to assert that NEXT prints the Right-of-Way verdict: it
+ * required ">WAIT<" and ">UNKNOWN<" inside the NEXT cell. That assertion was
+ * itself the defect, pinned. The verdict already has an owner and a cell; a
+ * second rendering of it under a different label spends a whole cell of the
+ * rail restating what the trader just read.
+ *
+ * The canon: "NOW — current market/job state. NEXT — one decision-relevant
+ * thing capable of changing the job." WAIT cannot change the job; WAIT IS the
+ * job. So these tests are re-aimed at the same CELL with the correct QUESTION,
+ * and the one durable guarantee the old block carried — that the cell never
+ * stringifies a reading object — is kept verbatim.
+ *
+ * See selectOneNextThing.test.ts for the compiler's own state matrix.
+ */
+describe("DecisionSpineBand — NEXT names an act, not the state", () => {
+  it("with no expression attached, NEXT names the first unpaid node, not the verdict", () => {
+    const html = render({
+      oneStory: oneStory({
+        debt: { total: 9, resolved: 0, missing: 9, warn: 0, missingLabels: ["Regime", "Direction"], warnLabels: [] },
+      }),
+    });
     expect(html).toContain('data-testid="spine-next"');
-    expect(html).toContain(">WAIT<");
-    expect(html).toContain("a decision needs no order.");
+    expect(html).toContain("Resolve regime");
+    // The echoed verdict is exactly what this cell must never say again.
+    expect(html).not.toContain(">WAIT<");
+    expect(html).toContain("does not authorise entry");
   });
 
-  it("renders the decision's VALUE, not the reading object — a [object Object] is a lie", () => {
+  it("never stringifies the reading object — a [object Object] is a lie", () => {
     const html = render({ oneStory: oneStory({ decision: { value: "ACTION", detail: "Path clear.", tone: "resolved" } }) });
-    expect(html).toContain(">ACTION<");
+    expect(html).toContain("Choose how to express the thesis");
     expect(html).not.toContain("[object Object]");
   });
 
@@ -295,11 +318,19 @@ describe("DecisionSpineBand — NEXT: WAIT is a first-class decision", () => {
     expect(html).not.toContain("a decision needs no order.");
   });
 
-  it("with neither story nor expression, NEXT is UNKNOWN — not an invented WAIT", () => {
+  it("with neither story nor expression, NEXT admits it knows nothing — it does not invent a task", () => {
     const html = render({ oneStory: null, expression: null });
     expect(html).toContain('data-testid="spine-next"');
-    expect(html).toContain(">UNKNOWN<");
-    expect(html).toContain("WAIT is a decision — no expression required.");
+    expect(html).toContain("Establish the evidence ledger");
+    expect(html).toContain("nothing is known about what would change the job");
+    expect(html).not.toContain(">UNKNOWN<");
+  });
+
+  it("the cell publishes WHICH kind of next thing it compiled, for the surface to key on", () => {
+    const html = render({ oneStory: oneStory({ decision: { value: "NO TRADE", detail: "hard rule", tone: "warn" } }) });
+    expect(html).toContain('data-next-kind="AWAIT_RELEASE"');
+    const attached = render({ oneStory: oneStory(), expression: "TSLA 340C" });
+    expect(attached).toContain('data-next-kind="ATTACHED_EXPRESSION"');
   });
 });
 
