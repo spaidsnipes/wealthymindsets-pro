@@ -55,6 +55,7 @@ import {
   type Position,
   type Trade,
 } from "@/lib/paperTrade";
+import { selectFillQueueBasis, describeFillQueueBasis } from "@/lib/paperFillQueueBasis";
 import SceneAdmissionPanel from "@/components/experience/SceneAdmissionPanel";
 import SceneAdmits, { SceneAdmitsAmbient } from "@/components/experience/SceneAdmits";
 import {
@@ -214,6 +215,30 @@ function FillPriceAgeNote({ trade }: { trade: Trade }) {
     >
       quote {label} old
     </span>
+  );
+}
+
+/**
+ * The queue assumption behind a filled limit order, as a blotter note.
+ *
+ * `selectFillQueueBasis` grades the fill from the order's own recorded
+ * `limitPx` and `fillPx` — no new persisted field, so an order booked before
+ * this note existed is graded by exactly the same rule as one booked today.
+ *
+ * Rendered ONLY for `at-the-touch`, because that is the only case where this
+ * page asserted something it had no input for. Silence on the other cases is
+ * the absence of THIS caveat, not a claim that the fill was realistic — a
+ * market order still books at the last observed price with no slippage, which
+ * `selectOrderFill` refuses to model rather than mint.
+ */
+function FillQueueBasisNote({ ord }: { ord: Order }) {
+  if (ord.status !== "filled" || typeof ord.fillPx !== "number") return null;
+  const sentence = describeFillQueueBasis(selectFillQueueBasis(ord, ord.fillPx));
+  if (sentence == null) return null;
+  return (
+    <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed text-wm-amber/90">
+      {sentence}
+    </p>
   );
 }
 
@@ -2518,6 +2543,18 @@ export default function PaperTradingPage() {
                         {ord.rejectReason ?? "Reason not recorded for this rejection."}
                       </p>
                     )}
+                    {/* THE FILL THIS PAGE COULD NOT HAVE KNOWN IT WOULD GET.
+                        A buy limit at 100 fills here the instant a quote prints
+                        100.00 — the market TOUCHED the level and never traded
+                        through it. A real order fills there only with queue
+                        priority, and the quote pipeline behind /paper carries no
+                        depth and no tape, so queue position is not merely
+                        estimated badly: there is no input from which to compute
+                        it. Canon weakness #9 PAPER-FILL OVERCONFIDENCE. Derived
+                        from the order's own recorded limitPx + fillPx, so
+                        orders persisted before this existed are graded by the
+                        same rule rather than needing a new stored field. */}
+                    <FillQueueBasisNote ord={ord} />
                     {/* The artery's last visible step: browser/iPad/phone
                         projection. The trader asks and his ACCOUNT answers —
                         not this tab. Asked on demand rather than on mount,

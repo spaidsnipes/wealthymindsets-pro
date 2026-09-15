@@ -84,8 +84,11 @@ describe("selectOrderFill — the recorded price is the observed price", () => {
 
 describe("selectOrderFill — the trigger arithmetic, lifted verbatim", () => {
   it("a market order fills on any usable observation", () => {
-    expect(selectOrderFill(buy("market"), 1)).toEqual({ fillPx: 1 });
-    expect(selectOrderFill(sell("market"), 12345)).toEqual({ fillPx: 12345 });
+    // `queueBasis` is named rather than dropped to `toMatchObject`: the exact
+    // shape is worth keeping locked, and a market order has no limit level for
+    // the touch/through question to be asked of. See paperFillQueueBasis.ts.
+    expect(selectOrderFill(buy("market"), 1)).toEqual({ fillPx: 1, queueBasis: "unconditioned" });
+    expect(selectOrderFill(sell("market"), 12345)).toEqual({ fillPx: 12345, queueBasis: "unconditioned" });
   });
 
   it("a buy limit fills at or below its level and not above", () => {
@@ -137,13 +140,17 @@ describe("selectOrderFill — an unusable observation is not a fill", () => {
   it("treats a missing level as unconstrained rather than freezing the order forever", () => {
     // Shipped behaviour: `ord.limitPx ?? px` made the comparison trivially true.
     // An order whose level was never recorded is not silently unfillable.
-    expect(selectOrderFill(buy("limit", {}), 50)).toEqual({ fillPx: 50 });
-    expect(selectOrderFill(sell("stop", {}), 50)).toEqual({ fillPx: 50 });
-    expect(selectOrderFill(buy("stop-limit", {}), 50)).toEqual({ fillPx: 50 });
+    // An order with no recorded level also cannot be GRADED against one, so
+    // the queue basis degrades to "unconditioned" rather than inventing a
+    // touch/through verdict from a level that was never written down.
+    expect(selectOrderFill(buy("limit", {}), 50)).toEqual({ fillPx: 50, queueBasis: "unconditioned" });
+    expect(selectOrderFill(sell("stop", {}), 50)).toEqual({ fillPx: 50, queueBasis: "unconditioned" });
+    expect(selectOrderFill(buy("stop-limit", {}), 50)).toEqual({ fillPx: 50, queueBasis: "unconditioned" });
   });
 
   it("treats a non-finite level the same way — never a silent NaN comparison", () => {
-    expect(selectOrderFill(buy("limit", { limitPx: NaN }), 50)).toEqual({ fillPx: 50 });
+    expect(selectOrderFill(buy("limit", { limitPx: NaN }), 50))
+      .toEqual({ fillPx: 50, queueBasis: "unconditioned" });
   });
 
   it("returns null for an order type it does not recognise, rather than filling", () => {

@@ -11,6 +11,7 @@
 
 import type { CapitalStoreFacts } from "@/lib/experience/capitalReach";
 import { isDecisionId, type DecisionId } from "@/lib/traderMemory/decisionIdentity";
+import { selectFillQueueBasis, type FillQueueBasis } from "@/lib/paperFillQueueBasis";
 
 export const PAPER_KEY = "wm_paper_state";
 export const STARTING_CASH = 100_000;
@@ -262,6 +263,12 @@ export interface OrderFill {
    * a constraint on WHETHER to fill, not the price that printed.
    */
   readonly fillPx: number;
+  /**
+   * WHAT THIS FILL ASSUMED. `at-the-touch` means the observed price merely
+   * EQUALLED the limit — a real order would have needed queue priority, which
+   * /paper has no depth or tape data to know. See `paperFillQueueBasis.ts`.
+   */
+  readonly queueBasis: FillQueueBasis;
 }
 
 /**
@@ -326,7 +333,7 @@ export function selectOrderFill(order: OrderFillInput, observedPx: number): Orde
   // only reason it did not ship again is that the tests were written first and
   // left red. `??` would also have passed a NaN level straight through, since
   // NaN is neither null nor undefined.
-  return { fillPx: px };
+  return { fillPx: px, queueBasis: selectFillQueueBasis(order, px) };
 }
 
 export interface Order {
