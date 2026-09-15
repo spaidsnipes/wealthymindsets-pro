@@ -124,7 +124,38 @@ VITEST_EXIT=0
 TSC_EXIT=0
 ```
 
-## Live status
+## Live status — LIVE OBSERVED
 
-Pushed `2f7e4f2..8c4d66a`. Production verification pending — upgraded only on
-direct observation, never from deploy identity alone.
+Pushed `2f7e4f2..8c4d66a`.
+
+**Deploy confirmed behaviourally.** Polled production for the literal string
+`entry and fill prices only`; `FOUND in /_next/static/chunks/1ifrv3mcdi18e.js`.
+That proves the bytes shipped. It does **not** prove the path runs, so it was
+not treated as the proof.
+
+**The proof.** On `https://wealthymindsetspro.com/profile`, Export CSV was
+clicked and the toast read, on screen:
+
+> `Exported 2 positions — entry and fill prices only, no P&L.`
+
+The old toast read `Exported 1 position.` with no clause. The clause is
+therefore direct evidence the new owner ran — not the old inline construction.
+Screenshot taken; status upgraded on that observation and nothing else.
+
+### How the proof was staged, honestly
+
+The Founder's saved book holds **0 positions**, and `paperPositionsToCsv`
+correctly refuses an empty book — so the success path cannot be observed without
+positions. **No order was placed.** Two probe positions were injected directly
+into `wm_paper_state`, and:
+
+- the book was read out and hashed **first** (7501 bytes, hash `-86447417`);
+- **the download was suppressed** — `HTMLAnchorElement.prototype.click` was
+  patched to swallow anchors carrying a `download` attribute. The handler ran to
+  completion and the toast rendered; no file was written to disk. The intercept
+  recorded `clicks: 1`, `downloadName: wm-paper-positions.csv`;
+- the book was restored and **read back**: 7501 bytes, hash `-86447417`,
+  0 positions — **byte-identical**. The anchor patch was removed and verified
+  removed.
+
+A proof that leaves the Founder's book changed is not a proof, it is a defect.
