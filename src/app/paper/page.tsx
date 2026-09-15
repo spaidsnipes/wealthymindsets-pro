@@ -58,6 +58,7 @@ import {
 import { selectFillQueueBasis, describeFillQueueBasis } from "@/lib/paperFillQueueBasis";
 import { selectExecutionRealism, describeExecutionRealism } from "@/lib/paperExecutionRealism";
 import { selectOrderRest, describeRestingBook } from "@/lib/paperOrderTimeInForce";
+import { selectCancelCertainty, selectCancelledOrderNote } from "@/lib/paperCancelCertainty";
 import { selectPaperWinRate, describePaperWinRate } from "@/lib/paperTradeOutcome";
 import {
   selectPositionMark,
@@ -351,6 +352,40 @@ function RestingBookNote({ orders, nowMs }: { orders: readonly Order[]; nowMs: n
       className="px-3 py-2 border-b border-wm-border/40 bg-wm-amber/5 text-[10px] font-bold uppercase tracking-wider text-wm-amber/90"
     >
       {heading} — /paper has no time-in-force
+    </p>
+  );
+}
+
+/**
+ * The cancel that could never lose its race. See paperCancelCertainty — the
+ * transition is resolved locally by `cancelOrder` before any quote is read,
+ * which is why no probability appears anywhere in this disclosure.
+ */
+function CancelCertaintyNote({ orders }: { orders: readonly Order[] }) {
+  const r = selectCancelCertainty(orders);
+  if (r.heading == null) return null;
+  return (
+    <div
+      role="note"
+      aria-label="Cancels on /paper never race a fill"
+      className="px-3 py-2 border-b border-wm-border/40 bg-wm-amber/5"
+    >
+      <p className="text-[10px] font-bold uppercase tracking-wider text-wm-amber/90">
+        {r.heading}
+      </p>
+      {r.sentences.map(s => (
+        <p key={s} className="mt-1 text-[10px] leading-relaxed text-wm-amber/90">{s}</p>
+      ))}
+    </div>
+  );
+}
+
+function CancelledOrderNote({ ord }: { ord: Order }) {
+  const sentence = selectCancelledOrderNote(ord);
+  if (sentence == null) return null;
+  return (
+    <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed text-wm-amber/90">
+      {sentence}
     </p>
   );
 }
@@ -2672,6 +2707,7 @@ export default function PaperTradingPage() {
                 <>
                   <ExecutionRealismNote orders={orders} />
                   <RestingBookNote orders={orders} nowMs={restNowMs} />
+                  <CancelCertaintyNote orders={orders} />
                   <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-3 py-1.5 sticky top-0 wm-sticky-glass"
                     style={{ gridTemplateColumns:"70px 50px 50px 60px 80px 80px 90px 48px" }}>
                     <span>Symbol</span><span>Side</span><span>Type</span><span>Qty</span>
@@ -2743,6 +2779,7 @@ export default function PaperTradingPage() {
                         note on why expiring the trader's book would be a
                         policy they never chose. */}
                     <RestingOrderNote ord={ord} nowMs={restNowMs} />
+                    <CancelledOrderNote ord={ord} />
                     {/* The artery's last visible step: browser/iPad/phone
                         projection. The trader asks and his ACCOUNT answers —
                         not this tab. Asked on demand rather than on mount,
