@@ -54,14 +54,23 @@ function ruleEval(kind: "HARD" | "SOFT", label: string, reason: string): RuleEva
   };
 }
 
-function permission(engagedRules: RuleEvaluation[]): PermissionVM {
+/**
+ * `ruleCount` is the number of rules the trader CONFIGURED, which is the
+ * denominator of engagement — it is deliberately a separate argument from the
+ * engaged list so a fixture can express "six rules configured, none engaged"
+ * (a real finding) distinctly from "no rules configured" (nothing to find).
+ */
+function permission(
+  engagedRules: RuleEvaluation[],
+  ruleCount: number = engagedRules.length,
+): PermissionVM {
   return {
     verdict: engagedRules.some((r) => r.rule.kind === "HARD") ? "RESTRICTED" : "ALLOWED",
     evaluations: engagedRules,
     engagedRules,
     headline: "permission",
     reason: "permission reason",
-    ruleCount: engagedRules.length,
+    ruleCount,
     evaluatedAt: 1_000,
   };
 }
@@ -138,9 +147,9 @@ describe("selectDecisionWhyNot", () => {
     ]);
   });
 
-  it("reports 'no rules engaged' clearance when permission present and clean", () => {
-    const vm = selectDecisionWhyNot(story({ decision: reading("ACTION") }), permission([]));
-    expect(vm.clearances).toContain("No trader rules engaged.");
+  it("reports the engagement clearance WITH ITS DENOMINATOR when rules are configured and clean", () => {
+    const vm = selectDecisionWhyNot(story({ decision: reading("ACTION") }), permission([], 6));
+    expect(vm.clearances).toContain("0/6 trader rules engaged.");
   });
 
   it("falls back to oneStory.missing when there is no structured debt", () => {
@@ -174,7 +183,7 @@ describe("selectDecisionWhyNot", () => {
     it("ACTION verdict with permission-present-and-clean lists 'HARD rule engages' as an invalidator", () => {
       const vm = selectDecisionWhyNot(
         story({ decision: reading("ACTION"), debt: debt([], [], 9, 9) }),
-        permission([]),
+        permission([], 6),
       );
       expect(vm.invalidators.some((s) => /HARD trader rule engages/i.test(s))).toBe(true);
     });

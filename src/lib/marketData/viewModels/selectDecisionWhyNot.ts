@@ -162,8 +162,22 @@ export function selectDecisionWhyNot(
     }
   }
 
-  if (engaged.length === 0 && permission) {
-    clearances.push("No trader rules engaged.");
+  // NOTHING ENGAGED is only a finding when something COULD have engaged.
+  //
+  // `permission.ruleCount` is the number of rules the trader has actually
+  // configured (`selectPermission` returns 0 from its early return, with the
+  // headline "No trading rules configured."). With zero rules the old
+  // `engaged.length === 0 && permission` test was vacuously true and pushed an
+  // affirmative clearance onto *the affirmative side of the ledger* — the same
+  // H1 shape 1 as the thesis clearance above: the absence of a SUBJECT
+  // reported as the absence of an OBJECTION.
+  //
+  // With rules configured the count is real, so it is printed WITH ITS
+  // DENOMINATOR (`0/6 trader rules engaged.`), matching the house form used on
+  // the Steward panel and by the evidence-debt clearance two branches up. A
+  // count that states its denominator cannot overclaim.
+  if (engaged.length === 0 && permission && permission.ruleCount > 0) {
+    clearances.push(`0/${permission.ruleCount} trader rules engaged.`);
   }
 
   blockers.sort((a, b) => KIND_RANK[a.kind] - KIND_RANK[b.kind]);
@@ -185,7 +199,12 @@ export function selectDecisionWhyNot(
       invalidators.push("A required evidence node degrades to unpaid.");
     }
     const hasEngagedHard = engaged.some((ev) => ev.rule.kind === "HARD");
-    if (permission && !hasEngagedHard) {
+    // Same gate. An invalidator is documented above as an observation that
+    // "if it became true RIGHT NOW would flip the verdict". With no rules
+    // configured, no HARD rule can engage right now — the sentence would name
+    // a tripwire that does not exist. Silence is the honest output; the
+    // Steward panel already discloses that no rules are configured.
+    if (permission && permission.ruleCount > 0 && !hasEngagedHard) {
       invalidators.push("A HARD trader rule engages.");
     }
   }
