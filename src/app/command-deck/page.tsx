@@ -26,9 +26,9 @@ import StoryRibbon from "@/components/chart/StoryRibbon";
 import ATHOSInterventionPanel from "@/components/athos/ATHOSInterventionPanel";
 import { selectATHOSIntervention, type ATHOSIntervention } from "@/lib/traderMemory/viewModels/selectATHOSIntervention";
 import MirrorPanel from "@/components/mirror/MirrorPanel";
-import OpeningBellPanel from "@/components/opening-bell/OpeningBellPanel";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
-import { selectOpeningBell, DEFAULT_PREPARATION_TEMPLATE } from "@/lib/traderMemory/viewModels/selectOpeningBell";
+import { selectPrepEvidence, PREP_VERDICT_WITHHELD } from "@/lib/experience/openingBellPrep";
+import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 import { useDecisionMemory, useDecisionMemoryRecords } from "@/lib/traderMemory/useDecisionMemory";
 import { useJournalBook } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
@@ -1853,15 +1853,10 @@ function CommandDeckInner() {
 
             {/* Opening Bell — only during PREPARATION phase */}
             {chainVm && phase === "PREPARATION" && (
-              <OpeningBellPanel
-                vm={selectOpeningBell({
-                  ownerId: user?.id ?? "",
-                  sessionIdentity: `session-${new Date(nowMs).toISOString().slice(0, 10)}`,
-                  items: DEFAULT_PREPARATION_TEMPLATE.map((t) => ({ ...t, completed: false })),
-                  minutesUntilOpen: null,
-                  dataQuality: state?.qualityState,
-                  nowMs,
-                })}
+              <OpeningBellSlot
+                userId={user?.id ?? null}
+                nowMs={nowMs}
+                dataQuality={state?.qualityState}
               />
             )}
 
@@ -1923,6 +1918,119 @@ function CommandDeckInner() {
       </main>
     </div>
     </SanctuarySessionProvider>
+  );
+}
+
+/**
+ * OpeningBellSlot — "am I prepared?", answered only as far as the evidence goes.
+ *
+ * THE DEFECT THIS REPLACES
+ * -----------------------
+ * This slot used to call `selectOpeningBell` with
+ *
+ *     items: DEFAULT_PREPARATION_TEMPLATE.map((t) => ({ ...t, completed: false }))
+ *
+ * — eight prep items, every one hardcoded incomplete. The selector did its job
+ * and returned NOT_READY with the advisory "Preparation incomplete. Rushing
+ * preparation correlates with process failure." That is a judgement about the
+ * trader's morning, produced from no observation of the trader at all, and it
+ * rendered identically whether they had finished everything or their browser
+ * had simply failed to read their prep.
+ *
+ * It also contradicted this very page: `TodayPrepBridge` below already shows the
+ * trader's REAL count from `useTodayPrep`. The deck displayed the true number
+ * and a verdict that ignored it, at the same moment, on the same screen.
+ *
+ * WHY NO VERDICT NOW
+ * ------------------
+ * `selectOpeningBell` is not called here any more, because on this surface it
+ * cannot be given honest input. Its template has stable ids; /morning-prep
+ * stores the trader's own free-text list. We know HOW MANY items were checked,
+ * never WHICH — so the eight named rows cannot be ticked without inventing the
+ * mapping. `openingBellPrep` states the count, states why it stops there, and
+ * stops there. See that module's docblock for the full argument.
+ *
+ * Data health is the one axis that IS observed, so it is stated — as an
+ * observation, not as a grade.
+ */
+function OpeningBellSlot({
+  userId,
+  nowMs,
+  dataQuality,
+}: {
+  userId: string | null;
+  nowMs: number;
+  dataQuality?: MarketQualityState;
+}) {
+  const prep = useTodayPrep(userId, nowMs);
+  const evidence = selectPrepEvidence({
+    readState: prep.readState,
+    checklistDone: prep.checklistDone,
+    checklistTotal: prep.checklistTotal,
+  });
+
+  return (
+    <div
+      role="region"
+      aria-label="Opening Bell — session preparation"
+      data-testid="opening-bell-slot"
+      style={{
+        borderTop: "1px solid rgba(139,106,41,0.20)",
+        background: "transparent",
+        padding: "12px 0 4px",
+      }}
+    >
+      <div style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
+        Opening Bell
+      </div>
+
+      <div
+        data-testid="opening-bell-prep-evidence"
+        style={{ fontSize: 13, color: "#ede6d3", fontWeight: 600, marginTop: 6, lineHeight: 1.5 }}
+      >
+        {evidence.sentence}
+      </div>
+
+      {/* Observed, so it may be stated. A reading, never a grade. */}
+      {dataQuality != null && (
+        <div style={{ fontSize: 11, color: "#c0b8a0", marginTop: 8, lineHeight: 1.5 }}>
+          Market data health right now: <span style={{ color: "#ede6d3" }}>{dataQuality}</span>.
+        </div>
+      )}
+
+      {/* The refusal, explained where the verdict used to be. */}
+      <div
+        data-testid="opening-bell-verdict-withheld"
+        style={{
+          fontSize: 11,
+          color: "#8a8271",
+          lineHeight: 1.5,
+          marginTop: 10,
+          paddingLeft: 10,
+          borderLeft: "2px solid rgba(139,106,41,0.35)",
+        }}
+      >
+        {PREP_VERDICT_WITHHELD}
+      </div>
+
+      <a
+        href="/morning-prep"
+        style={{
+          display: "inline-block",
+          marginTop: 10,
+          minHeight: 44,
+          lineHeight: "44px",
+          fontSize: 9,
+          letterSpacing: 0.3,
+          textTransform: "uppercase",
+          color: "#c9a55c",
+          textDecoration: "none",
+        }}
+        aria-label="Open Morning Prep to review or complete your prep list"
+      >
+        Open Morning Prep →
+      </a>
+    </div>
   );
 }
 
