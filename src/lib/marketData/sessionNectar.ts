@@ -108,6 +108,12 @@ export class SessionNectarCollector {
       eventAt: eventTime(event),
       receivedAt: event.timestampReceived,
       sequenceGap: inspected.warnings.includes("SEQUENCE_GAP"),
+      // The guard emits BOTH warnings and this boundary used to forward only
+      // the first. Dropping SEQUENCE_UNAVAILABLE made "we looked and found no
+      // gap" indistinguishable from "we had nothing to look at" — and since
+      // every shipped adapter declares sequenceState "UNAVAILABLE", the second
+      // is the case that actually occurs in production.
+      sequenceUnavailable: inspected.warnings.includes("SEQUENCE_UNAVAILABLE"),
     });
 
     this.channels.set(channelKey, next);

@@ -34,6 +34,9 @@ import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { selectPrepEvidence } from "@/lib/experience/openingBellPrep";
 import OpeningBellEvidence from "@/components/opening-bell/OpeningBellEvidence";
 import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
+// The single writer for every gap claim WM makes. See coverageMap.ts —
+// a bare `gapCount` is not evidence unless gaps were detectable at all.
+import { describeGapCoverageTotal } from "@/lib/marketData/coverageMap";
 import { useDecisionMemory, useDecisionMemoryRecords } from "@/lib/traderMemory/useDecisionMemory";
 import { useJournalBook } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import PersonalEdgeChip from "@/components/journal/PersonalEdgeChip";
@@ -1876,7 +1879,21 @@ function CommandDeckInner() {
                   const observedFroms = state.coverage.map((c) => c.observedFrom).filter((n): n is number => typeof n === "number");
                   const lastEvents = state.coverage.map((c) => c.lastEventAt).filter((n): n is number => typeof n === "number");
                   const totalEvents = state.coverage.reduce((s, c) => s + (c.observedEventCount ?? 0), 0);
-                  const gapTotal = state.coverage.reduce((s, c) => s + (c.gapCount ?? 0), 0);
+                  /**
+                   * GAPS is a CLAIM, so it goes through the claim compiler.
+                   *
+                   * This used to be `reduce((s, c) => s + (c.gapCount ?? 0), 0)`
+                   * rendered as a bare number in the OK tone. It printed `0` —
+                   * and it could never have printed anything else. Every shipped
+                   * adapter declares `sequenceState: "UNAVAILABLE"`, so
+                   * `MarketEventGuard` never emits `SEQUENCE_GAP`, so `gapCount`
+                   * is pinned at 0 by construction. The tile was reporting the
+                   * absence of a DETECTOR as the absence of GAPS.
+                   *
+                   * `describeGapCoverageTotal` is the single writer for that
+                   * claim — `/nectar/[symbol]` reads the same one.
+                   */
+                  const gapClaim = describeGapCoverageTotal(state.coverage);
                   const memoryStart = observedFroms.length ? Math.min(...observedFroms) : null;
                   const lastEvent = lastEvents.length ? Math.max(...lastEvents) : null;
                   const now = state.capturedAt;
@@ -1894,7 +1911,12 @@ function CommandDeckInner() {
                       <Stat label="Memory age" value={fmtAge(memoryAgeMs)} />
                       <Stat label="Last event" value={fmtAge(staleAgeMs)} tone={staleAgeMs != null && staleAgeMs > 60_000 ? (staleAgeMs > 300_000 ? "warn" : "watch") : "ok"} />
                       <Stat label="Observed" value={String(totalEvents)} />
-                      <Stat label="Gaps" value={String(gapTotal)} tone={gapTotal > 0 ? "watch" : "ok"} />
+                      <Stat
+                        label="Gaps"
+                        value={gapClaim.value}
+                        tone={gapClaim.warn ? "watch" : gapClaim.measured ? "ok" : "dim"}
+                        title={gapClaim.detail}
+                      />
                     </div>
                   );
                 })()}
@@ -2137,13 +2159,20 @@ function TodayPrepBridge({ userId }: { userId: string | null }) {
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: string; tone?: "ok" | "watch" | "warn" }) {
+/**
+ * `tone="dim"` is not decoration — it is the visual form of "this is not a
+ * measurement." A value WM could not observe must not wear the same weight as
+ * one it did. The `title` carries the reason, so the trader can find out WHY a
+ * cell is dim rather than guessing it is a rendering bug.
+ */
+function Stat({ label, value, tone, title }: { label: string; value: string; tone?: "ok" | "watch" | "warn" | "dim"; title?: string }) {
   const color =
     tone === "warn"  ? "#c05a4a" :
     tone === "watch" ? "#c9a55c" :
+    tone === "dim"   ? "#8a8271" :
                        "#ede6d3";
   return (
-    <div style={{ padding: "8px 10px", borderRadius: 6, background: "rgba(19,19,23,0.5)" }}>
+    <div style={{ padding: "8px 10px", borderRadius: 6, background: "rgba(19,19,23,0.5)" }} title={title}>
       <div style={{ fontSize: 8, letterSpacing: 0.4, textTransform: "uppercase", color: "#8a8271", fontWeight: 700 }}>
         {label}
       </div>

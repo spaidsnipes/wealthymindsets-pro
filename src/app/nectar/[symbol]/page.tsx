@@ -13,7 +13,7 @@ import {
   getSessionNectarSnapshot,
   subscribeToSessionNectar,
 } from "@/lib/marketData/sessionNectar";
-import type { MarketChannelCoverage } from "@/lib/marketData/coverageMap";
+import { describeGapCoverage, type MarketChannelCoverage } from "@/lib/marketData/coverageMap";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { WmWordmark } from "@/components/brand/WmWordmark";
 import { SectionBanner } from "@/components/brand/SectionBanner";
@@ -499,7 +499,23 @@ function CoverageReceipts({
               <ReceiptRow label="Coverage state" value={ch.coverageState} tone={coverageTone(ch.coverageState)} />
               <ReceiptRow label="Fidelity class" value={ch.fidelity} tone={fidelityToTone(ch.fidelity)} />
               <ReceiptRow label="Observed events" value={ch.observedEventCount.toLocaleString()} tone={ch.observedEventCount > 0 ? WM.state.ok : WM.text.dim} />
-              <ReceiptRow label="Gaps" value={ch.gapCount > 0 ? String(ch.gapCount) : "None"} tone={ch.gapCount > 0 ? WM.state.warn : WM.state.ok} />
+              {/* The word "None" was an assertion this row could not support.
+                  Every shipped adapter declares sequenceState "UNAVAILABLE", so
+                  gapCount is pinned at 0 and "None" printed unconditionally.
+                  describeGapCoverage is the single writer for this claim —
+                  /command-deck's Data Fidelity GAPS tile reads the same one. */}
+              <ReceiptRow
+                label="Gaps"
+                value={describeGapCoverage(ch).value}
+                tone={
+                  describeGapCoverage(ch).warn
+                    ? WM.state.warn
+                    : describeGapCoverage(ch).measured
+                      ? WM.state.ok
+                      : WM.text.dim
+                }
+                title={describeGapCoverage(ch).detail}
+              />
               <ReceiptRow label="Last event" value={ch.lastEventAt ? relTime(ch.lastEventAt) : "—"} />
             </div>
           </Panel>
@@ -509,9 +525,9 @@ function CoverageReceipts({
   );
 }
 
-function ReceiptRow({ label, value, tone }: { label: string; value: string; tone?: string }) {
+function ReceiptRow({ label, value, tone, title }: { label: string; value: string; tone?: string; title?: string }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, fontSize: 11 }}>
+    <div title={title} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, fontSize: 11 }}>
       <span style={{ color: WM.text.muted, letterSpacing: 0.16 }}>{label}</span>
       <span
         style={{
