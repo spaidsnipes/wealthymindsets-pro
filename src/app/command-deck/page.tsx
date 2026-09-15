@@ -1880,8 +1880,29 @@ function CommandDeckInner() {
               />
             )}
 
-            {/* Mirror — meaningful during REVIEW + POST_EXIT */}
-            {chainVm && (phase === "REVIEW" || phase === "POST_EXIT") && (
+            {/* Mirror — meaningful during REVIEW + POST_EXIT.
+             *
+             * NOT gated on `chainVm`, for the same reason the Opening Bell
+             * above is not. That gate was here, eight lines below a comment
+             * already diagnosing this exact coupling on a sibling panel — a
+             * comment guards the cell it sits on and nothing else.
+             *
+             * Every input to this panel is the trader's own record:
+             *   phase             — selected by the trader, not the tape
+             *   sessionDecisions  — the decision store plus their journal
+             *   ownerId, nowMs    — identity and the clock
+             *
+             * `selectMirror` does not read market state at any depth. So an
+             * unresolved MARKET was erasing the trader's own reflection, and
+             * REVIEW after a session you could not read the tape on is
+             * exactly when you most want to look at what you actually did.
+             *
+             * Ungating is safe against the opposite error — design theater.
+             * MirrorPanel returns null when `vm.patterns.length === 0`, so a
+             * trader with nothing to reflect on still sees nothing, and
+             * selectMirror's empty VM says so in words rather than in zeros:
+             * "No decisions in scope — Mirror has nothing to reflect yet". */}
+            {(phase === "REVIEW" || phase === "POST_EXIT") && (
               <MirrorPanel
                 vm={selectMirror({
                   ownerId: user?.id ?? "",
