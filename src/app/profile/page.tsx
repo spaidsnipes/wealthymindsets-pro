@@ -34,6 +34,7 @@ import { hasResolvedTradeOutcome } from "@/lib/tradeEvidence";
 import { parseProfileTab, profileTabHref, type ProfileTab } from "@/lib/profileTab";
 import { loadPaperState } from "@/lib/paperTrade";
 import { paperPositionsToCsv } from "@/lib/paperPositionsExport";
+import { classifyTradeDirection, tradeDirectionBadge, type TradeDirectionBadge } from "@/lib/profile/tradeRowDirection";
 
 
 interface ProfileData {
@@ -49,7 +50,10 @@ const EMPTY_PROFILE: ProfileData = {
   name: "", handle: "", bio: "", email: "", timezone: "America/New_York", botName: "SpaidBot",
 };
 
-interface TradeRow { sym: string; dir: string; entry: string; exit: string; pnl: string; rr: string; date: string; outcomeResolved: boolean; }
+/* `dir` is NOT a string that defaults to "LONG". A record that does not say
+   which way the trader went gets a badge that says so — see
+   src/lib/profile/tradeRowDirection.ts. */
+interface TradeRow { sym: string; dir: TradeDirectionBadge; entry: string; exit: string; pnl: string; rr: string; date: string; outcomeResolved: boolean; }
 interface LikedTrack { title: string; artist: string; duration: string; }
 
 const CIRCLE_OF_EXCELLENCE: { name: string; color: string; avatar: string }[] = [];
@@ -206,7 +210,7 @@ function ProfilePageInner() {
           const resolvedPnl = outcomeResolved && typeof t.pnl === "number" ? t.pnl : null;
           return {
             sym: t.symbol ?? "—",
-            dir: t.direction ?? "LONG",
+            dir: tradeDirectionBadge(classifyTradeDirection(t.direction)),
             entry: t.entryPrice != null ? String(t.entryPrice) : "—",
             exit: t.exitPrice != null ? String(t.exitPrice) : "—",
             pnl: resolvedPnl !== null ? `${resolvedPnl >= 0 ? "+" : ""}$${Math.abs(resolvedPnl).toFixed(0)}` : "Unresolved",
@@ -220,7 +224,7 @@ function ProfilePageInner() {
           const resolvedPnl = outcomeResolved && typeof t.pnl === "number" ? t.pnl : null;
           return {
             sym: t.symbol ?? "—",
-            dir: (t.side ?? "LONG").toUpperCase(),
+            dir: tradeDirectionBadge(classifyTradeDirection(t.side)),
             entry: t.entryPrice != null ? String(t.entryPrice) : "—",
             exit: t.exitPrice != null ? String(t.exitPrice) : "—",
             pnl: resolvedPnl !== null ? `${resolvedPnl >= 0 ? "+" : ""}$${Math.abs(resolvedPnl).toFixed(0)}` : "Unresolved",
@@ -851,9 +855,17 @@ function ProfilePageInner() {
                 <div key={i} className="glass rounded-xl p-3 flex items-center gap-4 hover:border-wm-border/80 transition-all">
                   <div className="text-xs font-mono text-wm-text-muted w-16 shrink-0">{t.date}</div>
                   <div className="font-bold text-wm-text w-14 shrink-0">{t.sym}</div>
-                  <span className={clsx("px-2 py-0.5 rounded text-[10px] font-bold shrink-0",
-                    t.dir === "LONG" ? "bg-wm-green/15 text-wm-green" : "bg-wm-red/15 text-wm-red")}>
-                    {t.dir}
+                  {/* THREE-WAY, not binary. A direction WM cannot read earns
+                      neither the long colour nor the short one. */}
+                  <span
+                    className={clsx("px-2 py-0.5 rounded text-[10px] font-bold shrink-0",
+                      t.dir.tone === "LONG" ? "bg-wm-green/15 text-wm-green"
+                        : t.dir.tone === "SHORT" ? "bg-wm-red/15 text-wm-red"
+                        : "bg-wm-text-muted/10 text-wm-text-muted")}
+                    title={t.dir.reason}
+                    aria-label={`Direction: ${t.dir.text}. ${t.dir.reason}`}
+                  >
+                    {t.dir.text}
                   </span>
                   <div className="text-xs text-wm-text-muted hidden sm:block">Entry: <span className="text-wm-text font-mono">{t.entry}</span></div>
                   <div className="text-xs text-wm-text-muted hidden sm:block">Exit: <span className="text-wm-text font-mono">{t.exit}</span></div>
