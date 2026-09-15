@@ -255,10 +255,21 @@ async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
   // the shape a defect hides in: the Yahoo path was "the one that needed it"
   // right up until the scanner turned out to need it too.
   //
-  // HONEST LIMIT, not closed by this change: /api/alpaca runs its own
-  // `prevClose ?? price` and publishes NO ohlcObservation, so its derived
-  // `change: 0` still reaches branch 1 unchallenged. Closing that needs the
-  // alpaca route to disclose, the same way yahoo already does.
+  // CORRECTION (same commit's message says otherwise — that claim was wrong).
+  // This comment first read: "/api/alpaca runs its own `prevClose ?? price` and
+  // publishes NO ohlcObservation, so its derived `change: 0` still reaches
+  // branch 1 unchallenged." Checked afterwards, and it is FALSE. /api/alpaca
+  // was repaired earlier: `usableReference` (route.ts ~165) already rejects a
+  // reference equal to the price, prevClose stays `null` when absent, and the
+  // route publishes `change: null, changePct: null` rather than a zero. It has
+  // no ohlcObservation because it needs none — it never substitutes.
+  //
+  // Worth leaving in place rather than quietly deleting: the false version was
+  // written during the very fix for a comment that described its own file
+  // correctly and the system incorrectly, and it repeated that exact mistake
+  // by asserting a sibling route's behaviour without opening it. The rule the
+  // rest of this file now enforces on providers applies to us too — an
+  // unverified claim about absent data is not a safe default.
   try {
     const j = await fetchAlpacaQuoteBody(up) as any;
     if (j?.price > 0 && j.source === "alpaca") { const qc = selectQuoteChange({ price: j.price, prevClose: j?.prevClose, change: j?.change, changePct: j?.changePct, prevCloseObserved: j?.ohlcObservation?.prevClose }); return { kind: "quote", price: j.price, chg: qc.observed ? qc.chg : 0, pct: qc.observed ? qc.pct : 0, chgObserved: qc.observed, src: "alpaca" }; }
