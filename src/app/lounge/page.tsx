@@ -547,6 +547,29 @@ const LOUNGE_IDENTITY = {
   accent: "#E8B923",
 };
 
+/* AN INSTRUCTION IS A CLAIM THAT THE ACTION IS POSSIBLE.
+
+   This array is empty and there is nothing in the build that can fill it. It
+   is a module-level `const` with no setter, no state, no form, and no server
+   read — a whole-repo sweep for an add-member path returns this declaration,
+   its length check, and its map, and nothing else.
+
+   Its empty state nevertheless read "Add real members to build your Circle of
+   Excellence." That is an imperative. It does not describe a state, it hands
+   the reader a task, and the task cannot be carried out on any surface of this
+   product. An empty list that says nothing is honest. An empty list that tells
+   you to fill it is claiming a mechanism exists.
+
+   It is the same defect class as the invented `Profile → Contact` room on
+   /partnerships, one step further along: that page named a place that did not
+   exist, this one named an ACT that cannot be performed.
+
+   Note also that /profile renders the same "Circle of Excellence · Top 8"
+   feature from its own separate empty array. Two surfaces, one feature, two
+   owners. That is recorded here rather than refactored, because collapsing
+   them is a real change and this fix is a truth repair.
+
+   Guarded by `× THE IMPOSSIBLE INSTRUCTION` in ./circleOfExcellenceClaim.test.ts. */
 const LOUNGE_TOP8: { name: string; color: string; avatar: string }[] = [];
 const LOUNGE_CREATOR_SHEET = "/images/community/wm-radio-creator-grid-v1.png";
 const LOUNGE_CREATOR_POSITIONS = ["0% 0%", "50% 0%", "100% 0%", "0% 100%", "50% 100%", "100% 100%"];
@@ -632,7 +655,7 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {LOUNGE_TOP8.length === 0 ? (
-                  <span className="text-[10px] text-wm-text-dim">Add real members to build your Circle of Excellence.</span>
+                  <span className="text-[10px] text-wm-text-dim">No members yet — this build has no way to add one.</span>
                 ) : LOUNGE_TOP8.map((m, index) => (
                   <div key={m.name} className="rounded-full p-[2px]" title={m.name} style={{ background: `linear-gradient(135deg, ${theme.accent}, ${m.color})` }}>
                     <div className="w-8 h-8 rounded-full" style={{ ...loungeCreatorArt(index), border: "2px solid #0D0E14" }} />
