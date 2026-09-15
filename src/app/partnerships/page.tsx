@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ExternalLink, Handshake, Star, ChevronRight, ShieldCheck } from "lucide-react";
+import { ExternalLink, Handshake, Star, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 
 type Partner = {
@@ -149,18 +149,40 @@ export default function PartnershipsPage() {
           </div>
         )}
 
-        {/* ── Become a partner ─────────────────────────────── */}
+        {/* ── Become a partner ─────────────────────────────────
+            A ROUTE NAMED IN PROSE IS A CLAIM THAT THE ROUTE EXISTS.
+            This block used to read "Reach out through the Profile → Contact
+            section." There is no Contact section on /profile. There is no
+            contact surface anywhere in this build — the sentence was the only
+            place in the entire app the word appeared, so it named a
+            destination it had itself invented.
+
+            The page above it is scrupulous: it publishes no unverified partner
+            and says so. Then its one actionable instruction sent the reader to
+            a room that does not exist. A page can be honest about its data and
+            still lie about its map.
+
+            AN AFFORDANCE IS A CLAIM THAT SOMETHING HAPPENS. The block also
+            carried a right-chevron — the universal "this goes somewhere" mark
+            — on a plain div with no handler and no href. Removed with the
+            promise it decorated.
+
+            Guarded by `× THE INVENTED ROOM` in ./partnershipsContactClaim.test.ts,
+            which fails if this page names a contact destination while no
+            contact surface exists. It does not forbid the sentence forever —
+            build the room and the guard goes quiet. */}
         <div className="rounded-2xl border border-dashed border-wm-border bg-wm-dark/50 p-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-wm-black flex items-center justify-center shrink-0">
             <Handshake size={16} className="text-wm-text-muted" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-black text-wm-text">Interested in partnering with Wealthy Mindsets?</p>
+            <p className="text-xs font-black text-wm-text">Partnership enquiries are not open yet</p>
             <p className="text-[10px] text-wm-text-muted">
-              We work with education-first platforms and creators. Reach out through the Profile → Contact section.
+              Wealthy Mindsets works with education-first platforms and creators, but this
+              build has no channel to receive an approach — no form, no inbox, no contact
+              surface. Rather than send you to a room that is not there, this page says so.
             </p>
           </div>
-          <ChevronRight size={16} className="text-wm-text-muted shrink-0" />
         </div>
       </div>
     </div>
