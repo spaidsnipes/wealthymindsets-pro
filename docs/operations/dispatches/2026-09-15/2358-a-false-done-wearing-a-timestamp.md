@@ -179,3 +179,36 @@ fact about the person.
 This is the argument for live verification as a step, not a formality. The
 unit tests were green, the Sentinels were green, the component was correct,
 and the panel still was not on the screen.
+
+### `42b4106` — OBSERVED on production
+
+Read in the Founder's browser on `https://wealthymindsetspro.com/command-deck`,
+PREP phase, with the deck simultaneously reading **MARKET STATE UNKNOWN** — the
+exact condition that used to erase the panel. The region rendered:
+
+```
+OPENING BELL
+No morning prep was logged in WM today.
+Market data health right now: UNAVAILABLE.
+No readiness verdict is shown. Your prep list lives in Morning Prep and uses
+your own wording, so this room can count what you checked but cannot tell
+which of the items below you checked — and it will not guess about you.
+OPEN MORNING PREP →
+```
+
+`UNAVAILABLE` is a real reading of a genuinely unresolved market, not a
+default — the health line degraded honestly instead of the whole panel
+vanishing. This fix is **PROVEN**.
+
+### What the same read found next
+
+The region lives inside `<details class="wm-cd-secondary-workspace">`, which is
+**closed by default**. So during PREPARATION — the phase whose entire job is
+prep — the trader's prep evidence is one collapsed disclosure away, and
+`element.innerText` is the empty string until it is expanded.
+
+This is not a fabrication and not an overclaim; nothing false is on the screen.
+It is a *placement* question: the panel that answers "am I prepared" is filed
+under secondary while the PREP tab is the one selected. Logged here rather than
+fixed in the same breath, because deciding where it belongs is a canon call,
+not a bug fix.
