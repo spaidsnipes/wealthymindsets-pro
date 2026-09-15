@@ -57,6 +57,7 @@ import {
 } from "@/lib/paperTrade";
 import { selectFillQueueBasis, describeFillQueueBasis } from "@/lib/paperFillQueueBasis";
 import { selectExecutionRealism, describeExecutionRealism } from "@/lib/paperExecutionRealism";
+import { selectOrderRest, describeRestingBook } from "@/lib/paperOrderTimeInForce";
 import { selectPaperWinRate, describePaperWinRate } from "@/lib/paperTradeOutcome";
 import {
   selectPositionMark,
@@ -289,6 +290,68 @@ function ExecutionRealismNote({ orders }: { orders: readonly Order[] }) {
         ))}
       </ul>
     </section>
+  );
+}
+
+/**
+ * The wall clock, read AFTER mount and never during render.
+ *
+ * `Date.now()` in a render body is the exact shape that produced React #418
+ * on HeroTruth: the server renders one instant, the client renders another, and
+ * the two trees disagree. Null until the effect runs is not a placeholder here —
+ * it is the honest answer, because on the server there is no "now" that belongs
+ * to this viewer at all. Every consumer below renders nothing while it is null.
+ *
+ * One minute is the right tick: the only thing this clock decides is which side
+ * of a New York DATE boundary we are on.
+ */
+function useNowMs(): number | null {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+/**
+ * WHAT A RESTING ORDER IN THIS BOOK NEVER HAD — a time-in-force.
+ *
+ * /paper has no TIF field, no TIF control and no expiry branch in the fill
+ * loop. A pending order is restored verbatim by `loadPaperState` on every
+ * visit and stays working forever — so a limit placed on a Friday is still
+ * live the following Tuesday and will fill on a session the trader was not
+ * trading. No venue offers that order, and nothing on this page said so.
+ *
+ * `selectOrderRest` owns the grade; this owns only where it appears. Rendered
+ * for PENDING orders only, and silent for an order placed today — a caveat
+ * under every row is a caveat nobody reads.
+ */
+function RestingOrderNote({ ord, nowMs }: { ord: Order; nowMs: number | null }) {
+  if (ord.status !== "pending" || nowMs == null) return null;
+  const sentence = selectOrderRest(ord, nowMs).sentence;
+  if (sentence == null) return null;
+  return (
+    <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed text-wm-amber/90">
+      {sentence}
+    </p>
+  );
+}
+
+/** The same fact counted once for the book, or nothing when every order is from today. */
+function RestingBookNote({ orders, nowMs }: { orders: readonly Order[]; nowMs: number | null }) {
+  if (nowMs == null) return null;
+  const heading = describeRestingBook(orders, nowMs);
+  if (heading == null) return null;
+  return (
+    <p
+      role="note"
+      aria-label="Working orders with no time-in-force"
+      className="px-3 py-2 border-b border-wm-border/40 bg-wm-amber/5 text-[10px] font-bold uppercase tracking-wider text-wm-amber/90"
+    >
+      {heading} — /paper has no time-in-force
+    </p>
   );
 }
 
@@ -1935,6 +1998,10 @@ export default function PaperTradingPage() {
     setBookCopyTaken(false);
   };
 
+  // Post-mount only — see useNowMs. Feeds the time-in-force disclosure, which
+  // is the one thing on this page that depends on which DAY it is now.
+  const restNowMs = useNowMs();
+
   const pendingOrders = orders.filter(o=>o.status==="pending");
   const filledOrders  = orders.filter(o=>o.status==="filled");
 
@@ -2604,6 +2671,7 @@ export default function PaperTradingPage() {
               ) : (
                 <>
                   <ExecutionRealismNote orders={orders} />
+                  <RestingBookNote orders={orders} nowMs={restNowMs} />
                   <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-3 py-1.5 sticky top-0 wm-sticky-glass"
                     style={{ gridTemplateColumns:"70px 50px 50px 60px 80px 80px 90px 48px" }}>
                     <span>Symbol</span><span>Side</span><span>Type</span><span>Qty</span>
@@ -2668,6 +2736,13 @@ export default function PaperTradingPage() {
                         orders persisted before this existed are graded by the
                         same rule rather than needing a new stored field. */}
                     <FillQueueBasisNote ord={ord} />
+                    {/* The order that will never expire. Same derivation rule
+                        for orders persisted long before this existed, because
+                        the only input is `ts`, which every order has always
+                        carried. Nothing is cancelled here — see the module
+                        note on why expiring the trader's book would be a
+                        policy they never chose. */}
+                    <RestingOrderNote ord={ord} nowMs={restNowMs} />
                     {/* The artery's last visible step: browser/iPad/phone
                         projection. The trader asks and his ACCOUNT answers —
                         not this tab. Asked on demand rather than on mount,
