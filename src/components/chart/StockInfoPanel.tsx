@@ -1,6 +1,7 @@
 "use client";
 
 import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDisplay";
+import { CHANGE_UNAVAILABLE_TEXT, CHANGE_UNAVAILABLE_TITLE } from "@/lib/marketData/changeAbsence";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import React, { useState, useRef, useEffect } from "react";
@@ -220,8 +221,14 @@ export function StockInfoPanel({ symbol }: Props) {
         ) : (
           <div
             style={{ fontSize: 12, color: "#8B8FA8", fontFamily: "monospace" }}
-            title="Change unavailable — no verified reference close from the current quote provider."
-          >— change unavailable</div>
+            // This panel spelled the sentence itself, and had already drifted:
+            // it read "— change unavailable" while the two chart headers read
+            // "— (change unavailable)". Nobody edited it to disagree; it was
+            // simply never the same. That is the drift `changeAbsence` exists
+            // to end, caught the commit after the module shipped.
+            title={CHANGE_UNAVAILABLE_TITLE}
+            aria-label={CHANGE_UNAVAILABLE_TITLE}
+          >{CHANGE_UNAVAILABLE_TEXT}</div>
         )}
 
         {/* Prev close */}

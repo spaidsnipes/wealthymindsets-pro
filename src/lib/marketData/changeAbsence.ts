@@ -43,6 +43,28 @@
  * agree right up until one of them is edited. The sentence lives here once and
  * both render sites read it.
  *
+ * ── CORRECTION, THE COMMIT AFTER ──────────────────────────────────────
+ * The paragraphs above say "the TWO sites". A grep for the sentence run
+ * immediately after that commit shipped found FOUR:
+ *
+ *   MainChart.tsx        "— (change unavailable)"   migrated
+ *   ChartsDashboard.tsx  (was: nothing at all)      migrated
+ *   StockInfoPanel:224   "— change unavailable"     NO PARENTHESES
+ *   SymbolInfoHeader:142 "—"                        glyph only
+ *
+ * The last two each spelled `CHANGE_UNAVAILABLE_TITLE`'s exact wording as a
+ * string literal of their own. So the VACUOUS AGREEMENT this module was
+ * written to prevent HAD ALREADY HAPPENED, unobserved, before the module
+ * existed: four copies of one sentence, three renderings of one absence, and
+ * the divergence is visible in the punctuation. Nothing failed, because
+ * nothing was watching the sentence — the Sentinel was watching two files it
+ * had been told were the whole set.
+ *
+ * The lesson is not "migrate the other two". It is that a Sentinel which
+ * names its subjects can only ever be as complete as the grep that wrote it,
+ * and it will keep passing while the population grows behind it. The test now
+ * COUNTS the literal across all of src/ instead of listing the files.
+ *
  * PURE — no clock, no I/O, no React.
  */
 
@@ -52,6 +74,19 @@
  * halves must not be separable at a call site.
  */
 export const CHANGE_UNAVAILABLE_TEXT = "— (change unavailable)";
+
+/**
+ * The bare glyph, for the one legitimate case the full sentence cannot serve:
+ * a compact slot (an 11px percent-only cell) where "— (change unavailable)"
+ * would not fit and would push real numbers off the row.
+ *
+ * IT MAY ONLY BE RENDERED WITH `CHANGE_UNAVAILABLE_TITLE` ON BOTH `title` AND
+ * `aria-label`. A dash on its own is the original defect — the thing that was
+ * measured live carrying no attributes at all. Exporting the glyph as a named
+ * constant is what lets the Sentinel tell "a considered compact rendering"
+ * apart from "someone typed a dash", which is otherwise invisible in a diff.
+ */
+export const CHANGE_UNAVAILABLE_GLYPH = "—";
 
 /**
  * WHY it is unavailable, not merely THAT it is. The guard both sites share

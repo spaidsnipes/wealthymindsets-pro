@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import {
+  CHANGE_UNAVAILABLE_GLYPH,
   CHANGE_UNAVAILABLE_TEXT,
   CHANGE_UNAVAILABLE_TITLE,
   PRICE_UNAVAILABLE_TITLE,
@@ -150,7 +151,7 @@ describe("chart header day-change truth", () => {
     it("the em-dash cannot be separated from its explanation", () => {
       // A call site that wrote `—` and appended the words itself could later
       // drop the words and keep compiling. The glyph lives inside the constant.
-      expect(CHANGE_UNAVAILABLE_TEXT.startsWith("—")).toBe(true);
+      expect(CHANGE_UNAVAILABLE_TEXT.startsWith(CHANGE_UNAVAILABLE_GLYPH)).toBe(true);
       expect(CHANGE_UNAVAILABLE_TEXT.length).toBeGreaterThan(2);
     });
 
@@ -160,6 +161,87 @@ describe("chart header day-change truth", () => {
       expect(CHANGE_UNAVAILABLE_TITLE).toContain("Change unavailable");
       expect(PRICE_UNAVAILABLE_TITLE).toContain("Price unavailable");
       expect(PRICE_UNAVAILABLE_TITLE).not.toBe(CHANGE_UNAVAILABLE_TITLE);
+    });
+
+    /* FOURTH FINDING — the Sentinel was as complete as the grep that wrote it.
+     *
+     * Every test above names its subjects: `src` and `mainChart`. That is two
+     * files, chosen by a grep run at the time they were written. A grep for
+     * the sentence run immediately AFTER the changeAbsence commit shipped
+     * found FOUR sites rendering this absence:
+     *
+     *   MainChart.tsx        "— (change unavailable)"
+     *   ChartsDashboard.tsx  (nothing at all — the measured defect)
+     *   StockInfoPanel:224   "— change unavailable"      NO PARENTHESES
+     *   SymbolInfoHeader:142 "—"                          glyph only
+     *
+     * The last two each spelled CHANGE_UNAVAILABLE_TITLE's exact wording as a
+     * literal of their own. The VACUOUS AGREEMENT the module was written to
+     * PREVENT had already happened before the module existed — and the drift
+     * is visible in the punctuation. Nothing failed, because the Sentinel was
+     * watching two files it had been told were the whole set.
+     *
+     * A named-subject Sentinel passes forever while the population grows
+     * behind it. These tests take no file list. They walk src/ and count.
+     */
+    const SRC_DIR = path.join(process.cwd(), "src");
+    const OWNER = path.join("lib", "marketData", "changeAbsence.ts");
+
+    function walkSrc(): string[] {
+      const out: string[] = [];
+      const stack = [SRC_DIR];
+      while (stack.length) {
+        const dir = stack.pop()!;
+        for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+          const p = path.join(dir, e.name);
+          if (e.isDirectory()) stack.push(p);
+          else if (/\.(tsx|ts)$/.test(e.name)) out.push(p);
+        }
+      }
+      return out;
+    }
+
+    /** Source with comments removed — a literal quoted in prose is not a render. */
+    function codeOf(file: string): string {
+      return fs.readFileSync(file, "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/(^|[^:])\/\/.*$/gm, "$1");
+    }
+
+    it("no file but the owner spells the sentence", () => {
+      const offenders = walkSrc()
+        .filter((f) => !f.endsWith(OWNER) && !f.endsWith(".test.ts"))
+        .filter((f) => codeOf(f).includes(CHANGE_UNAVAILABLE_TITLE));
+      // Names the offenders rather than asserting a bare count, so the failure
+      // message tells the next author WHICH file re-spelled it.
+      expect(offenders.map((f) => path.relative(SRC_DIR, f))).toEqual([]);
+    });
+
+    it("no file but the owner spells the glyph-plus-parenthetical", () => {
+      const offenders = walkSrc()
+        .filter((f) => !f.endsWith(OWNER) && !f.endsWith(".test.ts"))
+        .filter((f) => codeOf(f).includes(CHANGE_UNAVAILABLE_TEXT));
+      expect(offenders.map((f) => path.relative(SRC_DIR, f))).toEqual([]);
+    });
+
+    it("the two drifted variants are gone from the tree", () => {
+      // The exact punctuation StockInfoPanel had carried, and the un-parenthesised
+      // form generally. If either returns, one absence is being said two ways.
+      const drifted = walkSrc()
+        .filter((f) => !f.endsWith(".test.ts"))
+        .filter((f) => /["'>]—\s+change unavailable/.test(codeOf(f)));
+      expect(drifted.map((f) => path.relative(SRC_DIR, f))).toEqual([]);
+    });
+
+    it("a bare glyph is only allowed where the reason is attached", () => {
+      // SymbolInfoHeader legitimately renders just "—": an 11px percent cell
+      // cannot hold the sentence. That is allowed ONLY because both `title`
+      // and `aria-label` carry it — which is precisely the pair the chrome
+      // header was missing when the bare dash was measured live.
+      const sih = codeOf(path.join(SRC_DIR, "components/chart/SymbolInfoHeader.tsx"));
+      expect(sih).toContain("CHANGE_UNAVAILABLE_GLYPH");
+      expect(sih).toContain("title={CHANGE_UNAVAILABLE_TITLE}");
+      expect(sih).toContain("aria-label={CHANGE_UNAVAILABLE_TITLE}");
     });
 
     it("the price sentence does not overclaim what else is missing", () => {

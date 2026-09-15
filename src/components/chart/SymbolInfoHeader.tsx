@@ -1,6 +1,7 @@
 "use client";
 
 import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDisplay";
+import { CHANGE_UNAVAILABLE_GLYPH, CHANGE_UNAVAILABLE_TITLE } from "@/lib/marketData/changeAbsence";
 import React from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
@@ -138,8 +139,14 @@ export function SymbolInfoHeader({ symbol, timeframe, currentPrice, dayHigh, day
         ) : (
           <span
             style={{ fontSize: 11, fontWeight: 700, color: "#8B8FA8", fontFamily: "monospace" }}
-            title="Change unavailable — no verified reference close from the current quote provider."
-          >—</span>
+            // A compact percent-only cell: the full sentence would push the
+            // session note off the row. The glyph is legitimate HERE and only
+            // because both `title` and `aria-label` carry the reason — which is
+            // exactly the pair the chrome header was missing when the bare dash
+            // was measured live on /charts.
+            title={CHANGE_UNAVAILABLE_TITLE}
+            aria-label={CHANGE_UNAVAILABLE_TITLE}
+          >{CHANGE_UNAVAILABLE_GLYPH}</span>
         )}
         <span style={{ fontSize: 10, color: "#4A5580" }}>{info.sessionNote}</span>
       </div>
