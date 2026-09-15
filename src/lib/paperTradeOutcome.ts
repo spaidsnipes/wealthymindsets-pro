@@ -92,7 +92,13 @@ export interface PaperWinRate {
    *
    * NULL IS NOT ZERO. A trader who has opened a position and closed nothing has
    * no win rate; rendering 0% would assert they have lost every trade they took.
-   * Callers must render null as "—" and never coerce it.
+   * Callers must never coerce null to 0.
+   *
+   * THIS DOC USED TO SAY `render null as "—"`, AND THAT INSTRUCTION WAS THE
+   * BUG. A bare glyph is not a refusal a person can read — it says nothing on
+   * a phone, and on /paper it sat beside a Day P&L dash that meant something
+   * entirely different (an erased zero, not an undefined ratio). The refusal
+   * must be SAID. See `paperWinRateStat` in lib/paper/paperAccountStats.
    */
   readonly pct: number | null;
 }

@@ -101,6 +101,7 @@ import { DecisionReachCheck } from "@/components/paper/DecisionReachCheck";
 import { ContractStance } from "@/components/paper/ContractStance";
 import { selectExpressionCard } from "@/lib/expressionCard";
 import { limitPriceCell, fillPriceCell } from "@/lib/paper/orderBlotterCells";
+import { paperAccountStats, paperWinRateStat, UNREADABLE_BOOK_REASON } from "@/lib/paper/paperAccountStats";
 import { mintDecisionId } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { recordDecisionIntent } from "@/lib/traderMemory/recordDecisionIntent";
@@ -1814,6 +1815,42 @@ export default function PaperTradingPage() {
    */
   const bookNeverTraded = trades.length === 0 && positions.length === 0;
 
+  /* ── The account strip, from its owner ────────────────────────────────
+     THE FIX ABOVE WAS RIGHT AND THE REMEDY OVER-CORRECTED. Killing the
+     false green tint on an untraded book also killed the figure, because
+     both hung off one ternary:
+
+       v: bookRecoveryRequired ? "UNKNOWN" : bookNeverTraded ? "—" : `${…}`
+
+     Day P&L and Realized are SUMS. The sum of no trades is exactly $0.00
+     — a fact we hold — and a dash in a money column says we do not hold
+     it. Only the TINT was ever the lie. The owner separates `value` from
+     `tone` so the number survives and the claim about it does not.
+
+     Win Rate beside them is a RATIO with no denominator, which genuinely
+     must refuse. One glyph was serving both.
+     SENTINEL: paper-account-strip-has-one-owner */
+  const accountFacts = {
+    bookRecoveryRequired,
+    hasUnmarkedOptions,
+    unmarkedOptionCount,
+    neverTraded: bookNeverTraded,
+    totalEquity,
+    cash,
+    dayPnl,
+    realizedPnl: totalRealPnl,
+    winRatePct: winRate.pct,
+    closedCount: winRate.closed,
+  };
+  const accountStats = paperAccountStats(accountFacts);
+  const winRateStat = paperWinRateStat(accountFacts);
+  const TONE_CLASS = {
+    NEUTRAL: "text-wm-text-muted",
+    WIN: "text-wm-green",
+    LOSS: "text-wm-red",
+    ALERT: "text-wm-red",
+  } as const;
+
   // PERSISTED means exact immediate browser readback matched; failure is
   // visible and never silently promoted to saved continuity.
   useEffect(() => {
@@ -2371,15 +2408,15 @@ export default function PaperTradingPage() {
 
         {/* Account stats in header */}
         <div className={clsx(styles.accountStats, "flex items-center gap-4 ml-6")}>
-          {[
-            { l:hasUnmarkedOptions?"Equity":"Equity", v:bookRecoveryRequired || hasUnmarkedOptions?"UNKNOWN":`$${totalEquity.toLocaleString("en-US",{maximumFractionDigits:0})}`, c:bookRecoveryRequired || hasUnmarkedOptions?"text-wm-red":"text-wm-text" },
-            { l:"Cash",     v:bookRecoveryRequired?"UNKNOWN":`$${cash.toLocaleString("en-US",{maximumFractionDigits:0})}`, c:bookRecoveryRequired?"text-wm-red":"text-wm-text-muted" },
-            { l:hasUnmarkedOptions?"Known P&L":"Day P&L", v:bookRecoveryRequired?"UNKNOWN":bookNeverTraded?"—":`${dayPnl>=0?"+":""}$${fmt2(Math.abs(dayPnl))}`, c:bookRecoveryRequired?"text-wm-red":bookNeverTraded?"text-wm-text-muted":dayPnl>=0?"text-wm-green":"text-wm-red" },
-            { l:"Realized", v:bookRecoveryRequired?"UNKNOWN":bookNeverTraded?"—":`${totalRealPnl>=0?"+":""}$${fmt2(Math.abs(totalRealPnl))}`, c:bookRecoveryRequired?"text-wm-red":bookNeverTraded?"text-wm-text-muted":totalRealPnl>=0?"text-wm-green":"text-wm-red" },
-          ].map(({l,v,c})=>(
-            <div key={l} className="text-center">
-              <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">{l}</div>
-              <div className={clsx("text-xs font-black font-mono", c)}>{v}</div>
+          {accountStats.map(s=>(
+            <div
+              key={s.label}
+              className="text-center"
+              title={s.reason}
+              aria-label={`${s.label}: ${s.value}. ${s.reason}`}
+            >
+              <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">{s.label}</div>
+              <div className={clsx("text-xs font-black font-mono", TONE_CLASS[s.tone])}>{s.value}</div>
             </div>
           ))}
         </div>
@@ -2667,16 +2704,25 @@ export default function PaperTradingPage() {
           <div className="mt-3 space-y-2">
             <div className="text-[9px] text-wm-text-dim uppercase tracking-wider mb-2 font-bold">Quick Stats</div>
             {[
-              { l:"Positions",  v:bookRecoveryRequired ? "UNKNOWN" : updatedPositions.length },
-              { l:"Pending",    v:bookRecoveryRequired ? "UNKNOWN" : pendingOrders.length    },
-              { l:"Total Trades",v:bookRecoveryRequired ? "UNKNOWN" : trades.length          },
-              // "—" when nothing has CLOSED, not when nothing has been traded.
+              { l:"Positions",  v:bookRecoveryRequired ? "UNKNOWN" : String(updatedPositions.length),
+                r:bookRecoveryRequired ? UNREADABLE_BOOK_REASON : "Open positions currently held in the paper book. Zero is a measured count." },
+              { l:"Pending",    v:bookRecoveryRequired ? "UNKNOWN" : String(pendingOrders.length),
+                r:bookRecoveryRequired ? UNREADABLE_BOOK_REASON : "Orders working and not yet filled or cancelled. Zero is a measured count." },
+              { l:"Total Trades",v:bookRecoveryRequired ? "UNKNOWN" : String(trades.length),
+                r:bookRecoveryRequired ? UNREADABLE_BOOK_REASON : "Fills recorded in this book, opening and closing alike. Zero is a measured count." },
               // A trader holding an open position has no win rate; 0% would
-              // assert they lost every trade they took.
-              { l:"Win Rate",   v:bookRecoveryRequired ? "UNKNOWN"
-                  : winRate.pct == null ? "—" : `${winRate.pct}%` },
-            ].map(({l,v})=>(
-              <div key={l} className="flex justify-between text-[10px]">
+              // assert they lost every trade they took. That refusal is right
+              // — but it was rendered as a bare "—", which says nothing on a
+              // phone and looked identical to the Day P&L dash beside it even
+              // though that one was an erased zero, not a refusal.
+              { l:winRateStat.label, v:winRateStat.value, r:winRateStat.reason },
+            ].map(({l,v,r})=>(
+              <div
+                key={l}
+                className="flex justify-between text-[10px]"
+                title={r}
+                aria-label={`${l}: ${v}. ${r}`}
+              >
                 <span className="text-wm-text-dim">{l}</span>
                 <span className="text-wm-text font-mono font-bold">{v}</span>
               </div>
@@ -2745,13 +2791,18 @@ export default function PaperTradingPage() {
                 </div>
                 {/* Same law as the strip above, stated in prose rather than a
                     figure. "+0.00 today (0.00%)" in the win tint is a claim
-                    about a day's trading on a book that has not traded. The
-                    honest line names what is missing instead. */}
+                    about a day's trading on a book that has not traded.
+
+                    "nothing to measure yet" WENT ONE WORD TOO FAR. There IS
+                    something to measure and it measures exactly $0.00 — the
+                    sum of no trades. What is absent is not the number, it is
+                    a RESULT to interpret. The line now says the figure and
+                    withholds only the interpretation, matching the strip. */}
                 <div className={clsx("text-xs font-bold font-mono", bookRecoveryRequired ? "text-wm-red" : bookNeverTraded ? "text-wm-text-muted" : dayPnl>=0?"text-wm-green":"text-wm-red")}>
                   {bookRecoveryRequired
                     ? "UNKNOWN · recovery required before portfolio totals can be stated"
                     : bookNeverTraded
-                    ? "No trades placed — nothing to measure yet"
+                    ? "+$0.00 · no trades placed, so there is no result to read into it"
                     : hasUnmarkedOptions
                     ? `${dayPnl>=0?"+":""}${fmt2(dayPnl)} known P&L · excludes ${unmarkedOptionCount} unmarked option${unmarkedOptionCount===1?"":"s"}`
                     : `${dayPnl>=0?"+":""}${fmt2(dayPnl)} today (${((dayPnl/STARTING_CASH)*100).toFixed(2)}%)`}

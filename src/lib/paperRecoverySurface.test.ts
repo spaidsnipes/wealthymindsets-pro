@@ -16,10 +16,29 @@ describe("paper recovery surface", () => {
   });
 
   it("withholds every subset claim and action while recovery protects stored bytes", () => {
+    /**
+     * THE THREE QUICK-STATS COUNTS ARE MATCHED BY MEANING, NOT BY PUNCTUATION.
+     *
+     * These were three exact string literals including the space-for-space
+     * shape of the ternary. That pinned an INCIDENTAL FORM: the moment the
+     * cells gained a `reason` and their values were stringified for it, the
+     * literals stopped matching and this Sentinel fired on a refactor it has
+     * no opinion about.
+     *
+     * What it actually guards — and must keep guarding — is that
+     * `bookRecoveryRequired` OUTRANKS the real count, so an unreadable book
+     * reports UNKNOWN rather than a number it cannot defend. That is the
+     * meaning, and it is what is asserted now. Re-anchored, never relaxed.
+     */
+    for (const pattern of [
+      /bookRecoveryRequired \? "UNKNOWN" : [^,\n]*updatedPositions\.length/,
+      /bookRecoveryRequired \? "UNKNOWN" : [^,\n]*pendingOrders\.length/,
+      /bookRecoveryRequired \? "UNKNOWN" : [^,\n]*trades\.length/,
+    ]) {
+      expect(paperPage).toMatch(pattern);
+    }
+
     for (const text of [
-      'v:bookRecoveryRequired ? "UNKNOWN" : updatedPositions.length',
-      'v:bookRecoveryRequired ? "UNKNOWN" : pendingOrders.length',
-      'v:bookRecoveryRequired ? "UNKNOWN" : trades.length',
       '"Orders · UNKNOWN"',
       '"Blotter · UNKNOWN"',
       "Order ledger unknown while paper book recovery is required.",

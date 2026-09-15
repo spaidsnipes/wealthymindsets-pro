@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { paperAccountStats, type PaperBookFacts } from "../paper/paperAccountStats";
 
 /**
  * H1 IN THE ACCOUNT HEADER — a book that was never put to work has no P&L.
@@ -46,6 +47,31 @@ import { resolve } from "node:path";
  * `hasUnmarkedOptions`. Two honest degradations were already in place. It had
  * simply never been asked what it should say BEFORE the first trade — which is
  * the one state every new trader sees first.
+ *
+ * ── AMENDED: THE REMEDY OVER-CORRECTED, AND THIS FILE HAD PINNED IT ─────────
+ *
+ * Everything above is still true. What this Sentinel then DID about it was to
+ * regex the exact ternary that implemented the remedy:
+ *
+ *     expect(code).toMatch(/…"Day P&L"[\s\S]{0,120}bookNeverTraded\?"—"/)
+ *
+ * That pinned A DASH. And the dash was the wrong half of the fix.
+ *
+ * Only the TINT was ever the lie. Day P&L and Realized are SUMS; the sum of no
+ * trades is exactly $0.00, which is a fact WM holds, and a dash in a money
+ * column says it does not. Because the figure and the tint hung off one
+ * ternary, killing the green killed the number with it — an OVERCLAIM traded
+ * for an UNDERCLAIM. This file then froze that trade in place.
+ *
+ * FOURTH TIME IN THIS CHAIN a Sentinel has pinned an incidental form, and the
+ * most consequential: the others guarded punctuation, this one guarded a
+ * REMEDY and so forbade the correction of its own subject. The remedy is the
+ * same as always — RE-ANCHOR ON THE MEANING, NEVER RELAX.
+ *
+ * The meaning, stated once, is the prose above: A BOOK THAT WAS NEVER PUT TO
+ * WORK MAY NOT CLAIM A RESULT. It may still state its zero. So these tests now
+ * drive `paperAccountStats` directly and assert BEHAVIOUR — which is strictly
+ * stronger than a regex, because it cannot be satisfied by punctuation.
  */
 
 const PAPER = resolve(__dirname, "..", "..", "app", "paper", "page.tsx");
@@ -58,22 +84,60 @@ function codeOnly(src: string): string {
     .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 }
 
+const untraded: PaperBookFacts = {
+  bookRecoveryRequired: false,
+  hasUnmarkedOptions: false,
+  unmarkedOptionCount: 0,
+  neverTraded: true,
+  totalEquity: 100000,
+  cash: 100000,
+  dayPnl: 0,
+  realizedPnl: 0,
+  winRatePct: null,
+  closedCount: 0,
+};
+const cell = (facts: PaperBookFacts, label: string) =>
+  paperAccountStats(facts).find((s) => s.label === label)!;
+
 describe("H1: an untraded book has no P&L to report", () => {
   it("THE DEFECT: Day P&L is withheld before the book has been traded", () => {
-    const code = codeOnly(readFileSync(PAPER, "utf8"));
-    expect(code).toMatch(/l:hasUnmarkedOptions\?"Known P&L":"Day P&L"[\s\S]{0,120}bookNeverTraded\?"—"/);
-    expect(code).toMatch(/"Day P&L"[\s\S]{0,260}bookNeverTraded\?"text-wm-text-muted"/);
+    // WHAT IS WITHHELD IS THE CLAIM, NOT THE NUMBER. `0 >= 0` is true, so the
+    // green was arithmetically earned and factually a lie — that is the defect
+    // and it is dead. The zero itself is a measured fact and keeps rendering.
+    const d = cell(untraded, "Day P&L");
+    expect(d.tone).not.toBe("WIN");
+    expect(d.tone).toBe("NEUTRAL");
+    expect(d.kind).toBe("MEASURED");
+    expect(d.value).toBe("+$0.00");
+    expect(d.reason).toMatch(/no win tint/i);
   });
 
   it("THE DEFECT: Realized is withheld before the book has been traded", () => {
-    const code = codeOnly(readFileSync(PAPER, "utf8"));
-    expect(code).toMatch(/l:"Realized"[\s\S]{0,120}bookNeverTraded\?"—"/);
-    expect(code).toMatch(/l:"Realized"[\s\S]{0,260}bookNeverTraded\?"text-wm-text-muted"/);
+    const r = cell(untraded, "Realized");
+    expect(r.tone).not.toBe("WIN");
+    expect(r.tone).toBe("NEUTRAL");
+    expect(r.kind).toBe("MEASURED");
+    expect(r.value).toBe("+$0.00");
   });
 
-  it("the 'today' line names what is missing rather than printing a zero", () => {
+  it("THE OVER-CORRECTION: withholding the claim must not erase the figure", () => {
+    // A dash in a money column asserts the number is unavailable. It is not —
+    // a sum over an empty set is zero and WM holds it. This is the assertion
+    // the old regex made impossible.
+    for (const label of ["Day P&L", "Realized"]) {
+      expect(cell(untraded, label).value).not.toBe("—");
+      expect(cell(untraded, label).value).toContain("0.00");
+    }
     const code = codeOnly(readFileSync(PAPER, "utf8"));
-    expect(code).toMatch(/bookNeverTraded\s*\n?\s*\? "No trades placed — nothing to measure yet"/);
+    expect(code).not.toMatch(/bookNeverTraded\s*\?\s*"—"/);
+  });
+
+  it("the 'today' line states the zero and withholds only the reading of it", () => {
+    const code = codeOnly(readFileSync(PAPER, "utf8"));
+    // "nothing to measure yet" went one word too far — there IS something to
+    // measure and it measures $0.00. What is absent is a RESULT to interpret.
+    expect(code).not.toMatch(/"No trades placed — nothing to measure yet"/);
+    expect(code).toMatch(/bookNeverTraded\s*\n?\s*\? "\+\$0\.00 · no trades placed/);
     // and it must not take the win tint while doing so
     expect(code).toMatch(/bookNeverTraded \? "text-wm-text-muted" : dayPnl>=0\?"text-wm-green"/);
   });
@@ -89,29 +153,45 @@ describe("H1: an untraded book has no P&L to report", () => {
   });
 
   it("OVER-CORRECTION: EQUITY and CASH are untouched observed facts", () => {
-    const code = codeOnly(readFileSync(PAPER, "utf8"));
     // The trader really does hold this simulated cash. Withholding it would be
     // the opposite error — hiding something WM genuinely observes.
-    expect(code).toMatch(/l:"Cash",\s+v:bookRecoveryRequired\?"UNKNOWN":`\$\$\{cash\.toLocaleString/);
-    expect(code).not.toMatch(/l:"Cash"[\s\S]{0,120}bookNeverTraded/);
-    expect(code).not.toMatch(/l:hasUnmarkedOptions\?"Equity":"Equity"[\s\S]{0,140}bookNeverTraded/);
+    expect(cell(untraded, "Cash").value).toBe("$100,000");
+    expect(cell(untraded, "Cash").kind).toBe("MEASURED");
+    expect(cell(untraded, "Equity").value).toBe("$100,000");
+    expect(cell(untraded, "Equity").kind).toBe("MEASURED");
   });
 
   it("OVER-CORRECTION: a book that HAS traded still reports a real flat day", () => {
-    const code = codeOnly(readFileSync(PAPER, "utf8"));
     // A day closing at exactly $0.00 after real trades is a true result and
-    // keeps both its figure and its tint.
-    expect(code).toMatch(/dayPnl>=0\?"text-wm-green":"text-wm-red"/);
-    expect(code).toMatch(/totalRealPnl>=0\?"text-wm-green":"text-wm-red"/);
+    // keeps its figure. Flat is not a win, so the tint stays neutral — but the
+    // REASON must not claim the book was never used.
+    const flat = { ...untraded, neverTraded: false, winRatePct: 0, closedCount: 2 };
+    expect(cell(flat, "Day P&L").value).toBe("+$0.00");
+    expect(cell(flat, "Day P&L").reason).not.toMatch(/No trades have been placed/);
+    // and a real result still earns its tint in both directions
+    expect(cell({ ...flat, dayPnl: 10 }, "Day P&L").tone).toBe("WIN");
+    expect(cell({ ...flat, dayPnl: -10 }, "Day P&L").tone).toBe("LOSS");
   });
 
   it("OVER-CORRECTION: the existing honest degradations still win", () => {
-    const code = codeOnly(readFileSync(PAPER, "utf8"));
     // bookRecoveryRequired is a STRONGER claim than "never traded" — an
-    // unreadable book must say UNKNOWN, never "—". Order matters, so it is
-    // pinned: recovery is tested first in both cells.
-    expect(code).toMatch(/l:"Realized", v:bookRecoveryRequired\?"UNKNOWN":bookNeverTraded\?"—"/);
-    expect(code).toMatch(/"Day P&L", v:bookRecoveryRequired\?"UNKNOWN":bookNeverTraded\?"—"/);
+    // unreadable book must say UNKNOWN. Order matters, so it is asserted by
+    // BEHAVIOUR: recovery wins even when the book has also never traded.
+    const broken = { ...untraded, bookRecoveryRequired: true };
+    expect(cell(broken, "Day P&L").value).toBe("UNKNOWN");
+    expect(cell(broken, "Day P&L").kind).toBe("UNKNOWN");
+    expect(cell(broken, "Realized").value).toBe("UNKNOWN");
+    expect(cell(broken, "Equity").value).toBe("UNKNOWN");
+
+    const code = codeOnly(readFileSync(PAPER, "utf8"));
     expect(code).toMatch(/bookRecoveryRequired\s*\n?\s*\? "UNKNOWN · recovery required/);
+  });
+
+  it("the page computes none of the strip itself", () => {
+    const code = codeOnly(readFileSync(PAPER, "utf8"));
+    expect(code).toContain("paperAccountStats(");
+    // The figure and the tint must not share a ternary again — that coupling
+    // is what made killing the green kill the number.
+    expect(code).not.toMatch(/bookNeverTraded\?"text-wm-text-muted":dayPnl>=0\?"text-wm-green"/);
   });
 });
