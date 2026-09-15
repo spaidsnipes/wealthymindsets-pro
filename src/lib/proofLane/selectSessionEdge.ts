@@ -55,6 +55,20 @@ export interface SessionEdge {
   noTradeSessions: number;
   avgWinnerR: number | undefined;
   avgLoserR: number | undefined;
+  /**
+   * THE DENOMINATOR `avgWinnerR` IS ACTUALLY AVERAGED OVER.
+   *
+   * `winners` counts `result === "win"` across ALL entries. `avgWinnerR`
+   * averages over R-TAGGED entries whose realizedR is positive. Those are two
+   * different populations, and until this field existed the surface had no way
+   * to say so — it rendered "Winners: 5 · avg +1.40R" and let the reader infer
+   * a denominator of 5 when it may have been 2. The two can also disagree
+   * outright: an entry graded "win" carrying realizedR = -0.2 is counted in
+   * `winners` and averaged into `avgLoserR`.
+   */
+  rWinnerSampleSize: number;
+  /** The denominator `avgLoserR` is actually averaged over. See above. */
+  rLoserSampleSize: number;
   /** Sum of R over R-tagged entries. */
   cumulativeR: number;
   /** Peak-to-trough drawdown in R units on the ordered R equity curve. */
@@ -125,6 +139,8 @@ export function selectSessionEdge(entries: readonly EdgeEntry[]): SessionEdge {
     noTradeSessions: 0, // Reserved for a later atom that aggregates M0 days.
     avgWinnerR,
     avgLoserR,
+    rWinnerSampleSize: rWinners.length,
+    rLoserSampleSize: rLosers.length,
     cumulativeR,
     maxDrawdownR,
     expectancyR,

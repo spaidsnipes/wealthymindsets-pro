@@ -20,6 +20,29 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  cumulativeRFact,
+  expectancyFact,
+  maxDrawdownFact,
+  winLossLineFact,
+  type RTone,
+} from "@/lib/proofLane/edgeCellFacts";
+
+/**
+ * COLOUR IS A CLAIM, so colour is derived from a declared tone and from
+ * nothing else. It is NOT derived from `>= 0` (which paints a flat session
+ * green) and NOT from a nullish check (which painted an unknown expectancy
+ * red). FLAT and NONE are visibly neutral because they are not results.
+ */
+const TONE_CLASS: Record<RTone, string> = {
+  GAIN: "text-emerald-300",
+  LOSS: "text-rose-300",
+  FLAT: "text-neutral-200",
+  NONE: "text-neutral-500",
+};
+function toneClass(tone: RTone): string {
+  return TONE_CLASS[tone];
+}
+import {
   CANONICAL_HORIZONS,
   PACE_TRUTH_LABEL,
   paceForHorizon,
@@ -90,6 +113,27 @@ export default function ProofLanePage() {
   const [selectedHorizon, setSelectedHorizon] = useState<2 | 3 | 4 | 6 | 9 | 12>(6);
   const journalEdge = useJournalEdge();
   const measured = journalEdge.status === "RESOLVED" ? journalEdge.edge : null;
+
+  // Every MEASURED JOURNAL cell is owned by edgeCellFacts. The owners take
+  // `unknown` precisely so this call site needs no `!`, no fallback number and
+  // no second opinion: an absent input produces a NONE tone and a sentence
+  // saying what is absent, which is the same answer the gate below would have
+  // needed anyway.
+  const cumulativeFact = cumulativeRFact(measured?.cumulativeR, measured?.rTaggedEntries ?? 0);
+  const expectancyCell = expectancyFact(measured?.expectancyR, measured?.rTaggedEntries ?? 0);
+  const drawdownFact = maxDrawdownFact(measured?.maxDrawdownR, measured?.rTaggedEntries ?? 0);
+  const winLine = winLossLineFact(
+    "win",
+    measured?.winners ?? 0,
+    measured?.rWinnerSampleSize ?? 0,
+    measured?.avgWinnerR,
+  );
+  const lossLine = winLossLineFact(
+    "loss",
+    measured?.losers ?? 0,
+    measured?.rLoserSampleSize ?? 0,
+    measured?.avgLoserR,
+  );
 
   const status = paceStatus(selectedHorizon, sessionIndex, actualBalance, START, TARGET);
 
@@ -352,35 +396,52 @@ export default function ProofLanePage() {
               </div>
               <div className="rounded-lg border border-neutral-800 bg-black/40 px-3 py-2">
                 <div className="text-[10px] uppercase tracking-widest text-neutral-500">Expectancy</div>
-                <div className={`mt-1 font-mono text-lg ${measured.expectancyR != null && measured.expectancyR >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                  {measured.expectancyR != null ? `${measured.expectancyR >= 0 ? "+" : ""}${measured.expectancyR.toFixed(2)}R` : "—"}
+                <div
+                  className={`mt-1 font-mono text-lg ${toneClass(expectancyCell.tone)}`}
+                  title={expectancyCell.reason}
+                  aria-label={`Expectancy: ${expectancyCell.text}. ${expectancyCell.reason}`}
+                >
+                  {expectancyCell.text}
                 </div>
               </div>
               <div className="rounded-lg border border-neutral-800 bg-black/40 px-3 py-2">
                 <div className="text-[10px] uppercase tracking-widest text-neutral-500">Cumulative R</div>
-                <div className={`mt-1 font-mono text-lg ${measured.cumulativeR >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                  {measured.cumulativeR >= 0 ? "+" : ""}{measured.cumulativeR.toFixed(2)}R
+                <div
+                  className={`mt-1 font-mono text-lg ${toneClass(cumulativeFact.tone)}`}
+                  title={cumulativeFact.reason}
+                  aria-label={`Cumulative R: ${cumulativeFact.text}. ${cumulativeFact.reason}`}
+                >
+                  {cumulativeFact.text}
                 </div>
               </div>
               <div className="rounded-lg border border-neutral-800 bg-black/40 px-3 py-2">
                 <div className="text-[10px] uppercase tracking-widest text-neutral-500">Max Drawdown</div>
-                <div className="mt-1 font-mono text-lg text-neutral-100">
-                  {measured.maxDrawdownR.toFixed(2)}R
+                <div
+                  className={`mt-1 font-mono text-lg ${toneClass(drawdownFact.tone)}`}
+                  title={drawdownFact.reason}
+                  aria-label={`Max drawdown: ${drawdownFact.text}. ${drawdownFact.reason}`}
+                >
+                  {drawdownFact.text}
                 </div>
               </div>
             </div>
             <div className="mt-3 grid sm:grid-cols-3 gap-3 text-xs">
-              <div className="text-neutral-400">
-                Winners: <span className="text-neutral-100 font-mono">{measured.winners}</span>
-                {measured.avgWinnerR != null && (
-                  <> · avg <span className="text-emerald-300 font-mono">+{measured.avgWinnerR.toFixed(2)}R</span></>
-                )}
+              {/* TWO POPULATIONS, TWO DENOMINATORS, SAID OUT LOUD. The count is
+                  by the grade on the entry; the average is over R-tagged
+                  entries only. Neither number may imply the other's sample. */}
+              <div
+                className={`font-mono ${toneClass(winLine.tone)}`}
+                title={winLine.reason}
+                aria-label={`Winners. ${winLine.text}. ${winLine.reason}`}
+              >
+                {winLine.text}
               </div>
-              <div className="text-neutral-400">
-                Losers: <span className="text-neutral-100 font-mono">{measured.losers}</span>
-                {measured.avgLoserR != null && (
-                  <> · avg <span className="text-rose-300 font-mono">{measured.avgLoserR.toFixed(2)}R</span></>
-                )}
+              <div
+                className={`font-mono ${toneClass(lossLine.tone)}`}
+                title={lossLine.reason}
+                aria-label={`Losers. ${lossLine.text}. ${lossLine.reason}`}
+              >
+                {lossLine.text}
               </div>
               <div className="text-neutral-400">
                 Rules Adhered: {measured.rulesAdheredPct != null ? (
