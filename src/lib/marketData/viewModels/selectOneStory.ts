@@ -23,6 +23,7 @@
 import type { StoryVM } from "./selectMarketStory";
 import type { DecisionChainNode } from "./selectDecisionChain";
 import type { PermissionVM } from "@/lib/traderMemory/viewModels/selectPermission";
+import type { ContradictionDetectability } from "@/lib/marketData/canonicalMarketState";
 import {
   computeEvidenceDebt,
   computeRightOfWay,
@@ -42,6 +43,29 @@ export interface OneStoryVM {
   readonly primary: string;
   /** Strongest material evidence against that story, or null when none. */
   readonly contradiction: string | null;
+  /**
+   * WHY `contradiction` is null — because `null` alone is overloaded.
+   *
+   * It has meant two completely different things:
+   *   - COMPARABLE          a thesis exists and nothing materially opposes it;
+   *   - NOTHING_TO_COMPARE  no thesis was resolved at all, so nothing COULD
+   *                         have opposed one.
+   *
+   * Consumers were reading the second as the first. `selectDecisionWhyNot`
+   * pushed "No active contradiction to the thesis." into its CLEARANCES list —
+   * documented as *the affirmative side of the ledger* — from a bare `else`.
+   * Observed live on `/command-deck` rendering that sentence twice while the
+   * same screen read *"No chapter resolved … (0/8 dimensions resolved)"*.
+   *
+   * A contradiction TO A THESIS requires a thesis. Without one the sentence is
+   * vacuous, and printing it in the affirmative column is H1 shape 1 — the
+   * absence of a SUBJECT reported as the absence of an OBJECTION.
+   *
+   * Vocabulary deliberately shared with
+   * `canonicalMarketState.ContradictionDetectability` so WM has ONE word for
+   * this idea rather than a synonym per surface.
+   */
+  readonly contradictionDetectability: ContradictionDetectability;
   /**
    * Most important unpaid evidence debt as a compact human phrase, or
    * null when nothing missing. Independent from RightOfWay so the
@@ -106,9 +130,15 @@ function missingPhrase(debt: EvidenceDebt | null): string | null {
 export function selectOneStory(input: OneStoryInput): OneStoryVM {
   const debt = computeEvidenceDebt(input.chainNodes);
   const decision = computeRightOfWay(input.permission, debt);
+  // A contradiction TO A THESIS requires a thesis. `story.current` IS the
+  // resolved thesis; without it there is no subject an objection could attach
+  // to, so `contradiction: null` means NOTHING_TO_COMPARE rather than
+  // "compared and found clean".
+  const hasThesis = Boolean(input.story?.current);
   return {
     primary: primarySentence(input.story),
     contradiction: contradictionSentence(input.story),
+    contradictionDetectability: hasThesis ? "COMPARABLE" : "NOTHING_TO_COMPARE",
     missing: missingPhrase(debt),
     decision,
     debt,

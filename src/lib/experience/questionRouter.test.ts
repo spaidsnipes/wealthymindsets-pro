@@ -24,6 +24,7 @@ function story(
   return {
     primary: "Market is in balance around a fair-value zone.",
     contradiction: null,
+    contradictionDetectability: "COMPARABLE",
     missing: null,
     decision: over.decision ?? reading("UNKNOWN"),
     debt: null,

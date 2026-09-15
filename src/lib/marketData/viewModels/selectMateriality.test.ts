@@ -8,6 +8,7 @@ const story = (
 ): OneStoryVM => ({
   primary: overrides.primary ?? "Market in balance.",
   contradiction: overrides.contradiction ?? null,
+  contradictionDetectability: overrides.contradictionDetectability ?? "COMPARABLE",
   missing: overrides.missing ?? null,
   decision: {
     value: overrides.decisionValue ?? "UNKNOWN",

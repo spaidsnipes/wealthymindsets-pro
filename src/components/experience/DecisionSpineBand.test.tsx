@@ -41,6 +41,9 @@ function oneStory(over: Partial<OneStoryVM> = {}): OneStoryVM {
   return {
     primary: "Price is inside value with no resolved direction.",
     contradiction: null,
+    // A thesis exists in this fixture, so a contradiction WOULD have been
+    // detectable. See selectOneStory.contradictionDetectability.
+    contradictionDetectability: "COMPARABLE",
     missing: null,
     decision: { value: "WAIT", detail: "Direction unresolved.", tone: "pending" },
     debt: null,

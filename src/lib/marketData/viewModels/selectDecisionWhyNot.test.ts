@@ -28,6 +28,7 @@ function story(over: Partial<OneStoryVM> & { decision?: RightOfWayReading } = {}
   return {
     primary: "Market is in balance.",
     contradiction: null,
+    contradictionDetectability: "COMPARABLE",
     missing: null,
     decision: over.decision ?? reading("WAIT"),
     debt: null,

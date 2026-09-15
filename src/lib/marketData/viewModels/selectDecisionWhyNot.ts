@@ -125,7 +125,19 @@ export function selectDecisionWhyNot(
       label: "Active contradiction",
       detail: oneStory.contradiction,
     });
-  } else {
+  } else if (oneStory.contradictionDetectability === "COMPARABLE") {
+    // ONLY when a thesis actually exists. This used to be a bare `else` — a
+    // DEFAULT BRANCH — which converted "no thesis was ever resolved" into an
+    // affirmative clearance. `clearances` is documented as *the affirmative
+    // side of the ledger*, so that sentence claimed WM had looked for an
+    // objection and found none. It had not looked; there was nothing to look
+    // at. Observed live on /command-deck rendering this sentence while the
+    // same screen read "No chapter resolved … (0/8 dimensions resolved)".
+    //
+    // With NOTHING_TO_COMPARE we emit nothing: the surrounding panel already
+    // discloses that no chapter resolved, so a second sentence would be noise,
+    // not disclosure. Silence here is the honest output — the ledger simply
+    // does not get to count a clearance it never earned.
     clearances.push("No active contradiction to the thesis.");
   }
 

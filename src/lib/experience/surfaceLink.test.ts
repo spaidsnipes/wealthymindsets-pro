@@ -81,6 +81,7 @@ function oneStory(overrides: Partial<OneStoryVM> = {}): OneStoryVM {
   return {
     primary: "Market is in balance around a fair-value zone.",
     contradiction: null,
+    contradictionDetectability: "COMPARABLE",
     missing: null,
     decision: reading("WAIT"),
     debt: null,
