@@ -1168,14 +1168,36 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin, compilation }: {
                 )}
               </div>
 
+              {/* H1 ON THE ROW ITSELF — a book that never traded has no return.
+                  The WIN% column three cells to the right already knows this and
+                  has known it longer than this comment: it renders "—" rather
+                  than 0%. RETURN and P&L were still printing "+0.0%" and "+$0"
+                  in the WIN tint for a trader with entry.trades === 0.
+
+                  0 >= 0 is true, so the tint was arithmetically earned and
+                  factually a lie: green asserts money was made. A return is a
+                  ratio over a book that was PUT TO WORK. With no trades there
+                  is no numerator, no denominator and nothing to colour.
+
+                  The discrimination is read off the row's own trade counter —
+                  the same structure the cell is describing — so it cannot drift
+                  away from it, and it re-lights on its own the moment a real
+                  trade lands. Same guard shape as `board.length > 1` above. */}
+
               {/* Return */}
-              <div className={clsx("text-xs font-black font-mono", entry.pct >= 0 ? "text-wm-green" : "text-wm-red")}>
-                {entry.pct >= 0 ? "+" : ""}{entry.pct.toFixed(1)}%
+              <div className={clsx("text-xs font-black font-mono",
+                entry.trades === 0 ? "text-wm-text-muted"
+                  : entry.pct >= 0 ? "text-wm-green" : "text-wm-red")}>
+                {entry.trades === 0 ? "—" : `${entry.pct >= 0 ? "+" : ""}${entry.pct.toFixed(1)}%`}
               </div>
 
               {/* P&L */}
-              <div className={clsx("text-[10px] font-mono font-bold", entry.pnl >= 0 ? "text-wm-green" : "text-wm-red")}>
-                {entry.pnl >= 0 ? "+$" : "-$"}{Math.abs(entry.pnl).toLocaleString("en-US", { maximumFractionDigits: 0 })}
+              <div className={clsx("text-[10px] font-mono font-bold",
+                entry.trades === 0 ? "text-wm-text-muted"
+                  : entry.pnl >= 0 ? "text-wm-green" : "text-wm-red")}>
+                {entry.trades === 0
+                  ? "—"
+                  : `${entry.pnl >= 0 ? "+$" : "-$"}${Math.abs(entry.pnl).toLocaleString("en-US", { maximumFractionDigits: 0 })}`}
               </div>
 
               {/* Trades */}
