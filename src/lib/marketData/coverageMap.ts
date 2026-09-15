@@ -331,9 +331,15 @@ export function describeGapCoverageTotal(
     measured: false,
     warn: false,
     detail:
+      // Subject and verb disagree in NUMBER, so they pluralize in OPPOSITE
+      // directions: one channel *stamps*, several channels *stamp*. Observed
+      // live on /command-deck reading "1 of 1 channel stamp no usable
+      // sequence". A disclosure sentence is the one sentence on the screen
+      // that has to be read and believed; broken grammar is what makes a
+      // reader skim it.
       `${unmeasured.length} of ${channels.length} channel${channels.length === 1 ? "" : "s"} ` +
-      "stamp no usable sequence, so gaps cannot be detected there. " +
-      "Zero gaps observed is not evidence of zero gaps.",
+      `${unmeasured.length === 1 ? "stamps" : "stamp"} no usable sequence, so gaps ` +
+      "cannot be detected there. Zero gaps observed is not evidence of zero gaps.",
     detectability: unmeasured.every((c) => c.detectability === "UNDETECTABLE")
       ? "UNDETECTABLE"
       : "PARTIAL",

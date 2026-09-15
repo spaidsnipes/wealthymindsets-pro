@@ -231,6 +231,20 @@ describe("zero gaps is not zero gaps", () => {
     expect(src).not.toMatch(/unsequencedEventCount: number;/);
   });
 
+  it("the disclosure sentence agrees with itself — subject and verb, both directions", () => {
+    // Observed LIVE on /command-deck reading "1 of 1 channel stamp no usable
+    // sequence". Subject and verb pluralize in OPPOSITE directions, so a single
+    // `s` cannot serve both. A disclosure sentence is the one sentence on the
+    // screen that has to be read and believed; broken grammar makes it skimmable.
+    const one = describeGapCoverageTotal([unsequencedChannel()]);
+    expect(one.detail).toContain("1 of 1 channel stamps no usable sequence");
+    expect(one.detail).not.toMatch(/channel stamp /);
+
+    const many = describeGapCoverageTotal([unsequencedChannel(), unsequencedChannel()]);
+    expect(many.detail).toContain("2 of 2 channels stamp no usable sequence");
+    expect(many.detail).not.toMatch(/channels stamps/);
+  });
+
   it("OVER-CORRECTION: surfaces that only ESCALATE on gaps keep their silence", () => {
     // /nectar list cards, the header Vault pill and the chart chip render a
     // gap badge only when gapCount > 0. They make no claim when it is zero,
