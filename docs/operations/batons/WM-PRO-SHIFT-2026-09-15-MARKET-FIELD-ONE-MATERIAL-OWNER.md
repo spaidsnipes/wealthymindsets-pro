@@ -141,6 +141,13 @@ compete with the market field."* Candidate: fuse the 45px room header into the
 
 ### 5.2 Decision spine price is one bar behind the strip, and does not say so
 
+> **CLOSED** by `bd35b7a` — see `WM-PRO-SHIFT-2026-09-15-BAR-CLOSE-RE-ASK.md`.
+> The root cause was not a wrong owner. `deriveLastBarClose` is pure and
+> correct, but its proof is **not time-invariant**: it flips because the CLOCK
+> ADVANCED, and `usePublishChartMarketState` recomputed only on input change.
+> Repaired by **re-asking** at the computed instant, never by relaxing the
+> proof (§35). PROVEN LIVE across a real bar boundary without a reload.
+
 Measured simultaneously in one DOM read at `2026-09-15T18:23:39Z`:
 
 - OHLCV strip: `C 357.87`, tooltip *"this bar's interval has fully elapsed …
