@@ -2,7 +2,7 @@
 
 **Atom:** `ec272b6` — /paper discloses that its shorts were opened with no shares located
 **Gate:** Founding Execution Contract §13 — paper execution state machine realism
-**Status:** committed, pushed, **awaiting live confirmation** (deploy poller running)
+**Status:** committed, pushed, **LIVE OBSERVED** on wealthymindsetspro.com/paper
 
 Fourth in the /paper execution-realism family, after
 [the order that could never expire](./1740-the-order-that-could-never-expire.md) (`165b039`),
@@ -149,6 +149,71 @@ that once passed GREEN for `ExecutionRealismNote`.
 
 - `vitest run` — **589 files / 6885 tests PASS**, `VITEST_EXIT=0`
 - `tsc --noEmit` — `TSC_EXIT=0`
+
+## LIVE OBSERVED — production, not localhost
+
+Two probe positions were injected into an isolated copy of the Founder's paper
+book (backed up first: `backup_bytes=7501 positions=0 orders=0 trades=0`), the
+page reloaded against production, and the POSITIONS tab screenshotted.
+
+**The first injection was REFUSED by production, and that is a finding.** The
+probe book carried a position with an unreadable `marketPx`, and
+`paperBookIntegrity` rejected it by name:
+
+```
+BOOK RECOVERY REQUIRED
+1 stored record could not be read and was REJECTED — 1 position.
+Your saved book was written in a form this build does not recognise. WM will
+not guess at the missing values, so those records are not shown and are not
+counted in any total on this page.
+```
+
+No total was rendered, no position was invented, and the ORIGINAL bytes were
+preserved with automatic writes blocked. That is the H1 rule holding one layer
+BELOW the disclosure this atom added — the book refused to read a record it
+could not read, rather than reading it as zero. The probe was re-formed and
+re-injected; nothing about the refusal was worked around.
+
+What production then rendered, verbatim:
+
+```
+1 SHORT POSITION WAS OPENED WITH NO SHARES LOCATED
+
+No locate was required. A real short cannot be entered until your broker finds
+shares to borrow — some names cost a daily fee to hold short, and some cannot
+be borrowed at all, in which case the order is simply refused. Every name is
+infinitely shortable here, and always free.
+
+No collateral was posted. You are short $3,586 and /paper asked for nothing
+against it — the sale CREDITED your cash, which can then fund a buy. A real
+short does the opposite: it consumes margin rather than creating buying power,
+and Regulation T requires collateral of 150% of the short's value.
+
+No buy-in is possible. A real short can be RECALLED: the lender wants the
+shares back and the position is closed at the market, without your consent and
+usually at the worst moment. A short here closes when you decide, and never
+before.
+
+TSLA  SHORT 10  $400.00  $358.63  +413.70  +10.34%
+  This is a SHORT worth $3,586. /paper located no shares to borrow and posted
+  no collateral for it. A real broker must find the shares first, charges you
+  to keep them, and can recall them at any time.
+MSFT  LONG 3    $500.00  $500.84    +2.52   +0.17%   (no short note)
+```
+
+Four things the rendered SHAPE proves rather than asserts:
+
+1. **The notional is MEASURED, not echoed.** The probe was injected with
+   `marketPx: 395`; production printed **$3,586**, which is `10 × 358.63` — the
+   live mark the page itself resolved. The disclosure read the book the page
+   actually had, not the number the prober supplied.
+2. **The per-row note is reserved.** The MSFT LONG row carries no short note —
+   the anti-wallpaper rule holding in production, not only in a test.
+3. **All three sentences render.** Locate, collateral and buy-in, from the same
+   deployed code, with Reg T named as the published rule it is and no borrow
+   fee or recall probability minted anywhere.
+4. **Nothing was refused.** The short remains open and flattenable; the EXIT
+   RAMP above it still offers `Flatten TSLA`. No policy was added.
 
 ## What this atom does and does not claim
 
