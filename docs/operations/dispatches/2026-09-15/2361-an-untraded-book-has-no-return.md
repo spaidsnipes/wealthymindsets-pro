@@ -142,12 +142,25 @@ then the file was restored byte-identical.
 
 ## Live status
 
-**PENDING** — pushed, awaiting observation. Not PROVEN until seen.
+**PROVEN** — observed on `https://wealthymindsetspro.com/paper` after the
+route's chunkset changed (poll 6 from baseline `256e6f4b…`).
 
-This one *is* observable on the Founder's book, unlike the callout half of
+This one *was* observable on the Founder's book, unlike the callout half of
 `e714b04`: the row renders at zero trades, which is precisely the condition
-under test. The expected reading is `—` in `RETURN` and `—` in `P&L`, both in
-`text-wm-text-muted`, with `TRADES 0` and `WIN% —` unchanged beside them.
+under test. The row now reads
+
+```
+1 · You ⭐ · — · — · 0 · —
+```
+
+with `RETURN` and `P&L` both computing to `rgb(139, 149, 165)`
+(`text-wm-text-muted`), and a page-wide scan for `+0.0%` returns nothing.
+
+One honest note on the readback: the row still contains a green span. That is
+the `You ⭐` identity marker, painted by `isMe ? "text-wm-green"` — a statement
+about *which row is yours*, not a claim about money. Checked rather than
+treated as a failure, for the same reason the surviving 👑 in `2360` was
+checked rather than assumed.
 
 ---
 

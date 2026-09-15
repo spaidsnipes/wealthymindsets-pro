@@ -1,6 +1,6 @@
 # Baton — ABSENCE IS NOT ZERO
 
-**Sealed:** 2026-09-15 · **Block:** eight commits, five defects, one law
+**Sealed:** 2026-09-15 · **Block:** ten commits, eight defects, one law
 **Law:** H1 — *absence is not zero* · LABEL-NOT-MODEL · canon §9
 
 ---
@@ -29,8 +29,11 @@ diagnosis.
 | 4 | `5233fa6` | `/journal` | `+$0.00` in the GREEN tint on an empty book, beside a chip reading "no trades taken" |
 | 5 | `e714b04` | `/paper` | A 👑 crown and "🎉 prize zone" for ranking #1 in a field containing only the trader |
 | 6 | `2c624f9` | `/paper` | `+0.0%` and `+$0` in the GREEN tint on a row reading `TRADES 0`, three cells from the `—` that WIN% gets right |
+| 7 | `6635859` | `/paper` | `DAY P&L +$0.00` · `REALIZED +$0.00` · `+0.00 today (0.00%)`, all GREEN, in the account header of a book holding zero trades and zero positions |
+| 8 | `9bc3844` | `/command-deck` | `MirrorPanel` gated on `chainVm` — an unobserved MARKET erasing the trader's own reflection, **eight lines below the comment that diagnoses this exact coupling** |
 
-Receipts: `3088369`, `c5d6435`, `98a7f30` (dispatches `2358`, `2359`, `2360`, `2361`).
+Receipts: `3088369`, `c5d6435`, `98a7f30`, `3a65192`
+(dispatches `2358`, `2359`, `2360`, `2361`, `2362`).
 
 ---
 
@@ -59,11 +62,17 @@ Worth naming separately, because the next one will wear a fifth.
 ---
 
 **A note on the fifth shape.** This section predicted the next defect would
-wear a fifth disguise. It did not. `2c624f9` wore the **third** — chromatic H1
-— in a room the block had already visited and fixed. The prediction was wrong
-in an instructive direction: a shape does not retire when you name it, and the
-surface you just cured is not thereby clean. Left uncorrected above, corrected
-here.
+wear a fifth disguise. It did not — and then it did not again, twice.
+
+`2c624f9` wore the **third** (chromatic) in a room the block had already
+visited and fixed. `6635859` wore the **third again**, in a third room on that
+same page. `9bc3844` wore the **second** (structural), in the room where the
+second shape was first named and cured.
+
+Eight defects, four shapes, and the last three were all repeats. The
+prediction was wrong in an instructive direction: **a shape does not retire
+when you name it, and the surface you just cured is not thereby clean.** Left
+uncorrected above, corrected here.
 
 ---
 
@@ -137,13 +146,13 @@ healthy on the other.
 ## Gates at seal
 
 ```
-Test Files  594 passed (594)
-Tests       6950 passed (6950)
+Test Files  596 passed (596)
+Tests       6964 passed (6964)
 VITEST_EXIT=0
 TSC_EXIT=0
 ```
 
-Test count across the block: 6935 → 6936 → 6938 → 6944 → 6950.
+Test count across the block: 6935 → 6936 → 6938 → 6944 → 6950 → 6957 → 6964.
 REVIVE §22 proven **by name** on every code fix, via the Edit tool only, each
 file restored byte-identical.
 
@@ -157,7 +166,9 @@ file restored byte-identical.
 | `42b4106` | **PROVEN** — observed on `/command-deck`, PREP phase, with the deck simultaneously reading MARKET STATE UNKNOWN (the exact condition that used to erase it) |
 | `5233fa6` | **PROVEN** — observed on `/journal`, empty book, zero `$0.00` spans on the page |
 | `e714b04` | **PARTIALLY PROVEN** — the podium half observed on `/paper` (row `1 · You ⭐ · +0.0% · +$0 · 0 · —`, no 👑 in the row's `outerHTML`; the remaining crown is the external contest's prize-tier legend, checked not assumed). The `NO FIELD TO RANK AGAINST` callout is gated on `myTrades > 0` and the Founder's book reads `Blotter (0)` — **not observable today, therefore not claimed.** |
-| `2c624f9` | **PENDING** — pushed, awaiting observation. This one *is* observable at zero trades; the row renders in exactly the condition under test. |
+| `2c624f9` | **PROVEN** — observed on `/paper`. The row reads `1 · You ⭐ · — · — · 0 · —` with RETURN and P&L both computing `rgb(139, 149, 165)`; no `+0.0%` anywhere on the page. The surviving green span in the row is the `You ⭐` identity marker (`isMe ? green`), checked not assumed. |
+| `6635859` | **PROVEN** — observed on `/paper`. `DAY P&L —` and `REALIZED —` both `rgb(139, 149, 165)`; `EQUITY $100,000` and `CASH $100,000` untouched; the equity card reads *"No trades placed — nothing to measure yet"*. A scan for leaf nodes matching `^[+-]?\$?0\.00$` returns **0**. |
+| `9bc3844` | **CURE NOT OBSERVABLE — not claimed. One over-correction guard PROVEN.** The deck was driven to `Phase: Review` with the page simultaneously reading `MARKET STATE UNKNOWN` (0/8 dimensions resolved) — the exact intersection under test — and **no empty frame appeared**. That proves the self-silencing the ungating depends on, live. It does *not* prove the gate was removed: `MirrorPanel` returns null at zero patterns and the Founder has no decisions, so the panel is absent under old and new code alike. |
 
 ---
 
@@ -170,11 +181,15 @@ file restored byte-identical.
   false is on screen — it is a placement question. During PREPARATION, the panel
   that answers "am I prepared" is one collapsed disclosure away. Where it
   belongs is a canon call.
-- `src/app/command-deck/page.tsx` still has six other `chainVm &&` gates,
-  including `{chainVm && (phase === "REVIEW" || phase === "POST_EXIT") &&
-  <MirrorPanel/>}`. Same coupling *shape* as defect #3. Needs checking whether
-  `selectMirror`'s inputs touch market state at all — if not, it is the same
-  nest in a sibling slot.
+- ~~`src/app/command-deck/page.tsx` still has six other `chainVm &&` gates,
+  including MirrorPanel.~~ **CLOSED as defect #8 (`9bc3844`).** It *was* the
+  same nest in a sibling slot: `selectMirror` was read end to end and touches
+  market state at no depth. Five `chainVm &&` gates remain on that page —
+  1617, 1667, 1679, 1707, 1713 — plus the ATHOS gate at 1846, which is
+  **correct and must stay**, because ATHOS interventions are compiled *with*
+  `chainVm`. Each of the five needs the same question asked individually:
+  *does this panel's content depend on the market, or only on the person?*
+  Stripping them wholesale would be the opposite error.
 
 **Swept clean this block (recorded, not manufactured into atoms):**
 
