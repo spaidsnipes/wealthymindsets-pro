@@ -49,6 +49,7 @@ import {
   selectOrderRest,
   type TimeInForceInput,
 } from "./paperOrderTimeInForce";
+import { withoutPersistedMarks, PERSISTED_MARK_CAVEAT } from "./paperPositionMark";
 
 /**
  * Stable identity of each line, in room order.
@@ -92,16 +93,38 @@ export interface PracticeHonestyLedger {
    * not a claim about the market or about the trader.
    */
   readonly caption: string | null;
+  /**
+   * Why no dollar figure appears on the position lines, or null when there are
+   * no positions for it to apply to.
+   *
+   * This ledger compiles from the PERSISTED book, whose `marketPx` is the price
+   * each position was FILLED at — not a quote. `paperPositionMark` owns that
+   * distinction and owns this sentence; the ledger only decides when it applies.
+   * See `withoutPersistedMarks` below for why the figure is withheld rather
+   * than printed from a stale field.
+   */
+  readonly markCaveat: string | null;
 }
 
-const EMPTY: PracticeHonestyLedger = { easements: [], caption: null };
+const EMPTY: PracticeHonestyLedger = { easements: [], caption: null, markCaveat: null };
 
 export interface PracticeBook {
   readonly orders?: readonly (ExecutionRealismInput &
     CancelCertaintyInput &
     StopRealismInput &
     TimeInForceInput)[];
-  readonly positions?: readonly ShortRealismInput[];
+  /**
+   * Positions as they are PERSISTED, not as /paper re-marks them.
+   *
+   * Typed as the short owner's input plus the other fields a saved row really
+   * carries, because narrowing it to `ShortRealismInput` alone would have made
+   * the realistic fixture — the one that exposed the fill-price defect —
+   * untypeable, which is the wrong direction for a type to push a test.
+   */
+  readonly positions?: readonly (ShortRealismInput & {
+    readonly avgPx?: number;
+    readonly unrealPnl?: number;
+  })[];
 }
 
 /**
@@ -116,8 +139,16 @@ export function selectPracticeHonestyLedger(
 ): PracticeHonestyLedger {
   if (!book) return EMPTY;
   const orders = book.orders ?? [];
-  const positions = book.positions ?? [];
-  if (orders.length === 0 && positions.length === 0) return EMPTY;
+  const storedPositions = book.positions ?? [];
+  if (orders.length === 0 && storedPositions.length === 0) return EMPTY;
+
+  // The persisted `marketPx` is the price the position was FILLED at, because
+  // that is the only thing `paperTrade.applyFill` ever writes to it. It is not
+  // a quote, and this room has no price feed to replace it with. Passing it
+  // down would let an owner print an entry price as a current value — the exact
+  // `?? pos.avgPx` overclaim `paperPositionMark` was written to kill, one
+  // surface over. So it is dropped, and the absence is explained instead.
+  const positions = withoutPersistedMarks(storedPositions);
 
   const easements: PracticeEasement[] = [];
 
@@ -192,5 +223,8 @@ export function selectPracticeHonestyLedger(
       easements.length === 1
         ? "1 way this practice book was easier than a real venue"
         : `${easements.length} ways this practice book was easier than a real venue`,
+    // Only when a POSITION line is actually on screen. On an orders-only book
+    // there is no withheld figure, so the caveat would be wallpaper.
+    markCaveat: storedPositions.length > 0 ? PERSISTED_MARK_CAVEAT : null,
   };
 }

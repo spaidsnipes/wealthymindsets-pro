@@ -143,6 +143,67 @@ export function describePositionMark(mark: PositionMark): string | null {
   return `Marked on a quote ${Math.floor(seconds / 60)}m old.`;
 }
 
+/* ── THE SAME DEFECT, ONE SURFACE OVER ────────────────────────────────────
+ *
+ * Everything above governs the mark /paper computes IN MEMORY, from a live
+ * quote, during its own render. It is never written back.
+ *
+ * What IS written to `wm_paper_state` is `paperTrade.applyFill`, and every one
+ * of its five writers says the same thing:
+ *
+ *     marketPx: fillPx
+ *
+ * So the `marketPx` on a PERSISTED position is the price the position was
+ * FILLED at. For a newly opened position that is exactly `avgPx` — the entry
+ * price. It is not a quote, it is not an observation of current value, and it
+ * does not become one by being stored under a field called `marketPx`.
+ *
+ * `/paper` never trips on this because it rebuilds a view-model with
+ * `marketPx: positionMarks[i].markPx ?? pos.avgPx` before anything reads it.
+ * Any OTHER surface that reads the saved book directly — and the REVIEW drawer
+ * on /command-deck was the first — gets the fill price and presents it as a
+ * mark. That is `?? pos.avgPx` again, the defect this whole module was written
+ * to kill, wearing a different field name in a different room.
+ *
+ * The cure is the one already established at the top of this file: null is NOT
+ * the entry price. A reader with no quote feed has no mark, so it must not
+ * carry a number that looks like one — and it must say why, because a figure
+ * that silently disappears is its own kind of lie.
+ */
+
+/**
+ * The persisted book's positions, with the fill-price `marketPx` REMOVED.
+ *
+ * For a consumer that holds no quote feed this is the honest shape: downstream
+ * owners already treat a missing `marketPx` correctly under H1 — they still
+ * COUNT the position, and they value it at nothing rather than at zero.
+ *
+ * Pure. Allocates new objects; the input is never mutated.
+ */
+export function withoutPersistedMarks<T extends { readonly marketPx?: number }>(
+  positions: readonly T[] | null | undefined,
+): readonly Omit<T, "marketPx">[] {
+  if (!positions) return [];
+  return positions.map((p) => {
+    if (p == null || typeof p !== "object") return p as Omit<T, "marketPx">;
+    const { marketPx: _dropped, ...rest } = p;
+    return rest as Omit<T, "marketPx">;
+  });
+}
+
+/**
+ * Why no dollar figure appears on a surface that read the saved book.
+ *
+ * Named as a constant so the sentence has exactly one author, and so a Sentinel
+ * can assert that the surface which strips the mark is the same surface that
+ * explains the absence.
+ */
+export const PERSISTED_MARK_CAVEAT =
+  "No dollar value is shown here. Your saved book records the price each " +
+  "position was filled at, not a current quote, and this room has no price " +
+  "feed of its own — so it will not put a figure on a position it cannot " +
+  "value. Open /paper to see these marked against the live tape.";
+
 export interface PositionMarkSummary {
   readonly total: number;
   readonly actionable: number;

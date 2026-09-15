@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { selectPracticeHonestyLedger } from "./practiceHonestyLedger";
+import { withoutPersistedMarks, PERSISTED_MARK_CAVEAT } from "./paperPositionMark";
 
 const SRC = fs.readFileSync(
   path.join(process.cwd(), "src/lib/practiceHonestyLedger.ts"),
@@ -121,8 +122,12 @@ describe("practiceHonestyLedger — the REVIEW layer of the decision room", () =
     const r = selectPracticeHonestyLedger({ positions, orders }, NOW);
 
     const byId = (id: string) => r.easements.find((e) => e.id === id)!;
-    expect(byId("short-located").sentences).toEqual(selectShortRealism(positions).sentences);
-    expect(byId("short-located").heading).toBe(selectShortRealism(positions).heading);
+    // Compared against the owner fed the SAME input the ledger feeds it — the
+    // persisted mark stripped. Comparing against the raw stored row would be
+    // asserting the bug.
+    const asFed = [{ symbol: "AAPL", qty: -5 }];
+    expect(byId("short-located").sentences).toEqual(selectShortRealism(asFed).sentences);
+    expect(byId("short-located").heading).toBe(selectShortRealism(asFed).heading);
     expect(byId("cancel").sentences).toEqual(selectCancelCertainty(orders).sentences);
     expect(byId("cancel").heading).toBe(selectCancelCertainty(orders).heading);
     expect(byId("stop").sentences).toEqual(selectStopRealism(orders).sentences);
@@ -143,6 +148,90 @@ describe("practiceHonestyLedger — the REVIEW layer of the decision room", () =
     expect(
       selectPracticeHonestyLedger(book, NOW + TWO_DAYS).easements.map((e) => e.id),
     ).toContain("rest");
+  });
+
+  // ---- THE PERSISTED MARK IS A FILL PRICE -------------------------------
+  //
+  // Found by USE, not by reading: production rendered this same short as
+  // $3,586 on /paper and $3,950 in the deck drawer. /paper re-marks against a
+  // live quote in its own view-model; the deck reads the SAVED book, whose
+  // `marketPx` is whatever `applyFill` last wrote — the fill price. For a newly
+  // opened position that IS the entry price, which is the `?? pos.avgPx`
+  // overclaim `paperPositionMark` exists to kill, one surface over.
+
+  it("NO ENTRY PRICE DRESSED AS A MARK: the stored marketPx never reaches an owner", () => {
+    const r = selectPracticeHonestyLedger(
+      { positions: [{ symbol: "TSLA", qty: -10, avgPx: 400, marketPx: 395 }] },
+      NOW,
+    );
+    const short = r.easements.find((e) => e.id === "short-located")!;
+    // The short is still COUNTED — H1: absence of a mark is not absence of risk.
+    expect(short.heading.toUpperCase()).toContain("1 SHORT POSITION");
+    // But no figure is printed. 3950 is 10 x the stored fill price; if it ever
+    // appears here again, this position is being valued at what it cost.
+    for (const s of short.sentences) {
+      expect(s).not.toMatch(/\$/);
+      expect(s).not.toContain("3,950");
+      expect(s).not.toContain("3950");
+    }
+  });
+
+  it("THE ABSENCE IS EXPLAINED: a withheld figure gets a reason, not silence", () => {
+    const r = selectPracticeHonestyLedger(
+      { positions: [{ symbol: "TSLA", qty: -10, avgPx: 400, marketPx: 395 }] },
+      NOW,
+    );
+    expect(r.markCaveat).toBe(PERSISTED_MARK_CAVEAT);
+    expect(r.markCaveat).toContain("filled at");
+  });
+
+  it("ANTI-WALLPAPER: an orders-only book withholds no figure, so it gets no caveat", () => {
+    const r = selectPracticeHonestyLedger(
+      { orders: [{ status: "filled", type: "market", side: "buy", qty: 10, fillPx: 100 }] },
+      NOW,
+    );
+    expect(r.easements.map((e) => e.id)).toEqual(["fill"]);
+    expect(r.markCaveat).toBeNull();
+  });
+
+  it("withoutPersistedMarks drops only the mark, and mutates nothing", () => {
+    const stored = [{ symbol: "TSLA", qty: -10, avgPx: 400, marketPx: 395 }];
+    const out = withoutPersistedMarks(stored);
+    expect(out).toEqual([{ symbol: "TSLA", qty: -10, avgPx: 400 }]);
+    expect("marketPx" in out[0]).toBe(false);
+    // The caller's own book is untouched — this is a read-side view, and a
+    // reader that quietly edits the trader's saved state would be a far worse
+    // defect than the one being fixed.
+    expect(stored[0].marketPx).toBe(395);
+  });
+
+  it("THE DEFECT: applyFill still writes the FILL PRICE into marketPx", () => {
+    // This is the justification for every assertion above. If a real re-mark
+    // writer ever lands in paperTrade, the stored value stops being a fill
+    // price, withholding the figure stops being right, and this is where that
+    // gets caught. A claim and its justification must fail together.
+    const trade = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/paperTrade.ts"),
+      "utf8",
+    );
+    expect(trade).toMatch(/marketPx:\s*fillPx/);
+    // `marketPx: number` is the interface FIELD DECLARATION, not a writer, so it
+    // is excluded by name. Everything else that assigns the field must assign
+    // `fillPx` and nothing else.
+    const writers = (trade.match(/marketPx:\s*[A-Za-z_$][\w$]*/g) ?? []).filter(
+      (a) => a !== "marketPx: number",
+    );
+    expect(writers.length).toBeGreaterThan(0);
+    for (const w of writers) expect(w).toBe("marketPx: fillPx");
+  });
+
+  it("THE ROOM EXPLAINS IT: the layer renders the caveat, not just the compiler", () => {
+    const layer = fs.readFileSync(
+      path.join(process.cwd(), "src/components/experience/PracticeHonestyLayer.tsx"),
+      "utf8",
+    );
+    expect(layer).toContain("{ledger.markCaveat}");
+    expect(layer).toContain('data-testid="practice-honesty-mark-caveat"');
   });
 
   // ---- LABEL-NOT-MODEL guards -------------------------------------------

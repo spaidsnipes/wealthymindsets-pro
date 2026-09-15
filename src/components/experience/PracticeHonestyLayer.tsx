@@ -127,6 +127,26 @@ export function PracticeHonestyLayer() {
             ))}
           </section>
         ))}
+        {/* WHY NO DOLLAR FIGURE APPEARS ON THE POSITION LINES.
+            This room reads the SAVED book, whose `marketPx` is the price each
+            position was filled at rather than a quote, and it has no price feed
+            of its own. The compiler drops that field so no owner can print an
+            entry price as a current value; this sentence is the other half of
+            that refusal, because a number that silently vanishes is its own
+            kind of lie. The string has a single author in `paperPositionMark`. */}
+        {ledger.markCaveat != null && (
+          <p
+            data-testid="practice-honesty-mark-caveat"
+            style={{
+              margin: 0,
+              fontSize: 10,
+              lineHeight: 1.55,
+              color: WM.text.muted,
+            }}
+          >
+            {ledger.markCaveat}
+          </p>
+        )}
       </div>
     </details>
   );
