@@ -186,6 +186,46 @@ describe("deltaVPGeometry adoption — the draw loop must delegate (Sentinel)", 
     expect(EXPORTED.every((n) => n.startsWith("dvp") || n.startsWith("DVP_"))).toBe(true);
   });
 
+  it("only claims 'captured live only' while the footprint is actually live-only", () => {
+    // THE CLAIM: the no-levels message tells the trader per-level tape exists
+    // only for bars observed live. That is not a slogan — it rests on two facts
+    // in MainChart:
+    //
+    //   1. getBarSubProfile returns null rather than synthesizing a profile when
+    //      no real tape was captured for the bar.
+    //   2. the accumulator it reads is an in-memory ref that is RESET whenever
+    //      symbol / source / timeframe changes, so it can only ever hold bars
+    //      this chart watched.
+    //
+    // If either fact changes — say a future edit backfills the footprint from
+    // historical OHLCV, or persists the accumulator — the message becomes a lie
+    // and the trader is told to watch bars live for data they already have.
+    // A claim and its justification must fail together.
+    const synthesises =
+      /Without captured real tape, leave the footprint empty/.test(chartSrc) === false;
+    const accumulatorReset = /tickAccRef\.current\s*=\s*new Map\(\)/.test(chartSrc);
+    const problems: string[] = [];
+    if (synthesises) {
+      problems.push(
+        "getBarSubProfile's no-synthesis note is gone — if the footprint is now " +
+          "backfilled from OHLCV, 'captured live only' is false",
+      );
+    }
+    if (!accumulatorReset) {
+      problems.push(
+        "the tape accumulator is no longer reset — if it now persists across " +
+          "symbol/timeframe, 'captured live only' overstates the limit",
+      );
+    }
+    expect(
+      problems,
+      `deltaVPGeometry tells the trader per-level tape is "captured live only". ` +
+        `The code that made that true has changed:\n  ${problems.join("\n  ")}\n\n` +
+        `Either restore the property or re-word dvpRefusalMessage("no-levels").`,
+    ).toEqual([]);
+    expect(geometrySrc).toContain("captured live only");
+  });
+
   it("states honestly that the live-render half is still open", () => {
     // If someone deletes this note, they are claiming a proof this file does not
     // provide. The claim and the gate must stay the same size.

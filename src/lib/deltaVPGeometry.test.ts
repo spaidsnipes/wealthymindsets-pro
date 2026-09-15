@@ -170,6 +170,16 @@ describe("dvpRefusalMessage — one sentence per obstacle, and no false promises
     expect(m).not.toMatch(/wider|narrow|short|bigger|larger|resize|box/i);
   });
 
+  it("names the CAPTURE condition, which is the one thing the trader can act on", () => {
+    // Traced in MainChart's getBarSubProfile: historical OHLCV carries no
+    // aggressor-side executions, and the build refuses to synthesize them. The
+    // tape accumulator is reset on every symbol/source/timeframe change. So the
+    // profile exists for exactly one population — bars watched live on this
+    // chart. "No data" alone would leave the trader unable to tell a limitation
+    // from a fault; naming the condition tells them when it WILL work.
+    expect(dvpRefusalMessage("no-levels")).toMatch(/captured live only/i);
+  });
+
   it("DOES ask for a resize on the two causes a resize can fix", () => {
     expect(dvpRefusalMessage("too-narrow")).toMatch(/narrow/i);
     expect(dvpRefusalMessage("too-short")).toMatch(/short/i);

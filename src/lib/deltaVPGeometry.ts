@@ -122,7 +122,18 @@ export function dvpProfileRefusal(
 export function dvpRefusalMessage(refusal: DVPRefusal): string {
   switch (refusal) {
     case "no-levels":
-      return "Delta+VP — no per-level trade data for these bars";
+      // WHY this names a CAPTURE condition and not a box action. Traced in
+      // MainChart's `getBarSubProfile`, which is deliberately honest:
+      // "Historical OHLCV does not contain aggressor-side executions at each
+      // price. Without captured real tape, leave the footprint empty — never
+      // synthesize it." The tape accumulator it reads is an in-memory ref, reset
+      // on every symbol / source / timeframe change and bounded to 400 bars.
+      //
+      // So per-level data exists for exactly one population: bars whose ticks
+      // arrived while this chart was open on this timeframe. That is the tool's
+      // real domain, and it is the one thing the trader needs to know. Saying
+      // only "no data" would leave them guessing whether it is broken.
+      return "Delta+VP — no per-level tape for these bars (captured live only)";
     case "too-narrow":
       return "Delta+VP — box too narrow for two columns";
     case "too-short":
