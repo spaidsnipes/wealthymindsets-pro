@@ -2,7 +2,7 @@
 
 **Atom:** `2eafef5` — /paper discloses that its stops fill at the price that triggered them
 **Gate:** Founding Execution Contract §13 — paper execution state machine realism
-**Status:** committed, pushed, **awaiting live confirmation** (deploy poller running)
+**Status:** committed, pushed, **LIVE OBSERVED** on wealthymindsetspro.com/paper
 
 Third in the /paper execution-realism family, after
 [the order that could never expire](./1740-the-order-that-could-never-expire.md) (`165b039`)
@@ -137,6 +137,56 @@ GREEN for `ExecutionRealismNote`.
 
 - `vitest run` — **588 files / 6861 tests PASS**, `VITEST_EXIT=0`
 - `tsc --noEmit` — `TSC_EXIT=0`
+
+## LIVE OBSERVED — production, not localhost
+
+Three probe orders were injected into an isolated copy of the Founder's paper
+book (backed up first: `backup_bytes=7501 identical=true orders=0 trades=0`),
+the page reloaded against production, and the ORDERS tab screenshotted. What
+production rendered, verbatim:
+
+```
+YOUR 3 FILLS WERE EASIER THAN REAL ONES WOULD HAVE BEEN
+...
+2 STOPS PROTECTED YOU MORE THAN REAL ONES WOULD HAVE
+
+A stop here fills at the same price that triggered it, so the distance to your
+stop was exactly your loss. At a real venue a triggered stop becomes a MARKET
+order and fills at whatever comes next — across a gap that can be far past your
+level. A real stop is a trigger, not a floor.
+
+/paper also learns a price only when it polls a quote; it never reads the prints
+in between. Every stop here triggered against a SAMPLE, not against the print
+that actually crossed your level.
+
+Your worst stop here filled 0.75 past its level. That distance is what /paper's
+polling gap alone cost you — a real venue adds queue and depth on top of it, so
+treat it as a FLOOR on the real number, never the real number.
+
+TSLA SELL Stop   10 — $399.25 filled
+  This stop filled 0.75 past its level, which is what /paper's polling gap cost.
+  A real venue adds queue and depth on top of that, so the real distance would
+  have been at least this wide.
+AAPL SELL Stop    5 — $200.00 filled
+  This stop filled EXACTLY at its level — the distance to it was exactly your
+  loss. A real stop only promises to TRIGGER there; where it fills depends on
+  what the market does next.
+MSFT BUY  Market  1 — $500.00 filled   (no stop note)
+```
+
+Four things the rendered SHAPE proves, rather than asserts:
+
+1. **The counts disagree on purpose.** The execution-realism banner says 3 fills;
+   the stop banner says 2 stops. Each module counts only what it owns.
+2. **Both sentence branches render.** The measured-distance branch fired on TSLA
+   and the exactly-at-level branch on AAPL, from the same deployed code.
+3. **The per-row note is reserved.** The MSFT market row carries no stop note —
+   the anti-wallpaper rule holding in production, not just in a test.
+4. **Nothing was refused.** All three orders remain `filled`. No status was
+   written, no order was blocked.
+
+Book restored afterwards and verified by readback:
+`restored_identical=true bytes=7501 orders=0 trades=0 backup_key_removed=true`.
 
 ## What this atom does and does not claim
 
