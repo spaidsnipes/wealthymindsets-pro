@@ -32,6 +32,7 @@ import { useCanvasClock } from "@/lib/marketData/viewModels/canvasClock";
 import { hasResolvedTradeOutcome } from "@/lib/tradeEvidence";
 import { parseProfileTab, profileTabHref, type ProfileTab } from "@/lib/profileTab";
 import { loadPaperState } from "@/lib/paperTrade";
+import { paperPositionsToCsv } from "@/lib/paperPositionsExport";
 
 
 interface ProfileData {
@@ -309,26 +310,17 @@ function ProfilePageInner() {
     try { state = loadPaperState(); }
     catch { toast.error("Could not read paper-trading data."); return; }
     const positions = state.positions ?? [];
-    if (positions.length === 0) {
+    // The CSV is built by `paperPositionsToCsv`, not here. This page used to
+    // assemble it inline and shipped two untrue columns: "MarketPx", which held
+    // the FILL price, and "UnrealizedPnL", which is written once as 0 at
+    // position open and never updated — so every export ever produced claimed
+    // every position was exactly breakeven. A file outlives the explanation, so
+    // the owner withholds both figures and ships the reason inside the file.
+    const csv = paperPositionsToCsv(positions);
+    if (csv == null) {
       toast.error("No paper positions to export yet.");
       return;
     }
-    const esc = (v: unknown) => {
-      const s = String(v ?? "");
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const rows: (string | number)[][] = [
-      ["Symbol","Side","Qty","AvgPx","MarketPx","UnrealizedPnL"],
-      ...positions.map(p => [
-        p.symbol,
-        p.qty >= 0 ? "LONG" : "SHORT",
-        Math.abs(p.qty),
-        p.avgPx,
-        p.marketPx,
-        p.unrealPnl,
-      ]),
-    ];
-    const csv = rows.map(r => r.map(esc).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -338,7 +330,13 @@ function ProfilePageInner() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    toast.success(`Exported ${positions.length} position${positions.length === 1 ? "" : "s"}.`, { icon: "📥" });
+    // The toast names the withheld figure too. The file explains it in full,
+    // but a trader who expected a P&L column deserves to learn it is missing
+    // now rather than when they open the spreadsheet.
+    toast.success(
+      `Exported ${positions.length} position${positions.length === 1 ? "" : "s"} — entry and fill prices only, no P&L.`,
+      { icon: "📥" },
+    );
   };
 
   const STAT_LIST = [

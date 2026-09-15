@@ -204,6 +204,31 @@ export const PERSISTED_MARK_CAVEAT =
   "feed of its own — so it will not put a figure on a position it cannot " +
   "value. Open /paper to see these marked against the live tape.";
 
+/**
+ * The same refusal, for a file instead of a room.
+ *
+ * A CSV is worse than a screen. A screen can be corrected by a reload; a file
+ * leaves the product, outlives the session, and may be filed, mailed or read
+ * back months later with no way to ask the app what it meant. So an export is
+ * the LAST place a number should appear that cannot be justified — and the one
+ * place the justification has to travel WITH the data.
+ *
+ * Separate from `PERSISTED_MARK_CAVEAT` because that sentence says "this room"
+ * and points at /paper as the place to look instead, which is advice a detached
+ * spreadsheet cannot act on. Same law, different reader.
+ */
+export const PERSISTED_EXPORT_CAVEAT = [
+  "This export contains no market value and no unrealized P&L.",
+  "Your saved paper book records AvgPx (your average entry) and FillPx (the",
+  "price each position was last filled at). Neither is a current quote. The",
+  "book also carries an unrealized-P&L field, but it is written once as 0 when",
+  "a position opens and is never updated, so exporting it would report every",
+  "position as exactly breakeven regardless of what the market did.",
+  "A zero you cannot justify is worse in a file than on a screen, because the",
+  "file outlives the explanation. So the figure is withheld and this note is",
+  "shipped in its place.",
+] as const;
+
 export interface PositionMarkSummary {
   readonly total: number;
   readonly actionable: number;
