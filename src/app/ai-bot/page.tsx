@@ -12,6 +12,18 @@ import { WM } from "@/lib/design/wmTokens";
 // symbol identity (activeSymbol) but the canvas VM was computing for it with no
 // visible consumer. Same class of gap Shift-Z Z1 closed on /nectar/[symbol].
 import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDisplay";
+/* The monitor's four cells were gated by ONE `connected` boolean and spoke in
+   four different vocabularies — two words and two bare `—` glyphs — about a
+   condition that is really three distinguishable situations. See
+   src/lib/marketData/marketMonitorFacts.ts. */
+import {
+  classifyMonitorLink,
+  monitorPriceFact,
+  monitorLatencyFact,
+  monitorConnectionFact,
+  monitorSourceFact,
+  monitorTapeFact,
+} from "@/lib/marketData/marketMonitorFacts";
 import { useMarketCanvasVM } from "@/lib/marketData/viewModels/useMarketCanvasVM";
 import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
@@ -25,8 +37,23 @@ export default function AIBotPage() {
   const { activeSymbol, setActiveSymbol } = useActiveSymbol();
   const market = useWebSocket({ symbol: activeSymbol, timeframe: "1m" });
   const price = market.ticker.price;
-  const connected = market.connected && price > 0 && market.source !== "unavailable";
-  const dp = price >= 100 ? 2 : price >= 1 ? 4 : 6;
+  /* ONE named state for the whole monitor. `market.connected && price > 0 &&
+     source !== "unavailable"` collapsed a dead socket, a provider that has
+     disowned the symbol, a corrupt tick and a symbol that simply has not
+     printed yet into a single `false` — and only the last of those resolves
+     itself on the next tick. `dp` was also derived from this unvalidated
+     price outside the guard; it now lives inside monitorPriceFact. */
+  const linkState = classifyMonitorLink({
+    transportConnected: market.connected,
+    price,
+    source: market.source,
+  });
+  const connected = linkState === "OBSERVED";
+  const priceFact = monitorPriceFact(linkState, price, activeSymbol);
+  const latencyFact = monitorLatencyFact(linkState, market.latency, activeSymbol);
+  const connectionFact = monitorConnectionFact(linkState, market.source, activeSymbol);
+  const sourceFact = monitorSourceFact(linkState, market.source, activeSymbol);
+  const tapeFact = monitorTapeFact(market.tapeSource, activeSymbol);
   const tickerChange = selectTickerChangeDisplay(market.ticker);
 
   // Shift-SPAIDBOT: Market Canvas VM — fourth canonical consumer of the shared
@@ -111,7 +138,11 @@ export default function AIBotPage() {
             textTransform: "uppercase", fontVariantNumeric: "tabular-nums",
           }}
         >
-          {connected ? `Connected · ${market.source}` : "Real data unavailable"}
+          {/* The badge, the price, the Connection tile and the Latency tile
+              all describe ONE link. They now say it in ONE vocabulary. */}
+          <span title={connectionFact.reason} aria-label={connectionFact.reason}>
+            {connectionFact.text}
+          </span>
         </div>
       </header>
 
@@ -125,10 +156,23 @@ export default function AIBotPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-3xl font-black">{activeSymbol}</div>
-                <div className="mt-1 text-xs text-wm-text-dim">Source: {connected ? market.source : "none"}</div>
+                <div className="mt-1 text-xs text-wm-text-dim" title={connectionFact.reason}>
+                  Source: {connected ? market.source : "none"}
+                </div>
               </div>
               <div className="text-right">
-                <div className="font-mono text-3xl font-black">{connected ? price.toFixed(dp) : "—"}</div>
+                {/* THE HEADLINE OF A MONITOR MUST NOT BE A GLYPH. This was
+                    `"—"` at 3xl font-black with no title and no aria-label —
+                    the largest thing on a page titled "Market Intelligence". */}
+                <div
+                  className={`font-mono font-black ${
+                    priceFact.measured ? "text-3xl" : "text-base text-wm-text-dim"
+                  }`}
+                  title={priceFact.reason}
+                  aria-label={`${activeSymbol} price: ${priceFact.text}. ${priceFact.reason}`}
+                >
+                  {priceFact.text}
+                </div>
                 {/* `>= 0` painted an exactly-zero change green, and a zero with
                     no reference close is not flat — it is unknown. */}
                 <div className={`mt-1 font-mono text-sm font-bold ${
@@ -143,15 +187,25 @@ export default function AIBotPage() {
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {/* "Trade tape: Unavailable" sat beside "Latency: —" — adjacent
+                  siblings speaking two languages about two DIFFERENT feeds,
+                  which invited the reader to conclude one from the other. */}
               {[
-                ["Connection", connected ? "Observed" : "Unavailable"],
-                ["Price feed", connected ? market.source.toUpperCase() : "None"],
-                ["Trade tape", market.tapeSource?.toUpperCase() ?? "Unavailable"],
-                ["Latency", connected ? `${market.latency} ms` : "—"],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-xl border border-wm-border bg-wm-surface/40 p-3">
+                { label: "Connection", fact: connectionFact },
+                { label: "Price feed", fact: sourceFact },
+                { label: "Trade tape", fact: tapeFact },
+                { label: "Latency", fact: latencyFact },
+              ].map(({ label, fact }) => (
+                <div
+                  key={label}
+                  className="rounded-xl border border-wm-border bg-wm-surface/40 p-3"
+                  title={fact.reason}
+                  aria-label={`${label}: ${fact.text}. ${fact.reason}`}
+                >
                   <div className="text-[9px] uppercase tracking-wider text-wm-text-dim">{label}</div>
-                  <div className="mt-1 text-xs font-black">{value}</div>
+                  <div className={`mt-1 text-xs font-black ${fact.measured ? "" : "text-wm-text-dim"}`}>
+                    {fact.text}
+                  </div>
                 </div>
               ))}
             </div>
