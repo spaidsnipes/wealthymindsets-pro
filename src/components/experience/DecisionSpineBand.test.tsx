@@ -82,6 +82,11 @@ function props(over: Partial<DecisionSpineBandProps> = {}): DecisionSpineBandPro
   return {
     decisionId: null,
     decisionIdAbsence: "No decision born yet — permission has not crossed.",
+    now: {
+      token: "SESSION ?",
+      detail: "no exchange calendar — the current session is not established",
+      established: false,
+    },
     market: { symbol: "TSLA", timeframe: "5m", quality: null, capturedAt: null, last: null },
     oneStory: null,
     availableR: null,
@@ -321,5 +326,77 @@ describe("DecisionSpineBand — the band summarises WHY, it does not replace it"
   it("an ACTION verdict with no invalidators still says so rather than showing an empty line", () => {
     const html = render({ decisionWhy: decisionWhy({ verdict: "ACTION", clear: true, invalidators: [] }) });
     expect(html).toContain("No invalidator published.");
+  });
+});
+
+/**
+ * A LABEL IS NOT AN OWNER.
+ *
+ * The cell headed "Now" carried `oneStory.primary` — a market-STRUCTURE
+ * narrative — and nothing about the moment. The band's own header still listed
+ * "NOW — absent" while that cell was on screen, and it was right to: the label
+ * had moved, the absence had not. So the spine projected Available R, a named
+ * invalidator and an attached expression under a heading that reads NEXT, with
+ * nothing anywhere in the market room stating whether the market was trading.
+ */
+describe("× NOW HAS AN OWNER, NOT JUST A HEADING", () => {
+  it("× THE UNSTATED MOMENT: the session token is on the scene, not in a drawer", () => {
+    const html = render({
+      now: { token: "CLOSED", detail: "closure is established for this market today", established: true },
+    });
+    expect(html).toContain('data-testid="spine-now-session"');
+    expect(html).toContain(">CLOSED<");
+  });
+
+  it("× THE DECORATIVE NOW: the moment is stated even when no story compiled", () => {
+    // oneStory is null in the default fixture — the OLD cell rendered only
+    // "No story compiled" here, i.e. the NOW cell went fully silent about time.
+    const html = render();
+    expect(html).toContain("No story compiled — evidence insufficient.");
+    expect(html).toContain(">SESSION ?<");
+  });
+
+  it("× THE SILENT TOKEN: the reason travels with the token on title AND aria", () => {
+    const html = render({
+      now: { token: "24X7", detail: "continuous market — this instrument has no session to close", established: true },
+    });
+    expect(html).toContain('title="continuous market — this instrument has no session to close"');
+    expect(html).toContain('aria-label="24X7 — continuous market — this instrument has no session to close"');
+  });
+
+  it("× THE BORROWED CERTAINTY: an unestablished token is not toned like a proven one", () => {
+    const proven = render({ now: { token: "CLOSED", detail: "d", established: true } });
+    const unproven = render({ now: { token: "SESSION ?", detail: "d", established: false } });
+    expect(proven).toContain('data-session-established="true"');
+    expect(unproven).toContain('data-session-established="false"');
+    // COLOUR IS A CLAIM: the two states may not wear the same colour.
+    const colourOf = (h: string) => /spine-now-session[^>]*?color:([^;"]+)/.exec(h.replace(/\n/g, ""))?.[1]
+      ?? /color:([^;"]+)[^>]*?spine-now-session/.exec(h.replace(/\n/g, ""))?.[1];
+    expect(colourOf(proven)).toBeDefined();
+    expect(colourOf(proven)).not.toBe(colourOf(unproven));
+  });
+
+  it("× THE OPTIONAL NOW: the prop is required, so a new surface cannot omit it", () => {
+    const source = readFileSync(resolve(__dirname, "DecisionSpineBand.tsx"), "utf8");
+    expect(source).toContain("readonly now: SpineNowEvidence;");
+    expect(source).not.toContain("readonly now?: SpineNowEvidence");
+    // Tone comes from a TOTAL record keyed on `established`, never from the
+    // token's spelling — a new session quality must fail the build, not
+    // silently inherit the established colour.
+    expect(source).toMatch(/Record<"established" \| "unestablished", React\.CSSProperties>/);
+  });
+
+  it("× THE SECOND SESSION OWNER: /charts composes the canonical writer, it does not re-derive", () => {
+    const dash = readFileSync(
+      resolve(__dirname, "../chart/ChartsDashboard.tsx"),
+      "utf8",
+    );
+    expect(dash).toContain("now: selectCanonicalSessionToken({ symbol, at: sessionClockDate })");
+    // A HIDDEN CLOCK IS A HIDDEN CLAIM — the spine's session must not be fed
+    // by a clock read during render.
+    expect(dash).not.toContain("at: new Date()");
+    // The owner must be imported AND used: a dead import satisfies a naive
+    // truth Sentinel.
+    expect(dash.split("selectCanonicalSessionToken").length - 1).toBeGreaterThan(1);
   });
 });

@@ -12,6 +12,12 @@
  *
  *   NOW    — absent
  *   MARKET — present (the chart itself)
+ *
+ * (2026-09-15 correction: the first repair of this list added a cell LABELLED
+ * "Now" that carried `oneStory.primary` — a market-structure narrative. The
+ * label moved; the absence did not. See SpineNowEvidence below: the cell now
+ * leads with the canonical session token, so NOW finally has an owner rather
+ * than a heading.)
  *   RISK   — absent
  *   WHY    — behind `ShellModalDrawer` at ChartsDashboard.tsx:1388
  *   NEXT   — behind an `AnimatePresence` options toggle at :2024
@@ -47,6 +53,44 @@ import type { AvailableRVM } from "@/lib/traderMemory/viewModels/selectAvailable
 import { selectAvailableRDetail } from "@/components/experience/AvailableRChip";
 import { formatSpinePrice } from "@/lib/marketData/formatSpinePrice";
 
+/**
+ * The NOW cell's TEMPORAL evidence — whether this market is trading at all.
+ *
+ * ── A DECISION SURFACE THAT CANNOT SAY WHETHER THE MARKET IS OPEN IS MISSING
+ *    ITS NOW ──────────────────────────────────────────────────────────────────
+ *
+ * The cell labelled "Now" rendered `oneStory.primary` and nothing else. That
+ * string is a STRUCTURE narrative — "Price is inside value with no resolved
+ * direction" — which is a statement about the MARKET, not about the moment.
+ * So the five-part spine was really NOW=∅ / MARKET=twice / RISK / WHY / NEXT,
+ * and the header of this very file listing "NOW — absent" was still true after
+ * the cell bearing that label had shipped. A LABEL IS NOT AN OWNER.
+ *
+ * What that cost, concretely: the rail renders Available R, a named
+ * invalidator and an attached expression under a heading that says NEXT. On a
+ * Saturday it rendered all of it identically, with nothing anywhere in the
+ * market room stating that the market was closed. Permission to act was
+ * projected without the one fact that can revoke it.
+ *
+ * ── WHAT IS DELIBERATELY *NOT* CLAIMED ───────────────────────────────────────
+ *
+ * `established` is the caller's report of whether the token rests on a proven
+ * fact. This codebase holds NO intraday exchange calendar, so on a weekday the
+ * only honest token is "SESSION ?" — and that is rendered as itself, in the
+ * unestablished tone, never sharpened into "OPEN". Inventing RTH is an
+ * overclaim; withholding a provable Saturday closure is false humility. The
+ * canonical owner `selectCanonicalSessionToken` already resolves that
+ * asymmetry; this cell only places its pixels.
+ */
+export interface SpineNowEvidence {
+  /** Straight off `selectCanonicalSessionToken().token`. Never composed here. */
+  readonly token: string;
+  /** Why the token says what it says. Carried on title/aria — never invented. */
+  readonly detail: string;
+  /** True only when the token rests on an established fact. Drives the tone. */
+  readonly established: boolean;
+}
+
 /** The MARKET cell's evidence. ROLE / SOURCE / asOf, or the absence of them. */
 export interface SpineMarketEvidence {
   readonly symbol: string;
@@ -71,6 +115,13 @@ export interface DecisionSpineBandProps {
   readonly decisionId: string | null;
   /** Why there is no id. Rendered verbatim when `decisionId` is null. */
   readonly decisionIdAbsence: string;
+  /**
+   * REQUIRED on purpose. An optional NOW is a NOW that every future surface
+   * forgets, and forgetting it is the exact defect this prop repairs. A new
+   * decision surface must state which moment it is deciding in, or fail to
+   * compile.
+   */
+  readonly now: SpineNowEvidence;
   readonly market: SpineMarketEvidence;
   readonly oneStory: OneStoryVM | null;
   readonly availableR: AvailableRVM | null;
@@ -135,6 +186,19 @@ const VALUE: React.CSSProperties = {
 };
 
 const MUTED: React.CSSProperties = { ...VALUE, color: "#8b8fa8" };
+
+/**
+ * COLOUR IS A CLAIM, so the session token's colour is looked up from a TOTAL
+ * record keyed on the caller's `established` flag — never derived from the
+ * token's spelling, its length, or "is a string present". A token that rests
+ * on a proven fact is legible; one that rests on the absence of a calendar is
+ * dimmed, because it IS dimmer evidence. Neither is painted green: an open
+ * market is not a good market, and this cell makes no such claim.
+ */
+const NOW_TOKEN_TONE: Record<"established" | "unestablished", React.CSSProperties> = {
+  established: { ...VALUE, color: "#c9c2a7", fontWeight: 700, letterSpacing: 0.4 },
+  unestablished: { ...MUTED, fontWeight: 700, letterSpacing: 0.4 },
+};
 
 /**
  * Render an Available-R figure. The selector's UNKNOWN sentinel is a string,
@@ -295,6 +359,19 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
 
       <div style={cellStyle}>
         <span style={LABEL}>Now</span>
+        {/* The moment comes FIRST, above the structure narrative. A trader
+            reading downward learns whether this market is trading before
+            reading what it is doing, because the second only means something
+            under the first. */}
+        <span
+          style={NOW_TOKEN_TONE[props.now.established ? "established" : "unestablished"]}
+          data-testid="spine-now-session"
+          data-session-established={props.now.established ? "true" : "false"}
+          title={props.now.detail}
+          aria-label={`${props.now.token} — ${props.now.detail}`}
+        >
+          {props.now.token}
+        </span>
         <span style={oneStory ? VALUE : MUTED}>
           {oneStory ? oneStory.primary : "No story compiled — evidence insufficient."}
         </span>

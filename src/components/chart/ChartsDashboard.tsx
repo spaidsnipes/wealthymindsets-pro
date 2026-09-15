@@ -72,7 +72,7 @@ import type { ChartLayout } from "./ChartLayoutManager";
 import { normalizeTFId } from "@/lib/timeframes";
 import { normalizeMarketSurfaceTimeframe } from "@/lib/routing/marketSurfaceQuery";
 import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
-import { canonicalSession, canonicalAssetClass, canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
+import { canonicalSession, canonicalAssetClass, canonicalMarketStateIdentity, selectCanonicalSessionToken } from "@/lib/marketData/canonicalIdentity";
 import { categoryTabsFor, effectiveCategoryTab } from "@/lib/charts/categoryTabsFor";
 import { identifiedOptionSpot } from "@/lib/optionsSpotIdentity";
 // Micah + Noah 2026-09-02 — /charts joins the Phase 3 Market Canvas.
@@ -953,6 +953,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const decisionSpineProps = {
     decisionId: currentSceneDecision?.decisionId ?? null,
     decisionIdAbsence: sceneDecisionAbsence,
+    // NOW — the moment the decision is being made in. Composed, never
+    // computed here: `selectCanonicalSessionToken` is the ONE writer of a
+    // compact session chip in this codebase (the phone header reads the same
+    // owner), and `sessionClockDate` is the hydration-safe clock already
+    // mounted above — reading `new Date()` at render is the mechanism behind
+    // five prior React #418 bugs in this repo, so it is not done here either.
+    // `at: null` on the server yields the unestablished token honestly.
+    now: selectCanonicalSessionToken({ symbol, at: sessionClockDate }),
     market: {
       symbol,
       timeframe,
