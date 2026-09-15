@@ -137,7 +137,9 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
     expect(html).toContain('data-testid="spine-canvas-summary"');
     expect(html).toContain('data-testid="canonical-canvas-verdict"');
     expect(html).not.toContain("border-top:1px solid rgba(139,106,41,0.16)");
-    expect(html).toContain("margin-top:auto");
+    // WAS: expect(html).toContain("margin-top:auto") — this line PINNED the
+    // ~200px void between WHY and NEXT, so the gap was protected by a test.
+    // See `× THE SEVERING VOID` below for why it had to go.
     for (const label of ["Decision", "Now", "Market", "Risk", "Why", "Next"]) {
       expect(html).toContain(`>${label}<`);
     }
@@ -324,6 +326,19 @@ describe("DecisionSpineBand — NEXT names an act, not the state", () => {
     expect(html).toContain("Establish the evidence ledger");
     expect(html).toContain("nothing is known about what would change the job");
     expect(html).not.toContain(">UNKNOWN<");
+  });
+
+  it("× THE SEVERING VOID: no rail cell pushes itself away from the one above it", () => {
+    // `margin-top: auto` in a flex column eats all spare height and parks the
+    // cell at the bottom. Measured live on /charts 2026-09-15: ~200px of
+    // nothing between WHY and NEXT. NEXT is derived from the evidence WHY
+    // displays, so a gap mid-column claims they are unrelated. Spare space
+    // belongs at the END of the column, where it reads as margin.
+    const html = render({ presentation: "rail" });
+    expect(html).toContain('aria-label="Decision spine"');
+    expect(html).not.toContain("margin-top:auto");
+    // Not vacuous: the rail presentation really is the one under test.
+    expect(render({ presentation: "rail" })).not.toBe(render({ presentation: "band" }));
   });
 
   it("the cell publishes WHICH kind of next thing it compiled, for the surface to key on", () => {

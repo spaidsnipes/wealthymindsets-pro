@@ -449,7 +449,21 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
           out here — the spelling must appear nowhere but the guard.) NEXT now
           compiles the single thing capable of CHANGING the job. The attached
           expression, when one exists, remains the literal next object. */}
-      <div style={{ ...cellStyle, marginTop: rail ? "auto" : undefined }}>
+      {/* A VOID BETWEEN TWO CELLS IS A CLAIM THAT THEY ARE UNRELATED.
+          In the rail, this cell carried `marginTop: "auto"`, which in a flex
+          column eats every spare pixel and parks NEXT at the bottom. Measured
+          on a live /charts render 2026-09-15: roughly two hundred pixels of
+          nothing between WHY and NEXT, mid-column.
+
+          That was already poor composition. It became wrong when NEXT stopped
+          echoing the verdict: NEXT is now DERIVED from the very evidence WHY
+          displays — "regime is the first of 9 unpaid evidence nodes" is the
+          same permission story WHY is telling, one layer down. Severing them
+          with a void says they are separate concerns. They are not.
+
+          Spare space now falls at the END of the column, where empty space
+          reads as margin rather than as a break in the argument. */}
+      <div style={cellStyle}>
         <span style={LABEL}>Next</span>
         <span style={VALUE} data-testid="spine-next" data-next-kind={expression ? "ATTACHED_EXPRESSION" : nextThing.kind}>
           {expression ?? nextThing.headline}
