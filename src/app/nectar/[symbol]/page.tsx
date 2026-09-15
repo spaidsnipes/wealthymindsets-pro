@@ -14,6 +14,7 @@ import {
   subscribeToSessionNectar,
 } from "@/lib/marketData/sessionNectar";
 import { describeGapCoverage, type MarketChannelCoverage } from "@/lib/marketData/coverageMap";
+import { coverageLastEventFact, type LastEventTone } from "@/lib/marketData/coverageLastEventFact";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { WmWordmark } from "@/components/brand/WmWordmark";
 import { SectionBanner } from "@/components/brand/SectionBanner";
@@ -24,7 +25,6 @@ import {
   formatMemoryAge,
   fidelityToTone,
   coverageTone,
-  relTime,
 } from "@/lib/nectarFormat";
 // Shift-Z Z1: Market Canvas — third canonical consumer of composeMarketCanvasVM
 // (after /command-deck and /journal detail). Closes STOP-THE-LINE integration
@@ -472,6 +472,18 @@ function ClearSlotButton({ symbol, tapeSource }: { symbol: string; tapeSource: s
 
 /* ── Coverage receipts ──────────────────────────────────── */
 
+/**
+ * The ONLY thing the Last-event row's tone may be derived from. TOTAL over
+ * `LastEventTone`, so adding a quality to `coverageLastEventFact` fails the
+ * build here rather than silently borrowing a neighbour's colour.
+ */
+const LAST_EVENT_TONE: Record<LastEventTone, string> = {
+  OBSERVED: WM.state.ok,
+  AGING: WM.text.muted,
+  IMPLAUSIBLE: WM.state.warn,
+  NONE: WM.text.dim,
+};
+
 function CoverageReceipts({
   channels,
   sectionNumber,
@@ -479,6 +491,12 @@ function CoverageReceipts({
   channels: readonly MarketChannelCoverage[];
   sectionNumber: string;
 }) {
+  // One clock for every row in this panel, read once and passed EXPLICITLY —
+  // `relTime`'s defaulted `now` hid the read inside the formatter. This panel
+  // only mounts once client-side channel evidence exists (the caller gates on
+  // `allChannelsForSymbol.length > 0`), so there is no SSR/CSR pair to diverge,
+  // and the page's 1s tick re-reads it.
+  const now = Date.now();
   return (
     <>
       <SectionBanner
@@ -516,7 +534,24 @@ function CoverageReceipts({
                 }
                 title={describeGapCoverage(ch).detail}
               />
-              <ReceiptRow label="Last event" value={ch.lastEventAt ? relTime(ch.lastEventAt) : "—"} />
+              {/* The dash this row used to print was three different answers —
+                  channel unavailable, channel not yet speaking, and a missing
+                  field in WM's own receipt — collapsed into one glyph. Worse,
+                  relTime() has no bounds, so a SECONDS-valued timestamp (the
+                  unit liveBarPolicy and OHLCVBar use, against coverageMap's
+                  milliseconds) rendered as a fluent "20443d ago". The clock is
+                  now an explicit argument rather than a default parameter. */}
+              {(() => {
+                const lastEvent = coverageLastEventFact(ch.lastEventAt, ch.coverageState, now, ch.channel);
+                return (
+                  <ReceiptRow
+                    label="Last event"
+                    value={lastEvent.text}
+                    tone={LAST_EVENT_TONE[lastEvent.tone]}
+                    title={lastEvent.reason}
+                  />
+                );
+              })()}
             </div>
           </Panel>
         ))}
