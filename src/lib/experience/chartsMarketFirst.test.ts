@@ -19,16 +19,21 @@ describe("charts Asset-10 hierarchy", () => {
 
   it("attaches one desktop rail and falls back to one band on narrow/options views", () => {
     const marketRoom = source.indexOf('data-wm-market-room="true"');
+    const marketColumn = source.indexOf('data-wm-market-column="true"');
+    const toolbar = source.indexOf("<ChartToolbar", marketColumn);
     const secondaryPanel = source.indexOf('id="wm-chart-category-panel"');
     const chartPanel = source.indexOf('id="wm-chart-category-panel-chart"');
     const optionsChain = source.indexOf("<OptionsChain", chartPanel);
     const rail = source.indexOf('<DecisionSpineBand {...decisionSpineProps} presentation="rail" />');
 
     expect(marketRoom, "shared market room is missing").toBeGreaterThan(0);
-    expect(secondaryPanel).toBeGreaterThan(marketRoom);
+    expect(marketColumn, "MARKET column is missing").toBeGreaterThan(marketRoom);
+    expect(toolbar, "toolbar is not owned by MARKET").toBeGreaterThan(marketColumn);
+    expect(secondaryPanel).toBeGreaterThan(toolbar);
     expect(chartPanel).toBeGreaterThan(secondaryPanel);
     expect(optionsChain).toBeGreaterThan(chartPanel);
     expect(rail).toBeGreaterThan(optionsChain);
+    expect(source.slice(marketRoom, marketColumn)).not.toContain("<ChartToolbar");
     expect(source.match(/<DecisionSpineBand\b/g) ?? []).toHaveLength(2);
     expect(source.match(/presentation="rail"/g) ?? []).toHaveLength(1);
     expect(source.match(/presentation="band"/g) ?? []).toHaveLength(1);

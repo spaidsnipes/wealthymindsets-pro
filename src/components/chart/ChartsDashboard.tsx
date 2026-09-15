@@ -1505,6 +1505,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             </ShellModalDrawer>
           )}
 
+          {/* Asset-10 scene fusion: toolbar and disclosed studies are MARKET
+              controls, not a full-room dashboard lid. The left column owns
+              those controls and every evidence surface; the canonical
+              decision rail remains its sibling and begins at the room edge. */}
+          <div data-wm-market-room="true" style={{ flex:1, display:"flex", overflow:"hidden", minWidth:0, minHeight:0 }}>
+          <div data-wm-market-column="true" style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0, minHeight:0 }}>
+
           {/* ── Toolbar ───────────────────────────────────────── */}
           {/* Founder canon (Drive Launch Board — HANDS-ON REALITY LOCK):
               "controls that visually promise more than they do" are false-green.
@@ -1933,10 +1940,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             </div>
           </div>}
 
-          {/* One Asset-10 market room owns both the selected evidence surface
-              and the canonical decision edge. Changing symbol views must not
-              make NOW / MARKET / RISK / WHY / NEXT leave the room. */}
-          <div data-wm-market-room="true" style={{ flex:1, display:"flex", overflow:"hidden", minWidth:0, minHeight:0 }}>
+          {/* One Asset-10 market column owns the selected evidence surface.
+              Changing symbol views must not make MARKET controls or evidence
+              escape into a full-room chrome layer. */}
             {/* ── Non-Chart tab panels ──────────────────────────── */}
             {activeTab !== "Chart" && activeTab !== "Options" && (
               <div role="tabpanel" id="wm-chart-category-panel" aria-label={`${activeTab} for ${symbol}`} style={{ flex:1, overflow:"auto", minHeight:0 }}>
@@ -2150,6 +2156,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         bornDecision={currentSceneDecision} onIdentity={(identity) => setSceneDecision((current) => adoptSceneDecision(current, { ...decisionScope, identity }))} onClear={clearOptionSelection} /> : null} />
               )}
             </AnimatePresence>
+
+            </div>
 
             </div>
 
