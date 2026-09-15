@@ -60,6 +60,7 @@ import { selectExecutionRealism, describeExecutionRealism } from "@/lib/paperExe
 import { selectOrderRest, describeRestingBook } from "@/lib/paperOrderTimeInForce";
 import { selectCancelCertainty, selectCancelledOrderNote } from "@/lib/paperCancelCertainty";
 import { selectStopRealism, selectStopOrderNote } from "@/lib/paperStopRealism";
+import { selectShortRealism, selectShortPositionNote } from "@/lib/paperShortRealism";
 import { selectPaperWinRate, describePaperWinRate } from "@/lib/paperTradeOutcome";
 import {
   selectPositionMark,
@@ -423,6 +424,28 @@ function StopOrderNote({ ord }: { ord: Order }) {
     <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed text-wm-amber/90">
       {sentence}
     </p>
+  );
+}
+
+function ShortRealismNote({ positions }: { positions: readonly Position[] }) {
+  const r = selectShortRealism(positions);
+  if (r.heading == null) return null;
+  return (
+    <div role="note" aria-label="Shorts on /paper were opened with no shares located"
+         className="px-3 py-2 border-b border-wm-border/40 bg-wm-amber/5">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-wm-amber/90">{r.heading}</p>
+      {r.sentences.map(s => (
+        <p key={s} className="mt-1 text-[10px] leading-relaxed text-wm-amber/90">{s}</p>
+      ))}
+    </div>
+  );
+}
+
+function ShortPositionNote({ pos }: { pos: Position }) {
+  const sentence = selectShortPositionNote(pos);
+  if (sentence == null) return null;
+  return (
+    <p role="note" className="px-3 pb-2 text-[10px] leading-relaxed text-wm-amber/90">{sentence}</p>
   );
 }
 
@@ -2697,6 +2720,7 @@ export default function PaperTradingPage() {
                       {markDisclosure}
                     </div>
                   )}
+                  <ShortRealismNote positions={updatedPositions} />
                   {/* Header */}
                   <div className="grid text-[9px] font-bold text-wm-text-dim uppercase tracking-wider border-b border-wm-border px-2 py-1.5 sticky top-0 wm-sticky-glass"
                     style={{ gridTemplateColumns:"80px 50px 90px 90px 90px 80px 48px" }}>
@@ -2707,6 +2731,7 @@ export default function PaperTradingPage() {
                     {updatedPositions.map((pos,i)=>(
                       <motion.div key={pos.symbol} initial={{ opacity:0,x:-8 }} animate={{ opacity:1,x:0 }} exit={{ opacity:0,x:8 }}>
                         <PositionRow pos={pos} mark={positionMarks[i]} onClose={()=>closePosition(pos.symbol)}/>
+                        <ShortPositionNote pos={pos} />
                       </motion.div>
                     ))}
                   </AnimatePresence>
