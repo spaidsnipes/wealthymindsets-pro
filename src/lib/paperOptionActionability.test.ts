@@ -13,7 +13,22 @@ describe("Paper options actionability enforcement", () => {
   });
 
   it("keeps Paper quote copy aligned with the canonical degraded label", () => {
-    expect(paperPage).toContain("chart chrome flags as ACTIVE DEGRADED");
+    // 2026-09-15: this used to pin the literal sentence
+    // "chart chrome flags as ACTIVE DEGRADED", which lived in a `title=`
+    // tooltip on the MARKET PRICES rail. That tooltip was the rail's ONLY
+    // freshness disclosure, and hover does not exist on a touch device — the
+    // phone being the primary device, the freshness of all 16 prices was
+    // unreachable where it mattered most.
+    //
+    // The rail now derives its label from CANONICAL_FIDELITY_LABELS through
+    // selectPaperQuotePanelTruth and renders it as visible TEXT. Pinning the
+    // constant's consumer is strictly stronger than pinning one hand-typed
+    // sentence: a rephrase of the canon label now moves the surface with it,
+    // instead of leaving the two to drift.
+    expect(paperPage).toContain("selectPaperQuotePanelTruth");
+    expect(paperPage).toContain("paperQuotePanelChipText(quotePanelTruth)");
+    // The original prohibition stands: the rail must never re-adopt the
+    // quarantined blanket "DELAYED" vocabulary.
     expect(paperPage).not.toContain("chart chrome flags as DELAYED");
   });
 

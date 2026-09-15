@@ -24,6 +24,11 @@ import {
   type PaperQuoteReadiness,
 } from "@/lib/marketData/viewModels/selectPaperQuoteReadiness";
 import {
+  paperQuoteRowTruth,
+  paperQuotePanelChipText,
+  selectPaperQuotePanelTruth,
+} from "@/lib/marketData/viewModels/selectPaperQuotePanelTruth";
+import {
   STARTING_CASH,
   applyFill as applyFillShared,
   applyOrderRejections,
@@ -2253,6 +2258,15 @@ export default function PaperTradingPage() {
      here is that the limitation stops being SILENT. */
   const paperReach = useMemo(() => selectCapitalReach(PAPER_STORE_FACTS), []);
 
+  /* The MARKET PRICES rail's own freshness, derived from the SAME readiness map
+     its rows render. The rail used to disclose this only through a hover
+     `title` and a red/gold hue — neither reaches a trader on a phone, and the
+     hue collides with the up/down meaning the percentage already carries. */
+  const quotePanelTruth = useMemo(
+    () => selectPaperQuotePanelTruth(Object.values(quoteReadiness)),
+    [quoteReadiness],
+  );
+
   /* Whether the shared authority is actually THERE — asked, not assumed. The
      probe is what stops the progress block below from being an architecture
      diagram: an unapplied migration and a missing env var both answer null,
@@ -3071,15 +3085,33 @@ export default function PaperTradingPage() {
             ticker tape and every chart chrome flag as DELAYED. The green
             Activity dot + "Live" copy claimed live-tape truthfulness
             these numbers do not have. Truth label unified with the rest
-            of the shell: amber dot + "MARKET PRICES" + DELAYED chip. */}
+            of the shell: amber dot + "MARKET PRICES" + DELAYED chip.
+
+            2026-09-15: that chip said PAPER QUOTES — whose book, not how old —
+            and the only freshness disclosure was the `title` below. Hover does
+            not exist on a touch device, and the phone is the primary device.
+            Meanwhile the Order Ticket on the same page said "10m old". The
+            header now renders the rail's WORST readiness as canon-vocabulary
+            TEXT, derived from the same map the rows use so the two cannot
+            drift. See lib/marketData/viewModels/selectPaperQuotePanelTruth. */}
         <div className={clsx(styles.market, "w-48 border-l border-wm-border flex flex-col overflow-hidden shrink-0")}>
           <div
             className="px-3 py-2 border-b border-wm-border text-[9px] font-black text-wm-text-dim uppercase tracking-wider flex items-center gap-1.5"
-            title="Prices are consolidated quotes from the same degraded provider the chart chrome flags as ACTIVE DEGRADED — not a certified real-time tape."
+            title={quotePanelTruth.reason}
           >
             <Activity size={10} className="text-wm-gold"/>
             <span>Market Prices</span>
-            <span className="ml-auto text-[8px] font-semibold text-wm-gold">PAPER QUOTES</span>
+            <span
+              className={clsx(
+                "ml-auto text-[8px] font-semibold",
+                quotePanelTruth.degradedCount > 0 ? "text-wm-red" : "text-wm-gold",
+              )}
+            >
+              {paperQuotePanelChipText(quotePanelTruth)}
+            </span>
+          </div>
+          <div className="px-3 pb-1.5 pt-1 text-[8px] leading-tight text-wm-text-dim border-b border-wm-border/40">
+            {quotePanelTruth.reason}
           </div>
           <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"none" }}>
             {Object.entries(UNIVERSE).map(([sym,info])=>{
@@ -3087,6 +3119,7 @@ export default function PaperTradingPage() {
               const px   = readiness.price;
               const ref  = prevCloses[sym] ?? info.base;
               const chg  = px != null && ref ? ((px - ref)/ref)*100 : null;
+              const rowTruth = paperQuoteRowTruth(readiness, chg);
               return (
                 <div key={sym} className="flex items-center justify-between px-2.5 py-1.5 border-b border-wm-border/20 hover:bg-wm-surface/30 transition-colors">
                   <div>
@@ -3097,8 +3130,13 @@ export default function PaperTradingPage() {
                     <div className="text-[10px] font-mono font-bold text-wm-text">
                       {px == null ? "—" : px>=1000 ? px.toLocaleString("en-US",{maximumFractionDigits:0}) : fmt2(px)}
                     </div>
-                    <div className={clsx("text-[8px] font-bold", readiness.actionable?"text-wm-gold":"text-wm-red")}>
-                      {chg == null ? readiness.status : `${chg>=0?"+":""}${chg.toFixed(2)}%`}
+                    {/* Colour MAY support this verdict; it may never replace
+                        it. `paperQuoteRowTruth` keeps the status WORD on the
+                        line whenever the row cannot authorize an action, so a
+                        stale row printing "+4.39%" no longer relies on a red
+                        hue that already means "down". */}
+                    <div className={clsx("text-[8px] font-bold", rowTruth.degraded?"text-wm-red":"text-wm-gold")}>
+                      {rowTruth.text}
                     </div>
                   </div>
                 </div>
