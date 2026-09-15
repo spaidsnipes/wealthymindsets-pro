@@ -5,6 +5,12 @@ import { CHANGE_UNAVAILABLE_TEXT, CHANGE_UNAVAILABLE_TITLE } from "@/lib/marketD
 import { PRICE_ABSENCE_GLYPH, priceAbsenceReason } from "@/lib/marketData/priceAbsence";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
+import {
+  priceSessionFact,
+  volumeSessionFact,
+  turnoverSessionFact,
+  type SessionFact,
+} from "@/lib/chart/stockInfoSessionFacts";
 import React, { useState, useRef, useEffect } from "react";
 import { Heart, Bell, ChevronDown } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -110,7 +116,11 @@ export function StockInfoPanel({ symbol }: Props) {
   const ticksRef = useRef<HTMLDivElement>(null);
   // Real OHLC from Finnhub/Yahoo
   const [realOHLC, setRealOHLC] = useState<{
-    open: number; high: number; low: number; prevClose: number; volume: number;
+    // `volume` is NOT `number`. It used to be written `j.volume ?? 0` on
+    // ingest, which laundered "the provider did not carry a volume" into the
+    // number zero BEFORE anything downstream could tell them apart. Carry the
+    // absence; let the owner decide what to say about it.
+    open: number; high: number; low: number; prevClose: number; volume: number | null;
   } | null>(null);
 
   // Fetch real OHLC at mount and on symbol change
@@ -134,7 +144,7 @@ export function StockInfoPanel({ symbol }: Props) {
         high:      j.high,
         low:       j.low,
         prevClose: j.prevClose,
-        volume:    j.volume    ?? 0,
+        volume:    typeof j.volume === "number" && Number.isFinite(j.volume) ? j.volume : null,
       });
     }).catch(() => {});
   }, [symbol]);
@@ -150,14 +160,20 @@ export function StockInfoPanel({ symbol }: Props) {
   const up = chg.direction === "up";
   const name = getSymbolName(symbol);
 
-  // Session facts render only when the provider fields were observed.
+  /* Session facts. FOUR different facts used to print the SAME `—`: WM never
+     got a quote; WM got one that omitted the field; WM observed a real zero
+     volume (thrown away by a truthiness test); and turnover, which WM DOES NOT
+     COMPUTE AT ALL and which was therefore promising a number that no amount
+     of waiting would ever deliver. See src/lib/chart/stockInfoSessionFacts.ts.
+     `volume` in particular must NOT be gated on truthiness — 0 is an answer. */
   const dp = ticker.price > 1000 ? 2 : ticker.price > 10 ? 3 : 5;
-  const open  = realOHLC ? realOHLC.open.toFixed(dp)      : "—";
-  const high  = realOHLC ? realOHLC.high.toFixed(dp)      : "—";
-  const low   = realOHLC ? realOHLC.low.toFixed(dp)       : "—";
-  const prev  = realOHLC ? realOHLC.prevClose.toFixed(dp) : "—";
-  const vol   = realOHLC?.volume ? (realOHLC.volume >= 1e9 ? `${(realOHLC.volume/1e9).toFixed(2)}B` : realOHLC.volume >= 1e6 ? `${(realOHLC.volume/1e6).toFixed(2)}M` : `${(realOHLC.volume/1e3).toFixed(0)}K`) : "—";
-  const turn  = "—";
+  const observedQuote = realOHLC !== null;
+  const open  = priceSessionFact(realOHLC?.open,      dp, "Open",       symbol, observedQuote);
+  const high  = priceSessionFact(realOHLC?.high,      dp, "High",       symbol, observedQuote);
+  const low   = priceSessionFact(realOHLC?.low,       dp, "Low",        symbol, observedQuote);
+  const prev  = priceSessionFact(realOHLC?.prevClose, dp, "Prev close", symbol, observedQuote);
+  const vol   = volumeSessionFact(realOHLC?.volume, symbol, observedQuote);
+  const turn  = turnoverSessionFact(symbol);
 
   const TABS: TabType[]    = ["Quotes", "Analysis", "Comments", "News"];
   const SUB_TABS: SubTabType[] = ["Ticks", "Summary"];
@@ -239,22 +255,39 @@ export function StockInfoPanel({ symbol }: Props) {
         {/* Prev close */}
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
           <span style={{ fontSize: 9, color: "#4A5070" }}>Prev Close</span>
-          <span style={{ fontSize: 9, color: "#8B8FA8", fontFamily: "monospace" }}>{prev}</span>
+          <span
+            style={{ fontSize: 9, color: prev.state === "OBSERVED" ? "#8B8FA8" : "#5A6080", fontFamily: "monospace" }}
+            title={prev.reason}
+            aria-label={`Prev close: ${prev.text}. ${prev.reason}`}
+          >{prev.text}</span>
         </div>
 
         {/* Stats grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 0", marginTop: 8 }}>
-          {[
+          {([
             ["High",       high],
             ["Low",        low],
             ["Open",       open],
             ["Prev Close", prev],
             ["Volume",     vol],
             ["Turnover",   turn],
-          ].map(([k, v]) => (
-            <div key={k} style={{ display: "flex", justifyContent: "space-between", paddingRight: 10 }}>
+          ] as [string, SessionFact][]).map(([k, f]) => (
+            /* The reason travels with the row on BOTH `title` and
+               `aria-label`, so a screen reader hears the same distinction a
+               hover shows. A row WM could not fill is dimmed — but it is
+               dimmed AND NAMED, never reduced to a dash. */
+            <div
+              key={k}
+              style={{ display: "flex", justifyContent: "space-between", paddingRight: 10 }}
+              title={f.reason}
+              aria-label={`${k}: ${f.text}. ${f.reason}`}
+            >
               <span style={{ fontSize: 10, color: "#8B8FA8" }}>{k}</span>
-              <span style={{ fontSize: 10, color: "#E2E8F0", fontFamily: "monospace" }}>{v}</span>
+              <span style={{
+                fontSize: f.state === "OBSERVED" ? 10 : 9,
+                color: f.state === "OBSERVED" ? "#E2E8F0" : "#6B7290",
+                fontFamily: "monospace",
+              }}>{f.text}</span>
             </div>
           ))}
         </div>

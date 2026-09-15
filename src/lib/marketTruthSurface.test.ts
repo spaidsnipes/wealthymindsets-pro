@@ -98,7 +98,19 @@ describe("same-screen market truth contract", () => {
     const stockInfo = source("../components/chart/StockInfoPanel.tsx");
     const yahooRoute = source("../app/api/yahoo/route.ts");
     expect(stockInfo).toContain("observed?.open");
-    expect(stockInfo).toContain('const open  = realOHLC ? realOHLC.open.toFixed(dp)      : "—"');
+    // This line used to be pinned to the EXACT BYTES of
+    //   `const open  = realOHLC ? realOHLC.open.toFixed(dp)      : "—"`
+    // including its interior spacing. That pinned a SPELLING, not the
+    // invariant — and the spelling contained a defect of its own (the `"—"`
+    // branch could not tell "no quote" from "quote without the field", and the
+    // sibling Turnover row was a hardcoded glyph for a figure WM never
+    // computes). The invariant this test actually owns is: OPEN IS GATED ON AN
+    // OBSERVED QUOTE AND IS NEVER DERIVED FROM THE CURRENT PRICE. That is now
+    // asserted against the owner call, which cannot manufacture — see
+    // src/lib/chart/stockInfoSessionFacts.ts and its own Sentinel.
+    expect(stockInfo).toMatch(/const open\s*=\s*priceSessionFact\(realOHLC\?\.open,/);
+    expect(stockInfo).toContain("const observedQuote = realOHLC !== null");
+    expect(stockInfo).not.toMatch(/const open\s*=[^\n]*ticker\.price/);
     expect(stockInfo).not.toContain("ticker.price * 0.9986");
     expect(stockInfo).not.toContain("ticker.price * 1.0012");
     expect(stockInfo).not.toContain("Jun 15 16:00:00 ET");
