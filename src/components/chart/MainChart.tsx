@@ -6935,8 +6935,31 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
     >
 
       {/* ── OHLCV strip ─────────────────────────────────── */}
+      {/* NO FILL OF ITS OWN. The wrapper one element up already paints
+          `chartSettings?.background ?? "#0B0E1A"` — the canonical owner of the
+          market field's material. This strip used to restate that fill as a
+          hardcoded `#0B0E1A` literal, which is the vacuous-agreement shape:
+          a duplicate that happens to agree with the true owner in the DEFAULT
+          case, which is exactly what let it survive review. The moment the
+          trader changes the chart background in Appearance the two diverge and
+          MARKET's own price truth renders as a foreign slab floating inside
+          the market field.
+
+          MEASURED LIVE on production before this fix, /charts?symbol=TSLA with
+          `wm_chartSettings.background` set to `#241014`:
+            strip       -> rgb(11, 14, 26)
+            market field-> rgb(36, 16, 20)
+          A visible seam directly above the candles. Canon §COMPOSITION
+          CONTRACT: "NOW belongs to MARKET ... embedded into the market
+          environment rather than another dashboard card." A band that refuses
+          to follow the room's material is not embedded in the room.
+
+          Same law as `chartsRoomChrome.test.ts`, which cured five frame files
+          of exactly this occlusion — MainChart was never in its FRAME list, so
+          the largest surface kept the defect. Transparent here means the strip
+          inherits the one canonical fill and can never drift from it again. */}
       <div
-        style={{ height: 28, flexShrink: 0, background: "#0B0E1A" }}
+        style={{ height: 28, flexShrink: 0, background: "transparent" }}
         className="flex items-center gap-4 px-3 border-b border-wm-border/50"
       >
         {/* Price + change + source provenance (WM-CHART-P0-05) */}
