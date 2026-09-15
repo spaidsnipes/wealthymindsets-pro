@@ -42,6 +42,7 @@ import { candleDataStatus, priceSourceBadge, resolveChartSurfaceBadge } from "@/
 import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
+import { selectChartCloseLabel } from "@/lib/marketData/selectChartCloseLabel";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import type { PineOutput } from "@/lib/pine/types";
@@ -1246,6 +1247,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
 
   // Countdown state
   const [countdown,   setCountdown]   = useState("--:--");
+  // The header's OHLC strip needs a clock to tell a CLOSED bar from a FORMING
+  // one. It starts at 0 — "no clock yet" — so the first render on both server
+  // and client is identical (a Date.now() read during render is what caused the
+  // #418 hydration class) and the selector degrades to its honest NOW label
+  // until the countdown's own tick supplies a real reading a second later.
+  const [nowMs,       setNowMs]       = useState(0);
   const [closeFlash,  setCloseFlash]  = useState(false);
   // Refs so the RAF canvas loop can read the live countdown each frame without
   // being re-created every second (which would tear down the VP/footprint draw).
@@ -1562,6 +1569,7 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
       const txt = formatCountdown(remaining, sec);
       const flash = remaining <= 5 && remaining > 0;
       setCountdown(txt);
+      setNowMs(now * 1000);
       setCloseFlash(flash);
       countdownRef.current = txt;
       closeFlashRef.current = flash;
@@ -6992,15 +7000,34 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
         </div>
 
         {/* OHLCV */}
-        {last && (
-          <div className="flex items-center gap-3 text-[10px] font-mono text-wm-text-dim">
-            <span>O <span className="text-wm-text">{last.open.toFixed(dp)}</span></span>
-            <span>H <span className="text-wm-green">{last.high.toFixed(dp)}</span></span>
-            <span>L <span className="text-wm-red">{last.low.toFixed(dp)}</span></span>
-            <span>C <span className="text-wm-text">{last.close.toFixed(dp)}</span></span>
-            <span>V <span className="text-wm-text">{last.volume.toLocaleString()}</span></span>
-          </div>
-        )}
+        {last && (() => {
+          /* O, H, L and V describe a forming bar truthfully — the open really
+             did happen, and the high/low/volume really are the extremes SO FAR.
+             `C` is the one letter that is not a description but a CLAIM: "this
+             bar ended here." Measured live 2026-09-15 on NQ1! 1h, this strip
+             read `C 29403.00 V 0` with 5:04 left on the countdown, beside a
+             MARKET tile reading `29405 LAST 1h BAR CLOSE` — two owners, one
+             viewport, two numbers, both wearing the word "close".
+
+             The value stays (it is where the market is on this timeframe right
+             now); only the word is graded. See selectChartCloseLabel. */
+          const closeWord = selectChartCloseLabel(last.time as number, timeframe, nowMs);
+          return (
+            <div className="flex items-center gap-3 text-[10px] font-mono text-wm-text-dim">
+              <span>O <span className="text-wm-text">{last.open.toFixed(dp)}</span></span>
+              <span>H <span className="text-wm-green">{last.high.toFixed(dp)}</span></span>
+              <span>L <span className="text-wm-red">{last.low.toFixed(dp)}</span></span>
+              <span
+                title={closeWord.title}
+                className={closeWord.forming ? "text-wm-gold/80" : undefined}
+              >
+                {closeWord.label}{" "}
+                <span className="text-wm-text">{last.close.toFixed(dp)}</span>
+              </span>
+              <span>V <span className="text-wm-text">{last.volume.toLocaleString()}</span></span>
+            </div>
+          );
+        })()}
 
         {/* Pine Script badge */}
         {pineOutput && (
