@@ -12,6 +12,8 @@ import {
   abbreviateMagnitude,
   classifyReportedFundamental,
   unaskedFundamental,
+  unconfiguredFundamental,
+  absentFundamental,
   preferKnownFundamental,
   type FundamentalFigure,
 } from "./scannerFundamental";
@@ -48,13 +50,50 @@ describe("classifyReportedFundamental", () => {
   });
 
   it("no state renders a bare glyph", () => {
-    const all: FundamentalFigure[] = [cap(1e9), cap(0), unaskedFundamental("Float", "AAPL")];
+    const all: FundamentalFigure[] = [
+      cap(1e9), cap(0),
+      unaskedFundamental("Float", "AAPL"),
+      unconfiguredFundamental("Float", "AAPL", ["FMP_KEY"]),
+    ];
     for (const f of all) {
       expect(f.text.trim()).not.toBe("—");
       expect(f.text.trim()).not.toBe("-");
       expect(f.text.trim().length).toBeGreaterThan(1);
       expect(f.reason.length).toBeGreaterThan(40);
     }
+  });
+});
+
+describe("unconfiguredFundamental / absentFundamental", () => {
+  const conf = (missing: readonly string[] = ["FMP_KEY"]) =>
+    unconfiguredFundamental("Market cap", "AAPL", missing);
+
+  it("× THE DEFECT: a route that SAID why must not be reduced to 'not retrieved'", () => {
+    const c = conf();
+    const u = unaskedFundamental("Market cap", "AAPL");
+    expect(c.state).toBe("NOT_CONFIGURED");
+    expect(c.text).not.toBe(u.text);
+    expect(c.reason).not.toBe(u.reason);
+    // The whole point: it names what the route named.
+    expect(c.reason).toContain("FMP_KEY");
+  });
+
+  it("× THE FALSE PROMISE: a permanent gap must not imply the next scan fixes it", () => {
+    expect(conf().reason).toMatch(/not a gap that the next scan will fill/i);
+  });
+
+  it("does not invent a credential name when the route named none", () => {
+    expect(conf([]).reason).not.toContain("FMP_KEY");
+    expect(conf([]).reason).toMatch(/unnamed credential/i);
+  });
+
+  it("absentFundamental routes to the SHARPER fact when one is available", () => {
+    expect(absentFundamental("Float", "AAPL", ["FMP_KEY"]).state).toBe("NOT_CONFIGURED");
+    expect(absentFundamental("Float", "AAPL", null).state).toBe("NOT_ASKED");
+  });
+
+  it("a configuration refusal still never displaces a measured figure", () => {
+    expect(preferKnownFundamental(conf(), cap(4.1e9)).text).toBe("4.1B");
   });
 });
 
@@ -108,6 +147,13 @@ describe("/scanner page", () => {
   it("the page routes both figures through the owner", () => {
     expect(src).toContain("preferKnownFundamental");
     expect(src).toContain("classifyReportedFundamental");
-    expect(src).toContain("unaskedFundamental");
+    expect(src).toContain("absentFundamental");
+  });
+
+  it("× THE DISCARDED DIAGNOSIS: a refused fetch must not drop the route's reason", () => {
+    // `if (!res.ok) return map;` threw away a 503 body that said
+    // `{ edge: "NOT CONFIGURED", missing: [...] }` — a `—` in control flow.
+    expect(src).not.toMatch(/if\s*\(!res\.ok\)\s*return\s+map;/);
+    expect(src).toContain('body?.edge === "NOT CONFIGURED"');
   });
 });

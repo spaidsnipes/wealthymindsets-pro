@@ -42,7 +42,11 @@
  * PURE — no clock, no I/O, no React.
  */
 
-export type FundamentalState = "MEASURED" | "NOT_REPORTED" | "NOT_ASKED";
+export type FundamentalState =
+  | "MEASURED"
+  | "NOT_REPORTED"
+  | "NOT_ASKED"
+  | "NOT_CONFIGURED";
 
 export interface FundamentalFigure {
   /** What the row says. Never a bare glyph. */
@@ -90,6 +94,55 @@ export function unaskedFundamental(label: string, symbol: string): FundamentalFi
     state: "NOT_ASKED",
     reason: `WM holds no fundamentals profile for ${symbol} in this scan, so it has not yet learned the ${label.toLowerCase()} one way or the other. This is a gap in what WM asked for, not a statement about the company.`,
   };
+}
+
+/**
+ * ── DEFECT THREE (found by the fix for One and Two, live on production) ──
+ *
+ * With the glyph gone, the /scanner tiles said NOT_ASKED for every symbol —
+ * and that turned out to be TRUE BUT LESS TRUE THAN WHAT WM KNEW. The
+ * `/api/fmp` route answers 503 with a full diagnosis:
+ *
+ *     { error: "FMP fundamentals provider is not configured",
+ *       edge: "NOT CONFIGURED", missing: ["FMP_KEY (or NEXT_PUBLIC_FMP_KEY)"] }
+ *
+ * and the page threw it away with `if (!res.ok) return map;`. That line is a
+ * `—` written in control flow: an honest upstream answer discarded, replaced
+ * by a vaguer downstream one. NOT_ASKED implies the next scan might fill the
+ * gap. It will not — this is a configuration fact, permanent until changed,
+ * the same false promise the hardcoded Turnover glyph was making.
+ *
+ * Deliberately NOT claimed: nothing here asserts the key SHOULD be present or
+ * what it should be. It reports what the provider route reported.
+ */
+export function unconfiguredFundamental(
+  label: string,
+  symbol: string,
+  missing: readonly string[],
+): FundamentalFigure {
+  const names = missing.length ? missing.join(", ") : "an unnamed credential";
+  return {
+    text: "Not configured",
+    state: "NOT_CONFIGURED",
+    reason: `WM cannot retrieve a fundamentals profile for ${symbol} because its fundamentals provider is not configured on this deployment — the provider route reports ${names} missing. This is not a gap that the next scan will fill: until the deployment is configured, WM will never learn the ${label.toLowerCase()} here.`,
+  };
+}
+
+/**
+ * WM has no row for this symbol. WHICH KIND of nothing is that?
+ *
+ * Stated as its own function so the choice lives beside the two facts it
+ * chooses between, rather than as a ternary at the call site where the next
+ * edit can quietly drop one arm.
+ */
+export function absentFundamental(
+  label: string,
+  symbol: string,
+  notConfigured: readonly string[] | null,
+): FundamentalFigure {
+  return notConfigured
+    ? unconfiguredFundamental(label, symbol, notConfigured)
+    : unaskedFundamental(label, symbol);
 }
 
 /**

@@ -33,7 +33,7 @@ import {
 } from "@/lib/scannerFailureCache";
 import {
   classifyReportedFundamental,
-  unaskedFundamental,
+  absentFundamental,
   preferKnownFundamental,
   type FundamentalFigure,
 } from "@/lib/scanner/scannerFundamental";
@@ -138,17 +138,44 @@ const SCANNER_STOCKS = SYMS.filter(([s]) => !isUnsupportedByEquityVendors(s)).ma
 // Futures symbols (Finnhub has no free futures quotes — use Yahoo via /api/yahoo)
 const SCANNER_FUTURES = SYMS.filter(([s]) => classifySymbol(s) === "FUTURES").map(([s]) => s);
 
-// Cache FMP profiles (mktcap, float) — changes slowly, cache 10 min
-let fmpProfileCache: Map<string, { mktcap: FundamentalFigure; float: FundamentalFigure }> | null = null;
+// Cache FMP profiles (mktcap, float) — changes slowly, cache 10 min.
+/* The round carries the rows AND, when there are none, WHY there are none.
+   `if (!res.ok) return map` used to drop the route's own diagnosis on the
+   floor — a `—` written in control flow. See DEFECT THREE in
+   @/lib/scanner/scannerFundamental. */
+type FmpProfileRound = {
+  readonly rows: Map<string, { mktcap: FundamentalFigure; float: FundamentalFigure }>;
+  /** Non-null when the provider route said it is NOT CONFIGURED; names what it said was missing. */
+  readonly notConfigured: readonly string[] | null;
+};
+let fmpProfileCache: FmpProfileRound | null = null;
 let fmpProfileCacheTs = 0;
 
-async function fetchFmpProfiles(): Promise<Map<string, { mktcap: FundamentalFigure; float: FundamentalFigure }>> {
+async function fetchFmpProfiles(): Promise<FmpProfileRound> {
   if (fmpProfileCache && Date.now() - fmpProfileCacheTs < 600_000) return fmpProfileCache;
   const map = new Map<string, { mktcap: FundamentalFigure; float: FundamentalFigure }>();
+  let notConfigured: readonly string[] | null = null;
   try {
     const syms = SCANNER_STOCKS.join(",");
     const res  = await fetch(`/api/fmp?path=/v3/profile/${encodeURIComponent(syms)}`);
-    if (!res.ok) return map;
+    if (!res.ok) {
+      // THE ROUTE ALREADY KNOWS. It answers 503 with
+      // `{ edge: "NOT CONFIGURED", missing: [...] }`, and throwing that away
+      // left the tiles saying "not retrieved in this scan" — true, but vaguer
+      // than what WM holds, and implying a next scan might fill the gap.
+      try {
+        const body = await res.json();
+        if (body?.edge === "NOT CONFIGURED") {
+          notConfigured = Array.isArray(body.missing)
+            ? body.missing.filter((m: unknown): m is string => typeof m === "string")
+            : [];
+        }
+      } catch {}
+      const refused: FmpProfileRound = { rows: map, notConfigured };
+      fmpProfileCache = refused;
+      fmpProfileCacheTs = Date.now();
+      return refused;
+    }
     const data = await res.json();
     const arr: Array<{ symbol: string; mktCap?: number; floatShares?: number }> = Array.isArray(data) ? data : [];
     for (const p of arr) {
@@ -162,9 +189,10 @@ async function fetchFmpProfiles(): Promise<Map<string, { mktcap: FundamentalFigu
       });
     }
   } catch {}
-  fmpProfileCache = map;
+  const round: FmpProfileRound = { rows: map, notConfigured };
+  fmpProfileCache = round;
   fmpProfileCacheTs = Date.now();
-  return map;
+  return round;
 }
 
 // Cache RSI per symbol — recomputed every 5 min. The failure cache (canonical
@@ -306,7 +334,7 @@ async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFa
 
 function buildResults(
   quotes: Map<string, QuoteData>,
-  profiles: Map<string, { mktcap: FundamentalFigure; float: FundamentalFigure }>,
+  profiles: FmpProfileRound,
   prev: ScanResult[],
 ): ScanResult[] {
   const prevMap = new Map(prev.map(r => [r.symbol, r]));
@@ -319,7 +347,7 @@ function buildResults(
   return SYMS.map(([sym, name], i) => {
     const q   = quotes.get(sym);
     const old = prevMap.get(sym);
-    const prf = profiles.get(sym);
+    const prf = profiles.rows.get(sym);
     // Skip symbols that never resolved to a real price — never show a fake placeholder.
     const realPrice = q?.price ?? old?.price;
     if (realPrice == null || realPrice <= 0) return null;
@@ -372,8 +400,11 @@ function buildResults(
          genuinely measured. Only a MEASURED value may displace a MEASURED
          value — that rule now lives in the owner, where it cannot be rewritten
          back into a `??` chain by accident. */
-      float:     preferKnownFundamental(prf?.float  ?? unaskedFundamental("Float", sym),      old?.float),
-      mktcap:    preferKnownFundamental(prf?.mktcap ?? unaskedFundamental("Market cap", sym), old?.mktcap),
+      /* AND when there is no row, WM says WHICH KIND of nothing it has. The
+         provider route's own NOT CONFIGURED diagnosis outranks "not retrieved
+         in this scan", because it is permanent — no later scan will fill it. */
+      float:     preferKnownFundamental(prf?.float  ?? absentFundamental("Float", sym, profiles.notConfigured),      old?.float),
+      mktcap:    preferKnownFundamental(prf?.mktcap ?? absentFundamental("Market cap", sym, profiles.notConfigured), old?.mktcap),
       time:      Date.now(),
       starred:   starredSet.has(sym) ?? old?.starred ?? false,
       alerted:   alertedSet.has(sym) ?? old?.alerted ?? false,
