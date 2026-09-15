@@ -33,12 +33,13 @@ diagnosis.
 | 8 | `9bc3844` | `/command-deck` | `MirrorPanel` gated on `chainVm` — an unobserved MARKET erasing the trader's own reflection, **eight lines below the comment that diagnoses this exact coupling** |
 | 9 | `121b27a` | `/command-deck` | The Steward verdict gated on `chainVm` while dereferencing only `permission` — and the whole **Deep read container** gated with it, erasing every sibling that never needed the market |
 | 10 | `fa49aee` | `/command-deck` | **Found by LOOKING, not by grep** — in the screenshot taken to verify `121b27a`. The chain's `PERMISSION` row read *"No trader rules configured"* 140px above the Steward reading `RESTRICTED · 2/8 engaged`. Two answers to one question, on one screen |
+| 11 | `2092da4` | `/command-deck` + `/nectar/[symbol]` | **Also found by LOOKING** — same screenshot. `GAPS 0` in the OK tone, and `Gaps  None` on the detail route. Every adapter declares `sequenceState: "UNAVAILABLE"`, so `SEQUENCE_GAP` is unreachable and `gapCount` is pinned at 0 **by construction**. Both screens reported the absence of a DETECTOR as the absence of GAPS. And `canClaimRetainedCoverage` rested a rights claim on `gapCount === 0` — a condition that could never fail |
 
 Receipts: `3088369`, `c5d6435`, `98a7f30`, `3a65192`, `41fc71f`
 (dispatches `2358`, `2359`, `2360`, `2361`, `2362`, `2363`, `2364`, `2365`).
 
-**#10 is the one that changes how the rest of this block should be read.** Nine
-were found by searching source. The tenth could not have been: *nothing is wrong
+**#10 and #11 are the ones that change how the rest of this block should be
+read.** Nine were found by searching source. The last two could not have been: *nothing is wrong
 in any single file.* `selectDecisionChain` was correct. `composeMarketCanvasVM`
 was correct. `/command-deck` was correct. The contradiction existed only in the
 viewport where two correct files rendered together — and it survived every prior
@@ -235,7 +236,36 @@ non-nullable annotation, a reachable fallback, and not-inside-`if (chain)`.
 **The cure ships in ONE component.** `OpeningBellEvidence` exists because the
 defect was found twice, in two rooms, and the second copy had mutated further
 from the truth. Non-forkable wording cannot rot on one screen while looking
-healthy on the other.
+healthy on the other. `describeGapCoverage` (`2092da4`) is the same law applied
+to a *claim* rather than a component: two surfaces, one writer.
+
+**H1 shape 1 hides in DEFAULT BRANCHES.** *Nobody reads a fallback looking for a
+claim.* Defect #11 lived in a `?:` on one screen and a `reduce` on another —
+both of which looked like arithmetic, not assertion. When hunting fabricated
+absence, read the `else`, the `??`, the `: "None"`, the `|| 0`. That is where a
+sentence about the world gets written by someone who thought they were writing a
+default.
+
+**A condition that cannot fail is not a requirement.** `canClaimRetainedCoverage`
+listed `gapCount === 0` among its conjuncts. It read as diligence. It was
+unreachable-by-construction and therefore *always satisfied* — decoration
+wearing the costume of a safety check. When auditing any predicate that grants a
+right, ask of **every** clause: *can this ever be false in production?* If not,
+the predicate is weaker than it looks, and the weakest clause is the one nobody
+audits.
+
+**You cannot add a real zero to an unknown and get a real zero.** Aggregation
+launders provenance. `describeGapCoverageTotal` returns `measured: false` if any
+single channel is unmeasurable, because a total is a claim about all of its
+inputs. Any sum, average or count displayed across heterogeneous sources inherits
+the *worst* evidence quality in the set, never the best.
+
+**`undefined` must mean UNKNOWN, never zero.** `unsequencedEventCount` is
+optional on purpose. A summary restored from an older persisted schema genuinely
+does not know what it looked at; defaulting it to `0` would re-assert the exact
+claim the field exists to stop making. Every `?? 0` on a persisted field is a
+candidate H1 — the one in `observeChannel` survived only because it is annotated
+with why it is safe *there and only there*.
 
 ---
 
@@ -280,6 +310,7 @@ That is the form to use from now on. It costs two extra edits.
 | `121b27a` | **SPLIT — half PROVEN, half honestly withheld.** Observed on `/command-deck` with a screenshot: section `4 STEWARD · RULES VERDICT` renders, verdict `STEWARD RULES · RESTRICTED`, headline *"Your rule says Trustworthy market data required."*, `HARD` row *Market data quality is UNAVAILABLE — below your declared floor*, `2/8 engaged · phase: preparation`, Story Ribbon *"Market state cannot be resolved yet."* — **PROVEN.** But the observation **does not discriminate the fix**: the Decision Chain rows are rendering, so `chainVm` is non-null on this load, and the same screen would have appeared before the commit. I had written that `MARKET STATE UNKNOWN · 0/8 dimensions` was the condition under test; **it is not.** That banner is a non-null `state` with nothing resolved. The gates keyed on `state === null`. Corrected in `2364` rather than left standing. The drawer-survives-null claim is **Sentinel-proven (compilable REVIVE, `TSC_EXIT=0`, caught by name), not live-observed.** |
 | `9bc3844` | **CURE NOT OBSERVABLE — not claimed. One over-correction guard PROVEN.** The deck was driven to `Phase: Review` with the page simultaneously reading `MARKET STATE UNKNOWN` (0/8 dimensions resolved) — the exact intersection under test — and **no empty frame appeared**. That proves the self-silencing the ungating depends on, live. It does *not* prove the gate was removed: `MirrorPanel` returns null at zero patterns and the Founder has no decisions, so the panel is absent under old and new code alike. |
 | `fa49aee` | **PROVEN — and the observation DISCRIMINATES.** Unlike `121b27a`, the Founder's live session genuinely exhibited the pre-fix value of the variable under test. **Before** (the screenshot taken to verify `121b27a`, same route, same session, same screen region): `! PERMISSION  NOT_EVALUATED / "No trader rules configured — Permission not evaluated."` ~140px above `STEWARD RULES · RESTRICTED / 2/8 engaged · phase: preparation`. **After** the deploy landed (chunkset `3a940611…` → `864359fe…`), all `<details>` forced open: the string `"No trader rules configured"` is **absent from the page**; the chain row reads `! PERMISSION  RESTRICTED / "Your rule says Trustworthy market data required."` and now carries the rule chips it never had — `HARD: Trustworthy market data req…` `SOFT: CLC setup evidence required`; the Steward four rows below reads `STEWARD RULES · RESTRICTED / "Your rule says Trustworthy market data required." / 2/8 engaged · phase: preparation`. **Both rows, one screen, the same sentence.** No page error. Screenshot captured. |
+| `2092da4` | **Gates green, REVIVE-proven, live observation PENDING at time of writing.** `599 files / 6995 tests VITEST_EXIT=0`, `TSC_EXIT=0`. REVIVE §22: all four defect halves reintroduced via Edit in compilable form (`TSC_EXIT=0` **on the revived defect** — a type system would not have caught this), five Sentinels failed **BY NAME**, then restored byte-identical. Live status will be recorded here once observed; **not claimed until then.** |
 
 ---
 
