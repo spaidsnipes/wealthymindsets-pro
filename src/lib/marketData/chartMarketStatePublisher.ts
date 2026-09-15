@@ -202,7 +202,10 @@ export function createChartMarketStatePublication(
   // from the SYMBOL_SEEDS fallback table, so it cannot carry the provenance
   // word "bar close" (§35 PROTECTED TRUTH). The selector refuses everything
   // it cannot attribute to a loaded, timestamped bar.
-  const lastBar = deriveLastBarClose(input.bars ?? null, input.timeframe);
+  // `capturedAt` is passed so the selector can prove whether the NEWEST bar has
+  // finished forming. Without it the selector still refuses to overclaim — it
+  // just falls back to the bar before, costing one bar of freshness.
+  const lastBar = deriveLastBarClose(input.bars ?? null, input.timeframe, input.capturedAt);
 
   const contradictions: string[] = [];
   if (input.ticker.price > 0 && !priceTick) {

@@ -1,4 +1,5 @@
 import type { OHLCVBar } from "../pine/types";
+import { parseTimeframeMs } from "../experience/marketFieldFreshness";
 
 /**
  * LAST VERIFIED BAR CLOSE — a second, explicitly-labelled price owner.
@@ -46,6 +47,37 @@ export interface LastBarCloseEvidence {
 }
 
 /**
+ * ── THE SECOND DEFECT: A BAR THAT HAS NOT CLOSED HAS NO CLOSE ─────────
+ * Observed live on /charts 2026-09-15, NQ1! 1h, 10:34:19Z:
+ *
+ *   chart header  :  O 29355.75  H 29355.75  L 29355.75  C 29355.75  V 0
+ *                    (countdown 0:24:43 to bar close)
+ *   MARKET tile   :  NQ1! · 1h · 29355.75 LAST 1h BAR CLOSE
+ *
+ * Zero range and zero volume with a running countdown is the signature of a
+ * bar that OPENED at 10:00Z and has not yet taken a single trade. Its "close"
+ * is just the seed it was born with. Naming that a BAR CLOSE is a fabricated
+ * provenance claim of exactly the kind this file exists to refuse — and the
+ * number can be arbitrarily stale, because nothing has traded into it.
+ *
+ * So the newest bar is no longer automatically the answer. We name the newest
+ * bar that has PROVABLY CLOSED, by two independent proofs:
+ *
+ *   1. A strictly NEWER bar exists. Then this one ended — no clock required.
+ *      This proof is total: it needs no timeframe parsing and cannot be fooled
+ *      by a wrong clock or a mislabelled interval.
+ *   2. Otherwise, for the newest bar only: barOpen + one interval <= now.
+ *      This needs both a parseable timeframe and a caller-supplied clock. When
+ *      either is missing we do NOT guess — we fall back to proof 1 and name
+ *      the bar before it.
+ *
+ * The degradation is deliberately conservative: naming an older, genuinely
+ * closed bar understates freshness by at most one bar, while naming a forming
+ * bar publishes a close that never happened. Given a choice between those two,
+ * §35 PROTECTED TRUTH picks the first every time.
+ */
+
+/**
  * Pure. Returns null — never a guess — whenever the evidence is not good
  * enough to name a bar close.
  *
@@ -53,10 +85,16 @@ export interface LastBarCloseEvidence {
  * `liveBarPolicy.applyTickToLiveBar` also emits), so it is converted here
  * exactly once. Every other field in canonical market state is milliseconds;
  * leaking a seconds value into it would read as 1970.
+ *
+ * `nowMs` is the caller's captured clock. It is OPTIONAL because a pure
+ * selector must never reach for `Date.now()` itself — a hidden clock is how a
+ * function stops being testable. Omitting it costs at most one bar of
+ * freshness; it can never cause an overclaim.
  */
 export function deriveLastBarClose(
   bars: readonly OHLCVBar[] | null | undefined,
   timeframe: string | null | undefined,
+  nowMs?: number | null,
 ): LastBarCloseEvidence | null {
   if (!bars || bars.length === 0) return null;
   const tf = typeof timeframe === "string" ? timeframe.trim() : "";
@@ -65,17 +103,36 @@ export function deriveLastBarClose(
   // Do NOT assume the array is sorted. A close attributed to the wrong bar is
   // a fabricated timestamp even when the number happens to be right.
   let newest: OHLCVBar | null = null;
+  let runnerUp: OHLCVBar | null = null;
   for (const bar of bars) {
     if (!bar) continue;
     if (!Number.isFinite(bar.close) || bar.close <= 0) continue;
     if (!Number.isFinite(bar.time) || bar.time <= 0) continue;
-    if (newest === null || bar.time > newest.time) newest = bar;
+    if (newest === null || bar.time > newest.time) {
+      runnerUp = newest;
+      newest = bar;
+    } else if (bar.time < newest.time && (runnerUp === null || bar.time > runnerUp.time)) {
+      runnerUp = bar;
+    }
   }
   if (newest === null) return null;
 
+  // PROOF 2 — can we show the newest bar's interval has fully elapsed?
+  const intervalMs = parseTimeframeMs(tf);
+  const clockOk = typeof nowMs === "number" && Number.isFinite(nowMs) && nowMs > 0;
+  const newestClosed =
+    intervalMs !== null && clockOk
+      ? Math.round(newest.time * 1000) + intervalMs <= (nowMs as number)
+      : false;
+
+  // PROOF 1 — the bar before the newest is closed by the mere existence of a
+  // newer one. Used whenever proof 2 could not be established.
+  const chosen = newestClosed ? newest : runnerUp;
+  if (chosen === null) return null;
+
   return {
-    close: newest.close,
-    barOpenedAtMs: Math.round(newest.time * 1000),
+    close: chosen.close,
+    barOpenedAtMs: Math.round(chosen.time * 1000),
     timeframe: tf,
   };
 }

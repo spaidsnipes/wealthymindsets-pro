@@ -295,12 +295,14 @@ describe("chart Market State publisher", () => {
    */
   describe("bar-close wire (the silent drop)", () => {
     // Mirrors the live measurement: TSLA 1h, 359.02, bar opened 2026-09-15.
+    // `capturedAt` sits one full hour past the newest bar's open, so that bar
+    // has provably closed and 359.02 is a real close rather than a seed.
     const BAR_OPEN_SECONDS = 1_789_412_400;
     const withBars = () => ({
       ...base(),
       symbol: "TSLA",
       timeframe: "1h",
-      capturedAt: BAR_OPEN_SECONDS * 1000 + 600_000,
+      capturedAt: BAR_OPEN_SECONDS * 1000 + 3_600_000,
       bars: [
         { time: BAR_OPEN_SECONDS - 3_600, open: 357, high: 360, low: 356, close: 358.11, volume: 5 },
         { time: BAR_OPEN_SECONDS, open: 358.11, high: 360.5, low: 357.4, close: 359.02, volume: 7 },
