@@ -244,6 +244,60 @@ describe("chart header day-change truth", () => {
       expect(sih).toContain("aria-label={CHANGE_UNAVAILABLE_TITLE}");
     });
 
+    /* FIFTH FINDING — CSS can silence a disclosure the markup renders, and
+     * every test in this file reads .tsx only.
+     *
+     * The commit that shipped the chrome-header fix was verified live and the
+     * element WAS there, with both attributes. The same DOM read also showed
+     * it at computed display:none, from globals.css:
+     *
+     *   @media (max-width: 639px)
+     *   .wm-chart-market-summary .wm-chart-header-change { display:none }
+     *
+     * That rule predates the change: it was written when the class only ever
+     * carried a REAL day change, where hiding a number on a narrow rail is
+     * ordinary semantic zoom. The changeAbsence work then routed the ABSENCE
+     * DISCLOSURE through the same class — so a rule about a number silently
+     * became a rule about a disclosure, on the PRIMARY device.
+     *
+     * I recorded it in that commit message as "a separate live defect and the
+     * next atom". MEASURING IT FALSIFIED THAT CLAIM. In the <=639px branch,
+     * MainChart's price row rendered the same sentence at display:block,
+     * 87x32px, carrying the same title. The absence is DEDUPLICATED on a
+     * phone, not silenced, and the CSS rule is correct.
+     *
+     * So the defect is not the rule. It is that the rule's correctness is a
+     * DEPENDENCY ON ANOTHER FILE recorded only in an English comment. Make
+     * MainChart's fallback conditional, or hide its row on phone too, and
+     * this rule turns a disclosure into a silent omission with nothing
+     * failing anywhere. These tests couple them.
+     */
+    it("the phone hide-rule still exists and is still explained", () => {
+      const css = fs.readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+      expect(css).toContain(".wm-chart-market-summary .wm-chart-header-change");
+      // The breadcrumb is what sends the next reader here. A rule that hides a
+      // disclosure must point at the site that keeps hiding it honest.
+      expect(css).toContain("chart-header-change-phone-hide-depends-on-mainchart");
+    });
+
+    it("the site the hide-rule depends on renders unconditionally", () => {
+      // MainChart's fallback must be an ELSE branch of the provider check —
+      // not itself gated on width, a flag, or a second condition. If this ever
+      // becomes conditional, the phone has no one left to say the absence.
+      expect(mainChart).toContain(": CHANGE_UNAVAILABLE_TEXT}");
+      expect(mainChart).not.toContain("&& CHANGE_UNAVAILABLE_TEXT");
+    });
+
+    it("nothing hides the chart's own price row on a phone", () => {
+      // The classes MainChart's disclosure actually carried when measured live.
+      // A future `display:none` on either, inside the same narrow media query,
+      // would remove the last visible statement of the absence.
+      const css = fs.readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+      const narrow = css.slice(css.indexOf("@media (max-width: 639px)"));
+      expect(narrow).not.toContain(".text-wm-textDim");
+      expect(narrow).not.toContain(".wm-chart-price-row");
+    });
+
     it("the price sentence does not overclaim what else is missing", () => {
       // The header having no live quote does NOT mean the chart has no
       // verified bar close — `deriveLastBarClose` often names one. Saying so

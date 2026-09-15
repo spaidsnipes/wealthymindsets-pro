@@ -260,6 +260,23 @@
     margin-right: 0 !important;
   }
 
+  /* CONDITIONAL ON A SECOND SITE — see chartHeaderChangeTruth.test.ts.
+     This rule hides the chrome header's change on a narrow rail. Since the
+     changeAbsence work, that element carries not only a real day change but
+     also the ABSENCE DISCLOSURE "— (change unavailable)". Hiding a disclosure
+     is only honest while some OTHER visible element still says it.
+
+     MEASURED LIVE on /charts, TSLA, in the <=639px branch: MainChart's price
+     row rendered the same sentence at display:block, 87x32px, carrying the
+     same title. So on a phone the absence is DEDUPLICATED, not silenced, and
+     this rule is correct semantic zoom rather than a regression.
+
+     That correctness is a DEPENDENCY, not a property of this rule. If
+     MainChart's fallback ever becomes conditional, or its row is hidden on
+     phone too, this rule turns a disclosure into a silent omission on the
+     primary device and nothing here would change. The Sentinel named below
+     couples the two so that edit cannot land quietly.
+     SENTINEL: chart-header-change-phone-hide-depends-on-mainchart */
   .wm-chart-market-summary .wm-chart-header-change {
     display: none !important;
   }
