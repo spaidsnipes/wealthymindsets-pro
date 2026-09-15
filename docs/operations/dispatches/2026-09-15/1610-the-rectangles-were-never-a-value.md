@@ -110,15 +110,76 @@ call reappears.
 
 ---
 
+---
+
+## LIVE OBSERVED — both sentences, on the Founder's production chart
+
+Verified by driving the Founder's authenticated Chrome against
+`https://wealthymindsetspro.com/charts`, TSLA 15m, with a `delta-vp` drawing
+loaded through the tool's own persistence path.
+
+**Before** (pre-`a7bd635` bundle, same box, same bars):
+
+> `Delta+VP — draw a wider box over bars`
+
+**After** (reload, current deploy):
+
+> `Delta+VP — no per-level tape for these bars (captured live only)`
+
+Same box. Same dimensions — roughly **548 × 142 CSS px**, an order of magnitude
+past both `DVP_MIN_BOX_W` (56) and `DVP_MIN_BOX_H` (26). The sentence changed
+because the *reason* changed, not because the box did. That is the whole atom,
+photographed.
+
+`a7bd635` and `fa4ef54` are now **live-confirmed by direct observation**, not by
+deploy identity.
+
+## The raster half: attempted, and honestly blocked
+
+With the refusal message proven, the obvious next move was to photograph an
+actual *profile* — the rectangles `dvpRowPaint` now owns. That requires
+per-level tape, which by the message's own definition means bars this chart
+watched live.
+
+So the box was repositioned over the live edge of the session and the page
+reloaded. It did not produce a profile, and the chart itself says why:
+
+- header symbol chip: `HISTORICAL BARS VERIFIED`
+- MARKET tile: `TSLA · 15m · 359.075 LAST 15m BAR CLOSE` / `UNAVAILABLE`
+- last bar: `LAST 09:00 AM`
+
+**There is no live per-trade tape on this feed right now.** This is the
+long-standing data constraint already on record (free REST is delayed; the WS
+proxy has no host on the current deployment target) — not a regression, and not
+something this atom introduced.
+
+The consequence is worth stating plainly, because it is the most useful fact in
+this dispatch:
+
+> **The RASTER half of the Live VP gate is blocked by exactly the condition the
+> new refusal message names.** The profile cannot be photographed until real
+> per-level tape exists. The message the trader now sees is not a workaround for
+> that blocker — it *is* an accurate report of it.
+
+Marking this lane **BLOCKED — awaiting a real per-trade tape source**, rather
+than substituting a synthetic footprint to make a screenshot possible. A
+synthesized profile would be a filled absence, which this build forbids by name.
+
+## Founder browser state
+
+The `wm_draw:v1:…:TSLA` key was backed up before the probe and restored to its
+exact prior value `"[]"`, verified by readback. The `:quarantine` sub-key
+created during an earlier probe was removed. All eight `wm_draw:` keys are back
+to `[]`.
+
 ## What these atoms do and do not claim
 
 - **CLAIMED:** the scalar arithmetic AND its composition into rectangles are now
   gated by 65 tests across the two Delta+VP files.
 - **CLAIMED:** two REVIVEs were performed by Edit and both failed by name.
-- **NOT CLAIMED:** that either changed surface has been **seen live**. At the
-  time of writing, production still serves `turbopack-0zhc-jmb6pzv7.js` — the
-  pre-`fa4ef54` bundle. Deploy identity is not observation, and neither is a
-  green push.
+- **CLAIMED:** the corrected refusal sentence renders on production. Observed.
+- **NOT CLAIMED:** that `dvpRowPaint`'s rectangles have been seen on a live
+  chart. They have not — no per-level tape exists to draw. See above.
 - **NOT CLAIMED:** that the RASTER is proven. Colour, alpha, stacking order and
   the clip remain the canvas's own and no test in this repo witnesses them.
   `deltaVPGeometry.ts` and its test header both say so, in those words.
