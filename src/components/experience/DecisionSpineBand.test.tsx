@@ -126,6 +126,7 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
     expect(html).toContain('data-testid="spine-canvas-summary"');
     expect(html).toContain('data-testid="canonical-canvas-verdict"');
     expect(html).not.toContain("border-top:1px solid rgba(139,106,41,0.16)");
+    expect(html).toContain("margin-top:auto");
     for (const label of ["Decision", "Now", "Market", "Risk", "Why", "Next"]) {
       expect(html).toContain(`>${label}<`);
     }
@@ -138,6 +139,7 @@ describe("DecisionSpineBand — the five surfaces are ON the scene", () => {
     expect(html).not.toContain('data-testid="spine-provenance-header"');
     expect(html).not.toContain('data-testid="spine-canvas-summary"');
     expect(html).not.toContain('data-testid="canonical-canvas-verdict"');
+    expect(html).not.toContain("margin-top:auto");
   });
 });
 

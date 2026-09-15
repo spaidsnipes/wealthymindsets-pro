@@ -334,7 +334,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         )}
       </div>
 
-      <div style={cellStyle}>
+      <div style={{ ...cellStyle, marginTop: rail ? "auto" : undefined }}>
         <span style={LABEL}>Next</span>
         <span style={VALUE} data-testid="spine-next">
           {expression ?? (oneStory ? oneStory.decision.value : "UNKNOWN")}
