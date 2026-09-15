@@ -2,9 +2,34 @@
  * indexBarFacts — the three cells of the bottom chart bar, each owning what it
  * is entitled to claim.
  *
- * Every chart screen carries this bar. It sits directly beneath the price
- * canvas and directly beside the US cash-session label a trader uses to decide
- * whether the market is open. Three defects lived in it.
+ * CORRECTION TO THE RECORD, MADE BEFORE ANYONE HAD TO ASK.
+ *
+ * The commit that introduced this file (b9aa3d1) said the broken clock "sits on
+ * every chart screen" and "was observed wrong on production today". THE FIRST
+ * HALF IS FALSE AND THE SECOND HALF IS OVERSTATED, and the correction belongs
+ * next to the code rather than buried in a message nobody re-reads.
+ *
+ * What was actually established: the EXACT arithmetic the component used —
+ * `now.getTime() + (-5) * 3600 * 1000` — was executed in the live production
+ * page context on 2026-09-15 and disagreed with America/New_York by one hour
+ * ({"barShows":"17:03","actualET":"18:03","agree":false}). That is a proof the
+ * CALCULATION is wrong. It is NOT a proof that a wrong number reached a screen.
+ *
+ * What the live DOM then showed: `BottomIndexBar` HAS ZERO PRODUCTION MOUNTS.
+ * No file imports it, no JSX renders it, and `chartsMarketFirst.test.ts` line 17
+ * actively FORBIDS it on /charts. A DOM read of production /charts found neither
+ * the flag glyph nor any clock string. The bar is an ORPHAN — the same class as
+ * executionConnectivity, and it must be described the same honest way:
+ *
+ *     THE DEFECT IS REAL AND THE FIX IS REAL. THE EXPOSURE WAS NOT.
+ *
+ * The fix still ships, because an orphan is one import away from a screen and a
+ * wrong clock is worse when nobody remembers it was ever wrong. But WM does not
+ * get to bank a production-defect claim it did not earn, and the surrounding
+ * text is written as if the bar WERE mounted only because that is what it would
+ * do if it were.
+ *
+ * Three defects lived in it.
  *
  * DEFECT ONE — A HARDCODED UTC OFFSET IS A CLAIM ABOUT THE CALENDAR.
  *

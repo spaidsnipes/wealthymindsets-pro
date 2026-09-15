@@ -134,6 +134,30 @@ describe("/charts bottom bar adoption", () => {
     expect(code).toContain("indexQuoteFact");
   });
 
+  it("× THE UNEARNED EXPOSURE CLAIM: the orphan status is disclosed in the owner", () => {
+    // b9aa3d1's message said this bar "sits on every chart screen". It does not:
+    // BottomIndexBar has ZERO production mounts. The defect was proven by running
+    // its arithmetic live; the EXPOSURE was never proven and must not be implied.
+    const owner = readFileSync(
+      join(process.cwd(), "src/lib/chart/indexBarFacts.ts"),
+      "utf8",
+    );
+    expect(owner).toMatch(/ZERO PRODUCTION MOUNTS/);
+    expect(owner).toMatch(/THE DEFECT IS REAL AND THE FIX IS REAL\. THE EXPOSURE WAS NOT\./);
+  });
+
+  it("× THE SILENT REMOUNT: mounting this bar must break this Sentinel by name", () => {
+    // If anyone ever renders <BottomIndexBar />, the orphan disclosure above stops
+    // being true. This test is the tripwire that forces it to be revisited.
+    const mounts = ["src/components/chart/ChartsDashboard.tsx"]
+      .map((p) => readFileSync(join(process.cwd(), p), "utf8"))
+      .filter((s) => s.includes("<BottomIndexBar"));
+    expect(
+      mounts,
+      "BottomIndexBar is now mounted — revisit the ORPHAN disclosure in indexBarFacts.ts",
+    ).toHaveLength(0);
+  });
+
   it("× THE SILENT TOOLTIP: every adopted cell carries its reason", () => {
     for (const name of ["quoteFact", "changeFact", "clockFact"]) {
       expect(code).toMatch(new RegExp(`${name}\\.reason`));
