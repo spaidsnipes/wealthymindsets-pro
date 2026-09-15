@@ -35,6 +35,12 @@ import { parseProfileTab, profileTabHref, type ProfileTab } from "@/lib/profileT
 import { loadPaperState } from "@/lib/paperTrade";
 import { paperPositionsToCsv } from "@/lib/paperPositionsExport";
 import { classifyTradeDirection, tradeDirectionBadge, type TradeDirectionBadge } from "@/lib/profile/tradeRowDirection";
+import {
+  riskMultipleFact,
+  tradePriceFact,
+  tradeSymbolFact,
+  type TradeRowFact,
+} from "@/lib/profile/tradeRowFacts";
 
 
 interface ProfileData {
@@ -53,7 +59,13 @@ const EMPTY_PROFILE: ProfileData = {
 /* `dir` is NOT a string that defaults to "LONG". A record that does not say
    which way the trader went gets a badge that says so — see
    src/lib/profile/tradeRowDirection.ts. */
-interface TradeRow { sym: string; dir: TradeDirectionBadge; entry: string; exit: string; pnl: string; rr: string; date: string; outcomeResolved: boolean; }
+/* `sym`, `entry`, `exit` and `rr` were all bare strings that could be "—".
+   They are FACTS now — text plus the reason it is that text — because the R:R
+   cell in particular said `—` while the P&L cell three pixels to its left said
+   the word "Unresolved" about the SAME condition, and because `t.rr != null`
+   admitted NaN and printed "NaNR" in measurement gold.
+   See src/lib/profile/tradeRowFacts.ts. */
+interface TradeRow { sym: TradeRowFact; dir: TradeDirectionBadge; entry: TradeRowFact; exit: TradeRowFact; pnl: string; rr: TradeRowFact; date: string; outcomeResolved: boolean; }
 interface LikedTrack { title: string; artist: string; duration: string; }
 
 const CIRCLE_OF_EXCELLENCE: { name: string; color: string; avatar: string }[] = [];
@@ -208,13 +220,14 @@ function ProfilePageInner() {
         ...journalRaw.filter(t => t.pnl !== undefined).map(t => {
           const outcomeResolved = hasResolvedTradeOutcome(t);
           const resolvedPnl = outcomeResolved && typeof t.pnl === "number" ? t.pnl : null;
+          const sym = tradeSymbolFact(t.symbol);
           return {
-            sym: t.symbol ?? "—",
+            sym,
             dir: tradeDirectionBadge(classifyTradeDirection(t.direction)),
-            entry: t.entryPrice != null ? String(t.entryPrice) : "—",
-            exit: t.exitPrice != null ? String(t.exitPrice) : "—",
+            entry: tradePriceFact(t.entryPrice, "entry", sym.text),
+            exit: tradePriceFact(t.exitPrice, "exit", sym.text),
             pnl: resolvedPnl !== null ? `${resolvedPnl >= 0 ? "+" : ""}$${Math.abs(resolvedPnl).toFixed(0)}` : "Unresolved",
-            rr: outcomeResolved && t.rr != null ? `${t.rr.toFixed(1)}R` : "—",
+            rr: riskMultipleFact(t.rr, outcomeResolved, sym.text),
             date: t.createdAt ? new Date(t.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—",
             outcomeResolved,
           };
@@ -222,13 +235,14 @@ function ProfilePageInner() {
         ...paperTrades.filter(t => t.pnl !== undefined).map(t => {
           const outcomeResolved = hasResolvedTradeOutcome(t);
           const resolvedPnl = outcomeResolved && typeof t.pnl === "number" ? t.pnl : null;
+          const sym = tradeSymbolFact(t.symbol);
           return {
-            sym: t.symbol ?? "—",
+            sym,
             dir: tradeDirectionBadge(classifyTradeDirection(t.side)),
-            entry: t.entryPrice != null ? String(t.entryPrice) : "—",
-            exit: t.exitPrice != null ? String(t.exitPrice) : "—",
+            entry: tradePriceFact(t.entryPrice, "entry", sym.text),
+            exit: tradePriceFact(t.exitPrice, "exit", sym.text),
             pnl: resolvedPnl !== null ? `${resolvedPnl >= 0 ? "+" : ""}$${Math.abs(resolvedPnl).toFixed(0)}` : "Unresolved",
-            rr: outcomeResolved && t.rr != null ? `${t.rr.toFixed(1)}R` : "—",
+            rr: riskMultipleFact(t.rr, outcomeResolved, sym.text),
             date: t.closedAt ? new Date(t.closedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—",
             outcomeResolved,
           };
@@ -854,7 +868,12 @@ function ProfilePageInner() {
               ) : recentTrades.map((t, i) => (
                 <div key={i} className="glass rounded-xl p-3 flex items-center gap-4 hover:border-wm-border/80 transition-all">
                   <div className="text-xs font-mono text-wm-text-muted w-16 shrink-0">{t.date}</div>
-                  <div className="font-bold text-wm-text w-14 shrink-0">{t.sym}</div>
+                  <div
+                    className={clsx("font-bold w-14 shrink-0",
+                      t.sym.state === "MEASURED" ? "text-wm-text" : "text-wm-text-dim text-[10px] leading-tight")}
+                    title={t.sym.reason}
+                    aria-label={t.sym.reason}
+                  >{t.sym.text}</div>
                   {/* THREE-WAY, not binary. A direction WM cannot read earns
                       neither the long colour nor the short one. */}
                   <span
@@ -867,8 +886,8 @@ function ProfilePageInner() {
                   >
                     {t.dir.text}
                   </span>
-                  <div className="text-xs text-wm-text-muted hidden sm:block">Entry: <span className="text-wm-text font-mono">{t.entry}</span></div>
-                  <div className="text-xs text-wm-text-muted hidden sm:block">Exit: <span className="text-wm-text font-mono">{t.exit}</span></div>
+                  <div className="text-xs text-wm-text-muted hidden sm:block" title={t.entry.reason}>Entry: <span className={clsx("font-mono", t.entry.state === "MEASURED" ? "text-wm-text" : "text-wm-text-dim")} aria-label={t.entry.reason}>{t.entry.text}</span></div>
+                  <div className="text-xs text-wm-text-muted hidden sm:block" title={t.exit.reason}>Exit: <span className={clsx("font-mono", t.exit.state === "MEASURED" ? "text-wm-text" : "text-wm-text-dim")} aria-label={t.exit.reason}>{t.exit.text}</span></div>
                   <div className="ml-auto flex items-center gap-3">
                     <span
                       className={clsx(
@@ -879,7 +898,15 @@ function ProfilePageInner() {
                     >
                       {t.pnl}
                     </span>
-                    <span className="text-xs text-wm-gold font-semibold">{t.rr}</span>
+                    {/* GOLD IS A CLAIM. Only a figure WM actually holds earns
+                        the measurement colour — the old cell painted `—`, and
+                        would have painted "NaNR", in exactly this gold. */}
+                    <span
+                      className={clsx("text-xs font-semibold",
+                        t.rr.state === "MEASURED" ? "text-wm-gold" : "text-wm-text-dim")}
+                      title={t.rr.reason}
+                      aria-label={`Risk multiple: ${t.rr.text}. ${t.rr.reason}`}
+                    >{t.rr.text}</span>
                   </div>
                 </div>
               ))}
