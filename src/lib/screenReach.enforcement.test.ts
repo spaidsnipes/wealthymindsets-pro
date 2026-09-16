@@ -531,28 +531,47 @@ const UNREACHED_COMPONENTS: readonly string[] = FILES.filter(
  * the honest thing that is known today.
  *
  * Where a component HAS been triaged, the finding is annotated inline below.
- * SIX of the fourteen are annotated so far, and every single one turned out to
- * be FINISHED WORK rather than debt — a mount someone deliberately took away,
- * in each case with a Sentinel shipped in the same commit to hold it away.
  *
- * Six for six is the finding. The prior assumption — that an unreferenced
- * component is an unfinished one — has now been wrong every time it was
- * actually checked. Treat "no route renders this" as a QUESTION, never as a
- * diagnosis.
+ * AND A CORRECTION OF THIS DOCBLOCK, BY THE PASS THAT FINISHED THE TRIAGE.
  *
- * All six were found the same way, and it is the cheapest check in this file:
+ * After the first six this docblock read "six for six… the prior assumption
+ * has now been wrong every time it was actually checked." Then the remaining
+ * orphans were checked, and they broke the streak — flatly. SEVEN of the last
+ * eight have exactly ONE commit in their history: the commit that created
+ * them. No mount was ever added anywhere, so none was ever taken away. They
+ * are BORN ORPHANS, and born orphans really are debt.
+ *
+ * So the honest finding is not a rule in either direction. It is this:
+ *
+ *     THE IMPORT GRAPH REPORTS "RETIRED" AND "NEVER FINISHED" IDENTICALLY.
+ *     ONLY HISTORY SEPARATES THEM, AND IT SEPARATES THEM EVERY TIME.
+ *
+ * Six retirements and seven born orphans looked EXACTLY the same from the
+ * graph. A streak of six was not a pattern, it was a sampling order — the
+ * retirements happened to be the ones with the loudest names. Generalising
+ * from six was the same species of mistake as the claim this file's own
+ * baton was written to correct: a confident conclusion from a real
+ * measurement that did not cover the cases it was quantified over.
+ *
+ * The cheapest check in this file is unchanged and is the whole point:
  *
  *     RUN `git log` ON THE COMPONENT BEFORE DECIDING IT IS MISSING SOMETHING.
  *
- * The import graph cannot tell a mount that was never made from a mount that
- * was deliberately taken away. It reports both as "no route renders this", and
- * the second one is a decision someone already made on purpose.
+ * With one refinement bought by the same pass — a file's OWN history does not
+ * contain its mount. The mount lives in the route that imported it. To ask
+ * whether anything ever mounted it, ask the graph's history, not the file's:
+ *
+ *     git log -S"<ComponentName>" -- src/app src/components
+ *
+ * One hit means the creating commit and nothing since: born orphan.
  *
  * Removing a name from this list is always correct — it means a route finally
  * renders it, or it was deleted.
  */
 const KNOWN_ORPHAN_COMPONENTS: readonly string[] = [
-  "src/components/ErrorBoundary.tsx",
+  // BORN ORPHAN — one commit, cb94204, and nothing has ever imported it.
+  // `git log -S"ExecutionReceiptCard" -- src/app src/components` returns that
+  // one commit. Real debt: mount it or delete it.
   "src/components/authority/ExecutionReceiptCard.tsx",
   // RETIRED in 1677698 ("remove decorative decision chrome"). Locked by
   // src/lib/responsiveShell.test.ts: `expect(deck).not.toContain(...)`.
@@ -563,6 +582,8 @@ const KNOWN_ORPHAN_COMPONENTS: readonly string[] = [
   // the mount was PRESENT to asserting it is ABSENT. Re-mounting restores the
   // duplication. A DEFAULT IS A CLAIM, and so is a second one of anything.
   "src/components/chart/BottomIndexBar.tsx",
+  // BORN ORPHAN — one commit, 543f3f4, which built it alongside work that DID
+  // ship. Nothing has ever imported it. Real debt.
   "src/components/chart/ConnectedStoryRibbon.tsx",
   // RETIRED in 777665d ("Keep order flow behind Smart Money"). Locked by
   // src/lib/experience/chartsMarketFirst.test.ts and
@@ -570,10 +591,18 @@ const KNOWN_ORPHAN_COMPONENTS: readonly string[] = [
   // SmartMoneyPanel to exactly ONE occurrence — so the order-flow story has
   // one owner on this room and cannot be told twice.
   "src/components/chart/OrderFlowCockpitStrip.tsx",
+  // BORN ORPHAN, and the one that looks least like one: its OWN history has
+  // six commits (f976a7f, 77916c7, 51e9e68, 0011021, aca6435, 22bdb14), so a
+  // file-level `git log` reads as a long-maintained component. But
+  // `git log -S"TimeframeSelector" -- src/app src/components` returns ONE
+  // commit — its creation. Six commits of upkeep on something no route has
+  // ever rendered. A FILE'S OWN HISTORY IS NOT ITS MOUNT'S HISTORY.
   "src/components/chart/TimeframeSelector.tsx",
   // RETIRED PER FOUNDER SPEC in 89a350e, not untriaged. Held retired by
   // src/lib/sessionVpRetired.test.ts. Do not "fix" this by mounting it.
   "src/components/chart/WMSessionVP.tsx",
+  // BORN ORPHAN — one commit, 8030f0a ("X9 — compact verdict-only chip"). It
+  // was built FOR tight surfaces and then no tight surface took it. Real debt.
   "src/components/experience/CanvasBadgeMini.tsx",
   // RETIRED in 6ae33ea ("keep private market plumbing out of navigation") —
   // a private collection concept had climbed into the GLOBAL header, where it
@@ -588,8 +617,21 @@ const KNOWN_ORPHAN_COMPONENTS: readonly string[] = [
   // src/lib/experience/openingBellPrep.test.ts (× THE SUPERSEDED PANEL).
   // Re-mounting this does not duplicate work; it restores the defect.
   "src/components/opening-bell/OpeningBellPanel.tsx",
+  // BORN ORPHANS, and the most interesting pair, because they are GUARDED
+  // orphans. 42081c4 and e43d84f built them as canon single-writers, and
+  // db26ebc then shipped
+  // src/components/systemHealth/FailureStateChip.enforcement.test.ts and
+  // src/components/truthStatus/TruthStatusChip.enforcement.test.ts, which
+  // forbid any OTHER file from hand-rolling their label vocabulary as visible
+  // chip text. Those locks are real and they pass — but they pass by forbidding
+  // the vocabulary everywhere, and the chips that were supposed to own it are
+  // mounted nowhere. A SINGLE-WRITER LOCK OVER AN UNMOUNTED WRITER GUARANTEES
+  // THE LABELS ARE SHOWN BY NOBODY. Do not read those locks as evidence these
+  // chips are live. Real debt: mount them, or retire the pair with their locks.
   "src/components/systemHealth/FailureStateChip.tsx",
   "src/components/truthStatus/TruthStatusChip.tsx",
+  // BORN ORPHAN — 7ad6b2a built it as a UI primitive; ca91422 only touched a
+  // reference while retiring broken test scaffolds. No route has rendered it.
   "src/components/ui/HeroNumber.tsx",
 ];
 
