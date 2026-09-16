@@ -5,6 +5,7 @@ import type {
   ATHOSVerdict,
 } from "@/lib/traderMemory/viewModels/selectATHOSIntervention";
 import { rankInterventions } from "@/lib/traderMemory/viewModels/selectATHOSIntervention";
+import { WM } from "@/lib/design/wmTokens";
 
 /**
  * ATHOSInterventionPanel — the ATHOS silent-mode consumer.
@@ -25,7 +26,11 @@ import { rankInterventions } from "@/lib/traderMemory/viewModels/selectATHOSInte
  */
 
 const VERDICT_STYLES: Record<ATHOSVerdict, { text: string; border: string; glyph: string; label: string }> = {
-  NONE:      { text: "#5A6575", border: "rgba(90,101,117,0.3)", glyph: "○", label: "Quiet" },
+  // "Quiet" is the verdict that says ATHOS observed and found nothing worth
+  // saying. That is a FINDING, and it was painted #5A6575 — 3.55:1 at best,
+  // below AA on every surface. Silence being a feature does not make silence
+  // unreadable. `muted` is the floor for any statement about absence.
+  NONE:      { text: WM.text.muted, border: "rgba(90,101,117,0.3)", glyph: "○", label: "Quiet" },
   NOTICE:    { text: "#8892A0", border: "rgba(136,146,160,0.4)", glyph: "•", label: "Notice" },
   ADVISORY:  { text: "#F0B429", border: "rgba(240,180,41,0.4)", glyph: "◐", label: "Advisory" },
   CAUTION:   { text: "#FF7A45", border: "rgba(255,122,69,0.5)", glyph: "!", label: "Caution" },

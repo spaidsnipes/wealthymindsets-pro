@@ -47,7 +47,33 @@ const config: Config = {
           purple:  "#8B5CF6",
           text:    "#E8EDF3",
           "text-muted": "#8B95A5",
-          "text-dim":   "#5A6575",
+          /**
+           * RECONCILED — this is `WM.text.muted` from the canonical owner.
+           *
+           * It used to be slate `#5A6575`, and at that value it failed WCAG AA
+           * on EVERY surface in this scale: 3.55 on black, 3.19 on surface,
+           * 3.06 on card, and 2.69 / 2.03 on border / muted — the last two
+           * below even the 3:1 floor that applies to non-text UI. 622 class
+           * instances carried text in it.
+           *
+           * It could not be fixed by nudging, for the same arithmetic reason
+           * documented in wmTokens.ts: a fourth AA-legal text rung does not fit
+           * on near-black. So the bottom rung was not nudged — it was moved
+           * ONTO the canonical rung that is already proven legible here:
+           *   black 5.51 · dark 5.20 · surface 4.96 · card 4.75  (AA)
+           *   border 4.18 · muted 3.15                           (see below)
+           *
+           * The two that still miss AA are `bg-wm-border` (15 uses) and
+           * `bg-wm-muted` (8 uses) — bars and chips, not content surfaces. They
+           * are named here rather than rounded off. The 513 real content
+           * backgrounds all clear.
+           *
+           * This is the FIRST entry of the two-owner reconciliation, taken
+           * ahead of the rest because leaving it was an accessibility defect,
+           * not a style preference. It reduces the divergence; it does not
+           * mint a third value. See tokenOwnership.enforcement.test.ts.
+           */
+          "text-dim":   "#8a8271",
         },
         // Shadcn compat
         background: "hsl(var(--background))",

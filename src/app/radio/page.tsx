@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { WM } from "@/lib/design/wmTokens";
 import { useRadio } from "@/contexts/RadioContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
@@ -732,7 +733,10 @@ function UploadModal({ onClose, onAdd, uploader }: {
             {(["file","url"] as const).map(m => (
               <button key={m} onClick={() => setMode(m)}
                 className="flex-1 py-1.5 rounded-lg text-[12px] font-bold transition-all"
-                style={mode===m ? { background:"#00D4AA", color:"#000" } : { color:"#5A6575" }}>
+                // The UNSELECTED tab still has to be readable — it is the
+                // control that tells you the other mode exists. #5A6575 was
+                // 3.55:1 at best; `muted` is the floor for a live control.
+                style={mode===m ? { background:"#00D4AA", color:"#000" } : { color: WM.text.muted }}>
                 {m === "file" ? "Upload File" : "Paste URL"}
               </button>
             ))}

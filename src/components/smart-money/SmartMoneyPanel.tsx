@@ -9,6 +9,7 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { getFabioInsights, inferAssetClass } from "@/lib/fabio";
 import { evaluateClcEvidence } from "@/lib/decisionIntegrity";
 import { hasVerifiedAggressorTape } from "@/lib/marketData/capabilityRegistry";
+import { WM } from "@/lib/design/wmTokens";
 import {
   selectAggressorFlow,
   type AggressorFlowSnapshot,
@@ -172,7 +173,11 @@ const SIGNAL_COLOR: Record<SignalStrength, string> = {
   strong:   "#00D4AA",
   moderate: "#F0B429",
   weak:     "#8B95A5",
-  neutral:  "#5A6575",
+  // `neutral` is "we looked and the tape is not leaning" — the same class of
+  // truth as ATHOS's "Quiet". It was #5A6575 (3.06–3.55:1, below AA on every
+  // surface), so the one signal state that says NOTHING IS HAPPENING was the
+  // one a trader could not read.
+  neutral:  WM.text.muted,
 };
 
 const SECTIONS = [
