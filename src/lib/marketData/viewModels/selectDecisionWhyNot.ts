@@ -47,8 +47,44 @@ export interface DecisionWhyVM {
   readonly clear: boolean;
   /** One honest line describing the verdict. */
   readonly headline: string;
-  /** Concrete causes the verdict is not ACTION, ordered by severity. */
+  /**
+   * Concrete causes the verdict is not ACTION, ordered by severity.
+   *
+   * A **SAMPLE**, not a census. Evidence blockers are built one-per-label from
+   * `debt.missingLabels` / `debt.warnLabels`, which `computeEvidenceDebt` caps
+   * at EVIDENCE_LABEL_SAMPLE_LIMIT (3). NEVER use `.length` as the count of
+   * blockers — use {@link blockerCount}.
+   */
   readonly blockers: readonly WhyBlocker[];
+  /**
+   * The authoritative number of blockers. Never capped.
+   *
+   * ── The count that was a sample size (2026-09-16, found by USE) ───────────
+   *
+   * Measured live on the deck, both in the same column:
+   *
+   *     WHY · DECISION EVIDENCE       6 BLOCKERS
+   *     03 EVIDENCE DEBT              0 of 9 paid
+   *
+   * Unlike the two-counts atoms before it, this is NOT two correct owners of
+   * different sets. `blockers` was built by looping `missingLabels` and
+   * `warnLabels` — both capped at 3 — so `blockers.length` maxes out at 6 plus
+   * rules. The 6 was the CAP, wearing the clothes of a measurement. Nine unpaid
+   * nodes and nine again would have read 6.
+   *
+   * The codebase already knew: `EvidenceDebt.missingLabels` is documented
+   * "TRUNCATED — never use `.length` as a count of missing evidence", and
+   * `hiddenRemainder()` exists because the identical defect was fixed in the
+   * evidence strip on 2026-09-03. This is that defect's fourth head — the
+   * arithmetic was restated by hand at a new site instead of derived once.
+   *
+   * So the count is derived from the authoritative totals (`debt.missing`,
+   * `debt.warn`, engaged rule kinds, contradiction) and published as its own
+   * field. Surfaces print THIS and disclose the remainder with
+   * `hiddenRemainder()`; the list stays a sample, which is all a row of detail
+   * ever needed to be.
+   */
+  readonly blockerCount: number;
   /** What IS satisfied — the affirmative side of the ledger. */
   readonly clearances: readonly string[];
   /**
@@ -101,6 +137,7 @@ export function selectDecisionWhyNot(
       clear: false,
       headline: "No decision compiled yet — the engine has not resolved right-of-way.",
       blockers: [],
+      blockerCount: 0,
       clearances: [],
       invalidators: [],
     };
@@ -182,6 +219,17 @@ export function selectDecisionWhyNot(
 
   blockers.sort((a, b) => KIND_RANK[a.kind] - KIND_RANK[b.kind]);
 
+  // The authoritative count. Each term mirrors EXACTLY the branch above that
+  // pushes its kind, except that the two evidence terms read the uncapped
+  // totals instead of the capped label arrays. Derived here, once, so no
+  // surface has to restate the arithmetic — that hand-restating is what let
+  // this defect grow four heads. See `blockerCount` on DecisionWhyVM.
+  const blockerCount =
+    engaged.filter((ev) => ev.rule.kind === "HARD").length +
+    (oneStory.contradiction ? 1 : 0) +
+    (debt ? debt.missing + debt.warn : oneStory.missing ? 1 : 0) +
+    engaged.filter((ev) => ev.rule.kind === "SOFT").length;
+
   // canon §Phase 3 Market Canvas — WHAT WOULD INVALIDATE.
   // Only meaningful for ACTION verdicts (the trader is about to place;
   // they need to know which observation would flip the verdict). For
@@ -215,6 +263,7 @@ export function selectDecisionWhyNot(
     clear: verdict === "ACTION",
     headline: HEADLINE[verdict],
     blockers,
+    blockerCount,
     clearances,
     invalidators,
   };

@@ -10,10 +10,11 @@ import {
   DECISION_WHY_VERSION,
 } from "./selectDecisionWhyNot";
 import type { OneStoryVM } from "./selectOneStory";
-import type {
-  RightOfWay,
-  RightOfWayReading,
-  EvidenceDebt,
+import {
+  computeEvidenceDebt,
+  type RightOfWay,
+  type RightOfWayReading,
+  type EvidenceDebt,
 } from "./decisionPermissionCompiler";
 import type {
   PermissionVM,
@@ -193,5 +194,138 @@ describe("selectDecisionWhyNot", () => {
       const vm = selectDecisionWhyNot(story({ decision: reading("ACTION"), debt: debt([], [], 9, 9) }));
       expect(vm.invalidators.some((s) => /HARD trader rule/i.test(s))).toBe(false);
     });
+  });
+});
+
+/**
+ * ── A COUNT MAY NOT BE A SAMPLE SIZE ──────────────────────────────────────
+ *
+ * Measured live on /command-deck (2026-09-16), both in the same column:
+ *
+ *     WHY · DECISION EVIDENCE       6 BLOCKERS
+ *     03 EVIDENCE DEBT              0 of 9 paid
+ *
+ * `blockers` is built one-per-label from `debt.missingLabels` /
+ * `debt.warnLabels`, which `computeEvidenceDebt` caps at
+ * EVIDENCE_LABEL_SAMPLE_LIMIT (3). So `blockers.length` maxed out at 6 and the
+ * rail printed the CAP as if it were a measurement. Nine unpaid nodes and
+ * ninety would both have read 6.
+ *
+ * This is the fourth head of the defect `hiddenRemainder()` was written for on
+ * 2026-09-03 — the arithmetic restated by hand at a new site instead of derived
+ * once. `blockerCount` is derived from the uncapped totals; surfaces print it.
+ */
+describe("selectDecisionWhyNot — A COUNT MAY NOT BE A SAMPLE SIZE", () => {
+  // 9 unpaid nodes, exactly the live shape. `computeEvidenceDebt` caps the
+  // LABELS at 3; `missing` stays 9. Built through the real compiler rather than
+  // a hand-written fixture, so the cap under test is the shipped cap.
+  const nineUnpaid = () =>
+    computeEvidenceDebt(
+      Array.from({ length: 9 }, (_, i) => ({
+        key: `n${i}`,
+        label: `node-${i}`,
+        verdict: "UNKNOWN",
+        resolution: "UNKNOWN" as const,
+        narrative: "",
+        indicator: "UNKNOWN" as const,
+      })),
+    )!;
+
+  it("counts the 9 unpaid nodes, not the 3 labels it kept", () => {
+    const d = nineUnpaid();
+    expect(d.missing).toBe(9);
+    expect(d.missingLabels).toHaveLength(3); // the cap, for reference
+
+    const vm = selectDecisionWhyNot(story({ decision: reading("WAIT"), debt: d }));
+    expect(vm.blockerCount).toBe(9);
+    // The list stays a sample — that is what a row of detail is for.
+    expect(vm.blockers).toHaveLength(3);
+    // The exact live defect: the count must never equal the sample size here.
+    expect(vm.blockerCount).not.toBe(vm.blockers.length);
+  });
+
+  it("counts warn nodes too — a capped warn bucket cannot hide either", () => {
+    const d = computeEvidenceDebt(
+      Array.from({ length: 7 }, (_, i) => ({
+        key: `w${i}`,
+        label: `warn-${i}`,
+        verdict: "WARN",
+        resolution: "UNKNOWN" as const,
+        narrative: "",
+        indicator: "WARN" as const,
+      })),
+    )!;
+    const vm = selectDecisionWhyNot(story({ decision: reading("WAIT"), debt: d }));
+    expect(d.warn).toBe(7);
+    expect(vm.blockerCount).toBe(7);
+    expect(vm.blockers).toHaveLength(3);
+  });
+
+  /**
+   * The Orkin guard. The bug is not "missingLabels" and not "warnLabels" — it
+   * is counting ANY list that a cap can shorten. So the invariant is asserted
+   * across the cross-product of both buckets, at and either side of the cap,
+   * rather than at the one shape that was observed live. A fifth head cannot
+   * come back through the neighbour.
+   */
+  it("blockerCount always equals the true total across the missing × warn grid", () => {
+    for (const nMissing of [0, 1, 3, 4, 9]) {
+      for (const nWarn of [0, 1, 3, 4, 9]) {
+        const nodes = [
+          ...Array.from({ length: nMissing }, (_, i) => ({
+            key: `m${i}`, label: `m-${i}`, verdict: "UNKNOWN",
+            resolution: "UNKNOWN" as const, narrative: "", indicator: "UNKNOWN" as const,
+          })),
+          ...Array.from({ length: nWarn }, (_, i) => ({
+            key: `w${i}`, label: `w-${i}`, verdict: "WARN",
+            resolution: "UNKNOWN" as const, narrative: "", indicator: "WARN" as const,
+          })),
+        ];
+        const d = computeEvidenceDebt(nodes);
+        const label = `missing=${nMissing} warn=${nWarn}`;
+        if (!d) {
+          expect(nMissing + nWarn, label).toBe(0);
+          continue;
+        }
+        const vm = selectDecisionWhyNot(story({ decision: reading("WAIT"), debt: d }));
+        expect(vm.blockerCount, label).toBe(nMissing + nWarn);
+        // The count is never SHORT of what is displayed, either — an
+        // under-count would be the same lie pointing the other way.
+        expect(vm.blockerCount, label).toBeGreaterThanOrEqual(vm.blockers.length);
+      }
+    }
+  });
+
+  it("adds engaged rules and an active contradiction to the same total", () => {
+    const vm = selectDecisionWhyNot(
+      story({
+        decision: reading("NO TRADE"),
+        contradiction: "Direction opposes structure.",
+        debt: nineUnpaid(),
+      }),
+      permission([ruleEval("HARD", "Daily loss cap", "hit"), ruleEval("SOFT", "Low volume", "thin")], 6),
+    );
+    // 1 HARD + 1 contradiction + 9 unpaid + 1 SOFT.
+    expect(vm.blockerCount).toBe(12);
+  });
+
+  it("agrees with the list exactly when nothing was capped", () => {
+    const d = computeEvidenceDebt([
+      { key: "a", label: "regime", verdict: "UNKNOWN", resolution: "UNKNOWN", narrative: "", indicator: "UNKNOWN" },
+      { key: "b", label: "direction", verdict: "UNKNOWN", resolution: "UNKNOWN", narrative: "", indicator: "UNKNOWN" },
+    ])!;
+    const vm = selectDecisionWhyNot(story({ decision: reading("WAIT"), debt: d }));
+    expect(vm.blockerCount).toBe(2);
+    expect(vm.blockerCount).toBe(vm.blockers.length);
+  });
+
+  it("is 0 when nothing compiled — a null story cannot claim blockers", () => {
+    expect(selectDecisionWhyNot(null).blockerCount).toBe(0);
+  });
+
+  it("is 0 on a clean ACTION verdict", () => {
+    const vm = selectDecisionWhyNot(story({ decision: reading("ACTION"), debt: debt([], [], 9, 9) }));
+    expect(vm.blockerCount).toBe(0);
+    expect(vm.blockers).toEqual([]);
   });
 });

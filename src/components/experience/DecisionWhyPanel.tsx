@@ -81,6 +81,18 @@ export function DecisionWhyPanel({ vm }: DecisionWhyPanelProps): React.ReactElem
               </span>
             </div>
           ))}
+          {/* `vm.blockers` is a SAMPLE — its evidence entries come from label
+              arrays computeEvidenceDebt caps at 3 per bucket. Rendering it
+              without naming the shortfall reads as a complete list of what is
+              holding the trade. Name the remainder; never absorb it. */}
+          {vm.blockerCount > vm.blockers.length && (
+            <div
+              data-testid="decision-why-blockers-remainder"
+              style={{ fontSize: 10, color: MUTED, lineHeight: 1.4, fontStyle: "italic", paddingTop: 2 }}
+            >
+              +{vm.blockerCount - vm.blockers.length} more blocking, not named here
+            </div>
+          )}
         </div>
       )}
 

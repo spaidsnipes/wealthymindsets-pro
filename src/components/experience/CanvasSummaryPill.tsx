@@ -55,7 +55,7 @@ export function CanvasSummaryPill({
     vm.hasSnapshot ||
     vm.verdict !== "UNKNOWN" ||
     vm.missing.length > 0 ||
-    vm.blockers.length > 0 ||
+    vm.blockerCount > 0 ||
     vm.invalidators.length > 0;
   if (!hasAnything) return null;
 
@@ -74,8 +74,10 @@ export function CanvasSummaryPill({
   // explains WHY a trade is refused undercuts the refusal itself.
   const parts: string[] = [];
   if (vm.missing.length > 0) parts.push(`${vm.missing.length} unresolved`);
-  if (vm.blockers.length > 0) {
-    parts.push(`${vm.blockers.length} ${vm.blockers.length === 1 ? "blocker" : "blockers"}`);
+  // COUNT from `blockerCount`, never from `blockers.length` — the list is a
+  // sample capped at 3 labels per evidence bucket. See DecisionWhyVM.
+  if (vm.blockerCount > 0) {
+    parts.push(`${vm.blockerCount} ${vm.blockerCount === 1 ? "blocker" : "blockers"}`);
   }
   if (vm.clearances.length > 0) parts.push(`${vm.clearances.length} cleared`);
   if (vm.invalidators.length > 0) parts.push(`${vm.invalidators.length} would-invalidate`);
@@ -100,12 +102,23 @@ export function CanvasSummaryPill({
   if (vm.headline) tooltipLines.push("", vm.headline);
   // The tooltip is a summary by design, but it must say how much it is
   // withholding — an unmarked truncation reads as a complete list.
-  const withRemainder = (items: readonly string[], shown: number): string[] => {
+  //
+  // `total` defaults to the array length, but MUST be passed explicitly when
+  // the array is already a capped sample — otherwise the remainder is computed
+  // against the cap and reports "+0 more" while real items are withheld. That
+  // is the same lie as an unmarked truncation, arrived at by arithmetic.
+  const withRemainder = (
+    items: readonly string[],
+    shown: number,
+    total: number = items.length,
+  ): string[] => {
     const lines = items.slice(0, shown).map((x) => `  · ${x}`);
-    if (items.length > shown) lines.push(`  · +${items.length - shown} more — open the canvas`);
+    if (total > shown) lines.push(`  · +${total - shown} more — open the canvas`);
     return lines;
   };
-  if (vm.blockers.length > 0) tooltipLines.push("", `Why not (${vm.blockers.length}):`, ...withRemainder(vm.blockers, 3));
+  if (vm.blockerCount > 0) {
+    tooltipLines.push("", `Why not (${vm.blockerCount}):`, ...withRemainder(vm.blockers, 3, vm.blockerCount));
+  }
   if (vm.invalidators.length > 0) tooltipLines.push("", `Would invalidate (${vm.invalidators.length}):`, ...withRemainder(vm.invalidators, 3));
   if (vm.missing.length > 0) {
     tooltipLines.push(

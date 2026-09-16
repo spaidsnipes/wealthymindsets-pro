@@ -65,8 +65,19 @@ export interface MarketCanvasVM {
   /**
    * The WHY NOT panel — blocker labels from the compiled DecisionWhy.
    * Ordered by severity (HARD_RULE first). Empty on ACTION.
+   *
+   * A SAMPLE, not a census — the evidence entries come from label arrays
+   * `computeEvidenceDebt` caps at 3. Never count it; use {@link blockerCount}
+   * and disclose the difference with `hiddenRemainder()`.
    */
   readonly blockers: readonly string[];
+  /**
+   * The authoritative blocker total, forwarded verbatim from
+   * `DecisionWhyVM.blockerCount`. Never capped. The deck rendered
+   * `6 BLOCKERS` against its own `0 of 9 paid` because every surface counted
+   * the sample instead — see that field for the full reading.
+   */
+  readonly blockerCount: number;
   /**
    * The CLEARED panel — affirmative ledger from the compiled
    * DecisionWhy. Names each check that IS satisfied (e.g., "No active
@@ -122,6 +133,7 @@ export function selectMarketCanvas(
   const verdict = whyNot?.verdict ?? "UNKNOWN";
   const clear = whyNot?.clear === true;
   const blockers = whyNot ? whyNot.blockers.map((b) => b.label) : [];
+  const blockerCount = whyNot ? whyNot.blockerCount : 0;
   const clearances = whyNot ? [...whyNot.clearances] : [];
   const invalidators = whyNot ? [...whyNot.invalidators] : [];
 
@@ -142,6 +154,7 @@ export function selectMarketCanvas(
     missing,
     resolved,
     blockers,
+    blockerCount,
     clearances,
     invalidators,
     hasSnapshot,

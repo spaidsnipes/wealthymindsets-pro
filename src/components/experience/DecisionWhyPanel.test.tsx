@@ -23,6 +23,9 @@ function vm(over: Partial<DecisionWhyVM> = {}): DecisionWhyVM {
     clearances: [],
     invalidators: [],
     ...over,
+    // Fixtures are not capped, so the honest default is the sample size. An
+    // explicit blockerCount override models the CAPPED case.
+    blockerCount: over.blockerCount ?? (over.blockers ?? []).length,
   };
 }
 

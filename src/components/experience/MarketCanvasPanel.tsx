@@ -45,7 +45,7 @@ export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): Re
   const anyBodyPresent =
     vm.missing.length > 0 ||
     vm.resolved.length > 0 ||
-    vm.blockers.length > 0 ||
+    vm.blockerCount > 0 ||
     vm.clearances.length > 0 ||
     vm.invalidators.length > 0;
 
@@ -80,7 +80,7 @@ export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): Re
       {vm.resolved.length > 0 && (
         <div
           data-testid="market-canvas-resolved"
-          style={{ marginBottom: (vm.missing.length || vm.blockers.length || vm.invalidators.length) ? 10 : 0 }}
+          style={{ marginBottom: (vm.missing.length || vm.blockerCount || vm.invalidators.length) ? 10 : 0 }}
         >
           {/* canon §Phase 3 Market Canvas — RESOLVED. Symmetric to
               MISSING: names each canonical dimension the snapshot has
@@ -98,7 +98,7 @@ export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): Re
       {vm.missing.length > 0 && (
         <div
           data-testid="market-canvas-missing"
-          style={{ marginBottom: (vm.blockers.length || vm.invalidators.length) ? 10 : 0 }}
+          style={{ marginBottom: (vm.blockerCount || vm.invalidators.length) ? 10 : 0 }}
         >
           {/* These are state.unknowns — canonical DIMENSIONS that have not
               resolved. They do not gate the verdict; blockers do. "Missing"
@@ -116,20 +116,34 @@ export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): Re
         </div>
       )}
 
-      {vm.blockers.length > 0 && (
+      {vm.blockerCount > 0 && (
         <div
           data-testid="market-canvas-blockers"
           style={{ marginBottom: (vm.clearances.length || vm.invalidators.length) ? 10 : 0 }}
         >
           <div style={{ fontSize: 9, letterSpacing: 0.5, color: "#e07b5c", marginBottom: 4, textTransform: "uppercase" }}>
-            Why not ({vm.blockers.length})
+            Why not ({vm.blockerCount})
           </div>
-          {/* Every blocker renders. The header already disclosed the count,
-              but a blocker the trader cannot READ is one they cannot clear —
-              and these are the reasons not to put money at risk. */}
+          {/* The header counts `blockerCount`, NOT the array. This used to read
+              `vm.blockers.length` under a comment claiming "every blocker
+              renders" — true of the array, false of the truth, because the
+              array arrives already capped at 3 labels per evidence bucket. On a
+              deck with 9 unpaid nodes it printed 6 and looked complete.
+
+              A blocker the trader cannot READ is one they cannot clear, so the
+              sample still renders in full — but the shortfall is now named
+              rather than absorbed. */}
           {vm.blockers.map((b, i) => (
             <div key={i} style={{ fontSize: 11, color: "#d8cfb8", lineHeight: 1.4 }}>{b}</div>
           ))}
+          {vm.blockerCount > vm.blockers.length && (
+            <div
+              data-testid="market-canvas-blockers-remainder"
+              style={{ fontSize: 10, color: "#8a8578", lineHeight: 1.4, fontStyle: "italic" }}
+            >
+              +{vm.blockerCount - vm.blockers.length} more blocking, not named here
+            </div>
+          )}
         </div>
       )}
 
@@ -159,7 +173,7 @@ export function MarketCanvasPanel({ vm, className }: MarketCanvasPanelProps): Re
       {vm.invalidators.length > 0 && (
         <div
           data-testid="market-canvas-invalidators"
-          style={{ paddingTop: (vm.missing.length || vm.blockers.length || vm.clearances.length) ? 6 : 0, borderTop: (vm.missing.length || vm.blockers.length || vm.clearances.length) ? `1px solid ${HAIR}` : "none" }}
+          style={{ paddingTop: (vm.missing.length || vm.blockerCount || vm.clearances.length) ? 6 : 0, borderTop: (vm.missing.length || vm.blockerCount || vm.clearances.length) ? `1px solid ${HAIR}` : "none" }}
         >
           <div style={{ fontSize: 9, letterSpacing: 0.5, color: "#c9a55c", marginBottom: 4, textTransform: "uppercase" }}>
             Would invalidate

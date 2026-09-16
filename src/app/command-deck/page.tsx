@@ -1179,7 +1179,11 @@ function CommandDeckInner() {
                   >
                     <span>Why · decision evidence</span>
                     <span style={{ color: "#8a8271" }}>
-                      {marketCanvas.blockers.length} blocker{marketCanvas.blockers.length === 1 ? "" : "s"} · inspect
+                      {/* blockerCount, NOT blockers.length — the list is a
+                          sample capped at 3 labels per evidence bucket, so this
+                          rail printed "6 BLOCKERS" while cell 03 two panels
+                          below read "0 of 9 paid". The 6 was the cap. */}
+                      {marketCanvas.blockerCount} blocker{marketCanvas.blockerCount === 1 ? "" : "s"} · inspect
                     </span>
                   </summary>
                   {/* The raw identity is evidence about the decision, not a
