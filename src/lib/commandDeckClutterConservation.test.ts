@@ -12,7 +12,14 @@ describe("Command Deck clutter conservation", () => {
     expect(oneStory).toBeGreaterThan(0);
     expect(chapterHistory).toBeGreaterThan(oneStory);
     expect(page).not.toContain('SectionBanner number={1} label="Story Ribbon · Market Narrative"');
-    expect(page.match(/<StoryRibbon state=\{state\} history=\{history\} \/>/g)).toHaveLength(1);
+    // Pinned to the MEANING — exactly one ribbon on the page — not to the
+    // exact prop spelling. The literal `<StoryRibbon state={state}
+    // history={history} />` match used to live here and broke the moment the
+    // ribbon was handed the compiled `story` it needs for continuity, which
+    // is a Sentinel guarding a spelling rather than the thing it cares about.
+    expect(page.match(/<StoryRibbon\b/g)).toHaveLength(1);
+    expect(page).toMatch(/<StoryRibbon\b[^>]*\bstate=\{state\}/);
+    expect(page).toMatch(/<StoryRibbon\b[^>]*\bhistory=\{history\}/);
   });
 
   it("is closed by default while preserving native keyboard disclosure behavior", () => {

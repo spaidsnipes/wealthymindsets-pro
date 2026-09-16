@@ -23,7 +23,7 @@ import { selectDecisionChain, type TradePhase } from "@/lib/marketData/viewModel
 // routes through composeMarketCanvasVM for everything permission-shaped, and
 // that is what the single-writer Sentinel enforces.
 import { defaultFounderRules } from "@/lib/marketData/viewModels/composeMarketCanvasVM";
-import { selectMarketStory } from "@/lib/marketData/viewModels/selectMarketStory";
+import { useMarketStory } from "@/lib/marketData/viewModels/useMarketStory";
 import DecisionChainPanel from "@/components/chart/DecisionChainPanel";
 import StructureContextNote from "@/components/chart/StructureContextNote";
 import StoryRibbon from "@/components/chart/StoryRibbon";
@@ -285,6 +285,19 @@ function CommandDeckInner() {
 
   const state = useCanonicalMarketState(identity);
   const history = useCanonicalMarketStateHistory(identity, 6);
+  // THE STORY IS COMPILED EXACTLY ONCE, HERE, WITH CONTINUITY.
+  //
+  // `selectMarketStory`'s third argument carries every temporal fact — when
+  // the market ENTERED the current chapter, the chapter history, and the
+  // freshness window that keeps a momentary evidence gap from reading as "no
+  // story". This page used to call the selector twice and pass that argument
+  // neither time, so the chapter clock was pinned at zero and the disclosure
+  // labelled "Market chapter history" could never contain one.
+  //
+  // Both consumers below (HeroTruth and StoryRibbon) read THIS object. Giving
+  // one memory and not the other would replace a missing story with two
+  // surfaces disagreeing about which chapter the market is in.
+  const marketStory = useMarketStory(state, history);
   // Live cadence clock: keeps freshness / evidence age advancing even
   // when the feed is silent (see canvasClock.ts). Fed into every memo
   // below AND listed in their deps so age reflects the live clock
@@ -936,7 +949,7 @@ function CommandDeckInner() {
                   })()}
                 </div>
                 {(() => {
-                  const story = state ? selectMarketStory(state, history) : null;
+                  const story = state ? marketStory : null;
                   return (
                     <button
                       type="button"
@@ -1683,7 +1696,7 @@ function CommandDeckInner() {
             <details className="wm-cd-chapter-history">
               <summary>Market chapter history</summary>
               <div className="wm-cd-chapter-history-content">
-                <StoryRibbon state={state} history={history} />
+                <StoryRibbon state={state} history={history} story={marketStory} />
               </div>
             </details>
 

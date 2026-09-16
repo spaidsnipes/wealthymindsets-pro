@@ -6,7 +6,7 @@ import {
   useCanonicalMarketStateHistory,
 } from "@/lib/marketData/useCanonicalMarketState";
 import type { CanonicalMarketState } from "@/lib/marketData/canonicalMarketState";
-import type { ChapterEntry } from "@/lib/marketData/viewModels/selectMarketStory";
+import { useMarketStory } from "@/lib/marketData/viewModels/useMarketStory";
 
 /**
  * ConnectedStoryRibbon — the wiring layer between the pure StoryRibbon
@@ -17,9 +17,23 @@ import type { ChapterEntry } from "@/lib/marketData/viewModels/selectMarketStory
  * → pure display. Zero fabrication: when the store has no snapshot for
  * the identity, StoryRibbon renders its truthful UNKNOWN state.
  *
- * Prior-chapter continuity is handled locally in a ref — the store owns
- * current state only, not history, and Founder doctrine reserves durable
- * history for the rights-gated memory layer.
+ * CONTINUITY IS DELEGATED TO `useMarketStory`, NOT RE-IMPLEMENTED HERE.
+ *
+ * This docblock used to say continuity was "handled locally in a ref". It was
+ * not. `chaptersRef` was declared, read, and NEVER WRITTEN TO — so the ribbon
+ * was handed an empty accumulator on every render and the chapter clock could
+ * only ever read zero. A DOCBLOCK IS NOT AN IMPLEMENTATION; the claim survived
+ * because this component has no mount, and an unmounted component's lies are
+ * never contradicted by a screen.
+ *
+ * The one owner of chapter continuity is `useMarketStory`. This component
+ * subscribes, compiles ONCE through that hook, and hands the result down, so a
+ * future mount cannot end up disagreeing with /command-deck about which
+ * chapter the market is in.
+ *
+ * The store owns current state only, not history, and Founder doctrine
+ * reserves durable history for the rights-gated memory layer — so nothing here
+ * is persisted across sessions.
  */
 
 export interface ConnectedStoryRibbonProps
@@ -40,26 +54,12 @@ export function ConnectedStoryRibbon({
 }: ConnectedStoryRibbonProps) {
   const current = useCanonicalMarketState(identity);
   const history = useCanonicalMarketStateHistory(identity, historyCapacity);
-  const chaptersRef = React.useRef<ChapterEntry[]>([]);
+  const story = useMarketStory(current, history, { cap: chapterHistoryCapacity });
 
-  // We accumulate chapter transitions across renders. StoryRibbon computes
-  // the new chapter from state+history each time; we track what it produced
-  // so continuity survives snapshot churn. Bounded to chapterHistoryCapacity.
-  const priorChapters = chaptersRef.current.slice(-chapterHistoryCapacity);
-
-  // Capture chapter transitions by peeking at what selectMarketStory would
-  // emit. To avoid duplicating the selector call, we pass a callback to
-  // StoryRibbon later; for now we just supply the accumulator and let the
-  // pure component drive its own computation.
-
-  return (
-    <StoryRibbon
-      state={current}
-      history={history}
-      priorChapters={priorChapters}
-      {...rest}
-    />
-  );
+  // `story` is passed explicitly so StoryRibbon renders THIS compilation
+  // rather than starting a second one of its own. Two selector calls on one
+  // screen are two owners of one fact.
+  return <StoryRibbon state={current} history={history} story={story} {...rest} />;
 }
 
 export default ConnectedStoryRibbon;

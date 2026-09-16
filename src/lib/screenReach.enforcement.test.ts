@@ -583,7 +583,12 @@ const KNOWN_ORPHAN_COMPONENTS: readonly string[] = [
   // duplication. A DEFAULT IS A CLAIM, and so is a second one of anything.
   "src/components/chart/BottomIndexBar.tsx",
   // BORN ORPHAN — one commit, 543f3f4, which built it alongside work that DID
-  // ship. Nothing has ever imported it. Real debt.
+  // ship. Nothing has ever imported it. Real debt — and it was UNFINISHED, not
+  // merely unmounted: its docblock claimed "prior-chapter continuity is handled
+  // locally in a ref" while `chaptersRef` was declared, read, and never written
+  // to. An unmounted component's lies are never contradicted by a screen. The
+  // body now delegates to `useMarketStory` (the single owner of chapter
+  // continuity), so the claim is true; the mount is still owed.
   "src/components/chart/ConnectedStoryRibbon.tsx",
   // RETIRED in 777665d ("Keep order flow behind Smart Money"). Locked by
   // src/lib/experience/chartsMarketFirst.test.ts and

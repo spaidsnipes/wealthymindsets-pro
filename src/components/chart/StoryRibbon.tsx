@@ -74,6 +74,18 @@ export interface StoryRibbonProps {
   history?: readonly CanonicalMarketState[];
   /** Previously observed chapter transitions — enables continuity. */
   priorChapters?: readonly ChapterEntry[];
+  /**
+   * An ALREADY-COMPILED story. When supplied, this component does not compile
+   * its own — it renders the caller's.
+   *
+   * This exists so a page that also needs the story for something else (a hero
+   * line, a narrative cell) can compile it ONCE and hand the same object to
+   * every consumer. Two independent `selectMarketStory` calls on one screen is
+   * two owners of one fact, and they diverge the moment either one gains
+   * continuity the other lacks — which is exactly how /command-deck came to
+   * show a chapter clock frozen at zero.
+   */
+  story?: StoryVM;
   /** Optional per-chapter glyph override. */
   glyphs?: Partial<Record<StoryChapter, string>>;
   /** Optional per-chapter display name override. */
@@ -87,12 +99,16 @@ export function StoryRibbon({
   state,
   history = [],
   priorChapters = [],
+  story,
   glyphs,
   names,
   onChapterClick,
   className,
 }: StoryRibbonProps) {
+  // An ALREADY-COMPILED story wins. Compiling a second one here beside a
+  // caller's would be two owners of one fact on one screen.
   const vm: StoryVM = React.useMemo(() => {
+    if (story) return story;
     if (!state) {
       return {
         current: null,
@@ -102,7 +118,7 @@ export function StoryRibbon({
       };
     }
     return selectMarketStory(state, history, priorChapters);
-  }, [state, history, priorChapters]);
+  }, [story, state, history, priorChapters]);
 
   const combinedGlyphs = { ...DEFAULT_GLYPHS, ...(glyphs ?? {}) };
   const combinedNames = { ...DEFAULT_NAMES, ...(names ?? {}) };
