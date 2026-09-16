@@ -8,6 +8,12 @@ import { shellEmphasis } from "@/lib/experience/shellLayout";
 import ExperienceModeBar from "./ExperienceModeBar";
 import { WMOperatingSystem } from "@/components/os/WMOperatingSystem";
 import { OsStandingProvider, useOsStanding } from "@/components/os/osStandingContext";
+/**
+ * Search, notifications, settings and sign-out. They were drawn ONLY in the
+ * July `wm-universe` branch of MainLayout, which meant an OS room could not
+ * reach any of them — including the one that ends the session.
+ */
+import { ShellAccessChrome } from "@/components/layout/ShellAccessChrome";
 import { usePathname } from "next/navigation";
 
 /**
@@ -348,7 +354,16 @@ function SanctuaryRoom({
         brand={brand}
         mastheadCaption={jobCaption}
         mastheadCenter={<ExperienceModeBar bus={bus} />}
-        mastheadActions={railToggle}
+        mastheadActions={
+          /* The rail toggle is a VIEW control for this room. The access chrome
+             is the product's four always-reachable capabilities. Both sit in
+             the masthead's action slot, but only the second one is the reason
+             a trader can sign out from /command-deck at all. */
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            {railToggle}
+            <ShellAccessChrome />
+          </div>
+        }
         contextRail={showRail ? rail : undefined}
       >
         {children}
