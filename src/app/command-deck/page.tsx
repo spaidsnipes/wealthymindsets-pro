@@ -101,6 +101,8 @@ import { shellEmphasis } from "@/lib/experience/shellLayout";
 import { routeQuestion } from "@/lib/experience/questionRouter";
 import { selectQuestionFocus } from "@/lib/experience/selectQuestionFocus";
 import { selectSecondaryNoise } from "@/lib/experience/selectSecondaryNoise";
+import { selectPassportStamp } from "@/lib/experience/selectPassportStamp";
+import PassportStamp from "@/components/command/PassportStamp";
 import { selectMateriality } from "@/lib/marketData/viewModels/selectMateriality";
 import ActiveQuestionBar from "@/components/command/ActiveQuestionBar";
 import QuestionDrivenShell from "@/components/command/QuestionDrivenShell";
@@ -557,6 +559,11 @@ function CommandDeckInner() {
   // contradictions and invalidation — reversible to provider evidence. Pure
   // read of the sealed state; never a second truth producer.
   const passport = React.useMemo(() => selectMarketObjectPassport(state), [state]);
+  // The canon's passport is a DOCUMENT. Its stamp band belongs above the fold,
+  // not folded inside the drawer that holds the per-object lineage — a
+  // passport that must be unfolded to prove it exists is one the trader never
+  // looks at. `selectPassportStamp` owns which mockup fields are real.
+  const passportStamp = React.useMemo(() => selectPassportStamp(passport), [passport]);
 
   // decisionWhy + marketCanvas are already destructured above from the
   // shared composeMarketCanvasVM call. No second, potentially-disagreeing
@@ -1253,8 +1260,9 @@ function CommandDeckInner() {
                   contradiction / invalidation. Pure display of the sealed state.
                   Opens by default when the job is OBSERVE (studying market
                   objects) per the deck job-emphasis. */}
+                  <div style={{ order: surfaceOrder(deckEmphasis, "PASSPORT") }}>
+                  <PassportStamp vm={passportStamp} />
                   <details
-                    style={{ order: surfaceOrder(deckEmphasis, "PASSPORT") }}
                     open={deckEmphasis.passportOpen}
                   >
                 <summary
@@ -1267,12 +1275,13 @@ function CommandDeckInner() {
                     padding: "4px 0",
                   }}
                 >
-                  Market Object Passports · {passport.resolvedCount}/{passport.totalCount} resolved
+                  Per-object evidence lineage · {passport.resolvedCount}/{passport.totalCount} resolved
                 </summary>
                 <div style={{ marginTop: 6 }}>
                   <MarketObjectPassportPanel vm={passport} />
                 </div>
                   </details>
+                  </div>
 
               {/* Decision Receipt (canon P8) — a contextual drawer, collapsed by
                   default. Projects the most-recently sealed decision capsule into
