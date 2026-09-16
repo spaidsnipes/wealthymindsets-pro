@@ -198,3 +198,30 @@ jobs:
       # only found because their revive ran GREEN.
       - name: Volume Profile pixel proof
         run: npm run prove:vp-pixels
+
+      # ── Delta Bubble PIXELS ───────────────────────────────────────────────
+      #
+      # The bubbles sit on the same canvas as the profile and carried the same
+      # blind spot, plus one the VP did not have: until this commit's sibling,
+      # bubble SIZE had no owner AT ALL. The radius was computed inline in
+      # MainChart.tsx in two separate places with two disagreeing formulas, one
+      # carrying an 11px baseline that painted a zone holding NOTHING at ~19%
+      # of the peak bubble's area, the other clamped so every print above ~4x
+      # the bar mean painted an identical disc.
+      #
+      # src/lib/bubbleDrawGeometry.ts owns it now and is unit-tested. Those
+      # tests measure a NUMBER. This step measures the DISC — it paints with
+      # the shipped owner and checks that the ratio of PAINTED AREAS between
+      # two bubbles equals the ratio of their values, which is the only form of
+      # the claim a human can actually read off the chart.
+      #
+      # SCOPE, stated so a green check is not over-read: this proves the SIZE
+      # owner paints honest discs. MainChart also picks colour, spreads
+      # siblings, eases the radius on spawn and floats them over live price;
+      # whether the assembled scene reads well stays HUMAN_PROOF_REQUIRED.
+      #
+      # Five revive modes (BASELINE | CLAMP | LINEAR_RADIUS | NO_FLOOR |
+      # MEAN_NORM) each reinstate a formula that used to ship, so a law that
+      # has quietly stopped measuring can be caught.
+      - name: Delta Bubble pixel proof
+        run: npm run prove:bubble-pixels

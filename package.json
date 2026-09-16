@@ -13,6 +13,7 @@
     "start": "next start",
     "audit:phone": "node scripts/audit-phone-parity.mjs",
     "prove:vp-pixels": "node scripts/prove-vp-pixels.mjs",
+    "prove:bubble-pixels": "node scripts/prove-bubble-pixels.mjs",
     "lint": "next lint",
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:build": "npm run build:standalone && electron-builder --config electron-builder.yml",
