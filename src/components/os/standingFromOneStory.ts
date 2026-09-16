@@ -78,7 +78,39 @@ export function standingFromOneStory(oneStory: OneStoryVM | null | undefined): S
     //
     // `payable`, not the chain length: a chain of nothing but WATCH nodes has
     // graded nothing, and must not read as a paid ledger.
-    openEvidenceItems: debt && debt.payable > 0 ? debt.missing : null,
+    //
+    // ── The third head of the same defect (2026-09-16, found by USE) ─────────
+    //
+    // This read `debt.missing`. On one screenshot of the live deck:
+    //
+    //     rail  ·  EVIDENCE DEBT   8 OPEN     unpaid information
+    //     cell  ·  EVIDENCE DEBT   0 of 9 paid
+    //              9 evidence nodes unpaid: regime + direction +6;
+    //              1 warned: permission
+    //
+    // ONE label, ONE set, TWO numbers. Unlike the passport band's "8
+    // dimensions" beside the ledger's "9 nodes" — where both counts were
+    // correct because they counted different sets — these two claim the same
+    // set, so one of them is simply wrong. This one was.
+    //
+    // `debt.missing` omits the WARN bucket. `payable = resolved + missing +
+    // warn` is definitional, so UNPAID is `payable - resolved`, which is
+    // `missing + warn`. A contested node is a debt; it is counted with the
+    // unknowns even though it is NAMED apart from them (see `missingPhrase`).
+    //
+    // This is the third place the identical omission surfaced: the ledger
+    // sentence (2026-09-03), the lead count (99a87fd), and now the frame. The
+    // Orkin reading is that the bucket was never the bug — the arithmetic was
+    // restated by hand at every site instead of being derived once. The new
+    // guard is written against `payable - resolved`, so a fourth bucket cannot
+    // revive it here either.
+    //
+    // It is worth naming WHERE this one landed. This file exists because the
+    // frame once said UNKNOWN while the room beneath it had an answer, and the
+    // canon treats a frame less confident than its room as an overclaim's exact
+    // mirror. A frame quietly SOFTER by one node is the same failure wearing a
+    // smaller coat.
+    openEvidenceItems: debt && debt.payable > 0 ? debt.payable - debt.resolved : null,
     rightOfWay: oneStory.decision.value,
     // UNKNOWN is a reading the compiler can legitimately return. It is still
     // not a RESOLVED one, so the chrome must not present it as settled.

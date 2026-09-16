@@ -111,6 +111,67 @@ describe("standingFromOneStory — the chrome inherits the room's confidence", (
     }
   });
 
+  describe("THE FRAME MAY NOT BE SOFTER THAN THE ROOM BY ONE NODE", () => {
+    // Measured live on the deck, in one screenshot:
+    //
+    //     rail  ·  EVIDENCE DEBT   8 OPEN     unpaid information
+    //     cell  ·  EVIDENCE DEBT   0 of 9 paid
+    //              9 evidence nodes unpaid: regime + direction +6;
+    //              1 warned: permission
+    //
+    // One label, one set, two numbers. This published `debt.missing`, which
+    // omits the WARN bucket, so a contested node vanished from the frame while
+    // remaining in the room. Every fixture above happens to use `warn: 0` —
+    // which is precisely why the suite was green while the rail was wrong.
+    it("counts a WARN node as the debt it is", () => {
+      const contested = story({
+        debt: debt({ payable: 9, resolved: 0, missing: 8, warn: 1, warnLabels: ["permission"] }),
+      });
+      expect(standingFromOneStory(contested).openEvidenceItems).toBe(9);
+    });
+
+    it("never reports a contested ledger as PAID", () => {
+      // The nastiest shape: everything gradeable came back, one came back
+      // CONTESTED. `missing` is 0, so the old expression published 0 — which
+      // the chrome renders as "EVIDENCE DEBT PAID". A live warning would have
+      // been drawn as a clean bill of health.
+      const warnOnly = story({
+        debt: debt({ payable: 1, resolved: 0, missing: 0, warn: 1, missingLabels: [], warnLabels: ["permission"] }),
+      });
+      expect(standingFromOneStory(warnOnly).openEvidenceItems).toBe(1);
+      expect(standingFromOneStory(warnOnly).openEvidenceItems).not.toBe(0);
+    });
+
+    it("equals payable - resolved across the full bucket cross-product", () => {
+      // Written against the ARITHMETIC, not against a bucket by name. This is
+      // the third site where the identical omission surfaced — the ledger
+      // sentence, the lead count, and now the frame — so the guard has to
+      // survive a FOURTH bucket being added rather than pinning today's three.
+      for (const resolved of [0, 1, 2, 3]) {
+        for (const missing of [0, 1, 2, 3]) {
+          for (const warn of [0, 1, 2, 3]) {
+            const payable = resolved + missing + warn;
+            if (payable === 0) continue;
+            const out = standingFromOneStory(
+              story({
+                debt: debt({
+                  payable,
+                  resolved,
+                  missing,
+                  warn,
+                  missingLabels: missing > 0 ? ["regime"] : [],
+                  warnLabels: warn > 0 ? ["permission"] : [],
+                }),
+              }),
+            );
+            expect(out.openEvidenceItems, `resolved=${resolved} missing=${missing} warn=${warn}`)
+              .toBe(payable - resolved);
+          }
+        }
+      }
+    });
+  });
+
   it("publishes NOTHING it was not given — `surface` belongs to the room", () => {
     // A shared function that invented a surface name would put two owners on
     // "what room am I in", which is the only field the room alone can know.
