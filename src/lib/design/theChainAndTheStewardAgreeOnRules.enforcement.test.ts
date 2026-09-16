@@ -141,7 +141,9 @@ describe("the decision chain and the Steward cannot disagree about the trader's 
     // Slice on the RAW file — the section marker lives in a JSX comment, which
     // codeOnly() strips. Strip the slice afterwards instead.
     const deck = read(DECK);
-    const start = deck.indexOf("Steward · Rules Verdict");
+    // Anchor on the ordinal the page owns; the heading text moved to
+    // deckSectionIndex, the single owner of the numbered section names.
+    const start = deck.indexOf("<SectionBanner number={4}");
     expect(start).toBeGreaterThan(-1);
     const end = deck.indexOf("NECTAR / DATA FIDELITY", start);
     expect(end).toBeGreaterThan(start);

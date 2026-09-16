@@ -42,7 +42,10 @@ function codeOnly(src: string): string {
 describe("the Steward is not a market panel", () => {
   it("THE DEFECT: the Steward rules verdict is not gated behind market-state resolution", () => {
     const deck = codeOnly(read("src/app/command-deck/page.tsx"));
-    expect(deck).toContain("Steward · Rules Verdict");
+    // Anchored on the ORDINAL, not the heading text. The headings now live in
+    // deckSectionIndex (one owner); a Sentinel that anchors on a label it does
+    // not own is pinned to a spelling, not to a meaning.
+    expect(deck).toMatch(/<SectionBanner number=\{4\}/);
     expect(deck).not.toMatch(/\{chainVm && \(\s*<div>\s*<SectionBanner number=\{4\}/);
   });
 
@@ -54,7 +57,9 @@ describe("the Steward is not a market panel", () => {
 
   it("the Steward block reads the trader's own rules — permission and phase, nothing else", () => {
     const deck = read("src/app/command-deck/page.tsx");
-    const start = deck.indexOf("Steward · Rules Verdict");
+    // Slice anchor: the ordinal, which the page owns. The heading text moved
+    // to deckSectionIndex.
+    const start = deck.indexOf("<SectionBanner number={4}");
     const end = deck.indexOf("NECTAR / DATA FIDELITY", start);
     expect(start).toBeGreaterThan(0);
     expect(end).toBeGreaterThan(start);

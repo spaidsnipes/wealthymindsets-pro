@@ -102,6 +102,7 @@ import { routeQuestion } from "@/lib/experience/questionRouter";
 import { selectQuestionFocus } from "@/lib/experience/selectQuestionFocus";
 import { selectSecondaryNoise } from "@/lib/experience/selectSecondaryNoise";
 import { selectPassportStamp } from "@/lib/experience/selectPassportStamp";
+import { DECK_SECTIONS, deckSection } from "@/lib/experience/deckSectionIndex";
 import PassportStamp from "@/components/command/PassportStamp";
 import { selectMateriality } from "@/lib/marketData/viewModels/selectMateriality";
 import ActiveQuestionBar from "@/components/command/ActiveQuestionBar";
@@ -1658,13 +1659,13 @@ function CommandDeckInner() {
                   </span>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {[
-                    { n: 1, label: "Story Ribbon · Market Narrative" },
-                    { n: 2, label: "Direction · Location · Aggression · Response" },
-                    { n: 3, label: "Decision Chain (Regime → Management)" },
-                    { n: 4, label: "Steward Rules Verdict" },
-                    { n: 5, label: "Data Fidelity · Market Evidence" },
-                  ].map((row) => (
+                  {/* Read from the ONE owner. This list used to be typed out
+                      here, and it drifted: it kept promising a numbered
+                      "1 · Story Ribbon · Market Narrative" long after that
+                      section was retired into the chapter-history drawer. An
+                      index that lists a chapter the book does not contain is
+                      read as a commitment. */}
+                  {DECK_SECTIONS.map((row) => (
                     <div
                       key={row.n}
                       style={{
@@ -1784,7 +1785,7 @@ function CommandDeckInner() {
               {/* DIRECTION × LOCATION × AGGRESSION × RESPONSE strip */}
               {chainVm && (
               <div>
-                <SectionBanner number={2} label="Direction · Location · Aggression · Response" tagline="the auction lens" />
+                <SectionBanner number={2} label={deckSection(2).label} tagline={deckSection(2).tagline} />
                 <div style={{ height: 12 }} />
                 <DLARStrip
                   dlar={chainVm.dlar}
@@ -1796,7 +1797,7 @@ function CommandDeckInner() {
               {/* AVAILABLE R / PROCESS / STEWARD — the full 9-node chain */}
               {chainVm && (
               <div>
-                <SectionBanner number={3} label="Decision Chain" tagline="regime → management" />
+                <SectionBanner number={3} label={deckSection(3).label} tagline={deckSection(3).tagline} />
                 <div style={{ height: 12 }} />
               <DecisionChainPanel
                 vm={chainVm}
@@ -1850,7 +1851,7 @@ function CommandDeckInner() {
              * CLC returns "No CLC evaluation available." The selector got
              * absence right. The render layer erased it wholesale. */}
               <div>
-                <SectionBanner number={4} label="Steward · Rules Verdict" tagline="informs, never gates" />
+                <SectionBanner number={4} label={deckSection(4).label} tagline={deckSection(4).tagline} />
                 <div style={{ height: 12 }} />
               <div
                 style={{
@@ -1919,7 +1920,7 @@ function CommandDeckInner() {
             {/* NECTAR / DATA FIDELITY — coverage + freshness at a glance */}
             {state && (
               <div>
-                <SectionBanner number={5} label="Data Fidelity · Market Evidence" tagline="what did WM actually witness" />
+                <SectionBanner number={5} label={deckSection(5).label} tagline={deckSection(5).tagline} />
                 <div style={{ height: 12 }} />
               <div
                 style={{
