@@ -107,6 +107,10 @@ import { selectRegimeBadge } from "@/lib/marketData/selectRegimeBadge";
 // It published raw change/changePct, so the zero-pair reached the assistant as
 // "(+0.00%)" on a closed Saturday.
 import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDisplay";
+// The ONE owner of "which price fact wins" — print outranks bar close, and a
+// close is never emitted unlabelled. Shared with HeroTruth, DecisionSpineBand
+// and /command-deck's Spaidbot wire so no two of them can drift apart.
+import { selectPriceEvidence } from "@/lib/marketData/formatSpinePrice";
 // Asset 07 (Evidence Debt / Question Mode) canon: dedicated
 // question-mode surface exposing the decisionWhy compilation.
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
@@ -1064,6 +1068,35 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         data-ctx={JSON.stringify(
           (() => {
             const chg = selectTickerChangeDisplay(ticker);
+            // THE THIRD PRICE OWNER ON THIS PAGE (repaired 2026-09-16).
+            // This wire sent `ticker.price` — the raw hook field — while the
+            // DecisionSpineBand eleven pixels away read canonical state
+            // through `formatSpinePrice`. Two owners, one instrument, one
+            // moment: canon Weakness #1, crossing the assistant boundary
+            // where it is hardest to notice because the model's answer
+            // carries no fidelity badge.
+            //
+            // `ticker.price` is strictly the WEAKER fact, in two ways this
+            // file already documents elsewhere:
+            //   · It is ZEROED on an SF-D01 quote refusal, so 0 is an absence
+            //     sentinel here exactly as the change/changePct zero-pair is.
+            //     Nothing guarded it. (formatChartContextNote drops a
+            //     non-positive price, so the model was simply starved.)
+            //   · It is blind to `lastBar`, which this very component
+            //     publishes from `chartBars` and renders beside HISTORICAL
+            //     BARS VERIFIED. The assistant was told "no price" about a
+            //     chart that was drawing one.
+            //
+            // `selectPriceEvidence` is the one owner of WHICH FACT WINS —
+            // the same call HeroTruth, DecisionSpineBand and /command-deck's
+            // Spaidbot wire make. Provenance rides with the number because
+            // an unlabelled close is precisely how a model learns to quote
+            // one as a live print.
+            const px = selectPriceEvidence(
+              chartCanvasState?.price.last,
+              chartCanvasState?.lastBar?.close,
+              chartCanvasState?.lastBar?.timeframe,
+            );
             return {
               symbol,
               // Founder TIMEFRAME LAW (Build Order, 2026-09-12): "Every material
@@ -1085,7 +1118,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               // up. When canonical state has not resolved a quality yet, the
               // note surfaces UNKNOWN — never invented.
               role: chartCanvasState?.qualityState ?? null,
-              price: ticker.price,
+              price: px.value,
+              priceProvenance: px.provenance,
               ...(chg.displayable
                 ? { change: chg.change, changePct: chg.changePct }
                 : {}),

@@ -362,4 +362,26 @@ describe("the deck sends price evidence, not the raw print field", () => {
     expect(src).toMatch(/priceProvenance:\s*chartContextPrice\.provenance/);
     expect(src).toMatch(/chartContextPrice\s*=\s*selectPriceEvidence\(/);
   });
+
+  it("/charts feeds the assistant from the SAME selector, not the raw hook field", () => {
+    // BOTH publishers write to `#wm-chart-context`, and one reader parses it.
+    // Fixing only the deck would leave the identical defect alive on the
+    // higher-traffic route — which is exactly what it did: /charts sent
+    // `ticker.price`, a field the hook ZEROES on an SF-D01 quote refusal and
+    // which is blind to the `lastBar` this very component publishes.
+    //
+    // `ticker.price` is asserted ABSENT, not merely the selector present: a
+    // fix that adds the selector while leaving the old line behind would
+    // satisfy a presence-only check and still ship two price owners.
+    const src = readFileSync(
+      resolve(__dirname, "../../components/chart/ChartsDashboard.tsx"), "utf8",
+    );
+    const start = src.indexOf('id="wm-chart-context"');
+    expect(start).toBeGreaterThan(-1);
+    const span = src.slice(start, src.indexOf("/>", start));
+    expect(span).toMatch(/price:\s*px\.value/);
+    expect(span).toMatch(/priceProvenance:\s*px\.provenance/);
+    expect(span).toMatch(/px\s*=\s*selectPriceEvidence\(/);
+    expect(span).not.toMatch(/price:\s*ticker\.price/);
+  });
 });
