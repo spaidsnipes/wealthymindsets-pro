@@ -230,10 +230,30 @@ export function DecisionChainPanel({
                             border: `1px solid ${color}55`,
                             color,
                             background: "rgba(19,19,23,0.5)",
+                            // A HINT IS THE REASON, SO IT MAY NOT BE CUT OFF.
+                            //
+                            // This chip used to be `nowrap` + `ellipsis` under
+                            // a hard 220px cap. Measured 2026-09-16 at a 1440px
+                            // viewport — with most of the panel empty — the
+                            // AVAILABLE R hint rendered as "account equity not
+                            // observed this sess…" while its sibling "broker
+                            // link not established" fit. The cap is not width
+                            // pressure; it truncated at every viewport.
+                            //
+                            // These chips exist so the trader can read WHY a
+                            // node is UNKNOWN without opening WhyInspector.
+                            // An elided reason sends them to the drawer anyway,
+                            // which is the exact burden the chips removed. The
+                            // `title` attribute is not an answer either: it is
+                            // hover-only, so it does not exist on touch and is
+                            // invisible to a five-second gaze.
+                            //
+                            // 220px stays as a WRAP WIDTH, not a clip: the row
+                            // is already `flexWrap: "wrap"`, so a long hint now
+                            // takes a second line inside its own chip and the
+                            // chip rhythm survives. Nothing is hidden.
                             maxWidth: 220,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
+                            lineHeight: 1.35,
                           }}
                         >
                           {h}
