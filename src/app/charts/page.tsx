@@ -82,9 +82,31 @@ function ChartsInner() {
 export default function ChartsPage() {
   // useSearchParams must sit inside a Suspense boundary during SSG — same
   // pattern the Command Deck uses.
+  //
+  // THE FALLBACK IS TRANSPARENT, and that is the whole point of it.
+  //
+  // It used to paint `linear-gradient(180deg, #050506, #0b0b0d)` across
+  // `minHeight: 100vh`. /charts is an OS room, so that gradient was an opaque
+  // near-black plane the height of the viewport, dropped over the sanctuary's
+  // vignette, grain and water-breath for exactly as long as the room took to
+  // resolve — the first thing the trader sees on arrival, and the one frame
+  // where the OS is supposed to be most itself.
+  //
+  // It was invisible for the usual reason: it looked RIGHT. A near-black slab
+  // over a near-black sanctuary reads as the room, not as a bug, which is why
+  // the same repair landed on /command-deck's suspense plane months ago and
+  // never reached this file. `#050506` is also the exact colour /morning-prep
+  // was fixed for. Three rooms, one colour, three separate discoveries.
+  //
+  // Found by src/lib/design/osRoomPlane.ts on its first run over the registry.
   return (
     <React.Suspense
-      fallback={<div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #050506 0%, #0b0b0d 100%)" }} />}
+      fallback={
+        <div
+          data-testid="charts-suspense-plane"
+          style={{ minHeight: "100vh", background: "transparent" }}
+        />
+      }
     >
       <ChartsInner />
     </React.Suspense>

@@ -191,6 +191,10 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "OPS_TOOLING",
     note: "Release-gate definitions consumed by process, not by a screen.",
   },
+  "src/lib/design/osRoomPlane.ts": {
+    reason: "OPS_TOOLING",
+    note: "Build-time detector: does a room paint an opaque near-black plane over the sanctuary? Consumed by gates, never rendered. A trader loses nothing by it having no screen — its whole job is to be asked before a route is promoted to frame:\"os\".",
+  },
   "src/lib/authority/executionConnectivity.ts": {
     reason: "AWAITING_SURFACE",
     note: "Named in the §13 open gates as orphaned. This confirms it from the import graph: no route renders it, including /readiness.",
