@@ -22,6 +22,15 @@
  * nothing gets FEED UNKNOWN, an UNKNOWN ledger, and an unresolved Right of
  * Way. The chrome is never more confident than the room that fed it.
  *
+ * WHICH IS WHY "I HAVE NO FEED" HAD TO BECOME A THING A ROOM SAYS
+ *
+ * FEED UNKNOWN is right for a room that has not spoken. It is wrong for a room
+ * with no feed to speak about — measured live, the Vault wore an open question
+ * about a pipeline it does not have. A room declares that case explicitly by
+ * publishing `FEEDLESS_SURFACE`, and only then does the masthead go quiet.
+ * Inferring it from the default would silence every trading surface for the
+ * frames before its first publication.
+ *
  * AND IT MUST FORGET
  *
  * Publication is scoped to the room's lifetime. Without the unmount reset, a
@@ -33,7 +42,7 @@
  */
 
 import * as React from "react";
-import type { FeedObservation } from "@/lib/os/osChrome";
+import type { FeedDeclaration } from "@/lib/os/osChrome";
 
 export interface OsStanding {
   /** Name of the surface, for the masthead. `null` ⇒ the frame says nothing. */
@@ -42,7 +51,12 @@ export interface OsStanding {
   readonly openEvidenceItems: number | null;
   readonly rightOfWay: string;
   readonly rightOfWayResolved: boolean;
-  readonly feed: FeedObservation | null;
+  /**
+   * An observation to grade, `FEEDLESS_SURFACE` to declare there is no feed
+   * here, or `null` for "not yet spoken". The third is the default below, and
+   * it is deliberately NOT the second — see FeedDeclaration.
+   */
+  readonly feed: FeedDeclaration;
   readonly asOfLabel: string | null;
 }
 

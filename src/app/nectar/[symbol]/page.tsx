@@ -35,6 +35,7 @@ import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { standingFromOneStory } from "@/components/os/standingFromOneStory";
 
 const subscribeHydration = () => () => {};
@@ -125,6 +126,24 @@ export default function NectarSymbolDetailPage() {
   usePublishOsStanding({
     surface: `Vault · ${symbol}`,
     ...standingFromOneStory(nectarCanvas.oneStory),
+    /*
+      THE VAULT HAS NO FEED, AND SAYS SO RATHER THAN LEAVING IT OPEN.
+
+      Measured on the live build: a hard load of /nectar/TSLA renders 0
+      canvases, 0 prices, and runs no socket. It is browser-local memory. Yet
+      the masthead read FEED UNKNOWN — an open question about a pipeline that
+      does not exist.
+
+      The tempting repair was to hand the compiler what this room DOES hold,
+      `slot.lastTradeAtMs` and `tapeSource`. That is worse. With `connected`
+      unknown and a stored timestamp hours old, `priceSourceBadge` returns
+      STALE PIPELINE: an alarm about a pipeline that is not stalled because it
+      is not running. A lie in the opposite direction is not a fix.
+
+      So the honest publication is neither reading. It is the declaration that
+      there is nothing here to grade.
+    */
+    feed: FEEDLESS_SURFACE,
   });
 
   const hasNectarCanvasEvidence =

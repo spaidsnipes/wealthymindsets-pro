@@ -48,7 +48,8 @@ import {
   compileFeedStanding,
   compileProvenanceSegments,
   compileStandingConditions,
-  type FeedObservation,
+  FEEDLESS_SURFACE,
+  type FeedDeclaration,
   type FeedStanding,
   type StandingCondition,
 } from "@/lib/os/osChrome";
@@ -339,11 +340,14 @@ export interface WMOperatingSystemProps {
   readonly rightOfWay: string;
   readonly rightOfWayResolved: boolean;
   /**
-   * What the OS has actually observed about its own feed. `null` when the
-   * route has not wired one — which compiles to FEED UNKNOWN, never to a
-   * flattering default.
+   * What the OS has actually observed about its own feed.
+   *
+   * `null` ⇒ no room has published yet ⇒ FEED UNKNOWN, never a flattering
+   * default. `FEEDLESS_SURFACE` ⇒ the room declares it carries no feed at all,
+   * and the masthead OMITS the badge, exactly as `surface: null` omits the
+   * surface chip. See FeedDeclaration for why those are not the same value.
    */
-  readonly feed: FeedObservation | null;
+  readonly feed: FeedDeclaration;
   /** As-of stamp for the provenance line, or `null` to omit the slot. */
   readonly asOfLabel?: string | null;
   /**
@@ -395,20 +399,35 @@ export function WMOperatingSystem({
   // being read.
   const evaluatedAtMs = useFeedEvaluationClock();
 
-  const feedStanding = compileFeedStanding(
-    feed ?? {
-      source: null,
-      // No room has published, so nothing has been observed. This is evidence
-      // of absence, not an absent verdict.
-      quotePresent: false,
-      lastObservedAtMs: null,
-      connected: null,
-      // A room that has published nothing has certainly not resolved a session
-      // calendar. `null` is the only honest value, and it is NOT `true`.
-      sessionOpen: null,
-    },
-    evaluatedAtMs,
-  );
+  // ── A ROOM THAT DECLARES IT CARRIES NO FEED GETS NO FEED BADGE ───────────
+  //
+  // FEED UNKNOWN means "this surface carries a feed and the OS cannot grade it
+  // yet". That is right for /charts before its first tick, and wrong for the
+  // Vault: measured on the live build, /nectar/TSLA is a memory room — 0
+  // canvases, 0 prices, no socket — wearing an open question about a pipeline
+  // that does not exist. The canon's own answer for that case is silence.
+  //
+  // Only an EXPLICIT declaration silences the badge. `null` — no room has
+  // published yet — still compiles FEED UNKNOWN, because every room passes
+  // through `null` on the way to its first publication and a trading surface
+  // must not blink blank in the meantime.
+  const feedStanding =
+    feed === FEEDLESS_SURFACE
+      ? null
+      : compileFeedStanding(
+          feed ?? {
+            source: null,
+            // No room has published, so nothing has been observed. This is
+            // evidence of absence, not an absent verdict.
+            quotePresent: false,
+            lastObservedAtMs: null,
+            connected: null,
+            // A room that has published nothing has certainly not resolved a
+            // session calendar. `null` is the only honest value, not `true`.
+            sessionOpen: null,
+          },
+          evaluatedAtMs,
+        );
 
   const provenance = compileProvenanceSegments(feedStanding, asOfLabel);
 
@@ -499,7 +518,7 @@ export function WMOperatingSystem({
 
         <div style={{ flex: "1 1 auto", minWidth: 0 }}>{mastheadCenter}</div>
         {mastheadActions}
-        <FeedBadge feed={feedStanding} />
+        {feedStanding !== null && <FeedBadge feed={feedStanding} />}
       </header>
 
       {/* ── RAIL · ROOM · CONTEXT ────────────────────────────────────── */}

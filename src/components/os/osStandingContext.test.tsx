@@ -29,7 +29,22 @@ import {
   type OsStanding,
 } from "./osStandingContext";
 
+import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
+
 const SOURCE = readFileSync(new URL("./osStandingContext.tsx", import.meta.url), "utf8");
+
+/**
+ * The feed column, spelling all THREE declarations distinctly.
+ *
+ * "—" (not spoken) and "feedless" (declared no feed) must not print the same
+ * character, or the tests below would pass while the distinction they exist to
+ * protect had collapsed.
+ */
+function feedCell(feed: OsStanding["feed"]): string {
+  if (feed === null) return "—";
+  if (feed === FEEDLESS_SURFACE) return "feedless";
+  return feed.source ?? "—";
+}
 
 /** Renders whatever the chrome currently believes, as a readable string. */
 function Chrome(): React.ReactElement {
@@ -38,7 +53,7 @@ function Chrome(): React.ReactElement {
     <div>
       {`${s.surface ?? "—"}|${s.openEvidenceItems ?? "—"}|${s.rightOfWay}|${
         s.rightOfWayResolved ? "resolved" : "unresolved"
-      }|${s.feed ? s.feed.source : "—"}`}
+      }|${feedCell(s.feed)}`}
     </div>
   );
 }

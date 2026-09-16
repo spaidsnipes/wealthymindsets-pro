@@ -63,6 +63,30 @@ export type FeedTone = "LIVE" | "DELAYED" | "IDLE" | "UNKNOWN";
  *
  * `FEED UNKNOWN` is the single label with no canon entry, because the canon
  * enumerates READINGS and this is the absence of one.
+ *
+ * ── THE ONE THING IT MUST NOT BE ASKED TO MEAN ─────────────────────────────
+ *
+ * It says "THIS SURFACE CARRIES A FEED AND THE OS CANNOT GRADE IT YET". That is
+ * a real and useful reading on /charts at first paint: a blank where a fidelity
+ * badge lives on a trading surface reads as "all fine", which is the worse lie.
+ *
+ * It must NOT be made to also mean "this surface carries no feed". Measured on
+ * the live build: /nectar/TSLA is a memory room — 0 canvases, 0 prices, no
+ * socket — and it wore FEED UNKNOWN, an open question about a pipeline that
+ * does not exist. Those two facts are as different as `connected === false` is
+ * from "nothing observed yet", and this file already refuses to collapse THAT
+ * pair.
+ *
+ * The canon answers the second case itself, in canonicalFidelityLabels:
+ * "UNKNOWN inputs → the resolver returns undefined and the surface renders no
+ * chip at all (canon §silence-is-a-feature)." So the second meaning is not a
+ * new word. It is the ABSENCE of the badge — the same doctrine the masthead
+ * already applies to its surface slot, which is omitted rather than filled with
+ * a dash "because an empty surface chip reads as a surface."
+ *
+ * A room declares it by publishing `FEEDLESS_SURFACE`. See that constant for
+ * why silence had to be something a room SAYS rather than something the frame
+ * infers from a room not having spoken yet.
  */
 const FEED_UNKNOWN = "FEED UNKNOWN";
 
@@ -118,6 +142,37 @@ export interface FeedObservation {
    */
   readonly sessionOpen: boolean | null;
 }
+
+/**
+ * A ROOM'S DECLARATION THAT IT CARRIES NO FEED AT ALL.
+ *
+ * ── WHY THIS IS NOT JUST `null` ────────────────────────────────────────────
+ *
+ * `null` already means "no room has published yet", and that is a real state
+ * with its own correct reading: the OS genuinely does not know, and FEED
+ * UNKNOWN says so. Rooms publish from an effect, so every surface passes
+ * through that state on the way to its first reading.
+ *
+ * "This room has no feed and never will" is a DIFFERENT fact, and it is a
+ * POSITIVE one — the Vault asserting it, not the frame inferring it from
+ * silence. Collapsing the two would make a trading surface fall silent for the
+ * frames before its first publication, which is the failure mode this whole
+ * file exists to refuse: a blank where a fidelity badge lives reads as "fine".
+ *
+ * So: tri-state, for the same reason `sessionOpen` and `connected` are
+ * tri-state. Not spelled "NO FEED" — that is a QUARANTINED phrase
+ * (canon §Legacy Surface Quarantine, "generic no-signal blanket") and an
+ * identifier that close to a banned label is a trap for the next reader.
+ */
+export const FEEDLESS_SURFACE = "FEEDLESS_SURFACE" as const;
+
+/**
+ * What a room is allowed to say about its feed:
+ *   · an observation  — "here is my evidence, grade it"
+ *   · FEEDLESS_SURFACE — "I carry no feed; say nothing"
+ *   · null            — "I have not spoken yet"
+ */
+export type FeedDeclaration = FeedObservation | typeof FEEDLESS_SURFACE | null;
 
 /**
  * How stale an observation may be and still be called LIVE.
@@ -377,10 +432,18 @@ export function compileStandingConditions(
  * claim past review.
  */
 export function compileProvenanceSegments(
-  feed: FeedStanding,
+  feed: FeedStanding | null,
   asOfLabel: string | null,
 ): readonly string[] {
-  const segments = [`SOURCE ${feed.established ? feed.detail.toUpperCase() : "UNKNOWN"}`];
+  const segments: string[] = [];
+  // `null` means the ROOM CARRIES NO FEED — see FeedStanding's note on the two
+  // meanings FEED UNKNOWN used to carry. `SOURCE UNKNOWN` on a memory room is
+  // the bottom-bar spelling of the same false alarm: it reports a provenance
+  // question as open when no provenance was ever in play. Omitted, for the
+  // identical reason the AS OF slot is omitted two lines below.
+  if (feed !== null) {
+    segments.push(`SOURCE ${feed.established ? feed.detail.toUpperCase() : "UNKNOWN"}`);
+  }
   // "AS OF —" is worse than no segment at all: it occupies the slot where a
   // timestamp belongs and reads as one at a glance.
   if (asOfLabel !== null) segments.push(`AS OF ${asOfLabel}`);

@@ -415,6 +415,23 @@ describe("compileProvenanceSegments — the bottom bar cannot smuggle a claim", 
       "AS OF 10:42:17 ET",
     ]);
   });
+
+  it("omits the SOURCE slot entirely when there is no feed standing to report", () => {
+    // `null` here is not "the feed is unknown" — the frame passes null only
+    // when a room has DECLARED it carries no feed (FEEDLESS_SURFACE). There is
+    // no pipeline, so there is no source, so naming one — even as UNKNOWN —
+    // invents the subject. Same reasoning as the AS OF slot above, and the
+    // reason this function takes `FeedStanding | null` rather than requiring
+    // a standing: the absence has to be representable to be honoured.
+    expect(compileProvenanceSegments(null, null)).toEqual([]);
+  });
+
+  it("still stamps AS OF for a feedless room — a room without a feed can still know when", () => {
+    // The Vault has no pipeline but does know when it last wrote to itself.
+    // Dropping both segments together would be tidier and wrong: the two slots
+    // answer different questions and only one of them has gone quiet.
+    expect(compileProvenanceSegments(null, "10:42:17 ET")).toEqual(["AS OF 10:42:17 ET"]);
+  });
 });
 
 /**
