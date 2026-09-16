@@ -87,6 +87,8 @@ import {
   paperSceneSignals,
 } from "@/lib/experience/paperSceneSignals";
 import { usePublishScene } from "@/lib/experience/useActiveScene";
+import ProtectionGradeLine from "@/components/experience/ProtectionGradeLine";
+import { selectPaperProtection } from "@/lib/experience/selectPaperProtection";
 import { selectCapitalReach, selectCrossDeviceProgress } from "@/lib/experience/capitalReach";
 import { useSharedAuthorityProbe } from "@/lib/experience/useSharedAuthorityProbe";
 import { selectCanonicalSessionToken } from "@/lib/marketData/canonicalIdentity";
@@ -1763,6 +1765,26 @@ export default function PaperTradingPage() {
     marketPx:   positionMarks[i].markPx ?? pos.avgPx,
     unrealPnl:  positionMarks[i].unrealPnl ?? 0,
   }));
+  /**
+   * BUILD ORDER §7 — PROTECTION IS A STATE, NOT A LINE.
+   *
+   * The grade for the symbol the room is currently looking at. Graded from the
+   * working order book, never from intent: `selectPaperProtection` counts only
+   * pending stops on the closing side (see its docstring for why a limit and a
+   * same-side stop are both excluded).
+   *
+   * No position on `activeSymbol` is FLAT, which is a FINDING (§14.1) and is
+   * SAID — an empty risk column reads as a calm one.
+   *
+   * `bookUnverified` is wired to the same flag the recovery banner uses, so a
+   * book we could not fully parse degrades to UNVERIFIED — LAST KNOWN instead
+   * of quietly rendering BROKER-WORKING off a partial position list.
+   */
+  const paperProtection = selectPaperProtection({
+    position: positions.find(p => p.symbol === activeSymbol),
+    orders,
+    bookUnverified: bookRecoveryRequired,
+  });
   const markSummary = summarisePositionMarks(positionMarks);
   const markDisclosure = describePositionMarkSummary(markSummary);
 
@@ -2874,6 +2896,12 @@ export default function PaperTradingPage() {
           {/* Positions */}
           {tab==="positions" && (
             <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
+              {/* Protection grade sits ABOVE the recovery/empty/table branches
+                  on purpose. Inside any of them it would vanish exactly when a
+                  trader most needs it: an unreadable book, or a book that looks
+                  empty. The book is named on the line itself so the grade can
+                  never be read out of its environment. */}
+              <ProtectionGradeLine state={paperProtection} book="PAPER BOOK" />
               {bookRecoveryRequired ? (
                 <div role="alert" className="flex flex-col items-center justify-center h-full px-6 text-center text-wm-red gap-2">
                   <BookOpen size={28} className="opacity-60"/>
