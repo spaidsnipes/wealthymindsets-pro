@@ -27,14 +27,22 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
   it("carries every route the Founder audit named a Founder-family room", () => {
     // The literal set. Any addition or removal will show up in the diff
     // for a conversation, not slip in silently.
+    //
+    // The ORDER moved once, and only the order: this list is now derived from
+    // `wmDestinations`, where the rooms are declared along the founder-canon
+    // trader loop (PREP → DECIDE → OBSERVE → DISCOVER → LEARN → REVIEW) rather
+    // than in the order they happened to graduate. The SET below is identical to
+    // the one this Sentinel has always fenced — same seven rooms, no addition,
+    // no removal. Asserting the order too is deliberate: the rail renders in
+    // this sequence, so a reshuffle is a visible change and should need a diff.
     expect([...FOUNDER_ROOM_ROUTES]).toEqual([
+      "/morning-prep",
       "/command-deck",
       "/charts",
       "/heatmaps",
-      "/morning-prep",
-      "/journal",
-      "/paper",
       "/nectar",
+      "/paper",
+      "/journal",
     ]);
   });
 

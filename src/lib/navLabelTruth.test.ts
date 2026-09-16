@@ -10,6 +10,14 @@ function read(p: string) {
 
 const layout = read("src/components/layout/MainLayout.tsx");
 const aiBotPage = read("src/app/ai-bot/page.tsx");
+/**
+ * Nav LABELS are no longer typed in MainLayout — the rooms have one owner and
+ * every rail derives from it. A label scan aimed at MainLayout would now pass
+ * on an empty search, which is the quietest way for a Sentinel to stop working.
+ * The label assertions follow the labels; the ALERT-GROUP assertions stay on
+ * MainLayout, because that panel still lives there.
+ */
+const destinations = read("src/lib/routing/wmDestinations.ts");
 
 /**
  * Navigation label truth Sentinel — canon §AI AUTHORITY CREEP.
@@ -27,12 +35,14 @@ const aiBotPage = read("src/app/ai-bot/page.tsx");
  */
 describe("navigation label truth", () => {
   it("no nav entry promises an AI engine", () => {
-    expect(layout).not.toContain('label: "AI Bot"');
+    expect(destinations).not.toContain('label: "AI Bot"');
+    expect(destinations).not.toMatch(/label:\s*"AI /);
+    // and MainLayout must not grow a second, hand-typed label list beside it
     expect(layout).not.toMatch(/label:\s*"AI /);
   });
 
   it("the /ai-bot nav label matches what the page says it is", () => {
-    expect(layout).toContain('label: "Market Intel"');
+    expect(destinations).toContain('label: "Market Intel"');
     expect(aiBotPage).toContain("Market Intelligence");
     expect(aiBotPage).toContain("no generated signals");
   });

@@ -41,9 +41,9 @@
  */
 
 import * as React from "react";
-// The instrument view has ONE owner. Retyping "/charts" here would make this
-// rail a second definition of the Founder landing route.
-import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
+// Where the product's rooms are has ONE owner. Retyping them here is what made
+// this rail a second definition — see the note on OS_ROOMS below.
+import { destinationsInGroup } from "@/lib/routing/wmDestinations";
 import {
   compileFeedStanding,
   compileProvenanceSegments,
@@ -64,16 +64,26 @@ export interface ShellRoom {
  * The mockups show "Order Flow" and "Context Library" as rail entries. This
  * app has no such routes, and a rail entry that 404s is a painted door — the
  * most expensive kind of lie, because the user pays for it with a click.
+ *
+ * A PAINTED DOOR HAS A SUBTLER FORM, and this list carried two of them. It was
+ * typed out by hand beside three other hand-typed lists of the same rooms, and
+ * had drifted from all of them:
+ *
+ *   · `/paper` wears this very frame and was MISSING here, so the trader
+ *     standing in that room could not find it in the room list.
+ *   · `/proof-lane` was listed here and does NOT wear this frame, so the one
+ *     door on the rail that left the OS was indistinguishable from the six
+ *     that stayed inside it.
+ *
+ * Neither is a 404, and both cost the user a click on a promise nobody made.
+ * So the rooms are read from `wmDestinations` — the single owner — and the
+ * labels the trader reads are that owner's labels, which is why the same room
+ * can no longer be called "Chart" here and "Charts" one shell over.
  */
-export const OS_ROOMS: readonly ShellRoom[] = [
-  { label: "Question-Driven", href: "/command-deck" },
-  { label: "Chart", href: INSTRUMENT_VIEW_ROUTE },
-  { label: "Heatmap", href: "/heatmaps" },
-  { label: "Passport", href: "/nectar" },
-  { label: "Journal", href: "/journal" },
-  { label: "Proof Lane", href: "/proof-lane" },
-  { label: "Morning Prep", href: "/morning-prep" },
-];
+export const OS_ROOMS: readonly ShellRoom[] = destinationsInGroup("ROOM").map((d) => ({
+  label: d.label,
+  href: d.href,
+}));
 
 /**
  * The width at which the rail stops being affordable.

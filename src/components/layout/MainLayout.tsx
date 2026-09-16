@@ -4,13 +4,14 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+// Only what this file still DRAWS. The nav icons left with the nav arrays —
+// they belong to `wmDestinations` now, beside the rooms they label. The
+// remainder of the old list (Moon, VolumeX, Eye, Palette, Trophy, Heart,
+// ChevronLeft/Right…) was already dead before that move and went with it: an
+// import nothing renders is a claim about this file that no pixel keeps.
 import {
-  BarChart2, ScanLine, Map, Newspaper, GraduationCap,
-  Users, ShoppingBag, Globe, User, ChevronLeft, ChevronRight,
-  Bell, Settings, Search, Zap, BookOpen, FlaskConical, TrendingUp,
-  X, Check, Moon, Sun, Volume2, VolumeX, Eye, EyeOff,
-  Palette, Monitor, Keyboard, Shield, RefreshCw, Trash2, Radio, Copy, Heart,
-  Tv, Handshake, Crosshair, Trophy, Menu,
+  BarChart2, User, Bell, Settings, Search, Zap,
+  X, Monitor, Shield, Trash2, Menu,
 } from "lucide-react";
 import { WMLogo } from "@/components/ui/WMLogo";
 import WmWordmark from "@/components/brand/WmWordmark";
@@ -29,6 +30,7 @@ import { isPublicAuthPath } from "@/lib/authRoutes";
 import { useCapitalObservation, useCapitalReach } from "@/lib/experience/useActiveScene";
 import { WMExperienceShell } from "@/components/experience/WMExperienceShell";
 import { isFounderRoomRoute } from "@/lib/routing/founderRoomRoutes";
+import { destinationsInGroup, WM_DESTINATIONS } from "@/lib/routing/wmDestinations";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { selectNavEmphasis } from "@/lib/experience/selectNavEmphasis";
 import { matchCuratedSymbols } from "@/lib/marketData/curatedSymbolCatalog";
@@ -719,60 +721,52 @@ function SettingsPanel({
 }
 
 /* ── Nav items ──────────────────────────────────────────────
-   Ordered along the founder-canon trader loop:
-   PREP → UNDERSTAND (OS flagship) → OBSERVE → DISCOVER → LEARN → REVIEW.
-   Command Deck is the flagship surface — it leads the top group after
-   Morning Prep (the loop's actual entry point). Charts sits next as
-   the primary auction surface. Discovery (Heatmaps/Scanner) then
-   Learning (News/Education) then Review (Journal). Trading-mode
-   surfaces (Paper/Copy/Backtest/AI Bot) live below the main loop. */
-/* tier: 1 = always-primary live-decision surfaces (Command Deck / Charts /
-   Market Truth / Structure); 2 = trader-strengthening tools (Academy /
-   Journal / Paper / Automation). The existing loop order already groups
-   Tier 1 (items 1-6) ahead of Tier 2 (items 7-13); the `tier` field only
-   marks the boundary so the live-decision block reads as distinct. It does
-   NOT reorder, remove, or rename any surface (UI Priority Lock). */
-const NAV_CORE = [
-  { href: "/morning-prep", icon: Sun,           label: "Morning Prep", tier: 1 },
-  { href: "/command-deck", icon: Crosshair,     label: "Command Deck", tier: 1 },
-  { href: INSTRUMENT_VIEW_ROUTE,       icon: BarChart2,     label: "Charts",       tier: 1 },
-  { href: "/education",    icon: GraduationCap, label: "Academy",      tier: 2 },
-  { href: "/journal",      icon: BookOpen,      label: "Journal",      tier: 2 },
-];
-const NAV_WORKBENCH = [
-  { href: "/heatmaps",     icon: Map,           label: "Heatmaps",     tier: 1 },
-  { href: "/scanner",      icon: ScanLine,      label: "Scanner",      tier: 1 },
-  { href: "/news",         icon: Newspaper,     label: "News",         tier: 1 },
-  { href: "/paper",        icon: TrendingUp,    label: "Paper Trade",  tier: 2 },
-  { href: "/copy-trading", icon: Copy,          label: "Copy Trading", tier: 2 },
-  { href: "/backtesting",  icon: FlaskConical,  label: "Backtest",     tier: 2 },
-  // The page at /ai-bot is titled "Market Intelligence · Observed market data
-  // only · no generated signals" and runs the canonical Market Canvas — it does
-  // not operate a bot or emit signals. Nav must not promise one.
-  { href: "/ai-bot",       icon: Zap,           label: "Market Intel", tier: 2 },
-];
-const NAV_BOTTOM = [
-  { href: "/lounge",       icon: Users,         label: "Lounge"       },
-  { href: "/tv",           icon: Tv,            label: "WM TV"        },
-  { href: "/radio",        icon: Radio,         label: "WM Radio"     },
-  { href: "/creator",      icon: Globe,         label: "Creator"      },
-  { href: "/partnerships", icon: Handshake,     label: "Partnerships" },
-  { href: "/shop",         icon: ShoppingBag,   label: "Shop"         },
-  { href: "/profile",      icon: User,          label: "Profile"      },
-];
+   THESE ARE NO LONGER TYPED HERE.
 
-// Mobile primary nav — 5 slots per iOS/Android convention. Public navigation
-// names trader jobs and destinations, never private collection infrastructure.
-// Scanner remains desktop-first via NAV_TOP. Order follows the trader loop:
-// OBSERVE (Charts) → DECIDE (Command Deck) → PRACTICE (Paper) →
-// REVIEW (Journal) → IDENTITY (Profile).
-const MOBILE_NAV_ITEMS = [
-  { href: INSTRUMENT_VIEW_ROUTE, icon: BarChart2, label: "Charts" },
-  { href: "/command-deck", icon: Crosshair, label: "Command Deck" },
-  { href: "/paper", icon: TrendingUp, label: "Paper" },
-  { href: "/journal", icon: BookOpen, label: "Journal" },
-  { href: "/profile", icon: User, label: "Profile" },
+   `NAV_CORE` / `NAV_WORKBENCH` / `NAV_BOTTOM` / `MOBILE_NAV_ITEMS` were four
+   hand-maintained lists of where the product's rooms are — and they were not
+   the only four. `OS_ROOMS` in WMOperatingSystem and `FOUNDER_ROOM_ROUTES` in
+   the routing registry answered the same question, in different words, and the
+   set had drifted: `/command-deck` was "Command Deck" in this rail and
+   "Question-Driven" in the OS rail; `/charts` was "Charts" here and "Chart"
+   there. The trader crossing between the two shells was told the same room had
+   two names.
+
+   `src/lib/routing/wmDestinations.ts` is the one owner now. The groups below
+   are VIEWS of it, and the canon-loop ordering the deleted comment described
+   lives there, stated once.
+
+   What moved, and why it is a repair rather than a reshuffle: the rail now
+   carries the ROOM group — the decision family that wears the OS frame — so
+   `/heatmaps`, `/nectar` and `/paper` are in the always-visible rail they were
+   already framed by, and `/education` sits with the other tools it belongs
+   with. No destination was removed from the product; every one of them is in
+   the Workspace drawer or the rail, exactly as before. */
+const NAV_CORE = destinationsInGroup("ROOM");
+const NAV_WORKBENCH = destinationsInGroup("TOOL");
+const NAV_BOTTOM = destinationsInGroup("COMMUNITY");
+
+// Mobile primary nav — 5 slots per iOS/Android convention, per the platform
+// bottom-bar limit. The five are a SLICE of the one registry, named by href so
+// a label or icon change lands here too; typing them out again is what let the
+// phone bar call /paper "Paper" while every other surface called it
+// "Paper Trade". Order follows the trader loop: OBSERVE (Charts) → DECIDE
+// (Command Deck) → PRACTICE (Paper) → REVIEW (Journal) → IDENTITY (Profile).
+const MOBILE_NAV_HREFS = [
+  INSTRUMENT_VIEW_ROUTE,
+  "/command-deck",
+  "/paper",
+  "/journal",
+  "/profile",
 ] as const;
+const MOBILE_NAV_ITEMS = MOBILE_NAV_HREFS.map(href => {
+  const found = WM_DESTINATIONS.find(d => d.href === href);
+  // A phone slot pointing at a route the registry does not know is a painted
+  // door on the smallest screen, where it is hardest to recover from. Fail at
+  // module load, where a human is looking, not silently at 390px.
+  if (!found) throw new Error(`MOBILE_NAV_HREFS names ${href}, which is not a WM destination`);
+  return found;
+});
 /* A COMMENT IS NOT A CONSUMER.
    A `NAV_ITEMS` constant stood here, justified by its own comment: "Legacy —
    kept for any code that may reference NAV_ITEMS". No code did. The comment

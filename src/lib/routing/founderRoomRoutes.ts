@@ -34,27 +34,34 @@
  * — the exact failure mode the Founder brief calls the "loophole."
  */
 
-import { INSTRUMENT_VIEW_ROUTE } from "./founderLanding";
+import { OS_FRAMED_ROUTES } from "./wmDestinations";
 
 /**
- * Every route that wears the Asset-10 sanctuary shell today. In order of
- * visibility on the Founder-audited landing paths.
+ * Every route that wears the Asset-10 sanctuary shell today.
+ *
+ * ── WHY THIS IS NOW DERIVED ─────────────────────────────────────────────────
+ *
+ * This list used to be typed out here, and it was one of FOUR hand-maintained
+ * answers to "where are the product's rooms" — alongside `OS_ROOMS` in the OS
+ * frame and the three `NAV_*` arrays in MainLayout. They had drifted: `/paper`
+ * wore this shell while being absent from the OS rail, so the rail denied the
+ * room it was rendering; and `/proof-lane` was in the OS rail while being
+ * absent from here, an OS door that walked the trader into the other shell
+ * with no sign that anything had changed.
+ *
+ * `wmDestinations` is the one owner now, and a room declares its own frame
+ * there. This module keeps its name and its predicate, because "does the OS
+ * wrap this route" is a routing question with its own consumers and its own
+ * guards. What it no longer keeps is a second copy of the answer.
  *
  * `/` is NOT in the list because it 307-redirects to /command-deck — the
  * redirect is the single owner, and putting `/` here would leak an extra
- * paint of the sanctuary before the redirect resolves.
+ * paint of the sanctuary before the redirect resolves. That falls out of `/`
+ * having no destination entry; it is no longer an exclusion written twice.
  */
-export const FOUNDER_ROOM_ROUTES = [
-  "/command-deck",
-  INSTRUMENT_VIEW_ROUTE,
-  "/heatmaps",
-  "/morning-prep",
-  "/journal",
-  "/paper",
-  "/nectar",
-] as const;
+export const FOUNDER_ROOM_ROUTES: readonly string[] = OS_FRAMED_ROUTES;
 
-export type FounderRoomRoute = typeof FOUNDER_ROOM_ROUTES[number];
+export type FounderRoomRoute = string;
 
 /**
  * True when the current route belongs to the Asset-10 family and should

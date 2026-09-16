@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import manifest from "../app/manifest";
+import { destinationsInGroup, WM_DESTINATIONS } from "./routing/wmDestinations";
 
 const source = (path: string) => readFileSync(resolve(__dirname, path), "utf8");
 
@@ -259,10 +260,27 @@ describe("responsive P0 command surfaces", () => {
       .toMatch(/const sync = \(\) => setNarrow\(mq\.matches\);\s*\n\s*sync\(\);/);
   });
 
-  it("compresses the desktop product map into five human jobs plus one workspace menu", () => {
+  it("compresses the desktop product map into the framed decision family plus one workspace menu", () => {
     const layout = source("../components/layout/MainLayout.tsx");
-    const coreBlock = layout.slice(layout.indexOf("const NAV_CORE"), layout.indexOf("const NAV_WORKBENCH"));
-    expect(coreBlock.match(/href:/g)).toHaveLength(5);
+    // ── WHAT THIS ASSERTION USED TO BE, AND WHY IT CHANGED ──────────────────
+    //
+    // It counted `href:` occurrences inside a hand-typed `const NAV_CORE = [...]`
+    // block and demanded exactly 5. The rooms now have ONE owner — the rail, the
+    // OS rail, the sanctuary registry and the phone bar all derive from
+    // `wmDestinations` — so there is no literal block left to slice, and a slice
+    // of nothing matches nothing and passes silently.
+    //
+    // The LAW is unchanged and is restated here as data: the always-visible rail
+    // carries only the decision family that wears the OS frame, and every other
+    // destination stays exactly one click away behind the workspace menu. What
+    // must never come back is a rail that lists the whole product map.
+    const rail = destinationsInGroup("ROOM");
+    expect(rail.length, "the always-visible rail must stay a short list").toBeLessThanOrEqual(7);
+    expect(rail.every((d) => d.frame === "os"), "the rail is the OS-framed family").toBe(true);
+    // Nothing became unreachable: the rail plus the two drawer sections are the
+    // whole registry, with no destination in two places and none in none.
+    const drawered = [...destinationsInGroup("TOOL"), ...destinationsInGroup("COMMUNITY")];
+    expect(new Set([...rail, ...drawered].map((d) => d.href)).size).toBe(WM_DESTINATIONS.length);
     expect(layout).toContain('aria-label="Open workspace menu"');
     expect(layout).toContain('id="wm-workspace-menu"');
     expect(layout).toContain("Everything, without the clutter.");

@@ -7,11 +7,17 @@ const source = (path: string) => readFileSync(resolve(__dirname, path), "utf8");
 describe("global shell public/private vocabulary", () => {
   const layout = source("../components/layout/MainLayout.tsx");
   const mobileSession = source("../components/layout/MobileSessionPill.tsx");
+  // The nav labels moved to their single owner; see wmDestinations.ts. A scan
+  // left pointing at MainLayout would now match nothing and pass forever.
+  const destinations = source("../lib/routing/wmDestinations.ts");
 
   it("keeps private collection infrastructure out of global navigation", () => {
+    expect(destinations).not.toContain('label: "Nectar');
     expect(layout).not.toContain('label: "Nectar');
     expect(layout).not.toContain("HeaderVaultPill");
-    expect(layout).toContain('{ href: "/command-deck", icon: Crosshair, label: "Command Deck" }');
+    expect(destinations).toContain(
+      '{ href: "/command-deck", label: "Command Deck", icon: Crosshair, group: "ROOM"',
+    );
   });
 
   it("routes contextual mobile market health to the public chart workspace", () => {

@@ -1,0 +1,153 @@
+import type { LucideIcon } from "lucide-react";
+import {
+  BarChart2,
+  BookOpen,
+  Check,
+  Copy,
+  Crosshair,
+  FlaskConical,
+  Globe,
+  GraduationCap,
+  Handshake,
+  Map,
+  Newspaper,
+  Radio,
+  ScanLine,
+  Shield,
+  ShoppingBag,
+  Sun,
+  Tv,
+  TrendingUp,
+  User,
+  Users,
+  Zap,
+} from "lucide-react";
+
+import { INSTRUMENT_VIEW_ROUTE } from "./founderLanding";
+
+/**
+ * WHERE THE PRODUCT'S ROOMS ARE — one owner, one list.
+ *
+ * ── THE DEFECT ──────────────────────────────────────────────────────────────
+ *
+ * Four hand-maintained lists answered this one question, and they disagreed:
+ *
+ *   `OS_ROOMS`            WMOperatingSystem.tsx   7 entries   the OS rail
+ *   `NAV_CORE` + `NAV_WORKBENCH` + `NAV_BOTTOM`
+ *                         MainLayout.tsx         19 entries   the July rail
+ *   `MOBILE_NAV_ITEMS`    MainLayout.tsx          5 entries   the phone bar
+ *   `FOUNDER_ROOM_ROUTES` founderRoomRoutes.ts    7 entries   who wears the OS
+ *
+ * Read from source, not guessed, the disagreements they had accumulated:
+ *
+ *   · `/command-deck` was "Question-Driven" in the OS rail and "Command Deck"
+ *     in the July rail. `/charts` was "Chart" and "Charts". One room, two
+ *     names, depending on which shell the trader happened to be standing in.
+ *   · `/paper` wears the OS frame (it is in FOUNDER_ROOM_ROUTES) but was NOT in
+ *     OS_ROOMS — so the trader standing in that room could not see it in the
+ *     room list. The rail denied the room it was rendering.
+ *   · `/proof-lane` was in OS_ROOMS but NOT in FOUNDER_ROOM_ROUTES — so the OS
+ *     rail offered a door that walks the trader OUT of the OS and into the
+ *     other shell, with no sign that anything had changed.
+ *
+ * None of those is a typo. They are what four owners of one fact always
+ * produce, given time. So the lists are gone and this is the one that remains:
+ * every consumer above now DERIVES from `WM_DESTINATIONS`, and a new room joins
+ * the product by editing this file and nothing else.
+ *
+ * ── WHAT `frame` MEANS ──────────────────────────────────────────────────────
+ *
+ * `frame: "os"` is the claim that this route has been seen inside
+ * WMOperatingSystem and its own layout survived the move. It is a MEASUREMENT,
+ * not an aspiration — a route is promoted by looking at it, which is why the
+ * field is per-destination rather than a default with exceptions.
+ */
+export type WmDestinationGroup = "ROOM" | "TOOL" | "COMMUNITY";
+
+export interface WmDestination {
+  readonly href: string;
+  /** The ONE name this room answers to, in every rail, on every shell. */
+  readonly label: string;
+  readonly icon: LucideIcon;
+  readonly group: WmDestinationGroup;
+  /**
+   * 1 = a live-decision surface. 2 = a trader-strengthening tool.
+   * Read by `selectNavEmphasis` to decide what a rail may withhold while
+   * capital is live; it is not a sort key and it is not a visual rank.
+   */
+  readonly tier: 1 | 2;
+  /** Which frame wraps this route today. See the note above. */
+  readonly frame: "os" | "legacy";
+}
+
+/**
+ * Ordered along the founder-canon trader loop:
+ * PREP → DECIDE → OBSERVE → DISCOVER → LEARN → REVIEW, then the tools the
+ * trader steps out to, then the places they go when they are not trading.
+ */
+export const WM_DESTINATIONS: readonly WmDestination[] = [
+  // ── ROOMS — the decision family, the ones the OS frame holds ────────────
+  { href: "/morning-prep", label: "Morning Prep", icon: Sun, group: "ROOM", tier: 1, frame: "os" },
+  { href: "/command-deck", label: "Command Deck", icon: Crosshair, group: "ROOM", tier: 1, frame: "os" },
+  { href: INSTRUMENT_VIEW_ROUTE, label: "Charts", icon: BarChart2, group: "ROOM", tier: 1, frame: "os" },
+  { href: "/heatmaps", label: "Heatmaps", icon: Map, group: "ROOM", tier: 1, frame: "os" },
+  { href: "/nectar", label: "Passport", icon: Shield, group: "ROOM", tier: 1, frame: "os" },
+  // TIER 1, not 2. Tier 2 is what a rail may withhold while capital is live —
+  // and /paper is the room the open book LIVES in. Withholding it at exactly
+  // the moment a position is on would trap the trader away from their own
+  // position to "protect" them, which `selectNavEmphasis` names as a worse
+  // failure than the noise the reduction is fixing.
+  { href: "/paper", label: "Paper Trade", icon: TrendingUp, group: "ROOM", tier: 1, frame: "os" },
+  { href: "/journal", label: "Journal", icon: BookOpen, group: "ROOM", tier: 2, frame: "os" },
+
+  // ── TOOLS — market work the trader steps out to ─────────────────────────
+  { href: "/scanner", label: "Scanner", icon: ScanLine, group: "TOOL", tier: 1, frame: "legacy" },
+  { href: "/news", label: "News", icon: Newspaper, group: "TOOL", tier: 1, frame: "legacy" },
+  { href: "/education", label: "Academy", icon: GraduationCap, group: "TOOL", tier: 2, frame: "legacy" },
+  { href: "/proof-lane", label: "Proof Lane", icon: Check, group: "TOOL", tier: 2, frame: "legacy" },
+  { href: "/copy-trading", label: "Copy Trading", icon: Copy, group: "TOOL", tier: 2, frame: "legacy" },
+  { href: "/backtesting", label: "Backtest", icon: FlaskConical, group: "TOOL", tier: 2, frame: "legacy" },
+  // The page at /ai-bot is titled "Market Intelligence · Observed market data
+  // only · no generated signals" and runs the canonical Market Canvas — it does
+  // not operate a bot or emit signals. A rail must not promise one.
+  { href: "/ai-bot", label: "Market Intel", icon: Zap, group: "TOOL", tier: 2, frame: "legacy" },
+
+  // ── COMMUNITY & BUSINESS ────────────────────────────────────────────────
+  { href: "/lounge", label: "Lounge", icon: Users, group: "COMMUNITY", tier: 2, frame: "legacy" },
+  { href: "/tv", label: "WM TV", icon: Tv, group: "COMMUNITY", tier: 2, frame: "legacy" },
+  { href: "/radio", label: "WM Radio", icon: Radio, group: "COMMUNITY", tier: 2, frame: "legacy" },
+  { href: "/creator", label: "Creator", icon: Globe, group: "COMMUNITY", tier: 2, frame: "legacy" },
+  { href: "/partnerships", label: "Partnerships", icon: Handshake, group: "COMMUNITY", tier: 2, frame: "legacy" },
+  { href: "/shop", label: "Shop", icon: ShoppingBag, group: "COMMUNITY", tier: 2, frame: "legacy" },
+  { href: "/profile", label: "Profile", icon: User, group: "COMMUNITY", tier: 2, frame: "legacy" },
+];
+
+/** Every destination in one group, in canon order. */
+export function destinationsInGroup(group: WmDestinationGroup): readonly WmDestination[] {
+  return WM_DESTINATIONS.filter((d) => d.group === group);
+}
+
+/** Every route that wears the OS frame today. */
+export const OS_FRAMED_ROUTES: readonly string[] = WM_DESTINATIONS.filter(
+  (d) => d.frame === "os",
+).map((d) => d.href);
+
+/**
+ * The destination the trader is currently inside, or `null`.
+ *
+ * Prefix-match, so a nested view (`/nectar/TSLA`, `/journal/2026-09-13`) still
+ * reports the room it belongs to — a trader who navigated INTO a detail has not
+ * walked out of the room. Never matches by suffix or by bare substring: a route
+ * that merely CONTAINS "/journal" (say "/legal/journalism-policy", if one is
+ * ever added) is a different place.
+ */
+export function activeDestination(pathname: string): WmDestination | null {
+  let best: WmDestination | null = null;
+  for (const d of WM_DESTINATIONS) {
+    if (pathname !== d.href && !pathname.startsWith(d.href + "/")) continue;
+    // Longest match wins, so a future "/journal/review" destination would beat
+    // "/journal" rather than losing to declaration order.
+    if (best === null || d.href.length > best.href.length) best = d;
+  }
+  return best;
+}
