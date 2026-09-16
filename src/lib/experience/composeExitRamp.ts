@@ -23,14 +23,18 @@
  *  - SAFE TO LEAVE is copied from the assessment — the receipt cannot fabricate
  *    permission the engine withheld.
  *  - When it is NOT safe to leave, OPEN is guaranteed non-empty (a truthful
- *    exit ramp must name what still holds the human) — a synthetic reason is
- *    added if the caller supplied none.
+ *    exit ramp must name what still holds the human) — the UNMET DONE-FOR-NOW
+ *    criteria are named if the caller supplied nothing.
  *  - RETURN is surfaced only for a known, non-empty return condition.
  *
  * PURE — no React, no I/O, no clock. Deterministic and total.
  */
 
-import type { CompletionAssessment, CompletionState } from "./selectCompletionState";
+import type {
+  CompletionAssessment,
+  CompletionState,
+  DoneForNowCriteria,
+} from "./selectCompletionState";
 
 export const EXIT_RAMP_VERSION = "wm.exit-ramp.v1" as const;
 
@@ -91,9 +95,37 @@ export function composeExitRamp(input: ExitRampInput): ExitRamp {
   const ret = knownLabel(input.returnCondition);
 
   // A truthful exit ramp that is NOT safe to leave must name what still holds
-  // the human. If the caller named nothing, borrow the engine's reason.
+  // the human. If the caller named nothing, derive it from the engine.
+  //
+  // ── The OPEN item that said nothing was open (2026-09-16, found by USE) ────
+  //
+  // Measured live on the deck, all three of these in one card:
+  //
+  //     WAITING                                        ← chip: NOT safe to leave
+  //     Open  ▪ Nothing is required right now; the next useful action
+  //             depends on new evidence.
+  //     WAITING — 1 open                               ← recap
+  //
+  // The one thing listed as OPEN was a sentence saying nothing was open. This
+  // guardrail exists precisely to name what holds the human, and it was being
+  // satisfied VACUOUSLY — the count was 1 and the content was zero.
+  //
+  // Root cause: two questions, one answer borrowed across them.
+  //
+  //   `assessment.reason`   answers "why is the STATE what it is?"
+  //   `assessment.criteria` answers "why is the VERDICT not safe-to-leave?"
+  //
+  // OPEN is a statement about the VERDICT, so it must be derived from the
+  // criteria. `reason` is not wrong — it is correct for its own question, and
+  // it is already carried by the headline and the state chip. Restating it here
+  // gave one screen two answers to "what is open".
+  //
+  // Deriving from the criteria also makes the guardrail non-vacuous BY
+  // CONSTRUCTION, not by hand: `safeToLeave` is the conjunction of the five, so
+  // `!safeToLeave` guarantees at least one is false and therefore at least one
+  // named item. No state can slip through with a calm sentence again.
   if (!safeToLeave && open.length === 0) {
-    open.push(assessment.reason);
+    open.push(...unmetCriteria(assessment.criteria));
   }
 
   const recap = knownLabel(input.recap) ?? deriveRecap(state, done, saved, open);
@@ -111,6 +143,29 @@ export function composeExitRamp(input: ExitRampInput): ExitRamp {
     safeToLeave,
     headline,
   };
+}
+
+/**
+ * Name every DONE-FOR-NOW criterion that is NOT met, in the engine's own words.
+ *
+ * Introduces no vocabulary: each phrase restates the criterion's own documented
+ * meaning on {@link DoneForNowCriteria}.
+ *
+ * `reentryWithoutReconstruction` is named ONLY when state was preserved. The
+ * two criteria are distinct questions, but a ledger that preserved nothing
+ * cannot offer clean re-entry either — printing both would put one fact on the
+ * screen twice, which is the defect this function was written to end.
+ */
+function unmetCriteria(c: DoneForNowCriteria): string[] {
+  const out: string[] = [];
+  if (!c.jobResolvedOrBlocked) out.push("The current job is neither complete nor truthfully blocked.");
+  if (!c.noCriticalStatePending) out.push("Critical state is still unresolved and needs attention.");
+  if (!c.statePreserved) out.push("Important state and receipts are not preserved yet.");
+  if (!c.returnConditionKnownOrNone) out.push("The condition that makes returning useful is not known.");
+  if (c.statePreserved && !c.reentryWithoutReconstruction) {
+    out.push("Re-entry would require reconstructing context from memory.");
+  }
+  return out;
 }
 
 function deriveRecap(

@@ -60,14 +60,16 @@ describe("composeExitRamp — Completion Receipt (truth-lock)", () => {
     expect(ramp.saved).toEqual(["Journal entry #12"]);
   });
 
-  it("guarantees a non-empty OPEN when it is NOT safe to leave (borrows the engine reason)", () => {
+  it("guarantees a non-empty OPEN when it is NOT safe to leave (names the unmet criteria)", () => {
     const ramp = composeExitRamp({
       assessment: assess({ hasOpenPosition: true }),
       open: [],
     });
     expect(ramp.safeToLeave).toBe(false);
     expect(ramp.open.length).toBeGreaterThan(0);
-    expect(ramp.open[0]).toMatch(/live risk/i);
+    // An open position fails BOTH job-resolution and critical-state criteria.
+    expect(ramp.open.join(" ")).toMatch(/neither complete nor truthfully blocked/i);
+    expect(ramp.open.join(" ")).toMatch(/critical state is still unresolved/i);
   });
 
   it("does not inject a synthetic OPEN when the caller already named one", () => {
@@ -135,6 +137,75 @@ describe("composeExitRamp — Completion Receipt (truth-lock)", () => {
         returnCondition: "market open",
       });
       expect(ramp.headline).toMatch(/resume|leave/i);
+    });
+  });
+
+  /**
+   * ── AN OPEN ITEM MAY NOT SAY THAT NOTHING IS OPEN ─────────────────────────
+   *
+   * Measured live on /command-deck (2026-09-16): the card's chip read WAITING
+   * (NOT safe to leave), its OPEN section listed exactly one thing — "Nothing
+   * is required right now; the next useful action depends on new evidence." —
+   * and its recap read "WAITING — 1 open". The count was 1 and the content was
+   * zero: the guardrail was satisfied VACUOUSLY.
+   *
+   * `assessment.reason` explains the STATE; `assessment.criteria` explain the
+   * VERDICT. OPEN is a statement about the verdict, so it is derived from the
+   * criteria — which makes it non-vacuous by construction, since safeToLeave is
+   * their conjunction.
+   */
+  describe("AN OPEN ITEM MAY NOT SAY THAT NOTHING IS OPEN", () => {
+    it("never files the WAITING calm-sentence as the thing that is open", () => {
+      const waiting = composeExitRamp({ assessment: assess({ statePreserved: false }) });
+      expect(waiting.state).toBe("WAITING");
+      expect(waiting.safeToLeave).toBe(false);
+      expect(waiting.open.length).toBeGreaterThan(0);
+      // The exact live string, and the shape of any restatement of it.
+      expect(waiting.open).not.toContain(
+        "Nothing is required right now; the next useful action depends on new evidence.",
+      );
+      for (const item of waiting.open) {
+        expect(item, `OPEN item: ${item}`).not.toMatch(/nothing is required/i);
+      }
+      expect(waiting.open.join(" ")).toMatch(/not preserved/i);
+    });
+
+    it("names an unmet criterion for EVERY not-safe-to-leave state", () => {
+      const cases: Array<Partial<CompletionSignals>> = [
+        { hasOpenPosition: true },
+        { hasUnreviewedClose: true },
+        { hasActiveWork: true },
+        { statePreserved: false },
+        { statePreserved: false, jobComplete: true },
+        { statePreserved: false, blockedReason: "no market data" },
+        { statePreserved: false, lowValueRepetition: true },
+        { statePreserved: false, returnCondition: "price reaches Location" },
+      ];
+      for (const c of cases) {
+        const ramp = composeExitRamp({ assessment: assess(c) });
+        if (ramp.safeToLeave) continue;
+        const label = JSON.stringify(c);
+        expect(ramp.open.length, `no OPEN item for ${label}`).toBeGreaterThan(0);
+        for (const item of ramp.open) {
+          expect(item, `vacuous OPEN item for ${label}: ${item}`).not.toMatch(
+            /nothing is required|safe to (leave|disengage)/i,
+          );
+        }
+      }
+    });
+
+    it("says one fact once — a lost ledger is not also a separate re-entry line", () => {
+      const ramp = composeExitRamp({ assessment: assess({ statePreserved: false }) });
+      expect(ramp.open.filter((i) => /preserved|reconstructing/i.test(i))).toHaveLength(1);
+      expect(new Set(ramp.open).size).toBe(ramp.open.length);
+    });
+
+    it("still yields to a caller who named the open work itself", () => {
+      const ramp = composeExitRamp({
+        assessment: assess({ statePreserved: false }),
+        open: ["Seal the decision receipt"],
+      });
+      expect(ramp.open).toEqual(["Seal the decision receipt"]);
     });
   });
 
