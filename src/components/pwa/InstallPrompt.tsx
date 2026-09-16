@@ -78,25 +78,41 @@ export function InstallPrompt() {
         // silently discarded and the card sits at left:50% uncompensated.
         // MEASURED at 375px before this change: left 188, right 531 — 156px of
         // a 343px card (45%) off screen, taking the dismiss button with it.
+        // ATMOSPHERE MUST NEVER OUTRUN TRUTH. A spring at stiffness 350 made
+        // this card the loudest motion on a screen whose market state is
+        // routinely UNKNOWN — a shortcut offer animating harder than the
+        // market read. The rise is now a short, flat tween: present, not
+        // performed.
         <motion.div
-          initial={{ y: 80, opacity: 0 }}
+          initial={{ y: 24, opacity: 0 }}
           animate={{ y: 0,  opacity: 1 }}
-          exit={{   y: 80, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 350, damping: 30 }}
+          exit={{   y: 24, opacity: 0 }}
+          transition={{ duration: 0.22, ease: [0.22, 0.61, 0.36, 1] }}
           className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] inset-x-4 mx-auto z-[200] max-w-sm"
-          style={{ filter: "drop-shadow(0 8px 32px rgba(0,212,170,0.25))" }}
           role="region"
           aria-live="polite"
           aria-labelledby="wm-install-prompt-title"
           aria-describedby="wm-install-prompt-description"
         >
-          <div className="relative rounded-2xl overflow-hidden border border-wm-border/80"
-               style={{ background: "linear-gradient(135deg, #0D1117 0%, #161B22 100%)" }}>
-
-            {/* Gold top accent */}
-            <div className="h-0.5 w-full" style={{
-              background: "linear-gradient(90deg, #00D4AA, #F0B429, #4FA3E0)"
-            }} />
+          {/*
+            Sanctuary grammar, not card-museum grammar: ONE brass hairline on
+            the left edge, a quiet ground, no full box, no halo. The teal/blue
+            accent family this used to wear belongs to no owner in the current
+            visual canon — it read as a product ad pasted over the market room.
+            (The exact banned hex values are named only in the guard, so that
+            naming them here cannot itself trip it.) The ground stays opaque
+            because this floats ABOVE the
+            chart and a transparent panel over live price is unreadable; that
+            is legibility, not decoration.
+          */}
+          <div
+            className="relative overflow-hidden"
+            style={{
+              background: "#0B0B0D",
+              borderLeft: "2px solid rgba(201,165,92,0.55)",
+              borderTop: "1px solid rgba(139,106,41,0.30)",
+            }}
+          >
 
             <div className="p-4">
               <button
@@ -109,9 +125,9 @@ export function InstallPrompt() {
 
               <div className="flex items-start gap-3">
                 {/* Icon */}
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                     style={{ background: "linear-gradient(135deg, #00D4AA20, #4FA3E020)", border: "1px solid rgba(0,212,170,0.3)" }}>
-                  {isIOS ? <Smartphone size={22} className="text-wm-green" aria-hidden="true" /> : <Monitor size={22} className="text-wm-green" aria-hidden="true" />}
+                <div className="w-12 h-12 flex items-center justify-center shrink-0"
+                     style={{ background: "rgba(201,165,92,0.06)", borderLeft: "1px solid rgba(201,165,92,0.35)" }}>
+                  {isIOS ? <Smartphone size={22} className="text-wm-gold" aria-hidden="true" /> : <Monitor size={22} className="text-wm-gold" aria-hidden="true" />}
                 </div>
 
                 <div className="flex-1 min-w-0">
@@ -135,8 +151,8 @@ export function InstallPrompt() {
                   ) : (
                     <button
                       onClick={handleInstall}
-                      className="mt-2.5 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-wm-black transition-all hover:opacity-90 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
-                      style={{ background: "linear-gradient(135deg, #00D4AA, #4FA3E0)" }}
+                      className="mt-2.5 inline-flex min-h-11 items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-wm-black transition-colors hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+                      style={{ background: "rgba(201,165,92,0.92)" }}
                     >
                       <Download size={13} aria-hidden="true" />
                       Install WM Pro
@@ -148,7 +164,11 @@ export function InstallPrompt() {
               {/* Feature pills */}
               <div className="flex gap-1.5 mt-3 flex-wrap">
                 {["Home screen shortcut", "Focused workspace", "Connection-aware", "Same WM Pro"].map(f => (
-                  <span key={f} className="text-[9px] px-2 py-0.5 rounded-full bg-wm-surface border border-wm-border text-wm-text-dim">
+                  <span
+                    key={f}
+                    className="text-[9px] px-2 py-0.5 text-wm-text-dim"
+                    style={{ borderLeft: "1px solid rgba(139,106,41,0.35)" }}
+                  >
                     {f}
                   </span>
                 ))}
