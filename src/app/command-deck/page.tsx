@@ -986,6 +986,23 @@ function CommandDeckInner() {
                     );
                   })()}
                 </ActiveQuestionBar>
+
+                {/* MARKET OBJECT PASSPORT stamp band (canon: Canonical Market
+                    State). A DOCUMENT HEADER, and it has to live where a
+                    document header lives — in the primary scene, under the
+                    active question and above the canvas.
+
+                    It was first placed at the top of the passport region, which
+                    is itself nested inside the collapsed SECONDARY WORKSPACE
+                    drawer and the collapsed EVIDENCE drawer. A live probe found
+                    it rendering two closed <details> deep: present in the DOM,
+                    invisible to the trader. Being ABOVE a drawer is worthless
+                    when the drawer is inside another drawer. The per-object
+                    evidence lineage stays down there, where it belongs. */}
+                <div style={{ marginBottom: 10 }}>
+                  <PassportStamp vm={passportStamp} />
+                </div>
+
                 {(() => {
                   const story = state ? marketStory : null;
                   return (
@@ -1261,7 +1278,6 @@ function CommandDeckInner() {
                   Opens by default when the job is OBSERVE (studying market
                   objects) per the deck job-emphasis. */}
                   <div style={{ order: surfaceOrder(deckEmphasis, "PASSPORT") }}>
-                  <PassportStamp vm={passportStamp} />
                   <details
                     open={deckEmphasis.passportOpen}
                   >

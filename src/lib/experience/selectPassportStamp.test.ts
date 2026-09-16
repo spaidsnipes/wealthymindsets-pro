@@ -179,4 +179,19 @@ describe("SENTINEL — the band spells no value of its own", () => {
     expect(page).toContain("selectPassportStamp");
     expect(page).toContain("<PassportStamp");
   });
+
+  // BEING ABOVE A DRAWER IS WORTHLESS WHEN THE DRAWER IS INSIDE ANOTHER DRAWER.
+  // The band first shipped at the top of the passport region — which is nested
+  // inside the collapsed SECONDARY WORKSPACE <details>, which holds the
+  // collapsed EVIDENCE <details>. A live DOM probe found it rendering two
+  // closed drawers deep: in the document, invisible to the trader. That is the
+  // exact defect the band was built to end, reproduced one level up.
+  it("the band renders in the primary scene, not inside the collapsed workspace", () => {
+    const page = fs.readFileSync(path.join(root, "src/app/command-deck/page.tsx"), "utf8");
+    const band = page.indexOf("<PassportStamp");
+    const drawer = page.indexOf("wm-cd-secondary-workspace");
+    expect(band).toBeGreaterThan(-1);
+    expect(drawer).toBeGreaterThan(-1);
+    expect(band).toBeLessThan(drawer);
+  });
 });
