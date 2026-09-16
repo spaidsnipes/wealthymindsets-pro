@@ -104,7 +104,14 @@ export default function ChartsPage() {
       fallback={
         <div
           data-testid="charts-suspense-plane"
-          style={{ minHeight: "100vh", background: "transparent" }}
+          // `100vh` measures the SCREEN. This plane lives inside the frame's
+          // scrolling room, which starts below the masthead — so a viewport
+          // floor makes the room taller than the room, and /charts arrives
+          // already scrollable by exactly the masthead's height before a
+          // single pixel of content exists. `100%` fills the room it was
+          // actually given. Same repair, same reason, as the route plane in
+          // command-deck/page.tsx.
+          style={{ minHeight: "100%", background: "transparent" }}
         />
       }
     >

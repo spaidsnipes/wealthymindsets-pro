@@ -219,7 +219,10 @@ export default function CommandDeckPage() {
   // instantly. An opaque route fallback would briefly cover the atmosphere
   // that the Asset-10 parent owns.
   return (
-    <React.Suspense fallback={<div data-testid="deck-suspense-plane" style={{ minHeight: "100vh", background: "transparent" }} />}>
+    // The route plane below already moved off `100vh` for this reason; the
+    // fallback ABOVE it did not, so the scroll it was fixed for came back
+    // during the exact frames the trader is waiting.
+    <React.Suspense fallback={<div data-testid="deck-suspense-plane" style={{ minHeight: "100%", background: "transparent" }} />}>
       <CommandDeckInner />
     </React.Suspense>
   );

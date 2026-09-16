@@ -195,6 +195,10 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "OPS_TOOLING",
     note: "Build-time detector: does a room paint an opaque near-black plane over the sanctuary? Consumed by gates, never rendered. A trader loses nothing by it having no screen — its whole job is to be asked before a route is promoted to frame:\"os\".",
   },
+  "src/lib/design/roomViewportFloor.ts": {
+    reason: "OPS_TOOLING",
+    note: "Build-time detector, sibling of osRoomPlane.ts: does a room floor itself at the height of the SCREEN while living inside the frame's room, which begins below the masthead? Consumed by gates, never rendered. It exists because osRoomPlane measures the colour, so the repairs it prompted fixed the colour and left the height on the same elements.",
+  },
   "src/lib/authority/executionConnectivity.ts": {
     reason: "AWAITING_SURFACE",
     note: "Named in the §13 open gates as orphaned. This confirms it from the import graph: no route renders it, including /readiness.",

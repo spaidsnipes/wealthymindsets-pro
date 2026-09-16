@@ -795,7 +795,11 @@ export default function JournalPage() {
   // in JSX children, so `{/* ... */}` there parses as a block and breaks
   // the file. It must stay above `return (`.
   return (
-    <React.Suspense fallback={<div className="min-h-screen" />}>
+    // `min-h-screen` is `100vh` by another name. This fallback is a child of
+    // the frame's scrolling room, not of the screen, so a viewport floor
+    // hands the trader a room that scrolls by the masthead's height while
+    // it is still empty. `min-h-full` fills the room it was given.
+    <React.Suspense fallback={<div className="min-h-full" />}>
       <JournalPageInner />
     </React.Suspense>
   );

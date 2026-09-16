@@ -98,7 +98,10 @@ function profileCreatorArt(index: number): React.CSSProperties {
 
 export default function ProfilePage() {
   return (
-    <React.Suspense fallback={<div className="min-h-screen" />}>
+    // `min-h-screen` is `100vh` by another name, and this plane is a child of
+    // the frame's scrolling room rather than of the screen. `min-h-full`
+    // fills the room it was actually given, so an empty room stays still.
+    <React.Suspense fallback={<div className="min-h-full" />}>
       <ProfilePageInner />
     </React.Suspense>
   );
