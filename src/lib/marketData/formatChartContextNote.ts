@@ -67,6 +67,24 @@ export interface ChartContextInput {
    */
   readonly role?: unknown;
   readonly price?: unknown;
+  /**
+   * WHAT KIND OF PRICE `price` IS — "PRINT" | "BAR_CLOSE". Optional; absent is
+   * read as PRINT, which is what every caller meant before this field existed.
+   *
+   * ── WHY THE MODEL NEEDS THIS AND THE HUMAN ALREADY HAD IT ─────────────
+   * `price` used to be fed straight from `state.price.last`, which is null
+   * whenever no live trade has printed. On /command-deck that meant the model
+   * was told NOTHING about price while the trader was looking at a chart with
+   * 120 candles on it — the assistant would answer "I don't have sufficient
+   * price data" about a screen that was showing a price. Sending the bar close
+   * instead closes that gap, but ONLY if it arrives labelled: an unlabelled
+   * 356.58 is precisely how the model learns to quote a close as a live print,
+   * which is the failure this whole file was written to prevent.
+   *
+   * Re-validated against the canonical token set below for the same reason
+   * `role` is: this value crosses the wire from a client and is not trusted.
+   */
+  readonly priceProvenance?: unknown;
   readonly change?: unknown;
   readonly changePct?: unknown;
 }
@@ -87,6 +105,18 @@ function canonicalRole(v: unknown): string | null {
   if (typeof v !== "string") return null;
   const t = v.trim().toUpperCase();
   return CANONICAL_ROLES.has(t) ? t : null;
+}
+
+/**
+ * Anything that is not the literal string "BAR_CLOSE" is treated as a print.
+ * Deliberately fail-LOUD in one direction only: an unrecognised token must
+ * never silently downgrade a real print into a hedged one (that would teach
+ * the model to distrust live data), and an unrecognised token must never
+ * silently upgrade a close into a print either — which is why the default is
+ * PRINT and the ONLY way to get the hedge is to ask for it by name.
+ */
+function isBarClose(v: unknown): boolean {
+  return typeof v === "string" && v.trim().toUpperCase() === "BAR_CLOSE";
 }
 
 const num = (v: unknown): number | null =>
@@ -113,7 +143,15 @@ export function formatChartContextNote(context: ChartContextInput | null | undef
   const price = num(context.price);
   // > 0, not truthiness: a price of 0 is not a price, and the old `if
   // (context.price)` already skipped it by accident rather than on purpose.
-  if (price !== null && price > 0) note += ` @ $${price.toLocaleString("en-US")}`;
+  if (price !== null && price > 0) {
+    note += ` @ $${price.toLocaleString("en-US")}`;
+    // The hedge is bound to the number, before the role, so the model cannot
+    // read the figure without reading what it is. The timeframe is already
+    // stated above, so this does not repeat it.
+    if (isBarClose(context.priceProvenance)) {
+      note += " (last bar close, NOT a live print)";
+    }
+  }
 
   // Role rides right after the price so the model reads "$365.25 STALE" as
   // one bound fact — the way the strip's role glyph sits beside the price on

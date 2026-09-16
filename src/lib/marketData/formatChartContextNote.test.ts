@@ -21,6 +21,8 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { formatChartContextNote } from "./formatChartContextNote";
 
 const DISCLOSURE = /day change unavailable/i;
@@ -274,5 +276,90 @@ describe("the note's canonical role set matches the producer's", () => {
       const note = formatChartContextNote({ symbol: "TSLA", role: r, price: 100 });
       expect(note, `producer role ${r} was not recognised`).toContain(`[role ${r}]`);
     }
+  });
+});
+
+/**
+ * A BAR CLOSE HANDED TO THE MODEL WITHOUT A LABEL IS A LIVE-PRICE CLAIM.
+ *
+ * ── WHY THIS SECTION EXISTS ───────────────────────────────────────────
+ * `price` used to be fed from `state.price.last`, which is null whenever no
+ * live trade has printed. On /command-deck that produced an assistant that
+ * said "I don't have sufficient price data" about a screen showing 120
+ * candles: the human could see the price, the model was told there wasn't
+ * one. Understating what the room knows is a truth defect in the same family
+ * as overclaiming it.
+ *
+ * Sending the bar close instead closes that gap — but ONLY with the label.
+ * This file's opening comment already records what an unlabelled price does
+ * to the model ("exactly what taught the model to quote a stale close as if
+ * it were live"), so the number and the hedge are asserted together below and
+ * never separately.
+ */
+describe("bar-close provenance reaches the model with the number", () => {
+  it("a bar close is hedged in the same breath as the figure", () => {
+    const note = formatChartContextNote({
+      symbol: "TSLA", timeframe: "15m", role: "UNAVAILABLE",
+      price: 356.58, priceProvenance: "BAR_CLOSE",
+    });
+    expect(note).toContain("$356.58 (last bar close, NOT a live print)");
+  });
+
+  it("a live print is NOT hedged — hedging real data teaches distrust of it", () => {
+    const note = formatChartContextNote({
+      symbol: "TSLA", timeframe: "15m", role: "LIVE",
+      price: 357.12, priceProvenance: "PRINT",
+    });
+    expect(note).toContain("$357.12");
+    expect(note).not.toContain("bar close");
+  });
+
+  it("omitting the field is read as a print — every caller predating it meant that", () => {
+    const note = formatChartContextNote({ symbol: "TSLA", price: 357.12 });
+    expect(note).toContain("$357.12");
+    expect(note).not.toContain("bar close");
+  });
+
+  it("a hostile or drifted token cannot mint the hedge, and cannot remove it either", () => {
+    // Only the exact canonical token earns the hedge. Anything else is a
+    // print, which is the STRICTER reading: a client cannot dress a live
+    // number up as a close to make the model hedge a real figure, and it
+    // cannot mis-spell its way out of the hedge either, because the deck is
+    // the only thing that sets this and it sets it from the shared selector.
+    for (const token of ["barclose", "BAR CLOSE", "CLOSE", 1, null, undefined, {}]) {
+      const note = formatChartContextNote({
+        symbol: "TSLA", price: 356.58, priceProvenance: token,
+      });
+      expect(note, `token ${JSON.stringify(token)} minted a hedge`).not.toContain("bar close");
+    }
+    // Case and surrounding whitespace are NOT drift — they are the same token.
+    expect(formatChartContextNote({
+      symbol: "TSLA", price: 356.58, priceProvenance: " bar_close ",
+    })).toContain("NOT a live print");
+  });
+
+  it("no price means no hedge — the hedge may not appear without a number to hedge", () => {
+    const note = formatChartContextNote({
+      symbol: "TSLA", price: null, priceProvenance: "BAR_CLOSE",
+    });
+    expect(note).not.toContain("bar close");
+    expect(note).not.toContain("$");
+  });
+});
+
+/**
+ * Source-graph guard. The formatter above is only reachable if the deck
+ * actually sends the field — and `priceProvenance` is OPTIONAL, so dropping
+ * the wire would type-check, test green, and silently restore an unlabelled
+ * close going to the model. Both halves are named.
+ */
+describe("the deck sends price evidence, not the raw print field", () => {
+  it("/command-deck feeds the assistant from the shared selector", () => {
+    const src = readFileSync(
+      resolve(__dirname, "../../app/command-deck/page.tsx"), "utf8",
+    );
+    expect(src).toMatch(/price:\s*chartContextPrice\.value/);
+    expect(src).toMatch(/priceProvenance:\s*chartContextPrice\.provenance/);
+    expect(src).toMatch(/chartContextPrice\s*=\s*selectPriceEvidence\(/);
   });
 });

@@ -219,7 +219,20 @@ describe("the deck publishes chart context so Spaidbot has the same object", () 
     expect(span).toContain("symbol,");
     expect(span).toContain("timeframe,");
     expect(span).toContain("role: state?.qualityState");
-    expect(span).toContain("price: state?.price?.last");
+    // PRICE IS ASSERTED BY PROPERTY, NOT BY EXPRESSION (amended 2026-09-16).
+    // This line used to read `price: state?.price?.last`, and that literal was
+    // the wrong fence in a way worth recording. `price.last` is null whenever
+    // no live trade has printed, so on /command-deck — which draws 120 real
+    // candles — the model was handed NO price and answered "I don't have
+    // sufficient price data" about a screen that was showing one. The deck now
+    // sends `selectPriceEvidence(...)`, the same owner the hero and the spine
+    // read, so all three surfaces and the assistant cannot disagree.
+    //
+    // A guard that names one component's internals blocks the repair of that
+    // component. What this fence actually cares about is that a price field
+    // REACHES the wire at all; which fact wins is `selectPriceEvidence`'s
+    // question, and formatChartContextNote.test.ts owns the provenance half.
+    expect(span).toMatch(/\bprice:\s*\S/);
   });
 
   it("both publishers write to the SAME element id the reader queries", () => {

@@ -78,6 +78,7 @@ import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMa
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import DeckMarketChart, { type Candle as DeckCandle } from "@/components/experience/DeckMarketChart";
+import { selectPriceEvidence } from "@/lib/marketData/formatSpinePrice";
 import AvailableRChip from "@/components/experience/AvailableRChip";
 import DeckExpressionShortlist from "@/components/experience/DeckExpressionShortlist";
 import { OptionExpressionIntent } from "@/components/chart/OptionExpressionIntent";
@@ -319,6 +320,13 @@ function CommandDeckInner() {
   });
 
   const state = useCanonicalMarketState(identity);
+  // ONE owner of "which price fact wins" for every consumer in this room —
+  // the hero, the spine, and the assistant's context note.
+  const chartContextPrice = selectPriceEvidence(
+    state?.price?.last,
+    state?.lastBar?.close,
+    state?.lastBar?.timeframe,
+  );
   const history = useCanonicalMarketStateHistory(identity, 6);
   // THE STORY IS COMPILED EXACTLY ONCE, HERE, WITH CONTINUITY.
   //
@@ -963,7 +971,14 @@ function CommandDeckInner() {
                 symbol,
                 timeframe,
                 role: state?.qualityState ?? null,
-                price: state?.price?.last ?? null,
+                // Same owner the hero and the spine read. Before this, the
+                // assistant was handed `price.last` — null whenever no live
+                // trade had printed — so it answered "I don't have sufficient
+                // price data" about a screen that was showing 120 candles.
+                // The provenance rides along because an unlabelled close is
+                // how the model learns to quote one as a print.
+                price: chartContextPrice.value,
+                priceProvenance: chartContextPrice.provenance,
               })}
               style={{ display: "none" }}
             />
