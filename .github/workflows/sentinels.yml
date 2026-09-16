@@ -169,3 +169,32 @@ jobs:
       # prove the assembled room reads well — that remains HUMAN_PROOF_REQUIRED.
       - name: Interior surface geometry (390 / 834 / 1440px)
         run: node scripts/measure-experience-geometry.mjs 390 834 1440
+
+      # ── Volume Profile PIXELS ─────────────────────────────────────────────
+      #
+      # Every step above measures TEXT in a DOM. The Volume Profile is painted
+      # on a canvas, which has no DOM, and that one sentence is why the "live VP
+      # render geometry proof" gate stayed open across several batons: vitest
+      # genuinely cannot see it. It was recorded as needing "a different
+      # instrument, not another unit test", and then nothing picked one up.
+      #
+      # A real browser canvas has getImageData(). The instrument was available
+      # the whole time. prove-vp-pixels.mjs paints a profile using ONLY the
+      # shipped owners in src/lib/vpDrawGeometry.ts and reads the bytes back,
+      # turning three prose claims in that module's header — pixel-flush rows,
+      # bar length directly proportional to volume, never over the price axis —
+      # into measurements.
+      #
+      # SCOPE, stated so a green check is not over-read: this proves the
+      # geometry OWNERS paint an honest picture. It does NOT prove MainChart's
+      # composed scene does; drawWMVP also picks colours and draws POC/VAH/VAL
+      # over live price action, and that remains HUMAN_PROOF_REQUIRED. What it
+      # removes is the larger blind spot underneath: until this commit nothing
+      # in this repo had ever observed a single painted profile pixel.
+      #
+      # Each of the five laws has a matching WM_VP_REVIVE mode that makes it
+      # fail on demand, so a law that has quietly stopped measuring can be
+      # caught. Three of the five were written wrong the first time and were
+      # only found because their revive ran GREEN.
+      - name: Volume Profile pixel proof
+        run: npm run prove:vp-pixels

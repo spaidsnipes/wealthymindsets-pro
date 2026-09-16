@@ -12,6 +12,7 @@
     "build:standalone": "WM_BUILD_SHA=$(git rev-parse HEAD) WM_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) NEXT_OUTPUT=standalone next build",
     "start": "next start",
     "audit:phone": "node scripts/audit-phone-parity.mjs",
+    "prove:vp-pixels": "node scripts/prove-vp-pixels.mjs",
     "lint": "next lint",
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:build": "npm run build:standalone && electron-builder --config electron-builder.yml",
