@@ -2,6 +2,7 @@
 import * as React from "react";
 import type { CanonicalMarketState } from "@/lib/marketData/canonicalMarketState";
 import { selectHeroPriceChronology } from "@/lib/marketData/heroTruthChronology";
+import { selectPriceEvidence } from "@/lib/marketData/formatSpinePrice";
 
 /**
  * HeroTruth — the ONE dominant first-second message on /command-deck.
@@ -150,7 +151,17 @@ export function HeroTruth({
   const isRoomDensity = density === "room";
   const qualityKey: keyof typeof QUALITY_STYLES = state?.qualityState ?? "UNKNOWN";
   const style = QUALITY_STYLES[qualityKey];
-  const price = state?.price.last ?? null;
+  // ONE owner decides WHICH price fact wins; this component decides only how
+  // to draw it. Reading `state.price.last` directly here — as this line used
+  // to — made the hero blind to a bar close the spine below was already
+  // printing, so the deck showed `?` above `356.58 LAST 15m BAR CLOSE`.
+  // See selectPriceEvidence for the measurement.
+  const priceEvidence = selectPriceEvidence(
+    state?.price.last,
+    state?.lastBar?.close,
+    state?.lastBar?.timeframe,
+  );
+  const price = priceEvidence.value;
   // canon §fail-closed hero chronology (heroTruthChronology adapter):
   // a transport/server receipt timestamp is not proof of market
   // observation time. Only a LIVE packet with a valid observed →
@@ -325,7 +336,11 @@ export function HeroTruth({
               fontFamily: "Georgia, 'Times New Roman', serif",
               textShadow: `0 2px 40px ${style.color}30`,
             }}
-            aria-label={`Price ${price}`}
+            aria-label={
+              priceEvidence.qualifier
+                ? `Price ${price}, ${priceEvidence.qualifier.toLowerCase()}`
+                : `Price ${price}`
+            }
           >
             {formatPrice(price)}
           </span>
@@ -346,6 +361,30 @@ export function HeroTruth({
             aria-label="Price not yet observed"
           >
             ?
+          </span>
+        )}
+        {/*
+          A BAR CLOSE DRAWN AT HERO SIZE WITHOUT THIS CHIP IS A PRINT CLAIM.
+          The glyph is identical either way — only this word separates "the
+          tape just traded here" from "this is where the last candle ended".
+          It is rendered from the same selector that produced the number, so
+          the number and its provenance cannot be separated by a later edit
+          that touches only one of them.
+        */}
+        {priceEvidence.qualifier != null && (
+          <span
+            data-testid="hero-price-provenance"
+            data-provenance={priceEvidence.provenance}
+            style={{
+              fontSize: isRoomDensity ? 10 : 11,
+              letterSpacing: 1.1,
+              textTransform: "uppercase",
+              color: "#8a8271",
+              fontFamily: "system-ui, -apple-system, sans-serif",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {priceEvidence.qualifier}
           </span>
         )}
         {priceChronology.label != null && (
