@@ -64,6 +64,7 @@ import SceneAdmissionPanel from "@/components/experience/SceneAdmissionPanel";
 import SceneAdmits, { SceneAdmitsAmbient } from "@/components/experience/SceneAdmits";
 import { compileScene, type SurfaceElement } from "@/lib/experience/compileScene";
 import { deckSceneSignals } from "@/lib/experience/deckSceneSignals";
+import { selectCapitalPosture } from "@/lib/experience/selectCapitalPosture";
 import {
   computeEvidenceDebt as computeSceneEvidenceDebt,
   computeRightOfWay as computeSceneRightOfWay,
@@ -80,6 +81,7 @@ import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import DeckMarketChart, { type Candle as DeckCandle } from "@/components/experience/DeckMarketChart";
 import { selectPriceEvidence } from "@/lib/marketData/formatSpinePrice";
 import AvailableRChip from "@/components/experience/AvailableRChip";
+import CapitalPostureLine from "@/components/experience/CapitalPostureLine";
 import DeckExpressionShortlist from "@/components/experience/DeckExpressionShortlist";
 import { OptionExpressionIntent } from "@/components/chart/OptionExpressionIntent";
 import {
@@ -575,6 +577,24 @@ function CommandDeckInner() {
   const sceneCompilation = React.useMemo(
     () => compileScene(sceneInput.signals),
     [sceneInput],
+  );
+
+  // RISK, second half. Derived from the two owners immediately above — the
+  // adapter that decides what this route honestly observes, and the compiler
+  // that decides whether capital can be exposed. No third computation, no
+  // fetch, and deliberately NOT gated behind `SceneAdmits`: a posture line is
+  // the one element that must survive every scene, because the scene where it
+  // is least wanted (a calm PREGAME with an unread book) is the scene where
+  // its absence is most easily mistaken for flatness.
+  const capitalPosture = React.useMemo(
+    () =>
+      selectCapitalPosture({
+        position: sceneInput.signals.position,
+        confidence: sceneInput.signals.positionConfidence,
+        provenance: sceneInput.provenance.POSITION,
+        capitalAtRisk: sceneCompilation.capitalAtRisk,
+      }),
+    [sceneInput, sceneCompilation.capitalAtRisk],
   );
 
   // The Question Router (canon P26/P6) compiles the ONE dominant question the
@@ -1119,8 +1139,21 @@ function CommandDeckInner() {
                 data-decision-id={currentSceneDecision?.decisionId ?? undefined}
                 style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}
               >
-                <div data-testid="scene-risk" data-decision-id={currentSceneDecision?.decisionId ?? undefined}>
+                <div
+                  data-testid="scene-risk"
+                  data-decision-id={currentSceneDecision?.decisionId ?? undefined}
+                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                >
                   <AvailableRChip vm={chainVm?.availableR ?? null} />
+                  {/* The protection/humility half of Ticket T's RISK pixels.
+                      Until this line, `scene-risk` answered "how much R can I
+                      risk" and said nothing about what the trader is already
+                      holding — and blank space in a risk column reads as
+                      "flat". Both arguments come from owners this page has
+                      already computed; nothing new is fetched and no book is
+                      invented. On this route the honest answer is UNREAD, and
+                      saying so out loud is the entire point. */}
+                  <CapitalPostureLine vm={capitalPosture} />
                 </div>
                 <details
                   className="wm-cd-market-why"
