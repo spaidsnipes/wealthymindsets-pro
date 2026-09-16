@@ -197,6 +197,79 @@ export function paperAccountStats(facts: PaperBookFacts): PaperStat[] {
 }
 
 /**
+ * THE SAME LAW, IN THE MASTHEAD — and it had never been carried there.
+ *
+ * Everything above was written for the /paper account strip, and it fixed that
+ * strip. `HeaderPnL` draws realized paper P&L in the masthead of EVERY room,
+ * and it decided the same question for itself:
+ *
+ *     const val = pnl ?? 0;
+ *     const up = val >= 0;
+ *     <span className={up ? "text-wm-green" : "text-wm-red"}>
+ *
+ * Three separate instances of a defect this repo had already named:
+ *
+ *   · AN UNTRADED BOOK CLAIMED A RESULT. `trades: []` sums to 0, `0 >= 0` is
+ *     true, so a book that had never been put to work rendered a GREEN +$0.00
+ *     with a green border — on every route, above every room. This is H1
+ *     exactly, on a surface with far more reach than the page it was fixed on.
+ *
+ *   · THE FILE'S OWN PROSE SAID THE OPPOSITE OF ITS CODE. Its header states
+ *     "On a parse failure it renders NOTHING rather than zero. A confident
+ *     `+$0.00` built from unreadable storage is a lie with a decimal point on
+ *     it." The `?? 0` on the very next line does precisely that. A comment is
+ *     not a mechanism, and a correct comment above incorrect code is worse than
+ *     no comment, because it is what a reader checks instead of the code.
+ *
+ *   · AN UNREADABLE BOOK AND AN ABSENT ONE WERE ONE STATE. Both became `null`,
+ *     both rendered $0.00. "We hold bytes we cannot interpret" and "this trader
+ *     has no paper book" are different facts with different remedies.
+ *
+ * FIFTH TIME a law in this repo was learned on one surface and not carried to
+ * the other. So the masthead does not get a second implementation — it calls
+ * `resultStat`, the same function the strip calls, and the only thing this
+ * wrapper owns is the mapping from raw localStorage shape to the facts the law
+ * already knows how to judge.
+ *
+ * Returns `null` for "render nothing", which is the honest answer for a trader
+ * who has no paper book at all: there is no figure, not a zero.
+ */
+export interface MastheadPaperBook {
+  /** Bytes existed but could not be interpreted. Not absent — unreadable. */
+  readonly unreadable: boolean;
+  /** How many trades the stored book holds. Zero means never put to work. */
+  readonly tradeCount: number;
+  /** Sum of `pnl` across stored trades. */
+  readonly realizedPnl: number;
+}
+
+export function paperMastheadRealizedStat(book: MastheadPaperBook | null): PaperStat | null {
+  // No stored book at all. Nothing was observed, so nothing is claimed.
+  if (book === null) return null;
+
+  return resultStat(
+    "P&L",
+    book.realizedPnl,
+    {
+      bookRecoveryRequired: book.unreadable,
+      hasUnmarkedOptions: false,
+      unmarkedOptionCount: 0,
+      // The book's own contents decide this, never the value of the number —
+      // a real session that closed flat is a true result and keeps its tint.
+      neverTraded: book.tradeCount === 0,
+      totalEquity: 0,
+      cash: 0,
+      dayPnl: 0,
+      realizedPnl: book.realizedPnl,
+      winRatePct: null,
+      closedCount: book.tradeCount,
+    },
+    "No paper trades have been closed, so realised P&L is exactly zero. The figure is measured, not missing — and it carries no win tint, because nothing was won.",
+    "Realised paper-trading P&L: the sum of P&L across closed paper trades. No open-position mark, no live account, no broker.",
+  );
+}
+
+/**
  * Win Rate — the RATIO on the same page, which genuinely must refuse.
  *
  * `selectPaperWinRate` returns `pct: null` when nothing has closed, and its own
