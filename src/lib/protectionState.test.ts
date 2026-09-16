@@ -72,6 +72,74 @@ describe("protection state (BUILD ORDER Step 7)", () => {
     expect(s.grade).toBe("UNVERIFIED — LAST KNOWN");
   });
 
+  describe("§14.1 — an unread book is not a flat book", () => {
+    /**
+     * The defect, stated plainly.
+     *
+     * `positionQty === 0` used to return FLAT before `brokerStateUnverified`
+     * was ever consulted. But a zero reaches this function two completely
+     * different ways: "we read the book and it holds nothing", and "we could
+     * not read the book, so we counted nothing". The first is a FINDING. The
+     * second is a DEFAULT wearing the finding's clothes, and §14.1 exists
+     * because that specific substitution is how a screen tells a trader they
+     * are safe when nobody checked.
+     *
+     * It was reachable on /paper for the whole life of the line: `positions`
+     * starts as an empty `useState` array, so every first paint graded the book
+     * FLAT — "No position is open, so there is nothing to protect" — while
+     * `compileScene`, reading the same unhydrated ledger, correctly reported
+     * POSITION UNCONFIRMED a few inches up the same screen.
+     */
+    it("does not grade an unreadable empty book FLAT", () => {
+      const s = selectProtectionState({
+        filledQty: 0,
+        brokerAckedProtectedQty: 0,
+        brokerStateUnverified: true,
+      });
+      expect(
+        s.grade,
+        "an unread book graded FLAT is a claim of flatness from no evidence",
+      ).toBe("UNVERIFIED — LAST KNOWN");
+    });
+
+    it("does not let the §7 sentence re-assert the flatness the grade refused", () => {
+      // The sentence is what a screen reader announces after the grade. Saying
+      // "UNVERIFIED — LAST KNOWN. FLAT." would hand back the certainty the
+      // grade had just withheld, in the louder half of the label.
+      const s = selectProtectionState({
+        filledQty: 0,
+        brokerAckedProtectedQty: 0,
+        brokerStateUnverified: true,
+      });
+      expect(s.sentence).toBe("POSITION UNCONFIRMED");
+      expect(s.sentence).not.toContain("FLAT");
+    });
+
+    it("still grades an OBSERVED empty book FLAT, because that is a finding", () => {
+      // The fix must not make flatness unsayable. A book that was read and
+      // holds nothing is exactly what FLAT is for.
+      const s = selectProtectionState({ filledQty: 0, brokerAckedProtectedQty: 0 });
+      expect(s.grade).toBe("FLAT");
+      expect(s.sentence).toBe("FLAT");
+    });
+
+    it("never reports FLAT while the book is unverified, at any size", () => {
+      for (const filled of [0, 1, 3, 10]) {
+        for (let acked = 0; acked <= filled; acked++) {
+          const s = selectProtectionState({
+            filledQty: filled,
+            brokerAckedProtectedQty: acked,
+            brokerStateUnverified: true,
+          });
+          expect(s.grade).toBe("UNVERIFIED — LAST KNOWN");
+          // `fullyCovered` stays an arithmetic fact about the counts — the
+          // grade, not the arithmetic, is what carries the doubt.
+          expect(s.fullyCovered).toBe(filled > 0 && acked === filled);
+        }
+      }
+    });
+  });
+
   it("uncovered size is always numbered, never implied", () => {
     for (const filled of [1, 2, 5, 10]) {
       for (let acked = 0; acked <= filled; acked++) {

@@ -90,13 +90,35 @@ export function selectProtectionState(input: ProtectionInput): ProtectionState {
 
   const base = { positionQty, protectedQty, uncoveredQty, sentence, fullyCovered };
 
-  if (positionQty === 0) return { ...base, grade: "FLAT" };
-
   // Unverified broker state must not increase certainty (§9 DEGRADED: "Do not
-  // increase certainty"). It outranks every optimistic grade below.
+  // increase certainty"). It outranks every optimistic grade below — AND it
+  // outranks FLAT, which is the ordering this function got wrong until
+  // 2026-09-16.
+  //
+  // FLAT used to be returned first, on `positionQty === 0` alone. But a zero
+  // here is not necessarily an observation of zero: a book that could not be
+  // read reports no positions, and an unhydrated caller passes an empty array
+  // that has never been read at all. Grading that FLAT printed "No position is
+  // open, so there is nothing to protect" off evidence that established no such
+  // thing — §14.1, FLAT IS A FINDING, NEVER A DEFAULT, broken by the one
+  // function whose whole job is to say how exposed the trader is.
+  //
+  // It was also a live contradiction on /paper: `compileScene` was correctly
+  // reporting POSITION UNCONFIRMED from the same unhydrated book, inches away
+  // on the same screen, while this line said the position was closed.
+  //
+  // The sentence is corrected too. "FLAT" as the §7 grammar under an
+  // UNVERIFIED grade would re-assert in the sentence exactly what the grade
+  // just refused, and the sentence is the part a screen reader announces.
   if (input.brokerStateUnverified === true) {
-    return { ...base, grade: "UNVERIFIED — LAST KNOWN" };
+    return {
+      ...base,
+      sentence: positionQty === 0 ? "POSITION UNCONFIRMED" : base.sentence,
+      grade: "UNVERIFIED — LAST KNOWN",
+    };
   }
+
+  if (positionQty === 0) return { ...base, grade: "FLAT" };
 
   // §14.2 — BROKER-WORKING is reachable ONLY from acknowledged coverage, and
   // only when it covers the whole position. Partial coverage is not protection.

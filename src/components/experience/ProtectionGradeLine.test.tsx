@@ -158,4 +158,45 @@ describe("ProtectionGradeLine — it is actually mounted", () => {
     const tab = page.slice(page.indexOf('tab==="positions" &&'));
     expect(tab.indexOf("<ProtectionGradeLine")).toBeLessThan(tab.indexOf("bookRecoveryRequired ? ("));
   });
+
+  it("treats an unhydrated book as unverified, not as flat", () => {
+    const page = readFileSync(resolve(__dirname, "../../app/paper/page.tsx"), "utf8");
+
+    // `positions` is `useState<Position[]>([])`. Before the stored book is
+    // read, `positions.find(...)` is undefined and the owner graded that FLAT —
+    // "No position is open, so there is nothing to protect" — off an
+    // observation that never happened. The compiler already refuses to narrate
+    // flatness from an unhydrated ledger (see `sceneInput`); this line must
+    // refuse the same way or the two contradict each other on one screen.
+    const call = page.match(/selectPaperProtection\(\{[\s\S]{0,400}?\}\)/);
+    expect(call).not.toBeNull();
+    expect(
+      call![0],
+      "/paper grades protection from `positions` without telling the owner the " +
+        "book may be unhydrated — §14.1, FLAT is a finding, never a default.",
+    ).toMatch(/bookUnverified:[^,\n]*!hydrated/);
+  });
+
+  it("is gated on admission, because admission can actually say no here", () => {
+    const page = readFileSync(resolve(__dirname, "../../app/paper/page.tsx"), "utf8");
+
+    // `admissionFor` grants PROTECTION_GRADE in PENDING, MANAGE and DEGRADED —
+    // three scenes of ten, and exactly the scenes where capital can be exposed.
+    // An ungated mount painted a risk grade in the other seven, which made the
+    // SURFACE the authority on when risk exists. That is the §10 inversion
+    // SceneAdmits exists to end.
+    //
+    // This is the opposite ruling from HUMILITY_PANEL on the same page, and the
+    // difference is not taste: every scene admits humility, so gating it could
+    // never fire and would only inflate the governed count.
+    expect(page).toMatch(/<SceneAdmits[^>]*element="PROTECTION_GRADE"/);
+
+    // Claimed as governed, too. A real gate the SceneAdmissionPanel does not
+    // know about means the panel under-reports its own refusals.
+    // Anchored on `= [` — `readonly SurfaceElement[]` in the annotation would
+    // otherwise close a lazy match before the list body is ever seen.
+    const governed = page.match(/PAPER_GOVERNED_ELEMENTS[^=]*=\s*\[[\s\S]*?\]/);
+    expect(governed).not.toBeNull();
+    expect(governed![0]).toContain('"PROTECTION_GRADE"');
+  });
 });

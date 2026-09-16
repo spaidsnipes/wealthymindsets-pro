@@ -1622,6 +1622,18 @@ function SignalBot({
  *   FLATTEN_CONFIRM — §9 PHONE law: the way out survives every scene where
  *                     capital is exposed, including DEGRADED. Withheld when
  *                     there is nothing to exit, so it is never a dead button.
+ *   PROTECTION_GRADE — §7. Admitted in PENDING, MANAGE and DEGRADED only. That
+ *                     is not an arbitrary three: it is every scene reachable
+ *                     while capital is exposed, less RECEIPT, where the book is
+ *                     flat-confirmed and there is nothing to grade. Added
+ *                     2026-09-16, when the line was found painting in all ten.
+ *
+ * Note what this entry is NOT. HUMILITY_PANEL is rendered on this page and is
+ * deliberately absent from this list, because every scene admits it and a gate
+ * that can never fire would inflate the governed count without the OS gaining
+ * one inch of authority (`humilityReach.enforcement.test.ts` pins that). The
+ * test for whether an element belongs here is whether admission can ever say
+ * NO. For PROTECTION_GRADE it says no seven times out of ten.
  *
  * The positions table, the blotter and the order ticket are deliberately NOT
  * governed. Admission may remove a card WM chose to show; it may never remove
@@ -1630,6 +1642,7 @@ function SignalBot({
 const PAPER_GOVERNED_ELEMENTS: readonly SurfaceElement[] = [
   "PENDING_BANNER",
   "FLATTEN_CONFIRM",
+  "PROTECTION_GRADE",
 ];
 
 /* ── Main page ───────────────────────────────────────────── */
@@ -1782,11 +1795,21 @@ export default function PaperTradingPage() {
    * `bookUnverified` is wired to the same flag the recovery banner uses, so a
    * book we could not fully parse degrades to UNVERIFIED — LAST KNOWN instead
    * of quietly rendering BROKER-WORKING off a partial position list.
+   *
+   * `!hydrated` is wired into the SAME flag, and that half was missing.
+   * `positions` starts as `[]` from `useState`, so before the stored book is
+   * read `positions.find(...)` is undefined and `selectPaperProtection` returns
+   * FLAT — "No position is open, so there is nothing to protect." Meanwhile
+   * `sceneInput` below already passes `hydrated` to the compiler precisely so it
+   * will NOT narrate flatness from an unread book, and it correctly reports
+   * POSITION UNCONFIRMED. Two owners, same symbol, opposite sentences, one
+   * screen. §14.1: FLAT is a FINDING, never a default — and a default is exactly
+   * what an empty `useState` array is.
    */
   const paperProtection = selectPaperProtection({
     position: positions.find(p => p.symbol === activeSymbol),
     orders,
-    bookUnverified: bookRecoveryRequired,
+    bookUnverified: bookRecoveryRequired || !hydrated,
   });
   const markSummary = summarisePositionMarks(positionMarks);
   const markDisclosure = describePositionMarkSummary(markSummary);
@@ -2945,8 +2968,25 @@ export default function PaperTradingPage() {
                   on purpose. Inside any of them it would vanish exactly when a
                   trader most needs it: an unreadable book, or a book that looks
                   empty. The book is named on the line itself so the grade can
-                  never be read out of its environment. */}
-              <ProtectionGradeLine state={paperProtection} book="PAPER BOOK" />
+                  never be read out of its environment.
+
+                  It IS gated on admission, and that gate is not decoration.
+                  `admissionFor` grants PROTECTION_GRADE in exactly three scenes
+                  — PENDING, MANAGE and DEGRADED — which is exactly the set of
+                  scenes reachable while capital is exposed, minus RECEIPT where
+                  the book is provably flat. Painting a grade in the other seven
+                  made the surface the authority on when risk exists, which is
+                  the §10 inversion SceneAdmits was written to end.
+
+                  Withholding costs the trader nothing here: what they lose is a
+                  grade for a position the compiler has established they do not
+                  have, and the one thing that matters in its absence — "no book
+                  was read for this symbol, this is not a confirmation that you
+                  are flat" — is said by HumilityPanel above, unconditionally.
+                  Saying it twice would be INVASIVE_DUPLICATE_TRUTH. */}
+              <SceneAdmits compilation={sceneCompilation} element="PROTECTION_GRADE">
+                <ProtectionGradeLine state={paperProtection} book="PAPER BOOK" />
+              </SceneAdmits>
               {bookRecoveryRequired ? (
                 <div role="alert" className="flex flex-col items-center justify-center h-full px-6 text-center text-wm-red gap-2">
                   <BookOpen size={28} className="opacity-60"/>
