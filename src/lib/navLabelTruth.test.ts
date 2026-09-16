@@ -48,8 +48,12 @@ describe("navigation label truth", () => {
   });
 
   it("alert grouping does not claim AI coaching", () => {
+    // The alert group is drawn by the settings panel, which left MainLayout so
+    // that both shells could mount it. The claim is read where it is made.
+    const panels = read("src/components/layout/shellPanels.tsx");
+    expect(panels).not.toContain("AI Coaching Alerts");
+    expect(panels).toContain("Discipline Alerts");
     expect(layout).not.toContain("AI Coaching Alerts");
-    expect(layout).toContain("Discipline Alerts");
   });
 
   it("the page still makes no model call", () => {

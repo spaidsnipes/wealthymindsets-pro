@@ -6,6 +6,14 @@ const source = (path: string) => readFileSync(resolve(__dirname, path), "utf8");
 const drawer = source("../components/layout/ShellModalDrawer.tsx");
 const modalFocus = source("../components/layout/useShellModalFocus.ts");
 const layout = source("../components/layout/MainLayout.tsx");
+/**
+ * The TRIGGERS live in the shell (MainLayout). The PANELS they open no longer
+ * do — they were file-private functions there, which is why only the July shell
+ * could mount them and a trader in an OS room could not reach settings or sign
+ * out at all. They now live in `shellPanels`, and this suite reads each claim
+ * from whichever file makes it, rather than from the file that used to.
+ */
+const panels = source("../components/layout/shellPanels.tsx");
 
 describe("shared shell modal drawer accessibility", () => {
   it("escapes chart stacking contexts without accessing document during SSR", () => {
@@ -51,34 +59,34 @@ describe("shared shell modal drawer accessibility", () => {
   });
 
   it("separates notification primary and dismiss actions with truthful names and 44px targets", () => {
-    expect(layout).toContain("<article");
-    expect(layout).toContain('aria-label={n.read ? `Notification: ${n.title}` : `Mark ${n.title} as read`}');
-    expect(layout).toContain('aria-label={`Dismiss notification: ${n.title}`}');
-    expect(layout).toContain('className="inline-flex h-11 w-11');
-    expect(layout).toContain('<span className="sr-only">{n.read ? "Read" : "Unread"}</span>');
+    expect(panels).toContain("<article");
+    expect(panels).toContain('aria-label={n.read ? `Notification: ${n.title}` : `Mark ${n.title} as read`}');
+    expect(panels).toContain('aria-label={`Dismiss notification: ${n.title}`}');
+    expect(panels).toContain('className="inline-flex h-11 w-11');
+    expect(panels).toContain('<span className="sr-only">{n.read ? "Read" : "Unread"}</span>');
   });
 
   it("gives settings tabs, panels, switches, fields, and footer actions explicit semantics", () => {
-    expect(layout).toContain('role="tablist"');
-    expect(layout).toContain('type="button" role="tab"');
-    expect(layout).toContain("aria-selected={tab === t.id}");
-    expect(layout).toContain('event.key === "ArrowRight"');
-    expect(layout).toContain('role="tabpanel"');
-    expect(layout).toContain('role="switch"');
-    expect(layout).toContain("aria-checked={on}");
-    expect(layout).toContain("aria-label={label}");
-    expect(layout.match(/min-h-11/g)?.length).toBeGreaterThanOrEqual(10);
-    expect(layout).toContain("Save Settings");
-    expect(layout).toContain("Sign Out");
+    expect(panels).toContain('role="tablist"');
+    expect(panels).toContain('type="button" role="tab"');
+    expect(panels).toContain("aria-selected={tab === t.id}");
+    expect(panels).toContain('event.key === "ArrowRight"');
+    expect(panels).toContain('role="tabpanel"');
+    expect(panels).toContain('role="switch"');
+    expect(panels).toContain("aria-checked={on}");
+    expect(panels).toContain("aria-label={label}");
+    expect(panels.match(/min-h-11/g)?.length).toBeGreaterThanOrEqual(10);
+    expect(panels).toContain("Save Settings");
+    expect(panels).toContain("Sign Out");
   });
 
   it("preserves existing settings, export, cache, notification, and sign-out handlers", () => {
-    expect(layout).toContain('localStorage.setItem("wm_settings"');
-    expect(layout).toContain('window.dispatchEvent(new CustomEvent("wm-settings-changed"))');
-    expect(layout).toContain('a.download = "wealthymindsets-export.json"');
-    expect(layout).toContain("window.location.reload()");
-    expect(layout).toContain("onClick={() => markOne(n.id)}");
-    expect(layout).toContain("onClick={() => remove(n.id)}");
-    expect(layout).toContain("await signOut()");
+    expect(panels).toContain('localStorage.setItem("wm_settings"');
+    expect(panels).toContain('window.dispatchEvent(new CustomEvent("wm-settings-changed"))');
+    expect(panels).toContain('a.download = "wealthymindsets-export.json"');
+    expect(panels).toContain("window.location.reload()");
+    expect(panels).toContain("onClick={() => markOne(n.id)}");
+    expect(panels).toContain("onClick={() => remove(n.id)}");
+    expect(panels).toContain("await signOut()");
   });
 });

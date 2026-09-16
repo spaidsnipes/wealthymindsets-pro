@@ -3,7 +3,12 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const source = (path: string) => readFileSync(resolve(__dirname, path), "utf8");
-const layout = source("../components/layout/MainLayout.tsx");
+// The search dialog moved out of MainLayout into `shellPanels`, so that the OS
+// shell can mount the same one the July shell always had. This scan follows it;
+// aimed at the old file it would match nothing and pass forever.
+const layout = source("../components/layout/shellPanels.tsx");
+// The TRIGGER stays in the shell; only the dialog moved.
+const shell = source("../components/layout/MainLayout.tsx");
 const drawer = source("../components/layout/ShellModalDrawer.tsx");
 const focusOwner = source("../components/layout/useShellModalFocus.ts");
 
@@ -26,13 +31,13 @@ describe("global symbol search accessibility", () => {
   });
 
   it("connects the stable trigger and opens search exclusively", () => {
-    expect(layout).toContain("ref={searchTriggerRef}");
-    expect(layout).toContain('aria-haspopup="dialog"');
-    expect(layout).toContain("aria-expanded={searchOpen}");
-    expect(layout).toContain('aria-controls="wm-symbol-search-dialog"');
-    expect(layout).toContain("setNotifsOpen(false)");
-    expect(layout).toContain("setSettingsOpen(false)");
-    expect(layout).toContain("setProfileOpen(false)");
+    expect(shell).toContain("ref={searchTriggerRef}");
+    expect(shell).toContain('aria-haspopup="dialog"');
+    expect(shell).toContain("aria-expanded={searchOpen}");
+    expect(shell).toContain('aria-controls="wm-symbol-search-dialog"');
+    expect(shell).toContain("setNotifsOpen(false)");
+    expect(shell).toContain("setSettingsOpen(false)");
+    expect(shell).toContain("setProfileOpen(false)");
   });
 
   it("names and sizes search, result, and quick-access controls", () => {

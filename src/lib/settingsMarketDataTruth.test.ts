@@ -2,8 +2,16 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
+/**
+ * Every claim below is made by the SETTINGS PANEL, which used to be a
+ * file-private function inside MainLayout. It now lives in `shellPanels` so
+ * that both shells can mount the same one — a trader standing in an OS room
+ * previously had no way to reach settings at all. This scan follows it there.
+ * Left pointing at MainLayout it would match nothing and pass on every commit,
+ * which is the quietest way for a Sentinel to stop working.
+ */
 const layout = fs.readFileSync(
-  path.join(process.cwd(), "src/components/layout/MainLayout.tsx"),
+  path.join(process.cwd(), "src/components/layout/shellPanels.tsx"),
   "utf8",
 );
 
