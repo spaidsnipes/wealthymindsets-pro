@@ -31,13 +31,21 @@ describe("global shell public/private vocabulary", () => {
   });
 
   it("routes /nectar family membership through the same registry the sanctuary reads", () => {
-    // The /nectar family previously had a hard-coded check in MainLayout
-    // for its documentScroll semantics. That check is now delegated to
-    // the Founder-room registry (founderRoomRoutes.ts) so a single owner
-    // decides both "does this route wear the sanctuary?" and "does this
-    // route own its own vertical rhythm?" for every family member.
+    // The /nectar family previously had a hard-coded check in MainLayout.
+    // That check is now delegated to the Founder-room registry
+    // (founderRoomRoutes.ts) so a single owner decides membership.
+    //
+    // The third line here used to be
+    //   expect(layout).toContain('const documentScroll = isFounderOperatingRoom')
+    // on the theory that the registry also decided vertical rhythm. It did
+    // not. That expression sat above the Ticket T cutover's early return and
+    // was only READ in the July markup below it, so for a family member the
+    // disjunct was never evaluated in anger — and WMExperienceShell, which is
+    // what a family member actually gets, is `overflow: hidden` by design.
+    //
+    // Membership is what THIS file is about, and membership is what it now
+    // asserts. Scroll ownership belongs to whoever draws the frame.
     expect(layout).toContain('import { isFounderRoomRoute } from "@/lib/routing/founderRoomRoutes"');
     expect(layout).toContain('const isFounderOperatingRoom = isFounderRoomRoute(pathname)');
-    expect(layout).toContain('const documentScroll = isFounderOperatingRoom');
   });
 });

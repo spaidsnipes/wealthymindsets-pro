@@ -483,15 +483,35 @@ describe("responsive P0 command surfaces", () => {
     expect(brokers).toContain("Signing into Webull&apos;s website is separate and does not connect this app.");
   });
 
-  it("keeps long-form Founder-family surfaces vertically reachable via the registry", () => {
-    // Founder audit 2026-09-13: the document-scroll decision must derive
-    // from the same Asset-10 registry that decides the shell. Two separate
-    // pathname lists would drift; one owner cannot.
+  it("keeps long-form LEGACY surfaces vertically reachable in the July shell", () => {
+    // Founder audit 2026-09-13 wrote this as "the document-scroll decision
+    // must derive from the same Asset-10 registry that decides the shell",
+    // and asserted `const documentScroll = isFounderOperatingRoom`.
+    //
+    // THAT WAS NOT MERELY DEAD — IT WAS BACKWARDS.
+    //
+    // Dead first: `documentScroll` is only READ inside the July shell markup,
+    // which sits past the Ticket T cutover's early return. An OS room never
+    // reaches it, so `isFounderOperatingRoom` was false wherever the value
+    // was used. Backwards second: WMExperienceShell — the thing that actually
+    // returns for an OS room — is `height: 100dvh` + `overflow: hidden` on
+    // purpose. "An operating system does not scroll as a document; its panes
+    // scroll inside a fixed frame." So this test asserted OS rooms scroll the
+    // document while the live owner makes them explicitly not.
+    //
+    // A source scan cannot tell a live branch from a dead one, and a dead
+    // branch can assert the OPPOSITE of the shipped behaviour for as long as
+    // nobody reads it. Retargeted at the fact this file's own name is about:
+    // legacy July-shell rooms stay vertically reachable. OS-room scroll is
+    // WMExperienceShell's, asserted where it lives.
     const layout = source("../components/layout/MainLayout.tsx");
-    expect(layout).toContain('const documentScroll = isFounderOperatingRoom');
     expect(layout).toContain('data-scroll-owner={documentScroll ? "shell" : "workspace"}');
     expect(layout).toContain('overflowY: documentScroll ? "auto" : "hidden"');
     expect(layout).toContain('{ position: "relative", minHeight: "100%" }');
+
+    const sanctuary = source("../components/experience/WMExperienceShell.tsx");
+    expect(sanctuary, "the OS frame law is gone from the sanctuary").toContain('height: "100dvh"');
+    expect(sanctuary, "the OS frame no longer clips to its own panes").toContain('overflow: "hidden"');
   });
 
   it("contains the phone shell while preserving 44px primary controls", () => {

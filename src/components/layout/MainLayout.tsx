@@ -143,12 +143,28 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   // Full-document product surfaces own their vertical rhythm and must remain
   // reachable inside the fixed application shell. Workspace surfaces (charts,
   // scanner, journal, etc.) keep their existing internally managed overflow.
-  // Every Asset-10 family route owns its own vertical rhythm; adding
-  // proof-lane and legacy nectar handling on top of the registry so a new
-  // family member joins by editing one file. `/proof-lane` sits outside the
-  // family for now (it is a verification/inspect surface) but still needs
-  // document-scroll semantics.
-  const documentScroll = isFounderOperatingRoom || pathname === "/proof-lane";
+  //
+  // THE `isFounderOperatingRoom ||` DISJUNCT IS GONE, AND IT WAS DEAD.
+  //
+  // This value is computed here at the top of the component but only READ at
+  // the scroll-owner div far below, which is part of the July shell markup —
+  // and the Ticket T cutover returns WMExperienceShell before that markup is
+  // ever reached. So at every point where `documentScroll` is actually used,
+  // `isFounderOperatingRoom` is false by construction and the disjunct only
+  // ever contributed `false || x`.
+  //
+  // This is the SECOND dead branch on that flag in this file; the first was
+  // the tape-suppression ternary in the July header. The pattern is worth
+  // naming: a cutover that returns early turns every later mention of the
+  // flag it switched on into decoration, and decoration reads as intent. The
+  // next person to touch scroll ownership would have reasoned about an OS
+  // case that cannot occur, and any source-scanning gate would have confirmed
+  // it for them — a scan sees characters, not reachability.
+  //
+  // OS rooms DO get document-scroll semantics; WMExperienceShell owns that
+  // fact, which is the whole point of the cutover. `/proof-lane` is still on
+  // the July shell (frame: "legacy") and still needs document scroll here.
+  const documentScroll = pathname === "/proof-lane";
   const router   = useRouter();
   const { user, signOut, signOutAllDevices } = useAuth();
 

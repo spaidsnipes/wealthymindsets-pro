@@ -121,12 +121,34 @@ describe("MainLayout uses the registry — not a hard-coded pathname string", ()
     expect(MAIN_LAYOUT()).not.toContain('const isFounderOperatingRoom = pathname === "/command-deck"');
   });
 
-  it("uses the registry for the documentScroll decision, too", () => {
-    // A route in the sanctuary family that scrolled the shell instead of
-    // the document would show a July scrollbar around a calm interior —
-    // the "one calm room, one dashboard scrollbar" silhouette. Both
-    // decisions read the same owner.
+  it("lets the sanctuary — not MainLayout — own an OS room's vertical rhythm", () => {
+    // THE CLAIM THIS TEST USED TO MAKE, AND WHY IT COULD NOT BE TRUE.
+    //
+    // It asserted `const documentScroll = isFounderOperatingRoom` and
+    // explained that a family room scrolling the shell would show "a July
+    // scrollbar around a calm interior". Right worry, wrong file. That
+    // expression is computed above the Ticket T cutover and only READ in the
+    // July markup below the cutover's early return — a family room never
+    // arrives there, so the registry was not deciding anything.
+    //
+    // Worse, the assertion's implied behaviour is the opposite of the shipped
+    // one: WMExperienceShell pins the room at `height: 100dvh` with
+    // `overflow: hidden` precisely so it does NOT scroll as a document. A
+    // green source scan had been reporting the inverse of the product.
+    //
+    // So the registry decides MEMBERSHIP (asserted above) and the sanctuary
+    // decides RHYTHM. Asserted here at the sanctuary, which is where the fact
+    // lives — presence-shaped, at the owner.
     const src = MAIN_LAYOUT();
-    expect(src).toContain("const documentScroll = isFounderOperatingRoom");
+    expect(src, "the dead disjunct is back").not.toContain(
+      "const documentScroll = isFounderOperatingRoom",
+    );
+    expect(
+      readFileSync(
+        resolve(__dirname, "../../components/experience/WMExperienceShell.tsx"),
+        "utf8",
+      ),
+      "the sanctuary stopped owning the OS room's frame law",
+    ).toContain('overflow: "hidden"');
   });
 });

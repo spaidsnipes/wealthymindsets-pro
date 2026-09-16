@@ -64,6 +64,47 @@ describe("Founder operating-room shell", () => {
   });
 
   /**
+   * THE SAME DEFECT, SECOND INSTANCE IN THE SAME FILE — AND THE REASON IT GETS
+   * ITS OWN GATE RATHER THAN A LINE IN THE ONE ABOVE.
+   *
+   * `documentScroll` decides who owns vertical scroll. It was computed as
+   * `isFounderOperatingRoom || pathname === "/proof-lane"`, and every READ of
+   * it lives in the July shell markup — which is past the cutover's early
+   * return. So the first disjunct was `false` at every point where the value
+   * mattered. It read as "OS rooms scroll the document", it was never asked
+   * that question, and WMExperienceShell owns scroll ownership for OS rooms.
+   *
+   * The lesson generalises past this one value: A CUTOVER THAT RETURNS EARLY
+   * TURNS EVERY LATER MENTION OF THE FLAG IT SWITCHED ON INTO DECORATION, AND
+   * DECORATION READS AS INTENT. That is now twice in MainLayout.tsx, which is
+   * enough to gate rather than to fix and hope.
+   *
+   * Stated by ORDER, like the tape gate, because reachability is what is
+   * actually at stake and order is the part a text read can measure honestly.
+   */
+  it("keeps every read of documentScroll on the far side of the cutover", () => {
+    const layout = source();
+
+    const cutover = layout.indexOf("if (isFounderOperatingRoom) {");
+    const firstRead = layout.indexOf('data-scroll-owner={documentScroll');
+
+    expect(cutover, "the Ticket T cutover branch is gone").toBeGreaterThan(-1);
+    expect(firstRead, "the scroll-owner div is gone or renamed").toBeGreaterThan(-1);
+
+    // If a read of documentScroll ever moves ABOVE the cutover, the flag stops
+    // being decoration and starts deciding something — at which point the
+    // disjunct below is a real question again and this gate should be revisited
+    // deliberately rather than deleted.
+    expect(cutover, "documentScroll is read before the cutover: the flag is live again")
+      .toBeLessThan(firstRead);
+
+    // The dead disjunct itself. Absence-shaped, which is the weak direction —
+    // but the fact's own existence is the defect, so absence is all there is.
+    expect(layout, "the dead `isFounderOperatingRoom ||` disjunct is back on documentScroll")
+      .not.toContain("documentScroll = isFounderOperatingRoom ||");
+  });
+
+  /**
    * §30 STEP 2: "Make MARKET the dominant continuous spatial field."
    *
    * The deck's <main> carried `maxWidth: 1280` — a READING measure. Measured
