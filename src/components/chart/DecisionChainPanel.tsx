@@ -126,9 +126,27 @@ export function DecisionChainPanel({
       <div
         role="list"
         aria-label="Decision chain nodes"
-        style={{ display: "flex", flexDirection: "column", gap: 8 }}
+        // NO CARD-MUSEUM REGRESSION (visual canon, 2026-08-27).
+        //
+        // The container above already carries the SCENE_FRAGMENTATION cure —
+        // hairline top, transparent ground — but the cure stopped at the
+        // container and the nodes underneath stayed nine separate bordered,
+        // filled boxes with an 8px gutter between them. Measured in
+        // /tmp/geometry-decision-chain-panel-1440.png: nine floating cards
+        // stacked down a near-empty 1440px field.
+        //
+        // The canon names this exact failure class and its repair: "ONE
+        // DECISION. ONE MARKET ROOM. MANY CONTEXTUAL LAYERS." A chain that
+        // renders as nine boxes asks the eye to cross nine borders to read one
+        // decision, which is the opposite of a chain — it is a museum of nodes.
+        //
+        // So the gutter closes to zero and the nodes are separated by a single
+        // brass hairline, the same value the container's own top edge uses.
+        // The chain now reads as ONE continuous spine whose segments happen to
+        // be individually inspectable. Nothing is removed; the boxes are.
+        style={{ display: "flex", flexDirection: "column", gap: 0 }}
       >
-        {vm.nodes.map((node) => {
+        {vm.nodes.map((node, nodeIndex) => {
           const ind = INDICATOR_STYLES[node.indicator];
           const clickable = !!onNodeClick;
           const hintEvidence = node.hints?.length ? `. Evidence: ${node.hints.join("; ")}` : "";
@@ -146,11 +164,31 @@ export function DecisionChainPanel({
                 alignItems: "flex-start",
                 gap: 12,
                 textAlign: "left",
-                padding: "10px 12px",
+                padding: "10px 12px 10px 10px",
                 minHeight: 44,
-                borderRadius: 6,
-                border: `1px solid ${ind.color}30`,
-                background: "rgba(19,19,23,0.5)",
+                borderRadius: 0,
+                // The segment separator, not a box. First node has none: the
+                // container's own hairline top is already the chain's head.
+                borderTop: nodeIndex === 0 ? "none" : "1px solid rgba(139,106,41,0.12)",
+                borderRight: "none",
+                borderBottom: "none",
+                // LOCALIZED PRACTICAL STATE LIGHT, not a border around
+                // everything. Canon: "Color may support meaning but may never
+                // replace it", and "UNKNOWN and degraded fidelity must look
+                // visibly degraded." A box drawn around all nine nodes lights
+                // the calm ones as loudly as the alarming one and so carries no
+                // information. A 2px edge lit ONLY where the chain is warning or
+                // watching puts the light where the state is — and OK/UNKNOWN
+                // keep a transparent edge of the same width so nothing shifts
+                // horizontally as a node changes state.
+                borderLeft: `2px solid ${
+                  node.indicator === "WARN" || node.indicator === "WATCH"
+                    ? `${ind.color}99`
+                    : "transparent"
+                }`,
+                // Transparent ground so the sanctuary atmosphere runs the whole
+                // length of the chain instead of being interrupted nine times.
+                background: "transparent",
                 cursor: clickable ? "pointer" : "default",
                 color: "#ede6d3",
               }}
