@@ -112,7 +112,12 @@ export default function ReadinessPage() {
   return (
     <div className="min-h-screen bg-[#050506] text-neutral-100">
       <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_50%_0%,rgba(240,180,41,0.14),transparent_68%)]" />
-      <main className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-12">
+      {/* Was a <main>. MainLayout already wraps this route in
+          <main className="wm-app-surface">, so this was a second one and
+          "take me to the main content" had two answers. A <div> keeps every
+          pixel and returns the landmark to its one owner. See
+          src/lib/design/oneRoomHasOneLandmark.enforcement.test.ts. */}
+      <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-12">
         <header className="mb-8 overflow-hidden rounded-2xl border border-[#f0b429]/20 bg-black/70 shadow-[0_24px_80px_rgba(0,0,0,0.5)]">
           <div className="h-px bg-gradient-to-r from-transparent via-[#f0b429]/80 to-transparent" />
           <div className="p-5 sm:p-7">
@@ -395,7 +400,7 @@ export default function ReadinessPage() {
             </p>
           </>
         )}
-      </main>
+      </div>
       <AnimatePresence>
         {connectOpen && (
           <BrokerConnectPanel

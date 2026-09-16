@@ -856,7 +856,12 @@ export default function LoungePage() {
 
   if (!loungeClient) {
     return (
-      <main
+      // Was a <main>. MainLayout already wraps this route in
+      // <main className="wm-app-surface">, so this was a second one and
+      // "take me to the main content" had two answers. A <div> keeps every
+      // pixel and returns the landmark to its one owner. See
+      // src/lib/design/oneRoomHasOneLandmark.enforcement.test.ts.
+      <div
         data-lounge-runtime="not-configured"
         className="flex h-full min-h-[420px] w-full items-center justify-center overflow-hidden bg-wm-black px-4"
       >
@@ -879,7 +884,7 @@ export default function LoungePage() {
             </code>
           </div>
         </section>
-      </main>
+      </div>
     );
   }
 

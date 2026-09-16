@@ -139,7 +139,12 @@ export default function ProofLanePage() {
 
   return (
     <div className="h-full overflow-y-auto bg-[#050506] text-neutral-100">
-      <main className="mx-auto max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+      {/* Was a <main>. MainLayout already wraps this route in
+          <main className="wm-app-surface">, so this was a second one and
+          "take me to the main content" had two answers. A <div> keeps every
+          pixel and returns the landmark to its one owner. See
+          src/lib/design/oneRoomHasOneLandmark.enforcement.test.ts. */}
+      <div className="mx-auto max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
         <div className="flex flex-wrap items-center gap-3 border-b border-white/5 pb-4">
           <Link href="/education" className="inline-flex min-h-11 items-center text-xs font-semibold uppercase tracking-widest text-amber-400/80 hover:text-amber-300">
             ← Academy
@@ -475,7 +480,7 @@ export default function ProofLanePage() {
             The measured overlay activates when the first R-tagged Journal record is available. Objective is not "make $1M fast" — it is a trustworthy process dataset. Live-execution status remains unknown without authoritative brokerage evidence. Five sessions of faithful classification and execution, not five green days.
           </p>
         </section>
-      </main>
+      </div>
     </div>
   );
 }

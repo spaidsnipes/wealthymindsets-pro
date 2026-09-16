@@ -148,7 +148,12 @@ export default function AIBotPage() {
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-6xl gap-5 p-5 lg:grid-cols-[1.35fr_.65fr]">
+      {/* Was a <main>. MainLayout already wraps this route in
+          <main className="wm-app-surface">, so this was a second one and
+          "take me to the main content" had two answers. A <div> keeps every
+          pixel and returns the landmark to its one owner. See
+          src/lib/design/oneRoomHasOneLandmark.enforcement.test.ts. */}
+      <div className="mx-auto grid w-full max-w-6xl gap-5 p-5 lg:grid-cols-[1.35fr_.65fr]">
         <section className="rounded-3xl border border-wm-border bg-wm-card/80 p-6">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-wm-gold">
             <Activity size={14} /> Live market monitor
@@ -313,7 +318,7 @@ export default function AIBotPage() {
             </div>
           )}
         </aside>
-      </main>
+      </div>
     </div>
   );
 }

@@ -34,6 +34,8 @@ import { useMarketCanvasVM } from "@/lib/marketData/viewModels/useMarketCanvasVM
 import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { standingFromOneStory } from "@/components/os/standingFromOneStory";
 
 const subscribeHydration = () => () => {};
 const getHydratedClientSnapshot = () => true;
@@ -103,6 +105,28 @@ export default function NectarSymbolDetailPage() {
     identity: nectarCanvasIdentity,
     ownerId: null,
   });
+  /*
+    Measured live on https://wealthymindsetspro.com/nectar/SPY before this
+    call existed: the masthead read "EVIDENCE DEBT UNKNOWN / no ledger
+    compiled" and "RIGHT OF WAY UNKNOWN / no permission reading" while this
+    very room held `nectarCanvas` — a compiled story for this exact symbol.
+    Same false-humility defect /charts had: a room that knows the answer and
+    never hands it up. False humility is the mirror of an overclaim, not a
+    safe default.
+
+    This room may publish unambiguously because its ENTIRE subject is one
+    symbol. (/journal deliberately does NOT publish, even though it also
+    holds a canvas VM: its VM is compiled for the selected past entry's
+    symbol, so the masthead would assert a standing about an instrument the
+    trader is merely reviewing, and it would jump as entries are clicked.)
+
+    The derivation is not written here — `standingFromOneStory` owns it.
+  */
+  usePublishOsStanding({
+    surface: `Vault · ${symbol}`,
+    ...standingFromOneStory(nectarCanvas.oneStory),
+  });
+
   const hasNectarCanvasEvidence =
     nectarCanvas.canvas.hasSnapshot ||
     nectarCanvas.canvas.blockers.length > 0 ||
@@ -126,9 +150,16 @@ export default function NectarSymbolDetailPage() {
     : [];
 
   return (
-    <main
+    // Was a <main>. Every route already lives inside a <main> — founder rooms
+    // inside WMOperatingSystem's <main data-testid="os-room">, everything else
+    // inside MainLayout's <main className="wm-app-surface"> — so this was a
+    // second one, and "take me to the main content" had two answers. See
+    // src/lib/design/oneRoomHasOneLandmark.enforcement.test.ts. And 100dvh
+    // measured a full viewport against the SCREEN while sitting inside a room
+    // that already begins below a masthead; 100% fills the room it was given.
+    <div
       style={{
-        minHeight: "100dvh",
+        minHeight: "100%",
         background: `radial-gradient(1200px 800px at 50% -10%, rgba(212,175,55,0.06), transparent 60%), ${WM.surface.deepest}`,
         color: WM.text.body,
         paddingBottom: 48,
@@ -188,7 +219,7 @@ export default function NectarSymbolDetailPage() {
           />
         )}
       </div>
-    </main>
+    </div>
   );
 }
 

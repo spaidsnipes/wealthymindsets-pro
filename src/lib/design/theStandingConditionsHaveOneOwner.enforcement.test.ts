@@ -189,7 +189,14 @@ describe("ONE OS — there is not a second shell", () => {
     expect(existsSync(resolve(ROOT, OWNER)), "the derivation's one owner is gone").toBe(true);
 
     const derived = ["openEvidenceItems:", "rightOfWayResolved:"];
-    const rooms = [DECK, "src/components/chart/ChartsDashboard.tsx"];
+    const rooms = [
+      DECK,
+      "src/components/chart/ChartsDashboard.tsx",
+      // Third publisher, found the same way as the second — a live probe of
+      // /nectar/SPY showed both masthead conditions UNKNOWN above a room
+      // holding a compiled canvas for that exact symbol.
+      "src/app/nectar/[symbol]/page.tsx",
+    ];
 
     for (const rel of rooms) {
       const src = codeOnly(read(rel));

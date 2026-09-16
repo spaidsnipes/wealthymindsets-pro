@@ -53,11 +53,12 @@
  * actually happened, at the layer where it happened.
  */
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { FOUNDER_ROOM_ROUTES } from "../routing/founderRoomRoutes";
+import { PUBLIC_AUTH_PATHS } from "../authRoutes";
 
 const APP = resolve(__dirname, "..", "..", "app");
 
@@ -145,5 +146,128 @@ describe("ONE ROOM, ONE LANDMARK — the frame owns the silhouette", () => {
     expect(frame, "the frame stopped drawing <main> — no room may draw one either")
       .toMatch(/<main[\s>]/);
     expect(frame, "the frame stopped drawing <header>").toMatch(/<header[\s>]/);
+  });
+});
+
+/**
+ * THE SAME LAW, AT ITS REAL SCOPE.
+ *
+ * The describe above enumerates seven founder rooms by hand. But `<main>`
+ * inside `<main>` is invalid on EVERY page, and MainLayout draws a <main>
+ * too — `<main className="wm-app-surface">` for every route that is not a
+ * founder room, `WMExperienceShell` → WMOperatingSystem's
+ * `<main data-testid="os-room">` for the ones that are. Only
+ * `isPublicAuthPath(pathname)` returns `<>{children}</>` bare.
+ *
+ * So the seven-route list was not the law's boundary; it was the boundary of
+ * what had been measured. Five pages sat outside it and each drew a second
+ * <main>: /ai-bot, /lounge, /nectar/[symbol], /proof-lane, /readiness. They
+ * were found by a live DOM probe on /nectar/SPY, not by this suite.
+ *
+ * WHY ONLY <main> WIDENS. The <header>/<aside>/<footer> half of the law
+ * stays scoped to founder rooms deliberately. Its justification is that
+ * WMOperatingSystem draws those landmarks and a duplicate is how the second
+ * shell grew — a thing measured in the founder frame. A non-founder page has
+ * no proven second-shell risk, and a card's own <header> inside <main> maps
+ * to no landmark role at all. Claiming the wider law for surfaces nobody has
+ * measured would be exactly the overclaim this codebase keeps naming.
+ * <main> needs no such measurement: BOTH frames draw one, unconditionally.
+ */
+
+/** Every `page.tsx` under src/app, with the route it answers to. */
+function allPages(dir: string, segments: string[] = []): { route: string; file: string }[] {
+  const out: { route: string; file: string }[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      // Route GROUPS `(name)` and parallel SLOTS `@name` organise files
+      // without contributing a URL segment.
+      const contributes = !entry.name.startsWith("(") && !entry.name.startsWith("@");
+      out.push(
+        ...allPages(
+          resolve(dir, entry.name),
+          contributes ? [...segments, entry.name] : segments,
+        ),
+      );
+    } else if (entry.name === "page.tsx") {
+      out.push({ route: `/${segments.join("/")}`, file: resolve(dir, entry.name) });
+    }
+  }
+  return out;
+}
+
+const FRAMED_PAGES = allPages(APP).filter(({ route }) => !PUBLIC_AUTH_PATHS.includes(route as never));
+
+describe("ONE PAGE, ONE <main> — every route already lives inside one", () => {
+  it("names a real family of pages, and it is wider than the founder rooms", () => {
+    // Both halves matter. An empty list would make the scan below vacuous;
+    // a list no larger than FOUNDER_ROOM_ROUTES would mean this describe is
+    // re-asserting the one above and covering nothing new.
+    expect(FRAMED_PAGES.length).toBeGreaterThan(FOUNDER_ROOM_ROUTES.length);
+    for (const { file } of FRAMED_PAGES) expect(existsSync(file)).toBe(true);
+
+    // The five rooms whose nested <main> this scan was written to catch must
+    // actually be inside it. Without this, a bug in `allPages` — a missed
+    // recursion, a dropped dynamic segment — would silently shrink the law
+    // back to the scope that already failed to see them.
+    for (const route of ["/ai-bot", "/lounge", "/nectar/[symbol]", "/proof-lane", "/readiness"]) {
+      expect(
+        FRAMED_PAGES.some((p) => p.route === route),
+        `${route} escaped the page scan`,
+      ).toBe(true);
+    }
+  });
+
+  it("the public auth paths are EXCLUDED because nothing frames them", () => {
+    // /reset-password legitimately draws a <main>: MainLayout returns its
+    // children bare on these routes, so that page IS the only main content.
+    // If MainLayout ever stopped exempting them, this exclusion would start
+    // hiding a real nested <main> — so the exemption is pinned to its cause.
+    const layout = readFileSync(
+      resolve(__dirname, "..", "..", "components", "layout", "MainLayout.tsx"),
+      "utf8",
+    );
+    expect(layout, "MainLayout no longer returns public auth routes unframed")
+      .toMatch(/isPublicAuthPath\(pathname\)/);
+    expect(PUBLIC_AUTH_PATHS.length).toBeGreaterThan(0);
+  });
+
+  it.each(FRAMED_PAGES)("$route draws no second <main>", ({ route, file }) => {
+    const code = codeOnly(readFileSync(file, "utf8"));
+    expect(
+      opener("main").test(code),
+      `${route} draws its own <main>, but this route is already rendered ` +
+        `inside one — MainLayout's <main className="wm-app-surface">, or ` +
+        `WMOperatingSystem's <main data-testid="os-room"> if it is a founder ` +
+        `room. <main> inside <main> is invalid HTML, and "take me to the ` +
+        `main content" gets two answers to a question defined by having one. ` +
+        `Use a <div>; the pixels are identical.`,
+    ).toBe(false);
+  });
+
+  it("POSITIVE CONTROL: the page scan reads real files, not an empty set", () => {
+    // `allPages` walking the wrong directory would return [] and every
+    // assertion above would pass while reading nothing. This proves the walk
+    // reaches a file whose contents are known, and that a <main> planted in
+    // that same shape would still be caught.
+    const known = FRAMED_PAGES.find((p) => p.route === "/nectar/[symbol]");
+    expect(known).toBeTruthy();
+    const src = readFileSync(known!.file, "utf8");
+    expect(src.length).toBeGreaterThan(200);
+    expect(src).toContain("SymbolHeader");
+    expect(opener("main").test(`${codeOnly(src)}\n<main className="x">`)).toBe(true);
+  });
+
+  it("the frame this law defers to really does draw a <main>", () => {
+    // Same premise check as the founder-room law, for the OTHER frame. If
+    // MainLayout stopped drawing <main>, forbidding every page from drawing
+    // one would leave the app with no main content at all — and green tests.
+    const layout = codeOnly(
+      readFileSync(
+        resolve(__dirname, "..", "..", "components", "layout", "MainLayout.tsx"),
+        "utf8",
+      ),
+    );
+    expect(layout, "MainLayout stopped drawing <main> — no page may draw one either")
+      .toMatch(/<main[\s>]/);
   });
 });
