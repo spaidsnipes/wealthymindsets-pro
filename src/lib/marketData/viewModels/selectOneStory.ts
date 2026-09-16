@@ -116,15 +116,65 @@ function contradictionSentence(story: StoryVM | null): string | null {
   return first ?? null;
 }
 
+/**
+ * The one sentence that has to reconcile with "N of M paid".
+ *
+ * ── The same pixel lie, twice, through two mechanisms (2026-09-16) ───────────
+ *
+ * `computeEvidenceDebt`'s own header records a from-USE defect observed two
+ * lines apart inside ONE card on /command-deck:
+ *
+ *     EVIDENCE DEBT   0 of 9 paid
+ *     8 evidence nodes unpaid: regime + direction +6
+ *
+ * That was diagnosed as a WATCH node padding the denominator, and fixed by
+ * renaming `total` → `payable`. But on 2026-09-16 the identical two lines were
+ * still on the live deck. The denominator is no longer padded; it is honest.
+ * The SENTENCE is what is short.
+ *
+ *     payable = resolved + missing + warn   →   9 = 0 + 8 + 1
+ *
+ * Unpaid means `payable - resolved`, which is 9. This function counted only
+ * `debt.missing`, so the one WARN node sat in the denominator and appeared in
+ * no clause that explains it. The first fix cured the mechanism it found and
+ * the lie came back through the neighbouring bucket — so the guard below is
+ * written against the ARITHMETIC (lead count must equal payable - resolved),
+ * not against the WATCH bucket or the WARN bucket by name.
+ *
+ * `warnLabels` was surfaced by the compiler for exactly this purpose: "so the
+ * difference between `payable` and the chain's length always has a name a
+ * surface can print". Nothing printed it until now.
+ *
+ * A WARN node is NOT folded into the missing list. An unknown and a contested
+ * answer are different debts, and a trader who is told "9 unknown" when one of
+ * them is a live warning has been handed a softer picture than the ledger
+ * holds. They are counted together and named apart.
+ */
 function missingPhrase(debt: EvidenceDebt | null): string | null {
-  if (!debt || debt.missing === 0) return null;
-  const shown = debt.missingLabels.slice(0, 2);
-  const desc = shown.map(l => l.toLowerCase()).join(" + ");
-  // Remainder derives from the AUTHORITATIVE count, never the capped array —
-  // otherwise "9 evidence nodes unpaid: regime + direction +1" contradicts
-  // itself in one sentence.
-  const rest = hiddenRemainder(debt.missing, shown.length);
-  return `${debt.missing} evidence node${debt.missing === 1 ? "" : "s"} unpaid: ${desc}${rest}`;
+  // Warn-only ledgers used to return null here, which let `selectRealityCells`
+  // caption a contested ledger "Ledger paid in full." beside "0 of 1 paid".
+  if (!debt || (debt.missing === 0 && debt.warn === 0)) return null;
+
+  const unpaid = debt.missing + debt.warn;
+  const clauses: string[] = [];
+
+  if (debt.missing > 0) {
+    const shown = debt.missingLabels.slice(0, 2);
+    const desc = shown.map(l => l.toLowerCase()).join(" + ");
+    // Remainder derives from the AUTHORITATIVE count, never the capped array —
+    // otherwise "9 evidence nodes unpaid: regime + direction +1" contradicts
+    // itself in one sentence.
+    clauses.push(`${desc}${hiddenRemainder(debt.missing, shown.length)}`);
+  }
+  if (debt.warn > 0) {
+    const shownWarn = debt.warnLabels.slice(0, 2);
+    const warnDesc = shownWarn.map(l => l.toLowerCase()).join(" + ");
+    clauses.push(
+      `${debt.warn} warned: ${warnDesc}${hiddenRemainder(debt.warn, shownWarn.length)}`,
+    );
+  }
+
+  return `${unpaid} evidence node${unpaid === 1 ? "" : "s"} unpaid: ${clauses.join("; ")}`;
 }
 
 export function selectOneStory(input: OneStoryInput): OneStoryVM {

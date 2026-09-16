@@ -130,6 +130,15 @@ export function selectRealityCells(oneStory: OneStoryVM | null): RealityCellsVM 
           // `payable`, NOT the chain length: a WATCH node is ungradeable, so
           // counting it here printed "0 of 9 paid" two lines above "8 evidence
           // nodes unpaid" on the same live card.
+          //
+          // CORRECTION (2026-09-16): that repair fixed the denominator and was
+          // believed to close the defect. It did not. The identical two lines
+          // were measured on the deck again, this time because `oneStory.missing`
+          // counted only UNKNOWN nodes and left the chain's one WARN node in the
+          // denominator with nothing naming it. The headline here is honest; the
+          // sentence beneath it was short. The reconciliation is now enforced
+          // arithmetically in evidenceLedgerReconciles.enforcement.test.ts —
+          // do not re-derive either number locally.
           value: `${debt.resolved} of ${debt.payable} paid`,
           // `missing` is already the compiled phrase. Echo it; do not re-derive.
           detail: oneStory.missing ?? "Ledger paid in full.",
