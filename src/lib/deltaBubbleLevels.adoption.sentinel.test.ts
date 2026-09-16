@@ -154,6 +154,24 @@ describe("deltaBubbleLevels adoption — MainChart must delegate (Sentinel)", ()
     ).toEqual([]);
   });
 
+  it("the spawn key is built by the owner, never re-inlined in the canvas", () => {
+    // The identity formula lived inline in the draw block as
+    // `dt:${c.time}:L${lv.levelIdx}` — a bucket INDEX over a window that moves
+    // whenever a live bar makes a new extreme, which double-spawned one price
+    // zone and silently suppressed another. See deltaBubbleLevelKey's header
+    // for the measured drift table.
+    //
+    // The sibling big-trade cull site already carries a comment calling an
+    // unreachable duplicate of `bigTradeLevelKey` "a loaded gun". This is that
+    // gun unloaded by a gate rather than by a comment.
+    expect(
+      chartSrc,
+      "MainChart must not build a delta spawn key itself — delegate to deltaBubbleLevelKey",
+    ).not.toMatch(/`dt:\$\{/);
+    expect(IMPORTED).toContain("deltaBubbleLevelKey");
+    expect(chartSrc).toMatch(/const spawnKey = deltaBubbleLevelKey\(/);
+  });
+
   it("the docstring still names the owner it delegates to", () => {
     // If someone strips the "Delegates to the shared pure owner" note, they
     // are claiming a delegation that the next reader must take on faith.

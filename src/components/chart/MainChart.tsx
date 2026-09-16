@@ -71,6 +71,7 @@ import {
 } from "@/lib/deltaVPGeometry";
 import {
   computeDeltaBubbleLevels,
+  deltaBubbleLevelKey,
   type DeltaTick,
   type DeltaBubbleLevel,
 } from "@/lib/deltaBubbleLevels";
@@ -4894,10 +4895,19 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             if (ranked.length === 0) return;
             const maxAbsD = Math.max(...ranked.map(l => Math.abs(l.delta)), 1e-9);
             ranked.forEach((lv, rankIdx) => {
-              // Keyed by bucket INDEX, not by the price. Two buckets can round
-              // to the same displayed price on a tight bar; keying by price
-              // suppressed the second bubble and lost its aggressor volume.
-              const spawnKey = `dt:${c.time}:L${lv.levelIdx}`;
+              // Identity is OWNED by src/lib/deltaBubbleLevels.ts, exactly as
+              // the big-trade path one screen down delegates to
+              // `bigTradeLevelKey`. This used to be an inline
+              // key built from the bar time and the bucket INDEX, which on a
+              // live bar is an offset into a lattice the market is still
+              // redrawing. The dead formula is deliberately NOT quoted here:
+              // the adoption Sentinel forbids that shape anywhere in this
+              // file, and a copy in a comment is how it finds its way back.
+              // See that function's header for the measured table
+              // and for the two silent failures it caused (a zone spawning
+              // twice, and a real aggressor zone never drawing because another
+              // price had already claimed its index earlier in the bar).
+              const spawnKey = deltaBubbleLevelKey(c.time as number, lv);
               if (deltaBubbleSpawnRef.current.has(spawnKey)) return;
               deltaBubbleSpawnRef.current.add(spawnKey);
               const absDelta = Math.abs(lv.delta);

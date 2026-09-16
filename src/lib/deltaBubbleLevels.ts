@@ -50,8 +50,16 @@
  *
  *   That is the same class of defect as the strict-centre binning bug fixed
  *   earlier in this function — order-flow evidence silently dropped, §5 SYSTEM
- *   TRUTH LAW — surviving one line further down. Identity is now the bucket
- *   INDEX, which is what a "level" actually is and cannot collide.
+ *   TRUTH LAW — surviving one line further down.
+ *
+ *   The fix at the time was to make identity the bucket INDEX, and that was
+ *   correct while `priceLevel` was still a rounded centre. It is no longer the
+ *   answer: once `priceLevel` became the heaviest REAL tick, the collision the
+ *   index was avoiding stopped being possible, and the index brought a defect
+ *   of its own — it renumbers whenever a live bar makes a new extreme. Identity
+ *   is now the owning PRICE and lives in `deltaBubbleLevelKey`; see that
+ *   function's header for the measured drift table and the two silent failures
+ *   the index key caused.
  *
  * Pure: no DOM, no refs, no globals, so the shipped code is the tested code.
  * The previous coverage tested a re-typed COPY of the binning loop and
@@ -69,7 +77,11 @@ export interface DeltaTick {
 }
 
 export interface DeltaBubbleLevel {
-  /** Bucket index. The level's IDENTITY — stable, and cannot collide. */
+  /**
+   * Offset into the lattice laid over this bar's [low, high]. Positional only
+   * — it renumbers whenever a live bar makes a new extreme, so it is NOT an
+   * identity. Use `deltaBubbleLevelKey`.
+   */
   levelIdx: number;
   /** A REAL traded price inside the bucket: its heaviest tick. */
   priceLevel: number;
@@ -85,6 +97,54 @@ export interface DeltaBubbleLevel {
  */
 export function priceTickFor(base: number): number {
   return base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
+}
+
+/**
+ * Stable spawn/dedupe identity for one delta-bubble level.
+ *
+ * WHY THIS IS KEYED ON PRICE AND NOT ON `levelIdx`
+ *
+ * The renderer used to build this key inline as `dt:<time>:L<levelIdx>`, with
+ * a comment defending the choice: "two buckets can round to the same displayed
+ * price on a tight bar; keying by price suppressed the second bubble and lost
+ * its aggressor volume."
+ *
+ * That was TRUE, and it was the correct fix — for the `priceLevel` semantics
+ * of the time, when the field carried a bucket CENTRE. It stopped being true
+ * when `priceLevel` became `ownerPrice`: the heaviest REAL tick in the bucket.
+ * Bucket assignment is a pure function of price, so buckets partition the
+ * price axis and no two of them can hold the same traded price. The collision
+ * the index key was defending against can no longer occur. (Proven, not
+ * asserted — see "two buckets can never share an owning price" in the tests.)
+ *
+ * Meanwhile the index key had acquired a defect of its own that the price key
+ * never had. `levelIdx` is an offset into a lattice laid over `[barLow,
+ * barHigh]`, and on a LIVE bar that window MOVES: every new high or low
+ * re-ranges it, changes `bucketCountFor`, and renumbers every bucket. Measured
+ * on one forming bar, base 150:
+ *
+ *   t1  bar[150.00,150.02]   150.00→L0            150.02→L5
+ *   t2  bar[150.00,150.02]   150.00→L0  150.01→L2  150.02→L5
+ *   t3  bar[150.00,150.06]   150.00→L0  150.01→L1  150.02→L3   150.06→L8
+ *   t4  bar[149.97,150.06]   150.00→L3  150.01→L4  150.02→L5   150.06→L9
+ *
+ * Two distinct failures fall straight out of that table, and both are silent:
+ *
+ *   DOUBLE-SPAWN. The 150.02 zone is L5 at t2 and L3 at t3. `dt:T:L3` is not
+ *   in the dedupe set, so the same price zone spawns a SECOND bubble.
+ *
+ *   SUPPRESSION — the worse one. At t4 the 150.00 zone becomes L3, an index
+ *   already claimed at t3 by the 150.02 zone. The key is in the set, so the
+ *   real aggressor zone at 150.00 never draws at all. No error, no gap, just
+ *   evidence that is missing from the chart.
+ *
+ * A price is the identity of a price zone. An index into a lattice that the
+ * market is still redrawing is not. This is also the shape `bigTradeLevelKey`
+ * has always had; the two sibling paths now answer identity the same way, in
+ * their owners, where a test can reach the formula.
+ */
+export function deltaBubbleLevelKey(barTime: number, level: DeltaBubbleLevel): string {
+  return `dt:${barTime}:${level.priceLevel}`;
 }
 
 /** Bucket count for a bar of `range`, clamped to [6, 10] as the renderer expects. */

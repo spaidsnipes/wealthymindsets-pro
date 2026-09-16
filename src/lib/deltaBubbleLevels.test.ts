@@ -15,6 +15,7 @@ import {
   binDeltaTicks,
   bucketCountFor,
   computeDeltaBubbleLevels,
+  deltaBubbleLevelKey,
   priceTickFor,
   type DeltaTick,
 } from "./deltaBubbleLevels";
@@ -312,5 +313,146 @@ describe("delta bubbles — both-sides guarantee survives the cap", () => {
     const a = computeDeltaBubbleLevels(oneSidedBuyTicks, 150.00, 150.05, 150, 5);
     const b = computeDeltaBubbleLevels(oneSidedBuyTicks, 150.00, 150.05, 150, 5);
     expect(a).toEqual(b);
+  });
+});
+
+/**
+ * ── LEVEL IDENTITY ──────────────────────────────────────────────────────────
+ *
+ * The renderer keeps a per-bar Set of spawn keys so one price zone yields one
+ * bubble. Everything above this point tests what a level CONTAINS. Nothing
+ * tested what a level IS — and the identity formula lived inline in the
+ * canvas block, where no test could reach it.
+ *
+ * It was `dt:<time>:L<levelIdx>`. `levelIdx` is an offset into a lattice laid
+ * over [barLow, barHigh], and a LIVE bar's window moves. The tests below are
+ * the ones that would have caught that; they are written against the key
+ * function so they keep being true of the SHIPPED identity.
+ */
+describe("delta bubble level identity", () => {
+  /**
+   * The load-bearing premise. `deltaBubbleLevelKey` is only safe to key on
+   * price because two buckets cannot hold the same owning price — and that is
+   * exactly the collision the old index key was introduced to avoid, so it
+   * gets proven here rather than argued in a comment.
+   *
+   * It holds because bucket assignment is a pure function of price: the same
+   * price always lands in the same bucket, so buckets partition the price axis
+   * and `ownerPrice` is drawn from disjoint sets. Swept across tight, wide and
+   * degenerate bars because "tight bar" was the precise case the old comment
+   * named.
+   */
+  it("two buckets can never share an owning price", () => {
+    const bars: Array<[number, number, number]> = [
+      [150.00, 150.03, 150],      // tight: 3 cents, the named danger case
+      [150.00, 150.05, 150],
+      [149.97, 150.06, 150],
+      [100.00, 101.00, 226],      // wide
+      [21_750.00, 21_752.00, 21_750], // 0.25-tick futures
+      [0.5000, 0.5004, 0.5],      // sub-dollar, 0.0001 tick
+      [150.00, 150.00, 150],      // degenerate: zero range
+    ];
+    for (const [lo, hi, base] of bars) {
+      const ticks = ladder(lo, hi, priceTickFor(base)).map((p, i) => tick(p, i + 1, i + 2));
+      const levels = binDeltaTicks(ticks, lo, hi, base);
+      const prices = levels.map((l) => l.priceLevel);
+      expect(
+        new Set(prices).size,
+        `bar [${lo},${hi}] base ${base} produced a duplicate owning price: ${prices.join(", ")}`,
+      ).toBe(prices.length);
+    }
+  });
+
+  it("distinct zones on one bar get distinct keys", () => {
+    const ticks = [tick(150.00, 5, 1), tick(150.02, 1, 9), tick(150.04, 7, 2)];
+    const levels = binDeltaTicks(ticks, 150.00, 150.04, 150);
+    const keys = levels.map((l) => deltaBubbleLevelKey(1_700_000_000, l));
+    expect(keys.length).toBeGreaterThan(1);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("keys are scoped to their bar — the same zone on two bars is two bubbles", () => {
+    const level = binDeltaTicks([tick(150.02, 1, 9)], 150.00, 150.04, 150)[0]!;
+    expect(deltaBubbleLevelKey(1_700_000_000, level)).not.toBe(
+      deltaBubbleLevelKey(1_700_000_060, level),
+    );
+  });
+
+  /**
+   * THE REGRESSION. This is the defect, stated as the property that was
+   * violated: a price zone's identity must not change because the BAR moved.
+   *
+   * The sequence is one forming 1m bar. Each step adds a real print; steps 3
+   * and 4 make a new high and a new low, which is what re-ranges the lattice.
+   * Under the old index key the 150.02 zone was L5, L5, L3, L5 — so it
+   * double-spawned at step 3 — and at step 4 the 150.00 zone landed on L3,
+   * an index step 3 had already burned, so it never drew at all.
+   *
+   * Asserting on the KEY rather than on levelIdx is deliberate: levelIdx is
+   * still allowed to move, because it is a lattice offset and the lattice
+   * genuinely does move. What may not move is the bubble's identity.
+   */
+  it("a zone keeps its identity while the bar's window moves beneath it", () => {
+    const BAR = 1_700_000_000;
+    const steps: Array<{ ticks: DeltaTick[]; lo: number; hi: number }> = [
+      { ticks: [tick(150.00, 5, 1), tick(150.02, 1, 9)], lo: 150.00, hi: 150.02 },
+      { ticks: [tick(150.00, 5, 1), tick(150.02, 1, 9), tick(150.01, 2, 6)], lo: 150.00, hi: 150.02 },
+      { ticks: [tick(150.00, 5, 1), tick(150.02, 1, 9), tick(150.01, 2, 6), tick(150.06, 1, 8)], lo: 150.00, hi: 150.06 },
+      { ticks: [tick(150.00, 5, 1), tick(150.02, 1, 9), tick(150.01, 2, 6), tick(150.06, 1, 8), tick(149.97, 7, 1)], lo: 149.97, hi: 150.06 },
+    ];
+
+    // price -> the key it was first seen under
+    const firstKey = new Map<number, string>();
+    // key -> the price that claimed it
+    const claimedBy = new Map<string, number>();
+
+    let windowMoved = false;
+    let priorIdx: Map<number, number> | null = null;
+
+    for (const [n, step] of steps.entries()) {
+      const levels = binDeltaTicks(step.ticks, step.lo, step.hi, 150);
+      const idxNow = new Map(levels.map((l) => [l.priceLevel, l.levelIdx]));
+
+      for (const l of levels) {
+        const key = deltaBubbleLevelKey(BAR, l);
+
+        const seen = firstKey.get(l.priceLevel);
+        if (seen === undefined) firstKey.set(l.priceLevel, key);
+        else {
+          expect(
+            key,
+            `step ${n + 1}: the ${l.priceLevel} zone changed identity (${seen} -> ${key}); ` +
+              `the renderer would spawn a second bubble for one price zone`,
+          ).toBe(seen);
+        }
+
+        const owner = claimedBy.get(key);
+        if (owner === undefined) claimedBy.set(key, l.priceLevel);
+        else {
+          expect(
+            owner,
+            `step ${n + 1}: key ${key} is claimed by both ${owner} and ${l.priceLevel}; ` +
+              `the later zone is silently suppressed and its aggressor volume never draws`,
+          ).toBe(l.priceLevel);
+        }
+      }
+
+      // POSITIVE CONTROL. If the lattice never actually renumbered, the loop
+      // above would pass on a sequence that exercises nothing. Prove the
+      // window really did move under at least one zone that survived.
+      if (priorIdx) {
+        for (const [price, idx] of idxNow) {
+          const before = priorIdx.get(price);
+          if (before !== undefined && before !== idx) windowMoved = true;
+        }
+      }
+      priorIdx = idxNow;
+    }
+
+    expect(
+      windowMoved,
+      "no zone was ever renumbered, so this sequence does not exercise window drift " +
+        "and the assertions above proved nothing",
+    ).toBe(true);
   });
 });
