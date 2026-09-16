@@ -267,6 +267,143 @@ export function summarisePositionMarks(marks: readonly PositionMark[]): Position
   };
 }
 
+/* ── THE SAME DEFECT, ONE LEVEL UP ────────────────────────────────────────
+ *
+ * Everything above kills `?? pos.avgPx` at the ROW level, and it does. Then
+ * /paper re-created it at the TOTAL level, one character shorter:
+ *
+ *     // Real P&L = unrealized sum across the positions that COULD be marked.
+ *     // Null when none could: a book of unknown value is not a book worth zero.
+ *     const totalUnreal = markSummary.unrealPnl ?? 0;
+ *
+ * The comment is correct. The line beneath it does the opposite. This is the
+ * SECOND time in this repo that a file's own prose has been found stating the
+ * law while the code on the next line breaks it — the first was `HeaderPnL`,
+ * whose header said "a confident +$0.00 built from unreadable storage is a lie
+ * with a decimal point on it" directly above a `?? 0`. A correct comment above
+ * incorrect code is worse than no comment, because it is what a reader checks
+ * INSTEAD of the code. So the judgement moves here, where it can be tested.
+ *
+ * `summarisePositionMarks` returns `unrealPnl: null` for a REACHABLE state:
+ * positions are open and not one of them could be marked. The `?? 0` turned
+ * that into a measured breakeven, which had two blast radii:
+ *
+ *   1. "Total Unrealized P&L  +0.00" in text-wm-green, on a book whose value is
+ *      unknown. The row above it already renders "—" for every one of those
+ *      same positions. One panel, two standards of proof, three inches apart.
+ *
+ *   2. `dayPnl = totalRealPnl + totalUnreal` fed the fabricated zero into
+ *      `paperAccountStats` as `facts.dayPnl`. The owner of the account strip —
+ *      written specifically to separate a figure from the claim about it —
+ *      received a number it had no way to know was invented, and tinted it.
+ *      A selector cannot defend a caller that lies to it on the way in.
+ *
+ * ── THREE STATES, NOT TWO ─────────────────────────────────────────────────
+ * The distinction the `??` erased is not null-vs-number, it is:
+ *
+ *   NO POSITIONS AT ALL   nothing is at risk, so the unrealized sum is exactly
+ *                         zero. MEASURED. The figure ships — withholding it
+ *                         would be the over-correction already recorded against
+ *                         the account strip.
+ *   SOME MARKED, SOME NOT PARTIAL. The figure ships with the excluded count
+ *                         named, because a partial sum presented as a whole one
+ *                         is a different lie from a fabricated zero.
+ *   NONE MARKED           UNKNOWN. No figure, no tint, no addend.
+ *
+ * And zero is not a gain: a fully-marked book sitting exactly flat is NEUTRAL,
+ * never WIN. Figure and tint never share one ternary.
+ */
+
+/** MEASURED includes zero. PARTIAL is a real sum over part of the book. */
+export type UnrealizedTotalKind = "MEASURED" | "PARTIAL" | "UNKNOWN";
+
+/** The TINT is a claim and is kept separate from the figure. */
+export type UnrealizedTotalTone = "WIN" | "LOSS" | "NEUTRAL" | "ALERT";
+
+export interface UnrealizedTotal {
+  readonly kind: UnrealizedTotalKind;
+  /** Null ONLY when nothing could be marked. Never 0 to mean "unknown". */
+  readonly value: number | null;
+  /** "UNKNOWN" when there is no value. Never "+0.00". */
+  readonly label: string;
+  readonly tone: UnrealizedTotalTone;
+  /** WHY it reads the way it does. Belongs on title AND aria-label. */
+  readonly reason: string;
+  /**
+   * What a day-P&L sum is permitted to add.
+   *
+   * Null when the unrealized leg is UNKNOWN — a caller that adds this to
+   * realized P&L must then report the SUM as unknown too, rather than quietly
+   * substituting zero. This field exists so that substitution has to be typed
+   * out by hand instead of happening in a `??`.
+   */
+  readonly addend: number | null;
+}
+
+function signed2(n: number): string {
+  return `${n >= 0 ? "+" : ""}${n.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+/** Pure. */
+export function selectUnrealizedTotal(s: PositionMarkSummary): UnrealizedTotal {
+  if (s.total === 0) {
+    return {
+      kind: "MEASURED",
+      value: 0,
+      label: signed2(0),
+      // Zero from holding nothing is not a gain. Same law as the account strip:
+      // the figure is measured and sayable, the tint is not earned.
+      tone: "NEUTRAL",
+      reason:
+        "No position is open, so there is nothing to be unrealized and the sum is exactly zero. That is a measured fact, not a missing number — and it carries no win tint, because nothing was won.",
+      addend: 0,
+    };
+  }
+
+  if (s.unrealPnl === null) {
+    const n = s.total;
+    return {
+      kind: "UNKNOWN",
+      value: null,
+      label: "UNKNOWN",
+      tone: "ALERT",
+      reason: `${n} open position${n === 1 ? " has" : "s have"} no usable quote, so not one of them could be marked. The unrealized total is UNKNOWN — a book whose value cannot be read is not a book worth zero, and no figure is shown in place of one.`,
+      addend: null,
+    };
+  }
+
+  const value = s.unrealPnl;
+  const tone: UnrealizedTotalTone =
+    value > 0 ? "WIN" : value < 0 ? "LOSS" : /* exactly flat */ "NEUTRAL";
+
+  if (s.unmarked > 0) {
+    const marked = s.total - s.unmarked;
+    return {
+      kind: "PARTIAL",
+      value,
+      label: signed2(value),
+      tone,
+      reason: `A sum over the ${marked} position${marked === 1 ? "" : "s"} that could be marked. ${s.unmarked} position${s.unmarked === 1 ? " has" : "s have"} no quote and ${s.unmarked === 1 ? "is" : "are"} excluded, so this is a partial figure and not the value of the whole book.`,
+      addend: value,
+    };
+  }
+
+  return {
+    kind: "MEASURED",
+    value,
+    label: signed2(value),
+    tone,
+    reason:
+      value === 0
+        ? `All ${s.total} open position${s.total === 1 ? " is" : "s are"} marked and the book sits exactly flat. The figure is measured, and it carries no win tint, because nothing was won.`
+        : `A complete sum across all ${s.total} open position${s.total === 1 ? "" : "s"}, marked at current prices.`,
+    addend: value,
+  };
+}
+
 /**
  * The disclosure line for the equity/P&L header, or null when the book is
  * fully and freshly marked and there is nothing to disclose.

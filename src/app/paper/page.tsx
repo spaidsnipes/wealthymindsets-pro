@@ -73,6 +73,7 @@ import {
   describePositionMark,
   summarisePositionMarks,
   describePositionMarkSummary,
+  selectUnrealizedTotal,
   type PositionMark,
 } from "@/lib/paperPositionMark";
 import SceneAdmissionPanel from "@/components/experience/SceneAdmissionPanel";
@@ -1815,9 +1816,17 @@ export default function PaperTradingPage() {
   const markSummary = summarisePositionMarks(positionMarks);
   const markDisclosure = describePositionMarkSummary(markSummary);
 
-  // Real P&L = unrealized sum across the positions that COULD be marked. Null
-  // when none could: a book of unknown value is not a book worth zero.
-  const totalUnreal = markSummary.unrealPnl ?? 0;
+  /* THE COMMENT HERE WAS RIGHT AND THE LINE BENEATH IT WAS THE OPPOSITE.
+     It read:
+
+       // Null when none could: a book of unknown value is not a book worth zero.
+       const totalUnreal = markSummary.unrealPnl ?? 0;
+
+     `?? 0` is `?? pos.avgPx` one level up — the exact defect `paperPositionMark`
+     was written to kill at the ROW level, re-created at the TOTAL level. The
+     judgement now lives with the rest of the marking law, where it is tested.
+     SENTINEL: unrealized-total-has-one-owner */
+  const unrealTotal = selectUnrealizedTotal(markSummary);
   const unmarkedOptionCount = optionPositions.filter(
     op => actionablePaperQuotePrice(quoteReadiness[op.underlying]) == null,
   ).length;
@@ -1850,7 +1859,11 @@ export default function PaperTradingPage() {
    * `paperTradeOutcome.ts`. Computed once here so the three sites cannot drift.
    */
   const winRate = selectPaperWinRate(trades);
-  const dayPnl = totalRealPnl + totalUnreal;
+  // An unknown addend makes the SUM unknown. `addend` is null exactly when the
+  // unrealized leg could not be read, and it is NOT coerced here — the whole
+  // point of moving the judgement into the owner was to stop this line from
+  // quietly substituting a zero on the way into `paperAccountStats`.
+  const dayPnl = unrealTotal.addend === null ? null : totalRealPnl + unrealTotal.addend;
 
   /**
    * H1 IN THE HEADER — a book that was never put to work has no P&L.
@@ -1904,11 +1917,16 @@ export default function PaperTradingPage() {
     totalEquity,
     cash,
     dayPnl,
+    // The owner that KNOWS why explains it. The strip does not re-derive a
+    // sentence about a state it was only handed the consequence of.
+    dayPnlUnknownReason: unrealTotal.addend === null ? unrealTotal.reason : null,
     realizedPnl: totalRealPnl,
     winRatePct: winRate.pct,
     closedCount: winRate.closed,
   };
   const accountStats = paperAccountStats(accountFacts);
+  /** The strip's Day P&L cell, reused so the summary below cannot drift from it. */
+  const dayPnlStat = accountStats[2];
   const winRateStat = paperWinRateStat(accountFacts);
   const TONE_CLASS = {
     NEUTRAL: "text-wm-text-muted",
@@ -2911,9 +2929,17 @@ export default function PaperTradingPage() {
                     sum of no trades. What is absent is not the number, it is
                     a RESULT to interpret. The line now says the figure and
                     withholds only the interpretation, matching the strip. */}
-                <div className={clsx("text-xs font-bold font-mono", bookRecoveryRequired ? "text-wm-red" : bookNeverTraded ? "text-wm-text-muted" : dayPnl>=0?"text-wm-green":"text-wm-red")}>
+                {/* THE TINT COMES FROM THE OWNER, NOT FROM A SIGN. This line
+                    used to re-type `dayPnl>=0?"text-wm-green":"text-wm-red"` —
+                    a FOURTH hand-rolled copy of the question `paperAccountStats`
+                    already answers three inches above, and the one that would
+                    have painted a fabricated zero green. The strip's own Day P&L
+                    stat decides both the colour and whether there is a figure. */}
+                <div className={clsx("text-xs font-bold font-mono", TONE_CLASS[dayPnlStat.tone])}>
                   {bookRecoveryRequired
                     ? "UNKNOWN · recovery required before portfolio totals can be stated"
+                    : dayPnl === null
+                    ? `UNKNOWN · ${unrealTotal.reason}`
                     : bookNeverTraded
                     ? "+$0.00 · no trades placed, so there is no result to read into it"
                     : hasUnmarkedOptions
@@ -3031,13 +3057,24 @@ export default function PaperTradingPage() {
                   </AnimatePresence>
 
                   {/* Totals */}
-                  <div className="px-2 py-2 border-t border-wm-border bg-wm-surface/20">
+                  <div className="px-2 py-2 border-t border-wm-border bg-wm-surface/20"
+                    title={unrealTotal.reason}
+                    aria-label={`Total Unrealized P&L: ${unrealTotal.label}. ${unrealTotal.reason}`}>
                     <div className="flex justify-between text-xs">
                       <span className="font-bold text-wm-text">Total Unrealized P&L</span>
-                      <span className={clsx("font-black font-mono", totalUnreal>=0?"text-wm-green":"text-wm-red")}>
-                        {totalUnreal>=0?"+":""}{fmt2(totalUnreal)}
+                      {/* Colour comes from the owner's TONE, never from the sign of
+                          the figure — `0 >= 0` is how a book of unknown value, and
+                          a book sitting exactly flat, both earned the win green. */}
+                      <span className={clsx("font-black font-mono",
+                        unrealTotal.tone === "WIN" ? "text-wm-green"
+                        : unrealTotal.tone === "LOSS" || unrealTotal.tone === "ALERT" ? "text-wm-red"
+                        : "text-wm-text-muted")}>
+                        {unrealTotal.label}
                       </span>
                     </div>
+                    {unrealTotal.kind !== "MEASURED" && (
+                      <div className="mt-1 text-[10px] text-wm-text-muted">{unrealTotal.reason}</div>
+                    )}
                   </div>
                 </>
               )}

@@ -138,8 +138,23 @@ describe("H1: an untraded book has no P&L to report", () => {
     // measure and it measures $0.00. What is absent is a RESULT to interpret.
     expect(code).not.toMatch(/"No trades placed — nothing to measure yet"/);
     expect(code).toMatch(/bookNeverTraded\s*\n?\s*\? "\+\$0\.00 · no trades placed/);
-    // and it must not take the win tint while doing so
-    expect(code).toMatch(/bookNeverTraded \? "text-wm-text-muted" : dayPnl>=0\?"text-wm-green"/);
+    // AND IT MUST NOT TAKE THE WIN TINT WHILE DOING SO.
+    //
+    // RESTATED POSITIVELY — 2026-09-16. This assertion used to pin the literal
+    // source text `bookNeverTraded ? "text-wm-text-muted" : dayPnl>=0?"text-wm-green"`.
+    // Pinning that spelling asserted the PRESENCE of a sign-tint, so the moment
+    // the page was corrected to take its colour from the owner's tone the guard
+    // failed THE FIX rather than the defect. A Sentinel that pins a spelling
+    // defends the spelling and loses the law.
+    //
+    // The law is: this line's colour is chosen by a TONE computed from the
+    // book's contents, and never by the sign of the figure printed beside it.
+    expect(code).toMatch(/TONE_CLASS\[dayPnlStat\.tone\]/);
+    expect(
+      code,
+      "the 'today' line is tinted by a sign test again — `dayPnl >= 0` is how a " +
+        "book of unknown value, and a book that never traded, both earned the green",
+    ).not.toMatch(/dayPnl\s*>=\s*0\s*\?\s*"text-wm-green"/);
   });
 
   it("the guard reads the book's own contents, not the value of the number", () => {

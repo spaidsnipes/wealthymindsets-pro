@@ -81,7 +81,19 @@ export interface PaperBookFacts {
   readonly neverTraded: boolean;
   readonly totalEquity: number;
   readonly cash: number;
-  readonly dayPnl: number;
+  /**
+   * Realised plus unrealised.
+   *
+   * NULL when the unrealised leg could not be read at all — positions are open
+   * and not one of them could be marked. Typed nullable ON PURPOSE: the caller
+   * previously wrote `markSummary.unrealPnl ?? 0` and handed this owner a
+   * fabricated zero, which no amount of care inside this file could detect. A
+   * selector cannot defend a caller that lies to it on the way in, so the lie
+   * is made untypeable instead.
+   */
+  readonly dayPnl: number | null;
+  /** Why Day P&L is null, when it is. Named by the caller that knows. */
+  readonly dayPnlUnknownReason?: string | null;
   readonly realizedPnl: number;
   /** Null when nothing has CLOSED. Null is not zero. */
   readonly winRatePct: number | null;
@@ -175,15 +187,42 @@ export function paperAccountStats(facts: PaperBookFacts): PaperStat[] {
           "Uncommitted simulated cash in the paper book. No real money and no broker is involved.",
       };
 
-  const dayPnl = resultStat(
-    facts.hasUnmarkedOptions ? "Known P&L" : "Day P&L",
-    facts.dayPnl,
-    facts,
-    "No trades have been placed and no positions are open, so the total is exactly zero. A sum over nothing is zero — this is a measured fact, not a missing number. It carries no win tint, because zero from never trading is not the same fact as a day that traded and finished flat.",
-    facts.hasUnmarkedOptions
-      ? `Realised plus unrealised P&L, EXCLUDING ${facts.unmarkedOptionCount} option position${facts.unmarkedOptionCount === 1 ? "" : "s"} with no current mark. Known P&L only.`
-      : "Realised P&L on closed trades plus unrealised P&L on open positions, marked at current prices.",
-  );
+  /**
+   * THE UNREADABLE UNREALISED LEG.
+   *
+   * Checked BEFORE `resultStat`, and never collapsed into `facts.dayPnl ?? 0`
+   * — that `??` is the exact defect this nullable type was introduced to kill,
+   * and re-typing it here would move the fabrication one file deeper rather
+   * than remove it. An unknown addend makes the SUM unknown; it does not make
+   * the sum zero.
+   *
+   * `bookRecoveryRequired` still outranks it: unreadable STORAGE is a larger
+   * failure than an unmarkable book and already has its own sentence.
+   */
+  const dayPnlLabel = facts.hasUnmarkedOptions ? "Known P&L" : "Day P&L";
+
+  const dayPnlStat: PaperStat = facts.bookRecoveryRequired
+    ? { label: dayPnlLabel, value: "UNKNOWN", kind: "UNKNOWN", tone: "ALERT", reason: UNREADABLE_BOOK_REASON }
+    : facts.dayPnl === null
+      ? {
+          label: dayPnlLabel,
+          value: "UNKNOWN",
+          kind: "UNKNOWN",
+          tone: "ALERT",
+          reason:
+            typeof facts.dayPnlUnknownReason === "string" && facts.dayPnlUnknownReason.length > 0
+              ? facts.dayPnlUnknownReason
+              : "Day P&L is realised plus unrealised, and the unrealised leg could not be read — so the total is UNKNOWN. A sum with an unreadable term is not a sum worth zero.",
+        }
+      : resultStat(
+          dayPnlLabel,
+          facts.dayPnl,
+          facts,
+          "No trades have been placed and no positions are open, so the total is exactly zero. A sum over nothing is zero — this is a measured fact, not a missing number. It carries no win tint, because zero from never trading is not the same fact as a day that traded and finished flat.",
+          facts.hasUnmarkedOptions
+            ? `Realised plus unrealised P&L, EXCLUDING ${facts.unmarkedOptionCount} option position${facts.unmarkedOptionCount === 1 ? "" : "s"} with no current mark. Known P&L only.`
+            : "Realised P&L on closed trades plus unrealised P&L on open positions, marked at current prices.",
+        );
 
   const realized = resultStat(
     "Realized",
@@ -193,7 +232,7 @@ export function paperAccountStats(facts: PaperBookFacts): PaperStat[] {
     "Sum of P&L across closed trades only. Open positions are not counted here.",
   );
 
-  return [equity, cash, dayPnl, realized];
+  return [equity, cash, dayPnlStat, realized];
 }
 
 /**
