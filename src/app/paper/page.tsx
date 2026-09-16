@@ -32,6 +32,7 @@ import {
   STARTING_CASH,
   applyFill as applyFillShared,
   applyOrderRejections,
+  applyOrderFills,
   contractMultiplier,
   canCancelOrder,
   selectCloseOrderPlan,
@@ -2033,12 +2034,17 @@ export default function PaperTradingPage() {
     }
     posRef.current = work;                       // keep mirror in lockstep
 
-    const fillPxById = new Map(fills.map(f => [f.ord.id, f.fillPx]));
     setPositions(work);
     setCash(c => c + cashDelta);
     setTrades(t => [...newTrades.reverse(), ...t]);
-    setOrders(prev => prev.map(o => fillPxById.has(o.id)
-      ? { ...o, status:"filled", fillPx: fillPxById.get(o.id)! } : o));
+    // The fill transition is the one that MOVES CASH, and it was the only one
+    // of the three terminal transitions with no owner and no guard: an inline
+    // `.map()` keyed on `has(o.id)` alone. The `pend` filter above checks
+    // status against the `orders` value this effect closed over, while the
+    // updater runs against `prev` — and `prev` can already carry a cross-tab
+    // cancel applied by subscribePaperState. applyOrderFills refuses to
+    // transition a settled order, at parity with applyOrderRejections.
+    setOrders(prev => applyOrderFills(prev, fills.map(f => ({ id: f.ord.id, fillPx: f.fillPx }))));
     wins.forEach(sym => earnWMS(25, `📈 Paper trade win on ${sym}`));
     // `cash` participates in the buying-power gate above, so it must be a
     // dependency — otherwise the gate evaluates a stale balance. Re-running on

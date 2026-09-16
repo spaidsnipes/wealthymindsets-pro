@@ -424,6 +424,67 @@ export function applyOrderRejections<T extends { id: string; status: OrderStatus
   });
 }
 
+/**
+ * Commit fills onto the order ledger — the SIBLING of applyOrderRejections.
+ *
+ * WHY THIS EXISTS AND WHY IT IS LATE
+ *
+ * The state machine had three transitions into a terminal state and only two
+ * of them were owned:
+ *
+ *   pending -> cancelled   canCancelOrder()        guarded, tested
+ *   pending -> rejected    applyOrderRejections()  guarded, tested
+ *   pending -> FILLED      an inline .map() in a 7000-line page   neither
+ *
+ * The unowned one is the transition that MOVES CASH. It read, in full:
+ *
+ *   setOrders(prev => prev.map(o => fillPxById.has(o.id)
+ *     ? { ...o, status: "filled", fillPx: ... } : o));
+ *
+ * `fillPxById.has(o.id)` is the whole test. Not the status. The ids come from
+ * a `pend` filter that DID check `status === "pending"`, but it checked it
+ * against the `orders` value captured when the effect ran, while the updater
+ * runs against `prev` — whatever the book actually is at flush time. A filter
+ * upstream of a functional updater is not a guard on the transition, and this
+ * module already holds exactly that principle twice: selectPaperQuoteReadiness
+ * exists so "UI-disabled controls" cannot "become the sole guard", and
+ * canCancelOrder exists because the Cancel button only rendering for pending
+ * orders was not enough.
+ *
+ * Those two were argued from principle. This one has a reachable path:
+ * /paper subscribes to cross-tab writes (`subscribePaperState`) and applies
+ * them with `setOrders(saved.orders)` — a wholesale REPLACEMENT, not a merge.
+ * Another tab cancelling an order lands in this tab's update queue alongside
+ * the fill commit, and the two orderings give two different lies:
+ *
+ *   replacement first -> a CANCELLED order is relabelled "filled"
+ *   fill first        -> the ledger says cancelled while cash and the position
+ *                        it opened stay on the books
+ *
+ * The second is the ledger contradicting the account, which is the precise
+ * harm canCancelOrder's own docstring names. This function cannot fix the
+ * second (the cash already moved; that is a reconciliation question, and the
+ * book-integrity surface owns it). It closes the first, and it makes the
+ * transition a thing a test can reach at all.
+ *
+ * Generic over the order shape for the same reason as the sibling: /paper
+ * declares its own structurally identical `Order` locally.
+ */
+export function applyOrderFills<T extends { id: string; status: OrderStatus }>(
+  orders: readonly T[],
+  fills: readonly { readonly id: string; readonly fillPx: number }[],
+): T[] {
+  if (fills.length === 0) return orders.slice();
+  const byId = new Map(fills.map(f => [f.id, f.fillPx]));
+  return orders.map(o => {
+    const fillPx = byId.get(o.id);
+    if (fillPx === undefined) return o;
+    // A settled order must never transition again (see TERMINAL_ORDER_STATUSES).
+    if (isTerminalOrderStatus(o.status)) return o;
+    return { ...o, status: "filled" as OrderStatus, fillPx };
+  });
+}
+
 export interface Position {
   symbol: string;
   qty: number; // negative = short

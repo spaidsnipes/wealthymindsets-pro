@@ -267,3 +267,103 @@ describe("option buying power side door", () => {
     expect(paperPage).not.toMatch(/byId\.has\(o\.id\)\s*\?/);
   });
 });
+
+import { applyOrderFills, applyOrderRejections } from "./paperTrade";
+
+type Ord = { id: string; status: OrderStatus; fillPx?: number; rejectReason?: string };
+const ord = (id: string, status: OrderStatus): Ord => ({ id, status });
+
+/**
+ * THE THIRD TRANSITION — §13 order-ledger realism, §24 one owner per question.
+ *
+ * The state machine has three edges into a terminal state. Two were owned and
+ * guarded. The one that MOVES CASH was not:
+ *
+ *   pending -> cancelled   canCancelOrder()        guarded
+ *   pending -> rejected    applyOrderRejections()  guarded
+ *   pending -> filled      an inline .map() in src/app/paper/page.tsx   NEITHER
+ *
+ * It read `fillPxById.has(o.id) ? { ...o, status: "filled", ... } : o` — id
+ * membership as the entire test. The `pend` filter upstream does check
+ * `status === "pending"`, but it checks the `orders` value the effect closed
+ * over, while the updater runs against `prev`. /paper subscribes to cross-tab
+ * writes and applies them with `setOrders(saved.orders)`, a wholesale
+ * replacement, so `prev` can already carry another tab's cancel.
+ *
+ * This module's own principle, stated twice before this shift and not applied
+ * here: a control or filter upstream of a handler is not a guard on the
+ * transition.
+ */
+describe("the fill transition is owned and guarded", () => {
+  it("fills a pending order and records the price", () => {
+    expect(applyOrderFills([ord("a", "pending")], [{ id: "a", fillPx: 101.25 }]))
+      .toEqual([{ id: "a", status: "filled", fillPx: 101.25 }]);
+  });
+
+  it("refuses to relabel an order another tab already cancelled", () => {
+    // The reachable case. Cash for this fill moved locally; that is a
+    // reconciliation question the book-integrity surface owns. What this
+    // refuses is printing "filled" over a settled cancel.
+    expect(applyOrderFills([ord("a", "cancelled")], [{ id: "a", fillPx: 101.25 }]))
+      .toEqual([{ id: "a", status: "cancelled" }]);
+  });
+
+  it("refuses every terminal status, not just the one that was easy to picture", () => {
+    for (const s of TERMINAL_ORDER_STATUSES) {
+      const [out] = applyOrderFills([ord("a", s)], [{ id: "a", fillPx: 7 }]);
+      expect(out.status).toBe(s);
+      expect(out.fillPx).toBeUndefined();
+    }
+  });
+
+  it("leaves orders it was not asked about alone, by identity", () => {
+    const book = [ord("a", "pending"), ord("b", "pending")];
+    const out = applyOrderFills(book, [{ id: "b", fillPx: 3 }]);
+    expect(out[0]).toBe(book[0]);          // same reference — untouched
+    expect(out[1]).toEqual({ id: "b", status: "filled", fillPx: 3 });
+  });
+
+  it("copies rather than aliases when there is nothing to do", () => {
+    const book = [ord("a", "pending")];
+    const out = applyOrderFills(book, []);
+    expect(out).toEqual(book);
+    expect(out).not.toBe(book);            // parity with the sibling
+  });
+
+  it("records a fill price of zero rather than treating it as absent", () => {
+    // `byId.get()` returning 0 must not read as "not in the map". A zero print
+    // is a real quote on a spread or a worthless option.
+    expect(applyOrderFills([ord("a", "pending")], [{ id: "a", fillPx: 0 }])[0])
+      .toEqual({ id: "a", status: "filled", fillPx: 0 });
+  });
+
+  /**
+   * SYMMETRY, asserted rather than assumed.
+   *
+   * The defect was not that someone wrote a bad guard — it was that the third
+   * transition was written somewhere the other two's shape was not visible.
+   * This runs both owners through the same terminal matrix so a future fourth
+   * transition has a stated law to match, and so neither owner can quietly
+   * lose its guard while the other keeps one.
+   */
+  it("both terminal transitions refuse a settled order identically", () => {
+    for (const s of TERMINAL_ORDER_STATUSES) {
+      expect(applyOrderFills([ord("a", s)], [{ id: "a", fillPx: 1 }])[0].status).toBe(s);
+      expect(applyOrderRejections([ord("a", s)], [{ id: "a", reason: "r" }])[0].status).toBe(s);
+    }
+    // Positive control: both DO act on the one non-terminal status, so the
+    // matrix above is proving refusal and not proving inertness.
+    expect(applyOrderFills([ord("a", "pending")], [{ id: "a", fillPx: 1 }])[0].status).toBe("filled");
+    expect(applyOrderRejections([ord("a", "pending")], [{ id: "a", reason: "r" }])[0].status).toBe("rejected");
+  });
+
+  it("the page delegates the fill transition instead of mapping it inline", () => {
+    expect(paperPage).toContain("applyOrderFills(prev,");
+    // The unguarded form, which tested id membership and nothing else.
+    expect(
+      paperPage,
+      "the fill commit must not test id membership alone — a settled order " +
+        "would be relabelled 'filled' over another tab's cancel",
+    ).not.toMatch(/fillPxById\.has\(o\.id\)/);
+  });
+});
