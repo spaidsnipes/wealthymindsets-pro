@@ -83,6 +83,7 @@ import {
   type BigTradeLevel,
 } from "@/lib/bigTradeLevels";
 import { describeBubbleClaim } from "@/lib/bubbleClaim";
+import { bigTradeBubbleRadius, deltaBubbleRadius } from "@/lib/bubbleDrawGeometry";
 import { computeProfileFromBars } from "@/lib/vpEngine";
 // vpEngine owns WHERE THE VOLUME GOES; vpDrawGeometry owns WHERE THE PIXELS GO.
 // Both halves of the profile are now pure and tested — see vpDrawGeometry.ts.
@@ -4911,10 +4912,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               if (deltaBubbleSpawnRef.current.has(spawnKey)) return;
               deltaBubbleSpawnRef.current.add(spawnKey);
               const absDelta = Math.abs(lv.delta);
-              // Radius normalized to the bar's strongest zone → always visible AND
-              // volume-proportional on any asset (BTC 0.05Δ or stock 500Δ alike).
-              const norm = Math.sqrt(absDelta / maxAbsD);
-              const baseR = Math.round(11 + norm * 14);
+              // Size is OWNED by src/lib/bubbleDrawGeometry.ts. It used to be
+              // an inline `11 + sqrt(share) * 14`, whose 11px baseline painted
+              // a zone carrying NOTHING at ~19% of the peak bubble's area —
+              // the exact "fake-wide" failure vpDrawGeometry.ts already
+              // names for Volume Profile bars. The owner encodes value as
+              // AREA (the honest reading of a disc) and keeps the minimum as a
+              // floor rather than a baseline. See that header.
+              const baseR = deltaBubbleRadius(absDelta, maxAbsD);
               const side: "buy" | "sell" = lv.delta >= 0 ? "buy" : "sell";
               const sph = Math.sin((c.time as number) * 0.023 + lv.priceLevel * 0.417 + rankIdx * 2.1) * 43758.5453;
               const phase = (sph - Math.floor(sph)) * Math.PI * 2;
@@ -5381,6 +5386,14 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
           const ranked = getRealBigTradeLevels(c);
           if (ranked.length === 0) return;
 
+          // Size normalizes against the bar's LARGEST print, not its mean. A
+          // mean is dragged upward by the very outlier the bubble exists to
+          // show, so under the old form one new block trade silently SHRANK
+          // every other bubble on the bar with no change in their own volume.
+          const barPeak = ranked.reduce((m, lv) => Math.max(m, lv.total), 0);
+          // The mean survives for one honest purpose: deciding whether this
+          // print is loud RELATIVE to the bar, which is an audio question
+          // about the data, not a question about how many pixels were painted.
           const barMean = ranked.reduce((s, lv) => s + lv.total, 0) / ranked.length;
 
           ranked.forEach((lv, rankIdx) => {
@@ -5391,8 +5404,13 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
             if (bubbleSpawnRef.current.has(spawnKey)) return;
             bubbleSpawnRef.current.add(spawnKey);
 
-            const ratio = lv.total / Math.max(1, barMean);
-            const baseR = Math.round(Math.max(9, Math.min(28, 9 + Math.sqrt(Math.max(0, ratio - 1)) * 11)));
+            // Size is OWNED by src/lib/bubbleDrawGeometry.ts. The inline form
+            // that used to live here clamped at 28px, so every print from 4×
+            // the bar mean upward painted an IDENTICAL bubble, and its
+            // `ratio - 1` floored at zero, so every print at or below the mean
+            // collapsed into one indistinguishable dot. Both ends of the range
+            // were a picture of the shaping function rather than of the trade.
+            const baseR = bigTradeBubbleRadius(lv.total, barPeak);
             const side: "buy" | "sell" = lv.ask >= lv.bid ? "buy" : "sell";
             const value = (side === "buy" ? 1 : -1) * Math.round(lv.total);
             const sph   = Math.sin((c.time as number) * 0.017 + lv.priceLevel * 0.531 + rankIdx * 1.7) * 43758.5453;
@@ -5420,7 +5438,12 @@ export function MainChart({ symbol, timeframe, footprintType, footprintEnabled =
               kind: "big-trade",
               spawnKey,
             });
-            playBloop(baseR > 24);
+            // Loudness is a question about the TRADE, not about the pixels.
+            // This used to read `baseR > 24`, which worked only by accident of
+            // the old clamp; with size normalized to the bar's peak the
+            // largest print always reaches the ceiling, so a pixel test would
+            // sound the loud tone once every single bar. Ask the data instead.
+            playBloop(lv.total >= barMean * 3);
           });
         });
         }

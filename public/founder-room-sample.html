@@ -10,7 +10,7 @@
   </style>
 </head>
 <body>
-<link rel="preload" as="image" href="/brand/wm-monogram-mark.png"/><div class="wm-sanctuary " data-mode="OBSERVE" data-session="UNKNOWN" style="position:relative;display:flex;flex-direction:column;height:100dvh;min-height:0;overflow:hidden;background:#050506;color:#c0b8a0;isolation:isolate"><style>
+<link rel="preload" as="image" href="/brand/wm-monogram-mark.png"/><div class="wm-sanctuary " data-mode="OBSERVE" data-session="UNKNOWN" style="position:relative;display:flex;flex-direction:column;height:100dvh;min-height:0;overflow:hidden;background-color:#050506;background-image:radial-gradient(1200px 700px at 28% 16%, rgba(212,175,106,0.07), transparent 58%), radial-gradient(900px 620px at 78% 8%, rgba(255,248,235,0.035), transparent 52%);color:#c0b8a0;isolation:isolate"><style>
         /* ── THE OS ROOM CLIPPED ITSELF ON A PHONE ────────────────────────
            The sanctuary is height:100dvh + overflow:hidden. That is the OS
            frame law and it is right on a desktop: an operating system does
@@ -45,32 +45,64 @@
           z-index: 0;
         }
         /* Vignette — static inset radial darkening so MARKET feels
-           spatially deeper than the outer chrome. Never breathes. */
+           spatially deeper than the outer chrome. Never breathes.
+
+           Canon values: centred at 50% 42% rather than dead centre, because
+           the room's content mass sits above the midline and a vignette
+           centred below it darkens the chart before it darkens the chrome. */
         .wm-sanctuary::before {
           background: radial-gradient(
-            ellipse at center,
-            transparent 45%,
-            rgba(0,0,0,0.35) 100%
+            ellipse at 50% 42%,
+            transparent 42%,
+            rgba(0,0,0,0.42) 100%
           );
         }
-        /* Grain — repeating 3px tile at ~5% opacity. One layer, static. */
+        /* ── GRAIN ────────────────────────────────────────────────────────
+           This was a repeating-linear-gradient crosshatch: two 3px orthogonal
+           rules, which is a SCREEN DOOR, not grain. Film grain is stochastic;
+           a regular lattice is the one thing it never is. At 3px it also sat
+           close enough to the pixel pitch of a HiDPI display to beat against
+           the candle canvas underneath and produce moiré — a shimmer that
+           moves when the chart scrolls, which is exactly the kind of motion
+           with no owner the audit above forbids.
+
+           Replaced with the Canon's production tile: 256x256 seamless
+           monochrome noise at 0.06 under overlay, produced by
+           scripts/generate-grain-tile.mjs and measured by
+           grainTile.enforcement.test.ts. The tile's decoded mean is pinned to
+           128 because overlay treats mid-grey as identity — any drift there
+           would silently shift the luminance of the whole product.
+
+           Opacity lives on the layer, not in the tile. The Canon's window is
+           0.04-0.07; above 0.10 is FALSE_RIPENESS and fails the merge. */
         .wm-sanctuary::after {
-          background-image:
-            repeating-linear-gradient(
-              0deg,
-              rgba(255,255,255,0.014) 0,
-              rgba(255,255,255,0.014) 1px,
-              transparent 1px,
-              transparent 3px
-            ),
-            repeating-linear-gradient(
-              90deg,
-              rgba(255,255,255,0.014) 0,
-              rgba(255,255,255,0.014) 1px,
-              transparent 1px,
-              transparent 3px
-            );
+          background-image: url("/wm/grain-256.webp");
+          background-repeat: repeat;
+          background-size: 256px 256px;
+          opacity: 0.06;
           mix-blend-mode: overlay;
+        }
+        /* A phone is held closer and its pixels are smaller; the same tile
+           reads stronger there. */
+        @media (max-width: 900px) {
+          .wm-sanctuary::after { opacity: 0.04; }
+        }
+        /* Atmosphere is the first thing to go when a reader has asked for
+           contrast. Grain and vignette both reduce effective contrast against
+           text, and neither carries any information, so neither has an
+           argument for staying. */
+        @media (prefers-contrast: more) {
+          .wm-sanctuary::before,
+          .wm-sanctuary::after {
+            display: none;
+          }
+          /* The key and fill lights are set inline (see the style object
+             above, which explains why), so the cascade alone cannot reach
+             them. This is the case !important is actually for: a user
+             preference overriding an author decision. */
+          .wm-sanctuary {
+            background-image: none !important;
+          }
         }
         /* WATER-BREATH — very subtle brass radial wash, drifting.
            Non-market. Zero information. Only present when the OS has
