@@ -99,6 +99,8 @@ import { selectDecisionReceipt } from "@/lib/traderMemory/viewModels/selectDecis
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { shellEmphasis } from "@/lib/experience/shellLayout";
 import { routeQuestion } from "@/lib/experience/questionRouter";
+import { selectQuestionFocus } from "@/lib/experience/selectQuestionFocus";
+import ActiveQuestionBar from "@/components/command/ActiveQuestionBar";
 import { selectDeckEmphasis, surfaceOrder } from "@/lib/experience/selectDeckEmphasis";
 import { inferJobMode } from "@/lib/experience/inferJobMode";
 import { selectJobSuggestion } from "@/lib/experience/selectJobSuggestion";
@@ -520,6 +522,10 @@ function CommandDeckInner() {
   // surface is currently answering: a function of the human's job (mode) and
   // what the engine actually resolved (oneStory). It asserts no market fact.
   const experienceQuestion = routeQuestion(experienceContext.mode, oneStory);
+  // The question's SUBJECT, compiled from the same OneStoryVM the question was
+  // routed from — so the banner's two lines can never disagree. Canon: the
+  // ACTIVE QUESTION element carries question + focus, not a bare sentence.
+  const questionFocus = selectQuestionFocus(oneStory);
 
   // Market Object Passports (canon P6 Object DNA): each canonical dimension the
   // engine resolved becomes a Passport with its evidence lineage, fidelity,
@@ -900,17 +906,11 @@ function CommandDeckInner() {
                     it) the read-only job suggestion. The sanctuary shell owns
                     brand, mode bar and mode caption — never duplicate them
                     here. These belong to NOW, inside the scene owner. */}
-                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      lineHeight: 1.35,
-                      color: "#c9a55c",
-                      fontStyle: "italic",
-                    }}
-                  >
-                    {experienceQuestion}
-                  </div>
+                <ActiveQuestionBar
+                  question={experienceQuestion}
+                  focus={questionFocus}
+                  mode={experienceContext.mode}
+                >
                   {jobSuggestion.strength !== "NONE" && jobSuggestion.inference && (() => {
                     const sug = jobSuggestion.inference;
                     const hint = jobSuggestion.strength === "HINT";
@@ -947,7 +947,7 @@ function CommandDeckInner() {
                       </button>
                     );
                   })()}
-                </div>
+                </ActiveQuestionBar>
                 {(() => {
                   const story = state ? marketStory : null;
                   return (
