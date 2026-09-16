@@ -13,9 +13,19 @@ import {
   SettingsPanel,
   initialUnreadNotificationCount,
 } from "@/components/layout/shellPanels";
+import { HeaderPnL } from "@/components/layout/HeaderPnL";
+import { WMSBar } from "@/components/wms/WMSBar";
+import { useWMSAvailable } from "@/contexts/WMSContext";
 
 /**
- * THE FOUR THINGS A TRADER MUST BE ABLE TO REACH FROM ANY ROOM.
+ * WHAT A TRADER MUST BE ABLE TO REACH FROM ANY ROOM.
+ *
+ * This said "THE FOUR THINGS" and named search, notifications, settings and
+ * sign-out. It is now six: the trader's realized paper P&L and their WM points
+ * balance joined them, for the same reason and by a subtler mechanism — see
+ * the block above the P&L mount below. The count is out of the title, because
+ * a title with a number in it is a fact maintained in two places, and this one
+ * had already stopped being true before anyone noticed.
  *
  * ── The defect this closes ──────────────────────────────────────────────────
  *
@@ -90,6 +100,10 @@ export function ShellAccessChrome() {
 
   const unreadCount = initialUnreadNotificationCount();
 
+  /* Ask, don't assume. `useWMS` throws when no provider is above it — correct
+     for a page, fatal for chrome. See useWMSAvailable in WMSContext.tsx. */
+  const wmsAvailable = useWMSAvailable();
+
   /**
    * EXCLUSIVE OPEN. Two modal drawers on screen at once is two dialogs
    * competing for one focus trap, and the second one to mount wins silently.
@@ -120,6 +134,32 @@ export function ShellAccessChrome() {
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+      {/* ── THE TRADER'S OWN NUMBERS ──────────────────────────────────────
+          Realized paper P&L and the WM points balance are facts ABOUT THE
+          PERSON, not about the market — and they were drawn only in July's
+          header. So a trader in an OS room could not see either one.
+
+          These are mounted here and not in WMOperatingSystem for the same
+          reason the buttons below are: the frame draws a silhouette and
+          knows nothing about auth, storage or points. This component is the
+          thing that knows.
+
+          They are the SAME two components July mounts, imported, not
+          restyled copies. A second P&L badge in the OS palette would be a
+          second answer to "what is my P&L" with its own drift schedule —
+          and the first time the two disagreed, the trader would have no way
+          to tell which one was lying. One component, two shells.
+
+          Both carry `wm-mobile-hide`, so on a phone they yield rather than
+          crowding a masthead that is already carrying the wordmark, the
+          feed badge and four controls. */}
+      <HeaderPnL />
+      {wmsAvailable && (
+        <div className="wm-mobile-hide">
+          <WMSBar />
+        </div>
+      )}
+
       <button
         type="button"
         ref={searchTriggerRef}

@@ -184,3 +184,33 @@ export function useWMS() {
   if (!ctx) throw new Error("useWMS must be inside WMSProvider");
   return ctx;
 }
+
+/**
+ * Is a WMSProvider actually above us? Asks without throwing.
+ *
+ * ── Why this exists, and why `useWMS` keeps its throw ───────────────────────
+ *
+ * The throw above is right for a PAGE. A surface that reads the trader's
+ * points balance and finds no provider is misassembled, and failing loudly at
+ * the point of misassembly is how that gets fixed in seconds instead of
+ * shipping as a blank number.
+ *
+ * It is wrong for a MASTHEAD. The masthead is rendered in trees the July
+ * header never was — including `renderToStaticMarkup` in the founder-route
+ * gates, which mount no providers at all. Proven, not predicted: mounting
+ * `<WMSBar/>` in ShellAccessChrome turned SIX gate files red at once, all
+ * with this exact message, because a chrome component that throws does not
+ * lose its own chip — it takes the entire shell down with it.
+ *
+ * A points balance is not worth a blank screen. So the masthead ASKS first
+ * and renders the chip only where the fact exists. The alternative — deleting
+ * the throw — would have bought the masthead its chip by removing the alarm
+ * from every page that genuinely is misassembled. One caller's convenience is
+ * not worth every other caller's guard.
+ *
+ * This lives here, next to the context it reads, because a second module that
+ * knows how to reach inside WMSContext is a second owner of that reach.
+ */
+export function useWMSAvailable(): boolean {
+  return useContext(WMSContext) != null;
+}

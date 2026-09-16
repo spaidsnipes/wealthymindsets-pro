@@ -25,6 +25,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { clsx } from "clsx";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { WMSBar } from "@/components/wms/WMSBar";
+import { HeaderPnL } from "@/components/layout/HeaderPnL";
 import { isPublicAuthPath } from "@/lib/authRoutes";
 import { useCapitalObservation, useCapitalReach } from "@/lib/experience/useActiveScene";
 import { WMExperienceShell } from "@/components/experience/WMExperienceShell";
@@ -108,47 +109,11 @@ function isPrimaryDestinationActive(pathname: string, href: string): boolean {
 }
 
 /* ── Main Layout ─────────────────────────────────────────── */
-/* ── Header live P&L badge ───────────────────────────────── */
-function HeaderPnL() {
-  const [show, setShow] = useState(false);
-  const [pnl,  setPnl]  = useState<number | null>(null);
-
-  useEffect(() => {
-    const read = () => {
-      try {
-        const s = JSON.parse(localStorage.getItem("wm_settings") || "{}");
-        // showPnl defaults to true in the panel; treat missing as on
-        setShow(s.showPnl === undefined ? true : !!s.showPnl);
-        const paper = JSON.parse(localStorage.getItem("wm_paper_state") || "null");
-        if (paper && Array.isArray(paper.trades)) {
-          const realized = paper.trades.reduce(
-            (acc: number, t: { pnl?: number }) => acc + (t.pnl ?? 0), 0);
-          setPnl(realized);
-        } else { setPnl(null); }
-      } catch { setShow(false); }
-    };
-    read();
-    window.addEventListener("wm-settings-changed", read);
-    const iv = setInterval(read, 4000);
-    return () => { window.removeEventListener("wm-settings-changed", read); clearInterval(iv); };
-  }, []);
-
-  if (!show) return null;
-  const val = pnl ?? 0;
-  const up = val >= 0;
-  return (
-    <div
-      className="wm-mobile-hide flex items-center gap-1 px-2 py-0.5 rounded-lg border mr-1"
-      style={{ borderColor: up ? "rgba(0,212,170,0.4)" : "rgba(255,77,77,0.4)" }}
-      title="Realized paper-trading P&L"
-    >
-      <span className="text-[9px] text-wm-text-dim font-semibold">P&L</span>
-      <span className={clsx("text-[11px] font-bold font-mono", up ? "text-wm-green" : "text-wm-red")}>
-        {up ? "+" : "-"}${Math.abs(val).toLocaleString("en-US", { maximumFractionDigits: 2 })}
-      </span>
-    </div>
-  );
-}
+/* The header P&L badge used to be declared HERE, as a local function, and
+   that placement was the whole defect: a component declared inside the file
+   that draws the July shell can only ever be rendered by the July shell. An
+   OS room could not show the trader their own realized P&L. It now lives in
+   HeaderPnL.tsx, where both shells can reach it. See that file's header. */
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const [searchOpen,    setSearchOpen]    = useState(false);

@@ -489,7 +489,30 @@ describe("responsive P0 command surfaces", () => {
     expect(layout).toContain('className="wm-shell-actions');
     expect(layout.match(/wm-shell-action/g)?.length).toBeGreaterThanOrEqual(4);
     expect(layout).toContain('className="wm-shell-avatar');
-    expect(layout).toContain('className="wm-mobile-hide flex items-center gap-1 px-2');
+    /**
+     * THE P&L BADGE MOVED OUT OF MainLayout, AND THIS LINE FOUND OUT.
+     *
+     * It used to read `expect(layout).toContain(...)`, because the badge was
+     * a local function declared at the top of MainLayout.tsx. That placement
+     * was the defect — a component declared inside the July shell's file can
+     * only ever be drawn by the July shell, so an OS room could not show the
+     * trader their own realized P&L. It now lives in HeaderPnL.tsx and both
+     * shells mount it.
+     *
+     * This assertion is re-aimed rather than deleted, and the distinction
+     * matters. `wm-mobile-hide` on that badge is the phone rule this whole
+     * test is about: the badge must yield on a narrow masthead instead of
+     * crowding the controls that have to stay 44px. That claim is still true,
+     * still load-bearing, and now has a different file to be true in.
+     *
+     * Note which way this one failed. It asserts PRESENCE, so when the fact
+     * moved the assertion went red and named the file. The absence-shaped
+     * Sentinels in this codebase — "X must not appear in Y" — go quietly
+     * green when X moves out of Y, which is the same event reported as
+     * success. Aim at where a fact IS whenever the choice is available.
+     */
+    const pnl = source("../components/layout/HeaderPnL.tsx");
+    expect(pnl).toContain('className="wm-mobile-hide flex items-center gap-1 px-2');
     expect(css).toContain(".wm-shell-action,");
     expect(css).toContain("width: 44px !important");
     expect(css).toContain("min-height: 44px !important");

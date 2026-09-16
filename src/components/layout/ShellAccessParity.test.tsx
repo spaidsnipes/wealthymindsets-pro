@@ -131,8 +131,39 @@ describe("one OS · both shells mount the SAME panels", () => {
    * OS-palette copy with its own drift schedule. Asserting both importers name
    * the same module is the cheapest way to notice a second copy appearing.
    */
-  const source = (p: string) =>
-    require("node:fs").readFileSync(require("node:path").resolve(__dirname, p), "utf8") as string;
+  /**
+   * Read a file with its COMMENTS REMOVED.
+   *
+   * ── This is not tidying. Without it, a test below could not fail. ─────────
+   *
+   * The mount assertion is `toMatch(/<HeaderPnL\s*\/>/)`. ShellAccessChrome's
+   * own file header explains the change in prose, and that prose names the
+   * element it is explaining — "see the block above `<HeaderPnL/>` below".
+   * So the matcher matched THE SENTENCE ABOUT THE MOUNT.
+   *
+   * Proven by positive control, not by inspection: the real `<HeaderPnL />`
+   * was deleted from the returned JSX and the whole file stayed green, 14/14,
+   * because the paragraph justifying it was still there. Had that shipped,
+   * the comment would have outlived the code it described and gone on
+   * asserting a fact that had stopped being true — a masthead missing the
+   * trader's P&L, guarded by a test that could not notice.
+   *
+   * This is the SECOND time in this shift that a comment satisfied an
+   * assertion about behaviour, in a second file, written by the same hand
+   * that had just fixed the first one. That is not a coincidence worth
+   * shrugging at: heavily-commented code discusses itself in its own
+   * vocabulary, so any source-scanning matcher is aimed at prose as much as
+   * at code unless it is explicitly told not to be.
+   *
+   * A comment must not be able to satisfy an assertion about behaviour.
+   */
+  const source = (p: string) => {
+    const raw = require("node:fs").readFileSync(
+      require("node:path").resolve(__dirname, p),
+      "utf8",
+    ) as string;
+    return raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  };
 
   const july = source("./MainLayout.tsx");
   const access = source("./ShellAccessChrome.tsx");
@@ -153,5 +184,78 @@ describe("one OS · both shells mount the SAME panels", () => {
     expect(access).toContain("initialUnreadNotificationCount()");
     expect(july).not.toContain("INITIAL_NOTIFS");
     expect(access).not.toContain("INITIAL_NOTIFS");
+  });
+
+  /**
+   * ── THE TRADER'S OWN NUMBERS ARE ALSO CAPABILITIES ────────────────────────
+   *
+   * Realized paper P&L and the WM points balance were July-only, and the
+   * mechanism was subtler than the panels above. The panels were July-only
+   * because they were DRAWN in July's JSX. The P&L badge was July-only
+   * because it was DECLARED in July's file — `function HeaderPnL()`, local,
+   * unexported, sitting above MainLayout. Nothing prevented an OS room from
+   * showing it; nothing could.
+   *
+   * That is the harder of the two to see in review. A missing `<Search/>` is
+   * a missing element. A component you cannot import is a missing element
+   * that also has no name to search for.
+   *
+   * These assert the SOURCE and not the render, and the reason is worth
+   * stating rather than glossing: neither chip is present on first paint.
+   * HeaderPnL reads localStorage in an effect and returns null until it has,
+   * and the points chip is gated on a provider the static gates do not mount.
+   * `renderToStaticMarkup` therefore cannot see either one, and a render
+   * assertion here would be a test that passes for the wrong reason. Source
+   * matching is the weaker instrument; it is the one that can actually
+   * observe this fact.
+   */
+  it("the P&L badge is a module, not a function inside the July shell", () => {
+    // The specific regression: if it moves back inside MainLayout, or a
+    // second copy is declared in the access chrome, one of these fails.
+    expect(july).not.toMatch(/function\s+HeaderPnL\s*\(/);
+    expect(access).not.toMatch(/function\s+HeaderPnL\s*\(/);
+    expect(july).toContain('from "@/components/layout/HeaderPnL"');
+    expect(access).toContain('from "@/components/layout/HeaderPnL"');
+  });
+
+  it("both shells mount the same P&L badge and the same points balance", () => {
+    // Mounted, not merely imported. An import nothing renders is exactly how
+    // ShellAccessChrome's own header describes the capability going missing
+    // the first time.
+    for (const shell of [july, access]) {
+      expect(shell).toMatch(/<HeaderPnL\s*\/>/);
+      expect(shell).toMatch(/<WMSBar\s*\/>/);
+    }
+  });
+
+  it("the chrome asks whether the points provider exists instead of assuming", () => {
+    /**
+     * PROVEN, NOT PREDICTED. Mounting <WMSBar/> here without this guard
+     * turned SIX gate files red at once — every one with
+     * "useWMS must be inside WMSProvider" — because `useWMS` throws and a
+     * throwing chrome component does not lose its own chip, it takes the
+     * whole shell down with it. The OS shell renders in trees the July
+     * header never did, including renderToStaticMarkup with no providers.
+     *
+     * The guard stays because a points balance is not worth a blank screen.
+     * `useWMS` keeps its throw because every PAGE that reads points and
+     * finds no provider genuinely is misassembled.
+     */
+    expect(access).toContain("useWMSAvailable");
+    expect(access).toMatch(/wmsAvailable\s*&&/);
+    // And the throw it is avoiding must still be there for everyone else.
+    const ctx = require("node:fs").readFileSync(
+      require("node:path").resolve(__dirname, "../../contexts/WMSContext.tsx"),
+      "utf8",
+    ) as string;
+    expect(ctx).toContain('throw new Error("useWMS must be inside WMSProvider")');
+  });
+
+  it("an OS room still renders when no points provider is mounted", () => {
+    // The regression above, restated against behaviour rather than source.
+    // HTML is built at module load with no providers at all; if the chrome
+    // ever throws again, this file cannot even import.
+    expect(HTML).toContain("wm-os-masthead");
+    expect(HTML).not.toContain("WM pts");
   });
 });
