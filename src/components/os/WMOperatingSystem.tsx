@@ -43,7 +43,7 @@
 import * as React from "react";
 // Where the product's rooms are has ONE owner. Retyping them here is what made
 // this rail a second definition — see the note on OS_ROOMS below.
-import { destinationsInGroup } from "@/lib/routing/wmDestinations";
+import { destinationsInGroup, phoneNavDestinations } from "@/lib/routing/wmDestinations";
 import {
   compileFeedStanding,
   compileProvenanceSegments,
@@ -105,6 +105,13 @@ export const OS_ROOMS: readonly ShellRoom[] = destinationsInGroup("ROOM").map((d
  */
 const OS_WORKBENCH = destinationsInGroup("TOOL");
 const OS_COMMUNITY = destinationsInGroup("COMMUNITY");
+
+/**
+ * The five the phone gets, from the same owner the July shell reads. The
+ * alternative — this frame choosing its own five — is how the two shells came
+ * to call one room "Chart" and "Charts".
+ */
+const PHONE_DOORS = phoneNavDestinations();
 
 /**
  * The width at which the rail stops being affordable.
@@ -623,6 +630,71 @@ export function WMOperatingSystem({
         </div>
       </footer>
 
+      {/* ── PHONE NAVIGATION ────────────────────────────────────────────────
+          The rail is `display: none` below the breakpoint, and until now
+          NOTHING replaced it. That is not a degraded experience: a trader who
+          opened /command-deck on a phone could not leave it. The standing bar
+          above reports conditions; it is not a map.
+
+          Five doors, from the destination owner, same labels and icons as
+          every other surface. Hidden above the breakpoint, where the rail
+          carries all twenty-one — two navigations on screen at once would be
+          two answers to "where can I go". */}
+      <nav
+        className="wm-os-phone-nav"
+        aria-label="Primary navigation"
+        data-testid="os-phone-nav"
+        style={{
+          display: "flex",
+          flexShrink: 0,
+          borderTop: `1px solid ${RULE}`,
+          background: FIELD,
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
+      >
+        {PHONE_DOORS.map((d) => {
+          const active = d.href === activeHref;
+          const Icon = d.icon;
+          return (
+            <a
+              key={d.href}
+              href={d.href}
+              aria-current={active ? "page" : undefined}
+              style={{
+                flex: "1 1 0",
+                minWidth: 0,
+                /* 44px is the floor a thumb can actually hit. A nav that needs
+                   a second attempt is a nav that gets abandoned. */
+                minHeight: 52,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 3,
+                padding: "6px 2px",
+                textDecoration: "none",
+                color: active ? PEARL : MUTED,
+                borderTop: `2px solid ${active ? GOLD : "transparent"}`,
+              }}
+            >
+              <Icon size={18} aria-hidden="true" />
+              <span
+                style={{
+                  fontSize: 9,
+                  letterSpacing: 0.3,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  maxWidth: "100%",
+                }}
+              >
+                {d.label}
+              </span>
+            </a>
+          );
+        })}
+      </nav>
+
       <style>{`
         @media (max-width: ${OS_RAIL_BREAKPOINT_PX}px) {
           .wm-os-rail { display: none !important; }
@@ -630,6 +702,7 @@ export function WMOperatingSystem({
         }
         @media (min-width: ${OS_RAIL_BREAKPOINT_PX + 1}px) {
           .wm-os-standing-bar { display: none !important; }
+          .wm-os-phone-nav { display: none !important; }
         }
       `}</style>
     </div>

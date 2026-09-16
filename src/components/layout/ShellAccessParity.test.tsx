@@ -27,7 +27,7 @@ import { describe, it, expect } from "vitest";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { WMExperienceShell } from "@/components/experience/WMExperienceShell";
-import { WM_DESTINATIONS } from "@/lib/routing/wmDestinations";
+import { phoneNavDestinations, WM_DESTINATIONS } from "@/lib/routing/wmDestinations";
 
 const HTML = renderToStaticMarkup(
   <WMExperienceShell brand={<span>WM</span>}>
@@ -96,6 +96,32 @@ describe("one OS · every room has a door in the rail", () => {
     // "Chart" on one rail and "Charts" on the other.
     const missing = WM_DESTINATIONS.filter((d) => !HTML.includes(`>${d.label}</a>`));
     expect(missing.map((d) => d.label)).toEqual([]);
+  });
+});
+
+describe("one OS · a phone can leave the room", () => {
+  /**
+   * ── THE MEASURED DEFECT ─────────────────────────────────────────────
+   * `.wm-os-rail { display: none }` below 900px, and NOTHING replaced it.
+   * Not a degraded map — no map. A trader who opened /command-deck on a
+   * phone could not navigate anywhere. The standing bar that does render
+   * there reports CONDITIONS; it is not a way out.
+   *
+   * No test failed while that was true. This is that test.
+   */
+  it("renders the phone bar with all five doors", () => {
+    expect(HTML).toContain('data-testid="os-phone-nav"');
+    const doors = phoneNavDestinations();
+    expect(doors).toHaveLength(5); // vacuity guard
+    const missing = doors.filter((d) => !HTML.includes(`href="${d.href}"`));
+    expect(missing.map((d) => d.href)).toEqual([]);
+  });
+
+  it("does not show the phone bar and the rail as two answers at once", () => {
+    // Both are in the markup; CSS decides. The complementary breakpoint is the
+    // claim — an overlap renders two navigations, a gap renders none.
+    expect(HTML).toContain(".wm-os-phone-nav { display: none !important; }");
+    expect(HTML).toContain(".wm-os-rail { display: none !important; }");
   });
 });
 

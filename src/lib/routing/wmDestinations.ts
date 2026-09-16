@@ -127,6 +127,45 @@ export function destinationsInGroup(group: WmDestinationGroup): readonly WmDesti
   return WM_DESTINATIONS.filter((d) => d.group === group);
 }
 
+/**
+ * THE FIVE DOORS A PHONE GETS.
+ *
+ * A phone cannot hold twenty-one. The rail is `display: none` under 900px in
+ * the OS frame, so whatever is here is the trader's ENTIRE map on the smallest
+ * screen — which is why it lives with the destination owner and not inside one
+ * shell. It was a private array in `MainLayout`, reachable only from the July
+ * branch, and the consequence was measurable: an OS room on a phone had no
+ * navigation of any kind.
+ *
+ * Five, not seven: the loop's other two rooms (`/morning-prep`, `/heatmaps`)
+ * are reachable from inside the rooms that ARE here. A sixth slot at 390px
+ * makes every slot too narrow to hit, which trades a reachability problem for
+ * an accuracy one.
+ */
+export const PHONE_SLOT_HREFS: readonly string[] = [
+  INSTRUMENT_VIEW_ROUTE,
+  "/command-deck",
+  "/paper",
+  "/journal",
+  "/profile",
+];
+
+/**
+ * The phone slots as full destinations — same labels, same icons, one owner.
+ *
+ * THROWS at module load on an unknown href. A phone slot pointing at a route
+ * the registry does not know is a painted door on the smallest screen, where a
+ * trader has the least room to recover from it. Fail where a human is looking,
+ * not silently at 390px.
+ */
+export function phoneNavDestinations(): readonly WmDestination[] {
+  return PHONE_SLOT_HREFS.map((href) => {
+    const found = WM_DESTINATIONS.find((d) => d.href === href);
+    if (!found) throw new Error(`PHONE_SLOT_HREFS names ${href}, which is not a WM destination`);
+    return found;
+  });
+}
+
 /** Every route that wears the OS frame today. */
 export const OS_FRAMED_ROUTES: readonly string[] = WM_DESTINATIONS.filter(
   (d) => d.frame === "os",

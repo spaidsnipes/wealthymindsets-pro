@@ -2,9 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { WM_DESTINATIONS } from "./routing/wmDestinations";
+import { PHONE_SLOT_HREFS, phoneNavDestinations, WM_DESTINATIONS } from "./routing/wmDestinations";
 
-const layout = readFileSync(resolve(__dirname, "../components/layout/MainLayout.tsx"), "utf8");
 const profile = readFileSync(resolve(__dirname, "../app/profile/page.tsx"), "utf8");
 
 /*
@@ -20,6 +19,13 @@ const profile = readFileSync(resolve(__dirname, "../app/profile/page.tsx"), "utf
   So the guard is split to follow the fact: the DESTINATION is asserted as data
   in the registry (stronger than a string match — a comment cannot satisfy it),
   and the PHONE SLOT is asserted where the phone bar's five slots are chosen.
+
+  AND THEN IT MOVED AGAIN, which is the point. The slot list was still private
+  to MainLayout, so the OS frame could not draw a phone bar at all — a trader
+  who opened /command-deck on a phone could not leave it. Moving the list to
+  the destination owner fixed that and broke THIS assertion, loudly, because
+  the assertion had been rewritten to read a source slice. It is now data too:
+  no substring of any file can satisfy it.
 */
 describe("Academy mobile discoverability", () => {
   it("keeps Profile in the canonical mobile nav and routes from it to Academy", () => {
@@ -27,11 +33,10 @@ describe("Academy mobile discoverability", () => {
     expect(profileDestination, "/profile left the destination registry").toBeTruthy();
     expect(profileDestination!.label).toBe("Profile");
 
-    const slots = layout.slice(
-      layout.indexOf("const MOBILE_NAV_HREFS"),
-      layout.indexOf("const MOBILE_NAV_ITEMS"),
-    );
-    expect(slots, "the phone bar dropped its Profile slot").toContain('"/profile"');
+    expect(PHONE_SLOT_HREFS, "the phone bar dropped its Profile slot").toContain("/profile");
+    // Resolved, not just listed — a slot naming a route the registry does not
+    // know is a painted door at 390px, and `phoneNavDestinations` throws on it.
+    expect(phoneNavDestinations().map((d) => d.label)).toContain("Profile");
 
     expect(profile).toContain('router.push("/education")');
     expect(profile).toContain("No enrollment · no live execution · no earnings promise");

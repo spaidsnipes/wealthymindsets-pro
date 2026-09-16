@@ -30,7 +30,7 @@ import { isPublicAuthPath } from "@/lib/authRoutes";
 import { useCapitalObservation, useCapitalReach } from "@/lib/experience/useActiveScene";
 import { WMExperienceShell } from "@/components/experience/WMExperienceShell";
 import { isFounderRoomRoute } from "@/lib/routing/founderRoomRoutes";
-import { destinationsInGroup, WM_DESTINATIONS } from "@/lib/routing/wmDestinations";
+import { destinationsInGroup, phoneNavDestinations } from "@/lib/routing/wmDestinations";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { selectNavEmphasis } from "@/lib/experience/selectNavEmphasis";
 import { matchCuratedSymbols } from "@/lib/marketData/curatedSymbolCatalog";
@@ -82,21 +82,11 @@ const NAV_BOTTOM = destinationsInGroup("COMMUNITY");
 // phone bar call /paper "Paper" while every other surface called it
 // "Paper Trade". Order follows the trader loop: OBSERVE (Charts) → DECIDE
 // (Command Deck) → PRACTICE (Paper) → REVIEW (Journal) → IDENTITY (Profile).
-const MOBILE_NAV_HREFS = [
-  INSTRUMENT_VIEW_ROUTE,
-  "/command-deck",
-  "/paper",
-  "/journal",
-  "/profile",
-] as const;
-const MOBILE_NAV_ITEMS = MOBILE_NAV_HREFS.map(href => {
-  const found = WM_DESTINATIONS.find(d => d.href === href);
-  // A phone slot pointing at a route the registry does not know is a painted
-  // door on the smallest screen, where it is hardest to recover from. Fail at
-  // module load, where a human is looking, not silently at 390px.
-  if (!found) throw new Error(`MOBILE_NAV_HREFS names ${href}, which is not a WM destination`);
-  return found;
-});
+/* The phone slot list moved to `wmDestinations` — the destination owner — so
+   the OS frame can draw the same five. It was private to this file, and the
+   measured consequence was that an OS room on a phone had NO navigation at
+   all: the rail is display:none under 900px and nothing replaced it. */
+const MOBILE_NAV_ITEMS = phoneNavDestinations();
 /* A COMMENT IS NOT A CONSUMER.
    A `NAV_ITEMS` constant stood here, justified by its own comment: "Legacy —
    kept for any code that may reference NAV_ITEMS". No code did. The comment
