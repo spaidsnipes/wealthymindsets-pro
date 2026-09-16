@@ -142,13 +142,33 @@ const REPO_ROOT = path.dirname(SRC_DIR);
  * and intentionally invisible", or it will keep nominating retirements for
  * revival.
  */
+/*
+ * SUPERSEDED added 2026-09-15, in the same pass, for the same reason one more
+ * time: the third unmounting turned out to have a third cause.
+ *
+ *   DEAD_CONSUMER    built, never mounted.                      -> debt.
+ *   RETIRED_BY_SPEC  built, mounted, deliberately unmounted.    -> a decision.
+ *   SUPERSEDED       built, mounted, REPLACED by an honest owner.
+ *
+ * The distinction is not taxonomy for its own sake; each one hands the next
+ * engineer a different instruction. DEAD_CONSUMER says "mount it or delete it."
+ * RETIRED_BY_SPEC says "the decision was to have less — leave it alone."
+ * SUPERSEDED says "this job is already being done correctly somewhere else, go
+ * and find that." Send an engineer the wrong one of those three and they will
+ * either reverse a Founder decision or rebuild something that already exists.
+ *
+ * SUPERSEDED is the most dangerous to mis-file, because the replacement is
+ * usually a TRUTH fix. Restoring the superseded module does not just duplicate
+ * work — it restores the defect the replacement was written to kill.
+ */
 type ReachReason =
   | "AWAITING_SURFACE"
   | "TEST_FIXTURE"
   | "OPS_TOOLING"
   | "EDGE_RUNTIME"
   | "DEAD_CONSUMER"
-  | "RETIRED_BY_SPEC";
+  | "RETIRED_BY_SPEC"
+  | "SUPERSEDED";
 
 interface LedgerEntry {
   readonly reason: ReachReason;
@@ -213,9 +233,31 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "RETIRED_BY_SPEC",
     note: "Session VP side-panel math. The panel was retired per Founder spec in 89a350e and is held retired by src/lib/sessionVpRetired.test.ts. Reached only by the retained-for-history WMSessionVP.tsx. Restoring it must be a deliberate spec change, never a side effect of gate-chasing.",
   },
+  // NOT DEAD_CONSUMER either. Corrected 2026-09-15 by the discipline the
+  // sessionVP.ts correction above had just written down: run `git log` on the
+  // component before deciding it is missing something.
+  //
+  // The note here used to read "the mount was never made." That was a FALSE
+  // HISTORICAL CLAIM, and the worst kind — it described a finished thing as an
+  // unfinished one, so it read as an invitation. The mount WAS made:
+  //
+  //     74ad348  feat(morning-prep): wire OpeningBellPanel above the feed
+  //     ce90890  Opening Bell accused the trader of rushing, from zero observation
+  //     b326282  fix(morning-prep): stop the Opening Bell fabricating both a NOT DONE and a DONE
+  //
+  // It was torn out of BOTH rooms because it manufactured a verdict about the
+  // trader's morning from no observation of the trader — six items hardcoded
+  // NOT DONE on one surface, and on the other, two items marked DONE and
+  // stamped with a completion TIME the trader never earned.
+  //
+  // SUPERSEDED, not RETIRED_BY_SPEC: a spec retirement leaves a hole on
+  // purpose, and the instruction is "the decision was to have less." Here an
+  // honest owner took the job over, and the instruction is different: go use
+  // THAT one. Collapsing the two would send the next engineer looking for a
+  // gap that has already been filled.
   "src/lib/traderMemory/viewModels/selectOpeningBell.ts": {
-    reason: "DEAD_CONSUMER",
-    note: "Reached only by components/opening-bell/OpeningBellPanel.tsx, which no route renders. Selector and panel were both built; the mount was never made.",
+    reason: "SUPERSEDED",
+    note: "Per-item readiness verdicts for the Opening Bell. Superseded by src/lib/experience/openingBellPrep.ts (selectPrepEvidence), which both rooms compose through OpeningBellEvidence. Held superseded by src/lib/experience/openingBellPrep.test.ts. Reached only by the retained-for-history OpeningBellPanel.tsx. This vm needs per-item `completed` flags, and neither room can know WHICH items were ticked — only how many. A count is not a checklist.",
   },
   "src/lib/truthStatus/truthStatusLabels.ts": {
     reason: "DEAD_CONSUMER",
@@ -488,6 +530,17 @@ const UNREACHED_COMPONENTS: readonly string[] = FILES.filter(
  * would put guesses in the one file that exists to hold facts. The count is
  * the honest thing that is known today.
  *
+ * Where a component HAS been triaged, the finding is annotated inline below.
+ * Two are annotated so far, and both turned out to be finished work rather
+ * than debt. Both were found the same way, and it is the cheapest check in
+ * this file:
+ *
+ *     RUN `git log` ON THE COMPONENT BEFORE DECIDING IT IS MISSING SOMETHING.
+ *
+ * The import graph cannot tell a mount that was never made from a mount that
+ * was deliberately taken away. It reports both as "no route renders this", and
+ * the second one is a decision someone already made on purpose.
+ *
  * Removing a name from this list is always correct — it means a route finally
  * renders it, or it was deleted.
  */
@@ -504,6 +557,12 @@ const KNOWN_ORPHAN_COMPONENTS: readonly string[] = [
   "src/components/chart/WMSessionVP.tsx",
   "src/components/experience/CanvasBadgeMini.tsx",
   "src/components/layout/HeaderVaultPill.tsx",
+  // SUPERSEDED, not untriaged. Mounted in 74ad348, then torn out of BOTH rooms
+  // by ce90890 and b326282 because it rendered a verdict about the trader's
+  // morning from no observation of the trader. Its job is now done honestly by
+  // OpeningBellEvidence + selectPrepEvidence. Held superseded by
+  // src/lib/experience/openingBellPrep.test.ts (× THE SUPERSEDED PANEL).
+  // Re-mounting this does not duplicate work; it restores the defect.
   "src/components/opening-bell/OpeningBellPanel.tsx",
   "src/components/systemHealth/FailureStateChip.tsx",
   "src/components/truthStatus/TruthStatusChip.tsx",
@@ -552,17 +611,28 @@ describe("screen reach — IMPLEMENTED is not REACHABLE", () => {
     }
   });
 
-  it("× THE REVIVED RETIREMENT: a spec retirement names the lock that holds it", () => {
-    // RETIRED_BY_SPEC is the strongest claim in this file: it says "leave this
-    // alone." A claim that strong must be checkable, or it is just a word that
-    // stops questions. Each entry must name a real test file, and that file
-    // must really exist — otherwise the reason becomes a way to retire things
-    // by assertion.
-    const retired = Object.entries(LEDGER).filter(([, e]) => e.reason === "RETIRED_BY_SPEC");
+  it("× THE REVIVED RETIREMENT: a closed question names the lock that holds it", () => {
+    // RETIRED_BY_SPEC and SUPERSEDED are the strongest claims in this file.
+    // Every other reason describes an OPEN question — debt, a fixture, a wire
+    // that runs elsewhere. These two close the question: "leave this alone",
+    // "this is already done correctly elsewhere." A claim that strong must be
+    // checkable, or it is just a word that stops questions. Each entry must
+    // name a real test file, and that file must really exist — otherwise the
+    // reason becomes a way to retire things by assertion.
+    const CLOSED: readonly ReachReason[] = ["RETIRED_BY_SPEC", "SUPERSEDED"];
+    const retired = Object.entries(LEDGER).filter(([, e]) => CLOSED.includes(e.reason));
     expect(retired.length).toBeGreaterThan(0);
+    // NON-VACUITY: both closing reasons must actually be exercised, or one of
+    // them is an untested escape hatch sitting in the type.
+    for (const reason of CLOSED) {
+      expect(
+        retired.some(([, e]) => e.reason === reason),
+        `no ledger entry uses ${reason}, so this lock does not guard it`,
+      ).toBe(true);
+    }
     for (const [file, entry] of retired) {
       const named = entry.note.match(/[\w/.]+\.test\.ts/)?.[0];
-      expect(named, `${file} is RETIRED_BY_SPEC but names no lock`).toBeTruthy();
+      expect(named, `${file} is ${entry.reason} but names no lock`).toBeTruthy();
       expect(
         fs.existsSync(path.join(REPO_ROOT, named as string)),
         `${file} names ${named}, which does not exist`,
@@ -623,6 +693,7 @@ describe("screen reach — IMPLEMENTED is not REACHABLE", () => {
           "EDGE_RUNTIME",
           "DEAD_CONSUMER",
           "RETIRED_BY_SPEC",
+          "SUPERSEDED",
         ],
         file,
       ).toContain(entry.reason);

@@ -189,6 +189,57 @@ describe("openingBellPrep — what the deck may say about your morning", () => {
     }
   });
 
+  /**
+   * × THE SUPERSEDED PANEL
+   *
+   * THE HOLE, found 2026-09-15 by running `git log` on an "untriaged" orphan.
+   *
+   * The two locks above pin the fabrication's SPELLING — `completed: false`,
+   * `completedAt:`, `hasTodayEntry` — inside the two route files. That is only
+   * as strong as the assumption that the fabrication must appear there.
+   *
+   * It does not have to. `OpeningBellPanel` is a PURE DISPLAY CONSUMER: it
+   * takes an `OpeningBellVM` as a prop and renders whatever verdict it is
+   * handed. The vm is built by whoever mounts it. So the whole accusation can
+   * come back with the route files untouched, simply by building the items in
+   * an adapter module and passing the result down.
+   *
+   * That is not a hypothetical escape route. It is the one this repo actually
+   * used: 74ad348 ("wire OpeningBellPanel above the feed") shipped exactly such
+   * a "MorningPrepOpeningBell adapter", and ce90890 / b326282 are the two
+   * commits that had to tear the fabrication back out of both rooms.
+   *
+   * A SENTINEL PINNED TO A SPELLING IS NOT PINNED TO A MEANING. The meaning
+   * here is the MOUNT. `selectOpeningBell` needs per-item `completed` flags,
+   * and neither room can honestly know WHICH items the trader ticked — only
+   * HOW MANY. A count is not a checklist. So any route that reaches for this
+   * vm is, by construction, about to invent the per-item ticks.
+   *
+   * Comments are exempt: both routes explain at length why they no longer call
+   * it, and A COMMENT IS NOT A CONSUMER.
+   */
+  it("× THE SUPERSEDED PANEL: no route may re-mount the Opening Bell that fabricated", () => {
+    const ROUTES = ["src/app/command-deck/page.tsx", "src/app/morning-prep/page.tsx"];
+    for (const rel of ROUTES) {
+      const code = codeOnly(read(rel));
+      expect(code, `${rel} re-mounts the superseded OpeningBellPanel`).not.toContain(
+        "OpeningBellPanel",
+      );
+      expect(code, `${rel} reaches for the vm that requires per-item ticks`).not.toContain(
+        "selectOpeningBell",
+      );
+      // NON-VACUITY: these files must still be the Opening Bell rooms, or the
+      // two assertions above pass by having deleted the feature entirely.
+      expect(code, `${rel} no longer renders an Opening Bell at all`).toContain(
+        "OpeningBellEvidence",
+      );
+    }
+    // NON-VACUITY: `codeOnly` must really be stripping the explanations, or the
+    // exemption above is untested and the lock is one honest comment from red.
+    const raw = read("src/app/command-deck/page.tsx");
+    expect(raw).toContain("selectOpeningBell");
+  });
+
   it("THE WORDING IS NOT FORKABLE: only the shared component renders the refusal", () => {
     const shared = read("src/components/opening-bell/OpeningBellEvidence.tsx");
     expect(shared).toContain("PREP_VERDICT_WITHHELD");
