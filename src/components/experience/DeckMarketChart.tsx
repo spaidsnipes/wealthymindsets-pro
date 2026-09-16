@@ -64,7 +64,18 @@ import {
  */
 export const MARKET_FIELD_HEIGHT = "clamp(320px, 56vh, 620px)";
 
-interface Candle {
+/**
+ * Exported because the deck now forwards these candles into canonical market
+ * state and needs to name their type. `time` is SECONDS — the
+ * lightweight-charts convention, and the same one `deriveLastBarClose` expects.
+ *
+ * There is deliberately NO `volume`: /api/yahoo's volume is not trusted here,
+ * so `parseCandles` drops it rather than forward a number this file cannot
+ * stand behind. That absence is why `deriveLastBarClose` takes the minimal
+ * `BarCloseCandidate` shape instead of a full `OHLCVBar` — so these candles
+ * can be published honestly without anyone inventing `volume: 0`.
+ */
+export interface Candle {
   readonly time: number;
   readonly open: number;
   readonly high: number;
@@ -105,6 +116,26 @@ export interface DeckMarketChartProps {
    * Server-side render skips the fetch entirely.
    */
   readonly fetcher?: (url: string) => Promise<Response>;
+  /**
+   * THE CANDLES LEAVE THE ROOM.
+   *
+   * Until this prop existed, the candles fetched here were rendered and then
+   * discarded. That made the deck's own chart a DEAD END for truth: it drew
+   * 120 real bars closing at 356.58 while canonical market state — with no
+   * bars of its own — published `lastBar: null`, and HeroTruth directly above
+   * the chart rendered `?` for price. One room, two owners, one of them
+   * needlessly ignorant.
+   *
+   * This is the deck's analogue of `MainChart.onBarsReady`. The parent hands
+   * what it receives to `usePublishChartMarketState`, which is the single
+   * writer of canonical state. Nothing is computed here and nothing is
+   * published here — the chart stays a pure view; it merely stops keeping its
+   * evidence to itself.
+   *
+   * Fires ONLY on a READY fetch, so an empty or failed load can never be
+   * mistaken for "the bars are gone" — absence of a call is not a claim.
+   */
+  readonly onCandlesReady?: (candles: readonly Candle[]) => void;
 }
 
 /**
@@ -160,6 +191,7 @@ export function DeckMarketChart({
   timeframe,
   bars = 120,
   fetcher,
+  onCandlesReady,
 }: DeckMarketChartProps): React.ReactElement {
   const [state, setState] = React.useState<FetchState>({ kind: "IDLE" });
   // The canonical session signal, read from the context the deck page already
@@ -299,6 +331,19 @@ export function DeckMarketChart({
       seriesRef.current = null;
     };
   }, []);
+
+  // Hand the candles up. Separate from the chart-build effect on purpose: a
+  // publication is not a rendering concern, and coupling them would mean a
+  // failure to mount the canvas silently withheld the evidence too.
+  //
+  // `state.candles` is a fresh array only when a fetch actually landed, so a
+  // parent that stores it in state re-renders at most once per load. A parent
+  // passing an unstable callback would loop — hence `onCandlesReady` is
+  // documented as requiring a stable identity, and the deck uses useCallback.
+  React.useEffect(() => {
+    if (state.kind !== "READY") return;
+    onCandlesReady?.(state.candles);
+  }, [state, onCandlesReady]);
 
   const barCount = state.kind === "READY" ? state.candles.length : 0;
 

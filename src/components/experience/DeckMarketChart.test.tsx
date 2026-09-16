@@ -89,8 +89,36 @@ describe("the deck actually mounts a real chart in its MARKET section", () => {
     // Source-graph guard: if a future refactor drops the chart, MARKET
     // regresses to chip-lists-only and Ticket T loses "real chart evidence."
     const src = readFileSync(resolve(__dirname, "../../app/command-deck/page.tsx"), "utf8");
-    expect(src).toContain('import DeckMarketChart from "@/components/experience/DeckMarketChart";');
+    // Matched on the MODULE, not on a byte-exact import line. The old form
+    // pinned `import DeckMarketChart from "…";` verbatim and broke the moment
+    // the deck additionally imported the `Candle` type — a guard failing over
+    // punctuation while the thing it guards is intact trains people to edit
+    // the assertion rather than read it.
+    expect(src).toMatch(
+      /import\s+DeckMarketChart(?:,\s*\{[^}]*\})?\s+from\s+"@\/components\/experience\/DeckMarketChart"/,
+    );
     expect(src).toMatch(/<DeckMarketChart\s+symbol=\{symbol\}\s+timeframe=\{timeframe\}/);
+  });
+
+  it("forwards the chart's candles into canonical state — the deck may not sit on its own evidence", () => {
+    // THE DEFECT THIS GUARDS, MEASURED ON PRODUCTION 2026-09-16 (TSLA):
+    // DeckMarketChart drew 120 real candles closing at 356.58 under the words
+    // "Read just now", while HeroTruth eleven pixels above printed `?` for
+    // price. The candles were fetched, rendered, and then discarded — the deck
+    // called usePublishChartMarketState without `bars`, so canonical
+    // `lastBar` was null and every reader downstream believed the room had no
+    // price evidence at all.
+    //
+    // `bars` is OPTIONAL on the publisher's input, which is correct (a surface
+    // with no candles must publish without inventing any) but it also means
+    // dropping this wire would type-check, test green, and silently restore
+    // the exact contradiction. That is why the wire itself is asserted.
+    const src = readFileSync(resolve(__dirname, "../../app/command-deck/page.tsx"), "utf8");
+    expect(src).toMatch(/onCandlesReady=\{handleDeckCandles\}/);
+    // The forward must actually reach the publisher, not merely be captured
+    // into state. Naming both halves is the point: a chart that hands candles
+    // to a parent which never publishes them is the same dead end.
+    expect(src).toMatch(/usePublishChartMarketState\(\{[\s\S]*?bars:\s*deckCandles[\s\S]*?\}\)/);
   });
 
   it("the chart and concise contextual WHY stay inside one market room", () => {

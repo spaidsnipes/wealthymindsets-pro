@@ -1,5 +1,28 @@
-import type { OHLCVBar } from "../pine/types";
 import { parseTimeframeMs } from "../experience/marketFieldFreshness";
+
+/**
+ * THE MINIMUM EVIDENCE A BAR CLOSE NEEDS — and not one field more.
+ *
+ * This file used to take `OHLCVBar`, which additionally requires `open`,
+ * `high`, `low` and `volume`. None of them are read here: the whole module
+ * ranks bars by `time` and reports `close`.
+ *
+ * That over-wide parameter had a real cost. `/command-deck`'s chart parses
+ * `/api/yahoo` into candles that deliberately carry NO volume — the endpoint's
+ * volume is not trusted, so `parseCandles` drops it rather than pass a number
+ * it cannot stand behind. Handing those candles to an `OHLCVBar[]` parameter
+ * therefore required inventing `volume: 0`, and a fabricated zero is exactly
+ * the provenance lie the rest of this file exists to refuse. Widening the
+ * parameter to what is actually read lets honest partial evidence through
+ * WITHOUT anyone having to make a number up.
+ *
+ * `OHLCVBar[]` remains assignable to this, so /charts is unaffected.
+ */
+export interface BarCloseCandidate {
+  /** Bar-open epoch in SECONDS (the lightweight-charts convention). */
+  readonly time: number;
+  readonly close: number;
+}
 
 /**
  * LAST VERIFIED BAR CLOSE — a second, explicitly-labelled price owner.
@@ -100,14 +123,14 @@ export interface LastBarCloseEvidence {
  * VACUOUS AGREEMENT shape this codebase keeps finding, since the two copies
  * agree right up until one of them is edited.
  */
-function rankBars(bars: readonly OHLCVBar[]): {
-  newest: OHLCVBar | null;
-  runnerUp: OHLCVBar | null;
+function rankBars(bars: readonly BarCloseCandidate[]): {
+  newest: BarCloseCandidate | null;
+  runnerUp: BarCloseCandidate | null;
 } {
   // Do NOT assume the array is sorted. A close attributed to the wrong bar is
   // a fabricated timestamp even when the number happens to be right.
-  let newest: OHLCVBar | null = null;
-  let runnerUp: OHLCVBar | null = null;
+  let newest: BarCloseCandidate | null = null;
+  let runnerUp: BarCloseCandidate | null = null;
   for (const bar of bars) {
     if (!bar) continue;
     if (!Number.isFinite(bar.close) || bar.close <= 0) continue;
@@ -150,7 +173,7 @@ function rankBars(bars: readonly OHLCVBar[]): {
  * change the caller already reacts to).
  */
 export function lastBarCloseRecheckAtMs(
-  bars: readonly OHLCVBar[] | null | undefined,
+  bars: readonly BarCloseCandidate[] | null | undefined,
   timeframe: string | null | undefined,
   nowMs?: number | null,
 ): number | null {
@@ -173,7 +196,7 @@ export function lastBarCloseRecheckAtMs(
 }
 
 export function deriveLastBarClose(
-  bars: readonly OHLCVBar[] | null | undefined,
+  bars: readonly BarCloseCandidate[] | null | undefined,
   timeframe: string | null | undefined,
   nowMs?: number | null,
 ): LastBarCloseEvidence | null {

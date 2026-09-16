@@ -77,7 +77,7 @@ import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassp
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
 import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
-import DeckMarketChart from "@/components/experience/DeckMarketChart";
+import DeckMarketChart, { type Candle as DeckCandle } from "@/components/experience/DeckMarketChart";
 import AvailableRChip from "@/components/experience/AvailableRChip";
 import DeckExpressionShortlist from "@/components/experience/DeckExpressionShortlist";
 import { OptionExpressionIntent } from "@/components/chart/OptionExpressionIntent";
@@ -285,6 +285,28 @@ function CommandDeckInner() {
   // JSX is the React #310 defect this codebase has already paid for twice.
   // `null` until mount and on every weekday: provider labelling unchanged.
   const sessionOpen = useProvenSessionClosure(symbol);
+  // THE DECK'S OWN CANDLES, PUBLISHED.
+  //
+  // `DeckMarketChart` fetches ~120 real candles from /api/yahoo and, until
+  // this state existed, kept every one of them private. Canonical market state
+  // therefore held no bars, `deriveLastBarClose` returned null, and HeroTruth
+  // printed `?` for price DIRECTLY ABOVE a chart rendering those same candles.
+  //
+  // Observed on production 2026-09-16, TSLA: last close 356.58 drawn on the
+  // canvas under the words "Read just now", `?` in the hero eleven pixels up.
+  // Understating what the room knows is a truth defect in the same family as
+  // overclaiming it — see deriveLastBarClose.ts, which exists for exactly this
+  // shape on /charts.
+  //
+  // The chart remains the ONLY fetcher. This is a forward, not a second
+  // request, so there is still exactly one owner of "ask for candles".
+  const [deckCandles, setDeckCandles] = React.useState<readonly DeckCandle[] | null>(null);
+  // Stable identity: DeckMarketChart's publish effect depends on this
+  // callback, so an inline lambda would re-fire it on every deck render.
+  const handleDeckCandles = React.useCallback((candles: readonly DeckCandle[]) => {
+    setDeckCandles(candles);
+  }, []);
+
   usePublishChartMarketState({
     symbol,
     timeframe,
@@ -293,6 +315,7 @@ function CommandDeckInner() {
     recentTicks: wsFeed.recentTicks,
     source: wsFeed.source,
     connected: wsFeed.connected,
+    bars: deckCandles,
   });
 
   const state = useCanonicalMarketState(identity);
@@ -1068,7 +1091,11 @@ function CommandDeckInner() {
                 data-decision-id={currentSceneDecision?.decisionId ?? undefined}
                 style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}
               >
-                <DeckMarketChart symbol={symbol} timeframe={timeframe} />
+                <DeckMarketChart
+                  symbol={symbol}
+                  timeframe={timeframe}
+                  onCandlesReady={handleDeckCandles}
+                />
               </div>
               <section
                 className="wm-cd-market-context"

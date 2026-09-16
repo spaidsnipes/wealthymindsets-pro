@@ -18,8 +18,11 @@ import { deriveOrderFlowDimension } from "./deriveOrderFlowDimension";
 import { deriveVolatilityDimension } from "./deriveVolatilityDimension";
 import { deriveDirectionDimension, countTradeTicks } from "./deriveDirectionDimension";
 import { deriveRegimeDimension } from "./deriveRegimeDimension";
-import { deriveLastBarClose, lastBarCloseRecheckAtMs } from "./deriveLastBarClose";
-import type { OHLCVBar } from "../pine/types";
+import {
+  deriveLastBarClose,
+  lastBarCloseRecheckAtMs,
+  type BarCloseCandidate,
+} from "./deriveLastBarClose";
 
 export interface ChartMarketStatePublicationInput {
   readonly symbol: string;
@@ -32,12 +35,30 @@ export interface ChartMarketStatePublicationInput {
   readonly capturedAt: number;
   readonly nectar: SessionNectarSnapshot;
   /**
-   * The candle array the chart actually loaded, straight from MainChart's
-   * `onBarsReady`. Optional so /command-deck (which owns no bars) is
-   * untouched. This is the ONLY admissible source for a bar close —
-   * `ticker.price` can be a REST quote or a SYMBOL_SEEDS fallback.
+   * The candle array the surface actually loaded. This is the ONLY admissible
+   * source for a bar close — `ticker.price` can be a REST quote or a
+   * SYMBOL_SEEDS fallback.
+   *
+   * ── AN EXEMPTION THAT OUTLIVED ITS PREMISE ──────────────────────────────
+   * This field used to be documented "Optional so /command-deck (which owns
+   * no bars) is untouched." That was true when written. It stopped being true
+   * on 2026-09-11, when Ticket T put `DeckMarketChart` into the deck's MARKET
+   * section — 120 real candles fetched from /api/yahoo. The comment was never
+   * revisited, so the deck kept calling this hook without `bars` and the
+   * candles it was already rendering never reached canonical state.
+   *
+   * Measured live on production /command-deck 2026-09-16, TSLA: the chart drew
+   * 120 candles with a last close of 356.58 under the words "Read just now",
+   * while HeroTruth eleven pixels above printed `?` for price. Both owners
+   * were internally honest; the room was not. Same class as the /charts defect
+   * documented on `usePublishChartMarketState` below — a real input that never
+   * arrives is indistinguishable from absent evidence at the far end.
+   *
+   * Still optional, because a surface that genuinely holds no candles must be
+   * able to publish without inventing any. Optional is a legitimate state; an
+   * un-revisited comment is what made it a silent one.
    */
-  readonly bars?: readonly OHLCVBar[] | null;
+  readonly bars?: readonly BarCloseCandidate[] | null;
 }
 
 // Asset class + instrument id + session all delegate to the single canonical
