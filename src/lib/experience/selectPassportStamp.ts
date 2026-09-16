@@ -100,7 +100,37 @@ export function selectPassportStamp(vm: MarketObjectPassportVM): PassportStampVM
       // the ledger that actually came back with an answer. An empty ledger
       // reads UNKNOWN, never "0 of 0" — a clean bill of health for a ledger
       // that was never opened is the same lie as a blank.
-      value: vm.totalCount > 0 ? `${vm.resolvedCount} of ${vm.totalCount}` : UNKNOWN,
+      //
+      // ── Why the noun is load-bearing (2026-09-16, found by USE) ───────────
+      //
+      // This read "0 of 8". About 150px below it on the same live deck, the
+      // Evidence Debt cell read "0 of 9 paid". Both numbers are correct and
+      // neither is a bug:
+      //
+      //   8 = market DIMENSIONS        (this band — `objects` is
+      //                                 DIMENSION_ORDER.map, so the count is
+      //                                 literally the dimension list)
+      //   9 = decision-chain NODES     (the evidence ledger — the dimensions
+      //                                 plus non-dimension nodes such as
+      //                                 permission, which is why its own
+      //                                 sentence ends "1 warned: permission")
+      //
+      // A bare "0 of 8" beside a bare "0 of 9" is canon Weakness #1: two
+      // counts disagreeing on one page, with nothing on screen saying they
+      // count different sets. The trader is left to reconstruct the
+      // distinction in their head, which is the definition of
+      // SCENE_FRAGMENTATION.
+      //
+      // The repair is a NOUN, never a number. Re-deriving either count to make
+      // them match would mint a second answer to a question that already has
+      // two correct owners — §24, a second CALLER of one owner is fine, a
+      // second ANSWER is not. "dimensions" is not a new word either: the
+      // primary-story cell already prints "(0/8 dimensions resolved)" for this
+      // exact set, so the band now agrees with a phrase already on screen.
+      value:
+        vm.totalCount > 0
+          ? `${vm.resolvedCount} of ${vm.totalCount} dimension${vm.totalCount === 1 ? "" : "s"}`
+          : UNKNOWN,
       unresolved: vm.totalCount === 0,
     },
   ];

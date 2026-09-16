@@ -76,9 +76,40 @@ describe("selectPassportStamp", () => {
     it("does still report a genuine zero-resolved ledger that WAS opened", () => {
       // 0 of 8 is a real, alarming reading. It must not be hidden with the
       // never-opened case — that is the absent-cell defect all over again.
+      //
+      // RE-PINNED 2026-09-16. This asserted the bare "0 of 8". Measured live on
+      // /command-deck, that bare count sat ~150px above the Evidence Debt
+      // cell's "0 of 9 paid". Both are correct — 8 market dimensions here, 9
+      // decision-chain nodes there — but a trader reading down the page got two
+      // answers to "how much is unresolved" and nothing telling them the two
+      // counts cover different sets. Canon Weakness #1.
+      //
+      // The count is unchanged and must stay unchanged; only the noun was
+      // added. This assertion now pins BOTH halves: the arithmetic the trader
+      // relies on, and the noun that makes it comparable to its neighbour.
       const f = fieldNamed(vmOf({ resolvedCount: 0, totalCount: 8 }), "Resolved");
-      expect(f.value).toBe("0 of 8");
+      expect(f.value).toBe("0 of 8 dimensions");
       expect(f.unresolved).toBe(false);
+    });
+
+    it("names the set it counts, so it cannot be read against the evidence ledger", () => {
+      // The guard for the defect itself rather than for one fixture. A bare
+      // "N of M" in this band is what made it silently comparable to the
+      // Evidence Debt cell's "N of M paid", which counts decision-chain nodes
+      // and therefore legitimately reports a different M.
+      for (const totalCount of [1, 2, 8, 9, 40]) {
+        const f = fieldNamed(vmOf({ resolvedCount: 0, totalCount }), "Resolved");
+        expect(f.value, `totalCount=${totalCount}`).toMatch(/^0 of \d+ dimensions?$/);
+      }
+      // Singular is singular. One dimension is not "1 dimensions".
+      expect(fieldNamed(vmOf({ resolvedCount: 0, totalCount: 1 }), "Resolved").value).toBe(
+        "0 of 1 dimension",
+      );
+      // The noun must never appear on the never-opened blank — naming a set
+      // that was never opened would imply one was counted.
+      expect(fieldNamed(vmOf({ resolvedCount: 0, totalCount: 0 }), "Resolved").value).not.toContain(
+        "dimension",
+      );
     });
 
     it("marks an UNKNOWN quality state unresolved", () => {
