@@ -11,7 +11,25 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // WealthyMindsets brand palette
+        /**
+         * This scale is NOT the canonical colour owner.
+         *
+         * `src/lib/design/wmTokens.ts` is. It holds the sanctuary palette —
+         * near-black surfaces, IVORY information, restrained BRASS structure.
+         * The scale below is slate-blue (#E8EDF3 / #8B95A5 / #5A6575) with
+         * neutral-grey structure, and it disagrees with the canon.
+         *
+         * It is not a leftover: it paints roughly 3,300 class instances, so the
+         * product's default text colour comes from HERE, not from the canon.
+         * Migrating a page file off slate does not move the screen off slate
+         * while these classes are on it.
+         *
+         * Reconciling the two repaints the whole product in one commit, so it
+         * is an explicit decision, not a drive-by. The mapping and the reasoning
+         * live in `src/lib/design/tokenOwnership.enforcement.test.ts`, which
+         * pins the current divergence and fails if a NEW foreign colour is
+         * added here. Do not add one.
+         */
         wm: {
           black:   "#000000",
           dark:    "#0A0A0A",
