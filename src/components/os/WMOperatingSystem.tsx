@@ -516,7 +516,9 @@ export function WMOperatingSystem({
           </>
         )}
 
-        <div style={{ flex: "1 1 auto", minWidth: 0 }}>{mastheadCenter}</div>
+        <div className="wm-os-masthead-center" style={{ flex: "1 1 auto", minWidth: 0 }}>
+          {mastheadCenter}
+        </div>
         {mastheadActions}
         {feedStanding !== null && <FeedBadge feed={feedStanding} />}
       </header>
@@ -810,6 +812,30 @@ export function WMOperatingSystem({
         @media (max-width: ${OS_RAIL_BREAKPOINT_PX}px) {
           .wm-os-rail { display: none !important; }
           .wm-os-context { display: none !important; }
+          /* ── THE MASTHEAD THAT ATE THE PHONE ──────────────────────────
+             MEASURED 2026-09-16 with Playwright at 390x844 and 360x800:
+             the masthead was 349px tall — 41% of the viewport before ANY
+             market content — and document.elementFromPoint on the centre
+             of EXECUTE returned an <svg>, not the button: the action-icon
+             cluster was painted ON TOP of the mode bar.
+
+             Mechanism, both halves needed: this header is one flex ROW
+             that never wrapped, and every cell except the centre slot is
+             flex:0 0 auto. So the centre slot was squeezed to a sliver,
+             ExperienceModeBar's own flex-wrap stacked all seven buttons
+             into a 320px column at the 44px tap-target floor, and the
+             non-wrapping header kept the icons on the original row —
+             over the column. The 44px floor is correct and stays; what
+             was wrong is the width it had to wrap inside.
+
+             Letting the header wrap and giving the centre slot a whole
+             row of its own separates the two: identity + actions keep
+             row one, the mode bar gets the full width on row two and
+             folds into two short rows instead of seven. All seven modes
+             stay visible — the bar is the phone's job navigation, so
+             nothing here may hide behind a scroll. */
+          .wm-os-masthead { flex-wrap: wrap !important; row-gap: 8px !important; }
+          .wm-os-masthead-center { flex-basis: 100% !important; order: 1; }
           /* The pinned bar is out of flow. Reserve its exact height from the
              same constant it is drawn from, or the provenance line ends up
              underneath the navigation and nothing anywhere reports it. */
