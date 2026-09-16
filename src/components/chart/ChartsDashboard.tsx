@@ -81,6 +81,8 @@ import { identifiedOptionSpot } from "@/lib/optionsSpotIdentity";
 // in the wordmark row via CanvasSummaryPill. Real data owners only — no
 // fake heatmap, no invented confidence — per Living-Pixel Law.
 import { useMarketCanvasVM } from "@/lib/marketData/viewModels/useMarketCanvasVM";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { standingFromOneStory } from "@/components/os/standingFromOneStory";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import CanvasBadgeMini from "@/components/experience/CanvasBadgeMini";
 import { useAuth } from "@/contexts/AuthContext";
@@ -687,6 +689,26 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     ownerId: canvasUser?.id ?? null,
   });
   const chartMarketCanvas = chartCanvasVM.canvas;
+
+  /*
+    ONE OS — the frame is never LESS confident than the room inside it.
+
+    Measured live before this call existed: the /charts room rendered
+    "DECISION … WAIT", "9 unpaid evidence nodes" and "Right-of-way is withheld"
+    while the masthead above it read "EVIDENCE DEBT UNKNOWN / no ledger
+    compiled" and "RIGHT OF WAY UNKNOWN / no permission reading". False
+    humility is the mirror of an overclaim, not a safe default: the same screen
+    answered its own question twice, in two different voices.
+
+    The room already holds the compiled answer — `chartCanvasVM.oneStory` is the
+    exact same compiler output the deck publishes from. It simply never handed
+    it up. The derivation itself is NOT written here; `standingFromOneStory` is
+    its one owner, shared with the deck.
+  */
+  usePublishOsStanding({
+    surface: "Instrument View",
+    ...standingFromOneStory(chartCanvasVM.oneStory),
+  });
   // Real signal derivation: when the tape carries live per-trade
   // ticks with sides, the aggressor-flow selector's hasFlow is true.
   // Feed this into the capability report so the fidelity chip lights

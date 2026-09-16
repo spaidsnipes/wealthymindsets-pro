@@ -107,6 +107,7 @@ import PassportStamp from "@/components/command/PassportStamp";
 import { selectMateriality } from "@/lib/marketData/viewModels/selectMateriality";
 import ActiveQuestionBar from "@/components/command/ActiveQuestionBar";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { standingFromOneStory } from "@/components/os/standingFromOneStory";
 import { selectDeckEmphasis, surfaceOrder } from "@/lib/experience/selectDeckEmphasis";
 import { inferJobMode } from "@/lib/experience/inferJobMode";
 import { selectJobSuggestion } from "@/lib/experience/selectJobSuggestion";
@@ -421,12 +422,13 @@ function CommandDeckInner() {
     frame is never more confident than the room that fed it.
   */
   usePublishOsStanding({
+    // Only the room knows its own name.
     surface: "Question-Driven Mode",
-    // A ledger that was never opened is NOT a paid one, so `null` (UNKNOWN)
-    // rather than 0 whenever there is no compiled debt total.
-    openEvidenceItems: oneStory?.debt && oneStory.debt.total > 0 ? oneStory.debt.missing : null,
-    rightOfWay: oneStory?.decision.value ?? "UNKNOWN",
-    rightOfWayResolved: Boolean(oneStory) && oneStory.decision.value !== "UNKNOWN",
+    // Everything a compiled story can justify comes from ONE owner, shared with
+    // every other room that publishes upward. This used to be three inline
+    // expressions here — which quietly made the deck the author of a rule that
+    // /charts then had to re-invent, and got wrong by publishing nothing.
+    ...standingFromOneStory(oneStory),
   });
 
   const expressionDirection = expressionDirectionFromCanonical(state?.direction);

@@ -172,6 +172,48 @@ describe("ONE OS — there is not a second shell", () => {
     expect(deck).not.toContain("QuestionDrivenShell");
   });
 
+  it("HOW a story reads as a standing has ONE owner — no room re-derives it", () => {
+    /*
+      Measured live on /charts BEFORE this law: the room rendered "DECISION
+      WAIT" and "9 unpaid evidence nodes" while the masthead above it read
+      "EVIDENCE DEBT UNKNOWN / no ledger compiled". The room simply never
+      published upward — and the obvious repair, pasting the deck's three-line
+      derivation into ChartsDashboard, would have given every room its own
+      author of the null-vs-zero rule. Same defect class as the shells, one
+      layer down.
+
+      So: a room may name its own `surface` — only it knows that — but the two
+      STANDING CONDITIONS must come from standingFromOneStory().
+    */
+    const OWNER = "src/components/os/standingFromOneStory.ts";
+    expect(existsSync(resolve(ROOT, OWNER)), "the derivation's one owner is gone").toBe(true);
+
+    const derived = ["openEvidenceItems:", "rightOfWayResolved:"];
+    const rooms = [DECK, "src/components/chart/ChartsDashboard.tsx"];
+
+    for (const rel of rooms) {
+      const src = codeOnly(read(rel));
+      expect(src, `${rel} publishes upward but never calls the shared derivation`)
+        .toContain("standingFromOneStory(");
+      for (const field of derived) {
+        expect(
+          src,
+          `${rel} re-derives ${field} inline. That field has one owner — ` +
+            `${OWNER} — precisely so two rooms cannot disagree about whether an ` +
+            `uncompiled ledger reads as 0 or as UNKNOWN.`,
+        ).not.toContain(field);
+      }
+    }
+
+    // POSITIVE CONTROL — the scan above asserts an ABSENCE in every room. If
+    // the needle were mistyped, all of it would pass while enforcing nothing.
+    const inlined = "usePublishOsStanding({ openEvidenceItems: debt.missing });";
+    expect(inlined).toContain("openEvidenceItems:");
+    // …and prose about the field must never convict a room that is clean.
+    expect(codeOnly("/* we no longer set openEvidenceItems: here */ const a = 1;"))
+      .not.toContain("openEvidenceItems:");
+  });
+
   it("the room list has ONE owner, and the retired adapter is really gone", () => {
     expect(frame).toContain("export const OS_ROOMS");
     // A forwarding file is still a file someone can hang a <nav> on.
