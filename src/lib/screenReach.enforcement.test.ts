@@ -57,11 +57,28 @@
  *   a decision someone has to write down and defend in review. This file does
  *   not pretend to be unbypassable, because a sentinel that overstates its own
  *   authority is the very thing it exists to catch.
- * - "Reaches a screen" means reachable from `src/app` or `src/components`. A
- *   module reached only from middleware or a build script is correctly reported
- *   as not reaching a screen, and that is the intended reading.
- * - Scope is `src/lib` only. A component nothing renders is the same class of
- *   debt and is NOT covered here. Named, not silently skipped.
+ * - "Reaches a screen" means reachable from `src/app`. A module reached only
+ *   from middleware or a build script is correctly reported as not reaching a
+ *   screen, and that is the intended reading.
+ *
+ *   CORRECTED 2026-09-15 — A ROOT THAT NOTHING REACHES IS NOT A ROOT.
+ *
+ *   This walk used to root at `src/app` AND `src/components`, and the note
+ *   below said a component nothing renders was "named, not silently skipped."
+ *   It was worse than skipped. Making every component a root meant a component
+ *   nothing renders was still a ROOT, so everything it imported counted as
+ *   reached. A dead consumer laundered its dependencies into the live set.
+ *
+ *   MEASURED at the moment of the fix: 14 of 118 components are unreachable
+ *   from any route, and 7 `src/lib` modules were reported as screen-reachable
+ *   when the only thing reaching them was one of those 14. Among them
+ *   `src/lib/sessionVP.ts` and `selectOpeningBell.ts` — real logic a human has
+ *   no way to see, reported as visible.
+ *
+ *   A route is the only thing a human can open, so `src/app` is the only
+ *   honest root. Components are now reached, or not, like anything else.
+ * - Scope is `src/lib` only for the reason ledger. Components that no route
+ *   renders are counted and frozen separately, below.
  * - Being on this list is not an accusation. `__fixtures__` belongs here
  *   permanently. The `reason` field carries that distinction.
  *
@@ -99,7 +116,24 @@ const REPO_ROOT = path.dirname(SRC_DIR);
  * the failure mode the ledger exists to prevent. The vocabulary was the thing
  * that was wrong, so the vocabulary is what changed.
  */
-type ReachReason = "AWAITING_SURFACE" | "TEST_FIXTURE" | "OPS_TOOLING" | "EDGE_RUNTIME";
+/*
+ * DEAD_CONSUMER added 2026-09-15, with the root correction described above.
+ *
+ * These modules have exactly one importer, and that importer is a component no
+ * route renders. They are NOT awaiting a surface in the usual sense — a surface
+ * was built for them and then never mounted, which is a different and more
+ * deceptive shape of debt: reading the repo makes them look finished.
+ *
+ * The note on each one names the dead consumer, so the fix is a lookup rather
+ * than a re-derivation. When the component is finally mounted by a route, both
+ * the component and its module leave this file in the same commit.
+ */
+type ReachReason =
+  | "AWAITING_SURFACE"
+  | "TEST_FIXTURE"
+  | "OPS_TOOLING"
+  | "EDGE_RUNTIME"
+  | "DEAD_CONSUMER";
 
 interface LedgerEntry {
   readonly reason: ReachReason;
@@ -125,6 +159,37 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
   "src/lib/authority/executionConnectivity.ts": {
     reason: "AWAITING_SURFACE",
     note: "Named in the §13 open gates as orphaned. This confirms it from the import graph: no route renders it, including /readiness.",
+  },
+  // The seven below became visible on 2026-09-15 when `src/components` stopped
+  // being a walk root. Each was already unreachable by a human; only the walk
+  // said otherwise.
+  "src/lib/authority/executionReceiptView.ts": {
+    reason: "DEAD_CONSUMER",
+    note: "Reached only by components/authority/ExecutionReceiptCard.tsx, which no route renders.",
+  },
+  "src/lib/authority/formatExecutionReceipt.ts": {
+    reason: "DEAD_CONSUMER",
+    note: "Reached only by components/authority/ExecutionReceiptCard.tsx, which no route renders.",
+  },
+  "src/lib/authority/parseExecutionReceipt.ts": {
+    reason: "DEAD_CONSUMER",
+    note: "Reached only by components/authority/ExecutionReceiptCard.tsx, which no route renders.",
+  },
+  "src/lib/chart/indexBarFacts.ts": {
+    reason: "DEAD_CONSUMER",
+    note: "Reached only by components/chart/BottomIndexBar.tsx, which no route renders.",
+  },
+  "src/lib/sessionVP.ts": {
+    reason: "DEAD_CONSUMER",
+    note: "Reached only by components/chart/WMSessionVP.tsx, which no route renders. This is the Live VP volume-profile math named in the open gates: it is implemented, and no human can currently see its output.",
+  },
+  "src/lib/traderMemory/viewModels/selectOpeningBell.ts": {
+    reason: "DEAD_CONSUMER",
+    note: "Reached only by components/opening-bell/OpeningBellPanel.tsx, which no route renders. Selector and panel were both built; the mount was never made.",
+  },
+  "src/lib/truthStatus/truthStatusLabels.ts": {
+    reason: "DEAD_CONSUMER",
+    note: "Reached only by components/truthStatus/TruthStatusChip.tsx, which no route renders.",
   },
   "src/lib/legacyRouteAliases.ts": {
     reason: "EDGE_RUNTIME",
@@ -339,10 +404,15 @@ const DEPENDENCIES = new Map<string, readonly string[]>(
   }),
 );
 
-/** A "screen" is anything under src/app or src/components. */
-const SCREEN_ROOTS = FILES.filter((f) =>
-  f.startsWith(path.join(SRC_DIR, "app")) || f.startsWith(path.join(SRC_DIR, "components")),
-);
+/**
+ * A "screen" is a ROUTE. `src/app` only.
+ *
+ * A ROOT THAT NOTHING REACHES IS NOT A ROOT. `src/components` used to be a root
+ * set too, which meant a component no route renders still seeded the walk, and
+ * everything it imported was reported as screen-reachable. See the correction
+ * at the top of this file for the measurement.
+ */
+const SCREEN_ROOTS = FILES.filter((f) => f.startsWith(path.join(SRC_DIR, "app")));
 
 const REACHED: ReadonlySet<string> = (() => {
   const seen = new Set<string>(SCREEN_ROOTS);
@@ -368,6 +438,46 @@ const UNREACHED_LIB: readonly string[] = FILES.filter(
   .map(repoRelative)
   .sort();
 
+/** Components that no route renders. These are the roots that were not roots. */
+const UNREACHED_COMPONENTS: readonly string[] = FILES.filter(
+  (f) => f.startsWith(path.join(SRC_DIR, "components")) && !REACHED.has(f),
+)
+  .map(repoRelative)
+  .sort();
+
+/**
+ * The orphan components as counted on 2026-09-15, the day they stopped being
+ * walk roots.
+ *
+ * This list is a CEILING, not a target. It exists so the number cannot quietly
+ * grow: shipping a component no route renders is how the seven DEAD_CONSUMER
+ * modules above came to exist, and each one looked finished from the source.
+ *
+ * Deliberately NOT a reason ledger. Giving each of these a reason would mean
+ * inventing fourteen justifications for components nobody has triaged, which
+ * would put guesses in the one file that exists to hold facts. The count is
+ * the honest thing that is known today.
+ *
+ * Removing a name from this list is always correct — it means a route finally
+ * renders it, or it was deleted.
+ */
+const KNOWN_ORPHAN_COMPONENTS: readonly string[] = [
+  "src/components/ErrorBoundary.tsx",
+  "src/components/authority/ExecutionReceiptCard.tsx",
+  "src/components/brand/CinematicAtmosphere.tsx",
+  "src/components/chart/BottomIndexBar.tsx",
+  "src/components/chart/ConnectedStoryRibbon.tsx",
+  "src/components/chart/OrderFlowCockpitStrip.tsx",
+  "src/components/chart/TimeframeSelector.tsx",
+  "src/components/chart/WMSessionVP.tsx",
+  "src/components/experience/CanvasBadgeMini.tsx",
+  "src/components/layout/HeaderVaultPill.tsx",
+  "src/components/opening-bell/OpeningBellPanel.tsx",
+  "src/components/systemHealth/FailureStateChip.tsx",
+  "src/components/truthStatus/TruthStatusChip.tsx",
+  "src/components/ui/HeroNumber.tsx",
+];
+
 // ── The locks ───────────────────────────────────────────────────────────────
 
 describe("screen reach — IMPLEMENTED is not REACHABLE", () => {
@@ -376,12 +486,60 @@ describe("screen reach — IMPLEMENTED is not REACHABLE", () => {
     // assertion below would pass while proving nothing. Anchor on facts that
     // must hold in any working walk.
     expect(FILES.length).toBeGreaterThan(300);
-    expect(SCREEN_ROOTS.length).toBeGreaterThan(100);
+    // 92 route files at the 2026-09-15 root correction. This floor was 100 when
+    // `src/components` was also a root; it is lowered because the root set got
+    // SMALLER and more honest, not because the walk got weaker.
+    expect(SCREEN_ROOTS.length).toBeGreaterThan(80);
     expect(REACHED.size).toBeGreaterThan(SCREEN_ROOTS.length);
 
     // compileScene is reached through deckSceneSignals from /command-deck. If
     // this ever fails, the walk is broken, not the architecture.
     expect(REACHED.has(path.join(SRC_DIR, "lib/experience/compileScene.ts"))).toBe(true);
+  });
+
+  it("× THE LAUNDERING ROOT: a component no route renders is not a root", () => {
+    // The defect this replaces. `src/components` was a root set, so a component
+    // nothing mounts still seeded the walk and everything it imported was
+    // reported as screen-reachable. If someone widens SCREEN_ROOTS back, this
+    // fails by name.
+    for (const root of SCREEN_ROOTS) {
+      expect(root.startsWith(path.join(SRC_DIR, "app")), repoRelative(root)).toBe(true);
+    }
+
+    // NON-VACUITY. The correction has to actually bite: at least one component
+    // must be unreachable, and at least one src/lib module must be unreachable
+    // ONLY because of that. If both were zero this lock would pass while
+    // proving nothing.
+    expect(UNREACHED_COMPONENTS.length).toBeGreaterThan(0);
+    const deadConsumerModules = Object.entries(LEDGER)
+      .filter(([, e]) => e.reason === "DEAD_CONSUMER")
+      .map(([p]) => p);
+    expect(deadConsumerModules.length).toBeGreaterThan(0);
+    for (const p of deadConsumerModules) {
+      expect(UNREACHED_LIB, `${p} is ledgered DEAD_CONSUMER but IS reached`).toContain(p);
+    }
+  });
+
+  it("× THE GROWING ORPHANAGE: no NEW component ships without a route", () => {
+    const novel = UNREACHED_COMPONENTS.filter((p) => !KNOWN_ORPHAN_COMPONENTS.includes(p));
+    expect(
+      novel,
+      `These components are rendered by no route, and are not on the frozen ` +
+        `2026-09-15 list. A component nothing mounts reads as finished in the ` +
+        `source and is invisible to a human. Mount it, or delete it.\n\n` +
+        `${novel.map((p) => `  ${p}`).join("\n")}`,
+    ).toEqual([]);
+
+    // The ceiling stays true in the other direction too: a name that is no
+    // longer an orphan must leave the list, or the list becomes a stale claim.
+    const nowMounted = KNOWN_ORPHAN_COMPONENTS.filter((p) => !UNREACHED_COMPONENTS.includes(p));
+    expect(
+      nowMounted,
+      `These are listed as orphan components but a route now reaches them (or ` +
+        `they were deleted). Remove them from KNOWN_ORPHAN_COMPONENTS — a ` +
+        `ceiling that overstates is still a false number.\n\n` +
+        `${nowMounted.map((p) => `  ${p}`).join("\n")}`,
+    ).toEqual([]);
   });
 
   it("no NEW module drops off the screen without being written down", () => {
@@ -407,9 +565,10 @@ describe("screen reach — IMPLEMENTED is not REACHABLE", () => {
 
   it("every ledger entry states a reason and what is lost", () => {
     for (const [file, entry] of Object.entries(LEDGER)) {
-      expect(["AWAITING_SURFACE", "TEST_FIXTURE", "OPS_TOOLING", "EDGE_RUNTIME"], file).toContain(
-        entry.reason,
-      );
+      expect(
+        ["AWAITING_SURFACE", "TEST_FIXTURE", "OPS_TOOLING", "EDGE_RUNTIME", "DEAD_CONSUMER"],
+        file,
+      ).toContain(entry.reason);
       // §H19: a label with no sentence behind it is dead vocabulary.
       expect(entry.note.length, `${file} has no note`).toBeGreaterThan(20);
     }
