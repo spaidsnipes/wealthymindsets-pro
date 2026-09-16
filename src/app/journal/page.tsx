@@ -24,6 +24,7 @@ import { evaluateShutdown, DAY_MODEL_LABELS, type DayModel } from "@/lib/proofLa
 import { computeJournalPnl, computeJournalRealizedR, selectJournalPricing } from "@/lib/journal/computePnl";
 import { describeNoTradeExclusion, describeRecordOutcome, selectTradeRecords } from "@/lib/journal/tradeRecords";
 import { selectRecordedTotal } from "@/lib/journal/selectRecordedTotal";
+import { selectSetupPerformance } from "@/lib/journal/selectSetupPerformance";
 import { journalToCsv } from "@/lib/journal/journalToCsv";
 import { journalToJson } from "@/lib/journal/journalToJson";
 import {
@@ -448,14 +449,15 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
   const rr       = avgLoss > 0 ? avgWin / avgLoss : 0;
   const pf       = losses.length && avgLoss ? (avgWin * wins.length) / (avgLoss * losses.length) : 0;
 
-  // Per-setup breakdown
-  const setupMap: Record<string, { wins: number; losses: number; pnl: number }> = {};
-  entries.forEach(e => {
-    if (!setupMap[e.setup]) setupMap[e.setup] = { wins: 0, losses: 0, pnl: 0 };
-    if (e.result === "win") setupMap[e.setup].wins++;
-    else if (e.result === "loss") setupMap[e.setup].losses++;
-    setupMap[e.setup].pnl += e.pnl;
-  });
+  /*
+   * Per-setup breakdown — ONE OWNER, not a second inline copy.
+   *
+   * This used to be a `setupMap[e.setup].pnl += e.pnl` loop plus a
+   * `wins + losses > 0 ? ... : 0` ratio, three hundred lines below a call to
+   * `selectRecordedTotal` that exists precisely to stop the first of those.
+   * A selector adopted on one call site and not the other is the same defect
+   * as a Sentinel that names one file. See selectSetupPerformance.ts.
+   */
 
   // Per-mood breakdown
   const moodLoss: Record<string, number> = {};
@@ -497,14 +499,8 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
     });
   }
 
-  // Best and worst setups
-  const sortedSetups = Object.entries(setupMap)
-    .map(([name, data]) => ({
-      name,
-      wr: data.wins + data.losses > 0 ? data.wins / (data.wins + data.losses) * 100 : 0,
-      ...data,
-    }))
-    .sort((a,b) => b.pnl - a.pnl);
+  // Best and worst setups — ordered and explained by the owner.
+  const sortedSetups = selectSetupPerformance(entries);
 
   return (
     <div className="p-4 space-y-4">
@@ -564,18 +560,29 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
           </div>
           <div className="divide-y divide-wm-border/30">
             {sortedSetups.map(s => (
-              <div key={s.name} className="flex items-center gap-3 px-4 py-2.5">
+              <div key={s.name} className="flex items-center gap-3 px-4 py-2.5"
+                title={s.reason} aria-label={`${s.name}: ${s.winRateLabel} win rate, ${s.pnlLabel}. ${s.reason}`}>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-wm-text truncate">{s.name}</div>
                   <div className="text-[10px] text-wm-text-dim">{s.wins}W / {s.losses}L</div>
                 </div>
-                <div className="text-xs font-mono font-bold text-wm-text-muted">{s.wr.toFixed(0)}% WR</div>
-                <div className={clsx("text-xs font-mono font-bold", s.pnl >= 0 ? "text-wm-green" : "text-wm-red")}>
-                  {s.pnl >= 0 ? "+" : ""}${s.pnl.toFixed(0)}
+                <div className="text-xs font-mono font-bold text-wm-text-muted">
+                  {s.winRateLabel} WR
                 </div>
-                {/* Mini win-rate bar */}
+                {/* The TONE decides the colour. A sign test would repaint a flat
+                    setup green the moment someone edits this line. */}
+                <div className={clsx("text-xs font-mono font-bold",
+                  s.tone === "WIN" ? "text-wm-green"
+                  : s.tone === "LOSS" || s.tone === "ALERT" ? "text-wm-red"
+                  : "text-wm-text-muted")}>
+                  {s.pnlLabel}
+                </div>
+                {/* Mini win-rate bar. NOTHING IS DRAWN FOR A RATE THAT DOES NOT
+                    EXIST — a 0%-wide bar in the empty track is a measured zero. */}
                 <div className="w-16 h-1.5 bg-wm-surface rounded-full overflow-hidden">
-                  <div className="h-full bg-wm-green rounded-full" style={{ width:`${s.wr}%` }} />
+                  {s.winRatePct !== null && (
+                    <div className="h-full bg-wm-green rounded-full" style={{ width:`${s.winRatePct}%` }} />
+                  )}
                 </div>
               </div>
             ))}
