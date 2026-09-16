@@ -399,6 +399,9 @@ export function WMOperatingSystem({
       // because every field above is already null.
       evaluatedAtMs: 0,
       connected: null,
+      // A room that has published nothing has certainly not resolved a session
+      // calendar. `null` is the only honest value, and it is NOT `true`.
+      sessionOpen: null,
     },
   );
 

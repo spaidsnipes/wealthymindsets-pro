@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CANONICAL_FIDELITY_LABELS as L } from "@/lib/marketData/canonicalFidelityLabels";
+import { priceSourceBadge } from "@/lib/priceSource";
 import {
   LIVE_STALENESS_BUDGET_MS,
   compileFeedStanding,
@@ -17,6 +18,7 @@ const LIVE_OBS: FeedObservation = {
   lastObservedAtMs: NOW - 1_000,
   evaluatedAtMs: NOW,
   connected: true,
+  sessionOpen: true,
 };
 
 describe("compileFeedStanding — the badge may only ever sharpen", () => {
@@ -60,6 +62,83 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
     const feed = compileFeedStanding({ ...LIVE_OBS, connected: false });
     expect(feed.label).not.toBe(L.LIVE_CERTIFIED_QUOTE);
     expect(feed.tone).toBe("IDLE");
+  });
+
+  describe("CLOSED IS NOT DELAYED — canon law #2, on the badge every screen carries", () => {
+    /**
+     * A print from Friday afternoon is hours past the 90s freshness budget, so
+     * before this branch existed the masthead read STALE PIPELINE for the whole
+     * weekend: an infrastructure alarm raised about a market behaving normally.
+     */
+    const CLOSED = { ...LIVE_OBS, sessionOpen: false, lastObservedAtMs: NOW - 60 * 60 * 1000 };
+
+    it("reads SESSION CLOSED rather than raising a pipeline alarm on a stale weekend print", () => {
+      const feed = compileFeedStanding(CLOSED);
+      expect(feed.label).toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+      expect(feed.label).not.toBe(L.STALE_PIPELINE);
+      expect(feed.established).toBe(true);
+    });
+
+    it("outranks the entitlement arm — that is what the canon law literally says", () => {
+      expect(compileFeedStanding({ ...CLOSED, fidelity: "DELAYED" }).label).toBe(
+        L.SESSION_CLOSED_LAST_VERIFIED,
+      );
+    });
+
+    it("outranks a quiet transport — on a closed market that is the expected condition", () => {
+      // Naming it a pipeline fault sends the trader to diagnose infrastructure
+      // instead of reading a clock.
+      expect(compileFeedStanding({ ...CLOSED, connected: false }).label).toBe(
+        L.SESSION_CLOSED_LAST_VERIFIED,
+      );
+    });
+
+    it("never says LAST VERIFIED without something verified to point at", () => {
+      // Closure does not manufacture an observation. Same precedence as
+      // priceSourceBadge, and for the same reason.
+      for (const missing of [{ source: null }, { lastObservedAtMs: null }, { fidelity: null }]) {
+        expect(compileFeedStanding({ ...CLOSED, ...missing }).label).not.toBe(
+          L.SESSION_CLOSED_LAST_VERIFIED,
+        );
+      }
+    });
+
+    it("leaves a continuous market alone — crypto has no session to close", () => {
+      // The mirror-image defect: SESSION CLOSED printed over a streaming tape.
+      // The set is imported from priceSource, so this can never drift apart
+      // from the chip that renders beside it.
+      const crypto = compileFeedStanding({
+        ...LIVE_OBS,
+        source: "coinbase",
+        sessionOpen: false,
+      });
+      expect(crypto.label).toBe(L.LIVE_CERTIFIED_QUOTE);
+    });
+
+    it("treats an unresolved session as unresolved, not as open", () => {
+      // `null` must not round up to `true`. A room that has not resolved the
+      // calendar changes nothing about the ladder.
+      expect(compileFeedStanding({ ...LIVE_OBS, sessionOpen: null }).label).toBe(
+        L.LIVE_CERTIFIED_QUOTE,
+      );
+      expect(compileFeedStanding({ ...CLOSED, sessionOpen: null }).label).toBe(L.STALE_PIPELINE);
+    });
+
+    /**
+     * THE REASON THIS BRANCH EXISTS AT ALL.
+     *
+     * Two compilers grade the same fact — `compileFeedStanding` for the OS
+     * masthead and `priceSourceBadge` for the chart chip — and they render six
+     * inches apart on one screen. Two owners of one fact do not fail loudly;
+     * they simply disagree on the day the case arises. This asserts the case
+     * that used to disagree, across BOTH owners, so a later edit to either
+     * ladder that re-opens the contradiction fails here by name.
+     */
+    it("agrees with priceSourceBadge — the chip and the masthead read the same words", () => {
+      const masthead = compileFeedStanding(CLOSED);
+      const chip = priceSourceBadge("webull", true, false, { present: true, fresh: false });
+      expect(masthead.label).toBe(chip.label);
+    });
   });
 
   it("a certified-delayed provider can never wear LIVE, however fresh the print", () => {

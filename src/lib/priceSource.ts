@@ -70,8 +70,13 @@ export interface CandleDataStatus {
  * for one of these would print SESSION CLOSED over a genuinely streaming
  * crypto tape — the mirror image of the defect this parameter exists to fix —
  * so the writer defends the invariant itself rather than trusting callers.
+ *
+ * EXPORTED because `compileFeedStanding` (src/lib/os/osChrome.ts) now applies
+ * the same closed-session precedence, and "which markets never close" must not
+ * become a fact with two owners. A second copy of this set would not fail
+ * loudly — it would simply disagree with this one on the day a market is added.
  */
-const CONTINUOUS_MARKET_SOURCES: ReadonlySet<PriceSource> = new Set(["binance", "coinbase"]);
+export const CONTINUOUS_MARKET_SOURCES: ReadonlySet<PriceSource> = new Set(["binance", "coinbase"]);
 
 /**
  * Providers whose price arrives as a polled REST quote rather than a per-trade

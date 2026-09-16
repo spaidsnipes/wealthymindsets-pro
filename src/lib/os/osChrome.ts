@@ -35,6 +35,7 @@
  */
 
 import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
+import { CONTINUOUS_MARKET_SOURCES } from "@/lib/priceSource";
 
 /**
  * How much the OS is entitled to say about its own data feed.
@@ -86,6 +87,18 @@ export interface FeedObservation {
   readonly evaluatedAtMs: number;
   /** Transport state, when the caller genuinely knows it. */
   readonly connected: boolean | null;
+  /**
+   * Whether this instrument's session is open, when the caller genuinely knows.
+   *
+   * TRI-STATE ON PURPOSE, and `null` is not a synonym for `true`. A room that
+   * has not resolved the session calendar must say so; rounding "unknown" up to
+   * "open" is how a badge asserts an active session on a Sunday.
+   *
+   * REQUIRED rather than optional so that adding a room to the OS forces the
+   * author to answer the question. An optional field defaults to silence, and
+   * silence here reads on screen as a claim.
+   */
+  readonly sessionOpen: boolean | null;
 }
 
 /**
@@ -107,6 +120,49 @@ export const LIVE_STALENESS_BUDGET_MS = 90_000;
  * REALTIME certification, and a recent print.
  */
 export function compileFeedStanding(obs: FeedObservation): FeedStanding {
+  const observed =
+    obs.source !== null && obs.lastObservedAtMs !== null && obs.fidelity !== null;
+
+  // ── CLOSED IS NOT DELAYED, AND IT IS NOT BROKEN EITHER ───────────────────
+  //
+  // This branch is the reason this commit exists. The ladder below grades
+  // FRESHNESS, and on a closed market every reading it can reach is a slander:
+  // a print from Friday afternoon is older than the 90s budget, so the badge
+  // that appears on EVERY OS screen would have read STALE PIPELINE all weekend
+  // — an infrastructure alarm raised about a market behaving normally.
+  //
+  // It is worse than wrong on its own. `priceSourceBadge` (src/lib/priceSource
+  // .ts) already applies this precedence, so the chart chip would have read
+  // SESSION CLOSED — LAST VERIFIED while the masthead six inches above it read
+  // STALE PIPELINE. TWO COMPILERS OF ONE FACT, disagreeing on the same screen,
+  // in the vocabulary the trader is supposed to use to decide whether to trust
+  // the number. That contradiction — not the missing wire — is what has kept
+  // every room from publishing a FeedObservation at all.
+  //
+  // Precedence matches the sibling exactly:
+  //   · AFTER the observation gate, because "LAST VERIFIED" asserts that a
+  //     verified value EXISTS. Closure does not manufacture an observation.
+  //   · BEFORE the transport check, because on a closed market a quiet socket
+  //     is the expected condition and naming it a pipeline fault sends the
+  //     trader to diagnose infrastructure instead of reading the clock.
+  //   · BEFORE the entitlement arm, which is canon law #2 stated literally.
+  //
+  // The continuous-market exemption is imported, not re-declared: honouring
+  // `sessionOpen: false` for crypto would print SESSION CLOSED over a genuinely
+  // streaming tape, the mirror image of the defect being fixed here.
+  if (
+    obs.sessionOpen === false &&
+    observed &&
+    !CONTINUOUS_MARKET_SOURCES.has(obs.source as string)
+  ) {
+    return {
+      label: CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED,
+      detail: `${obs.source} · session closed`,
+      tone: "IDLE",
+      established: true,
+    };
+  }
+
   if (obs.connected === false) {
     // The canon has no separate word for "the pipe is down" — STALE_PIPELINE
     // is its infrastructure reading, and a transport that is delivering
@@ -120,7 +176,7 @@ export function compileFeedStanding(obs: FeedObservation): FeedStanding {
     };
   }
 
-  if (obs.source === null || obs.lastObservedAtMs === null || obs.fidelity === null) {
+  if (!observed) {
     return {
       label: FEED_UNKNOWN,
       detail: "no certified observation yet",
