@@ -141,7 +141,7 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
             style={{
               background: "transparent",
               border: "none",
-              color: WM.text.dim,
+              color: WM.text.muted,
               cursor: "pointer",
               fontSize: 22,
               lineHeight: 1,
@@ -205,7 +205,7 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
               {evidenceGroups.map((g) => (
                 <div key={g.src} style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "4px 10px", background: WM.surface.mid, borderRadius: 4, borderLeft: `2px solid ${WM.gold.line}` }}>
                   <span style={{ fontSize: 10, color: WM.gold.mark, fontWeight: 700, letterSpacing: 0.3, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.src}</span>
-                  <span style={{ fontSize: 9, color: WM.text.dim, letterSpacing: 0.3 }}>{g.items.length} obs · latest {fmtAge(nowTs - g.latest)}</span>
+                  <span style={{ fontSize: 9, color: WM.text.muted, letterSpacing: 0.3 }}>{g.items.length} obs · latest {fmtAge(nowTs - g.latest)}</span>
                 </div>
               ))}
             </div>
@@ -219,7 +219,7 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
                 Observed evidence ({evidence.length})
               </div>
               {state && (
-                <div style={{ fontSize: 9, color: WM.text.dim, letterSpacing: 0.3 }}>
+                <div style={{ fontSize: 9, color: WM.text.muted, letterSpacing: 0.3 }}>
                   as of {new Date(state.capturedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                 </div>
               )}
@@ -229,18 +229,18 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
                 <div key={g.src} style={{ padding: "6px 10px", background: WM.surface.mid, borderRadius: 4, borderLeft: `2px solid ${WM.gold.line}` }}>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
                     <span style={{ fontSize: 10, color: WM.gold.mark, fontWeight: 700, letterSpacing: 0.3 }}>{g.src}</span>
-                    <span style={{ fontSize: 9, color: WM.text.dim, letterSpacing: 0.3 }}>{g.items.length} obs · latest {fmtAge(nowTs - g.latest)}</span>
+                    <span style={{ fontSize: 9, color: WM.text.muted, letterSpacing: 0.3 }}>{g.items.length} obs · latest {fmtAge(nowTs - g.latest)}</span>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     {g.items.slice(0, 4).map((e, i) => (
                       <div key={`${e.eventId}-${i}`} style={{ fontSize: 11, color: WM.text.body, lineHeight: 1.5, display: "flex", gap: 6, alignItems: "baseline" }}>
                         <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.basis || "evidence"}</span>
                         <span style={{ fontSize: 9, color: e.fidelity === "direct" ? WM.state.ok : e.fidelity === "derived" ? WM.gold.mark : WM.text.muted, letterSpacing: 0.2 }}>{e.fidelity}</span>
-                        <span style={{ fontSize: 9, color: WM.text.dim, minWidth: 60, textAlign: "right" }}>{fmtAge(nowTs - e.observedAt)}</span>
+                        <span style={{ fontSize: 9, color: WM.text.muted, minWidth: 60, textAlign: "right" }}>{fmtAge(nowTs - e.observedAt)}</span>
                       </div>
                     ))}
                     {g.items.length > 4 && (
-                      <div style={{ fontSize: 9, color: WM.text.dim, fontStyle: "italic" }}>
+                      <div style={{ fontSize: 9, color: WM.text.muted, fontStyle: "italic" }}>
                         +{g.items.length - 4} more from {g.src}
                       </div>
                     )}
@@ -308,12 +308,12 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
                       {silent ? "silent" : stale ? `stale (${Math.round((ageMs ?? 0) / 1000)}s)` : "live"}
                       {gapped ? ` · ${c.gapCount} gap${c.gapCount === 1 ? "" : "s"}` : ""}
                     </span>
-                    <span style={{ fontSize: 9, color: WM.text.dim }}>{c.observedEventCount} obs</span>
+                    <span style={{ fontSize: 9, color: WM.text.muted }}>{c.observedEventCount} obs</span>
                   </div>
                 );
               })}
               {state.coverage.length > 6 && (
-                <div style={{ fontSize: 9, color: WM.text.dim, fontStyle: "italic" }}>
+                <div style={{ fontSize: 9, color: WM.text.muted, fontStyle: "italic" }}>
                   +{state.coverage.length - 6} more channels
                 </div>
               )}
@@ -342,7 +342,7 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ padding: "6px 10px", borderRadius: 4, background: WM.surface.mid }}>
-      <div style={{ fontSize: 8, letterSpacing: 0.4, textTransform: "uppercase", color: WM.text.dim, fontWeight: 700 }}>
+      <div style={{ fontSize: 8, letterSpacing: 0.4, textTransform: "uppercase", color: WM.text.muted, fontWeight: 700 }}>
         {label}
       </div>
       <div style={{ fontSize: 12, fontWeight: 600, color: WM.text.hero, marginTop: 2 }}>

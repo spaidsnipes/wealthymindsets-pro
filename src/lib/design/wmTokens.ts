@@ -25,12 +25,12 @@ export const WM = {
     highest: "#26262d",   // hover / active surface
   },
 
-  // ── TEXT — dominant to whisper ──
+  // ── TEXT — dominant to whisper. READ `TEXT_ON_SURFACE` BEFORE USING. ──
   text: {
-    hero:    "#ede6d3",   // hero numerals + primary labels
-    body:    "#c0b8a0",   // regular readable text
-    muted:   "#8a8271",   // secondary labels, timestamps
-    dim:     "#55503f",   // "unknown" / empty / disabled
+    hero:    "#ede6d3",   // hero numerals + primary labels. AA on every surface.
+    body:    "#c0b8a0",   // regular readable text. AA on every surface.
+    muted:   "#8a8271",   // secondary labels, timestamps. AA on the 3 DARKEST only.
+    dim:     "#55503f",   // NON-TEXT ONLY — dividers, inactive rules. See below.
   },
 
   // ── GOLD — importance / hierarchy / confirmation. Sparingly. ──
@@ -119,6 +119,71 @@ export function wmPanelStyle(active = false): React.CSSProperties {
 /** Standard tone→colour helper (never colour-only — always paired with a glyph). */
 export function wmToneColor(tone: "ok" | "watch" | "warn" | "unknown" | "neutral"): string {
   return WM.state[tone];
+}
+
+/**
+ * TEXT_ON_SURFACE — which text token may carry SMALL TEXT on which surface.
+ *
+ * ── The measurement ──────────────────────────────────────────────────────────
+ *
+ * WCAG AA is 4.5:1 for normal text. Measured across the real ramp:
+ *
+ *            deepest    deep     mid  raised highest
+ *   hero       16.36   15.79   14.88   13.61   12.06
+ *   body       10.29    9.93    9.36    8.56    7.59
+ *   muted       5.35    5.16    4.86    4.45    3.94
+ *   dim         2.53    2.44    2.30    2.10    1.86
+ *
+ * Two rungs are legal everywhere. `muted` is legal on the three darkest
+ * surfaces and fails on `raised` (4.45) and `highest` (3.94). `dim` is legal
+ * NOWHERE — it fails AA on every surface, and on `highest` it fails even the
+ * 3:1 floor that applies to non-text UI components.
+ *
+ * ── Why `dim` is not simply brightened ───────────────────────────────────────
+ *
+ * It cannot be. To clear 4.5:1 on `highest`, `dim` would need a relative
+ * luminance of 0.2644. `muted` sits at 0.2256. A compliant `dim` would have to
+ * be BRIGHTER THAN `muted` — it would stop being a bottom rung. Four text
+ * weights on near-black cannot all be AA-legal; that is arithmetic, not taste.
+ * So the bottom rung is declared NON-TEXT instead of being quietly nudged until
+ * a checker goes quiet.
+ *
+ * ── The defect this closes ───────────────────────────────────────────────────
+ *
+ * `dim` was previously documented as `"unknown" / empty / disabled`. That is
+ * the worst possible assignment: it renders "WE DO NOT KNOW" in the least
+ * readable colour the system owns. Missing evidence is load-bearing truth — a
+ * trader who cannot read "unavailable" reads the space as calm instead. An
+ * absence must be SAID, in a colour that can be read, for the same reason §14.1
+ * says FLAT is a finding and never a default.
+ *
+ * Unknown / empty / unavailable prose therefore takes `muted` at minimum.
+ * `dim` is for dividers, inactive rules and decorative hairlines only.
+ */
+export const TEXT_ON_SURFACE = {
+  hero: ["deepest", "deep", "mid", "raised", "highest"],
+  body: ["deepest", "deep", "mid", "raised", "highest"],
+  muted: ["deepest", "deep", "mid"],
+  /** Intentionally empty. `dim` may not carry text on any surface. */
+  dim: [],
+} as const satisfies Record<keyof typeof WM.text, readonly (keyof typeof WM.surface)[]>;
+
+/** WCAG relative luminance. Exported so the guard measures rather than trusts. */
+export function wmLuminance(hex: string): number {
+  const channels = hex.replace("#", "").match(/../g);
+  if (!channels) throw new Error(`not a hex colour: ${hex}`);
+  const [r, g, b] = channels.map(h => {
+    const c = parseInt(h, 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG contrast ratio between two opaque hex colours. */
+export function wmContrast(a: string, b: string): number {
+  const x = wmLuminance(a);
+  const y = wmLuminance(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 
 // Re-import shim so consumers who only need the tokens don't pull in React.

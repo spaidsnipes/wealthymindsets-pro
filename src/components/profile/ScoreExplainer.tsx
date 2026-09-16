@@ -67,7 +67,7 @@ export function ScoreExplainer({ vm, onDrillClick, className }: ScoreExplainerPr
       <div style={{ display: "flex", alignItems: "baseline", gap: WM.space.sm, flexWrap: "wrap" }}>
         <span style={{ ...WM.type.label, color: WM.gold.mark }}>Why this score?</span>
         <span style={{ ...WM.type.labelSmall, color: tone.color }}>{tone.label}</span>
-        <span style={{ fontSize: 10, color: WM.text.dim }}>·</span>
+        <span style={{ fontSize: 10, color: WM.text.muted }}>·</span>
         <span style={{ fontSize: 10, color: WM.text.muted, letterSpacing: 0.2 }}>
           sample threshold {vm.sampleThreshold} per context
         </span>

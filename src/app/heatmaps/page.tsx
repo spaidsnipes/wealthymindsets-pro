@@ -374,7 +374,7 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
             </div>
           ))}
         </div>
-        <span style={{ marginLeft: "auto", fontSize: 9, color: WM.text.dim }}>TF: {tf} · Selected-period observed-return heuristic · Not predictive</span>
+        <span style={{ marginLeft: "auto", fontSize: 9, color: WM.text.muted }}>TF: {tf} · Selected-period observed-return heuristic · Not predictive</span>
       </div>
 
       {/* Grid of sector cards */}
@@ -459,9 +459,9 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
 
               {/* 3x3 Transition matrix mini */}
               <div style={{ display: "grid", gridTemplateColumns: "auto 1fr 1fr 1fr", gap: 2, fontSize: 7, fontFamily: "monospace" }}>
-                <div style={{ color: WM.text.dim }} />
+                <div style={{ color: WM.text.muted }} />
                 {["→BULL","→BEAR","→SIDE"].map(h => (
-                  <div key={h} style={{ color: WM.text.dim, textAlign: "center" }}>{h}</div>
+                  <div key={h} style={{ color: WM.text.muted, textAlign: "center" }}>{h}</div>
                 ))}
                 {(["BULL","BEAR","SIDE"] as RegimeState[]).map((from, ri) => (
                   <React.Fragment key={from}>
@@ -545,7 +545,7 @@ function VolumeProfileBar({ sym, candles, loading }: { sym: string; candles: VPC
       {/* VP bars from top (high) to bottom (low) */}
       <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
         {(loading || !usable.length) && (
-          <div style={{ minHeight:176, display:"grid", placeItems:"center", fontSize:9, color:WM.text.dim }}>
+          <div style={{ minHeight:176, display:"grid", placeItems:"center", fontSize:9, color:WM.text.muted }}>
             {loading ? "Loading observed OHLCV…" : "Observed OHLCV unavailable"}
           </div>
         )}
@@ -563,7 +563,7 @@ function VolumeProfileBar({ sym, candles, loading }: { sym: string; candles: VPC
                          : "rgba(0,212,170,0.55)";
           return (
             <div key={revI} style={{ display: "flex", alignItems: "center", gap: 4, height: 10 }}>
-              <span style={{ width: 44, fontSize: 6.5, color: isPOC ? WM.gold.mark : WM.text.dim, textAlign: "right", flexShrink: 0, fontFamily: "monospace" }}>
+              <span style={{ width: 44, fontSize: 6.5, color: isPOC ? WM.gold.mark : WM.text.muted, textAlign: "right", flexShrink: 0, fontFamily: "monospace" }}>
                 {price.toFixed(2)}
               </span>
               <div style={{ flex: 1, height: 7, background: "rgba(255,255,255,0.03)", borderRadius: 1, overflow: "hidden", position: "relative" }}>
@@ -578,7 +578,7 @@ function VolumeProfileBar({ sym, candles, loading }: { sym: string; candles: VPC
                     quieter one. Two weights of one metal, not two metals. */}
                 {isCur && <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 1.5, background: WM.gold.hero }} />}
               </div>
-              <span style={{ width: 22, fontSize: 6, color: WM.text.dim, textAlign: "right", flexShrink: 0 }}>
+              <span style={{ width: 22, fontSize: 6, color: WM.text.muted, textAlign: "right", flexShrink: 0 }}>
                 {vol >= 1_000_000 ? `${(vol/1_000_000).toFixed(1)}m` : vol >= 1_000 ? `${(vol/1_000).toFixed(0)}k` : vol.toFixed(0)}
               </span>
             </div>
@@ -626,7 +626,7 @@ function VPHeatmap({ tf }: { tf: string }) {
           <span style={{ color: "#00D4AA" }}>■ Below</span>
           <span style={{ color: WM.gold.hero }}>| Current</span>
         </div>
-        <span style={{ marginLeft: "auto", fontSize: 9, color: WM.text.dim }}>TF: {tf} · bar-derived, not exchange tick profile</span>
+        <span style={{ marginLeft: "auto", fontSize: 9, color: WM.text.muted }}>TF: {tf} · bar-derived, not exchange tick profile</span>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 8 }}>
         {VP_SYMBOLS.map(sym => (
@@ -1070,7 +1070,7 @@ export default function HeatmapsPage() {
           >
             <div>{fidelityReason}</div>
             {receivedAt && (
-              <div style={{ marginTop: 4, color: WM.text.dim }}>
+              <div style={{ marginTop: 4, color: WM.text.muted }}>
                 Received {new Date(receivedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · receipt time only
               </div>
             )}
@@ -1157,7 +1157,7 @@ export default function HeatmapsPage() {
                 }}>
                   EW {avgPct === null ? "—" : `${avgPct >= 0 ? "+" : ""}${avgPct.toFixed(2)}%`}
                 </span>
-                <span style={{ fontSize: 9, fontWeight: 700, color: WM.text.dim }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: WM.text.muted }}>
                   {sectorCoverage}{sectorChange.observedCount < sectorChange.totalCount
                     ? sectorChange.observedCount === 0 ? " · unavailable" : " · partial"
                     : ""}

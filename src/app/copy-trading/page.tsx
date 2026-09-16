@@ -236,7 +236,7 @@ export default function CopyTradingPage() {
                       </div>
                       {/* The reason travels with the verdict. A state
                           without its evidence is a claim without a source. */}
-                      <p style={{ marginTop: 4, fontSize: 11, color: WM.text.dim, lineHeight: 1.55 }}>
+                      <p style={{ marginTop: 4, fontSize: 11, color: WM.text.muted, lineHeight: 1.55 }}>
                         {req.evidence}
                       </p>
                     </li>

@@ -537,10 +537,10 @@ function SessionIntelligenceStrip({
         background: "transparent",
       }}
     >
-      <IntelCell label="SYMBOLS OBSERVED" value={symbolCount} tone={symbolCount > 0 ? WM.state.ok : WM.text.dim} />
-      <IntelCell label="CHANNELS OBSERVING" value={observingChannels} tone={observingChannels > 0 ? WM.state.ok : WM.text.dim} />
-      <IntelCell label="CHANNELS STALE" value={staleChannels} tone={staleChannels > 0 ? WM.state.warn : WM.text.dim} />
-      <IntelCell label="CHANNELS UNAVAILABLE" value={unavailableChannels} tone={unavailableChannels > 0 ? WM.state.warn : WM.text.dim} />
+      <IntelCell label="SYMBOLS OBSERVED" value={symbolCount} tone={symbolCount > 0 ? WM.state.ok : WM.text.muted} />
+      <IntelCell label="CHANNELS OBSERVING" value={observingChannels} tone={observingChannels > 0 ? WM.state.ok : WM.text.muted} />
+      <IntelCell label="CHANNELS STALE" value={staleChannels} tone={staleChannels > 0 ? WM.state.warn : WM.text.muted} />
+      <IntelCell label="CHANNELS UNAVAILABLE" value={unavailableChannels} tone={unavailableChannels > 0 ? WM.state.warn : WM.text.muted} />
       <IntelCell label="COVERAGE GAPS" value={totalGaps} tone={totalGaps > 0 ? WM.state.warn : WM.state.ok} />
     </div>
   );
@@ -694,7 +694,7 @@ function VaultHero({
               fontSize: 10,
               letterSpacing: 0.32,
               textTransform: "uppercase",
-              color: WM.text.dim,
+              color: WM.text.muted,
               fontWeight: 700,
             }}
             title="Absolute wall-clock time of the earliest real trade observed across every symbol currently retained. No fabricated chronology."
@@ -726,7 +726,7 @@ function VaultMetric({ label, value }: { label: string; value: number }) {
         style={{
           fontFamily: "Georgia, 'Times New Roman', serif",
           fontSize: "clamp(28px, 4vw, 40px)",
-          color: value > 0 ? WM.gold.hero : WM.text.dim,
+          color: value > 0 ? WM.gold.hero : WM.text.muted,
           fontVariantNumeric: "tabular-nums",
           lineHeight: 1,
         }}
@@ -806,7 +806,7 @@ function SymbolCard({ symbol, tapeSource, slot, isActive, fidelity, coverageStat
               style={{
                 fontSize: 9,
                 letterSpacing: 0.24,
-                color: WM.text.dim,
+                color: WM.text.muted,
                 marginTop: 2,
                 fontVariantNumeric: "tabular-nums",
               }}
@@ -983,7 +983,7 @@ function CvdSpark({ buffer, tone }: { buffer: number[]; tone: string }) {
       <div
         style={{
           height: 28, display: "flex", alignItems: "center",
-          color: WM.text.dim, fontSize: 10, letterSpacing: 0.2,
+          color: WM.text.muted, fontSize: 10, letterSpacing: 0.2,
           borderTop: `1px dashed ${WM.border.hair}`, paddingTop: 8,
         }}
       >
@@ -1092,7 +1092,7 @@ function FooterNote() {
         marginTop: 12,
         padding: "14px 16px",
         borderTop: `1px solid ${WM.border.hair}`,
-        color: WM.text.dim,
+        color: WM.text.muted,
         fontSize: 10, letterSpacing: 0.24, lineHeight: 1.6,
         fontFamily: "Georgia, 'Times New Roman', serif",
       }}

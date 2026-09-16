@@ -83,7 +83,7 @@ describe("nectarFormat.fidelityToTone", () => {
     expect(fidelityToTone("UNAVAILABLE")).toBe(WM.state.warn);
   });
   it("null falls back to dim (UNKNOWN)", () => {
-    expect(fidelityToTone(null)).toBe(WM.text.dim);
+    expect(fidelityToTone(null)).toBe(WM.text.muted);
   });
   it("unknown vocabulary falls back to muted, not fake ok", () => {
     expect(fidelityToTone("something_else")).toBe(WM.text.muted);
@@ -106,7 +106,7 @@ describe("nectarFormat.memoryStateTone", () => {
     expect(memoryStateTone("RETAINED")).toBe(WM.state.ok);
     expect(memoryStateTone("SUMMARY_ONLY")).toBe(WM.state.ok);
     expect(memoryStateTone("SESSION_ONLY")).toBe(WM.state.watch);
-    expect(memoryStateTone("NO_MEMORY")).toBe(WM.text.dim);
+    expect(memoryStateTone("NO_MEMORY")).toBe(WM.text.muted);
   });
 });
 

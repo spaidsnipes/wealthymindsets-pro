@@ -62,7 +62,7 @@ export function GrowthHero({
       <div style={{ display: "flex", alignItems: "center", gap: WM.space.md, marginBottom: WM.space.sm, flexWrap: "wrap" }}>
         <WmWordmark size="compact" subtitle="LEGACY JOURNAL" />
         <span style={{ ...WM.type.label, color: WM.gold.mark, marginLeft: WM.space.sm }}>Growth</span>
-        <span style={{ fontSize: 10, color: WM.text.dim }}>·</span>
+        <span style={{ fontSize: 10, color: WM.text.muted }}>·</span>
         <span style={{ ...WM.type.labelSmall, color: WM.text.muted }}>
           personal edge · {personalEdge.resolution.toLowerCase()}
         </span>
@@ -160,19 +160,19 @@ export function GrowthHero({
         }}
       >
         <span>
-          <span style={{ color: WM.text.dim }}>decisions</span>{" "}
+          <span style={{ color: WM.text.muted }}>decisions</span>{" "}
           <span style={{ color: WM.text.hero }}>{personalEdge.totalDecisions}</span>
         </span>
         <span>
-          <span style={{ color: WM.text.dim }}>reviewed</span>{" "}
+          <span style={{ color: WM.text.muted }}>reviewed</span>{" "}
           <span style={{ color: WM.text.hero }}>{personalEdge.reviewedCount}</span>
         </span>
         <span>
-          <span style={{ color: WM.text.dim }}>strengths</span>{" "}
+          <span style={{ color: WM.text.muted }}>strengths</span>{" "}
           <span style={{ color: WM.state.ok }}>{personalEdge.topStrengths.length}</span>
         </span>
         <span>
-          <span style={{ color: WM.text.dim }}>watch</span>{" "}
+          <span style={{ color: WM.text.muted }}>watch</span>{" "}
           <span style={{ color: WM.state.warn }}>{personalEdge.topWatch.length}</span>
         </span>
         <span style={{ marginLeft: "auto", color: WM.gold.mark, fontStyle: "italic" }}>

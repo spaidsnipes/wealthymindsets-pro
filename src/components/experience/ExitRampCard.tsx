@@ -114,7 +114,7 @@ export function ExitRampCard({ ramp, className, presentation = "card" }: ExitRam
         </div>
       )}
 
-      <footer style={{ ...WM.type.labelSmall, fontSize: 11, color: WM.text.dim, borderTop: `1px solid ${WM.border.hair}`, paddingTop: WM.space.sm }}>
+      <footer style={{ ...WM.type.labelSmall, fontSize: 11, color: WM.text.muted, borderTop: `1px solid ${WM.border.hair}`, paddingTop: WM.space.sm }}>
         {ramp.recap}
       </footer>
     </section>

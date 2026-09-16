@@ -531,7 +531,7 @@ const LAST_EVENT_TONE: Record<LastEventTone, string> = {
   OBSERVED: WM.state.ok,
   AGING: WM.text.muted,
   IMPLAUSIBLE: WM.state.warn,
-  NONE: WM.text.dim,
+  NONE: WM.text.muted,
 };
 
 function CoverageReceipts({
@@ -566,7 +566,7 @@ function CoverageReceipts({
             <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
               <ReceiptRow label="Coverage state" value={ch.coverageState} tone={coverageTone(ch.coverageState)} />
               <ReceiptRow label="Fidelity class" value={ch.fidelity} tone={fidelityToTone(ch.fidelity)} />
-              <ReceiptRow label="Observed events" value={ch.observedEventCount.toLocaleString()} tone={ch.observedEventCount > 0 ? WM.state.ok : WM.text.dim} />
+              <ReceiptRow label="Observed events" value={ch.observedEventCount.toLocaleString()} tone={ch.observedEventCount > 0 ? WM.state.ok : WM.text.muted} />
               {/* The word "None" was an assertion this row could not support.
                   Every shipped adapter declares sequenceState "UNAVAILABLE", so
                   gapCount is pinned at 0 and "None" printed unconditionally.
@@ -580,7 +580,7 @@ function CoverageReceipts({
                     ? WM.state.warn
                     : describeGapCoverage(ch).measured
                       ? WM.state.ok
-                      : WM.text.dim
+                      : WM.text.muted
                 }
                 title={describeGapCoverage(ch).detail}
               />
@@ -656,7 +656,7 @@ function UnobservedState({ symbol, onOpen }: { symbol: string; onOpen: () => voi
       <div style={{ marginTop: 12, fontSize: 12 }}>
         WM has not observed any real trades for this symbol in the current tab.
       </div>
-      <div style={{ marginTop: 8, fontSize: 11, color: WM.text.dim }}>
+      <div style={{ marginTop: 8, fontSize: 11, color: WM.text.muted }}>
         Open it on the chart and let market observations arrive — this page will populate as observation begins.
       </div>
       <div style={{ marginTop: 18, display: "inline-flex", gap: 8 }}>
@@ -745,7 +745,7 @@ function BigCvd({ buffer, tone }: { buffer: number[]; tone: string }) {
       <div
         style={{
           height: 96, display: "flex", alignItems: "center", justifyContent: "center",
-          color: WM.text.dim, fontSize: 11, letterSpacing: 0.2,
+          color: WM.text.muted, fontSize: 11, letterSpacing: 0.2,
         }}
       >
         Awaiting more observations to draw the trajectory…

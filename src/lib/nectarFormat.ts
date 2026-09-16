@@ -39,7 +39,10 @@ export function relTime(t: number, now: number = Date.now()): string {
 }
 
 export function fidelityToTone(fidelity: string | null): string {
-  if (!fidelity) return WM.text.dim;
+  // An unknown fidelity is the single most important thing on this row, and it
+  // used to be the least readable (`dim`, 2.10–2.53:1 — below AA on every
+  // surface). See TEXT_ON_SURFACE in wmTokens.ts: absence must be readable.
+  if (!fidelity) return WM.text.muted;
   const upper = fidelity.toUpperCase();
   if (upper.includes("OBSERVED") || upper.includes("LIVE") || upper.includes("FULL")) return WM.state.ok;
   if (upper.includes("DERIVED") || upper.includes("PARTIAL")) return WM.state.watch;
@@ -57,7 +60,9 @@ export function coverageTone(state: string): string {
 export function memoryStateTone(state: string): string {
   if (state === "RETAINED" || state === "SUMMARY_ONLY") return WM.state.ok;
   if (state === "SESSION_ONLY") return WM.state.watch;
-  return WM.text.dim;
+  // NO_MEMORY reaches here. Same rule: a "we retained nothing" state that
+  // cannot be read is worse than no state at all.
+  return WM.text.muted;
 }
 
 export function persistenceRightTone(right: string): string {
