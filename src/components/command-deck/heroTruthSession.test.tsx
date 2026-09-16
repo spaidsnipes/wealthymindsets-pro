@@ -282,4 +282,140 @@ describe("HeroTruth SOURCE trio pixel — role + asOf + source, no DevTools", ()
     expect(html).toContain("finnhub +1");
     expect(html).toContain('title="finnhub-rest, webull-openapi-ticks"');
   });
+
+  /**
+   * ── THE OTHER TWO THIRDS ────────────────────────────────────────────────
+   *
+   * Everything above this point asserts SOURCE. The describe block has been
+   * named "role + asOf + source" since it was written, and `HeroTruth.tsx`
+   * carries a comment claiming the trio is complete — so both the suite's own
+   * title and the component's own prose asserted a coverage that did not
+   * exist. A block that NAMES three things and proves one is worse than a
+   * block that names one, because it retires the question.
+   *
+   * MEASURED, not assumed. Two edits were made to HeroTruth and the FULL
+   * suite was run:
+   *
+   *   1. `{style.label}` deleted from the quality badge  → role gone
+   *   2. the chronology block gated behind `false &&`    → asOf gone
+   *
+   *   RESULT: 665 files / 7971 tests, all green. EXIT=0.
+   *
+   * So the deck could have shipped with no role word and no observation-age
+   * line and nothing in the repo would have objected. The tests below are the
+   * objection.
+   */
+
+  const CAPTURED_AT = 1_757_000_000_000;
+
+  /**
+   * A VALID packet at a chosen role.
+   *
+   * The price is not decoration. `sealCanonicalMarketState` enforces "LIVE
+   * Market State requires price evidence", and the first draft of these tests
+   * tried to force a LIVE role onto a priceless snapshot — the sealer threw,
+   * correctly, and refused to mint the fixture. Recorded because it is this
+   * file's own header lesson landing on the file: a check written against the
+   * shape the data has when it is CONVENIENT is not a check. Every packet
+   * below carries a real trade print 30s before capture, which is the shape a
+   * LIVE packet actually has in production.
+   */
+  function renderAtRole(qualityState: "LIVE" | "DELAYED" | "STALE" | "PROXY"): string {
+    const identity = canonicalMarketStateIdentity({ symbol: "TSLA", timeframe: "15m" });
+    const state = produceCanonicalMarketState(
+      {
+        snapshotId: `test-role-${qualityState}`,
+        capturedAt: CAPTURED_AT,
+        instrumentId: identity.instrumentId,
+        normalizedSymbol: "TSLA",
+        executableIdentity: null,
+        assetClass: "stock",
+        exchange: null,
+        session: identity.session,
+        timeframeContext: identity.timeframeContext,
+        price: { last: 412.5, bid: null, ask: null, eventAt: CAPTURED_AT - 30_000 },
+        coverage: [],
+      },
+      { qualityState },
+    );
+    return renderToStaticMarkup(
+      <HeroTruth
+        symbol="TSLA"
+        timeframe="15m"
+        state={state}
+        sessionPresented={{ value: "RTH", detail: "regular hours" }}
+      />,
+    );
+  }
+
+  /**
+   * `>Word<`, not `Word`.
+   *
+   * THIS EXACT LOOSENESS WAS CAUGHT BY RE-RUNNING THE ATTACK. The first
+   * version of the assertion below was `toContain("Live")`, the role label was
+   * deleted from the badge, and the test STAYED GREEN — because
+   * `aria-label="TSLA 15m — market state Live"` still carried the word.
+   *
+   * The aria-label is correct and stays; a screen-reader user really does get
+   * the role from it. But it cannot be allowed to STAND IN for the visible
+   * word, or a sighted trader is left with a glyph and a hex colour while the
+   * suite reports the law satisfied. Matching the rendered text node is what
+   * separates "the word is in the document" from "the word is on the screen".
+   */
+  const textNode = (word: string) => new RegExp(`>${word}<`);
+
+  it("ROLE: the quality verdict reaches the SCREEN as a word, not only as a colour", () => {
+    expect(renderAtRole("LIVE")).toMatch(textNode("Live"));
+    expect(renderAtRole("DELAYED")).toMatch(textNode("Delayed"));
+    expect(renderAtRole("STALE")).toMatch(textNode("Stale"));
+    expect(renderAtRole("PROXY")).toMatch(textNode("Proxy"));
+  });
+
+  it("ROLE: positive control — the word genuinely tracks the state", () => {
+    // Without this, the assertion above could be satisfied by a hardcoded
+    // string. Four distinct roles must produce four distinct documents.
+    const seen = new Set((["LIVE", "DELAYED", "STALE", "PROXY"] as const).map(renderAtRole));
+    expect(seen.size).toBe(4);
+    // And a DELAYED packet must never print Live as visible text.
+    expect(renderAtRole("DELAYED")).not.toMatch(textNode("Live"));
+  });
+
+  it("ROLE: the aria-label carries it too — the screen reader is not the fallback", () => {
+    // Both paths must exist independently. Asserting this explicitly means a
+    // future edit that deletes the aria-label to 'simplify' the badge fails
+    // here rather than silently downgrading the non-visual path.
+    expect(renderAtRole("DELAYED")).toContain('aria-label="TSLA 15m — market state Delayed"');
+  });
+
+  it("asOf: a LIVE packet with valid chronology prints the observation age", () => {
+    const html = renderAtRole("LIVE");
+    expect(html).toContain("observed 30.0s ago");
+    expect(html).toContain('data-chronology-state="OBSERVED_AGE"');
+  });
+
+  it("asOf: a non-LIVE packet says the age is UNVERIFIED rather than going silent", () => {
+    // The fail-closed half, and the more important one. Silence in the asOf
+    // slot reads as "fresh" to a human eye. The strip must say out loud that
+    // it cannot prove the age — HEALING IS NOT HIDING THE WOUND.
+    //
+    // Note these packets carry a price with a perfectly good eventAt. The age
+    // is withheld because the ROLE does not entitle the strip to claim it, not
+    // because the timestamp is missing. That is the fail-closed rule working.
+    for (const role of ["DELAYED", "STALE", "PROXY"] as const) {
+      const html = renderAtRole(role);
+      expect(html, `${role} went silent on asOf`).toContain("observation age unverified");
+      expect(html).toContain('data-chronology-state="UNVERIFIED"');
+      expect(html, `${role} leaked an exact age it cannot prove`).not.toContain("observed 30.0s ago");
+    }
+  });
+
+  it("THE TRIO, in one render, in one document", () => {
+    // The law is not three separate requirements; it is that a trader reading
+    // ONE strip receives all three at once. Asserting them across three
+    // different renders would never prove they co-occur.
+    const html = renderAtRole("LIVE");
+    expect(html, "role missing from the trio").toMatch(textNode("Live"));
+    expect(html, "asOf missing from the trio").toContain("observed 30.0s ago");
+    expect(html, "source missing from the trio").toContain(">source<");
+  });
 });

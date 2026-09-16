@@ -136,6 +136,40 @@ changing the token** — not by one component disagreeing with the system.
 Canon's FIRST-VIEWPORT ACCEPTANCE list ("fidelity visible as role+source+asOf")
 both point above the fold. Reach is now real; **placement is still open.**
 
+### CORRECTION TO THE PARAGRAPH ABOVE — I had not measured it
+
+The paragraph above was written from reasoning, not from the page, and the
+reasoning was wrong. Leaving it visible and correcting it here, because a baton
+that quietly edits out its own bad call teaches the next reader nothing.
+
+Measured on `localhost:3000/command-deck`, viewport height **840**, `scrollY 0`.
+The first viewport already carries the full role+source+asOf trio — every field
+honestly degraded, because nothing has been observed yet:
+
+```
+role     FEED UNKNOWN                 y=30
+         UNAVAILABLE / Market state UNKNOWN   y=252 / y=302
+source   source unknown               y=448   [data-testid=hero-source-vendor]
+asOf     2026-09-16 22:10:48 UTC      y=252
+         Read 4m ago                  y=648
+```
+
+Owners are `HeroTruth`'s truth strip and the Market Object Passport bar.
+`HeroTruth.tsx:432-436` already claims this trio in a comment; the claim
+checks out against the rendered page.
+
+**So the Canon's first-viewport requirement was never open, and
+`SignalProvenanceStrip` is not the surface it was asking for.** The strip
+answers a different question — *which scene-admission signal groups did the
+compiler observe* (Session / Decision / Position / Orders / Broker link) — not
+*how fresh and from whom is this reading*. Two owners, two questions, no
+contradiction between them: `source unknown` and `SIGNALS OBSERVED · 1 / 5` are
+consistent, so this is not the second ANSWER §24 forbids.
+
+**FIDELITY_CHIPS is CLOSED.** Reach was the whole defect and reach is fixed.
+Hoisting the strip above the fold would have pushed real market truth down the
+page to satisfy a requirement that another owner already satisfies.
+
 ---
 
 ## STATE AT SEAL
@@ -184,7 +218,8 @@ layer composites is the probe and the 200 above, not the image.
 
 ## OPEN / BLOCKED — unchanged from F unless noted
 
-- **FIDELITY_CHIPS placement** — new; above-the-fold, see above.
+- ~~**FIDELITY_CHIPS placement**~~ — CLOSED by measurement, see the correction
+  above. The first viewport already carries role+source+asOf from another owner.
 - **Decision Memory sealing** — zero production callers. Architectural. Surface
   it; do not rush-wire.
 - **executionConnectivity** — orphaned, not a live defect; `/readiness`
