@@ -84,7 +84,22 @@ const REPO_ROOT = path.dirname(SRC_DIR);
  * `TEST_FIXTURE` and `OPS_TOOLING` are correct and permanent — they are listed
  * so the count is honest, not so they are fixed.
  */
-type ReachReason = "AWAITING_SURFACE" | "TEST_FIXTURE" | "OPS_TOOLING";
+/*
+ * EDGE_RUNTIME added 2026-09-15.
+ *
+ * The walk below roots at `src/app` and `src/components`, so "reachable" has
+ * always meant "reachable from a SCREEN". `src/middleware.ts` is neither: it
+ * runs at the edge, before any screen exists, and it is as shipped as any
+ * component. A module consumed only there is not awaiting a surface, is not a
+ * fixture, and is not ops tooling — it is correctly wired to the one consumer
+ * it should have.
+ *
+ * Filing such a module under one of the existing three would have made the
+ * ledger say something false in order to make this suite go green, which is
+ * the failure mode the ledger exists to prevent. The vocabulary was the thing
+ * that was wrong, so the vocabulary is what changed.
+ */
+type ReachReason = "AWAITING_SURFACE" | "TEST_FIXTURE" | "OPS_TOOLING" | "EDGE_RUNTIME";
 
 interface LedgerEntry {
   readonly reason: ReachReason;
@@ -110,6 +125,10 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
   "src/lib/authority/executionConnectivity.ts": {
     reason: "AWAITING_SURFACE",
     note: "Named in the §13 open gates as orphaned. This confirms it from the import graph: no route renders it, including /readiness.",
+  },
+  "src/lib/legacyRouteAliases.ts": {
+    reason: "EDGE_RUNTIME",
+    note: "Consumed by src/middleware.ts, which answers the legacy aliases with a real 308 before any screen exists. Correct that no route renders it — a route that rendered it would mean the redirect had already shipped the app.",
   },
   "src/lib/broker/adapters/__fixtures__/webullResponses.ts": {
     reason: "TEST_FIXTURE",
@@ -388,7 +407,9 @@ describe("screen reach — IMPLEMENTED is not REACHABLE", () => {
 
   it("every ledger entry states a reason and what is lost", () => {
     for (const [file, entry] of Object.entries(LEDGER)) {
-      expect(["AWAITING_SURFACE", "TEST_FIXTURE", "OPS_TOOLING"], file).toContain(entry.reason);
+      expect(["AWAITING_SURFACE", "TEST_FIXTURE", "OPS_TOOLING", "EDGE_RUNTIME"], file).toContain(
+        entry.reason,
+      );
       // §H19: a label with no sentence behind it is dead vocabulary.
       expect(entry.note.length, `${file} has no note`).toBeGreaterThan(20);
     }

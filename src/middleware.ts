@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CANONICAL_HOST as canonicalHost, isNonCanonicalPlatformHost } from "@/lib/canonicalUrl";
+import { legacyAliasTarget } from "@/lib/legacyRouteAliases";
 
 /**
  * Never let a customer start an authenticated journey on a hosting-platform
@@ -30,6 +31,34 @@ export function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.protocol = "https:";
     url.host = canonicalHost;
+    return NextResponse.redirect(url, 308);
+  }
+
+  /* A REDIRECT THAT SHIPS THE APP IS NOT A REDIRECT. IT IS A PAGE THAT LEAVES.
+
+     Legacy aliases are answered HERE, at the edge, before anything renders.
+
+     They used to be answered by a `page.tsx` calling `redirect()`. MEASURED
+     2026-09-15 on wealthymindsetspro.com, that produced HTTP 200 with no
+     Location header and an 18,275-byte document carrying 17 <script> tags —
+     94% the weight of the real destination. On OpenNext/Cloudflare an App
+     Router `redirect()` is not a 307 at the edge; it is a document that says
+     "leave" once the browser has already paid for the app shell.
+
+     The host-canonical guard directly above is the receipt that this mechanism
+     works here: it has been issuing a real 308 in production since the
+     Cloudflare cutover. Reusing a measured mechanism, rather than a plausible
+     one, is the whole point of this block.
+
+     308 and not 307: these aliases are permanent and the method must be
+     preserved. See `@/lib/legacyRouteAliases` for the full measurement and for
+     why the page stubs are kept as a fallback.
+
+     Guarded by src/lib/legacyRouteAliases.test.ts. */
+  const aliasTarget = legacyAliasTarget(request.nextUrl.pathname);
+  if (aliasTarget) {
+    const url = request.nextUrl.clone();
+    url.pathname = aliasTarget;
     return NextResponse.redirect(url, 308);
   }
 
