@@ -200,6 +200,29 @@ describe("composeExitRamp — Completion Receipt (truth-lock)", () => {
       expect(new Set(ramp.open).size).toBe(ramp.open.length);
     });
 
+    /**
+     * The deck's OS rail publishes "EVIDENCE DEBT · 9 OPEN" (unpaid evidence
+     * nodes). This card's recap publishes its own count under the same word,
+     * in the same uppercase chrome, counting a different set. Both owners are
+     * correct, so the repair is a NOUN, never a re-derived number.
+     */
+    it("the recap says WHAT is open, so it cannot be read against the rail's count", () => {
+      const ramp = composeExitRamp({ assessment: assess({ statePreserved: false }) });
+      expect(ramp.recap).toBe("WAITING — 1 open item");
+      expect(ramp.recap).not.toMatch(/\b1 open$/);
+    });
+
+    it("never prints a bare N-open in any recap it derives", () => {
+      for (const n of [1, 2, 5]) {
+        const ramp = composeExitRamp({
+          assessment: assess({ jobComplete: true }),
+          open: Array.from({ length: n }, (_, i) => `item ${i}`),
+        });
+        expect(ramp.recap, `n=${n}`).toMatch(new RegExp(`${n} open item${n === 1 ? "" : "s"}`));
+        expect(ramp.recap, `n=${n}`).not.toMatch(new RegExp(`${n} open(?!\\s*item)`));
+      }
+    });
+
     it("still yields to a caller who named the open work itself", () => {
       const ramp = composeExitRamp({
         assessment: assess({ statePreserved: false }),

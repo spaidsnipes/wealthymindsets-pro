@@ -174,10 +174,25 @@ function deriveRecap(
   saved: readonly string[],
   open: readonly string[],
 ): string {
+  // ── Why OPEN carries a noun and DONE / SAVED do not (2026-09-16, by USE) ──
+  //
+  // Measured live on one deck, both rendered uppercase by the same chrome:
+  //
+  //     rail    EVIDENCE DEBT   9 OPEN          ← unpaid evidence nodes
+  //     recap   WAITING — 1 OPEN                ← unmet done-for-now criteria
+  //
+  // Both counts are correct and neither is a bug; they count different sets
+  // under one word, which is canon Weakness #1. The repair is a NOUN, never a
+  // number — re-deriving either would mint a second answer to a question that
+  // already has two correct owners (§24).
+  //
+  // "item" adds no vocabulary: the card's own OPEN section is a list, and the
+  // recap is a count of that list. DONE and SAVED need no noun because no other
+  // owner on the deck publishes a competing "done" or "saved" count.
   const parts: string[] = [];
   if (done.length > 0) parts.push(`${done.length} done`);
   if (saved.length > 0) parts.push(`${saved.length} saved`);
-  if (open.length > 0) parts.push(`${open.length} open`);
+  if (open.length > 0) parts.push(`${open.length} open item${open.length === 1 ? "" : "s"}`);
   const tail = parts.length > 0 ? ` — ${parts.join(", ")}` : "";
   return `${state}${tail}`;
 }
