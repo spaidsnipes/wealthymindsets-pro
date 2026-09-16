@@ -6,26 +6,61 @@ const source = (): string =>
   readFileSync(resolve(__dirname, "../components/layout/MainLayout.tsx"), "utf8");
 
 describe("Founder operating-room shell", () => {
-  it("removes the legacy multi-symbol tape from every Asset-10 family route", () => {
-    // The Founder audit 2026-09-13 expanded the Asset-10 family from
-    // /command-deck alone to the registry in founderRoomRoutes.ts. The
-    // tape suppression follows the same registry — a family route
-    // showing the July TickerTape is exactly the kind of "old chrome
-    // inside a calm room" the audit flagged.
+  /**
+   * ── WHAT THIS GATE USED TO ASSERT, AND WHY THAT WAS WORSE THAN NOTHING ─────
+   *
+   * Two tests here read MainLayout.tsx as text and required the string
+   * `{isFounderOperatingRoom ? (` plus a `data-testid="founder-room-header-space"`
+   * inside its true-arm. Both strings were present. Both were DEAD.
+   *
+   * The Ticket T cutover returns `WMExperienceShell` from MainLayout before
+   * that markup is reached, so control only ever arrives at the July header
+   * when `isFounderOperatingRoom` is false. The true-arm was unreachable JSX,
+   * and the testid it carried could not appear in any rendered tree.
+   *
+   * A source scan cannot distinguish a live branch from a dead one; it sees
+   * characters. So this gate went on reporting "the tape is suppressed in a
+   * Founder room" on the strength of a branch that had stopped executing at
+   * the cutover. A green light wired to nothing still turns green, and this
+   * one had been green through every run since.
+   *
+   * ── WHAT IT ASSERTS NOW ────────────────────────────────────────────────────
+   *
+   * The claim worth guarding is not "there is a conditional". It is: THE JULY
+   * HEADER IS UNREACHABLE FROM AN OS ROOM. That is a fact about ORDER — the
+   * early return has to come before the tape — and order is something a text
+   * read can actually measure honestly, by index rather than by presence.
+   *
+   * The complementary half, "and the OS masthead has no tape in it", is owned
+   * by MainLayout.residency.sentinel.test.tsx, which retires TickerTape from
+   * the Founder branch by name. It is not restated here. Two gates asserting
+   * one fact is the defect this repo is named after.
+   */
+  it("makes the July tape unreachable from an OS room by structure, not by a flag", () => {
     const layout = source();
-    expect(layout).toContain('const isFounderOperatingRoom = isFounderRoomRoute(pathname);');
-    expect(layout).toContain("{isFounderOperatingRoom ? (");
-    expect(layout).toContain('data-testid="founder-room-header-space"');
-    expect(layout).toContain("<TickerTape />");
-  });
 
-  it("keeps the suppression presentational and does not invent replacement market truth", () => {
-    const layout = source();
-    const start = layout.indexOf("{isFounderOperatingRoom ? (");
-    const end = layout.indexOf(")}", start);
-    const founderBranch = layout.slice(start, end);
-    expect(founderBranch).toContain('aria-hidden="true"');
-    expect(founderBranch).not.toMatch(/LIVE|DELAYED|price|source|provider/i);
+    const cutover = layout.indexOf("if (isFounderOperatingRoom) {");
+    const julyShell = layout.indexOf('className="bg-wm-black wm-universe"');
+    const tape = layout.indexOf("<TickerTape />");
+
+    expect(cutover, "the Ticket T cutover branch is gone").toBeGreaterThan(-1);
+    expect(julyShell, "the July shell markup is gone").toBeGreaterThan(-1);
+    expect(tape, "the July header no longer draws the tape").toBeGreaterThan(-1);
+
+    // ORDER IS THE INVARIANT. If the tape ever moves above the cutover it
+    // starts drawing in OS rooms again, and this goes red on the index.
+    expect(cutover, "the cutover must precede the July shell it replaces")
+      .toBeLessThan(julyShell);
+    expect(julyShell, "the tape must live inside the July shell, after the cutover")
+      .toBeLessThan(tape);
+
+    // And the dead branch must not come back. This is absence-shaped, which is
+    // the weak direction — but here the fact's own existence is the defect, so
+    // absence is the only shape available.
+    expect(layout, "the unreachable founder-room header arm is back")
+      .not.toContain('data-testid="founder-room-header-space"');
+    expect(layout, "a conditional here is dead code: the cutover already returned")
+      .not.toContain("{isFounderOperatingRoom ? (");
   });
 
   /**

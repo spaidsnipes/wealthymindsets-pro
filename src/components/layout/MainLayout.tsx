@@ -294,17 +294,26 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        {/* The Command Deck is the Asset-10 operating room: its hero and
-            MARKET surface already carry the selected instrument's truth.
-            Suppress the legacy multi-symbol tape there so desktop starts with
-            one story and one source hierarchy. */}
-        {isFounderOperatingRoom ? (
-          <div className="flex-1" aria-hidden="true" data-testid="founder-room-header-space" />
-        ) : (
-          <div className="wm-shell-ticker flex-1 overflow-hidden mx-2">
-            <TickerTape />
-          </div>
-        )}
+        {/* THE TAPE IS SUPPRESSED IN AN OS ROOM BY STRUCTURE, NOT BY A FLAG.
+            This was a ternary on `isFounderOperatingRoom`, and it could not
+            run. The cutover above returns WMExperienceShell before this markup
+            is reached, so by the time control arrives here that flag is ALWAYS
+            false — the true-arm was unreachable JSX carrying a `data-testid`
+            that no rendered tree could ever contain.
+
+            It survived because a Sentinel asserted it, by reading this file as
+            text and finding the attribute. A source scan cannot tell a live
+            branch from a dead one; it only sees the characters. So the gate
+            reported "tape suppression works" on the strength of code that had
+            stopped executing, which is worse than no gate — a green light
+            wired to nothing still turns green.
+
+            The suppression is real; it just is not conditional. The July
+            header only ever draws for a July route, and every OS room gets a
+            masthead that has no tape in it at all. See founderRoomShell.test. */}
+        <div className="wm-shell-ticker flex-1 overflow-hidden mx-2">
+          <TickerTape />
+        </div>
 
         {/* Mobile Session Pill — fills the phone header when the ticker
             is hidden, giving phone users a canonical "active symbol +
