@@ -19,8 +19,7 @@ import MobileSessionPill from "@/components/layout/MobileSessionPill";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { useShellModalFocus } from "@/components/layout/useShellModalFocus";
 import { TickerTape } from "@/components/layout/TickerTape";
-import { SpadeBotButton } from "@/components/layout/SpaidBotButton";
-import { MusicPlayer } from "@/components/layout/MusicPlayer";
+import { ShellCompanions } from "@/components/layout/ShellCompanions";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { clsx } from "clsx";
@@ -759,13 +758,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </AnimatePresence>
       )}
 
-      {/* ── Persistent Music Player bar ─────────────────────── */}
-      <MusicPlayer />
-
-      {/* SpaidBot floating button */}
-      <div className={pathname === INSTRUMENT_VIEW_ROUTE ? "wm-spaidbot-chart-context" : undefined}>
-        <SpadeBotButton />
-      </div>
+      {/* The player and the assistant, from the one mount point both shells
+          use. They were declared here and nowhere else, which made them
+          persistent on fourteen routes rather than persistent. */}
+      <ShellCompanions />
 
     </div>
   );

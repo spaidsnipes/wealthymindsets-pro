@@ -96,6 +96,26 @@ describe("MainLayout · Founder-route residency — Ticket T G12 gate", () => {
     expect(founderBranch()).not.toMatch(/\bSpaidBotButton\b|\bSpaidbotButton\b|\bSpaidbot Button\b/);
   });
 
+  it("does not mount them under their new collective name either", () => {
+    /**
+     * THE NAMES ABOVE MOVED, AND THAT ALMOST UNGUARDED THIS FILE.
+     *
+     * MusicPlayer and SpaidBotButton were declared inline at the tail of the
+     * July branch. They are now one component — `ShellCompanions` — because
+     * two copies of "these are always on screen" is two places for that claim
+     * to quietly stop being true.
+     *
+     * But the five assertions above scan for the OLD names. After the
+     * extraction, mounting `<ShellCompanions />` on the Founder branch would
+     * reinstate BOTH retired fixtures and every one of those tests would
+     * still be green, because neither string appears. A Sentinel aimed at a
+     * name that moved does not fail loudly — it passes, guarding nothing.
+     *
+     * So the retirement is restated against the name that owns the fact now.
+     */
+    expect(founderBranch()).not.toMatch(/\bShellCompanions\b/);
+  });
+
   it("does not carry any lucide icon vocabulary on the Founder route", () => {
     // The July nav rail was built from a lucide icon pack (BarChart2,
     // ScanLine, Map, Newspaper, GraduationCap, Users, ShoppingBag, Globe,
