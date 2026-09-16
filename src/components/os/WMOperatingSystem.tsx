@@ -497,7 +497,35 @@ export function WMOperatingSystem({
       {/* ── RAIL · ROOM · CONTEXT ────────────────────────────────────── */}
       <div
         className="wm-os-body"
-        style={{ display: "flex", alignItems: "stretch", gap: 0, flex: "1 1 auto", minWidth: 0 }}
+        style={{
+          display: "flex",
+          alignItems: "stretch",
+          gap: 0,
+          flex: "1 1 auto",
+          minWidth: 0,
+          /* ── THE FLEXBOX TRAP THAT CLIPPED THE DESKTOP FOOTER ────────────
+             `flex: 1 1 auto` says "shrink me". `min-height: auto` — the
+             default for a flex item, and the value this had — says "but
+             never below my content". The second wins, so this region did
+             not shrink: measured at 1280x800 it was 828px tall inside a
+             frame that only had 696px to give it. The provenance footer,
+             next in the column, was pushed to y=901 and the sanctuary's
+             overflow:hidden cut it off. No scrollbar, because the document
+             was not scrollable — the line saying where the numbers came
+             from was simply not on the screen and could not be reached.
+
+             minHeight: 0 releases the shrink. The rail and the room inside
+             already carry overflow-y:auto, so once this region is the right
+             height they scroll within it — which is the OS frame law working
+             as designed rather than being defeated one level up.
+
+             The phone fix (WMExperienceShell, below the rail breakpoint)
+             did NOT cover this. That one lets the DOCUMENT scroll on small
+             screens; this is the desktop frame, where the document must not
+             scroll and the panes must. Two different rooms, two fixes.
+             Found by measuring at 1280x800 — the suite was green for both. */
+          minHeight: 0,
+        }}
       >
         <nav
           className="wm-os-rail"
@@ -516,8 +544,30 @@ export function WMOperatingSystem({
                viewport. It now holds twenty-one plus the standing conditions.
                Without this, a short screen simply CUTS the last rooms off —
                the same "no door" defect that adding them was meant to end,
-               reintroduced as a layout accident. */
-            maxHeight: "100vh",
+               reintroduced as a layout accident.
+
+               ── AND THE CAP WAS THE WRONG UNIT, SO IT DID NOT WORK ─────────
+               This read `100vh`. The rail does not start at the top of the
+               viewport: it starts BELOW the 73px masthead and must end ABOVE
+               the 31px provenance footer. So `100vh` was 104px too generous.
+               Measured at 1280x800: the rail was 828px tall and ran to y=901,
+               a hundred and one pixels past the bottom of a frame that clips.
+               The last rooms were cut off — precisely the defect this cap was
+               written to prevent, by a cap that could never prevent it.
+
+               `100%` is the container, not the screen. The container is the
+               rail-room region, whose height is now correct, so the rail can
+               no longer outgrow the space it actually occupies. The unit is
+               the whole fix; `overflowY: auto` below was always right and was
+               simply never reached, because the cap never bound.
+
+               border-box because `maxHeight` on a content-box element caps the
+               CONTENT and then adds the padding on top. With `padding: 14px 0`
+               that is 28px of overrun — measured, the rail ran 724px inside a
+               696px region and still crossed into the footer. The cap has to
+               mean the whole box or it is 28px of the same bug. */
+            boxSizing: "border-box",
+            maxHeight: "100%",
             overflowY: "auto",
             overscrollBehavior: "contain",
             borderRight: `1px solid ${RULE}`,
