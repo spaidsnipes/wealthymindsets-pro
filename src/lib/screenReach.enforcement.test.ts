@@ -531,9 +531,16 @@ const UNREACHED_COMPONENTS: readonly string[] = FILES.filter(
  * the honest thing that is known today.
  *
  * Where a component HAS been triaged, the finding is annotated inline below.
- * Two are annotated so far, and both turned out to be finished work rather
- * than debt. Both were found the same way, and it is the cheapest check in
- * this file:
+ * SIX of the fourteen are annotated so far, and every single one turned out to
+ * be FINISHED WORK rather than debt — a mount someone deliberately took away,
+ * in each case with a Sentinel shipped in the same commit to hold it away.
+ *
+ * Six for six is the finding. The prior assumption — that an unreferenced
+ * component is an unfinished one — has now been wrong every time it was
+ * actually checked. Treat "no route renders this" as a QUESTION, never as a
+ * diagnosis.
+ *
+ * All six were found the same way, and it is the cheapest check in this file:
  *
  *     RUN `git log` ON THE COMPONENT BEFORE DECIDING IT IS MISSING SOMETHING.
  *
@@ -547,15 +554,32 @@ const UNREACHED_COMPONENTS: readonly string[] = FILES.filter(
 const KNOWN_ORPHAN_COMPONENTS: readonly string[] = [
   "src/components/ErrorBoundary.tsx",
   "src/components/authority/ExecutionReceiptCard.tsx",
+  // RETIRED in 1677698 ("remove decorative decision chrome"). Locked by
+  // src/lib/responsiveShell.test.ts: `expect(deck).not.toContain(...)`.
   "src/components/brand/CinematicAtmosphere.tsx",
+  // RETIRED in aa54175 ("Retire duplicate charts index ticker") — a SECOND
+  // index ticker on a room that already had one. Locked by
+  // src/lib/experience/chartsMarketFirst.test.ts, which flipped from asserting
+  // the mount was PRESENT to asserting it is ABSENT. Re-mounting restores the
+  // duplication. A DEFAULT IS A CLAIM, and so is a second one of anything.
   "src/components/chart/BottomIndexBar.tsx",
   "src/components/chart/ConnectedStoryRibbon.tsx",
+  // RETIRED in 777665d ("Keep order flow behind Smart Money"). Locked by
+  // src/lib/experience/chartsMarketFirst.test.ts and
+  // src/lib/experience/chartsRoomChrome.test.ts, which additionally pin
+  // SmartMoneyPanel to exactly ONE occurrence — so the order-flow story has
+  // one owner on this room and cannot be told twice.
   "src/components/chart/OrderFlowCockpitStrip.tsx",
   "src/components/chart/TimeframeSelector.tsx",
   // RETIRED PER FOUNDER SPEC in 89a350e, not untriaged. Held retired by
   // src/lib/sessionVpRetired.test.ts. Do not "fix" this by mounting it.
   "src/components/chart/WMSessionVP.tsx",
   "src/components/experience/CanvasBadgeMini.tsx",
+  // RETIRED in 6ae33ea ("keep private market plumbing out of navigation") —
+  // a private collection concept had climbed into the GLOBAL header, where it
+  // is shown to people who have no vault. Locked by
+  // src/lib/shellPublicVocabulary.test.ts. Re-mounting it in MainLayout puts
+  // private vocabulary back in front of the public.
   "src/components/layout/HeaderVaultPill.tsx",
   // SUPERSEDED, not untriaged. Mounted in 74ad348, then torn out of BOTH rooms
   // by ce90890 and b326282 because it rendered a verdict about the trader's
@@ -608,6 +632,44 @@ describe("screen reach — IMPLEMENTED is not REACHABLE", () => {
     expect(deadConsumerModules.length).toBeGreaterThan(0);
     for (const p of deadConsumerModules) {
       expect(UNREACHED_LIB, `${p} is ledgered DEAD_CONSUMER but IS reached`).toContain(p);
+    }
+  });
+
+  /**
+   * × THE ROTTED ANNOTATION
+   *
+   * The triage findings above live in COMMENTS, and a comment is checked by
+   * nobody. Each one tells the next engineer "this is held retired by
+   * <file>.test.ts" — which is the single most load-bearing sentence in the
+   * list, because it is the reason they will stop reading and walk away.
+   *
+   * If that file is renamed or deleted, the annotation keeps saying it. The
+   * retirement would then be held by a comment citing a lock that no longer
+   * exists, which is strictly worse than no annotation at all: it answers the
+   * question falsely instead of leaving it open.
+   *
+   * × THE REVIVED RETIREMENT already does this for the LEDGER. This is the
+   * same guarantee for the component list, because the same claim is being
+   * made in both places and only one of them was checkable.
+   */
+  it("× THE ROTTED ANNOTATION: an orphan annotation cannot cite a lock that is gone", () => {
+    const self = fs.readFileSync(__filename, "utf8");
+    const block = self.slice(
+      self.indexOf("const KNOWN_ORPHAN_COMPONENTS"),
+      self.indexOf("// ── The locks"),
+    );
+    expect(block.length, "could not locate the orphan list in this file").toBeGreaterThan(200);
+
+    const cited = [...block.matchAll(/[\w/.]+\.test\.ts/g)].map((m) => m[0]);
+    // NON-VACUITY: the annotations must actually cite locks. If a future edit
+    // strips every citation, this lock must not go quietly green.
+    expect(cited.length, "no orphan annotation cites a lock file").toBeGreaterThan(3);
+
+    for (const rel of cited) {
+      expect(
+        fs.existsSync(path.join(REPO_ROOT, rel)),
+        `an orphan annotation cites ${rel}, which does not exist`,
+      ).toBe(true);
     }
   });
 
