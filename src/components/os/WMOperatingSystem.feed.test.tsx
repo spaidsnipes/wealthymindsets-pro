@@ -117,39 +117,68 @@ describe("the provenance line inherits the same silence", () => {
 });
 
 /**
- * The Vault is the room this atom was opened for. If it stops declaring, the
- * tests above keep passing while the defect returns to the screen — so the
- * declaration itself is asserted, at its one call site.
+ * THE MEMORY ROOMS, AND WHY THIS IS A TABLE RATHER THAN ONE CASE.
+ *
+ * The render tests above prove the frame HONOURS a declaration. They say
+ * nothing about whether any room makes one — and a room that publishes nothing
+ * does not get silence, it gets UNPUBLISHED_STANDING, which is FEED UNKNOWN.
+ * That is correct as a default and wrong as a permanent state.
+ *
+ * Measured by reading the three page files: each of these rooms reads only
+ * browser-local storage. None opens a socket, none calls a quote API. Two of
+ * them hold `lastTradeAtMs` values, which is precisely the trap — those are
+ * market times RECORDED WHEN A MEMORY WAS WRITTEN, not evidence of a live
+ * pipeline, and feeding them to the grader yields STALE PIPELINE: an alarm
+ * about a feed that is not stalled because it never existed in that room.
+ *
+ * Only these three are listed. /heatmaps, /paper and /morning-prep also
+ * publish nothing, but they compose components that were not measured, so
+ * declaring them feedless would be a guess wearing a test's authority. They
+ * are left wearing the honest default until someone looks.
  */
-describe("the Vault declares its feedlessness rather than leaving it open", () => {
-  const VAULT = readFileSync(
-    new URL("../../app/nectar/[symbol]/page.tsx", import.meta.url),
-    "utf8",
-  );
+describe("the memory rooms declare their feedlessness rather than leaving it open", () => {
+  const MEMORY_ROOMS = [
+    { room: "/nectar/[symbol]", file: "../../app/nectar/[symbol]/page.tsx" },
+    { room: "/nectar", file: "../../app/nectar/page.tsx" },
+    { room: "/journal", file: "../../app/journal/page.tsx" },
+  ] as const;
 
   /** The publish call, isolated so other code cannot satisfy the scan. */
-  const publishCall = (() => {
-    const start = VAULT.indexOf("usePublishOsStanding({");
-    expect(start, "the Vault must publish an OS standing at all").toBeGreaterThan(-1);
-    const end = VAULT.indexOf("});", start);
+  function publishCallOf(file: string): string {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    const start = source.indexOf("usePublishOsStanding({");
+    expect(start, `${file} must publish an OS standing at all`).toBeGreaterThan(-1);
+    const end = source.indexOf("});", start);
     expect(end).toBeGreaterThan(start);
-    return VAULT.slice(start, end);
-  })();
+    return source.slice(start, end);
+  }
 
-  it("publishes FEEDLESS_SURFACE", () => {
-    expect(publishCall).toMatch(/feed:\s*FEEDLESS_SURFACE/);
+  it.each(MEMORY_ROOMS)("$room publishes FEEDLESS_SURFACE", ({ file }) => {
+    expect(publishCallOf(file)).toMatch(/feed:\s*FEEDLESS_SURFACE/);
   });
 
-  it("POSITIVE CONTROL — the scan can tell a Vault that went back to silence-by-omission", () => {
-    const withoutDeclaration = publishCall.replace(/feed:\s*FEEDLESS_SURFACE,?/, "");
-    expect(withoutDeclaration, "the replace must have removed something").not.toBe(publishCall);
-    expect(withoutDeclaration).not.toMatch(/feed:\s*FEEDLESS_SURFACE/);
+  it.each(MEMORY_ROOMS)("$room also names itself in the masthead", ({ file }) => {
+    // A room that declares no feed but no surface either leaves the masthead
+    // with nothing at all in it, which reads as a broken frame rather than a
+    // quiet one. Silence about the FEED is the fix; silence about everything
+    // is the original defect in a smaller font.
+    expect(publishCallOf(file)).toMatch(/surface:/);
   });
 
-  it("does NOT hand the grader a tape timestamp it has no tape for", () => {
-    // The tempting alternative was to pass the Vault's stored lastTradeAtMs.
-    // That compiles to STALE PIPELINE — a confident claim that a feed exists
-    // and has gone quiet. A lie in the opposite direction is not a fix.
-    expect(publishCall).not.toMatch(/lastObservedAtMs/);
-  });
+  it.each(MEMORY_ROOMS)(
+    "POSITIVE CONTROL — the scan can tell $room going back to silence-by-omission",
+    ({ file }) => {
+      const publishCall = publishCallOf(file);
+      const without = publishCall.replace(/feed:\s*FEEDLESS_SURFACE,?/, "");
+      expect(without, "the replace must have removed something").not.toBe(publishCall);
+      expect(without).not.toMatch(/feed:\s*FEEDLESS_SURFACE/);
+    },
+  );
+
+  it.each(MEMORY_ROOMS)(
+    "$room does NOT hand the grader a tape timestamp it has no tape for",
+    ({ file }) => {
+      expect(publishCallOf(file)).not.toMatch(/lastObservedAtMs/);
+    },
+  );
 });

@@ -108,6 +108,8 @@ import {
   type TradeResult,
 } from "@/lib/journal/hydrateJournalEntries";
 import type { JournalRecordCoverage } from "@/lib/journal/journalRecordShape";
+import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
 
 /* ── Emoji palette ───────────────────────────────────────── */
 const EMOJIS = [
@@ -807,6 +809,25 @@ export default function JournalPage() {
 
 function JournalPageInner() {
   const router = useRouter();
+
+  /*
+    THE JOURNAL IS A MEMORY ROOM AND DECLARES IT.
+
+    This room published nothing, so the frame sat on UNPUBLISHED_STANDING: no
+    room name in the masthead, and FEED UNKNOWN — an open question about a
+    pipeline the Journal does not have.
+
+    It is the most tempting room to get wrong, because it DOES hold timestamps
+    that look like a feed. Every `lastTradeAtMs` in this file is read off a
+    stored `nectarSnapshot` or a saved slot — the market time RECORDED WHEN THE
+    ENTRY WAS WRITTEN, possibly weeks ago. Handing that to the feed compiler
+    would grade it as a pipeline that has gone quiet and raise STALE PIPELINE:
+    an alarm about a feed that is not stalled because it never existed here.
+
+    Recorded market time is not a feed. So the Journal declares it has none.
+  */
+  usePublishOsStanding({ surface: "Journal", feed: FEEDLESS_SURFACE });
+
   const searchParams = useSearchParams();
   const linkedFilterActive = searchParams.has("decisions");
   const linkedDecisionIds = useMemo(

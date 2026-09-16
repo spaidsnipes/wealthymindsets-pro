@@ -22,6 +22,8 @@ import { fmtNum, formatMemoryAge, selectChannelLiveness } from "@/lib/nectarForm
 import { ContextRibbonContainer, ContextRibbonTile } from "@/components/command/CommandContextRibbon";
 import { selectChannelCoverageHealth } from "@/lib/marketData/selectChannelCoverageHealth";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
+import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
+import { usePublishOsStanding } from "@/components/os/osStandingContext";
 
 const subscribeHydration = () => () => {};
 const getHydratedClientSnapshot = () => true;
@@ -48,6 +50,22 @@ const getHydratedServerSnapshot = () => false;
  */
 export default function NectarVaultPage() {
   const router = useRouter();
+
+  /*
+    THE VAULT INDEX IS A MEMORY ROOM AND DECLARES IT, LIKE /nectar/[symbol].
+
+    This room published NOTHING, which left the frame on UNPUBLISHED_STANDING:
+    no surface name in the masthead, and FEED UNKNOWN — an open question about
+    a pipeline this room does not have. Everything it renders is read from
+    sessionSymbolStore and sessionNectar, both browser-local; the only
+    "liveness" here is selectChannelLiveness, which grades how recently MEMORY
+    was written, not whether a socket is up.
+
+    Silence about the feed is the canon's answer (§silence-is-a-feature), but
+    only a positive declaration earns it — see FeedDeclaration. So: name the
+    room, and say there is nothing here to grade.
+  */
+  usePublishOsStanding({ surface: "Passport", feed: FEEDLESS_SURFACE });
   // SSR-safe mount gate — sessionSymbolStore + sessionNectar both
   // hydrate from localStorage on the client. Reading them during
   // SSR (or the first client render pre-hydration) returns empty,
