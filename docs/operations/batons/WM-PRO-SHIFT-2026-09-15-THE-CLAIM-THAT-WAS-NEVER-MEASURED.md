@@ -172,15 +172,60 @@ real add-member surface is ever built.
 - `executionConnectivity` — orphaned, not a live defect; `/readiness` discloses
   it honestly.
 
-## 9. Next
+## 9. Next — AND THE CORRECTION OF THIS SECTION, SAME DAY
 
-`src/lib/sessionVP.ts` is now the highest-value named target on the board. The
-Live VP gate was never really "awaiting a raster proof" — the math has a panel
-(`WMSessionVP.tsx`) that **no route mounts**. That is a mount, not a rewrite, and
-it is now written down where it cannot be lost.
+This section originally read:
 
-The other 13 orphan components are frozen and enumerated in
-`KNOWN_ORPHAN_COMPONENTS`. Each is either a mount or a delete.
+> `src/lib/sessionVP.ts` is now the highest-value named target on the board. The
+> Live VP gate was never really "awaiting a raster proof" — the math has a panel
+> (`WMSessionVP.tsx`) that no route mounts. **That is a mount, not a rewrite.**
+
+**That was wrong, and it was wrong the same way `dcdb403` was wrong** — a
+confident conclusion drawn from the import graph, published without checking the
+one source that would have contradicted it. The graph was right. The inference
+was not.
+
+`git log` on the component answers it in one line:
+
+    89a350e  chore(charts): remove unreachable Session VP panel mount
+
+The panel was mounted, and then **deliberately unmounted per Founder spec**,
+freeing ~340px so Smart Money and the DOM ladder fit without cutoffs. It is held
+retired by `src/lib/sessionVpRetired.test.ts`. That commit's author wrote that
+they were "one step from" wiring a button to it and thereby "silently reversing a
+Founder spec decision while believing I was closing a canon gate."
+
+**The §13 Live VP gate is a trap of exactly that shape, and it has now nearly
+caught two engineers in a row.** The second was this baton.
+
+Consequences, shipped:
+
+- `src/lib/sessionVP.ts` is re-filed from `DEAD_CONSUMER` to a new
+  **`RETIRED_BY_SPEC`** reason. DEAD_CONSUMER means "built, never mounted" —
+  debt. RETIRED_BY_SPEC means "built, mounted, deliberately unmounted" — a
+  DECISION. Collapsing them is what nominates retirements for revival.
+- `× THE REVIVED RETIREMENT` requires every RETIRED_BY_SPEC entry to name a real,
+  existing lock file. The strongest claim in the ledger — "leave this alone" —
+  must be checkable, or it is just a word that stops questions.
+- `WMSessionVP.tsx` is annotated in `KNOWN_ORPHAN_COMPONENTS` as retired by spec,
+  not untriaged. **Do not "fix" it by mounting it.**
+
+**The live VP surfaces are the ON-CHART ones** — `sessionVPChart`, "WM Session
+VP", "WM Fixed VP". They do not import `src/lib/sessionVP.ts`. Any future Live VP
+render proof must target those, not the retired panel.
+
+Geometry, already verified in 89a350e and recorded so it is not re-litigated:
+`buildSessionLevels` and `buildTapeLevels` both return high→low, `foldTape`
+preserves order, so `levels[lo]`=VAH and `levels[hi]`=VAL are the right way round
+in both layers; half-open binning is correct; VA expansion cannot terminate on an
+untraded bin except when the value area spans the whole profile.
+
+### The remaining orphans
+
+The other 13 are frozen in `KNOWN_ORPHAN_COMPONENTS`. Each is a mount, a delete,
+**or a retirement** — and this section is the standing evidence that you cannot
+tell which from the import graph alone. **Run `git log` on the component before
+deciding it is missing something.**
 
 ---
 

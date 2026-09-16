@@ -128,12 +128,27 @@ const REPO_ROOT = path.dirname(SRC_DIR);
  * than a re-derivation. When the component is finally mounted by a route, both
  * the component and its module leave this file in the same commit.
  */
+/*
+ * RETIRED_BY_SPEC added 2026-09-15, hours after DEAD_CONSUMER, because
+ * DEAD_CONSUMER was too coarse and the coarseness was itself dangerous.
+ *
+ * DEAD_CONSUMER means: a surface was built and never mounted. That is debt.
+ * RETIRED_BY_SPEC means: a surface was built, mounted, and then deliberately
+ * unmounted. That is a DECISION, and re-mounting it reverses the decision.
+ *
+ * Collapsing the two invites exactly one mistake: an engineer reads "no screen
+ * reaches this", concludes a mount is missing, and restores something a
+ * Founder removed on purpose. The ledger must be able to say "this is finished
+ * and intentionally invisible", or it will keep nominating retirements for
+ * revival.
+ */
 type ReachReason =
   | "AWAITING_SURFACE"
   | "TEST_FIXTURE"
   | "OPS_TOOLING"
   | "EDGE_RUNTIME"
-  | "DEAD_CONSUMER";
+  | "DEAD_CONSUMER"
+  | "RETIRED_BY_SPEC";
 
 interface LedgerEntry {
   readonly reason: ReachReason;
@@ -179,9 +194,24 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "DEAD_CONSUMER",
     note: "Reached only by components/chart/BottomIndexBar.tsx, which no route renders.",
   },
+  // NOT DEAD_CONSUMER. Corrected 2026-09-15, hours after being filed as one.
+  //
+  // Filing it as DEAD_CONSUMER was accurate about the graph and wrong about the
+  // intent: it read as debt awaiting a mount. It is not. The panel was mounted,
+  // and then deliberately unmounted per Founder spec in 89a350e, which freed
+  // ~340px so Smart Money and the DOM ladder fit without cutoffs.
+  //
+  // This distinction has already nearly caused the same mistake twice. The
+  // §13 gate "Live VP render geometry proof" makes this module look like the
+  // thing to wire up, and wiring it up would silently reverse a spec decision
+  // while believing a canon gate was being closed. 89a350e says its author was
+  // "one step from" doing exactly that; so was this ledger entry.
+  //
+  // The live VP surfaces are the ON-CHART ones — `sessionVPChart`, "WM Session
+  // VP", "WM Fixed VP" — and they do not import this module.
   "src/lib/sessionVP.ts": {
-    reason: "DEAD_CONSUMER",
-    note: "Reached only by components/chart/WMSessionVP.tsx, which no route renders. This is the Live VP volume-profile math named in the open gates: it is implemented, and no human can currently see its output.",
+    reason: "RETIRED_BY_SPEC",
+    note: "Session VP side-panel math. The panel was retired per Founder spec in 89a350e and is held retired by src/lib/sessionVpRetired.test.ts. Reached only by the retained-for-history WMSessionVP.tsx. Restoring it must be a deliberate spec change, never a side effect of gate-chasing.",
   },
   "src/lib/traderMemory/viewModels/selectOpeningBell.ts": {
     reason: "DEAD_CONSUMER",
@@ -469,6 +499,8 @@ const KNOWN_ORPHAN_COMPONENTS: readonly string[] = [
   "src/components/chart/ConnectedStoryRibbon.tsx",
   "src/components/chart/OrderFlowCockpitStrip.tsx",
   "src/components/chart/TimeframeSelector.tsx",
+  // RETIRED PER FOUNDER SPEC in 89a350e, not untriaged. Held retired by
+  // src/lib/sessionVpRetired.test.ts. Do not "fix" this by mounting it.
   "src/components/chart/WMSessionVP.tsx",
   "src/components/experience/CanvasBadgeMini.tsx",
   "src/components/layout/HeaderVaultPill.tsx",
@@ -520,6 +552,24 @@ describe("screen reach — IMPLEMENTED is not REACHABLE", () => {
     }
   });
 
+  it("× THE REVIVED RETIREMENT: a spec retirement names the lock that holds it", () => {
+    // RETIRED_BY_SPEC is the strongest claim in this file: it says "leave this
+    // alone." A claim that strong must be checkable, or it is just a word that
+    // stops questions. Each entry must name a real test file, and that file
+    // must really exist — otherwise the reason becomes a way to retire things
+    // by assertion.
+    const retired = Object.entries(LEDGER).filter(([, e]) => e.reason === "RETIRED_BY_SPEC");
+    expect(retired.length).toBeGreaterThan(0);
+    for (const [file, entry] of retired) {
+      const named = entry.note.match(/[\w/.]+\.test\.ts/)?.[0];
+      expect(named, `${file} is RETIRED_BY_SPEC but names no lock`).toBeTruthy();
+      expect(
+        fs.existsSync(path.join(REPO_ROOT, named as string)),
+        `${file} names ${named}, which does not exist`,
+      ).toBe(true);
+    }
+  });
+
   it("× THE GROWING ORPHANAGE: no NEW component ships without a route", () => {
     const novel = UNREACHED_COMPONENTS.filter((p) => !KNOWN_ORPHAN_COMPONENTS.includes(p));
     expect(
@@ -566,7 +616,14 @@ describe("screen reach — IMPLEMENTED is not REACHABLE", () => {
   it("every ledger entry states a reason and what is lost", () => {
     for (const [file, entry] of Object.entries(LEDGER)) {
       expect(
-        ["AWAITING_SURFACE", "TEST_FIXTURE", "OPS_TOOLING", "EDGE_RUNTIME", "DEAD_CONSUMER"],
+        [
+          "AWAITING_SURFACE",
+          "TEST_FIXTURE",
+          "OPS_TOOLING",
+          "EDGE_RUNTIME",
+          "DEAD_CONSUMER",
+          "RETIRED_BY_SPEC",
+        ],
         file,
       ).toContain(entry.reason);
       // §H19: a label with no sentence behind it is dead vocabulary.
