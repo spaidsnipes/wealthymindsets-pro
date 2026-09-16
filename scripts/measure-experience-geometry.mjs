@@ -589,7 +589,33 @@ const browser = await chromium.launch({ channel: "chrome" }).catch(async (error)
 });
 const offences = [];
 
+/*
+ * REVIVE MODES — the census is itself a claim, and an unprobed claim is a
+ * comment. Each mode reinstates the exact silence the census exists to break,
+ * so a census that has quietly stopped measuring can be caught:
+ *
+ *   WM_GEOM_REVIVE=EMPTY_SURFACE   every fixture renders its host and nothing
+ *                                  inside it — the state that used to print
+ *                                  "· clear" and exit 0.
+ *   WM_GEOM_REVIVE=MISSING_HOST    the host selector never appears.
+ *
+ * Both must go RED. Neither is reachable without the environment variable, so
+ * this costs the real run nothing.
+ */
+const REVIVE = process.env.WM_GEOM_REVIVE ?? "";
+if (REVIVE) {
+  console.log(`REVIVE ${REVIVE} — the census must catch this. A clean run here is an instrument gap.`);
+}
+
 for (const surface of surfaces) {
+  if (REVIVE === "EMPTY_SURFACE") {
+    // Keep every element and attribute — so the host still matches its
+    // selector — and remove only the words. This is precisely the state the
+    // three laws cannot distinguish from a correct surface.
+    surface.html = surface.html.replace(/>[^<>]+</g, "><");
+  } else if (REVIVE === "MISSING_HOST") {
+    surface.html = "<div>nothing to see</div>";
+  }
   // A fixture that threw has no markup, so there is nothing to measure and
   // every law below would report a clean surface. Name it once — not once per
   // width, which would triple one fact — and move to the next specimen.
@@ -641,10 +667,10 @@ for (const surface of surfaces) {
         `<div data-wm-measure-root>${surface.html}</div></body></html>`,
     );
 
-    const found = await page.evaluate(
+    const { results: found, census } = await page.evaluate(
       ({ root, cellSelector, NOODLE_MIN, PHRASE_CHARS, CLIP_SLACK, PHRASE_MIN_PX }) => {
         const host = document.querySelector(root);
-        if (!host) throw new Error(`no ${root} in the rendered markup`);
+        if (!host) return { results: [], census: { examined: 0, textLeaves: 0, missingHost: true } };
         const results = [];
 
         /**
@@ -719,12 +745,67 @@ for (const surface of surfaces) {
             }
           }
         }
-        return results;
+        /*
+         * VACUITY CENSUS — how much was actually LOOKED AT.
+         *
+         * Every number the three laws produce is a count of PROBLEMS, and all
+         * three skip any element carrying no visible text. So a surface that
+         * renders its host and nothing inside it walks the same loops, finds
+         * nothing, and prints "· clear" — a report indistinguishable from a
+         * surface measured in full and found correct. That is the same
+         * accidentally-correct silence this repo keeps finding, sitting inside
+         * the instrument written to catch it.
+         *
+         * The census is therefore returned alongside the offences, and the
+         * caller refuses to read "no offences" as "clean" unless the walk
+         * actually saw something.
+         */
+        const elements = [...host.querySelectorAll("*")];
+        const textLeaves = elements.filter(
+          (el) =>
+            (el.textContent ?? "").trim() !== "" &&
+            showsTextToAHuman(el) &&
+            ![...el.children].some((c) => (c.textContent ?? "").trim()),
+        );
+        return {
+          results,
+          census: { examined: elements.length, textLeaves: textLeaves.length, missingHost: false },
+        };
       },
       { root: surface.root, cellSelector: surface.cellSelector, NOODLE_MIN, PHRASE_CHARS, CLIP_SLACK, PHRASE_MIN_PX },
     );
 
-    console.log(`\n=== ${surface.name} @ ${width}px ===`);
+    console.log(
+      `\n=== ${surface.name} @ ${width}px ===  ` +
+        `[saw ${census.examined} els / ${census.textLeaves} text leaves]`,
+    );
+
+    /*
+     * The floor is deliberately the lowest number that is still a MEASUREMENT.
+     * The smallest surface measured here (experience-mode-bar) renders far more
+     * than this, so the floor is not a threshold anyone tunes against — it is
+     * the boundary between "we looked" and "there was nothing to look at".
+     * A surface whose fixture silently stops producing content crosses it, and
+     * the run goes red naming the surface rather than printing "· clear".
+     */
+    if (census.missingHost || census.examined < 3 || census.textLeaves < 2) {
+      const detail = census.missingHost
+        ? `no ${surface.root} in the rendered markup`
+        : `walked ${census.examined} elements and found ${census.textLeaves} visible text leaves, ` +
+          "below the 3/2 floor — every law below skips elements without text, so this " +
+          "surface would have reported clean without being measured at all";
+      offences.push({
+        surface: surface.name,
+        width,
+        law: "MEASURED_NOTHING",
+        text: detail,
+        content: 0,
+      });
+      console.log(`  ✗ MEASURED_NOTHING — ${detail}`);
+      await page.close();
+      continue;
+    }
+
     if (found.length === 0) {
       console.log("  · clear");
     }
@@ -752,7 +833,20 @@ if (offences.length > 0) {
         `${unrenderable.map((o) => o.surface).join(", ")}. Their geometry is UNKNOWN.`,
     );
   }
-  const measured = offences.length - unrenderable.length;
+  // MEASURED_NOTHING belongs with UNRENDERABLE, not with the geometry laws:
+  // both are "we did not look", and only the laws below are "we looked and it
+  // was wrong". Printing them together would let an unmeasured surface be read
+  // as a crushed one, which is a different bug with a different fix.
+  const vacuous = offences.filter((o) => o.law === "MEASURED_NOTHING");
+  if (vacuous.length > 0) {
+    console.error(
+      `\nNOT MEASURED — ${vacuous.length} surface/width pair(s) rendered a host with nothing ` +
+        `measurable inside it: ${[...new Set(vacuous.map((o) => o.surface))].join(", ")}. ` +
+        "Every law here skips elements without text, so these would have reported clean. " +
+        "Their geometry is UNKNOWN, not clean.",
+    );
+  }
+  const measured = offences.length - unrenderable.length - vacuous.length;
   if (measured > 0) {
     console.error(
       `\nFAIL — ${measured} geometry offence(s), measured with ${engine}. Text crushed or truncated inside the viewport is still unreadable text.`,
