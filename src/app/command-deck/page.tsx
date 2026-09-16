@@ -101,6 +101,7 @@ import { shellEmphasis } from "@/lib/experience/shellLayout";
 import { routeQuestion } from "@/lib/experience/questionRouter";
 import { selectQuestionFocus } from "@/lib/experience/selectQuestionFocus";
 import ActiveQuestionBar from "@/components/command/ActiveQuestionBar";
+import QuestionDrivenShell from "@/components/command/QuestionDrivenShell";
 import { selectDeckEmphasis, surfaceOrder } from "@/lib/experience/selectDeckEmphasis";
 import { inferJobMode } from "@/lib/experience/inferJobMode";
 import { selectJobSuggestion } from "@/lib/experience/selectJobSuggestion";
@@ -855,7 +856,12 @@ function CommandDeckInner() {
               on the sanctuary field; a 12px gap keeps enough negative
               space for the eye to distinguish aspects while dissolving
               the "each section is its own container" mental model. */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+          <QuestionDrivenShell
+            activeHref="/command-deck"
+            openEvidenceItems={oneStory?.debt && oneStory.debt.total > 0 ? oneStory.debt.missing : null}
+            rightOfWay={oneStory?.decision.value ?? "UNKNOWN"}
+            rightOfWayResolved={Boolean(oneStory) && oneStory.decision.value !== "UNKNOWN"}
+          >
             {/* Ticket T "WHY with Spaidbot on the same object" — the deck used
                 to omit the #wm-chart-context span. Only /charts published it,
                 so on /command-deck the global SpaidBotButton read {} and the
@@ -2070,7 +2076,7 @@ function CommandDeckInner() {
             <RealmGateway currentKey="wm-pro" />
               </div>
             </details>
-          </div>
+          </QuestionDrivenShell>
 
         </div>
         </div>{/* end z-index wrapper */}
