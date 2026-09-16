@@ -51,12 +51,68 @@
  * is genuinely flat, because the current ticker shape cannot tell the two
  * apart. Omitting a regime until price moves is honest. Naming a market state
  * on unknown data is not.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THIRD OBSERVATION, 2026-09-15, photographed on the Founder's /charts screen.
+ * Both earlier defects stayed fixed. A third one was sitting above them, and it
+ * is not about the number at all — it is about the WORD.
+ *
+ *   REGIME  BEAR  -2.62% today          ← this owner, top-centre of the chart
+ *   ...
+ *   NOW · No chapter resolved. Unresolved: direction, location, aggression,
+ *         REGIME, structure, volatility, profile, orderFlow
+ *         (0/8 dimensions resolved).   ← the evidence rail, same screen
+ *   NEXT · Resolve regime — regime is the first of 9 unpaid evidence nodes.
+ *
+ * One screen. One instant. One symbol. The chip NAMES the regime while the rail
+ * says regime is unresolved AND withholds right-of-way because of it. The
+ * trader is told to go resolve a thing the same screen has already answered.
+ *
+ * THESE ARE NOT THE SAME QUESTION, AND THAT IS THE WHOLE BUG.
+ *
+ *   this chip        BULL / BEAR / SIDE    from the DAY CHANGE PERCENT
+ *   canon dimension  TREND / BALANCE       from CLASSIFIED PER-TRADE TAPE
+ *                                          (see deriveRegimeDimension.ts)
+ *
+ * Different inputs, different vocabularies, different evidence standards — and
+ * one reserved word stretched across both. This is the ErrorBoundary law again:
+ *
+ *     TWO OWNERS UNDER ONE NAME IS A COIN FLIP, NOT A DUPLICATE.
+ *
+ * And its consequence here:
+ *
+ *     A DAY-CHANGE PERCENT IS NOT A MARKET REGIME. LABEL WHAT YOU MEASURED.
+ *
+ * So this owner stops impersonating the canonical dimension. Its own verdict is
+ * published as DAY BIAS — which is exactly and only what a day-change band is —
+ * and the canonical regime dimension is carried THROUGH this selector so the
+ * one chip states both, consistently, or states that canon has not resolved.
+ *
+ * `canonRegime` is REQUIRED, for the same reason `change` is: a caller that can
+ * omit it is a caller that can silently reopen the contradiction. The chip may
+ * not render at all without being handed the dimension it must not contradict.
  */
 
 import { provenSessionClosure } from "./canonicalIdentity";
 import { selectTickerChangeDisplay } from "./selectTickerChangeDisplay";
+import type { MarketStateDimension } from "./canonicalMarketState";
 
 export type RegimeClass = "BULL" | "BEAR" | "SIDE";
+
+/**
+ * The word this chip is allowed to put on its own verdict. It is a constant and
+ * it is exported so the Sentinel can assert the rendered label comes from here
+ * rather than from a string literal typed back into the component.
+ *
+ * It is NOT "REGIME". That word belongs to the canonical dimension, which is
+ * derived from classified per-trade tape and speaks TREND / BALANCE.
+ */
+export const DAY_BIAS_LABEL = "DAY BIAS";
+
+/** What the canonical regime dimension says, carried through unchanged. */
+export type CanonRegimeView =
+  | { readonly resolved: true; readonly value: string }
+  | { readonly resolved: false };
 
 /**
  * `null` means "no period word". Used before mount, when the clock has not
@@ -73,6 +129,14 @@ export type RegimeBadgeView =
       readonly regime: RegimeClass;
       readonly changePct: number;
       readonly periodLabel: RegimePeriodLabel;
+      /**
+       * The label the chip must print over `regime`. Always DAY_BIAS_LABEL —
+       * a field rather than a component-side literal so the Sentinel can pin
+       * the rendered word to this owner.
+       */
+      readonly verdictLabel: typeof DAY_BIAS_LABEL;
+      /** The canonical regime dimension, so one chip cannot contradict it. */
+      readonly canon: CanonRegimeView;
     };
 
 export interface RegimeBadgeInput {
@@ -88,6 +152,13 @@ export interface RegimeBadgeInput {
   readonly symbol: string;
   /** `null` before mount / on the server. Never read the clock during render. */
   readonly at: Date | null;
+  /**
+   * The canonical regime dimension for this instrument, or `null` when no
+   * canonical state exists yet. REQUIRED — see this file's third-observation
+   * note. The chip must be handed the authority it is forbidden to contradict;
+   * a caller free to omit it is a caller free to reopen the contradiction.
+   */
+  readonly canonRegime: MarketStateDimension | null;
 }
 
 /** Same +/-1.5% thresholds as the Markov state model this chip mirrors. */
@@ -114,7 +185,24 @@ export function selectRegimeBadge(input: RegimeBadgeInput): RegimeBadgeView {
     regime,
     changePct: pct,
     periodLabel: selectRegimePeriodLabel(input.symbol, input.at),
+    verdictLabel: DAY_BIAS_LABEL,
+    canon: selectCanonRegimeView(input.canonRegime),
   };
+}
+
+/**
+ * Canon is quoted, never paraphrased and never softened. A dimension counts as
+ * resolved ONLY when it says RESOLVED *and* carries a value — canonicalMarketState
+ * already treats a valueless RESOLVED as an invalid state, and this chip is not
+ * the place to start tolerating one. PARTIAL is not resolved: the rail renders
+ * PARTIAL as an open evidence node, so treating it as an answer here would
+ * recreate the exact contradiction this field exists to prevent.
+ */
+export function selectCanonRegimeView(dimension: MarketStateDimension | null): CanonRegimeView {
+  if (!dimension || dimension.resolution !== "RESOLVED") return { resolved: false };
+  const value = dimension.value?.trim();
+  if (!value) return { resolved: false };
+  return { resolved: true, value };
 }
 
 /**

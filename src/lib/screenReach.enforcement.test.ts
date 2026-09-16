@@ -628,7 +628,23 @@ const KNOWN_ORPHAN_COMPONENTS: readonly string[] = [
   // mounted nowhere. A SINGLE-WRITER LOCK OVER AN UNMOUNTED WRITER GUARANTEES
   // THE LABELS ARE SHOWN BY NOBODY. Do not read those locks as evidence these
   // chips are live. Real debt: mount them, or retire the pair with their locks.
-  "src/components/systemHealth/FailureStateChip.tsx",
+  //
+  // AND THE PAIR HAS NOW SPLIT, which is the point of naming the debt rather
+  // than the count. FailureStateChip LEFT THIS LIST BY BEING MOUNTED —
+  // PerCapabilityFidelityGrid (rendered on /command-deck) was already calling
+  // fidelityLabelToFailureReport for every evaluated row and then discarding
+  // the answer to draw a hand-rolled dot: green for NORMAL, orange for all five
+  // other canon states, with the state name reachable only through a `title`
+  // tooltip that a touch device never shows. BLOCKED and RECOVERING imply
+  // OPPOSITE trader actions. It now renders the chip that owns that vocabulary.
+  // The ceiling is bidirectional, so the name had to leave — and this Sentinel
+  // is what noticed, on the same run that mounted it.
+  //
+  // TruthStatusChip STAYS, and for a reason that must not be mistaken for
+  // laziness: NOTHING IN THIS REPO COMPUTES A TruthStatusKey. Mounting it would
+  // require inventing the status it displays, which is fabrication. It is not
+  // mountable until a real producer exists. Retiring it with its lock is the
+  // other legitimate option. Wiring it to a literal is not.
   "src/components/truthStatus/TruthStatusChip.tsx",
   // BORN ORPHAN — 7ad6b2a built it as a UI primitive; ca91422 only touched a
   // reference while retiring broken test scaffolds. No route has rendered it.

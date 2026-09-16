@@ -4,7 +4,13 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { selectRegimeBadge, selectRegimePeriodLabel } from "./selectRegimeBadge";
+import {
+  selectRegimeBadge,
+  selectRegimePeriodLabel,
+  selectCanonRegimeView,
+  DAY_BIAS_LABEL,
+} from "./selectRegimeBadge";
+import type { MarketStateDimension } from "./canonicalMarketState";
 
 const SAT = new Date("2026-09-05T19:59:00Z"); // Saturday — session proven closed
 const TUE = new Date("2026-09-08T18:00:00Z"); // Tuesday — closure NOT established
@@ -17,7 +23,7 @@ describe("missing data yields no regime", () => {
     // THE DEFECT: `Number.isFinite(x) ? x : 0` turned "no quote" into 0, which
     // fell into the SIDE band. A fabricated market state out of pure silence.
     for (const absent of [undefined, null, NaN, Infinity, -Infinity, "0", "-0.34"]) {
-      const view = selectRegimeBadge({ change: -3.4, changePct: absent, symbol: "GC1!", at: SAT });
+      const view = selectRegimeBadge({ canonRegime: null, change: -3.4, changePct: absent, symbol: "GC1!", at: SAT });
       expect(view.displayable, `changePct=${String(absent)}`).toBe(false);
     }
   });
@@ -25,13 +31,13 @@ describe("missing data yields no regime", () => {
   it("does not classify when the absolute change is absent", () => {
     // Symmetric to the above. Both numbers are evidence; one alone is not.
     for (const absent of [undefined, null, NaN, Infinity, -Infinity, "0"]) {
-      const view = selectRegimeBadge({ change: absent, changePct: -0.34, symbol: "GC1!", at: SAT });
+      const view = selectRegimeBadge({ canonRegime: null, change: absent, changePct: -0.34, symbol: "GC1!", at: SAT });
       expect(view.displayable, `change=${String(absent)}`).toBe(false);
     }
   });
 
   it("never reports SIDE for an unverified change", () => {
-    const view = selectRegimeBadge({ change: undefined, changePct: undefined, symbol: "GC1!", at: SAT });
+    const view = selectRegimeBadge({ canonRegime: null, change: undefined, changePct: undefined, symbol: "GC1!", at: SAT });
     expect(JSON.stringify(view)).not.toContain("SIDE");
   });
 
@@ -53,7 +59,7 @@ describe("missing data yields no regime", () => {
    * five. The regime selector now delegates instead of re-deriving.
    */
   it("withholds the zero-pair — that is 'no reference close', not 'flat'", () => {
-    const view = selectRegimeBadge({ change: 0, changePct: 0, symbol: "GC1!", at: SAT });
+    const view = selectRegimeBadge({ canonRegime: null, change: 0, changePct: 0, symbol: "GC1!", at: SAT });
     expect(view.displayable).toBe(false);
     expect(JSON.stringify(view)).not.toContain("SIDE");
   });
@@ -62,7 +68,7 @@ describe("missing data yields no regime", () => {
     // Proves the guard keys on the PAIR, not on changePct alone — otherwise it
     // would be a blanket "zero is never displayable" rule, which would drop
     // real data on any instrument whose rounded percent lands on 0.00.
-    expect(selectRegimeBadge({ change: 0.004, changePct: 0, symbol: "GC1!", at: TUE }))
+    expect(selectRegimeBadge({ canonRegime: null, change: 0.004, changePct: 0, symbol: "GC1!", at: TUE }))
       .toMatchObject({ displayable: true, regime: "SIDE", changePct: 0 });
   });
 });
@@ -75,22 +81,22 @@ describe("regime bands mirror the Markov state model", () => {
 
   for (const [pct, regime] of cases) {
     it(`${pct}% -> ${regime}`, () => {
-      const view = selectRegimeBadge({ ...backed(pct), symbol: "GC1!", at: TUE });
+      const view = selectRegimeBadge({ canonRegime: null, ...backed(pct), symbol: "GC1!", at: TUE });
       expect(view).toMatchObject({ displayable: true, regime });
     });
   }
 
   it("boundaries are exclusive, so 1.5 is not yet BULL", () => {
     // Pinned because a > / >= slip silently reclassifies the market.
-    expect(selectRegimeBadge({ ...backed(1.5), symbol: "X", at: TUE })).toMatchObject({ regime: "SIDE" });
-    expect(selectRegimeBadge({ ...backed(-1.5), symbol: "X", at: TUE })).toMatchObject({ regime: "SIDE" });
+    expect(selectRegimeBadge({ canonRegime: null, ...backed(1.5), symbol: "X", at: TUE })).toMatchObject({ regime: "SIDE" });
+    expect(selectRegimeBadge({ canonRegime: null, ...backed(-1.5), symbol: "X", at: TUE })).toMatchObject({ regime: "SIDE" });
   });
 });
 
 describe("'today' is a liveness claim and must be earned", () => {
   it("says 'last session' on a Saturday — the exact live observation", () => {
     // Screenshot 2026-09-05: "REGIME SIDE -0.34% today" with GC1! closed.
-    const view = selectRegimeBadge({ ...backed(-0.34), symbol: "GC1!", at: SAT });
+    const view = selectRegimeBadge({ canonRegime: null, ...backed(-0.34), symbol: "GC1!", at: SAT });
     expect(view).toMatchObject({ displayable: true, periodLabel: "last session" });
   });
 
@@ -102,7 +108,7 @@ describe("'today' is a liveness claim and must be earned", () => {
     // null at === the server render and first client render. Claiming either
     // word there is a coin flip that can require a retraction on settle.
     expect(selectRegimePeriodLabel("GC1!", null)).toBeNull();
-    expect(selectRegimeBadge({ ...backed(-0.34), symbol: "GC1!", at: null }))
+    expect(selectRegimeBadge({ canonRegime: null, ...backed(-0.34), symbol: "GC1!", at: null }))
       .toMatchObject({ displayable: true, periodLabel: null });
   });
 
@@ -110,5 +116,81 @@ describe("'today' is a liveness claim and must be earned", () => {
     // Continuous markets have no session to close. Labelling BTC's Saturday
     // move "last session" would be the same overreach pointed the other way.
     expect(selectRegimePeriodLabel("BTC", SAT)).toBe("today");
+  });
+});
+
+/**
+ * THIRD LIVE OBSERVATION, 2026-09-15 — photographed on /charts, both earlier
+ * defects still fixed. The chip read `REGIME BEAR -2.62% today` directly above
+ * an evidence rail reading `Unresolved: … regime … (0/8 dimensions resolved)`
+ * and a NEXT card instructing the trader to `Resolve regime`.
+ *
+ * The number was honest. The WORD was not. This chip bands a day-change
+ * percent; the canonical dimension reads classified per-trade tape and speaks
+ * TREND / BALANCE (deriveRegimeDimension.ts). Two owners, one reserved word.
+ *
+ *     A DAY-CHANGE PERCENT IS NOT A MARKET REGIME. LABEL WHAT YOU MEASURED.
+ */
+describe("the chip does not impersonate the canonical regime dimension", () => {
+  const dim = (over: Partial<MarketStateDimension>): MarketStateDimension => ({
+    resolution: "UNKNOWN", value: null, confidence: null,
+    evidence: [], contradictions: [], unknowns: ["none supplied"],
+    ...over,
+  });
+
+  it("× THE BORROWED WORD: its own verdict is labelled DAY BIAS, never REGIME", () => {
+    const view = selectRegimeBadge({ canonRegime: null, ...backed(-2.62), symbol: "TSLA", at: TUE });
+    expect(view.displayable).toBe(true);
+    if (!view.displayable) return;
+    expect(view.verdictLabel).toBe(DAY_BIAS_LABEL);
+    expect(DAY_BIAS_LABEL).not.toContain("REGIME");
+  });
+
+  it("× THE BORROWED WORD: an unresolved canon dimension is reported unresolved", () => {
+    // The exact photographed pairing: a real -2.62% day move while canon has
+    // resolved nothing. The chip may still band the day; it may not claim the
+    // dimension the rail is simultaneously asking the trader to resolve.
+    const view = selectRegimeBadge({
+      canonRegime: dim({ resolution: "UNKNOWN" }),
+      ...backed(-2.62), symbol: "TSLA", at: TUE,
+    });
+    expect(view).toMatchObject({ displayable: true, regime: "BEAR", canon: { resolved: false } });
+  });
+
+  it("× THE BORROWED WORD: PARTIAL is not an answer", () => {
+    // The rail renders PARTIAL as an OPEN evidence node. Treating it as
+    // resolved here would rebuild the contradiction through a side door.
+    const view = selectRegimeBadge({
+      canonRegime: dim({ resolution: "PARTIAL", value: null, unknowns: ["thin tape"] }),
+      ...backed(3), symbol: "TSLA", at: TUE,
+    });
+    expect(view).toMatchObject({ canon: { resolved: false } });
+  });
+
+  it("× THE BORROWED WORD: a RESOLVED-but-valueless dimension is not an answer", () => {
+    // canonicalMarketState already calls this combination invalid. The chip is
+    // not the place to start rendering an invalid state as a verdict.
+    const view = selectRegimeBadge({
+      canonRegime: dim({ resolution: "RESOLVED", value: "   " }),
+      ...backed(3), symbol: "TSLA", at: TUE,
+    });
+    expect(view).toMatchObject({ canon: { resolved: false } });
+  });
+
+  it("quotes canon verbatim when canon has actually resolved", () => {
+    const view = selectRegimeBadge({
+      canonRegime: dim({ resolution: "RESOLVED", value: "BALANCE", confidence: 0.6 }),
+      ...backed(-2.62), symbol: "TSLA", at: TUE,
+    });
+    // Non-vacuity: the two halves genuinely disagree in vocabulary here, which
+    // is the whole reason they must be labelled separately rather than merged.
+    expect(view).toMatchObject({ regime: "BEAR", canon: { resolved: true, value: "BALANCE" } });
+  });
+
+  it("carries canon through unchanged — it is quoted, not re-derived", () => {
+    for (const value of ["TREND", "BALANCE"]) {
+      expect(selectCanonRegimeView(dim({ resolution: "RESOLVED", value })))
+        .toEqual({ resolved: true, value });
+    }
   });
 });

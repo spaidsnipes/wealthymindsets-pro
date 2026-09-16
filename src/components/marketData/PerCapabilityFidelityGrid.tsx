@@ -7,6 +7,7 @@ import {
   type PerCapabilityFidelityReport,
 } from "@/lib/marketData/perCapabilityFidelity";
 import { fidelityLabelToFailureReport } from "@/lib/systemHealth/fidelityToHealth";
+import { FailureStateChip } from "@/components/systemHealth/FailureStateChip";
 
 /**
  * PerCapabilityFidelityGrid — canon §Provider Status Is Resolved Per
@@ -102,15 +103,18 @@ export function PerCapabilityFidelityGrid({
               className="flex items-center gap-2 text-[10px] cursor-help"
               style={{ color: isNormal ? "#00E88A" : "#F5A623" }}
             >
-              <span
-                aria-hidden
-                style={{
-                  width: 6, height: 6, borderRadius: "50%",
-                  background: isNormal ? "#00E88A" : "#F5A623",
-                  boxShadow: isNormal ? "0 0 3px #00E88A" : "none",
-                  flexShrink: 0,
-                }}
-              />
+              {/*
+                The canon health state, NAMED, via its single-writer chip.
+                This row used to render a hand-rolled dot that was green for
+                NORMAL and orange for everything else — collapsing five
+                distinct non-NORMAL states into one colour, with the state
+                readable only in a `title` tooltip that a touch device never
+                shows. BLOCKED and RECOVERING imply OPPOSITE trader actions
+                (fix the entitlement vs. wait it out) and looked identical.
+                FailureStateChip keeps NORMAL quiet per canon and names every
+                other state in visible text.
+              */}
+              <FailureStateChip report={report7q} />
               <span className="min-w-[128px] font-mono">{displayName}</span>
               <span className="font-semibold tracking-wide">{label}</span>
             </li>

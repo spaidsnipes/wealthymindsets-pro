@@ -2082,6 +2082,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         changePct: ticker.changePct,
                         symbol,
                         at: sessionClockDate,
+                        // The canonical regime dimension this chip may not
+                        // contradict. Photographed 2026-09-15: this chip said
+                        // "REGIME BEAR" while the rail below it listed regime
+                        // among 8 UNRESOLVED dimensions and told the trader to
+                        // go resolve it. Same screen, same instant, same
+                        // symbol. Forwarding the dimension is what makes the
+                        // two statements come out of one owner.
+                        canonRegime: chartCanvasState?.regime ?? null,
                       });
                       if (!badge.displayable) return null;
                       const p = badge.changePct;
@@ -2101,11 +2109,31 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                           background:"rgba(11,13,20,0.82)", backdropFilter:"blur(4px)",
                           border:`1px solid ${rc}55`, borderRadius:6, padding:"3px 9px",
                         }}>
-                          <span style={{ fontSize:9, fontWeight:800, color:"#5A6486", letterSpacing:"0.08em" }}>REGIME</span>
+                          {/* The label comes from the owner, not from a literal
+                              typed here. This chip classifies a DAY CHANGE
+                              PERCENT into a band; it has never looked at the
+                              tape. The canonical regime dimension reads
+                              classified per-trade tape and speaks TREND /
+                              BALANCE. A DAY-CHANGE PERCENT IS NOT A MARKET
+                              REGIME — so this half says what it measured. */}
+                          <span style={{ fontSize:9, fontWeight:800, color:"#5A6486", letterSpacing:"0.08em" }}>{badge.verdictLabel}</span>
                           <span style={{ fontSize:11, fontWeight:900, color:rc, letterSpacing:"0.04em" }}>{reg}</span>
                           <span style={{ width:1, height:10, background:"#2A3048" }} />
                           <span style={{ fontSize:10.5, fontWeight:800, color:pc, fontFamily:"monospace" }}>
                             {p >= 0 ? "+" : ""}{p.toFixed(2)}%{badge.periodLabel ? ` ${badge.periodLabel}` : ""}
+                          </span>
+                          {/* The canon half. The reserved word appears exactly
+                              once on this chip and it is always attached to the
+                              canonical dimension's own answer — including when
+                              that answer is "not yet". That is what stops the
+                              screen disagreeing with itself. */}
+                          <span style={{ width:1, height:10, background:"#2A3048" }} />
+                          <span style={{ fontSize:9, fontWeight:800, color:"#5A6486", letterSpacing:"0.08em" }}>REGIME</span>
+                          <span style={{
+                            fontSize:10, fontWeight:900, letterSpacing:"0.04em",
+                            color: badge.canon.resolved ? "#E6E9F2" : "#5A6486",
+                          }}>
+                            {badge.canon.resolved ? badge.canon.value : "UNRESOLVED"}
                           </span>
                         </div>
                       );
