@@ -104,7 +104,17 @@ the direction this codebase keeps having to undo:
 | word | meaning |
 |---|---|
 | `UNKNOWN` | the passport's own sentinel — NO state was compiled |
-| `UNAVAILABLE` | a real reading from `produceCanonicalMarketState` — measured, no coverage and no price |
+| `UNAVAILABLE` | a real reading from `produceCanonicalMarketState` — measured, no coverage and no **canonical** price |
+
+`UNAVAILABLE` does not mean the screen is numberless. `hasCanonicalPrice` is
+`matchingPriceTick(...) != null` (`chartMarketStatePublisher.ts:126`) — a price
+the engine can tie to a real tick. A last bar close is a different, separately
+labelled fact, so `29443 · LAST 15M BAR CLOSE` beside `STATE QUALITY
+UNAVAILABLE` is two honest owners, not a contradiction — already pinned by
+`chartMarketStatePublisher.test.ts` *"omits an unmatched displayed price
+instead of inventing its event time"*. Corrected here after re-tracing; the
+original line in this baton said "no price", which would send the next reader
+to repair the wrong one.
 
 "We never looked" and "we looked and there is nothing" are opposite facts
 about the engine, exactly as FLAT and POSITION UNREAD are opposite facts about

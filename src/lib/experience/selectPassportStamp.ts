@@ -56,7 +56,22 @@ export interface StampField {
    *
    *   UNKNOWN      the passport's own sentinel — NO state was compiled
    *   UNAVAILABLE  a real compiled reading from produceCanonicalMarketState —
-   *                measured, and there is no coverage and no price
+   *                measured, and there is no coverage and no CANONICAL price
+   *
+   * Read that second line exactly. UNAVAILABLE does NOT mean the screen has no
+   * number on it. `chartMarketStatePublisher` sets `hasCanonicalPrice` from
+   * `matchingPriceTick(...) != null` — a price the engine can tie to a real
+   * tick at `capturedAt`. A last bar close is a different, honestly-labelled
+   * fact, so the deck can truthfully show `29443 · LAST 15M BAR CLOSE` in the
+   * same frame as STATE QUALITY UNAVAILABLE. A reader who takes "no price"
+   * literally will see that number, call one of the two a bug, and repair the
+   * wrong one — most likely by hiding an honest bar close.
+   *
+   * That co-existence is already pinned, one layer down, by
+   * chartMarketStatePublisher.test.ts "omits an unmatched displayed price
+   * instead of inventing its event time": displayed 66_000, qualityState
+   * UNAVAILABLE, canonical `price.last` null. This comment was corrected to
+   * match that test rather than the test to match the comment.
    *
    * "We never looked" and "we looked and there is nothing" are opposite facts
    * about the engine, exactly as FLAT and POSITION UNREAD are opposite facts
@@ -131,9 +146,11 @@ export function selectPassportStamp(vm: MarketObjectPassportVM): PassportStampVM
       // "INTEGRITY", which would claim a verification that never ran.
       value: vm.qualityState,
       unresolved: vm.qualityState === "UNKNOWN",
-      // The engine measured, and found no coverage and no price. That is a
-      // reading, so it keeps the upright face — but it is not a finding, so it
-      // does not get the finding ink. See `absence` on StampField.
+      // The engine measured, and found no coverage and no canonical price.
+      // That is a reading, so it keeps the upright face — but it is not a
+      // finding, so it does not get the finding ink. See `absence` on
+      // StampField, which also records why "no canonical price" is not the
+      // same claim as "no number on the screen".
       absence: vm.qualityState === "UNAVAILABLE",
     },
     {
