@@ -392,7 +392,23 @@ function admissionFor(scene: Scene, atRisk: boolean): readonly SurfaceElement[] 
       return ["MARKET_CANVAS", "RECEIPT_SHEET", "FIDELITY_CHIPS", "HUMILITY_PANEL", "OPEN_BROKER"];
     case "DONE":
       // §18: "The screen gets quiet."
-      return ["MARKET_CANVAS", "RECEIPT_SHEET", "FIDELITY_CHIPS"];
+      //
+      // HUMILITY_PANEL was the one thing DONE removed, and it was the one
+      // thing DONE had no right to remove. Counted across this switch,
+      // humility survived 9 of 10 scenes — including DEGRADED, where the
+      // comment four cases up states the principle outright: "What survives
+      // is the way OUT and the admission that we do not know."
+      //
+      // DONE is the scene that tells a trader the day is answered. Dropping
+      // the blind-spot disclosure there does not make the screen quiet, it
+      // makes it CERTAIN — and the product's remaining unknowns do not end
+      // when the receipt is written. A flat book confirmed by one source WM
+      // could reach is still a book WM read from one source. §14.1's whole
+      // subject is a calm screen read as a complete one.
+      //
+      // Quiet is a volume, not an omission. The panel is admitted; it is the
+      // SURFACE's job to render it small here, the same way the receipt is.
+      return ["MARKET_CANVAS", "RECEIPT_SHEET", "FIDELITY_CHIPS", "HUMILITY_PANEL"];
   }
 }
 

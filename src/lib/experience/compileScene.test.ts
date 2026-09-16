@@ -496,6 +496,35 @@ describe("compileScene — exhaustive invariants over the reachable signal space
     }
   });
 
+  it("§14.1 LAW: no scene may withhold the admission that we do not know", () => {
+    /**
+     * Humility is not a surface the compiler gets to trade away.
+     *
+     * Measured on 2026-09-16, HUMILITY_PANEL was admitted in 9 of the 10
+     * scenes. The single exception was DONE, under the note §18 "The screen
+     * gets quiet." That is the worst scene to make the exception in: DONE is
+     * the one telling a trader the day is answered, so it is the one where a
+     * missing blind-spot disclosure reads as "there are none."
+     *
+     * DEGRADED, four cases above it, already had the principle right — "what
+     * survives is the way OUT and the admission that we do not know." The law
+     * below just stops the compiler from applying that reasoning to failure
+     * and forgetting it at completion.
+     *
+     * This is asserted over the whole reachable state space rather than over
+     * the ten scene names, so it also holds for any scene added later.
+     */
+    for (const s of everyState()) {
+      const out = compileScene(s);
+      expect(
+        out.admits,
+        `scene ${out.scene} withheld HUMILITY_PANEL. Quiet is a VOLUME — render ` +
+          `it small, do not remove it. A screen that stops naming its blind ` +
+          `spots is not calm, it is claiming there are none.`,
+      ).toContain("HUMILITY_PANEL");
+    }
+  });
+
   it("§9 LAW: capital at risk always implies ambient surfaces are withheld", () => {
     for (const s of everyState()) {
       const out = compileScene(s);
