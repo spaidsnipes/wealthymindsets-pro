@@ -199,7 +199,31 @@ function SanctuaryRoom({
         height: "100dvh",
         minHeight: 0,
         overflow: "hidden",
-        background: WM.surface.deepest,
+        backgroundColor: WM.surface.deepest,
+        /*
+          KEY AND FILL — the two lights the Canon puts in the room, and the
+          layer that was simply absent before. A desk lamp above-left, a cold
+          window above-right, both at single-digit alpha. They are what stop a
+          near-black field from reading as a switched-off screen: the eye needs
+          a luminance gradient to believe it is looking at a lit space rather
+          than at nothing.
+
+          Set inline rather than in the stylesheet below because this element
+          carries an inline `backgroundColor`, and an inline background would
+          beat any `background-image` a class rule tried to add. Splitting the
+          shorthand is what lets both live together without an `!important`.
+
+          The Canon names the field `#07080a`; `WM.surface.deepest` is
+          `#050506`. The token is not overridden here. Two grey levels are
+          nothing at these alphas, and writing a literal into this one file
+          would fork the answer to "what colour is the field" — the exact
+          second-answer failure the design system exists to prevent. If the
+          Canon's value must win, it wins by changing the token.
+        */
+        backgroundImage: [
+          "radial-gradient(1200px 700px at 28% 16%, rgba(212,175,106,0.07), transparent 58%)",
+          "radial-gradient(900px 620px at 78% 8%, rgba(255,248,235,0.035), transparent 52%)",
+        ].join(", "),
         color: WM.text.body,
         // The sanctuary layers below must sit UNDER interactive content.
         // isolate contains their z-order to this subtree.
@@ -209,7 +233,8 @@ function SanctuaryRoom({
       {/*
         THE THREE PLANES (Founder audit 2026-09-13):
 
-          STATIC MATERIAL PLANE — vignette + grain + brass hairline
+          STATIC MATERIAL PLANE — key/fill light + vignette + grain +
+                                  brass hairline
           AMBIENT PLANE          — WATER-BREATH, gentle, non-market
           SEMANTIC MARKET PLANE  — children (chart, decisions, receipts)
 
@@ -219,8 +244,9 @@ function SanctuaryRoom({
         Rules the sanctuary keeps:
           · The three layers are STATIC CSS.  No JS animation loop,
             no requestAnimationFrame, no per-frame noise.
-          · Grain is a repeating linear-gradient tile at ~5% opacity —
-            never regenerated per frame.
+          · Grain is ONE static 256x256 image tile at 6% opacity,
+            fetched once and repeated by the compositor — never
+            regenerated, never animated, never a second canvas.
           · WATER-BREATH is one 26s transform on ONE element and is
             AUTOMATICALLY DISABLED under prefers-reduced-motion.
           · Nothing here is keyed on market state. Green never means
@@ -269,32 +295,64 @@ function SanctuaryRoom({
           z-index: 0;
         }
         /* Vignette — static inset radial darkening so MARKET feels
-           spatially deeper than the outer chrome. Never breathes. */
+           spatially deeper than the outer chrome. Never breathes.
+
+           Canon values: centred at 50% 42% rather than dead centre, because
+           the room's content mass sits above the midline and a vignette
+           centred below it darkens the chart before it darkens the chrome. */
         .wm-sanctuary::before {
           background: radial-gradient(
-            ellipse at center,
-            transparent 45%,
-            rgba(0,0,0,0.35) 100%
+            ellipse at 50% 42%,
+            transparent 42%,
+            rgba(0,0,0,0.42) 100%
           );
         }
-        /* Grain — repeating 3px tile at ~5% opacity. One layer, static. */
+        /* ── GRAIN ────────────────────────────────────────────────────────
+           This was a repeating-linear-gradient crosshatch: two 3px orthogonal
+           rules, which is a SCREEN DOOR, not grain. Film grain is stochastic;
+           a regular lattice is the one thing it never is. At 3px it also sat
+           close enough to the pixel pitch of a HiDPI display to beat against
+           the candle canvas underneath and produce moiré — a shimmer that
+           moves when the chart scrolls, which is exactly the kind of motion
+           with no owner the audit above forbids.
+
+           Replaced with the Canon's production tile: 256x256 seamless
+           monochrome noise at 0.06 under overlay, produced by
+           scripts/generate-grain-tile.mjs and measured by
+           grainTile.enforcement.test.ts. The tile's decoded mean is pinned to
+           128 because overlay treats mid-grey as identity — any drift there
+           would silently shift the luminance of the whole product.
+
+           Opacity lives on the layer, not in the tile. The Canon's window is
+           0.04-0.07; above 0.10 is FALSE_RIPENESS and fails the merge. */
         .wm-sanctuary::after {
-          background-image:
-            repeating-linear-gradient(
-              0deg,
-              rgba(255,255,255,0.014) 0,
-              rgba(255,255,255,0.014) 1px,
-              transparent 1px,
-              transparent 3px
-            ),
-            repeating-linear-gradient(
-              90deg,
-              rgba(255,255,255,0.014) 0,
-              rgba(255,255,255,0.014) 1px,
-              transparent 1px,
-              transparent 3px
-            );
+          background-image: url("/wm/grain-256.webp");
+          background-repeat: repeat;
+          background-size: 256px 256px;
+          opacity: 0.06;
           mix-blend-mode: overlay;
+        }
+        /* A phone is held closer and its pixels are smaller; the same tile
+           reads stronger there. */
+        @media (max-width: ${OS_RAIL_BREAKPOINT_PX}px) {
+          .wm-sanctuary::after { opacity: 0.04; }
+        }
+        /* Atmosphere is the first thing to go when a reader has asked for
+           contrast. Grain and vignette both reduce effective contrast against
+           text, and neither carries any information, so neither has an
+           argument for staying. */
+        @media (prefers-contrast: more) {
+          .wm-sanctuary::before,
+          .wm-sanctuary::after {
+            display: none;
+          }
+          /* The key and fill lights are set inline (see the style object
+             above, which explains why), so the cascade alone cannot reach
+             them. This is the case !important is actually for: a user
+             preference overriding an author decision. */
+          .wm-sanctuary {
+            background-image: none !important;
+          }
         }
         /* WATER-BREATH — very subtle brass radial wash, drifting.
            Non-market. Zero information. Only present when the OS has
