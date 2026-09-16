@@ -61,6 +61,32 @@ import { INSTRUMENT_VIEW_ROUTE } from "./founderLanding";
  * WMOperatingSystem and its own layout survived the move. It is a MEASUREMENT,
  * not an aspiration — a route is promoted by looking at it, which is why the
  * field is per-destination rather than a default with exceptions.
+ *
+ * ── WHY THERE ARE THREE VALUES AND NOT TWO ──────────────────────────────────
+ *
+ * `"os" | "legacy"` was a binary, and a binary forces a lie in one direction or
+ * the other. src/lib/design/osRoomPlane.ts walked all fourteen legacy rooms and
+ * cleared thirteen of them of the one defect that reliably breaks a promotion —
+ * an opaque near-black plane painted over the sanctuary. That is a real,
+ * repeatable, machine-checkable result, and the binary had nowhere to put it.
+ * So the result lived in an `expect(...).toEqual([...])` inside that detector's
+ * TEST FILE: a fact about a ROUTE, owned by a test's expectation array, in a
+ * different directory from the registry that every consumer reads.
+ *
+ * TWO OWNERS OF ONE FACT, with the weaker one holding the newer information.
+ *
+ * `frame: "cleared"` is the third state, and it is as strictly measured as the
+ * other two: EVERY STRUCTURAL BLOCKER THE INSTRUMENT CAN SEE IS GONE, AND NO
+ * HUMAN HAS LOOKED YET. It deliberately does NOT change behaviour — a cleared
+ * room still wears the July shell, because `OS_FRAMED_ROUTES` derives from
+ * `"os"` alone and nothing else reads this field. Promotion remains a human
+ * act. What changed is that the act is now one character per route, performed
+ * in the file that owns the answer, instead of an audit re-run from scratch.
+ *
+ * CLEARED IS NOT PROMOTED. The instrument rules out ONE way of failing; it does
+ * not certify a room. Anyone tempted to bulk-flip `"cleared"` to `"os"` should
+ * read that sentence again — this field's whole value is that it is a record of
+ * looking, and a bulk flip is a record of not having looked.
  */
 export type WmDestinationGroup = "ROOM" | "TOOL" | "COMMUNITY";
 
@@ -76,8 +102,16 @@ export interface WmDestination {
    * capital is live; it is not a sort key and it is not a visual rank.
    */
   readonly tier: 1 | 2;
-  /** Which frame wraps this route today. See the note above. */
-  readonly frame: "os" | "legacy";
+  /**
+   * Which frame wraps this route today, and how far it has got toward the OS.
+   * See the note above — all three values are measurements.
+   *
+   *   "os"      — seen inside WMOperatingSystem; its layout survived the move.
+   *   "cleared" — osRoomPlane found no opaque room plane; still on July; no
+   *               human has looked at it under the OS frame yet.
+   *   "legacy"  — on July, and not cleared.
+   */
+  readonly frame: "os" | "cleared" | "legacy";
 }
 
 /**
@@ -101,25 +135,25 @@ export const WM_DESTINATIONS: readonly WmDestination[] = [
   { href: "/journal", label: "Journal", icon: BookOpen, group: "ROOM", tier: 2, frame: "os" },
 
   // ── TOOLS — market work the trader steps out to ─────────────────────────
-  { href: "/scanner", label: "Scanner", icon: ScanLine, group: "TOOL", tier: 1, frame: "legacy" },
+  { href: "/scanner", label: "Scanner", icon: ScanLine, group: "TOOL", tier: 1, frame: "cleared" },
   { href: "/news", label: "News", icon: Newspaper, group: "TOOL", tier: 1, frame: "legacy" },
-  { href: "/education", label: "Academy", icon: GraduationCap, group: "TOOL", tier: 2, frame: "legacy" },
-  { href: "/proof-lane", label: "Proof Lane", icon: Check, group: "TOOL", tier: 2, frame: "legacy" },
-  { href: "/copy-trading", label: "Copy Trading", icon: Copy, group: "TOOL", tier: 2, frame: "legacy" },
-  { href: "/backtesting", label: "Backtest", icon: FlaskConical, group: "TOOL", tier: 2, frame: "legacy" },
+  { href: "/education", label: "Academy", icon: GraduationCap, group: "TOOL", tier: 2, frame: "cleared" },
+  { href: "/proof-lane", label: "Proof Lane", icon: Check, group: "TOOL", tier: 2, frame: "cleared" },
+  { href: "/copy-trading", label: "Copy Trading", icon: Copy, group: "TOOL", tier: 2, frame: "cleared" },
+  { href: "/backtesting", label: "Backtest", icon: FlaskConical, group: "TOOL", tier: 2, frame: "cleared" },
   // The page at /ai-bot is titled "Market Intelligence · Observed market data
   // only · no generated signals" and runs the canonical Market Canvas — it does
   // not operate a bot or emit signals. A rail must not promise one.
-  { href: "/ai-bot", label: "Market Intel", icon: Zap, group: "TOOL", tier: 2, frame: "legacy" },
+  { href: "/ai-bot", label: "Market Intel", icon: Zap, group: "TOOL", tier: 2, frame: "cleared" },
 
   // ── COMMUNITY & BUSINESS ────────────────────────────────────────────────
-  { href: "/lounge", label: "Lounge", icon: Users, group: "COMMUNITY", tier: 2, frame: "legacy" },
-  { href: "/tv", label: "WM TV", icon: Tv, group: "COMMUNITY", tier: 2, frame: "legacy" },
-  { href: "/radio", label: "WM Radio", icon: Radio, group: "COMMUNITY", tier: 2, frame: "legacy" },
-  { href: "/creator", label: "Creator", icon: Globe, group: "COMMUNITY", tier: 2, frame: "legacy" },
-  { href: "/partnerships", label: "Partnerships", icon: Handshake, group: "COMMUNITY", tier: 2, frame: "legacy" },
-  { href: "/shop", label: "Shop", icon: ShoppingBag, group: "COMMUNITY", tier: 2, frame: "legacy" },
-  { href: "/profile", label: "Profile", icon: User, group: "COMMUNITY", tier: 2, frame: "legacy" },
+  { href: "/lounge", label: "Lounge", icon: Users, group: "COMMUNITY", tier: 2, frame: "cleared" },
+  { href: "/tv", label: "WM TV", icon: Tv, group: "COMMUNITY", tier: 2, frame: "cleared" },
+  { href: "/radio", label: "WM Radio", icon: Radio, group: "COMMUNITY", tier: 2, frame: "cleared" },
+  { href: "/creator", label: "Creator", icon: Globe, group: "COMMUNITY", tier: 2, frame: "cleared" },
+  { href: "/partnerships", label: "Partnerships", icon: Handshake, group: "COMMUNITY", tier: 2, frame: "cleared" },
+  { href: "/shop", label: "Shop", icon: ShoppingBag, group: "COMMUNITY", tier: 2, frame: "cleared" },
+  { href: "/profile", label: "Profile", icon: User, group: "COMMUNITY", tier: 2, frame: "cleared" },
 ];
 
 /** Every destination in one group, in canon order. */

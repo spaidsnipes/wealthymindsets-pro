@@ -211,15 +211,45 @@ describe("osRoomPlane · every OS room lets the sanctuary through", () => {
    * if promoted today. A clean route here still needs eyes. A dirty one is
    * known-not-ready without spending them.
    */
-  it("records which legacy rooms would carry a plane into the sanctuary", () => {
-    const legacy = WM_DESTINATIONS.filter((d) => d.frame === "legacy");
-    expect(legacy.length).toBeGreaterThan(0);
+  it("reconciles every room's declared frame with what the walk actually finds", () => {
+    const unpromoted = WM_DESTINATIONS.filter((d) => d.frame !== "os");
+    expect(unpromoted.length).toBeGreaterThan(0);
 
     const blocked: string[] = [];
-    for (const d of legacy) {
+    const cleared: string[] = [];
+    for (const d of unpromoted) {
       const file = resolve(REPO, roomPageFile(d.href));
       if (!existsSync(file)) continue;
-      if (findOpaqueRoomPlanes(readFileSync(file, "utf8")).length > 0) blocked.push(d.href);
+      (findOpaqueRoomPlanes(readFileSync(file, "utf8")).length > 0 ? blocked : cleared).push(d.href);
+    }
+
+    // ── THE LEDGER MOVED TO THE REGISTRY, AND THIS IS WHY ────────────────────
+    //
+    // This test used to hold two hand-written arrays — the blocked rooms and
+    // the cleared ones. That made a TEST FILE the owner of a fact about
+    // ROUTES, sitting in a different directory from `wmDestinations.ts`, which
+    // every rail, shell and guard in the product actually reads. Whoever went
+    // looking for "which rooms are ready" would read the registry, find only
+    // `"os" | "legacy"`, and re-derive the answer by hand — which is exactly
+    // how /proof-lane came within one commit of being promoted while carrying
+    // `bg-[#050506]` on its outer wrapper.
+    //
+    // So `frame: "cleared"` exists now and the registry holds the answer. What
+    // is left here is the part a test is actually good at: RECONCILIATION.
+    // The walk is re-run from source on every CI run and must agree, room for
+    // room, with what the registry declares. Neither can drift from the other
+    // without going red, and the error names which room and which direction.
+    for (const href of cleared) {
+      expect(
+        WM_DESTINATIONS.find((d) => d.href === href)?.frame,
+        `${href} carries no opaque plane but is still declared "legacy" — mark it "cleared"`,
+      ).toBe("cleared");
+    }
+    for (const href of blocked) {
+      expect(
+        WM_DESTINATIONS.find((d) => d.href === href)?.frame,
+        `${href} paints an opaque plane but is declared "cleared" — it is not`,
+      ).toBe("legacy");
     }
 
     // The measured state. This is a LEDGER, not a target: it goes red both
@@ -261,37 +291,29 @@ describe("osRoomPlane · every OS room lets the sanctuary through", () => {
    * names is how /proof-lane came within one commit of being promoted while
    * carrying `bg-[#050506]` on its outer wrapper.
    */
-  it("names the legacy rooms that have cleared the plane check, without promoting them", () => {
-    const legacy = WM_DESTINATIONS.filter((d) => d.frame === "legacy");
-    const clear = legacy
-      .filter((d) => existsSync(resolve(REPO, roomPageFile(d.href))))
-      .filter(
-        (d) =>
-          findOpaqueRoomPlanes(readFileSync(resolve(REPO, roomPageFile(d.href)), "utf8"))
-            .length === 0,
-      )
-      .map((d) => d.href);
+  it("keeps CLEARED strictly short of PROMOTED", () => {
+    const cleared = WM_DESTINATIONS.filter((d) => d.frame === "cleared").map((d) => d.href);
+    expect(cleared.length, "nothing has cleared the plane check").toBeGreaterThan(0);
 
-    expect(clear.sort()).toEqual(
-      [
-        "/ai-bot",
-        "/backtesting",
-        "/copy-trading",
-        "/creator",
-        "/education",
-        "/lounge",
-        "/partnerships",
-        "/profile",
-        "/proof-lane",
-        "/radio",
-        "/scanner",
-        "/shop",
-        "/tv",
-      ].sort(),
-    );
+    // A cleared room STILL WEARS JULY. `OS_FRAMED_ROUTES` derives from `"os"`
+    // alone, so this is currently true by construction — and it is asserted
+    // anyway, because the whole hazard of introducing a third state is that a
+    // later refactor "helpfully" folds `"cleared"` into the OS family on the
+    // reasoning that it is nearly there. It is not nearly there. The
+    // instrument rules out ONE way of failing; a human has not looked.
+    for (const href of cleared) expect(OS_FRAMED_ROUTES).not.toContain(href);
 
-    // And they are still legacy. If one is promoted, this goes red and the
-    // author has to move it deliberately rather than by drift.
-    for (const href of clear) expect(OS_FRAMED_ROUTES).not.toContain(href);
+    // /news is the one room still `"legacy"`, and it is left that way
+    // HONESTLY. Its two remaining fills are `w-full h-full` on the offline
+    // and no-stream views INSIDE a video player box whose own height is set
+    // to 300px. `h-full` there means the player, not the room. The instrument
+    // cannot see an ancestor, so it cannot tell those from a room plane — see
+    // `enclosingOpenTag`. Rather than add a third heuristic that guesses, the
+    // blindness is named and /news waits for eyes.
+    //
+    // Do NOT "fix" /news by widening the detector.
+    expect(WM_DESTINATIONS.filter((d) => d.frame === "legacy").map((d) => d.href)).toEqual([
+      "/news",
+    ]);
   });
 });
