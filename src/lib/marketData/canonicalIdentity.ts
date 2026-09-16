@@ -604,14 +604,77 @@ export function canonicalAssetClass(symbol: string): CanonicalAssetClass {
  *              evening, so claiming Sunday closure for them would be the same
  *              overreach in the opposite direction.
  *   Crypto   — continuous; there is no session to close, ever.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHOSE SATURDAY? (fixed 2026-09-15)
+ *
+ * Every rule above is a statement about the MARKET's calendar. For as long as
+ * this function existed it read `at.getDay()` — the VIEWER's calendar, in
+ * whatever timezone the browser happens to sit in. In New York and in CI (UTC)
+ * the two agree closely enough that nothing ever surfaced.
+ *
+ * They do not agree in Europe or Asia, and the disagreement runs in the ONE
+ * direction this function promised it could never run:
+ *
+ *   Friday 19:00 New York  =  Saturday 01:00 Berlin  =  Saturday 08:00 Tokyo
+ *
+ * At that instant TSLA post-market is OPEN (it runs to 20:00 ET). A viewer in
+ * Berlin or Tokyo got `false` — PROVEN CLOSED — so the chart badge read
+ * "SESSION CLOSED — LAST VERIFIED" and the day-bias chip said "last session",
+ * about a session that was still trading. The docblock above is emphatic that
+ * this helper "can retire a false ACTIVE claim and can never manufacture one";
+ * that guarantee held for ACTIVE and silently failed for CLOSED, because a
+ * one-sided promise was implemented with a two-sided clock.
+ *
+ *     A MARKET'S CALENDAR IS NOT THE VIEWER'S CALENDAR.
+ *
+ * The weekday is now derived in America/New_York via Intl, so the answer is a
+ * property of the instant and the market — identical in Honolulu, London and
+ * a UTC CI box. Note this is strictly MORE conservative as well as more
+ * correct: it stops claiming closure during Friday's real post-market, and it
+ * starts claiming it during Saturday evening ET, which every earlier caller
+ * east of New York was already reporting as Sunday.
  */
 export function provenSessionClosure(symbol: string, at: Date): false | null {
   const cls = canonicalAssetClass(symbol);
   if (cls === "crypto") return null;
-  const day = at.getDay();
+  const day = marketWeekdayET(at);
+  if (day === null) return null;
   if (day === 6) return false;
   if (day === 0 && (cls === "equity" || cls === "etf" || cls === "options")) return false;
   return null;
+}
+
+const ET_WEEKDAY_INDEX: Readonly<Record<string, number>> = {
+  Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+};
+
+/**
+ * The weekday at the instant `at`, in US market time (America/New_York),
+ * DST-aware. `null` when the instant is not a real time or the platform does
+ * not carry the tz database — an unreadable clock must not be reported as a
+ * readable one, because every caller treats a number here as PROOF.
+ *
+ * Exported so that any future session rule reads the same clock. A second
+ * hand-rolled ET conversion beside this one would recreate exactly the
+ * two-owners split that made the bug above invisible for so long.
+ */
+export function marketWeekdayET(at: Date): number | null {
+  const ms = at?.getTime?.();
+  if (!Number.isFinite(ms)) return null;
+  try {
+    const wd = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      weekday: "short",
+    }).format(at);
+    const index = ET_WEEKDAY_INDEX[wd];
+    return index === undefined ? null : index;
+  } catch {
+    // An environment without the IANA tz database cannot establish the
+    // market's calendar. Returning the viewer's weekday here would reinstate
+    // the defect as a "fallback"; returning null just means nothing is proven.
+    return null;
+  }
 }
 
 /**
