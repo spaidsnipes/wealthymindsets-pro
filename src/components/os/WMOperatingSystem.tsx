@@ -86,6 +86,27 @@ export const OS_ROOMS: readonly ShellRoom[] = destinationsInGroup("ROOM").map((d
 }));
 
 /**
+ * THE REST OF THE PRODUCT.
+ *
+ * ── The defect this closes ──────────────────────────────────────────────────
+ * The rail carried the seven ROOMs and stopped. The other fourteen
+ * destinations — the whole TOOL group and the whole COMMUNITY group — had no
+ * door anywhere in an OS room. Not a broken door: NO door. A trader in
+ * /command-deck could not reach the scanner, the news, the academy, the
+ * lounge, the shop, or their own profile page without typing a URL.
+ *
+ * ── Why they are not simply appended to the room list ───────────────────────
+ * Twenty-one flat entries is not a product map, it is a list, and a list is
+ * what the trader has to read top-to-bottom every time because nothing in it
+ * ranks. The ROOM group is the decision loop and stays whole and unlabelled-by-
+ * section at the top; these two sit beneath it under their own headings, in
+ * the owner's order. The grouping is not decoration — it is the claim that
+ * these fourteen are not where the work happens.
+ */
+const OS_WORKBENCH = destinationsInGroup("TOOL");
+const OS_COMMUNITY = destinationsInGroup("COMMUNITY");
+
+/**
  * The width at which the rail stops being affordable.
  *
  * ONE OWNER, because the rail and the standing-condition bar must be exactly
@@ -111,6 +132,56 @@ const EYEBROW: React.CSSProperties = {
 };
 
 const SERIF = "Georgia, 'Times New Roman', serif";
+
+/**
+ * One rail door.
+ *
+ * Extracted because there are now three groups drawing them and the ACTIVE
+ * treatment — the gold spine, the pearl label, the tinted ground — is the
+ * trader's answer to "where am I". Three copies of that would be three places
+ * for the answer to drift, and the drift would read as the room lying about
+ * its own location. `quiet` changes the RESTING weight only; it cannot reach
+ * the active state.
+ */
+function RailLink({
+  href,
+  label,
+  activeHref,
+  quiet = false,
+}: {
+  href: string;
+  label: string;
+  activeHref: string;
+  quiet?: boolean;
+}): React.ReactElement {
+  const active = href === activeHref;
+  return (
+    <a
+      href={href}
+      aria-current={active ? "page" : undefined}
+      style={{
+        position: "relative",
+        display: "block",
+        padding: quiet ? "7px 14px" : "9px 14px",
+        fontSize: quiet ? 11 : 12,
+        letterSpacing: 0.3,
+        textDecoration: "none",
+        color: active ? PEARL : quiet ? "#6f6857" : MUTED,
+        fontWeight: active ? 600 : 400,
+        background: active ? "rgba(196,165,116,0.07)" : "transparent",
+        minHeight: quiet ? 30 : 36,
+      }}
+    >
+      {active && (
+        <span
+          aria-hidden
+          style={{ position: "absolute", left: 0, top: 6, bottom: 6, width: 2, background: GOLD }}
+        />
+      )}
+      {label}
+    </a>
+  );
+}
 
 /**
  * One standing condition, in one of its two layouts.
@@ -420,41 +491,37 @@ export function WMOperatingSystem({
             flexDirection: "column",
             gap: 2,
             padding: "14px 0",
+            /* The rail used to hold seven doors and could never outgrow the
+               viewport. It now holds twenty-one plus the standing conditions.
+               Without this, a short screen simply CUTS the last rooms off —
+               the same "no door" defect that adding them was meant to end,
+               reintroduced as a layout accident. */
+            maxHeight: "100vh",
+            overflowY: "auto",
+            overscrollBehavior: "contain",
             borderRight: `1px solid ${RULE}`,
           }}
         >
           <div style={{ ...EYEBROW, padding: "0 14px 10px", color: GOLD }}>Rooms</div>
 
-          {OS_ROOMS.map((room) => {
-            const active = room.href === activeHref;
-            return (
-              <a
-                key={room.href}
-                href={room.href}
-                aria-current={active ? "page" : undefined}
-                style={{
-                  position: "relative",
-                  display: "block",
-                  padding: "9px 14px",
-                  fontSize: 12,
-                  letterSpacing: 0.3,
-                  textDecoration: "none",
-                  color: active ? PEARL : MUTED,
-                  fontWeight: active ? 600 : 400,
-                  background: active ? "rgba(196,165,116,0.07)" : "transparent",
-                  minHeight: 36,
-                }}
-              >
-                {active && (
-                  <span
-                    aria-hidden
-                    style={{ position: "absolute", left: 0, top: 6, bottom: 6, width: 2, background: GOLD }}
-                  />
-                )}
-                {room.label}
-              </a>
-            );
-          })}
+          {OS_ROOMS.map((room) => (
+            <RailLink key={room.href} href={room.href} label={room.label} activeHref={activeHref} />
+          ))}
+
+          {/* WORKBENCH and COMMUNITY. Quieter than the loop above — smaller
+              type, dimmer resting colour — because they are where the trader
+              GOES, not where the trader WORKS. The active treatment is
+              identical, so a room never changes its "you are here" mark
+              depending on which heading it sits under. */}
+          <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: MUTED }}>Workbench</div>
+          {OS_WORKBENCH.map((d) => (
+            <RailLink key={d.href} href={d.href} label={d.label} activeHref={activeHref} quiet />
+          ))}
+
+          <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: MUTED }}>Community</div>
+          {OS_COMMUNITY.map((d) => (
+            <RailLink key={d.href} href={d.href} label={d.label} activeHref={activeHref} quiet />
+          ))}
 
           {/* STATE — the standing conditions live under the room list, where
               they are visible without a scroll. A "persistent" condition you

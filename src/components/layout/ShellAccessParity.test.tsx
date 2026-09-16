@@ -27,6 +27,7 @@ import { describe, it, expect } from "vitest";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { WMExperienceShell } from "@/components/experience/WMExperienceShell";
+import { WM_DESTINATIONS } from "@/lib/routing/wmDestinations";
 
 const HTML = renderToStaticMarkup(
   <WMExperienceShell brand={<span>WM</span>}>
@@ -69,6 +70,32 @@ describe("one OS · the access chrome is reachable from an OS room", () => {
     expect(HTML).toContain('aria-expanded="false"');
     expect(HTML).not.toContain('id="wm-symbol-search-dialog"');
     expect(HTML).not.toContain('role="dialog"');
+  });
+});
+
+describe("one OS · every room has a door in the rail", () => {
+  /**
+   * ── THE MEASURED DEFECT ─────────────────────────────────────────────
+   * The rail drew the seven ROOM destinations and stopped. The fourteen in
+   * TOOL and COMMUNITY — scanner, news, academy, lounge, shop, the trader's
+   * own profile — had NO door in an OS room. Not a broken link: no link.
+   *
+   * And nothing in this suite went red while that was true, which is the
+   * whole reason this gate exists. It asserts against the OWNER's list, so
+   * a destination added to `wmDestinations` tomorrow and forgotten in the
+   * rail fails HERE rather than being discovered by a trader.
+   */
+  it("renders an href for every destination the owner declares", () => {
+    expect(WM_DESTINATIONS.length).toBeGreaterThanOrEqual(21); // vacuity guard
+    const missing = WM_DESTINATIONS.filter((d) => !HTML.includes(`href="${d.href}"`));
+    expect(missing.map((d) => `${d.label} → ${d.href}`)).toEqual([]);
+  });
+
+  it("names each door with the owner's label, not a second copy of it", () => {
+    // The drift this ends was real and measured: the same room was called
+    // "Chart" on one rail and "Charts" on the other.
+    const missing = WM_DESTINATIONS.filter((d) => !HTML.includes(`>${d.label}</a>`));
+    expect(missing.map((d) => d.label)).toEqual([]);
   });
 });
 
