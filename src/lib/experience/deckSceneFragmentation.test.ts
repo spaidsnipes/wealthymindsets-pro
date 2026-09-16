@@ -115,6 +115,32 @@ describe("workspace pieces read as ONE room, not three sheds", () => {
     expect(src).not.toContain('background: "#0D0E14"');
   });
 
+  it("CapitalPostureLine is the second half of RISK, not a second risk card", () => {
+    // Added 2026-09-16, the day it shipped. It was authored in the correct
+    // hairline grammar but pinned by nothing, so a future full-box regression
+    // on it would have reached a screenshot unchallenged — the same way the
+    // evidence-ledger defect sat on the live deck under a green suite.
+    //
+    // It sits directly beneath AvailableRChip inside `scene-risk`. If it grows
+    // a box, RISK stops being one aspect answering two halves of one question
+    // and becomes "R chip + capital card" — SCENE_FRAGMENTATION by definition,
+    // and inside the very region the chip above it was repaired to leave.
+    const src = READ("components/experience/CapitalPostureLine.tsx");
+    expect(src).toContain("borderLeft: `2px solid ${CAPITAL_POSTURE_EDGE[vm.tone]}`");
+    expect(src).not.toMatch(/border:\s*`\d+px solid \$\{CAPITAL_POSTURE_EDGE/);
+    expect(src).toContain('background: "transparent"');
+    // Tone may only change the EDGE. The moment a tone selects a background or
+    // a box shadow, the absence states stop reading as calm negative space.
+    expect(src).not.toContain("boxShadow");
+    // Every accent stays inside the brass family. A tone reaching for a new
+    // hue would give this line a vocabulary the rest of the room cannot read.
+    const edges = src.match(/rgba\(\d+,\d+,\d+,[\d.]+\)/g) ?? [];
+    expect(edges.length).toBeGreaterThan(0);
+    for (const edge of edges) {
+      expect(edge, `off-brass accent ${edge}`).toMatch(/rgba\((?:201,165,92|139,106,41),/);
+    }
+  });
+
   it("DeckExpressionShortlist reads as an aspect, not a separate app", () => {
     const src = READ("components/experience/DeckExpressionShortlist.tsx");
     // Same hairline / transparent-background treatment as the chart —
