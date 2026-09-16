@@ -94,27 +94,44 @@ const EYEBROW: React.CSSProperties = {
   color: "#8a8271",
 };
 
+/**
+ * One standing condition, compiled. The shell renders these in TWO PLACES —
+ * the rail on desktop, the footer on phone — but computes them ONCE, because
+ * two independently-typed copies of the same reading is how a screen ends up
+ * disagreeing with itself.
+ */
+interface StandingCondition {
+  readonly label: string;
+  readonly value: string;
+  readonly detail: string;
+  readonly unresolved: boolean;
+  readonly alert: boolean;
+}
+
 function StateReadout({
-  label,
-  value,
-  detail,
-  unresolved,
-  alert,
+  condition,
+  layout,
 }: {
-  label: string;
-  value: string;
-  detail: string;
-  unresolved: boolean;
-  alert: boolean;
+  condition: StandingCondition;
+  /** `bar` = the horizontal footer strip. `stack` = the 176px rail column. */
+  layout: "bar" | "stack";
 }): React.ReactElement {
+  const { label, value, detail, unresolved, alert } = condition;
   const ink = unresolved ? "#8a8271" : alert ? "#e07b5c" : "#ede6d3";
+  const stacked = layout === "stack";
   return (
-    <div style={{ display: "flex", alignItems: "baseline", gap: 10, minWidth: 0, flex: "1 1 220px" }}>
+    <div
+      style={
+        stacked
+          ? { display: "flex", flexDirection: "column", gap: 2, minWidth: 0, padding: "0 14px" }
+          : { display: "flex", alignItems: "baseline", gap: 10, minWidth: 0, flex: "1 1 220px" }
+      }
+    >
       <span style={{ ...EYEBROW, whiteSpace: "nowrap" }}>{label}</span>
       <span
         style={{
           fontFamily: "Georgia, 'Times New Roman', serif",
-          fontSize: 15,
+          fontSize: stacked ? 13 : 15,
           fontWeight: 600,
           letterSpacing: 0.4,
           color: ink,
@@ -124,7 +141,16 @@ function StateReadout({
       >
         {value}
       </span>
-      <span style={{ fontSize: 10, color: "#6f6a5e", minWidth: 0 }}>{detail}</span>
+      <span
+        style={{
+          fontSize: 10,
+          color: "#6f6a5e",
+          minWidth: 0,
+          ...(stacked ? { lineHeight: 1.3 } : null),
+        }}
+      >
+        {detail}
+      </span>
     </div>
   );
 }
@@ -142,6 +168,23 @@ export function QuestionDrivenShell({
     : openEvidenceItems === 0
       ? "PAID"
       : `${openEvidenceItems} OPEN`;
+
+  const standingConditions: readonly StandingCondition[] = [
+    {
+      label: "Evidence Debt",
+      value: debtValue,
+      detail: debtUnknown ? "no ledger compiled" : "unpaid information",
+      unresolved: debtUnknown,
+      alert: !debtUnknown && (openEvidenceItems ?? 0) > 0,
+    },
+    {
+      label: "Right of Way",
+      value: rightOfWay,
+      detail: rightOfWayResolved ? "compiled from evidence" : "no permission reading",
+      unresolved: !rightOfWayResolved,
+      alert: rightOfWayResolved && rightOfWay !== "ACTION",
+    },
+  ];
 
   return (
     <div
@@ -210,6 +253,28 @@ export function QuestionDrivenShell({
               </a>
             );
           })}
+
+          {/* STATE — the mockup's rail carries the two standing conditions
+              directly under the room list, where they are visible without a
+              scroll. This build had them only in a footer at the bottom of a
+              long page: a "persistent" condition you have to go looking for is
+              not persistent. */}
+          <div
+            data-testid="question-driven-rail-state"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              marginTop: 16,
+              paddingTop: 14,
+              borderTop: "1px solid rgba(196,165,116,0.20)",
+            }}
+          >
+            <div style={{ ...EYEBROW, padding: "0 14px", color: "#c4a574" }}>State</div>
+            {standingConditions.map((condition) => (
+              <StateReadout key={condition.label} condition={condition} layout="stack" />
+            ))}
+          </div>
         </nav>
 
         <div style={{ flex: "1 1 auto", minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
@@ -217,10 +282,14 @@ export function QuestionDrivenShell({
         </div>
       </div>
 
-      {/* FOOTER BAR — the mockup's persistent state strip. It repeats no
-          sentence from the canvas above; it carries the two standing
-          conditions the trader must never have to scroll to find. */}
+      {/* FOOTER BAR — the PHONE form of the two standing conditions.
+          Below 900px the rail is gone, so something must still carry them;
+          above 900px the rail carries them and this bar is hidden. The two are
+          MUTUALLY EXCLUSIVE by the media queries below: one screen, one
+          rendering of each condition. Deleting this outright would silently
+          drop both conditions on phone, where the rail never renders. */}
       <footer
+        className="wm-qd-footer"
         aria-label="Standing conditions"
         data-testid="question-driven-footer"
         style={{
@@ -233,25 +302,17 @@ export function QuestionDrivenShell({
           background: "linear-gradient(0deg, rgba(196,165,116,0.05) 0%, rgba(7,8,10,0) 100%)",
         }}
       >
-        <StateReadout
-          label="Evidence Debt"
-          value={debtValue}
-          detail={debtUnknown ? "no ledger compiled" : "unpaid information"}
-          unresolved={debtUnknown}
-          alert={!debtUnknown && (openEvidenceItems ?? 0) > 0}
-        />
-        <StateReadout
-          label="Right of Way"
-          value={rightOfWay}
-          detail={rightOfWayResolved ? "compiled from evidence" : "no permission reading"}
-          unresolved={!rightOfWayResolved}
-          alert={rightOfWayResolved && rightOfWay !== "ACTION"}
-        />
+        {standingConditions.map((condition) => (
+          <StateReadout key={condition.label} condition={condition} layout="bar" />
+        ))}
       </footer>
 
       <style>{`
         @media (max-width: 900px) {
           .wm-qd-rail { display: none !important; }
+        }
+        @media (min-width: 901px) {
+          .wm-qd-footer { display: none !important; }
         }
       `}</style>
     </div>
