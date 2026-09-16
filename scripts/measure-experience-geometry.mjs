@@ -137,6 +137,11 @@ const SURFACES = [
     props: `{
         decisionId: "wmd_9f3c1a22-5e77-4a10-b2d4-7c918ee0d311",
         decisionIdAbsence: "No decision born yet — permission has not crossed.",
+        now: {
+          token: "SESSION CLOSED",
+          detail: "Regular hours ended at 16:00 ET; no session is open.",
+          established: true,
+        },
         market: {
           symbol: "TSLA", timeframe: "5m",
           quality: "SESSION CLOSED — LAST VERIFIED",
@@ -178,6 +183,15 @@ const SURFACES = [
         presentation: "rail",
         decisionId: "wmd_9f3c1a22-5e77-4a10-b2d4-7c918ee0d311",
         decisionIdAbsence: "No decision born yet — permission has not crossed.",
+        // The UNESTABLISHED tone, deliberately, so the two spine fixtures
+        // between them measure both branches of NOW_TOKEN_TONE. The detail
+        // sentence is long on purpose: the rail is 320px and this is the
+        // string most likely to crush a neighbouring cell.
+        now: {
+          token: "SESSION UNKNOWN",
+          detail: "No session clock has been observed, so the moment cannot be named.",
+          established: false,
+        },
         market: {
           symbol: "TSLA", timeframe: "5m",
           quality: "SESSION CLOSED — LAST VERIFIED",
@@ -490,11 +504,42 @@ const SCENE_PROVENANCE = {
  * compiled here rather than duplicating each component's markup into this file
  * — a copy would drift and then measure something the Founder never sees.
  */
+/*
+ * EVERY SURFACE RENDERS INSIDE ITS OWN try/catch, AND THAT IS THE WHOLE POINT.
+ *
+ * These `props` are TEMPLATE STRINGS. `tsc --noEmit` never sees them, so the
+ * type system cannot hold a fixture to its component's contract — the one
+ * safety net the rest of this repo relies on is structurally absent here.
+ * On 2026-09-16 that bill came due: `DecisionSpineBand` had made `now` a
+ * REQUIRED prop in 1fc7975, both spine fixtures still omitted it, and the
+ * render threw `Cannot read properties of undefined`.
+ *
+ * The throw happened while the bundle was being IMPORTED, because every
+ * surface was rendered eagerly into one array literal. So one stale fixture
+ * did not fail one surface — it aborted the process before a single pixel was
+ * measured, and took all fourteen other surfaces with it silently. The gate is
+ * wired into sentinels.yml, so it had been reporting nothing at all.
+ *
+ * A fixture that cannot render is a REAL FINDING, not an infrastructure
+ * hiccup: either the fixture drifted from its component or the component
+ * cannot render its own declared contract. Either way it is named, it is
+ * counted as an offence, and — critically — the other surfaces still get
+ * measured. Refusing to report is right when the INSTRUMENT is missing (see
+ * the browser fallback below). It is wrong when one SPECIMEN is broken.
+ */
 const ENTRY = `
 import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
 ${SURFACES.map((s, i) => `import { ${s.named} as C${i} } from ${s.from};`).join("\n")}
 ${SURFACES.flatMap((s) => s.imports ?? []).join("\n")}
+
+function render(name, Component, props) {
+  try {
+    return { html: renderToStaticMarkup(React.createElement(Component, props)), renderError: null };
+  } catch (error) {
+    return { html: "", renderError: error && error.message ? error.message : String(error) };
+  }
+}
 
 export const surfaces = [
 ${SURFACES.map(
@@ -502,7 +547,7 @@ ${SURFACES.map(
     `  { name: ${JSON.stringify(s.name)}, root: ${JSON.stringify(s.root)}, ` +
     `widths: ${JSON.stringify(s.widths ?? null)}, ` +
     `cellSelector: ${JSON.stringify(s.cellSelector ?? null)}, ` +
-    `html: renderToStaticMarkup(React.createElement(C${i}, ${s.props})) },`,
+    `...render(${JSON.stringify(s.name)}, C${i}, ${s.props}) },`,
 ).join("\n")}
 ];
 `;
@@ -545,10 +590,54 @@ const browser = await chromium.launch({ channel: "chrome" }).catch(async (error)
 const offences = [];
 
 for (const surface of surfaces) {
+  // A fixture that threw has no markup, so there is nothing to measure and
+  // every law below would report a clean surface. Name it once — not once per
+  // width, which would triple one fact — and move to the next specimen.
+  if (surface.renderError !== null) {
+    offences.push({
+      surface: surface.name,
+      width: null,
+      law: "UNRENDERABLE",
+      detail:
+        `fixture did not render: ${surface.renderError}. Either the fixture ` +
+        `drifted from its component's props or the component cannot render ` +
+        `its own declared contract. NOT MEASURED — this surface's geometry ` +
+        `is unknown, not clean.`,
+    });
+    console.log(`UNRENDERABLE  ${surface.name} — ${surface.renderError}`);
+    continue;
+  }
+
   for (const width of surface.widths ?? WIDTHS) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
+    /*
+     * THE BOX MODEL IS PART OF THE INSTRUMENT'S CALIBRATION.
+     *
+     * `src/app/globals.css` opens with `@tailwind base`, and Tailwind's
+     * preflight sets `box-sizing: border-box` on every element. So the
+     * Founder's browser lays these surfaces out in BORDER-BOX. This page
+     * carries no stylesheet, which left the harness measuring in the CSS
+     * default, CONTENT-BOX — a different geometry from the one shipped.
+     *
+     * It is not a rounding difference. Measured 2026-09-16, the rail cell
+     * (`width: 100%` + `padding: 10px 12px`) came out 341px inside a 317px
+     * rail and clipped "would" to "wou" mid-word. Under border-box — what the
+     * Founder actually sees — it is 317px and fits. The gate had reported
+     * "clear", so this mis-calibration can produce a false PASS as readily as
+     * a false FAIL, and neither number described the product.
+     *
+     * KNOWN REMAINING GAP, STATED RATHER THAN PAPERED OVER: the app renders in
+     * Inter (loaded by globals.css); this page renders in system-ui. Glyph
+     * widths therefore still differ slightly from production, so a measurement
+     * a pixel or two from a threshold is not decisive. The thresholds here
+     * (NOODLE_MIN 120, PHRASE_MIN_PX 11) are coarse enough that this does not
+     * change a verdict, but a future tightening must load the real face first.
+     */
     await page.setContent(
-      `<!doctype html><html><body style="margin:0;background:#0D0E14;font-family:system-ui">` +
+      `<!doctype html><html><head><style>` +
+        `*,::before,::after{box-sizing:border-box}` +
+        `</style></head>` +
+        `<body style="margin:0;background:#0D0E14;font-family:system-ui">` +
         `<div data-wm-measure-root>${surface.html}</div></body></html>`,
     );
 
@@ -651,10 +740,24 @@ for (const surface of surfaces) {
 
 await browser.close();
 
+const unrenderable = offences.filter((o) => o.law === "UNRENDERABLE");
 if (offences.length > 0) {
-  console.error(
-    `\nFAIL — ${offences.length} geometry offence(s), measured with ${engine}. Text crushed or truncated inside the viewport is still unreadable text.`,
-  );
+  // The two failures are reported apart because they mean different things. A
+  // geometry offence is a measurement that found something wrong. An
+  // UNRENDERABLE is a measurement that never happened, and collapsing the two
+  // would let "we could not look" hide inside "we looked and it was bad".
+  if (unrenderable.length > 0) {
+    console.error(
+      `\nNOT MEASURED — ${unrenderable.length} surface(s) could not be rendered: ` +
+        `${unrenderable.map((o) => o.surface).join(", ")}. Their geometry is UNKNOWN.`,
+    );
+  }
+  const measured = offences.length - unrenderable.length;
+  if (measured > 0) {
+    console.error(
+      `\nFAIL — ${measured} geometry offence(s), measured with ${engine}. Text crushed or truncated inside the viewport is still unreadable text.`,
+    );
+  }
   process.exit(1);
 }
 console.log(`\nPASS — ${surfaces.length} surface(s) clear at their configured viewports, measured with ${engine}. Screenshots in /tmp/geometry-<surface>-<width>.png`);
