@@ -218,6 +218,33 @@ function buildDefaultRulesFromDecision(decision: DecisionMemoryRecord): Expectat
     kind: "INVALIDATION",
     description: `Structural stop at ${decision.plan.intendedStop} not breached`,
     evaluate: (state, dec) => {
+      // TRIAGED, DELIBERATELY NOT CHANGED (2026-09-16).
+      //
+      // Every OTHER `price.last` reader in this repo was migrated to
+      // `selectPriceEvidence` this shift, because reading the print field
+      // alone made surfaces claim "no price" while a bar close sat in the
+      // same state object. This site was examined and LEFT, for two reasons
+      // that are worth writing down so the next reader does not "finish the
+      // sweep" and call it a fix:
+      //
+      //   1. THE LANE IS NOT WIRED. Decision Memory sealing still has zero
+      //      production callers. Changing evaluation semantics in a module
+      //      nothing calls is speculation that arrives wearing a test's
+      //      authority, and the standing instruction on this lane is to
+      //      surface it, not to rush-wire it.
+      //
+      //   2. A STOP BREACH IS A CONSEQUENTIAL CLAIM, and the two candidate
+      //      facts are not interchangeable here the way they are on a
+      //      display surface. "The tape traded through your stop" and "a
+      //      candle closed through your stop" are different events with
+      //      different correct responses. Silently widening this predicate
+      //      to accept a bar close would make WM declare positions
+      //      INVALIDATED on evidence the trader never agreed counted.
+      //
+      // The honest answer is that this rule needs a DECISION about which
+      // evidence invalidates a stop — a Founder-level question — not a
+      // mechanical migration. UNKNOWN is the correct output until then,
+      // because UNKNOWN is what WM actually knows.
       const price = state.price.last;
       if (price == null) return { verdict: "UNKNOWN", evidence: [], reason: "Current price unavailable" };
       const stop = dec.plan.intendedStop;
