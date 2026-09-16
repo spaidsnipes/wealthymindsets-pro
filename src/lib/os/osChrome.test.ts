@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CANONICAL_FIDELITY_LABELS as L } from "@/lib/marketData/canonicalFidelityLabels";
 import { priceSourceBadge } from "@/lib/priceSource";
+import type { CapabilityFidelity } from "@/lib/marketData/sourceCapabilityCertification";
 import {
   LIVE_STALENESS_BUDGET_MS,
   compileFeedStanding,
@@ -138,6 +139,83 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
       const masthead = compileFeedStanding(CLOSED);
       const chip = priceSourceBadge("webull", true, false, { present: true, fresh: false });
       expect(masthead.label).toBe(chip.label);
+    });
+  });
+
+  /**
+   * `FeedObservation.fidelity` used to spell three of the five members of
+   * `CapabilityFidelity` inline. That second owner did not fail loudly — it
+   * failed by being INEXPRESSIBLE: a room whose capability resolved to PROXY or
+   * NONE had no legal value to hand up, so its only move was `null`, which this
+   * compiler reads as "no certification resolved". A missing enum member
+   * launders a known-weak reading into an unknown one.
+   */
+  describe("the full certified vocabulary, because a missing member is a laundered claim", () => {
+    it("grades PROXY as ACTIVE DEGRADED — inferred is not observed, and not unknown either", () => {
+      const feed = compileFeedStanding({ ...LIVE_OBS, fidelity: "PROXY" });
+      expect(feed.label).toBe(L.ACTIVE_DEGRADED);
+      expect(feed.established).toBe(true);
+      expect(feed.label).not.toBe(L.LIVE_CERTIFIED_QUOTE);
+      expect(feed.detail).toContain("inferred");
+    });
+
+    it("a stale PROXY is stale first — freshness outranks the fidelity arm", () => {
+      const feed = compileFeedStanding({
+        ...LIVE_OBS,
+        fidelity: "PROXY",
+        lastObservedAtMs: NOW - LIVE_STALENESS_BUDGET_MS - 1,
+      });
+      expect(feed.label).toBe(L.STALE_PIPELINE);
+    });
+
+    it("distinguishes a DECLINED fidelity claim from a MISSING one", () => {
+      // Both are FEED UNKNOWN; neither may claim the other's reason. Telling
+      // the trader we are still waiting when the certification already came
+      // back is a small lie in the one place they look to calibrate trust.
+      const declined = compileFeedStanding({ ...LIVE_OBS, fidelity: "NONE" });
+      const missing = compileFeedStanding({ ...LIVE_OBS, fidelity: null });
+      expect(declined.label).toBe("FEED UNKNOWN");
+      expect(missing.label).toBe("FEED UNKNOWN");
+      expect(declined.established).toBe(false);
+      expect(declined.detail).not.toBe(missing.detail);
+    });
+
+    /**
+     * THE GUARD THAT SURVIVES THE NEXT MEMBER.
+     *
+     * `CapabilityFidelity` is a bare union with no runtime list, so nothing can
+     * iterate it. A `Record<CapabilityFidelity, …>` can: TypeScript requires
+     * every member as a key, so the day `sourceCapabilityCertification.ts`
+     * grows a sixth fidelity, `tsc` fails HERE — in the file that names the
+     * compiler obliged to grade it — instead of that member silently arriving
+     * at the masthead and falling through to LIVE.
+     *
+     * A runtime assertion could not do this. The hazard is a value that does
+     * not exist yet, and you cannot write a test case for a member nobody has
+     * declared.
+     */
+    it("grades every member the certification owner can produce", () => {
+      const expected: Record<CapabilityFidelity, string> = {
+        REALTIME: L.LIVE_CERTIFIED_QUOTE,
+        DELAYED: L.DELAYED_BY_ENTITLEMENT,
+        SNAPSHOT: L.HISTORICAL_BARS_VERIFIED,
+        PROXY: L.ACTIVE_DEGRADED,
+        NONE: "FEED UNKNOWN",
+      };
+      for (const [fidelity, label] of Object.entries(expected)) {
+        expect(
+          compileFeedStanding({ ...LIVE_OBS, fidelity: fidelity as CapabilityFidelity }).label,
+          fidelity,
+        ).toBe(label);
+      }
+    });
+
+    it("never lets a NONE claim reach SESSION CLOSED — LAST VERIFIED", () => {
+      // "LAST VERIFIED" asserts a verification the certification explicitly
+      // declines to make. Closure must not be the loophole that restores it.
+      const feed = compileFeedStanding({ ...LIVE_OBS, fidelity: "NONE", sessionOpen: false });
+      expect(feed.label).not.toBe(L.SESSION_CLOSED_LAST_VERIFIED);
+      expect(feed.established).toBe(false);
     });
   });
 

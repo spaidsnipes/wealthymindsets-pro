@@ -36,6 +36,7 @@
 
 import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
 import { CONTINUOUS_MARKET_SOURCES } from "@/lib/priceSource";
+import type { CapabilityFidelity } from "@/lib/marketData/sourceCapabilityCertification";
 
 /**
  * How much the OS is entitled to say about its own data feed.
@@ -79,8 +80,18 @@ export interface FeedObservation {
   /**
    * Fidelity the provider is CERTIFIED for — not what we hope it is.
    * `null` when no certification has been resolved.
+   *
+   * THE VOCABULARY IS IMPORTED, NOT RETYPED. This field used to spell out
+   * `"REALTIME" | "DELAYED" | "SNAPSHOT"` inline — three of the FIVE members of
+   * `CapabilityFidelity`, which `sourceCapabilityCertification.ts` owns. That
+   * was a second owner of one vocabulary, and it did not fail loudly; it failed
+   * by being INEXPRESSIBLE. A room whose capability resolved to `PROXY` or
+   * `NONE` could not hand that up, so its only legal move was to pass `null` —
+   * which this compiler reads as "no certification has been resolved", when in
+   * fact one HAD been resolved and it was unflattering. A missing enum member
+   * launders a known-weak reading into an unknown one.
    */
-  readonly fidelity: "REALTIME" | "DELAYED" | "SNAPSHOT" | null;
+  readonly fidelity: CapabilityFidelity | null;
   /** Epoch ms of the last observed print, or null if nothing was observed. */
   readonly lastObservedAtMs: number | null;
   /** The instant the reading is being compiled for. */
@@ -120,8 +131,12 @@ export const LIVE_STALENESS_BUDGET_MS = 90_000;
  * REALTIME certification, and a recent print.
  */
 export function compileFeedStanding(obs: FeedObservation): FeedStanding {
-  const observed =
-    obs.source !== null && obs.lastObservedAtMs !== null && obs.fidelity !== null;
+  // "NONE" is a RESOLVED certification that makes no fidelity claim, so it can
+  // never contribute to a confident reading — including the SESSION CLOSED
+  // branch below, where "LAST VERIFIED" would be asserting a verification that
+  // the certification explicitly declines to make.
+  const certified = obs.fidelity !== null && obs.fidelity !== "NONE";
+  const observed = obs.source !== null && obs.lastObservedAtMs !== null && certified;
 
   // ── CLOSED IS NOT DELAYED, AND IT IS NOT BROKEN EITHER ───────────────────
   //
@@ -176,6 +191,20 @@ export function compileFeedStanding(obs: FeedObservation): FeedStanding {
     };
   }
 
+  // A DECLINED CLAIM IS NOT A MISSING ONE, and the difference is the whole
+  // reason the vocabulary is imported. "NONE" means the certification RAN and
+  // came back making no fidelity claim; `null` means it never ran. Both land on
+  // FEED UNKNOWN — there is nothing confident to say either way — but the
+  // detail must not tell the trader we are still waiting when we are not.
+  if (obs.fidelity === "NONE") {
+    return {
+      label: FEED_UNKNOWN,
+      detail: "certified, with no fidelity claim",
+      tone: "UNKNOWN",
+      established: false,
+    };
+  }
+
   if (!observed) {
     return {
       label: FEED_UNKNOWN,
@@ -219,6 +248,19 @@ export function compileFeedStanding(obs: FeedObservation): FeedStanding {
   // A SNAPSHOT is a point-in-time picture that was genuinely verified — the
   // canon's HISTORICAL_BARS_VERIFIED, which exists precisely so a limited
   // capability is reported as limited rather than as a symbol-wide insult.
+  // PROXY is inferred from a lower-resolution input — real, usable, and NOT an
+  // observation of the thing itself. ACTIVE DEGRADED is the canon's word for
+  // exactly that: the trader can still act, with reduced confidence. Graded
+  // AFTER staleness, because a stale proxy is stale first.
+  if (obs.fidelity === "PROXY") {
+    return {
+      label: CANONICAL_FIDELITY_LABELS.ACTIVE_DEGRADED,
+      detail: `${obs.source} · inferred, not observed`,
+      tone: "DELAYED",
+      established: true,
+    };
+  }
+
   if (obs.fidelity === "SNAPSHOT") {
     return {
       label: CANONICAL_FIDELITY_LABELS.HISTORICAL_BARS_VERIFIED,
