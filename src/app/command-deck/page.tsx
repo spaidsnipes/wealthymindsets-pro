@@ -707,7 +707,12 @@ function CommandDeckInner() {
     <div
       data-testid="deck-route-plane"
       style={{
-        minHeight: "100vh",
+        // 100vh was correct when this plane WAS the page. It is now a child
+        // of the frame's scrolling room, which sits below a masthead — so a
+        // 100vh floor guarantees the room scrolls by exactly the masthead's
+        // height even when the room is empty. 100% fills the room it was
+        // actually given, and an empty room stays still.
+        minHeight: "100%",
         background: "transparent",
         color: "#ede6d3",
       }}
@@ -764,7 +769,17 @@ function CommandDeckInner() {
         ~35% of every new pixel widening RISK/WHY/NEXT. It is now bounded, so
         the width this cap releases goes to MARKET and only to MARKET.
       */}
-      <main style={{ maxWidth: "min(1720px, 100%)", margin: "0 auto", padding: "12px 16px", position: "relative" }}>
+      {/*
+        This was a <main>. The OS frame owns <main data-testid="os-room">
+        one layer above, so this element was a SECOND <main> nested inside
+        the first — which HTML forbids and which tells a screen reader the
+        page has two primary contents. The visual result was identical,
+        which is exactly why it survived: the defect was addressed to the
+        accessibility tree, and nobody was reading that.
+
+        A <div> keeps every pixel and returns the landmark to its one owner.
+      */}
+      <div style={{ maxWidth: "min(1720px, 100%)", margin: "0 auto", padding: "12px 16px", position: "relative" }}>
         {/*
           SCENE_FRAGMENTATION repair (Founder audit 2026-09-13, §30 STEP 3
           "Embed NOW into MARKET").
@@ -2143,7 +2158,7 @@ function CommandDeckInner() {
 
         </div>
         </div>{/* end z-index wrapper */}
-      </main>
+      </div>
     </div>
     </SanctuarySessionProvider>
   );

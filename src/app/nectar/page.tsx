@@ -89,9 +89,15 @@ export default function NectarVaultPage() {
     mounted ? getSessionNectarSnapshot() : null;
 
   return (
-    <main
+    // Was a <main>. The OS frame draws <main data-testid="os-room"> around
+    // this room, so this was a second one — see
+    // src/lib/design/oneRoomHasOneLandmark.enforcement.test.ts. And 100dvh
+    // was a full viewport measured against the SCREEN while living inside a
+    // room that already sits below a masthead, which forced a scrollbar on
+    // an empty page. 100% fills the room it was actually given.
+    <div
       style={{
-        minHeight: "100dvh",
+        minHeight: "100%",
         background: `radial-gradient(1200px 800px at 50% -10%, rgba(212,175,55,0.06), transparent 60%), ${WM.surface.deepest}`,
         color: WM.text.body,
         paddingBottom: 48,
@@ -274,7 +280,7 @@ export default function NectarVaultPage() {
 
         <FooterNote />
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -554,7 +560,12 @@ function IntelCell({ label, value, tone }: { label: string; value: number; tone:
 
 function VaultHeader() {
   return (
-    <header
+    // Was a <header>. Because it sits at the ROOM's top level rather than
+    // inside sectioning content, HTML maps it to the `banner` role — the
+    // same role the OS masthead already holds one layer up. Two banners is
+    // the accessibility-tree spelling of two shells. A <div> keeps the
+    // hairline and every pixel, and leaves `banner` with one owner.
+    <div
       style={{
         borderBottom: `1px solid ${WM.border.hair}`,
         // SCENE_FRAGMENTATION cure: /nectar lives inside the sanctuary
@@ -599,7 +610,7 @@ function VaultHeader() {
       >
         Market Evidence
       </div>
-    </header>
+    </div>
   );
 }
 
