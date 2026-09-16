@@ -112,6 +112,61 @@ describe("selectPassportStamp", () => {
       );
     });
 
+    describe("AN ABSENCE IS NOT AN UNKNOWN, AND NEITHER IS A FINDING", () => {
+      // Measured live: the band printed `STATE QUALITY  UNAVAILABLE` in the
+      // #ede6d3 it reserves for findings, at the same weight as the protocol
+      // version beside it. An absence was wearing the ink of a fact.
+      it("marks UNAVAILABLE an absence — a reading whose content is nothing", () => {
+        const f = fieldNamed(vmOf({ qualityState: "UNAVAILABLE" }), "State Quality");
+        expect(f.absence).toBe(true);
+      });
+
+      it("does NOT fold UNAVAILABLE into unresolved", () => {
+        // The whole point. UNKNOWN means no state was compiled; UNAVAILABLE is
+        // a state the engine compiled and it says there is no coverage and no
+        // price. Same mistake as printing FLAT for an unread account (§14.1).
+        expect(fieldNamed(vmOf({ qualityState: "UNAVAILABLE" }), "State Quality").unresolved).toBe(
+          false,
+        );
+        // …and the mirror: UNKNOWN is not an absence, it is the lack of one.
+        expect(fieldNamed(vmOf({ qualityState: "UNKNOWN" }), "State Quality").absence).toBe(false);
+      });
+
+      it("keeps every DEGRADED reading in finding ink", () => {
+        // A degraded reading that dims itself is the absent-cell defect in
+        // reverse: the trader stops seeing the very state they must act on.
+        for (const q of ["LIVE", "DELAYED", "STALE", "PARTIAL", "PROXY", "REPLAY"] as const) {
+          const f = fieldNamed(vmOf({ qualityState: q }), "State Quality");
+          expect(f.absence, `qualityState=${q}`).toBe(false);
+          expect(f.unresolved, `qualityState=${q}`).toBe(false);
+        }
+      });
+
+      it("no other field ever claims to be an absence", () => {
+        // Only STATE QUALITY has a reading that can MEAN nothing. In
+        // particular "0 of 8 dimensions" is alarming but real — softening it
+        // would hide the number the trader most needs.
+        const stamp = selectPassportStamp(
+          vmOf({ qualityState: "UNAVAILABLE", resolvedCount: 0, totalCount: 8 }),
+        );
+        for (const f of stamp.fields) {
+          if (f.label === "State Quality") continue;
+          expect(f.absence, `${f.label} must not be an absence`).toBe(false);
+        }
+      });
+
+      it("a field is never both unresolved and an absence", () => {
+        // They answer different questions — "is there a reading?" and "is the
+        // reading a finding?" — so one field claiming both would be incoherent
+        // and would make the rendered mark undefined.
+        for (const q of ["UNKNOWN", "UNAVAILABLE", "LIVE", "PARTIAL"] as const) {
+          for (const f of selectPassportStamp(vmOf({ qualityState: q })).fields) {
+            expect(f.unresolved && f.absence, `${f.label} @ ${q}`).toBe(false);
+          }
+        }
+      });
+    });
+
     it("marks an UNKNOWN quality state unresolved", () => {
       expect(fieldNamed(vmOf({ qualityState: "UNKNOWN" }), "State Quality").unresolved).toBe(true);
     });
@@ -203,6 +258,23 @@ describe("SENTINEL — the band spells no value of its own", () => {
     for (const forbidden of ["Verified", "Signed", "TTL", "Valid Until"]) {
       expect(code).not.toContain(forbidden);
     }
+  });
+
+  it("the band draws THREE states, and keeps absences out of finding ink", () => {
+    // The ink answers "is this a finding?"; the face answers "is this a
+    // reading at all?". A view that consumed `absence` for neither mark would
+    // leave the selector's distinction invisible — a compiled fact with no
+    // pixel, which is the LIVING-PIXEL LAW read backwards.
+    const code = stripComments(view);
+    expect(code).toContain("f.absence");
+    // Absence must reach the COLOUR (not a finding)…
+    expect(code).toMatch(/color:\s*f\.unresolved\s*\|\|\s*f\.absence\s*\?/);
+    // …and must NOT reach the italic, which is reserved for "no reading".
+    expect(code).toMatch(/fontStyle:\s*f\.unresolved\s*\?/);
+    expect(code).not.toMatch(/fontStyle:[^;]*f\.absence/);
+    // No new token was minted for this state.
+    expect(code).toContain("#8a8271");
+    expect(code).toContain("#ede6d3");
   });
 
   it("the deck renders the band outside the collapsed drawer", () => {

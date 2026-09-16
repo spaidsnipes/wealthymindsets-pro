@@ -78,7 +78,19 @@ export function PassportStamp({ vm }: PassportStampProps): React.ReactElement {
             style={{
               fontSize: 11.5,
               letterSpacing: 0.3,
-              color: f.unresolved ? "#8a8271" : "#ede6d3",
+              // THREE states, two marks, no new token.
+              //
+              //   finding   #ede6d3 upright   a reading the trader can act on
+              //   absence   #8a8271 upright   a reading whose content is "nothing"
+              //   no reading #8a8271 italic   nothing was compiled at all
+              //
+              // The INK answers "is this a finding?" and the FACE answers "is
+              // this a reading at all?". Measured live, STATE QUALITY
+              // UNAVAILABLE wore full ivory beside the protocol version — an
+              // absence in the ink reserved for facts. It is not folded into
+              // the italic, because "we never looked" and "we looked and there
+              // is nothing" are opposite facts about the engine.
+              color: f.unresolved || f.absence ? "#8a8271" : "#ede6d3",
               fontStyle: f.unresolved ? "italic" : "normal",
               whiteSpace: "nowrap",
               overflow: "hidden",

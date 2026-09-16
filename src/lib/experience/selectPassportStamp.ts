@@ -40,6 +40,41 @@ export interface StampField {
   readonly value: string;
   /** True when the field has no reading — it must refuse the confident ink. */
   readonly unresolved: boolean;
+  /**
+   * True when the field HAS a reading and that reading is "there is nothing
+   * here".
+   *
+   * ── Why this is not `unresolved` (2026-09-16, found by USE) ────────────────
+   *
+   * Measured live: the band rendered `STATE QUALITY  UNAVAILABLE` in #ede6d3 —
+   * the ivory this band reserves for findings — at the same weight as
+   * `PROTOCOL wm.market-object-passport.v1`. A trader scanning the row saw an
+   * absence wearing the ink of a fact.
+   *
+   * The lazy repair is to fold UNAVAILABLE into `unresolved`. That would be
+   * wrong, and wrong in the direction this codebase keeps having to undo:
+   *
+   *   UNKNOWN      the passport's own sentinel — NO state was compiled
+   *   UNAVAILABLE  a real compiled reading from produceCanonicalMarketState —
+   *                measured, and there is no coverage and no price
+   *
+   * "We never looked" and "we looked and there is nothing" are opposite facts
+   * about the engine, exactly as FLAT and POSITION UNREAD are opposite facts
+   * about an account (§14.1). Collapsing them would erase the one thing that
+   * makes UNAVAILABLE worth printing.
+   *
+   * So it is a THIRD state, and it introduces no new token: an absence takes
+   * the muted ink already used for the unknowns, and keeps the upright face
+   * already used for readings. The ink says "not a finding"; the upright says
+   * "this IS a reading". CapitalPostureLine already carries this exact flag
+   * under the same rule — an absence is never rendered in the ivory reserved
+   * for findings.
+   *
+   * Only STATE QUALITY can be an absence. DELAYED / STALE / PROXY / REPLAY /
+   * PARTIAL are degraded FINDINGS and keep the finding ink; a degraded reading
+   * that dims itself would be the absent-cell defect in reverse.
+   */
+  readonly absence: boolean;
 }
 
 export interface PassportStampVM {
@@ -74,11 +109,13 @@ export function selectPassportStamp(vm: MarketObjectPassportVM): PassportStampVM
       label: "Object ID",
       value: vm.snapshotId ? abbreviateObjectId(vm.snapshotId) : UNKNOWN,
       unresolved: vm.snapshotId === null,
+      absence: false,
     },
     {
       label: "Issued",
       value: vm.capturedAt === null ? UNKNOWN : formatIssuedAt(vm.capturedAt),
       unresolved: vm.capturedAt === null,
+      absence: false,
     },
     {
       label: "Protocol",
@@ -86,6 +123,7 @@ export function selectPassportStamp(vm: MarketObjectPassportVM): PassportStampVM
       // of the compiler, not of the market.
       value: vm.version,
       unresolved: false,
+      absence: false,
     },
     {
       label: "State Quality",
@@ -93,6 +131,10 @@ export function selectPassportStamp(vm: MarketObjectPassportVM): PassportStampVM
       // "INTEGRITY", which would claim a verification that never ran.
       value: vm.qualityState,
       unresolved: vm.qualityState === "UNKNOWN",
+      // The engine measured, and found no coverage and no price. That is a
+      // reading, so it keeps the upright face — but it is not a finding, so it
+      // does not get the finding ink. See `absence` on StampField.
+      absence: vm.qualityState === "UNAVAILABLE",
     },
     {
       label: "Resolved",
@@ -132,6 +174,9 @@ export function selectPassportStamp(vm: MarketObjectPassportVM): PassportStampVM
           ? `${vm.resolvedCount} of ${vm.totalCount} dimension${vm.totalCount === 1 ? "" : "s"}`
           : UNKNOWN,
       unresolved: vm.totalCount === 0,
+      // "0 of 8 dimensions" is an alarming reading, but it is a reading. An
+      // absence mark here would soften the very number the trader must see.
+      absence: false,
     },
   ];
 
