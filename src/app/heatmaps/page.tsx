@@ -8,6 +8,43 @@ import { HEATMAP_TF_ORDER } from "@/lib/timeframes";
 import { QualityBadge } from "@/components/ui/DataHealth";
 import type { ContextDataState } from "@/lib/marketData/contextDataTruth";
 import { readObservedChange, summarizeObservedChange } from "@/lib/heatmapAggregateTruth";
+import { WM } from "@/lib/design/wmTokens";
+
+/**
+ * ── Why this room's colours moved ────────────────────────────────────────────
+ *
+ * /heatmaps is an OS-framed room: `MainLayout` mounts it inside
+ * `WMExperienceShell`, the near-black / ivory / brass sanctuary. It was
+ * nonetheless painted in a private slate-blue palette it minted for itself —
+ * #070A0F, #0A0E14, #0D1117, #161B22 surfaces, #1A2030 / #2D3748 borders,
+ * #8892A0 / #8B95A5 / #5A6575 / #E8EDF3 text — 39 hex values the design system
+ * did not own, against zero references to it. The room did not match the room
+ * it was in, which is SCENE_FRAGMENTATION at the material level: the same slate
+ * palette just retired from /login was still living in here.
+ *
+ * `#4FA3E0` was doing something worse. It was not describing data — it was the
+ * active-view chip background, the section heading, and the current-price
+ * marker. That is an IDENTITY accent, and §9 is explicit that GOLD is identity
+ * metal only. A second identity metal in a second room is a second visual
+ * brain. It now uses brass, like every other room's identity.
+ *
+ * ── What deliberately did NOT move ───────────────────────────────────────────
+ *
+ * Two families of colour survive untouched, because they carry INFORMATION and
+ * replacing them would destroy meaning rather than unify style:
+ *
+ *   1. **The eleven sector hues** (XLK, XLY, XLI, XLE, …). Telling eleven
+ *      categories apart genuinely requires hue. Flattening them to brass would
+ *      make the map unreadable in exchange for looking tidier.
+ *
+ *   2. **Direction semantics** — the bull/bear greens and reds. §9 permits
+ *      green for DIRECTION; what it forbids is green as a SAFETY claim. These
+ *      say "up", not "safe", and the existing green sentinel already draws that
+ *      line. Relitigating direction colour is a separate decision with its own
+ *      evidence, and it is not smuggled in here.
+ *
+ * This commit moves CHROME. It changes no number, no threshold, no data path.
+ */
 
 /* ═══════════════════════════════════════════════════════════
    DATA MODEL
@@ -265,7 +302,7 @@ const VIEWS = ["S&P 500", "Markov", "VP"];
 ═══════════════════════════════════════════════════════════ */
 const MARKOV_SECTORS = [
   { label: "Technology",   sym: "XLK",  color: "#4FA3E0" },
-  { label: "Financials",   sym: "XLF",  color: "#F0B429" },
+  { label: "Financials",   sym: "XLF",  color: WM.gold.mark },
   { label: "Health Care",  sym: "XLV",  color: "#00D4AA" },
   { label: "Cons. Disc.",  sym: "XLY",  color: "#8B5CF6" },
   { label: "Industrials",  sym: "XLI",  color: "#06B6D4" },
@@ -275,9 +312,9 @@ const MARKOV_SECTORS = [
   { label: "Real Estate",  sym: "XLRE", color: "#FB7185" },
   { label: "Cons. Staples",sym: "XLP",  color: "#22D3EE" },
   { label: "Comm. Svcs",   sym: "XLC",  color: "#FCD34D" },
-  { label: "SPY",          sym: "SPY",  color: "#E8EDF3" },
+  { label: "SPY",          sym: "SPY",  color: WM.text.hero },
   { label: "QQQ",          sym: "QQQ",  color: "#4FA3E0" },
-  { label: "IWM",          sym: "IWM",  color: "#F0B429" },
+  { label: "IWM",          sym: "IWM",  color: WM.gold.mark },
 ];
 
 type RegimeState = "BULL" | "BEAR" | "SIDE";
@@ -315,7 +352,10 @@ function computeMarkovState(sym: string, periodReturn: number): {
 function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> }) {
   const router = useRouter();
   const regimeColor: Record<RegimeState, string> = {
-    BULL: "#00A86B", BEAR: "#CC1414", SIDE: "#2D3748",
+    // BULL/BEAR are DIRECTION and keep their hue (§9 permits it). SIDE is the
+    // absence of direction, so it takes the neutral `unknown` slot rather than
+    // a third invented colour.
+    BULL: "#00A86B", BEAR: "#CC1414", SIDE: WM.state.unknown,
   };
   const regimeBg: Record<RegimeState, string> = {
     BULL: "rgba(0,168,107,0.15)", BEAR: "rgba(204,20,20,0.15)", SIDE: "rgba(45,55,72,0.3)",
@@ -325,16 +365,16 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
     <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8, height: "100%", overflowY: "auto" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 4 }}>
-        <span style={{ fontSize: 11, fontWeight: 900, color: "#F0B429", letterSpacing: 1 }}>MARKOV REGIME PROXY</span>
+        <span style={{ fontSize: 11, fontWeight: 900, color: WM.gold.mark, letterSpacing: 1 }}>MARKOV REGIME PROXY</span>
         <div style={{ display: "flex", gap: 8 }}>
           {(["BULL","BEAR","SIDE"] as RegimeState[]).map(r => (
             <div key={r} style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <div style={{ width: 8, height: 8, borderRadius: 2, background: regimeColor[r] }} />
-              <span style={{ fontSize: 9, color: "#8B95A5", fontWeight: 700 }}>{r}</span>
+              <span style={{ fontSize: 9, color: WM.text.muted, fontWeight: 700 }}>{r}</span>
             </div>
           ))}
         </div>
-        <span style={{ marginLeft: "auto", fontSize: 9, color: "#5A6575" }}>TF: {tf} · Selected-period observed-return heuristic · Not predictive</span>
+        <span style={{ marginLeft: "auto", fontSize: 9, color: WM.text.dim }}>TF: {tf} · Selected-period observed-return heuristic · Not predictive</span>
       </div>
 
       {/* Grid of sector cards */}
@@ -345,7 +385,7 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
           return (
             <div key={ms.sym} style={{
               background: d ? regimeBg[d.state] : "rgba(45,55,72,0.18)",
-              border: d ? `1px solid ${regimeColor[d.state]}40` : "1px solid #2D3748",
+              border: d ? `1px solid ${regimeColor[d.state]}40` : `1px solid ${WM.border.line}`,
               borderRadius: 8, padding: "10px 12px",
               position: "relative",
             }}>
@@ -372,7 +412,7 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
                   letterSpacing: 0.3,
                   textTransform: "uppercase",
                   fontFamily: "Georgia, 'Times New Roman', serif",
-                  color: "#c9a55c",
+                  color: WM.gold.mark,
                   background: "rgba(11,11,13,0.7)",
                   border: "1px solid rgba(139,106,41,0.35)",
                   borderRadius: 3,
@@ -386,18 +426,18 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
               {/* Top row */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, minHeight: 44, paddingRight: 52 }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: ms.color, flexShrink: 0 }} />
-                <span style={{ fontSize: 11, fontWeight: 900, color: "#E8EDF3" }}>{ms.sym}</span>
-                <span style={{ fontSize: 9, color: "#8B95A5", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ms.label}</span>
+                <span style={{ fontSize: 11, fontWeight: 900, color: WM.text.hero }}>{ms.sym}</span>
+                <span style={{ fontSize: 9, color: WM.text.muted, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ms.label}</span>
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
                   {d ? <>
                     <span style={{
                     fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 3,
-                    background: regimeColor[d.state], color: "#fff", letterSpacing: 0.5,
+                    background: regimeColor[d.state], color: WM.text.hero, letterSpacing: 0.5,
                   }}>{d.state}</span>
-                  <span style={{ fontSize: 9, color: "#8B95A5" }}>{d.vol}</span>
+                  <span style={{ fontSize: 9, color: WM.text.muted }}>{d.vol}</span>
                   </> : <span style={{
                     fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 3,
-                    background: "#2D3748", color: "#D0D5DD", letterSpacing: 0.5,
+                    background: WM.surface.raised, color: WM.text.body, letterSpacing: 0.5,
                   }}>UNKNOWN</span>}
                 </div>
               </div>
@@ -407,21 +447,21 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
               <div style={{ display: "flex", gap: 2, height: 8, borderRadius: 3, overflow: "hidden", marginBottom: 6 }}>
                 <div style={{ flex: d.bullP, background: "#00A86B", transition: "flex 0.8s ease" }} />
                 <div style={{ flex: d.bearP, background: "#CC1414", transition: "flex 0.8s ease" }} />
-                <div style={{ flex: d.sideP, background: "#2D3748", transition: "flex 0.8s ease" }} />
+                <div style={{ flex: d.sideP, background: WM.surface.raised, transition: "flex 0.8s ease" }} />
               </div>
 
               {/* Probability labels */}
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                 <span style={{ fontSize: 8, color: "#00A86B", fontWeight: 700 }}>BULL {d.bullP.toFixed(0)}%</span>
                 <span style={{ fontSize: 8, color: "#CC1414", fontWeight: 700 }}>BEAR {d.bearP.toFixed(0)}%</span>
-                <span style={{ fontSize: 8, color: "#8B95A5", fontWeight: 700 }}>SIDE {d.sideP.toFixed(0)}%</span>
+                <span style={{ fontSize: 8, color: WM.text.muted, fontWeight: 700 }}>SIDE {d.sideP.toFixed(0)}%</span>
               </div>
 
               {/* 3x3 Transition matrix mini */}
               <div style={{ display: "grid", gridTemplateColumns: "auto 1fr 1fr 1fr", gap: 2, fontSize: 7, fontFamily: "monospace" }}>
-                <div style={{ color: "#5A6575" }} />
+                <div style={{ color: WM.text.dim }} />
                 {["→BULL","→BEAR","→SIDE"].map(h => (
-                  <div key={h} style={{ color: "#5A6575", textAlign: "center" }}>{h}</div>
+                  <div key={h} style={{ color: WM.text.dim, textAlign: "center" }}>{h}</div>
                 ))}
                 {(["BULL","BEAR","SIDE"] as RegimeState[]).map((from, ri) => (
                   <React.Fragment key={from}>
@@ -429,7 +469,7 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
                     {[0,1,2].map(ci => (
                       <div key={ci} style={{
                         textAlign: "center", fontWeight: 700, padding: "1px 0",
-                        color: ci === 0 ? "#00A86B" : ci === 1 ? "#CC1414" : "#8B95A5",
+                        color: ci === 0 ? "#00A86B" : ci === 1 ? "#CC1414" : WM.text.muted,
                         background: ri === ci ? "rgba(255,255,255,0.04)" : "transparent",
                         borderRadius: 2,
                       }}>
@@ -442,9 +482,9 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
 
               {/* Bottom: edge + trend */}
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                <span style={{ fontSize: 8, color: "#F0B429", fontWeight: 700 }}>EDGE {d.edge.toFixed(1)}%</span>
-                <span style={{ fontSize: 8, color: "#8B95A5" }}>TREND {d.trend}</span>
-                <span style={{ fontSize: 8, color: "#4FA3E0" }}>{tf}</span>
+                <span style={{ fontSize: 8, color: WM.gold.mark, fontWeight: 700 }}>EDGE {d.edge.toFixed(1)}%</span>
+                <span style={{ fontSize: 8, color: WM.text.muted }}>TREND {d.trend}</span>
+                <span style={{ fontSize: 8, color: WM.text.body }}>{tf}</span>
               </div>
               </> : <div
                 role="status"
@@ -453,7 +493,7 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
                   minHeight: 84,
                   display: "grid",
                   placeItems: "center",
-                  color: "#8B95A5",
+                  color: WM.text.muted,
                   fontSize: 10,
                   textAlign: "center",
                 }}
@@ -495,17 +535,17 @@ function VolumeProfileBar({ sym, candles, loading }: { sym: string; candles: VPC
   const currentIdx = Math.max(0, Math.min(levels - 1, Math.floor((currentPrice - low) / step)));
 
   return (
-    <div style={{ background: "#0A0E14", border: "1px solid #1A2030", borderRadius: 8, padding: "10px 12px" }}>
+    <div style={{ background: WM.surface.deep, border: `1px solid ${WM.border.hair}`, borderRadius: 8, padding: "10px 12px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 11, fontWeight: 900, color: "#E8EDF3" }}>{sym}</span>
-        <span style={{ fontSize: 9, color: "#8B95A5" }}>{currentPrice ? `$${currentPrice.toFixed(2)}` : "Price not yet observed"}</span>
-        <span style={{ marginLeft: "auto", fontSize: 8, color: "#F0B429", fontWeight: 700 }}>POC</span>
+        <span style={{ fontSize: 11, fontWeight: 900, color: WM.text.hero }}>{sym}</span>
+        <span style={{ fontSize: 9, color: WM.text.muted }}>{currentPrice ? `$${currentPrice.toFixed(2)}` : "Price not yet observed"}</span>
+        <span style={{ marginLeft: "auto", fontSize: 8, color: WM.gold.mark, fontWeight: 700 }}>POC</span>
       </div>
 
       {/* VP bars from top (high) to bottom (low) */}
       <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
         {(loading || !usable.length) && (
-          <div style={{ minHeight:176, display:"grid", placeItems:"center", fontSize:9, color:"#5A6575" }}>
+          <div style={{ minHeight:176, display:"grid", placeItems:"center", fontSize:9, color:WM.text.dim }}>
             {loading ? "Loading observed OHLCV…" : "Observed OHLCV unavailable"}
           </div>
         )}
@@ -518,12 +558,12 @@ function VolumeProfileBar({ sym, candles, loading }: { sym: string; candles: VPC
           const isPOC   = revI === pocIdx;
           const isCur   = revI === currentIdx;
           const isAbove = revI > currentIdx;
-          const barColor = isPOC ? "#F0B429"
+          const barColor = isPOC ? WM.gold.mark
                          : isAbove ? "rgba(255,77,106,0.55)"
                          : "rgba(0,212,170,0.55)";
           return (
             <div key={revI} style={{ display: "flex", alignItems: "center", gap: 4, height: 10 }}>
-              <span style={{ width: 44, fontSize: 6.5, color: isPOC ? "#F0B429" : "#5A6575", textAlign: "right", flexShrink: 0, fontFamily: "monospace" }}>
+              <span style={{ width: 44, fontSize: 6.5, color: isPOC ? WM.gold.mark : WM.text.dim, textAlign: "right", flexShrink: 0, fontFamily: "monospace" }}>
                 {price.toFixed(2)}
               </span>
               <div style={{ flex: 1, height: 7, background: "rgba(255,255,255,0.03)", borderRadius: 1, overflow: "hidden", position: "relative" }}>
@@ -532,10 +572,13 @@ function VolumeProfileBar({ sym, candles, loading }: { sym: string; candles: VPC
                   background: barColor,
                   transition: "width 0.6s ease",
                 }} />
-                {isPOC && <div style={{ position: "absolute", inset: 0, border: "1px solid #F0B429", borderRadius: 1 }} />}
-                {isCur && <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 1.5, background: "#4FA3E0" }} />}
+                {isPOC && <div style={{ position: "absolute", inset: 0, border: `1px solid ${WM.gold.mark}`, borderRadius: 1 }} />}
+                {/* Where price actually IS outranks where volume was traded, so
+                    the current marker takes the brightest brass and POC the
+                    quieter one. Two weights of one metal, not two metals. */}
+                {isCur && <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 1.5, background: WM.gold.hero }} />}
               </div>
-              <span style={{ width: 22, fontSize: 6, color: "#5A6575", textAlign: "right", flexShrink: 0 }}>
+              <span style={{ width: 22, fontSize: 6, color: WM.text.dim, textAlign: "right", flexShrink: 0 }}>
                 {vol >= 1_000_000 ? `${(vol/1_000_000).toFixed(1)}m` : vol >= 1_000 ? `${(vol/1_000).toFixed(0)}k` : vol.toFixed(0)}
               </span>
             </div>
@@ -545,7 +588,7 @@ function VolumeProfileBar({ sym, candles, loading }: { sym: string; candles: VPC
       </div>
 
       {/* Value Area */}
-      <div style={{ display: "flex", gap: 8, marginTop: 6, paddingTop: 5, borderTop: "1px solid rgba(255,255,255,0.05)", fontSize: 7, color: "#8B95A5" }}>
+      <div style={{ display: "flex", gap: 8, marginTop: 6, paddingTop: 5, borderTop: "1px solid rgba(255,255,255,0.05)", fontSize: 7, color: WM.text.muted }}>
         <span>Bar-derived profile</span>
         <span>Observed OHLCV</span>
         <span>Not tick-at-price</span>
@@ -576,14 +619,14 @@ function VPHeatmap({ tf }: { tf: string }) {
   return (
     <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8, height: "100%", overflowY: "auto" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
-        <span style={{ fontSize: 11, fontWeight: 900, color: "#4FA3E0", letterSpacing: 1 }}>VOLUME PROFILE HEATMAP</span>
-        <div style={{ display: "flex", gap: 8, fontSize: 8, color: "#8B95A5" }}>
-          <span style={{ color: "#F0B429" }}>▬ POC</span>
+        <span style={{ fontSize: 11, fontWeight: 900, color: WM.gold.mark, letterSpacing: 1 }}>VOLUME PROFILE HEATMAP</span>
+        <div style={{ display: "flex", gap: 8, fontSize: 8, color: WM.text.muted }}>
+          <span style={{ color: WM.gold.mark }}>▬ POC</span>
           <span style={{ color: "#FF4D6A" }}>■ Above</span>
           <span style={{ color: "#00D4AA" }}>■ Below</span>
-          <span style={{ color: "#4FA3E0" }}>| Current</span>
+          <span style={{ color: WM.gold.hero }}>| Current</span>
         </div>
-        <span style={{ marginLeft: "auto", fontSize: 9, color: "#5A6575" }}>TF: {tf} · bar-derived, not exchange tick profile</span>
+        <span style={{ marginLeft: "auto", fontSize: 9, color: WM.text.dim }}>TF: {tf} · bar-derived, not exchange tick profile</span>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 8 }}>
         {VP_SYMBOLS.map(sym => (
@@ -767,7 +810,7 @@ function pctColor(pct: number): string {
 }
 
 function pctTextColor(pct: number): string {
-  return Math.abs(pct) > 0.5 ? "#ffffff" : "#cccccc";
+  return Math.abs(pct) > 0.5 ? WM.text.hero : WM.text.body;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -806,29 +849,29 @@ function IndustryTooltip({ industry, pcts, x, y }: TooltipProps) {
         position: "fixed", left, top,
         zIndex: 9999, pointerEvents: "none",
         width: tooltipWidth,
-        background: "#0D1117",
-        border: "1px solid #2D3748",
+        background: WM.surface.deep,
+        border: `1px solid ${WM.border.line}`,
         borderRadius: 8,
         boxShadow: "0 8px 32px rgba(0,0,0,0.7)",
         overflow: "hidden",
       }}
     >
       {/* Header */}
-      <div style={{ background: "#161B22", padding: "10px 14px", borderBottom: "1px solid #2D3748" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#8892A0", textTransform: "uppercase", letterSpacing: 1 }}>
+      <div style={{ background: WM.surface.mid, padding: "10px 14px", borderBottom: `1px solid ${WM.border.line}` }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: WM.text.muted, textTransform: "uppercase", letterSpacing: 1 }}>
           {industry.name}
         </div>
         {topRow ? (
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
-            <span style={{ fontSize: 15, fontWeight: 900, color: "#fff" }}>{topRow.stock.sym}</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#8892A0" }}>
+            <span style={{ fontSize: 15, fontWeight: 900, color: WM.text.hero }}>{topRow.stock.sym}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: WM.text.muted }}>
               {topRow.stock.name}
             </span>
             <span style={{ marginLeft: "auto", fontSize: 13, fontWeight: 800, color: topRow.value! >= 0 ? "#00D4AA" : "#FF4D6A" }}>
               {topRow.value! >= 0 ? "+" : ""}{topRow.value!.toFixed(2)}%
             </span>
           </div>
-        ) : <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: "#8892A0" }}>
+        ) : <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: WM.text.muted }}>
           Observed change unavailable
         </div>}
       </div>
@@ -840,15 +883,15 @@ function IndustryTooltip({ industry, pcts, x, y }: TooltipProps) {
             <div key={st.sym} style={{
               display: "flex", alignItems: "center", gap: 8,
               padding: "6px 14px",
-              borderBottom: "1px solid #1A2030",
+              borderBottom: `1px solid ${WM.border.hair}`,
             }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", width: 52 }}>{st.sym}</span>
-              <span style={{ fontSize: 11, color: "#8892A0", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: WM.text.hero, width: 52 }}>{st.sym}</span>
+              <span style={{ fontSize: 11, color: WM.text.muted, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {st.name}
               </span>
               <span style={{
                 marginLeft: "auto", fontSize: 12, fontWeight: 700, minWidth: 88, textAlign: "right",
-                color: p === null ? "#8892A0" : p >= 0 ? "#00D4AA" : "#FF4D6A",
+                color: p === null ? WM.text.muted : p >= 0 ? "#00D4AA" : "#FF4D6A",
               }}>
                 {p === null ? "— unavailable" : `${p >= 0 ? "+" : ""}${p.toFixed(2)}%`}
               </span>
@@ -903,16 +946,16 @@ export default function HeatmapsPage() {
   })).filter(sec => sec.industries.length > 0);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#070A0F", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: WM.surface.deepest, overflow: "hidden" }}>
 
       {/* ── Top control bar ──
            minHeight 52 accommodates 44px hit-target buttons (Founder Cycle 12 §D). */}
       <div style={{
         minHeight: 52, flexShrink: 0, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
-        padding: "4px 14px", borderBottom: "1px solid #1A2030", background: "#0A0E14",
+        padding: "4px 14px", borderBottom: `1px solid ${WM.border.hair}`, background: WM.surface.deep,
       }}>
         <div role="group" aria-label="Heatmap view" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 11, color: "#8892A0", fontWeight: 700 }}>VIEW</span>
+          <span style={{ fontSize: 11, color: WM.text.muted, fontWeight: 700 }}>VIEW</span>
           {VIEWS.map(v => (
             <button
               key={v}
@@ -929,16 +972,19 @@ export default function HeatmapsPage() {
                 minWidth: 44,
                 borderRadius: 6,
                 cursor: "pointer",
-                border: activeView === v ? "1px solid #4FA3E0" : "1px solid transparent",
-                background: activeView === v ? "#4FA3E0" : "transparent",
-                color: activeView === v ? "#fff" : "#8892A0",
+                border: activeView === v ? `1px solid ${WM.gold.line}` : "1px solid transparent",
+                background: activeView === v ? WM.gold.mark : "transparent",
+                // Ivory on brass is a weak pair. The selected chip inverts to
+                // the deepest surface, the same contract the primary action on
+                // the front door uses.
+                color: activeView === v ? WM.surface.deepest : WM.text.muted,
                 outlineOffset: 2,
               }}
             >{v}</button>
           ))}
         </div>
-        <div style={{ width: 1, height: 18, background: "#2D3748", marginLeft: 4 }} />
-        <label htmlFor="heatmap-timeframe" style={{ fontSize: 10, color: "#8892A0", fontWeight: 700 }}>
+        <div style={{ width: 1, height: 18, background: WM.border.line, marginLeft: 4 }} />
+        <label htmlFor="heatmap-timeframe" style={{ fontSize: 10, color: WM.text.muted, fontWeight: 700 }}>
           TIMEFRAME
         </label>
         <select
@@ -950,9 +996,9 @@ export default function HeatmapsPage() {
             minHeight: 44,
             minWidth: 76,
             borderRadius: 6,
-            border: "1px solid #2D3748",
-            background: "#161B22",
-            color: "#fff",
+            border: `1px solid ${WM.border.line}`,
+            background: WM.surface.mid,
+            color: WM.text.hero,
             fontSize: 12,
             fontWeight: 700,
             padding: "0 10px",
@@ -964,7 +1010,7 @@ export default function HeatmapsPage() {
           <span
             role="status"
             aria-live="polite"
-            style={{ fontSize: 10, color: "#4FA3E0", marginLeft: 4 }}
+            style={{ fontSize: 10, color: WM.text.muted, marginLeft: 4 }}
           >Loading…</span>
         )}
         {/* Calm primary truth: stale retained rows are named before the trader
@@ -978,7 +1024,7 @@ export default function HeatmapsPage() {
           <span
             style={{
               fontSize: 10,
-              color: retainedSnapshot ? "#F0B429" : "#8892A0",
+              color: retainedSnapshot ? WM.gold.mark : WM.text.muted,
               fontWeight: 800,
               letterSpacing: 0.5,
               whiteSpace: "nowrap",
@@ -998,7 +1044,7 @@ export default function HeatmapsPage() {
               display: "inline-flex",
               alignItems: "center",
               cursor: "pointer",
-              color: "#8892A0",
+              color: WM.text.muted,
               fontSize: 10,
               fontWeight: 700,
               whiteSpace: "nowrap",
@@ -1013,10 +1059,10 @@ export default function HeatmapsPage() {
               zIndex: 30,
               maxWidth: 320,
               padding: "10px 12px",
-              border: "1px solid #2D3748",
+              border: `1px solid ${WM.border.line}`,
               borderRadius: 8,
-              background: "#111620",
-              color: "#A5ADBA",
+              background: WM.surface.mid,
+              color: WM.text.body,
               fontSize: 10,
               lineHeight: 1.5,
               boxShadow: "0 12px 30px rgba(0,0,0,.45)",
@@ -1024,7 +1070,7 @@ export default function HeatmapsPage() {
           >
             <div>{fidelityReason}</div>
             {receivedAt && (
-              <div style={{ marginTop: 4, color: "#697386" }}>
+              <div style={{ marginTop: 4, color: WM.text.dim }}>
                 Received {new Date(receivedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · receipt time only
               </div>
             )}
@@ -1036,11 +1082,11 @@ export default function HeatmapsPage() {
           onChange={e => setSearch(e.target.value)}
           placeholder="Quick search ticker…"
           style={{
-            background: "#161B22", border: "1px solid #2D3748", borderRadius: 6,
-            color: "#fff", fontSize: 11, padding: "3px 10px", width: 160, minHeight: 44, outline: "none",
+            background: WM.surface.mid, border: `1px solid ${WM.border.line}`, borderRadius: 6,
+            color: WM.text.hero, fontSize: 11, padding: "3px 10px", width: 160, minHeight: 44, outline: "none",
           }}
         />
-        <span style={{ fontSize: 10, color: "#8892A0" }}>
+        <span style={{ fontSize: 10, color: WM.text.muted }}>
           S&amp;P 500 index stocks · Size = market cap · {activeTF} performance
         </span>
       </div>
@@ -1100,18 +1146,18 @@ export default function HeatmapsPage() {
                 aria-label={`${sector.label}: equal-weight observed average ${avgPct === null ? "unavailable" : `${avgPct >= 0 ? "+" : ""}${avgPct.toFixed(2)}%`}; ${sectorCoverage}`}
                 title={`Equal-weight average of finite observed rows · ${sectorCoverage}`}
                 style={{
-                fontSize: 10, fontWeight: 900, color: "#8892A0",
+                fontSize: 10, fontWeight: 900, color: WM.text.muted,
                 textTransform: "uppercase", letterSpacing: 0.8,
                 display: "flex", alignItems: "center", gap: 6, padding: "2px 4px", flexWrap: "wrap",
               }}>
                 <span>{sector.label}</span>
                 <span style={{
                   fontSize: 10, fontWeight: 700,
-                  color: avgPct === null ? "#8892A0" : avgPct >= 0 ? "#00D4AA" : "#FF4D6A",
+                  color: avgPct === null ? WM.text.muted : avgPct >= 0 ? "#00D4AA" : "#FF4D6A",
                 }}>
                   EW {avgPct === null ? "—" : `${avgPct >= 0 ? "+" : ""}${avgPct.toFixed(2)}%`}
                 </span>
-                <span style={{ fontSize: 9, fontWeight: 700, color: "#687385" }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: WM.text.dim }}>
                   {sectorCoverage}{sectorChange.observedCount < sectorChange.totalCount
                     ? sectorChange.observedCount === 0 ? " · unavailable" : " · partial"
                     : ""}
@@ -1132,8 +1178,8 @@ export default function HeatmapsPage() {
                     style={{
                       position: "relative",
                       border: hovered?.industry.name === industry.name
-                        ? "1px solid #F0B429"
-                        : "1px solid #1A2030",
+                        ? `1px solid ${WM.gold.mark}`
+                        : `1px solid ${WM.border.hair}`,
                       borderRadius: 3,
                       overflow: "hidden",
                       minHeight: 60,
@@ -1142,10 +1188,10 @@ export default function HeatmapsPage() {
                   >
                     {/* Industry sub-label */}
                     <div style={{
-                      fontSize: 9, fontWeight: 700, color: "#8892A0",
+                      fontSize: 9, fontWeight: 700, color: WM.text.muted,
                       textTransform: "uppercase", letterSpacing: 0.5,
                       padding: "3px 5px 1px", background: "rgba(0,0,0,0.45)",
-                      borderBottom: "1px solid #1A2030",
+                      borderBottom: `1px solid ${WM.border.hair}`,
                     }}>
                       {industry.name}
                     </div>
@@ -1158,8 +1204,8 @@ export default function HeatmapsPage() {
                         const p = readObservedChange(pcts, st.sym);
                         const tileWeight = st.mcap / totalMcap;
                         const minW = tileWeight > 0.35 ? "100%" : tileWeight > 0.2 ? "48%" : tileWeight > 0.1 ? "32%" : "auto";
-                        const bg = p === null ? "#252B36" : pctColor(p);
-                        const tc = p === null ? "#D0D5DD" : pctTextColor(p);
+                        const bg = p === null ? WM.surface.raised : pctColor(p);
+                        const tc = p === null ? WM.text.body : pctTextColor(p);
                         const changeText = p === null
                           ? "change unavailable"
                           : `${p >= 0 ? "+" : ""}${p.toFixed(2)}%`;
@@ -1236,7 +1282,7 @@ export default function HeatmapsPage() {
       <style jsx global>{`
         .wm-markov-deck-action:focus-visible,
         .wm-heatmap-stock-tile:focus-visible {
-          outline: 3px solid #f0b429;
+          outline: 3px solid ${WM.gold.mark};
           outline-offset: 2px;
           position: relative;
           z-index: 2;

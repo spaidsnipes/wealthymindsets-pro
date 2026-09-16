@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
+import { WM } from "@/lib/design/wmTokens";
+
 const page = fs.readFileSync(
   path.join(process.cwd(), "src/app/heatmaps/page.tsx"),
   "utf8",
@@ -17,12 +19,22 @@ describe("Heat Map stock tile accessibility and missing-row truth", () => {
     expect(page).toContain("minHeight: tileWeight > 0.35 ? 80 : tileWeight > 0.15 ? 56 : 44");
     expect(page).toContain('touchAction: "manipulation"');
     expect(page).toContain(".wm-heatmap-stock-tile:focus-visible");
-    expect(page).toContain("outline: 3px solid #f0b429");
+    // The focus ring used to be pinned to the literal #f0b429. It is now the
+    // brass token, so the pin follows the design system instead of freezing a
+    // value the system no longer owns. What matters and is still asserted: the
+    // ring is 3px, solid, and drawn in identity metal.
+    expect(page).toContain("outline: 3px solid ${WM.gold.mark}");
+    expect(WM.gold.mark).toMatch(/^#[0-9a-f]{6}$/i);
   });
 
   it("shows unavailable data neutrally instead of fabricating a green zero", () => {
     expect(page).toContain("const p = readObservedChange(pcts, st.sym)");
-    expect(page).toContain('p === null ? "#252B36" : pctColor(p)');
+    // Previously pinned to #252B36, a slate the design system did not own.
+    // The requirement was never that colour — it was that an unreadable tile
+    // is painted NEUTRAL rather than the green a fabricated 0% would produce.
+    expect(page).toContain("p === null ? WM.surface.raised : pctColor(p)");
+    const [r, g, b] = (WM.surface.raised.match(/[0-9a-f]{2}/gi) ?? []).map(h => parseInt(h, 16));
+    expect(g, "the unavailable fill must not be green-dominant").toBeLessThanOrEqual(Math.max(r, b));
     expect(page).toContain('? "change unavailable"');
     expect(page).toContain('{p === null ? "—"');
     expect(stockTileSection).not.toContain("const p = pcts[st.sym] ?? 0;");

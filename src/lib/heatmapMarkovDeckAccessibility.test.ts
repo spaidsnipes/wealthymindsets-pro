@@ -22,7 +22,10 @@ describe("Heat Map Markov Deck handoff accessibility", () => {
     expect(page).toContain('touchAction: "manipulation"');
     expect(page).toContain(".wm-markov-deck-action:focus-visible");
     expect(page).toContain("<style jsx global>");
-    expect(page).toContain("outline: 3px solid #f0b429");
+    // Was pinned to the literal #f0b429. The ring now reads from the brass
+    // token, so this follows the design system rather than freezing a value it
+    // no longer owns. The requirement — 3px, solid, identity metal — is intact.
+    expect(page).toContain("outline: 3px solid ${WM.gold.mark}");
     expect(page).toContain("outline-offset: 2px");
   });
 
