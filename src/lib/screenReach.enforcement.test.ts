@@ -364,10 +364,9 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "AWAITING_SURFACE",
     note: "The canon §Truth Resolution Matrix claim gate. Shipped as an enforceable gate; nothing on screen is currently gated by it.",
   },
-  "src/lib/marketData/viewModels/selectMateriality.ts": {
-    reason: "AWAITING_SURFACE",
-    note: "The canon §4 Auto-Quiet gate. WM decides what is material and then no surface asks.",
-  },
+  // selectMateriality.ts was removed from this ledger on 2026-09-15: the
+  // /command-deck ACTIVE QUESTION banner now renders its verdict in the
+  // SECONDARY NOISE slot via selectSecondaryNoise. The gate is asked.
   "src/lib/marketData/viewModels/timeframeRoles.ts": {
     reason: "AWAITING_SURFACE",
     note: "Timeframe role vocabulary with no chart consuming it.",

@@ -39,6 +39,7 @@
 
 import * as React from "react";
 import type { QuestionFocusVM } from "@/lib/experience/selectQuestionFocus";
+import type { SecondaryNoiseVM } from "@/lib/experience/selectSecondaryNoise";
 
 export interface ActiveQuestionBarProps {
   /** The compiled dominant question, from `routeQuestion`. */
@@ -47,6 +48,12 @@ export interface ActiveQuestionBarProps {
   readonly focus: QuestionFocusVM;
   /** The human's current job — rendered as the mode eyebrow. */
   readonly mode?: string;
+  /**
+   * The compiled Auto-Quiet readout, from `selectSecondaryNoise`. Optional
+   * because a surface with no prior snapshot in hand must be able to omit the
+   * slot entirely rather than print an unearned "Quieted".
+   */
+  readonly noise?: SecondaryNoiseVM;
   /** Optional slot for the mode/job affordance the deck already owns. */
   readonly children?: React.ReactNode;
 }
@@ -64,6 +71,7 @@ export function ActiveQuestionBar({
   question,
   focus,
   mode,
+  noise,
   children,
 }: ActiveQuestionBarProps): React.ReactElement {
   return (
@@ -150,6 +158,41 @@ export function ActiveQuestionBar({
             {focus.focus}
           </span>
         </div>
+
+        {/* SECONDARY NOISE — the mockup's third header line. It is the
+            Auto-Quiet gate reporting on ITSELF: not a market fact, but the
+            screen stating whether it compared this reading to the last one.
+            It therefore never wears gold (gold is brand and rules only) and
+            never wears amber (this is not risk). */}
+        {noise && (
+          <div
+            data-testid="secondary-noise"
+            data-noise-state={noise.state}
+            style={{
+              marginTop: 6,
+              display: "flex",
+              alignItems: "baseline",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={EYEBROW}>Secondary Noise</span>
+            <span
+              style={{
+                fontSize: 12,
+                lineHeight: 1.35,
+                letterSpacing: 0.3,
+                color: noise.unresolved ? "#8a8271" : "#ede6d3",
+                fontStyle: noise.unresolved ? "italic" : "normal",
+              }}
+            >
+              {noise.value}
+            </span>
+            <span style={{ fontSize: 10, color: "#6f6a5e", minWidth: 0 }}>
+              {noise.detail}
+            </span>
+          </div>
+        )}
       </div>
 
       {children && (

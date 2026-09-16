@@ -100,6 +100,8 @@ import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { shellEmphasis } from "@/lib/experience/shellLayout";
 import { routeQuestion } from "@/lib/experience/questionRouter";
 import { selectQuestionFocus } from "@/lib/experience/selectQuestionFocus";
+import { selectSecondaryNoise } from "@/lib/experience/selectSecondaryNoise";
+import { selectMateriality } from "@/lib/marketData/viewModels/selectMateriality";
 import ActiveQuestionBar from "@/components/command/ActiveQuestionBar";
 import QuestionDrivenShell from "@/components/command/QuestionDrivenShell";
 import { selectDeckEmphasis, surfaceOrder } from "@/lib/experience/selectDeckEmphasis";
@@ -528,6 +530,28 @@ function CommandDeckInner() {
   // ACTIVE QUESTION element carries question + focus, not a bare sentence.
   const questionFocus = selectQuestionFocus(oneStory);
 
+  // SECONDARY NOISE (canon §4 MATERIALITY ENGINE / Auto-Quiet). The ref holds
+  // the PREVIOUS compiled story so the gate can say whether this reading was
+  // compared to anything. Until a prior exists it stays null and the header
+  // prints "Unwatched" — never "Quieted", which would claim a comparison that
+  // never happened. Written in an effect, never during render.
+  // `typeof oneStory` rather than an OneStoryVM import: the single-writer
+  // Sentinel forbids this page from importing selectOneStory directly, and it
+  // is right to — the ref's type should FOLLOW the compiler's output, not be a
+  // second declaration of it that can drift.
+  const priorStoryRef = React.useRef<typeof oneStory | null>(null);
+  const [priorStory, setPriorStory] = React.useState<typeof oneStory | null>(null);
+  React.useEffect(() => {
+    if (!oneStory) return;
+    if (priorStoryRef.current === oneStory) return;
+    const seen = priorStoryRef.current;
+    priorStoryRef.current = oneStory;
+    setPriorStory(seen);
+  }, [oneStory]);
+  const secondaryNoise = selectSecondaryNoise(
+    priorStory && oneStory ? selectMateriality(priorStory, oneStory) : null,
+  );
+
   // Market Object Passports (canon P6 Object DNA): each canonical dimension the
   // engine resolved becomes a Passport with its evidence lineage, fidelity,
   // contradictions and invalidation — reversible to provider evidence. Pure
@@ -916,6 +940,7 @@ function CommandDeckInner() {
                   question={experienceQuestion}
                   focus={questionFocus}
                   mode={experienceContext.mode}
+                  noise={secondaryNoise}
                 >
                   {jobSuggestion.strength !== "NONE" && jobSuggestion.inference && (() => {
                     const sug = jobSuggestion.inference;
