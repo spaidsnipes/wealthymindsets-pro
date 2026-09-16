@@ -10,6 +10,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  QUIET_SCENES,
   SCENES,
   SCENE_COMPILER_VERSION,
   SURFACE_ELEMENTS,
@@ -546,11 +547,13 @@ describe("compileScene — exhaustive invariants over the reachable signal space
    * while the scene lies is still a lie. This pins the semantics.
    */
   it("§9 LAW: a quiet scene is NEVER reached while capital is at risk", () => {
-    const quiet: readonly Scene[] = ["PREGAME", "WAIT", "CLOSED", "DONE", "PERMISSION"];
+    // Imported, not re-declared. A local copy would let a surface's idea of
+    // "quiet" drift away from the law's, and the drift would show up as a calm
+    // presentation in a scene this law does not consider calm.
     for (const s of everyState()) {
       const out = compileScene(s);
       if (out.capitalAtRisk) {
-        expect(quiet).not.toContain(out.scene);
+        expect(QUIET_SCENES).not.toContain(out.scene);
       }
     }
   });

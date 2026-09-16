@@ -77,10 +77,13 @@ import {
 import SceneAdmissionPanel from "@/components/experience/SceneAdmissionPanel";
 import SceneAdmits, { SceneAdmitsAmbient } from "@/components/experience/SceneAdmits";
 import {
+  QUIET_SCENES,
   compileScene,
   type SceneCompilation,
   type SurfaceElement,
 } from "@/lib/experience/compileScene";
+import HumilityPanel from "@/components/experience/HumilityPanel";
+import { selectHumility } from "@/lib/experience/selectHumility";
 import {
   isExposureIncreasingOrder,
   netQtyFor,
@@ -2323,6 +2326,29 @@ export default function PaperTradingPage() {
   );
   const sceneCompilation = useMemo(() => compileScene(sceneInput.signals), [sceneInput]);
 
+  /* WHAT THIS ROOM CANNOT TELL YOU — the HUMILITY_PANEL feed.
+     `environment` and `decisionEpisodeIdentified` are passed as constants and
+     both are ASSERTIONS about this build, not defaults:
+
+       PAPER — §B5 makes the environment immutable and caller-owned.
+       `paperSceneSignals` refuses to claim one for exactly this reason, so the
+       claim is made here, where the route knows.
+
+       no decision episode — the paper ledger has no DECISION_ID. That is
+       stated in paperSceneSignals' own doc as the reason RECEIPT and
+       receipt-earned DONE are UNREACHABLE from this route. Until now that
+       admission lived only in a comment no trader could read. Flip this to
+       `true` only when a real episode owner exists, never to shorten the
+       panel. */
+  const humilityItems = useMemo(
+    () => selectHumility({
+      provenance: sceneInput.provenance,
+      environment: "PAPER",
+      decisionEpisodeIdentified: false,
+    }),
+    [sceneInput.provenance],
+  );
+
   /* HOW FAR this book reaches — derived from the store's OWN declared facts,
      never asserted here. PAPER_STORE_FACTS lives beside the `localStorage`
      calls in paperTrade.ts precisely so this cannot drift from the truth.
@@ -2662,6 +2688,25 @@ export default function PaperTradingPage() {
             )}
           </div>
         </SceneAdmits>
+
+        {/* HUMILITY_PANEL — the first render this element has ever had.
+          *
+          * Mounted OUTSIDE the <details> below on purpose. Scene admission is
+          * a developer disclosure and may reasonably be collapsed; this is a
+          * guarantee the compiler makes to the TRADER, in all ten scenes, and
+          * a guarantee behind a toggle is not one.
+          *
+          * Also deliberately NOT in PAPER_GOVERNED_ELEMENTS. Every scene
+          * admits it, so admission could never withhold it, and claiming it as
+          * governed would raise the §10 count without the OS gaining any
+          * power here.
+          *
+          * `compact` follows §18: the quiet scenes shrink the panel to its
+          * titles. They never empty it. */}
+        <HumilityPanel
+          items={humilityItems}
+          compact={QUIET_SCENES.includes(sceneCompilation.scene)}
+        />
 
         <details className="group">
           <summary className="flex cursor-pointer list-none items-center gap-2.5 py-1">

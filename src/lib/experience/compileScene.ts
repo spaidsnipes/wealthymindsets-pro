@@ -97,6 +97,28 @@ export const SCENES: readonly Scene[] = [
 ] as const;
 
 /**
+ * The scenes §9 calls quiet — "WAIT and CLOSED do not pulse", §18 "the screen
+ * gets quiet".
+ *
+ * Exported because two consumers need the same list and a second copy would be
+ * a second definition of quiet: the §9 LAW below (a quiet scene is never
+ * reached while capital is at risk) and surfaces choosing a compact
+ * presentation. If those two ever disagreed, a screen could render its calm
+ * form in a scene the law does not consider calm.
+ *
+ * Quiet is about VOLUME. It never licenses removing a surface the scene
+ * admits — see the DONE branch in `admissionFor`, where exactly that mistake
+ * had been made.
+ */
+export const QUIET_SCENES: readonly Scene[] = [
+  "PREGAME",
+  "WAIT",
+  "PERMISSION",
+  "CLOSED",
+  "DONE",
+] as const;
+
+/**
  * The components §10 names. A scene admits a subset; everything else is not
  * merely de-emphasised, it is absent.
  */
