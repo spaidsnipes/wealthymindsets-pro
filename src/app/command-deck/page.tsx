@@ -61,6 +61,7 @@ import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import CommandContextRibbon from "@/components/command/CommandContextRibbon";
 import OneStoryStrip from "@/components/command/OneStoryStrip";
 import SceneAdmissionPanel from "@/components/experience/SceneAdmissionPanel";
+import SignalProvenanceStrip from "@/components/experience/SignalProvenanceStrip";
 import SceneAdmits, { SceneAdmitsAmbient } from "@/components/experience/SceneAdmits";
 import { compileScene, type SurfaceElement } from "@/lib/experience/compileScene";
 import { deckSceneSignals } from "@/lib/experience/deckSceneSignals";
@@ -1251,6 +1252,41 @@ function CommandDeckInner() {
                       and renders the existing canonical completion receipt when
                       the assessment says the trader may stop carrying it. */}
                   <ExitRampCard ramp={exitRamp} presentation="embedded" />
+
+                  {/* SIGNAL PROVENANCE — IN THE ROOM, NOT IN A DRAWER.
+
+                      These chips existed ONLY inside SceneAdmissionPanel, which
+                      lives TWO closed `<details>` deep: the Workspace toggle,
+                      then the proof-chain toggle inside it.
+                      `surfaceElementReach` generalised the rule `humilityReach`
+                      had already stated for one element — A MOUNT NESTED IN
+                      `<details>` IS NOT A SURFACE — and immediately reported
+                      FIDELITY_CHIPS as reaching no screen at all.
+
+                      The measurement was right, and the first attempt at this
+                      repair was still wrong: putting the strip at the top of
+                      the Workspace left it one toggle deep, which the same rule
+                      caught again. A disclosure is either in the room or it is
+                      not a disclosure.
+
+                      Why it matters here specifically: without it, a scene
+                      compiled from two observed signals renders identically to
+                      one compiled from five. §14.1 — FLAT IS A FINDING, NEVER A
+                      DEFAULT — is a rule about the wiring, not only about the
+                      compiler.
+
+                      The drawer keeps the full form with its explanatory
+                      sentence. This is the SAME component in its `inline`
+                      variant: one owner of the answer, two presentations. The
+                      variant drops framing, never a chip — a compact form that
+                      hid UNOBSERVED groups would be the precise overclaim the
+                      strip exists to prevent. */}
+                  <SignalProvenanceStrip
+                    variant="inline"
+                    provenance={sceneInput.provenance}
+                    observedCount={sceneInput.observedCount}
+                    totalCount={sceneInput.totalCount}
+                  />
                 </div>
               </section>
             </div>

@@ -58,11 +58,9 @@ import {
   type SceneCompilation,
   type SurfaceElement,
 } from "@/lib/experience/compileScene";
-import {
-  SIGNAL_GROUPS,
-  type SignalGroup,
-  type SignalProvenance,
-} from "@/lib/experience/deckSceneSignals";
+import { type SignalGroup, type SignalProvenance } from "@/lib/experience/deckSceneSignals";
+
+import SignalProvenanceStrip from "./SignalProvenanceStrip";
 
 const GOLD = "#d4af37";
 const GOLD_DIM = "#c9a55c";
@@ -89,14 +87,6 @@ export const ELEMENT_LABEL: Record<SurfaceElement, string> = {
   FIDELITY_CHIPS: "Fidelity chips",
   RECEIPT_SHEET: "Receipt sheet",
   OPEN_BROKER: "Open broker",
-};
-
-const GROUP_LABEL: Record<SignalGroup, string> = {
-  SESSION: "Session",
-  DECISION: "Decision",
-  POSITION: "Position",
-  ORDERS: "Orders",
-  LINK: "Broker link",
 };
 
 export interface SceneAdmissionPanelProps {
@@ -194,27 +184,11 @@ export function SceneAdmissionPanel({
     [governedSet],
   );
 
-  /**
-   * The signals that were NOT read, named.
-   *
-   * The first version of this line said "This route has no broker panel, so WM
-   * has not read a book, an order or a fill here." That was true on
-   * /command-deck and became a LIE the moment a route with a real book adopted
-   * the panel: /paper reads positions, working orders and a persistence result,
-   * and may still be missing only the DECISION signal. Printing "no broker
-   * panel" over an observed book is the same class of overclaim this file was
-   * written to kill — a sentence with no owner behind it.
-   *
-   * So the sentence is derived from `provenance` rather than assumed from the
-   * route. It can only ever name groups that actually came back UNOBSERVED.
-   */
-  const unobservedLabels = React.useMemo(
-    () =>
-      SIGNAL_GROUPS.filter((g) => provenance[g] !== "OBSERVED").map(
-        (g) => GROUP_LABEL[g].toLowerCase(),
-      ),
-    [provenance],
-  );
+  // The "signals WM did not read" sentence moved into SignalProvenanceStrip
+  // along with the chips it explains. It is derived from `provenance`, never
+  // assumed from the route — the reason is recorded in that file, because the
+  // first version of the sentence hard-coded "this route has no broker panel"
+  // and became a lie the moment /paper adopted the panel.
 
   const headlineTone = compilation.degraded ? WARN : GOLD;
 
@@ -385,48 +359,18 @@ export function SceneAdmissionPanel({
             : "Ambient surfaces are withheld — only capital truth and material invalidation may take the room."}
         </div>
 
-        {/* SIGNAL PROVENANCE — the anti-fabrication disclosure. */}
-        <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 8 }}>
-          <div
-            style={{
-              fontSize: 11,
-              letterSpacing: 0.6,
-              textTransform: "uppercase",
-              color: MUTED,
-              marginBottom: 5,
-            }}
-          >
-            Signals observed · {observedCount} / {totalCount}
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-            {SIGNAL_GROUPS.map((g) => {
-              const observed = provenance[g] === "OBSERVED";
-              return (
-                <span
-                  key={g}
-                  style={{
-                    fontSize: 11,
-                    padding: "3px 8px",
-                    borderRadius: 5,
-                    border: `1px solid ${observed ? "rgba(212,175,55,0.45)" : "rgba(138,130,113,0.3)"}`,
-                    color: observed ? GOLD : MUTED,
-                    background: observed ? "rgba(212,175,55,0.08)" : "transparent",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {GROUP_LABEL[g]} · {observed ? "OBSERVED" : "UNOBSERVED"}
-                </span>
-              );
-            })}
-          </div>
-          {unobservedLabels.length > 0 && (
-            <p style={{ margin: "7px 0 0", fontSize: 11, lineHeight: 1.5, color: MUTED }}>
-              WM has not read {unobservedLabels.join(", ")} on this screen. Those
-              signals are not assumed flat or safe — the scene above them is
-              compiled only from what was actually seen.
-            </p>
-          )}
-        </div>
+        {/* SIGNAL PROVENANCE — the anti-fabrication disclosure.
+
+            Lifted into SignalProvenanceStrip so the deck can ALSO render it
+            outside the proof-chain toggle. This panel is now its first caller,
+            not its owner: a second copy of the chip loop would be a second
+            ANSWER to "which signals did WM read?", and §24 forbids exactly
+            that. See the strip's header for the measurement that forced it. */}
+        <SignalProvenanceStrip
+          provenance={provenance}
+          observedCount={observedCount}
+          totalCount={totalCount}
+        />
       </div>
     </section>
   );

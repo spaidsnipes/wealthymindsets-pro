@@ -69,10 +69,29 @@ function gatedOn(element: SurfaceElement): string[] {
   return ROUTES.filter(r => r.src.includes(`element="${element}"`)).map(r => rel(r.path));
 }
 
+/**
+ * Routes that render `component` WHERE A TRADER WILL SEE IT.
+ *
+ * A mount nested inside `<details>` does not count, and that rule immediately
+ * corrected this file's own first version. `humilityReach` states it for one
+ * element — "a disclosure the trader has to open is not a disclosure" — and
+ * there is no reason it is special to humility. Generalising it moved
+ * RECEIPT_SHEET out of the reached column and into the debt ledger, where it
+ * belonged.
+ *
+ * Counting opens against closes is exact for well-formed JSX, which tsc
+ * already enforces on these files.
+ */
 function mountedOn(component: string): string[] {
-  return ROUTES.filter(
-    r => r.src.includes(`<${component}`) && new RegExp(`import .*${component}.*from`).test(r.src),
-  ).map(r => rel(r.path));
+  return ROUTES.filter(r => {
+    if (!new RegExp(`import .*${component}.*from`).test(r.src)) return false;
+    const at = r.src.indexOf(`<${component}`);
+    if (at < 0) return false;
+    const before = r.src.slice(0, at);
+    const opened = (before.match(/<details\b/g) ?? []).length;
+    const closed = (before.match(/<\/details>/g) ?? []).length;
+    return opened - closed === 0;
+  }).map(r => rel(r.path));
 }
 
 /**
@@ -83,15 +102,36 @@ function mountedOn(component: string): string[] {
  */
 const CARRIER: Partial<Record<SurfaceElement, string>> = {
   MARKET_CANVAS: "MarketCanvasPanel",
-  THESIS_GEOMETRY: "DLARStrip",
+  // THESIS_GEOMETRY deliberately absent, and the absence is a measurement.
+  //
+  // This used to name `DLARStrip`. The `<details>` rule demoted it: the strip
+  // is mounted inside /command-deck's collapsed "Workspace / Proof" drawer, so
+  // as a MOUNT it reaches nobody — the mapping was reporting reach that a
+  // trader never receives.
+  //
+  // It is not debt either. THESIS_GEOMETRY is GATED on the deck
+  // (`<SceneAdmits element="THESIS_GEOMETRY">`), which is the stronger of the
+  // two forms of reach, and the first assertion accounts for it there. A
+  // CARRIER entry exists to catch elements that reach a screen WITHOUT a gate;
+  // a gated element does not need one, and keeping a stale one would have this
+  // table claim two forms of reach where only one is real.
   EXPRESSION_CARD: "ContractStance",
   ONE_STORY: "OneStoryStrip",
   PROTECTION_GRADE: "ProtectionGradeLine",
   HUMILITY_PANEL: "HumilityPanel",
   // The provenance chips ARE the fidelity disclosure — "SESSION · OBSERVED",
-  // "POSITION · UNOBSERVED" — and they live inside the admission panel.
-  FIDELITY_CHIPS: "SceneAdmissionPanel",
-  RECEIPT_SHEET: "DecisionReceiptPanel",
+  // "POSITION · UNOBSERVED".
+  //
+  // This used to name `SceneAdmissionPanel`, and the `<details>` rule above
+  // caught it: both mounts of that panel are inside a closed drawer, so the
+  // chips reached nobody. The response was NOT to write FIDELITY_CHIPS into
+  // DEBT. The ledger below is for surfaces that do not exist; this one existed
+  // and was merely unreachable, and filing it as debt would have been the
+  // measurement quietly agreeing to the defect. The chips were extracted into
+  // their own component and mounted outside the toggle instead.
+  FIDELITY_CHIPS: "SignalProvenanceStrip",
+  // RECEIPT_SHEET deliberately absent. See the debt ledger — the first version
+  // of this file mapped it to DecisionReceiptPanel and was wrong twice over.
 };
 
 /**
@@ -135,6 +175,32 @@ const DEBT: Readonly<Record<string, string>> = {
    */
   OPEN_BROKER:
     "renderers exist on /charts, but no scene-compiling route has one — the invariant guards nothing yet",
+  /**
+   * THE CORRECTION THIS FILE MADE TO ITSELF, and the reason the `<details>`
+   * rule above is generalised rather than special to humility.
+   *
+   * The first version mapped RECEIPT_SHEET to `DecisionReceiptPanel`, which
+   * /command-deck does import and render. Two things were wrong with that:
+   *
+   *   1. It is mounted inside `<details><summary>Decision Receipt · …</summary>`.
+   *      A trader who never opens the toggle never sees it. `humilityReach`
+   *      already ruled on this shape.
+   *   2. It is a different NOUN wearing the same word. The panel projects a
+   *      SEALED DecisionMemoryRecord — a REVIEW artefact about a decision that
+   *      is already over. §5 STEP 10's receipt sheet is the sheet that CLOSES
+   *      the current episode, owed before the screen may go quiet. Mapping one
+   *      to the other is exactly the INVASIVE_DUPLICATE_TRUTH move of letting a
+   *      shared label stand in for shared meaning.
+   *
+   * And it could not have reached a screen anyway: /command-deck refuses
+   * RECEIPT_SHEET in all four scenes it can reach, and the only other admitting
+   * scenes are RECEIPT, which `sceneReachability` proves is dead, and DONE.
+   * DONE is where this actually closes — /paper can reach it through the VALID
+   * NO TRADE door, and a refused day is a complete decision (§18) that deserves
+   * a record.
+   */
+  RECEIPT_SHEET:
+    "the only receipt surface is a sealed-record REVIEW panel behind a <details> on a route that refuses this element — the close-the-episode sheet does not exist; DONE on /paper is where it would land",
 };
 
 describe("surface element reach — all twelve §10 nouns, measured", () => {
@@ -156,7 +222,7 @@ describe("surface element reach — all twelve §10 nouns, measured", () => {
     ).toEqual([]);
   });
 
-  it("the debt ledger is exactly these two, and it may only shrink", () => {
+  it("the debt ledger is exactly these three, and it may only shrink", () => {
     const actuallyUnreached = SURFACE_ELEMENTS.filter(element => {
       const carrier = CARRIER[element];
       return gatedOn(element).length === 0 && (!carrier || mountedOn(carrier).length === 0);

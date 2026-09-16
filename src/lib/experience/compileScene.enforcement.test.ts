@@ -719,9 +719,42 @@ describe("compileScene enforcement — §H19 the panel is not a badge", () => {
     expect(panel).toMatch(/SURFACE_ELEMENTS\.filter\(/);
   });
 
+  /**
+   * The disclosure MOVED, and this assertion follows it rather than pinning the
+   * file it used to live in.
+   *
+   * `surfaceElementReach` proved the chips reached no trader: both mounts of
+   * this panel sit inside a closed `<details>`, and a disclosure you have to
+   * open is not a disclosure. The loop was lifted into `SignalProvenanceStrip`
+   * so the deck could render it in the room, with this panel as its FIRST
+   * CALLER — one owner, two callers (§24).
+   *
+   * Had this test kept asserting on `SceneAdmissionPanel`'s own source, the
+   * only way to pass it would have been to keep a second copy of the chip loop
+   * here — the test would have been REQUIRING the second ANSWER that §24
+   * forbids. A Sentinel that names a file instead of an invariant does that:
+   * it defends the location and loses the law. So the both-directions rule is
+   * asserted against the owner, and the panel is held to still CALL it.
+   */
   it("discloses signal provenance in both directions", () => {
-    expect(panel).toContain("OBSERVED");
-    expect(panel).toContain("UNOBSERVED");
+    const strip = stripComments(
+      readFileSync(resolve(SRC, "components/experience/SignalProvenanceStrip.tsx"), "utf8"),
+    );
+    expect(strip).toContain("OBSERVED");
+    expect(strip).toContain("UNOBSERVED");
+    expect(strip).toContain("observedCount");
+    expect(strip).toContain("totalCount");
+    // UNOBSERVED must not be reachable only through a variant. A compact form
+    // that dropped unread groups would be the exact overclaim the strip exists
+    // to prevent, so the chip list may not be a function of `variant`.
+    expect(strip).not.toMatch(/variant[\s\S]{0,80}UNOBSERVED/);
+  });
+
+  it("the admission panel still calls the provenance owner", () => {
+    // The panel is where a reader goes looking for proof. It may delegate the
+    // rendering; it may not stop showing it.
+    expect(panel).toMatch(/import .*SignalProvenanceStrip/);
+    expect(panel).toMatch(/<SignalProvenanceStrip/);
     expect(panel).toContain("observedCount");
     expect(panel).toContain("totalCount");
   });
