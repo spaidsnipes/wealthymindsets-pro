@@ -203,9 +203,31 @@ function probe({ minTap, tolerance }) {
     };
   };
 
+  /**
+   * VACUITY CENSUS — how much was actually LOOKED AT.
+   *
+   * Every count below this line is a count of PROBLEMS, and a probe that walked
+   * an empty document reports zero of each. `offenders=0 evicted-text=0` on a
+   * page that never rendered is indistinguishable from a clean bill of health,
+   * which is the exact accidentally-correct silence this harness exists to
+   * catch — recorded in the Sentinels workflow header as "the suite is green
+   * precisely BECAUSE nothing ran".
+   *
+   * These are reported and asserted so a run that measured nothing FAILS rather
+   * than passing quietly. They are a census, not a quality score: a high
+   * element count proves the page rendered, nothing more.
+   */
+  const textLeaves = all.filter(
+    (el) => el.children.length === 0 && (el.textContent || "").trim() !== "" && shown(el),
+  );
+  const tappables = [...document.body.querySelectorAll(TAPPABLE)];
+
   return {
     landed: location.pathname,
     viewport: vw,
+    examinedCount: all.length,
+    textLeafCount: textLeaves.length,
+    tappableCount: tappables.length,
     // Kept for contrast: this is the check that MISSED the 2026-09-08 defect.
     documentOverflowPx: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     offenderCount: offenders.length,
@@ -315,9 +337,46 @@ for (const route of ROUTES) {
     continue;
   }
 
+  // ── VACUITY ────────────────────────────────────────────────────────────
+  //
+  // Checked BEFORE the findings are printed, because a zero from an empty page
+  // is not a clean result — it is no result, and printing it as one is the
+  // failure mode this whole file was written against.
+  //
+  // The floors are deliberately low. They are not a quality bar; they only
+  // separate "this page rendered and was walked" from "this page was blank, or
+  // the probe's own traversal broke". The observed census on the thinnest of
+  // these routes is an order of magnitude above them.
+  const VACUITY = { examined: 30, textLeaves: 5 };
+  if (result.examinedCount < VACUITY.examined || result.textLeafCount < VACUITY.textLeaves) {
+    console.log(
+      `${route}  MEASURED NOTHING — walked ${result.examinedCount} elements and ` +
+        `${result.textLeafCount} text leaves, below the ${VACUITY.examined}/${VACUITY.textLeaves} ` +
+        "floor. A geometry report over an empty page is not a clean report.",
+    );
+    failed++;
+    continue;
+  }
+
+  // The viewport the page actually SAW. Gate 4 stalled for a long time on
+  // "programmatic window resize does not take effect, outerWidth stays pinned",
+  // which is true of the browser-extension channel and false here. Asserting it
+  // rather than printing it means the day that stops being true, the run fails
+  // instead of silently re-measuring one width under five names.
+  if (Math.abs(result.viewport - WIDTH) > 1) {
+    console.log(
+      `${route}  VIEWPORT NOT APPLIED — asked for ${WIDTH}px, the document reports ` +
+        `${result.viewport}px. Every geometry number below would describe a different device.`,
+    );
+    failed++;
+    continue;
+  }
+
   console.log(
     `${route}  offenders=${result.offenderCount}  evicted-text=${result.evictedCount}` +
-      `  under-${MIN_TAP}px-taps=${result.smallTapCount}`,
+      `  under-${MIN_TAP}px-taps=${result.smallTapCount}` +
+      `  [saw ${result.examinedCount} els / ${result.textLeafCount} text / ` +
+      `${result.tappableCount} taps @ ${result.viewport}px]`,
   );
   for (const o of result.offenders) console.log(`    off by ${o.offBy}px  ${o.el}`);
   // Printed even though forgiven — a reclassification the reader can audit and

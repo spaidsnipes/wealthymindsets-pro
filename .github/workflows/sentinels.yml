@@ -142,7 +142,24 @@ jobs:
             if [ "$i" = 60 ]; then echo "server never answered on :3488"; exit 1; fi
             sleep 1
           done
-          npm run audit:phone -- --base http://localhost:3488
+          # THREE WIDTHS, not one.
+          #
+          # Gate 4 ("responsive device proof") stood blocked on a recorded
+          # observation: "programmatic window resize does not take effect,
+          # outerWidth stays pinned". That is true of the browser-EXTENSION
+          # channel and false of Playwright, which sets the viewport when the
+          # context is created. MEASURED before this was committed, against a
+          # local `next start`: the document itself reported 375 / 834 / 1440,
+          # and the harness now FAILS if the width it asked for is not the width
+          # the page saw — so the day that stops being true, the run goes red
+          # instead of quietly re-measuring one width under three names.
+          #
+          # The remaining half of Gate 4 is NOT resize, it is AUTH: this harness
+          # holds no session and every interior route client-side redirects to
+          # /login. Those three routes still need a seeded test account.
+          for w in 375 834 1440; do
+            npm run audit:phone -- --base http://localhost:3488 --width "$w"
+          done
         env:
           NEXT_TELEMETRY_DISABLED: '1'
 
