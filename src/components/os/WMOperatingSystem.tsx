@@ -392,7 +392,9 @@ export function WMOperatingSystem({
   const feedStanding = compileFeedStanding(
     feed ?? {
       source: null,
-      fidelity: null,
+      // No room has published, so nothing has been observed. This is evidence
+      // of absence, not an absent verdict.
+      quotePresent: false,
       lastObservedAtMs: null,
       // No observation means no instant to evaluate at either. Zero is not a
       // time; it is the absence of one, and the compiler treats it as such

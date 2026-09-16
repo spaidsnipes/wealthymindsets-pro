@@ -1,21 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { CANONICAL_FIDELITY_LABELS as L } from "@/lib/marketData/canonicalFidelityLabels";
-import { priceSourceBadge } from "@/lib/priceSource";
-import type { CapabilityFidelity } from "@/lib/marketData/sourceCapabilityCertification";
+import {
+  CANONICAL_FIDELITY_LABELS as L,
+  type CanonicalFidelityLabel,
+} from "@/lib/marketData/canonicalFidelityLabels";
+import { REST_QUOTE_SOURCES, priceSourceBadge } from "@/lib/priceSource";
 import {
   LIVE_STALENESS_BUDGET_MS,
   compileFeedStanding,
   compileProvenanceSegments,
   compileStandingConditions,
   type FeedObservation,
+  type FeedTone,
 } from "./osChrome";
 
 const NOW = 1_800_000_000_000;
 
-/** A fully-evidenced observation. Tests take this away one field at a time. */
+/**
+ * A fully-evidenced observation. Tests take this away one field at a time.
+ *
+ * `polygon` rather than a WM provider because polygon is the one source that
+ * can legitimately reach LIVE — CERTIFIED QUOTE. Building the fixture out of a
+ * provider whose realtime certification is NOT established would have hidden
+ * the entire defect this file now guards.
+ */
 const LIVE_OBS: FeedObservation = {
-  source: "webull",
-  fidelity: "REALTIME",
+  source: "polygon",
+  quotePresent: true,
   lastObservedAtMs: NOW - 1_000,
   evaluatedAtMs: NOW,
   connected: true,
@@ -23,12 +33,12 @@ const LIVE_OBS: FeedObservation = {
 };
 
 describe("compileFeedStanding — the badge may only ever sharpen", () => {
-  it("says LIVE only with a source, a REALTIME certification, and a recent print", () => {
+  it("says LIVE only with a certified source, a real quote, and a recent print", () => {
     const feed = compileFeedStanding(LIVE_OBS);
     expect(feed.label).toBe(L.LIVE_CERTIFIED_QUOTE);
     expect(feed.tone).toBe("LIVE");
     expect(feed.established).toBe(true);
-    expect(feed.detail).toContain("webull");
+    expect(feed.detail).toContain("polygon");
   });
 
   /**
@@ -40,12 +50,23 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
   it.each([
     ["no source has produced a tick", { source: null }],
     ["nothing has been observed yet", { lastObservedAtMs: null }],
-    ["no certification has resolved", { fidelity: null }],
+    ["the provider answered with no price", { quotePresent: false }],
   ] as const)("never reaches LIVE when %s", (_why, missing) => {
     const feed = compileFeedStanding({ ...LIVE_OBS, ...missing });
     expect(feed.label).toBe("FEED UNKNOWN");
     expect(feed.tone).toBe("UNKNOWN");
     expect(feed.established).toBe(false);
+  });
+
+  it("a provider nobody recognises is UNKNOWN, never a canon reading", () => {
+    // The delegate reports this through two doors — `unresolved` and
+    // `availability: "unavailable"` — and its `label` on that path is an
+    // internal fallback, not a verdict. Rendering it would put STALE PIPELINE
+    // on the masthead for a provider we simply have no grader for.
+    const feed = compileFeedStanding({ ...LIVE_OBS, source: "acme-quotes" });
+    expect(feed.label).toBe("FEED UNKNOWN");
+    expect(feed.established).toBe(false);
+    expect(feed.label).not.toBe(L.STALE_PIPELINE);
   });
 
   it("a disconnected transport is an ESTABLISHED reading, not a shrug", () => {
@@ -65,13 +86,33 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
     expect(feed.tone).toBe("IDLE");
   });
 
+  it("keeps the transport arm for providers the delegate never asks about", () => {
+    // webull / moomoo / longbridge are graded by provider identity alone —
+    // `priceSourceBadge` does not read `connected` on those arms at all. If the
+    // frame delegated this case too, the masthead would print ACTIVE DEGRADED
+    // over a socket we KNOW is dead. Agreement with the chip is not the goal;
+    // the chip has the same hole and this is the surface that can close it.
+    expect(compileFeedStanding({ ...LIVE_OBS, source: "webull", connected: false }).label).toBe(
+      L.STALE_PIPELINE,
+    );
+    expect(priceSourceBadge("webull", false, true, { present: true, fresh: true }).label).toBe(
+      L.ACTIVE_DEGRADED,
+    );
+  });
+
   describe("CLOSED IS NOT DELAYED — canon law #2, on the badge every screen carries", () => {
     /**
      * A print from Friday afternoon is hours past the 90s freshness budget, so
-     * before this branch existed the masthead read STALE PIPELINE for the whole
-     * weekend: an infrastructure alarm raised about a market behaving normally.
+     * without closure precedence the masthead reads STALE PIPELINE for the
+     * whole weekend: an infrastructure alarm raised about a market behaving
+     * normally.
      */
-    const CLOSED = { ...LIVE_OBS, sessionOpen: false, lastObservedAtMs: NOW - 60 * 60 * 1000 };
+    const CLOSED = {
+      ...LIVE_OBS,
+      source: "webull",
+      sessionOpen: false,
+      lastObservedAtMs: NOW - 60 * 60 * 1000,
+    };
 
     it("reads SESSION CLOSED rather than raising a pipeline alarm on a stale weekend print", () => {
       const feed = compileFeedStanding(CLOSED);
@@ -80,24 +121,28 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
       expect(feed.established).toBe(true);
     });
 
-    it("outranks the entitlement arm — that is what the canon law literally says", () => {
-      expect(compileFeedStanding({ ...CLOSED, fidelity: "DELAYED" }).label).toBe(
-        L.SESSION_CLOSED_LAST_VERIFIED,
-      );
+    it("does not recite the print's age when age is not the reason", () => {
+      // "last print 3600s ago" beside SESSION CLOSED invites the trader to read
+      // a normal weekend as decay.
+      expect(compileFeedStanding(CLOSED).detail).not.toContain("ago");
     });
 
     it("outranks a quiet transport — on a closed market that is the expected condition", () => {
       // Naming it a pipeline fault sends the trader to diagnose infrastructure
-      // instead of reading a clock.
+      // instead of reading a clock. The frame does not re-state this
+      // precedence; it ASKS the delegate whether closure already won.
       expect(compileFeedStanding({ ...CLOSED, connected: false }).label).toBe(
         L.SESSION_CLOSED_LAST_VERIFIED,
       );
     });
 
     it("never says LAST VERIFIED without something verified to point at", () => {
-      // Closure does not manufacture an observation. Same precedence as
-      // priceSourceBadge, and for the same reason.
-      for (const missing of [{ source: null }, { lastObservedAtMs: null }, { fidelity: null }]) {
+      // Closure does not manufacture an observation.
+      for (const missing of [
+        { source: null },
+        { lastObservedAtMs: null },
+        { quotePresent: false },
+      ]) {
         expect(compileFeedStanding({ ...CLOSED, ...missing }).label).not.toBe(
           L.SESSION_CLOSED_LAST_VERIFIED,
         );
@@ -106,123 +151,133 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
 
     it("leaves a continuous market alone — crypto has no session to close", () => {
       // The mirror-image defect: SESSION CLOSED printed over a streaming tape.
-      // The set is imported from priceSource, so this can never drift apart
-      // from the chip that renders beside it.
-      const crypto = compileFeedStanding({
-        ...LIVE_OBS,
-        source: "coinbase",
-        sessionOpen: false,
-      });
+      // The exemption now lives ENTIRELY in the delegate — the frame no longer
+      // holds even an imported copy of the set, so there is nothing left to
+      // drift.
+      const crypto = compileFeedStanding({ ...LIVE_OBS, source: "coinbase", sessionOpen: false });
       expect(crypto.label).toBe(L.LIVE_CERTIFIED_QUOTE);
     });
 
     it("treats an unresolved session as unresolved, not as open", () => {
-      // `null` must not round up to `true`. A room that has not resolved the
-      // calendar changes nothing about the ladder.
+      // `null` must not round up to `true`.
       expect(compileFeedStanding({ ...LIVE_OBS, sessionOpen: null }).label).toBe(
         L.LIVE_CERTIFIED_QUOTE,
       );
-      expect(compileFeedStanding({ ...CLOSED, sessionOpen: null }).label).toBe(L.STALE_PIPELINE);
-    });
-
-    /**
-     * THE REASON THIS BRANCH EXISTS AT ALL.
-     *
-     * Two compilers grade the same fact — `compileFeedStanding` for the OS
-     * masthead and `priceSourceBadge` for the chart chip — and they render six
-     * inches apart on one screen. Two owners of one fact do not fail loudly;
-     * they simply disagree on the day the case arises. This asserts the case
-     * that used to disagree, across BOTH owners, so a later edit to either
-     * ladder that re-opens the contradiction fails here by name.
-     */
-    it("agrees with priceSourceBadge — the chip and the masthead read the same words", () => {
-      const masthead = compileFeedStanding(CLOSED);
-      const chip = priceSourceBadge("webull", true, false, { present: true, fresh: false });
-      expect(masthead.label).toBe(chip.label);
+      expect(compileFeedStanding({ ...CLOSED, sessionOpen: null }).label).not.toBe(
+        L.SESSION_CLOSED_LAST_VERIFIED,
+      );
     });
   });
 
   /**
-   * `FeedObservation.fidelity` used to spell three of the five members of
-   * `CapabilityFidelity` inline. That second owner did not fail loudly — it
-   * failed by being INEXPRESSIBLE: a room whose capability resolved to PROXY or
-   * NONE had no legal value to hand up, so its only move was `null`, which this
-   * compiler reads as "no certification resolved". A missing enum member
-   * launders a known-weak reading into an unknown one.
+   * ── THE DEFECT THAT KEPT EVERY ROOM FROM PUBLISHING ────────────────────────
+   *
+   * This field used to be `fidelity: CapabilityFidelity | null` — a
+   * CERTIFICATION verdict. `certifySource` is the only producer of one, it runs
+   * against provider probes on the server, and no trading surface calls it. So
+   * on the real `/charts` path the only honest value was `null`, and the
+   * masthead read FEED UNKNOWN while the chip six inches below it read ACTIVE
+   * DEGRADED with a price and a change.
+   *
+   * These are the five production providers. Each one asserts the masthead and
+   * the chip reach the SAME canon word from the SAME evidence — which they now
+   * cannot fail to do, because there is only one ladder and the frame is a
+   * reader of it. The table is the receipt that the wire is finally buildable.
    */
-  describe("the full certified vocabulary, because a missing member is a laundered claim", () => {
-    it("grades PROXY as ACTIVE DEGRADED — inferred is not observed, and not unknown either", () => {
-      const feed = compileFeedStanding({ ...LIVE_OBS, fidelity: "PROXY" });
-      expect(feed.label).toBe(L.ACTIVE_DEGRADED);
-      expect(feed.established).toBe(true);
-      expect(feed.label).not.toBe(L.LIVE_CERTIFIED_QUOTE);
-      expect(feed.detail).toContain("inferred");
+  describe("one ladder — the masthead and the chip cannot disagree", () => {
+    const CASES = [
+      ["polygon", true, "a certified realtime tape", L.LIVE_CERTIFIED_QUOTE],
+      ["coinbase", true, "a continuous crypto tape", L.LIVE_CERTIFIED_QUOTE],
+      ["alpaca", true, "IEX realtime", L.LIVE_CERTIFIED_QUOTE],
+      ["webull", true, "an active provider with no certification yet", L.ACTIVE_DEGRADED],
+      ["finnhub", undefined, "a delayed consolidated quote", L.ACTIVE_DEGRADED],
+      ["yahoo", undefined, "a delayed consolidated quote", L.ACTIVE_DEGRADED],
+    ] as const;
+
+    it.each(CASES)("%s — %s reads the same on both surfaces", (source, fresh, _why, expected) => {
+      const masthead = compileFeedStanding({ ...LIVE_OBS, source });
+      const chip = priceSourceBadge(source, true, true, { present: true, fresh });
+      expect(masthead.label, `masthead for ${source}`).toBe(expected);
+      expect(chip.label, `chip for ${source}`).toBe(expected);
+      expect(masthead.label).toBe(chip.label);
     });
 
-    it("a stale PROXY is stale first — freshness outranks the fidelity arm", () => {
-      const feed = compileFeedStanding({
-        ...LIVE_OBS,
-        fidelity: "PROXY",
-        lastObservedAtMs: NOW - LIVE_STALENESS_BUDGET_MS - 1,
-      });
-      expect(feed.label).toBe(L.STALE_PIPELINE);
-    });
-
-    it("distinguishes a DECLINED fidelity claim from a MISSING one", () => {
-      // Both are FEED UNKNOWN; neither may claim the other's reason. Telling
-      // the trader we are still waiting when the certification already came
-      // back is a small lie in the one place they look to calibrate trust.
-      const declined = compileFeedStanding({ ...LIVE_OBS, fidelity: "NONE" });
-      const missing = compileFeedStanding({ ...LIVE_OBS, fidelity: null });
-      expect(declined.label).toBe("FEED UNKNOWN");
-      expect(missing.label).toBe("FEED UNKNOWN");
-      expect(declined.established).toBe(false);
-      expect(declined.detail).not.toBe(missing.detail);
-    });
-
-    /**
-     * THE GUARD THAT SURVIVES THE NEXT MEMBER.
-     *
-     * `CapabilityFidelity` is a bare union with no runtime list, so nothing can
-     * iterate it. A `Record<CapabilityFidelity, …>` can: TypeScript requires
-     * every member as a key, so the day `sourceCapabilityCertification.ts`
-     * grows a sixth fidelity, `tsc` fails HERE — in the file that names the
-     * compiler obliged to grade it — instead of that member silently arriving
-     * at the masthead and falling through to LIVE.
-     *
-     * A runtime assertion could not do this. The hazard is a value that does
-     * not exist yet, and you cannot write a test case for a member nobody has
-     * declared.
-     */
-    it("grades every member the certification owner can produce", () => {
-      const expected: Record<CapabilityFidelity, string> = {
-        REALTIME: L.LIVE_CERTIFIED_QUOTE,
-        DELAYED: L.DELAYED_BY_ENTITLEMENT,
-        SNAPSHOT: L.HISTORICAL_BARS_VERIFIED,
-        PROXY: L.ACTIVE_DEGRADED,
-        NONE: "FEED UNKNOWN",
-      };
-      for (const [fidelity, label] of Object.entries(expected)) {
-        expect(
-          compileFeedStanding({ ...LIVE_OBS, fidelity: fidelity as CapabilityFidelity }).label,
-          fidelity,
-        ).toBe(label);
+    it("finnhub and yahoo used to be the unpublishable cases, and are the point", () => {
+      // No certification is resolved for either, so the old compiler's only
+      // legal input was `null` ⇒ FEED UNKNOWN, beside a chip reading ACTIVE
+      // DEGRADED. The masthead now speaks.
+      for (const source of ["finnhub", "yahoo"] as const) {
+        const feed = compileFeedStanding({ ...LIVE_OBS, source });
+        expect(feed.label).not.toBe("FEED UNKNOWN");
+        expect(feed.established).toBe(true);
       }
     });
 
-    it("never lets a NONE claim reach SESSION CLOSED — LAST VERIFIED", () => {
-      // "LAST VERIFIED" asserts a verification the certification explicitly
-      // declines to make. Closure must not be the loophole that restores it.
-      const feed = compileFeedStanding({ ...LIVE_OBS, fidelity: "NONE", sessionOpen: false });
-      expect(feed.label).not.toBe(L.SESSION_CLOSED_LAST_VERIFIED);
-      expect(feed.established).toBe(false);
+    /**
+     * A REST-quote provider publishes on a minutes cadence BY DESIGN. Measuring
+     * it against a seconds-scale tape budget reports `fresh: false`, which
+     * short-circuits the delegate to STALE PIPELINE — an infrastructure alarm
+     * raised about a provider behaving exactly as specified. Canon law 3: the
+     * absence of a per-trade tape is a MISSING CAPABILITY, not a stalled pipe.
+     *
+     * The set is imported from the module that owns it, so a provider added
+     * there is covered here without anyone remembering to come back.
+     */
+    it("never measures a polled provider against a tape budget", () => {
+      for (const source of REST_QUOTE_SOURCES) {
+        const feed = compileFeedStanding({
+          ...LIVE_OBS,
+          source,
+          lastObservedAtMs: NOW - 10 * LIVE_STALENESS_BUDGET_MS,
+        });
+        expect(feed.label, `${source} slandered as a pipeline fault`).not.toBe(L.STALE_PIPELINE);
+      }
+      // POSITIVE CONTROL: a tape provider at the same age IS stale, so the
+      // assertion above is exempting these sources rather than passing vacuously.
+      expect(
+        compileFeedStanding({
+          ...LIVE_OBS,
+          source: "polygon",
+          lastObservedAtMs: NOW - 10 * LIVE_STALENESS_BUDGET_MS,
+        }).label,
+      ).toBe(L.STALE_PIPELINE);
     });
   });
 
-  it("a certified-delayed provider can never wear LIVE, however fresh the print", () => {
-    const feed = compileFeedStanding({ ...LIVE_OBS, fidelity: "DELAYED" });
-    expect(feed.label).toBe(L.DELAYED_BY_ENTITLEMENT);
-    expect(feed.label).not.toBe(L.LIVE_CERTIFIED_QUOTE);
+  /**
+   * THE GUARD THAT SURVIVES THE NEXT LABEL.
+   *
+   * The frame no longer decides WHICH reading applies — but it still decides
+   * what colour each reading wears, and a tone is a claim a trader reads from
+   * across the room. `Record<CanonicalFidelityLabel, FeedTone>` makes TypeScript
+   * require every canon label as a key, so the day the Visual Systems Canon
+   * grows an eighth label `tsc` fails HERE instead of that label arriving at
+   * the masthead and falling through to the green pip.
+   *
+   * A runtime assertion could not do this: the hazard is a value that does not
+   * exist yet, and you cannot write a test case for a label nobody has declared.
+   */
+  it("assigns a deliberate tone to every reading the canon can produce", () => {
+    const expected: Record<CanonicalFidelityLabel, FeedTone> = {
+      [L.LIVE_CERTIFIED_QUOTE]: "LIVE",
+      [L.DELAYED_BY_ENTITLEMENT]: "DELAYED",
+      [L.HISTORICAL_BARS_VERIFIED]: "DELAYED",
+      [L.ACTIVE_DEGRADED]: "DELAYED",
+      // A WALL IS NOT A LAG. The trader who reads "delayed" waits; the trader
+      // who reads a wall goes and fixes an account.
+      [L.BLOCKED_BY_ENTITLEMENT]: "IDLE",
+      [L.STALE_PIPELINE]: "IDLE",
+      [L.SESSION_CLOSED_LAST_VERIFIED]: "IDLE",
+    };
+    // The three the compiler can reach from real evidence today, checked
+    // against the same table the implementation is keyed by.
+    expect(compileFeedStanding(LIVE_OBS).tone).toBe(expected[L.LIVE_CERTIFIED_QUOTE]);
+    expect(compileFeedStanding({ ...LIVE_OBS, source: "webull" }).tone).toBe(
+      expected[L.ACTIVE_DEGRADED],
+    );
+    expect(compileFeedStanding({ ...LIVE_OBS, connected: false }).tone).toBe(
+      expected[L.STALE_PIPELINE],
+    );
   });
 
   /**
@@ -235,8 +290,9 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
     const observations: FeedObservation[] = [
       LIVE_OBS,
       { ...LIVE_OBS, connected: false },
-      { ...LIVE_OBS, fidelity: "DELAYED" },
-      { ...LIVE_OBS, fidelity: "SNAPSHOT" },
+      { ...LIVE_OBS, source: "webull" },
+      { ...LIVE_OBS, source: "finnhub" },
+      { ...LIVE_OBS, source: "webull", sessionOpen: false },
       { ...LIVE_OBS, lastObservedAtMs: NOW - LIVE_STALENESS_BUDGET_MS - 5_000 },
     ];
     for (const obs of observations) {
@@ -269,23 +325,24 @@ describe("compileFeedStanding — the badge may only ever sharpen", () => {
 
   it("a print stamped in the future is UNKNOWN, not maximally fresh", () => {
     // Reading a negative age as "0ms old" turns a clock disagreement into a
-    // LIVE badge — the failure mode is silent and always flatters us.
+    // LIVE badge — the failure mode is silent and always flatters us. Graded
+    // BEFORE the budget, so a bad clock can never become the `fresh: true` the
+    // delegate would then certify.
     const feed = compileFeedStanding({ ...LIVE_OBS, lastObservedAtMs: NOW + 60_000 });
     expect(feed.label).toBe("FEED UNKNOWN");
     expect(feed.established).toBe(false);
   });
 
-  it("SNAPSHOT fidelity reports the limited capability, never promoted to LIVE", () => {
-    const feed = compileFeedStanding({ ...LIVE_OBS, fidelity: "SNAPSHOT" });
-    expect(feed.label).toBe(L.HISTORICAL_BARS_VERIFIED);
-    expect(feed.label).not.toBe(L.LIVE_CERTIFIED_QUOTE);
-    expect(feed.tone).toBe("DELAYED");
-  });
-
   it("an unknown transport does not block a well-evidenced reading", () => {
-    // `connected: null` means "we did not ask", which is different from
-    // "we asked and it is down". Only the latter is NO FEED.
-    expect(compileFeedStanding({ ...LIVE_OBS, connected: null }).label).toBe(L.LIVE_CERTIFIED_QUOTE);
+    // `connected: null` means "we did not ask", which is different from "we
+    // asked and it is down". Rounding it DOWN would print STALE PIPELINE over a
+    // live alpaca tape purely because a room stayed silent about its socket.
+    expect(compileFeedStanding({ ...LIVE_OBS, connected: null }).label).toBe(
+      L.LIVE_CERTIFIED_QUOTE,
+    );
+    expect(compileFeedStanding({ ...LIVE_OBS, source: "alpaca", connected: null }).label).toBe(
+      L.LIVE_CERTIFIED_QUOTE,
+    );
   });
 });
 
@@ -354,7 +411,7 @@ describe("compileProvenanceSegments — the bottom bar cannot smuggle a claim", 
     const feed = compileFeedStanding(LIVE_OBS);
     expect(compileProvenanceSegments(feed, null)).toHaveLength(1);
     expect(compileProvenanceSegments(feed, "10:42:17 ET")).toEqual([
-      "SOURCE WEBULL · REALTIME",
+      "SOURCE POLYGON · CERTIFIED REALTIME",
       "AS OF 10:42:17 ET",
     ]);
   });
