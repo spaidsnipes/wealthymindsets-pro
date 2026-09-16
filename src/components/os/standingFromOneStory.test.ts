@@ -17,7 +17,8 @@ import type { OneStoryVM } from "@/lib/marketData/viewModels/selectOneStory";
 import type { EvidenceDebt } from "@/lib/marketData/viewModels/decisionPermissionCompiler";
 
 const debt = (over: Partial<EvidenceDebt> = {}): EvidenceDebt => ({
-  total: 9,
+  payable: 9,
+    watch: 0,
   resolved: 0,
   missing: 9,
   warn: 0,
@@ -63,15 +64,15 @@ describe("standingFromOneStory — the chrome inherits the room's confidence", (
   });
 
   it("a chain with NO dimensions is an unopened ledger, not a paid one", () => {
-    // total 0 means there was nothing to owe against — so `missing: 0` here is
+    // payable 0 means there was nothing to owe against — so `missing: 0` here is
     // arithmetic about an empty set, not evidence that the work was done.
-    expect(standingFromOneStory(story({ debt: debt({ total: 0, missing: 0 }) })).openEvidenceItems)
+    expect(standingFromOneStory(story({ debt: debt({ payable: 0, missing: 0 }) })).openEvidenceItems)
       .toBeNull();
     expect(standingFromOneStory(story({ debt: null })).openEvidenceItems).toBeNull();
   });
 
   it("a FULLY PAID ledger reports 0 — the one case where zero is the truth", () => {
-    // The mirror of the case above, and the reason `total > 0` is the gate
+    // The mirror of the case above, and the reason `payable > 0` is the gate
     // rather than `missing > 0`. Nine dimensions, all resolved, is a real
     // measured zero and must not be flattened back into UNKNOWN.
     const paid = story({

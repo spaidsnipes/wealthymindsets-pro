@@ -36,8 +36,9 @@ function story(over: Partial<OneStoryVM> & { decision?: RightOfWayReading } = {}
   };
 }
 
-const debt = (missing: string[], warn: string[] = [], resolved = 1, total = 9): EvidenceDebt => ({
-  total,
+const debt = (missing: string[], warn: string[] = [], resolved = 1, payable = 9): EvidenceDebt => ({
+  payable,
+  watch: 0,
   resolved,
   missing: missing.length,
   warn: warn.length,

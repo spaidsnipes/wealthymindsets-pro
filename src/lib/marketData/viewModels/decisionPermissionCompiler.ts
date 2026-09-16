@@ -25,7 +25,48 @@ import type { DecisionChainNode } from "./selectDecisionChain";
 import type { PermissionVM } from "@/lib/traderMemory/viewModels/selectPermission";
 
 export interface EvidenceDebt {
-  readonly total: number;
+  /**
+   * Size of the LEDGER — the nodes that carry a gradeable indicator, and so
+   * the only honest denominator for "X of N paid".
+   *
+   * Invariant, enforced by test: `payable === resolved + missing + warn`.
+   *
+   * ── The measured defect this field exists to end ──────────────────────────
+   *
+   * This used to be `total`, defined as `nodes.length`. But WATCH nodes are
+   * deliberately counted in NONE of the three buckets — the loop below says so
+   * in its own comment: "WATCH is neither paid nor blocking — not counted".
+   * So `nodes.length` put nodes in the denominator that could never appear in
+   * any numerator.
+   *
+   * Observed live on https://wealthymindsetspro.com/command-deck, two lines
+   * apart inside the SAME card:
+   *
+   *     EVIDENCE DEBT   0 of 9 paid
+   *     8 evidence nodes unpaid: regime + direction +6
+   *
+   * Zero paid plus eight unpaid is eight, not nine. The ninth node was a WATCH
+   * node: present in the denominator, absent from every count that explains it.
+   * LIVING-PIXEL LAW — that 9 had no owner anywhere on the screen.
+   *
+   * It also made `resolved === total` unreachable for any chain holding a
+   * WATCH node, so the ribbon's "authorization complete" branch was dead code
+   * on exactly the chains that were closest to complete.
+   *
+   * The rename from `total` is deliberate. Silently redefining a field leaves
+   * every existing reader looking correct while meaning something new; renaming
+   * makes the compiler walk every call site, which is what a change to the
+   * meaning of a denominator deserves.
+   */
+  readonly payable: number;
+  /**
+   * Nodes observed but NOT part of the ledger — WATCH indicators.
+   *
+   * Surfaced rather than discarded so the difference between `payable` and the
+   * chain's length always has a name a surface can print. An unexplained gap
+   * between two counts is how the defect above stayed invisible.
+   */
+  readonly watch: number;
   readonly resolved: number;
   readonly missing: number;
   readonly warn: number;
@@ -99,7 +140,19 @@ export function computeEvidenceDebt(
     // WATCH is neither paid nor blocking — not counted; render as
     // observed-but-not-blocking downstream if surface wants to show it.
   }
-  return { total: nodes.length, resolved, missing, warn, missingLabels, warnLabels };
+  // The LEDGER is exactly the nodes that carry a gradeable indicator. WATCH
+  // nodes are observed but ungradeable, so they are named separately rather
+  // than padding a denominator no numerator can ever reach.
+  const payable = resolved + missing + warn;
+  return {
+    payable,
+    watch: nodes.length - payable,
+    resolved,
+    missing,
+    warn,
+    missingLabels,
+    warnLabels,
+  };
 }
 
 /**
@@ -148,7 +201,7 @@ export function computeRightOfWay(
         tone: "pending",
       };
     }
-    if (!debt || !(debt.total > 0) || !(debt.resolved > 0)) {
+    if (!debt || !(debt.payable > 0) || !(debt.resolved > 0)) {
       return {
         value: "UNKNOWN",
         detail: "required evidence not evaluated",

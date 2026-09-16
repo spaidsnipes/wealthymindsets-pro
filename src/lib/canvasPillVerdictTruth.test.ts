@@ -42,7 +42,7 @@ describe("canvas pill verdict legibility", () => {
   it("canon rejection #1 still holds: missing chain debt can never yield ACTION", () => {
     for (const missing of [1, 2, 5, 9]) {
       const debt: EvidenceDebt = {
-        total: 10,
+        payable: 10, watch: 0,
         resolved: 10 - missing,
         missing,
         warn: 0,
@@ -57,7 +57,7 @@ describe("canvas pill verdict legibility", () => {
 
   it("zero chain debt does not itself fabricate ACTION without permission", () => {
     const debt: EvidenceDebt = {
-      total: 8, resolved: 8, missing: 0, warn: 0,
+      payable: 8, watch: 0, resolved: 8, missing: 0, warn: 0,
       missingLabels: [], warnLabels: [],
     };
     // No permission supplied → must not invent authorization.

@@ -119,14 +119,18 @@ export function selectRealityCells(oneStory: OneStoryVM | null): RealityCellsVM 
 
   const debt = oneStory.debt;
   const evidence: RealityCell =
-    debt && debt.total > 0
+    debt && debt.payable > 0
       ? {
           n: 3,
           label: "Evidence Debt",
-          // `resolved` and `total` are authoritative counts owned by
+          // `resolved` and `payable` are authoritative counts owned by
           // computeEvidenceDebt. `missingLabels` is a capped sample and is
           // never counted here.
-          value: `${debt.resolved} of ${debt.total} paid`,
+          //
+          // `payable`, NOT the chain length: a WATCH node is ungradeable, so
+          // counting it here printed "0 of 9 paid" two lines above "8 evidence
+          // nodes unpaid" on the same live card.
+          value: `${debt.resolved} of ${debt.payable} paid`,
           // `missing` is already the compiled phrase. Echo it; do not re-derive.
           detail: oneStory.missing ?? "Ledger paid in full.",
           tone: oneStory.missing ? "DEBT" : "RESOLVED",

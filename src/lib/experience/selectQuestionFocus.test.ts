@@ -4,7 +4,7 @@ import type { OneStoryVM } from "../marketData/viewModels/selectOneStory";
 import type { EvidenceDebt } from "../marketData/viewModels/decisionPermissionCompiler";
 
 const debtOf = (over: Partial<EvidenceDebt> = {}): EvidenceDebt => ({
-  total: 8,
+  payable: 8, watch: 0,
   resolved: 5,
   missing: 0,
   warn: 0,

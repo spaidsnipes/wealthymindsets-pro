@@ -43,31 +43,31 @@ describe("selectMateriality — canon §4 gate for Auto-Quiet", () => {
   });
 
   it("MISSING_APPEARED when debt.missing goes 0 → >0", () => {
-    const prev = story({ debt: { total: 3, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [] } });
-    const next = story({ debt: { total: 3, resolved: 2, missing: 1, warn: 0, missingLabels: ["Aggression"], warnLabels: [] } });
+    const prev = story({ debt: { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [] } });
+    const next = story({ debt: { payable: 3, watch: 0, resolved: 2, missing: 1, warn: 0, missingLabels: ["Aggression"], warnLabels: [] } });
     const r = selectMateriality(prev, next);
     expect(r.reasons).toContain("MISSING_APPEARED");
     expect(r.material).toBe(true);
   });
 
   it("MISSING_RESOLVED when debt.missing goes >0 → 0", () => {
-    const prev = story({ debt: { total: 3, resolved: 2, missing: 1, warn: 0, missingLabels: ["A"], warnLabels: [] } });
-    const next = story({ debt: { total: 3, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [] } });
+    const prev = story({ debt: { payable: 3, watch: 0, resolved: 2, missing: 1, warn: 0, missingLabels: ["A"], warnLabels: [] } });
+    const next = story({ debt: { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [] } });
     const r = selectMateriality(prev, next);
     expect(r.reasons).toContain("MISSING_RESOLVED");
   });
 
   it("MISSING_INCREASED distinguishes from APPEARED", () => {
-    const prev = story({ debt: { total: 5, resolved: 3, missing: 2, warn: 0, missingLabels: ["A", "B"], warnLabels: [] } });
-    const next = story({ debt: { total: 5, resolved: 2, missing: 3, warn: 0, missingLabels: ["A", "B", "C"], warnLabels: [] } });
+    const prev = story({ debt: { payable: 5, watch: 0, resolved: 3, missing: 2, warn: 0, missingLabels: ["A", "B"], warnLabels: [] } });
+    const next = story({ debt: { payable: 5, watch: 0, resolved: 2, missing: 3, warn: 0, missingLabels: ["A", "B", "C"], warnLabels: [] } });
     const r = selectMateriality(prev, next);
     expect(r.reasons).toContain("MISSING_INCREASED");
     expect(r.reasons).not.toContain("MISSING_APPEARED");
   });
 
   it("MISSING_DECREASED distinguishes from RESOLVED", () => {
-    const prev = story({ debt: { total: 5, resolved: 2, missing: 3, warn: 0, missingLabels: [], warnLabels: [] } });
-    const next = story({ debt: { total: 5, resolved: 3, missing: 2, warn: 0, missingLabels: [], warnLabels: [] } });
+    const prev = story({ debt: { payable: 5, watch: 0, resolved: 2, missing: 3, warn: 0, missingLabels: [], warnLabels: [] } });
+    const next = story({ debt: { payable: 5, watch: 0, resolved: 3, missing: 2, warn: 0, missingLabels: [], warnLabels: [] } });
     const r = selectMateriality(prev, next);
     expect(r.reasons).toContain("MISSING_DECREASED");
     expect(r.reasons).not.toContain("MISSING_RESOLVED");
@@ -94,12 +94,12 @@ describe("selectMateriality — canon §4 gate for Auto-Quiet", () => {
     const prev = story({
       decisionValue: "WAIT",
       primary: "In balance.",
-      debt: { total: 3, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [] },
+      debt: { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [] },
     });
     const next = story({
       decisionValue: "ACTION",
       primary: "Trend expanding.",
-      debt: { total: 3, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [] },
+      debt: { payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0, missingLabels: [], warnLabels: [] },
     });
     const r = selectMateriality(prev, next);
     expect(r.reasons[0]).toBe("DECISION_CHANGED");

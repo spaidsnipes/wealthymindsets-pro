@@ -48,12 +48,59 @@ describe("computeEvidenceDebt", () => {
       node("Available R", "WARN"),
       node("Steward", "WATCH"), // WATCH is neither paid nor blocking
     ])!;
-    expect(d.total).toBe(6);
+    // SIX nodes, but only FIVE are payable — the WATCH node is ungradeable and
+    // must not sit in a denominator no numerator can reach.
+    expect(d.payable).toBe(5);
+    expect(d.watch).toBe(1);
     expect(d.resolved).toBe(2);
     expect(d.missing).toBe(2);
     expect(d.warn).toBe(1);
     expect(d.missingLabels).toEqual(["Aggression", "CLC"]);
     expect(d.warnLabels).toEqual(["Available R"]);
+  });
+
+  it("THE MEASURED DEFECT: `X of N paid` and `M unpaid` must add up on one card", () => {
+    /*
+      Observed live on https://wealthymindsetspro.com/command-deck, two lines
+      apart inside the SAME card:
+
+          EVIDENCE DEBT   0 of 9 paid
+          8 evidence nodes unpaid: regime + direction +6
+
+      Zero paid plus eight unpaid is eight, not nine. The ninth was a WATCH
+      node — in the denominator, in no numerator. LIVING-PIXEL LAW: that 9 had
+      no owner anywhere on the screen.
+    */
+    const nodes: DecisionChainNode[] = [];
+    for (let i = 0; i < 8; i++) nodes.push(node(`Unpaid${i}`, "UNKNOWN"));
+    nodes.push(node("Steward", "WATCH"));
+
+    const d = computeEvidenceDebt(nodes)!;
+    expect(nodes.length).toBe(9);
+    expect(d.payable).toBe(8);
+    expect(d.watch).toBe(1);
+    expect(d.resolved + d.missing).toBe(d.payable); // "0 of 8 paid" + "8 unpaid"
+  });
+
+  it("the INVARIANT: payable is exactly the gradeable buckets, and watch is the rest", () => {
+    // This is what makes the arithmetic above structural rather than incidental.
+    const nodes: DecisionChainNode[] = [
+      node("a", "OK"), node("b", "OK"), node("c", "UNKNOWN"),
+      node("d", "WARN"), node("e", "WATCH"), node("f", "WATCH"),
+    ];
+    const d = computeEvidenceDebt(nodes)!;
+    expect(d.payable).toBe(d.resolved + d.missing + d.warn);
+    expect(d.payable + d.watch).toBe(nodes.length);
+  });
+
+  it("a FULLY PAID ledger can reach resolved === payable even holding WATCH nodes", () => {
+    // Under `total: nodes.length` this was UNREACHABLE for any chain with a
+    // WATCH node, which made the ribbon's "authorization complete" branch dead
+    // code on exactly the chains closest to complete.
+    const d = computeEvidenceDebt([
+      node("a", "OK"), node("b", "OK"), node("optional", "WATCH"),
+    ])!;
+    expect(d.resolved).toBe(d.payable);
   });
 
   it("caps label arrays at 3 entries", () => {
@@ -72,7 +119,8 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
   it("Rule 1 (highest priority): missing evidence forces WAIT even when permission ALLOWED", () => {
     // This is the canon rejection #1 contradiction guarantee.
     const debt: EvidenceDebt = {
-      total: 5,
+      payable: 5,
+    watch: 0,
       resolved: 3,
       missing: 2,
       warn: 0,
@@ -89,7 +137,7 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
 
   it("Rule 1: missing evidence forces WAIT even when permission ADVISORY", () => {
     const debt: EvidenceDebt = {
-      total: 3, resolved: 1, missing: 2, warn: 0,
+      payable: 3, watch: 0, resolved: 1, missing: 2, warn: 0,
       missingLabels: ["A", "B"], warnLabels: [],
     };
     expect(computeRightOfWay(perm("ADVISORY"), debt).value).toBe("WAIT");
@@ -97,7 +145,7 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
 
   it("Rule 1: missing evidence forces WAIT even with null permission", () => {
     const debt: EvidenceDebt = {
-      total: 1, resolved: 0, missing: 1, warn: 0,
+      payable: 1, watch: 0, resolved: 0, missing: 1, warn: 0,
       missingLabels: ["X"], warnLabels: [],
     };
     expect(computeRightOfWay(null, debt).value).toBe("WAIT");
@@ -105,7 +153,7 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
 
   it("Rule 2: RESTRICTED with no missing evidence → NO TRADE", () => {
     const debt: EvidenceDebt = {
-      total: 3, resolved: 3, missing: 0, warn: 0,
+      payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0,
       missingLabels: [], warnLabels: [],
     };
     const r = computeRightOfWay(perm("RESTRICTED", "Hard rule engaged"), debt);
@@ -116,7 +164,7 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
 
   it("Rule 3: ADVISORY with no missing evidence → CAUTION", () => {
     const debt: EvidenceDebt = {
-      total: 3, resolved: 3, missing: 0, warn: 0,
+      payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0,
       missingLabels: [], warnLabels: [],
     };
     const r = computeRightOfWay(perm("ADVISORY", "Soft rule engaged"), debt);
@@ -126,7 +174,7 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
 
   it("Rule 4a: ALLOWED with no missing + no warn → ACTION", () => {
     const debt: EvidenceDebt = {
-      total: 5, resolved: 5, missing: 0, warn: 0,
+      payable: 5, watch: 0, resolved: 5, missing: 0, warn: 0,
       missingLabels: [], warnLabels: [],
     };
     const r = computeRightOfWay(perm("ALLOWED"), debt);
@@ -137,7 +185,7 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
 
   it("Rule 4b: ALLOWED with no missing but warn present → CAUTION (not ACTION)", () => {
     const debt: EvidenceDebt = {
-      total: 5, resolved: 3, missing: 0, warn: 2,
+      payable: 5, watch: 0, resolved: 3, missing: 0, warn: 2,
       missingLabels: [], warnLabels: ["Location", "Structure"],
     };
     const r = computeRightOfWay(perm("ALLOWED"), debt);
@@ -154,8 +202,21 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
     expect(r.detail).toContain("not evaluated");
   });
 
-  it.each([0, 3])("requires paid evidence, not an empty or WATCH-only ledger (total %s)", total => {
-    const debt: EvidenceDebt = { total, resolved: 0, missing: 0, warn: 0, missingLabels: [], warnLabels: [] };
+  it("requires paid evidence — an empty ledger is not an authorized one", () => {
+    const debt: EvidenceDebt = {
+      payable: 0, watch: 0, resolved: 0, missing: 0, warn: 0, missingLabels: [], warnLabels: [],
+    };
+    expect(computeRightOfWay(perm("ALLOWED"), debt).value).toBe("UNKNOWN");
+  });
+
+  it("a WATCH-ONLY chain has graded nothing — it cannot authorize", () => {
+    // Three nodes, zero payable. Before `payable` existed this chain reported
+    // `total: 3` and so LOOKED like an evaluated ledger to every gate.
+    const debt = computeEvidenceDebt([
+      node("A", "WATCH"), node("B", "WATCH"), node("C", "WATCH"),
+    ])!;
+    expect(debt.payable).toBe(0);
+    expect(debt.watch).toBe(3);
     expect(computeRightOfWay(perm("ALLOWED"), debt).value).toBe("UNKNOWN");
   });
 
@@ -170,7 +231,7 @@ describe("computeRightOfWay — canon rejection #1 guarantee", () => {
 
   it("Rule 5: UNKNOWN permission → UNKNOWN Right of Way", () => {
     const debt: EvidenceDebt = {
-      total: 3, resolved: 3, missing: 0, warn: 0,
+      payable: 3, watch: 0, resolved: 3, missing: 0, warn: 0,
       missingLabels: [], warnLabels: [],
     };
     expect(computeRightOfWay(perm("UNKNOWN"), debt).value).toBe("UNKNOWN");

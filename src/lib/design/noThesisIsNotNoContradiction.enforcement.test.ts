@@ -156,13 +156,19 @@ describe("SENTINEL — no thesis is not no contradiction", () => {
     const vm = selectDecisionWhyNot(
       oneStory({
         contradictionDetectability: "NOTHING_TO_COMPARE",
+        // Typed, NOT cast. An `as unknown as` here hid a stale `total` field
+        // from tsc through an entire rename — only the runtime assertion below
+        // caught the drift. A fixture that opts out of the type is a fixture
+        // that stops proving the thing it names.
         debt: {
           missing: 0,
           resolved: 3,
-          total: 9,
+          warn: 6,
+          payable: 9,
+          watch: 0,
           missingLabels: [],
           warnLabels: [],
-        } as unknown as OneStoryVM["debt"],
+        } satisfies NonNullable<OneStoryVM["debt"]>,
       }),
     );
     expect(vm.clearances).toContain("3/9 evidence nodes paid.");

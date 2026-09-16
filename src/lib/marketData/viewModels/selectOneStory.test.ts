@@ -119,7 +119,7 @@ describe("selectOneStory — canon §7 shape guarantee", () => {
       permission: null,
     });
     expect(vm.debt).not.toBeNull();
-    expect(vm.debt!.total).toBe(2);
+    expect(vm.debt!.payable).toBe(2);
     expect(vm.debt!.missing).toBe(1);
   });
 

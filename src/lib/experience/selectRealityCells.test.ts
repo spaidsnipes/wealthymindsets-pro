@@ -4,7 +4,8 @@ import type { OneStoryVM } from "../marketData/viewModels/selectOneStory";
 import type { EvidenceDebt } from "../marketData/viewModels/decisionPermissionCompiler";
 
 const debtOf = (over: Partial<EvidenceDebt> = {}): EvidenceDebt => ({
-  total: 8,
+  payable: 8,
+    watch: 0,
   resolved: 5,
   missing: 0,
   warn: 0,
@@ -99,7 +100,7 @@ describe("selectRealityCells", () => {
     it("marks an empty ledger UNRESOLVED rather than '0 of 0 paid'", () => {
       // "0 of 0 paid" reads as a clean bill of health for a ledger that was
       // never opened. That is the same lie as a blank.
-      const cell = selectRealityCells(story({ debt: debtOf({ total: 0, resolved: 0 }) })).cells[2];
+      const cell = selectRealityCells(story({ debt: debtOf({ payable: 0, watch: 0, resolved: 0 }) })).cells[2];
       expect(cell.tone).toBe("UNRESOLVED");
       expect(cell.value).toBe("—");
       expect(cell.detail).toBe("No evidence ledger compiled.");
@@ -107,12 +108,12 @@ describe("selectRealityCells", () => {
   });
 
   describe("LIVING-PIXEL LAW — every number must have its canonical owner", () => {
-    it("reads the ledger counts from `resolved`/`total`, never from the capped sample", () => {
+    it("reads the ledger counts from `resolved`/`payable`, never from the capped sample", () => {
       const cell = selectRealityCells(
         story({
           // 9 missing but only 3 sampled labels. A count derived from the
           // sample would render "3" and be wrong by six.
-          debt: debtOf({ total: 12, resolved: 3, missing: 9, missingLabels: ["Regime", "Direction", "Location"] }),
+          debt: debtOf({ payable: 12, watch: 0, resolved: 3, missing: 9, missingLabels: ["Regime", "Direction", "Location"] }),
           missing: "missing regime + direction +1",
         }),
       ).cells[2];
@@ -129,7 +130,7 @@ describe("selectRealityCells", () => {
     });
 
     it("calls a fully paid ledger RESOLVED, not DEBT", () => {
-      const cell = selectRealityCells(story({ debt: debtOf({ total: 8, resolved: 8 }), missing: null })).cells[2];
+      const cell = selectRealityCells(story({ debt: debtOf({ payable: 8, watch: 0, resolved: 8 }), missing: null })).cells[2];
       expect(cell.tone).toBe("RESOLVED");
       expect(cell.detail).toBe("Ledger paid in full.");
     });

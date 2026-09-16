@@ -10,7 +10,8 @@ import type { EvidenceDebt, RightOfWayReading } from "./decisionPermissionCompil
 
 function debt(missing: number, labels: readonly string[]): EvidenceDebt {
   return {
-    total: missing + 2,
+    payable: missing + 2,
+    watch: 0,
     resolved: 2,
     missing,
     warn: 0,

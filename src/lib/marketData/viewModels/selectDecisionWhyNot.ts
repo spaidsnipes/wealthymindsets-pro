@@ -150,7 +150,7 @@ export function selectDecisionWhyNot(
     for (const label of debt.warnLabels) {
       blockers.push({ kind: "EVIDENCE_WARN", label, detail: "Evidence present but below confirmation." });
     }
-    clearances.push(`${debt.resolved}/${debt.total} evidence nodes paid.`);
+    clearances.push(`${debt.resolved}/${debt.payable} evidence nodes paid.`);
   } else if (oneStory.missing) {
     blockers.push({ kind: "EVIDENCE_DEBT", label: oneStory.missing, detail: "Required evidence is unpaid." });
   }
@@ -192,7 +192,7 @@ export function selectDecisionWhyNot(
     if (!oneStory.contradiction) {
       invalidators.push("A contradiction emerges against the thesis.");
     }
-    if (oneStory.debt && oneStory.debt.total > 0 && oneStory.debt.missingLabels.length === 0 && oneStory.debt.warnLabels.length === 0) {
+    if (oneStory.debt && oneStory.debt.payable > 0 && oneStory.debt.missingLabels.length === 0 && oneStory.debt.warnLabels.length === 0) {
       invalidators.push("A required evidence node degrades to unpaid or below-confirmation.");
     } else if (!oneStory.debt && !oneStory.missing) {
       // Debt not surfaced — invalidator is the same shape but generic.

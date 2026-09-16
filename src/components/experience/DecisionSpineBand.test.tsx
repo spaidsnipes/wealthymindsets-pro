@@ -294,7 +294,7 @@ describe("DecisionSpineBand — NEXT names an act, not the state", () => {
   it("with no expression attached, NEXT names the first unpaid node, not the verdict", () => {
     const html = render({
       oneStory: oneStory({
-        debt: { total: 9, resolved: 0, missing: 9, warn: 0, missingLabels: ["Regime", "Direction"], warnLabels: [] },
+        debt: { payable: 9, watch: 0, resolved: 0, missing: 9, warn: 0, missingLabels: ["Regime", "Direction"], warnLabels: [] },
       }),
     });
     expect(html).toContain('data-testid="spine-next"');

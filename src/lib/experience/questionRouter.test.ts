@@ -33,7 +33,7 @@ function story(
 }
 
 const debt: EvidenceDebt = {
-  total: 3,
+  payable: 3, watch: 0,
   resolved: 1,
   missing: 1,
   warn: 1,

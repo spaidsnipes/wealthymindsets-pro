@@ -37,6 +37,7 @@ import type { DecisionChainNode } from "@/lib/marketData/viewModels/selectDecisi
 import {
   computeEvidenceDebt as computeEvidenceDebtCanonical,
   computeRightOfWay as computeRightOfWayCanonical,
+  hiddenRemainder,
   type EvidenceDebt as CanonicalEvidenceDebt,
 } from "@/lib/marketData/viewModels/decisionPermissionCompiler";
 import {
@@ -412,10 +413,10 @@ export function CommandContextRibbon(props: CommandContextRibbonProps): React.Re
           ? `${debt.missing} MISSING`
           : `${debt.warn} WARN`,
       detail: debt.missing > 0
-        ? `${debt.resolved}/${debt.total} paid · need ${debt.missingLabels.slice(0, 2).map(l => l.toLowerCase()).join(" + ")}${debt.missingLabels.length > 2 ? " +" + (debt.missingLabels.length - 2) : ""}`
+        ? `${debt.resolved}/${debt.payable} paid · need ${debt.missingLabels.slice(0, 2).map(l => l.toLowerCase()).join(" + ")}${hiddenRemainder(debt.missing, Math.min(debt.missingLabels.length, 2))}`
         : debt.warn > 0
-          ? `${debt.resolved}/${debt.total} paid · watch ${debt.warnLabels.slice(0, 2).map(l => l.toLowerCase()).join(" + ")}`
-          : `${debt.total}/${debt.total} paid · authorization complete`,
+          ? `${debt.resolved}/${debt.payable} paid · watch ${debt.warnLabels.slice(0, 2).map(l => l.toLowerCase()).join(" + ")}`
+          : `${debt.payable}/${debt.payable} paid · authorization complete`,
       tone: (debt.missing === 0 && debt.warn === 0
         ? "resolved"
         : debt.warn > 0

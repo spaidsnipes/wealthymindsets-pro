@@ -90,7 +90,7 @@ function oneStory(overrides: Partial<OneStoryVM> = {}): OneStoryVM {
 }
 
 const debt = (missingLabels: string[]): EvidenceDebt => ({
-  total: 8,
+  payable: 8, watch: 0,
   resolved: 8 - missingLabels.length,
   missing: missingLabels.length,
   warn: 0,

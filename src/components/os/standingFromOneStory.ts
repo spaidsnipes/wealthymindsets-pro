@@ -72,10 +72,13 @@ export function standingFromOneStory(oneStory: OneStoryVM | null | undefined): S
   const debt = oneStory.debt;
 
   return {
-    // `debt.total === 0` means the chain produced no dimensions to owe against,
-    // which is an unopened ledger — not a settled one. Only a chain that
-    // actually has dimensions can report how many of them are unpaid.
-    openEvidenceItems: debt && debt.total > 0 ? debt.missing : null,
+    // `debt.payable === 0` means the chain produced no GRADEABLE dimensions to
+    // owe against, which is an unopened ledger — not a settled one. Only a chain
+    // that actually has payable dimensions can report how many are unpaid.
+    //
+    // `payable`, not the chain length: a chain of nothing but WATCH nodes has
+    // graded nothing, and must not read as a paid ledger.
+    openEvidenceItems: debt && debt.payable > 0 ? debt.missing : null,
     rightOfWay: oneStory.decision.value,
     // UNKNOWN is a reading the compiler can legitimately return. It is still
     // not a RESOLVED one, so the chrome must not present it as settled.
